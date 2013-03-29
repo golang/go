@@ -119,20 +119,18 @@ func (b *Buffer) Grow(n int) {
 	b.buf = b.buf[0:m]
 }
 
-// Write appends the contents of p to the buffer.  The return
-// value n is the length of p; err is always nil.
-// If the buffer becomes too large, Write will panic with
-// ErrTooLarge.
+// Write appends the contents of p to the buffer, growing the buffer as
+// needed. The return value n is the length of p; err is always nil. If the
+// buffer becomes too large, Write will panic with ErrTooLarge.
 func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(p))
 	return copy(b.buf[m:], p), nil
 }
 
-// WriteString appends the contents of s to the buffer.  The return
-// value n is the length of s; err is always nil.
-// If the buffer becomes too large, WriteString will panic with
-// ErrTooLarge.
+// WriteString appends the contents of s to the buffer, growing the buffer as
+// needed. The return value n is the length of s; err is always nil. If the
+// buffer becomes too large, WriteString will panic with ErrTooLarge.
 func (b *Buffer) WriteString(s string) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(s))
@@ -145,12 +143,10 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
 // underlying buffer.
 const MinRead = 512
 
-// ReadFrom reads data from r until EOF and appends it to the buffer.
-// The return value n is the number of bytes read.
-// Any error except io.EOF encountered during the read
-// is also returned.
-// If the buffer becomes too large, ReadFrom will panic with
-// ErrTooLarge.
+// ReadFrom reads data from r until EOF and appends it to the buffer, growing
+// the buffer as needed. The return value n is the number of bytes read. Any
+// error except io.EOF encountered during the read is also returned. If the
+// buffer becomes too large, ReadFrom will panic with ErrTooLarge.
 func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	// If buffer is empty, reset to recover space.
@@ -195,10 +191,10 @@ func makeSlice(n int) []byte {
 	return make([]byte, n)
 }
 
-// WriteTo writes data to w until the buffer is drained or an error
-// occurs. The return value n is the number of bytes written; it always
-// fits into an int, but it is int64 to match the io.WriterTo interface.
-// Any error encountered during the write is also returned.
+// WriteTo writes data to w until the buffer is drained or an error occurs.
+// The return value n is the number of bytes written; it always fits into an
+// int, but it is int64 to match the io.WriterTo interface. Any error
+// encountered during the write is also returned.
 func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastRead = opInvalid
 	if b.off < len(b.buf) {
@@ -223,10 +219,9 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// WriteByte appends the byte c to the buffer.
-// The returned error is always nil, but is included
-// to match bufio.Writer's WriteByte.
-// If the buffer becomes too large, WriteByte will panic with
+// WriteByte appends the byte c to the buffer, growing the buffer as needed.
+// The returned error is always nil, but is included to match bufio.Writer's
+// WriteByte. If the buffer becomes too large, WriteByte will panic with
 // ErrTooLarge.
 func (b *Buffer) WriteByte(c byte) error {
 	b.lastRead = opInvalid
@@ -235,12 +230,10 @@ func (b *Buffer) WriteByte(c byte) error {
 	return nil
 }
 
-// WriteRune appends the UTF-8 encoding of Unicode
-// code point r to the buffer, returning its length and
-// an error, which is always nil but is included
-// to match bufio.Writer's WriteRune.
-// If the buffer becomes too large, WriteRune will panic with
-// ErrTooLarge.
+// WriteRune appends the UTF-8 encoding of Unicode code point r to the
+// buffer, returning its length and an error, which is always nil but is
+// included to match bufio.Writer's WriteRune. The buffer is grown as needed;
+// if it becomes too large, WriteRune will panic with ErrTooLarge.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if r < utf8.RuneSelf {
 		b.WriteByte(byte(r))
