@@ -133,11 +133,16 @@ main(int argc, char *argv[])
 	if(HEADTYPE == -1)
 		HEADTYPE = headtype(goos);
 
+	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+	// Go was built; see ../../make.bash.
+	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
+		linkmode = LinkInternal;
+
 	switch(HEADTYPE) {
 	default:
 		if(linkmode == LinkAuto)
 			linkmode = LinkInternal;
-		if(linkmode == LinkExternal)
+		if(linkmode == LinkExternal && strcmp(getgoextlinkenabled(), "1") != 0)
 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
 		break;
 	case Hdarwin:

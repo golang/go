@@ -30,6 +30,11 @@
 # to include all cgo related files, .c and .go file with "cgo"
 # build directive, in the build. Set it to 0 to ignore them.
 #
+# GO_EXTLINK_ENABLED: Set to 1 to invoke the host linker when building
+# packages that use cgo.  Set to 0 to do all linking internally.  This
+# controls the default behavior of the linker's -linkmode option.  The
+# default value depends on the system.
+#
 # CC: Command line to run to get at host C compiler.
 # Default is "gcc". Also supported: "clang".
 

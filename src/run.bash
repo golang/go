@@ -83,9 +83,17 @@ set -e
 go test -ldflags '-linkmode=auto'
 go test -ldflags '-linkmode=internal'
 case "$GOHOSTOS-$GOARCH" in
-darwin-386 | darwin-amd64 | openbsd-386 | openbsd-amd64)
+openbsd-386 | openbsd-amd64)
 	# test linkmode=external, but __thread not supported, so skip testtls.
 	go test -ldflags '-linkmode=external'
+	;;
+darwin-386 | darwin-amd64)
+	# linkmode=external fails on OS X 10.6 and earlier == Darwin
+	# 10.8 and earlier.
+	case $(uname -r) in
+	[0-9].* | 10.*) ;;
+	*) go test -ldflags '-linkmode=external' ;;
+	esac
 	;;
 freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64)
 	go test -ldflags '-linkmode=external'

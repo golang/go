@@ -698,6 +698,19 @@ main(int argc, char **argv)
 	if(strcmp(gohostarch, "arm") == 0)
 		maxnbg = 1;
 
+	// The OS X 10.6 linker does not support external
+	// linking mode; see
+	// https://code.google.com/p/go/issues/detail?id=5130 .
+	// The mapping from the uname release field to the OS X
+	// version number is complicated, but basically 10 or under is
+	// OS X 10.6 or earlier.
+	if(strcmp(gohostos, "darwin") == 0) {
+		if(uname(&u) < 0)
+			fatal("uname: %s", strerror(errno));
+		if(u.release[1] == '.' || hasprefix(u.release, "10"))
+			goextlinkenabled = "0";
+	}
+
 	init();
 	xmain(argc, argv);
 	bfree(&b);

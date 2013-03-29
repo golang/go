@@ -136,6 +136,11 @@ main(int argc, char *argv[])
 	if(argc != 1)
 		usage();
 
+	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+	// Go was built; see ../../make.bash.
+	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
+		linkmode = LinkInternal;
+
 	if(linkmode == LinkExternal) {
 		diag("only -linkmode=internal is supported");
 		errorexit();
