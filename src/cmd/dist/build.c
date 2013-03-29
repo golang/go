@@ -20,6 +20,7 @@ char *goarm;
 char *go386;
 char *goroot = GOROOT_FINAL;
 char *goroot_final = GOROOT_FINAL;
+char *goextlinkenabled = "";
 char *workdir;
 char *tooldir;
 char *gochar;
@@ -138,6 +139,13 @@ init(void)
 		fatal("unknown $GOARCH %s", goarch);
 	bprintf(&b, "%c", gochars[i]);
 	gochar = btake(&b);
+
+	xgetenv(&b, "GO_EXTLINK_ENABLED");
+	if(b.len > 0) {
+		goextlinkenabled = btake(&b);
+		if(!streq(goextlinkenabled, "0") && !streq(goextlinkenabled, "1"))
+			fatal("unknown $GO_EXTLINK_ENABLED %s", goextlinkenabled);
+	}
 
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
@@ -922,6 +930,8 @@ install(char *dir)
 				vadd(&compile, bprintf(&b, "GOARM=\"%s\"", goarm));
 				vadd(&compile, "-D");
 				vadd(&compile, bprintf(&b, "GO386=\"%s\"", go386));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GO_EXTLINK_ENABLED=\"%s\"", goextlinkenabled));
 			}
 
 			// gc/lex.c records the GOEXPERIMENT setting used during the build.

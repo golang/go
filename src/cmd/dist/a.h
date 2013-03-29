@@ -72,6 +72,7 @@ extern char *gohostos;
 extern char *goos;
 extern char *goroot;
 extern char *goroot_final;
+extern char *goextlinkenabled;
 extern char *goversion;
 extern char *workdir;
 extern char *tooldir;
