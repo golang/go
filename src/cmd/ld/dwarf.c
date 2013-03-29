@@ -1130,14 +1130,24 @@ mkinternaltypename(char *base, char *arg1, char *arg2)
 	return n;
 }
 
+// synthesizemaptypes is way too closely married to runtime/hashmap.c
+enum {
+	MaxKeySize = 128,
+	MaxValSize = 128,
+	BucketSize = 8,
+};
 
 static void
 synthesizemaptypes(DWDie *die)
 {
 
-	DWDie *hash, *dwh, *keytype, *valtype;
+	DWDie *hash, *bucket, *dwh, *dwhk, *dwhv, *dwhb, *keytype, *valtype, *fld;
+	int indirect_key, indirect_val;
+	int keysize, valsize;
+	DWAttr *a;
 
-	hash		= defgotype(lookup_or_diag("type.runtime.hmap"));
+	hash		= walktypedef(defgotype(lookup_or_diag("type.runtime.hmap")));
+	bucket		= walktypedef(defgotype(lookup_or_diag("type.runtime.bucket")));
 
 	if (hash == nil)
 		return;
@@ -1146,8 +1156,59 @@ synthesizemaptypes(DWDie *die)
 		if (die->abbrev != DW_ABRV_MAPTYPE)
 			continue;
 
-		keytype = (DWDie*) getattr(die, DW_AT_internal_key_type)->data;
-		valtype = (DWDie*) getattr(die, DW_AT_internal_val_type)->data;
+		keytype = walktypedef((DWDie*) getattr(die, DW_AT_internal_key_type)->data);
+		valtype = walktypedef((DWDie*) getattr(die, DW_AT_internal_val_type)->data);
+
+		// compute size info like hashmap.c does.
+		a = getattr(keytype, DW_AT_byte_size);
+		keysize = a ? a->value : PtrSize;  // We don't store size with Pointers
+		a = getattr(valtype, DW_AT_byte_size);
+		valsize = a ? a->value : PtrSize;
+		indirect_key = 0;
+		indirect_val = 0;
+		if(keysize > MaxKeySize) {
+			keysize = PtrSize;
+			indirect_key = 1;
+		}
+		if(valsize > MaxValSize) {
+			valsize = PtrSize;
+			indirect_val = 1;
+		}
+
+		// Construct type to represent an array of BucketSize keys
+		dwhk = newdie(&dwtypes, DW_ABRV_ARRAYTYPE,
+			      mkinternaltypename("[]key",
+						 getattr(keytype, DW_AT_name)->data, nil));
+		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * keysize, 0);
+		newrefattr(dwhk, DW_AT_type, indirect_key ? defptrto(keytype) : keytype);
+		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size");
+		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
+		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+		
+		// Construct type to represent an array of BucketSize values
+		dwhv = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, 
+			      mkinternaltypename("[]val",
+						 getattr(valtype, DW_AT_name)->data, nil));
+		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * valsize, 0);
+		newrefattr(dwhv, DW_AT_type, indirect_val ? defptrto(valtype) : valtype);
+		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size");
+		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
+		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+
+		// Construct bucket<K,V>
+		dwhb = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+			      mkinternaltypename("bucket",
+						 getattr(keytype, DW_AT_name)->data,
+						 getattr(valtype, DW_AT_name)->data));
+		copychildren(dwhb, bucket);
+		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "keys");
+		newrefattr(fld, DW_AT_type, dwhk);
+		newmemberoffsetattr(fld, BucketSize + PtrSize);
+		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "values");
+		newrefattr(fld, DW_AT_type, dwhv);
+		newmemberoffsetattr(fld, BucketSize + PtrSize + BucketSize * keysize);
+		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + PtrSize + BucketSize * keysize + BucketSize * valsize, 0);
+		substitutetype(dwhb, "overflow", defptrto(dwhb));
 
 		// Construct hash<K,V>
 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1155,9 +1216,12 @@ synthesizemaptypes(DWDie *die)
 				getattr(keytype, DW_AT_name)->data,
 				getattr(valtype, DW_AT_name)->data));
 		copychildren(dwh, hash);
+		substitutetype(dwh, "buckets", defptrto(dwhb));
+		substitutetype(dwh, "oldbuckets", defptrto(dwhb));
 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
 			getattr(hash, DW_AT_byte_size)->value, nil);
 
+		// make map type a pointer to hash<K,V>
 		newrefattr(die, DW_AT_type, defptrto(dwh));
 	}
 }
