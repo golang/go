@@ -27,7 +27,11 @@ func interestingGoroutines() (gs []string) {
 			strings.Contains(stack, "created by net.startServer") ||
 			strings.Contains(stack, "created by testing.RunTests") ||
 			strings.Contains(stack, "closeWriteAndWait") ||
-			strings.Contains(stack, "testing.Main(") {
+			strings.Contains(stack, "testing.Main(") ||
+			// These only show up with GOTRACEBACK=2; Issue 5005 (comment 28)
+			strings.Contains(stack, "runtime.goexit") ||
+			strings.Contains(stack, "created by runtime.gc") ||
+			strings.Contains(stack, "runtime.MHeap_Scavenger") {
 			continue
 		}
 		gs = append(gs, stack)
