@@ -84,26 +84,35 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		stab = self.val['st']
-		i = 0
-		for v in self.traverse_hash(stab):
-			yield ("[%d]" % i, v['key'])
-			yield ("[%d]" % (i + 1), v['val'])
-			i += 2
-
-	def traverse_hash(self, stab):
-		ptr = stab['entry'].address
-		last = stab['last']
-		while ptr <= last:
-			v = ptr.dereference()
-			ptr = ptr + 1
-			if v['hash'] == 0: continue
-			if v['hash'] & 63 == 63:   # subtable
-				for v in self.traverse_hash(v['key'].cast(self.val['st'].type)):
-					yield v
-			else:
-				yield v
-
+		B = self.val['b']
+		buckets = self.val['buckets']
+		oldbuckets = self.val['oldbuckets']
+		flags = self.val['flags']
+		inttype = self.val['hash0'].type
+		cnt = 0
+		for bucket in xrange(2 ** B):
+			bp = buckets + bucket
+			if oldbuckets:
+				oldbucket = bucket & (2 ** (B - 1) - 1)
+				oldbp = oldbuckets + oldbucket
+				oldb = oldbp.dereference()
+				if (oldb['overflow'].cast(inttype) & 1) == 0: # old bucket not evacuated yet
+					if bucket >= 2 ** (B - 1): continue   # already did old bucket
+					bp = oldbp
+			while bp:
+				b = bp.dereference()
+				for i in xrange(8):
+					if b['tophash'][i] != 0:
+						k = b['keys'][i]
+						v = b['values'][i]
+						if flags & 1:
+							k = k.dereference()
+						if flags & 2:
+							v = v.dereference()
+						yield '%d' % cnt, k
+						yield '%d' % (cnt + 1), v
+						cnt += 2
+				bp = b['overflow']
 
 class ChanTypePrinter:
 	"""Pretty print chan[T] types.

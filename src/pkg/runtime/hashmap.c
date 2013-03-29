@@ -222,7 +222,7 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 		keysize = sizeof(byte*);
 	}
 	valuesize = t->elem->size;
-	if(valuesize >= MAXVALUESIZE) {
+	if(valuesize > MAXVALUESIZE) {
 		flags |= IndirectValue;
 		valuesize = sizeof(byte*);
 	}
