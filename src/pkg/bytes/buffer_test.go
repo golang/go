@@ -490,8 +490,10 @@ func TestBufferGrowth(t *testing.T) {
 		}
 	}
 	cap1 := b.Cap()
-	if cap1 > cap0 {
-		t.Errorf("buffer cap = %d; too big", cap1)
+	// (*Buffer).grow allows for 2x capacity slop before sliding,
+	// so set our error threshold at 3x.
+	if cap1 > cap0*3 {
+		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
 	}
 }
 
