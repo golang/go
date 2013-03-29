@@ -16,6 +16,7 @@ func ExampleListener() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer l.Close()
 	for {
 		// Wait for a connection.
 		conn, err := l.Accept()
