@@ -87,6 +87,11 @@ func (b *Buffer) grow(n int) int {
 		var buf []byte
 		if b.buf == nil && n <= len(b.bootstrap) {
 			buf = b.bootstrap[0:]
+		} else if m+n <= cap(b.buf) {
+			// We can slide things down instead of
+			// allocating a new slice.
+			copy(b.buf[:], b.buf[b.off:])
+			buf = b.buf[:m]
 		} else {
 			// not enough space anywhere
 			buf = makeSlice(2*cap(b.buf) + n)
