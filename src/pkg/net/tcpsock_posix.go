@@ -272,10 +272,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 // Closing l does not affect f, and closing f does not affect l.
 func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
 
-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
-// Net must be "tcp", "tcp4", or "tcp6".
-// If laddr has a port of 0, it means to listen on some available port.
-// The caller can use l.Addr() to retrieve the chosen address.
+// ListenTCP announces on the TCP address laddr and returns a TCP
+// listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+// port of 0, ListenTCP will choose an available port.  The caller can
+// use the Addr method of TCPListener to retrieve the chosen address.
 func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
