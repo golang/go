@@ -509,3 +509,19 @@ func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 		}
 	}
 }
+
+// Check that we don't compact too often. From Issue 5154.
+func BenchmarkBufferFullSmallReads(b *testing.B) {
+	buf := make([]byte, 1024)
+	for i := 0; i < b.N; i++ {
+		var b Buffer
+		b.Write(buf)
+		for b.Len()+20 < b.Cap() {
+			b.Write(buf[:10])
+		}
+		for i := 0; i < 5<<10; i++ {
+			b.Read(buf[:1])
+			b.Write(buf[:1])
+		}
+	}
+}
