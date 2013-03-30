@@ -13,7 +13,7 @@ import (
 
 func TestGcSys(t *testing.T) {
 	if os.Getenv("GOGC") == "off" {
-		t.Fatalf("GOGC=off in environment; test cannot pass")
+		t.Skip("skipping test; GOGC=off in environment")
 	}
 	data := struct{ Short bool }{testing.Short()}
 	got := executeTest(t, testGCSysSource, &data)
