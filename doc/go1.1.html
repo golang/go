@@ -828,7 +828,7 @@ The <code>ServeMux</code> type now has a
 <code>Handler</code> without executing it.
 The <code>Transport</code> can now cancel an in-flight request with
 <a href="/pkg/net/http/#Transport.CancelRequest"><code>CancelRequest</code></a>.
-Finally, the Transport is now more aggresive at closing TCP connections when
+Finally, the Transport is now more aggressive at closing TCP connections when
 a <a href="/pkg/net/http/#Response"><code>Response.Body</code></a> is closed before
 being fully consumed.
 </li>
@@ -917,8 +917,11 @@ The <a href="/pkg/syscall/"><code>syscall</code></a> package has received many u
 
 <li>
 The <a href="/pkg/testing/"><code>testing</code></a> package now automates the generation of allocation
-statistics in benchmarks using the new
-<a href="/pkg/testing/#AllocsPerRun"><code>AllocsPerRun</code></a> function and the
+statistics in tests and benchmarks using the new
+<a href="/pkg/testing/#AllocsPerRun"><code>AllocsPerRun</code></a> function. And the
+<a href="/pkg/testing/#B.ReportAllocs"><code>ReportAllocs</code></a>
+method on <a href="/pkg/testing/#B"><code>testing.B</code></a> will enable printing of
+memory allocation statistics for the calling benchmark. It also introduces the
 <a href="/pkg/testing/#BenchmarkResult.AllocsPerOp"><code>AllocsPerOp</code></a> method of
 <a href="/pkg/testing/#BenchmarkResult"><code>BenchmarkResult</code></a>.
 There is also a new
