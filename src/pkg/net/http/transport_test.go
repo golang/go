@@ -1404,23 +1404,6 @@ func TestTransportSocketLateBinding(t *testing.T) {
 func TestTransportReading100Continue(t *testing.T) {
 	defer afterTest(t)
 
-	var writers struct {
-		sync.Mutex
-		list []*io.PipeWriter
-	}
-	registerPipe := func(pw *io.PipeWriter) {
-		writers.Lock()
-		defer writers.Unlock()
-		writers.list = append(writers.list, pw)
-	}
-	defer func() {
-		writers.Lock()
-		defer writers.Unlock()
-		for _, pw := range writers.list {
-			pw.Close()
-		}
-	}()
-
 	const numReqs = 5
 	reqBody := func(n int) string { return fmt.Sprintf("request body %d", n) }
 	reqID := func(n int) string { return fmt.Sprintf("REQ-ID-%d", n) }
@@ -1463,13 +1446,13 @@ Content-Length: %d
 
 	tr := &Transport{
 		Dial: func(n, addr string) (net.Conn, error) {
-			pr, pw := io.Pipe()
-			registerPipe(pw)
+			sr, sw := io.Pipe() // server read/write
+			cr, cw := io.Pipe() // client read/write
 			conn := &rwTestConn{
-				Reader: pr,
-				Writer: pw,
+				Reader: cr,
+				Writer: sw,
 			}
-			go send100Response(pw, pr)
+			go send100Response(cw, sr)
 			return conn, nil
 		},
 		DisableKeepAlives: false,
