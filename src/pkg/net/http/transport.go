@@ -686,6 +686,14 @@ func (pc *persistConn) readLoop() {
 		var resp *Response
 		if err == nil {
 			resp, err = ReadResponse(pc.br, rc.req)
+			if err == nil && resp.StatusCode == 100 {
+				// Skip any 100-continue for now.
+				// TODO(bradfitz): if rc.req had "Expect: 100-continue",
+				// actually block the request body write and signal the
+				// writeLoop now to begin sending it. (Issue 2184) For now we
+				// eat it, since we're never expecting one.
+				resp, err = ReadResponse(pc.br, rc.req)
+			}
 		}
 		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0
 
