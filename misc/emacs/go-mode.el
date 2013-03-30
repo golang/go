@@ -565,8 +565,8 @@ buffer."
     (insert "gofmt errors:\n")
     (while (search-forward-regexp (concat "^\\(" (regexp-quote tmpfile) "\\):") nil t)
       (replace-match (file-name-nondirectory filename) t t nil 1))
-    (display-buffer errbuf)
-    (compilation-mode)))
+    (compilation-mode)
+    (display-buffer errbuf)))
 
 ;;;###autoload
 (defun gofmt-before-save ()
