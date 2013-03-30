@@ -47,8 +47,9 @@ func init() {
 		"dvyukov":  "dvyukov@google.com",
 		"gustavo":  "gustavo@niemeyer.net",
 		"jsing":    "jsing@google.com",
-		"mikioh":   "mikioh.mikioh@gmail.com",
+		"mikio":    "mikioh.mikioh@gmail.com",
 		"minux":    "minux.ma@gmail.com",
+		"remy":     "remyoudompheng@gmail.com",
 		"rminnich": "rminnich@gmail.com",
 	}
 	for p, e := range others {
