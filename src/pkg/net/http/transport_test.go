@@ -7,6 +7,7 @@
 package http_test
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/rand"
@@ -1397,6 +1398,99 @@ func TestTransportSocketLateBinding(t *testing.T) {
 	}
 	barRes.Body.Close()
 	dialGate <- true
+}
+
+// Issue 2184
+func TestTransportReading100Continue(t *testing.T) {
+	defer afterTest(t)
+
+	var writers struct {
+		sync.Mutex
+		list []*io.PipeWriter
+	}
+	registerPipe := func(pw *io.PipeWriter) {
+		writers.Lock()
+		defer writers.Unlock()
+		writers.list = append(writers.list, pw)
+	}
+	defer func() {
+		writers.Lock()
+		defer writers.Unlock()
+		for _, pw := range writers.list {
+			pw.Close()
+		}
+	}()
+
+	const numReqs = 5
+	reqBody := func(n int) string { return fmt.Sprintf("request body %d", n) }
+	reqID := func(n int) string { return fmt.Sprintf("REQ-ID-%d", n) }
+
+	send100Response := func(w *io.PipeWriter, r *io.PipeReader) {
+		defer w.Close()
+		defer r.Close()
+		br := bufio.NewReader(r)
+		n := 0
+		for {
+			n++
+			req, err := ReadRequest(br)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			slurp, err := ioutil.ReadAll(req.Body)
+			if err != nil || string(slurp) != reqBody(n) {
+				t.Errorf("Server got %q, %v; want 'body'", slurp, err)
+				return
+			}
+			id := req.Header.Get("Request-Id")
+			body := fmt.Sprintf("Response number %d", n)
+			v := []byte(strings.Replace(fmt.Sprintf(`HTTP/1.1 100 Continue
+Date: Thu, 28 Feb 2013 17:55:41 GMT
+
+HTTP/1.1 200 OK
+Content-Type: text/html
+Echo-Request-Id: %s
+Content-Length: %d
+
+%s`, id, len(body), body), "\n", "\r\n", -1))
+			w.Write(v)
+			if id == reqID(numReqs) {
+				return
+			}
+		}
+
+	}
+
+	tr := &Transport{
+		Dial: func(n, addr string) (net.Conn, error) {
+			pr, pw := io.Pipe()
+			registerPipe(pw)
+			conn := &rwTestConn{
+				Reader: pr,
+				Writer: pw,
+			}
+			go send100Response(pw, pr)
+			return conn, nil
+		},
+		DisableKeepAlives: false,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	for i := 1; i <= numReqs; i++ {
+		req, _ := NewRequest("POST", "http://dummy.tld/", strings.NewReader(reqBody(i)))
+		req.Header.Set("Request-Id", reqID(i))
+		res, err := c.Do(req)
+		if err != nil {
+			t.Fatalf("Do (i=%d): %v", i, err)
+		}
+		if res.StatusCode != 200 {
+			t.Fatalf("Response Statuscode=%d; want 200 (i=%d): %v", res.StatusCode, i, err)
+		}
+		_, err = ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatalf("Slurp error (i=%d): %v", i, err)
+		}
+	}
 }
 
 type proxyFromEnvTest struct {
