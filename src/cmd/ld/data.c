@@ -650,7 +650,7 @@ datblk(int32 addr, int32 size)
 					break;
 				}
 				Bprint(&bso, "\treloc %.8ux/%d %s %s+%#llx [%#llx]\n",
-					(uint)(sym->value+r->off), r->siz, typ, rsname, r->add, r->sym->value+r->add);
+					(uint)(sym->value+r->off), r->siz, typ, rsname, (vlong)r->add, (vlong)(r->sym->value+r->add));
 			}
 		}				
 	}
@@ -1227,7 +1227,6 @@ dodata(void)
 
 	/* we finished segdata, begin segtext */
 	s = datap;
-	datsize = 0;
 
 	/* read-only data */
 	sect = addsection(&segtext, ".rodata", 04);
