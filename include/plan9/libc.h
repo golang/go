@@ -18,6 +18,7 @@ char*	getgoroot(void);
 char*	getgoversion(void);
 char*	getgoarm(void);
 char*	getgo386(void);
+char*	getgoextlinkenabled(void);
 
 void	flagcount(char*, char*, int*);
 void	flagint32(char*, char*, int32*);
