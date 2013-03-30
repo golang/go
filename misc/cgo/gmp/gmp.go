@@ -33,7 +33,7 @@ field; unrepresentable fields are replaced with opaque byte arrays.  A
 C union translates into a struct containing the first union member and
 perhaps additional padding.  C arrays become Go arrays.  C pointers
 become Go pointers.  C function pointers become Go's uintptr.
-C void pointer's become Go's unsafe.Pointer.
+C void pointers become Go's unsafe.Pointer.
 
 For example, mpz_t is defined in <gmp.h> as:
 
