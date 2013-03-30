@@ -290,6 +290,7 @@ Non-Interned: test
 `, "\n", "\r\n", -1)
 
 func BenchmarkReadMIMEHeader(b *testing.B) {
+	b.ReportAllocs()
 	var buf bytes.Buffer
 	br := bufio.NewReader(&buf)
 	r := NewReader(br)
@@ -319,6 +320,7 @@ func BenchmarkReadMIMEHeader(b *testing.B) {
 }
 
 func BenchmarkUncommon(b *testing.B) {
+	b.ReportAllocs()
 	var buf bytes.Buffer
 	br := bufio.NewReader(&buf)
 	r := NewReader(br)
