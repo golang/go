@@ -472,6 +472,7 @@ elimshortmov(Reg *r)
 {
 	Prog *p;
 
+	USED(r);
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		if(regtyp(&p->to)) {
@@ -555,7 +556,7 @@ elimshortmov(Reg *r)
 	}
 }
 
-int
+static int
 regconsttyp(Adr *a)
 {
 	if(regtyp(a))
@@ -758,7 +759,7 @@ subprop(Reg *r0)
 		}
 	}
 	if(debug['P'] && debug['v'])
-		print("\tran off end; return 0\n", p);
+		print("\tran off end; return 0\n");
 	return 0;
 
 gotit:

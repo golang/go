@@ -182,7 +182,6 @@ regopt(Prog *firstp)
 		return;
 	}
 
-	r1 = R;
 	firstr = R;
 	lastr = R;
 
@@ -783,7 +782,7 @@ brk:
 				Var *v;
 
 				v = var + rgp->varno;
-				print("registerize %N+%d (bit=%2d et=%2E) in %R\n",
+				print("registerize %N+%lld (bit=%2d et=%2E) in %R\n",
 						v->node, v->offset, rgp->varno, v->etype, rgp->regno);
 			}
 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
@@ -1061,7 +1060,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = node;
 
 	if(debug['R'])
-		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+		print("bit=%2d et=%2E w=%d+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 
 	ostats.nvar++;
 
