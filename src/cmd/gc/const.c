@@ -1136,7 +1136,6 @@ defaultlit(Node **np, Type *t)
 
 	lno = setlineno(n);
 	ctype = idealkind(n);
-	t1 = T;
 	switch(ctype) {
 	default:
 		if(t != T) {

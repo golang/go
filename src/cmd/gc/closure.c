@@ -76,7 +76,7 @@ closurebody(NodeList *body)
 	return func;
 }
 
-static Node* makeclosure(Node *func, int nowrap);
+static Node* makeclosure(Node *func);
 
 void
 typecheckclosure(Node *func, int top)
@@ -125,11 +125,11 @@ typecheckclosure(Node *func, int top)
 	}
 
 	// Create top-level function 
-	xtop = list(xtop, makeclosure(func, func->cvars==nil || (top&Ecall)));
+	xtop = list(xtop, makeclosure(func));
 }
 
 static Node*
-makeclosure(Node *func, int nowrap)
+makeclosure(Node *func)
 {
 	Node *xtype, *v, *addr, *xfunc, *cv;
 	NodeList *l, *body;
