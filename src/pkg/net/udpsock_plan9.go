@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// UDP sockets for Plan 9
-
 package net
 
 import (
@@ -13,15 +11,13 @@ import (
 	"time"
 )
 
-// UDPConn is the implementation of the Conn and PacketConn
-// interfaces for UDP network connections.
+// UDPConn is the implementation of the Conn and PacketConn interfaces
+// for UDP network connections.
 type UDPConn struct {
 	conn
 }
 
-func newUDPConn(fd *netFD) *UDPConn {
-	return &UDPConn{conn{fd}}
-}
+func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 
 // ReadFromUDP reads a UDP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
