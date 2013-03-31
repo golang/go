@@ -16,8 +16,6 @@
 #ifndef _UTFH_
 #define _UTFH_ 1
 
-#include <stdint.h>
-
 typedef unsigned int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
 
 enum
