@@ -77,10 +77,15 @@ type rwTestConn struct {
 	io.Reader
 	io.Writer
 	noopConn
-	closec chan bool // if non-nil, send value to it on close
+
+	closeFunc func() error // called if non-nil
+	closec    chan bool    // else, if non-nil, send value to it on close
 }
 
 func (c *rwTestConn) Close() error {
+	if c.closeFunc != nil {
+		return c.closeFunc()
+	}
 	select {
 	case c.closec <- true:
 	default:

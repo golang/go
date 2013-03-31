@@ -715,7 +715,10 @@ func (pc *persistConn) readLoop() {
 			resp.Body = &bodyEOFSignal{body: resp.Body}
 		}
 
-		if err != nil || resp.Close || rc.req.Close {
+		if err != nil || resp.Close || rc.req.Close || resp.StatusCode <= 199 {
+			// Don't do keep-alive on error if either party requested a close
+			// or we get an unexpected informational (1xx) response.
+			// StatusCode 100 is already handled above.
 			alive = false
 		}
 
