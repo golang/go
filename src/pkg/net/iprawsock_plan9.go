@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Raw IP sockets for Plan 9
-
 package net
 
 import (
@@ -76,7 +74,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 }
 
 // ListenIP listens for incoming IP packets addressed to the local
-// address laddr.  The returned connection c's ReadFrom and WriteTo
+// address laddr.  The returned connection's ReadFrom and WriteTo
 // methods can be used to receive and send IP packets with per-packet
 // addressing.
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {

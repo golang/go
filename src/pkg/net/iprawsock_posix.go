@@ -4,8 +4,6 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
-// Raw IP sockets for POSIX
-
 package net
 
 import (
@@ -51,8 +49,8 @@ func (a *IPAddr) toAddr() sockaddr {
 	return a
 }
 
-// IPConn is the implementation of the Conn and PacketConn
-// interfaces for IP network connections.
+// IPConn is the implementation of the Conn and PacketConn interfaces
+// for IP network connections.
 type IPConn struct {
 	conn
 }
@@ -116,12 +114,13 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 	return
 }
 
-// WriteToIP writes an IP packet to addr via c, copying the payload from b.
+// WriteToIP writes an IP packet to addr via c, copying the payload
+// from b.
 //
-// WriteToIP can be made to time out and return
-// an error with Timeout() == true after a fixed time limit;
-// see SetDeadline and SetWriteDeadline.
-// On packet-oriented connections, write timeouts are rare.
+// WriteToIP can be made to time out and return an error with
+// Timeout() == true after a fixed time limit; see SetDeadline and
+// SetWriteDeadline.  On packet-oriented connections, write timeouts
+// are rare.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -159,8 +158,9 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 	return c.fd.WriteMsg(b, oob, sa)
 }
 
-// DialIP connects to the remote address raddr on the network protocol netProto,
-// which must be "ip", "ip4", or "ip6" followed by a colon and a protocol number or name.
+// DialIP connects to the remote address raddr on the network protocol
+// netProto, which must be "ip", "ip4", or "ip6" followed by a colon
+// and a protocol number or name.
 func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 	return dialIP(netProto, laddr, raddr, noDeadline)
 }
@@ -185,10 +185,10 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 	return newIPConn(fd), nil
 }
 
-// ListenIP listens for incoming IP packets addressed to the
-// local address laddr.  The returned connection c's ReadFrom
-// and WriteTo methods can be used to receive and send IP
-// packets with per-packet addressing.
+// ListenIP listens for incoming IP packets addressed to the local
+// address laddr.  The returned connection's ReadFrom and WriteTo
+// methods can be used to receive and send IP packets with per-packet
+// addressing.
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	net, proto, err := parseNetwork(netProto)
 	if err != nil {
