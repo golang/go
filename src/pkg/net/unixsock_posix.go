@@ -4,8 +4,6 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
-// Unix domain sockets
-
 package net
 
 import (
@@ -344,9 +342,9 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
 func (l *UnixListener) File() (f *os.File, err error) { return l.fd.dup() }
 
 // ListenUnixgram listens for incoming Unix datagram packets addressed
-// to the local address laddr.  The returned connection c's ReadFrom
-// and WriteTo methods can be used to receive and send packets with
-// per-packet addressing.  The network net must be "unixgram".
+// to the local address laddr.  The network net must be "unixgram".
+// The returned connection's ReadFrom and WriteTo methods can be used
+// to receive and send packets with per-packet addressing.
 func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
 	switch net {
 	case "unixgram":
