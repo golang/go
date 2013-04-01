@@ -800,6 +800,7 @@ int	machcap(Node*);
 #pragma	varargck	type	"Q"	int32
 #pragma	varargck	type	"O"	int
 #pragma	varargck	type	"O"	uint
+#pragma	varargck	type	"S"	ushort*
 #pragma	varargck	type	"T"	Type*
 #pragma	varargck	type	"U"	char*
 #pragma	varargck	type	"|"	int
