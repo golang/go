@@ -181,7 +181,7 @@ p == Prefix{"am", "not"}</pre>
 	one index to the left (if you consider zero as the leftmost index).
 	<pre>
 p := Prefix{"I", "am"}
-copy(p, p[:1])
+copy(p, p[1:])
 // p == Prefix{"am", "am"}</pre>
 	We then assign the provided <code>word</code> to the last index
 	of the slice:
