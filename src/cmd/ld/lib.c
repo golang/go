@@ -609,7 +609,7 @@ void
 hostlink(void)
 {
 	char *p, **argv;
-	int i, w, n, argc, len;
+	int c, i, w, n, argc, len;
 	Hostobj *h;
 	Biobuf *f;
 	static char buf[64<<10];
@@ -617,11 +617,22 @@ hostlink(void)
 	if(linkmode != LinkExternal || nerrors > 0)
 		return;
 
-	argv = malloc((10+nhostobj+nldflag)*sizeof argv[0]);
+	c = 0;
+	p = extldflags;
+	while(p != nil) {
+		while(*p == ' ')
+			p++;
+		if(*p == '\0')
+			break;
+		c++;
+		p = strchr(p + 1, ' ');
+	}
+
+	argv = malloc((10+nhostobj+nldflag+c)*sizeof argv[0]);
 	argc = 0;
-	// TODO: Add command-line flag to override gcc path and specify additional leading options.
-	// TODO: Add command-line flag to specify additional trailing options.
-	argv[argc++] = "gcc";
+	if(extld == nil)
+		extld = "gcc";
+	argv[argc++] = extld;
 	switch(thechar){
 	case '8':
 		argv[argc++] = "-m32";
@@ -679,6 +690,17 @@ hostlink(void)
 	argv[argc++] = smprint("%s/go.o", tmpdir);
 	for(i=0; i<nldflag; i++)
 		argv[argc++] = ldflag[i];
+
+	p = extldflags;
+	while(p != nil) {
+		while(*p == ' ')
+			*p++ = '\0';
+		if(*p == '\0')
+			break;
+		argv[argc++] = p;
+		p = strchr(p + 1, ' ');
+	}
+
 	argv[argc] = nil;
 
 	quotefmtinstall();

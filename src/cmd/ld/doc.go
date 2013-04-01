@@ -71,5 +71,22 @@ Options new in this version:
 		NOTE: it only eliminates false positives caused by other function
 		calls, not false positives caused by dead temporaries stored in
 		the current function call.
+	-linkmode argument
+		Set the linkmode.  The argument must be one of
+		internal, external, or auto.  The default is auto.
+		This sets the linking mode as described in
+		../cgo/doc.go.
+	-tmpdir dir
+		Set the location to use for any temporary files.  The
+		default is a newly created directory that is removed
+		after the linker completes.  Temporary files are only
+		used in external linking mode.
+	-extld name
+		Set the name of the external linker to use in external
+		linking mode.  The default is "gcc".
+	-extldflags flags
+		Set space-separated trailing flags to pass to the
+		external linker in external linking mode.  The default
+		is to not pass any additional trailing flags.
 */
 package main
