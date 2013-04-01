@@ -157,6 +157,8 @@ EXTERN	int flag_shared;
 EXTERN	char*	tracksym;
 EXTERN	char*	interpreter;
 EXTERN	char*	tmpdir;
+EXTERN	char*	extld;
+EXTERN	char*	extldflags;
 
 enum
 {
