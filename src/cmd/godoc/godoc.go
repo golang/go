@@ -1517,6 +1517,8 @@ func readIndex(filenames string) error {
 	matches, err := filepath.Glob(filenames)
 	if err != nil {
 		return err
+	} else if matches == nil {
+		return fmt.Errorf("no index files match %q", filenames)
 	}
 	sort.Strings(matches) // make sure files are in the right order
 	files := make([]io.Reader, 0, len(matches))
