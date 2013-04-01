@@ -106,6 +106,8 @@ func clean(p *Package) {
 	if cleaned[p] {
 		return
 	}
+	cleaned[p] = true
+
 	if p.Dir == "" {
 		errorf("can't load package: %v", p.Error)
 		return
