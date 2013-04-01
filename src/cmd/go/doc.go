@@ -763,7 +763,8 @@ control the execution of any test:
 		If a test runs longer than t, panic.
 
 	-v
-	    Verbose output: log all tests as they are run.
+	    Verbose output: log all tests as they are run. Also print all
+	    text from Log and Logf calls even if the test succeeds.
 
 The test binary, called pkg.test where pkg is the name of the
 directory containing the package sources, can be invoked directly
