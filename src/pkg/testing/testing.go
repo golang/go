@@ -246,11 +246,13 @@ func (c *common) log(s string) {
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
-// and records the text in the error log.
+// and records the text in the error log. The text will be printed only if
+// the test fails or the -test.v flag is set.
 func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
 
 // Logf formats its arguments according to the format, analogous to Printf,
-// and records the text in the error log.
+// and records the text in the error log. The text will be printed only if
+// the test fails or the -test.v flag is set.
 func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
 
 // Error is equivalent to Log followed by Fail.
