@@ -337,6 +337,7 @@ func tRunner(t *T, test *InternalTest) {
 		t.duration = time.Now().Sub(t.start)
 		// If the test panicked, print any test output before dying.
 		if err := recover(); err != nil {
+			t.Fail()
 			t.report()
 			panic(err)
 		}
