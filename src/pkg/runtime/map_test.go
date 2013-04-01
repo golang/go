@@ -7,8 +7,10 @@ package runtime_test
 import (
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"sort"
+	"sync"
 	"testing"
 )
 
@@ -228,6 +230,43 @@ func TestIterGrowWithGC(t *testing.T) {
 	}
 	if bitmask != 1<<16-1 {
 		t.Error("missing key", bitmask)
+	}
+}
+
+func TestConcurrentReadsAfterGrowth(t *testing.T) {
+	// TODO(khr): fix and enable this test.
+	t.Skip("Known currently broken; golang.org/issue/5179")
+
+	if os.Getenv("GOMAXPROCS") == "" {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
+	}
+	numLoop := 10
+	numGrowStep := 250
+	numReader := 16
+	if testing.Short() {
+		numLoop, numGrowStep = 2, 500
+	}
+	for i := 0; i < numLoop; i++ {
+		m := make(map[int]int, 0)
+		for gs := 0; gs < numGrowStep; gs++ {
+			m[gs] = gs
+			var wg sync.WaitGroup
+			wg.Add(numReader * 2)
+			for nr := 0; nr < numReader; nr++ {
+				go func() {
+					defer wg.Done()
+					for _ = range m {
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for key := 0; key < gs; key++ {
+						_ = m[key]
+					}
+				}()
+			}
+			wg.Wait()
+		}
 	}
 }
 
