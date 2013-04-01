@@ -2856,11 +2856,19 @@ walkcompare(Node **np, NodeList **init)
 	typecheck(&call, Etop);
 	walkstmt(&call);
 	*init = list(*init, call);
-	
-	if(n->op == OEQ)
-		r = tempbool;
-	else
-		r = nod(ONOT, tempbool, N);
+
+	// tempbool cannot be used directly as multiple comparison
+	// expressions may exist in the same statement. Create another
+	// temporary to hold the value (its address is not taken so it can
+	// be optimized away).
+	r = temp(types[TBOOL]);
+	a = nod(OAS, r, tempbool);
+	typecheck(&a, Etop);
+	walkstmt(&a);
+	*init = list(*init, a);
+
+	if(n->op != OEQ)
+		r = nod(ONOT, r, N);
 	typecheck(&r, Erv);
 	walkexpr(&r, init);
 	*np = r;
