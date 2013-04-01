@@ -80,6 +80,10 @@ TEXT cas64<>(SB),7,$0
 TEXT kernelCAS64<>(SB),7,$0
 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
 	MOVW	addr+0(FP), R2 // ptr
+	// make unaligned atomic access panic
+	AND.S	$7, R2, R1
+	BEQ 	2(PC)
+	MOVW	R1, (R1)
 	MOVW	$4(FP), R0 // oldval
 	MOVW	$12(FP), R1 // newval
 	BL		cas64<>(SB)
@@ -91,6 +95,10 @@ TEXT kernelCAS64<>(SB),7,$0
 TEXT generalCAS64<>(SB),7,$20
 	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
 	MOVW	addr+0(FP), R0
+	// make unaligned atomic access panic
+	AND.S	$7, R0, R1
+	BEQ 	2(PC)
+	MOVW	R1, (R1)
 	MOVW	R0, 4(R13)
 	MOVW	$4(FP), R1 // oldval
 	MOVW	R1, 8(R13)

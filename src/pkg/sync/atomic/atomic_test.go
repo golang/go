@@ -1189,10 +1189,10 @@ func shouldPanic(t *testing.T, name string, f func()) {
 
 func TestUnaligned64(t *testing.T) {
 	// Unaligned 64-bit atomics on 32-bit systems are
-	// a continual source of pain. Test that on 386 they crash
+	// a continual source of pain. Test that on 32-bit systems they crash
 	// instead of failing silently.
-	if runtime.GOARCH != "386" {
-		t.Skip("test only runs on 386")
+	if unsafe.Sizeof(int(0)) != 4 {
+		t.Skip("test only runs on 32-bit systems")
 	}
 
 	x := make([]uint32, 4)
