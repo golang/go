@@ -41,13 +41,12 @@ type netFD struct {
 	pd pollDesc
 }
 
-func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
-	deadline := time.Now().Add(timeout)
+func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
 	ra, err := resolveAddr("dial", net, addr, deadline)
 	if err != nil {
 		return nil, err
 	}
-	return dial(net, addr, noLocalAddr, ra, deadline)
+	return dial(net, addr, localAddr, ra, deadline)
 }
 
 func newFD(fd, family, sotype int, net string) (*netFD, error) {
