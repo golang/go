@@ -60,18 +60,18 @@
 			{{end}}
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
-				<dd><a href="#{{$name_html}}">{{node_html $ .Decl}}</a></dd>
+				<dd><a href="#{{$name_html}}">{{node_html $ .Decl false}}</a></dd>
 			{{end}}
 			{{range .Types}}
 				{{$tname_html := html .Name}}
 				<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
 				{{range .Funcs}}
 					{{$name_html := html .Name}}
-					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html $ .Decl}}</a></dd>
+					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html $ .Decl false}}</a></dd>
 				{{end}}
 				{{range .Methods}}
 					{{$name_html := html .Name}}
-					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html $ .Decl}}</a></dd>
+					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html $ .Decl false}}</a></dd>
 				{{end}}
 			{{end}}
 			{{if $.Notes}}
@@ -109,14 +109,14 @@
 		{{with .Consts}}
 			<h2 id="pkg-constants">Constants</h2>
 			{{range .}}
-				<pre>{{node_html $ .Decl}}</pre>
+				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 		{{with .Vars}}
 			<h2 id="pkg-variables">Variables</h2>
 			{{range .}}
-				<pre>{{node_html $ .Decl}}</pre>
+				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
@@ -124,7 +124,7 @@
 			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
 			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h2>
-			<pre>{{node_html $ .Decl}}</pre>
+			<pre>{{node_html $ .Decl true}}</pre>
 			{{comment_html .Doc}}
 			{{example_html $ .Name}}
 		{{end}}
@@ -132,16 +132,16 @@
 			{{$tname := .Name}}
 			{{$tname_html := html .Name}}
 			<h2 id="{{$tname_html}}">type <a href="{{posLink_url $ .Decl}}">{{$tname_html}}</a></h2>
-			<pre>{{node_html $ .Decl}}</pre>
+			<pre>{{node_html $ .Decl true}}</pre>
 			{{comment_html .Doc}}
 
 			{{range .Consts}}
-				<pre>{{node_html $ .Decl}}</pre>
+				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 
 			{{range .Vars}}
-				<pre>{{node_html $ .Decl}}</pre>
+				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 
@@ -150,7 +150,7 @@
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
-				<pre>{{node_html $ .Decl}}</pre>
+				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 				{{example_html $ .Name}}
 			{{end}}
@@ -158,7 +158,7 @@
 			{{range .Methods}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
-				<pre>{{node_html $ .Decl}}</pre>
+				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
 				{{example_html $ $name}}
@@ -179,7 +179,7 @@
 {{end}}
 
 {{with .PAst}}
-	<pre>{{node_html $ .}}</pre>
+	<pre>{{node_html $ . false}}</pre>
 {{end}}
 
 {{with .Dirs}}
