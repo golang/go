@@ -206,8 +206,6 @@ func cmpstring(s1 String, s2 String) (v int) {
 }
 
 func eqstring(s1 String, s2 String) (v bool) {
-	uintgo i, l;
-
 	if(s1.len != s2.len) {
 		v = false;
 		return;
@@ -216,13 +214,7 @@ func eqstring(s1 String, s2 String) (v bool) {
 		v = true;
 		return;
 	}
-	l = s1.len;
-	for(i=0; i<l; i++)
-		if(s1.str[i] != s2.str[i]) {
-			v = false;
-			return;
-		}
-	v = true;
+	v = runtime·memeq(s1.str, s2.str, s1.len);
 }
 
 int32

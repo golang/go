@@ -89,20 +89,3 @@ success:
 	SUBL $1, DI
 	MOVQ DI, ret+32(FP)
 	RET
-
-TEXT ·Equal(SB),7,$0
-	MOVQ	a_len+8(FP), BX
-	MOVQ	b_len+32(FP), CX
-	MOVL	$0, AX
-	CMPQ	BX, CX
-	JNE	eqret
-	MOVQ	a+0(FP), SI
-	MOVQ	b+24(FP), DI
-	CLD
-	REP; CMPSB
-	MOVL	$1, DX
-	CMOVLEQ	DX, AX
-eqret:
-	MOVB	AX, ret+48(FP)
-	RET
-

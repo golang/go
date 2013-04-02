@@ -562,7 +562,7 @@ static uint8 empty_value[MAXVALUESIZE];
 #define HASH_LOOKUP2 runtime·mapaccess2_faststr
 #define KEYTYPE String
 #define HASHFUNC runtime·algarray[ASTRING].hash
-#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·mcmp((x).str, (y).str, (x).len) == 0))
+#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·memeq((x).str, (y).str, (x).len)))
 #define QUICKEQ(x) ((x).len < 32)
 #include "hashmap_fast.c"
 

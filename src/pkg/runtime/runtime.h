@@ -593,6 +593,8 @@ void	runtime·strequal(bool*, uintptr, void*, void*);
 void	runtime·interequal(bool*, uintptr, void*, void*);
 void	runtime·nilinterequal(bool*, uintptr, void*, void*);
 
+bool	runtime·memeq(void*, void*, uintptr);
+
 void	runtime·memprint(uintptr, void*);
 void	runtime·strprint(uintptr, void*);
 void	runtime·interprint(uintptr, void*);

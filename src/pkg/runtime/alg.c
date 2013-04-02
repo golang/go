@@ -37,25 +37,11 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
 void
 runtime·memequal(bool *eq, uintptr s, void *a, void *b)
 {
-	byte *ba, *bb, *aend;
-
 	if(a == b) {
 		*eq = 1;
 		return;
 	}
-	ba = a;
-	bb = b;
-	aend = ba+s;
-	while(ba != aend) {
-		if(*ba != *bb) {
-			*eq = 0;
-			return;
-		}
-		ba++;
-		bb++;
-	}
-	*eq = 1;
-	return;
+	*eq = runtime·memeq(a, b, s);
 }
 
 void
@@ -323,6 +309,7 @@ void
 runtime·strequal(bool *eq, uintptr s, void *a, void *b)
 {
 	intgo alen;
+	byte *s1, *s2;
 
 	USED(s);
 	alen = ((String*)a)->len;
@@ -330,11 +317,13 @@ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
 		*eq = false;
 		return;
 	}
-	if(((String*)a)->str == ((String*)b)->str) {
+	s1 = ((String*)a)->str;
+	s2 = ((String*)b)->str;
+	if(s1 == s2) {
 		*eq = true;
 		return;
 	}
-	runtime·memequal(eq, alen, ((String*)a)->str, ((String*)b)->str);
+	*eq = runtime·memeq(s1, s2, alen);
 }
 
 void

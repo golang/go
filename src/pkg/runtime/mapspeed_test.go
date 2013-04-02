@@ -118,6 +118,17 @@ func BenchmarkMegOneMap(b *testing.B) {
 	}
 }
 
+func BenchmarkMegEqMap(b *testing.B) {
+	m := make(map[string]bool)
+	key1 := strings.Repeat("X", 1<<20)
+	key2 := strings.Repeat("X", 1<<20) // equal but different instance
+	m[key1] = true
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[key2]
+	}
+}
+
 func BenchmarkMegEmptyMap(b *testing.B) {
 	m := make(map[string]bool)
 	key := strings.Repeat("X", 1<<20)
