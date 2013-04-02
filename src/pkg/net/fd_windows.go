@@ -54,18 +54,17 @@ func canUseConnectEx(net string) bool {
 	return syscall.LoadConnectEx() == nil
 }
 
-func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
 	if !canUseConnectEx(net) {
 		// Use the relatively inefficient goroutine-racing
 		// implementation of DialTimeout.
-		return dialTimeoutRace(net, addr, timeout)
+		return resolveAndDialChannel(net, addr, localAddr, deadline)
 	}
-	deadline := time.Now().Add(timeout)
 	ra, err := resolveAddr("dial", net, addr, deadline)
 	if err != nil {
 		return nil, err
 	}
-	return dial(net, addr, noLocalAddr, ra, deadline)
+	return dial(net, addr, localAddr, ra, deadline)
 }
 
 // Interface for all IO operations.

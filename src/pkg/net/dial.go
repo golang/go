@@ -9,112 +9,48 @@ import (
 	"time"
 )
 
-// A DialOption modifies a DialOpt call.
-type DialOption interface {
-	setDialOpt(*dialOpts)
-}
-
-var noLocalAddr Addr // nil
-
-// dialOpts holds all the dial options, populated by a DialOption's
-// setDialOpt.
+// A Dialer contains options for connecting to an address.
 //
-// All fields may be their zero value.
-type dialOpts struct {
-	deadline        time.Time
-	localAddr       Addr
-	network         string // if empty, "tcp"
-	deferredConnect bool
+// The zero value for each field is equivalent to dialing
+// without that option. Dialing with the zero value of Dialer
+// is therefore equivalent to just calling the Dial function.
+type Dialer struct {
+	// Timeout is the maximum amount of time a dial will wait for
+	// a connect to complete. If Deadline is also set, it may fail
+	// earlier.
+	//
+	// The default is no timeout.
+	//
+	// With or without a timeout, the operating system may impose
+	// its own earlier timeout. For instance, TCP timeouts are
+	// often around 3 minutes.
+	Timeout time.Duration
+
+	// Deadline is the absolute point in time after which dials
+	// will fail. If Timeout is set, it may fail earlier.
+	// Zero means no deadline, or dependent on the operating system
+	// as with the Timeout option.
+	Deadline time.Time
+
+	// LocalAddr is the local address to use when dialing an
+	// address. The address must be of a compatible type for the
+	// network being dialed.
+	// If nil, a local address is automatically chosen.
+	LocalAddr Addr
 }
 
-func (o *dialOpts) net() string {
-	if o.network == "" {
-		return "tcp"
+// Return either now+Timeout or Deadline, whichever comes first.
+// Or zero, if neither is set.
+func (d *Dialer) deadline() time.Time {
+	if d.Timeout == 0 {
+		return d.Deadline
 	}
-	return o.network
-}
-
-var (
-	// TCP is a dial option to dial with TCP (over IPv4 or IPv6).
-	TCP = Network("tcp")
-
-	// UDP is a dial option to dial with UDP (over IPv4 or IPv6).
-	UDP = Network("udp")
-)
-
-// Network returns a DialOption to dial using the given network.
-//
-// Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
-// "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
-// (IPv4-only), "ip6" (IPv6-only), "unix", "unixgram" and
-// "unixpacket".
-//
-// For IP networks, net must be "ip", "ip4" or "ip6" followed
-// by a colon and a protocol number or name, such as
-// "ipv4:1" or "ip6:ospf".
-func Network(net string) DialOption {
-	return dialNetwork(net)
-}
-
-type dialNetwork string
-
-func (s dialNetwork) setDialOpt(o *dialOpts) {
-	o.network = string(s)
-}
-
-// Deadline returns a DialOption to fail a dial that doesn't
-// complete before t.
-func Deadline(t time.Time) DialOption {
-	return dialDeadline(t)
-}
-
-type dialDeadline time.Time
-
-func (t dialDeadline) setDialOpt(o *dialOpts) {
-	o.deadline = time.Time(t)
-}
-
-// Timeout returns a DialOption to fail a dial that doesn't
-// complete within the provided duration.
-func Timeout(d time.Duration) DialOption {
-	return dialTimeoutOpt(d)
-}
-
-type dialTimeoutOpt time.Duration
-
-func (d dialTimeoutOpt) setDialOpt(o *dialOpts) {
-	o.deadline = time.Now().Add(time.Duration(d))
-}
-
-type tcpFastOpen struct{}
-
-func (tcpFastOpen) setDialOpt(o *dialOpts) {
-	o.deferredConnect = true
-}
-
-// TODO(bradfitz): implement this (golang.org/issue/4842) and unexport this.
-//
-// TCPFastTimeout returns an option to use TCP Fast Open (TFO) when
-// doing this dial. It is only valid for use with TCP connections.
-// Data sent over a TFO connection may be processed by the peer
-// multiple times, so should be used with caution.
-func todo_TCPFastTimeout() DialOption {
-	return tcpFastOpen{}
-}
-
-type localAddrOption struct {
-	la Addr
-}
-
-func (a localAddrOption) setDialOpt(o *dialOpts) {
-	o.localAddr = a.la
-}
-
-// LocalAddress returns a dial option to perform a dial with the
-// provided local address. The address must be of a compatible type
-// for the network being dialed.
-func LocalAddress(addr Addr) DialOption {
-	return localAddrOption{addr}
+	timeoutDeadline := time.Now().Add(d.Timeout)
+	if d.Deadline.IsZero() || timeoutDeadline.Before(d.Deadline) {
+		return timeoutDeadline
+	} else {
+		return d.Deadline
+	}
 }
 
 func parseNetwork(net string) (afnet string, proto int, err error) {
@@ -161,7 +97,7 @@ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
 	return resolveInternetAddr(afnet, addr, deadline)
 }
 
-// Dial connects to the address addr on the network net.
+// Dial connects to the address on the named network.
 //
 // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
 // "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
@@ -181,32 +117,33 @@ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
 //	Dial("tcp", "[2001:db8::1]:http")
 //	Dial("tcp", "[fe80::1%lo0]:80")
 //
-// For IP networks, the net must be "ip", "ip4" or "ip6" followed by a
-// colon and a protocol number or name and the addr must be a literal
-// IP address.
+// For IP networks, the network must be "ip", "ip4" or "ip6" followed
+// by a colon and a protocol number or name and the addr must be a
+// literal IP address.
 //
 // Examples:
 //	Dial("ip4:1", "127.0.0.1")
 //	Dial("ip6:ospf", "::1")
 //
-// For Unix networks, the addr must be a file system path.
-func Dial(net, addr string) (Conn, error) {
-	return DialOpt(addr, dialNetwork(net))
+// For Unix networks, the address must be a file system path.
+func Dial(network, address string) (Conn, error) {
+	var d Dialer
+	return d.Dial(network, address)
 }
 
-// DialOpt dials addr using the provided options.
-// If no options are provided, DialOpt(addr) is equivalent
-// to Dial("tcp", addr). See Dial for the syntax of addr.
-func DialOpt(addr string, opts ...DialOption) (Conn, error) {
-	var o dialOpts
-	for _, opt := range opts {
-		opt.setDialOpt(&o)
-	}
-	ra, err := resolveAddr("dial", o.net(), addr, o.deadline)
-	if err != nil {
-		return nil, err
-	}
-	return dial(o.net(), addr, o.localAddr, ra, o.deadline)
+// DialTimeout acts like Dial but takes a timeout.
+// The timeout includes name resolution, if required.
+func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
+	d := Dialer{Timeout: timeout}
+	return d.Dial(network, address)
+}
+
+// Dial connects to the address on the named network.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func (d *Dialer) Dial(network, address string) (Conn, error) {
+	return resolveAndDial(network, address, d.LocalAddr, d.deadline())
 }
 
 func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
@@ -233,58 +170,6 @@ func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error)
 		return nil, err
 	}
 	return
-}
-
-// DialTimeout acts like Dial but takes a timeout.
-// The timeout includes name resolution, if required.
-func DialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
-	return dialTimeout(net, addr, timeout)
-}
-
-// dialTimeoutRace is the old implementation of DialTimeout, still used
-// on operating systems where the deadline hasn't been pushed down
-// into the pollserver.
-// TODO: fix this on plan9.
-func dialTimeoutRace(net, addr string, timeout time.Duration) (Conn, error) {
-	t := time.NewTimer(timeout)
-	defer t.Stop()
-	type pair struct {
-		Conn
-		error
-	}
-	ch := make(chan pair, 1)
-	resolvedAddr := make(chan Addr, 1)
-	go func() {
-		ra, err := resolveAddr("dial", net, addr, noDeadline)
-		if err != nil {
-			ch <- pair{nil, err}
-			return
-		}
-		resolvedAddr <- ra // in case we need it for OpError
-		c, err := dial(net, addr, noLocalAddr, ra, noDeadline)
-		ch <- pair{c, err}
-	}()
-	select {
-	case <-t.C:
-		// Try to use the real Addr in our OpError, if we resolved it
-		// before the timeout. Otherwise we just use stringAddr.
-		var ra Addr
-		select {
-		case a := <-resolvedAddr:
-			ra = a
-		default:
-			ra = &stringAddr{net, addr}
-		}
-		err := &OpError{
-			Op:   "dial",
-			Net:  net,
-			Addr: ra,
-			Err:  &timeoutError{},
-		}
-		return nil, err
-	case p := <-ch:
-		return p.Conn, p.error
-	}
 }
 
 type stringAddr struct {
