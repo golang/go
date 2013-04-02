@@ -13,4 +13,4 @@ func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
 
 // Equal returns a boolean reporting whether a == b.
 // A nil argument is equivalent to an empty slice.
-func Equal(a, b []byte) bool // asm_$GOARCH.s
+func Equal(a, b []byte) bool // asm_arm.s or ../runtime/asm_{386,amd64}.s
