@@ -279,14 +279,12 @@ func nodeFunc(info *PageInfo, node interface{}) string {
 	return buf.String()
 }
 
-func node_htmlFunc(info *PageInfo, node interface{}) string {
+func node_htmlFunc(info *PageInfo, node interface{}, linkify bool) string {
 	var buf1 bytes.Buffer
 	writeNode(&buf1, info.FSet, node)
 
 	var buf2 bytes.Buffer
-	// Don't linkify full source text (info.PAst != nil) - identifier
-	// resolution is not strong enough without full type checking.
-	if n, _ := node.(ast.Node); n != nil && *declLinks && info.PAst == nil {
+	if n, _ := node.(ast.Node); n != nil && linkify && *declLinks {
 		LinkifyText(&buf2, buf1.Bytes(), n)
 	} else {
 		FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
@@ -394,7 +392,7 @@ func example_htmlFunc(info *PageInfo, funcName string) string {
 
 		// print code
 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
-		code := node_htmlFunc(info, cnode)
+		code := node_htmlFunc(info, cnode, true)
 		out := eg.Output
 		wholeFile := true
 
