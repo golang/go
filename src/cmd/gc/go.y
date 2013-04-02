@@ -251,7 +251,8 @@ import_package:
 		} else if(strcmp(importpkg->name, $2->name) != 0)
 			yyerror("conflicting names %s and %s for package \"%Z\"", importpkg->name, $2->name, importpkg->path);
 		importpkg->direct = 1;
-		
+		importpkg->safe = curio.importsafe;
+
 		if(safemode && !curio.importsafe)
 			yyerror("cannot import unsafe package \"%Z\"", importpkg->path);
 	}

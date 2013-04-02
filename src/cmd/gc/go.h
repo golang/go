@@ -394,6 +394,7 @@ struct	Pkg
 	uchar	imported;	// export data of this package was parsed
 	char	exported;	// import line written in export data
 	char	direct;	// imported directly
+	char	safe;	// whether the package is marked as safe
 };
 
 typedef	struct	Iter	Iter;

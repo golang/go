@@ -602,15 +602,13 @@ void
 importfile(Val *f, int line)
 {
 	Biobuf *imp;
-	char *file, *p, *q;
+	char *file, *p, *q, *tag;
 	int32 c;
 	int len;
 	Strlit *path;
 	char *cleanbuf, *prefix;
 
 	USED(line);
-
-	// TODO(rsc): don't bother reloading imports more than once?
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");
@@ -686,7 +684,11 @@ importfile(Val *f, int line)
 	// to the lexer to avoid parsing export data twice.
 	if(importpkg->imported) {
 		file = strdup(namebuf);
-		p = smprint("package %s\n$$\n", importpkg->name);
+		tag = "";
+		if(importpkg->safe) {
+			tag = "safe";
+		}
+		p = smprint("package %s %s\n$$\n", importpkg->name, tag);
 		cannedimports(file, p);
 		return;
 	}
