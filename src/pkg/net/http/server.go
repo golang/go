@@ -224,8 +224,10 @@ const bufferBeforeChunkingSize = 2048
 type chunkWriter struct {
 	res *response
 
-	// header is either the same as res.handlerHeader,
-	// or a deep clone if the handler called Header.
+	// header is either nil or a deep clone of res.handlerHeader
+	// at the time of res.WriteHeader, if res.WriteHeader is
+	// called and extra buffering is being done to calculate
+	// Content-Type and/or Content-Length.
 	header Header
 
 	// wroteHeader tells whether the header's been written to "the
@@ -238,7 +240,10 @@ type chunkWriter struct {
 	chunking bool // using chunked transfer encoding for reply body
 }
 
-var crlf = []byte("\r\n")
+var (
+	crlf       = []byte("\r\n")
+	colonSpace = []byte(": ")
+)
 
 func (cw *chunkWriter) Write(p []byte) (n int, err error) {
 	if !cw.wroteHeader {
@@ -613,6 +618,37 @@ func (w *response) WriteHeader(code int) {
 	}
 }
 
+// extraHeader is the set of headers sometimes added by chunkWriter.writeHeader.
+// This type is used to avoid extra allocations from cloning and/or populating
+// the response Header map and all its 1-element slices.
+type extraHeader struct {
+	contentType      string
+	contentLength    string
+	connection       string
+	date             string
+	transferEncoding string
+}
+
+// Sorted the same as extraHeader.Write's loop.
+var extraHeaderKeys = [][]byte{
+	[]byte("Content-Type"), []byte("Content-Length"),
+	[]byte("Connection"), []byte("Date"), []byte("Transfer-Encoding"),
+}
+
+// The value receiver, despite copying 5 strings to the stack,
+// prevents an extra allocation. The escape analysis isn't smart
+// enough to realize this doesn't mutate h.
+func (h extraHeader) Write(w io.Writer) {
+	for i, v := range []string{h.contentType, h.contentLength, h.connection, h.date, h.transferEncoding} {
+		if v != "" {
+			w.Write(extraHeaderKeys[i])
+			w.Write(colonSpace)
+			io.WriteString(w, v)
+			w.Write(crlf)
+		}
+	}
+}
+
 // writeHeader finalizes the header sent to the client and writes it
 // to cw.res.conn.buf.
 //
@@ -629,37 +665,46 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 	w := cw.res
 
-	if cw.header == nil {
-		if w.handlerDone {
-			// The handler won't be making further changes to the
-			// response header map, so we use it directly.
-			cw.header = w.handlerHeader
-		} else {
-			// Snapshot the header map, since it might be some
-			// time before we actually write w.cw to the wire and
-			// we don't want the handler's potential future
-			// (arguably buggy) modifications to the map to make
-			// it into the written headers. This preserves
-			// compatibility with Go 1.0, which always flushed the
-			// headers on a call to rw.WriteHeader.
-			cw.header = w.handlerHeader.clone()
-		}
+	// header is written out to w.conn.buf below. Depending on the
+	// state of the handler, we either own the map or not. If we
+	// don't own it, the exclude map is created lazily for
+	// WriteSubset to remove headers. The setHeader struct holds
+	// headers we need to add.
+	header := cw.header
+	owned := header != nil
+	if !owned {
+		header = w.handlerHeader
 	}
+	var excludeHeader map[string]bool
+	delHeader := func(key string) {
+		if owned {
+			header.Del(key)
+			return
+		}
+		if _, ok := header[key]; !ok {
+			return
+		}
+		if excludeHeader == nil {
+			excludeHeader = make(map[string]bool)
+		}
+		excludeHeader[key] = true
+	}
+	var setHeader extraHeader
 
 	// If the handler is done but never sent a Content-Length
 	// response header and this is our first (and last) write, set
 	// it, even to zero. This helps HTTP/1.0 clients keep their
 	// "keep-alive" connections alive.
-	if w.handlerDone && cw.header.get("Content-Length") == "" && w.req.Method != "HEAD" {
+	if w.handlerDone && header.get("Content-Length") == "" && w.req.Method != "HEAD" {
 		w.contentLength = int64(len(p))
-		cw.header.Set("Content-Length", strconv.Itoa(len(p)))
+		setHeader.contentLength = strconv.Itoa(len(p))
 	}
 
 	// If this was an HTTP/1.0 request with keep-alive and we sent a
 	// Content-Length back, we can make this a keep-alive response ...
 	if w.req.wantsHttp10KeepAlive() {
-		sentLength := cw.header.get("Content-Length") != ""
-		if sentLength && cw.header.get("Connection") == "keep-alive" {
+		sentLength := header.get("Content-Length") != ""
+		if sentLength && header.get("Connection") == "keep-alive" {
 			w.closeAfterReply = false
 		}
 	}
@@ -668,15 +713,15 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	hasCL := w.contentLength != -1
 
 	if w.req.wantsHttp10KeepAlive() && (w.req.Method == "HEAD" || hasCL) {
-		_, connectionHeaderSet := cw.header["Connection"]
+		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
-			cw.header.Set("Connection", "keep-alive")
+			setHeader.connection = "keep-alive"
 		}
 	} else if !w.req.ProtoAtLeast(1, 1) || w.req.wantsClose() {
 		w.closeAfterReply = true
 	}
 
-	if cw.header.get("Connection") == "close" {
+	if header.get("Connection") == "close" {
 		w.closeAfterReply = true
 	}
 
@@ -690,7 +735,8 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 			n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
 			if n >= maxPostHandlerReadBytes {
 				w.requestTooLarge()
-				cw.header.Set("Connection", "close")
+				delHeader("Connection")
+				setHeader.connection = "close"
 			} else {
 				w.req.Body.Close()
 			}
@@ -700,40 +746,38 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	code := w.status
 	if code == StatusNotModified {
 		// Must not have body.
-		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
-			// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
-			if cw.header.get(header) != "" {
-				cw.header.Del(header)
-			}
+		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
+		for _, k := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
+			delHeader(k)
 		}
 	} else {
 		// If no content type, apply sniffing algorithm to body.
-		if cw.header.get("Content-Type") == "" && w.req.Method != "HEAD" {
-			cw.header.Set("Content-Type", DetectContentType(p))
+		if header.get("Content-Type") == "" && w.req.Method != "HEAD" {
+			setHeader.contentType = DetectContentType(p)
 		}
 	}
 
-	if _, ok := cw.header["Date"]; !ok {
-		cw.header.Set("Date", time.Now().UTC().Format(TimeFormat))
+	if _, ok := header["Date"]; !ok {
+		setHeader.date = time.Now().UTC().Format(TimeFormat)
 	}
 
-	te := cw.header.get("Transfer-Encoding")
+	te := header.get("Transfer-Encoding")
 	hasTE := te != ""
 	if hasCL && hasTE && te != "identity" {
 		// TODO: return an error if WriteHeader gets a return parameter
 		// For now just ignore the Content-Length.
 		log.Printf("http: WriteHeader called with both Transfer-Encoding of %q and a Content-Length of %d",
 			te, w.contentLength)
-		cw.header.Del("Content-Length")
+		delHeader("Content-Length")
 		hasCL = false
 	}
 
 	if w.req.Method == "HEAD" || code == StatusNotModified {
 		// do nothing
 	} else if code == StatusNoContent {
-		cw.header.Del("Transfer-Encoding")
+		delHeader("Transfer-Encoding")
 	} else if hasCL {
-		cw.header.Del("Transfer-Encoding")
+		delHeader("Transfer-Encoding")
 	} else if w.req.ProtoAtLeast(1, 1) {
 		// HTTP/1.1 or greater: use chunked transfer encoding
 		// to avoid closing the connection at EOF.
@@ -741,29 +785,31 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		// might have set.  Deal with that as need arises once we have a valid
 		// use case.
 		cw.chunking = true
-		cw.header.Set("Transfer-Encoding", "chunked")
+		setHeader.transferEncoding = "chunked"
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer
 		// encoding and we don't know the Content-Length so
 		// signal EOF by closing connection.
 		w.closeAfterReply = true
-		cw.header.Del("Transfer-Encoding") // in case already set
+		delHeader("Transfer-Encoding") // in case already set
 	}
 
 	// Cannot use Content-Length with non-identity Transfer-Encoding.
 	if cw.chunking {
-		cw.header.Del("Content-Length")
+		delHeader("Content-Length")
 	}
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
 	}
 
 	if w.closeAfterReply && !hasToken(cw.header.get("Connection"), "close") {
-		cw.header.Set("Connection", "close")
+		delHeader("Connection")
+		setHeader.connection = "close"
 	}
 
 	io.WriteString(w.conn.buf, statusLine(w.req, code))
-	cw.header.Write(w.conn.buf)
+	cw.header.WriteSubset(w.conn.buf, excludeHeader)
+	setHeader.Write(w.conn.buf)
 	w.conn.buf.Write(crlf)
 }
 
