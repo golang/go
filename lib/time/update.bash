@@ -7,8 +7,8 @@
 # downloaded from the ICANN/IANA distribution.
 
 # Versions to use.
-CODE=2011i
-DATA=2011n
+CODE=2013b
+DATA=2013b
 
 set -e
 rm -rf work
