@@ -157,3 +157,43 @@ func TestLatin1RoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestWriterFlush(t *testing.T) {
+	buf := new(bytes.Buffer)
+
+	w := NewWriter(buf)
+	w.Comment = "comment"
+	w.Extra = []byte("extra")
+	w.ModTime = time.Unix(1e8, 0)
+	w.Name = "name"
+
+	n0 := buf.Len()
+	if n0 != 0 {
+		t.Fatalf("buffer size = %d before writes; want 0", n0)
+	}
+
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	n1 := buf.Len()
+	if n1 == 0 {
+		t.Fatal("no data after first flush")
+	}
+
+	w.Write([]byte("x"))
+
+	n2 := buf.Len()
+	if n1 != n2 {
+		t.Fatalf("after writing a single byte, size changed from %d to %d; want no change", n1, n2)
+	}
+
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	n3 := buf.Len()
+	if n2 == n3 {
+		t.Fatal("Flush didn't flush any data")
+	}
+}
