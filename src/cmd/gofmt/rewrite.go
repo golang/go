@@ -107,6 +107,7 @@ var (
 	identType     = reflect.TypeOf((*ast.Ident)(nil))
 	objectPtrType = reflect.TypeOf((*ast.Object)(nil))
 	positionType  = reflect.TypeOf(token.NoPos)
+	callExprType  = reflect.TypeOf((*ast.CallExpr)(nil))
 	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
 )
 
@@ -192,8 +193,17 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		v := val.Interface().(*ast.Ident)
 		return p == nil && v == nil || p != nil && v != nil && p.Name == v.Name
 	case objectPtrType, positionType:
-		// object pointers and token positions don't need to match
+		// object pointers and token positions always match
 		return true
+	case callExprType:
+		// For calls, the Ellipsis fields (token.Position) must
+		// match since that is how f(x) and f(x...) are different.
+		// Check them here but fall through for the remaining fields.
+		p := pattern.Interface().(*ast.CallExpr)
+		v := val.Interface().(*ast.CallExpr)
+		if p.Ellipsis.IsValid() != v.Ellipsis.IsValid() {
+			return false
+		}
 	}
 
 	p := reflect.Indirect(pattern)
