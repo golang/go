@@ -49,9 +49,9 @@ func (ms *multiSorter) Swap(i, j int) {
 }
 
 // Less is part of sort.Interface. It is implemented by looping along the
-// ordering functions until it finds a comparison that is either Less or
-// !Less. Note that it can call the ordering functions twice per call. We
-// could change the ordering functions to return -1, 0, 1 and reduce the
+// less functions until it finds a comparison that is either Less or
+// !Less. Note that it can call the less functions twice per call. We
+// could change the functions to return -1, 0, 1 and reduce the
 // number of calls for greater efficiency: an exercise for the reader.
 func (ms *multiSorter) Less(i, j int) bool {
 	p, q := &ms.changes[i], &ms.changes[j]
