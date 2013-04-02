@@ -17,7 +17,7 @@ void
 HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 {
 	uintptr hash;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
 	Bucket *b;
 	uint8 top;
 	uintptr i;
@@ -55,9 +55,15 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 		hash = h->hash0;
 		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
 		bucket = hash & (((uintptr)1 << h->B) - 1);
-		if(h->oldbuckets != nil)
-			grow_work(t, h, bucket);
-		b = (Bucket*)(h->buckets + bucket * (offsetof(Bucket, data[0]) + BUCKETSIZE * sizeof(KEYTYPE) + BUCKETSIZE * h->valuesize));
+		if(h->oldbuckets != nil) {
+			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if(evacuated(b)) {
+				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+			}
+		} else {
+			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+		}
 		top = hash >> (sizeof(uintptr)*8 - 8);
 		if(top == 0)
 			top = 1;
@@ -81,7 +87,7 @@ void
 HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 {
 	uintptr hash;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
 	Bucket *b;
 	uint8 top;
 	uintptr i;
@@ -123,9 +129,15 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 		hash = h->hash0;
 		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
 		bucket = hash & (((uintptr)1 << h->B) - 1);
-		if(h->oldbuckets != nil)
-			grow_work(t, h, bucket);
-		b = (Bucket*)(h->buckets + bucket * (offsetof(Bucket, data[0]) + BUCKETSIZE * sizeof(KEYTYPE) + BUCKETSIZE * h->valuesize));
+		if(h->oldbuckets != nil) {
+			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if(evacuated(b)) {
+				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+			}
+		} else {
+			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+		}
 		top = hash >> (sizeof(uintptr)*8 - 8);
 		if(top == 0)
 			top = 1;
