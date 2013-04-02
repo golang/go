@@ -234,9 +234,6 @@ func TestIterGrowWithGC(t *testing.T) {
 }
 
 func TestConcurrentReadsAfterGrowth(t *testing.T) {
-	// TODO(khr): fix and enable this test.
-	t.Skip("Known currently broken; golang.org/issue/5179")
-
 	if os.Getenv("GOMAXPROCS") == "" {
 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
 	}

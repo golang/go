@@ -480,7 +480,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 {
 	void *key;
 	uintptr hash;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
 	Bucket *b;
 	uint8 top;
 	uintptr i;
@@ -495,9 +495,15 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
 	bucket = hash & (((uintptr)1 << h->B) - 1);
-	if(h->oldbuckets != nil)
-		grow_work(t, h, bucket);
-	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+	if(h->oldbuckets != nil) {
+		oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+		b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+		if(evacuated(b)) {
+			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+		}
+	} else {
+		b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+	}
 	top = hash >> (sizeof(uintptr)*8 - 8);
 	if(top == 0)
 		top = 1;
@@ -741,6 +747,7 @@ struct hash_iter
 	uintptr bucket;
 	struct Bucket *bptr;
 	uintptr i;
+	intptr check_bucket;
 };
 
 // iterator state:
@@ -750,6 +757,9 @@ struct hash_iter
 static void
 hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 {
+	if(sizeof(struct hash_iter) / sizeof(uintptr) != 11) {
+		runtime·throw("hash_iter size incorrect"); // see ../../cmd/gc/range.c
+	}
 	it->t = t;
 	it->h = h;
 
@@ -762,8 +772,8 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 	it->wrapped = false;
 	it->bptr = nil;
 
-	// Remember we have an iterator at this level.
-	h->flags |= Iterator;
+	// Remember we have an iterator.
+	h->flags |= Iterator | OldIterator;  // careful: see issue 5120.
 
 	if(h->buckets == nil) {
 		// Empty map. Force next hash_next to exit without
@@ -779,9 +789,11 @@ hash_next(struct hash_iter *it)
 {
 	Hmap *h;
 	MapType *t;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
+	uintptr hash;
 	Bucket *b;
 	uintptr i;
+	intptr check_bucket;
 	bool eq;
 	byte *k, *v;
 	byte *rk, *rv;
@@ -791,6 +803,7 @@ hash_next(struct hash_iter *it)
 	bucket = it->bucket;
 	b = it->bptr;
 	i = it->i;
+	check_bucket = it->check_bucket;
 
 next:
 	if(b == nil) {
@@ -802,10 +815,21 @@ next:
 		}
 		if(h->oldbuckets != nil && it->B == h->B) {
 			// Iterator was started in the middle of a grow, and the grow isn't done yet.
-			// Make sure the bucket we're about to read is valid.
-			grow_work(t, h, bucket);
+			// If the bucket we're looking at hasn't been filled in yet (i.e. the old
+			// bucket hasn't been evacuated) then we need to iterate through the old
+			// bucket and only return the ones that will be migrated to this bucket.
+			oldbucket = bucket & (((uintptr)1 << (it->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if(!evacuated(b)) {
+				check_bucket = bucket;
+			} else {
+				b = (Bucket*)(it->buckets + bucket * h->bucketsize);
+				check_bucket = -1;
+			}
+		} else {
+			b = (Bucket*)(it->buckets + bucket * h->bucketsize);
+			check_bucket = -1;
 		}
-		b = (Bucket*)(it->buckets + bucket * h->bucketsize);
 		bucket++;
 		if(bucket == ((uintptr)1 << it->B)) {
 			bucket = 0;
@@ -817,6 +841,30 @@ next:
 	v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
 	for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
 		if(b->tophash[i] != 0) {
+			if(check_bucket >= 0) {
+				// Special case: iterator was started during a grow and the
+				// grow is not done yet.  We're working on a bucket whose
+				// oldbucket has not been evacuated yet.  So we iterate
+				// through the oldbucket, skipping any keys that will go
+				// to the other new bucket (each oldbucket expands to two
+				// buckets during a grow).
+				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+				if(!eq) {
+					// Hash is meaningless if k != k (NaNs).  Return all
+					// NaNs during the first of the two new buckets.
+					if(bucket >= ((uintptr)1 << (it->B - 1))) {
+						continue;
+					}
+				} else {
+					// If the item in the oldbucket is not destined for
+					// the current new bucket in the iteration, skip it.
+					hash = h->hash0;
+					t->key->alg->hash(&hash, t->key->size, IK(h, k));
+					if((hash & (((uintptr)1 << it->B) - 1)) != check_bucket) {
+						continue;
+					}
+				}
+			}
 			if(!evacuated(b)) {
 				// this is the golden data, we can return it.
 				it->key = IK(h, k);
@@ -849,6 +897,7 @@ next:
 			it->bucket = bucket;
 			it->bptr = b;
 			it->i = i + 1;
+			it->check_bucket = check_bucket;
 			return;
 		}
 	}
