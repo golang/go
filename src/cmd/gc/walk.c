@@ -2897,14 +2897,29 @@ hard:
 static int
 samecheap(Node *a, Node *b)
 {
-	if(a == N || b == N || a->op != b->op)
-		return 0;
-	
-	switch(a->op) {
-	case ONAME:
-		return a == b;
-	// TODO: Could do more here, but maybe this is enough.
-	// It's all cheapexpr does.
+	Node *ar, *br;
+	while(a != N && b != N && a->op == b->op) {
+		switch(a->op) {
+		default:
+			return 0;
+		case ONAME:
+			return a == b;
+		case ODOT:
+		case ODOTPTR:
+			ar = a->right;
+			br = b->right;
+			if(ar->op != ONAME || br->op != ONAME || ar->sym != br->sym)
+				return 0;
+			break;
+		case OINDEX:
+			ar = a->right;
+			br = b->right;
+			if(!isconst(ar, CTINT) || !isconst(br, CTINT) || mpcmpfixfix(ar->val.u.xval, br->val.u.xval) != 0)
+				return 0;
+			break;
+		}
+		a = a->left;
+		b = b->left;
 	}
 	return 0;
 }
