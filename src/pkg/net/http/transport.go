@@ -58,7 +58,7 @@ type Transport struct {
 	// Dial specifies the dial function for creating TCP
 	// connections.
 	// If Dial is nil, net.Dial is used.
-	Dial func(net, addr string) (c net.Conn, err error)
+	Dial func(network, addr string) (net.Conn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
 	// tls.Client. If nil, the default configuration is used.
