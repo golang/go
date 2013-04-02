@@ -708,17 +708,18 @@ control the execution of any test:
 	    Print memory allocation statistics for benchmarks.
 
 	-benchtime t
-		Run enough iterations of each benchmark to take t, specified
-		as a time.Duration (for example, -benchtime 1h30s).
-		The default is 1 second (1s).
+	    Run enough iterations of each benchmark to take t, specified
+	    as a time.Duration (for example, -benchtime 1h30s).
+	    The default is 1 second (1s).
 
 	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
 	    when all tests are complete.
 
 	-blockprofilerate n
-	    Control the detail provided in goroutine blocking profiles by setting
-	    runtime.BlockProfileRate to n.  See 'godoc runtime BlockProfileRate'.
+	    Control the detail provided in goroutine blocking profiles by
+	    calling runtime.SetBlockProfileRate with n.
+	    See 'godoc runtime SetBlockProfileRate'.
 	    The profiler aims to sample, on average, one blocking event every
 	    n nanoseconds the program spends blocked.  By default,
 	    if -test.blockprofile is set without this flag, all blocking events
@@ -760,7 +761,7 @@ control the execution of any test:
 	    exhaustive tests.
 
 	-timeout t
-		If a test runs longer than t, panic.
+	    If a test runs longer than t, panic.
 
 	-v
 	    Verbose output: log all tests as they are run. Also print all
