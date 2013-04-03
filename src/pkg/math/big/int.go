@@ -53,7 +53,7 @@ func (z *Int) SetInt64(x int64) *Int {
 
 // SetUint64 sets z to x and returns z.
 func (z *Int) SetUint64(x uint64) *Int {
-	z.abs = z.abs.setUint64(uint64(x))
+	z.abs = z.abs.setUint64(x)
 	z.neg = false
 	return z
 }
@@ -513,13 +513,7 @@ func (z *Int) Scan(s fmt.ScanState, ch rune) error {
 // Int64 returns the int64 representation of x.
 // If x cannot be represented in an int64, the result is undefined.
 func (x *Int) Int64() int64 {
-	if len(x.abs) == 0 {
-		return 0
-	}
-	v := int64(x.abs[0])
-	if _W == 32 && len(x.abs) > 1 {
-		v |= int64(x.abs[1]) << 32
-	}
+	v := int64(x.Uint64())
 	if x.neg {
 		v = -v
 	}
@@ -527,7 +521,7 @@ func (x *Int) Int64() int64 {
 }
 
 // Uint64 returns the uint64 representation of x.
-// If x cannot be represented in an uint64, the result is undefined.
+// If x cannot be represented in a uint64, the result is undefined.
 func (x *Int) Uint64() uint64 {
 	if len(x.abs) == 0 {
 		return 0
