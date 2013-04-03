@@ -74,9 +74,9 @@
 typedef struct Bucket Bucket;
 struct Bucket
 {
-	uint8 tophash[BUCKETSIZE];  // top 8 bits of hash of each entry (0 = empty)
+	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (0 = empty)
 	Bucket *overflow;           // overflow bucket, if any
-	byte data[1];               // BUCKETSIZE keys followed by BUCKETSIZE values
+	byte   data[1];             // BUCKETSIZE keys followed by BUCKETSIZE values
 };
 // NOTE: packing all the keys together and then all the values together makes the
 // code a bit more complicated than alternating key/value/key/value/... but it allows
@@ -102,7 +102,7 @@ struct Hmap
 	uint16  bucketsize;   // bucket size in bytes
 
 	uintptr hash0;        // hash seed
-	byte    *buckets;     // array of 2^B Buckets
+	byte    *buckets;     // array of 2^B Buckets. may be nil if count==0.
 	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
 	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
 };
@@ -527,12 +527,14 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 static uint8 empty_value[MAXVALUESIZE];
 
 // Specialized versions of mapaccess1 for specific types.
-// See ./hashmap_fast and ../../cmd/gc/walk.c.
+// See ./hashmap_fast.c and ../../cmd/gc/walk.c.
 #define HASH_LOOKUP1 runtime·mapaccess1_fast32
 #define HASH_LOOKUP2 runtime·mapaccess2_fast32
 #define KEYTYPE uint32
 #define HASHFUNC runtime·algarray[AMEM32].hash
 #define EQFUNC(x,y) ((x) == (y))
+#define EQMAYBE(x,y) ((x) == (y))
+#define HASMAYBE false
 #define QUICKEQ(x) true
 #include "hashmap_fast.c"
 
@@ -541,6 +543,8 @@ static uint8 empty_value[MAXVALUESIZE];
 #undef KEYTYPE
 #undef HASHFUNC
 #undef EQFUNC
+#undef EQMAYBE
+#undef HASMAYBE
 #undef QUICKEQ
 
 #define HASH_LOOKUP1 runtime·mapaccess1_fast64
@@ -548,6 +552,8 @@ static uint8 empty_value[MAXVALUESIZE];
 #define KEYTYPE uint64
 #define HASHFUNC runtime·algarray[AMEM64].hash
 #define EQFUNC(x,y) ((x) == (y))
+#define EQMAYBE(x,y) ((x) == (y))
+#define HASMAYBE false
 #define QUICKEQ(x) true
 #include "hashmap_fast.c"
 
@@ -556,6 +562,8 @@ static uint8 empty_value[MAXVALUESIZE];
 #undef KEYTYPE
 #undef HASHFUNC
 #undef EQFUNC
+#undef EQMAYBE
+#undef HASMAYBE
 #undef QUICKEQ
 
 #define HASH_LOOKUP1 runtime·mapaccess1_faststr
@@ -563,6 +571,8 @@ static uint8 empty_value[MAXVALUESIZE];
 #define KEYTYPE String
 #define HASHFUNC runtime·algarray[ASTRING].hash
 #define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·memeq((x).str, (y).str, (x).len)))
+#define EQMAYBE(x,y) ((x).len == (y).len)
+#define HASMAYBE true
 #define QUICKEQ(x) ((x).len < 32)
 #include "hashmap_fast.c"
 
