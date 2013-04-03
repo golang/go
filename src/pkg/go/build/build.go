@@ -301,7 +301,13 @@ func defaultContext() Context {
 	case "0":
 		c.CgoEnabled = false
 	default:
-		c.CgoEnabled = cgoEnabled[c.GOOS+"/"+c.GOARCH]
+		// golang.org/issue/5141
+		// cgo should be disabled for cross compilation builds
+		if runtime.GOARCH == c.GOARCH && runtime.GOOS == c.GOOS {
+			c.CgoEnabled = cgoEnabled[c.GOOS+"/"+c.GOARCH]
+			break
+		}
+		c.CgoEnabled = false
 	}
 
 	return c
