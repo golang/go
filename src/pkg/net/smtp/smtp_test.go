@@ -57,6 +57,41 @@ testLoop:
 	}
 }
 
+func TestAuthPlain(t *testing.T) {
+	auth := PlainAuth("foo", "bar", "baz", "servername")
+
+	tests := []struct {
+		server *ServerInfo
+		err    string
+	}{
+		{
+			server: &ServerInfo{Name: "servername", TLS: true},
+		},
+		{
+			// Okay; explicitly advertised by server.
+			server: &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+		},
+		{
+			server: &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+			err:    "unencrypted connection",
+		},
+		{
+			server: &ServerInfo{Name: "attacker", TLS: true},
+			err:    "wrong host name",
+		},
+	}
+	for i, tt := range tests {
+		_, _, err := auth.Start(tt.server)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if got != tt.err {
+			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
+		}
+	}
+}
+
 type faker struct {
 	io.ReadWriter
 }
