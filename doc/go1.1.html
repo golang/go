@@ -750,6 +750,11 @@ package has been removed; programs that depend on it will break.
 </li>
 
 <li>
+The <a href="/pkg/image/jpeg/"><code>image/jpeg</code></a> package now
+reads progressive JPEG files and handles a few more subsampling configurations.
+</li>
+
+<li>
 The <a href="/pkg/io/"><code>io</code></a> package now exports the
 <a href="/pkg/io/#ByteWriter"><code>io.ByteWriter</code></a> interface to capture the common
 functionality of writing a byte at a time.
@@ -901,8 +906,9 @@ The new method <a href="/pkg/os/#FileMode.IsRegular"><code>os.FileMode.IsRegular
 </li>
 
 <li>
-The <a href="/pkg/image/jpeg/"><code>image/jpeg</code></a> package now
-reads progressive JPEG files and handles a few more subsampling configurations.
+The <a href="/pkg/os/signal/"><code>os/signal</code></a> package has a new function,
+<a href="/pkg/os/signal/#Stop"><code>Stop</code></a>, which stops the package delivering
+any further signals to the channel.
 </li>
 
 <li>
@@ -975,7 +981,6 @@ In the <a href="/pkg/text/template/"><code>text/template</code></a>
 and
 <a href="/pkg/html/template/"><code>html/template</code></a> packages,
 templates can now use parentheses to group the elements of pipelines, simplifying the construction of complex pipelines.
-TODO: Link to example.
 Also, as part of the new parser, the
 <a href="/pkg/text/template/parse/#Node"><code>Node</code></a> interface got two new methods to provide
 better error reporting.
@@ -989,12 +994,12 @@ packages and there are safeguards to guarantee that.
 </li>
 
 <li>
-In the <a href="/pkg/unicode/utf8/"><code>unicode/utf8</code></a> package,
-the new function <a href="/pkg/unicode/utf8/#ValidRune"><code>ValidRune</code></a> reports whether the rune is a valid Unicode code point.
-To be valid, a rune must be in range and not be a surrogate half.
+The implementation of the <a href="/pkg/unicode/"><code>unicode</code></a> package has been updated to Unicode version 6.2.0.
 </li>
 
 <li>
-The implementation of the <a href="/pkg/unicode/"><code>unicode</code></a> package has been updated to Unicode version 6.2.0.
+In the <a href="/pkg/unicode/utf8/"><code>unicode/utf8</code></a> package,
+the new function <a href="/pkg/unicode/utf8/#ValidRune"><code>ValidRune</code></a> reports whether the rune is a valid Unicode code point.
+To be valid, a rune must be in range and not be a surrogate half.
 </li>
 </ul>
