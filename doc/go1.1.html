@@ -285,6 +285,17 @@ Programs that depend on the old behavior should be modified to avoid the issue.
 The byte-order-mark change is strictly backward-compatible.
 </p>
 
+<h3 id="race">Race detector</h3>
+
+<p>
+A major addition to the tools is a <em>race detector</em>, a way to find
+bugs in programs caused by problems like concurrent changes to the same variable.
+This new facility is built into the <code>go</code> tool.
+To enable it, set the the <code>-race</code> flag when building or testing your program 
+(for instance, <code>go test -race</code>).
+The race detector is documented in <a href="/doc/articles/race_detector.html">a separate article</a>.
+</p>
+
 <h3 id="gc_asm">The gc assemblers</h3>
 
 <p>
