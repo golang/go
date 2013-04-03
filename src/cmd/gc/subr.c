@@ -548,6 +548,12 @@ algtype1(Type *t, Type **bad)
 		*bad = T;
 
 	switch(t->etype) {
+	case TANY:
+	case TFORW:
+		// will be defined later.
+		*bad = t;
+		return -1;
+
 	case TINT8:
 	case TUINT8:
 	case TINT16:
@@ -665,11 +671,14 @@ Type*
 maptype(Type *key, Type *val)
 {
 	Type *t;
+	Type *bad;
+	int atype;
 
 	if(key != nil) {
-		switch(key->etype) {
+		atype = algtype1(key, &bad);
+		switch(bad == T ? key->etype : bad->etype) {
 		default:
-			if(algtype1(key, nil) == ANOEQ)
+			if(atype == ANOEQ)
 				yyerror("invalid map key type %T", key);
 			break;
 		case TANY:
