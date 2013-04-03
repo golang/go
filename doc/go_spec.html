@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 22, 2013",
+	"Subtitle": "Version of April 3, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -837,9 +837,9 @@ multi-dimensional types.
 <h3 id="Slice_types">Slice types</h3>
 
 <p>
-A slice is a reference to a contiguous segment of an array and
-contains a numbered sequence of elements from that array.  A slice
-type denotes the set of all slices of arrays of its element type.
+A slice is a descriptor for a contiguous segment of an array and
+provides access to a numbered sequence of elements from that array.
+A slice type denotes the set of all slices of arrays of its element type.
 The value of an uninitialized slice is <code>nil</code>.
 </p>
 
@@ -5197,8 +5197,6 @@ of the memory.
 <h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
 
 <p>
-Slices, maps and channels are reference types that do not require the
-extra indirection of an allocation with <code>new</code>.
 The built-in function <code>make</code> takes a type <code>T</code>,
 which must be a slice, map or channel type,
 optionally followed by a type-specific list of expressions.
