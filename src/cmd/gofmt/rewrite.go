@@ -35,10 +35,10 @@ func initRewrite() {
 // It might make sense to expand this to allow statement patterns,
 // but there are problems with preserving formatting and also
 // with what a wildcard for a statement looks like.
-func parseExpr(s string, what string) ast.Expr {
+func parseExpr(s, what string) ast.Expr {
 	x, err := parser.ParseExpr(s)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
+		fmt.Fprintf(os.Stderr, "parsing %s %s at %s\n", what, s, err)
 		os.Exit(2)
 	}
 	return x
