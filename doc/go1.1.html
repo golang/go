@@ -201,6 +201,24 @@ would instead say:
 i := int(int32(x))
 </pre>
 
+<h3 id="heap">Heap size on 64-bit architectures</h3>
+
+<p>
+On 64-bit architectures only, the maximum heap size has been enlarged substantially,
+from a few gigabytes to several tens of gigabytes.
+(The exact details depend on the system and may change.)
+</p>
+
+<p>
+On 32-bit architectures, the heap size has not changed.
+</p>
+
+<p>
+<em>Updating</em>:
+This change should have no effect on existing programs beyond allowing them
+to run with larger heaps.
+</p>
+
 <h3 id="unicode">Unicode</h3>
 
 <p>
