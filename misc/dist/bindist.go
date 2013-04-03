@@ -29,13 +29,14 @@ import (
 )
 
 var (
-	tag      = flag.String("tag", "release", "mercurial tag to check out")
-	repo     = flag.String("repo", "https://code.google.com/p/go", "repo URL")
-	tourPath = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
-	verbose  = flag.Bool("v", false, "verbose output")
-	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
-	wxsFile  = flag.String("wxs", "", "path to custom installer.wxs")
-	addLabel = flag.String("label", "", "additional label to apply to file when uploading")
+	tag         = flag.String("tag", "release", "mercurial tag to check out")
+	repo        = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+	tourPath    = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
+	verbose     = flag.Bool("v", false, "verbose output")
+	upload      = flag.Bool("upload", true, "upload resulting files to Google Code")
+	wxsFile     = flag.String("wxs", "", "path to custom installer.wxs")
+	addLabel    = flag.String("label", "", "additional label to apply to file when uploading")
+	includeRace = flag.Bool("race", true, "build race detector packages")
 
 	username, password string // for Google Code upload
 )
@@ -186,6 +187,16 @@ func (b *Build) Do() error {
 	}
 	if err != nil {
 		return err
+	}
+	if !b.Source && *includeRace {
+		goCmd := filepath.Join(b.root, "bin", "go")
+		if b.OS == "windows" {
+			goCmd += ".exe"
+		}
+		_, err = b.run(src, goCmd, "install", "-race", "std")
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := b.tour(); err != nil {
@@ -388,7 +399,7 @@ func (b *Build) tour() error {
 	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
 	gotour := "gotour"
 	if runtime.GOOS == "windows" {
-		gotour = "gotour.exe"
+		gotour += ".exe"
 	}
 	return cp(
 		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"),
