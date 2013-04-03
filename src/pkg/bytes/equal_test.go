@@ -30,6 +30,8 @@ func TestEqualNearPageBoundary(t *testing.T) {
 	}
 	syscall.Mprotect(b[i-pagesize:i], 0)
 	syscall.Mprotect(b[i+pagesize:i+2*pagesize], 0)
+	defer syscall.Mprotect(b[i-pagesize:i], syscall.PROT_READ|syscall.PROT_WRITE)
+	defer syscall.Mprotect(b[i+pagesize:i+2*pagesize], syscall.PROT_READ|syscall.PROT_WRITE)
 
 	// both of these should fault
 	//pagesize += int(b[i-1])
