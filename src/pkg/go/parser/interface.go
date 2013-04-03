@@ -162,16 +162,27 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 }
 
 // ParseExpr is a convenience function for obtaining the AST of an expression x.
-// The position information recorded in the AST is undefined.
+// The position information recorded in the AST is undefined. The filename used
+// in error messages is the empty string.
 //
 func ParseExpr(x string) (ast.Expr, error) {
-	// parse x within the context of a complete package for correct scopes;
-	// use //line directive for correct positions in error messages and put
-	// x alone on a separate line (handles line comments), followed by a ';'
-	// to force an error if the expression is incomplete
-	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+"\n;}", 0)
-	if err != nil {
-		return nil, err
+	var p parser
+	p.init(token.NewFileSet(), "", []byte(x), 0)
+
+	// Set up pkg-level scopes to avoid nil-pointer errors.
+	// This is not needed for a correct expression x as the
+	// parser will be ok with a nil topScope, but be cautious
+	// in case of an erroneous x.
+	p.openScope()
+	p.pkgScope = p.topScope
+	e := p.parseRhsOrType()
+	p.closeScope()
+	assert(p.topScope == nil, "unbalanced scopes")
+
+	if p.errors.Len() > 0 {
+		p.errors.Sort()
+		return nil, p.errors.Err()
 	}
-	return file.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.AssignStmt).Rhs[0], nil
+
+	return e, nil
 }

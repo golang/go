@@ -68,7 +68,7 @@ func TestParseDir(t *testing.T) {
 
 func TestParseExpr(t *testing.T) {
 	// just kicking the tires:
-	// a valid expression
+	// a valid arithmetic expression
 	src := "a + b"
 	x, err := ParseExpr(src)
 	if err != nil {
@@ -77,6 +77,17 @@ func TestParseExpr(t *testing.T) {
 	// sanity check
 	if _, ok := x.(*ast.BinaryExpr); !ok {
 		t.Errorf("ParseExpr(%s): got %T, expected *ast.BinaryExpr", src, x)
+	}
+
+	// a valid type expression
+	src = "struct{x *int}"
+	x, err = ParseExpr(src)
+	if err != nil {
+		t.Fatalf("ParseExpr(%s): %v", src, err)
+	}
+	// sanity check
+	if _, ok := x.(*ast.StructType); !ok {
+		t.Errorf("ParseExpr(%s): got %T, expected *ast.StructType", src, x)
 	}
 
 	// an invalid expression
