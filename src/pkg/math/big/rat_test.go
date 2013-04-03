@@ -503,9 +503,7 @@ func TestIssue3521(t *testing.T) {
 // Test inputs to Rat.SetString.  The prefix "long:" causes the test
 // to be skipped in --test.short mode.  (The threshold is about 500us.)
 var float64inputs = []string{
-	//
 	// Constants plundered from strconv/testfp.txt.
-	//
 
 	// Table 1: Stress Inputs for Conversion to 53-bit Binary, < 1/2 ULP
 	"5e+125",
@@ -583,9 +581,7 @@ var float64inputs = []string{
 	"75224575729e-45",
 	"459926601011e+15",
 
-	//
 	// Constants plundered from strconv/atof_test.go.
-	//
 
 	"0",
 	"1",
@@ -734,7 +730,7 @@ func TestFloat64SpecialCases(t *testing.T) {
 			case f == 0 && r.Num().BitLen() == 0:
 				// Ok: Rat(0) is equivalent to both +/- float64(0).
 			default:
-				t.Errorf("strconv.ParseFloat(%q) = %g (%b), want %g (%b); delta=%g", input, e, e, f, f, f-e)
+				t.Errorf("strconv.ParseFloat(%q) = %g (%b), want %g (%b); delta = %g", input, e, e, f, f, f-e)
 			}
 		}
 
@@ -795,7 +791,7 @@ func TestFloat64Distribution(t *testing.T) {
 
 					if !checkIsBestApprox(t, f, r) {
 						// Append context information.
-						t.Errorf("(input was mantissa %#x, exp %d; f=%g (%b); f~%g; r=%v)",
+						t.Errorf("(input was mantissa %#x, exp %d; f = %g (%b); f ~ %g; r = %v)",
 							b, exp, f, f, math.Ldexp(float64(b), exp), r)
 					}
 
@@ -830,7 +826,7 @@ func checkNonLossyRoundtrip(t *testing.T, f float64) {
 	}
 	f2, exact := r.Float64()
 	if f != f2 || !exact {
-		t.Errorf("Rat.SetFloat64(%g).Float64() = %g (%b), %v, want %g (%b), %v; delta=%b",
+		t.Errorf("Rat.SetFloat64(%g).Float64() = %g (%b), %v, want %g (%b), %v; delta = %b",
 			f, f2, f2, exact, f, f, true, f2-f)
 	}
 }

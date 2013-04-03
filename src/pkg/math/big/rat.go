@@ -163,16 +163,16 @@ func quotToFloat(a, b nat) (f float64, exact bool) {
 	return
 }
 
-// Float64 returns the nearest float64 value to z.
-// If z is exactly representable as a float64, Float64 returns exact=true.
-// If z is negative, so too is f, even if f==0.
-func (z *Rat) Float64() (f float64, exact bool) {
-	b := z.b.abs
+// Float64 returns the nearest float64 value for x and a bool indicating
+// whether f represents x exactly. The sign of f always matches the sign
+// of x, even if f == 0.
+func (x *Rat) Float64() (f float64, exact bool) {
+	b := x.b.abs
 	if len(b) == 0 {
 		b = b.set(natOne) // materialize denominator
 	}
-	f, exact = quotToFloat(z.a.abs, b)
-	if z.a.neg {
+	f, exact = quotToFloat(x.a.abs, b)
+	if x.a.neg {
 		f = -f
 	}
 	return
