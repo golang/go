@@ -198,6 +198,9 @@ div#blog .read a {
 	border: 1px solid #375EAB;
 	background: #E0EBF5;
 }
+.download {
+	width: 150px;
+}
 
 div#menu {
 	float: right;
