@@ -152,6 +152,17 @@ Such code can be identified by <code>go vet</code>.
 
 <h2 id="impl">Changes to the implementations and tools</h2>
 
+<h3 id="gccgo">Status of gccgo</h3>
+
+<p>
+The GCC release schedule does not coincide with the Go release schedule, so some skew is inevitable in
+<code>gccgo</code>'s releases.
+The 4.8.0 version of GCC shipped in March, 2013 and includes a nearly-Go 1.1 version of <code>gccgo</code>.
+Its library is a little behind the release, but the biggest difference is that method values are not implemented.
+Sometime around May 2013, we expect 4.8.1 of GCC to ship with a <code>gccgo</code>
+providing a complete Go 1.1 implementaiton.
+</p>
+
 <h3 id="gc_flag">Command-line flag parsing</h3>
 
 <p>
