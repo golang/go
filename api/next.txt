@@ -28,6 +28,7 @@ pkg bytes, func TrimPrefix([]uint8, []uint8) []uint8
 pkg bytes, func TrimSuffix([]uint8, []uint8) []uint8
 pkg bytes, method (*Buffer) Grow(int)
 pkg bytes, method (*Reader) WriteTo(io.Writer) (int64, error)
+pkg compress/gzip, method (*Writer) Flush() error
 pkg crypto/hmac, func Equal([]uint8, []uint8) bool
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
@@ -61,6 +62,8 @@ pkg crypto/x509, type PEMCipher int
 pkg crypto/x509, type SystemRootsError struct
 pkg crypto/x509, type VerifyOptions struct, KeyUsages []ExtKeyUsage
 pkg crypto/x509, var IncorrectPasswordError error
+pkg database/sql, method (*DB) Ping() error
+pkg database/sql, method (*DB) SetMaxIdleConns(int)
 pkg database/sql/driver, type Queryer interface { Query }
 pkg database/sql/driver, type Queryer interface, Query(string, []Value) (Rows, error)
 pkg debug/elf, method (*File) DynString(DynTag) ([]string, error)
@@ -89,6 +92,7 @@ pkg encoding/json, method (Number) String() string
 pkg encoding/json, type Number string
 pkg encoding/xml, func EscapeText(io.Writer, []uint8) error
 pkg encoding/xml, method (*Encoder) Indent(string, string)
+pkg encoding/xml, type Decoder struct, DefaultSpace string
 pkg go/ast, func NewCommentMap(*token.FileSet, Node, []*CommentGroup) CommentMap
 pkg go/ast, method (CommentMap) Comments() []*CommentGroup
 pkg go/ast, method (CommentMap) Filter(Node) CommentMap
@@ -96,14 +100,20 @@ pkg go/ast, method (CommentMap) String() string
 pkg go/ast, method (CommentMap) Update(Node, Node) Node
 pkg go/ast, type ChanType struct, Arrow token.Pos
 pkg go/ast, type CommentMap map[Node][]*CommentGroup
-pkg go/build, type Context struct, InstallTag string
+pkg go/build, type Context struct, InstallSuffix string
+pkg go/build, type Context struct, ReleaseTags []string
 pkg go/build, type Package struct, IgnoredGoFiles []string
 pkg go/build, type Package struct, SwigCXXFiles []string
 pkg go/build, type Package struct, SwigFiles []string
 pkg go/doc, type Example struct, EmptyOutput bool
 pkg go/doc, type Example struct, Order int
 pkg go/doc, type Example struct, Play *ast.File
-pkg go/doc, type Package struct, Notes map[string][]string
+pkg go/doc, type Note struct
+pkg go/doc, type Note struct, Body string
+pkg go/doc, type Note struct, End token.Pos
+pkg go/doc, type Note struct, Pos token.Pos
+pkg go/doc, type Note struct, UID string
+pkg go/doc, type Package struct, Notes map[string][]*Note
 pkg go/doc, var IllegalPrefixes []string
 pkg go/format, func Node(io.Writer, *token.FileSet, interface{}) error
 pkg go/format, func Source([]uint8) ([]uint8, error)
@@ -339,27 +349,24 @@ pkg math/big, method (*Int) UnmarshalJSON([]uint8) error
 pkg math/big, method (*Rat) Float64() (float64, bool)
 pkg math/big, method (*Rat) SetFloat64(float64) *Rat
 pkg mime/multipart, method (*Writer) SetBoundary(string) error
-pkg net, func Deadline(time.Time) DialOption
-pkg net, func DialOpt(string, ...DialOption) (Conn, error)
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UnixConn, error)
-pkg net, func LocalAddress(Addr) DialOption
 pkg net, func LookupNS(string) ([]*NS, error)
-pkg net, func Network(string) DialOption
-pkg net, func Timeout(time.Duration) DialOption
+pkg net, method (*Dialer) Dial(string, string) (Conn, error)
 pkg net, method (*IPConn) ReadMsgIP([]uint8, []uint8) (int, int, int, *IPAddr, error)
 pkg net, method (*IPConn) WriteMsgIP([]uint8, []uint8, *IPAddr) (int, int, error)
 pkg net, method (*UDPConn) ReadMsgUDP([]uint8, []uint8) (int, int, int, *UDPAddr, error)
 pkg net, method (*UDPConn) WriteMsgUDP([]uint8, []uint8, *UDPAddr) (int, int, error)
 pkg net, method (*UnixConn) CloseRead() error
 pkg net, method (*UnixConn) CloseWrite() error
-pkg net, type DialOption interface, unexported methods
+pkg net, type Dialer struct
+pkg net, type Dialer struct, Deadline time.Time
+pkg net, type Dialer struct, LocalAddr Addr
+pkg net, type Dialer struct, Timeout time.Duration
 pkg net, type IPAddr struct, Zone string
 pkg net, type NS struct
 pkg net, type NS struct, Host string
 pkg net, type TCPAddr struct, Zone string
 pkg net, type UDPAddr struct, Zone string
-pkg net, var TCP DialOption
-pkg net, var UDP DialOption
 pkg net/http, func ParseTime(string) (time.Time, error)
 pkg net/http, method (*Request) PostFormValue(string) string
 pkg net/http, method (*ServeMux) Handler(*Request) (Handler, string)
@@ -384,6 +391,7 @@ pkg net/smtp, method (*Client) Hello(string) error
 pkg net/textproto, func TrimBytes([]uint8) []uint8
 pkg net/textproto, func TrimString(string) string
 pkg os, method (FileMode) IsRegular() bool
+pkg os/signal, func Stop(chan<- os.Signal)
 pkg reflect, const SelectDefault SelectDir
 pkg reflect, const SelectRecv SelectDir
 pkg reflect, const SelectSend SelectDir
