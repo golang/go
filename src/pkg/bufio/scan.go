@@ -16,7 +16,7 @@ import (
 // the Scan method will step through the 'tokens' of a file, skipping
 // the bytes between the tokens. The specification of a token is
 // defined by a split function of type SplitFunc; the default split
-// function breaks the input into lines with newlines stripped. Split
+// function breaks the input into lines with line termination stripped. Split
 // functions are defined in this package for scanning a file into
 // lines, bytes, UTF-8-encoded runes, and space-delimited words. The
 // client may instead provide a custom split function.
@@ -70,6 +70,7 @@ const (
 )
 
 // NewScanner returns a new Scanner to read from r.
+// The split function defaults to ScanLines.
 func NewScanner(r io.Reader) *Scanner {
 	return &Scanner{
 		r:            r,
@@ -257,7 +258,7 @@ func dropCR(data []byte) []byte {
 // ScanLines is a split function for a Scanner that returns each line of
 // text, stripped of any trailing end-of-line marker. The returned line may
 // be empty. The end-of-line marker is one optional carriage return followed
-// by one mandatory newline. In regular expression notation, it is `\r?\n'.
+// by one mandatory newline. In regular expression notation, it is `\r?\n`.
 // The last non-empty line of input will be returned even if it has no
 // newline.
 func ScanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
