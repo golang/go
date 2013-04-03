@@ -36,11 +36,14 @@ static bool onstack(uintptr argp);
 uintptr
 runtime·raceinit(void)
 {
-	uintptr racectx;
+	uintptr racectx, start, size;
 
 	m->racecall = true;
 	runtime∕race·Initialize(&racectx);
-	runtime∕race·MapShadow(noptrdata, enoptrbss - noptrdata);
+	// Round data segment to page boundaries, because it's used in mmap().
+	start = (uintptr)noptrdata & ~(PageSize-1);
+	size = ROUND((uintptr)enoptrbss - start, PageSize);
+	runtime∕race·MapShadow((void*)start, size);
 	m->racecall = false;
 	return racectx;
 }
