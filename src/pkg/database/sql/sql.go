@@ -192,14 +192,12 @@ type DB struct {
 	driver driver.Driver
 	dsn    string
 
-	mu        sync.Mutex           // protects following fields
-	outConn   map[*driverConn]bool // whether the conn is in use
-	freeConn  []*driverConn
-	closed    bool
-	dep       map[finalCloser]depSet
-	onConnPut map[*driverConn][]func() // code (with mu held) run when conn is next returned
-	lastPut   map[*driverConn]string   // stacktrace of last conn's put; debug only
-	maxIdle   int                      // zero means defaultMaxIdleConns; negative means 0
+	mu       sync.Mutex // protects following fields
+	freeConn []*driverConn
+	closed   bool
+	dep      map[finalCloser]depSet
+	lastPut  map[*driverConn]string // stacktrace of last conn's put; debug only
+	maxIdle  int                    // zero means defaultMaxIdleConns; negative means 0
 }
 
 // driverConn wraps a driver.Conn with a mutex, to
@@ -212,6 +210,10 @@ type driverConn struct {
 	sync.Mutex // guards following
 	ci         driver.Conn
 	closed     bool
+
+	// guarded by db.mu
+	inUse bool
+	onPut []func() // code (with db.mu held) run when conn is next returned
 }
 
 // the dc.db's Mutex is held.
@@ -341,11 +343,9 @@ func Open(driverName, dataSourceName string) (*DB, error) {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
 	db := &DB{
-		driver:    driveri,
-		dsn:       dataSourceName,
-		outConn:   make(map[*driverConn]bool),
-		lastPut:   make(map[*driverConn]string),
-		onConnPut: make(map[*driverConn][]func()),
+		driver:  driveri,
+		dsn:     dataSourceName,
+		lastPut: make(map[*driverConn]string),
 	}
 	return db, nil
 }
@@ -427,7 +427,7 @@ func (db *DB) conn() (*driverConn, error) {
 	if n := len(db.freeConn); n > 0 {
 		conn := db.freeConn[n-1]
 		db.freeConn = db.freeConn[:n-1]
-		db.outConn[conn] = true
+		conn.inUse = true
 		db.mu.Unlock()
 		return conn, nil
 	}
@@ -443,7 +443,7 @@ func (db *DB) conn() (*driverConn, error) {
 	}
 	db.mu.Lock()
 	db.addDepLocked(dc, dc)
-	db.outConn[dc] = true
+	dc.inUse = true
 	db.mu.Unlock()
 	return dc, nil
 }
@@ -456,7 +456,7 @@ func (db *DB) conn() (*driverConn, error) {
 func (db *DB) connIfFree(wanted *driverConn) (conn *driverConn, ok bool) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if db.outConn[wanted] {
+	if wanted.inUse {
 		return conn, false
 	}
 	for i, conn := range db.freeConn {
@@ -465,7 +465,7 @@ func (db *DB) connIfFree(wanted *driverConn) (conn *driverConn, ok bool) {
 		}
 		db.freeConn[i] = db.freeConn[len(db.freeConn)-1]
 		db.freeConn = db.freeConn[:len(db.freeConn)-1]
-		db.outConn[wanted] = true
+		wanted.inUse = true
 		return wanted, true
 	}
 	return nil, false
@@ -480,8 +480,8 @@ var putConnHook func(*DB, *driverConn)
 func (db *DB) noteUnusedDriverStatement(c *driverConn, si driver.Stmt) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if db.outConn[c] {
-		db.onConnPut[c] = append(db.onConnPut[c], func() {
+	if c.inUse {
+		c.onPut = append(c.onPut, func() {
 			si.Close()
 		})
 	} else {
@@ -497,7 +497,7 @@ const debugGetPut = false
 // err is optionally the last error that occurred on this connection.
 func (db *DB) putConn(dc *driverConn, err error) {
 	db.mu.Lock()
-	if !db.outConn[dc] {
+	if !dc.inUse {
 		if debugGetPut {
 			fmt.Printf("putConn(%v) DUPLICATE was: %s\n\nPREVIOUS was: %s", dc, stack(), db.lastPut[dc])
 		}
@@ -506,14 +506,12 @@ func (db *DB) putConn(dc *driverConn, err error) {
 	if debugGetPut {
 		db.lastPut[dc] = stack()
 	}
-	delete(db.outConn, dc)
+	dc.inUse = false
 
-	if fns, ok := db.onConnPut[dc]; ok {
-		for _, fn := range fns {
-			fn()
-		}
-		delete(db.onConnPut, dc)
+	for _, fn := range dc.onPut {
+		fn()
 	}
+	dc.onPut = nil
 
 	if err == driver.ErrBadConn {
 		// Don't reuse bad connections.
