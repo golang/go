@@ -7,7 +7,9 @@ package sql
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -36,7 +38,14 @@ const fakeDBName = "foo"
 
 var chrisBirthday = time.Unix(123456789, 0)
 
-func newTestDB(t *testing.T, name string) *DB {
+type testOrBench interface {
+	Fatalf(string, ...interface{})
+	Errorf(string, ...interface{})
+	Fatal(...interface{})
+	Error(...interface{})
+}
+
+func newTestDB(t testOrBench, name string) *DB {
 	db, err := Open("test", fakeDBName)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -53,14 +62,14 @@ func newTestDB(t *testing.T, name string) *DB {
 	return db
 }
 
-func exec(t *testing.T, db *DB, query string, args ...interface{}) {
+func exec(t testOrBench, db *DB, query string, args ...interface{}) {
 	_, err := db.Exec(query, args...)
 	if err != nil {
 		t.Fatalf("Exec of %q: %v", query, err)
 	}
 }
 
-func closeDB(t *testing.T, db *DB) {
+func closeDB(t testOrBench, db *DB) {
 	if e := recover(); e != nil {
 		fmt.Printf("Panic: %v\n", e)
 		panic(e)
@@ -842,5 +851,65 @@ func TestCloseConnBeforeStmts(t *testing.T) {
 	}
 	if dc.ci != nil {
 		t.Errorf("after Stmt Close, driverConn's Conn interface should be nil")
+	}
+}
+
+func manyConcurrentQueries(t testOrBench) {
+	maxProcs, numReqs := 16, 500
+	if testing.Short() {
+		maxProcs, numReqs = 4, 50
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	stmt, err := db.Prepare("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(numReqs)
+
+	reqs := make(chan bool)
+	defer close(reqs)
+
+	for i := 0; i < maxProcs*2; i++ {
+		go func() {
+			for _ = range reqs {
+				rows, err := stmt.Query()
+				if err != nil {
+					t.Errorf("error on query:  %v", err)
+					wg.Done()
+					continue
+				}
+
+				var name string
+				for rows.Next() {
+					rows.Scan(&name)
+				}
+				rows.Close()
+
+				wg.Done()
+			}
+		}()
+	}
+
+	for i := 0; i < numReqs; i++ {
+		reqs <- true
+	}
+
+	wg.Wait()
+}
+
+func TestConcurrency(t *testing.T) {
+	manyConcurrentQueries(t)
+}
+
+func BenchmarkConcurrency(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		manyConcurrentQueries(b)
 	}
 }
