@@ -420,6 +420,17 @@ An ARMv6 or later processor is required for <code>freebsd/arm</code> or
 Go 1.1 adds experimental support for <code>cgo</code> on <code>linux/arm</code>.
 </p>
 
+<h3 id="crosscompile">Cross compilation</h3>
+
+<p>
+When cross-compiling, the <code>go</code> tool will disable <code>cgo</code>
+support by default.
+</p>
+
+<p>
+To explicitly enable <code>cgo</code>, set <code>CGO_ENABLED=1</code>.
+</p>
+
 <h2 id="performance">Performance</h2>
 
 <p>
