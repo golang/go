@@ -179,6 +179,13 @@ function fixFocus() {
   }).resize();
 }
 
+function toggleHash() {
+    var hash = $(window.location.hash);
+    if (hash.is('.toggle')) {
+      hash.addClass('toggleVisible').removeClass('toggle');
+    }
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -190,6 +197,7 @@ $(document).ready(function() {
   bindToggleLinks(".indexLink", "");
   setupDropdownPlayground();
   fixFocus();
+  toggleHash();
 });
 
 })();
