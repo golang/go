@@ -81,7 +81,14 @@ var tourContent = []string{
 	"tour.article",
 }
 
-var fileRe = regexp.MustCompile(`^go\.([a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+))\.`)
+// The os-arches that support the race toolchain.
+var raceAvailable = []string{
+	"darwin-amd64",
+	"linux-amd64",
+	"windows-amd64",
+}
+
+var fileRe = regexp.MustCompile(`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+))\.`)
 
 func main() {
 	flag.Usage = func() {
@@ -132,6 +139,13 @@ func main() {
 			}
 			b.OS = p[0]
 			b.Arch = p[1]
+			if *includeRace {
+				for _, t := range raceAvailable {
+					if t == targ {
+						b.Race = true
+					}
+				}
+			}
 		}
 		if err := b.Do(); err != nil {
 			log.Printf("%s: %v", targ, err)
@@ -141,6 +155,7 @@ func main() {
 
 type Build struct {
 	Source bool // if true, OS and Arch must be empty
+	Race   bool // build race toolchain
 	OS     string
 	Arch   string
 	root   string
@@ -185,7 +200,7 @@ func (b *Build) Do() error {
 		} else {
 			_, err = b.run(src, "bash", "make.bash")
 		}
-		if *includeRace {
+		if b.Race {
 			if err != nil {
 				return err
 			}
@@ -197,8 +212,8 @@ func (b *Build) Do() error {
 			if err != nil {
 				return err
 			}
-			// Re-install std without -race, so that we're not left with
-			// a slower, race-enabled cmd/go, cmd/godoc, etc.
+			// Re-install std without -race, so that we're not left
+			// with a slower, race-enabled cmd/go, cmd/godoc, etc.
 			_, err = b.run(src, goCmd, "install", "-a", "std")
 		}
 		if err != nil {
