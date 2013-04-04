@@ -1607,7 +1607,7 @@ sweepspan(ParFor *desc, uint32 idx)
 		if(cl == 0) {
 			// Free large span.
 			runtime·unmarkspan(p, 1<<PageShift);
-			*(uintptr*)p = 1;	// needs zeroing
+			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
 			runtime·MHeap_Free(runtime·mheap, s, 1);
 			c->local_alloc -= size;
 			c->local_nfree++;
@@ -1622,7 +1622,7 @@ sweepspan(ParFor *desc, uint32 idx)
 				break;
 			}
 			if(size > sizeof(uintptr))
-				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
+				((uintptr*)p)[1] = (uintptr)0xdeaddeaddeaddeadll;	// mark as "needs to be zeroed"
 			
 			end->next = (MLink*)p;
 			end = (MLink*)p;
