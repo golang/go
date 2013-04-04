@@ -29,14 +29,15 @@ import (
 )
 
 var (
-	tag         = flag.String("tag", "release", "mercurial tag to check out")
-	repo        = flag.String("repo", "https://code.google.com/p/go", "repo URL")
-	tourPath    = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
-	verbose     = flag.Bool("v", false, "verbose output")
-	upload      = flag.Bool("upload", true, "upload resulting files to Google Code")
-	wxsFile     = flag.String("wxs", "", "path to custom installer.wxs")
-	addLabel    = flag.String("label", "", "additional label to apply to file when uploading")
-	includeRace = flag.Bool("race", true, "build race detector packages")
+	tag             = flag.String("tag", "release", "mercurial tag to check out")
+	repo            = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+	tourPath        = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
+	verbose         = flag.Bool("v", false, "verbose output")
+	upload          = flag.Bool("upload", true, "upload resulting files to Google Code")
+	wxsFile         = flag.String("wxs", "", "path to custom installer.wxs")
+	addLabel        = flag.String("label", "", "additional label to apply to file when uploading")
+	includeRace     = flag.Bool("race", true, "build race detector packages")
+	versionOverride = flag.String("version", "", "override version name")
 
 	username, password string // for Google Code upload
 )
@@ -184,28 +185,28 @@ func (b *Build) Do() error {
 		} else {
 			_, err = b.run(src, "bash", "make.bash")
 		}
+		if *includeRace {
+			if err != nil {
+				return err
+			}
+			goCmd := filepath.Join(b.root, "bin", "go")
+			if b.OS == "windows" {
+				goCmd += ".exe"
+			}
+			_, err = b.run(src, goCmd, "install", "-race", "std")
+			if err != nil {
+				return err
+			}
+			// Re-install std without -race, so that we're not left with
+			// a slower, race-enabled cmd/go, cmd/godoc, etc.
+			_, err = b.run(src, goCmd, "install", "-a", "std")
+		}
+		if err != nil {
+			return err
+		}
+		err = b.tour()
 	}
 	if err != nil {
-		return err
-	}
-	if !b.Source && *includeRace {
-		goCmd := filepath.Join(b.root, "bin", "go")
-		if b.OS == "windows" {
-			goCmd += ".exe"
-		}
-		_, err = b.run(src, goCmd, "install", "-race", "std")
-		if err != nil {
-			return err
-		}
-		// Re-install std without -race, so that we're not left with
-		// a slower, race-enabled cmd/go, cmd/godoc, etc.
-		_, err = b.run(src, goCmd, "install", "-a", "std")
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := b.tour(); err != nil {
 		return err
 	}
 
@@ -229,6 +230,9 @@ func (b *Build) Do() error {
 	fullVersion = bytes.TrimSpace(fullVersion)
 	v := bytes.SplitN(fullVersion, []byte(" "), 2)
 	version = string(v[0])
+	if *versionOverride != "" {
+		version = *versionOverride
+	}
 
 	// Write VERSION file.
 	err = ioutil.WriteFile(filepath.Join(b.root, "VERSION"), fullVersion, 0644)
@@ -522,7 +526,12 @@ func (b *Build) Upload(version string, filename string) error {
 		ftype = "Source"
 		summary = fmt.Sprintf("%s (source only)", version)
 	}
-	labels = append(labels, "OpSys-"+opsys, "Type-"+ftype)
+	if opsys != "" {
+		labels = append(labels, "OpSys-"+opsys)
+	}
+	if ftype != "" {
+		labels = append(labels, "Type-"+ftype)
+	}
 	if *addLabel != "" {
 		labels = append(labels, *addLabel)
 	}
