@@ -155,7 +155,7 @@ struct	Type
 	Type*	orig;		// original type (type literal or predefined type)
 	int		lineno;
 
-	// TFUNCT
+	// TFUNC
 	uchar	thistuple;
 	uchar	outtuple;
 	uchar	intuple;
