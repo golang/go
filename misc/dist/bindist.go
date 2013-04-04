@@ -197,6 +197,12 @@ func (b *Build) Do() error {
 		if err != nil {
 			return err
 		}
+		// Re-install std without -race, so that we're not left with
+		// a slower, race-enabled cmd/go, cmd/godoc, etc.
+		_, err = b.run(src, goCmd, "install", "-a", "std")
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := b.tour(); err != nil {
