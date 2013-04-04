@@ -112,8 +112,8 @@ var respTests = []respTest{
 			ProtoMinor: 0,
 			Request:    dummyReq("GET"),
 			Header: Header{
-				"Connection":     {"close"}, // TODO(rsc): Delete?
-				"Content-Length": {"10"},    // TODO(rsc): Delete?
+				"Connection":     {"close"},
+				"Content-Length": {"10"},
 			},
 			Close:         true,
 			ContentLength: 10,
@@ -170,7 +170,7 @@ var respTests = []respTest{
 			Request:          dummyReq("GET"),
 			Header:           Header{},
 			Close:            false,
-			ContentLength:    -1, // TODO(rsc): Fix?
+			ContentLength:    -1,
 			TransferEncoding: []string{"chunked"},
 		},
 

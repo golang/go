@@ -4,9 +4,6 @@
 
 // HTTP server.  See RFC 2616.
 
-// TODO(rsc):
-//	logging
-
 package http
 
 import (
