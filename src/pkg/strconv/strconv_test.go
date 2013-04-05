@@ -20,14 +20,12 @@ var (
 		desc  string
 		fn    func()
 	}{
-		// TODO(bradfitz): this might be 0, once escape analysis is better
-		{1, `AppendInt(localBuf[:0], 123, 10)`, func() {
+		{0, `AppendInt(localBuf[:0], 123, 10)`, func() {
 			var localBuf [64]byte
 			AppendInt(localBuf[:0], 123, 10)
 		}},
 		{0, `AppendInt(globalBuf[:0], 123, 10)`, func() { AppendInt(globalBuf[:0], 123, 10) }},
-		// TODO(bradfitz): this might be 0, once escape analysis is better
-		{1, `AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)`, func() {
+		{0, `AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)`, func() {
 			var localBuf [64]byte
 			AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)
 		}},
