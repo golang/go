@@ -18,6 +18,8 @@
 //         ...
 //     }
 //
+// Benchmarks
+//
 // Functions of the form
 //     func BenchmarkXxx(*testing.B)
 // are considered benchmarks, and are executed by the "go test" command when
@@ -48,6 +50,8 @@
 //             big.Len()
 //         }
 //     }
+//
+// Examples
 //
 // The package also runs and verifies example code. Example functions may
 // include a concluding line comment that begins with "Output:" and is compared with
