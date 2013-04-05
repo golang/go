@@ -48,7 +48,7 @@ var (
 	ErrUnexpectedTrailer    = &ProtocolError{"trailer header without chunked transfer encoding"}
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 	ErrNotMultipart         = &ProtocolError{"request Content-Type isn't multipart/form-data"}
-	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param Content-Type"}
+	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param in Content-Type"}
 )
 
 type badStringError struct {
