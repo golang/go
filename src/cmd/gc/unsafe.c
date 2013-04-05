@@ -16,7 +16,7 @@
 Node*
 unsafenmagic(Node *nn)
 {
-	Node *r, *n;
+	Node *r, *n, *base, *r1;
 	Sym *s;
 	Type *t, *tr;
 	long v;
@@ -49,11 +49,43 @@ unsafenmagic(Node *nn)
 		goto yes;
 	}
 	if(strcmp(s->name, "Offsetof") == 0) {
-		typecheck(&r, Erv);
-		if(r->op != ODOT && r->op != ODOTPTR)
+		// must be a selector.
+		if(r->op != OXDOT)
 			goto bad;
+		// Remember base of selector to find it back after dot insertion.
+		// Since r->left may be mutated by typechecking, check it explicitly
+		// first to track it correctly.
+		typecheck(&r->left, Erv);
+		base = r->left;
 		typecheck(&r, Erv);
-		v = r->xoffset;
+		switch(r->op) {
+		case ODOT:
+		case ODOTPTR:
+			break;
+		case OCALLPART:
+			yyerror("invalid expression %N: argument is a method value", nn);
+			v = 0;
+			goto ret;
+		default:
+			goto bad;
+		}
+		v = 0;
+		// add offsets for inserted dots.
+		for(r1=r; r1->left!=base; r1=r1->left) {
+			switch(r1->op) {
+			case ODOT:
+				v += r1->xoffset;
+				break;
+			case ODOTPTR:
+				yyerror("invalid expression %N: selector implies indirection of embedded %N", nn, r1->left);
+				goto ret;
+			default:
+				dump("unsafenmagic", r);
+				fatal("impossible %#O node after dot insertion", r1->op);
+				goto bad;
+			}
+		}
+		v += r1->xoffset;
 		goto yes;
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
