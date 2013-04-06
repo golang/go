@@ -582,7 +582,7 @@ a revision control system.
 
 A few common code hosting sites have special syntax:
 
-	BitBucket (Mercurial)
+	Bitbucket (Git, Mercurial)
 
 		import "bitbucket.org/user/project"
 		import "bitbucket.org/user/project/sub/directory"
