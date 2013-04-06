@@ -641,7 +641,7 @@ func oldGoogleCode(match map[string]string) error {
 }
 
 // bitbucketVCS determines the version control system for a
-// BitBucket repository, by using the BitBucket API.
+// Bitbucket repository, by using the Bitbucket API.
 func bitbucketVCS(match map[string]string) error {
 	if err := noVCSSuffix(match); err != nil {
 		return err
