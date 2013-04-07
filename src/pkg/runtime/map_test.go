@@ -30,7 +30,7 @@ func TestNegativeZero(t *testing.T) {
 		t.Error("length wrong")
 	}
 
-	for k, _ := range m {
+	for k := range m {
 		if math.Copysign(1.0, k) > 0 {
 			t.Error("wrong sign")
 		}
@@ -44,7 +44,7 @@ func TestNegativeZero(t *testing.T) {
 		t.Error("length wrong")
 	}
 
-	for k, _ := range m {
+	for k := range m {
 		if math.Copysign(1.0, k) < 0 {
 			t.Error("wrong sign")
 		}
