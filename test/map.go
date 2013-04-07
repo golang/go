@@ -5,6 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Test maps, almost exhaustively.
+// NaN complexity test is in mapnan.go.
 
 package main
 
@@ -12,7 +13,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"time"
 )
 
 const count = 100
@@ -659,39 +659,26 @@ func testfloat() {
 }
 
 func testnan() {
-	// Test that NaNs in maps don't go quadratic.
-	t := func(n int) time.Duration {
-		t0 := time.Now()
-		m := map[float64]int{}
-		nan := math.NaN()
-		for i := 0; i < n; i++ {
-			m[nan] = 1
-		}
-		if len(m) != n {
-			panic("wrong size map after nan insertion")
-		}
-		return time.Since(t0)
+	n := 500
+	m := map[float64]int{}
+	nan := math.NaN()
+	for i := 0; i < n; i++ {
+		m[nan] = 1
 	}
-
-	// Depending on the machine and OS, this test might be too fast
-	// to measure with accurate enough granularity. On failure,
-	// make it run longer, hoping that the timing granularity
-	// is eventually sufficient.
-
-	n := 30000 // 0.02 seconds on a MacBook Air
-	fails := 0
-	for {
-		t1 := t(n)
-		t2 := t(2 * n)
-		// should be 2x (linear); allow up to 3x
-		if t2 < 3*t1 {
-			return
+	if len(m) != n {
+		panic("wrong size map after nan insertion")
+	}
+	iters := 0
+	for k, v := range m {
+		iters++
+		if !math.IsNaN(k) {
+			panic("not NaN")
 		}
-		fails++
-		if fails == 4 {
-			panic(fmt.Sprintf("too slow: %d inserts: %v; %d inserts: %v\n", n, t1, 2*n, t2))
-			return
+		if v != 1 {
+			panic("wrong value")
 		}
-		n *= 2
+	}
+	if iters != n {
+		panic("wrong number of nan range iters")
 	}
 }
