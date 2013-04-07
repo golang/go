@@ -511,7 +511,7 @@ struct ParFor
 struct CgoMal
 {
 	CgoMal	*next;
-	byte	*alloc;
+	void	*alloc;
 };
 
 /*
