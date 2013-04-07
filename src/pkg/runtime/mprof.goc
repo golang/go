@@ -61,6 +61,8 @@ struct Bucket
 	Bucket	*next;	// next in hash list
 	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
 	int32	typ;
+	// Generally unions can break precise GC,
+	// this one is fine because it does not contain pointers.
 	union
 	{
 		struct  // typ == MProf

@@ -416,10 +416,10 @@ struct MHeap
 	byte *arena_end;
 
 	// central free lists for small size classes.
-	// the union makes sure that the MCentrals are
+	// the padding makes sure that the MCentrals are
 	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
 	// gets its own cache line.
-	union {
+	struct {
 		MCentral;
 		byte pad[CacheLineSize];
 	} central[NumSizeClasses];
