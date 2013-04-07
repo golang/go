@@ -54,7 +54,7 @@ typedef	struct	Lock		Lock;
 typedef	struct	M		M;
 typedef	struct	P		P;
 typedef	struct	Mem		Mem;
-typedef	union	Note		Note;
+typedef	struct	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	Stktop		Stktop;
 typedef	struct	String		String;
@@ -163,10 +163,12 @@ struct	Lock
 	// Used to be a union, but unions break precise GC.
 	uintptr	key;
 };
-union	Note
+struct	Note
 {
-	uint32	key;	// futex-based impl
-	M*	waitm;	// waiting M (sema-based impl)
+	// Futex-based impl treats it as uint32 key,
+	// while sema-based impl as M* waitm.
+	// Used to be a union, but unions break precise GC.
+	uintptr	key;
 };
 struct String
 {
