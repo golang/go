@@ -910,7 +910,7 @@ func (v Value) Index(i int) Value {
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
 		typ := tt.elem
 		fl |= flag(typ.Kind()) << flagKindShift
-		val := unsafe.Pointer(s.Data + uintptr(i)*typ.size)
+		val := unsafe.Pointer(uintptr(s.Data) + uintptr(i)*typ.size)
 		return Value{typ, val, fl}
 
 	case String:
@@ -919,7 +919,7 @@ func (v Value) Index(i int) Value {
 		if i < 0 || i >= s.Len {
 			panic("reflect: string index out of range")
 		}
-		val := *(*byte)(unsafe.Pointer(s.Data + uintptr(i)))
+		val := *(*byte)(unsafe.Pointer(uintptr(s.Data) + uintptr(i)))
 		return Value{uint8Type, unsafe.Pointer(uintptr(val)), fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", k})
@@ -1310,7 +1310,7 @@ func (v Value) Pointer() uintptr {
 		return uintptr(p)
 
 	case Slice:
-		return (*SliceHeader)(v.val).Data
+		return uintptr((*SliceHeader)(v.val).Data)
 	}
 	panic(&ValueError{"reflect.Value.Pointer", k})
 }
@@ -1565,7 +1565,7 @@ func (v Value) Slice(beg, end int) Value {
 		}
 		var x string
 		val := (*StringHeader)(unsafe.Pointer(&x))
-		val.Data = s.Data + uintptr(beg)
+		val.Data = unsafe.Pointer(uintptr(s.Data) + uintptr(beg))
 		val.Len = end - beg
 		return Value{v.typ, unsafe.Pointer(&x), v.flag}
 	}
@@ -1579,7 +1579,7 @@ func (v Value) Slice(beg, end int) Value {
 
 	// Reinterpret as *SliceHeader to edit.
 	s := (*SliceHeader)(unsafe.Pointer(&x))
-	s.Data = uintptr(base) + uintptr(beg)*typ.elem.Size()
+	s.Data = unsafe.Pointer(uintptr(base) + uintptr(beg)*typ.elem.Size())
 	s.Len = end - beg
 	s.Cap = cap - beg
 
@@ -1701,14 +1701,14 @@ func (v Value) UnsafeAddr() uintptr {
 // StringHeader is the runtime representation of a string.
 // It cannot be used safely or portably.
 type StringHeader struct {
-	Data uintptr
+	Data unsafe.Pointer
 	Len  int
 }
 
 // SliceHeader is the runtime representation of a slice.
 // It cannot be used safely or portably.
 type SliceHeader struct {
-	Data uintptr
+	Data unsafe.Pointer
 	Len  int
 	Cap  int
 }
@@ -1988,7 +1988,7 @@ func MakeSlice(typ Type, len, cap int) Value {
 
 	// Reinterpret as *SliceHeader to edit.
 	s := (*SliceHeader)(unsafe.Pointer(&x))
-	s.Data = uintptr(unsafe_NewArray(typ.Elem().(*rtype), cap))
+	s.Data = unsafe_NewArray(typ.Elem().(*rtype), cap)
 	s.Len = len
 	s.Cap = cap
 
