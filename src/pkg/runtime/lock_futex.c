@@ -41,7 +41,7 @@ runtime·lock(Lock *l)
 		runtime·throw("runtime·lock: lock count");
 
 	// Speculative grab for lock.
-	v = runtime·xchg(&l->key, MUTEX_LOCKED);
+	v = runtime·xchg((uint32*)&l->key, MUTEX_LOCKED);
 	if(v == MUTEX_UNLOCKED)
 		return;
 
@@ -64,7 +64,7 @@ runtime·lock(Lock *l)
 		// Try for lock, spinning.
 		for(i = 0; i < spin; i++) {
 			while(l->key == MUTEX_UNLOCKED)
-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+				if(runtime·cas((uint32*)&l->key, MUTEX_UNLOCKED, wait))
 					return;
 			runtime·procyield(ACTIVE_SPIN_CNT);
 		}
@@ -72,17 +72,17 @@ runtime·lock(Lock *l)
 		// Try for lock, rescheduling.
 		for(i=0; i < PASSIVE_SPIN; i++) {
 			while(l->key == MUTEX_UNLOCKED)
-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+				if(runtime·cas((uint32*)&l->key, MUTEX_UNLOCKED, wait))
 					return;
 			runtime·osyield();
 		}
 
 		// Sleep.
-		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
+		v = runtime·xchg((uint32*)&l->key, MUTEX_SLEEPING);
 		if(v == MUTEX_UNLOCKED)
 			return;
 		wait = MUTEX_SLEEPING;
-		runtime·futexsleep(&l->key, MUTEX_SLEEPING, -1);
+		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
 	}
 }
 
@@ -94,11 +94,11 @@ runtime·unlock(Lock *l)
 	if(--m->locks < 0)
 		runtime·throw("runtime·unlock: lock count");
 
-	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
+	v = runtime·xchg((uint32*)&l->key, MUTEX_UNLOCKED);
 	if(v == MUTEX_UNLOCKED)
 		runtime·throw("unlock of unlocked lock");
 	if(v == MUTEX_SLEEPING)
-		runtime·futexwakeup(&l->key, 1);
+		runtime·futexwakeup((uint32*)&l->key, 1);
 }
 
 // One-time notifications.
