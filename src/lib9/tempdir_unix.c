@@ -16,7 +16,7 @@ mktempdir(void)
 	char *tmp, *p;
 	
 	tmp = getenv("TMPDIR");
-	if(tmp == nil)
+	if(tmp == nil || strlen(tmp) == 0)
 		tmp = "/var/tmp";
 	p = smprint("%s/go-link-XXXXXX", tmp);
 	if(mkdtemp(p) == nil)
