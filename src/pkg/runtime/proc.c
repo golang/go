@@ -875,6 +875,13 @@ handoffp(P *p)
 		startm(p, false);
 		return;
 	}
+	// If this is the last running P and nobody is polling network,
+	// need to wakeup another M to poll network.
+	if(runtime·sched.npidle == runtime·gomaxprocs-1 && runtime·atomicload64(&runtime·sched.lastpoll) != 0) {
+		runtime·unlock(&runtime·sched);
+		startm(p, false);
+		return;
+	}
 	pidleput(p);
 	runtime·unlock(&runtime·sched);
 }
