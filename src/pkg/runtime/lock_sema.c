@@ -41,7 +41,7 @@ runtime·lock(Lock *l)
 		runtime·throw("runtime·lock: lock count");
 
 	// Speculative grab for lock.
-	if(runtime·casp(&l->waitm, nil, (void*)LOCKED))
+	if(runtime·casp((void**)&l->key, nil, (void*)LOCKED))
 		return;
 
 	if(m->waitsema == 0)
@@ -54,10 +54,10 @@ runtime·lock(Lock *l)
 		spin = ACTIVE_SPIN;
 
 	for(i=0;; i++) {
-		v = (uintptr)runtime·atomicloadp(&l->waitm);
+		v = (uintptr)runtime·atomicloadp((void**)&l->key);
 		if((v&LOCKED) == 0) {
 unlocked:
-			if(runtime·casp(&l->waitm, (void*)v, (void*)(v|LOCKED)))
+			if(runtime·casp((void**)&l->key, (void*)v, (void*)(v|LOCKED)))
 				return;
 			i = 0;
 		}
@@ -72,9 +72,9 @@ unlocked:
 			// Queue this M.
 			for(;;) {
 				m->nextwaitm = (void*)(v&~LOCKED);
-				if(runtime·casp(&l->waitm, (void*)v, (void*)((uintptr)m|LOCKED)))
+				if(runtime·casp((void**)&l->key, (void*)v, (void*)((uintptr)m|LOCKED)))
 					break;
-				v = (uintptr)runtime·atomicloadp(&l->waitm);
+				v = (uintptr)runtime·atomicloadp((void**)&l->key);
 				if((v&LOCKED) == 0)
 					goto unlocked;
 			}
@@ -97,15 +97,15 @@ runtime·unlock(Lock *l)
 		runtime·throw("runtime·unlock: lock count");
 
 	for(;;) {
-		v = (uintptr)runtime·atomicloadp(&l->waitm);
+		v = (uintptr)runtime·atomicloadp((void**)&l->key);
 		if(v == LOCKED) {
-			if(runtime·casp(&l->waitm, (void*)LOCKED, nil))
+			if(runtime·casp((void**)&l->key, (void*)LOCKED, nil))
 				break;
 		} else {
 			// Other M's are waiting for the lock.
 			// Dequeue an M.
 			mp = (void*)(v&~LOCKED);
-			if(runtime·casp(&l->waitm, (void*)v, mp->nextwaitm)) {
+			if(runtime·casp((void**)&l->key, (void*)v, mp->nextwaitm)) {
 				// Dequeued an M.  Wake it.
 				runtime·semawakeup(mp);
 				break;

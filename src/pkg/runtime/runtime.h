@@ -50,7 +50,7 @@ typedef	uint8			byte;
 typedef	struct	Func		Func;
 typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
-typedef	union	Lock		Lock;
+typedef	struct	Lock		Lock;
 typedef	struct	M		M;
 typedef	struct	P		P;
 typedef	struct	Mem		Mem;
@@ -156,10 +156,12 @@ enum
 /*
  * structures
  */
-union	Lock
+struct	Lock
 {
-	uint32	key;	// futex-based impl
-	M*	waitm;	// linked list of waiting M's (sema-based impl)
+	// Futex-based impl treats it as uint32 key,
+	// while sema-based impl as M* waitm.
+	// Used to be a union, but unions break precise GC.
+	uintptr	key;
 };
 union	Note
 {
