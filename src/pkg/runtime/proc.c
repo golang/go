@@ -695,6 +695,7 @@ runtime·dropm(void)
 
 	// Undo whatever initialization minit did during needm.
 	runtime·unminit();
+	m->seh = nil;  // reset dangling typed pointer
 
 	// Clear m and g, and return m to the extra list.
 	// After the call to setmg we can only call nosplit functions.
