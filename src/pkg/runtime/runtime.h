@@ -317,7 +317,7 @@ struct	M
 	bool	needextram;
 	void*	racepc;
 	void	(*waitunlockf)(Lock*);
-	Lock*	waitlock;
+	void*	waitlock;
 	uint32	moreframesize_minalloc;
 
 	uintptr	settype_buf[1024];

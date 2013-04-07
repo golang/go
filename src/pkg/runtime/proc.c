@@ -1178,6 +1178,7 @@ park0(G *gp)
 	if(m->waitunlockf) {
 		m->waitunlockf(m->waitlock);
 		m->waitunlockf = nil;
+		m->waitlock = nil;
 	}
 	if(m->lockedg) {
 		stoplockedm();
