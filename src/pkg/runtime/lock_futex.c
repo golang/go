@@ -111,9 +111,9 @@ runtime·noteclear(Note *n)
 void
 runtime·notewakeup(Note *n)
 {
-	if(runtime·xchg(&n->key, 1))
+	if(runtime·xchg((uint32*)&n->key, 1))
 		runtime·throw("notewakeup - double wakeup");
-	runtime·futexwakeup(&n->key, 1);
+	runtime·futexwakeup((uint32*)&n->key, 1);
 }
 
 void
@@ -121,8 +121,8 @@ runtime·notesleep(Note *n)
 {
 	if(m->profilehz > 0)
 		runtime·setprof(false);
-	while(runtime·atomicload(&n->key) == 0)
-		runtime·futexsleep(&n->key, 0, -1);
+	while(runtime·atomicload((uint32*)&n->key) == 0)
+		runtime·futexsleep((uint32*)&n->key, 0, -1);
 	if(m->profilehz > 0)
 		runtime·setprof(true);
 }
@@ -137,15 +137,15 @@ runtime·notetsleep(Note *n, int64 ns)
 		return;
 	}
 
-	if(runtime·atomicload(&n->key) != 0)
+	if(runtime·atomicload((uint32*)&n->key) != 0)
 		return;
 
 	if(m->profilehz > 0)
 		runtime·setprof(false);
 	deadline = runtime·nanotime() + ns;
 	for(;;) {
-		runtime·futexsleep(&n->key, 0, ns);
-		if(runtime·atomicload(&n->key) != 0)
+		runtime·futexsleep((uint32*)&n->key, 0, ns);
+		if(runtime·atomicload((uint32*)&n->key) != 0)
 			break;
 		now = runtime·nanotime();
 		if(now >= deadline)

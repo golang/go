@@ -118,7 +118,7 @@ runtime·unlock(Lock *l)
 void
 runtime·noteclear(Note *n)
 {
-	n->waitm = nil;
+	n->key = 0;
 }
 
 void
@@ -127,8 +127,8 @@ runtime·notewakeup(Note *n)
 	M *mp;
 
 	do
-		mp = runtime·atomicloadp(&n->waitm);
-	while(!runtime·casp(&n->waitm, mp, (void*)LOCKED));
+		mp = runtime·atomicloadp((void**)&n->key);
+	while(!runtime·casp((void**)&n->key, mp, (void*)LOCKED));
 
 	// Successfully set waitm to LOCKED.
 	// What was it before?
@@ -148,8 +148,8 @@ runtime·notesleep(Note *n)
 {
 	if(m->waitsema == 0)
 		m->waitsema = runtime·semacreate();
-	if(!runtime·casp(&n->waitm, nil, m)) {  // must be LOCKED (got wakeup)
-		if(n->waitm != (void*)LOCKED)
+	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup)
+		if(n->key != LOCKED)
 			runtime·throw("notesleep - waitm out of sync");
 		return;
 	}
@@ -176,8 +176,8 @@ runtime·notetsleep(Note *n, int64 ns)
 		m->waitsema = runtime·semacreate();
 
 	// Register for wakeup on n->waitm.
-	if(!runtime·casp(&n->waitm, nil, m)) {  // must be LOCKED (got wakeup already)
-		if(n->waitm != (void*)LOCKED)
+	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
+		if(n->key != LOCKED)
 			runtime·throw("notetsleep - waitm out of sync");
 		return;
 	}
@@ -212,10 +212,10 @@ runtime·notetsleep(Note *n, int64 ns)
 	// so that any notewakeup racing with the return does not
 	// try to grant us the semaphore when we don't expect it.
 	for(;;) {
-		mp = runtime·atomicloadp(&n->waitm);
+		mp = runtime·atomicloadp((void**)&n->key);
 		if(mp == m) {
 			// No wakeup yet; unregister if possible.
-			if(runtime·casp(&n->waitm, mp, nil))
+			if(runtime·casp((void**)&n->key, mp, nil))
 				return;
 		} else if(mp == (M*)LOCKED) {
 			// Wakeup happened so semaphore is available.
