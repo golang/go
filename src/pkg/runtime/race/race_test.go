@@ -147,7 +147,7 @@ func runTests() ([]byte, error) {
 	// It is required because the tests contain a lot of data races on the same addresses
 	// (the tests are simple and the memory is constantly reused).
 	for _, env := range os.Environ() {
-		if strings.HasPrefix(env, "GOMAXPROCS=") {
+		if strings.HasPrefix(env, "GOMAXPROCS=") || strings.HasPrefix(env, "GOGCTRACE=") {
 			continue
 		}
 		cmd.Env = append(cmd.Env, env)

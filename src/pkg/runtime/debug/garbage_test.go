@@ -11,6 +11,8 @@ import (
 )
 
 func TestReadGCStats(t *testing.T) {
+	defer SetGCPercent(SetGCPercent(-1))
+
 	var stats GCStats
 	var mstats runtime.MemStats
 	var min, max time.Duration
