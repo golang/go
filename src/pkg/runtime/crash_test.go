@@ -14,6 +14,22 @@ import (
 	"text/template"
 )
 
+// testEnv excludes GOGCTRACE from the environment
+// to prevent its output from breaking tests that
+// are trying to parse other command output.
+func testEnv(cmd *exec.Cmd) *exec.Cmd {
+	if cmd.Env != nil {
+		panic("environment already set")
+	}
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "GOGCTRACE=") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, env)
+	}
+	return cmd
+}
+
 func executeTest(t *testing.T, templ string, data interface{}) string {
 	checkStaleRuntime(t)
 
@@ -37,13 +53,13 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
 	}
 	f.Close()
 
-	got, _ := exec.Command("go", "run", src).CombinedOutput()
+	got, _ := testEnv(exec.Command("go", "run", src)).CombinedOutput()
 	return string(got)
 }
 
 func checkStaleRuntime(t *testing.T) {
 	// 'go run' uses the installed copy of runtime.a, which may be out of date.
-	out, err := exec.Command("go", "list", "-f", "{{.Stale}}", "runtime").CombinedOutput()
+	out, err := testEnv(exec.Command("go", "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to execute 'go list': %v\n%v", err, string(out))
 	}
