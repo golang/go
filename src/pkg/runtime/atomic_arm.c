@@ -5,9 +5,9 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 
-static union {
+static struct {
 	Lock l;
-	byte pad [CacheLineSize];
+	byte pad[CacheLineSize-sizeof(Lock)];
 } locktab[57];
 
 #define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
