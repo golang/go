@@ -208,6 +208,15 @@ func main() {
 
 	p := newPackage(args[:i])
 
+	// Record CGO_LDFLAGS from the environment for external linking.
+	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
+		args, err := splitQuoted(ldflags)
+		if err != nil {
+			fatalf("bad CGO_LDFLAGS: %q (%s)", ldflags, err)
+		}
+		p.addToFlag("LDFLAGS", args)
+	}
+
 	// Need a unique prefix for the global C symbols that
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
