@@ -553,6 +553,59 @@ struct Frame {
 	uintptr *loop_or_ret;
 };
 
+// Sanity check for the derived type info objti.
+static void
+checkptr(void *obj, uintptr objti)
+{
+	uintptr *pc1, *pc2, type, tisize, i, j, x;
+	byte *objstart;
+	Type *t;
+	MSpan *s;
+
+	if(!Debug)
+		runtime·throw("checkptr is debug only");
+
+	if(obj < runtime·mheap->arena_start || obj >= runtime·mheap->arena_used)
+		return;
+	type = runtime·gettype(obj);
+	t = (Type*)(type & ~(uintptr)(PtrSize-1));
+	if(t == nil)
+		return;
+	x = (uintptr)obj >> PageShift;
+	if(sizeof(void*) == 8)
+		x -= (uintptr)(runtime·mheap->arena_start)>>PageShift;
+	s = runtime·mheap->map[x];
+	objstart = (byte*)((uintptr)s->start<<PageShift);
+	if(s->sizeclass != 0) {
+		i = ((byte*)obj - objstart)/s->elemsize;
+		objstart += i*s->elemsize;
+	}
+	tisize = *(uintptr*)objti;
+	// Sanity check for object size: it should fit into the memory block.
+	if((byte*)obj + tisize > objstart + s->elemsize)
+		runtime·throw("invalid gc type info");
+	if(obj != objstart)
+		return;
+	// If obj points to the beginning of the memory block,
+	// check type info as well.
+	if(t->string == nil ||
+		// Gob allocates unsafe pointers for indirection.
+		(runtime·strcmp(t->string->str, (byte*)"unsafe.Pointer") &&
+		// Runtime and gc think differently about closures.
+		runtime·strstr(t->string->str, (byte*)"struct { F uintptr") != t->string->str)) {
+		pc1 = (uintptr*)objti;
+		pc2 = (uintptr*)t->gc;
+		// A simple best-effort check until first GC_END.
+		for(j = 1; pc1[j] != GC_END && pc2[j] != GC_END; j++) {
+			if(pc1[j] != pc2[j]) {
+				runtime·printf("invalid gc type info for '%s' at %p, type info %p, block info %p\n",
+					t->string ? (int8*)t->string->str : (int8*)"?", j, pc1[j], pc2[j]);
+				runtime·throw("invalid gc type info");
+			}
+		}
+	}
+}					
+
 // scanblock scans a block of n bytes starting at pointer b for references
 // to other objects, scanning any it finds recursively until there are no
 // unscanned objects left.  Instead of using an explicit recursion, it keeps
@@ -647,6 +700,17 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			} else {
 				stack_top.count = 1;
 			}
+			if(Debug) {
+				// Simple sanity check for provided type info ti:
+				// The declared size of the object must be not larger than the actual size
+				// (it can be smaller due to inferior pointers).
+				// It's difficult to make a comprehensive check due to inferior pointers,
+				// reflection, gob, etc.
+				if(pc[0] > n) {
+					runtime·printf("invalid gc type info: type info size %p, block size %p\n", pc[0], n);
+					runtime·throw("invalid gc type info");
+				}
+			}
 		} else if(UseSpanType) {
 			if(CollectStats)
 				runtime·xadd64(&gcstats.obj.notype, 1);
@@ -723,6 +787,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			obj = *(void**)(stack_top.b + pc[1]);
 			objti = pc[2];
 			pc += 3;
+			if(Debug)
+				checkptr(obj, objti);
 			break;
 
 		case GC_SLICE:
