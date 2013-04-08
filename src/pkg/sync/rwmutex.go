@@ -28,6 +28,7 @@ const rwmutexMaxReaders = 1 << 30
 // RLock locks rw for reading.
 func (rw *RWMutex) RLock() {
 	if raceenabled {
+		_ = rw.w.state
 		raceDisable()
 	}
 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
@@ -46,6 +47,7 @@ func (rw *RWMutex) RLock() {
 // on entry to RUnlock.
 func (rw *RWMutex) RUnlock() {
 	if raceenabled {
+		_ = rw.w.state
 		raceReleaseMerge(unsafe.Pointer(&rw.writerSem))
 		raceDisable()
 	}
@@ -69,6 +71,7 @@ func (rw *RWMutex) RUnlock() {
 // the lock.
 func (rw *RWMutex) Lock() {
 	if raceenabled {
+		_ = rw.w.state
 		raceDisable()
 	}
 	// First, resolve competition with other writers.
@@ -94,6 +97,7 @@ func (rw *RWMutex) Lock() {
 // arrange for another goroutine to RUnlock (Unlock) it.
 func (rw *RWMutex) Unlock() {
 	if raceenabled {
+		_ = rw.w.state
 		raceRelease(unsafe.Pointer(&rw.readerSem))
 		raceRelease(unsafe.Pointer(&rw.writerSem))
 		raceDisable()

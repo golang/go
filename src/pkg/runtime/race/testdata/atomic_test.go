@@ -6,6 +6,7 @@ package race_test
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"unsafe"
@@ -268,4 +269,22 @@ func TestRaceAtomicAddStore(t *testing.T) {
 	}()
 	a = 42
 	<-c
+}
+
+// A nil pointer in an atomic operation should not deadlock
+// the rest of the program. Used to hang indefinitely.
+func TestNoRaceAtomicCrash(t *testing.T) {
+	var mutex sync.Mutex
+	var nilptr *int32
+	panics := 0
+	defer func() {
+		if x := recover(); x != nil {
+			mutex.Lock()
+			panics++
+			mutex.Unlock()
+		} else {
+			panic("no panic")
+		}
+	}()
+	atomic.AddInt32(nilptr, 1)
 }

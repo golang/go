@@ -195,3 +195,22 @@ func TestRaceGoroutineCreationStack(t *testing.T) {
 	x = 2
 	<-ch
 }
+
+// A nil pointer in a mutex method call should not
+// corrupt the race detector state.
+// Used to hang indefinitely.
+func TestNoRaceNilMutexCrash(t *testing.T) {
+	var mutex sync.Mutex
+	panics := 0
+	defer func() {
+		if x := recover(); x != nil {
+			mutex.Lock()
+			panics++
+			mutex.Unlock()
+		} else {
+			panic("no panic")
+		}
+	}()
+	var othermutex *sync.RWMutex
+	othermutex.RLock()
+}

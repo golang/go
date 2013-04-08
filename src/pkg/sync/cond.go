@@ -57,6 +57,7 @@ func NewCond(l Locker) *Cond {
 //
 func (c *Cond) Wait() {
 	if raceenabled {
+		_ = c.m.state
 		raceDisable()
 	}
 	c.m.Lock()
@@ -80,6 +81,7 @@ func (c *Cond) Wait() {
 // during the call.
 func (c *Cond) Signal() {
 	if raceenabled {
+		_ = c.m.state
 		raceDisable()
 	}
 	c.m.Lock()
@@ -106,6 +108,7 @@ func (c *Cond) Signal() {
 // during the call.
 func (c *Cond) Broadcast() {
 	if raceenabled {
+		_ = c.m.state
 		raceDisable()
 	}
 	c.m.Lock()
