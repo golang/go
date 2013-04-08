@@ -95,8 +95,8 @@ struct Bucket
 struct Hmap
 {
 	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
+	uint32  flags;
 	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
-	uint8   flags;
 	uint8   keysize;      // key size in bytes
 	uint8   valuesize;    // value size in bytes
 	uint16  bucketsize;   // bucket size in bytes
@@ -767,6 +767,8 @@ struct hash_iter
 static void
 hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 {
+	uint32 old;
+
 	if(sizeof(struct hash_iter) / sizeof(uintptr) != 11) {
 		runtime·throw("hash_iter size incorrect"); // see ../../cmd/gc/range.c
 	}
@@ -783,7 +785,14 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 	it->bptr = nil;
 
 	// Remember we have an iterator.
-	h->flags |= Iterator | OldIterator;  // careful: see issue 5120.
+	// Can run concurrently with another hash_iter_init() and with reflect·mapiterinit().
+	for(;;) {
+		old = h->flags;
+		if((old&(Iterator|OldIterator)) == (Iterator|OldIterator))
+			break;
+		if(runtime·cas(&h->flags, old, old|Iterator|OldIterator))
+			break;
+	}
 
 	if(h->buckets == nil) {
 		// Empty map. Force next hash_next to exit without
@@ -1370,18 +1379,24 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 void
 reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 {
-	uint8 flags;
+	uint32 old, new;
 
 	if(h != nil && t->key->size > sizeof(void*)) {
 		// reflect·mapiterkey returns pointers to key data,
 		// and reflect holds them, so we cannot free key data
 		// eagerly anymore.
-		flags = h->flags;
-		if(flags & IndirectKey)
-			flags &= ~CanFreeKey;
-		else
-			flags &= ~CanFreeBucket;
-		h->flags = flags;
+		// Can run concurrently with another reflect·mapiterinit() and with hash_iter_init().
+		for(;;) {
+			old = h->flags;
+			if(old & IndirectKey)
+				new = old & ~CanFreeKey;
+			else
+				new = old & ~CanFreeBucket;
+			if(new == old)
+				break;
+			if(runtime·cas(&h->flags, old, new))
+				break;
+		}
 	}
 
 	it = runtime·mal(sizeof *it);

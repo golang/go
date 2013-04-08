@@ -7,7 +7,7 @@ package runtime_test
 import (
 	"fmt"
 	"math"
-	"os"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -234,8 +234,8 @@ func TestIterGrowWithGC(t *testing.T) {
 	}
 }
 
-func TestConcurrentReadsAfterGrowth(t *testing.T) {
-	if os.Getenv("GOMAXPROCS") == "" {
+func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
+	if runtime.GOMAXPROCS(-1) == 1 {
 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
 	}
 	numLoop := 10
@@ -262,10 +262,29 @@ func TestConcurrentReadsAfterGrowth(t *testing.T) {
 						_ = m[key]
 					}
 				}()
+				if useReflect {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						mv := reflect.ValueOf(m)
+						keys := mv.MapKeys()
+						for _, k := range keys {
+							mv.MapIndex(k)
+						}
+					}()
+				}
 			}
 			wg.Wait()
 		}
 	}
+}
+
+func TestConcurrentReadsAfterGrowth(t *testing.T) {
+	testConcurrentReadsAfterGrowth(t, false)
+}
+
+func TestConcurrentReadsAfterGrowthReflect(t *testing.T) {
+	testConcurrentReadsAfterGrowth(t, true)
 }
 
 func TestBigItems(t *testing.T) {
