@@ -403,6 +403,31 @@ command now returns an error if test files are provided on the command line. In
 this sense, "<code>go run</code>" replaces "<code>go run *.go</code>".
 </p>
 
+<h3 id="tags">Build constraints</h3>
+
+<p>
+The <code>"go1.1</code>" tag has been added to the list of default
+<a href="/pkg/go/build/#hdr-Build_Constraints">build constraints</a>.
+This permits packages to take advanage of the new features in Go 1.1 while
+remaining compatible with earlier versions of Go.
+</p>
+
+<p>
+To build a file only with Go 1.1 and above, add this build constraint:
+</p>
+
+<pre>
+// +build go1.1
+</pre>
+
+<p>
+To build a file only with Go 1.0.x, use the converse constraint:
+</p>
+
+<pre>
+// +build !go1.1
+</pre>
+
 <h3 id="platforms">Additional platforms</h3>
 
 <p>
