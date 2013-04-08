@@ -410,6 +410,7 @@ non-test installation.
 In addition to the build flags, the flags handled by 'go test' itself are:
 
 	-c  Compile the test binary to pkg.test but do not run it.
+	    (Where pkg is the last element of the package's import path.)
 
 	-i
 	    Install packages that are dependencies of the test.
