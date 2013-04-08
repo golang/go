@@ -398,6 +398,9 @@ the file pattern "*_test.go".  These additional files can contain test functions
 benchmark functions, and example functions.  See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 
+Additionally, test files that declare a package with the suffix "_test" will be
+compiled and executed separately from the package test binary.
+
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
 
