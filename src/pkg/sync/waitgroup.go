@@ -43,6 +43,7 @@ type WaitGroup struct {
 // other event to be waited for. See the WaitGroup example.
 func (wg *WaitGroup) Add(delta int) {
 	if raceenabled {
+		_ = wg.m.state
 		raceReleaseMerge(unsafe.Pointer(wg))
 		raceDisable()
 		defer raceEnable()
@@ -71,6 +72,7 @@ func (wg *WaitGroup) Done() {
 // Wait blocks until the WaitGroup counter is zero.
 func (wg *WaitGroup) Wait() {
 	if raceenabled {
+		_ = wg.m.state
 		raceDisable()
 	}
 	if atomic.LoadInt32(&wg.counter) == 0 {

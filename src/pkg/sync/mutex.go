@@ -81,6 +81,7 @@ func (m *Mutex) Lock() {
 // arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {
 	if raceenabled {
+		_ = m.state
 		raceRelease(unsafe.Pointer(m))
 	}
 
