@@ -280,12 +280,12 @@ typecheckpartialcall(Node *fn, Node *sym)
 static Node*
 makepartialcall(Node *fn, Type *t0, Node *meth)
 {
-	Node *ptr, *n, *call, *xtype, *xfunc, *cv;
+	Node *ptr, *n, *fld, *call, *xtype, *xfunc, *cv;
 	Type *rcvrtype, *basetype, *t;
 	NodeList *body, *l, *callargs, *retargs;
 	char *p;
 	Sym *sym;
-	int i;
+	int i, ddd;
 
 	// TODO: names are not right
 	rcvrtype = fn->left->type;
@@ -309,6 +309,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	i = 0;
 	l = nil;
 	callargs = nil;
+	ddd = 0;
 	xfunc = nod(ODCLFUNC, N, N);
 	for(t = getinargx(t0)->type; t; t = t->down) {
 		snprint(namebuf, sizeof namebuf, "a%d", i++);
@@ -316,7 +317,12 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 		n->class = PPARAM;
 		xfunc->dcl = list(xfunc->dcl, n);
 		callargs = list(callargs, n);
-		l = list(l, nod(ODCLFIELD, n, typenod(t->type)));
+		fld = nod(ODCLFIELD, n, typenod(t->type));
+		if(t->isddd) {
+			fld->isddd = 1;
+			ddd = 1;
+		}
+		l = list(l, fld);
 	}
 	xtype->list = l;
 	i = 0;
@@ -338,7 +344,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	xfunc->nname->ntype = xtype;
 	xfunc->nname->defn = xfunc;
 	declare(xfunc->nname, PFUNC);
-	
+
 	// Declare and initialize variable holding receiver.
 	body = nil;
 	cv = nod(OCLOSUREVAR, N, N);
@@ -362,6 +368,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 
 	call = nod(OCALL, nod(OXDOT, ptr, meth), N);
 	call->list = callargs;
+	call->isddd = ddd;
 	if(t0->outtuple == 0) {
 		body = list(body, call);
 	} else {
@@ -393,7 +400,7 @@ walkpartialcall(Node *n, NodeList **init)
 	//	clos = &struct{F uintptr; R T}{M.T·f, x}
 	//
 	// Like walkclosure above.
-	
+
 	if(isinter(n->left->type)) {
 		n->left = cheapexpr(n->left, init);
 		checknotnil(n->left, init);
