@@ -70,6 +70,9 @@ type Writer interface {
 }
 
 // Closer is the interface that wraps the basic Close method.
+//
+// The behavior of Close after the first call is undefined.
+// Specific implementations may document their own behavior.
 type Closer interface {
 	Close() error
 }
