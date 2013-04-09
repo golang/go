@@ -330,3 +330,45 @@ func numFD() int {
 	// All tests using this should be skipped anyway, but:
 	panic("numFDs not implemented on " + runtime.GOOS)
 }
+
+// Assert that a failed Dial attempt does not leak
+// runtime.PollDesc structures
+func TestDialPollDescLeak(t *testing.T) {
+	// remove once CL 8318044 is submitted
+	t.Skip("Test skipped pending submission of CL 8318044")
+
+	if testing.Short() {
+		t.Skip("skipping PollDesc leak test in -short mode")
+	}
+
+	const loops = 10
+	const count = 20000
+	var old runtime.MemStats // used by sysdelta
+	runtime.ReadMemStats(&old)
+	sysdelta := func() uint64 {
+		var new runtime.MemStats
+		runtime.ReadMemStats(&new)
+		delta := old.Sys - new.Sys
+		old = new
+		return delta
+	}
+	failcount := 0
+	for i := 0; i < loops; i++ {
+		for i := 0; i < count; i++ {
+			conn, err := Dial("tcp", "127.0.0.1:1")
+			if err == nil {
+				t.Error("dial should not succeed")
+				conn.Close()
+				t.FailNow()
+			}
+		}
+		if delta := sysdelta(); delta > 0 {
+			failcount++
+		}
+		// there are always some allocations on the first loop
+		if failcount > 3 {
+			t.Error("net.Dial leaked memory")
+			t.FailNow()
+		}
+	}
+}
