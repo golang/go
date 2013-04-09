@@ -64,6 +64,7 @@ var (
 	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
 	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
 	allCmd      = "all" + suffix
+	raceCmd     = "race" + suffix
 	cleanCmd    = "clean" + suffix
 	suffix      = defaultSuffix()
 )
@@ -211,6 +212,16 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 	return b, nil
 }
 
+// buildCmd returns the build command to invoke.
+// Builders which contain the string '-race' in their
+// name will override *buildCmd and return raceCmd.
+func (b *Builder) buildCmd() string {
+	if strings.Contains(b.name, "-race") {
+		return raceCmd
+	}
+	return *buildCmd
+}
+
 // build checks for a new commit for this builder
 // and builds it if one is found.
 // It returns true if a build was attempted.
@@ -262,7 +273,7 @@ func (b *Builder) buildHash(hash string) error {
 	defer f.Close()
 	w := io.MultiWriter(f, &buildlog)
 
-	cmd := *buildCmd
+	cmd := b.buildCmd()
 	if !filepath.IsAbs(cmd) {
 		cmd = filepath.Join(srcDir, cmd)
 	}
