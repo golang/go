@@ -43,7 +43,7 @@ if errorlevel 1 goto fail
 echo.
 
 echo # runtime -cpu=1,2,4
-go test runtime -short -timeout=120s -cpu=1,2,4
+go test runtime -short -timeout=240s -cpu=1,2,4
 if errorlevel 1 goto fail
 echo.
 
