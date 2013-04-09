@@ -271,7 +271,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	}
 	err = syscall.Listen(fd.sysfd, listenerBacklog)
 	if err != nil {
-		closesocket(fd.sysfd)
+		fd.Close()
 		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
 	}
 	return &UnixListener{fd, laddr.Name}, nil
