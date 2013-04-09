@@ -451,7 +451,7 @@ hash_grow(MapType *t, Hmap *h)
 	old_buckets = h->buckets;
 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
-	new_buckets = runtime·mallocgc(h->bucketsize << (h->B + 1), 0, 1, 0);
+	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, 1, 0);
 	flags = (h->flags & ~(Iterator | OldIterator));
 	if((h->flags & Iterator) != 0) {
 		flags |= OldIterator;
