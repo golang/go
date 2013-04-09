@@ -206,3 +206,53 @@ func TestAnonymousNonstruct(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+type BugA struct {
+	S string
+}
+
+type BugB struct {
+	BugA
+	S string
+}
+
+type BugC struct {
+	S string
+}
+
+// Legal Go: We never use the repeated embedded field (S).
+type BugD struct {
+	A int
+	BugA
+	BugB
+}
+
+// Issue 5245.
+func TestEmbeddedBug(t *testing.T) {
+	v := BugB{
+		BugA{"A"},
+		"B",
+	}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"S":"B"}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+	// Now check that the duplicate field, S, does not appear.
+	x := BugD{
+		A: 23,
+	}
+	b, err = Marshal(x)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want = `{"A":23}`
+	got = string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
