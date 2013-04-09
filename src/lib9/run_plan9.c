@@ -16,7 +16,7 @@ runcmd(char **argv)
 		return -1;
 	case 0:
 		exec(argv[0], argv);
-		fprint(2, "exec %s: %r", argv[0]);
+		fprint(2, "exec %s: %r\n", argv[0]);
 		exits("exec");
 	}
 	

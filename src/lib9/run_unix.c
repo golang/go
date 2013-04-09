@@ -20,7 +20,7 @@ runcmd(char **argv)
 		return -1;
 	case 0:
 		execvp(argv[0], argv);
-		fprint(2, "exec %s: %r", argv[0]);
+		fprint(2, "exec %s: %r\n", argv[0]);
 		_exit(1);
 	}
 	
