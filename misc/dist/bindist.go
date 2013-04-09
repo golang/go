@@ -74,6 +74,7 @@ var tourPackages = []string{
 }
 
 var tourContent = []string{
+	"js",
 	"prog",
 	"solutions",
 	"static",
