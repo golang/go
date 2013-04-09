@@ -654,25 +654,68 @@ func typeFields(t reflect.Type) []field {
 
 	sort.Sort(byName(fields))
 
-	// Remove fields with annihilating name collisions
-	// and also fields shadowed by fields with explicit JSON tags.
-	name := ""
+	// Delete all fields that are hidden by the Go rules for embedded fields,
+	// except that fields with JSON tags are promoted.
+
+	// The fields are sorted in primary order of name, secondary order
+	// of field index length. Loop over names; for each name, delete
+	// hidden fields by choosing the one dominant field that survives.
 	out := fields[:0]
-	for _, f := range fields {
-		if f.name != name {
-			name = f.name
-			out = append(out, f)
+	for advance, i := 0, 0; i < len(fields); i += advance {
+		// One iteration per name.
+		// Find the sequence of fields with the name of this first field.
+		fi := fields[i]
+		name := fi.name
+		hasTags := fi.tag
+		for advance = 1; i+advance < len(fields); advance++ {
+			fj := fields[i+advance]
+			if fj.name != name {
+				break
+			}
+			hasTags = hasTags || fj.tag
+		}
+		if advance == 1 { // Only one field with this name
+			out = append(out, fi)
 			continue
 		}
-		if n := len(out); n > 0 && out[n-1].name == name && (!out[n-1].tag || f.tag) {
-			out = out[:n-1]
+		dominant, ok := dominantField(fields[i:i+advance], hasTags)
+		if ok {
+			out = append(out, dominant)
 		}
 	}
-	fields = out
 
+	fields = out
 	sort.Sort(byIndex(fields))
 
 	return fields
+}
+
+// dominantField looks through the fields, all of which are known to
+// have the same name, to find the single field that dominates the
+// others using Go's embedding rules, modified by the presence of
+// JSON tags. If there are multiple top-level fields, the boolean
+// will be false: This condition is an error in Go and we skip all
+// the fields.
+func dominantField(fields []field, hasTags bool) (field, bool) {
+	if hasTags {
+		// If there's a tag, it gets promoted, so delete all fields without tags.
+		var j int
+		for i := 0; i < len(fields); i++ {
+			if fields[i].tag {
+				fields[j] = fields[i]
+				j++
+			}
+		}
+		fields = fields[:j]
+	}
+	// The fields are sorted in increasing index-length order. The first entry
+	// therefore wins, unless the second entry is of the same length. If that
+	// is true, then there is a conflict (two fields named "X" at the same level)
+	// and we have no fields.
+	if len(fields) > 1 && len(fields[0].index) == len(fields[1].index) {
+		return field{}, false
+	}
+	return fields[0], true
 }
 
 var fieldCache struct {
