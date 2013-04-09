@@ -423,13 +423,13 @@ func (b *Build) tour() error {
 	}
 
 	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
-	gotour := "gotour"
+	ext := ""
 	if runtime.GOOS == "windows" {
-		gotour += ".exe"
+		ext = ".exe"
 	}
 	return cp(
-		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"),
-		filepath.Join(b.gopath, "bin", gotour),
+		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"+ext),
+		filepath.Join(b.gopath, "bin", "gotour"+ext),
 	)
 }
 
