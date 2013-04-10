@@ -311,6 +311,9 @@ loadlib(void)
 	// Switch to internal.
 	if(linkmode == LinkAuto) {
 		linkmode = LinkInternal;
+	}
+
+	if(linkmode == LinkInternal) {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
 		for(s = allsym; s != S; s = s->allsym)
