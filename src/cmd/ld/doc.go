@@ -31,19 +31,19 @@ Options new in this version:
 		is statically linked and does not refer to a dynamic linker.  Without this option
 		(the default), the binary's contents are identical but it is loaded with a dynamic
 		linker. This flag cannot be used when $GOOS is windows.
-	-Hdarwin     (only in 6l/8l)
+	-H darwin     (only in 6l/8l)
 		Write Apple Mach-O binaries (default when $GOOS is darwin)
-	-Hlinux
+	-H linux
 		Write Linux ELF binaries (default when $GOOS is linux)
-	-Hfreebsd
+	-H freebsd
 		Write FreeBSD ELF binaries (default when $GOOS is freebsd)
-	-Hnetbsd     (only in 6l/8l)
+	-H netbsd
 		Write NetBSD ELF binaries (default when $GOOS is netbsd)
-	-Hopenbsd    (only in 6l/8l)
+	-H openbsd    (only in 6l/8l)
 		Write OpenBSD ELF binaries (default when $GOOS is openbsd)
-	-Hwindows    (only in 6l/8l)
+	-H windows    (only in 6l/8l)
 		Write Windows PE32+ Console binaries (default when $GOOS is windows)
-	-Hwindowsgui (only in 6l/8l)
+	-H windowsgui (only in 6l/8l)
 		Write Windows PE32+ GUI binaries
 	-I interpreter
 		Set the ELF dynamic linker to use.
