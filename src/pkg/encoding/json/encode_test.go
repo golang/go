@@ -221,7 +221,7 @@ type BugC struct {
 }
 
 // Legal Go: We never use the repeated embedded field (S).
-type BugD struct {
+type BugX struct {
 	A int
 	BugA
 	BugB
@@ -243,7 +243,7 @@ func TestEmbeddedBug(t *testing.T) {
 		t.Fatalf("Marshal: got %s want %s", got, want)
 	}
 	// Now check that the duplicate field, S, does not appear.
-	x := BugD{
+	x := BugX{
 		A: 23,
 	}
 	b, err = Marshal(x)
@@ -252,6 +252,60 @@ func TestEmbeddedBug(t *testing.T) {
 	}
 	want = `{"A":23}`
 	got = string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
+
+type BugD struct { // Same as BugA after tagging.
+	XXX string `json:"S"`
+}
+
+// BugD's tagged S field should dominate BugA's.
+type BugY struct {
+	BugA
+	BugD
+}
+
+// Test that a field with a tag dominates untagged fields.
+func TestTaggedFieldDominates(t *testing.T) {
+	v := BugY{
+		BugA{"BugA"},
+		BugD{"BugD"},
+	}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"S":"BugD"}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
+
+// There are no tags here, so S should not appear.
+type BugZ struct {
+	BugA
+	BugC
+	BugY // Contains a tagged S field through BugD; should not dominate.
+}
+
+func TestDuplicatedFieldDisappears(t *testing.T) {
+	v := BugZ{
+		BugA{"BugA"},
+		BugC{"BugC"},
+		BugY{
+			BugA{"nested BugA"},
+			BugD{"nested BugD"},
+		},
+	}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{}`
+	got := string(b)
 	if got != want {
 		t.Fatalf("Marshal: got %s want %s", got, want)
 	}

@@ -666,19 +666,17 @@ func typeFields(t reflect.Type) []field {
 		// Find the sequence of fields with the name of this first field.
 		fi := fields[i]
 		name := fi.name
-		hasTags := fi.tag
 		for advance = 1; i+advance < len(fields); advance++ {
 			fj := fields[i+advance]
 			if fj.name != name {
 				break
 			}
-			hasTags = hasTags || fj.tag
 		}
 		if advance == 1 { // Only one field with this name
 			out = append(out, fi)
 			continue
 		}
-		dominant, ok := dominantField(fields[i:i+advance], hasTags)
+		dominant, ok := dominantField(fields[i : i+advance])
 		if ok {
 			out = append(out, dominant)
 		}
@@ -696,23 +694,33 @@ func typeFields(t reflect.Type) []field {
 // JSON tags. If there are multiple top-level fields, the boolean
 // will be false: This condition is an error in Go and we skip all
 // the fields.
-func dominantField(fields []field, hasTags bool) (field, bool) {
-	if hasTags {
-		// If there's a tag, it gets promoted, so delete all fields without tags.
-		var j int
-		for i := 0; i < len(fields); i++ {
-			if fields[i].tag {
-				fields[j] = fields[i]
-				j++
-			}
+func dominantField(fields []field) (field, bool) {
+	// The fields are sorted in increasing index-length order. The winner
+	// must therefore be one with the shortest index length. Drop all
+	// longer entries, which is easy: just truncate the slice.
+	length := len(fields[0].index)
+	tagged := -1 // Index of first tagged field.
+	for i, f := range fields {
+		if len(f.index) > length {
+			fields = fields[:i]
+			break
 		}
-		fields = fields[:j]
+		if f.tag {
+			if tagged >= 0 {
+				// Multiple tagged fields at the same level: conflict.
+				// Return no field.
+				return field{}, false
+			}
+			tagged = i
+		}
 	}
-	// The fields are sorted in increasing index-length order. The first entry
-	// therefore wins, unless the second entry is of the same length. If that
-	// is true, then there is a conflict (two fields named "X" at the same level)
-	// and we have no fields.
-	if len(fields) > 1 && len(fields[0].index) == len(fields[1].index) {
+	if tagged >= 0 {
+		return fields[tagged], true
+	}
+	// All remaining fields have the same length. If there's more than one,
+	// we have a conflict (two fields named "X" at the same level) and we
+	// return no field.
+	if len(fields) > 1 {
 		return field{}, false
 	}
 	return fields[0], true
