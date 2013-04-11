@@ -347,7 +347,7 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 	
 	// type byte
 	if('A' <= t && t <= 'Z')
-		c = t - 'A';
+		c = t - 'A' + (ver ? 26 : 0);
 	else if('a' <= t && t <= 'z')
 		c = t - 'a' + 26;
 	else {
