@@ -443,6 +443,9 @@ Zconv(Fmt *fp)
 			fmtrune(fp, '\\');
 			fmtrune(fp, r);
 			break;
+		case 0xFEFF: // BOM, basically disallowed in source code
+			fmtstrcpy(fp, "\\uFEFF");
+			break;
 		}
 	}
 	return 0;
