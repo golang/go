@@ -66,71 +66,16 @@ func cname(s string) string {
 	return s
 }
 
-// ParseFlags extracts #cgo CFLAGS and LDFLAGS options from the file
-// preamble. Multiple occurrences are concatenated with a separating space,
-// even across files.
-func (p *Package) ParseFlags(f *File, srcfile string) {
+// DiscardCgoDirectives processes the import C preamble, and discards
+// all #cgo CFLAGS and LDFLAGS directives, so they don't make their
+// way into _cgo_export.h.
+func (f *File) DiscardCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
-
-NextLine:
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
-			continue
-		}
-
-		l = strings.TrimSpace(l[4:])
-		fields := strings.SplitN(l, ":", 2)
-		if len(fields) != 2 {
-			fatalf("%s: bad #cgo line: %s", srcfile, line)
-		}
-
-		var k string
-		kf := strings.Fields(fields[0])
-		switch len(kf) {
-		case 1:
-			k = kf[0]
-		case 2:
-			k = kf[1]
-			switch kf[0] {
-			case goos:
-			case goarch:
-			case goos + "/" + goarch:
-			default:
-				continue NextLine
-			}
-		default:
-			fatalf("%s: bad #cgo option: %s", srcfile, fields[0])
-		}
-
-		args, err := splitQuoted(fields[1])
-		if err != nil {
-			fatalf("%s: bad #cgo option %s: %s", srcfile, k, err)
-		}
-		for _, arg := range args {
-			if !safeName(arg) {
-				fatalf("%s: #cgo option %s is unsafe: %s", srcfile, k, arg)
-			}
-		}
-
-		switch k {
-
-		case "CFLAGS", "LDFLAGS":
-			p.addToFlag(k, args)
-
-		case "pkg-config":
-			cflags, ldflags, err := pkgConfig(args)
-			if err != nil {
-				fatalf("%s: bad #cgo option %s: %s", srcfile, k, err)
-			}
-			p.addToFlag("CFLAGS", cflags)
-			p.addToFlag("LDFLAGS", ldflags)
-
-		default:
-			fatalf("%s: unsupported #cgo option %s", srcfile, k)
-
 		}
 	}
 	f.Preamble = strings.Join(linesOut, "\n")
@@ -144,36 +89,6 @@ func (p *Package) addToFlag(flag string, args []string) {
 		// We'll also need these when preprocessing for dwarf information.
 		p.GccOptions = append(p.GccOptions, args...)
 	}
-}
-
-// pkgConfig runs pkg-config and extracts --libs and --cflags information
-// for packages.
-func pkgConfig(packages []string) (cflags, ldflags []string, err error) {
-	for _, name := range packages {
-		if len(name) == 0 || name[0] == '-' {
-			return nil, nil, errors.New(fmt.Sprintf("invalid name: %q", name))
-		}
-	}
-
-	args := append([]string{"pkg-config", "--cflags"}, packages...)
-	stdout, stderr, ok := run(nil, args)
-	if !ok {
-		os.Stderr.Write(stderr)
-		return nil, nil, errors.New("pkg-config failed")
-	}
-	cflags, err = splitQuoted(string(stdout))
-	if err != nil {
-		return
-	}
-
-	args = append([]string{"pkg-config", "--libs"}, packages...)
-	stdout, stderr, ok = run(nil, args)
-	if !ok {
-		os.Stderr.Write(stderr)
-		return nil, nil, errors.New("pkg-config failed")
-	}
-	ldflags, err = splitQuoted(string(stdout))
-	return
 }
 
 // splitQuoted splits the string s around each instance of one or more consecutive
