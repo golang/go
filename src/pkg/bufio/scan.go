@@ -103,7 +103,8 @@ func (s *Scanner) Text() string {
 
 // Scan advances the Scanner to the next token, which will then be
 // available through the Bytes or Text method. It returns false when the
-// scan stops, either by reaching the end of the input or an error.
+// scan stops, either by reaching the end of the input, a zero-length
+// read from the input, or an error.
 // After Scan returns false, the Err method will return any error that
 // occurred during scanning, except that if it was io.EOF, Err
 // will return nil.
@@ -164,7 +165,7 @@ func (s *Scanner) Scan() bool {
 			s.setErr(err)
 		}
 		if n == 0 { // Don't loop forever if Reader doesn't deliver EOF.
-			s.err = io.EOF
+			s.setErr(io.EOF)
 		}
 		s.end += n
 	}
