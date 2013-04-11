@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package json implements encoding and decoding of JSON objects as defined in
-// RFC 4627.
+// RFC 4627. The mapping between JSON objects and Go values is described
+// in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
 // http://golang.org/doc/articles/json_and_go.html
@@ -86,9 +87,21 @@ import (
 // underscores and slashes.
 //
 // Anonymous struct fields are usually marshaled as if their inner exported fields
-// were fields in the outer struct, subject to the usual Go visibility rules.
+// were fields in the outer struct, subject to the usual Go visibility rules amended
+// as described in the next paragraph.
 // An anonymous struct field with a name given in its JSON tag is treated as
-// having that name instead of as anonymous.
+// having that name, rather than being anonymous.
+//
+// The Go visibility rules for struct fields are amended for JSON when
+// deciding which field to marshal or unmarshal. If there are
+// multiple fields at the same level, and that level is the least
+// nested (and would therefore be the nesting level selected by the
+// usual Go rules), the following extra rules apply:
+//
+// 1) Of those fields, if any are JSON-tagged, only tagged fields are considered,
+// even if there are multiple untagged fields that would otherwise conflict.
+// 2) If there is exactly one field (tagged or not according to the first rule), that is selected.
+// 3) Otherwise there are multiple fields, and all are ignored; no error occurs.
 //
 // Handling of anonymous struct fields is new in Go 1.1.
 // Prior to Go 1.1, anonymous struct fields were ignored. To force ignoring of
