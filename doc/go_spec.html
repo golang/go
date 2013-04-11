@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 3, 2013",
+	"Subtitle": "Version of April 10, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -103,6 +103,7 @@ compiler may disallow the NUL character (U+0000) in the source text.
 Implementation restriction: For compatibility with other tools, a
 compiler may ignore a UTF-8-encoded byte order mark
 (U+FEFF) if it is the first Unicode code point in the source text.
+A byte order mark may be disallowed anywhere else in the source.
 </p>
 
 <h3 id="Characters">Characters</h3>
