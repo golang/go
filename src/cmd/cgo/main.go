@@ -235,10 +235,9 @@ func main() {
 
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
-		// Parse flags for all files before translating due to CFLAGS.
 		f := new(File)
 		f.ReadGo(input)
-		p.ParseFlags(f, input)
+		f.DiscardCgoDirectives()
 		fs[i] = f
 	}
 
@@ -291,11 +290,6 @@ func main() {
 // newPackage returns a new Package that will invoke
 // gcc with the additional arguments specified in args.
 func newPackage(args []string) *Package {
-	// Copy the gcc options to a new slice so the list
-	// can grow without overwriting the slice that args is in.
-	gccOptions := make([]string, len(args))
-	copy(gccOptions, args)
-
 	goarch = runtime.GOARCH
 	if s := os.Getenv("GOARCH"); s != "" {
 		goarch = s
@@ -318,12 +312,12 @@ func newPackage(args []string) *Package {
 	os.Setenv("LC_ALL", "C")
 
 	p := &Package{
-		PtrSize:    ptrSize,
-		IntSize:    intSize,
-		GccOptions: gccOptions,
-		CgoFlags:   make(map[string][]string),
-		Written:    make(map[string]bool),
+		PtrSize:  ptrSize,
+		IntSize:  intSize,
+		CgoFlags: make(map[string][]string),
+		Written:  make(map[string]bool),
 	}
+	p.addToFlag("CFLAGS", args)
 	return p
 }
 
