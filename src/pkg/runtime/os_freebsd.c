@@ -60,7 +60,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 		tsp = &ts;
 	}
 
-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, tsp);
+	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, tsp);
 	if(ret >= 0 || ret == -EINTR)
 		return;
 

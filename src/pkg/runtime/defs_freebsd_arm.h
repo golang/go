@@ -18,8 +18,8 @@ enum {
 	SA_RESTART	= 0x2,
 	SA_ONSTACK	= 0x1,
 
-	UMTX_OP_WAIT	= 0x2,
-	UMTX_OP_WAKE	= 0x3,
+	UMTX_OP_WAIT_UINT	= 0xb,
+	UMTX_OP_WAKE		= 0x3,
 
 	EINTR	= 0x4,
 
