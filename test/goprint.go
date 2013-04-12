@@ -12,5 +12,5 @@ import "time"
 
 func main() {
 	go println(42, true, false, true, 1.5, "world", (chan int)(nil), []int(nil), (map[string]int)(nil), (func())(nil), byte(255))
-	time.Sleep(1e6)
+	time.Sleep(100*time.Millisecond)
 }
