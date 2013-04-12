@@ -1237,7 +1237,7 @@ func (b *builder) processOutput(out []byte) string {
 func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := stringList(cmdargs...)
 	if buildN || buildX {
-		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
+		b.showcmd(dir, "%s", joinUnambiguously(cmdline))
 		if buildN {
 			return nil, nil
 		}
@@ -1302,6 +1302,24 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 
 		return buf.Bytes(), err
 	}
+}
+
+// joinUnambiguously prints the slice, quoting where necessary to make the
+// output unambiguous.
+func joinUnambiguously(a []string) string {
+	var buf bytes.Buffer
+	for i, s := range a {
+		if i > 0 {
+			buf.WriteByte(' ')
+		}
+		q := strconv.Quote(s)
+		if s == "" || strings.Contains(s, " ") || len(q) > len(s)+2 {
+			buf.WriteString(q)
+		} else {
+			buf.WriteString(s)
+		}
+	}
+	return buf.String()
 }
 
 // mkdir makes the named directory.
