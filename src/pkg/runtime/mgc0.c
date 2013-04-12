@@ -19,6 +19,7 @@ enum {
 	DebugMark = 0,  // run second pass to check mark
 	CollectStats = 0,
 	ScanStackByFrames = 0,
+	IgnorePreciseGC = 0,
 
 	// Four bits per word (see #defines below).
 	wordsPerBitmapWord = sizeof(void*)*8/4,
@@ -770,6 +771,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		} else {
 			pc = defaultProg;
 		}
+
+		if(IgnorePreciseGC)
+			pc = defaultProg;
 
 		pc++;
 		stack_top.b = (uintptr)b;
