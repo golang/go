@@ -1306,6 +1306,7 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 
 // joinUnambiguously prints the slice, quoting where necessary to make the
 // output unambiguous.
+// TODO: See issue 5279. The printing of commands needs a complete redo.
 func joinUnambiguously(a []string) string {
 	var buf bytes.Buffer
 	for i, s := range a {
