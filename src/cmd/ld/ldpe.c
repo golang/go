@@ -232,7 +232,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 				s->type = STEXT;
 				break;
 			default:
-				werrstr("unexpected flags for PE section %s", sect->name);
+				werrstr("unexpected flags %#08x for PE section %s", sect->sh.Characteristics, sect->name);
 				goto bad;
 		}
 		s->p = sect->base;
