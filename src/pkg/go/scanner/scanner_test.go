@@ -695,7 +695,10 @@ var errors = []struct {
 	{"0X", token.INT, 0, "illegal hexadecimal number"},
 	{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
 	{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
-	{"\ufeff\ufeff", token.ILLEGAL, 3, "illegal character U+FEFF"}, // only first BOM is ignored
+	{"\ufeff\ufeff", token.ILLEGAL, 3, "illegal byte order mark"},            // only first BOM is ignored
+	{"//\ufeff", token.COMMENT, 2, "illegal byte order mark"},                // only first BOM is ignored
+	{"'\ufeff" + `'`, token.CHAR, 1, "illegal byte order mark"},              // only first BOM is ignored
+	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, "illegal byte order mark"}, // only first BOM is ignored
 }
 
 func TestScanErrors(t *testing.T) {
