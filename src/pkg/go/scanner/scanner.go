@@ -48,6 +48,8 @@ type Scanner struct {
 	ErrorCount int // number of errors encountered
 }
 
+const bom = 0xFEFF // byte order mark, only permitted as very first character
+
 // Read the next Unicode char into s.ch.
 // s.ch < 0 means end-of-file.
 //
@@ -67,6 +69,8 @@ func (s *Scanner) next() {
 			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
 			if r == utf8.RuneError && w == 1 {
 				s.error(s.offset, "illegal UTF-8 encoding")
+			} else if r == bom && s.offset > 0 {
+				s.error(s.offset, "illegal byte order mark")
 			}
 		}
 		s.rdOffset += w
@@ -125,8 +129,8 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
 	s.ErrorCount = 0
 
 	s.next()
-	if s.ch == '\uFEFF' {
-		s.next() // ignore BOM
+	if s.ch == bom {
+		s.next() // ignore BOM at file beginning
 	}
 }
 
@@ -713,7 +717,10 @@ scanAgain:
 		case '|':
 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
-			s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
+			// next reports unexpected BOMs - don't repeat
+			if ch != bom {
+				s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
+			}
 			insertSemi = s.insertSemi // preserve insertSemi info
 			tok = token.ILLEGAL
 			lit = string(ch)
