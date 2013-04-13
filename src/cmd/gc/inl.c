@@ -188,6 +188,7 @@ ishairy(Node *n, int *budget)
 		break;
 
 	case OCLOSURE:
+	case OCALLPART:
 	case ORANGE:
 	case OFOR:
 	case OSELECT:
