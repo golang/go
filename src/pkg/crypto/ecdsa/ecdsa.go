@@ -49,7 +49,7 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 	return
 }
 
-// GenerateKey generates a public&private key pair.
+// GenerateKey generates a public and private key pair.
 func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
 	k, err := randFieldElement(c, rand)
 	if err != nil {
