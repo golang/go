@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -240,8 +241,19 @@ func setHookpostCloseConn(fn func(*fakeConn, error)) {
 	hookPostCloseConn.fn = fn
 }
 
+var testStrictClose *testing.T
+
+// setStrictFakeConnClose sets the t to Errorf on when fakeConn.Close
+// fails to close. If nil, the check is disabled.
+func setStrictFakeConnClose(t *testing.T) {
+	testStrictClose = t
+}
+
 func (c *fakeConn) Close() (err error) {
 	defer func() {
+		if err != nil && testStrictClose != nil {
+			testStrictClose.Errorf("failed to close a test fakeConn: %v", err)
+		}
 		hookPostCloseConn.Lock()
 		fn := hookPostCloseConn.fn
 		hookPostCloseConn.Unlock()
@@ -443,6 +455,12 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *fakeStmt) Close() error {
+	if s.c == nil {
+		panic("nil conn in fakeStmt.Close")
+	}
+	if s.c.db == nil {
+		panic("in fakeSmt.Close, conn's db is nil (already closed)")
+	}
 	if !s.closed {
 		s.c.incrStat(&s.c.stmtsClosed)
 		s.closed = true
