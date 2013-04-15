@@ -28,6 +28,9 @@ import (
 // An implementation that always returns "" is valid and may be useful for
 // testing but it is not secure: it means that the HTTP server for foo.com can
 // set a cookie for bar.com.
+//
+// A public suffix list implementation is in the package
+// code.google.com/p/go.net/publicsuffix.
 type PublicSuffixList interface {
 	// PublicSuffix returns the public suffix of domain.
 	//
