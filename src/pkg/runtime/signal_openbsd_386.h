@@ -20,4 +20,4 @@
 #define SIG_GS(info, ctxt) (SIG_REGS(ctxt).sc_gs)
 
 #define SIG_CODE0(info, ctxt) ((info)->si_code)
-#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+#define SIG_CODE1(info, ctxt) (*(uintptr*)((byte*)info + 12))
