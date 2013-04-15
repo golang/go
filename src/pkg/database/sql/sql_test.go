@@ -854,6 +854,26 @@ func TestCloseConnBeforeStmts(t *testing.T) {
 	}
 }
 
+// golang.org/issue/5283: don't release the Rows' connection in Close
+// before calling Stmt.Close.
+func TestRowsCloseOrder(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxIdleConns(0)
+	setStrictFakeConnClose(t)
+	defer setStrictFakeConnClose(nil)
+
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = rows.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func manyConcurrentQueries(t testOrBench) {
 	maxProcs, numReqs := 16, 500
 	if testing.Short() {
