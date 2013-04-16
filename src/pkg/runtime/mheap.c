@@ -121,6 +121,25 @@ HaveSpan:
 	s->state = MSpanInUse;
 	mstats.heap_idle -= s->npages<<PageShift;
 	mstats.heap_released -= s->npreleased<<PageShift;
+	if(s->npreleased > 0) {
+		// We have called runtime·SysUnused with these pages, and on
+		// Unix systems it called madvise.  At this point at least
+		// some BSD-based kernels will return these pages either as
+		// zeros or with the old data.  For our caller, the first word
+		// in the page indicates whether the span contains zeros or
+		// not (this word was set when the span was freed by
+		// MCentral_Free or runtime·MCentral_FreeSpan).  If the first
+		// page in the span is returned as zeros, and some subsequent
+		// page is returned with the old data, then we will be
+		// returning a span that is assumed to be all zeros, but the
+		// actual data will not be all zeros.  Avoid that problem by
+		// explicitly marking the span as not being zeroed, just in
+		// case.  The beadbead constant we use here means nothing, it
+		// is just a unique constant not seen elsewhere in the
+		// runtime, as a clue in case it turns up unexpectedly in
+		// memory or in a stack trace.
+		*(uintptr*)(s->start<<PageShift) = (uintptr)0xbeadbeadbeadbeadULL;
+	}
 	s->npreleased = 0;
 
 	if(s->npages > npage) {
