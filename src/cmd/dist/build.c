@@ -622,6 +622,10 @@ install(char *dir)
 			// clang is too smart about unused command-line arguments
 			vadd(&gccargs, "-Qunused-arguments");
 		}
+		if(streq(gohostos, "darwin")) {
+			// golang.org/issue/5261
+			vadd(&gccargs, "-mmacosx-version-min=10.6");
+		}
 	}
 
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
