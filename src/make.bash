@@ -111,6 +111,10 @@ case "$GOHOSTARCH" in
 386) mflag=-m32;;
 amd64) mflag=-m64;;
 esac
+if [ "$(uname)" == "Darwin" ]; then
+	# golang.org/issue/5261
+	mflag="$mflag -mmacosx-version-min=10.6"
+fi
 ${CC:-gcc} $mflag -O2 -Wall -Werror -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
 
 eval $(./cmd/dist/dist env -p)
