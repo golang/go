@@ -17,7 +17,7 @@ Fontinfo SansTypeface;
 extern void init();
 
 Fontinfo loadfont() {
-        Fontinfo f;
+        Fontinfo f = {0};
         return f;
 }
 
