@@ -28,7 +28,12 @@ var emptyParams = make(map[string]string)
 type Part struct {
 	// The headers of the body, if any, with the keys canonicalized
 	// in the same fashion that the Go http.Request headers are.
-	// i.e. "foo-bar" changes case to "Foo-Bar"
+	// For example, "foo-bar" changes case to "Foo-Bar"
+	//
+	// As a special case, if the "Content-Transfer-Encoding" header
+	// has a value of "quoted-printable", that header is instead
+	// hidden from this map and the body is transparently decoded
+	// during Read calls.
 	Header textproto.MIMEHeader
 
 	buffer    *bytes.Buffer

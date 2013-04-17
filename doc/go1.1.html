@@ -862,6 +862,9 @@ has a new method for its
 <a href="/pkg/mime/multipart/#Writer"><code>Writer</code></a>,
 <a href="/pkg/mime/multipart/#Writer.SetBoundary"><code>SetBoundary</code></a>,
 to define the boundary separator used to package the output.
+The <a href="/pkg/mime/multipart/#Reader"><code>Reader</code></a> also now
+transparently decodes any <code>quoted-printable</code> parts and removes
+the <code>Content-Transfer-Encoding</code> header when doing so.
 </li>
 
 <li>
