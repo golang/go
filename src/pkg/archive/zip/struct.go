@@ -64,8 +64,15 @@ const (
 	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
 )
 
+// FileHeader describes a file within a zip file.
+// See the zip spec for details.
 type FileHeader struct {
-	Name               string
+	// Name is the name of the file.
+	// It must be a relative path: it must not start with a drive
+	// letter (e.g. C:) or leading slash, and only forward slashes
+	// are allowed.
+	Name string
+
 	CreatorVersion     uint16
 	ReaderVersion      uint16
 	Flags              uint16
