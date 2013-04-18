@@ -998,9 +998,9 @@ Running <code>go</code> <code>fix</code> will perform the needed changes.
 <p>
 In Go 1, the
 <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
-and
-<a href="/pkg/crypto/x509/#CreateCRL"><code>CreateCRL</code></a>
-functions in <code>crypto/x509</code> have been altered to take an
+function and
+<a href="/pkg/crypto/x509/#Certificate.CreateCRL"><code>CreateCRL</code></a>
+method in <code>crypto/x509</code> have been altered to take an
 <code>interface{}</code> where they previously took a <code>*rsa.PublicKey</code>
 or <code>*rsa.PrivateKey</code>. This will allow other public key algorithms
 to be implemented in the future.
@@ -1183,7 +1183,7 @@ if set to <a href="/pkg/go/doc/#AllDecls"><code>AllDecls</code></a>, all declara
 (not just exported ones) are considered.
 The function <code>NewFileDoc</code> was removed, and the function
 <code>CommentText</code> has become the method
-<a href="/pkg/go/ast/#Text"><code>Text</code></a> of
+<a href="/pkg/go/ast/#CommentGroup.Text"><code>Text</code></a> of
 <a href="/pkg/go/ast/#CommentGroup"><code>ast.CommentGroup</code></a>.
 </p>
 
@@ -1497,7 +1497,7 @@ to test common error properties, plus a few new error values
 with more Go-like names, such as
 <a href="/pkg/os/#ErrPermission"><code>ErrPermission</code></a>
 and
-<a href="/pkg/os/#ErrNoEnv"><code>ErrNoEnv</code></a>.
+<a href="/pkg/os/#ErrNotExist"><code>ErrNotExist</code></a>.
 </p>
 
 <p>

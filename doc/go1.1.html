@@ -215,7 +215,7 @@ i := int(int32(x))
 <h3 id="heap">Heap size on 64-bit architectures</h3>
 
 <p>
-On 64-bit architectures only, the maximum heap size has been enlarged substantially,
+On 64-bit architectures, the maximum heap size has been enlarged substantially,
 from a few gigabytes to several tens of gigabytes.
 (The exact details depend on the system and may change.)
 </p>
@@ -288,8 +288,9 @@ The byte-order-mark change is strictly backward-compatible.
 <h3 id="race">Race detector</h3>
 
 <p>
-A major addition to the tools is a <em>race detector</em>, a way to find
-bugs in programs caused by problems like concurrent changes to the same variable.
+A major addition to the tools is a <em>race detector</em>, a way to
+find bugs in programs caused by concurrent access of the same
+variable, where at least one of the accesses is a write.
 This new facility is built into the <code>go</code> tool.
 For now, it is only available on Linux, Mac OS X, and Windows systems with
 64-bit x86 processors.
@@ -301,7 +302,8 @@ The race detector is documented in <a href="/doc/articles/race_detector.html">a 
 <h3 id="gc_asm">The gc assemblers</h3>
 
 <p>
-Due to the change of the <a href="#int"><code>int</code></a> to 64 bits and some other changes,
+Due to the change of the <a href="#int"><code>int</code></a> to 64 bits and
+a new internal <a href="http://golang.org/s/go11func">representation of functions</a>,
 the arrangement of function arguments on the stack has changed in the gc tool chain.
 Functions written in assembly will need to be revised at least
 to adjust frame pointer offsets.
@@ -336,7 +338,7 @@ can't load package: package foo/quxx: cannot find package "foo/quxx" in any of:
 Second, the <code>go get</code> command no longer allows <code>$GOROOT</code>
 as the default destination when downloading package source.
 To use the <code>go get</code>
-command, a valid <code>$GOPATH</code> is now required.
+command, a <a href="/doc/code.html#GOPATH">valid <code>$GOPATH</code></a> is now required.
 </p>
 
 <pre>
@@ -358,7 +360,8 @@ package code.google.com/p/foo/quxx: cannot download, $GOPATH must not be set to 
 <h3 id="gotest">Changes to the go test command</h3>
 
 <p>
-The <code>go test</code> command no longer deletes the binary when run with profiling enabled,
+The <a href="/cmd/go/#hdr-Test_packages"><code>go test</code></a>
+command no longer deletes the binary when run with profiling enabled,
 to make it easier to analyze the profile.
 The implementation sets the <code>-c</code> flag automatically, so after running,
 </p>
@@ -372,7 +375,8 @@ the file <code>mypackage.test</code> will be left in the directory where <code>g
 </p>
 
 <p>
-The <code>go test</code> command can now generate profiling information
+The <a href="/cmd/go/#hdr-Test_packages"><code>go test</code></a>
+command can now generate profiling information
 that reports where goroutines are blocked, that is,
 where they tend to stall waiting for an event such as a channel communication.
 The information is presented as a
@@ -397,7 +401,8 @@ to convert the code to Go 1.0 first.
 <h3 id="gorun">Changes to the go run command</h3>
 
 <p>
-The <code>go run</code> command now runs all files in the current working
+The <a href="/cmd/go/#hdr-Compile_and_run_Go_program"><code>go run</code></a>
+command now runs all files in the current working
 directory if no file arguments are listed. Also, the <code>go run</code>
 command now returns an error if test files are provided on the command line. In
 this sense, "<code>go run</code>" replaces "<code>go run *.go</code>".
