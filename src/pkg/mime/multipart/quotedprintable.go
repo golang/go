@@ -18,16 +18,14 @@ import (
 )
 
 type qpReader struct {
-	br        *bufio.Reader
-	skipWhite bool
-	rerr      error  // last read error
-	line      []byte // to be consumed before more of br
+	br   *bufio.Reader
+	rerr error  // last read error
+	line []byte // to be consumed before more of br
 }
 
 func newQuotedPrintableReader(r io.Reader) io.Reader {
 	return &qpReader{
-		br:        bufio.NewReader(r),
-		skipWhite: true,
+		br: bufio.NewReader(r),
 	}
 }
 
@@ -55,10 +53,6 @@ func (q *qpReader) readHexByte(v []byte) (b byte, err error) {
 	return hb<<4 | lb, nil
 }
 
-func isQPSkipWhiteByte(b byte) bool {
-	return b == ' ' || b == '\t'
-}
-
 func isQPDiscardWhitespace(r rune) bool {
 	switch r {
 	case '\n', '\r', ' ', '\t':
@@ -79,7 +73,6 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
 			if q.rerr != nil {
 				return n, q.rerr
 			}
-			q.skipWhite = true
 			q.line, q.rerr = q.br.ReadSlice('\n')
 
 			// Does the line end in CRLF instead of just LF?
@@ -103,11 +96,6 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
 			continue
 		}
 		b := q.line[0]
-		if q.skipWhite && isQPSkipWhiteByte(b) {
-			q.line = q.line[1:]
-			continue
-		}
-		q.skipWhite = false
 
 		switch {
 		case b == '=':
