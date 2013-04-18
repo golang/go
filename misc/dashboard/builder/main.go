@@ -37,6 +37,7 @@ var extraEnv = []string{
 	"GOHOSTOS",
 	"PATH",
 	"TMPDIR",
+	"USER",
 }
 
 type Builder struct {
