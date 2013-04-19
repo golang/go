@@ -687,6 +687,7 @@ hostlink(void)
 		argv[argc++] = p;
 		w = create(p, 1, 0775);
 		if(w < 0) {
+			cursym = S;
 			diag("cannot create %s: %r", p);
 			errorexit();
 		}
@@ -698,6 +699,7 @@ hostlink(void)
 			len -= n;
 		}
 		if(close(w) < 0) {
+			cursym = S;
 			diag("cannot write %s: %r", p);
 			errorexit();
 		}
@@ -730,6 +732,7 @@ hostlink(void)
 	}
 
 	if(runcmd(argv) < 0) {
+		cursym = S;
 		diag("%s: running %s failed: %r", argv0, argv[0]);
 		errorexit();
 	}
