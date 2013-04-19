@@ -83,11 +83,14 @@ godoc's output, with one notable exception. Top-level comments that begin with
 the word <code>"BUG(who)"</code> are recognized as known bugs, and included in
 the "Bugs" section of the package documentation. The "who" part should be the
 user name of someone who could provide more information. For example, this is a
-known issue from the <a href="/pkg/bytes/#pkg-bugs"><code>bytes</code></a> package:
+known issue from the <a href="/pkg/sync/atomic/#pkg-note-BUG"><code>sync/atomic</code></a> package:
 </p>
 
 <pre>
-// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+// BUG(rsc): On x86-32, the 64-bit functions use instructions
+// unavailable before the Pentium MMX. On both ARM and x86-32, it is the
+// caller's responsibility to arrange for 64-bit alignment of 64-bit
+// words accessed atomically.
 </pre>
 
 <p>
