@@ -34,6 +34,11 @@ var EOF = errors.New("EOF")
 // middle of reading a fixed-size block or data structure.
 var ErrUnexpectedEOF = errors.New("unexpected EOF")
 
+// ErrNoProgress is returned by some clients of an io.Reader when
+// many calls to Read have failed to return any data or error,
+// usually the sign of a broken io.Reader implementation.
+var ErrNoProgress = errors.New("multiple Read calls return no data or error")
+
 // Reader is the interface that wraps the basic Read method.
 //
 // Read reads up to len(p) bytes into p.  It returns the number of bytes
@@ -55,6 +60,10 @@ var ErrUnexpectedEOF = errors.New("unexpected EOF")
 // considering the error err.  Doing so correctly handles I/O errors
 // that happen after reading some bytes and also both of the
 // allowed EOF behaviors.
+//
+// Implementations of Read are discouraged from returning a
+// zero byte count with a nil error, and callers should treat
+// that situation as a no-op.
 type Reader interface {
 	Read(p []byte) (n int, err error)
 }
