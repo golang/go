@@ -103,8 +103,7 @@ func (s *Scanner) Text() string {
 
 // Scan advances the Scanner to the next token, which will then be
 // available through the Bytes or Text method. It returns false when the
-// scan stops, either by reaching the end of the input, a zero-length
-// read from the input, or an error.
+// scan stops, either by reaching the end of the input or an error.
 // After Scan returns false, the Err method will return any error that
 // occurred during scanning, except that if it was io.EOF, Err
 // will return nil.
@@ -159,15 +158,25 @@ func (s *Scanner) Scan() bool {
 			s.start = 0
 			continue
 		}
-		// Finally we can read some input.
-		n, err := s.r.Read(s.buf[s.end:len(s.buf)])
-		if err != nil {
-			s.setErr(err)
+		// Finally we can read some input. Make sure we don't get stuck with
+		// a misbehaving Reader. Officially we don't need to do this, but let's
+		// be extra careful: Scanner is for safe, simple jobs.
+		for loop := 0; ; {
+			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
+			s.end += n
+			if err != nil {
+				s.setErr(err)
+				break
+			}
+			if n > 0 {
+				break
+			}
+			loop++
+			if loop > 100 {
+				s.setErr(io.ErrNoProgress)
+				break
+			}
 		}
-		if n == 0 { // Don't loop forever if Reader doesn't deliver EOF.
-			s.setErr(io.EOF)
-		}
-		s.end += n
 	}
 }
 
