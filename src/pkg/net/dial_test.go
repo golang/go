@@ -331,14 +331,13 @@ func numFD() int {
 	panic("numFDs not implemented on " + runtime.GOOS)
 }
 
+var testPoller = flag.Bool("poller", false, "platform supports runtime-integrated poller")
+
 // Assert that a failed Dial attempt does not leak
 // runtime.PollDesc structures
-func TestDialPollDescLeak(t *testing.T) {
-	// remove once CL 8318044 is submitted
-	t.Skip("Test skipped pending submission of CL 8318044")
-
-	if testing.Short() {
-		t.Skip("skipping PollDesc leak test in -short mode")
+func TestDialFailPDLeak(t *testing.T) {
+	if !*testPoller {
+		t.Skip("test disabled; use -poller to enable")
 	}
 
 	const loops = 10
@@ -352,10 +351,11 @@ func TestDialPollDescLeak(t *testing.T) {
 		old = new
 		return delta
 	}
+	d := &Dialer{Timeout: time.Nanosecond} // don't bother TCP with handshaking
 	failcount := 0
 	for i := 0; i < loops; i++ {
 		for i := 0; i < count; i++ {
-			conn, err := Dial("tcp", "127.0.0.1:1")
+			conn, err := d.Dial("tcp", "127.0.0.1:1")
 			if err == nil {
 				t.Error("dial should not succeed")
 				conn.Close()
@@ -367,7 +367,7 @@ func TestDialPollDescLeak(t *testing.T) {
 		}
 		// there are always some allocations on the first loop
 		if failcount > 3 {
-			t.Error("net.Dial leaked memory")
+			t.Error("detected possible memory leak in runtime")
 			t.FailNow()
 		}
 	}
