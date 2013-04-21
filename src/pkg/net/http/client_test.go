@@ -180,7 +180,7 @@ func TestPostFormRequestFormat(t *testing.T) {
 	}
 }
 
-func TestRedirects(t *testing.T) {
+func TestClientRedirects(t *testing.T) {
 	defer afterTest(t)
 	var ts *httptest.Server
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
