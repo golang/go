@@ -122,6 +122,7 @@ pkg go/printer, type Config struct, Indent int
 pkg image, const YCbCrSubsampleRatio440 YCbCrSubsampleRatio
 pkg io, type ByteWriter interface { WriteByte }
 pkg io, type ByteWriter interface, WriteByte(uint8) error
+pkg io, var ErrNoProgress error
 pkg log/syslog (darwin-386), const LOG_AUTH Priority
 pkg log/syslog (darwin-386), const LOG_AUTHPRIV Priority
 pkg log/syslog (darwin-386), const LOG_CRON Priority
