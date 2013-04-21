@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http
+package http_test
 
 import (
+	. "net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 )
@@ -76,20 +78,27 @@ func TestServeMuxHandler(t *testing.T) {
 			},
 		}
 		h, pattern := mux.Handler(r)
-		cs := &codeSaver{h: Header{}}
-		h.ServeHTTP(cs, r)
-		if pattern != tt.pattern || cs.code != tt.code {
-			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, cs.code, pattern, tt.code, tt.pattern)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, r)
+		if pattern != tt.pattern || rr.Code != tt.code {
+			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, rr.Code, pattern, tt.code, tt.pattern)
 		}
 	}
 }
 
-// A codeSaver is a ResponseWriter that saves the code passed to WriteHeader.
-type codeSaver struct {
-	h    Header
-	code int
+func TestServerRedirect(t *testing.T) {
+	// This used to crash. It's not valid input (bad path), but it
+	// shouldn't crash.
+	rr := httptest.NewRecorder()
+	req := &Request{
+		Method: "GET",
+		URL: &url.URL{
+			Scheme: "http",
+			Path:   "not-empty-but-no-leading-slash", // bogus
+		},
+	}
+	Redirect(rr, req, "", 304)
+	if rr.Code != 304 {
+		t.Errorf("Code = %d; want 304", rr.Code)
+	}
 }
-
-func (cs *codeSaver) Header() Header              { return cs.h }
-func (cs *codeSaver) Write(p []byte) (int, error) { return len(p), nil }
-func (cs *codeSaver) WriteHeader(code int)        { cs.code = code }

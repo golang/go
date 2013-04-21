@@ -1222,9 +1222,9 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 			}
 
 			// clean up but preserve trailing slash
-			trailing := urlStr[len(urlStr)-1] == '/'
+			trailing := strings.HasSuffix(urlStr, "/")
 			urlStr = path.Clean(urlStr)
-			if trailing && urlStr[len(urlStr)-1] != '/' {
+			if trailing && !strings.HasSuffix(urlStr, "/") {
 				urlStr += "/"
 			}
 			urlStr += query
