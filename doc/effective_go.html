@@ -3414,7 +3414,7 @@ func Compile(str string) (regexp *Regexp, err error) {
 <p>
 If <code>doParse</code> panics, the recovery block will set the
 return value to <code>nil</code>&mdash;deferred functions can modify
-named return values.  It then will then check, in the assignment
+named return values.  It will then check, in the assignment
 to <code>err</code>, that the problem was a parse error by asserting
 that it has the local type <code>Error</code>.
 If it does not, the type assertion will fail, causing a run-time error
