@@ -87,6 +87,14 @@ echo # ..\misc\cgo\test
 go test ..\misc\cgo\test
 if errorlevel 1 goto fail
 echo.
+
+echo # ..\misc\cgo\testso
+cd ..\misc\cgo\testso
+set FAIL=0
+call test.bat
+cd ..\..\..\src
+if %FAIL%==1 goto fail
+echo.
 :nocgo
 
 echo # ..\doc\progs

@@ -6,11 +6,13 @@ package cgosotest
 
 /*
 #cgo LDFLAGS: -L. -lcgosotest
+void init(void);
 void sofunc(void);
 */
 import "C"
 
 func Test() {
+	C.init()
 	C.sofunc()
 }
 
