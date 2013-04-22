@@ -76,6 +76,7 @@ func afterTest(t *testing.T) {
 		"created by net/http/httptest.(*Server).Start": "an httptest.Server",
 		"timeoutHandler":                               "a TimeoutHandler",
 		"net.(*netFD).connect(":                        "a timing out dial",
+		").noteClientGone(":                            "a closenotifier sender",
 	}
 	var stacks string
 	for i := 0; i < 4; i++ {
