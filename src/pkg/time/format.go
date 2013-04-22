@@ -6,15 +6,17 @@ package time
 
 import "errors"
 
-// These are predefined layouts for use in Time.Format.
-// The standard time used in the layouts is:
+// These are predefined layouts for use in Time.Format and Time.Parse.
+// The reference time used in the layouts is:
 //	Mon Jan 2 15:04:05 MST 2006
 // which is Unix time 1136239445. Since MST is GMT-0700,
-// the standard time can be thought of as
+// the reference time can be thought of as
 //	01/02 03:04:05PM '06 -0700
-// To define your own format, write down what the standard time would look
+// To define your own format, write down what the reference time would look
 // like formatted your way; see the values of constants like ANSIC,
-// StampMicro or Kitchen for examples.
+// StampMicro or Kitchen for examples. The model is to demonstrate what the
+// reference time looks like so that the Format and Parse methods can apply
+// the same transformation to a general time value.
 //
 // Within the format string, an underscore _ represents a space that may be
 // replaced by a digit if the following number (a day) has two digits; for
@@ -367,13 +369,16 @@ func (t Time) String() string {
 }
 
 // Format returns a textual representation of the time value formatted
-// according to layout.  The layout defines the format by showing the
-// representation of the standard time,
+// according to layout, which defines the format by showing how the reference
+// time,
 //	Mon Jan 2 15:04:05 -0700 MST 2006
-// which is then used to describe the time to be formatted. Predefined
-// layouts ANSIC, UnixDate, RFC3339 and others describe standard
-// representations. For more information about the formats and the
-// definition of the standard time, see the documentation for ANSIC.
+// would be displayed if it were the value; it serves as an example of the
+// desired output. The same display rules will then be aplied to the time
+// value.
+// Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
+// and convenient representations of the reference time. For more information
+// about the formats and the definition of the reference time, see the
+// documentation for ANSIC and the other constants defined by this package.
 func (t Time) Format(layout string) string {
 	var (
 		name, offset, abs = t.locabs()
@@ -627,13 +632,15 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// The layout defines the format by showing the representation of the
-// standard time,
+// The layout  defines the format by showing how the reference time,
 //	Mon Jan 2 15:04:05 -0700 MST 2006
-// which is then used to describe the string to be parsed. Predefined layouts
-// ANSIC, UnixDate, RFC3339 and others describe standard representations. For
-// more information about the formats and the definition of the standard
-// time, see the documentation for ANSIC.
+// would be interepreted if it were the value; it serves as an example of
+// the input format. The same interpretation will then be made to the
+// input string.
+// Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
+// and convenient representations of the reference time. For more information
+// about the formats and the definition of the reference time, see the
+// documentation for ANSIC and the other constants defined by this package.
 //
 // Elements omitted from the value are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time
