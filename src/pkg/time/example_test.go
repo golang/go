@@ -58,20 +58,25 @@ func ExampleDate() {
 }
 
 func ExampleTime_Format() {
-	const format = "Jan 2, 2006 at 3:04pm (MST)"
+	// layout shows by example how the reference time should be represented.
+	const layout = "Jan 2, 2006 at 3:04pm (MST)"
 	t := time.Date(2009, time.November, 10, 15, 0, 0, 0, time.Local)
-	fmt.Println(t.Format(format))
-	fmt.Println(t.UTC().Format(format))
+	fmt.Println(t.Format(layout))
+	fmt.Println(t.UTC().Format(layout))
 	// Output:
 	// Nov 10, 2009 at 3:00pm (PST)
 	// Nov 10, 2009 at 11:00pm (UTC)
 }
 
 func ExampleParse() {
+	// longForm shows by example how the reference time would be represented in
+	// the desired layout.
 	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
 	t, _ := time.Parse(longForm, "Feb 3, 2013 at 7:54pm (PST)")
 	fmt.Println(t)
 
+	// shortForm is another way the reference time would be represented
+	// in the desired layout; it has no time zone present.
 	// Note: without explicit zone, returns time in UTC.
 	const shortForm = "2006-Jan-02"
 	t, _ = time.Parse(shortForm, "2013-Feb-03")
