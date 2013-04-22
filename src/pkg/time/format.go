@@ -634,7 +634,7 @@ func skip(value, prefix string) (string, error) {
 // Parse parses a formatted string and returns the time value it represents.
 // The layout  defines the format by showing how the reference time,
 //	Mon Jan 2 15:04:05 -0700 MST 2006
-// would be interepreted if it were the value; it serves as an example of
+// would be interpreted if it were the value; it serves as an example of
 // the input format. The same interpretation will then be made to the
 // input string.
 // Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
