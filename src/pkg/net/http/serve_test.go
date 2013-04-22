@@ -1370,6 +1370,7 @@ func TestContentLengthZero(t *testing.T) {
 }
 
 func TestCloseNotifier(t *testing.T) {
+	defer afterTest(t)
 	gotReq := make(chan bool, 1)
 	sawClose := make(chan bool, 1)
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -1403,6 +1404,31 @@ For:
 		}
 	}
 	ts.Close()
+}
+
+func TestCloseNotifierChanLeak(t *testing.T) {
+	defer afterTest(t)
+	req := []byte(strings.Replace(`GET / HTTP/1.0
+Host: golang.org
+
+`, "\n", "\r\n", -1))
+	for i := 0; i < 20; i++ {
+		var output bytes.Buffer
+		conn := &rwTestConn{
+			Reader: bytes.NewReader(req),
+			Writer: &output,
+			closec: make(chan bool, 1),
+		}
+		ln := &oneConnListener{conn: conn}
+		handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
+			// Ignore the return value and never read from
+			// it, testing that we don't leak goroutines
+			// on the sending side:
+			_ = rw.(CloseNotifier).CloseNotify()
+		})
+		go Serve(ln, handler)
+		<-conn.closec
+	}
 }
 
 func TestOptions(t *testing.T) {

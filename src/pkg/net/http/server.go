@@ -146,7 +146,7 @@ func (c *conn) closeNotify() <-chan bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closeNotifyc == nil {
-		c.closeNotifyc = make(chan bool)
+		c.closeNotifyc = make(chan bool, 1)
 		if c.hijackedv {
 			// to obey the function signature, even though
 			// it'll never receive a value.
