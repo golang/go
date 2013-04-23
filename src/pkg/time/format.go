@@ -373,7 +373,7 @@ func (t Time) String() string {
 // time,
 //	Mon Jan 2 15:04:05 -0700 MST 2006
 // would be displayed if it were the value; it serves as an example of the
-// desired output. The same display rules will then be aplied to the time
+// desired output. The same display rules will then be applied to the time
 // value.
 // Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
 // and convenient representations of the reference time. For more information
