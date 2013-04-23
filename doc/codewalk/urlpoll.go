@@ -76,7 +76,7 @@ func (r *Resource) Poll() string {
 	return resp.Status
 }
 
-// Sleep sleeps for an appropriate interval (dependant on error state)
+// Sleep sleeps for an appropriate interval (dependent on error state)
 // before sending the Resource to done.
 func (r *Resource) Sleep(done chan<- *Resource) {
 	time.Sleep(pollInterval + errTimeout*time.Duration(r.errCount))

@@ -1011,7 +1011,7 @@ loop:
 	c = cas->chan;
 
 	if(c->dataqsiz > 0)
-		runtime·throw("selectgo: shouldnt happen");
+		runtime·throw("selectgo: shouldn't happen");
 
 	if(debug)
 		runtime·printf("wait-return: sel=%p c=%p cas=%p kind=%d\n",
