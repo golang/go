@@ -66,7 +66,7 @@ static int gcc;
 
 /* File and line number */
 static const char *file;
-static unsigned int lineno = 1;
+static unsigned int lineno;
 
 /* List of names and types.  */
 struct params {
@@ -754,6 +754,7 @@ goc2c(char *goc, char *c)
 	input = bstr(&in);
 	output = &out;
 
+	lineno = 1;
 	process_file();
 	
 	writefile(&out, c, 0);
