@@ -2947,7 +2947,7 @@ func Serve(queue chan *Request) {
         go func() {
             process(req)
             sem &lt;- 1
-        }
+        }()
     }
 }</pre>
 
