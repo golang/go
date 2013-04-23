@@ -130,7 +130,7 @@ much easier to type.
 A <code>Rectangle</code> is inclusive at the top-left and exclusive at the
 bottom-right. For a <code>Point p</code> and a <code>Rectangle r</code>,
 <code>p.In(r)</code> if and only if
-<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analagous to how
+<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analogous to how
 a slice <code>s[i0:i1]</code> is inclusive at the low end and exclusive at the
 high end. (Unlike arrays and slices, a <code>Rectangle</code> often has a
 non-zero origin.)
@@ -236,7 +236,7 @@ more complicated, to access these struct type's <code>Pix</code> field directly.
 The slice-based <code>Image</code> implementations also provide a
 <code>SubImage</code> method, which returns an <code>Image</code> backed by the
 same array. Modifying the pixels of a sub-image will affect the pixels of the
-original image, analagous to how modifying the contents of a sub-slice
+original image, analogous to how modifying the contents of a sub-slice
 <code>s[i0:i1]</code> will affect the contents of the original slice
 <code>s</code>.
 </p>

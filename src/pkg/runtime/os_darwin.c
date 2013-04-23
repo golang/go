@@ -92,7 +92,7 @@ runtime·goenvs(void)
 
 	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
 	// but only if we're not using cgo.  If we are using cgo we need
-	// to let the C pthread libary install its own thread-creation callback.
+	// to let the C pthread library install its own thread-creation callback.
 	if(!runtime·iscgo) {
 		if(runtime·bsdthread_register() != 0) {
 			if(runtime·getenv("DYLD_INSERT_LIBRARIES"))

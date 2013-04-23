@@ -1966,7 +1966,7 @@ Host: golang.org
 
 const someResponse = "<html>some response</html>"
 
-// A Reponse that's just no bigger than 2KB, the buffer-before-chunking threshold.
+// A Response that's just no bigger than 2KB, the buffer-before-chunking threshold.
 var response = bytes.Repeat([]byte(someResponse), 2<<10/len(someResponse))
 
 // Both Content-Type and Content-Length set. Should be no buffering.
