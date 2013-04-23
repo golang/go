@@ -126,6 +126,10 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
 // File returns a copy of the underlying os.File, set to blocking
 // mode.  It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
+//
+// The returned os.File's file descriptor is different from the
+// connection's.  Attempting to change properties of the original
+// using this duplicate may or may not have the desired effect.
 func (l *UnixListener) File() (*os.File, error) {
 	return nil, syscall.EPLAN9
 }
