@@ -76,11 +76,11 @@ src/
             oauth_test.go          # test source
     github.com/nf/
         streak/
-	    .git/                  # git repository metadata
+            .git/                  # git repository metadata
             oauth.go               # command source
             streak.go              # command source
         todo/
-	    .git/                  # git repository metadata
+            .git/                  # git repository metadata
             task/
                 task.go            # package source
             todo.go                # command source
@@ -471,7 +471,7 @@ func TestSqrt(t *testing.T) {
 	const in, out = 4, 2
 	if x := Sqrt(in); x != out {
 		t.Errorf("Sqrt(%v) = %v, want %v", in, x, out)
-        }
+	}
 }
 </pre>
 
@@ -528,7 +528,7 @@ fetch and behaves the same as <code>go install</code>.)
 
 <p>
 After issuing the above <code>go get</code> command, the workspace directory
-tree should now now look like this:
+tree should now look like this:
 </p>
 
 <pre>
