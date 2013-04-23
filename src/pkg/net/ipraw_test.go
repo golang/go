@@ -28,7 +28,7 @@ var resolveIPAddrTests = []resolveIPAddrTest{
 
 	{"ip", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
 	{"ip6", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
-	{"ip6:icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+	{"ip6:ipv6-icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
 
 	{"ip", "::1%en0", &IPAddr{IP: ParseIP("::1"), Zone: "en0"}, nil},
 	{"ip6", "::1%911", &IPAddr{IP: ParseIP("::1"), Zone: "911"}, nil},
