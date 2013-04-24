@@ -679,6 +679,19 @@ agen(Node *n, Node *res)
 
 	case ODOT:
 		agen(nl, res);
+		// explicit check for nil if struct is large enough
+		// that we might derive too big a pointer.
+		if(nl->type->width >= unmappedzero) {
+			regalloc(&n1, types[tptr], N);
+			gmove(res, &n1);
+			regalloc(&n2, types[TUINT8], &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT8];
+			n1.xoffset = 0;
+			gmove(&n1, &n2);
+			regfree(&n1);
+			regfree(&n2);
+		}
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[TINT32], n->xoffset);
 			regalloc(&n2, n1.type, N);
@@ -694,20 +707,20 @@ agen(Node *n, Node *res)
 
 	case ODOTPTR:
 		cgen(nl, res);
+		// explicit check for nil if struct is large enough
+		// that we might derive too big a pointer.
+		if(nl->type->type->width >= unmappedzero) {
+			regalloc(&n1, types[tptr], N);
+			gmove(res, &n1);
+			regalloc(&n2, types[TUINT8], &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT8];
+			n1.xoffset = 0;
+			gmove(&n1, &n2);
+			regfree(&n1);
+			regfree(&n2);
+		}
 		if(n->xoffset != 0) {
-			// explicit check for nil if struct is large enough
-			// that we might derive too big a pointer.
-			if(nl->type->type->width >= unmappedzero) {
-				regalloc(&n1, types[tptr], N);
-				gmove(res, &n1);
-				regalloc(&n2, types[TUINT8], &n1);
-				n1.op = OINDREG;
-				n1.type = types[TUINT8];
-				n1.xoffset = 0;
-				gmove(&n1, &n2);
-				regfree(&n1);
-				regfree(&n2);
-			}
 			nodconst(&n1, types[TINT32], n->xoffset);
 			regalloc(&n2, n1.type, N);
 			regalloc(&n3, types[tptr], N);
@@ -777,20 +790,18 @@ igen(Node *n, Node *a, Node *res)
 			regalloc(a, types[tptr], res);
 			cgen(n->left, a);
 		}
-		if(n->xoffset != 0) {
-			// explicit check for nil if struct is large enough
-			// that we might derive too big a pointer.
-			if(n->left->type->type->width >= unmappedzero) {
-				regalloc(&n1, types[tptr], N);
-				gmove(a, &n1);
-				regalloc(&n2, types[TUINT8], &n1);
-				n1.op = OINDREG;
-				n1.type = types[TUINT8];
-				n1.xoffset = 0;
-				gmove(&n1, &n2);
-				regfree(&n1);
-				regfree(&n2);
-			}
+		// explicit check for nil if struct is large enough
+		// that we might derive too big a pointer.
+		if(n->left->type->type->width >= unmappedzero) {
+			regalloc(&n1, types[tptr], N);
+			gmove(a, &n1);
+			regalloc(&n2, types[TUINT8], &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT8];
+			n1.xoffset = 0;
+			gmove(&n1, &n2);
+			regfree(&n1);
+			regfree(&n2);
 		}
 		a->op = OINDREG;
 		a->xoffset = n->xoffset;

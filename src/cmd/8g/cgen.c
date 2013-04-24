@@ -739,6 +739,17 @@ agen(Node *n, Node *res)
 
 	case ODOT:
 		agen(nl, res);
+		// explicit check for nil if struct is large enough
+		// that we might derive too big a pointer.
+		if(nl->type->width >= unmappedzero) {
+			regalloc(&n1, types[tptr], res);
+			gmove(res, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT8];
+			n1.xoffset = 0;
+			gins(ATESTB, nodintconst(0), &n1);
+			regfree(&n1);
+		}
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[tptr], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
@@ -750,18 +761,18 @@ agen(Node *n, Node *res)
 		if(!isptr[t->etype])
 			fatal("agen: not ptr %N", n);
 		cgen(nl, res);
+		// explicit check for nil if struct is large enough
+		// that we might derive too big a pointer.
+		if(nl->type->type->width >= unmappedzero) {
+			regalloc(&n1, types[tptr], res);
+			gmove(res, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT8];
+			n1.xoffset = 0;
+			gins(ATESTB, nodintconst(0), &n1);
+			regfree(&n1);
+		}
 		if(n->xoffset != 0) {
-			// explicit check for nil if struct is large enough
-			// that we might derive too big a pointer.
-			if(nl->type->type->width >= unmappedzero) {
-				regalloc(&n1, types[tptr], res);
-				gmove(res, &n1);
-				n1.op = OINDREG;
-				n1.type = types[TUINT8];
-				n1.xoffset = 0;
-				gins(ATESTB, nodintconst(0), &n1);
-				regfree(&n1);
-			}
 			nodconst(&n1, types[tptr], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
 		}
@@ -825,16 +836,14 @@ igen(Node *n, Node *a, Node *res)
 			regalloc(a, types[tptr], res);
 			cgen(n->left, a);
 		}
-		if(n->xoffset != 0) {
-			// explicit check for nil if struct is large enough
-			// that we might derive too big a pointer.
-			if(n->left->type->type->width >= unmappedzero) {
-				n1 = *a;
-				n1.op = OINDREG;
-				n1.type = types[TUINT8];
-				n1.xoffset = 0;
-				gins(ATESTB, nodintconst(0), &n1);
-			}
+		// explicit check for nil if struct is large enough
+		// that we might derive too big a pointer.
+		if(n->left->type->type->width >= unmappedzero) {
+			n1 = *a;
+			n1.op = OINDREG;
+			n1.type = types[TUINT8];
+			n1.xoffset = 0;
+			gins(ATESTB, nodintconst(0), &n1);
 		}
 		a->op = OINDREG;
 		a->xoffset += n->xoffset;

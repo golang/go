@@ -38,6 +38,8 @@ func main() {
 	shouldPanic(p8)
 	shouldPanic(p9)
 	shouldPanic(p10)
+	shouldPanic(p11)
+	shouldPanic(p12)
 }
 
 func shouldPanic(f func()) {
@@ -129,4 +131,24 @@ func p10() {
 	// Struct field access with large offset.
 	var t *T
 	println(t.i) // should crash
+}
+
+type T1 struct {
+	T
+}
+
+type T2 struct {
+	*T1
+}
+
+func p11() {
+	t := &T2{}
+	p := &t.i
+	println(*p)
+}
+
+// ADDR(DOT(IND(p))) needs a check also
+func p12() {
+	var p *T = nil
+	println(*(&((*p).i)))
 }
