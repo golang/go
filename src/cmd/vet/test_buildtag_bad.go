@@ -8,4 +8,8 @@
 // +build @#$ // ERROR "invalid non-alphanumeric build constraint"
 
 // +build toolate // ERROR "build comment appears too late in file"
-package main
+package bad
+
+// This is package 'bad' rather than 'main' so the erroneous build
+// tag doesn't end up looking like a package doc for the vet command
+// when examined by godoc.
