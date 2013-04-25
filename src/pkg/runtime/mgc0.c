@@ -2191,7 +2191,7 @@ runfinq(void)
 				framesz = sizeof(uintptr) + f->nret;
 				if(framecap < framesz) {
 					runtime·free(frame);
-					frame = runtime·mal(framesz);
+					frame = runtime·mallocgc(framesz, FlagNoPointers, 0, 1);
 					framecap = framesz;
 				}
 				*(void**)frame = f->arg;
