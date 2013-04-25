@@ -1046,6 +1046,9 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 
 	if(t->align > 0 && (*off % t->align) != 0)
 		fatal("dgcsym1: invalid initial alignment, %T", t);
+
+	if(t->width == BADWIDTH)
+		dowidth(t);
 	
 	switch(t->etype) {
 	case TINT8:
@@ -1141,6 +1144,8 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 	case TARRAY:
 		if(t->bound < -1)
 			fatal("dgcsym1: invalid bound, %T", t);
+		if(t->type->width == BADWIDTH)
+			dowidth(t->type);
 		if(isslice(t)) {
 			// NOTE: Any changes here need to be made to reflect.SliceOf as well.
 			// struct { byte* array; uint32 len; uint32 cap; }
@@ -1213,6 +1218,9 @@ dgcsym(Type *t)
 	if(s->flags & SymGcgen)
 		return s;
 	s->flags |= SymGcgen;
+
+	if(t->width == BADWIDTH)
+		dowidth(t);
 
 	ot = 0;
 	off = 0;
