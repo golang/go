@@ -35,9 +35,10 @@ var _ = log.Printf
 // When opening a fakeDriver's database, it starts empty with no
 // tables.  All tables and data are stored in memory only.
 type fakeDriver struct {
-	mu        sync.Mutex
-	openCount int
-	dbs       map[string]*fakeDB
+	mu         sync.Mutex // guards 3 following fields
+	openCount  int        // conn opens
+	closeCount int        // conn closes
+	dbs        map[string]*fakeDB
 }
 
 type fakeDB struct {
@@ -250,6 +251,7 @@ func setStrictFakeConnClose(t *testing.T) {
 }
 
 func (c *fakeConn) Close() (err error) {
+	drv := fdriver.(*fakeDriver)
 	defer func() {
 		if err != nil && testStrictClose != nil {
 			testStrictClose.Errorf("failed to close a test fakeConn: %v", err)
@@ -259,6 +261,11 @@ func (c *fakeConn) Close() (err error) {
 		hookPostCloseConn.Unlock()
 		if fn != nil {
 			fn(c, err)
+		}
+		if err == nil {
+			drv.mu.Lock()
+			drv.closeCount++
+			drv.mu.Unlock()
 		}
 	}()
 	if c.currTx != nil {
@@ -459,7 +466,7 @@ func (s *fakeStmt) Close() error {
 		panic("nil conn in fakeStmt.Close")
 	}
 	if s.c.db == nil {
-		panic("in fakeSmt.Close, conn's db is nil (already closed)")
+		panic("in fakeStmt.Close, conn's db is nil (already closed)")
 	}
 	if !s.closed {
 		s.c.incrStat(&s.c.stmtsClosed)
@@ -552,6 +559,15 @@ func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	if !ok {
 		return nil, fmt.Errorf("fakedb: table %q doesn't exist", s.table)
 	}
+
+	if s.table == "magicquery" {
+		if len(s.whereCol) == 2 && s.whereCol[0] == "op" && s.whereCol[1] == "millis" {
+			if args[0] == "sleep" {
+				time.Sleep(time.Duration(args[1].(int64)) * time.Millisecond)
+			}
+		}
+	}
+
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
