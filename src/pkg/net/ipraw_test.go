@@ -55,9 +55,8 @@ func TestResolveIPAddr(t *testing.T) {
 	for _, tt := range resolveIPAddrTests {
 		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
 		if err != tt.err {
-			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
-		}
-		if !reflect.DeepEqual(addr, tt.addr) {
+			condFatalf(t, "ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+		} else if !reflect.DeepEqual(addr, tt.addr) {
 			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
 		}
 	}
