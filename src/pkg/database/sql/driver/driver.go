@@ -10,8 +10,8 @@ package driver
 
 import "errors"
 
-// A driver Value is a value that drivers must be able to handle.
-// A Value is either nil or an instance of one of these types:
+// Value is a value that drivers must be able to handle.
+// It is either nil or an instance of one of these types:
 //
 //   int64
 //   float64
