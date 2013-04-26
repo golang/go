@@ -60,10 +60,11 @@ func TestAfterStress(t *testing.T) {
 			Sleep(Nanosecond)
 		}
 	}()
-	c := Tick(1)
+	ticker := NewTicker(1)
 	for i := 0; i < 100; i++ {
-		<-c
+		<-ticker.C
 	}
+	ticker.Stop()
 	atomic.StoreUint32(&stop, 1)
 }
 
