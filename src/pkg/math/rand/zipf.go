@@ -34,7 +34,6 @@ func (z *Zipf) hinv(x float64) float64 {
 
 // NewZipf returns a Zipf generating variates p(k) on [0, imax]
 // proportional to (v+k)**(-s) where s>1 and k>=0, and v>=1.
-//
 func NewZipf(r *Rand, s float64, v float64, imax uint64) *Zipf {
 	z := new(Zipf)
 	if s <= 1.0 || v < 1 {
@@ -52,9 +51,12 @@ func NewZipf(r *Rand, s float64, v float64, imax uint64) *Zipf {
 	return z
 }
 
-// Uint64 returns a value drawn from the Zipf distributed described
+// Uint64 returns a value drawn from the Zipf distribution described
 // by the Zipf object.
 func (z *Zipf) Uint64() uint64 {
+	if z == nil {
+		panic("rand: nil Zipf")
+	}
 	k := 0.0
 
 	for {
