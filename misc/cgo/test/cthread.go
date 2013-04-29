@@ -8,7 +8,6 @@ package cgotest
 import "C"
 
 import (
-	"runtime"
 	"sync"
 	"testing"
 )
@@ -31,10 +30,6 @@ func Add(x int) {
 }
 
 func testCthread(t *testing.T) {
-	if runtime.GOARCH == "arm" {
-		t.Skip("testCthread disabled on arm")
-	}
-
 	sum.i = 0
 	C.doAdd(10, 6)
 

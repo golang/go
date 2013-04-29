@@ -417,7 +417,7 @@ havem:
 	RET
 
 // void setmg(M*, G*); set m and g. for use by needm.
-TEXT runtime·setmg(SB), 7, $-4
+TEXT runtime·setmg(SB), 7, $0
 	MOVW	mm+0(FP), m
 	MOVW	gg+4(FP), g
 
