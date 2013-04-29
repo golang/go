@@ -497,6 +497,9 @@ var fmttests = []struct {
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
 	{"%v", []complex128{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
+
+	// Incomplete format specification caused crash.
+	{"%.", 3, "%!.(int=3)"},
 }
 
 func TestSprintf(t *testing.T) {
