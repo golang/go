@@ -1072,7 +1072,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
 		}
 		// do we have precision?
-		if i < end && format[i] == '.' {
+		if i+1 < end && format[i] == '.' {
 			if format[i+1] == '*' {
 				p.fmt.prec, p.fmt.precPresent, i, fieldnum = intFromArg(a, end, i+1, fieldnum)
 				if !p.fmt.precPresent {
