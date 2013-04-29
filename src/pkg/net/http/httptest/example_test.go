@@ -12,7 +12,7 @@ import (
 	"net/http/httptest"
 )
 
-func ExampleRecorder() {
+func ExampleResponseRecorder() {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "something failed", http.StatusInternalServerError)
 	}
