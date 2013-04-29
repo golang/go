@@ -138,6 +138,16 @@
 	by a single character (the verb) and end with a parenthesized
 	description.
 
+	If an Error or String method triggers a panic when called by a
+	print routine, the fmt package reformats the error message
+	from the panic, decorating it with an indication that it came
+	through the fmt package.  For example, if a String method
+	calls panic("bad"), the resulting formatted message will look
+	like
+		%s(PANIC=bad)
+
+	The %s just shows the print verb in use when the failure
+	occurred.
 
 	Scanning
 
