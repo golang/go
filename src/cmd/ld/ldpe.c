@@ -291,7 +291,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 				case IMAGE_REL_AMD64_ADDR32: // R_X86_64_PC32
 				case IMAGE_REL_AMD64_ADDR32NB:
 					rp->type = D_PCREL;
-					rp->add = le32(rsect->base+rp->off);
+					rp->add = (int32)le32(rsect->base+rp->off);
 					break;
 				case IMAGE_REL_I386_DIR32NB:
 				case IMAGE_REL_I386_DIR32:
