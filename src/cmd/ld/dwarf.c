@@ -2262,6 +2262,9 @@ dwarfemitdebugsections(void)
 	if(debug['w'])  // disable dwarf
 		return;
 
+	if(linkmode == LinkExternal && !iself)
+		return;
+
 	// For diagnostic messages.
 	newattr(&dwtypes, DW_AT_name, DW_CLS_STRING, strlen("dwtypes"), "dwtypes");
 
