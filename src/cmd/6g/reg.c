@@ -947,9 +947,9 @@ doregbits(int r)
 }
 
 static int
-overlap(int32 o1, int w1, int32 o2, int w2)
+overlap(int64 o1, int w1, int64 o2, int w2)
 {
-	int32 t1, t2;
+	int64 t1, t2;
 
 	t1 = o1+w1;
 	t2 = o2+w2;
@@ -967,7 +967,7 @@ mkvar(Reg *r, Adr *a)
 	int i, t, n, et, z, flag;
 	int64 w;
 	uint32 regu;
-	int32 o;
+	int64 o;
 	Bits bit;
 	Node *node;
 

@@ -1785,7 +1785,8 @@ sudoclean(void)
 int
 dotaddable(Node *n, Node *n1)
 {
-	int o, oary[10];
+	int o;
+	int64 oary[10];
 	Node *nn;
 
 	if(n->op != ODOT)
@@ -1816,7 +1817,7 @@ int
 sudoaddable(int as, Node *n, Addr *a, int *w)
 {
 	int o, i;
-	int oary[10];
+	int64 oary[10];
 	int64 v;
 	Node n1, n2, n3, n4, *nn, *l, *r;
 	Node *reg, *reg1;

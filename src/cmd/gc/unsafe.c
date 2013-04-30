@@ -19,7 +19,7 @@ unsafenmagic(Node *nn)
 	Node *r, *n, *base, *r1;
 	Sym *s;
 	Type *t, *tr;
-	long v;
+	vlong v;
 	Val val;
 	Node *fn;
 	NodeList *args;

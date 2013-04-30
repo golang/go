@@ -46,7 +46,8 @@ static vlong
 widstruct(Type *errtype, Type *t, vlong o, int flag)
 {
 	Type *f;
-	int32 w, maxalign;
+	int64 w;
+	int32 maxalign;
 	
 	maxalign = flag;
 	if(maxalign < 1)
@@ -643,7 +644,7 @@ argsize(Type *t)
 {
 	Iter save;
 	Type *fp;
-	int w, x;
+	int64 w, x;
 
 	w = 0;
 
@@ -664,5 +665,7 @@ argsize(Type *t)
 	}
 
 	w = (w+widthptr-1) & ~(widthptr-1);
+	if((int)w != w)
+		fatal("argsize too big");
 	return w;
 }

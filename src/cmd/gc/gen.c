@@ -836,7 +836,7 @@ cgen_slice(Node *n, Node *res)
  * <0 is pointer to next field (+1)
  */
 int
-dotoffset(Node *n, int *oary, Node **nn)
+dotoffset(Node *n, int64 *oary, Node **nn)
 {
 	int i;
 

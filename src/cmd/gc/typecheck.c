@@ -2350,7 +2350,8 @@ pushtype(Node *n, Type *t)
 static void
 typecheckcomplit(Node **np)
 {
-	int bad, i, len, nerr;
+	int bad, i, nerr;
+	int64 len;
 	Node *l, *n, *norig, *r, **hash;
 	NodeList *ll;
 	Type *t, *f;

@@ -177,8 +177,13 @@ cmpstackvar(Node *a, Node *b)
 {
 	if (a->class != b->class)
 		return (a->class == PAUTO) ? 1 : -1;
-	if (a->class != PAUTO)
-		return a->xoffset - b->xoffset;
+	if (a->class != PAUTO) {
+		if (a->xoffset < b->xoffset)
+			return -1;
+		if (a->xoffset > b->xoffset)
+			return 1;
+		return 0;
+	}
 	if ((a->used == 0) != (b->used == 0))
 		return b->used - a->used;
 	return b->type->align - a->type->align;
@@ -240,6 +245,10 @@ allocauto(Prog* ptxt)
 		stksize = rnd(stksize, n->type->align);
 		if(thechar == '5')
 			stksize = rnd(stksize, widthptr);
+		if(stksize >= (1ULL<<31)) {
+			setlineno(curfn);
+			yyerror("stack frame too large (>2GB)");
+		}
 		n->stkdelta = -stksize - n->xoffset;
 	}
 

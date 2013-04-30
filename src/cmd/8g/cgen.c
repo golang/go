@@ -740,7 +740,9 @@ agen(Node *n, Node *res)
 	case ODOT:
 		agen(nl, res);
 		// explicit check for nil if struct is large enough
-		// that we might derive too big a pointer.
+		// that we might derive too big a pointer.  If the left node
+		// was ODOT we have already done the nil check.
+		if(nl->op != ODOT)
 		if(nl->type->width >= unmappedzero) {
 			regalloc(&n1, types[tptr], res);
 			gmove(res, &n1);
