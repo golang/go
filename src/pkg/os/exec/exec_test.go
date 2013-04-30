@@ -196,6 +196,8 @@ func basefds() uintptr {
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
+	t.Skip("TODO: TestExtraFilesFDShuffle is too non-portable; skipping")
+
 	// syscall.StartProcess maps all the FDs passed to it in
 	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
 	// ExtraFiles) into consecutive FDs in the child, that is:
