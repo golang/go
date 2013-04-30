@@ -135,7 +135,7 @@ makeclosure(Node *func)
 	NodeList *l, *body;
 	static int closgen;
 	char *p;
-	int offset;
+	vlong offset;
 
 	/*
 	 * wrap body in external function

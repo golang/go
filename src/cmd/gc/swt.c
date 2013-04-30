@@ -358,6 +358,8 @@ mkcaselist(Node *sw, int arg)
 		c = c1;
 
 		ord++;
+		if((uint16)ord != ord)
+			fatal("too many cases in switch");
 		c->ordinal = ord;
 		c->node = n;
 

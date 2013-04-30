@@ -568,7 +568,7 @@ agenr(Node *n, Node *a, Node *res)
 	Node n1, n2, n3, n4, n5, tmp, tmp2, nlen;
 	Prog *p1;
 	Type *t;
-	uint32 w;
+	uint64 w;
 	uint64 v;
 	int freelen;
 
@@ -883,7 +883,9 @@ agen(Node *n, Node *res)
 	case ODOT:
 		agen(nl, res);
 		// explicit check for nil if struct is large enough
-		// that we might derive too big a pointer.
+		// that we might derive too big a pointer.  If the left node
+		// was ODOT we have already done the nil check.
+		if(nl->op != ODOT)
 		if(nl->type->width >= unmappedzero) {
 			regalloc(&n1, types[tptr], res);
 			gmove(res, &n1);
@@ -1285,12 +1287,12 @@ ret:
  * or return value from function call.
  * return n's offset from SP.
  */
-int32
+int64
 stkof(Node *n)
 {
 	Type *t;
 	Iter flist;
-	int32 off;
+	int64 off;
 
 	switch(n->op) {
 	case OINDREG:

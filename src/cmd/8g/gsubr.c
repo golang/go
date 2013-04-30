@@ -2391,7 +2391,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 int
 dotaddable(Node *n, Node *n1)
 {
-	int o, oary[10];
+	int o;
+	int64 oary[10];
 	Node *nn;
 
 	if(n->op != ODOT)

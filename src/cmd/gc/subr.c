@@ -839,7 +839,7 @@ Type*
 aindex(Node *b, Type *t)
 {
 	Type *r;
-	int bound;
+	int64 bound;
 
 	bound = -1;	// open bound
 	typecheck(&b, Erv);
@@ -1794,6 +1794,8 @@ ullmancalc(Node *n)
 		ul = ur;
 
 out:
+	if(ul > 200)
+		ul = 200; // clamp to uchar with room to grow
 	n->ullman = ul;
 }
 
@@ -2118,7 +2120,7 @@ localexpr(Node *n, Type *t, NodeList **init)
 void
 setmaxarg(Type *t)
 {
-	int32 w;
+	int64 w;
 
 	dowidth(t);
 	w = t->argwid;
@@ -3296,11 +3298,14 @@ liststmt(NodeList *l)
 int
 count(NodeList *l)
 {
-	int n;
+	vlong n;
 
 	n = 0;
 	for(; l; l=l->next)
 		n++;
+	if((int)n != n) { // Overflow.
+		yyerror("too many elements in list");
+	}
 	return n;
 }
 

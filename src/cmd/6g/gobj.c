@@ -501,7 +501,8 @@ void
 genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
 {
 	Sym *e;
-	int c, d, o, mov, add, loaded;
+	int c, d, mov, add, loaded;
+	int64 o;
 	Prog *p;
 	Type *f;
 	

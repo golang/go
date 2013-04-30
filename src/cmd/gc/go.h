@@ -156,9 +156,9 @@ struct	Type
 	int		lineno;
 
 	// TFUNC
-	uchar	thistuple;
-	uchar	outtuple;
-	uchar	intuple;
+	int	thistuple;
+	int	outtuple;
+	int	intuple;
 	uchar	outnamed;
 
 	Type*	method;
@@ -252,9 +252,7 @@ struct	Node
 	uchar	embedded;	// ODCLFIELD embedded type
 	uchar	colas;		// OAS resulting from :=
 	uchar	diag;		// already printed error about this
-	uchar	esc;		// EscXXX
 	uchar	noescape;	// func arguments do not escape
-	uchar	funcdepth;
 	uchar	builtin;	// built-in name, like len or close
 	uchar	walkdef;
 	uchar	typecheck;
@@ -269,6 +267,8 @@ struct	Node
 	uchar	dupok;	// duplicate definitions ok (for func)
 	schar	likely; // likeliness of if statement
 	uchar	hasbreak;	// has break statement
+	uint	esc;		// EscXXX
+	int	funcdepth;
 
 	// most nodes
 	Type*	type;
@@ -1103,7 +1103,7 @@ void	cgen_eface(Node* n, Node* res);
 void	cgen_slice(Node* n, Node* res);
 void	clearlabels(void);
 void	checklabels(void);
-int	dotoffset(Node *n, int *oary, Node **nn);
+int	dotoffset(Node *n, int64 *oary, Node **nn);
 void	gen(Node *n);
 void	genlist(NodeList *l);
 Node*	sysfunc(char *name);

@@ -942,7 +942,7 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 void
 clearfat(Node *nl)
 {
-	uint32 w, c, q;
+	int64 w, c, q;
 	Node n1, oldn1, ax, oldax;
 
 	/* clear a fat object */

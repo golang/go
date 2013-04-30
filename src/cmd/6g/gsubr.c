@@ -1147,6 +1147,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->type = n->val.u.reg+D_INDIR;
 		a->sym = n->sym;
 		a->offset = n->xoffset;
+		if(a->offset != (int32)a->offset)
+			yyerror("offset %lld too large for OINDREG", a->offset);
 		checkoffset(a, canemitcode);
 		break;
 
@@ -1947,9 +1949,9 @@ sudoclean(void)
 int
 sudoaddable(int as, Node *n, Addr *a)
 {
-	int o, i, w;
-	int oary[10];
-	int64 v;
+	int o, i;
+	int64 oary[10];
+	int64 v, w;
 	Node n1, n2, n3, n4, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
