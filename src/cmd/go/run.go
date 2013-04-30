@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
 var cmdRun = &Command{
-	UsageLine: "run [build flags] [gofiles...] [arguments...]",
+	UsageLine: "run [build flags] gofiles... [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
@@ -46,18 +45,7 @@ func runRun(cmd *Command, args []string) {
 	}
 	files, cmdArgs := args[:i], args[i:]
 	if len(files) == 0 {
-		allFiles, err := filepath.Glob("*.go")
-		if err != nil {
-			fatalf("go run: %s", err)
-		}
-		for _, file := range allFiles {
-			if !strings.HasSuffix(file, "_test.go") {
-				files = append(files, file)
-			}
-		}
-		if len(files) == 0 {
-			fatalf("go run: no go files found")
-		}
+		fatalf("go run: no go files listed")
 	}
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
