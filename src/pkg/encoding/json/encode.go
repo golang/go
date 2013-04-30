@@ -39,8 +39,8 @@ import (
 //
 // Floating point, integer, and Number values encode as JSON numbers.
 //
-// String values encode as JSON strings, with each invalid UTF-8 sequence
-// replaced by the encoding of the Unicode replacement character U+FFFD.
+// String values encode as JSON strings. InvalidUTF8Error will be returned
+// if an invalid UTF-8 sequence is encountered.
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
 //
@@ -200,8 +200,10 @@ func (e *UnsupportedValueError) Error() string {
 	return "json: unsupported value: " + e.Str
 }
 
+// An InvalidUTF8Error is returned by Marshal when attempting
+// to encode a string value with invalid UTF-8 sequences.
 type InvalidUTF8Error struct {
-	S string
+	S string // the whole string value that caused the error
 }
 
 func (e *InvalidUTF8Error) Error() string {
