@@ -143,12 +143,39 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 }
 
 void
+putelfsectionsym(Sym* s, int shndx)
+{
+	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_SECTION, shndx, 0);
+	s->elfsym = numelfsym++;
+}
+
+void
+putelfsymshndx(vlong sympos, int shndx)
+{
+	vlong here;
+
+	here = cpos();
+	switch(thechar) {
+	case '6':
+		cseek(sympos+6);
+		break;
+	default:
+		cseek(sympos+14);
+		break;
+	}
+	WPUT(shndx);
+	cseek(here);
+}
+
+void
 asmelfsym(void)
 {
 	Sym *s;
 
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
+
+	dwarfaddelfsectionsyms();
 
 	elfbind = STB_LOCAL;
 	genasmsym(putelfsym);
