@@ -259,9 +259,12 @@ relocsym(Sym *s)
 			cursym = s;
 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
 		case 4:
-			if((r->type == D_PCREL && o != (int32)o) || (r->type != D_PCREL && o != (uint32)o)) {
-				cursym = S;
-				diag("relocation address is too big: %#llx", o);
+			if(r->type == D_PCREL) {
+				if(o != (int32)o)
+					diag("pc-relative relocation address is too big: %#llx", o);
+			} else {
+				if(o != (int32)o && o != (uint32)o)
+					diag("non-pc-relative relocation address is too big: %#llux", o);
 			}
 			fl = o;
 			cast = (uchar*)&fl;
