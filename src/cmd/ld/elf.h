@@ -855,7 +855,8 @@ struct Elf64_Shdr {
 	Elf64_Xword	addralign;	/* Alignment in bytes. */
 	Elf64_Xword	entsize;	/* Size of each entry in section. */
 	
-	int	shnum; /* section number, not stored on disk */
+	int	shnum;  /* section number, not stored on disk */
+	Sym*	secsym; /* section symbol, if needed; not on disk */
 };
 
 /*
@@ -998,6 +999,7 @@ void	phsh(ElfPhdr*, ElfShdr*);
 void	doelf(void);
 void	elfsetupplt(void);
 void	dwarfaddshstrings(Sym*);
+void	dwarfaddelfsectionsyms(void);
 void	dwarfaddelfheaders(void);
 void	asmbelf(vlong symo);
 void	asmbelfsetup(void);
@@ -1006,6 +1008,7 @@ extern char freebsddynld[];
 extern char netbsddynld[];
 extern char openbsddynld[];
 int	elfreloc1(Reloc*, vlong sectoff);
+void	putelfsectionsyms(void);
 
 EXTERN	int	elfstrsize;
 EXTERN	char*	elfstrdat;

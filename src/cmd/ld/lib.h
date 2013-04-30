@@ -249,6 +249,8 @@ void	setuint64(Sym*, vlong, uint64);
 void	asmsym(void);
 void	asmelfsym(void);
 void	asmplan9sym(void);
+void	putelfsectionsym(Sym*, int);
+void	putelfsymshndx(vlong, int);
 void	strnput(char*, int);
 void	dodata(void);
 void	dosymtype(void);

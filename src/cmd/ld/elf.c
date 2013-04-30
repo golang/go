@@ -1421,9 +1421,7 @@ elfobj:
 		sh->size = elfstrsize;
 		sh->addralign = 1;
 
-		// TODO(rsc): Enable for linkmode == LinkExternal too, once we know it works.
-		if(linkmode != LinkExternal)
-			dwarfaddelfheaders();
+		dwarfaddelfheaders();
 	}
 
 	/* Main header */

@@ -27,10 +27,16 @@
 
 static vlong abbrevo;
 static vlong abbrevsize;
+static Sym*  abbrevsym;
+static vlong abbrevsympos;
 static vlong lineo;
 static vlong linesize;
+static Sym*  linesym;
+static vlong linesympos;
 static vlong infoo;	// also the base for DWDie->offs and reference attributes.
 static vlong infosize;
+static Sym*  infosym;
+static vlong infosympos;
 static vlong frameo;
 static vlong framesize;
 static vlong pubnameso;
@@ -41,12 +47,20 @@ static vlong arangeso;
 static vlong arangessize;
 static vlong gdbscripto;
 static vlong gdbscriptsize;
+
+static Sym *infosec;
 static vlong inforeloco;
 static vlong inforelocsize;
 
-static char  gdbscript[1024];
+static Sym *arangessec;
+static vlong arangesreloco;
+static vlong arangesrelocsize;
 
-static Sym *dsym;
+static Sym *linesec;
+static vlong linereloco;
+static vlong linerelocsize;
+
+static char  gdbscript[1024];
 
 /*
  *  Basic I/O
@@ -573,6 +587,34 @@ find_or_diag(DWDie *die, char* name)
 	return r;
 }
 
+static void
+adddwarfrel(Sym* sec, Sym* sym, vlong offsetbase, int siz, vlong addend)
+{
+	Reloc *r;
+
+	r = addrel(sec);
+	r->sym = sym;
+	r->xsym = sym;
+	r->off = cpos() - offsetbase;
+	r->siz = siz;
+	r->type = D_ADDR;
+	r->add = addend;
+	r->xadd = addend;
+	if(iself && thechar == '6')
+		addend = 0;
+	switch(siz) {
+	case 4:
+		LPUT(addend);
+		break;
+	case 8:
+		VPUT(addend);
+		break;
+	default:
+		diag("bad size in adddwarfrel");
+		break;
+	}
+}
+
 static DWAttr*
 newrefattr(DWDie *die, uint8 attr, DWDie* ref)
 {
@@ -586,10 +628,15 @@ static int fwdcount;
 static void
 putattr(int abbrev, int form, int cls, vlong value, char *data)
 {
-	Reloc *r;
+	vlong off;
 
 	switch(form) {
 	case DW_FORM_addr:	// address
+		if(linkmode == LinkExternal) {
+			value -= ((Sym*)data)->value;
+			adddwarfrel(infosec, (Sym*)data, infoo, PtrSize, value);
+			break;
+		}
 		addrput(value);
 		break;
 
@@ -598,15 +645,9 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 			cput(1+PtrSize);
 			cput(DW_OP_addr);
 			if(linkmode == LinkExternal) {
-				r = addrel(dsym);
-				r->sym = (Sym*)data;
-				r->xsym = r->sym;
-				r->off = cpos() - infoo;
-				r->siz = PtrSize;
-				r->type = D_ADDR;
-				r->add = value - r->sym->value;
-				r->xadd = r->add;
-				value = r->add;
+				value -= ((Sym*)data)->value;
+				adddwarfrel(infosec, (Sym*)data, infoo, PtrSize, value);
+				break;
 			}
 			addrput(value);
 			break;
@@ -646,6 +687,10 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 		break;
 
 	case DW_FORM_data4:	// constant, {line,loclist,mac,rangelist}ptr
+		if(linkmode == LinkExternal && cls == DW_CLS_PTR) {
+			adddwarfrel(infosec, linesym, infoo, 4, value);
+			break;
+		}
 		LPUT(value);
 		break;
 
@@ -681,12 +726,14 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 			else
 				LPUT(0); // invalid dwarf, gdb will complain.
 		} else {
-			if (((DWDie*)data)->offs == 0)
+			off = ((DWDie*)data)->offs;
+			if (off == 0)
 				fwdcount++;
-			if(PtrSize == 8)
-				VPUT(((DWDie*)data)->offs);
-			else
-				LPUT(((DWDie*)data)->offs);
+			if(linkmode == LinkExternal) {
+				adddwarfrel(infosec, infosym, infoo, PtrSize, off);
+				break;
+			}
+			addrput(off);
 		}
 		break;
 
@@ -1703,6 +1750,10 @@ writelines(void)
 	DWDie *varhash[HASHSIZE];
 	char *n, *nn;
 
+	if(linesec == S)
+		linesec = lookup(".dwarfline", 0);
+	linesec->nr = 0;
+
 	unitstart = -1;
 	headerend = -1;
 	pc = 0;
@@ -1777,7 +1828,11 @@ writelines(void)
 			cput(0);  // start extended opcode
 			uleb128put(1 + PtrSize);
 			cput(DW_LNE_set_address);
-			addrput(pc);
+
+			if(linkmode == LinkExternal)
+				adddwarfrel(linesec, s, lineo, PtrSize, 0);
+			else
+				addrput(pc);
 		}
 		if(s->text == nil)
 			continue;
@@ -1996,9 +2051,13 @@ writeinfo(void)
 	vlong unitstart, here;
 
 	fwdcount = 0;
-	if (dsym == S)
-		dsym = lookup(".dwarfinfo", 0);
-	dsym->nr = 0;
+	if (infosec == S)
+		infosec = lookup(".dwarfinfo", 0);
+	infosec->nr = 0;
+
+	if(arangessec == S)
+		arangessec = lookup(".dwarfaranges", 0);
+	arangessec->nr = 0;
 
 	for (compunit = dwroot.child; compunit; compunit = compunit->link) {
 		unitstart = cpos();
@@ -2008,7 +2067,13 @@ writeinfo(void)
 		// This must match COMPUNITHEADERSIZE above.
 		LPUT(0);	// unit_length (*), will be filled in later.
 		WPUT(2);	// dwarf version (appendix F)
-		LPUT(0);	// debug_abbrev_offset (*)
+
+		// debug_abbrev_offset (*)
+		if(linkmode == LinkExternal)
+			adddwarfrel(infosec, abbrevsym, infoo, 4, 0);
+		else
+			LPUT(0);
+
 		cput(PtrSize);	// address_size
 
 		putdie(compunit);
@@ -2096,6 +2161,7 @@ writearanges(void)
 	DWAttr *b, *e;
 	int headersize;
 	vlong sectionstart;
+	vlong value;
 
 	sectionstart = cpos();
 	headersize = rnd(4+2+4+1+1, PtrSize);  // don't count unit_length field itself
@@ -2111,12 +2177,22 @@ writearanges(void)
 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
 		LPUT(headersize + 4*PtrSize - 4);	// unit_length (*)
 		WPUT(2);	// dwarf version (appendix F)
-		LPUT(compunit->offs - COMPUNITHEADERSIZE);	// debug_info_offset
+
+		value = compunit->offs - COMPUNITHEADERSIZE;	// debug_info_offset
+		if(linkmode == LinkExternal)
+			adddwarfrel(arangessec, infosym, sectionstart, 4, value);
+		else
+			LPUT(value);
+
 		cput(PtrSize);	// address_size
 		cput(0);	// segment_size
 		strnput("", headersize - (4+2+4+1+1));	// align to PtrSize
 
-		addrput(b->value);
+		if(linkmode == LinkExternal)
+			adddwarfrel(arangessec, (Sym*)b->data, sectionstart, PtrSize, b->value-((Sym*)b->data)->value);
+		else
+			addrput(b->value);
+
 		addrput(e->value - b->value);
 		addrput(0);
 		addrput(0);
@@ -2148,14 +2224,14 @@ align(vlong size)
 }
 
 static vlong
-writeinforeloc(void)
+writedwarfreloc(Sym* s)
 {
 	int i;
 	vlong start;
 	Reloc *r;
 	
 	start = cpos();
-	for(r = dsym->r; r < dsym->r+dsym->nr; r++) {
+	for(r = s->r; r < s->r+s->nr; r++) {
 		if(iself)
 			i = elfreloc1(r, r->off);
 		else if(HEADTYPE == Hdarwin)
@@ -2267,10 +2343,20 @@ dwarfemitdebugsections(void)
 	gdbscripto = writegdbscript();
 	gdbscriptsize = cpos() - gdbscripto;
 	align(gdbscriptsize);
-	
-	inforeloco = writeinforeloc();
+
+	while(cpos()&7)
+		cput(0);
+	inforeloco = writedwarfreloc(infosec);
 	inforelocsize = cpos() - inforeloco;
 	align(inforelocsize);
+
+	arangesreloco = writedwarfreloc(arangessec);
+	arangesrelocsize = cpos() - arangesreloco;
+	align(arangesrelocsize);
+
+	linereloco = writedwarfreloc(linesec);
+	linerelocsize = cpos() - linereloco;
+	align(linerelocsize);
 }
 
 /*
@@ -2290,6 +2376,9 @@ enum
 	ElfStrDebugRanges,
 	ElfStrDebugStr,
 	ElfStrGDBScripts,
+	ElfStrRelDebugInfo,
+	ElfStrRelDebugAranges,
+	ElfStrRelDebugLine,
 	NElfStrDbg
 };
 
@@ -2313,12 +2402,71 @@ dwarfaddshstrings(Sym *shstrtab)
 	elfstrdbg[ElfStrDebugRanges]   = addstring(shstrtab, ".debug_ranges");
 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
 	elfstrdbg[ElfStrGDBScripts]    = addstring(shstrtab, ".debug_gdb_scripts");
+	if(linkmode == LinkExternal) {
+		if(thechar == '6') {
+			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rela.debug_info");
+			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rela.debug_aranges");
+			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rela.debug_line");
+		} else {
+			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rel.debug_info");
+			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rel.debug_aranges");
+			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rel.debug_line");
+		}
+
+		infosym = lookup(".debug_info", 0);
+		infosym->hide = 1;
+
+		abbrevsym = lookup(".debug_abbrev", 0);
+		abbrevsym->hide = 1;
+
+		linesym = lookup(".debug_line", 0);
+		linesym->hide = 1;
+	}
+}
+
+// Add section symbols for DWARF debug info.  This is called before
+// dwarfaddelfheaders.
+void
+dwarfaddelfsectionsyms()
+{
+	if(infosym != nil) {
+		infosympos = cpos();
+		putelfsectionsym(infosym, 0);
+	}
+	if(abbrevsym != nil) {
+		abbrevsympos = cpos();
+		putelfsectionsym(abbrevsym, 0);
+	}
+	if(linesym != nil) {
+		linesympos = cpos();
+		putelfsectionsym(linesym, 0);
+	}
+}
+
+static void
+dwarfaddelfrelocheader(int elfstr, ElfShdr *shdata, vlong off, vlong size)
+{
+	ElfShdr *sh;
+
+	sh = newElfShdr(elfstrdbg[elfstr]);
+	if(thechar == '6') {
+		sh->type = SHT_RELA;
+	} else {
+		sh->type = SHT_REL;
+	}
+	sh->entsize = PtrSize*(2+(sh->type==SHT_RELA));
+	sh->link = elfshname(".symtab")->shnum;
+	sh->info = shdata->shnum;
+	sh->off = off;
+	sh->size = size;
+	sh->addralign = PtrSize;
+	
 }
 
 void
 dwarfaddelfheaders(void)
 {
-	ElfShdr *sh;
+	ElfShdr *sh, *shinfo, *sharanges, *shline;
 
 	if(debug['w'])  // disable dwarf
 		return;
@@ -2328,12 +2476,17 @@ dwarfaddelfheaders(void)
 	sh->off = abbrevo;
 	sh->size = abbrevsize;
 	sh->addralign = 1;
+	if(abbrevsympos > 0)
+		putelfsymshndx(abbrevsympos, sh->shnum);
 
 	sh = newElfShdr(elfstrdbg[ElfStrDebugLine]);
 	sh->type = SHT_PROGBITS;
 	sh->off = lineo;
 	sh->size = linesize;
 	sh->addralign = 1;
+	if(linesympos > 0)
+		putelfsymshndx(linesympos, sh->shnum);
+	shline = sh;
 
 	sh = newElfShdr(elfstrdbg[ElfStrDebugFrame]);
 	sh->type = SHT_PROGBITS;
@@ -2346,6 +2499,9 @@ dwarfaddelfheaders(void)
 	sh->off = infoo;
 	sh->size = infosize;
 	sh->addralign = 1;
+	if(infosympos > 0)
+		putelfsymshndx(infosympos, sh->shnum);
+	shinfo = sh;
 
 	if (pubnamessize > 0) {
 		sh = newElfShdr(elfstrdbg[ElfStrDebugPubNames]);
@@ -2363,12 +2519,14 @@ dwarfaddelfheaders(void)
 		sh->addralign = 1;
 	}
 
+	sharanges = nil;
 	if (arangessize) {
 		sh = newElfShdr(elfstrdbg[ElfStrDebugAranges]);
 		sh->type = SHT_PROGBITS;
 		sh->off = arangeso;
 		sh->size = arangessize;
 		sh->addralign = 1;
+		sharanges = sh;
 	}
 
 	if (gdbscriptsize) {
@@ -2378,6 +2536,15 @@ dwarfaddelfheaders(void)
 		sh->size = gdbscriptsize;
 		sh->addralign = 1;
 	}
+
+	if(inforelocsize)
+		dwarfaddelfrelocheader(ElfStrRelDebugInfo, shinfo, inforeloco, inforelocsize);
+
+	if(arangesrelocsize)
+		dwarfaddelfrelocheader(ElfStrRelDebugAranges, sharanges, arangesreloco, arangesrelocsize);
+
+	if(linerelocsize)
+		dwarfaddelfrelocheader(ElfStrRelDebugLine, shline, linereloco, linerelocsize);
 }
 
 /*
@@ -2430,8 +2597,6 @@ dwarfaddmachoheaders(void)
 	msect = newMachoSect(ms, "__debug_info", "__DWARF");
 	msect->off = infoo;
 	msect->size = infosize;
-	msect->reloc = inforeloco;
-	msect->nreloc = inforelocsize / 8;
 	ms->filesize += msect->size;
 
 	if (pubnamessize > 0) {
