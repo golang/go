@@ -804,9 +804,9 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				//
 				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
 				secaddr = c->seg.sect[rel->symnum-1].addr;
-				rp->add = e->e32(s->p+rp->off) + rp->off + 4 - secaddr;
+				rp->add = (int32)e->e32(s->p+rp->off) + rp->off + 4 - secaddr;
 			} else
-				rp->add = e->e32(s->p+rp->off);
+				rp->add = (int32)e->e32(s->p+rp->off);
 
 			// For i386 Mach-O PC-relative, the addend is written such that
 			// it *is* the PC being subtracted.  Use that to make

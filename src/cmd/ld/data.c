@@ -38,7 +38,7 @@
 #include	"../../pkg/runtime/mgc0.h"
 
 void	dynreloc(void);
-static vlong addaddrplus4(Sym *s, Sym *t, int32 add);
+static vlong addaddrplus4(Sym *s, Sym *t, vlong add);
 
 /*
  * divide-and-conquer list-link
@@ -259,6 +259,10 @@ relocsym(Sym *s)
 			cursym = s;
 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
 		case 4:
+			if(o != (int32)o) {
+				cursym = S;
+				diag("relocation address is too big: %#llx", o);
+			}
 			fl = o;
 			cast = (uchar*)&fl;
 			for(i=0; i<4; i++)
@@ -716,7 +720,7 @@ addstring(Sym *s, char *str)
 }
 
 vlong
-setuintxx(Sym *s, vlong off, uint64 v, int wid)
+setuintxx(Sym *s, vlong off, uint64 v, vlong wid)
 {
 	int32 i, fl;
 	vlong o;
@@ -756,7 +760,7 @@ setuintxx(Sym *s, vlong off, uint64 v, int wid)
 vlong
 adduintxx(Sym *s, uint64 v, int wid)
 {
-	int32 off;
+	vlong off;
 
 	off = s->size;
 	setuintxx(s, off, v, wid);
@@ -812,7 +816,7 @@ setuint64(Sym *s, vlong r, uint64 v)
 }
 
 vlong
-addaddrplus(Sym *s, Sym *t, int32 add)
+addaddrplus(Sym *s, Sym *t, vlong add)
 {
 	vlong i;
 	Reloc *r;
@@ -833,7 +837,7 @@ addaddrplus(Sym *s, Sym *t, int32 add)
 }
 
 static vlong
-addaddrplus4(Sym *s, Sym *t, int32 add)
+addaddrplus4(Sym *s, Sym *t, vlong add)
 {
 	vlong i;
 	Reloc *r;
@@ -854,7 +858,7 @@ addaddrplus4(Sym *s, Sym *t, int32 add)
 }
 
 vlong
-addpcrelplus(Sym *s, Sym *t, int32 add)
+addpcrelplus(Sym *s, Sym *t, vlong add)
 {
 	vlong i;
 	Reloc *r;
@@ -881,7 +885,7 @@ addaddr(Sym *s, Sym *t)
 }
 
 vlong
-setaddrplus(Sym *s, vlong off, Sym *t, int32 add)
+setaddrplus(Sym *s, vlong off, Sym *t, vlong add)
 {
 	Reloc *r;
 
@@ -958,8 +962,8 @@ symalign(Sym *s)
 	return align;
 }
 	
-static int32
-aligndatsize(int32 datsize, Sym *s)
+static vlong
+aligndatsize(vlong datsize, Sym *s)
 {
 	return rnd(datsize, symalign(s));
 }
@@ -981,9 +985,9 @@ maxalign(Sym *s, int type)
 }
 
 static void
-gcaddsym(Sym *gc, Sym *s, int32 off)
+gcaddsym(Sym *gc, Sym *s, vlong off)
 {
-	int32 a;
+	vlong a;
 	Sym *gotype;
 
 	if(s->size < PtrSize)
@@ -1009,9 +1013,23 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
 }
 
 void
+growdatsize(vlong *datsizep, Sym *s)
+{
+	vlong datsize;
+	
+	datsize = *datsizep;
+	if(s->size < 0)
+		diag("negative size (datsize = %lld, s->size = %lld)", datsize, s->size);
+	if(datsize + s->size < datsize)
+		diag("symbol too large (datsize = %lld, s->size = %lld)", datsize, s->size);
+	*datsizep = datsize + s->size;
+}
+
+void
 dodata(void)
 {
-	int32 n, datsize;
+	int32 n;
+	vlong datsize;
 	Section *sect;
 	Sym *s, *last, **l;
 	Sym *gcdata1, *gcbss1;
@@ -1109,7 +1127,7 @@ dodata(void)
 		s->sect = sect;
 		s->type = SDATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 		sect->len = datsize - sect->vaddr;
 	}
 
@@ -1125,7 +1143,7 @@ dodata(void)
 		s->sect = sect;
 		s->type = SDATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1142,7 +1160,7 @@ dodata(void)
 			s->sect = sect;
 			s->type = SDATA;
 			s->value = datsize;
-			datsize += s->size;
+			growdatsize(&datsize, s);
 		}
 		sect->len = datsize - sect->vaddr;
 	}
@@ -1164,7 +1182,7 @@ dodata(void)
 		datsize = aligndatsize(datsize, s);
 		s->value = datsize;
 		gcaddsym(gcdata1, s, datsize - sect->vaddr);  // gc
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1183,7 +1201,7 @@ dodata(void)
 		datsize = aligndatsize(datsize, s);
 		s->value = datsize;
 		gcaddsym(gcbss1, s, datsize - sect->vaddr);  // gc
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1201,10 +1219,15 @@ dodata(void)
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 	lookup("end", 0)->sect = sect;
+
+	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+	if(datsize != (uint32)datsize) {
+		diag("data or bss segment too large");
+	}
 	
 	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
 		sect = addsection(&segdata, ".tbss", 06);
@@ -1215,7 +1238,7 @@ dodata(void)
 			datsize = aligndatsize(datsize, s);
 			s->sect = sect;
 			s->value = datsize;
-			datsize += s->size;
+			growdatsize(&datsize, s);
 		}
 		sect->len = datsize;
 	}
@@ -1240,7 +1263,7 @@ dodata(void)
 		s->sect = sect;
 		s->type = SRODATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1256,7 +1279,7 @@ dodata(void)
 		s->sect = sect;
 		s->type = SRODATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1272,7 +1295,7 @@ dodata(void)
 		s->sect = sect;
 		s->type = SRODATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1288,7 +1311,7 @@ dodata(void)
 		s->sect = sect;
 		s->type = SRODATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
 
@@ -1301,8 +1324,13 @@ dodata(void)
 		s->sect = sect;
 		s->type = SRODATA;
 		s->value = datsize;
-		datsize += s->size;
+		growdatsize(&datsize, s);
 		sect->len = datsize - sect->vaddr;
+	}
+
+	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+	if(datsize != (uint32)datsize) {
+		diag("text segment too large");
 	}
 	
 	/* number the sections */

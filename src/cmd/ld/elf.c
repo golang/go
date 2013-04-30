@@ -1110,7 +1110,7 @@ asmbelfsetup(void)
 void
 asmbelf(vlong symo)
 {
-	int a, o;
+	vlong a, o;
 	vlong startva, resoff;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph, *pnote;
