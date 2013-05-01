@@ -364,22 +364,23 @@ func (o *connectOp) Name() string {
 	return "ConnectEx"
 }
 
-func (fd *netFD) connect(ra syscall.Sockaddr) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 	if !canUseConnectEx(fd.net) {
 		return syscall.Connect(fd.sysfd, ra)
 	}
 	// ConnectEx windows API requires an unconnected, previously bound socket.
-	var la syscall.Sockaddr
-	switch ra.(type) {
-	case *syscall.SockaddrInet4:
-		la = &syscall.SockaddrInet4{}
-	case *syscall.SockaddrInet6:
-		la = &syscall.SockaddrInet6{}
-	default:
-		panic("unexpected type in connect")
-	}
-	if err := syscall.Bind(fd.sysfd, la); err != nil {
-		return err
+	if la == nil {
+		switch ra.(type) {
+		case *syscall.SockaddrInet4:
+			la = &syscall.SockaddrInet4{}
+		case *syscall.SockaddrInet6:
+			la = &syscall.SockaddrInet6{}
+		default:
+			panic("unexpected type in connect")
+		}
+		if err := syscall.Bind(fd.sysfd, la); err != nil {
+			return err
+		}
 	}
 	// Call ConnectEx API.
 	var o connectOp

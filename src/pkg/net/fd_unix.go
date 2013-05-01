@@ -79,7 +79,7 @@ func (fd *netFD) name() string {
 	return fd.net + ":" + ls + "->" + rs
 }
 
-func (fd *netFD) connect(ra syscall.Sockaddr) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 	fd.wio.Lock()
 	defer fd.wio.Unlock()
 	if err := fd.pd.PrepareWrite(); err != nil {
