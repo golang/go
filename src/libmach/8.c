@@ -30,6 +30,7 @@
  * 386 definition
  */
 #include <u.h>
+#include <libc.h>
 #include <bio.h>
 #include <ureg_x86.h>
 #include <mach.h>
