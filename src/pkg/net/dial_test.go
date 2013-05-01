@@ -372,3 +372,38 @@ func TestDialFailPDLeak(t *testing.T) {
 		}
 	}
 }
+
+func TestDialer(t *testing.T) {
+	ln, err := Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	defer ln.Close()
+	ch := make(chan error, 1)
+	go func() {
+		var err error
+		c, err := ln.Accept()
+		if err != nil {
+			ch <- fmt.Errorf("Accept failed: %v", err)
+			return
+		}
+		defer c.Close()
+		ch <- nil
+	}()
+
+	laddr, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ResolveTCPAddr failed: %v", err)
+	}
+	d := &Dialer{LocalAddr: laddr}
+	c, err := d.Dial("tcp4", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial failed: %v", err)
+	}
+	defer c.Close()
+	c.Read(make([]byte, 1))
+	err = <-ch
+	if err != nil {
+		t.Error(err)
+	}
+}
