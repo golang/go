@@ -45,7 +45,8 @@ _cgo_allocate_internal(uintptr len, byte *ret)
 	FLUSH(&ret);
 }
 
-#pragma dynexport _cgo_allocate _cgo_allocate
+#pragma cgo_export_static _cgo_allocate
+#pragma cgo_export_dynamic _cgo_allocate
 void
 _cgo_allocate(void *a, int32 n)
 {
@@ -73,7 +74,8 @@ _cgo_panic_internal(byte *p)
 	runtime·panic(err);
 }
 
-#pragma dynexport _cgo_panic _cgo_panic
+#pragma cgo_export_static _cgo_panic
+#pragma cgo_export_dynamic _cgo_panic
 void
 _cgo_panic(void *a, int32 n)
 {
