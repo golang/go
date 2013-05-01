@@ -463,11 +463,12 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			s = lookup(local, 0);
 			if(local != f[1])
 				free(local);
-			if(s->type == 0 || s->type == SXREF) {
+			if(s->type == 0 || s->type == SXREF || s->type == SHOSTOBJ) {
 				s->dynimplib = lib;
 				s->extname = remote;
 				s->dynimpvers = q;
-				s->type = SDYNIMPORT;
+				if(s->type != SHOSTOBJ)
+					s->type = SDYNIMPORT;
 				havedynamic = 1;
 			}
 			continue;
