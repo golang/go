@@ -331,8 +331,16 @@ loadlib(void)
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
 		for(s = allsym; s != S; s = s->allsym)
-			if(s->type == SHOSTOBJ)
-				s->type = 0;
+			if(s->type == SHOSTOBJ) {
+				// If a symbol was marked both
+				// cgo_import_static and cgo_import_dynamic,
+				// then we want to make it cgo_import_dynamic
+				// now.
+				if(s->extname != nil && s->cgoexport == 0) {
+					s->type = SDYNIMPORT;
+				} else
+					s->type = 0;
+			}
 	}
 	
 	// Now that we know the link mode, trim the dynexp list.
