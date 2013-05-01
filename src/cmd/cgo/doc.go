@@ -463,7 +463,7 @@ The directives are:
 	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5
 	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
 
-	A side effect of the cgo_dynamic_import directive with a
+	A side effect of the cgo_import_dynamic directive with a
 	library is to make the final binary depend on that dynamic
 	library. To get the dependency without importing any specific
 	symbols, use _ for local and remote.
@@ -472,7 +472,7 @@ The directives are:
 	#pragma cgo_import_dynamic _ _ "libc.so.6"
 
 	For compatibility with current versions of SWIG,
-	#pragma dynimport is an alias for #pragma cgo_dynamic_import.
+	#pragma dynimport is an alias for #pragma cgo_import_dynamic.
 
 #pragma cgo_dynamic_linker "<path>"
 
@@ -573,7 +573,7 @@ The directives in the 6c-compiled file are used according to the kind
 of final link used.
 
 In internal mode, 6l itself processes all the host object files, in
-particular foo.cgo2.o. To do so, it uses the cgo_dynamic_import and
+particular foo.cgo2.o. To do so, it uses the cgo_import_dynamic and
 cgo_dynamic_linker directives to learn that the otherwise undefined
 reference to sin in foo.cgo2.o should be rewritten to refer to the
 symbol sin with version GLIBC_2.2.5 from the dynamic library
