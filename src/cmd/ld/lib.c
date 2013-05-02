@@ -336,7 +336,7 @@ loadlib(void)
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
-				if(s->extname != nil && s->cgoexport == 0) {
+				if(s->extname != nil && s->dynimplib != nil && s->cgoexport == 0) {
 					s->type = SDYNIMPORT;
 				} else
 					s->type = 0;
