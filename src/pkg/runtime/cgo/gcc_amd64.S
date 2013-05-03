@@ -42,3 +42,7 @@ EXT(crosscall_amd64):
 	popq %rbp
 	popq %rbx
 	ret
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",@progbits
+#endif
