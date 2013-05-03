@@ -18,7 +18,7 @@ import (
 // FuncMap is the type of the map defining the mapping from names to functions.
 // Each function must have either a single return value, or two return values of
 // which the second has type error. In that case, if the second (error)
-// argument evaluates to non-nil during execution, execution terminates and
+// return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
 type FuncMap map[string]interface{}
 
