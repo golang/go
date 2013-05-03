@@ -930,6 +930,8 @@ doelf(void)
 			addstring(shstrtab, ".rel.noptrdata");
 			addstring(shstrtab, ".rel.data");
 		}
+		// add a .note.GNU-stack section to mark the stack as non-executable
+		addstring(shstrtab, ".note.GNU-stack");
 	}
 
 	if(!debug['s']) {
@@ -1403,8 +1405,13 @@ elfobj:
 			elfshreloc(sect);
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
 			elfshreloc(sect);
+		// add a .note.GNU-stack section to mark the stack as non-executable
+		sh = elfshname(".note.GNU-stack");
+		sh->type = SHT_PROGBITS;
+		sh->addralign = 1;
+		sh->flags = 0;
 	}
-		
+
 	if(!debug['s']) {
 		sh = elfshname(".symtab");
 		sh->type = SHT_SYMTAB;

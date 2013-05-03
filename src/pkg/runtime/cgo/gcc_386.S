@@ -40,3 +40,6 @@ EXT(__stack_chk_fail_local):
 1:
 	jmp 1b
 
+#ifdef __ELF__
+.section .note.GNU-stack,"",@progbits
+#endif
