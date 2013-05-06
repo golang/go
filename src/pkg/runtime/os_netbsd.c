@@ -292,14 +292,17 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go:
 void
 runtime·badsignal(int32 sig)
 {
+	int32 len;
+
 	if (sig == SIGPROF) {
 		return;  // Ignore SIGPROFs intended for a non-Go thread.
 	}
 	runtime·write(2, badsignal, sizeof badsignal - 1);
 	if (0 <= sig && sig < NSIG) {
-		// Call runtime·findnull dynamically to circumvent static stack size check.
-		static int32 (*findnull)(byte*) = runtime·findnull;
-		runtime·write(2, runtime·sigtab[sig].name, findnull((byte*)runtime·sigtab[sig].name));
+		// Can't call findnull() because it will split stack.
+		for(len = 0; runtime·sigtab[sig].name[len]; len++)
+			;
+		runtime·write(2, runtime·sigtab[sig].name, len);
 	}
 	runtime·write(2, "\n", 1);
 	runtime·exit(1);
