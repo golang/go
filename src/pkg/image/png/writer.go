@@ -436,7 +436,7 @@ func Encode(w io.Writer, m image.Image) error {
 	// also rejected.
 	mw, mh := int64(m.Bounds().Dx()), int64(m.Bounds().Dy())
 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
-		return FormatError("invalid image size: " + strconv.FormatInt(mw, 10) + "x" + strconv.FormatInt(mw, 10))
+		return FormatError("invalid image size: " + strconv.FormatInt(mw, 10) + "x" + strconv.FormatInt(mh, 10))
 	}
 
 	var e encoder
