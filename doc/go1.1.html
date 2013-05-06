@@ -1023,7 +1023,15 @@ type now implements the
 </li>
 
 <li>
-The <a href="/pkg/syscall/"><code>syscall</code></a> package has received many updates to make it more inclusive of constants and system calls for each supported operating system.
+The <a href="/pkg/syscall/"><code>syscall</code></a> package's
+<a href="/pkg/syscall/#Fchflags"><code>Fchflags</code></a> function on various BSDs
+(including Darwin) has changed signature.
+It now takes an int as the first parameter instead of a string.
+Since this API change fixes a bug, it is permitted by the Go 1 compatibility rules.
+</li>
+<li>
+The <a href="/pkg/syscall/"><code>syscall</code></a> package also has received many updates
+to make it more inclusive of constants and system calls for each supported operating system.
 </li>
 
 <li>
