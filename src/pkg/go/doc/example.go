@@ -166,6 +166,13 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 			ast.Inspect(e.X, inspectFunc)
 			return false
 		}
+		// For key value expressions, only inspect the value
+		// as the key should be resolved by the type of the
+		// composite literal.
+		if e, ok := n.(*ast.KeyValueExpr); ok {
+			ast.Inspect(e.Value, inspectFunc)
+			return false
+		}
 		if id, ok := n.(*ast.Ident); ok {
 			if id.Obj == nil {
 				unresolved[id.Name] = true

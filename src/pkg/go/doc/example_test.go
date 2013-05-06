@@ -18,6 +18,7 @@ const exampleTestFile = `
 package foo_test
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os/exec"
@@ -35,6 +36,38 @@ func ExampleImport() {
 	}
 	fmt.Printf("The date is %s\n", out)
 }
+
+func ExampleKeyValue() {
+	v := struct {
+		a string
+		b int
+	}{
+		a: "A",
+		b: 1,
+	}
+	fmt.Print(v)
+	// Output: a: "A", b: 1
+}
+
+func ExampleKeyValueImport() {
+	f := flag.Flag{
+		Name: "play",
+	}
+	fmt.Print(f)
+	// Output: Name: "play"
+}
+
+var keyValueTopDecl = struct {
+	a string
+	b int
+}{
+	a: "B",
+	b: 2,
+}
+
+func ExampleKeyValueTopDecl() {
+	fmt.Print(keyValueTopDecl)
+}
 `
 
 var exampleTestCases = []struct {
@@ -48,6 +81,20 @@ var exampleTestCases = []struct {
 	{
 		Name: "Import",
 		Play: exampleImportPlay,
+	},
+	{
+		Name:   "KeyValue",
+		Play:   exampleKeyValuePlay,
+		Output: "a: \"A\", b: 1\n",
+	},
+	{
+		Name:   "KeyValueImport",
+		Play:   exampleKeyValueImportPlay,
+		Output: "Name: \"play\"\n",
+	},
+	{
+		Name: "KeyValueTopDecl",
+		Play: "<nil>",
 	},
 }
 
@@ -75,6 +122,39 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Printf("The date is %s\n", out)
+}
+`
+
+const exampleKeyValuePlay = `package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	v := struct {
+		a string
+		b int
+	}{
+		a: "A",
+		b: 1,
+	}
+	fmt.Print(v)
+}
+`
+
+const exampleKeyValueImportPlay = `package main
+
+import (
+	"flag"
+	"fmt"
+)
+
+func main() {
+	f := flag.Flag{
+		Name: "play",
+	}
+	fmt.Print(f)
 }
 `
 
