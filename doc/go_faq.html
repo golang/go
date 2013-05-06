@@ -454,6 +454,34 @@ as when hosting an untrusted program, the implementation could interlock
 map access.
 </p>
 
+<h3 id="language_changes">
+Will you accept my language change?</h3>
+
+<p>
+People often suggest improvements to the language—the
+<a href="http://groups.google.com/group/golang-nuts">mailing list</a>
+contains a rich history of such discussions—but very few of these changes have
+been accepted.
+</p>
+
+<p>
+Although Go is an open source project, the language and libraries are protected
+by a <a href="/doc/go1compat.html">compatibility promise</a> that prevents
+changes that break existing programs.
+If your proposal violates the Go 1 specification we cannot even entertain the
+idea, regardless of its merit.
+A future major release of Go may be incompatible with Go 1, but we're not ready
+to start talking about what that might be.
+</p>
+
+<p>
+Even if your proposal is compatible with the Go 1 spec, it may be
+not be in the spirit of Go's design goals.
+The article <i><a href="http://talks.golang.org/2012/splash.article">Go
+at Google: Language Design in the Service of Software Engineering</a></i>
+explains Go's origins and the motivation behind its design.
+</p>
+
 <h2 id="types">Types</h2>
 
 <h3 id="Is_Go_an_object-oriented_language">
