@@ -115,10 +115,18 @@ enum
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 
 	// Number of bits in page to span calculations (4k pages).
-	// On 64-bit, we limit the arena to 128GB, or 37 bits.
+	// On Windows 64-bit we limit the arena to 32GB or 35 bits (see below for reason).
+	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
 #ifdef _64BIT
+#ifdef GOOS_windows
+	// Windows counts memory used by page table into committed memory
+	// of the process, so we can't reserve too much memory.
+	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
+	MHeapMap_Bits = 35 - PageShift,
+#else
 	MHeapMap_Bits = 37 - PageShift,
+#endif
 #else
 	MHeapMap_Bits = 32 - PageShift,
 #endif
@@ -134,7 +142,7 @@ enum
 // This must be a #define instead of an enum because it
 // is so large.
 #ifdef _64BIT
-#define	MaxMem	(1ULL<<(MHeapMap_Bits+PageShift))	/* 128 GB */
+#define	MaxMem	(1ULL<<(MHeapMap_Bits+PageShift))	/* 128 GB or 32 GB */
 #else
 #define	MaxMem	((uintptr)-1)
 #endif
