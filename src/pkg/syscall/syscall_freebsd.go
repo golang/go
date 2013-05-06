@@ -118,7 +118,7 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 //sysnb	Dup2(from int, to int) (err error)
 //sys	Exit(code int)
 //sys	Fchdir(fd int) (err error)
-//sys	Fchflags(path string, flags int) (err error)
+//sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Flock(fd int, how int) (err error)
