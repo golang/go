@@ -1,0 +1,1773 @@
+pkg archive/tar, const TypeGNULongLink ideal-char
+pkg archive/tar, const TypeGNULongName ideal-char
+pkg archive/tar, func FileInfoHeader(os.FileInfo, string) (*Header, error)
+pkg archive/tar, method (*Header) FileInfo() os.FileInfo
+pkg archive/zip, type FileHeader struct, CompressedSize64 uint64
+pkg archive/zip, type FileHeader struct, UncompressedSize64 uint64
+pkg bufio, const MaxScanTokenSize ideal-int
+pkg bufio, func NewScanner(io.Reader) *Scanner
+pkg bufio, func ScanBytes([]uint8, bool) (int, []uint8, error)
+pkg bufio, func ScanLines([]uint8, bool) (int, []uint8, error)
+pkg bufio, func ScanRunes([]uint8, bool) (int, []uint8, error)
+pkg bufio, func ScanWords([]uint8, bool) (int, []uint8, error)
+pkg bufio, method (*Reader) WriteTo(io.Writer) (int64, error)
+pkg bufio, method (*Scanner) Bytes() []uint8
+pkg bufio, method (*Scanner) Err() error
+pkg bufio, method (*Scanner) Scan() bool
+pkg bufio, method (*Scanner) Split(SplitFunc)
+pkg bufio, method (*Scanner) Text() string
+pkg bufio, method (*Writer) ReadFrom(io.Reader) (int64, error)
+pkg bufio, method (ReadWriter) ReadFrom(io.Reader) (int64, error)
+pkg bufio, method (ReadWriter) WriteTo(io.Writer) (int64, error)
+pkg bufio, type Scanner struct
+pkg bufio, type SplitFunc func([]uint8, bool) (int, []uint8, error)
+pkg bufio, var ErrAdvanceTooFar error
+pkg bufio, var ErrNegativeAdvance error
+pkg bufio, var ErrTooLong error
+pkg bytes, func TrimPrefix([]uint8, []uint8) []uint8
+pkg bytes, func TrimSuffix([]uint8, []uint8) []uint8
+pkg bytes, method (*Buffer) Grow(int)
+pkg bytes, method (*Reader) WriteTo(io.Writer) (int64, error)
+pkg compress/gzip, method (*Writer) Flush() error
+pkg crypto/hmac, func Equal([]uint8, []uint8) bool
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
+pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
+pkg crypto/tls, type Config struct, PreferServerCipherSuites bool
+pkg crypto/tls, type Config struct, SessionTicketKey [32]uint8
+pkg crypto/tls, type Config struct, SessionTicketsDisabled bool
+pkg crypto/tls, type ConnectionState struct, DidResume bool
+pkg crypto/x509, const ECDSA PublicKeyAlgorithm
+pkg crypto/x509, const ECDSAWithSHA1 SignatureAlgorithm
+pkg crypto/x509, const ECDSAWithSHA256 SignatureAlgorithm
+pkg crypto/x509, const ECDSAWithSHA384 SignatureAlgorithm
+pkg crypto/x509, const ECDSAWithSHA512 SignatureAlgorithm
+pkg crypto/x509, const ExtKeyUsageIPSECEndSystem ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageIPSECTunnel ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageIPSECUser ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageMicrosoftServerGatedCrypto ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageNetscapeServerGatedCrypto ExtKeyUsage
+pkg crypto/x509, const IncompatibleUsage InvalidReason
+pkg crypto/x509, const PEMCipher3DES PEMCipher
+pkg crypto/x509, const PEMCipherAES128 PEMCipher
+pkg crypto/x509, const PEMCipherAES192 PEMCipher
+pkg crypto/x509, const PEMCipherAES256 PEMCipher
+pkg crypto/x509, const PEMCipherDES PEMCipher
+pkg crypto/x509, func DecryptPEMBlock(*pem.Block, []uint8) ([]uint8, error)
+pkg crypto/x509, func EncryptPEMBlock(io.Reader, string, []uint8, []uint8, PEMCipher) (*pem.Block, error)
+pkg crypto/x509, func IsEncryptedPEMBlock(*pem.Block) bool
+pkg crypto/x509, func ParseECPrivateKey([]uint8) (*ecdsa.PrivateKey, error)
+pkg crypto/x509, method (SystemRootsError) Error() string
+pkg crypto/x509, type Certificate struct, IPAddresses []net.IP
+pkg crypto/x509, type PEMCipher int
+pkg crypto/x509, type SystemRootsError struct
+pkg crypto/x509, type VerifyOptions struct, KeyUsages []ExtKeyUsage
+pkg crypto/x509, var IncorrectPasswordError error
+pkg database/sql, method (*DB) Ping() error
+pkg database/sql, method (*DB) SetMaxIdleConns(int)
+pkg database/sql/driver, type Queryer interface { Query }
+pkg database/sql/driver, type Queryer interface, Query(string, []Value) (Rows, error)
+pkg debug/elf, method (*File) DynString(DynTag) ([]string, error)
+pkg debug/elf, type FileHeader struct, Entry uint64
+pkg debug/pe, const COFFSymbolSize ideal-int
+pkg debug/pe, type COFFSymbol struct
+pkg debug/pe, type COFFSymbol struct, Name [8]uint8
+pkg debug/pe, type COFFSymbol struct, NumberOfAuxSymbols uint8
+pkg debug/pe, type COFFSymbol struct, SectionNumber int16
+pkg debug/pe, type COFFSymbol struct, StorageClass uint8
+pkg debug/pe, type COFFSymbol struct, Type uint16
+pkg debug/pe, type COFFSymbol struct, Value uint32
+pkg debug/pe, type File struct, Symbols []*Symbol
+pkg debug/pe, type Symbol struct
+pkg debug/pe, type Symbol struct, Name string
+pkg debug/pe, type Symbol struct, SectionNumber int16
+pkg debug/pe, type Symbol struct, StorageClass uint8
+pkg debug/pe, type Symbol struct, Type uint16
+pkg debug/pe, type Symbol struct, Value uint32
+pkg encoding/csv, method (*Writer) Error() error
+pkg encoding/json, method (*Decoder) Buffered() io.Reader
+pkg encoding/json, method (*Decoder) UseNumber()
+pkg encoding/json, method (Number) Float64() (float64, error)
+pkg encoding/json, method (Number) Int64() (int64, error)
+pkg encoding/json, method (Number) String() string
+pkg encoding/json, type Number string
+pkg encoding/xml, func EscapeText(io.Writer, []uint8) error
+pkg encoding/xml, method (*Encoder) Indent(string, string)
+pkg encoding/xml, type Decoder struct, DefaultSpace string
+pkg go/ast, func NewCommentMap(*token.FileSet, Node, []*CommentGroup) CommentMap
+pkg go/ast, method (CommentMap) Comments() []*CommentGroup
+pkg go/ast, method (CommentMap) Filter(Node) CommentMap
+pkg go/ast, method (CommentMap) String() string
+pkg go/ast, method (CommentMap) Update(Node, Node) Node
+pkg go/ast, type ChanType struct, Arrow token.Pos
+pkg go/ast, type CommentMap map[Node][]*CommentGroup
+pkg go/build, type Context struct, InstallSuffix string
+pkg go/build, type Context struct, ReleaseTags []string
+pkg go/build, type Package struct, IgnoredGoFiles []string
+pkg go/build, type Package struct, SwigCXXFiles []string
+pkg go/build, type Package struct, SwigFiles []string
+pkg go/doc, type Example struct, EmptyOutput bool
+pkg go/doc, type Example struct, Order int
+pkg go/doc, type Example struct, Play *ast.File
+pkg go/doc, type Note struct
+pkg go/doc, type Note struct, Body string
+pkg go/doc, type Note struct, End token.Pos
+pkg go/doc, type Note struct, Pos token.Pos
+pkg go/doc, type Note struct, UID string
+pkg go/doc, type Package struct, Notes map[string][]*Note
+pkg go/doc, var IllegalPrefixes []string
+pkg go/format, func Node(io.Writer, *token.FileSet, interface{}) error
+pkg go/format, func Source([]uint8) ([]uint8, error)
+pkg go/parser, const AllErrors Mode
+pkg go/printer, type Config struct, Indent int
+pkg image, const YCbCrSubsampleRatio440 YCbCrSubsampleRatio
+pkg io, type ByteWriter interface { WriteByte }
+pkg io, type ByteWriter interface, WriteByte(uint8) error
+pkg io, var ErrNoProgress error
+pkg log/syslog (darwin-386), const LOG_AUTH Priority
+pkg log/syslog (darwin-386), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-386), const LOG_CRON Priority
+pkg log/syslog (darwin-386), const LOG_DAEMON Priority
+pkg log/syslog (darwin-386), const LOG_FTP Priority
+pkg log/syslog (darwin-386), const LOG_KERN Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-386), const LOG_LPR Priority
+pkg log/syslog (darwin-386), const LOG_MAIL Priority
+pkg log/syslog (darwin-386), const LOG_NEWS Priority
+pkg log/syslog (darwin-386), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-386), const LOG_USER Priority
+pkg log/syslog (darwin-386), const LOG_UUCP Priority
+pkg log/syslog (darwin-386-cgo), const LOG_AUTH Priority
+pkg log/syslog (darwin-386-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-386-cgo), const LOG_CRON Priority
+pkg log/syslog (darwin-386-cgo), const LOG_DAEMON Priority
+pkg log/syslog (darwin-386-cgo), const LOG_FTP Priority
+pkg log/syslog (darwin-386-cgo), const LOG_KERN Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LPR Priority
+pkg log/syslog (darwin-386-cgo), const LOG_MAIL Priority
+pkg log/syslog (darwin-386-cgo), const LOG_NEWS Priority
+pkg log/syslog (darwin-386-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-386-cgo), const LOG_USER Priority
+pkg log/syslog (darwin-386-cgo), const LOG_UUCP Priority
+pkg log/syslog (darwin-amd64), const LOG_AUTH Priority
+pkg log/syslog (darwin-amd64), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-amd64), const LOG_CRON Priority
+pkg log/syslog (darwin-amd64), const LOG_DAEMON Priority
+pkg log/syslog (darwin-amd64), const LOG_FTP Priority
+pkg log/syslog (darwin-amd64), const LOG_KERN Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-amd64), const LOG_LPR Priority
+pkg log/syslog (darwin-amd64), const LOG_MAIL Priority
+pkg log/syslog (darwin-amd64), const LOG_NEWS Priority
+pkg log/syslog (darwin-amd64), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-amd64), const LOG_USER Priority
+pkg log/syslog (darwin-amd64), const LOG_UUCP Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_AUTH Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_CRON Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_DAEMON Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_FTP Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_KERN Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LPR Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_MAIL Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_NEWS Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_USER Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_UUCP Priority
+pkg log/syslog (freebsd-386), const LOG_AUTH Priority
+pkg log/syslog (freebsd-386), const LOG_AUTHPRIV Priority
+pkg log/syslog (freebsd-386), const LOG_CRON Priority
+pkg log/syslog (freebsd-386), const LOG_DAEMON Priority
+pkg log/syslog (freebsd-386), const LOG_FTP Priority
+pkg log/syslog (freebsd-386), const LOG_KERN Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL0 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL1 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL2 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL3 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL4 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL5 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL6 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL7 Priority
+pkg log/syslog (freebsd-386), const LOG_LPR Priority
+pkg log/syslog (freebsd-386), const LOG_MAIL Priority
+pkg log/syslog (freebsd-386), const LOG_NEWS Priority
+pkg log/syslog (freebsd-386), const LOG_SYSLOG Priority
+pkg log/syslog (freebsd-386), const LOG_USER Priority
+pkg log/syslog (freebsd-386), const LOG_UUCP Priority
+pkg log/syslog (freebsd-amd64), const LOG_AUTH Priority
+pkg log/syslog (freebsd-amd64), const LOG_AUTHPRIV Priority
+pkg log/syslog (freebsd-amd64), const LOG_CRON Priority
+pkg log/syslog (freebsd-amd64), const LOG_DAEMON Priority
+pkg log/syslog (freebsd-amd64), const LOG_FTP Priority
+pkg log/syslog (freebsd-amd64), const LOG_KERN Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL0 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL1 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL2 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL3 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL4 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL5 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL6 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL7 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LPR Priority
+pkg log/syslog (freebsd-amd64), const LOG_MAIL Priority
+pkg log/syslog (freebsd-amd64), const LOG_NEWS Priority
+pkg log/syslog (freebsd-amd64), const LOG_SYSLOG Priority
+pkg log/syslog (freebsd-amd64), const LOG_USER Priority
+pkg log/syslog (freebsd-amd64), const LOG_UUCP Priority
+pkg log/syslog (linux-386), const LOG_AUTH Priority
+pkg log/syslog (linux-386), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-386), const LOG_CRON Priority
+pkg log/syslog (linux-386), const LOG_DAEMON Priority
+pkg log/syslog (linux-386), const LOG_FTP Priority
+pkg log/syslog (linux-386), const LOG_KERN Priority
+pkg log/syslog (linux-386), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-386), const LOG_LPR Priority
+pkg log/syslog (linux-386), const LOG_MAIL Priority
+pkg log/syslog (linux-386), const LOG_NEWS Priority
+pkg log/syslog (linux-386), const LOG_SYSLOG Priority
+pkg log/syslog (linux-386), const LOG_USER Priority
+pkg log/syslog (linux-386), const LOG_UUCP Priority
+pkg log/syslog (linux-386-cgo), const LOG_AUTH Priority
+pkg log/syslog (linux-386-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-386-cgo), const LOG_CRON Priority
+pkg log/syslog (linux-386-cgo), const LOG_DAEMON Priority
+pkg log/syslog (linux-386-cgo), const LOG_FTP Priority
+pkg log/syslog (linux-386-cgo), const LOG_KERN Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LPR Priority
+pkg log/syslog (linux-386-cgo), const LOG_MAIL Priority
+pkg log/syslog (linux-386-cgo), const LOG_NEWS Priority
+pkg log/syslog (linux-386-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (linux-386-cgo), const LOG_USER Priority
+pkg log/syslog (linux-386-cgo), const LOG_UUCP Priority
+pkg log/syslog (linux-amd64), const LOG_AUTH Priority
+pkg log/syslog (linux-amd64), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-amd64), const LOG_CRON Priority
+pkg log/syslog (linux-amd64), const LOG_DAEMON Priority
+pkg log/syslog (linux-amd64), const LOG_FTP Priority
+pkg log/syslog (linux-amd64), const LOG_KERN Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-amd64), const LOG_LPR Priority
+pkg log/syslog (linux-amd64), const LOG_MAIL Priority
+pkg log/syslog (linux-amd64), const LOG_NEWS Priority
+pkg log/syslog (linux-amd64), const LOG_SYSLOG Priority
+pkg log/syslog (linux-amd64), const LOG_USER Priority
+pkg log/syslog (linux-amd64), const LOG_UUCP Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_AUTH Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_CRON Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_DAEMON Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_FTP Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_KERN Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LPR Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_MAIL Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_NEWS Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_USER Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_UUCP Priority
+pkg log/syslog (linux-arm), const LOG_AUTH Priority
+pkg log/syslog (linux-arm), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-arm), const LOG_CRON Priority
+pkg log/syslog (linux-arm), const LOG_DAEMON Priority
+pkg log/syslog (linux-arm), const LOG_FTP Priority
+pkg log/syslog (linux-arm), const LOG_KERN Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-arm), const LOG_LPR Priority
+pkg log/syslog (linux-arm), const LOG_MAIL Priority
+pkg log/syslog (linux-arm), const LOG_NEWS Priority
+pkg log/syslog (linux-arm), const LOG_SYSLOG Priority
+pkg log/syslog (linux-arm), const LOG_USER Priority
+pkg log/syslog (linux-arm), const LOG_UUCP Priority
+pkg math/big, method (*Int) MarshalJSON() ([]uint8, error)
+pkg math/big, method (*Int) SetUint64(uint64) *Int
+pkg math/big, method (*Int) Uint64() uint64
+pkg math/big, method (*Int) UnmarshalJSON([]uint8) error
+pkg math/big, method (*Rat) Float64() (float64, bool)
+pkg math/big, method (*Rat) SetFloat64(float64) *Rat
+pkg mime/multipart, method (*Writer) SetBoundary(string) error
+pkg net, func ListenUnixgram(string, *UnixAddr) (*UnixConn, error)
+pkg net, func LookupNS(string) ([]*NS, error)
+pkg net, method (*Dialer) Dial(string, string) (Conn, error)
+pkg net, method (*IPConn) ReadMsgIP([]uint8, []uint8) (int, int, int, *IPAddr, error)
+pkg net, method (*IPConn) WriteMsgIP([]uint8, []uint8, *IPAddr) (int, int, error)
+pkg net, method (*UDPConn) ReadMsgUDP([]uint8, []uint8) (int, int, int, *UDPAddr, error)
+pkg net, method (*UDPConn) WriteMsgUDP([]uint8, []uint8, *UDPAddr) (int, int, error)
+pkg net, method (*UnixConn) CloseRead() error
+pkg net, method (*UnixConn) CloseWrite() error
+pkg net, type Dialer struct
+pkg net, type Dialer struct, Deadline time.Time
+pkg net, type Dialer struct, LocalAddr Addr
+pkg net, type Dialer struct, Timeout time.Duration
+pkg net, type IPAddr struct, Zone string
+pkg net, type NS struct
+pkg net, type NS struct, Host string
+pkg net, type TCPAddr struct, Zone string
+pkg net, type UDPAddr struct, Zone string
+pkg net/http, func ParseTime(string) (time.Time, error)
+pkg net/http, method (*Request) PostFormValue(string) string
+pkg net/http, method (*ServeMux) Handler(*Request) (Handler, string)
+pkg net/http, method (*Transport) CancelRequest(*Request)
+pkg net/http, type CloseNotifier interface { CloseNotify }
+pkg net/http, type CloseNotifier interface, CloseNotify() <-chan bool
+pkg net/http, type Request struct, PostForm url.Values
+pkg net/http, type Server struct, TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
+pkg net/http, type Transport struct, ResponseHeaderTimeout time.Duration
+pkg net/http/cookiejar, func New(*Options) (*Jar, error)
+pkg net/http/cookiejar, method (*Jar) Cookies(*url.URL) []*http.Cookie
+pkg net/http/cookiejar, method (*Jar) SetCookies(*url.URL, []*http.Cookie)
+pkg net/http/cookiejar, type Jar struct
+pkg net/http/cookiejar, type Options struct
+pkg net/http/cookiejar, type Options struct, PublicSuffixList PublicSuffixList
+pkg net/http/cookiejar, type PublicSuffixList interface { PublicSuffix, String }
+pkg net/http/cookiejar, type PublicSuffixList interface, PublicSuffix(string) string
+pkg net/http/cookiejar, type PublicSuffixList interface, String() string
+pkg net/mail, func ParseAddress(string) (*Address, error)
+pkg net/mail, func ParseAddressList(string) ([]*Address, error)
+pkg net/smtp, method (*Client) Hello(string) error
+pkg net/textproto, func TrimBytes([]uint8) []uint8
+pkg net/textproto, func TrimString(string) string
+pkg os, method (FileMode) IsRegular() bool
+pkg os/signal, func Stop(chan<- os.Signal)
+pkg reflect, const SelectDefault SelectDir
+pkg reflect, const SelectRecv SelectDir
+pkg reflect, const SelectSend SelectDir
+pkg reflect, func ChanOf(ChanDir, Type) Type
+pkg reflect, func MakeFunc(Type, func([]Value) []Value) Value
+pkg reflect, func MapOf(Type, Type) Type
+pkg reflect, func Select([]SelectCase) (int, Value, bool)
+pkg reflect, func SliceOf(Type) Type
+pkg reflect, method (Value) Convert(Type) Value
+pkg reflect, type SelectCase struct
+pkg reflect, type SelectCase struct, Chan Value
+pkg reflect, type SelectCase struct, Dir SelectDir
+pkg reflect, type SelectCase struct, Send Value
+pkg reflect, type SelectDir int
+pkg reflect, type Type interface, ConvertibleTo(Type) bool
+pkg regexp, method (*Regexp) Longest()
+pkg regexp, method (*Regexp) Split(string, int) []string
+pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
+pkg runtime, func BlockProfile([]BlockProfileRecord) (int, bool)
+pkg runtime, func SetBlockProfileRate(int)
+pkg runtime, method (*BlockProfileRecord) Stack() []uintptr
+pkg runtime, type BlockProfileRecord struct
+pkg runtime, type BlockProfileRecord struct, Count int64
+pkg runtime, type BlockProfileRecord struct, Cycles int64
+pkg runtime, type BlockProfileRecord struct, embedded StackRecord
+pkg runtime/debug, func FreeOSMemory()
+pkg runtime/debug, func ReadGCStats(*GCStats)
+pkg runtime/debug, func SetGCPercent(int) int
+pkg runtime/debug, type GCStats struct
+pkg runtime/debug, type GCStats struct, LastGC time.Time
+pkg runtime/debug, type GCStats struct, NumGC int64
+pkg runtime/debug, type GCStats struct, Pause []time.Duration
+pkg runtime/debug, type GCStats struct, PauseQuantiles []time.Duration
+pkg runtime/debug, type GCStats struct, PauseTotal time.Duration
+pkg sort, func Reverse(Interface) Interface
+pkg strings, func TrimPrefix(string, string) string
+pkg strings, func TrimSuffix(string, string) string
+pkg strings, method (*Reader) WriteTo(io.Writer) (int64, error)
+pkg syscall (darwin-386), const B0 ideal-int
+pkg syscall (darwin-386), const B110 ideal-int
+pkg syscall (darwin-386), const B115200 ideal-int
+pkg syscall (darwin-386), const B1200 ideal-int
+pkg syscall (darwin-386), const B134 ideal-int
+pkg syscall (darwin-386), const B14400 ideal-int
+pkg syscall (darwin-386), const B150 ideal-int
+pkg syscall (darwin-386), const B1800 ideal-int
+pkg syscall (darwin-386), const B19200 ideal-int
+pkg syscall (darwin-386), const B200 ideal-int
+pkg syscall (darwin-386), const B230400 ideal-int
+pkg syscall (darwin-386), const B2400 ideal-int
+pkg syscall (darwin-386), const B28800 ideal-int
+pkg syscall (darwin-386), const B300 ideal-int
+pkg syscall (darwin-386), const B38400 ideal-int
+pkg syscall (darwin-386), const B4800 ideal-int
+pkg syscall (darwin-386), const B50 ideal-int
+pkg syscall (darwin-386), const B57600 ideal-int
+pkg syscall (darwin-386), const B600 ideal-int
+pkg syscall (darwin-386), const B7200 ideal-int
+pkg syscall (darwin-386), const B75 ideal-int
+pkg syscall (darwin-386), const B76800 ideal-int
+pkg syscall (darwin-386), const B9600 ideal-int
+pkg syscall (darwin-386), const BRKINT ideal-int
+pkg syscall (darwin-386), const CFLUSH ideal-int
+pkg syscall (darwin-386), const CLOCAL ideal-int
+pkg syscall (darwin-386), const CREAD ideal-int
+pkg syscall (darwin-386), const CS5 ideal-int
+pkg syscall (darwin-386), const CS6 ideal-int
+pkg syscall (darwin-386), const CS7 ideal-int
+pkg syscall (darwin-386), const CS8 ideal-int
+pkg syscall (darwin-386), const CSIZE ideal-int
+pkg syscall (darwin-386), const CSTART ideal-int
+pkg syscall (darwin-386), const CSTATUS ideal-int
+pkg syscall (darwin-386), const CSTOP ideal-int
+pkg syscall (darwin-386), const CSTOPB ideal-int
+pkg syscall (darwin-386), const CSUSP ideal-int
+pkg syscall (darwin-386), const FLUSHO ideal-int
+pkg syscall (darwin-386), const HUPCL ideal-int
+pkg syscall (darwin-386), const ICANON ideal-int
+pkg syscall (darwin-386), const ICRNL ideal-int
+pkg syscall (darwin-386), const IEXTEN ideal-int
+pkg syscall (darwin-386), const IGNBRK ideal-int
+pkg syscall (darwin-386), const IGNCR ideal-int
+pkg syscall (darwin-386), const IGNPAR ideal-int
+pkg syscall (darwin-386), const IMAXBEL ideal-int
+pkg syscall (darwin-386), const INLCR ideal-int
+pkg syscall (darwin-386), const INPCK ideal-int
+pkg syscall (darwin-386), const ISIG ideal-int
+pkg syscall (darwin-386), const ISTRIP ideal-int
+pkg syscall (darwin-386), const IUTF8 ideal-int
+pkg syscall (darwin-386), const IXANY ideal-int
+pkg syscall (darwin-386), const IXOFF ideal-int
+pkg syscall (darwin-386), const IXON ideal-int
+pkg syscall (darwin-386), const NOFLSH ideal-int
+pkg syscall (darwin-386), const OCRNL ideal-int
+pkg syscall (darwin-386), const OFDEL ideal-int
+pkg syscall (darwin-386), const OFILL ideal-int
+pkg syscall (darwin-386), const ONLCR ideal-int
+pkg syscall (darwin-386), const ONLRET ideal-int
+pkg syscall (darwin-386), const ONOCR ideal-int
+pkg syscall (darwin-386), const ONOEOT ideal-int
+pkg syscall (darwin-386), const OPOST ideal-int
+pkg syscall (darwin-386), const PARENB ideal-int
+pkg syscall (darwin-386), const PARMRK ideal-int
+pkg syscall (darwin-386), const PARODD ideal-int
+pkg syscall (darwin-386), const PENDIN ideal-int
+pkg syscall (darwin-386), const SizeofInet4Pktinfo ideal-int
+pkg syscall (darwin-386), const TCIFLUSH ideal-int
+pkg syscall (darwin-386), const TCIOFLUSH ideal-int
+pkg syscall (darwin-386), const TCOFLUSH ideal-int
+pkg syscall (darwin-386), const TCSAFLUSH ideal-int
+pkg syscall (darwin-386), const TOSTOP ideal-int
+pkg syscall (darwin-386), const VDISCARD ideal-int
+pkg syscall (darwin-386), const VDSUSP ideal-int
+pkg syscall (darwin-386), const VEOF ideal-int
+pkg syscall (darwin-386), const VEOL ideal-int
+pkg syscall (darwin-386), const VEOL2 ideal-int
+pkg syscall (darwin-386), const VERASE ideal-int
+pkg syscall (darwin-386), const VINTR ideal-int
+pkg syscall (darwin-386), const VKILL ideal-int
+pkg syscall (darwin-386), const VLNEXT ideal-int
+pkg syscall (darwin-386), const VMIN ideal-int
+pkg syscall (darwin-386), const VQUIT ideal-int
+pkg syscall (darwin-386), const VREPRINT ideal-int
+pkg syscall (darwin-386), const VSTART ideal-int
+pkg syscall (darwin-386), const VSTATUS ideal-int
+pkg syscall (darwin-386), const VSTOP ideal-int
+pkg syscall (darwin-386), const VSUSP ideal-int
+pkg syscall (darwin-386), const VT0 ideal-int
+pkg syscall (darwin-386), const VT1 ideal-int
+pkg syscall (darwin-386), const VTDLY ideal-int
+pkg syscall (darwin-386), const VTIME ideal-int
+pkg syscall (darwin-386), const VWERASE ideal-int
+pkg syscall (darwin-386), func Fchflags(int, int) error
+pkg syscall (darwin-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (darwin-386), type Inet4Pktinfo struct
+pkg syscall (darwin-386), type Inet4Pktinfo struct, Addr [4]uint8
+pkg syscall (darwin-386), type Inet4Pktinfo struct, Ifindex uint32
+pkg syscall (darwin-386), type Inet4Pktinfo struct, Spec_dst [4]uint8
+pkg syscall (darwin-386), type Termios struct
+pkg syscall (darwin-386), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-386), type Termios struct, Cflag uint32
+pkg syscall (darwin-386), type Termios struct, Iflag uint32
+pkg syscall (darwin-386), type Termios struct, Ispeed uint32
+pkg syscall (darwin-386), type Termios struct, Lflag uint32
+pkg syscall (darwin-386), type Termios struct, Oflag uint32
+pkg syscall (darwin-386), type Termios struct, Ospeed uint32
+pkg syscall (darwin-386-cgo), const B0 ideal-int
+pkg syscall (darwin-386-cgo), const B110 ideal-int
+pkg syscall (darwin-386-cgo), const B115200 ideal-int
+pkg syscall (darwin-386-cgo), const B1200 ideal-int
+pkg syscall (darwin-386-cgo), const B134 ideal-int
+pkg syscall (darwin-386-cgo), const B14400 ideal-int
+pkg syscall (darwin-386-cgo), const B150 ideal-int
+pkg syscall (darwin-386-cgo), const B1800 ideal-int
+pkg syscall (darwin-386-cgo), const B19200 ideal-int
+pkg syscall (darwin-386-cgo), const B200 ideal-int
+pkg syscall (darwin-386-cgo), const B230400 ideal-int
+pkg syscall (darwin-386-cgo), const B2400 ideal-int
+pkg syscall (darwin-386-cgo), const B28800 ideal-int
+pkg syscall (darwin-386-cgo), const B300 ideal-int
+pkg syscall (darwin-386-cgo), const B38400 ideal-int
+pkg syscall (darwin-386-cgo), const B4800 ideal-int
+pkg syscall (darwin-386-cgo), const B50 ideal-int
+pkg syscall (darwin-386-cgo), const B57600 ideal-int
+pkg syscall (darwin-386-cgo), const B600 ideal-int
+pkg syscall (darwin-386-cgo), const B7200 ideal-int
+pkg syscall (darwin-386-cgo), const B75 ideal-int
+pkg syscall (darwin-386-cgo), const B76800 ideal-int
+pkg syscall (darwin-386-cgo), const B9600 ideal-int
+pkg syscall (darwin-386-cgo), const BRKINT ideal-int
+pkg syscall (darwin-386-cgo), const CFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const CLOCAL ideal-int
+pkg syscall (darwin-386-cgo), const CREAD ideal-int
+pkg syscall (darwin-386-cgo), const CS5 ideal-int
+pkg syscall (darwin-386-cgo), const CS6 ideal-int
+pkg syscall (darwin-386-cgo), const CS7 ideal-int
+pkg syscall (darwin-386-cgo), const CS8 ideal-int
+pkg syscall (darwin-386-cgo), const CSIZE ideal-int
+pkg syscall (darwin-386-cgo), const CSTART ideal-int
+pkg syscall (darwin-386-cgo), const CSTATUS ideal-int
+pkg syscall (darwin-386-cgo), const CSTOP ideal-int
+pkg syscall (darwin-386-cgo), const CSTOPB ideal-int
+pkg syscall (darwin-386-cgo), const CSUSP ideal-int
+pkg syscall (darwin-386-cgo), const FLUSHO ideal-int
+pkg syscall (darwin-386-cgo), const HUPCL ideal-int
+pkg syscall (darwin-386-cgo), const ICANON ideal-int
+pkg syscall (darwin-386-cgo), const ICRNL ideal-int
+pkg syscall (darwin-386-cgo), const IEXTEN ideal-int
+pkg syscall (darwin-386-cgo), const IGNBRK ideal-int
+pkg syscall (darwin-386-cgo), const IGNCR ideal-int
+pkg syscall (darwin-386-cgo), const IGNPAR ideal-int
+pkg syscall (darwin-386-cgo), const IMAXBEL ideal-int
+pkg syscall (darwin-386-cgo), const INLCR ideal-int
+pkg syscall (darwin-386-cgo), const INPCK ideal-int
+pkg syscall (darwin-386-cgo), const ISIG ideal-int
+pkg syscall (darwin-386-cgo), const ISTRIP ideal-int
+pkg syscall (darwin-386-cgo), const IUTF8 ideal-int
+pkg syscall (darwin-386-cgo), const IXANY ideal-int
+pkg syscall (darwin-386-cgo), const IXOFF ideal-int
+pkg syscall (darwin-386-cgo), const IXON ideal-int
+pkg syscall (darwin-386-cgo), const NOFLSH ideal-int
+pkg syscall (darwin-386-cgo), const OCRNL ideal-int
+pkg syscall (darwin-386-cgo), const OFDEL ideal-int
+pkg syscall (darwin-386-cgo), const OFILL ideal-int
+pkg syscall (darwin-386-cgo), const ONLCR ideal-int
+pkg syscall (darwin-386-cgo), const ONLRET ideal-int
+pkg syscall (darwin-386-cgo), const ONOCR ideal-int
+pkg syscall (darwin-386-cgo), const ONOEOT ideal-int
+pkg syscall (darwin-386-cgo), const OPOST ideal-int
+pkg syscall (darwin-386-cgo), const PARENB ideal-int
+pkg syscall (darwin-386-cgo), const PARMRK ideal-int
+pkg syscall (darwin-386-cgo), const PARODD ideal-int
+pkg syscall (darwin-386-cgo), const PENDIN ideal-int
+pkg syscall (darwin-386-cgo), const SizeofInet4Pktinfo ideal-int
+pkg syscall (darwin-386-cgo), const TCIFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TCIOFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TCOFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TCSAFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TOSTOP ideal-int
+pkg syscall (darwin-386-cgo), const VDISCARD ideal-int
+pkg syscall (darwin-386-cgo), const VDSUSP ideal-int
+pkg syscall (darwin-386-cgo), const VEOF ideal-int
+pkg syscall (darwin-386-cgo), const VEOL ideal-int
+pkg syscall (darwin-386-cgo), const VEOL2 ideal-int
+pkg syscall (darwin-386-cgo), const VERASE ideal-int
+pkg syscall (darwin-386-cgo), const VINTR ideal-int
+pkg syscall (darwin-386-cgo), const VKILL ideal-int
+pkg syscall (darwin-386-cgo), const VLNEXT ideal-int
+pkg syscall (darwin-386-cgo), const VMIN ideal-int
+pkg syscall (darwin-386-cgo), const VQUIT ideal-int
+pkg syscall (darwin-386-cgo), const VREPRINT ideal-int
+pkg syscall (darwin-386-cgo), const VSTART ideal-int
+pkg syscall (darwin-386-cgo), const VSTATUS ideal-int
+pkg syscall (darwin-386-cgo), const VSTOP ideal-int
+pkg syscall (darwin-386-cgo), const VSUSP ideal-int
+pkg syscall (darwin-386-cgo), const VT0 ideal-int
+pkg syscall (darwin-386-cgo), const VT1 ideal-int
+pkg syscall (darwin-386-cgo), const VTDLY ideal-int
+pkg syscall (darwin-386-cgo), const VTIME ideal-int
+pkg syscall (darwin-386-cgo), const VWERASE ideal-int
+pkg syscall (darwin-386-cgo), func Fchflags(int, int) error
+pkg syscall (darwin-386-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct
+pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Addr [4]uint8
+pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Ifindex uint32
+pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Spec_dst [4]uint8
+pkg syscall (darwin-386-cgo), type Termios struct
+pkg syscall (darwin-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Ispeed uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Ospeed uint32
+pkg syscall (darwin-amd64), const B0 ideal-int
+pkg syscall (darwin-amd64), const B110 ideal-int
+pkg syscall (darwin-amd64), const B115200 ideal-int
+pkg syscall (darwin-amd64), const B1200 ideal-int
+pkg syscall (darwin-amd64), const B134 ideal-int
+pkg syscall (darwin-amd64), const B14400 ideal-int
+pkg syscall (darwin-amd64), const B150 ideal-int
+pkg syscall (darwin-amd64), const B1800 ideal-int
+pkg syscall (darwin-amd64), const B19200 ideal-int
+pkg syscall (darwin-amd64), const B200 ideal-int
+pkg syscall (darwin-amd64), const B230400 ideal-int
+pkg syscall (darwin-amd64), const B2400 ideal-int
+pkg syscall (darwin-amd64), const B28800 ideal-int
+pkg syscall (darwin-amd64), const B300 ideal-int
+pkg syscall (darwin-amd64), const B38400 ideal-int
+pkg syscall (darwin-amd64), const B4800 ideal-int
+pkg syscall (darwin-amd64), const B50 ideal-int
+pkg syscall (darwin-amd64), const B57600 ideal-int
+pkg syscall (darwin-amd64), const B600 ideal-int
+pkg syscall (darwin-amd64), const B7200 ideal-int
+pkg syscall (darwin-amd64), const B75 ideal-int
+pkg syscall (darwin-amd64), const B76800 ideal-int
+pkg syscall (darwin-amd64), const B9600 ideal-int
+pkg syscall (darwin-amd64), const BRKINT ideal-int
+pkg syscall (darwin-amd64), const CFLUSH ideal-int
+pkg syscall (darwin-amd64), const CLOCAL ideal-int
+pkg syscall (darwin-amd64), const CREAD ideal-int
+pkg syscall (darwin-amd64), const CS5 ideal-int
+pkg syscall (darwin-amd64), const CS6 ideal-int
+pkg syscall (darwin-amd64), const CS7 ideal-int
+pkg syscall (darwin-amd64), const CS8 ideal-int
+pkg syscall (darwin-amd64), const CSIZE ideal-int
+pkg syscall (darwin-amd64), const CSTART ideal-int
+pkg syscall (darwin-amd64), const CSTATUS ideal-int
+pkg syscall (darwin-amd64), const CSTOP ideal-int
+pkg syscall (darwin-amd64), const CSTOPB ideal-int
+pkg syscall (darwin-amd64), const CSUSP ideal-int
+pkg syscall (darwin-amd64), const FLUSHO ideal-int
+pkg syscall (darwin-amd64), const HUPCL ideal-int
+pkg syscall (darwin-amd64), const ICANON ideal-int
+pkg syscall (darwin-amd64), const ICRNL ideal-int
+pkg syscall (darwin-amd64), const IEXTEN ideal-int
+pkg syscall (darwin-amd64), const IGNBRK ideal-int
+pkg syscall (darwin-amd64), const IGNCR ideal-int
+pkg syscall (darwin-amd64), const IGNPAR ideal-int
+pkg syscall (darwin-amd64), const IMAXBEL ideal-int
+pkg syscall (darwin-amd64), const INLCR ideal-int
+pkg syscall (darwin-amd64), const INPCK ideal-int
+pkg syscall (darwin-amd64), const ISIG ideal-int
+pkg syscall (darwin-amd64), const ISTRIP ideal-int
+pkg syscall (darwin-amd64), const IUTF8 ideal-int
+pkg syscall (darwin-amd64), const IXANY ideal-int
+pkg syscall (darwin-amd64), const IXOFF ideal-int
+pkg syscall (darwin-amd64), const IXON ideal-int
+pkg syscall (darwin-amd64), const NOFLSH ideal-int
+pkg syscall (darwin-amd64), const OCRNL ideal-int
+pkg syscall (darwin-amd64), const OFDEL ideal-int
+pkg syscall (darwin-amd64), const OFILL ideal-int
+pkg syscall (darwin-amd64), const ONLCR ideal-int
+pkg syscall (darwin-amd64), const ONLRET ideal-int
+pkg syscall (darwin-amd64), const ONOCR ideal-int
+pkg syscall (darwin-amd64), const ONOEOT ideal-int
+pkg syscall (darwin-amd64), const OPOST ideal-int
+pkg syscall (darwin-amd64), const PARENB ideal-int
+pkg syscall (darwin-amd64), const PARMRK ideal-int
+pkg syscall (darwin-amd64), const PARODD ideal-int
+pkg syscall (darwin-amd64), const PENDIN ideal-int
+pkg syscall (darwin-amd64), const SizeofInet4Pktinfo ideal-int
+pkg syscall (darwin-amd64), const TCIFLUSH ideal-int
+pkg syscall (darwin-amd64), const TCIOFLUSH ideal-int
+pkg syscall (darwin-amd64), const TCOFLUSH ideal-int
+pkg syscall (darwin-amd64), const TCSAFLUSH ideal-int
+pkg syscall (darwin-amd64), const TOSTOP ideal-int
+pkg syscall (darwin-amd64), const VDISCARD ideal-int
+pkg syscall (darwin-amd64), const VDSUSP ideal-int
+pkg syscall (darwin-amd64), const VEOF ideal-int
+pkg syscall (darwin-amd64), const VEOL ideal-int
+pkg syscall (darwin-amd64), const VEOL2 ideal-int
+pkg syscall (darwin-amd64), const VERASE ideal-int
+pkg syscall (darwin-amd64), const VINTR ideal-int
+pkg syscall (darwin-amd64), const VKILL ideal-int
+pkg syscall (darwin-amd64), const VLNEXT ideal-int
+pkg syscall (darwin-amd64), const VMIN ideal-int
+pkg syscall (darwin-amd64), const VQUIT ideal-int
+pkg syscall (darwin-amd64), const VREPRINT ideal-int
+pkg syscall (darwin-amd64), const VSTART ideal-int
+pkg syscall (darwin-amd64), const VSTATUS ideal-int
+pkg syscall (darwin-amd64), const VSTOP ideal-int
+pkg syscall (darwin-amd64), const VSUSP ideal-int
+pkg syscall (darwin-amd64), const VT0 ideal-int
+pkg syscall (darwin-amd64), const VT1 ideal-int
+pkg syscall (darwin-amd64), const VTDLY ideal-int
+pkg syscall (darwin-amd64), const VTIME ideal-int
+pkg syscall (darwin-amd64), const VWERASE ideal-int
+pkg syscall (darwin-amd64), func Fchflags(int, int) error
+pkg syscall (darwin-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (darwin-amd64), type Inet4Pktinfo struct
+pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Addr [4]uint8
+pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Ifindex uint32
+pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Spec_dst [4]uint8
+pkg syscall (darwin-amd64), type Termios struct
+pkg syscall (darwin-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-amd64), type Termios struct, Cflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Iflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Ispeed uint64
+pkg syscall (darwin-amd64), type Termios struct, Lflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Oflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Ospeed uint64
+pkg syscall (darwin-amd64), type Termios struct, Pad_cgo_0 [4]uint8
+pkg syscall (darwin-amd64-cgo), const B0 ideal-int
+pkg syscall (darwin-amd64-cgo), const B110 ideal-int
+pkg syscall (darwin-amd64-cgo), const B115200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B1200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B134 ideal-int
+pkg syscall (darwin-amd64-cgo), const B14400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B150 ideal-int
+pkg syscall (darwin-amd64-cgo), const B1800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B19200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B230400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B2400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B28800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B300 ideal-int
+pkg syscall (darwin-amd64-cgo), const B38400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B4800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B50 ideal-int
+pkg syscall (darwin-amd64-cgo), const B57600 ideal-int
+pkg syscall (darwin-amd64-cgo), const B600 ideal-int
+pkg syscall (darwin-amd64-cgo), const B7200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B75 ideal-int
+pkg syscall (darwin-amd64-cgo), const B76800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B9600 ideal-int
+pkg syscall (darwin-amd64-cgo), const BRKINT ideal-int
+pkg syscall (darwin-amd64-cgo), const CFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const CLOCAL ideal-int
+pkg syscall (darwin-amd64-cgo), const CREAD ideal-int
+pkg syscall (darwin-amd64-cgo), const CS5 ideal-int
+pkg syscall (darwin-amd64-cgo), const CS6 ideal-int
+pkg syscall (darwin-amd64-cgo), const CS7 ideal-int
+pkg syscall (darwin-amd64-cgo), const CS8 ideal-int
+pkg syscall (darwin-amd64-cgo), const CSIZE ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTART ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTATUS ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTOP ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTOPB ideal-int
+pkg syscall (darwin-amd64-cgo), const CSUSP ideal-int
+pkg syscall (darwin-amd64-cgo), const FLUSHO ideal-int
+pkg syscall (darwin-amd64-cgo), const HUPCL ideal-int
+pkg syscall (darwin-amd64-cgo), const ICANON ideal-int
+pkg syscall (darwin-amd64-cgo), const ICRNL ideal-int
+pkg syscall (darwin-amd64-cgo), const IEXTEN ideal-int
+pkg syscall (darwin-amd64-cgo), const IGNBRK ideal-int
+pkg syscall (darwin-amd64-cgo), const IGNCR ideal-int
+pkg syscall (darwin-amd64-cgo), const IGNPAR ideal-int
+pkg syscall (darwin-amd64-cgo), const IMAXBEL ideal-int
+pkg syscall (darwin-amd64-cgo), const INLCR ideal-int
+pkg syscall (darwin-amd64-cgo), const INPCK ideal-int
+pkg syscall (darwin-amd64-cgo), const ISIG ideal-int
+pkg syscall (darwin-amd64-cgo), const ISTRIP ideal-int
+pkg syscall (darwin-amd64-cgo), const IUTF8 ideal-int
+pkg syscall (darwin-amd64-cgo), const IXANY ideal-int
+pkg syscall (darwin-amd64-cgo), const IXOFF ideal-int
+pkg syscall (darwin-amd64-cgo), const IXON ideal-int
+pkg syscall (darwin-amd64-cgo), const NOFLSH ideal-int
+pkg syscall (darwin-amd64-cgo), const OCRNL ideal-int
+pkg syscall (darwin-amd64-cgo), const OFDEL ideal-int
+pkg syscall (darwin-amd64-cgo), const OFILL ideal-int
+pkg syscall (darwin-amd64-cgo), const ONLCR ideal-int
+pkg syscall (darwin-amd64-cgo), const ONLRET ideal-int
+pkg syscall (darwin-amd64-cgo), const ONOCR ideal-int
+pkg syscall (darwin-amd64-cgo), const ONOEOT ideal-int
+pkg syscall (darwin-amd64-cgo), const OPOST ideal-int
+pkg syscall (darwin-amd64-cgo), const PARENB ideal-int
+pkg syscall (darwin-amd64-cgo), const PARMRK ideal-int
+pkg syscall (darwin-amd64-cgo), const PARODD ideal-int
+pkg syscall (darwin-amd64-cgo), const PENDIN ideal-int
+pkg syscall (darwin-amd64-cgo), const SizeofInet4Pktinfo ideal-int
+pkg syscall (darwin-amd64-cgo), const TCIFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TCIOFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TCOFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TCSAFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TOSTOP ideal-int
+pkg syscall (darwin-amd64-cgo), const VDISCARD ideal-int
+pkg syscall (darwin-amd64-cgo), const VDSUSP ideal-int
+pkg syscall (darwin-amd64-cgo), const VEOF ideal-int
+pkg syscall (darwin-amd64-cgo), const VEOL ideal-int
+pkg syscall (darwin-amd64-cgo), const VEOL2 ideal-int
+pkg syscall (darwin-amd64-cgo), const VERASE ideal-int
+pkg syscall (darwin-amd64-cgo), const VINTR ideal-int
+pkg syscall (darwin-amd64-cgo), const VKILL ideal-int
+pkg syscall (darwin-amd64-cgo), const VLNEXT ideal-int
+pkg syscall (darwin-amd64-cgo), const VMIN ideal-int
+pkg syscall (darwin-amd64-cgo), const VQUIT ideal-int
+pkg syscall (darwin-amd64-cgo), const VREPRINT ideal-int
+pkg syscall (darwin-amd64-cgo), const VSTART ideal-int
+pkg syscall (darwin-amd64-cgo), const VSTATUS ideal-int
+pkg syscall (darwin-amd64-cgo), const VSTOP ideal-int
+pkg syscall (darwin-amd64-cgo), const VSUSP ideal-int
+pkg syscall (darwin-amd64-cgo), const VT0 ideal-int
+pkg syscall (darwin-amd64-cgo), const VT1 ideal-int
+pkg syscall (darwin-amd64-cgo), const VTDLY ideal-int
+pkg syscall (darwin-amd64-cgo), const VTIME ideal-int
+pkg syscall (darwin-amd64-cgo), const VWERASE ideal-int
+pkg syscall (darwin-amd64-cgo), func Fchflags(int, int) error
+pkg syscall (darwin-amd64-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct
+pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Addr [4]uint8
+pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Ifindex uint32
+pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Spec_dst [4]uint8
+pkg syscall (darwin-amd64-cgo), type Termios struct
+pkg syscall (darwin-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-amd64-cgo), type Termios struct, Cflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Iflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Ispeed uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Lflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Oflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Ospeed uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-386), const B0 ideal-int
+pkg syscall (freebsd-386), const B110 ideal-int
+pkg syscall (freebsd-386), const B115200 ideal-int
+pkg syscall (freebsd-386), const B1200 ideal-int
+pkg syscall (freebsd-386), const B134 ideal-int
+pkg syscall (freebsd-386), const B14400 ideal-int
+pkg syscall (freebsd-386), const B150 ideal-int
+pkg syscall (freebsd-386), const B1800 ideal-int
+pkg syscall (freebsd-386), const B19200 ideal-int
+pkg syscall (freebsd-386), const B200 ideal-int
+pkg syscall (freebsd-386), const B230400 ideal-int
+pkg syscall (freebsd-386), const B2400 ideal-int
+pkg syscall (freebsd-386), const B28800 ideal-int
+pkg syscall (freebsd-386), const B300 ideal-int
+pkg syscall (freebsd-386), const B38400 ideal-int
+pkg syscall (freebsd-386), const B460800 ideal-int
+pkg syscall (freebsd-386), const B4800 ideal-int
+pkg syscall (freebsd-386), const B50 ideal-int
+pkg syscall (freebsd-386), const B57600 ideal-int
+pkg syscall (freebsd-386), const B600 ideal-int
+pkg syscall (freebsd-386), const B7200 ideal-int
+pkg syscall (freebsd-386), const B75 ideal-int
+pkg syscall (freebsd-386), const B76800 ideal-int
+pkg syscall (freebsd-386), const B921600 ideal-int
+pkg syscall (freebsd-386), const B9600 ideal-int
+pkg syscall (freebsd-386), const BIOCGTSTAMP ideal-int
+pkg syscall (freebsd-386), const BIOCSTSTAMP ideal-int
+pkg syscall (freebsd-386), const BPF_T_BINTIME ideal-int
+pkg syscall (freebsd-386), const BPF_T_BINTIME_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_BINTIME_MONOTONIC ideal-int
+pkg syscall (freebsd-386), const BPF_T_BINTIME_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_FLAG_MASK ideal-int
+pkg syscall (freebsd-386), const BPF_T_FORMAT_MASK ideal-int
+pkg syscall (freebsd-386), const BPF_T_MICROTIME ideal-int
+pkg syscall (freebsd-386), const BPF_T_MICROTIME_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_MICROTIME_MONOTONIC ideal-int
+pkg syscall (freebsd-386), const BPF_T_MICROTIME_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_MONOTONIC ideal-int
+pkg syscall (freebsd-386), const BPF_T_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_NANOTIME ideal-int
+pkg syscall (freebsd-386), const BPF_T_NANOTIME_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_NANOTIME_MONOTONIC ideal-int
+pkg syscall (freebsd-386), const BPF_T_NANOTIME_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-386), const BPF_T_NONE ideal-int
+pkg syscall (freebsd-386), const BPF_T_NORMAL ideal-int
+pkg syscall (freebsd-386), const BRKINT ideal-int
+pkg syscall (freebsd-386), const CFLUSH ideal-int
+pkg syscall (freebsd-386), const CLOCAL ideal-int
+pkg syscall (freebsd-386), const CREAD ideal-int
+pkg syscall (freebsd-386), const CS5 ideal-int
+pkg syscall (freebsd-386), const CS6 ideal-int
+pkg syscall (freebsd-386), const CS7 ideal-int
+pkg syscall (freebsd-386), const CS8 ideal-int
+pkg syscall (freebsd-386), const CSIZE ideal-int
+pkg syscall (freebsd-386), const CSTART ideal-int
+pkg syscall (freebsd-386), const CSTATUS ideal-int
+pkg syscall (freebsd-386), const CSTOP ideal-int
+pkg syscall (freebsd-386), const CSTOPB ideal-int
+pkg syscall (freebsd-386), const CSUSP ideal-int
+pkg syscall (freebsd-386), const DLT_AOS ideal-int
+pkg syscall (freebsd-386), const DLT_CAN_SOCKETCAN ideal-int
+pkg syscall (freebsd-386), const DLT_DBUS ideal-int
+pkg syscall (freebsd-386), const DLT_DECT ideal-int
+pkg syscall (freebsd-386), const DLT_DVB_CI ideal-int
+pkg syscall (freebsd-386), const DLT_FC_2 ideal-int
+pkg syscall (freebsd-386), const DLT_FC_2_WITH_FRAME_DELIMS ideal-int
+pkg syscall (freebsd-386), const DLT_GSMTAP_ABIS ideal-int
+pkg syscall (freebsd-386), const DLT_GSMTAP_UM ideal-int
+pkg syscall (freebsd-386), const DLT_IEEE802_15_4_NOFCS ideal-int
+pkg syscall (freebsd-386), const DLT_IPNET ideal-int
+pkg syscall (freebsd-386), const DLT_IPOIB ideal-int
+pkg syscall (freebsd-386), const DLT_IPV4 ideal-int
+pkg syscall (freebsd-386), const DLT_IPV6 ideal-int
+pkg syscall (freebsd-386), const DLT_JUNIPER_ATM_CEMIC ideal-int
+pkg syscall (freebsd-386), const DLT_JUNIPER_FIBRECHANNEL ideal-int
+pkg syscall (freebsd-386), const DLT_JUNIPER_SRX_E2E ideal-int
+pkg syscall (freebsd-386), const DLT_JUNIPER_VS ideal-int
+pkg syscall (freebsd-386), const DLT_LINUX_EVDEV ideal-int
+pkg syscall (freebsd-386), const DLT_MATCHING_MAX ideal-int
+pkg syscall (freebsd-386), const DLT_MATCHING_MIN ideal-int
+pkg syscall (freebsd-386), const DLT_MPLS ideal-int
+pkg syscall (freebsd-386), const DLT_MUX27010 ideal-int
+pkg syscall (freebsd-386), const DLT_NETANALYZER ideal-int
+pkg syscall (freebsd-386), const DLT_NETANALYZER_TRANSPARENT ideal-int
+pkg syscall (freebsd-386), const DLT_NFLOG ideal-int
+pkg syscall (freebsd-386), const DLT_STANAG_5066_D_PDU ideal-int
+pkg syscall (freebsd-386), const DLT_USB_LINUX_MMAPPED ideal-int
+pkg syscall (freebsd-386), const DLT_WIHART ideal-int
+pkg syscall (freebsd-386), const ECAPMODE Errno
+pkg syscall (freebsd-386), const FLUSHO ideal-int
+pkg syscall (freebsd-386), const HUPCL ideal-int
+pkg syscall (freebsd-386), const ICANON ideal-int
+pkg syscall (freebsd-386), const ICRNL ideal-int
+pkg syscall (freebsd-386), const IEXTEN ideal-int
+pkg syscall (freebsd-386), const IFAN_ARRIVAL ideal-int
+pkg syscall (freebsd-386), const IFAN_DEPARTURE ideal-int
+pkg syscall (freebsd-386), const IFF_CANTCONFIG ideal-int
+pkg syscall (freebsd-386), const IFT_INFINIBAND ideal-int
+pkg syscall (freebsd-386), const IGNBRK ideal-int
+pkg syscall (freebsd-386), const IGNCR ideal-int
+pkg syscall (freebsd-386), const IGNPAR ideal-int
+pkg syscall (freebsd-386), const IMAXBEL ideal-int
+pkg syscall (freebsd-386), const INLCR ideal-int
+pkg syscall (freebsd-386), const INPCK ideal-int
+pkg syscall (freebsd-386), const IN_RFC3021_MASK ideal-int
+pkg syscall (freebsd-386), const IPPROTO_MH ideal-int
+pkg syscall (freebsd-386), const IPPROTO_SEND ideal-int
+pkg syscall (freebsd-386), const IP_RECVTOS ideal-int
+pkg syscall (freebsd-386), const ISIG ideal-int
+pkg syscall (freebsd-386), const ISTRIP ideal-int
+pkg syscall (freebsd-386), const IXANY ideal-int
+pkg syscall (freebsd-386), const IXOFF ideal-int
+pkg syscall (freebsd-386), const IXON ideal-int
+pkg syscall (freebsd-386), const MADV_AUTOSYNC ideal-int
+pkg syscall (freebsd-386), const MADV_CORE ideal-int
+pkg syscall (freebsd-386), const MADV_DONTNEED ideal-int
+pkg syscall (freebsd-386), const MADV_FREE ideal-int
+pkg syscall (freebsd-386), const MADV_NOCORE ideal-int
+pkg syscall (freebsd-386), const MADV_NORMAL ideal-int
+pkg syscall (freebsd-386), const MADV_NOSYNC ideal-int
+pkg syscall (freebsd-386), const MADV_PROTECT ideal-int
+pkg syscall (freebsd-386), const MADV_RANDOM ideal-int
+pkg syscall (freebsd-386), const MADV_SEQUENTIAL ideal-int
+pkg syscall (freebsd-386), const MADV_WILLNEED ideal-int
+pkg syscall (freebsd-386), const MAP_ANON ideal-int
+pkg syscall (freebsd-386), const MAP_ANONYMOUS ideal-int
+pkg syscall (freebsd-386), const MAP_COPY ideal-int
+pkg syscall (freebsd-386), const MAP_FILE ideal-int
+pkg syscall (freebsd-386), const MAP_FIXED ideal-int
+pkg syscall (freebsd-386), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (freebsd-386), const MAP_NOCORE ideal-int
+pkg syscall (freebsd-386), const MAP_NORESERVE ideal-int
+pkg syscall (freebsd-386), const MAP_NOSYNC ideal-int
+pkg syscall (freebsd-386), const MAP_PREFAULT_READ ideal-int
+pkg syscall (freebsd-386), const MAP_PRIVATE ideal-int
+pkg syscall (freebsd-386), const MAP_RENAME ideal-int
+pkg syscall (freebsd-386), const MAP_RESERVED0080 ideal-int
+pkg syscall (freebsd-386), const MAP_RESERVED0100 ideal-int
+pkg syscall (freebsd-386), const MAP_SHARED ideal-int
+pkg syscall (freebsd-386), const MAP_STACK ideal-int
+pkg syscall (freebsd-386), const MCL_CURRENT ideal-int
+pkg syscall (freebsd-386), const MCL_FUTURE ideal-int
+pkg syscall (freebsd-386), const MS_ASYNC ideal-int
+pkg syscall (freebsd-386), const MS_INVALIDATE ideal-int
+pkg syscall (freebsd-386), const MS_SYNC ideal-int
+pkg syscall (freebsd-386), const NET_RT_IFLISTL ideal-int
+pkg syscall (freebsd-386), const NOFLSH ideal-int
+pkg syscall (freebsd-386), const OCRNL ideal-int
+pkg syscall (freebsd-386), const ONLCR ideal-int
+pkg syscall (freebsd-386), const ONLRET ideal-int
+pkg syscall (freebsd-386), const ONOCR ideal-int
+pkg syscall (freebsd-386), const ONOEOT ideal-int
+pkg syscall (freebsd-386), const OPOST ideal-int
+pkg syscall (freebsd-386), const PARENB ideal-int
+pkg syscall (freebsd-386), const PARMRK ideal-int
+pkg syscall (freebsd-386), const PARODD ideal-int
+pkg syscall (freebsd-386), const PENDIN ideal-int
+pkg syscall (freebsd-386), const PROT_EXEC ideal-int
+pkg syscall (freebsd-386), const PROT_NONE ideal-int
+pkg syscall (freebsd-386), const PROT_READ ideal-int
+pkg syscall (freebsd-386), const PROT_WRITE ideal-int
+pkg syscall (freebsd-386), const RT_CACHING_CONTEXT ideal-int
+pkg syscall (freebsd-386), const RT_DEFAULT_FIB ideal-int
+pkg syscall (freebsd-386), const SIOCGIFFIB ideal-int
+pkg syscall (freebsd-386), const SIOCSIFFIB ideal-int
+pkg syscall (freebsd-386), const SO_PROTOCOL ideal-int
+pkg syscall (freebsd-386), const SO_PROTOTYPE ideal-int
+pkg syscall (freebsd-386), const SO_USER_COOKIE ideal-int
+pkg syscall (freebsd-386), const SYS_CLOCK_GETCPUCLOCKID2 ideal-int
+pkg syscall (freebsd-386), const SYS_WAIT6 ideal-int
+pkg syscall (freebsd-386), const SizeofIfAnnounceMsghdr ideal-int
+pkg syscall (freebsd-386), const TCIFLUSH ideal-int
+pkg syscall (freebsd-386), const TCIOFLUSH ideal-int
+pkg syscall (freebsd-386), const TCOFLUSH ideal-int
+pkg syscall (freebsd-386), const TCP_KEEPCNT ideal-int
+pkg syscall (freebsd-386), const TCP_KEEPIDLE ideal-int
+pkg syscall (freebsd-386), const TCP_KEEPINIT ideal-int
+pkg syscall (freebsd-386), const TCP_KEEPINTVL ideal-int
+pkg syscall (freebsd-386), const TCSAFLUSH ideal-int
+pkg syscall (freebsd-386), const TOSTOP ideal-int
+pkg syscall (freebsd-386), const VDISCARD ideal-int
+pkg syscall (freebsd-386), const VDSUSP ideal-int
+pkg syscall (freebsd-386), const VEOF ideal-int
+pkg syscall (freebsd-386), const VEOL ideal-int
+pkg syscall (freebsd-386), const VEOL2 ideal-int
+pkg syscall (freebsd-386), const VERASE ideal-int
+pkg syscall (freebsd-386), const VERASE2 ideal-int
+pkg syscall (freebsd-386), const VINTR ideal-int
+pkg syscall (freebsd-386), const VKILL ideal-int
+pkg syscall (freebsd-386), const VLNEXT ideal-int
+pkg syscall (freebsd-386), const VMIN ideal-int
+pkg syscall (freebsd-386), const VQUIT ideal-int
+pkg syscall (freebsd-386), const VREPRINT ideal-int
+pkg syscall (freebsd-386), const VSTART ideal-int
+pkg syscall (freebsd-386), const VSTATUS ideal-int
+pkg syscall (freebsd-386), const VSTOP ideal-int
+pkg syscall (freebsd-386), const VSUSP ideal-int
+pkg syscall (freebsd-386), const VTIME ideal-int
+pkg syscall (freebsd-386), const VWERASE ideal-int
+pkg syscall (freebsd-386), func Fchflags(int, int) error
+pkg syscall (freebsd-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Index uint16
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Msglen uint16
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Name [16]int8
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Type uint8
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Version uint8
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, What uint16
+pkg syscall (freebsd-386), type InterfaceAnnounceMessage struct
+pkg syscall (freebsd-386), type InterfaceAnnounceMessage struct, Header IfAnnounceMsghdr
+pkg syscall (freebsd-amd64), const B0 ideal-int
+pkg syscall (freebsd-amd64), const B110 ideal-int
+pkg syscall (freebsd-amd64), const B115200 ideal-int
+pkg syscall (freebsd-amd64), const B1200 ideal-int
+pkg syscall (freebsd-amd64), const B134 ideal-int
+pkg syscall (freebsd-amd64), const B14400 ideal-int
+pkg syscall (freebsd-amd64), const B150 ideal-int
+pkg syscall (freebsd-amd64), const B1800 ideal-int
+pkg syscall (freebsd-amd64), const B19200 ideal-int
+pkg syscall (freebsd-amd64), const B200 ideal-int
+pkg syscall (freebsd-amd64), const B230400 ideal-int
+pkg syscall (freebsd-amd64), const B2400 ideal-int
+pkg syscall (freebsd-amd64), const B28800 ideal-int
+pkg syscall (freebsd-amd64), const B300 ideal-int
+pkg syscall (freebsd-amd64), const B38400 ideal-int
+pkg syscall (freebsd-amd64), const B460800 ideal-int
+pkg syscall (freebsd-amd64), const B4800 ideal-int
+pkg syscall (freebsd-amd64), const B50 ideal-int
+pkg syscall (freebsd-amd64), const B57600 ideal-int
+pkg syscall (freebsd-amd64), const B600 ideal-int
+pkg syscall (freebsd-amd64), const B7200 ideal-int
+pkg syscall (freebsd-amd64), const B75 ideal-int
+pkg syscall (freebsd-amd64), const B76800 ideal-int
+pkg syscall (freebsd-amd64), const B921600 ideal-int
+pkg syscall (freebsd-amd64), const B9600 ideal-int
+pkg syscall (freebsd-amd64), const BIOCGTSTAMP ideal-int
+pkg syscall (freebsd-amd64), const BIOCSTSTAMP ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_BINTIME ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_BINTIME_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_BINTIME_MONOTONIC ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_BINTIME_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_FLAG_MASK ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_FORMAT_MASK ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_MICROTIME ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_MICROTIME_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_MICROTIME_MONOTONIC ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_MICROTIME_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_MONOTONIC ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_NANOTIME ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_NANOTIME_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_NANOTIME_MONOTONIC ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_NANOTIME_MONOTONIC_FAST ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_NONE ideal-int
+pkg syscall (freebsd-amd64), const BPF_T_NORMAL ideal-int
+pkg syscall (freebsd-amd64), const BRKINT ideal-int
+pkg syscall (freebsd-amd64), const CFLUSH ideal-int
+pkg syscall (freebsd-amd64), const CLOCAL ideal-int
+pkg syscall (freebsd-amd64), const CREAD ideal-int
+pkg syscall (freebsd-amd64), const CS5 ideal-int
+pkg syscall (freebsd-amd64), const CS6 ideal-int
+pkg syscall (freebsd-amd64), const CS7 ideal-int
+pkg syscall (freebsd-amd64), const CS8 ideal-int
+pkg syscall (freebsd-amd64), const CSIZE ideal-int
+pkg syscall (freebsd-amd64), const CSTART ideal-int
+pkg syscall (freebsd-amd64), const CSTATUS ideal-int
+pkg syscall (freebsd-amd64), const CSTOP ideal-int
+pkg syscall (freebsd-amd64), const CSTOPB ideal-int
+pkg syscall (freebsd-amd64), const CSUSP ideal-int
+pkg syscall (freebsd-amd64), const DLT_AOS ideal-int
+pkg syscall (freebsd-amd64), const DLT_CAN_SOCKETCAN ideal-int
+pkg syscall (freebsd-amd64), const DLT_DBUS ideal-int
+pkg syscall (freebsd-amd64), const DLT_DECT ideal-int
+pkg syscall (freebsd-amd64), const DLT_DVB_CI ideal-int
+pkg syscall (freebsd-amd64), const DLT_FC_2 ideal-int
+pkg syscall (freebsd-amd64), const DLT_FC_2_WITH_FRAME_DELIMS ideal-int
+pkg syscall (freebsd-amd64), const DLT_GSMTAP_ABIS ideal-int
+pkg syscall (freebsd-amd64), const DLT_GSMTAP_UM ideal-int
+pkg syscall (freebsd-amd64), const DLT_IEEE802_15_4_NOFCS ideal-int
+pkg syscall (freebsd-amd64), const DLT_IPNET ideal-int
+pkg syscall (freebsd-amd64), const DLT_IPOIB ideal-int
+pkg syscall (freebsd-amd64), const DLT_IPV4 ideal-int
+pkg syscall (freebsd-amd64), const DLT_IPV6 ideal-int
+pkg syscall (freebsd-amd64), const DLT_JUNIPER_ATM_CEMIC ideal-int
+pkg syscall (freebsd-amd64), const DLT_JUNIPER_FIBRECHANNEL ideal-int
+pkg syscall (freebsd-amd64), const DLT_JUNIPER_SRX_E2E ideal-int
+pkg syscall (freebsd-amd64), const DLT_JUNIPER_VS ideal-int
+pkg syscall (freebsd-amd64), const DLT_LINUX_EVDEV ideal-int
+pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX ideal-int
+pkg syscall (freebsd-amd64), const DLT_MATCHING_MIN ideal-int
+pkg syscall (freebsd-amd64), const DLT_MPLS ideal-int
+pkg syscall (freebsd-amd64), const DLT_MUX27010 ideal-int
+pkg syscall (freebsd-amd64), const DLT_NETANALYZER ideal-int
+pkg syscall (freebsd-amd64), const DLT_NETANALYZER_TRANSPARENT ideal-int
+pkg syscall (freebsd-amd64), const DLT_NFLOG ideal-int
+pkg syscall (freebsd-amd64), const DLT_STANAG_5066_D_PDU ideal-int
+pkg syscall (freebsd-amd64), const DLT_USB_LINUX_MMAPPED ideal-int
+pkg syscall (freebsd-amd64), const DLT_WIHART ideal-int
+pkg syscall (freebsd-amd64), const ECAPMODE Errno
+pkg syscall (freebsd-amd64), const FLUSHO ideal-int
+pkg syscall (freebsd-amd64), const HUPCL ideal-int
+pkg syscall (freebsd-amd64), const ICANON ideal-int
+pkg syscall (freebsd-amd64), const ICRNL ideal-int
+pkg syscall (freebsd-amd64), const IEXTEN ideal-int
+pkg syscall (freebsd-amd64), const IFAN_ARRIVAL ideal-int
+pkg syscall (freebsd-amd64), const IFAN_DEPARTURE ideal-int
+pkg syscall (freebsd-amd64), const IFF_CANTCONFIG ideal-int
+pkg syscall (freebsd-amd64), const IFT_INFINIBAND ideal-int
+pkg syscall (freebsd-amd64), const IGNBRK ideal-int
+pkg syscall (freebsd-amd64), const IGNCR ideal-int
+pkg syscall (freebsd-amd64), const IGNPAR ideal-int
+pkg syscall (freebsd-amd64), const IMAXBEL ideal-int
+pkg syscall (freebsd-amd64), const INLCR ideal-int
+pkg syscall (freebsd-amd64), const INPCK ideal-int
+pkg syscall (freebsd-amd64), const IN_RFC3021_MASK ideal-int
+pkg syscall (freebsd-amd64), const IPPROTO_MH ideal-int
+pkg syscall (freebsd-amd64), const IPPROTO_SEND ideal-int
+pkg syscall (freebsd-amd64), const IP_RECVTOS ideal-int
+pkg syscall (freebsd-amd64), const ISIG ideal-int
+pkg syscall (freebsd-amd64), const ISTRIP ideal-int
+pkg syscall (freebsd-amd64), const IXANY ideal-int
+pkg syscall (freebsd-amd64), const IXOFF ideal-int
+pkg syscall (freebsd-amd64), const IXON ideal-int
+pkg syscall (freebsd-amd64), const MADV_AUTOSYNC ideal-int
+pkg syscall (freebsd-amd64), const MADV_CORE ideal-int
+pkg syscall (freebsd-amd64), const MADV_DONTNEED ideal-int
+pkg syscall (freebsd-amd64), const MADV_FREE ideal-int
+pkg syscall (freebsd-amd64), const MADV_NOCORE ideal-int
+pkg syscall (freebsd-amd64), const MADV_NORMAL ideal-int
+pkg syscall (freebsd-amd64), const MADV_NOSYNC ideal-int
+pkg syscall (freebsd-amd64), const MADV_PROTECT ideal-int
+pkg syscall (freebsd-amd64), const MADV_RANDOM ideal-int
+pkg syscall (freebsd-amd64), const MADV_SEQUENTIAL ideal-int
+pkg syscall (freebsd-amd64), const MADV_WILLNEED ideal-int
+pkg syscall (freebsd-amd64), const MAP_ANON ideal-int
+pkg syscall (freebsd-amd64), const MAP_ANONYMOUS ideal-int
+pkg syscall (freebsd-amd64), const MAP_COPY ideal-int
+pkg syscall (freebsd-amd64), const MAP_FILE ideal-int
+pkg syscall (freebsd-amd64), const MAP_FIXED ideal-int
+pkg syscall (freebsd-amd64), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (freebsd-amd64), const MAP_NOCORE ideal-int
+pkg syscall (freebsd-amd64), const MAP_NORESERVE ideal-int
+pkg syscall (freebsd-amd64), const MAP_NOSYNC ideal-int
+pkg syscall (freebsd-amd64), const MAP_PREFAULT_READ ideal-int
+pkg syscall (freebsd-amd64), const MAP_PRIVATE ideal-int
+pkg syscall (freebsd-amd64), const MAP_RENAME ideal-int
+pkg syscall (freebsd-amd64), const MAP_RESERVED0080 ideal-int
+pkg syscall (freebsd-amd64), const MAP_RESERVED0100 ideal-int
+pkg syscall (freebsd-amd64), const MAP_SHARED ideal-int
+pkg syscall (freebsd-amd64), const MAP_STACK ideal-int
+pkg syscall (freebsd-amd64), const MCL_CURRENT ideal-int
+pkg syscall (freebsd-amd64), const MCL_FUTURE ideal-int
+pkg syscall (freebsd-amd64), const MS_ASYNC ideal-int
+pkg syscall (freebsd-amd64), const MS_INVALIDATE ideal-int
+pkg syscall (freebsd-amd64), const MS_SYNC ideal-int
+pkg syscall (freebsd-amd64), const NET_RT_IFLISTL ideal-int
+pkg syscall (freebsd-amd64), const NOFLSH ideal-int
+pkg syscall (freebsd-amd64), const OCRNL ideal-int
+pkg syscall (freebsd-amd64), const ONLCR ideal-int
+pkg syscall (freebsd-amd64), const ONLRET ideal-int
+pkg syscall (freebsd-amd64), const ONOCR ideal-int
+pkg syscall (freebsd-amd64), const ONOEOT ideal-int
+pkg syscall (freebsd-amd64), const OPOST ideal-int
+pkg syscall (freebsd-amd64), const PARENB ideal-int
+pkg syscall (freebsd-amd64), const PARMRK ideal-int
+pkg syscall (freebsd-amd64), const PARODD ideal-int
+pkg syscall (freebsd-amd64), const PENDIN ideal-int
+pkg syscall (freebsd-amd64), const PROT_EXEC ideal-int
+pkg syscall (freebsd-amd64), const PROT_NONE ideal-int
+pkg syscall (freebsd-amd64), const PROT_READ ideal-int
+pkg syscall (freebsd-amd64), const PROT_WRITE ideal-int
+pkg syscall (freebsd-amd64), const RT_CACHING_CONTEXT ideal-int
+pkg syscall (freebsd-amd64), const RT_DEFAULT_FIB ideal-int
+pkg syscall (freebsd-amd64), const SIOCGIFFIB ideal-int
+pkg syscall (freebsd-amd64), const SIOCSIFFIB ideal-int
+pkg syscall (freebsd-amd64), const SO_PROTOCOL ideal-int
+pkg syscall (freebsd-amd64), const SO_PROTOTYPE ideal-int
+pkg syscall (freebsd-amd64), const SO_USER_COOKIE ideal-int
+pkg syscall (freebsd-amd64), const SYS_CLOCK_GETCPUCLOCKID2 ideal-int
+pkg syscall (freebsd-amd64), const SYS_WAIT6 ideal-int
+pkg syscall (freebsd-amd64), const SizeofIfAnnounceMsghdr ideal-int
+pkg syscall (freebsd-amd64), const TCIFLUSH ideal-int
+pkg syscall (freebsd-amd64), const TCIOFLUSH ideal-int
+pkg syscall (freebsd-amd64), const TCOFLUSH ideal-int
+pkg syscall (freebsd-amd64), const TCP_KEEPCNT ideal-int
+pkg syscall (freebsd-amd64), const TCP_KEEPIDLE ideal-int
+pkg syscall (freebsd-amd64), const TCP_KEEPINIT ideal-int
+pkg syscall (freebsd-amd64), const TCP_KEEPINTVL ideal-int
+pkg syscall (freebsd-amd64), const TCSAFLUSH ideal-int
+pkg syscall (freebsd-amd64), const TOSTOP ideal-int
+pkg syscall (freebsd-amd64), const VDISCARD ideal-int
+pkg syscall (freebsd-amd64), const VDSUSP ideal-int
+pkg syscall (freebsd-amd64), const VEOF ideal-int
+pkg syscall (freebsd-amd64), const VEOL ideal-int
+pkg syscall (freebsd-amd64), const VEOL2 ideal-int
+pkg syscall (freebsd-amd64), const VERASE ideal-int
+pkg syscall (freebsd-amd64), const VERASE2 ideal-int
+pkg syscall (freebsd-amd64), const VINTR ideal-int
+pkg syscall (freebsd-amd64), const VKILL ideal-int
+pkg syscall (freebsd-amd64), const VLNEXT ideal-int
+pkg syscall (freebsd-amd64), const VMIN ideal-int
+pkg syscall (freebsd-amd64), const VQUIT ideal-int
+pkg syscall (freebsd-amd64), const VREPRINT ideal-int
+pkg syscall (freebsd-amd64), const VSTART ideal-int
+pkg syscall (freebsd-amd64), const VSTATUS ideal-int
+pkg syscall (freebsd-amd64), const VSTOP ideal-int
+pkg syscall (freebsd-amd64), const VSUSP ideal-int
+pkg syscall (freebsd-amd64), const VTIME ideal-int
+pkg syscall (freebsd-amd64), const VWERASE ideal-int
+pkg syscall (freebsd-amd64), func Fchflags(int, int) error
+pkg syscall (freebsd-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (freebsd-amd64), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Index uint16
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Msglen uint16
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Name [16]int8
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Type uint8
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Version uint8
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, What uint16
+pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage struct
+pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage struct, Header IfAnnounceMsghdr
+pkg syscall (linux-386), const MSG_FASTOPEN ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-386), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-386), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-386), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-386), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-386), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-386), const RTNLGRP_TC ideal-int
+pkg syscall (linux-386), const SizeofTCPInfo ideal-int
+pkg syscall (linux-386), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (linux-386), func GetsockoptUcred(int, int, int) (*Ucred, error)
+pkg syscall (linux-386), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-386), func Listxattr(string, []uint8) (int, error)
+pkg syscall (linux-386), func Pipe2([]int, int) error
+pkg syscall (linux-386), func PtraceSyscall(int, int) error
+pkg syscall (linux-386), func Removexattr(string, string) error
+pkg syscall (linux-386), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (linux-386), type SysProcAttr struct, Ctty int
+pkg syscall (linux-386), type TCPInfo struct
+pkg syscall (linux-386), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-386), type TCPInfo struct, Ato uint32
+pkg syscall (linux-386), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-386), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-386), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-386), type TCPInfo struct, Lost uint32
+pkg syscall (linux-386), type TCPInfo struct, Options uint8
+pkg syscall (linux-386), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-386), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-386), type TCPInfo struct, Probes uint8
+pkg syscall (linux-386), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-386), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-386), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-386), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-386), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-386), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-386), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-386), type TCPInfo struct, Rto uint32
+pkg syscall (linux-386), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-386), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-386), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-386), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-386), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-386), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-386), type TCPInfo struct, State uint8
+pkg syscall (linux-386), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-386), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-386-cgo), const MSG_FASTOPEN ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_TC ideal-int
+pkg syscall (linux-386-cgo), const SizeofTCPInfo ideal-int
+pkg syscall (linux-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (linux-386-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
+pkg syscall (linux-386-cgo), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-386-cgo), func Listxattr(string, []uint8) (int, error)
+pkg syscall (linux-386-cgo), func Pipe2([]int, int) error
+pkg syscall (linux-386-cgo), func PtraceSyscall(int, int) error
+pkg syscall (linux-386-cgo), func Removexattr(string, string) error
+pkg syscall (linux-386-cgo), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-386-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (linux-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (linux-386-cgo), type TCPInfo struct
+pkg syscall (linux-386-cgo), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Ato uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Lost uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Options uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Probes uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rto uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, State uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64), const MSG_FASTOPEN ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_TC ideal-int
+pkg syscall (linux-amd64), const SizeofTCPInfo ideal-int
+pkg syscall (linux-amd64), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (linux-amd64), func GetsockoptUcred(int, int, int) (*Ucred, error)
+pkg syscall (linux-amd64), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-amd64), func Listxattr(string, []uint8) (int, error)
+pkg syscall (linux-amd64), func Pipe2([]int, int) error
+pkg syscall (linux-amd64), func PtraceSyscall(int, int) error
+pkg syscall (linux-amd64), func Removexattr(string, string) error
+pkg syscall (linux-amd64), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (linux-amd64), type SysProcAttr struct, Ctty int
+pkg syscall (linux-amd64), type TCPInfo struct
+pkg syscall (linux-amd64), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Ato uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Lost uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Options uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Probes uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Rto uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-amd64), type TCPInfo struct, State uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64-cgo), const MSG_FASTOPEN ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_TC ideal-int
+pkg syscall (linux-amd64-cgo), const SizeofTCPInfo ideal-int
+pkg syscall (linux-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
+pkg syscall (linux-amd64-cgo), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-amd64-cgo), func Listxattr(string, []uint8) (int, error)
+pkg syscall (linux-amd64-cgo), func Pipe2([]int, int) error
+pkg syscall (linux-amd64-cgo), func PtraceSyscall(int, int) error
+pkg syscall (linux-amd64-cgo), func Removexattr(string, string) error
+pkg syscall (linux-amd64-cgo), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-amd64-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (linux-amd64-cgo), type TCPInfo struct
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Ato uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Lost uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Options uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Probes uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rto uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, State uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-arm), const MSG_FASTOPEN ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-arm), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-arm), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-arm), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-arm), const RTNLGRP_TC ideal-int
+pkg syscall (linux-arm), const SizeofTCPInfo ideal-int
+pkg syscall (linux-arm), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (linux-arm), func GetsockoptUcred(int, int, int) (*Ucred, error)
+pkg syscall (linux-arm), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-arm), func Listxattr(string, []uint8) (int, error)
+pkg syscall (linux-arm), func Pipe2([]int, int) error
+pkg syscall (linux-arm), func PtraceSyscall(int, int) error
+pkg syscall (linux-arm), func Removexattr(string, string) error
+pkg syscall (linux-arm), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-arm), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (linux-arm), type SysProcAttr struct, Ctty int
+pkg syscall (linux-arm), type TCPInfo struct
+pkg syscall (linux-arm), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-arm), type TCPInfo struct, Ato uint32
+pkg syscall (linux-arm), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-arm), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-arm), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-arm), type TCPInfo struct, Lost uint32
+pkg syscall (linux-arm), type TCPInfo struct, Options uint8
+pkg syscall (linux-arm), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-arm), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-arm), type TCPInfo struct, Probes uint8
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-arm), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-arm), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-arm), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-arm), type TCPInfo struct, Rto uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-arm), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-arm), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-arm), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-arm), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-arm), type TCPInfo struct, State uint8
+pkg syscall (linux-arm), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-arm), type TCPInfo struct, Unacked uint32
+pkg syscall (windows-386), const AI_CANONNAME ideal-int
+pkg syscall (windows-386), const AI_NUMERICHOST ideal-int
+pkg syscall (windows-386), const AI_PASSIVE ideal-int
+pkg syscall (windows-386), const CREATE_NEW_PROCESS_GROUP ideal-int
+pkg syscall (windows-386), const CTRL_BREAK_EVENT ideal-int
+pkg syscall (windows-386), const CTRL_C_EVENT ideal-int
+pkg syscall (windows-386), const ERROR_NOT_FOUND Errno
+pkg syscall (windows-386), const IOC_IN ideal-int
+pkg syscall (windows-386), const IOC_INOUT ideal-int
+pkg syscall (windows-386), const IOC_OUT ideal-int
+pkg syscall (windows-386), const IOC_WS2 ideal-int
+pkg syscall (windows-386), const SIO_GET_EXTENSION_FUNCTION_POINTER ideal-int
+pkg syscall (windows-386), const SO_UPDATE_CONNECT_CONTEXT ideal-int
+pkg syscall (windows-386), func CancelIoEx(Handle, *Overlapped) error
+pkg syscall (windows-386), func ConnectEx(Handle, Sockaddr, *uint8, uint32, *uint32, *Overlapped) error
+pkg syscall (windows-386), func FreeAddrInfoW(*AddrinfoW)
+pkg syscall (windows-386), func GetAddrInfoW(*uint16, *uint16, *AddrinfoW, **AddrinfoW) error
+pkg syscall (windows-386), func GetConsoleMode(Handle, *uint32) error
+pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *uint8, *int32) error
+pkg syscall (windows-386), func LoadCancelIoEx() error
+pkg syscall (windows-386), func LoadConnectEx() error
+pkg syscall (windows-386), func LoadGetAddrInfo() error
+pkg syscall (windows-386), func ReadConsole(Handle, *uint16, uint32, *uint32, *uint8) error
+pkg syscall (windows-386), func UTF16FromString(string) ([]uint16, error)
+pkg syscall (windows-386), func UTF16PtrFromString(string) (*uint16, error)
+pkg syscall (windows-386), func WriteConsole(Handle, *uint16, uint32, *uint32, *uint8) error
+pkg syscall (windows-386), type AddrinfoW struct
+pkg syscall (windows-386), type AddrinfoW struct, Addr uintptr
+pkg syscall (windows-386), type AddrinfoW struct, Addrlen uintptr
+pkg syscall (windows-386), type AddrinfoW struct, Canonname *uint16
+pkg syscall (windows-386), type AddrinfoW struct, Family int32
+pkg syscall (windows-386), type AddrinfoW struct, Flags int32
+pkg syscall (windows-386), type AddrinfoW struct, Next *AddrinfoW
+pkg syscall (windows-386), type AddrinfoW struct, Protocol int32
+pkg syscall (windows-386), type AddrinfoW struct, Socktype int32
+pkg syscall (windows-386), type GUID struct
+pkg syscall (windows-386), type GUID struct, Data1 uint32
+pkg syscall (windows-386), type GUID struct, Data2 uint16
+pkg syscall (windows-386), type GUID struct, Data3 uint16
+pkg syscall (windows-386), type GUID struct, Data4 [8]uint8
+pkg syscall (windows-386), type RawSockaddrInet6 struct, Family uint16
+pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
+pkg syscall (windows-386), var WSAID_CONNECTEX GUID
+pkg syscall (windows-amd64), const AI_CANONNAME ideal-int
+pkg syscall (windows-amd64), const AI_NUMERICHOST ideal-int
+pkg syscall (windows-amd64), const AI_PASSIVE ideal-int
+pkg syscall (windows-amd64), const CREATE_NEW_PROCESS_GROUP ideal-int
+pkg syscall (windows-amd64), const CTRL_BREAK_EVENT ideal-int
+pkg syscall (windows-amd64), const CTRL_C_EVENT ideal-int
+pkg syscall (windows-amd64), const ERROR_NOT_FOUND Errno
+pkg syscall (windows-amd64), const IOC_IN ideal-int
+pkg syscall (windows-amd64), const IOC_INOUT ideal-int
+pkg syscall (windows-amd64), const IOC_OUT ideal-int
+pkg syscall (windows-amd64), const IOC_WS2 ideal-int
+pkg syscall (windows-amd64), const SIO_GET_EXTENSION_FUNCTION_POINTER ideal-int
+pkg syscall (windows-amd64), const SO_UPDATE_CONNECT_CONTEXT ideal-int
+pkg syscall (windows-amd64), func CancelIoEx(Handle, *Overlapped) error
+pkg syscall (windows-amd64), func ConnectEx(Handle, Sockaddr, *uint8, uint32, *uint32, *Overlapped) error
+pkg syscall (windows-amd64), func FreeAddrInfoW(*AddrinfoW)
+pkg syscall (windows-amd64), func GetAddrInfoW(*uint16, *uint16, *AddrinfoW, **AddrinfoW) error
+pkg syscall (windows-amd64), func GetConsoleMode(Handle, *uint32) error
+pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *uint8, *int32) error
+pkg syscall (windows-amd64), func LoadCancelIoEx() error
+pkg syscall (windows-amd64), func LoadConnectEx() error
+pkg syscall (windows-amd64), func LoadGetAddrInfo() error
+pkg syscall (windows-amd64), func ReadConsole(Handle, *uint16, uint32, *uint32, *uint8) error
+pkg syscall (windows-amd64), func UTF16FromString(string) ([]uint16, error)
+pkg syscall (windows-amd64), func UTF16PtrFromString(string) (*uint16, error)
+pkg syscall (windows-amd64), func WriteConsole(Handle, *uint16, uint32, *uint32, *uint8) error
+pkg syscall (windows-amd64), type AddrinfoW struct
+pkg syscall (windows-amd64), type AddrinfoW struct, Addr uintptr
+pkg syscall (windows-amd64), type AddrinfoW struct, Addrlen uintptr
+pkg syscall (windows-amd64), type AddrinfoW struct, Canonname *uint16
+pkg syscall (windows-amd64), type AddrinfoW struct, Family int32
+pkg syscall (windows-amd64), type AddrinfoW struct, Flags int32
+pkg syscall (windows-amd64), type AddrinfoW struct, Next *AddrinfoW
+pkg syscall (windows-amd64), type AddrinfoW struct, Protocol int32
+pkg syscall (windows-amd64), type AddrinfoW struct, Socktype int32
+pkg syscall (windows-amd64), type GUID struct
+pkg syscall (windows-amd64), type GUID struct, Data1 uint32
+pkg syscall (windows-amd64), type GUID struct, Data2 uint16
+pkg syscall (windows-amd64), type GUID struct, Data3 uint16
+pkg syscall (windows-amd64), type GUID struct, Data4 [8]uint8
+pkg syscall (windows-amd64), type RawSockaddrInet6 struct, Family uint16
+pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
+pkg syscall (windows-amd64), var WSAID_CONNECTEX GUID
+pkg syscall, func BytePtrFromString(string) (*uint8, error)
+pkg syscall, func ByteSliceFromString(string) ([]uint8, error)
+pkg syscall, func NsecToTimespec(int64) Timespec
+pkg syscall, func TimespecToNsec(Timespec) int64
+pkg syscall, func UtimesNano(string, []Timespec) error
+pkg syscall, type RawSockaddrInet6 struct
+pkg syscall, type RawSockaddrInet6 struct, Addr [16]uint8
+pkg syscall, type RawSockaddrInet6 struct, Flowinfo uint32
+pkg syscall, type RawSockaddrInet6 struct, Port uint16
+pkg syscall, type RawSockaddrInet6 struct, Scope_id uint32
+pkg testing, func AllocsPerRun(int, func()) float64
+pkg testing, func Verbose() bool
+pkg testing, method (*B) ReportAllocs()
+pkg testing, method (*B) Skip(...interface{})
+pkg testing, method (*B) SkipNow()
+pkg testing, method (*B) Skipf(string, ...interface{})
+pkg testing, method (*B) Skipped() bool
+pkg testing, method (*T) Skip(...interface{})
+pkg testing, method (*T) SkipNow()
+pkg testing, method (*T) Skipf(string, ...interface{})
+pkg testing, method (*T) Skipped() bool
+pkg testing, method (BenchmarkResult) AllocedBytesPerOp() int64
+pkg testing, method (BenchmarkResult) AllocsPerOp() int64
+pkg testing, method (BenchmarkResult) MemString() string
+pkg testing, type BenchmarkResult struct, MemAllocs uint64
+pkg testing, type BenchmarkResult struct, MemBytes uint64
+pkg text/template/parse, const NodeChain NodeType
+pkg text/template/parse, const NodeNil NodeType
+pkg text/template/parse, method (*ChainNode) Add(string)
+pkg text/template/parse, method (*ChainNode) Copy() Node
+pkg text/template/parse, method (*ChainNode) String() string
+pkg text/template/parse, method (*IdentifierNode) SetPos(Pos) *IdentifierNode
+pkg text/template/parse, method (*NilNode) Copy() Node
+pkg text/template/parse, method (*NilNode) String() string
+pkg text/template/parse, method (*NilNode) Type() NodeType
+pkg text/template/parse, method (*Tree) ErrorContext(Node) (string, string)
+pkg text/template/parse, method (ActionNode) Position() Pos
+pkg text/template/parse, method (BoolNode) Position() Pos
+pkg text/template/parse, method (BranchNode) Position() Pos
+pkg text/template/parse, method (ChainNode) Position() Pos
+pkg text/template/parse, method (ChainNode) Type() NodeType
+pkg text/template/parse, method (CommandNode) Position() Pos
+pkg text/template/parse, method (DotNode) Position() Pos
+pkg text/template/parse, method (FieldNode) Position() Pos
+pkg text/template/parse, method (IdentifierNode) Position() Pos
+pkg text/template/parse, method (IfNode) Position() Pos
+pkg text/template/parse, method (ListNode) Position() Pos
+pkg text/template/parse, method (NilNode) Position() Pos
+pkg text/template/parse, method (NumberNode) Position() Pos
+pkg text/template/parse, method (PipeNode) Position() Pos
+pkg text/template/parse, method (Pos) Position() Pos
+pkg text/template/parse, method (RangeNode) Position() Pos
+pkg text/template/parse, method (StringNode) Position() Pos
+pkg text/template/parse, method (TemplateNode) Position() Pos
+pkg text/template/parse, method (TextNode) Position() Pos
+pkg text/template/parse, method (VariableNode) Position() Pos
+pkg text/template/parse, method (WithNode) Position() Pos
+pkg text/template/parse, type ActionNode struct, embedded Pos
+pkg text/template/parse, type BoolNode struct, embedded Pos
+pkg text/template/parse, type BranchNode struct, embedded Pos
+pkg text/template/parse, type ChainNode struct
+pkg text/template/parse, type ChainNode struct, Field []string
+pkg text/template/parse, type ChainNode struct, Node Node
+pkg text/template/parse, type ChainNode struct, embedded NodeType
+pkg text/template/parse, type ChainNode struct, embedded Pos
+pkg text/template/parse, type CommandNode struct, embedded Pos
+pkg text/template/parse, type DotNode struct
+pkg text/template/parse, type DotNode struct, embedded Pos
+pkg text/template/parse, type FieldNode struct, embedded Pos
+pkg text/template/parse, type IdentifierNode struct, embedded Pos
+pkg text/template/parse, type ListNode struct, embedded Pos
+pkg text/template/parse, type NilNode struct
+pkg text/template/parse, type NilNode struct, embedded Pos
+pkg text/template/parse, type Node interface, Position() Pos
+pkg text/template/parse, type Node interface, unexported methods
+pkg text/template/parse, type NumberNode struct, embedded Pos
+pkg text/template/parse, type PipeNode struct, embedded Pos
+pkg text/template/parse, type Pos int
+pkg text/template/parse, type StringNode struct, embedded Pos
+pkg text/template/parse, type TemplateNode struct, embedded Pos
+pkg text/template/parse, type TextNode struct, embedded Pos
+pkg text/template/parse, type Tree struct, ParseName string
+pkg text/template/parse, type VariableNode struct, embedded Pos
+pkg time, func ParseInLocation(string, string, *Location) (Time, error)
+pkg time, method (*Timer) Reset(Duration) bool
+pkg time, method (Time) Round(Duration) Time
+pkg time, method (Time) Truncate(Duration) Time
+pkg time, method (Time) YearDay() int
+pkg unicode, type RangeTable struct, LatinOffset int
+pkg unicode, var Chakma *RangeTable
+pkg unicode, var Meroitic_Cursive *RangeTable
+pkg unicode, var Meroitic_Hieroglyphs *RangeTable
+pkg unicode, var Miao *RangeTable
+pkg unicode, var Sharada *RangeTable
+pkg unicode, var Sora_Sompeng *RangeTable
+pkg unicode, var Takri *RangeTable
+pkg unicode/utf8, func ValidRune(int32) bool
