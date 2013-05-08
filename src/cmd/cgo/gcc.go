@@ -809,6 +809,15 @@ func (p *Package) gccDefines(stdin []byte) string {
 func (p *Package) gccErrors(stdin []byte) string {
 	// TODO(rsc): require failure
 	args := p.gccCmd()
+
+	// GCC 4.8.0 has a bug: it sometimes does not apply
+	// -Wunused-value to values that are macros defined in system
+	// headers.  See issue 5118.  Adding -Wsystem-headers avoids
+	// that problem.  This will produce additional errors, but it
+	// doesn't matter because we will ignore all errors that are
+	// not marked for the cgo-test file.
+	args = append(args, "-Wsystem-headers")
+
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
 		os.Stderr.Write(stdin)
