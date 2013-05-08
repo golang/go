@@ -10,14 +10,23 @@ import (
 	"time"
 )
 
+var testingIssue5349 bool // used during tests
+
 // resolveAndDialChannel is the simple pure-Go implementation of
 // resolveAndDial, still used on operating systems where the deadline
 // hasn't been pushed down into the pollserver. (Plan 9 and some old
 // versions of Windows)
 func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
-	timeout := deadline.Sub(time.Now())
-	if timeout < 0 {
-		timeout = 0
+	var timeout time.Duration
+	if !deadline.IsZero() {
+		timeout = deadline.Sub(time.Now())
+	}
+	if timeout <= 0 {
+		ra, err := resolveAddr("dial", net, addr, noDeadline)
+		if err != nil {
+			return nil, err
+		}
+		return dial(net, addr, localAddr, ra, noDeadline)
 	}
 	t := time.NewTimer(timeout)
 	defer t.Stop()
@@ -28,6 +37,9 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
 	ch := make(chan pair, 1)
 	resolvedAddr := make(chan Addr, 1)
 	go func() {
+		if testingIssue5349 {
+			time.Sleep(time.Millisecond)
+		}
 		ra, err := resolveAddr("dial", net, addr, noDeadline)
 		if err != nil {
 			ch <- pair{nil, err}
