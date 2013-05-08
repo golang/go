@@ -84,41 +84,38 @@ Linux, Mac OS X, Windows, and more.
 
 <div style="clear: both;"></div>
 
-<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 <script type="text/javascript">
-google.load("feeds", "1");
+
+function readableTime(t) {
+	var m = ["January", "February", "March", "April", "May", "June", "July",
+		"August", "September", "October", "November", "December"];
+	var p = t.substring(0, t.indexOf("T")).split("-");
+	var d = new Date(p[0], p[1]-1, p[2]);
+	return d.getDate() + " " + m[d.getMonth()] + " " + d.getFullYear();
+}
 
 function feedLoaded(result) {
-	if (result.error) {
-		console.log(result.error);
-		return;
-	}
 	var blog = document.getElementById("blog");
 	var read = blog.getElementsByClassName("read")[0];
-	for (var i = 0; i < result.feed.entries.length && i < 2; i++) {
-		var entry = result.feed.entries[i];
+	for (var i = 0; i < result.length && i < 2; i++) {
+		var entry = result[i];
 		var title = document.createElement("a");
 		title.className = "title";
-		title.href = entry.link;
-		title.innerHTML = entry.title;
+		title.href = entry.Link;
+		title.innerHTML = entry.Title;
 		blog.insertBefore(title, read);
 		var extract = document.createElement("div");
 		extract.className = "extract";
-		extract.innerHTML = entry.contentSnippet;
+		extract.innerHTML = entry.Summary;
 		blog.insertBefore(extract, read);
 		var when = document.createElement("div");
 		when.className = "when";
-		var pub = entry.publishedDate.split(" ").slice(1,3).join(" ");
-		when.innerHTML = "Published " + pub
+		when.innerHTML = "Published " + readableTime(entry.Time);
 		blog.insertBefore(when, read);
 	}
 }
 
-function init() {
-	// Load blog feed.
-	var feed = new google.feeds.Feed("http://blog.golang.org/feeds/posts/default");
-	feed.load(feedLoaded);
-
+$(function() {
 	// Set up playground.
 	playground({
 		"codeEl":        "#learn .code",
@@ -128,7 +125,11 @@ function init() {
 		"shareRedirect": "http://play.golang.org/p/",
 		"toysEl":        "#learn .toys select"
 	});
-}
 
-google.setOnLoadCallback(init);
+	// Load blog feed.
+	$('<script/>').attr('text', 'text/javascript')
+		.attr('src', 'http://blog.golang.org/.json?jsonp=feedLoaded')
+		.appendTo('body');
+});
+
 </script>
