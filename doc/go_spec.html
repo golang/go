@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 10, 2013",
+	"Subtitle": "Version of May 8, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -3835,7 +3835,7 @@ const Θ float64 = 3/2      // Θ == 1.0   (type float64, 3/2 is integer divisio
 const Π float64 = 3/2.     // Π == 1.5   (type float64, 3/2. is float division)
 const d = 1 &lt;&lt; 3.0         // d == 8     (untyped integer constant)
 const e = 1.0 &lt;&lt; 3         // e == 8     (untyped integer constant)
-const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
+const f = int32(1) &lt;&lt; 33   // illegal    (constant 8589934592 overflows int32)
 const g = float64(2) &gt;&gt; 1  // illegal    (float64(2) is a typed floating-point constant)
 const h = "foo" &gt; "bar"    // h == true  (untyped boolean constant)
 const j = true             // j == true  (untyped boolean constant)
