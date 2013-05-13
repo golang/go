@@ -694,6 +694,36 @@ The old package <code>exp/norm</code> has also been moved, but to a new reposito
 be developed.
 </p>
 
+<h3 id="new_packages">New packages</h3>
+
+<p>
+There are three new packages.
+</p>
+
+<ul>
+<li>
+The <a href="/pkg/go/format/"><code>go/format</code></a> package provides
+a convenient way for a program to access the formatting capabilities of the
+<a href="/cmd/go/#hdr-Run_gofmt_on_package_sources"><code>go fmt</code></a> command.
+It has two functions,
+<a href="/pkg/go/format/#Node"><code>Node</code></a> to format a Go parser
+<a href="/pkg/go/ast/#Node"><code>Node</code></a>,
+and
+<a href="/pkg/go/format/#Source"><code>Source</code></a>
+to reformat arbitrary Go source code into the standard format as provided by the
+<a href="/cmd/go/#hdr-Run_gofmt_on_package_sources"><code>go fmt</code></a> command.
+</li>
+
+<li>
+The <a href="/pkg/net/http/cookiejar/"><code>net/http/cookiejar</code></a> package provides the basics for managing HTTP cookies.
+</li>
+
+<li>
+The <a href="/pkg/runtime/race/"><code>runtime/race</code></a> package provides low-level facilities for data race detection.
+It is internal to the race detector and does not otherwise export any user-visible functionality.
+</li>
+</ul>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -794,17 +824,6 @@ the parser now keeps better track of stylized annotations such as <code>TODO(joe
 throughout the code,
 information that the <a href="/cmd/godoc/"><code>godoc</code></a>
 command can filter or present according to the value of the <code>-notes</code> flag.
-</li>
-
-<li>
-A new package, <a href="/pkg/go/format/"><code>go/format</code></a>, provides
-a convenient way for a program to access the formatting capabilities of <code>gofmt</code>.
-It has two functions,
-<a href="/pkg/go/format/#Node"><code>Node</code></a> to format a Go parser
-<a href="/pkg/go/ast/#Node"><code>Node</code></a>,
-and
-<a href="/pkg/go/format/#Source"><code>Source</code></a>
-to format arbitrary Go source code.
 </li>
 
 <li>
@@ -941,10 +960,6 @@ The <code>Transport</code> can now cancel an in-flight request with
 Finally, the Transport is now more aggressive at closing TCP connections when
 a <a href="/pkg/net/http/#Response"><code>Response.Body</code></a> is closed before
 being fully consumed.
-</li>
-
-<li>
-The new <a href="/pkg/net/http/cookiejar/"><code>net/http/cookiejar</code></a> package provides the basics for managing HTTP cookies.
 </li>
 
 <li>
