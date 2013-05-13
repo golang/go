@@ -4,7 +4,6 @@
 
 // +build race,linux,amd64 race,darwin,amd64 race,windows,amd64
 
-// Package race provides low-level facilities for data race detection.
 package race
 
 /*
