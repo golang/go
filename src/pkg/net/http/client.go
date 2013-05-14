@@ -161,7 +161,18 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
 	}
 
 	if u := req.URL.User; u != nil {
-		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(u.String())))
+		auth := u.String()
+		// UserInfo.String() only returns the colon when the
+		// password is set, so we must add it here.
+		//
+		// See 2 (end of page 4) http://www.ietf.org/rfc/rfc2617.txt
+		// "To receive authorization, the client sends the userid and password,
+		// separated by a single colon (":") character, within a base64
+		// encoded string in the credentials."
+		if _, hasPassword := u.Password(); !hasPassword {
+			auth += ":"
+		}
+		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(auth)))
 	}
 	resp, err = t.RoundTrip(req)
 	if err != nil {

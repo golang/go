@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -699,4 +700,38 @@ func TestClientHeadContentLength(t *testing.T) {
 			t.Errorf("Unexpected content: %q", bs)
 		}
 	}
+}
+
+func TestEmptyPasswordAuth(t *testing.T) {
+	defer afterTest(t)
+	gopher := "gopher"
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		auth := r.Header.Get("Authorization")
+		if strings.HasPrefix(auth, "Basic ") {
+			encoded := auth[6:]
+			decoded, err := base64.StdEncoding.DecodeString(encoded)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := gopher + ":"
+			s := string(decoded)
+			if expected != s {
+				t.Errorf("Invalid Authorization header. Got %q, wanted %q", s, expected)
+			}
+		} else {
+			t.Errorf("Invalid auth %q", auth)
+		}
+	}))
+	defer ts.Close()
+	c := &Client{}
+	req, err := NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.URL.User = url.User(gopher)
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
 }
