@@ -23,6 +23,7 @@ static void racewalklist(NodeList *l, NodeList **init);
 static void racewalknode(Node **np, NodeList **init, int wr, int skip);
 static int callinstr(Node **n, NodeList **init, int wr, int skip);
 static Node* uintptraddr(Node *n);
+static void makeaddable(Node *n);
 static Node* basenod(Node *n);
 static void foreach(Node *n, void(*f)(Node*, void*), void *c);
 static void hascallspred(Node *n, void *c);
@@ -489,11 +490,43 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 			*np = n;
 		}
 		n = treecopy(n);
+		makeaddable(n);
 		f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
 		*init = list(*init, f);
 		return 1;
 	}
 	return 0;
+}
+
+// makeaddable returns a node whose memory location is the
+// same as n, but which is addressable in the Go language
+// sense.
+// This is different from functions like cheapexpr that may make
+// a copy of their argument.
+static void
+makeaddable(Node *n)
+{
+	// The arguments to uintptraddr technically have an address but
+	// may not be addressable in the Go sense: for example, in the case
+	// of T(v).Field where T is a struct type and v is
+	// an addressable value.
+	switch(n->op) {
+	case OINDEX:
+		if(isfixedarray(n->left->type))
+			makeaddable(n->left);
+		break;
+	case ODOT:
+	case OXDOT:
+		// Turn T(v).Field into v.Field
+		if(n->left->op == OCONVNOP)
+			n->left = n->left->left;
+		makeaddable(n->left);
+		break;
+	case ODOTPTR:
+	default:
+		// nothing to do
+		break;
+	}
 }
 
 static Node*

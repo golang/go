@@ -83,6 +83,60 @@ func TestRaceCompArray(t *testing.T) {
 	<-c
 }
 
+type P2 P
+type S2 S
+
+func TestRaceConv1(t *testing.T) {
+	c := make(chan bool, 1)
+	var p P2
+	go func() {
+		p.x = 1
+		c <- true
+	}()
+	_ = P(p).x
+	<-c
+}
+
+func TestRaceConv2(t *testing.T) {
+	c := make(chan bool, 1)
+	var p P2
+	go func() {
+		p.x = 1
+		c <- true
+	}()
+	ptr := &p
+	_ = P(*ptr).x
+	<-c
+}
+
+func TestRaceConv3(t *testing.T) {
+	c := make(chan bool, 1)
+	var s S2
+	go func() {
+		s.s1.x = 1
+		c <- true
+	}()
+	_ = P2(S(s).s1).x
+	<-c
+}
+
+type X struct {
+	V [4]P
+}
+
+type X2 X
+
+func TestRaceConv4(t *testing.T) {
+	c := make(chan bool, 1)
+	var x X2
+	go func() {
+		x.V[1].x = 1
+		c <- true
+	}()
+	_ = P2(X(x).V[1]).x
+	<-c
+}
+
 type Ptr struct {
 	s1, s2 *P
 }
