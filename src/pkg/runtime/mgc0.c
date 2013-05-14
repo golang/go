@@ -18,7 +18,7 @@ enum {
 	Debug = 0,
 	DebugMark = 0,  // run second pass to check mark
 	CollectStats = 0,
-	ScanStackByFrames = 0,
+	ScanStackByFrames = 1,
 	IgnorePreciseGC = 0,
 
 	// Four bits per word (see #defines below).
@@ -1459,6 +1459,8 @@ addstackroots(G *gp)
 		}
 	}
 	if (ScanStackByFrames) {
+		USED(stk);
+		USED(guard);
 		doframe = false;
 		runtime·gentraceback(pc, sp, nil, gp, 0, nil, 0x7fffffff, addframeroots, &doframe);
 	} else {
