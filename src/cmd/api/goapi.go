@@ -231,7 +231,12 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
 		case len(features) == 0 || (len(required) > 0 && required[0] < features[0]):
 			feature := take(&required)
 			if exceptionSet[feature] {
-				fmt.Fprintf(w, "~%s\n", feature)
+				// An "unfortunate" case: the feature was once
+				// included in the API (e.g. go1.txt), but was
+				// subsequently removed. These are already
+				// acknowledged by being in the file
+				// "api/except.txt". No need to print them out
+				// here.
 			} else if featureSet[featureWithoutContext(feature)] {
 				// okay.
 			} else {

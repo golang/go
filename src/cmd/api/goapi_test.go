@@ -110,7 +110,7 @@ func TestCompareAPI(t *testing.T) {
 			features:  []string{"A", "C"},
 			exception: []string{"B"},
 			ok:        true,
-			out:       "~B\n",
+			out:       "",
 		},
 		{
 			// http://golang.org/issue/4303
