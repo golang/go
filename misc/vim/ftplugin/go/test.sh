@@ -29,13 +29,13 @@ test_one() {
   vim -e -s -u /dev/null -U /dev/null --noplugin -c "source import.vim" \
     -c "$1" -c 'wq! test.go' base.go
   # ensure blank lines are treated correctly
-  if ! gofmt test.go | cmp test.go; then
+  if ! gofmt test.go | cmp test.go -; then
     echo 2>&1 "gofmt conflict"
     gofmt test.go | diff -u test.go - | sed "s/^/	/" 2>&1
     fail=1
     return
   fi
-  if ! grep -P -q "(?s)$2" test.go; then
+  if ! [[ $(cat test.go) =~ $2 ]]; then
     echo 2>&1 "$2 did not match"
     cat test.go | sed "s/^/	/" 2>&1
     fail=1
