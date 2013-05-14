@@ -179,7 +179,7 @@ func doPackageDir(directory string) {
 
 type Package struct {
 	types  map[ast.Expr]Type
-	values map[ast.Expr]interface{}
+	values map[ast.Expr]ExactValue
 	files  []*File
 }
 

@@ -14,19 +14,27 @@ import (
 	"go/ast"
 	"go/token"
 
+	"code.google.com/p/go.exp/go/exact"
 	"code.google.com/p/go.exp/go/types"
 )
 
-// Type is equivalent to go/types.Type. Repeating it here allows us to avoid
-// depending on the go/types package.
+// Type is equivalent to types.Type. Repeating it here allows us to avoid
+// having main depend on the go/types package.
 type Type interface {
+	String() string
+}
+
+// ExactValue is equivalent to exact.Value. Repeating it here allows us to
+// avoid having main depend on the go/exact package.
+type ExactValue interface {
+	Kind() exact.Kind
 	String() string
 }
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.types = make(map[ast.Expr]Type)
-	pkg.values = make(map[ast.Expr]interface{})
-	exprFn := func(x ast.Expr, typ types.Type, val interface{}) {
+	pkg.values = make(map[ast.Expr]ExactValue)
+	exprFn := func(x ast.Expr, typ types.Type, val exact.Value) {
 		pkg.types[x] = typ
 		if val != nil {
 			pkg.values[x] = val
@@ -93,10 +101,8 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 		return t&argFloat != 0
 	case types.UntypedFloat:
 		// If it's integral, we can use an int format.
-		switch f.pkg.values[arg].(type) {
-		case int, int8, int16, int32, int64:
-			return t&(argInt|argFloat) != 0
-		case uint, uint8, uint16, uint32, uint64:
+		switch f.pkg.values[arg].Kind() {
+		case exact.Int:
 			return t&(argInt|argFloat) != 0
 		}
 		return t&argFloat != 0
