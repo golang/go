@@ -219,6 +219,10 @@ type driverConn struct {
 	dbmuClosed bool     // same as closed, but guarded by db.mu, for connIfFree
 }
 
+func (dc *driverConn) releaseConn(err error) {
+	dc.db.putConn(dc, err)
+}
+
 func (dc *driverConn) removeOpenStmt(si driver.Stmt) {
 	dc.Lock()
 	defer dc.Unlock()
@@ -367,10 +371,7 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 	if !done {
 		return func() error { return nil }
 	}
-	return func() error {
-		//println(fmt.Sprintf("calling final close on %T %v (%#v)", x, x, x))
-		return x.finalClose()
-	}
+	return x.finalClose
 }
 
 // Open opens a database specified by its database driver name and a
@@ -710,9 +711,7 @@ func (db *DB) query(query string, args []interface{}) (*Rows, error) {
 		return nil, err
 	}
 
-	releaseConn := func(err error) { db.putConn(ci, err) }
-
-	return db.queryConn(ci, releaseConn, query, args)
+	return db.queryConn(ci, ci.releaseConn, query, args)
 }
 
 // queryConn executes a query on the given connection.
@@ -1154,8 +1153,7 @@ func (s *Stmt) connStmt() (ci *driverConn, releaseConn func(error), si driver.St
 	}
 
 	conn := cs.dc
-	releaseConn = func(err error) { s.db.putConn(conn, err) }
-	return conn, releaseConn, cs.si, nil
+	return conn, conn.releaseConn, cs.si, nil
 }
 
 // Query executes a prepared query statement with the given arguments
