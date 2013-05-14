@@ -1019,3 +1019,134 @@ di_finish:
 equal:
 	SETEQ	AX
 	RET
+
+
+TEXT runtime·cmpstring(SB),7,$0
+	MOVQ	s1+0(FP), SI
+	MOVQ	s1+8(FP), BX
+	MOVQ	s2+16(FP), DI
+	MOVQ	s2+24(FP), DX
+	CALL	runtime·cmpbody(SB)
+	MOVQ	AX, res+32(FP)
+	RET
+
+TEXT bytes·Compare(SB),7,$0
+	MOVQ	s1+0(FP), SI
+	MOVQ	s1+8(FP), BX
+	MOVQ	s2+24(FP), DI
+	MOVQ	s2+32(FP), DX
+	CALL	runtime·cmpbody(SB)
+	MOVQ	AX, res+48(FP)
+	RET
+
+// input:
+//   SI = a
+//   DI = b
+//   BX = alen
+//   DX = blen
+// output:
+//   AX = 1/0/-1
+TEXT runtime·cmpbody(SB),7,$0
+	CMPQ	SI, DI
+	JEQ	cmp_allsame
+	CMPQ	BX, DX
+	MOVQ	DX, BP
+	CMOVQLT	BX, BP // BP = min(alen, blen) = # of bytes to compare
+	CMPQ	BP, $8
+	JB	cmp_small
+
+cmp_loop:
+	CMPQ	BP, $16
+	JBE	cmp_0through16
+	MOVOU	(SI), X0
+	MOVOU	(DI), X1
+	PCMPEQB X0, X1
+	PMOVMSKB X1, AX
+	XORQ	$0xffff, AX	// convert EQ to NE
+	JNE	cmp_diff16	// branch if at least one byte is not equal
+	ADDQ	$16, SI
+	ADDQ	$16, DI
+	SUBQ	$16, BP
+	JMP	cmp_loop
+	
+	// AX = bit mask of differences
+cmp_diff16:
+	BSFQ	AX, BX	// index of first byte that differs
+	XORQ	AX, AX
+	MOVB	(SI)(BX*1), CX
+	CMPB	CX, (DI)(BX*1)
+	SETHI	AX
+	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
+	RET
+
+	// 0 through 16 bytes left, alen>=8, blen>=8
+cmp_0through16:
+	CMPQ	BP, $8
+	JBE	cmp_0through8
+	MOVQ	(SI), AX
+	MOVQ	(DI), CX
+	CMPQ	AX, CX
+	JNE	cmp_diff8
+cmp_0through8:
+	MOVQ	-8(SI)(BP*1), AX
+	MOVQ	-8(DI)(BP*1), CX
+	CMPQ	AX, CX
+	JEQ	cmp_allsame
+
+	// AX and CX contain parts of a and b that differ.
+cmp_diff8:
+	BSWAPQ	AX	// reverse order of bytes
+	BSWAPQ	CX
+	XORQ	AX, CX
+	BSRQ	CX, CX	// index of highest bit difference
+	SHRQ	CX, AX	// move a's bit to bottom
+	ANDQ	$1, AX	// mask bit
+	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
+	RET
+
+	// 0-7 bytes in common
+cmp_small:
+	LEAQ	(BP*8), CX	// bytes left -> bits left
+	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
+	JEQ	cmp_allsame
+
+	// load bytes of a into high bytes of AX
+	CMPB	SI, $0xf8
+	JA	cmp_si_high
+	MOVQ	(SI), SI
+	JMP	cmp_si_finish
+cmp_si_high:
+	MOVQ	-8(SI)(BP*1), SI
+	SHRQ	CX, SI
+cmp_si_finish:
+	SHLQ	CX, SI
+
+	// load bytes of b in to high bytes of BX
+	CMPB	DI, $0xf8
+	JA	cmp_di_high
+	MOVQ	(DI), DI
+	JMP	cmp_di_finish
+cmp_di_high:
+	MOVQ	-8(DI)(BP*1), DI
+	SHRQ	CX, DI
+cmp_di_finish:
+	SHLQ	CX, DI
+
+	BSWAPQ	SI	// reverse order of bytes
+	BSWAPQ	DI
+	XORQ	SI, DI	// find bit differences
+	JEQ	cmp_allsame
+	BSRQ	DI, CX	// index of highest bit difference
+	SHRQ	CX, SI	// move a's bit to bottom
+	ANDQ	$1, SI	// mask bit
+	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
+	RET
+
+cmp_allsame:
+	XORQ	AX, AX
+	XORQ	CX, CX
+	CMPQ	BX, DX
+	SETGT	AX	// 1 if alen > blen
+	SETEQ	CX	// 1 if alen == blen
+	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+	RET

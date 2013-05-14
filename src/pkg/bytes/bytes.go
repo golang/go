@@ -11,32 +11,6 @@ import (
 	"unicode/utf8"
 )
 
-// Compare returns an integer comparing two byte slices lexicographically.
-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
-// A nil argument is equivalent to an empty slice.
-func Compare(a, b []byte) int {
-	m := len(a)
-	if m > len(b) {
-		m = len(b)
-	}
-	for i, ac := range a[0:m] {
-		bc := b[i]
-		switch {
-		case ac > bc:
-			return 1
-		case ac < bc:
-			return -1
-		}
-	}
-	switch {
-	case len(a) < len(b):
-		return -1
-	case len(a) > len(b):
-		return 1
-	}
-	return 0
-}
-
 func equalPortable(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false

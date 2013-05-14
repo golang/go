@@ -694,17 +694,29 @@ copy_body(void)
 static void
 process_file(void)
 {
-	char *package, *name;
+	char *package, *name, *p, *n;
 	struct params *params, *rets;
 	int paramwid;
 
 	package = read_package();
 	read_preprocessor_lines();
 	while (read_func_header(&name, &params, &paramwid, &rets)) {
-		write_func_header(package, name, params, paramwid, rets);
+		// name may have a package override already
+		n = xstrstr(name, "·");
+		if(n != nil) {
+			p = xmalloc(n - name + 1);
+			xmemmove(p, name, n - name);
+			p[n - name] = 0;
+			n += xstrlen("·");
+		} else {
+			p = package;
+			n = name;
+		}
+		write_func_header(p, n, params, paramwid, rets);
 		copy_body();
-		write_func_trailer(package, name, rets);
+		write_func_trailer(p, n, rets);
 		xfree(name);
+		if(p != package) xfree(p);
 		free_params(params);
 		free_params(rets);
 	}

@@ -1101,3 +1101,138 @@ di_finish:
 equal:
 	SETEQ	AX
 	RET
+
+TEXT runtime·cmpstring(SB),7,$0
+	MOVL	s1+0(FP), SI
+	MOVL	s1+4(FP), BX
+	MOVL	s2+8(FP), DI
+	MOVL	s2+12(FP), DX
+	CALL	runtime·cmpbody(SB)
+	MOVL	AX, res+16(FP)
+	RET
+
+TEXT bytes·Compare(SB),7,$0
+	MOVL	s1+0(FP), SI
+	MOVL	s1+4(FP), BX
+	MOVL	s2+12(FP), DI
+	MOVL	s2+16(FP), DX
+	CALL	runtime·cmpbody(SB)
+	MOVL	AX, res+24(FP)
+	RET
+
+// input:
+//   SI = a
+//   DI = b
+//   BX = alen
+//   DX = blen
+// output:
+//   AX = 1/0/-1
+TEXT runtime·cmpbody(SB),7,$0
+	CMPL	SI, DI
+	JEQ	cmp_allsame
+	CMPL	BX, DX
+	MOVL	DX, BP
+	CMOVLLT	BX, BP // BP = min(alen, blen)
+	CMPL	BP, $4
+	JB	cmp_small
+	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
+	JE	cmp_mediumloop
+cmp_largeloop:
+	CMPL	BP, $16
+	JB	cmp_mediumloop
+	MOVOU	(SI), X0
+	MOVOU	(DI), X1
+	PCMPEQB X0, X1
+	PMOVMSKB X1, AX
+	XORL	$0xffff, AX	// convert EQ to NE
+	JNE	cmp_diff16	// branch if at least one byte is not equal
+	ADDL	$16, SI
+	ADDL	$16, DI
+	SUBL	$16, BP
+	JMP	cmp_largeloop
+
+cmp_diff16:
+	BSFL	AX, BX	// index of first byte that differs
+	XORL	AX, AX
+	MOVB	(SI)(BX*1), CX
+	CMPB	CX, (DI)(BX*1)
+	SETHI	AX
+	LEAL	-1(AX*2), AX	// convert 1/0 to +1/-1
+	RET
+
+cmp_mediumloop:
+	CMPL	BP, $4
+	JBE	cmp_0through4
+	MOVL	(SI), AX
+	MOVL	(DI), CX
+	CMPL	AX, CX
+	JNE	cmp_diff4
+	ADDL	$4, SI
+	ADDL	$4, DI
+	SUBL	$4, BP
+	JMP	cmp_mediumloop
+
+cmp_0through4:
+	MOVL	-4(SI)(BP*1), AX
+	MOVL	-4(DI)(BP*1), CX
+	CMPL	AX, CX
+	JEQ	cmp_allsame
+
+cmp_diff4:
+	BSWAPL	AX	// reverse order of bytes
+	BSWAPL	CX
+	XORL	AX, CX	// find bit differences
+	BSRL	CX, CX	// index of highest bit difference
+	SHRL	CX, AX	// move a's bit to bottom
+	ANDL	$1, AX	// mask bit
+	LEAL	-1(AX*2), AX // 1/0 => +1/-1
+	RET
+
+	// 0-3 bytes in common
+cmp_small:
+	LEAL	(BP*8), CX
+	NEGL	CX
+	JEQ	cmp_allsame
+
+	// load si
+	CMPB	SI, $0xfc
+	JA	cmp_si_high
+	MOVL	(SI), SI
+	JMP	cmp_si_finish
+cmp_si_high:
+	MOVL	-4(SI)(BP*1), SI
+	SHRL	CX, SI
+cmp_si_finish:
+	SHLL	CX, SI
+
+	// same for di
+	CMPB	DI, $0xfc
+	JA	cmp_di_high
+	MOVL	(DI), DI
+	JMP	cmp_di_finish
+cmp_di_high:
+	MOVL	-4(DI)(BP*1), DI
+	SHRL	CX, DI
+cmp_di_finish:
+	SHLL	CX, DI
+
+	BSWAPL	SI	// reverse order of bytes
+	BSWAPL	DI
+	XORL	SI, DI	// find bit differences
+	JEQ	cmp_allsame
+	BSRL	DI, CX	// index of highest bit difference
+	SHRL	CX, SI	// move a's bit to bottom
+	ANDL	$1, SI	// mask bit
+	LEAL	-1(SI*2), AX // 1/0 => +1/-1
+	RET
+
+	// all the bytes in common are the same, so we just need
+	// to compare the lengths.
+cmp_allsame:
+	XORL	AX, AX
+	XORL	CX, CX
+	CMPL	BX, DX
+	SETGT	AX	// 1 if alen > blen
+	SETEQ	CX	// 1 if alen == blen
+	LEAL	-1(CX)(AX*2), AX	// 1,0,-1 result
+	RET
