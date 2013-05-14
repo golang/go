@@ -64,7 +64,7 @@ type parser struct {
 }
 
 func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
-	p.file = fset.AddFile(filename, fset.Base(), len(src))
+	p.file = fset.AddFile(filename, -1, len(src))
 	var m scanner.Mode
 	if mode&ParseComments != 0 {
 		m = scanner.ScanComments
