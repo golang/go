@@ -15,9 +15,14 @@ import (
 )
 
 // Type is equivalent to go/types.Type. Repeating it here allows us to avoid
-// depending on the go/types package.
+// having main depend on the go/types package.
 type Type interface {
 	String() string
+}
+
+// ExactValue is a stub for exact.Value. Stubbing it here allows us to
+// avoid having main depend on the go/exact package.
+type ExactValue interface {
 }
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
