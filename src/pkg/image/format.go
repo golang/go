@@ -73,7 +73,7 @@ func sniff(r reader) format {
 
 // Decode decodes an image that has been encoded in a registered format.
 // The string returned is the format name used during format registration.
-// Format registration is typically done by the init method of the codec-
+// Format registration is typically done by an init function in the codec-
 // specific package.
 func Decode(r io.Reader) (Image, string, error) {
 	rr := asReader(r)
@@ -88,7 +88,7 @@ func Decode(r io.Reader) (Image, string, error) {
 // DecodeConfig decodes the color model and dimensions of an image that has
 // been encoded in a registered format. The string returned is the format name
 // used during format registration. Format registration is typically done by
-// the init method of the codec-specific package.
+// an init function in the codec-specific package.
 func DecodeConfig(r io.Reader) (Config, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)
