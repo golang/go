@@ -142,6 +142,25 @@ var untarTests = []*untarTest{
 			},
 		},
 	},
+	{
+		file: "testdata/nil-uid.tar", // golang.org/issue/5290
+		headers: []*Header{
+			{
+				Name:     "P1050238.JPG.log",
+				Mode:     0664,
+				Uid:      0,
+				Gid:      0,
+				Size:     14,
+				ModTime:  time.Unix(1365454838, 0),
+				Typeflag: TypeReg,
+				Linkname: "",
+				Uname:    "eyefi",
+				Gname:    "eyefi",
+				Devmajor: 0,
+				Devminor: 0,
+			},
+		},
+	},
 }
 
 func TestReader(t *testing.T) {
