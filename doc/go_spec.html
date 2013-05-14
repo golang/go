@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 8, 2013",
+	"Subtitle": "Version of May 14, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -1969,9 +1969,9 @@ a <a href="#Terminating_statements">terminating statement</a>.
 </p>
 
 <pre>
-func findMarker(c <-chan int) int {
+func findMarker(c &lt;-chan int) int {
 	for i := range c {
-		if x := <-c; isMarker(x) {
+		if x := &lt;-c; isMarker(x) {
 			return x
 		}
 	}
@@ -3240,7 +3240,7 @@ is also allowed and follows from the general rules above.
 </p>
 
 <pre>
-const c = 3 < 4            // c is the untyped bool constant true
+const c = 3 &lt; 4            // c is the untyped bool constant true
 
 type MyBool bool
 var x, y int
@@ -3550,7 +3550,7 @@ using a pointer will automatically dereference that pointer: <code>pt.Mv</code> 
 
 <p>
 As with <a href="#Calls">method calls</a>, a reference to a non-interface method with a pointer receiver
-using an addressable value will automatically take the address of that value: <code>t.Mv</code> is equivalent to <code>(&amp;t).Mv</code>.
+using an addressable value will automatically take the address of that value: <code>t.Mp</code> is equivalent to <code>(&amp;t).Mp</code>.
 </p>
 
 <pre>
