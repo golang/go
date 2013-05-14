@@ -17,6 +17,9 @@ static struct {
 	% loadsys package LIMPORT '(' LLITERAL import_package import_there ','
 	"unexpected comma during import block",
 
+	% loadsys package LIMPORT LNAME ';'
+	"missing import path; require quoted string",
+
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
 	"unexpected semicolon or newline before {",
 
