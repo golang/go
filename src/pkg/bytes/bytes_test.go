@@ -47,7 +47,7 @@ type BinOpTest struct {
 	i int
 }
 
-var compareTests = []struct {
+var equalTests = []struct {
 	a, b []byte
 	i    int
 }{
@@ -73,12 +73,8 @@ var compareTests = []struct {
 	{nil, []byte("a"), -1},
 }
 
-func TestCompare(t *testing.T) {
+func TestEqual(t *testing.T) {
 	for _, tt := range compareTests {
-		cmp := Compare(tt.a, tt.b)
-		if cmp != tt.i {
-			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
-		}
 		eql := Equal(tt.a, tt.b)
 		if eql != (tt.i == 0) {
 			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
@@ -90,7 +86,7 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-func TestEqual(t *testing.T) {
+func TestEqualExhaustive(t *testing.T) {
 	var size = 128
 	if testing.Short() {
 		size = 32
