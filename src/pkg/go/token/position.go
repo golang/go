@@ -314,7 +314,8 @@ func (s *FileSet) Base() int {
 // AddFile adds a new file with a given filename, base offset, and file size
 // to the file set s and returns the file. Multiple files may have the same
 // name. The base offset must not be smaller than the FileSet's Base(), and
-// size must not be negative.
+// size must not be negative. As a special case, if a negative base is provided,
+// the current value of the FileSet's Base() is used instead.
 //
 // Adding the file will set the file set's Base() value to base + size + 1
 // as the minimum base value for the next file. The following relationship
@@ -329,6 +330,9 @@ func (s *FileSet) Base() int {
 func (s *FileSet) AddFile(filename string, base, size int) *File {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	if base < 0 {
+		base = s.base
+	}
 	if base < s.base || size < 0 {
 		panic("illegal base or size")
 	}
