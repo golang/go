@@ -243,13 +243,15 @@ func (tr *Reader) octal(b []byte) int64 {
 		return x
 	}
 
-	// Removing leading spaces.
-	for len(b) > 0 && b[0] == ' ' {
-		b = b[1:]
-	}
-	// Removing trailing NULs and spaces.
-	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
-		b = b[0 : len(b)-1]
+	// Because unused fields are filled with NULs, we need
+	// to skip leading NULs. Fields may also be padded with
+	// spaces or NULs.
+	// So we remove leading and trailing NULs and spaces to
+	// be sure.
+	b = bytes.Trim(b, " \x00")
+
+	if len(b) == 0 {
+		return 0
 	}
 	x, err := strconv.ParseUint(cString(b), 8, 64)
 	if err != nil {
