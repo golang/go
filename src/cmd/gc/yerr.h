@@ -17,6 +17,9 @@ static struct {
 	221, ',',
 	"unexpected comma during import block",
 
+	32, ';',
+	"missing import path; require quoted string",
+
 	377, ';',
 	"unexpected semicolon or newline before {",
 
