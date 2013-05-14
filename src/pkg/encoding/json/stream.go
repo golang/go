@@ -156,8 +156,8 @@ func (enc *Encoder) Encode(v interface{}) error {
 	if enc.err != nil {
 		return enc.err
 	}
-	enc.e.Reset()
-	err := enc.e.marshal(v)
+	e := newEncodeState()
+	err := e.marshal(v)
 	if err != nil {
 		return err
 	}
@@ -168,11 +168,12 @@ func (enc *Encoder) Encode(v interface{}) error {
 	// is required if the encoded value was a number,
 	// so that the reader knows there aren't more
 	// digits coming.
-	enc.e.WriteByte('\n')
+	e.WriteByte('\n')
 
-	if _, err = enc.w.Write(enc.e.Bytes()); err != nil {
+	if _, err = enc.w.Write(e.Bytes()); err != nil {
 		enc.err = err
 	}
+	putEncodeState(e)
 	return err
 }
 
