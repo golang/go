@@ -642,7 +642,9 @@ func servePage(w http.ResponseWriter, page Page) {
 	page.SearchBox = *indexEnabled
 	page.Playground = *showPlayground
 	page.Version = runtime.Version()
-	if err := godocHTML.Execute(w, page); err != nil {
+	if err := godocHTML.Execute(w, page); err != nil && err != http.ErrBodyNotAllowed {
+		// Only log if there's an error that's not about writing on HEAD requests.
+		// See Issues 5451 and 5454.
 		log.Printf("godocHTML.Execute: %s", err)
 	}
 }
@@ -860,7 +862,9 @@ func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"BaseURL": fmt.Sprintf("http://%s", r.Host),
 	}
-	if err := searchDescXML.Execute(w, &data); err != nil {
+	if err := searchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
+		// Only log if there's an error that's not about writing on HEAD requests.
+		// See Issues 5451 and 5454.
 		log.Printf("searchDescXML.Execute: %s", err)
 	}
 }
