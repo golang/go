@@ -6,4 +6,6 @@
 
 package cgotest
 
+import "testing"
+
 func test5337(t *testing.T) {}
