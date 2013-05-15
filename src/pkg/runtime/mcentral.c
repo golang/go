@@ -30,16 +30,15 @@ runtime·MCentral_Init(MCentral *c, int32 sizeclass)
 	runtime·MSpanList_Init(&c->empty);
 }
 
-// Allocate up to n objects from the central free list.
+// Allocate a list of objects from the central free list.
 // Return the number of objects allocated.
 // The objects are linked together by their first words.
 // On return, *pstart points at the first object.
 int32
-runtime·MCentral_AllocList(MCentral *c, int32 n, MLink **pfirst)
+runtime·MCentral_AllocList(MCentral *c, MLink **pfirst)
 {
 	MSpan *s;
-	MLink *first, *last;
-	int32 cap, avail, i;
+	int32 cap, n;
 
 	runtime·lock(c);
 	// Replenish central list if empty.
@@ -52,31 +51,14 @@ runtime·MCentral_AllocList(MCentral *c, int32 n, MLink **pfirst)
 	}
 	s = c->nonempty.next;
 	cap = (s->npages << PageShift) / s->elemsize;
-	avail = cap - s->ref;
-	if(avail < n)
-		n = avail;
-
-	// First one is guaranteed to work, because we just grew the list.
-	first = s->freelist;
-	last = first;
-	for(i=1; i<n; i++) {
-		last = last->next;
-	}
-	s->freelist = last->next;
-	last->next = nil;
+	n = cap - s->ref;
+	*pfirst = s->freelist;
+	s->freelist = nil;
 	s->ref += n;
 	c->nfree -= n;
-
-	if(n == avail) {
-		if(s->freelist != nil || s->ref != cap) {
-			runtime·throw("invalid freelist");
-		}
-		runtime·MSpanList_Remove(s);
-		runtime·MSpanList_Insert(&c->empty, s);
-	}
-
+	runtime·MSpanList_Remove(s);
+	runtime·MSpanList_Insert(&c->empty, s);
 	runtime·unlock(c);
-	*pfirst = first;
 	return n;
 }
 
