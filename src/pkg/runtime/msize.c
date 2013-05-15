@@ -31,7 +31,6 @@
 
 int32 runtime·class_to_size[NumSizeClasses];
 int32 runtime·class_to_allocnpages[NumSizeClasses];
-int32 runtime·class_to_transfercount[NumSizeClasses];
 
 // The SizeToClass lookup is implemented using two arrays,
 // one mapping sizes <= 1024 to their class and one mapping
@@ -137,16 +136,6 @@ runtime·InitSizes(void)
 	// Copy out for statistics table.
 	for(i=0; i<nelem(runtime·class_to_size); i++)
 		mstats.by_size[i].size = runtime·class_to_size[i];
-
-	// Initialize the runtime·class_to_transfercount table.
-	for(sizeclass = 1; sizeclass < NumSizeClasses; sizeclass++) {
-		n = 64*1024 / runtime·class_to_size[sizeclass];
-		if(n < 2)
-			n = 2;
-		if(n > 32)
-			n = 32;
-		runtime·class_to_transfercount[sizeclass] = n;
-	}
 	return;
 
 dump:

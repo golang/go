@@ -21,8 +21,7 @@ runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
 	l = &c->list[sizeclass];
 	if(l->list == nil) {
 		// Replenish using central lists.
-		n = runtime·MCentral_AllocList(&runtime·mheap->central[sizeclass],
-			runtime·class_to_transfercount[sizeclass], &first);
+		n = runtime·MCentral_AllocList(&runtime·mheap->central[sizeclass], &first);
 		if(n == 0)
 			runtime·throw("out of memory");
 		l->list = first;
@@ -91,7 +90,7 @@ runtime·MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
 
 	if(l->nlist >= MaxMCacheListLen) {
 		// Release a chunk back.
-		ReleaseN(c, l, runtime·class_to_transfercount[sizeclass], sizeclass);
+		ReleaseN(c, l, l->nlist/2, sizeclass);
 	}
 
 	if(c->size >= MaxMCacheSize) {

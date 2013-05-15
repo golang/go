@@ -267,14 +267,10 @@ extern MStats mstats;
 // class_to_size[i] = largest size in class i
 // class_to_allocnpages[i] = number of pages to allocate when
 //	making new objects in class i
-// class_to_transfercount[i] = number of objects to move when
-//	taking a bunch of objects out of the central lists
-//	and putting them in the thread free list.
 
 int32	runtime·SizeToClass(int32);
 extern	int32	runtime·class_to_size[NumSizeClasses];
 extern	int32	runtime·class_to_allocnpages[NumSizeClasses];
-extern	int32	runtime·class_to_transfercount[NumSizeClasses];
 extern	int8	runtime·size_to_class8[1024/8 + 1];
 extern	int8	runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 extern	void	runtime·InitSizes(void);
@@ -399,7 +395,7 @@ struct MCentral
 };
 
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
-int32	runtime·MCentral_AllocList(MCentral *c, int32 n, MLink **first);
+int32	runtime·MCentral_AllocList(MCentral *c, MLink **first);
 void	runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *first);
 void	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
 
