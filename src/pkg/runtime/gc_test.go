@@ -97,3 +97,27 @@ func TestGcHashmapIndirection(t *testing.T) {
 		m[a] = T{}
 	}
 }
+
+func TestGcArraySlice(t *testing.T) {
+	type X struct {
+		buf     [1]byte
+		nextbuf []byte
+		next    *X
+	}
+	var head *X
+	for i := 0; i < 10; i++ {
+		p := &X{}
+		p.buf[0] = 42
+		p.next = head
+		if head != nil {
+			p.nextbuf = head.buf[:]
+		}
+		head = p
+		runtime.GC()
+	}
+	for p := head; p != nil; p = p.next {
+		if p.buf[0] != 42 {
+			t.Fatal("corrupted heap")
+		}
+	}
+}
