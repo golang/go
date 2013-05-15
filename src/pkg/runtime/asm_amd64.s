@@ -772,31 +772,39 @@ TEXT runtime·aeshashbody(SB),7,$0
 	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
 	MOVO	runtime·aeskeysched+0(SB), X2
 	MOVO	runtime·aeskeysched+16(SB), X3
+	CMPQ	CX, $16
+	JB	aessmall
 aesloop:
 	CMPQ	CX, $16
-	JB	aesloopend
+	JBE	aesloopend
 	MOVOU	(AX), X1
 	AESENC	X2, X0
 	AESENC	X1, X0
 	SUBQ	$16, CX
 	ADDQ	$16, AX
 	JMP	aesloop
+// 1-16 bytes remaining
 aesloopend:
+	// This load may overlap with the previous load above.
+	// We'll hash some bytes twice, but that's ok.
+	MOVOU	-16(AX)(CX*1), X1
+	JMP	partial
+// 0-15 bytes
+aessmall:
 	TESTQ	CX, CX
-	JE	finalize	// no partial block
+	JE	finalize	// 0 bytes
 
-	TESTQ	$16, AX
-	JNE	highpartial
+	CMPB	AX, $0xf0
+	JA	highpartial
 
-	// address ends in 0xxxx.  16 bytes loaded
-	// at this address won't cross a page boundary, so
-	// we can load it directly.
+	// 16 bytes loaded at this address won't cross
+	// a page boundary, so we can load it directly.
 	MOVOU	(AX), X1
 	ADDQ	CX, CX
 	PAND	masks(SB)(CX*8), X1
 	JMP	partial
 highpartial:
-	// address ends in 1xxxx.  Might be up against
+	// address ends in 1111xxxx.  Might be up against
 	// a page boundary, so load ending at last byte.
 	// Then shift bytes down using pshufb.
 	MOVOU	-16(AX)(CX*1), X1
