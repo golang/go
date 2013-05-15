@@ -799,7 +799,11 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			sliceptr = (Slice*)(stack_top.b + pc[1]);
 			if(sliceptr->cap != 0) {
 				obj = sliceptr->array;
-				objti = pc[2] | PRECISE | LOOP;
+				// Can't use slice element type for scanning,
+				// because if it points to an array embedded
+				// in the beginning of a struct,
+				// we will scan the whole struct as the slice.
+				// So just obtain type info from heap.
 			}
 			pc += 3;
 			break;
