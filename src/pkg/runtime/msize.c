@@ -42,17 +42,17 @@ int32 runtime·class_to_transfercount[NumSizeClasses];
 // size divided by 128 (rounded up).  The arrays are filled in
 // by InitSizes.
 
-static int32 size_to_class8[1024/8 + 1];
-static int32 size_to_class128[(MaxSmallSize-1024)/128 + 1];
+int8 runtime·size_to_class8[1024/8 + 1];
+int8 runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 
-int32
-runtime·SizeToClass(int32 size)
+static int32
+SizeToClass(int32 size)
 {
 	if(size > MaxSmallSize)
 		runtime·throw("SizeToClass - invalid size");
 	if(size > 1024-8)
-		return size_to_class128[(size-1024+127) >> 7];
-	return size_to_class8[(size+7)>>3];
+		return runtime·size_to_class128[(size-1024+127) >> 7];
+	return runtime·size_to_class8[(size+7)>>3];
 }
 
 void
@@ -111,16 +111,16 @@ runtime·InitSizes(void)
 	nextsize = 0;
 	for (sizeclass = 1; sizeclass < NumSizeClasses; sizeclass++) {
 		for(; nextsize < 1024 && nextsize <= runtime·class_to_size[sizeclass]; nextsize+=8)
-			size_to_class8[nextsize/8] = sizeclass;
+			runtime·size_to_class8[nextsize/8] = sizeclass;
 		if(nextsize >= 1024)
 			for(; nextsize <= runtime·class_to_size[sizeclass]; nextsize += 128)
-				size_to_class128[(nextsize-1024)/128] = sizeclass;
+				runtime·size_to_class128[(nextsize-1024)/128] = sizeclass;
 	}
 
 	// Double-check SizeToClass.
 	if(0) {
 		for(n=0; n < MaxSmallSize; n++) {
-			sizeclass = runtime·SizeToClass(n);
+			sizeclass = SizeToClass(n);
 			if(sizeclass < 1 || sizeclass >= NumSizeClasses || runtime·class_to_size[sizeclass] < n) {
 				runtime·printf("size=%d sizeclass=%d runtime·class_to_size=%d\n", n, sizeclass, runtime·class_to_size[sizeclass]);
 				runtime·printf("incorrect SizeToClass");
@@ -157,12 +157,14 @@ dump:
 			runtime·printf(" %d", runtime·class_to_size[sizeclass]);
 		runtime·printf("\n\n");
 		runtime·printf("size_to_class8:");
-		for(i=0; i<nelem(size_to_class8); i++)
-			runtime·printf(" %d=>%d(%d)\n", i*8, size_to_class8[i], runtime·class_to_size[size_to_class8[i]]);
+		for(i=0; i<nelem(runtime·size_to_class8); i++)
+			runtime·printf(" %d=>%d(%d)\n", i*8, runtime·size_to_class8[i],
+				runtime·class_to_size[runtime·size_to_class8[i]]);
 		runtime·printf("\n");
 		runtime·printf("size_to_class128:");
-		for(i=0; i<nelem(size_to_class128); i++)
-			runtime·printf(" %d=>%d(%d)\n", i*128, size_to_class128[i], runtime·class_to_size[size_to_class128[i]]);
+		for(i=0; i<nelem(runtime·size_to_class128); i++)
+			runtime·printf(" %d=>%d(%d)\n", i*128, runtime·size_to_class128[i],
+				runtime·class_to_size[runtime·size_to_class128[i]]);
 		runtime·printf("\n");
 	}
 	runtime·throw("InitSizes failed");
