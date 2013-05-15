@@ -1130,7 +1130,9 @@ func emitcode(code []rune, lineno int) {
 		writecode(line)
 		if !fmtImported && isPackageClause(line) {
 			fmt.Fprintln(ftable, `import __yyfmt__ "fmt"`)
-			fmt.Fprintf(ftable, "//line %v:%v\n\t\t", infile, lineno+i)
+			if !lflag {
+				fmt.Fprintf(ftable, "//line %v:%v\n\t\t", infile, lineno+i)
+			}
 			fmtImported = true
 		}
 	}
@@ -2193,8 +2195,10 @@ nextk:
 func output() {
 	var c, u, v int
 
-	fmt.Fprintf(ftable, "\n//line yacctab:1\n")
-	fmt.Fprintf(ftable, "var %sExca = []int{\n", prefix)
+	if !lflag {
+		fmt.Fprintf(ftable, "\n//line yacctab:1")
+	}
+	fmt.Fprintf(ftable, "\nvar %sExca = []int{\n", prefix)
 
 	noset := mkset()
 
@@ -2963,7 +2967,9 @@ func others() {
 	}
 
 	// copy yaccpar
-	fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
+	if !lflag {
+		fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
+	}
 
 	parts := strings.SplitN(yaccpar, prefix+"run()", 2)
 	fmt.Fprintf(ftable, "%v", parts[0])
