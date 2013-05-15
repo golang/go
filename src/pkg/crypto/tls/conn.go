@@ -792,21 +792,32 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	c.in.Lock()
 	defer c.in.Unlock()
 
-	for c.input == nil && c.error() == nil {
-		if err := c.readRecord(recordTypeApplicationData); err != nil {
-			// Soft error, like EAGAIN
+	// Some OpenSSL servers send empty records in order to randomize the
+	// CBC IV. So this loop ignores a limited number of empty records.
+	const maxConsecutiveEmptyRecords = 100
+	for emptyRecordCount := 0; emptyRecordCount <= maxConsecutiveEmptyRecords; emptyRecordCount++ {
+		for c.input == nil && c.error() == nil {
+			if err := c.readRecord(recordTypeApplicationData); err != nil {
+				// Soft error, like EAGAIN
+				return 0, err
+			}
+		}
+		if err := c.error(); err != nil {
 			return 0, err
 		}
+
+		n, err = c.input.Read(b)
+		if c.input.off >= len(c.input.data) {
+			c.in.freeBlock(c.input)
+			c.input = nil
+		}
+
+		if n != 0 || err != nil {
+			return n, err
+		}
 	}
-	if err := c.error(); err != nil {
-		return 0, err
-	}
-	n, err = c.input.Read(b)
-	if c.input.off >= len(c.input.data) {
-		c.in.freeBlock(c.input)
-		c.input = nil
-	}
-	return n, nil
+
+	return 0, io.ErrNoProgress
 }
 
 // Close closes the connection.
