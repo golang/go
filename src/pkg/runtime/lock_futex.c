@@ -91,14 +91,14 @@ runtime·unlock(Lock *l)
 {
 	uint32 v;
 
-	if(--m->locks < 0)
-		runtime·throw("runtime·unlock: lock count");
-
 	v = runtime·xchg((uint32*)&l->key, MUTEX_UNLOCKED);
 	if(v == MUTEX_UNLOCKED)
 		runtime·throw("unlock of unlocked lock");
 	if(v == MUTEX_SLEEPING)
 		runtime·futexwakeup((uint32*)&l->key, 1);
+
+	if(--m->locks < 0)
+		runtime·throw("runtime·unlock: lock count");
 }
 
 // One-time notifications.

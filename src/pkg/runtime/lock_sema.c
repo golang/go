@@ -93,9 +93,6 @@ runtime·unlock(Lock *l)
 	uintptr v;
 	M *mp;
 
-	if(--m->locks < 0)
-		runtime·throw("runtime·unlock: lock count");
-
 	for(;;) {
 		v = (uintptr)runtime·atomicloadp((void**)&l->key);
 		if(v == LOCKED) {
@@ -112,6 +109,9 @@ runtime·unlock(Lock *l)
 			}
 		}
 	}
+
+	if(--m->locks < 0)
+		runtime·throw("runtime·unlock: lock count");
 }
 
 // One-time notifications.
