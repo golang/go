@@ -9,7 +9,10 @@
 #include "malloc.h"
 #include "race.h"
 
-static	bool	debug	= 0;
+enum
+{
+	debug = 0
+};
 
 static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
 static	void	growslice1(SliceType*, Slice, intgo, Slice *);
