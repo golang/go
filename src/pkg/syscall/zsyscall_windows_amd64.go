@@ -140,6 +140,7 @@ var (
 	procTranslateNameW                   = modsecur32.NewProc("TranslateNameW")
 	procGetUserNameExW                   = modsecur32.NewProc("GetUserNameExW")
 	procNetUserGetInfo                   = modnetapi32.NewProc("NetUserGetInfo")
+	procNetGetJoinInformation            = modnetapi32.NewProc("NetGetJoinInformation")
 	procNetApiBufferFree                 = modnetapi32.NewProc("NetApiBufferFree")
 	procLookupAccountSidW                = modadvapi32.NewProc("LookupAccountSidW")
 	procLookupAccountNameW               = modadvapi32.NewProc("LookupAccountNameW")
@@ -1607,6 +1608,14 @@ func GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err er
 
 func NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) {
 	r0, _, _ := Syscall6(procNetUserGetInfo.Addr(), 4, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(userName)), uintptr(level), uintptr(unsafe.Pointer(buf)), 0, 0)
+	if r0 != 0 {
+		neterr = Errno(r0)
+	}
+	return
+}
+
+func NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) {
+	r0, _, _ := Syscall(procNetGetJoinInformation.Addr(), 3, uintptr(unsafe.Pointer(server)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(bufType)))
 	if r0 != 0 {
 		neterr = Errno(r0)
 	}

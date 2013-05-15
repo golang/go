@@ -58,6 +58,14 @@ func TranslateAccountName(username string, from, to uint32, initSize int) (strin
 	return UTF16ToString(b), nil
 }
 
+const (
+	// do not reorder
+	NetSetupUnknownStatus = iota
+	NetSetupUnjoined
+	NetSetupWorkgroupName
+	NetSetupDomainName
+)
+
 type UserInfo10 struct {
 	Name       *uint16
 	Comment    *uint16
@@ -66,6 +74,7 @@ type UserInfo10 struct {
 }
 
 //sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
+//sys	NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) = netapi32.NetGetJoinInformation
 //sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
 
 const (
