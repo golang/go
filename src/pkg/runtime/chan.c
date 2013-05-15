@@ -11,8 +11,6 @@
 #define	MAXALIGN	7
 #define	NOSELGEN	1
 
-static	int32	debug	= 0;
-
 typedef	struct	WaitQ	WaitQ;
 typedef	struct	SudoG	SudoG;
 typedef	struct	Select	Select;
@@ -58,6 +56,8 @@ uint32 runtime·Hchansize = sizeof(Hchan);
 
 enum
 {
+	debug = 0,
+
 	// Scase.kind
 	CaseRecv,
 	CaseSend,
