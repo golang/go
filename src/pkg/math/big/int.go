@@ -703,14 +703,15 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
 		// reduce t
 		t.Rsh(t, t.abs.trailingZeroBits())
 		if t.neg {
-			v.Neg(t)
+			v, t = t, v
+			v.neg = len(v.abs) > 0 && !v.neg // 0 has no sign
 		} else {
-			u.Set(t)
+			u, t = t, u
 		}
 		t.Sub(u, v)
 	}
 
-	return u.Lsh(u, k)
+	return z.Lsh(u, k)
 }
 
 // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
