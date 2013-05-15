@@ -275,6 +275,8 @@ int32	runtime·SizeToClass(int32);
 extern	int32	runtime·class_to_size[NumSizeClasses];
 extern	int32	runtime·class_to_allocnpages[NumSizeClasses];
 extern	int32	runtime·class_to_transfercount[NumSizeClasses];
+extern	int8	runtime·size_to_class8[1024/8 + 1];
+extern	int8	runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 extern	void	runtime·InitSizes(void);
 
 
