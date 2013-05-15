@@ -55,3 +55,11 @@ func ConstantTimeCopy(v int, x, y []byte) {
 	}
 	return
 }
+
+// ConstantTimeLessOrEq returns 1 if x <= y and 0 otherwise.
+// Its behavior is undefined if x or y are negative or > 2**31 - 1.
+func ConstantTimeLessOrEq(x, y int) int {
+	x32 := int32(x)
+	y32 := int32(y)
+	return int(((x32 - y32 - 1) >> 31) & 1)
+}

@@ -103,3 +103,23 @@ func TestConstantTimeCopy(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+var lessOrEqTests = []struct {
+	x, y, result int
+}{
+	{0, 0, 1},
+	{1, 0, 0},
+	{0, 1, 1},
+	{10, 20, 1},
+	{20, 10, 0},
+	{10, 10, 1},
+}
+
+func TestConstantTimeLessOrEq(t *testing.T) {
+	for i, test := range lessOrEqTests {
+		result := ConstantTimeLessOrEq(test.x, test.y)
+		if result != test.result {
+			t.Errorf("#%d: %d <= %d gave %d, expected %d", i, test.x, test.y, result, test.result)
+		}
+	}
+}

@@ -197,6 +197,14 @@ func TestVerifyPKCS1v15(t *testing.T) {
 	}
 }
 
+func TestOverlongMessagePKCS1v15(t *testing.T) {
+	ciphertext := decodeBase64("fjOVdirUzFoLlukv80dBllMLjXythIf22feqPrNo0YoIjzyzyoMFiLjAc/Y4krkeZ11XFThIrEvw\nkRiZcCq5ng==")
+	_, err := DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+	if err == nil {
+		t.Error("RSA decrypted a message that was too long.")
+	}
+}
+
 // In order to generate new test vectors you'll need the PEM form of this key:
 // -----BEGIN RSA PRIVATE KEY-----
 // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
