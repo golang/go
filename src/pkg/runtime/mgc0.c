@@ -1454,11 +1454,18 @@ addstackroots(G *gp)
 			// be scanned.  No other live values should be on the
 			// stack.
 			f = runtime·findfunc((uintptr)gp->fnstart->fn);
-			if(f->args > 0) {
+			if(f->args != 0) {
 				if(thechar == '5')
 					sp += sizeof(uintptr);
-				addroot((Obj){sp, f->args, 0});
-			}
+				// If the size of the arguments is known
+				// scan just the incoming arguments.
+				// Otherwise, scan everything between the
+				// top and the bottom of the stack.
+				if(f->args > 0)
+					addroot((Obj){sp, f->args, 0});
+				else
+					addroot((Obj){sp, (byte*)stk - sp, 0}); 
+			} 
 			return;
 		}
 	}
