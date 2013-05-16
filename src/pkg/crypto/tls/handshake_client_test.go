@@ -84,7 +84,7 @@ func TestEmptyRecords(t *testing.T) {
 	// the first application data from the server. This test ensures that
 	// the empty record doesn't cause (0, nil) to be returned from
 	// Conn.Read.
-	var config = *testConfig
+	config := *testConfig
 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
 
 	c, s := net.Pipe()
@@ -92,8 +92,8 @@ func TestEmptyRecords(t *testing.T) {
 	go func() {
 		buf := make([]byte, 1024)
 		n, err := cli.Read(buf)
-		defer cli.Close()
 		defer c.Close()
+		defer cli.Close()
 
 		if err != nil {
 			t.Fatalf("error reading from tls.Client: %s", err)
