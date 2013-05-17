@@ -29,7 +29,8 @@ var (
 
 // Reader implements buffering for an io.Reader object.
 type Reader struct {
-	buf          []byte
+	buf          []byte // either nil or []byte of size bufSize
+	bufSize      int
 	rd           io.Reader
 	r, w         int
 	err          error
@@ -45,18 +46,23 @@ const minReadBufferSize = 16
 func NewReaderSize(rd io.Reader, size int) *Reader {
 	// Is it already a Reader?
 	b, ok := rd.(*Reader)
-	if ok && len(b.buf) >= size {
+	if ok && b.bufSize >= size {
 		return b
 	}
 	if size < minReadBufferSize {
 		size = minReadBufferSize
 	}
-	return &Reader{
-		buf:          make([]byte, size),
+	r := &Reader{
+		bufSize:      size,
 		rd:           rd,
 		lastByte:     -1,
 		lastRuneSize: -1,
 	}
+	if size > defaultBufSize {
+		// TODO(bradfitz): make all buffer sizes recycle
+		r.buf = make([]byte, r.bufSize)
+	}
+	return r
 }
 
 // NewReader returns a new Reader whose buffer has the default size.
@@ -66,8 +72,42 @@ func NewReader(rd io.Reader) *Reader {
 
 var errNegativeRead = errors.New("bufio: reader returned negative count from Read")
 
+// TODO: use a sync.Cache instead of this:
+const arbitrarySize = 8
+
+// bufCache holds only byte slices with capacity defaultBufSize.
+var bufCache = make(chan []byte, arbitrarySize)
+
+// allocBuf makes b.buf non-nil.
+func (b *Reader) allocBuf() {
+	if b.buf != nil {
+		return
+	}
+	select {
+	case b.buf = <-bufCache:
+		b.buf = b.buf[:b.bufSize]
+	default:
+		b.buf = make([]byte, b.bufSize, defaultBufSize)
+	}
+}
+
+// putBuf returns b.buf if it's unused.
+func (b *Reader) putBuf() {
+	if b.r == b.w && b.err == io.EOF && cap(b.buf) == defaultBufSize {
+		select {
+		case bufCache <- b.buf:
+			b.buf = nil
+			b.r = 0
+			b.w = 0
+		default:
+		}
+	}
+}
+
 // fill reads a new chunk into the buffer.
 func (b *Reader) fill() {
+	b.allocBuf()
+
 	// Slide existing data to beginning.
 	if b.r > 0 {
 		copy(b.buf, b.buf[b.r:b.w])
@@ -100,7 +140,7 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, ErrNegativeCount
 	}
-	if n > len(b.buf) {
+	if n > b.bufSize {
 		return nil, ErrBufferFull
 	}
 	for b.w-b.r < n && b.err == nil {
@@ -134,7 +174,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 		if b.err != nil {
 			return 0, b.readErr()
 		}
-		if len(p) >= len(b.buf) {
+		if len(p) >= b.bufSize {
 			// Large read, empty buffer.
 			// Read directly into p to avoid copy.
 			n, b.err = b.rd.Read(p)
@@ -157,6 +197,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 	b.r += n
 	b.lastByte = int(b.buf[b.r-1])
 	b.lastRuneSize = -1
+	b.putBuf()
 	return n, nil
 }
 
@@ -173,6 +214,9 @@ func (b *Reader) ReadByte() (c byte, err error) {
 	c = b.buf[b.r]
 	b.r++
 	b.lastByte = int(c)
+	if b.err != nil { // avoid putBuf call in the common case
+		b.putBuf()
+	}
 	return c, nil
 }
 
@@ -180,6 +224,7 @@ func (b *Reader) ReadByte() (c byte, err error) {
 func (b *Reader) UnreadByte() error {
 	b.lastRuneSize = -1
 	if b.r == b.w && b.lastByte >= 0 {
+		b.allocBuf()
 		b.w = 1
 		b.r = 0
 		b.buf[0] = byte(b.lastByte)
@@ -381,7 +426,9 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // For simple uses, a Scanner may be more convenient.
 func (b *Reader) ReadString(delim byte) (line string, err error) {
 	bytes, err := b.ReadBytes(delim)
-	return string(bytes), err
+	line = string(bytes)
+	b.putBuf()
+	return line, err
 }
 
 // WriteTo implements io.WriterTo.
@@ -416,6 +463,7 @@ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 func (b *Reader) writeBuf(w io.Writer) (int64, error) {
 	n, err := w.Write(b.buf[b.r:b.w])
 	b.r += n
+	b.putBuf()
 	return int64(n), err
 }
 
@@ -444,6 +492,7 @@ func NewWriterSize(wr io.Writer, size int) *Writer {
 		size = defaultBufSize
 	}
 	b = new(Writer)
+	// TODO(bradfitz): make Writer buffers lazy too, like Reader's
 	b.buf = make([]byte, size)
 	b.wr = wr
 	return b

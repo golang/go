@@ -1083,3 +1083,18 @@ func BenchmarkWriterCopyNoReadFrom(b *testing.B) {
 		io.Copy(dst, src)
 	}
 }
+
+func BenchmarkReaderEmpty(b *testing.B) {
+	b.ReportAllocs()
+	str := strings.Repeat("x", 16<<10)
+	for i := 0; i < b.N; i++ {
+		br := NewReader(strings.NewReader(str))
+		n, err := io.Copy(ioutil.Discard, br)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if n != int64(len(str)) {
+			b.Fatal("wrong length")
+		}
+	}
+}
