@@ -21,7 +21,7 @@ import (
 // of the call is returned via x. If the call has type errors, the returned x is marked
 // as invalid (x.mode == invalid).
 //
-func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota int) {
+func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota int) {
 	args := call.Args
 	id := bin.id
 
@@ -59,7 +59,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	switch id {
 	case _Append:
-		if _, ok := underlying(x.typ).(*Slice); !ok {
+		if _, ok := x.typ.Underlying().(*Slice); !ok {
 			check.invalidArg(x.pos(), "%s is not a typed slice", x)
 			goto Error
 		}
@@ -77,7 +77,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	case _Cap, _Len:
 		mode := invalid
 		var val exact.Value
-		switch typ := implicitArrayDeref(underlying(x.typ)).(type) {
+		switch typ := implicitArrayDeref(x.typ.Underlying()).(type) {
 		case *Basic:
 			if isString(typ) && id == _Len {
 				if x.mode == constant {
@@ -96,7 +96,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			// function calls; in this case s is not evaluated."
 			if !check.containsCallsOrReceives(arg0) {
 				mode = constant
-				val = exact.MakeInt64(typ.Len)
+				val = exact.MakeInt64(typ.len)
 			}
 
 		case *Slice, *Chan:
@@ -117,12 +117,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.val = val
 
 	case _Close:
-		ch, ok := underlying(x.typ).(*Chan)
+		ch, ok := x.typ.Underlying().(*Chan)
 		if !ok {
 			check.invalidArg(x.pos(), "%s is not a channel", x)
 			goto Error
 		}
-		if ch.Dir&ast.SEND == 0 {
+		if ch.dir&ast.SEND == 0 {
 			check.invalidArg(x.pos(), "%s must not be a receive-only channel", x)
 			goto Error
 		}
@@ -156,14 +156,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
-		typ := underlying(x.typ).(*Basic)
+		typ := x.typ.Underlying().(*Basic)
 		if x.mode == constant && y.mode == constant {
 			x.val = exact.BinaryOp(x.val, token.ADD, exact.MakeImag(y.val))
 		} else {
 			x.mode = value
 		}
 
-		switch typ.Kind {
+		switch typ.kind {
 		case Float32:
 			x.typ = Typ[Complex64]
 		case Float64:
@@ -202,16 +202,16 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		}
 
 		var dst, src Type
-		if t, ok := underlying(x.typ).(*Slice); ok {
-			dst = t.Elt
+		if t, ok := x.typ.Underlying().(*Slice); ok {
+			dst = t.elt
 		}
-		switch t := underlying(y.typ).(type) {
+		switch t := y.typ.Underlying().(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = Typ[Byte]
 			}
 		case *Slice:
-			src = t.Elt
+			src = t.elt
 		}
 
 		if dst == nil || src == nil {
@@ -228,7 +228,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = Typ[Int]
 
 	case _Delete:
-		m, ok := underlying(x.typ).(*Map)
+		m, ok := x.typ.Underlying().(*Map)
 		if !ok {
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			goto Error
@@ -237,8 +237,8 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		if x.mode == invalid {
 			goto Error
 		}
-		if !x.isAssignable(check.ctxt, m.Key) {
-			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.Key)
+		if !x.isAssignable(check.ctxt, m.key) {
+			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			goto Error
 		}
 		x.mode = novalue
@@ -258,7 +258,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			x.mode = value
 		}
 		k := Invalid
-		switch underlying(x.typ).(*Basic).Kind {
+		switch x.typ.Underlying().(*Basic).kind {
 		case Complex64:
 			k = Float32
 		case Complex128:
@@ -276,7 +276,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 		var min int // minimum number of arguments
-		switch underlying(resultTyp).(type) {
+		switch resultTyp.Underlying().(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
@@ -308,7 +308,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 		x.mode = variable
-		x.typ = &Pointer{Base: resultTyp}
+		x.typ = &Pointer{base: resultTyp}
 
 	case _Panic:
 		x.mode = novalue
@@ -342,12 +342,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 		sel := arg.Sel.Name
-		res := lookupField(x.typ, QualifiedName{check.pkg, arg.Sel.Name})
+		res := lookupField(x.typ, check.pkg, arg.Sel.Name)
 		if res.index == nil {
 			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
 			goto Error
 		}
-		offs := check.ctxt.offsetof(deref(x.typ), res.index)
+		offs := check.ctxt.offsetof(x.typ.Deref(), res.index)
 		if offs < 0 {
 			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, x)
 			goto Error
@@ -415,7 +415,7 @@ Error:
 //
 func implicitArrayDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a, ok := underlying(p.Base).(*Array); ok {
+		if a, ok := p.base.Underlying().(*Array); ok {
 			return a
 		}
 	}
@@ -454,8 +454,8 @@ func unparen(x ast.Expr) ast.Expr {
 }
 
 func (check *checker) complexArg(x *operand) bool {
-	t, _ := underlying(x.typ).(*Basic)
-	if t != nil && (t.Info&IsFloat != 0 || t.Kind == UntypedInt || t.Kind == UntypedRune) {
+	t, _ := x.typ.Underlying().(*Basic)
+	if t != nil && (t.info&IsFloat != 0 || t.kind == UntypedInt || t.kind == UntypedRune) {
 		return true
 	}
 	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)

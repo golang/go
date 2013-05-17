@@ -15,19 +15,22 @@ import (
 	"code.google.com/p/go.tools/ssa"
 )
 
-// A bogus "reflect" type-checker package.  Shared across interpreters.
-var reflectTypesPackage = &types.Package{
-	Name:     "reflect",
-	Path:     "reflect",
-	Complete: true,
+type opaqueType struct {
+	types.Type
+	name string
 }
+
+func (t *opaqueType) String() string { return t.name }
+
+// A bogus "reflect" type-checker package.  Shared across interpreters.
+var reflectTypesPackage = types.NewPackage("reflect", "reflect")
 
 // rtype is the concrete type the interpreter uses to implement the
 // reflect.Type interface.  Since its type is opaque to the target
 // language, we use a types.Basic.
 //
 // type rtype <opaque>
-var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
+var rtypeType = makeNamedType("rtype", &opaqueType{nil, "rtype"})
 
 // error is an (interpreted) named type whose underlying type is string.
 // The interpreter uses it for all implementations of the built-in error
@@ -35,16 +38,11 @@ var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
 // We put it in the "reflect" package for expedience.
 //
 // type error string
-var errorType = makeNamedType("error", &types.Basic{Name: "error"})
+var errorType = makeNamedType("error", &opaqueType{nil, "error"})
 
-func makeNamedType(name string, underlying types.Type) *types.NamedType {
-	nt := &types.NamedType{Underlying: underlying}
-	nt.Obj = &types.TypeName{
-		Name: name,
-		Type: nt,
-		Pkg:  reflectTypesPackage,
-	}
-	return nt
+func makeNamedType(name string, underlying types.Type) *types.Named {
+	obj := types.NewTypeName(reflectTypesPackage, name, nil)
+	return types.NewNamed(obj, underlying, types.ObjSet{})
 }
 
 func makeReflectValue(t types.Type, v value) value {
@@ -74,11 +72,11 @@ func ext۰reflect۰Init(fn *ssa.Function, args []value) value {
 func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) int
 	rt := args[0].(rtype).t
-	basic, ok := underlyingType(rt).(*types.Basic)
+	basic, ok := rt.Underlying().(*types.Basic)
 	if !ok {
 		panic(fmt.Sprintf("reflect.Type.Bits(%T): non-basic type", rt))
 	}
-	switch basic.Kind {
+	switch basic.Kind() {
 	case types.Int8, types.Uint8:
 		return 8
 	case types.Int16, types.Uint16:
@@ -109,22 +107,9 @@ func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value) value {
 
 func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) reflect.Type
-	var elem types.Type
-	switch rt := underlyingType(args[0].(rtype).t).(type) {
-	case *types.Array:
-		elem = rt.Elt
-	case *types.Chan:
-		elem = rt.Elt
-	case *types.Map:
-		elem = rt.Elt
-	case *types.Pointer:
-		elem = rt.Base
-	case *types.Slice:
-		elem = rt.Elt
-	default:
-		panic(fmt.Sprintf("reflect.Type.Elem(%T)", rt))
-	}
-	return makeReflectType(rtype{elem})
+	return makeReflectType(rtype{args[0].(rtype).t.Underlying().(interface {
+		Elem() types.Type
+	}).Elem()})
 }
 
 func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value) value {
@@ -134,13 +119,13 @@ func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value) value {
 
 func ext۰reflect۰rtype۰NumOut(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) int
-	return len(args[0].(rtype).t.(*types.Signature).Results)
+	return args[0].(rtype).t.(*types.Signature).Results().Len()
 }
 
 func ext۰reflect۰rtype۰Out(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype, i int) int
 	i := args[1].(int)
-	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results[i].Type})
+	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results().At(i).Type()})
 }
 
 func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {
@@ -161,10 +146,10 @@ func ext۰reflect۰ValueOf(fn *ssa.Function, args []value) value {
 
 func reflectKind(t types.Type) reflect.Kind {
 	switch t := t.(type) {
-	case *types.NamedType:
-		return reflectKind(t.Underlying)
+	case *types.Named:
+		return reflectKind(t.Underlying())
 	case *types.Basic:
-		switch t.Kind {
+		switch t.Kind() {
 		case types.Bool:
 			return reflect.Bool
 		case types.Int:
@@ -287,12 +272,12 @@ func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value) value {
 func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value, i int) Value
 	i := args[1].(int)
-	t := underlyingType(rV2T(args[0]).t)
+	t := rV2T(args[0]).t.Underlying()
 	switch v := rV2V(args[0]).(type) {
 	case array:
-		return makeReflectValue(t.(*types.Array).Elt, v[i])
+		return makeReflectValue(t.(*types.Array).Elem(), v[i])
 	case []value:
-		return makeReflectValue(t.(*types.Slice).Elt, v[i])
+		return makeReflectValue(t.(*types.Slice).Elem(), v[i])
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Index(%T)", v))
 	}
@@ -322,7 +307,7 @@ func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value) value {
 	case iface:
 		return makeReflectValue(x.t, x.v)
 	case *value:
-		return makeReflectValue(underlyingType(rV2T(args[0]).t).(*types.Pointer).Base, *x)
+		return makeReflectValue(rV2T(args[0]).t.Underlying().(*types.Pointer).Elem(), *x)
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Elem(%T)", x))
 	}
@@ -333,7 +318,7 @@ func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value, i int) reflect.Value
 	v := args[0]
 	i := args[1].(int)
-	return makeReflectValue(underlyingType(rV2T(v).t).(*types.Struct).Fields[i].Type, rV2V(v).(structure)[i])
+	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type, rV2V(v).(structure)[i])
 }
 
 func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value) value {
@@ -413,10 +398,7 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
 	// that is needed is the "pointerness" of Recv.Type, and for
 	// now, we'll set it to always be false since we're only
 	// concerned with rtype.  Encapsulate this better.
-	fn.Signature = &types.Signature{Recv: &types.Var{
-		Name: "recv",
-		Type: recvType,
-	}}
+	fn.Signature = types.NewSignature(types.NewVar(nil, "recv", recvType), nil, nil, false)
 	return fn
 }
 

@@ -29,10 +29,7 @@ package types
 
 // The API is still slightly in flux and the following changes are considered:
 //
-// API(gri): Provide accessors uniformly to all fields and do not export fields directly.
-// API(gri): Provide scope information for all objects.
 // API(gri): Provide position information for all objects.
-// API(gri): The semantics of QualifiedIdent needs to be revisited.
 // API(gri): The GcImporter should probably be in its own package - it is only one of possible importers.
 
 import (
@@ -111,12 +108,12 @@ type Importer func(imports map[string]*Package, path string) (pkg *Package, err 
 // entire package is checked. If there are errors, the package may be
 // only partially type-checked, and the resulting package may be incomplete
 // (missing objects, imports, etc.).
-func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
-	return check(ctxt, fset, files)
+func (ctxt *Context) Check(path string, fset *token.FileSet, files ...*ast.File) (*Package, error) {
+	return check(ctxt, path, fset, files...)
 }
 
 // Check is shorthand for ctxt.Check where ctxt is a default (empty) context.
-func Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
+func Check(path string, fset *token.FileSet, files ...*ast.File) (*Package, error) {
 	var ctxt Context
-	return ctxt.Check(fset, files)
+	return ctxt.Check(path, fset, files...)
 }

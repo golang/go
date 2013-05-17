@@ -158,13 +158,16 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 
 	case *ssa.Call:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.env[instr] = call(fr.i, fr, instr.Call.Pos, fn, args)
-
-	case *ssa.Conv:
-		fr.env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
+		fr.env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
 
 	case *ssa.ChangeInterface:
 		fr.env[instr] = fr.get(instr.X) // (can't fail)
+
+	case *ssa.ChangeType:
+		fr.env[instr] = fr.get(instr.X) // (can't fail)
+
+	case *ssa.Convert:
+		fr.env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
 
 	case *ssa.MakeInterface:
 		fr.env[instr] = iface{t: instr.X.Type(), v: fr.get(instr.X)}
@@ -214,13 +217,13 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		return kJump
 
 	case *ssa.Defer:
-		pos := instr.Call.Pos // TODO(gri): workaround for go/types bug in typeswitch+funclit.
+		pos := instr.Pos() // TODO(gri): workaround for go/types bug in typeswitch+funclit.
 		fn, args := prepareCall(fr, &instr.Call)
 		fr.defers = append(fr.defers, func() { call(fr.i, fr, pos, fn, args) })
 
 	case *ssa.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.i, nil, instr.Call.Pos, fn, args)
+		go call(fr.i, nil, instr.Pos(), fn, args)
 
 	case *ssa.MakeChan:
 		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
@@ -235,11 +238,11 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 			// local
 			addr = fr.env[instr].(*value)
 		}
-		*addr = zero(indirectType(instr.Type()))
+		*addr = zero(instr.Type().Deref())
 
 	case *ssa.MakeSlice:
 		slice := make([]value, asInt(fr.get(instr.Cap)))
-		tElt := underlyingType(instr.Type()).(*types.Slice).Elt
+		tElt := instr.Type().Underlying().(*types.Slice).Elem()
 		for i := range slice {
 			slice[i] = zero(tElt)
 		}
@@ -250,7 +253,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		if instr.Reserve != nil {
 			reserve = asInt(fr.get(instr.Reserve))
 		}
-		fr.env[instr] = makeMap(underlyingType(instr.Type()).(*types.Map).Key, reserve)
+		fr.env[instr] = makeMap(instr.Type().Underlying().(*types.Map).Key(), reserve)
 
 	case *ssa.Range:
 		fr.env[instr] = rangeIter(fr.get(instr.X), instr.X.Type())
@@ -344,7 +347,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		}
 		var recvV iface
 		if chosen != -1 {
-			recvV.t = underlyingType(instr.States[chosen].Chan.Type()).(*types.Chan).Elt
+			recvV.t = instr.States[chosen].Chan.Type().Underlying().(*types.Chan).Elem()
 			if recvOk {
 				// No need to copy since send makes an unaliased copy.
 				recvV.v = recv.Interface().(value)
@@ -385,8 +388,8 @@ func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
 			// Unreachable in well-typed programs.
 			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, id))
 		}
-		_, aptr := recv.v.(*value)                        // actual pointerness
-		_, fptr := m.Signature.Recv.Type.(*types.Pointer) // formal pointerness
+		_, aptr := recv.v.(*value)                            // actual pointerness
+		_, fptr := m.Signature.Recv().Type().(*types.Pointer) // formal pointerness
 		switch {
 		case aptr == fptr:
 			args = append(args, copyVal(recv.v))
@@ -438,7 +441,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 	if i.mode&EnableTracing != 0 {
 		fset := fn.Prog.Files
 		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos))
+		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
 		suffix := ""
 		if caller != nil {
 			suffix = ", resuming " + caller.fn.FullName() + loc(fset, callpos)
@@ -466,7 +469,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 		locals: make([]value, len(fn.Locals)),
 	}
 	for i, l := range fn.Locals {
-		fr.locals[i] = zero(indirectType(l.Type()))
+		fr.locals[i] = zero(l.Type().Deref())
 		fr.env[l] = &fr.locals[i]
 	}
 	for i, p := range fn.Params {
@@ -550,7 +553,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
 			case *ssa.Global:
-				cell := zero(indirectType(v.Type()))
+				cell := zero(v.Type().Deref())
 				i.globals[v] = &cell
 			}
 		}

@@ -48,7 +48,7 @@ func relName(v Value, i Instruction) string {
 // It never appears in disassembly, which uses Value.Name().
 
 func (v *Literal) String() string {
-	return fmt.Sprintf("literal %s rep=%T", v.Name(), v.Value)
+	return fmt.Sprintf("literal %s", v.Name())
 }
 
 func (v *Parameter) String() string {
@@ -73,7 +73,7 @@ func (v *Function) String() string {
 
 // FullName returns g's package-qualified name.
 func (g *Global) FullName() string {
-	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path, g.Name_)
+	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path(), g.Name_)
 }
 
 // Instruction.String()
@@ -83,7 +83,7 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s", op, indirectType(v.Type()))
+	return fmt.Sprintf("%s %s", op, v.Type().Deref())
 }
 
 func (v *Phi) String() string {
@@ -120,7 +120,7 @@ func printCall(v *CallCommon, prefix string, instr Instruction) string {
 	if !v.IsInvoke() {
 		b.WriteString(relName(v.Func, instr))
 	} else {
-		name := underlyingType(v.Recv.Type()).(*types.Interface).Methods[v.Method].Name
+		name := v.Recv.Type().Underlying().(*types.Interface).Method(v.Method).Name()
 		fmt.Fprintf(&b, "invoke %s.%s [#%d]", relName(v.Recv, instr), name, v.Method)
 	}
 	b.WriteString("(")
@@ -145,6 +145,10 @@ func (v *Call) String() string {
 	return printCall(&v.Call, "", v)
 }
 
+func (v *ChangeType) String() string {
+	return fmt.Sprintf("changetype %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+}
+
 func (v *BinOp) String() string {
 	return fmt.Sprintf("%s %s %s", relName(v.X, v), v.Op.String(), relName(v.Y, v))
 }
@@ -153,7 +157,7 @@ func (v *UnOp) String() string {
 	return fmt.Sprintf("%s%s%s", v.Op, relName(v.X, v), commaOk(v.CommaOk))
 }
 
-func (v *Conv) String() string {
+func (v *Convert) String() string {
 	return fmt.Sprintf("convert %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
 }
 
@@ -221,21 +225,21 @@ func (v *MakeChan) String() string {
 }
 
 func (v *FieldAddr) String() string {
-	fields := underlyingType(indirectType(v.X.Type())).(*types.Struct).Fields
+	st := v.X.Type().Deref().Underlying().(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
-	if v.Field >= 0 && v.Field < len(fields) {
-		name = fields[v.Field].Name
+	if 0 <= v.Field && v.Field < st.NumFields() {
+		name = st.Field(v.Field).Name
 	}
 	return fmt.Sprintf("&%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }
 
 func (v *Field) String() string {
-	fields := underlyingType(v.X.Type()).(*types.Struct).Fields
+	st := v.X.Type().Underlying().(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
-	if v.Field >= 0 && v.Field < len(fields) {
-		name = fields[v.Field].Name
+	if 0 <= v.Field && v.Field < st.NumFields() {
+		name = st.Field(v.Field).Name
 	}
 	return fmt.Sprintf("%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }
@@ -352,7 +356,7 @@ func (s *MapUpdate) String() string {
 }
 
 func (p *Package) String() string {
-	return "Package " + p.Types.Path
+	return "Package " + p.Types.Path()
 }
 
 func (p *Package) DumpTo(w io.Writer) {
@@ -377,7 +381,7 @@ func (p *Package) DumpTo(w io.Writer) {
 			fmt.Fprintf(w, "  func  %-*s %s\n", maxname, name, mem.Type())
 
 		case *Type:
-			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.NamedType.Underlying)
+			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.NamedType.Underlying())
 			// We display only PtrMethods since its keys
 			// are a superset of Methods' keys, though the
 			// methods themselves may differ,

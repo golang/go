@@ -53,7 +53,7 @@ func (b *Builder) doImport(imports map[string]*types.Package, path string) (typk
 	} else {
 		files, err = b.Context.Loader(b.Prog.Files, path)
 		if err == nil {
-			typkg, info, err = b.typecheck(files)
+			typkg, info, err = b.typecheck(path, files)
 		}
 	}
 	if err != nil {
@@ -69,28 +69,35 @@ func (b *Builder) doImport(imports map[string]*types.Package, path string) (typk
 	return typkg, nil
 }
 
-// GorootLoader is an implementation of the SourceLoader function
-// prototype that loads and parses Go source files from the package
-// directory beneath $GOROOT/src/pkg.
+// MakeGoBuildLoader returns an implementation of the SourceLoader
+// function prototype that locates packages using the go/build
+// libraries.  It may return nil upon gross misconfiguration
+// (e.g. os.Getwd() failed).
 //
-// TODO(adonovan): get rsc and adg (go/build owners) to review this.
-// TODO(adonovan): permit clients to specify a non-default go/build.Context.
+// ctxt specifies the go/build.Context to use; if nil, the default
+// Context is used.
 //
-func GorootLoader(fset *token.FileSet, path string) (files []*ast.File, err error) {
-	// TODO(adonovan): fix: Do we need cwd? Shouldn't ImportDir(path) / $GOROOT suffice?
+func MakeGoBuildLoader(ctxt *build.Context) SourceLoader {
 	srcDir, err := os.Getwd()
 	if err != nil {
-		return // serious misconfiguration
+		return nil // serious misconfiguration
 	}
-	bp, err := build.Import(path, srcDir, 0)
-	if err != nil {
-		return // import failed
+	if ctxt == nil {
+		ctxt = &build.Default
 	}
-	files, err = ParseFiles(fset, bp.Dir, bp.GoFiles...)
-	if err != nil {
-		return nil, err
+	return func(fset *token.FileSet, path string) (files []*ast.File, err error) {
+		// TODO(adonovan): fix: Do we need cwd? Shouldn't
+		// ImportDir(path) / $GOROOT suffice?
+		bp, err := ctxt.Import(path, srcDir, 0)
+		if err != nil {
+			return // import failed
+		}
+		files, err = ParseFiles(fset, bp.Dir, bp.GoFiles...)
+		if err != nil {
+			return nil, err
+		}
+		return
 	}
-	return
 }
 
 // ParseFiles parses the Go source files files within directory dir

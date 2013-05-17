@@ -36,7 +36,7 @@ func (check *checker) isTerminating(s ast.Stmt, label string) bool {
 					//           rather then ordinary functions that have a predeclared
 					//           function type. This would simplify code here and else-
 					//           where.
-					if f, _ := obj.(*Func); f != nil && f.Type == predeclaredFunctions[_Panic] {
+					if f, _ := obj.(*Func); f != nil && f.typ == predeclaredFunctions[_Panic] {
 						return true
 					}
 				}

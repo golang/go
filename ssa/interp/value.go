@@ -103,8 +103,8 @@ func usesBuiltinMap(t types.Type) bool {
 	switch t := t.(type) {
 	case *types.Basic, *types.Chan, *types.Pointer:
 		return true
-	case *types.NamedType:
-		return usesBuiltinMap(t.Underlying)
+	case *types.Named:
+		return usesBuiltinMap(t.Underlying())
 	case *types.Interface, *types.Array, *types.Struct:
 		return false
 	}

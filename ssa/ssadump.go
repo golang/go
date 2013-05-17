@@ -101,7 +101,7 @@ func main() {
 
 	context := &ssa.Context{
 		Mode:   mode,
-		Loader: ssa.GorootLoader,
+		Loader: ssa.MakeGoBuildLoader(nil),
 	}
 	b := ssa.NewBuilder(context)
 	mainpkg, args, err := ssa.CreatePackageFromArgs(b, args)

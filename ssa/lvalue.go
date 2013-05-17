@@ -31,7 +31,7 @@ func (a address) store(fn *Function, v Value) {
 }
 
 func (a address) typ() types.Type {
-	return indirectType(a.addr.Type())
+	return a.addr.Type().Deref()
 }
 
 // An element is an lvalue represented by m[k], the location of an

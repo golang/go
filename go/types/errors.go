@@ -53,14 +53,16 @@ func (check *checker) untrace(format string, args ...interface{}) {
 func (check *checker) formatMsg(format string, args []interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
+		case operand:
+			panic("internal error: should always pass *operand")
+		case *operand:
+			args[i] = a.String()
 		case token.Pos:
 			args[i] = check.fset.Position(a).String()
 		case ast.Expr:
 			args[i] = exprString(a)
 		case Type:
 			args[i] = typeString(a)
-		case operand:
-			panic("internal error: should always pass *operand")
 		}
 	}
 	return fmt.Sprintf(format, args...)
@@ -181,6 +183,8 @@ func writeExpr(buf *bytes.Buffer, expr ast.Expr) {
 		writeExpr(buf, x.Y)
 
 	default:
+		// TODO(gri) Consider just calling x.String(). May cause
+		//           infinite recursion if we missed a local type.
 		fmt.Fprintf(buf, "<expr %T>", x)
 	}
 }
@@ -192,40 +196,44 @@ func typeString(typ Type) string {
 	return buf.String()
 }
 
-func writeParams(buf *bytes.Buffer, params []*Var, isVariadic bool) {
+func writeTuple(buf *bytes.Buffer, tup *Tuple, isVariadic bool) {
 	buf.WriteByte('(')
-	for i, par := range params {
-		if i > 0 {
-			buf.WriteString(", ")
+	if tup != nil {
+		for i, v := range tup.vars {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			if v.name != "" {
+				buf.WriteString(v.name)
+				buf.WriteByte(' ')
+			}
+			if isVariadic && i == len(tup.vars)-1 {
+				buf.WriteString("...")
+			}
+			writeType(buf, v.typ)
 		}
-		if par.Name != "" {
-			buf.WriteString(par.Name)
-			buf.WriteByte(' ')
-		}
-		if isVariadic && i == len(params)-1 {
-			buf.WriteString("...")
-		}
-		writeType(buf, par.Type)
 	}
 	buf.WriteByte(')')
 }
 
 func writeSignature(buf *bytes.Buffer, sig *Signature) {
-	writeParams(buf, sig.Params, sig.IsVariadic)
-	if len(sig.Results) == 0 {
+	writeTuple(buf, sig.params, sig.isVariadic)
+
+	n := sig.results.Len()
+	if n == 0 {
 		// no result
 		return
 	}
 
 	buf.WriteByte(' ')
-	if len(sig.Results) == 1 && sig.Results[0].Name == "" {
+	if n == 1 && sig.results.vars[0].name == "" {
 		// single unnamed result
-		writeType(buf, sig.Results[0].Type.(Type))
+		writeType(buf, sig.results.vars[0].typ)
 		return
 	}
 
 	// multiple or named result(s)
-	writeParams(buf, sig.Results, false)
+	writeTuple(buf, sig.results, false)
 }
 
 func writeType(buf *bytes.Buffer, typ Type) {
@@ -234,19 +242,19 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		buf.WriteString("<nil>")
 
 	case *Basic:
-		buf.WriteString(t.Name)
+		buf.WriteString(t.name)
 
 	case *Array:
-		fmt.Fprintf(buf, "[%d]", t.Len)
-		writeType(buf, t.Elt)
+		fmt.Fprintf(buf, "[%d]", t.len)
+		writeType(buf, t.elt)
 
 	case *Slice:
 		buf.WriteString("[]")
-		writeType(buf, t.Elt)
+		writeType(buf, t.elt)
 
 	case *Struct:
 		buf.WriteString("struct{")
-		for i, f := range t.Fields {
+		for i, f := range t.fields {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
@@ -255,46 +263,47 @@ func writeType(buf *bytes.Buffer, typ Type) {
 				buf.WriteByte(' ')
 			}
 			writeType(buf, f.Type)
-			if f.Tag != "" {
-				fmt.Fprintf(buf, " %q", f.Tag)
+			if tag := t.Tag(i); tag != "" {
+				fmt.Fprintf(buf, " %q", tag)
 			}
 		}
 		buf.WriteByte('}')
 
 	case *Pointer:
 		buf.WriteByte('*')
-		writeType(buf, t.Base)
+		writeType(buf, t.base)
 
-	case *Result:
-		writeParams(buf, t.Values, false)
+	case *Tuple:
+		writeTuple(buf, t, false)
 
 	case *Signature:
 		buf.WriteString("func")
 		writeSignature(buf, t)
 
-	case *builtin:
+	case *Builtin:
 		fmt.Fprintf(buf, "<type of %s>", t.name)
 
 	case *Interface:
 		buf.WriteString("interface{")
-		for i, m := range t.Methods {
+		for i, obj := range t.methods.entries {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
-			buf.WriteString(m.Name)
-			writeSignature(buf, m.Type)
+			m := obj.(*Func)
+			buf.WriteString(m.name)
+			writeSignature(buf, m.typ.(*Signature))
 		}
 		buf.WriteByte('}')
 
 	case *Map:
 		buf.WriteString("map[")
-		writeType(buf, t.Key)
+		writeType(buf, t.key)
 		buf.WriteByte(']')
-		writeType(buf, t.Elt)
+		writeType(buf, t.elt)
 
 	case *Chan:
 		var s string
-		switch t.Dir {
+		switch t.dir {
 		case ast.SEND:
 			s = "chan<- "
 		case ast.RECV:
@@ -303,33 +312,21 @@ func writeType(buf *bytes.Buffer, typ Type) {
 			s = "chan "
 		}
 		buf.WriteString(s)
-		writeType(buf, t.Elt)
+		writeType(buf, t.elt)
 
-	case *NamedType:
-		s := "<NamedType w/o object>"
-		if obj := t.Obj; obj != nil {
-			if obj.Pkg != nil && obj.Pkg.Path != "" {
-				buf.WriteString(obj.Pkg.Path)
+	case *Named:
+		s := "<Named w/o object>"
+		if obj := t.obj; obj != nil {
+			if obj.pkg != nil && obj.pkg.path != "" {
+				buf.WriteString(obj.pkg.path)
 				buf.WriteString(".")
 			}
-			s = t.Obj.GetName()
+			s = t.obj.name
 		}
 		buf.WriteString(s)
 
 	default:
-		fmt.Fprintf(buf, "<type %T>", t)
+		// For externally defined implementations of Type.
+		buf.WriteString(t.String())
 	}
 }
-
-func (t *Array) String() string     { return typeString(t) }
-func (t *Basic) String() string     { return typeString(t) }
-func (t *Chan) String() string      { return typeString(t) }
-func (t *Interface) String() string { return typeString(t) }
-func (t *Map) String() string       { return typeString(t) }
-func (t *NamedType) String() string { return typeString(t) }
-func (t *Pointer) String() string   { return typeString(t) }
-func (t *Result) String() string    { return typeString(t) }
-func (t *Signature) String() string { return typeString(t) }
-func (t *Slice) String() string     { return typeString(t) }
-func (t *Struct) String() string    { return typeString(t) }
-func (t *builtin) String() string   { return typeString(t) }

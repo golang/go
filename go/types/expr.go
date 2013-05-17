@@ -93,14 +93,14 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 			// named parameter
 			for _, name := range field.Names {
 				par := check.lookup(name).(*Var)
-				par.Type = typ
+				par.typ = typ
 				last = par
 				copy := *par
 				params = append(params, &copy)
 			}
 		} else {
 			// anonymous parameter
-			par := &Var{Type: typ}
+			par := &Var{typ: typ}
 			last = nil // not accessible inside function
 			params = append(params, par)
 		}
@@ -109,12 +109,12 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 	// from T to []T (this is the type used inside the function), but
 	// keep the params list unchanged (this is the externally visible type).
 	if isVariadic && last != nil {
-		last.Type = &Slice{Elt: last.Type}
+		last.typ = &Slice{elt: last.typ}
 	}
 	return
 }
 
-func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
+func (check *checker) collectMethods(list *ast.FieldList) (methods ObjSet) {
 	if list == nil {
 		return
 	}
@@ -131,33 +131,26 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
 				continue
 			}
 			for _, name := range f.Names {
-				methods = append(methods, &Method{QualifiedName{check.pkg, name.Name}, sig})
+				// TODO(gri) provide correct declaration info
+				obj := &Func{check.pkg, name.Name, sig, nil}
+				if alt := methods.Insert(obj); alt != nil {
+					check.errorf(list.Pos(), "multiple methods named %s", name.Name)
+				}
 			}
 		} else {
 			// embedded interface
-			utyp := underlying(typ)
+			utyp := typ.Underlying()
 			if ityp, ok := utyp.(*Interface); ok {
-				methods = append(methods, ityp.Methods...)
+				for _, obj := range ityp.methods.entries {
+					if alt := methods.Insert(obj); alt != nil {
+						check.errorf(list.Pos(), "multiple methods named %s", obj.Name())
+					}
+				}
 			} else if utyp != Typ[Invalid] {
 				// if utyp is invalid, don't complain (the root cause was reported before)
 				check.errorf(f.Type.Pos(), "%s is not an interface type", typ)
 			}
 		}
-	}
-	// Check for double declarations.
-	// The parser inserts methods into an interface-local scope, so local
-	// double declarations are reported by the parser already. We need to
-	// check again for conflicts due to embedded interfaces. This will lead
-	// to a 2nd error message if the double declaration was reported before
-	// by the parser.
-	// TODO(gri) clean this up a bit
-	seen := make(map[string]bool)
-	for _, m := range methods {
-		if seen[m.Name] {
-			check.errorf(list.Pos(), "multiple methods named %s", m.Name)
-			return // keep multiple entries, lookup will only return the first entry
-		}
-		seen[m.Name] = true
 	}
 	return
 }
@@ -174,7 +167,7 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Field) {
+func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
 	if list == nil {
 		return
 	}
@@ -182,7 +175,14 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 	var typ Type   // current field typ
 	var tag string // current field tag
 	add := func(name string, isAnonymous bool) {
-		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, isAnonymous})
+		// TODO(gri): rethink this - at the moment we allocate only a prefix
+		if tag != "" && tags == nil {
+			tags = make([]string, len(fields))
+		}
+		if tags != nil {
+			tags = append(tags, tag)
+		}
+		fields = append(fields, &Field{check.pkg, name, typ, isAnonymous})
 	}
 
 	for _, f := range list.List {
@@ -195,11 +195,11 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			}
 		} else {
 			// anonymous field
-			switch t := deref(typ).(type) {
+			switch t := typ.Deref().(type) {
 			case *Basic:
-				add(t.Name, true)
-			case *NamedType:
-				add(t.Obj.GetName(), true)
+				add(t.name, true)
+			case *Named:
+				add(t.obj.name, true)
 			default:
 				if typ != Typ[Invalid] {
 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
@@ -245,21 +245,21 @@ func (check *checker) unary(x *operand, op token.Token) {
 			check.invalidOp(x.pos(), "cannot take address of %s", x)
 			goto Error
 		}
-		x.typ = &Pointer{Base: x.typ}
+		x.typ = &Pointer{base: x.typ}
 		return
 
 	case token.ARROW:
-		typ, ok := underlying(x.typ).(*Chan)
+		typ, ok := x.typ.Underlying().(*Chan)
 		if !ok {
 			check.invalidOp(x.pos(), "cannot receive from non-channel %s", x)
 			goto Error
 		}
-		if typ.Dir&ast.RECV == 0 {
+		if typ.dir&ast.RECV == 0 {
 			check.invalidOp(x.pos(), "cannot receive from send-only channel %s", x)
 			goto Error
 		}
 		x.mode = valueok
-		x.typ = typ.Elt
+		x.typ = typ.elt
 		return
 	}
 
@@ -268,7 +268,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 	}
 
 	if x.mode == constant {
-		typ := underlying(x.typ).(*Basic)
+		typ := x.typ.Underlying().(*Basic)
 		size := -1
 		if isUnsigned(typ) {
 			size = int(check.ctxt.sizeof(typ))
@@ -417,7 +417,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 		return
 	}
 
-	if !isRepresentableConst(x.val, check.ctxt, typ.Kind) {
+	if !isRepresentableConst(x.val, check.ctxt, typ.kind) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			msg = "%s overflows (or cannot be accurately represented as) %s"
@@ -517,7 +517,7 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	// If the new type is not final and still untyped, just
 	// update the recorded type.
 	if !final && isUntyped(typ) {
-		old.typ = underlying(typ).(*Basic)
+		old.typ = typ.Underlying().(*Basic)
 		check.untyped[x] = old
 		return
 	}
@@ -551,8 +551,8 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 
 	if isUntyped(target) {
 		// both x and target are untyped
-		xkind := x.typ.(*Basic).Kind
-		tkind := target.(*Basic).Kind
+		xkind := x.typ.(*Basic).kind
+		tkind := target.(*Basic).kind
 		if isNumeric(x.typ) && isNumeric(target) {
 			if xkind < tkind {
 				x.typ = target
@@ -565,7 +565,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 	}
 
 	// typed target
-	switch t := underlying(target).(type) {
+	switch t := target.Underlying().(type) {
 	case nil:
 		// We may reach here due to previous type errors.
 		// Be conservative and don't crash.
@@ -577,7 +577,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 			return // error already reported
 		}
 	case *Interface:
-		if !x.isNil() && len(t.Methods) > 0 /* empty interfaces are ok */ {
+		if !x.isNil() && !t.IsEmpty() /* empty interfaces are ok */ {
 			goto Error
 		}
 		// Update operand types to the default type rather then
@@ -590,7 +590,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 			target = Typ[UntypedNil]
 		} else {
 			// cannot assign untyped values to non-empty interfaces
-			if len(t.Methods) > 0 {
+			if !t.IsEmpty() {
 				goto Error
 			}
 			target = defaultType(x.typ)
@@ -814,7 +814,7 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota
 	}
 
 	if x.mode == constant && y.mode == constant {
-		typ := underlying(x.typ).(*Basic)
+		typ := x.typ.Underlying().(*Basic)
 		// force integer division of integer operands
 		if op == token.QUO && isInteger(typ) {
 			op = token.QUO_ASSIGN
@@ -871,7 +871,7 @@ func (check *checker) index(arg ast.Expr, length int64, iota int) (i int64, ok b
 // For details, see comment in go/parser/parser.go, method parseElement.
 func (check *checker) compositeLitKey(key ast.Expr) {
 	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
-		if obj := check.pkg.Scope.Lookup(ident.Name); obj != nil {
+		if obj := check.pkg.scope.Lookup(ident.Name); obj != nil {
 			check.register(ident, obj)
 		} else if obj := Universe.Lookup(ident.Name); obj != nil {
 			check.register(ident, obj)
@@ -937,13 +937,22 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, passSlice bool) {
 	// determine parameter
 	var par *Var
-	n := len(sig.Params)
+	n := sig.params.Len()
 	if i < n {
-		par = sig.Params[i]
-	} else if sig.IsVariadic {
-		par = sig.Params[n-1]
+		par = sig.params.vars[i]
+	} else if sig.isVariadic {
+		par = sig.params.vars[n-1]
 	} else {
-		check.errorf(arg.Pos(), "too many arguments")
+		var pos token.Pos
+		switch {
+		case arg != nil:
+			pos = arg.Pos()
+		case x != nil:
+			pos = x.pos()
+		default:
+			// TODO(gri) what position to use?
+		}
+		check.errorf(pos, "too many arguments")
 		return
 	}
 
@@ -951,7 +960,7 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 	var z operand
 	z.mode = variable
 	z.expr = nil // TODO(gri) can we do better here? (for good error messages)
-	z.typ = par.Type
+	z.typ = par.typ
 
 	if arg != nil {
 		check.expr(x, arg, z.typ, -1)
@@ -969,15 +978,13 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 		// spec: "If the final argument is assignable to a slice type []T,
 		// it may be passed unchanged as the value for a ...T parameter if
 		// the argument is followed by ..."
-		z.typ = &Slice{Elt: z.typ} // change final parameter type to []T
+		z.typ = &Slice{elt: z.typ} // change final parameter type to []T
 	}
 
 	if !check.assignment(x, z.typ) && x.mode != invalid {
 		check.errorf(x.pos(), "cannot pass argument %s to %s", x, &z)
 	}
 }
-
-var emptyResult Result
 
 func (check *checker) callExpr(x *operand) {
 	// convert x into a user-friendly set of values
@@ -987,7 +994,7 @@ func (check *checker) callExpr(x *operand) {
 	case invalid:
 		return // nothing to do
 	case novalue:
-		typ = &emptyResult
+		typ = (*Tuple)(nil)
 	case constant:
 		typ = x.typ
 		val = x.val
@@ -1050,7 +1057,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
 			goto Error
 		case *Const:
-			if obj.Type == Typ[Invalid] {
+			if obj.typ == Typ[Invalid] {
 				goto Error
 			}
 			x.mode = constant
@@ -1061,11 +1068,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				x.val = exact.MakeInt64(int64(iota))
 			} else {
-				x.val = obj.Val // may be nil if we don't know the constant value
+				x.val = obj.val // may be nil if we don't know the constant value
 			}
 		case *TypeName:
 			x.mode = typexpr
-			if !cycleOk && underlying(obj.Type) == nil {
+			if !cycleOk && obj.typ.Underlying() == nil {
 				check.errorf(obj.spec.Pos(), "illegal cycle in declaration of %s", obj.Name)
 				x.expr = e
 				x.typ = Typ[Invalid]
@@ -1078,7 +1085,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		default:
 			unreachable()
 		}
-		x.typ = obj.GetType()
+		x.typ = obj.Type()
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -1115,7 +1122,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{Len: -1, Elt: check.typ(atyp.Elt, cycleOk)}
+					typ = &Array{len: -1, elt: check.typ(atyp.Elt, cycleOk)}
 					openArray = true
 				}
 			}
@@ -1128,12 +1135,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		}
 
-		switch utyp := underlying(deref(typ)).(type) {
+		switch utyp := typ.Deref().Underlying().(type) {
 		case *Struct:
 			if len(e.Elts) == 0 {
 				break
 			}
-			fields := utyp.Fields
+			fields := utyp.fields
 			if _, ok := e.Elts[0].(*ast.KeyValueExpr); ok {
 				// all elements must have keys
 				visited := make([]bool, len(fields))
@@ -1148,7 +1155,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := utyp.fieldIndex(QualifiedName{check.pkg, key.Name})
+					i := utyp.fieldIndex(check.pkg, key.Name)
 					if i < 0 {
 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
 						continue
@@ -1196,14 +1203,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 
 		case *Array:
-			n := check.indexedElts(e.Elts, utyp.Elt, utyp.Len, iota)
+			n := check.indexedElts(e.Elts, utyp.elt, utyp.len, iota)
 			// if we have an "open" [...]T array, set the length now that we know it
 			if openArray {
-				utyp.Len = n
+				utyp.len = n
 			}
 
 		case *Slice:
-			check.indexedElts(e.Elts, utyp.Elt, -1, iota)
+			check.indexedElts(e.Elts, utyp.elt, -1, iota)
 
 		case *Map:
 			visited := make(map[interface{}]bool, len(e.Elts))
@@ -1215,9 +1222,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				check.compositeLitKey(kv.Key)
 				check.expr(x, kv.Key, nil, iota)
-				if !check.assignment(x, utyp.Key) {
+				if !check.assignment(x, utyp.key) {
 					if x.mode != invalid {
-						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
+						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.key)
 					}
 					continue
 				}
@@ -1228,10 +1235,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					}
 					visited[x.val] = true
 				}
-				check.expr(x, kv.Value, utyp.Elt, iota)
-				if !check.assignment(x, utyp.Elt) {
+				check.expr(x, kv.Value, utyp.elt, iota)
+				if !check.assignment(x, utyp.elt) {
 					if x.mode != invalid {
-						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
+						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.elt)
 					}
 					continue
 				}
@@ -1256,11 +1263,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		// selector expressions.
 		if ident, ok := e.X.(*ast.Ident); ok {
 			if pkg, ok := check.lookup(ident).(*Package); ok {
-				exp := pkg.Scope.Lookup(sel)
+				exp := pkg.scope.Lookup(sel)
 				if exp == nil {
 					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
 					goto Error
-				} else if !ast.IsExported(exp.GetName()) {
+				} else if !ast.IsExported(exp.Name()) {
 					// gcimported package scopes contain non-exported
 					// objects such as types used in partially exported
 					// objects - do not accept them
@@ -1275,17 +1282,17 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				case *Const:
 					assert(exp.Val != nil)
 					x.mode = constant
-					x.typ = exp.Type
-					x.val = exp.Val
+					x.typ = exp.typ
+					x.val = exp.val
 				case *TypeName:
 					x.mode = typexpr
-					x.typ = exp.Type
+					x.typ = exp.typ
 				case *Var:
 					x.mode = variable
-					x.typ = exp.Type
+					x.typ = exp.typ
 				case *Func:
 					x.mode = value
-					x.typ = exp.Type
+					x.typ = exp.typ
 				default:
 					unreachable()
 				}
@@ -1298,7 +1305,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		res := lookupField(x.typ, QualifiedName{check.pkg, sel})
+		res := lookupField(x.typ, check.pkg, sel)
 		if res.mode == invalid {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
@@ -1314,11 +1321,15 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			// argument of the method expression's function type
 			// TODO(gri) at the moment, method sets don't correctly track
 			// pointer vs non-pointer receivers => typechecker is too lenient
+			var params []*Var
+			if sig.params != nil {
+				params = sig.params.vars
+			}
 			x.mode = value
 			x.typ = &Signature{
-				Params:     append([]*Var{{Type: x.typ}}, sig.Params...),
-				Results:    sig.Results,
-				IsVariadic: sig.IsVariadic,
+				params:     NewTuple(append([]*Var{{typ: x.typ}}, params...)...),
+				results:    sig.results,
+				isVariadic: sig.isVariadic,
 			}
 		} else {
 			// regular selector
@@ -1334,7 +1345,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := underlying(x.typ).(type) {
+		switch typ := x.typ.Underlying().(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1350,36 +1361,36 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 		case *Array:
 			valid = true
-			length = typ.Len
+			length = typ.len
 			if x.mode != variable {
 				x.mode = value
 			}
-			x.typ = typ.Elt
+			x.typ = typ.elt
 
 		case *Pointer:
-			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
+			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				valid = true
-				length = typ.Len
+				length = typ.len
 				x.mode = variable
-				x.typ = typ.Elt
+				x.typ = typ.elt
 			}
 
 		case *Slice:
 			valid = true
 			x.mode = variable
-			x.typ = typ.Elt
+			x.typ = typ.elt
 
 		case *Map:
 			var key operand
 			check.expr(&key, e.Index, nil, iota)
-			if !check.assignment(&key, typ.Key) {
+			if !check.assignment(&key, typ.key) {
 				if key.mode != invalid {
-					check.invalidOp(key.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
+					check.invalidOp(key.pos(), "cannot use %s as map index of type %s", &key, typ.key)
 				}
 				goto Error
 			}
 			x.mode = valueok
-			x.typ = typ.Elt
+			x.typ = typ.elt
 			x.expr = e
 			return
 		}
@@ -1405,7 +1416,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := underlying(x.typ).(type) {
+		switch typ := x.typ.Underlying().(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1419,26 +1430,26 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				x.mode = value
 				// x.typ doesn't change, but if it is an untyped
 				// string it becomes string (see also issue 4913).
-				if typ.Kind == UntypedString {
+				if typ.kind == UntypedString {
 					x.typ = Typ[String]
 				}
 			}
 
 		case *Array:
 			valid = true
-			length = typ.Len + 1 // +1 for slice
+			length = typ.len + 1 // +1 for slice
 			if x.mode != variable {
 				check.invalidOp(x.pos(), "cannot slice %s (value not addressable)", x)
 				goto Error
 			}
-			x.typ = &Slice{Elt: typ.Elt}
+			x.typ = &Slice{elt: typ.elt}
 
 		case *Pointer:
-			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
+			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				valid = true
-				length = typ.Len + 1 // +1 for slice
+				length = typ.len + 1 // +1 for slice
 				x.mode = variable
-				x.typ = &Slice{Elt: typ.Elt}
+				x.typ = &Slice{elt: typ.elt}
 			}
 
 		case *Slice:
@@ -1479,7 +1490,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		}
 		var T *Interface
-		if T, _ = underlying(x.typ).(*Interface); T == nil {
+		if T, _ = x.typ.Underlying().(*Interface); T == nil {
 			check.invalidOp(x.pos(), "%s is not an interface", x)
 			goto Error
 		}
@@ -1499,7 +1510,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			} else {
 				msg = "%s cannot have dynamic type %s (missing method %s)"
 			}
-			check.errorf(e.Type.Pos(), msg, x, typ, method.Name)
+			check.errorf(e.Type.Pos(), msg, x, typ, method.name)
 			// ok to continue
 		}
 		x.mode = valueok
@@ -1512,7 +1523,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		} else if x.mode == typexpr {
 			check.conversion(x, e, x.typ, iota)
-		} else if sig, ok := underlying(x.typ).(*Signature); ok {
+		} else if sig, ok := x.typ.Underlying().(*Signature); ok {
 			// check parameters
 
 			// If we have a trailing ... at the end of the parameter
@@ -1520,7 +1531,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			// []T of a variadic function parameter x ...T.
 			passSlice := false
 			if e.Ellipsis.IsValid() {
-				if sig.IsVariadic {
+				if sig.isVariadic {
 					passSlice = true
 				} else {
 					check.errorf(e.Ellipsis, "cannot use ... in call to %s", e.Fun)
@@ -1543,13 +1554,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				if x.mode == invalid {
 					goto Error // TODO(gri): we can do better
 				}
-				if t, _ := x.typ.(*Result); t != nil {
+				if t, ok := x.typ.(*Tuple); ok {
 					// multiple result values
-					n = len(t.Values)
-					for i, obj := range t.Values {
+					n = t.Len()
+					for i := 0; i < n; i++ {
+						obj := t.At(i)
 						x.mode = value
 						x.expr = nil // TODO(gri) can we do better here? (for good error messages)
-						x.typ = obj.Type
+						x.typ = obj.typ
 						check.argument(sig, i, nil, x, passSlice && i+1 == n)
 					}
 				} else {
@@ -1567,29 +1579,29 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 
 			// determine if we have enough arguments
-			if sig.IsVariadic {
+			if sig.isVariadic {
 				// a variadic function accepts an "empty"
 				// last argument: count one extra
 				n++
 			}
-			if n < len(sig.Params) {
+			if n < sig.params.Len() {
 				check.errorf(e.Fun.Pos(), "too few arguments in call to %s", e.Fun)
 				// ok to continue
 			}
 
 			// determine result
-			switch len(sig.Results) {
+			switch sig.results.Len() {
 			case 0:
 				x.mode = novalue
 			case 1:
 				x.mode = value
-				x.typ = sig.Results[0].Type
+				x.typ = sig.results.vars[0].typ
 			default:
 				x.mode = value
-				x.typ = &Result{Values: sig.Results}
+				x.typ = sig.results
 			}
 
-		} else if bin, ok := x.typ.(*builtin); ok {
+		} else if bin, ok := x.typ.(*Builtin); ok {
 			check.builtin(x, e, bin, iota)
 
 		} else {
@@ -1603,11 +1615,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case invalid:
 			goto Error
 		case typexpr:
-			x.typ = &Pointer{Base: x.typ}
+			x.typ = &Pointer{base: x.typ}
 		default:
-			if typ, ok := underlying(x.typ).(*Pointer); ok {
+			if typ, ok := x.typ.Underlying().(*Pointer); ok {
 				x.mode = variable
-				x.typ = typ.Base
+				x.typ = typ.base
 			} else {
 				check.invalidOp(x.pos(), "cannot indirect %s", x)
 				goto Error
@@ -1656,33 +1668,34 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				check.errorf(x.pos(), "invalid array length %s", x)
 				goto Error
 			}
-			x.typ = &Array{Len: n, Elt: check.typ(e.Elt, cycleOk)}
+			x.typ = &Array{len: n, elt: check.typ(e.Elt, cycleOk)}
 		} else {
-			x.typ = &Slice{Elt: check.typ(e.Elt, true)}
+			x.typ = &Slice{elt: check.typ(e.Elt, true)}
 		}
 		x.mode = typexpr
 
 	case *ast.StructType:
 		x.mode = typexpr
-		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
+		fields, tags := check.collectFields(e.Fields, cycleOk)
+		x.typ = &Struct{fields: fields, tags: tags}
 
 	case *ast.FuncType:
 		params, isVariadic := check.collectParams(e.Params, true)
 		results, _ := check.collectParams(e.Results, false)
 		x.mode = typexpr
-		x.typ = &Signature{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
+		x.typ = &Signature{recv: nil, params: NewTuple(params...), results: NewTuple(results...), isVariadic: isVariadic}
 
 	case *ast.InterfaceType:
 		x.mode = typexpr
-		x.typ = &Interface{Methods: check.collectMethods(e.Methods)}
+		x.typ = &Interface{methods: check.collectMethods(e.Methods)}
 
 	case *ast.MapType:
 		x.mode = typexpr
-		x.typ = &Map{Key: check.typ(e.Key, true), Elt: check.typ(e.Value, true)}
+		x.typ = &Map{key: check.typ(e.Key, true), elt: check.typ(e.Value, true)}
 
 	case *ast.ChanType:
 		x.mode = typexpr
-		x.typ = &Chan{Dir: e.Dir, Elt: check.typ(e.Value, true)}
+		x.typ = &Chan{dir: e.Dir, elt: check.typ(e.Value, true)}
 
 	default:
 		if debug {

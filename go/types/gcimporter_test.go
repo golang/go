@@ -146,7 +146,7 @@ func TestGcImportedTypes(t *testing.T) {
 			continue
 		}
 
-		obj := pkg.Scope.Lookup(objName)
+		obj := pkg.scope.Lookup(objName)
 
 		// TODO(gri) should define an accessor on Object
 		var kind ast.ObjKind
@@ -154,16 +154,16 @@ func TestGcImportedTypes(t *testing.T) {
 		switch obj := obj.(type) {
 		case *Const:
 			kind = ast.Con
-			typ = obj.Type
+			typ = obj.typ
 		case *TypeName:
 			kind = ast.Typ
-			typ = obj.Type
+			typ = obj.typ
 		case *Var:
 			kind = ast.Var
-			typ = obj.Type
+			typ = obj.typ
 		case *Func:
 			kind = ast.Fun
-			typ = obj.Type
+			typ = obj.typ
 		default:
 			unreachable()
 		}
@@ -172,7 +172,7 @@ func TestGcImportedTypes(t *testing.T) {
 			t.Errorf("%s: got kind = %q; want %q", test.name, kind, test.kind)
 		}
 
-		str := typeString(underlying(typ))
+		str := typeString(typ.Underlying())
 		if str != test.typ {
 			t.Errorf("%s: got type = %q; want %q", test.name, typ, test.typ)
 		}

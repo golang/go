@@ -28,7 +28,7 @@ func (s *Scope) Lookup(name string) Object {
 		return s.large[name]
 	}
 	for _, obj := range s.Entries {
-		if obj.GetName() == name {
+		if obj.Name() == name {
 			return obj
 		}
 	}
@@ -41,7 +41,7 @@ func (s *Scope) Lookup(name string) Object {
 // Otherwise it inserts obj and returns nil.
 //
 func (s *Scope) Insert(obj Object) Object {
-	name := obj.GetName()
+	name := obj.Name()
 	if alt := s.Lookup(name); alt != nil {
 		return alt
 	}
@@ -53,7 +53,7 @@ func (s *Scope) Insert(obj Object) Object {
 		if s.large == nil {
 			m := make(map[string]Object, len(s.Entries))
 			for _, obj := range s.Entries {
-				m[obj.GetName()] = obj
+				m[obj.Name()] = obj
 			}
 			s.large = m
 		}
@@ -70,7 +70,7 @@ func (s *Scope) String() string {
 	if s != nil && len(s.Entries) > 0 {
 		fmt.Fprintln(&buf)
 		for _, obj := range s.Entries {
-			fmt.Fprintf(&buf, "\t%s\t%T\n", obj.GetName(), obj)
+			fmt.Fprintf(&buf, "\t%s\t%T\n", obj.Name(), obj)
 		}
 	}
 	fmt.Fprintf(&buf, "}\n")

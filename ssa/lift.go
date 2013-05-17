@@ -306,7 +306,7 @@ type newPhiMap map[*BasicBlock][]newPhi
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	// Don't lift aggregates into registers.
 	// We'll need a separate SRA pass for that.
-	switch underlyingType(indirectType(alloc.Type())).(type) {
+	switch alloc.Type().Deref().Underlying().(type) {
 	case *types.Array, *types.Struct:
 		return false
 	}
@@ -374,7 +374,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 					Edges:   make([]Value, len(v.Preds)),
 					Comment: alloc.Name(),
 				}
-				phi.setType(indirectType(alloc.Type()))
+				phi.setType(alloc.Type().Deref())
 				phi.Block_ = v
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "place %s = %s at block %s\n", phi.Name(), phi, v)
@@ -421,7 +421,7 @@ func replaceAll(x, y Value) {
 func renamed(renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = zeroLiteral(indirectType(alloc.Type()))
+		v = zeroLiteral(alloc.Type().Deref())
 		renaming[alloc.index] = v
 	}
 	return v

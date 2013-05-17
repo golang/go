@@ -117,7 +117,7 @@ func (check *checker) declareIdent(scope *Scope, ident *ast.Ident, obj Object) {
 	if ident.Name != "_" {
 		if alt := scope.Insert(obj); alt != nil {
 			prevDecl := ""
-			if pos := alt.GetPos(); pos.IsValid() {
+			if pos := alt.Pos(); pos.IsValid() {
 				prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
 			}
 			check.errorf(ident.Pos(), fmt.Sprintf("%s redeclared in this block%s", ident.Name, prevDecl))
@@ -153,9 +153,9 @@ func (check *checker) valueSpec(pos token.Pos, obj Object, lhs []*ast.Ident, spe
 		assert(l != nil)
 		switch obj := obj.(type) {
 		case *Const:
-			obj.Type = typ
+			obj.typ = typ
 		case *Var:
-			obj.Type = typ
+			obj.typ = typ
 		default:
 			unreachable()
 		}
@@ -174,9 +174,9 @@ func (check *checker) valueSpec(pos token.Pos, obj Object, lhs []*ast.Ident, spe
 		for _, name := range lhs {
 			switch obj := check.lookup(name).(type) {
 			case *Const:
-				obj.Type = typ
+				obj.typ = typ
 			case *Var:
-				obj.Type = typ
+				obj.typ = typ
 			default:
 				unreachable()
 			}
@@ -202,7 +202,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		// nothing to do
 
 	case *Const:
-		if obj.Type != nil {
+		if obj.typ != nil {
 			return // already checked
 		}
 		// The obj.Val field for constants is initialized to its respective
@@ -214,15 +214,15 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		// know that x is a constant and has type float32, but we don't
 		// have a value due to the error in the conversion).
 		if obj.visited {
-			check.errorf(obj.GetPos(), "illegal cycle in initialization of constant %s", obj.Name)
-			obj.Type = Typ[Invalid]
+			check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.Name)
+			obj.typ = Typ[Invalid]
 			return
 		}
 		obj.visited = true
 		spec := obj.spec
-		iota, ok := exact.Int64Val(obj.Val)
+		iota, ok := exact.Int64Val(obj.val)
 		assert(ok)
-		obj.Val = exact.MakeUnknown()
+		obj.val = exact.MakeUnknown()
 		// determine spec for type and initialization expressions
 		init := spec
 		if len(init.Values) == 0 {
@@ -231,12 +231,12 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		check.valueSpec(spec.Pos(), obj, spec.Names, init, int(iota))
 
 	case *Var:
-		if obj.Type != nil {
+		if obj.typ != nil {
 			return // already checked
 		}
 		if obj.visited {
-			check.errorf(obj.GetPos(), "illegal cycle in initialization of variable %s", obj.Name)
-			obj.Type = Typ[Invalid]
+			check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.Name)
+			obj.typ = Typ[Invalid]
 			return
 		}
 		obj.visited = true
@@ -252,20 +252,20 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		}
 
 	case *TypeName:
-		if obj.Type != nil {
+		if obj.typ != nil {
 			return // already checked
 		}
-		typ := &NamedType{Obj: obj}
-		obj.Type = typ // "mark" object so recursion terminates
-		typ.Underlying = underlying(check.typ(obj.spec.Type, cycleOk))
+		typ := &Named{obj: obj}
+		obj.typ = typ // "mark" object so recursion terminates
+		typ.underlying = check.typ(obj.spec.Type, cycleOk).Underlying()
 		// typecheck associated method signatures
 		if scope := check.methods[obj]; scope != nil {
-			switch t := typ.Underlying.(type) {
+			switch t := typ.underlying.(type) {
 			case *Struct:
 				// struct fields must not conflict with methods
-				for _, f := range t.Fields {
+				for _, f := range t.fields {
 					if m := scope.Lookup(f.Name); m != nil {
-						check.errorf(m.GetPos(), "type %s has both field and method named %s", obj.Name, f.Name)
+						check.errorf(m.Pos(), "type %s has both field and method named %s", obj.Name, f.Name)
 						// ok to continue
 					}
 				}
@@ -278,33 +278,33 @@ func (check *checker) object(obj Object, cycleOk bool) {
 				}
 			}
 			// typecheck method signatures
-			var methods []*Method
+			var methods ObjSet
 			for _, obj := range scope.Entries {
 				m := obj.(*Func)
 				sig := check.typ(m.decl.Type, cycleOk).(*Signature)
 				params, _ := check.collectParams(m.decl.Recv, false)
-				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
-				m.Type = sig
-				methods = append(methods, &Method{QualifiedName{check.pkg, m.Name}, sig})
+				sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+				m.typ = sig
+				assert(methods.Insert(obj) == nil)
 				check.later(m, sig, m.decl.Body)
 			}
-			typ.Methods = methods
+			typ.methods = methods
 			delete(check.methods, obj) // we don't need this scope anymore
 		}
 
 	case *Func:
-		if obj.Type != nil {
+		if obj.typ != nil {
 			return // already checked
 		}
 		fdecl := obj.decl
 		// methods are typechecked when their receivers are typechecked
 		if fdecl.Recv == nil {
 			sig := check.typ(fdecl.Type, cycleOk).(*Signature)
-			if obj.Name == "init" && (len(sig.Params) != 0 || len(sig.Results) != 0) {
+			if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 				check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
 				// ok to continue
 			}
-			obj.Type = sig
+			obj.typ = sig
 			check.later(obj, sig, fdecl.Body)
 		}
 
@@ -374,7 +374,7 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
 		scope = new(Scope)
 		check.methods[tname] = scope
 	}
-	check.declareIdent(scope, meth.Name, &Func{Pkg: check.pkg, Name: meth.Name.Name, decl: meth})
+	check.declareIdent(scope, meth.Name, &Func{pkg: check.pkg, name: meth.Name.Name, decl: meth})
 }
 
 func (check *checker) decl(decl ast.Decl) {
@@ -406,7 +406,7 @@ func (check *checker) decl(decl ast.Decl) {
 		// since they are not in any scope. Create a dummy object for them.
 		if d.Name.Name == "init" {
 			assert(obj == nil) // all other functions should have an object
-			obj = &Func{Pkg: check.pkg, Name: d.Name.Name, decl: d}
+			obj = &Func{pkg: check.pkg, name: d.Name.Name, decl: d}
 			check.register(d.Name, obj)
 		}
 		check.object(obj, false)
@@ -418,12 +418,13 @@ func (check *checker) decl(decl ast.Decl) {
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
-func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package, err error) {
+func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
 	// initialize checker
 	check := checker{
 		ctxt:        ctxt,
 		fset:        fset,
 		files:       files,
+		pkg:         &Package{path: path, scope: &Scope{Outer: Universe}, imports: make(map[string]*Package)},
 		idents:      make(map[*ast.Ident]Object),
 		objects:     make(map[*ast.Object]Object),
 		initspecs:   make(map[*ast.ValueSpec]*ast.ValueSpec),
@@ -476,13 +477,13 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 		if trace {
 			s := "<function literal>"
 			if f.obj != nil {
-				s = f.obj.Name
+				s = f.obj.name
 			}
 			fmt.Println("---", s)
 		}
 		check.funcsig = f.sig
 		check.stmtList(f.body.List)
-		if len(f.sig.Results) > 0 && f.body != nil && !check.isTerminating(f.body, "") {
+		if f.sig.results.Len() > 0 && f.body != nil && !check.isTerminating(f.body, "") {
 			check.errorf(f.body.Rbrace, "missing return")
 		}
 	}

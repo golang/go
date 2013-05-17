@@ -42,7 +42,7 @@ var excluded = map[string]bool{
 }
 
 // typecheck typechecks the given package files.
-func typecheck(t *testing.T, filenames []string) {
+func typecheck(t *testing.T, path string, filenames []string) {
 	fset := token.NewFileSet()
 
 	// parse package files
@@ -75,7 +75,7 @@ func typecheck(t *testing.T, filenames []string) {
 	ctxt := Context{
 		Error: func(err error) { t.Error(err) },
 	}
-	ctxt.Check(fset, files)
+	ctxt.Check(path, fset, files...)
 	pkgCount++
 }
 
@@ -121,7 +121,7 @@ func walkDirs(t *testing.T, dir string) {
 
 	// typecheck package in directory
 	if files := pkgfiles(t, dir); files != nil {
-		typecheck(t, files)
+		typecheck(t, dir, files)
 	}
 
 	// traverse subdirectories, but don't walk into testdata

@@ -32,11 +32,11 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 
 	if x.mode == constant && isConstType(typ) {
 		// constant conversion
-		typ := underlying(typ).(*Basic)
+		typ := typ.Underlying().(*Basic)
 		// For now just implement string(x) where x is an integer,
 		// as a temporary work-around for issue 4982, which is a
 		// common issue.
-		if typ.Kind == String {
+		if typ.kind == String {
 			switch {
 			case x.isInteger():
 				codepoint := int64(-1)
@@ -86,8 +86,8 @@ func (x *operand) isConvertible(ctxt *Context, T Type) bool {
 
 	// "x's type and T have identical underlying types"
 	V := x.typ
-	Vu := underlying(V)
-	Tu := underlying(T)
+	Vu := V.Underlying()
+	Tu := T.Underlying()
 	if IsIdentical(Vu, Tu) {
 		return true
 	}
@@ -95,7 +95,7 @@ func (x *operand) isConvertible(ctxt *Context, T Type) bool {
 	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if IsIdentical(underlying(V.Base), underlying(T.Base)) {
+			if IsIdentical(V.base.Underlying(), T.base.Underlying()) {
 				return true
 			}
 		}
@@ -136,12 +136,12 @@ func (x *operand) isConvertible(ctxt *Context, T Type) bool {
 
 func isUintptr(typ Type) bool {
 	t, ok := typ.(*Basic)
-	return ok && t.Kind == Uintptr
+	return ok && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
 	t, ok := typ.(*Basic)
-	return ok && t.Kind == UnsafePointer
+	return ok && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
@@ -151,8 +151,8 @@ func isPointer(typ Type) bool {
 
 func isBytesOrRunes(typ Type) bool {
 	if s, ok := typ.(*Slice); ok {
-		t, ok := underlying(s.Elt).(*Basic)
-		return ok && (t.Kind == Byte || t.Kind == Rune)
+		t, ok := s.elt.Underlying().(*Basic)
+		return ok && (t.kind == Byte || t.kind == Rune)
 	}
 	return false
 }

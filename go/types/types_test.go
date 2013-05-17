@@ -20,7 +20,7 @@ func makePkg(t *testing.T, src string) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := Check(fset, []*ast.File{file})
+	pkg, err := Check("", fset, file)
 	return pkg, err
 }
 
@@ -110,7 +110,7 @@ func TestTypes(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := underlying(pkg.Scope.Lookup("T").GetType())
+		typ := pkg.scope.Lookup("T").Type().Underlying()
 		str := typeString(typ)
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)

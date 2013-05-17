@@ -24,9 +24,9 @@ func (check *checker) assignment(x *operand, to Type) bool {
 		return false
 	}
 
-	if t, ok := x.typ.(*Result); ok {
+	if t, ok := x.typ.(*Tuple); ok {
 		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
-		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.Values), x)
+		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
 		x.mode = invalid
 		return false
 	}
@@ -102,17 +102,17 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 		unreachable()
 
 	case *Const:
-		typ = obj.Type // may already be Typ[Invalid]
+		typ = obj.typ // may already be Typ[Invalid]
 		if typ == nil {
 			typ = Typ[Invalid]
 			if x.mode != invalid {
 				typ = x.typ
 			}
-			obj.Type = typ
+			obj.typ = typ
 		}
 
 	case *Var:
-		typ = obj.Type // may already be Typ[Invalid]
+		typ = obj.typ // may already be Typ[Invalid]
 		if typ == nil {
 			typ = Typ[Invalid]
 			if x.mode != invalid {
@@ -127,7 +127,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 					}
 				}
 			}
-			obj.Type = typ
+			obj.typ = typ
 		}
 	}
 
@@ -147,10 +147,10 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 
 	// for constants, set their value
 	if obj, _ := obj.(*Const); obj != nil {
-		obj.Val = exact.MakeUnknown() // failure case: we don't know the constant value
+		obj.val = exact.MakeUnknown() // failure case: we don't know the constant value
 		if x.mode == constant {
 			if isConstType(x.typ) {
-				obj.Val = x.val
+				obj.val = x.val
 			} else if x.typ != Typ[Invalid] {
 				check.errorf(x.pos(), "%s has invalid constant type", x)
 			}
@@ -190,12 +190,13 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
 			goto Error
 		}
 
-		if t, _ := x.typ.(*Result); t != nil && len(lhs) == len(t.Values) {
+		if t, ok := x.typ.(*Tuple); ok && len(lhs) == t.Len() {
 			// function result
 			x.mode = value
-			for i, obj := range t.Values {
+			for i := 0; i < len(lhs); i++ {
+				obj := t.At(i)
 				x.expr = nil // TODO(gri) should do better here
-				x.typ = obj.Type
+				x.typ = obj.typ
 				check.assign1to1(lhs[i], nil, &x, decl, iota)
 			}
 			return
@@ -225,9 +226,9 @@ Error:
 			}
 			switch obj := check.lookup(ident).(type) {
 			case *Const:
-				obj.Type = Typ[Invalid]
+				obj.typ = Typ[Invalid]
 			case *Var:
-				obj.Type = Typ[Invalid]
+				obj.typ = Typ[Invalid]
 			default:
 				unreachable()
 			}
@@ -313,7 +314,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			//           check.register. Perhaps this can be avoided.)
 			check.expr(&x, e.Fun, nil, -1)
 			if x.mode != invalid {
-				if b, ok := x.typ.(*builtin); ok && !b.isStatement {
+				if b, ok := x.typ.(*Builtin); ok && !b.isStatement {
 					used = false
 				}
 			}
@@ -339,7 +340,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !check.assignment(&x, tch.Elt) {
+		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir&ast.SEND == 0 || !check.assignment(&x, tch.elt) {
 			if x.mode != invalid {
 				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
 			}
@@ -423,18 +424,18 @@ func (check *checker) stmt(s ast.Stmt) {
 
 	case *ast.ReturnStmt:
 		sig := check.funcsig
-		if n := len(sig.Results); n > 0 {
+		if n := sig.results.Len(); n > 0 {
 			// TODO(gri) should not have to compute lhs, named every single time - clean this up
 			lhs := make([]ast.Expr, n)
 			named := false // if set, function has named results
-			for i, res := range sig.Results {
-				if len(res.Name) > 0 {
+			for i, res := range sig.results.vars {
+				if len(res.name) > 0 {
 					// a blank (_) result parameter is a named result
 					named = true
 				}
-				name := ast.NewIdent(res.Name)
+				name := ast.NewIdent(res.name)
 				name.NamePos = s.Pos()
-				check.register(name, &Var{Name: res.Name, Type: res.Type}) // Pkg == nil
+				check.register(name, &Var{name: res.name, typ: res.typ}) // Pkg == nil
 				lhs[i] = name
 			}
 			if len(s.Results) > 0 || !named {
@@ -570,7 +571,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			return
 		}
 		var T *Interface
-		if T, _ = underlying(x.typ).(*Interface); T == nil {
+		if T, _ = x.typ.Underlying().(*Interface); T == nil {
 			check.errorf(x.pos(), "%s is not an interface", &x)
 			return
 		}
@@ -593,7 +594,7 @@ func (check *checker) stmt(s ast.Stmt) {
 						} else {
 							msg = "%s cannot have dynamic type %s (missing method %s)"
 						}
-						check.errorf(expr.Pos(), msg, &x, typ, method.Name)
+						check.errorf(expr.Pos(), msg, &x, typ, method.name)
 						// ok to continue
 					}
 				}
@@ -605,7 +606,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				if len(clause.List) != 1 || typ == nil {
 					typ = x.typ
 				}
-				lhs.Type = typ
+				lhs.typ = typ
 			}
 			check.stmtList(clause.Body)
 		}
@@ -614,7 +615,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// assumes different types for different clauses. Set it back to the type of the
 		// TypeSwitchGuard expression so that that variable always has a valid type.
 		if lhs != nil {
-			lhs.Type = x.typ
+			lhs.typ = x.typ
 		}
 
 	case *ast.SelectStmt:
@@ -655,7 +656,7 @@ func (check *checker) stmt(s ast.Stmt) {
 
 		// determine key/value types
 		var key, val Type
-		switch typ := underlying(x.typ).(type) {
+		switch typ := x.typ.Underlying().(type) {
 		case *Basic:
 			if isString(typ) {
 				key = Typ[UntypedInt]
@@ -663,21 +664,21 @@ func (check *checker) stmt(s ast.Stmt) {
 			}
 		case *Array:
 			key = Typ[UntypedInt]
-			val = typ.Elt
+			val = typ.elt
 		case *Slice:
 			key = Typ[UntypedInt]
-			val = typ.Elt
+			val = typ.elt
 		case *Pointer:
-			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
+			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				key = Typ[UntypedInt]
-				val = typ.Elt
+				val = typ.elt
 			}
 		case *Map:
-			key = typ.Key
-			val = typ.Elt
+			key = typ.key
+			val = typ.elt
 		case *Chan:
-			key = typ.Elt
-			if typ.Dir&ast.RECV == 0 {
+			key = typ.elt
+			if typ.dir&ast.RECV == 0 {
 				check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
 				// ok to continue
 			}

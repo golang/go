@@ -3,7 +3,6 @@ package interp
 import (
 	"fmt"
 	"go/token"
-	"os"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -29,9 +28,9 @@ func literalValue(l *ssa.Literal) value {
 	}
 
 	// By destination type:
-	switch t := underlyingType(l.Type()).(type) {
+	switch t := l.Type().Underlying().(type) {
 	case *types.Basic:
-		switch t.Kind {
+		switch t.Kind() {
 		case types.Bool, types.UntypedBool:
 			return exact.BoolVal(l.Value)
 		case types.Int, types.UntypedInt:
@@ -79,9 +78,9 @@ func literalValue(l *ssa.Literal) value {
 		}
 
 	case *types.Slice:
-		switch et := underlyingType(t.Elt).(type) {
+		switch et := t.Elem().Underlying().(type) {
 		case *types.Basic:
-			switch et.Kind {
+			switch et.Kind() {
 			case types.Byte: // string -> []byte
 				var v []value
 				for _, b := range []byte(exact.StringVal(l.Value)) {
@@ -155,13 +154,13 @@ func asUint64(x value) uint64 {
 func zero(t types.Type) value {
 	switch t := t.(type) {
 	case *types.Basic:
-		if t.Kind == types.UntypedNil {
+		if t.Kind() == types.UntypedNil {
 			panic("untyped nil has no zero value")
 		}
-		if t.Info&types.IsUntyped != 0 {
+		if t.Info()&types.IsUntyped != 0 {
 			t = ssa.DefaultType(t).(*types.Basic)
 		}
-		switch t.Kind {
+		switch t.Kind() {
 		case types.Bool:
 			return false
 		case types.Int:
@@ -204,27 +203,27 @@ func zero(t types.Type) value {
 	case *types.Pointer:
 		return (*value)(nil)
 	case *types.Array:
-		a := make(array, t.Len)
+		a := make(array, t.Len())
 		for i := range a {
-			a[i] = zero(t.Elt)
+			a[i] = zero(t.Elem())
 		}
 		return a
-	case *types.NamedType:
-		return zero(t.Underlying)
+	case *types.Named:
+		return zero(t.Underlying())
 	case *types.Interface:
 		return iface{} // nil type, methodset and value
 	case *types.Slice:
 		return []value(nil)
 	case *types.Struct:
-		s := make(structure, len(t.Fields))
+		s := make(structure, t.NumFields())
 		for i := range s {
-			s[i] = zero(t.Fields[i].Type)
+			s[i] = zero(t.Field(i).Type)
 		}
 		return s
 	case *types.Chan:
 		return chan value(nil)
 	case *types.Map:
-		if usesBuiltinMap(t.Key) {
+		if usesBuiltinMap(t.Key()) {
 			return map[value]value(nil)
 		}
 		return (*hashmap)(nil)
@@ -277,7 +276,7 @@ func lookup(instr *ssa.Lookup, x, idx value) value {
 		if ok {
 			v = copyVal(v)
 		} else {
-			v = zero(underlyingType(instr.X.Type()).(*types.Map).Elt)
+			v = zero(instr.X.Type().Underlying().(*types.Map).Elem())
 		}
 		if instr.CommaOk {
 			v = tuple{v, ok}
@@ -759,7 +758,7 @@ func unop(instr *ssa.UnOp, x value) value {
 	case token.ARROW: // receive
 		v, ok := <-x.(chan value)
 		if !ok {
-			v = zero(underlyingType(instr.X.Type()).(*types.Chan).Elt)
+			v = zero(instr.X.Type().Underlying().(*types.Chan).Elem())
 		}
 		if instr.CommaOk {
 			v = tuple{v, ok}
@@ -834,7 +833,7 @@ func unop(instr *ssa.UnOp, x value) value {
 func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 	var v value
 	err := ""
-	if idst, ok := underlyingType(instr.AssertedType).(*types.Interface); ok {
+	if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
 		v = itf
 		err = checkInterface(i, idst, itf)
 
@@ -1089,31 +1088,24 @@ func widen(x value) value {
 }
 
 // conv converts the value x of type t_src to type t_dst and returns
-// the result.  Possible cases are described with the ssa.Conv
-// operator.  Panics if the dynamic conversion fails.
+// the result.
+// Possible cases are described with the ssa.Convert operator.
 //
 func conv(t_dst, t_src types.Type, x value) value {
-	ut_src := underlyingType(t_src)
-	ut_dst := underlyingType(t_dst)
-
-	// Same underlying types?
-	// TODO(adonovan): consider a dedicated ssa.ChangeType instruction.
-	// TODO(adonovan): fix: what about channels of different direction?
-	if types.IsIdentical(ut_dst, ut_src) {
-		return x
-	}
+	ut_src := t_src.Underlying()
+	ut_dst := t_dst.Underlying()
 
 	// Destination type is not an "untyped" type.
-	if b, ok := ut_dst.(*types.Basic); ok && b.Info&types.IsUntyped != 0 {
-		panic("conversion to 'untyped' type: " + b.String())
+	if b, ok := ut_dst.(*types.Basic); ok && b.Info()&types.IsUntyped != 0 {
+		panic("oops: conversion to 'untyped' type: " + b.String())
 	}
 
 	// Nor is it an interface type.
 	if _, ok := ut_dst.(*types.Interface); ok {
 		if _, ok := ut_src.(*types.Interface); ok {
-			panic("oops: Conv should be ChangeInterface")
+			panic("oops: Convert should be ChangeInterface")
 		} else {
-			panic("oops: Conv should be MakeInterface")
+			panic("oops: Convert should be MakeInterface")
 		}
 	}
 
@@ -1126,34 +1118,23 @@ func conv(t_dst, t_src types.Type, x value) value {
 	//    + string -> []byte/[]rune.
 	//
 	// All are treated the same: first we extract the value to the
-	// widest representation (bool, int64, uint64, float64,
-	// complex128, or string), then we convert it to the desired
-	// type.
+	// widest representation (int64, uint64, float64, complex128,
+	// or string), then we convert it to the desired type.
 
 	switch ut_src := ut_src.(type) {
-	case *types.Signature:
-		// TODO(adonovan): fix: this is a hacky workaround for the
-		// unsound conversion of Signature types from
-		// func(T)() to func()(T), i.e. arg0 <-> receiver
-		// conversion.  Talk to gri about correct approach.
-		fmt.Fprintln(os.Stderr, "Warning: unsound Signature conversion")
-		return x
-
 	case *types.Pointer:
 		switch ut_dst := ut_dst.(type) {
 		case *types.Basic:
 			// *value to unsafe.Pointer?
-			if ut_dst.Kind == types.UnsafePointer {
+			if ut_dst.Kind() == types.UnsafePointer {
 				return unsafe.Pointer(x.(*value))
 			}
-		case *types.Pointer:
-			return x
 		}
 
 	case *types.Slice:
 		// []byte or []rune -> string
 		// TODO(adonovan): fix: type B byte; conv([]B -> string).
-		switch ut_src.Elt.(*types.Basic).Kind {
+		switch ut_src.Elem().(*types.Basic).Kind() {
 		case types.Byte:
 			x := x.([]value)
 			b := make([]byte, 0, len(x))
@@ -1174,15 +1155,10 @@ func conv(t_dst, t_src types.Type, x value) value {
 	case *types.Basic:
 		x = widen(x)
 
-		// bool?
-		if _, ok := x.(bool); ok {
-			return x
-		}
-
 		// integer -> string?
 		// TODO(adonovan): fix: test integer -> named alias of string.
-		if ut_src.Info&types.IsInteger != 0 {
-			if ut_dst, ok := ut_dst.(*types.Basic); ok && ut_dst.Kind == types.String {
+		if ut_src.Info()&types.IsInteger != 0 {
+			if ut_dst, ok := ut_dst.(*types.Basic); ok && ut_dst.Kind() == types.String {
 				return string(asInt(x))
 			}
 		}
@@ -1193,7 +1169,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 			case *types.Slice:
 				var res []value
 				// TODO(adonovan): fix: test named alias of rune, byte.
-				switch ut_dst.Elt.(*types.Basic).Kind {
+				switch ut_dst.Elem().(*types.Basic).Kind() {
 				case types.Rune:
 					for _, r := range []rune(s) {
 						res = append(res, r)
@@ -1206,7 +1182,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 					return res
 				}
 			case *types.Basic:
-				if ut_dst.Kind == types.String {
+				if ut_dst.Kind() == types.String {
 					return x.(string)
 				}
 			}
@@ -1214,7 +1190,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 		}
 
 		// unsafe.Pointer -> *value
-		if ut_src.Kind == types.UnsafePointer {
+		if ut_src.Kind() == types.UnsafePointer {
 			// TODO(adonovan): this is wrong and cannot
 			// really be fixed with the current design.
 			//
@@ -1230,8 +1206,8 @@ func conv(t_dst, t_src types.Type, x value) value {
 		}
 
 		// Conversions between complex numeric types?
-		if ut_src.Info&types.IsComplex != 0 {
-			switch ut_dst.(*types.Basic).Kind {
+		if ut_src.Info()&types.IsComplex != 0 {
+			switch ut_dst.(*types.Basic).Kind() {
 			case types.Complex64:
 				return complex64(x.(complex128))
 			case types.Complex128:
@@ -1241,8 +1217,8 @@ func conv(t_dst, t_src types.Type, x value) value {
 		}
 
 		// Conversions between non-complex numeric types?
-		if ut_src.Info&types.IsNumeric != 0 {
-			kind := ut_dst.(*types.Basic).Kind
+		if ut_src.Info()&types.IsNumeric != 0 {
+			kind := ut_dst.(*types.Basic).Kind()
 			switch x := x.(type) {
 			case int64: // signed integer -> numeric?
 				switch kind {
@@ -1344,32 +1320,15 @@ func conv(t_dst, t_src types.Type, x value) value {
 // interface itype.
 // On success it returns "", on failure, an error message.
 //
-func checkInterface(i *interpreter, itype types.Type, x iface) string {
+func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
 	mset := findMethodSet(i, x.t)
-	for _, m := range underlyingType(itype).(*types.Interface).Methods {
-		id := ssa.IdFromQualifiedName(m.QualifiedName)
+	it := itype.Underlying().(*types.Interface)
+	for i, n := 0, it.NumMethods(); i < n; i++ {
+		m := it.Method(i)
+		id := ssa.MakeId(m.Name(), m.Pkg())
 		if mset[id] == nil {
 			return fmt.Sprintf("interface conversion: %v is not %v: missing method %v", x.t, itype, id)
 		}
 	}
 	return "" // ok
-}
-
-// underlyingType returns the underlying type of typ.
-// Copied from go/types.underlying.
-//
-func underlyingType(typ types.Type) types.Type {
-	if typ, ok := typ.(*types.NamedType); ok {
-		return typ.Underlying
-	}
-	return typ
-}
-
-// indirectType(typ) assumes that typ is a pointer type,
-// or named alias thereof, and returns its base type.
-// Panic ensues if it is not a pointer.
-// Copied from exp/ssa.indirectType.
-//
-func indirectType(ptr types.Type) types.Type {
-	return underlyingType(ptr).(*types.Pointer).Base
 }

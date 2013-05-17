@@ -124,7 +124,7 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 	}
 
 	// no need to re-import if the package was imported completely before
-	if pkg = imports[id]; pkg != nil && pkg.Complete {
+	if pkg = imports[id]; pkg != nil && pkg.complete {
 		return
 	}
 
@@ -177,7 +177,7 @@ func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*
 	if false {
 		// check consistency of imports map
 		for _, pkg := range imports {
-			if pkg.Name == "" {
+			if pkg.name == "" {
 				fmt.Printf("no package name for %s\n", pkg.Path)
 			}
 		}
@@ -201,45 +201,45 @@ func (p *gcParser) next() {
 func declConst(pkg *Package, name string) *Const {
 	// the constant may have been imported before - if it exists
 	// already in the respective scope, return that constant
-	scope := pkg.Scope
+	scope := pkg.scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Const)
 	}
 	// otherwise create a new constant and insert it into the scope
-	obj := &Const{Pkg: pkg, Name: name}
+	obj := &Const{pkg: pkg, name: name}
 	scope.Insert(obj)
 	return obj
 }
 
 func declTypeName(pkg *Package, name string) *TypeName {
-	scope := pkg.Scope
+	scope := pkg.scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*TypeName)
 	}
-	obj := &TypeName{Pkg: pkg, Name: name}
+	obj := &TypeName{pkg: pkg, name: name}
 	// a named type may be referred to before the underlying type
 	// is known - set it up
-	obj.Type = &NamedType{Obj: obj}
+	obj.typ = &Named{obj: obj}
 	scope.Insert(obj)
 	return obj
 }
 
 func declVar(pkg *Package, name string) *Var {
-	scope := pkg.Scope
+	scope := pkg.scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Var)
 	}
-	obj := &Var{Pkg: pkg, Name: name}
+	obj := &Var{pkg: pkg, name: name}
 	scope.Insert(obj)
 	return obj
 }
 
 func declFunc(pkg *Package, name string) *Func {
-	scope := pkg.Scope
+	scope := pkg.scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Func)
 	}
-	obj := &Func{Pkg: pkg, Name: name}
+	obj := &Func{pkg: pkg, name: name}
 	scope.Insert(obj)
 	return obj
 }
@@ -360,7 +360,7 @@ func (p *gcParser) getPkg(id, name string) *Package {
 	}
 	pkg := p.imports[id]
 	if pkg == nil && name != "" {
-		pkg = &Package{Name: name, Path: id, Scope: new(Scope)}
+		pkg = &Package{name: name, path: id, scope: new(Scope)}
 		p.imports[id] = pkg
 	}
 	return pkg
@@ -387,7 +387,7 @@ func (p *gcParser) parseBasicType() Type {
 	id := p.expect(scanner.Ident)
 	obj := Universe.Lookup(id)
 	if obj, ok := obj.(*TypeName); ok {
-		return obj.Type
+		return obj.typ
 	}
 	p.errorf("not a basic type: %s", id)
 	return nil
@@ -404,7 +404,7 @@ func (p *gcParser) parseArrayType() Type {
 	if err != nil {
 		p.error(err)
 	}
-	return &Array{Len: n, Elt: elt}
+	return &Array{len: n, elt: elt}
 }
 
 // MapType = "map" "[" Type "]" Type .
@@ -415,7 +415,7 @@ func (p *gcParser) parseMapType() Type {
 	key := p.parseType()
 	p.expect(']')
 	elt := p.parseType()
-	return &Map{Key: key, Elt: elt}
+	return &Map{key: key, elt: elt}
 }
 
 // Name = identifier | "?" | QualifiedName .
@@ -447,7 +447,7 @@ func (p *gcParser) parseName(materializePkg bool) (pkg *Package, name string) {
 			// doesn't exist yet, create a fake package instead
 			pkg = p.getPkg(id, "")
 			if pkg == nil {
-				pkg = &Package{Path: id}
+				pkg = &Package{path: id}
 			}
 		}
 	default:
@@ -458,23 +458,27 @@ func (p *gcParser) parseName(materializePkg bool) (pkg *Package, name string) {
 
 // Field = Name Type [ string_lit ] .
 //
-func (p *gcParser) parseField() *Field {
+func (p *gcParser) parseField() (*Field, string) {
 	var f Field
 	f.Pkg, f.Name = p.parseName(true)
 	f.Type = p.parseType()
+	tag := ""
 	if p.tok == scanner.String {
-		f.Tag = p.expect(scanner.String)
+		tag = p.expect(scanner.String)
 	}
 	if f.Name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
-		if typ, ok := deref(f.Type).(*NamedType); ok && typ.Obj != nil {
-			f.Name = typ.Obj.GetName()
-			f.IsAnonymous = true
-		} else {
+		switch typ := f.Type.Deref().(type) {
+		case *Basic: // basic types are named types
+			f.Name = typ.name
+		case *Named:
+			f.Name = typ.obj.name
+		default:
 			p.errorf("anonymous field expected")
 		}
+		f.IsAnonymous = true
 	}
-	return &f
+	return &f, tag
 }
 
 // StructType = "struct" "{" [ FieldList ] "}" .
@@ -482,6 +486,7 @@ func (p *gcParser) parseField() *Field {
 //
 func (p *gcParser) parseStructType() Type {
 	var fields []*Field
+	var tags []string
 
 	p.expectKeyword("struct")
 	p.expect('{')
@@ -489,11 +494,19 @@ func (p *gcParser) parseStructType() Type {
 		if len(fields) > 0 {
 			p.expect(';')
 		}
-		fields = append(fields, p.parseField())
+		fld, tag := p.parseField()
+		// TODO(gri) same code in collectFields (expr.go) - factor?
+		if tag != "" && tags == nil {
+			tags = make([]string, len(fields))
+		}
+		if tags != nil {
+			tags = append(tags, tag)
+		}
+		fields = append(fields, fld)
 	}
 	p.expect('}')
 
-	return &Struct{Fields: fields}
+	return &Struct{fields: fields, tags: tags}
 }
 
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
@@ -512,7 +525,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 	if p.tok == scanner.String {
 		p.next()
 	}
-	par = &Var{Name: name, Type: typ} // Pkg == nil
+	par = &Var{name: name, typ: typ} // Pkg == nil
 	return
 }
 
@@ -555,7 +568,7 @@ func (p *gcParser) parseSignature() *Signature {
 		}
 	}
 
-	return &Signature{Params: params, Results: results, IsVariadic: isVariadic}
+	return &Signature{params: NewTuple(params...), results: NewTuple(results...), isVariadic: isVariadic}
 }
 
 // InterfaceType = "interface" "{" [ MethodList ] "}" .
@@ -567,21 +580,23 @@ func (p *gcParser) parseSignature() *Signature {
 // visible in the export data.
 //
 func (p *gcParser) parseInterfaceType() Type {
-	var methods []*Method
+	var methods ObjSet
 
 	p.expectKeyword("interface")
 	p.expect('{')
-	for p.tok != '}' {
-		if len(methods) > 0 {
+	for i := 0; p.tok != '}'; i++ {
+		if i > 0 {
 			p.expect(';')
 		}
 		pkg, name := p.parseName(true)
-		typ := p.parseSignature()
-		methods = append(methods, &Method{QualifiedName{pkg, name}, typ})
+		sig := p.parseSignature()
+		if alt := methods.Insert(&Func{pkg, name, sig, nil}); alt != nil {
+			p.errorf("multiple methods named %s.%s", alt.Pkg().name, alt.Name())
+		}
 	}
 	p.expect('}')
 
-	return &Interface{Methods: methods}
+	return &Interface{methods: methods}
 }
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
@@ -600,7 +615,7 @@ func (p *gcParser) parseChanType() Type {
 		dir = ast.RECV
 	}
 	elt := p.parseType()
-	return &Chan{Dir: dir, Elt: elt}
+	return &Chan{dir: dir, elt: elt}
 }
 
 // Type =
@@ -636,19 +651,19 @@ func (p *gcParser) parseType() Type {
 	case '@':
 		// TypeName
 		pkg, name := p.parseExportedName()
-		return declTypeName(pkg, name).Type
+		return declTypeName(pkg, name).typ
 	case '[':
 		p.next() // look ahead
 		if p.tok == ']' {
 			// SliceType
 			p.next()
-			return &Slice{Elt: p.parseType()}
+			return &Slice{elt: p.parseType()}
 		}
 		return p.parseArrayType()
 	case '*':
 		// PointerType
 		p.next()
-		return &Pointer{Base: p.parseType()}
+		return &Pointer{base: p.parseType()}
 	case '<':
 		return p.parseChanType()
 	case '(':
@@ -736,7 +751,7 @@ func (p *gcParser) parseConstDecl() {
 	obj := declConst(pkg, name)
 	var x operand
 	if p.tok != '=' {
-		obj.Type = p.parseType()
+		obj.typ = p.parseType()
 	}
 	p.expect('=')
 	switch p.tok {
@@ -787,11 +802,11 @@ func (p *gcParser) parseConstDecl() {
 	default:
 		p.errorf("expected literal got %s", scanner.TokenString(p.tok))
 	}
-	if obj.Type == nil {
-		obj.Type = x.typ
+	if obj.typ == nil {
+		obj.typ = x.typ
 	}
 	assert(x.val != nil)
-	obj.Val = x.val
+	obj.val = x.val
 }
 
 // TypeDecl = "type" ExportedName Type .
@@ -808,8 +823,8 @@ func (p *gcParser) parseTypeDecl() {
 	// a given type declaration.
 	typ := p.parseType()
 
-	if name := obj.Type.(*NamedType); name.Underlying == nil {
-		name.Underlying = typ
+	if name := obj.typ.(*Named); name.underlying == nil {
+		name.underlying = typ
 	}
 }
 
@@ -819,7 +834,7 @@ func (p *gcParser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
 	obj := declVar(pkg, name)
-	obj.Type = p.parseType()
+	obj.typ = p.parseType()
 }
 
 // Func = Signature [ Body ] .
@@ -851,26 +866,20 @@ func (p *gcParser) parseMethodDecl() {
 	p.expect(')')
 
 	// determine receiver base type object
-	typ := recv.Type
+	typ := recv.typ
 	if ptr, ok := typ.(*Pointer); ok {
-		typ = ptr.Base
+		typ = ptr.base
 	}
-	base := typ.(*NamedType)
+	base := typ.(*Named)
 
 	// parse method name, signature, and possibly inlined body
 	pkg, name := p.parseName(true) // unexported method names in imports are qualified with their package.
 	sig := p.parseFunc()
-	sig.Recv = recv
+	sig.recv = recv
 
 	// add method to type unless type was imported before
 	// and method exists already
-	// TODO(gri) investigate if this can be avoided
-	for _, m := range base.Methods {
-		if m.Name == name {
-			return // method was added before
-		}
-	}
-	base.Methods = append(base.Methods, &Method{QualifiedName{pkg, name}, sig})
+	base.methods.Insert(&Func{pkg, name, sig, nil})
 }
 
 // FuncDecl = "func" ExportedName Func .
@@ -879,7 +888,7 @@ func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
 	pkg, name := p.parseExportedName()
 	typ := p.parseFunc()
-	declFunc(pkg, name).Type = typ
+	declFunc(pkg, name).typ = typ
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
@@ -939,7 +948,7 @@ func (p *gcParser) parseExport() *Package {
 	}
 
 	// package was imported completely and without errors
-	pkg.Complete = true
+	pkg.complete = true
 
 	return pkg
 }

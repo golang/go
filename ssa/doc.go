@@ -27,8 +27,9 @@
 // By supplying an instance of the SourceLocator function prototype,
 // clients may control how the builder locates, loads and parses Go
 // sources files for imported packages.  This package provides
-// GorootLoader, which uses go/build to locate packages in the Go
-// source distribution, and go/parser to parse them.
+// MakeGoBuildLoader, which creates a loader that uses go/build to
+// locate packages in the Go source distribution, and go/parser to
+// parse them.
 //
 // The builder initially builds a naive SSA form in which all local
 // variables are addresses of stack locations with explicit loads and
@@ -37,6 +38,61 @@
 // called "lifting" to improve the accuracy and performance of
 // subsequent analyses; this pass can be skipped by setting the
 // NaiveForm builder flag.
+//
+// The primary interfaces of this package are:
+//
+//    - Member: a named member of a Go package.
+//    - Value: an expression that yields a value.
+//    - Instruction: a statement that consumes values and performs computation.
+//
+// A computation that yields a result implements both the Value and
+// Instruction interfaces.  The following table shows for each
+// concrete type which of these interfaces it implements.
+//
+//                      Value?          Instruction?    Member?
+//   *Alloc             ✔               ✔
+//   *BinOp             ✔               ✔
+//   *Builtin           ✔               ✔
+//   *Call              ✔               ✔
+//   *Capture           ✔
+//   *ChangeInterface   ✔               ✔
+//   *ChangeType        ✔               ✔
+//   *Constant                                          ✔ (const)
+//   *Convert           ✔               ✔
+//   *Defer                             ✔
+//   *Extract           ✔               ✔
+//   *Field             ✔               ✔
+//   *FieldAddr         ✔               ✔
+//   *Function          ✔                               ✔ (func)
+//   *Global            ✔                               ✔ (var)
+//   *Go                                ✔
+//   *If                                ✔
+//   *Index             ✔               ✔
+//   *IndexAddr         ✔               ✔
+//   *Jump                              ✔
+//   *Literal           ✔
+//   *Lookup            ✔               ✔
+//   *MakeChan          ✔               ✔
+//   *MakeClosure       ✔               ✔
+//   *MakeInterface     ✔               ✔
+//   *MakeMap           ✔               ✔
+//   *MakeSlice         ✔               ✔
+//   *MapUpdate                         ✔
+//   *Next              ✔               ✔
+//   *Panic                             ✔
+//   *Parameter         ✔
+//   *Phi               ✔               ✔
+//   *Range             ✔               ✔
+//   *Ret                               ✔
+//   *RunDefers                         ✔
+//   *Select            ✔               ✔
+//   *Slice             ✔               ✔
+//   *Type                                              ✔ (type)
+//   *TypeAssert        ✔               ✔
+//   *UnOp              ✔               ✔
+//
+// Other key types in this package include: Program, Package, Function
+// and BasicBlock.
 //
 // The program representation constructed by this package is fully
 // resolved internally, i.e. it does not rely on the names of Values,
@@ -59,32 +115,31 @@
 //
 //      const message = "Hello, World!"
 //
-//      func hello() {
+//      func main() {
 //              fmt.Println(message)
 //      }
 //
 // The SSA Builder creates a *Program containing a main *Package such
 // as this:
 //
-//      Package(Name: "main")
+//      Package (Name: "main")
 //        Members:
-//          "message":          *Literal (Type: untyped string, Value: "Hello, World!")
+//          "message":          *Constant (Type: untyped string, Value: "Hello, World!")
 //          "init·guard":       *Global (Type: *bool)
-//          "hello":            *Function (Type: func())
+//          "main":             *Function (Type: func())
 //        Init:                 *Function (Type: func())
 //
-// The printed representation of the function main.hello is shown
+// The printed representation of the function main.main is shown
 // below.  Within the function listing, the name of each BasicBlock
 // such as ".0.entry" is printed left-aligned, followed by the block's
-// instructions, i.e. implementations of Instruction.
+// Instructions.
 // For each instruction that defines an SSA virtual register
 // (i.e. implements Value), the type of that value is shown in the
 // right column.
 //
-//      # Name: main.hello
+//      # Name: main.main
 //      # Declared at hello.go:7:6
-//      # Type: func()
-//      func hello():
+//      func main():
 //      .0.entry:
 //              t0 = new [1]interface{}                                                 *[1]interface{}
 //              t1 = &t0[0:untyped integer]                                             *interface{}
@@ -102,14 +157,21 @@
 // TODO(adonovan): demonstrate more features in the example:
 // parameters and control flow at the least.
 //
-// TODO(adonovan): Consider how token.Pos source location information
-// should be made available generally.  Currently it is only present in
-// Package, Function and CallCommon.
-//
 // TODO(adonovan): Consider the exceptional control-flow implications
 // of defer and recover().
 //
-// TODO(adonovan): build tables/functions that relate source variables
-// to SSA variables to assist user interfaces that make queries about
-// specific source entities.
+// TODO(adonovan): Consider how token.Pos source location information
+// should be made available generally.  Currently it is only present
+// in package Members and selected Instructions for which there is a
+// direct source correspondence.  We'll need to work harder to tie all
+// defs/uses of named variables together, esp. because SSA splits them
+// into separate webs.
+//
+// TODO(adonovan): it is practically impossible for clients to
+// construct well-formed SSA functions/packages/programs directly; we
+// assume this is the job of the ssa.Builder alone.
+// Nonetheless it may be wise to give clients a little more
+// flexibility.  For example, analysis tools may wish to construct a
+// fake ssa.Function for the root of the callgraph, a fake "reflect"
+// package, etc.
 package ssa

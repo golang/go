@@ -123,7 +123,8 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *BinOp:
 	case *Call:
 	case *ChangeInterface:
-	case *Conv:
+	case *ChangeType:
+	case *Convert:
 	case *Defer:
 	case *Extract:
 	case *Field:

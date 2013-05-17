@@ -15,7 +15,7 @@ func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 	return f.emit(&Alloc{
 		Type_: pointer(typ),
 		Heap:  true,
-		Pos:   pos,
+		pos:   pos,
 	})
 }
 
@@ -24,7 +24,7 @@ func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 //
 func emitLoad(f *Function, addr Value) Value {
 	v := &UnOp{Op: token.MUL, X: addr}
-	v.setType(indirectType(addr.Type()))
+	v.setType(addr.Type().Deref())
 	return f.emit(v)
 }
 
@@ -60,8 +60,8 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type) Value {
 // comparison comparison 'x op y'.
 //
 func emitCompare(f *Function, op token.Token, x, y Value) Value {
-	xt := underlyingType(x.Type())
-	yt := underlyingType(y.Type())
+	xt := x.Type().Underlying()
+	yt := y.Type().Underlying()
 
 	// Special case to optimise a tagless SwitchStmt so that
 	// these are equivalent
@@ -71,7 +71,7 @@ func emitCompare(f *Function, op token.Token, x, y Value) Value {
 	// even in the case when e's type is an interface.
 	// TODO(adonovan): opt: generalise to x==true, false!=y, etc.
 	if x == vTrue && op == token.EQL {
-		if yt, ok := yt.(*types.Basic); ok && yt.Info&types.IsBoolean != 0 {
+		if yt, ok := yt.(*types.Basic); ok && yt.Info()&types.IsBoolean != 0 {
 			return y
 		}
 	}
@@ -99,38 +99,55 @@ func emitCompare(f *Function, op token.Token, x, y Value) Value {
 	return f.emit(v)
 }
 
-// emitConv emits to f code to convert Value val to exactly type typ,
-// and returns the converted value.  Implicit conversions are implied
-// by language assignability rules in the following operations:
+// isValuePreserving returns true if a conversion from ut_src to
+// ut_dst is value-preserving, i.e. just a change of type.
+// Precondition: neither argument is a named type.
 //
-// - from rvalue type to lvalue type in assignments.
-// - from actual- to formal-parameter types in function calls.
-// - from return value type to result type in return statements.
-// - population of struct fields, array and slice elements, and map
-//   keys and values within compoisite literals
-// - from index value to index type in indexing expressions.
-// - for both arguments of comparisons.
-// - from value type to channel type in send expressions.
+func isValuePreserving(ut_src, ut_dst types.Type) bool {
+	// Identical underlying types?
+	if types.IsIdentical(ut_dst, ut_src) {
+		return true
+	}
+
+	switch ut_dst.(type) {
+	case *types.Chan:
+		// Conversion between channel types?
+		_, ok := ut_src.(*types.Chan)
+		return ok
+
+	case *types.Pointer:
+		// Conversion between pointers with identical base types?
+		_, ok := ut_src.(*types.Pointer)
+		return ok
+
+	case *types.Signature:
+		// Conversion between f(T) function and (T) func f() method?
+		// TODO(adonovan): is this sound?  Discuss with gri.
+		_, ok := ut_src.(*types.Signature)
+		return ok
+	}
+	return false
+}
+
+// emitConv emits to f code to convert Value val to exactly type typ,
+// and returns the converted value.  Implicit conversions are required
+// by language assignability rules in assignments, parameter passing,
+// etc.
 //
 func emitConv(f *Function, val Value, typ types.Type) Value {
-	// fmt.Printf("emitConv %s -> %s, %T", val.Type(), typ, val) // debugging
+	t_src := val.Type()
 
 	// Identical types?  Conversion is a no-op.
-	if types.IsIdentical(val.Type(), typ) {
+	if types.IsIdentical(t_src, typ) {
 		return val
 	}
 
-	ut_dst := underlyingType(typ)
-	ut_src := underlyingType(val.Type())
+	ut_dst := typ.Underlying()
+	ut_src := t_src.Underlying()
 
-	// Identical underlying types?  Conversion is a name change.
-	if types.IsIdentical(ut_dst, ut_src) {
-		// TODO(adonovan): make this use a distinct
-		// instruction, ChangeType.  This instruction must
-		// also cover the cases of channel type restrictions and
-		// conversions between pointers to identical base
-		// types.
-		c := &Conv{X: val}
+	// Just a change of type, but not value or representation?
+	if isValuePreserving(ut_src, ut_dst) {
+		c := &ChangeType{X: val}
 		c.setType(typ)
 		return f.emit(c)
 	}
@@ -150,13 +167,13 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 
 		// Convert (non-nil) "untyped" literals to their default type.
 		// TODO(gri): expose types.isUntyped().
-		if t, ok := ut_src.(*types.Basic); ok && t.Info&types.IsUntyped != 0 {
+		if t, ok := ut_src.(*types.Basic); ok && t.Info()&types.IsUntyped != 0 {
 			val = emitConv(f, val, DefaultType(ut_src))
 		}
 
 		mi := &MakeInterface{
 			X:       val,
-			Methods: f.Prog.MethodSet(val.Type()),
+			Methods: f.Prog.MethodSet(t_src),
 		}
 		mi.setType(typ)
 		return f.emit(mi)
@@ -172,7 +189,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	}
 
 	// A representation-changing conversion.
-	c := &Conv{X: val}
+	c := &Convert{X: val}
 	c.setType(typ)
 	return f.emit(c)
 }
@@ -183,7 +200,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 func emitStore(f *Function, addr, val Value) {
 	f.emit(&Store{
 		Addr: addr,
-		Val:  emitConv(f, val, indirectType(addr.Type())),
+		Val:  emitConv(f, val, addr.Type().Deref()),
 	})
 }
 
@@ -226,8 +243,8 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 //
 func emitTypeAssert(f *Function, x Value, t types.Type) Value {
 	// Simplify infallible assertions.
-	txi := underlyingType(x.Type()).(*types.Interface)
-	if ti, ok := underlyingType(t).(*types.Interface); ok {
+	txi := x.Type().Underlying().(*types.Interface)
+	if ti, ok := t.Underlying().(*types.Interface); ok {
 		if types.IsIdentical(ti, txi) {
 			return x
 		}
@@ -256,10 +273,10 @@ func emitTypeTest(f *Function, x Value, t types.Type) Value {
 		AssertedType: t,
 		CommaOk:      true,
 	}
-	a.setType(&types.Result{Values: []*types.Var{
-		{Name: "value", Type: t},
+	a.setType(types.NewTuple(
+		types.NewVar(nil, "value", t),
 		varOk,
-	}})
+	))
 	return f.emit(a)
 }
 
@@ -273,11 +290,12 @@ func emitTailCall(f *Function, call *Call) {
 	for _, arg := range f.Params[1:] {
 		call.Call.Args = append(call.Call.Args, arg)
 	}
-	nr := len(f.Signature.Results)
+	tresults := f.Signature.Results()
+	nr := tresults.Len()
 	if nr == 1 {
-		call.Type_ = f.Signature.Results[0].Type
+		call.Type_ = tresults.At(0).Type()
 	} else {
-		call.Type_ = &types.Result{Values: f.Signature.Results}
+		call.Type_ = tresults
 	}
 	tuple := f.emit(call)
 	var ret Ret
@@ -287,8 +305,8 @@ func emitTailCall(f *Function, call *Call) {
 	case 1:
 		ret.Results = []Value{tuple}
 	default:
-		for i, o := range call.Type().(*types.Result).Values {
-			v := emitExtract(f, tuple, i, o.Type)
+		for i := 0; i < nr; i++ {
+			v := emitExtract(f, tuple, i, tresults.At(i).Type())
 			// TODO(adonovan): in principle, this is required:
 			//   v = emitConv(f, o.Type, f.Signature.Results[i].Type)
 			// but in practice emitTailCall is only used when

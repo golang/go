@@ -39,23 +39,23 @@ func zeroLiteral(t types.Type) *Literal {
 	switch t := t.(type) {
 	case *types.Basic:
 		switch {
-		case t.Info&types.IsBoolean != 0:
+		case t.Info()&types.IsBoolean != 0:
 			return newLiteral(exact.MakeBool(false), t)
-		case t.Info&types.IsNumeric != 0:
+		case t.Info()&types.IsNumeric != 0:
 			return newLiteral(exact.MakeInt64(0), t)
-		case t.Info&types.IsString != 0:
+		case t.Info()&types.IsString != 0:
 			return newLiteral(exact.MakeString(""), t)
-		case t.Kind == types.UnsafePointer:
+		case t.Kind() == types.UnsafePointer:
 			fallthrough
-		case t.Kind == types.UntypedNil:
+		case t.Kind() == types.UntypedNil:
 			return nilLiteral(t)
 		default:
 			panic(fmt.Sprint("zeroLiteral for unexpected type:", t))
 		}
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return nilLiteral(t)
-	case *types.NamedType:
-		return newLiteral(zeroLiteral(t.Underlying).Value, t)
+	case *types.Named:
+		return newLiteral(zeroLiteral(t.Underlying()).Value, t)
 	case *types.Array, *types.Struct:
 		panic(fmt.Sprint("zeroLiteral applied to aggregate:", t))
 	}
@@ -63,13 +63,16 @@ func zeroLiteral(t types.Type) *Literal {
 }
 
 func (l *Literal) Name() string {
-	s := l.Value.String()
+	var s string
 	if l.Value.Kind() == exact.String {
-		const n = 20
-		if len(s) > n {
-			s = s[:n-3] + "..." // abbreviate
+		s = exact.StringVal(l.Value)
+		const maxLit = 20
+		if len(s) > maxLit {
+			s = s[:maxLit-3] + "..." // abbreviate
 		}
 		s = strconv.Quote(s)
+	} else {
+		s = l.Value.String()
 	}
 	return s + ":" + l.Type_.String()
 }

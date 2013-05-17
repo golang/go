@@ -179,11 +179,12 @@ func (f *Function) addParam(name string, typ types.Type) *Parameter {
 // Subsequent lifting will eliminate spills where possible.
 //
 func (f *Function) addSpilledParam(obj types.Object) {
-	name := obj.GetName()
-	param := f.addParam(name, obj.GetType())
+	name := obj.Name()
+	param := f.addParam(name, obj.Type())
 	spill := &Alloc{
 		Name_: name + "~", // "~" means "spilled"
-		Type_: pointer(obj.GetType()),
+		Type_: pointer(obj.Type()),
+		pos:   obj.Pos(),
 	}
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
@@ -210,7 +211,7 @@ func (f *Function) startBody() {
 // f.syntax != nil, i.e. this is a Go source function.
 // f.startBody() was called.
 // Postcondition:
-// len(f.Params) == len(f.Signature.Params) + (f.Signature.Recv ? 1 : 0)
+// len(f.Params) == len(f.Signature.Params) + (f.Signature.Recv() ? 1 : 0)
 //
 func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 	// Receiver (at most one inner iteration).
@@ -221,8 +222,8 @@ func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 			}
 			// Anonymous receiver?  No need to spill.
 			if field.Names == nil {
-				recvVar := f.Signature.Recv
-				f.addParam(recvVar.Name, recvVar.Type)
+				recvVar := f.Signature.Recv()
+				f.addParam(recvVar.Name(), recvVar.Type())
 			}
 		}
 	}
@@ -236,8 +237,8 @@ func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 			}
 			// Anonymous parameter?  No need to spill.
 			if field.Names == nil {
-				paramVar := f.Signature.Params[len(f.Params)-n]
-				f.addParam(paramVar.Name, paramVar.Type)
+				paramVar := f.Signature.Params().At(len(f.Params) - n)
+				f.addParam(paramVar.Name(), paramVar.Type())
 			}
 		}
 	}
@@ -371,8 +372,8 @@ func (f *Function) removeNilBlocks() {
 // Precondition: f.syntax != nil (i.e. a Go source function).
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
-	l := f.addLocal(obj.GetType(), obj.GetPos())
-	l.Name_ = obj.GetName()
+	l := f.addLocal(obj.Type(), obj.Pos())
+	l.Name_ = obj.Name()
 	f.objects[obj] = l
 	return l
 }
@@ -381,7 +382,7 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 // to function f and returns it.  pos is the optional source location.
 //
 func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
-	v := &Alloc{Type_: pointer(typ), Pos: pos}
+	v := &Alloc{Type_: pointer(typ), pos: pos}
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v
@@ -414,7 +415,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	// Definition must be in an enclosing function;
 	// plumb it through intervening closures.
 	if f.Enclosing == nil {
-		panic("no Value for type.Object " + obj.GetName())
+		panic("no Value for type.Object " + obj.Name())
 	}
 	v := &Capture{Outer: f.Enclosing.lookup(obj, true)} // escaping
 	f.objects[obj] = v
@@ -453,13 +454,13 @@ func (f *Function) fullName(from *Package) string {
 		return f.Name_
 	}
 
-	recv := f.Signature.Recv
+	recv := f.Signature.Recv()
 
 	// Synthetic?
 	if f.Pkg == nil {
 		var recvType types.Type
 		if recv != nil {
-			recvType = recv.Type // bridge method
+			recvType = recv.Type() // bridge method
 		} else {
 			recvType = f.Params[0].Type() // interface method thunk
 		}
@@ -468,13 +469,13 @@ func (f *Function) fullName(from *Package) string {
 
 	// Declared method?
 	if recv != nil {
-		return fmt.Sprintf("(%s).%s", recv.Type, f.Name_)
+		return fmt.Sprintf("(%s).%s", recv.Type(), f.Name_)
 	}
 
 	// Package-level function.
 	// Prefix with package name for cross-package references only.
 	if from != f.Pkg {
-		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path, f.Name_)
+		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path(), f.Name_)
 	}
 	return f.Name_
 }
@@ -484,7 +485,7 @@ func (f *Function) fullName(from *Package) string {
 //
 func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Parameter) {
 	io.WriteString(w, "func ")
-	if sig.Recv != nil {
+	if recv := sig.Recv(); recv != nil {
 		io.WriteString(w, "(")
 		if n := params[0].Name(); n != "" {
 			io.WriteString(w, n)
@@ -502,23 +503,22 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 		}
 		io.WriteString(w, v.Name())
 		io.WriteString(w, " ")
-		if sig.IsVariadic && i == len(params)-1 {
+		if sig.IsVariadic() && i == len(params)-1 {
 			io.WriteString(w, "...")
-			io.WriteString(w, underlyingType(v.Type()).(*types.Slice).Elt.String())
+			io.WriteString(w, v.Type().Underlying().(*types.Slice).Elem().String())
 		} else {
 			io.WriteString(w, v.Type().String())
 		}
 	}
 	io.WriteString(w, ")")
-	if res := sig.Results; res != nil {
+	if n := sig.Results().Len(); n > 0 {
 		io.WriteString(w, " ")
-		var t types.Type
-		if len(res) == 1 && res[0].Name == "" {
-			t = res[0].Type
+		r := sig.Results()
+		if n == 1 && r.At(0).Name() == "" {
+			io.WriteString(w, r.At(0).Type().String())
 		} else {
-			t = &types.Result{Values: res}
+			io.WriteString(w, r.String())
 		}
-		io.WriteString(w, t.String())
 	}
 }
 
@@ -527,7 +527,7 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 //
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
-	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
+	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos()))
 
 	if f.Enclosing != nil {
 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
@@ -543,7 +543,7 @@ func (f *Function) DumpTo(w io.Writer) {
 	if len(f.Locals) > 0 {
 		io.WriteString(w, "# Locals:\n")
 		for i, l := range f.Locals {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), indirectType(l.Type()))
+			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), l.Type().Deref())
 		}
 	}
 

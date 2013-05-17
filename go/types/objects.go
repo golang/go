@@ -16,142 +16,156 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
-	GetPkg() *Package
-	GetName() string
-	GetType() Type
-	GetPos() token.Pos
-
-	anObject()
+	Pkg() *Package // nil for objects in the Universe scope
+	Scope() *Scope
+	Name() string
+	Type() Type
+	Pos() token.Pos
+	// TODO(gri) provide String method!
 }
 
 // A Package represents the contents (objects) of a Go package.
 type Package struct {
-	Name     string
-	Path     string              // import path, "" for current (non-imported) package
-	Scope    *Scope              // package-level scope
-	Imports  map[string]*Package // map of import paths to imported packages
-	Complete bool                // if set, this package was imported completely
+	name     string
+	path     string              // import path, "" for current (non-imported) package
+	scope    *Scope              // package-level scope
+	imports  map[string]*Package // map of import paths to imported packages
+	complete bool                // if set, this package was imported completely
 
 	spec *ast.ImportSpec
 }
 
+func NewPackage(path, name string) *Package {
+	return &Package{name: name, path: path, complete: true}
+}
+
+func (obj *Package) Pkg() *Package { return obj }
+func (obj *Package) Scope() *Scope { return obj.scope }
+func (obj *Package) Name() string  { return obj.name }
+func (obj *Package) Type() Type    { return Typ[Invalid] }
+func (obj *Package) Pos() token.Pos {
+	if obj.spec == nil {
+		return token.NoPos
+	}
+	return obj.spec.Pos()
+}
+func (obj *Package) Path() string                 { return obj.path }
+func (obj *Package) Imports() map[string]*Package { return obj.imports }
+func (obj *Package) Complete() bool               { return obj.complete }
+
 // A Const represents a declared constant.
 type Const struct {
-	Pkg  *Package
-	Name string
-	Type Type
-	Val  exact.Value
+	pkg  *Package
+	name string
+	typ  Type
+	val  exact.Value
 
 	visited bool // for initialization cycle detection
 	spec    *ast.ValueSpec
 }
 
-// A TypeName represents a declared type.
-type TypeName struct {
-	Pkg  *Package
-	Name string
-	Type Type // *NamedType or *Basic
-
-	spec *ast.TypeSpec
-}
-
-// A Variable represents a declared variable (including function parameters and results).
-type Var struct {
-	Pkg  *Package // nil for parameters
-	Name string
-	Type Type
-
-	visited bool // for initialization cycle detection
-	decl    interface{}
-}
-
-// A Func represents a declared function.
-type Func struct {
-	Pkg  *Package
-	Name string
-	Type Type // *Signature or *Builtin
-
-	decl *ast.FuncDecl
-}
-
-func (obj *Package) GetPkg() *Package  { return obj }
-func (obj *Const) GetPkg() *Package    { return obj.Pkg }
-func (obj *TypeName) GetPkg() *Package { return obj.Pkg }
-func (obj *Var) GetPkg() *Package      { return obj.Pkg }
-func (obj *Func) GetPkg() *Package     { return obj.Pkg }
-
-func (obj *Package) GetName() string  { return obj.Name }
-func (obj *Const) GetName() string    { return obj.Name }
-func (obj *TypeName) GetName() string { return obj.Name }
-func (obj *Var) GetName() string      { return obj.Name }
-func (obj *Func) GetName() string     { return obj.Name }
-
-func (obj *Package) GetType() Type  { return Typ[Invalid] }
-func (obj *Const) GetType() Type    { return obj.Type }
-func (obj *TypeName) GetType() Type { return obj.Type }
-func (obj *Var) GetType() Type      { return obj.Type }
-func (obj *Func) GetType() Type     { return obj.Type }
-
-func (obj *Package) GetPos() token.Pos {
-	if obj.spec == nil {
-		return token.NoPos
-	}
-	return obj.spec.Pos()
-}
-
-func (obj *Const) GetPos() token.Pos {
+func (obj *Const) Pkg() *Package { return obj.pkg }
+func (obj *Const) Scope() *Scope { panic("unimplemented") }
+func (obj *Const) Name() string  { return obj.name }
+func (obj *Const) Type() Type    { return obj.typ }
+func (obj *Const) Pos() token.Pos {
 	if obj.spec == nil {
 		return token.NoPos
 	}
 	for _, n := range obj.spec.Names {
-		if n.Name == obj.Name {
+		if n.Name == obj.name {
 			return n.Pos()
 		}
 	}
 	return token.NoPos
 }
-func (obj *TypeName) GetPos() token.Pos {
+func (obj *Const) Val() exact.Value { return obj.val }
+
+// A TypeName represents a declared type.
+type TypeName struct {
+	pkg  *Package
+	name string
+	typ  Type // *Named or *Basic
+
+	spec *ast.TypeSpec
+}
+
+func NewTypeName(pkg *Package, name string, typ Type) *TypeName {
+	return &TypeName{pkg, name, typ, nil}
+}
+
+func (obj *TypeName) Pkg() *Package { return obj.pkg }
+func (obj *TypeName) Scope() *Scope { panic("unimplemented") }
+func (obj *TypeName) Name() string  { return obj.name }
+func (obj *TypeName) Type() Type    { return obj.typ }
+func (obj *TypeName) Pos() token.Pos {
 	if obj.spec == nil {
 		return token.NoPos
 	}
 	return obj.spec.Pos()
 }
 
-func (obj *Var) GetPos() token.Pos {
+// A Variable represents a declared variable (including function parameters and results).
+type Var struct {
+	pkg  *Package // nil for parameters
+	name string
+	typ  Type
+
+	visited bool // for initialization cycle detection
+	decl    interface{}
+}
+
+func NewVar(pkg *Package, name string, typ Type) *Var {
+	return &Var{pkg, name, typ, false, nil}
+}
+
+func (obj *Var) Pkg() *Package { return obj.pkg }
+func (obj *Var) Scope() *Scope { panic("unimplemented") }
+func (obj *Var) Name() string  { return obj.name }
+func (obj *Var) Type() Type    { return obj.typ }
+func (obj *Var) Pos() token.Pos {
 	switch d := obj.decl.(type) {
 	case *ast.Field:
 		for _, n := range d.Names {
-			if n.Name == obj.Name {
+			if n.Name == obj.name {
 				return n.Pos()
 			}
 		}
 	case *ast.ValueSpec:
 		for _, n := range d.Names {
-			if n.Name == obj.Name {
+			if n.Name == obj.name {
 				return n.Pos()
 			}
 		}
 	case *ast.AssignStmt:
 		for _, x := range d.Lhs {
-			if ident, isIdent := x.(*ast.Ident); isIdent && ident.Name == obj.Name {
+			if ident, isIdent := x.(*ast.Ident); isIdent && ident.Name == obj.name {
 				return ident.Pos()
 			}
 		}
 	}
 	return token.NoPos
 }
-func (obj *Func) GetPos() token.Pos {
+
+// A Func represents a declared function.
+type Func struct {
+	pkg  *Package
+	name string
+	typ  Type // *Signature or *Builtin
+
+	decl *ast.FuncDecl
+}
+
+func (obj *Func) Pkg() *Package { return obj.pkg }
+func (obj *Func) Scope() *Scope { panic("unimplemented") }
+func (obj *Func) Name() string  { return obj.name }
+func (obj *Func) Type() Type    { return obj.typ }
+func (obj *Func) Pos() token.Pos {
 	if obj.decl != nil && obj.decl.Name != nil {
 		return obj.decl.Name.Pos()
 	}
 	return token.NoPos
 }
-
-func (*Package) anObject()  {}
-func (*Const) anObject()    {}
-func (*TypeName) anObject() {}
-func (*Var) anObject()      {}
-func (*Func) anObject()     {}
 
 // newObj returns a new Object for a given *ast.Object.
 // It does not canonicalize them (it always returns a new one).
@@ -171,9 +185,9 @@ func newObj(pkg *Package, astObj *ast.Object) Object {
 		unreachable()
 	case ast.Con:
 		iota := astObj.Data.(int)
-		return &Const{Pkg: pkg, Name: name, Type: typ, Val: exact.MakeInt64(int64(iota)), spec: astObj.Decl.(*ast.ValueSpec)}
+		return &Const{pkg: pkg, name: name, typ: typ, val: exact.MakeInt64(int64(iota)), spec: astObj.Decl.(*ast.ValueSpec)}
 	case ast.Typ:
-		return &TypeName{Pkg: pkg, Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
+		return &TypeName{pkg: pkg, name: name, typ: typ, spec: astObj.Decl.(*ast.TypeSpec)}
 	case ast.Var:
 		switch astObj.Decl.(type) {
 		case *ast.Field: // function parameters
@@ -182,9 +196,9 @@ func newObj(pkg *Package, astObj *ast.Object) Object {
 		default:
 			unreachable() // everything else is not ok
 		}
-		return &Var{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
+		return &Var{pkg: pkg, name: name, typ: typ, decl: astObj.Decl}
 	case ast.Fun:
-		return &Func{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
+		return &Func{pkg: pkg, name: name, typ: typ, decl: astObj.Decl.(*ast.FuncDecl)}
 	case ast.Lbl:
 		unreachable() // for now
 	}
