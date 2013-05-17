@@ -30,6 +30,32 @@ TEXT runtime·memmove(SB), 7, $0
 	MOVQ	fr+8(FP), SI
 	MOVQ	n+16(FP), BX
 
+	// REP instructions have a high startup cost, so we handle small sizes
+	// with some straightline code.  The REP MOVSQ instruction is really fast
+	// for large sizes.  The cutover is approximately 1K.  We implement up to
+	// 256 because that is the maximum SSE register load (loading all data
+	// into registers lets us ignore copy direction).
+tail:
+	TESTQ	BX, BX
+	JEQ	move_0
+	CMPQ	BX, $2
+	JBE	move_1or2
+	CMPQ	BX, $4
+	JBE	move_3or4
+	CMPQ	BX, $8
+	JBE	move_5through8
+	CMPQ	BX, $16
+	JBE	move_9through16
+	CMPQ	BX, $32
+	JBE	move_17through32
+	CMPQ	BX, $64
+	JBE	move_33through64
+	CMPQ	BX, $128
+	JBE	move_65through128
+	CMPQ	BX, $256
+	JBE	move_129through256
+	// TODO: use branch table and BSR to make this just a single dispatch
+
 /*
  * check and set for backwards
  */
@@ -45,11 +71,8 @@ forward:
 	ANDQ	$7, BX
 
 	REP;	MOVSQ
-	MOVQ	BX, CX
-	REP;	MOVSB
+	JMP	tail
 
-	MOVQ	to+0(FP),AX
-	RET
 back:
 /*
  * check overlap
@@ -78,12 +101,103 @@ back:
 	SUBQ	$8, SI
 	REP;	MOVSQ
 
-	ADDQ	$7, DI
-	ADDQ	$7, SI
-	MOVQ	BX, CX
-	REP;	MOVSB
-
 	CLD
-	MOVQ	to+0(FP),AX
-	RET
+	ADDQ	$8, DI
+	ADDQ	$8, SI
+	SUBQ	BX, DI
+	SUBQ	BX, SI
+	JMP	tail
 
+move_1or2:
+	MOVB	(SI), AX
+	MOVB	-1(SI)(BX*1), CX
+	MOVB	AX, (DI)
+	MOVB	CX, -1(DI)(BX*1)
+move_0:
+	RET
+move_3or4:
+	MOVW	(SI), AX
+	MOVW	-2(SI)(BX*1), CX
+	MOVW	AX, (DI)
+	MOVW	CX, -2(DI)(BX*1)
+	RET
+move_5through8:
+	MOVL	(SI), AX
+	MOVL	-4(SI)(BX*1), CX
+	MOVL	AX, (DI)
+	MOVL	CX, -4(DI)(BX*1)
+	RET
+move_9through16:
+	MOVQ	(SI), AX
+	MOVQ	-8(SI)(BX*1), CX
+	MOVQ	AX, (DI)
+	MOVQ	CX, -8(DI)(BX*1)
+	RET
+move_17through32:
+	MOVOU	(SI), X0
+	MOVOU	-16(SI)(BX*1), X1
+	MOVOU	X0, (DI)
+	MOVOU	X1, -16(DI)(BX*1)
+	RET
+move_33through64:
+	MOVOU	(SI), X0
+	MOVOU	16(SI), X1
+	MOVOU	-32(SI)(BX*1), X2
+	MOVOU	-16(SI)(BX*1), X3
+	MOVOU	X0, (DI)
+	MOVOU	X1, 16(DI)
+	MOVOU	X2, -32(DI)(BX*1)
+	MOVOU	X3, -16(DI)(BX*1)
+	RET
+move_65through128:
+	MOVOU	(SI), X0
+	MOVOU	16(SI), X1
+	MOVOU	32(SI), X2
+	MOVOU	48(SI), X3
+	MOVOU	-64(SI)(BX*1), X4
+	MOVOU	-48(SI)(BX*1), X5
+	MOVOU	-32(SI)(BX*1), X6
+	MOVOU	-16(SI)(BX*1), X7
+	MOVOU	X0, (DI)
+	MOVOU	X1, 16(DI)
+	MOVOU	X2, 32(DI)
+	MOVOU	X3, 48(DI)
+	MOVOU	X4, -64(DI)(BX*1)
+	MOVOU	X5, -48(DI)(BX*1)
+	MOVOU	X6, -32(DI)(BX*1)
+	MOVOU	X7, -16(DI)(BX*1)
+	RET
+move_129through256:
+	MOVOU	(SI), X0
+	MOVOU	16(SI), X1
+	MOVOU	32(SI), X2
+	MOVOU	48(SI), X3
+	MOVOU	64(SI), X4
+	MOVOU	80(SI), X5
+	MOVOU	96(SI), X6
+	MOVOU	112(SI), X7
+	MOVOU	-128(SI)(BX*1), X8
+	MOVOU	-112(SI)(BX*1), X9
+	MOVOU	-96(SI)(BX*1), X10
+	MOVOU	-80(SI)(BX*1), X11
+	MOVOU	-64(SI)(BX*1), X12
+	MOVOU	-48(SI)(BX*1), X13
+	MOVOU	-32(SI)(BX*1), X14
+	MOVOU	-16(SI)(BX*1), X15
+	MOVOU	X0, (DI)
+	MOVOU	X1, 16(DI)
+	MOVOU	X2, 32(DI)
+	MOVOU	X3, 48(DI)
+	MOVOU	X4, 64(DI)
+	MOVOU	X5, 80(DI)
+	MOVOU	X6, 96(DI)
+	MOVOU	X7, 112(DI)
+	MOVOU	X8, -128(DI)(BX*1)
+	MOVOU	X9, -112(DI)(BX*1)
+	MOVOU	X10, -96(DI)(BX*1)
+	MOVOU	X11, -80(DI)(BX*1)
+	MOVOU	X12, -64(DI)(BX*1)
+	MOVOU	X13, -48(DI)(BX*1)
+	MOVOU	X14, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
+	RET
