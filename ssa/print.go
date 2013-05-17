@@ -17,7 +17,7 @@ func (id Id) String() string {
 	if id.Pkg == nil {
 		return id.Name
 	}
-	return fmt.Sprintf("%s/%s", id.Pkg.Path, id.Name)
+	return fmt.Sprintf("%s/%s", id.Pkg.Path(), id.Name)
 }
 
 // relName returns the name of v relative to i.
@@ -360,7 +360,7 @@ func (p *Package) String() string {
 }
 
 func (p *Package) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "Package %s:\n", p.Types.Path)
+	fmt.Fprintf(w, "Package %s:\n", p.Types.Path())
 
 	var names []string
 	maxname := 0

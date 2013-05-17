@@ -554,13 +554,17 @@ func (f *Function) DumpTo(w io.Writer) {
 		io.WriteString(w, "\t(external)\n")
 	}
 
+	// NB. column calculations are confused by non-ASCII characters.
+	const punchcard = 80 // for old time's sake.
 	for _, b := range f.Blocks {
 		if b == nil {
 			// Corrupt CFG.
 			fmt.Fprintf(w, ".nil:\n")
 			continue
 		}
-		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b, len(b.Preds), len(b.Succs))
+		n, _ := fmt.Fprintf(w, ".%s:", b)
+		fmt.Fprintf(w, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))
+
 		if false { // CFG debugging
 			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
 		}
@@ -568,7 +572,7 @@ func (f *Function) DumpTo(w io.Writer) {
 			io.WriteString(w, "\t")
 			switch v := instr.(type) {
 			case Value:
-				l := 80 // for old time's sake.
+				l := punchcard
 				// Left-align the instruction.
 				if name := v.Name(); name != "" {
 					n, _ := fmt.Fprintf(w, "%s = ", name)

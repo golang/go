@@ -107,56 +107,6 @@
 // either accurate or unambiguous.  The public API exposes a number of
 // name-based maps for client convenience.
 //
-// Given a Go source package such as this:
-//
-//      package main
-//
-//      import "fmt"
-//
-//      const message = "Hello, World!"
-//
-//      func main() {
-//              fmt.Println(message)
-//      }
-//
-// The SSA Builder creates a *Program containing a main *Package such
-// as this:
-//
-//      Package (Name: "main")
-//        Members:
-//          "message":          *Constant (Type: untyped string, Value: "Hello, World!")
-//          "init·guard":       *Global (Type: *bool)
-//          "main":             *Function (Type: func())
-//        Init:                 *Function (Type: func())
-//
-// The printed representation of the function main.main is shown
-// below.  Within the function listing, the name of each BasicBlock
-// such as ".0.entry" is printed left-aligned, followed by the block's
-// Instructions.
-// For each instruction that defines an SSA virtual register
-// (i.e. implements Value), the type of that value is shown in the
-// right column.
-//
-//      # Name: main.main
-//      # Declared at hello.go:7:6
-//      func main():
-//      .0.entry:
-//              t0 = new [1]interface{}                                                 *[1]interface{}
-//              t1 = &t0[0:untyped integer]                                             *interface{}
-//              t2 = make interface interface{} <- string ("Hello, World!":string)      interface{}
-//              *t1 = t2
-//              t3 = slice t0[:]                                                        []interface{}
-//              t4 = fmt.Println(t3)                                                    (n int, err error)
-//              ret
-//
-//
-// The ssadump utility is an example of an application that loads and
-// dumps the SSA form of a Go program, whether a single package or a
-// whole program.
-//
-// TODO(adonovan): demonstrate more features in the example:
-// parameters and control flow at the least.
-//
 // TODO(adonovan): Consider the exceptional control-flow implications
 // of defer and recover().
 //
@@ -174,4 +124,5 @@
 // flexibility.  For example, analysis tools may wish to construct a
 // fake ssa.Function for the root of the callgraph, a fake "reflect"
 // package, etc.
+//
 package ssa
