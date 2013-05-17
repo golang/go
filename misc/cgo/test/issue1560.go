@@ -5,71 +5,46 @@
 package cgotest
 
 /*
-#include <unistd.h>
+// mysleep returns the absolute start time in ms.
+long long mysleep(int seconds);
 
-unsigned int sleep(unsigned int seconds);
-
-extern void BackgroundSleep(int);
-void twoSleep(int);
+// twoSleep returns the absolute start time of the first sleep
+// in ms.
+long long twoSleep(int);
 */
 import "C"
 
 import (
-	"runtime"
 	"testing"
 	"time"
 )
 
-var sleepDone = make(chan bool)
+var sleepDone = make(chan int64)
 
-func parallelSleep(n int) {
-	C.twoSleep(C.int(n))
-	<-sleepDone
+// parallelSleep returns the absolute difference between the start time
+// of the two sleeps.
+func parallelSleep(n int) int64 {
+	t := int64(C.twoSleep(C.int(n))) - <-sleepDone
+	if t < 0 {
+		return -t
+	}
+	return t
 }
 
 //export BackgroundSleep
 func BackgroundSleep(n int32) {
 	go func() {
-		C.sleep(C.uint(n))
-		sleepDone <- true
+		sleepDone <- int64(C.mysleep(C.int(n)))
 	}()
-}
-
-// wasteCPU starts a background goroutine to waste CPU
-// to cause the power management to raise the CPU frequency.
-// On ARM this has the side effect of making sleep more accurate.
-func wasteCPU() chan struct{} {
-	done := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			default:
-			}
-		}
-	}()
-	// pause for a short amount of time to allow the
-	// power management to recognise load has risen.
-	<-time.After(300 * time.Millisecond)
-	return done
 }
 
 func testParallelSleep(t *testing.T) {
-	if runtime.GOARCH == "arm" {
-		// on ARM, the 1.3s deadline is frequently missed,
-		// and burning cpu seems to help
-		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
-		defer close(wasteCPU())
-	}
-
 	sleepSec := 1
-	start := time.Now()
-	parallelSleep(sleepSec)
-	dt := time.Since(start)
-	t.Logf("sleep(%d) slept for %v", sleepSec, dt)
+	dt := time.Duration(parallelSleep(sleepSec)) * time.Millisecond
+	t.Logf("difference in start time for two sleep(%d) is %v", sleepSec, dt)
 	// bug used to run sleeps in serial, producing a 2*sleepSec-second delay.
-	if dt >= time.Duration(sleepSec)*1300*time.Millisecond {
+	// we detect if the start times of those sleeps are > 0.5*sleepSec-second.
+	if dt >= time.Duration(sleepSec)*time.Second/2 {
 		t.Fatalf("parallel %d-second sleeps slept for %f seconds", sleepSec, dt.Seconds())
 	}
 }

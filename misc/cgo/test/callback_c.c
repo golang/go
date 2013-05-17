@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include <sys/types.h>
+#include <unistd.h>
 #include "_cgo_export.h"
 
 void
@@ -29,9 +30,30 @@ IntoC(void)
 	BackIntoGo();
 }
 
-void
+#ifdef WIN32
+#include <windows.h>
+long long
+mysleep(int seconds) {
+	long long st = GetTickCount();
+	sleep(seconds);
+	return st;
+}
+#else
+#include <sys/time.h>
+long long
+mysleep(int seconds) {
+	long long st;
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	st = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+	sleep(seconds);
+	return st;
+}
+#endif
+
+long long
 twoSleep(int n)
 {
 	BackgroundSleep(n);
-	sleep(n);
+	return mysleep(n);
 }
