@@ -887,7 +887,12 @@ doelf(void)
 	addstring(shstrtab, ".data");
 	addstring(shstrtab, ".bss");
 	addstring(shstrtab, ".noptrbss");
-	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd)
+	// generate .tbss section (except for OpenBSD where it's not supported)
+	// for dynamic internal linker or external linking, so that various
+	// binutils could correctly calculate PT_TLS size.
+	// see http://golang.org/issue/5200.
+	if(HEADTYPE != Hopenbsd)
+	if(!debug['d'] || linkmode == LinkExternal)
 		addstring(shstrtab, ".tbss");
 	if(HEADTYPE == Hnetbsd)
 		addstring(shstrtab, ".note.netbsd.ident");
@@ -1410,6 +1415,16 @@ elfobj:
 		sh->type = SHT_PROGBITS;
 		sh->addralign = 1;
 		sh->flags = 0;
+	}
+
+	// generate .tbss section for dynamic internal linking (except for OpenBSD)
+	// external linking generates .tbss in data.c
+	if(linkmode == LinkInternal && !debug['d'] && HEADTYPE != Hopenbsd) {
+		sh = elfshname(".tbss");
+		sh->type = SHT_NOBITS;
+		sh->addralign = PtrSize;
+		sh->size = -tlsoffset;
+		sh->flags = SHF_ALLOC | SHF_TLS | SHF_WRITE;
 	}
 
 	if(!debug['s']) {
