@@ -122,6 +122,7 @@ runtime·osyield(void)
 	runtime·sleep(0);
 }
 
+#pragma textflag 7
 void
 runtime·usleep(uint32 µs)
 {
