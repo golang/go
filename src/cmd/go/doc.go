@@ -370,7 +370,6 @@ Usage:
 	go run [build flags] gofiles... [arguments...]
 
 Run compiles and runs the main package comprising the named Go source files.
-If no files are named, it compiles and runs all non-test Go source files.
 
 For more about build flags, see 'go help build'.
 
