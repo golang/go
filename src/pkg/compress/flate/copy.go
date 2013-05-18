@@ -6,12 +6,27 @@ package flate
 
 // forwardCopy is like the built-in copy function except that it always goes
 // forward from the start, even if the dst and src overlap.
-func forwardCopy(dst, src []byte) int {
-	if len(src) > len(dst) {
-		src = src[:len(dst)]
+// It is equivalent to:
+//   for i := 0; i < n; i++ {
+//     mem[dst+i] = mem[src+i]
+//   }
+func forwardCopy(mem []byte, dst, src, n int) {
+	if dst <= src {
+		copy(mem[dst:dst+n], mem[src:src+n])
+		return
 	}
-	for i, x := range src {
-		dst[i] = x
+	for {
+		if dst >= src+n {
+			copy(mem[dst:dst+n], mem[src:src+n])
+			return
+		}
+		// There is some forward overlap.  The destination
+		// will be filled with a repeated pattern of mem[src:src+k].
+		// We copy one instance of the pattern here, then repeat.
+		// Each time around this loop k will double.
+		k := dst - src
+		copy(mem[dst:dst+k], mem[src:src+k])
+		n -= k
+		dst += k
 	}
-	return len(src)
 }

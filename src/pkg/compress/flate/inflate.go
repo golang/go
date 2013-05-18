@@ -511,7 +511,7 @@ func (f *decompressor) copyHist() bool {
 		if x := len(f.hist) - p; n > x {
 			n = x
 		}
-		forwardCopy(f.hist[f.hp:f.hp+n], f.hist[p:p+n])
+		forwardCopy(f.hist[:], f.hp, p, n)
 		p += n
 		f.hp += n
 		f.copyLen -= n

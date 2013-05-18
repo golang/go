@@ -30,10 +30,12 @@ func TestForwardCopy(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		b := []byte("0123456789")
-		dst := b[tc.dst0:tc.dst1]
-		src := b[tc.src0:tc.src1]
-		n := forwardCopy(dst, src)
-		got := string(dst[:n])
+		n := tc.dst1 - tc.dst0
+		if tc.src1-tc.src0 < n {
+			n = tc.src1 - tc.src0
+		}
+		forwardCopy(b, tc.dst0, tc.src0, n)
+		got := string(b[tc.dst0 : tc.dst0+n])
 		if got != tc.want {
 			t.Errorf("dst=b[%d:%d], src=b[%d:%d]: got %q, want %q",
 				tc.dst0, tc.dst1, tc.src0, tc.src1, got, tc.want)
