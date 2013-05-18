@@ -1026,7 +1026,8 @@ dalgsym(Type *t)
 }
 
 static int
-gcinline(Type *t) {
+gcinline(Type *t)
+{
 	switch(t->etype) {
 	case TARRAY:
 		if(t->bound == 1)
