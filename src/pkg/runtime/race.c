@@ -301,13 +301,15 @@ runtime·RaceReleaseMerge(void *addr)
 }
 
 // func RaceSemacquire(s *uint32)
-void runtime·RaceSemacquire(uint32 *s)
+void
+runtime·RaceSemacquire(uint32 *s)
 {
 	runtime·semacquire(s);
 }
 
 // func RaceSemrelease(s *uint32)
-void runtime·RaceSemrelease(uint32 *s)
+void
+runtime·RaceSemrelease(uint32 *s)
 {
 	runtime·semrelease(s);
 }
@@ -329,13 +331,15 @@ runtime·RaceWrite(void *addr)
 }
 
 // func RaceDisable()
-void runtime·RaceDisable(void)
+void
+runtime·RaceDisable(void)
 {
 	g->raceignore++;
 }
 
 // func RaceEnable()
-void runtime·RaceEnable(void)
+void
+runtime·RaceEnable(void)
 {
 	g->raceignore--;
 }
