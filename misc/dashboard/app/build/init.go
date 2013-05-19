@@ -27,6 +27,7 @@ var subRepos = []string{
 	"image",
 	"net",
 	"talks",
+	"tools",
 }
 
 // Put subRepos into defaultPackages.
