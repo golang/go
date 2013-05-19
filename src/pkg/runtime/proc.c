@@ -1370,6 +1370,8 @@ runtime·exitsyscall(void)
 		runtime·unlock(&runtime·sched);
 		if(p) {
 			acquirep(p);
+			m->p->tick++;
+			g->status = Grunning;
 			g->gcstack = (uintptr)nil;
 			g->gcsp = (uintptr)nil;
 			return;
