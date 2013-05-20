@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 14, 2013",
+	"Subtitle": "Version of May 20, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -4620,7 +4620,7 @@ channel         c  chan E, &lt;-chan E       element  e  E
 For an array, pointer to array, or slice value <code>a</code>, the index iteration
 values are produced in increasing order, starting at element index 0.
 If only the first iteration variable is present, the range loop produces
-iteration values from 0 up to <code>len(a)</code> and does not index into the array
+iteration values from 0 up to <code>len(a)-1</code> and does not index into the array
 or slice itself. For a <code>nil</code> slice, the number of iterations is 0.
 </li>
 
