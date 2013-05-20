@@ -31,6 +31,11 @@ func run() error {
 }
 
 func main() {
+	// Does not work on 32-bits due to partially conservative GC.
+	// Try to enable when we have fully precise GC.
+	if runtime.GOARCH != "amd64" {
+		return
+	}
 	count = N
 	var wg sync.WaitGroup
 	wg.Add(N)
@@ -46,6 +51,7 @@ func main() {
 		runtime.GC()
 	}
 	if count != 0 {
+		println(count, "out of", N, "finalizer are called")
 		panic("not all finalizers are called")
 	}
 }
