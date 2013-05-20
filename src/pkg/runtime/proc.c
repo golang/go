@@ -1232,6 +1232,7 @@ static void
 goexit0(G *gp)
 {
 	gp->status = Gdead;
+	gp->fnstart = nil;
 	gp->m = nil;
 	gp->lockedm = nil;
 	m->curg = nil;
