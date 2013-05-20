@@ -15,6 +15,7 @@ package runtime
 
 /*
 #include <sys/types.h>
+#include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/unistd.h>
@@ -25,6 +26,9 @@ package runtime
 import "C"
 
 const (
+	EINTR  = C.EINTR
+	EFAULT = C.EFAULT
+
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
 	PROT_WRITE = C.PROT_WRITE
@@ -39,8 +43,6 @@ const (
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
-
-	EINTR = C.EINTR
 
 	SIGHUP    = C.SIGHUP
 	SIGINT    = C.SIGINT
@@ -93,6 +95,13 @@ const (
 	ITIMER_REAL    = C.ITIMER_REAL
 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
 	ITIMER_PROF    = C.ITIMER_PROF
+
+	EV_ADD       = C.EV_ADD
+	EV_DELETE    = C.EV_DELETE
+	EV_CLEAR     = C.EV_CLEAR
+	EV_ERROR     = C.EV_ERROR
+	EVFILT_READ  = C.EVFILT_READ
+	EVFILT_WRITE = C.EVFILT_WRITE
 )
 
 type Tfork C.struct___tfork
@@ -108,3 +117,5 @@ type StackT C.stack_t
 type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
+
+type Kevent C.struct_kevent
