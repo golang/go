@@ -1727,6 +1727,7 @@ func TestAcceptMaxFds(t *testing.T) {
 }
 
 func BenchmarkClientServer(b *testing.B) {
+	b.ReportAllocs()
 	b.StopTimer()
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
 		fmt.Fprintf(rw, "Hello world.\n")
@@ -1761,6 +1762,7 @@ func BenchmarkClientServerParallel64(b *testing.B) {
 }
 
 func benchmarkClientServerParallel(b *testing.B, conc int) {
+	b.ReportAllocs()
 	b.StopTimer()
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
 		fmt.Fprintf(rw, "Hello world.\n")
@@ -1805,6 +1807,7 @@ func benchmarkClientServerParallel(b *testing.B, conc int) {
 //   $ go tool pprof http.test http.prof
 //   (pprof) web
 func BenchmarkServer(b *testing.B) {
+	b.ReportAllocs()
 	// Child process mode;
 	if url := os.Getenv("TEST_BENCH_SERVER_URL"); url != "" {
 		n, err := strconv.Atoi(os.Getenv("TEST_BENCH_CLIENT_N"))
