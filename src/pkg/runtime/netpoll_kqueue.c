@@ -27,7 +27,7 @@ runtime·netpollinit(void)
 }
 
 int32
-runtime·netpollopen(int32 fd, PollDesc *pd)
+runtime·netpollopen(uintptr fd, PollDesc *pd)
 {
 	Kevent ev[2];
 	int32 n;
@@ -35,7 +35,7 @@ runtime·netpollopen(int32 fd, PollDesc *pd)
 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
 	// for the whole fd lifetime.  The notifications are automatically unregistered
 	// when fd is closed.
-	ev[0].ident = fd;
+	ev[0].ident = (uint32)fd;
 	ev[0].filter = EVFILT_READ;
 	ev[0].flags = EV_ADD|EV_RECEIPT|EV_CLEAR;
 	ev[0].fflags = 0;
@@ -47,8 +47,8 @@ runtime·netpollopen(int32 fd, PollDesc *pd)
 	if(n < 0)
 		return -n;
 	if(n != 2 ||
-		(ev[0].flags&EV_ERROR) == 0 || ev[0].ident != fd || ev[0].filter != EVFILT_READ ||
-		(ev[1].flags&EV_ERROR) == 0 || ev[1].ident != fd || ev[1].filter != EVFILT_WRITE)
+		(ev[0].flags&EV_ERROR) == 0 || ev[0].ident != (uint32)fd || ev[0].filter != EVFILT_READ ||
+		(ev[1].flags&EV_ERROR) == 0 || ev[1].ident != (uint32)fd || ev[1].filter != EVFILT_WRITE)
 		return EFAULT;  // just to mark out from other errors
 	if(ev[0].data != 0)
 		return ev[0].data;
@@ -58,7 +58,7 @@ runtime·netpollopen(int32 fd, PollDesc *pd)
 }
 
 int32
-runtime·netpollclose(int32 fd)
+runtime·netpollclose(uintptr fd)
 {
 	// Don't need to unregister because calling close()
 	// on fd will remove any kevents that reference the descriptor.
