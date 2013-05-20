@@ -129,6 +129,9 @@ walkrange(Node *n)
 	v2 = N;
 	if(n->list->next)
 		v2 = n->list->next->n;
+	// n->list has no meaning anymore, clear it
+	// to avoid erroneous processing by racewalk.
+	n->list = nil;
 	hv2 = N;
 
 	if(v2 == N && t->etype == TARRAY) {
