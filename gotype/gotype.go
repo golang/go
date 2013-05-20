@@ -143,10 +143,10 @@ func processDirectory(dirname string) {
 	for i, filename := range filenames {
 		filenames[i] = filepath.Join(dirname, filename)
 	}
-	processFiles(filenames, false)
+	processFiles(dirname, filenames, false)
 }
 
-func processFiles(filenames []string, allFiles bool) {
+func processFiles(path string, filenames []string, allFiles bool) {
 	i := 0
 	for _, filename := range filenames {
 		switch info, err := os.Stat(filename); {
@@ -164,10 +164,10 @@ func processFiles(filenames []string, allFiles bool) {
 		}
 	}
 	fset := token.NewFileSet()
-	processPackage(fset, parseFiles(fset, filenames[0:i]))
+	processPackage(path, fset, parseFiles(fset, filenames[0:i]))
 }
 
-func processPackage(fset *token.FileSet, files []*ast.File) {
+func processPackage(path string, fset *token.FileSet, files []*ast.File) {
 	type bailout struct{}
 	ctxt := types.Context{
 		Error: func(err error) {
@@ -186,7 +186,7 @@ func processPackage(fset *token.FileSet, files []*ast.File) {
 		}
 	}()
 
-	ctxt.Check(fset, files)
+	ctxt.Check(path, fset, files...)
 }
 
 func main() {
@@ -195,9 +195,9 @@ func main() {
 
 	if flag.NArg() == 0 {
 		fset := token.NewFileSet()
-		processPackage(fset, parseStdin(fset))
+		processPackage("<stdin>", fset, parseStdin(fset))
 	} else {
-		processFiles(flag.Args(), true)
+		processFiles("<files>", flag.Args(), true)
 	}
 
 	if errorCount > 0 {
