@@ -328,12 +328,12 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	switch {
 	case chunked(t.TransferEncoding):
 		if noBodyExpected(t.RequestMethod) {
-			t.Body = &body{Reader: eofReader, closing: t.Close}
+			t.Body = eofReader
 		} else {
 			t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
 		}
 	case realLength == 0:
-		t.Body = &body{Reader: eofReader, closing: t.Close}
+		t.Body = eofReader
 	case realLength > 0:
 		t.Body = &body{Reader: io.LimitReader(r, realLength), closing: t.Close}
 	default:
@@ -343,7 +343,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 			t.Body = &body{Reader: r, closing: t.Close}
 		} else {
 			// Persistent connection (i.e. HTTP/1.1)
-			t.Body = &body{Reader: eofReader, closing: t.Close}
+			t.Body = eofReader
 		}
 	}
 
@@ -518,8 +518,6 @@ type body struct {
 	r       *bufio.Reader // underlying wire-format reader for the trailer
 	closing bool          // is the connection to be closed after reading body?
 	closed  bool
-
-	res *response // response writer for server requests, else nil
 }
 
 // ErrBodyReadAfterClose is returned when reading a Request or Response
@@ -618,14 +616,6 @@ func (b *body) Close() error {
 	case b.hdr == nil && b.closing:
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
-	case b.res != nil && b.res.requestBodyLimitHit:
-		// In a server request, don't continue reading from the client
-		// if we've already hit the maximum body size set by the
-		// handler. If this is set, that also means the TCP connection
-		// is about to be closed, so getting to the next HTTP request
-		// in the stream is not necessary.
-	case b.Reader == eofReader:
-		// Nothing to read. No need to io.Copy from it.
 	default:
 		// Fully consume the body, which will also lead to us reading
 		// the trailer headers after the body, if present.
