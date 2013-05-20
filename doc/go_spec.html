@@ -15,6 +15,7 @@ TODO
 [ ] need explicit language about the result type of operations
 [ ] should probably write something about evaluation order of statements even
 	though obvious
+[ ] in Selectors section, clarify what receiver value is passed in method invocations
 -->
 
 
@@ -2507,13 +2508,6 @@ p.M0()  // ((*p).T0).M0()
 </pre>
 
 
-<!--
-<span class="alert">
-TODO: Specify what happens to receivers.
-</span>
--->
-
-
 <h3 id="Index_expressions">Index expressions</h3>
 
 <p>
@@ -3337,13 +3331,6 @@ channel, or <code>false</code> if it is a zero value generated because the
 channel is closed and empty.
 </p>
 
-<!--
-<p>
-<span class="alert">TODO: Probably in a separate section, communication semantics
-need to be presented regarding send, receive, select, and goroutines.</span>
-</p>
--->
-
 
 <h3 id="Method_expressions">Method expressions</h3>
 
@@ -3914,15 +3901,6 @@ context, even if it would be integral when calculated using infinite
 precision.
 </p>
 
-<!--
-<p>
-<span class="alert">
-TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
-Also it may be possible to make typed constants more like variables, at the cost of fewer
-overflow etc. errors being caught.
-</span>
-</p>
--->
 
 <h3 id="Order_of_evaluation">Order of evaluation</h3>
 
@@ -4901,13 +4879,6 @@ function. A "return" statement that specifies results sets the result parameters
 any deferred functions are executed.
 </p>
 
-<!--
-<p>
-<span class="alert">
-TODO: Define when return is required.<br />
-</span>
-</p>
--->
 
 <h3 id="Break_statements">Break statements</h3>
 
