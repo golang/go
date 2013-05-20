@@ -73,7 +73,8 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 		check.register(file.Name, pkg)
 
 		// insert top-level file objects in package scope
-		// (the parser took care of declaration errors)
+		// (the parser took care of declaration errors in a single file,
+		// but not across multiple files - hence we need to check again)
 		for _, decl := range file.Decls {
 			switch d := decl.(type) {
 			case *ast.BadDecl:
@@ -91,13 +92,13 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 							if name.Name == "_" {
 								continue
 							}
-							pkg.scope.Insert(check.lookup(name))
+							check.declareObj(pkg.scope, nil, check.lookup(name), token.NoPos)
 						}
 					case *ast.TypeSpec:
 						if s.Name.Name == "_" {
 							continue
 						}
-						pkg.scope.Insert(check.lookup(s.Name))
+						check.declareObj(pkg.scope, nil, check.lookup(s.Name), token.NoPos)
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
 					}
@@ -111,7 +112,7 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 				if d.Name.Name == "_" || d.Name.Name == "init" {
 					continue // blank (_) and init functions are inaccessible
 				}
-				pkg.scope.Insert(check.lookup(d.Name))
+				check.declareObj(pkg.scope, nil, check.lookup(d.Name), token.NoPos)
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
 			}

@@ -26,3 +26,9 @@ func f() {
 	var t *T6
 	t.m1()
 }
+
+// Double declarations across package files
+const c_double /* ERROR "redeclared" */ = 0
+type t_double  /* ERROR "redeclared" */ int
+var v_double /* ERROR "redeclared" */ int
+func f_double /* ERROR "redeclared" */ () {}

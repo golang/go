@@ -64,3 +64,9 @@ func (int /* ERROR "non-local type" */ ) m() {}
 func ([ /* ERROR "expected" */ ]int) m() {}
 func (time /* ERROR "expected" */ .Time) m() {}
 func (x interface /* ERROR "expected" */ {}) m() {}
+
+// Double declarations across package files
+const c_double = 0
+type t_double int
+var v_double int
+func f_double() {}

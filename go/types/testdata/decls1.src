@@ -123,7 +123,6 @@ func (*T) m1() {}
 func (x T) m2() {}
 func (x *T) m3() {}
 
-
 // Initialization functions
 func init() {}
 func /* ERROR "no arguments and no return values" */ init(int) {}

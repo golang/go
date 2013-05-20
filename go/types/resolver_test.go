@@ -35,7 +35,7 @@ var sources = []string{
 	package p
 	import . "go/parser"
 	import "sync"
-	func g() Mode { return ImportsOnly }
+	func h() Mode { return ImportsOnly }
 	var _, x int = 1, 2
 	func init() {}
 	type T struct{ sync.Mutex; a, b, c int}
