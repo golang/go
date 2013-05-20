@@ -608,10 +608,14 @@ func repoURL(importPath string) string {
 // defaultSuffix returns file extension used for command files in
 // current os environment.
 func defaultSuffix() string {
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		return ".bat"
+	case "plan9":
+		return ".rc"
+	default:
+		return ".bash"
 	}
-	return ".bash"
 }
 
 // defaultBuildRoot returns default buildroot directory.
