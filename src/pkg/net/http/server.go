@@ -1814,7 +1814,15 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 }
 
 // eofReader is a non-nil io.ReadCloser that always returns EOF.
-var eofReader = ioutil.NopCloser(strings.NewReader(""))
+// It embeds a *strings.Reader so it still has a WriteTo method
+// and io.Copy won't need a buffer.
+var eofReader = &struct {
+	*strings.Reader
+	io.Closer
+}{
+	strings.NewReader(""),
+	ioutil.NopCloser(nil),
+}
 
 // initNPNRequest is an HTTP handler that initializes certain
 // uninitialized fields in its *Request. Such partially-initialized
