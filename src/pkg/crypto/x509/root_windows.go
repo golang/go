@@ -89,7 +89,7 @@ func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) e
 		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
 			return CertificateInvalidError{c, Expired}
 		default:
-			return UnknownAuthorityError{c}
+			return UnknownAuthorityError{c, nil, nil}
 		}
 	}
 	return nil
@@ -129,9 +129,9 @@ func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContex
 		case syscall.CERT_E_CN_NO_MATCH:
 			return HostnameError{c, opts.DNSName}
 		case syscall.CERT_E_UNTRUSTEDROOT:
-			return UnknownAuthorityError{c}
+			return UnknownAuthorityError{c, nil, nil}
 		default:
-			return UnknownAuthorityError{c}
+			return UnknownAuthorityError{c, nil, nil}
 		}
 	}
 
