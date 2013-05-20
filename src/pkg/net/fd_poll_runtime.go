@@ -20,16 +20,11 @@ func runtime_pollReset(ctx uintptr, mode int) int
 func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
 func runtime_pollUnblock(ctx uintptr)
 
-var canCancelIO = true // used for testing current package
-
 type pollDesc struct {
 	runtimeCtx uintptr
 }
 
 var serverInit sync.Once
-
-func sysInit() {
-}
 
 func (pd *pollDesc) Init(fd *netFD) error {
 	serverInit.Do(runtime_pollServerInit)

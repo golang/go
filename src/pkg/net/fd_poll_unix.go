@@ -303,9 +303,7 @@ var pollMaxN int
 var pollservers []*pollServer
 var startServersOnce []func()
 
-var canCancelIO = true // used for testing current package
-
-func sysInit() {
+func init() {
 	pollMaxN = runtime.NumCPU()
 	if pollMaxN > 8 {
 		pollMaxN = 8 // No improvement then.

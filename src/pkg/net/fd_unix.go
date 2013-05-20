@@ -41,6 +41,11 @@ type netFD struct {
 	pd pollDesc
 }
 
+var canCancelIO = true // used for testing current package
+
+func sysInit() {
+}
+
 func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
 	ra, err := resolveAddr("dial", net, addr, deadline)
 	if err != nil {
