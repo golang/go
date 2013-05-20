@@ -320,6 +320,10 @@ type response struct {
 	requestBodyLimitHit bool
 
 	handlerDone bool // set true when the handler exits
+
+	// Buffers for Date and Content-Length
+	dateBuf [len(TimeFormat)]byte
+	clenBuf [10]byte
 }
 
 // requestTooLarge is called by maxBytesReader when too much input has
@@ -525,6 +529,27 @@ func (ecr *expectContinueReader) Close() error {
 // It is like time.RFC1123 but hard codes GMT as the time zone.
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
+// appendTime is a non-allocating version of []byte(time.Now().UTC().Format(TimeFormat))
+func appendTime(b []byte, t time.Time) []byte {
+	const days = "SunMonTueWedThuFriSat"
+	const months = "JanFebMarAprMayJunJulAugSepOctNovDec"
+
+	yy, mm, dd := t.Date()
+	hh, mn, ss := t.Clock()
+	day := days[3*t.Weekday():]
+	mon := months[3*(mm-1):]
+
+	return append(b,
+		day[0], day[1], day[2], ',', ' ',
+		byte('0'+dd/10), byte('0'+dd%10), ' ',
+		mon[0], mon[1], mon[2], ' ',
+		byte('0'+yy/1000), byte('0'+(yy/100)%10), byte('0'+(yy/10)%10), byte('0'+yy%10), ' ',
+		byte('0'+hh/10), byte('0'+hh%10), ':',
+		byte('0'+mn/10), byte('0'+mn%10), ':',
+		byte('0'+ss/10), byte('0'+ss%10), ' ',
+		'G', 'M', 'T')
+}
+
 var errTooLarge = errors.New("http: request too large")
 
 // Read next request from connection.
@@ -620,27 +645,45 @@ func (w *response) WriteHeader(code int) {
 // the response Header map and all its 1-element slices.
 type extraHeader struct {
 	contentType      string
-	contentLength    string
 	connection       string
-	date             string
 	transferEncoding string
+	date             []byte // written if not nil
+	contentLength    []byte // written if not nil
 }
 
 // Sorted the same as extraHeader.Write's loop.
 var extraHeaderKeys = [][]byte{
-	[]byte("Content-Type"), []byte("Content-Length"),
-	[]byte("Connection"), []byte("Date"), []byte("Transfer-Encoding"),
+	[]byte("Content-Type"),
+	[]byte("Connection"),
+	[]byte("Transfer-Encoding"),
 }
 
-// The value receiver, despite copying 5 strings to the stack,
-// prevents an extra allocation. The escape analysis isn't smart
-// enough to realize this doesn't mutate h.
-func (h extraHeader) Write(w io.Writer) {
-	for i, v := range []string{h.contentType, h.contentLength, h.connection, h.date, h.transferEncoding} {
+var (
+	headerContentLength = []byte("Content-Length: ")
+	headerDate          = []byte("Date: ")
+)
+
+// Write writes the headers described in h to w.
+//
+// This method has a value receiver, despite the somewhat large size
+// of h, because it prevents an allocation. The escape analysis isn't
+// smart enough to realize this function doesn't mutate h.
+func (h extraHeader) Write(w *bufio.Writer) {
+	if h.date != nil {
+		w.Write(headerDate)
+		w.Write(h.date)
+		w.Write(crlf)
+	}
+	if h.contentLength != nil {
+		w.Write(headerContentLength)
+		w.Write(h.contentLength)
+		w.Write(crlf)
+	}
+	for i, v := range []string{h.contentType, h.connection, h.transferEncoding} {
 		if v != "" {
 			w.Write(extraHeaderKeys[i])
 			w.Write(colonSpace)
-			io.WriteString(w, v)
+			w.WriteString(v)
 			w.Write(crlf)
 		}
 	}
@@ -694,7 +737,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// "keep-alive" connections alive.
 	if w.handlerDone && header.get("Content-Length") == "" && w.req.Method != "HEAD" {
 		w.contentLength = int64(len(p))
-		setHeader.contentLength = strconv.Itoa(len(p))
+		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
 
 	// If this was an HTTP/1.0 request with keep-alive and we sent a
@@ -755,7 +798,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 
 	if _, ok := header["Date"]; !ok {
-		setHeader.date = time.Now().UTC().Format(TimeFormat)
+		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
 	}
 
 	te := header.get("Transfer-Encoding")
@@ -806,7 +849,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 	io.WriteString(w.conn.buf, statusLine(w.req, code))
 	cw.header.WriteSubset(w.conn.buf, excludeHeader)
-	setHeader.Write(w.conn.buf)
+	setHeader.Write(w.conn.buf.Writer)
 	w.conn.buf.Write(crlf)
 }
 
