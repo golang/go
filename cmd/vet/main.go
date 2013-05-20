@@ -20,6 +20,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/types"
 )
 
 var verbose = flag.Bool("v", false, "verbose")
@@ -40,6 +43,8 @@ var report = map[string]*bool{
 	"structtags":  flag.Bool("structtags", false, "check that struct field tags have canonical format"),
 	"unreachable": flag.Bool("unreachable", false, "check for unreachable code"),
 }
+
+// TODO: Need a flag to set build tags when parsing the package.
 
 // vet tells whether to report errors for the named check, a flag name.
 func vet(name string) bool {
@@ -136,7 +141,7 @@ func main() {
 		}
 		return
 	}
-	doPackage(flag.Args())
+	doPackage(".", flag.Args())
 	os.Exit(exitCode)
 }
 
@@ -168,23 +173,24 @@ func doPackageDir(directory string) {
 	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
 	names = append(names, pkg.SFiles...)
 	prefixDirectory(directory, names)
-	doPackage(names)
+	doPackage(directory, names)
 	// Is there also a "foo_test" package? If so, do that one as well.
 	if len(pkg.XTestGoFiles) > 0 {
 		names = pkg.XTestGoFiles
 		prefixDirectory(directory, names)
-		doPackage(names)
+		doPackage(directory, names)
 	}
 }
 
 type Package struct {
-	types  map[ast.Expr]Type
-	values map[ast.Expr]ExactValue
+	path   string
+	types  map[ast.Expr]types.Type
+	values map[ast.Expr]exact.Value
 	files  []*File
 }
 
 // doPackage analyzes the single package constructed from the named files.
-func doPackage(names []string) {
+func doPackage(directory string, names []string) {
 	var files []*File
 	var astFiles []*ast.File
 	fs := token.NewFileSet()
@@ -214,6 +220,7 @@ func doPackage(names []string) {
 		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
 	}
 	pkg := new(Package)
+	pkg.path = directory
 	pkg.files = files
 	// Type check the package.
 	err := pkg.check(fs, astFiles)

@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build gotypes
-
-// This file contains the pieces of the tool that require the go/types package.
-// To compile this file, you must first run
-//  $ go get code.google.com/p/go.tools/go/types
+// This file contains the pieces of the tool that use typechecking from the go/types package.
 
 package main
 
@@ -18,22 +14,9 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// Type is equivalent to types.Type. Repeating it here allows us to avoid
-// having main depend on the go/types package.
-type Type interface {
-	String() string
-}
-
-// ExactValue is equivalent to exact.Value. Repeating it here allows us to
-// avoid having main depend on the go/exact package.
-type ExactValue interface {
-	Kind() exact.Kind
-	String() string
-}
-
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
-	pkg.types = make(map[ast.Expr]Type)
-	pkg.values = make(map[ast.Expr]ExactValue)
+	pkg.types = make(map[ast.Expr]types.Type)
+	pkg.values = make(map[ast.Expr]exact.Value)
 	exprFn := func(x ast.Expr, typ types.Type, val exact.Value) {
 		pkg.types[x] = typ
 		if val != nil {
@@ -46,7 +29,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 		Expr:  exprFn,
 		Error: func(error) {},
 	}
-	_, err := context.Check(fs, astFiles)
+	_, err := context.Check(pkg.path, fs, astFiles...)
 	return err
 }
 
@@ -55,10 +38,11 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
 	// Check that the CompositeLit's type is a slice or array (which needs no tag), if possible.
 	typ := pkg.types[c]
-	// If it's a named type, pull out the underlying type.
+	// If it's a named type, pull out the underlying type. If it's not, the Underlying
+	// method returns the type itself.
 	actual := typ
-	if namedType, ok := typ.(*types.NamedType); ok {
-		actual = namedType.Underlying
+	if actual != nil {
+		actual = actual.Underlying()
 	}
 	if actual == nil {
 		// No type information available. Assume true, so we do the check.
@@ -82,7 +66,7 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 	if !ok {
 		return true
 	}
-	switch basic.Kind {
+	switch basic.Kind() {
 	case types.Bool:
 		return t&argBool != 0
 	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
@@ -136,7 +120,7 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 	if !ok {
 		return 0
 	}
-	return len(sig.Params)
+	return sig.Params().Len()
 }
 
 // isErrorMethodCall reports whether the call is of a method with signature
@@ -168,16 +152,16 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 		return false
 	}
 	// There must be no arguments. Already verified by type checking, but be thorough.
-	if len(sig.Params) > 0 {
+	if sig.Params().Len() > 0 {
 		return false
 	}
 	// Finally the real questions.
 	// There must be one result.
-	if len(sig.Results) != 1 {
+	if sig.Results().Len() != 1 {
 		return false
 	}
 	// It must have return type "string" from the universe.
-	result := sig.Results[0].Type
+	result := sig.Results().At(0).Type()
 	if types.IsIdentical(result, types.Typ[types.String]) {
 		return true
 	}
