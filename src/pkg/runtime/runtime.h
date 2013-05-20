@@ -803,8 +803,8 @@ void	runtime·addtimer(Timer*);
 bool	runtime·deltimer(Timer*);
 G*	runtime·netpoll(bool);
 void	runtime·netpollinit(void);
-int32	runtime·netpollopen(int32, PollDesc*);
-int32   runtime·netpollclose(int32);
+int32	runtime·netpollopen(uintptr, PollDesc*);
+int32   runtime·netpollclose(uintptr);
 void	runtime·netpollready(G**, PollDesc*, int32);
 void	runtime·crash(void);
 

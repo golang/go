@@ -14,7 +14,7 @@ package net
 // Integrated network poller (platform-independent part).
 // A particular implementation (epoll/kqueue) must define the following functions:
 // void runtime·netpollinit(void);			// to initialize the poller
-// int32 runtime·netpollopen(int32 fd, PollDesc *pd);	// to arm edge-triggered notifications
+// int32 runtime·netpollopen(uintptr fd, PollDesc *pd);	// to arm edge-triggered notifications
 							// and associate fd with pd.
 // An implementation must call the following function to denote that the pd is ready.
 // void runtime·netpollready(G **gpp, PollDesc *pd, int32 mode);
@@ -25,7 +25,7 @@ struct PollDesc
 {
 	PollDesc* link;	// in pollcache, protected by pollcache.Lock
 	Lock;		// protectes the following fields
-	int32	fd;
+	uintptr	fd;
 	bool	closing;
 	uintptr	seq;	// protects from stale timers and ready notifications
 	G*	rg;	// G waiting for read or READY (binary semaphore)
@@ -63,7 +63,7 @@ func runtime_pollServerInit() {
 	runtime·netpollinit();
 }
 
-func runtime_pollOpen(fd int) (pd *PollDesc, errno int) {
+func runtime_pollOpen(fd uintptr) (pd *PollDesc, errno int) {
 	pd = allocPollDesc();
 	runtime·lock(pd);
 	if(pd->wg != nil && pd->wg != READY)
