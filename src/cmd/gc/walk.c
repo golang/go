@@ -2537,7 +2537,7 @@ append(Node *n, NodeList **init)
 	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));	 // n = len(s)
 
 	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));	 // ...s[:n+argc]
-	nx->bounded = 1;
+	nx->etype = 1;
 	l = list(l, nod(OAS, ns, nx));			// s = s[:n+argc]
 
 	for (a = n->list->next;	 a != nil; a = a->next) {
