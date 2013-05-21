@@ -1098,3 +1098,31 @@ func BenchmarkReaderEmpty(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkWriterEmpty(b *testing.B) {
+	b.ReportAllocs()
+	str := strings.Repeat("x", 1<<10)
+	bs := []byte(str)
+	for i := 0; i < b.N; i++ {
+		bw := NewWriter(ioutil.Discard)
+		bw.Flush()
+		bw.WriteByte('a')
+		bw.Flush()
+		bw.WriteRune('B')
+		bw.Flush()
+		bw.Write(bs)
+		bw.Flush()
+		bw.WriteString(str)
+		bw.Flush()
+	}
+}
+
+func BenchmarkWriterFlush(b *testing.B) {
+	b.ReportAllocs()
+	bw := NewWriter(ioutil.Discard)
+	str := strings.Repeat("x", 50)
+	for i := 0; i < b.N; i++ {
+		bw.WriteString(str)
+		bw.Flush()
+	}
+}
