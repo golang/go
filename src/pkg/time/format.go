@@ -380,22 +380,6 @@ func (t Time) String() string {
 // about the formats and the definition of the reference time, see the
 // documentation for ANSIC and the other constants defined by this package.
 func (t Time) Format(layout string) string {
-	const bufSize = 64
-	var b []byte
-	max := len(layout) + 10
-	if max <= bufSize {
-		var buf [bufSize]byte
-		b = buf[:0]
-	} else {
-		b = make([]byte, 0, max)
-	}
-	b = t.FormatAppend(layout, b)
-	return string(b)
-}
-
-// FormatAppend works like Format but appends the textual
-// representation to b and returns the extended buffer.
-func (t Time) FormatAppend(layout string, b []byte) []byte {
 	var (
 		name, offset, abs = t.locabs()
 
@@ -405,7 +389,16 @@ func (t Time) FormatAppend(layout string, b []byte) []byte {
 		hour  int = -1
 		min   int
 		sec   int
+
+		b   []byte
+		buf [64]byte
 	)
+	max := len(layout) + 10
+	if max <= len(buf) {
+		b = buf[:0]
+	} else {
+		b = make([]byte, 0, max)
+	}
 	// Each iteration generates one std value.
 	for layout != "" {
 		prefix, std, suffix := nextStdChunk(layout)
@@ -553,7 +546,7 @@ func (t Time) FormatAppend(layout string, b []byte) []byte {
 			b = formatNano(b, uint(t.Nanosecond()), std>>stdArgShift, std&stdMask == stdFracSecond9)
 		}
 	}
-	return b
+	return string(b)
 }
 
 var errBad = errors.New("bad value for field") // placeholder not passed to user
