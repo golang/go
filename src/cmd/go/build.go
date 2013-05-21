@@ -1855,14 +1855,24 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	var linkobj []string
 
 	var bareLDFLAGS []string
-	// filter out -lsomelib, and -framework X if on Darwin
+	// filter out -lsomelib, -l somelib, *.{so,dll,dylib}, and (on Darwin) -framework X
 	for i := 0; i < len(cgoLDFLAGS); i++ {
 		f := cgoLDFLAGS[i]
-		if !strings.HasPrefix(f, "-l") {
-			if goos == "darwin" && f == "-framework" { // skip the -framework X
-				i += 1
-				continue
+		switch {
+		// skip "-lc" or "-l somelib"
+		case strings.HasPrefix(f, "-l"):
+			if f == "-l" {
+				i++
 			}
+		// skip "-framework X" on Darwin
+		case goos == "darwin" && f == "-framework":
+			i++
+		// skip "*.{dylib,so,dll}"
+		case strings.HasSuffix(f, ".dylib"),
+			strings.HasSuffix(f, ".so"),
+			strings.HasSuffix(f, ".dll"):
+			continue
+		default:
 			bareLDFLAGS = append(bareLDFLAGS, f)
 		}
 	}

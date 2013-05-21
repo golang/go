@@ -104,7 +104,6 @@ esac
 
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
-[ "$GOHOSTOS" == darwin ] ||
 (xcd ../misc/cgo/testso
 ./test.bash
 ) || exit $?
