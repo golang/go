@@ -6035,6 +6035,7 @@ pkg syscall (darwin-386), const EAUTH Errno
 pkg syscall (darwin-386), const EBADARCH Errno
 pkg syscall (darwin-386), const EBADEXEC Errno
 pkg syscall (darwin-386), const EBADMACHO Errno
+pkg syscall (darwin-386), const EBADMSG Errno
 pkg syscall (darwin-386), const EBADRPC Errno
 pkg syscall (darwin-386), const ECHO ideal-int
 pkg syscall (darwin-386), const ECHOCTL ideal-int
@@ -6046,9 +6047,11 @@ pkg syscall (darwin-386), const ECHOPRT ideal-int
 pkg syscall (darwin-386), const EDEVERR Errno
 pkg syscall (darwin-386), const EFTYPE Errno
 pkg syscall (darwin-386), const ELAST Errno
+pkg syscall (darwin-386), const EMULTIHOP Errno
 pkg syscall (darwin-386), const ENEEDAUTH Errno
 pkg syscall (darwin-386), const ENOATTR Errno
 pkg syscall (darwin-386), const ENODATA Errno
+pkg syscall (darwin-386), const ENOLINK Errno
 pkg syscall (darwin-386), const ENOPOLICY Errno
 pkg syscall (darwin-386), const ENOSR Errno
 pkg syscall (darwin-386), const ENOSTR Errno
@@ -6058,6 +6061,7 @@ pkg syscall (darwin-386), const EPROCLIM Errno
 pkg syscall (darwin-386), const EPROCUNAVAIL Errno
 pkg syscall (darwin-386), const EPROGMISMATCH Errno
 pkg syscall (darwin-386), const EPROGUNAVAIL Errno
+pkg syscall (darwin-386), const EPROTO Errno
 pkg syscall (darwin-386), const EPWROFF Errno
 pkg syscall (darwin-386), const ERPCMISMATCH Errno
 pkg syscall (darwin-386), const ESHLIBVERS Errno
@@ -7853,6 +7857,7 @@ pkg syscall (darwin-386-cgo), const EAUTH Errno
 pkg syscall (darwin-386-cgo), const EBADARCH Errno
 pkg syscall (darwin-386-cgo), const EBADEXEC Errno
 pkg syscall (darwin-386-cgo), const EBADMACHO Errno
+pkg syscall (darwin-386-cgo), const EBADMSG Errno
 pkg syscall (darwin-386-cgo), const EBADRPC Errno
 pkg syscall (darwin-386-cgo), const ECHO ideal-int
 pkg syscall (darwin-386-cgo), const ECHOCTL ideal-int
@@ -7864,9 +7869,11 @@ pkg syscall (darwin-386-cgo), const ECHOPRT ideal-int
 pkg syscall (darwin-386-cgo), const EDEVERR Errno
 pkg syscall (darwin-386-cgo), const EFTYPE Errno
 pkg syscall (darwin-386-cgo), const ELAST Errno
+pkg syscall (darwin-386-cgo), const EMULTIHOP Errno
 pkg syscall (darwin-386-cgo), const ENEEDAUTH Errno
 pkg syscall (darwin-386-cgo), const ENOATTR Errno
 pkg syscall (darwin-386-cgo), const ENODATA Errno
+pkg syscall (darwin-386-cgo), const ENOLINK Errno
 pkg syscall (darwin-386-cgo), const ENOPOLICY Errno
 pkg syscall (darwin-386-cgo), const ENOSR Errno
 pkg syscall (darwin-386-cgo), const ENOSTR Errno
@@ -7876,6 +7883,7 @@ pkg syscall (darwin-386-cgo), const EPROCLIM Errno
 pkg syscall (darwin-386-cgo), const EPROCUNAVAIL Errno
 pkg syscall (darwin-386-cgo), const EPROGMISMATCH Errno
 pkg syscall (darwin-386-cgo), const EPROGUNAVAIL Errno
+pkg syscall (darwin-386-cgo), const EPROTO Errno
 pkg syscall (darwin-386-cgo), const EPWROFF Errno
 pkg syscall (darwin-386-cgo), const ERPCMISMATCH Errno
 pkg syscall (darwin-386-cgo), const ESHLIBVERS Errno
@@ -9671,6 +9679,7 @@ pkg syscall (darwin-amd64), const EAUTH Errno
 pkg syscall (darwin-amd64), const EBADARCH Errno
 pkg syscall (darwin-amd64), const EBADEXEC Errno
 pkg syscall (darwin-amd64), const EBADMACHO Errno
+pkg syscall (darwin-amd64), const EBADMSG Errno
 pkg syscall (darwin-amd64), const EBADRPC Errno
 pkg syscall (darwin-amd64), const ECHO ideal-int
 pkg syscall (darwin-amd64), const ECHOCTL ideal-int
@@ -9682,9 +9691,11 @@ pkg syscall (darwin-amd64), const ECHOPRT ideal-int
 pkg syscall (darwin-amd64), const EDEVERR Errno
 pkg syscall (darwin-amd64), const EFTYPE Errno
 pkg syscall (darwin-amd64), const ELAST Errno
+pkg syscall (darwin-amd64), const EMULTIHOP Errno
 pkg syscall (darwin-amd64), const ENEEDAUTH Errno
 pkg syscall (darwin-amd64), const ENOATTR Errno
 pkg syscall (darwin-amd64), const ENODATA Errno
+pkg syscall (darwin-amd64), const ENOLINK Errno
 pkg syscall (darwin-amd64), const ENOPOLICY Errno
 pkg syscall (darwin-amd64), const ENOSR Errno
 pkg syscall (darwin-amd64), const ENOSTR Errno
@@ -9694,6 +9705,7 @@ pkg syscall (darwin-amd64), const EPROCLIM Errno
 pkg syscall (darwin-amd64), const EPROCUNAVAIL Errno
 pkg syscall (darwin-amd64), const EPROGMISMATCH Errno
 pkg syscall (darwin-amd64), const EPROGUNAVAIL Errno
+pkg syscall (darwin-amd64), const EPROTO Errno
 pkg syscall (darwin-amd64), const EPWROFF Errno
 pkg syscall (darwin-amd64), const ERPCMISMATCH Errno
 pkg syscall (darwin-amd64), const ESHLIBVERS Errno
@@ -11496,6 +11508,7 @@ pkg syscall (darwin-amd64-cgo), const EAUTH Errno
 pkg syscall (darwin-amd64-cgo), const EBADARCH Errno
 pkg syscall (darwin-amd64-cgo), const EBADEXEC Errno
 pkg syscall (darwin-amd64-cgo), const EBADMACHO Errno
+pkg syscall (darwin-amd64-cgo), const EBADMSG Errno
 pkg syscall (darwin-amd64-cgo), const EBADRPC Errno
 pkg syscall (darwin-amd64-cgo), const ECHO ideal-int
 pkg syscall (darwin-amd64-cgo), const ECHOCTL ideal-int
@@ -11507,9 +11520,11 @@ pkg syscall (darwin-amd64-cgo), const ECHOPRT ideal-int
 pkg syscall (darwin-amd64-cgo), const EDEVERR Errno
 pkg syscall (darwin-amd64-cgo), const EFTYPE Errno
 pkg syscall (darwin-amd64-cgo), const ELAST Errno
+pkg syscall (darwin-amd64-cgo), const EMULTIHOP Errno
 pkg syscall (darwin-amd64-cgo), const ENEEDAUTH Errno
 pkg syscall (darwin-amd64-cgo), const ENOATTR Errno
 pkg syscall (darwin-amd64-cgo), const ENODATA Errno
+pkg syscall (darwin-amd64-cgo), const ENOLINK Errno
 pkg syscall (darwin-amd64-cgo), const ENOPOLICY Errno
 pkg syscall (darwin-amd64-cgo), const ENOSR Errno
 pkg syscall (darwin-amd64-cgo), const ENOSTR Errno
@@ -11519,6 +11534,7 @@ pkg syscall (darwin-amd64-cgo), const EPROCLIM Errno
 pkg syscall (darwin-amd64-cgo), const EPROCUNAVAIL Errno
 pkg syscall (darwin-amd64-cgo), const EPROGMISMATCH Errno
 pkg syscall (darwin-amd64-cgo), const EPROGUNAVAIL Errno
+pkg syscall (darwin-amd64-cgo), const EPROTO Errno
 pkg syscall (darwin-amd64-cgo), const EPWROFF Errno
 pkg syscall (darwin-amd64-cgo), const ERPCMISMATCH Errno
 pkg syscall (darwin-amd64-cgo), const ESHLIBVERS Errno
@@ -13483,6 +13499,7 @@ pkg syscall (freebsd-386), const DT_SOCK ideal-int
 pkg syscall (freebsd-386), const DT_UNKNOWN ideal-int
 pkg syscall (freebsd-386), const DT_WHT ideal-int
 pkg syscall (freebsd-386), const EAUTH Errno
+pkg syscall (freebsd-386), const EBADMSG Errno
 pkg syscall (freebsd-386), const EBADRPC Errno
 pkg syscall (freebsd-386), const ECHO ideal-int
 pkg syscall (freebsd-386), const ECHOCTL ideal-int
@@ -13494,13 +13511,16 @@ pkg syscall (freebsd-386), const ECHOPRT ideal-int
 pkg syscall (freebsd-386), const EDOOFUS Errno
 pkg syscall (freebsd-386), const EFTYPE Errno
 pkg syscall (freebsd-386), const ELAST Errno
+pkg syscall (freebsd-386), const EMULTIHOP Errno
 pkg syscall (freebsd-386), const ENEEDAUTH Errno
 pkg syscall (freebsd-386), const ENOATTR Errno
+pkg syscall (freebsd-386), const ENOLINK Errno
 pkg syscall (freebsd-386), const ENOTCAPABLE Errno
 pkg syscall (freebsd-386), const EPROCLIM Errno
 pkg syscall (freebsd-386), const EPROCUNAVAIL Errno
 pkg syscall (freebsd-386), const EPROGMISMATCH Errno
 pkg syscall (freebsd-386), const EPROGUNAVAIL Errno
+pkg syscall (freebsd-386), const EPROTO Errno
 pkg syscall (freebsd-386), const ERPCMISMATCH Errno
 pkg syscall (freebsd-386), const EVFILT_AIO ideal-int
 pkg syscall (freebsd-386), const EVFILT_FS ideal-int
@@ -15455,6 +15475,7 @@ pkg syscall (freebsd-amd64), const DT_SOCK ideal-int
 pkg syscall (freebsd-amd64), const DT_UNKNOWN ideal-int
 pkg syscall (freebsd-amd64), const DT_WHT ideal-int
 pkg syscall (freebsd-amd64), const EAUTH Errno
+pkg syscall (freebsd-amd64), const EBADMSG Errno
 pkg syscall (freebsd-amd64), const EBADRPC Errno
 pkg syscall (freebsd-amd64), const ECHO ideal-int
 pkg syscall (freebsd-amd64), const ECHOCTL ideal-int
@@ -15466,13 +15487,16 @@ pkg syscall (freebsd-amd64), const ECHOPRT ideal-int
 pkg syscall (freebsd-amd64), const EDOOFUS Errno
 pkg syscall (freebsd-amd64), const EFTYPE Errno
 pkg syscall (freebsd-amd64), const ELAST Errno
+pkg syscall (freebsd-amd64), const EMULTIHOP Errno
 pkg syscall (freebsd-amd64), const ENEEDAUTH Errno
 pkg syscall (freebsd-amd64), const ENOATTR Errno
+pkg syscall (freebsd-amd64), const ENOLINK Errno
 pkg syscall (freebsd-amd64), const ENOTCAPABLE Errno
 pkg syscall (freebsd-amd64), const EPROCLIM Errno
 pkg syscall (freebsd-amd64), const EPROCUNAVAIL Errno
 pkg syscall (freebsd-amd64), const EPROGMISMATCH Errno
 pkg syscall (freebsd-amd64), const EPROGUNAVAIL Errno
+pkg syscall (freebsd-amd64), const EPROTO Errno
 pkg syscall (freebsd-amd64), const ERPCMISMATCH Errno
 pkg syscall (freebsd-amd64), const EVFILT_AIO ideal-int
 pkg syscall (freebsd-amd64), const EVFILT_FS ideal-int
@@ -17315,6 +17339,7 @@ pkg syscall (linux-386), const DT_WHT ideal-int
 pkg syscall (linux-386), const EADV Errno
 pkg syscall (linux-386), const EBADE Errno
 pkg syscall (linux-386), const EBADFD Errno
+pkg syscall (linux-386), const EBADMSG Errno
 pkg syscall (linux-386), const EBADR Errno
 pkg syscall (linux-386), const EBADRQC Errno
 pkg syscall (linux-386), const EBADSLT Errno
@@ -17345,11 +17370,13 @@ pkg syscall (linux-386), const ELIBMAX Errno
 pkg syscall (linux-386), const ELIBSCN Errno
 pkg syscall (linux-386), const ELNRNG Errno
 pkg syscall (linux-386), const EMEDIUMTYPE Errno
+pkg syscall (linux-386), const EMULTIHOP Errno
 pkg syscall (linux-386), const ENAVAIL Errno
 pkg syscall (linux-386), const ENOANO Errno
 pkg syscall (linux-386), const ENOCSI Errno
 pkg syscall (linux-386), const ENODATA Errno
 pkg syscall (linux-386), const ENOKEY Errno
+pkg syscall (linux-386), const ENOLINK Errno
 pkg syscall (linux-386), const ENOMEDIUM Errno
 pkg syscall (linux-386), const ENONET Errno
 pkg syscall (linux-386), const ENOPKG Errno
@@ -17377,6 +17404,7 @@ pkg syscall (linux-386), const EPOLL_CTL_ADD ideal-int
 pkg syscall (linux-386), const EPOLL_CTL_DEL ideal-int
 pkg syscall (linux-386), const EPOLL_CTL_MOD ideal-int
 pkg syscall (linux-386), const EPOLL_NONBLOCK ideal-int
+pkg syscall (linux-386), const EPROTO Errno
 pkg syscall (linux-386), const EREMCHG Errno
 pkg syscall (linux-386), const EREMOTEIO Errno
 pkg syscall (linux-386), const ERESTART Errno
@@ -19500,6 +19528,7 @@ pkg syscall (linux-386-cgo), const DT_WHT ideal-int
 pkg syscall (linux-386-cgo), const EADV Errno
 pkg syscall (linux-386-cgo), const EBADE Errno
 pkg syscall (linux-386-cgo), const EBADFD Errno
+pkg syscall (linux-386-cgo), const EBADMSG Errno
 pkg syscall (linux-386-cgo), const EBADR Errno
 pkg syscall (linux-386-cgo), const EBADRQC Errno
 pkg syscall (linux-386-cgo), const EBADSLT Errno
@@ -19530,11 +19559,13 @@ pkg syscall (linux-386-cgo), const ELIBMAX Errno
 pkg syscall (linux-386-cgo), const ELIBSCN Errno
 pkg syscall (linux-386-cgo), const ELNRNG Errno
 pkg syscall (linux-386-cgo), const EMEDIUMTYPE Errno
+pkg syscall (linux-386-cgo), const EMULTIHOP Errno
 pkg syscall (linux-386-cgo), const ENAVAIL Errno
 pkg syscall (linux-386-cgo), const ENOANO Errno
 pkg syscall (linux-386-cgo), const ENOCSI Errno
 pkg syscall (linux-386-cgo), const ENODATA Errno
 pkg syscall (linux-386-cgo), const ENOKEY Errno
+pkg syscall (linux-386-cgo), const ENOLINK Errno
 pkg syscall (linux-386-cgo), const ENOMEDIUM Errno
 pkg syscall (linux-386-cgo), const ENONET Errno
 pkg syscall (linux-386-cgo), const ENOPKG Errno
@@ -19562,6 +19593,7 @@ pkg syscall (linux-386-cgo), const EPOLL_CTL_ADD ideal-int
 pkg syscall (linux-386-cgo), const EPOLL_CTL_DEL ideal-int
 pkg syscall (linux-386-cgo), const EPOLL_CTL_MOD ideal-int
 pkg syscall (linux-386-cgo), const EPOLL_NONBLOCK ideal-int
+pkg syscall (linux-386-cgo), const EPROTO Errno
 pkg syscall (linux-386-cgo), const EREMCHG Errno
 pkg syscall (linux-386-cgo), const EREMOTEIO Errno
 pkg syscall (linux-386-cgo), const ERESTART Errno
@@ -21685,6 +21717,7 @@ pkg syscall (linux-amd64), const DT_WHT ideal-int
 pkg syscall (linux-amd64), const EADV Errno
 pkg syscall (linux-amd64), const EBADE Errno
 pkg syscall (linux-amd64), const EBADFD Errno
+pkg syscall (linux-amd64), const EBADMSG Errno
 pkg syscall (linux-amd64), const EBADR Errno
 pkg syscall (linux-amd64), const EBADRQC Errno
 pkg syscall (linux-amd64), const EBADSLT Errno
@@ -21715,11 +21748,13 @@ pkg syscall (linux-amd64), const ELIBMAX Errno
 pkg syscall (linux-amd64), const ELIBSCN Errno
 pkg syscall (linux-amd64), const ELNRNG Errno
 pkg syscall (linux-amd64), const EMEDIUMTYPE Errno
+pkg syscall (linux-amd64), const EMULTIHOP Errno
 pkg syscall (linux-amd64), const ENAVAIL Errno
 pkg syscall (linux-amd64), const ENOANO Errno
 pkg syscall (linux-amd64), const ENOCSI Errno
 pkg syscall (linux-amd64), const ENODATA Errno
 pkg syscall (linux-amd64), const ENOKEY Errno
+pkg syscall (linux-amd64), const ENOLINK Errno
 pkg syscall (linux-amd64), const ENOMEDIUM Errno
 pkg syscall (linux-amd64), const ENONET Errno
 pkg syscall (linux-amd64), const ENOPKG Errno
@@ -21747,6 +21782,7 @@ pkg syscall (linux-amd64), const EPOLL_CTL_ADD ideal-int
 pkg syscall (linux-amd64), const EPOLL_CTL_DEL ideal-int
 pkg syscall (linux-amd64), const EPOLL_CTL_MOD ideal-int
 pkg syscall (linux-amd64), const EPOLL_NONBLOCK ideal-int
+pkg syscall (linux-amd64), const EPROTO Errno
 pkg syscall (linux-amd64), const EREMCHG Errno
 pkg syscall (linux-amd64), const EREMOTEIO Errno
 pkg syscall (linux-amd64), const ERESTART Errno
@@ -23852,6 +23888,7 @@ pkg syscall (linux-amd64-cgo), const DT_WHT ideal-int
 pkg syscall (linux-amd64-cgo), const EADV Errno
 pkg syscall (linux-amd64-cgo), const EBADE Errno
 pkg syscall (linux-amd64-cgo), const EBADFD Errno
+pkg syscall (linux-amd64-cgo), const EBADMSG Errno
 pkg syscall (linux-amd64-cgo), const EBADR Errno
 pkg syscall (linux-amd64-cgo), const EBADRQC Errno
 pkg syscall (linux-amd64-cgo), const EBADSLT Errno
@@ -23882,11 +23919,13 @@ pkg syscall (linux-amd64-cgo), const ELIBMAX Errno
 pkg syscall (linux-amd64-cgo), const ELIBSCN Errno
 pkg syscall (linux-amd64-cgo), const ELNRNG Errno
 pkg syscall (linux-amd64-cgo), const EMEDIUMTYPE Errno
+pkg syscall (linux-amd64-cgo), const EMULTIHOP Errno
 pkg syscall (linux-amd64-cgo), const ENAVAIL Errno
 pkg syscall (linux-amd64-cgo), const ENOANO Errno
 pkg syscall (linux-amd64-cgo), const ENOCSI Errno
 pkg syscall (linux-amd64-cgo), const ENODATA Errno
 pkg syscall (linux-amd64-cgo), const ENOKEY Errno
+pkg syscall (linux-amd64-cgo), const ENOLINK Errno
 pkg syscall (linux-amd64-cgo), const ENOMEDIUM Errno
 pkg syscall (linux-amd64-cgo), const ENONET Errno
 pkg syscall (linux-amd64-cgo), const ENOPKG Errno
@@ -23914,6 +23953,7 @@ pkg syscall (linux-amd64-cgo), const EPOLL_CTL_ADD ideal-int
 pkg syscall (linux-amd64-cgo), const EPOLL_CTL_DEL ideal-int
 pkg syscall (linux-amd64-cgo), const EPOLL_CTL_MOD ideal-int
 pkg syscall (linux-amd64-cgo), const EPOLL_NONBLOCK ideal-int
+pkg syscall (linux-amd64-cgo), const EPROTO Errno
 pkg syscall (linux-amd64-cgo), const EREMCHG Errno
 pkg syscall (linux-amd64-cgo), const EREMOTEIO Errno
 pkg syscall (linux-amd64-cgo), const ERESTART Errno
@@ -26019,6 +26059,7 @@ pkg syscall (linux-arm), const DT_WHT ideal-int
 pkg syscall (linux-arm), const EADV Errno
 pkg syscall (linux-arm), const EBADE Errno
 pkg syscall (linux-arm), const EBADFD Errno
+pkg syscall (linux-arm), const EBADMSG Errno
 pkg syscall (linux-arm), const EBADR Errno
 pkg syscall (linux-arm), const EBADRQC Errno
 pkg syscall (linux-arm), const EBADSLT Errno
@@ -26052,11 +26093,13 @@ pkg syscall (linux-arm), const ELIBMAX Errno
 pkg syscall (linux-arm), const ELIBSCN Errno
 pkg syscall (linux-arm), const ELNRNG Errno
 pkg syscall (linux-arm), const EMEDIUMTYPE Errno
+pkg syscall (linux-arm), const EMULTIHOP Errno
 pkg syscall (linux-arm), const ENAVAIL Errno
 pkg syscall (linux-arm), const ENOANO Errno
 pkg syscall (linux-arm), const ENOCSI Errno
 pkg syscall (linux-arm), const ENODATA Errno
 pkg syscall (linux-arm), const ENOKEY Errno
+pkg syscall (linux-arm), const ENOLINK Errno
 pkg syscall (linux-arm), const ENOMEDIUM Errno
 pkg syscall (linux-arm), const ENONET Errno
 pkg syscall (linux-arm), const ENOPKG Errno
@@ -26084,6 +26127,7 @@ pkg syscall (linux-arm), const EPOLL_CTL_ADD ideal-int
 pkg syscall (linux-arm), const EPOLL_CTL_DEL ideal-int
 pkg syscall (linux-arm), const EPOLL_CTL_MOD ideal-int
 pkg syscall (linux-arm), const EPOLL_NONBLOCK ideal-int
+pkg syscall (linux-arm), const EPROTO Errno
 pkg syscall (linux-arm), const EREMCHG Errno
 pkg syscall (linux-arm), const EREMOTEIO Errno
 pkg syscall (linux-arm), const ERESTART Errno
@@ -28138,6 +28182,7 @@ pkg syscall (windows-386), const DUPLICATE_SAME_ACCESS ideal-int
 pkg syscall (windows-386), const EADV Errno
 pkg syscall (windows-386), const EBADE Errno
 pkg syscall (windows-386), const EBADFD Errno
+pkg syscall (windows-386), const EBADMSG Errno
 pkg syscall (windows-386), const EBADR Errno
 pkg syscall (windows-386), const EBADRQC Errno
 pkg syscall (windows-386), const EBADSLT Errno
@@ -28161,11 +28206,13 @@ pkg syscall (windows-386), const ELIBMAX Errno
 pkg syscall (windows-386), const ELIBSCN Errno
 pkg syscall (windows-386), const ELNRNG Errno
 pkg syscall (windows-386), const EMEDIUMTYPE Errno
+pkg syscall (windows-386), const EMULTIHOP Errno
 pkg syscall (windows-386), const ENAVAIL Errno
 pkg syscall (windows-386), const ENOANO Errno
 pkg syscall (windows-386), const ENOCSI Errno
 pkg syscall (windows-386), const ENODATA Errno
 pkg syscall (windows-386), const ENOKEY Errno
+pkg syscall (windows-386), const ENOLINK Errno
 pkg syscall (windows-386), const ENOMEDIUM Errno
 pkg syscall (windows-386), const ENONET Errno
 pkg syscall (windows-386), const ENOPKG Errno
@@ -28175,6 +28222,7 @@ pkg syscall (windows-386), const ENOTNAM Errno
 pkg syscall (windows-386), const ENOTRECOVERABLE Errno
 pkg syscall (windows-386), const ENOTUNIQ Errno
 pkg syscall (windows-386), const EOWNERDEAD Errno
+pkg syscall (windows-386), const EPROTO Errno
 pkg syscall (windows-386), const EREMCHG Errno
 pkg syscall (windows-386), const EREMOTEIO Errno
 pkg syscall (windows-386), const ERESTART Errno
@@ -29063,6 +29111,7 @@ pkg syscall (windows-amd64), const DUPLICATE_SAME_ACCESS ideal-int
 pkg syscall (windows-amd64), const EADV Errno
 pkg syscall (windows-amd64), const EBADE Errno
 pkg syscall (windows-amd64), const EBADFD Errno
+pkg syscall (windows-amd64), const EBADMSG Errno
 pkg syscall (windows-amd64), const EBADR Errno
 pkg syscall (windows-amd64), const EBADRQC Errno
 pkg syscall (windows-amd64), const EBADSLT Errno
@@ -29086,11 +29135,13 @@ pkg syscall (windows-amd64), const ELIBMAX Errno
 pkg syscall (windows-amd64), const ELIBSCN Errno
 pkg syscall (windows-amd64), const ELNRNG Errno
 pkg syscall (windows-amd64), const EMEDIUMTYPE Errno
+pkg syscall (windows-amd64), const EMULTIHOP Errno
 pkg syscall (windows-amd64), const ENAVAIL Errno
 pkg syscall (windows-amd64), const ENOANO Errno
 pkg syscall (windows-amd64), const ENOCSI Errno
 pkg syscall (windows-amd64), const ENODATA Errno
 pkg syscall (windows-amd64), const ENOKEY Errno
+pkg syscall (windows-amd64), const ENOLINK Errno
 pkg syscall (windows-amd64), const ENOMEDIUM Errno
 pkg syscall (windows-amd64), const ENONET Errno
 pkg syscall (windows-amd64), const ENOPKG Errno
@@ -29100,6 +29151,7 @@ pkg syscall (windows-amd64), const ENOTNAM Errno
 pkg syscall (windows-amd64), const ENOTRECOVERABLE Errno
 pkg syscall (windows-amd64), const ENOTUNIQ Errno
 pkg syscall (windows-amd64), const EOWNERDEAD Errno
+pkg syscall (windows-amd64), const EPROTO Errno
 pkg syscall (windows-amd64), const EREMCHG Errno
 pkg syscall (windows-amd64), const EREMOTEIO Errno
 pkg syscall (windows-amd64), const ERESTART Errno
@@ -29884,7 +29936,6 @@ pkg syscall, const EAFNOSUPPORT Errno
 pkg syscall, const EAGAIN Errno
 pkg syscall, const EALREADY Errno
 pkg syscall, const EBADF Errno
-pkg syscall, const EBADMSG Errno
 pkg syscall, const EBUSY Errno
 pkg syscall, const ECANCELED Errno
 pkg syscall, const ECHILD Errno
@@ -29912,7 +29963,6 @@ pkg syscall, const ELOOP Errno
 pkg syscall, const EMFILE Errno
 pkg syscall, const EMLINK Errno
 pkg syscall, const EMSGSIZE Errno
-pkg syscall, const EMULTIHOP Errno
 pkg syscall, const ENAMETOOLONG Errno
 pkg syscall, const ENETDOWN Errno
 pkg syscall, const ENETRESET Errno
@@ -29923,7 +29973,6 @@ pkg syscall, const ENODEV Errno
 pkg syscall, const ENOENT Errno
 pkg syscall, const ENOEXEC Errno
 pkg syscall, const ENOLCK Errno
-pkg syscall, const ENOLINK Errno
 pkg syscall, const ENOMEM Errno
 pkg syscall, const ENOMSG Errno
 pkg syscall, const ENOPROTOOPT Errno
@@ -29942,7 +29991,6 @@ pkg syscall, const EOVERFLOW Errno
 pkg syscall, const EPERM Errno
 pkg syscall, const EPFNOSUPPORT Errno
 pkg syscall, const EPIPE Errno
-pkg syscall, const EPROTO Errno
 pkg syscall, const EPROTONOSUPPORT Errno
 pkg syscall, const EPROTOTYPE Errno
 pkg syscall, const ERANGE Errno
