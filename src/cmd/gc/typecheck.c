@@ -1793,6 +1793,11 @@ checkdefergo(Node *n)
 		break;
 	default:
 	conv:
+		// type is broken or missing, most likely a method call on a broken type
+		// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
+		if(n->left->type == T || n->left->type->broke)
+			break;
+
 		if(!n->diag) {
 			// The syntax made sure it was a call, so this must be
 			// a conversion.
