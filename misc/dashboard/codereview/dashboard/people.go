@@ -28,6 +28,7 @@ func init() {
 		"dsymonds",
 		"gri",
 		"iant",
+		"khr",
 		"mpvl",
 		"nigeltao",
 		"r",
