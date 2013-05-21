@@ -4,7 +4,19 @@
 # license that can be found in the LICENSE file.
 
 set -e
-$(go env CC) $(go env GOGCCFLAGS) -shared -o libcgosotest.so cgoso_c.c
+
+args=
+dyld_envvar=LD_LIBRARY_PATH
+ext=so
+if [ "$(uname)" == "Darwin" ]; then
+	args="-undefined suppress -flat_namespace"
+	dyld_envvar=DYLD_LIBRARY_PATH
+	ext=dylib
+fi
+
+dylib=libcgosotest.$ext
+$(go env CC) $(go env GOGCCFLAGS) -shared $args -o $dylib cgoso_c.c
 go build main.go
-LD_LIBRARY_PATH=. ./main
-rm -f libcgosotest.so main
+
+eval "$dyld_envvar"=. ./main
+rm -rf $dylib main *.dSYM
