@@ -357,21 +357,27 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
 
 func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 	//println(fmt.Sprintf("removeDep(%T %p, %T %p)", x, x, dep, dep))
-	done := false
 
-	xdep := db.dep[x]
-	if xdep != nil {
-		delete(xdep, dep)
-		if len(xdep) == 0 {
-			delete(db.dep, x)
-			done = true
-		}
+	xdep, ok := db.dep[x]
+	if !ok {
+		panic(fmt.Sprintf("unpaired removeDep: no deps for %T", x))
 	}
 
-	if !done {
+	l0 := len(xdep)
+	delete(xdep, dep)
+
+	switch len(xdep) {
+	case l0:
+		// Nothing removed. Shouldn't happen.
+		panic(fmt.Sprintf("unpaired removeDep: no %T dep on %T", dep, x))
+	case 0:
+		// No more dependencies.
+		delete(db.dep, x)
+		return x.finalClose
+	default:
+		// Dependencies remain.
 		return func() error { return nil }
 	}
-	return x.finalClose
 }
 
 // Open opens a database specified by its database driver name and a
@@ -1261,7 +1267,6 @@ func (s *Stmt) finalClose() error {
 	for _, v := range s.css {
 		s.db.noteUnusedDriverStatement(v.dc, v.si)
 		v.dc.removeOpenStmt(v.si)
-		s.db.removeDep(v.dc, s)
 	}
 	s.css = nil
 	return nil
