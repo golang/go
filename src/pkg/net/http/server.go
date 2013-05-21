@@ -278,7 +278,7 @@ func (cw *chunkWriter) close() {
 		// zero EOF chunk, trailer key/value pairs (currently
 		// unsupported in Go's server), followed by a blank
 		// line.
-		io.WriteString(cw.res.conn.buf, "0\r\n\r\n")
+		cw.res.conn.buf.WriteString("0\r\n\r\n")
 	}
 }
 
@@ -512,7 +512,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 	}
 	if !ecr.resp.wroteContinue && !ecr.resp.conn.hijacked() {
 		ecr.resp.wroteContinue = true
-		io.WriteString(ecr.resp.conn.buf, "HTTP/1.1 100 Continue\r\n\r\n")
+		ecr.resp.conn.buf.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
 		ecr.resp.conn.buf.Flush()
 	}
 	return ecr.readCloser.Read(p)
@@ -847,7 +847,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		setHeader.connection = "close"
 	}
 
-	io.WriteString(w.conn.buf, statusLine(w.req, code))
+	w.conn.buf.WriteString(statusLine(w.req, code))
 	cw.header.WriteSubset(w.conn.buf, excludeHeader)
 	setHeader.Write(w.conn.buf.Writer)
 	w.conn.buf.Write(crlf)
