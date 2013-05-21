@@ -831,10 +831,15 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	// uncompress the gzip stream if we were the layer that
 	// requested it.
 	requestedGzip := false
-	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" {
+	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" && req.Method != "HEAD" {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
+		//
+		// Note that we don't request this for HEAD requests,
+		// due to a bug in nginx:
+		//   http://trac.nginx.org/nginx/ticket/358
+		//   http://golang.org/issue/5522
 		requestedGzip = true
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}

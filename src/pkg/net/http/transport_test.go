@@ -585,13 +585,16 @@ func TestTransportGzip(t *testing.T) {
 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const nRandBytes = 1024 * 1024
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		if req.Method == "HEAD" {
+			if g := req.Header.Get("Accept-Encoding"); g != "" {
+				t.Errorf("HEAD request sent with Accept-Encoding of %q; want none", g)
+			}
+			return
+		}
 		if g, e := req.Header.Get("Accept-Encoding"), "gzip"; g != e {
 			t.Errorf("Accept-Encoding = %q, want %q", g, e)
 		}
 		rw.Header().Set("Content-Encoding", "gzip")
-		if req.Method == "HEAD" {
-			return
-		}
 
 		var w io.Writer = rw
 		var buf bytes.Buffer
