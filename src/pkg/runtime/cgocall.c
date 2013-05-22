@@ -126,6 +126,10 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	if(raceenabled)
 		runtime·racereleasemerge(&cgosync);
 
+	// Create an extra M for callbacks on threads not created by Go on first cgo call.
+	if(runtime·needextram && runtime·cas(&runtime·needextram, 1, 0))
+		runtime·newextram();
+
 	m->ncgocall++;
 
 	/*
