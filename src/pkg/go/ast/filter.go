@@ -308,7 +308,7 @@ func nameOf(f *FuncDecl) string {
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
 //
-var separator = &Comment{noPos, "//"}
+var separator = &Comment{token.NoPos, "//"}
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.
