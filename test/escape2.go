@@ -1325,3 +1325,15 @@ func foo142() {
 	t := new(Tm) // ERROR "escapes to heap"
 	gf = t.M // ERROR "t.M escapes to heap"
 }
+
+// issue 3888.
+func foo143() {
+	for i := 0; i < 1000; i++ {
+		func() { // ERROR "func literal does not escape"
+			for i := 0; i < 1; i++ {
+				var t Tm
+				t.M() // ERROR "t does not escape"
+			}
+		}()
+	}
+}
