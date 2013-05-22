@@ -278,6 +278,8 @@ runtime·freemcache(MCache *c)
 void
 runtime·purgecachedstats(MCache *c)
 {
+	int32 i;
+
 	// Protected by either heap or GC lock.
 	mstats.heap_alloc += c->local_cachealloc;
 	c->local_cachealloc = 0;
@@ -293,6 +295,12 @@ runtime·purgecachedstats(MCache *c)
 	c->local_alloc= 0;
 	mstats.total_alloc += c->local_total_alloc;
 	c->local_total_alloc= 0;
+	for(i=0; i<nelem(c->local_by_size); i++) {
+		mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
+		c->local_by_size[i].nmalloc = 0;
+		mstats.by_size[i].nfree += c->local_by_size[i].nfree;
+		c->local_by_size[i].nfree = 0;
+	}
 }
 
 uintptr runtime·sizeof_C_MStats = sizeof(MStats);
