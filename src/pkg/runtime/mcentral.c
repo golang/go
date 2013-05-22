@@ -62,21 +62,16 @@ runtime·MCentral_AllocList(MCentral *c, MLink **pfirst)
 	return n;
 }
 
-// Free n objects back into the central free list.
+// Free the list of objects back into the central free list.
 void
-runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *start)
+runtime·MCentral_FreeList(MCentral *c, MLink *start)
 {
-	MLink *v, *next;
-
-	// Assume next == nil marks end of list.
-	// n and end would be useful if we implemented
-	// the transfer cache optimization in the TODO above.
-	USED(n);
+	MLink *next;
 
 	runtime·lock(c);
-	for(v=start; v; v=next) {
-		next = v->next;
-		MCentral_Free(c, v);
+	for(; start != nil; start = next) {
+		next = start->next;
+		MCentral_Free(c, start);
 	}
 	runtime·unlock(c);
 }

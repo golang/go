@@ -109,8 +109,6 @@ enum
 	MaxSmallSize = 32<<10,
 
 	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
-	MaxMCacheListLen = 256,		// Maximum objects on MCacheList
-	MaxMCacheSize = 2<<20,		// Maximum bytes in one MCache
 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 
@@ -283,13 +281,11 @@ struct MCacheList
 {
 	MLink *list;
 	uint32 nlist;
-	uint32 nlistmin;
 };
 
 struct MCache
 {
 	MCacheList list[NumSizeClasses];
-	uintptr size;
 	intptr local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
 	intptr local_objects;	// objects allocated (or freed) from cache since last lock of heap
 	intptr local_alloc;	// bytes allocated (or freed) since last lock of heap
@@ -396,7 +392,7 @@ struct MCentral
 
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
 int32	runtime·MCentral_AllocList(MCentral *c, MLink **first);
-void	runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *first);
+void	runtime·MCentral_FreeList(MCentral *c, MLink *first);
 void	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
 
 // Main malloc heap.
