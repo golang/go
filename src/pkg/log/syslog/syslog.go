@@ -258,9 +258,15 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
+	_, err := fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
 		p, timestamp, w.hostname,
 		w.tag, os.Getpid(), msg, nl)
+	if err != nil {
+		return 0, err
+	}
+	// Note: return the length of the input, not the number of
+	// bytes printed by Fprintf, because this must behave like
+	// an io.Writer.
 	return len(msg), nil
 }
 
