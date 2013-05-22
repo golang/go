@@ -116,6 +116,12 @@ func (c *testConn) Close() error {
 	return nil
 }
 
+// reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
+// ending in \r\n\r\n
+func reqBytes(req string) []byte {
+	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
+}
+
 func TestConsumingBodyOnNextConn(t *testing.T) {
 	conn := new(testConn)
 	for i := 0; i < 2; i++ {
@@ -1408,10 +1414,7 @@ For:
 
 func TestCloseNotifierChanLeak(t *testing.T) {
 	defer afterTest(t)
-	req := []byte(strings.Replace(`GET / HTTP/1.0
-Host: golang.org
-
-`, "\n", "\r\n", -1))
+	req := reqBytes("GET / HTTP/1.0\nHost: golang.org")
 	for i := 0; i < 20; i++ {
 		var output bytes.Buffer
 		conn := &rwTestConn{
@@ -1493,11 +1496,7 @@ func TestOptions(t *testing.T) {
 // ones, even if the handler modifies them (~erroneously) after the
 // first Write.
 func TestHeaderToWire(t *testing.T) {
-	req := []byte(strings.Replace(`GET / HTTP/1.1
-Host: golang.org
-
-`, "\n", "\r\n", -1))
-
+	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
 	tests := []struct {
 		name    string
 		handler func(ResponseWriter, *Request)
@@ -1726,6 +1725,38 @@ func TestAcceptMaxFds(t *testing.T) {
 	}
 }
 
+func TestWriteAfterHijack(t *testing.T) {
+	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
+	var buf bytes.Buffer
+	wrotec := make(chan bool, 1)
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
+		conn, bufrw, err := rw.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		go func() {
+			bufrw.Write([]byte("[hijack-to-bufw]"))
+			bufrw.Flush()
+			conn.Write([]byte("[hijack-to-conn]"))
+			conn.Close()
+			wrotec <- true
+		}()
+	})
+	ln := &oneConnListener{conn: conn}
+	go Serve(ln, handler)
+	<-conn.closec
+	<-wrotec
+	if g, w := buf.String(), "[hijack-to-bufw][hijack-to-conn]"; g != w {
+		t.Errorf("wrote %q; want %q", g, w)
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
@@ -1854,15 +1885,14 @@ func BenchmarkServer(b *testing.B) {
 
 func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
 	b.ReportAllocs()
-	req := []byte(strings.Replace(`GET / HTTP/1.0
+	req := reqBytes(`GET / HTTP/1.0
 Host: golang.org
 Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.52 Safari/537.17
 Accept-Encoding: gzip,deflate,sdch
 Accept-Language: en-US,en;q=0.8
 Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
-
-`, "\n", "\r\n", -1))
+`)
 	res := []byte("Hello world!\n")
 
 	conn := &testConn{
@@ -1908,15 +1938,14 @@ func (r *repeatReader) Read(p []byte) (n int, err error) {
 func BenchmarkServerFakeConnWithKeepAlive(b *testing.B) {
 	b.ReportAllocs()
 
-	req := []byte(strings.Replace(`GET / HTTP/1.1
+	req := reqBytes(`GET / HTTP/1.1
 Host: golang.org
 Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.52 Safari/537.17
 Accept-Encoding: gzip,deflate,sdch
 Accept-Language: en-US,en;q=0.8
 Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
-
-`, "\n", "\r\n", -1))
+`)
 	res := []byte("Hello world!\n")
 
 	conn := &rwTestConn{
@@ -1943,10 +1972,9 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 func BenchmarkServerFakeConnWithKeepAliveLite(b *testing.B) {
 	b.ReportAllocs()
 
-	req := []byte(strings.Replace(`GET / HTTP/1.1
+	req := reqBytes(`GET / HTTP/1.1
 Host: golang.org
-
-`, "\n", "\r\n", -1))
+`)
 	res := []byte("Hello world!\n")
 
 	conn := &rwTestConn{
@@ -2006,10 +2034,9 @@ func BenchmarkServerHandlerNoHeader(b *testing.B) {
 
 func benchmarkHandler(b *testing.B, h Handler) {
 	b.ReportAllocs()
-	req := []byte(strings.Replace(`GET / HTTP/1.1
+	req := reqBytes(`GET / HTTP/1.1
 Host: golang.org
-
-`, "\n", "\r\n", -1))
+`)
 	conn := &rwTestConn{
 		Reader: &repeatReader{content: req, count: b.N},
 		Writer: ioutil.Discard,
