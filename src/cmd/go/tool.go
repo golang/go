@@ -53,7 +53,7 @@ func tool(toolName string) string {
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
 		if isInGoToolsRepo(toolName) {
-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo install code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
+			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
 		} else {
 			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
 		}
