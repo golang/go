@@ -554,6 +554,28 @@ newlist(Node *l, Node *r)
 	return new(OLIST, l, r);
 }
 
+static int
+haspointers(Type *t)
+{
+	Type *fld;
+
+	switch(t->etype) {
+	case TSTRUCT:
+		for(fld = t->link; fld != T; fld = fld->down) {
+			if(haspointers(fld))
+				return 1;
+		}
+		return 0;
+	case TARRAY:
+		return haspointers(t->link);
+	case TFUNC:
+	case TIND:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 void
 sualign(Type *t)
 {
@@ -608,6 +630,9 @@ sualign(Type *t)
 					diag(Z, "incomplete union element");
 			l->offset = 0;
 			l->shift = 0;
+			if((debug['q'] || debug['Q']) && haspointers(l))
+				diag(Z, "precise garbage collector cannot handle unions with pointers");
+
 			o = align(align(0, l, Ael1, &maxal), l, Ael2, &maxal);
 			if(o > w)
 				w = o;
