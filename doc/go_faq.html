@@ -701,7 +701,7 @@ A related example goes the other way:
 
 <pre>
 type Opener interface {
-   Open(name) Reader
+   Open() Reader
 }
 
 func (t T3) Open() *os.File
