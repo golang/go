@@ -272,11 +272,11 @@ func reusePackage(p *Package, stk *importStack) *Package {
 // isGoTool is the list of directories for Go programs that are installed in
 // $GOROOT/pkg/tool.
 var isGoTool = map[string]bool{
-	"cmd/api":  true,
-	"cmd/cgo":  true,
-	"cmd/fix":  true,
-	"cmd/vet":  true,
-	"cmd/yacc": true,
+	"cmd/api":                            true,
+	"cmd/cgo":                            true,
+	"cmd/fix":                            true,
+	"cmd/yacc":                           true,
+	"code.google.com/p/go.tools/cmd/vet": true,
 }
 
 // expandScanner expands a scanner.List error into all the errors in the list.
@@ -329,7 +329,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		if p.build.BinDir != "" {
 			p.target = filepath.Join(p.build.BinDir, elem)
 		}
-		if p.Goroot && (isGoTool[p.ImportPath] || strings.HasPrefix(p.ImportPath, "exp/")) {
+		if isGoTool[p.ImportPath] {
 			p.target = filepath.Join(gorootPkg, "tool", full)
 		}
 		if p.target != "" && buildContext.GOOS == "windows" {
