@@ -44,8 +44,8 @@ type Scanner struct {
 // to give. The return values are the number of bytes to advance the input
 // and the next token to return to the user, plus an error, if any. If the
 // data does not yet hold a complete token, for instance if it has no newline
-// while scanning lines, SplitFunc can return (0, nil) to signal the Scanner
-// to read more data into the slice and try again with a longer slice
+// while scanning lines, SplitFunc can return (0, nil, nil) to signal the
+// Scanner to read more data into the slice and try again with a longer slice
 // starting at the same point in the input.
 //
 // If the returned error is non-nil, scanning stops and the error
