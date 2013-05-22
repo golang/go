@@ -1960,6 +1960,9 @@ def submit(ui, repo, *pats, **opts):
 				# Remote repository had changes we missed.
 				need_sync()
 			raise
+		except urllib2.HTTPError, e:
+			print >>sys.stderr, "pushing to remote server failed; do you have commit permissions?"
+			raise
 	except:
 		real_rollback()
 		raise
