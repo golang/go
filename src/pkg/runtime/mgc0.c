@@ -2030,18 +2030,6 @@ gc(struct gc_args *args)
 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
 	m->gcing = 0;
 
-	if(finq != nil) {
-		m->locks++;	// disable gc during the mallocs in newproc
-		// kick off or wake up goroutine to run queued finalizers
-		if(fing == nil)
-			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
-		else if(fingwait) {
-			fingwait = 0;
-			runtime·ready(fing);
-		}
-		m->locks--;
-	}
-
 	heap1 = mstats.heap_alloc;
 	obj1 = mstats.nmalloc - mstats.nfree;
 
@@ -2089,9 +2077,19 @@ gc(struct gc_args *args)
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 
-	// give the queued finalizers, if any, a chance to run
-	if(finq != nil)
+	if(finq != nil) {
+		runtime·lock(&finlock);
+		// kick off or wake up goroutine to run queued finalizers
+		if(fing == nil)
+			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+		else if(fingwait) {
+			fingwait = 0;
+			runtime·ready(fing);
+		}
+		runtime·unlock(&finlock);
+		// give the queued finalizers, if any, a chance to run
 		runtime·gosched();
+	}
 }
 
 void
@@ -2176,19 +2174,15 @@ runfinq(void)
 	frame = nil;
 	framecap = 0;
 	for(;;) {
-		// There's no need for a lock in this section
-		// because it only conflicts with the garbage
-		// collector, and the garbage collector only
-		// runs when everyone else is stopped, and
-		// runfinq only stops at the gosched() or
-		// during the calls in the for loop.
+		runtime·lock(&finlock);
 		fb = finq;
 		finq = nil;
 		if(fb == nil) {
 			fingwait = 1;
-			runtime·park(nil, nil, "finalizer wait");
+			runtime·park(runtime·unlock, &finlock, "finalizer wait");
 			continue;
 		}
+		runtime·unlock(&finlock);
 		if(raceenabled)
 			runtime·racefingo();
 		for(; fb; fb=next) {
