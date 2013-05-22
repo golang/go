@@ -242,7 +242,7 @@ type Instruction interface {
 // local variables ("free variables") has Capture parameters.  Such
 // functions cannot be called directly but require a value created by
 // MakeClosure which, via its Bindings, supplies values for these
-// parameters.  Captures are always addresses.
+// parameters.
 //
 // If the function is a method (Signature.Recv() != nil) then the first
 // element of Params is the receiver parameter.
@@ -306,15 +306,26 @@ type BasicBlock struct {
 
 // Pure values ----------------------------------------
 
-// A Capture is a pointer to a lexically enclosing local variable.
+// A Capture represents a free variable of the function to which it
+// belongs.
 //
-// The referent of a capture is an Alloc or another Capture and is
-// always considered potentially escaping, so Captures are always
-// addresses in the heap, and have pointer types.
+// Captures are used to implement anonymous functions, whose free
+// variables are lexically captured in a closure formed by
+// MakeClosure.  The referent of such a capture is an Alloc or another
+// Capture and is considered a potentially escaping heap address, with
+// pointer type.
+//
+// Captures are also used to implement bound method closures.  Such a
+// capture represents the receiver value and may be of any type that
+// has concrete methods.
 //
 type Capture struct {
-	Outer     Value // the Value captured from the enclosing context.
+	Name_     string
+	Type_     types.Type
 	referrers []Instruction
+
+	// Transiently needed during building.
+	outer Value // the Value captured from the enclosing context.
 }
 
 // A Parameter represents an input parameter of a function.
@@ -587,20 +598,17 @@ type MakeInterface struct {
 	Methods MethodSet // method set of (non-interface) X
 }
 
-// The MakeClosure instruction yields an anonymous function value
-// whose code is Fn and whose lexical capture slots are populated by
-// Bindings.
-//
-// By construction, all captured variables are addresses of variables
-// allocated with 'new', i.e. Alloc(Heap=true).
+// The MakeClosure instruction yields a closure value whose code is
+// Fn and whose free variables' values are supplied by Bindings.
 //
 // Type() returns a (possibly named) *types.Signature.
 //
-// Pos() returns the ast.FuncLit.Type.Func of the function literal
-// that created this closure.
+// Pos() returns the ast.FuncLit.Type.Func for a function literal
+// closure or the ast.SelectorExpr.Sel for a bound method closure.
 //
 // Example printed form:
 // 	t0 = make closure anon@1.2 [x y z]
+// 	t1 = make closure bound$(main.I).add [i]
 //
 type MakeClosure struct {
 	Register
@@ -1217,8 +1225,8 @@ func (v *Builtin) Type() types.Type        { return v.Object.Type() }
 func (v *Builtin) Name() string            { return v.Object.Name() }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 
-func (v *Capture) Type() types.Type          { return v.Outer.Type() }
-func (v *Capture) Name() string              { return v.Outer.Name() }
+func (v *Capture) Type() types.Type          { return v.Type_ }
+func (v *Capture) Name() string              { return v.Name_ }
 func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
 
 func (v *Global) Type() types.Type        { return v.Type_ }

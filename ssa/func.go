@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 )
@@ -395,19 +396,8 @@ func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
 //
 func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	if v, ok := f.objects[obj]; ok {
-		if escaping {
-			// Walk up the chain of Captures.
-			x := v
-			for {
-				if c, ok := x.(*Capture); ok {
-					x = c.Outer
-				} else {
-					break
-				}
-			}
-			// By construction, all captures are ultimately Allocs in the
-			// naive SSA form.  Parameters are pre-spilled to the stack.
-			x.(*Alloc).Heap = true
+		if alloc, ok := v.(*Alloc); ok && escaping {
+			alloc.Heap = true
 		}
 		return v // function-local var (address)
 	}
@@ -417,7 +407,12 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	if f.Enclosing == nil {
 		panic("no Value for type.Object " + obj.Name())
 	}
-	v := &Capture{Outer: f.Enclosing.lookup(obj, true)} // escaping
+	outer := f.Enclosing.lookup(obj, true) // escaping
+	v := &Capture{
+		Name_: outer.Name(),
+		Type_: outer.Type(),
+		outer: outer,
+	}
 	f.objects[obj] = v
 	f.FreeVars = append(f.FreeVars, v)
 	return v
@@ -442,6 +437,7 @@ func (f *Function) emit(instr Instruction) Value {
 //      "(*exp/ssa.Ret).Block"      // a bridge method
 //      "(ssa.Instruction).Block"   // an interface method thunk
 //      "func@5.32"                 // an anonymous function
+//      "bound$(*T).f"              // a bound method thunk
 //
 func (f *Function) FullName() string {
 	return f.fullName(nil)
@@ -449,6 +445,8 @@ func (f *Function) FullName() string {
 
 // Like FullName, but if from==f.Pkg, suppress package qualification.
 func (f *Function) fullName(from *Package) string {
+	// TODO(adonovan): expose less fragile case discrimination.
+
 	// Anonymous?
 	if f.Enclosing != nil {
 		return f.Name_
@@ -461,6 +459,8 @@ func (f *Function) fullName(from *Package) string {
 		var recvType types.Type
 		if recv != nil {
 			recvType = recv.Type() // bridge method
+		} else if strings.HasPrefix(f.Name_, "bound$") {
+			return f.Name_ // bound method thunk
 		} else {
 			recvType = f.Params[0].Type() // interface method thunk
 		}
@@ -527,7 +527,11 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 //
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
-	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos()))
+	if pos := f.Pos(); pos.IsValid() {
+		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(pos))
+	} else {
+		fmt.Fprintln(w, "# Synthetic")
+	}
 
 	if f.Enclosing != nil {
 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())

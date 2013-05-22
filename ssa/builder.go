@@ -449,6 +449,20 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 //
 func (b *Builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
 	id := MakeId(e.Sel.Name, fn.Pkg.Types)
+
+	// Bound method closure?  (e.m where m is a method)
+	if !wantAddr {
+		if m, recv := b.findMethod(fn, e.X, id); m != nil {
+			c := &MakeClosure{
+				Fn:       makeBoundMethodThunk(b.Prog, m, recv),
+				Bindings: []Value{recv},
+			}
+			c.setPos(e.Sel.Pos())
+			c.setType(fn.Pkg.TypeOf(e))
+			return fn.emit(c)
+		}
+	}
+
 	st := fn.Pkg.TypeOf(e.X).Deref().Underlying().(*types.Struct)
 	index := -1
 	for i, n := 0, st.NumFields(); i < n; i++ {
@@ -704,7 +718,8 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		v := &MakeClosure{Fn: fn2}
 		v.setType(fn.Pkg.TypeOf(e))
 		for _, fv := range fn2.FreeVars {
-			v.Bindings = append(v.Bindings, fv.Outer)
+			v.Bindings = append(v.Bindings, fv.outer)
+			fv.outer = nil
 		}
 		return fn.emit(v)
 
@@ -836,7 +851,7 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 			return makeImethodThunk(b.Prog, typ, id)
 		}
 
-		// e.f where e is an expression.
+		// e.f where e is an expression.  f may be a method.
 		return b.selector(fn, e, false, false)
 
 	case *ast.IndexExpr:
@@ -894,6 +909,41 @@ func (b *Builder) stmtList(fn *Function, list []ast.Stmt) {
 	}
 }
 
+// findMethod returns the method and receiver for a call base.id().
+// It locates the method using the method-set for base's type,
+// and emits code for the receiver, handling the cases where
+// the formal and actual parameter's pointerness are unequal.
+//
+// findMethod returns (nil, nil) if no such method was found.
+//
+func (b *Builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Value) {
+	typ := fn.Pkg.TypeOf(base)
+
+	// Consult method-set of X.
+	if m := b.Prog.MethodSet(typ)[id]; m != nil {
+		aptr := isPointer(typ)
+		fptr := isPointer(m.Signature.Recv().Type())
+		if aptr == fptr {
+			// Actual's and formal's "pointerness" match.
+			return m, b.expr(fn, base)
+		}
+		// Actual is a pointer, formal is not.
+		// Load a copy.
+		return m, emitLoad(fn, b.expr(fn, base))
+	}
+	if !isPointer(typ) {
+		// Consult method-set of *X.
+		if m := b.Prog.MethodSet(pointer(typ))[id]; m != nil {
+			// A method found only in MS(*X) must have a
+			// pointer formal receiver; but the actual
+			// value is not a pointer.
+			// Implicit & -- possibly escaping.
+			return m, b.addr(fn, base, true).(address).addr
+		}
+	}
+	return nil, nil
+}
+
 // setCallFunc populates the function parts of a CallCommon structure
 // (Func, Method, Recv, Args[0]) based on the kind of invocation
 // occurring in e.
@@ -934,45 +984,20 @@ func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		return
 	}
 
+	id := MakeId(sel.Sel.Name, fn.Pkg.Types)
+
 	// Let X be the type of x.
-	typ := fn.Pkg.TypeOf(sel.X)
 
 	// Case 2: x.f(): a statically dispatched call to a method
 	// from the method-set of X or perhaps *X (if x is addressable
 	// but not a pointer).
-	id := MakeId(sel.Sel.Name, fn.Pkg.Types)
-	// Consult method-set of X.
-	if m := b.Prog.MethodSet(typ)[id]; m != nil {
-		var recv Value
-		aptr := isPointer(typ)
-		fptr := isPointer(m.Signature.Recv().Type())
-		if aptr == fptr {
-			// Actual's and formal's "pointerness" match.
-			recv = b.expr(fn, sel.X)
-		} else {
-			// Actual is a pointer, formal is not.
-			// Load a copy.
-			recv = emitLoad(fn, b.expr(fn, sel.X))
-		}
+	if m, recv := b.findMethod(fn, sel.X, id); m != nil {
 		c.Func = m
 		c.Args = append(c.Args, recv)
 		return
 	}
-	if !isPointer(typ) {
-		// Consult method-set of *X.
-		if m := b.Prog.MethodSet(pointer(typ))[id]; m != nil {
-			// A method found only in MS(*X) must have a
-			// pointer formal receiver; but the actual
-			// value is not a pointer.
-			// Implicit & -- possibly escaping.
-			recv := b.addr(fn, sel.X, true).(address).addr
-			c.Func = m
-			c.Args = append(c.Args, recv)
-			return
-		}
-	}
 
-	switch t := typ.Underlying().(type) {
+	switch t := fn.Pkg.TypeOf(sel.X).Underlying().(type) {
 	case *types.Struct, *types.Pointer:
 		// Case 3: x.f() where x.f is a function value in a
 		// struct field f; not a method call.  f is a 'var'
@@ -2562,7 +2587,7 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 	// Add initializer guard variable.
 	initguard := &Global{
 		Pkg:   p,
-		Name_: "init·guard",
+		Name_: "init$guard",
 		Type_: pointer(tBool),
 	}
 	p.Members[initguard.Name()] = initguard
@@ -2671,13 +2696,13 @@ func (b *Builder) BuildPackage(p *Package) {
 		return // nothing to do
 	}
 	if b.Context.Mode&LogSource != 0 {
-		defer logStack("build package %s", p.Types.Path)()
+		defer logStack("build package %s", p.Types.Path())()
 	}
 	init := p.Init
 	init.startBody()
 
 	// Make init() skip if package is already initialized.
-	initguard := p.Var("init·guard")
+	initguard := p.Var("init$guard")
 	doinit := init.newBasicBlock("init.start")
 	done := init.newBasicBlock("init.done")
 	emitIf(init, emitLoad(init, initguard), done, doinit)

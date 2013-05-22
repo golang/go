@@ -53,6 +53,7 @@ func isPointer(typ types.Type) bool {
 }
 
 // pointer(typ) returns the type that is a pointer to typ.
+// TODO(adonovan): inline and eliminate.
 func pointer(typ types.Type) *types.Pointer {
 	return types.NewPointer(typ)
 }

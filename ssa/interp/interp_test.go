@@ -130,6 +130,7 @@ var gorootTests = []string{
 var testdataTests = []string{
 	"coverage.go",
 	"mrvchain.go",
+	"boundmeth.go",
 }
 
 func run(t *testing.T, dir, input string) bool {

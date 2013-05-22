@@ -48,7 +48,7 @@ func relName(v Value, i Instruction) string {
 // It never appears in disassembly, which uses Value.Name().
 
 func (v *Literal) String() string {
-	return fmt.Sprintf("literal %s", v.Name())
+	return v.Name()
 }
 
 func (v *Parameter) String() string {
@@ -60,15 +60,15 @@ func (v *Capture) String() string {
 }
 
 func (v *Global) String() string {
-	return fmt.Sprintf("global %s : %s", v.Name(), v.Type())
+	return v.FullName()
 }
 
 func (v *Builtin) String() string {
-	return fmt.Sprintf("builtin %s : %s", v.Name(), v.Type())
+	return fmt.Sprintf("builtin %s", v.Name())
 }
 
 func (v *Function) String() string {
-	return fmt.Sprintf("function %s : %s", v.Name(), v.Type())
+	return v.FullName()
 }
 
 // FullName returns g's package-qualified name.

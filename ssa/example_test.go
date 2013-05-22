@@ -71,18 +71,18 @@ func main() {
 	// Output:
 	//
 	// Package main:
-	//   var   init·guard  *bool
-	//   func  main        func()
-	//   const message     message = "Hello, World!":untyped string
+	//   var   init$guard *bool
+	//   func  main       func()
+	//   const message    message = "Hello, World!":untyped string
 	//
 	// # Name: main.init
-	// # Declared at -
+	// # Synthetic
 	// func init():
 	// .0.entry:                                                               P:0 S:2
-	// 	t0 = *init·guard                                                  bool
+	// 	t0 = *init$guard                                                   bool
 	// 	if t0 goto 2.init.done else 1.init.start
 	// .1.init.start:                                                          P:1 S:1
-	// 	*init·guard = true:bool
+	// 	*init$guard = true:bool
 	// 	t1 = fmt.init()                                                      ()
 	// 	jump 2.init.done
 	// .2.init.done:                                                           P:2 S:0

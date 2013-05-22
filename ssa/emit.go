@@ -280,16 +280,13 @@ func emitTypeTest(f *Function, x Value, t types.Type) Value {
 	return f.emit(a)
 }
 
-// emitTailCall emits to f a function call in tail position,
-// passing on all but the first formal parameter to f as actual
-// values in the call.  Intended for delegating bridge methods.
+// emitTailCall emits to f a function call in tail position.  The
+// caller is responsible for all fields of 'call' except its type.
+// Intended for delegating bridge methods.
 // Precondition: f does/will not use deferred procedure calls.
 // Postcondition: f.currentBlock is nil.
 //
 func emitTailCall(f *Function, call *Call) {
-	for _, arg := range f.Params[1:] {
-		call.Call.Args = append(call.Call.Args, arg)
-	}
 	tresults := f.Signature.Results()
 	nr := tresults.Len()
 	if nr == 1 {

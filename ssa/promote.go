@@ -105,9 +105,7 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 
 	// TODO(adonovan): Using Types as map keys doesn't properly
 	// de-dup.  e.g. *NamedType are canonical but *Struct and
-	// others are not.  Need to de-dup based on using a two-level
-	// hash-table with hash function types.Type.String and
-	// equivalence relation types.IsIdentical.
+	// others are not.  Need to de-dup using typemap.T.
 	mset := p.methodSets[typ]
 	if mset == nil {
 		mset = buildMethodSet(p, typ)
@@ -308,12 +306,13 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	var c Call
 	if cand.concrete != nil {
 		c.Call.Func = cand.concrete
-		fn.pos = c.Call.Func.(*Function).pos // TODO(adonovan): fix: wrong.
-		c.Call.pos = fn.pos                  // TODO(adonovan): fix: wrong.
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		c.Call.Recv = v
 		c.Call.Method = 0
+	}
+	for _, arg := range fn.Params[1:] {
+		c.Call.Args = append(c.Call.Args, arg)
 	}
 	emitTailCall(fn, &c)
 	fn.finishBody()
@@ -339,7 +338,7 @@ func createParams(fn *Function) {
 
 // Thunks for standalone interface methods ----------------------------------------
 
-// makeImethodThunk returns a synthetic thunk function permitting an
+// makeImethodThunk returns a synthetic thunk function permitting a
 // method id of interface typ to be called like a standalone function,
 // e.g.:
 //
@@ -353,11 +352,6 @@ func createParams(fn *Function) {
 //   func I.f(i I, x int, ...) R {
 //     return i.f(x, ...)
 //   }
-//
-// The generated thunks do not belong to any package.  (Arguably they
-// belong in the package that defines the interface, but we have no
-// way to determine that on demand; we'd have to create all possible
-// thunks a priori.)
 //
 // TODO(adonovan): opt: currently the stub is created even when used
 // in call position: I.f(i, 0).  Clearly this is suboptimal.
@@ -376,13 +370,61 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
 		Signature: &sig,
 		Prog:      prog,
 	}
-	// TODO(adonovan): set fn.Pos to location of interface method ast.Field.
 	fn.startBody()
 	fn.addParam("recv", typ)
 	createParams(fn)
 	var c Call
 	c.Call.Method = index
 	c.Call.Recv = fn.Params[0]
+	for _, arg := range fn.Params[1:] {
+		c.Call.Args = append(c.Call.Args, arg)
+	}
+	emitTailCall(fn, &c)
+	fn.finishBody()
+	return fn
+}
+
+// Thunks for bound methods ----------------------------------------
+
+// makeBoundMethodThunk returns a synthetic thunk function that
+// delegates to a concrete method.  The thunk has one free variable,
+// the method's receiver.  Use MakeClosure with such a thunk to
+// construct a bound-method closure.
+// e.g.:
+//
+//   type T int
+//   func (t T) meth()
+//   var t T
+//   f := t.meth
+//   f() // calls t.meth()
+//
+// f is a closure of a synthetic thunk defined as if by:
+//
+//   f := func() { return t.meth() }
+//
+// TODO(adonovan): memoize creation of these functions in the Program.
+//
+func makeBoundMethodThunk(prog *Program, meth *Function, recv Value) *Function {
+	if prog.mode&LogSource != 0 {
+		defer logStack("makeBoundMethodThunk %s", meth)()
+	}
+	s := meth.Signature
+	fn := &Function{
+		Name_:     "bound$" + meth.FullName(),
+		Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
+		Prog:      prog,
+	}
+
+	cap := &Capture{Name_: "recv", Type_: recv.Type()}
+	fn.FreeVars = []*Capture{cap}
+	fn.startBody()
+	createParams(fn)
+	var c Call
+	c.Call.Func = meth
+	c.Call.Args = []Value{cap}
+	for _, arg := range fn.Params {
+		c.Call.Args = append(c.Call.Args, arg)
+	}
 	emitTailCall(fn, &c)
 	fn.finishBody()
 	return fn
