@@ -60,6 +60,7 @@ enum { MaxGomaxprocs = 1<<8 };
 
 Sched	runtime·sched;
 int32	runtime·gomaxprocs;
+uint32	runtime·needextram;
 bool	runtime·singleproc;
 bool	runtime·iscgo;
 uint32	runtime·gcwaiting;
@@ -475,11 +476,8 @@ runtime·mstart(void)
 
 	// Install signal handlers; after minit so that minit can
 	// prepare the thread to be able to handle the signals.
-	if(m == &runtime·m0) {
+	if(m == &runtime·m0)
 		runtime·initsig();
-		if(runtime·iscgo)
-			runtime·newextram();
-	}
 	
 	if(m->mstartfn)
 		m->mstartfn();
@@ -586,6 +584,14 @@ void
 runtime·needm(byte x)
 {
 	M *mp;
+
+	if(runtime·needextram) {
+		// Can happen if C/C++ code calls Go from a global ctor.
+		// Can not throw, because scheduler is not initialized yet.
+		runtime·write(2, "fatal error: cgo callback before cgo call\n",
+			sizeof("fatal error: cgo callback before cgo call\n")-1);
+		runtime·exit(1);
+	}
 
 	// Lock extra list, take head, unlock popped list.
 	// nilokay=false is safe here because of the invariant above,

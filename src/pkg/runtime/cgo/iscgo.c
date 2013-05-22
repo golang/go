@@ -12,3 +12,4 @@
 #include "../runtime.h"
 
 bool runtime·iscgo = 1;
+uint32 runtime·needextram = 1;  // create an extra M on first cgo call
