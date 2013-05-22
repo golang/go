@@ -1863,12 +1863,6 @@ cachestats(GCStats *stats)
 		if(c==nil)
 			continue;
 		runtime·purgecachedstats(c);
-		for(i=0; i<nelem(c->local_by_size); i++) {
-			mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
-			c->local_by_size[i].nmalloc = 0;
-			mstats.by_size[i].nfree += c->local_by_size[i].nfree;
-			c->local_by_size[i].nfree = 0;
-		}
 	}
 	mstats.stacks_inuse = stacks_inuse;
 }
