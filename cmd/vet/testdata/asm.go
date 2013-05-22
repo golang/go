@@ -6,7 +6,7 @@
 
 // This file contains declarations to test the assembly in test_asm.s.
 
-package main
+package testdata
 
 func arg1(x int8, y uint8)
 func arg2(x int16, y uint16)

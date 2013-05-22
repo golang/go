@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build vet_test
 // +build ignore
 
 // This file contains tests for the dead code checker.
 
-package main
+package testdata
 
 type T int
 

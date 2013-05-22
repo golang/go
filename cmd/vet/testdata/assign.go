@@ -4,9 +4,7 @@
 
 // This file contains tests for the useless-assignment checker.
 
-// +build vet_test
-
-package main
+package testdata
 
 type ST struct {
 	x int

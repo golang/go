@@ -4,11 +4,9 @@
 
 // This file contains tests for the untagged struct literal checker.
 
-// +build vet_test
-
 // This file contains the test for untagged struct literals.
 
-package main
+package testdata
 
 import (
 	"flag"

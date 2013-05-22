@@ -4,11 +4,9 @@
 
 // This file contains tests for the structtag checker.
 
-// +build vet_test
-
 // This file contains the test for canonical struct tags.
 
-package main
+package testdata
 
 type StructTagTest struct {
 	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"

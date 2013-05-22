@@ -4,9 +4,7 @@
 
 // This file contains tests for the rangeloop checker.
 
-// +build vet_test
-
-package main
+package testdata
 
 func RangeLoopTests() {
 	var s []int

@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build vet_test
-
 // This file contains tests for the atomic checker.
 
-package main
+package testdata
 
 import (
 	"sync/atomic"

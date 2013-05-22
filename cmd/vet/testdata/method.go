@@ -4,11 +4,9 @@
 
 // This file contains tests for the canonical method checker.
 
-// +build vet_test
-
 // This file contains the code to check canonical methods.
 
-package main
+package testdata
 
 import (
 	"fmt"

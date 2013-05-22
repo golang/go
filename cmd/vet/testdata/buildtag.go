@@ -4,11 +4,10 @@
 
 // This file contains tests for the buildtag checker.
 
-// +build vet_test
 // +builder // ERROR "possible malformed \+build comment"
 // +build !ignore
 
-package main
+package testdata
 
 // +build toolate // ERROR "build comment appears too late in file"
 
