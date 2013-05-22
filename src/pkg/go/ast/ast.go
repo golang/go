@@ -439,7 +439,7 @@ func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
 func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
 func (x *StructType) Pos() token.Pos     { return x.Struct }
 func (x *FuncType) Pos() token.Pos {
-	if x.Func.IsValid() {
+	if x.Func.IsValid() || x.Params == nil { // see issue 3870
 		return x.Func
 	}
 	return x.Params.Pos() // interface method declarations have no "func" keyword

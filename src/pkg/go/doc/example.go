@@ -265,7 +265,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	// Synthesize main function.
 	funcDecl := &ast.FuncDecl{
 		Name: ast.NewIdent("main"),
-		Type: &ast.FuncType{},
+		Type: &ast.FuncType{Params: &ast.FieldList{}}, // FuncType.Params must be non-nil
 		Body: body,
 	}
 
