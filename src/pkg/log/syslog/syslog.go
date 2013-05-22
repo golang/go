@@ -258,10 +258,9 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
+	return fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
 		p, timestamp, w.hostname,
 		w.tag, os.Getpid(), msg, nl)
-	return len(msg), nil
 }
 
 // NewLogger creates a log.Logger whose output is written to
