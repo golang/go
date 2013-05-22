@@ -1,0 +1,6 @@
+The header files under this directory are strictly internal to the gc
+toolchain, so please don't copy them to the system include file
+directory (/usr/include, /usr/local/include, etc.)
+
+Also note that they must be kept as is in $GOROOT/include, or cmd/dist
+will malfunction.
