@@ -120,8 +120,10 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
 }
 
 func fromBase10(base10 string) *big.Int {
-	i := new(big.Int)
-	i.SetString(base10, 10)
+	i, ok := new(big.Int).SetString(base10, 10)
+	if !ok {
+		panic("bad number: " + base10)
+	}
 	return i
 }
 
