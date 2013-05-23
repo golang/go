@@ -230,7 +230,7 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
       }
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
-  <head>
+  </head>
   <body>
 
 <img id="gopherstamp" src="/static/gopherstamp.jpg" />
