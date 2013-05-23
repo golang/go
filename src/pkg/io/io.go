@@ -329,19 +329,19 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // Because Copy is defined to read from src until EOF, it does
 // not treat an EOF from Read as an error to be reported.
 //
-// If dst implements the ReaderFrom interface,
-// the copy is implemented by calling dst.ReadFrom(src).
-// Otherwise, if src implements the WriterTo interface,
+// If src implements the WriterTo interface,
 // the copy is implemented by calling src.WriteTo(dst).
+// Otherwise, if dst implements the ReaderFrom interface,
+// the copy is implemented by calling dst.ReadFrom(src).
 func Copy(dst Writer, src Reader) (written int64, err error) {
-	// If the writer has a ReadFrom method, use it to do the copy.
+	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
-	if rt, ok := dst.(ReaderFrom); ok {
-		return rt.ReadFrom(src)
-	}
-	// Similarly, if the reader has a WriteTo method, use it to do the copy.
 	if wt, ok := src.(WriterTo); ok {
 		return wt.WriteTo(dst)
+	}
+	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
+	if rt, ok := dst.(ReaderFrom); ok {
+		return rt.ReadFrom(src)
 	}
 	buf := make([]byte, 32*1024)
 	for {
