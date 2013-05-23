@@ -42,6 +42,19 @@
       'kill-whole-line
     'kill-entire-line))
 
+;; Delete the current line without putting it in the kill-ring.
+(defun go--delete-whole-line (&optional arg)
+  ;; Emacs uses both kill-region and kill-new, Xemacs only uses
+  ;; kill-region. In both cases we turn them into operations that do
+  ;; not modify the kill ring. This solution does depend on the
+  ;; implementation of kill-line, but it's the only viable solution
+  ;; that does not require to write kill-line from scratch.
+  (flet ((kill-region (beg end)
+                      (delete-region beg end))
+         (kill-new (s) ()))
+    (go--kill-whole-line arg)))
+
+
 ;; XEmacs unfortunately does not offer position-bytes. We can fall
 ;; back to just using (point), but it will be incorrect as soon as
 ;; multibyte characters are being used.
@@ -524,7 +537,7 @@ buffer."
                 (goto-char (point-min))
                 (forward-line (- from line-offset 1))
                 (incf line-offset len)
-                (go--kill-whole-line len)))
+                (go--delete-whole-line len)))
              (t
               (error "invalid rcs patch or internal error in go--apply-rcs-patch")))))))))
 
@@ -853,7 +866,7 @@ will be commented, otherwise they will be removed completely."
           (beginning-of-line)
           (if arg
               (comment-region (line-beginning-position) (line-end-position))
-            (go--kill-whole-line)))
+            (go--delete-whole-line)))
         (message "Removed %d imports" (length lines)))
       (if flymake-state (flymake-mode-on)))))
 
