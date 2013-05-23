@@ -52,6 +52,32 @@ func TestCopyWriteTo(t *testing.T) {
 	}
 }
 
+// Version of bytes.Buffer that checks whether WriteTo was called or not
+type writeToChecker struct {
+	bytes.Buffer
+	writeToCalled bool
+}
+
+func (wt *writeToChecker) WriteTo(w Writer) (int64, error) {
+	wt.writeToCalled = true
+	return wt.Buffer.WriteTo(w)
+}
+
+// It's preferable to choose WriterTo over ReaderFrom, since a WriterTo can issue one large write,
+// while the ReaderFrom must read until EOF, potentially allocating when running out of buffer.
+// Make sure that we choose WriterTo when both are implemented.
+func TestCopyPriority(t *testing.T) {
+	rb := new(writeToChecker)
+	wb := new(bytes.Buffer)
+	rb.WriteString("hello, world.")
+	Copy(wb, rb)
+	if wb.String() != "hello, world." {
+		t.Errorf("Copy did not work properly")
+	} else if !rb.writeToCalled {
+		t.Errorf("WriteTo was not prioritized over ReadFrom")
+	}
+}
+
 func TestCopyN(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
