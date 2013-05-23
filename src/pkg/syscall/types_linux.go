@@ -49,6 +49,7 @@ package syscall
 #include <linux/filter.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/icmpv6.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -193,6 +194,10 @@ type Inet4Pktinfo C.struct_in_pktinfo
 
 type Inet6Pktinfo C.struct_in6_pktinfo
 
+type IPv6MTUInfo C.struct_ip6_mtuinfo
+
+type ICMPv6Filter C.struct_icmp6_filter
+
 type Ucred C.struct_ucred
 
 type TCPInfo C.struct_tcp_info
@@ -212,6 +217,8 @@ const (
 	SizeofCmsghdr           = C.sizeof_struct_cmsghdr
 	SizeofInet4Pktinfo      = C.sizeof_struct_in_pktinfo
 	SizeofInet6Pktinfo      = C.sizeof_struct_in6_pktinfo
+	SizeofIPv6MTUInfo       = C.sizeof_struct_ip6_mtuinfo
+	SizeofICMPv6Filter      = C.sizeof_struct_icmp6_filter
 	SizeofUcred             = C.sizeof_struct_ucred
 	SizeofTCPInfo           = C.sizeof_struct_tcp_info
 )

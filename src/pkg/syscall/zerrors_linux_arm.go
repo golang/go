@@ -274,6 +274,7 @@ const (
 	F_ULOCK                          = 0x0
 	F_UNLCK                          = 0x2
 	F_WRLCK                          = 0x1
+	ICMPV6_FILTER                    = 0x1
 	IFA_F_DADFAILED                  = 0x8
 	IFA_F_DEPRECATED                 = 0x20
 	IFA_F_HOMEADDRESS                = 0x10

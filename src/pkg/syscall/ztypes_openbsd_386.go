@@ -226,6 +226,15 @@ type Inet6Pktinfo struct {
 	Ifindex uint32
 }
 
+type IPv6MTUInfo struct {
+	Addr RawSockaddrInet6
+	Mtu  uint32
+}
+
+type ICMPv6Filter struct {
+	Filt [8]uint32
+}
+
 const (
 	SizeofSockaddrInet4    = 0x10
 	SizeofSockaddrInet6    = 0x1c
@@ -238,6 +247,8 @@ const (
 	SizeofMsghdr           = 0x1c
 	SizeofCmsghdr          = 0xc
 	SizeofInet6Pktinfo     = 0x14
+	SizeofIPv6MTUInfo      = 0x20
+	SizeofICMPv6Filter     = 0x20
 )
 
 const (

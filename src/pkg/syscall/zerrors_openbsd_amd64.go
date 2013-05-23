@@ -445,6 +445,7 @@ const (
 	F_WRLCK                           = 0x3
 	HUPCL                             = 0x4000
 	ICANON                            = 0x100
+	ICMP6_FILTER                      = 0x12
 	ICRNL                             = 0x100
 	IEXTEN                            = 0x400
 	IFAN_ARRIVAL                      = 0x0
