@@ -144,6 +144,11 @@ func main() {
 		}
 	}
 
+	if fi, err := os.Stat(goroot); err != nil || !fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", goroot)
+		os.Exit(2)
+	}
+
 	for _, cmd := range commands {
 		if cmd.Name() == args[0] && cmd.Run != nil {
 			cmd.Flag.Usage = func() { cmd.Usage() }
