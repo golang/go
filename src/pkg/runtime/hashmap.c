@@ -1355,7 +1355,7 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 void
 runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 {
-	if(h == nil) {
+	if(h == nil || h->count == 0) {
 		it->key = nil;
 		return;
 	}

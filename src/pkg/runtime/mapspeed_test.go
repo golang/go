@@ -233,3 +233,24 @@ func BenchmarkNewEmptyMap(b *testing.B) {
 		_ = make(map[int]int)
 	}
 }
+
+func BenchmarkMapIter(b *testing.B) {
+	m := make(map[int]bool)
+	for i := 0; i < 8; i++ {
+		m[i] = true
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, _ = range m {
+		}
+	}
+}
+
+func BenchmarkMapIterEmpty(b *testing.B) {
+	m := make(map[int]bool)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, _ = range m {
+		}
+	}
+}
