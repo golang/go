@@ -118,6 +118,28 @@
 	convert the value before recurring:
 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
 
+	Explicit argument indexes:
+
+	In Printf, Sprintf, and Fprintf, the default behavior is for each
+	formatting verb to format successive arguments passed in the call.
+	However, the notation [n] immediately before the verb indicates that the
+	nth one-indexed argument is to be formatted instead. The same notation
+	before a '*' for a width or precision selects the argument index holding
+	the value. After processing a bracketed expression [n], arguments n+1,
+	n+2, etc. will be processed unless otherwise directed.
+
+	For example,
+		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
+	will yield "22, 11", while
+		fmt.Sprintf("%[3]*[2].*[1]f", 12.0, 2, 6),
+	equivalent to
+		fmt.Sprintf("%6.2f", 12.0),
+	will yield " 12.00". Because an explicit index affects subsequent verbs,
+	this notation can be used to print the same values multiple times
+	by resetting the index for the first argument to be repeated:
+		fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
+	will yield "16 17 0x10 0x11".
+
 	Format errors:
 
 	If an invalid argument is given for a verb, such as providing
@@ -133,6 +155,8 @@
 		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
+		Invalid or out-of-range argument index: %!(BADARGNUM)
+			Printf("%*[2]d", 7):       %d(BADARGNUM)
 
 	All errors begin with the string "%!" followed sometimes
 	by a single character (the verb) and end with a parenthesized
