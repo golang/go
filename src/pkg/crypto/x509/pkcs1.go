@@ -52,7 +52,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
 	}
 
 	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 {
-		return nil, errors.New("private key contains zero or negative value")
+		return nil, errors.New("x509: private key contains zero or negative value")
 	}
 
 	key = new(rsa.PrivateKey)
@@ -67,7 +67,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
 	key.Primes[1] = priv.Q
 	for i, a := range priv.AdditionalPrimes {
 		if a.Prime.Sign() <= 0 {
-			return nil, errors.New("private key contains zero or negative prime")
+			return nil, errors.New("x509: private key contains zero or negative prime")
 		}
 		key.Primes[i+2] = a.Prime
 		// We ignore the other two values because rsa will calculate

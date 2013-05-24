@@ -40,10 +40,10 @@ func ParseECPrivateKey(der []byte) (key *ecdsa.PrivateKey, err error) {
 func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key *ecdsa.PrivateKey, err error) {
 	var privKey ecPrivateKey
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
-		return nil, errors.New("crypto/x509: failed to parse EC private key: " + err.Error())
+		return nil, errors.New("x509: failed to parse EC private key: " + err.Error())
 	}
 	if privKey.Version != ecPrivKeyVersion {
-		return nil, fmt.Errorf("crypto/x509: unknown EC private key version %d", privKey.Version)
+		return nil, fmt.Errorf("x509: unknown EC private key version %d", privKey.Version)
 	}
 
 	var curve elliptic.Curve
@@ -53,12 +53,12 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key *e
 		curve = namedCurveFromOID(privKey.NamedCurveOID)
 	}
 	if curve == nil {
-		return nil, errors.New("crypto/x509: unknown elliptic curve")
+		return nil, errors.New("x509: unknown elliptic curve")
 	}
 
 	k := new(big.Int).SetBytes(privKey.PrivateKey)
 	if k.Cmp(curve.Params().N) >= 0 {
-		return nil, errors.New("crypto/x509: invalid elliptic curve private key value")
+		return nil, errors.New("x509: invalid elliptic curve private key value")
 	}
 	priv := new(ecdsa.PrivateKey)
 	priv.Curve = curve
