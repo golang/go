@@ -281,12 +281,12 @@ func TestConcurrentWrite(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			err := w.Info("test")
 			if err != nil {
 				t.Errorf("Info() failed: %v", err)
 				return
 			}
-			wg.Done()
 		}()
 	}
 	wg.Wait()
@@ -296,8 +296,10 @@ func TestConcurrentReconnect(t *testing.T) {
 	crashy = true
 	defer func() { crashy = false }()
 
+	const N = 10
+	const M = 100
 	net := "unix"
-	done := make(chan string)
+	done := make(chan string, N*M)
 	addr, sock, srvWG := startServer(net, "", done)
 	defer os.Remove(addr)
 
@@ -310,7 +312,7 @@ func TestConcurrentReconnect(t *testing.T) {
 			// we are looking for 500 out of 1000 events
 			// here because lots of log messages are lost
 			// in buffers (kernel and/or bufio)
-			if ct > 500 {
+			if ct > N*M/2 {
 				break
 			}
 		}
@@ -318,21 +320,21 @@ func TestConcurrentReconnect(t *testing.T) {
 	}()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
+	wg.Add(N)
+	for i := 0; i < N; i++ {
 		go func() {
+			defer wg.Done()
 			w, err := Dial(net, addr, LOG_USER|LOG_ERR, "tag")
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}
-			for i := 0; i < 100; i++ {
+			for i := 0; i < M; i++ {
 				err := w.Info("test")
 				if err != nil {
 					t.Errorf("Info() failed: %v", err)
 					return
 				}
 			}
-			wg.Done()
 		}()
 	}
 	wg.Wait()
