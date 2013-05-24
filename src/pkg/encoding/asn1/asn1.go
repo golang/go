@@ -47,11 +47,23 @@ func (e SyntaxError) Error() string { return "ASN.1 syntax error: " + e.Msg }
 
 func parseBool(bytes []byte) (ret bool, err error) {
 	if len(bytes) != 1 {
-		err = SyntaxError{"invalid boolean"}
+		err = SyntaxError{"encoding/asn1: invalid boolean"}
 		return
 	}
 
-	return bytes[0] != 0, nil
+	// DER demands that "If the encoding represents the boolean value TRUE,
+	// its single contents octet shall have all eight bits set to one."
+	// Thus only 0 and 255 are valid encoded values.
+	switch bytes[0] {
+	case 0:
+		ret = false
+	case 0xff:
+		ret = true
+	default:
+		err = SyntaxError{"encoding/asn1: invalid boolean"}
+	}
+
+	return
 }
 
 // INTEGER
