@@ -40,5 +40,6 @@ func TestCallbackCallers(t *testing.T)     { testCallbackCallers(t) }
 func Test5227(t *testing.T)                { test5227(t) }
 func TestCflags(t *testing.T)              { testCflags(t) }
 func Test5337(t *testing.T)                { test5337(t) }
+func Test5548(t *testing.T)                { test5548(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
