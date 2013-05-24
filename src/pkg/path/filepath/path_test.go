@@ -630,6 +630,10 @@ func simpleJoin(dir, path string) string {
 }
 
 func TestEvalSymlinks(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("Skipping test: symlinks don't exist under Plan 9")
+	}
+
 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
