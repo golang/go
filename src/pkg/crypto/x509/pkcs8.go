@@ -32,7 +32,7 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 	case privKey.Algo.Algorithm.Equal(oidPublicKeyRSA):
 		key, err = ParsePKCS1PrivateKey(privKey.PrivateKey)
 		if err != nil {
-			return nil, errors.New("crypto/x509: failed to parse RSA private key embedded in PKCS#8: " + err.Error())
+			return nil, errors.New("x509: failed to parse RSA private key embedded in PKCS#8: " + err.Error())
 		}
 		return key, nil
 
@@ -44,11 +44,11 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 		}
 		key, err = parseECPrivateKey(namedCurveOID, privKey.PrivateKey)
 		if err != nil {
-			return nil, errors.New("crypto/x509: failed to parse EC private key embedded in PKCS#8: " + err.Error())
+			return nil, errors.New("x509: failed to parse EC private key embedded in PKCS#8: " + err.Error())
 		}
 		return key, nil
 
 	default:
-		return nil, fmt.Errorf("crypto/x509: PKCS#8 wrapping contained private key with unknown algorithm: %v", privKey.Algo.Algorithm)
+		return nil, fmt.Errorf("x509: PKCS#8 wrapping contained private key with unknown algorithm: %v", privKey.Algo.Algorithm)
 	}
 }

@@ -40,7 +40,7 @@ func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 	}
 	algo := getPublicKeyAlgorithmFromOID(pki.Algorithm.Algorithm)
 	if algo == UnknownPublicKeyAlgorithm {
-		return nil, errors.New("ParsePKIXPublicKey: unknown public key algorithm")
+		return nil, errors.New("x509: unknown public key algorithm")
 	}
 	return parsePublicKey(algo, &pki)
 }
@@ -56,7 +56,7 @@ func MarshalPKIXPublicKey(pub interface{}) ([]byte, error) {
 			E: pub.E,
 		})
 	default:
-		return nil, errors.New("MarshalPKIXPublicKey: unknown public key type")
+		return nil, errors.New("x509: unknown public key type")
 	}
 
 	pkix := pkixPublicKey{
@@ -477,7 +477,7 @@ type Certificate struct {
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
 // involves algorithms that are not currently implemented.
-var ErrUnsupportedAlgorithm = errors.New("crypto/x509: cannot verify signature: algorithm unimplemented")
+var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
 // ConstraintViolationError results when a requested usage is not permitted by
 // a certificate. For example: checking a signature when the public key isn't a
@@ -485,7 +485,7 @@ var ErrUnsupportedAlgorithm = errors.New("crypto/x509: cannot verify signature: 
 type ConstraintViolationError struct{}
 
 func (ConstraintViolationError) Error() string {
-	return "crypto/x509: invalid signature: parent certificate cannot sign this kind of certificate"
+	return "x509: invalid signature: parent certificate cannot sign this kind of certificate"
 }
 
 func (c *Certificate) Equal(other *Certificate) bool {
@@ -604,10 +604,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 			return err
 		}
 		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
-			return errors.New("DSA signature contained zero or negative values")
+			return errors.New("x509: DSA signature contained zero or negative values")
 		}
 		if !dsa.Verify(pub, digest, dsaSig.R, dsaSig.S) {
-			return errors.New("DSA verification failure")
+			return errors.New("x509: DSA verification failure")
 		}
 		return
 	case *ecdsa.PublicKey:
@@ -616,10 +616,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 			return err
 		}
 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("crypto/x509: ECDSA signature contained zero or negative values")
+			return errors.New("x509: ECDSA signature contained zero or negative values")
 		}
 		if !ecdsa.Verify(pub, digest, ecdsaSig.R, ecdsaSig.S) {
-			return errors.New("crypto/x509: ECDSA verification failure")
+			return errors.New("x509: ECDSA verification failure")
 		}
 		return
 	}
@@ -635,7 +635,7 @@ func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) (err error) {
 type UnhandledCriticalExtension struct{}
 
 func (h UnhandledCriticalExtension) Error() string {
-	return "unhandled critical extension"
+	return "x509: unhandled critical extension"
 }
 
 type basicConstraints struct {
@@ -694,7 +694,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, err
 		}
 		if p.Sign() <= 0 || params.P.Sign() <= 0 || params.Q.Sign() <= 0 || params.G.Sign() <= 0 {
-			return nil, errors.New("zero or negative DSA parameter")
+			return nil, errors.New("x509: zero or negative DSA parameter")
 		}
 		pub := &dsa.PublicKey{
 			Parameters: dsa.Parameters{
@@ -714,11 +714,11 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 		}
 		namedCurve := namedCurveFromOID(*namedCurveOID)
 		if namedCurve == nil {
-			return nil, errors.New("crypto/x509: unsupported elliptic curve")
+			return nil, errors.New("x509: unsupported elliptic curve")
 		}
 		x, y := elliptic.Unmarshal(namedCurve, asn1Data)
 		if x == nil {
-			return nil, errors.New("crypto/x509: failed to unmarshal elliptic curve point")
+			return nil, errors.New("x509: failed to unmarshal elliptic curve point")
 		}
 		pub := &ecdsa.PublicKey{
 			Curve: namedCurve,
@@ -752,7 +752,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 	}
 
 	if in.TBSCertificate.SerialNumber.Sign() < 0 {
-		return nil, errors.New("negative serial number")
+		return nil, errors.New("x509: negative serial number")
 	}
 
 	out.Version = in.TBSCertificate.Version + 1
