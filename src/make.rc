@@ -95,3 +95,5 @@ rm -f $GOTOOLDIR/go_bootstrap
 
 if(! ~ $1 --no-banner)
 	$GOTOOLDIR/dist banner
+
+status=''
