@@ -318,7 +318,6 @@ static char *oldtool[] = {
 // Unreleased directories (relative to $GOROOT) that should
 // not be in release branches.
 static char *unreleased[] = {
-	"src/cmd/cov",
 	"src/cmd/prof",
 	"src/pkg/old",
 };
@@ -602,8 +601,8 @@ install(char *dir)
 		goto out;
 	}
 
-	// For release, cmd/prof and cmd/cov are not included.
-	if((streq(dir, "cmd/cov") || streq(dir, "cmd/prof")) && !isdir(bstr(&path))) {
+	// For release, cmd/prof is not included.
+	if((streq(dir, "cmd/prof")) && !isdir(bstr(&path))) {
 		if(vflag > 1)
 			errprintf("skipping %s - does not exist\n", dir);
 		goto out;
@@ -1198,7 +1197,6 @@ static char *buildorder[] = {
 	"misc/pprof",
 
 	"cmd/addr2line",
-	"cmd/cov",
 	"cmd/nm",
 	"cmd/objdump",
 	"cmd/pack",
@@ -1276,7 +1274,6 @@ static char *cleantab[] = {
 	"cmd/8l",
 	"cmd/addr2line",
 	"cmd/cc",
-	"cmd/cov",
 	"cmd/gc",
 	"cmd/go",
 	"cmd/nm",
@@ -1339,7 +1336,7 @@ clean(void)
 	vinit(&dir);
 
 	for(i=0; i<nelem(cleantab); i++) {
-		if((streq(cleantab[i], "cmd/cov") || streq(cleantab[i], "cmd/prof")) && !isdir(cleantab[i]))
+		if((streq(cleantab[i], "cmd/prof")) && !isdir(cleantab[i]))
 			continue;
 		bpathf(&path, "%s/src/%s", goroot, cleantab[i]);
 		xreaddir(&dir, bstr(&path));

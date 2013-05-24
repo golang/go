@@ -19,7 +19,7 @@ if ! go help >/dev/null 2>&1; then
 fi
 
 eval $(go env)
-if ! [ -x $GOTOOLDIR/cov -a -x $GOTOOLDIR/prof ]; then
+if ! [ -x $GOTOOLDIR/prof ]; then
 	echo "You don't need to run sudo.bash." >&2
 	exit 2
 fi
@@ -30,7 +30,7 @@ if [[ ! -d /usr/local/bin ]]; then
 fi
 
 cd $(dirname $0)
-for i in prof cov
+for i in prof
 do
 	# Remove old binaries if present
 	sudo rm -f /usr/local/bin/6$i
