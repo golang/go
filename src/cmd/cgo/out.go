@@ -1040,8 +1040,8 @@ typedef int intgo;
 typedef struct { char *p; intgo n; } _GoString_;
 typedef struct { char *p; intgo n; intgo c; } _GoBytes_;
 _GoString_ GoString(char *p);
-_GoString_ GoStringN(char *p, intgo l);
-_GoBytes_ GoBytes(void *p, intgo n);
+_GoString_ GoStringN(char *p, int l);
+_GoBytes_ GoBytes(void *p, int n);
 char *CString(_GoString_);
 `
 
@@ -1059,14 +1059,14 @@ void
 }
 
 void
-·_Cfunc_GoStringN(int8 *p, intgo l, String s)
+·_Cfunc_GoStringN(int8 *p, int32 l, String s)
 {
 	s = runtime·gostringn((byte*)p, l);
 	FLUSH(&s);
 }
 
 void
-·_Cfunc_GoBytes(int8 *p, intgo l, Slice s)
+·_Cfunc_GoBytes(int8 *p, int32 l, Slice s)
 {
 	s = runtime·gobytes((byte*)p, l);
 	FLUSH(&s);
@@ -1112,11 +1112,11 @@ struct __go_string GoString(char *p) {
 	return __go_byte_array_to_string(p, len);
 }
 
-struct __go_string GoStringN(char *p, intgo n) {
+struct __go_string GoStringN(char *p, int32_t n) {
 	return __go_byte_array_to_string(p, n);
 }
 
-Slice GoBytes(char *p, intgo n) {
+Slice GoBytes(char *p, int32_t n) {
 	struct __go_string s = { (const unsigned char *)p, n };
 	return __go_string_to_byte_array(s);
 }
