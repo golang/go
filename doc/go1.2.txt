@@ -1,0 +1,11 @@
+This file collects notes about what has changed since Go 1.1
+and should be mentioned in the Go 1.2 release notes.
+During the Go 1.2 release process it will be necessary to convert
+it to HTML, similar to go1.1.html, but for now it is a text file,
+to make the process of keeping it up-to-date more lightweight.
+
+Please keep the descriptions to a single line, starting with the
+package or cmd/xxx directory name, and ending in a CL number.
+Please keep the list sorted (as in sort.Strings of the lines).
+
+io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
