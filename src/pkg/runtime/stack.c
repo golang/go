@@ -81,13 +81,10 @@ runtime·stackalloc(uint32 n)
 	if(g != m->g0)
 		runtime·throw("stackalloc not on scheduler stack");
 
-	// Stack allocator uses malloc/free most of the time,
-	// but if we're in the middle of malloc and need stack,
-	// we have to do something else to avoid deadlock.
-	// In that case, we fall back on a fixed-size free-list
-	// allocator, assuming that inside malloc all the stack
-	// frames are small, so that all the stack allocations
-	// will be a single size, the minimum (right now, 5k).
+	// Stacks are usually allocated with a fixed-size free-list allocator,
+	// but if we need a stack of non-standard size, we fall back on malloc
+	// (assuming that inside malloc and GC all the stack frames are small,
+	// so that we do not deadlock).
 	if(n == FixedStack || m->mallocing || m->gcing) {
 		if(n != FixedStack) {
 			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
