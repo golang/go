@@ -7,11 +7,13 @@ import (
 	"code.google.com/p/go.tools/go/types"
 	"fmt"
 	"go/ast"
+	"go/token"
 )
 
 // TypeInfo contains information provided by the type checker about
 // the abstract syntax for a single package.
 type TypeInfo struct {
+	fset      *token.FileSet
 	types     map[ast.Expr]types.Type     // inferred types of expressions
 	constants map[ast.Expr]*Literal       // values of constant expressions
 	idents    map[*ast.Ident]types.Object // canonical type objects for named entities
@@ -51,7 +53,7 @@ func (info *TypeInfo) ObjectOf(id *ast.Ident) types.Object {
 	if obj, ok := info.idents[id]; ok {
 		return obj
 	}
-	panic(fmt.Sprintf("no types.Object for ast.Ident %s @ %p", id.Name, id))
+	panic(fmt.Sprintf("no types.Object for ast.Ident %s @ %s", id.Name, info.fset.Position(id.Pos())))
 }
 
 // IsType returns true iff expression e denotes a type.

@@ -2471,6 +2471,7 @@ func (b *Builder) membersFromDecl(pkg *Package, decl ast.Decl) {
 //
 func (b *Builder) typecheck(importPath string, files []*ast.File) (*types.Package, *TypeInfo, error) {
 	info := &TypeInfo{
+		fset:      b.Prog.Files,
 		types:     make(map[ast.Expr]types.Type),
 		idents:    make(map[*ast.Ident]types.Object),
 		constants: make(map[ast.Expr]*Literal),
