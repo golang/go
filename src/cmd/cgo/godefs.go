@@ -204,6 +204,11 @@ func (p *Package) cdefs(f *File, srcfile string) string {
 		//		byte Z[4];
 		//	}
 		if strings.HasPrefix(line, "type ") && strings.HasSuffix(line, " struct {") {
+			if len(lines) > i+1 && lines[i+1] == "}" {
+				// do not output empty struct
+				i++
+				continue
+			}
 			s := line[len("type ") : len(line)-len(" struct {")]
 			printf("struct %s {\n", s)
 			for i++; i < len(lines) && lines[i] != "}"; i++ {
