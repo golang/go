@@ -262,7 +262,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	sig := types.NewSignature(types.NewVar(nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
 	if prog.mode&LogSource != 0 {
-		defer logStack("makeBridgeMethod %s, %s, type %s", typ, cand, &sig)()
+		defer logStack("makeBridgeMethod %s, %s, type %s", typ, cand, sig)()
 	}
 
 	fn := &Function{
