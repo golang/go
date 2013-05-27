@@ -51,27 +51,9 @@ uintptr runtime·zerobase;
 static void
 makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
 {
-	uintptr size;
-
-	size = cap*t->elem->size;
-
 	ret->len = len;
 	ret->cap = cap;
-
-	if(size == 0)
-		ret->array = (byte*)&runtime·zerobase;
-	else if((t->elem->kind&KindNoPointers))
-		ret->array = runtime·mallocgc(size, FlagNoPointers, 1, 1);
-	else {
-		ret->array = runtime·mallocgc(size, 0, 1, 1);
-
-		if(UseSpanType) {
-			if(false) {
-				runtime·printf("new slice [%D]%S: %p\n", (int64)cap, *t->elem->string, ret->array);
-			}
-			runtime·settype(ret->array, (uintptr)t->elem | TypeInfo_Array);
-		}
-	}
+	ret->array = runtime·cnewarray(t->elem, cap);
 }
 
 // appendslice(type *Type, x, y, []T) []T
