@@ -524,6 +524,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 }
 
 // When an item is not found, fast versions return a pointer to this zeroed memory.
+#pragma dataflag 16 // no pointers
 static uint8 empty_value[MAXVALUESIZE];
 
 // Specialized versions of mapaccess1 for specific types.

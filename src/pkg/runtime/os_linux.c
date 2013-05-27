@@ -172,6 +172,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
 		*rnd = runtime·startup_random_data;
 		*rnd_len = runtime·startup_random_data_len;
 	} else {
+		#pragma dataflag 16 // no pointers
 		static byte urandom_data[HashRandomBytes];
 		int32 fd;
 		fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
@@ -283,6 +284,7 @@ runtime·setprof(bool on)
 	USED(on);
 }
 
+#pragma dataflag 16 // no pointers
 static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
@@ -293,6 +295,7 @@ runtime·badcallback(void)
 	runtime·write(2, badcallback, sizeof badcallback - 1);
 }
 
+#pragma dataflag 16  // no pointers
 static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
