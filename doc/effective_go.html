@@ -2536,7 +2536,7 @@ package, which defines a <code><a href="/pkg/encoding/json/#Marshaler">Marshaler
 interface. When the JSON encoder receives a value that implements that interface,
 the encoder invokes the value's marshaling method to convert it to JSON
 instead of doing the standard conversion.
-The encoder checks this property at run time with a <a href="interface_conversions">type assertion</a> like:
+The encoder checks this property at run time with a <a href="#interface_conversions">type assertion</a> like:
 </p>
 
 <pre>
@@ -3254,7 +3254,7 @@ for try := 0; try &lt; 2; try++ {
 </pre>
 
 <p>
-The second <code>if</code> statement here is another <a href="#interface_conversion">type assertion</a>.
+The second <code>if</code> statement here is another <a href="#interface_conversions">type assertion</a>.
 If it fails, <code>ok</code> will be false, and <code>e</code>
 will be <code>nil</code>.
 If it succeeds,  <code>ok</code> will be true, which means the
