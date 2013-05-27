@@ -286,11 +286,16 @@ TEXT runtime·sigtramp(SB),7,$24
 	// this might be called in external code context,
 	// where g and m are not set.
 	// first save R0, because _cgo_load_gm will clobber it
-	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
 	MOVW	R0, 4(R13)
 	MOVW	_cgo_load_gm(SB), R0
 	CMP 	$0, R0
 	BL.NE	(R0)
+
+	CMP 	$0, m
+	BNE 	3(PC)
+	// signal number is already prepared in 4(R13)
+	BL  	runtime·badsignal(SB)
+	RET
 
 	// save g
 	MOVW	g, R3
