@@ -729,9 +729,8 @@ runtime·new(Type *typ, uint8 *ret)
 		ret = runtime·mallocgc(typ->size, flag, 1, 1);
 
 		if(UseSpanType && !flag) {
-			if(false) {
+			if(false)
 				runtime·printf("new %S: %p\n", *typ->string, ret);
-			}
 			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
 		}
 	}
@@ -739,34 +738,43 @@ runtime·new(Type *typ, uint8 *ret)
 	FLUSH(&ret);
 }
 
-// same as runtime·new, but callable from C
-void*
-runtime·cnew(Type *typ)
+static void*
+cnew(Type *typ, intgo n, int32 objtyp)
 {
 	uint32 flag;
 	void *ret;
 
-	if(raceenabled)
-		m->racepc = runtime·getcallerpc(&typ);
-
-	if(typ->size == 0) {
+	if((objtyp&(PtrSize-1)) != objtyp)
+		runtime·throw("runtime: invalid objtyp");
+	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
+		runtime·panicstring("runtime: allocation size out of range");
+	if(typ->size == 0 || n == 0) {
 		// All 0-length allocations use this pointer.
 		// The language does not require the allocations to
 		// have distinct values.
-		ret = (uint8*)&runtime·zerobase;
-	} else {
-		flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
-		ret = runtime·mallocgc(typ->size, flag, 1, 1);
-
-		if(UseSpanType && !flag) {
-			if(false) {
-				runtime·printf("new %S: %p\n", *typ->string, ret);
-			}
-			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
-		}
+		return &runtime·zerobase;
 	}
-
+	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+	ret = runtime·mallocgc(typ->size*n, flag, 1, 1);
+	if(UseSpanType && !flag) {
+		if(false)
+			runtime·printf("cnew [%D]%S: %p\n", (int64)n, *typ->string, ret);
+		runtime·settype(ret, (uintptr)typ | objtyp);
+	}
 	return ret;
+}
+
+// same as runtime·new, but callable from C
+void*
+runtime·cnew(Type *typ)
+{
+	return cnew(typ, 1, TypeInfo_SingleObject);
+}
+
+void*
+runtime·cnewarray(Type *typ, intgo n)
+{
+	return cnew(typ, n, TypeInfo_Array);
 }
 
 func GC() {

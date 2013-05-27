@@ -458,6 +458,7 @@ bool	runtime·blockspecial(void*);
 void	runtime·setblockspecial(void*, bool);
 void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
+void*	runtime·cnewarray(Type*, intgo);
 
 void	runtime·settype(void*, uintptr);
 void	runtime·settype_flush(M*, bool);

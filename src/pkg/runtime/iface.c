@@ -687,42 +687,14 @@ reflect·unsafe_Typeof(Eface e, Eface ret)
 void
 reflect·unsafe_New(Type *t, void *ret)
 {
-	uint32 flag;
-
-	flag = t->kind&KindNoPointers ? FlagNoPointers : 0;
-	ret = runtime·mallocgc(t->size, flag, 1, 1);
-
-	if(UseSpanType && !flag) {
-		if(false) {
-			runtime·printf("unsafe_New %S: %p\n", *t->string, ret);
-		}
-		runtime·settype(ret, (uintptr)t | TypeInfo_SingleObject);
-	}
-
+	ret = runtime·cnew(t);
 	FLUSH(&ret);
 }
 
 void
 reflect·unsafe_NewArray(Type *t, intgo n, void *ret)
 {
-	uint64 size;
-
-	size = n*t->size;
-	if(size == 0)
-		ret = (byte*)&runtime·zerobase;
-	else if(t->kind&KindNoPointers)
-		ret = runtime·mallocgc(size, FlagNoPointers, 1, 1);
-	else {
-		ret = runtime·mallocgc(size, 0, 1, 1);
-
-		if(UseSpanType) {
-			if(false) {
-				runtime·printf("unsafe_NewArray [%D]%S: %p\n", (int64)n, *t->string, ret);
-			}
-			runtime·settype(ret, (uintptr)t | TypeInfo_Array);
-		}
-	}
-
+	ret = runtime·cnewarray(t, n);
 	FLUSH(&ret);
 }
 
