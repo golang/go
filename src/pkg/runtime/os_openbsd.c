@@ -257,6 +257,7 @@ runtime·setprof(bool on)
 	USED(on);
 }
 
+#pragma dataflag 16 // no pointers
 static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
@@ -267,6 +268,7 @@ runtime·badcallback(void)
 	runtime·write(2, badcallback, sizeof badcallback - 1);
 }
 
+#pragma dataflag 16 // no pointers
 static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
 
 // This runs on a foreign stack, without an m or a g.  No stack split.

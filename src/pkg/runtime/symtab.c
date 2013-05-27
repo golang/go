@@ -307,6 +307,15 @@ gostringn(byte *p, int32 l)
 	return s;
 }
 
+static struct
+{
+	String srcstring;
+	int32 aline;
+	int32 delta;
+} *files;
+
+enum { maxfiles = 200 };
+
 // walk symtab accumulating path names for use by pc/ln table.
 // don't need the full generality of the z entry history stack because
 // there are no includes in go (and only sensible includes in our c);
@@ -314,12 +323,8 @@ gostringn(byte *p, int32 l)
 static void
 dosrcline(Sym *sym)
 {
+	#pragma dataflag 16 // no pointers
 	static byte srcbuf[1000];
-	static struct {
-		String srcstring;
-		int32 aline;
-		int32 delta;
-	} files[200];
 	static int32 incstart;
 	static int32 nfunc, nfile, nhist;
 	Func *f;
@@ -347,7 +352,7 @@ dosrcline(Sym *sym)
 			l = makepath(srcbuf, sizeof srcbuf, sym->name+1);
 			nhist = 0;
 			nfile = 0;
-			if(nfile == nelem(files))
+			if(nfile == maxfiles)
 				return;
 			files[nfile].srcstring = gostringn(srcbuf, l);
 			files[nfile].aline = 0;
@@ -358,7 +363,7 @@ dosrcline(Sym *sym)
 			if(srcbuf[0] != '\0') {
 				if(nhist++ == 0)
 					incstart = sym->value;
-				if(nhist == 0 && nfile < nelem(files)) {
+				if(nhist == 0 && nfile < maxfiles) {
 					// new top-level file
 					files[nfile].srcstring = gostringn(srcbuf, l);
 					files[nfile].aline = sym->value;
@@ -567,10 +572,12 @@ buildfuncs(void)
 	splitpcln();
 
 	// record src file and line info for each func
+	files = runtime·malloc(maxfiles * sizeof(files[0]));
 	walksymtab(dosrcline);  // pass 1: determine hugestring_len
 	hugestring.str = runtime·mallocgc(hugestring_len, FlagNoPointers, 0, 0);
 	hugestring.len = 0;
 	walksymtab(dosrcline);  // pass 2: fill and use hugestring
+	files = nil;
 
 	if(hugestring.len != hugestring_len)
 		runtime·throw("buildfunc: problem in initialization procedure");
