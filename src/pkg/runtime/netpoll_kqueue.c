@@ -74,7 +74,7 @@ runtime·netpoll(bool block)
 	static int32 lasterr;
 	Kevent events[64], *ev;
 	Timespec ts, *tp;
-	int32 n, i;
+	int32 n, i, mode;
 	G *gp;
 
 	if(kq == -1)
@@ -97,10 +97,13 @@ retry:
 	}
 	for(i = 0; i < n; i++) {
 		ev = &events[i];
+		mode = 0;
 		if(ev->filter == EVFILT_READ)
-			runtime·netpollready(&gp, (PollDesc*)ev->udata, 'r');
+			mode += 'r';
 		if(ev->filter == EVFILT_WRITE)
-			runtime·netpollready(&gp, (PollDesc*)ev->udata, 'w');
+			mode += 'w';
+		if(mode)
+			runtime·netpollready(&gp, (PollDesc*)ev->udata, mode);
 	}
 	if(block && gp == nil)
 		goto retry;
