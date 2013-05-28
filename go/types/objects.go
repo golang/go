@@ -12,6 +12,8 @@ import (
 )
 
 // TODO(gri) provide a complete set of factory functions!
+// TODO(gri) clean up the Pos functions.
+// TODO(gri) clean up the internal links to decls/specs, etc.
 
 // An Object describes a named language entity such as a package,
 // constant, type, variable, function (incl. methods), or label.
@@ -202,42 +204,3 @@ func (obj *Func) Pos() token.Pos {
 	return token.NoPos
 }
 func (obj *Func) setOuter(s *Scope) { obj.outer = s }
-
-// newObj returns a new Object for a given *ast.Object.
-// It does not canonicalize them (it always returns a new one).
-// For canonicalization, see check.lookup.
-//
-// TODO(gri) Once we do identifier resolution completely in
-//           the typechecker, this functionality can go.
-//
-func newObj(pkg *Package, astObj *ast.Object) Object {
-	assert(pkg != nil)
-	name := astObj.Name
-	typ, _ := astObj.Type.(Type)
-	switch astObj.Kind {
-	case ast.Bad:
-		// ignore
-	case ast.Pkg:
-		unreachable()
-	case ast.Con:
-		iota := astObj.Data.(int)
-		return &Const{pkg: pkg, name: name, typ: typ, val: exact.MakeInt64(int64(iota)), spec: astObj.Decl.(*ast.ValueSpec)}
-	case ast.Typ:
-		return &TypeName{pkg: pkg, name: name, typ: typ, spec: astObj.Decl.(*ast.TypeSpec)}
-	case ast.Var:
-		switch astObj.Decl.(type) {
-		case *ast.Field: // function parameters
-		case *ast.ValueSpec: // proper variable declarations
-		case *ast.AssignStmt: // short variable declarations
-		default:
-			unreachable() // everything else is not ok
-		}
-		return &Var{pkg: pkg, name: name, typ: typ, decl: astObj.Decl}
-	case ast.Fun:
-		return &Func{pkg: pkg, name: name, typ: typ, decl: astObj.Decl.(*ast.FuncDecl)}
-	case ast.Lbl:
-		unreachable() // for now
-	}
-	unreachable()
-	return nil
-}

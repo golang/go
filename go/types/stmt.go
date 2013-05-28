@@ -95,19 +95,13 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	// set the object type to Typ[Invalid].
 	var obj Object
 	var typ Type
-
-	if resolve {
-		if isConst {
-			obj = &Const{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
-		} else {
-			obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
-		}
-		check.register(ident, obj)
-		defer check.declare(check.topScope, obj)
-
+	if isConst {
+		obj = &Const{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 	} else {
-		obj = check.lookup(ident)
+		obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 	}
+	check.register(ident, obj)
+	defer check.declare(check.topScope, obj)
 
 	switch obj := obj.(type) {
 	default:
@@ -176,6 +170,8 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	}
 }
 
+// TODO(gri) assignNtoM is only used in one place now. remove and consolidate with other assignment functions.
+
 // assignNtoM typechecks a general assignment. If decl is set, the lhs expressions
 // must be identifiers; if their types are not set, they are deduced from the types
 // of the corresponding rhs expressions, or set to Typ[Invalid] in case of an error.
@@ -243,17 +239,12 @@ Error:
 			}
 
 			var obj Object
-			if resolve {
-				if isConst {
-					obj = &Const{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
-				} else {
-					obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
-				}
-				defer check.declare(check.topScope, obj)
-
+			if isConst {
+				obj = &Const{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 			} else {
-				obj = check.lookup(ident)
+				obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 			}
+			defer check.declare(check.topScope, obj)
 
 			switch obj := obj.(type) {
 			case *Const:
@@ -318,20 +309,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// ignore
 
 	case *ast.DeclStmt:
-		if resolve {
-			check.declStmt(s.Decl)
-			return
-		}
-
-		d, _ := s.Decl.(*ast.GenDecl)
-		if d == nil || (d.Tok != token.CONST && d.Tok != token.TYPE && d.Tok != token.VAR) {
-			check.invalidAST(token.NoPos, "const, type, or var declaration expected")
-			return
-		}
-		if d.Tok == token.CONST {
-			check.assocInitvals(d)
-		}
-		check.decl(d)
+		check.declStmt(s.Decl)
 
 	case *ast.LabeledStmt:
 		// TODO(gri) Declare label in the respectice label scope; define Label object.
@@ -408,7 +386,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				check.invalidAST(s.Pos(), "missing lhs in assignment")
 				return
 			}
-			if resolve && s.Tok == token.DEFINE {
+			if s.Tok == token.DEFINE {
 				// short variable declaration
 				lhs := make([]Object, len(s.Lhs))
 				for i, x := range s.Lhs {
@@ -488,8 +466,8 @@ func (check *checker) stmt(s ast.Stmt) {
 	case *ast.ReturnStmt:
 		sig := check.funcsig
 		if n := sig.results.Len(); n > 0 {
-			if resolve {
-				// determine if the function has named results
+			// determine if the function has named results
+			{
 				named := false
 				lhs := make([]Object, len(sig.results.vars))
 				for i, res := range sig.results.vars {
@@ -504,6 +482,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					return
 				}
 			}
+
 			// TODO(gri) should not have to compute lhs, named every single time - clean this up
 			lhs := make([]ast.Expr, n)
 			named := false // if set, function has named results
@@ -635,19 +614,19 @@ func (check *checker) stmt(s ast.Stmt) {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
+
 			ident, _ := guard.Lhs[0].(*ast.Ident)
 			if ident == nil {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
-			if resolve {
-				// TODO(gri) in the future, create one of these for each block with the correct type!
-				lhs = &Var{pkg: check.pkg, name: ident.Name}
-				check.register(ident, lhs)
-			} else {
-				lhs = check.lookup(ident).(*Var)
-			}
+
+			// TODO(gri) in the future, create one of these for each block with the correct type!
+			lhs = &Var{pkg: check.pkg, name: ident.Name}
+			check.register(ident, lhs)
+
 			rhs = guard.Rhs[0]
+
 		default:
 			check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 			return
@@ -670,7 +649,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			return
 		}
 
-		if resolve && lhs != nil {
+		if lhs != nil {
 			check.declare(check.topScope, lhs)
 		}
 

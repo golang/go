@@ -16,11 +16,7 @@ import (
 const filename = "<src>"
 
 func makePkg(t *testing.T, src string) (*Package, error) {
-	mode := parser.AllErrors
-	if !resolve {
-		mode |= parser.DeclarationErrors
-	}
-	file, err := parser.ParseFile(fset, filename, src, mode)
+	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
 	if err != nil {
 		return nil, err
 	}
@@ -158,11 +154,7 @@ var testExprs = []testEntry{
 func TestExprs(t *testing.T) {
 	for _, test := range testExprs {
 		src := "package p; var _ = " + test.src + "; var (x, y int; s []string; f func(int, float32) int; i interface{}; t interface { foo() })"
-		mode := parser.AllErrors
-		if !resolve {
-			mode |= parser.DeclarationErrors
-		}
-		file, err := parser.ParseFile(fset, filename, src, mode)
+		file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue

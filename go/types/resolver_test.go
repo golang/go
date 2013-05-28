@@ -55,11 +55,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
 	fset := token.NewFileSet()
 	var files []*ast.File
 	for _, src := range sources {
-		mode := parser.AllErrors
-		if !resolve {
-			mode |= parser.DeclarationErrors
-		}
-		f, err := parser.ParseFile(fset, "", src, mode)
+		f, err := parser.ParseFile(fset, "", src, parser.DeclarationErrors)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,13 +79,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
 	}
 
 	// check that there are no top-level unresolved identifiers
-	if !resolve {
-		for _, f := range files {
-			for _, x := range f.Unresolved {
-				t.Errorf("%s: unresolved global identifier %s", fset.Position(x.Pos()), x.Name)
-			}
-		}
-	}
+	// TODO(gri) add appropriate test code here
 
 	// check that qualified identifiers are resolved
 	for _, f := range files {
@@ -113,32 +103,11 @@ func TestResolveQualifiedIdents(t *testing.T) {
 		})
 	}
 
-	// Currently, the Check API doesn't call Ident for fields, methods, and composite literal keys.
+	// Currently, the Check API doesn't call Ident for composite literal keys.
 	// Introduce them artifically so that we can run the check below.
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
-			switch x := n.(type) {
-			case *ast.StructType:
-				if resolve {
-					break // nothing to do
-				}
-				for _, list := range x.Fields.List {
-					for _, f := range list.Names {
-						assert(idents[f] == nil)
-						idents[f] = &Var{pkg: pkg, name: f.Name}
-					}
-				}
-			case *ast.InterfaceType:
-				if resolve {
-					break // nothing to do
-				}
-				for _, list := range x.Methods.List {
-					for _, f := range list.Names {
-						assert(idents[f] == nil)
-						idents[f] = &Func{pkg: pkg, name: f.Name}
-					}
-				}
-			case *ast.CompositeLit:
+			if x, ok := n.(*ast.CompositeLit); ok {
 				for _, e := range x.Elts {
 					if kv, ok := e.(*ast.KeyValueExpr); ok {
 						if k, ok := kv.Key.(*ast.Ident); ok {

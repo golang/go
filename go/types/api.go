@@ -24,12 +24,9 @@ package types
 // BUG(gri): Switch statements don't check correct use of 'fallthrough'.
 // BUG(gri): Switch statements don't check duplicate cases for all types for which it is required.
 // BUG(gri): Some built-ins may not be callable if in statement-context.
-// BUG(gri): Duplicate declarations in different files may not be reported.
-// BUG(gri): The type-checker assumes that the input *ast.Files were created by go/parser.
 
 // The API is still slightly in flux and the following changes are considered:
 //
-// API(gri): Provide position information for all objects.
 // API(gri): The GcImporter should probably be in its own package - it is only one of possible importers.
 
 import (

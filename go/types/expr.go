@@ -93,15 +93,10 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
-				var par *Var
-				if resolve {
-					par = &Var{pos: name.Pos(), pkg: check.pkg, name: name.Name, typ: typ, decl: field}
-					check.declare(scope, par)
-					check.register(name, par)
-				} else {
-					par = check.lookup(name).(*Var)
-					par.typ = typ
-				}
+				par := &Var{pos: name.Pos(), pkg: check.pkg, name: name.Name, typ: typ, decl: field}
+				check.declare(scope, par)
+				check.register(name, par)
+
 				last = par
 				copy := *par
 				params = append(params, &copy)
@@ -143,17 +138,14 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) (methods
 				// TODO(gri) with unified scopes (Scope, ObjSet) this can become
 				//           just a normal declaration
 				obj := &Func{name.Pos(), check.pkg, nil, name.Name, sig, nil}
-				if alt := methods.Insert(obj); alt != nil && resolve {
-					// if !resolve, the parser complains
+				if alt := methods.Insert(obj); alt != nil {
 					prevDecl := ""
 					if pos := alt.Pos(); pos.IsValid() {
 						prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
 					}
 					check.errorf(obj.Pos(), "%s redeclared in this block%s", obj.Name(), prevDecl)
 				}
-				if resolve {
-					check.register(name, obj)
-				}
+				check.register(name, obj)
 			}
 		} else {
 			// embedded interface
@@ -200,13 +192,13 @@ func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk b
 		if tags != nil {
 			tags = append(tags, tag)
 		}
-		if resolve {
-			fld := &Var{pos: pos, pkg: check.pkg, name: name, typ: typ, decl: field}
-			check.declare(scope, fld)
-			if resolve && ident != nil {
-				check.register(ident, fld)
-			}
+
+		fld := &Var{pos: pos, pkg: check.pkg, name: name, typ: typ, decl: field}
+		check.declare(scope, fld)
+		if ident != nil {
+			check.register(ident, fld)
 		}
+
 		fields = append(fields, &Field{check.pkg, name, typ, isAnonymous})
 	}
 
@@ -893,23 +885,6 @@ func (check *checker) index(arg ast.Expr, length int64, iota int) (i int64, ok b
 	return -1, true
 }
 
-// compositeLitKey resolves unresolved composite literal keys.
-// For details, see comment in go/parser/parser.go, method parseElement.
-func (check *checker) compositeLitKey(key ast.Expr) {
-	if resolve {
-		return
-	}
-	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
-		if obj := check.pkg.scope.Lookup(ident.Name); obj != nil {
-			check.register(ident, obj)
-		} else if obj := Universe.Lookup(ident.Name); obj != nil {
-			check.register(ident, obj)
-		} else {
-			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
-		}
-	}
-}
-
 // indexElts checks the elements (elts) of an array or slice composite literal
 // against the literal's element type (typ), and the element indices against
 // the literal length if known (length >= 0). It returns the length of the
@@ -923,7 +898,6 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 		validIndex := false
 		eval := e
 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-			check.compositeLitKey(kv.Key)
 			if i, ok := check.index(kv.Key, length, iota); ok {
 				if i >= 0 {
 					index = i
@@ -1072,37 +1046,29 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		if !resolve && e.Name == "_" {
-			check.invalidOp(e.Pos(), "cannot use _ as value or type")
-			goto Error
-		}
 		obj := check.lookup(e)
 		if obj == nil {
-			if resolve {
-				if e.Name == "_" {
-					check.invalidOp(e.Pos(), "cannot use _ as value or type")
-				} else {
-					// TODO(gri) anonymous function result parameters are
-					//           not declared - this causes trouble when
-					//           type-checking return statements
-					check.errorf(e.Pos(), "undeclared name: %s", e.Name)
-				}
+			if e.Name == "_" {
+				check.invalidOp(e.Pos(), "cannot use _ as value or type")
+			} else {
+				// TODO(gri) anonymous function result parameters are
+				//           not declared - this causes trouble when
+				//           type-checking return statements
+				check.errorf(e.Pos(), "undeclared name: %s", e.Name)
 			}
 			goto Error // error was reported before
 		}
-		if resolve {
-			typ := obj.Type()
-			if check.objMap == nil {
-				if typ == nil {
-					check.dump("%s: %s not declared?", e.Pos(), e)
-				}
-				assert(typ != nil)
-			} else if typ == nil {
-				check.declareObject(obj, cycleOk)
+
+		typ := obj.Type()
+		if check.objMap == nil {
+			if typ == nil {
+				check.dump("%s: %s not declared?", e.Pos(), e)
 			}
-		} else {
-			check.object(obj, cycleOk)
+			assert(typ != nil)
+		} else if typ == nil {
+			check.declareObject(obj, cycleOk)
 		}
+
 		switch obj := obj.(type) {
 		case *Package:
 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
@@ -1271,7 +1237,6 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					check.errorf(e.Pos(), "missing key in map literal")
 					continue
 				}
-				check.compositeLitKey(kv.Key)
 				check.expr(x, kv.Key, nil, iota)
 				if !check.assignment(x, utyp.key) {
 					if x.mode != invalid {

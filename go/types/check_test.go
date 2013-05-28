@@ -83,11 +83,7 @@ func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File,
 	var files []*ast.File
 	var errlist []error
 	for _, filename := range filenames {
-		mode := parser.AllErrors
-		if !resolve {
-			mode |= parser.DeclarationErrors
-		}
-		file, err := parser.ParseFile(fset, filename, nil, mode)
+		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
 		if file == nil {
 			t.Fatalf("%s: could not parse file %s", testname, filename)
 		}
@@ -239,10 +235,6 @@ func TestCheck(t *testing.T) {
 		fmt.Printf("WARNING: Testing only %s (remove it to run all tests)\n", testfile)
 		checkFiles(t, testfile, []string{testfile})
 		return
-	}
-
-	if resolve {
-		fmt.Println("*** Running new code: Identifiers are resolved by type checker. ***")
 	}
 
 	// Otherwise, run all the tests.
