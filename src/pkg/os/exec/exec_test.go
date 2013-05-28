@@ -540,13 +540,11 @@ func TestHelperProcess(*testing.T) {
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
 	case "describefiles":
-		for fd := uintptr(3); fd < 25; fd++ {
-			f := os.NewFile(fd, fmt.Sprintf("fd-%d", fd))
-			ln, err := net.FileListener(f)
-			if err == nil {
-				fmt.Printf("fd%d: listener %s\n", fd, ln.Addr())
-				ln.Close()
-			}
+		f := os.NewFile(3, fmt.Sprintf("fd3"))
+		ln, err := net.FileListener(f)
+		if err == nil {
+			fmt.Printf("fd3: listener %s\n", ln.Addr())
+			ln.Close()
 		}
 		os.Exit(0)
 	case "extraFilesAndPipes":
