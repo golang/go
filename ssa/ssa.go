@@ -41,8 +41,8 @@ type Package struct {
 
 	// These fields are available between package creation and SSA
 	// building, but are then cleared unless Context.RetainAST(pkg).
-	Files    []*ast.File // abstract syntax for the package's files
-	TypeInfo             // type-checker intermediate results
+	Files     []*ast.File // abstract syntax for the package's files
+	*TypeInfo             // type-checker intermediate results
 
 	// The following fields are set transiently during building,
 	// then cleared.

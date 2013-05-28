@@ -181,8 +181,8 @@ func MakeId(name string, pkg *types.Package) (id Id) {
 	if !ast.IsExported(name) {
 		id.Pkg = pkg
 		// TODO(gri): fix
-		// if pkg.Path == "" {
-		// 	panic("Package " + pkg.Name + "has empty Path")
+		// if pkg.Path() == "" {
+		// 	panic("Package " + pkg.Name() + "has empty Path")
 		// }
 	}
 	return

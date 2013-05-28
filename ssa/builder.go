@@ -1103,7 +1103,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// Then append the other actual parameters.
 	sig, _ := fn.Pkg.TypeOf(e.Fun).Underlying().(*types.Signature)
 	if sig == nil {
-		sig = builtinCallSignature(&fn.Pkg.TypeInfo, e)
+		sig = builtinCallSignature(fn.Pkg.TypeInfo, e)
 	}
 	c.Args = b.emitCallArgs(fn, sig, e, c.Args)
 }
@@ -2540,7 +2540,7 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 	}
 
 	if files != nil {
-		p.TypeInfo = *info
+		p.TypeInfo = info
 	}
 
 	b.packages[typkg] = p
@@ -2758,7 +2758,7 @@ func (b *Builder) BuildPackage(p *Package) {
 	// Clear out the typed ASTs unless otherwise requested.
 	if retain := b.Context.RetainAST; retain == nil || !retain(p) {
 		p.Files = nil
-		p.TypeInfo = TypeInfo{} // clear
+		p.TypeInfo = nil
 	}
 	p.nTo1Vars = nil
 
