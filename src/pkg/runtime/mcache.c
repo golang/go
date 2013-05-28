@@ -10,35 +10,18 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 
-void*
-runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
+void
+runtime·MCache_Refill(MCache *c, int32 sizeclass)
 {
 	MCacheList *l;
-	MLink *v;
 
-	// Allocate from list.
+	// Replenish using central lists.
 	l = &c->list[sizeclass];
-	if(l->list == nil) {
-		// Replenish using central lists.
-		l->nlist = runtime·MCentral_AllocList(&runtime·mheap->central[sizeclass], &l->list);
-		if(l->list == nil)
-			runtime·throw("out of memory");
-	}
-	v = l->list;
-	l->list = v->next;
-	l->nlist--;
-
-	// v is zeroed except for the link pointer
-	// that we used above; zero that.
-	v->next = nil;
-	if(zeroed) {
-		// block is zeroed iff second word is zero ...
-		if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
-			runtime·memclr((byte*)v, size);
-	}
-	c->local_cachealloc += size;
-	c->local_objects++;
-	return v;
+	if(l->list)
+		runtime·throw("MCache_Refill: the list is not empty");
+	l->nlist = runtime·MCentral_AllocList(&runtime·mheap->central[sizeclass], &l->list);
+	if(l->list == nil)
+		runtime·throw("out of memory");
 }
 
 // Take n elements off l and return them to the central free list.

@@ -31,9 +31,10 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 	int32 sizeclass;
 	intgo rate;
 	MCache *c;
+	MCacheList *l;
 	uintptr npages;
 	MSpan *s;
-	void *v;
+	MLink *v;
 
 	if(runtime·gcwaiting && g != m->g0 && m->locks == 0 && dogc)
 		runtime·gosched();
@@ -56,9 +57,20 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		else
 			sizeclass = runtime·size_to_class128[(size-1024+127) >> 7];
 		size = runtime·class_to_size[sizeclass];
-		v = runtime·MCache_Alloc(c, sizeclass, size, zeroed);
-		if(v == nil)
-			runtime·throw("out of memory");
+		l = &c->list[sizeclass];
+		if(l->list == nil)
+			runtime·MCache_Refill(c, sizeclass);
+		v = l->list;
+		l->list = v->next;
+		l->nlist--;
+		if(zeroed) {
+			v->next = nil;
+			// block is zeroed iff second word is zero ...
+			if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
+				runtime·memclr((byte*)v, size);
+		}
+		c->local_cachealloc += size;
+		c->local_objects++;
 		c->local_alloc += size;
 		c->local_total_alloc += size;
 		c->local_by_size[sizeclass].nmalloc++;

@@ -305,7 +305,7 @@ struct MCache
 
 };
 
-void*	runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
+void	runtime·MCache_Refill(MCache *c, int32 sizeclass);
 void	runtime·MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
 void	runtime·MCache_ReleaseAll(MCache *c);
 
