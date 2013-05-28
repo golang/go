@@ -496,53 +496,6 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	return p;
 }
 
-static struct
-{
-	Lock;
-	byte*	pos;
-	byte*	end;
-} persistent;
-
-enum
-{
-	PersistentAllocChunk	= 256<<10,
-	PersistentAllocMaxBlock	= 64<<10,  // VM reservation granularity is 64K on windows
-};
-
-// Wrapper around SysAlloc that can allocate small chunks.
-// There is no associated free operation.
-// Intended for things like function/type/debug-related persistent data.
-// If align is 0, uses default align (currently 8).
-void*
-runtime·persistentalloc(uintptr size, uintptr align)
-{
-	byte *p;
-
-	if(align) {
-		if(align&(align-1))
-			runtime·throw("persistentalloc: align is now a power of 2");
-		if(align > PageSize)
-			runtime·throw("persistentalloc: align is too large");
-	} else
-		align = 8;
-	if(size >= PersistentAllocMaxBlock)
-		return runtime·SysAlloc(size);
-	runtime·lock(&persistent);
-	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
-	if(persistent.pos + size > persistent.end) {
-		persistent.pos = runtime·SysAlloc(PersistentAllocChunk);
-		if(persistent.pos == nil) {
-			runtime·unlock(&persistent);
-			runtime·throw("runtime: cannot allocate memory");
-		}
-		persistent.end = persistent.pos + PersistentAllocChunk;
-	}
-	p = persistent.pos;
-	persistent.pos += size;
-	runtime·unlock(&persistent);
-	return p; 
-}
-
 static Lock settype_lock;
 
 void
