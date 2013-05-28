@@ -51,14 +51,17 @@ func TestVet(t *testing.T) {
 		"-printfuncs=Warn:1,Warnf:1",
 	}
 	cmd = exec.Command(errchk, append(flags, files...)...)
-	run(cmd, t)
+	if !run(cmd, t) {
+		t.Fatal("vet command failed")
+	}
 }
 
-func run(c *exec.Cmd, t *testing.T) {
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	err := c.Run()
+func run(c *exec.Cmd, t *testing.T) bool {
+	output, err := c.CombinedOutput()
+	os.Stderr.Write(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Errchk delights by not returning non-zero status if it finds errors, so we look at the output.
+	return c.ProcessState.Success() && len(output) == 0
 }
