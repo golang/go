@@ -351,7 +351,7 @@ onstack(uintptr argp)
 	// the layout is in ../../cmd/ld/data.c
 	if((byte*)argp >= noptrdata && (byte*)argp < enoptrbss)
 		return false;
-	if((byte*)argp >= runtime·mheap->arena_start && (byte*)argp < runtime·mheap->arena_used)
+	if((byte*)argp >= runtime·mheap.arena_start && (byte*)argp < runtime·mheap.arena_used)
 		return false;
 	return true;
 }

@@ -384,7 +384,7 @@ nomatch:
 void
 runtime·startpanic(void)
 {
-	if(runtime·mheap == 0 || runtime·mheap->cachealloc.size == 0) { // very early
+	if(runtime·mheap.cachealloc.size == 0) { // very early
 		runtime·printf("runtime: panic before malloc heap initialized\n");
 		m->mallocing = 1; // tell rest of panic not to try to malloc
 	} else if(m->mcache == nil) // can happen if called from signal handler or throw

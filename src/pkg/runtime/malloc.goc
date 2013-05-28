@@ -14,7 +14,7 @@ package runtime
 #include "typekind.h"
 #include "race.h"
 
-MHeap *runtime·mheap;
+MHeap runtime·mheap;
 
 int32	runtime·checking;
 
@@ -81,7 +81,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		npages = size >> PageShift;
 		if((size & PageMask) != 0)
 			npages++;
-		s = runtime·MHeap_Alloc(runtime·mheap, npages, 0, 1, zeroed);
+		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, zeroed);
 		if(s == nil)
 			runtime·throw("out of memory");
 		size = npages<<PageShift;
@@ -95,9 +95,9 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 
 	if (sizeof(void*) == 4 && c->local_total_alloc >= (1<<30)) {
 		// purge cache stats to prevent overflow
-		runtime·lock(runtime·mheap);
+		runtime·lock(&runtime·mheap);
 		runtime·purgecachedstats(c);
-		runtime·unlock(runtime·mheap);
+		runtime·unlock(&runtime·mheap);
 	}
 
 	if(!(flag & FlagNoGC))
@@ -181,7 +181,7 @@ runtime·free(void *v)
 		// they might coalesce v into other spans and change the bitmap further.
 		runtime·markfreed(v, size);
 		runtime·unmarkspan(v, 1<<PageShift);
-		runtime·MHeap_Free(runtime·mheap, s, 1);
+		runtime·MHeap_Free(&runtime·mheap, s, 1);
 	} else {
 		// Small object.
 		size = runtime·class_to_size[sizeclass];
@@ -211,12 +211,12 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	m->mcache->local_nlookup++;
 	if (sizeof(void*) == 4 && m->mcache->local_nlookup >= (1<<30)) {
 		// purge cache stats to prevent overflow
-		runtime·lock(runtime·mheap);
+		runtime·lock(&runtime·mheap);
 		runtime·purgecachedstats(m->mcache);
-		runtime·unlock(runtime·mheap);
+		runtime·unlock(&runtime·mheap);
 	}
 
-	s = runtime·MHeap_LookupMaybe(runtime·mheap, v);
+	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
 	if(sp)
 		*sp = s;
 	if(s == nil) {
@@ -260,11 +260,11 @@ runtime·allocmcache(void)
 	intgo rate;
 	MCache *c;
 
-	runtime·lock(runtime·mheap);
-	c = runtime·FixAlloc_Alloc(&runtime·mheap->cachealloc);
-	mstats.mcache_inuse = runtime·mheap->cachealloc.inuse;
-	mstats.mcache_sys = runtime·mheap->cachealloc.sys;
-	runtime·unlock(runtime·mheap);
+	runtime·lock(&runtime·mheap);
+	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
+	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
+	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
+	runtime·unlock(&runtime·mheap);
 	runtime·memclr((byte*)c, sizeof(*c));
 
 	// Set first allocation sample size.
@@ -281,10 +281,10 @@ void
 runtime·freemcache(MCache *c)
 {
 	runtime·MCache_ReleaseAll(c);
-	runtime·lock(runtime·mheap);
+	runtime·lock(&runtime·mheap);
 	runtime·purgecachedstats(c);
-	runtime·FixAlloc_Free(&runtime·mheap->cachealloc, c);
-	runtime·unlock(runtime·mheap);
+	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+	runtime·unlock(&runtime·mheap);
 }
 
 void
@@ -339,9 +339,6 @@ runtime·mallocinit(void)
 	USED(bitmap_size);
 	USED(spans_size);
 
-	if((runtime·mheap = runtime·SysAlloc(sizeof(*runtime·mheap))) == nil)
-		runtime·throw("runtime: cannot allocate heap metadata");
-
 	runtime·InitSizes();
 
 	// limit = runtime·memlimit();
@@ -377,7 +374,7 @@ runtime·mallocinit(void)
 		// If this fails we fall back to the 32 bit memory mechanism
 		arena_size = MaxMem;
 		bitmap_size = arena_size / (sizeof(void*)*8/4);
-		spans_size = arena_size / PageSize * sizeof(runtime·mheap->map[0]);
+		spans_size = arena_size / PageSize * sizeof(runtime·mheap.map[0]);
 		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + spans_size + arena_size);
 	}
 	if (p == nil) {
@@ -400,11 +397,11 @@ runtime·mallocinit(void)
 		// of address space, which is probably too much in a 32-bit world.
 		bitmap_size = MaxArena32 / (sizeof(void*)*8/4);
 		arena_size = 512<<20;
-		spans_size = MaxArena32 / PageSize * sizeof(runtime·mheap->map[0]);
+		spans_size = MaxArena32 / PageSize * sizeof(runtime·mheap.map[0]);
 		if(limit > 0 && arena_size+bitmap_size+spans_size > limit) {
 			bitmap_size = (limit / 9) & ~((1<<PageShift) - 1);
 			arena_size = bitmap_size * 8;
-			spans_size = arena_size / PageSize * sizeof(runtime·mheap->map[0]);
+			spans_size = arena_size / PageSize * sizeof(runtime·mheap.map[0]);
 		}
 
 		// SysReserve treats the address we ask for, end, as a hint,
@@ -427,14 +424,14 @@ runtime·mallocinit(void)
 	if((uintptr)p & (((uintptr)1<<PageShift)-1))
 		runtime·throw("runtime: SysReserve returned unaligned address");
 
-	runtime·mheap->map = (MSpan**)p;
-	runtime·mheap->bitmap = p + spans_size;
-	runtime·mheap->arena_start = p + spans_size + bitmap_size;
-	runtime·mheap->arena_used = runtime·mheap->arena_start;
-	runtime·mheap->arena_end = runtime·mheap->arena_start + arena_size;
+	runtime·mheap.map = (MSpan**)p;
+	runtime·mheap.bitmap = p + spans_size;
+	runtime·mheap.arena_start = p + spans_size + bitmap_size;
+	runtime·mheap.arena_used = runtime·mheap.arena_start;
+	runtime·mheap.arena_end = runtime·mheap.arena_start + arena_size;
 
 	// Initialize the rest of the allocator.	
-	runtime·MHeap_Init(runtime·mheap, runtime·SysAlloc);
+	runtime·MHeap_Init(&runtime·mheap, runtime·SysAlloc);
 	m->mcache = runtime·allocmcache();
 
 	// See if it works.
@@ -534,8 +531,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
 		// (Manually inlined copy of runtime·MHeap_Lookup)
 		p = (uintptr)v>>PageShift;
 		if(sizeof(void*) == 8)
-			p -= (uintptr)runtime·mheap->arena_start >> PageShift;
-		s = runtime·mheap->map[p];
+			p -= (uintptr)runtime·mheap.arena_start >> PageShift;
+		s = runtime·mheap.map[p];
 
 		if(s->sizeclass == 0) {
 			s->types.compression = MTypes_Single;
@@ -652,7 +649,7 @@ runtime·settype(void *v, uintptr t)
 	}
 
 	if(DebugTypeAtBlockEnd) {
-		s = runtime·MHeap_Lookup(runtime·mheap, v);
+		s = runtime·MHeap_Lookup(&runtime·mheap, v);
 		*(uintptr*)((uintptr)v+s->elemsize-sizeof(uintptr)) = t;
 	}
 }
@@ -691,7 +688,7 @@ runtime·gettype(void *v)
 	uintptr t, ofs;
 	byte *data;
 
-	s = runtime·MHeap_LookupMaybe(runtime·mheap, v);
+	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
 	if(s != nil) {
 		t = 0;
 		switch(s->types.compression) {

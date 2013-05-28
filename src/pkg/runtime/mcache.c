@@ -19,7 +19,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
 	l = &c->list[sizeclass];
 	if(l->list)
 		runtime·throw("MCache_Refill: the list is not empty");
-	l->nlist = runtime·MCentral_AllocList(&runtime·mheap->central[sizeclass], &l->list);
+	l->nlist = runtime·MCentral_AllocList(&runtime·mheap.central[sizeclass], &l->list);
 	if(l->list == nil)
 		runtime·throw("out of memory");
 }
@@ -41,7 +41,7 @@ ReleaseN(MCacheList *l, int32 n, int32 sizeclass)
 	l->nlist -= n;
 
 	// Return them to central free list.
-	runtime·MCentral_FreeList(&runtime·mheap->central[sizeclass], first);
+	runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], first);
 }
 
 void
@@ -74,7 +74,7 @@ runtime·MCache_ReleaseAll(MCache *c)
 	for(i=0; i<NumSizeClasses; i++) {
 		l = &c->list[i];
 		if(l->list) {
-			runtime·MCentral_FreeList(&runtime·mheap->central[i], l->list);
+			runtime·MCentral_FreeList(&runtime·mheap.central[i], l->list);
 			l->list = nil;
 			l->nlist = 0;
 		}
