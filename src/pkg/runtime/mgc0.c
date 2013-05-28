@@ -2403,7 +2403,7 @@ runtime·MHeap_MapBits(MHeap *h)
 	uintptr n;
 
 	n = (h->arena_used - h->arena_start) / wordsPerBitmapWord;
-	n = (n+bitmapChunk-1) & ~(bitmapChunk-1);
+	n = ROUND(n, bitmapChunk);
 	if(h->bitmap_mapped >= n)
 		return;
 

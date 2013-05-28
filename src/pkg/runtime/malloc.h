@@ -411,7 +411,8 @@ struct MHeap
 	uint32	nspancap;
 
 	// span lookup
-	MSpan *map[1<<MHeapMap_Bits];
+	MSpan**	map;
+	uintptr	spans_mapped;
 
 	// range of addresses we might see in the heap
 	byte *bitmap;
@@ -442,6 +443,7 @@ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
 void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
 void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 void	runtime·MHeap_MapBits(MHeap *h);
+void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
 
 void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
