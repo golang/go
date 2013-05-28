@@ -445,6 +445,7 @@ void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
 
 void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
+void*	runtime·persistentalloc(uintptr size, uintptr align);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
 void	runtime·markallocated(void *v, uintptr n, bool noptr);
