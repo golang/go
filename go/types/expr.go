@@ -7,6 +7,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -70,7 +71,7 @@ on the way down in updateExprType, or at the end of the type checker run,
 if present the Context.Expr method is invoked to notify a go/types client.
 */
 
-func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
+func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
 	if list == nil {
 		return
 	}
@@ -92,15 +93,22 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
-				par := check.lookup(name).(*Var)
-				par.typ = typ
+				var par *Var
+				if resolve {
+					par = &Var{pos: name.Pos(), pkg: check.pkg, name: name.Name, typ: typ, decl: field}
+					check.declare(scope, par)
+					check.register(name, par)
+				} else {
+					par = check.lookup(name).(*Var)
+					par.typ = typ
+				}
 				last = par
 				copy := *par
 				params = append(params, &copy)
 			}
 		} else {
 			// anonymous parameter
-			par := &Var{typ: typ}
+			par := &Var{pkg: check.pkg, typ: typ, decl: field}
 			last = nil // not accessible inside function
 			params = append(params, par)
 		}
@@ -114,7 +122,7 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 	return
 }
 
-func (check *checker) collectMethods(list *ast.FieldList) (methods ObjSet) {
+func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) (methods ObjSet) {
 	if list == nil {
 		return
 	}
@@ -131,10 +139,20 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods ObjSet) {
 				continue
 			}
 			for _, name := range f.Names {
-				// TODO(gri) provide correct declaration info
-				obj := &Func{check.pkg, name.Name, sig, nil}
-				if alt := methods.Insert(obj); alt != nil {
-					check.errorf(list.Pos(), "multiple methods named %s", name.Name)
+				// TODO(gri) provide correct declaration info and scope
+				// TODO(gri) with unified scopes (Scope, ObjSet) this can become
+				//           just a normal declaration
+				obj := &Func{name.Pos(), check.pkg, nil, name.Name, sig, nil}
+				if alt := methods.Insert(obj); alt != nil && resolve {
+					// if !resolve, the parser complains
+					prevDecl := ""
+					if pos := alt.Pos(); pos.IsValid() {
+						prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
+					}
+					check.errorf(obj.Pos(), "%s redeclared in this block%s", obj.Name(), prevDecl)
+				}
+				if resolve {
+					check.register(name, obj)
 				}
 			}
 		} else {
@@ -167,20 +185,27 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
+func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
 	if list == nil {
 		return
 	}
 
 	var typ Type   // current field typ
 	var tag string // current field tag
-	add := func(name string, isAnonymous bool) {
+	add := func(field *ast.Field, ident *ast.Ident, name string, isAnonymous bool, pos token.Pos) {
 		// TODO(gri): rethink this - at the moment we allocate only a prefix
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
 		if tags != nil {
 			tags = append(tags, tag)
+		}
+		if resolve {
+			fld := &Var{pos: pos, pkg: check.pkg, name: name, typ: typ, decl: field}
+			check.declare(scope, fld)
+			if resolve && ident != nil {
+				check.register(ident, fld)
+			}
 		}
 		fields = append(fields, &Field{check.pkg, name, typ, isAnonymous})
 	}
@@ -191,18 +216,19 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				add(name.Name, false)
+				add(f, name, name.Name, false, name.Pos())
 			}
 		} else {
 			// anonymous field
+			pos := f.Type.Pos()
 			switch t := typ.Deref().(type) {
 			case *Basic:
-				add(t.name, true)
+				add(f, nil, t.name, true, pos)
 			case *Named:
-				add(t.obj.name, true)
+				add(f, nil, t.obj.name, true, pos)
 			default:
 				if typ != Typ[Invalid] {
-					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
+					check.invalidAST(pos, "anonymous field type %s must be named", typ)
 				}
 			}
 		}
@@ -870,6 +896,9 @@ func (check *checker) index(arg ast.Expr, length int64, iota int) (i int64, ok b
 // compositeLitKey resolves unresolved composite literal keys.
 // For details, see comment in go/parser/parser.go, method parseElement.
 func (check *checker) compositeLitKey(key ast.Expr) {
+	if resolve {
+		return
+	}
 	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
 		if obj := check.pkg.scope.Lookup(ident.Name); obj != nil {
 			check.register(ident, obj)
@@ -1043,15 +1072,37 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		if e.Name == "_" {
+		if !resolve && e.Name == "_" {
 			check.invalidOp(e.Pos(), "cannot use _ as value or type")
 			goto Error
 		}
 		obj := check.lookup(e)
 		if obj == nil {
+			if resolve {
+				if e.Name == "_" {
+					check.invalidOp(e.Pos(), "cannot use _ as value or type")
+				} else {
+					// TODO(gri) anonymous function result parameters are
+					//           not declared - this causes trouble when
+					//           type-checking return statements
+					check.errorf(e.Pos(), "undeclared name: %s", e.Name)
+				}
+			}
 			goto Error // error was reported before
 		}
-		check.object(obj, cycleOk)
+		if resolve {
+			typ := obj.Type()
+			if check.objMap == nil {
+				if typ == nil {
+					check.dump("%s: %s not declared?", e.Pos(), e)
+				}
+				assert(typ != nil)
+			} else if typ == nil {
+				check.declareObject(obj, cycleOk)
+			}
+		} else {
+			check.object(obj, cycleOk)
+		}
 		switch obj := obj.(type) {
 		case *Package:
 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
@@ -1073,7 +1124,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case *TypeName:
 			x.mode = typexpr
 			if !cycleOk && obj.typ.Underlying() == nil {
-				check.errorf(obj.spec.Pos(), "illegal cycle in declaration of %s", obj.Name)
+				check.errorf(obj.spec.Pos(), "illegal cycle in declaration of %s", obj.name)
 				x.expr = e
 				x.typ = Typ[Invalid]
 				return // don't goto Error - need x.mode == typexpr
@@ -1675,19 +1726,22 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.mode = typexpr
 
 	case *ast.StructType:
+		scope := &Scope{Outer: check.topScope}
+		fields, tags := check.collectFields(scope, e.Fields, cycleOk)
 		x.mode = typexpr
-		fields, tags := check.collectFields(e.Fields, cycleOk)
-		x.typ = &Struct{fields: fields, tags: tags}
+		x.typ = &Struct{scope: scope, fields: fields, tags: tags}
 
 	case *ast.FuncType:
-		params, isVariadic := check.collectParams(e.Params, true)
-		results, _ := check.collectParams(e.Results, false)
+		scope := &Scope{Outer: check.topScope}
+		params, isVariadic := check.collectParams(scope, e.Params, true)
+		results, _ := check.collectParams(scope, e.Results, false)
 		x.mode = typexpr
-		x.typ = &Signature{recv: nil, params: NewTuple(params...), results: NewTuple(results...), isVariadic: isVariadic}
+		x.typ = &Signature{scope: scope, recv: nil, params: NewTuple(params...), results: NewTuple(results...), isVariadic: isVariadic}
 
 	case *ast.InterfaceType:
+		scope := &Scope{Outer: check.topScope}
 		x.mode = typexpr
-		x.typ = &Interface{methods: check.collectMethods(e.Methods)}
+		x.typ = &Interface{methods: check.collectMethods(scope, e.Methods)}
 
 	case *ast.MapType:
 		x.mode = typexpr

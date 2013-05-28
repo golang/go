@@ -1,0 +1,661 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package types
+
+import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"strconv"
+
+	"code.google.com/p/go.tools/go/exact"
+)
+
+func (check *checker) declare(scope *Scope, obj Object) {
+	if obj.Name() == "_" {
+		obj.setOuter(scope)
+		return // blank identifiers are not visible
+	}
+	if alt := scope.Insert(obj); alt != nil {
+		prevDecl := ""
+		if pos := alt.Pos(); pos.IsValid() {
+			prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
+		}
+		check.errorf(obj.Pos(), "%s redeclared in this block%s", obj.Name(), prevDecl)
+		// TODO(gri) Instead, change this into two separate error messages (easier to handle by tools)
+	}
+}
+
+func (check *checker) declareShort(scope *Scope, list []Object) {
+	n := 0 // number of new objects
+	for _, obj := range list {
+		if obj.Name() == "_" {
+			obj.setOuter(scope)
+			continue // blank identifiers are not visible
+		}
+		if scope.Insert(obj) == nil {
+			n++ // new declaration
+		}
+	}
+	if n == 0 {
+		check.errorf(list[0].Pos(), "no new variables on left side of :=")
+	}
+}
+
+// A decl describes a package-level const, type, var, or func declaration.
+type decl struct {
+	file *Scope   // scope of file containing this declaration
+	typ  ast.Expr // type, or nil
+	init ast.Expr // initialization expression, or nil
+}
+
+// An mdecl describes a method declaration.
+type mdecl struct {
+	file *Scope // scope of file containing this declaration
+	meth *ast.FuncDecl
+}
+
+// A projExpr projects the index'th value of a multi-valued expression.
+// projExpr implements ast.Expr.
+type projExpr struct {
+	lhs      []*Var // all variables on the lhs
+	ast.Expr        // rhs
+}
+
+func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
+	pkg := check.pkg
+
+	// Phase 1: Pre-declare all package scope objects so that they can be found
+	//          when type-checking package objects.
+
+	var scopes []*Scope // corresponding file scope per file
+	var objList []Object
+	var objMap = make(map[Object]*decl)
+	var methods []*mdecl
+	var fileScope *Scope // current file scope, used by add
+
+	add := func(obj Object, typ, init ast.Expr) {
+		objList = append(objList, obj)
+		objMap[obj] = &decl{fileScope, typ, init}
+		// TODO(gri) move check.declare call here
+	}
+
+	for _, file := range files {
+		// the package identifier denotes the current package, but it is in no scope
+		check.register(file.Name, pkg)
+
+		fileScope = &Scope{Outer: pkg.scope}
+		scopes = append(scopes, fileScope)
+
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.BadDecl:
+				// ignore
+
+			case *ast.GenDecl:
+				var last *ast.ValueSpec // last list of const initializers seen
+				for iota, spec := range d.Specs {
+					switch s := spec.(type) {
+					case *ast.ImportSpec:
+						if importer == nil {
+							//importErrors = true
+							continue
+						}
+						path, _ := strconv.Unquote(s.Path.Value)
+						imp, err := importer(pkg.imports, path)
+						if err != nil {
+							check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
+							//importErrors = true
+							continue
+						}
+						// TODO(gri) If a local package name != "." is provided,
+						// we could proceed even if the import failed. Consider
+						// adjusting the logic here a bit.
+
+						// local name overrides imported package name
+						name := imp.name
+						if s.Name != nil {
+							name = s.Name.Name
+						}
+
+						// add import to file scope
+						if name == "." {
+							// merge imported scope with file scope
+							for _, obj := range imp.scope.Entries {
+								// gcimported package scopes contain non-exported
+								// objects such as types used in partially exported
+								// objects - do not accept them
+								if ast.IsExported(obj.Name()) {
+									// Note: This will change each imported object's scope!
+									//       May be an issue for types aliases.
+									check.declare(fileScope, obj)
+								}
+							}
+							// TODO(gri) consider registering the "." identifier
+							// if we have Context.Ident callbacks for say blank
+							// (_) identifiers
+							// check.register(spec.Name, pkg)
+						} else if name != "_" {
+							// declare imported package object in file scope
+							// (do not re-use imp in the file scope but create
+							// a new object instead; the Decl field is different
+							// for different files)
+							obj := &Package{name: name, scope: imp.scope, spec: s}
+							check.declare(fileScope, obj)
+						}
+
+					case *ast.ValueSpec:
+						switch d.Tok {
+						case token.CONST:
+							// determine which initialization expressions to use
+							if len(s.Values) > 0 {
+								last = s
+							}
+
+							// declare all constants
+							for i, name := range s.Names {
+								obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota)), spec: s}
+								check.declare(pkg.scope, obj)
+								check.register(name, obj)
+
+								var init ast.Expr
+								if i < len(last.Values) {
+									init = last.Values[i]
+								}
+								add(obj, last.Type, init)
+							}
+
+							// arity of lhs and rhs must match
+							if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
+								switch {
+								case lhs < rhs:
+									// TODO(gri) once resolve is the default, use first message
+									// x := s.Values[lhs]
+									// check.errorf(x.Pos(), "too many initialization expressions")
+									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+								case lhs > rhs && rhs != 1:
+									// TODO(gri) once resolve is the default, use first message
+									// n := s.Names[rhs]
+									// check.errorf(n.Pos(), "missing initialization expression for %s", n)
+									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+								}
+							}
+
+						case token.VAR:
+							// declare all variables
+							lhs := make([]*Var, len(s.Names))
+							for i, name := range s.Names {
+								obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name, decl: s}
+								lhs[i] = obj
+								check.declare(pkg.scope, obj)
+								check.register(name, obj)
+
+								var init ast.Expr
+								switch len(s.Values) {
+								case len(s.Names):
+									// lhs and rhs match
+									init = s.Values[i]
+								case 1:
+									// rhs must be a multi-valued expression
+									init = &projExpr{lhs, s.Values[0]}
+								default:
+									if i < len(s.Values) {
+										init = s.Values[i]
+									}
+								}
+								add(obj, s.Type, init)
+							}
+
+							// arity of lhs and rhs must match
+							if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
+								switch {
+								case lhs < rhs:
+									// TODO(gri) once resolve is the default, use first message
+									// x := s.Values[lhs]
+									// check.errorf(x.Pos(), "too many initialization expressions")
+									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+								case lhs > rhs && rhs != 1:
+									// TODO(gri) once resolve is the default, use first message
+									// n := s.Names[rhs]
+									// check.errorf(n.Pos(), "missing initialization expression for %s", n)
+									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+								}
+							}
+
+						default:
+							check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
+						}
+
+					case *ast.TypeSpec:
+						obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name, spec: s}
+						check.declare(pkg.scope, obj)
+						add(obj, s.Type, nil)
+						check.register(s.Name, obj)
+
+					default:
+						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
+					}
+				}
+
+			case *ast.FuncDecl:
+				if d.Recv != nil {
+					// collect method
+					methods = append(methods, &mdecl{fileScope, d})
+					continue
+				}
+				obj := &Func{pos: d.Name.Pos(), pkg: pkg, name: d.Name.Name, decl: d}
+				if obj.name == "init" {
+					// init functions are not visible - don't declare them in package scope
+					obj.outer = pkg.scope
+				} else {
+					check.declare(pkg.scope, obj)
+				}
+				check.register(d.Name, obj)
+				add(obj, nil, nil)
+
+			default:
+				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+			}
+		}
+	}
+
+	// Phase 2: Objects in file scopes and package scopes must have different names.
+	for _, scope := range scopes {
+		for _, obj := range scope.Entries {
+			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+				// TODO(gri) better error message
+				check.errorf(alt.Pos(), "%s redeclared in this block by import of package %s", obj.Name(), obj.Pkg().Name())
+			}
+		}
+	}
+
+	// Phase 3: Associate methods with types.
+	//          We do this after all top-level type names have been collected.
+
+	check.topScope = pkg.scope
+	for _, meth := range methods {
+		m := meth.meth
+		// The receiver type must be one of the following:
+		// - *ast.Ident
+		// - *ast.StarExpr{*ast.Ident}
+		// - *ast.BadExpr (parser error)
+		typ := m.Recv.List[0].Type
+		if ptr, ok := typ.(*ast.StarExpr); ok {
+			typ = ptr.X
+		}
+		// determine receiver base type name
+		ident, ok := typ.(*ast.Ident)
+		if !ok {
+			// Disabled for now since the parser reports this error.
+			// check.errorf(typ.Pos(), "receiver base type must be an (unqualified) identifier")
+			continue // ignore this method
+		}
+		// determine receiver base type object
+		var tname *TypeName
+		if obj := check.lookup(ident); obj != nil {
+			obj, ok := obj.(*TypeName)
+			if !ok {
+				check.errorf(ident.Pos(), "%s is not a type", ident.Name)
+				continue // ignore this method
+			}
+			if obj.pkg != pkg {
+				check.errorf(ident.Pos(), "cannot define method on non-local type %s", ident.Name)
+				continue // ignore this method
+			}
+			tname = obj
+		} else {
+			// identifier not declared/resolved
+			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
+			continue // ignore this method
+		}
+		// declare method in receiver base type scope
+		scope := check.methods[tname]
+		if scope == nil {
+			scope = new(Scope)
+			check.methods[tname] = scope
+		}
+		fun := &Func{pos: m.Name.Pos(), pkg: check.pkg, name: m.Name.Name, decl: m}
+		check.declare(scope, fun)
+		check.register(m.Name, fun)
+		// HACK(gri) change method outer scope to file scope containing the declaration
+		fun.outer = meth.file // remember the file scope
+	}
+
+	// Phase 4) Typecheck all objects in objList but not function bodies.
+
+	check.objMap = objMap // indicate we are doing global declarations (objects may not have a type yet)
+	for _, obj := range objList {
+		if obj.Type() == nil {
+			check.declareObject(obj, false)
+		}
+	}
+	check.objMap = nil // done with global declarations
+
+	// Phase 5) Typecheck all functions.
+	// - done by the caller for now
+}
+
+func (check *checker) declareObject(obj Object, cycleOk bool) {
+	d := check.objMap[obj]
+
+	// adjust file scope for current object
+	oldScope := check.topScope
+	check.topScope = d.file // for lookup
+
+	switch obj := obj.(type) {
+	case *Const:
+		check.declareConst(obj, d.typ, d.init)
+	case *Var:
+		check.declareVar(obj, d.typ, d.init)
+	case *TypeName:
+		check.declareType(obj, d.typ, cycleOk)
+	case *Func:
+		check.declareFunc(obj, cycleOk)
+	default:
+		unreachable()
+	}
+
+	check.topScope = oldScope
+}
+
+func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
+	if obj.visited {
+		check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.name)
+		obj.typ = Typ[Invalid]
+		return
+	}
+	obj.visited = true
+	iota, ok := exact.Int64Val(obj.val) // set in phase 1
+	assert(ok)
+	// obj.val = exact.MakeUnknown() //do we need this? should we set val to nil?
+
+	// determine type, if any
+	if typ != nil {
+		obj.typ = check.typ(typ, false)
+	}
+
+	var x operand
+
+	if init == nil {
+		// TODO(gri) enable error message once resolve is default
+		// check.errorf(obj.Pos(), "missing initialization expression for %s", obj.name)
+		goto Error
+	}
+
+	check.expr(&x, init, nil, int(iota))
+	if x.mode == invalid {
+		goto Error
+	}
+
+	check.assign(obj, &x)
+	return
+
+Error:
+	if obj.typ == nil {
+		obj.typ = Typ[Invalid]
+	} else {
+		obj.val = exact.MakeUnknown()
+	}
+}
+
+func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
+	if obj.visited {
+		check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.name)
+		obj.typ = Typ[Invalid]
+		return
+	}
+	obj.visited = true
+
+	// determine type, if any
+	if typ != nil {
+		obj.typ = check.typ(typ, false)
+	}
+
+	if init == nil {
+		if typ == nil {
+			// TODO(gri) enable error message once resolve is default
+			// check.errorf(obj.Pos(), "missing type or initialization expression for %s", obj.name)
+			obj.typ = Typ[Invalid]
+		}
+		return
+	}
+
+	// unpack projection expression, if any
+	proj, multi := init.(*projExpr)
+	if multi {
+		init = proj.Expr
+	}
+
+	var x operand
+	check.expr(&x, init, nil, -1)
+	if x.mode == invalid {
+		goto Error
+	}
+
+	if multi {
+		if t, ok := x.typ.(*Tuple); ok && len(proj.lhs) == t.Len() {
+			// function result
+			x.mode = value
+			for i, lhs := range proj.lhs {
+				x.expr = nil // TODO(gri) should do better here
+				x.typ = t.At(i).typ
+				check.assign(lhs, &x)
+			}
+			return
+		}
+
+		if x.mode == valueok && len(proj.lhs) == 2 {
+			// comma-ok expression
+			x.mode = value
+			check.assign(proj.lhs[0], &x)
+
+			x.typ = Typ[UntypedBool]
+			check.assign(proj.lhs[1], &x)
+			return
+		}
+
+		// TODO(gri) better error message
+		check.errorf(proj.lhs[0].Pos(), "assignment count mismatch")
+		goto Error
+	}
+
+	check.assign(obj, &x)
+	return
+
+Error:
+	// mark all involved variables so we can avoid repeated error messages
+	if multi {
+		for _, obj := range proj.lhs {
+			if obj.typ == nil {
+				obj.typ = Typ[Invalid]
+				obj.visited = true
+			}
+		}
+	} else if obj.typ == nil {
+		obj.typ = Typ[Invalid]
+	}
+	return
+}
+
+func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
+	named := &Named{obj: obj}
+	obj.typ = named // mark object so recursion terminates in case of cycles
+	named.underlying = check.typ(typ, cycleOk).Underlying()
+
+	// typecheck associated method signatures
+	if scope := check.methods[obj]; scope != nil {
+		switch t := named.underlying.(type) {
+		case *Struct:
+			// struct fields must not conflict with methods
+			for _, f := range t.fields {
+				if m := scope.Lookup(f.Name); m != nil {
+					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, f.Name)
+					// ok to continue
+				}
+			}
+		case *Interface:
+			// methods cannot be associated with an interface type
+			for _, m := range scope.Entries {
+				recv := m.(*Func).decl.Recv.List[0].Type
+				check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.name, obj.name)
+				// ok to continue
+			}
+		}
+		// typecheck method signatures
+		var methods ObjSet
+		for _, obj := range scope.Entries {
+			m := obj.(*Func)
+
+			// set the correct file scope for checking this method type
+			fileScope := m.outer
+			assert(fileScope != nil)
+			oldScope := check.topScope
+			check.topScope = fileScope
+
+			sig := check.typ(m.decl.Type, cycleOk).(*Signature)
+			params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
+
+			check.topScope = oldScope // reset topScope
+
+			sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+			m.typ = sig
+			assert(methods.Insert(obj) == nil)
+			check.later(m, sig, m.decl.Body)
+		}
+		named.methods = methods
+		delete(check.methods, obj) // we don't need this scope anymore
+	}
+}
+
+func (check *checker) declareFunc(obj *Func, cycleOk bool) {
+	fdecl := obj.decl
+	// methods are typechecked when their receivers are typechecked
+	// TODO(gri) there is no reason to make this a special case: receivers are simply parameters
+	if fdecl.Recv == nil {
+		sig := check.typ(fdecl.Type, cycleOk).(*Signature)
+		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+			check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
+			// ok to continue
+		}
+		obj.typ = sig
+		check.later(obj, sig, fdecl.Body)
+	}
+}
+
+func (check *checker) declStmt(decl ast.Decl) {
+	pkg := check.pkg
+
+	switch d := decl.(type) {
+	case *ast.BadDecl:
+		// ignore
+
+	case *ast.GenDecl:
+		var last []ast.Expr // last list of const initializers seen
+		for iota, spec := range d.Specs {
+			switch s := spec.(type) {
+			case *ast.ValueSpec:
+				switch d.Tok {
+				case token.CONST:
+					// determine which initialization expressions to use
+					if len(s.Values) > 0 {
+						last = s.Values
+					}
+
+					// declare all constants
+					lhs := make([]*Const, len(s.Names))
+					for i, name := range s.Names {
+						obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota)), spec: s}
+						lhs[i] = obj
+
+						var init ast.Expr
+						if i < len(last) {
+							init = last[i]
+						}
+
+						check.declareConst(obj, s.Type, init)
+						check.register(name, obj)
+					}
+
+					// arity of lhs and rhs must match
+					switch lhs, rhs := len(s.Names), len(last); {
+					case lhs < rhs:
+						x := last[lhs]
+						check.errorf(x.Pos(), "too many initialization expressions")
+					case lhs > rhs:
+						n := s.Names[rhs]
+						check.errorf(n.Pos(), "missing initialization expression for %s", n)
+					}
+
+					for _, obj := range lhs {
+						check.declare(check.topScope, obj)
+					}
+
+				case token.VAR:
+					// declare all variables
+					lhs := make([]*Var, len(s.Names))
+					for i, name := range s.Names {
+						obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name, decl: s}
+						lhs[i] = obj
+						check.register(name, obj)
+					}
+
+					// iterate in 2 phases because declareVar requires fully initialized lhs!
+					for i, obj := range lhs {
+						var init ast.Expr
+						switch len(s.Values) {
+						case len(s.Names):
+							// lhs and rhs match
+							init = s.Values[i]
+						case 1:
+							// rhs must be a multi-valued expression
+							init = &projExpr{lhs, s.Values[0]}
+						default:
+							if i < len(s.Values) {
+								init = s.Values[i]
+							}
+						}
+
+						check.declareVar(obj, s.Type, init)
+					}
+
+					// arity of lhs and rhs must match
+					// TODO(gri) Disabled for now to match existing test errors.
+					//           These error messages are better than what we have now.
+					/*
+						if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
+							switch {
+							case lhs < rhs:
+								x := s.Values[lhs]
+								check.errorf(x.Pos(), "too many initialization expressions")
+							case lhs > rhs && rhs != 1:
+								n := s.Names[rhs]
+								check.errorf(n.Pos(), "missing initialization expression for %s", n)
+							}
+						}
+					*/
+
+					for _, obj := range lhs {
+						check.declare(check.topScope, obj)
+					}
+
+				default:
+					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
+				}
+
+			case *ast.TypeSpec:
+				obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name, spec: s}
+				check.declare(check.topScope, obj)
+				check.declareType(obj, s.Type, false)
+				check.register(s.Name, obj)
+
+			default:
+				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
+			}
+		}
+
+	default:
+		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+	}
+}

@@ -23,7 +23,7 @@ func (check *checker) declareObj(scope, altScope *Scope, obj Object, dotImport t
 		// for dot-imports, local declarations are declared first - swap messages
 		if dotImport.IsValid() {
 			if pos := alt.Pos(); pos.IsValid() {
-				check.errorf(pos, fmt.Sprintf("%s redeclared in this block by dot-import at %s",
+				check.errorf(pos, fmt.Sprintf("%s redeclared in this block by import at %s",
 					obj.Name(), check.fset.Position(dotImport)))
 				return
 			}
@@ -50,25 +50,11 @@ func (check *checker) resolveIdent(scope *Scope, ident *ast.Ident) bool {
 	return false
 }
 
-func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
+func (check *checker) resolve(importer Importer, files []*ast.File) (methods []*ast.FuncDecl) {
 	pkg := check.pkg
 
 	// complete package scope
-	i := 0
-	for _, file := range check.files {
-		// package names must match
-		switch name := file.Name.Name; {
-		case pkg.name == "":
-			pkg.name = name
-		case name != pkg.name:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
-			continue // ignore this file
-		}
-
-		// keep this file
-		check.files[i] = file
-		i++
-
+	for _, file := range files {
 		// the package identifier denotes the current package
 		check.register(file.Name, pkg)
 
@@ -118,10 +104,9 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 			}
 		}
 	}
-	check.files = check.files[0:i]
 
 	// complete file scopes with imports and resolve identifiers
-	for _, file := range check.files {
+	for _, file := range files {
 		// build file scope by processing all imports
 		importErrors := false
 		fileScope := &Scope{Outer: pkg.scope}

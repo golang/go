@@ -53,6 +53,8 @@ func (check *checker) untrace(format string, args ...interface{}) {
 func (check *checker) formatMsg(format string, args []interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
+		case nil:
+			args[i] = "<nil>"
 		case operand:
 			panic("internal error: should always pass *operand")
 		case *operand:
@@ -63,6 +65,8 @@ func (check *checker) formatMsg(format string, args []interface{}) string {
 			args[i] = exprString(a)
 		case Type:
 			args[i] = typeString(a)
+		case Object:
+			args[i] = fmt.Sprintf("%s (%T)", a.Name(), a)
 		}
 	}
 	return fmt.Sprintf(format, args...)

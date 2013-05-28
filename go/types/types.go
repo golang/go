@@ -6,6 +6,9 @@ package types
 
 import "go/ast"
 
+// TODO(gri) Separate struct fields below into transient (used during type checking only)
+//           and permanent fields.
+
 // A Type represents a type of Go.
 // All types implement the Type interface.
 type Type interface {
@@ -137,13 +140,14 @@ type Field struct {
 
 // A Struct represents a struct type.
 type Struct struct {
+	scope   *Scope
 	fields  []*Field
 	tags    []string // field tags; nil of there are no tags
 	offsets []int64  // field offsets in bytes, lazily computed
 }
 
 func NewStruct(fields []*Field, tags []string) *Struct {
-	return &Struct{fields: fields, tags: tags}
+	return &Struct{scope: nil, fields: fields, tags: tags}
 }
 
 func (s *Struct) NumFields() int     { return len(s.fields) }
@@ -230,6 +234,7 @@ func (t *Tuple) ForEach(f func(*Var)) {
 
 // A Signature represents a (non-builtin) function type.
 type Signature struct {
+	scope      *Scope // function scope
 	recv       *Var   // nil if not a method
 	params     *Tuple // (incoming) parameters from left to right; or nil
 	results    *Tuple // (outgoing) results from left to right; or nil
@@ -240,7 +245,7 @@ type Signature struct {
 // and results, either of which may be nil. If isVariadic is set, the function
 // is variadic.
 func NewSignature(recv *Var, params, results *Tuple, isVariadic bool) *Signature {
-	return &Signature{recv, params, results, isVariadic}
+	return &Signature{nil, recv, params, results, isVariadic}
 }
 
 // Recv returns the receiver of signature s, or nil.

@@ -590,7 +590,7 @@ func (p *gcParser) parseInterfaceType() Type {
 		}
 		pkg, name := p.parseName(true)
 		sig := p.parseSignature()
-		if alt := methods.Insert(&Func{pkg, name, sig, nil}); alt != nil {
+		if alt := methods.Insert(&Func{token.NoPos, pkg, nil, name, sig, nil}); alt != nil {
 			p.errorf("multiple methods named %s.%s", alt.Pkg().name, alt.Name())
 		}
 	}
@@ -879,7 +879,7 @@ func (p *gcParser) parseMethodDecl() {
 
 	// add method to type unless type was imported before
 	// and method exists already
-	base.methods.Insert(&Func{pkg, name, sig, nil})
+	base.methods.Insert(&Func{token.NoPos, pkg, nil, name, sig, nil})
 }
 
 // FuncDecl = "func" ExportedName Func .

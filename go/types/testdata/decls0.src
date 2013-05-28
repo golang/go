@@ -21,7 +21,7 @@ type flag int
 type _ reflect /* ERROR "not exported" */ .flag
 
 // dot-imported exported objects may conflict with local objects
-type Value /* ERROR "redeclared in this block by dot-import" */ struct{}
+type Value /* ERROR "redeclared in this block by import" */ struct{}
 
 const pi = 3.1415
 
@@ -74,7 +74,8 @@ type (
 	// is done in the parser and the other one in the type checker. We cannot
 	// easily avoid this w/o losing the check or functionality. This will be
 	// fixed once all resolution is done in the type checker.
-	a /* ERROR "redeclared" */ /* ERROR "redeclared" */ int
+	// TODO(gri) Disabled for now since this needs to work with the old and new resolver.
+	// a /* ERROR "redeclared" */ /* ERROR "redeclared" */ int
 
 	// where the cycle error appears depends on the
 	// order in which declarations are processed
@@ -142,7 +143,7 @@ type (
 	I2 interface {
 		m1()
 	}
-	I3 interface { /* ERROR "multiple methods named m1" */
+	I3 interface {
 		m1()
 		m1 /* ERROR "redeclared" */ ()
 	}

@@ -6,9 +6,12 @@
 
 package decls2
 
+import "io"
+
 const pi = 3.1415
 
 func (T1) m /* ERROR "redeclared" */ () {}
+func (T2) m(io.Writer) {}
 
 type T3 struct {
 	f *T3

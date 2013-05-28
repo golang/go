@@ -38,7 +38,8 @@ func (s *Scope) Lookup(name string) Object {
 // Insert attempts to insert an object obj into scope s.
 // If s already contains an object with the same name,
 // Insert leaves s unchanged and returns that object.
-// Otherwise it inserts obj and returns nil.
+// Otherwise it inserts obj, sets the object's scope to
+// s, and returns nil.
 //
 func (s *Scope) Insert(obj Object) Object {
 	name := obj.Name()
@@ -46,6 +47,7 @@ func (s *Scope) Insert(obj Object) Object {
 		return alt
 	}
 	s.Entries = append(s.Entries, obj)
+	obj.setOuter(s)
 
 	// If the scope size reaches a threshold, use a map for faster lookups.
 	const threshold = 20

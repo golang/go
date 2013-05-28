@@ -55,7 +55,11 @@ func TestResolveQualifiedIdents(t *testing.T) {
 	fset := token.NewFileSet()
 	var files []*ast.File
 	for _, src := range sources {
-		f, err := parser.ParseFile(fset, "", src, parser.DeclarationErrors)
+		mode := parser.AllErrors
+		if !resolve {
+			mode |= parser.DeclarationErrors
+		}
+		f, err := parser.ParseFile(fset, "", src, mode)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -79,9 +83,11 @@ func TestResolveQualifiedIdents(t *testing.T) {
 	}
 
 	// check that there are no top-level unresolved identifiers
-	for _, f := range files {
-		for _, x := range f.Unresolved {
-			t.Errorf("%s: unresolved global identifier %s", fset.Position(x.Pos()), x.Name)
+	if !resolve {
+		for _, f := range files {
+			for _, x := range f.Unresolved {
+				t.Errorf("%s: unresolved global identifier %s", fset.Position(x.Pos()), x.Name)
+			}
 		}
 	}
 
@@ -113,6 +119,9 @@ func TestResolveQualifiedIdents(t *testing.T) {
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch x := n.(type) {
 			case *ast.StructType:
+				if resolve {
+					break // nothing to do
+				}
 				for _, list := range x.Fields.List {
 					for _, f := range list.Names {
 						assert(idents[f] == nil)
@@ -120,6 +129,9 @@ func TestResolveQualifiedIdents(t *testing.T) {
 					}
 				}
 			case *ast.InterfaceType:
+				if resolve {
+					break // nothing to do
+				}
 				for _, list := range x.Methods.List {
 					for _, f := range list.Names {
 						assert(idents[f] == nil)

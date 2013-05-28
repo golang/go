@@ -61,9 +61,9 @@ func (T5 /* ERROR "invalid receiver" */) m2() {}
 
 // Methods associated with non-local or unnamed types.
 func (int /* ERROR "non-local type" */ ) m() {}
-func ([ /* ERROR "expected" */ ]int) m() {}
-func (time /* ERROR "expected" */ .Time) m() {}
-func (x interface /* ERROR "expected" */ {}) m() {}
+func ([ /* ERROR "identifier" */ ]int) m() {}
+func (time /* ERROR "identifier" */ .Time) m() {}
+func (x interface /* ERROR "identifier" */ {}) m() {}
 
 // Double declarations across package files
 const c_double = 0

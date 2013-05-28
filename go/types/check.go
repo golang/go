@@ -14,10 +14,12 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// debugging support
+// debugging/development support
 const (
 	debug = true  // leave on during development
 	trace = false // turn on for detailed type resolution traces
+	// TODO(gri) remove this flag and clean up code under the assumption that resolve == true.
+	resolve = false // if set, resolve all identifiers in the type checker (don't use ast.Objects anymore)
 )
 
 // exprInfo stores type and constant value for an untyped expression.
@@ -29,9 +31,8 @@ type exprInfo struct {
 
 // A checker is an instance of the type checker.
 type checker struct {
-	ctxt  *Context
-	fset  *token.FileSet
-	files []*ast.File
+	ctxt *Context
+	fset *token.FileSet
 
 	// lazily initialized
 	pkg         *Package                          // current package
@@ -47,9 +48,29 @@ type checker struct {
 	funclist []function  // list of functions/methods with correct signatures and non-empty bodies
 	funcsig  *Signature  // signature of currently typechecked function
 	pos      []token.Pos // stack of expr positions; debugging support, used if trace is set
+
+	// these are only valid if resolve is set
+	objMap   map[Object]*decl // if set we are in the package-global declaration phase (otherwise all objects seen must be declared)
+	topScope *Scope           // topScope for lookups, non-global declarations
+}
+
+func (check *checker) openScope() {
+	check.topScope = &Scope{Outer: check.topScope}
+}
+
+func (check *checker) closeScope() {
+	check.topScope = check.topScope.Outer
 }
 
 func (check *checker) register(id *ast.Ident, obj Object) {
+	if resolve {
+		// TODO(gri) Document how if an identifier can be registered more than once.
+		if f := check.ctxt.Ident; f != nil {
+			f(id, obj)
+		}
+		return
+	}
+
 	// When an expression is evaluated more than once (happens
 	// in rare cases, e.g. for statement expressions, see
 	// comment in stmt.go), the object has been registered
@@ -70,9 +91,21 @@ func (check *checker) register(id *ast.Ident, obj Object) {
 // uses the checker.objects map.
 //
 // TODO(gri) Once identifier resolution is done entirely by
-//           the typechecker, only the idents map is needed.
+//           the typechecker, only scopes are needed. Need
+//           to update the comment above.
 //
 func (check *checker) lookup(ident *ast.Ident) Object {
+	if resolve {
+		for scope := check.topScope; scope != nil; scope = scope.Outer {
+			if obj := scope.Lookup(ident.Name); obj != nil {
+				check.register(ident, obj)
+				return obj
+			}
+		}
+		return nil
+	}
+
+	// old code
 	obj := check.idents[ident]
 	astObj := ident.Obj
 
@@ -95,7 +128,8 @@ func (check *checker) lookup(ident *ast.Ident) Object {
 }
 
 type function struct {
-	obj  *Func // for debugging/tracing only
+	file *Scope // only valid if resolve is set
+	obj  *Func  // for debugging/tracing only
 	sig  *Signature
 	body *ast.BlockStmt
 }
@@ -107,11 +141,14 @@ type function struct {
 func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
 	// functions implemented elsewhere (say in assembly) have no body
 	if body != nil {
-		check.funclist = append(check.funclist, function{f, sig, body})
+		check.funclist = append(check.funclist, function{check.topScope, f, sig, body})
 	}
 }
 
 func (check *checker) declareIdent(scope *Scope, ident *ast.Ident, obj Object) {
+	if resolve {
+		unreachable()
+	}
 	assert(check.lookup(ident) == nil) // identifier already declared or resolved
 	check.register(ident, obj)
 	if ident.Name != "_" {
@@ -126,6 +163,10 @@ func (check *checker) declareIdent(scope *Scope, ident *ast.Ident, obj Object) {
 }
 
 func (check *checker) valueSpec(pos token.Pos, obj Object, lhs []*ast.Ident, spec *ast.ValueSpec, iota int) {
+	if resolve {
+		unreachable()
+	}
+
 	if len(lhs) == 0 {
 		check.invalidAST(pos, "missing lhs in declaration")
 		return
@@ -150,16 +191,17 @@ func (check *checker) valueSpec(pos token.Pos, obj Object, lhs []*ast.Ident, spe
 				break
 			}
 		}
-		assert(l != nil)
+		isConst := false
 		switch obj := obj.(type) {
 		case *Const:
 			obj.typ = typ
+			isConst = true
 		case *Var:
 			obj.typ = typ
 		default:
 			unreachable()
 		}
-		check.assign1to1(l, r, nil, true, iota)
+		check.assign1to1(l, r, nil, true, iota, isConst)
 		return
 	}
 
@@ -190,21 +232,30 @@ func (check *checker) valueSpec(pos token.Pos, obj Object, lhs []*ast.Ident, spe
 		for i, e := range lhs {
 			lhx[i] = e
 		}
-		check.assignNtoM(lhx, rhs, true, iota)
+		_, isConst := obj.(*Const)
+		check.assignNtoM(lhx, rhs, true, iota, isConst)
 	}
 }
 
 // object typechecks an object by assigning it a type.
 //
 func (check *checker) object(obj Object, cycleOk bool) {
+	if resolve {
+		unreachable()
+	}
+
+	if obj.Type() != nil {
+		return // already checked
+	}
+
 	switch obj := obj.(type) {
 	case *Package:
 		// nothing to do
+		if resolve {
+			unreachable()
+		}
 
 	case *Const:
-		if obj.typ != nil {
-			return // already checked
-		}
 		// The obj.Val field for constants is initialized to its respective
 		// iota value (type int) by the parser.
 		// If the object's type is Typ[Invalid], the object value is ignored.
@@ -214,7 +265,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		// know that x is a constant and has type float32, but we don't
 		// have a value due to the error in the conversion).
 		if obj.visited {
-			check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.Name)
+			check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.name)
 			obj.typ = Typ[Invalid]
 			return
 		}
@@ -231,11 +282,8 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		check.valueSpec(spec.Pos(), obj, spec.Names, init, int(iota))
 
 	case *Var:
-		if obj.typ != nil {
-			return // already checked
-		}
 		if obj.visited {
-			check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.Name)
+			check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.name)
 			obj.typ = Typ[Invalid]
 			return
 		}
@@ -252,9 +300,6 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		}
 
 	case *TypeName:
-		if obj.typ != nil {
-			return // already checked
-		}
 		typ := &Named{obj: obj}
 		obj.typ = typ // "mark" object so recursion terminates
 		typ.underlying = check.typ(obj.spec.Type, cycleOk).Underlying()
@@ -265,7 +310,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 				// struct fields must not conflict with methods
 				for _, f := range t.fields {
 					if m := scope.Lookup(f.Name); m != nil {
-						check.errorf(m.Pos(), "type %s has both field and method named %s", obj.Name, f.Name)
+						check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, f.Name)
 						// ok to continue
 					}
 				}
@@ -273,7 +318,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 				// methods cannot be associated with an interface type
 				for _, m := range scope.Entries {
 					recv := m.(*Func).decl.Recv.List[0].Type
-					check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.Name, obj.Name)
+					check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.name, obj.name)
 					// ok to continue
 				}
 			}
@@ -282,7 +327,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 			for _, obj := range scope.Entries {
 				m := obj.(*Func)
 				sig := check.typ(m.decl.Type, cycleOk).(*Signature)
-				params, _ := check.collectParams(m.decl.Recv, false)
+				params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
 				sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
 				m.typ = sig
 				assert(methods.Insert(obj) == nil)
@@ -293,9 +338,6 @@ func (check *checker) object(obj Object, cycleOk bool) {
 		}
 
 	case *Func:
-		if obj.typ != nil {
-			return // already checked
-		}
 		fdecl := obj.decl
 		// methods are typechecked when their receivers are typechecked
 		if fdecl.Recv == nil {
@@ -318,6 +360,10 @@ func (check *checker) object(obj Object, cycleOk bool) {
 // for constant declarations without explicit initialization expressions.
 //
 func (check *checker) assocInitvals(decl *ast.GenDecl) {
+	if resolve {
+		unreachable()
+	}
+
 	var last *ast.ValueSpec
 	for _, s := range decl.Specs {
 		if s, ok := s.(*ast.ValueSpec); ok {
@@ -337,6 +383,10 @@ func (check *checker) assocInitvals(decl *ast.GenDecl) {
 // receiver base type. meth.Recv must exist.
 //
 func (check *checker) assocMethod(meth *ast.FuncDecl) {
+	if resolve {
+		unreachable()
+	}
+
 	// The receiver type is one of the following (enforced by parser):
 	// - *ast.Ident
 	// - *ast.StarExpr{*ast.Ident}
@@ -378,6 +428,10 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
 }
 
 func (check *checker) decl(decl ast.Decl) {
+	if resolve {
+		unreachable() // during top-level type-checking
+	}
+
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		// ignore
@@ -419,12 +473,17 @@ func (check *checker) decl(decl ast.Decl) {
 type bailout struct{}
 
 func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
+	pkg = &Package{
+		path:    path,
+		scope:   &Scope{Outer: Universe},
+		imports: make(map[string]*Package),
+	}
+
 	// initialize checker
 	check := checker{
 		ctxt:        ctxt,
 		fset:        fset,
-		files:       files,
-		pkg:         &Package{path: path, scope: &Scope{Outer: Universe}, imports: make(map[string]*Package)},
+		pkg:         pkg,
 		idents:      make(map[*ast.Ident]Object),
 		objects:     make(map[*ast.Object]Object),
 		initspecs:   make(map[*ast.ValueSpec]*ast.ValueSpec),
@@ -433,9 +492,8 @@ func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) 
 		untyped:     make(map[ast.Expr]exprInfo),
 	}
 
-	// set results and handle panics
+	// handle panics
 	defer func() {
-		pkg = check.pkg
 		switch p := recover().(type) {
 		case nil, bailout:
 			// normal return or early exit
@@ -451,22 +509,45 @@ func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) 
 		}
 	}()
 
+	// determine package name and files
+	i := 0
+	for _, file := range files {
+		switch name := file.Name.Name; pkg.name {
+		case "":
+			pkg.name = name
+			fallthrough
+		case name:
+			files[i] = file
+			i++
+		default:
+			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			// ignore this file
+		}
+	}
+	files = files[:i]
+
 	// resolve identifiers
 	imp := ctxt.Import
 	if imp == nil {
 		imp = GcImport
 	}
-	methods := check.resolve(imp)
 
-	// associate methods with types
-	for _, m := range methods {
-		check.assocMethod(m)
-	}
+	if resolve {
+		check.resolveFiles(files, imp)
 
-	// typecheck all declarations
-	for _, f := range check.files {
-		for _, d := range f.Decls {
-			check.decl(d)
+	} else {
+		methods := check.resolve(imp, files)
+
+		// associate methods with types
+		for _, m := range methods {
+			check.assocMethod(m)
+		}
+
+		// typecheck all declarations
+		for _, f := range files {
+			for _, d := range f.Decls {
+				check.decl(d)
+			}
 		}
 	}
 
@@ -481,6 +562,7 @@ func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) 
 			}
 			fmt.Println("---", s)
 		}
+		check.topScope = f.sig.scope // open the function scope
 		check.funcsig = f.sig
 		check.stmtList(f.body.List)
 		if f.sig.results.Len() > 0 && f.body != nil && !check.isTerminating(f.body, "") {

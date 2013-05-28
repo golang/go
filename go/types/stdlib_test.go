@@ -30,6 +30,10 @@ var (
 )
 
 func TestStdlib(t *testing.T) {
+	if resolve {
+		fmt.Println("*** Running new code: Identifiers are resolved by type checker. ***")
+	}
+
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src/pkg"))
 	if *verbose {
 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
@@ -48,7 +52,11 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	// parse package files
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors|parser.AllErrors)
+		mode := parser.AllErrors
+		if !resolve {
+			mode |= parser.DeclarationErrors
+		}
+		file, err := parser.ParseFile(fset, filename, nil, mode)
 		if err != nil {
 			// the parser error may be a list of individual errors; report them all
 			if list, ok := err.(scanner.ErrorList); ok {

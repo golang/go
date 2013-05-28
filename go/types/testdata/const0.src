@@ -42,6 +42,7 @@ const (
 	ui16 = ui2 & ui3
 	ui17 = ui2 | ui3
 	ui18 = ui2 ^ ui3
+	ui19 = 1 /* ERROR "invalid operation" */ % 1.0
 
 	// floating point values
 	uf0 = 0.
@@ -179,6 +180,8 @@ const (
 const (
 	a1, a2, a3 = 7, 3.1415926, "foo"
 	b1, b2, b3 = b3, b1, 42
+	c1 /* ERROR "assignment count mismatch" */, c2, c3 = 1, 2
+	d1 /* ERROR "assignment count mismatch" */, d2, d3 = 1, 2, 3, 4
 	_p0 = assert(a1 == 7)
 	_p1 = assert(a2 == 3.1415926)
 	_p2 = assert(a3 == "foo")

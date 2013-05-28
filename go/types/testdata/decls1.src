@@ -110,7 +110,7 @@ func f1(a /* ERROR "not a type" */) {}
 func f2(a, b, c d /* ERROR "not a type" */) {}
 
 func f3() int { return 0 }
-func f4() a /* ERROR "not a type" */ { return 0 /* ERROR "cannot convert" */ }
+func f4() a /* ERROR "not a type" */ { return 0 }
 func f5() (a, b, c d /* ERROR "not a type" */) { return }
 
 func f6(a, b, c int) complex128 { return 0 }
