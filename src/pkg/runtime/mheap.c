@@ -65,6 +65,24 @@ runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
 		runtime·MCentral_Init(&h->central[i], i);
 }
 
+void
+runtime·MHeap_MapSpans(MHeap *h)
+{
+	uintptr n;
+
+	// Map spans array, PageSize at a time.
+	n = (uintptr)h->arena_used;
+	if(sizeof(void*) == 8)
+		n -= (uintptr)h->arena_start;
+	// Coalescing code reads spans past the end of mapped arena, thus +1.
+	n = (n / PageSize + 1) * sizeof(h->map[0]);
+	n = ROUND(n, PageSize);
+	if(h->spans_mapped >= n)
+		return;
+	runtime·SysMap((byte*)h->map + h->spans_mapped, n - h->spans_mapped);
+	h->spans_mapped = n;
+}
+
 // Allocate a new span of npage pages from the heap
 // and record its size class in the HeapMap and HeapMapCache.
 MSpan*

@@ -323,7 +323,7 @@ void
 runtime·mallocinit(void)
 {
 	byte *p;
-	uintptr arena_size, bitmap_size;
+	uintptr arena_size, bitmap_size, spans_size;
 	extern byte end[];
 	byte *want;
 	uintptr limit;
@@ -331,11 +331,13 @@ runtime·mallocinit(void)
 	p = nil;
 	arena_size = 0;
 	bitmap_size = 0;
-	
+	spans_size = 0;
+
 	// for 64-bit build
 	USED(p);
 	USED(arena_size);
 	USED(bitmap_size);
+	USED(spans_size);
 
 	if((runtime·mheap = runtime·SysAlloc(sizeof(*runtime·mheap))) == nil)
 		runtime·throw("runtime: cannot allocate heap metadata");
@@ -375,7 +377,8 @@ runtime·mallocinit(void)
 		// If this fails we fall back to the 32 bit memory mechanism
 		arena_size = MaxMem;
 		bitmap_size = arena_size / (sizeof(void*)*8/4);
-		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + arena_size);
+		spans_size = arena_size / PageSize * sizeof(runtime·mheap->map[0]);
+		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + spans_size + arena_size);
 	}
 	if (p == nil) {
 		// On a 32-bit machine, we can't typically get away
@@ -397,11 +400,13 @@ runtime·mallocinit(void)
 		// of address space, which is probably too much in a 32-bit world.
 		bitmap_size = MaxArena32 / (sizeof(void*)*8/4);
 		arena_size = 512<<20;
-		if(limit > 0 && arena_size+bitmap_size > limit) {
+		spans_size = MaxArena32 / PageSize * sizeof(runtime·mheap->map[0]);
+		if(limit > 0 && arena_size+bitmap_size+spans_size > limit) {
 			bitmap_size = (limit / 9) & ~((1<<PageShift) - 1);
 			arena_size = bitmap_size * 8;
+			spans_size = arena_size / PageSize * sizeof(runtime·mheap->map[0]);
 		}
-		
+
 		// SysReserve treats the address we ask for, end, as a hint,
 		// not as an absolute requirement.  If we ask for the end
 		// of the data segment but the operating system requires
@@ -412,17 +417,19 @@ runtime·mallocinit(void)
 		// away from the running binary image and then round up
 		// to a MB boundary.
 		want = (byte*)(((uintptr)end + (1<<18) + (1<<20) - 1)&~((1<<20)-1));
-		p = runtime·SysReserve(want, bitmap_size + arena_size);
+		p = runtime·SysReserve(want, bitmap_size + spans_size + arena_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
 		if((uintptr)p & (((uintptr)1<<PageShift)-1))
-			runtime·printf("runtime: SysReserve returned unaligned address %p; asked for %p", p, bitmap_size+arena_size);
+			runtime·printf("runtime: SysReserve returned unaligned address %p; asked for %p", p,
+				bitmap_size+spans_size+arena_size);
 	}
 	if((uintptr)p & (((uintptr)1<<PageShift)-1))
 		runtime·throw("runtime: SysReserve returned unaligned address");
 
-	runtime·mheap->bitmap = p;
-	runtime·mheap->arena_start = p + bitmap_size;
+	runtime·mheap->map = (MSpan**)p;
+	runtime·mheap->bitmap = p + spans_size;
+	runtime·mheap->arena_start = p + spans_size + bitmap_size;
 	runtime·mheap->arena_used = runtime·mheap->arena_start;
 	runtime·mheap->arena_end = runtime·mheap->arena_start + arena_size;
 
@@ -461,6 +468,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		runtime·SysMap(p, n);
 		h->arena_used += n;
 		runtime·MHeap_MapBits(h);
+		runtime·MHeap_MapSpans(h);
 		if(raceenabled)
 			runtime·racemapshadow(p, n);
 		return p;
@@ -489,6 +497,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		if(h->arena_used > h->arena_end)
 			h->arena_end = h->arena_used;
 		runtime·MHeap_MapBits(h);
+		runtime·MHeap_MapSpans(h);
 		if(raceenabled)
 			runtime·racemapshadow(p, n);
 	}
