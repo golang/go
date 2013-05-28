@@ -69,6 +69,11 @@ struct Sym
 
 static uintptr mainoffset;
 
+// A dynamically allocated string containing multiple substrings.
+// Individual strings are slices of hugestring.
+static String hugestring;
+static int32 hugestring_len;
+
 extern void main·main(void);
 
 static uintptr
@@ -283,6 +288,7 @@ makepath(byte *buf, int32 nbuf, byte *path)
 	return p - buf;
 }
 
+// appends p to hugestring
 static String
 gostringn(byte *p, int32 l)
 {
@@ -290,8 +296,13 @@ gostringn(byte *p, int32 l)
 
 	if(l == 0)
 		return runtime·emptystring;
+	if(hugestring.str == nil) {
+		hugestring_len += l;
+		return runtime·emptystring;
+	}
+	s.str = hugestring.str + hugestring.len;
 	s.len = l;
-	s.str = runtime·persistentalloc(l, 1);
+	hugestring.len += s.len;
 	runtime·memmove(s.str, p, l);
 	return s;
 }
@@ -322,6 +333,8 @@ dosrcline(Sym *sym)
 	switch(sym->symtype) {
 	case 't':
 	case 'T':
+		if(hugestring.str == nil)
+			break;
 		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
 			break;
 		f = &func[nfunc++];
@@ -546,12 +559,11 @@ buildfuncs(void)
 	walksymtab(dofunc);
 
 	// Initialize tables.
-	// Memory obtained from runtime·persistentalloc() is not scanned by GC,
-	// this is fine because all pointers either point into sections of the executable
-	// or also obtained from persistentmalloc().
-	func = runtime·persistentalloc((nfunc+1)*sizeof func[0], 0);
+	// Can use FlagNoPointers - all pointers either point into sections of the executable
+	// or point into hugestring.
+	func = runtime·mallocgc((nfunc+1)*sizeof func[0], FlagNoPointers, 0, 1);
 	func[nfunc].entry = (uint64)etext;
-	fname = runtime·persistentalloc(nfname*sizeof fname[0], 0);
+	fname = runtime·mallocgc(nfname*sizeof fname[0], FlagNoPointers, 0, 1);
 	nfunc = 0;
 	lastvalue = 0;
 	walksymtab(dofunc);
@@ -561,8 +573,14 @@ buildfuncs(void)
 
 	// record src file and line info for each func
 	files = runtime·malloc(maxfiles * sizeof(files[0]));
-	walksymtab(dosrcline);
+	walksymtab(dosrcline);  // pass 1: determine hugestring_len
+	hugestring.str = runtime·mallocgc(hugestring_len, FlagNoPointers, 0, 0);
+	hugestring.len = 0;
+	walksymtab(dosrcline);  // pass 2: fill and use hugestring
 	files = nil;
+
+	if(hugestring.len != hugestring_len)
+		runtime·throw("buildfunc: problem in initialization procedure");
 
 	m->nomemprof--;
 }
