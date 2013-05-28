@@ -128,10 +128,6 @@ runtime·SetCPUProfileRate(intgo hz)
 	uintptr *p;
 	uintptr n;
 	
-	// Call findfunc now so that it won't have to
-	// build tables during the signal handler.
-	runtime·findfunc(0);
-
 	// Clamp hz to something reasonable.
 	if(hz < 0)
 		hz = 0;

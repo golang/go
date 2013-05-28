@@ -133,10 +133,8 @@ runtime·schedinit(void)
 	runtime·goargs();
 	runtime·goenvs();
 
-	// For debugging:
-	// Allocate internal symbol table representation now,
-	// so that we don't need to call malloc when we crash.
-	// runtime·findfunc(0);
+	// Allocate internal symbol table representation now, we need it for GC anyway.
+	runtime·symtabinit();
 
 	runtime·sched.lastpoll = runtime·nanotime();
 	procs = 1;

@@ -749,6 +749,7 @@ void	runtime·mpreinit(M*);
 void	runtime·minit(void);
 void	runtime·unminit(void);
 void	runtime·signalstack(byte*, int32);
+void	runtime·symtabinit(void);
 Func*	runtime·findfunc(uintptr);
 int32	runtime·funcline(Func*, uintptr);
 void*	runtime·stackalloc(uint32);
