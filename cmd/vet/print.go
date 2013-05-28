@@ -139,9 +139,6 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 		if format[i] == '%' {
 			verb, flags, nbytes, nargs := f.parsePrintfVerb(call, format[i:])
 			w = nbytes
-			if verb == '%' { // "%%" does nothing interesting.
-				continue
-			}
 			// If we've run out of args, print after loop will pick that up.
 			if argNum+nargs <= len(call.Args) {
 				f.checkPrintfArg(call, verb, flags, argNum, nargs)
@@ -228,6 +225,7 @@ type printVerb struct {
 
 // Common flag sets for printf verbs.
 const (
+	noFlag       = ""
 	numFlag      = " -+.0"
 	sharpNumFlag = " -+.0#"
 	allFlags     = " -+.0#"
@@ -242,6 +240,7 @@ var printVerbs = []printVerb{
 	// '+' is required sign for numbers, Go format for %v.
 	// '#' is alternate format for several verbs.
 	// ' ' is spacer for numbers
+	{'%', noFlag, 0},
 	{'b', numFlag, argInt | argFloat},
 	{'c', "-", argRune | argInt},
 	{'d', numFlag, argInt},
@@ -263,42 +262,48 @@ var printVerbs = []printVerb{
 	{'X', sharpNumFlag, argRune | argInt | argString},
 }
 
-const printfVerbs = "bcdeEfFgGopqstTvxUX"
-
 func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNum, nargs int) {
+	var v printVerb
+	found := false
 	// Linear scan is fast enough for a small list.
-	for _, v := range printVerbs {
+	for _, v = range printVerbs {
 		if v.verb == verb {
-			for _, flag := range flags {
-				if !strings.ContainsRune(v.flags, rune(flag)) {
-					f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", verb, flag)
-					return
-				}
-			}
-			// Verb is good. If nargs>1, we have something like %.*s and all but the final
-			// arg must be integer.
-			for i := 0; i < nargs-1; i++ {
-				if !f.matchArgType(argInt, call.Args[argNum+i]) {
-					f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(call.Args[argNum+i]))
-				}
-			}
-			for _, v := range printVerbs {
-				if v.verb == verb {
-					arg := call.Args[argNum+nargs-1]
-					if !f.matchArgType(v.typ, arg) {
-						typeString := ""
-						if typ := f.pkg.types[arg]; typ != nil {
-							typeString = typ.String()
-						}
-						f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), verb, typeString)
-					}
-					break
-				}
-			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		f.Badf(call.Pos(), "unrecognized printf verb %q", verb)
+		return
+	}
+	for _, flag := range flags {
+		if !strings.ContainsRune(v.flags, rune(flag)) {
+			f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", verb, flag)
 			return
 		}
 	}
-	f.Badf(call.Pos(), "unrecognized printf verb %q", verb)
+	// Verb is good. If nargs>trueArgs, we have something like %.*s and all but the final
+	// arg must be integer.
+	trueArgs := 1
+	if verb == '%' {
+		trueArgs = 0
+	}
+	for i := 0; i < nargs-trueArgs; i++ {
+		if !f.matchArgType(argInt, call.Args[argNum+i]) {
+			f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(call.Args[argNum+i]))
+		}
+	}
+	if verb == '%' {
+		return
+	}
+	arg := call.Args[argNum+nargs-trueArgs]
+	if !f.matchArgType(v.typ, arg) {
+		typeString := ""
+		if typ := f.pkg.types[arg]; typ != nil {
+			typeString = typ.String()
+		}
+		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), verb, typeString)
+	}
 }
 
 // checkPrint checks a call to an unformatted print routine such as Println.

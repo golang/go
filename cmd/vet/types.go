@@ -62,7 +62,7 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 	if typ == nil {
 		return true
 	}
-	basic, ok := typ.(*types.Basic)
+	basic, ok := typ.Underlying().(*types.Basic)
 	if !ok {
 		return true
 	}

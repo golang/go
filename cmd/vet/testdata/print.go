@@ -74,6 +74,7 @@ func PrintfTests() {
 	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
 	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
+	fmt.Printf("%*%", 2) // Ridiculous but allowed.
 	// Some bad format/argTypes
 	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"
 	fmt.Printf("%c", 2.3)                      // ERROR "arg 2.3 for printf verb %c of wrong type"
@@ -93,24 +94,24 @@ func PrintfTests() {
 	fmt.Printf("%x", nil)                      // ERROR "arg nil for printf verb %x of wrong type"
 	fmt.Printf("%X", 2.3)                      // ERROR "arg 2.3 for printf verb %X of wrong type"
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
-	// TODO
-	fmt.Println()                      // not an error
-	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
-	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args for format in Printf call"
-	fmt.Printf("%"+("s"), "hi", 3)     // ERROR "wrong number of args for format in Printf call"
-	fmt.Printf("%s%%%d", "hi", 3)      // correct
-	fmt.Printf("%08s", "woo")          // correct
-	fmt.Printf("% 8s", "woo")          // correct
-	fmt.Printf("%.*d", 3, 3)           // correct
-	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args for format in Printf call"
-	fmt.Printf("%.*d", "hi", 3)        // ERROR "arg .hi. for \* in printf format not of type int"
-	fmt.Printf("%.*d", i, 3)           // correct
-	fmt.Printf("%.*d", s, 3)           // ERROR "arg s for \* in printf format not of type int"
-	fmt.Printf("%q %q", multi()...)    // ok
-	fmt.Printf("%#q", `blah`)          // ok
-	printf("now is the time", "buddy") // ERROR "no formatting directive"
-	Printf("now is the time", "buddy") // ERROR "no formatting directive"
-	Printf("hi")                       // ok
+	fmt.Println()                              // not an error
+	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
+	fmt.Printf("%s", "hi", 3)                  // ERROR "wrong number of args for format in Printf call"
+	fmt.Printf("%"+("s"), "hi", 3)             // ERROR "wrong number of args for format in Printf call"
+	fmt.Printf("%s%%%d", "hi", 3)              // correct
+	fmt.Printf("%08s", "woo")                  // correct
+	fmt.Printf("% 8s", "woo")                  // correct
+	fmt.Printf("%.*d", 3, 3)                   // correct
+	fmt.Printf("%.*d", 3, 3, 3)                // ERROR "wrong number of args for format in Printf call"
+	fmt.Printf("%.*d", "hi", 3)                // ERROR "arg .hi. for \* in printf format not of type int"
+	fmt.Printf("%.*d", i, 3)                   // correct
+	fmt.Printf("%.*d", s, 3)                   // ERROR "arg s for \* in printf format not of type int"
+	fmt.Printf("%*%", 0.22)                    // ERROR "arg 0.22 for \* in printf format not of type int"
+	fmt.Printf("%q %q", multi()...)            // ok
+	fmt.Printf("%#q", `blah`)                  // ok
+	printf("now is the time", "buddy")         // ERROR "no formatting directive"
+	Printf("now is the time", "buddy")         // ERROR "no formatting directive"
+	Printf("hi")                               // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
 	Printf(format, "hi") // ERROR "wrong number of args for format in Printf call"
