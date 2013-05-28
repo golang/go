@@ -12,14 +12,14 @@
 TEXT runtime·exit(SB),7,$-4
 	MOVW 0(FP), R0	// arg 1 exit status
 	SWI $0xa00001
-	MOVW.CS $0, R9	// crash on syscall failure
-	MOVW.CS R9, (R9)
+	MOVW.CS $0, R8	// crash on syscall failure
+	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·exit1(SB),7,$-4
 	SWI $0xa00136	// sys__lwp_exit
-	MOVW $1, R9	// crash
-	MOVW R9, (R9)
+	MOVW $1, R8	// crash
+	MOVW R8, (R8)
 	RET
 	
 TEXT runtime·open(SB),7,$-8
@@ -79,13 +79,13 @@ TEXT runtime·lwp_self(SB),7,$0
 	RET
 
 TEXT runtime·lwp_tramp(SB),7,$0
-	MOVW R0, R9 // m
-	MOVW R1, R10 // g
+	MOVW R0, m
+	MOVW R1, g
 
 	BL runtime·emptyfunc(SB) // fault if stack check is wrong
 	BL (R2)
-	MOVW $2, R9  // crash (not reached)
-	MOVW R9, (R9)
+	MOVW $2, R8  // crash (not reached)
+	MOVW R8, (R8)
 	RET
 
 TEXT runtime·usleep(SB),7,$16
@@ -160,8 +160,8 @@ TEXT runtime·nanotime(SB), 7, $32
 TEXT runtime·getcontext(SB),7,$-4
 	MOVW 0(FP), R0	// arg 1 - context
 	SWI $0xa00133	// sys_getcontext
-	MOVW.CS $0, R9	// crash on syscall failure
-	MOVW.CS R9, (R9)
+	MOVW.CS $0, R8	// crash on syscall failure
+	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·sigprocmask(SB),7,$0
@@ -169,8 +169,8 @@ TEXT runtime·sigprocmask(SB),7,$0
 	MOVW 4(FP), R1	// arg 2 - set
 	MOVW 8(FP), R2	// arg 3 - oset
 	SWI $0xa00125	// sys_sigprocmask
-	MOVW.CS $0, R9	// crash on syscall failure
-	MOVW.CS R9, (R9)
+	MOVW.CS $0, R8	// crash on syscall failure
+	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·sigreturn_tramp(SB),7,$-4
@@ -193,8 +193,8 @@ TEXT runtime·sigaction(SB),7,$4
 	ADD $4, R13	// pass arg 5 on stack
 	SWI $0xa00154	// sys___sigaction_sigtramp
 	SUB $4, R13
-	MOVW.CS $3, R9	// crash on syscall failure
-	MOVW.CS R9, (R9)
+	MOVW.CS $3, R8	// crash on syscall failure
+	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24
@@ -213,11 +213,11 @@ TEXT runtime·sigtramp(SB),7,$24
 	RET
 
 	// save g
-	MOVW R10, R4
-	MOVW R10, 20(R13)
+	MOVW g, R4
+	MOVW g, 20(R13)
 
 	// g = m->signal
-	MOVW m_gsignal(R9), R10
+	MOVW m_gsignal(m), g
 
 	// R0 is already saved
 	MOVW R1, 8(R13) // info
@@ -230,7 +230,7 @@ TEXT runtime·sigtramp(SB),7,$24
 	BL runtime·sighandler(SB)
 
 	// restore g
-	MOVW 20(R13), R10
+	MOVW 20(R13), g
 	RET
 
 TEXT runtime·mmap(SB),7,$12
@@ -255,8 +255,8 @@ TEXT runtime·munmap(SB),7,$0
 	MOVW 0(FP), R0	// arg 1 - addr
 	MOVW 4(FP), R1	// arg 2 - len
 	SWI $0xa00049	// sys_munmap
-	MOVW.CS $0, R9	// crash on syscall failure
-	MOVW.CS R9, (R9)
+	MOVW.CS $0, R8	// crash on syscall failure
+	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·madvise(SB),7,$0
@@ -271,8 +271,8 @@ TEXT runtime·sigaltstack(SB),7,$-4
 	MOVW 0(FP), R0	// arg 1 - nss
 	MOVW 4(FP), R1	// arg 2 - oss
 	SWI $0xa00119	// sys___sigaltstack14
-	MOVW.CS $0, R9	// crash on syscall failure
-	MOVW.CS R9, (R9)
+	MOVW.CS $0, R8	// crash on syscall failure
+	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·sysctl(SB),7,$8
