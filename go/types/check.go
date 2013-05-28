@@ -19,7 +19,7 @@ const (
 	debug = true  // leave on during development
 	trace = false // turn on for detailed type resolution traces
 	// TODO(gri) remove this flag and clean up code under the assumption that resolve == true.
-	resolve = false // if set, resolve all identifiers in the type checker (don't use ast.Objects anymore)
+	resolve = true // if set, resolve all identifiers in the type checker (don't use ast.Objects anymore)
 )
 
 // exprInfo stores type and constant value for an untyped expression.
