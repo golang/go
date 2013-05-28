@@ -204,7 +204,7 @@ markonly(void *obj)
 	PageID k;
 
 	// Words outside the arena cannot be pointers.
-	if(obj < runtime·mheap->arena_start || obj >= runtime·mheap->arena_used)
+	if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
 		return false;
 
 	// obj may be a pointer to a live object.
@@ -214,8 +214,8 @@ markonly(void *obj)
 	obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
 
 	// Find bits for this word.
-	off = (uintptr*)obj - (uintptr*)runtime·mheap->arena_start;
-	bitp = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
+	bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 	xbits = *bitp;
 	bits = xbits >> shift;
@@ -229,8 +229,8 @@ markonly(void *obj)
 	k = (uintptr)obj>>PageShift;
 	x = k;
 	if(sizeof(void*) == 8)
-		x -= (uintptr)runtime·mheap->arena_start>>PageShift;
-	s = runtime·mheap->map[x];
+		x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+	s = runtime·mheap.map[x];
 	if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
 		return false;
 	p = (byte*)((uintptr)s->start<<PageShift);
@@ -245,8 +245,8 @@ markonly(void *obj)
 	}
 
 	// Now that we know the object header, reload bits.
-	off = (uintptr*)obj - (uintptr*)runtime·mheap->arena_start;
-	bitp = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
+	bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 	xbits = *bitp;
 	bits = xbits >> shift;
@@ -328,7 +328,7 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 	Workbuf *wbuf;
 	PtrTarget *ptrbuf_end;
 
-	arena_start = runtime·mheap->arena_start;
+	arena_start = runtime·mheap.arena_start;
 
 	wp = *_wp;
 	wbuf = *_wbuf;
@@ -367,7 +367,7 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 
 			// obj belongs to interval [mheap.arena_start, mheap.arena_used).
 			if(Debug > 1) {
-				if(obj < runtime·mheap->arena_start || obj >= runtime·mheap->arena_used)
+				if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
 					runtime·throw("object is outside of mheap");
 			}
 
@@ -410,7 +410,7 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			x = k;
 			if(sizeof(void*) == 8)
 				x -= (uintptr)arena_start>>PageShift;
-			s = runtime·mheap->map[x];
+			s = runtime·mheap.map[x];
 			if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
 				continue;
 			p = (byte*)((uintptr)s->start<<PageShift);
@@ -458,7 +458,7 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			x = (uintptr)obj >> PageShift;
 			if(sizeof(void*) == 8)
 				x -= (uintptr)arena_start>>PageShift;
-			s = runtime·mheap->map[x];
+			s = runtime·mheap.map[x];
 
 			PREFETCH(obj);
 
@@ -566,7 +566,7 @@ checkptr(void *obj, uintptr objti)
 	if(!Debug)
 		runtime·throw("checkptr is debug only");
 
-	if(obj < runtime·mheap->arena_start || obj >= runtime·mheap->arena_used)
+	if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
 		return;
 	type = runtime·gettype(obj);
 	t = (Type*)(type & ~(uintptr)(PtrSize-1));
@@ -574,8 +574,8 @@ checkptr(void *obj, uintptr objti)
 		return;
 	x = (uintptr)obj >> PageShift;
 	if(sizeof(void*) == 8)
-		x -= (uintptr)(runtime·mheap->arena_start)>>PageShift;
-	s = runtime·mheap->map[x];
+		x -= (uintptr)(runtime·mheap.arena_start)>>PageShift;
+	s = runtime·mheap.map[x];
 	objstart = (byte*)((uintptr)s->start<<PageShift);
 	if(s->sizeclass != 0) {
 		i = ((byte*)obj - objstart)/s->elemsize;
@@ -645,8 +645,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		runtime·throw("scanblock: size of Workbuf is suboptimal");
 
 	// Memory arena parameters.
-	arena_start = runtime·mheap->arena_start;
-	arena_used = runtime·mheap->arena_used;
+	arena_start = runtime·mheap.arena_start;
+	arena_used = runtime·mheap.arena_used;
 
 	stack_ptr = stack+nelem(stack)-1;
 	
@@ -1157,14 +1157,14 @@ debug_scanblock(byte *b, uintptr n)
 		obj = (byte*)vp[i];
 
 		// Words outside the arena cannot be pointers.
-		if((byte*)obj < runtime·mheap->arena_start || (byte*)obj >= runtime·mheap->arena_used)
+		if((byte*)obj < runtime·mheap.arena_start || (byte*)obj >= runtime·mheap.arena_used)
 			continue;
 
 		// Round down to word boundary.
 		obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
 
 		// Consult span table to find beginning.
-		s = runtime·MHeap_LookupMaybe(runtime·mheap, obj);
+		s = runtime·MHeap_LookupMaybe(&runtime·mheap, obj);
 		if(s == nil)
 			continue;
 
@@ -1180,8 +1180,8 @@ debug_scanblock(byte *b, uintptr n)
 		}
 
 		// Now that we know the object header, reload bits.
-		off = (uintptr*)obj - (uintptr*)runtime·mheap->arena_start;
-		bitp = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+		off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
+		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
 		xbits = *bitp;
 		bits = xbits >> shift;
@@ -1521,8 +1521,8 @@ addroots(void)
 	addroot((Obj){bss, ebss - bss, (uintptr)gcbss});
 
 	// MSpan.types
-	allspans = runtime·mheap->allspans;
-	for(spanidx=0; spanidx<runtime·mheap->nspan; spanidx++) {
+	allspans = runtime·mheap.allspans;
+	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
 		s = allspans[spanidx];
 		if(s->state == MSpanInUse) {
 			// The garbage collector ignores type pointers stored in MSpan.types:
@@ -1624,10 +1624,10 @@ sweepspan(ParFor *desc, uint32 idx)
 	MSpan *s;
 
 	USED(&desc);
-	s = runtime·mheap->allspans[idx];
+	s = runtime·mheap.allspans[idx];
 	if(s->state != MSpanInUse)
 		return;
-	arena_start = runtime·mheap->arena_start;
+	arena_start = runtime·mheap.arena_start;
 	p = (byte*)(s->start << PageShift);
 	cl = s->sizeclass;
 	size = s->elemsize;
@@ -1691,7 +1691,7 @@ sweepspan(ParFor *desc, uint32 idx)
 			// Free large span.
 			runtime·unmarkspan(p, 1<<PageShift);
 			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
-			runtime·MHeap_Free(runtime·mheap, s, 1);
+			runtime·MHeap_Free(&runtime·mheap, s, 1);
 			c->local_alloc -= size;
 			c->local_nfree++;
 		} else {
@@ -1719,7 +1719,7 @@ sweepspan(ParFor *desc, uint32 idx)
 		c->local_nfree += nfree;
 		c->local_cachealloc -= nfree * size;
 		c->local_objects -= nfree;
-		runtime·MCentral_FreeSpan(&runtime·mheap->central[cl], s, nfree, head.next, end);
+		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
 	}
 }
 
@@ -1733,10 +1733,10 @@ dumpspan(uint32 idx)
 	MSpan *s;
 	bool allocated, special;
 
-	s = runtime·mheap->allspans[idx];
+	s = runtime·mheap.allspans[idx];
 	if(s->state != MSpanInUse)
 		return;
-	arena_start = runtime·mheap->arena_start;
+	arena_start = runtime·mheap.arena_start;
 	p = (byte*)(s->start << PageShift);
 	sizeclass = s->sizeclass;
 	size = s->elemsize;
@@ -1794,7 +1794,7 @@ runtime·memorydump(void)
 {
 	uint32 spanidx;
 
-	for(spanidx=0; spanidx<runtime·mheap->nspan; spanidx++) {
+	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
 		dumpspan(spanidx);
 	}
 }
@@ -1995,7 +1995,7 @@ gc(struct gc_args *args)
 	work.nproc = runtime·gcprocs();
 	addroots();
 	runtime·parforsetup(work.markfor, work.nproc, work.nroot, nil, false, markroot);
-	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap->nspan, nil, true, sweepspan);
+	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap.nspan, nil, true, sweepspan);
 	if(work.nproc > 1) {
 		runtime·noteclear(&work.alldone);
 		runtime·helpgc(work.nproc);
@@ -2121,7 +2121,7 @@ runtime∕debug·readGCStats(Slice *pauses)
 
 	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
 	p = (uint64*)pauses->array;
-	runtime·lock(runtime·mheap);
+	runtime·lock(&runtime·mheap);
 	n = mstats.numgc;
 	if(n > nelem(mstats.pause_ns))
 		n = nelem(mstats.pause_ns);
@@ -2136,21 +2136,21 @@ runtime∕debug·readGCStats(Slice *pauses)
 	p[n] = mstats.last_gc;
 	p[n+1] = mstats.numgc;
 	p[n+2] = mstats.pause_total_ns;	
-	runtime·unlock(runtime·mheap);
+	runtime·unlock(&runtime·mheap);
 	pauses->len = n+3;
 }
 
 void
 runtime∕debug·setGCPercent(intgo in, intgo out)
 {
-	runtime·lock(runtime·mheap);
+	runtime·lock(&runtime·mheap);
 	if(gcpercent == GcpercentUnknown)
 		gcpercent = readgogc();
 	out = gcpercent;
 	if(in < 0)
 		in = -1;
 	gcpercent = in;
-	runtime·unlock(runtime·mheap);
+	runtime·unlock(&runtime·mheap);
 	FLUSH(&out);
 }
 
@@ -2218,11 +2218,11 @@ runtime·markallocated(void *v, uintptr n, bool noptr)
 	if(0)
 		runtime·printf("markallocated %p+%p\n", v, n);
 
-	if((byte*)v+n > (byte*)runtime·mheap->arena_used || (byte*)v < runtime·mheap->arena_start)
+	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markallocated: bad pointer");
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap->arena_start;  // word offset
-	b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
 	for(;;) {
@@ -2250,11 +2250,11 @@ runtime·markfreed(void *v, uintptr n)
 	if(0)
 		runtime·printf("markallocated %p+%p\n", v, n);
 
-	if((byte*)v+n > (byte*)runtime·mheap->arena_used || (byte*)v < runtime·mheap->arena_start)
+	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markallocated: bad pointer");
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap->arena_start;  // word offset
-	b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
 	for(;;) {
@@ -2280,11 +2280,11 @@ runtime·checkfreed(void *v, uintptr n)
 	if(!runtime·checking)
 		return;
 
-	if((byte*)v+n > (byte*)runtime·mheap->arena_used || (byte*)v < runtime·mheap->arena_start)
+	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		return;	// not allocated, so okay
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap->arena_start;  // word offset
-	b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
 	bits = *b>>shift;
@@ -2303,7 +2303,7 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 	uintptr *b, off, shift;
 	byte *p;
 
-	if((byte*)v+size*n > (byte*)runtime·mheap->arena_used || (byte*)v < runtime·mheap->arena_start)
+	if((byte*)v+size*n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markspan: bad pointer");
 
 	p = v;
@@ -2314,8 +2314,8 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 		// the entire span, and each bitmap word has bits for only
 		// one span, so no other goroutines are changing these
 		// bitmap words.
-		off = (uintptr*)p - (uintptr*)runtime·mheap->arena_start;  // word offset
-		b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+		off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;  // word offset
+		b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
 		*b = (*b & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
 	}
@@ -2327,14 +2327,14 @@ runtime·unmarkspan(void *v, uintptr n)
 {
 	uintptr *p, *b, off;
 
-	if((byte*)v+n > (byte*)runtime·mheap->arena_used || (byte*)v < runtime·mheap->arena_start)
+	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markspan: bad pointer");
 
 	p = v;
-	off = p - (uintptr*)runtime·mheap->arena_start;  // word offset
+	off = p - (uintptr*)runtime·mheap.arena_start;  // word offset
 	if(off % wordsPerBitmapWord != 0)
 		runtime·throw("markspan: unaligned pointer");
-	b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	n /= PtrSize;
 	if(n%wordsPerBitmapWord != 0)
 		runtime·throw("unmarkspan: unaligned length");
@@ -2355,8 +2355,8 @@ runtime·blockspecial(void *v)
 	if(DebugMark)
 		return true;
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap->arena_start;
-	b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
 	return (*b & (bitSpecial<<shift)) != 0;
@@ -2370,8 +2370,8 @@ runtime·setblockspecial(void *v, bool s)
 	if(DebugMark)
 		return;
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap->arena_start;
-	b = (uintptr*)runtime·mheap->arena_start - off/wordsPerBitmapWord - 1;
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
 
 	for(;;) {
