@@ -193,8 +193,6 @@ static int32 nfunc;
 static byte **fname;
 static int32 nfname;
 
-static uint32 funcinit;
-static Lock funclock;
 static uintptr lastvalue;
 
 static void
@@ -539,8 +537,8 @@ runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
 	FLUSH(&retline);
 }
 
-static void
-buildfuncs(void)
+void
+runtime·symtabinit(void)
 {
 	extern byte etext[];
 
@@ -590,26 +588,6 @@ runtime·findfunc(uintptr addr)
 {
 	Func *f;
 	int32 nf, n;
-
-	// Use atomic double-checked locking,
-	// because when called from pprof signal
-	// handler, findfunc must run without
-	// grabbing any locks.
-	// (Before enabling the signal handler,
-	// SetCPUProfileRate calls findfunc to trigger
-	// the initialization outside the handler.)
-	// Avoid deadlock on fault during malloc
-	// by not calling buildfuncs if we're already in malloc.
-	if(!m->mallocing && !m->gcing) {
-		if(runtime·atomicload(&funcinit) == 0) {
-			runtime·lock(&funclock);
-			if(funcinit == 0) {
-				buildfuncs();
-				runtime·atomicstore(&funcinit, 1);
-			}
-			runtime·unlock(&funclock);
-		}
-	}
 
 	if(nfunc == 0)
 		return nil;
