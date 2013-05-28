@@ -127,8 +127,8 @@ TEXT runtime·munmap(SB),7,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	MOVW.HI	$0, R9  // crash on syscall failure
-	MOVW.HI	R9, (R9)
+	MOVW.HI	$0, R8  // crash on syscall failure
+	MOVW.HI	R8, (R8)
 	RET
 
 TEXT runtime·madvise(SB),7,$0
@@ -278,8 +278,8 @@ TEXT runtime·sigaltstack(SB),7,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	MOVW.HI	$0, R9  // crash on syscall failure
-	MOVW.HI	R9, (R9)
+	MOVW.HI	$0, R8  // crash on syscall failure
+	MOVW.HI	R8, (R8)
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24
