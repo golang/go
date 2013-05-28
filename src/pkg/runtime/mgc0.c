@@ -623,7 +623,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	byte *b, *arena_start, *arena_used;
 	uintptr n, i, end_b, elemsize, size, ti, objti, count, type;
 	uintptr *pc, precise_type, nominal_size;
-	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti, *chan_ret;
+	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti, *chan_ret, chancap;
 	void *obj;
 	Type *t;
 	Slice *sliceptr;
@@ -1062,13 +1062,13 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			if(!(chantype->elem->kind & KindNoPointers)) {
 				// Channel's buffer follows Hchan immediately in memory.
 				// Size of buffer (cap(c)) is second int in the chan struct.
-				n = ((uintgo*)chan)[1];
-				if(n > 0) {
+				chancap = ((uintgo*)chan)[1];
+				if(chancap > 0) {
 					// TODO(atom): split into two chunks so that only the
 					// in-use part of the circular buffer is scanned.
 					// (Channel routines zero the unused part, so the current
 					// code does not lead to leaks, it's just a little inefficient.)
-					*objbufpos++ = (Obj){(byte*)chan+runtime·Hchansize, n*chantype->elem->size,
+					*objbufpos++ = (Obj){(byte*)chan+runtime·Hchansize, chancap*chantype->elem->size,
 						(uintptr)chantype->elem->gc | PRECISE | LOOP};
 					if(objbufpos == objbuf_end)
 						flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
