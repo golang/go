@@ -78,18 +78,3 @@ bvisempty(Bvec *bv)
 			return 0;
 	return 1;
 }
-
-int bvcmp(Bvec *bv1, Bvec *bv2)
-{
-	int32 i;
-
-	if(bv1->n != bv2->n) {
-		fatal("bvcmp: size %d != %d\n", bv1->n, bv2->n);
-	}
-	for(i = 0; i < bv1->n; i += WORDBITS) {
-		if(bv1->b[i / WORDBITS] != bv2->b[i / WORDBITS]) {
-			fatal("bvcmp: element %x != %x @ %d\n", bv1->b[i/WORDBITS], bv2->b[i/WORDBITS], i/WORDBITS);
-		}
-	}
-	return 0;
-}
