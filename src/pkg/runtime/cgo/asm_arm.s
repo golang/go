@@ -15,9 +15,9 @@ TEXT crosscall2(SB),7,$-4
 	 *  Additionally, cgo_tls_set_gm will clobber R0, so we need to save R0
 	 *  nevertheless.
 	 */
-	MOVM.WP	[R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, R14], (R13)
+	MOVM.WP	[R0, R1, R2, R4, R5, R6, R7, R8, m, g, R11, R12, R14], (R13)
 	MOVW	_cgo_load_gm(SB), R0
 	BL	(R0)
 	MOVW	PC, R14
 	MOVW	0(R13), PC
-	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, PC]
+	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, m, g, R11, R12, PC]

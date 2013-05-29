@@ -174,8 +174,6 @@ static struct {
 	},
 	
 	{"arm", "",
-	"#define	g	R10\n"
-	"#define	m	R9\n"
 	"#define	LR	R14\n"
 	},
 };

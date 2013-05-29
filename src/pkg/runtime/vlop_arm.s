@@ -70,7 +70,7 @@ TEXT _sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
 q = 0 // input d, output q
 r = 1 // input n, output r
 s = 2 // three temporary variables
-m = 3
+M = 3
 a = 11
 // Please be careful when changing this, it is pretty fragile:
 // 1, don't use unconditional branch as the linker is free to reorder the blocks;
@@ -83,31 +83,31 @@ TEXT udiv<>(SB),7,$-4
 
 begin:
 	SUB.S	$7, R(s)
-	RSB 	$0, R(q), R(m) // m = -q
+	RSB 	$0, R(q), R(M) // M = -q
 	MOVW.PL	R(a)<<R(s), R(q)
 
 	// 1st Newton iteration
-	MUL.PL	R(m), R(q), R(a) // a = -q*d
+	MUL.PL	R(M), R(q), R(a) // a = -q*d
 	BMI 	udiv_by_large_d
 	MULAWT	R(a), R(q), R(q), R(q) // q approx q-(q*q*d>>32)
-	TEQ 	R(m)->1, R(m) // check for d=0 or d=1
+	TEQ 	R(M)->1, R(M) // check for d=0 or d=1
 
 	// 2nd Newton iteration
-	MUL.NE	R(m), R(q), R(a)
+	MUL.NE	R(M), R(q), R(a)
 	MOVW.NE	$0, R(s)
 	MULAL.NE R(q), R(a), (R(q),R(s))
 	BEQ 	udiv_by_0_or_1
 
 	// q now accurate enough for a remainder r, 0<=r<3*d
 	MULLU	R(q), R(r), (R(q),R(s)) // q = (r * q) >> 32	
-	ADD 	R(m), R(r), R(r) // r = n - d
-	MULA	R(m), R(q), R(r), R(r) // r = n - (q+1)*d
+	ADD 	R(M), R(r), R(r) // r = n - d
+	MULA	R(M), R(q), R(r), R(r) // r = n - (q+1)*d
 
 	// since 0 <= n-q*d < 3*d; thus -d <= r < 2*d
-	CMN 	R(m), R(r) // t = r-d
-	SUB.CS	R(m), R(r), R(r) // if (t<-d || t>=0) r=r+d
+	CMN 	R(M), R(r) // t = r-d
+	SUB.CS	R(M), R(r), R(r) // if (t<-d || t>=0) r=r+d
 	ADD.CC	$1, R(q)
-	ADD.PL	R(m)<<1, R(r)
+	ADD.PL	R(M)<<1, R(r)
 	ADD.PL	$2, R(q)
 
 	// return, can't use RET here or fast_udiv_tab will be dropped during linking
@@ -119,14 +119,14 @@ udiv_by_large_d:
 	RSB 	$0, R(s), R(s)
 	MOVW	R(a)>>R(s), R(q)
 	MULLU	R(q), R(r), (R(q),R(s))
-	MULA	R(m), R(q), R(r), R(r)
+	MULA	R(M), R(q), R(r), R(r)
 
 	// q now accurate enough for a remainder r, 0<=r<4*d
-	CMN 	R(r)>>1, R(m) // if(r/2 >= d)
-	ADD.CS	R(m)<<1, R(r)
+	CMN 	R(r)>>1, R(M) // if(r/2 >= d)
+	ADD.CS	R(M)<<1, R(r)
 	ADD.CS	$2, R(q)
-	CMN 	R(r), R(m)
-	ADD.CS	R(m), R(r)
+	CMN 	R(r), R(M)
+	ADD.CS	R(M), R(r)
 	ADD.CS	$1, R(q)
 
 	// return, can't use RET here or fast_udiv_tab will be dropped during linking
@@ -170,7 +170,7 @@ TEXT _divu(SB), 7, $16
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
-	MOVW	R(m), 16(R13)
+	MOVW	R(M), 16(R13)
 
 	MOVW	R(TMP), R(r)		/* numerator */
 	MOVW	0(FP), R(q) 		/* denominator */
@@ -179,14 +179,14 @@ TEXT _divu(SB), 7, $16
 	MOVW	4(R13), R(q)
 	MOVW	8(R13), R(r)
 	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(m)
+	MOVW	16(R13), R(M)
 	RET
 
 TEXT _modu(SB), 7, $16
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
-	MOVW	R(m), 16(R13)
+	MOVW	R(M), 16(R13)
 
 	MOVW	R(TMP), R(r)		/* numerator */
 	MOVW	0(FP), R(q) 		/* denominator */
@@ -195,14 +195,14 @@ TEXT _modu(SB), 7, $16
 	MOVW	4(R13), R(q)
 	MOVW	8(R13), R(r)
 	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(m)
+	MOVW	16(R13), R(M)
 	RET
 
 TEXT _div(SB),7,$16
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
-	MOVW	R(m), 16(R13)
+	MOVW	R(M), 16(R13)
 	MOVW	R(TMP), R(r)		/* numerator */
 	MOVW	0(FP), R(q) 		/* denominator */
 	CMP 	$0, R(r)
@@ -228,7 +228,7 @@ TEXT _mod(SB),7,$16
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
-	MOVW	R(m), 16(R13)
+	MOVW	R(M), 16(R13)
 	MOVW	R(TMP), R(r)		/* numerator */
 	MOVW	0(FP), R(q) 		/* denominator */
 	CMP 	$0, R(q)
@@ -246,5 +246,5 @@ out:
 	MOVW	4(R13), R(q)
 	MOVW	8(R13), R(r)
 	MOVW	12(R13), R(s)
-	MOVW	16(R13), R(m)
+	MOVW	16(R13), R(M)
 	RET
