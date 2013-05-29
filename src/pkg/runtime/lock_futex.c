@@ -127,18 +127,18 @@ runtime·notesleep(Note *n)
 		runtime·setprof(true);
 }
 
-void
+bool
 runtime·notetsleep(Note *n, int64 ns)
 {
 	int64 deadline, now;
 
 	if(ns < 0) {
 		runtime·notesleep(n);
-		return;
+		return true;
 	}
 
 	if(runtime·atomicload((uint32*)&n->key) != 0)
-		return;
+		return true;
 
 	if(m->profilehz > 0)
 		runtime·setprof(false);
@@ -154,4 +154,5 @@ runtime·notetsleep(Note *n, int64 ns)
 	}
 	if(m->profilehz > 0)
 		runtime·setprof(true);
+	return runtime·atomicload((uint32*)&n->key) != 0;
 }
