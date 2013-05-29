@@ -161,7 +161,7 @@ runtime·notesleep(Note *n)
 		runtime·setprof(true);
 }
 
-void
+bool
 runtime·notetsleep(Note *n, int64 ns)
 {
 	M *mp;
@@ -169,7 +169,7 @@ runtime·notetsleep(Note *n, int64 ns)
 
 	if(ns < 0) {
 		runtime·notesleep(n);
-		return;
+		return true;
 	}
 
 	if(m->waitsema == 0)
@@ -179,7 +179,7 @@ runtime·notetsleep(Note *n, int64 ns)
 	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
 		if(n->key != LOCKED)
 			runtime·throw("notetsleep - waitm out of sync");
-		return;
+		return true;
 	}
 
 	if(m->profilehz > 0)
@@ -192,7 +192,7 @@ runtime·notetsleep(Note *n, int64 ns)
 			// Done.
 			if(m->profilehz > 0)
 				runtime·setprof(true);
-			return;
+			return true;
 		}
 
 		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
@@ -216,13 +216,13 @@ runtime·notetsleep(Note *n, int64 ns)
 		if(mp == m) {
 			// No wakeup yet; unregister if possible.
 			if(runtime·casp((void**)&n->key, mp, nil))
-				return;
+				return false;
 		} else if(mp == (M*)LOCKED) {
 			// Wakeup happened so semaphore is available.
 			// Grab it to avoid getting out of sync.
 			if(runtime·semasleep(-1) < 0)
 				runtime·throw("runtime: unable to acquire - semaphore out of sync");
-			return;
+			return true;
 		} else {
 			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
 		}

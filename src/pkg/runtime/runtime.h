@@ -862,7 +862,7 @@ void	runtime·unlock(Lock*);
 void	runtime·noteclear(Note*);
 void	runtime·notesleep(Note*);
 void	runtime·notewakeup(Note*);
-void	runtime·notetsleep(Note*, int64);
+bool	runtime·notetsleep(Note*, int64);  // false - timeout
 
 /*
  * low-level synchronization for implementing the above
