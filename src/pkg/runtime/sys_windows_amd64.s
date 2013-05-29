@@ -60,33 +60,6 @@ loadregs:
 
 	RET
 
-// This should be called on a system stack,
-// so we don't need to concern about split stack.
-TEXT runtime·badcallback(SB),7,$0
-	SUBQ	$48, SP
-
-	// stderr
-	MOVQ	$-12, CX // stderr
-	MOVQ	CX, 0(SP)
-	MOVQ	runtime·GetStdHandle(SB), AX
-	CALL	AX
-
-	MOVQ	AX, CX	// handle
-	MOVQ	CX, 0(SP)
-	MOVQ	$runtime·badcallbackmsg(SB), DX // pointer
-	MOVQ	DX, 8(SP)
-	MOVL	$runtime·badcallbacklen(SB), R8 // count
-	MOVQ	R8, 16(SP)
-	LEAQ	40(SP), R9  // written count
-	MOVQ	$0, 0(R9)
-	MOVQ	R9, 24(SP)
-	MOVQ	$0, 32(SP)	// overlapped
-	MOVQ	runtime·WriteFile(SB), AX
-	CALL	AX
-	
-	ADDQ	$48, SP
-	RET
-
 TEXT runtime·badsignal(SB),7,$48
 	// stderr
 	MOVQ	$-12, CX // stderr
