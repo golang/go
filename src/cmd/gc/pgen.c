@@ -8,6 +8,7 @@
 #include	"opt.h"
 
 static void allocauto(Prog* p);
+static void pointermap(Node* fn);
 
 void
 compile(Node *fn)
@@ -108,6 +109,8 @@ compile(Node *fn)
 		}
 	}
 
+	pointermap(fn);
+
 	genlist(curfn->enter);
 
 	retpc = nil;
@@ -168,6 +171,149 @@ ret:
 	lineno = lno;
 }
 
+static void
+walktype1(Type *t, vlong *xoffset, Bvec *bv)
+{
+	vlong fieldoffset, i, o;
+	Type *t1;
+
+	if(t->align > 0 && (*xoffset % t->align) != 0)
+	 	fatal("walktype1: invalid initial alignment, %T", t);
+
+	switch(t->etype) {
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TINT:
+	case TUINT:
+	case TUINTPTR:
+	case TBOOL:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TCOMPLEX64:
+	case TCOMPLEX128:
+		*xoffset += t->width;
+		break;
+
+	case TPTR32:
+	case TPTR64:
+	case TUNSAFEPTR:
+	case TFUNC:
+	case TCHAN:
+	case TMAP:
+		if(*xoffset % widthptr != 0)
+			fatal("walktype1: invalid alignment, %T", t);
+		bvset(bv, *xoffset / widthptr);
+		*xoffset += t->width;
+		break;
+
+	case TSTRING:
+		// struct { byte *str; intgo len; }
+		if(*xoffset % widthptr != 0)
+			fatal("walktype1: invalid alignment, %T", t);
+		bvset(bv, *xoffset / widthptr);
+		*xoffset += t->width;
+		break;
+
+	case TINTER:
+		// struct { Itab* tab;  union { void* ptr, uintptr val } data; }
+		// or, when isnilinter(t)==true:
+		// struct { Type* type; union { void* ptr, uintptr val } data; }
+		if(*xoffset % widthptr != 0)
+			fatal("walktype1: invalid alignment, %T", t);
+		bvset(bv, *xoffset / widthptr);
+		bvset(bv, (*xoffset + widthptr) / widthptr);
+		*xoffset += t->width;
+		break;
+
+	case TARRAY:
+		// The value of t->bound is -1 for slices types and >0 for
+		// for fixed array types.  All other values are invalid.
+		if(t->bound < -1)
+			fatal("walktype1: invalid bound, %T", t);
+		if(isslice(t)) {
+			// struct { byte* array; uintgo len; uintgo cap; }
+			if(*xoffset % widthptr != 0)
+				fatal("walktype1: invalid TARRAY alignment, %T", t);
+			bvset(bv, *xoffset / widthptr);
+			*xoffset += t->width;
+		} else if(!haspointers(t->type))
+				*xoffset += t->width;
+		else
+			for(i = 0; i < t->bound; ++i)
+				walktype1(t->type, xoffset, bv);
+		break;
+
+	case TSTRUCT:
+		o = 0;
+		for(t1 = t->type; t1 != T; t1 = t1->down) {
+			fieldoffset = t1->width;
+			*xoffset += fieldoffset - o;
+			walktype1(t1->type, xoffset, bv);
+			o = fieldoffset + t1->type->width;
+		}
+		*xoffset += t->width - o;
+		break;
+
+	default:
+		fatal("walktype1: unexpected type, %T", t);
+	}
+}
+
+static void
+walktype(Type *type, Bvec *bv)
+{
+	vlong xoffset;
+
+	// Start the walk at offset 0.  The correct offset will be
+	// filled in by the first type encountered during the walk.
+	xoffset = 0;
+	walktype1(type, &xoffset, bv);
+}
+
+// Compute a bit vector to describes the pointer containing locations
+// in the argument list.
+static void
+pointermap(Node *fn)
+{
+	Type *thistype, *inargtype, *outargtype;
+	Bvec *bv;
+	Prog *prog;
+	int32 i;
+
+	thistype = getthisx(fn->type);
+	inargtype = getinargx(fn->type);
+	outargtype = getoutargx(fn->type);
+	bv = bvalloc(fn->type->argwid / widthptr);
+	if(thistype != nil)
+		walktype(thistype, bv);
+	if(inargtype != nil)
+		walktype(inargtype, bv);
+	if(outargtype != nil)
+		walktype(outargtype, bv);
+	if(bvisempty(bv)) {
+		prog = gins(ANPTRS, N, N);
+		prog->to.type = D_CONST;
+		prog->to.offset = 0;
+	} else {
+		prog = gins(ANPTRS, N, N);
+		prog->to.type = D_CONST;
+		prog->to.offset = bv->n;
+		for(i = 0; i < bv->n; i += 32) {
+			prog = gins(APTRS, N, N);
+			prog->from.type = D_CONST;
+			prog->from.offset = i / 32;
+			prog->to.type = D_CONST;
+			prog->to.offset = bv->b[i / 32];
+		}
+	}
+	free(bv);
+}
 
 // Sort the list of stack variables.  autos after anything else,
 // within autos, unused after used, and within used on reverse alignment.

@@ -154,6 +154,8 @@ struct	Sym
 	int32	elfsym;
 	int32	locals;	// size of stack frame locals area
 	int32	args;	// size of stack frame incoming arguments area
+	int32	nptrs;	// number of bits in the pointer map
+	uint32*	ptrs;	// pointer map data
 	uchar	special;
 	uchar	fnptr;	// used as fn ptr
 	uchar	stkcheck;

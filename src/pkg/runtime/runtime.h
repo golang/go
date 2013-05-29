@@ -412,6 +412,7 @@ struct	Func
 	int32	frame;	// stack frame size
 	int32	args;	// in/out args size
 	int32	locals;	// locals size
+	Slice	ptrs;	// pointer map
 };
 
 // layout of Itab known to compilers
@@ -811,6 +812,7 @@ void	runtime·netpollready(G**, PollDesc*, int32);
 void	runtime·crash(void);
 
 #pragma	varargck	argpos	runtime·printf	1
+#pragma	varargck	type	"c"	int32
 #pragma	varargck	type	"d"	int32
 #pragma	varargck	type	"d"	uint32
 #pragma	varargck	type	"D"	int64

@@ -85,9 +85,10 @@ type Func struct { // Keep in sync with runtime.h:struct Func
 	entry  uintptr // entry pc
 	pc0    uintptr // starting pc, ln for table
 	ln0    int32
-	frame  int32 // stack frame size
-	args   int32 // in/out args size
-	locals int32 // locals size
+	frame  int32   // stack frame size
+	args   int32   // in/out args size
+	locals int32   // locals size
+	ptrs   []int32 // pointer map
 }
 
 // FuncForPC returns a *Func describing the function that contains the

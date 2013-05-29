@@ -1337,6 +1337,8 @@ Optab optab[] =
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
 	{ ALOCALS },
 	{ ATYPE },
+	{ ANPTRS },
+	{ APTRS },
 
 	{ AEND },
 	0

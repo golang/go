@@ -580,6 +580,8 @@ enum	as
 	AUSEFIELD,
 	ALOCALS,
 	ATYPE,
+	ANPTRS,
+	APTRS,
 
 	ALAST
 };

@@ -626,6 +626,38 @@ loop:
 		pc++;
 		goto loop;
 
+	case ANPTRS:
+		if(skip)
+			goto casdef;
+		if(cursym->nptrs != -1) {
+			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
+			errorexit();
+		}
+		if(p->to.offset > cursym->args/PtrSize) {
+			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
+			errorexit();
+		}
+		cursym->nptrs = p->to.offset;
+		if(cursym->nptrs != 0)
+			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
+		pc++;
+		goto loop;
+
+	case APTRS:
+		if(skip)
+			goto casdef;
+		if(cursym->nptrs == -1 || cursym->ptrs == NULL) {
+			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
+			errorexit();
+		}
+		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
+			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
+			errorexit();
+		}
+		cursym->ptrs[p->from.offset] = p->to.offset;
+		pc++;
+		goto loop;
+
 	case ATEXT:
 		s = p->from.sym;
 		if(s->text != nil) {
@@ -665,6 +697,7 @@ loop:
 		s->type = STEXT;
 		s->value = pc;
 		s->args = p->to.offset2;
+		s->nptrs = -1;
 		lastp = p;
 		p->pc = pc++;
 		goto loop;
