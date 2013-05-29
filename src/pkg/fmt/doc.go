@@ -131,7 +131,7 @@
 	For example,
 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
 	will yield "22, 11", while
-		fmt.Sprintf("%[3]*[2].*[1]f", 12.0, 2, 6),
+		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
 	equivalent to
 		fmt.Sprintf("%6.2f", 12.0),
 	will yield " 12.00". Because an explicit index affects subsequent verbs,
@@ -155,8 +155,9 @@
 		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
-		Invalid or out-of-range argument index: %!(BADARGNUM)
-			Printf("%*[2]d", 7):       %d(BADARGNUM)
+		Invalid or invalid use of argument index: %!(BADINDEX)
+			Printf("%*[2]d", 7):       %d(BADINDEX)
+			Printf("%.[2]d", 7):       %d(BADINDEX)
 
 	All errors begin with the string "%!" followed sometimes
 	by a single character (the verb) and end with a parenthesized

@@ -22,7 +22,7 @@ var (
 	nilBytes        = []byte("nil")
 	mapBytes        = []byte("map[")
 	missingBytes    = []byte("(MISSING)")
-	badArgNum       = []byte("(BADARGNUM)")
+	badIndexBytes   = []byte("(BADINDEX)")
 	panicBytes      = []byte("(PANIC=")
 	extraBytes      = []byte("%!(EXTRA ")
 	irparenBytes    = []byte("i)")
@@ -117,7 +117,7 @@ type pp struct {
 	value reflect.Value
 	// reordered records whether the format string used argument reordering.
 	reordered bool
-	// goodArgNum records whether the last reordering directive was valid.
+	// goodArgNum records whether all reordering directives were valid.
 	goodArgNum bool
 	runeBuf    [utf8.UTFMax]byte
 	fmt        fmt
@@ -1021,11 +1021,11 @@ BigSwitch:
 }
 
 // intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has type int.
-func intFromArg(a []interface{}, end, i, argNum int) (num int, isInt bool, newi, newArgNum int) {
-	newi, newArgNum = end, argNum
-	if i < end && argNum < len(a) {
+func intFromArg(a []interface{}, argNum int) (num int, isInt bool, newArgNum int) {
+	newArgNum = argNum
+	if argNum < len(a) {
 		num, isInt = a[argNum].(int)
-		newi, newArgNum = i+1, argNum+1
+		newArgNum = argNum + 1
 	}
 	return
 }
@@ -1053,24 +1053,25 @@ func parseArgNumber(format string) (index int, wid int, ok bool) {
 // argNumber returns the next argument to evaluate, which is either the value of the passed-in
 // argNum or the value of the bracketed integer that begins format[i:]. It also returns
 // the new value of i, that is, the index of the next byte of the format to process.
-func (p *pp) argNumber(argNum int, format string, i int, numArgs int) (newArgNum, newi int) {
-	p.goodArgNum = true
+func (p *pp) argNumber(argNum int, format string, i int, numArgs int) (newArgNum, newi int, found bool) {
 	if len(format) <= i || format[i] != '[' {
-		return argNum, i
+		return argNum, i, false
 	}
 	p.reordered = true
 	index, wid, ok := parseArgNumber(format[i:])
 	if ok && 0 <= index && index < numArgs {
-		return index, i + wid
+		return index, i + wid, true
 	}
 	p.goodArgNum = false
-	return argNum, i + wid
+	return argNum, i + wid, true
 }
 
 func (p *pp) doPrintf(format string, a []interface{}) {
 	end := len(format)
-	argNum := 0 // we process one argument per non-trivial format
+	argNum := 0         // we process one argument per non-trivial format
+	afterIndex := false // previous item in format was an index like [3].
 	p.reordered = false
+	p.goodArgNum = true
 	for i := 0; i < end; {
 		lasti := i
 		for i < end && format[i] != '%' {
@@ -1108,35 +1109,50 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 		}
 
 		// Do we have an explicit argument index?
-		argNum, i = p.argNumber(argNum, format, i, len(a))
+		argNum, i, afterIndex = p.argNumber(argNum, format, i, len(a))
 
 		// Do we have width?
 		if i < end && format[i] == '*' {
-			p.fmt.wid, p.fmt.widPresent, i, argNum = intFromArg(a, end, i, argNum)
+			i++
+			p.fmt.wid, p.fmt.widPresent, argNum = intFromArg(a, argNum)
 			if !p.fmt.widPresent {
 				p.buf.Write(badWidthBytes)
 			}
-			argNum, i = p.argNumber(argNum, format, i, len(a)) // We consumed []; another can follow here.
+			afterIndex = false
 		} else {
 			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
+			if afterIndex && p.fmt.widPresent { // "%[3]2d"
+				p.goodArgNum = false
+			}
 		}
 
 		// Do we have precision?
 		if i+1 < end && format[i] == '.' {
-			if format[i+1] == '*' {
-				p.fmt.prec, p.fmt.precPresent, i, argNum = intFromArg(a, end, i+1, argNum)
+			i++
+			if afterIndex { // "%[3].2d"
+				p.goodArgNum = false
+			}
+			argNum, i, afterIndex = p.argNumber(argNum, format, i, len(a))
+			if format[i] == '*' {
+				i++
+				p.fmt.prec, p.fmt.precPresent, argNum = intFromArg(a, argNum)
 				if !p.fmt.precPresent {
 					p.buf.Write(badPrecBytes)
 				}
-				argNum, i = p.argNumber(argNum, format, i, len(a)) // We consumed []; another can follow here.
+				afterIndex = false
 			} else {
-				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
+				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i, end)
 				if !p.fmt.precPresent {
 					p.fmt.prec = 0
 					p.fmt.precPresent = true
 				}
 			}
 		}
+
+		if !afterIndex {
+			argNum, i, afterIndex = p.argNumber(argNum, format, i, len(a))
+		}
+
 		if i >= end {
 			p.buf.Write(noVerbBytes)
 			continue
@@ -1151,7 +1167,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 		if !p.goodArgNum {
 			p.buf.WriteByte('%')
 			p.add(c)
-			p.buf.Write(badArgNum)
+			p.buf.Write(badIndexBytes)
 			continue
 		} else if argNum >= len(a) { // out of operands
 			p.buf.WriteByte('%')
