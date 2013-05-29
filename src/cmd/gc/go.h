@@ -127,6 +127,7 @@ struct	Val
 	} u;
 };
 
+typedef	struct	Bvec	Bvec;
 typedef	struct	Pkg Pkg;
 typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
@@ -696,6 +697,12 @@ struct	Bits
 
 EXTERN	Bits	zbits;
 
+struct Bvec
+{
+	int32	n;	// number of bits
+	uint32	b[];
+};
+
 typedef	struct	Var	Var;
 struct	Var
 {
@@ -984,6 +991,16 @@ Bits	bnot(Bits a);
 int	bnum(Bits a);
 Bits	bor(Bits a, Bits b);
 int	bset(Bits a, uint n);
+
+/*
+ *	bv.c
+ */
+Bvec*	bvalloc(int32 n);
+void	bvset(Bvec *bv, int32 i);
+void	bvres(Bvec *bv, int32 i);
+int	bvget(Bvec *bv, int32 i);
+int	bvisempty(Bvec *bv);
+int	bvcmp(Bvec *bv1, Bvec *bv2);
 
 /*
  *	closure.c

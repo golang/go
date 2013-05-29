@@ -199,6 +199,7 @@ static void
 dofunc(Sym *sym)
 {
 	Func *f;
+	uintgo cap;
 	
 	switch(sym->symtype) {
 	case 't':
@@ -231,8 +232,24 @@ dofunc(Sym *sym)
 			func[nfunc-1].locals = sym->value;
 		else if(runtime·strcmp(sym->name, (byte*)".args") == 0)
 			func[nfunc-1].args = sym->value;
-		else {
-			runtime·printf("invalid 'm' symbol named '%s'\n", sym->name);
+		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
+			// TODO(cshapiro): use a dense representation for gc information
+			if(sym->value > func[nfunc-1].args/sizeof(uintptr)) {
+				runtime·printf("more pointer map entries than argument words\n");
+				runtime·throw("mangled symbol table");
+			}
+			cap = ROUND(sym->value, 32) / 32;
+			func[nfunc-1].ptrs.array = runtime·mallocgc(cap*sizeof(uint32), FlagNoPointers|FlagNoGC, 0, 1);
+			func[nfunc-1].ptrs.len = 0;
+			func[nfunc-1].ptrs.cap = cap;
+		} else if(runtime·strcmp(sym->name, (byte*)".ptrs") == 0) {
+			if(func[nfunc-1].ptrs.len >= func[nfunc-1].ptrs.cap) {
+				runtime·printf("more pointer map entries read than argument words\n");
+				runtime·throw("mangled symbol table");
+			}
+			((uint32*)func[nfunc-1].ptrs.array)[func[nfunc-1].ptrs.len++] = sym->value;
+		} else {
+			runtime·printf("invalid '%c' symbol named '%s'\n", (int8)sym->symtype, sym->name);
 			runtime·throw("mangled symbol table");
 		}
 		break;

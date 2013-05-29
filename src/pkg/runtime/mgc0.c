@@ -1391,25 +1391,53 @@ addroot(Obj obj)
 	work.nroot++;
 }
 
-// Scan a stack frame.  The doframe parameter is a signal that the previously
-// scanned activation has an unknown argument size.  When *doframe is true the
-// current activation must have its entire frame scanned.  Otherwise, only the
-// locals need to be scanned.
+// Scan a stack frame.  Normally, this scans the locals area,
+// belonging to the current frame, and the arguments area, belonging
+// to the calling frame.  When the arguments area size is unknown, the
+// arguments area scanning is delayed and the doframe parameter
+// signals that the previously scanned activation has an unknown
+// argument size.  When *doframe is true, the possible arguments area
+// for the callee, located between the stack pointer and the bottom of
+// the locals area, is additionally scanned.  Otherwise, this area is
+// ignored, as it must have been scanned when the callee was scanned.
 static void
 addframeroots(Func *f, byte*, byte *sp, void *doframe)
 {
+	byte *fp, *ap;
 	uintptr outs;
+	int32 i, j, rem;
+	uint32 w, b;
 
 	if(thechar == '5')
 		sp += sizeof(uintptr);
+	fp = sp + f->frame;
 	if(f->locals == 0 || *(bool*)doframe == true)
+		// Scan the entire stack frame.
 		addroot((Obj){sp, f->frame - sizeof(uintptr), 0});
 	else if(f->locals > 0) {
+		// Scan the locals area.
 		outs = f->frame - sizeof(uintptr) - f->locals;
 		addroot((Obj){sp + outs, f->locals, 0});
 	}
-	if(f->args > 0)
-		addroot((Obj){sp + f->frame, f->args, 0});
+	if(f->args > 0) {
+		// Scan the arguments area.
+		if(f->ptrs.array != nil) {
+			ap = fp;
+			rem = f->args / sizeof(uintptr);
+			for(i = 0; i < f->ptrs.len; i++) {
+				w = ((uint32*)f->ptrs.array)[i];
+				b = 1;
+				for((j = (rem < 32) ? rem : 32); j > 0; j--) {
+					if(w & b)
+						addroot((Obj){ap, sizeof(uintptr), 0});
+					b <<= 1;
+					ap += sizeof(uintptr);
+				}
+				rem -= 32;
+			}
+		} else
+			addroot((Obj){fp, f->args, 0});
+	}
 	*(bool*)doframe = (f->args == ArgsSizeUnknown);
 }
 
@@ -1469,7 +1497,7 @@ addstackroots(G *gp)
 			return;
 		}
 	}
-	if (ScanStackByFrames) {
+	if(ScanStackByFrames) {
 		USED(stk);
 		USED(guard);
 		doframe = false;

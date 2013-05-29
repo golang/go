@@ -1850,6 +1850,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 	Auto *a;
 	Sym *s;
 	int32 off;
+	int32 i;
 
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
@@ -1910,13 +1911,18 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 
 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
 
-		/* frame, locals, args, auto and param after */
+		/* frame, locals, args, auto, param and pointers after */
 		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
 		if(s->text->textflag & NOSPLIT)
 			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
 		else
 			put(nil, ".args", 'm', s->args, 0, 0, 0);
+		if(s->nptrs >= 0) {
+			put(nil, ".nptrs", 'm', s->nptrs, 0, 0, 0);
+			for(i = 0; i < s->nptrs; i += 32)
+				put(nil, ".ptrs", 'm', s->ptrs[i / 32], 0, 0, 0);
+		}
 
 		for(a=s->autom; a; a=a->link) {
 			// Emit a or p according to actual offset, even if label is wrong.

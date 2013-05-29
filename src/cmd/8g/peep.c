@@ -128,6 +128,8 @@ peep(void)
 		case ASIGNAME:
 		case ALOCALS:
 		case ATYPE:
+		case ANPTRS:
+		case APTRS:
 			p = p->link;
 		}
 	}
