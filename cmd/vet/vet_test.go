@@ -5,6 +5,7 @@
 package main_test
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,5 +64,9 @@ func run(c *exec.Cmd, t *testing.T) bool {
 		t.Fatal(err)
 	}
 	// Errchk delights by not returning non-zero status if it finds errors, so we look at the output.
-	return c.ProcessState.Success() && len(output) == 0
+	// It prints "BUG" if there is a failure.
+	if !c.ProcessState.Success() {
+		return false
+	}
+	return !bytes.Contains(output, []byte("BUG"))
 }
