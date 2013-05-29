@@ -165,7 +165,7 @@ func (c *Conn) clientHandshake() error {
 		}
 	}
 
-	var certToSend *Certificate
+	var chainToSend *Certificate
 	var certRequested bool
 	certReq, ok := msg.(*certificateRequestMsg)
 	if ok {
@@ -197,34 +197,38 @@ func (c *Conn) clientHandshake() error {
 		// where SignatureAlgorithm is RSA and the Issuer is in
 		// certReq.certificateAuthorities
 	findCert:
-		for i, cert := range c.config.Certificates {
+		for i, chain := range c.config.Certificates {
 			if !rsaAvail {
 				continue
 			}
 
-			leaf := cert.Leaf
-			if leaf == nil {
-				if leaf, err = x509.ParseCertificate(cert.Certificate[0]); err != nil {
-					c.sendAlert(alertInternalError)
-					return errors.New("tls: failed to parse client certificate #" + strconv.Itoa(i) + ": " + err.Error())
+			for j, cert := range chain.Certificate {
+				x509Cert := chain.Leaf
+				// parse the certificate if this isn't the leaf
+				// node, or if chain.Leaf was nil
+				if j != 0 || x509Cert == nil {
+					if x509Cert, err = x509.ParseCertificate(cert); err != nil {
+						c.sendAlert(alertInternalError)
+						return errors.New("tls: failed to parse client certificate #" + strconv.Itoa(i) + ": " + err.Error())
+					}
 				}
-			}
 
-			if leaf.PublicKeyAlgorithm != x509.RSA {
-				continue
-			}
+				if x509Cert.PublicKeyAlgorithm != x509.RSA {
+					continue findCert
+				}
 
-			if len(certReq.certificateAuthorities) == 0 {
-				// they gave us an empty list, so just take the
-				// first RSA cert from c.config.Certificates
-				certToSend = &cert
-				break
-			}
-
-			for _, ca := range certReq.certificateAuthorities {
-				if bytes.Equal(leaf.RawIssuer, ca) {
-					certToSend = &cert
+				if len(certReq.certificateAuthorities) == 0 {
+					// they gave us an empty list, so just take the
+					// first RSA cert from c.config.Certificates
+					chainToSend = &chain
 					break findCert
+				}
+
+				for _, ca := range certReq.certificateAuthorities {
+					if bytes.Equal(x509Cert.RawIssuer, ca) {
+						chainToSend = &chain
+						break findCert
+					}
 				}
 			}
 		}
@@ -246,8 +250,8 @@ func (c *Conn) clientHandshake() error {
 	// certificate to send.
 	if certRequested {
 		certMsg = new(certificateMsg)
-		if certToSend != nil {
-			certMsg.certificates = certToSend.Certificate
+		if chainToSend != nil {
+			certMsg.certificates = chainToSend.Certificate
 		}
 		finishedHash.Write(certMsg.marshal())
 		c.writeRecord(recordTypeHandshake, certMsg.marshal())
@@ -263,7 +267,7 @@ func (c *Conn) clientHandshake() error {
 		c.writeRecord(recordTypeHandshake, ckx.marshal())
 	}
 
-	if certToSend != nil {
+	if chainToSend != nil {
 		certVerify := new(certificateVerifyMsg)
 		digest := make([]byte, 0, 36)
 		digest = finishedHash.serverMD5.Sum(digest)
