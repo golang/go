@@ -48,7 +48,7 @@ func TestVet(t *testing.T) {
 	files := append(gos, asms...)
 	errchk := filepath.Join(runtime.GOROOT(), "test", "errchk")
 	flags := []string{
-		binary,
+		"./" + binary,
 		"-printfuncs=Warn:1,Warnf:1",
 	}
 	cmd = exec.Command(errchk, append(flags, files...)...)
