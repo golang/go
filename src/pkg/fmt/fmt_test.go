@@ -550,18 +550,29 @@ var reorderTests = []struct {
 	{"%[2]d", SE{2, 1}, "1"},
 	{"%[2]d %[1]d", SE{1, 2}, "2 1"},
 	{"%[2]*[1]d", SE{2, 5}, "    2"},
-	{"%6.2f", SE{12.0}, " 12.00"},
-	{"%[3]*[2].*[1]f", SE{12.0, 2, 6}, " 12.00"},
-	{"%[1]*[2].*[3]f", SE{6, 2, 12.0}, " 12.00"},
+	{"%6.2f", SE{12.0}, " 12.00"}, // Explicit version of next line.
+	{"%[3]*.[2]*[1]f", SE{12.0, 2, 6}, " 12.00"},
+	{"%[1]*.[2]*[3]f", SE{6, 2, 12.0}, " 12.00"},
+	{"%10f", SE{12.0}, " 12.000000"},
+	{"%[1]*[3]f", SE{10, 99, 12.0}, " 12.000000"},
+	{"%.6f", SE{12.0}, "12.000000"}, // Explicit version of next line.
+	{"%.[1]*[3]f", SE{6, 99, 12.0}, "12.000000"},
+	{"%6.f", SE{12.0}, "    12"}, //  // Explicit version of next line; empty precision means zero.
+	{"%[1]*.[3]f", SE{6, 3, 12.0}, "    12"},
 	// An actual use! Print the same arguments twice.
 	{"%d %d %d %#[1]o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015"},
 
 	// Erroneous cases.
-	{"%[]d", SE{2, 1}, "%d(BADARGNUM)"},
-	{"%[-3]d", SE{2, 1}, "%d(BADARGNUM)"},
-	{"%[x]d", SE{2, 1}, "%d(BADARGNUM)"},
-	{"%[23]d", SE{2, 1}, "%d(BADARGNUM)"},
+	{"%[d", SE{2, 1}, "%d(BADINDEX)"},
+	{"%]d", SE{2, 1}, "%!](int=2)d%!(EXTRA int=1)"},
+	{"%[]d", SE{2, 1}, "%d(BADINDEX)"},
+	{"%[-3]d", SE{2, 1}, "%d(BADINDEX)"},
+	{"%[99]d", SE{2, 1}, "%d(BADINDEX)"},
 	{"%[3]", SE{2, 1}, "%!(NOVERB)"},
+	{"%[1].2d", SE{5, 6}, "%d(BADINDEX)"},
+	{"%[1]2d", SE{2, 1}, "%d(BADINDEX)"},
+	{"%3.[2]d", SE{7}, "%d(BADINDEX)"},
+	{"%.[2]d", SE{7}, "%d(BADINDEX)"},
 	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %o(MISSING)"},
 }
 
