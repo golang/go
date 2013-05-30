@@ -1914,7 +1914,11 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		/* frame, locals, args, auto, param and pointers after */
 		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
-		if(s->text->textflag & NOSPLIT)
+		if((s->text->textflag & NOSPLIT) && (s->args == 0) && (s->nptrs < 0))
+			// This might be a vararg function and have no
+			// predetermined argument size.  This check is
+			// approximate and will also match 0 argument
+			// nosplit functions compiled by 6c.
 			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
 		else
 			put(nil, ".args", 'm', s->args, 0, 0, 0);

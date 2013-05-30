@@ -296,21 +296,15 @@ pointermap(Node *fn)
 		walktype(inargtype, bv);
 	if(outargtype != nil)
 		walktype(outargtype, bv);
-	if(bvisempty(bv)) {
-		prog = gins(ANPTRS, N, N);
+	prog = gins(ANPTRS, N, N);
+	prog->to.type = D_CONST;
+	prog->to.offset = bv->n;
+	for(i = 0; i < bv->n; i += 32) {
+		prog = gins(APTRS, N, N);
+		prog->from.type = D_CONST;
+		prog->from.offset = i / 32;
 		prog->to.type = D_CONST;
-		prog->to.offset = 0;
-	} else {
-		prog = gins(ANPTRS, N, N);
-		prog->to.type = D_CONST;
-		prog->to.offset = bv->n;
-		for(i = 0; i < bv->n; i += 32) {
-			prog = gins(APTRS, N, N);
-			prog->from.type = D_CONST;
-			prog->from.offset = i / 32;
-			prog->to.type = D_CONST;
-			prog->to.offset = bv->b[i / 32];
-		}
+		prog->to.offset = bv->b[i / 32];
 	}
 	free(bv);
 }
