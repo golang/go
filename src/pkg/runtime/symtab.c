@@ -234,8 +234,8 @@ dofunc(Sym *sym)
 			func[nfunc-1].args = sym->value;
 		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
 			// TODO(cshapiro): use a dense representation for gc information
-			if(sym->value > func[nfunc-1].args/sizeof(uintptr)) {
-				runtime·printf("more pointer map entries than argument words\n");
+			if(sym->value != func[nfunc-1].args/sizeof(uintptr)) {
+				runtime·printf("pointer map size and argument size disagree\n");
 				runtime·throw("mangled symbol table");
 			}
 			cap = ROUND(sym->value, 32) / 32;
