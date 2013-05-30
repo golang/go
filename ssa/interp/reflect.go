@@ -389,16 +389,14 @@ func ext۰reflect۰error۰Error(fn *ssa.Function, args []value) value {
 
 // newMethod creates a new method of the specified name, package and receiver type.
 func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function {
-	fn := &ssa.Function{
-		Name_: name,
-		Pkg:   pkg,
-		Prog:  pkg.Prog,
-	}
 	// TODO(adonovan): fix: hack: currently the only part of Signature
 	// that is needed is the "pointerness" of Recv.Type, and for
 	// now, we'll set it to always be false since we're only
 	// concerned with rtype.  Encapsulate this better.
-	fn.Signature = types.NewSignature(types.NewVar(nil, "recv", recvType), nil, nil, false)
+	sig := types.NewSignature(types.NewVar(nil, "recv", recvType), nil, nil, false)
+	fn := ssa.NewFunction(name, sig)
+	fn.Pkg = pkg
+	fn.Prog = pkg.Prog
 	return fn
 }
 

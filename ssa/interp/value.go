@@ -87,6 +87,9 @@ func hashString(s string) int {
 // hashType returns a hash for t such that
 // types.IsIdentical(x, y) => hashType(x) == hashType(y).
 func hashType(t types.Type) int {
+	// TODO(adonovan): fix: not sound!  "IsIdentical" Signatures
+	// may have different parameter names; use typemap.Hasher when
+	// available.
 	return hashString(t.String()) // TODO(gri): provide a better hash
 }
 

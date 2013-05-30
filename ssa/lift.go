@@ -127,8 +127,7 @@ func lift(fn *Function) {
 	//   i.e. Field(x, .f) instead of Load(FieldIndex(x, .f)).
 	//   Unclear.
 	//
-	// But we will start with the simplest correct code to make
-	// life easier for reviewers.
+	// But we will start with the simplest correct code.
 
 	buildDomTree(fn)
 
@@ -304,8 +303,13 @@ type newPhiMap map[*BasicBlock][]newPhi
 // and returns true.
 //
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
-	// Don't lift aggregates into registers.
-	// We'll need a separate SRA pass for that.
+	// Don't lift aggregates into registers, because we don't have
+	// a way to express their zero-literals.
+	// TODO(adonovan): define zero-literals for aggregates, or
+	// add a separate SRA pass.  Lifting aggregates is an
+	// important optimisation for pointer analysis because the
+	// extra indirection really hurts precision under Das's
+	// algorithm.
 	switch alloc.Type().Deref().Underlying().(type) {
 	case *types.Array, *types.Struct:
 		return false
@@ -374,8 +378,9 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 					Edges:   make([]Value, len(v.Preds)),
 					Comment: alloc.Name(),
 				}
+				phi.pos = alloc.Pos()
 				phi.setType(alloc.Type().Deref())
-				phi.Block_ = v
+				phi.block = v
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "place %s = %s at block %s\n", phi.Name(), phi, v)
 				}

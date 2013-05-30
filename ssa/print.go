@@ -73,7 +73,7 @@ func (v *Function) String() string {
 
 // FullName returns g's package-qualified name.
 func (g *Global) FullName() string {
-	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path(), g.Name_)
+	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path(), g.name)
 }
 
 // Instruction.String()
@@ -95,8 +95,8 @@ func (v *Phi) String() string {
 		}
 		// Be robust against malformed CFG.
 		blockname := "?"
-		if v.Block_ != nil && i < len(v.Block_.Preds) {
-			blockname = v.Block_.Preds[i].String()
+		if v.block != nil && i < len(v.block.Preds) {
+			blockname = v.block.Preds[i].String()
 		}
 		b.WriteString(blockname)
 		b.WriteString(": ")
@@ -275,8 +275,8 @@ func (v *Extract) String() string {
 func (s *Jump) String() string {
 	// Be robust against malformed CFG.
 	blockname := "?"
-	if s.Block_ != nil && len(s.Block_.Succs) == 1 {
-		blockname = s.Block_.Succs[0].String()
+	if s.block != nil && len(s.block.Succs) == 1 {
+		blockname = s.block.Succs[0].String()
 	}
 	return fmt.Sprintf("jump %s", blockname)
 }
@@ -284,9 +284,9 @@ func (s *Jump) String() string {
 func (s *If) String() string {
 	// Be robust against malformed CFG.
 	tblockname, fblockname := "?", "?"
-	if s.Block_ != nil && len(s.Block_.Succs) == 2 {
-		tblockname = s.Block_.Succs[0].String()
-		fblockname = s.Block_.Succs[1].String()
+	if s.block != nil && len(s.block.Succs) == 2 {
+		tblockname = s.block.Succs[0].String()
+		fblockname = s.block.Succs[1].String()
 	}
 	return fmt.Sprintf("if %s goto %s else %s", relName(s.Cond, s), tblockname, fblockname)
 }

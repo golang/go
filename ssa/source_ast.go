@@ -531,7 +531,13 @@ func NodeDescription(n ast.Node) string {
 	case *ast.ExprStmt:
 		return "expression statement"
 	case *ast.Field:
-		return "name/type pair"
+		// Can be any of these:
+		// struct {x, y int}  -- struct field(s)
+		// struct {T}         -- anon struct field
+		// interface {I}      -- interface embedding
+		// interface {f()}    -- interface method
+		// func (A) func(B) C -- receiver, param(s), result(s)
+		return "field/method/parameter"
 	case *ast.FieldList:
 		return "field/method/parameter list"
 	case *ast.File:

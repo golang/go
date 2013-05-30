@@ -5,6 +5,7 @@ package ssa
 
 import (
 	"code.google.com/p/go.tools/go/types"
+	"go/token"
 )
 
 // An lvalue represents an assignable location that may appear on the
@@ -20,14 +21,17 @@ type lvalue interface {
 // An address is an lvalue represented by a true pointer.
 type address struct {
 	addr Value
+	star token.Pos // source position, if explicit *addr
 }
 
 func (a address) load(fn *Function) Value {
-	return emitLoad(fn, a.addr)
+	load := emitLoad(fn, a.addr)
+	load.pos = a.star
+	return load
 }
 
 func (a address) store(fn *Function, v Value) {
-	emitStore(fn, a.addr, v)
+	emitStore(fn, a.addr, v).pos = a.star
 }
 
 func (a address) typ() types.Type {

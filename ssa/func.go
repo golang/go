@@ -164,15 +164,24 @@ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 }
 
 // addParam adds a (non-escaping) parameter to f.Params of the
-// specified name and type.
+// specified name, type and source position.
 //
-func (f *Function) addParam(name string, typ types.Type) *Parameter {
+func (f *Function) addParam(name string, typ types.Type, pos token.Pos) *Parameter {
 	v := &Parameter{
-		Name_: name,
-		Type_: typ,
+		name: name,
+		typ:  typ,
+		pos:  pos,
 	}
 	f.Params = append(f.Params, v)
 	return v
+}
+
+func (f *Function) addParamObj(obj types.Object) *Parameter {
+	name := obj.Name()
+	if name == "" {
+		name = fmt.Sprintf("arg%d", len(f.Params))
+	}
+	return f.addParam(name, obj.Type(), obj.Pos())
 }
 
 // addSpilledParam declares a parameter that is pre-spilled to the
@@ -180,12 +189,11 @@ func (f *Function) addParam(name string, typ types.Type) *Parameter {
 // Subsequent lifting will eliminate spills where possible.
 //
 func (f *Function) addSpilledParam(obj types.Object) {
-	name := obj.Name()
-	param := f.addParam(name, obj.Type())
+	param := f.addParamObj(obj)
 	spill := &Alloc{
-		Name_: name + "~", // "~" means "spilled"
-		Type_: pointer(obj.Type()),
-		pos:   obj.Pos(),
+		name: obj.Name() + "~", // "~" means "spilled"
+		typ:  pointer(obj.Type()),
+		pos:  obj.Pos(),
 	}
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
@@ -223,8 +231,7 @@ func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 			}
 			// Anonymous receiver?  No need to spill.
 			if field.Names == nil {
-				recvVar := f.Signature.Recv()
-				f.addParam(recvVar.Name(), recvVar.Type())
+				f.addParamObj(f.Signature.Recv())
 			}
 		}
 	}
@@ -238,8 +245,7 @@ func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 			}
 			// Anonymous parameter?  No need to spill.
 			if field.Names == nil {
-				paramVar := f.Signature.Params().At(len(f.Params) - n)
-				f.addParam(paramVar.Name(), paramVar.Type())
+				f.addParamObj(f.Signature.Params().At(len(f.Params) - n))
 			}
 		}
 	}
@@ -269,8 +275,8 @@ func numberRegisters(f *Function) {
 			switch instr := instr.(type) {
 			case *Alloc:
 				// Allocs may be named at birth.
-				if instr.Name_ == "" {
-					instr.Name_ = fmt.Sprintf("a%d", a)
+				if instr.name == "" {
+					instr.name = fmt.Sprintf("a%d", a)
 					a++
 				}
 			case Value:
@@ -374,7 +380,7 @@ func (f *Function) removeNilBlocks() {
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos())
-	l.Name_ = obj.Name()
+	l.name = obj.Name()
 	f.objects[obj] = l
 	return l
 }
@@ -383,7 +389,7 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 // to function f and returns it.  pos is the optional source location.
 //
 func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
-	v := &Alloc{Type_: pointer(typ), pos: pos}
+	v := &Alloc{typ: pointer(typ), pos: pos}
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v
@@ -409,8 +415,9 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	}
 	outer := f.Enclosing.lookup(obj, true) // escaping
 	v := &Capture{
-		Name_: outer.Name(),
-		Type_: outer.Type(),
+		name:  outer.Name(),
+		typ:   outer.Type(),
+		pos:   outer.Pos(),
 		outer: outer,
 	}
 	f.objects[obj] = v
@@ -449,7 +456,7 @@ func (f *Function) fullName(from *Package) string {
 
 	// Anonymous?
 	if f.Enclosing != nil {
-		return f.Name_
+		return f.name
 	}
 
 	recv := f.Signature.Recv()
@@ -459,25 +466,25 @@ func (f *Function) fullName(from *Package) string {
 		var recvType types.Type
 		if recv != nil {
 			recvType = recv.Type() // bridge method
-		} else if strings.HasPrefix(f.Name_, "bound$") {
-			return f.Name_ // bound method thunk
+		} else if strings.HasPrefix(f.name, "bound$") {
+			return f.name // bound method thunk
 		} else {
 			recvType = f.Params[0].Type() // interface method thunk
 		}
-		return fmt.Sprintf("(%s).%s", recvType, f.Name_)
+		return fmt.Sprintf("(%s).%s", recvType, f.name)
 	}
 
 	// Declared method?
 	if recv != nil {
-		return fmt.Sprintf("(%s).%s", recv.Type(), f.Name_)
+		return fmt.Sprintf("(%s).%s", recv.Type(), f.name)
 	}
 
 	// Package-level function.
 	// Prefix with package name for cross-package references only.
 	if from != f.Pkg {
-		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path(), f.Name_)
+		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path(), f.name)
 	}
-	return f.Name_
+	return f.name
 }
 
 // writeSignature writes to w the signature sig in declaration syntax.
@@ -613,4 +620,23 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
 	return b
+}
+
+// NewFunction returns a new synthetic Function instance with its name
+// and signature fields set as specified.
+//
+// The caller is responsible for initializing the remaining fields of
+// the function object, e.g. Pkg, Prog, Params, Blocks.
+//
+// It is practically impossible for clients to construct well-formed
+// SSA functions/packages/programs directly, so we assume this is the
+// job of the Builder alone.  NewFunction exists to provide clients a
+// little flexibility.  For example, analysis tools may wish to
+// construct fake Functions for the root of the callgraph, a fake
+// "reflect" package, etc.
+//
+// TODO(adonovan): think harder about the API here.
+//
+func NewFunction(name string, sig *types.Signature) *Function {
+	return &Function{name: name, Signature: sig}
 }

@@ -19,6 +19,10 @@ import (
 
 type externalFn func(fn *ssa.Function, args []value) value
 
+// TODO(adonovan): fix: reflect.Value abstracts an lvalue or an
+// rvalue; Set() causes mutations that can be observed via aliases.
+// We have not captured that correctly here.
+
 // Key strings are from Function.FullName().
 // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
 var externals = map[string]externalFn{

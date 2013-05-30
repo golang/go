@@ -6,9 +6,9 @@ package ssa
 // synthetic "bridge" methods.
 
 import (
-	"fmt"
-
 	"code.google.com/p/go.tools/go/types"
+	"fmt"
+	"go/token"
 )
 
 // anonFieldPath is a linked list of anonymous fields entered by
@@ -266,7 +266,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	}
 
 	fn := &Function{
-		Name_:     cand.method.Name(),
+		name:      cand.method.Name(),
 		Signature: sig,
 		Prog:      prog,
 	}
@@ -324,15 +324,10 @@ func createParams(fn *Function) {
 	var last *Parameter
 	tparams := fn.Signature.Params()
 	for i, n := 0, tparams.Len(); i < n; i++ {
-		p := tparams.At(i)
-		name := p.Name()
-		if name == "" {
-			name = fmt.Sprintf("arg%d", i)
-		}
-		last = fn.addParam(name, p.Type())
+		last = fn.addParamObj(tparams.At(i))
 	}
 	if fn.Signature.IsVariadic() {
-		last.Type_ = types.NewSlice(last.Type_)
+		last.typ = types.NewSlice(last.typ)
 	}
 }
 
@@ -366,12 +361,12 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
 	index, meth := methodIndex(itf, id)
 	sig := *meth.Type().(*types.Signature) // copy; shared Values
 	fn := &Function{
-		Name_:     meth.Name(),
+		name:      meth.Name(),
 		Signature: &sig,
 		Prog:      prog,
 	}
 	fn.startBody()
-	fn.addParam("recv", typ)
+	fn.addParam("recv", typ, token.NoPos)
 	createParams(fn)
 	var c Call
 	c.Call.Method = index
@@ -410,12 +405,12 @@ func makeBoundMethodThunk(prog *Program, meth *Function, recv Value) *Function {
 	}
 	s := meth.Signature
 	fn := &Function{
-		Name_:     "bound$" + meth.FullName(),
+		name:      "bound$" + meth.FullName(),
 		Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
 		Prog:      prog,
 	}
 
-	cap := &Capture{Name_: "recv", Type_: recv.Type()}
+	cap := &Capture{name: "recv", typ: recv.Type()}
 	fn.FreeVars = []*Capture{cap}
 	fn.startBody()
 	createParams(fn)

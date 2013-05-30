@@ -117,12 +117,4 @@
 // defs/uses of named variables together, esp. because SSA splits them
 // into separate webs.
 //
-// TODO(adonovan): it is practically impossible for clients to
-// construct well-formed SSA functions/packages/programs directly; we
-// assume this is the job of the ssa.Builder alone.
-// Nonetheless it may be wise to give clients a little more
-// flexibility.  For example, analysis tools may wish to construct a
-// fake ssa.Function for the root of the callgraph, a fake "reflect"
-// package, etc.
-//
 package ssa

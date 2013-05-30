@@ -55,11 +55,10 @@ type Package struct {
 // const, var, func and type declarations respectively.
 //
 type Member interface {
-	Name() string      // the declared name of the package member
-	String() string    // human-readable information about the value
-	Pos() token.Pos    // position of member's declaration, if known
-	Type() types.Type  // the type of the package member
-	ImplementsMember() // dummy method to indicate the "implements" relation.
+	Name() string     // the declared name of the package member
+	String() string   // human-readable information about the value
+	Pos() token.Pos   // position of member's declaration, if known
+	Type() types.Type // the type of the package member
 }
 
 // An Id identifies the name of a field of a struct type, or the name
@@ -107,8 +106,12 @@ type Type struct {
 // NB: a Constant is not a Value; it contains a literal Value, which
 // it augments with the name and position of its 'const' declaration.
 //
+// TODO(adonovan): if we decide to add a token.Pos to literal, we
+// should then add a name too, and merge Constant and Literal.
+// Experiment.
+//
 type Constant struct {
-	Name_ string
+	name  string
 	Value *Literal
 	pos   token.Pos
 }
@@ -154,8 +157,16 @@ type Value interface {
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
 
-	// Dummy method to indicate the "implements" relation.
-	ImplementsValue()
+	// Pos returns the location of the source construct that
+	// gave rise to this value, or token.NoPos if it was not
+	// explicit in the source.
+	//
+	// For each ast.Expr type, a particular field is designated as
+	// the canonical location for the expression, e.g. the Lparen
+	// for an *ast.CallExpr.  This enables us to find the value
+	// corresponding to a given piece of source syntax.
+	//
+	Pos() token.Pos
 }
 
 // An Instruction is an SSA instruction that computes a new Value or
@@ -219,9 +230,6 @@ type Instruction interface {
 	// syntax.
 	//
 	Pos() token.Pos
-
-	// Dummy method to indicate the "implements" relation.
-	ImplementsInstruction()
 }
 
 // Function represents the parameters, results and code of a function
@@ -254,10 +262,10 @@ type Instruction interface {
 // Type() returns the function's Signature.
 //
 type Function struct {
-	Name_     string
+	name      string
 	Signature *types.Signature
-
 	pos       token.Pos
+
 	Enclosing *Function    // enclosing function if anon; nil if global
 	Pkg       *Package     // enclosing package for Go source functions; otherwise nil
 	Prog      *Program     // enclosing program
@@ -319,9 +327,14 @@ type BasicBlock struct {
 // capture represents the receiver value and may be of any type that
 // has concrete methods.
 //
+// Pos() returns the position of the value that was captured, which
+// belongs to an enclosing function.
+//
 type Capture struct {
-	Name_     string
-	Type_     types.Type
+	name string
+	typ  types.Type
+	pos  token.Pos
+
 	referrers []Instruction
 
 	// Transiently needed during building.
@@ -331,8 +344,10 @@ type Capture struct {
 // A Parameter represents an input parameter of a function.
 //
 type Parameter struct {
-	Name_     string
-	Type_     types.Type
+	name string
+	typ  types.Type
+	pos  token.Pos
+
 	referrers []Instruction
 }
 
@@ -355,13 +370,15 @@ type Parameter struct {
 // Type(), using the same representation as package go/exact uses for
 // constants.
 //
+// Pos() returns token.NoPos.
+//
 // Example printed form:
 // 	42:int
 //	"hello":untyped string
 //	3+4i:MyComplex
 //
 type Literal struct {
-	Type_ types.Type
+	typ   types.Type
 	Value exact.Value
 }
 
@@ -372,10 +389,11 @@ type Literal struct {
 // identifier.
 //
 type Global struct {
-	Name_ string
-	Type_ types.Type
-	Pkg   *Package
-	pos   token.Pos
+	name string
+	typ  types.Type
+	pos  token.Pos
+
+	Pkg *Package
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -427,8 +445,8 @@ type Builtin struct {
 //
 type Alloc struct {
 	anInstruction
-	Name_     string
-	Type_     types.Type
+	name      string
+	typ       types.Type
 	Heap      bool
 	pos       token.Pos
 	referrers []Instruction
@@ -440,7 +458,9 @@ type Alloc struct {
 // value.  Within a block, all φ-nodes must appear before all non-φ
 // nodes.
 //
-// Pos() returns NoPos.
+// Pos() returns the position of the && or || for short-circuit
+// control-flow joins, or that of the *Alloc for φ-nodes inserted
+// during SSA renaming.
 //
 // Example printed form:
 // 	t2 = phi [0.start: t0, 1.if.then: t1, ...]
@@ -474,7 +494,6 @@ type Call struct {
 // The BinOp instruction yields the result of binary operation X Op Y.
 //
 // Pos() returns the ast.BinaryExpr.OpPos, if explicit in the source.
-// TODO(adonovan): implement.
 //
 // Example printed form:
 // 	t1 = t0 + 1:int
@@ -499,7 +518,7 @@ type BinOp struct {
 // and a boolean indicating the success of the receive.  The
 // components of the tuple are accessed using Extract.
 //
-// Pos() returns the ast.UnaryExpr.OpPos, if explicit in the source.
+// Pos() returns the ast.UnaryExpr.OpPos, if explicit in the source,
 //
 // Example printed form:
 // 	t0 = *x
@@ -830,7 +849,7 @@ type Select struct {
 //
 // Elements are accessed via Next.
 //
-// Type() returns a (possibly named) *types.Result (tuple type).
+// Type() returns a (possibly named) *types.Tuple.
 //
 // Pos() returns the ast.RangeStmt.For.
 //
@@ -854,8 +873,8 @@ type Range struct {
 // over maps, as the Type() alone is insufficient: consider
 // map[int]rune.
 //
-// Type() returns a *types.Result (tuple type) for the triple
-// (ok, k, v).  The types of k and/or v may be types.Invalid.
+// Type() returns a *types.Tuple for the triple (ok, k, v).
+// The types of k and/or v may be types.Invalid.
 //
 // Example printed form:
 // 	t1 = next t0
@@ -887,8 +906,8 @@ type Next struct {
 // If AssertedType is a superinterface of X.Type(), the operation
 // cannot fail; ChangeInterface is preferred in this case.
 //
-// Type() reflects the actual type of the result, possibly a pair
-// (types.Result); AssertedType is the asserted type.
+// Type() reflects the actual type of the result, possibly a
+// 2-types.Tuple; AssertedType is the asserted type.
 //
 // Example printed form:
 // 	t1 = typeassert t0.(int)
@@ -1060,7 +1079,6 @@ type Send struct {
 // Stores can be of arbitrary types.
 //
 // Pos() returns the ast.StarExpr.Star, if explicit in the source.
-// TODO(addr): implement.
 //
 // Example printed form:
 // 	*x = y
@@ -1107,15 +1125,15 @@ type MapUpdate struct {
 type Register struct {
 	anInstruction
 	num       int        // "name" of virtual register, e.g. "t0".  Not guaranteed unique.
+	typ       types.Type // type of virtual register
 	pos       token.Pos  // position of source expression, or NoPos
-	Type_     types.Type // type of virtual register
 	referrers []Instruction
 }
 
 // anInstruction is a mix-in embedded by all Instructions.
 // It provides the implementations of the Block and SetBlock methods.
 type anInstruction struct {
-	Block_ *BasicBlock // the basic block of this instruction
+	block *BasicBlock // the basic block of this instruction
 }
 
 // CallCommon is contained by Go, Defer and Call to hold the
@@ -1224,31 +1242,35 @@ func (c *CallCommon) Description() string {
 func (v *Builtin) Type() types.Type        { return v.Object.Type() }
 func (v *Builtin) Name() string            { return v.Object.Name() }
 func (*Builtin) Referrers() *[]Instruction { return nil }
+func (v *Builtin) Pos() token.Pos          { return token.NoPos }
 
-func (v *Capture) Type() types.Type          { return v.Type_ }
-func (v *Capture) Name() string              { return v.Name_ }
+func (v *Capture) Type() types.Type          { return v.typ }
+func (v *Capture) Name() string              { return v.name }
 func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
+func (v *Capture) Pos() token.Pos            { return v.pos }
 
-func (v *Global) Type() types.Type        { return v.Type_ }
-func (v *Global) Name() string            { return v.Name_ }
+func (v *Global) Type() types.Type        { return v.typ }
+func (v *Global) Name() string            { return v.name }
 func (v *Global) Pos() token.Pos          { return v.pos }
 func (*Global) Referrers() *[]Instruction { return nil }
 
-func (v *Function) Name() string            { return v.Name_ }
+func (v *Function) Name() string            { return v.name }
 func (v *Function) Type() types.Type        { return v.Signature }
 func (v *Function) Pos() token.Pos          { return v.pos }
 func (*Function) Referrers() *[]Instruction { return nil }
 
-func (v *Parameter) Type() types.Type          { return v.Type_ }
-func (v *Parameter) Name() string              { return v.Name_ }
+func (v *Parameter) Type() types.Type          { return v.typ }
+func (v *Parameter) Name() string              { return v.name }
 func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
+func (v *Parameter) Pos() token.Pos            { return v.pos }
 
-func (v *Alloc) Type() types.Type          { return v.Type_ }
-func (v *Alloc) Name() string              { return v.Name_ }
+func (v *Alloc) Type() types.Type          { return v.typ }
+func (v *Alloc) Name() string              { return v.name }
 func (v *Alloc) Referrers() *[]Instruction { return &v.referrers }
+func (v *Alloc) Pos() token.Pos            { return v.pos }
 
-func (v *Register) Type() types.Type          { return v.Type_ }
-func (v *Register) setType(typ types.Type)    { v.Type_ = typ }
+func (v *Register) Type() types.Type          { return v.typ }
+func (v *Register) setType(typ types.Type)    { v.typ = typ }
 func (v *Register) Name() string              { return fmt.Sprintf("t%d", v.num) }
 func (v *Register) setNum(num int)            { v.num = num }
 func (v *Register) Referrers() *[]Instruction { return &v.referrers }
@@ -1256,8 +1278,8 @@ func (v *Register) asRegister() *Register     { return v }
 func (v *Register) Pos() token.Pos            { return v.pos }
 func (v *Register) setPos(pos token.Pos)      { v.pos = pos }
 
-func (v *anInstruction) Block() *BasicBlock         { return v.Block_ }
-func (v *anInstruction) SetBlock(block *BasicBlock) { v.Block_ = block }
+func (v *anInstruction) Block() *BasicBlock         { return v.block }
+func (v *anInstruction) SetBlock(block *BasicBlock) { v.block = block }
 
 func (t *Type) Name() string     { return t.NamedType.Obj().Name() }
 func (t *Type) Pos() token.Pos   { return t.NamedType.Obj().Pos() }
@@ -1266,7 +1288,7 @@ func (t *Type) Type() types.Type { return t.NamedType }
 
 func (p *Package) Name() string { return p.Types.Name() }
 
-func (c *Constant) Name() string     { return c.Name_ }
+func (c *Constant) Name() string     { return c.name }
 func (c *Constant) Pos() token.Pos   { return c.pos }
 func (c *Constant) String() string   { return c.Name() }
 func (c *Constant) Type() types.Type { return c.Value.Type() }
@@ -1303,82 +1325,6 @@ func (p *Package) Type(name string) (t *Type) {
 	return
 }
 
-// "Implements" relation boilerplate.
-// Don't try to factor this using promotion and mix-ins: the long-hand
-// form serves as better documentation, including in godoc.
-
-func (*Alloc) ImplementsValue()           {}
-func (*BinOp) ImplementsValue()           {}
-func (*Builtin) ImplementsValue()         {}
-func (*Call) ImplementsValue()            {}
-func (*Capture) ImplementsValue()         {}
-func (*ChangeInterface) ImplementsValue() {}
-func (*ChangeType) ImplementsValue()      {}
-func (*Convert) ImplementsValue()         {}
-func (*Extract) ImplementsValue()         {}
-func (*Field) ImplementsValue()           {}
-func (*FieldAddr) ImplementsValue()       {}
-func (*Function) ImplementsValue()        {}
-func (*Global) ImplementsValue()          {}
-func (*Index) ImplementsValue()           {}
-func (*IndexAddr) ImplementsValue()       {}
-func (*Literal) ImplementsValue()         {}
-func (*Lookup) ImplementsValue()          {}
-func (*MakeChan) ImplementsValue()        {}
-func (*MakeClosure) ImplementsValue()     {}
-func (*MakeInterface) ImplementsValue()   {}
-func (*MakeMap) ImplementsValue()         {}
-func (*MakeSlice) ImplementsValue()       {}
-func (*Next) ImplementsValue()            {}
-func (*Parameter) ImplementsValue()       {}
-func (*Phi) ImplementsValue()             {}
-func (*Range) ImplementsValue()           {}
-func (*Select) ImplementsValue()          {}
-func (*Slice) ImplementsValue()           {}
-func (*TypeAssert) ImplementsValue()      {}
-func (*UnOp) ImplementsValue()            {}
-
-func (*Constant) ImplementsMember() {}
-func (*Function) ImplementsMember() {}
-func (*Global) ImplementsMember()   {}
-func (*Type) ImplementsMember()     {}
-
-func (*Alloc) ImplementsInstruction()           {}
-func (*BinOp) ImplementsInstruction()           {}
-func (*Call) ImplementsInstruction()            {}
-func (*ChangeInterface) ImplementsInstruction() {}
-func (*ChangeType) ImplementsInstruction()      {}
-func (*Convert) ImplementsInstruction()         {}
-func (*Defer) ImplementsInstruction()           {}
-func (*Extract) ImplementsInstruction()         {}
-func (*Field) ImplementsInstruction()           {}
-func (*FieldAddr) ImplementsInstruction()       {}
-func (*Go) ImplementsInstruction()              {}
-func (*If) ImplementsInstruction()              {}
-func (*Index) ImplementsInstruction()           {}
-func (*IndexAddr) ImplementsInstruction()       {}
-func (*Jump) ImplementsInstruction()            {}
-func (*Lookup) ImplementsInstruction()          {}
-func (*MakeChan) ImplementsInstruction()        {}
-func (*MakeClosure) ImplementsInstruction()     {}
-func (*MakeInterface) ImplementsInstruction()   {}
-func (*MakeMap) ImplementsInstruction()         {}
-func (*MakeSlice) ImplementsInstruction()       {}
-func (*MapUpdate) ImplementsInstruction()       {}
-func (*Next) ImplementsInstruction()            {}
-func (*Panic) ImplementsInstruction()           {}
-func (*Phi) ImplementsInstruction()             {}
-func (*Range) ImplementsInstruction()           {}
-func (*Ret) ImplementsInstruction()             {}
-func (*RunDefers) ImplementsInstruction()       {}
-func (*Select) ImplementsInstruction()          {}
-func (*Send) ImplementsInstruction()            {}
-func (*Slice) ImplementsInstruction()           {}
-func (*Store) ImplementsInstruction()           {}
-func (*TypeAssert) ImplementsInstruction()      {}
-func (*UnOp) ImplementsInstruction()            {}
-
-func (v *Alloc) Pos() token.Pos     { return v.pos }
 func (v *Call) Pos() token.Pos      { return v.Call.pos }
 func (s *Defer) Pos() token.Pos     { return s.Call.pos }
 func (s *Go) Pos() token.Pos        { return s.Call.pos }

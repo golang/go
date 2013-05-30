@@ -4,6 +4,7 @@ package ssa
 
 import (
 	"fmt"
+	"go/token"
 	"strconv"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -74,15 +75,20 @@ func (l *Literal) Name() string {
 	} else {
 		s = l.Value.String()
 	}
-	return s + ":" + l.Type_.String()
+	return s + ":" + l.typ.String()
 }
 
 func (l *Literal) Type() types.Type {
-	return l.Type_
+	return l.typ
 }
 
 func (l *Literal) Referrers() *[]Instruction {
 	return nil
+}
+
+func (l *Literal) Pos() token.Pos {
+	// TODO(adonovan): Literals don't have positions.  Should they?
+	return token.NoPos
 }
 
 // IsNil returns true if this literal represents a typed or untyped nil value.

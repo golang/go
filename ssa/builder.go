@@ -298,13 +298,14 @@ func (b *Builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 	fn.currentBlock = done
 
 	phi := &Phi{Edges: edges, Comment: e.Op.String()}
-	phi.Type_ = phi.Edges[0].Type()
+	phi.pos = e.OpPos
+	phi.typ = phi.Edges[0].Type()
 	return done.emit(phi)
 }
 
 // exprN lowers a multi-result expression e to SSA form, emitting code
-// to fn and returning a single Value whose type is a *types.Results
-// (tuple).  The caller must access the components via Extract.
+// to fn and returning a single Value whose type is a *types.Tuple.
+// The caller must access the components via Extract.
 //
 // Multi-result expressions include CallExprs in a multi-value
 // assignment or return statement, and "value,ok" uses of
@@ -324,7 +325,7 @@ func (b *Builder) exprN(fn *Function, e ast.Expr) Value {
 		// cases for single-valued CallExpr.
 		var c Call
 		b.setCall(fn, e, &c.Call)
-		c.Type_ = fn.Pkg.TypeOf(e)
+		c.typ = fn.Pkg.TypeOf(e)
 		return fn.emit(&c)
 
 	case *ast.IndexExpr:
@@ -356,7 +357,7 @@ func (b *Builder) exprN(fn *Function, e ast.Expr) Value {
 	}
 
 	// The typechecker sets the type of the expression to just the
-	// asserted type in the "value, ok" form, not to *types.Result
+	// asserted type in the "value, ok" form, not to *types.Tuple
 	// (though it includes the valueOk operand in its error messages).
 
 	tuple.(interface {
@@ -588,7 +589,7 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if !ok {
 			v = fn.lookup(obj, escaping)
 		}
-		return address{v}
+		return address{addr: v}
 
 	case *ast.CompositeLit:
 		t := fn.Pkg.TypeOf(e).Deref()
@@ -599,7 +600,7 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			v = fn.addLocal(t, e.Lbrace)
 		}
 		b.compLit(fn, v, e, t) // initialize in place
-		return address{v}
+		return address{addr: v}
 
 	case *ast.ParenExpr:
 		return b.addr(fn, e.X, escaping)
@@ -608,13 +609,13 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		// p.M where p is a package.
 		if obj := fn.Pkg.isPackageRef(e); obj != nil {
 			if v, ok := b.lookup(fn.Pkg, obj); ok {
-				return address{v}
+				return address{addr: v}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
 		}
 
 		// e.f where e is an expression.
-		return address{b.selector(fn, e, true, escaping)}
+		return address{addr: b.selector(fn, e, true, escaping)}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -643,10 +644,10 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			Index: emitConv(fn, b.expr(fn, e.Index), tInt),
 		}
 		v.setType(et)
-		return address{fn.emit(v)}
+		return address{addr: fn.emit(v)}
 
 	case *ast.StarExpr:
-		return address{b.expr(fn, e.X)}
+		return address{addr: b.expr(fn, e.X), star: e.Star}
 	}
 
 	panic(fmt.Sprintf("unexpected address expression: %T", e))
@@ -698,7 +699,7 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 	case *ast.FuncLit:
 		posn := b.Prog.Files.Position(e.Type.Func)
 		fn2 := &Function{
-			Name_:     fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
+			name:      fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
 			Signature: fn.Pkg.TypeOf(e.Type).Underlying().(*types.Signature),
 			pos:       e.Type.Func,
 			Enclosing: fn,
@@ -787,10 +788,10 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		case token.SHL, token.SHR:
 			fallthrough
 		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
-			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), fn.Pkg.TypeOf(e))
+			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), fn.Pkg.TypeOf(e), e.OpPos)
 
 		case token.EQL, token.NEQ, token.GTR, token.LSS, token.LEQ, token.GEQ:
-			return emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y))
+			return emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
 		default:
 			panic("illegal op in BinaryExpr: " + e.Op.String())
 		}
@@ -1111,7 +1112,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 // assignOp emits to fn code to perform loc += incr or loc -= incr.
 func (b *Builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token) {
 	oldv := loc.load(fn)
-	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ()))
+	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ(), token.NoPos))
 }
 
 // buildGlobal emits code to the g.Pkg.Init function for the variable
@@ -1183,7 +1184,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 					continue
 				}
 				g.spec = nil
-				lval = address{g}
+				lval = address{addr: g}
 			} else {
 				// Mode B: initialize all globals.
 				if !isBlankIdent(id) {
@@ -1192,7 +1193,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 						continue // already done
 					}
 					g2.spec = nil
-					lval = address{g2}
+					lval = address{addr: g2}
 				}
 			}
 			if b.Context.Mode&LogSource != 0 {
@@ -1245,7 +1246,7 @@ func (b *Builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		for i, id := range spec.Names {
 			var lval lvalue = blank{}
 			if !isBlankIdent(id) {
-				lval = address{fn.addNamedLocal(fn.Pkg.ObjectOf(id))}
+				lval = address{addr: fn.addNamedLocal(fn.Pkg.ObjectOf(id))}
 			}
 			b.exprInPlace(fn, lval, spec.Values[i])
 		}
@@ -1373,7 +1374,7 @@ func (b *Builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			faddr.setType(pointer(sf.Type))
 			fn.emit(faddr)
-			b.exprInPlace(fn, address{faddr}, e)
+			b.exprInPlace(fn, address{addr: faddr}, e)
 		}
 
 	case *types.Array, *types.Slice:
@@ -1406,7 +1407,7 @@ func (b *Builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			iaddr.setType(pointer(at.Elem()))
 			fn.emit(iaddr)
-			b.exprInPlace(fn, address{iaddr}, e)
+			b.exprInPlace(fn, address{addr: iaddr}, e)
 		}
 		if t != at { // slice
 			s := &Slice{X: array}
@@ -1498,7 +1499,7 @@ func (b *Builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 			// instead of BinOp(EQL, tag, b.expr(cond))
 			// followed by If.  Don't forget conversions
 			// though.
-			cond := emitCompare(fn, token.EQL, tag, b.expr(fn, cond))
+			cond := emitCompare(fn, token.EQL, tag, b.expr(fn, cond), token.NoPos)
 			emitIf(fn, cond, body, nextCond)
 			fn.currentBlock = nextCond
 		}
@@ -1604,7 +1605,7 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			casetype = fn.Pkg.TypeOf(cond)
 			var condv Value
 			if casetype == tUntypedNil {
-				condv = emitCompare(fn, token.EQL, x, nilLiteral(x.Type()))
+				condv = emitCompare(fn, token.EQL, x, nilLiteral(x.Type()), token.NoPos)
 			} else {
 				yok := emitTypeTest(fn, x, casetype)
 				ti = emitExtract(fn, yok, 0, casetype)
@@ -1619,8 +1620,8 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			// same name but a more specific type.
 			// Side effect: reassociates binding for y's object.
 			y2 := fn.addNamedLocal(fn.Pkg.ObjectOf(id))
-			y2.Name_ += "'" // debugging aid
-			y2.Type_ = pointer(casetype)
+			y2.name += "'" // debugging aid
+			y2.typ = pointer(casetype)
 			emitStore(fn, y2, ti)
 		}
 		fn.targets = &targets{
@@ -1740,7 +1741,7 @@ func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		}
 		body := fn.newBasicBlock("select.body")
 		next := fn.newBasicBlock("select.next")
-		emitIf(fn, emitCompare(fn, token.EQL, idx, intLiteral(int64(state))), body, next)
+		emitIf(fn, emitCompare(fn, token.EQL, idx, intLiteral(int64(state)), token.NoPos), body, next)
 		fn.currentBlock = body
 		fn.targets = &targets{
 			tail:   fn.targets,
@@ -1883,7 +1884,7 @@ func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 
 	body := fn.newBasicBlock("rangeindex.body")
 	done = fn.newBasicBlock("rangeindex.done")
-	emitIf(fn, emitCompare(fn, token.LSS, incr, length), body, done)
+	emitIf(fn, emitCompare(fn, token.LSS, incr, length, token.NoPos), body, done)
 	fn.currentBlock = body
 
 	k = emitLoad(fn, index)
@@ -2326,10 +2327,10 @@ func (b *Builder) buildFunction(fn *Function) {
 			// We set Function.Params even though there is no body
 			// code to reference them.  This simplifies clients.
 			if recv := fn.Signature.Recv(); recv != nil {
-				fn.addParam(recv.Name(), recv.Type())
+				fn.addParamObj(recv)
 			}
 			fn.Signature.Params().ForEach(func(p *types.Var) {
-				fn.addParam(p.Name(), p.Type())
+				fn.addParamObj(p)
 			})
 		}
 		return
@@ -2365,7 +2366,7 @@ func (b *Builder) memberFromObject(pkg *Package, obj types.Object, syntax ast.No
 
 	case *types.Const:
 		pkg.Members[name] = &Constant{
-			Name_: name,
+			name:  name,
 			Value: newLiteral(obj.Val(), obj.Type()),
 			pos:   obj.Pos(),
 		}
@@ -2373,11 +2374,11 @@ func (b *Builder) memberFromObject(pkg *Package, obj types.Object, syntax ast.No
 	case *types.Var:
 		spec, _ := syntax.(*ast.ValueSpec)
 		g := &Global{
-			Pkg:   pkg,
-			Name_: name,
-			Type_: pointer(obj.Type()), // address
-			pos:   obj.Pos(),
-			spec:  spec,
+			Pkg:  pkg,
+			name: name,
+			typ:  pointer(obj.Type()), // address
+			pos:  obj.Pos(),
+			spec: spec,
 		}
 		b.globals[obj] = g
 		pkg.Members[name] = g
@@ -2394,7 +2395,7 @@ func (b *Builder) memberFromObject(pkg *Package, obj types.Object, syntax ast.No
 		}
 		sig := obj.Type().(*types.Signature)
 		fn := &Function{
-			Name_:     name,
+			name:      name,
 			Signature: sig,
 			pos:       obj.Pos(), // (iff syntax)
 			Pkg:       pkg,
@@ -2548,7 +2549,7 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 
 	// Add init() function (but not to Members since it can't be referenced).
 	p.Init = &Function{
-		Name_:     "init",
+		name:      "init",
 		Signature: new(types.Signature),
 		Pkg:       p,
 		Prog:      b.Prog,
@@ -2587,9 +2588,9 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 
 	// Add initializer guard variable.
 	initguard := &Global{
-		Pkg:   p,
-		Name_: "init$guard",
-		Type_: pointer(tBool),
+		Pkg:  p,
+		name: "init$guard",
+		typ:  pointer(tBool),
 	}
 	p.Members[initguard.Name()] = initguard
 

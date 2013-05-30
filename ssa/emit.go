@@ -13,19 +13,20 @@ import (
 //
 func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 	return f.emit(&Alloc{
-		Type_: pointer(typ),
-		Heap:  true,
-		pos:   pos,
+		typ:  pointer(typ),
+		Heap: true,
+		pos:  pos,
 	})
 }
 
 // emitLoad emits to f an instruction to load the address addr into a
 // new temporary, and returns the value so defined.
 //
-func emitLoad(f *Function, addr Value) Value {
+func emitLoad(f *Function, addr Value) *UnOp {
 	v := &UnOp{Op: token.MUL, X: addr}
 	v.setType(addr.Type().Deref())
-	return f.emit(v)
+	f.emit(v)
+	return v
 }
 
 // emitArith emits to f code to compute the binary operation op(x, y)
@@ -33,7 +34,7 @@ func emitLoad(f *Function, addr Value) Value {
 // (Use emitCompare() for comparisons and Builder.logicalBinop() for
 // non-eager operations.)
 //
-func emitArith(f *Function, op token.Token, x, y Value, t types.Type) Value {
+func emitArith(f *Function, op token.Token, x, y Value, t types.Type, pos token.Pos) Value {
 	switch op {
 	case token.SHL, token.SHR:
 		x = emitConv(f, x, t)
@@ -52,6 +53,7 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type) Value {
 		X:  x,
 		Y:  y,
 	}
+	v.setPos(pos)
 	v.setType(t)
 	return f.emit(v)
 }
@@ -59,7 +61,7 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type) Value {
 // emitCompare emits to f code compute the boolean result of
 // comparison comparison 'x op y'.
 //
-func emitCompare(f *Function, op token.Token, x, y Value) Value {
+func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 	xt := x.Type().Underlying()
 	yt := y.Type().Underlying()
 
@@ -95,6 +97,7 @@ func emitCompare(f *Function, op token.Token, x, y Value) Value {
 		X:  x,
 		Y:  y,
 	}
+	v.setPos(pos)
 	v.setType(tBool)
 	return f.emit(v)
 }
@@ -197,11 +200,13 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 // emitStore emits to f an instruction to store value val at location
 // addr, applying implicit conversions as required by assignabilty rules.
 //
-func emitStore(f *Function, addr, val Value) {
-	f.emit(&Store{
+func emitStore(f *Function, addr, val Value) *Store {
+	s := &Store{
 		Addr: addr,
 		Val:  emitConv(f, val, addr.Type().Deref()),
-	})
+	}
+	f.emit(s)
+	return s
 }
 
 // emitJump emits to f a jump to target, and updates the control-flow graph.
@@ -233,7 +238,7 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 	e := &Extract{Tuple: tuple, Index: index}
 	// In all cases but one (tSelect's recv), typ is redundant w.r.t.
-	// tuple.Type().(*types.Result).Values[index].Type.
+	// tuple.Type().(*types.Tuple).Values[index].Type.
 	e.setType(typ)
 	return f.emit(e)
 }
@@ -267,7 +272,7 @@ func emitTypeTest(f *Function, x Value, t types.Type) Value {
 	// TODO(adonovan): opt: simplify infallible tests as per
 	// emitTypeAssert, and return (x, vTrue).
 	// (Requires that exprN returns a slice of extracted values,
-	// not a single Value of type *types.Results.)
+	// not a single Value of type *types.Tuple.)
 	a := &TypeAssert{
 		X:            x,
 		AssertedType: t,
@@ -290,9 +295,9 @@ func emitTailCall(f *Function, call *Call) {
 	tresults := f.Signature.Results()
 	nr := tresults.Len()
 	if nr == 1 {
-		call.Type_ = tresults.At(0).Type()
+		call.typ = tresults.At(0).Type()
 	} else {
-		call.Type_ = tresults
+		call.typ = tresults
 	}
 	tuple := f.emit(call)
 	var ret Ret

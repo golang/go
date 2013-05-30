@@ -310,7 +310,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.env[instr] = &closure{instr.Fn.(*ssa.Function), bindings}
 
 	case *ssa.Phi:
-		for i, pred := range instr.Block_.Preds {
+		for i, pred := range instr.Block().Preds {
 			if fr.prevBlock == pred {
 				fr.env[instr] = fr.get(instr.Edges[i])
 				break
