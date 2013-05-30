@@ -12,3 +12,4 @@ cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 
 fmt: indexed access to arguments in Printf etc. (CL 9680043).
 io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
+testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
