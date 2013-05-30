@@ -1618,10 +1618,8 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		if id != nil && len(cc.List) == 1 && casetype != tUntypedNil {
 			// Declare a new shadow local variable of the
 			// same name but a more specific type.
-			// Side effect: reassociates binding for y's object.
-			y2 := fn.addNamedLocal(fn.Pkg.ObjectOf(id))
+			y2 := fn.addNamedLocal(fn.Pkg.TypeInfo.typecases[cc])
 			y2.name += "'" // debugging aid
-			y2.typ = pointer(casetype)
 			emitStore(fn, y2, ti)
 		}
 		fn.targets = &targets{
@@ -1630,9 +1628,6 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		}
 		b.stmtList(fn, cc.Body)
 		fn.targets = fn.targets.tail
-		if id != nil {
-			fn.objects[fn.Pkg.ObjectOf(id)] = y // restore previous y binding
-		}
 		emitJump(fn, done)
 		fn.currentBlock = next
 	}
@@ -2476,6 +2471,7 @@ func (b *Builder) typecheck(importPath string, files []*ast.File) (*types.Packag
 		types:     make(map[ast.Expr]types.Type),
 		idents:    make(map[*ast.Ident]types.Object),
 		constants: make(map[ast.Expr]*Literal),
+		typecases: make(map[*ast.CaseClause]*types.Var),
 	}
 	tc := b.Context.TypeChecker
 	tc.Expr = func(x ast.Expr, typ types.Type, val exact.Value) {
@@ -2489,6 +2485,11 @@ func (b *Builder) typecheck(importPath string, files []*ast.File) (*types.Packag
 		// - obj is non-nil.
 		// - isBlankIdent(ident) <=> obj.GetType()==nil
 		info.idents[ident] = obj
+	}
+	tc.ImplicitObj = func(node ast.Node, obj types.Object) {
+		if cc, ok := node.(*ast.CaseClause); ok {
+			info.typecases[cc] = obj.(*types.Var)
+		}
 	}
 	typkg, firstErr := tc.Check(importPath, b.Prog.Files, files...)
 	tc.Expr = nil

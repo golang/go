@@ -14,9 +14,10 @@ import (
 // the abstract syntax for a single package.
 type TypeInfo struct {
 	fset      *token.FileSet
-	types     map[ast.Expr]types.Type     // inferred types of expressions
-	constants map[ast.Expr]*Literal       // values of constant expressions
-	idents    map[*ast.Ident]types.Object // canonical type objects for named entities
+	types     map[ast.Expr]types.Type        // inferred types of expressions
+	constants map[ast.Expr]*Literal          // values of constant expressions
+	idents    map[*ast.Ident]types.Object    // canonical type objects for named entities
+	typecases map[*ast.CaseClause]*types.Var // implicit vars for single-type typecases
 }
 
 // TypeOf returns the type of expression e.
