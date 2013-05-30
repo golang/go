@@ -1223,6 +1223,10 @@ gosched0(G *gp)
 }
 
 // Finishes execution of the current goroutine.
+// Need to mark it as nosplit, because it runs with sp > stackbase (as runtime·lessstack).
+// Since it does not return it does not matter.  But if it is preempted
+// at the split stack check, GC will complain about inconsistent sp.
+#pragma textflag 7
 void
 runtime·goexit(void)
 {
