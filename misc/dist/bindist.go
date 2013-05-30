@@ -216,6 +216,12 @@ func (b *Build) Do() error {
 			// Re-install std without -race, so that we're not left
 			// with a slower, race-enabled cmd/go, cmd/godoc, etc.
 			_, err = b.run(src, goCmd, "install", "-a", "std")
+			// Re-building go command leaves old versions of go.exe as go.exe~ on windows.
+			// See (*builder).copyFile in $GOROOT/src/cmd/go/build.go for details.
+			// Remove it manually.
+			if b.OS == "windows" {
+				os.Remove(goCmd + "~")
+			}
 		}
 		if err != nil {
 			return err
