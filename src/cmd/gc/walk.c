@@ -1246,18 +1246,35 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OMAKESLICE:
-		// makeslice(t *Type, nel int64, max int64) (ary []any)
 		l = n->left;
 		r = n->right;
 		if(r == nil)
 			l = r = safeexpr(l, init);
 		t = n->type;
-		fn = syslook("makeslice", 1);
-		argtype(fn, t->type);			// any-1
-		n = mkcall1(fn, n->type, init,
-			typename(n->type),
-			conv(l, types[TINT64]),
-			conv(r, types[TINT64]));
+		if(n->esc == EscNone
+			&& smallintconst(l) && smallintconst(r)
+			&& mpgetfix(r->val.u.xval) < (1ULL<<16) / t->type->width) {
+			// var arr [r]T
+			// n = arr[:l]
+			t = aindex(r, t->type); // [r]T
+			var = temp(t);
+			a = nod(OAS, var, N); // zero temp
+			typecheck(&a, Etop);
+			*init = list(*init, a);
+			r = nod(OSLICE, var, nod(OKEY, N, l)); // arr[:l]
+			r = conv(r, n->type); // in case n->type is named.
+			typecheck(&r, Erv);
+			walkexpr(&r, init);
+			n = r;
+		} else {
+			// makeslice(t *Type, nel int64, max int64) (ary []any)
+			fn = syslook("makeslice", 1);
+			argtype(fn, t->type);			// any-1
+			n = mkcall1(fn, n->type, init,
+				typename(n->type),
+				conv(l, types[TINT64]),
+				conv(r, types[TINT64]));
+		}
 		goto ret;
 
 	case ORUNESTR:
