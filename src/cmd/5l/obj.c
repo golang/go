@@ -647,7 +647,7 @@ loop:
 	case APTRS:
 		if(skip)
 			goto casedef;
-		if(cursym->nptrs == -1 || cursym->ptrs == NULL) {
+		if(cursym->nptrs == -1 || cursym->ptrs == nil) {
 			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
 			errorexit();
 		}
