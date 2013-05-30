@@ -65,12 +65,14 @@ func (info *TypeInfo) IsType(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.SelectorExpr: // pkg.Type
 		if obj := info.isPackageRef(e); obj != nil {
-			return objKind(obj) == ast.Typ
+			_, isType := obj.(*types.TypeName)
+			return isType
 		}
 	case *ast.StarExpr: // *T
 		return info.IsType(e.X)
 	case *ast.Ident:
-		return objKind(info.ObjectOf(e)) == ast.Typ
+		_, isType := info.ObjectOf(e).(*types.TypeName)
+		return isType
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		return true
 	case *ast.ParenExpr:
@@ -86,8 +88,8 @@ func (info *TypeInfo) IsType(e ast.Expr) bool {
 //
 func (info *TypeInfo) isPackageRef(sel *ast.SelectorExpr) types.Object {
 	if id, ok := sel.X.(*ast.Ident); ok {
-		if obj := info.ObjectOf(id); objKind(obj) == ast.Pkg {
-			return obj.(*types.Package).Scope().Lookup(sel.Sel.Name)
+		if pkg, ok := info.ObjectOf(id).(*types.Package); ok {
+			return pkg.Scope().Lookup(sel.Sel.Name)
 		}
 	}
 	return nil

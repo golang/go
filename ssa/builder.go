@@ -826,10 +826,10 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		obj := fn.Pkg.ObjectOf(e)
 		// Global or universal?
 		if v, ok := b.lookup(fn.Pkg, obj); ok {
-			if objKind(obj) == ast.Var {
-				v = emitLoad(fn, v) // var (address)
+			if _, ok := obj.(*types.Var); ok {
+				return emitLoad(fn, v) // var (address)
 			}
-			return v
+			return v // (func)
 		}
 		// Local?
 		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
@@ -2560,8 +2560,6 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 	if len(files) > 0 {
 		// Go source package.
 
-		// TODO(gri): make it a typechecker error for there to
-		// be duplicate (e.g.) main functions in the same package.
 		for _, file := range p.Files {
 			for _, decl := range file.Decls {
 				b.membersFromDecl(p, decl)
@@ -2619,8 +2617,7 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 				if isBlankIdent(id) {
 					continue
 				}
-				obj := pkg.ObjectOf(id).(*types.TypeName)
-				nt := obj.Type().(*types.Named)
+				nt := pkg.ObjectOf(id).Type().(*types.Named)
 				nt.ForEachMethod(func(m *types.Func) {
 					b.buildFunction(b.Prog.concreteMethods[m])
 				})

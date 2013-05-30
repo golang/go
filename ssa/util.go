@@ -101,23 +101,6 @@ outer:
 	return true
 }
 
-// objKind returns the syntactic category of the named entity denoted by obj.
-func objKind(obj types.Object) ast.ObjKind {
-	switch obj.(type) {
-	case *types.Package:
-		return ast.Pkg
-	case *types.TypeName:
-		return ast.Typ
-	case *types.Const:
-		return ast.Con
-	case *types.Var:
-		return ast.Var
-	case *types.Func:
-		return ast.Fun
-	}
-	panic(fmt.Sprintf("unexpected Object type: %T", obj))
-}
-
 // canHaveConcreteMethods returns true iff typ may have concrete
 // methods associated with it.  Callers must supply allowPtr=true.
 //
