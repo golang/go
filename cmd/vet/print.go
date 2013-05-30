@@ -104,6 +104,15 @@ func (f *File) literal(value ast.Expr) *ast.BasicLit {
 	return nil
 }
 
+// formatState holds the parsed representation of a printf directive such as "%3.*[4]d"
+type formatState struct {
+	verb    rune   // the format verb: 'd' for "%d"
+	flags   []byte // the list of # + etc.
+	argNums []int  // the successive argument numbers that are consumed, adjusted to refer to actual arg in call
+	nbytes  int    // number of bytes of the format string consumed.
+	indexed bool   // whether an indexing expression appears: %[1]d.
+}
+
 // checkPrintf checks a call to a formatted print routine such as Printf.
 // call.Args[formatIndex] is (well, should be) the format argument.
 func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
@@ -134,23 +143,29 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 	}
 	// Hard part: check formats against args.
 	argNum := firstArg
+	indexed := false
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] == '%' {
-			verb, flags, nbytes, nargs := f.parsePrintfVerb(call, format[i:])
-			w = nbytes
-			// If we've run out of args, print after loop will pick that up.
-			if argNum+nargs <= len(call.Args) {
-				f.checkPrintfArg(call, verb, flags, argNum, nargs)
+			state := f.parsePrintfVerb(call, format[i:], argNum)
+			w = state.nbytes
+			if state.indexed {
+				indexed = true
 			}
-			argNum += nargs
+			f.checkPrintfArg(call, state)
+			if len(state.argNums) > 0 {
+				// Continue with the next sequential argument.
+				argNum = state.argNums[len(state.argNums)-1] + 1
+			}
 		}
 	}
-	// TODO: Dotdotdot is hard.
-	if call.Ellipsis.IsValid() && argNum != len(call.Args) {
+	// Dotdotdot is hard.
+	if call.Ellipsis.IsValid() && argNum >= len(call.Args)-1 {
 		return
 	}
-	if argNum != len(call.Args) {
+	// If the arguments were direct indexed, we assume the programmer knows what's up.
+	// Otherwise, there should be no leftover arguments.
+	if !indexed && argNum != len(call.Args) {
 		expect := argNum - firstArg
 		numArgs := len(call.Args) - firstArg
 		f.Badf(call.Pos(), "wrong number of args for format in %s call: %d needed but %d args", name, expect, numArgs)
@@ -159,11 +174,12 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 
 // parsePrintfVerb returns the verb that begins the format string, along with its flags,
 // the number of bytes to advance the format to step past the verb, and number of
-// arguments it consumes.
-func (f *File) parsePrintfVerb(call *ast.CallExpr, format string) (verb rune, flags []byte, nbytes, nargs int) {
+// arguments it consumes. It returns a formatState that encodes what the formatting
+// directive wants, without looking at the actual arguments present in the call.
+func (f *File) parsePrintfVerb(call *ast.CallExpr, format string, argNum int) *formatState {
 	// There's guaranteed a percent sign.
-	flags = make([]byte, 0, 5)
-	nbytes = 1
+	flags := make([]byte, 0, 5)
+	nbytes := 1
 	end := len(format)
 	// There may be flags.
 FlagLoop:
@@ -176,10 +192,12 @@ FlagLoop:
 			break FlagLoop
 		}
 	}
+	argNums := make([]int, 0, 1)
 	getNum := func() {
 		if nbytes < end && format[nbytes] == '*' {
 			nbytes++
-			nargs++
+			argNums = append(argNums, argNum)
+			argNum++
 		} else {
 			for nbytes < end && '0' <= format[nbytes] && format[nbytes] <= '9' {
 				nbytes++
@@ -195,13 +213,19 @@ FlagLoop:
 		getNum()
 	}
 	// Now a verb.
-	c, w := utf8.DecodeRuneInString(format[nbytes:])
+	verb, w := utf8.DecodeRuneInString(format[nbytes:])
 	nbytes += w
-	verb = c
-	if c != '%' {
-		nargs++
+	if verb != '%' {
+		argNums = append(argNums, argNum)
+		argNum++
 	}
-	return
+	return &formatState{
+		verb:    verb,
+		flags:   flags,
+		argNums: argNums,
+		nbytes:  nbytes,
+		indexed: false, // TODO
+	}
 }
 
 // printfArgType encodes the types of expressions a printf verb accepts. It is a bitmask.
@@ -218,7 +242,7 @@ const (
 )
 
 type printVerb struct {
-	verb  rune
+	verb  rune   // User may provide verb through Formatter; could be a rune.
 	flags string // known flags are all ASCII
 	typ   printfArgType
 }
@@ -262,48 +286,86 @@ var printVerbs = []printVerb{
 	{'X', sharpNumFlag, argRune | argInt | argString},
 }
 
-func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNum, nargs int) {
+// checkPrintfArg compares the formatState to the arguments actually present,
+// reporting any discrepancies it can discern. If the final argument is ellipsissed,
+// there's little it can do for that.
+func (f *File) checkPrintfArg(call *ast.CallExpr, state *formatState) {
 	var v printVerb
 	found := false
 	// Linear scan is fast enough for a small list.
 	for _, v = range printVerbs {
-		if v.verb == verb {
+		if v.verb == state.verb {
 			found = true
 			break
 		}
 	}
 	if !found {
-		f.Badf(call.Pos(), "unrecognized printf verb %q", verb)
+		f.Badf(call.Pos(), "unrecognized printf verb %q", state.verb)
 		return
 	}
-	for _, flag := range flags {
+	for _, flag := range state.flags {
 		if !strings.ContainsRune(v.flags, rune(flag)) {
-			f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", verb, flag)
+			f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", state.verb, flag)
 			return
 		}
 	}
-	// Verb is good. If nargs>trueArgs, we have something like %.*s and all but the final
-	// arg must be integer.
+	// Verb is good. If len(state.argNums)>trueArgs, we have something like %.*s and all
+	// but the final arg must be an integer.
 	trueArgs := 1
-	if verb == '%' {
+	if state.verb == '%' {
 		trueArgs = 0
 	}
+	nargs := len(state.argNums)
 	for i := 0; i < nargs-trueArgs; i++ {
-		if !f.matchArgType(argInt, call.Args[argNum+i]) {
-			f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(call.Args[argNum+i]))
+		argNum := state.argNums[i]
+		if !f.argCanBeChecked(call, argNum, true, state.verb) {
+			continue
+		}
+		arg := call.Args[argNum]
+		if !f.matchArgType(argInt, arg) {
+			f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(arg))
 		}
 	}
-	if verb == '%' {
+	if state.verb == '%' {
 		return
 	}
-	arg := call.Args[argNum+nargs-trueArgs]
+	argNum := state.argNums[len(state.argNums)-1]
+	if !f.argCanBeChecked(call, argNum, false, state.verb) {
+		return
+	}
+	arg := call.Args[argNum]
 	if !f.matchArgType(v.typ, arg) {
 		typeString := ""
 		if typ := f.pkg.types[arg]; typ != nil {
 			typeString = typ.String()
 		}
-		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), verb, typeString)
+		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)
 	}
+}
+
+// argCanBeChecked reports whether the specified argument is statically present;
+// it may be beyond the list of arguments or in a terminal slice... argument, which
+// means we can't see it.
+func (f *File) argCanBeChecked(call *ast.CallExpr, argNum int, isStar bool, verb rune) bool {
+	if argNum < 0 {
+		// Shouldn't happen, so catch it with prejudice.
+		panic("negative arg num")
+	}
+	if argNum < len(call.Args)-1 {
+		return true // Always OK.
+	}
+	if call.Ellipsis.IsValid() {
+		return false // We just can't tell; there could be many more arguments.
+	}
+	if argNum < len(call.Args) {
+		return true
+	}
+	if verb == '*' {
+		f.Badf(call.Pos(), "argument number %d for * for verb %%%c out of range", argNum, verb)
+	} else {
+		f.Badf(call.Pos(), "wrong number of args for format in Printf call")
+	}
+	return false
 }
 
 // checkPrint checks a call to an unformatted print routine such as Println.
