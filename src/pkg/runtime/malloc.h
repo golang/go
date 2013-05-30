@@ -411,7 +411,7 @@ struct MHeap
 	uint32	nspancap;
 
 	// span lookup
-	MSpan**	map;
+	MSpan**	spans;
 	uintptr	spans_mapped;
 
 	// range of addresses we might see in the heap
