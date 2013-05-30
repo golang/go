@@ -8,6 +8,7 @@ import "go/ast"
 
 // TODO(gri) Separate struct fields below into transient (used during type checking only)
 //           and permanent fields.
+// TODO(gri) Revisit factory functions - make sure they have all relevant parameters.
 
 // A Type represents a type of Go.
 // All types implement the Type interface.
@@ -130,12 +131,15 @@ func NewSlice(elem Type) *Slice { return &Slice{elem} }
 func (s *Slice) Elem() Type { return s.elt }
 
 // A Field represents a field of a struct.
-// TODO(gri): Should make this just a Var?
 type Field struct {
 	Pkg         *Package
 	Name        string
 	Type        Type
 	IsAnonymous bool
+
+	// TODO(gri) Temporary hack so we can report the correct *Var via Context.Ident.
+	//           Make Field just this *Var and we can simplify a lot of struct code.
+	obj *Var
 }
 
 // A Struct represents a struct type.
@@ -235,6 +239,7 @@ func (t *Tuple) ForEach(f func(*Var)) {
 // A Signature represents a (non-builtin) function type.
 type Signature struct {
 	scope      *Scope // function scope
+	labels     *Scope // label scope, or nil (lazily allocated)
 	recv       *Var   // nil if not a method
 	params     *Tuple // (incoming) parameters from left to right; or nil
 	results    *Tuple // (outgoing) results from left to right; or nil
@@ -245,7 +250,7 @@ type Signature struct {
 // and results, either of which may be nil. If isVariadic is set, the function
 // is variadic.
 func NewSignature(recv *Var, params, results *Tuple, isVariadic bool) *Signature {
-	return &Signature{nil, recv, params, results, isVariadic}
+	return &Signature{nil, nil, recv, params, results, isVariadic}
 }
 
 // Recv returns the receiver of signature s, or nil.

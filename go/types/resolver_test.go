@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -54,8 +55,8 @@ func TestResolveQualifiedIdents(t *testing.T) {
 	// parse package files
 	fset := token.NewFileSet()
 	var files []*ast.File
-	for _, src := range sources {
-		f, err := parser.ParseFile(fset, "", src, parser.DeclarationErrors)
+	for i, src := range sources {
+		f, err := parser.ParseFile(fset, fmt.Sprintf("sources[%d]", i), src, parser.DeclarationErrors)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +66,12 @@ func TestResolveQualifiedIdents(t *testing.T) {
 	// resolve and type-check package AST
 	idents := make(map[*ast.Ident]Object)
 	var ctxt Context
-	ctxt.Ident = func(id *ast.Ident, obj Object) { idents[id] = obj }
+	ctxt.Ident = func(id *ast.Ident, obj Object) {
+		if old, found := idents[id]; found && old != obj {
+			t.Errorf("%s: identifier %s reported multiple times with different objects", fset.Position(id.Pos()), id.Name)
+		}
+		idents[id] = obj
+	}
 	pkg, err := ctxt.Check("testResolveQualifiedIdents", fset, files...)
 	if err != nil {
 		t.Fatal(err)
@@ -77,9 +83,6 @@ func TestResolveQualifiedIdents(t *testing.T) {
 			t.Errorf("package %s not imported", name)
 		}
 	}
-
-	// check that there are no top-level unresolved identifiers
-	// TODO(gri) add appropriate test code here
 
 	// check that qualified identifiers are resolved
 	for _, f := range files {
@@ -103,33 +106,14 @@ func TestResolveQualifiedIdents(t *testing.T) {
 		})
 	}
 
-	// Currently, the Check API doesn't call Ident for composite literal keys.
-	// Introduce them artifically so that we can run the check below.
-	for _, f := range files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			if x, ok := n.(*ast.CompositeLit); ok {
-				for _, e := range x.Elts {
-					if kv, ok := e.(*ast.KeyValueExpr); ok {
-						if k, ok := kv.Key.(*ast.Ident); ok {
-							assert(idents[k] == nil)
-							idents[k] = &Var{pkg: pkg, name: k.Name}
-						}
-					}
-				}
-			}
-			return true
-		})
-	}
-
 	// check that each identifier in the source is enumerated by the Context.Ident callback
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
-			if x, ok := n.(*ast.Ident); ok && x.Name != "_" && x.Name != "." {
-				obj := idents[x]
-				if obj == nil {
-					t.Errorf("%s: unresolved identifier %s", fset.Position(x.Pos()), x.Name)
-				} else {
+			if x, ok := n.(*ast.Ident); ok {
+				if _, found := idents[x]; found {
 					delete(idents, x)
+				} else {
+					t.Errorf("%s: unresolved identifier %s", fset.Position(x.Pos()), x.Name)
 				}
 				return false
 			}
@@ -137,12 +121,10 @@ func TestResolveQualifiedIdents(t *testing.T) {
 		})
 	}
 
-	// TODO(gri) enable code below
-	// At the moment, the type checker introduces artifical identifiers which are not
-	// present in the source. Once it doesn't do that anymore, enable the checks below.
-	/*
-		for x := range idents {
-			t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
-		}
-	*/
+	// any left-over identifiers didn't exist in the source
+	for x := range idents {
+		t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
+	}
+
+	// TODO(gri) add tests to check ImplicitObj callbacks
 }

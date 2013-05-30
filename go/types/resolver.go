@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -13,18 +12,19 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-func (check *checker) declare(scope *Scope, obj Object) {
+func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 	if obj.Name() == "_" {
+		// blank identifiers are not declared
 		obj.setOuter(scope)
-		return // blank identifiers are not visible
-	}
-	if alt := scope.Insert(obj); alt != nil {
-		prevDecl := ""
+	} else if alt := scope.Insert(obj); alt != nil {
+		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		if pos := alt.Pos(); pos.IsValid() {
-			prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
+			check.errorf(pos, "previous declaration of %s", obj.Name())
 		}
-		check.errorf(obj.Pos(), "%s redeclared in this block%s", obj.Name(), prevDecl)
-		// TODO(gri) Instead, change this into two separate error messages (easier to handle by tools)
+		obj = nil // for callIdent below
+	}
+	if id != nil {
+		check.callIdent(id, obj)
 	}
 }
 
@@ -84,7 +84,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 	for _, file := range files {
 		// the package identifier denotes the current package, but it is in no scope
-		check.register(file.Name, pkg)
+		check.callIdent(file.Name, pkg)
 
 		fileScope = &Scope{Outer: pkg.scope}
 		scopes = append(scopes, fileScope)
@@ -100,24 +100,26 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 					switch s := spec.(type) {
 					case *ast.ImportSpec:
 						if importer == nil {
-							//importErrors = true
 							continue
 						}
 						path, _ := strconv.Unquote(s.Path.Value)
 						imp, err := importer(pkg.imports, path)
 						if err != nil {
 							check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
-							//importErrors = true
 							continue
 						}
-						// TODO(gri) If a local package name != "." is provided,
-						// we could proceed even if the import failed. Consider
-						// adjusting the logic here a bit.
 
 						// local name overrides imported package name
 						name := imp.name
 						if s.Name != nil {
 							name = s.Name.Name
+						}
+
+						imp2 := &Package{name: name, scope: imp.scope}
+						if s.Name != nil {
+							check.callIdent(s.Name, imp2)
+						} else {
+							check.callImplicitObj(s, imp2)
 						}
 
 						// add import to file scope
@@ -130,20 +132,13 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 								if ast.IsExported(obj.Name()) {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for types aliases.
-									check.declare(fileScope, obj)
+									check.declare(fileScope, nil, obj)
+									check.callImplicitObj(s, obj)
 								}
 							}
-							// TODO(gri) consider registering the "." identifier
-							// if we have Context.Ident callbacks for say blank
-							// (_) identifiers
-							// check.register(spec.Name, pkg)
-						} else if name != "_" {
+						} else {
 							// declare imported package object in file scope
-							// (do not re-use imp in the file scope but create
-							// a new object instead; the Decl field is different
-							// for different files)
-							obj := &Package{name: name, scope: imp.scope, spec: s}
-							check.declare(fileScope, obj)
+							check.declare(fileScope, nil, imp2)
 						}
 
 					case *ast.ValueSpec:
@@ -156,9 +151,8 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 							// declare all constants
 							for i, name := range s.Names {
-								obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota)), spec: s}
-								check.declare(pkg.scope, obj)
-								check.register(name, obj)
+								obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota))}
+								check.declare(pkg.scope, name, obj)
 
 								var init ast.Expr
 								if i < len(last.Values) {
@@ -171,15 +165,11 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 							if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
 								switch {
 								case lhs < rhs:
-									// TODO(gri) once resolve is the default, use first message
-									// x := s.Values[lhs]
-									// check.errorf(x.Pos(), "too many initialization expressions")
-									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+									x := s.Values[lhs]
+									check.errorf(x.Pos(), "too many initialization expressions")
 								case lhs > rhs && rhs != 1:
-									// TODO(gri) once resolve is the default, use first message
-									// n := s.Names[rhs]
-									// check.errorf(n.Pos(), "missing initialization expression for %s", n)
-									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+									n := s.Names[rhs]
+									check.errorf(n.Pos(), "missing initialization expression for %s", n)
 								}
 							}
 
@@ -187,10 +177,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 							// declare all variables
 							lhs := make([]*Var, len(s.Names))
 							for i, name := range s.Names {
-								obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name, decl: s}
+								obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name}
 								lhs[i] = obj
-								check.declare(pkg.scope, obj)
-								check.register(name, obj)
+								check.declare(pkg.scope, name, obj)
 
 								var init ast.Expr
 								switch len(s.Values) {
@@ -208,19 +197,15 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 								add(obj, s.Type, init)
 							}
 
-							// arity of lhs and rhs must match
+							// report if there are too many initialization expressions
 							if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
 								switch {
 								case lhs < rhs:
-									// TODO(gri) once resolve is the default, use first message
-									// x := s.Values[lhs]
-									// check.errorf(x.Pos(), "too many initialization expressions")
-									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+									x := s.Values[lhs]
+									check.errorf(x.Pos(), "too many initialization expressions")
 								case lhs > rhs && rhs != 1:
-									// TODO(gri) once resolve is the default, use first message
-									// n := s.Names[rhs]
-									// check.errorf(n.Pos(), "missing initialization expression for %s", n)
-									check.errorf(s.Names[0].Pos(), "assignment count mismatch")
+									n := s.Names[rhs]
+									check.errorf(n.Pos(), "missing initialization expression for %s", n)
 								}
 							}
 
@@ -229,10 +214,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						}
 
 					case *ast.TypeSpec:
-						obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name, spec: s}
-						check.declare(pkg.scope, obj)
+						obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name}
+						check.declare(pkg.scope, s.Name, obj)
 						add(obj, s.Type, nil)
-						check.register(s.Name, obj)
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
@@ -249,10 +233,10 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 				if obj.name == "init" {
 					// init functions are not visible - don't declare them in package scope
 					obj.outer = pkg.scope
+					check.callIdent(d.Name, obj)
 				} else {
-					check.declare(pkg.scope, obj)
+					check.declare(pkg.scope, d.Name, obj)
 				}
-				check.register(d.Name, obj)
 				add(obj, nil, nil)
 
 			default:
@@ -317,8 +301,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 			check.methods[tname] = scope
 		}
 		fun := &Func{pos: m.Name.Pos(), pkg: check.pkg, name: m.Name.Name, decl: m}
-		check.declare(scope, fun)
-		check.register(m.Name, fun)
+		check.declare(scope, m.Name, fun)
 		// HACK(gri) change method outer scope to file scope containing the declaration
 		fun.outer = meth.file // remember the file scope
 	}
@@ -379,9 +362,7 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 	var x operand
 
 	if init == nil {
-		// TODO(gri) enable error message once resolve is default
-		// check.errorf(obj.Pos(), "missing initialization expression for %s", obj.name)
-		goto Error
+		goto Error // error reported before
 	}
 
 	check.expr(&x, init, nil, int(iota))
@@ -415,11 +396,9 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 
 	if init == nil {
 		if typ == nil {
-			// TODO(gri) enable error message once resolve is default
-			// check.errorf(obj.Pos(), "missing type or initialization expression for %s", obj.name)
 			obj.typ = Typ[Invalid]
 		}
-		return
+		return // error reported before
 	}
 
 	// unpack projection expression, if any
@@ -566,7 +545,8 @@ func (check *checker) declStmt(decl ast.Decl) {
 					// declare all constants
 					lhs := make([]*Const, len(s.Names))
 					for i, name := range s.Names {
-						obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota)), spec: s}
+						obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota))}
+						check.callIdent(name, obj)
 						lhs[i] = obj
 
 						var init ast.Expr
@@ -575,7 +555,6 @@ func (check *checker) declStmt(decl ast.Decl) {
 						}
 
 						check.declareConst(obj, s.Type, init)
-						check.register(name, obj)
 					}
 
 					// arity of lhs and rhs must match
@@ -589,16 +568,16 @@ func (check *checker) declStmt(decl ast.Decl) {
 					}
 
 					for _, obj := range lhs {
-						check.declare(check.topScope, obj)
+						check.declare(check.topScope, nil, obj)
 					}
 
 				case token.VAR:
 					// declare all variables
 					lhs := make([]*Var, len(s.Names))
 					for i, name := range s.Names {
-						obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name, decl: s}
+						obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name}
+						check.callIdent(name, obj)
 						lhs[i] = obj
-						check.register(name, obj)
 					}
 
 					// iterate in 2 phases because declareVar requires fully initialized lhs!
@@ -621,23 +600,19 @@ func (check *checker) declStmt(decl ast.Decl) {
 					}
 
 					// arity of lhs and rhs must match
-					// TODO(gri) Disabled for now to match existing test errors.
-					//           These error messages are better than what we have now.
-					/*
-						if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
-							switch {
-							case lhs < rhs:
-								x := s.Values[lhs]
-								check.errorf(x.Pos(), "too many initialization expressions")
-							case lhs > rhs && rhs != 1:
-								n := s.Names[rhs]
-								check.errorf(n.Pos(), "missing initialization expression for %s", n)
-							}
+					if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
+						switch {
+						case lhs < rhs:
+							x := s.Values[lhs]
+							check.errorf(x.Pos(), "too many initialization expressions")
+						case lhs > rhs && rhs != 1:
+							n := s.Names[rhs]
+							check.errorf(n.Pos(), "missing initialization expression for %s", n)
 						}
-					*/
+					}
 
 					for _, obj := range lhs {
-						check.declare(check.topScope, obj)
+						check.declare(check.topScope, nil, obj)
 					}
 
 				default:
@@ -645,10 +620,9 @@ func (check *checker) declStmt(decl ast.Decl) {
 				}
 
 			case *ast.TypeSpec:
-				obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name, spec: s}
-				check.declare(check.topScope, obj)
+				obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name}
+				check.declare(check.topScope, s.Name, obj)
 				check.declareType(obj, s.Type, false)
-				check.register(s.Name, obj)
 
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")

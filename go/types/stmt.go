@@ -63,6 +63,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	if !decl {
 		// anything can be assigned to the blank identifier
 		if ident != nil && ident.Name == "_" {
+			check.callIdent(ident, nil)
 			// the rhs has its final type
 			check.updateExprType(rhs, x.typ, true)
 			return
@@ -100,15 +101,11 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	} else {
 		obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 	}
-	check.register(ident, obj)
-	defer check.declare(check.topScope, obj)
+	defer check.declare(check.topScope, ident, obj)
 
+	// TODO(gri) remove this switch, combine with code above
 	switch obj := obj.(type) {
 	default:
-		unreachable()
-
-	case nil:
-		// TODO(gri) is this really unreachable?
 		unreachable()
 
 	case *Const:
@@ -244,7 +241,7 @@ Error:
 			} else {
 				obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 			}
-			defer check.declare(check.topScope, obj)
+			defer check.declare(check.topScope, ident, obj)
 
 			switch obj := obj.(type) {
 			case *Const:
@@ -312,7 +309,13 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.declStmt(s.Decl)
 
 	case *ast.LabeledStmt:
-		// TODO(gri) Declare label in the respectice label scope; define Label object.
+		scope := check.funcsig.labels
+		if scope == nil {
+			scope = new(Scope) // no label scope chain
+			check.funcsig.labels = scope
+		}
+		label := s.Label
+		check.declare(scope, label, &Label{pos: label.Pos(), name: label.Name})
 		check.stmt(s.Stmt)
 
 	case *ast.ExprStmt:
@@ -390,20 +393,18 @@ func (check *checker) stmt(s ast.Stmt) {
 				// short variable declaration
 				lhs := make([]Object, len(s.Lhs))
 				for i, x := range s.Lhs {
-					var obj *Var
+					var obj Object
 					if ident, ok := x.(*ast.Ident); ok {
-						obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name, decl: s}
-						// If the variable is already declared (redeclaration in :=),
-						// register the identifier with the existing variable.
+						// use the correct obj if the ident is redeclared
+						obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
 						if alt := check.topScope.Lookup(ident.Name); alt != nil {
-							check.register(ident, alt)
-						} else {
-							check.register(ident, obj)
+							obj = alt
 						}
+						check.callIdent(ident, obj)
 					} else {
 						check.errorf(x.Pos(), "cannot declare %s", x)
 						// create a dummy variable
-						obj = &Var{pos: x.Pos(), pkg: check.pkg, name: "_", decl: s}
+						obj = &Var{pos: x.Pos(), pkg: check.pkg, name: "_"}
 					}
 					lhs[i] = obj
 				}
@@ -493,7 +494,6 @@ func (check *checker) stmt(s ast.Stmt) {
 				}
 				name := ast.NewIdent(res.name)
 				name.NamePos = s.Pos()
-				check.register(name, &Var{name: res.name, typ: res.typ}) // Pkg == nil
 				lhs[i] = name
 			}
 			if len(s.Results) > 0 || !named {
@@ -532,7 +532,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if tag == nil {
 			// use fake true tag value and position it at the opening { of the switch
 			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
-			check.register(ident, Universe.Lookup("true"))
+			check.callIdent(ident, Universe.Lookup("true"))
 			tag = ident
 		}
 		check.expr(&x, tag, nil, -1)
@@ -604,7 +604,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// remaining syntactic errors are considered AST errors here.
 		// TODO(gri) better factoring of error handling (invalid ASTs)
 		//
-		var lhs *Var // lhs variable or nil
+		var lhs *ast.Ident // lhs identifier or nil
 		var rhs ast.Expr
 		switch guard := s.Assign.(type) {
 		case *ast.ExprStmt:
@@ -615,15 +615,11 @@ func (check *checker) stmt(s ast.Stmt) {
 				return
 			}
 
-			ident, _ := guard.Lhs[0].(*ast.Ident)
-			if ident == nil {
+			lhs, _ = guard.Lhs[0].(*ast.Ident)
+			if lhs == nil {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
-
-			// TODO(gri) in the future, create one of these for each block with the correct type!
-			lhs = &Var{pkg: check.pkg, name: ident.Name}
-			check.register(ident, lhs)
 
 			rhs = guard.Rhs[0]
 
@@ -649,8 +645,10 @@ func (check *checker) stmt(s ast.Stmt) {
 			return
 		}
 
+		var obj Object
 		if lhs != nil {
-			check.declare(check.topScope, lhs)
+			obj = &Var{pos: lhs.Pos(), pkg: check.pkg, name: lhs.Name, typ: x.typ}
+			check.declare(check.topScope, lhs, obj)
 		}
 
 		check.multipleDefaults(s.Body.List)
@@ -676,25 +674,18 @@ func (check *checker) stmt(s ast.Stmt) {
 					}
 				}
 			}
-			// If lhs exists, set its type for each clause.
-			if lhs != nil {
-				// In clauses with a case listing exactly one type, the variable has that type;
-				// otherwise, the variable has the type of the expression in the TypeSwitchGuard.
-				if len(clause.List) != 1 || typ == nil {
-					typ = x.typ
-				}
-				lhs.typ = typ
-			}
 			check.openScope()
+			// If lhs exists, declare a corresponding object in the case-local scope if necessary.
+			if lhs != nil {
+				// A single-type case clause implicitly declares a new variable shadowing lhs.
+				if len(clause.List) == 1 && typ != nil {
+					obj := &Var{pos: lhs.Pos(), pkg: check.pkg, name: lhs.Name, typ: typ}
+					check.declare(check.topScope, nil, obj)
+					check.callImplicitObj(clause, obj)
+				}
+			}
 			check.stmtList(clause.Body)
 			check.closeScope()
-		}
-
-		// There is only one object (lhs) associated with a lhs identifier, but that object
-		// assumes different types for different clauses. Set it back to the type of the
-		// TypeSwitchGuard expression so that that variable always has a valid type.
-		if lhs != nil {
-			lhs.typ = x.typ
 		}
 		check.closeScope()
 

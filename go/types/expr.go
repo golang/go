@@ -7,7 +7,6 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -93,9 +92,8 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
-				par := &Var{pos: name.Pos(), pkg: check.pkg, name: name.Name, typ: typ, decl: field}
-				check.declare(scope, par)
-				check.register(name, par)
+				par := &Var{pos: name.Pos(), pkg: check.pkg, name: name.Name, typ: typ}
+				check.declare(scope, name, par)
 
 				last = par
 				copy := *par
@@ -103,7 +101,9 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			}
 		} else {
 			// anonymous parameter
-			par := &Var{pkg: check.pkg, typ: typ, decl: field}
+			par := &Var{pkg: check.pkg, typ: typ}
+			check.callImplicitObj(field, par)
+
 			last = nil // not accessible inside function
 			params = append(params, par)
 		}
@@ -139,13 +139,13 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) (methods
 				//           just a normal declaration
 				obj := &Func{name.Pos(), check.pkg, nil, name.Name, sig, nil}
 				if alt := methods.Insert(obj); alt != nil {
-					prevDecl := ""
+					check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 					if pos := alt.Pos(); pos.IsValid() {
-						prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
+						check.errorf(pos, "previous declaration of %s", obj.Name())
 					}
-					check.errorf(obj.Pos(), "%s redeclared in this block%s", obj.Name(), prevDecl)
+					obj = nil // for callIdent, below
 				}
-				check.register(name, obj)
+				check.callIdent(name, obj)
 			}
 		} else {
 			// embedded interface
@@ -154,7 +154,9 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) (methods
 				for _, obj := range ityp.methods.entries {
 					if alt := methods.Insert(obj); alt != nil {
 						check.errorf(list.Pos(), "multiple methods named %s", obj.Name())
+						obj = nil // for callImplicit, below
 					}
+					check.callImplicitObj(f, obj)
 				}
 			} else if utyp != Typ[Invalid] {
 				// if utyp is invalid, don't complain (the root cause was reported before)
@@ -193,13 +195,10 @@ func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk b
 			tags = append(tags, tag)
 		}
 
-		fld := &Var{pos: pos, pkg: check.pkg, name: name, typ: typ, decl: field}
-		check.declare(scope, fld)
-		if ident != nil {
-			check.register(ident, fld)
-		}
+		fld := &Var{pos: pos, pkg: check.pkg, name: name, typ: typ}
+		check.declare(scope, ident, fld)
 
-		fields = append(fields, &Field{check.pkg, name, typ, isAnonymous})
+		fields = append(fields, &Field{check.pkg, name, typ, isAnonymous, fld})
 	}
 
 	for _, f := range list.List {
@@ -1047,6 +1046,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.Ident:
 		obj := check.lookup(e)
+		check.callIdent(e, obj)
 		if obj == nil {
 			if e.Name == "_" {
 				check.invalidOp(e.Pos(), "cannot use _ as value or type")
@@ -1090,7 +1090,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case *TypeName:
 			x.mode = typexpr
 			if !cycleOk && obj.typ.Underlying() == nil {
-				check.errorf(obj.spec.Pos(), "illegal cycle in declaration of %s", obj.name)
+				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
 				x.expr = e
 				x.typ = Typ[Invalid]
 				return // don't goto Error - need x.mode == typexpr
@@ -1177,6 +1177,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
 						continue
 					}
+					check.callIdent(key, fields[i].obj)
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
@@ -1279,6 +1280,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		// selector expressions.
 		if ident, ok := e.X.(*ast.Ident); ok {
 			if pkg, ok := check.lookup(ident).(*Package); ok {
+				check.callIdent(ident, pkg)
 				exp := pkg.scope.Lookup(sel)
 				if exp == nil {
 					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
@@ -1290,7 +1292,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
 					goto Error
 				}
-				check.register(e.Sel, exp)
+				check.callIdent(e.Sel, exp)
 				// Simplified version of the code for *ast.Idents:
 				// - imported packages use types.Scope and types.Objects
 				// - imported objects are always fully initialized

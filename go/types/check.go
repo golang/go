@@ -56,10 +56,15 @@ func (check *checker) closeScope() {
 	check.topScope = check.topScope.Outer
 }
 
-func (check *checker) register(id *ast.Ident, obj Object) {
-	// TODO(gri) Document if an identifier can be registered more than once.
+func (check *checker) callIdent(id *ast.Ident, obj Object) {
 	if f := check.ctxt.Ident; f != nil {
 		f(id, obj)
+	}
+}
+
+func (check *checker) callImplicitObj(node ast.Node, obj Object) {
+	if f := check.ctxt.ImplicitObj; f != nil {
+		f(node, obj)
 	}
 }
 
@@ -69,7 +74,6 @@ func (check *checker) register(id *ast.Ident, obj Object) {
 func (check *checker) lookup(ident *ast.Ident) Object {
 	for scope := check.topScope; scope != nil; scope = scope.Outer {
 		if obj := scope.Lookup(ident.Name); obj != nil {
-			check.register(ident, obj)
 			return obj
 		}
 	}

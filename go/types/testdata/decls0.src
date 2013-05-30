@@ -69,13 +69,7 @@ type (
 	Pi pi /* ERROR "not a type" */
 
 	a /* ERROR "illegal cycle" */ a
-	// TODO(gri) For now we get double redeclaration errors if the redeclaration
-	// happens at the package level in the same file. This is because one check
-	// is done in the parser and the other one in the type checker. We cannot
-	// easily avoid this w/o losing the check or functionality. This will be
-	// fixed once all resolution is done in the type checker.
-	// TODO(gri) Disabled for now since this needs to work with the old and new resolver.
-	// a /* ERROR "redeclared" */ /* ERROR "redeclared" */ int
+	a /* ERROR "redeclared" */ int
 
 	// where the cycle error appears depends on the
 	// order in which declarations are processed

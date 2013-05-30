@@ -100,9 +100,17 @@ var (
 // Multiple assignment expressions
 var (
 	m1a, m1b = 1, 2
-	m2a /* ERROR "assignment count mismatch" */ , m2b, m2c = 1, 2
-	m3a /* ERROR "assignment count mismatch" */ , m3b = 1, 2, 3
+	m2a, m2b, m2c /* ERROR "missing initialization" */ = 1, 2
+	m3a, m3b = 1, 2, 3 /* ERROR "too many initialization" */ 
 )
+
+func _() {
+	var (
+		m1a, m1b = 1, 2
+		m2a, m2b, m2c /* ERROR "missing initialization" */ = 1, 2
+		m3a, m3b = 1, 2, 3 /* ERROR "too many initialization" */ 
+	)
+}
 
 // Declaration of parameters and results
 func f0() {}

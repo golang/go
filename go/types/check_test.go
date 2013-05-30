@@ -32,6 +32,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -188,7 +189,14 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 
 	// typecheck and collect typechecker errors
 	var ctxt Context
-	ctxt.Error = func(err error) { errlist = append(errlist, err) }
+	ctxt.Error = func(err error) {
+		// Ignore error messages containing "previous declaration":
+		// They are follow-up error messages after a redeclaration
+		// error.
+		if !strings.Contains(err.Error(), "previous declaration") {
+			errlist = append(errlist, err)
+		}
+	}
 	ctxt.Check(testname, fset, files...)
 
 	if *listErrors {

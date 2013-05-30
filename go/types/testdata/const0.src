@@ -180,8 +180,8 @@ const (
 const (
 	a1, a2, a3 = 7, 3.1415926, "foo"
 	b1, b2, b3 = b3, b1, 42
-	c1 /* ERROR "assignment count mismatch" */, c2, c3 = 1, 2
-	d1 /* ERROR "assignment count mismatch" */, d2, d3 = 1, 2, 3, 4
+	c1, c2, c3  /* ERROR "missing initialization" */ = 1, 2
+	d1, d2, d3 = 1, 2, 3, 4 /* ERROR "too many initialization" */
 	_p0 = assert(a1 == 7)
 	_p1 = assert(a2 == 3.1415926)
 	_p2 = assert(a3 == "foo")
@@ -189,6 +189,21 @@ const (
 	_p4 = assert(b2 == 42)
 	_p5 = assert(b3 == 42)
 )
+
+func _() {
+	const (
+		a1, a2, a3 = 7, 3.1415926, "foo"
+		b1, b2, b3 = b3, b1, 42
+		c1, c2, c3  /* ERROR "missing initialization" */ = 1, 2
+		d1, d2, d3 = 1, 2, 3, 4 /* ERROR "too many initialization" */
+		_p0 = assert(a1 == 7)
+		_p1 = assert(a2 == 3.1415926)
+		_p2 = assert(a3 == "foo")
+		_p3 = assert(b1 == 42)
+		_p4 = assert(b2 == 42)
+		_p5 = assert(b3 == 42)
+	)
+}
 
 // iota
 const (
