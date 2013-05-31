@@ -104,13 +104,21 @@ func (f *File) literal(value ast.Expr) *ast.BasicLit {
 	return nil
 }
 
-// formatState holds the parsed representation of a printf directive such as "%3.*[4]d"
+// formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
+// It is constructed by parsePrintfVerb.
 type formatState struct {
 	verb    rune   // the format verb: 'd' for "%d"
+	format  string // the full format string
 	flags   []byte // the list of # + etc.
 	argNums []int  // the successive argument numbers that are consumed, adjusted to refer to actual arg in call
 	nbytes  int    // number of bytes of the format string consumed.
 	indexed bool   // whether an indexing expression appears: %[1]d.
+	// Used only during parse.
+	file         *File
+	call         *ast.CallExpr
+	firstArg     int  // Index of first argument after the format in the Printf call.
+	argNum       int  // Which argument we're expecting to format now.
+	indexPending bool // Whether we have an indexed argument that has not resolved.
 }
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
@@ -147,7 +155,10 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] == '%' {
-			state := f.parsePrintfVerb(call, format[i:], argNum)
+			state := f.parsePrintfVerb(call, format[i:], firstArg, argNum)
+			if state == nil {
+				return
+			}
 			w = state.nbytes
 			if state.indexed {
 				indexed = true
@@ -172,60 +183,128 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 	}
 }
 
-// parsePrintfVerb returns the verb that begins the format string, along with its flags,
-// the number of bytes to advance the format to step past the verb, and number of
-// arguments it consumes. It returns a formatState that encodes what the formatting
-// directive wants, without looking at the actual arguments present in the call.
-func (f *File) parsePrintfVerb(call *ast.CallExpr, format string, argNum int) *formatState {
-	// There's guaranteed a percent sign.
-	flags := make([]byte, 0, 5)
-	nbytes := 1
-	end := len(format)
-	// There may be flags.
-FlagLoop:
-	for nbytes < end {
-		switch format[nbytes] {
+// parseFlags accepts any printf flags.
+func (s *formatState) parseFlags() {
+	for s.nbytes < len(s.format) {
+		switch c := s.format[s.nbytes]; c {
 		case '#', '0', '+', '-', ' ':
-			flags = append(flags, format[nbytes])
-			nbytes++
+			s.flags = append(s.flags, c)
+			s.nbytes++
 		default:
-			break FlagLoop
+			return
 		}
 	}
-	argNums := make([]int, 0, 1)
-	getNum := func() {
-		if nbytes < end && format[nbytes] == '*' {
-			nbytes++
-			argNums = append(argNums, argNum)
-			argNum++
-		} else {
-			for nbytes < end && '0' <= format[nbytes] && format[nbytes] <= '9' {
-				nbytes++
-			}
+}
+
+// scanNum advances through a decimal number if present.
+func (s *formatState) scanNum() {
+	for ; s.nbytes < len(s.format); s.nbytes++ {
+		c := s.format[s.nbytes]
+		if c < '0' || '9' < c {
+			return
 		}
+	}
+}
+
+// parseIndex scans an index expression. It returns false if there is a syntax error.
+func (s *formatState) parseIndex() bool {
+	if s.nbytes == len(s.format) || s.format[s.nbytes] != '[' {
+		return true
+	}
+	// Argument index present.
+	s.indexed = true
+	s.nbytes++ // skip '['
+	start := s.nbytes
+	s.scanNum()
+	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
+		s.file.Badf(s.call.Pos(), "illegal syntax for printf argument index")
+		return false
+	}
+	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
+	if err != nil {
+		s.file.Badf(s.call.Pos(), "illegal syntax for printf argument index: %s", err)
+		return false
+	}
+	s.nbytes++ // skip ']'
+	arg := int(arg32)
+	arg += s.firstArg - 1 // We want to zero-index the actual arguments.
+	s.argNum = arg
+	s.indexPending = true
+	return true
+}
+
+// parseNum scans a width or precision (or *). It returns false if there's a bad index expression.
+func (s *formatState) parseNum() bool {
+	if s.nbytes < len(s.format) && s.format[s.nbytes] == '*' {
+		if s.indexPending { // Absorb it.
+			s.indexPending = false
+		}
+		s.nbytes++
+		s.argNums = append(s.argNums, s.argNum)
+		s.argNum++
+	} else {
+		s.scanNum()
+	}
+	return true
+}
+
+// parsePrecision scans for a precision. It returns false if there's a bad index expression.
+func (s *formatState) parsePrecision() bool {
+	// If there's a period, there may be a precision.
+	if s.nbytes < len(s.format) && s.format[s.nbytes] == '.' {
+		s.flags = append(s.flags, '.') // Treat precision as a flag.
+		s.nbytes++
+		if !s.parseIndex() {
+			return false
+		}
+		if !s.parseNum() {
+			return false
+		}
+	}
+	return true
+}
+
+// parsePrintfVerb looks the formatting directive that begins the format string
+// and returns a formatState that encodes what the directive wants, without looking
+// at the actual arguments present in the call. The result is nil if there is an error.
+func (f *File) parsePrintfVerb(call *ast.CallExpr, format string, firstArg, argNum int) *formatState {
+	state := &formatState{
+		format:   format,
+		flags:    make([]byte, 0, 5),
+		argNum:   argNum,
+		argNums:  make([]int, 0, 1),
+		nbytes:   1, // There's guaranteed to be a percent sign.
+		indexed:  false,
+		firstArg: firstArg,
+		file:     f,
+		call:     call,
+	}
+	// There may be flags.
+	state.parseFlags()
+	indexPending := false
+	// There may be an index.
+	if !state.parseIndex() {
+		return nil
 	}
 	// There may be a width.
-	getNum()
-	// If there's a period, there may be a precision.
-	if nbytes < end && format[nbytes] == '.' {
-		flags = append(flags, '.') // Treat precision as a flag.
-		nbytes++
-		getNum()
+	if !state.parseNum() {
+		return nil
 	}
-	// Now a verb.
-	verb, w := utf8.DecodeRuneInString(format[nbytes:])
-	nbytes += w
+	// There may be a precision.
+	if !state.parsePrecision() {
+		return nil
+	}
+	// Now a verb, possibly prefixed by an index (which we may already have).
+	if !indexPending && !state.parseIndex() {
+		return nil
+	}
+	verb, w := utf8.DecodeRuneInString(state.format[state.nbytes:])
+	state.verb = verb
+	state.nbytes += w
 	if verb != '%' {
-		argNums = append(argNums, argNum)
-		argNum++
+		state.argNums = append(state.argNums, state.argNum)
 	}
-	return &formatState{
-		verb:    verb,
-		flags:   flags,
-		argNums: argNums,
-		nbytes:  nbytes,
-		indexed: false, // TODO
-	}
+	return state
 }
 
 // printfArgType encodes the types of expressions a printf verb accepts. It is a bitmask.

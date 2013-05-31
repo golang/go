@@ -8,6 +8,7 @@ package testdata
 
 import (
 	"fmt"
+	"os"
 	"unsafe" // just for test case printing unsafe.Pointer
 )
 
@@ -120,6 +121,17 @@ func PrintfTests() {
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+	// Good argument reorderings.
+	Printf("%[1]d", 3)
+	Printf("%[1]*d", 3, 1)
+	Printf("%[2]*[1]d", 1, 3)
+	Printf("%[2]*.[1]*[3]d", 2, 3, 4)
+	fmt.Fprintf(os.Stderr, "%[2]*.[1]*[3]d", 2, 3, 4) // Use Fprintf to make sure we count arguments correctly.
+	// Bad argument reorderings.
+	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
+	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
+	Printf("%[2]d", 3)                   // ERROR "wrong number of args for format in Printf call"
+	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
 	// Something that satisfies the error interface.
 	var e error
 	fmt.Println(e.Error()) // ok
@@ -141,8 +153,8 @@ func PrintfTests() {
 	et5.error() // ok, not an error method.
 }
 
-// printf is used by the test.
-func printf(format string, args ...interface{}) {
+// Printf is used by the test so we must declare it.
+func Printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
