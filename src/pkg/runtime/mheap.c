@@ -303,9 +303,7 @@ runtime·MHeap_LookupMaybe(MHeap *h, void *v)
 	if(sizeof(void*) == 8)
 		q -= (uintptr)h->arena_start >> PageShift;
 	s = h->spans[q];
-	if(s == nil || p < s->start || p - s->start >= s->npages)
-		return nil;
-	if(s->state != MSpanInUse)
+	if(s == nil || p < s->start || v >= s->limit || s->state != MSpanInUse)
 		return nil;
 	return s;
 }
