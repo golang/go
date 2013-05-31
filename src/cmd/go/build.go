@@ -185,6 +185,18 @@ func isSpaceByte(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
 
+// fileExtSplit expects a filename and returns the name
+// and ext (without the dot). If the file has no
+// extension, ext will be empty.
+func fileExtSplit(file string) (name, ext string) {
+	dotExt := filepath.Ext(file)
+	name = file[:len(file)-len(dotExt)]
+	if dotExt != "" {
+		ext = dotExt[1:]
+	}
+	return
+}
+
 type stringsFlag []string
 
 func (v *stringsFlag) Set(s string) error {
@@ -727,6 +739,15 @@ func hasString(strings []string, s string) bool {
 
 // build is the action for building a single package or command.
 func (b *builder) build(a *action) (err error) {
+	// Return an error if the package has CXX files but it's not using
+	// cgo nor SWIG, since the CXX files can only be processed by cgo
+	// and SWIG (it's possible to have packages with C files without
+	// using cgo, they will get compiled with the plan9 C compiler and
+	// linked with the rest of the package).
+	if len(a.p.CXXFiles) > 0 && !a.p.usesCgo() && !a.p.usesSwig() {
+		return fmt.Errorf("can't build package %s because it contains C++ files (%s) but it's not using cgo nor SWIG",
+			a.p.ImportPath, strings.Join(a.p.CXXFiles, ","))
+	}
 	defer func() {
 		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
@@ -770,8 +791,8 @@ func (b *builder) build(a *action) (err error) {
 	sfiles = append(sfiles, a.p.SFiles...)
 
 	// Run cgo.
-	if len(a.p.CgoFiles) > 0 {
-		// In a package using cgo, cgo compiles the C and assembly files with gcc.
+	if a.p.usesCgo() {
+		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
 		// There is one exception: runtime/cgo's job is to bridge the
 		// cgo and non-cgo worlds, so it necessarily has files in both.
 		// In that case gcc only gets the gcc_* files.
@@ -799,7 +820,7 @@ func (b *builder) build(a *action) (err error) {
 		if a.cgo != nil && a.cgo.target != "" {
 			cgoExe = a.cgo.target
 		}
-		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles)
+		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles, a.p.CXXFiles)
 		if err != nil {
 			return err
 		}
@@ -814,6 +835,7 @@ func (b *builder) build(a *action) (err error) {
 		gccfiles := append(cfiles, sfiles...)
 		cfiles = nil
 		sfiles = nil
+		// TODO(hierro): Handle C++ files with SWIG
 		outGo, outObj, err := b.swig(a.p, obj, gccfiles)
 		if err != nil {
 			return err
@@ -843,23 +865,24 @@ func (b *builder) build(a *action) (err error) {
 	// Copy .h files named for goos or goarch or goos_goarch
 	// to names using GOOS and GOARCH.
 	// For example, defs_linux_amd64.h becomes defs_GOOS_GOARCH.h.
-	_goos_goarch := "_" + goos + "_" + goarch + ".h"
-	_goos := "_" + goos + ".h"
-	_goarch := "_" + goarch + ".h"
+	_goos_goarch := "_" + goos + "_" + goarch
+	_goos := "_" + goos
+	_goarch := "_" + goarch
 	for _, file := range a.p.HFiles {
+		name, ext := fileExtSplit(file)
 		switch {
-		case strings.HasSuffix(file, _goos_goarch):
-			targ := file[:len(file)-len(_goos_goarch)] + "_GOOS_GOARCH.h"
+		case strings.HasSuffix(name, _goos_goarch):
+			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
 			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
 				return err
 			}
-		case strings.HasSuffix(file, _goarch):
-			targ := file[:len(file)-len(_goarch)] + "_GOARCH.h"
+		case strings.HasSuffix(name, _goarch):
+			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
 			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
 				return err
 			}
-		case strings.HasSuffix(file, _goos):
-			targ := file[:len(file)-len(_goos)] + "_GOOS.h"
+		case strings.HasSuffix(name, _goos):
+			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
 			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
 				return err
 			}
@@ -1454,7 +1477,7 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 	// so that it can give good error messages about forward declarations.
 	// Exceptions: a few standard packages have forward declarations for
 	// pieces supplied behind-the-scenes by package runtime.
-	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
 		case "os", "runtime/pprof", "sync", "time":
@@ -1689,26 +1712,53 @@ func (b *builder) libgcc(p *Package) (string, error) {
 
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
-	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
+	return b.ccompile(p, out, flags, cfile, b.gccCmd(p.Dir))
 }
 
-// gccld runs the gcc linker to create an executable from a set of object files
+// gxx runs the g++ C++ compiler to create an object from a single C++ file.
+func (b *builder) gxx(p *Package, out string, flags []string, cxxfile string) error {
+	return b.ccompile(p, out, flags, cxxfile, b.gxxCmd(p.Dir))
+}
+
+// ccompile runs the given C or C++ compiler and creates an object from a single source file.
+func (b *builder) ccompile(p *Package, out string, flags []string, file string, compiler []string) error {
+	file = mkAbs(p.Dir, file)
+	return b.run(p.Dir, p.ImportPath, nil, compiler, flags, "-o", out, "-c", file)
+}
+
+// gccld runs the gcc linker to create an executable from a set of object files.
 func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
-	return b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", out, obj, flags)
+	var cmd []string
+	if len(p.CXXFiles) > 0 {
+		cmd = b.gxxCmd(p.Dir)
+	} else {
+		cmd = b.gccCmd(p.Dir)
+	}
+	return b.run(p.Dir, p.ImportPath, nil, cmd, "-o", out, obj, flags)
 }
 
 // gccCmd returns a gcc command line prefix
 func (b *builder) gccCmd(objdir string) []string {
+	return b.ccompilerCmd("CC", "gcc", objdir)
+}
+
+// gxxCmd returns a g++ command line prefix
+func (b *builder) gxxCmd(objdir string) []string {
+	return b.ccompilerCmd("CXX", "g++", objdir)
+}
+
+// ccompilerCmd returns a command line prefix for the given environment
+// variable and using the default command when the variable is empty
+func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
 	// strings returned are "gcc", "-I", objdir (and cuts them off).
 
-	gcc := strings.Fields(os.Getenv("CC"))
-	if len(gcc) == 0 {
-		gcc = append(gcc, "gcc")
+	compiler := strings.Fields(os.Getenv(envvar))
+	if len(compiler) == 0 {
+		compiler = append(compiler, defcmd)
 	}
-	a := []string{gcc[0], "-I", objdir, "-g", "-O2"}
-	a = append(a, gcc[1:]...)
+	a := []string{compiler[0], "-I", objdir, "-g", "-O2"}
+	a = append(a, compiler[1:]...)
 
 	// Definitely want -fPIC but on Windows gcc complains
 	// "-fPIC ignored for target (all code is position independent)"
@@ -1767,12 +1817,14 @@ var (
 	cgoLibGccFileOnce sync.Once
 )
 
-func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfiles []string) (outGo, outObj []string, err error) {
 	if goos != toolGOOS {
 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
 	}
 
+	cgoCPPFLAGS := stringList(envList("CGO_CPPFLAGS"), p.CgoCPPFLAGS)
 	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.CgoCFLAGS)
+	cgoCXXFLAGS := stringList(envList("CGO_CXXFLAGS"), p.CgoCXXFLAGS)
 	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.CgoLDFLAGS)
 
 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
@@ -1783,7 +1835,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
-			cgoCFLAGS = append(cgoCFLAGS, strings.Fields(string(out))...)
+			cgoCPPFLAGS = append(cgoCPPFLAGS, strings.Fields(string(out))...)
 		}
 		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--libs", pkgs)
 		if err != nil {
@@ -1797,7 +1849,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	}
 
 	// Allows including _cgo_export.h from .[ch] files in the package.
-	cgoCFLAGS = append(cgoCFLAGS, "-I", obj)
+	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", obj)
 
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?
@@ -1839,7 +1891,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		}
 		objExt = "o"
 	}
-	if err := b.run(p.Dir, p.ImportPath, cgoenv, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoenv, cgoExe, "-objdir", obj, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, p.CgoFiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
@@ -1893,9 +1945,10 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		staticLibs = append(staticLibs, cgoLibGccFile)
 	}
 
+	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
 	for _, cfile := range cfiles {
 		ofile := obj + cfile[:len(cfile)-1] + "o"
-		if err := b.gcc(p, ofile, cgoCFLAGS, obj+cfile); err != nil {
+		if err := b.gcc(p, ofile, cflags, obj+cfile); err != nil {
 			return nil, nil, err
 		}
 		linkobj = append(linkobj, ofile)
@@ -1903,14 +1956,27 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 			outObj = append(outObj, ofile)
 		}
 	}
+
 	for _, file := range gccfiles {
 		ofile := obj + cgoRe.ReplaceAllString(file[:len(file)-1], "_") + "o"
-		if err := b.gcc(p, ofile, cgoCFLAGS, file); err != nil {
+		if err := b.gcc(p, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
 		linkobj = append(linkobj, ofile)
 		outObj = append(outObj, ofile)
 	}
+
+	cxxflags := stringList(cgoCPPFLAGS, cgoCXXFLAGS)
+	for _, file := range gxxfiles {
+		// Append .o to the file, just in case the pkg has file.c and file.cpp
+		ofile := obj + cgoRe.ReplaceAllString(file, "_") + ".o"
+		if err := b.gxx(p, ofile, cxxflags, file); err != nil {
+			return nil, nil, err
+		}
+		linkobj = append(linkobj, ofile)
+		outObj = append(outObj, ofile)
+	}
+
 	linkobj = append(linkobj, p.SysoFiles...)
 	dynobj := obj + "_cgo_.o"
 	if goarch == "arm" && goos == "linux" { // we need to use -pie for Linux/ARM to get accurate imported sym

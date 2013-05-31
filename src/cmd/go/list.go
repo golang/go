@@ -46,14 +46,17 @@ which calls strings.Join. The struct being passed to the template is:
         CgoFiles []string       // .go sources files that import "C"
         IgnoredGoFiles []string // .go sources ignored due to build constraints
         CFiles   []string       // .c source files
-        HFiles   []string       // .h source files
+        CXXFiles []string       // .cc, .cxx and .cpp source files
+        HFiles   []string       // .h, .hh, .hpp and .hxx source files
         SFiles   []string       // .s source files
         SysoFiles []string      // .syso object files to add to archive
         SwigFiles []string      // .swig files
         SwigCXXFiles []string   // .swigcxx files
 
         // Cgo directives
+        CgoCPPFLAGS  []string // cgo: flags for C preprocessor
         CgoCFLAGS    []string // cgo: flags for C compiler
+        CgoCXXFLAGS  []string // cgo: flags for C++ compiler
         CgoLDFLAGS   []string // cgo: flags for linker
         CgoPkgConfig []string // cgo: pkg-config names
 
