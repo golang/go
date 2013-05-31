@@ -31,11 +31,18 @@ const (
 // These variables are copied from the gobuilder's environment
 // to the envv of its subprocesses.
 var extraEnv = []string{
-	"CC",
 	"GOARM",
+
+	// For Unix derivatives.
+	"CC",
 	"PATH",
 	"TMPDIR",
 	"USER",
+
+	// For Plan 9.
+	"objtype",
+	"cputype",
+	"path",
 }
 
 type Builder struct {
