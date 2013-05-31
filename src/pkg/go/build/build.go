@@ -353,16 +353,19 @@ type Package struct {
 	CgoFiles       []string // .go source files that import "C"
 	IgnoredGoFiles []string // .go source files ignored for this build
 	CFiles         []string // .c source files
-	HFiles         []string // .h source files
+	CXXFiles       []string // .cc, .cpp and .cxx source files
+	HFiles         []string // .h, .hh, .hpp and .hxx source files
 	SFiles         []string // .s source files
 	SysoFiles      []string // .syso system object files to add to archive
 	SwigFiles      []string // .swig files
 	SwigCXXFiles   []string // .swigcxx files
 
 	// Cgo directives
-	CgoPkgConfig []string // Cgo pkg-config directives
+	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
 	CgoCFLAGS    []string // Cgo CFLAGS directives
+	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
+	CgoPkgConfig []string // Cgo pkg-config directives
 
 	// Dependency information
 	Imports   []string                    // imports from GoFiles, CgoFiles
@@ -600,7 +603,7 @@ Found:
 		}
 
 		switch ext {
-		case ".go", ".c", ".s", ".h", ".S", ".swig", ".swigcxx":
+		case ".go", ".c", ".cc", ".cxx", ".cpp", ".s", ".h", ".hh", ".hpp", ".hxx", ".S", ".swig", ".swigcxx":
 			// tentatively okay - read to make sure
 		case ".syso":
 			// binary objects to add to package archive
@@ -643,7 +646,10 @@ Found:
 		case ".c":
 			p.CFiles = append(p.CFiles, name)
 			continue
-		case ".h":
+		case ".cc", ".cpp", ".cxx":
+			p.CXXFiles = append(p.CXXFiles, name)
+			continue
+		case ".h", ".hh", ".hpp", ".hxx":
 			p.HFiles = append(p.HFiles, name)
 			continue
 		case ".s":
@@ -851,8 +857,8 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.
-// These lines set CFLAGS and LDFLAGS and pkg-config directives that affect
-// the way cgo's C code is built.
+// These lines set CPPCFLAGS, CFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
+// that affect the way cgo's C code is built.
 //
 // TODO(rsc): This duplicates code in cgo.
 // Once the dust settles, remove this code from cgo.
@@ -910,6 +916,10 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		switch verb {
 		case "CFLAGS":
 			di.CgoCFLAGS = append(di.CgoCFLAGS, args...)
+		case "CPPFLAGS":
+			di.CgoCPPFLAGS = append(di.CgoCPPFLAGS, args...)
+		case "CXXFLAGS":
+			di.CgoCXXFLAGS = append(di.CgoCXXFLAGS, args...)
 		case "LDFLAGS":
 			di.CgoLDFLAGS = append(di.CgoLDFLAGS, args...)
 		case "pkg-config":

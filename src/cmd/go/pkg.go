@@ -40,14 +40,17 @@ type Package struct {
 	CgoFiles       []string `json:",omitempty"` // .go sources files that import "C"
 	IgnoredGoFiles []string `json:",omitempty"` // .go sources ignored due to build constraints
 	CFiles         []string `json:",omitempty"` // .c source files
-	HFiles         []string `json:",omitempty"` // .h source files
+	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
+	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
 	SFiles         []string `json:",omitempty"` // .s source files
 	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
 	SwigFiles      []string `json:",omitempty"` // .swig files
 	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
 
 	// Cgo directives
+	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+	CgoCXXFLAGS  []string `json:",omitempty"` // cgo: flags for C++ compiler
 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
 
@@ -98,12 +101,15 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CgoFiles = pp.CgoFiles
 	p.IgnoredGoFiles = pp.IgnoredGoFiles
 	p.CFiles = pp.CFiles
+	p.CXXFiles = pp.CXXFiles
 	p.HFiles = pp.HFiles
 	p.SFiles = pp.SFiles
 	p.SysoFiles = pp.SysoFiles
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
+	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
 	p.CgoCFLAGS = pp.CgoCFLAGS
+	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
 	p.Imports = pp.Imports
@@ -389,6 +395,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.CgoFiles,
 		p.IgnoredGoFiles,
 		p.CFiles,
+		p.CXXFiles,
 		p.HFiles,
 		p.SFiles,
 		p.SysoFiles,
@@ -479,6 +486,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 // usesSwig returns whether the package needs to run SWIG.
 func (p *Package) usesSwig() bool {
 	return len(p.SwigFiles) > 0 || len(p.SwigCXXFiles) > 0
+}
+
+// usesCgo returns whether the package needs to run cgo
+func (p *Package) usesCgo() bool {
+	return len(p.CgoFiles) > 0
 }
 
 // swigSoname returns the name of the shared library we create for a
@@ -611,7 +623,7 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
+	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
 			return true
