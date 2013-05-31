@@ -152,12 +152,14 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) *Scope {
 			// embedded interface
 			utyp := typ.Underlying()
 			if ityp, ok := utyp.(*Interface); ok {
-				for _, obj := range ityp.methods.entries {
-					if alt := methods.Insert(obj); alt != nil {
-						check.errorf(list.Pos(), "multiple methods named %s", obj.Name())
-						obj = nil // for callImplicit, below
+				if ityp.methods != nil {
+					for _, obj := range ityp.methods.entries {
+						if alt := methods.Insert(obj); alt != nil {
+							check.errorf(list.Pos(), "multiple methods named %s", obj.Name())
+							obj = nil // for callImplicit, below
+						}
+						check.callImplicitObj(f, obj)
 					}
-					check.callImplicitObj(f, obj)
 				}
 			} else if utyp != Typ[Invalid] {
 				// if utyp is invalid, don't complain (the root cause was reported before)

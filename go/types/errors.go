@@ -258,17 +258,19 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Struct:
 		buf.WriteString("struct{")
-		for i, f := range t.fields {
-			if i > 0 {
-				buf.WriteString("; ")
-			}
-			if !f.IsAnonymous {
-				buf.WriteString(f.Name)
-				buf.WriteByte(' ')
-			}
-			writeType(buf, f.Type)
-			if tag := t.Tag(i); tag != "" {
-				fmt.Fprintf(buf, " %q", tag)
+		if t.fields != nil {
+			for i, f := range t.fields {
+				if i > 0 {
+					buf.WriteString("; ")
+				}
+				if !f.IsAnonymous {
+					buf.WriteString(f.Name)
+					buf.WriteByte(' ')
+				}
+				writeType(buf, f.Type)
+				if tag := t.Tag(i); tag != "" {
+					fmt.Fprintf(buf, " %q", tag)
+				}
 			}
 		}
 		buf.WriteByte('}')
@@ -289,13 +291,15 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Interface:
 		buf.WriteString("interface{")
-		for i, obj := range t.methods.entries {
-			if i > 0 {
-				buf.WriteString("; ")
+		if t.methods != nil {
+			for i, obj := range t.methods.entries {
+				if i > 0 {
+					buf.WriteString("; ")
+				}
+				m := obj.(*Func)
+				buf.WriteString(m.name)
+				writeSignature(buf, m.typ.(*Signature))
 			}
-			m := obj.(*Func)
-			buf.WriteString(m.name)
-			writeSignature(buf, m.typ.(*Signature))
 		}
 		buf.WriteByte('}')
 
