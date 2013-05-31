@@ -548,8 +548,9 @@ out:
 	p->from.name = D_EXTERN;
 	p->from.sym = newnam;
 	p->to.type = D_CONST2;
-	p->reg = 7;
-	p->to.offset2 = 0;
+	p->to.offset = 0;  // stack size
+	p->to.offset2 = rnd(method->type->argwid, widthptr);  // argument size
+	p->reg = 7;  // textflag
 	p->to.reg = NREG;
 //print("1. %P\n", p);
 

@@ -534,8 +534,9 @@ out:
 	p->from.type = D_EXTERN;
 	p->from.sym = newnam;
 	p->to.type = D_CONST;
-	p->to.offset = 0;
-	p->from.scale = 7;
+	p->to.offset = 0;  // stack skize
+	p->to.offset2 = rnd(method->type->argwid, widthptr);  // argument size
+	p->from.scale = 7;  // textflag
 //print("1. %P\n", p);
 
 	mov = AMOVL;
