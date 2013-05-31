@@ -314,11 +314,15 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 		c.Call.Func = cand.concrete
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
+		c.Call.Method = -1
+		iface := v.Type().Underlying().(*types.Interface)
+		for i, n := 0, iface.NumMethods(); i < n; i++ {
+			if iface.Method(i) == cand.method {
+				c.Call.Method = i
+				break
+			}
+		}
 		c.Call.Recv = v
-		// TODO(adonovan): fix: this looks wrong!  Need to
-		// find method index within
-		// v.Type().Underlying().(*types.Interface).Methods()
-		c.Call.Method = 0
 	}
 	for _, arg := range fn.Params[1:] {
 		c.Call.Args = append(c.Call.Args, arg)

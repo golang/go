@@ -20,7 +20,7 @@ type PackageInfo struct {
 	// Type-checker deductions.
 	types     map[ast.Expr]types.Type        // inferred types of expressions
 	constants map[ast.Expr]exact.Value       // values of constant expressions
-	idents    map[*ast.Ident]types.Object    // resoved objects for named entities
+	idents    map[*ast.Ident]types.Object    // resolved objects for named entities
 	typecases map[*ast.CaseClause]*types.Var // implicit vars for single-type typecases
 }
 
@@ -47,6 +47,7 @@ func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
 
 // ValueOf returns the value of expression e if it is a constant, nil
 // otherwise.
+// Precondition: e belongs to the package's ASTs.
 //
 func (info *PackageInfo) ValueOf(e ast.Expr) exact.Value {
 	return info.constants[e]
