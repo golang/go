@@ -74,8 +74,7 @@ runtime·MHeap_MapSpans(MHeap *h)
 	n = (uintptr)h->arena_used;
 	if(sizeof(void*) == 8)
 		n -= (uintptr)h->arena_start;
-	// Coalescing code reads spans past the end of mapped arena, thus +1.
-	n = (n / PageSize + 1) * sizeof(h->spans[0]);
+	n = n / PageSize * sizeof(h->spans[0]);
 	n = ROUND(n, PageSize);
 	if(h->spans_mapped >= n)
 		return;
@@ -366,7 +365,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		mstats.mspan_inuse = h->spanalloc.inuse;
 		mstats.mspan_sys = h->spanalloc.sys;
 	}
-	if(p+s->npages < nelem(h->spans) && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
+	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
 		tp = (uintptr*)(t->start<<PageShift);
 		*sp |= *tp;	// propagate "needs zeroing" mark
 		s->npages += t->npages;
