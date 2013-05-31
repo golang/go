@@ -231,14 +231,12 @@ markonly(void *obj)
 	if(sizeof(void*) == 8)
 		x -= (uintptr)runtime·mheap.arena_start>>PageShift;
 	s = runtime·mheap.spans[x];
-	if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
+	if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
 		return false;
 	p = (byte*)((uintptr)s->start<<PageShift);
 	if(s->sizeclass == 0) {
 		obj = p;
 	} else {
-		if((byte*)obj >= (byte*)s->limit)
-			return false;
 		uintptr size = s->elemsize;
 		int32 i = ((byte*)obj - p)/size;
 		obj = p+i*size;
@@ -411,14 +409,12 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			if(sizeof(void*) == 8)
 				x -= (uintptr)arena_start>>PageShift;
 			s = runtime·mheap.spans[x];
-			if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
+			if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
 				continue;
 			p = (byte*)((uintptr)s->start<<PageShift);
 			if(s->sizeclass == 0) {
 				obj = p;
 			} else {
-				if((byte*)obj >= (byte*)s->limit)
-					continue;
 				size = s->elemsize;
 				int32 i = ((byte*)obj - p)/size;
 				obj = p+i*size;
@@ -1173,8 +1169,6 @@ debug_scanblock(byte *b, uintptr n)
 		if(s->sizeclass == 0) {
 			obj = p;
 		} else {
-			if((byte*)obj >= (byte*)s->limit)
-				continue;
 			int32 i = ((byte*)obj - p)/size;
 			obj = p+i*size;
 		}

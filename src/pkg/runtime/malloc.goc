@@ -84,6 +84,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, zeroed);
 		if(s == nil)
 			runtime·throw("out of memory");
+		s->limit = (byte*)(s->start<<PageShift) + size;
 		size = npages<<PageShift;
 		c->local_alloc += size;
 		c->local_total_alloc += size;
@@ -236,11 +237,6 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 		if(size)
 			*size = s->npages<<PageShift;
 		return 1;
-	}
-
-	if((byte*)v >= (byte*)s->limit) {
-		// pointers past the last block do not count as pointers.
-		return 0;
 	}
 
 	n = s->elemsize;
