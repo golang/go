@@ -5,6 +5,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -104,6 +105,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						}
 						path, _ := strconv.Unquote(s.Path.Value)
 						imp, err := importer(pkg.imports, path)
+						if imp == nil && err == nil {
+							err = errors.New("Context.Import returned niil")
+						}
 						if err != nil {
 							check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
 							continue

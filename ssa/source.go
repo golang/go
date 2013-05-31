@@ -6,6 +6,7 @@ package ssa
 // since neither depends on SSA internals.
 
 import (
+	"code.google.com/p/go.tools/importer"
 	"go/ast"
 	"go/token"
 )
@@ -23,16 +24,19 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 // program prog.  exact is defined as for standalone
 // PathEnclosingInterval.
 //
+// imp provides ASTs for the program's packages.
+//
 // The result is (nil, nil, false) if not found.
 //
-func (prog *Program) PathEnclosingInterval(start, end token.Pos) (pkg *Package, path []ast.Node, exact bool) {
-	for _, pkg = range prog.Packages {
-		for _, f := range pkg.Files {
+func (prog *Program) PathEnclosingInterval(imp *importer.Importer, start, end token.Pos) (pkg *Package, path []ast.Node, exact bool) {
+	for path, info := range imp.Packages {
+		pkg := prog.Packages[path]
+		for _, f := range info.Files {
 			if !tokenFileContainsPos(prog.Files.File(f.Package), start) {
 				continue
 			}
-			if path, exact = PathEnclosingInterval(f, start, end); path != nil {
-				return
+			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
+				return pkg, path, exact
 			}
 		}
 	}

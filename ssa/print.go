@@ -356,11 +356,11 @@ func (s *MapUpdate) String() string {
 }
 
 func (p *Package) String() string {
-	return "Package " + p.Types.Path()
+	return "package " + p.Types.Path()
 }
 
 func (p *Package) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "Package %s:\n", p.Types.Path())
+	fmt.Fprintf(w, "%s:\n", p)
 
 	var names []string
 	maxname := 0

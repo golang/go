@@ -1,6 +1,7 @@
 package ssa_test
 
 import (
+	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
 	"fmt"
 	"go/ast"
@@ -35,23 +36,26 @@ func main() {
 	fmt.Println(message)
 }
 `
-
-	// Construct a builder.  Imports will be loaded as if by 'go build'.
-	builder := ssa.NewBuilder(&ssa.Context{Loader: ssa.MakeGoBuildLoader(nil)})
+	// Construct an importer.  Imports will be loaded as if by 'go build'.
+	imp := importer.New(&importer.Context{Loader: importer.MakeGoBuildLoader(nil)})
 
 	// Parse the input file.
-	file, err := parser.ParseFile(builder.Prog.Files, "hello.go", hello, parser.DeclarationErrors)
+	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, parser.DeclarationErrors)
 	if err != nil {
 		fmt.Printf(err.Error()) // parse error
 		return
 	}
 
 	// Create a "main" package containing one file.
-	mainPkg, err := builder.CreatePackage("main", []*ast.File{file})
+	info, err := imp.CreateSourcePackage("main", []*ast.File{file})
 	if err != nil {
 		fmt.Printf(err.Error()) // type error
 		return
 	}
+
+	// Construct an SSA builder.
+	builder := ssa.NewBuilder(&ssa.Context{}, imp)
+	mainPkg := builder.PackageFor(info.Pkg)
 
 	// Print out the package.
 	mainPkg.DumpTo(os.Stdout)
@@ -70,7 +74,7 @@ func main() {
 
 	// Output:
 	//
-	// Package main:
+	// package main:
 	//   var   init$guard *bool
 	//   func  main       func()
 	//   const message    message = "Hello, World!":untyped string

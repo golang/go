@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
 	"code.google.com/p/go.tools/ssa/interp"
 )
@@ -141,11 +142,11 @@ func run(t *testing.T, dir, input string) bool {
 		inputs = append(inputs, dir+i)
 	}
 
-	b := ssa.NewBuilder(&ssa.Context{
-		Mode:   ssa.SanityCheckFunctions,
-		Loader: ssa.MakeGoBuildLoader(nil),
-	})
-	files, err := ssa.ParseFiles(b.Prog.Files, ".", inputs...)
+	impctx := &importer.Context{
+		Loader: importer.MakeGoBuildLoader(nil),
+	}
+	imp := importer.New(impctx)
+	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
 	if err != nil {
 		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
 		return false
@@ -163,12 +164,14 @@ func run(t *testing.T, dir, input string) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go run exp/ssa/ssadump.go -build=CFP %s\n", input)
-	mainpkg, err := b.CreatePackage("main", files)
+	info, err := imp.CreateSourcePackage("main", files)
 	if err != nil {
 		t.Errorf("ssa.Builder.CreatePackage(%s) failed: %s", inputs, err.Error())
-
 		return false
 	}
+
+	b := ssa.NewBuilder(&ssa.Context{Mode: ssa.SanityCheckFunctions}, imp)
+	mainpkg := b.PackageFor(info.Pkg)
 
 	b.BuildAllPackages()
 	b = nil // discard Builder

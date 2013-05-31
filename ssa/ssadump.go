@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime/pprof"
 
+	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
 	"code.google.com/p/go.tools/ssa/interp"
 )
@@ -50,6 +51,8 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
+	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
+
 	var mode ssa.BuilderMode
 	for _, c := range *buildFlag {
 		switch c {
@@ -64,7 +67,7 @@ func main() {
 		case 'N':
 			mode |= ssa.NaiveForm
 		case 'G':
-			mode |= ssa.UseGCImporter
+			impctx.Loader = nil
 		case 'L':
 			mode |= ssa.BuildSerially
 		default:
@@ -99,19 +102,24 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	context := &ssa.Context{
-		Mode:   mode,
-		Loader: ssa.MakeGoBuildLoader(nil),
-	}
-	b := ssa.NewBuilder(context)
-	mainpkg, args, err := ssa.CreatePackageFromArgs(b, args)
+	// Load, parse and type-check the program.
+	imp := importer.New(&impctx)
+	info, args, err := importer.CreatePackageFromArgs(imp, args)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	// Build SSA-form program representation.
+	context := &ssa.Context{
+		Mode: mode,
+	}
+	b := ssa.NewBuilder(context, imp)
+	mainpkg := b.PackageFor(info.Pkg)
 	b.BuildAllPackages()
 	b = nil // discard Builder
 
+	// Run the interpreter.
 	if *runFlag {
-		interp.Interpret(mainpkg, interpMode, mainpkg.Name(), args)
+		interp.Interpret(mainpkg, interpMode, info.Pkg.Path(), args)
 	}
 }

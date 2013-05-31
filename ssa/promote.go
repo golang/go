@@ -149,7 +149,11 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			if nt, ok := t.(*types.Named); ok {
 				for i, n := 0, nt.NumMethods(); i < n; i++ {
 					m := nt.Method(i)
-					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, prog.concreteMethods[m], node)
+					concrete := prog.concreteMethods[m]
+					if concrete == nil {
+						panic(fmt.Sprint("no ssa.Function for mset(%s)[%s]", t, m.Name()))
+					}
+					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, concrete, node)
 				}
 				t = nt.Underlying()
 			}
@@ -311,6 +315,9 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		c.Call.Recv = v
+		// TODO(adonovan): fix: this looks wrong!  Need to
+		// find method index within
+		// v.Type().Underlying().(*types.Interface).Methods()
 		c.Call.Method = 0
 	}
 	for _, arg := range fn.Params[1:] {

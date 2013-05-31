@@ -1,28 +1,33 @@
-package ssa
+package importer
 
-// This file defines utilities for querying the results of typechecker:
-// types of expressions, values of constant expressions, referents of identifiers.
+// TODO(gri): absorb this into go/types.
 
 import (
+	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
-	"fmt"
 	"go/ast"
-	"go/token"
 )
 
-// TypeInfo contains information provided by the type checker about
-// the abstract syntax for a single package.
-type TypeInfo struct {
-	fset      *token.FileSet
+// PackageInfo holds the ASTs and facts derived by the type-checker
+// for a single package.
+//
+// Not mutated once constructed.
+//
+type PackageInfo struct {
+	Pkg   *types.Package
+	Files []*ast.File // abstract syntax for the package's files
+
+	// Type-checker deductions.
 	types     map[ast.Expr]types.Type        // inferred types of expressions
-	constants map[ast.Expr]*Literal          // values of constant expressions
-	idents    map[*ast.Ident]types.Object    // canonical type objects for named entities
+	constants map[ast.Expr]exact.Value       // values of constant expressions
+	idents    map[*ast.Ident]types.Object    // resoved objects for named entities
 	typecases map[*ast.CaseClause]*types.Var // implicit vars for single-type typecases
 }
 
 // TypeOf returns the type of expression e.
 // Precondition: e belongs to the package's ASTs.
-func (info *TypeInfo) TypeOf(e ast.Expr) types.Type {
+//
+func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
 	// For Ident, b.types may be more specific than
 	// b.obj(id.(*ast.Ident)).GetType(),
 	// e.g. in the case of typeswitch.
@@ -40,21 +45,18 @@ func (info *TypeInfo) TypeOf(e ast.Expr) types.Type {
 	panic("no type for expression")
 }
 
-// ValueOf returns the value of expression e if it is a constant,
-// nil otherwise.
+// ValueOf returns the value of expression e if it is a constant, nil
+// otherwise.
 //
-func (info *TypeInfo) ValueOf(e ast.Expr) *Literal {
+func (info *PackageInfo) ValueOf(e ast.Expr) exact.Value {
 	return info.constants[e]
 }
 
 // ObjectOf returns the typechecker object denoted by the specified id.
 // Precondition: id belongs to the package's ASTs.
 //
-func (info *TypeInfo) ObjectOf(id *ast.Ident) types.Object {
-	if obj, ok := info.idents[id]; ok {
-		return obj
-	}
-	panic(fmt.Sprintf("no types.Object for ast.Ident %s @ %s", id.Name, info.fset.Position(id.Pos())))
+func (info *PackageInfo) ObjectOf(id *ast.Ident) types.Object {
+	return info.idents[id]
 }
 
 // IsType returns true iff expression e denotes a type.
@@ -62,10 +64,10 @@ func (info *TypeInfo) ObjectOf(id *ast.Ident) types.Object {
 // e must be a true expression, not a KeyValueExpr, or an Ident
 // appearing in a SelectorExpr or declaration.
 //
-func (info *TypeInfo) IsType(e ast.Expr) bool {
+func (info *PackageInfo) IsType(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.SelectorExpr: // pkg.Type
-		if obj := info.isPackageRef(e); obj != nil {
+		if obj := info.IsPackageRef(e); obj != nil {
 			_, isType := obj.(*types.TypeName)
 			return isType
 		}
@@ -82,12 +84,12 @@ func (info *TypeInfo) IsType(e ast.Expr) bool {
 	return false
 }
 
-// isPackageRef returns the identity of the object if sel is a
+// IsPackageRef returns the identity of the object if sel is a
 // package-qualified reference to a named const, var, func or type.
 // Otherwise it returns nil.
 // Precondition: sel belongs to the package's ASTs.
 //
-func (info *TypeInfo) isPackageRef(sel *ast.SelectorExpr) types.Object {
+func (info *PackageInfo) IsPackageRef(sel *ast.SelectorExpr) types.Object {
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkg, ok := info.ObjectOf(id).(*types.Package); ok {
 			return pkg.Scope().Lookup(nil, sel.Sel.Name)
@@ -96,7 +98,22 @@ func (info *TypeInfo) isPackageRef(sel *ast.SelectorExpr) types.Object {
 	return nil
 }
 
-// builtinCallSignature returns a new Signature describing the
+// TypeCaseVar returns the implicit variable created by a single-type
+// case clause in a type switch, or nil if not found.
+//
+func (info *PackageInfo) TypeCaseVar(cc *ast.CaseClause) *types.Var {
+	return info.typecases[cc]
+}
+
+var (
+	tEface      = new(types.Interface)
+	tComplex64  = types.Typ[types.Complex64]
+	tComplex128 = types.Typ[types.Complex128]
+	tFloat32    = types.Typ[types.Float32]
+	tFloat64    = types.Typ[types.Float64]
+)
+
+// BuiltinCallSignature returns a new Signature describing the
 // effective type of a builtin operator for the particular call e.
 //
 // This requires ad-hoc typing rules for all variadic (append, print,
@@ -108,11 +125,11 @@ func (info *TypeInfo) isPackageRef(sel *ast.SelectorExpr) types.Object {
 // The returned Signature is degenerate and only intended for use by
 // emitCallArgs.
 //
-func builtinCallSignature(info *TypeInfo, e *ast.CallExpr) *types.Signature {
+func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature {
 	var params []*types.Var
 	var isVariadic bool
 
-	switch builtin := noparens(e.Fun).(*ast.Ident).Name; builtin {
+	switch builtin := unparen(e.Fun).(*ast.Ident).Name; builtin {
 	case "append":
 		var t0, t1 types.Type
 		t0 = info.TypeOf(e) // infer arg[0] type from result type

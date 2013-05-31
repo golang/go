@@ -7,6 +7,7 @@ package ssa_test
 
 import (
 	"bytes"
+	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
 	"fmt"
 	"go/ast"
@@ -235,8 +236,8 @@ func TestEnclosingFunction(t *testing.T) {
 			"900", "func@2.27"},
 	}
 	for _, test := range tests {
-		b := ssa.NewBuilder(new(ssa.Context)) // (NB: no Loader)
-		f, start, end := findInterval(t, b.Prog.Files, test.input, test.substr)
+		imp := importer.New(new(importer.Context)) // (NB: no Loader)
+		f, start, end := findInterval(t, imp.Fset, test.input, test.substr)
 		if f == nil {
 			continue
 		}
@@ -245,12 +246,14 @@ func TestEnclosingFunction(t *testing.T) {
 			t.Errorf("EnclosingFunction(%q) not exact", test.substr)
 			continue
 		}
-		pkg, err := b.CreatePackage("main", []*ast.File{f})
+		info, err := imp.CreateSourcePackage("main", []*ast.File{f})
 		if err != nil {
 			t.Error(err.Error())
 			continue
 		}
 
+		b := ssa.NewBuilder(new(ssa.Context), imp)
+		pkg := b.PackageFor(info.Pkg)
 		b.BuildPackage(pkg)
 
 		name := "(none)"

@@ -18,8 +18,8 @@ func unreachable() {
 
 //// AST utilities
 
-// noparens returns e with any enclosing parentheses stripped.
-func noparens(e ast.Expr) ast.Expr {
+// unparen returns e with any enclosing parentheses stripped.
+func unparen(e ast.Expr) ast.Expr {
 	for {
 		p, ok := e.(*ast.ParenExpr)
 		if !ok {

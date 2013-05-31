@@ -213,21 +213,18 @@ func (f *Function) startBody() {
 // and named result locals) for all the parameters declared in the
 // syntax.  In addition it populates the f.objects mapping.
 //
-// idents must be a mapping from syntactic identifiers to their
-// canonical type objects.
-//
 // Preconditions:
 // f.syntax != nil, i.e. this is a Go source function.
 // f.startBody() was called.
 // Postcondition:
 // len(f.Params) == len(f.Signature.Params) + (f.Signature.Recv() ? 1 : 0)
 //
-func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
+func (f *Function) createSyntacticParams() {
 	// Receiver (at most one inner iteration).
 	if f.syntax.recvField != nil {
 		for _, field := range f.syntax.recvField.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(idents[n])
+				f.addSpilledParam(f.Pkg.objectOf(n))
 			}
 			// Anonymous receiver?  No need to spill.
 			if field.Names == nil {
@@ -241,7 +238,7 @@ func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 		n := len(f.Params) // 1 if has recv, 0 otherwise
 		for _, field := range f.syntax.paramFields.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(idents[n])
+				f.addSpilledParam(f.Pkg.objectOf(n))
 			}
 			// Anonymous parameter?  No need to spill.
 			if field.Names == nil {
@@ -255,7 +252,7 @@ func (f *Function) createSyntacticParams(idents map[*ast.Ident]types.Object) {
 		for _, field := range f.syntax.resultFields.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
-				f.namedResults = append(f.namedResults, f.addNamedLocal(idents[n]))
+				f.namedResults = append(f.namedResults, f.addNamedLocal(f.Pkg.objectOf(n)))
 			}
 		}
 	}

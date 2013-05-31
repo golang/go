@@ -11,6 +11,7 @@ import (
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/importer"
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
@@ -18,7 +19,7 @@ import (
 // lifetime.
 //
 type Program struct {
-	Files    *token.FileSet            // position information for the files of this Program
+	Files    *token.FileSet            // position information for the files of this Program [TODO: rename Fset]
 	Packages map[string]*Package       // all loaded Packages, keyed by import path
 	Builtins map[types.Object]*Builtin // all built-in functions, keyed by typechecker objects.
 
@@ -35,18 +36,14 @@ type Program struct {
 //
 type Package struct {
 	Prog    *Program          // the owning program
-	Types   *types.Package    // the type checker's package object for this package.
+	Types   *types.Package    // the type checker's package object for this package
 	Members map[string]Member // all exported and unexported members of the package
 	Init    *Function         // the package's (concatenated) init function
-
-	// These fields are available between package creation and SSA
-	// building, but are then cleared unless Context.RetainAST(pkg).
-	Files     []*ast.File // abstract syntax for the package's files
-	*TypeInfo             // type-checker intermediate results
 
 	// The following fields are set transiently during building,
 	// then cleared.
 	started  int32                   // atomically tested and set at start of build phase
+	info     *importer.PackageInfo   // package ASTs and type information
 	nTo1Vars map[*ast.ValueSpec]bool // set of n:1 ValueSpecs already built
 }
 
@@ -1285,8 +1282,6 @@ func (t *Type) Name() string     { return t.NamedType.Obj().Name() }
 func (t *Type) Pos() token.Pos   { return t.NamedType.Obj().Pos() }
 func (t *Type) String() string   { return t.Name() }
 func (t *Type) Type() types.Type { return t.NamedType }
-
-func (p *Package) Name() string { return p.Types.Name() }
 
 func (c *Constant) Name() string     { return c.name }
 func (c *Constant) Pos() token.Pos   { return c.pos }

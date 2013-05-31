@@ -530,7 +530,7 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 		*g = v
 		return
 	}
-	panic("no global variable: " + pkg.Name() + "." + name)
+	panic("no global variable: " + pkg.Types.Path() + "." + name)
 }
 
 // Interpret interprets the Go program whose main package is mainpkg.
