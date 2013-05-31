@@ -147,17 +147,19 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			t = t.Deref()
 
 			if nt, ok := t.(*types.Named); ok {
-				nt.ForEachMethod(func(m *types.Func) {
+				for i, n := 0, nt.NumMethods(); i < n; i++ {
+					m := nt.Method(i)
 					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, prog.concreteMethods[m], node)
-				})
+				}
 				t = nt.Underlying()
 			}
 
 			switch t := t.(type) {
 			case *types.Interface:
-				t.ForEachMethod(func(m *types.Func) {
+				for i, n := 0, t.NumMethods(); i < n; i++ {
+					m := t.Method(i)
 					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, nil, node)
-				})
+				}
 
 			case *types.Struct:
 				for i, n := 0, t.NumFields(); i < n; i++ {
@@ -443,13 +445,12 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
 	visited := make(map[types.Type]bool)
 
 	var list, next []*anonFieldPath
-	i := 0
-	st.ForEachField(func(f *types.Field) {
+	for i, n := 0, st.NumFields(); i < n; i++ {
+		f := st.Field(i)
 		if f.IsAnonymous {
 			list = append(list, &anonFieldPath{nil, i, f})
 		}
-		i++
-	})
+	}
 
 	// Search the current level if there is any work to do and collect
 	// embedded types of the next lower level in the next list.
@@ -470,13 +471,12 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
 						return node, i
 					}
 				}
-				i := 0
-				typ.ForEachField(func(f *types.Field) {
+				for i, n := 0, typ.NumFields(); i < n; i++ {
+					f := typ.Field(i)
 					if f.IsAnonymous {
 						next = append(next, &anonFieldPath{node, i, f})
 					}
-					i++
-				})
+				}
 			}
 		}
 

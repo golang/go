@@ -117,10 +117,11 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) (methods ObjSet) {
+func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) *Scope {
 	if list == nil {
-		return
+		return nil
 	}
+	methods := NewScope(nil)
 	for _, f := range list.List {
 		typ := check.typ(f.Type, len(f.Names) > 0) // cycles are not ok for embedded interfaces
 		// the parser ensures that f.Tag is nil and we don't
@@ -164,7 +165,7 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) (methods
 			}
 		}
 	}
-	return
+	return methods
 }
 
 func (check *checker) tag(t *ast.BasicLit) string {
@@ -1045,15 +1046,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		obj := check.lookup(e)
+		obj := check.topScope.LookupParent(e.Name)
 		check.callIdent(e, obj)
 		if obj == nil {
 			if e.Name == "_" {
-				check.invalidOp(e.Pos(), "cannot use _ as value or type")
+				check.errorf(e.Pos(), "cannot use _ as value or type")
 			} else {
-				// TODO(gri) anonymous function result parameters are
-				//           not declared - this causes trouble when
-				//           type-checking return statements
 				check.errorf(e.Pos(), "undeclared name: %s", e.Name)
 			}
 			goto Error // error was reported before
@@ -1279,9 +1277,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		// can only appear in qualified identifiers which are mapped to
 		// selector expressions.
 		if ident, ok := e.X.(*ast.Ident); ok {
-			if pkg, ok := check.lookup(ident).(*Package); ok {
+			if pkg, ok := check.topScope.LookupParent(ident.Name).(*Package); ok {
 				check.callIdent(ident, pkg)
-				exp := pkg.scope.Lookup(sel)
+				exp := pkg.scope.Lookup(nil, sel)
 				if exp == nil {
 					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
 					goto Error
@@ -1693,20 +1691,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.mode = typexpr
 
 	case *ast.StructType:
-		scope := &Scope{Outer: check.topScope}
+		scope := NewScope(check.topScope)
 		fields, tags := check.collectFields(scope, e.Fields, cycleOk)
 		x.mode = typexpr
 		x.typ = &Struct{scope: scope, fields: fields, tags: tags}
 
 	case *ast.FuncType:
-		scope := &Scope{Outer: check.topScope}
+		scope := NewScope(check.topScope)
 		params, isVariadic := check.collectParams(scope, e.Params, true)
 		results, _ := check.collectParams(scope, e.Results, false)
 		x.mode = typexpr
 		x.typ = &Signature{scope: scope, recv: nil, params: NewTuple(params...), results: NewTuple(results...), isVariadic: isVariadic}
 
 	case *ast.InterfaceType:
-		scope := &Scope{Outer: check.topScope}
+		scope := NewScope(check.topScope)
 		x.mode = typexpr
 		x.typ = &Interface{methods: check.collectMethods(scope, e.Methods)}
 

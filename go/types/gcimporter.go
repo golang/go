@@ -202,7 +202,7 @@ func declConst(pkg *Package, name string) *Const {
 	// the constant may have been imported before - if it exists
 	// already in the respective scope, return that constant
 	scope := pkg.scope
-	if obj := scope.Lookup(name); obj != nil {
+	if obj := scope.Lookup(nil, name); obj != nil {
 		return obj.(*Const)
 	}
 	// otherwise create a new constant and insert it into the scope
@@ -213,7 +213,7 @@ func declConst(pkg *Package, name string) *Const {
 
 func declTypeName(pkg *Package, name string) *TypeName {
 	scope := pkg.scope
-	if obj := scope.Lookup(name); obj != nil {
+	if obj := scope.Lookup(nil, name); obj != nil {
 		return obj.(*TypeName)
 	}
 	obj := &TypeName{pkg: pkg, name: name}
@@ -226,7 +226,7 @@ func declTypeName(pkg *Package, name string) *TypeName {
 
 func declVar(pkg *Package, name string) *Var {
 	scope := pkg.scope
-	if obj := scope.Lookup(name); obj != nil {
+	if obj := scope.Lookup(nil, name); obj != nil {
 		return obj.(*Var)
 	}
 	obj := &Var{pkg: pkg, name: name}
@@ -236,7 +236,7 @@ func declVar(pkg *Package, name string) *Var {
 
 func declFunc(pkg *Package, name string) *Func {
 	scope := pkg.scope
-	if obj := scope.Lookup(name); obj != nil {
+	if obj := scope.Lookup(nil, name); obj != nil {
 		return obj.(*Func)
 	}
 	obj := &Func{pkg: pkg, name: name}
@@ -360,7 +360,7 @@ func (p *gcParser) getPkg(id, name string) *Package {
 	}
 	pkg := p.imports[id]
 	if pkg == nil && name != "" {
-		pkg = &Package{name: name, path: id, scope: new(Scope)}
+		pkg = &Package{name: name, path: id, scope: NewScope(nil)}
 		p.imports[id] = pkg
 	}
 	return pkg
@@ -385,7 +385,7 @@ func (p *gcParser) parseExportedName() (pkg *Package, name string) {
 //
 func (p *gcParser) parseBasicType() Type {
 	id := p.expect(scanner.Ident)
-	obj := Universe.Lookup(id)
+	obj := Universe.Lookup(nil, id)
 	if obj, ok := obj.(*TypeName); ok {
 		return obj.typ
 	}
@@ -580,7 +580,7 @@ func (p *gcParser) parseSignature() *Signature {
 // visible in the export data.
 //
 func (p *gcParser) parseInterfaceType() Type {
-	var methods ObjSet
+	var methods *Scope // lazily allocated
 
 	p.expectKeyword("interface")
 	p.expect('{')
@@ -590,6 +590,9 @@ func (p *gcParser) parseInterfaceType() Type {
 		}
 		pkg, name := p.parseName(true)
 		sig := p.parseSignature()
+		if methods == nil {
+			methods = NewScope(nil)
+		}
 		if alt := methods.Insert(&Func{token.NoPos, pkg, nil, name, sig, nil}); alt != nil {
 			p.errorf("multiple methods named %s.%s", alt.Pkg().name, alt.Name())
 		}
@@ -879,6 +882,9 @@ func (p *gcParser) parseMethodDecl() {
 
 	// add method to type unless type was imported before
 	// and method exists already
+	if base.methods == nil {
+		base.methods = NewScope(nil)
+	}
 	base.methods.Insert(&Func{token.NoPos, pkg, nil, name, sig, nil})
 }
 

@@ -48,14 +48,6 @@ type checker struct {
 	pos      []token.Pos // stack of expr positions; debugging support, used if trace is set
 }
 
-func (check *checker) openScope() {
-	check.topScope = &Scope{Outer: check.topScope}
-}
-
-func (check *checker) closeScope() {
-	check.topScope = check.topScope.Outer
-}
-
 func (check *checker) callIdent(id *ast.Ident, obj Object) {
 	if f := check.ctxt.Ident; f != nil {
 		f(id, obj)
@@ -66,18 +58,6 @@ func (check *checker) callImplicitObj(node ast.Node, obj Object) {
 	if f := check.ctxt.ImplicitObj; f != nil {
 		f(node, obj)
 	}
-}
-
-// lookup returns the Object denoted by ident by looking up the
-// identifier in the scope chain, starting with the top-most scope.
-// If no object is found, lookup returns nil.
-func (check *checker) lookup(ident *ast.Ident) Object {
-	for scope := check.topScope; scope != nil; scope = scope.Outer {
-		if obj := scope.Lookup(ident.Name); obj != nil {
-			return obj
-		}
-	}
-	return nil
 }
 
 type function struct {
@@ -104,7 +84,7 @@ type bailout struct{}
 func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
 	pkg = &Package{
 		path:    path,
-		scope:   &Scope{Outer: Universe},
+		scope:   NewScope(Universe),
 		imports: make(map[string]*Package),
 	}
 

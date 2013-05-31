@@ -15,7 +15,7 @@ import (
 func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 	if obj.Name() == "_" {
 		// blank identifiers are not declared
-		obj.setOuter(scope)
+		obj.setParent(scope)
 	} else if alt := scope.Insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		if pos := alt.Pos(); pos.IsValid() {
@@ -32,7 +32,7 @@ func (check *checker) declareShort(scope *Scope, list []Object) {
 	n := 0 // number of new objects
 	for _, obj := range list {
 		if obj.Name() == "_" {
-			obj.setOuter(scope)
+			obj.setParent(scope)
 			continue // blank identifiers are not visible
 		}
 		if scope.Insert(obj) == nil {
@@ -86,7 +86,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 		// the package identifier denotes the current package, but it is in no scope
 		check.callIdent(file.Name, pkg)
 
-		fileScope = &Scope{Outer: pkg.scope}
+		fileScope = NewScope(pkg.scope)
 		scopes = append(scopes, fileScope)
 
 		for _, decl := range file.Decls {
@@ -125,7 +125,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						// add import to file scope
 						if name == "." {
 							// merge imported scope with file scope
-							for _, obj := range imp.scope.Entries {
+							for _, obj := range imp.scope.entries {
 								// gcimported package scopes contain non-exported
 								// objects such as types used in partially exported
 								// objects - do not accept them
@@ -232,7 +232,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 				obj := &Func{pos: d.Name.Pos(), pkg: pkg, name: d.Name.Name, decl: d}
 				if obj.name == "init" {
 					// init functions are not visible - don't declare them in package scope
-					obj.outer = pkg.scope
+					obj.parent = pkg.scope
 					check.callIdent(d.Name, obj)
 				} else {
 					check.declare(pkg.scope, d.Name, obj)
@@ -247,8 +247,8 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 	// Phase 2: Objects in file scopes and package scopes must have different names.
 	for _, scope := range scopes {
-		for _, obj := range scope.Entries {
-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+		for _, obj := range scope.entries {
+			if alt := pkg.scope.Lookup(nil, obj.Name()); alt != nil {
 				// TODO(gri) better error message
 				check.errorf(alt.Pos(), "%s redeclared in this block by import of package %s", obj.Name(), obj.Pkg().Name())
 			}
@@ -258,7 +258,6 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	// Phase 3: Associate methods with types.
 	//          We do this after all top-level type names have been collected.
 
-	check.topScope = pkg.scope
 	for _, meth := range methods {
 		m := meth.meth
 		// The receiver type must be one of the following:
@@ -270,6 +269,8 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 			typ = ptr.X
 		}
 		// determine receiver base type name
+		// Note: We cannot simply call check.typ because this will require
+		//       check.objMap to be usable, which it isn't quite yet.
 		ident, ok := typ.(*ast.Ident)
 		if !ok {
 			// Disabled for now since the parser reports this error.
@@ -278,7 +279,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 		}
 		// determine receiver base type object
 		var tname *TypeName
-		if obj := check.lookup(ident); obj != nil {
+		if obj := pkg.scope.LookupParent(ident.Name); obj != nil {
 			obj, ok := obj.(*TypeName)
 			if !ok {
 				check.errorf(ident.Pos(), "%s is not a type", ident.Name)
@@ -291,24 +292,29 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 			tname = obj
 		} else {
 			// identifier not declared/resolved
-			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
+			if ident.Name == "_" {
+				check.errorf(ident.Pos(), "cannot use _ as value or type")
+			} else {
+				check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
+			}
 			continue // ignore this method
 		}
 		// declare method in receiver base type scope
-		scope := check.methods[tname]
+		scope := check.methods[tname] // lazily allocated
 		if scope == nil {
 			scope = new(Scope)
 			check.methods[tname] = scope
 		}
 		fun := &Func{pos: m.Name.Pos(), pkg: check.pkg, name: m.Name.Name, decl: m}
 		check.declare(scope, m.Name, fun)
-		// HACK(gri) change method outer scope to file scope containing the declaration
-		fun.outer = meth.file // remember the file scope
+		// HACK(gri) change method parent scope to file scope containing the declaration
+		fun.parent = meth.file // remember the file scope
 	}
 
 	// Phase 4) Typecheck all objects in objList but not function bodies.
 
 	check.objMap = objMap // indicate we are doing global declarations (objects may not have a type yet)
+	check.topScope = pkg.scope
 	for _, obj := range objList {
 		if obj.Type() == nil {
 			check.declareObject(obj, false)
@@ -469,39 +475,42 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 		case *Struct:
 			// struct fields must not conflict with methods
 			for _, f := range t.fields {
-				if m := scope.Lookup(f.Name); m != nil {
+				if m := scope.Lookup(nil, f.Name); m != nil {
 					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, f.Name)
 					// ok to continue
 				}
 			}
 		case *Interface:
 			// methods cannot be associated with an interface type
-			for _, m := range scope.Entries {
+			for _, m := range scope.entries {
 				recv := m.(*Func).decl.Recv.List[0].Type
 				check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.name, obj.name)
 				// ok to continue
 			}
 		}
 		// typecheck method signatures
-		var methods ObjSet
-		for _, obj := range scope.Entries {
-			m := obj.(*Func)
+		var methods *Scope // lazily allocated
+		if !scope.IsEmpty() {
+			methods = NewScope(nil)
+			for _, obj := range scope.entries {
+				m := obj.(*Func)
 
-			// set the correct file scope for checking this method type
-			fileScope := m.outer
-			assert(fileScope != nil)
-			oldScope := check.topScope
-			check.topScope = fileScope
+				// set the correct file scope for checking this method type
+				fileScope := m.parent
+				assert(fileScope != nil)
+				oldScope := check.topScope
+				check.topScope = fileScope
 
-			sig := check.typ(m.decl.Type, cycleOk).(*Signature)
-			params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
+				sig := check.typ(m.decl.Type, cycleOk).(*Signature)
+				params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
 
-			check.topScope = oldScope // reset topScope
+				check.topScope = oldScope // reset topScope
 
-			sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
-			m.typ = sig
-			assert(methods.Insert(obj) == nil)
-			check.later(m, sig, m.decl.Body)
+				sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+				m.typ = sig
+				assert(methods.Insert(obj) == nil)
+				check.later(m, sig, m.decl.Body)
+			}
 		}
 		named.methods = methods
 		delete(check.methods, obj) // we don't need this scope anymore

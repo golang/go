@@ -90,7 +90,7 @@ func (info *TypeInfo) IsType(e ast.Expr) bool {
 func (info *TypeInfo) isPackageRef(sel *ast.SelectorExpr) types.Object {
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkg, ok := info.ObjectOf(id).(*types.Package); ok {
-			return pkg.Scope().Lookup(sel.Sel.Name)
+			return pkg.Scope().Lookup(nil, sel.Sel.Name)
 		}
 	}
 	return nil

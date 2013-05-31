@@ -110,7 +110,7 @@ func TestTypes(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := pkg.scope.Lookup("T").Type().Underlying()
+		typ := pkg.scope.Lookup(nil, "T").Type().Underlying()
 		str := typeString(typ)
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)

@@ -299,6 +299,14 @@ func (check *checker) multipleDefaults(list []ast.Stmt) {
 	}
 }
 
+func (check *checker) openScope() {
+	check.topScope = NewScope(check.topScope)
+}
+
+func (check *checker) closeScope() {
+	check.topScope = check.topScope.Parent()
+}
+
 // stmt typechecks statement s.
 func (check *checker) stmt(s ast.Stmt) {
 	switch s := s.(type) {
@@ -328,7 +336,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			// but some builtins are excluded
 			// (Caution: This evaluates e.Fun twice, once here and once
 			//           below as part of s.X. This has consequences for
-			//           check.register. Perhaps this can be avoided.)
+			//           check.callIdent. Perhaps this can be avoided.)
 			check.expr(&x, e.Fun, nil, -1)
 			if x.mode != invalid {
 				if b, ok := x.typ.(*Builtin); ok && !b.isStatement {
@@ -397,7 +405,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					if ident, ok := x.(*ast.Ident); ok {
 						// use the correct obj if the ident is redeclared
 						obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
-						if alt := check.topScope.Lookup(ident.Name); alt != nil {
+						if alt := check.topScope.Lookup(nil, ident.Name); alt != nil {
 							obj = alt
 						}
 						check.callIdent(ident, obj)
@@ -532,7 +540,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if tag == nil {
 			// use fake true tag value and position it at the opening { of the switch
 			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
-			check.callIdent(ident, Universe.Lookup("true"))
+			check.callIdent(ident, Universe.Lookup(nil, "true"))
 			tag = ident
 		}
 		check.expr(&x, tag, nil, -1)

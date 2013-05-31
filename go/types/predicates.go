@@ -208,11 +208,16 @@ func identicalTypes(a, b *Tuple) bool {
 
 // identicalMethods returns true if both object sets a and b have the
 // same length and corresponding methods have identical types.
-// TODO(gri) make this more efficient
-func identicalMethods(a, b ObjSet) bool {
-	if len(a.entries) != len(b.entries) {
+// TODO(gri) make this more efficient (e.g., sort them on completion)
+func identicalMethods(a, b *Scope) bool {
+	if a.NumEntries() != b.NumEntries() {
 		return false
 	}
+
+	if a.IsEmpty() {
+		return true
+	}
+
 	m := make(map[string]*Func)
 	for _, obj := range a.entries {
 		x := obj.(*Func)
@@ -227,6 +232,7 @@ func identicalMethods(a, b ObjSet) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -269,6 +275,11 @@ func missingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 	// TODO(gri): distinguish pointer and non-pointer receivers
 	// an interface type implements T if it has no methods with conflicting signatures
 	// Note: This is stronger than the current spec. Should the spec require this?
+	if T.IsEmpty() {
+		return
+	}
+	// T.methods.NumEntries() > 0
+
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
 		for _, obj := range T.methods.entries {
 			m := obj.(*Func)

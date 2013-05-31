@@ -169,8 +169,8 @@ func NewBuilder(context *Context) *Builder {
 	}
 
 	// Create Values for built-in functions.
-	for _, obj := range types.Universe.Entries {
-		switch obj := obj.(type) {
+	for i, n := 0, types.Universe.NumEntries(); i < n; i++ {
+		switch obj := types.Universe.At(i).(type) {
 		case *types.Func:
 			v := &Builtin{obj}
 			b.globals[obj] = v
@@ -1856,7 +1856,7 @@ func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = b.globals[types.Universe.Lookup("len")]
+		c.Call.Func = b.globals[types.Universe.Lookup(nil, "len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -2324,9 +2324,10 @@ func (b *Builder) buildFunction(fn *Function) {
 			if recv := fn.Signature.Recv(); recv != nil {
 				fn.addParamObj(recv)
 			}
-			fn.Signature.Params().ForEach(func(p *types.Var) {
-				fn.addParamObj(p)
-			})
+			params := fn.Signature.Params()
+			for i, n := 0, params.Len(); i < n; i++ {
+				fn.addParamObj(params.At(i))
+			}
 		}
 		return
 	}
@@ -2571,8 +2572,9 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 		// No code.
 		// No position information.
 
-		for _, obj := range p.Types.Scope().Entries {
-			b.memberFromObject(p, obj, nil)
+		scope := p.Types.Scope()
+		for i, n := 0, scope.NumEntries(); i < n; i++ {
+			b.memberFromObject(p, scope.At(i), nil)
 		}
 	}
 
@@ -2619,9 +2621,9 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 					continue
 				}
 				nt := pkg.ObjectOf(id).Type().(*types.Named)
-				nt.ForEachMethod(func(m *types.Func) {
-					b.buildFunction(b.Prog.concreteMethods[m])
-				})
+				for i, n := 0, nt.NumMethods(); i < n; i++ {
+					b.buildFunction(b.Prog.concreteMethods[nt.Method(i)])
+				}
 			}
 		}
 

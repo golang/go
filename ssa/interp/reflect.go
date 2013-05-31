@@ -42,7 +42,7 @@ var errorType = makeNamedType("error", &opaqueType{nil, "error"})
 
 func makeNamedType(name string, underlying types.Type) *types.Named {
 	obj := types.NewTypeName(reflectTypesPackage, name, nil)
-	return types.NewNamed(obj, underlying, types.ObjSet{})
+	return types.NewNamed(obj, underlying, nil)
 }
 
 func makeReflectValue(t types.Type, v value) value {

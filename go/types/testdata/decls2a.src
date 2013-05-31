@@ -36,9 +36,8 @@ func (x *pi /* ERROR "not a type" */ ) m3() {}
 type _ struct { m int }
 type _ struct { m int }
 
-// TODO(gri) blank idents not fully checked - disabled for now
-// func (_ /* ERROR "cannot use _" */) m() {}
-// func (_ /* ERROR "cannot use _" */) m() {}
+func (_ /* ERROR "cannot use _" */) m() {}
+func m(_ /* ERROR "cannot use _" */) {}
 
 // Methods with receiver base type declared in another file.
 func (T3) m1() {}

@@ -162,11 +162,6 @@ func (s *Struct) Tag(i int) string {
 	}
 	return ""
 }
-func (s *Struct) ForEachField(f func(*Field)) {
-	for _, fld := range s.fields {
-		f(fld)
-	}
-}
 
 func (f *Field) isMatch(pkg *Package, name string) bool {
 	// spec:
@@ -225,16 +220,6 @@ func (t *Tuple) Len() int {
 
 // At returns the i'th variable of tuple t.
 func (t *Tuple) At(i int) *Var { return t.vars[i] }
-
-// ForEach calls f with each variable of tuple t in index order.
-// TODO(gri): Do we keep ForEach or should we abandon it in favor or Len and At?
-func (t *Tuple) ForEach(f func(*Var)) {
-	if t != nil {
-		for _, x := range t.vars {
-			f(x)
-		}
-	}
-}
 
 // A Signature represents a (non-builtin) function type.
 type Signature struct {
@@ -313,27 +298,19 @@ func (b *Builtin) Name() string {
 
 // An Interface represents an interface type.
 type Interface struct {
-	methods ObjSet
+	methods *Scope // may be nil
 }
 
 // NumMethods returns the number of methods of interface t.
-func (t *Interface) NumMethods() int { return len(t.methods.entries) }
+func (t *Interface) NumMethods() int { return t.methods.NumEntries() }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 func (t *Interface) Method(i int) *Func {
-	return t.methods.entries[i].(*Func)
+	return t.methods.At(i).(*Func)
 }
 
 // IsEmpty() reports whether t is an empty interface.
-func (t *Interface) IsEmpty() bool { return len(t.methods.entries) == 0 }
-
-// ForEachMethod calls f with each method of interface t in index order.
-// TODO(gri) Should we abandon this in favor of NumMethods and Method?
-func (t *Interface) ForEachMethod(f func(*Func)) {
-	for _, obj := range t.methods.entries {
-		f(obj.(*Func))
-	}
-}
+func (t *Interface) IsEmpty() bool { return t.methods.IsEmpty() }
 
 // A Map represents a map type.
 type Map struct {
@@ -372,11 +349,25 @@ func (c *Chan) Elem() Type { return c.elt }
 type Named struct {
 	obj        *TypeName // corresponding declared object
 	underlying Type      // nil if not fully declared yet; never a *Named
-	methods    ObjSet    // directly associated methods (not the method set of this type)
+	methods    *Scope    // directly associated methods (not the method set of this type); may be nil
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
-func NewNamed(obj *TypeName, underlying Type, methods ObjSet) *Named {
+// The underlying type must exist and not be a *Named, and the methods scope entries must be *Func
+// objects if the scope is not empty.
+func NewNamed(obj *TypeName, underlying Type, methods *Scope) *Named {
+	if _, ok := underlying.(*Named); ok {
+		panic("types.NewNamed: underlying type must not be *Named")
+	}
+
+	if methods != nil {
+		for _, obj := range methods.entries {
+			if _, ok := obj.(*Func); !ok {
+				panic("types.NewNamed: methods must be *Func objects")
+			}
+		}
+	}
+
 	typ := &Named{obj, underlying, methods}
 	if obj.typ == nil {
 		obj.typ = typ
@@ -388,19 +379,11 @@ func NewNamed(obj *TypeName, underlying Type, methods ObjSet) *Named {
 func (t *Named) Obj() *TypeName { return t.obj }
 
 // NumMethods returns the number of methods directly associated with named type t.
-func (t *Named) NumMethods() int { return len(t.methods.entries) }
+func (t *Named) NumMethods() int { return t.methods.NumEntries() }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
 func (t *Named) Method(i int) *Func {
-	return t.methods.entries[i].(*Func)
-}
-
-// ForEachMethod calls f with each method associated with t in index order.
-// TODO(gri) Should we abandon this in favor of NumMethods and Method?
-func (t *Named) ForEachMethod(fn func(*Func)) {
-	for _, obj := range t.methods.entries {
-		fn(obj.(*Func))
-	}
+	return t.methods.At(i).(*Func)
 }
 
 // Implementations for Type methods.

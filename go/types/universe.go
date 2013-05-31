@@ -101,7 +101,7 @@ func init() {
 	// error type
 	{
 		// Error has a nil package in its qualified name since it is in no package
-		var methods ObjSet
+		methods := NewScope(nil)
 		sig := &Signature{results: NewTuple(&Var{name: "", typ: Typ[String]})}
 		methods.Insert(&Func{token.NoPos, nil, nil, "Error", sig, nil})
 		def(&TypeName{name: "error", typ: &Named{underlying: &Interface{methods: methods}}})
@@ -115,7 +115,7 @@ func init() {
 		def(&Func{name: f.name, typ: f})
 	}
 
-	universeIota = Universe.Lookup("iota").(*Const)
+	universeIota = Universe.Lookup(nil, "iota").(*Const)
 }
 
 // Objects with names containing blanks are internal and not entered into
