@@ -11,7 +11,6 @@
  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
-#include <stdarg.h>
 #include <string.h>
 #include "utf.h"
 #include "utfdef.h"
