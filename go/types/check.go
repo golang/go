@@ -50,12 +50,14 @@ type checker struct {
 
 func (check *checker) callIdent(id *ast.Ident, obj Object) {
 	if f := check.ctxt.Ident; f != nil {
+		assert(id != nil)
 		f(id, obj)
 	}
 }
 
 func (check *checker) callImplicitObj(node ast.Node, obj Object) {
 	if f := check.ctxt.ImplicitObj; f != nil {
+		assert(node != nil && obj != nil)
 		f(node, obj)
 	}
 }

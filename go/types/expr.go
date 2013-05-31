@@ -1018,6 +1018,7 @@ func (check *checker) callExpr(x *operand) {
 	// This is not the case yet.
 
 	if check.ctxt.Expr != nil {
+		assert(x.expr != nil && typ != nil)
 		check.ctxt.Expr(x.expr, typ, val)
 	}
 }
@@ -1536,9 +1537,17 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 	case *ast.CallExpr:
 		check.exprOrType(x, e.Fun, iota, false)
 		if x.mode == invalid {
+			// We don't have a valid call or conversion but we have list of arguments.
+			// Typecheck them independently for better partial type information in
+			// the presence of type errors.
+			for _, arg := range e.Args {
+				check.expr(x, arg, nil, iota)
+			}
 			goto Error
+
 		} else if x.mode == typexpr {
 			check.conversion(x, e, x.typ, iota)
+
 		} else if sig, ok := x.typ.Underlying().(*Signature); ok {
 			// check parameters
 
