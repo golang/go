@@ -563,7 +563,7 @@ runtime·symtabinit(void)
 	// Initialize tables.
 	// Memory obtained from runtime·persistentalloc() is not scanned by GC,
 	// this is fine because all pointers either point into sections of the executable
-	// or also obtained from persistentmalloc().
+	// or also obtained from persistentalloc().
 	func = runtime·persistentalloc((nfunc+1)*sizeof func[0], 0);
 	func[nfunc].entry = (uint64)etext;
 	fname = runtime·persistentalloc(nfname*sizeof fname[0], 0);
