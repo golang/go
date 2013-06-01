@@ -107,9 +107,6 @@ struct Hmap
 	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
 };
 
-// token to store in nevacuate field when locking the table to evacuate a bucket.
-#define EVAC_LOCK ((uintptr)-1)
-
 // possible flags
 enum
 {
@@ -117,7 +114,7 @@ enum
 	IndirectValue = 2,  // storing pointers to values
 	Iterator = 4,       // there may be an iterator using buckets
 	OldIterator = 8,    // there may be an iterator using oldbuckets
-	CanFreeBucket = 16, // ok to free buckets TODO: remove - unused
+	CanFreeBucket = 16, // ok to free buckets
 	CanFreeKey = 32,    // keys are indirect and ok to free keys
 };
 
@@ -288,14 +285,12 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 
 // Moves entries in oldbuckets[i] to buckets[i] and buckets[i+2^k].
 // We leave the original bucket intact, except for the evacuated marks, so that
-// lookup and iterators can still iterate through the old buckets.
-// Multiple threads must not be evacuating the same bucket at the same time.
+// iterators can still iterate through the old buckets.
 static void
 evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 {
 	Bucket *b;
 	Bucket *nextb;
-	Bucket *mainb;
 	Bucket *x, *y;
 	Bucket *newx, *newy;
 	uintptr xi, yi;
@@ -304,154 +299,143 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 	uintptr i;
 	byte *k, *v;
 	byte *xk, *yk, *xv, *yv;
+	byte *ob;
 
-	mainb = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+	b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
 	newbit = (uintptr)1 << (h->B - 1);
 
-	if(evacuated(mainb))		// someone else already evacuated this bucket.
-		return;
+	if(!evacuated(b)) {
+		// TODO: reuse overflow buckets instead of using new ones, if there
+		// is no iterator using the old buckets.  (If CanFreeBuckets and !OldIterator.)
 
-	b = mainb;
-	x = (Bucket*)(h->buckets + oldbucket * h->bucketsize);
-	y = (Bucket*)(h->buckets + (oldbucket + newbit) * h->bucketsize);
-	clearbucket(x);
-	clearbucket(y);
-	xi = 0;
-	yi = 0;
-	xk = x->data;
-	yk = y->data;
-	xv = xk + h->keysize * BUCKETSIZE;
-	yv = yk + h->keysize * BUCKETSIZE;
-	do {
-		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-			if(b->tophash[i] == 0)
-				continue;
-			hash = h->hash0;
-			t->key->alg->hash(&hash, t->key->size, IK(h, k));
-			// NOTE: if key != key, then this hash could be (and probably will be)
-			// entirely different from the old hash.  We effectively only update
-			// the B'th bit of the hash in this case.
-			if((hash & newbit) == 0) {
-				if(xi == BUCKETSIZE) {
-					if(checkgc) mstats.next_gc = mstats.heap_alloc;
-					newx = runtime·mallocgc(h->bucketsize, 0, 1, 0);
-					clearbucket(newx);
-					x->overflow = newx;
-					x = newx;
-					xi = 0;
-					xk = x->data;
-					xv = xk + h->keysize * BUCKETSIZE;
-				}
-				x->tophash[xi] = b->tophash[i];
-				if((h->flags & IndirectKey) != 0) {
-					*(byte**)xk = *(byte**)k;               // copy pointer
+		x = (Bucket*)(h->buckets + oldbucket * h->bucketsize);
+		y = (Bucket*)(h->buckets + (oldbucket + newbit) * h->bucketsize);
+		clearbucket(x);
+		clearbucket(y);
+		xi = 0;
+		yi = 0;
+		xk = x->data;
+		yk = y->data;
+		xv = xk + h->keysize * BUCKETSIZE;
+		yv = yk + h->keysize * BUCKETSIZE;
+		do {
+			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+				if(b->tophash[i] == 0)
+					continue;
+				hash = h->hash0;
+				t->key->alg->hash(&hash, t->key->size, IK(h, k));
+				// NOTE: if key != key, then this hash could be (and probably will be)
+				// entirely different from the old hash.  We effectively only update
+				// the B'th bit of the hash in this case.
+				if((hash & newbit) == 0) {
+					if(xi == BUCKETSIZE) {
+						if(checkgc) mstats.next_gc = mstats.heap_alloc;
+						newx = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+						clearbucket(newx);
+						x->overflow = newx;
+						x = newx;
+						xi = 0;
+						xk = x->data;
+						xv = xk + h->keysize * BUCKETSIZE;
+					}
+					x->tophash[xi] = b->tophash[i];
+					if((h->flags & IndirectKey) != 0) {
+						*(byte**)xk = *(byte**)k;               // copy pointer
+					} else {
+						t->key->alg->copy(t->key->size, xk, k); // copy value
+					}
+					if((h->flags & IndirectValue) != 0) {
+						*(byte**)xv = *(byte**)v;
+					} else {
+						t->elem->alg->copy(t->elem->size, xv, v);
+					}
+					xi++;
+					xk += h->keysize;
+					xv += h->valuesize;
 				} else {
-					t->key->alg->copy(t->key->size, xk, k); // copy value
+					if(yi == BUCKETSIZE) {
+						if(checkgc) mstats.next_gc = mstats.heap_alloc;
+						newy = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+						clearbucket(newy);
+						y->overflow = newy;
+						y = newy;
+						yi = 0;
+						yk = y->data;
+						yv = yk + h->keysize * BUCKETSIZE;
+					}
+					y->tophash[yi] = b->tophash[i];
+					if((h->flags & IndirectKey) != 0) {
+						*(byte**)yk = *(byte**)k;
+					} else {
+						t->key->alg->copy(t->key->size, yk, k);
+					}
+					if((h->flags & IndirectValue) != 0) {
+						*(byte**)yv = *(byte**)v;
+					} else {
+						t->elem->alg->copy(t->elem->size, yv, v);
+					}
+					yi++;
+					yk += h->keysize;
+					yv += h->valuesize;
 				}
-				if((h->flags & IndirectValue) != 0) {
-					*(byte**)xv = *(byte**)v;
-				} else {
-					t->elem->alg->copy(t->elem->size, xv, v);
+			}
+
+			// mark as evacuated so we don't do it again.
+			// this also tells any iterators that this data isn't golden anymore.
+			nextb = b->overflow;
+			b->overflow = (Bucket*)((uintptr)nextb + 1);
+
+			b = nextb;
+		} while(b != nil);
+
+		// Free old overflow buckets as much as we can.
+		if((h->flags & OldIterator) == 0) {
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if((h->flags & CanFreeBucket) != 0) {
+				while((nextb = overflowptr(b)) != nil) {
+					b->overflow = nextb->overflow;
+					runtime·free(nextb);
 				}
-				xi++;
-				xk += h->keysize;
-				xv += h->valuesize;
 			} else {
-				if(yi == BUCKETSIZE) {
-					if(checkgc) mstats.next_gc = mstats.heap_alloc;
-					newy = runtime·mallocgc(h->bucketsize, 0, 1, 0);
-					clearbucket(newy);
-					y->overflow = newy;
-					y = newy;
-					yi = 0;
-					yk = y->data;
-					yv = yk + h->keysize * BUCKETSIZE;
-				}
-				y->tophash[yi] = b->tophash[i];
-				if((h->flags & IndirectKey) != 0) {
-					*(byte**)yk = *(byte**)k;
-				} else {
-					t->key->alg->copy(t->key->size, yk, k);
-				}
-				if((h->flags & IndirectValue) != 0) {
-					*(byte**)yv = *(byte**)v;
-				} else {
-					t->elem->alg->copy(t->elem->size, yv, v);
-				}
-				yi++;
-				yk += h->keysize;
-				yv += h->valuesize;
+				// can't explicitly free overflow buckets, but at least
+				// we can unlink them.
+				b->overflow = (Bucket*)1;
 			}
 		}
-		b = b->overflow;
-	} while(b != nil);
-
-	// Mark main bucket as evacuated.  This write commits the
-	// bucket evacuation (readers can start using the new buckets).
-	b = mainb->overflow;
-	runtime·atomicstorep(&mainb->overflow, (Bucket*)((uintptr)b + 1));
-
-	// Mark overflow buckets for any iterators.
-	// These writes don't need to reach anyone until the next hashtable
-	// modification, so they don't need to be synchronized.
-	while(b != nil) {
-		nextb = b->overflow;
-		b->overflow = (Bucket*)((uintptr)nextb + 1);
-		b = nextb;
 	}
 
+	// advance evacuation mark
+	if(oldbucket == h->nevacuate) {
+		h->nevacuate = oldbucket + 1;
+		if(oldbucket + 1 == newbit) { // newbit == # of oldbuckets
+			// free main bucket array
+			if((h->flags & (OldIterator | CanFreeBucket)) == CanFreeBucket) {
+				ob = h->oldbuckets;
+				h->oldbuckets = nil;
+				runtime·free(ob);
+			} else {
+				h->oldbuckets = nil;
+			}
+		}
+	}
 	if(docheck)
 		check(t, h);
 }
 
-// Ensure that bucket has been evacuated from oldbuckets so that we can modify it.
-// Not multithreaded safe - you must not call this from anywhere except hash table
-// modifications (where we're guaranteed external synchronization).
 static void
 grow_work(MapType *t, Hmap *h, uintptr bucket)
 {
 	uintptr noldbuckets;
-	intptr n;
 
-	// evac the bucket we're going to need
 	noldbuckets = (uintptr)1 << (h->B - 1);
+
+	// make sure we evacuate the oldbucket corresponding
+	// to the bucket we're about to use
 	evacuate(t, h, bucket & (noldbuckets - 1));
-	// evac another bucket to make progress
-	n = h->nevacuate;
-	evacuate(t, h, n);
-	// record what we've done
-	h->nevacuate = n + 1;
-	if(n + 1 == noldbuckets)
-		h->oldbuckets = nil;
-}
 
-// Do some work for growing the table.
-// Multithreaded-safe.
-static void
-grow_work_read(MapType *t, Hmap *h) {
-	uintptr noldbuckets;
-	intptr n;
-
-	noldbuckets = (uintptr)1 << (h->B - 1);
-
-	// Get evacuation lock.  If we can't get it, fine, that means
-	// someone else is making progress which is good enough.
-	n = h->nevacuate;
-	if(n != EVAC_LOCK &&	// no one has evac lock
-	   n != noldbuckets &&	// there's still work to do
-	   runtime·casp((void**)&h->nevacuate, (void*)n, (void*)EVAC_LOCK)) { // we acquired lock
-		// We're now the exclusive evacuator.
-		evacuate(t, h, n);
-
-		// record that we're done.
-		runtime·atomicstorep((void**)&h->nevacuate, (void*)(n + 1));
-		if(n + 1 == noldbuckets) {
-			// commit finishing of grow.
-			runtime·atomicstorep(&h->oldbuckets, nil);
-			// note: can't free oldbuckets, someone might be using it.
-			// it will have to get GCed.
-		}
-	}
+	// evacuate one more oldbucket to make progress on growing
+	if(h->oldbuckets != nil)
+		evacuate(t, h, h->nevacuate);
 }
 
 static void
@@ -496,7 +480,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 {
 	void *key;
 	uintptr hash;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
 	Bucket *b;
 	uint8 top;
 	uintptr i;
@@ -511,14 +495,13 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
 	bucket = hash & (((uintptr)1 << h->B) - 1);
-	b = runtime·atomicloadp(&h->oldbuckets);
-	if(b != nil) {
-		grow_work_read(t, h);
-		b = (Bucket*)((byte*)b + (bucket & (((uintptr)1 << (h->B - 1)) - 1)) * h->bucketsize);
-		if(((uintptr)runtime·atomicloadp(&b->overflow) & 1) != 0)
-			goto newbucket;
+	if(h->oldbuckets != nil) {
+		oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+		b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+		if(evacuated(b)) {
+			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+		}
 	} else {
-	newbucket:
 		b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 	}
 	top = hash >> (sizeof(uintptr)*8 - 8);
@@ -535,7 +518,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 				}
 			}
 		}
-		b = overflowptr(b);
+		b = b->overflow;
 	} while(b != nil);
 	return nil;
 }
@@ -829,7 +812,6 @@ hash_next(struct hash_iter *it)
 	uintptr bucket, oldbucket;
 	uintptr hash;
 	Bucket *b;
-	byte *oldbuckets;
 	uintptr i;
 	intptr check_bucket;
 	bool eq;
@@ -851,15 +833,14 @@ next:
 			it->value = nil;
 			return;
 		}
-		if(it->B == h->B && (oldbuckets = runtime·atomicloadp(&h->oldbuckets)) != nil) {
+		if(h->oldbuckets != nil && it->B == h->B) {
 			// Iterator was started in the middle of a grow, and the grow isn't done yet.
 			// If the bucket we're looking at hasn't been filled in yet (i.e. the old
 			// bucket hasn't been evacuated) then we need to iterate through the old
 			// bucket and only return the ones that will be migrated to this bucket.
-			grow_work_read(t, h);
 			oldbucket = bucket & (((uintptr)1 << (it->B - 1)) - 1);
-			b = (Bucket*)(oldbuckets + oldbucket * h->bucketsize);
-			if(((uintptr)runtime·atomicloadp(&b->overflow) & 1) == 0) {
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if(!evacuated(b)) {
 				check_bucket = bucket;
 			} else {
 				b = (Bucket*)(it->buckets + bucket * h->bucketsize);
