@@ -118,7 +118,7 @@ func (w *bufio.Writer, p []byte) (n int, err error) {
 <h3 id="return">Return requirements</h3>
 
 <p>
-Before Go 1.1, a function that returned a value needed an explicit "return" 
+Before Go 1.1, a function that returned a value needed an explicit "return"
 or call to <code>panic</code> at
 the end of the function; this was a simple way to make the programmer
 be explicit about the meaning of the function. But there are many cases
@@ -131,7 +131,7 @@ In Go 1.1, the rule about final "return" statements is more permissive.
 It introduces the concept of a
 <a href="/ref/spec/#Terminating_statements"><em>terminating statement</em></a>,
 a statement that is guaranteed to be the last one a function executes.
-Examples include 
+Examples include
 "for" loops with no condition and "if-else"
 statements in which each half ends in a "return".
 If the final statement of a function can be shown <em>syntactically</em> to
@@ -172,7 +172,7 @@ from the traditional Unix flag parsing. This may affect scripts that invoke
 the tool directly.
 For example,
 <code>go tool 6c -Fw -Dfoo</code> must now be written
-<code>go tool 6c -F -w -D foo</code>. 
+<code>go tool 6c -F -w -D foo</code>.
 </p>
 
 <h3 id="int">Size of int on 64-bit platforms</h3>
@@ -197,6 +197,7 @@ However, programs that contain implicit assumptions
 that <code>int</code> is only 32 bits may change behavior.
 For example, this code prints a positive number on 64-bit systems and
 a negative one on 32-bit systems:
+</p>
 
 <pre>
 x := ^uint32(0) // x is 0xffffffff
@@ -294,7 +295,7 @@ variable, where at least one of the accesses is a write.
 This new facility is built into the <code>go</code> tool.
 For now, it is only available on Linux, Mac OS X, and Windows systems with
 64-bit x86 processors.
-To enable it, set the <code>-race</code> flag when building or testing your program 
+To enable it, set the <code>-race</code> flag when building or testing your program
 (for instance, <code>go test -race</code>).
 The race detector is documented in <a href="/doc/articles/race_detector.html">a separate article</a>.
 </p>
@@ -331,7 +332,7 @@ including a list of paths searched, when a package cannot be located.
 $ go build foo/quxx
 can't load package: package foo/quxx: cannot find package "foo/quxx" in any of:
         /home/you/go/src/pkg/foo/quxx (from $GOROOT)
-        /home/you/src/foo/quxx (from $GOPATH) 
+        /home/you/src/foo/quxx (from $GOPATH)
 </pre>
 
 <p>
@@ -343,12 +344,12 @@ command, a <a href="/doc/code.html#GOPATH">valid <code>$GOPATH</code></a> is now
 
 <pre>
 $ GOPATH= go get code.google.com/p/foo/quxx
-package code.google.com/p/foo/quxx: cannot download, $GOPATH not set. For more details see: go help gopath 
+package code.google.com/p/foo/quxx: cannot download, $GOPATH not set. For more details see: go help gopath
 </pre>
 
 <p>
 Finally, as a result of the previous change, the <code>go get</code> command will also fail
-when <code>$GOPATH</code> and <code>$GOROOT</code> are set to the same value. 
+when <code>$GOPATH</code> and <code>$GOROOT</code> are set to the same value.
 </p>
 
 <pre>
@@ -427,7 +428,7 @@ To build a file only with Go 1.0.x, use the converse constraint:
 
 <p>
 The Go 1.1 tool chain adds experimental support for <code>freebsd/arm</code>,
-<code>netbsd/386</code>, <code>netbsd/amd64</code>, <code>netbsd/arm</code>, 
+<code>netbsd/386</code>, <code>netbsd/amd64</code>, <code>netbsd/arm</code>,
 <code>openbsd/386</code> and <code>openbsd/amd64</code> platforms.
 </p>
 
@@ -546,7 +547,7 @@ The Go 1.1 implementation instead returns a
 to allow reading and writing
 with its
 <a href="/pkg/net/#UnixConn.ReadFrom"><code>ReadFrom</code></a>
-and 
+and
 <a href="/pkg/net/#UnixConn.WriteTo"><code>WriteTo</code></a>
 methods.
 </p>
@@ -665,6 +666,7 @@ This function addresses a common source of confusion in the time API.
 <em>Updating</em>:
 Code that needs to read and write times using an external format with
 lower precision should be modified to use the new methods.
+</p>
 
 <h3 id="exp_old">Exp and old subtrees moved to go.exp and go.text subrepositories</h3>
 
@@ -732,7 +734,7 @@ See the relevant package documentation for more information about each change.
 </p>
 
 <ul>
-<li> 
+<li>
 The <a href="/pkg/bytes/"><code>bytes</code></a> package has two new functions,
 <a href="/pkg/bytes/#TrimPrefix"><code>TrimPrefix</code></a>
 and
@@ -745,7 +747,7 @@ provides some control over memory allocation inside the buffer.
 Finally, the
 <a href="/pkg/bytes/#Reader"><code>Reader</code></a> type now has a
 <a href="/pkg/strings/#Reader.WriteTo"><code>WriteTo</code></a> method
-so it implements the 
+so it implements the
 <a href="/pkg/io/#WriterTo"><code>io.WriterTo</code></a> interface.
 </li>
 
@@ -772,7 +774,7 @@ and a new function
 
 <li>
 The <a href="/pkg/database/sql/"><code>database/sql</code></a> package
-has a new 
+has a new
 <a href="/pkg/database/sql/#DB.Ping"><code>Ping</code></a>
 method for its
 <a href="/pkg/database/sql/#DB"><code>DB</code></a>
@@ -922,11 +924,11 @@ The <a href="/pkg/net/"><code>net</code></a> package adds
 </li>
 
 <li>
-The <a href="/pkg/net/"><code>net</code></a> package adds protocol-specific 
+The <a href="/pkg/net/"><code>net</code></a> package adds protocol-specific
 packet reading and writing methods to
 <a href="/pkg/net/#IPConn"><code>IPConn</code></a>
 (<a href="/pkg/net/#IPConn.ReadMsgIP"><code>ReadMsgIP</code></a>
-and <a href="/pkg/net/#IPConn.WriteMsgIP"><code>WriteMsgIP</code></a>) and 
+and <a href="/pkg/net/#IPConn.WriteMsgIP"><code>WriteMsgIP</code></a>) and
 <a href="/pkg/net/#UDPConn"><code>UDPConn</code></a>
 (<a href="/pkg/net/#UDPConn.ReadMsgUDP"><code>ReadMsgUDP</code></a> and
 <a href="/pkg/net/#UDPConn.WriteMsgUDP"><code>WriteMsgUDP</code></a>).
@@ -934,15 +936,15 @@ These are specialized versions of <a href="/pkg/net/#PacketConn"><code>PacketCon
 <code>ReadFrom</code> and <code>WriteTo</code> methods that provide access to out-of-band data associated
 with the packets.
  </li>
- 
+
  <li>
 The <a href="/pkg/net/"><code>net</code></a> package adds methods to
-<a href="/pkg/net/#UnixConn"><code>UnixConn</code></a> to allow closing half of the connection 
+<a href="/pkg/net/#UnixConn"><code>UnixConn</code></a> to allow closing half of the connection
 (<a href="/pkg/net/#UnixConn.CloseRead"><code>CloseRead</code></a> and
 <a href="/pkg/net/#UnixConn.CloseWrite"><code>CloseWrite</code></a>),
 matching the existing methods of <a href="/pkg/net/#TCPConn"><code>TCPConn</code></a>.
 </li>
- 
+
 <li>
 The <a href="/pkg/net/http/"><code>net/http</code></a> package includes several new additions.
 <a href="/pkg/net/http/#ParseTime"><code>ParseTime</code></a> parses a time string, trying
@@ -1020,7 +1022,7 @@ including disabling it altogether.
 <li>
 The <a href="/pkg/sort/"><code>sort</code></a> package has a new function,
 <a href="/pkg/sort/#Reverse"><code>Reverse</code></a>.
-Wrapping the argument of a call to 
+Wrapping the argument of a call to
 <a href="/pkg/sort/#Sort"><code>sort.Sort</code></a>
 with a call to <code>Reverse</code> causes the sort order to be reversed.
 </li>
