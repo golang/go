@@ -2,15 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define Runemax Plan9Runemax
 #include "/sys/include/libc.h"
-#undef Runemax
 #include "/sys/include/ctype.h"
-
-enum
-{
-	Runemax = 0x10FFFF, /* maximum rune value */
-};
 
 char*	getgoos(void);
 char*	getgoarch(void);
