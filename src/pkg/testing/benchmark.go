@@ -138,7 +138,7 @@ func max(x, y int) int {
 func roundDown10(n int) int {
 	var tens = 0
 	// tens = floor(log_10(n))
-	for n > 10 {
+	for n >= 10 {
 		n = n / 10
 		tens++
 	}
@@ -153,13 +153,16 @@ func roundDown10(n int) int {
 // roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
 func roundUp(n int) int {
 	base := roundDown10(n)
-	if n < (2 * base) {
+	switch {
+	case n <= base:
+		return base
+	case n <= (2 * base):
 		return 2 * base
-	}
-	if n < (5 * base) {
+	case n <= (5 * base):
 		return 5 * base
+	default:
+		return 10 * base
 	}
-	return 10 * base
 }
 
 // run times the benchmark function in a separate goroutine.

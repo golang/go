@@ -4,4 +4,7 @@
 
 package testing
 
-var RoundDown10 = roundDown10
+var (
+	RoundDown10 = roundDown10
+	RoundUp     = roundUp
+)
