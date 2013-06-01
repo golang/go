@@ -420,11 +420,11 @@ reswitch:
 				goto error;
 			}
 			t->bound = mpgetfix(v.u.xval);
-			if(t->bound < 0) {
-				yyerror("array bound must be non-negative");
-				goto error;
-			} else if(doesoverflow(v, types[TINT])) {
+			if(doesoverflow(v, types[TINT])) {
 				yyerror("array bound is too large"); 
+				goto error;
+			} else if(t->bound < 0) {
+				yyerror("array bound must be non-negative");
 				goto error;
 			}
 		}
