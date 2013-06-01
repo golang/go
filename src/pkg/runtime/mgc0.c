@@ -1448,14 +1448,11 @@ addstackroots(G *gp)
 	stk = (Stktop*)gp->stackbase;
 	guard = (byte*)gp->stackguard;
 
-	if(gp == g) {
-		// Scanning our own stack: start at &gp.
-		sp = runtime·getcallersp(&gp);
-		pc = runtime·getcallerpc(&gp);
-	} else if((mp = gp->m) != nil && mp->helpgc) {
-		// gchelper's stack is in active use and has no interesting pointers.
-		return;
-	} else if(gp->gcstack != (uintptr)nil) {
+	if(gp == g)
+		runtime·throw("can't scan our own stack");
+	if((mp = gp->m) != nil && mp->helpgc)
+		runtime·throw("can't scan gchelper stack");
+	if(gp->gcstack != (uintptr)nil) {
 		// Scanning another goroutine that is about to enter or might
 		// have just exited a system call. It may be executing code such
 		// as schedlock and may have needed to start a new stack segment.
@@ -1890,13 +1887,14 @@ cachestats(GCStats *stats)
 }
 
 // Structure of arguments passed to function gc().
-// This allows the arguments to be passed via reflect·call.
+// This allows the arguments to be passed via runtime·mcall.
 struct gc_args
 {
-	int32 force;
+	int64 start_time; // start time of GC in ns (just before stoptheworld)
 };
 
 static void gc(struct gc_args *args);
+static void mgc(G *gp);
 
 static int32
 readgogc(void)
@@ -1911,12 +1909,14 @@ readgogc(void)
 	return runtime·atoi(p);
 }
 
+static FuncVal runfinqv = {runfinq};
+
 void
 runtime·gc(int32 force)
 {
 	byte *p;
-	struct gc_args a, *ap;
-	FuncVal gcv;
+	struct gc_args a;
+	int32 i;
 
 	// The atomic operations are not atomic if the uint64s
 	// are not aligned on uint64 boundaries. This has been
@@ -1947,21 +1947,66 @@ runtime·gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
-	// Run gc on a bigger stack to eliminate
-	// a potentially large number of calls to runtime·morestack.
-	a.force = force;
-	ap = &a;
-	m->moreframesize_minalloc = StackBig;
-	gcv.fn = (void*)gc;
-	reflect·call(&gcv, (byte*)&ap, sizeof(ap));
+	runtime·semacquire(&runtime·worldsema);
+	if(!force && mstats.heap_alloc < mstats.next_gc) {
+		// typically threads which lost the race to grab
+		// worldsema exit here when gc is done.
+		runtime·semrelease(&runtime·worldsema);
+		return;
+	}
 
-	if(gctrace > 1 && !force) {
-		a.force = 1;
-		gc(&a);
+	// Ok, we're doing it!  Stop everybody else
+	a.start_time = runtime·nanotime();
+	m->gcing = 1;
+	runtime·stoptheworld();
+	
+	// Run gc on the g0 stack.  We do this so that the g stack
+	// we're currently running on will no longer change.  Cuts
+	// the root set down a bit (g0 stacks are not scanned, and
+	// we don't need to scan gc's internal state).  Also an
+	// enabler for copyable stacks.
+	for(i = 0; i < (gctrace > 1 ? 2 : 1); i++) {
+		if(g == m->g0) {
+			// already on g0
+			gc(&a);
+		} else {
+			// switch to g0, call gc(&a), then switch back
+			g->param = &a;
+			runtime·mcall(mgc);
+		}
+		// record a new start time in case we're going around again
+		a.start_time = runtime·nanotime();
+	}
+
+	// all done
+	runtime·semrelease(&runtime·worldsema);
+	runtime·starttheworld();
+
+	// now that gc is done and we're back on g stack, kick off finalizer thread if needed
+	if(finq != nil) {
+		runtime·lock(&finlock);
+		// kick off or wake up goroutine to run queued finalizers
+		if(fing == nil)
+			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+		else if(fingwait) {
+			fingwait = 0;
+			runtime·ready(fing);
+		}
+		runtime·unlock(&finlock);
+		// give the queued finalizers, if any, a chance to run
+		runtime·gosched();
 	}
 }
 
-static FuncVal runfinqv = {runfinq};
+static void
+mgc(G *gp)
+{
+	gp->status = Grunnable;
+	gc(gp->param);
+	gp->status = Grunning;
+	gp->param = nil;
+	runtime·gogo(&gp->sched, 0);
+}
 
 static void
 gc(struct gc_args *args)
@@ -1973,16 +2018,7 @@ gc(struct gc_args *args)
 	uint32 i;
 	Eface eface;
 
-	runtime·semacquire(&runtime·worldsema);
-	if(!args->force && mstats.heap_alloc < mstats.next_gc) {
-		runtime·semrelease(&runtime·worldsema);
-		return;
-	}
-
-	t0 = runtime·nanotime();
-
-	m->gcing = 1;
-	runtime·stoptheworld();
+	t0 = args->start_time;
 
 	if(CollectStats)
 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
@@ -2096,22 +2132,6 @@ gc(struct gc_args *args)
 	}
 
 	runtime·MProf_GC();
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
-
-	if(finq != nil) {
-		runtime·lock(&finlock);
-		// kick off or wake up goroutine to run queued finalizers
-		if(fing == nil)
-			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
-		else if(fingwait) {
-			fingwait = 0;
-			runtime·ready(fing);
-		}
-		runtime·unlock(&finlock);
-		// give the queued finalizers, if any, a chance to run
-		runtime·gosched();
-	}
 }
 
 void
@@ -2183,6 +2203,8 @@ gchelperstart(void)
 		runtime·throw("gchelperstart: bad m->helpgc");
 	if(runtime·xchg(&bufferList[m->helpgc].busy, 1))
 		runtime·throw("gchelperstart: already busy");
+	if(g != m->g0)
+		runtime·throw("gchelper not running on g0 stack");
 }
 
 static void
