@@ -17,7 +17,7 @@ void
 HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 {
 	uintptr hash;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
 	Bucket *b;
 	uintptr i;
 	KEYTYPE *k;
@@ -83,14 +83,13 @@ dohash:
 		hash = h->hash0;
 		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
 		bucket = hash & (((uintptr)1 << h->B) - 1);
-		b = runtime·atomicloadp(&h->oldbuckets);
-		if(b != nil) {
-			grow_work_read(t, h);
-			b = (Bucket*)((byte*)b + (bucket & (((uintptr)1 << (h->B - 1)) - 1)) * h->bucketsize);
-			if(((uintptr)runtime·atomicloadp(&b->overflow) & 1) != 0)
-				goto newbucket;
+		if(h->oldbuckets != nil) {
+			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if(evacuated(b)) {
+				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+			}
 		} else {
-		newbucket:
 			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 		}
 		top = hash >> (sizeof(uintptr)*8 - 8);
@@ -104,7 +103,7 @@ dohash:
 					return;
 				}
 			}
-			b = overflowptr(b);
+			b = b->overflow;
 		} while(b != nil);
 	}
 	value = empty_value;
@@ -116,7 +115,7 @@ void
 HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 {
 	uintptr hash;
-	uintptr bucket;
+	uintptr bucket, oldbucket;
 	Bucket *b;
 	uintptr i;
 	KEYTYPE *k;
@@ -188,14 +187,13 @@ dohash:
 		hash = h->hash0;
 		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
 		bucket = hash & (((uintptr)1 << h->B) - 1);
-		b = runtime·atomicloadp(&h->oldbuckets);
-		if(b != nil) {
-			grow_work_read(t, h);
-			b = (Bucket*)((byte*)b + (bucket & (((uintptr)1 << (h->B - 1)) - 1)) * h->bucketsize);
-			if(((uintptr)runtime·atomicloadp(&b->overflow) & 1) != 0)
-				goto newbucket;
+		if(h->oldbuckets != nil) {
+			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if(evacuated(b)) {
+				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+			}
 		} else {
-		newbucket:
 			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 		}
 		top = hash >> (sizeof(uintptr)*8 - 8);
@@ -211,7 +209,7 @@ dohash:
 					return;
 				}
 			}
-			b = overflowptr(b);
+			b = b->overflow;
 		} while(b != nil);
 	}
 	value = empty_value;
