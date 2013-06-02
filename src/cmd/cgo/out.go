@@ -490,7 +490,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "a->r = ")
 		if c := t.C.String(); c[len(c)-1] == '*' {
-			fmt.Fprintf(fgcc, "(const %s) ", t.C)
+			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
 		}
 	}
 	fmt.Fprintf(fgcc, "%s(", n.C)
