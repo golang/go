@@ -1,4 +1,4 @@
-// compile
+// run
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -58,35 +58,35 @@ func main() {
 
 type (
 	S1 struct {
-		A int32
+		A int64
 		S2
 	}
 	S2 struct {
-		B int32
+		B int64
 		S3
 	}
 	S3 struct {
-		C int32
+		C int64
 		S4
 	}
 	S4 struct {
-		D int32
+		D int64
 		S5
 	}
 	S5 struct {
-		E int32
+		E int64
 		S6
 	}
 	S6 struct {
-		F int32
+		F int64
 		S7
 	}
 	S7 struct {
-		G int32
+		G int64
 		S8
 	}
 	S8 struct {
-		H int32
+		H int64
 		*S1
 	}
 )
@@ -96,24 +96,24 @@ func testDeep() {
 	switch {
 	case unsafe.Offsetof(s1.A) != 0:
 		panic("unsafe.Offsetof(s1.A) != 0")
-	case unsafe.Offsetof(s1.B) != 4:
-		panic("unsafe.Offsetof(s1.B) != 4")
-	case unsafe.Offsetof(s1.C) != 8:
-		panic("unsafe.Offsetof(s1.C) != 8")
-	case unsafe.Offsetof(s1.D) != 12:
-		panic("unsafe.Offsetof(s1.D) != 12")
-	case unsafe.Offsetof(s1.E) != 16:
-		panic("unsafe.Offsetof(s1.E) != 16")
-	case unsafe.Offsetof(s1.F) != 20:
-		panic("unsafe.Offsetof(s1.F) != 20")
-	case unsafe.Offsetof(s1.G) != 24:
-		panic("unsafe.Offsetof(s1.G) != 24")
-	case unsafe.Offsetof(s1.H) != 28:
-		panic("unsafe.Offsetof(s1.H) != 28")
-	case unsafe.Offsetof(s1.S1) != 32:
-		panic("unsafe.Offsetof(s1.S1) != 32")
-	case unsafe.Offsetof(s1.S1.S2.S3.S4.S5.S6.S7.S8.S1.S2) != 4:
-		panic("unsafe.Offsetof(s1.S1.S2.S3.S4.S5.S6.S7.S8.S1.S2) != 4")
+	case unsafe.Offsetof(s1.B) != 8:
+		panic("unsafe.Offsetof(s1.B) != 8")
+	case unsafe.Offsetof(s1.C) != 16:
+		panic("unsafe.Offsetof(s1.C) != 16")
+	case unsafe.Offsetof(s1.D) != 24:
+		panic("unsafe.Offsetof(s1.D) != 24")
+	case unsafe.Offsetof(s1.E) != 32:
+		panic("unsafe.Offsetof(s1.E) != 32")
+	case unsafe.Offsetof(s1.F) != 40:
+		panic("unsafe.Offsetof(s1.F) != 40")
+	case unsafe.Offsetof(s1.G) != 48:
+		panic("unsafe.Offsetof(s1.G) != 48")
+	case unsafe.Offsetof(s1.H) != 56:
+		panic("unsafe.Offsetof(s1.H) != 56")
+	case unsafe.Offsetof(s1.S1) != 64:
+		panic("unsafe.Offsetof(s1.S1) != 64")
+	case unsafe.Offsetof(s1.S1.S2.S3.S4.S5.S6.S7.S8.S1.S2) != 8:
+		panic("unsafe.Offsetof(s1.S1.S2.S3.S4.S5.S6.S7.S8.S1.S2) != 8")
 	}
 }
 
