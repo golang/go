@@ -51,7 +51,7 @@ func netipv6zone(f *ast.File) bool {
 						Value: e,
 					}
 				case 1:
-					if e.(*ast.BasicLit).Value == "0" {
+					if elit, ok := e.(*ast.BasicLit); ok && elit.Value == "0" {
 						cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
 					} else {
 						cl.Elts[i] = &ast.KeyValueExpr{
