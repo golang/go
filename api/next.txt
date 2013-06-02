@@ -1,4 +1,13 @@
+pkg crypto/rsa, const PSSSaltLengthAuto ideal-int
+pkg crypto/rsa, const PSSSaltLengthEqualsHash ideal-int
+pkg crypto/rsa, func SignPSS(io.Reader, *PrivateKey, crypto.Hash, []uint8, *PSSOptions) ([]uint8, error)
+pkg crypto/rsa, func VerifyPSS(*PublicKey, crypto.Hash, []uint8, []uint8, *PSSOptions) error
+pkg crypto/rsa, type PSSOptions struct
+pkg crypto/rsa, type PSSOptions struct, SaltLength int
 pkg crypto/subtle, func ConstantTimeLessOrEq(int, int) int
+pkg go/build, type Package struct, CXXFiles []string
+pkg go/build, type Package struct, CgoCPPFLAGS []string
+pkg go/build, type Package struct, CgoCXXFLAGS []string
 pkg log/syslog (freebsd-386-cgo), const LOG_ALERT Priority
 pkg log/syslog (freebsd-386-cgo), const LOG_AUTH Priority
 pkg log/syslog (freebsd-386-cgo), const LOG_AUTHPRIV Priority
@@ -644,6 +653,61 @@ pkg log/syslog (openbsd-amd64-cgo), method (*Writer) Warning(string) error
 pkg log/syslog (openbsd-amd64-cgo), method (*Writer) Write([]uint8) (int, error)
 pkg log/syslog (openbsd-amd64-cgo), type Priority int
 pkg log/syslog (openbsd-amd64-cgo), type Writer struct
+pkg syscall (darwin-386), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-386), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-386), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (darwin-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (darwin-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (darwin-386), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (darwin-386), type ICMPv6Filter struct
+pkg syscall (darwin-386), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (darwin-386), type IPv6MTUInfo struct
+pkg syscall (darwin-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (darwin-386), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (darwin-386-cgo), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-386-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-386-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (darwin-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (darwin-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (darwin-386-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (darwin-386-cgo), type ICMPv6Filter struct
+pkg syscall (darwin-386-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct
+pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (darwin-amd64), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-amd64), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-amd64), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (darwin-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (darwin-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (darwin-amd64), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (darwin-amd64), type ICMPv6Filter struct
+pkg syscall (darwin-amd64), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (darwin-amd64), type IPv6MTUInfo struct
+pkg syscall (darwin-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (darwin-amd64), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (darwin-amd64-cgo), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-amd64-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (darwin-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (darwin-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (darwin-amd64-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (darwin-amd64-cgo), type ICMPv6Filter struct
+pkg syscall (darwin-amd64-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct
+pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (freebsd-386), const ICMP6_FILTER ideal-int
+pkg syscall (freebsd-386), const SizeofICMPv6Filter ideal-int
+pkg syscall (freebsd-386), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (freebsd-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (freebsd-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (freebsd-386), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (freebsd-386), type ICMPv6Filter struct
+pkg syscall (freebsd-386), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (freebsd-386), type IPv6MTUInfo struct
+pkg syscall (freebsd-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (freebsd-386), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-386-cgo), const AF_APPLETALK ideal-int
 pkg syscall (freebsd-386-cgo), const AF_ARP ideal-int
 pkg syscall (freebsd-386-cgo), const AF_ATM ideal-int
@@ -1112,6 +1176,7 @@ pkg syscall (freebsd-386-cgo), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-386-cgo), const F_WRLCK ideal-int
 pkg syscall (freebsd-386-cgo), const HUPCL ideal-int
 pkg syscall (freebsd-386-cgo), const ICANON ideal-int
+pkg syscall (freebsd-386-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-386-cgo), const ICRNL ideal-int
 pkg syscall (freebsd-386-cgo), const IEXTEN ideal-int
 pkg syscall (freebsd-386-cgo), const IFAN_ARRIVAL ideal-int
@@ -2261,8 +2326,10 @@ pkg syscall (freebsd-386-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIfData ideal-int
@@ -2438,8 +2505,10 @@ pkg syscall (freebsd-386-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (freebsd-386-cgo), func Getsid(int) (int, error)
 pkg syscall (freebsd-386-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (freebsd-386-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (freebsd-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (freebsd-386-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
 pkg syscall (freebsd-386-cgo), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (freebsd-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (freebsd-386-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (freebsd-386-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (freebsd-386-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -2499,6 +2568,7 @@ pkg syscall (freebsd-386-cgo), func Setreuid(int, int) error
 pkg syscall (freebsd-386-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (freebsd-386-cgo), func Setsid() (int, error)
 pkg syscall (freebsd-386-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (freebsd-386-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (freebsd-386-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (freebsd-386-cgo), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
 pkg syscall (freebsd-386-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
@@ -2587,10 +2657,15 @@ pkg syscall (freebsd-386-cgo), type Flock_t struct, Type int16
 pkg syscall (freebsd-386-cgo), type Flock_t struct, Whence int16
 pkg syscall (freebsd-386-cgo), type Fsid struct
 pkg syscall (freebsd-386-cgo), type Fsid struct, Val [2]int32
+pkg syscall (freebsd-386-cgo), type ICMPv6Filter struct
+pkg syscall (freebsd-386-cgo), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (freebsd-386-cgo), type IPMreqn struct
 pkg syscall (freebsd-386-cgo), type IPMreqn struct, Address [4]uint8
 pkg syscall (freebsd-386-cgo), type IPMreqn struct, Ifindex int32
 pkg syscall (freebsd-386-cgo), type IPMreqn struct, Multiaddr [4]uint8
+pkg syscall (freebsd-386-cgo), type IPv6MTUInfo struct
+pkg syscall (freebsd-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (freebsd-386-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-386-cgo), type IfAnnounceMsghdr struct
 pkg syscall (freebsd-386-cgo), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (freebsd-386-cgo), type IfAnnounceMsghdr struct, Msglen uint16
@@ -2823,6 +2898,17 @@ pkg syscall (freebsd-386-cgo), type WaitStatus uint32
 pkg syscall (freebsd-386-cgo), var Stderr int
 pkg syscall (freebsd-386-cgo), var Stdin int
 pkg syscall (freebsd-386-cgo), var Stdout int
+pkg syscall (freebsd-amd64), const ICMP6_FILTER ideal-int
+pkg syscall (freebsd-amd64), const SizeofICMPv6Filter ideal-int
+pkg syscall (freebsd-amd64), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (freebsd-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (freebsd-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (freebsd-amd64), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (freebsd-amd64), type ICMPv6Filter struct
+pkg syscall (freebsd-amd64), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (freebsd-amd64), type IPv6MTUInfo struct
+pkg syscall (freebsd-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (freebsd-amd64), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-amd64-cgo), const AF_APPLETALK ideal-int
 pkg syscall (freebsd-amd64-cgo), const AF_ARP ideal-int
 pkg syscall (freebsd-amd64-cgo), const AF_ATM ideal-int
@@ -3291,6 +3377,7 @@ pkg syscall (freebsd-amd64-cgo), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_WRLCK ideal-int
 pkg syscall (freebsd-amd64-cgo), const HUPCL ideal-int
 pkg syscall (freebsd-amd64-cgo), const ICANON ideal-int
+pkg syscall (freebsd-amd64-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-amd64-cgo), const ICRNL ideal-int
 pkg syscall (freebsd-amd64-cgo), const IEXTEN ideal-int
 pkg syscall (freebsd-amd64-cgo), const IFAN_ARRIVAL ideal-int
@@ -4440,8 +4527,10 @@ pkg syscall (freebsd-amd64-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIfData ideal-int
@@ -4617,8 +4706,10 @@ pkg syscall (freebsd-amd64-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (freebsd-amd64-cgo), func Getsid(int) (int, error)
 pkg syscall (freebsd-amd64-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (freebsd-amd64-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (freebsd-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (freebsd-amd64-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
 pkg syscall (freebsd-amd64-cgo), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (freebsd-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (freebsd-amd64-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (freebsd-amd64-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (freebsd-amd64-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -4678,6 +4769,7 @@ pkg syscall (freebsd-amd64-cgo), func Setreuid(int, int) error
 pkg syscall (freebsd-amd64-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (freebsd-amd64-cgo), func Setsid() (int, error)
 pkg syscall (freebsd-amd64-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (freebsd-amd64-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (freebsd-amd64-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (freebsd-amd64-cgo), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
 pkg syscall (freebsd-amd64-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
@@ -4768,10 +4860,15 @@ pkg syscall (freebsd-amd64-cgo), type Flock_t struct, Type int16
 pkg syscall (freebsd-amd64-cgo), type Flock_t struct, Whence int16
 pkg syscall (freebsd-amd64-cgo), type Fsid struct
 pkg syscall (freebsd-amd64-cgo), type Fsid struct, Val [2]int32
+pkg syscall (freebsd-amd64-cgo), type ICMPv6Filter struct
+pkg syscall (freebsd-amd64-cgo), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (freebsd-amd64-cgo), type IPMreqn struct
 pkg syscall (freebsd-amd64-cgo), type IPMreqn struct, Address [4]uint8
 pkg syscall (freebsd-amd64-cgo), type IPMreqn struct, Ifindex int32
 pkg syscall (freebsd-amd64-cgo), type IPMreqn struct, Multiaddr [4]uint8
+pkg syscall (freebsd-amd64-cgo), type IPv6MTUInfo struct
+pkg syscall (freebsd-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (freebsd-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-amd64-cgo), type IfAnnounceMsghdr struct
 pkg syscall (freebsd-amd64-cgo), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (freebsd-amd64-cgo), type IfAnnounceMsghdr struct, Msglen uint16
@@ -5478,6 +5575,7 @@ pkg syscall (freebsd-arm), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-arm), const F_WRLCK ideal-int
 pkg syscall (freebsd-arm), const HUPCL ideal-int
 pkg syscall (freebsd-arm), const ICANON ideal-int
+pkg syscall (freebsd-arm), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-arm), const ICRNL ideal-int
 pkg syscall (freebsd-arm), const IEXTEN ideal-int
 pkg syscall (freebsd-arm), const IFAN_ARRIVAL ideal-int
@@ -6634,8 +6732,10 @@ pkg syscall (freebsd-arm), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-arm), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-arm), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-arm), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-arm), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-arm), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-arm), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-arm), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-arm), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-arm), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (freebsd-arm), const SizeofIfData ideal-int
@@ -6813,8 +6913,10 @@ pkg syscall (freebsd-arm), func Getrusage(int, *Rusage) error
 pkg syscall (freebsd-arm), func Getsid(int) (int, error)
 pkg syscall (freebsd-arm), func Getsockname(int) (Sockaddr, error)
 pkg syscall (freebsd-arm), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (freebsd-arm), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (freebsd-arm), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
 pkg syscall (freebsd-arm), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (freebsd-arm), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (freebsd-arm), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (freebsd-arm), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (freebsd-arm), func GetsockoptInt(int, int, int) (int, error)
@@ -6874,6 +6976,7 @@ pkg syscall (freebsd-arm), func Setreuid(int, int) error
 pkg syscall (freebsd-arm), func Setrlimit(int, *Rlimit) error
 pkg syscall (freebsd-arm), func Setsid() (int, error)
 pkg syscall (freebsd-arm), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (freebsd-arm), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (freebsd-arm), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (freebsd-arm), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
 pkg syscall (freebsd-arm), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
@@ -6962,10 +7065,15 @@ pkg syscall (freebsd-arm), type Flock_t struct, Type int16
 pkg syscall (freebsd-arm), type Flock_t struct, Whence int16
 pkg syscall (freebsd-arm), type Fsid struct
 pkg syscall (freebsd-arm), type Fsid struct, Val [2]int32
+pkg syscall (freebsd-arm), type ICMPv6Filter struct
+pkg syscall (freebsd-arm), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (freebsd-arm), type IPMreqn struct
 pkg syscall (freebsd-arm), type IPMreqn struct, Address [4]uint8
 pkg syscall (freebsd-arm), type IPMreqn struct, Ifindex int32
 pkg syscall (freebsd-arm), type IPMreqn struct, Multiaddr [4]uint8
+pkg syscall (freebsd-arm), type IPv6MTUInfo struct
+pkg syscall (freebsd-arm), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (freebsd-arm), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-arm), type IfAnnounceMsghdr struct
 pkg syscall (freebsd-arm), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (freebsd-arm), type IfAnnounceMsghdr struct, Msglen uint16
@@ -7673,6 +7781,7 @@ pkg syscall (freebsd-arm-cgo), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-arm-cgo), const F_WRLCK ideal-int
 pkg syscall (freebsd-arm-cgo), const HUPCL ideal-int
 pkg syscall (freebsd-arm-cgo), const ICANON ideal-int
+pkg syscall (freebsd-arm-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-arm-cgo), const ICRNL ideal-int
 pkg syscall (freebsd-arm-cgo), const IEXTEN ideal-int
 pkg syscall (freebsd-arm-cgo), const IFAN_ARRIVAL ideal-int
@@ -8829,8 +8938,10 @@ pkg syscall (freebsd-arm-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIfData ideal-int
@@ -9008,8 +9119,10 @@ pkg syscall (freebsd-arm-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (freebsd-arm-cgo), func Getsid(int) (int, error)
 pkg syscall (freebsd-arm-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (freebsd-arm-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (freebsd-arm-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (freebsd-arm-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
 pkg syscall (freebsd-arm-cgo), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (freebsd-arm-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (freebsd-arm-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (freebsd-arm-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (freebsd-arm-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -9069,6 +9182,7 @@ pkg syscall (freebsd-arm-cgo), func Setreuid(int, int) error
 pkg syscall (freebsd-arm-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (freebsd-arm-cgo), func Setsid() (int, error)
 pkg syscall (freebsd-arm-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (freebsd-arm-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (freebsd-arm-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (freebsd-arm-cgo), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
 pkg syscall (freebsd-arm-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
@@ -9157,10 +9271,15 @@ pkg syscall (freebsd-arm-cgo), type Flock_t struct, Type int16
 pkg syscall (freebsd-arm-cgo), type Flock_t struct, Whence int16
 pkg syscall (freebsd-arm-cgo), type Fsid struct
 pkg syscall (freebsd-arm-cgo), type Fsid struct, Val [2]int32
+pkg syscall (freebsd-arm-cgo), type ICMPv6Filter struct
+pkg syscall (freebsd-arm-cgo), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (freebsd-arm-cgo), type IPMreqn struct
 pkg syscall (freebsd-arm-cgo), type IPMreqn struct, Address [4]uint8
 pkg syscall (freebsd-arm-cgo), type IPMreqn struct, Ifindex int32
 pkg syscall (freebsd-arm-cgo), type IPMreqn struct, Multiaddr [4]uint8
+pkg syscall (freebsd-arm-cgo), type IPv6MTUInfo struct
+pkg syscall (freebsd-arm-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (freebsd-arm-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-arm-cgo), type IfAnnounceMsghdr struct
 pkg syscall (freebsd-arm-cgo), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (freebsd-arm-cgo), type IfAnnounceMsghdr struct, Msglen uint16
@@ -9395,6 +9514,61 @@ pkg syscall (freebsd-arm-cgo), type WaitStatus uint32
 pkg syscall (freebsd-arm-cgo), var Stderr int
 pkg syscall (freebsd-arm-cgo), var Stdin int
 pkg syscall (freebsd-arm-cgo), var Stdout int
+pkg syscall (linux-386), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-386), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-386), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (linux-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-386), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (linux-386), type ICMPv6Filter struct
+pkg syscall (linux-386), type ICMPv6Filter struct, Data [8]uint32
+pkg syscall (linux-386), type IPv6MTUInfo struct
+pkg syscall (linux-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (linux-386), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-386-cgo), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-386-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-386-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (linux-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-386-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (linux-386-cgo), type ICMPv6Filter struct
+pkg syscall (linux-386-cgo), type ICMPv6Filter struct, Data [8]uint32
+pkg syscall (linux-386-cgo), type IPv6MTUInfo struct
+pkg syscall (linux-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (linux-386-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-amd64), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-amd64), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-amd64), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (linux-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-amd64), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (linux-amd64), type ICMPv6Filter struct
+pkg syscall (linux-amd64), type ICMPv6Filter struct, Data [8]uint32
+pkg syscall (linux-amd64), type IPv6MTUInfo struct
+pkg syscall (linux-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (linux-amd64), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-amd64-cgo), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-amd64-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-amd64-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (linux-amd64-cgo), type ICMPv6Filter struct
+pkg syscall (linux-amd64-cgo), type ICMPv6Filter struct, Data [8]uint32
+pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct
+pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-arm), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-arm), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-arm), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-arm), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
+pkg syscall (linux-arm), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-arm), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
+pkg syscall (linux-arm), type ICMPv6Filter struct
+pkg syscall (linux-arm), type ICMPv6Filter struct, Data [8]uint32
+pkg syscall (linux-arm), type IPv6MTUInfo struct
+pkg syscall (linux-arm), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (linux-arm), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (linux-arm-cgo), const AF_ALG ideal-int
 pkg syscall (linux-arm-cgo), const AF_APPLETALK ideal-int
 pkg syscall (linux-arm-cgo), const AF_ASH ideal-int
@@ -9763,6 +9937,7 @@ pkg syscall (linux-arm-cgo), const F_UNLCK ideal-int
 pkg syscall (linux-arm-cgo), const F_WRLCK ideal-int
 pkg syscall (linux-arm-cgo), const HUPCL ideal-int
 pkg syscall (linux-arm-cgo), const ICANON ideal-int
+pkg syscall (linux-arm-cgo), const ICMPV6_FILTER ideal-int
 pkg syscall (linux-arm-cgo), const ICRNL ideal-int
 pkg syscall (linux-arm-cgo), const IEXTEN ideal-int
 pkg syscall (linux-arm-cgo), const IFA_ADDRESS ideal-int
@@ -10975,8 +11150,10 @@ pkg syscall (linux-arm-cgo), const S_IWRITE ideal-int
 pkg syscall (linux-arm-cgo), const S_IXGRP ideal-int
 pkg syscall (linux-arm-cgo), const S_IXOTH ideal-int
 pkg syscall (linux-arm-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (linux-arm-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIPMreq ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (linux-arm-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIfAddrmsg ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIfInfomsg ideal-int
@@ -11178,8 +11355,10 @@ pkg syscall (linux-arm-cgo), func Getpgrp() int
 pkg syscall (linux-arm-cgo), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-arm-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (linux-arm-cgo), func Getsockname(int) (Sockaddr, error)
+pkg syscall (linux-arm-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (linux-arm-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
 pkg syscall (linux-arm-cgo), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (linux-arm-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (linux-arm-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (linux-arm-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (linux-arm-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -11269,6 +11448,7 @@ pkg syscall (linux-arm-cgo), func Setresuid(int, int, int) error
 pkg syscall (linux-arm-cgo), func Setreuid(int, int) error
 pkg syscall (linux-arm-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (linux-arm-cgo), func Setsid() (int, error)
+pkg syscall (linux-arm-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (linux-arm-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (linux-arm-cgo), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
 pkg syscall (linux-arm-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
@@ -11338,10 +11518,15 @@ pkg syscall (linux-arm-cgo), type FdSet struct
 pkg syscall (linux-arm-cgo), type FdSet struct, Bits [32]int32
 pkg syscall (linux-arm-cgo), type Fsid struct
 pkg syscall (linux-arm-cgo), type Fsid struct, X__val [2]int32
+pkg syscall (linux-arm-cgo), type ICMPv6Filter struct
+pkg syscall (linux-arm-cgo), type ICMPv6Filter struct, Data [8]uint32
 pkg syscall (linux-arm-cgo), type IPMreqn struct
 pkg syscall (linux-arm-cgo), type IPMreqn struct, Address [4]uint8
 pkg syscall (linux-arm-cgo), type IPMreqn struct, Ifindex int32
 pkg syscall (linux-arm-cgo), type IPMreqn struct, Multiaddr [4]uint8
+pkg syscall (linux-arm-cgo), type IPv6MTUInfo struct
+pkg syscall (linux-arm-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (linux-arm-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (linux-arm-cgo), type IfAddrmsg struct
 pkg syscall (linux-arm-cgo), type IfAddrmsg struct, Family uint8
 pkg syscall (linux-arm-cgo), type IfAddrmsg struct, Flags uint8
@@ -12220,6 +12405,7 @@ pkg syscall (netbsd-386), const F_UNLCK ideal-int
 pkg syscall (netbsd-386), const F_WRLCK ideal-int
 pkg syscall (netbsd-386), const HUPCL ideal-int
 pkg syscall (netbsd-386), const ICANON ideal-int
+pkg syscall (netbsd-386), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-386), const ICRNL ideal-int
 pkg syscall (netbsd-386), const IEXTEN ideal-int
 pkg syscall (netbsd-386), const IFAN_ARRIVAL ideal-int
@@ -13135,7 +13321,9 @@ pkg syscall (netbsd-386), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-386), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-386), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-386), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-386), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-386), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-386), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (netbsd-386), const SizeofIfData ideal-int
@@ -13315,7 +13503,9 @@ pkg syscall (netbsd-386), func Getrusage(int, *Rusage) error
 pkg syscall (netbsd-386), func Getsid(int) (int, error)
 pkg syscall (netbsd-386), func Getsockname(int) (Sockaddr, error)
 pkg syscall (netbsd-386), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (netbsd-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (netbsd-386), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (netbsd-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (netbsd-386), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (netbsd-386), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (netbsd-386), func GetsockoptInt(int, int, int) (int, error)
@@ -13374,6 +13564,7 @@ pkg syscall (netbsd-386), func Setreuid(int, int) error
 pkg syscall (netbsd-386), func Setrlimit(int, *Rlimit) error
 pkg syscall (netbsd-386), func Setsid() (int, error)
 pkg syscall (netbsd-386), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (netbsd-386), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (netbsd-386), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (netbsd-386), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (netbsd-386), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -13455,6 +13646,11 @@ pkg syscall (netbsd-386), type Flock_t struct, Type int16
 pkg syscall (netbsd-386), type Flock_t struct, Whence int16
 pkg syscall (netbsd-386), type Fsid struct
 pkg syscall (netbsd-386), type Fsid struct, X__fsid_val [2]int32
+pkg syscall (netbsd-386), type ICMPv6Filter struct
+pkg syscall (netbsd-386), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (netbsd-386), type IPv6MTUInfo struct
+pkg syscall (netbsd-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (netbsd-386), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (netbsd-386), type IfAnnounceMsghdr struct
 pkg syscall (netbsd-386), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (netbsd-386), type IfAnnounceMsghdr struct, Msglen uint16
@@ -14238,6 +14434,7 @@ pkg syscall (netbsd-386-cgo), const F_UNLCK ideal-int
 pkg syscall (netbsd-386-cgo), const F_WRLCK ideal-int
 pkg syscall (netbsd-386-cgo), const HUPCL ideal-int
 pkg syscall (netbsd-386-cgo), const ICANON ideal-int
+pkg syscall (netbsd-386-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-386-cgo), const ICRNL ideal-int
 pkg syscall (netbsd-386-cgo), const IEXTEN ideal-int
 pkg syscall (netbsd-386-cgo), const IFAN_ARRIVAL ideal-int
@@ -15153,7 +15350,9 @@ pkg syscall (netbsd-386-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIfData ideal-int
@@ -15333,7 +15532,9 @@ pkg syscall (netbsd-386-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (netbsd-386-cgo), func Getsid(int) (int, error)
 pkg syscall (netbsd-386-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (netbsd-386-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (netbsd-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (netbsd-386-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (netbsd-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (netbsd-386-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (netbsd-386-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (netbsd-386-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -15392,6 +15593,7 @@ pkg syscall (netbsd-386-cgo), func Setreuid(int, int) error
 pkg syscall (netbsd-386-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (netbsd-386-cgo), func Setsid() (int, error)
 pkg syscall (netbsd-386-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (netbsd-386-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (netbsd-386-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (netbsd-386-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (netbsd-386-cgo), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -15473,6 +15675,11 @@ pkg syscall (netbsd-386-cgo), type Flock_t struct, Type int16
 pkg syscall (netbsd-386-cgo), type Flock_t struct, Whence int16
 pkg syscall (netbsd-386-cgo), type Fsid struct
 pkg syscall (netbsd-386-cgo), type Fsid struct, X__fsid_val [2]int32
+pkg syscall (netbsd-386-cgo), type ICMPv6Filter struct
+pkg syscall (netbsd-386-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (netbsd-386-cgo), type IPv6MTUInfo struct
+pkg syscall (netbsd-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (netbsd-386-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (netbsd-386-cgo), type IfAnnounceMsghdr struct
 pkg syscall (netbsd-386-cgo), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (netbsd-386-cgo), type IfAnnounceMsghdr struct, Msglen uint16
@@ -16246,6 +16453,7 @@ pkg syscall (netbsd-amd64), const F_UNLCK ideal-int
 pkg syscall (netbsd-amd64), const F_WRLCK ideal-int
 pkg syscall (netbsd-amd64), const HUPCL ideal-int
 pkg syscall (netbsd-amd64), const ICANON ideal-int
+pkg syscall (netbsd-amd64), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-amd64), const ICRNL ideal-int
 pkg syscall (netbsd-amd64), const IEXTEN ideal-int
 pkg syscall (netbsd-amd64), const IFAN_ARRIVAL ideal-int
@@ -17161,7 +17369,9 @@ pkg syscall (netbsd-amd64), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-amd64), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-amd64), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-amd64), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-amd64), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-amd64), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-amd64), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (netbsd-amd64), const SizeofIfData ideal-int
@@ -17341,7 +17551,9 @@ pkg syscall (netbsd-amd64), func Getrusage(int, *Rusage) error
 pkg syscall (netbsd-amd64), func Getsid(int) (int, error)
 pkg syscall (netbsd-amd64), func Getsockname(int) (Sockaddr, error)
 pkg syscall (netbsd-amd64), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (netbsd-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (netbsd-amd64), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (netbsd-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (netbsd-amd64), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (netbsd-amd64), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (netbsd-amd64), func GetsockoptInt(int, int, int) (int, error)
@@ -17400,6 +17612,7 @@ pkg syscall (netbsd-amd64), func Setreuid(int, int) error
 pkg syscall (netbsd-amd64), func Setrlimit(int, *Rlimit) error
 pkg syscall (netbsd-amd64), func Setsid() (int, error)
 pkg syscall (netbsd-amd64), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (netbsd-amd64), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (netbsd-amd64), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (netbsd-amd64), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (netbsd-amd64), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -17482,6 +17695,11 @@ pkg syscall (netbsd-amd64), type Flock_t struct, Type int16
 pkg syscall (netbsd-amd64), type Flock_t struct, Whence int16
 pkg syscall (netbsd-amd64), type Fsid struct
 pkg syscall (netbsd-amd64), type Fsid struct, X__fsid_val [2]int32
+pkg syscall (netbsd-amd64), type ICMPv6Filter struct
+pkg syscall (netbsd-amd64), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (netbsd-amd64), type IPv6MTUInfo struct
+pkg syscall (netbsd-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (netbsd-amd64), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (netbsd-amd64), type IfAnnounceMsghdr struct
 pkg syscall (netbsd-amd64), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (netbsd-amd64), type IfAnnounceMsghdr struct, Msglen uint16
@@ -18261,6 +18479,7 @@ pkg syscall (netbsd-amd64-cgo), const F_UNLCK ideal-int
 pkg syscall (netbsd-amd64-cgo), const F_WRLCK ideal-int
 pkg syscall (netbsd-amd64-cgo), const HUPCL ideal-int
 pkg syscall (netbsd-amd64-cgo), const ICANON ideal-int
+pkg syscall (netbsd-amd64-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-amd64-cgo), const ICRNL ideal-int
 pkg syscall (netbsd-amd64-cgo), const IEXTEN ideal-int
 pkg syscall (netbsd-amd64-cgo), const IFAN_ARRIVAL ideal-int
@@ -19176,7 +19395,9 @@ pkg syscall (netbsd-amd64-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIfData ideal-int
@@ -19356,7 +19577,9 @@ pkg syscall (netbsd-amd64-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (netbsd-amd64-cgo), func Getsid(int) (int, error)
 pkg syscall (netbsd-amd64-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (netbsd-amd64-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (netbsd-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (netbsd-amd64-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (netbsd-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (netbsd-amd64-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (netbsd-amd64-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (netbsd-amd64-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -19415,6 +19638,7 @@ pkg syscall (netbsd-amd64-cgo), func Setreuid(int, int) error
 pkg syscall (netbsd-amd64-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (netbsd-amd64-cgo), func Setsid() (int, error)
 pkg syscall (netbsd-amd64-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (netbsd-amd64-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (netbsd-amd64-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (netbsd-amd64-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (netbsd-amd64-cgo), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -19497,6 +19721,11 @@ pkg syscall (netbsd-amd64-cgo), type Flock_t struct, Type int16
 pkg syscall (netbsd-amd64-cgo), type Flock_t struct, Whence int16
 pkg syscall (netbsd-amd64-cgo), type Fsid struct
 pkg syscall (netbsd-amd64-cgo), type Fsid struct, X__fsid_val [2]int32
+pkg syscall (netbsd-amd64-cgo), type ICMPv6Filter struct
+pkg syscall (netbsd-amd64-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (netbsd-amd64-cgo), type IPv6MTUInfo struct
+pkg syscall (netbsd-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (netbsd-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (netbsd-amd64-cgo), type IfAnnounceMsghdr struct
 pkg syscall (netbsd-amd64-cgo), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (netbsd-amd64-cgo), type IfAnnounceMsghdr struct, Msglen uint16
@@ -20276,6 +20505,7 @@ pkg syscall (netbsd-arm), const F_UNLCK ideal-int
 pkg syscall (netbsd-arm), const F_WRLCK ideal-int
 pkg syscall (netbsd-arm), const HUPCL ideal-int
 pkg syscall (netbsd-arm), const ICANON ideal-int
+pkg syscall (netbsd-arm), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-arm), const ICRNL ideal-int
 pkg syscall (netbsd-arm), const IEXTEN ideal-int
 pkg syscall (netbsd-arm), const IFAN_ARRIVAL ideal-int
@@ -21190,7 +21420,9 @@ pkg syscall (netbsd-arm), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-arm), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-arm), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-arm), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-arm), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-arm), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-arm), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-arm), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-arm), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (netbsd-arm), const SizeofIfData ideal-int
@@ -21370,7 +21602,9 @@ pkg syscall (netbsd-arm), func Getrusage(int, *Rusage) error
 pkg syscall (netbsd-arm), func Getsid(int) (int, error)
 pkg syscall (netbsd-arm), func Getsockname(int) (Sockaddr, error)
 pkg syscall (netbsd-arm), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (netbsd-arm), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (netbsd-arm), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (netbsd-arm), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (netbsd-arm), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (netbsd-arm), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (netbsd-arm), func GetsockoptInt(int, int, int) (int, error)
@@ -21429,6 +21663,7 @@ pkg syscall (netbsd-arm), func Setreuid(int, int) error
 pkg syscall (netbsd-arm), func Setrlimit(int, *Rlimit) error
 pkg syscall (netbsd-arm), func Setsid() (int, error)
 pkg syscall (netbsd-arm), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (netbsd-arm), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (netbsd-arm), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (netbsd-arm), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (netbsd-arm), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -21510,6 +21745,11 @@ pkg syscall (netbsd-arm), type Flock_t struct, Type int16
 pkg syscall (netbsd-arm), type Flock_t struct, Whence int16
 pkg syscall (netbsd-arm), type Fsid struct
 pkg syscall (netbsd-arm), type Fsid struct, X__fsid_val [2]int32
+pkg syscall (netbsd-arm), type ICMPv6Filter struct
+pkg syscall (netbsd-arm), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (netbsd-arm), type IPv6MTUInfo struct
+pkg syscall (netbsd-arm), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (netbsd-arm), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (netbsd-arm), type IfAnnounceMsghdr struct
 pkg syscall (netbsd-arm), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (netbsd-arm), type IfAnnounceMsghdr struct, Msglen uint16
@@ -22283,6 +22523,7 @@ pkg syscall (netbsd-arm-cgo), const F_UNLCK ideal-int
 pkg syscall (netbsd-arm-cgo), const F_WRLCK ideal-int
 pkg syscall (netbsd-arm-cgo), const HUPCL ideal-int
 pkg syscall (netbsd-arm-cgo), const ICANON ideal-int
+pkg syscall (netbsd-arm-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-arm-cgo), const ICRNL ideal-int
 pkg syscall (netbsd-arm-cgo), const IEXTEN ideal-int
 pkg syscall (netbsd-arm-cgo), const IFAN_ARRIVAL ideal-int
@@ -23197,7 +23438,9 @@ pkg syscall (netbsd-arm-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-arm-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-arm-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIfData ideal-int
@@ -23377,7 +23620,9 @@ pkg syscall (netbsd-arm-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (netbsd-arm-cgo), func Getsid(int) (int, error)
 pkg syscall (netbsd-arm-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (netbsd-arm-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (netbsd-arm-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (netbsd-arm-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (netbsd-arm-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (netbsd-arm-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (netbsd-arm-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (netbsd-arm-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -23436,6 +23681,7 @@ pkg syscall (netbsd-arm-cgo), func Setreuid(int, int) error
 pkg syscall (netbsd-arm-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (netbsd-arm-cgo), func Setsid() (int, error)
 pkg syscall (netbsd-arm-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (netbsd-arm-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (netbsd-arm-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (netbsd-arm-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (netbsd-arm-cgo), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -23517,6 +23763,11 @@ pkg syscall (netbsd-arm-cgo), type Flock_t struct, Type int16
 pkg syscall (netbsd-arm-cgo), type Flock_t struct, Whence int16
 pkg syscall (netbsd-arm-cgo), type Fsid struct
 pkg syscall (netbsd-arm-cgo), type Fsid struct, X__fsid_val [2]int32
+pkg syscall (netbsd-arm-cgo), type ICMPv6Filter struct
+pkg syscall (netbsd-arm-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (netbsd-arm-cgo), type IPv6MTUInfo struct
+pkg syscall (netbsd-arm-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (netbsd-arm-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (netbsd-arm-cgo), type IfAnnounceMsghdr struct
 pkg syscall (netbsd-arm-cgo), type IfAnnounceMsghdr struct, Index uint16
 pkg syscall (netbsd-arm-cgo), type IfAnnounceMsghdr struct, Msglen uint16
@@ -24164,6 +24415,7 @@ pkg syscall (openbsd-386), const F_UNLCK ideal-int
 pkg syscall (openbsd-386), const F_WRLCK ideal-int
 pkg syscall (openbsd-386), const HUPCL ideal-int
 pkg syscall (openbsd-386), const ICANON ideal-int
+pkg syscall (openbsd-386), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-386), const ICRNL ideal-int
 pkg syscall (openbsd-386), const IEXTEN ideal-int
 pkg syscall (openbsd-386), const IFAN_ARRIVAL ideal-int
@@ -25055,7 +25307,9 @@ pkg syscall (openbsd-386), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-386), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-386), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-386), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-386), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-386), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-386), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (openbsd-386), const SizeofIfData ideal-int
@@ -25220,7 +25474,9 @@ pkg syscall (openbsd-386), func Getrusage(int, *Rusage) error
 pkg syscall (openbsd-386), func Getsid(int) (int, error)
 pkg syscall (openbsd-386), func Getsockname(int) (Sockaddr, error)
 pkg syscall (openbsd-386), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (openbsd-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (openbsd-386), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (openbsd-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (openbsd-386), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (openbsd-386), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (openbsd-386), func GetsockoptInt(int, int, int) (int, error)
@@ -25280,6 +25536,7 @@ pkg syscall (openbsd-386), func Setreuid(int, int) error
 pkg syscall (openbsd-386), func Setrlimit(int, *Rlimit) error
 pkg syscall (openbsd-386), func Setsid() (int, error)
 pkg syscall (openbsd-386), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (openbsd-386), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (openbsd-386), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (openbsd-386), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (openbsd-386), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -25359,6 +25616,11 @@ pkg syscall (openbsd-386), type Flock_t struct, Type int16
 pkg syscall (openbsd-386), type Flock_t struct, Whence int16
 pkg syscall (openbsd-386), type Fsid struct
 pkg syscall (openbsd-386), type Fsid struct, Val [2]int32
+pkg syscall (openbsd-386), type ICMPv6Filter struct
+pkg syscall (openbsd-386), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (openbsd-386), type IPv6MTUInfo struct
+pkg syscall (openbsd-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (openbsd-386), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (openbsd-386), type IfAnnounceMsghdr struct
 pkg syscall (openbsd-386), type IfAnnounceMsghdr struct, Hdrlen uint16
 pkg syscall (openbsd-386), type IfAnnounceMsghdr struct, Index uint16
@@ -26036,6 +26298,7 @@ pkg syscall (openbsd-386-cgo), const F_UNLCK ideal-int
 pkg syscall (openbsd-386-cgo), const F_WRLCK ideal-int
 pkg syscall (openbsd-386-cgo), const HUPCL ideal-int
 pkg syscall (openbsd-386-cgo), const ICANON ideal-int
+pkg syscall (openbsd-386-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-386-cgo), const ICRNL ideal-int
 pkg syscall (openbsd-386-cgo), const IEXTEN ideal-int
 pkg syscall (openbsd-386-cgo), const IFAN_ARRIVAL ideal-int
@@ -26927,7 +27190,9 @@ pkg syscall (openbsd-386-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIfData ideal-int
@@ -27092,7 +27357,9 @@ pkg syscall (openbsd-386-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (openbsd-386-cgo), func Getsid(int) (int, error)
 pkg syscall (openbsd-386-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (openbsd-386-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (openbsd-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (openbsd-386-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (openbsd-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (openbsd-386-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (openbsd-386-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (openbsd-386-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -27152,6 +27419,7 @@ pkg syscall (openbsd-386-cgo), func Setreuid(int, int) error
 pkg syscall (openbsd-386-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (openbsd-386-cgo), func Setsid() (int, error)
 pkg syscall (openbsd-386-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (openbsd-386-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (openbsd-386-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (openbsd-386-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (openbsd-386-cgo), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -27231,6 +27499,11 @@ pkg syscall (openbsd-386-cgo), type Flock_t struct, Type int16
 pkg syscall (openbsd-386-cgo), type Flock_t struct, Whence int16
 pkg syscall (openbsd-386-cgo), type Fsid struct
 pkg syscall (openbsd-386-cgo), type Fsid struct, Val [2]int32
+pkg syscall (openbsd-386-cgo), type ICMPv6Filter struct
+pkg syscall (openbsd-386-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (openbsd-386-cgo), type IPv6MTUInfo struct
+pkg syscall (openbsd-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (openbsd-386-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (openbsd-386-cgo), type IfAnnounceMsghdr struct
 pkg syscall (openbsd-386-cgo), type IfAnnounceMsghdr struct, Hdrlen uint16
 pkg syscall (openbsd-386-cgo), type IfAnnounceMsghdr struct, Index uint16
@@ -27914,6 +28187,7 @@ pkg syscall (openbsd-amd64), const F_UNLCK ideal-int
 pkg syscall (openbsd-amd64), const F_WRLCK ideal-int
 pkg syscall (openbsd-amd64), const HUPCL ideal-int
 pkg syscall (openbsd-amd64), const ICANON ideal-int
+pkg syscall (openbsd-amd64), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-amd64), const ICRNL ideal-int
 pkg syscall (openbsd-amd64), const IEXTEN ideal-int
 pkg syscall (openbsd-amd64), const IFAN_ARRIVAL ideal-int
@@ -28805,7 +29079,9 @@ pkg syscall (openbsd-amd64), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-amd64), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-amd64), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-amd64), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-amd64), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-amd64), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-amd64), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (openbsd-amd64), const SizeofIfData ideal-int
@@ -28970,7 +29246,9 @@ pkg syscall (openbsd-amd64), func Getrusage(int, *Rusage) error
 pkg syscall (openbsd-amd64), func Getsid(int) (int, error)
 pkg syscall (openbsd-amd64), func Getsockname(int) (Sockaddr, error)
 pkg syscall (openbsd-amd64), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (openbsd-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (openbsd-amd64), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (openbsd-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (openbsd-amd64), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (openbsd-amd64), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (openbsd-amd64), func GetsockoptInt(int, int, int) (int, error)
@@ -29030,6 +29308,7 @@ pkg syscall (openbsd-amd64), func Setreuid(int, int) error
 pkg syscall (openbsd-amd64), func Setrlimit(int, *Rlimit) error
 pkg syscall (openbsd-amd64), func Setsid() (int, error)
 pkg syscall (openbsd-amd64), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (openbsd-amd64), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (openbsd-amd64), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (openbsd-amd64), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (openbsd-amd64), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -29110,6 +29389,11 @@ pkg syscall (openbsd-amd64), type Flock_t struct, Type int16
 pkg syscall (openbsd-amd64), type Flock_t struct, Whence int16
 pkg syscall (openbsd-amd64), type Fsid struct
 pkg syscall (openbsd-amd64), type Fsid struct, Val [2]int32
+pkg syscall (openbsd-amd64), type ICMPv6Filter struct
+pkg syscall (openbsd-amd64), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (openbsd-amd64), type IPv6MTUInfo struct
+pkg syscall (openbsd-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (openbsd-amd64), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (openbsd-amd64), type IfAnnounceMsghdr struct
 pkg syscall (openbsd-amd64), type IfAnnounceMsghdr struct, Hdrlen uint16
 pkg syscall (openbsd-amd64), type IfAnnounceMsghdr struct, Index uint16
@@ -29800,6 +30084,7 @@ pkg syscall (openbsd-amd64-cgo), const F_UNLCK ideal-int
 pkg syscall (openbsd-amd64-cgo), const F_WRLCK ideal-int
 pkg syscall (openbsd-amd64-cgo), const HUPCL ideal-int
 pkg syscall (openbsd-amd64-cgo), const ICANON ideal-int
+pkg syscall (openbsd-amd64-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-amd64-cgo), const ICRNL ideal-int
 pkg syscall (openbsd-amd64-cgo), const IEXTEN ideal-int
 pkg syscall (openbsd-amd64-cgo), const IFAN_ARRIVAL ideal-int
@@ -30691,7 +30976,9 @@ pkg syscall (openbsd-amd64-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIfData ideal-int
@@ -30856,7 +31143,9 @@ pkg syscall (openbsd-amd64-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (openbsd-amd64-cgo), func Getsid(int) (int, error)
 pkg syscall (openbsd-amd64-cgo), func Getsockname(int) (Sockaddr, error)
 pkg syscall (openbsd-amd64-cgo), func GetsockoptByte(int, int, int) (uint8, error)
+pkg syscall (openbsd-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (openbsd-amd64-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (openbsd-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
 pkg syscall (openbsd-amd64-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
 pkg syscall (openbsd-amd64-cgo), func GetsockoptInet4Addr(int, int, int) ([4]uint8, error)
 pkg syscall (openbsd-amd64-cgo), func GetsockoptInt(int, int, int) (int, error)
@@ -30916,6 +31205,7 @@ pkg syscall (openbsd-amd64-cgo), func Setreuid(int, int) error
 pkg syscall (openbsd-amd64-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (openbsd-amd64-cgo), func Setsid() (int, error)
 pkg syscall (openbsd-amd64-cgo), func SetsockoptByte(int, int, int, uint8) error
+pkg syscall (openbsd-amd64-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (openbsd-amd64-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
 pkg syscall (openbsd-amd64-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
 pkg syscall (openbsd-amd64-cgo), func SetsockoptInet4Addr(int, int, int, [4]uint8) error
@@ -30996,6 +31286,11 @@ pkg syscall (openbsd-amd64-cgo), type Flock_t struct, Type int16
 pkg syscall (openbsd-amd64-cgo), type Flock_t struct, Whence int16
 pkg syscall (openbsd-amd64-cgo), type Fsid struct
 pkg syscall (openbsd-amd64-cgo), type Fsid struct, Val [2]int32
+pkg syscall (openbsd-amd64-cgo), type ICMPv6Filter struct
+pkg syscall (openbsd-amd64-cgo), type ICMPv6Filter struct, Filt [8]uint32
+pkg syscall (openbsd-amd64-cgo), type IPv6MTUInfo struct
+pkg syscall (openbsd-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
+pkg syscall (openbsd-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (openbsd-amd64-cgo), type IfAnnounceMsghdr struct
 pkg syscall (openbsd-amd64-cgo), type IfAnnounceMsghdr struct, Hdrlen uint16
 pkg syscall (openbsd-amd64-cgo), type IfAnnounceMsghdr struct, Index uint16
