@@ -11,8 +11,8 @@ single Go package.
 
 <p>
 To lead with an example, here's a Go package that provides two functions -
-<code>Random</code> and <code>Seed</code> - that wrap C's <code>random</code>
-and <code>srandom</code> functions.
+<code>Random</code> and <code>Seed</code> - that wrap C's <code>rand</code>
+and <code>srand</code> functions.
 </p>
 
 {{code "/doc/progs/cgo1.go" `/package rand/` `/END/`}}
@@ -30,14 +30,14 @@ name space.
 
 <p>
 The <code>rand</code> package contains four references to the <code>C</code>
-package: the calls to <code>C.random</code> and <code>C.srandom</code>, the
+package: the calls to <code>C.rand</code> and <code>C.srand</code>, the
 conversion <code>C.uint(i)</code>, and the <code>import</code> statement.
 </p>
 
 <p>
 The <code>Random</code> function calls the standard C library's <code>random</code>
-function and returns the result.  In C, <code>random</code> returns a value of the
-C type <code>long</code>, which cgo represents as the type <code>C.long</code>.
+function and returns the result.  In C, <code>rand</code> returns a value of the
+C type <code>int</code>, which cgo represents as the type <code>C.int</code>.
 It must be converted to a Go type before it can be used by Go code outside this
 package, using an ordinary Go type conversion:
 </p>
@@ -54,7 +54,7 @@ the type conversion more explicitly:
 <p>
 The <code>Seed</code> function does the reverse, in a way. It takes a
 regular Go <code>int</code>, converts it to the C <code>unsigned int</code>
-type, and passes it to the C function <code>srandom</code>.
+type, and passes it to the C function <code>srand</code>.
 </p>
 
 {{code "/doc/progs/cgo1.go" `/func Seed/` `/END/`}}
