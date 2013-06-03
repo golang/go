@@ -298,6 +298,7 @@ runtime·unwindstack(G *gp, byte *sp)
 			break;
 		gp->stackbase = (uintptr)top->stackbase;
 		gp->stackguard = (uintptr)top->stackguard;
+		gp->stackguard0 = gp->stackguard;
 		if(top->free != 0)
 			runtime·stackfree(stk, top->free);
 	}

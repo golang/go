@@ -468,6 +468,7 @@ runtime·mstart(void)
 	// so other calls can reuse this stack space.
 	runtime·gosave(&m->g0->sched);
 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
+	m->g0->stackguard = m->g0->stackguard0;  // cgo sets only stackguard0, copy it to stackguard
 	m->seh = &seh;
 	runtime·asminit();
 	runtime·minit();
@@ -615,6 +616,7 @@ runtime·needm(byte x)
 	runtime·setmg(mp, mp->g0);
 	g->stackbase = (uintptr)(&x + 1024);
 	g->stackguard = (uintptr)(&x - 32*1024);
+	g->stackguard0 = g->stackguard;
 
 	// On windows/386, we need to put an SEH frame (two words)
 	// somewhere on the current stack. We are called
@@ -979,6 +981,7 @@ execute(G *gp)
 		runtime·throw("execute: bad g status");
 	}
 	gp->status = Grunning;
+	gp->stackguard0 = gp->stackguard;
 	m->p->tick++;
 	m->curg = gp;
 	gp->m = m;
@@ -1465,6 +1468,7 @@ runtime·malg(int32 stacksize)
 		}
 		newg->stack0 = (uintptr)stk;
 		newg->stackguard = (uintptr)stk + StackGuard;
+		newg->stackguard0 = newg->stackguard;
 		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
 		runtime·memclr((byte*)newg->stackbase, sizeof(Stktop));
 	}
