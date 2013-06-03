@@ -12,12 +12,12 @@ import "C"
 
 // STOP OMIT
 func Random() int {
-	return int(C.random())
+	return int(C.rand())
 }
 
 // STOP OMIT
 func Seed(i int) {
-	C.srandom(C.uint(i))
+	C.srand(C.uint(i))
 }
 
 // END OMIT

@@ -11,13 +11,13 @@ package rand2
 import "C"
 
 func Random() int {
-	var r C.long = C.random()
+	var r C.int = C.rand()
 	return int(r)
 }
 
 // STOP OMIT
 func Seed(i int) {
-	C.srandom(C.uint(i))
+	C.srand(C.uint(i))
 }
 
 // END OMIT
