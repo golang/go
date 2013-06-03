@@ -274,6 +274,7 @@ void
 runtime·ready(G *gp)
 {
 	// Mark runnable.
+	m->locks++;  // disable preemption because it can be holding p in a local var
 	if(gp->status != Gwaiting) {
 		runtime·printf("goroutine %D has status %d\n", gp->goid, gp->status);
 		runtime·throw("bad g->status in ready");
@@ -282,6 +283,7 @@ runtime·ready(G *gp)
 	runqput(m->p, gp);
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0)  // TODO: fast atomic
 		wakep();
+	m->locks--;
 }
 
 int32
@@ -398,6 +400,7 @@ runtime·starttheworld(void)
 	G *gp;
 	bool add;
 
+	m->locks++;  // disable preemption because it can be holding p in a local var
 	gp = runtime·netpoll(false);  // non-blocking
 	injectglist(gp);
 	add = needaddgcproc();
@@ -451,6 +454,7 @@ runtime·starttheworld(void)
 		// the maximum number of procs.
 		newm(mhelpgc, nil);
 	}
+	m->locks--;
 }
 
 // Called to start an M.
@@ -1509,6 +1513,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	int32 siz;
 
 //runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
+	m->locks++;  // disable preemption because it can be holding p in a local var
 	siz = narg + nret;
 	siz = (siz+7) & ~7;
 
@@ -1555,6 +1560,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
 		wakep();
+	m->locks--;
 	return newg;
 }
 
