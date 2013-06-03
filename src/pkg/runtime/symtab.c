@@ -204,7 +204,7 @@ dofunc(Sym *sym)
 		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
 			break;
 		if(sym->value < lastvalue) {
-			runtime·printf("symbols out of order: %p before %p\n", lastvalue, sym->value);
+			runtime·printf("runtime: symbols out of order: %p before %p\n", lastvalue, sym->value);
 			runtime·throw("malformed symbol table");
 		}
 		lastvalue = sym->value;
@@ -230,7 +230,7 @@ dofunc(Sym *sym)
 		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
 			// TODO(cshapiro): use a dense representation for gc information
 			if(sym->value != func[nfunc-1].args/sizeof(uintptr)) {
-				runtime·printf("pointer map size and argument size disagree\n");
+				runtime·printf("runtime: pointer map size and argument size disagree\n");
 				runtime·throw("mangled symbol table");
 			}
 			cap = ROUND(sym->value, 32) / 32;
@@ -239,12 +239,12 @@ dofunc(Sym *sym)
 			func[nfunc-1].ptrs.cap = cap;
 		} else if(runtime·strcmp(sym->name, (byte*)".ptrs") == 0) {
 			if(func[nfunc-1].ptrs.len >= func[nfunc-1].ptrs.cap) {
-				runtime·printf("more pointer map entries read than argument words\n");
+				runtime·printf("runtime: more pointer map entries read than argument words\n");
 				runtime·throw("mangled symbol table");
 			}
 			((uint32*)func[nfunc-1].ptrs.array)[func[nfunc-1].ptrs.len++] = sym->value;
 		} else {
-			runtime·printf("invalid '%c' symbol named '%s'\n", (int8)sym->symtype, sym->name);
+			runtime·printf("runtime: invalid '%c' symbol named '%s'\n", (int8)sym->symtype, sym->name);
 			runtime·throw("mangled symbol table");
 		}
 		break;
