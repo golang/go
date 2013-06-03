@@ -18,6 +18,7 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	$runtime·g0(SB), BP
 	LEAL	(-64*1024+104)(SP), BX
 	MOVL	BX, g_stackguard(BP)
+	MOVL	BX, g_stackguard0(BP)
 	MOVL	SP, g_stackbase(BP)
 	
 	// find out information about the processor we're on
@@ -41,6 +42,10 @@ nocpuinfo:
 	MOVL	BX, 4(SP)
 	MOVL	BP, 0(SP)
 	CALL	AX
+	// update stackguard after _cgo_init
+	MOVL	$runtime·g0(SB), CX
+	MOVL	g_stackguard0(CX), AX
+	MOVL	AX, g_stackguard(CX)
 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok

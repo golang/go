@@ -157,6 +157,7 @@ runtime·oldstack(void)
 	label = top->gobuf;
 	gp->stackbase = (uintptr)top->stackbase;
 	gp->stackguard = (uintptr)top->stackguard;
+	gp->stackguard0 = gp->stackguard;
 	if(top->free != 0)
 		runtime·stackfree(old, top->free);
 
@@ -249,6 +250,7 @@ runtime·newstack(void)
 
 	gp->stackbase = (uintptr)top;
 	gp->stackguard = (uintptr)stk + StackGuard;
+	gp->stackguard0 = gp->stackguard;
 
 	sp = (byte*)top;
 	if(argsize > 0) {

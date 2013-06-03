@@ -226,7 +226,8 @@ struct	GCStats
 };
 struct	G
 {
-	uintptr	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
+	// stackguard0 can be set to StackPreempt as opposed to stackguard
+	uintptr	stackguard0;	// cannot move - also known to linker, libmach, runtime/cgo
 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
 	Defer*	defer;
 	Panic*	panic;
@@ -235,6 +236,7 @@ struct	G
 	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
 	byte*	gcpc;		// if status==Gsyscall, gcpc = sched.pc to use during gc
 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
 	FuncVal*	fnstart;		// initial function
 	G*	alllink;	// on allg

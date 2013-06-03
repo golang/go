@@ -18,6 +18,7 @@ TEXT _rt0_amd64(SB),7,$-8
 	MOVQ	$runtime·g0(SB), DI
 	LEAQ	(-64*1024+104)(SP), BX
 	MOVQ	BX, g_stackguard(DI)
+	MOVQ	BX, g_stackguard0(DI)
 	MOVQ	SP, g_stackbase(DI)
 
 	// find out information about the processor we're on
@@ -39,6 +40,10 @@ nocpuinfo:
 	MOVQ	DI, CX	// Win64 uses CX for first parameter
 	MOVQ	$setmg_gcc<>(SB), SI
 	CALL	AX
+	// update stackguard after _cgo_init
+	MOVQ	$runtime·g0(SB), CX
+	MOVQ	g_stackguard0(CX), AX
+	MOVQ	AX, g_stackguard(CX)
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok
 
