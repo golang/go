@@ -114,11 +114,16 @@ func stressExec() {
 	}
 }
 
-func ringf(in <-chan int, out chan<- int, donec chan<- bool) {
+func ringf(in <-chan int, out chan<- int, donec chan bool) {
 	for {
-		n := <-in
+		var n int
+		select {
+		case <-donec:
+			return
+		case n = <-in:
+		}
 		if n == 0 {
-			donec <- true
+			close(donec)
 			return
 		}
 		out <- n - 1
