@@ -373,6 +373,7 @@ Usage:
 	go run [build flags] gofiles... [arguments...]
 
 Run compiles and runs the main package comprising the named Go source files.
+A Go source file is defined to be a file ending in a literal ".go" suffix.
 
 For more about build flags, see 'go help build'.
 
@@ -383,7 +384,7 @@ Test packages
 
 Usage:
 
-	go test [-c] [-i] [build flags] [packages] [flags for test binary]
+	go test [-c] [-i] [build and test flags] [packages] [flags for test binary]
 
 'Go test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
@@ -420,6 +421,11 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.  See 'go help testflag' for details.
+
+If the test binary needs any other flags, they should be presented after the
+package names. The go tool treats as a flag the first argument that begins with
+a minus sign that it does not recognize itself; that argument and all subsequent
+arguments are passed as arguments to the test binary.
 
 For more about build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
