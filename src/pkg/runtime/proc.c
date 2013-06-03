@@ -110,6 +110,8 @@ static G* globrunqget(P*);
 static P* pidleget(void);
 static void pidleput(P*);
 static void injectglist(G*);
+static void preemptall(void);
+static void preemptone(P*);
 
 // The bootstrap sequence is:
 //
@@ -2071,6 +2073,45 @@ retake(uint32 *ticks)
 		inclocked(1);
 	}
 	return n;
+}
+
+// Tell all goroutines that they have been preempted and they should stop.
+// This function is purely best-effort.  It can fail to inform a goroutine if a
+// processor just started running it.
+// No locks need to be held.
+static void
+preemptall(void)
+{
+	P *p;
+	int32 i;
+
+	for(i = 0; i < runtime·gomaxprocs; i++) {
+		p = runtime·allp[i];
+		if(p == nil || p->status != Prunning)
+			continue;
+		preemptone(p);
+	}
+}
+
+// Tell the goroutine running on processor P to stop.
+// This function is purely best-effort.  It can incorrectly fail to inform the
+// goroutine.  It can send inform the wrong goroutine.  Even if it informs the
+// correct goroutine, that goroutine might ignore the request if it is
+// simultaneously executing runtime·newstack.
+// No lock needs to be held.
+static void
+preemptone(P *p)
+{
+	M *mp;
+	G *gp;
+
+	mp = p->m;
+	if(mp == nil || mp == m)
+		return;
+	gp = mp->curg;
+	if(gp == nil || gp == mp->g0)
+		return;
+	gp->stackguard0 = StackPreempt;
 }
 
 // Put mp on midle list.
