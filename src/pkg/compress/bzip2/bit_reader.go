@@ -77,6 +77,14 @@ func (br *bitReader) ReadBit() bool {
 	return n != 0
 }
 
+func (br *bitReader) TryReadBit() (bit byte, ok bool) {
+	if br.bits > 0 {
+		br.bits--
+		return byte(br.n>>br.bits) & 1, true
+	}
+	return 0, false
+}
+
 func (br *bitReader) Err() error {
 	return br.err
 }

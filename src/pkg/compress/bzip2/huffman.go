@@ -33,14 +33,17 @@ const invalidNodeValue = 0xffff
 
 // Decode reads bits from the given bitReader and navigates the tree until a
 // symbol is found.
-func (t huffmanTree) Decode(br *bitReader) (v uint16) {
+func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
 	nodeIndex := uint16(0) // node 0 is the root of the tree.
 
 	for {
 		node := &t.nodes[nodeIndex]
-		bit := br.ReadBit()
+		bit, ok := br.TryReadBit()
+		if !ok && br.ReadBit() {
+			bit = 1
+		}
 		// bzip2 encodes left as a true bit.
-		if bit {
+		if bit != 0 {
 			// left
 			if node.left == invalidNodeValue {
 				return node.leftValue
