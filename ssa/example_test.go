@@ -55,7 +55,7 @@ func main() {
 
 	// Construct an SSA builder.
 	builder := ssa.NewBuilder(&ssa.Context{}, imp)
-	mainPkg := builder.PackageFor(info.Pkg)
+	mainPkg := builder.Prog.Package(info.Pkg)
 
 	// Print out the package.
 	mainPkg.DumpTo(os.Stdout)

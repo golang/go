@@ -95,10 +95,6 @@ const (
 type Builder struct {
 	Prog    *Program // the program being built
 	Context *Context // the client context
-
-	imp      *importer.Importer          // ASTs and types for loaded packages
-	packages map[*types.Package]*Package // SSA packages by types.Package
-	globals  map[types.Object]Value      // all package-level funcs and vars, and universal built-ins
 }
 
 // NewBuilder creates and returns a new SSA builder with options
@@ -116,45 +112,46 @@ type Builder struct {
 // analysis may then begin.
 //
 func NewBuilder(context *Context, imp *importer.Importer) *Builder {
-	b := &Builder{
-		Prog: &Program{
-			Files:           imp.Fset,
-			Packages:        make(map[string]*Package),
-			Builtins:        make(map[types.Object]*Builtin),
-			methodSets:      make(map[types.Type]MethodSet),
-			concreteMethods: make(map[*types.Func]*Function),
-			mode:            context.Mode,
-		},
-		Context:  context,
-		imp:      imp,
-		globals:  make(map[types.Object]Value),
-		packages: make(map[*types.Package]*Package),
+	prog := &Program{
+		Files:           imp.Fset,
+		Packages:        make(map[string]*Package),
+		packages:        make(map[*types.Package]*Package),
+		Builtins:        make(map[types.Object]*Builtin),
+		methodSets:      make(map[types.Type]MethodSet),
+		concreteMethods: make(map[*types.Func]*Function),
+		mode:            context.Mode,
 	}
 
 	// Create Values for built-in functions.
 	for i, n := 0, types.Universe.NumEntries(); i < n; i++ {
-		switch obj := types.Universe.At(i).(type) {
-		case *types.Func:
-			v := &Builtin{obj}
-			b.globals[obj] = v
-			b.Prog.Builtins[obj] = v
+		if obj, ok := types.Universe.At(i).(*types.Func); ok {
+			prog.Builtins[obj] = &Builtin{obj}
 		}
 	}
 
+	b := &Builder{
+		Prog:    prog,
+		Context: context,
+	}
+
+	// TODO(adonovan): split the rest off as a separate method of Prog.
+
 	// Create ssa.Package for each types.Package.
+	// TODO(adonovan): rethink the API to avoid phase ordering issues.
+	// (What if the Importer was to load more packages later?)
 	for path, info := range imp.Packages {
 		p := b.createPackage(info)
-		b.Prog.Packages[path] = p
-		b.packages[p.Types] = p
+		prog.Packages[path] = p
+		prog.packages[p.Types] = p
 	}
 
 	// Compute the method sets, now that we have all packages' methods.
-	for _, pkg := range b.Prog.Packages {
+	for _, pkg := range prog.Packages {
 		for _, mem := range pkg.Members {
 			switch t := mem.(type) {
 			case *Type:
-				t.Methods = b.Prog.MethodSet(t.NamedType)
-				t.PtrMethods = b.Prog.MethodSet(pointer(t.NamedType))
+				t.Methods = prog.MethodSet(t.NamedType)
+				t.PtrMethods = prog.MethodSet(pointer(t.NamedType))
 			}
 		}
 	}
@@ -162,40 +159,27 @@ func NewBuilder(context *Context, imp *importer.Importer) *Builder {
 	return b
 }
 
-// PackageFor returns the ssa.Package corresponding to the specified
-// types.Package, or nil if this builder has not created such a
-// package.
-//
-// TODO(adonovan): better name?
-// TODO(adonovan): can we make this a method of Program?
-//
-func (b *Builder) PackageFor(p *types.Package) *Package {
-	return b.packages[p]
-}
-
-// lookup returns the package-level *Function or *Global (or universal
-// *Builtin) for the named object obj.
+// lookup returns the package-level *Function or *Global for the named
+// object obj, building it if necessary.
 //
 // Intra-package references are edges in the initialization dependency
 // graph.  If the result v is a Function or Global belonging to
 // 'from', the package on whose behalf this lookup occurs, then lookup
 // emits initialization code into from.Init if not already done.
 //
-func (b *Builder) lookup(from *Package, obj types.Object) (v Value, ok bool) {
-	v, ok = b.globals[obj]
-	if ok {
-		switch v := v.(type) {
-		case *Function:
-			if from == v.Pkg {
-				b.buildFunction(v)
-			}
-		case *Global:
-			if from == v.Pkg {
-				b.buildGlobal(v, obj)
-			}
+func (b *Builder) lookup(from *Package, obj types.Object) Value {
+	v := b.Prog.Value(obj)
+	switch v := v.(type) {
+	case *Function:
+		if from == v.Pkg {
+			b.buildFunction(v)
+		}
+	case *Global:
+		if from == v.Pkg {
+			b.buildGlobal(v, obj)
 		}
 	}
-	return
+	return v
 }
 
 // cond emits to fn code to evaluate boolean condition e and jump
@@ -578,8 +562,8 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 	switch e := e.(type) {
 	case *ast.Ident:
 		obj := fn.Pkg.objectOf(e)
-		v, ok := b.lookup(fn.Pkg, obj) // var (address)
-		if !ok {
+		v := b.lookup(fn.Pkg, obj) // var (address)
+		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
 		return address{addr: v}
@@ -601,7 +585,7 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 	case *ast.SelectorExpr:
 		// p.M where p is a package.
 		if obj := fn.Pkg.info.IsPackageRef(e); obj != nil {
-			if v, ok := b.lookup(fn.Pkg, obj); ok {
+			if v := b.lookup(fn.Pkg, obj); v != nil {
 				return address{addr: v}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
@@ -817,8 +801,12 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 
 	case *ast.Ident:
 		obj := fn.Pkg.objectOf(e)
-		// Global or universal?
-		if v, ok := b.lookup(fn.Pkg, obj); ok {
+		// Universal built-in?
+		if obj.Pkg() == nil {
+			return b.Prog.Builtins[obj]
+		}
+		// Package-level func or var?
+		if v := b.lookup(fn.Pkg, obj); v != nil {
 			if _, ok := obj.(*types.Var); ok {
 				return emitLoad(fn, v) // var (address)
 			}
@@ -958,7 +946,7 @@ func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// Case 1: call of form x.F() where x is a package name.
 	if obj := fn.Pkg.info.IsPackageRef(sel); obj != nil {
 		// This is a specialization of expr(ast.Ident(obj)).
-		if v, ok := b.lookup(fn.Pkg, obj); ok {
+		if v := b.lookup(fn.Pkg, obj); v != nil {
 			if _, ok := v.(*Function); !ok {
 				v = emitLoad(fn, v) // var (address)
 			}
@@ -1111,7 +1099,7 @@ func (b *Builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token)
 // buildGlobal emits code to the g.Pkg.Init function for the variable
 // definition(s) of g.  Effects occur out of lexical order; see
 // explanation at globalValueSpec.
-// Precondition: g == b.globals[obj]
+// Precondition: g == b.Prog.Value(obj)
 //
 func (b *Builder) buildGlobal(g *Global, obj types.Object) {
 	spec := g.spec
@@ -1134,7 +1122,7 @@ func (b *Builder) buildGlobal(g *Global, obj types.Object) {
 // B) with g and obj nil, to initialize all globals in the same ValueSpec.
 //    This occurs during the left-to-right traversal over the ast.File.
 //
-// Precondition: g == b.globals[obj]
+// Precondition: g == b.Prog.Value(obj)
 //
 // Package-level var initialization order is quite subtle.
 // The side effects of:
@@ -1181,7 +1169,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 			} else {
 				// Mode B: initialize all globals.
 				if !isBlankIdent(id) {
-					g2 := b.globals[init.Pkg.objectOf(id)].(*Global)
+					g2 := b.Prog.Value(init.Pkg.objectOf(id)).(*Global)
 					if g2.spec == nil {
 						continue // already done
 					}
@@ -1215,7 +1203,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 			result := tuple.Type().(*types.Tuple)
 			for i, id := range spec.Names {
 				if !isBlankIdent(id) {
-					g := b.globals[init.Pkg.objectOf(id)].(*Global)
+					g := b.Prog.Value(init.Pkg.objectOf(id)).(*Global)
 					g.spec = nil // just an optimization
 					emitStore(init, g, emitExtract(init, tuple, i, result.At(i).Type()))
 				}
@@ -1853,7 +1841,7 @@ func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = b.globals[types.Universe.Lookup(nil, "len")]
+		c.Call.Func = b.Prog.Builtins[types.Universe.Lookup(nil, "len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -2328,7 +2316,7 @@ func (b *Builder) buildFunction(fn *Function) {
 		}
 		return
 	}
-	if fn.Prog.mode&LogSource != 0 {
+	if b.Context.Mode&LogSource != 0 {
 		defer logStack("build function %s @ %s",
 			fn.FullName(), fn.Prog.Files.Position(fn.pos))()
 	}
@@ -2375,7 +2363,7 @@ func (b *Builder) memberFromObject(pkg *Package, obj types.Object, syntax ast.No
 			pos:  obj.Pos(),
 			spec: spec,
 		}
-		b.globals[obj] = g
+		pkg.values[obj] = g
 		pkg.Members[name] = g
 
 	case *types.Func:
@@ -2399,7 +2387,7 @@ func (b *Builder) memberFromObject(pkg *Package, obj types.Object, syntax ast.No
 		}
 		if sig.Recv() == nil {
 			// Function declaration.
-			b.globals[obj] = fn
+			pkg.values[obj] = fn
 			pkg.Members[name] = fn
 		} else {
 			// Method declaration.
@@ -2476,6 +2464,7 @@ func (b *Builder) createPackage(info *importer.PackageInfo) *Package {
 	p := &Package{
 		Prog:    b.Prog,
 		Members: make(map[string]Member),
+		values:  make(map[types.Object]Value),
 		Types:   info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
 	}
@@ -2519,8 +2508,6 @@ func (b *Builder) createPackage(info *importer.PackageInfo) *Package {
 		p.DumpTo(os.Stderr)
 	}
 
-	p.info = nil
-
 	return p
 }
 
@@ -2551,10 +2538,13 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 
 	case *ast.FuncDecl:
 		id := decl.Name
+		if decl.Recv != nil {
+			return // method declaration
+		}
 		if isBlankIdent(id) {
 			// no-op
 
-		} else if decl.Recv == nil && id.Name == "init" {
+		} else if id.Name == "init" {
 			// init() block
 			if b.Context.Mode&LogSource != 0 {
 				fmt.Fprintln(os.Stderr, "build init block @", b.Prog.Files.Position(decl.Pos()))
@@ -2578,9 +2568,9 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 			init.targets = init.targets.tail
 			init.currentBlock = next
 
-		} else if m, ok := b.globals[pkg.objectOf(id)]; ok {
+		} else {
 			// Package-level function.
-			b.buildFunction(m.(*Function))
+			b.buildFunction(b.Prog.Value(pkg.objectOf(id)).(*Function))
 		}
 	}
 
@@ -2616,11 +2606,8 @@ func (b *Builder) BuildPackage(p *Package) {
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
 		return // already started
 	}
-	info := b.imp.Packages[p.Types.Path()]
-	if info == nil {
-		panic("no PackageInfo for " + p.Types.Path())
-	}
-	if info.Files == nil {
+	if p.info.Files == nil {
+		p.info = nil
 		return // nothing to do
 	}
 
@@ -2628,7 +2615,6 @@ func (b *Builder) BuildPackage(p *Package) {
 	// package-specific part (needn't be exported) containing
 	// info, nto1Vars which actually traverses the AST, plus the
 	// shared portion (Builder).
-	p.info = info
 	p.nTo1Vars = make(map[*ast.ValueSpec]bool)
 
 	if b.Context.Mode&LogSource != 0 {
@@ -2651,7 +2637,7 @@ func (b *Builder) BuildPackage(p *Package) {
 	// transitive closure of dependencies,
 	// e.g. when using GcImporter.
 	seen := make(map[*types.Package]bool)
-	for _, file := range info.Files {
+	for _, file := range p.info.Files {
 		for _, imp := range file.Imports {
 			path, _ := strconv.Unquote(imp.Path.Value)
 			if path == "unsafe" {
@@ -2663,7 +2649,7 @@ func (b *Builder) BuildPackage(p *Package) {
 			}
 			seen[typkg] = true
 
-			p2 := b.packages[typkg]
+			p2 := b.Prog.packages[typkg]
 			if p2 == nil {
 				panic("Building " + p.String() + ": CreatePackage has not been called for package " + path)
 			}
@@ -2684,7 +2670,7 @@ func (b *Builder) BuildPackage(p *Package) {
 	//
 	// We also ensure all functions and methods are built, even if
 	// they are unreachable.
-	for _, file := range info.Files {
+	for _, file := range p.info.Files {
 		for _, decl := range file.Decls {
 			b.buildDecl(p, decl)
 		}

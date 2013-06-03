@@ -19,9 +19,10 @@ import (
 // lifetime.
 //
 type Program struct {
-	Files    *token.FileSet            // position information for the files of this Program [TODO: rename Fset]
-	Packages map[string]*Package       // all loaded Packages, keyed by import path
-	Builtins map[types.Object]*Builtin // all built-in functions, keyed by typechecker objects.
+	Files    *token.FileSet              // position information for the files of this Program [TODO: rename Fset]
+	Packages map[string]*Package         // all loaded Packages, keyed by import path [TODO rename packagesByPath]
+	packages map[*types.Package]*Package // all loaded Packages, keyed by object [TODO rename Packages]
+	Builtins map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
 
 	methodSets      map[types.Type]MethodSet  // concrete method sets for all needed types  [TODO(adonovan): de-dup]
 	methodSetsMu    sync.Mutex                // serializes all accesses to methodSets
@@ -35,13 +36,14 @@ type Program struct {
 // type-specific accessor methods Func, Type, Var and Const.
 //
 type Package struct {
-	Prog    *Program          // the owning program
-	Types   *types.Package    // the type checker's package object for this package
-	Members map[string]Member // all exported and unexported members of the package
-	Init    *Function         // the package's (concatenated) init function
+	Prog    *Program               // the owning program
+	Types   *types.Package         // the type checker's package object for this package [TODO rename Object]
+	Members map[string]Member      // all package members keyed by name
+	values  map[types.Object]Value // package-level vars and funcs, keyed by object
+	Init    *Function              // the package's (concatenated) init function
 
-	// The following fields are set transiently during building,
-	// then cleared.
+	// The following fields are set transiently, then cleared
+	// after building.
 	started  int32                   // atomically tested and set at start of build phase
 	info     *importer.PackageInfo   // package ASTs and type information
 	nTo1Vars map[*ast.ValueSpec]bool // set of n:1 ValueSpecs already built
@@ -1318,6 +1320,28 @@ func (p *Package) Const(name string) (c *Constant) {
 func (p *Package) Type(name string) (t *Type) {
 	t, _ = p.Members[name].(*Type)
 	return
+}
+
+// Value returns the program-level value corresponding to the
+// specified named object, which may be a universal built-in
+// (*Builtin) or a package-level var (*Global) or func (*Function) of
+// some package in prog.  It returns nil if the object is not found.
+//
+func (prog *Program) Value(obj types.Object) Value {
+	if p := obj.Pkg(); p != nil {
+		if pkg, ok := prog.packages[p]; ok {
+			return pkg.values[obj]
+		}
+		return nil
+	}
+	return prog.Builtins[obj]
+}
+
+// Package returns the SSA package corresponding to the specified
+// type-checker package object.  It returns nil if not found.
+//
+func (prog *Program) Package(pkg *types.Package) *Package {
+	return prog.packages[pkg]
 }
 
 func (v *Call) Pos() token.Pos      { return v.Call.pos }

@@ -172,7 +172,7 @@ func run(t *testing.T, dir, input string) bool {
 	}
 
 	b := ssa.NewBuilder(&ssa.Context{Mode: ssa.SanityCheckFunctions}, imp)
-	mainpkg := b.PackageFor(info.Pkg)
+	mainpkg := b.Prog.Package(info.Pkg)
 
 	b.BuildAllPackages()
 	b = nil // discard Builder

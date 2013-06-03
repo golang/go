@@ -253,7 +253,7 @@ func TestEnclosingFunction(t *testing.T) {
 		}
 
 		b := ssa.NewBuilder(new(ssa.Context), imp)
-		pkg := b.PackageFor(info.Pkg)
+		pkg := b.Prog.Package(info.Pkg)
 		b.BuildPackage(pkg)
 
 		name := "(none)"
