@@ -105,4 +105,9 @@ enum {
 	// The actual size can be smaller than this but cannot be larger.
 	// Checked in proc.c's runtime.malg.
 	StackTop = 72,
+
+	// Goroutine preemption request.
+	// Stored into g->stackguard0 to cause split stack check failure.
+	// Must be greater than any real sp.
+	StackPreempt = (uintptr)(intptr)0xfffffade,
 };
