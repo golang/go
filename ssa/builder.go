@@ -1,22 +1,23 @@
 package ssa
 
-// This file defines the SSA builder.
+// This file implements the BUILD phase of SSA construction.
 //
-// The builder has two phases, CREATE and BUILD.  In the CREATE
-// phase, all packages are constructed and type-checked and
+// SSA construction has two phases, CREATE and BUILD.  In the CREATE phase
+// (create.go), all packages are constructed and type-checked and
 // definitions of all package members are created, method-sets are
 // computed, and bridge methods are synthesized.  The create phase
 // proceeds in topological order over the import dependency graph,
-// initiated by client calls to CreatePackage.
+// initiated by client calls to CreatePackages.
 //
-// In the BUILD phase, the Builder traverses the AST of each Go source
-// function and generates SSA instructions for the function body.
+// In the BUILD phase (builder.go), the builder traverses the AST of
+// each Go source function and generates SSA instructions for the
+// function body.
 // Within each package, building proceeds in a topological order over
 // the intra-package symbol reference graph, whose roots are the set
 // of package-level declarations in lexical order.  The BUILD phases
 // for distinct packages are independent and are executed in parallel.
 //
-// The Builder's and Program's indices (maps) are populated and
+// The builder's and Program's indices (maps) are populated and
 // mutated during the CREATE phase, but during the BUILD phase they
 // remain constant.  The sole exception is Prog.methodSets, which is
 // protected by a dedicated mutex.
@@ -26,13 +27,11 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
 )
 
 type opaqueType struct {
@@ -67,96 +66,10 @@ var (
 	vFalse = newLiteral(exact.MakeBool(false), tBool)
 )
 
-// A Context specifies the supporting context for SSA construction.
-//
-type Context struct {
-	// Mode is a bitfield of options controlling verbosity,
-	// logging and additional sanity checks.
-	Mode BuilderMode
-}
-
-// BuilderMode is a bitmask of options for diagnostics and checking.
-type BuilderMode uint
-
-const (
-	LogPackages          BuilderMode = 1 << iota // Dump package inventory to stderr
-	LogFunctions                                 // Dump function SSA code to stderr
-	LogSource                                    // Show source locations as SSA builder progresses
-	SanityCheckFunctions                         // Perform sanity checking of function bodies
-	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
-	BuildSerially                                // Build packages serially, not in parallel.
-)
-
-// A Builder builds the SSA representation of a single Go program: a
-// Program containing one or more Packages.
-//
-// Use NewBuilder to create a Builder.
-//
-type Builder struct {
-	Prog    *Program // the program being built
-	Context *Context // the client context
-}
-
-// NewBuilder creates and returns a new SSA builder with options
-// specified by context.
-//
-// For each package loaded by imp, a new SSA Package is created for it
-// and added to the Program.  All such packages must be error-free.
-//
-// A typical client will create a Builder with NewBuilder; this causes
-// all SSA Packages to be created; then call BuildPackage or
-// BuildAllPackages to construct SSA-form code for all functions and
-// methods in one or more packages.  After that, the representation of
-// the program (Builder.Prog) is complete and transitively closed, and
-// the Builder and Importer objects can be discarded.  The client's
-// analysis may then begin.
-//
-func NewBuilder(context *Context, imp *importer.Importer) *Builder {
-	prog := &Program{
-		Files:           imp.Fset,
-		Packages:        make(map[string]*Package),
-		packages:        make(map[*types.Package]*Package),
-		Builtins:        make(map[types.Object]*Builtin),
-		methodSets:      make(map[types.Type]MethodSet),
-		concreteMethods: make(map[*types.Func]*Function),
-		mode:            context.Mode,
-	}
-
-	// Create Values for built-in functions.
-	for i, n := 0, types.Universe.NumEntries(); i < n; i++ {
-		if obj, ok := types.Universe.At(i).(*types.Func); ok {
-			prog.Builtins[obj] = &Builtin{obj}
-		}
-	}
-
-	b := &Builder{
-		Prog:    prog,
-		Context: context,
-	}
-
-	// TODO(adonovan): split the rest off as a separate method of Prog.
-
-	// Create ssa.Package for each types.Package.
-	// TODO(adonovan): rethink the API to avoid phase ordering issues.
-	// (What if the Importer was to load more packages later?)
-	for path, info := range imp.Packages {
-		p := b.createPackage(info)
-		prog.Packages[path] = p
-		prog.packages[p.Types] = p
-	}
-
-	// Compute the method sets, now that we have all packages' methods.
-	for _, pkg := range prog.Packages {
-		for _, mem := range pkg.Members {
-			switch t := mem.(type) {
-			case *Type:
-				t.Methods = prog.MethodSet(t.NamedType)
-				t.PtrMethods = prog.MethodSet(pointer(t.NamedType))
-			}
-		}
-	}
-
-	return b
+// builder holds state associated with the package currently being built.
+// Its methods contain all the logic for AST-to-SSA conversion.
+type builder struct {
+	nTo1Vars map[*ast.ValueSpec]bool // set of n:1 ValueSpecs already built
 }
 
 // lookup returns the package-level *Function or *Global for the named
@@ -167,8 +80,8 @@ func NewBuilder(context *Context, imp *importer.Importer) *Builder {
 // 'from', the package on whose behalf this lookup occurs, then lookup
 // emits initialization code into from.Init if not already done.
 //
-func (b *Builder) lookup(from *Package, obj types.Object) Value {
-	v := b.Prog.Value(obj)
+func (b *builder) lookup(from *Package, obj types.Object) Value {
+	v := from.Prog.Value(obj)
 	switch v := v.(type) {
 	case *Function:
 		if from == v.Pkg {
@@ -187,7 +100,7 @@ func (b *Builder) lookup(from *Package, obj types.Object) Value {
 //
 // Postcondition: fn.currentBlock is nil.
 //
-func (b *Builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
+func (b *builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
 	switch e := e.(type) {
 	case *ast.ParenExpr:
 		b.cond(fn, e.X, t, f)
@@ -234,7 +147,7 @@ func (b *Builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
 // ||-expression whose reified boolean value is wanted.
 // The value is returned.
 //
-func (b *Builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
+func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 	rhs := fn.newBasicBlock("binop.rhs")
 	done := fn.newBasicBlock("binop.done")
 
@@ -289,7 +202,7 @@ func (b *Builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 // TypeAssertExpr, IndexExpr (when X is a map), and UnaryExpr (when Op
 // is token.ARROW).
 //
-func (b *Builder) exprN(fn *Function, e ast.Expr) Value {
+func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 	var typ types.Type
 	var tuple Value
 	switch e := e.(type) {
@@ -354,7 +267,7 @@ func (b *Builder) exprN(fn *Function, e ast.Expr) Value {
 // the caller should treat this like an ordinary library function
 // call.
 //
-func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.Type, pos token.Pos) Value {
+func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.Type, pos token.Pos) Value {
 	switch name {
 	case "make":
 		switch typ.Underlying().(type) {
@@ -425,14 +338,14 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 // indicates whether the caller intends to use the resulting pointer
 // in a potentially escaping way.
 //
-func (b *Builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
+func (b *builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
 	id := MakeId(e.Sel.Name, fn.Pkg.Types)
 
 	// Bound method closure?  (e.m where m is a method)
 	if !wantAddr {
 		if m, recv := b.findMethod(fn, e.X, id); m != nil {
 			c := &MakeClosure{
-				Fn:       makeBoundMethodThunk(b.Prog, m, recv),
+				Fn:       makeBoundMethodThunk(fn.Prog, m, recv),
 				Bindings: []Value{recv},
 			}
 			c.setPos(e.Sel.Pos())
@@ -473,7 +386,7 @@ func (b *Builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping
 //
 // (fieldType can be derived from base+index.)
 //
-func (b *Builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos, escaping bool) Value {
+func (b *builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos, escaping bool) Value {
 	var x Value
 	if path != nil {
 		switch path.field.Type.Underlying().(type) {
@@ -506,7 +419,7 @@ func (b *Builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, in
 //
 // (fieldType can be derived from base+index.)
 //
-func (b *Builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos) Value {
+func (b *builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos) Value {
 	var x Value
 	if path != nil {
 		x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type, token.NoPos)
@@ -558,7 +471,7 @@ func (b *Builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, in
 // - a[:] iff a is an array (not *array)
 // - references to variables in lexically enclosing functions.
 //
-func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
+func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 	switch e := e.(type) {
 	case *ast.Ident:
 		obj := fn.Pkg.objectOf(e)
@@ -637,7 +550,7 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 // generate better code in some cases, e.g. for composite literals
 // in an addressable location.
 //
-func (b *Builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
+func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 	if addr, ok := loc.(address); ok {
 		if e, ok := e.(*ast.CompositeLit); ok {
 			typ := addr.typ()
@@ -664,7 +577,7 @@ func (b *Builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 // expr lowers a single-result expression e to SSA form, emitting code
 // to fn and returning the Value defined by the expression.
 //
-func (b *Builder) expr(fn *Function, e ast.Expr) Value {
+func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
 		return newLiteral(v, fn.Pkg.typeOf(e))
 	}
@@ -674,14 +587,14 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		panic("non-constant BasicLit") // unreachable
 
 	case *ast.FuncLit:
-		posn := b.Prog.Files.Position(e.Type.Func)
+		posn := fn.Prog.Files.Position(e.Type.Func)
 		fn2 := &Function{
 			name:      fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
 			Signature: fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
 			pos:       e.Type.Func,
 			Enclosing: fn,
 			Pkg:       fn.Pkg,
-			Prog:      b.Prog,
+			Prog:      fn.Prog,
 			syntax: &funcSyntax{
 				paramFields:  e.Type.Params,
 				resultFields: e.Type.Results,
@@ -803,7 +716,7 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		obj := fn.Pkg.objectOf(e)
 		// Universal built-in?
 		if obj.Pkg() == nil {
-			return b.Prog.Builtins[obj]
+			return fn.Prog.Builtins[obj]
 		}
 		// Package-level func or var?
 		if v := b.lookup(fn.Pkg, obj); v != nil {
@@ -825,12 +738,12 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		if fn.Pkg.info.IsType(e.X) {
 			id := MakeId(e.Sel.Name, fn.Pkg.Types)
 			typ := fn.Pkg.typeOf(e.X)
-			if m := b.Prog.MethodSet(typ)[id]; m != nil {
+			if m := fn.Prog.MethodSet(typ)[id]; m != nil {
 				return m
 			}
 
 			// T must be an interface; return method thunk.
-			return makeImethodThunk(b.Prog, typ, id)
+			return makeImethodThunk(fn.Prog, typ, id)
 		}
 
 		// e.f where e is an expression.  f may be a method.
@@ -885,7 +798,7 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 }
 
 // stmtList emits to fn code for all statements in list.
-func (b *Builder) stmtList(fn *Function, list []ast.Stmt) {
+func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 	for _, s := range list {
 		b.stmt(fn, s)
 	}
@@ -898,11 +811,11 @@ func (b *Builder) stmtList(fn *Function, list []ast.Stmt) {
 //
 // findMethod returns (nil, nil) if no such method was found.
 //
-func (b *Builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Value) {
+func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Value) {
 	typ := fn.Pkg.typeOf(base)
 
 	// Consult method-set of X.
-	if m := b.Prog.MethodSet(typ)[id]; m != nil {
+	if m := fn.Prog.MethodSet(typ)[id]; m != nil {
 		aptr := isPointer(typ)
 		fptr := isPointer(m.Signature.Recv().Type())
 		if aptr == fptr {
@@ -915,7 +828,7 @@ func (b *Builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 	}
 	if !isPointer(typ) {
 		// Consult method-set of *X.
-		if m := b.Prog.MethodSet(pointer(typ))[id]; m != nil {
+		if m := fn.Prog.MethodSet(pointer(typ))[id]; m != nil {
 			// A method found only in MS(*X) must have a
 			// pointer formal receiver; but the actual
 			// value is not a pointer.
@@ -930,7 +843,7 @@ func (b *Builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 // (Func, Method, Recv, Args[0]) based on the kind of invocation
 // occurring in e.
 //
-func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
+func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	c.pos = e.Lparen
 	c.HasEllipsis = e.Ellipsis != 0
 
@@ -1003,7 +916,7 @@ func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 // a (possibly built-in) function of effective type sig.
 // The argument values are appended to args, which is then returned.
 //
-func (b *Builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallExpr, args []Value) []Value {
+func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallExpr, args []Value) []Value {
 	// f(x, y, z...): pass slice z straight through.
 	if e.Ellipsis != 0 {
 		for i, arg := range e.Args {
@@ -1078,7 +991,7 @@ func (b *Builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 // setCall emits to fn code to evaluate all the parameters of a function
 // call e, and populates *c with those values.
 //
-func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
+func (b *builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// First deal with the f(...) part and optional receiver.
 	b.setCallFunc(fn, e, c)
 
@@ -1091,7 +1004,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 }
 
 // assignOp emits to fn code to perform loc += incr or loc -= incr.
-func (b *Builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token) {
+func (b *builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token) {
 	oldv := loc.load(fn)
 	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ(), token.NoPos))
 }
@@ -1099,9 +1012,9 @@ func (b *Builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token)
 // buildGlobal emits code to the g.Pkg.Init function for the variable
 // definition(s) of g.  Effects occur out of lexical order; see
 // explanation at globalValueSpec.
-// Precondition: g == b.Prog.Value(obj)
+// Precondition: g == g.Prog.Value(obj)
 //
-func (b *Builder) buildGlobal(g *Global, obj types.Object) {
+func (b *builder) buildGlobal(g *Global, obj types.Object) {
 	spec := g.spec
 	if spec == nil {
 		return // already built (or in progress)
@@ -1122,7 +1035,7 @@ func (b *Builder) buildGlobal(g *Global, obj types.Object) {
 // B) with g and obj nil, to initialize all globals in the same ValueSpec.
 //    This occurs during the left-to-right traversal over the ast.File.
 //
-// Precondition: g == b.Prog.Value(obj)
+// Precondition: g == g.Prog.Value(obj)
 //
 // Package-level var initialization order is quite subtle.
 // The side effects of:
@@ -1151,7 +1064,7 @@ func (b *Builder) buildGlobal(g *Global, obj types.Object) {
 //
 // See also localValueSpec.
 //
-func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global, obj types.Object) {
+func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global, obj types.Object) {
 	switch {
 	case len(spec.Values) == len(spec.Names):
 		// e.g. var x, y = 0, 1
@@ -1169,7 +1082,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 			} else {
 				// Mode B: initialize all globals.
 				if !isBlankIdent(id) {
-					g2 := b.Prog.Value(init.Pkg.objectOf(id)).(*Global)
+					g2 := init.Prog.Value(init.Pkg.objectOf(id)).(*Global)
 					if g2.spec == nil {
 						continue // already done
 					}
@@ -1177,7 +1090,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 					lval = address{addr: g2}
 				}
 			}
-			if b.Context.Mode&LogSource != 0 {
+			if init.Prog.mode&LogSource != 0 {
 				fmt.Fprintln(os.Stderr, "build global", id.Name)
 			}
 			b.exprInPlace(init, lval, spec.Values[i])
@@ -1194,16 +1107,16 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 		// e.g. var x, _, y = f()
 		// n:1 assignment.
 		// Only the first time for a given SPEC has any effect.
-		if !init.Pkg.nTo1Vars[spec] {
-			init.Pkg.nTo1Vars[spec] = true
-			if b.Context.Mode&LogSource != 0 {
+		if !b.nTo1Vars[spec] {
+			b.nTo1Vars[spec] = true
+			if init.Prog.mode&LogSource != 0 {
 				defer logStack("build globals %s", spec.Names)()
 			}
 			tuple := b.exprN(init, spec.Values[0])
 			result := tuple.Type().(*types.Tuple)
 			for i, id := range spec.Names {
 				if !isBlankIdent(id) {
-					g := b.Prog.Value(init.Pkg.objectOf(id)).(*Global)
+					g := init.Prog.Value(init.Pkg.objectOf(id)).(*Global)
 					g.spec = nil // just an optimization
 					emitStore(init, g, emitExtract(init, tuple, i, result.At(i).Type()))
 				}
@@ -1219,7 +1132,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 // ValueSpecs are much simpler since they are encountered once only,
 // in their entirety, in lexical order.
 //
-func (b *Builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
+func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 	switch {
 	case len(spec.Values) == len(spec.Names):
 		// e.g. var x, y = 0, 1
@@ -1259,7 +1172,7 @@ func (b *Builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 //
 // Note the similarity with localValueSpec.
 //
-func (b *Builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
+func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 	// Side effects of all LHSs and RHSs must occur in left-to-right order.
 	var lvals []lvalue
 	for _, lhs := range lhss {
@@ -1308,7 +1221,7 @@ func (b *Builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 }
 
 // arrayLen returns the length of the array whose composite literal elements are elts.
-func (b *Builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
+func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 	var max int64 = -1
 	var i int64 = -1
 	for _, e := range elts {
@@ -1329,7 +1242,7 @@ func (b *Builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 // Nested composite literals are recursively initialized in place
 // where possible.
 //
-func (b *Builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ types.Type) {
+func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ types.Type) {
 	// TODO(adonovan): document how and why typ ever differs from
 	// fn.Pkg.typeOf(e).
 
@@ -1427,7 +1340,7 @@ func (b *Builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 // switchStmt emits to fn code for the switch statement s, optionally
 // labelled by label.
 //
-func (b *Builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
+func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 	// We treat SwitchStmt like a sequential if-else chain.
 	// More efficient strategies (e.g. multiway dispatch)
 	// are possible if all cases are free of side effects.
@@ -1513,7 +1426,7 @@ func (b *Builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 // typeSwitchStmt emits to fn code for the type switch statement s, optionally
 // labelled by label.
 //
-func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lblock) {
+func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lblock) {
 	// We treat TypeSwitchStmt like a sequential if-else
 	// chain.  More efficient strategies (e.g. multiway
 	// dispatch) are possible.
@@ -1629,7 +1542,7 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 // selectStmt emits to fn code for the select statement s, optionally
 // labelled by label.
 //
-func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
+func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	// A blocking select of a single case degenerates to a
 	// simple send or receive.
 	// TODO(adonovan): opt: is this optimization worth its weight?
@@ -1759,7 +1672,7 @@ func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 // forStmt emits to fn code for the for statement s, optionally
 // labelled by label.
 //
-func (b *Builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
+func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//	...init...
 	//      jump loop
 	// loop:
@@ -1815,7 +1728,7 @@ func (b *Builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 // over array, *array or slice value x.
 // The v result is defined only if tv is non-nil.
 //
-func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value, loop, done *BasicBlock) {
+func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value, loop, done *BasicBlock) {
 	//
 	//      length = len(x)
 	//      index = -1
@@ -1841,7 +1754,7 @@ func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = b.Prog.Builtins[types.Universe.Lookup(nil, "len")]
+		c.Call.Func = fn.Prog.Builtins[types.Universe.Lookup(nil, "len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -1906,7 +1819,7 @@ func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 // tk and tv are the types of the key/value results k and v, or nil
 // if the respective component is not wanted.
 //
-func (b *Builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.Pos) (k, v Value, loop, done *BasicBlock) {
+func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.Pos) (k, v Value, loop, done *BasicBlock) {
 	//
 	//	it = range x
 	// loop:                                   (target of continue)
@@ -1969,7 +1882,7 @@ func (b *Builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 // tk is the channel's element type, or nil if the k result is
 // not wanted
 //
-func (b *Builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop, done *BasicBlock) {
+func (b *builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop, done *BasicBlock) {
 	//
 	// loop:                                   (target of continue)
 	//      ko = <-x                           (key, ok)
@@ -2007,7 +1920,7 @@ func (b *Builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop
 // rangeStmt emits to fn code for the range statement s, optionally
 // labelled by label.
 //
-func (b *Builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
+func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	var tk, tv types.Type
 	if !isBlankIdent(s.Key) {
 		tk = fn.Pkg.typeOf(s.Key)
@@ -2081,7 +1994,7 @@ func (b *Builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 }
 
 // stmt lowers statement s to SSA form, emitting code to fn.
-func (b *Builder) stmt(fn *Function, _s ast.Stmt) {
+func (b *builder) stmt(fn *Function, _s ast.Stmt) {
 	// The label of the current statement.  If non-nil, its _goto
 	// target is always set; its _break and _continue are set only
 	// within the body of switch/typeswitch/select/for/range.
@@ -2289,7 +2202,7 @@ start:
 }
 
 // buildFunction builds SSA code for the body of function fn.  Idempotent.
-func (b *Builder) buildFunction(fn *Function) {
+func (b *builder) buildFunction(fn *Function) {
 	if fn.Blocks != nil {
 		return // building already started
 	}
@@ -2316,7 +2229,7 @@ func (b *Builder) buildFunction(fn *Function) {
 		}
 		return
 	}
-	if b.Context.Mode&LogSource != 0 {
+	if fn.Prog.mode&LogSource != 0 {
 		defer logStack("build function %s @ %s",
 			fn.FullName(), fn.Prog.Files.Position(fn.pos))()
 	}
@@ -2332,189 +2245,10 @@ func (b *Builder) buildFunction(fn *Function) {
 	fn.finishBody()
 }
 
-// memberFromObject populates package pkg with a member for the
-// typechecker object obj.
-//
-// For objects from Go source code, syntax is the associated syntax
-// tree (for funcs and vars only); it will be used during the build
-// phase.
-//
-// (CREATE phase.)
-//
-func (b *Builder) memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
-	name := obj.Name()
-	switch obj := obj.(type) {
-	case *types.TypeName:
-		pkg.Members[name] = &Type{NamedType: obj.Type().(*types.Named)}
-
-	case *types.Const:
-		pkg.Members[name] = &Constant{
-			name:  name,
-			Value: newLiteral(obj.Val(), obj.Type()),
-			pos:   obj.Pos(),
-		}
-
-	case *types.Var:
-		spec, _ := syntax.(*ast.ValueSpec)
-		g := &Global{
-			Pkg:  pkg,
-			name: name,
-			typ:  pointer(obj.Type()), // address
-			pos:  obj.Pos(),
-			spec: spec,
-		}
-		pkg.values[obj] = g
-		pkg.Members[name] = g
-
-	case *types.Func:
-		var fs *funcSyntax
-		if decl, ok := syntax.(*ast.FuncDecl); ok {
-			fs = &funcSyntax{
-				recvField:    decl.Recv,
-				paramFields:  decl.Type.Params,
-				resultFields: decl.Type.Results,
-				body:         decl.Body,
-			}
-		}
-		sig := obj.Type().(*types.Signature)
-		fn := &Function{
-			name:      name,
-			Signature: sig,
-			pos:       obj.Pos(), // (iff syntax)
-			Pkg:       pkg,
-			Prog:      b.Prog,
-			syntax:    fs,
-		}
-		if sig.Recv() == nil {
-			// Function declaration.
-			pkg.values[obj] = fn
-			pkg.Members[name] = fn
-		} else {
-			// Method declaration.
-			nt := sig.Recv().Type().Deref().(*types.Named)
-			_, method := methodIndex(nt, MakeId(name, pkg.Types))
-			b.Prog.concreteMethods[method] = fn
-		}
-
-	default: // (incl. *types.Package)
-		panic(fmt.Sprintf("unexpected Object type: %T", obj))
-	}
-}
-
-// membersFromDecl populates package pkg with members for each
-// typechecker object (var, func, const or type) associated with the
-// specified decl.
-//
-// (CREATE phase.)
-//
-func (b *Builder) membersFromDecl(pkg *Package, decl ast.Decl) {
-	switch decl := decl.(type) {
-	case *ast.GenDecl: // import, const, type or var
-		switch decl.Tok {
-		case token.CONST:
-			for _, spec := range decl.Specs {
-				for _, id := range spec.(*ast.ValueSpec).Names {
-					if !isBlankIdent(id) {
-						b.memberFromObject(pkg, pkg.objectOf(id), nil)
-					}
-				}
-			}
-
-		case token.VAR:
-			for _, spec := range decl.Specs {
-				for _, id := range spec.(*ast.ValueSpec).Names {
-					if !isBlankIdent(id) {
-						b.memberFromObject(pkg, pkg.objectOf(id), spec)
-					}
-				}
-			}
-
-		case token.TYPE:
-			for _, spec := range decl.Specs {
-				id := spec.(*ast.TypeSpec).Name
-				if !isBlankIdent(id) {
-					b.memberFromObject(pkg, pkg.objectOf(id), nil)
-				}
-			}
-		}
-
-	case *ast.FuncDecl:
-		id := decl.Name
-		if decl.Recv == nil && id.Name == "init" {
-			if !pkg.Init.pos.IsValid() {
-				pkg.Init.pos = decl.Name.Pos()
-			}
-			return // init blocks aren't functions
-		}
-		if !isBlankIdent(id) {
-			b.memberFromObject(pkg, pkg.objectOf(id), decl)
-		}
-	}
-}
-
-// createPackage constructs an SSA Package from an error-free
-// package described by info, and populates its Members mapping.
-//
-// The real work of building SSA form for each function is not done
-// until a subsequent call to BuildPackage.
-//
-// (CREATE phase.)
-//
-func (b *Builder) createPackage(info *importer.PackageInfo) *Package {
-	p := &Package{
-		Prog:    b.Prog,
-		Members: make(map[string]Member),
-		values:  make(map[types.Object]Value),
-		Types:   info.Pkg,
-		info:    info, // transient (CREATE and BUILD phases)
-	}
-
-	// Add init() function (but not to Members since it can't be referenced).
-	p.Init = &Function{
-		name:      "init",
-		Signature: new(types.Signature),
-		Pkg:       p,
-		Prog:      b.Prog,
-	}
-
-	// CREATE phase.
-	// Allocate all package members: vars, funcs and consts and types.
-	if len(info.Files) > 0 {
-		// Go source package.
-		for _, file := range info.Files {
-			for _, decl := range file.Decls {
-				b.membersFromDecl(p, decl)
-			}
-		}
-	} else {
-		// GC-compiled binary package.
-		// No code.
-		// No position information.
-		scope := p.Types.Scope()
-		for i, n := 0, scope.NumEntries(); i < n; i++ {
-			b.memberFromObject(p, scope.At(i), nil)
-		}
-	}
-
-	// Add initializer guard variable.
-	initguard := &Global{
-		Pkg:  p,
-		name: "init$guard",
-		typ:  pointer(tBool),
-	}
-	p.Members[initguard.Name()] = initguard
-
-	if b.Context.Mode&LogPackages != 0 {
-		p.DumpTo(os.Stderr)
-	}
-
-	return p
-}
-
 // buildDecl builds SSA code for all globals, functions or methods
 // declared by decl in package pkg.
 //
-func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
+func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 	switch decl := decl.(type) {
 	case *ast.GenDecl:
 		switch decl.Tok {
@@ -2531,7 +2265,7 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 				}
 				nt := pkg.objectOf(id).Type().(*types.Named)
 				for i, n := 0, nt.NumMethods(); i < n; i++ {
-					b.buildFunction(b.Prog.concreteMethods[nt.Method(i)])
+					b.buildFunction(pkg.Prog.concreteMethods[nt.Method(i)])
 				}
 			}
 		}
@@ -2546,8 +2280,8 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 
 		} else if id.Name == "init" {
 			// init() block
-			if b.Context.Mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build init block @", b.Prog.Files.Position(decl.Pos()))
+			if pkg.Prog.mode&LogSource != 0 {
+				fmt.Fprintln(os.Stderr, "build init block @", pkg.Prog.Files.Position(decl.Pos()))
 			}
 			init := pkg.Init
 
@@ -2570,27 +2304,26 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 
 		} else {
 			// Package-level function.
-			b.buildFunction(b.Prog.Value(pkg.objectOf(id)).(*Function))
+			b.buildFunction(pkg.Prog.Value(pkg.objectOf(id)).(*Function))
 		}
 	}
 
 }
 
-// BuildAllPackages constructs the SSA representation of the bodies of
-// all functions in all packages known to the Builder.  Construction
-// occurs in parallel unless the BuildSerially mode flag was set.
+// BuildAll calls Package.Build() for each package in prog.
+// Building occurs in parallel unless the BuildSerially mode flag was set.
 //
-// BuildAllPackages is idempotent and thread-safe.
+// BuildAll is idempotent and thread-safe.
 //
-func (b *Builder) BuildAllPackages() {
+func (prog *Program) BuildAll() {
 	var wg sync.WaitGroup
-	for _, p := range b.Prog.Packages {
-		if b.Context.Mode&BuildSerially != 0 {
-			b.BuildPackage(p)
+	for _, p := range prog.Packages {
+		if prog.mode&BuildSerially != 0 {
+			p.Build()
 		} else {
 			wg.Add(1)
 			go func(p *Package) {
-				b.BuildPackage(p)
+				p.Build()
 				wg.Done()
 			}(p)
 		}
@@ -2598,11 +2331,11 @@ func (b *Builder) BuildAllPackages() {
 	wg.Wait()
 }
 
-// BuildPackage builds SSA code for all functions and vars in package p.
+// Build builds SSA code for all functions and vars in package p.
 //
-// BuildPackage is idempotent and thread-safe.
+// Build is idempotent and thread-safe.
 //
-func (b *Builder) BuildPackage(p *Package) {
+func (p *Package) Build() {
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
 		return // already started
 	}
@@ -2610,14 +2343,7 @@ func (b *Builder) BuildPackage(p *Package) {
 		p.info = nil
 		return // nothing to do
 	}
-
-	// TODO(adonovan): consider splitting Builder up into a
-	// package-specific part (needn't be exported) containing
-	// info, nto1Vars which actually traverses the AST, plus the
-	// shared portion (Builder).
-	p.nTo1Vars = make(map[*ast.ValueSpec]bool)
-
-	if b.Context.Mode&LogSource != 0 {
+	if p.Prog.mode&LogSource != 0 {
 		defer logStack("build %s", p)()
 	}
 	init := p.Init
@@ -2632,34 +2358,16 @@ func (b *Builder) BuildPackage(p *Package) {
 	emitStore(init, initguard, vTrue)
 
 	// Call the init() function of each package we import.
-	// We iterate over the syntax (p.Files.Imports) not the types
-	// (p.Types.Imports()) because the latter may contain the
-	// transitive closure of dependencies,
-	// e.g. when using GcImporter.
-	seen := make(map[*types.Package]bool)
-	for _, file := range p.info.Files {
-		for _, imp := range file.Imports {
-			path, _ := strconv.Unquote(imp.Path.Value)
-			if path == "unsafe" {
-				continue
-			}
-			typkg := p.Types.Imports()[path]
-			if seen[typkg] {
-				continue
-			}
-			seen[typkg] = true
+	for _, typkg := range p.info.Imports() {
+		var v Call
+		v.Call.Func = p.Prog.packages[typkg].Init
+		v.Call.pos = init.pos
+		v.setType(types.NewTuple())
+		init.emit(&v)
+	}
 
-			p2 := b.Prog.packages[typkg]
-			if p2 == nil {
-				panic("Building " + p.String() + ": CreatePackage has not been called for package " + path)
-			}
-
-			var v Call
-			v.Call.Func = p2.Init
-			v.Call.pos = init.pos
-			v.setType(types.NewTuple())
-			init.emit(&v)
-		}
+	b := &builder{
+		nTo1Vars: make(map[*ast.ValueSpec]bool),
 	}
 
 	// Visit the package's var decls and init funcs in source
@@ -2676,9 +2384,7 @@ func (b *Builder) BuildPackage(p *Package) {
 		}
 	}
 
-	// We no longer need ASTs or go/types deductions.
-	p.info = nil
-	p.nTo1Vars = nil
+	p.info = nil // We no longer need ASTs or go/types deductions.
 
 	// Finish up.
 	emitJump(init, done)
@@ -2688,7 +2394,7 @@ func (b *Builder) BuildPackage(p *Package) {
 	init.finishBody()
 }
 
-// Only valid during p's build phase!
+// Only valid during p's create and build phases.
 func (p *Package) objectOf(id *ast.Ident) types.Object {
 	if o := p.info.ObjectOf(id); o != nil {
 		return o
@@ -2697,7 +2403,7 @@ func (p *Package) objectOf(id *ast.Ident) types.Object {
 		id.Name, p.Prog.Files.Position(id.Pos())))
 }
 
-// Only valid during p's build phase!
+// Only valid during p's create and build phases.
 func (p *Package) typeOf(e ast.Expr) types.Type {
 	return p.info.TypeOf(e)
 }

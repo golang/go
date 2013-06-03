@@ -252,9 +252,10 @@ func TestEnclosingFunction(t *testing.T) {
 			continue
 		}
 
-		b := ssa.NewBuilder(new(ssa.Context), imp)
-		pkg := b.Prog.Package(info.Pkg)
-		b.BuildPackage(pkg)
+		prog := ssa.NewProgram(imp.Fset, 0)
+		prog.CreatePackages(imp)
+		pkg := prog.Package(info.Pkg)
+		pkg.Build()
 
 		name := "(none)"
 		fn := ssa.EnclosingFunction(pkg, path)

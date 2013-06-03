@@ -53,16 +53,18 @@ func main() {
 		return
 	}
 
-	// Construct an SSA builder.
-	builder := ssa.NewBuilder(&ssa.Context{}, imp)
-	mainPkg := builder.Prog.Package(info.Pkg)
+	// Create SSA-form program representation.
+	var mode ssa.BuilderMode
+	prog := ssa.NewProgram(imp.Fset, mode)
+	prog.CreatePackages(imp)
+	mainPkg := prog.Package(info.Pkg)
 
 	// Print out the package.
 	mainPkg.DumpTo(os.Stdout)
 	fmt.Println()
 
 	// Build SSA code for bodies of functions in mainPkg.
-	builder.BuildPackage(mainPkg)
+	mainPkg.Build()
 
 	// Print out the package-level functions.
 	mainPkg.Init.DumpTo(os.Stdout)

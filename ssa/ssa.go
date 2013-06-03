@@ -15,8 +15,6 @@ import (
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
-// Each Builder creates and populates a single Program during its
-// lifetime.
 //
 type Program struct {
 	Files    *token.FileSet              // position information for the files of this Program [TODO: rename Fset]
@@ -27,7 +25,7 @@ type Program struct {
 	methodSets      map[types.Type]MethodSet  // concrete method sets for all needed types  [TODO(adonovan): de-dup]
 	methodSetsMu    sync.Mutex                // serializes all accesses to methodSets
 	concreteMethods map[*types.Func]*Function // maps named concrete methods to their code
-	mode            BuilderMode               // set of mode bits
+	mode            BuilderMode               // set of mode bits for SSA construction
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -44,9 +42,8 @@ type Package struct {
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started  int32                   // atomically tested and set at start of build phase
-	info     *importer.PackageInfo   // package ASTs and type information
-	nTo1Vars map[*ast.ValueSpec]bool // set of n:1 ValueSpecs already built
+	started int32                 // atomically tested and set at start of build phase
+	info    *importer.PackageInfo // package ASTs and type information
 }
 
 // A Member is a member of a Go package, implemented by *Constant,

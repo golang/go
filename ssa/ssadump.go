@@ -109,17 +109,13 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	// Build SSA-form program representation.
-	context := &ssa.Context{
-		Mode: mode,
-	}
-	b := ssa.NewBuilder(context, imp)
-	mainpkg := b.PackageFor(info.Pkg)
-	b.BuildAllPackages()
-	b = nil // discard Builder
+	// Create and build SSA-form program representation.
+	prog := ssa.NewProgram(imp.Fset, mode)
+	prog.CreatePackages(imp)
+	prog.BuildAll()
 
 	// Run the interpreter.
 	if *runFlag {
-		interp.Interpret(mainpkg, interpMode, info.Pkg.Path(), args)
+		interp.Interpret(prog.Package(info.Pkg), interpMode, info.Pkg.Path(), args)
 	}
 }

@@ -151,7 +151,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 					m := nt.Method(i)
 					concrete := prog.concreteMethods[m]
 					if concrete == nil {
-						panic(fmt.Sprint("no ssa.Function for mset(%s)[%s]", t, m.Name()))
+						panic(fmt.Sprintf("no ssa.Function for mset(%s)[%s]", t, m.Name()))
 					}
 					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, concrete, node)
 				}

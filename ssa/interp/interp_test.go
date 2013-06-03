@@ -171,14 +171,12 @@ func run(t *testing.T, dir, input string) bool {
 		return false
 	}
 
-	b := ssa.NewBuilder(&ssa.Context{Mode: ssa.SanityCheckFunctions}, imp)
-	mainpkg := b.Prog.Package(info.Pkg)
-
-	b.BuildAllPackages()
-	b = nil // discard Builder
+	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
+	prog.CreatePackages(imp)
+	prog.BuildAll()
 
 	hint = fmt.Sprintf("To trace execution, run:\n%% go run exp/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
-	if exitCode := interp.Interpret(mainpkg, 0, inputs[0], []string{}); exitCode != 0 {
+	if exitCode := interp.Interpret(prog.Package(info.Pkg), 0, inputs[0], []string{}); exitCode != 0 {
 		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
 		return false
 	}
