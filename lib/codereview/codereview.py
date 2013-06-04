@@ -1028,12 +1028,12 @@ def FindContributor(ui, repo, user=None, warn=True):
 
 hgversion = hg_util.version()
 
-# We require Mercurial 1.9 and suggest Mercurial 2.0.
+# We require Mercurial 1.9 and suggest Mercurial 2.1.
 # The details of the scmutil package changed then,
 # so allowing earlier versions would require extra band-aids below.
 # Ubuntu 11.10 ships with Mercurial 1.9.1 as the default version.
 hg_required = "1.9"
-hg_suggested = "2.0"
+hg_suggested = "2.1"
 
 old_message = """
 
@@ -1187,6 +1187,10 @@ def hg_commit(ui, repo, *pats, **opts):
 commit_okay = False
 
 def precommithook(ui, repo, **opts):
+	if hgversion >= "2.1":
+		from mercurial import phases
+		if repo.ui.config('phases', 'new-commit') >= phases.secret:
+			return False
 	if commit_okay:
 		return False  # False means okay.
 	ui.write("\ncodereview extension enabled; use mail, upload, or submit instead of commit\n\n")
