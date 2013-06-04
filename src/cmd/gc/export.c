@@ -164,6 +164,7 @@ reexportdep(Node *n)
 	case ODOTTYPE:
 	case ODOTTYPE2:
 	case OSTRUCTLIT:
+	case OARRAYLIT:
 	case OPTRLIT:
 	case OMAKEMAP:
 	case OMAKESLICE:
