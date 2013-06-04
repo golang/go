@@ -905,8 +905,6 @@ doelf(void)
 	addstring(shstrtab, ".typelink");
 	if(flag_shared)
 		addstring(shstrtab, ".data.rel.ro");
-	addstring(shstrtab, ".gcdata");
-	addstring(shstrtab, ".gcbss");
 	addstring(shstrtab, ".gosymtab");
 	addstring(shstrtab, ".gopclntab");
 	
@@ -918,8 +916,6 @@ doelf(void)
 			addstring(shstrtab, ".rela.text");
 			addstring(shstrtab, ".rela.rodata");
 			addstring(shstrtab, ".rela.typelink");
-			addstring(shstrtab, ".rela.gcdata");
-			addstring(shstrtab, ".rela.gcbss");
 			addstring(shstrtab, ".rela.gosymtab");
 			addstring(shstrtab, ".rela.gopclntab");
 			addstring(shstrtab, ".rela.noptrdata");
@@ -928,8 +924,6 @@ doelf(void)
 			addstring(shstrtab, ".rel.text");
 			addstring(shstrtab, ".rel.rodata");
 			addstring(shstrtab, ".rel.typelink");
-			addstring(shstrtab, ".rel.gcdata");
-			addstring(shstrtab, ".rel.gcbss");
 			addstring(shstrtab, ".rel.gosymtab");
 			addstring(shstrtab, ".rel.gopclntab");
 			addstring(shstrtab, ".rel.noptrdata");
