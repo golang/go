@@ -2616,6 +2616,7 @@ sub RemoveUninterestingFrames {
                       'operator new[]',
                       # Go
                       'catstring',
+                      'cnew',
                       'copyin',
                       'gostring',
                       'gostringsize',
@@ -2640,6 +2641,8 @@ sub RemoveUninterestingFrames {
                       'unsafe.New',
                       'runtime.mallocgc',
                       'runtime.catstring',
+                      'runtime.cnew',
+                      'runtime.cnewarray',
                       'runtime.growslice',
                       'runtime.ifaceT2E',
                       'runtime.ifaceT2I',
