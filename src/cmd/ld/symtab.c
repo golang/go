@@ -481,8 +481,6 @@ symtab(void)
 		xdefine("datarelro", SDATARELRO, 0);
 		xdefine("edatarelro", SDATARELRO, 0);
 	}
-	xdefine("egcdata", STYPE, 0);
-	xdefine("egcbss", STYPE, 0);
 	xdefine("noptrdata", SNOPTRDATA, 0);
 	xdefine("enoptrdata", SNOPTRDATA, 0);
 	xdefine("data", SDATA, 0);
@@ -494,6 +492,19 @@ symtab(void)
 	xdefine("end", SBSS, 0);
 	xdefine("epclntab", SRODATA, 0);
 	xdefine("esymtab", SRODATA, 0);
+
+	// garbage collection symbols
+	s = lookup("gcdata", 0);
+	s->type = SRODATA;
+	s->size = 0;
+	s->reachable = 1;
+	xdefine("egcdata", SRODATA, 0);
+
+	s = lookup("gcbss", 0);
+	s->type = SRODATA;
+	s->size = 0;
+	s->reachable = 1;
+	xdefine("egcbss", SRODATA, 0);
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	s = lookup("type.*", 0);

@@ -1047,13 +1047,8 @@ dodata(void)
 		Bprint(&bso, "%5.2f dodata\n", cputime());
 	Bflush(&bso);
 
-	// define garbage collection symbols
 	gcdata1 = lookup("gcdata", 0);
-	gcdata1->type = STYPE;
-	gcdata1->reachable = 1;
 	gcbss1 = lookup("gcbss", 0);
-	gcbss1->type = STYPE;
-	gcbss1->reachable = 1;
 
 	// size of .data and .bss section. the zero value is later replaced by the actual size of the section.
 	adduintxx(gcdata1, 0, PtrSize);
@@ -1477,11 +1472,11 @@ address(void)
 	}
 
 	sym = lookup("gcdata", 0);
-	xdefine("egcdata", STYPE, symaddr(sym) + sym->size);
+	xdefine("egcdata", SRODATA, symaddr(sym) + sym->size);
 	lookup("egcdata", 0)->sect = sym->sect;
 
 	sym = lookup("gcbss", 0);
-	xdefine("egcbss", STYPE, symaddr(sym) + sym->size);
+	xdefine("egcbss", SRODATA, symaddr(sym) + sym->size);
 	lookup("egcbss", 0)->sect = sym->sect;
 
 	xdefine("symtab", SRODATA, symtab->vaddr);
