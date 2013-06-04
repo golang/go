@@ -75,7 +75,6 @@ extern	uint32	unmappedzero;
  * ggen.c
  */
 void	compile(Node*);
-void	proglist(void);
 void	gen(Node*);
 Node*	lookdot(Node*, Node*, int);
 void	cgen_as(Node*, Node*);
@@ -123,7 +122,6 @@ void	cgen64(Node*, Node*);
  * gsubr.c
  */
 void	clearp(Prog*);
-void	proglist(void);
 Prog*	gbranch(int, Type*, int);
 Prog*	prog(int);
 void	gconv(int, int);
