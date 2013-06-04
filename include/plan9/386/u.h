@@ -4,11 +4,12 @@
 
 #include "/386/include/u.h"
 
-typedef char   int8;
-typedef uchar  uint8;
-typedef short  int16;
-typedef ushort uint16;
-typedef int    int32;
-typedef uint   uint32;
-typedef vlong  int64;
-typedef uvlong uint64;
+typedef	char	int8;
+typedef	uchar	uint8;
+typedef	short	int16;
+typedef	ushort	uint16;
+typedef	int	int32;
+typedef	uint	uint32;
+typedef	vlong	int64;
+typedef	uvlong	uint64;
+typedef	int	intptr;
