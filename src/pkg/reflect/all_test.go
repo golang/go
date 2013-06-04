@@ -3032,6 +3032,25 @@ func TestSliceOf(t *testing.T) {
 	checkSameType(t, Zero(SliceOf(TypeOf(T1(1)))).Interface(), []T1{})
 }
 
+func TestSliceOverflow(t *testing.T) {
+	// check that MakeSlice panics when size of slice overflows uint
+	const S = 1e6
+	s := uint(S)
+	l := (1<<(unsafe.Sizeof((*byte)(nil))*8)-1)/s + 1
+	if l*s >= s {
+		t.Fatal("slice size does not overflow")
+	}
+	var x [S]byte
+	st := SliceOf(TypeOf(x))
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("slice overflow does not panic")
+		}
+	}()
+	MakeSlice(st, int(l), int(l))
+}
+
 func TestSliceOfGC(t *testing.T) {
 	type T *uintptr
 	tt := TypeOf(T(nil))
