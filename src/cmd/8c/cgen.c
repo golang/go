@@ -404,13 +404,13 @@ cgen(Node *n, Node *nn)
 			}
 		}
 
-		if(o == OMUL) {
+		if(o == OMUL || o == OLMUL) {
 			if(l->addable >= INDEXED) {
 				t = l;
 				l = r;
 				r = t;
 			}
-			/* should favour AX */
+			reg[D_DX]++; // for gopcode case OMUL
 			regalloc(&nod, l, nn);
 			cgen(l, &nod);
 			if(r->addable < INDEXED) {
@@ -422,6 +422,7 @@ cgen(Node *n, Node *nn)
 				gopcode(OMUL, n->type, r, &nod);	/* addressible */
 			gmove(&nod, nn);
 			regfree(&nod);
+			reg[D_DX]--;
 			break;
 		}
 
