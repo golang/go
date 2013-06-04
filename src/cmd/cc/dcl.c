@@ -268,7 +268,7 @@ nextinit(void)
 			a->cstring++;
 		}
 		if(a->op == OLSTRING) {
-			b->vconst = convvtox(*a->rstring, TUSHORT);
+			b->vconst = convvtox(*a->rstring, TRUNE);
 			a->rstring++;
 		}
 		a->type->width -= b->type->width;
