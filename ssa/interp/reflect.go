@@ -8,6 +8,7 @@ package interp
 
 import (
 	"fmt"
+	"go/token"
 	"reflect"
 	"unsafe"
 
@@ -23,7 +24,7 @@ type opaqueType struct {
 func (t *opaqueType) String() string { return t.name }
 
 // A bogus "reflect" type-checker package.  Shared across interpreters.
-var reflectTypesPackage = types.NewPackage("reflect", "reflect")
+var reflectTypesPackage = types.NewPackage(token.NoPos, "reflect", "reflect", nil, nil, true)
 
 // rtype is the concrete type the interpreter uses to implement the
 // reflect.Type interface.  Since its type is opaque to the target
@@ -41,7 +42,7 @@ var rtypeType = makeNamedType("rtype", &opaqueType{nil, "rtype"})
 var errorType = makeNamedType("error", &opaqueType{nil, "error"})
 
 func makeNamedType(name string, underlying types.Type) *types.Named {
-	obj := types.NewTypeName(reflectTypesPackage, name, nil)
+	obj := types.NewTypeName(token.NoPos, reflectTypesPackage, name, nil)
 	return types.NewNamed(obj, underlying, nil)
 }
 
@@ -318,7 +319,7 @@ func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value, i int) reflect.Value
 	v := args[0]
 	i := args[1].(int)
-	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type, rV2V(v).(structure)[i])
+	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(structure)[i])
 }
 
 func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value) value {
@@ -393,7 +394,7 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
 	// that is needed is the "pointerness" of Recv.Type, and for
 	// now, we'll set it to always be false since we're only
 	// concerned with rtype.  Encapsulate this better.
-	sig := types.NewSignature(types.NewVar(nil, "recv", recvType), nil, nil, false)
+	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", recvType), nil, nil, false)
 	fn := ssa.NewFunction(name, sig)
 	fn.Pkg = pkg
 	fn.Prog = pkg.Prog

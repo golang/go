@@ -18,12 +18,12 @@ func (ctxt *Context) alignof(typ Type) int64 {
 
 func (ctxt *Context) offsetsof(s *Struct) []int64 {
 	offsets := s.offsets
-	if offsets == nil {
+	if offsets == nil && s.NumFields() > 0 {
 		// compute offsets on demand
 		if f := ctxt.Offsetsof; f != nil {
 			offsets = f(s.fields)
 			// sanity checks
-			if len(offsets) != len(s.fields) {
+			if len(offsets) != s.NumFields() {
 				panic("Context.Offsetsof returned the wrong number of offsets")
 			}
 			for _, o := range offsets {
@@ -50,7 +50,7 @@ func (ctxt *Context) offsetof(typ Type, index []int) int64 {
 			return -1
 		}
 		o += ctxt.offsetsof(s)[i]
-		typ = s.fields[i].Type
+		typ = s.fields.At(i).Type()
 	}
 	return o
 }
@@ -84,9 +84,12 @@ func DefaultAlignof(typ Type) int64 {
 		// is the largest of the values unsafe.Alignof(x.f) for each
 		// field f of x, but at least 1."
 		max := int64(1)
-		for _, f := range t.fields {
-			if a := DefaultAlignof(f.Type); a > max {
-				max = a
+		if t.fields != nil {
+			for _, obj := range t.fields.entries {
+				f := obj.(*Field)
+				if a := DefaultAlignof(f.typ); a > max {
+					max = a
+				}
 			}
 		}
 		return max
@@ -110,14 +113,19 @@ func align(x, a int64) int64 {
 
 // DefaultOffsetsof implements the default field offset computation
 // for unsafe.Offsetof. It is used if Context.Offsetsof == nil.
-func DefaultOffsetsof(fields []*Field) []int64 {
-	offsets := make([]int64, len(fields))
+func DefaultOffsetsof(fields *Scope) []int64 {
+	n := fields.NumEntries()
+	if n == 0 {
+		return nil
+	}
+	offsets := make([]int64, n)
 	var o int64
-	for i, f := range fields {
-		a := DefaultAlignof(f.Type)
+	for i, obj := range fields.entries {
+		f := obj.(*Field)
+		a := DefaultAlignof(f.typ)
 		o = align(o, a)
 		offsets[i] = o
-		o += DefaultSizeof(f.Type)
+		o += DefaultSizeof(f.typ)
 	}
 	return offsets
 }
@@ -144,7 +152,7 @@ func DefaultSizeof(typ Type) int64 {
 	case *Slice:
 		return DefaultPtrSize * 3
 	case *Struct:
-		n := len(t.fields)
+		n := t.NumFields()
 		if n == 0 {
 			return 0
 		}
@@ -154,7 +162,7 @@ func DefaultSizeof(typ Type) int64 {
 			offsets = DefaultOffsetsof(t.fields)
 			t.offsets = offsets
 		}
-		return offsets[n-1] + DefaultSizeof(t.fields[n-1].Type)
+		return offsets[n-1] + DefaultSizeof(t.fields.At(n-1).Type())
 	case *Signature:
 		return DefaultPtrSize * 2
 	}

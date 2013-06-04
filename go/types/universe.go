@@ -58,10 +58,10 @@ var aliases = [...]*Basic{
 }
 
 var predeclaredConstants = [...]*Const{
-	{name: "true", typ: Typ[UntypedBool], val: exact.MakeBool(true)},
-	{name: "false", typ: Typ[UntypedBool], val: exact.MakeBool(false)},
-	{name: "iota", typ: Typ[UntypedInt], val: exact.MakeInt64(0)},
-	{name: "nil", typ: Typ[UntypedNil], val: exact.MakeNil()},
+	NewConst(token.NoPos, nil, "true", Typ[UntypedBool], exact.MakeBool(true)),
+	NewConst(token.NoPos, nil, "false", Typ[UntypedBool], exact.MakeBool(false)),
+	NewConst(token.NoPos, nil, "iota", Typ[UntypedInt], exact.MakeInt64(0)),
+	NewConst(token.NoPos, nil, "nil", Typ[UntypedNil], exact.MakeNil()),
 }
 
 var predeclaredFunctions = [...]*Builtin{
@@ -88,23 +88,23 @@ var predeclaredFunctions = [...]*Builtin{
 
 func init() {
 	Universe = new(Scope)
-	Unsafe = &Package{name: "unsafe", scope: new(Scope)}
+	Unsafe = NewPackage(token.NoPos, "unsafe", "unsafe", NewScope(nil), nil, true)
 
 	// predeclared types
 	for _, t := range Typ {
-		def(&TypeName{name: t.name, typ: t})
+		def(NewTypeName(token.NoPos, nil, t.name, t))
 	}
 	for _, t := range aliases {
-		def(&TypeName{name: t.name, typ: t})
+		def(NewTypeName(token.NoPos, nil, t.name, t))
 	}
 
 	// error type
 	{
 		// Error has a nil package in its qualified name since it is in no package
 		methods := NewScope(nil)
-		sig := &Signature{results: NewTuple(&Var{name: "", typ: Typ[String]})}
-		methods.Insert(&Func{token.NoPos, nil, nil, "Error", sig, nil})
-		def(&TypeName{name: "error", typ: &Named{underlying: &Interface{methods: methods}}})
+		sig := &Signature{results: NewTuple(NewVar(token.NoPos, nil, "", Typ[String]))}
+		methods.Insert(NewFunc(token.NoPos, nil, "Error", sig))
+		def(NewTypeName(token.NoPos, nil, "error", &Named{underlying: &Interface{methods: methods}}))
 	}
 
 	for _, c := range predeclaredConstants {
@@ -112,7 +112,7 @@ func init() {
 	}
 
 	for _, f := range predeclaredFunctions {
-		def(&Func{name: f.name, typ: f})
+		def(NewFunc(token.NoPos, nil, f.name, f))
 	}
 
 	universeIota = Universe.Lookup(nil, "iota").(*Const)

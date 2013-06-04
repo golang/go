@@ -6,6 +6,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 	"go/ast"
+	"go/token"
 	"strconv"
 )
 
@@ -172,18 +173,18 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 			isVariadic = true
 		}
 		params = append(params,
-			types.NewVar(nil, "", t0),
-			types.NewVar(nil, "", t1))
+			types.NewVar(token.NoPos, nil, "", t0),
+			types.NewVar(token.NoPos, nil, "", t1))
 
 	case "print", "println": // print{,ln}(any, ...interface{})
 		isVariadic = true
 		// Note, arg0 may have any type, not necessarily tEface.
 		params = append(params,
-			types.NewVar(nil, "", info.TypeOf(e.Args[0])),
-			types.NewVar(nil, "", tEface))
+			types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])),
+			types.NewVar(token.NoPos, nil, "", tEface))
 
 	case "close":
-		params = append(params, types.NewVar(nil, "", info.TypeOf(e.Args[0])))
+		params = append(params, types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])))
 
 	case "copy":
 		// copy([]T, []T) int
@@ -196,7 +197,7 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		} else {
 			panic("cannot infer types in call to copy()")
 		}
-		stvar := types.NewVar(nil, "", st)
+		stvar := types.NewVar(token.NoPos, nil, "", st)
 		params = append(params, stvar, stvar)
 
 	case "delete":
@@ -204,11 +205,11 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		tmap := info.TypeOf(e.Args[0])
 		tkey := tmap.Underlying().(*types.Map).Key()
 		params = append(params,
-			types.NewVar(nil, "", tmap),
-			types.NewVar(nil, "", tkey))
+			types.NewVar(token.NoPos, nil, "", tmap),
+			types.NewVar(token.NoPos, nil, "", tkey))
 
 	case "len", "cap":
-		params = append(params, types.NewVar(nil, "", info.TypeOf(e.Args[0])))
+		params = append(params, types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])))
 
 	case "real", "imag":
 		// Reverse conversion to "complex" case below.
@@ -223,7 +224,7 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		default:
 			unreachable()
 		}
-		params = append(params, types.NewVar(nil, "", argType))
+		params = append(params, types.NewVar(token.NoPos, nil, "", argType))
 
 	case "complex":
 		var argType types.Type
@@ -237,11 +238,11 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		default:
 			unreachable()
 		}
-		v := types.NewVar(nil, "", argType)
+		v := types.NewVar(token.NoPos, nil, "", argType)
 		params = append(params, v, v)
 
 	case "panic":
-		params = append(params, types.NewVar(nil, "", tEface))
+		params = append(params, types.NewVar(token.NoPos, nil, "", tEface))
 
 	case "recover":
 		// no params

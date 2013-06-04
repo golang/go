@@ -51,7 +51,7 @@ func (p *anonFieldPath) reverse() []*anonFieldPath {
 // isIndirect returns true if the path indirects a pointer.
 func (p *anonFieldPath) isIndirect() bool {
 	for ; p != nil; p = p.tail {
-		if isPointer(p.field.Type) {
+		if isPointer(p.field.Type()) {
 			return true
 		}
 	}
@@ -80,7 +80,7 @@ func (c candidate) String() string {
 	s := ""
 	// Inefficient!
 	for p := c.path; p != nil; p = p.tail {
-		s = "." + p.field.Name + s
+		s = "." + p.field.Name() + s
 	}
 	return "@" + s + "." + c.method.Name()
 }
@@ -142,7 +142,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 		for _, node := range list {
 			t := typ // first time only
 			if node != nil {
-				t = node.field.Type
+				t = node.field.Type()
 			}
 			t = t.Deref()
 
@@ -168,10 +168,10 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			case *types.Struct:
 				for i, n := 0, t.NumFields(); i < n; i++ {
 					f := t.Field(i)
-					nextcands[MakeId(f.Name, f.Pkg)] = nil // a field: block id
+					nextcands[MakeId(f.Name(), f.Pkg())] = nil // a field: block id
 					// Queue up anonymous fields for next iteration.
 					// Break cycles to ensure termination.
-					if f.IsAnonymous && !node.contains(f) {
+					if f.Anonymous() && !node.contains(f) {
 						next = append(next, &anonFieldPath{node, i, f})
 					}
 				}
@@ -265,7 +265,7 @@ func addCandidate(m map[Id]*candidate, id Id, method *types.Func, concrete *Func
 //
 func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function {
 	old := cand.method.Type().(*types.Signature)
-	sig := types.NewSignature(types.NewVar(nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
+	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
 	if prog.mode&LogSource != 0 {
 		defer logStack("makeBridgeMethod %s, %s, type %s", typ, cand, sig)()
@@ -299,9 +299,9 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 			X:     v,
 			Field: p.index,
 		}
-		sel.setType(pointer(p.field.Type))
+		sel.setType(pointer(p.field.Type()))
 		v = fn.emit(sel)
-		if isPointer(p.field.Type) {
+		if isPointer(p.field.Type()) {
 			v = emitLoad(fn, v)
 		}
 	}
@@ -458,7 +458,7 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
 	var list, next []*anonFieldPath
 	for i, n := 0, st.NumFields(); i < n; i++ {
 		f := st.Field(i)
-		if f.IsAnonymous {
+		if f.Anonymous() {
 			list = append(list, &anonFieldPath{nil, i, f})
 		}
 	}
@@ -468,7 +468,7 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
 	for {
 		// look for name in all types at this level
 		for _, node := range list {
-			typ := node.field.Type.Deref().(*types.Named)
+			typ := node.field.Type().Deref().(*types.Named)
 			if visited[typ] {
 				continue
 			}
@@ -478,13 +478,13 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
 			case *types.Struct:
 				for i, n := 0, typ.NumFields(); i < n; i++ {
 					f := typ.Field(i)
-					if MakeId(f.Name, f.Pkg) == id {
+					if MakeId(f.Name(), f.Pkg()) == id {
 						return node, i
 					}
 				}
 				for i, n := 0, typ.NumFields(); i < n; i++ {
 					f := typ.Field(i)
-					if f.IsAnonymous {
+					if f.Anonymous() {
 						next = append(next, &anonFieldPath{node, i, f})
 					}
 				}

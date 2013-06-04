@@ -217,7 +217,7 @@ func zero(t types.Type) value {
 	case *types.Struct:
 		s := make(structure, t.NumFields())
 		for i := range s {
-			s[i] = zero(t.Field(i).Type)
+			s[i] = zero(t.Field(i).Type())
 		}
 		return s
 	case *types.Chan:

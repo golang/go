@@ -232,8 +232,8 @@ func TestCheck(t *testing.T) {
 	if !testBuiltinsDeclared {
 		testBuiltinsDeclared = true
 		// Pkg == nil for Universe objects
-		def(&Func{name: "assert", typ: &Builtin{_Assert, "assert", 1, false, true}})
-		def(&Func{name: "trace", typ: &Builtin{_Trace, "trace", 0, true, true}})
+		def(NewFunc(token.NoPos, nil, "assert", &Builtin{_Assert, "assert", 1, false, true}))
+		def(NewFunc(token.NoPos, nil, "trace", &Builtin{_Trace, "trace", 0, true, true}))
 	}
 
 	// For easy debugging w/o changing the testing code,

@@ -42,7 +42,7 @@ type opaqueType struct {
 func (t *opaqueType) String() string { return t.name }
 
 var (
-	varOk = types.NewVar(nil, "ok", tBool)
+	varOk = types.NewVar(token.NoPos, nil, "ok", tBool)
 
 	// Type constants.
 	tBool       = types.Typ[types.Bool]
@@ -55,8 +55,8 @@ var (
 
 	// The result type of a "select".
 	tSelect = types.NewTuple(
-		types.NewVar(nil, "index", tInt),
-		types.NewVar(nil, "recv", tEface),
+		types.NewVar(token.NoPos, nil, "index", tInt),
+		types.NewVar(token.NoPos, nil, "recv", tEface),
 		varOk)
 
 	// SSA Value constants.
@@ -253,7 +253,7 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 	tuple.(interface {
 		setType(types.Type)
 	}).setType(types.NewTuple(
-		types.NewVar(nil, "value", typ),
+		types.NewVar(token.NoPos, nil, "value", typ),
 		varOk,
 	))
 	return tuple
@@ -358,7 +358,7 @@ func (b *builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping
 	index := -1
 	for i, n := 0, st.NumFields(); i < n; i++ {
 		f := st.Field(i)
-		if MakeId(f.Name, f.Pkg) == id {
+		if MakeId(f.Name(), f.Pkg()) == id {
 			index = i
 			break
 		}
@@ -389,11 +389,11 @@ func (b *builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping
 func (b *builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos, escaping bool) Value {
 	var x Value
 	if path != nil {
-		switch path.field.Type.Underlying().(type) {
+		switch path.field.Type().Underlying().(type) {
 		case *types.Struct:
-			x = b.fieldAddr(fn, base, path.tail, path.index, path.field.Type, token.NoPos, escaping)
+			x = b.fieldAddr(fn, base, path.tail, path.index, path.field.Type(), token.NoPos, escaping)
 		case *types.Pointer:
-			x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type, token.NoPos)
+			x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type(), token.NoPos)
 		}
 	} else {
 		switch fn.Pkg.typeOf(base).Underlying().(type) {
@@ -422,7 +422,7 @@ func (b *builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, in
 func (b *builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos) Value {
 	var x Value
 	if path != nil {
-		x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type, token.NoPos)
+		x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type(), token.NoPos)
 	} else {
 		x = b.expr(fn, base)
 	}
@@ -1254,7 +1254,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 				fname := kv.Key.(*ast.Ident).Name
 				for i, n := 0, t.NumFields(); i < n; i++ {
 					sf := t.Field(i)
-					if sf.Name == fname {
+					if sf.Name() == fname {
 						fieldIndex = i
 						e = kv.Value
 						break
@@ -1266,7 +1266,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 				X:     addr,
 				Field: fieldIndex,
 			}
-			faddr.setType(pointer(sf.Type))
+			faddr.setType(pointer(sf.Type()))
 			fn.emit(faddr)
 			b.exprInPlace(fn, address{addr: faddr}, e)
 		}
@@ -1858,8 +1858,8 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	}
 	okv.setType(types.NewTuple(
 		varOk,
-		types.NewVar(nil, "k", tk),
-		types.NewVar(nil, "v", tv),
+		types.NewVar(token.NoPos, nil, "k", tk),
+		types.NewVar(token.NoPos, nil, "v", tv),
 	))
 	fn.emit(okv)
 
@@ -1903,7 +1903,7 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop
 		CommaOk: true,
 	}
 	recv.setType(types.NewTuple(
-		types.NewVar(nil, "k", tk),
+		types.NewVar(token.NoPos, nil, "k", tk),
 		varOk,
 	))
 	ko := fn.emit(recv)

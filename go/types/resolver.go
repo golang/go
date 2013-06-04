@@ -119,7 +119,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 							name = s.Name.Name
 						}
 
-						imp2 := &Package{name: name, scope: imp.scope}
+						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil, imp.complete)
 						if s.Name != nil {
 							check.callIdent(s.Name, imp2)
 						} else {
@@ -155,7 +155,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 							// declare all constants
 							for i, name := range s.Names {
-								obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota))}
+								obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
 								check.declare(pkg.scope, name, obj)
 
 								var init ast.Expr
@@ -181,7 +181,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 							// declare all variables
 							lhs := make([]*Var, len(s.Names))
 							for i, name := range s.Names {
-								obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name}
+								obj := NewVar(name.Pos(), pkg, name.Name, nil)
 								lhs[i] = obj
 								check.declare(pkg.scope, name, obj)
 
@@ -218,7 +218,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						}
 
 					case *ast.TypeSpec:
-						obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name}
+						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 						check.declare(pkg.scope, s.Name, obj)
 						add(obj, s.Type, nil)
 
@@ -233,7 +233,8 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 					methods = append(methods, &mdecl{fileScope, d})
 					continue
 				}
-				obj := &Func{pos: d.Name.Pos(), pkg: pkg, name: d.Name.Name, decl: d}
+				obj := NewFunc(d.Name.Pos(), pkg, d.Name.Name, nil)
+				obj.decl = d
 				if obj.name == "init" {
 					// init functions are not visible - don't declare them in package scope
 					obj.parent = pkg.scope
@@ -309,7 +310,8 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 			scope = new(Scope)
 			check.methods[tname] = scope
 		}
-		fun := &Func{pos: m.Name.Pos(), pkg: check.pkg, name: m.Name.Name, decl: m}
+		fun := NewFunc(m.Name.Pos(), check.pkg, m.Name.Name, nil)
+		fun.decl = m
 		check.declare(scope, m.Name, fun)
 		// HACK(gri) change method parent scope to file scope containing the declaration
 		fun.parent = meth.file // remember the file scope
@@ -478,9 +480,13 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 		switch t := named.underlying.(type) {
 		case *Struct:
 			// struct fields must not conflict with methods
-			for _, f := range t.fields {
-				if m := scope.Lookup(nil, f.Name); m != nil {
-					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, f.Name)
+			if t.fields == nil {
+				break
+			}
+			for _, f := range t.fields.entries {
+				name := f.Name()
+				if m := scope.Lookup(nil, name); m != nil {
+					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, name)
 					// ok to continue
 				}
 			}
@@ -558,7 +564,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					// declare all constants
 					lhs := make([]*Const, len(s.Names))
 					for i, name := range s.Names {
-						obj := &Const{pos: name.Pos(), pkg: pkg, name: name.Name, val: exact.MakeInt64(int64(iota))}
+						obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
 						check.callIdent(name, obj)
 						lhs[i] = obj
 
@@ -588,7 +594,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					// declare all variables
 					lhs := make([]*Var, len(s.Names))
 					for i, name := range s.Names {
-						obj := &Var{pos: name.Pos(), pkg: pkg, name: name.Name}
+						obj := NewVar(name.Pos(), pkg, name.Name, nil)
 						check.callIdent(name, obj)
 						lhs[i] = obj
 					}
@@ -633,7 +639,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 				}
 
 			case *ast.TypeSpec:
-				obj := &TypeName{pos: s.Name.Pos(), pkg: pkg, name: s.Name.Name}
+				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 				check.declare(check.topScope, s.Name, obj)
 				check.declareType(obj, s.Type, false)
 

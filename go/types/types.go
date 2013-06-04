@@ -130,58 +130,24 @@ func NewSlice(elem Type) *Slice { return &Slice{elem} }
 // Elem returns the element type of slice s.
 func (s *Slice) Elem() Type { return s.elt }
 
-// A Field represents a field of a struct.
-type Field struct {
-	Pkg         *Package
-	Name        string
-	Type        Type
-	IsAnonymous bool
-
-	// TODO(gri) Temporary hack so we can report the correct *Var via Context.Ident.
-	//           Make Field just this *Var and we can simplify a lot of struct code.
-	obj *Var
-}
-
 // A Struct represents a struct type.
 type Struct struct {
-	scope   *Scope
-	fields  []*Field
-	tags    []string // field tags; nil of there are no tags
+	fields  *Scope
+	tags    []string // field tags; nil if there are no tags
 	offsets []int64  // field offsets in bytes, lazily computed
 }
 
-func NewStruct(fields []*Field, tags []string) *Struct {
-	return &Struct{scope: nil, fields: fields, tags: tags}
+func NewStruct(fields *Scope, tags []string) *Struct {
+	return &Struct{fields: fields, tags: tags}
 }
 
-func (s *Struct) NumFields() int     { return len(s.fields) }
-func (s *Struct) Field(i int) *Field { return s.fields[i] }
+func (s *Struct) NumFields() int     { return s.fields.NumEntries() }
+func (s *Struct) Field(i int) *Field { return s.fields.At(i).(*Field) }
 func (s *Struct) Tag(i int) string {
 	if i < len(s.tags) {
 		return s.tags[i]
 	}
 	return ""
-}
-
-func (f *Field) isMatch(pkg *Package, name string) bool {
-	// spec:
-	// "Two identifiers are different if they are spelled differently,
-	// or if they appear in different packages and are not exported.
-	// Otherwise, they are the same."
-	if name != f.Name {
-		return false
-	}
-	// f.Name == name
-	return ast.IsExported(name) || pkg.path == f.Pkg.path
-}
-
-func (s *Struct) fieldIndex(pkg *Package, name string) int {
-	for i, f := range s.fields {
-		if f.isMatch(pkg, name) {
-			return i
-		}
-	}
-	return -1
 }
 
 // A Pointer represents a pointer type.

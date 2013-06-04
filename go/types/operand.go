@@ -275,10 +275,14 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 			switch t := typ.underlying.(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
-				for i, f := range t.fields {
+				if t.fields == nil {
+					break
+				}
+				for i, obj := range t.fields.entries {
+					f := obj.(*Field)
 					if f.isMatch(pkg, name) {
-						assert(f.Type != nil)
-						if !potentialMatch(e.multiples, variable, f.Type) {
+						assert(f.typ != nil)
+						if !potentialMatch(e.multiples, variable, f.typ) {
 							return // name collision
 						}
 						var index []int
@@ -296,10 +300,10 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 					// T is a named type. If typ appeared multiple times at
 					// this level, f.Type appears multiple times at the next
 					// level.
-					if f.IsAnonymous && res.mode == invalid {
+					if f.anonymous && res.mode == invalid {
 						// Ignore embedded basic types - only user-defined
 						// named types can have methods or have struct fields.
-						if t, _ := f.Type.Deref().(*Named); t != nil {
+						if t, _ := f.typ.Deref().(*Named); t != nil {
 							var index []int
 							index = append(index, e.index...) // copy e.index
 							index = append(index, i)
@@ -370,18 +374,22 @@ func lookupField(typ Type, pkg *Package, name string) lookupResult {
 
 	switch t := typ.(type) {
 	case *Struct:
+		if t.fields == nil {
+			break
+		}
 		var next []embeddedType
-		for i, f := range t.fields {
+		for i, obj := range t.fields.entries {
+			f := obj.(*Field)
 			if f.isMatch(pkg, name) {
-				return lookupResult{variable, f.Type, []int{i}}
+				return lookupResult{variable, f.typ, []int{i}}
 			}
-			if f.IsAnonymous {
+			if f.anonymous {
 				// Possible optimization: If the embedded type
 				// is a pointer to the current type we could
 				// ignore it.
 				// Ignore embedded basic types - only user-defined
 				// named types can have methods or have struct fields.
-				if t, _ := f.Type.Deref().(*Named); t != nil {
+				if t, _ := f.typ.Deref().(*Named); t != nil {
 					next = append(next, embeddedType{t, []int{i}, false})
 				}
 			}

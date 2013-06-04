@@ -279,7 +279,7 @@ func emitTypeTest(f *Function, x Value, t types.Type) Value {
 		CommaOk:      true,
 	}
 	a.setType(types.NewTuple(
-		types.NewVar(nil, "value", t),
+		types.NewVar(token.NoPos, nil, "value", t),
 		varOk,
 	))
 	return f.emit(a)

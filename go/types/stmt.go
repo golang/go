@@ -97,9 +97,9 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	var obj Object
 	var typ Type
 	if isConst {
-		obj = &Const{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
+		obj = NewConst(ident.Pos(), check.pkg, ident.Name, nil, nil)
 	} else {
-		obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
+		obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 	}
 	defer check.declare(check.topScope, ident, obj)
 
@@ -237,9 +237,9 @@ Error:
 
 			var obj Object
 			if isConst {
-				obj = &Const{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
+				obj = NewConst(ident.Pos(), check.pkg, ident.Name, nil, nil)
 			} else {
-				obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
+				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 			}
 			defer check.declare(check.topScope, ident, obj)
 
@@ -323,7 +323,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.funcsig.labels = scope
 		}
 		label := s.Label
-		check.declare(scope, label, &Label{pos: label.Pos(), name: label.Name})
+		check.declare(scope, label, NewLabel(label.Pos(), label.Name))
 		check.stmt(s.Stmt)
 
 	case *ast.ExprStmt:
@@ -404,7 +404,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					var obj Object
 					if ident, ok := x.(*ast.Ident); ok {
 						// use the correct obj if the ident is redeclared
-						obj = &Var{pos: ident.Pos(), pkg: check.pkg, name: ident.Name}
+						obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 						if alt := check.topScope.Lookup(nil, ident.Name); alt != nil {
 							obj = alt
 						}
@@ -412,7 +412,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					} else {
 						check.errorf(x.Pos(), "cannot declare %s", x)
 						// create a dummy variable
-						obj = &Var{pos: x.Pos(), pkg: check.pkg, name: "_"}
+						obj = NewVar(x.Pos(), check.pkg, "_", nil)
 					}
 					lhs[i] = obj
 				}
@@ -655,7 +655,7 @@ func (check *checker) stmt(s ast.Stmt) {
 
 		var obj Object
 		if lhs != nil {
-			obj = &Var{pos: lhs.Pos(), pkg: check.pkg, name: lhs.Name, typ: x.typ}
+			obj = NewVar(lhs.Pos(), check.pkg, lhs.Name, x.typ)
 			check.declare(check.topScope, lhs, obj)
 		}
 
@@ -687,7 +687,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			if lhs != nil {
 				// A single-type case clause implicitly declares a new variable shadowing lhs.
 				if len(clause.List) == 1 && typ != nil {
-					obj := &Var{pos: lhs.Pos(), pkg: check.pkg, name: lhs.Name, typ: typ}
+					obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, typ)
 					check.declare(check.topScope, nil, obj)
 					check.callImplicitObj(clause, obj)
 				}

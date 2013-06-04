@@ -229,7 +229,7 @@ func (v *FieldAddr) String() string {
 	// Be robust against a bad index.
 	name := "?"
 	if 0 <= v.Field && v.Field < st.NumFields() {
-		name = st.Field(v.Field).Name
+		name = st.Field(v.Field).Name()
 	}
 	return fmt.Sprintf("&%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }
@@ -239,7 +239,7 @@ func (v *Field) String() string {
 	// Be robust against a bad index.
 	name := "?"
 	if 0 <= v.Field && v.Field < st.NumFields() {
-		name = st.Field(v.Field).Name
+		name = st.Field(v.Field).Name()
 	}
 	return fmt.Sprintf("%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }

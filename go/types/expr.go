@@ -92,7 +92,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
-				par := &Var{pos: name.Pos(), pkg: check.pkg, name: name.Name, typ: typ}
+				par := NewVar(name.Pos(), check.pkg, name.Name, typ)
 				check.declare(scope, name, par)
 
 				last = par
@@ -101,7 +101,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			}
 		} else {
 			// anonymous parameter
-			par := &Var{pkg: check.pkg, typ: typ}
+			par := NewVar(ftype.Pos(), check.pkg, "", typ)
 			check.callImplicitObj(field, par)
 
 			last = nil // not accessible inside function
@@ -138,7 +138,7 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) *Scope {
 				// TODO(gri) provide correct declaration info and scope
 				// TODO(gri) with unified scopes (Scope, ObjSet) this can become
 				//           just a normal declaration
-				obj := &Func{name.Pos(), check.pkg, nil, name.Name, sig, nil}
+				obj := NewFunc(name.Pos(), check.pkg, name.Name, sig)
 				if alt := methods.Insert(obj); alt != nil {
 					check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 					if pos := alt.Pos(); pos.IsValid() {
@@ -182,26 +182,24 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
+func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk bool) (tags []string) {
 	if list == nil {
 		return
 	}
 
 	var typ Type   // current field typ
 	var tag string // current field tag
-	add := func(field *ast.Field, ident *ast.Ident, name string, isAnonymous bool, pos token.Pos) {
+	add := func(field *ast.Field, ident *ast.Ident, name string, anonymous bool, pos token.Pos) {
 		// TODO(gri): rethink this - at the moment we allocate only a prefix
 		if tag != "" && tags == nil {
-			tags = make([]string, len(fields))
+			tags = make([]string, scope.NumEntries())
 		}
 		if tags != nil {
 			tags = append(tags, tag)
 		}
 
-		fld := &Var{pos: pos, pkg: check.pkg, name: name, typ: typ}
+		fld := NewField(pos, check.pkg, name, typ, anonymous)
 		check.declare(scope, ident, fld)
-
-		fields = append(fields, &Field{check.pkg, name, typ, isAnonymous, fld})
 	}
 
 	for _, f := range list.List {
@@ -1072,7 +1070,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 		switch obj := obj.(type) {
 		case *Package:
-			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
+			check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
 			goto Error
 		case *Const:
 			if obj.typ == Typ[Invalid] {
@@ -1161,7 +1159,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			fields := utyp.fields
 			if _, ok := e.Elts[0].(*ast.KeyValueExpr); ok {
 				// all elements must have keys
-				visited := make([]bool, len(fields))
+				visited := make([]bool, fields.NumEntries())
 				for _, e := range e.Elts {
 					kv, _ := e.(*ast.KeyValueExpr)
 					if kv == nil {
@@ -1173,12 +1171,13 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := utyp.fieldIndex(check.pkg, key.Name)
+					i := utyp.fields.Index(check.pkg, key.Name)
 					if i < 0 {
 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
 						continue
 					}
-					check.callIdent(key, fields[i].obj)
+					fld := fields.At(i).(*Field)
+					check.callIdent(key, fld)
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
@@ -1186,7 +1185,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					}
 					visited[i] = true
 					check.expr(x, kv.Value, nil, iota)
-					etyp := fields[i].Type
+					etyp := fld.typ
 					if !check.assignment(x, etyp) {
 						if x.mode != invalid {
 							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
@@ -1202,12 +1201,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						continue
 					}
 					check.expr(x, e, nil, iota)
-					if i >= len(fields) {
+					if i >= fields.NumEntries() {
 						check.errorf(x.pos(), "too many values in struct literal")
 						break // cannot continue
 					}
 					// i < len(fields)
-					etyp := fields[i].Type
+					etyp := fields.At(i).Type()
 					if !check.assignment(x, etyp) {
 						if x.mode != invalid {
 							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
@@ -1215,7 +1214,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						continue
 					}
 				}
-				if len(e.Elts) < len(fields) {
+				if len(e.Elts) < fields.NumEntries() {
 					check.errorf(e.Rbrace, "too few values in struct literal")
 					// ok to continue
 				}
@@ -1346,7 +1345,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 			x.mode = value
 			x.typ = &Signature{
-				params:     NewTuple(append([]*Var{{typ: x.typ}}, params...)...),
+				params:     NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "", x.typ)}, params...)...),
 				results:    sig.results,
 				isVariadic: sig.isVariadic,
 			}
@@ -1703,9 +1702,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.StructType:
 		scope := NewScope(check.topScope)
-		fields, tags := check.collectFields(scope, e.Fields, cycleOk)
+		tags := check.collectFields(scope, e.Fields, cycleOk)
 		x.mode = typexpr
-		x.typ = &Struct{scope: scope, fields: fields, tags: tags}
+		x.typ = &Struct{fields: scope, tags: tags}
 
 	case *ast.FuncType:
 		scope := NewScope(check.topScope)
