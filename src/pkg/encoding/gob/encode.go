@@ -338,14 +338,14 @@ type encEngine struct {
 const singletonField = 0
 
 // encodeSingle encodes a single top-level non-struct value.
-func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, basep uintptr) {
+func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, basep unsafe.Pointer) {
 	state := enc.newEncoderState(b)
 	state.fieldnum = singletonField
 	// There is no surrounding struct to frame the transmission, so we must
 	// generate data even if the item is zero.  To do this, set sendZero.
 	state.sendZero = true
 	instr := &engine.instr[singletonField]
-	p := unsafe.Pointer(basep) // offset will be zero
+	p := basep // offset will be zero
 	if instr.indir > 0 {
 		if p = encIndirect(p, instr.indir); p == nil {
 			return
@@ -356,12 +356,12 @@ func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, basep uintp
 }
 
 // encodeStruct encodes a single struct value.
-func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, basep uintptr) {
+func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, basep unsafe.Pointer) {
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	for i := 0; i < len(engine.instr); i++ {
 		instr := &engine.instr[i]
-		p := unsafe.Pointer(basep + instr.offset)
+		p := unsafe.Pointer(uintptr(basep) + instr.offset)
 		if instr.indir > 0 {
 			if p = encIndirect(p, instr.indir); p == nil {
 				continue
@@ -373,22 +373,22 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, basep uintp
 }
 
 // encodeArray encodes the array whose 0th element is at p.
-func (enc *Encoder) encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, elemIndir int, length int) {
+func (enc *Encoder) encodeArray(b *bytes.Buffer, p unsafe.Pointer, op encOp, elemWid uintptr, elemIndir int, length int) {
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
 	state.encodeUint(uint64(length))
 	for i := 0; i < length; i++ {
 		elemp := p
-		up := unsafe.Pointer(elemp)
 		if elemIndir > 0 {
-			if up = encIndirect(up, elemIndir); up == nil {
+			up := encIndirect(elemp, elemIndir)
+			if up == nil {
 				errorf("encodeArray: nil element")
 			}
-			elemp = uintptr(up)
+			elemp = up
 		}
-		op(nil, state, unsafe.Pointer(elemp))
-		p += uintptr(elemWid)
+		op(nil, state, elemp)
+		p = unsafe.Pointer(uintptr(p) + elemWid)
 	}
 	enc.freeEncoderState(state)
 }
@@ -401,7 +401,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 	if !v.IsValid() {
 		errorf("encodeReflectValue: nil element")
 	}
-	op(nil, state, unsafe.Pointer(unsafeAddr(v)))
+	op(nil, state, unsafeAddr(v))
 }
 
 // encodeMap encodes a map as unsigned count followed by key:value pairs.
@@ -582,14 +582,14 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 					return
 				}
 				state.update(i)
-				state.enc.encodeArray(state.b, slice.Data, *elemOp, t.Elem().Size(), indir, int(slice.Len))
+				state.enc.encodeArray(state.b, unsafe.Pointer(slice.Data), *elemOp, t.Elem().Size(), indir, int(slice.Len))
 			}
 		case reflect.Array:
 			// True arrays have size in the type.
 			elemOp, indir := enc.encOpFor(t.Elem(), inProgress)
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i)
-				state.enc.encodeArray(state.b, uintptr(p), *elemOp, t.Elem().Size(), indir, t.Len())
+				state.enc.encodeArray(state.b, p, *elemOp, t.Elem().Size(), indir, t.Len())
 			}
 		case reflect.Map:
 			keyOp, keyIndir := enc.encOpFor(t.Key(), inProgress)
@@ -615,7 +615,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i)
 				// indirect through info to delay evaluation for recursive structs
-				state.enc.encodeStruct(state.b, info.encoder, uintptr(p))
+				state.enc.encodeStruct(state.b, info.encoder, p)
 			}
 		case reflect.Interface:
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {

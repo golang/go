@@ -450,11 +450,11 @@ type decEngine struct {
 
 // allocate makes sure storage is available for an object of underlying type rtyp
 // that is indir levels of indirection through p.
-func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
+func allocate(rtyp reflect.Type, p unsafe.Pointer, indir int) unsafe.Pointer {
 	if indir == 0 {
 		return p
 	}
-	up := unsafe.Pointer(p)
+	up := p
 	if indir > 1 {
 		up = decIndirect(up, indir)
 	}
@@ -462,13 +462,13 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 		// Allocate object.
 		*(*unsafe.Pointer)(up) = unsafe.Pointer(reflect.New(rtyp).Pointer())
 	}
-	return *(*uintptr)(up)
+	return *(*unsafe.Pointer)(up)
 }
 
 // decodeSingle decodes a top-level value that is not a struct and stores it through p.
 // Such values are preceded by a zero, making them have the memory layout of a
 // struct field (although with an illegal field number).
-func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) {
+func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep unsafe.Pointer) {
 	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = singletonField
 	delta := int(state.decodeUint())
@@ -479,7 +479,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
 	if instr.indir != ut.indir {
 		errorf("internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
 	}
-	ptr := unsafe.Pointer(basep) // offset will be zero
+	ptr := basep // offset will be zero
 	if instr.indir > 1 {
 		ptr = decIndirect(ptr, instr.indir)
 	}
@@ -492,7 +492,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
 // differ from ut.indir, which was computed when the engine was built.
 // This state cannot arise for decodeSingle, which is called directly
 // from the user's value, not from the innards of an engine.
-func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr, indir int) {
+func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p unsafe.Pointer, indir int) {
 	p = allocate(ut.base, p, indir)
 	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = -1
@@ -511,7 +511,7 @@ func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr,
 			break
 		}
 		instr := &engine.instr[fieldnum]
-		p := unsafe.Pointer(basep + instr.offset)
+		p := unsafe.Pointer(uintptr(basep) + instr.offset)
 		if instr.indir > 1 {
 			p = decIndirect(p, instr.indir)
 		}
@@ -559,25 +559,25 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 }
 
 // decodeArrayHelper does the work for decoding arrays and slices.
-func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl error) {
+func (dec *Decoder) decodeArrayHelper(state *decoderState, p unsafe.Pointer, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl error) {
 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
 		}
-		up := unsafe.Pointer(p)
+		up := p
 		if elemIndir > 1 {
 			up = decIndirect(up, elemIndir)
 		}
 		elemOp(instr, state, up)
-		p += uintptr(elemWid)
+		p = unsafe.Pointer(uintptr(p) + elemWid)
 	}
 }
 
 // decodeArray decodes an array and stores it through p, that is, p points to the zeroth element.
 // The length is an unsigned integer preceding the elements.  Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl error) {
+func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p unsafe.Pointer, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl error) {
 	if indir > 0 {
 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -591,7 +591,7 @@ func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintpt
 // unlike the other items we can't use a pointer directly.
 func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl error) reflect.Value {
 	instr := &decInstr{op, 0, indir, 0, ovfl}
-	up := unsafe.Pointer(unsafeAddr(v))
+	up := unsafeAddr(v)
 	if indir > 1 {
 		up = decIndirect(up, indir)
 	}
@@ -603,7 +603,7 @@ func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, 
 // Maps are encoded as a length followed by key:value pairs.
 // Because the internals of maps are not visible to us, we must
 // use reflection rather than pointer magic.
-func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl error) {
+func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p unsafe.Pointer, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl error) {
 	if indir > 0 {
 		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -673,7 +673,7 @@ func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintpt
 		hdrp.Cap = n
 	}
 	hdrp.Len = n
-	dec.decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl)
+	dec.decodeArrayHelper(state, unsafe.Pointer(hdrp.Data), elemOp, elemWid, n, elemIndir, ovfl)
 }
 
 // ignoreSlice skips over the data for a slice value with no destination.
@@ -693,7 +693,7 @@ func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
 // decodeInterface decodes an interface value and stores it through p.
 // Interfaces are encoded as the name of a concrete type followed by a value.
 // If the name is empty, the value is nil and no value is sent.
-func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p uintptr, indir int) {
+func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p unsafe.Pointer, indir int) {
 	// Create a writable interface reflect.Value.  We need one even for the nil case.
 	ivalue := allocValue(ityp)
 	// Read the name of the concrete type.
@@ -850,7 +850,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
-				state.dec.decodeArray(t, state, uintptr(p), *elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir, ovfl)
+				state.dec.decodeArray(t, state, p, *elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir, ovfl)
 			}
 
 		case reflect.Map:
@@ -860,8 +860,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), "element of "+name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
-				up := unsafe.Pointer(p)
-				state.dec.decodeMap(t, state, uintptr(up), *keyOp, *elemOp, i.indir, keyIndir, elemIndir, ovfl)
+				state.dec.decodeMap(t, state, p, *keyOp, *elemOp, i.indir, keyIndir, elemIndir, ovfl)
 			}
 
 		case reflect.Slice:
@@ -890,11 +889,11 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			}
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs.
-				dec.decodeStruct(*enginePtr, userType(typ), uintptr(p), i.indir)
+				dec.decodeStruct(*enginePtr, userType(typ), p, i.indir)
 			}
 		case reflect.Interface:
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
-				state.dec.decodeInterface(t, state, uintptr(p), i.indir)
+				state.dec.decodeInterface(t, state, p, i.indir)
 			}
 		}
 	}
@@ -1229,9 +1228,9 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 			name := base.Name()
 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
 		}
-		dec.decodeStruct(engine, ut, uintptr(unsafeAddr(val)), ut.indir)
+		dec.decodeStruct(engine, ut, unsafeAddr(val), ut.indir)
 	} else {
-		dec.decodeSingle(engine, ut, uintptr(unsafeAddr(val)))
+		dec.decodeSingle(engine, ut, unsafeAddr(val))
 	}
 }
 
@@ -1283,13 +1282,13 @@ func init() {
 // into existing structs or slices cannot be addressed,
 // so simulate it by returning a pointer to a copy.
 // Each call allocates once.
-func unsafeAddr(v reflect.Value) uintptr {
+func unsafeAddr(v reflect.Value) unsafe.Pointer {
 	if v.CanAddr() {
-		return v.UnsafeAddr()
+		return unsafe.Pointer(v.UnsafeAddr())
 	}
 	x := reflect.New(v.Type()).Elem()
 	x.Set(v)
-	return x.UnsafeAddr()
+	return unsafe.Pointer(x.UnsafeAddr())
 }
 
 // Gob depends on being able to take the address
