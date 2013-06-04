@@ -139,9 +139,7 @@ gclean(void)
 			continue;
 		if(s->type == types[TENUM])
 			continue;
-		textflag = s->dataflag;
 		gpseudo(AGLOBL, s, nodconst(s->type->width));
-		textflag = 0;
 	}
 	nextpc();
 	p->as = AEND;
@@ -1181,10 +1179,17 @@ gpseudo(int a, Sym *s, Node *n)
 	p->from.type = D_OREG;
 	p->from.sym = s;
 	p->from.name = D_EXTERN;
-	if(a == ATEXT || a == AGLOBL) {
+
+	switch(a) {
+	case ATEXT:
 		p->reg = textflag;
 		textflag = 0;
+		break;
+	case AGLOBL:
+		p->reg = s->dataflag;
+		break;
 	}
+
 	if(s->class == CSTATIC)
 		p->from.name = D_STATIC;
 	naddr(n, &p->to);
