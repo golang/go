@@ -32,14 +32,14 @@ type StructuralError struct {
 	Msg string
 }
 
-func (e StructuralError) Error() string { return "ASN.1 structure error: " + e.Msg }
+func (e StructuralError) Error() string { return "asn1: structure error: " + e.Msg }
 
 // A SyntaxError suggests that the ASN.1 data is invalid.
 type SyntaxError struct {
 	Msg string
 }
 
-func (e SyntaxError) Error() string { return "ASN.1 syntax error: " + e.Msg }
+func (e SyntaxError) Error() string { return "asn1: syntax error: " + e.Msg }
 
 // We start by dealing with each of the primitive types in turn.
 
@@ -47,7 +47,7 @@ func (e SyntaxError) Error() string { return "ASN.1 syntax error: " + e.Msg }
 
 func parseBool(bytes []byte) (ret bool, err error) {
 	if len(bytes) != 1 {
-		err = SyntaxError{"encoding/asn1: invalid boolean"}
+		err = SyntaxError{"invalid boolean"}
 		return
 	}
 
@@ -60,7 +60,7 @@ func parseBool(bytes []byte) (ret bool, err error) {
 	case 0xff:
 		ret = true
 	default:
-		err = SyntaxError{"encoding/asn1: invalid boolean"}
+		err = SyntaxError{"invalid boolean"}
 	}
 
 	return
@@ -585,7 +585,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				}
 			} else {
 				if fieldType != flagType {
-					err = StructuralError{"Zero length explicit tag was not an asn1.Flag"}
+					err = StructuralError{"zero length explicit tag was not an asn1.Flag"}
 					return
 				}
 				v.SetBool(true)
