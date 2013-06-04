@@ -304,7 +304,7 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
 	case 2000 <= year && year < 2050:
 		err = marshalTwoDigits(out, int(year-2000))
 	default:
-		return StructuralError{"Cannot represent time as UTCTime"}
+		return StructuralError{"cannot represent time as UTCTime"}
 	}
 	if err != nil {
 		return
@@ -501,7 +501,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 	class := classUniversal
 
 	if params.stringType != 0 && tag != tagPrintableString {
-		return StructuralError{"Explicit string type given to non-string member"}
+		return StructuralError{"explicit string type given to non-string member"}
 	}
 
 	if tag == tagPrintableString {
@@ -525,7 +525,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 
 	if params.set {
 		if tag != tagSequence {
-			return StructuralError{"Non sequence tagged as set"}
+			return StructuralError{"non sequence tagged as set"}
 		}
 		tag = tagSet
 	}
