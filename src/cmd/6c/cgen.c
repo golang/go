@@ -1679,7 +1679,7 @@ copy:
 
 	if(n->complex >= FNX && nn != nil && nn->complex >= FNX) {
 		t = nn->type;
-		nn->type = types[TLONG];
+		nn->type = types[TIND];
 		regialloc(&nod1, nn, Z);
 		lcgen(nn, &nod1);
 		regsalloc(&nod2, nn);
@@ -1786,7 +1786,7 @@ copy:
 	c = 0;
 	if(n->complex > nn->complex) {
 		t = n->type;
-		n->type = types[TLONG];
+		n->type = types[TIND];
 		nodreg(&nod1, n, D_SI);
 		if(reg[D_SI]) {
 			gins(APUSHQ, &nod1, Z);
@@ -1797,7 +1797,7 @@ copy:
 		n->type = t;
 
 		t = nn->type;
-		nn->type = types[TLONG];
+		nn->type = types[TIND];
 		nodreg(&nod2, nn, D_DI);
 		if(reg[D_DI]) {
 warn(Z, "DI botch");
@@ -1809,7 +1809,7 @@ warn(Z, "DI botch");
 		nn->type = t;
 	} else {
 		t = nn->type;
-		nn->type = types[TLONG];
+		nn->type = types[TIND];
 		nodreg(&nod2, nn, D_DI);
 		if(reg[D_DI]) {
 warn(Z, "DI botch");
@@ -1821,7 +1821,7 @@ warn(Z, "DI botch");
 		nn->type = t;
 
 		t = n->type;
-		n->type = types[TLONG];
+		n->type = types[TIND];
 		nodreg(&nod1, n, D_SI);
 		if(reg[D_SI]) {
 			gins(APUSHQ, &nod1, Z);
