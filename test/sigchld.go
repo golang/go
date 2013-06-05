@@ -1,4 +1,4 @@
-// +build !windows !plan9
+// +build !windows
 // cmpout
 
 // Copyright 2009 The Go Authors. All rights reserved.
