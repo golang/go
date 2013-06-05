@@ -165,12 +165,15 @@ reexportdep(Node *n)
 	case ODOTTYPE2:
 	case OSTRUCTLIT:
 	case OPTRLIT:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case OMAKECHAN:
 		t = n->type;
 		if(!t->sym && t->type)
 			t = t->type;
 		if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
 			if(debug['E'])
-				print("reexport type for convnop %S\n", t->sym);
+				print("reexport type for expression %S\n", t->sym);
 			exportlist = list(exportlist, t->sym->def);
 		}
 		break;
