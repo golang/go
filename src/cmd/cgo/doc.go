@@ -24,7 +24,7 @@ the C parts of the package.  For example:
 	// #include <errno.h>
 	import "C"
 
-CPPFLAGS, CFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo directives
+CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo directives
 within these comments to tweak the behavior of gcc.  Values defined
 in multiple directives are concatenated together.  Options prefixed
 by $GOOS, $GOARCH, or $GOOS/$GOARCH are only defined in matching
@@ -44,7 +44,7 @@ For example:
 	// #include <png.h>
 	import "C"
 
-The CGO_CPPFLAGS, CGO_CFLAGS, CGO_CXXFLAGS and CGO_LDFLAGS environment variables are added
+The CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS and CGO_LDFLAGS environment variables are added
 to the flags derived from these directives.  Package-specific flags should
 be set using the directives, not the environment variables, so that builds
 work in unmodified environments.
