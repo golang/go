@@ -174,10 +174,10 @@ func (d *decoder) processSOF(n int) error {
 		// values for the Cr and Cb components must be (1, 1).
 		if i == 0 {
 			if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
-				return UnsupportedError("luma downsample ratio")
+				return UnsupportedError("luma/chroma downsample ratio")
 			}
 		} else if hv != 0x11 {
-			return UnsupportedError("chroma downsample ratio")
+			return UnsupportedError("luma/chroma downsample ratio")
 		}
 	}
 	return nil
