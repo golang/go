@@ -153,8 +153,7 @@ struct MLink
 
 // SysAlloc obtains a large chunk of zeroed memory from the
 // operating system, typically on the order of a hundred kilobytes
-// or a megabyte.  If the pointer argument is non-nil, the caller
-// wants a mapping there or nowhere.
+// or a megabyte.
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
