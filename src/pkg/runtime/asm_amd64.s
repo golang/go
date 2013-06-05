@@ -181,7 +181,7 @@ TEXT runtime·mcall(SB), 7, $0
 	MOVQ	fn+0(FP), DI
 	
 	get_tls(CX)
-	MOVQ	g(CX), AX	// save state in g->gobuf
+	MOVQ	g(CX), AX	// save state in g->sched
 	MOVQ	0(SP), BX	// caller's PC
 	MOVQ	BX, (g_sched+gobuf_pc)(AX)
 	LEAQ	8(SP), BX	// caller's SP
@@ -195,7 +195,7 @@ TEXT runtime·mcall(SB), 7, $0
 	JNE	2(PC)
 	CALL	runtime·badmcall(SB)
 	MOVQ	SI, g(CX)	// g = m->g0
-	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->gobuf.sp
+	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
 	PUSHQ	AX
 	CALL	DI
 	POPQ	AX
@@ -605,11 +605,11 @@ havem:
 	// Switch to m->curg stack and call runtime.cgocallbackg
 	// with the three arguments.  Because we are taking over
 	// the execution of m->curg but *not* resuming what had
-	// been running, we need to save that information (m->curg->gobuf)
+	// been running, we need to save that information (m->curg->sched)
 	// so that we can restore it when we're done. 
-	// We can restore m->curg->gobuf.sp easily, because calling
+	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->gobuf.pc, we push it onto the stack.
+	// To save m->curg->sched.pc, we push it onto the stack.
 	// This has the added benefit that it looks to the traceback
 	// routine like cgocallbackg is going to return to that
 	// PC (because we defined cgocallbackg to have
@@ -641,7 +641,7 @@ havem:
 	MOVQ	DI, SP
 	CALL	runtime·cgocallbackg(SB)
 
-	// Restore g->gobuf (== m->curg->gobuf) from saved values.
+	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVQ	g(CX), SI
 	MOVQ	24(SP), BP

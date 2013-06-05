@@ -158,7 +158,7 @@ TEXT runtime·gogocallfn(SB), 7, $-4
 TEXT runtime·mcall(SB), 7, $-4
 	MOVW	fn+0(FP), R0
 
-	// Save caller state in g->gobuf.
+	// Save caller state in g->sched.
 	MOVW	SP, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	g, (g_sched+gobuf_g)(g)
@@ -360,11 +360,11 @@ havem:
 	// Switch to m->curg stack and call runtime.cgocallbackg
 	// with the three arguments.  Because we are taking over
 	// the execution of m->curg but *not* resuming what had
-	// been running, we need to save that information (m->curg->gobuf)
+	// been running, we need to save that information (m->curg->sched)
 	// so that we can restore it when we're done. 
-	// We can restore m->curg->gobuf.sp easily, because calling
+	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->gobuf.pc, we push it onto the stack.
+	// To save m->curg->sched.pc, we push it onto the stack.
 	// This has the added benefit that it looks to the traceback
 	// routine like cgocallbackg is going to return to that
 	// PC (because we defined cgocallbackg to have
@@ -393,7 +393,7 @@ havem:
 	MOVW	R4, R13
 	BL	runtime·cgocallbackg(SB)
 
-	// Restore g->gobuf (== m->curg->gobuf) from saved values.
+	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVW	0(R13), R5
 	MOVW	R5, (g_sched+gobuf_pc)(g)
 	ADD	$(12+4), R13, R4
