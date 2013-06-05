@@ -110,7 +110,7 @@ var serverFinishedLabel = []byte("server finished")
 // secret. See http://tools.ietf.org/html/rfc5246#section-8.1
 func masterFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte) []byte {
 	prf := pRF10
-	if version == versionSSL30 {
+	if version == VersionSSL30 {
 		prf = pRF30
 	}
 
@@ -127,7 +127,7 @@ func masterFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, se
 // RFC 2246, section 6.3.
 func keysFromMasterSecret(version uint16, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
 	prf := pRF10
-	if version == versionSSL30 {
+	if version == VersionSSL30 {
 		prf = pRF30
 	}
 
@@ -224,7 +224,7 @@ var ssl3ServerFinishedMagic = [4]byte{0x53, 0x52, 0x56, 0x52}
 // clientSum returns the contents of the verify_data member of a client's
 // Finished message.
 func (h finishedHash) clientSum(masterSecret []byte) []byte {
-	if h.version == versionSSL30 {
+	if h.version == VersionSSL30 {
 		return finishedSum30(h.clientMD5, h.clientSHA1, masterSecret, ssl3ClientFinishedMagic)
 	}
 
@@ -236,7 +236,7 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
 // serverSum returns the contents of the verify_data member of a server's
 // Finished message.
 func (h finishedHash) serverSum(masterSecret []byte) []byte {
-	if h.version == versionSSL30 {
+	if h.version == VersionSSL30 {
 		return finishedSum30(h.serverMD5, h.serverSHA1, masterSecret, ssl3ServerFinishedMagic)
 	}
 

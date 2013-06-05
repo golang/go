@@ -61,6 +61,13 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
+func (x *cbcEncrypter) SetIV(iv []byte) {
+	if len(iv) != len(x.iv) {
+		panic("cipher: incorrect length IV")
+	}
+	copy(x.iv, iv)
+}
+
 type cbcDecrypter cbc
 
 // NewCBCDecrypter returns a BlockMode which decrypts in cipher block chaining
@@ -93,4 +100,11 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 		src = src[x.blockSize:]
 		dst = dst[x.blockSize:]
 	}
+}
+
+func (x *cbcDecrypter) SetIV(iv []byte) {
+	if len(iv) != len(x.iv) {
+		panic("cipher: incorrect length IV")
+	}
+	copy(x.iv, iv)
 }

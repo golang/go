@@ -229,8 +229,16 @@ func roundUp(a, b int) int {
 	return a + (b-a%b)%b
 }
 
-// decrypt checks and strips the mac and decrypts the data in b.
-func (hc *halfConn) decrypt(b *block) (bool, alert) {
+// cbcMode is an interface for block ciphers using cipher block chaining.
+type cbcMode interface {
+	cipher.BlockMode
+	SetIV([]byte)
+}
+
+// decrypt checks and strips the mac and decrypts the data in b. Returns a
+// success boolean, the number of bytes to skip from the start of the record in
+// order to get the application payload, and an optional alert value.
+func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert) {
 	// pull out payload
 	payload := b.data[recordHeaderLen:]
 
@@ -240,26 +248,34 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 	}
 
 	paddingGood := byte(255)
+	explicitIVLen := 0
 
 	// decrypt
 	if hc.cipher != nil {
 		switch c := hc.cipher.(type) {
 		case cipher.Stream:
 			c.XORKeyStream(payload, payload)
-		case cipher.BlockMode:
+		case cbcMode:
 			blockSize := c.BlockSize()
-
-			if len(payload)%blockSize != 0 || len(payload) < roundUp(macSize+1, blockSize) {
-				return false, alertBadRecordMAC
+			if hc.version >= VersionTLS11 {
+				explicitIVLen = blockSize
 			}
 
+			if len(payload)%blockSize != 0 || len(payload) < roundUp(explicitIVLen+macSize+1, blockSize) {
+				return false, 0, alertBadRecordMAC
+			}
+
+			if explicitIVLen > 0 {
+				c.SetIV(payload[:explicitIVLen])
+				payload = payload[explicitIVLen:]
+			}
 			c.CryptBlocks(payload, payload)
-			if hc.version == versionSSL30 {
+			if hc.version == VersionSSL30 {
 				payload, paddingGood = removePaddingSSL30(payload)
 			} else {
 				payload, paddingGood = removePadding(payload)
 			}
-			b.resize(recordHeaderLen + len(payload))
+			b.resize(recordHeaderLen + explicitIVLen + len(payload))
 
 			// note that we still have a timing side-channel in the
 			// MAC check, below. An attacker can align the record
@@ -279,25 +295,25 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 	// check, strip mac
 	if hc.mac != nil {
 		if len(payload) < macSize {
-			return false, alertBadRecordMAC
+			return false, 0, alertBadRecordMAC
 		}
 
 		// strip mac off payload, b.data
 		n := len(payload) - macSize
 		b.data[3] = byte(n >> 8)
 		b.data[4] = byte(n)
-		b.resize(recordHeaderLen + n)
+		b.resize(recordHeaderLen + explicitIVLen + n)
 		remoteMAC := payload[n:]
-		localMAC := hc.mac.MAC(hc.inDigestBuf, hc.seq[0:], b.data)
+		localMAC := hc.mac.MAC(hc.inDigestBuf, hc.seq[0:], b.data[:recordHeaderLen], payload[:n])
 		hc.incSeq()
 
 		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
-			return false, alertBadRecordMAC
+			return false, 0, alertBadRecordMAC
 		}
 		hc.inDigestBuf = localMAC
 	}
 
-	return true, 0
+	return true, recordHeaderLen + explicitIVLen, 0
 }
 
 // padToBlockSize calculates the needed padding block, if any, for a payload.
@@ -318,10 +334,10 @@ func padToBlockSize(payload []byte, blockSize int) (prefix, finalBlock []byte) {
 }
 
 // encrypt encrypts and macs the data in b.
-func (hc *halfConn) encrypt(b *block) (bool, alert) {
+func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 	// mac
 	if hc.mac != nil {
-		mac := hc.mac.MAC(hc.outDigestBuf, hc.seq[0:], b.data)
+		mac := hc.mac.MAC(hc.outDigestBuf, hc.seq[0:], b.data[:recordHeaderLen], b.data[recordHeaderLen+explicitIVLen:])
 		hc.incSeq()
 
 		n := len(b.data)
@@ -337,11 +353,16 @@ func (hc *halfConn) encrypt(b *block) (bool, alert) {
 		switch c := hc.cipher.(type) {
 		case cipher.Stream:
 			c.XORKeyStream(payload, payload)
-		case cipher.BlockMode:
-			prefix, finalBlock := padToBlockSize(payload, c.BlockSize())
-			b.resize(recordHeaderLen + len(prefix) + len(finalBlock))
-			c.CryptBlocks(b.data[recordHeaderLen:], prefix)
-			c.CryptBlocks(b.data[recordHeaderLen+len(prefix):], finalBlock)
+		case cbcMode:
+			blockSize := c.BlockSize()
+			if explicitIVLen > 0 {
+				c.SetIV(payload[:explicitIVLen])
+				payload = payload[explicitIVLen:]
+			}
+			prefix, finalBlock := padToBlockSize(payload, blockSize)
+			b.resize(recordHeaderLen + explicitIVLen + len(prefix) + len(finalBlock))
+			c.CryptBlocks(b.data[recordHeaderLen+explicitIVLen:], prefix)
+			c.CryptBlocks(b.data[recordHeaderLen+explicitIVLen+len(prefix):], finalBlock)
 		default:
 			panic("unknown cipher type")
 		}
@@ -534,10 +555,11 @@ Again:
 
 	// Process message.
 	b, c.rawInput = c.in.splitBlock(b, recordHeaderLen+n)
-	b.off = recordHeaderLen
-	if ok, err := c.in.decrypt(b); !ok {
+	ok, off, err := c.in.decrypt(b)
+	if !ok {
 		return c.sendAlert(err)
 	}
+	b.off = off
 	data := b.data[b.off:]
 	if len(data) > maxPlaintext {
 		c.sendAlert(alertRecordOverflow)
@@ -637,18 +659,35 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 		if m > maxPlaintext {
 			m = maxPlaintext
 		}
-		b.resize(recordHeaderLen + m)
+		explicitIVLen := 0
+
+		var cbc cbcMode
+		if c.out.version >= VersionTLS11 {
+			var ok bool
+			if cbc, ok = c.out.cipher.(cbcMode); ok {
+				explicitIVLen = cbc.BlockSize()
+			}
+		}
+		b.resize(recordHeaderLen + explicitIVLen + m)
 		b.data[0] = byte(typ)
 		vers := c.vers
 		if vers == 0 {
-			vers = maxVersion
+			// Some TLS servers fail if the record version is
+			// greater than TLS 1.0 for the initial ClientHello.
+			vers = VersionTLS10
 		}
 		b.data[1] = byte(vers >> 8)
 		b.data[2] = byte(vers)
 		b.data[3] = byte(m >> 8)
 		b.data[4] = byte(m)
-		copy(b.data[recordHeaderLen:], data)
-		c.out.encrypt(b)
+		if explicitIVLen > 0 {
+			explicitIV := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
+			if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
+				break
+			}
+		}
+		copy(b.data[recordHeaderLen+explicitIVLen:], data)
+		c.out.encrypt(b, explicitIVLen)
 		_, err = c.conn.Write(b.data)
 		if err != nil {
 			break
@@ -768,7 +807,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 	// http://www.imperialviolet.org/2012/01/15/beastfollowup.html
 
 	var m int
-	if len(b) > 1 && c.vers <= versionTLS10 {
+	if len(b) > 1 && c.vers <= VersionTLS10 {
 		if _, ok := c.out.cipher.(cipher.BlockMode); ok {
 			n, err := c.writeRecord(recordTypeApplicationData, b[:1])
 			if err != nil {
