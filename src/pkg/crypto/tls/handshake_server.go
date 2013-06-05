@@ -98,7 +98,7 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 	if !ok {
 		return false, c.sendAlert(alertUnexpectedMessage)
 	}
-	c.vers, ok = mutualVersion(hs.clientHello.vers)
+	c.vers, ok = config.mutualVersion(hs.clientHello.vers)
 	if !ok {
 		return false, c.sendAlert(alertProtocolVersion)
 	}
@@ -203,7 +203,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	if hs.sessionState.vers > hs.clientHello.vers {
 		return false
 	}
-	if vers, ok := mutualVersion(hs.sessionState.vers); !ok || vers != hs.sessionState.vers {
+	if vers, ok := c.config.mutualVersion(hs.sessionState.vers); !ok || vers != hs.sessionState.vers {
 		return false
 	}
 

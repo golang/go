@@ -15,16 +15,19 @@ import (
 )
 
 const (
+	VersionSSL30 = 0x0300
+	VersionTLS10 = 0x0301
+	VersionTLS11 = 0x0302
+)
+
+const (
 	maxPlaintext    = 16384        // maximum plaintext payload length
 	maxCiphertext   = 16384 + 2048 // maximum ciphertext payload length
 	recordHeaderLen = 5            // record header length
 	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
 
-	versionSSL30 = 0x0300
-	versionTLS10 = 0x0301
-
-	minVersion = versionSSL30
-	maxVersion = versionTLS10
+	minVersion = VersionSSL30
+	maxVersion = VersionTLS11
 )
 
 // TLS record types.
@@ -204,6 +207,15 @@ type Config struct {
 	// connections using that key are compromised.
 	SessionTicketKey [32]byte
 
+	// MinVersion contains the minimum SSL/TLS version that is acceptable.
+	// If zero, then SSLv3 is taken as the minimum.
+	MinVersion uint16
+
+	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
+	// If zero, then the maximum version supported by this package is used,
+	// which is currently TLS 1.1.
+	MaxVersion uint16
+
 	serverInitOnce sync.Once // guards calling (*Config).serverInit
 }
 
@@ -246,6 +258,35 @@ func (c *Config) cipherSuites() []uint16 {
 		s = defaultCipherSuites()
 	}
 	return s
+}
+
+func (c *Config) minVersion() uint16 {
+	if c == nil || c.MinVersion == 0 {
+		return minVersion
+	}
+	return c.MinVersion
+}
+
+func (c *Config) maxVersion() uint16 {
+	if c == nil || c.MaxVersion == 0 {
+		return maxVersion
+	}
+	return c.MaxVersion
+}
+
+// mutualVersion returns the protocol version to use given the advertised
+// version of the peer.
+func (c *Config) mutualVersion(vers uint16) (uint16, bool) {
+	minVersion := c.minVersion()
+	maxVersion := c.maxVersion()
+
+	if vers < minVersion {
+		return 0, false
+	}
+	if vers > maxVersion {
+		vers = maxVersion
+	}
+	return vers, true
 }
 
 // getCertificateForName returns the best certificate for the given name,
@@ -325,18 +366,6 @@ type record struct {
 type handshakeMessage interface {
 	marshal() []byte
 	unmarshal([]byte) bool
-}
-
-// mutualVersion returns the protocol version to use given the advertised
-// version of the peer.
-func mutualVersion(vers uint16) (uint16, bool) {
-	if vers < minVersion {
-		return 0, false
-	}
-	if vers > maxVersion {
-		vers = maxVersion
-	}
-	return vers, true
 }
 
 var emptyConfig Config

@@ -16,14 +16,14 @@ import (
 )
 
 func (c *Conn) clientHandshake() error {
-	finishedHash := newFinishedHash(versionTLS10)
+	finishedHash := newFinishedHash(VersionTLS10)
 
 	if c.config == nil {
 		c.config = defaultConfig()
 	}
 
 	hello := &clientHelloMsg{
-		vers:               maxVersion,
+		vers:               c.config.maxVersion(),
 		cipherSuites:       c.config.cipherSuites(),
 		compressionMethods: []uint8{compressionNone},
 		random:             make([]byte, 32),
@@ -58,8 +58,8 @@ func (c *Conn) clientHandshake() error {
 	}
 	finishedHash.Write(serverHello.marshal())
 
-	vers, ok := mutualVersion(serverHello.vers)
-	if !ok || vers < versionTLS10 {
+	vers, ok := c.config.mutualVersion(serverHello.vers)
+	if !ok || vers < VersionTLS10 {
 		// TLS 1.0 is the minimum version supported as a client.
 		return c.sendAlert(alertProtocolVersion)
 	}

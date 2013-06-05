@@ -85,7 +85,7 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 
 // macSHA1 returns a macFunction for the given protocol version.
 func macSHA1(version uint16, key []byte) macFunction {
-	if version == versionSSL30 {
+	if version == VersionSSL30 {
 		mac := ssl30MAC{
 			h:   sha1.New(),
 			key: make([]byte, len(key)),
@@ -98,7 +98,7 @@ func macSHA1(version uint16, key []byte) macFunction {
 
 type macFunction interface {
 	Size() int
-	MAC(digestBuf, seq, data []byte) []byte
+	MAC(digestBuf, seq, header, data []byte) []byte
 }
 
 // ssl30MAC implements the SSLv3 MAC function, as defined in
@@ -116,7 +116,7 @@ var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0
 
 var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
 
-func (s ssl30MAC) MAC(digestBuf, seq, record []byte) []byte {
+func (s ssl30MAC) MAC(digestBuf, seq, header, data []byte) []byte {
 	padLength := 48
 	if s.h.Size() == 20 {
 		padLength = 40
@@ -126,9 +126,9 @@ func (s ssl30MAC) MAC(digestBuf, seq, record []byte) []byte {
 	s.h.Write(s.key)
 	s.h.Write(ssl30Pad1[:padLength])
 	s.h.Write(seq)
-	s.h.Write(record[:1])
-	s.h.Write(record[3:5])
-	s.h.Write(record[recordHeaderLen:])
+	s.h.Write(header[:1])
+	s.h.Write(header[3:5])
+	s.h.Write(data)
 	digestBuf = s.h.Sum(digestBuf[:0])
 
 	s.h.Reset()
@@ -147,10 +147,11 @@ func (s tls10MAC) Size() int {
 	return s.h.Size()
 }
 
-func (s tls10MAC) MAC(digestBuf, seq, record []byte) []byte {
+func (s tls10MAC) MAC(digestBuf, seq, header, data []byte) []byte {
 	s.h.Reset()
 	s.h.Write(seq)
-	s.h.Write(record)
+	s.h.Write(header)
+	s.h.Write(data)
 	return s.h.Sum(digestBuf[:0])
 }
 

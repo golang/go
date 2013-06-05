@@ -36,7 +36,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 	}
 
 	ciphertext := ckx.ciphertext
-	if version != versionSSL30 {
+	if version != VersionSSL30 {
 		ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
 		if ciphertextLen != len(ckx.ciphertext)-2 {
 			return nil, errors.New("bad ClientKeyExchange")
