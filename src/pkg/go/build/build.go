@@ -356,13 +356,13 @@ type Package struct {
 	CXXFiles       []string // .cc, .cpp and .cxx source files
 	HFiles         []string // .h, .hh, .hpp and .hxx source files
 	SFiles         []string // .s source files
-	SysoFiles      []string // .syso system object files to add to archive
 	SwigFiles      []string // .swig files
 	SwigCXXFiles   []string // .swigcxx files
+	SysoFiles      []string // .syso system object files to add to archive
 
 	// Cgo directives
-	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
 	CgoCFLAGS    []string // Cgo CFLAGS directives
+	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
 	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 	CgoPkgConfig []string // Cgo pkg-config directives
@@ -857,7 +857,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.
-// These lines set CPPCFLAGS, CFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
+// These lines set CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
 // that affect the way cgo's C code is built.
 //
 // TODO(rsc): This duplicates code in cgo.

@@ -43,13 +43,13 @@ type Package struct {
 	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
 	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
 	SFiles         []string `json:",omitempty"` // .s source files
-	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
 	SwigFiles      []string `json:",omitempty"` // .swig files
 	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
+	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
 
 	// Cgo directives
-	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
 	CgoCXXFLAGS  []string `json:",omitempty"` // cgo: flags for C++ compiler
 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
@@ -104,11 +104,11 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CXXFiles = pp.CXXFiles
 	p.HFiles = pp.HFiles
 	p.SFiles = pp.SFiles
-	p.SysoFiles = pp.SysoFiles
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
-	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
+	p.SysoFiles = pp.SysoFiles
 	p.CgoCFLAGS = pp.CgoCFLAGS
+	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
