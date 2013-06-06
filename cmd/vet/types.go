@@ -57,10 +57,32 @@ func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
 }
 
 func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
-	// TODO: for now, we can only test builtin types and untyped constants.
+	// TODO: for now, we can only test builtin types, untyped constants, and Stringer/Errors.
 	typ := f.pkg.types[arg]
 	if typ == nil {
 		return true
+	}
+	// If we can use a string and this is a named type, does it implement the Stringer or Error interface?
+	// TODO: Simplify when we have the IsAssignableTo predicate in go/types.
+	if named, ok := typ.(*types.Named); ok && t&argString != 0 {
+		for i := 0; i < named.NumMethods(); i++ {
+			method := named.Method(i)
+			// Method must be either String or Error.
+			if method.Name() != "String" && method.Name() != "Error" {
+				continue
+			}
+			sig := method.Type().(*types.Signature)
+			// There must be zero arguments and one return.
+			if sig.Params().Len() != 0 || sig.Results().Len() != 1 {
+				continue
+			}
+			// Result must be string.
+			if !isUniverseString(sig.Results().At(0).Type()) {
+				continue
+			}
+			// It's a Stringer and we can print it.
+			return true
+		}
 	}
 	basic, ok := typ.Underlying().(*types.Basic)
 	if !ok {
@@ -161,9 +183,10 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 		return false
 	}
 	// It must have return type "string" from the universe.
-	result := sig.Results().At(0).Type()
-	if types.IsIdentical(result, types.Typ[types.String]) {
-		return true
-	}
-	return false
+	return isUniverseString(sig.Results().At(0).Type())
+}
+
+// isUniverseString reports whether the type is the predeclared type "string".
+func isUniverseString(typ types.Type) bool {
+	return types.IsIdentical(typ, types.Typ[types.String])
 }

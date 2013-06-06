@@ -75,6 +75,8 @@ func PrintfTests() {
 	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
 	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
+	fmt.Printf("%s", stringerv)
+	fmt.Printf("%T", stringerv)
 	fmt.Printf("%*%", 2) // Ridiculous but allowed.
 	// Some bad format/argTypes
 	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"
@@ -94,6 +96,7 @@ func PrintfTests() {
 	fmt.Printf("%U", x)                        // ERROR "arg x for printf verb %U of wrong type"
 	fmt.Printf("%x", nil)                      // ERROR "arg nil for printf verb %x of wrong type"
 	fmt.Printf("%X", 2.3)                      // ERROR "arg 2.3 for printf verb %X of wrong type"
+	fmt.Printf("%t", stringerv)                // ERROR "arg stringerv for printf verb %t of wrong type"
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
@@ -116,7 +119,7 @@ func PrintfTests() {
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
 	Printf(format, "hi") // ERROR "wrong number of args for format in Printf call"
-	f := new(File)
+	f := new(stringer)
 	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
@@ -158,7 +161,28 @@ func Printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
+// printf is used by the test so we must declare it.
+func printf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
 // multi is used by the test.
 func multi() []interface{} {
 	panic("don't call - testing only")
+}
+
+type stringer float64
+
+var stringerv stringer
+
+func (*stringer) String() string {
+	return "string"
+}
+
+func (*stringer) Warn(int, ...interface{}) string {
+	return "warn"
+}
+
+func (*stringer) Warnf(int, string, ...interface{}) string {
+	return "warnf"
 }
