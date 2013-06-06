@@ -110,11 +110,25 @@ The <code>username</code> information will not be used unless
 you are a committer (see below), but Mercurial complains if it is missing.
 </p>
 
+<h3>Understanding the extension</h3>
+
+<p>After adding the code review extension, you can run</p>
+
+<pre>
+$ hg help codereview
+</pre>
+
+<p>to learn more about its commands. To learn about a specific code-review-specific
+command such as <code>change</code>, run</p>
+
+<pre>
+$ hg help change
+</pre>
+
 <p>
-After adding the extension, <code>hg help codereview</code>
-will show documentation for its commands. As the codereview extension is only
-enabled for your checkout in <code>$GOROOT</code>, the remainder of this
-document assumes you are inside <code>$GOROOT</code> when issuing commands.
+As the codereview extension is only enabled for your checkout
+in <code>$GOROOT</code>, the remainder of this document assumes you
+are inside <code>$GOROOT</code> when issuing commands.
 </p>
 
 <p>
