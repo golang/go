@@ -57,7 +57,6 @@ runtime·MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
 	l->list = p;
 	l->nlist++;
 	c->local_cachealloc -= size;
-	c->local_objects--;
 
 	// We transfer span at a time from MCentral to MCache,
 	// if we have 2 times more than that, release a half back.
