@@ -16,26 +16,28 @@ import (
 // time zone information.
 // The implementation assumes that this year's rules for daylight savings
 // time apply to all previous and future years as well.
-// Also, time zone abbreviations are unavailable.  The implementation constructs
-// them using the capital letters from a longer time zone description.
 
-// abbrev returns the abbreviation to use for the given zone name.
-func abbrev(name []uint16) string {
-	// name is 'Pacific Standard Time' but we want 'PST'.
-	// Extract just capital letters.  It's not perfect but the
-	// information we need is not available from the kernel.
-	// Because time zone abbreviations are not unique,
-	// Windows refuses to expose them.
-	//
-	// http://social.msdn.microsoft.com/Forums/eu/vclanguage/thread/a87e1d25-fb71-4fe0-ae9c-a9578c9753eb
-	// http://stackoverflow.com/questions/4195948/windows-time-zone-abbreviations-in-asp-net
+// extractCAPS exracts capital letters from description desc.
+func extractCAPS(desc string) string {
 	var short []rune
-	for _, c := range name {
+	for _, c := range desc {
 		if 'A' <= c && c <= 'Z' {
 			short = append(short, rune(c))
 		}
 	}
 	return string(short)
+}
+
+// abbrev returns the abbreviations to use for the given zone z.
+func abbrev(z *syscall.Timezoneinformation) (std, dst string) {
+	stdName := syscall.UTF16ToString(z.StandardName[:])
+	a, ok := abbrs[stdName]
+	if !ok {
+		// fallback to using capital letters
+		dstName := syscall.UTF16ToString(z.DaylightName[:])
+		return extractCAPS(stdName), extractCAPS(dstName)
+	}
+	return a.std, a.dst
 }
 
 // pseudoUnix returns the pseudo-Unix time (seconds since Jan 1 1970 *LOCAL TIME*)
@@ -75,8 +77,10 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	}
 	l.zone = make([]zone, nzone)
 
+	stdname, dstname := abbrev(i)
+
 	std := &l.zone[0]
-	std.name = abbrev(i.StandardName[0:])
+	std.name = stdname
 	if nzone == 1 {
 		// No daylight savings.
 		std.offset = -int(i.Bias) * 60
@@ -95,7 +99,7 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	std.offset = -int(i.Bias+i.StandardBias) * 60
 
 	dst := &l.zone[1]
-	dst.name = abbrev(i.DaylightName[0:])
+	dst.name = dstname
 	dst.offset = -int(i.Bias+i.DaylightBias) * 60
 	dst.isDST = true
 
@@ -142,8 +146,25 @@ var usPacific = syscall.Timezoneinformation{
 	DaylightBias: -60,
 }
 
+var aus = syscall.Timezoneinformation{
+	Bias: -10 * 60,
+	StandardName: [32]uint16{
+		'A', 'U', 'S', ' ', 'E', 'a', 's', 't', 'e', 'r', 'n', ' ', 'S', 't', 'a', 'n', 'd', 'a', 'r', 'd', ' ', 'T', 'i', 'm', 'e',
+	},
+	StandardDate: syscall.Systemtime{Month: 4, Day: 1, Hour: 3},
+	DaylightName: [32]uint16{
+		'A', 'U', 'S', ' ', 'E', 'a', 's', 't', 'e', 'r', 'n', ' ', 'D', 'a', 'y', 'l', 'i', 'g', 'h', 't', ' ', 'T', 'i', 'm', 'e',
+	},
+	DaylightDate: syscall.Systemtime{Month: 10, Day: 1, Hour: 2},
+	DaylightBias: -60,
+}
+
 func initTestingZone() {
 	initLocalFromTZI(&usPacific)
+}
+
+func initAusTestingZone() {
+	initLocalFromTZI(&aus)
 }
 
 func initLocal() {
