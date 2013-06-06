@@ -8,7 +8,7 @@
 #include "race.h"
 #include "malloc.h"
 
-#define	MAXALIGN	7
+#define	MAXALIGN	8
 #define	NOSELGEN	1
 
 typedef	struct	WaitQ	WaitQ;
@@ -38,8 +38,8 @@ struct	Hchan
 	uintgo	qcount;			// total data in the q
 	uintgo	dataqsiz;		// size of the circular q
 	uint16	elemsize;
+	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
 	bool	closed;
-	uint8	elemalign;
 	Alg*	elemalg;		// interface for element type
 	uintgo	sendx;			// send index
 	uintgo	recvx;			// receive index
@@ -93,7 +93,6 @@ Hchan*
 runtime·makechan_c(ChanType *t, int64 hint)
 {
 	Hchan *c;
-	uintptr n;
 	Type *elem;
 
 	elem = t->elem;
@@ -101,26 +100,22 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	// compiler checks this but be safe.
 	if(elem->size >= (1<<16))
 		runtime·throw("makechan: invalid channel element type");
+	if((sizeof(*c)%MAXALIGN) != 0 || elem->align > MAXALIGN)
+		runtime·throw("makechan: bad alignment");
 
 	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > MaxMem / elem->size))
 		runtime·panicstring("makechan: size out of range");
 
-	// calculate rounded size of Hchan
-	n = sizeof(*c);
-	while(n & MAXALIGN)
-		n++;
-
 	// allocate memory in one call
-	c = (Hchan*)runtime·mal(n + hint*elem->size);
+	c = (Hchan*)runtime·mal(sizeof(*c) + hint*elem->size);
 	c->elemsize = elem->size;
 	c->elemalg = elem->alg;
-	c->elemalign = elem->align;
 	c->dataqsiz = hint;
 	runtime·settype(c, (uintptr)t | TypeInfo_Chan);
 
 	if(debug)
-		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%D\n",
-			c, (int64)elem->size, elem->alg, elem->align, (int64)c->dataqsiz);
+		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; dataqsiz=%D\n",
+			c, (int64)elem->size, elem->alg, (int64)c->dataqsiz);
 
 	return c;
 }
