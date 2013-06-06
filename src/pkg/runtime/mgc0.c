@@ -1711,8 +1711,8 @@ sweepspan(ParFor *desc, uint32 idx)
 			runtime·unmarkspan(p, 1<<PageShift);
 			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
 			runtime·MHeap_Free(&runtime·mheap, s, 1);
-			c->local_alloc -= size;
-			c->local_nfree++;
+			c->local_nlargefree++;
+			c->local_largefree += size;
 		} else {
 			// Free small object.
 			switch(compression) {
@@ -1733,11 +1733,8 @@ sweepspan(ParFor *desc, uint32 idx)
 	}
 
 	if(nfree) {
-		c->local_by_size[cl].nfree += nfree;
-		c->local_alloc -= size * nfree;
-		c->local_nfree += nfree;
+		c->local_nsmallfree[cl] += nfree;
 		c->local_cachealloc -= nfree * size;
-		c->local_objects -= nfree;
 		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
 	}
 }
@@ -1855,13 +1852,28 @@ runtime·gchelper(void)
 static int32 gcpercent = GcpercentUnknown;
 
 static void
-cachestats(GCStats *stats)
+cachestats(void)
+{
+	MCache *c;
+	P *p, **pp;
+
+	for(pp=runtime·allp; p=*pp; pp++) {
+		c = p->mcache;
+		if(c==nil)
+			continue;
+		runtime·purgecachedstats(c);
+	}
+}
+
+static void
+updatememstats(GCStats *stats)
 {
 	M *mp;
+	MSpan *s;
 	MCache *c;
 	P *p, **pp;
 	int32 i;
-	uint64 stacks_inuse;
+	uint64 stacks_inuse, smallfree;
 	uint64 *src, *dst;
 
 	if(stats)
@@ -1877,13 +1889,65 @@ cachestats(GCStats *stats)
 			runtime·memclr((byte*)&mp->gcstats, sizeof(mp->gcstats));
 		}
 	}
+	mstats.stacks_inuse = stacks_inuse;
+
+	// Calculate memory allocator stats.
+	// During program execution we only count number of frees and amount of freed memory.
+	// Current number of alive object in the heap and amount of alive heap memory
+	// are calculated by scanning all spans.
+	// Total number of mallocs is calculated as number of frees plus number of alive objects.
+	// Similarly, total amount of allocated memory is calculated as amount of freed memory
+	// plus amount of alive heap memory.
+	mstats.alloc = 0;
+	mstats.total_alloc = 0;
+	mstats.nmalloc = 0;
+	mstats.nfree = 0;
+	for(i = 0; i < nelem(mstats.by_size); i++) {
+		mstats.by_size[i].nmalloc = 0;
+		mstats.by_size[i].nfree = 0;
+	}
+
+	// Flush MCache's to MCentral.
 	for(pp=runtime·allp; p=*pp; pp++) {
 		c = p->mcache;
 		if(c==nil)
 			continue;
-		runtime·purgecachedstats(c);
+		runtime·MCache_ReleaseAll(c);
 	}
-	mstats.stacks_inuse = stacks_inuse;
+
+	// Aggregate local stats.
+	cachestats();
+
+	// Scan all spans and count number of alive objects.
+	for(i = 0; i < runtime·mheap.nspan; i++) {
+		s = runtime·mheap.allspans[i];
+		if(s->state != MSpanInUse)
+			continue;
+		if(s->sizeclass == 0) {
+			mstats.nmalloc++;
+			mstats.alloc += s->elemsize;
+		} else {
+			mstats.nmalloc += s->ref;
+			mstats.by_size[s->sizeclass].nmalloc += s->ref;
+			mstats.alloc += s->ref*s->elemsize;
+		}
+	}
+
+	// Aggregate by size class.
+	smallfree = 0;
+	mstats.nfree = runtime·mheap.nlargefree;
+	for(i = 0; i < nelem(mstats.by_size); i++) {
+		mstats.nfree += runtime·mheap.nsmallfree[i];
+		mstats.by_size[i].nfree = runtime·mheap.nsmallfree[i];
+		mstats.by_size[i].nmalloc += runtime·mheap.nsmallfree[i];
+		smallfree += runtime·mheap.nsmallfree[i] * runtime·class_to_size[i];
+	}
+	mstats.nmalloc += mstats.nfree;
+
+	// Calculate derived stats.
+	mstats.total_alloc = mstats.alloc + runtime·mheap.largefree + smallfree;
+	mstats.heap_alloc = mstats.alloc;
+	mstats.heap_objects = mstats.nmalloc - mstats.nfree;
 }
 
 // Structure of arguments passed to function gc().
@@ -2029,7 +2093,7 @@ gc(struct gc_args *args)
 	heap0 = 0;
 	obj0 = 0;
 	if(gctrace) {
-		cachestats(nil);
+		updatememstats(nil);
 		heap0 = mstats.heap_alloc;
 		obj0 = mstats.nmalloc - mstats.nfree;
 	}
@@ -2079,17 +2143,9 @@ gc(struct gc_args *args)
 	if(work.nproc > 1)
 		runtime·notesleep(&work.alldone);
 
-	cachestats(&stats);
-
-	stats.nprocyield += work.sweepfor->nprocyield;
-	stats.nosyield += work.sweepfor->nosyield;
-	stats.nsleep += work.sweepfor->nsleep;
-
+	cachestats();
 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
 	m->gcing = 0;
-
-	heap1 = mstats.heap_alloc;
-	obj1 = mstats.nmalloc - mstats.nfree;
 
 	t4 = runtime·nanotime();
 	mstats.last_gc = t4;
@@ -2100,6 +2156,14 @@ gc(struct gc_args *args)
 		runtime·printf("pause %D\n", t4-t0);
 
 	if(gctrace) {
+		updatememstats(&stats);
+		heap1 = mstats.heap_alloc;
+		obj1 = mstats.nmalloc - mstats.nfree;
+
+		stats.nprocyield += work.sweepfor->nprocyield;
+		stats.nosyield += work.sweepfor->nosyield;
+		stats.nsleep += work.sweepfor->nsleep;
+
 		runtime·printf("gc%d(%d): %D+%D+%D ms, %D -> %D MB %D -> %D (%D-%D) objects,"
 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
 			mstats.numgc, work.nproc, (t2-t1)/1000000, (t3-t2)/1000000, (t1-t0+t4-t3)/1000000,
@@ -2144,7 +2208,7 @@ runtime·ReadMemStats(MStats *stats)
 	runtime·semacquire(&runtime·worldsema);
 	m->gcing = 1;
 	runtime·stoptheworld();
-	cachestats(nil);
+	updatememstats(nil);
 	*stats = mstats;
 	m->gcing = 0;
 	runtime·semrelease(&runtime·worldsema);

@@ -48,7 +48,6 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		size += sizeof(uintptr);
 
 	c = m->mcache;
-	c->local_nmalloc++;
 	if(size <= MaxSmallSize) {
 		// Allocate from mcache free lists.
 		// Inlined version of SizeToClass().
@@ -70,10 +69,6 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 				runtime·memclr((byte*)v, size);
 		}
 		c->local_cachealloc += size;
-		c->local_objects++;
-		c->local_alloc += size;
-		c->local_total_alloc += size;
-		c->local_by_size[sizeclass].nmalloc++;
 	} else {
 		// TODO(rsc): Report tracebacks for very large allocations.
 
@@ -86,19 +81,10 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 			runtime·throw("out of memory");
 		s->limit = (byte*)(s->start<<PageShift) + size;
 		size = npages<<PageShift;
-		c->local_alloc += size;
-		c->local_total_alloc += size;
 		v = (void*)(s->start << PageShift);
 
 		// setup for mark sweep
 		runtime·markspan(v, 0, 0, true);
-	}
-
-	if (sizeof(void*) == 4 && c->local_total_alloc >= (1<<30)) {
-		// purge cache stats to prevent overflow
-		runtime·lock(&runtime·mheap);
-		runtime·purgecachedstats(c);
-		runtime·unlock(&runtime·mheap);
 	}
 
 	if(!(flag & FlagNoGC))
@@ -183,6 +169,8 @@ runtime·free(void *v)
 		runtime·markfreed(v, size);
 		runtime·unmarkspan(v, 1<<PageShift);
 		runtime·MHeap_Free(&runtime·mheap, s, 1);
+		c->local_nlargefree++;
+		c->local_largefree += size;
 	} else {
 		// Small object.
 		size = runtime·class_to_size[sizeclass];
@@ -192,11 +180,9 @@ runtime·free(void *v)
 		// it might coalesce v and other blocks into a bigger span
 		// and change the bitmap further.
 		runtime·markfreed(v, size);
-		c->local_by_size[sizeclass].nfree++;
+		c->local_nsmallfree[sizeclass]++;
 		runtime·MCache_Free(c, v, sizeclass, size);
 	}
-	c->local_nfree++;
-	c->local_alloc -= size;
 	if(prof)
 		runtime·MProf_Free(v, size);
 	m->mallocing = 0;
@@ -286,28 +272,22 @@ runtime·freemcache(MCache *c)
 void
 runtime·purgecachedstats(MCache *c)
 {
+	MHeap *h;
 	int32 i;
 
 	// Protected by either heap or GC lock.
+	h = &runtime·mheap;
 	mstats.heap_alloc += c->local_cachealloc;
 	c->local_cachealloc = 0;
-	mstats.heap_objects += c->local_objects;
-	c->local_objects = 0;
-	mstats.nmalloc += c->local_nmalloc;
-	c->local_nmalloc = 0;
-	mstats.nfree += c->local_nfree;
-	c->local_nfree = 0;
 	mstats.nlookup += c->local_nlookup;
 	c->local_nlookup = 0;
-	mstats.alloc += c->local_alloc;
-	c->local_alloc= 0;
-	mstats.total_alloc += c->local_total_alloc;
-	c->local_total_alloc= 0;
-	for(i=0; i<nelem(c->local_by_size); i++) {
-		mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
-		c->local_by_size[i].nmalloc = 0;
-		mstats.by_size[i].nfree += c->local_by_size[i].nfree;
-		c->local_by_size[i].nfree = 0;
+	h->largefree += c->local_largefree;
+	c->local_largefree = 0;
+	h->nlargefree += c->local_nlargefree;
+	c->local_nlargefree = 0;
+	for(i=0; i<nelem(c->local_nsmallfree); i++) {
+		h->nsmallfree[i] += c->local_nsmallfree[i];
+		c->local_nsmallfree[i] = 0;
 	}
 }
 

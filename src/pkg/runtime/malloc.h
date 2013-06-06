@@ -286,22 +286,15 @@ struct MCache
 {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	int32 next_sample;	// trigger heap sample after allocating this many bytes
+	int32 next_sample;		// trigger heap sample after allocating this many bytes
 	intptr local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
 	// The rest is not accessed on every malloc.
 	MCacheList list[NumSizeClasses];
-	intptr local_objects;	// objects allocated (or freed) from cache since last lock of heap
-	intptr local_alloc;	// bytes allocated (or freed) since last lock of heap
-	uintptr local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
-	uintptr local_nmalloc;	// number of mallocs since last lock of heap
-	uintptr local_nfree;	// number of frees since last lock of heap
-	uintptr local_nlookup;	// number of pointer lookups since last lock of heap
-	// Statistics about allocation size classes since last lock of heap
-	struct {
-		uintptr nmalloc;
-		uintptr nfree;
-	} local_by_size[NumSizeClasses];
-
+	// Local allocator stats, flushed during GC.
+	uintptr local_nlookup;		// number of pointer lookups
+	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
+	uintptr local_nlargefree;	// number of frees for large objects (>MaxSmallSize)
+	uintptr local_nsmallfree[NumSizeClasses];	// number of frees for small objects (<=MaxSmallSize)
 };
 
 void	runtime·MCache_Refill(MCache *c, int32 sizeclass);
@@ -431,6 +424,11 @@ struct MHeap
 
 	FixAlloc spanalloc;	// allocator for Span*
 	FixAlloc cachealloc;	// allocator for MCache*
+
+	// Malloc stats.
+	uint64 largefree;	// bytes freed for large objects (>MaxSmallSize)
+	uint64 nlargefree;	// number of frees for large objects (>MaxSmallSize)
+	uint64 nsmallfree[NumSizeClasses];	// number of frees for small objects (<=MaxSmallSize)
 };
 extern MHeap runtime·mheap;
 
