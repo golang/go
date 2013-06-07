@@ -1732,14 +1732,6 @@ runtime·golockedOSThread(bool ret)
 	FLUSH(&ret);
 }
 
-// for testing of wire, unwire
-void
-runtime·mid(uint32 ret)
-{
-	ret = m->id;
-	FLUSH(&ret);
-}
-
 void
 runtime·NumGoroutine(intgo ret)
 {

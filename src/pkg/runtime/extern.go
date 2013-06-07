@@ -112,9 +112,6 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 // implemented in symtab.c
 func funcline_go(*Func, uintptr) (string, int)
 
-// mid returns the current OS thread (m) id.
-func mid() uint32
-
 // SetFinalizer sets the finalizer associated with x to f.
 // When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs
