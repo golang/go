@@ -465,7 +465,7 @@ Usage:
 
 Vet runs the Go vet command on the packages named by the import paths.
 
-For more about vet, see 'godoc vet'.
+For more about vet, see 'godoc code.google.com/p/go.tools/cmd/vet'.
 For more about specifying packages, see 'go help packages'.
 
 To run the vet tool with specific options, run 'go tool vet'.
