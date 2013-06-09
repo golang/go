@@ -1381,7 +1381,7 @@ sub PrintListing {
 
 sub HtmlListingHeader {
   return <<'EOF';
-<DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <title>Pprof listing</title>
