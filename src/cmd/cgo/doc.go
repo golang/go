@@ -310,7 +310,7 @@ file compiled by gcc, the file x.cgo2.c:
 			char* p0;
 			int r;
 			char __pad12[4];
-		} __attribute__((__packed__)) *a = v;
+		} __attribute__((__packed__, __gcc_struct__)) *a = v;
 		a->r = puts((void*)a->p0);
 	}
 

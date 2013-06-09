@@ -485,7 +485,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.  For example,
 	// on 386 Windows, gcc wants to 8-align int64s, but 8c does not.
-	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__)) *a = v;\n", ctype)
+	// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
+	// and http://golang.org/issue/5603.
+	extraAttr := ""
+	if goarch == "amd64" || goarch == "386" {
+		extraAttr = ", __gcc_struct__"
+	}
+	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__%v)) *a = v;\n", ctype, extraAttr)
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "a->r = ")
