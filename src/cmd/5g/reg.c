@@ -816,7 +816,7 @@ addmove(Reg *r, int bn, int rn, int f)
 		a->type = D_CONST;
 
 	if(v->addr)
-		fatal("addmove: shouldnt be doing this %A\n", a);
+		fatal("addmove: shouldn't be doing this %A\n", a);
 
 	switch(v->etype) {
 	default:

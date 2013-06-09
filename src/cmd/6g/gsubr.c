@@ -494,7 +494,7 @@ fp:
 		break;
 
 	case 2:		// offset output arg
-fatal("shouldnt be used");
+fatal("shouldn't be used");
 		n->op = OINDREG;
 		n->val.u.reg = D_SP;
 		n->xoffset += types[tptr]->width;
@@ -2038,7 +2038,7 @@ odot:
 
 	for(i=1; i<o; i++) {
 		if(oary[i] >= 0)
-			fatal("cant happen");
+			fatal("can't happen");
 		gins(AMOVQ, &n1, reg);
 		n1.xoffset = -(oary[i]+1);
 	}

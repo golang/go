@@ -52,7 +52,7 @@ _is8(char *t)
 {
 	uchar *s = (uchar*)t;
 
-	return  s[0] == (ANAME&0xff)			/* aslo = ANAME */
+	return  s[0] == (ANAME&0xff)			/* also = ANAME */
 		&& s[1] == ((ANAME>>8)&0xff)
 		&& s[2] == D_FILE			/* type */
 		&& s[3] == 1				/* sym */

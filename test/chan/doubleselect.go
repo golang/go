@@ -36,7 +36,7 @@ func sender(n int, c1, c2, c3, c4 chan<- int) {
 }
 
 // mux receives the values from sender and forwards them onto another channel.
-// It would be simplier to just have sender's four cases all be the same
+// It would be simpler to just have sender's four cases all be the same
 // channel, but this doesn't actually trigger the bug.
 func mux(out chan<- int, in <-chan int, done chan<- bool) {
 	for v := range in {

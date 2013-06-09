@@ -481,7 +481,7 @@ mgd			megagal/day
 mh			millihenry
 mhz			1e+6/sec
 mil			1e-3 in
-millenium		1000 year
+millennium		1000 year
 minersinch		1.5 ft³/min
 minim			1|60 fldr
 mo			month
