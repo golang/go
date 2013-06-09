@@ -418,6 +418,7 @@ struct	Func
 };
 
 // layout of Itab known to compilers
+// allocated in non-garbage-collected memory
 struct	Itab
 {
 	InterfaceType*	inter;
