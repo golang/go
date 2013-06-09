@@ -235,7 +235,7 @@ no:
 	return 0;
 
 bad:
-	diag(n, "cant rewrite typestr for op %O\n", o);
+	diag(n, "can't rewrite typestr for op %O\n", o);
 	prtree(n, "isfunct");
 	n->type = T;
 	return 1;

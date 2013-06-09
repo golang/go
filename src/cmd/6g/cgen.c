@@ -1480,7 +1480,7 @@ cadable(Node *n)
  * Small structs or arrays with elements of basic type are
  * also supported.
  * nr is N when assigning a zero value.
- * return 1 if can do, 0 if cant.
+ * return 1 if can do, 0 if can't.
  */
 int
 componentgen(Node *nr, Node *nl)

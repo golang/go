@@ -235,7 +235,7 @@ ieeedtod(uint64 *ieee, double native)
 		return;
 	}
 	fr = frexp(native, &exp);
-	f = 2097152L;		/* shouldnt use fp constants here */
+	f = 2097152L;		/* shouldn't use fp constants here */
 	fr = modf(fr*f, &ho);
 	h = ho;
 	h &= 0xfffffL;

@@ -130,7 +130,7 @@ loop:
 				r = prg();
 				*r = *p;
 				if(!(r->mark&FOLL))
-					print("cant happen 1\n");
+					print("can't happen 1\n");
 				r->mark |= FOLL;
 				if(p != q) {
 					p = p->link;
@@ -150,7 +150,7 @@ loop:
 				if(!(r->link->mark&FOLL))
 					xfol(r->link, last);
 				if(!(r->cond->mark&FOLL))
-					print("cant happen 2\n");
+					print("can't happen 2\n");
 				return;
 			}
 		}

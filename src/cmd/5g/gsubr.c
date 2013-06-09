@@ -1905,7 +1905,7 @@ odot:
 
 	for(i=1; i<o; i++) {
 		if(oary[i] >= 0)
-			fatal("cant happen");
+			fatal("can't happen");
 		gins(AMOVW, &n1, reg);
 		n1.xoffset = -(oary[i]+1);
 	}

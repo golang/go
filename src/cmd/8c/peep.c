@@ -403,7 +403,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 		}
 		t = copyu(p, v2, A);
 		switch(t) {
-		case 2:	/* rar, cant split */
+		case 2:	/* rar, can't split */
 			if(debug['P'])
 				print("; %D rar; return 0\n", v2);
 			return 0;

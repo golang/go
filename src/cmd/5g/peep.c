@@ -496,7 +496,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 		}
 		t = copyu(p, v2, A);
 		switch(t) {
-		case 2:	/* rar, cant split */
+		case 2:	/* rar, can't split */
 			if(debug['P'])
 				print("; %Drar; return 0\n", v2);
 			return 0;
@@ -973,7 +973,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	switch(p->as) {
 
 	default:
-		print("copyu: cant find %A\n", p->as);
+		print("copyu: can't find %A\n", p->as);
 		return 2;
 
 	case AMOVM:
@@ -1288,7 +1288,7 @@ copyau1(Prog *p, Adr *v)
 				return 1;
 			return 0;
 		}
-		print("copyau1: cant tell %P\n", p);
+		print("copyau1: can't tell %P\n", p);
 	}
 	return 0;
 }

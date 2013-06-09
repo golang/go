@@ -151,7 +151,7 @@ if ! ./testgo list std | cmp -s test_std.list - ; then
 fi
 rm -f test_std.list
 
-# issue 4096. Validate the output of unsucessful go install foo/quxx 
+# issue 4096. Validate the output of unsuccessful go install foo/quxx 
 if [ $(./testgo install 'foo/quxx' 2>&1 | grep -c 'cannot find package "foo/quxx" in any of') -ne 1 ] ; then
 	echo 'go install foo/quxx expected error: .*cannot find package "foo/quxx" in any of'
 	ok=false

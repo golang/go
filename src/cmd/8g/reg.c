@@ -1824,7 +1824,7 @@ hash32to16(uint32 h)
 static void
 fixtemp(Prog *firstp)
 {
-	static uint8 counts[1<<16]; // A hash table to count variable occurences.
+	static uint8 counts[1<<16]; // A hash table to count variable occurrences.
 	int i;
 	Prog *p, *p2;
 	uint32 h;

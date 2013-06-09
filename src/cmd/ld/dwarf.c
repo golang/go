@@ -133,7 +133,7 @@ sleb128put(vlong v)
 /*
  * Defining Abbrevs.  This is hardcoded, and there will be
  * only a handful of them.  The DWARF spec places no restriction on
- * the ordering of atributes in the Abbrevs and DIEs, and we will
+ * the ordering of attributes in the Abbrevs and DIEs, and we will
  * always write them out in the order of declaration in the abbrev.
  * This implementation relies on tag, attr < 127, so they serialize as
  * a char.  Higher numbered user-defined tags or attributes can be used
@@ -1646,7 +1646,7 @@ guesslang(char *s)
 }
 
 /*
- * Generate short opcodes when possible, long ones when neccesary.
+ * Generate short opcodes when possible, long ones when necessary.
  * See section 6.2.5
  */
 
@@ -1938,7 +1938,7 @@ enum
 {
 	CIERESERVE = 16,
 	DATAALIGNMENTFACTOR = -4,	// TODO -PtrSize?
-	FAKERETURNCOLUMN = 16		// TODO gdb6 doesnt like > 15?
+	FAKERETURNCOLUMN = 16		// TODO gdb6 doesn't like > 15?
 };
 
 static void

@@ -548,7 +548,7 @@ hassuffix(char *p, char *suffix)
 	return np >= ns && strcmp(p+np-ns, suffix) == 0;
 }
 
-// hasprefix reports whether p begins wtih prefix.
+// hasprefix reports whether p begins with prefix.
 bool
 hasprefix(char *p, char *prefix)
 {

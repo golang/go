@@ -315,7 +315,7 @@ casebody(Node *sw, Node *typeswvar)
 		}
 		stat = concat(stat, n->nbody);
 
-		// botch - shouldnt fall thru declaration
+		// botch - shouldn't fall thru declaration
 		last = stat->end->n;
 		if(last->op == OXFALL) {
 			if(typeswvar) {

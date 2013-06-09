@@ -1188,7 +1188,7 @@ print("botch in doindex\n");
 	else if(n->left->op == OREGISTER)
 		idx.ptr = n->left->reg;
 	else if(n->left->op != OADDR) {
-		reg[D_BP]++;	// cant be used as a base
+		reg[D_BP]++;	// can't be used as a base
 		regalloc(&nod1, &qregnode, Z);
 		cgen(n->left, &nod1);
 		idx.ptr = nod1.reg;

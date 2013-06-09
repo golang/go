@@ -1319,7 +1319,7 @@ cadable(Node *n)
  * copy a composite value by moving its individual components.
  * Slices, strings and interfaces are supported.
  * nr is N when assigning a zero value.
- * return 1 if can do, 0 if cant.
+ * return 1 if can do, 0 if can't.
  */
 int
 componentgen(Node *nr, Node *nl)
