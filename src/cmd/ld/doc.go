@@ -52,6 +52,8 @@ Options new in this version:
 		The default is the single location $GOROOT/pkg/$GOOS_$GOARCH.
 	-r dir1:dir2:...
 		Set the dynamic linker search path when using ELF.
+	-s
+		Omit the symbol table and debug information.
 	-V
 		Print the linker version.
 	-X symbol value
