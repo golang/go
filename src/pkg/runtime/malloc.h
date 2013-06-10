@@ -108,7 +108,7 @@ enum
 	// Tunable constants.
 	MaxSmallSize = 32<<10,
 
-	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
+	FixAllocChunk = 16<<10,		// Chunk size for FixAlloc
 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 
@@ -188,7 +188,6 @@ void*	runtime·SysReserve(void *v, uintptr nbytes);
 struct FixAlloc
 {
 	uintptr size;
-	void *(*alloc)(uintptr);
 	void (*first)(void *arg, byte *p);	// called first time p is returned
 	void *arg;
 	MLink *list;
@@ -198,7 +197,7 @@ struct FixAlloc
 	uintptr sys;	// bytes obtained from system
 };
 
-void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg);
+void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg);
 void*	runtime·FixAlloc_Alloc(FixAlloc *f);
 void	runtime·FixAlloc_Free(FixAlloc *f, void *p);
 
@@ -432,7 +431,7 @@ struct MHeap
 };
 extern MHeap runtime·mheap;
 
-void	runtime·MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
+void	runtime·MHeap_Init(MHeap *h);
 MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);

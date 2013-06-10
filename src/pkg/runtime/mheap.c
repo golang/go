@@ -51,12 +51,12 @@ RecordSpan(void *vh, byte *p)
 
 // Initialize the heap; fetch memory using alloc.
 void
-runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
+runtime·MHeap_Init(MHeap *h)
 {
 	uint32 i;
 
-	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc, RecordSpan, h);
-	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc, nil, nil);
+	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h);
+	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil);
 	// h->mapcache needs no init
 	for(i=0; i<nelem(h->free); i++)
 		runtime·MSpanList_Init(&h->free[i]);
