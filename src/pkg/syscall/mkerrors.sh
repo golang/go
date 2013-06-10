@@ -71,6 +71,7 @@ includes_Linux='
 #include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <linux/if_addr.h>
 #include <linux/if_ether.h>
@@ -222,6 +223,7 @@ ccflags="$@"
 		$2 ~ /^BIOC/ ||
 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
+		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
 		$2 !~ /^(BPF_TIMEVAL)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||
 		$2 !~ "WMESGLEN" &&

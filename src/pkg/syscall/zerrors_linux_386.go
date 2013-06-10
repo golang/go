@@ -658,6 +658,9 @@ const (
 	PACKET_RECV_OUTPUT               = 0x3
 	PACKET_RX_RING                   = 0x5
 	PACKET_STATISTICS                = 0x6
+	PRIO_PGRP                        = 0x1
+	PRIO_PROCESS                     = 0x0
+	PRIO_USER                        = 0x2
 	PROT_EXEC                        = 0x4
 	PROT_GROWSDOWN                   = 0x1000000
 	PROT_GROWSUP                     = 0x2000000
