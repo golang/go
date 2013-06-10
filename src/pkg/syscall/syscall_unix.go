@@ -130,8 +130,13 @@ func (s Signal) String() string {
 
 func Read(fd int, p []byte) (n int, err error) {
 	n, err = read(fd, p)
-	if raceenabled && err == nil {
-		raceAcquire(unsafe.Pointer(&ioSync))
+	if raceenabled {
+		if n > 0 {
+			raceWriteRange(unsafe.Pointer(&p[0]), n)
+		}
+		if err == nil {
+			raceAcquire(unsafe.Pointer(&ioSync))
+		}
 	}
 	return
 }
@@ -140,7 +145,11 @@ func Write(fd int, p []byte) (n int, err error) {
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
-	return write(fd, p)
+	n, err = write(fd, p)
+	if raceenabled && n > 0 {
+		raceReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	return
 }
 
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {

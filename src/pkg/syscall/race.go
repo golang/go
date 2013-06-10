@@ -20,3 +20,11 @@ func raceAcquire(addr unsafe.Pointer) {
 func raceReleaseMerge(addr unsafe.Pointer) {
 	runtime.RaceReleaseMerge(addr)
 }
+
+func raceReadRange(addr unsafe.Pointer, len int) {
+	runtime.RaceReadRange(addr, len)
+}
+
+func raceWriteRange(addr unsafe.Pointer, len int) {
+	runtime.RaceWriteRange(addr, len)
+}

@@ -120,17 +120,10 @@ func Getppid() (ppid int) {
 }
 
 func Read(fd int, p []byte) (n int, err error) {
-	n, err = Pread(fd, p, -1)
-	if raceenabled && err == nil {
-		raceAcquire(unsafe.Pointer(&ioSync))
-	}
-	return
+	return Pread(fd, p, -1)
 }
 
 func Write(fd int, p []byte) (n int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
-	}
 	return Pwrite(fd, p, -1)
 }
 
