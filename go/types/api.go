@@ -64,9 +64,9 @@ type Context struct {
 	// filename:line:column: message
 	Error func(err error)
 
-	// If Ident != nil, it is called for each identifier id in the AST
-	// (including package names, dots "." of dot-imports, and blank "_"
-	// identifiers), and obj is the object denoted by ident. The object
+	// If Ident != nil, it is called for each identifier id that is type-
+	// checked (including package names, dots "." of dot-imports, and blank
+	// "_" identifiers), and obj is the object denoted by ident. The object
 	// is nil if the identifier was not declared. Ident may be called
 	// multiple times for the same identifier (e.g., for typed variable
 	// declarations with multiple initialization statements); but Ident

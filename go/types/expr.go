@@ -1328,9 +1328,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
 		}
+		check.callIdent(e.Sel, res.obj)
 		if x.mode == typexpr {
 			// method expression
-			sig, ok := res.typ.(*Signature)
+			sig, ok := res.obj.Type().(*Signature)
 			if !ok {
 				check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
 				goto Error
@@ -1352,7 +1353,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		} else {
 			// regular selector
 			x.mode = res.mode
-			x.typ = res.typ
+			x.typ = res.obj.Type()
 		}
 
 	case *ast.IndexExpr:

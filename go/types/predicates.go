@@ -289,7 +289,7 @@ func missingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 		for _, obj := range T.methods.entries {
 			m := obj.(*Func)
 			res := lookupField(ityp, m.pkg, m.name) // TODO(gri) no need to go via lookupField
-			if res.mode != invalid && !IsIdentical(res.typ, m.typ) {
+			if res.mode != invalid && !IsIdentical(res.obj.Type(), m.typ) {
 				return m, true
 			}
 		}
@@ -303,7 +303,7 @@ func missingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 		if res.mode == invalid {
 			return m, false
 		}
-		if !IsIdentical(res.typ, m.typ) {
+		if !IsIdentical(res.obj.Type(), m.typ) {
 			return m, true
 		}
 	}

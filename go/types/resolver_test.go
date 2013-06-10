@@ -43,6 +43,8 @@ var sources = []string{
 	type I interface{ m() }
 	var _ = T{a: 1, b: 2, c: 3}
 	func (_ T) m() {}
+	var i I
+	var _ = i.m
 	`,
 }
 

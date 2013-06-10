@@ -209,8 +209,8 @@ func (x *operand) isInteger() bool {
 // lookupResult represents the result of a struct field/method lookup.
 type lookupResult struct {
 	mode  operandMode
-	typ   Type
-	index []int // field index sequence; nil for methods
+	obj   Object // *Field or *Func; valid if mode != invalid
+	index []int  // field index sequence; nil for methods
 }
 
 type embeddedType struct {
@@ -232,7 +232,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 	var next []embeddedType
 
 	// potentialMatch is invoked every time a match is found.
-	potentialMatch := func(multiples bool, mode operandMode, typ Type) bool {
+	potentialMatch := func(multiples bool, mode operandMode, obj Object) bool {
 		if multiples || res.mode != invalid {
 			// name appeared already at this level - annihilate
 			res.mode = invalid
@@ -240,7 +240,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 		}
 		// first appearance of name
 		res.mode = mode
-		res.typ = typ
+		res.obj = obj
 		res.index = nil
 		return true
 	}
@@ -267,7 +267,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 			if obj := typ.methods.Lookup(pkg, name); obj != nil {
 				m := obj.(*Func)
 				assert(m.typ != nil)
-				if !potentialMatch(e.multiples, value, m.typ) {
+				if !potentialMatch(e.multiples, value, m) {
 					return // name collision
 				}
 			}
@@ -282,7 +282,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 					f := obj.(*Field)
 					if f.isMatch(pkg, name) {
 						assert(f.typ != nil)
-						if !potentialMatch(e.multiples, variable, f.typ) {
+						if !potentialMatch(e.multiples, variable, f) {
 							return // name collision
 						}
 						var index []int
@@ -317,7 +317,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 				if obj := t.methods.Lookup(pkg, name); obj != nil {
 					m := obj.(*Func)
 					assert(m.typ != nil)
-					if !potentialMatch(e.multiples, value, m.typ) {
+					if !potentialMatch(e.multiples, value, m) {
 						return // name collision
 					}
 				}
@@ -367,7 +367,7 @@ func lookupField(typ Type, pkg *Package, name string) lookupResult {
 		if obj := t.methods.Lookup(pkg, name); obj != nil {
 			m := obj.(*Func)
 			assert(m.typ != nil)
-			return lookupResult{value, m.typ, nil}
+			return lookupResult{value, m, nil}
 		}
 		typ = t.underlying
 	}
@@ -381,7 +381,7 @@ func lookupField(typ Type, pkg *Package, name string) lookupResult {
 		for i, obj := range t.fields.entries {
 			f := obj.(*Field)
 			if f.isMatch(pkg, name) {
-				return lookupResult{variable, f.typ, []int{i}}
+				return lookupResult{variable, f, []int{i}}
 			}
 			if f.anonymous {
 				// Possible optimization: If the embedded type
@@ -402,7 +402,7 @@ func lookupField(typ Type, pkg *Package, name string) lookupResult {
 		if obj := t.methods.Lookup(pkg, name); obj != nil {
 			m := obj.(*Func)
 			assert(m.typ != nil)
-			return lookupResult{value, m.typ, nil}
+			return lookupResult{value, m, nil}
 		}
 	}
 
