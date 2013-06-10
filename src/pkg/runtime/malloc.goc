@@ -407,7 +407,7 @@ runtime·mallocinit(void)
 	runtime·mheap.arena_end = runtime·mheap.arena_start + arena_size;
 
 	// Initialize the rest of the allocator.	
-	runtime·MHeap_Init(&runtime·mheap, runtime·SysAlloc);
+	runtime·MHeap_Init(&runtime·mheap);
 	m->mcache = runtime·allocmcache();
 
 	// See if it works.
