@@ -228,13 +228,12 @@ dofunc(Sym *sym)
 		else if(runtime·strcmp(sym->name, (byte*)".args") == 0)
 			func[nfunc-1].args = sym->value;
 		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
-			// TODO(cshapiro): use a dense representation for gc information
 			if(sym->value != func[nfunc-1].args/sizeof(uintptr)) {
 				runtime·printf("runtime: pointer map size and argument size disagree\n");
 				runtime·throw("mangled symbol table");
 			}
 			cap = ROUND(sym->value, 32) / 32;
-			func[nfunc-1].ptrs.array = runtime·mallocgc(cap*sizeof(uint32), FlagNoPointers|FlagNoGC, 0, 1);
+			func[nfunc-1].ptrs.array = runtime·persistentalloc(cap*sizeof(uint32), sizeof(uint32));
 			func[nfunc-1].ptrs.len = 0;
 			func[nfunc-1].ptrs.cap = cap;
 		} else if(runtime·strcmp(sym->name, (byte*)".ptrs") == 0) {
