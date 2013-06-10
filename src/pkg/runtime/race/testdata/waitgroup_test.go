@@ -102,22 +102,22 @@ func TestRaceWaitGroupWrongWait(t *testing.T) {
 	<-c
 }
 
-// A common WaitGroup misuse that can potentially be caught be the race detector.
-// For this simple case we must emulate Add() as read on &wg and Wait() as write on &wg.
-// However it will have false positives if there are several concurrent Wait() calls.
-func TestRaceFailingWaitGroupWrongAdd(t *testing.T) {
+func TestRaceWaitGroupWrongAdd(t *testing.T) {
 	c := make(chan bool, 2)
 	var wg sync.WaitGroup
 	go func() {
 		wg.Add(1)
+		time.Sleep(100 * time.Millisecond)
 		wg.Done()
 		c <- true
 	}()
 	go func() {
 		wg.Add(1)
+		time.Sleep(100 * time.Millisecond)
 		wg.Done()
 		c <- true
 	}()
+	time.Sleep(50 * time.Millisecond)
 	wg.Wait()
 	<-c
 	<-c
@@ -156,6 +156,32 @@ func TestNoRaceWaitGroupMultipleWait2(t *testing.T) {
 	wg.Wait()
 	<-c
 	<-c
+}
+
+func TestNoRaceWaitGroupMultipleWait3(t *testing.T) {
+	const P = 3
+	var data [P]int
+	done := make(chan bool, P)
+	var wg sync.WaitGroup
+	wg.Add(P)
+	for p := 0; p < P; p++ {
+		go func(p int) {
+			data[p] = 42
+			wg.Done()
+		}(p)
+	}
+	for p := 0; p < P; p++ {
+		go func() {
+			wg.Wait()
+			for p1 := 0; p1 < P; p1++ {
+				_ = data[p1]
+			}
+			done <- true
+		}()
+	}
+	for p := 0; p < P; p++ {
+		<-done
+	}
 }
 
 // Correct usage but still a race
@@ -229,4 +255,98 @@ func TestNoRaceWaitGroupTransitive(t *testing.T) {
 	wg.Wait()
 	_ = x
 	_ = y
+}
+
+func TestNoRaceWaitGroupReuse(t *testing.T) {
+	const P = 3
+	var data [P]int
+	var wg sync.WaitGroup
+	for try := 0; try < 3; try++ {
+		wg.Add(P)
+		for p := 0; p < P; p++ {
+			go func(p int) {
+				data[p]++
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+		for p := 0; p < P; p++ {
+			data[p]++
+		}
+	}
+}
+
+func TestNoRaceWaitGroupReuse2(t *testing.T) {
+	const P = 3
+	var data [P]int
+	var wg sync.WaitGroup
+	for try := 0; try < 3; try++ {
+		wg.Add(P)
+		for p := 0; p < P; p++ {
+			go func(p int) {
+				data[p]++
+				wg.Done()
+			}(p)
+		}
+		done := make(chan bool)
+		go func() {
+			wg.Wait()
+			for p := 0; p < P; p++ {
+				data[p]++
+			}
+			done <- true
+		}()
+		wg.Wait()
+		<-done
+		for p := 0; p < P; p++ {
+			data[p]++
+		}
+	}
+}
+
+func TestRaceWaitGroupReuse(t *testing.T) {
+	const P = 3
+	const T = 3
+	done := make(chan bool, T)
+	var wg sync.WaitGroup
+	for try := 0; try < T; try++ {
+		var data [P]int
+		wg.Add(P)
+		for p := 0; p < P; p++ {
+			go func(p int) {
+				time.Sleep(50 * time.Millisecond)
+				data[p]++
+				wg.Done()
+			}(p)
+		}
+		go func() {
+			wg.Wait()
+			for p := 0; p < P; p++ {
+				data[p]++
+			}
+			done <- true
+		}()
+		time.Sleep(100 * time.Millisecond)
+		wg.Wait()
+	}
+	for try := 0; try < T; try++ {
+		<-done
+	}
+}
+
+func TestNoRaceWaitGroupConcurrentAdd(t *testing.T) {
+	const P = 4
+	waiting := make(chan bool, P)
+	var wg sync.WaitGroup
+	for p := 0; p < P; p++ {
+		go func() {
+			wg.Add(1)
+			waiting <- true
+			wg.Done()
+		}()
+	}
+	for p := 0; p < P; p++ {
+		<-waiting
+	}
+	wg.Wait()
 }

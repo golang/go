@@ -26,3 +26,9 @@ func raceDisable() {
 
 func raceEnable() {
 }
+
+func raceRead(addr unsafe.Pointer) {
+}
+
+func raceWrite(addr unsafe.Pointer) {
+}
