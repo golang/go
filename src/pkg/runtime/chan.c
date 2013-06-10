@@ -186,7 +186,6 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 	}
 
 	runtime·lock(c);
-	// TODO(dvyukov): add similar instrumentation to select.
 	if(raceenabled)
 		runtime·racereadpc(c, pc, runtime·chansend);
 	if(c->closed)
@@ -946,6 +945,8 @@ loop:
 			break;
 
 		case CaseSend:
+			if(raceenabled)
+				runtime·racereadpc(c, cas->pc, runtime·chansend);
 			if(c->closed)
 				goto sclose;
 			if(c->dataqsiz > 0) {

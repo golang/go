@@ -311,12 +311,35 @@ func TestRaceChanSendClose(t *testing.T) {
 	go func() {
 		defer func() {
 			recover()
+			compl <- true
 		}()
 		c <- 1
-		compl <- true
 	}()
 	go func() {
-		time.Sleep(1e7)
+		time.Sleep(10 * time.Millisecond)
+		close(c)
+		compl <- true
+	}()
+	<-compl
+	<-compl
+}
+
+func TestRaceChanSendSelectClose(t *testing.T) {
+	compl := make(chan bool, 2)
+	c := make(chan int, 1)
+	c1 := make(chan int)
+	go func() {
+		defer func() {
+			recover()
+			compl <- true
+		}()
+		time.Sleep(10 * time.Millisecond)
+		select {
+		case c <- 1:
+		case <-c1:
+		}
+	}()
+	go func() {
 		close(c)
 		compl <- true
 	}()
