@@ -312,6 +312,10 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 	var done uint32
 	e = syscall.ReadFile(syscall.Handle(f.fd), b, &done, &o)
 	if e != nil {
+		if e == syscall.ERROR_HANDLE_EOF {
+			// end of file
+			return 0, nil
+		}
 		return 0, e
 	}
 	return int(done), nil

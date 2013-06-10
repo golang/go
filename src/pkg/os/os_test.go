@@ -1114,3 +1114,19 @@ func TestStatDirModeExec(t *testing.T) {
 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode()&mode, mode)
 	}
 }
+
+func TestReadAtEOF(t *testing.T) {
+	f := newFile("TestReadAtEOF", t)
+	defer Remove(f.Name())
+	defer f.Close()
+
+	_, err := f.ReadAt(make([]byte, 10), 0)
+	switch err {
+	case io.EOF:
+		// all good
+	case nil:
+		t.Fatalf("ReadAt succeeded")
+	default:
+		t.Fatalf("ReadAt failed: %s", err)
+	}
+}
