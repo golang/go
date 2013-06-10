@@ -747,6 +747,9 @@ const (
 	PARMRK                            = 0x8
 	PARODD                            = 0x2000
 	PENDIN                            = 0x20000000
+	PRIO_PGRP                         = 0x1
+	PRIO_PROCESS                      = 0x0
+	PRIO_USER                         = 0x2
 	PROT_EXEC                         = 0x4
 	PROT_NONE                         = 0x0
 	PROT_READ                         = 0x1

@@ -933,6 +933,9 @@ const (
 	PENDIN                            = 0x20000000
 	PF_FLUSH                          = 0x1
 	PMC5_PIPELINE_FLUSH               = 0x15
+	PRIO_PGRP                         = 0x1
+	PRIO_PROCESS                      = 0x0
+	PRIO_USER                         = 0x2
 	RLIMIT_CORE                       = 0x4
 	RLIMIT_CPU                        = 0x0
 	RLIMIT_DATA                       = 0x2

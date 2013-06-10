@@ -926,6 +926,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Getpgrp() (pid int)
 //sysnb	Getpid() (pid int)
 //sysnb	Getppid() (ppid int)
+//sys	Getpriority(which int, who int) (prio int, err error)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Gettid() (tid int)
 //sys	Getxattr(path string, attr string, dest []byte) (sz int, err error)
@@ -957,6 +958,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tv *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
+//sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
 //sys	Symlink(oldpath string, newpath string) (err error)
 //sys	Sync()
@@ -1036,7 +1038,6 @@ func Munmap(b []byte) (err error) {
 // GetThreadArea
 // Getitimer
 // Getpmsg
-// Getpriority
 // IoCancel
 // IoDestroy
 // IoGetevents
@@ -1112,7 +1113,6 @@ func Munmap(b []byte) (err error) {
 // SetRobustList
 // SetThreadArea
 // SetTidAddress
-// Setpriority
 // Shmat
 // Shmctl
 // Shmdt
