@@ -209,6 +209,7 @@ var objectIdentifierTestData = []objectIdentifierTest{
 	{[]byte{85}, true, []int{2, 5}},
 	{[]byte{85, 0x02}, true, []int{2, 5, 2}},
 	{[]byte{85, 0x02, 0xc0, 0x00}, true, []int{2, 5, 2, 0x2000}},
+	{[]byte{0x81, 0x34, 0x03}, true, []int{2, 100, 3}},
 	{[]byte{85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, []int{}},
 }
 

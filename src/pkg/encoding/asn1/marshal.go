@@ -240,11 +240,11 @@ func marshalBitString(out *forkableWriter, b BitString) (err error) {
 }
 
 func marshalObjectIdentifier(out *forkableWriter, oid []int) (err error) {
-	if len(oid) < 2 || oid[0] > 6 || oid[1] >= 40 {
+	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
 		return StructuralError{"invalid object identifier"}
 	}
 
-	err = out.WriteByte(byte(oid[0]*40 + oid[1]))
+	err = marshalBase128Int(out, int64(oid[0]*40+oid[1]))
 	if err != nil {
 		return
 	}

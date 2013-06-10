@@ -210,12 +210,24 @@ func parseObjectIdentifier(bytes []byte) (s []int, err error) {
 	// encoded differently) and then every varint is a single byte long.
 	s = make([]int, len(bytes)+1)
 
-	// The first byte is 40*value1 + value2:
-	s[0] = int(bytes[0]) / 40
-	s[1] = int(bytes[0]) % 40
+	// The first varint is 40*value1 + value2:
+	// According to this packing, value1 can take the values 0, 1 and 2 only.
+	// When value1 = 0 or value1 = 1, then value2 is <= 39. When value1 = 2,
+	// then there are no restrictions on value2.
+	v, offset, err := parseBase128Int(bytes, 0)
+	if err != nil {
+		return
+	}
+	if v < 80 {
+		s[0] = v / 40
+		s[1] = v % 40
+	} else {
+		s[0] = 2
+		s[1] = v - 80
+	}
+
 	i := 2
-	for offset := 1; offset < len(bytes); i++ {
-		var v int
+	for ; offset < len(bytes); i++ {
 		v, offset, err = parseBase128Int(bytes, offset)
 		if err != nil {
 			return
