@@ -1604,9 +1604,7 @@ handlespecial(byte *p, uintptr size)
 	runtime·lock(&finlock);
 	if(finq == nil || finq->cnt == finq->cap) {
 		if(finc == nil) {
-			finc = runtime·SysAlloc(PageSize);
-			if(finc == nil)
-				runtime·throw("runtime: cannot allocate memory");
+			finc = runtime·persistentalloc(PageSize, 0);
 			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
 			finc->alllink = allfin;
 			allfin = finc;
