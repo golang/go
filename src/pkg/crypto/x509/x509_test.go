@@ -308,7 +308,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	}
 
 	testExtKeyUsage := []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageServerAuth}
-	testUnknownExtKeyUsage := []asn1.ObjectIdentifier{[]int{1, 2, 3}, []int{3, 2, 1}}
+	testUnknownExtKeyUsage := []asn1.ObjectIdentifier{[]int{1, 2, 3}, []int{2, 59, 1}}
 
 	for _, test := range tests {
 		commonName := "test.example.com"

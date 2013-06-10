@@ -87,6 +87,7 @@ var marshalTests = []marshalTest{
 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
 	{ObjectIdentifier([]int{1, 2, 840, 133549, 1, 1, 5}), "06092a864888932d010105"},
+	{ObjectIdentifier([]int{2, 100, 3}), "0603813403"},
 	{"test", "130474657374"},
 	{
 		"" +
