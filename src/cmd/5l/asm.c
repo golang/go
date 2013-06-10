@@ -858,17 +858,12 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		o1 |= REGPC << 12;
 		break;
 
-	case 7:		/* bl ,O(R) -> mov PC,link; add $O,R,PC */
+	case 7:		/* bl (R) -> blx R */
 		aclass(&p->to);
-		o1 = oprrr(AADD, p->scond);
-		o1 |= immrot(0);
-		o1 |= REGPC << 16;
-		o1 |= REGLINK << 12;
-
-		o2 = oprrr(AADD, p->scond);
-		o2 |= immrot(instoffset);
-		o2 |= p->to.reg << 16;
-		o2 |= REGPC << 12;
+		if(instoffset != 0)
+			diag("%P: doesn't support BL offset(REG) where offset != 0", p);
+		o1 = oprrr(ABL, p->scond);
+		o1 |= p->to.reg;
 		break;
 
 	case 8:		/* sll $c,[R],R -> mov (R<<$c),R */
@@ -1709,6 +1704,9 @@ oprrr(int a, int sc)
 		return (o & (0xf<<28)) | (0x12 << 20) | (0xc<<4);
 	case AMULAWB:
 		return (o & (0xf<<28)) | (0x12 << 20) | (0x8<<4);
+
+	case ABL: // BLX REG
+		return (o & (0xf<<28)) | (0x12fff3 << 4);
 	}
 	diag("bad rrr %d", a);
 	prasm(curp);
