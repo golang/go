@@ -10,6 +10,7 @@ const (
 	ERROR_PATH_NOT_FOUND      Errno = 3
 	ERROR_ACCESS_DENIED       Errno = 5
 	ERROR_NO_MORE_FILES       Errno = 18
+	ERROR_HANDLE_EOF          Errno = 38
 	ERROR_FILE_EXISTS         Errno = 80
 	ERROR_BROKEN_PIPE         Errno = 109
 	ERROR_BUFFER_OVERFLOW     Errno = 111
