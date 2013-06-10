@@ -330,6 +330,22 @@ runtime·RaceWrite(void *addr)
 	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), true);
 }
 
+// func RaceReadRange(addr unsafe.Pointer, len int)
+#pragma textflag 7
+void
+runtime·RaceReadRange(void *addr, intgo len)
+{
+	rangeaccess(addr, len, 1, 0, (uintptr)runtime·getcallerpc(&addr), false);
+}
+
+// func RaceWriteRange(addr unsafe.Pointer, len int)
+#pragma textflag 7
+void
+runtime·RaceWriteRange(void *addr, intgo len)
+{
+	rangeaccess(addr, len, 1, 0, (uintptr)runtime·getcallerpc(&addr), true);
+}
+
 // func RaceDisable()
 void
 runtime·RaceDisable(void)

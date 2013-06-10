@@ -272,6 +272,9 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		return 0, e
 	}
 	if raceenabled {
+		if done > 0 {
+			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
+		}
 		raceAcquire(unsafe.Pointer(&ioSync))
 	}
 	return int(done), nil
@@ -285,6 +288,9 @@ func Write(fd Handle, p []byte) (n int, err error) {
 	e := WriteFile(fd, p, &done, nil)
 	if e != nil {
 		return 0, e
+	}
+	if raceenabled && done > 0 {
+		raceReadRange(unsafe.Pointer(&p[0]), int(done))
 	}
 	return int(done), nil
 }
