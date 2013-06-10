@@ -665,7 +665,7 @@ loop:
 		goto pop;
 	}
 	fi.p = i->b + 1;
-	return i->b[0];
+	return i->b[0] & 0xff;
 
 pop:
 	iostack = i->link;
@@ -678,7 +678,7 @@ pop:
 	fi.c = i->c;
 	if(--fi.c < 0)
 		goto loop;
-	return *fi.p++;
+	return *fi.p++ & 0xff;
 }
 
 void
