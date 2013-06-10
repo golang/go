@@ -1515,11 +1515,9 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		// This is supposed to be something that stops execution.
 		// It's not supposed to be reached, ever, but if it is, we'd
 		// like to be able to tell how we got there.  Assemble as
-		//	BL $0
-		// TODO: Use addrel.
-		v = (0 - pc) - 8;
-		o1 = opbra(ABL, C_SCOND_NONE);
-		o1 |= (v >> 2) & 0xffffff;
+		// 0xf7fabcfd which is guranteed to raise undefined instruction
+		// exception.
+		o1 = 0xf7fabcfd;
 		break;
 	case 97:	/* CLZ Rm, Rd */
  		o1 = oprrr(p->as, p->scond);
