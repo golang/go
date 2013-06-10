@@ -95,14 +95,17 @@ runtime·SysReserve(void *v, uintptr n)
 	// Only user-mode Linux (UML) rejects these requests.
 	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
 		p = mmap_fixed(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-		if (p != v)
+		if (p != v) {
+			if(p >= (void*)4096)
+				runtime·munmap(p, 64<<10);
 			return nil;
+		}
 		runtime·munmap(p, 64<<10);
 		return v;
 	}
-	
+
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-	if((uintptr)p < 4096 || -(uintptr)p < 4096)
+	if((uintptr)p < 4096)
 		return nil;
 	return p;
 }
