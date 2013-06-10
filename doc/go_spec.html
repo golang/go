@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 31, 2013",
+	"Subtitle": "Version of June 11, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -3929,8 +3929,10 @@ of <code>y</code> is not specified.
 
 <pre>
 a := 1
-f := func() int { a = 2; return 3 }
-x := []int{a, f()}  // x may be [1, 3] or [2, 3]: evaluation order between a and f() is not specified
+f := func() int { a++; return a }
+x := []int{a, f()} // x may be [1, 2] or [2, 2]: evaluation order between a and f() is not specified
+m := map[int]int{a: 1, a: 2} // m may be {2: 1} or {2: 2}: evaluation order between the two map assignments is not specified
+m2 := map[int]int{a: f()} // m2 may be {2: 3} or {3: 3}: evaluation order between the key and the value is not specified
 </pre>
 
 <p>
