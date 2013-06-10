@@ -107,6 +107,16 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 		n.List = f.addCounters(n.Pos(), n.End(), n.List)
+	case *ast.SelectStmt:
+		// Don't annotate an empty select - creates a syntax error.
+		if n.Body == nil || len(n.Body.List) == 0 {
+			return nil
+		}
+	case *ast.SwitchStmt:
+		// Don't annotate an empty switch - creates a syntax error.
+		if n.Body == nil || len(n.Body.List) == 0 {
+			return nil
+		}
 	}
 	return f
 }
