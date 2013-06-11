@@ -9,5 +9,5 @@ TEXT _rt0_amd64_netbsd(SB),7,$-8
 	JMP	AX
 
 TEXT main(SB),7,$-8
-	MOVQ	$_rt0_amd64(SB), AX
+	MOVQ	$_rt0_go(SB), AX
 	JMP	AX

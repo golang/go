@@ -41,7 +41,7 @@ TEXT _rt0_arm_linux(SB),7,$-4
 	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
 	BL	runtime·setup_auxv(SB)
 	ADD	$4, R13
-	B	_rt0_arm(SB)
+	B	_rt0_go(SB)
 
 TEXT bad_abi<>(SB),7,$-4
 	// give diagnosis and exit

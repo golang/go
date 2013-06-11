@@ -11,7 +11,7 @@ TEXT _rt0_386_windows(SB),7,$12
 	JMP	main(SB)
 
 TEXT main(SB),7,$0
-	JMP	_rt0_386(SB)
+	JMP	_rt0_go(SB)
 
 
 DATA  runtime·iswindows(SB)/4, $1

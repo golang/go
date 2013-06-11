@@ -4,7 +4,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-TEXT _rt0_amd64(SB),7,$-8
+TEXT _rt0_go(SB),7,$-8
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv

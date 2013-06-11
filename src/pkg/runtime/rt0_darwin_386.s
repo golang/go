@@ -11,4 +11,4 @@ TEXT _rt0_386_darwin(SB),7,$8
 	INT	$3
 
 TEXT main(SB),7,$0
-	JMP	_rt0_386(SB)
+	JMP	_rt0_go(SB)
