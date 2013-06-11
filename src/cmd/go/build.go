@@ -786,7 +786,26 @@ func (b *builder) build(a *action) (err error) {
 	}
 
 	var gofiles, cfiles, sfiles, objects, cgoObjects []string
-	gofiles = append(gofiles, a.p.GoFiles...)
+
+	// If we're doing coverage, preprocess the .go files and put them in the work directory
+	if a.p.coverMode != "" {
+		for _, file := range a.p.GoFiles {
+			sourceFile := filepath.Join(a.p.Dir, file)
+			cover := a.p.coverVars[file]
+			if cover == nil {
+				// Not covering this file
+				gofiles = append(gofiles, file)
+				continue
+			}
+			coverFile := filepath.Join(obj, file)
+			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Count, cover.Pos); err != nil {
+				return err
+			}
+			gofiles = append(gofiles, coverFile)
+		}
+	} else {
+		gofiles = append(gofiles, a.p.GoFiles...)
+	}
 	cfiles = append(cfiles, a.p.CFiles...)
 	sfiles = append(sfiles, a.p.SFiles...)
 
@@ -1088,6 +1107,17 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 		return fmt.Errorf("copying %s to %s: %v", src, dst, err)
 	}
 	return nil
+}
+
+// cover runs, in effect,
+//	go tool cover -mode=b.coverMode -count="count" -pos="pos" src.go >dst.go
+func (b *builder) cover(a *action, dst, src string, perm os.FileMode, count, pos string) error {
+	out, err := b.runOut(a.objdir, "cover "+a.p.ImportPath, nil, tool("cover"), "-mode="+a.p.coverMode, "-count="+count, "-pos="+pos, src)
+	if err != nil {
+		return err
+	}
+	// Output is processed source code. Write it to destination.
+	return ioutil.WriteFile(dst, out, perm)
 }
 
 var objectMagic = [][]byte{

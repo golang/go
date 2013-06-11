@@ -62,6 +62,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "c", boolVar: &testC},
 	{name: "file", multiOK: true},
 	{name: "i", boolVar: &testI},
+	{name: "cover"},
 
 	// build flags.
 	{name: "a", boolVar: &buildA},
@@ -169,6 +170,13 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testTimeout = value
 		case "blockprofile", "cpuprofile", "memprofile":
 			testProfile = true
+		case "cover":
+			switch value {
+			case "set", "count", "atomic":
+				testCover = value
+			default:
+				fatalf("invalid flag argument for -cover: %q", value)
+			}
 		}
 		if extraWord {
 			i++

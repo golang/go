@@ -76,14 +76,23 @@ type Package struct {
 	deps         []*Package
 	gofiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
 	sfiles       []string
-	allgofiles   []string // gofiles + IgnoredGoFiles, absolute paths
-	target       string   // installed file for this package (may be executable)
-	fake         bool     // synthesized package
-	forceBuild   bool     // this package must be rebuilt
-	forceLibrary bool     // this package is a library (even if named "main")
-	local        bool     // imported via local path (./ or ../)
-	localPrefix  string   // interpret ./ and ../ imports relative to this prefix
-	exeName      string   // desired name for temporary executable
+	allgofiles   []string             // gofiles + IgnoredGoFiles, absolute paths
+	target       string               // installed file for this package (may be executable)
+	fake         bool                 // synthesized package
+	forceBuild   bool                 // this package must be rebuilt
+	forceLibrary bool                 // this package is a library (even if named "main")
+	local        bool                 // imported via local path (./ or ../)
+	localPrefix  string               // interpret ./ and ../ imports relative to this prefix
+	exeName      string               // desired name for temporary executable
+	coverMode    string               // preprocess Go source files with the coverage tool in this mode
+	coverVars    map[string]*CoverVar // variables created by coverage analysis
+}
+
+// CoverVar holds the name of the generated coverage variables targeting the named file.
+type CoverVar struct {
+	File  string // local file name
+	Count string // name of count array
+	Pos   string // name of position array
 }
 
 func (p *Package) copyBuild(pp *build.Package) {
@@ -278,11 +287,12 @@ func reusePackage(p *Package, stk *importStack) *Package {
 // isGoTool is the list of directories for Go programs that are installed in
 // $GOROOT/pkg/tool.
 var isGoTool = map[string]bool{
-	"cmd/api":                            true,
-	"cmd/cgo":                            true,
-	"cmd/fix":                            true,
-	"cmd/yacc":                           true,
-	"code.google.com/p/go.tools/cmd/vet": true,
+	"cmd/api":                              true,
+	"cmd/cgo":                              true,
+	"cmd/fix":                              true,
+	"cmd/yacc":                             true,
+	"code.google.com/p/go.tools/cmd/cover": true,
+	"code.google.com/p/go.tools/cmd/vet":   true,
 }
 
 // expandScanner expands a scanner.List error into all the errors in the list.

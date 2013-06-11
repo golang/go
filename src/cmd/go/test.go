@@ -124,6 +124,18 @@ control the execution of any test:
 	    if -test.blockprofile is set without this flag, all blocking events
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
+	-cover set,count,atomic
+	    TODO: This feature is not yet fully implemented.
+	    TODO: Must run with -v to see output.
+	    TODO: Need control over output format,
+	    Set the mode for coverage analysis for the package[s] being tested.
+	    The default is to do none.
+	    The values:
+		set: boolean: does this statement execute?
+		count: integer: how many times does this statement execute?
+		atomic: integer: like count, but correct in multithreaded tests;
+			significantly more expensive.
+
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
 	    benchmarks should be executed.  The default is the current value
@@ -235,6 +247,7 @@ See the documentation of the testing package for more information.
 
 var (
 	testC            bool     // -c flag
+	testCover        string   // -cover flag
 	testProfile      bool     // some profiling flag
 	testI            bool     // -i flag
 	testV            bool     // -v flag
@@ -492,12 +505,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if err := b.mkdir(ptestDir); err != nil {
 		return nil, nil, nil, err
 	}
-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p); err != nil {
+
+	if testCover != "" {
+		p.coverMode = testCover
+		p.coverVars = declareCoverVars(p.GoFiles...)
+	}
+
+	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p, p.coverVars); err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Test package.
-	if len(p.TestGoFiles) > 0 {
+	if len(p.TestGoFiles) > 0 || testCover != "" {
 		ptest = new(Package)
 		*ptest = *p
 		ptest.GoFiles = nil
@@ -627,6 +646,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	return pmainAction, runAction, printAction, nil
+}
+
+var coverIndex = 0
+
+// declareCoverVars attaches the required cover variables names
+// to the files, to be used when annotating the files.
+func declareCoverVars(files ...string) map[string]*CoverVar {
+	coverVars := make(map[string]*CoverVar)
+	for _, file := range files {
+		coverVars[file] = &CoverVar{
+			File:  file,
+			Count: fmt.Sprintf("GoCoverCount_%d", coverIndex),
+			Pos:   fmt.Sprintf("GoCoverPos_%d", coverIndex),
+		}
+		coverIndex++
+	}
+	return coverVars
 }
 
 // runTest is the action for running a test binary.
@@ -767,9 +803,10 @@ func isTest(name, prefix string) bool {
 
 // writeTestmain writes the _testmain.go file for package p to
 // the file named out.
-func writeTestmain(out string, p *Package) error {
+func writeTestmain(out string, p *Package, coverVars map[string]*CoverVar) error {
 	t := &testFuncs{
-		Package: p,
+		Package:   p,
+		CoverVars: coverVars,
 	}
 	for _, file := range p.TestGoFiles {
 		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
@@ -802,6 +839,11 @@ type testFuncs struct {
 	Package    *Package
 	NeedTest   bool
 	NeedXtest  bool
+	CoverVars  map[string]*CoverVar
+}
+
+func (t *testFuncs) CoverEnabled() bool {
+	return testCover != ""
 }
 
 type testFunc struct {
@@ -861,11 +903,14 @@ import (
 	"regexp"
 	"testing"
 
-{{if .NeedTest}}
+{{if or .CoverEnabled .NeedTest}}
 	_test {{.Package.ImportPath | printf "%q"}}
 {{end}}
 {{if .NeedXtest}}
 	_xtest {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
+{{end}}
+{{if .CoverEnabled}}
+	_fmt "fmt"
 {{end}}
 )
 
@@ -901,8 +946,67 @@ func matchString(pat, str string) (result bool, err error) {
 	return matchRe.MatchString(str), nil
 }
 
+{{if .CoverEnabled}}
+type coverBlock struct {
+	line0 uint32
+	col0 uint16
+	line1 uint32
+	col1 uint16
+}
+
+// Only updated by init functions, so no need for atomicity.
+var (
+	coverCounters = make(map[string][]uint32)
+	coverBlocks = make(map[string][]coverBlock)
+)
+
+func init() {
+	{{range $file, $cover := .CoverVars}}
+	coverRegisterFile({{printf "%q" $file}}, _test.{{$cover.Count}}[:], _test.{{$cover.Pos}}[:]...)
+	{{end}}
+}
+
+func coverRegisterFile(fileName string, counter []uint32, pos ...uint32) {
+	if 3*len(counter) != len(pos) {
+		panic("coverage: mismatched sizes")
+	}
+	if coverCounters[fileName] != nil {
+		panic("coverage: duplicate counter array for " + fileName)
+	}
+	coverCounters[fileName] = counter
+	block := make([]coverBlock, len(counter))
+	for i := range counter {
+		block[i] = coverBlock{
+			line0: pos[3*i+0],
+			col0: uint16(pos[3*i+2]),
+			line1: pos[3*i+1],
+			col1: uint16(pos[3*i+2]>>16),
+		}
+	}
+	coverBlocks[fileName] = block
+}
+
+func coverDump() {
+	for name, counts := range coverCounters {
+		blocks := coverBlocks[name]
+		for i, count := range counts {
+			_, err := _fmt.Printf("%s:%d.%d,%d.%d %d\n", name,
+				blocks[i].line0, blocks[i].col0,
+				blocks[i].line1, blocks[i].col1,
+				count)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+}
+{{end}}
+
 func main() {
 	testing.Main(matchString, tests, benchmarks, examples)
+{{if .CoverEnabled}}
+	coverDump()
+{{end}}
 }
 
 `))

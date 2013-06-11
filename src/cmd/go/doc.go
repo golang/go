@@ -738,6 +738,18 @@ control the execution of any test:
 	    if -test.blockprofile is set without this flag, all blocking events
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
+	-cover set,count,atomic
+	    TODO: This feature is not yet fully implemented.
+	    TODO: Must run with -v to see output.
+	    TODO: Need control over output format,
+	    Set the mode for coverage analysis for the package[s] being tested.
+	    The default is to do none.
+	    The values:
+		set: boolean: does this statement execute?
+		count: integer: how many times does this statement execute?
+		atomic: integer: like count, but correct in multithreaded tests;
+			significantly more expensive.
+
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
 	    benchmarks should be executed.  The default is the current value
