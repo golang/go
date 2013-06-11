@@ -160,3 +160,18 @@ func noRaceReturn(c chan int) (a, b int) {
 	}()
 	return a, 10
 }
+
+func issue5431() {
+	var p **inltype
+	if inlinetest(p).x && inlinetest(p).y {
+	} else if inlinetest(p).x || inlinetest(p).y {
+	}
+}
+
+type inltype struct {
+	x, y bool
+}
+
+func inlinetest(p **inltype) *inltype {
+	return *p
+}

@@ -255,7 +255,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		// side effects are safe.
 		// n->right may not be executed,
 		// so instrumentation goes to n->right->ninit, not init.
-		l = nil;
+		// If right->ninit is non-nil, racewalknode might append it to itself.
+		// nil it out and handle it separately before putting it back.
+		l = n->right->ninit;
+		n->right->ninit = nil;
+		racewalklist(l, nil);
 		racewalknode(&n->right, &l, wr, 0);
 		appendinit(&n->right, l);
 		goto ret;
