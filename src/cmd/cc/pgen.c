@@ -85,6 +85,7 @@ codgen(Node *n, Node *nn)
 
 	p = gtext(n1->sym, stkoff);
 	sp = p;
+	gins(ALOCALS, Z, nodconst(stkoff));
 
 	/*
 	 * isolate first argument
