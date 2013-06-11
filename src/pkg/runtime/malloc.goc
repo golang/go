@@ -351,6 +351,8 @@ runtime·mallocinit(void)
 		arena_size = MaxMem;
 		bitmap_size = arena_size / (sizeof(void*)*8/4);
 		spans_size = arena_size / PageSize * sizeof(runtime·mheap.spans[0]);
+		// round spans_size to pages
+		spans_size = (spans_size + ((1<<PageShift) - 1)) & ~((1<<PageShift) - 1);
 		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + spans_size + arena_size);
 	}
 	if (p == nil) {
@@ -379,6 +381,8 @@ runtime·mallocinit(void)
 			arena_size = bitmap_size * 8;
 			spans_size = arena_size / PageSize * sizeof(runtime·mheap.spans[0]);
 		}
+		// round spans_size to pages
+		spans_size = (spans_size + ((1<<PageShift) - 1)) & ~((1<<PageShift) - 1);
 
 		// SysReserve treats the address we ask for, end, as a hint,
 		// not as an absolute requirement.  If we ask for the end
