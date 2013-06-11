@@ -62,7 +62,7 @@ linkcase(Prog *casep)
 void
 noops(void)
 {
-	Prog *p, *q, *q1;
+	Prog *p, *q, *q1, *q2;
 	int o;
 	Prog *pmorestack;
 	Sym *symmorestack;
@@ -343,9 +343,14 @@ noops(void)
 					if(!autosize) {
 						p->as = AB;
 						p->from = zprg.from;
-						p->to.type = D_OREG;
-						p->to.offset = 0;
-						p->to.reg = REGLINK;
+						if(p->to.sym) { // retjmp
+							p->to.type = D_BRANCH;
+							p->cond = p->to.sym->text;
+						} else {
+							p->to.type = D_OREG;
+							p->to.offset = 0;
+							p->to.reg = REGLINK;
+						}
 						break;
 					}
 				}
@@ -359,6 +364,17 @@ noops(void)
 				// If there are instructions following
 				// this ARET, they come from a branch
 				// with the same stackframe, so no spadj.
+				
+				if(p->to.sym) { // retjmp
+					p->to.reg = REGLINK;
+					q2 = appendp(p);
+					q2->as = AB;
+					q2->to.type = D_BRANCH;
+					q2->to.sym = p->to.sym;
+					q2->cond = p->to.sym->text;
+					p->to.sym = nil;
+					p = q2;
+				}
 				break;
 	
 			case AADD:

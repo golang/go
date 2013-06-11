@@ -197,6 +197,7 @@ ishairy(Node *n, int *budget)
 	case ODEFER:
 	case ODCLTYPE:  // can't print yet
 	case ODCLCONST:  // can't print yet
+	case ORETJMP:
 		return 1;
 
 		break;

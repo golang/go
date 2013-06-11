@@ -870,6 +870,10 @@ stmtfmt(Fmt *f, Node *n)
 		fmtprint(f, "return %,H", n->list);
 		break;
 
+	case ORETJMP:
+		fmtprint(f, "retjmp %S", n->sym);
+		break;
+	
 	case OPROC:
 		fmtprint(f, "go %N", n->left);
 		break;

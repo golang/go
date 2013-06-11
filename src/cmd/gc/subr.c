@@ -2495,13 +2495,13 @@ structargs(Type **tl, int mustname)
 void
 genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 {
-	Node *this, *fn, *call, *n, *t, *pad;
+	Node *this, *fn, *call, *n, *t, *pad, *dot, *as;
 	NodeList *l, *args, *in, *out;
-	Type *tpad;
+	Type *tpad, *methodrcvr;
 	int isddd;
 	Val v;
 
-	if(debug['r'])
+	if(0 && debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
 			rcvr, method, newnam);
 
@@ -2547,8 +2547,10 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		isddd = l->n->left->isddd;
 	}
 	
+	methodrcvr = getthisx(method->type)->type->type;
+
 	// generate nil pointer check for better error
-	if(isptr[rcvr->etype] && rcvr->type == getthisx(method->type)->type->type) {
+	if(isptr[rcvr->etype] && rcvr->type == methodrcvr) {
 		// generating wrapper from *T to T.
 		n = nod(OIF, N, N);
 		n->ntest = nod(OEQ, this->left, nodnil());
@@ -2567,17 +2569,32 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		n->nbody = list1(call);
 		fn->nbody = list(fn->nbody, n);
 	}
-
+	
+	dot = adddot(nod(OXDOT, this->left, newname(method->sym)));
+	
 	// generate call
-	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
-	call->list = args;
-	call->isddd = isddd;
-	if(method->type->outtuple > 0) {
-		n = nod(ORETURN, N, N);
-		n->list = list1(call);
-		call = n;
+	if(isptr[rcvr->etype] && isptr[methodrcvr->etype] && method->embedded && !isifacemethod(method->type)) {
+		// skip final .M
+		dot = dot->left;
+		if(!isptr[dotlist[0].field->type->etype])
+			dot = nod(OADDR, dot, N);
+		as = nod(OAS, this->left, nod(OCONVNOP, dot, N));
+		as->right->type = rcvr;
+		fn->nbody = list(fn->nbody, as);
+		n = nod(ORETJMP, N, N);
+		n->left = newname(methodsym(method->sym, methodrcvr, 0));
+		fn->nbody = list(fn->nbody, n);
+	} else {
+		call = nod(OCALL, dot, N);
+		call->list = args;
+		call->isddd = isddd;
+		if(method->type->outtuple > 0) {
+			n = nod(ORETURN, N, N);
+			n->list = list1(call);
+			call = n;
+		}
+		fn->nbody = list(fn->nbody, call);
 	}
-	fn->nbody = list(fn->nbody, call);
 
 	if(0 && debug['r'])
 		dumplist("genwrapper body", fn->nbody);

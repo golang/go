@@ -218,6 +218,7 @@ orderstmt(Node *n, NodeList **out)
 	case_OFALL:
 	case OGOTO:
 	case OLABEL:
+	case ORETJMP:
 		// Special: n->left is not an expression; save as is.
 		*out = list(*out, n);
 		break;
@@ -263,7 +264,7 @@ orderstmt(Node *n, NodeList **out)
 		ordercallargs(&n->list, out);
 		*out = list(*out, n);
 		break;
-		
+	
 	case OSELECT:
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)

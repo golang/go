@@ -282,6 +282,9 @@ walkstmt(Node **np)
 		n->list = ll;
 		break;
 
+	case ORETJMP:
+		break;
+
 	case OSELECT:
 		walkselect(n);
 		break;

@@ -581,6 +581,7 @@ enum
 	OHMUL, // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
 	OLROT,	// left rotate: AROL.
 	ORROTC, // right rotate-carry: ARCR.
+	ORETJMP,	// return to other function
 
 	OEND,
 };
@@ -1461,7 +1462,6 @@ void	fixautoused(Prog*);
 void	gdata(Node*, Node*, int);
 void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
-void	genembedtramp(Type*, Type*, Sym*, int iface);
 void	ggloblnod(Node *nam);
 void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
 Prog*	gjmp(Prog*);

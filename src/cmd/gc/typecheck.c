@@ -1651,6 +1651,10 @@ reswitch:
 			goto ret;
 		typecheckaste(ORETURN, nil, 0, getoutargx(curfn->type), n->list, "return argument");
 		goto ret;
+	
+	case ORETJMP:
+		ok |= Etop;
+		goto ret;
 
 	case OSELECT:
 		ok |= Etop;
@@ -3282,6 +3286,7 @@ isterminating(NodeList *l, int top)
 
 	case OGOTO:
 	case ORETURN:
+	case ORETJMP:
 	case OPANIC:
 	case OXFALL:
 		return 1;
