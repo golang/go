@@ -666,8 +666,11 @@ hostlink(void)
 		argv[argc++] = "-m64";
 		break;
 	}
-	if(!debug['s'])
+	if(!debug['s'] && !debug_s) {
 		argv[argc++] = "-gdwarf-2"; 
+	} else {
+		argv[argc++] = "-s";
+	}
 	if(HEADTYPE == Hdarwin)
 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
 	argv[argc++] = "-o";

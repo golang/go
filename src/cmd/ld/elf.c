@@ -909,6 +909,7 @@ doelf(void)
 	addstring(shstrtab, ".gopclntab");
 	
 	if(linkmode == LinkExternal) {
+		debug_s = debug['s'];
 		debug['s'] = 0;
 		debug['d'] = 1;
 
