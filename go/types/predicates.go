@@ -6,6 +6,8 @@
 
 package types
 
+import "go/ast"
+
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -211,6 +213,19 @@ func identicalTypes(a, b *Tuple) bool {
 	return true
 }
 
+// qname computes the "qualified name" of a function.
+// TODO(gri) This is similar in functionality to Field.isMatch.
+//           Try to consolidate.
+func qname(f *Func) string {
+	if ast.IsExported(f.name) {
+		return f.name
+	}
+	if f.pkg == nil {
+		panic("unexported function without package information")
+	}
+	return f.pkg.path + "." + f.name
+}
+
 // identicalMethods returns true if both object sets a and b have the
 // same length and corresponding methods have identical types.
 // TODO(gri) make this more efficient (e.g., sort them on completion)
@@ -226,14 +241,15 @@ func identicalMethods(a, b *Scope) bool {
 	m := make(map[string]*Func)
 	for _, obj := range a.entries {
 		x := obj.(*Func)
-		qname := x.pkg.path + "." + x.name
-		assert(m[qname] == nil) // method list must not have duplicate entries
-		m[qname] = x
+		k := qname(x)
+		assert(m[k] == nil) // method list must not have duplicate entries
+		m[k] = x
 	}
+
 	for _, obj := range b.entries {
 		y := obj.(*Func)
-		qname := y.pkg.path + "." + y.name
-		if x := m[qname]; x == nil || !IsIdentical(x.typ, y.typ) {
+		k := qname(y)
+		if x := m[k]; x == nil || !IsIdentical(x.typ, y.typ) {
 			return false
 		}
 	}

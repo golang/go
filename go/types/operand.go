@@ -139,17 +139,18 @@ func (x *operand) isAssignable(ctxt *Context, T Type) bool {
 	Vu := V.Underlying()
 	Tu := T.Underlying()
 
-	// x's type V and T have identical underlying types
-	// and at least one of V or T is not a named type
-	if IsIdentical(Vu, Tu) {
-		return !isNamed(V) || !isNamed(T)
-	}
-
 	// T is an interface type and x implements T
+	// (Do this check first as it might succeed early.)
 	if Ti, ok := Tu.(*Interface); ok {
 		if m, _ := missingMethod(x.typ, Ti); m == nil {
 			return true
 		}
+	}
+
+	// x's type V and T have identical underlying types
+	// and at least one of V or T is not a named type
+	if IsIdentical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+		return true
 	}
 
 	// x is a bidirectional channel value, T is a channel
