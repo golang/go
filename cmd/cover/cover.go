@@ -30,8 +30,10 @@ import (
 
 var (
 	mode     = flag.String("mode", "set", "coverage mode: set, count, atomic")
-	countVar = flag.String("count", "__count", "name of coverage count array variable")
-	posVar   = flag.String("pos", "__pos", "name of coverage count position variable")
+	countVar = flag.String("count", "GoCoverCount", "name of coverage count array variable")
+	posVar   = flag.String("pos", "GoCoverPos", "name of coverage position array variable")
+
+	output = flag.String("o", "", "file for output; standard output by default")
 )
 
 var counterStmt func(*File, ast.Expr) ast.Stmt
@@ -42,7 +44,7 @@ const (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [options] file\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s [options] onefile.go\n", os.Args[0])
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -183,8 +185,6 @@ func (f *File) addImport(path string) string {
 }
 
 func cover(name string) {
-	var files []*File
-	var astFiles []*ast.File
 	fs := token.NewFileSet()
 	f, err := os.Open(name)
 	if err != nil {
@@ -199,23 +199,27 @@ func cover(name string) {
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
-	thisFile := &File{
+	file := &File{
 		fset:    fs,
 		name:    name,
 		astFile: parsedFile,
 	}
-	files = append(files, thisFile)
-	astFiles = append(astFiles, parsedFile)
-	for _, file := range files {
-		if *mode == "atomic" {
-			file.atomicPkg = file.addImport(atomicPackagePath)
-		}
-		ast.Walk(file, file.astFile)
-		file.print(os.Stdout)
-		// After printing the source tree, add some declarations for the counters etc.
-		// We could do this by adding to the tree, but it's easier just to print the text.
-		file.addVariables(os.Stdout)
+	if *mode == "atomic" {
+		file.atomicPkg = file.addImport(atomicPackagePath)
 	}
+	ast.Walk(file, file.astFile)
+	fd := os.Stdout
+	if *output != "" {
+		var err error
+		fd, err = os.Create(*output)
+		if err != nil {
+			log.Fatalf("cover: %s", err)
+		}
+	}
+	file.print(fd)
+	// After printing the source tree, add some declarations for the counters etc.
+	// We could do this by adding to the tree, but it's easier just to print the text.
+	file.addVariables(fd)
 }
 
 func (f *File) print(w io.Writer) {
