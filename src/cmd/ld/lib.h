@@ -159,6 +159,7 @@ EXTERN	char*	interpreter;
 EXTERN	char*	tmpdir;
 EXTERN	char*	extld;
 EXTERN	char*	extldflags;
+EXTERN	int	debug_s; // backup old value of debug['s']
 
 enum
 {
