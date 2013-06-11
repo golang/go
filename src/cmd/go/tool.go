@@ -65,7 +65,7 @@ func tool(toolName string) string {
 
 func isInGoToolsRepo(toolName string) bool {
 	switch toolName {
-	case "vet":
+	case "cover", "vet":
 		return true
 	}
 	return false
