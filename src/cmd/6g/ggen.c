@@ -325,11 +325,18 @@ cgen_aret(Node *n, Node *res)
 void
 cgen_ret(Node *n)
 {
+	Prog *p;
+
 	genlist(n->list);		// copy out args
-	if(hasdefer || curfn->exit)
+	if(hasdefer || curfn->exit) {
 		gjmp(retpc);
-	else
-		gins(ARET, N, N);
+		return;
+	}
+	p = gins(ARET, N, N);
+	if(n->op == ORETJMP) {
+		p->to.type = D_EXTERN;
+		p->to.sym = n->left->sym;
+	}
 }
 
 /*

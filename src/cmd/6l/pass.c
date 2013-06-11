@@ -318,7 +318,7 @@ patch(void)
 			if(p->to.type == D_INDIR+D_GS)
 				p->to.type = D_INDIR+D_FS;
 		}
-		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH) || (p->as == ARET && p->to.sym != nil)) {
 			s = p->to.sym;
 			if(s) {
 				if(debug['c'])
@@ -747,6 +747,8 @@ dostkoff(void)
 				// the cleanup.
 				p->spadj = +autoffset;
 			}
+			if(p->to.sym) // retjmp
+				p->as = AJMP;
 		}
 	}
 }

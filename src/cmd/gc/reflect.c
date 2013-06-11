@@ -208,16 +208,8 @@ methods(Type *t)
 		if(!(a->isym->flags & SymSiggen)) {
 			a->isym->flags |= SymSiggen;
 			if(!eqtype(this, it) || this->width < types[tptr]->width) {
-				// Is okay to call genwrapper here always,
-				// but we can generate more efficient code
-				// using genembedtramp if all that is necessary
-				// is a pointer adjustment and a JMP.
 				compiling_wrappers = 1;
-				if(isptr[it->etype] && isptr[this->etype]
-				&& f->embedded && !isifacemethod(f->type))
-					genembedtramp(it, f, a->isym, 1);
-				else
-					genwrapper(it, f, a->isym, 1);
+				genwrapper(it, f, a->isym, 1);
 				compiling_wrappers = 0;
 			}
 		}
@@ -226,11 +218,7 @@ methods(Type *t)
 			a->tsym->flags |= SymSiggen;
 			if(!eqtype(this, t)) {
 				compiling_wrappers = 1;
-				if(isptr[t->etype] && isptr[this->etype]
-				&& f->embedded && !isifacemethod(f->type))
-					genembedtramp(t, f, a->tsym, 0);
-				else
-					genwrapper(t, f, a->tsym, 0);
+				genwrapper(t, f, a->tsym, 0);
 				compiling_wrappers = 0;
 			}
 		}

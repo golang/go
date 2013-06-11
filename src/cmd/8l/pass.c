@@ -329,7 +329,7 @@ patch(void)
 					p->from.offset = 0;
 				}
 			}
-			if((p->as == ACALL && p->to.type != D_BRANCH) || (p->as == AJMP && p->to.type != D_BRANCH)) {
+			if((p->as == ACALL && p->to.type != D_BRANCH) || (p->as == AJMP && p->to.type != D_BRANCH) || (p->as == ARET && p->to.sym != nil)) {
 				s = p->to.sym;
 				if(p->to.type == D_INDIR+D_ADDR) {
 					 /* skip check if this is an indirect call (CALL *symbol(SB)) */
@@ -692,6 +692,8 @@ dostkoff(void)
 				// the cleanup.
 				p->spadj = +autoffset;
 			}
+			if(p->to.sym) // retjmp
+				p->as = AJMP;
 		}
 	}
 }

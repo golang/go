@@ -489,6 +489,7 @@ gen(Node *n)
 		break;
 
 	case ORETURN:
+	case ORETJMP:
 		cgen_ret(n);
 		break;
 	
