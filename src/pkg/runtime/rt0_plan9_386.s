@@ -33,7 +33,7 @@ argv_fix:
 	PUSHL	AX
 	PUSHL	$-1
 
-	JMP	_rt0_386(SB)
+	JMP	_rt0_go(SB)
 
 DATA  runtime·isplan9(SB)/4, $1
 GLOBL runtime·isplan9(SB), $4

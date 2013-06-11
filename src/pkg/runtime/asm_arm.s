@@ -5,7 +5,7 @@
 #include "zasm_GOOS_GOARCH.h"
 
 // using frame size $-4 means do not save LR on stack.
-TEXT _rt0_arm(SB),7,$-4
+TEXT _rt0_go(SB),7,$-4
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack

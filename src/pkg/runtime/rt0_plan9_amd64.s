@@ -5,7 +5,7 @@
 TEXT _rt0_amd64_plan9(SB),7,$-8
 	LEAQ	8(SP), SI // argv
 	MOVQ	0(SP), DI // argc
-	MOVQ	$_rt0_amd64(SB), AX
+	MOVQ	$_rt0_go(SB), AX
 	JMP	AX
 
 DATA runtime·isplan9(SB)/4, $1

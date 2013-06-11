@@ -4,7 +4,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-TEXT _rt0_386(SB),7,$0
+TEXT _rt0_go(SB),7,$0
 	// copy arguments forward on an even stack
 	MOVL	argc+0(FP), AX
 	MOVL	argv+4(FP), BX
