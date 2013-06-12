@@ -420,16 +420,9 @@ runtime·starttheworld(void)
 			pidleput(p);
 			break;
 		}
-		mp = mget();
-		if(mp == nil) {
-			p->link = p1;
-			p1 = p;
-			continue;
-		}
-		if(mp->nextp)
-			runtime·throw("starttheworld: inconsistent mp->nextp");
-		mp->nextp = p;
-		runtime·notewakeup(&mp->park);
+		p->m = mget();
+		p->link = p1;
+		p1 = p;
 	}
 	if(runtime·sched.sysmonwait) {
 		runtime·sched.sysmonwait = false;
@@ -440,8 +433,18 @@ runtime·starttheworld(void)
 	while(p1) {
 		p = p1;
 		p1 = p1->link;
-		add = false;
-		newm(nil, p);
+		if(p->m) {
+			mp = p->m;
+			p->m = nil;
+			if(mp->nextp)
+				runtime·throw("starttheworld: inconsistent mp->nextp");
+			mp->nextp = p;
+			runtime·notewakeup(&mp->park);
+		} else {
+			// Start M to run P.  Do not start another M below.
+			newm(nil, p);
+			add = false;
+		}
 	}
 
 	if(add) {
@@ -1154,6 +1157,8 @@ top:
 	}
 
 	gp = runqget(m->p);
+	if(gp && m->spinning)
+		runtime·throw("schedule: spinning with local work");
 	if(gp == nil)
 		gp = findrunnable();
 
