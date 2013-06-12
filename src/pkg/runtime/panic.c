@@ -277,7 +277,8 @@ recovery(G *gp)
 	else
 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
 	gp->sched.pc = pc;
-	runtime·gogo(&gp->sched, 1);
+	gp->sched.ret = 1;
+	runtime·gogo(&gp->sched);
 }
 
 // Free stack frames until we hit the last one

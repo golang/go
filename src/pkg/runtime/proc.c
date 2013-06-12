@@ -1000,9 +1000,7 @@ execute(G *gp)
 	if(m->profilehz != hz)
 		runtime·resetcpuprofiler(hz);
 
-	if(gp->sched.pc == (uintptr)runtime·goexit)  // kickoff
-		runtime·gogocallfn(&gp->sched, gp->fnstart);
-	runtime·gogo(&gp->sched, 0);
+	runtime·gogo(&gp->sched);
 }
 
 // Finds a runnable goroutine to execute.
@@ -1254,7 +1252,6 @@ static void
 goexit0(G *gp)
 {
 	gp->status = Gdead;
-	gp->fnstart = nil;
 	gp->m = nil;
 	gp->lockedm = nil;
 	m->curg = nil;
@@ -1267,6 +1264,19 @@ goexit0(G *gp)
 	runtime·unwindstack(gp, nil);
 	gfput(m->p, gp);
 	schedule();
+}
+
+static void
+save(void *pc, uintptr sp)
+{
+	g->gcpc = (uintptr)pc;
+	g->gcsp = sp;
+	g->sched.pc = (uintptr)pc;
+	g->sched.sp = sp;
+	g->sched.lr = 0;
+	g->sched.ret = 0;
+	g->sched.ctxt = 0;
+	g->sched.g = g;
 }
 
 // The goroutine g is about to enter a system call.
@@ -1285,11 +1295,8 @@ void
 		runtime·setprof(false);
 
 	// Leave SP around for gc and traceback.
-	g->sched.sp = (uintptr)runtime·getcallersp(&dummy);
-	g->sched.pc = (uintptr)runtime·getcallerpc(&dummy);
-	g->sched.g = g;
-	g->gcsp = g->sched.sp;
-	g->gcpc = g->sched.pc;
+	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+
 	g->gcstack = g->stackbase;
 	g->gcguard = g->stackguard;
 	g->status = Gsyscall;
@@ -1306,7 +1313,7 @@ void
 			runtime·notewakeup(&runtime·sched.sysmonnote);
 		}
 		runtime·unlock(&runtime·sched);
-		runtime·gosave(&g->sched);  // re-save for traceback
+		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	}
 
 	m->mcache = nil;
@@ -1320,7 +1327,7 @@ void
 				runtime·notewakeup(&runtime·sched.stopnote);
 		}
 		runtime·unlock(&runtime·sched);
-		runtime·gosave(&g->sched);  // re-save for traceback
+		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	}
 }
 
@@ -1335,9 +1342,7 @@ void
 		runtime·setprof(false);
 
 	// Leave SP around for gc and traceback.
-	g->sched.sp = runtime·getcallersp(&dummy);
-	g->sched.pc = (uintptr)runtime·getcallerpc(&dummy);
-	g->sched.g = g;
+	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	g->gcsp = g->sched.sp;
 	g->gcpc = g->sched.pc;
 	g->gcstack = g->stackbase;
@@ -1353,7 +1358,9 @@ void
 	handoffp(p);
 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
 		inclocked(1);
-	runtime·gosave(&g->sched);  // re-save for traceback
+
+	// Resave for traceback during blocked call.
+	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 }
 
 // The goroutine g exited its system call.
@@ -1450,7 +1457,7 @@ static void
 mstackalloc(G *gp)
 {
 	gp->param = runtime·stackalloc((uintptr)gp->param);
-	runtime·gogo(&gp->sched, 0);
+	runtime·gogo(&gp->sched);
 }
 
 // Allocate a new g, with a stack big enough for stacksize bytes.
@@ -1552,10 +1559,11 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 		*(void**)sp = nil;
 	}
 
+	runtime·memclr((byte*)&newg->sched, sizeof newg->sched);
 	newg->sched.sp = (uintptr)sp;
 	newg->sched.pc = (uintptr)runtime·goexit;
 	newg->sched.g = newg;
-	newg->fnstart = fn;
+	runtime·gostartcallfn(&newg->sched, fn);
 	newg->gopc = (uintptr)callerpc;
 	newg->status = Grunnable;
 	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
@@ -2419,5 +2427,14 @@ runtime·testSchedLocalQueueSteal(void)
 			runtime·throw("bad steal");
 		}
 	}
+}
+
+bool
+runtime·haszeroargs(uintptr pc)
+{
+	return pc == (uintptr)runtime·goexit ||
+		pc == (uintptr)runtime·mcall ||
+		pc == (uintptr)runtime·mstart ||
+		pc == (uintptr)_rt0_go;
 }
 

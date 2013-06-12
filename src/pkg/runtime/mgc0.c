@@ -1428,7 +1428,9 @@ addstackroots(G *gp)
 	M *mp;
 	int32 n;
 	Stktop *stk;
-	uintptr sp, guard, pc;
+	uintptr sp, guard, pc, lr;
+	void *base;
+	uintptr size;
 
 	stk = (Stktop*)gp->stackbase;
 	guard = gp->stackguard;
@@ -1445,6 +1447,7 @@ addstackroots(G *gp)
 		// the system call instead, since that won't change underfoot.
 		sp = gp->gcsp;
 		pc = gp->gcpc;
+		lr = 0;
 		stk = (Stktop*)gp->gcstack;
 		guard = gp->gcguard;
 	} else {
@@ -1452,11 +1455,16 @@ addstackroots(G *gp)
 		// The goroutine is usually asleep (the world is stopped).
 		sp = gp->sched.sp;
 		pc = gp->sched.pc;
+		lr = gp->sched.lr;
+
+		// For function about to start, context argument is a root too.
+		if(gp->sched.ctxt != 0 && runtime·mlookup(gp->sched.ctxt, &base, &size, nil))
+			addroot((Obj){base, size, 0});
 	}
 	if(ScanStackByFrames) {
 		USED(stk);
 		USED(guard);
-		runtime·gentraceback(pc, sp, 0, gp, 0, nil, 0x7fffffff, addframeroots, nil);
+		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil);
 	} else {
 		USED(pc);
 		n = 0;
@@ -2031,7 +2039,7 @@ mgc(G *gp)
 	gc(gp->param);
 	gp->status = Grunning;
 	gp->param = nil;
-	runtime·gogo(&gp->sched, 0);
+	runtime·gogo(&gp->sched);
 }
 
 static void

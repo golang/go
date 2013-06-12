@@ -19,12 +19,14 @@ void _modu(void);
 int32
 runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v)
 {
-	int32 i, n;
+	int32 i, n, skip0;
 	uintptr x, tracepc;
 	bool waspanic, printing;
 	Func *f, *f2;
 	Stkframe frame;
 	Stktop *stk;
+
+	skip0 = skip;
 
 	runtime·memclr((byte*)&frame, sizeof frame);
 	frame.pc = pc0;
@@ -32,12 +34,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	frame.sp = sp0;
 	waspanic = false;
 	printing = pcbuf==nil && callback==nil;
-
-	// If the PC is goexit, the goroutine hasn't started yet.
-	if(frame.pc == (uintptr)runtime·goexit && gp->fnstart != nil) {
-		frame.pc = (uintptr)gp->fnstart->fn;
-		frame.lr = (uintptr)runtime·goexit;
-	}
 
 	// If the PC is zero, it's likely a nil function call.
 	// Start in the caller's frame.
@@ -69,8 +65,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		}
 		
 		if(frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil) {
-			if(callback != nil)
-				runtime·throw("unknown pc");
+			if(callback != nil) {
+				runtime·printf("runtime: unknown pc %p at frame %d\n", frame.pc, skip0-skip+n);
+				runtime·throw("invalid stack");
+			}
 			break;
 		}
 		
@@ -89,12 +87,12 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		frame.arglen = 0;
 		if(f->args != ArgsSizeUnknown)
 			frame.arglen = f->args;
-		else if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+		else if(runtime·haszeroargs(f->entry))
 			frame.arglen = 0;
 		else if(frame.lr == (uintptr)runtime·lessstack)
 			frame.arglen = stk->argsize;
 		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
-			frame.arglen = 2*sizeof(uintptr) + ((uintptr*)frame.argp)[1];
+			frame.arglen = 3*sizeof(uintptr) + *(int32*)frame.argp;
 		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
 			frame.arglen = f2->frame; // conservative overestimate
 		else {
