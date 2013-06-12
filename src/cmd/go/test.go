@@ -45,8 +45,8 @@ It prints a summary of the test results in the format:
 
 followed by detailed output for each failed package.
 
-'Go test' recompiles each package along with any files with names matching
-the file pattern "*_test.go".  These additional files can contain test functions,
+'Go test' recompiles each package along with any files with names ending in
+"_test.go".  These additional files can contain test functions,
 benchmark functions, and example functions.  See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 
