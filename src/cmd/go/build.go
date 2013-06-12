@@ -1110,14 +1110,15 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 }
 
 // cover runs, in effect,
-//	go tool cover -mode=b.coverMode -count="count" -pos="pos" src.go >dst.go
+//	go tool cover -mode=b.coverMode -count="count" -pos="pos" -o dst.go src.go
 func (b *builder) cover(a *action, dst, src string, perm os.FileMode, count, pos string) error {
-	out, err := b.runOut(a.objdir, "cover "+a.p.ImportPath, nil, tool("cover"), "-mode="+a.p.coverMode, "-count="+count, "-pos="+pos, src)
-	if err != nil {
-		return err
-	}
-	// Output is processed source code. Write it to destination.
-	return ioutil.WriteFile(dst, out, perm)
+	return b.run(a.objdir, "cover "+a.p.ImportPath, nil,
+		tool("cover"),
+		"-mode", a.p.coverMode,
+		"-count", count,
+		"-pos", pos,
+		"-o", dst,
+		src)
 }
 
 var objectMagic = [][]byte{
