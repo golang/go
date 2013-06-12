@@ -211,7 +211,7 @@ struct	Gobuf
 {
 	// The offsets of these fields are known to (hard-coded in) libmach.
 	uintptr	sp;
-	byte*	pc;
+	uintptr	pc;
 	G*	g;
 };
 struct	GCStats
@@ -234,7 +234,7 @@ struct	G
 	Gobuf	sched;
 	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
 	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
-	byte*	gcpc;		// if status==Gsyscall, gcpc = sched.pc to use during gc
+	uintptr	gcpc;		// if status==Gsyscall, gcpc = sched.pc to use during gc
 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
@@ -375,8 +375,8 @@ enum
 struct	Stktop
 {
 	// The offsets of these fields are known to (hard-coded in) libmach.
-	uint8*	stackguard;
-	uint8*	stackbase;
+	uintptr	stackguard;
+	uintptr	stackbase;
 	Gobuf	gobuf;
 	uint32	argsize;
 
@@ -646,10 +646,31 @@ struct DeferChunk
 struct Panic
 {
 	Eface	arg;		// argument to panic
-	byte*	stackbase;	// g->stackbase in panic
+	uintptr	stackbase;	// g->stackbase in panic
 	Panic*	link;		// link to earlier panic
 	bool	recovered;	// whether this panic is over
 };
+
+/*
+ * stack traces
+ */
+typedef struct Stkframe Stkframe;
+struct Stkframe
+{
+	Func*	fn;	// function being run
+	uintptr	pc;	// program counter within fn
+	uintptr	lr;	// program counter at caller aka link register
+	uintptr	sp;	// stack pointer at pc
+	uintptr	fp;	// stack pointer at caller aka frame pointer
+	byte*	argp;	// pointer to function arguments
+	uintptr	arglen;	// number of bytes at argp
+	byte*	varp;	// pointer to local variables
+	uintptr	varlen;	// number of bytes at varp
+};
+
+int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*);
+void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+void	runtime·tracebackothers(G*);
 
 /*
  * external data
@@ -718,8 +739,6 @@ void	runtime·sigenable(uint32 sig);
 void	runtime·sigdisable(uint32 sig);
 int32	runtime·gotraceback(bool *crash);
 void	runtime·goroutineheader(G*);
-void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
-void	runtime·tracebackothers(G*);
 int32	runtime·open(int8*, int32, int32);
 int32	runtime·read(int32, void*, int32);
 int32	runtime·write(int32, void*, int32);
@@ -770,7 +789,7 @@ void*	runtime·malloc(uintptr size);
 void	runtime·free(void *v);
 bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr);
 void	runtime·runpanic(Panic*);
-void*	runtime·getcallersp(void*);
+uintptr	runtime·getcallersp(void*);
 int32	runtime·mcount(void);
 int32	runtime·gcount(void);
 void	runtime·mcall(void(*)(G*));
@@ -792,7 +811,6 @@ void	runtime·exitsyscall(void);
 G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
 bool	runtime·sigsend(int32 sig);
 int32	runtime·callers(int32, uintptr*, int32);
-int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32, void (*)(Func*, byte*, byte*, void*), void*);
 int64	runtime·nanotime(void);
 void	runtime·dopanic(int32);
 void	runtime·startpanic(void);
@@ -813,6 +831,7 @@ int32	runtime·netpollopen(uintptr, PollDesc*);
 int32   runtime·netpollclose(uintptr);
 void	runtime·netpollready(G**, PollDesc*, int32);
 void	runtime·crash(void);
+void	_rt0_go(void);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"c"	int32

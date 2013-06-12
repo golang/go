@@ -241,7 +241,7 @@ runtime·tracebackothers(G *me)
 			continue;
 		runtime·printf("\n");
 		runtime·goroutineheader(gp);
-		runtime·traceback(gp->sched.pc, (byte*)gp->sched.sp, 0, gp);
+		runtime·traceback(gp->sched.pc, gp->sched.sp, 0, gp);
 	}
 }
 
@@ -473,7 +473,7 @@ runtime·mstart(void)
 	// Once we call schedule we're never coming back,
 	// so other calls can reuse this stack space.
 	runtime·gosave(&m->g0->sched);
-	m->g0->sched.pc = (void*)-1;  // make sure it is never used
+	m->g0->sched.pc = (uintptr)-1;  // make sure it is never used
 	m->g0->stackguard = m->g0->stackguard0;  // cgo sets only stackguard0, copy it to stackguard
 	m->seh = &seh;
 	runtime·asminit();
@@ -651,7 +651,7 @@ runtime·newextram(void)
 	// the goroutine stack ends.
 	mp = runtime·allocm(nil);
 	gp = runtime·malg(4096);
-	gp->sched.pc = (void*)runtime·goexit;
+	gp->sched.pc = (uintptr)runtime·goexit;
 	gp->sched.sp = gp->stackbase;
 	gp->sched.g = gp;
 	gp->status = Gsyscall;
@@ -997,7 +997,7 @@ execute(G *gp)
 	if(m->profilehz != hz)
 		runtime·resetcpuprofiler(hz);
 
-	if(gp->sched.pc == (byte*)runtime·goexit)  // kickoff
+	if(gp->sched.pc == (uintptr)runtime·goexit)  // kickoff
 		runtime·gogocallfn(&gp->sched, gp->fnstart);
 	runtime·gogo(&gp->sched, 0);
 }
@@ -1281,7 +1281,7 @@ void
 
 	// Leave SP around for gc and traceback.
 	g->sched.sp = (uintptr)runtime·getcallersp(&dummy);
-	g->sched.pc = runtime·getcallerpc(&dummy);
+	g->sched.pc = (uintptr)runtime·getcallerpc(&dummy);
 	g->sched.g = g;
 	g->gcsp = g->sched.sp;
 	g->gcpc = g->sched.pc;
@@ -1330,8 +1330,8 @@ void
 		runtime·setprof(false);
 
 	// Leave SP around for gc and traceback.
-	g->sched.sp = (uintptr)runtime·getcallersp(&dummy);
-	g->sched.pc = runtime·getcallerpc(&dummy);
+	g->sched.sp = runtime·getcallersp(&dummy);
+	g->sched.pc = (uintptr)runtime·getcallerpc(&dummy);
 	g->sched.g = g;
 	g->gcsp = g->sched.sp;
 	g->gcpc = g->sched.pc;
@@ -1548,14 +1548,14 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	}
 
 	newg->sched.sp = (uintptr)sp;
-	newg->sched.pc = (byte*)runtime·goexit;
+	newg->sched.pc = (uintptr)runtime·goexit;
 	newg->sched.g = newg;
 	newg->fnstart = fn;
 	newg->gopc = (uintptr)callerpc;
 	newg->status = Grunnable;
 	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
 	if(raceenabled)
-		newg->racectx = runtime·racegostart(callerpc);
+		newg->racectx = runtime·racegostart((void*)callerpc);
 	runqput(m->p, newg);
 
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
@@ -1802,7 +1802,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 		runtime·unlock(&prof);
 		return;
 	}
-	n = runtime·gentraceback(pc, sp, lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil);
+	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil);
 	if(n > 0)
 		prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
