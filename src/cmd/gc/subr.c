@@ -2574,6 +2574,8 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	
 	// generate call
 	if(isptr[rcvr->etype] && isptr[methodrcvr->etype] && method->embedded && !isifacemethod(method->type)) {
+		// generate tail call: adjust pointer receiver and jump to embedded method.
+		fn->norace = 1; // something about this body makes the race detector unhappy.
 		// skip final .M
 		dot = dot->left;
 		if(!isptr[dotlist[0].field->type->etype])
