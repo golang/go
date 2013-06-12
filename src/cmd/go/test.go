@@ -435,6 +435,15 @@ func runTest(cmd *Command, args []string) {
 	b.do(root)
 }
 
+func contains(x []string, s string) bool {
+	for _, t := range x {
+		if t == s {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := &action{p: p}
@@ -468,6 +477,19 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			return nil, nil, nil, p1.Error
 		}
 		ximports = append(ximports, p1)
+
+		// In coverage mode, we rewrite the package p's sources.
+		// All code that imports p must be rebuilt with the updated
+		// copy, or else coverage will at the least be incomplete
+		// (and sometimes we get link errors due to the mismatch as well).
+		// The external test itself imports package p, of course, but
+		// we make sure that sees the new p. Any other code in the test
+		// - that is, any code imported by the external test that in turn
+		// imports p - needs to be rebuilt too. For now, just report
+		// that coverage is unavailable.
+		if testCover != "" && contains(p1.Deps, p.ImportPath) {
+			return nil, nil, nil, fmt.Errorf("coverage analysis cannot handle package (%s_test imports %s imports %s)", p.Name, path, p.ImportPath)
+		}
 	}
 	stk.pop()
 
