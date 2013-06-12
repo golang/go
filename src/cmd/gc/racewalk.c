@@ -58,7 +58,7 @@ racewalk(Node *fn)
 	Node *nodpc;
 	char s[1024];
 
-	if(ispkgin(omit_pkgs, nelem(omit_pkgs)))
+	if(fn->norace || ispkgin(omit_pkgs, nelem(omit_pkgs)))
 		return;
 
 	if(!ispkgin(noinst_pkgs, nelem(noinst_pkgs))) {
