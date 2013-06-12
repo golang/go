@@ -284,6 +284,7 @@ struct	Node
 	NodeList*	cvars;	// closure params
 	NodeList*	dcl;	// autodcl for this func/closure
 	NodeList*	inl;	// copy of the body for use in inlining
+	NodeList*	inldcl;	// copy of dcl for use in inlining
 
 	// OLITERAL/OREGISTER
 	Val	val;
