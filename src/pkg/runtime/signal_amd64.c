@@ -121,7 +121,7 @@ Throw:
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)){
-		runtime·traceback((void*)SIG_RIP(info, ctxt), (void*)SIG_RSP(info, ctxt), 0, gp);
+		runtime·traceback(SIG_RIP(info, ctxt), SIG_RSP(info, ctxt), 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(info, ctxt);
 	}

@@ -441,10 +441,10 @@ func ThreadCreateProfile(p Slice) (n int, ok bool) {
 }
 
 func Stack(b Slice, all bool) (n int) {
-	byte *pc, *sp;
+	uintptr pc, sp;
 	
 	sp = runtime·getcallersp(&b);
-	pc = runtime·getcallerpc(&b);
+	pc = (uintptr)runtime·getcallerpc(&b);
 
 	if(all) {
 		runtime·semacquire(&runtime·worldsema);
@@ -474,22 +474,22 @@ func Stack(b Slice, all bool) (n int) {
 }
 
 static void
-saveg(byte *pc, byte *sp, G *gp, TRecord *r)
+saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
 {
 	int32 n;
 	
-	n = runtime·gentraceback(pc, sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil);
+	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil);
 	if(n < nelem(r->stk))
 		r->stk[n] = 0;
 }
 
 func GoroutineProfile(b Slice) (n int, ok bool) {
-	byte *pc, *sp;
+	uintptr pc, sp;
 	TRecord *r;
 	G *gp;
 	
 	sp = runtime·getcallersp(&b);
-	pc = runtime·getcallerpc(&b);
+	pc = (uintptr)runtime·getcallerpc(&b);
 	
 	ok = false;
 	n = runtime·gcount();
@@ -506,7 +506,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
 				if(gp == g || gp->status == Gdead)
 					continue;
-				saveg(gp->sched.pc, (byte*)gp->sched.sp, gp, r++);
+				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
 			}
 		}
 	

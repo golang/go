@@ -155,8 +155,8 @@ runtime·oldstack(void)
 	USED(goid);
 
 	label = top->gobuf;
-	gp->stackbase = (uintptr)top->stackbase;
-	gp->stackguard = (uintptr)top->stackguard;
+	gp->stackbase = top->stackbase;
+	gp->stackguard = top->stackguard;
 	gp->stackguard0 = gp->stackguard;
 	if(top->free != 0)
 		runtime·stackfree(old, top->free);
@@ -176,7 +176,8 @@ runtime·newstack(void)
 {
 	int32 framesize, minalloc, argsize;
 	Stktop *top;
-	byte *stk, *sp;
+	byte *stk;
+	uintptr sp;
 	uintptr *src, *dst, *dstend;
 	G *gp;
 	Gobuf label;
@@ -234,14 +235,14 @@ runtime·newstack(void)
 			framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, gp->stackbase);
 	}
 
-	top->stackbase = (byte*)gp->stackbase;
-	top->stackguard = (byte*)gp->stackguard;
+	top->stackbase = gp->stackbase;
+	top->stackguard = gp->stackguard;
 	top->gobuf = m->morebuf;
 	top->argp = m->moreargp;
 	top->argsize = argsize;
 	top->free = free;
 	m->moreargp = nil;
-	m->morebuf.pc = nil;
+	m->morebuf.pc = (uintptr)nil;
 	m->morebuf.sp = (uintptr)nil;
 
 	// copy flag from panic
@@ -252,7 +253,7 @@ runtime·newstack(void)
 	gp->stackguard = (uintptr)stk + StackGuard;
 	gp->stackguard0 = gp->stackguard;
 
-	sp = (byte*)top;
+	sp = (uintptr)top;
 	if(argsize > 0) {
 		sp -= argsize;
 		dst = (uintptr*)sp;
@@ -269,8 +270,8 @@ runtime·newstack(void)
 
 	// Continue as if lessstack had just called m->morepc
 	// (the PC that decided to grow the stack).
-	label.sp = (uintptr)sp;
-	label.pc = (byte*)runtime·lessstack;
+	label.sp = sp;
+	label.pc = (uintptr)runtime·lessstack;
 	label.g = m->curg;
 	if(reflectcall)
 		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
