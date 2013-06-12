@@ -410,6 +410,14 @@ func _Sizeof() {
 
 	var y2 S2
 	assert(unsafe.Sizeof(y2) == 8)
+
+	// test case for issue 5670
+	type T struct {
+		a int32
+		_ int32
+		c int32
+	}
+	assert(unsafe.Sizeof(T{}) == 12)
 }
 
 // self-testing only

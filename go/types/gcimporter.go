@@ -485,29 +485,27 @@ func (p *gcParser) parseField() (*Field, string) {
 // FieldList  = Field { ";" Field } .
 //
 func (p *gcParser) parseStructType() Type {
-	var fields *Scope // lazily initialized
+	var fields []*Field
 	var tags []string
 
 	p.expectKeyword("struct")
 	p.expect('{')
+	scope := NewScope(nil)
 	for i := 0; p.tok != '}'; i++ {
 		if i > 0 {
 			p.expect(';')
 		}
 		fld, tag := p.parseField()
-		// TODO(gri) same code in collectFields (expr.go) - factor?
 		if tag != "" && tags == nil {
 			tags = make([]string, i)
 		}
 		if tags != nil {
 			tags = append(tags, tag)
 		}
-		if fields == nil {
-			fields = NewScope(nil)
-		}
-		if alt := fields.Insert(fld); alt != nil {
+		if alt := scope.Insert(fld); alt != nil {
 			p.errorf("multiple fields named %s.%s", alt.Pkg().name, alt.Name())
 		}
+		fields = append(fields, fld)
 	}
 	p.expect('}')
 

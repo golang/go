@@ -74,11 +74,9 @@ func isComparable(typ Type) bool {
 		// assumes types are equal for pointers and channels
 		return true
 	case *Struct:
-		if t.fields != nil {
-			for _, f := range t.fields.entries {
-				if !isComparable(f.Type()) {
-					return false
-				}
+		for _, f := range t.fields {
+			if !isComparable(f.typ) {
+				return false
 			}
 		}
 		return true
@@ -131,16 +129,13 @@ func IsIdentical(x, y Type) bool {
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
 			if x.NumFields() == y.NumFields() {
-				if x.fields != nil {
-					for i, obj := range x.fields.entries {
-						f := obj.(*Field)
-						g := y.fields.At(i).(*Field)
-						if f.anonymous != g.anonymous ||
-							x.Tag(i) != y.Tag(i) ||
-							!f.isMatch(g.pkg, g.name) ||
-							!IsIdentical(f.typ, g.typ) {
-							return false
-						}
+				for i, f := range x.fields {
+					g := y.fields[i]
+					if f.anonymous != g.anonymous ||
+						x.Tag(i) != y.Tag(i) ||
+						!f.isMatch(g.pkg, g.name) ||
+						!IsIdentical(f.typ, g.typ) {
+						return false
 					}
 				}
 				return true

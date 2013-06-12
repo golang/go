@@ -276,11 +276,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 			switch t := typ.underlying.(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
-				if t.fields == nil {
-					break
-				}
-				for i, obj := range t.fields.entries {
-					f := obj.(*Field)
+				for i, f := range t.fields {
 					if f.isMatch(pkg, name) {
 						assert(f.typ != nil)
 						if !potentialMatch(e.multiples, variable, f) {
@@ -375,12 +371,8 @@ func lookupField(typ Type, pkg *Package, name string) lookupResult {
 
 	switch t := typ.(type) {
 	case *Struct:
-		if t.fields == nil {
-			break
-		}
 		var next []embeddedType
-		for i, obj := range t.fields.entries {
-			f := obj.(*Field)
+		for i, f := range t.fields {
 			if f.isMatch(pkg, name) {
 				return lookupResult{variable, f, []int{i}}
 			}

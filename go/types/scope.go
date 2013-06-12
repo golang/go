@@ -52,64 +52,54 @@ func (s *Scope) At(i int) Object {
 	return s.entries[i]
 }
 
-// Index returns the index of the scope entry with the given package
-// (path) and name if such an entry exists in s; otherwise the result
-// is negative. A nil scope acts like an empty scope, and parent scopes
-// are ignored.
+// Lookup returns the object in scope s with the given package
+// and name if such an object exists; otherwise the result is nil.
+// A nil scope acts like an empty scope, and parent scopes are ignored.
 //
 // If pkg != nil, both pkg.Path() and name are used to identify an
 // entry, per the Go rules for identifier equality. If pkg == nil,
 // only the name is used and the package path is ignored.
-func (s *Scope) Index(pkg *Package, name string) int {
+func (s *Scope) Lookup(pkg *Package, name string) Object {
 	if s == nil {
-		return -1 // empty scope
+		return nil // empty scope
 	}
 
 	// fast path: only the name must match
 	if pkg == nil {
-		for i, obj := range s.entries {
+		for _, obj := range s.entries {
 			if obj.Name() == name {
-				return i
+				return obj
 			}
 		}
-		return -1
+		return nil
 	}
 
 	// slow path: both pkg path and name must match
 	// TODO(gri) if packages were canonicalized, we could just compare the packages
-	for i, obj := range s.entries {
+	for _, obj := range s.entries {
 		// spec:
 		// "Two identifiers are different if they are spelled differently,
 		// or if they appear in different packages and are not exported.
 		// Otherwise, they are the same."
 		if obj.Name() == name && (ast.IsExported(name) || obj.Pkg().path == pkg.path) {
-			return i
+			return obj
 		}
 	}
 
 	// not found
-	return -1
+	return nil
 
 	// TODO(gri) Optimize Lookup by also maintaining a map representation
 	//           for larger scopes.
 }
 
-// Lookup returns the scope entry At(i) for i = Index(pkg, name), if i >= 0.
-// Otherwise it returns nil.
-func (s *Scope) Lookup(pkg *Package, name string) Object {
-	if i := s.Index(pkg, name); i >= 0 {
-		return s.At(i)
-	}
-	return nil
-}
-
 // LookupParent follows the parent chain of scopes starting with s until it finds
-// a scope where Lookup(nil, name) returns a non-nil entry, and then returns that
-// entry. If no such scope exists, the result is nil.
+// a scope where Lookup(nil, name) returns a non-nil object, and then returns that
+// object. If no such scope exists, the result is nil.
 func (s *Scope) LookupParent(name string) Object {
 	for s != nil {
-		if i := s.Index(nil, name); i >= 0 {
-			return s.At(i)
+		if obj := s.Lookup(nil, name); obj != nil {
+			return obj
 		}
 		s = s.parent
 	}

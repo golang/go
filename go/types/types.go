@@ -132,22 +132,46 @@ func (s *Slice) Elem() Type { return s.elt }
 
 // A Struct represents a struct type.
 type Struct struct {
-	fields  *Scope
+	fields  []*Field
 	tags    []string // field tags; nil if there are no tags
 	offsets []int64  // field offsets in bytes, lazily computed
 }
 
-func NewStruct(fields *Scope, tags []string) *Struct {
+// NewStruct returns a new struct with the given fields and corresponding field tags.
+// If a field with index i has a tag, tags[i] must be that tag, but len(tags) may be
+// only as long as required to hold the tag with the largest index i. Consequently,
+// if no field has a tag, tags may be nil.
+func NewStruct(fields []*Field, tags []string) *Struct {
 	return &Struct{fields: fields, tags: tags}
 }
 
-func (s *Struct) NumFields() int     { return s.fields.NumEntries() }
-func (s *Struct) Field(i int) *Field { return s.fields.At(i).(*Field) }
+// NumFields returns the number of fields in the struct (including blank and anonymous fields).
+func (s *Struct) NumFields() int { return len(s.fields) }
+
+// Field returns the i'th field for 0 <= i < NumFields().
+func (s *Struct) Field(i int) *Field { return s.fields[i] }
+
+// Tag returns the i'th field tag for 0 <= i < NumFields().
 func (s *Struct) Tag(i int) string {
 	if i < len(s.tags) {
 		return s.tags[i]
 	}
 	return ""
+}
+
+// Index returns the index for the field in s with matching package and name.
+// TODO(gri) should this be exported?
+func (s *Struct) index(pkg *Package, name string) int {
+	for i, f := range s.fields {
+		// spec:
+		// "Two identifiers are different if they are spelled differently,
+		// or if they appear in different packages and are not exported.
+		// Otherwise, they are the same."
+		if f.name == name && (ast.IsExported(name) || f.pkg.path == pkg.path) {
+			return i
+		}
+	}
+	return -1
 }
 
 // A Pointer represents a pointer type.
@@ -264,6 +288,7 @@ func (b *Builtin) Name() string {
 
 // An Interface represents an interface type.
 type Interface struct {
+	// TODO(gri) Change back to a sorted slice of methods.
 	methods *Scope // may be nil
 }
 
@@ -315,7 +340,8 @@ func (c *Chan) Elem() Type { return c.elt }
 type Named struct {
 	obj        *TypeName // corresponding declared object
 	underlying Type      // nil if not fully declared yet; never a *Named
-	methods    *Scope    // directly associated methods (not the method set of this type); may be nil
+	// TODO(gri): change back to a sorted slice of methods
+	methods *Scope // directly associated methods (not the method set of this type); may be nil
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.

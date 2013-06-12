@@ -182,7 +182,7 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk bool) (tags []string) {
+func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
 	if list == nil {
 		return
 	}
@@ -190,9 +190,8 @@ func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk b
 	var typ Type   // current field typ
 	var tag string // current field tag
 	add := func(field *ast.Field, ident *ast.Ident, name string, anonymous bool, pos token.Pos) {
-		// TODO(gri): rethink this - at the moment we allocate only a prefix
 		if tag != "" && tags == nil {
-			tags = make([]string, scope.NumEntries())
+			tags = make([]string, len(fields))
 		}
 		if tags != nil {
 			tags = append(tags, tag)
@@ -200,6 +199,7 @@ func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk b
 
 		fld := NewField(pos, check.pkg, name, typ, anonymous)
 		check.declare(scope, ident, fld)
+		fields = append(fields, fld)
 	}
 
 	for _, f := range list.List {
@@ -1159,7 +1159,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			fields := utyp.fields
 			if _, ok := e.Elts[0].(*ast.KeyValueExpr); ok {
 				// all elements must have keys
-				visited := make([]bool, fields.NumEntries())
+				visited := make([]bool, len(fields))
 				for _, e := range e.Elts {
 					kv, _ := e.(*ast.KeyValueExpr)
 					if kv == nil {
@@ -1171,12 +1171,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := utyp.fields.Index(check.pkg, key.Name)
+					i := utyp.index(check.pkg, key.Name)
 					if i < 0 {
 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
 						continue
 					}
-					fld := fields.At(i).(*Field)
+					fld := fields[i]
 					check.callIdent(key, fld)
 					// 0 <= i < len(fields)
 					if visited[i] {
@@ -1201,12 +1201,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						continue
 					}
 					check.expr(x, e, nil, iota)
-					if i >= fields.NumEntries() {
+					if i >= len(fields) {
 						check.errorf(x.pos(), "too many values in struct literal")
 						break // cannot continue
 					}
 					// i < len(fields)
-					etyp := fields.At(i).Type()
+					etyp := fields[i].typ
 					if !check.assignment(x, etyp) {
 						if x.mode != invalid {
 							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
@@ -1214,7 +1214,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						continue
 					}
 				}
-				if len(e.Elts) < fields.NumEntries() {
+				if len(e.Elts) < len(fields) {
 					check.errorf(e.Rbrace, "too few values in struct literal")
 					// ok to continue
 				}
@@ -1703,9 +1703,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.StructType:
 		scope := NewScope(check.topScope)
-		tags := check.collectFields(scope, e.Fields, cycleOk)
+		fields, tags := check.collectFields(scope, e.Fields, cycleOk)
 		x.mode = typexpr
-		x.typ = &Struct{fields: scope, tags: tags}
+		x.typ = &Struct{fields: fields, tags: tags}
 
 	case *ast.FuncType:
 		scope := NewScope(check.topScope)

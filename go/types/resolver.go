@@ -483,10 +483,9 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 			if t.fields == nil {
 				break
 			}
-			for _, f := range t.fields.entries {
-				name := f.Name()
-				if m := scope.Lookup(nil, name); m != nil {
-					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, name)
+			for _, f := range t.fields {
+				if m := scope.Lookup(nil, f.name); m != nil {
+					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, f.name)
 					// ok to continue
 				}
 			}

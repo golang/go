@@ -258,20 +258,17 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Struct:
 		buf.WriteString("struct{")
-		if t.fields != nil {
-			for i, obj := range t.fields.entries {
-				if i > 0 {
-					buf.WriteString("; ")
-				}
-				f := obj.(*Field)
-				if !f.anonymous {
-					buf.WriteString(f.name)
-					buf.WriteByte(' ')
-				}
-				writeType(buf, f.typ)
-				if tag := t.Tag(i); tag != "" {
-					fmt.Fprintf(buf, " %q", tag)
-				}
+		for i, f := range t.fields {
+			if i > 0 {
+				buf.WriteString("; ")
+			}
+			if !f.anonymous {
+				buf.WriteString(f.name)
+				buf.WriteByte(' ')
+			}
+			writeType(buf, f.typ)
+			if tag := t.Tag(i); tag != "" {
+				fmt.Fprintf(buf, " %q", tag)
 			}
 		}
 		buf.WriteByte('}')
