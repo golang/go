@@ -128,7 +128,7 @@ TEXT runtime·gosave(SB), 7, $0
 	MOVQ	BX, gobuf_g(AX)
 	RET
 
-// void gogo(Gobuf*, uintptr)
+// void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), 7, $0
 	MOVQ	8(SP), BX		// gobuf
