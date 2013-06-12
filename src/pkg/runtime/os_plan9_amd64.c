@@ -103,7 +103,7 @@ Throw:
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)) {
-		runtime·traceback((void*)ureg->ip, (void*)ureg->sp, 0, gp);
+		runtime·traceback(ureg->ip, ureg->sp, 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(ureg);
 	}

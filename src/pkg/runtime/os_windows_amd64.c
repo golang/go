@@ -83,7 +83,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)){
-		runtime·traceback((void*)r->Rip, (void*)r->Rsp, 0, gp);
+		runtime·traceback(r->Rip, r->Rsp, 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(r);
 	}
