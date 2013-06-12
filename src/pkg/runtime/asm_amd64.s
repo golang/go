@@ -121,6 +121,8 @@ TEXT runtime·gosave(SB), 7, $0
 	MOVQ	BX, gobuf_sp(AX)
 	MOVQ	0(SP), BX		// caller's PC
 	MOVQ	BX, gobuf_pc(AX)
+	MOVQ	$0, gobuf_ret(AX)
+	MOVQ	$0, gobuf_ctxt(AX)
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	BX, gobuf_g(AX)
@@ -129,49 +131,19 @@ TEXT runtime·gosave(SB), 7, $0
 // void gogo(Gobuf*, uintptr)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), 7, $0
-	MOVQ	16(SP), AX		// return 2nd arg
 	MOVQ	8(SP), BX		// gobuf
 	MOVQ	gobuf_g(BX), DX
 	MOVQ	0(DX), CX		// make sure g != nil
 	get_tls(CX)
 	MOVQ	DX, g(CX)
 	MOVQ	gobuf_sp(BX), SP	// restore SP
+	MOVQ	gobuf_ret(BX), AX
+	MOVQ	gobuf_ctxt(BX), DX
+	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
+	MOVQ	$0, gobuf_ret(BX)
+	MOVQ	$0, gobuf_ctxt(BX)
 	MOVQ	gobuf_pc(BX), BX
 	JMP	BX
-
-// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
-// restore state from Gobuf but then call fn.
-// (call fn, returning to state in Gobuf)
-TEXT runtime·gogocall(SB), 7, $0
-	MOVQ	24(SP), DX	// context
-	MOVQ	16(SP), AX		// fn
-	MOVQ	8(SP), BX		// gobuf
-	MOVQ	gobuf_g(BX), DI
-	get_tls(CX)
-	MOVQ	DI, g(CX)
-	MOVQ	0(DI), CX	// make sure g != nil
-	MOVQ	gobuf_sp(BX), SP	// restore SP
-	MOVQ	gobuf_pc(BX), BX
-	PUSHQ	BX
-	JMP	AX
-	POPQ	BX	// not reached
-
-// void gogocallfn(Gobuf*, FuncVal*)
-// restore state from Gobuf but then call fn.
-// (call fn, returning to state in Gobuf)
-TEXT runtime·gogocallfn(SB), 7, $0
-	MOVQ	16(SP), DX		// fn
-	MOVQ	8(SP), BX		// gobuf
-	MOVQ	gobuf_g(BX), AX
-	get_tls(CX)
-	MOVQ	AX, g(CX)
-	MOVQ	0(AX), CX	// make sure g != nil
-	MOVQ	gobuf_sp(BX), SP	// restore SP
-	MOVQ	gobuf_pc(BX), BX
-	PUSHQ	BX
-	MOVQ	0(DX), BX
-	JMP	BX
-	POPQ	BX	// not reached
 
 // void mcall(void (*fn)(G*))
 // Switch to m->g0's stack, call fn(g).
@@ -505,11 +477,16 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	MOVQ	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// Dummy function to use in saved gobuf.PC,
-// to match SP pointing at a return address.
-// The gobuf.PC is unused by the contortions here
-// but setting it to return will make the traceback code work.
-TEXT return<>(SB),7,$0
+// Save state of caller into g->sched. Smashes R8, R9.
+TEXT gosave<>(SB),7,$0
+	get_tls(R8)
+	MOVQ	g(R8), R8
+	MOVQ	0(SP), R9
+	MOVQ	R9, (g_sched+gobuf_pc)(R8)
+	LEAQ	8(SP), R9
+	MOVQ	R9, (g_sched+gobuf_sp)(R8)
+	MOVQ	$0, (g_sched+gobuf_ret)(R8)
+	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
 	RET
 
 // asmcgocall(void(*fn)(void*), void *arg)
@@ -529,10 +506,8 @@ TEXT runtime·asmcgocall(SB),7,$0
 	MOVQ	m_g0(BP), SI
 	MOVQ	g(CX), DI
 	CMPQ	SI, DI
-	JEQ	6(PC)
-	MOVQ	SP, (g_sched+gobuf_sp)(DI)
-	MOVQ	$return<>(SB), (g_sched+gobuf_pc)(DI)
-	MOVQ	DI, (g_sched+gobuf_g)(DI)
+	JEQ	4(PC)
+	CALL	gosave<>(SB)
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 

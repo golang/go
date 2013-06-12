@@ -130,7 +130,6 @@ runtime·oldstack(void)
 	Stktop *top;
 	Gobuf label;
 	uint32 argsize;
-	uintptr cret;
 	byte *sp, *old;
 	uintptr *src, *dst, *dstend;
 	G *gp;
@@ -161,9 +160,9 @@ runtime·oldstack(void)
 	if(top->free != 0)
 		runtime·stackfree(old, top->free);
 
-	cret = m->cret;
+	label.ret = m->cret;
 	m->cret = 0;  // drop reference
-	runtime·gogo(&label, cret);
+	runtime·gogo(&label);
 }
 
 // Called from reflect·call or from runtime·morestack when a new
@@ -270,13 +269,26 @@ runtime·newstack(void)
 
 	// Continue as if lessstack had just called m->morepc
 	// (the PC that decided to grow the stack).
+	runtime·memclr((byte*)&label, sizeof label);
 	label.sp = sp;
 	label.pc = (uintptr)runtime·lessstack;
 	label.g = m->curg;
 	if(reflectcall)
-		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
-	else
-		runtime·gogocall(&label, m->morepc, m->cret);
+		runtime·gostartcallfn(&label, (FuncVal*)m->morepc);
+	else {
+		// The stack growth code saves ctxt (not ret) in m->cret.
+		runtime·gostartcall(&label, m->morepc, (void*)m->cret);
+		m->cret = 0;
+	}
+	runtime·gogo(&label);
 
 	*(int32*)345 = 123;	// never return
+}
+
+// adjust Gobuf as if it executed a call to fn
+// and then did an immediate gosave.
+void
+runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
+{
+	runtime·gostartcall(gobuf, fv->fn, fv);
 }

@@ -38,13 +38,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	frame.sp = sp0;
 	waspanic = false;
 	printing = pcbuf==nil && callback==nil;
-
-	// If the PC is goexit, the goroutine hasn't started yet.
-	if(frame.pc == gp->sched.pc && frame.sp == gp->sched.sp && frame.pc == (uintptr)runtime·goexit && gp->fnstart != nil) {
-		frame.fp = frame.sp;
-		frame.lr = frame.pc;
-		frame.pc = (uintptr)gp->fnstart->fn;
-	}
 	
 	// If the PC is zero, it's likely a nil function call.
 	// Start in the caller's frame.
@@ -98,12 +91,12 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		frame.arglen = 0;
 		if(f->args != ArgsSizeUnknown)
 			frame.arglen = f->args;
-		else if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+		else if(runtime·haszeroargs(f->entry))
 			frame.arglen = 0;
 		else if(frame.lr == (uintptr)runtime·lessstack)
 			frame.arglen = stk->argsize;
 		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
-			frame.arglen = 2*sizeof(uintptr) + ((uintptr*)frame.argp)[1];
+			frame.arglen = 2*sizeof(uintptr) + *(int32*)frame.argp;
 		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
 			frame.arglen = f2->frame; // conservative overestimate
 		else {

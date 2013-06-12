@@ -102,6 +102,10 @@ TEXT runtime·gosave(SB), 7, $-4
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
+	MOVW	$0, R11
+	MOVW	R11, gobuf_lr(R0)
+	MOVW	R11, gobuf_ret(R0)
+	MOVW	R11, gobuf_ctxt(R0)
 	RET
 
 // void gogo(Gobuf*, uintptr)
@@ -113,43 +117,16 @@ TEXT runtime·gogo(SB), 7, $-4
 	MOVW	_cgo_save_gm(SB), R2
 	CMP 	$0, R2 // if in Cgo, we have to save g and m
 	BL.NE	(R2) // this call will clobber R0
-	MOVW	4(FP), R0		// return 2nd arg
 	MOVW	gobuf_sp(R1), SP	// restore SP
+	MOVW	gobuf_lr(R1), LR
+	MOVW	gobuf_ret(R1), R0
+	MOVW	gobuf_ctxt(R1), R7
+	MOVW	$0, R11
+	MOVW	R11, gobuf_sp(R1)	// clear to help garbage collector
+	MOVW	R11, gobuf_ret(R1)
+	MOVW	R11, gobuf_lr(R1)
+	MOVW	R11, gobuf_ctxt(R1)
 	MOVW	gobuf_pc(R1), PC
-
-// void gogocall(Gobuf*, void (*fn)(void), uintptr r7)
-// restore state from Gobuf but then call fn.
-// (call fn, returning to state in Gobuf)
-// using frame size $-4 means do not save LR on stack.
-TEXT runtime·gogocall(SB), 7, $-4
-	MOVW	0(FP), R3		// gobuf
-	MOVW	4(FP), R1		// fn
-	MOVW	gobuf_g(R3), g
-	MOVW	0(g), R0		// make sure g != nil
-	MOVW	_cgo_save_gm(SB), R0
-	CMP 	$0, R0 // if in Cgo, we have to save g and m
-	BL.NE	(R0) // this call will clobber R0
-	MOVW	8(FP), R7	// context
-	MOVW	gobuf_sp(R3), SP	// restore SP
-	MOVW	gobuf_pc(R3), LR
-	MOVW	R1, PC
-
-// void gogocallfn(Gobuf*, FuncVal*)
-// restore state from Gobuf but then call fn.
-// (call fn, returning to state in Gobuf)
-// using frame size $-4 means do not save LR on stack.
-TEXT runtime·gogocallfn(SB), 7, $-4
-	MOVW	0(FP), R3		// gobuf
-	MOVW	4(FP), R1		// fn
-	MOVW	gobuf_g(R3), g
-	MOVW	0(g), R0		// make sure g != nil
-	MOVW	_cgo_save_gm(SB), R0
-	CMP 	$0, R0 // if in Cgo, we have to save g and m
-	BL.NE	(R0) // this call will clobber R0
-	MOVW	gobuf_sp(R3), SP	// restore SP
-	MOVW	gobuf_pc(R3), LR
-	MOVW	R1, R7
-	MOVW	0(R1), PC
 
 // void mcall(void (*fn)(G*))
 // Switch to m->g0's stack, call fn(g).
@@ -271,11 +248,14 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	MOVW	0(R7), R1
 	B	(R1)
 
-// Dummy function to use in saved gobuf.PC,
-// to match SP pointing at a return address.
-// The gobuf.PC is unused by the contortions here
-// but setting it to return will make the traceback code work.
-TEXT return<>(SB),7,$0
+// Save state of caller into g->sched. Smashes R11.
+TEXT gosave<>(SB),7,$0
+	MOVW	LR, (g_sched+gobuf_pc)(g)
+	MOVW	R13, (g_sched+gobuf_sp)(g)
+	MOVW	$0, R11
+	MOVW	R11, (g_sched+gobuf_lr)(g)
+	MOVW	R11, (g_sched+gobuf_ret)(g)
+	MOVW	R11, (g_sched+gobuf_ctxt)(g)
 	RET
 
 // asmcgocall(void(*fn)(void*), void *arg)
@@ -293,11 +273,8 @@ TEXT	runtime·asmcgocall(SB),7,$0
 	// come in on the m->g0 stack already.
 	MOVW	m_g0(m), R3
 	CMP	R3, g
-	BEQ	7(PC)
-	MOVW	R13, (g_sched + gobuf_sp)(g)
-	MOVW	$return<>(SB), R4
-	MOVW	R4, (g_sched+gobuf_pc)(g)
-	MOVW	g, (g_sched+gobuf_g)(g)
+	BEQ	4(PC)
+	BL	gosave<>(SB)
 	MOVW	R3, g
 	MOVW	(g_sched+gobuf_sp)(g), R13
 

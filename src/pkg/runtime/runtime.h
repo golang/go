@@ -209,10 +209,13 @@ struct	Slice
 };
 struct	Gobuf
 {
-	// The offsets of these fields are known to (hard-coded in) libmach.
+	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
 	uintptr	sp;
 	uintptr	pc;
 	G*	g;
+	uintptr	ret;
+	void*	ctxt;
+	uintptr	lr;
 };
 struct	GCStats
 {
@@ -238,7 +241,6 @@ struct	G
 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
-	FuncVal*	fnstart;		// initial function
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
@@ -671,6 +673,7 @@ struct Stkframe
 int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*);
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
+bool	runtime·haszeroargs(uintptr pc);
 
 /*
  * external data
@@ -711,9 +714,9 @@ int32	runtime·charntorune(int32*, uint8*, int32);
  */
 #define FLUSH(x)	USED(x)
 
-void	runtime·gogo(Gobuf*, uintptr);
-void	runtime·gogocall(Gobuf*, void(*)(void), uintptr);
-void	runtime·gogocallfn(Gobuf*, FuncVal*);
+void	runtime·gogo(Gobuf*);
+void	runtime·gostartcall(Gobuf*, void(*)(void), void*);
+void	runtime·gostartcallfn(Gobuf*, FuncVal*);
 void	runtime·gosave(Gobuf*);
 void	runtime·lessstack(void);
 void	runtime·goargs(void);
