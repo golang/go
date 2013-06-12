@@ -303,6 +303,7 @@ runtime·mallocinit(void)
 	extern byte end[];
 	byte *want;
 	uintptr limit;
+	uint64 i;
 
 	p = nil;
 	arena_size = 0;
@@ -330,15 +331,17 @@ runtime·mallocinit(void)
 		// 128 GB (MaxMem) should be big enough for now.
 		//
 		// The code will work with the reservation at any address, but ask
-		// SysReserve to use 0x000000c000000000 if possible.
+		// SysReserve to use 0x0000XXc000000000 if possible (XX=00...7f).
 		// Allocating a 128 GB region takes away 37 bits, and the amd64
 		// doesn't let us choose the top 17 bits, so that leaves the 11 bits
 		// in the middle of 0x00c0 for us to choose.  Choosing 0x00c0 means
-		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x0x00df.
+		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x00df.
 		// In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
 		// UTF-8 sequences, and they are otherwise as far away from 
-		// ff (likely a common byte) as possible. An earlier attempt to use 0x11f8 
-		// caused out of memory errors on OS X during thread allocations.
+		// ff (likely a common byte) as possible.  If that fails, we try other 0xXXc0
+		// addresses.  An earlier attempt to use 0x11f8 caused out of memory errors
+		// on OS X during thread allocations.  0x00c0 causes conflicts with
+		// AddressSanitizer which reserves all memory up to 0x0100.
 		// These choices are both for debuggability and to reduce the
 		// odds of the conservative garbage collector not collecting memory
 		// because some non-pointer block of memory had a bit pattern
@@ -353,7 +356,12 @@ runtime·mallocinit(void)
 		spans_size = arena_size / PageSize * sizeof(runtime·mheap.spans[0]);
 		// round spans_size to pages
 		spans_size = (spans_size + ((1<<PageShift) - 1)) & ~((1<<PageShift) - 1);
-		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + spans_size + arena_size);
+		for(i = 0; i <= 0x7f; i++) {
+			p = (void*)(i<<40 | 0x00c0ULL<<32);
+			p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size);
+			if(p != nil)
+				break;
+		}
 	}
 	if (p == nil) {
 		// On a 32-bit machine, we can't typically get away

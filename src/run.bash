@@ -108,6 +108,12 @@ esac
 ./test.bash
 ) || exit $?
 
+[ "$CGO_ENABLED" != 1 ] ||
+[ "$GOHOSTOS-$GOARCH" != linux-amd64 ] ||
+(xcd ../misc/cgo/testasan
+go run main.go
+) || exit $?
+
 (xcd ../doc/progs
 time ./run
 ) || exit $?
