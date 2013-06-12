@@ -112,7 +112,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		}
 
 		// Derive location and size of local variables.
-		if(frame.fp == frame.sp) {
+		if(frame.fp == frame.sp + sizeof(uintptr)) {
 			// Function has not created a frame for itself yet.
 			frame.varp = nil;
 			frame.varlen = 0;
