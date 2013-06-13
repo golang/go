@@ -3,6 +3,20 @@
 " license that can be found in the LICENSE file.
 "
 " godoc.vim: Vim command to see godoc.
+"
+"
+" Commands:
+"
+"   :Godoc
+"
+"       Open the relevant Godoc for either the word[s] passed to the command or
+"       the, by default, the word under the cursor.
+"
+" Options:
+"
+"   g:go_godoc_commands [default=1]
+"
+"       Flag to indicate whether to enable the commands listed above.
 
 if exists("g:loaded_godoc")
   finish
@@ -11,6 +25,16 @@ let g:loaded_godoc = 1
 
 let s:buf_nr = -1
 let s:last_word = ''
+
+if !exists('g:go_godoc_commands')
+  let g:go_godoc_commands = 1
+endif
+
+if g:go_godoc_commands
+  command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<q-args>)
+endif
+
+nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
 
 function! s:GodocView()
   if !bufexists(s:buf_nr)
@@ -91,8 +115,5 @@ function! s:Godoc(...)
     echo 'No documentation found for "' . word . '".'
   endif
 endfunction
-
-command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<q-args>)
-nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
 
 " vim:ts=4:sw=4:et

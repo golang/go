@@ -12,11 +12,25 @@
 "       It tries to preserve cursor position and avoids
 "       replacing the buffer with stderr output.
 "
+" Options:
+"
+"   g:go_fmt_commands [default=1]
+"
+"       Flag to indicate whether to enable the commands listed above.
+"
 if exists("b:did_ftplugin_go_fmt")
     finish
 endif
 
-command! -buffer Fmt call s:GoFormat()
+
+if !exists("g:go_fmt_commands")
+    let g:go_fmt_commands = 1
+endif
+
+
+if g:go_fmt_commands
+    command! -buffer Fmt call s:GoFormat()
+endif
 
 function! s:GoFormat()
     let view = winsaveview()
