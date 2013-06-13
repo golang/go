@@ -43,21 +43,19 @@ runtime·racereadpc(void *addr, void *callpc, void *pc)
 }
 
 void
-runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
+runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
 	USED(addr);
 	USED(sz);
-	USED(step);
 	USED(callpc);
 	USED(pc);
 }
 
 void
-runtime·racereadrangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
+runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
 	USED(addr);
 	USED(sz);
-	USED(step);
 	USED(callpc);
 	USED(pc);
 }

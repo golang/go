@@ -82,12 +82,12 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 		pc = runtime·getcallerpc(&t);
 		// read x[:len]
 		if(m > x.cap)
-			runtime·racereadrangepc(x.array, x.len*w, w, pc, runtime·appendslice);
+			runtime·racereadrangepc(x.array, x.len*w, pc, runtime·appendslice);
 		// read y
-		runtime·racereadrangepc(y.array, y.len*w, w, pc, runtime·appendslice);
+		runtime·racereadrangepc(y.array, y.len*w, pc, runtime·appendslice);
 		// write x[len(x):len(x)+len(y)]
 		if(m <= x.cap)
-			runtime·racewriterangepc(ret.array+ret.len*w, y.len*w, w, pc, runtime·appendslice);
+			runtime·racewriterangepc(ret.array+ret.len*w, y.len*w, pc, runtime·appendslice);
 	}
 
 	// A very common case is appending bytes. Small appends can avoid the overhead of memmove.
@@ -138,10 +138,10 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 		pc = runtime·getcallerpc(&t);
 		// read x[:len]
 		if(m > x.cap)
-			runtime·racereadrangepc(x.array, x.len, 1, pc, runtime·appendstr);
+			runtime·racereadrangepc(x.array, x.len, pc, runtime·appendstr);
 		// write x[len(x):len(x)+len(y)]
 		if(m <= x.cap)
-			runtime·racewriterangepc(ret.array+ret.len, y.len, 1, pc, runtime·appendstr);
+			runtime·racewriterangepc(ret.array+ret.len, y.len, pc, runtime·appendstr);
 	}
 
 	// Small appends can avoid the overhead of memmove.
@@ -176,7 +176,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&t);
-		runtime·racereadrangepc(old.array, old.len*t->elem->size, t->elem->size, pc, runtime·growslice);
+		runtime·racereadrangepc(old.array, old.len*t->elem->size, pc, runtime·growslice);
 	}
 
 	growslice1(t, old, cap, &ret);
@@ -234,8 +234,8 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&to);
-		runtime·racewriterangepc(to.array, ret*width, width, pc, runtime·copy);
-		runtime·racereadrangepc(fm.array, ret*width, width, pc, runtime·copy);
+		runtime·racewriterangepc(to.array, ret*width, pc, runtime·copy);
+		runtime·racereadrangepc(fm.array, ret*width, pc, runtime·copy);
 	}
 
 	if(ret == 1 && width == 1) {	// common case worth about 2x to do here
@@ -277,7 +277,7 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
 
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&to);
-		runtime·racewriterangepc(to.array, ret, 1, pc, runtime·slicestringcopy);
+		runtime·racewriterangepc(to.array, ret, pc, runtime·slicestringcopy);
 	}
 
 	runtime·memmove(to.array, fm.str, ret);
