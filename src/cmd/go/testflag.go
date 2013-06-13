@@ -33,6 +33,7 @@ var usageMessage = `Usage of go test:
   -memprofilerate=0: passes -test.memprofilerate to test
   -blockprofile="": pases -test.blockprofile to test
   -blockprofilerate=0: passes -test.blockprofilerate to test
+  -outputdir=$PWD: passes -test.outputdir to test
   -parallel=0: passes -test.parallel to test
   -run="": passes -test.run to test
   -short=false: passes -test.short to test
@@ -87,6 +88,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "memprofilerate", passToTest: true},
 	{name: "blockprofile", passToTest: true},
 	{name: "blockprofilerate", passToTest: true},
+	{name: "outputdir", passToTest: true},
 	{name: "parallel", passToTest: true},
 	{name: "run", passToTest: true},
 	{name: "short", boolVar: new(bool), passToTest: true},
@@ -105,6 +107,7 @@ var testFlagDefn = []*testFlagSpec{
 //	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {
 	inPkg := false
+	outputDir := ""
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
 			if !inPkg && packageNames == nil {
@@ -170,6 +173,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testTimeout = value
 		case "blockprofile", "cpuprofile", "memprofile":
 			testProfile = true
+		case "outputdir":
+			outputDir = value
 		case "cover":
 			switch value {
 			case "set", "count", "atomic":
@@ -184,6 +189,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		if f.passToTest {
 			passToTest = append(passToTest, "-test."+f.name+"="+value)
 		}
+	}
+	// Tell the test what directory we're running in, so it can write the profiles there.
+	if testProfile && outputDir == "" {
+		dir, err := os.Getwd()
+		if err != nil {
+			fatalf("error from os.Getwd: %s", err)
+		}
+		passToTest = append(passToTest, "-test.outputdir", dir)
 	}
 	return
 }
