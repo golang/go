@@ -1150,7 +1150,7 @@ func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 		defer un(trace(p, "TypeAssertion"))
 	}
 
-	p.expect(token.LPAREN)
+	lparen := p.expect(token.LPAREN)
 	var typ ast.Expr
 	if p.tok == token.TYPE {
 		// type switch: typ == nil
@@ -1158,9 +1158,9 @@ func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 	} else {
 		typ = p.parseType()
 	}
-	p.expect(token.RPAREN)
+	rparen := p.expect(token.RPAREN)
 
-	return &ast.TypeAssertExpr{X: x, Type: typ}
+	return &ast.TypeAssertExpr{X: x, Type: typ, Lparen: lparen, Rparen: rparen}
 }
 
 func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {

@@ -754,13 +754,13 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.TypeAssertExpr:
 		p.expr1(x.X, token.HighestPrec, depth)
-		p.print(token.PERIOD, token.LPAREN)
+		p.print(token.PERIOD, x.Lparen, token.LPAREN)
 		if x.Type != nil {
 			p.expr(x.Type)
 		} else {
 			p.print(token.TYPE)
 		}
-		p.print(token.RPAREN)
+		p.print(x.Rparen, token.RPAREN)
 
 	case *ast.IndexExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
