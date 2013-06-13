@@ -90,9 +90,8 @@ type Package struct {
 
 // CoverVar holds the name of the generated coverage variables targeting the named file.
 type CoverVar struct {
-	File  string // local file name
-	Count string // name of count array
-	Pos   string // name of position array
+	File string // local file name
+	Var  string // name of count struct
 }
 
 func (p *Package) copyBuild(pp *build.Package) {

@@ -682,9 +682,8 @@ func declareCoverVars(files ...string) map[string]*CoverVar {
 	coverVars := make(map[string]*CoverVar)
 	for _, file := range files {
 		coverVars[file] = &CoverVar{
-			File:  file,
-			Count: fmt.Sprintf("GoCoverCount_%d", coverIndex),
-			Pos:   fmt.Sprintf("GoCoverPos_%d", coverIndex),
+			File: file,
+			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
 		}
 		coverIndex++
 	}
@@ -988,7 +987,7 @@ var (
 
 func init() {
 	{{range $file, $cover := .CoverVars}}
-	coverRegisterFile({{printf "%q" $file}}, _test.{{$cover.Count}}[:], _test.{{$cover.Pos}}[:]...)
+	coverRegisterFile({{printf "%q" $file}}, _test.{{$cover.Var}}.Count[:], _test.{{$cover.Var}}.Pos[:]...)
 	{{end}}
 }
 
