@@ -53,9 +53,7 @@ init1(Node *n, NodeList **out)
 		if(isblank(n) && n->curfn == N && n->defn != N && n->defn->initorder == InitNotStarted) {
 			// blank names initialization is part of init() but not
 			// when they are inside a function.
-			n->defn->initorder = InitDone;
-			if(debug['%']) dump("nonstatic", n->defn);
-			*out = list(*out, n->defn);
+			break;
 		}
 		return;
 	}
@@ -130,7 +128,7 @@ init1(Node *n, NodeList **out)
 				init2(n->defn->right, out);
 				if(debug['j'])
 					print("%S\n", n->sym);
-				if(!staticinit(n, out)) {
+				if(isblank(n) || !staticinit(n, out)) {
 					if(debug['%']) dump("nonstatic", n->defn);
 					*out = list(*out, n->defn);
 				}
