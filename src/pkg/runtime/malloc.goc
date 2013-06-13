@@ -354,8 +354,7 @@ runtime·mallocinit(void)
 		arena_size = MaxMem;
 		bitmap_size = arena_size / (sizeof(void*)*8/4);
 		spans_size = arena_size / PageSize * sizeof(runtime·mheap.spans[0]);
-		// round spans_size to pages
-		spans_size = (spans_size + ((1<<PageShift) - 1)) & ~((1<<PageShift) - 1);
+		spans_size = ROUND(spans_size, PageSize);
 		for(i = 0; i <= 0x7f; i++) {
 			p = (void*)(i<<40 | 0x00c0ULL<<32);
 			p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size);
@@ -389,8 +388,7 @@ runtime·mallocinit(void)
 			arena_size = bitmap_size * 8;
 			spans_size = arena_size / PageSize * sizeof(runtime·mheap.spans[0]);
 		}
-		// round spans_size to pages
-		spans_size = (spans_size + ((1<<PageShift) - 1)) & ~((1<<PageShift) - 1);
+		spans_size = ROUND(spans_size, PageSize);
 
 		// SysReserve treats the address we ask for, end, as a hint,
 		// not as an absolute requirement.  If we ask for the end
@@ -401,7 +399,7 @@ runtime·mallocinit(void)
 		// So adjust it upward a little bit ourselves: 1/4 MB to get
 		// away from the running binary image and then round up
 		// to a MB boundary.
-		want = (byte*)(((uintptr)end + (1<<18) + (1<<20) - 1)&~((1<<20)-1));
+		want = (byte*)ROUND((uintptr)end + 1<<18, 1<<20);
 		p = runtime·SysReserve(want, bitmap_size + spans_size + arena_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
@@ -438,8 +436,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		uintptr needed;
 
 		needed = (uintptr)h->arena_used + n - (uintptr)h->arena_end;
-		// Round wanted arena size to a multiple of 256MB.
-		needed = (needed + (256<<20) - 1) & ~((256<<20)-1);
+		needed = ROUND(needed, 256<<20);
 		new_end = h->arena_end + needed;
 		if(new_end <= h->arena_start + MaxArena32) {
 			p = runtime·SysReserve(h->arena_end, new_end - h->arena_end);
@@ -865,10 +862,9 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		// compute size needed for return parameters
 		for(i=0; i<ft->out.len; i++) {
 			t = ((Type**)ft->out.array)[i];
-			nret = (nret + t->align - 1) & ~(t->align - 1);
-			nret += t->size;
+			nret = ROUND(nret, t->align) + t->size;
 		}
-		nret = (nret + sizeof(void*)-1) & ~(sizeof(void*)-1);
+		nret = ROUND(nret, sizeof(void*));
 	}
 	
 	if(!runtime·addfinalizer(obj.data, finalizer.data, nret)) {
