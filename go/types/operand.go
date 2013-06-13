@@ -220,6 +220,22 @@ type embeddedType struct {
 	multiples bool  // if set, typ is embedded multiple times at the same level
 }
 
+func lookupMethod(methods []*Func, pkg *Package, name string) *Func {
+	if name == "_" {
+		return nil // blank identifiers are never found
+	}
+	for _, m := range methods {
+		// spec:
+		// "Two identifiers are different if they are spelled differently,
+		// or if they appear in different packages and are not exported.
+		// Otherwise, they are the same."
+		if m.name == name && (ast.IsExported(name) || m.pkg.path == pkg.path) {
+			return m
+		}
+	}
+	return nil
+}
+
 // lookupFieldBreadthFirst searches all types in list for a single entry (field
 // or method) of the given name from the given package. If such a field is found,
 // the result describes the field mode and type; otherwise the result mode is invalid.
@@ -265,8 +281,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 			visited[typ] = true
 
 			// look for a matching attached method
-			if obj := typ.methods.Lookup(pkg, name); obj != nil {
-				m := obj.(*Func)
+			if m := lookupMethod(typ.methods, pkg, name); m != nil {
 				assert(m.typ != nil)
 				if !potentialMatch(e.multiples, value, m) {
 					return // name collision
@@ -311,8 +326,7 @@ func lookupFieldBreadthFirst(list []embeddedType, pkg *Package, name string) (re
 
 			case *Interface:
 				// look for a matching method
-				if obj := t.methods.Lookup(pkg, name); obj != nil {
-					m := obj.(*Func)
+				if m := lookupMethod(t.methods, pkg, name); m != nil {
 					assert(m.typ != nil)
 					if !potentialMatch(e.multiples, value, m) {
 						return // name collision
@@ -358,11 +372,14 @@ func findType(list []embeddedType, typ *Named) *embeddedType {
 }
 
 func lookupField(typ Type, pkg *Package, name string) lookupResult {
+	if name == "_" {
+		return lookupResult{mode: invalid} // empty fields/methods are never found
+	}
+
 	typ = typ.Deref()
 
 	if t, ok := typ.(*Named); ok {
-		if obj := t.methods.Lookup(pkg, name); obj != nil {
-			m := obj.(*Func)
+		if m := lookupMethod(t.methods, pkg, name); m != nil {
 			assert(m.typ != nil)
 			return lookupResult{value, m, nil}
 		}
@@ -392,8 +409,7 @@ func lookupField(typ Type, pkg *Package, name string) lookupResult {
 		}
 
 	case *Interface:
-		if obj := t.methods.Lookup(pkg, name); obj != nil {
-			m := obj.(*Func)
+		if m := lookupMethod(t.methods, pkg, name); m != nil {
 			assert(m.typ != nil)
 			return lookupResult{value, m, nil}
 		}

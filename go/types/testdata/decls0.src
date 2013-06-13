@@ -185,3 +185,26 @@ type (
 
 	Last int
 )
+
+// interfaces may have blank methods
+type BlankI interface {
+	_()
+	_(int)
+	_() int
+	_(int) int
+}
+
+// non-interface types may have blank methods
+type BlankT struct{}
+
+func (BlankT) _() {}
+func (BlankT) _(int) {}
+func (BlankT) _() int { return 0 }
+func (BlankT) _(int) int { return 0}
+
+// no type can ever satisfy an interface with a _ method
+func _() {
+	var i BlankI
+	var x BlankT
+	i = x /* ERROR "cannot assign" */
+}

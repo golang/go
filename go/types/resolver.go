@@ -498,9 +498,8 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 			}
 		}
 		// typecheck method signatures
-		var methods *Scope // lazily allocated
+		var methods []*Func
 		if !scope.IsEmpty() {
-			methods = NewScope(nil)
 			for _, obj := range scope.entries {
 				m := obj.(*Func)
 
@@ -517,7 +516,7 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 
 				sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
 				m.typ = sig
-				assert(methods.Insert(obj) == nil)
+				methods = append(methods, m)
 				check.later(m, sig, m.decl.Body)
 			}
 		}

@@ -19,7 +19,6 @@ import (
 // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
 // - rethink error handling: should all callers check if x.mode == valid after making a call?
 // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
-// - use "" or "_" consistently for anonymous identifiers? (e.g. reeceivers that have no name)
 // - consider storing error messages in invalid operands for better error messages/debugging output
 
 // TODO(gri) Test issues
@@ -117,11 +116,11 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) *Scope {
+func (check *checker) collectMethods(list *ast.FieldList) (methods []*Func) {
 	if list == nil {
 		return nil
 	}
-	methods := NewScope(nil)
+	scope := NewScope(nil)
 	for _, f := range list.List {
 		typ := check.typ(f.Type, len(f.Names) > 0) // cycles are not ok for embedded interfaces
 		// the parser ensures that f.Tag is nil and we don't
@@ -135,31 +134,17 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) *Scope {
 				continue
 			}
 			for _, name := range f.Names {
-				// TODO(gri) provide correct declaration info and scope
-				// TODO(gri) with unified scopes (Scope, ObjSet) this can become
-				//           just a normal declaration
-				obj := NewFunc(name.Pos(), check.pkg, name.Name, sig)
-				if alt := methods.Insert(obj); alt != nil {
-					check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
-					if pos := alt.Pos(); pos.IsValid() {
-						check.errorf(pos, "previous declaration of %s", obj.Name())
-					}
-					obj = nil // for callIdent, below
-				}
-				check.callIdent(name, obj)
+				m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
+				check.declare(scope, name, m)
+				methods = append(methods, m)
 			}
 		} else {
 			// embedded interface
 			utyp := typ.Underlying()
 			if ityp, ok := utyp.(*Interface); ok {
-				if ityp.methods != nil {
-					for _, obj := range ityp.methods.entries {
-						if alt := methods.Insert(obj); alt != nil {
-							check.errorf(list.Pos(), "multiple methods named %s", obj.Name())
-							obj = nil // for callImplicit, below
-						}
-						check.callImplicitObj(f, obj)
-					}
+				for _, m := range ityp.methods {
+					check.declare(scope, nil, m)
+					methods = append(methods, m)
 				}
 			} else if utyp != Typ[Invalid] {
 				// if utyp is invalid, don't complain (the root cause was reported before)
@@ -167,7 +152,7 @@ func (check *checker) collectMethods(scope *Scope, list *ast.FieldList) *Scope {
 			}
 		}
 	}
-	return methods
+	return
 }
 
 func (check *checker) tag(t *ast.BasicLit) string {
@@ -182,10 +167,12 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(scope *Scope, list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
+func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
 	if list == nil {
 		return
 	}
+
+	scope := NewScope(nil)
 
 	var typ Type   // current field typ
 	var tag string // current field tag
@@ -1702,10 +1689,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.mode = typexpr
 
 	case *ast.StructType:
-		scope := NewScope(check.topScope)
-		fields, tags := check.collectFields(scope, e.Fields, cycleOk)
 		x.mode = typexpr
-		x.typ = &Struct{fields: fields, tags: tags}
+		x.typ = NewStruct(check.collectFields(e.Fields, cycleOk))
 
 	case *ast.FuncType:
 		scope := NewScope(check.topScope)
@@ -1715,9 +1700,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.typ = &Signature{scope: scope, recv: nil, params: NewTuple(params...), results: NewTuple(results...), isVariadic: isVariadic}
 
 	case *ast.InterfaceType:
-		scope := NewScope(check.topScope)
 		x.mode = typexpr
-		x.typ = &Interface{methods: check.collectMethods(scope, e.Methods)}
+		x.typ = NewInterface(check.collectMethods(e.Methods))
 
 	case *ast.MapType:
 		x.mode = typexpr

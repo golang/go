@@ -13,7 +13,7 @@ import (
 	"go/token"
 )
 
-// TODO(gri) eventually assert and unimplemented should disappear.
+// TODO(gri) eventually assert should disappear.
 func assert(p bool) {
 	if !p {
 		panic("assertion failed")
@@ -289,15 +289,12 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Interface:
 		buf.WriteString("interface{")
-		if t.methods != nil {
-			for i, obj := range t.methods.entries {
-				if i > 0 {
-					buf.WriteString("; ")
-				}
-				m := obj.(*Func)
-				buf.WriteString(m.name)
-				writeSignature(buf, m.typ.(*Signature))
+		for i, m := range t.methods {
+			if i > 0 {
+				buf.WriteString("; ")
 			}
+			buf.WriteString(m.name)
+			writeSignature(buf, m.typ.(*Signature))
 		}
 		buf.WriteByte('}')
 

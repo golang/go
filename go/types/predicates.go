@@ -221,28 +221,22 @@ func qname(f *Func) string {
 	return f.pkg.path + "." + f.name
 }
 
-// identicalMethods returns true if both object sets a and b have the
-// same length and corresponding methods have identical types.
+// identicalMethods returns true if both slices a and b have the
+// same length and corresponding entries have identical types.
 // TODO(gri) make this more efficient (e.g., sort them on completion)
-func identicalMethods(a, b *Scope) bool {
-	if a.NumEntries() != b.NumEntries() {
+func identicalMethods(a, b []*Func) bool {
+	if len(a) != len(b) {
 		return false
 	}
 
-	if a.IsEmpty() {
-		return true
-	}
-
 	m := make(map[string]*Func)
-	for _, obj := range a.entries {
-		x := obj.(*Func)
+	for _, x := range a {
 		k := qname(x)
 		assert(m[k] == nil) // method list must not have duplicate entries
 		m[k] = x
 	}
 
-	for _, obj := range b.entries {
-		y := obj.(*Func)
+	for _, y := range b {
 		k := qname(y)
 		if x := m[k]; x == nil || !IsIdentical(x.typ, y.typ) {
 			return false
@@ -297,8 +291,7 @@ func missingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 	// T.methods.NumEntries() > 0
 
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
-		for _, obj := range T.methods.entries {
-			m := obj.(*Func)
+		for _, m := range T.methods {
 			res := lookupField(ityp, m.pkg, m.name) // TODO(gri) no need to go via lookupField
 			if res.mode != invalid && !IsIdentical(res.obj.Type(), m.typ) {
 				return m, true
@@ -308,8 +301,7 @@ func missingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 	}
 
 	// a concrete type implements T if it implements all methods of T.
-	for _, obj := range T.methods.entries {
-		m := obj.(*Func)
+	for _, m := range T.methods {
 		res := lookupField(typ, m.pkg, m.name)
 		if res.mode == invalid {
 			return m, false

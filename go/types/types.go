@@ -6,8 +6,6 @@ package types
 
 import "go/ast"
 
-// TODO(gri) Separate struct fields below into transient (used during type checking only)
-//           and permanent fields.
 // TODO(gri) Revisit factory functions - make sure they have all relevant parameters.
 
 // A Type represents a type of Go.
@@ -162,6 +160,9 @@ func (s *Struct) Tag(i int) string {
 // Index returns the index for the field in s with matching package and name.
 // TODO(gri) should this be exported?
 func (s *Struct) index(pkg *Package, name string) int {
+	if name == "_" {
+		return -1 // blank identifiers are never found
+	}
 	for i, f := range s.fields {
 		// spec:
 		// "Two identifiers are different if they are spelled differently,
@@ -288,20 +289,24 @@ func (b *Builtin) Name() string {
 
 // An Interface represents an interface type.
 type Interface struct {
-	// TODO(gri) Change back to a sorted slice of methods.
-	methods *Scope // may be nil
+	methods []*Func
+}
+
+// NewInterface returns a new interface for the given methods.
+func NewInterface(methods []*Func) *Interface {
+	return &Interface{methods}
 }
 
 // NumMethods returns the number of methods of interface t.
-func (t *Interface) NumMethods() int { return t.methods.NumEntries() }
+func (t *Interface) NumMethods() int { return len(t.methods) }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 func (t *Interface) Method(i int) *Func {
-	return t.methods.At(i).(*Func)
+	return t.methods[i]
 }
 
 // IsEmpty() reports whether t is an empty interface.
-func (t *Interface) IsEmpty() bool { return t.methods.IsEmpty() }
+func (t *Interface) IsEmpty() bool { return len(t.methods) == 0 }
 
 // A Map represents a map type.
 type Map struct {
@@ -340,26 +345,16 @@ func (c *Chan) Elem() Type { return c.elt }
 type Named struct {
 	obj        *TypeName // corresponding declared object
 	underlying Type      // nil if not fully declared yet; never a *Named
-	// TODO(gri): change back to a sorted slice of methods
-	methods *Scope // directly associated methods (not the method set of this type); may be nil
+	methods    []*Func   // methods declared for this type (not the method set of this type)
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
 // The underlying type must exist and not be a *Named, and the methods scope entries must be *Func
 // objects if the scope is not empty.
-func NewNamed(obj *TypeName, underlying Type, methods *Scope) *Named {
+func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-
-	if methods != nil {
-		for _, obj := range methods.entries {
-			if _, ok := obj.(*Func); !ok {
-				panic("types.NewNamed: methods must be *Func objects")
-			}
-		}
-	}
-
 	typ := &Named{obj, underlying, methods}
 	if obj.typ == nil {
 		obj.typ = typ
@@ -371,11 +366,11 @@ func NewNamed(obj *TypeName, underlying Type, methods *Scope) *Named {
 func (t *Named) Obj() *TypeName { return t.obj }
 
 // NumMethods returns the number of methods directly associated with named type t.
-func (t *Named) NumMethods() int { return t.methods.NumEntries() }
+func (t *Named) NumMethods() int { return len(t.methods) }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
 func (t *Named) Method(i int) *Func {
-	return t.methods.At(i).(*Func)
+	return t.methods[i]
 }
 
 // Implementations for Type methods.

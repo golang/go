@@ -427,9 +427,6 @@ func (p *gcParser) parseMapType() Type {
 // found in the p.imports map; we cannot create a real package in that case
 // because we don't have a package name.
 //
-// TODO(gri): consider changing QualifiedIdents to (path, name) pairs to
-// simplify this code.
-//
 func (p *gcParser) parseName(materializePkg bool) (pkg *Package, name string) {
 	switch p.tok {
 	case scanner.Ident:
@@ -584,7 +581,8 @@ func (p *gcParser) parseSignature() *Signature {
 // visible in the export data.
 //
 func (p *gcParser) parseInterfaceType() Type {
-	var methods *Scope // lazily allocated
+	var scope *Scope // lazily allocated (empty interfaces are not uncommon)
+	var methods []*Func
 
 	p.expectKeyword("interface")
 	p.expect('{')
@@ -594,16 +592,18 @@ func (p *gcParser) parseInterfaceType() Type {
 		}
 		pkg, name := p.parseName(true)
 		sig := p.parseSignature()
-		if methods == nil {
-			methods = NewScope(nil)
+		m := NewFunc(token.NoPos, pkg, name, sig)
+		if scope == nil {
+			scope = NewScope(nil)
 		}
-		if alt := methods.Insert(NewFunc(token.NoPos, pkg, name, sig)); alt != nil {
+		if alt := scope.Insert(m); alt != nil {
 			p.errorf("multiple methods named %s.%s", alt.Pkg().name, alt.Name())
 		}
+		methods = append(methods, m)
 	}
 	p.expect('}')
 
-	return &Interface{methods: methods}
+	return NewInterface(methods)
 }
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
@@ -886,10 +886,10 @@ func (p *gcParser) parseMethodDecl() {
 
 	// add method to type unless type was imported before
 	// and method exists already
-	if base.methods == nil {
-		base.methods = NewScope(nil)
+	// TODO(gri) This is a quadratic algorithm - ok for now because method counts are small.
+	if lookupMethod(base.methods, pkg, name) == nil {
+		base.methods = append(base.methods, NewFunc(token.NoPos, pkg, name, sig))
 	}
-	base.methods.Insert(NewFunc(token.NoPos, pkg, name, sig))
 }
 
 // FuncDecl = "func" ExportedName Func .
