@@ -304,8 +304,10 @@ type (
 	// type assertion.
 	//
 	TypeAssertExpr struct {
-		X    Expr // expression
-		Type Expr // asserted type; nil means type switch X.(type)
+		X      Expr      // expression
+		Lparen token.Pos // position of "("
+		Type   Expr      // asserted type; nil means type switch X.(type)
+		Rparen token.Pos // position of ")"
 	}
 
 	// A CallExpr node represents an expression followed by an argument list.
@@ -456,26 +458,21 @@ func (x *Ellipsis) End() token.Pos {
 	}
 	return x.Ellipsis + 3 // len("...")
 }
-func (x *BasicLit) End() token.Pos     { return token.Pos(int(x.ValuePos) + len(x.Value)) }
-func (x *FuncLit) End() token.Pos      { return x.Body.End() }
-func (x *CompositeLit) End() token.Pos { return x.Rbrace + 1 }
-func (x *ParenExpr) End() token.Pos    { return x.Rparen + 1 }
-func (x *SelectorExpr) End() token.Pos { return x.Sel.End() }
-func (x *IndexExpr) End() token.Pos    { return x.Rbrack + 1 }
-func (x *SliceExpr) End() token.Pos    { return x.Rbrack + 1 }
-func (x *TypeAssertExpr) End() token.Pos {
-	if x.Type != nil {
-		return x.Type.End()
-	}
-	return x.X.End()
-}
-func (x *CallExpr) End() token.Pos     { return x.Rparen + 1 }
-func (x *StarExpr) End() token.Pos     { return x.X.End() }
-func (x *UnaryExpr) End() token.Pos    { return x.X.End() }
-func (x *BinaryExpr) End() token.Pos   { return x.Y.End() }
-func (x *KeyValueExpr) End() token.Pos { return x.Value.End() }
-func (x *ArrayType) End() token.Pos    { return x.Elt.End() }
-func (x *StructType) End() token.Pos   { return x.Fields.End() }
+func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
+func (x *FuncLit) End() token.Pos        { return x.Body.End() }
+func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
+func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
+func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
+func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
+func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
+func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+func (x *StarExpr) End() token.Pos       { return x.X.End() }
+func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
+func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
+func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
+func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
+func (x *StructType) End() token.Pos     { return x.Fields.End() }
 func (x *FuncType) End() token.Pos {
 	if x.Results != nil {
 		return x.Results.End()
