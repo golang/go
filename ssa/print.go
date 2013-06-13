@@ -28,14 +28,14 @@ func (id Id) String() string {
 func relName(v Value, i Instruction) string {
 	switch v := v.(type) {
 	case *Global:
-		if i != nil && v.Pkg == i.Block().Func.Pkg {
+		if i != nil && v.Pkg == i.Parent().Pkg {
 			return v.Name()
 		}
 		return v.FullName()
 	case *Function:
 		var pkg *Package
 		if i != nil {
-			pkg = i.Block().Func.Pkg
+			pkg = i.Parent().Pkg
 		}
 		return v.fullName(pkg)
 	}
@@ -166,7 +166,7 @@ func (v *ChangeInterface) String() string {
 }
 
 func (v *MakeInterface) String() string {
-	return fmt.Sprintf("make interface %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("make %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
 }
 
 func (v *MakeClosure) String() string {
@@ -187,7 +187,7 @@ func (v *MakeClosure) String() string {
 
 func (v *MakeSlice) String() string {
 	var b bytes.Buffer
-	b.WriteString("make slice ")
+	b.WriteString("make ")
 	b.WriteString(v.Type().String())
 	b.WriteString(" ")
 	b.WriteString(relName(v.Len, v))
@@ -381,19 +381,22 @@ func (p *Package) DumpTo(w io.Writer) {
 			fmt.Fprintf(w, "  func  %-*s %s\n", maxname, name, mem.Type())
 
 		case *Type:
-			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.NamedType.Underlying())
-			// We display only PtrMethods since its keys
-			// are a superset of Methods' keys, though the
+			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.Type().Underlying())
+			// We display only mset(*T) since its keys
+			// are a superset of mset(T)'s keys, though the
 			// methods themselves may differ,
 			// e.g. different bridge methods.
-			// TODO(adonovan): show pointerness of receivers.
+			// NB: if mem.Type() is a pointer, mset is empty.
+			mset := p.Prog.MethodSet(pointer(mem.Type()))
 			var keys ids
-			for id := range mem.PtrMethods {
+			for id := range mset {
 				keys = append(keys, id)
 			}
 			sort.Sort(keys)
 			for _, id := range keys {
-				method := mem.PtrMethods[id]
+				method := mset[id]
+				// TODO(adonovan): show pointerness of receiver of declared method, not the index
+
 				fmt.Fprintf(w, "    method %s %s\n", id, method.Signature)
 			}
 

@@ -19,6 +19,9 @@ func addEdge(from, to *BasicBlock) {
 	to.Preds = append(to.Preds, from)
 }
 
+// Parent returns the function that contains block b.
+func (b *BasicBlock) Parent() *Function { return b.parent }
+
 // String returns a human-readable label of this block.
 // It is not guaranteed unique within the function.
 //
@@ -168,9 +171,10 @@ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 //
 func (f *Function) addParam(name string, typ types.Type, pos token.Pos) *Parameter {
 	v := &Parameter{
-		name: name,
-		typ:  typ,
-		pos:  pos,
+		name:   name,
+		typ:    typ,
+		pos:    pos,
+		parent: f,
 	}
 	f.Params = append(f.Params, v)
 	return v
@@ -412,10 +416,11 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	}
 	outer := f.Enclosing.lookup(obj, true) // escaping
 	v := &Capture{
-		name:  outer.Name(),
-		typ:   outer.Type(),
-		pos:   outer.Pos(),
-		outer: outer,
+		name:   outer.Name(),
+		typ:    outer.Type(),
+		pos:    outer.Pos(),
+		outer:  outer,
+		parent: f,
 	}
 	f.objects[obj] = v
 	f.FreeVars = append(f.FreeVars, v)
@@ -612,7 +617,7 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	b := &BasicBlock{
 		Index:   len(f.Blocks),
 		Comment: comment,
-		Func:    f,
+		parent:  f,
 	}
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)

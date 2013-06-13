@@ -369,7 +369,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 }
 
 // prepareCall determines the function value and argument values for a
-// function call in a Call, Go or Defer instruction, peforming
+// function call in a Call, Go or Defer instruction, performing
 // interface method lookup if needed.
 //
 func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
@@ -383,23 +383,12 @@ func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
 			panic("method invoked on nil interface")
 		}
 		id := call.MethodId()
-		m := findMethodSet(fr.i, recv.t)[id]
-		if m == nil {
+		fn = findMethodSet(fr.i, recv.t)[id]
+		if fn == nil {
 			// Unreachable in well-typed programs.
 			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, id))
 		}
-		_, aptr := recv.v.(*value)                            // actual pointerness
-		_, fptr := m.Signature.Recv().Type().(*types.Pointer) // formal pointerness
-		switch {
-		case aptr == fptr:
-			args = append(args, copyVal(recv.v))
-		case aptr:
-			// Calling func(T) with a *T receiver: make a copy.
-			args = append(args, copyVal(*recv.v.(*value)))
-		case fptr:
-			panic("illegal call of *T method with T receiver")
-		}
-		fn = m
+		args = append(args, copyVal(recv.v))
 	}
 	for _, arg := range call.Args {
 		args = append(args, fr.get(arg))

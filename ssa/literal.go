@@ -11,25 +11,23 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// newLiteral returns a new literal of the specified value and type.
+// NewLiteral returns a new literal of the specified value and type.
 // val must be valid according to the specification of Literal.Value.
 //
-func newLiteral(val exact.Value, typ types.Type) *Literal {
-	// This constructor exists to provide a single place to
-	// insert logging/assertions during debugging.
+func NewLiteral(val exact.Value, typ types.Type) *Literal {
 	return &Literal{typ, val}
 }
 
 // intLiteral returns an untyped integer literal that evaluates to i.
 func intLiteral(i int64) *Literal {
-	return newLiteral(exact.MakeInt64(i), types.Typ[types.UntypedInt])
+	return NewLiteral(exact.MakeInt64(i), types.Typ[types.UntypedInt])
 }
 
 // nilLiteral returns a nil literal of the specified type, which may
 // be any reference type, including interfaces.
 //
 func nilLiteral(typ types.Type) *Literal {
-	return newLiteral(exact.MakeNil(), typ)
+	return NewLiteral(exact.MakeNil(), typ)
 }
 
 // zeroLiteral returns a new "zero" literal of the specified type,
@@ -41,11 +39,11 @@ func zeroLiteral(t types.Type) *Literal {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return newLiteral(exact.MakeBool(false), t)
+			return NewLiteral(exact.MakeBool(false), t)
 		case t.Info()&types.IsNumeric != 0:
-			return newLiteral(exact.MakeInt64(0), t)
+			return NewLiteral(exact.MakeInt64(0), t)
 		case t.Info()&types.IsString != 0:
-			return newLiteral(exact.MakeString(""), t)
+			return NewLiteral(exact.MakeString(""), t)
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
@@ -56,7 +54,7 @@ func zeroLiteral(t types.Type) *Literal {
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return nilLiteral(t)
 	case *types.Named:
-		return newLiteral(zeroLiteral(t.Underlying()).Value, t)
+		return NewLiteral(zeroLiteral(t.Underlying()).Value, t)
 	case *types.Array, *types.Struct:
 		panic(fmt.Sprint("zeroLiteral applied to aggregate:", t))
 	}

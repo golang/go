@@ -26,17 +26,19 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 //
 // imp provides ASTs for the program's packages.
 //
+// pkg may be nil if no SSA package has yet been created for the found
+// package.  Call prog.CreatePackages(imp) to avoid this.
+//
 // The result is (nil, nil, false) if not found.
 //
 func (prog *Program) PathEnclosingInterval(imp *importer.Importer, start, end token.Pos) (pkg *Package, path []ast.Node, exact bool) {
-	for path, info := range imp.Packages {
-		pkg := prog.Packages[path]
+	for importPath, info := range imp.Packages {
 		for _, f := range info.Files {
 			if !tokenFileContainsPos(prog.Files.File(f.Package), start) {
 				continue
 			}
 			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
-				return pkg, path, exact
+				return prog.Packages[importPath], path, exact
 			}
 		}
 	}
@@ -134,7 +136,12 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				return mem
 			}
 		case *Type:
-			for _, meth := range mem.PtrMethods {
+			for _, meth := range pkg.Prog.MethodSet(mem.Type()) {
+				if meth.Pos() == pos {
+					return meth
+				}
+			}
+			for _, meth := range pkg.Prog.MethodSet(pointer(mem.Type())) {
 				if meth.Pos() == pos {
 					return meth
 				}
@@ -142,4 +149,78 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 		}
 	}
 	return nil
+}
+
+// CanonicalPos returns the canonical position of the AST node n,
+//
+// For each Node kind that may generate an SSA Value or Instruction,
+// exactly one token within it is designated as "canonical".  The
+// position of that token is returned by {Value,Instruction}.Pos().
+// The specifications of those methods determine the implementation of
+// this function.
+//
+// TODO(adonovan): test coverage.
+//
+func CanonicalPos(n ast.Node) token.Pos {
+	// Comments show the Value/Instruction kinds v that may be
+	// created by n such that CanonicalPos(n) == v.Pos().
+	switch n := n.(type) {
+	case *ast.ParenExpr:
+		return CanonicalPos(n.X)
+
+	case *ast.CallExpr:
+		// f(x):    *Call, *Go, *Defer.
+		// T(x):    *ChangeType, *Convert, *MakeInterface, *ChangeInterface.
+		// make():  *MakeMap, *MakeChan, *MakeSlice.
+		// new():   *Alloc.
+		// panic(): *Panic.
+		return n.Lparen
+
+	case *ast.Ident:
+		return n.NamePos // *Parameter, *Alloc, *Capture
+
+	case *ast.TypeAssertExpr:
+		return n.Lparen // *ChangeInterface or *TypeAssertExpr
+
+	case *ast.SelectorExpr:
+		return n.Sel.NamePos // *MakeClosure, *Field or *FieldAddr
+
+	case *ast.FuncLit:
+		return n.Type.Func // *Function or *MakeClosure
+
+	case *ast.CompositeLit:
+		return n.Lbrace // *Alloc or *Slice
+
+	case *ast.BinaryExpr:
+		return n.OpPos // *Phi or *BinOp
+
+	case *ast.UnaryExpr:
+		return n.OpPos // *Phi or *UnOp
+
+	case *ast.IndexExpr:
+		return n.Lbrack // *Index or *IndexAddr
+
+	case *ast.SliceExpr:
+		return n.Lbrack // *Slice
+
+	case *ast.SelectStmt:
+		return n.Select // *Select
+
+	case *ast.RangeStmt:
+		return n.For // *Range
+
+	case *ast.ReturnStmt:
+		return n.Return // *Ret
+
+	case *ast.SendStmt:
+		return n.Arrow // *Send
+
+	case *ast.StarExpr:
+		return n.Star // *Store
+
+	case *ast.KeyValueExpr:
+		return n.Colon // *MapUpdate
+	}
+
+	return token.NoPos
 }

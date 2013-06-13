@@ -17,15 +17,16 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Files    *token.FileSet              // position information for the files of this Program [TODO: rename Fset]
-	Packages map[string]*Package         // all loaded Packages, keyed by import path [TODO rename packagesByPath]
-	packages map[*types.Package]*Package // all loaded Packages, keyed by object [TODO rename Packages]
-	Builtins map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	Files           *token.FileSet              // position information for the files of this Program [TODO: rename Fset]
+	Packages        map[string]*Package         // all loaded Packages, keyed by import path [TODO rename packagesByPath]
+	packages        map[*types.Package]*Package // all loaded Packages, keyed by object [TODO rename Packages]
+	Builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	concreteMethods map[*types.Func]*Function   // maps named concrete methods to their code
+	mode            BuilderMode                 // set of mode bits for SSA construction
 
-	methodSets      map[types.Type]MethodSet  // concrete method sets for all needed types  [TODO(adonovan): de-dup]
-	methodSetsMu    sync.Mutex                // serializes all accesses to methodSets
-	concreteMethods map[*types.Func]*Function // maps named concrete methods to their code
-	mode            BuilderMode               // set of mode bits for SSA construction
+	methodSetsMu        sync.Mutex               // guards methodSets, indirectionWrappers
+	methodSets          map[types.Type]MethodSet // concrete method sets for all needed types  [TODO(adonovan): de-dup]
+	indirectionWrappers map[*Function]*Function  // func(*T) wrappers for T-methods
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -51,10 +52,11 @@ type Package struct {
 // const, var, func and type declarations respectively.
 //
 type Member interface {
-	Name() string     // the declared name of the package member
-	String() string   // human-readable information about the value
-	Pos() token.Pos   // position of member's declaration, if known
-	Type() types.Type // the type of the package member
+	Name() string       // the declared name of the package member
+	String() string     // human-readable information about the value
+	Pos() token.Pos     // position of member's declaration, if known
+	Type() types.Type   // the type of the package member
+	Token() token.Token // token.{VAR,FUNC,CONST,TYPE}
 }
 
 // An Id identifies the name of a field of a struct type, or the name
@@ -77,20 +79,21 @@ type Id struct {
 	Name string
 }
 
-// A MethodSet contains all the methods for a particular type.
+// A MethodSet contains all the methods for a particular type T.
 // The method sets for T and *T are distinct entities.
-// The methods for a non-pointer type T all have receiver type T, but
-// the methods for pointer type *T may have receiver type *T or T.
+//
+// All methods in the method set for T have a receiver type of exactly
+// T.  The method set of *T may contain synthetic indirection methods
+// that wrap methods whose receiver type is T.
 //
 type MethodSet map[Id]*Function
 
-// A Type is a Member of a Package representing the name, underlying
-// type and method set of a named type declared at package scope.
+// A Type is a Member of a Package representing a package-level named type.
+//
+// Type() returns a *types.Named.
 //
 type Type struct {
-	NamedType  *types.Named
-	Methods    MethodSet // concrete method set of N
-	PtrMethods MethodSet // concrete method set of (*N)
+	Object *types.TypeName
 }
 
 // A Constant is a Member of Package representing a package-level
@@ -189,6 +192,10 @@ type Instruction interface {
 	// defines. e.g. 'y = local int' is both an allocation of
 	// memory 'local int' and a definition of a pointer y.)
 	String() string
+
+	// Parent returns the function to which this instruction
+	// belongs.
+	Parent() *Function
 
 	// Block returns the basic block to which this instruction
 	// belongs.
@@ -299,7 +306,7 @@ type Function struct {
 type BasicBlock struct {
 	Index        int            // index of this block within Func.Blocks
 	Comment      string         // optional label; no semantic significance
-	Func         *Function      // containing function
+	parent       *Function      // parent function
 	Instrs       []Instruction  // instructions in order
 	Preds, Succs []*BasicBlock  // predecessors and successors
 	succs2       [2]*BasicBlock // initial space for Succs.
@@ -327,10 +334,10 @@ type BasicBlock struct {
 // belongs to an enclosing function.
 //
 type Capture struct {
-	name string
-	typ  types.Type
-	pos  token.Pos
-
+	name      string
+	typ       types.Type
+	pos       token.Pos
+	parent    *Function
 	referrers []Instruction
 
 	// Transiently needed during building.
@@ -340,10 +347,10 @@ type Capture struct {
 // A Parameter represents an input parameter of a function.
 //
 type Parameter struct {
-	name string
-	typ  types.Type
-	pos  token.Pos
-
+	name      string
+	typ       types.Type
+	pos       token.Pos
+	parent    *Function
 	referrers []Instruction
 }
 
@@ -584,8 +591,12 @@ type Convert struct {
 // This operation cannot fail.  Use TypeAssert for interface
 // conversions that may fail dynamically.
 //
-// Pos() returns the ast.CallExpr.Lparen, if the instruction arose
-// from an explicit conversion in the source.
+// Pos() returns the ast.CallExpr.Lparen if the instruction arose from
+// an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
+// instruction arose from an explicit e.(T) operation; or token.NoPos
+// otherwise.
+//
+// TODO(adonovan) what about the nil case of e = e.(E)?  Test.
 //
 // Example printed form:
 // 	t1 = change interface interface{} <- I (t0)
@@ -596,7 +607,9 @@ type ChangeInterface struct {
 }
 
 // MakeInterface constructs an instance of an interface type from a
-// value and its method-set.
+// value of a concrete type.
+//
+// Use Program.MethodSet(X.Type()) to find the method-set of X.
 //
 // To construct the zero value of an interface type T, use:
 // 	&Literal{exact.MakeNil(), T}
@@ -605,12 +618,12 @@ type ChangeInterface struct {
 // from an explicit conversion in the source.
 //
 // Example printed form:
-// 	t1 = make interface interface{} <- int (42:int)
+// 	t1 = make interface{} <- int (42:int)
+// 	t2 = make Stringer <- t0
 //
 type MakeInterface struct {
 	Register
-	X       Value
-	Methods MethodSet // method set of (non-interface) X
+	X Value
 }
 
 // The MakeClosure instruction yields a closure value whose code is
@@ -641,6 +654,7 @@ type MakeClosure struct {
 //
 // Example printed form:
 // 	t1 = make map[string]int t0
+// 	t1 = make StringIntMap t0
 //
 type MakeMap struct {
 	Register
@@ -657,6 +671,7 @@ type MakeMap struct {
 //
 // Example printed form:
 // 	t0 = make chan int 0
+// 	t0 = make IntChan 0
 //
 type MakeChan struct {
 	Register
@@ -677,7 +692,8 @@ type MakeChan struct {
 // created it.
 //
 // Example printed form:
-// 	t1 = make slice []string 1:int t0
+// 	t1 = make []string 1:int t0
+// 	t1 = make StringSlice 1:int t0
 //
 type MakeSlice struct {
 	Register
@@ -904,6 +920,11 @@ type Next struct {
 //
 // Type() reflects the actual type of the result, possibly a
 // 2-types.Tuple; AssertedType is the asserted type.
+//
+// Pos() returns the ast.CallExpr.Lparen if the instruction arose from
+// an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
+// instruction arose from an explicit e.(T) operation; or token.NoPos
+// otherwise.
 //
 // Example printed form:
 // 	t1 = typeassert t0.(int)
@@ -1168,10 +1189,6 @@ type anInstruction struct {
 // receiver but the first true argument.  Func is not used in this
 // mode.
 //
-// If the called method's receiver has non-pointer type T, but the
-// receiver supplied by the interface value has type *T, an implicit
-// load (copy) operation is performed.
-//
 // Example printed form:
 // 	t1 = invoke t0.String()
 // 	go invoke t3.Run(t2)
@@ -1244,21 +1261,25 @@ func (v *Capture) Type() types.Type          { return v.typ }
 func (v *Capture) Name() string              { return v.name }
 func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
 func (v *Capture) Pos() token.Pos            { return v.pos }
+func (v *Capture) Parent() *Function         { return v.parent }
 
 func (v *Global) Type() types.Type        { return v.typ }
 func (v *Global) Name() string            { return v.name }
 func (v *Global) Pos() token.Pos          { return v.pos }
 func (*Global) Referrers() *[]Instruction { return nil }
+func (v *Global) Token() token.Token      { return token.VAR }
 
 func (v *Function) Name() string            { return v.name }
 func (v *Function) Type() types.Type        { return v.Signature }
 func (v *Function) Pos() token.Pos          { return v.pos }
 func (*Function) Referrers() *[]Instruction { return nil }
+func (v *Function) Token() token.Token      { return token.FUNC }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
 func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
 func (v *Parameter) Pos() token.Pos            { return v.pos }
+func (v *Parameter) Parent() *Function         { return v.parent }
 
 func (v *Alloc) Type() types.Type          { return v.typ }
 func (v *Alloc) Name() string              { return v.name }
@@ -1274,18 +1295,21 @@ func (v *Register) asRegister() *Register     { return v }
 func (v *Register) Pos() token.Pos            { return v.pos }
 func (v *Register) setPos(pos token.Pos)      { v.pos = pos }
 
+func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
 func (v *anInstruction) SetBlock(block *BasicBlock) { v.block = block }
 
-func (t *Type) Name() string     { return t.NamedType.Obj().Name() }
-func (t *Type) Pos() token.Pos   { return t.NamedType.Obj().Pos() }
-func (t *Type) String() string   { return t.Name() }
-func (t *Type) Type() types.Type { return t.NamedType }
+func (t *Type) Name() string       { return t.Object.Name() }
+func (t *Type) Pos() token.Pos     { return t.Object.Pos() }
+func (t *Type) String() string     { return t.Name() }
+func (t *Type) Type() types.Type   { return t.Object.Type() }
+func (t *Type) Token() token.Token { return token.TYPE }
 
-func (c *Constant) Name() string     { return c.name }
-func (c *Constant) Pos() token.Pos   { return c.pos }
-func (c *Constant) String() string   { return c.Name() }
-func (c *Constant) Type() types.Type { return c.Value.Type() }
+func (c *Constant) Name() string       { return c.name }
+func (c *Constant) Pos() token.Pos     { return c.pos }
+func (c *Constant) String() string     { return c.Name() }
+func (c *Constant) Type() types.Type   { return c.Value.Type() }
+func (c *Constant) Token() token.Token { return token.CONST }
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.
@@ -1335,7 +1359,8 @@ func (prog *Program) Value(obj types.Object) Value {
 }
 
 // Package returns the SSA package corresponding to the specified
-// type-checker package object.  It returns nil if not found.
+// type-checker package object.
+// It returns nil if no such SSA package has been created.
 //
 func (prog *Program) Package(pkg *types.Package) *Package {
 	return prog.packages[pkg]

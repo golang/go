@@ -62,8 +62,8 @@ var (
 	// SSA Value constants.
 	vZero  = intLiteral(0)
 	vOne   = intLiteral(1)
-	vTrue  = newLiteral(exact.MakeBool(true), tBool)
-	vFalse = newLiteral(exact.MakeBool(false), tBool)
+	vTrue  = NewLiteral(exact.MakeBool(true), tBool)
+	vFalse = NewLiteral(exact.MakeBool(false), tBool)
 )
 
 // builder holds state associated with the package currently being built.
@@ -230,7 +230,7 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		tuple = fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e))
+		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
 
 	case *ast.UnaryExpr: // must be receive <-
 		typ = fn.Pkg.typeOf(e.X).Underlying().(*types.Chan).Elem()
@@ -345,7 +345,7 @@ func (b *builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping
 	if !wantAddr {
 		if m, recv := b.findMethod(fn, e.X, id); m != nil {
 			c := &MakeClosure{
-				Fn:       makeBoundMethodThunk(fn.Prog, m, recv),
+				Fn:       makeBoundMethodThunk(fn.Prog, m, recv.Type()),
 				Bindings: []Value{recv},
 			}
 			c.setPos(e.Sel.Pos())
@@ -579,7 +579,7 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 //
 func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		return newLiteral(v, fn.Pkg.typeOf(e))
+		return NewLiteral(v, fn.Pkg.typeOf(e))
 	}
 
 	switch e := e.(type) {
@@ -618,7 +618,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		return b.expr(fn, e.X)
 
 	case *ast.TypeAssertExpr: // single-result form only
-		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e))
+		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
 
 	case *ast.CallExpr:
 		typ := fn.Pkg.typeOf(e)
@@ -709,6 +709,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			Low:  low,
 			High: high,
 		}
+		v.setPos(e.Lbrack)
 		v.setType(fn.Pkg.typeOf(e))
 		return fn.emit(v)
 
@@ -969,7 +970,8 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 		} else {
 			// Replace a suffix of args with a slice containing it.
 			at := types.NewArray(vt, int64(len(varargs)))
-			a := emitNew(fn, at, e.Lparen)
+			// Don't set pos (e.g. to e.Lparen) for implicit Allocs.
+			a := emitNew(fn, at, token.NoPos)
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{
 					X:     a,
@@ -1501,7 +1503,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			if casetype == tUntypedNil {
 				condv = emitCompare(fn, token.EQL, x, nilLiteral(x.Type()), token.NoPos)
 			} else {
-				yok := emitTypeTest(fn, x, casetype)
+				yok := emitTypeTest(fn, x, casetype, token.NoPos)
 				ti = emitExtract(fn, yok, 0, casetype)
 				condv = emitExtract(fn, yok, 1, tBool)
 			}
@@ -1643,7 +1645,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		switch comm := clause.Comm.(type) {
 		case *ast.AssignStmt: // x := <-states[state].Chan
 			xdecl := fn.addNamedLocal(fn.Pkg.objectOf(comm.Lhs[0].(*ast.Ident)))
-			recv := emitTypeAssert(fn, emitExtract(fn, triple, 1, tEface), xdecl.Type().Deref())
+			recv := emitTypeAssert(fn, emitExtract(fn, triple, 1, tEface), xdecl.Type().Deref(), token.NoPos)
 			emitStore(fn, xdecl, recv)
 
 			if len(comm.Lhs) == 2 { // x, ok := ...

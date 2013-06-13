@@ -20,7 +20,7 @@ import (
 // additional whitespace abutting a node to be enclosed by it.
 // In this example:
 //
-// 		z := x + y // add them
+//              z := x + y // add them
 //                   <-A->
 //                  <----B----->
 //
@@ -41,7 +41,7 @@ import (
 // interior whitespace of path[0].
 // In this example:
 //
-// 		z := x + y // add them
+//              z := x + y // add them
 //                <--C-->     <---E-->
 //                  ^
 //                  D
@@ -430,7 +430,10 @@ func childrenOf(n ast.Node) []ast.Node {
 		children = append(children, tok(n.Switch, len("switch")))
 
 	case *ast.TypeAssertExpr:
-		// nop
+		children = append(children,
+			tok(n.Lparen-1, len(".")),
+			tok(n.Lparen, len("(")),
+			tok(n.Rparen, len(")")))
 
 	case *ast.TypeSpec:
 		// TODO(adonovan): TypeSpec.{Doc,Comment}?

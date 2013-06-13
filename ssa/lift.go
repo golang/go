@@ -349,7 +349,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 		fmt.Fprintln(os.Stderr, "liftAlloc: lifting ", alloc, alloc.Name())
 	}
 
-	fn := alloc.Block().Func
+	fn := alloc.Parent()
 
 	// Φ-insertion.
 	//

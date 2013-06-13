@@ -35,13 +35,14 @@ const (
 //
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
-		Files:           fset,
-		Packages:        make(map[string]*Package),
-		packages:        make(map[*types.Package]*Package),
-		Builtins:        make(map[types.Object]*Builtin),
-		methodSets:      make(map[types.Type]MethodSet),
-		concreteMethods: make(map[*types.Func]*Function),
-		mode:            mode,
+		Files:               fset,
+		Packages:            make(map[string]*Package),
+		packages:            make(map[*types.Package]*Package),
+		Builtins:            make(map[types.Object]*Builtin),
+		methodSets:          make(map[types.Type]MethodSet),
+		concreteMethods:     make(map[*types.Func]*Function),
+		indirectionWrappers: make(map[*Function]*Function),
+		mode:                mode,
 	}
 
 	// Create Values for built-in functions.
@@ -67,24 +68,8 @@ func (prog *Program) CreatePackages(imp *importer.Importer) {
 	// TODO(adonovan): make this idempotent, so that a second call
 	// to CreatePackages creates only the packages that appeared
 	// in imp since the first.
-	//
-	// TODO(adonovan): make it create packages in topological
-	// order (using info.Imports()) so we can compute method sets
-	// in postorder (or within createPackage) rather than as a
-	// second pass.
-
 	for path, info := range imp.Packages {
 		createPackage(prog, path, info)
-	}
-
-	// Compute the method sets, now that we have all packages' methods.
-	for _, pkg := range prog.Packages {
-		for _, mem := range pkg.Members {
-			if t, ok := mem.(*Type); ok {
-				t.Methods = prog.MethodSet(t.NamedType)
-				t.PtrMethods = prog.MethodSet(pointer(t.NamedType))
-			}
-		}
 	}
 }
 
@@ -99,12 +84,12 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		pkg.Members[name] = &Type{NamedType: obj.Type().(*types.Named)}
+		pkg.Members[name] = &Type{Object: obj}
 
 	case *types.Const:
 		pkg.Members[name] = &Constant{
 			name:  name,
-			Value: newLiteral(obj.Val(), obj.Type()),
+			Value: NewLiteral(obj.Val(), obj.Type()),
 			pos:   obj.Pos(),
 		}
 

@@ -160,7 +160,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 
 		// Assignment from one interface type to another?
 		if _, ok := ut_src.(*types.Interface); ok {
-			return emitTypeAssert(f, val, typ)
+			return emitTypeAssert(f, val, typ, token.NoPos)
 		}
 
 		// Untyped nil literal?  Return interface-typed nil literal.
@@ -174,10 +174,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			val = emitConv(f, val, DefaultType(ut_src))
 		}
 
-		mi := &MakeInterface{
-			X:       val,
-			Methods: f.Prog.MethodSet(t_src),
-		}
+		mi := &MakeInterface{X: val}
 		mi.setType(typ)
 		return f.emit(mi)
 	}
@@ -188,7 +185,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	// change yet; this defers the point at which the number of
 	// possible representations explodes.
 	if l, ok := val.(*Literal); ok {
-		return newLiteral(l.Value, typ)
+		return NewLiteral(l.Value, typ)
 	}
 
 	// A representation-changing conversion.
@@ -246,7 +243,7 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 // emitTypeAssert emits to f a type assertion value := x.(t) and
 // returns the value.  x.Type() must be an interface.
 //
-func emitTypeAssert(f *Function, x Value, t types.Type) Value {
+func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 	// Simplify infallible assertions.
 	txi := x.Type().Underlying().(*types.Interface)
 	if ti, ok := t.Underlying().(*types.Interface); ok {
@@ -255,12 +252,14 @@ func emitTypeAssert(f *Function, x Value, t types.Type) Value {
 		}
 		if isSuperinterface(ti, txi) {
 			c := &ChangeInterface{X: x}
+			c.setPos(pos)
 			c.setType(t)
 			return f.emit(c)
 		}
 	}
 
 	a := &TypeAssert{X: x, AssertedType: t}
+	a.setPos(pos)
 	a.setType(t)
 	return f.emit(a)
 }
@@ -268,7 +267,7 @@ func emitTypeAssert(f *Function, x Value, t types.Type) Value {
 // emitTypeTest emits to f a type test value,ok := x.(t) and returns
 // a (value, ok) tuple.  x.Type() must be an interface.
 //
-func emitTypeTest(f *Function, x Value, t types.Type) Value {
+func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
 	// TODO(adonovan): opt: simplify infallible tests as per
 	// emitTypeAssert, and return (x, vTrue).
 	// (Requires that exprN returns a slice of extracted values,
@@ -278,6 +277,7 @@ func emitTypeTest(f *Function, x Value, t types.Type) Value {
 		AssertedType: t,
 		CommaOk:      true,
 	}
+	a.setPos(pos)
 	a.setType(types.NewTuple(
 		types.NewVar(token.NoPos, nil, "value", t),
 		varOk,

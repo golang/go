@@ -41,7 +41,7 @@ func MustSanityCheck(fn *Function, reporter io.Writer) {
 }
 
 func (s *sanity) diagnostic(prefix, format string, args ...interface{}) {
-	fmt.Fprintf(s.reporter, "%s: function %s", prefix, s.fn.FullName())
+	fmt.Fprintf(s.reporter, "%s: function %s", prefix, s.fn)
 	if s.block != nil {
 		fmt.Fprintf(s.reporter, ", block %s", s.block)
 	}
@@ -197,8 +197,8 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 	if b.Index != index {
 		s.errorf("block has incorrect Index %d", b.Index)
 	}
-	if b.Func != s.fn {
-		s.errorf("block has incorrect Func %s", b.Func.FullName())
+	if b.parent != s.fn {
+		s.errorf("block has incorrect parent %s", b.parent)
 	}
 
 	// Check all blocks are reachable.
@@ -226,8 +226,8 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 		if !found {
 			s.errorf("expected successor edge in predecessor %s; found only: %s", a, a.Succs)
 		}
-		if a.Func != s.fn {
-			s.errorf("predecessor %s belongs to different function %s", a, a.Func.FullName())
+		if a.parent != s.fn {
+			s.errorf("predecessor %s belongs to different function %s", a, a.parent)
 		}
 	}
 	for _, c := range b.Succs {
@@ -241,8 +241,8 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 		if !found {
 			s.errorf("expected predecessor edge in successor %s; found only: %s", c, c.Preds)
 		}
-		if c.Func != s.fn {
-			s.errorf("successor %s belongs to different function %s", c, c.Func.FullName())
+		if c.parent != s.fn {
+			s.errorf("successor %s belongs to different function %s", c, c.parent)
 		}
 	}
 
@@ -286,10 +286,24 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		s.errorf("nil Prog")
 	}
 	for i, l := range fn.Locals {
+		if l.Parent() != fn {
+			s.errorf("Local %s at index %d has wrong parent", l.Name(), i)
+		}
 		if l.Heap {
 			s.errorf("Local %s at index %d has Heap flag set", l.Name(), i)
 		}
 	}
+	for i, p := range fn.Params {
+		if p.Parent() != fn {
+			s.errorf("Param %s at index %d has wrong parent", p.Name(), i)
+		}
+	}
+	for i, fv := range fn.FreeVars {
+		if fv.Parent() != fn {
+			s.errorf("FreeVar %s at index %d has wrong parent", fv.Name(), i)
+		}
+	}
+
 	if fn.Blocks != nil && len(fn.Blocks) == 0 {
 		// Function _had_ blocks (so it's not external) but
 		// they were "optimized" away, even the entry block.

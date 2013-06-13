@@ -45,10 +45,7 @@ func isBlankIdent(e ast.Expr) bool {
 
 // isPointer returns true for types whose underlying type is a pointer.
 func isPointer(typ types.Type) bool {
-	if nt, ok := typ.(*types.Named); ok {
-		typ = nt.Underlying()
-	}
-	_, ok := typ.(*types.Pointer)
+	_, ok := typ.Underlying().(*types.Pointer)
 	return ok
 }
 

@@ -91,7 +91,8 @@ func (c candidate) ptrRecv() bool {
 }
 
 // MethodSet returns the method set for type typ,
-// building bridge methods as needed for promoted methods.
+// building bridge methods as needed for promoted methods
+// and indirection wrappers for *T receiver types.
 // A nil result indicates an empty set.
 //
 // Thread-safe.
@@ -104,7 +105,7 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 	defer p.methodSetsMu.Unlock()
 
 	// TODO(adonovan): Using Types as map keys doesn't properly
-	// de-dup.  e.g. *NamedType are canonical but *Struct and
+	// de-dup.  e.g. *Named are canonical but *Struct and
 	// others are not.  Need to de-dup using typemap.T.
 	mset := p.methodSets[typ]
 	if mset == nil {
@@ -151,7 +152,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 					m := nt.Method(i)
 					concrete := prog.concreteMethods[m]
 					if concrete == nil {
-						panic(fmt.Sprintf("no ssa.Function for mset(%s)[%s]", t, m.Name()))
+						panic(fmt.Sprintf("no ssa.Function for methodset(%s)[%s]", t, m.Name()))
 					}
 					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, concrete, node)
 				}
@@ -205,7 +206,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 		if cand == nil {
 			continue // blocked; ignore
 		}
-		if cand.ptrRecv() && !(isPointer(typ) || cand.path.isIndirect()) {
+		if cand.ptrRecv() && !isPointer(typ) && !cand.path.isIndirect() {
 			// A candidate concrete method f with receiver
 			// *C is promoted into the method set of
 			// (non-pointer) E iff the implicit path selection
@@ -214,8 +215,13 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 		}
 		var method *Function
 		if cand.path == nil {
-			// Trivial member of method-set; no bridge needed.
+			// Trivial member of method-set; no promotion needed.
 			method = cand.concrete
+
+			if !cand.ptrRecv() && isPointer(typ) {
+				// Call to method on T from receiver of type *T.
+				method = indirectionWrapper(method)
+			}
 		} else {
 			method = makeBridgeMethod(prog, typ, cand)
 		}
@@ -332,7 +338,9 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	return fn
 }
 
-// createParams creates parameters for bridge method fn based on its Signature.
+// createParams creates parameters for bridge method fn based on its
+// Signature.Params, which do not include the receiver.
+//
 func createParams(fn *Function) {
 	var last *Parameter
 	tparams := fn.Signature.Params()
@@ -412,7 +420,7 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
 //
 // TODO(adonovan): memoize creation of these functions in the Program.
 //
-func makeBoundMethodThunk(prog *Program, meth *Function, recv Value) *Function {
+func makeBoundMethodThunk(prog *Program, meth *Function, recvType types.Type) *Function {
 	if prog.mode&LogSource != 0 {
 		defer logStack("makeBoundMethodThunk %s", meth)()
 	}
@@ -423,7 +431,7 @@ func makeBoundMethodThunk(prog *Program, meth *Function, recv Value) *Function {
 		Prog:      prog,
 	}
 
-	cap := &Capture{name: "recv", typ: recv.Type()}
+	cap := &Capture{name: "recv", typ: recvType, parent: fn}
 	fn.FreeVars = []*Capture{cap}
 	fn.startBody()
 	createParams(fn)
@@ -435,6 +443,53 @@ func makeBoundMethodThunk(prog *Program, meth *Function, recv Value) *Function {
 	}
 	emitTailCall(fn, &c)
 	fn.finishBody()
+	return fn
+}
+
+// Receiver indirection wrapper ------------------------------------
+
+// indirectionWrapper returns a synthetic method with *T receiver
+// that delegates to meth, which has a T receiver.
+//
+//      func (recv *T) f(...) ... {
+//              return (*recv).f(...)
+//      }
+//
+// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodSetsMu)
+//
+func indirectionWrapper(meth *Function) *Function {
+	prog := meth.Prog
+	fn, ok := prog.indirectionWrappers[meth]
+	if !ok {
+		if prog.mode&LogSource != 0 {
+			defer logStack("makeIndirectionWrapper %s", meth)()
+		}
+
+		s := meth.Signature
+		recv := types.NewVar(token.NoPos, meth.Pkg.Types, "recv",
+			types.NewPointer(s.Recv().Type()))
+		fn = &Function{
+			name:      meth.Name(),
+			Signature: types.NewSignature(recv, s.Params(), s.Results(), s.IsVariadic()),
+			Prog:      prog,
+		}
+
+		fn.startBody()
+		fn.addParamObj(recv)
+		createParams(fn)
+		// TODO(adonovan): consider emitting a nil-pointer check here
+		// with a nice error message, like gc does.
+		var c Call
+		c.Call.Func = meth
+		c.Call.Args = append(c.Call.Args, emitLoad(fn, fn.Params[0]))
+		for _, arg := range fn.Params[1:] {
+			c.Call.Args = append(c.Call.Args, arg)
+		}
+		emitTailCall(fn, &c)
+		fn.finishBody()
+
+		prog.indirectionWrappers[meth] = fn
+	}
 	return fn
 }
 
