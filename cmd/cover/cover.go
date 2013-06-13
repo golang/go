@@ -29,9 +29,8 @@ import (
 )
 
 var (
-	mode     = flag.String("mode", "set", "coverage mode: set, count, atomic")
-	countVar = flag.String("count", "GoCoverCount", "name of coverage count array variable")
-	posVar   = flag.String("pos", "GoCoverPos", "name of coverage position array variable")
+	mode   = flag.String("mode", "set", "coverage mode: set, count, atomic")
+	varVar = flag.String("var", "GoCover", "name of generated coverage variable")
 
 	output = flag.String("o", "", "file for output; standard output by default")
 )
@@ -278,7 +277,10 @@ func atomicCounterStmt(f *File, counter ast.Expr) ast.Stmt {
 // newCounter creates a new counter expression of the appropriate form.
 func (f *File) newCounter(start, end token.Pos) ast.Stmt {
 	counter := &ast.IndexExpr{
-		X:     ast.NewIdent(*countVar),
+		X: &ast.SelectorExpr{
+			X:   ast.NewIdent(*varVar),
+			Sel: ast.NewIdent("Count"),
+		},
 		Index: f.index(),
 	}
 	stmt := counterStmt(f, counter)
@@ -446,23 +448,28 @@ func (f *File) addVariables(w io.Writer) {
 		}
 	}
 
-	// Declare the coverage array as a package-level variable.
-	// Everything else will be local to init.
-	fmt.Fprintf(w, "\nvar %s [%d]uint32\n\n", *countVar, len(f.blocks))
+	// Declare the coverage struct as a package-level variable.
+	fmt.Fprintf(w, "\nvar %s = struct {\n", *varVar)
+	fmt.Fprintf(w, "\tCount [%d]uint32\n", len(f.blocks))
+	fmt.Fprintf(w, "\tPos   [3*%d]uint32\n", len(f.blocks))
+	fmt.Fprintf(w, "} {\n")
 
-	// Declare the position array as a package-level variable.
-	fmt.Fprintf(w, "var %s = [3*%d]uint32{\n", *posVar, len(f.blocks))
+	// Initialize the position array field.
+	fmt.Fprintf(w, "\tPos: [3*%d]uint32{\n", len(f.blocks))
 
-	// Here's a nice long list of positions. Each position is encoded as follows to reduce size:
+	// A nice long list of positions. Each position is encoded as follows to reduce size:
 	// - 32-bit starting line number
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
 	for _, block := range f.blocks {
 		start := f.fset.Position(block.startByte)
 		end := f.fset.Position(block.endByte)
-		fmt.Fprintf(w, "\t%d, %d, %#x,\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF))
+		fmt.Fprintf(w, "\t\t%d, %d, %#x,\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF))
 	}
 
-	// Close the declaration.
+	// Close the position array.
+	fmt.Fprintf(w, "\t},\n")
+
+	// Close the struct initialization.
 	fmt.Fprintf(w, "}\n")
 }
