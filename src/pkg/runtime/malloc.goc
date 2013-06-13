@@ -399,7 +399,7 @@ runtime·mallocinit(void)
 		// So adjust it upward a little bit ourselves: 1/4 MB to get
 		// away from the running binary image and then round up
 		// to a MB boundary.
-		want = (byte*)ROUND((uintptr)end + 1<<18, 1<<20);
+		want = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
 		p = runtime·SysReserve(want, bitmap_size + spans_size + arena_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
