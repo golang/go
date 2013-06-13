@@ -74,6 +74,7 @@ func main() {
 type Block struct {
 	startByte token.Pos
 	endByte   token.Pos
+	numStmt   int
 }
 
 // File is a wrapper for the state of a file used in the parser.
@@ -275,7 +276,7 @@ func atomicCounterStmt(f *File, counter ast.Expr) ast.Stmt {
 }
 
 // newCounter creates a new counter expression of the appropriate form.
-func (f *File) newCounter(start, end token.Pos) ast.Stmt {
+func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
 	counter := &ast.IndexExpr{
 		X: &ast.SelectorExpr{
 			X:   ast.NewIdent(*varVar),
@@ -284,7 +285,7 @@ func (f *File) newCounter(start, end token.Pos) ast.Stmt {
 		Index: f.index(),
 	}
 	stmt := counterStmt(f, counter)
-	f.blocks = append(f.blocks, Block{start, end})
+	f.blocks = append(f.blocks, Block{start, end, numStmt})
 	return stmt
 }
 
@@ -304,7 +305,7 @@ func (f *File) addCounters(pos, end token.Pos, list []ast.Stmt) []ast.Stmt {
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		return []ast.Stmt{f.newCounter(pos, end)}
+		return []ast.Stmt{f.newCounter(pos, end, 0)}
 	}
 	// We have a block (statement list), but it may have several basic blocks due to the
 	// appearance of statements that affect the flow of control.
@@ -322,7 +323,7 @@ func (f *File) addCounters(pos, end token.Pos, list []ast.Stmt) []ast.Stmt {
 			}
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
-			newList = append(newList, f.newCounter(pos, end))
+			newList = append(newList, f.newCounter(pos, end, last))
 		}
 		newList = append(newList, list[0:last]...)
 		list = list[last:]
@@ -450,24 +451,42 @@ func (f *File) addVariables(w io.Writer) {
 
 	// Declare the coverage struct as a package-level variable.
 	fmt.Fprintf(w, "\nvar %s = struct {\n", *varVar)
-	fmt.Fprintf(w, "\tCount [%d]uint32\n", len(f.blocks))
-	fmt.Fprintf(w, "\tPos   [3*%d]uint32\n", len(f.blocks))
+	fmt.Fprintf(w, "\tCount     [%d]uint32\n", len(f.blocks))
+	fmt.Fprintf(w, "\tPos       [3 * %d]uint32\n", len(f.blocks))
+	fmt.Fprintf(w, "\tNumStmt   [%d]uint16\n", len(f.blocks))
 	fmt.Fprintf(w, "} {\n")
 
 	// Initialize the position array field.
-	fmt.Fprintf(w, "\tPos: [3*%d]uint32{\n", len(f.blocks))
+	fmt.Fprintf(w, "\tPos: [3 * %d]uint32{\n", len(f.blocks))
 
 	// A nice long list of positions. Each position is encoded as follows to reduce size:
 	// - 32-bit starting line number
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
-	for _, block := range f.blocks {
+	for i, block := range f.blocks {
 		start := f.fset.Position(block.startByte)
 		end := f.fset.Position(block.endByte)
-		fmt.Fprintf(w, "\t\t%d, %d, %#x,\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF))
+		fmt.Fprintf(w, "\t\t%d, %d, %#x, // %d\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
 	}
 
 	// Close the position array.
+	fmt.Fprintf(w, "\t},\n")
+
+	// Initialize the position array field.
+	fmt.Fprintf(w, "\tNumStmt: [%d]uint16{\n", len(f.blocks))
+
+	// A nice long list of statements-per-block, so we can give a conventional
+	// valuation of "percent covered". To save space, it's a 16-bit number, so we
+	// clamp it if it overflows - won't matter in practice.
+	for i, block := range f.blocks {
+		n := block.numStmt
+		if n > 1<<16-1 {
+			n = 1<<16 - 1
+		}
+		fmt.Fprintf(w, "\t\t%d, // %d\n", n, i)
+	}
+
+	// Close the statements-per-block array.
 	fmt.Fprintf(w, "\t},\n")
 
 	// Close the struct initialization.
