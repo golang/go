@@ -306,6 +306,94 @@ func TestRaceRange(t *testing.T) {
 	}
 }
 
+func TestRaceForInit(t *testing.T) {
+	c := make(chan int)
+	x := 0
+	go func() {
+		c <- x
+	}()
+	for x = 42; false; {
+	}
+	<-c
+}
+
+func TestNoRaceForInit(t *testing.T) {
+	done := make(chan bool)
+	c := make(chan bool)
+	x := 0
+	go func() {
+		for {
+			_, ok := <-c
+			if !ok {
+				done <- true
+				return
+			}
+			x++
+		}
+	}()
+	i := 0
+	for x = 42; i < 10; i++ {
+		c <- true
+	}
+	close(c)
+	<-done
+}
+
+func TestRaceForTest(t *testing.T) {
+	done := make(chan bool)
+	c := make(chan bool)
+	stop := false
+	go func() {
+		for {
+			_, ok := <-c
+			if !ok {
+				done <- true
+				return
+			}
+			stop = true
+		}
+	}()
+	for !stop {
+		c <- true
+	}
+	close(c)
+	<-done
+}
+
+func TestRaceForIncr(t *testing.T) {
+	done := make(chan bool)
+	c := make(chan bool)
+	x := 0
+	go func() {
+		for {
+			_, ok := <-c
+			if !ok {
+				done <- true
+				return
+			}
+			x++
+		}
+	}()
+	for i := 0; i < 10; x++ {
+		i++
+		c <- true
+	}
+	close(c)
+	<-done
+}
+
+func TestNoRaceForIncr(t *testing.T) {
+	done := make(chan bool)
+	x := 0
+	go func() {
+		x++
+		done <- true
+	}()
+	for i := 0; i < 0; x++ {
+	}
+	<-done
+}
+
 func TestRacePlus(t *testing.T) {
 	var x, y, z int
 	ch := make(chan int, 2)

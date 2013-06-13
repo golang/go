@@ -122,8 +122,20 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	if(debug['w'] > 1)
 		dump("racewalk-before", n);
 	setlineno(n);
-	if(init == nil || init == &n->ninit)
+	if(init == nil)
 		fatal("racewalk: bad init list");
+	if(init == &n->ninit) {
+		// If init == &n->ninit and n->ninit is non-nil,
+		// racewalknode might append it to itself.
+		// nil it out and handle it separately before putting it back.
+		l = n->ninit;
+		n->ninit = nil;
+		racewalklist(l, nil);
+		racewalknode(&n, &l, wr, skip);  // recurse with nil n->ninit
+		appendinit(&n, l);
+		*np = n;
+		return;
+	}
 
 	racewalklist(n->ninit, nil);
 
@@ -255,13 +267,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		// side effects are safe.
 		// n->right may not be executed,
 		// so instrumentation goes to n->right->ninit, not init.
-		// If right->ninit is non-nil, racewalknode might append it to itself.
-		// nil it out and handle it separately before putting it back.
-		l = n->right->ninit;
-		n->right->ninit = nil;
-		racewalklist(l, nil);
-		racewalknode(&n->right, &l, wr, 0);
-		appendinit(&n->right, l);
+		racewalknode(&n->right, &n->right->ninit, wr, 0);
 		goto ret;
 
 	case ONAME:
@@ -400,12 +406,8 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 ret:
 	if(n->op != OBLOCK)  // OBLOCK is handled above in a special way.
 		racewalklist(n->list, init);
-	l = nil;
-	racewalknode(&n->ntest, &l, 0, 0);
-	n->ninit = concat(n->ninit, l);
-	l = nil;
-	racewalknode(&n->nincr, &l, 0, 0);
-	n->ninit = concat(n->ninit, l);
+	racewalknode(&n->ntest, &n->ntest->ninit, 0, 0);
+	racewalknode(&n->nincr, &n->nincr->ninit, 0, 0);
 	racewalklist(n->nbody, nil);
 	racewalklist(n->nelse, nil);
 	racewalklist(n->rlist, nil);

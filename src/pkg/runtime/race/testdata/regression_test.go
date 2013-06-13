@@ -175,3 +175,20 @@ type inltype struct {
 func inlinetest(p **inltype) *inltype {
 	return *p
 }
+
+type iface interface {
+	Foo() *struct{ b bool }
+}
+
+type Int int
+
+func (i Int) Foo() *struct{ b bool } {
+	return &struct{ b bool }{false}
+}
+
+func TestNoRaceForInfiniteLoop(t *testing.T) {
+	var x Int
+	// interface conversion causes nodes to be put on init list
+	for iface(x).Foo().b {
+	}
+}
