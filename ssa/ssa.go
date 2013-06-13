@@ -588,15 +588,14 @@ type Convert struct {
 // ChangeInterface constructs a value of one interface type from a
 // value of another interface type known to be assignable to it.
 //
-// This operation cannot fail.  Use TypeAssert for interface
-// conversions that may fail dynamically.
+// This operation fails if the operand is nil.
+// For all other operands, well-typedness ensures success.
+// Use TypeAssert for interface conversions that are uncertain.
 //
 // Pos() returns the ast.CallExpr.Lparen if the instruction arose from
 // an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
 // instruction arose from an explicit e.(T) operation; or token.NoPos
 // otherwise.
-//
-// TODO(adonovan) what about the nil case of e = e.(E)?  Test.
 //
 // Example printed form:
 // 	t1 = change interface interface{} <- I (t0)

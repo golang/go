@@ -247,9 +247,8 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 	// Simplify infallible assertions.
 	txi := x.Type().Underlying().(*types.Interface)
 	if ti, ok := t.Underlying().(*types.Interface); ok {
-		if types.IsIdentical(ti, txi) {
-			return x
-		}
+		// Even when ti==txi, we still need ChangeInterface
+		// since it performs a nil-check.
 		if isSuperinterface(ti, txi) {
 			c := &ChangeInterface{X: x}
 			c.setPos(pos)

@@ -329,6 +329,26 @@ func init() {
 	}
 }
 
+// An I->I conversion always succeeds.
+func init() {
+	var x I
+	if I(x) != I(nil) {
+		panic("I->I conversion failed")
+	}
+}
+
+// An I->I type-assert fails iff the value is nil.
+func init() {
+	defer func() {
+		r := recover()
+		if r != "interface conversion: interface is nil, not main.I" {
+			panic("I->I type assertion succeeed for nil value")
+		}
+	}()
+	var x I
+	_ = x.(I)
+}
+
 //////////////////////////////////////////////////////////////////////
 // Variadic bridge methods and interface thunks.
 
