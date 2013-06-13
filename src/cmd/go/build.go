@@ -798,7 +798,7 @@ func (b *builder) build(a *action) (err error) {
 				continue
 			}
 			coverFile := filepath.Join(obj, file)
-			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Count, cover.Pos); err != nil {
+			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Var); err != nil {
 				return err
 			}
 			gofiles = append(gofiles, coverFile)
@@ -1110,13 +1110,12 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 }
 
 // cover runs, in effect,
-//	go tool cover -mode=b.coverMode -count="count" -pos="pos" -o dst.go src.go
-func (b *builder) cover(a *action, dst, src string, perm os.FileMode, count, pos string) error {
+//	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
+func (b *builder) cover(a *action, dst, src string, perm os.FileMode, varName string) error {
 	return b.run(a.objdir, "cover "+a.p.ImportPath, nil,
 		tool("cover"),
 		"-mode", a.p.coverMode,
-		"-count", count,
-		"-pos", pos,
+		"-var", varName,
 		"-o", dst,
 		src)
 }
