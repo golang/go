@@ -240,7 +240,7 @@ func slicebytetostring(b Slice) (s String) {
 
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&b);
-		runtime·racereadrangepc(b.array, b.len, 1, pc, runtime·slicebytetostring);
+		runtime·racereadrangepc(b.array, b.len, pc, runtime·slicebytetostring);
 	}
 	s = gostringsize(b.len);
 	runtime·memmove(s.str, b.array, s.len);
@@ -261,7 +261,7 @@ func slicerunetostring(b Slice) (s String) {
 
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&b);
-		runtime·racereadrangepc(b.array, b.len*sizeof(*a), sizeof(*a), pc, runtime·slicerunetostring);
+		runtime·racereadrangepc(b.array, b.len*sizeof(*a), pc, runtime·slicerunetostring);
 	}
 	a = (int32*)b.array;
 	siz1 = 0;

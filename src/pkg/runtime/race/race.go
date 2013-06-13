@@ -56,14 +56,14 @@ func Write(racectx uintptr, addr, pc uintptr) {
 	C.__tsan_write(unsafe.Pointer(racectx), unsafe.Pointer(addr), unsafe.Pointer(pc))
 }
 
-func ReadRange(racectx uintptr, addr, sz, step, pc uintptr) {
+func ReadRange(racectx uintptr, addr, sz, pc uintptr) {
 	C.__tsan_read_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
-		C.long(sz), C.long(step), unsafe.Pointer(pc))
+		C.long(sz), 0 /*step is unused*/, unsafe.Pointer(pc))
 }
 
-func WriteRange(racectx uintptr, addr, sz, step, pc uintptr) {
+func WriteRange(racectx uintptr, addr, sz, pc uintptr) {
 	C.__tsan_write_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
-		C.long(sz), C.long(step), unsafe.Pointer(pc))
+		C.long(sz), 0 /*step is unused*/, unsafe.Pointer(pc))
 }
 
 func FuncEnter(racectx uintptr, pc uintptr) {
