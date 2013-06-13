@@ -114,6 +114,12 @@ var (
 	// full test of the package.
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
+	// The directory in which to create profile files and the like. When run from
+	// "go test", the binary always runs in the source directory for the package;
+	// this flag lets "go test" tell the binary to write the files in the directory where
+	// the "go test" command is run.
+	outputDir = flag.String("test.outputdir", "", "directory in which to write profiles")
+
 	// Report as tests are run; default is silent for success.
 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
@@ -466,7 +472,7 @@ func before() {
 		runtime.MemProfileRate = *memProfileRate
 	}
 	if *cpuProfile != "" {
-		f, err := os.Create(*cpuProfile)
+		f, err := os.Create(toOutputDir(*cpuProfile))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: %s", err)
 			return
@@ -489,27 +495,57 @@ func after() {
 		pprof.StopCPUProfile() // flushes profile to disk
 	}
 	if *memProfile != "" {
-		f, err := os.Create(*memProfile)
+		f, err := os.Create(toOutputDir(*memProfile))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: %s", err)
-			return
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+			os.Exit(2)
 		}
 		if err = pprof.WriteHeapProfile(f); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
+			os.Exit(2)
 		}
 		f.Close()
 	}
 	if *blockProfile != "" && *blockProfileRate >= 0 {
-		f, err := os.Create(*blockProfile)
+		f, err := os.Create(toOutputDir(*blockProfile))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: %s", err)
-			return
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+			os.Exit(2)
 		}
 		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *blockProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			os.Exit(2)
 		}
 		f.Close()
 	}
+}
+
+// toOutputDir returns the file name relocated, if required, to outputDir.
+// Simple implementation to avoid pulling in path/filepath.
+func toOutputDir(path string) string {
+	if *outputDir == "" || path == "" {
+		return path
+	}
+	if runtime.GOOS == "windows" {
+		// On Windows, it's clumsy, but we can be almost always correct
+		// by just looking for a drive letter and a colon.
+		// Absolute paths always have a drive letter (ignoring UNC).
+		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+		// what to do, but even then path/filepath doesn't help.
+		// TODO: Worth doing better? Probably not, because we're here only
+		// under the management of go test.
+		if len(path) >= 2 {
+			letter, colon := path[0], path[1]
+			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+				// If path starts with a drive letter we're stuck with it regardless.
+				return path
+			}
+		}
+	}
+	if os.IsPathSeparator(path[0]) {
+		return path
+	}
+	return fmt.Sprintf("%s%c%s", *outputDir, os.PathSeparator, path)
 }
 
 var timer *time.Timer

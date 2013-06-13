@@ -156,6 +156,10 @@ control the execution of any test:
 	    garbage collector, provided the test can run in the available
 	    memory without garbage collection.
 
+	-outputdir directory
+	    Place output files from profiling in the specified directory,
+	    by default the directory in which "go test" is running.
+
 	-parallel n
 	    Allow parallel execution of test functions that call t.Parallel.
 	    The value of this flag is the maximum number of tests to run
