@@ -56,7 +56,7 @@ func LinkifyText(w io.Writer, text []byte, n ast.Node) {
 				if info.mode == identVal {
 					fmt.Fprintf(w, `<span id="%s">`, info.name)
 					prev = "span"
-				} else {
+				} else if ast.IsExported(info.name) {
 					fmt.Fprintf(w, `<a href="#%s">`, info.name)
 					prev = "a"
 				}
