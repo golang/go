@@ -8,15 +8,36 @@ import (
 	"time"
 )
 
+var lookupGroup singleflight
+
+// lookupHostMerge wraps lookupHost, but makes sure that for any given
+// host, only one lookup is in-flight at a time. The returned memory
+// is always owned by the caller.
+func lookupHostMerge(host string) (addrs []string, err error) {
+	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
+		return lookupHost(host)
+	})
+	if err != nil {
+		return nil, err
+	}
+	addrs = addrsi.([]string)
+	if shared {
+		clone := make([]string, len(addrs))
+		copy(clone, addrs)
+		addrs = clone
+	}
+	return addrs, nil
+}
+
 // LookupHost looks up the given host using the local resolver.
 // It returns an array of that host's addresses.
 func LookupHost(host string) (addrs []string, err error) {
-	return lookupHost(host)
+	return lookupHostMerge(host)
 }
 
 func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err error) {
 	if deadline.IsZero() {
-		return lookupHost(host)
+		return lookupHostMerge(host)
 	}
 
 	// TODO(bradfitz): consider pushing the deadline down into the
@@ -39,7 +60,7 @@ func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err er
 	}
 	resc := make(chan res, 1)
 	go func() {
-		a, err := lookupHost(host)
+		a, err := lookupHostMerge(host)
 		resc <- res{a, err}
 	}()
 	select {
