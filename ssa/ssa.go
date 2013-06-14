@@ -24,9 +24,11 @@ type Program struct {
 	concreteMethods map[*types.Func]*Function   // maps named concrete methods to their code
 	mode            BuilderMode                 // set of mode bits for SSA construction
 
-	methodSetsMu        sync.Mutex               // guards methodSets, indirectionWrappers
-	methodSets          map[types.Type]MethodSet // concrete method sets for all needed types  [TODO(adonovan): de-dup]
-	indirectionWrappers map[*Function]*Function  // func(*T) wrappers for T-methods
+	methodsMu           sync.Mutex                // guards the following maps:
+	methodSets          map[types.Type]MethodSet  // concrete method set each type [TODO(adonovan): de-dup]
+	indirectionWrappers map[*Function]*Function   // func(*T) wrappers for T-methods
+	boundMethodWrappers map[*Function]*Function   // wrappers for curried x.Method closures
+	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
 
 // A Package is a single analyzed Go package containing Members for

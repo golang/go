@@ -385,7 +385,7 @@ func (p *Package) DumpTo(w io.Writer) {
 			// We display only mset(*T) since its keys
 			// are a superset of mset(T)'s keys, though the
 			// methods themselves may differ,
-			// e.g. different bridge methods.
+			// e.g. promotion wrappers.
 			// NB: if mem.Type() is a pointer, mset is empty.
 			mset := p.Prog.MethodSet(pointer(mem.Type()))
 			var keys ids

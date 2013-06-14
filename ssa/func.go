@@ -443,10 +443,10 @@ func (f *Function) emit(instr Instruction) Value {
 //      "math.IsNaN"                // a package-level function
 //      "IsNaN"                     // intra-package reference to same
 //      "(*sync.WaitGroup).Add"     // a declared method
-//      "(*exp/ssa.Ret).Block"      // a bridge method
-//      "(ssa.Instruction).Block"   // an interface method thunk
+//      "(*exp/ssa.Ret).Block"      // a promotion wrapper method
+//      "(ssa.Instruction).Block"   // an interface method wrapper
 //      "func@5.32"                 // an anonymous function
-//      "bound$(*T).f"              // a bound method thunk
+//      "bound$(*T).f"              // a bound method wrapper
 //
 func (f *Function) FullName() string {
 	return f.fullName(nil)
@@ -467,11 +467,11 @@ func (f *Function) fullName(from *Package) string {
 	if f.Pkg == nil {
 		var recvType types.Type
 		if recv != nil {
-			recvType = recv.Type() // bridge method
+			recvType = recv.Type() // promotion wrapper
 		} else if strings.HasPrefix(f.name, "bound$") {
-			return f.name // bound method thunk
+			return f.name // bound method wrapper
 		} else {
-			recvType = f.Params[0].Type() // interface method thunk
+			recvType = f.Params[0].Type() // interface method wrapper
 		}
 		return fmt.Sprintf("(%s).%s", recvType, f.name)
 	}

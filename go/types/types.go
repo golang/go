@@ -365,7 +365,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 // TypeName returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
-// NumMethods returns the number of methods directly associated with named type t.
+// NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.methods) }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().

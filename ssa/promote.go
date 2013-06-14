@@ -1,9 +1,15 @@
 package ssa
 
-// This file defines algorithms related to "promotion" of field and
-// method selector expressions e.x, such as desugaring implicit field
-// and method selections, method-set computation, and construction of
-// synthetic "bridge" methods.
+// This file defines utilities for method-set computation, synthesis
+// of wrapper methods, and desugaring of implicit field selections.
+//
+// Wrappers include:
+// - promotion wrappers for methods of embedded fields.
+// - interface method wrappers for closures of I.f.
+// - bound method wrappers, for uncalled obj.Method closures.
+// - indirection wrappers, for calls to T-methods on a *T receiver.
+
+// TODO(adonovan): rename to methods.go.
 
 import (
 	"code.google.com/p/go.tools/go/types"
@@ -90,9 +96,9 @@ func (c candidate) ptrRecv() bool {
 	return c.concrete != nil && isPointer(c.concrete.Signature.Recv().Type())
 }
 
-// MethodSet returns the method set for type typ,
-// building bridge methods as needed for promoted methods
-// and indirection wrappers for *T receiver types.
+// MethodSet returns the method set for type typ, building wrapper
+// methods as needed for embedded field promotion, and indirection for
+// *T receiver types, etc.
 // A nil result indicates an empty set.
 //
 // Thread-safe.
@@ -101,8 +107,8 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 		return nil
 	}
 
-	p.methodSetsMu.Lock()
-	defer p.methodSetsMu.Unlock()
+	p.methodsMu.Lock()
+	defer p.methodsMu.Unlock()
 
 	// TODO(adonovan): Using Types as map keys doesn't properly
 	// de-dup.  e.g. *Named are canonical but *Struct and
@@ -200,7 +206,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 		list, next = next, list[:0] // reuse array
 	}
 
-	// Build method sets and bridge methods.
+	// Build method sets and wrapper methods.
 	mset := make(MethodSet)
 	for id, cand := range cands {
 		if cand == nil {
@@ -223,7 +229,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 				method = indirectionWrapper(method)
 			}
 		} else {
-			method = makeBridgeMethod(prog, typ, cand)
+			method = promotionWrapper(prog, typ, cand)
 		}
 		if method == nil {
 			panic("unexpected nil method in method set")
@@ -251,7 +257,7 @@ func addCandidate(m map[Id]*candidate, id Id, method *types.Func, concrete *Func
 	}
 }
 
-// makeBridgeMethod creates a synthetic Function that delegates to a
+// promotionWrapper returns a synthetic Function that delegates to a
 // "promoted" method.  For example, given these decls:
 //
 //    type A struct {B}
@@ -259,24 +265,25 @@ func addCandidate(m map[Id]*candidate, id Id, method *types.Func, concrete *Func
 //    type C ...
 //    func (*C) f()
 //
-// then makeBridgeMethod(typ=A, cand={method:(*C).f, path:[B,*C]}) will
-// synthesize this bridge method:
+// then promotionWrapper(typ=A, cand={method:(*C).f, path:[B,*C]}) will
+// synthesize this wrapper method:
 //
 //    func (a A) f() { return a.B.C->f() }
 //
 // prog is the program to which the synthesized method will belong.
-// typ is the receiver type of the bridge method.  cand is the
+// typ is the receiver type of the wrapper method.  cand is the
 // candidate method to be promoted; it may be concrete or an interface
 // method.
 //
-func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function {
+func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function {
 	old := cand.method.Type().(*types.Signature)
 	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
+	// TODO(adonovan): consult memoization cache keyed by (typ, cand).
+	// Needs typemap.  Also needs hash/eq functions for 'candidate'.
 	if prog.mode&LogSource != 0 {
-		defer logStack("makeBridgeMethod %s, %s, type %s", typ, cand, sig)()
+		defer logStack("promotionWrapper %s, %s, type %s", typ, cand, sig)()
 	}
-
 	fn := &Function{
 		name:      cand.method.Name(),
 		Signature: sig,
@@ -286,7 +293,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	fn.addSpilledParam(sig.Recv())
 	createParams(fn)
 
-	// Each bridge method performs a sequence of selections,
+	// Each promotion wrapper performs a sequence of selections,
 	// then tailcalls the promoted method.
 	// We use pointer arithmetic (FieldAddr possibly followed by
 	// Load) in preference to value extraction (Field possibly
@@ -320,14 +327,9 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 		c.Call.Func = cand.concrete
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
-		c.Call.Method = -1
 		iface := v.Type().Underlying().(*types.Interface)
-		for i, n := 0, iface.NumMethods(); i < n; i++ {
-			if iface.Method(i) == cand.method {
-				c.Call.Method = i
-				break
-			}
-		}
+		id := MakeId(cand.method.Name(), cand.method.Pkg())
+		c.Call.Method, _ = interfaceMethodIndex(iface, id)
 		c.Call.Recv = v
 	}
 	for _, arg := range fn.Params[1:] {
@@ -338,7 +340,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	return fn
 }
 
-// createParams creates parameters for bridge method fn based on its
+// createParams creates parameters for wrapper method fn based on its
 // Signature.Params, which do not include the receiver.
 //
 func createParams(fn *Function) {
@@ -352,18 +354,18 @@ func createParams(fn *Function) {
 	}
 }
 
-// Thunks for standalone interface methods ----------------------------------------
+// Wrappers for standalone interface methods ----------------------------------
 
-// makeImethodThunk returns a synthetic thunk function permitting a
+// interfaceMethodWrapper returns a synthetic wrapper function permitting a
 // method id of interface typ to be called like a standalone function,
 // e.g.:
 //
 //   type I interface { f(x int) R }
-//   m := I.f  // thunk
+//   m := I.f  // wrapper
 //   var i I
 //   m(i, 0)
 //
-// The thunk is defined as if by:
+// The wrapper is defined as if by:
 //
 //   func I.f(i I, x int, ...) R {
 //     return i.f(x, ...)
@@ -372,39 +374,49 @@ func createParams(fn *Function) {
 // TODO(adonovan): opt: currently the stub is created even when used
 // in call position: I.f(i, 0).  Clearly this is suboptimal.
 //
-// TODO(adonovan): memoize creation of these functions in the Program.
+// EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
 //
-func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
-	if prog.mode&LogSource != 0 {
-		defer logStack("makeImethodThunk %s.%s", typ, id)()
+func interfaceMethodWrapper(prog *Program, typ types.Type, id Id) *Function {
+	index, meth := interfaceMethodIndex(typ.Underlying().(*types.Interface), id)
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
+	// If one interface embeds another they'll share the same
+	// wrappers for common methods.  This is safe, but it might
+	// confuse some tools because of the implicit interface
+	// conversion applied to the first argument.  If this becomes
+	// a problem, we should include 'typ' in the memoization key.
+	fn, ok := prog.ifaceMethodWrappers[meth]
+	if !ok {
+		if prog.mode&LogSource != 0 {
+			defer logStack("interfaceMethodWrapper %s.%s", typ, id)()
+		}
+		fn = &Function{
+			name:      meth.Name(),
+			Signature: meth.Type().(*types.Signature),
+			Prog:      prog,
+		}
+		fn.startBody()
+		fn.addParam("recv", typ, token.NoPos)
+		createParams(fn)
+		var c Call
+		c.Call.Method = index
+		c.Call.Recv = fn.Params[0]
+		for _, arg := range fn.Params[1:] {
+			c.Call.Args = append(c.Call.Args, arg)
+		}
+		emitTailCall(fn, &c)
+		fn.finishBody()
+
+		prog.ifaceMethodWrappers[meth] = fn
 	}
-	itf := typ.Underlying().(*types.Interface)
-	index, meth := methodIndex(itf, id)
-	sig := *meth.Type().(*types.Signature) // copy; shared Values
-	fn := &Function{
-		name:      meth.Name(),
-		Signature: &sig,
-		Prog:      prog,
-	}
-	fn.startBody()
-	fn.addParam("recv", typ, token.NoPos)
-	createParams(fn)
-	var c Call
-	c.Call.Method = index
-	c.Call.Recv = fn.Params[0]
-	for _, arg := range fn.Params[1:] {
-		c.Call.Args = append(c.Call.Args, arg)
-	}
-	emitTailCall(fn, &c)
-	fn.finishBody()
 	return fn
 }
 
-// Thunks for bound methods ----------------------------------------
+// Wrappers for bound methods -------------------------------------------------
 
-// makeBoundMethodThunk returns a synthetic thunk function that
-// delegates to a concrete method.  The thunk has one free variable,
-// the method's receiver.  Use MakeClosure with such a thunk to
+// boundMethodWrapper returns a synthetic wrapper function that
+// delegates to a concrete method.  The wrapper has one free variable,
+// the method's receiver.  Use MakeClosure with such a wrapper to
 // construct a bound-method closure.
 // e.g.:
 //
@@ -414,35 +426,43 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
 //   f := t.meth
 //   f() // calls t.meth()
 //
-// f is a closure of a synthetic thunk defined as if by:
+// f is a closure of a synthetic wrapper defined as if by:
 //
 //   f := func() { return t.meth() }
 //
-// TODO(adonovan): memoize creation of these functions in the Program.
+// EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
 //
-func makeBoundMethodThunk(prog *Program, meth *Function, recvType types.Type) *Function {
-	if prog.mode&LogSource != 0 {
-		defer logStack("makeBoundMethodThunk %s", meth)()
-	}
-	s := meth.Signature
-	fn := &Function{
-		name:      "bound$" + meth.FullName(),
-		Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
-		Prog:      prog,
-	}
+func boundMethodWrapper(meth *Function) *Function {
+	prog := meth.Prog
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
+	fn, ok := prog.boundMethodWrappers[meth]
+	if !ok {
+		if prog.mode&LogSource != 0 {
+			defer logStack("boundMethodWrapper %s", meth)()
+		}
+		s := meth.Signature
+		fn = &Function{
+			name:      "bound$" + meth.FullName(),
+			Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
+			Prog:      prog,
+		}
 
-	cap := &Capture{name: "recv", typ: recvType, parent: fn}
-	fn.FreeVars = []*Capture{cap}
-	fn.startBody()
-	createParams(fn)
-	var c Call
-	c.Call.Func = meth
-	c.Call.Args = []Value{cap}
-	for _, arg := range fn.Params {
-		c.Call.Args = append(c.Call.Args, arg)
+		cap := &Capture{name: "recv", typ: s.Recv().Type(), parent: fn}
+		fn.FreeVars = []*Capture{cap}
+		fn.startBody()
+		createParams(fn)
+		var c Call
+		c.Call.Func = meth
+		c.Call.Args = []Value{cap}
+		for _, arg := range fn.Params {
+			c.Call.Args = append(c.Call.Args, arg)
+		}
+		emitTailCall(fn, &c)
+		fn.finishBody()
+
+		prog.boundMethodWrappers[meth] = fn
 	}
-	emitTailCall(fn, &c)
-	fn.finishBody()
 	return fn
 }
 
@@ -455,7 +475,7 @@ func makeBoundMethodThunk(prog *Program, meth *Function, recvType types.Type) *F
 //              return (*recv).f(...)
 //      }
 //
-// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodSetsMu)
+// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
 //
 func indirectionWrapper(meth *Function) *Function {
 	prog := meth.Prog

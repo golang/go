@@ -55,17 +55,31 @@ func pointer(typ types.Type) *types.Pointer {
 	return types.NewPointer(typ)
 }
 
-// methodIndex returns the method (and its index) named id within the
-// method table of named or interface type typ.  If not found,
-// panic ensues.
+// namedTypeMethodIndex returns the method (and its index) named id
+// within the set of explicitly declared concrete methods of named
+// type typ.  If not found, panic ensues.
 //
-func methodIndex(typ types.Type, id Id) (int, *types.Func) {
-	t := typ.(interface {
-		NumMethods() int
-		Method(i int) *types.Func
-	})
-	for i, n := 0, t.NumMethods(); i < n; i++ {
-		m := t.Method(i)
+// TODO(gri): move this functionality into the go/types API?
+//
+func namedTypeMethodIndex(typ *types.Named, id Id) (int, *types.Func) {
+	for i, n := 0, typ.NumMethods(); i < n; i++ {
+		m := typ.Method(i)
+		if MakeId(m.Name(), m.Pkg()) == id {
+			return i, m
+		}
+	}
+	panic(fmt.Sprint("method not found: ", id, " in named type ", typ))
+}
+
+// interfaceMethodIndex returns the method (and its index) named id
+// within the method-set of interface type typ.  If not found, panic
+// ensues.
+//
+// TODO(gri): move this functionality into the go/types API.
+//
+func interfaceMethodIndex(typ *types.Interface, id Id) (int, *types.Func) {
+	for i, n := 0, typ.NumMethods(); i < n; i++ {
+		m := typ.Method(i)
 		if MakeId(m.Name(), m.Pkg()) == id {
 			return i, m
 		}

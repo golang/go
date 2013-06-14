@@ -286,7 +286,7 @@ func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
 
 // emitTailCall emits to f a function call in tail position.  The
 // caller is responsible for all fields of 'call' except its type.
-// Intended for delegating bridge methods.
+// Intended for wrapper methods.
 // Precondition: f does/will not use deferred procedure calls.
 // Postcondition: f.currentBlock is nil.
 //

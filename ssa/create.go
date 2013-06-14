@@ -42,6 +42,8 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		methodSets:          make(map[types.Type]MethodSet),
 		concreteMethods:     make(map[*types.Func]*Function),
 		indirectionWrappers: make(map[*Function]*Function),
+		boundMethodWrappers: make(map[*Function]*Function),
+		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
 	}
 
@@ -130,8 +132,9 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.Members[name] = fn
 		} else {
 			// Method declaration.
-			nt := recv.Type().Deref().(*types.Named)
-			_, method := methodIndex(nt, MakeId(name, pkg.Types))
+			_, method := namedTypeMethodIndex(
+				recv.Type().Deref().(*types.Named),
+				MakeId(name, pkg.Types))
 			pkg.Prog.concreteMethods[method] = fn
 		}
 

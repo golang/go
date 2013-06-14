@@ -5,7 +5,7 @@ package ssa
 // SSA construction has two phases, CREATE and BUILD.  In the CREATE phase
 // (create.go), all packages are constructed and type-checked and
 // definitions of all package members are created, method-sets are
-// computed, and bridge methods are synthesized.  The create phase
+// computed, and wrapper methods are synthesized.  The create phase
 // proceeds in topological order over the import dependency graph,
 // initiated by client calls to CreatePackages.
 //
@@ -345,7 +345,7 @@ func (b *builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping
 	if !wantAddr {
 		if m, recv := b.findMethod(fn, e.X, id); m != nil {
 			c := &MakeClosure{
-				Fn:       makeBoundMethodThunk(fn.Prog, m, recv.Type()),
+				Fn:       boundMethodWrapper(m),
 				Bindings: []Value{recv},
 			}
 			c.setPos(e.Sel.Pos())
@@ -743,8 +743,8 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 				return m
 			}
 
-			// T must be an interface; return method thunk.
-			return makeImethodThunk(fn.Prog, typ, id)
+			// T must be an interface; return wrapper.
+			return interfaceMethodWrapper(fn.Prog, typ, id)
 		}
 
 		// e.f where e is an expression.  f may be a method.
@@ -905,7 +905,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		// Case 4: x.f() where a dynamically dispatched call
 		// to an interface method f.  f is a 'func' object in
 		// the Methods of types.Interface X
-		c.Method, _ = methodIndex(t, id)
+		c.Method, _ = interfaceMethodIndex(t, id)
 		c.Recv = b.expr(fn, sel.X)
 
 	default:
