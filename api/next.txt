@@ -5,6 +5,13 @@ pkg crypto/rsa, func VerifyPSS(*PublicKey, crypto.Hash, []uint8, []uint8, *PSSOp
 pkg crypto/rsa, type PSSOptions struct
 pkg crypto/rsa, type PSSOptions struct, SaltLength int
 pkg crypto/subtle, func ConstantTimeLessOrEq(int, int) int
+pkg crypto/tls, const VersionSSL30 ideal-int
+pkg crypto/tls, const VersionTLS10 ideal-int
+pkg crypto/tls, const VersionTLS11 ideal-int
+pkg crypto/tls, type Config struct, MaxVersion uint16
+pkg crypto/tls, type Config struct, MinVersion uint16
+pkg go/ast, type TypeAssertExpr struct, Lparen token.Pos
+pkg go/ast, type TypeAssertExpr struct, Rparen token.Pos
 pkg go/build, type Package struct, CXXFiles []string
 pkg go/build, type Package struct, CgoCPPFLAGS []string
 pkg go/build, type Package struct, CgoCXXFLAGS []string
@@ -654,6 +661,9 @@ pkg log/syslog (openbsd-amd64-cgo), method (*Writer) Write([]uint8) (int, error)
 pkg log/syslog (openbsd-amd64-cgo), type Priority int
 pkg log/syslog (openbsd-amd64-cgo), type Writer struct
 pkg syscall (darwin-386), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-386), const PRIO_PGRP ideal-int
+pkg syscall (darwin-386), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-386), const PRIO_USER ideal-int
 pkg syscall (darwin-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (darwin-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -665,6 +675,9 @@ pkg syscall (darwin-386), type IPv6MTUInfo struct
 pkg syscall (darwin-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-386), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (darwin-386-cgo), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (darwin-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-386-cgo), const PRIO_USER ideal-int
 pkg syscall (darwin-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (darwin-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -676,6 +689,9 @@ pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct
 pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (darwin-amd64), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-amd64), const PRIO_PGRP ideal-int
+pkg syscall (darwin-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-amd64), const PRIO_USER ideal-int
 pkg syscall (darwin-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (darwin-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -687,6 +703,9 @@ pkg syscall (darwin-amd64), type IPv6MTUInfo struct
 pkg syscall (darwin-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-amd64), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (darwin-amd64-cgo), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (darwin-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (darwin-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (darwin-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -698,6 +717,9 @@ pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (freebsd-386), const ICMP6_FILTER ideal-int
+pkg syscall (freebsd-386), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-386), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-386), const PRIO_USER ideal-int
 pkg syscall (freebsd-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -1771,6 +1793,9 @@ pkg syscall (freebsd-386-cgo), const PARENB ideal-int
 pkg syscall (freebsd-386-cgo), const PARMRK ideal-int
 pkg syscall (freebsd-386-cgo), const PARODD ideal-int
 pkg syscall (freebsd-386-cgo), const PENDIN ideal-int
+pkg syscall (freebsd-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-386-cgo), const PRIO_USER ideal-int
 pkg syscall (freebsd-386-cgo), const PROT_EXEC ideal-int
 pkg syscall (freebsd-386-cgo), const PROT_NONE ideal-int
 pkg syscall (freebsd-386-cgo), const PROT_READ ideal-int
@@ -2899,6 +2924,9 @@ pkg syscall (freebsd-386-cgo), var Stderr int
 pkg syscall (freebsd-386-cgo), var Stdin int
 pkg syscall (freebsd-386-cgo), var Stdout int
 pkg syscall (freebsd-amd64), const ICMP6_FILTER ideal-int
+pkg syscall (freebsd-amd64), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-amd64), const PRIO_USER ideal-int
 pkg syscall (freebsd-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -3972,6 +4000,9 @@ pkg syscall (freebsd-amd64-cgo), const PARENB ideal-int
 pkg syscall (freebsd-amd64-cgo), const PARMRK ideal-int
 pkg syscall (freebsd-amd64-cgo), const PARODD ideal-int
 pkg syscall (freebsd-amd64-cgo), const PENDIN ideal-int
+pkg syscall (freebsd-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (freebsd-amd64-cgo), const PROT_EXEC ideal-int
 pkg syscall (freebsd-amd64-cgo), const PROT_NONE ideal-int
 pkg syscall (freebsd-amd64-cgo), const PROT_READ ideal-int
@@ -6170,6 +6201,9 @@ pkg syscall (freebsd-arm), const PARENB ideal-int
 pkg syscall (freebsd-arm), const PARMRK ideal-int
 pkg syscall (freebsd-arm), const PARODD ideal-int
 pkg syscall (freebsd-arm), const PENDIN ideal-int
+pkg syscall (freebsd-arm), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-arm), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-arm), const PRIO_USER ideal-int
 pkg syscall (freebsd-arm), const PROT_EXEC ideal-int
 pkg syscall (freebsd-arm), const PROT_NONE ideal-int
 pkg syscall (freebsd-arm), const PROT_READ ideal-int
@@ -8376,6 +8410,9 @@ pkg syscall (freebsd-arm-cgo), const PARENB ideal-int
 pkg syscall (freebsd-arm-cgo), const PARMRK ideal-int
 pkg syscall (freebsd-arm-cgo), const PARODD ideal-int
 pkg syscall (freebsd-arm-cgo), const PENDIN ideal-int
+pkg syscall (freebsd-arm-cgo), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-arm-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-arm-cgo), const PRIO_USER ideal-int
 pkg syscall (freebsd-arm-cgo), const PROT_EXEC ideal-int
 pkg syscall (freebsd-arm-cgo), const PROT_NONE ideal-int
 pkg syscall (freebsd-arm-cgo), const PROT_READ ideal-int
@@ -9515,10 +9552,15 @@ pkg syscall (freebsd-arm-cgo), var Stderr int
 pkg syscall (freebsd-arm-cgo), var Stdin int
 pkg syscall (freebsd-arm-cgo), var Stdout int
 pkg syscall (linux-386), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-386), const PRIO_PGRP ideal-int
+pkg syscall (linux-386), const PRIO_PROCESS ideal-int
+pkg syscall (linux-386), const PRIO_USER ideal-int
 pkg syscall (linux-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-386), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-386), func Getpriority(int, int) (int, error)
 pkg syscall (linux-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (linux-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-386), func Setpriority(int, int, int) error
 pkg syscall (linux-386), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (linux-386), type ICMPv6Filter struct
 pkg syscall (linux-386), type ICMPv6Filter struct, Data [8]uint32
@@ -9526,10 +9568,15 @@ pkg syscall (linux-386), type IPv6MTUInfo struct
 pkg syscall (linux-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-386), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (linux-386-cgo), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (linux-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (linux-386-cgo), const PRIO_USER ideal-int
 pkg syscall (linux-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-386-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-386-cgo), func Getpriority(int, int) (int, error)
 pkg syscall (linux-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (linux-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-386-cgo), func Setpriority(int, int, int) error
 pkg syscall (linux-386-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (linux-386-cgo), type ICMPv6Filter struct
 pkg syscall (linux-386-cgo), type ICMPv6Filter struct, Data [8]uint32
@@ -9537,10 +9584,15 @@ pkg syscall (linux-386-cgo), type IPv6MTUInfo struct
 pkg syscall (linux-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-386-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (linux-amd64), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-amd64), const PRIO_PGRP ideal-int
+pkg syscall (linux-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (linux-amd64), const PRIO_USER ideal-int
 pkg syscall (linux-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-amd64), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-amd64), func Getpriority(int, int) (int, error)
 pkg syscall (linux-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (linux-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-amd64), func Setpriority(int, int, int) error
 pkg syscall (linux-amd64), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (linux-amd64), type ICMPv6Filter struct
 pkg syscall (linux-amd64), type ICMPv6Filter struct, Data [8]uint32
@@ -9548,10 +9600,15 @@ pkg syscall (linux-amd64), type IPv6MTUInfo struct
 pkg syscall (linux-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-amd64), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (linux-amd64-cgo), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (linux-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (linux-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (linux-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-amd64-cgo), func Getpriority(int, int) (int, error)
 pkg syscall (linux-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (linux-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-amd64-cgo), func Setpriority(int, int, int) error
 pkg syscall (linux-amd64-cgo), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (linux-amd64-cgo), type ICMPv6Filter struct
 pkg syscall (linux-amd64-cgo), type ICMPv6Filter struct, Data [8]uint32
@@ -9559,10 +9616,15 @@ pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct
 pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
 pkg syscall (linux-arm), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-arm), const PRIO_PGRP ideal-int
+pkg syscall (linux-arm), const PRIO_PROCESS ideal-int
+pkg syscall (linux-arm), const PRIO_USER ideal-int
 pkg syscall (linux-arm), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-arm), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-arm), func Getpriority(int, int) (int, error)
 pkg syscall (linux-arm), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (linux-arm), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
+pkg syscall (linux-arm), func Setpriority(int, int, int) error
 pkg syscall (linux-arm), func SetsockoptICMPv6Filter(int, int, int, *ICMPv6Filter) error
 pkg syscall (linux-arm), type ICMPv6Filter struct
 pkg syscall (linux-arm), type ICMPv6Filter struct, Data [8]uint32
@@ -10341,6 +10403,9 @@ pkg syscall (linux-arm-cgo), const PARENB ideal-int
 pkg syscall (linux-arm-cgo), const PARMRK ideal-int
 pkg syscall (linux-arm-cgo), const PARODD ideal-int
 pkg syscall (linux-arm-cgo), const PENDIN ideal-int
+pkg syscall (linux-arm-cgo), const PRIO_PGRP ideal-int
+pkg syscall (linux-arm-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (linux-arm-cgo), const PRIO_USER ideal-int
 pkg syscall (linux-arm-cgo), const PROT_EXEC ideal-int
 pkg syscall (linux-arm-cgo), const PROT_GROWSDOWN ideal-int
 pkg syscall (linux-arm-cgo), const PROT_GROWSUP ideal-int
@@ -11352,6 +11417,7 @@ pkg syscall (linux-arm-cgo), func Getdents(int, []uint8) (int, error)
 pkg syscall (linux-arm-cgo), func Getpeername(int) (Sockaddr, error)
 pkg syscall (linux-arm-cgo), func Getpgid(int) (int, error)
 pkg syscall (linux-arm-cgo), func Getpgrp() int
+pkg syscall (linux-arm-cgo), func Getpriority(int, int) (int, error)
 pkg syscall (linux-arm-cgo), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-arm-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (linux-arm-cgo), func Getsockname(int) (Sockaddr, error)
@@ -11442,6 +11508,7 @@ pkg syscall (linux-arm-cgo), func Setgid(int) error
 pkg syscall (linux-arm-cgo), func Setgroups([]int) error
 pkg syscall (linux-arm-cgo), func Sethostname([]uint8) error
 pkg syscall (linux-arm-cgo), func Setpgid(int, int) error
+pkg syscall (linux-arm-cgo), func Setpriority(int, int, int) error
 pkg syscall (linux-arm-cgo), func Setregid(int, int) error
 pkg syscall (linux-arm-cgo), func Setresgid(int, int, int) error
 pkg syscall (linux-arm-cgo), func Setresuid(int, int, int) error
@@ -12840,6 +12907,9 @@ pkg syscall (netbsd-386), const PARENB ideal-int
 pkg syscall (netbsd-386), const PARMRK ideal-int
 pkg syscall (netbsd-386), const PARODD ideal-int
 pkg syscall (netbsd-386), const PENDIN ideal-int
+pkg syscall (netbsd-386), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-386), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-386), const PRIO_USER ideal-int
 pkg syscall (netbsd-386), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-386), const PTRACE_CONT ideal-int
 pkg syscall (netbsd-386), const PTRACE_KILL ideal-int
@@ -14869,6 +14939,9 @@ pkg syscall (netbsd-386-cgo), const PARENB ideal-int
 pkg syscall (netbsd-386-cgo), const PARMRK ideal-int
 pkg syscall (netbsd-386-cgo), const PARODD ideal-int
 pkg syscall (netbsd-386-cgo), const PENDIN ideal-int
+pkg syscall (netbsd-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-386-cgo), const PRIO_USER ideal-int
 pkg syscall (netbsd-386-cgo), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-386-cgo), const PTRACE_CONT ideal-int
 pkg syscall (netbsd-386-cgo), const PTRACE_KILL ideal-int
@@ -16888,6 +16961,9 @@ pkg syscall (netbsd-amd64), const PARENB ideal-int
 pkg syscall (netbsd-amd64), const PARMRK ideal-int
 pkg syscall (netbsd-amd64), const PARODD ideal-int
 pkg syscall (netbsd-amd64), const PENDIN ideal-int
+pkg syscall (netbsd-amd64), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-amd64), const PRIO_USER ideal-int
 pkg syscall (netbsd-amd64), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-amd64), const PTRACE_CONT ideal-int
 pkg syscall (netbsd-amd64), const PTRACE_KILL ideal-int
@@ -18914,6 +18990,9 @@ pkg syscall (netbsd-amd64-cgo), const PARENB ideal-int
 pkg syscall (netbsd-amd64-cgo), const PARMRK ideal-int
 pkg syscall (netbsd-amd64-cgo), const PARODD ideal-int
 pkg syscall (netbsd-amd64-cgo), const PENDIN ideal-int
+pkg syscall (netbsd-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (netbsd-amd64-cgo), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-amd64-cgo), const PTRACE_CONT ideal-int
 pkg syscall (netbsd-amd64-cgo), const PTRACE_KILL ideal-int
@@ -20940,6 +21019,9 @@ pkg syscall (netbsd-arm), const PARENB ideal-int
 pkg syscall (netbsd-arm), const PARMRK ideal-int
 pkg syscall (netbsd-arm), const PARODD ideal-int
 pkg syscall (netbsd-arm), const PENDIN ideal-int
+pkg syscall (netbsd-arm), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-arm), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-arm), const PRIO_USER ideal-int
 pkg syscall (netbsd-arm), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-arm), const PTRACE_CONT ideal-int
 pkg syscall (netbsd-arm), const PTRACE_KILL ideal-int
@@ -22958,6 +23040,9 @@ pkg syscall (netbsd-arm-cgo), const PARENB ideal-int
 pkg syscall (netbsd-arm-cgo), const PARMRK ideal-int
 pkg syscall (netbsd-arm-cgo), const PARODD ideal-int
 pkg syscall (netbsd-arm-cgo), const PENDIN ideal-int
+pkg syscall (netbsd-arm-cgo), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-arm-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-arm-cgo), const PRIO_USER ideal-int
 pkg syscall (netbsd-arm-cgo), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-arm-cgo), const PTRACE_CONT ideal-int
 pkg syscall (netbsd-arm-cgo), const PTRACE_KILL ideal-int
@@ -24868,6 +24953,9 @@ pkg syscall (openbsd-386), const PARMRK ideal-int
 pkg syscall (openbsd-386), const PARODD ideal-int
 pkg syscall (openbsd-386), const PENDIN ideal-int
 pkg syscall (openbsd-386), const PF_FLUSH ideal-int
+pkg syscall (openbsd-386), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-386), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-386), const PRIO_USER ideal-int
 pkg syscall (openbsd-386), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-386), const PTRACE_KILL ideal-int
 pkg syscall (openbsd-386), const PTRACE_TRACEME ideal-int
@@ -26751,6 +26839,9 @@ pkg syscall (openbsd-386-cgo), const PARMRK ideal-int
 pkg syscall (openbsd-386-cgo), const PARODD ideal-int
 pkg syscall (openbsd-386-cgo), const PENDIN ideal-int
 pkg syscall (openbsd-386-cgo), const PF_FLUSH ideal-int
+pkg syscall (openbsd-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-386-cgo), const PRIO_USER ideal-int
 pkg syscall (openbsd-386-cgo), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-386-cgo), const PTRACE_KILL ideal-int
 pkg syscall (openbsd-386-cgo), const PTRACE_TRACEME ideal-int
@@ -28641,6 +28732,9 @@ pkg syscall (openbsd-amd64), const PARODD ideal-int
 pkg syscall (openbsd-amd64), const PENDIN ideal-int
 pkg syscall (openbsd-amd64), const PF_FLUSH ideal-int
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH ideal-int
+pkg syscall (openbsd-amd64), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-amd64), const PRIO_USER ideal-int
 pkg syscall (openbsd-amd64), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-amd64), const PTRACE_KILL ideal-int
 pkg syscall (openbsd-amd64), const PTRACE_TRACEME ideal-int
@@ -30538,6 +30632,9 @@ pkg syscall (openbsd-amd64-cgo), const PARODD ideal-int
 pkg syscall (openbsd-amd64-cgo), const PENDIN ideal-int
 pkg syscall (openbsd-amd64-cgo), const PF_FLUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH ideal-int
+pkg syscall (openbsd-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (openbsd-amd64-cgo), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-amd64-cgo), const PTRACE_KILL ideal-int
 pkg syscall (openbsd-amd64-cgo), const PTRACE_TRACEME ideal-int
@@ -31533,13 +31630,17 @@ pkg syscall (openbsd-amd64-cgo), type WaitStatus uint32
 pkg syscall (openbsd-amd64-cgo), var Stderr int
 pkg syscall (openbsd-amd64-cgo), var Stdin int
 pkg syscall (openbsd-amd64-cgo), var Stdout int
+pkg syscall (windows-386), const ERROR_HANDLE_EOF Errno
 pkg syscall (windows-386), const NetSetupDomainName ideal-int
 pkg syscall (windows-386), const NetSetupUnjoined ideal-int
 pkg syscall (windows-386), const NetSetupUnknownStatus ideal-int
 pkg syscall (windows-386), const NetSetupWorkgroupName ideal-int
+pkg syscall (windows-386), const PROCESS_TERMINATE ideal-int
 pkg syscall (windows-386), func NetGetJoinInformation(*uint16, **uint16, *uint32) error
+pkg syscall (windows-amd64), const ERROR_HANDLE_EOF Errno
 pkg syscall (windows-amd64), const NetSetupDomainName ideal-int
 pkg syscall (windows-amd64), const NetSetupUnjoined ideal-int
 pkg syscall (windows-amd64), const NetSetupUnknownStatus ideal-int
 pkg syscall (windows-amd64), const NetSetupWorkgroupName ideal-int
+pkg syscall (windows-amd64), const PROCESS_TERMINATE ideal-int
 pkg syscall (windows-amd64), func NetGetJoinInformation(*uint16, **uint16, *uint32) error
