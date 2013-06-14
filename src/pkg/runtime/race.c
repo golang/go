@@ -77,6 +77,17 @@ runtime·racewrite(uintptr addr)
 	}
 }
 
+#pragma textflag 7
+void
+runtime·racewriterange(uintptr addr, uintptr sz)
+{
+	if(!onstack(addr)) {
+		m->racecall = true;
+		runtime∕race·WriteRange(g->racectx, (void*)addr, sz, runtime·getcallerpc(&addr));
+		m->racecall = false;
+	}
+}
+
 // Called from instrumented code.
 // If we split stack, getcallerpc() can return runtime·lessstack().
 #pragma textflag 7
@@ -86,6 +97,17 @@ runtime·raceread(uintptr addr)
 	if(!onstack(addr)) {
 		m->racecall = true;
 		runtime∕race·Read(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
+		m->racecall = false;
+	}
+}
+
+#pragma textflag 7
+void
+runtime·racereadrange(uintptr addr, uintptr sz)
+{
+	if(!onstack(addr)) {
+		m->racecall = true;
+		runtime∕race·ReadRange(g->racectx, (void*)addr, sz, runtime·getcallerpc(&addr));
 		m->racecall = false;
 	}
 }
