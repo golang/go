@@ -141,9 +141,9 @@ Error:
 //
 // The errors that ParseInt returns have concrete type *NumError
 // and include err.Num = s.  If s is empty or contains invalid
-// digits, err.Error = ErrSyntax; if the value corresponding
+// digits, err.Err = ErrSyntax; if the value corresponding
 // to s cannot be represented by a signed integer of the
-// given size, err.Error = ErrRange.
+// given size, err.Err = ErrRange.
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	const fnParseInt = "ParseInt"
 
