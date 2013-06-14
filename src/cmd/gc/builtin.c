@@ -113,6 +113,8 @@ char *runtimeimport =
 	"func @\"\".racefuncexit ()\n"
 	"func @\"\".raceread (? uintptr)\n"
 	"func @\"\".racewrite (? uintptr)\n"
+	"func @\"\".racereadrange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n"
+	"func @\"\".racewriterange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n"
 	"\n"
 	"$$\n";
 char *unsafeimport =
