@@ -1541,8 +1541,10 @@ addroots(void)
 		case Gdead:
 			break;
 		case Grunning:
-			if(gp != g)
+			if(gp != m->curg)
 				runtime·throw("mark - world not stopped");
+			if(g != m->g0)
+				runtime·throw("gc not on g0");
 			addstackroots(gp);
 			break;
 		case Grunnable:
@@ -2035,9 +2037,7 @@ runtime·gc(int32 force)
 static void
 mgc(G *gp)
 {
-	gp->status = Grunnable;
 	gc(gp->param);
-	gp->status = Grunning;
 	gp->param = nil;
 	runtime·gogo(&gp->sched);
 }
