@@ -536,11 +536,11 @@ func atof64(s string) (f float64, err error) {
 // The errors that ParseFloat returns have concrete type *NumError
 // and include err.Num = s.
 //
-// If s is not syntactically well-formed, ParseFloat returns err.Error = ErrSyntax.
+// If s is not syntactically well-formed, ParseFloat returns err.Err = ErrSyntax.
 //
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
-// ParseFloat returns f = ±Inf, err.Error = ErrRange.
+// ParseFloat returns f = ±Inf, err.Err = ErrRange.
 func ParseFloat(s string, bitSize int) (f float64, err error) {
 	if bitSize == 32 {
 		f1, err1 := atof32(s)
