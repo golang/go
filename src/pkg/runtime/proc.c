@@ -106,7 +106,7 @@ static void gfput(P*, G*);
 static G* gfget(P*);
 static void gfpurge(P*);
 static void globrunqput(G*);
-static G* globrunqget(P*);
+static G* globrunqget(P*, int32);
 static P* pidleget(void);
 static void pidleput(P*);
 static void injectglist(G*);
@@ -1024,7 +1024,7 @@ top:
 	// global runq
 	if(runtime·sched.runqsize) {
 		runtime·lock(&runtime·sched);
-		gp = globrunqget(m->p);
+		gp = globrunqget(m->p, 0);
 		runtime·unlock(&runtime·sched);
 		if(gp)
 			return gp;
@@ -1065,7 +1065,7 @@ stop:
 		goto top;
 	}
 	if(runtime·sched.runqsize) {
-		gp = globrunqget(m->p);
+		gp = globrunqget(m->p, 0);
 		runtime·unlock(&runtime·sched);
 		return gp;
 	}
@@ -1144,6 +1144,7 @@ static void
 schedule(void)
 {
 	G *gp;
+	uint32 tick;
 
 	if(m->locks)
 		runtime·throw("schedule: holding locks");
@@ -1154,9 +1155,23 @@ top:
 		goto top;
 	}
 
-	gp = runqget(m->p);
-	if(gp && m->spinning)
-		runtime·throw("schedule: spinning with local work");
+	gp = nil;
+	// Check the global runnable queue once in a while to ensure fairness.
+	// Otherwise two goroutines can completely occupy the local runqueue
+	// by constantly respawning each other.
+	tick = m->p->tick;
+	// This is a fancy way to say tick%61==0,
+	// it uses 2 MUL instructions instead of a single DIV and so is faster on modern processors.
+	if(tick - (((uint64)tick*0x4325c53fu)>>36)*61 == 0 && runtime·sched.runqsize > 0) {
+		runtime·lock(&runtime·sched);
+		gp = globrunqget(m->p, 1);
+		runtime·unlock(&runtime·sched);
+	}
+	if(gp == nil) {
+		gp = runqget(m->p);
+		if(gp && m->spinning)
+			runtime·throw("schedule: spinning with local work");
+	}
 	if(gp == nil)
 		gp = findrunnable();
 
@@ -2167,7 +2182,7 @@ globrunqput(G *gp)
 // Try get a batch of G's from the global runnable queue.
 // Sched must be locked.
 static G*
-globrunqget(P *p)
+globrunqget(P *p, int32 max)
 {
 	G *gp, *gp1;
 	int32 n;
@@ -2177,6 +2192,8 @@ globrunqget(P *p)
 	n = runtime·sched.runqsize/runtime·gomaxprocs+1;
 	if(n > runtime·sched.runqsize)
 		n = runtime·sched.runqsize;
+	if(max > 0 && n > max)
+		n = max;
 	runtime·sched.runqsize -= n;
 	if(runtime·sched.runqsize == 0)
 		runtime·sched.runqtail = nil;

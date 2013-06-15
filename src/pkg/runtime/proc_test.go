@@ -8,6 +8,7 @@ import (
 	"math"
 	"runtime"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -105,6 +106,55 @@ func TestBlockLocked(t *testing.T) {
 	for i := 0; i < N; i++ {
 		<-c
 	}
+}
+
+func TestTimerFairness(t *testing.T) {
+	done := make(chan bool)
+	c := make(chan bool)
+	for i := 0; i < 2; i++ {
+		go func() {
+			for {
+				select {
+				case c <- true:
+				case <-done:
+					return
+				}
+			}
+		}()
+	}
+
+	timer := time.After(20 * time.Millisecond)
+	for {
+		select {
+		case <-c:
+		case <-timer:
+			close(done)
+			return
+		}
+	}
+}
+
+func TestTimerFairness2(t *testing.T) {
+	done := make(chan bool)
+	c := make(chan bool)
+	for i := 0; i < 2; i++ {
+		go func() {
+			timer := time.After(20 * time.Millisecond)
+			var buf [1]byte
+			for {
+				syscall.Read(0, buf[0:0])
+				select {
+				case c <- true:
+				case <-c:
+				case <-timer:
+					done <- true
+					return
+				}
+			}
+		}()
+	}
+	<-done
+	<-done
 }
 
 func stackGrowthRecursive(i int) {
