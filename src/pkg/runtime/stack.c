@@ -173,7 +173,7 @@ runtime·oldstack(void)
 void
 runtime·newstack(void)
 {
-	int32 framesize, minalloc, argsize;
+	int32 framesize, argsize;
 	Stktop *top;
 	byte *stk;
 	uintptr sp;
@@ -196,19 +196,11 @@ runtime·newstack(void)
 		runtime·throw("runtime: stack split argsize");
 	}
 
-	minalloc = 0;
 	reflectcall = framesize==1;
-	if(reflectcall) {
+	if(reflectcall)
 		framesize = 0;
-		// moreframesize_minalloc is only set in runtime·gc(),
-		// that calls newstack via reflect·call().
-		minalloc = m->moreframesize_minalloc;
-		m->moreframesize_minalloc = 0;
-		if(framesize < minalloc)
-			framesize = minalloc;
-	}
 
-	if(reflectcall && minalloc == 0 && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
+	if(reflectcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
 		// special case: called from reflect.call (framesize==1)
 		// to call code with an arbitrary argument size,
 		// and we have enough space on the current stack.
