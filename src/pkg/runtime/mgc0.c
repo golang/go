@@ -1974,7 +1974,10 @@ runtime·gc(int32 force)
 		return;
 
 	if(gcpercent == GcpercentUnknown) {	// first time through
-		gcpercent = readgogc();
+		runtime·lock(&runtime·mheap);
+		if(gcpercent == GcpercentUnknown)
+			gcpercent = readgogc();
+		runtime·unlock(&runtime·mheap);
 
 		p = runtime·getenv("GOGCTRACE");
 		if(p != nil)
