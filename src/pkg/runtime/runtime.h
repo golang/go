@@ -326,7 +326,6 @@ struct	M
 	void*	racepc;
 	void	(*waitunlockf)(Lock*);
 	void*	waitlock;
-	uint32	moreframesize_minalloc;
 
 	uintptr	settype_buf[1024];
 	uintptr	settype_bufsize;
