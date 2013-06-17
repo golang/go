@@ -49,7 +49,7 @@ func TestStackSplit(t *testing.T) {
 		sp, guard := f()
 		bottom := guard - StackGuard
 		if sp < bottom+StackLimit {
-			fun := FuncForPC(*(*uintptr)(unsafe.Pointer(&f)))
+			fun := FuncForPC(**(**uintptr)(unsafe.Pointer(&f)))
 			t.Errorf("after %s: sp=%#x < limit=%#x (guard=%#x, bottom=%#x)",
 				fun.Name(), sp, bottom+StackLimit, guard, bottom)
 		}
