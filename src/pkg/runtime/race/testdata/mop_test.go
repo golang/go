@@ -1811,3 +1811,90 @@ And Brutus is an honourable man.`
 	}
 	_ = res
 }
+
+type Base int
+
+func (b *Base) Foo() int {
+	return 42
+}
+
+func (b Base) Bar() int {
+	return int(b)
+}
+
+func TestNoRaceMethodThunk(t *testing.T) {
+	type Derived struct {
+		pad int
+		Base
+	}
+	var d Derived
+	done := make(chan bool)
+	go func() {
+		_ = d.Foo()
+		done <- true
+	}()
+	d = Derived{}
+	<-done
+}
+
+func TestRaceMethodThunk(t *testing.T) {
+	type Derived struct {
+		pad int
+		*Base
+	}
+	var d Derived
+	done := make(chan bool)
+	go func() {
+		_ = d.Foo()
+		done <- true
+	}()
+	d = Derived{}
+	<-done
+}
+
+func TestRaceMethodThunk2(t *testing.T) {
+	type Derived struct {
+		pad int
+		Base
+	}
+	var d Derived
+	done := make(chan bool)
+	go func() {
+		_ = d.Bar()
+		done <- true
+	}()
+	d = Derived{}
+	<-done
+}
+
+func TestRaceMethodThunk3(t *testing.T) {
+	type Derived struct {
+		pad int
+		*Base
+	}
+	var d Derived
+	d.Base = new(Base)
+	done := make(chan bool)
+	go func() {
+		_ = d.Bar()
+		done <- true
+	}()
+	d.Base = new(Base)
+	<-done
+}
+
+func TestRaceMethodThunk4(t *testing.T) {
+	type Derived struct {
+		pad int
+		*Base
+	}
+	var d Derived
+	d.Base = new(Base)
+	done := make(chan bool)
+	go func() {
+		_ = d.Bar()
+		done <- true
+	}()
+	*(*int)(d.Base) = 42
+	<-done
+}
