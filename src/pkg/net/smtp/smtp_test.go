@@ -238,6 +238,7 @@ func TestNewClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v\n(after %v)", err, out())
 	}
+	defer c.Close()
 	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
 		t.Fatalf("Expected AUTH supported")
 	}
@@ -278,6 +279,7 @@ func TestNewClient2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
+	defer c.Close()
 	if ok, _ := c.Extension("DSN"); ok {
 		t.Fatalf("Shouldn't support DSN")
 	}
@@ -323,6 +325,7 @@ func TestHello(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewClient: %v", err)
 		}
+		defer c.Close()
 		c.localName = "customhost"
 		err = nil
 

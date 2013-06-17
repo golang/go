@@ -41,12 +41,13 @@ type Client struct {
 }
 
 // Dial returns a new Client connected to an SMTP server at addr.
+// The addr must include a port number.
 func Dial(addr string) (*Client, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	host := addr[:strings.Index(addr, ":")]
+	host, _, _ := net.SplitHostPort(addr)
 	return NewClient(conn, host)
 }
 
@@ -61,6 +62,11 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 	}
 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
 	return c, nil
+}
+
+// Close closes the connection.
+func (c *Client) Close() error {
+	return c.Text.Close()
 }
 
 // hello runs a hello exchange if needed.
@@ -264,7 +270,8 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := c.hello(); err != nil {
+	defer c.Close()
+	if err = c.hello(); err != nil {
 		return err
 	}
 	if ok, _ := c.Extension("STARTTLS"); ok {
