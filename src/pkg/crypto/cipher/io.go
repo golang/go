@@ -25,6 +25,8 @@ func (r StreamReader) Read(dst []byte) (n int, err error) {
 // StreamWriter wraps a Stream into an io.Writer. It calls XORKeyStream
 // to process each slice of data which passes through. If any Write call
 // returns short then the StreamWriter is out of sync and must be discarded.
+// A StreamWriter has no internal buffering; Close does not need
+// to be called to flush write data.
 type StreamWriter struct {
 	S   Stream
 	W   io.Writer
@@ -43,8 +45,11 @@ func (w StreamWriter) Write(src []byte) (n int, err error) {
 	return
 }
 
+// Close closes the underlying Writer and returns its Close return value, if the Writer
+// is also an io.Closer. Otherwise it returns nil.
 func (w StreamWriter) Close() error {
-	// This saves us from either requiring a WriteCloser or having a
-	// StreamWriterCloser.
-	return w.W.(io.Closer).Close()
+	if c, ok := w.W.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
 }
