@@ -336,6 +336,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
 			PermittedDNSDomains: []string{".example.com", "example.com"},
+
+			CRLDistributionPoints: []string{"http://crl1.example.com/ca1.crl", "http://crl2.example.com/ca1.crl"},
 		}
 
 		derBytes, err := CreateCertificate(random, &template, &template, test.pub, test.priv)
@@ -384,6 +386,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
 			t.Errorf("%s: SAN IPs differ from template. Got %v, want %v", test.name, cert.IPAddresses, template.IPAddresses)
+		}
+
+		if !reflect.DeepEqual(cert.CRLDistributionPoints, template.CRLDistributionPoints) {
+			t.Errorf("%s: CRL distribution points differ from template. Got %v, want %v", test.name, cert.CRLDistributionPoints, template.CRLDistributionPoints)
 		}
 
 		if test.checkSig {
