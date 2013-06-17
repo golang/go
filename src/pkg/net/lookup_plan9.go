@@ -224,10 +224,10 @@ func lookupNS(name string) (ns []*NS, err error) {
 	}
 	for _, line := range lines {
 		f := getFields(line)
-		if len(f) < 4 {
+		if len(f) < 3 {
 			continue
 		}
-		ns = append(ns, &NS{f[3]})
+		ns = append(ns, &NS{f[2]})
 	}
 	return
 }
