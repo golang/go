@@ -685,7 +685,7 @@ func runModWTests(t *testing.T, tests []modWTest) {
 
 		r := in.abs.modW(d.abs[0])
 		if r != out.abs[0] {
-			t.Errorf("#%d failed: got %s want %s", i, r, out)
+			t.Errorf("#%d failed: got %d want %s", i, r, out)
 		}
 	}
 }
