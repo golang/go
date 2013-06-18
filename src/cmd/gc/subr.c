@@ -2573,11 +2573,9 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	dot = adddot(nod(OXDOT, this->left, newname(method->sym)));
 	
 	// generate call
-	if(isptr[rcvr->etype] && isptr[methodrcvr->etype] && method->embedded && !isifacemethod(method->type)) {
+	if(!flag_race && isptr[rcvr->etype] && isptr[methodrcvr->etype] && method->embedded && !isifacemethod(method->type)) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
-		fn->norace = 1; // something about this body makes the race detector unhappy.
-		// skip final .M
-		dot = dot->left;
+		dot = dot->left;	// skip final .M
 		if(!isptr[dotlist[0].field->type->etype])
 			dot = nod(OADDR, dot, N);
 		as = nod(OAS, this->left, nod(OCONVNOP, dot, N));
