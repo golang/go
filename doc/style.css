@@ -153,6 +153,8 @@ div#topbar.wide > .container {
 }
 div#plusone {
 	float: right;
+	clear: right;
+	margin-top: 5px;
 }
 
 div#footer {
@@ -402,6 +404,7 @@ img.gopher {
 	float: right;
 	margin-left: 10px;
 	margin-bottom: 10px;
+	z-index: -1;
 }
 .pkgGopher {
 	text-align: right;
