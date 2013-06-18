@@ -27,6 +27,8 @@ var usageMessage = `Usage of go test:
   -bench="": passes -test.bench to test
   -benchmem=false: print memory allocation statistics for benchmarks
   -benchtime=1s: passes -test.benchtime to test
+  -cover="": passes -test.cover to test
+  -coverprofile="": passes -test.coverprofile to test
   -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
   -memprofile="": passes -test.memprofile to test
@@ -63,7 +65,6 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "c", boolVar: &testC},
 	{name: "file", multiOK: true},
 	{name: "i", boolVar: &testI},
-	{name: "cover"},
 
 	// build flags.
 	{name: "a", boolVar: &buildA},
@@ -82,6 +83,8 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "bench", passToTest: true},
 	{name: "benchmem", boolVar: new(bool), passToTest: true},
 	{name: "benchtime", passToTest: true},
+	{name: "cover", passToTest: true},
+	{name: "coverprofile", passToTest: true},
 	{name: "cpu", passToTest: true},
 	{name: "cpuprofile", passToTest: true},
 	{name: "memprofile", passToTest: true},
@@ -171,7 +174,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testBench = true
 		case "timeout":
 			testTimeout = value
-		case "blockprofile", "cpuprofile", "memprofile":
+		case "blockprofile", "coverprofile", "cpuprofile", "memprofile":
 			testProfile = true
 		case "outputdir":
 			outputDir = value
@@ -182,6 +185,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			default:
 				fatalf("invalid flag argument for -cover: %q", value)
 			}
+			// Guarantee we see the coverage statistics. Doesn't turn -v on generally; tricky. TODO?
+			testV = true
 		}
 		if extraWord {
 			i++

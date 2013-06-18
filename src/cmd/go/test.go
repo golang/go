@@ -126,8 +126,6 @@ control the execution of any test:
 
 	-cover set,count,atomic
 	    TODO: This feature is not yet fully implemented.
-	    TODO: Must run with -v to see output.
-	    TODO: Need control over output format,
 	    Set the mode for coverage analysis for the package[s] being tested.
 	    The default is to do none.
 	    The values:
@@ -135,6 +133,11 @@ control the execution of any test:
 		count: integer: how many times does this statement execute?
 		atomic: integer: like count, but correct in multithreaded tests;
 			significantly more expensive.
+	    Sets -v. TODO: This will change.
+
+	-coverprofile cover.out
+	    Write a coverage profile to the specified file after all tests
+	    have passed.
 
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
@@ -534,7 +537,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	if testCover != "" {
 		p.coverMode = testCover
-		p.coverVars = declareCoverVars(p.GoFiles...)
+		p.coverVars = declareCoverVars(p.ImportPath, p.GoFiles...)
 	}
 
 	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p, p.coverVars); err != nil {
@@ -678,11 +681,11 @@ var coverIndex = 0
 
 // declareCoverVars attaches the required cover variables names
 // to the files, to be used when annotating the files.
-func declareCoverVars(files ...string) map[string]*CoverVar {
+func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
 	coverVars := make(map[string]*CoverVar)
 	for _, file := range files {
 		coverVars[file] = &CoverVar{
-			File: file,
+			File: filepath.Join(importPath, file),
 			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
 		}
 		coverIndex++
@@ -934,9 +937,6 @@ import (
 {{if .NeedXtest}}
 	_xtest {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
 {{end}}
-{{if .CoverEnabled}}
-	_fmt "fmt"
-{{end}}
 )
 
 var tests = []testing.InternalTest{
@@ -972,66 +972,46 @@ func matchString(pat, str string) (result bool, err error) {
 }
 
 {{if .CoverEnabled}}
-type coverBlock struct {
-	line0 uint32
-	col0 uint16
-	line1 uint32
-	col1 uint16
-}
 
 // Only updated by init functions, so no need for atomicity.
 var (
 	coverCounters = make(map[string][]uint32)
-	coverBlocks = make(map[string][]coverBlock)
+	coverBlocks = make(map[string][]testing.CoverBlock)
 )
 
 func init() {
 	{{range $file, $cover := .CoverVars}}
-	coverRegisterFile({{printf "%q" $file}}, _test.{{$cover.Var}}.Count[:], _test.{{$cover.Var}}.Pos[:]...)
+	coverRegisterFile({{printf "%q" $cover.File}}, _test.{{$cover.Var}}.Count[:], _test.{{$cover.Var}}.Pos[:], _test.{{$cover.Var}}.NumStmt[:])
 	{{end}}
 }
 
-func coverRegisterFile(fileName string, counter []uint32, pos ...uint32) {
-	if 3*len(counter) != len(pos) {
+func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts []uint16) {
+	if 3*len(counter) != len(pos) || len(counter) != len(numStmts) {
 		panic("coverage: mismatched sizes")
 	}
 	if coverCounters[fileName] != nil {
 		panic("coverage: duplicate counter array for " + fileName)
 	}
 	coverCounters[fileName] = counter
-	block := make([]coverBlock, len(counter))
+	block := make([]testing.CoverBlock, len(counter))
 	for i := range counter {
-		block[i] = coverBlock{
-			line0: pos[3*i+0],
-			col0: uint16(pos[3*i+2]),
-			line1: pos[3*i+1],
-			col1: uint16(pos[3*i+2]>>16),
+		block[i] = testing.CoverBlock{
+			Line0: pos[3*i+0],
+			Col0: uint16(pos[3*i+2]),
+			Line1: pos[3*i+1],
+			Col1: uint16(pos[3*i+2]>>16),
+			Stmts: numStmts[i],
 		}
 	}
 	coverBlocks[fileName] = block
 }
-
-func coverDump() {
-	for name, counts := range coverCounters {
-		blocks := coverBlocks[name]
-		for i, count := range counts {
-			_, err := _fmt.Printf("%s:%d.%d,%d.%d %d\n", name,
-				blocks[i].line0, blocks[i].col0,
-				blocks[i].line1, blocks[i].col1,
-				count)
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
-}
 {{end}}
 
 func main() {
-	testing.Main(matchString, tests, benchmarks, examples)
 {{if .CoverEnabled}}
-	coverDump()
+	testing.RegisterCover(coverCounters, coverBlocks)
 {{end}}
+	testing.Main(matchString, tests, benchmarks, examples)
 }
 
 `))
