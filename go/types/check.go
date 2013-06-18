@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"path"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -83,9 +84,9 @@ func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
-func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
+func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
 	pkg = &Package{
-		path:    path,
+		path:    pkgPath,
 		scope:   NewScope(Universe),
 		imports: make(map[string]*Package),
 	}
@@ -116,6 +117,12 @@ func check(ctxt *Context, path string, fset *token.FileSet, files ...*ast.File) 
 			err = fmt.Errorf("types internal error: %v", p)
 		}
 	}()
+
+	// we need a reasonable path to continue
+	if path.Clean(pkgPath) == "." {
+		check.errorf(token.NoPos, "Check invoked with invalid package path: %q", pkgPath)
+		return
+	}
 
 	// determine package name and files
 	i := 0

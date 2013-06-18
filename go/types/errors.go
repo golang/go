@@ -320,9 +320,13 @@ func writeType(buf *bytes.Buffer, typ Type) {
 	case *Named:
 		s := "<Named w/o object>"
 		if obj := t.obj; obj != nil {
-			if obj.pkg != nil && obj.pkg.path != "" {
-				buf.WriteString(obj.pkg.path)
-				buf.WriteString(".")
+			if obj.pkg != nil {
+				// TODO(gri) Ideally we only want the qualification
+				// if we are referring to a type that was imported;
+				// but not when we are at the "top". We don't have
+				// this information easily available here.
+				buf.WriteString(obj.pkg.name)
+				buf.WriteByte('.')
 			}
 			s = t.obj.name
 		}

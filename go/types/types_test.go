@@ -20,7 +20,8 @@ func makePkg(t *testing.T, src string) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := Check("", fset, file)
+	// use the package name as package path
+	pkg, err := Check(file.Name.Name, fset, file)
 	return pkg, err
 }
 
@@ -56,7 +57,7 @@ var testTypes = []testEntry{
 	{`struct {
 		string
 		elems []T
-	}`, `struct{string; elems []T}`},
+	}`, `struct{string; elems []p.T}`},
 
 	// pointers
 	dup("*int"),

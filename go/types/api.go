@@ -138,6 +138,8 @@ type Importer func(imports map[string]*Package, path string) (pkg *Package, err 
 // entire package is checked. If there are errors, the package may be
 // only partially type-checked, and the resulting package may be incomplete
 // (missing objects, imports, etc.).
+// The provided package path must not resolve to ".", otherwise Check
+// returns immediately with a corresponding error message.
 func (ctxt *Context) Check(path string, fset *token.FileSet, files ...*ast.File) (*Package, error) {
 	return check(ctxt, path, fset, files...)
 }
