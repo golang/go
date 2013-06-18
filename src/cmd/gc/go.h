@@ -268,7 +268,6 @@ struct	Node
 	uchar	dupok;	// duplicate definitions ok (for func)
 	schar	likely; // likeliness of if statement
 	uchar	hasbreak;	// has break statement
-	uchar	norace;	// disable race detector for this function
 	uint	esc;		// EscXXX
 	int	funcdepth;
 
