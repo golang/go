@@ -716,6 +716,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 	runGcc(stdin, p.gccCmd())
 
 	if f, err := macho.Open(gccTmp()); err == nil {
+		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
@@ -742,6 +743,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 	}
 
 	if f, err := elf.Open(gccTmp()); err == nil {
+		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
@@ -768,6 +770,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 	}
 
 	if f, err := pe.Open(gccTmp()); err == nil {
+		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
