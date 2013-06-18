@@ -220,11 +220,7 @@ func doPackage(directory string, names []string) {
 		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
 	}
 	pkg := new(Package)
-	if directory == "." {
-		// Special case: Use the base name so we don't see "." as the package name in messages.
-		directory = filepath.Base(filepath.Dir(names[0]))
-	}
-	pkg.path = directory
+	pkg.path = astFiles[0].Name.Name
 	pkg.files = files
 	// Type check the package.
 	err := pkg.check(fs, astFiles)
