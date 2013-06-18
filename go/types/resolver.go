@@ -347,7 +347,7 @@ func (check *checker) declareObject(obj Object, cycleOk bool) {
 	case *TypeName:
 		check.declareType(obj, d.typ, cycleOk)
 	case *Func:
-		check.declareFunc(obj, cycleOk)
+		check.declareFunc(obj)
 	default:
 		unreachable()
 	}
@@ -525,12 +525,13 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 	}
 }
 
-func (check *checker) declareFunc(obj *Func, cycleOk bool) {
+func (check *checker) declareFunc(obj *Func) {
 	fdecl := obj.decl
 	// methods are typechecked when their receivers are typechecked
 	// TODO(gri) there is no reason to make this a special case: receivers are simply parameters
 	if fdecl.Recv == nil {
-		sig := check.typ(fdecl.Type, cycleOk).(*Signature)
+		obj.typ = Typ[Invalid] // guard against cycles
+		sig := check.typ(fdecl.Type, false).(*Signature)
 		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 			check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
 			// ok to continue
