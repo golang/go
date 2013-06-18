@@ -157,24 +157,6 @@ func (s *Struct) Tag(i int) string {
 	return ""
 }
 
-// Index returns the index for the field in s with matching package and name.
-// TODO(gri) should this be exported?
-func (s *Struct) index(pkg *Package, name string) int {
-	if name == "_" {
-		return -1 // blank identifiers are never found
-	}
-	for i, f := range s.fields {
-		// spec:
-		// "Two identifiers are different if they are spelled differently,
-		// or if they appear in different packages and are not exported.
-		// Otherwise, they are the same."
-		if f.name == name && (ast.IsExported(name) || f.pkg.path == pkg.path) {
-			return i
-		}
-	}
-	return -1
-}
-
 // A Pointer represents a pointer type.
 type Pointer struct {
 	base Type

@@ -1158,7 +1158,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := utyp.index(check.pkg, key.Name)
+					i := fieldIndex(utyp.fields, check.pkg, key.Name)
 					if i < 0 {
 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
 						continue
@@ -1310,24 +1310,27 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		res := lookupField(x.typ, check.pkg, sel)
-		if res.mode == invalid {
+		// TODO(gri) use collision information for better error message
+		obj, _, _ := LookupFieldOrMethod(x.typ, check.pkg, sel)
+		if obj == nil {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
 		}
-		check.callIdent(e.Sel, res.obj)
+		check.callIdent(e.Sel, obj)
 		if x.mode == typexpr {
 			// method expression
-			sig, ok := res.obj.Type().(*Signature)
+			m, ok := obj.(*Func)
 			if !ok {
 				check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
 				goto Error
 			}
+
 			// the receiver type becomes the type of the first function
 			// argument of the method expression's function type
 			// TODO(gri) at the moment, method sets don't correctly track
 			// pointer vs non-pointer receivers => typechecker is too lenient
 			var params []*Var
+			sig := m.typ.(*Signature)
 			if sig.params != nil {
 				params = sig.params.vars
 			}
@@ -1339,8 +1342,19 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 		} else {
 			// regular selector
-			x.mode = res.mode
-			x.typ = res.obj.Type()
+			switch obj := obj.(type) {
+			case *Field:
+				x.mode = variable
+				x.typ = obj.typ
+			case *Func:
+				// TODO(gri) Temporary assert to verify corresponding lookup via method sets.
+				//           Remove eventually.
+				assert(NewMethodSet(x.typ).Lookup(check.pkg, sel) == obj)
+				x.mode = value
+				x.typ = obj.typ
+			default:
+				unreachable()
+			}
 		}
 
 	case *ast.IndexExpr:
@@ -1509,7 +1523,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if typ == Typ[Invalid] {
 			goto Error
 		}
-		if method, wrongType := missingMethod(typ, T); method != nil {
+		if method, wrongType := MissingMethod(typ, T); method != nil {
 			var msg string
 			if wrongType {
 				msg = "%s cannot have dynamic type %s (wrong type for method %s)"

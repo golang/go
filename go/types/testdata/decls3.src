@@ -6,6 +6,8 @@
 
 package decls3
 
+import "unsafe"
+
 // fields with the same name at the same level cancel each other out
 
 func _() {
@@ -42,6 +44,16 @@ func issue4355() {
 
 	var t T5
 	_ = t /* ERROR "no single field or method" */ .X
+}
+
+func _() {
+	type Pointer int
+	type A struct{ Pointer }
+	type B struct{ unsafe.Pointer }
+	type T struct{ A; B }
+
+	var t T
+	_ = t /* ERROR "no single field or method" */ .Pointer
 }
 
 // Embedded fields can be predeclared types.

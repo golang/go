@@ -98,6 +98,7 @@ func indexes() {
 
 type T struct {
 	x int
+	y func()
 }
 
 func (*T) m() {}
@@ -108,6 +109,9 @@ func method_expressions() {
 	_ = T.m
 	var f func(*T) = (*T).m
 	var g func(*T) = ( /* ERROR "cannot initialize" */ T).m
+
+	_ = T /* ERROR "has no method" */ .y
+	_ = ( /* ERROR "has no method" */ *T).y
 }
 
 func struct_literals() {

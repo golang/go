@@ -670,7 +670,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			for _, expr := range clause.List {
 				typ = check.typOrNil(expr, false)
 				if typ != nil && typ != Typ[Invalid] {
-					if method, wrongType := missingMethod(typ, T); method != nil {
+					if method, wrongType := MissingMethod(typ, T); method != nil {
 						var msg string
 						if wrongType {
 							msg = "%s cannot have dynamic type %s (wrong type for method %s)"

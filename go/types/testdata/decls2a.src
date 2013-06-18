@@ -7,6 +7,7 @@
 package decls2
 
 import "time"
+import "unsafe"
 
 // T1 declared before its methods.
 type T1 struct{
@@ -16,6 +17,22 @@ type T1 struct{
 func (T1) m() {}
 func (T1) m /* ERROR "redeclared" */ () {}
 func (x *T1) f /* ERROR "field and method" */ () {}
+
+// Conflict between embedded field and method name,
+// with the embedded field being a basic type.
+type T1b struct {
+	int
+}
+
+func (T1b) int /* ERROR "field and method" */ () {}
+
+type T1c struct {
+	unsafe.Pointer
+}
+
+func (T1c) Pointer /* ERROR "field and method" */ () int { return 0 }
+
+var _ = T1c{}.Pointer
 
 // T2's method declared before the type.
 func (*T2) f /* ERROR "field and method" */ () {}

@@ -463,8 +463,10 @@ func (p *gcParser) parseField() (*Field, string) {
 		// anonymous field - typ must be T or *T and T must be a type name
 		switch typ := typ.Deref().(type) {
 		case *Basic: // basic types are named types
+			pkg = nil
 			name = typ.name
 		case *Named:
+			pkg = typ.obj.pkg
 			name = typ.obj.name
 		default:
 			p.errorf("anonymous field expected")
