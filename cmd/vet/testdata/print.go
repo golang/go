@@ -101,7 +101,7 @@ func PrintfTests() {
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
 	fmt.Printf("%s", "hi", 3)                  // ERROR "wrong number of args for format in Printf call"
-	fmt.Printf("%"+("s"), "hi", 3)             // ERROR "wrong number of args for format in Printf call"
+	fmt.Sprintf("%"+("s"), "hi", 3)            // ERROR "wrong number of args for format in Sprintf call"
 	fmt.Printf("%s%%%d", "hi", 3)              // correct
 	fmt.Printf("%08s", "woo")                  // correct
 	fmt.Printf("% 8s", "woo")                  // correct
@@ -118,12 +118,13 @@ func PrintfTests() {
 	Printf("hi")                               // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
-	Printf(format, "hi") // ERROR "wrong number of args for format in Printf call"
+	Printf(format, "hi") // ERROR "missing argument for Printf verb %s: need 2, only have 1"
 	f := new(stringer)
 	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+	Printf("d%", 2)              // ERROR "missing verb at end of format string in Printf call"
 	// Good argument reorderings.
 	Printf("%[1]d", 3)
 	Printf("%[1]*d", 3, 1)
@@ -133,7 +134,8 @@ func PrintfTests() {
 	// Bad argument reorderings.
 	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
 	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
-	Printf("%[2]d", 3)                   // ERROR "wrong number of args for format in Printf call"
+	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf indirect \*: need 3, only have 2"
+	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf verb %d: need 3, only have 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
 	// Something that satisfies the error interface.
 	var e error
