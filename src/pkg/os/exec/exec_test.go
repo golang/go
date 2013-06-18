@@ -195,8 +195,28 @@ func basefds() uintptr {
 	return n
 }
 
+func closeUnexpectedFds(t *testing.T, m string) {
+	for fd := basefds(); fd <= 101; fd++ {
+		err := os.NewFile(fd, "").Close()
+		if err == nil {
+			t.Logf("%s: Something already leaked - closed fd %d", m, fd)
+		}
+	}
+}
+
 func TestExtraFilesFDShuffle(t *testing.T) {
-	t.Skip("TODO: TestExtraFilesFDShuffle is too non-portable; skipping")
+	switch runtime.GOOS {
+	case "darwin":
+		// TODO(cnicolaou): http://golang.org/issue/2603
+		// leads to leaked file descriptors in this test when it's
+		// run from a builder.
+		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
+	case "netbsd":
+		// http://golang.org/issue/3955
+		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
+	case "windows":
+		t.Skip("no operating system support; skipping")
+	}
 
 	// syscall.StartProcess maps all the FDs passed to it in
 	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
@@ -296,12 +316,7 @@ func TestExtraFiles(t *testing.T) {
 	// our environment.
 	if !testedAlreadyLeaked {
 		testedAlreadyLeaked = true
-		for fd := basefds(); fd <= 101; fd++ {
-			err := os.NewFile(fd, "").Close()
-			if err == nil {
-				t.Logf("Something already leaked - closed fd %d", fd)
-			}
-		}
+		closeUnexpectedFds(t, "TestExtraFiles")
 	}
 
 	// Force network usage, to verify the epoll (or whatever) fd
