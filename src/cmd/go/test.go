@@ -125,24 +125,24 @@ control the execution of any test:
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
 	-cover
-	    Enable basic coverage analysis; shorthand for -covermode=set.
+	    Enable coverage analysis.
 	    TODO: This feature is not yet fully implemented.
 
 	-covermode set,count,atomic
 	    Set the mode for coverage analysis for the package[s]
-	    being tested. The default is to do none, but if -cover or
-	    -coverprofile is specified, coverage is enabled in "set"
-	    mode unless this flag is also specified.
+	    being tested. The default is "set".
 	    The values:
 		set: bool: does this statement run?
 		count: int: how many times does this statement run?
 		atomic: int: count, but correct in multithreaded tests;
 			significantly more expensive.
+	    Implies -cover.
 	    Sets -v. TODO: This will change.
 
 	-coverprofile cover.out
 	    Write a coverage profile to the specified file after all tests
 	    have passed.
+	    Implies -cover.
 
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
