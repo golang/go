@@ -27,7 +27,8 @@ var usageMessage = `Usage of go test:
   -bench="": passes -test.bench to test
   -benchmem=false: print memory allocation statistics for benchmarks
   -benchtime=1s: passes -test.benchtime to test
-  -cover="": passes -test.cover to test
+  -cover=false: basic coverage; equivalent to -covermode=set
+  -covermode="": passes -test.covermode to test
   -coverprofile="": passes -test.coverprofile to test
   -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
@@ -65,6 +66,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "c", boolVar: &testC},
 	{name: "file", multiOK: true},
 	{name: "i", boolVar: &testI},
+	{name: "cover", boolVar: &testCover},
 
 	// build flags.
 	{name: "a", boolVar: &buildA},
@@ -83,7 +85,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "bench", passToTest: true},
 	{name: "benchmem", boolVar: new(bool), passToTest: true},
 	{name: "benchtime", passToTest: true},
-	{name: "cover", passToTest: true},
+	{name: "covermode"}, // Passed to test by special arrangement.
 	{name: "coverprofile", passToTest: true},
 	{name: "cpu", passToTest: true},
 	{name: "cpuprofile", passToTest: true},
@@ -144,7 +146,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		var err error
 		switch f.name {
 		// bool flags.
-		case "a", "c", "i", "n", "x", "v", "work", "race":
+		case "a", "c", "i", "n", "x", "v", "race", "cover", "work":
 			setBoolFlag(f.boolVar, value)
 		case "p":
 			setIntFlag(&buildP, value)
@@ -174,19 +176,15 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testBench = true
 		case "timeout":
 			testTimeout = value
-		case "blockprofile", "coverprofile", "cpuprofile", "memprofile":
+		case "blockprofile", "cpuprofile", "memprofile":
+			testProfile = true
+		case "coverprofile":
+			passToTest = setCoverMode("set", passToTest)
 			testProfile = true
 		case "outputdir":
 			outputDir = value
-		case "cover":
-			switch value {
-			case "set", "count", "atomic":
-				testCover = value
-			default:
-				fatalf("invalid flag argument for -cover: %q", value)
-			}
-			// Guarantee we see the coverage statistics. Doesn't turn -v on generally; tricky. TODO?
-			testV = true
+		case "covermode":
+			passToTest = setCoverMode(value, passToTest)
 		}
 		if extraWord {
 			i++
@@ -194,6 +192,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		if f.passToTest {
 			passToTest = append(passToTest, "-test."+f.name+"="+value)
 		}
+	}
+	// -cover is shorthand for -covermode=set.
+	if testCover && testCoverMode == "" {
+		passToTest = setCoverMode("set", passToTest)
 	}
 	// Tell the test what directory we're running in, so it can write the profiles there.
 	if testProfile && outputDir == "" {
@@ -204,6 +206,24 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		passToTest = append(passToTest, "-test.outputdir", dir)
 	}
 	return
+}
+
+// setCoverMode sets the cover mode if not already specified; it captures the default behavior and
+// canonicalizes the coverage flags to pass to the test binary.
+func setCoverMode(mode string, passToTest []string) []string {
+	if testCoverMode != "" {
+		return passToTest
+	}
+	switch mode {
+	case "set", "count", "atomic":
+		testCoverMode = mode
+	default:
+		fatalf("invalid flag argument for -cover: %q", mode)
+	}
+	testCover = true
+	// Guarantee we see the coverage statistics. Doesn't turn -v on generally; tricky. TODO?
+	testV = true
+	return append(passToTest, "-test.covermode", "set")
 }
 
 // testFlag sees if argument i is a known flag and returns its definition, value, and whether it consumed an extra word.

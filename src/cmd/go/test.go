@@ -124,14 +124,19 @@ control the execution of any test:
 	    if -test.blockprofile is set without this flag, all blocking events
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
-	-cover set,count,atomic
+	-cover
+	    Enable basic coverage analysis; shorthand for -covermode=set.
 	    TODO: This feature is not yet fully implemented.
-	    Set the mode for coverage analysis for the package[s] being tested.
-	    The default is to do none.
+
+	-covermode set,count,atomic
+	    Set the mode for coverage analysis for the package[s]
+	    being tested. The default is to do none, but if -cover or
+	    -coverprofile is specified, coverage is enabled in "set"
+	    mode unless this flag is also specified.
 	    The values:
-		set: boolean: does this statement execute?
-		count: integer: how many times does this statement execute?
-		atomic: integer: like count, but correct in multithreaded tests;
+		set: bool: does this statement run?
+		count: int: how many times does this statement run?
+		atomic: int: count, but correct in multithreaded tests;
 			significantly more expensive.
 	    Sets -v. TODO: This will change.
 
@@ -254,7 +259,8 @@ See the documentation of the testing package for more information.
 
 var (
 	testC            bool     // -c flag
-	testCover        string   // -cover flag
+	testCover        bool     // -cover flag
+	testCoverMode    string   // -covermode flag
 	testProfile      bool     // some profiling flag
 	testI            bool     // -i flag
 	testV            bool     // -v flag
@@ -494,7 +500,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		// - that is, any code imported by the external test that in turn
 		// imports p - needs to be rebuilt too. For now, just report
 		// that coverage is unavailable.
-		if testCover != "" && contains(p1.Deps, p.ImportPath) {
+		if testCover && contains(p1.Deps, p.ImportPath) {
 			return nil, nil, nil, fmt.Errorf("coverage analysis cannot handle package (%s_test imports %s imports %s)", p.Name, path, p.ImportPath)
 		}
 	}
@@ -535,8 +541,8 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		return nil, nil, nil, err
 	}
 
-	if testCover != "" {
-		p.coverMode = testCover
+	if testCover {
+		p.coverMode = testCoverMode
 		p.coverVars = declareCoverVars(p.ImportPath, p.GoFiles...)
 	}
 
@@ -545,7 +551,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	// Test package.
-	if len(p.TestGoFiles) > 0 || testCover != "" {
+	if len(p.TestGoFiles) > 0 || testCover {
 		ptest = new(Package)
 		*ptest = *p
 		ptest.GoFiles = nil
@@ -871,7 +877,7 @@ type testFuncs struct {
 }
 
 func (t *testFuncs) CoverEnabled() bool {
-	return testCover != ""
+	return testCover
 }
 
 type testFunc struct {
