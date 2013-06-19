@@ -889,7 +889,7 @@ func (p *gcParser) parseMethodDecl() {
 	// add method to type unless type was imported before
 	// and method exists already
 	// TODO(gri) This is a quadratic algorithm - ok for now because method counts are small.
-	if lookupMethod(base.methods, pkg, name) == nil {
+	if _, m := lookupMethod(base.methods, pkg, name); m == nil {
 		base.methods = append(base.methods, NewFunc(token.NoPos, pkg, name, sig))
 	}
 }

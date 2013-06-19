@@ -1311,7 +1311,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		}
 		// TODO(gri) use collision information for better error message
-		obj, _, _ := LookupFieldOrMethod(x.typ, check.pkg, sel)
+		obj, _ := LookupFieldOrMethod(x.typ, check.pkg, sel)
 		if obj == nil {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error

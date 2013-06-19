@@ -8,13 +8,23 @@ package types
 
 import "go/ast"
 
-// LookupFieldOrMethod looks up a field or method with given package and name in typ.
-// If an entry is found, obj is the corresponding *Field or *Func. For fields, index
-// is the index sequence to reach the (possibly embedded) field; for methods, index
-// is nil; and collision is false. If no entry is found, obj is nil, index is undefined,
-// and collision indicates if the reason for not finding an entry was a name collision.
+// LookupFieldOrMethod looks up a field or method with given package and name
+// in typ and returns the corresponding *Field or *Func, and an index sequence.
 //
-func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, collision bool) {
+// The last index entry is the field or method index in the (possibly embedded)
+// type where the entry was found, either:
+//
+//	1) the list of declared methods of a named type; or
+//	2) the list of all methods (method set) of an interface type; or
+//	3) the list of fields of a struct type.
+//
+// The earlier index entries are the indices of the embedded fields traversed
+// to get to the found entry, starting at depth 0.
+//
+// If no entry is found, a nil object is returned. In this case, the returned
+// index sequence points to an ambiguous entry if it exists, or it is nil.
+//
+func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int) {
 	if name == "_" {
 		return // empty fields/methods are never found
 	}
@@ -31,101 +41,61 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 	// named types that we have seen already
 	seen := make(map[*Named]bool)
 
-	// We treat the top-most level separately because it's simpler
-	// (no incoming multiples) and because it's the common case.
-
-	if t, _ := typ.(*Named); t != nil {
-		seen[t] = true
-		if m := lookupMethod(t.methods, pkg, name); m != nil {
-			assert(m.typ != nil)
-			return m, nil, false
-		}
-		typ = t.underlying
-	}
-
-	// embedded named types at the current and next lower depth
+	// embedded represents an embedded named type
 	type embedded struct {
-		typ       *Named
-		index     []int // field index sequence
-		multiples bool
-	}
-	var current, next []embedded
-
-	switch t := typ.(type) {
-	case *Struct:
-		for i, f := range t.fields {
-			if f.isMatch(pkg, name) {
-				assert(f.typ != nil)
-				return f, []int{i}, false
-			}
-			if f.anonymous {
-				// Ignore embedded basic types - only user-defined
-				// named types can have methods or struct fields.
-				if t, _ := f.typ.Deref().(*Named); t != nil {
-					next = append(next, embedded{t, []int{i}, false})
-				}
-			}
-		}
-
-	case *Interface:
-		if m := lookupMethod(t.methods, pkg, name); m != nil {
-			assert(m.typ != nil)
-			return m, nil, false
-		}
+		typ       *Named // nil means use the outer typ variable instead
+		index     []int  // field/method indices, starting with index at depth 0
+		multiples bool   // if set, type appears multiple times at its depth
 	}
 
-	// search the next depth if we don't have a match yet and there's work to do
-	for obj == nil && len(next) > 0 {
-		// Consolidate next: collect multiple entries with the same
-		// type into a single entry marked as containing multiples.
-		n := 0                       // number of entries w/ unique type
-		prev := make(map[*Named]int) // index at which type was previously seen
-		for _, e := range next {
-			if i, found := prev[e.typ]; found {
-				next[i].multiples = true
-				// ignore this entry
-			} else {
-				prev[e.typ] = n
-				next[n] = e
-				n++
-			}
-		}
-		// next[:n] is the list of embedded entries to process
+	// Start with typ as single entry at lowest depth.
+	// If typ is not a named type, insert a nil type instead.
+	t, _ := typ.(*Named)
+	current := []embedded{{t, nil, false}}
 
-		// The underlying arrays of current and next are different, thus
-		// swapping is safe and they never share the same underlying array.
-		current, next = next[:n], current[:0] // don't waste underlying array
+	// search current depth if there's work to do
+	for len(current) > 0 {
+		var next []embedded // embedded types found at current depth
 
-		// look for name in all types at this depth
+		// look for (pkg, name) in all types at this depth
 		for _, e := range current {
-			if seen[e.typ] {
-				continue
-			}
-			seen[e.typ] = true
-
-			// look for a matching attached method
-			if m := lookupMethod(e.typ.methods, pkg, name); m != nil {
-				// potential match
-				assert(m.typ != nil)
-				if obj != nil || e.multiples {
-					return nil, nil, true
+			// The very first time only, e.typ may be nil.
+			// In this case, we don't have a named type and
+			// we simply continue with the underlying type.
+			if e.typ != nil {
+				if seen[e.typ] {
+					continue
 				}
-				obj = m
-				index = nil
+				seen[e.typ] = true
+
+				// look for a matching attached method
+				if i, m := lookupMethod(e.typ.methods, pkg, name); m != nil {
+					// potential match
+					assert(m.typ != nil)
+					index = concat(e.index, i)
+					if obj != nil || e.multiples {
+						obj = nil // collision
+						return
+					}
+					obj = m
+				}
+
+				// continue with underlying type
+				typ = e.typ.underlying
 			}
 
-			switch t := e.typ.underlying.(type) {
+			switch t := typ.(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
 					if f.isMatch(pkg, name) {
 						assert(f.typ != nil)
+						index = concat(e.index, i)
 						if obj != nil || e.multiples {
-							return nil, nil, true
+							obj = nil // collision
+							return
 						}
 						obj = f
-						index = append(index[:0], e.index...)
-						index = append(index, i)
 						continue
 					}
 					// Collect embedded struct fields for searching the next
@@ -141,29 +111,59 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 						// Ignore embedded basic types - only user-defined
 						// named types can have methods or have struct fields.
 						if t, _ := f.typ.Deref().(*Named); t != nil {
-							var copy []int
-							copy = append(copy, e.index...)
-							copy = append(copy, i)
-							next = append(next, embedded{t, copy, e.multiples})
+							next = append(next, embedded{t, concat(e.index, i), e.multiples})
 						}
 					}
 				}
 
 			case *Interface:
 				// look for a matching method
-				if m := lookupMethod(t.methods, pkg, name); m != nil {
+				if i, m := lookupMethod(t.methods, pkg, name); m != nil {
 					assert(m.typ != nil)
+					index = concat(e.index, i)
 					if obj != nil || e.multiples {
-						return nil, nil, true
+						obj = nil // collision
+						return
 					}
 					obj = m
-					index = nil
 				}
 			}
 		}
+
+		if obj != nil {
+			return // found a match
+		}
+
+		// Consolidate next: collect multiple entries with the same
+		// type into a single entry marked as containing multiples.
+		n := len(next)
+		if n > 1 {
+			n := 0                       // number of entries w/ unique type
+			prev := make(map[*Named]int) // index at which type was previously seen
+			for _, e := range next {
+				if i, found := prev[e.typ]; found {
+					next[i].multiples = true
+					// ignore this entry
+				} else {
+					prev[e.typ] = n
+					next[n] = e
+					n++
+				}
+			}
+		}
+		current = next[:n]
 	}
 
-	return
+	index = nil
+	return // not found
+}
+
+// concat returns the result of concatenating list and i.
+// The result does not share its underlying array with list.
+func concat(list []int, i int) []int {
+	var t []int
+	t = append(t, list...)
+	return append(t, i)
 }
 
 // MissingMethod returns (nil, false) if typ implements T, otherwise
@@ -182,7 +182,7 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
 		for _, m := range T.methods {
-			obj := lookupMethod(ityp.methods, m.pkg, m.name)
+			_, obj := lookupMethod(ityp.methods, m.pkg, m.name)
 			if obj != nil && !IsIdentical(obj.Type(), m.typ) {
 				return m, true
 			}
@@ -192,7 +192,7 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 
 	// a concrete type implements T if it implements all methods of T.
 	for _, m := range T.methods {
-		obj, _, _ := LookupFieldOrMethod(typ, m.pkg, m.name)
+		obj, _ := LookupFieldOrMethod(typ, m.pkg, m.name)
 		if obj == nil {
 			return m, false
 		}
@@ -220,17 +220,17 @@ func fieldIndex(fields []*Field, pkg *Package, name string) int {
 	return -1
 }
 
-// lookupMethod returns the method with matching package and name, or nil.
-func lookupMethod(methods []*Func, pkg *Package, name string) *Func {
+// lookupMethod returns the index of and method with matching package and name, or (-1, nil).
+func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
 	assert(name != "_")
-	for _, m := range methods {
+	for i, m := range methods {
 		// spec:
 		// "Two identifiers are different if they are spelled differently,
 		// or if they appear in different packages and are not exported.
 		// Otherwise, they are the same."
 		if m.name == name && (ast.IsExported(name) || m.pkg.path == pkg.path) {
-			return m
+			return i, m
 		}
 	}
-	return nil
+	return -1, nil
 }
