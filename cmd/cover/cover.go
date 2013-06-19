@@ -121,18 +121,18 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			case *ast.CaseClause: // switch
 				for _, n := range n.List {
 					clause := n.(*ast.CaseClause)
-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body)
+					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
 				}
 				return f
 			case *ast.CommClause: // select
 				for _, n := range n.List {
 					clause := n.(*ast.CommClause)
-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body)
+					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
 				}
 				return f
 			}
 		}
-		n.List = f.addCounters(n.Pos(), n.End(), n.List)
+		n.List = f.addCounters(n.Lbrace, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
 	case *ast.SelectStmt:
 		// Don't annotate an empty select - creates a syntax error.
 		if n.Body == nil || len(n.Body.List) == 0 {
@@ -151,7 +151,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 func unquote(s string) string {
 	t, err := strconv.Unquote(s)
 	if err != nil {
-		log.Fatal("cover: improperly quoted string %q\n", s)
+		log.Fatalf("cover: improperly quoted string %q\n", s)
 	}
 	return t
 }
@@ -325,11 +325,11 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
 // counters will be added before S1 and before S3. The block containing S2
 // will be visited in a separate call.
 // TODO: Nested simple blocks get unecessary (but correct) counters
-func (f *File) addCounters(pos, end token.Pos, list []ast.Stmt) []ast.Stmt {
+func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClosingBrace bool) []ast.Stmt {
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		return []ast.Stmt{f.newCounter(pos, end, 0)}
+		return []ast.Stmt{f.newCounter(pos, blockEnd, 0)}
 	}
 	// We have a block (statement list), but it may have several basic blocks due to the
 	// appearance of statements that affect the flow of control.
@@ -338,13 +338,17 @@ func (f *File) addCounters(pos, end token.Pos, list []ast.Stmt) []ast.Stmt {
 		// Find first statement that affects flow of control (break, continue, if, etc.).
 		// It will be the last statement of this basic block.
 		var last int
-		end = pos
+		end := blockEnd
 		for last = 0; last < len(list); last++ {
 			end = f.statementBoundary(list[last])
 			if f.endsBasicSourceBlock(list[last]) {
+				extendToClosingBrace = false // Block is broken up now.
 				last++
 				break
 			}
+		}
+		if extendToClosingBrace {
+			end = blockEnd
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
 			newList = append(newList, f.newCounter(pos, end, last))

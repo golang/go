@@ -74,7 +74,7 @@ func htmlOutput(profile, outfile string) error {
 
 	if outfile == "" {
 		if !startBrowser("file://" + out.Name()) {
-			fmt.Fprintln(os.Stderr, "HTML output written to %v", out.Name())
+			fmt.Fprintf(os.Stderr, "HTML output written to %s\n", out.Name())
 		}
 	}
 
