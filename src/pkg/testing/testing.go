@@ -122,7 +122,7 @@ var (
 
 	// Report as tests are run; default is silent for success.
 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
-	cover            = flag.String("test.cover", "", "cover mode: set, count, atomic; default is none")
+	coverMode        = flag.String("test.covermode", "", "cover mode: set, count, atomic; default is none")
 	coverProfile     = flag.String("test.coverprofile", "", "write a coveraage profile to the named file after execution")
 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
 	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
@@ -520,7 +520,7 @@ func after() {
 		}
 		f.Close()
 	}
-	if *cover != "" {
+	if *coverMode != "" {
 		coverReport()
 	}
 }
