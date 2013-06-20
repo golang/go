@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -781,7 +782,7 @@ func (b *builder) runTest(a *action) error {
 		if testShowPass {
 			a.testOutput.Write(out)
 		}
-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s\n", a.p.ImportPath, t)
+		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s\n", a.p.ImportPath, t, coveragePercentage(out))
 		return nil
 	}
 
@@ -795,6 +796,23 @@ func (b *builder) runTest(a *action) error {
 	fmt.Fprintf(a.testOutput, "FAIL\t%s\t%s\n", a.p.ImportPath, t)
 
 	return nil
+}
+
+// coveragePercentage returns the coverage results (if enabled) for the
+// test. It uncovers the data by scanning the output from the test run.
+func coveragePercentage(out []byte) string {
+	if !testCover {
+		return ""
+	}
+	// The string looks like
+	//	test coverage for encoding/binary: 79.9% of statements
+	// Extract the piece from the percentage to the end of the line.
+	re := regexp.MustCompile(`test coverage for [^ ]+: (.*)\n`)
+	matches := re.FindSubmatch(out)
+	if matches == nil {
+		return "(missing coverage statistics)"
+	}
+	return fmt.Sprintf("\tcoverage: %s", matches[1])
 }
 
 // cleanTest is the action for cleaning up after a test.
