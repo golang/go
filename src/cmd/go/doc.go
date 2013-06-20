@@ -396,9 +396,11 @@ It prints a summary of the test results in the format:
 
 followed by detailed output for each failed package.
 
-'Go test' recompiles each package along with any files with names ending in
-"_test.go".  These additional files can contain test functions,
-benchmark functions, and example functions.  See 'go help testfunc' for more.
+'Go test' recompiles each package along with any files with names matching
+the file pattern "*_test.go".
+Files whose names begin with "_" (including "_test.go") or "." are ignored.
+These additional files can contain test functions, benchmark functions, and
+example functions.  See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 
 Test files that declare a package with the suffix "_test" will be compiled as a
@@ -583,6 +585,8 @@ As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized
 package made up of exactly those files, ignoring any build constraints
 in those files and ignoring any other files in the directory.
+
+File names that begin with "." or "_" are ignored by the go tool.
 
 
 Remote import path syntax
