@@ -9,7 +9,7 @@
 
 package flag
 
-var commandLine = NewFlagSet() // ERROR "loop"
+var commandLine = NewFlagSet() // ERROR "loop|depends upon itself"
 
 type FlagSet struct {
 }

@@ -16,5 +16,5 @@ func (T) foo() {}
 func main() {
 	av := T{}
 	pav := &av
-	(**T).foo(&pav) // ERROR "no method foo"
+	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named"
 }
