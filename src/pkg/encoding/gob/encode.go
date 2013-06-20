@@ -575,21 +575,21 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 				break
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp, indir := enc.encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p)
 				if !state.sendZero && slice.Len == 0 {
 					return
 				}
 				state.update(i)
-				state.enc.encodeArray(state.b, unsafe.Pointer(slice.Data), *elemOp, t.Elem().Size(), indir, int(slice.Len))
+				state.enc.encodeArray(state.b, unsafe.Pointer(slice.Data), *elemOp, t.Elem().Size(), elemIndir, int(slice.Len))
 			}
 		case reflect.Array:
 			// True arrays have size in the type.
-			elemOp, indir := enc.encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i)
-				state.enc.encodeArray(state.b, p, *elemOp, t.Elem().Size(), indir, t.Len())
+				state.enc.encodeArray(state.b, p, *elemOp, t.Elem().Size(), elemIndir, t.Len())
 			}
 		case reflect.Map:
 			keyOp, keyIndir := enc.encOpFor(t.Key(), inProgress)

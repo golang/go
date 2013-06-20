@@ -286,7 +286,7 @@ func downloadPackage(p *Package) error {
 		}
 		// Some version control tools require the parent of the target to exist.
 		parent, _ := filepath.Split(root)
-		if err := os.MkdirAll(parent, 0777); err != nil {
+		if err = os.MkdirAll(parent, 0777); err != nil {
 			return err
 		}
 		if err = vcs.create(root, repo); err != nil {

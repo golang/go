@@ -780,7 +780,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			// Special case: do we have a fractional second but no
 			// fractional second in the format?
 			if len(value) >= 2 && value[0] == '.' && isDigit(value, 1) {
-				_, std, _ := nextStdChunk(layout)
+				_, std, _ = nextStdChunk(layout)
 				std &= stdMask
 				if std == stdFracSecond0 || std == stdFracSecond9 {
 					// Fractional second in the layout; proceed normally
