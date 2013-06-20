@@ -32,10 +32,14 @@ will include Go support.
 </p>
 
 <p>
-The GCC 4.7.0 release includes Go support that is very close to
-<a href="/doc/go1.html">Go 1</a>.  Due to release timing it will not
-include the last few changes to the Go 1 libraries.  The GCC 4.7.1
-release should include a complete Go 1 compiler and libraries.
+The GCC 4.7.1 release and all later 4.7 releases include a complete
+<a href="/doc/go1.html">Go 1</a> compiler and libraries.
+</p>
+
+<p>
+Due to timing, the GCC 4.8.0 and 4.8.1 releases are close to but not
+identical to Go 1.1.  The GCC 4.8.2 release is expected to include a
+complete Go 1.1.1 implementation.
 </p>
 
 <h2 id="Source_code">Source code</h2>
@@ -125,6 +129,8 @@ described on
 the <a href="http://gcc.gnu.org/install/prerequisites.html">gcc web
 site</a>.  It is important to install all the prerequisites before
 running the gcc <code>configure</code> script.
+The prerequisite libraries can be conveniently downloaded using the
+script <code>contrib/download_prerequisites</code> in the GCC sources.
 
 <h3 id="Build_commands">Build commands</h3>
 
@@ -147,11 +153,11 @@ make install
 <h3 id="Ubuntu">A note on Ubuntu</h3>
 
 <p>
-Current versions of Ubuntu and current versions of gcc disagree on
+Current versions of Ubuntu and versions of GCC before 4.8 disagree on
 where system libraries and header files are found.  This is not a
-gccgo issue, and we hope this will be resolved soon.  Until it is,
-setting these environment variables while configuring and building
-gccgo may fix the problem.
+gccgo issue.  When building older versions of GCC, setting these
+environment variables while configuring and building gccgo may fix the
+problem.
 </p>
 
 <pre>
@@ -309,7 +315,7 @@ gccgo.  Both options take directories to search. The
 </p>
 
 <p>
-The gccgo compiler does not currently (2012-03-20) record
+The gccgo compiler does not currently (2013-06-20) record
 the file name of imported packages in the object file. You must
 arrange for the imported data to be linked into the program.
 </p>
@@ -385,22 +391,22 @@ struct __go_slice {
 </pre>
 
 <p>
-The type of a Go function with no receiver is equivalent to a C function
-whose parameter types are equivalent.  When a Go function returns more
-than one value, the C function returns a struct.  For example, these
-functions have equivalent types:
+The type of a Go function is a pointer to a struct (this is
+<b style="color: red;">subject to change</b>).  The first field in the
+struct points to the code of the function, which will be equivalent to
+a pointer to a C function whose parameter types are equivalent, with
+an additional trailing parameter.  The trailing parameter is the
+closure, and the argument to pass is a pointer to the Go function
+struct.
+
+When a Go function returns more than one value, the C function returns
+a struct.  For example, these functions are roughly equivalent:
 </p>
 
 <pre>
 func GoFunction(int) (int, float64)
-struct { int i; float64 f; } CFunction(int)
+struct { int i; float64 f; } CFunction(int, void*)
 </pre>
-
-<p>
-A pointer to a Go function is equivalent to a pointer to a C function
-when the functions have equivalent types (this is
-<b style="color: red;">subject to change</b>).
-</p>
 
 <p>
 Go <code>interface</code>, <code>channel</code>, and <code>map</code>
@@ -455,6 +461,14 @@ i := c_open(&amp;name[0], syscall.O_RDONLY, 0);
 <p>
 (this serves as an example only, to open a file in Go please use Go's
 <code>os.Open</code> function instead).
+</p>
+
+<p>
+Note that if the C function can block, such as in a call
+to <code>read</code>, calling the C function may block the Go program.
+Unless you have a clear understanding of what you are doing, all calls
+between C and Go should be implemented through cgo or SWIG, as for
+the <code>gc</code> compiler.
 </p>
 
 <p>
