@@ -33,6 +33,20 @@ func ParseECPrivateKey(der []byte) (key *ecdsa.PrivateKey, err error) {
 	return parseECPrivateKey(nil, der)
 }
 
+// MarshalECPrivateKey marshals an EC private key into ASN.1, DER format.
+func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
+	oid, ok := oidFromNamedCurve(key.Curve)
+	if !ok {
+		return nil, errors.New("x509: unknown elliptic curve")
+	}
+	return asn1.Marshal(ecPrivateKey{
+		Version:       1,
+		PrivateKey:    key.D.Bytes(),
+		NamedCurveOID: oid,
+		PublicKey:     asn1.BitString{Bytes: elliptic.Marshal(key.Curve, key.X, key.Y)},
+	})
+}
+
 // parseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
 // The OID for the named curve may be provided from another source (such as
 // the PKCS8 container) - if it is provided then use this instead of the OID
