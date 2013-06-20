@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 )
@@ -15,8 +16,15 @@ var ecPrivateKeyHex = `3081a40201010430bdb9839c08ee793d1157886a7a758a3c8b2a17a4d
 
 func TestParseECPrivateKey(t *testing.T) {
 	derBytes, _ := hex.DecodeString(ecPrivateKeyHex)
-	_, err := ParseECPrivateKey(derBytes)
+	key, err := ParseECPrivateKey(derBytes)
 	if err != nil {
 		t.Errorf("failed to decode EC private key: %s", err)
+	}
+	serialized, err := MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("failed to encode EC private key: %s", err)
+	}
+	if !bytes.Equal(serialized, derBytes) {
+		t.Fatalf("serialized key differs: got %x, want %x", serialized, derBytes)
 	}
 }
