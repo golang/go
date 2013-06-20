@@ -212,7 +212,6 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 
 		var la *UnixAddr
 		if laddr != "" {
-			var err error
 			if la, err = ResolveUnixAddr("unixgram", laddr); err != nil {
 				t.Fatalf("ResolveUnixAddr failed: %v", err)
 			}

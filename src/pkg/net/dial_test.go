@@ -381,7 +381,6 @@ func TestDialer(t *testing.T) {
 	defer ln.Close()
 	ch := make(chan error, 1)
 	go func() {
-		var err error
 		c, err := ln.Accept()
 		if err != nil {
 			ch <- fmt.Errorf("Accept failed: %v", err)

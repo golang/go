@@ -781,7 +781,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 			}
 			s.error(err)
 		}
-		n, err := strconv.Atoi(str[p+1:])
+		m, err := strconv.Atoi(str[p+1:])
 		if err != nil {
 			// Put full string into error.
 			if e, ok := err.(*strconv.NumError); ok {
@@ -789,7 +789,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 			}
 			s.error(err)
 		}
-		return math.Ldexp(f, n)
+		return math.Ldexp(f, m)
 	}
 	f, err := strconv.ParseFloat(str, n)
 	if err != nil {
@@ -858,8 +858,7 @@ func (s *ss) quotedString() string {
 				// In a legal backslash escape, no matter how long, only the character
 				// immediately after the escape can itself be a backslash or quote.
 				// Thus we only need to protect the first character after the backslash.
-				r := s.mustReadRune()
-				s.buf.WriteRune(r)
+				s.buf.WriteRune(s.mustReadRune())
 			} else if r == '"' {
 				break
 			}

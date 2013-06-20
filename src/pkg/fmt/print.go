@@ -811,8 +811,8 @@ func (p *pp) printArg(arg interface{}, verb rune, plus, goSyntax bool, depth int
 		p.fmt.plus = oldPlus
 		p.fmt.sharp = oldSharp
 		// If the type is not simple, it might have methods.
-		if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
-			return wasString
+		if isString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+			return isString
 		}
 		// Need to use reflection
 		return p.printReflectValue(reflect.ValueOf(arg), verb, plus, goSyntax, depth)
@@ -849,8 +849,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, plus, goSyntax bool, dep
 	if value.CanInterface() {
 		p.arg = value.Interface()
 	}
-	if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
-		return wasString
+	if isString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+		return isString
 	}
 
 	return p.printReflectValue(value, verb, plus, goSyntax, depth)

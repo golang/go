@@ -532,10 +532,9 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
 	var ptr uintptr
 	var salen _Socklen
 	if to != nil {
-		var err error
 		ptr, salen, err = to.sockaddr()
 		if err != nil {
-			return err
+			return
 		}
 	}
 	var msg Msghdr

@@ -441,11 +441,11 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 			return
 		}
 
-		var params fieldParameters
+		var fp fieldParameters
 		for i := 0; i < v.Len(); i++ {
 			var pre *forkableWriter
 			pre, out = out.fork()
-			err = marshalField(pre, v.Index(i), params)
+			err = marshalField(pre, v.Index(i), fp)
 			if err != nil {
 				return
 			}
