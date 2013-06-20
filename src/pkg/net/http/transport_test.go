@@ -553,12 +553,13 @@ func TestRoundTripGzip(t *testing.T) {
 		res, err := DefaultTransport.RoundTrip(req)
 		var body []byte
 		if test.compressed {
-			gzip, err := gzip.NewReader(res.Body)
+			var r *gzip.Reader
+			r, err = gzip.NewReader(res.Body)
 			if err != nil {
 				t.Errorf("%d. gzip NewReader: %v", i, err)
 				continue
 			}
-			body, err = ioutil.ReadAll(gzip)
+			body, err = ioutil.ReadAll(r)
 			res.Body.Close()
 		} else {
 			body, err = ioutil.ReadAll(res.Body)
