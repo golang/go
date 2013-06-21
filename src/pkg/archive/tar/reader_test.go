@@ -171,6 +171,7 @@ testLoop:
 			t.Errorf("test %d: Unexpected error: %v", i, err)
 			continue
 		}
+		defer f.Close()
 		tr := NewReader(f)
 		for j, header := range test.headers {
 			hdr, err := tr.Next()
@@ -191,7 +192,6 @@ testLoop:
 		if hdr != nil || err != nil {
 			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, hdr, err)
 		}
-		f.Close()
 	}
 }
 
