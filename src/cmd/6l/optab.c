@@ -1344,6 +1344,8 @@ Optab optab[] =
 	{ ANPTRS },
 	{ APTRS },
 
+	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
+
 	{ AEND },
 	0
 };
