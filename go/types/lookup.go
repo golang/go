@@ -36,26 +36,18 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 		return // empty fields/methods are never found
 	}
 
-	// embedded represents an embedded named type
-	type embedded struct {
-		typ       *Named // nil means use the outer typ variable instead
-		index     []int  // embedded field indices, starting with index at depth 0
-		indirect  bool   // if set, there was a pointer indirection on the path to this field
-		multiples bool   // if set, typ appears multiple times at this depth
-	}
-
 	// Start with typ as single entry at lowest depth.
 	// If typ is not a named type, insert a nil type instead.
 	typ, isPtr := deref(typ)
 	t, _ := typ.(*Named)
-	current := []embedded{{t, nil, isPtr, false}}
+	current := []embeddedType{{t, nil, isPtr, false}}
 
 	// named types that we have seen already
 	seen := make(map[*Named]bool)
 
-	// search current depth if there's work to do
+	// search current depth
 	for len(current) > 0 {
-		var next []embedded // embedded types found at current depth
+		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at this depth
 		for _, e := range current {
@@ -119,8 +111,8 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 						// Ignore embedded basic types - only user-defined
 						// named types can have methods or struct fields.
 						typ, isPtr := deref(f.typ)
-						if t, _ := typ.Deref().(*Named); t != nil {
-							next = append(next, embedded{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
+						if t, _ := typ.(*Named); t != nil {
+							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
 						}
 					}
 				}
@@ -144,29 +136,43 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 			return // found a match
 		}
 
-		// Consolidate next: collect multiple entries with the same
-		// type into a single entry marked as containing multiples.
-		n := len(next)
-		if n > 1 {
-			n := 0                       // number of entries w/ unique type
-			prev := make(map[*Named]int) // index at which type was previously seen
-			for _, e := range next {
-				if i, found := prev[e.typ]; found {
-					next[i].multiples = true
-					// ignore this entry
-				} else {
-					prev[e.typ] = n
-					next[n] = e
-					n++
-				}
-			}
-		}
-		current = next[:n]
+		current = consolidateMultiples(next)
 	}
 
 	index = nil
 	indirect = false
 	return // not found
+}
+
+// embeddedType represents an embedded named type
+type embeddedType struct {
+	typ       *Named // nil means use the outer typ variable instead
+	index     []int  // embedded field indices, starting with index at depth 0
+	indirect  bool   // if set, there was a pointer indirection on the path to this field
+	multiples bool   // if set, typ appears multiple times at this depth
+}
+
+// consolidateMultiples collects multiple list entries with the same type
+// into a single entry marked as containing multiples. The result is the
+// consolidated list.
+func consolidateMultiples(list []embeddedType) []embeddedType {
+	if len(list) <= 1 {
+		return list // at most one entry - nothing to do
+	}
+
+	n := 0                       // number of entries w/ unique type
+	prev := make(map[*Named]int) // index at which type was previously seen
+	for _, e := range list {
+		if i, found := prev[e.typ]; found {
+			list[i].multiples = true
+			// ignore this entry
+		} else {
+			prev[e.typ] = n
+			list[n] = e
+			n++
+		}
+	}
+	return list[:n]
 }
 
 // MissingMethod returns (nil, false) if typ implements T, otherwise

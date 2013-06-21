@@ -58,92 +58,49 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Func {
 // NewMethodSet computes the method set for the given type.
 // BUG(gri): The pointer-ness of the receiver type is still ignored.
 func NewMethodSet(typ Type) *MethodSet {
-	isPtr := false
-	if p, ok := typ.Underlying().(*Pointer); ok {
-		typ = p.base
-		isPtr = true
-	}
-
-	// TODO(gri) consult isPtr for precise method set computation
-	_ = isPtr
-
 	// method set up to the current depth
 	// TODO(gri) allocate lazily, method sets are often empty
 	base := make(methodSet)
 
+	// Start with typ as single entry at lowest depth.
+	// If typ is not a named type, insert a nil type instead.
+	typ, isPtr := deref(typ)
+	t, _ := typ.(*Named)
+	current := []embeddedType{{t, nil, isPtr, false}}
+
 	// named types that we have seen already
 	seen := make(map[*Named]bool)
 
-	// We treat the top-most level separately because it's simpler
-	// (no incoming multiples) and because it's the common case.
+	// collect methods at current depth
+	for len(current) > 0 {
+		var next []embeddedType // embedded types found at current depth
 
-	if t, _ := typ.(*Named); t != nil {
-		seen[t] = true
-		base.add(t.methods, false)
-		typ = t.underlying
-	}
-
-	// embedded named types at the current and next lower depth
-	type embedded struct {
-		typ       *Named
-		multiples bool
-	}
-	var current, next []embedded
-
-	switch t := typ.(type) {
-	case *Struct:
-		for _, f := range t.fields {
-			// Fields and methods must be distinct at the most shallow depth.
-			// If they are not, the type checker reported an error before, so
-			// we are ignoring potential conflicts here.
-			if f.anonymous {
-				// Ignore embedded basic types - only user-defined
-				// named types can have methods or struct fields.
-				if t, _ := f.typ.Deref().(*Named); t != nil {
-					next = append(next, embedded{t, false})
-				}
-			}
-		}
-
-	case *Interface:
-		base.add(t.methods, false)
-	}
-
-	// collect methods at next lower depth
-	for len(next) > 0 {
-		// Consolidate next: collect multiple entries with the same
-		// type into a single entry marked as containing multiples.
-		n := 0                       // number of entries w/ unique type
-		prev := make(map[*Named]int) // index at which type was previously seen
-		for _, e := range next {
-			if i, found := prev[e.typ]; found {
-				next[i].multiples = true
-				// ignore this entry
-			} else {
-				prev[e.typ] = n
-				next[n] = e
-				n++
-			}
-		}
-		// next[:n] is the list of embedded entries to process
-
-		// The underlying arrays of current and next are different, thus
-		// swapping is safe and they never share the same underlying array.
-		current, next = next[:n], current[:0] // don't waste underlying array
-
-		// field and method sets at this depth
+		// field and method sets for current depth
 		fset := make(fieldSet)
 		mset := make(methodSet)
 
 		for _, e := range current {
-			if seen[e.typ] {
-				continue
+			// The very first time only, e.typ may be nil.
+			// In this case, we don't have a named type and
+			// we simply continue with the underlying type.
+			if e.typ != nil {
+				if seen[e.typ] {
+					// We have seen this type before, at a more shallow depth
+					// (note that multiples of this type at the current depth
+					// were eliminated before). The type at that depth shadows
+					// this same type at the current depth, so we can ignore
+					// this one.
+					continue
+				}
+				seen[e.typ] = true
+
+				mset.add(e.typ.methods, e.multiples)
+
+				// continue with underlying type
+				typ = e.typ.underlying
 			}
-			seen[e.typ] = true
 
-			mset.add(e.typ.methods, e.multiples)
-
-			switch t := e.typ.underlying.(type) {
+			switch t := typ.(type) {
 			case *Struct:
 				for _, f := range t.fields {
 					fset.add(f, e.multiples)
@@ -155,8 +112,9 @@ func NewMethodSet(typ Type) *MethodSet {
 					if f.anonymous {
 						// Ignore embedded basic types - only user-defined
 						// named types can have methods or have struct fields.
-						if t, _ := f.typ.Deref().(*Named); t != nil {
-							next = append(next, embedded{t, e.multiples})
+						typ, isPtr := deref(f.typ)
+						if t, _ := typ.(*Named); t != nil {
+							next = append(next, embeddedType{t, nil, e.indirect || isPtr, e.multiples})
 						}
 					}
 				}
@@ -188,6 +146,8 @@ func NewMethodSet(typ Type) *MethodSet {
 				}
 			}
 		}
+
+		current = consolidateMultiples(next)
 	}
 
 	// collect methods

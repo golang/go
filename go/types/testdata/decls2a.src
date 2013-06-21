@@ -32,7 +32,12 @@ type T1c struct {
 
 func (T1c) Pointer /* ERROR "field and method" */ () int { return 0 }
 
-var _ = T1c{}.Pointer
+// Disabled for now: LookupFieldOrMethod will find Pointer even though
+// it's double-declared (it would cost extra in the common case to verify
+// this). But the MethodSet computation will not find it due to the name
+// collision caused by the double-declaration, leading to an internal
+// inconsistency while we are verifying one computation against the other.
+// var _ = T1c{}.Pointer
 
 // T2's method declared before the type.
 func (*T2) f /* ERROR "field and method" */ () {}

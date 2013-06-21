@@ -1376,9 +1376,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				x.mode = variable
 				x.typ = obj.typ
 			case *Func:
-				// TODO(gri) Temporary assert to verify corresponding lookup via method sets.
+				// TODO(gri) Temporary check to verify corresponding lookup via method sets.
 				//           Remove eventually.
-				assert(NewMethodSet(x.typ).Lookup(check.pkg, sel) == obj)
+				if m := NewMethodSet(x.typ).Lookup(check.pkg, sel); m != obj {
+					check.dump("%s: %v", e.Pos(), obj.name)
+					panic("method sets and lookup don't agree")
+				}
 
 				// TODO(gri) This code appears elsewhere, too. Factor!
 				// verify that obj is in the method set of x.typ (or &(x.typ) if x is addressable)
