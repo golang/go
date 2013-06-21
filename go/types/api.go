@@ -33,7 +33,6 @@ package types
 // pass without errors. Please do not file issues against these for now
 // since they are known already:
 //
-// BUG(gri): Method sets are computed loosely and don't distinguish between ptr vs non-pointer receivers.
 // BUG(gri): Method expressions and method values work accidentally and may not be fully checked.
 // BUG(gri): Conversions of constants only change the type, not the value (e.g., int(1.1) is wrong).
 // BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).

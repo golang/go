@@ -341,17 +341,22 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		if x.mode == invalid {
 			goto Error
 		}
+		base := x.typ.Deref()
 		sel := arg.Sel.Name
-		obj, index := LookupFieldOrMethod(x.typ, check.pkg, arg.Sel.Name)
-		if obj == nil {
-			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
+		obj, index, indirect := LookupFieldOrMethod(base, check.pkg, arg.Sel.Name)
+		switch obj.(type) {
+		case nil:
+			check.invalidArg(x.pos(), "%s has no single field %s", base, sel)
+			goto Error
+		case *Func:
+			check.invalidArg(arg0.Pos(), "%s is a method value", arg0)
 			goto Error
 		}
-		offs := check.ctxt.offsetof(x.typ.Deref(), index)
-		if offs < 0 {
-			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, x)
+		if indirect {
+			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, base)
 			goto Error
 		}
+		offs := check.ctxt.offsetof(base, index)
 		x.mode = constant
 		x.val = exact.MakeInt64(offs)
 		x.typ = Typ[Uintptr]

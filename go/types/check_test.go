@@ -55,6 +55,7 @@ var tests = []struct {
 	{"expr1", []string{"testdata/expr1.src"}},
 	{"expr2", []string{"testdata/expr2.src"}},
 	{"expr3", []string{"testdata/expr3.src"}},
+	{"methodsets", []string{"testdata/methodsets.src"}},
 	{"shifts", []string{"testdata/shifts.src"}},
 	{"builtins", []string{"testdata/builtins.src"}},
 	{"conversions", []string{"testdata/conversions.src"}},

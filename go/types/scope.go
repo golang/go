@@ -20,16 +20,25 @@ import (
 type Scope struct {
 	parent  *Scope
 	entries []Object
+	node    ast.Node
 }
 
 // NewScope returns a new, empty scope.
 func NewScope(parent *Scope) *Scope {
-	return &Scope{parent, nil}
+	return &Scope{parent: parent}
 }
 
 // Parent returns the scope's containing (parent) scope.
 func (s *Scope) Parent() *Scope {
 	return s.parent
+}
+
+// Node returns the ast.Node responsible for this scope.
+// The result is nil if there is no corresponding node
+// (e.g., for the universe scope, package scope, or
+// imported packages).
+func (s *Scope) Node() ast.Node {
+	return s.node
 }
 
 // NumEntries() returns the number of scope entries.

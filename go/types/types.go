@@ -382,6 +382,7 @@ func (t *Interface) Deref() Type { return t }
 func (t *Map) Deref() Type       { return t }
 func (t *Chan) Deref() Type      { return t }
 func (t *Named) Deref() Type {
+	// TODO(gri) Is this the right operation here given how Deref is used?
 	if p, ok := t.underlying.(*Pointer); ok {
 		return p.base
 	}

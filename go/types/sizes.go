@@ -40,15 +40,12 @@ func (ctxt *Context) offsetsof(s *Struct) []int64 {
 }
 
 // offsetof returns the offset of the field specified via
-// the index sequence relative to typ. It returns a value
-// < 0 if the field is in an embedded pointer type.
+// the index sequence relative to typ. All embedded fields
+// must be structs (rather than pointer to structs).
 func (ctxt *Context) offsetof(typ Type, index []int) int64 {
 	var o int64
 	for _, i := range index {
-		s, _ := typ.Underlying().(*Struct)
-		if s == nil {
-			return -1
-		}
+		s := typ.Underlying().(*Struct)
 		o += ctxt.offsetsof(s)[i]
 		typ = s.fields[i].typ
 	}

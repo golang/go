@@ -60,7 +60,7 @@ type (
 
 
 type (
-	p1 pi /* ERROR "no single field or method foo" */ .foo
+	p1 pi /* ERROR "no field or method foo" */ .foo
 	p2 unsafe.Pointer
 )
 
@@ -96,9 +96,8 @@ type (
 		u, v, a /* ERROR "redeclared" */ float32
 	}
 	S2 struct {
-		U // anonymous field
-		// TODO(gri) recognize double-declaration below
-		// U /* ERROR "redeclared" */ int
+		S0 // anonymous field
+		S0 /* ERROR "redeclared" */ int
 	}
 	S3 struct {
 		x S2

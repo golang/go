@@ -8,8 +8,15 @@ package types
 
 import "go/ast"
 
+// TODO(gri) The named type consolidation and seen maps below must be
+//           indexed by unique keys for a given type. Verify that named
+//           types always have only one representation (even when imported
+//           indirectly via different packages.)
+
 // LookupFieldOrMethod looks up a field or method with given package and name
-// in typ and returns the corresponding *Field or *Func, and an index sequence.
+// in typ and returns the corresponding *Field or *Func, an index sequence,
+// and a bool indicating if there were any pointer indirections on the path
+// to the field or method.
 //
 // The last index entry is the field or method index in the (possibly embedded)
 // type where the entry was found, either:
@@ -24,34 +31,27 @@ import "go/ast"
 // If no entry is found, a nil object is returned. In this case, the returned
 // index sequence points to an ambiguous entry if it exists, or it is nil.
 //
-func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int) {
+func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	if name == "_" {
 		return // empty fields/methods are never found
 	}
 
-	isPtr := false
-	if p, ok := typ.Underlying().(*Pointer); ok {
-		typ = p.base
-		isPtr = true
-	}
-
-	// TODO(gri) consult isPtr for precise method set computation
-	_ = isPtr
-
-	// named types that we have seen already
-	seen := make(map[*Named]bool)
-
 	// embedded represents an embedded named type
 	type embedded struct {
 		typ       *Named // nil means use the outer typ variable instead
-		index     []int  // field/method indices, starting with index at depth 0
-		multiples bool   // if set, type appears multiple times at its depth
+		index     []int  // embedded field indices, starting with index at depth 0
+		indirect  bool   // if set, there was a pointer indirection on the path to this field
+		multiples bool   // if set, typ appears multiple times at this depth
 	}
 
 	// Start with typ as single entry at lowest depth.
 	// If typ is not a named type, insert a nil type instead.
+	typ, isPtr := deref(typ)
 	t, _ := typ.(*Named)
-	current := []embedded{{t, nil, false}}
+	current := []embedded{{t, nil, isPtr, false}}
+
+	// named types that we have seen already
+	seen := make(map[*Named]bool)
 
 	// search current depth if there's work to do
 	for len(current) > 0 {
@@ -64,6 +64,11 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 			// we simply continue with the underlying type.
 			if e.typ != nil {
 				if seen[e.typ] {
+					// We have seen this type before, at a more shallow depth
+					// (note that multiples of this type at the current depth
+					// were eliminated before). The type at that depth shadows
+					// this same type at the current depth, so we can ignore
+					// this one.
 					continue
 				}
 				seen[e.typ] = true
@@ -78,6 +83,8 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 						return
 					}
 					obj = m
+					indirect = e.indirect
+					continue // we can't have a matching field or interface method
 				}
 
 				// continue with underlying type
@@ -96,7 +103,8 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 							return
 						}
 						obj = f
-						continue
+						indirect = e.indirect
+						continue // we can't have a matching interface method
 					}
 					// Collect embedded struct fields for searching the next
 					// lower depth, but only if we have not seen a match yet
@@ -109,9 +117,10 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 					// depth.
 					if obj == nil && f.anonymous {
 						// Ignore embedded basic types - only user-defined
-						// named types can have methods or have struct fields.
-						if t, _ := f.typ.Deref().(*Named); t != nil {
-							next = append(next, embedded{t, concat(e.index, i), e.multiples})
+						// named types can have methods or struct fields.
+						typ, isPtr := deref(f.typ)
+						if t, _ := typ.Deref().(*Named); t != nil {
+							next = append(next, embedded{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
 						}
 					}
 				}
@@ -126,6 +135,7 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 						return
 					}
 					obj = m
+					indirect = e.indirect
 				}
 			}
 		}
@@ -155,15 +165,8 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 	}
 
 	index = nil
+	indirect = false
 	return // not found
-}
-
-// concat returns the result of concatenating list and i.
-// The result does not share its underlying array with list.
-func concat(list []int, i int) []int {
-	var t []int
-	t = append(t, list...)
-	return append(t, i)
 }
 
 // MissingMethod returns (nil, false) if typ implements T, otherwise
@@ -171,7 +174,6 @@ func concat(list []int, i int) []int {
 // is missing or simply has the wrong type.
 //
 func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
-	// TODO(gri): distinguish pointer and non-pointer receivers
 	// an interface type implements T if it has no methods with conflicting signatures
 	// Note: This is stronger than the current spec. Should the spec require this?
 
@@ -192,15 +194,48 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 
 	// a concrete type implements T if it implements all methods of T.
 	for _, m := range T.methods {
-		obj, _ := LookupFieldOrMethod(typ, m.pkg, m.name)
+		obj, _, indirect := LookupFieldOrMethod(typ, m.pkg, m.name)
 		if obj == nil {
 			return m, false
 		}
+
+		f, _ := obj.(*Func)
+		if f == nil {
+			return m, false
+		}
+
+		// verify that f is in the method set of typ
+		// (the receiver is nil if f is an interface method)
+		if recv := f.typ.(*Signature).recv; recv != nil {
+			if _, isPtr := deref(recv.typ); isPtr && !indirect {
+				return m, false
+			}
+		}
+
 		if !IsIdentical(obj.Type(), m.typ) {
 			return m, true
 		}
 	}
 	return
+}
+
+// Deref dereferences typ if it is a pointer and returns its base and true.
+// Otherwise it returns (typ, false).
+// In contrast, Type.Deref also dereferenciates if type is a named type
+// that is a pointer.
+func deref(typ Type) (Type, bool) {
+	if p, _ := typ.(*Pointer); p != nil {
+		return p.base, true
+	}
+	return typ, false
+}
+
+// concat returns the result of concatenating list and i.
+// The result does not share its underlying array with list.
+func concat(list []int, i int) []int {
+	var t []int
+	t = append(t, list...)
+	return append(t, i)
 }
 
 // fieldIndex returns the index for the field with matching package and name, or a value < 0.

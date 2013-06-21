@@ -88,6 +88,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 		check.callIdent(file.Name, pkg)
 
 		fileScope = NewScope(pkg.scope)
+		if retainASTLinks {
+			fileScope.node = file
+		}
 		scopes = append(scopes, fileScope)
 
 		for _, decl := range file.Decls {

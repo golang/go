@@ -200,10 +200,24 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		} else {
 			// anonymous field
 			pos := f.Type.Pos()
-			switch t := typ.Deref().(type) {
+			t, isPtr := deref(typ)
+			switch t := t.(type) {
 			case *Basic:
 				add(f, nil, t.name, true, pos)
 			case *Named:
+				// spec: "An embedded type must be specified as a type name
+				// T or as a pointer to a non-interface type name *T, and T
+				// itself may not be a pointer type."
+				switch t.underlying.(type) {
+				case *Pointer:
+					check.errorf(pos, "anonymous field type cannot be a pointer")
+					continue // ignore this field
+				case *Interface:
+					if isPtr {
+						check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
+						continue // ignore this field
+					}
+				}
 				add(f, nil, t.obj.name, true, pos)
 			default:
 				if typ != Typ[Invalid] {
@@ -1310,25 +1324,39 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		// TODO(gri) use collision information for better error message
-		obj, _ := LookupFieldOrMethod(x.typ, check.pkg, sel)
+
+		obj, index, indirect := LookupFieldOrMethod(x.typ, check.pkg, sel)
 		if obj == nil {
-			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
+			if index != nil {
+				// TODO(gri) should provide actual type where the conflict happens
+				check.invalidOp(e.Pos(), "ambiguous selector %s", sel)
+			} else {
+				check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
+			}
 			goto Error
 		}
+
 		check.callIdent(e.Sel, obj)
+
 		if x.mode == typexpr {
 			// method expression
-			m, ok := obj.(*Func)
-			if !ok {
+			m, _ := obj.(*Func)
+			if m == nil {
 				check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
 				goto Error
 			}
 
+			// verify that m is in the method set of x.typ
+			// (the receiver is nil if f is an interface method)
+			if recv := m.typ.(*Signature).recv; recv != nil {
+				if _, isPtr := deref(recv.typ); isPtr && !indirect {
+					check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
+					goto Error
+				}
+			}
+
 			// the receiver type becomes the type of the first function
 			// argument of the method expression's function type
-			// TODO(gri) at the moment, method sets don't correctly track
-			// pointer vs non-pointer receivers => typechecker is too lenient
 			var params []*Var
 			sig := m.typ.(*Signature)
 			if sig.params != nil {
@@ -1340,6 +1368,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				results:    sig.results,
 				isVariadic: sig.isVariadic,
 			}
+
 		} else {
 			// regular selector
 			switch obj := obj.(type) {
@@ -1350,6 +1379,22 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				// TODO(gri) Temporary assert to verify corresponding lookup via method sets.
 				//           Remove eventually.
 				assert(NewMethodSet(x.typ).Lookup(check.pkg, sel) == obj)
+
+				// TODO(gri) This code appears elsewhere, too. Factor!
+				// verify that obj is in the method set of x.typ (or &(x.typ) if x is addressable)
+				// (the receiver is nil if obj is an interface method)
+				//
+				// spec: "A method call x.m() is valid if the method set of (the type of) x
+				//        contains m and the argument list can be assigned to the parameter
+				//        list of m. If x is addressable and &x's method set contains m, x.m()
+				//        is shorthand for (&x).m()".
+				if recv := obj.typ.(*Signature).recv; recv != nil {
+					if _, isPtr := deref(recv.typ); isPtr && !indirect && x.mode != variable {
+						check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x)
+						goto Error
+					}
+				}
+
 				x.mode = value
 				x.typ = obj.typ
 			default:
@@ -1708,6 +1753,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.FuncType:
 		scope := NewScope(check.topScope)
+		if retainASTLinks {
+			scope.node = e
+		}
 		params, isVariadic := check.collectParams(scope, e.Params, true)
 		results, _ := check.collectParams(scope, e.Results, false)
 		x.mode = typexpr

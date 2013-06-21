@@ -320,6 +320,8 @@ type S2 struct{ // offset
 	*S1     //  0
 }               //  8
 
+func (S2) m() {}
+
 func _Alignof() {
 	var x int
 	_ = unsafe /* ERROR "argument" */ .Alignof()
@@ -368,9 +370,13 @@ func _Offsetof() {
 	assert(unsafe.Offsetof(y1.d) == 48)   // relative to S1
 	assert(unsafe.Offsetof(y1.e) == 56)   // relative to S1
 
+	var y1p *S1
+	assert(unsafe.Offsetof(y1p.S0) == 32)
+
 	var y2 S2
 	assert(unsafe.Offsetof(y2.S1) == 0)
 	_ = unsafe.Offsetof(y2 /* ERROR "embedded via a pointer" */ .x)
+	_ = unsafe.Offsetof(y2 /* ERROR "method value" */ .m)
 }
 
 func _Sizeof() {

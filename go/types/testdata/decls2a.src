@@ -32,7 +32,7 @@ type T1c struct {
 
 func (T1c) Pointer /* ERROR "field and method" */ () int { return 0 }
 
-var _ = T1c /* ERROR "no single field or method" */ {}.Pointer
+var _ = T1c{}.Pointer
 
 // T2's method declared before the type.
 func (*T2) f /* ERROR "field and method" */ () {}

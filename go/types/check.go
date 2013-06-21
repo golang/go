@@ -21,6 +21,12 @@ const (
 	trace = false // turn on for detailed type resolution traces
 )
 
+// If retainASTLinks is set, scopes maintain a link to the node
+// responsible for it.
+// TODO(gri) Decide if this should be a permanent (always present)
+//           or optional feature (enabled with a mode flag).
+const retainASTLinks = true
+
 // exprInfo stores type and constant value for an untyped expression.
 type exprInfo struct {
 	isLhs bool // expression is lhs operand of a shift with delayed type check

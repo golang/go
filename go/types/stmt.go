@@ -299,8 +299,12 @@ func (check *checker) multipleDefaults(list []ast.Stmt) {
 	}
 }
 
-func (check *checker) openScope() {
-	check.topScope = NewScope(check.topScope)
+func (check *checker) openScope(node ast.Node) {
+	s := NewScope(check.topScope)
+	if retainASTLinks {
+		s.node = node
+	}
+	check.topScope = s
 }
 
 func (check *checker) closeScope() {
@@ -516,12 +520,12 @@ func (check *checker) stmt(s ast.Stmt) {
 		// TODO(gri) implement this
 
 	case *ast.BlockStmt:
-		check.openScope()
+		check.openScope(s)
 		check.stmtList(s.List)
 		check.closeScope()
 
 	case *ast.IfStmt:
-		check.openScope()
+		check.openScope(s)
 		check.optionalStmt(s.Init)
 		var x operand
 		check.expr(&x, s.Cond, nil, -1)
@@ -533,7 +537,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.closeScope()
 
 	case *ast.SwitchStmt:
-		check.openScope()
+		check.openScope(s)
 		check.optionalStmt(s.Init)
 		var x operand
 		tag := s.Tag
@@ -594,14 +598,14 @@ func (check *checker) stmt(s ast.Stmt) {
 					}
 				}
 			}
-			check.openScope()
+			check.openScope(clause)
 			check.stmtList(clause.Body)
 			check.closeScope()
 		}
 		check.closeScope()
 
 	case *ast.TypeSwitchStmt:
-		check.openScope()
+		check.openScope(s)
 		check.optionalStmt(s.Init)
 
 		// A type switch guard must be of the form:
@@ -682,7 +686,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					}
 				}
 			}
-			check.openScope()
+			check.openScope(clause)
 			// If lhs exists, declare a corresponding object in the case-local scope if necessary.
 			if lhs != nil {
 				// A single-type case clause implicitly declares a new variable shadowing lhs.
@@ -704,14 +708,14 @@ func (check *checker) stmt(s ast.Stmt) {
 			if clause == nil {
 				continue // error reported before
 			}
-			check.openScope()
+			check.openScope(clause)
 			check.optionalStmt(clause.Comm) // TODO(gri) check correctness of c.Comm (must be Send/RecvStmt)
 			check.stmtList(clause.Body)
 			check.closeScope()
 		}
 
 	case *ast.ForStmt:
-		check.openScope()
+		check.openScope(s)
 		check.optionalStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
@@ -725,7 +729,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.closeScope()
 
 	case *ast.RangeStmt:
-		check.openScope()
+		check.openScope(s)
 		// check expression to iterate over
 		decl := s.Tok == token.DEFINE
 		var x operand
