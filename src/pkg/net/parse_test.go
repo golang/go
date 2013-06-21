@@ -23,12 +23,14 @@ func TestReadLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open %s: %v", filename, err)
 	}
+	defer fd.Close()
 	br := bufio.NewReader(fd)
 
 	file, err := open(filename)
 	if file == nil {
 		t.Fatalf("net.open(%s) = nil", filename)
 	}
+	defer file.close()
 
 	lineno := 1
 	byteno := 0

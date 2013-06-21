@@ -25,6 +25,7 @@ func TestShutdown(t *testing.T) {
 	}
 
 	go func() {
+		defer ln.Close()
 		c, err := ln.Accept()
 		if err != nil {
 			t.Fatalf("Accept: %v", err)
@@ -75,7 +76,10 @@ func TestShutdownUnix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListenUnix on %s: %s", tmpname, err)
 	}
-	defer os.Remove(tmpname)
+	defer func() {
+		ln.Close()
+		os.Remove(tmpname)
+	}()
 
 	go func() {
 		c, err := ln.Accept()

@@ -255,6 +255,7 @@ func TestWrite(t *testing.T) {
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}
+			defer l.Close()
 			_, err = io.WriteString(l, test.msg)
 			if err != nil {
 				t.Fatalf("WriteString() failed: %v", err)
@@ -328,6 +329,7 @@ func TestConcurrentReconnect(t *testing.T) {
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}
+			defer w.Close()
 			for i := 0; i < M; i++ {
 				err := w.Info("test")
 				if err != nil {

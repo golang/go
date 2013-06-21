@@ -276,6 +276,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		var rc *ReadCloser
 		rc, err = OpenReader(filepath.Join("testdata", zt.Name))
 		if err == nil {
+			defer rc.Close()
 			z = &rc.Reader
 		}
 	}
