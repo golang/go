@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 11, 2013",
+	"Subtitle": "Version of June 21, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -3735,11 +3735,12 @@ MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
 
 <li>
 Converting a slice of bytes to a string type yields
-a string whose successive bytes are the elements of the slice.  If
-the slice value is <code>nil</code>, the result is the empty string.
+a string whose successive bytes are the elements of the slice.
 
 <pre>
-string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
+string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})   // "hellø"
+string([]byte{})                                     // ""
+string([]byte(nil))                                  // ""
 
 type MyBytes []byte
 string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
@@ -3749,11 +3750,12 @@ string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
 <li>
 Converting a slice of runes to a string type yields
 a string that is the concatenation of the individual rune values
-converted to strings.  If the slice value is <code>nil</code>, the
-result is the empty string.
+converted to strings.
 
 <pre>
-string([]rune{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+string([]rune{0x767d, 0x9d6c, 0x7fd4})   // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+string([]rune{})                         // ""
+string([]rune(nil))                      // ""
 
 type MyRunes []rune
 string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
@@ -3763,10 +3765,11 @@ string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
 <li>
 Converting a value of a string type to a slice of bytes type
 yields a slice whose successive elements are the bytes of the string.
-If the string is empty, the result is <code>[]byte(nil)</code>.
 
 <pre>
 []byte("hellø")   // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+[]byte("")        // []byte{}
+
 MyBytes("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
 </pre>
 </li>
@@ -3774,9 +3777,11 @@ MyBytes("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
 <li>
 Converting a value of a string type to a slice of runes type
 yields a slice containing the individual Unicode code points of the string.
-If the string is empty, the result is <code>[]rune(nil)</code>.
+
 <pre>
 []rune(MyString("白鵬翔"))  // []rune{0x767d, 0x9d6c, 0x7fd4}
+[]rune("")                 // []rune{}
+
 MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
 </pre>
 </li>
