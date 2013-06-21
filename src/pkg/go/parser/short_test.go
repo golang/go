@@ -33,6 +33,7 @@ var valids = []string{
 	`package p; func f() { if ; true {} };`,
 	`package p; func f() { switch ; {} };`,
 	`package p; func f() { for _ = range "foo" + "bar" {} };`,
+	`package p; func f() { var s []int; g(s[:], s[i:], s[:j], s[i:j], s[i:j:k], s[:j:k]) };`,
 }
 
 func TestValid(t *testing.T) {
@@ -74,6 +75,15 @@ var invalids = []string{
 	`package p; func f() { if x := g(); x = /* ERROR "expected '=='" */ 0 {}};`,
 	`package p; func f() { _ = x = /* ERROR "expected '=='" */ 0 {}};`,
 	`package p; func f() { _ = 1 == func()int { var x bool; x = x = /* ERROR "expected '=='" */ true; return x }() };`,
+	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,
+	`package p; func f() { var s []int; _ = s[::: /* ERROR "expected ']'" */ ] };`,
+	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
+	`package p; func f() { var s []int; g(s[::] /* ERROR "index must be present" */) };`,
+	`package p; func f() { var s []int; g(s[i::] /* ERROR "index must be present" */) };`,
+	`package p; func f() { var s []int; g(s[i:j:] /* ERROR "index must be present" */) };`,
+	`package p; func f() { var s []int; g(s[::k] /* ERROR "index must be present" */) };`,
+	`package p; func f() { var s []int; g(s[:j:] /* ERROR "index must be present" */) };`,
+	`package p; func f() { var s []int; g(s[i::k] /* ERROR "index must be present" */) };`,
 }
 
 func TestInvalid(t *testing.T) {

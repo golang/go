@@ -773,17 +773,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.print(x.Lbrack, token.LBRACK)
-		if x.Low != nil {
-			p.expr0(x.Low, depth+1)
+		indices := []ast.Expr{x.Low, x.High}
+		if x.Max != nil {
+			indices = append(indices, x.Max)
 		}
-		// blanks around ":" if both sides exist and either side is a binary expression
-		if depth <= 1 && x.Low != nil && x.High != nil && (isBinary(x.Low) || isBinary(x.High)) {
-			p.print(blank, token.COLON, blank)
-		} else {
-			p.print(token.COLON)
-		}
-		if x.High != nil {
-			p.expr0(x.High, depth+1)
+		for i, y := range indices {
+			if i > 0 {
+				// blanks around ":" if both sides exist and either side is a binary expression
+				// TODO(gri) once we have committed a variant of a[i:j:k] we may want to fine-
+				//           tune the formatting here
+				x := indices[i-1]
+				if depth <= 1 && x != nil && y != nil && (isBinary(x) || isBinary(y)) {
+					p.print(blank, token.COLON, blank)
+				} else {
+					p.print(token.COLON)
+				}
+			}
+			if y != nil {
+				p.expr0(y, depth+1)
+			}
 		}
 		p.print(x.Rbrack, token.RBRACK)
 

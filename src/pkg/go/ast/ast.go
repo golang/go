@@ -297,6 +297,7 @@ type (
 		Lbrack token.Pos // position of "["
 		Low    Expr      // begin of slice range; or nil
 		High   Expr      // end of slice range; or nil
+		Max    Expr      // maximum capacity of slice; or nil
 		Rbrack token.Pos // position of "]"
 	}
 
