@@ -50,6 +50,7 @@ func coverReport() {
 	if *coverProfile != "" {
 		f, err = os.Create(toOutputDir(*coverProfile))
 		mustBeNil(err)
+		fmt.Fprintf(f, "mode: %s\n", *coverMode)
 		defer func() { mustBeNil(f.Close()) }()
 	}
 
