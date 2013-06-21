@@ -2151,12 +2151,13 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 		ident = p.parseIdent()
 	}
 
-	var path *ast.BasicLit
+	pos := p.pos
+	var path string
 	if p.tok == token.STRING {
-		if !isValidImport(p.lit) {
-			p.error(p.pos, "invalid import path: "+p.lit)
+		path = p.lit
+		if !isValidImport(path) {
+			p.error(pos, "invalid import path: "+path)
 		}
-		path = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
 		p.next()
 	} else {
 		p.expect(token.STRING) // use expect() error handling
@@ -2167,7 +2168,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	spec := &ast.ImportSpec{
 		Doc:     doc,
 		Name:    ident,
-		Path:    path,
+		Path:    &ast.BasicLit{ValuePos: pos, Kind: token.STRING, Value: path},
 		Comment: p.lineComment,
 	}
 	p.imports = append(p.imports, spec)
