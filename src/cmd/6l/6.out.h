@@ -766,6 +766,8 @@ enum	as
 	ANPTRS,
 	APTRS,
 
+	APCLMULQDQ,
+
 	ALAST
 };
 
