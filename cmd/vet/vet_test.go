@@ -20,7 +20,7 @@ const (
 
 // Run this shell script, but do it in Go so it can be run by "go test".
 // 	go build -o testvet
-// 	$(GOROOT)/test/errchk ./testvet -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
+// 	$(GOROOT)/test/errchk ./testvet -shadow -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
 // 	rm testvet
 //
 func TestVet(t *testing.T) {
@@ -50,6 +50,7 @@ func TestVet(t *testing.T) {
 	flags := []string{
 		"./" + binary,
 		"-printfuncs=Warn:1,Warnf:1",
+		"-test", // TODO: Delete once -shadow is part of -all.
 	}
 	cmd = exec.Command(errchk, append(flags, files...)...)
 	if !run(cmd, t) {

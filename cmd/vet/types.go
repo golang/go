@@ -15,6 +15,8 @@ import (
 )
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+	pkg.idents = make(map[*ast.Ident]types.Object)
+	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.Type)
 	pkg.values = make(map[ast.Expr]exact.Value)
 	exprFn := func(x ast.Expr, typ types.Type, val exact.Value) {
@@ -23,9 +25,14 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 			pkg.values[x] = val
 		}
 	}
+	identFn := func(id *ast.Ident, obj types.Object) {
+		pkg.idents[id] = obj
+		pkg.growSpan(id, obj)
+	}
 	// By providing the Context with our own error function, it will continue
 	// past the first error. There is no need for that function to do anything.
 	context := types.Context{
+		Ident: identFn,
 		Expr:  exprFn,
 		Error: func(error) {},
 	}

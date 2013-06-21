@@ -26,6 +26,8 @@ import (
 )
 
 var verbose = flag.Bool("v", false, "verbose")
+var strictShadowing = flag.Bool("shadowstrict", false, "whether to be strict about shadowing; can be noisy")
+var testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
 var exitCode = 0
 
 // Flags to control which checks to perform. "all" is set to true here, and disabled later if
@@ -40,6 +42,7 @@ var report = map[string]*bool{
 	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
 	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
 	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
+	"shadow":      flag.Bool("shadow", false, "check for shadowed variables (experimental; must be set explicitly)"),
 	"structtags":  flag.Bool("structtags", false, "check that struct field tags have canonical format"),
 	"unreachable": flag.Bool("unreachable", false, "check for unreachable code"),
 }
@@ -48,6 +51,12 @@ var report = map[string]*bool{
 
 // vet tells whether to report errors for the named check, a flag name.
 func vet(name string) bool {
+	if *testFlag {
+		return true
+	}
+	if name == "shadow" {
+		return *report["shadow"]
+	}
 	return *report["all"] || *report[name]
 }
 
@@ -184,8 +193,10 @@ func doPackageDir(directory string) {
 
 type Package struct {
 	path   string
+	idents map[*ast.Ident]types.Object
 	types  map[ast.Expr]types.Type
 	values map[ast.Expr]exact.Value
+	spans  map[types.Object]Span
 	files  []*File
 }
 
@@ -305,6 +316,7 @@ func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
 	setExit(1)
 }
 
+// loc returns a formatted representation of the position.
 func (f *File) loc(pos token.Pos) string {
 	if pos == token.NoPos {
 		return ""
@@ -313,17 +325,17 @@ func (f *File) loc(pos token.Pos) string {
 	// expression instead of the inner part with the actual error, the
 	// precision can mislead.
 	posn := f.fset.Position(pos)
-	return fmt.Sprintf("%s:%d: ", posn.Filename, posn.Line)
+	return fmt.Sprintf("%s:%d", posn.Filename, posn.Line)
 }
 
 // Warn reports an error but does not set the exit code.
 func (f *File) Warn(pos token.Pos, args ...interface{}) {
-	fmt.Fprint(os.Stderr, f.loc(pos)+fmt.Sprintln(args...))
+	fmt.Fprint(os.Stderr, f.loc(pos)+": "+fmt.Sprintln(args...))
 }
 
 // Warnf reports a formatted error but does not set the exit code.
 func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, f.loc(pos)+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, f.loc(pos)+": "+format+"\n", args...)
 }
 
 // walkFile walks the file's tree.
@@ -347,6 +359,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		f.walkFuncDecl(n)
 	case *ast.FuncLit:
 		f.walkFuncLit(n)
+	case *ast.GenDecl:
+		f.walkGenDecl(n)
 	case *ast.InterfaceType:
 		f.walkInterfaceType(n)
 	case *ast.RangeStmt:
@@ -359,6 +373,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
 	f.checkAssignStmt(stmt)
 	f.checkAtomicAssignment(stmt)
+	f.checkShadowAssignment(stmt)
 }
 
 // walkCall walks a call expression.
@@ -400,6 +415,11 @@ func (f *File) walkFuncDecl(d *ast.FuncDecl) {
 	if d.Recv != nil {
 		f.walkMethod(d.Name, d.Type)
 	}
+}
+
+// walkGenDecl walks a general declaration.
+func (f *File) walkGenDecl(d *ast.GenDecl) {
+	f.checkShadowDecl(d)
 }
 
 // walkFuncLit walks a function literal.
