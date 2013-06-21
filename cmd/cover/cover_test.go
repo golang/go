@@ -19,7 +19,7 @@ const (
 	testdata = "testdata"
 
 	// Binaries we compile.
-	testcover = "testcover.exe"
+	testcover = "./testcover.exe"
 )
 
 var (
@@ -51,7 +51,7 @@ func TestCover(t *testing.T) {
 	}
 	err = ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666)
 
-	// defer removal of test_line_go
+	// defer removal of test_line.go
 	if !debug {
 		defer os.Remove(coverInput)
 	}
