@@ -97,7 +97,17 @@ type ProfileBlock struct {
 // Profile for each file.
 func ParseProfiles(r io.Reader) (map[string]*Profile, error) {
 	files := make(map[string]*Profile)
-	s := bufio.NewScanner(r)
+	buf := bufio.NewReader(r)
+	// First line is mode.
+	mode, err := buf.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+	_ = mode // TODO: Use the mode to affect the display.
+	// Rest of file is in the format
+	//	encoding/base64/base64.go:34.44,37.40 3 1
+	// where the fields are: name.go:line.column,line.column numberOfStatements count
+	s := bufio.NewScanner(buf)
 	for s.Scan() {
 		line := s.Text()
 		m := lineRe.FindStringSubmatch(line)
