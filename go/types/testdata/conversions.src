@@ -34,3 +34,35 @@ func string_conversions() {
 var (
 	_ = int8(0)
 )
+
+func interface_conversions() {
+	type E interface{}
+
+	type I1 interface{
+		m1()
+	}
+
+	type I2 interface{
+		m1()
+		m2()
+	}
+
+	var e E
+	var i1 I1
+	var i2 I2
+	_ = E(0)
+	_ = E(nil)
+	_ = E(e)
+	_ = E(i1)
+	_ = E(i2)
+
+	_ = I1 /* ERROR "cannot convert" */ (0)
+	_ = I1(nil)
+	_ = I1(i1)
+	_ = I1 /* ERROR "cannot convert" */ (e)
+	_ = I1(i2)
+
+	_ = I2 /* ERROR "cannot convert" */ (i1)
+
+	// TODO(gri) add more tests, improve error message
+}

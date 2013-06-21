@@ -1564,7 +1564,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		}
 		// x.(type) expressions are handled explicitly in type switches
 		if e.Type == nil {
-			check.errorf(e.Pos(), "use of .(type) outside type switch")
+			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
 		typ := check.typ(e.Type, false)
@@ -1575,10 +1575,15 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			var msg string
 			if wrongType {
 				msg = "%s cannot have dynamic type %s (wrong type for method %s)"
-			} else {
+			} else if _, ok := typ.Underlying().(*Interface); !ok {
+				// Concrete types must have all methods of T. Interfaces
+				// may not have all methods of T statically, but may have
+				// them dynamically; don't report an error in that case.
 				msg = "%s cannot have dynamic type %s (missing method %s)"
 			}
-			check.errorf(e.Type.Pos(), msg, x, typ, method.name)
+			if msg != "" {
+				check.errorf(e.Type.Pos(), msg, x, typ, method.name)
+			}
 			// ok to continue
 		}
 		x.mode = valueok

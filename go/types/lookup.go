@@ -188,17 +188,21 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 		return
 	}
 
+	// An interface type implements T if it has at least the methods of T.
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
 		for _, m := range T.methods {
 			_, obj := lookupMethod(ityp.methods, m.pkg, m.name)
-			if obj != nil && !IsIdentical(obj.Type(), m.typ) {
+			if obj == nil {
+				return m, false
+			}
+			if !IsIdentical(obj.Type(), m.typ) {
 				return m, true
 			}
 		}
 		return
 	}
 
-	// a concrete type implements T if it implements all methods of T.
+	// A concrete type implements T if it implements all methods of T.
 	for _, m := range T.methods {
 		obj, _, indirect := LookupFieldOrMethod(typ, m.pkg, m.name)
 		if obj == nil {
@@ -222,6 +226,7 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 			return m, true
 		}
 	}
+
 	return
 }
 
