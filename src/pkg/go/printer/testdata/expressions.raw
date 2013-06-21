@@ -114,6 +114,23 @@ func _() {
 	x < y || z > 42
 }
 
+// slice expressions with cap
+func _() {
+	_ = x[a:b:c]
+	_ = x[a:b : c+d]
+	_ = x[a : b+d : c]
+	_ = x[a : b+d : c+d]
+	_ = x[a+d : b:c]
+	_ = x[a+d : b : c+d]
+	_ = x[a+d : b+d : c]
+	_ = x[a+d : b+d : c+d]
+
+	_ = x[:b:c]
+	_ = x[:b : c+d]
+	_ = x[:b+d : c]
+	_ = x[:b+d : c+d]
+}
+
 func _() {
 	_ = a + b
 	_ = a + b + c
