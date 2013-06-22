@@ -48,9 +48,6 @@ type Value interface {
 	implementsValue()
 }
 
-// TODO(gri) Handle unknown values more consistently. Some operations
-//           accept unknowns, some don't.
-
 // ----------------------------------------------------------------------------
 // Implementations
 
@@ -195,37 +192,61 @@ func MakeFromLiteral(lit string, tok token.Token) Value {
 // Accessors
 
 // BoolVal returns the Go boolean value of x, which must be a Bool.
-func BoolVal(x Value) bool { return bool(x.(boolVal)) }
+// The result is false for unknown values.
+func BoolVal(x Value) bool {
+	switch x := x.(type) {
+	case boolVal:
+		return bool(x)
+	case unknownVal:
+		return false
+	}
+	panic(fmt.Sprintf("invalid BoolVal(%v)", x))
+}
 
 // StringVal returns the Go string value of x, which must be a String.
-func StringVal(x Value) string { return string(x.(stringVal)) }
+// The result is "" for unknown values.
+func StringVal(x Value) string {
+	switch x := x.(type) {
+	case stringVal:
+		return string(x)
+	case unknownVal:
+		return ""
+	}
+	panic(fmt.Sprintf("invalidStringVal(%v)", x))
+}
 
 // Int64Val returns the Go int64 value of x and whether the result is exact;
 // x must be an Int. If the result is not exact, its value is undefined.
+// The result is (0, false) for unknown values.
 func Int64Val(x Value) (int64, bool) {
 	switch x := x.(type) {
 	case int64Val:
 		return int64(x), true
 	case intVal:
 		return x.val.Int64(), x.val.BitLen() <= 63
+	case unknownVal:
+		return 0, false
 	}
 	panic(fmt.Sprintf("invalid Int64Val(%v)", x))
 }
 
 // Uint64Val returns the Go uint64 value of x and whether the result is exact;
 // x must be an Int. If the result is not exact, its value is undefined.
+// The result is (0, false) for unknown values.
 func Uint64Val(x Value) (uint64, bool) {
 	switch x := x.(type) {
 	case int64Val:
 		return uint64(x), x >= 0
 	case intVal:
 		return x.val.Uint64(), x.val.Sign() >= 0 && x.val.BitLen() <= 64
+	case unknownVal:
+		return 0, false
 	}
 	panic(fmt.Sprintf("invalid Uint64Val(%v)", x))
 }
 
 // Float64Val returns the nearest Go float64 value of x and whether the result is exact;
-// x must be numeric but not Complex.
+// x must be numeric but not Complex. The result is (0, false) for unknown values.
 func Float64Val(x Value) (float64, bool) {
 	switch x := x.(type) {
 	case int64Val:
@@ -235,18 +256,23 @@ func Float64Val(x Value) (float64, bool) {
 		return new(big.Rat).SetFrac(x.val, int1).Float64()
 	case floatVal:
 		return x.val.Float64()
+	case unknownVal:
+		return 0, false
 	}
 	panic(fmt.Sprintf("invalid Float64Val(%v)", x))
 }
 
 // BitLen() returns the number of bits required to represent
 // the absolute value x in binary representation; x must be an Int.
+// The result is 0 for unknown values.
 func BitLen(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
 		return new(big.Int).SetInt64(int64(x)).BitLen()
 	case intVal:
 		return x.val.BitLen()
+	case unknownVal:
+		return 0
 	}
 	panic(fmt.Sprintf("invalid BitLen(%v)", x))
 }
@@ -254,14 +280,9 @@ func BitLen(x Value) int {
 // Sign returns -1, 0, or 1 depending on whether
 // x < 0, x == 0, or x > 0. For complex values z,
 // the sign is 0 if z == 0, otherwise it is != 0.
-// For unknown values, the sign is always 1 (this
-// helps avoiding "division by zero errors"). For
-// all other values, Sign panics.
-//
+// The result is 0 for unknown values.
 func Sign(x Value) int {
 	switch x := x.(type) {
-	case unknownVal:
-		return 1
 	case int64Val:
 		switch {
 		case x < 0:
@@ -276,6 +297,8 @@ func Sign(x Value) int {
 		return x.val.Sign()
 	case complexVal:
 		return x.re.Sign() | x.im.Sign()
+	case unknownVal:
+		return 0
 	}
 	panic(fmt.Sprintf("invalid Sign(%v)", x))
 }
@@ -285,18 +308,18 @@ func Sign(x Value) int {
 
 // MakeImag returns the numeric value x*i (possibly 0);
 // x must be numeric but not Complex.
-// If x is unknown, the result is unknown.
+// The result is unknown for unknown values.
 func MakeImag(x Value) Value {
 	var im *big.Rat
 	switch x := x.(type) {
-	case unknownVal:
-		return x
 	case int64Val:
 		im = big.NewRat(int64(x), 1)
 	case intVal:
 		im = new(big.Rat).SetFrac(x.val, int1)
 	case floatVal:
 		im = x.val
+	case unknownVal:
+		return x
 	default:
 		panic(fmt.Sprintf("invalid MakeImag(%v)", x))
 	}
@@ -304,20 +327,22 @@ func MakeImag(x Value) Value {
 }
 
 // Real returns the real part of x, which must be a numeric value.
-// If x is unknown, the result is unknown.
+// The result is unknown for unknown values.
 func Real(x Value) Value {
 	if z, ok := x.(complexVal); ok {
 		return normFloat(z.re)
 	}
+	// TODO(gri) should we check explicit for unknownVal and disallow all others?
 	return x
 }
 
 // Imag returns the imaginary part of x, which must be a numeric value.
-// If x is unknown, the result is 0.
+// The result is 0 for unknown values.
 func Imag(x Value) Value {
 	if z, ok := x.(complexVal); ok {
 		return normFloat(z.im)
 	}
+	// TODO(gri) should we check explicit for unknownVal and disallow all others?
 	return int64Val(0)
 }
 
