@@ -151,20 +151,6 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
 //sys	Shutdown(s int, how int) (err error)
 
-// For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
-var SocketDisableIPv6 bool
-
-type Sockaddr interface {
-	sockaddr() (ptr uintptr, len _Socklen, err error) // lowercase; only we can define Sockaddrs
-}
-
-type SockaddrInet4 struct {
-	Port int
-	Addr [4]byte
-	raw  RawSockaddrInet4
-}
-
 func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return 0, 0, EINVAL
@@ -178,13 +164,6 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, error) {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), nil
-}
-
-type SockaddrInet6 struct {
-	Port   int
-	ZoneId uint32
-	Addr   [16]byte
-	raw    RawSockaddrInet6
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, error) {
@@ -201,11 +180,6 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, error) {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), nil
-}
-
-type SockaddrUnix struct {
-	Name string
-	raw  RawSockaddrUnix
 }
 
 func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
@@ -344,41 +318,7 @@ func Getpeername(fd int) (sa Sockaddr, err error) {
 	return anyToSockaddr(&rsa)
 }
 
-func Bind(fd int, sa Sockaddr) (err error) {
-	ptr, n, err := sa.sockaddr()
-	if err != nil {
-		return err
-	}
-	return bind(fd, ptr, n)
-}
-
-func Connect(fd int, sa Sockaddr) (err error) {
-	ptr, n, err := sa.sockaddr()
-	if err != nil {
-		return err
-	}
-	return connect(fd, ptr, n)
-}
-
-func Socket(domain, typ, proto int) (fd int, err error) {
-	if domain == AF_INET6 && SocketDisableIPv6 {
-		return -1, EAFNOSUPPORT
-	}
-	fd, err = socket(domain, typ, proto)
-	return
-}
-
 //sysnb socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
-
-func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
-	var fdx [2]int32
-	err = socketpair(domain, typ, proto, &fdx)
-	if err == nil {
-		fd[0] = int(fdx[0])
-		fd[1] = int(fdx[1])
-	}
-	return
-}
 
 func GetsockoptByte(fd, level, opt int) (value byte, err error) {
 	var n byte
