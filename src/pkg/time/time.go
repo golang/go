@@ -424,6 +424,11 @@ func (t Time) YearDay() int {
 // largest representable duration to approximately 290 years.
 type Duration int64
 
+const (
+	minDuration Duration = -1 << 63
+	maxDuration Duration = 1<<63 - 1
+)
+
 // Common durations.  There is no definition for units of Day or larger
 // to avoid confusion across daylight savings time zone transitions.
 //
@@ -611,10 +616,21 @@ func (t Time) Add(d Duration) Time {
 	return t
 }
 
-// Sub returns the duration t-u.
+// Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
+// value that can be stored in a Duration, the maximum (or minimum) duration
+// will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
-	return Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+	// Check for overflow or underflow.
+	switch {
+	case u.Add(d).Equal(t):
+		return d // d is correct
+	case t.Before(u):
+		return minDuration // t - u is negative out of range
+	default:
+		return maxDuration // t - u is positive out of range
+	}
 }
 
 // Since returns the time elapsed since t.
