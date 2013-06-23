@@ -1222,7 +1222,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		}
 		if(fmtmode == FExp && ptrlit)
 			// typecheck has overwritten OIND by OTYPE with pointer type.
-			return fmtprint(f, "&%T{ %,H }", n->right->type->type, n->list);
+			return fmtprint(f, "(&%T{ %,H })", n->right->type->type, n->list);
 		return fmtprint(f, "(%N{ %,H })", n->right, n->list);
 
 	case OPTRLIT:
