@@ -59,3 +59,18 @@ func F7() int {
 	}
 	return 0
 }
+
+func F8() int {
+	if a := (&T{1, 1}); a != nil {
+		return 1
+	}
+	return 0
+}
+
+func F9() int {
+	var a *T
+	if a = (&T{1, 1}); a != nil {
+		return 1
+	}
+	return 0
+}
