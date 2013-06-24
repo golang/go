@@ -196,32 +196,37 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	POPQ	BP
 	RET
 
-// Continuation of thunk function created for each callback by ../thread.c compilecallback,
-// runs on Windows stack (not Go stack).
-// Thunk code designed to have minimal size for it is copied many (up to thousands) times.
-//
-// thunk:
-//	MOVQ	$fn, AX
-//	PUSHQ	AX
-//	MOVQ	$argsize, AX
-//	PUSHQ	AX
-//	MOVQ	$runtime·callbackasm, AX
-//	JMP	AX
-TEXT runtime·callbackasm(SB),7,$0
+GLOBL runtime·cbctxts(SB), $8
+
+TEXT runtime·callbackasm1(SB),7,$0
 	// Construct args vector for cgocallback().
 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
 	// args from the 5th on are on the stack.
 	// In any case, even if function has 0,1,2,3,4 args, there is reserved
 	// but uninitialized "shadow space" for the first 4 args.
 	// The values are in registers.
-  	MOVQ	CX, (24+0)(SP)
-  	MOVQ	DX, (24+8)(SP)
-  	MOVQ	R8, (24+16)(SP)
-  	MOVQ	R9, (24+24)(SP)
-	// 6l does not accept writing POPQs here issuing a warning "unbalanced PUSH/POP"
-  	MOVQ	0(SP), DX	// POPQ DX
-  	MOVQ	8(SP), AX	// POPQ AX
-	ADDQ	$16, SP
+  	MOVQ	CX, (16+0)(SP)
+  	MOVQ	DX, (16+8)(SP)
+  	MOVQ	R8, (16+16)(SP)
+  	MOVQ	R9, (16+24)(SP)
+
+	// remove return address from stack, we are not returning there
+  	MOVQ	0(SP), AX
+	ADDQ	$8, SP
+
+	// determine index into runtime·cbctxts table
+	SUBQ	$runtime·callbackasm(SB), AX
+	MOVQ	$0, DX
+	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+	DIVL	CX,
+
+	// find correspondent runtime·cbctxts table entry
+	MOVQ	runtime·cbctxts(SB), CX
+	MOVQ	-8(CX)(AX*8), AX
+
+	// extract callback context
+	MOVQ	cbctxt_argsize(AX), DX
+	MOVQ	cbctxt_gobody(AX), AX
 
 	// preserve whatever's at the memory location that
 	// the callback will use to store the return value
@@ -231,8 +236,6 @@ TEXT runtime·callbackasm(SB),7,$0
 
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
 	// as required by windows callback convention.
-	// 6l does not allow writing many PUSHQs here issuing a warning "nosplit stack overflow"
-	// the warning has no sense as this code uses os thread stack
 	PUSHFQ
 	SUBQ	$64, SP
 	MOVQ	DI, 56(SP)
@@ -247,18 +250,17 @@ TEXT runtime·callbackasm(SB),7,$0
 	// prepare call stack.  use SUBQ to hide from stack frame checks
 	// cgocallback(Go func, void *frame, uintptr framesize)
 	SUBQ	$24, SP
-	MOVQ	DX, 16(SP)	// uintptr framesize
-	MOVQ	CX, 8(SP)   // void *frame
-	MOVQ	AX, 0(SP)    // Go func
+	MOVQ	DX, 16(SP)	// argsize (including return value)
+	MOVQ	CX, 8(SP)	// callback parameters
+	MOVQ	AX, 0(SP)	// address of target Go function
 	CLD
-	CALL  runtime·cgocallback_gofunc(SB)
+	CALL	runtime·cgocallback_gofunc(SB)
 	MOVQ	0(SP), AX
 	MOVQ	8(SP), CX
 	MOVQ	16(SP), DX
 	ADDQ	$24, SP
 
 	// restore registers as required for windows callback
-	// 6l does not allow writing many POPs here issuing a warning "nosplit stack overflow"
 	MOVQ	0(SP), R15
 	MOVQ	8(SP), R14
 	MOVQ	16(SP), R13

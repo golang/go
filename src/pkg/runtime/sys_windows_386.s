@@ -164,19 +164,16 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	POPL	BP
 	RET
 
-// Called from dynamic function created by ../thread.c compilecallback,
-// running on Windows stack (not Go stack).
-// BX, BP, SI, DI registers and DF flag are preserved
-// as required by windows callback convention.
-// AX = address of go func we need to call
-// DX = total size of arguments
-//
-TEXT runtime·callbackasm+0(SB),7,$0
-	// preserve whatever's at the memory location that
-	// the callback will use to store the return value
-	LEAL	8(SP), CX
-	PUSHL	0(CX)(DX*1)
-	ADDL	$4, DX			// extend argsize by size of return value
+GLOBL runtime·cbctxts(SB), $4
+
+TEXT runtime·callbackasm1+0(SB),7,$0
+  	MOVL	0(SP), AX	// will use to find our callback context
+
+	// remove return address from stack, we are not returning there
+	ADDL	$4, SP
+
+	// address to callback parameters into CX
+	LEAL	4(SP), CX
 
 	// save registers as required for windows callback
 	PUSHL	DI
@@ -189,18 +186,50 @@ TEXT runtime·callbackasm+0(SB),7,$0
 	PUSHL	0(FS)
 	MOVL	SP, 0(FS)
 
-	// callback parameters
-	PUSHL	DX
-	PUSHL	CX
-	PUSHL	AX
+	// determine index into runtime·cbctxts table
+	SUBL	$runtime·callbackasm(SB), AX
+	MOVL	$0, DX
+	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+	DIVL	BX,
 
+	// find correspondent runtime·cbctxts table entry
+	MOVL	runtime·cbctxts(SB), BX
+	MOVL	-4(BX)(AX*4), BX
+
+	// extract callback context
+	MOVL	cbctxt_gobody(BX), AX
+	MOVL	cbctxt_argsize(BX), DX
+
+	// preserve whatever's at the memory location that
+	// the callback will use to store the return value
+	PUSHL	0(CX)(DX*1)
+
+	// extend argsize by size of return value
+	ADDL	$4, DX
+
+	// remember how to restore stack on return
+	MOVL	cbctxt_restorestack(BX), BX
+	PUSHL	BX
+
+	// call target Go function
+	PUSHL	DX			// argsize (including return value)
+	PUSHL	CX			// callback parameters
+	PUSHL	AX			// address of target Go function
 	CLD
-
 	CALL	runtime·cgocallback_gofunc(SB)
-
 	POPL	AX
 	POPL	CX
 	POPL	DX
+
+	// how to restore stack on return
+	POPL	BX
+
+	// return value into AX (as per Windows spec)
+	// and restore previously preserved value
+	MOVL	-4(CX)(DX*1), AX
+	POPL	-4(CX)(DX*1)
+
+	MOVL	BX, CX			// cannot use BX anymore
 
 	// pop SEH frame
 	POPL	0(FS)
@@ -212,10 +241,13 @@ TEXT runtime·callbackasm+0(SB),7,$0
 	POPL	SI
 	POPL	DI
 
+	// remove callback parameters before return (as per Windows spec)
+	POPL	DX
+	ADDL	CX, SP
+	PUSHL	DX
+
 	CLD
 
-	MOVL	-4(CX)(DX*1), AX
-	POPL	-4(CX)(DX*1)
 	RET
 
 // void tstart(M *newm);

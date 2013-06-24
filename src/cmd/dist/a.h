@@ -94,6 +94,7 @@ void	mkenam(char*, char*);
 
 // buildruntime.c
 void	mkzasm(char*, char*);
+void	mkzsys(char*, char*);
 void	mkzgoarch(char*, char*);
 void	mkzgoos(char*, char*);
 void	mkzruntimedefs(char*, char*);
