@@ -316,6 +316,9 @@ func (bz2 *reader) readBlock() (err error) {
 		if repeat > 0 {
 			// We have decoded a complete run-length so we need to
 			// replicate the last output symbol.
+			if repeat > bz2.blockSize-bufIndex {
+				return StructuralError("repeats past end of block")
+			}
 			for i := 0; i < repeat; i++ {
 				b := byte(mtf.First())
 				bz2.tt[bufIndex] = uint32(b)
@@ -339,6 +342,9 @@ func (bz2 *reader) readBlock() (err error) {
 		// doesn't need to be encoded and we have |v-1| in the next
 		// line.
 		b := byte(mtf.Decode(int(v - 1)))
+		if bufIndex >= bz2.blockSize {
+			return StructuralError("data exceeds block size")
+		}
 		bz2.tt[bufIndex] = uint32(b)
 		bz2.c[b]++
 		bufIndex++
