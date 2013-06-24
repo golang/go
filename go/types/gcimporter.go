@@ -86,8 +86,13 @@ func FindPkg(path, srcDir string) (filename, id string) {
 func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
 	// support for gcParser error handling
 	defer func() {
-		if r := recover(); r != nil {
-			err = r.(importError) // will re-panic if r is not an importError
+		switch r := recover().(type) {
+		case nil:
+			// nothing to do
+		case importError:
+			err = r
+		default:
+			panic(r) // internal error
 		}
 	}()
 
@@ -502,7 +507,11 @@ func (p *gcParser) parseStructType() Type {
 			tags = append(tags, tag)
 		}
 		if alt := scope.Insert(fld); alt != nil {
-			p.errorf("multiple fields named %s.%s", alt.Pkg().name, alt.Name())
+			pname := "<no pkg name>"
+			if pkg := alt.Pkg(); pkg != nil {
+				pname = pkg.name
+			}
+			p.errorf("multiple fields named %s.%s", pname, alt.Name())
 		}
 		fields = append(fields, fld)
 	}
