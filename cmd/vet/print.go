@@ -459,7 +459,7 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, s
 	}
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	f.Badf(call.Pos(), "missing argument for %s %s: need %d, only have %d", state.name, verb, arg, len(call.Args)-state.firstArg)
+	f.Badf(call.Pos(), "missing argument for %s %s: need %d, have %d", state.name, verb, arg, len(call.Args)-state.firstArg)
 	return false
 }
 

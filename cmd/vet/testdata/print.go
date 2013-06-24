@@ -118,7 +118,7 @@ func PrintfTests() {
 	Printf("hi")                               // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
-	Printf(format, "hi") // ERROR "missing argument for Printf verb %s: need 2, only have 1"
+	Printf(format, "hi") // ERROR "missing argument for Printf verb %s: need 2, have 1"
 	f := new(stringer)
 	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
@@ -134,8 +134,8 @@ func PrintfTests() {
 	// Bad argument reorderings.
 	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
 	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
-	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf indirect \*: need 3, only have 2"
-	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf verb %d: need 3, only have 1"
+	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf indirect \*: need 3, have 2"
+	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf verb %d: need 3, have 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
 	// Something that satisfies the error interface.
 	var e error
