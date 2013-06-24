@@ -9,7 +9,7 @@
             <Keywords name="Delimiters">&quot;`0&quot;`</Keywords>
             <Keywords name="Folder+"></Keywords>
             <Keywords name="Folder-"></Keywords>
-            <Keywords name="Operators">( ) [ ] { } ... . , _ &amp; ^ %  &gt; &lt; ! = + - *  | :</Keywords>
+            <Keywords name="Operators">( ) [ ] { } ... . , ; _ &amp; ^ %  &gt; &lt; ! = + - * / | :</Keywords>
             <Keywords name="Comment"> 1/* 2*/ 0//</Keywords>
             <Keywords name="Words1">append bool break byte cap case chan close complex complex128 complex64 const continue copy default defer delete else error fallthrough false float32 float64 for func go goto if iota imag import int int16 int32 int64 int8 interface len make map new nil package panic print println range real recover return rune select string struct switch true type uint uint16 uint32 uint64 uint8 uintptr var</Keywords>
             <Keywords name="Words2"></Keywords>
