@@ -70,6 +70,7 @@
       <item> close </item>
       <item> complex </item>
       <item> copy </item>
+      <item> delete </item>
       <item> imag </item>
       <item> len </item>
       <item> make </item>
