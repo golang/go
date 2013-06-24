@@ -84,6 +84,7 @@ func listenTCP() (net.Listener, string) {
 
 func startServer() {
 	Register(new(Arith))
+	RegisterName("net.rpc.Arith", new(Arith))
 
 	var l net.Listener
 	l, serverAddr = listenTCP()
@@ -97,6 +98,7 @@ func startServer() {
 func startNewServer() {
 	newServer = NewServer()
 	newServer.Register(new(Arith))
+	newServer.RegisterName("net.rpc.Arith", new(Arith))
 
 	var l net.Listener
 	l, newServerAddr = listenTCP()
@@ -233,6 +235,17 @@ func testRPC(t *testing.T, addr string) {
 	}
 	if reply.C != args.A*args.B {
 		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
+	}
+
+	// ServiceName contain "." character
+	args = &Args{7, 8}
+	reply = new(Reply)
+	err = client.Call("net.rpc.Arith.Add", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.Error())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
 }
 
