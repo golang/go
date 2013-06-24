@@ -532,13 +532,22 @@ func (b *body) Read(p []byte) (n int, err error) {
 	}
 	n, err = b.Reader.Read(p)
 
-	// Read the final trailer once we hit EOF.
-	if err == io.EOF && b.hdr != nil {
-		if e := b.readTrailer(); e != nil {
-			err = e
+	if err == io.EOF {
+		// Chunked case. Read the trailer.
+		if b.hdr != nil {
+			if e := b.readTrailer(); e != nil {
+				err = e
+			}
+			b.hdr = nil
+		} else {
+			// If the server declared the Content-Length, our body is a LimitedReader
+			// and we need to check whether this EOF arrived early.
+			if lr, ok := b.Reader.(*io.LimitedReader); ok && lr.N > 0 {
+				err = io.ErrUnexpectedEOF
+			}
 		}
-		b.hdr = nil
 	}
+
 	return n, err
 }
 
