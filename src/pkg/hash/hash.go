@@ -9,7 +9,7 @@ import "io"
 
 // Hash is the common interface implemented by all hash functions.
 type Hash interface {
-	// Write adds more data to the running hash.
+	// Write (via the embedded io.Writer interface) adds more data to the running hash.
 	// It never returns an error.
 	io.Writer
 
@@ -17,7 +17,7 @@ type Hash interface {
 	// It does not change the underlying hash state.
 	Sum(b []byte) []byte
 
-	// Reset resets the hash to one with zero bytes written.
+	// Reset resets the Hash to its initial state.
 	Reset()
 
 	// Size returns the number of bytes Sum will return.
