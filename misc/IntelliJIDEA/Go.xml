@@ -75,6 +75,7 @@ Copy this custom language definition & configuration file to
             <keyword name="close"/>
             <keyword name="complex"/>
             <keyword name="copy"/>
+            <keyword name="delete"/>
             <keyword name="imag"/>
             <keyword name="len"/>
             <keyword name="make"/>
