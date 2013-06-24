@@ -11,23 +11,23 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// NewLiteral returns a new literal of the specified value and type.
+// NewLiteral returns a new literal of the specified value, type and position.
 // val must be valid according to the specification of Literal.Value.
 //
-func NewLiteral(val exact.Value, typ types.Type) *Literal {
-	return &Literal{typ, val}
+func NewLiteral(val exact.Value, typ types.Type, pos token.Pos) *Literal {
+	return &Literal{typ, val, pos}
 }
 
 // intLiteral returns an untyped integer literal that evaluates to i.
 func intLiteral(i int64) *Literal {
-	return NewLiteral(exact.MakeInt64(i), types.Typ[types.UntypedInt])
+	return NewLiteral(exact.MakeInt64(i), types.Typ[types.UntypedInt], token.NoPos)
 }
 
 // nilLiteral returns a nil literal of the specified type, which may
 // be any reference type, including interfaces.
 //
 func nilLiteral(typ types.Type) *Literal {
-	return NewLiteral(exact.MakeNil(), typ)
+	return NewLiteral(exact.MakeNil(), typ, token.NoPos)
 }
 
 // zeroLiteral returns a new "zero" literal of the specified type,
@@ -39,11 +39,11 @@ func zeroLiteral(t types.Type) *Literal {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return NewLiteral(exact.MakeBool(false), t)
+			return NewLiteral(exact.MakeBool(false), t, token.NoPos)
 		case t.Info()&types.IsNumeric != 0:
-			return NewLiteral(exact.MakeInt64(0), t)
+			return NewLiteral(exact.MakeInt64(0), t, token.NoPos)
 		case t.Info()&types.IsString != 0:
-			return NewLiteral(exact.MakeString(""), t)
+			return NewLiteral(exact.MakeString(""), t, token.NoPos)
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
@@ -54,7 +54,7 @@ func zeroLiteral(t types.Type) *Literal {
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return nilLiteral(t)
 	case *types.Named:
-		return NewLiteral(zeroLiteral(t.Underlying()).Value, t)
+		return NewLiteral(zeroLiteral(t.Underlying()).Value, t, token.NoPos)
 	case *types.Array, *types.Struct:
 		panic(fmt.Sprint("zeroLiteral applied to aggregate:", t))
 	}
@@ -85,8 +85,7 @@ func (l *Literal) Referrers() *[]Instruction {
 }
 
 func (l *Literal) Pos() token.Pos {
-	// TODO(adonovan): Literals don't have positions.  Should they?
-	return token.NoPos
+	return l.pos
 }
 
 // IsNil returns true if this literal represents a typed or untyped nil value.

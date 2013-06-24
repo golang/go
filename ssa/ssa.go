@@ -375,7 +375,8 @@ type Parameter struct {
 // Type(), using the same representation as package go/exact uses for
 // constants.
 //
-// Pos() returns token.NoPos.
+// Pos() returns the canonical position (see CanonicalPos) of the
+// originating constant expression, if explicit in the source.
 //
 // Example printed form:
 // 	42:int
@@ -385,6 +386,7 @@ type Parameter struct {
 type Literal struct {
 	typ   types.Type
 	Value exact.Value
+	pos   token.Pos
 }
 
 // A Global is a named Value holding the address of a package-level
@@ -561,13 +563,15 @@ type ChangeType struct {
 }
 
 // The Convert instruction yields the conversion of value X to type
-// Type().
+// Type().  One or both of those types is basic (but possibly named).
 //
 // A conversion may change the value and representation of its operand.
 // Conversions are permitted:
 //    - between real numeric types.
 //    - between complex numeric types.
 //    - between string and []byte or []rune.
+//    - between pointers and unsafe.Pointer.
+//    - between unsafe.Pointer and uintptr.
 //    - from (Unicode) integer to (UTF-8) string.
 // A conversion may imply a type name change also.
 //
@@ -613,7 +617,7 @@ type ChangeInterface struct {
 // Use Program.MethodSet(X.Type()) to find the method-set of X.
 //
 // To construct the zero value of an interface type T, use:
-// 	&Literal{exact.MakeNil(), T}
+// 	NewLiteral(exact.MakeNil(), T, pos)
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
 // from an explicit conversion in the source.
@@ -737,7 +741,7 @@ type Slice struct {
 type FieldAddr struct {
 	Register
 	X     Value // *struct
-	Field int   // index into X.Type().(*types.Struct).Fields
+	Field int   // index into X.Type().Deref().(*types.Struct).Fields
 }
 
 // The Field instruction yields the Field of struct X.
@@ -825,9 +829,12 @@ type SelectState struct {
 // The Select instruction tests whether (or blocks until) one or more
 // of the specified sent or received states is entered.
 //
-// It returns a triple (index int, recv interface{}, recvOk bool)
-// whose components, described below, must be accessed via the Extract
-// instruction.
+// Let n be the number of States for which Dir==RECV and T_i (0<=i<n)
+// be the element type of each such state's Chan.
+// Select returns an n+2-tuple
+//    (index int, recvOk bool, r_0 T_0, ... r_n-1 T_n-1)
+// The tuple's components, described below, must be accessed via the
+// Extract instruction.
 //
 // If Blocking, select waits until exactly one state holds, i.e. a
 // channel becomes ready for the designated operation of sending or
@@ -838,10 +845,13 @@ type SelectState struct {
 // If !Blocking, select doesn't block if no states hold; instead it
 // returns immediately with index equal to -1.
 //
-// If the chosen channel was used for a receive, 'recv' is set to the
-// received value; otherwise it is nil.
+// If the chosen channel was used for a receive, the r_i component is
+// set to the received value, where i is the index of that state among
+// all n receive states; otherwise r_i has the zero value of type T_i.
+// Note that the the receive index i is not the same as the state
+// index index.
 //
-// The third component of the triple, recvOk, is a boolean whose value
+// The second component of the triple, recvOk, is a boolean whose value
 // is true iff the selected operation was a receive and the receive
 // successfully yielded a value.
 //
@@ -862,7 +872,7 @@ type Select struct {
 //
 // Elements are accessed via Next.
 //
-// Type() returns a (possibly named) *types.Tuple.
+// Type() returns an opaque and degenerate "rangeIter" type.
 //
 // Pos() returns the ast.RangeStmt.For.
 //
@@ -1217,6 +1227,20 @@ func (c *CallCommon) IsInvoke() bool {
 
 func (c *CallCommon) Pos() token.Pos { return c.pos }
 
+// Signature returns the signature of the called function.
+//
+// For an "invoke"-mode call, the signature of the interface method is
+// returned; the receiver is represented by sig.Recv, not
+// sig.Params().At(0).
+//
+func (c *CallCommon) Signature() *types.Signature {
+	if c.Recv != nil {
+		iface := c.Recv.Type().Underlying().(*types.Interface)
+		return iface.Method(c.Method).Type().(*types.Signature)
+	}
+	return c.Func.Type().Underlying().(*types.Signature)
+}
+
 // StaticCallee returns the called function if this is a trivially
 // static "call"-mode call.
 func (c *CallCommon) StaticCallee() *Function {
@@ -1252,6 +1276,24 @@ func (c *CallCommon) Description() string {
 	}
 	return "dynamic function call"
 }
+
+// The CallInstruction interface, implemented by *Go, *Defer and *Call,
+// exposes the common parts of function calling instructions,
+// yet provides a way back to the Value defined by *Call alone.
+//
+type CallInstruction interface {
+	Instruction
+	Common() *CallCommon // returns the common parts of the call
+	Value() *Call        // returns the result value of the call (*Call) or nil (*Go, *Defer)
+}
+
+func (s *Call) Common() *CallCommon  { return &s.Call }
+func (s *Defer) Common() *CallCommon { return &s.Call }
+func (s *Go) Common() *CallCommon    { return &s.Call }
+
+func (s *Call) Value() *Call  { return s }
+func (s *Defer) Value() *Call { return nil }
+func (s *Go) Value() *Call    { return nil }
 
 func (v *Builtin) Type() types.Type        { return v.Object.Type() }
 func (v *Builtin) Name() string            { return v.Object.Name() }

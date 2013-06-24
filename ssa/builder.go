@@ -42,7 +42,8 @@ type opaqueType struct {
 func (t *opaqueType) String() string { return t.name }
 
 var (
-	varOk = types.NewVar(token.NoPos, nil, "ok", tBool)
+	varOk    = types.NewVar(token.NoPos, nil, "ok", tBool)
+	varIndex = types.NewVar(token.NoPos, nil, "index", tInt)
 
 	// Type constants.
 	tBool       = types.Typ[types.Bool]
@@ -53,17 +54,11 @@ var (
 	tRangeIter  = &opaqueType{nil, "iter"} // the type of all "range" iterators
 	tEface      = new(types.Interface)
 
-	// The result type of a "select".
-	tSelect = types.NewTuple(
-		types.NewVar(token.NoPos, nil, "index", tInt),
-		types.NewVar(token.NoPos, nil, "recv", tEface),
-		varOk)
-
 	// SSA Value constants.
 	vZero  = intLiteral(0)
 	vOne   = intLiteral(1)
-	vTrue  = NewLiteral(exact.MakeBool(true), tBool)
-	vFalse = NewLiteral(exact.MakeBool(false), tBool)
+	vTrue  = NewLiteral(exact.MakeBool(true), tBool, token.NoPos)
+	vFalse = NewLiteral(exact.MakeBool(false), tBool, token.NoPos)
 )
 
 // builder holds state associated with the package currently being built.
@@ -579,7 +574,7 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 //
 func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		return NewLiteral(v, fn.Pkg.typeOf(e))
+		return NewLiteral(v, fn.Pkg.typeOf(e), CanonicalPos(e))
 	}
 
 	switch e := e.(type) {
@@ -1603,23 +1598,32 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	// We dispatch on the (fair) result of Select using a
 	// sequential if-else chain, in effect:
 	//
-	// idx, recv, recvOk := select(...)
-	// if idx == 0 {  // receive on channel 0
-	//     x, ok := recv.(T0), recvOk
+	// idx, recvOk, r0...r_n-1 := select(...)
+	// if idx == 0 {  // receive on channel 0  (first receive => r0)
+	//     x, ok := r0, recvOk
 	//     ...state0...
 	// } else if v == 1 {   // send on channel 1
 	//     ...state1...
 	// } else {
 	//     ...default...
 	// }
-	triple := &Select{
+	sel := &Select{
 		States:   states,
 		Blocking: blocking,
 	}
-	triple.setPos(s.Select)
-	triple.setType(tSelect)
-	fn.emit(triple)
-	idx := emitExtract(fn, triple, 0, tInt)
+	sel.setPos(s.Select)
+	var vars []*types.Var
+	vars = append(vars, varIndex, varOk)
+	for _, st := range states {
+		if st.Dir == ast.RECV {
+			tElem := st.Chan.Type().Underlying().(*types.Chan).Elem()
+			vars = append(vars, types.NewVar(token.NoPos, nil, "", tElem))
+		}
+	}
+	sel.setType(types.NewTuple(vars...))
+
+	fn.emit(sel)
+	idx := emitExtract(fn, sel, 0, tInt)
 
 	done := fn.newBasicBlock("select.done")
 	if label != nil {
@@ -1628,6 +1632,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 
 	var dfltBody *[]ast.Stmt
 	state := 0
+	r := 2 // index in 'sel' tuple of value; increments if st.Dir==RECV
 	for _, cc := range s.Body.List {
 		clause := cc.(*ast.CommClause)
 		if clause.Comm == nil {
@@ -1643,15 +1648,18 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 			_break: done,
 		}
 		switch comm := clause.Comm.(type) {
+		case *ast.ExprStmt: // <-ch
+			r++
+
 		case *ast.AssignStmt: // x := <-states[state].Chan
 			xdecl := fn.addNamedLocal(fn.Pkg.objectOf(comm.Lhs[0].(*ast.Ident)))
-			recv := emitTypeAssert(fn, emitExtract(fn, triple, 1, tEface), xdecl.Type().Deref(), token.NoPos)
-			emitStore(fn, xdecl, recv)
+			emitStore(fn, xdecl, emitExtract(fn, sel, r, vars[r].Type()))
 
 			if len(comm.Lhs) == 2 { // x, ok := ...
 				okdecl := fn.addNamedLocal(fn.Pkg.objectOf(comm.Lhs[1].(*ast.Ident)))
-				emitStore(fn, okdecl, emitExtract(fn, triple, 2, okdecl.Type().Deref()))
+				emitStore(fn, okdecl, emitExtract(fn, sel, 1, okdecl.Type().Deref()))
 			}
+			r++
 		}
 		b.stmtList(fn, clause.Body)
 		fn.targets = fn.targets.tail

@@ -1020,9 +1020,8 @@ func rangeIter(x value, t types.Type) iter {
 		// up an iteration interface using the
 		// reflect.(Value).MapKeys machinery.
 		it := make(mapIter)
-		x2 := x // TODO(gri): workaround for go/types bug in typeswitch+funclit.
 		go func() {
-			for k, v := range x2 {
+			for k, v := range x {
 				it <- [2]value{k, v}
 			}
 			close(it)
@@ -1034,9 +1033,8 @@ func rangeIter(x value, t types.Type) iter {
 		// up an iteration interface using the
 		// reflect.(Value).MapKeys machinery.
 		it := make(mapIter)
-		x2 := x // TODO(gri): workaround for go/types bug in typeswitch+funclit.
 		go func() {
-			for _, e := range x2.table {
+			for _, e := range x.table {
 				for e != nil {
 					it <- [2]value{e.key, e.value}
 					e = e.next

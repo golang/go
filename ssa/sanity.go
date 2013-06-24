@@ -4,6 +4,7 @@ package ssa
 // Currently it checks CFG invariants but little at the instruction level.
 
 import (
+	"code.google.com/p/go.tools/go/types"
 	"fmt"
 	"io"
 	"os"
@@ -125,6 +126,11 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *ChangeInterface:
 	case *ChangeType:
 	case *Convert:
+		if _, ok := instr.X.Type().Underlying().(*types.Basic); !ok {
+			if _, ok := instr.Type().Underlying().(*types.Basic); !ok {
+				s.errorf("convert %s -> %s: at least one type must be basic", instr.X.Type(), instr.Type())
+			}
+		}
 	case *Defer:
 	case *Extract:
 	case *Field:
@@ -152,6 +158,12 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		// TODO(adonovan): implement checks.
 	default:
 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))
+	}
+
+	if v, ok := instr.(Value); ok {
+		if v.Type() == nil {
+			s.errorf("no type: %s = %s", v.Name(), v)
+		}
 	}
 }
 

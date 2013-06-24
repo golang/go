@@ -99,7 +99,7 @@ func HasEnclosingFunction(pkg *Package, path []ast.Node) bool {
 	return findEnclosingPackageLevelFunction(pkg, path) != nil
 }
 
-// findEnclosingPackageLevelFunction returns the *ssa.Function
+// findEnclosingPackageLevelFunction returns the Function
 // corresponding to the package-level function enclosing path.
 //
 func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function {
@@ -222,5 +222,6 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return n.Colon // *MapUpdate
 	}
 
-	return token.NoPos
+	// Almost anything can be a constant expression (*Literal).
+	return n.Pos()
 }

@@ -17,7 +17,7 @@ import (
 	"go/token"
 )
 
-// anonFieldPath is a linked list of anonymous fields entered by
+// anonFieldPath is a linked list of anonymous fields that
 // breadth-first traversal has entered, rightmost (outermost) first.
 // e.g. "e.f" denoting "e.A.B.C.f" would have a path [C, B, A].
 // Common tails may be shared.

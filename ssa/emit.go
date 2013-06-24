@@ -185,7 +185,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	// change yet; this defers the point at which the number of
 	// possible representations explodes.
 	if l, ok := val.(*Literal); ok {
-		return NewLiteral(l.Value, typ)
+		return NewLiteral(l.Value, typ, l.Pos())
 	}
 
 	// A representation-changing conversion.
