@@ -39,7 +39,14 @@ type Time struct {
 	// nsec specifies a non-negative nanosecond
 	// offset within the second named by Seconds.
 	// It must be in the range [0, 999999999].
-	nsec int32
+	//
+	// It is declared as uintptr instead of int32 or uint32
+	// to avoid garbage collector aliasing in the case where
+	// on a 64-bit system the int32 or uint32 field is written
+	// over the low half of a pointer, creating another pointer.
+	// TODO(rsc): When the garbage collector is completely
+	// precise, change back to int32.
+	nsec uintptr
 
 	// loc specifies the Location that should be used to
 	// determine the minute, hour, month, day, and year
@@ -605,14 +612,15 @@ func (d Duration) Hours() float64 {
 // Add returns the time t+d.
 func (t Time) Add(d Duration) Time {
 	t.sec += int64(d / 1e9)
-	t.nsec += int32(d % 1e9)
-	if t.nsec >= 1e9 {
+	nsec := int32(t.nsec) + int32(d%1e9)
+	if nsec >= 1e9 {
 		t.sec++
-		t.nsec -= 1e9
-	} else if t.nsec < 0 {
+		nsec -= 1e9
+	} else if nsec < 0 {
 		t.sec--
-		t.nsec += 1e9
+		nsec += 1e9
 	}
+	t.nsec = uintptr(nsec)
 	return t
 }
 
@@ -621,7 +629,7 @@ func (t Time) Add(d Duration) Time {
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
-	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+	d := Duration(t.sec-u.sec)*Second + Duration(int32(t.nsec)-int32(u.nsec))
 	// Check for overflow or underflow.
 	switch {
 	case u.Add(d).Equal(t):
@@ -776,7 +784,7 @@ func now() (sec int64, nsec int32)
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec := now()
-	return Time{sec + unixToInternal, nsec, Local}
+	return Time{sec + unixToInternal, uintptr(nsec), Local}
 }
 
 // UTC returns t with the location set to UTC.
@@ -892,7 +900,7 @@ func (t *Time) GobDecode(buf []byte) error {
 		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
 
 	buf = buf[8:]
-	t.nsec = int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
+	t.nsec = uintptr(int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24)
 
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
@@ -938,7 +946,7 @@ func Unix(sec int64, nsec int64) Time {
 			sec--
 		}
 	}
-	return Time{sec + unixToInternal, int32(nsec), Local}
+	return Time{sec + unixToInternal, uintptr(nsec), Local}
 }
 
 func isLeap(year int) bool {
@@ -1047,7 +1055,7 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 		unix -= int64(offset)
 	}
 
-	return Time{unix + unixToInternal, int32(nsec), loc}
+	return Time{unix + unixToInternal, uintptr(nsec), loc}
 }
 
 // Truncate returns the result of rounding t down to a multiple of d (since the zero time).
@@ -1079,13 +1087,14 @@ func (t Time) Round(d Duration) Time {
 // but it's still here in case we change our minds.
 func div(t Time, d Duration) (qmod2 int, r Duration) {
 	neg := false
+	nsec := int32(t.nsec)
 	if t.sec < 0 {
 		// Operate on absolute value.
 		neg = true
 		t.sec = -t.sec
-		t.nsec = -t.nsec
-		if t.nsec < 0 {
-			t.nsec += 1e9
+		nsec = -nsec
+		if nsec < 0 {
+			nsec += 1e9
 			t.sec-- // t.sec >= 1 before the -- so safe
 		}
 	}
@@ -1093,14 +1102,14 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
 	switch {
 	// Special case: 2d divides 1 second.
 	case d < Second && Second%(d+d) == 0:
-		qmod2 = int(t.nsec/int32(d)) & 1
-		r = Duration(t.nsec % int32(d))
+		qmod2 = int(nsec/int32(d)) & 1
+		r = Duration(nsec % int32(d))
 
 	// Special case: d is a multiple of 1 second.
 	case d%Second == 0:
 		d1 := int64(d / Second)
 		qmod2 = int(t.sec/d1) & 1
-		r = Duration(t.sec%d1)*Second + Duration(t.nsec)
+		r = Duration(t.sec%d1)*Second + Duration(nsec)
 
 	// General case.
 	// This could be faster if more cleverness were applied,
@@ -1117,7 +1126,7 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
 		if u0 < u0x {
 			u1++
 		}
-		u0x, u0 = u0, u0+uint64(t.nsec)
+		u0x, u0 = u0, u0+uint64(nsec)
 		if u0 < u0x {
 			u1++
 		}
