@@ -78,6 +78,7 @@ typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
 typedef	struct	WinCall		WinCall;
 typedef	struct	SEH		SEH;
+typedef	struct	WinCallbackContext	WinCallbackContext;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
 typedef	struct	GCStats		GCStats;
@@ -443,6 +444,13 @@ struct	SEH
 {
 	void*	prev;
 	void*	handler;
+};
+// describes how to handle callback
+struct	WinCallbackContext
+{
+	void*	gobody;		// Go function to call
+	uintptr	argsize;	// callback arguments size (in bytes)
+	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
 };
 
 #ifdef GOOS_windows

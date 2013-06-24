@@ -528,6 +528,7 @@ static struct {
 	}},
 	{"pkg/runtime", {
 		"zasm_$GOOS_$GOARCH.h",
+		"zsys_$GOOS_$GOARCH.s",
 		"zgoarch_$GOARCH.go",
 		"zgoos_$GOOS.go",
 		"zruntime_defs_$GOOS_$GOARCH.go",
@@ -552,6 +553,7 @@ static struct {
 	{"opnames.h", gcopnames},
 	{"enam.c", mkenam},
 	{"zasm_", mkzasm},
+	{"zsys_", mkzsys},
 	{"zgoarch_", mkzgoarch},
 	{"zgoos_", mkzgoos},
 	{"zruntime_defs_", mkzruntimedefs},
