@@ -36,14 +36,13 @@ import (
 // is used primarily by the go tool.
 
 var (
-	mode   = flag.String("mode", "set", "coverage mode: set, count, atomic")
-	varVar = flag.String("var", "GoCover", "name of generated coverage variable")
-
-	output = flag.String("o", "", "file for output; standard output by default")
-
-	htmlOut   = flag.Bool("html", false, "output HTML")
-	inProfile = flag.String("profile", "", "input profile data for HTML generation")
+	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
+	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
+	output  = flag.String("o", "", "file for output (static HTML or annotated Go source); default: stdout")
+	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
 )
+
+var profile string // The profile to read; the value of -html but stored separately for future flexibility.
 
 var counterStmt func(*File, ast.Expr) ast.Stmt
 
@@ -53,21 +52,32 @@ const (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [options] onefile.go\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  To display annotated source given a coverage profile produced by 'go test -coverprofile=c.out':\n")
+	fmt.Fprintf(os.Stderr, "    go tool cover -html=c.out\n")
+	fmt.Fprintf(os.Stderr, "  To generate modified source code with coverage annotations (what go test -cover does):\n")
+	fmt.Fprintf(os.Stderr, "    go tool cover  -mode=set -var=CoverageVariableName program.go\n")
+	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
+	os.Exit(2)
 }
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+	profile = *htmlOut
 
-	if *htmlOut {
-		if *inProfile == "" {
-			fmt.Fprintln(os.Stderr, "cover: must specify -profile with -html")
+	// Must either display a profile or rewrite Go source.
+	if (profile == "") == (*mode == "") {
+		flag.Usage()
+	}
+
+	// Generate HTML.
+	if *htmlOut != "" {
+		if flag.NArg() != 0 {
 			flag.Usage()
-			os.Exit(2)
 		}
-		err := htmlOutput(*inProfile, *output)
+		err := htmlOutput(profile, *output)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cover: %v\n", err)
 			os.Exit(2)
@@ -75,6 +85,7 @@ func main() {
 		return
 	}
 
+	// Generate coverage-annotated source.
 	switch *mode {
 	case "set":
 		counterStmt = setCounterStmt
@@ -84,7 +95,6 @@ func main() {
 		counterStmt = atomicCounterStmt
 	default:
 		flag.Usage()
-		os.Exit(2)
 	}
 	if flag.NArg() != 1 {
 		flag.Usage()
