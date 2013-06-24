@@ -104,6 +104,23 @@ func _() {
 	}
 }
 
+// Named types that are pointers.
+
+type S struct{ x int }
+func (*S) m() {}
+type P *S
+
+func _() {
+	var s *S
+	_ = s.x
+	_ = s.m
+
+	var p P
+	_ = p.x
+	_ = p /* ERROR "no field or method" */ .m
+	_ = P /* ERROR "no field or method" */ .m
+}
+
 // Borrowed from the FieldByName test cases in reflect/all_test.go.
 
 type D1 struct {

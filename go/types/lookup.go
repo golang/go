@@ -32,6 +32,48 @@ import "go/ast"
 // index sequence points to an ambiguous entry if it exists, or it is nil.
 //
 func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+	obj, index, indirect = lookupFieldOrMethod(typ, pkg, name)
+	if obj != nil {
+		return
+	}
+
+	// TODO(gri) The code below is not needed if we are looking for methods only,
+	//           and it can be done always if we look for fields only. Consider
+	//           providing LookupField and LookupMethod as well.
+
+	// If we didn't find anything, we still might have a field p.x as in:
+	//
+	//	type S struct{ x int }
+	//      func (*S) m() {}
+	//	type P *S
+	//	var p P
+	//
+	// which requires that we start the search with the underlying type
+	// of P (i.e., *S). We cannot do this always because we might find
+	// methods that don't exist for P but for S (e.g., m). Thus, if the
+	// result is a method we need to discard it.
+	//
+	// TODO(gri) WTF? There isn't a more direct way? Perhaps we should
+	//           outlaw named types to pointer types - they are almost
+	//           never what one wants, anyway.
+	if t, _ := typ.(*Named); t != nil {
+		u := t.underlying
+		if _, ok := u.(*Pointer); ok {
+			// typ is a named type with an underlying type of the form *T,
+			// start the search with the underlying type *T
+			if obj2, index2, indirect2 := lookupFieldOrMethod(u, pkg, name); obj2 != nil {
+				// only if the result is a field can we keep it
+				if _, ok := obj2.(*Field); ok {
+					return obj2, index2, indirect2
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	if name == "_" {
 		return // empty fields/methods are never found
 	}
