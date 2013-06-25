@@ -309,15 +309,6 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 	return anyToSockaddr(&rsa)
 }
 
-func Getpeername(fd int) (sa Sockaddr, err error) {
-	var rsa RawSockaddrAny
-	var len _Socklen = SizeofSockaddrAny
-	if err = getpeername(fd, &rsa, &len); err != nil {
-		return
-	}
-	return anyToSockaddr(&rsa)
-}
-
 //sysnb socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
 
 func GetsockoptByte(fd, level, opt int) (value byte, err error) {
@@ -325,13 +316,6 @@ func GetsockoptByte(fd, level, opt int) (value byte, err error) {
 	vallen := _Socklen(1)
 	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
 	return n, err
-}
-
-func GetsockoptInt(fd, level, opt int) (value int, err error) {
-	var n int32
-	vallen := _Socklen(4)
-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
-	return int(n), err
 }
 
 func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
@@ -406,30 +390,8 @@ func SetsockoptString(fd, level, opt int, s string) (err error) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
 }
 
-//sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
-
-func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
-	var rsa RawSockaddrAny
-	var len _Socklen = SizeofSockaddrAny
-	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
-		return
-	}
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
-	}
-	return
-}
-
-//sys sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error)
-
-func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
-	}
-	return sendto(fd, p, flags, ptr, n)
-}
-
+//sys   recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+//sys   sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {

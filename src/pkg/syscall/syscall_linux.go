@@ -437,22 +437,6 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 	return anyToSockaddr(&rsa)
 }
 
-func Getpeername(fd int) (sa Sockaddr, err error) {
-	var rsa RawSockaddrAny
-	var len _Socklen = SizeofSockaddrAny
-	if err = getpeername(fd, &rsa, &len); err != nil {
-		return
-	}
-	return anyToSockaddr(&rsa)
-}
-
-func GetsockoptInt(fd, level, opt int) (value int, err error) {
-	var n int32
-	vallen := _Socklen(4)
-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
-	return int(n), err
-}
-
 func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
 	vallen := _Socklen(4)
 	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), &vallen)
@@ -535,26 +519,6 @@ func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
 }
 func SetsockoptString(fd, level, opt int, s string) (err error) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
-}
-
-func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
-	var rsa RawSockaddrAny
-	var len _Socklen = SizeofSockaddrAny
-	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
-		return
-	}
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
-	}
-	return
-}
-
-func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
-	}
-	return sendto(fd, p, flags, ptr, n)
 }
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {

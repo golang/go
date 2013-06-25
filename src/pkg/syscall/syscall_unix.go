@@ -194,6 +194,42 @@ func Connect(fd int, sa Sockaddr) (err error) {
 	return connect(fd, ptr, n)
 }
 
+func Getpeername(fd int) (sa Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	if err = getpeername(fd, &rsa, &len); err != nil {
+		return
+	}
+	return anyToSockaddr(&rsa)
+}
+
+func GetsockoptInt(fd, level, opt int) (value int, err error) {
+	var n int32
+	vallen := _Socklen(4)
+	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
+	return int(n), err
+}
+
+func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
+		return
+	}
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(&rsa)
+	}
+	return
+}
+
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
+	ptr, n, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	return sendto(fd, p, flags, ptr, n)
+}
+
 func Socket(domain, typ, proto int) (fd int, err error) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
 		return -1, EAFNOSUPPORT
