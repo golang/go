@@ -1168,6 +1168,25 @@ def hg_pull(ui, repo, **opts):
 		ui.write(line + '\n')
 	return err
 
+def hg_update(ui, repo, **opts):
+	w = uiwrap(ui)
+	ui.quiet = False
+	ui.verbose = True  # for file list
+	err = hg_commands.update(ui, repo, **opts)
+	for line in w.output().split('\n'):
+		if isNoise(line):
+			continue
+		if line.startswith('moving '):
+			line = 'mv ' + line[len('moving '):]
+		if line.startswith('getting ') and line.find(' to ') >= 0:
+			line = 'mv ' + line[len('getting '):]
+		if line.startswith('getting '):
+			line = '+ ' + line[len('getting '):]
+		if line.startswith('removing '):
+			line = '- ' + line[len('removing '):]
+		ui.write(line + '\n')
+	return err
+
 def hg_push(ui, repo, **opts):
 	w = uiwrap(ui)
 	ui.quiet = False
@@ -2019,7 +2038,19 @@ def sync(ui, repo, **opts):
 		raise hg_util.Abort(codereview_disabled)
 
 	if not opts["local"]:
-		err = hg_pull(ui, repo, update=True)
+		# If there are incoming CLs, pull -u will do the update.
+		# If there are no incoming CLs, do hg update to make sure
+		# that an update always happens regardless. This is less
+		# surprising than update depending on incoming CLs.
+		# It is important not to do both hg pull -u and hg update
+		# in the same command, because the hg update will end
+		# up marking resolve conflicts from the hg pull -u as resolved,
+		# causing files with <<< >>> markers to not show up in 
+		# hg resolve -l. Yay Mercurial.
+		if hg_incoming(ui, repo):
+			err = hg_pull(ui, repo, update=True)
+		else:
+			err = hg_update(ui, repo)
 		if err:
 			return err
 	sync_changes(ui, repo)
