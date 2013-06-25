@@ -47,8 +47,8 @@ static struct
 	// seq is incremented when deadlines are changed or descriptor is reused.
 } pollcache;
 
-static void	netpollblock(PollDesc*, int32);
-static G*	netpollunblock(PollDesc*, int32);
+static bool	netpollblock(PollDesc*, int32);
+static G*	netpollunblock(PollDesc*, int32, bool);
 static void	deadline(int64, Eface);
 static void	readDeadline(int64, Eface);
 static void	writeDeadline(int64, Eface);
@@ -112,11 +112,21 @@ ret:
 func runtime_pollWait(pd *PollDesc, mode int) (err int) {
 	runtime·lock(pd);
 	err = checkerr(pd, mode);
-	if(err)
-		goto ret;
-	netpollblock(pd, mode);
-	err = checkerr(pd, mode);
-ret:
+	if(err == 0) {
+		if(!netpollblock(pd, mode)) {
+			err = checkerr(pd, mode);
+			if(err == 0)
+				runtime·throw("runtime_pollWait: unblocked by ioready");
+		}
+	}
+	runtime·unlock(pd);
+}
+
+func runtime_pollWaitCanceled(pd *PollDesc, mode int) {
+	runtime·lock(pd);
+	// wait for ioready, ignore closing or timeouts.
+	while(!netpollblock(pd, mode))
+		;
 	runtime·unlock(pd);
 }
 
@@ -179,8 +189,8 @@ func runtime_pollUnblock(pd *PollDesc) {
 		runtime·throw("runtime_pollUnblock: already closing");
 	pd->closing = true;
 	pd->seq++;
-	rg = netpollunblock(pd, 'r');
-	wg = netpollunblock(pd, 'w');
+	rg = netpollunblock(pd, 'r', false);
+	wg = netpollunblock(pd, 'w', false);
 	if(pd->rt.fv) {
 		runtime·deltimer(&pd->rt);
 		pd->rt.fv = nil;
@@ -205,9 +215,9 @@ runtime·netpollready(G **gpp, PollDesc *pd, int32 mode)
 	rg = wg = nil;
 	runtime·lock(pd);
 	if(mode == 'r' || mode == 'r'+'w')
-		rg = netpollunblock(pd, 'r');
+		rg = netpollunblock(pd, 'r', true);
 	if(mode == 'w' || mode == 'r'+'w')
-		wg = netpollunblock(pd, 'w');
+		wg = netpollunblock(pd, 'w', true);
 	runtime·unlock(pd);
 	if(rg) {
 		rg->schedlink = *gpp;
@@ -229,7 +239,8 @@ checkerr(PollDesc *pd, int32 mode)
 	return 0;
 }
 
-static void
+// returns true if IO is ready, or false if timedout or closed
+static bool
 netpollblock(PollDesc *pd, int32 mode)
 {
 	G **gpp;
@@ -239,17 +250,20 @@ netpollblock(PollDesc *pd, int32 mode)
 		gpp = &pd->wg;
 	if(*gpp == READY) {
 		*gpp = nil;
-		return;
+		return true;
 	}
 	if(*gpp != nil)
 		runtime·throw("epoll: double wait");
 	*gpp = g;
 	runtime·park(runtime·unlock, &pd->Lock, "IO wait");
 	runtime·lock(pd);
+	if(g->param)
+		return true;
+	return false;
 }
 
 static G*
-netpollunblock(PollDesc *pd, int32 mode)
+netpollunblock(PollDesc *pd, int32 mode, bool ioready)
 {
 	G **gpp, *old;
 
@@ -259,10 +273,15 @@ netpollunblock(PollDesc *pd, int32 mode)
 	if(*gpp == READY)
 		return nil;
 	if(*gpp == nil) {
-		*gpp = READY;
+		// Only set READY for ioready. runtime_pollWait
+		// will check for timeout/cancel before waiting.
+		if(ioready)
+			*gpp = READY;
 		return nil;
 	}
 	old = *gpp;
+	// pass unblock reason onto blocked g
+	old->param = (void*)ioready;
 	*gpp = nil;
 	return old;
 }
@@ -291,14 +310,14 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
 			runtime·throw("deadlineimpl: inconsistent read deadline");
 		pd->rd = -1;
 		pd->rt.fv = nil;
-		rg = netpollunblock(pd, 'r');
+		rg = netpollunblock(pd, 'r', false);
 	}
 	if(write) {
 		if(pd->wd <= 0 || (pd->wt.fv == nil && !read))
 			runtime·throw("deadlineimpl: inconsistent write deadline");
 		pd->wd = -1;
 		pd->wt.fv = nil;
-		wg = netpollunblock(pd, 'w');
+		wg = netpollunblock(pd, 'w', false);
 	}
 	runtime·unlock(pd);
 	if(rg)
