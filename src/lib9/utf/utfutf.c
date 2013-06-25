@@ -25,7 +25,8 @@ char*
 utfutf(const char *s1, const char *s2)
 {
 	const char *p;
-	long f, n1, n2;
+	long f, n1;
+	size_t n2;
 	Rune r;
 
 	n1 = chartorune(&r, s2);
@@ -34,7 +35,7 @@ utfutf(const char *s1, const char *s2)
 		return strstr(s1, s2);
 
 	n2 = strlen(s2);
-	for(p=s1; (p=utfrune(p, f)) != 0; p+=n1)
+	for(p=s1; (p=utfrune(p, r)) != 0; p+=n1)
 		if(strncmp(p, s2, n2) == 0)
 			return p;
 	return 0;

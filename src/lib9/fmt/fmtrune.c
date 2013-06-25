@@ -34,8 +34,8 @@ fmtrune(Fmt *f, int r)
 		n = 1;
 	}else{
 		t = (char*)f->to;
-		FMTRUNE(f, t, f->stop, r);
-		n = t - (char*)f->to;
+		FMTRUNE(f, t, f->stop, (Rune)r);
+		n = (int)(t - (char*)f->to);
 		f->to = t;
 	}
 	f->nfmt += n;

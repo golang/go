@@ -134,8 +134,8 @@ _wait(int pid4, int opt)
 			free(w);
 			return nil;
 		}
-		u = ru.ru_utime.tv_sec*1000+((ru.ru_utime.tv_usec+500)/1000);
-		s = ru.ru_stime.tv_sec*1000+((ru.ru_stime.tv_usec+500)/1000);
+		u = (ulong)(ru.ru_utime.tv_sec*1000+((ru.ru_utime.tv_usec+500)/1000));
+		s = (ulong)(ru.ru_stime.tv_sec*1000+((ru.ru_stime.tv_usec+500)/1000));
 		w->pid = pid;
 		w->time[0] = u;
 		w->time[1] = s;

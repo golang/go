@@ -29,7 +29,7 @@ THE SOFTWARE.
 int
 atoi(char *s)
 {
-	return strtol(s, 0, 0);
+	return (int)strtol(s, 0, 0);
 }
 
 long

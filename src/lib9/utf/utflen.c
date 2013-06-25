@@ -18,7 +18,7 @@ int
 utflen(const char *s)
 {
 	int c;
-	long n;
+	int n;
 	Rune rune;
 
 	n = 0;

@@ -23,7 +23,7 @@ utfecpy(char *to, char *e, const char *from)
 
 	if(to >= e)
 		return to;
-	end = memccpy(to, from, '\0', e - to);
+	end = memccpy(to, from, '\0', (size_t)(e - to));
 	if(end == nil){
 		end = e-1;
 		while(end>to && (*--end&0xC0)==0x80)

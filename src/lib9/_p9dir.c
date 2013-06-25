@@ -68,12 +68,12 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 			*str += strlen(*str)+1;
 		}
 	}
-	sz += strlen(s)+1;
+	sz += (int)strlen(s)+1;
 
 	/* user */
 	snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
 	s = tmp;
-	sz += strlen(s)+1;
+	sz += (int)strlen(s)+1;
 	if(d){
 		if(*str+strlen(s)+1 > estr)
 			d->uid = "oops";
@@ -87,7 +87,7 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 	/* group */
 	snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
 	s = tmp;
-	sz += strlen(s)+1;
+	sz += (int)strlen(s)+1;
 	if(d){
 		if(*str + strlen(s)+1 > estr)
 			d->gid = "oops";
@@ -107,10 +107,10 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 		d->qid.vers = st->st_gen;
 #endif
 		if(d->qid.vers == 0)
-			d->qid.vers = st->st_mtime + st->st_ctime;
+			d->qid.vers = (ulong)(st->st_mtime + st->st_ctime);
 		d->mode = st->st_mode&0777;
-		d->atime = st->st_atime;
-		d->mtime = st->st_mtime;
+		d->atime = (ulong)st->st_atime;
+		d->mtime = (ulong)st->st_mtime;
 		d->length = st->st_size;
 
 		if(S_ISDIR(st->st_mode)){

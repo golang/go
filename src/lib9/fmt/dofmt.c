@@ -25,7 +25,7 @@ int
 dofmt(Fmt *f, char *fmt)
 {
 	Rune rune, *rt, *rs;
-	int r;
+	Rune r;
 	char *t, *s;
 	int n, nfmt;
 
@@ -34,7 +34,7 @@ dofmt(Fmt *f, char *fmt)
 		if(f->runes){
 			rt = (Rune*)f->to;
 			rs = (Rune*)f->stop;
-			while((r = *(uchar*)fmt) && r != '%'){
+			while((r = (Rune)*(uchar*)fmt) && r != '%'){
 				if(r < Runeself)
 					fmt++;
 				else{
@@ -44,7 +44,7 @@ dofmt(Fmt *f, char *fmt)
 				FMTRCHAR(f, rt, rs, r);
 			}
 			fmt++;
-			f->nfmt += rt - (Rune *)f->to;
+			f->nfmt += (int)(rt - (Rune *)f->to);
 			f->to = rt;
 			if(!r)
 				return f->nfmt - nfmt;
@@ -52,7 +52,7 @@ dofmt(Fmt *f, char *fmt)
 		}else{
 			t = (char*)f->to;
 			s = (char*)f->stop;
-			while((r = *(uchar*)fmt) && r != '%'){
+			while((r = (Rune)*(uchar*)fmt) && r != '%'){
 				if(r < Runeself){
 					FMTCHAR(f, t, s, r);
 					fmt++;
@@ -70,7 +70,7 @@ dofmt(Fmt *f, char *fmt)
 				}
 			}
 			fmt++;
-			f->nfmt += t - (char *)f->to;
+			f->nfmt += (int)(t - (char *)f->to);
 			f->to = t;
 			if(!r)
 				return f->nfmt - nfmt;
@@ -87,9 +87,9 @@ void *
 __fmtflush(Fmt *f, void *t, int len)
 {
 	if(f->runes)
-		f->nfmt += (Rune*)t - (Rune*)f->to;
+		f->nfmt += (int)((Rune*)t - (Rune*)f->to);
 	else
-		f->nfmt += (char*)t - (char *)f->to;
+		f->nfmt += (int)((char*)t - (char *)f->to);
 	f->to = t;
 	if(f->flush == 0 || (*f->flush)(f) == 0 || (char*)f->to + len > (char*)f->stop){
 		f->stop = f->to;
@@ -112,7 +112,7 @@ __fmtpad(Fmt *f, int n)
 	s = (char*)f->stop;
 	for(i = 0; i < n; i++)
 		FMTCHAR(f, t, s, ' ');
-	f->nfmt += t - (char *)f->to;
+	f->nfmt += (int)(t - (char *)f->to);
 	f->to = t;
 	return 0;
 }
@@ -127,7 +127,7 @@ __rfmtpad(Fmt *f, int n)
 	s = (Rune*)f->stop;
 	for(i = 0; i < n; i++)
 		FMTRCHAR(f, t, s, ' ');
-	f->nfmt += t - (Rune *)f->to;
+	f->nfmt += (int)(t - (Rune *)f->to);
 	f->to = t;
 	return 0;
 }
@@ -157,13 +157,13 @@ __fmtcpy(Fmt *f, const void *vm, int n, int sz)
 			r = *(uchar*)m;
 			if(r < Runeself)
 				m++;
-			else if((me - m) >= UTFmax || fullrune(m, me-m))
+			else if((me - m) >= UTFmax || fullrune(m, (int)(me-m)))
 				m += chartorune(&r, m);
 			else
 				break;
 			FMTRCHAR(f, rt, rs, r);
 		}
-		f->nfmt += rt - (Rune *)f->to;
+		f->nfmt += (int)(rt - (Rune *)f->to);
 		f->to = rt;
 		if(fl & FmtLeft && __rfmtpad(f, w - n) < 0)
 			return -1;
@@ -176,13 +176,13 @@ __fmtcpy(Fmt *f, const void *vm, int n, int sz)
 			r = *(uchar*)m;
 			if(r < Runeself)
 				m++;
-			else if((me - m) >= UTFmax || fullrune(m, me-m))
+			else if((me - m) >= UTFmax || fullrune(m, (int)(me-m)))
 				m += chartorune(&r, m);
 			else
 				break;
 			FMTRUNE(f, t, s, r);
 		}
-		f->nfmt += t - (char *)f->to;
+		f->nfmt += (int)(t - (char *)f->to);
 		f->to = t;
 		if(fl & FmtLeft && __fmtpad(f, w - n) < 0)
 			return -1;
@@ -212,7 +212,7 @@ __fmtrcpy(Fmt *f, const void *vm, int n)
 		rs = (Rune*)f->stop;
 		for(me = m + n; m < me; m++)
 			FMTRCHAR(f, rt, rs, *m);
-		f->nfmt += rt - (Rune *)f->to;
+		f->nfmt += (int)(rt - (Rune *)f->to);
 		f->to = rt;
 		if(fl & FmtLeft && __rfmtpad(f, w - n) < 0)
 			return -1;
@@ -225,7 +225,7 @@ __fmtrcpy(Fmt *f, const void *vm, int n)
 			r = *m;
 			FMTRUNE(f, t, s, r);
 		}
-		f->nfmt += t - (char *)f->to;
+		f->nfmt += (int)(t - (char *)f->to);
 		f->to = t;
 		if(fl & FmtLeft && __fmtpad(f, w - n) < 0)
 			return -1;
@@ -239,7 +239,7 @@ __charfmt(Fmt *f)
 {
 	char x[1];
 
-	x[0] = va_arg(f->args, int);
+	x[0] = (char)va_arg(f->args, int);
 	f->prec = 1;
 	return __fmtcpy(f, (const char*)x, 1, 1);
 }
@@ -250,7 +250,7 @@ __runefmt(Fmt *f)
 {
 	Rune x[1];
 
-	x[0] = va_arg(f->args, int);
+	x[0] = (Rune)va_arg(f->args, int);
 	return __fmtrcpy(f, (const void*)x, 1);
 }
 
@@ -278,7 +278,7 @@ fmtstrcpy(Fmt *f, char *s)
 #endif
 		return __fmtcpy(f, s, j, i);
 	}
-	return __fmtcpy(f, s, utflen(s), strlen(s));
+	return __fmtcpy(f, s, utflen(s), (int)strlen(s));
 }
 
 /* fmt out a null terminated utf string */
@@ -309,7 +309,7 @@ fmtrunestrcpy(Fmt *f, Rune *s)
 	}else{
 		for(e = s; *e; e++)
 			;
-		n = e - s;
+		n = (int)(e - s);
 	}
 	return __fmtrcpy(f, s, n);
 }
@@ -342,8 +342,8 @@ __ifmt(Fmt *f)
 	char buf[140], *p, *conv;
 	/* 140: for 64 bits of binary + 3-byte sep every 4 digits */
 	uvlong vu;
-	ulong u;
-	int neg, base, i, n, fl, w, isv;
+	ulong fl, u;
+	int neg, base, i, n, w, isv;
 	int ndig, len, excess, bytelen;
 	char *grouping;
 	char *thousands;
@@ -377,27 +377,27 @@ __ifmt(Fmt *f)
 		if(fl & FmtUnsigned)
 			vu = va_arg(f->args, uvlong);
 		else
-			vu = va_arg(f->args, vlong);
+			vu = (uvlong)va_arg(f->args, vlong);
 	}else if(fl & FmtLong){
 		if(fl & FmtUnsigned)
 			u = va_arg(f->args, ulong);
 		else
-			u = va_arg(f->args, long);
+			u = (ulong)va_arg(f->args, long);
 	}else if(fl & FmtByte){
 		if(fl & FmtUnsigned)
 			u = (uchar)va_arg(f->args, int);
 		else
-			u = (char)va_arg(f->args, int);
+			u = (uchar)(char)va_arg(f->args, int);
 	}else if(fl & FmtShort){
 		if(fl & FmtUnsigned)
 			u = (ushort)va_arg(f->args, int);
 		else
-			u = (short)va_arg(f->args, int);
+			u = (ushort)(short)va_arg(f->args, int);
 	}else{
 		if(fl & FmtUnsigned)
 			u = va_arg(f->args, uint);
 		else
-			u = va_arg(f->args, int);
+			u = (uint)va_arg(f->args, int);
 	}
 	conv = "0123456789abcdef";
 	grouping = "\4";	/* for hex, octal etc. (undefined by spec but nice) */
@@ -428,10 +428,10 @@ __ifmt(Fmt *f)
 	}
 	if(!(fl & FmtUnsigned)){
 		if(isv && (vlong)vu < 0){
-			vu = -(vlong)vu;
+			vu = (uvlong)-(vlong)vu;
 			neg = 1;
 		}else if(!isv && (long)u < 0){
-			u = -(long)u;
+			u = (ulong)-(long)u;
 			neg = 1;
 		}
 	}
@@ -440,11 +440,11 @@ __ifmt(Fmt *f)
 	excess = 0;	/* number of bytes > number runes */
 	ndig = 0;
 	len = utflen(thousands);
-	bytelen = strlen(thousands);
+	bytelen = (int)strlen(thousands);
 	if(isv){
 		while(vu){
-			i = vu % base;
-			vu /= base;
+			i = (int)(vu % (uvlong)base);
+			vu /= (uvlong)base;
 			if((fl & FmtComma) && n % 4 == 3){
 				*p-- = ',';
 				n++;
@@ -453,15 +453,15 @@ __ifmt(Fmt *f)
 				n += len;
 				excess += bytelen - len;
 				p -= bytelen;
-				memmove(p+1, thousands, bytelen);
+				memmove(p+1, thousands, (size_t)bytelen);
 			}
 			*p-- = conv[i];
 			n++;
 		}
 	}else{
 		while(u){
-			i = u % base;
-			u /= base;
+			i = (int)(u % (ulong)base);
+			u /= (ulong)base;
 			if((fl & FmtComma) && n % 4 == 3){
 				*p-- = ',';
 				n++;
@@ -470,7 +470,7 @@ __ifmt(Fmt *f)
 				n += len;
 				excess += bytelen - len;
 				p -= bytelen;
-				memmove(p+1, thousands, bytelen);
+				memmove(p+1, thousands, (size_t)bytelen);
 			}
 			*p-- = conv[i];
 			n++;
@@ -496,14 +496,14 @@ __ifmt(Fmt *f)
 		 * Zero values don't get 0x.
 		 */
 		if(f->r == 'x' || f->r == 'X')
-			fl &= ~FmtSharp;
+			fl &= ~(ulong)FmtSharp;
 	}
 	for(w = f->prec; n < w && p > buf+3; n++){
 		if((fl & FmtApost) && __needsep(&ndig, &grouping)){
 			n += len;
 			excess += bytelen - len;
 			p -= bytelen;
-			memmove(p+1, thousands, bytelen);
+			memmove(p+1, thousands, (size_t)bytelen);
 		}
 		*p-- = '0';
 	}
@@ -514,7 +514,7 @@ __ifmt(Fmt *f)
 			n += 2;
 		else if(base == 8){
 			if(p[1] == '0')
-				fl &= ~FmtSharp;
+				fl &= ~(ulong)FmtSharp;
 			else
 				n++;
 		}
@@ -528,15 +528,15 @@ __ifmt(Fmt *f)
 				n += len;
 				excess += bytelen - len;
 				p -= bytelen;
-				memmove(p+1, thousands, bytelen);
+				memmove(p+1, thousands, (size_t)bytelen);
 			}
 			*p-- = '0';
 		}
-		f->flags &= ~FmtWidth;
+		f->flags &= ~(ulong)FmtWidth;
 	}
 	if(fl & FmtSharp){
 		if(base == 16)
-			*p-- = f->r;
+			*p-- = (char)f->r;
 		if(base == 16 || base == 8)
 			*p-- = '0';
 	}
@@ -546,7 +546,7 @@ __ifmt(Fmt *f)
 		*p-- = '+';
 	else if(fl & FmtSpace)
 		*p-- = ' ';
-	f->flags &= ~FmtPrec;
+	f->flags &= ~(ulong)FmtPrec;
 	return __fmtcpy(f, p + 1, n, n + excess);
 }
 
@@ -563,9 +563,9 @@ __countfmt(Fmt *f)
 	}else if(fl & FmtLong){
 		*(long*)p = f->nfmt;
 	}else if(fl & FmtByte){
-		*(char*)p = f->nfmt;
+		*(char*)p = (char)f->nfmt;
 	}else if(fl & FmtShort){
-		*(short*)p = f->nfmt;
+		*(short*)p = (short)f->nfmt;
 	}else{
 		*(int*)p = f->nfmt;
 	}

@@ -37,7 +37,7 @@ dirwstat(char *file, Dir *dir)
 	if(~dir->mtime == 0)
 		return 0;
 
-	ub.actime = dir->mtime;
-	ub.modtime = dir->mtime;
+	ub.actime = (time_t)dir->mtime;
+	ub.modtime = (time_t)dir->mtime;
 	return utime(file, &ub);
 }

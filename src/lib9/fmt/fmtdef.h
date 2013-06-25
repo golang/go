@@ -75,7 +75,7 @@ int          __strfmt(Fmt *f);
 		else\
 			return -1;\
 	}\
-	*t++ = c;\
+	*t++ = (char)c;\
 	}while(0)
 
 #define FMTRCHAR(f, t, s, c)\
@@ -87,7 +87,7 @@ int          __strfmt(Fmt *f);
 		else\
 			return -1;\
 	}\
-	*t++ = c;\
+	*t++ = (Rune)c;\
 	}while(0)
 
 #define FMTRUNE(f, t, s, r)\
@@ -102,7 +102,7 @@ int          __strfmt(Fmt *f);
 			return -1;\
 	}\
 	if(r < Runeself)\
-		*t++ = r;\
+		*t++ = (char)r;\
 	else{\
 		_rune = r;\
 		t += runetochar(t, &_rune);\

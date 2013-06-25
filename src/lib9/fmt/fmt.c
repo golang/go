@@ -187,12 +187,12 @@ __fmtdispatch(Fmt *f, void *fmt, int isrunes)
 		case '5': case '6': case '7': case '8': case '9':
 			i = 0;
 			while(r >= '0' && r <= '9'){
-				i = i * 10 + r - '0';
+				i = i * 10 + (int)r - '0';
 				if(isrunes){
 					r = *(Rune*)fmt;
 					fmt = (Rune*)fmt + 1;
 				}else{
-					r = *(char*)fmt;
+					r = (Rune)*(char*)fmt;
 					fmt = (char*)fmt + 1;
 				}
 			}
@@ -217,7 +217,7 @@ __fmtdispatch(Fmt *f, void *fmt, int isrunes)
 				 * ignore the precision.
 				 */
 				if(f->flags & FmtPrec){
-					f->flags &= ~FmtPrec;
+					f->flags &= ~(ulong)FmtPrec;
 					f->prec = 0;
 					continue;
 				}
@@ -226,7 +226,7 @@ __fmtdispatch(Fmt *f, void *fmt, int isrunes)
 			}
 			goto numflag;
 		}
-		n = (*fmtfmt(r))(f);
+		n = (*fmtfmt((int)r))(f);
 		if(n < 0)
 			return nil;
 		if(n == 0)
