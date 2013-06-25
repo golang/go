@@ -1355,7 +1355,7 @@ pclntab(void)
 	oldlc = 0;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
-			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP || p->as == AUSEFIELD) {
 				if(debug['O'])
 					Bprint(&bso, "%6llux %P\n",
 						(vlong)p->pc, p);
