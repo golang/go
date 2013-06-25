@@ -6,4 +6,6 @@
 
 package sha1
 
+//go:noescape
+
 func block(dig *digest, p []byte)
