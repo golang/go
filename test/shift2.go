@@ -20,6 +20,7 @@ var (
 	i       = 1 << s         // 1 has type int
 	j int32 = 1 << s         // 1 has type int32; j == 0
 	k       = uint64(1 << s) // 1 has type uint64; k == 1<<33
+	l       = g(1 << s)      // 1 has type int
 	m int   = 1.0 << s       // legal: 1.0 has type int
 	w int64 = 1.0 << 33      // legal: 1.0<<33 is a constant shift expression
 )
