@@ -1031,6 +1031,11 @@ func (check *checker) callExpr(x *operand) {
 // cycleOk indicates whether it is ok for a type expression to refer to itself.
 //
 func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycleOk bool) {
+	// make sure x has a valid state for deferred functions in case of bailout
+	// (was issue 5770)
+	x.mode = invalid
+	x.typ = Typ[Invalid]
+
 	if trace {
 		c := ""
 		if cycleOk {
