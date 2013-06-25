@@ -16,6 +16,7 @@ func runtime_pollServerInit()
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
 func runtime_pollWait(ctx uintptr, mode int) int
+func runtime_pollWaitCanceled(ctx uintptr, mode int) int
 func runtime_pollReset(ctx uintptr, mode int) int
 func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
 func runtime_pollUnblock(ctx uintptr)
@@ -56,24 +57,42 @@ func (pd *pollDesc) Evict() bool {
 	return false
 }
 
-func (pd *pollDesc) PrepareRead() error {
-	res := runtime_pollReset(pd.runtimeCtx, 'r')
+func (pd *pollDesc) Prepare(mode int) error {
+	res := runtime_pollReset(pd.runtimeCtx, mode)
 	return convertErr(res)
 }
 
+func (pd *pollDesc) PrepareRead() error {
+	return pd.Prepare('r')
+}
+
 func (pd *pollDesc) PrepareWrite() error {
-	res := runtime_pollReset(pd.runtimeCtx, 'w')
+	return pd.Prepare('w')
+}
+
+func (pd *pollDesc) Wait(mode int) error {
+	res := runtime_pollWait(pd.runtimeCtx, mode)
 	return convertErr(res)
 }
 
 func (pd *pollDesc) WaitRead() error {
-	res := runtime_pollWait(pd.runtimeCtx, 'r')
-	return convertErr(res)
+	return pd.Wait('r')
 }
 
 func (pd *pollDesc) WaitWrite() error {
-	res := runtime_pollWait(pd.runtimeCtx, 'w')
-	return convertErr(res)
+	return pd.Wait('w')
+}
+
+func (pd *pollDesc) WaitCanceled(mode int) {
+	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
+}
+
+func (pd *pollDesc) WaitCanceledRead() {
+	pd.WaitCanceled('r')
+}
+
+func (pd *pollDesc) WaitCanceledWrite() {
+	pd.WaitCanceled('w')
 }
 
 func convertErr(res int) error {
@@ -85,6 +104,7 @@ func convertErr(res int) error {
 	case 2:
 		return errTimeout
 	}
+	println("unreachable: ", res)
 	panic("unreachable")
 }
 
