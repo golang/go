@@ -506,7 +506,10 @@ func (p *gcParser) parseStructType() Type {
 		if tags != nil {
 			tags = append(tags, tag)
 		}
-		if alt := scope.Insert(fld); alt != nil {
+		if fld.name == "_" {
+			// blank identifiers are not declared
+			fld.setParent(scope)
+		} else if alt := scope.Insert(fld); alt != nil {
 			pname := "<no pkg name>"
 			if pkg := alt.Pkg(); pkg != nil {
 				pname = pkg.name
