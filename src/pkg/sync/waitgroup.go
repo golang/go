@@ -95,13 +95,6 @@ func (wg *WaitGroup) Wait() {
 	}
 	wg.m.Lock()
 	w := atomic.AddInt32(&wg.waiters, 1)
-	if raceenabled && w == 1 {
-		// Wait's must be synchronized with the first Add.
-		// Need to model this is as a write to race with the read in Add.
-		// As the consequence, can do the write only for the first waiter,
-		// otherwise concurrent Wait's will race with each other.
-		raceWrite(unsafe.Pointer(&wg.sema))
-	}
 	// This code is racing with the unlocked path in Add above.
 	// The code above modifies counter and then reads waiters.
 	// We must modify waiters and then read counter (the opposite order)
@@ -118,6 +111,13 @@ func (wg *WaitGroup) Wait() {
 			raceEnable()
 		}
 		return
+	}
+	if raceenabled && w == 1 {
+		// Wait must be synchronized with the first Add.
+		// Need to model this is as a write to race with the read in Add.
+		// As a consequence, can do the write only for the first waiter,
+		// otherwise concurrent Waits will race with each other.
+		raceWrite(unsafe.Pointer(&wg.sema))
 	}
 	if wg.sema == nil {
 		wg.sema = new(uint32)
