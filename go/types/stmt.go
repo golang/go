@@ -267,12 +267,6 @@ func (check *checker) stmtList(list []ast.Stmt) {
 	}
 }
 
-func (check *checker) call(call *ast.CallExpr) {
-	var x operand
-	check.rawExpr(&x, call, nil, -1, false) // don't check if value is used
-	// TODO(gri) If a builtin is called, the builtin must be valid in statement context.
-}
-
 func (check *checker) multipleDefaults(list []ast.Stmt) {
 	var first ast.Stmt
 	for _, s := range list {
@@ -471,10 +465,14 @@ func (check *checker) stmt(s ast.Stmt) {
 		}
 
 	case *ast.GoStmt:
-		check.call(s.Call)
+		var x operand
+		check.call(&x, s.Call, -1)
+		// TODO(gri) If a builtin is called, the builtin must be valid this context.
 
 	case *ast.DeferStmt:
-		check.call(s.Call)
+		var x operand
+		check.call(&x, s.Call, -1)
+		// TODO(gri) If a builtin is called, the builtin must be valid this context.
 
 	case *ast.ReturnStmt:
 		sig := check.funcsig
