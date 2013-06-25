@@ -391,6 +391,7 @@ detachproc(Map *m)
 int
 procnotes(int pid, char ***pnotes)
 {
+	USED(pid);
 	*pnotes = 0;
 	return 0;
 }
@@ -400,6 +401,7 @@ procnotes(int pid, char ***pnotes)
 char*
 proctextfile(int pid)
 {
+	USED(pid);
 	return nil;
 }
 
@@ -409,6 +411,8 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
 	mach_port_t task;
 	int r;
+
+	USED(seg);
 
 	task = idtotask(map->pid);
 	if(task == -1)
@@ -543,6 +547,8 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		uchar p[1];
 	} u;
 	uchar *p;
+
+	USED(seg);
 
 	if(n > 8){
 		werrstr("asked for %d-byte register", n);
@@ -711,6 +717,9 @@ catch_exception_raise(mach_port_t eport, mach_port_t thread,
 	Thread *t;
 	int i;
 
+	USED(eport);
+	USED(task);
+
 	t = nil;
 	for(i=0; i<nthr; i++){
 		if(thr[i].thread == thread){
@@ -751,6 +760,7 @@ havet:
 static void*
 excthread(void *v)
 {
+	USED(v);
 	extern boolean_t exc_server(mach_msg_header_t *, mach_msg_header_t *);
 	mach_msg_server(exc_server, 2048, excport, 0);
 	return 0;
