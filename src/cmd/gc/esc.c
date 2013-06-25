@@ -144,7 +144,7 @@ visitcode(Node *n, uint32 min)
 		fn = n->left;
 		if(n->op == OCALLMETH)
 			fn = n->left->right->sym->def;
-		if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn && fn->defn->nbody)
+		if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn)
 			if((m = visit(fn->defn)) < min)
 				min = m;
 	}

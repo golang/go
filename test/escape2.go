@@ -1337,3 +1337,22 @@ func foo143() {
 		}()
 	}
 }
+
+// issue 5773
+// Check that annotations take effect regardless of whether they
+// are before or after the use in the source code.
+
+//go:noescape
+
+func foo144a(*int)
+
+func foo144() {
+	var x int
+	foo144a(&x) // ERROR "&x does not escape"
+	var y int
+	foo144b(&y) // ERROR "&y does not escape"
+}
+
+//go:noescape
+
+func foo144b(*int)
