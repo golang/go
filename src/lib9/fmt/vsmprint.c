@@ -28,10 +28,10 @@ fmtStrFlush(Fmt *f)
 
 	if(f->start == nil)
 		return 0;
-	n = (uintptr)f->farg;
+	n = (int)(uintptr)f->farg;
 	n *= 2;
 	s = (char*)f->start;
-	f->start = realloc(s, n);
+	f->start = realloc(s, (size_t)n);
 	if(f->start == nil){
 		f->farg = nil;
 		f->to = nil;
@@ -53,7 +53,7 @@ fmtstrinit(Fmt *f)
 	memset(f, 0, sizeof *f);
 	f->runes = 0;
 	n = 32;
-	f->start = malloc(n);
+	f->start = malloc((size_t)n);
 	if(f->start == nil)
 		return -1;
 	f->to = f->start;

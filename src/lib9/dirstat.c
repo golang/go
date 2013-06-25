@@ -52,10 +52,10 @@ dirstat(char *file)
 #endif
 
 	nstr = _p9dir(&lst, &st, file, nil, nil, nil);
-	d = malloc(sizeof(Dir)+nstr);
+	d = malloc(sizeof(Dir)+(size_t)nstr);
 	if(d == nil)
 		return nil;
-	memset(d, 0, sizeof(Dir)+nstr);
+	memset(d, 0, sizeof(Dir)+(size_t)nstr);
 	str = (char*)&d[1];
 	_p9dir(&lst, &st, file, d, &str, str+nstr);
 	return d;

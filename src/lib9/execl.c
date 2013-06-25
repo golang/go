@@ -37,7 +37,7 @@ execl(char *prog, ...)
 		;
 	va_end(arg);
 
-	argv = malloc((i+1)*sizeof(char*));
+	argv = malloc((size_t)(i+1)*sizeof(char*));
 	if(argv == nil)
 		return -1;
 

@@ -69,7 +69,7 @@ __quotesetup(char *s, Rune *r, int nin, int nout, Quoteinfo *q, int sharp, int r
 				break;
 		}
 
-		if((c <= L' ') || (c == L'\'') || (fmtdoquote!=nil && fmtdoquote(c))){
+		if((c <= L' ') || (c == L'\'') || (fmtdoquote!=nil && fmtdoquote((int)c))){
 			if(!q->quoted){
 				if(runesout){
 					if(1+q->nrunesout+1+1 > nout)	/* no room for quotes */
@@ -152,7 +152,7 @@ qstrfmt(char *sin, Rune *rin, Quoteinfo *q, Fmt *f)
 			r = *(uchar*)m;
 			if(r < Runeself)
 				m++;
-			else if((me - m) >= UTFmax || fullrune(m, me-m))
+			else if((me - m) >= UTFmax || fullrune(m, (int)(me-m)))
 				m += chartorune(&r, m);
 			else
 				break;
@@ -175,14 +175,14 @@ qstrfmt(char *sin, Rune *rin, Quoteinfo *q, Fmt *f)
 	if(f->runes){
 		FMTRCHAR(f, rt, rs, '\'');
 		USED(rs);
-		f->nfmt += rt - (Rune *)f->to;
+		f->nfmt += (int)(rt - (Rune *)f->to);
 		f->to = rt;
 		if(fl & FmtLeft && __rfmtpad(f, w - q->nrunesout) < 0)
 			return -1;
 	}else{
 		FMTRUNE(f, t, s, '\'');
 		USED(s);
-		f->nfmt += t - (char *)f->to;
+		f->nfmt += (int)(t - (char *)f->to);
 		f->to = t;
 		if(fl & FmtLeft && __fmtpad(f, w - q->nbytesout) < 0)
 			return -1;
@@ -214,9 +214,9 @@ __quotestrfmt(int runesin, Fmt *f)
 	if(f->flush)
 		outlen = 0x7FFFFFFF;	/* if we can flush, no output limit */
 	else if(f->runes)
-		outlen = (Rune*)f->stop - (Rune*)f->to;
+		outlen = (int)((Rune*)f->stop - (Rune*)f->to);
 	else
-		outlen = (char*)f->stop - (char*)f->to;
+		outlen = (int)((char*)f->stop - (char*)f->to);
 
 	__quotesetup(s, r, nin, outlen, &q, f->flags&FmtSharp, f->runes);
 /*print("bytes in %d bytes out %d runes in %d runesout %d\n", q.nbytesin, q.nbytesout, q.nrunesin, q.nrunesout); */

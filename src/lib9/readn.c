@@ -36,7 +36,7 @@ readn(int f, void *av, long n)
 	a = av;
 	t = 0;
 	while(t < n){
-		m = read(f, a+t, n-t);
+		m = read(f, a+t, (size_t)(n-t));
 		if(m <= 0){
 			if(t == 0)
 				return m;

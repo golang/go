@@ -29,8 +29,8 @@ __fmtFdFlush(Fmt *f)
 {
 	int n;
 
-	n = (char*)f->to - (char*)f->start;
-	if(n && write((uintptr)f->farg, f->start, n) != n)
+	n = (int)((char*)f->to - (char*)f->start);
+	if(n && (int)write((int)(uintptr)f->farg, f->start, (size_t)n) != n)
 		return 0;
 	f->to = f->start;
 	return 1;

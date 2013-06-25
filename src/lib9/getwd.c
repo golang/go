@@ -50,5 +50,5 @@ p9getwd(char *s, int ns)
 		return s;
 	}
 
-	return getcwd(s, ns);
+	return getcwd(s, (size_t)ns);
 }

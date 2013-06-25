@@ -82,7 +82,7 @@ p9rfork(int flags)
 					close(p[0]);
 					return -1;
 				}
-				n = readn(p[0], buf, sizeof buf-1);
+				n = (int)readn(p[0], buf, sizeof buf-1);
 				close(p[0]);
 				if(!WIFEXITED(status) || WEXITSTATUS(status)!=0 || n <= 0){
 					if(!WIFEXITED(status))
@@ -102,7 +102,7 @@ p9rfork(int flags)
 					werrstr("%s", buf+2);
 					return -1;
 				}
-				pid = strtol(buf, &q, 0);
+				pid = (int)strtol(buf, &q, 0);
 			}else{
 				/*
 				 * Child - fork a new child whose wait message can't

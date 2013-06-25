@@ -43,10 +43,10 @@ dirfstat(int fd)
 
 	snprint(tmp, sizeof tmp, "/dev/fd/%d", fd);
 	nstr = _p9dir(&st, &st, tmp, nil, nil, nil);
-	d = malloc(sizeof(Dir)+nstr);
+	d = malloc(sizeof(Dir)+(size_t)nstr);
 	if(d == nil)
 		return nil;
-	memset(d, 0, sizeof(Dir)+nstr);
+	memset(d, 0, sizeof(Dir)+(size_t)nstr);
 	str = (char*)&d[1];
 	_p9dir(&st, &st, tmp, d, &str, str+nstr);
 	return d;

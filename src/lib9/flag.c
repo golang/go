@@ -54,7 +54,7 @@ lookflag(char *name, int namelen, int creat)
 
 	h = fnv(name, namelen) & (nelem(fhash)-1);
 	for(f=fhash[h]; f; f=f->next) {
-		if(f->namelen == namelen && memcmp(f->name, name, namelen) == 0) {
+		if(f->namelen == namelen && memcmp(f->name, name, (size_t)namelen) == 0) {
 			if(creat)
 				sysfatal("multiple definitions of flag -%s", name);
 			return f;
@@ -97,7 +97,7 @@ flagcount(char *name, char *desc, int *p)
 {
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->iscount = 1;
 	f->set = count;
@@ -119,7 +119,7 @@ flagint64(char *name, char *desc, int64 *p)
 {
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->set = atollwhex;
 	f->arg = p;
@@ -130,7 +130,7 @@ atolwhex(char *s, void *p)
 {
 	char *t;
 
-	*(int32*)p = strtol(s, &t, 0);
+	*(int32*)p = (int32)strtol(s, &t, 0);
 	if(*s == '\0' || *t != '\0')
 		sysfatal("invalid numeric argument -%s=%s", curflag->name, s);
 }
@@ -140,7 +140,7 @@ flagint32(char *name, char *desc, int32 *p)
 {
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->set = atolwhex;
 	f->arg = p;
@@ -158,7 +158,7 @@ flagstr(char *name, char *desc, char **p)
 
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->set = string;
 	f->arg = p;
@@ -176,7 +176,7 @@ flagfn0(char *name, char *desc, void (*fn)(void))
 {
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->set = fn0;
 	f->arg = fn;
@@ -194,7 +194,7 @@ flagfn1(char *name, char *desc, void (*fn)(char*))
 {
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->set = fn1;
 	f->arg = fn;
@@ -211,7 +211,7 @@ flagfn2(char *name, char *desc, void (*fn)(char*, char*))
 {
 	Flag *f;
 	
-	f = lookflag(name, strlen(name), 1);
+	f = lookflag(name, (int)strlen(name), 1);
 	f->desc = desc;
 	f->set2 = fn2;
 	f->arg = fn;
@@ -253,9 +253,9 @@ flagparse(int *argcp, char ***argvp, void (*usage)(void))
 		name = p+1;
 		q = strchr(name, '=');
 		if(q != nil)
-			namelen = q++ - name;
+			namelen = (int)(q++ - name);
 		else
-			namelen = strlen(name);
+			namelen = (int)strlen(name);
 		f = lookflag(name, namelen, 0);
 		if(f == nil) {
 			if(strcmp(p, "-h") == 0 || strcmp(p, "-help") == 0 || strcmp(p, "-?") == 0)

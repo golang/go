@@ -124,7 +124,7 @@ fmtstrtod(const char *as, char **aas)
 				continue;
 			}
 			if(na < Ndig-50)
-				a[na++] = c;
+				a[na++] = (char)c;
 			continue;
 		}
 		switch(c) {
@@ -240,7 +240,7 @@ fmtstrtod(const char *as, char **aas)
 	mid[0] = 0;
 	mid[1] = 1;
 	for(i=0; (c=a[i]) != '\0'; i++) {
-		mid[0] = mid[0]*10 + (c-'0');
+		mid[0] = mid[0]*10 + (ulong)(c-'0');
 		mid[1] = mid[1]*10;
 		if(i >= 8)
 			break;
@@ -287,13 +287,13 @@ fmtstrtod(const char *as, char **aas)
 		/* only hard part is if even/odd roundings wants to go up */
 		c = mid[Prec-1] & (Sigbit-1);
 		if(c == Sigbit/2 && (mid[Prec-1]&Sigbit) == 0)
-			mid[Prec-1] -= c;
+			mid[Prec-1] -= (ulong)c;
 		break;	/* exactly mid */
 	}
 
 	/* normal rounding applies */
 	c = mid[Prec-1] & (Sigbit-1);
-	mid[Prec-1] -= c;
+	mid[Prec-1] -= (ulong)c;
 	if(c >= Sigbit/2) {
 		mid[Prec-1] += Sigbit;
 		frnorm(mid);
@@ -317,7 +317,7 @@ retinf:
 out:
 	d = 0;
 	for(i=0; i<Prec; i++)
-		d = d*One + mid[i];
+		d = d*One + (double)mid[i];
 	if(flag & Fsign)
 		d = -d;
 	d = ldexp(d, bp - Prec*Nbits);
@@ -330,7 +330,8 @@ out:
 static void
 frnorm(ulong *f)
 {
-	int i, c;
+	int i;
+	ulong c;
 
 	c = 0;
 	for(i=Prec-1; i>0; i--) {
@@ -355,7 +356,7 @@ fpcmp(char *a, ulong* f)
 		for(i=0; i<Prec; i++)
 			tf[i] = tf[i]*10;
 		frnorm(tf);
-		d = (tf[0] >> Nbits) + '0';
+		d = (int)(tf[0] >> Nbits) + '0';
 		tf[0] &= One-1;
 
 		/* compare next digit */
@@ -404,7 +405,7 @@ divby(char *a, int *na, int b)
 	for(;;) {
 		c = n>>b;
 		n -= c<<b;
-		*p++ = c + '0';
+		*p++ = (char)(c + '0');
 		c = *a++;
 		if(c == 0)
 			break;
@@ -416,7 +417,7 @@ xx:
 		n = n*10;
 		c = n>>b;
 		n -= c<<b;
-		*p++ = c + '0';
+		*p++ = (char)(c + '0');
 		(*na)++;
 	}
 	*p = 0;
@@ -447,7 +448,7 @@ divascii(char *a, int *na, int *dp, int *bp)
 		d = (int)(nelem(tab1))-1;
 	t = tab1 + d;
 	b = t->bp;
-	if(memcmp(a, t->cmp, t->siz) > 0)
+	if(memcmp(a, t->cmp, (size_t)t->siz) > 0)
 		d--;
 	*dp -= d;
 	*bp += b;
@@ -470,14 +471,14 @@ mulby(char *a, char *p, char *q, int b)
 		n = c/10;
 		c -= n*10;
 		p--;
-		*p = c + '0';
+		*p = (char)(c + '0');
 	}
 	while(n) {
 		c = n;
 		n = c/10;
 		c -= n*10;
 		p--;
-		*p = c + '0';
+		*p = (char)(c + '0');
 	}
 }
 
@@ -507,7 +508,7 @@ mulascii(char *a, int *na, int *dp, int *bp)
 		d = (int)(nelem(tab2))-1;
 	t = tab2 + d;
 	b = t->bp;
-	if(memcmp(a, t->cmp, t->siz) < 0)
+	if(memcmp(a, t->cmp, (size_t)t->siz) < 0)
 		d--;
 	p = a + *na;
 	*bp -= b;

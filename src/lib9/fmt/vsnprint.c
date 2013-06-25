@@ -39,5 +39,5 @@ vsnprint(char *buf, int len, char *fmt, va_list args)
 	dofmt(&f, fmt);
 	VA_END(f.args);
 	*(char*)f.to = '\0';
-	return (char*)f.to - buf;
+	return (int)((char*)f.to - buf);
 }
