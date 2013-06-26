@@ -88,6 +88,10 @@ var golden224 = []sha256Test{
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
+		s := fmt.Sprintf("%x", Sum256([]byte(g.in)))
+		if s != g.out {
+			t.Fatalf("Sum function: sha256(%s) = %s want %s", g.in, s, g.out)
+		}
 		c := New()
 		for j := 0; j < 3; j++ {
 			if j < 2 {
@@ -106,6 +110,10 @@ func TestGolden(t *testing.T) {
 	}
 	for i := 0; i < len(golden224); i++ {
 		g := golden224[i]
+		s := fmt.Sprintf("%x", Sum224([]byte(g.in)))
+		if s != g.out {
+			t.Fatalf("Sum224 function: sha224(%s) = %s want %s", g.in, s, g.out)
+		}
 		c := New224()
 		for j := 0; j < 3; j++ {
 			if j < 2 {
