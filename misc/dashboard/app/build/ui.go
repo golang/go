@@ -211,7 +211,7 @@ func builderArch(s string) string {
 
 // builderArchShort returns a short arch tag for a builder string
 func builderArchShort(s string) string {
-	if s == "linux-amd64-race" {
+	if strings.Contains(s+"-", "-race-") {
 		return "race"
 	}
 	arch := builderArch(s)
