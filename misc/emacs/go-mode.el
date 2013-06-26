@@ -873,16 +873,18 @@ will be commented, otherwise they will be removed completely."
 (defun godef--find-file-line-column (specifier)
   "Given a file name in the format of `filename:line:column',
 visit FILENAME and go to line LINE and column COLUMN."
-  (let* ((components (split-string specifier ":"))
-         (line (string-to-number (nth 1 components)))
-         (column (string-to-number (nth 2 components))))
-    (with-current-buffer (find-file (car components))
-      (goto-char (point-min))
-      (forward-line (1- line))
-      (beginning-of-line)
-      (forward-char (1- column))
-      (if (buffer-modified-p)
-          (message "Buffer is modified, file position might not have been correct")))))
+  (if (not (string-match "\\(.+\\):\\([0-9]+\\):\\([0-9]+\\)" specifier))
+      (error "Unexpected godef output: %s" specifier)
+    (let ((filename (match-string 1 specifier))
+          (line (string-to-number (match-string 2 specifier)))
+          (column (string-to-number (match-string 3 specifier))))
+      (with-current-buffer (find-file filename)
+        (goto-char (point-min))
+        (forward-line (1- line))
+        (beginning-of-line)
+        (forward-char (1- column))
+        (if (buffer-modified-p)
+            (message "Buffer is modified, file position might not have been correct"))))))
 
 (defun godef--call (point)
   "Call godef, acquiring definition position and expression
