@@ -486,6 +486,9 @@ func matchPackages(pattern string) []string {
 		}
 		_, err = buildContext.ImportDir(path, 0)
 		if err != nil {
+			if _, noGo := err.(*build.NoGoError); !noGo {
+				log.Print(err)
+			}
 			return nil
 		}
 		pkgs = append(pkgs, name)
@@ -520,8 +523,10 @@ func matchPackages(pattern string) []string {
 				return nil
 			}
 			_, err = buildContext.ImportDir(path, 0)
-			if err != nil && strings.Contains(err.Error(), "no Go source files") {
-				return nil
+			if err != nil {
+				if _, noGo := err.(*build.NoGoError); noGo {
+					return nil
+				}
 			}
 			pkgs = append(pkgs, name)
 			return nil
@@ -588,6 +593,9 @@ func matchPackagesInFS(pattern string) []string {
 			return nil
 		}
 		if _, err = build.ImportDir(path, 0); err != nil {
+			if _, noGo := err.(*build.NoGoError); !noGo {
+				log.Print(err)
+			}
 			return nil
 		}
 		pkgs = append(pkgs, name)
