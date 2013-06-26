@@ -53,6 +53,10 @@ var golden = []md5Test{
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
+		s := fmt.Sprintf("%x", Sum([]byte(g.in)))
+		if s != g.out {
+			t.Fatalf("Sum function: md5(%s) = %s want %s", g.in, s, g.out)
+		}
 		c := New()
 		buf := make([]byte, len(g.in)+4)
 		for j := 0; j < 3+4; j++ {
