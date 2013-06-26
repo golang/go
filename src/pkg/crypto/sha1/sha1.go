@@ -90,9 +90,13 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 func (d0 *digest) Sum(in []byte) []byte {
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0
+	hash := d.checkSum()
+	return append(in, hash[:]...)
+}
 
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+func (d *digest) checkSum() [Size]byte {
 	len := d.len
+	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	var tmp [64]byte
 	tmp[0] = 0x80
 	if len%64 < 56 {
@@ -120,5 +124,13 @@ func (d0 *digest) Sum(in []byte) []byte {
 		digest[i*4+3] = byte(s)
 	}
 
-	return append(in, digest[:]...)
+	return digest
+}
+
+// Sum returns the SHA1 checksum of the data.
+func Sum(data []byte) [Size]byte {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkSum()
 }
