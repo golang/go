@@ -493,19 +493,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			return nil, nil, nil, p1.Error
 		}
 		ximports = append(ximports, p1)
-
-		// In coverage mode, we rewrite the package p's sources.
-		// All code that imports p must be rebuilt with the updated
-		// copy, or else coverage will at the least be incomplete
-		// (and sometimes we get link errors due to the mismatch as well).
-		// The external test itself imports package p, of course, but
-		// we make sure that sees the new p. Any other code in the test
-		// - that is, any code imported by the external test that in turn
-		// imports p - needs to be rebuilt too. For now, just report
-		// that coverage is unavailable.
-		if testCover && contains(p1.Deps, p.ImportPath) {
-			return nil, nil, nil, fmt.Errorf("coverage analysis cannot handle package (%s_test imports %s imports %s)", p.Name, path, p.ImportPath)
-		}
 	}
 	stk.pop()
 
@@ -544,15 +531,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		return nil, nil, nil, err
 	}
 
-	if testCover {
-		p.coverMode = testCoverMode
-		p.coverVars = declareCoverVars(p.ImportPath, p.GoFiles...)
-	}
-
-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p, p.coverVars); err != nil {
-		return nil, nil, nil, err
-	}
-
 	// Test package.
 	if len(p.TestGoFiles) > 0 || testCover {
 		ptest = new(Package)
@@ -579,6 +557,15 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		ptest.build.ImportPos = m
 	} else {
 		ptest = p
+	}
+
+	if testCover {
+		ptest.coverMode = testCoverMode
+		ptest.coverVars = declareCoverVars(ptest.ImportPath, ptest.GoFiles...)
+	}
+
+	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), ptest, ptest.coverVars); err != nil {
+		return nil, nil, nil, err
 	}
 
 	// External test package.
@@ -628,6 +615,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		return nil, nil, nil, pregexp.Error
 	}
 	pmain.imports = append(pmain.imports, ptesting, pregexp)
+
+	if ptest != p && testCover {
+		// We have made modifications to the package p being tested
+		// and are rebuilding p (as ptest), writing it to the testDir tree.
+		// Arrange to rebuild, writing to that same tree, all packages q
+		// such that the test depends on q and q depends on p.
+		// This makes sure that q sees the modifications to p.
+		// Strictly speaking, the rebuild is only necessary if the
+		// modifications to p change its export metadata, but
+		// determining that is a bit tricky, so we rebuild always.
+		//
+		// This will cause extra compilation, so for now we only do it
+		// when testCover is set. The conditions are more general, though,
+		// and we may find that we need to do it always in the future.
+		recompileForTest(pmain, p, ptest, pxtest, testDir)
+	}
+
 	computeStale(pmain)
 
 	if ptest != p {
@@ -684,6 +688,50 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	return pmainAction, runAction, printAction, nil
+}
+
+func recompileForTest(pmain, preal, ptest, pxtest *Package, testDir string) {
+	m := map[*Package]*Package{preal: ptest}
+
+	var (
+		clone   func(*Package) *Package
+		rewrite func(*Package)
+	)
+
+	clone = func(p *Package) *Package {
+		if p1 := m[p]; p1 != nil {
+			// Already did the work.
+			return p1
+		}
+		if !contains(p.Deps, preal.ImportPath) || p.pkgdir == testDir {
+			// No work to do.
+			return p
+		}
+		// Make new local copy of package.
+		p1 := new(Package)
+		m[p] = p1
+		*p1 = *p
+		p1.imports = make([]*Package, len(p.imports))
+		copy(p1.imports, p.imports)
+		rewrite(p1)
+		return p1
+	}
+
+	rewrite = func(p *Package) {
+		p.pkgdir = testDir
+		p.target = ""
+		p.fake = true
+		p.forceLibrary = true
+		p.Stale = true
+		for i, dep := range p.imports {
+			p.imports[i] = clone(dep)
+		}
+	}
+
+	rewrite(pmain)
+	if pxtest != nil {
+		rewrite(pxtest)
+	}
 }
 
 var coverIndex = 0
