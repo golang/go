@@ -24,43 +24,42 @@ package types
 
 import (
 	"flag"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
 	"go/token"
 	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
 )
 
-var listErrors = flag.Bool("list", false, "list errors")
+var (
+	listErrors = flag.Bool("list", false, "list errors")
+	testFiles  = flag.String("files", "", "space-separated list of test files")
+)
 
 // The test filenames do not end in .go so that they are invisible
 // to gofmt since they contain comments that must not change their
 // positions relative to surrounding tokens.
 
-var tests = []struct {
-	name  string
-	files []string
-}{
-	{"decls0", []string{"testdata/decls0.src"}},
-	{"decls1", []string{"testdata/decls1.src"}},
-	{"decls2", []string{"testdata/decls2a.src", "testdata/decls2b.src"}},
-	{"decls3", []string{"testdata/decls3.src"}},
-	{"const0", []string{"testdata/const0.src"}},
-	{"expr0", []string{"testdata/expr0.src"}},
-	{"expr1", []string{"testdata/expr1.src"}},
-	{"expr2", []string{"testdata/expr2.src"}},
-	{"expr3", []string{"testdata/expr3.src"}},
-	{"methodsets", []string{"testdata/methodsets.src"}},
-	{"shifts", []string{"testdata/shifts.src"}},
-	{"builtins", []string{"testdata/builtins.src"}},
-	{"conversions", []string{"testdata/conversions.src"}},
-	{"stmt0", []string{"testdata/stmt0.src"}},
-	{"stmt1", []string{"testdata/stmt1.src"}},
+// Each tests entry is list of files belonging to the same package.
+var tests = [][]string{
+	{"testdata/decls0.src"},
+	{"testdata/decls1.src"},
+	{"testdata/decls2a.src", "testdata/decls2b.src"},
+	{"testdata/decls3.src"},
+	{"testdata/const0.src"},
+	{"testdata/expr0.src"},
+	{"testdata/expr1.src"},
+	{"testdata/expr2.src"},
+	{"testdata/expr3.src"},
+	{"testdata/methodsets.src"},
+	{"testdata/shifts.src"},
+	{"testdata/builtins.src"},
+	{"testdata/conversions.src"},
+	{"testdata/stmt0.src"},
+	{"testdata/stmt1.src"},
 }
 
 var fset = token.NewFileSet()
@@ -81,13 +80,13 @@ func splitError(err error) (pos, msg string) {
 	return
 }
 
-func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File, []error) {
+func parseFiles(t *testing.T, filenames []string) ([]*ast.File, []error) {
 	var files []*ast.File
 	var errlist []error
 	for _, filename := range filenames {
 		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
 		if file == nil {
-			t.Fatalf("%s: could not parse file %s", testname, filename)
+			t.Fatalf("%s: %s", filename, err)
 		}
 		files = append(files, file)
 		if err != nil {
@@ -184,9 +183,14 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-func checkFiles(t *testing.T, testname string, testfiles []string) {
+func checkFiles(t *testing.T, testfiles []string) {
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, testname, testfiles)
+	files, errlist := parseFiles(t, testfiles)
+
+	pkgName := "<no package>"
+	if len(files) > 0 {
+		pkgName = files[0].Name.Name
+	}
 
 	// typecheck and collect typechecker errors
 	var ctxt Context
@@ -198,10 +202,10 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 			errlist = append(errlist, err)
 		}
 	}
-	ctxt.Check(testname, fset, files...)
+	ctxt.Check(pkgName, fset, files...)
 
 	if *listErrors {
-		t.Errorf("--- %s: %d errors found:", testname, len(errlist))
+		t.Errorf("--- %s: %d errors found:", pkgName, len(errlist))
 		for _, err := range errlist {
 			t.Error(err)
 		}
@@ -210,12 +214,12 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 
 	// match and eliminate errors;
 	// we are expecting the following errors
-	errmap := errMap(t, testname, files)
+	errmap := errMap(t, pkgName, files)
 	eliminate(t, errmap, errlist)
 
 	// there should be no expected errors left
 	if len(errmap) > 0 {
-		t.Errorf("--- %s: %d source positions with expected (but not reported) errors:", testname, len(errmap))
+		t.Errorf("--- %s: %d source positions with expected (but not reported) errors:", pkgName, len(errmap))
 		for pos, list := range errmap {
 			for _, rx := range list {
 				t.Errorf("%s: %q", pos, rx)
@@ -237,17 +241,14 @@ func TestCheck(t *testing.T) {
 		def(NewFunc(token.NoPos, nil, "trace", &Builtin{_Trace, "trace", 0, true, true}))
 	}
 
-	// For easy debugging w/o changing the testing code,
-	// if there is a local test file, only test that file.
-	const testfile = "testdata/test.go"
-	if fi, err := os.Stat(testfile); err == nil && !fi.IsDir() {
-		fmt.Printf("WARNING: Testing only %s (remove it to run all tests)\n", testfile)
-		checkFiles(t, testfile, []string{testfile})
+	// If explicit test files are specified, only check those.
+	if files := *testFiles; files != "" {
+		checkFiles(t, strings.Split(files, " "))
 		return
 	}
 
 	// Otherwise, run all the tests.
-	for _, test := range tests {
-		checkFiles(t, test.name, test.files)
+	for _, files := range tests {
+		checkFiles(t, files)
 	}
 }
