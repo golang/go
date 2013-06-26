@@ -134,9 +134,16 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 func (d0 *digest) Sum(in []byte) []byte {
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0
+	hash := d.checkSum()
+	if d.is224 {
+		return append(in, hash[:Size224]...)
+	}
+	return append(in, hash[:]...)
+}
 
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+func (d *digest) checkSum() [Size]byte {
 	len := d.len
+	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	var tmp [64]byte
 	tmp[0] = 0x80
 	if len%64 < 56 {
@@ -157,10 +164,8 @@ func (d0 *digest) Sum(in []byte) []byte {
 	}
 
 	h := d.h[:]
-	size := Size
 	if d.is224 {
 		h = d.h[:7]
-		size = Size224
 	}
 
 	var digest [Size]byte
@@ -171,5 +176,24 @@ func (d0 *digest) Sum(in []byte) []byte {
 		digest[i*4+3] = byte(s)
 	}
 
-	return append(in, digest[:size]...)
+	return digest
+}
+
+// Sum returns the SHA256 checksum of the data.
+func Sum256(data []byte) [Size]byte {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkSum()
+}
+
+// Sum224 returns the SHA224 checksum of the data.
+func Sum224(data []byte) (sum224 [Size224]byte) {
+	var d digest
+	d.is224 = true
+	d.Reset()
+	d.Write(data)
+	sum := d.checkSum()
+	copy(sum224[:], sum[:Size224])
+	return
 }
