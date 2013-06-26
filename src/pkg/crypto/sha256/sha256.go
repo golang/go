@@ -179,7 +179,7 @@ func (d *digest) checkSum() [Size]byte {
 	return digest
 }
 
-// Sum returns the SHA256 checksum of the data.
+// Sum256 returns the SHA256 checksum of the data.
 func Sum256(data []byte) [Size]byte {
 	var d digest
 	d.Reset()

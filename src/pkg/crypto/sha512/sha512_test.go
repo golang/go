@@ -88,6 +88,10 @@ var golden384 = []sha512Test{
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
+		s := fmt.Sprintf("%x", Sum512([]byte(g.in)))
+		if s != g.out {
+			t.Fatalf("Sum512 function: sha512(%s) = %s want %s", g.in, s, g.out)
+		}
 		c := New()
 		for j := 0; j < 3; j++ {
 			if j < 2 {
@@ -106,6 +110,10 @@ func TestGolden(t *testing.T) {
 	}
 	for i := 0; i < len(golden384); i++ {
 		g := golden384[i]
+		s := fmt.Sprintf("%x", Sum384([]byte(g.in)))
+		if s != g.out {
+			t.Fatalf("Sum384 function: sha384(%s) = %s want %s", g.in, s, g.out)
+		}
 		c := New384()
 		for j := 0; j < 3; j++ {
 			if j < 2 {
