@@ -90,7 +90,7 @@ func TestGolden(t *testing.T) {
 		g := golden[i]
 		s := fmt.Sprintf("%x", Sum256([]byte(g.in)))
 		if s != g.out {
-			t.Fatalf("Sum function: sha256(%s) = %s want %s", g.in, s, g.out)
+			t.Fatalf("Sum256 function: sha256(%s) = %s want %s", g.in, s, g.out)
 		}
 		c := New()
 		for j := 0; j < 3; j++ {
