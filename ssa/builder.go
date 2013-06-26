@@ -735,7 +735,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			id := MakeId(e.Sel.Name, fn.Pkg.Types)
 			typ := fn.Pkg.typeOf(e.X)
 			if m := fn.Prog.MethodSet(typ)[id]; m != nil {
-				return m
+				return emitConv(fn, m, fn.Pkg.typeOf(e))
 			}
 
 			// T must be an interface; return wrapper.

@@ -79,10 +79,21 @@ func anonStruct() {
 	assert(get() == 3)
 }
 
+func typeCheck() {
+	var i interface{}
+	i = (*S).incr
+	_ = i.(func(*S)) // type assertion: receiver type prepended to params
+
+	var s S
+	i = s.incr
+	_ = i.(func()) // type assertion: receiver type disappears
+}
+
 func main() {
 	valueReceiver()
 	pointerReceiver()
 	addressibleValuePointerReceiver()
 	promotedReceiver()
 	anonStruct()
+	typeCheck()
 }

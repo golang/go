@@ -124,8 +124,7 @@ func isValuePreserving(ut_src, ut_dst types.Type) bool {
 		return ok
 
 	case *types.Signature:
-		// Conversion between f(T) function and (T) func f() method?
-		// TODO(adonovan): is this sound?  Discuss with gri.
+		// Conversion from (T) func f() method to f(T) function?
 		_, ok := ut_src.(*types.Signature)
 		return ok
 	}
