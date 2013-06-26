@@ -260,7 +260,7 @@ func TestEnclosingFunction(t *testing.T) {
 		name := "(none)"
 		fn := ssa.EnclosingFunction(pkg, path)
 		if fn != nil {
-			name = fn.FullName()
+			name = fn.String()
 		}
 
 		if name != test.fn {

@@ -1230,8 +1230,10 @@ func (c *CallCommon) Pos() token.Pos { return c.pos }
 // Signature returns the signature of the called function.
 //
 // For an "invoke"-mode call, the signature of the interface method is
-// returned; the receiver is represented by sig.Recv, not
-// sig.Params().At(0).
+// returned.
+//
+// In either "call" or "invoke" mode, if the callee is a method, its
+// receiver is represented by sig.Recv, not sig.Params().At(0).
 //
 func (c *CallCommon) Signature() *types.Signature {
 	if c.Recv != nil {

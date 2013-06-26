@@ -443,7 +443,7 @@ func boundMethodWrapper(meth *Function) *Function {
 		}
 		s := meth.Signature
 		fn = &Function{
-			name:      "bound$" + meth.FullName(),
+			name:      "bound$" + meth.String(),
 			Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
 			Prog:      prog,
 		}

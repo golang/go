@@ -448,11 +448,7 @@ func (f *Function) emit(instr Instruction) Value {
 //      "func@5.32"                 // an anonymous function
 //      "bound$(*T).f"              // a bound method wrapper
 //
-func (f *Function) FullName() string {
-	return f.fullName(nil)
-}
-
-// Like FullName, but if from==f.Pkg, suppress package qualification.
+// If from==f.Pkg, suppress package qualification.
 func (f *Function) fullName(from *Package) string {
 	// TODO(adonovan): expose less fragile case discrimination.
 
@@ -535,7 +531,7 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 // all basic blocks of function f.
 //
 func (f *Function) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
+	fmt.Fprintf(w, "# Name: %s\n", f.String())
 	if pos := f.Pos(); pos.IsValid() {
 		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(pos))
 	} else {

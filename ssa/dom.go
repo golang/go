@@ -258,7 +258,7 @@ func sanityCheckDomTree(f *Function) {
 		}
 	}
 	if !ok {
-		panic("sanityCheckDomTree failed for " + f.FullName())
+		panic("sanityCheckDomTree failed for " + f.String())
 	}
 }
 
@@ -275,7 +275,7 @@ func printDomTreeText(w io.Writer, v *domNode, indent int) {
 // printDomTreeDot prints the dominator tree of f in AT&T GraphViz
 // (.dot) format.
 func printDomTreeDot(w io.Writer, f *Function) {
-	fmt.Fprintln(w, "//", f.FullName())
+	fmt.Fprintln(w, "//", f)
 	fmt.Fprintln(w, "digraph domtree {")
 	for i, b := range f.Blocks {
 		v := b.dom

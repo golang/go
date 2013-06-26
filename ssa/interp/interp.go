@@ -436,15 +436,15 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 	if i.mode&EnableTracing != 0 {
 		fset := fn.Prog.Files
 		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
+		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn, loc(fset, fn.Pos()))
 		suffix := ""
 		if caller != nil {
-			suffix = ", resuming " + caller.fn.FullName() + loc(fset, callpos)
+			suffix = ", resuming " + caller.fn.String() + loc(fset, callpos)
 		}
-		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn.FullName(), suffix)
+		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn, suffix)
 	}
 	if fn.Enclosing == nil {
-		name := fn.FullName()
+		name := fn.String()
 		if ext := externals[name]; ext != nil {
 			if i.mode&EnableTracing != 0 {
 				fmt.Fprintln(os.Stderr, "\t(external)")

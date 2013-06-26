@@ -68,7 +68,7 @@ func (v *Builtin) String() string {
 }
 
 func (v *Function) String() string {
-	return v.FullName()
+	return v.fullName(nil)
 }
 
 // FullName returns g's package-qualified name.

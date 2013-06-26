@@ -2240,8 +2240,7 @@ func (b *builder) buildFunction(fn *Function) {
 		return
 	}
 	if fn.Prog.mode&LogSource != 0 {
-		defer logStack("build function %s @ %s",
-			fn.FullName(), fn.Prog.Files.Position(fn.pos))()
+		defer logStack("build function %s @ %s", fn, fn.Prog.Files.Position(fn.pos))()
 	}
 	fn.startBody()
 	fn.createSyntacticParams()
