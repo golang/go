@@ -31,10 +31,6 @@ import (
 	"strconv"
 )
 
-// TODO(r,adg): change the command-line interface to be focused on analyzing
-// profiles. The coverage annotation function should be less accessible, as it
-// is used primarily by the go tool.
-
 var (
 	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
 	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
