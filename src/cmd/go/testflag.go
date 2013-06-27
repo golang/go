@@ -29,6 +29,7 @@ var usageMessage = `Usage of go test:
   -benchtime=1s: passes -test.benchtime to test
   -cover=false: enable coverage analysis
   -covermode="set": passes -test.covermode to test if -cover
+  -coverpkg="": comma-separated list of packages for coverage analysis
   -coverprofile="": passes -test.coverprofile to test if -cover
   -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
@@ -67,6 +68,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "file", multiOK: true},
 	{name: "i", boolVar: &testI},
 	{name: "cover", boolVar: &testCover},
+	{name: "coverpkg"},
 
 	// build flags.
 	{name: "a", boolVar: &buildA},
@@ -178,6 +180,13 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testTimeout = value
 		case "blockprofile", "cpuprofile", "memprofile":
 			testProfile = true
+		case "coverpkg":
+			testCover = true
+			if value == "" {
+				testCoverPaths = nil
+			} else {
+				testCoverPaths = strings.Split(value, ",")
+			}
 		case "coverprofile":
 			testCover = true
 			testProfile = true
