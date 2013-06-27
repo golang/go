@@ -629,10 +629,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 		// keep nil untyped - see comment for interfaces, above
 		target = Typ[UntypedNil]
 	default:
-		if debug {
-			check.dump("convertUntyped(x = %v, target = %v)", x, target)
-		}
-		unreachable()
+		goto Error
 	}
 
 	x.typ = target

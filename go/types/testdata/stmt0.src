@@ -6,7 +6,7 @@
 
 package stmt0
 
-func _() {
+func assignments() {
 	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
 	b = i /* ERROR "cannot assign" */
 	i = f /* ERROR "cannot assign" */
@@ -34,6 +34,17 @@ func _() {
 	u64 += 1<<u64
 
 	undeclared /* ERROR "undeclared" */ = 991
+
+	// test cases for issue 5800
+	var (
+		_ int = nil /* ERROR "cannot convert nil" */
+		_ [10]int = nil /* ERROR "cannot convert nil" */
+		_ []byte = nil
+		_ struct{} = nil /* ERROR "cannot convert nil" */
+		_ func() = nil
+		_ map[int]string = nil
+		_ chan int = nil
+	)
 }
 
 func incdecs() {
