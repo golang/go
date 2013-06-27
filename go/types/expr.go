@@ -116,13 +116,13 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) collectMethods(list *ast.FieldList) (methods []*Func) {
+func (check *checker) collectMethods(list *ast.FieldList, cycleOk bool) (methods []*Func) {
 	if list == nil {
 		return nil
 	}
 	scope := NewScope(nil)
 	for _, f := range list.List {
-		typ := check.typ(f.Type, len(f.Names) > 0) // cycles are not ok for embedded interfaces
+		typ := check.typ(f.Type, cycleOk)
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag
 		if len(f.Names) > 0 {
@@ -140,15 +140,23 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Func) {
 			}
 		} else {
 			// embedded interface
-			utyp := typ.Underlying()
-			if ityp, ok := utyp.(*Interface); ok {
-				for _, m := range ityp.methods {
+			switch t := typ.Underlying().(type) {
+			case nil:
+				// The underlying type is in the process of being defined
+				// but we need it in order to complete this type. For now
+				// complain with an "unimplemented" error. This requires
+				// a bit more work.
+				// TODO(gri) finish this.
+				check.errorf(f.Type.Pos(), "reference to incomplete type %s - unimplemented", f.Type)
+			case *Interface:
+				for _, m := range t.methods {
 					check.declare(scope, nil, m)
 					methods = append(methods, m)
 				}
-			} else if utyp != Typ[Invalid] {
-				// if utyp is invalid, don't complain (the root cause was reported before)
-				check.errorf(f.Type.Pos(), "%s is not an interface type", typ)
+			default:
+				if t != Typ[Invalid] {
+					check.errorf(f.Type.Pos(), "%s is not an interface type", typ)
+				}
 			}
 		}
 	}
@@ -1042,7 +1050,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
 				x.expr = e
 				x.typ = Typ[Invalid]
-				return // don't goto Error - need x.mode == typexpr
+				return // don't goto Error - want x.mode == typexpr
 			}
 		case *Var:
 			x.mode = variable
@@ -1494,7 +1502,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.InterfaceType:
 		x.mode = typexpr
-		x.typ = NewInterface(check.collectMethods(e.Methods))
+		x.typ = NewInterface(check.collectMethods(e.Methods, cycleOk))
 
 	case *ast.MapType:
 		x.mode = typexpr

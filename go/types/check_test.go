@@ -45,6 +45,7 @@ var (
 
 // Each tests entry is list of files belonging to the same package.
 var tests = [][]string{
+	{"testdata/cycles.src"},
 	{"testdata/decls0.src"},
 	{"testdata/decls1.src"},
 	{"testdata/decls2a.src", "testdata/decls2b.src"},
@@ -205,7 +206,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 	ctxt.Check(pkgName, fset, files...)
 
 	if *listErrors {
-		t.Errorf("--- %s: %d errors found:", pkgName, len(errlist))
+		t.Errorf("--- %s: %d errors found", pkgName, len(errlist))
 		for _, err := range errlist {
 			t.Error(err)
 		}
