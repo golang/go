@@ -1464,7 +1464,7 @@ addstackroots(G *gp)
 	if(ScanStackByFrames) {
 		USED(stk);
 		USED(guard);
-		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil);
+		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil, false);
 	} else {
 		USED(pc);
 		n = 0;
@@ -2011,6 +2011,8 @@ runtime·gc(int32 force)
 		} else {
 			// switch to g0, call gc(&a), then switch back
 			g->param = &a;
+			g->status = Gwaiting;
+			g->waitreason = "garbage collection";
 			runtime·mcall(mgc);
 		}
 		// record a new start time in case we're going around again
@@ -2042,6 +2044,7 @@ mgc(G *gp)
 {
 	gc(gp->param);
 	gp->param = nil;
+	gp->status = Grunning;
 	runtime·gogo(&gp->sched);
 }
 

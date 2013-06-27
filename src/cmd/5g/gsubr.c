@@ -32,8 +32,9 @@
 #include <libc.h>
 #include "gg.h"
 
-// TODO(kaib): Can make this bigger if we move
+// TODO(rsc): Can make this bigger if we move
 // the text segment up higher in 5l for all GOOS.
+// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
 long unmappedzero = 4096;
 
 void

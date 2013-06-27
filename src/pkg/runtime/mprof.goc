@@ -478,7 +478,7 @@ saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
 {
 	int32 n;
 	
-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil);
+	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil, false);
 	if(n < nelem(r->stk))
 		r->stk[n] = 0;
 }

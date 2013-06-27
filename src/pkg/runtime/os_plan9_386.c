@@ -88,6 +88,8 @@ runtime·sighandler(void *v, int8 *s, G *gp)
 		return NDFLT;
 
 Throw:
+	m->throwing = 1;
+	m->caughtsig = gp;
 	runtime·startpanic();
 
 	runtime·printf("%s\n", s);

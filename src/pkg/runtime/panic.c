@@ -277,6 +277,7 @@ recovery(G *gp)
 	else
 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
 	gp->sched.pc = pc;
+	gp->sched.lr = 0;
 	gp->sched.ret = 1;
 	runtime·gogo(&gp->sched);
 }

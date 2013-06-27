@@ -96,6 +96,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		return;
 
 Throw:
+	m->throwing = 1;
+	m->caughtsig = gp;
 	runtime·startpanic();
 
 	if(sig < 0 || sig >= NSIG)
@@ -113,6 +115,7 @@ Throw:
 	if(runtime·gotraceback(&crash)){
 		runtime·traceback(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
 		runtime·tracebackothers(gp);
+		runtime·printf("\n");
 		runtime·dumpregs(info, ctxt);
 	}
 	

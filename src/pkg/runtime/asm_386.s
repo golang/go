@@ -200,8 +200,6 @@ TEXT runtime·morestack(SB),7,$0
 	CMPL	g(CX), SI
 	JNE	2(PC)
 	INT	$3
-	
-	MOVL	DX, m_cret(BX)
 
 	// frame size in DI
 	// arg size in AX
@@ -220,9 +218,13 @@ TEXT runtime·morestack(SB),7,$0
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
 
-	// Set m->morepc to f's PC.
-	MOVL	0(SP), AX
-	MOVL	AX, m_morepc(BX)
+	// Set g->sched to context in f.
+	MOVL	0(SP), AX	// f's PC
+	MOVL	AX, (g_sched+gobuf_pc)(SI)
+	MOVL	SI, (g_sched+gobuf_g)(SI)
+	LEAL	4(SP), AX	// f's SP
+	MOVL	AX, (g_sched+gobuf_sp)(SI)
+	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
 
 	// Call newstack on m->g0's stack.
 	MOVL	m_g0(BX), BP
@@ -262,7 +264,7 @@ TEXT reflect·call(SB), 7, $0
 	MOVL	8(SP), DX	// arg frame
 	MOVL	12(SP), CX	// arg size
 
-	MOVL	AX, m_morepc(BX)	// f's PC
+	MOVL	AX, m_cret(BX)	// f's PC
 	MOVL	DX, m_moreargp(BX)	// f's argument pointer
 	MOVL	CX, m_moreargsize(BX)	// f's argument size
 	MOVL	$1, m_moreframesize(BX)	// f's frame size

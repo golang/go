@@ -269,9 +269,7 @@ struct	G
 };
 struct	M
 {
-	// The offsets of these fields are known to (hard-coded in) libmach.
 	G*	g0;		// goroutine with scheduling stack
-	void	(*morepc)(void);
 	void*	moreargp;	// argument pointer for more stack
 	Gobuf	morebuf;	// gobuf arg to morestack
 
@@ -284,6 +282,7 @@ struct	M
 	uintptr	tls[4];		// thread-local storage (for x86 extern register)
 	void	(*mstartfn)(void);
 	G*	curg;		// current running goroutine
+	G*	caughtsig;	// goroutine running during fatal signal
 	P*	p;		// attached P for executing Go code (nil if not executing Go code)
 	P*	nextp;
 	int32	id;
@@ -676,7 +675,7 @@ struct Stkframe
 	uintptr	varlen;	// number of bytes at varp
 };
 
-int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*);
+int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*, bool);
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
@@ -803,6 +802,7 @@ int32	runtime·mcount(void);
 int32	runtime·gcount(void);
 void	runtime·mcall(void(*)(G*));
 uint32	runtime·fastrand1(void);
+void	runtime·rewindmorestack(Gobuf*);
 
 void runtime·setmg(M*, G*);
 void runtime·newextram(void);
@@ -1015,7 +1015,7 @@ Hmap*	runtime·makemap_c(MapType*, int64);
 Hchan*	runtime·makechan_c(ChanType*, int64);
 void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
-bool	runtime·showframe(Func*, bool);
+bool	runtime·showframe(Func*, G*);
 
 void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
 
