@@ -330,6 +330,9 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			BasicConstraintsValid: true,
 			IsCA: true,
 
+			OCSPServer:            []string{"http://ocsp.example.com"},
+			IssuingCertificateURL: []string{"http://crt.example.com/ca1.crt"},
+
 			DNSNames:       []string{"test.example.com"},
 			EmailAddresses: []string{"gopher@golang.org"},
 			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
@@ -374,6 +377,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if !reflect.DeepEqual(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage) {
 			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
+		}
+
+		if !reflect.DeepEqual(cert.OCSPServer, template.OCSPServer) {
+			t.Errorf("%s: OCSP servers differ from template. Got %v, want %v", test.name, cert.OCSPServer, template.OCSPServer)
+		}
+
+		if !reflect.DeepEqual(cert.IssuingCertificateURL, template.IssuingCertificateURL) {
+			t.Errorf("%s: Issuing certificate URLs differ from template. Got %v, want %v", test.name, cert.IssuingCertificateURL, template.IssuingCertificateURL)
 		}
 
 		if !reflect.DeepEqual(cert.DNSNames, template.DNSNames) {
