@@ -138,6 +138,7 @@ runtime·oldstack(void)
 	uintptr *src, *dst, *dstend;
 	G *gp;
 	int64 goid;
+	int32 oldstatus;
 
 	gp = m->curg;
 	top = (Stktop*)gp->stackbase;
@@ -149,6 +150,10 @@ runtime·oldstack(void)
 		runtime·printf("runtime: oldstack gobuf={pc:%p sp:%p lr:%p} cret=%p argsize=%p\n",
 			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, m->cret, (uintptr)argsize);
 	}
+
+	// gp->status is usually Grunning, but it could be Gsyscall if a stack split
+	// happens during a function call inside entersyscall.
+	oldstatus = gp->status;
 	
 	gp->sched = top->gobuf;
 	gp->sched.ret = m->cret;
@@ -174,7 +179,7 @@ runtime·oldstack(void)
 	if(top->free != 0)
 		runtime·stackfree(old, top->free);
 
-	gp->status = Grunning;
+	gp->status = oldstatus;
 	runtime·gogo(&gp->sched);
 }
 
@@ -186,7 +191,7 @@ runtime·oldstack(void)
 void
 runtime·newstack(void)
 {
-	int32 framesize, argsize;
+	int32 framesize, argsize, oldstatus;
 	Stktop *top;
 	byte *stk;
 	uintptr sp;
@@ -196,9 +201,13 @@ runtime·newstack(void)
 	bool reflectcall;
 	uintptr free;
 
+	// gp->status is usually Grunning, but it could be Gsyscall if a stack split
+	// happens during a function call inside entersyscall.
+	gp = m->curg;
+	oldstatus = gp->status;
+
 	framesize = m->moreframesize;
 	argsize = m->moreargsize;
-	gp = m->curg;
 	gp->status = Gwaiting;
 	gp->waitreason = "stack split";
 	reflectcall = framesize==1;
@@ -304,7 +313,7 @@ runtime·newstack(void)
 		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
 		gp->sched.ctxt = nil;
 	}
-	gp->status = Grunning;
+	gp->status = oldstatus;
 	runtime·gogo(&label);
 
 	*(int32*)345 = 123;	// never return
