@@ -231,6 +231,11 @@ TEXT reflect·call(SB), 7, $0
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
 	MOVQ	g(CX), AX
 	MOVQ	AX, (m_morebuf+gobuf_g)(BX)
+	
+	// Save our own state as the PC and SP to restore
+	// if this goroutine needs to be restarted.
+	MOVQ	$reflect·call(SB), (g_sched+gobuf_pc)(AX)
+	MOVQ	SP, (g_sched+gobuf_sp)(AX)
 
 	// Set up morestack arguments to call f on a new stack.
 	// We set f's frame size to 1, as a hint to newstack
