@@ -142,14 +142,14 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				if(n > 0 && frame.pc > f->entry && !waspanic)
 					tracepc--;
 				runtime·printf("%S(", f->name);
-				for(i = 0; i < f->args/sizeof(uintptr); i++) {
-					if(i != 0)
-						runtime·prints(", ");
-					runtime·printhex(((uintptr*)frame.argp)[i]);
-					if(i >= 4) {
+				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+					if(i >= 5) {
 						runtime·prints(", ...");
 						break;
 					}
+					if(i != 0)
+						runtime·prints(", ");
+					runtime·printhex(((uintptr*)frame.argp)[i]);
 				}
 				runtime·prints(")\n");
 				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
