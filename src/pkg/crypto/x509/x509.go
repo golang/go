@@ -463,6 +463,10 @@ type Certificate struct {
 	SubjectKeyId   []byte
 	AuthorityKeyId []byte
 
+	// RFC 5280, 4.2.2.1 (Authority Information Access)
+	OCSPServer            []string
+	IssuingCertificateURL []string
+
 	// Subject Alternate Name values
 	DNSNames       []string
 	EmailAddresses []string
@@ -660,6 +664,12 @@ type nameConstraints struct {
 
 type generalSubtree struct {
 	Name string `asn1:"tag:2,optional,ia5"`
+}
+
+// RFC 5280, 4.2.2.1
+type authorityInfoAccess struct {
+	Method   asn1.ObjectIdentifier
+	Location asn1.RawValue
 }
 
 // RFC 5280, 4.2.1.14
@@ -1000,6 +1010,24 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					out.PolicyIdentifiers[i] = policy.Policy
 				}
 			}
+		} else if e.Id.Equal(oidExtensionAuthorityInfoAccess) {
+			// RFC 5280 4.2.2.1: Authority Information Access
+			var aia []authorityInfoAccess
+			if _, err = asn1.Unmarshal(e.Value, &aia); err != nil {
+				return nil, err
+			}
+
+			for _, v := range aia {
+				// GeneralName: uniformResourceIdentifier [6] IA5String
+				if v.Location.Tag != 6 {
+					continue
+				}
+				if v.Method.Equal(oidAuthorityInfoAccessOcsp) {
+					out.OCSPServer = append(out.OCSPServer, string(v.Location.Bytes))
+				} else if v.Method.Equal(oidAuthorityInfoAccessIssuers) {
+					out.IssuingCertificateURL = append(out.IssuingCertificateURL, string(v.Location.Bytes))
+				}
+			}
 		}
 
 		if e.Critical {
@@ -1068,10 +1096,16 @@ var (
 	oidExtensionCertificatePolicies   = []int{2, 5, 29, 32}
 	oidExtensionNameConstraints       = []int{2, 5, 29, 30}
 	oidExtensionCRLDistributionPoints = []int{2, 5, 29, 31}
+	oidExtensionAuthorityInfoAccess   = []int{1, 3, 6, 1, 5, 5, 7, 1, 1}
+)
+
+var (
+	oidAuthorityInfoAccessOcsp    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 1}
+	oidAuthorityInfoAccessIssuers = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 2}
 )
 
 func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
-	ret = make([]pkix.Extension, 9 /* maximum number of elements. */)
+	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
 
 	if template.KeyUsage != 0 {
@@ -1137,6 +1171,28 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 	if len(template.AuthorityKeyId) > 0 {
 		ret[n].Id = oidExtensionAuthorityKeyId
 		ret[n].Value, err = asn1.Marshal(authKeyId{template.AuthorityKeyId})
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if len(template.OCSPServer) > 0 || len(template.IssuingCertificateURL) > 0 {
+		ret[n].Id = oidExtensionAuthorityInfoAccess
+		var aiaValues []authorityInfoAccess
+		for _, name := range template.OCSPServer {
+			aiaValues = append(aiaValues, authorityInfoAccess{
+				Method:   oidAuthorityInfoAccessOcsp,
+				Location: asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
+			})
+		}
+		for _, name := range template.IssuingCertificateURL {
+			aiaValues = append(aiaValues, authorityInfoAccess{
+				Method:   oidAuthorityInfoAccessIssuers,
+				Location: asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
+			})
+		}
+		ret[n].Value, err = asn1.Marshal(aiaValues)
 		if err != nil {
 			return
 		}
