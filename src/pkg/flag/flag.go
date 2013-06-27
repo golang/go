@@ -89,6 +89,8 @@ func (b *boolValue) Set(s string) error {
 	return err
 }
 
+func (b *boolValue) Get() interface{} { return bool(*b) }
+
 func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
 
 func (b *boolValue) IsBoolFlag() bool { return true }
@@ -114,6 +116,8 @@ func (i *intValue) Set(s string) error {
 	return err
 }
 
+func (i *intValue) Get() interface{} { return int(*i) }
+
 func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- int64 Value
@@ -129,6 +133,8 @@ func (i *int64Value) Set(s string) error {
 	*i = int64Value(v)
 	return err
 }
+
+func (i *int64Value) Get() interface{} { return int64(*i) }
 
 func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
 
@@ -146,6 +152,8 @@ func (i *uintValue) Set(s string) error {
 	return err
 }
 
+func (i *uintValue) Get() interface{} { return uint(*i) }
+
 func (i *uintValue) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- uint64 Value
@@ -162,6 +170,8 @@ func (i *uint64Value) Set(s string) error {
 	return err
 }
 
+func (i *uint64Value) Get() interface{} { return uint64(*i) }
+
 func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- string Value
@@ -176,6 +186,8 @@ func (s *stringValue) Set(val string) error {
 	*s = stringValue(val)
 	return nil
 }
+
+func (s *stringValue) Get() interface{} { return string(*s) }
 
 func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
 
@@ -193,6 +205,8 @@ func (f *float64Value) Set(s string) error {
 	return err
 }
 
+func (f *float64Value) Get() interface{} { return float64(*f) }
+
 func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
 
 // -- time.Duration Value
@@ -209,6 +223,8 @@ func (d *durationValue) Set(s string) error {
 	return err
 }
 
+func (d *durationValue) Get() interface{} { return time.Duration(*d) }
+
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
 // Value is the interface to the dynamic value stored in a flag.
@@ -220,6 +236,15 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 type Value interface {
 	String() string
 	Set(string) error
+}
+
+// Getter is an interface that allows the contents of a Value to be retrieved.
+// It wraps the Value interface, rather than being part of it, because it
+// appeared after Go 1 and its compatibility rules. All Value types provided
+// by this package satisfy the Getter interface.
+type Getter interface {
+	Value
+	Get() interface{}
 }
 
 // ErrorHandling defines how to handle flag parsing errors.

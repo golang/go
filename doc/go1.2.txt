@@ -17,6 +17,7 @@ crypto/sha1: Sum function to simplify hashing (CL 10571043).
 crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
 crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
 crypto/tls: add support for TLS 1.1. (CL 7872043).
+flag: add Getter interface (CL 10472043).
 fmt: indexed access to arguments in Printf etc. (CL 9680043).
 go/build: support including C++ code with cgo (CL 8248043).
 io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
