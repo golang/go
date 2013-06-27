@@ -324,6 +324,11 @@ rm -rf $d
 # Only succeeds if source order is preserved.
 ./testgo test testdata/example[12]_test.go
 
+# Check that coverage analysis works at all.
+# Don't worry about the exact numbers
+./testgo test -coverpkg=strings strings regexp
+./testgo test -cover strings math regexp
+
 # clean up
 rm -rf testdata/bin testdata/bin1
 rm -f testgo

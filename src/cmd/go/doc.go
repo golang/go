@@ -755,7 +755,12 @@ control the execution of any test:
 		atomic: int: count, but correct in multithreaded tests;
 			significantly more expensive.
 	    Implies -cover.
-	    Sets -v. TODO: This will change.
+
+	-coverpkg pkg1,pkg2,pkg3
+	    Apply coverage analysis in each test to the given list of packages.
+	    If this option is not present, each test applies coverage analysis to
+	    the package being tested. Packages are specified as import paths.
+	    Implies -cover.
 
 	-coverprofile cover.out
 	    Write a coverage profile to the specified file after all tests
