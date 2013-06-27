@@ -93,6 +93,30 @@ func TestYieldLocked(t *testing.T) {
 	<-c
 }
 
+func TestGoroutineParallelism(t *testing.T) {
+	const P = 4
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
+	for try := 0; try < 10; try++ {
+		done := make(chan bool)
+		x := uint32(0)
+		for p := 0; p < P; p++ {
+			// Test that all P goroutines are scheduled at the same time
+			go func(p int) {
+				for i := 0; i < 3; i++ {
+					expected := uint32(P*i + p)
+					for atomic.LoadUint32(&x) != expected {
+					}
+					atomic.StoreUint32(&x, expected+1)
+				}
+				done <- true
+			}(p)
+		}
+		for p := 0; p < P; p++ {
+			<-done
+		}
+	}
+}
+
 func TestBlockLocked(t *testing.T) {
 	const N = 10
 	c := make(chan bool)

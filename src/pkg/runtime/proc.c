@@ -1018,7 +1018,7 @@ execute(G *gp)
 // Finds a runnable goroutine to execute.
 // Tries to steal from other P's, get g from global queue, poll network.
 static G*
-findrunnable(void)
+findrunnable1(void)
 {
 	G *gp;
 	P *p;
@@ -1127,6 +1127,29 @@ stop:
 	goto top;
 }
 
+static G*
+findrunnable(void)
+{
+	G *gp;
+	int32 nmspinning;
+
+	gp = findrunnable1();  // blocks until work is available
+	if(m->spinning) {
+		m->spinning = false;
+		nmspinning = runtime·xadd(&runtime·sched.nmspinning, -1);
+		if(nmspinning < 0)
+			runtime·throw("findrunnable: negative nmspinning");
+	} else
+		nmspinning = runtime·atomicload(&runtime·sched.nmspinning);
+
+	// M wakeup policy is deliberately somewhat conservative (see nmspinning handling),
+	// so see if we need to wakeup another P here.
+	if (nmspinning == 0 && runtime·atomicload(&runtime·sched.npidle) > 0)
+		wakep();
+
+	return gp;
+}
+
 // Injects the list of runnable G's into the scheduler.
 // Can run concurrently with GC.
 static void
@@ -1185,21 +1208,11 @@ top:
 			runtime·throw("schedule: spinning with local work");
 	}
 	if(gp == nil)
-		gp = findrunnable();
-
-	if(m->spinning) {
-		m->spinning = false;
-		runtime·xadd(&runtime·sched.nmspinning, -1);
-	}
-
-	// M wakeup policy is deliberately somewhat conservative (see nmspinning handling),
-	// so see if we need to wakeup another M here.
-	if (m->p->runqhead != m->p->runqtail &&
-		runtime·atomicload(&runtime·sched.nmspinning) == 0 &&
-		runtime·atomicload(&runtime·sched.npidle) > 0)  // TODO: fast atomic
-		wakep();
+		gp = findrunnable();  // blocks until work is available
 
 	if(gp->lockedm) {
+		// Hands off own p to the locked m,
+		// then blocks waiting for a new p.
 		startlockedm(gp);
 		goto top;
 	}
