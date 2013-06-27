@@ -28,20 +28,13 @@ func Getenv(key string) (value string, found bool) {
 			n = 0
 		}
 	}
-	if n == 0 {
-		return "", false
-	}
 	return string(utf16.Decode(b[0:n])), true
 }
 
 func Setenv(key, value string) error {
-	var v *uint16
-	var err error
-	if len(value) > 0 {
-		v, err = UTF16PtrFromString(value)
-		if err != nil {
-			return err
-		}
+	v, err := UTF16PtrFromString(value)
+	if err != nil {
+		return err
 	}
 	keyp, err := UTF16PtrFromString(key)
 	if err != nil {
