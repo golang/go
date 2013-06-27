@@ -94,6 +94,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		return;
 
 Throw:
+	m->throwing = 1;
+	m->caughtsig = gp;
 	if(runtime·panicking)	// traceback already printed
 		runtime·exit(2);
 	runtime·panicking = 1;

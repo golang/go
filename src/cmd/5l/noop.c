@@ -32,13 +32,7 @@
 
 #include	"l.h"
 #include	"../ld/lib.h"
-
-// see ../../runtime/proc.c:/StackGuard
-enum
-{
-	StackBig = 4096,
-	StackSmall = 128,
-};
+#include	"../../pkg/runtime/stack.h"
 
 static	Sym*	sym_div;
 static	Sym*	sym_divu;
@@ -180,33 +174,7 @@ noops(void)
 						break;
 				}
 	
-				if(p->reg & NOSPLIT) {
-					q1 = prg();
-					q1->as = AMOVW;
-					q1->scond |= C_WBIT;
-					q1->line = p->line;
-					q1->from.type = D_REG;
-					q1->from.reg = REGLINK;
-					q1->to.type = D_OREG;
-					q1->to.offset = -autosize;
-					q1->to.reg = REGSP;
-					q1->spadj = autosize;
-					q1->link = p->link;
-					p->link = q1;
-				} else if (autosize < StackBig) {
-					// split stack check for small functions
-					// MOVW			g_stackguard(g), R1
-					// CMP			R1, $-autosize(SP)
-					// MOVW.LO		$autosize, R1
-					// MOVW.LO		$args, R2
-					// MOVW.LO		R14, R3
-					// BL.LO			runtime.morestack(SB) // modifies LR
-					// MOVW.W		R14,$-autosize(SP)
-	
-					// TODO(kaib): add more trampolines
-					// TODO(kaib): put stackguard in register
-					// TODO(kaib): add support for -K and underflow detection
-
+				if(!(p->reg & NOSPLIT)) {
 					// MOVW			g_stackguard(g), R1
 					p = appendp(p);
 					p->as = AMOVW;
@@ -215,16 +183,18 @@ noops(void)
 					p->to.type = D_REG;
 					p->to.reg = 1;
 					
-					if(autosize < StackSmall) {	
-						// CMP			R1, SP
+					if(autosize <= StackSmall) {
+						// small stack: SP < stackguard
+						//	CMP	stackguard, SP
 						p = appendp(p);
 						p->as = ACMP;
 						p->from.type = D_REG;
 						p->from.reg = 1;
 						p->reg = REGSP;
-					} else {
-						// MOVW		$-autosize(SP), R2
-						// CMP	R1, R2
+					} else if(autosize <= StackBig) {
+						// large stack: SP-framesize < stackguard-StackSmall
+						//	MOVW $-autosize(SP), R2
+						//	CMP stackguard, R2
 						p = appendp(p);
 						p->as = AMOVW;
 						p->from.type = D_CONST;
@@ -238,103 +208,97 @@ noops(void)
 						p->from.type = D_REG;
 						p->from.reg = 1;
 						p->reg = 2;
+					} else {
+						// such a large stack we need to protect against wraparound
+						// if SP is close to zero.
+						//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
+						// The +StackGuard on both sides is required to keep the left side positive:
+						// SP is allowed to be slightly below stackguard. See stack.h.
+						//	MOVW $StackGuard(SP), R2
+						//	SUB R1, R2
+						//	MOVW $(autosize+(StackGuard-StackSmall)), R3
+						//	CMP R3, R2
+						p = appendp(p);
+						p->as = AMOVW;
+						p->from.type = D_CONST;
+						p->from.reg = REGSP;
+						p->from.offset = StackGuard;
+						p->to.type = D_REG;
+						p->to.reg = 2;
+						
+						p = appendp(p);
+						p->as = ASUB;
+						p->from.type = D_REG;
+						p->from.reg = 1;
+						p->to.type = D_REG;
+						p->to.reg = 2;
+						
+						p = appendp(p);
+						p->as = AMOVW;
+						p->from.type = D_CONST;
+						p->from.offset = autosize + (StackGuard - StackSmall);
+						p->to.type = D_REG;
+						p->to.reg = 3;
+						
+						p = appendp(p);
+						p->as = ACMP;
+						p->from.type = D_REG;
+						p->from.reg = 3;
+						p->reg = 2;
 					}
-
-					// MOVW.LO		$autosize, R1
+					
+					// MOVW.LS		$autosize, R1
 					p = appendp(p);
 					p->as = AMOVW;
-					p->scond = C_SCOND_LO;
+					p->scond = C_SCOND_LS;
 					p->from.type = D_CONST;
 					p->from.offset = autosize;
 					p->to.type = D_REG;
 					p->to.reg = 1;
 	
-					// MOVW.LO		$args, R2
+					// MOVW.LS		$args, R2
 					p = appendp(p);
 					p->as = AMOVW;
-					p->scond = C_SCOND_LO;
+					p->scond = C_SCOND_LS;
 					p->from.type = D_CONST;
 					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
 					p->to.type = D_REG;
 					p->to.reg = 2;
 	
-					// MOVW.LO	R14, R3
+					// MOVW.LS	R14, R3
 					p = appendp(p);
 					p->as = AMOVW;
-					p->scond = C_SCOND_LO;
+					p->scond = C_SCOND_LS;
 					p->from.type = D_REG;
 					p->from.reg = REGLINK;
 					p->to.type = D_REG;
 					p->to.reg = 3;
 	
-					// BL.LO		runtime.morestack(SB) // modifies LR
+					// BL.LS		runtime.morestack(SB) // modifies LR, returns with LO still asserted
 					p = appendp(p);
 					p->as = ABL;
-					p->scond = C_SCOND_LO;
+					p->scond = C_SCOND_LS;
 					p->to.type = D_BRANCH;
 					p->to.sym = symmorestack;
 					p->cond = pmorestack;
-	
-					// MOVW.W		R14,$-autosize(SP)
+					
+					// BLS	start
 					p = appendp(p);
-					p->as = AMOVW;
-					p->scond |= C_WBIT;
-					p->from.type = D_REG;
-					p->from.reg = REGLINK;
-					p->to.type = D_OREG;
-					p->to.offset = -autosize;
-					p->to.reg = REGSP;
-					p->spadj = autosize;
-				} else { // > StackBig
-					// MOVW		$autosize, R1
-					// MOVW		$args, R2
-					// MOVW		R14, R3
-					// BL			runtime.morestack(SB) // modifies LR
-					// MOVW.W		R14,$-autosize(SP)
-	
-					// MOVW		$autosize, R1
-					p = appendp(p);
-					p->as = AMOVW;
-					p->from.type = D_CONST;
-					p->from.offset = autosize;
-					p->to.type = D_REG;
-					p->to.reg = 1;
-	
-					// MOVW		$args, R2
-					// also need to store the extra 4 bytes.
-					p = appendp(p);
-					p->as = AMOVW;
-					p->from.type = D_CONST;
-					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
-					p->to.type = D_REG;
-					p->to.reg = 2;
-	
-					// MOVW	R14, R3
-					p = appendp(p);
-					p->as = AMOVW;
-					p->from.type = D_REG;
-					p->from.reg = REGLINK;
-					p->to.type = D_REG;
-					p->to.reg = 3;
-	
-					// BL		runtime.morestack(SB) // modifies LR
-					p = appendp(p);
-					p->as = ABL;
+					p->as = ABLS;
 					p->to.type = D_BRANCH;
-					p->to.sym = symmorestack;
-					p->cond = pmorestack;
-	
-					// MOVW.W		R14,$-autosize(SP)
-					p = appendp(p);
-					p->as = AMOVW;
-					p->scond |= C_WBIT;
-					p->from.type = D_REG;
-					p->from.reg = REGLINK;
-					p->to.type = D_OREG;
-					p->to.offset = -autosize;
-					p->to.reg = REGSP;
-					p->spadj = autosize;
+					p->cond = cursym->text->link;
 				}
+				
+				// MOVW.W		R14,$-autosize(SP)
+				p = appendp(p);
+				p->as = AMOVW;
+				p->scond |= C_WBIT;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_OREG;
+				p->to.offset = -autosize;
+				p->to.reg = REGSP;
+				p->spadj = autosize;
 				break;
 	
 			case ARET:

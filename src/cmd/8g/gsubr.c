@@ -34,6 +34,7 @@
 
 // TODO(rsc): Can make this bigger if we move
 // the text segment up higher in 8l for all GOOS.
+// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
 uint32 unmappedzero = 4096;
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))

@@ -526,34 +526,61 @@ dostkoff(void)
 				q1->pcond = p;
 			}
 
-			if(autoffset < StackBig) {  // do we need to call morestack
-				if(autoffset <= StackSmall) {
-					// small stack
-					p = appendp(p);
-					p->as = ACMPL;
-					p->from.type = D_SP;
-					p->to.type = D_INDIR+D_CX;
-				} else {
-					// large stack
-					p = appendp(p);
-					p->as = ALEAL;
-					p->from.type = D_INDIR+D_SP;
-					p->from.offset = -(autoffset-StackSmall);
-					p->to.type = D_AX;
-
-					p = appendp(p);
-					p->as = ACMPL;
-					p->from.type = D_AX;
-					p->to.type = D_INDIR+D_CX;
-				}
-
-				// common
+			if(autoffset <= StackSmall) {
+				// small stack: SP <= stackguard
+				//	CMPL SP, stackguard
 				p = appendp(p);
-				p->as = AJHI;
-				p->to.type = D_BRANCH;
-				p->to.offset = 4;
-				q = p;
-			}
+				p->as = ACMPL;
+				p->from.type = D_SP;
+				p->to.type = D_INDIR+D_CX;
+			} else if(autoffset <= StackBig) {
+				// large stack: SP-framesize <= stackguard-StackSmall
+				//	LEAL -(autoffset-StackSmall)(SP), AX
+				//	CMPL AX, stackguard
+				p = appendp(p);
+				p->as = ALEAL;
+				p->from.type = D_INDIR+D_SP;
+				p->from.offset = -(autoffset-StackSmall);
+				p->to.type = D_AX;
+
+				p = appendp(p);
+				p->as = ACMPL;
+				p->from.type = D_AX;
+				p->to.type = D_INDIR+D_CX;
+			} else {
+				// such a large stack we need to protect against wraparound
+				// if SP is close to zero.
+				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+				// The +StackGuard on both sides is required to keep the left side positive:
+				// SP is allowed to be slightly below stackguard. See stack.h.
+				//	LEAL	StackGuard(SP), AX
+				//	SUBL	stackguard, AX
+				//	CMPL	AX, $(autoffset+(StackGuard-StackSmall))
+				p = appendp(p);
+				p->as = ALEAL;
+				p->from.type = D_INDIR+D_SP;
+				p->from.offset = StackGuard;
+				p->to.type = D_AX;
+				
+				p = appendp(p);
+				p->as = ASUBL;
+				p->from.type = D_INDIR+D_CX;
+				p->from.offset = 0;
+				p->to.type = D_AX;
+				
+				p = appendp(p);
+				p->as = ACMPL;
+				p->from.type = D_AX;
+				p->to.type = D_CONST;
+				p->to.offset = autoffset+(StackGuard-StackSmall);
+			}		
+					
+			// common
+			p = appendp(p);
+			p->as = AJHI;
+			p->to.type = D_BRANCH;
+			p->to.offset = 4;
+			q = p;
 
 			p = appendp(p);	// save frame size in DI
 			p->as = AMOVL;
@@ -583,6 +610,10 @@ dostkoff(void)
 			p->pcond = pmorestack;
 			p->to.sym = symmorestack;
 
+			p = appendp(p);
+			p->as = AJMP;
+			p->to.type = D_BRANCH;
+			p->pcond = cursym->text->link;
 		}
 
 		if(q != P)

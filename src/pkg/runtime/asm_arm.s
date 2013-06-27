@@ -126,6 +126,7 @@ TEXT runtime·gogo(SB), 7, $-4
 	MOVW	R11, gobuf_ret(R1)
 	MOVW	R11, gobuf_lr(R1)
 	MOVW	R11, gobuf_ctxt(R1)
+	CMP	R11, R11 // set condition codes for == test, needed by stack split
 	MOVW	gobuf_pc(R1), PC
 
 // void mcall(void (*fn)(G*))
@@ -138,6 +139,8 @@ TEXT runtime·mcall(SB), 7, $-4
 	// Save caller state in g->sched.
 	MOVW	SP, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
+	MOVW	$0, R11
+	MOVW	R11, (g_sched+gobuf_lr)(g)
 	MOVW	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
@@ -169,10 +172,15 @@ TEXT runtime·morestack(SB),7,$-4
 	CMP	g, R4
 	BL.EQ	runtime·abort(SB)
 
-	// Save in m.
-	MOVW	R7, m_cret(m) // function context
 	MOVW	R1, m_moreframesize(m)
 	MOVW	R2, m_moreargsize(m)
+
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVW	R7, (g_sched+gobuf_ctxt)(g)
+	MOVW	SP, (g_sched+gobuf_sp)(g)
+	MOVW	LR, (g_sched+gobuf_pc)(g)
+	MOVW	R3, (g_sched+gobuf_lr)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -181,9 +189,6 @@ TEXT runtime·morestack(SB),7,$-4
 	MOVW	$4(SP), R3			// f's argument pointer
 	MOVW	R3, m_moreargp(m)	
 	MOVW	g, (m_morebuf+gobuf_g)(m)
-
-	// Set m->morepc to f's PC.
-	MOVW	LR, m_morepc(m)
 
 	// Call newstack on m->g0's stack.
 	MOVW	m_g0(m), g
@@ -212,7 +217,7 @@ TEXT reflect·call(SB), 7, $-4
 	MOVW	8(SP), R1			// arg frame
 	MOVW	12(SP), R2			// arg size
 
-	MOVW	R0, m_morepc(m)			// f's PC
+	MOVW	R0, m_cret(m)			// f's PC
 	MOVW	R1, m_moreargp(m)		// f's argument pointer
 	MOVW	R2, m_moreargsize(m)		// f's argument size
 	MOVW	$1, R3

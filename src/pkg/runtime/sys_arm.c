@@ -15,3 +15,21 @@ runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
 	gobuf->pc = (uintptr)fn;
 	gobuf->ctxt = ctxt;
 }
+
+// Called to rewind context saved during morestack back to beginning of function.
+// To help us, the linker emits a jmp back to the beginning right after the
+// call to morestack. We just have to decode and apply that jump.
+void
+runtime·rewindmorestack(Gobuf *gobuf)
+{
+	uint32 inst;
+
+	inst = *(uint32*)gobuf->pc;
+	if((gobuf->pc&3) == 0 && (inst>>24) == 0x9a) {
+		//runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>6) + 8);
+		gobuf->pc += ((int32)(inst<<8)>>6) + 8;
+		return;
+	}
+	runtime·printf("runtime: pc=%p %x\n", gobuf->pc, inst);
+	runtime·throw("runtime: misuse of rewindmorestack");
+}

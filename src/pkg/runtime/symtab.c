@@ -646,11 +646,11 @@ contains(String s, int8 *p)
 }
 
 bool
-runtime·showframe(Func *f, bool current)
+runtime·showframe(Func *f, G *gp)
 {
 	static int32 traceback = -1;
 
-	if(current && m->throwing > 0)
+	if(m->throwing && gp != nil && (gp == m->curg || gp == m->caughtsig))
 		return 1;
 	if(traceback < 0)
 		traceback = runtime·gotraceback(nil);

@@ -34,6 +34,7 @@
 
 // TODO(rsc): Can make this bigger if we move
 // the text segment up higher in 6l for all GOOS.
+// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
 vlong unmappedzero = 4096;
 
 void

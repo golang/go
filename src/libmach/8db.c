@@ -202,6 +202,11 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 			break;
 
 		if(s.value == morestack) {
+			// This code is old and won't work anymore.
+			// But no one uses it anyway.
+			// Leave it obviously broken until someone needs it.
+			werrstr("morestack not implemented correctly");
+			return -1;
 			// In the middle of morestack.
 			// Caller is m->morepc.
 			// Caller's caller is in m->morearg.
