@@ -215,7 +215,7 @@ runtime·newstack(void)
 	if(!reflectcall)
 		runtime·rewindmorestack(&gp->sched);
 
-	sp = m->morebuf.sp;
+	sp = gp->sched.sp;
 	if(thechar == '6' || thechar == '8') {
 		// The call to morestack cost a word.
 		sp -= sizeof(uintptr);
