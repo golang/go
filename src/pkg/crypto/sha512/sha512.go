@@ -184,7 +184,7 @@ func (d *digest) checkSum() [Size]byte {
 	return digest
 }
 
-// Sum returns the SHA512 checksum of the data.
+// Sum512 returns the SHA512 checksum of the data.
 func Sum512(data []byte) [Size]byte {
 	var d digest
 	d.Reset()
