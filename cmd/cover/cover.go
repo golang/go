@@ -31,6 +31,24 @@ import (
 	"strconv"
 )
 
+const usageMessage = "" +
+	`Usage of 'go tool cover':
+Given a coverage profile produced by 'go test -coverprofile=c.out', open
+a web browser displaying annotated source code:
+	go tool cover -html=c.out
+The same, but write the generated HTML to a file instead of starting a browser:
+	go tool cover -html=c.out -o coverage.html
+Generate modified source code with coverage annotations (what go test -cover does):
+	go tool cover  -mode=set -var=CoverageVariableName program.go
+`
+
+func usage() {
+	fmt.Fprintln(os.Stderr, usageMessage)
+	fmt.Fprintln(os.Stderr, "Flags:")
+	flag.PrintDefaults()
+	os.Exit(2)
+}
+
 var (
 	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
 	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
@@ -46,17 +64,6 @@ const (
 	atomicPackagePath = "sync/atomic"
 	atomicPackageName = "_cover_atomic_"
 )
-
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  To display annotated source given a coverage profile produced by 'go test -coverprofile=c.out':\n")
-	fmt.Fprintf(os.Stderr, "    go tool cover -html=c.out\n")
-	fmt.Fprintf(os.Stderr, "  To generate modified source code with coverage annotations (what go test -cover does):\n")
-	fmt.Fprintf(os.Stderr, "    go tool cover  -mode=set -var=CoverageVariableName program.go\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
-	os.Exit(2)
-}
 
 func main() {
 	flag.Usage = usage
