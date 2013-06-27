@@ -53,7 +53,6 @@ typedef	struct	Gobuf		Gobuf;
 typedef	struct	Lock		Lock;
 typedef	struct	M		M;
 typedef	struct	P		P;
-typedef	struct	Mem		Mem;
 typedef	struct	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	Stktop		Stktop;
