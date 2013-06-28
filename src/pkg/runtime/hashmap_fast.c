@@ -16,10 +16,8 @@
 void
 HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 {
-	uintptr hash;
-	uintptr bucket, oldbucket;
+	uintptr bucket, i;
 	Bucket *b;
-	uintptr i;
 	KEYTYPE *k;
 	byte *v;
 	uint8 top;
@@ -80,21 +78,21 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 		}
 	} else {
 dohash:
-		hash = h->hash0;
-		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
-		bucket = hash & (((uintptr)1 << h->B) - 1);
+		bucket = h->hash0;
+		HASHFUNC(&bucket, sizeof(KEYTYPE), &key);
+		top = bucket >> (sizeof(uintptr)*8 - 8);
+		if(top == 0)
+			top = 1;
+		bucket &= (((uintptr)1 << h->B) - 1);
 		if(h->oldbuckets != nil) {
-			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			i = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + i * h->bucketsize);
 			if(evacuated(b)) {
 				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 			}
 		} else {
 			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 		}
-		top = hash >> (sizeof(uintptr)*8 - 8);
-		if(top == 0)
-			top = 1;
 		do {
 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
 				if(b->tophash[i] == top && EQFUNC(key, *k)) {
@@ -114,10 +112,8 @@ dohash:
 void
 HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 {
-	uintptr hash;
-	uintptr bucket, oldbucket;
+	uintptr bucket, i;
 	Bucket *b;
-	uintptr i;
 	KEYTYPE *k;
 	byte *v;
 	uint8 top;
@@ -184,21 +180,21 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 		}
 	} else {
 dohash:
-		hash = h->hash0;
-		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
-		bucket = hash & (((uintptr)1 << h->B) - 1);
+		bucket = h->hash0;
+		HASHFUNC(&bucket, sizeof(KEYTYPE), &key);
+		top = bucket >> (sizeof(uintptr)*8 - 8);
+		if(top == 0)
+			top = 1;
+		bucket &= (((uintptr)1 << h->B) - 1);
 		if(h->oldbuckets != nil) {
-			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			i = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+			b = (Bucket*)(h->oldbuckets + i * h->bucketsize);
 			if(evacuated(b)) {
 				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 			}
 		} else {
 			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 		}
-		top = hash >> (sizeof(uintptr)*8 - 8);
-		if(top == 0)
-			top = 1;
 		do {
 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
 				if(b->tophash[i] == top && EQFUNC(key, *k)) {
