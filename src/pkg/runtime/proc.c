@@ -132,6 +132,7 @@ runtime·schedinit(void)
 
 	runtime·goargs();
 	runtime·goenvs();
+	runtime·parsedebugvars();
 
 	// Allocate internal symbol table representation now, we need it for GC anyway.
 	runtime·symtabinit();

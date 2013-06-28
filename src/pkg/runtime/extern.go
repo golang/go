@@ -21,10 +21,11 @@ is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
 The runtime/debug package's SetGCPercent function allows changing this
 percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
 
-The GOGCTRACE variable controls debug output from the garbage collector.
-Setting GOGCTRACE=1 causes the garbage collector to emit a single line to standard
+The GODEBUG variable controls debug output from the runtime. GODEBUG value is
+a comma-separated list of name=val pairs. Supported names are:
+gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
 error at each collection, summarizing the amount of memory collected and the
-length of the pause. Setting GOGCTRACE=2 emits the same summary but also
+length of the pause. Setting gctrace=2 emits the same summary but also
 repeats each collection.
 
 The GOMAXPROCS variable limits the number of operating system threads that
