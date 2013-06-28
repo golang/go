@@ -31,22 +31,22 @@ var (
 	a3 = A[f2] // ERROR "truncated"
 	a4 = A[c]
 	a5 = A[c2] // ERROR "truncated"
-	a6 = A[vf] // ERROR "non-integer"
-	a7 = A[vc] // ERROR "non-integer"
+	a6 = A[vf] // ERROR "non-integer|must be integer"
+	a7 = A[vc] // ERROR "non-integer|must be integer"
 
 	s1 = S[i]
 	s2 = S[f]
 	s3 = S[f2] // ERROR "truncated"
 	s4 = S[c]
 	s5 = S[c2] // ERROR "truncated"
-	s6 = S[vf] // ERROR "non-integer"
-	s7 = S[vc] // ERROR "non-integer"
+	s6 = S[vf] // ERROR "non-integer|must be integer"
+	s7 = S[vc] // ERROR "non-integer|must be integer"
 
 	t1 = T[i]
 	t2 = T[f]
 	t3 = T[f2] // ERROR "truncated"
 	t4 = T[c]
 	t5 = T[c2] // ERROR "truncated"
-	t6 = T[vf] // ERROR "non-integer"
-	t7 = T[vc] // ERROR "non-integer"
+	t6 = T[vf] // ERROR "non-integer|must be integer"
+	t7 = T[vc] // ERROR "non-integer|must be integer"
 )
