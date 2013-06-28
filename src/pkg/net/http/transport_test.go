@@ -1575,6 +1575,41 @@ func TestProxyFromEnvironment(t *testing.T) {
 	}
 }
 
+func TestIdleConnChannelLeak(t *testing.T) {
+	var mu sync.Mutex
+	var n int
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		mu.Lock()
+		n++
+		mu.Unlock()
+	}))
+	defer ts.Close()
+
+	tr := &Transport{
+		Dial: func(netw, addr string) (net.Conn, error) {
+			return net.Dial(netw, ts.Listener.Addr().String())
+		},
+	}
+	defer tr.CloseIdleConnections()
+
+	c := &Client{Transport: tr}
+
+	// First, without keep-alives.
+	for _, disableKeep := range []bool{true, false} {
+		tr.DisableKeepAlives = disableKeep
+		for i := 0; i < 5; i++ {
+			_, err := c.Get(fmt.Sprintf("http://foo-host-%d.tld/", i))
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := tr.IdleConnChMapSizeForTesting(); got != 0 {
+			t.Fatalf("ForDisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
+		}
+	}
+}
+
 // rgz is a gzip quine that uncompresses to itself.
 var rgz = []byte{
 	0x1f, 0x8b, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00,

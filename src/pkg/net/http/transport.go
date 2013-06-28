@@ -217,6 +217,7 @@ func (t *Transport) CloseIdleConnections() {
 	t.idleMu.Lock()
 	m := t.idleConn
 	t.idleConn = nil
+	t.idleConnCh = nil
 	t.idleMu.Unlock()
 	if m == nil {
 		return
@@ -295,8 +296,10 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 		max = DefaultMaxIdleConnsPerHost
 	}
 	t.idleMu.Lock()
+
+	waitingDialer := t.idleConnCh[key]
 	select {
-	case t.idleConnCh[key] <- pconn:
+	case waitingDialer <- pconn:
 		// We're done with this pconn and somebody else is
 		// currently waiting for a conn of this type (they're
 		// actively dialing, but this conn is ready
@@ -305,6 +308,11 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 		t.idleMu.Unlock()
 		return true
 	default:
+		if waitingDialer != nil {
+			// They had populated this, but their dial won
+			// first, so we can clean up this map entry.
+			delete(t.idleConnCh, key)
+		}
 	}
 	if t.idleConn == nil {
 		t.idleConn = make(map[string][]*persistConn)
@@ -324,7 +332,13 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 	return true
 }
 
+// getIdleConnCh returns a channel to receive and return idle
+// persistent connection for the given connectMethod.
+// It may return nil, if persistent connections are not being used.
 func (t *Transport) getIdleConnCh(cm *connectMethod) chan *persistConn {
+	if t.DisableKeepAlives {
+		return nil
+	}
 	key := cm.key()
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
