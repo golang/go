@@ -211,7 +211,10 @@ runtime·newstack(void)
 	gp->status = Gwaiting;
 	gp->waitreason = "stack split";
 	reflectcall = framesize==1;
+	if(reflectcall)
+		framesize = 0;
 
+	// For reflectcall the context already points to beginning of reflect·call.
 	if(!reflectcall)
 		runtime·rewindmorestack(&gp->sched);
 
@@ -238,9 +241,24 @@ runtime·newstack(void)
 		runtime·throw("runtime: stack split argsize");
 	}
 
-	reflectcall = framesize==1;
-	if(reflectcall)
-		framesize = 0;
+	if(gp->stackguard0 == StackPreempt) {
+		if(gp == m->g0)
+			runtime·throw("runtime: preempt g0");
+		if(oldstatus == Grunning && (m->p == nil || m->p->status != Prunning))
+			runtime·throw("runtime: g is running but p is not");
+		// Be conservative about where we preempt.
+		// We are interested in preempting user Go code, not runtime code.
+		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing) {
+			// Let the goroutine keep running for now.
+			// TODO(dvyukov): remember but delay the preemption.
+			gp->stackguard0 = gp->stackguard;
+			gp->status = oldstatus;
+			runtime·gogo(&gp->sched);	// never return
+		}
+		// Act like goroutine called runtime.Gosched.
+		gp->status = oldstatus;
+		runtime·gosched0(gp);	// never return
+	}
 
 	if(reflectcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
 		// special case: called from reflect.call (framesize==1)
