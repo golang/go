@@ -39,7 +39,7 @@ markautoused(Prog* p)
 	}
 }
 
-// Fixup instructions after compactframe has moved all autos around.
+// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
 void
 fixautoused(Prog* p)
 {
