@@ -196,7 +196,9 @@ func (c *Client) Auth(a Auth) error {
 		default:
 			err = &textproto.Error{Code: code, Msg: msg64}
 		}
-		resp, err = a.Next(msg, code == 334)
+		if err == nil {
+			resp, err = a.Next(msg, code == 334)
+		}
 		if err != nil {
 			// abort the AUTH
 			c.cmd(501, "*")
