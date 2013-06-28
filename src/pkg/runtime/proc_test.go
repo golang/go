@@ -157,6 +157,36 @@ func TestTimerFairness2(t *testing.T) {
 	<-done
 }
 
+// The function is used to test preemption at split stack checks.
+// Declaring a var avoids inlining at the call site.
+var preempt = func() int {
+	var a [128]int
+	sum := 0
+	for _, v := range a {
+		sum += v
+	}
+	return sum
+}
+
+func TestPreemptionGC(t *testing.T) {
+	// Test that pending GC preempts running goroutines.
+	const P = 5
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P + 1))
+	var stop uint32
+	for i := 0; i < P; i++ {
+		go func() {
+			for atomic.LoadUint32(&stop) == 0 {
+				preempt()
+			}
+		}()
+	}
+	for i := 0; i < 10; i++ {
+		runtime.Gosched()
+		runtime.GC()
+	}
+	atomic.StoreUint32(&stop, 1)
+}
+
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64
 	if i != 0 && pad[0] == 0 {

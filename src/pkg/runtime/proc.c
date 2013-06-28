@@ -99,7 +99,6 @@ static void inclocked(int32);
 static void checkdead(void);
 static void exitsyscall0(G*);
 static void park0(G*);
-static void gosched0(G*);
 static void goexit0(G*);
 static void gfput(P*, G*);
 static G* gfget(P*);
@@ -364,6 +363,7 @@ runtime·stoptheworld(void)
 	runtime·lock(&runtime·sched);
 	runtime·sched.stopwait = runtime·gomaxprocs;
 	runtime·atomicstore((uint32*)&runtime·gcwaiting, 1);
+	preemptall();
 	// stop current P
 	m->p->status = Pgcstop;
 	runtime·sched.stopwait--;
@@ -382,10 +382,16 @@ runtime·stoptheworld(void)
 	wait = runtime·sched.stopwait > 0;
 	runtime·unlock(&runtime·sched);
 
-	// wait for remaining P's to stop voluntary
+	// wait for remaining P's to stop voluntarily
 	if(wait) {
-		runtime·notesleep(&runtime·sched.stopnote);
-		runtime·noteclear(&runtime·sched.stopnote);
+		for(;;) {
+			// wait for 100us, then try to re-preempt in case of any races
+			if(runtime·notetsleep(&runtime·sched.stopnote, 100*1000)) {
+				runtime·noteclear(&runtime·sched.stopnote);
+				break;
+			}
+			preemptall();
+		}
 	}
 	if(runtime·sched.stopwait)
 		runtime·throw("stoptheworld: not stopped");
@@ -1240,12 +1246,12 @@ park0(G *gp)
 void
 runtime·gosched(void)
 {
-	runtime·mcall(gosched0);
+	runtime·mcall(runtime·gosched0);
 }
 
 // runtime·gosched continuation on g0.
-static void
-gosched0(G *gp)
+void
+runtime·gosched0(G *gp)
 {
 	gp->status = Grunnable;
 	gp->m = nil;

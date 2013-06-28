@@ -809,6 +809,7 @@ void runtime·newextram(void);
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);
 void	runtime·gosched(void);
+void	runtime·gosched0(G*);
 void	runtime·park(void(*)(Lock*), Lock*, int8*);
 void	runtime·tsleep(int64, int8*);
 M*	runtime·newm(void);
