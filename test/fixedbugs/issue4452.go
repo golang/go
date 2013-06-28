@@ -9,5 +9,5 @@
 package main
 
 func main() {
-	_ = [...]int(4) // ERROR "use of \[\.\.\.\] array outside of array literal"
+	_ = [...]int(4) // ERROR "\[\.\.\.\].*outside of array literal"
 }
