@@ -48,6 +48,12 @@ func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	return len(conns)
 }
 
+func (t *Transport) IdleConnChMapSizeForTesting() int {
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return len(t.idleConnCh)
+}
+
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	f := func() <-chan time.Time {
 		return ch
