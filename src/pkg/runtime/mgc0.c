@@ -82,8 +82,6 @@ enum {
 //
 uint32 runtime·worldsema = 1;
 
-static int32 gctrace;
-
 typedef struct Obj Obj;
 struct Obj
 {
@@ -1950,7 +1948,6 @@ static FuncVal runfinqv = {runfinq};
 void
 runtime·gc(int32 force)
 {
-	byte *p;
 	struct gc_args a;
 	int32 i;
 
@@ -1978,10 +1975,6 @@ runtime·gc(int32 force)
 		if(gcpercent == GcpercentUnknown)
 			gcpercent = readgogc();
 		runtime·unlock(&runtime·mheap);
-
-		p = runtime·getenv("GOGCTRACE");
-		if(p != nil)
-			gctrace = runtime·atoi(p);
 	}
 	if(gcpercent < 0)
 		return;
@@ -2004,7 +1997,7 @@ runtime·gc(int32 force)
 	// the root set down a bit (g0 stacks are not scanned, and
 	// we don't need to scan gc's internal state).  Also an
 	// enabler for copyable stacks.
-	for(i = 0; i < (gctrace > 1 ? 2 : 1); i++) {
+	for(i = 0; i < (runtime·debug.gctrace > 1 ? 2 : 1); i++) {
 		if(g == m->g0) {
 			// already on g0
 			gc(&a);
@@ -2068,7 +2061,7 @@ gc(struct gc_args *args)
 
 	heap0 = 0;
 	obj0 = 0;
-	if(gctrace) {
+	if(runtime·debug.gctrace) {
 		updatememstats(nil);
 		heap0 = mstats.heap_alloc;
 		obj0 = mstats.nmalloc - mstats.nfree;
@@ -2131,7 +2124,7 @@ gc(struct gc_args *args)
 	if(mstats.debuggc)
 		runtime·printf("pause %D\n", t4-t0);
 
-	if(gctrace) {
+	if(runtime·debug.gctrace) {
 		updatememstats(&stats);
 		heap1 = mstats.heap_alloc;
 		obj1 = mstats.nmalloc - mstats.nfree;

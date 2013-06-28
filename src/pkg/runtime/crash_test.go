@@ -14,7 +14,7 @@ import (
 	"text/template"
 )
 
-// testEnv excludes GOGCTRACE from the environment
+// testEnv excludes GODEBUG from the environment
 // to prevent its output from breaking tests that
 // are trying to parse other command output.
 func testEnv(cmd *exec.Cmd) *exec.Cmd {
@@ -22,7 +22,7 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
 		panic("environment already set")
 	}
 	for _, env := range os.Environ() {
-		if strings.HasPrefix(env, "GOGCTRACE=") {
+		if strings.HasPrefix(env, "GODEBUG=") {
 			continue
 		}
 		cmd.Env = append(cmd.Env, env)

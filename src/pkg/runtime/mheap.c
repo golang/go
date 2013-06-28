@@ -441,8 +441,6 @@ runtime·MHeap_Scavenger(void)
 	uint64 tick, now, forcegc, limit;
 	uint32 k;
 	uintptr sumreleased;
-	byte *env;
-	bool trace;
 	Note note, *notep;
 
 	g->issystem = true;
@@ -458,11 +456,6 @@ runtime·MHeap_Scavenger(void)
 		tick = forcegc/2;
 	else
 		tick = limit/2;
-
-	trace = false;
-	env = runtime·getenv("GOGCTRACE");
-	if(env != nil)
-		trace = runtime·atoi(env) > 0;
 
 	h = &runtime·mheap;
 	for(k=0;; k++) {
@@ -484,7 +477,7 @@ runtime·MHeap_Scavenger(void)
 			runtime·entersyscallblock();
 			runtime·notesleep(&note);
 			runtime·exitsyscall();
-			if(trace)
+			if(runtime·debug.gctrace > 0)
 				runtime·printf("scvg%d: GC forced\n", k);
 			runtime·lock(h);
 			now = runtime·nanotime();
@@ -492,7 +485,7 @@ runtime·MHeap_Scavenger(void)
 		sumreleased = scavenge(now, limit);
 		runtime·unlock(h);
 
-		if(trace) {
+		if(runtime·debug.gctrace > 0) {
 			if(sumreleased > 0)
 				runtime·printf("scvg%d: %p MB released\n", k, sumreleased>>20);
 			runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",

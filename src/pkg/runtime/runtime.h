@@ -86,6 +86,7 @@ typedef	struct	ParFor		ParFor;
 typedef	struct	ParForThread	ParForThread;
 typedef	struct	CgoMal		CgoMal;
 typedef	struct	PollDesc	PollDesc;
+typedef	struct	DebugVars	DebugVars;
 
 /*
  * Per-CPU declaration.
@@ -525,6 +526,12 @@ struct CgoMal
 	void	*alloc;
 };
 
+// Holds variables parsed from GODEBUG env var.
+struct DebugVars
+{
+	int32	gctrace;
+};
+
 /*
  * defined macros
  *    you need super-gopher-guru privilege
@@ -702,6 +709,7 @@ extern	uint32	runtime·maxstring;
 extern	uint32	runtime·Hchansize;
 extern	uint32	runtime·cpuid_ecx;
 extern	uint32	runtime·cpuid_edx;
+extern	DebugVars	runtime·debug;
 
 /*
  * common functions and data
@@ -841,6 +849,7 @@ int32	runtime·netpollopen(uintptr, PollDesc*);
 int32   runtime·netpollclose(uintptr);
 void	runtime·netpollready(G**, PollDesc*, int32);
 void	runtime·crash(void);
+void	runtime·parsedebugvars(void);
 void	_rt0_go(void);
 
 #pragma	varargck	argpos	runtime·printf	1

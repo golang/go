@@ -365,3 +365,34 @@ runtime∕pprof·runtime_cyclesPerSecond(int64 res)
 	res = runtime·tickspersecond();
 	FLUSH(&res);
 }
+
+DebugVars	runtime·debug;
+
+static struct {
+	int8*	name;
+	int32*	value;
+} dbgvar[] = {
+	{"gctrace", &runtime·debug.gctrace},
+};
+
+void
+runtime·parsedebugvars(void)
+{
+	byte *p;
+	int32 i, n;
+
+	p = runtime·getenv("GODEBUG");
+	if(p == nil)
+		return;
+	for(;;) {
+		for(i=0; i<nelem(dbgvar); i++) {
+			n = runtime·findnull((byte*)dbgvar[i].name);
+			if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
+				*dbgvar[i].value = runtime·atoi(p+n+1);
+		}
+		p = runtime·strstr(p, (byte*)",");
+		if(p == nil)
+			break;
+		p++;
+	}
+}
