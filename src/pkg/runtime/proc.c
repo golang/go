@@ -87,7 +87,6 @@ static void procresize(int32);
 static void acquirep(P*);
 static P* releasep(void);
 static void newm(void(*)(void), P*);
-static void goidle(void);
 static void stopm(void);
 static void startm(P*, bool);
 static void handoffp(P*);
