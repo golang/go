@@ -387,17 +387,17 @@ __ifmt(Fmt *f)
 		if(fl & FmtUnsigned)
 			u = (uchar)va_arg(f->args, int);
 		else
-			u = (uchar)(char)va_arg(f->args, int);
+			u = (ulong)(char)va_arg(f->args, int);
 	}else if(fl & FmtShort){
 		if(fl & FmtUnsigned)
 			u = (ushort)va_arg(f->args, int);
 		else
-			u = (ushort)(short)va_arg(f->args, int);
+			u = (ulong)(short)va_arg(f->args, int);
 	}else{
 		if(fl & FmtUnsigned)
 			u = va_arg(f->args, uint);
 		else
-			u = (uint)va_arg(f->args, int);
+			u = (ulong)va_arg(f->args, int);
 	}
 	conv = "0123456789abcdef";
 	grouping = "\4";	/* for hex, octal etc. (undefined by spec but nice) */
