@@ -14,6 +14,7 @@ To use all the Vim plugins, add these lines to your $HOME/.vimrc.
 If you want to select fewer plugins, use the instructions in the rest of
 this file.
 
+
 Vim syntax highlighting
 -----------------------
 
@@ -67,6 +68,21 @@ To install automatic indentation:
   3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
 
      filetype indent on
+
+
+Vim compiler plugin
+-------------------
+
+To install the compiler plugin:
+
+  1. Same as 1 above.
+  2. Copy or link compiler/go.vim to the compiler directory underneath your vim
+     runtime directory (normally $HOME/.vim/compiler).
+  3. Activate the compiler plugin with ":compiler go". To always enable the
+     compiler plugin in Go source files add an autocommand to your .vimrc file
+     (normally $HOME/.vimrc):
+
+     autocmd FileType go compiler go
 
 
 Godoc plugin
