@@ -20,6 +20,7 @@ import (
 var (
 	errNotEnough = errors.New("gif: not enough image data")
 	errTooMuch   = errors.New("gif: too much image data")
+	errBadPixel  = errors.New("gif: invalid pixel value")
 )
 
 // If the io.Reader does not also have ReadByte, then decode will introduce its own buffering.
@@ -208,6 +209,15 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 					return err
 				}
 				return errTooMuch
+			}
+
+			// Check that the color indexes are inside the palette.
+			if len(m.Palette) < 256 {
+				for _, pixel := range m.Pix {
+					if int(pixel) >= len(m.Palette) {
+						return errBadPixel
+					}
+				}
 			}
 
 			// Undo the interlacing if necessary.
