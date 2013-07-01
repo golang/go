@@ -161,4 +161,5 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"image/color.YCbCr":   true,
 	"image.Point":         true,
 	"image.Rectangle":     true,
+	"image.Uniform":       true,
 }
