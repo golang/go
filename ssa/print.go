@@ -73,7 +73,7 @@ func (v *Function) String() string {
 
 // FullName returns g's package-qualified name.
 func (g *Global) FullName() string {
-	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path(), g.name)
+	return fmt.Sprintf("%s.%s", g.Pkg.Object.Path(), g.name)
 }
 
 // Instruction.String()
@@ -356,7 +356,7 @@ func (s *MapUpdate) String() string {
 }
 
 func (p *Package) String() string {
-	return "package " + p.Types.Path()
+	return "package " + p.Object.Path()
 }
 
 func (p *Package) DumpTo(w io.Writer) {

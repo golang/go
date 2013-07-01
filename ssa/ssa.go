@@ -17,10 +17,10 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Files           *token.FileSet              // position information for the files of this Program [TODO: rename Fset]
-	Packages        map[string]*Package         // all loaded Packages, keyed by import path [TODO rename packagesByPath]
-	packages        map[*types.Package]*Package // all loaded Packages, keyed by object [TODO rename Packages]
-	Builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	Fset            *token.FileSet              // position information for the files of this Program
+	PackagesByPath  map[string]*Package         // all loaded Packages, keyed by import path
+	packages        map[*types.Package]*Package // all loaded Packages, keyed by object
+	builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
 	concreteMethods map[*types.Func]*Function   // maps named concrete methods to their code
 	mode            BuilderMode                 // set of mode bits for SSA construction
 
@@ -38,7 +38,7 @@ type Program struct {
 //
 type Package struct {
 	Prog    *Program               // the owning program
-	Types   *types.Package         // the type checker's package object for this package [TODO rename Object]
+	Object  *types.Package         // the type checker's package object for this package
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package-level vars and funcs, keyed by object
 	Init    *Function              // the package's (concatenated) init function
@@ -1400,7 +1400,7 @@ func (prog *Program) Value(obj types.Object) Value {
 		}
 		return nil
 	}
-	return prog.Builtins[obj]
+	return prog.builtins[obj]
 }
 
 // Package returns the SSA package corresponding to the specified

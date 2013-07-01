@@ -434,7 +434,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 //
 func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function, args []value, env []value) value {
 	if i.mode&EnableTracing != 0 {
-		fset := fn.Prog.Files
+		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
 		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn, loc(fset, fn.Pos()))
 		suffix := ""
@@ -526,7 +526,7 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 		*g = v
 		return
 	}
-	panic("no global variable: " + pkg.Types.Path() + "." + name)
+	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
 // Interpret interprets the Go program whose main package is mainpkg.
@@ -544,7 +544,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 	}
 	initReflect(i)
 
-	for importPath, pkg := range i.prog.Packages {
+	for importPath, pkg := range i.prog.PackagesByPath {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {

@@ -35,10 +35,10 @@ const (
 //
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
-		Files:               fset,
-		Packages:            make(map[string]*Package),
+		Fset:                fset,
+		PackagesByPath:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
-		Builtins:            make(map[types.Object]*Builtin),
+		builtins:            make(map[types.Object]*Builtin),
 		methodSets:          make(map[types.Type]MethodSet),
 		concreteMethods:     make(map[*types.Func]*Function),
 		indirectionWrappers: make(map[*Function]*Function),
@@ -50,7 +50,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	// Create Values for built-in functions.
 	for i, n := 0, types.Universe.NumEntries(); i < n; i++ {
 		if obj, ok := types.Universe.At(i).(*types.Func); ok {
-			prog.Builtins[obj] = &Builtin{obj}
+			prog.builtins[obj] = &Builtin{obj}
 		}
 	}
 
@@ -134,7 +134,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			// Method declaration.
 			_, method := namedTypeMethodIndex(
 				recv.Type().Deref().(*types.Named),
-				MakeId(name, pkg.Types))
+				MakeId(name, pkg.Object))
 			pkg.Prog.concreteMethods[method] = fn
 		}
 
@@ -203,7 +203,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
-		Types:   info.Pkg,
+		Object:  info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
 	}
 
@@ -228,7 +228,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		// GC-compiled binary package.
 		// No code.
 		// No position information.
-		scope := p.Types.Scope()
+		scope := p.Object.Scope()
 		for i, n := 0, scope.NumEntries(); i < n; i++ {
 			memberFromObject(p, scope.At(i), nil)
 		}
@@ -246,6 +246,6 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		p.DumpTo(os.Stderr)
 	}
 
-	prog.Packages[importPath] = p
-	prog.packages[p.Types] = p
+	prog.PackagesByPath[importPath] = p
+	prog.packages[p.Object] = p
 }

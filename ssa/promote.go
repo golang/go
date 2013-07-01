@@ -486,7 +486,7 @@ func indirectionWrapper(meth *Function) *Function {
 		}
 
 		s := meth.Signature
-		recv := types.NewVar(token.NoPos, meth.Pkg.Types, "recv",
+		recv := types.NewVar(token.NoPos, meth.Pkg.Object, "recv",
 			types.NewPointer(s.Recv().Type()))
 		fn = &Function{
 			name:      meth.Name(),

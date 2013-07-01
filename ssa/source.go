@@ -34,11 +34,11 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 func (prog *Program) PathEnclosingInterval(imp *importer.Importer, start, end token.Pos) (pkg *Package, path []ast.Node, exact bool) {
 	for importPath, info := range imp.Packages {
 		for _, f := range info.Files {
-			if !tokenFileContainsPos(prog.Files.File(f.Package), start) {
+			if !tokenFileContainsPos(prog.Fset.File(f.Package), start) {
 				continue
 			}
 			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
-				return prog.Packages[importPath], path, exact
+				return prog.PackagesByPath[importPath], path, exact
 			}
 		}
 	}

@@ -480,7 +480,7 @@ func (f *Function) fullName(from *Package) string {
 	// Package-level function.
 	// Prefix with package name for cross-package references only.
 	if from != f.Pkg {
-		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path(), f.name)
+		return fmt.Sprintf("%s.%s", f.Pkg.Object.Path(), f.name)
 	}
 	return f.name
 }
@@ -533,7 +533,7 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.String())
 	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(pos))
+		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Fset.Position(pos))
 	} else {
 		fmt.Fprintln(w, "# Synthetic")
 	}

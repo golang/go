@@ -404,7 +404,7 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
 func initReflect(i *interpreter) {
 	i.reflectPackage = &ssa.Package{
 		Prog:    i.prog,
-		Types:   reflectTypesPackage,
+		Object:  reflectTypesPackage,
 		Members: make(map[string]ssa.Member),
 	}
 
