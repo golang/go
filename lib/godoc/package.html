@@ -231,15 +231,8 @@ $(document).ready(function() {
 	'use strict';
 	// Set up playground when each element is toggled.
 	$('div.play').each(function (i, el) {
-		var built = false;
-		$(el).closest('.toggle').click(function() {
-			// Only set up playground once.
-			if (built) {
-				return;
-			}
-			built = true;
-
-			// Set up playground.
+		// Set up playground for this example.
+		var setup = function() {
 			var code = $('.code', el);
 			playground({
 				'codeEl':   code,
@@ -260,6 +253,22 @@ $(document).ready(function() {
 			code.on('keydown', resize);
 			code.on('keyup', resize);
 			code.keyup(); // resize now.
+		};
+		
+		// If example already visible, set up playground now.
+		if ($(el).is(':visible')) {
+			setup();
+			return;
+		}
+
+		// Otherwise, set up playground when example is expanded.
+		var built = false;
+		$(el).closest('.toggle').click(function() {
+			// Only set up once.
+			if (!built) {
+				setup();
+				built = true;
+			}
 		});
 	});
 });

@@ -182,7 +182,7 @@ function fixFocus() {
 function toggleHash() {
     var hash = $(window.location.hash);
     if (hash.is('.toggle')) {
-      hash.addClass('toggleVisible').removeClass('toggle');
+      hash.find('.toggleButton').first().click();
     }
 }
 
