@@ -6,9 +6,14 @@ package sync_test
 
 import (
 	"fmt"
-	"net/http"
 	"sync"
 )
+
+type httpPkg struct{}
+
+func (httpPkg) Get(url string) {}
+
+var http httpPkg
 
 // This example fetches several URLs concurrently,
 // using a WaitGroup to block until all the fetches are complete.
