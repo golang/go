@@ -9,16 +9,16 @@ import (
 	"testing"
 )
 
-func TestDecode(t *testing.T) {
-	// header and trailer are parts of a valid 2x1 GIF image.
-	const (
-		header = "GIF89a" +
-			"\x02\x00\x01\x00" + // width=2, height=1
-			"\x80\x00\x00" + // headerFields=(a color map of 2 pixels), backgroundIndex, aspect
-			"\x10\x20\x30\x40\x50\x60" // the color map, also known as a palette
-		trailer = "\x3b"
-	)
+// header, palette and trailer are parts of a valid 2x1 GIF image.
+const (
+	header = "GIF89a" +
+		"\x02\x00\x01\x00" + // width=2, height=1
+		"\x80\x00\x00" // headerFields=(a color map of 2 pixels), backgroundIndex, aspect
+	palette = "\x10\x20\x30\x40\x50\x60" // the color map, also known as a palette
+	trailer = "\x3b"
+)
 
+func TestDecode(t *testing.T) {
 	// lzwEncode returns an LZW encoding (with 2-bit literals) of n zeroes.
 	lzwEncode := func(n int) []byte {
 		b := &bytes.Buffer{}
@@ -42,6 +42,7 @@ func TestDecode(t *testing.T) {
 	for _, tc := range testCases {
 		b := &bytes.Buffer{}
 		b.WriteString(header)
+		b.WriteString(palette)
 		// Write an image with bounds 2x1 but tc.nPix pixels. If tc.nPix != 2
 		// then this should result in an invalid GIF image. First, write a
 		// magic 0x2c (image descriptor) byte, bounds=(0,0)-(2,1), a flags
@@ -114,7 +115,7 @@ func try(t *testing.T, b []byte, want string) {
 }
 
 func TestBounds(t *testing.T) {
-	// make a local copy of testGIF
+	// Make a local copy of testGIF.
 	gif := make([]byte, len(testGIF))
 	copy(gif, testGIF)
 	// Make the bounds too big, just by one.
@@ -135,4 +136,62 @@ func TestBounds(t *testing.T) {
 		gif[32+i] = 0xff
 	}
 	try(t, gif, want)
+}
+
+func TestNoPalette(t *testing.T) {
+	b := &bytes.Buffer{}
+
+	// Manufacture a GIF with no palette, so any pixel at all
+	// will be invalid.
+	b.WriteString(header[:len(header)-3])
+	b.WriteString("\x00\x00\x00") // No global palette.
+
+	// Image descriptor: 2x1, no local palette.
+	b.WriteString("\x2c\x00\x00\x00\x00\x02\x00\x01\x00\x00\x02")
+
+	// Encode the pixels: neither is in range, because there is no palette.
+	pix := []byte{0, 128}
+	enc := &bytes.Buffer{}
+	w := lzw.NewWriter(enc, lzw.LSB, 2)
+	w.Write(pix)
+	w.Close()
+	b.WriteByte(byte(len(enc.Bytes())))
+	b.Write(enc.Bytes())
+	b.WriteByte(0x00) // An empty block signifies the end of the image data.
+
+	b.WriteString(trailer)
+
+	try(t, b.Bytes(), "gif: invalid pixel value")
+}
+
+func TestPixelOutsidePaletteRange(t *testing.T) {
+	for _, pval := range []byte{0, 1, 2, 3, 255} {
+		b := &bytes.Buffer{}
+
+		// Manufacture a GIF with a 2 color palette.
+		b.WriteString(header)
+		b.WriteString(palette)
+
+		// Image descriptor: 2x1, no local palette.
+		b.WriteString("\x2c\x00\x00\x00\x00\x02\x00\x01\x00\x00\x02")
+
+		// Encode the pixels; some pvals trigger the expected error.
+		pix := []byte{pval, pval}
+		enc := &bytes.Buffer{}
+		w := lzw.NewWriter(enc, lzw.LSB, 2)
+		w.Write(pix)
+		w.Close()
+		b.WriteByte(byte(len(enc.Bytes())))
+		b.Write(enc.Bytes())
+		b.WriteByte(0x00) // An empty block signifies the end of the image data.
+
+		b.WriteString(trailer)
+
+		// No error expected, unless the pixels are beyond the 2 color palette.
+		want := ""
+		if pval >= 2 {
+			want = "gif: invalid pixel value"
+		}
+		try(t, b.Bytes(), want)
+	}
 }
