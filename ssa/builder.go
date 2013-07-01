@@ -328,119 +328,89 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 	return nil // treat all others as a regular function call
 }
 
-// selector evaluates the selector expression e and returns its value,
+// selectField evaluates the field selector expression e and returns its value,
 // or if wantAddr is true, its address, in which case escaping
 // indicates whether the caller intends to use the resulting pointer
 // in a potentially escaping way.
 //
-func (b *builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
-	id := MakeId(e.Sel.Name, fn.Pkg.Types)
+func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
+	tx := fn.Pkg.typeOf(e.X)
+	obj, indices, isIndirect := types.LookupFieldOrMethod(tx, fn.Pkg.Types, e.Sel.Name)
+	if obj == nil {
+		panic("field not found: " + e.Sel.Name)
+	}
 
-	// Bound method closure?  (e.m where m is a method)
-	if !wantAddr {
-		if m, recv := b.findMethod(fn, e.X, id); m != nil {
-			c := &MakeClosure{
-				Fn:       boundMethodWrapper(m),
-				Bindings: []Value{recv},
+	// Be careful!  This code has proven very tricky.
+
+	// NB: The type of the final field is irrelevant to the logic.
+
+	// Emit code for the base expression.
+	var v Value
+	if wantAddr && !isIndirect && !isPointer(tx) {
+		// TODO(adonovan): opt: also use this codepath
+		// for !wantAddr, when safe (i.e. e.X is addressible),
+		// since (FieldAddr;Load) is cheaper than (Load;Field).
+		// Requires go/types to expose addressibility.
+		v = b.addr(fn, e.X, escaping).(address).addr
+	} else {
+		v = b.expr(fn, e.X)
+	}
+
+	// Apply field selections.
+	st := tx.Deref().Underlying().(*types.Struct)
+	for i, index := range indices {
+		f := st.Field(index)
+		ft := f.Type()
+
+		isLast := i == len(indices)-1
+
+		// Invariant: v.Type() is a struct or *struct.
+		if isPointer(v.Type()) {
+			ff := &FieldAddr{
+				X:     v,
+				Field: index,
 			}
-			c.setPos(e.Sel.Pos())
-			c.setType(fn.Pkg.typeOf(e))
-			return fn.emit(c)
+			if isLast {
+				ff.setPos(e.Sel.Pos())
+			}
+			ff.setType(pointer(ft))
+			v = fn.emit(ff)
+
+			// Now: v is a pointer to a struct field (field lvalue).
+
+			if isLast {
+				// Explicit, final field selection.
+
+				// Load the field's value iff we don't want its address.
+				if !wantAddr {
+					v = emitLoad(fn, v)
+				}
+			} else {
+				// Implicit field selection.
+
+				// Load the field's value iff indirectly embedded.
+				if isPointer(ft) {
+					v = emitLoad(fn, v)
+				}
+			}
+
+		} else {
+			ff := &Field{
+				X:     v,
+				Field: index,
+			}
+			if isLast {
+				ff.setPos(e.Sel.Pos())
+			}
+			ff.setType(ft)
+			v = fn.emit(ff)
 		}
+
+		// May be nil at end of last iteration:
+		st, _ = ft.Deref().Underlying().(*types.Struct)
 	}
 
-	st := fn.Pkg.typeOf(e.X).Deref().Underlying().(*types.Struct)
-	index := -1
-	for i, n := 0, st.NumFields(); i < n; i++ {
-		f := st.Field(i)
-		if MakeId(f.Name(), f.Pkg()) == id {
-			index = i
-			break
-		}
-	}
-	var path *anonFieldPath
-	if index == -1 {
-		// Not a named field.  Use breadth-first algorithm.
-		path, index = findPromotedField(st, id)
-		if path == nil {
-			panic("field not found, even with promotion: " + e.Sel.Name)
-		}
-	}
-	fieldType := fn.Pkg.typeOf(e)
-	pos := e.Sel.Pos()
-	if wantAddr {
-		return b.fieldAddr(fn, e.X, path, index, fieldType, pos, escaping)
-	}
-	return b.fieldExpr(fn, e.X, path, index, fieldType, pos)
-}
-
-// fieldAddr evaluates the base expression (a struct or *struct),
-// applies to it any implicit field selections from path, and then
-// selects the field #index of type fieldType.
-// Its address is returned.
-//
-// (fieldType can be derived from base+index.)
-//
-func (b *builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos, escaping bool) Value {
-	var x Value
-	if path != nil {
-		switch path.field.Type().Underlying().(type) {
-		case *types.Struct:
-			x = b.fieldAddr(fn, base, path.tail, path.index, path.field.Type(), token.NoPos, escaping)
-		case *types.Pointer:
-			x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type(), token.NoPos)
-		}
-	} else {
-		switch fn.Pkg.typeOf(base).Underlying().(type) {
-		case *types.Struct:
-			x = b.addr(fn, base, escaping).(address).addr
-		case *types.Pointer:
-			x = b.expr(fn, base)
-		}
-	}
-	v := &FieldAddr{
-		X:     x,
-		Field: index,
-	}
-	v.setPos(pos)
-	v.setType(pointer(fieldType))
-	return fn.emit(v)
-}
-
-// fieldExpr evaluates the base expression (a struct or *struct),
-// applies to it any implicit field selections from path, and then
-// selects the field #index of type fieldType.
-// Its value is returned.
-//
-// (fieldType can be derived from base+index.)
-//
-func (b *builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, pos token.Pos) Value {
-	var x Value
-	if path != nil {
-		x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type(), token.NoPos)
-	} else {
-		x = b.expr(fn, base)
-	}
-	switch x.Type().Underlying().(type) {
-	case *types.Struct:
-		v := &Field{
-			X:     x,
-			Field: index,
-		}
-		v.setPos(pos)
-		v.setType(fieldType)
-		return fn.emit(v)
-
-	case *types.Pointer: // *struct
-		v := &FieldAddr{
-			X:     x,
-			Field: index,
-		}
-		v.setPos(pos)
-		v.setType(pointer(fieldType))
-		return emitLoad(fn, fn.emit(v))
-	}
-	panic("unreachable")
+	return v
 }
 
 // addr lowers a single-result addressable expression e to SSA form,
@@ -500,7 +470,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		}
 
 		// e.f where e is an expression.
-		return address{addr: b.selector(fn, e, true, escaping)}
+		return address{addr: b.selectField(fn, e, true, escaping)}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -730,9 +700,10 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return b.expr(fn, e.Sel)
 		}
 
+		id := MakeId(e.Sel.Name, fn.Pkg.Types)
+
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
-			id := MakeId(e.Sel.Name, fn.Pkg.Types)
 			typ := fn.Pkg.typeOf(e.X)
 			if m := fn.Prog.MethodSet(typ)[id]; m != nil {
 				return emitConv(fn, m, fn.Pkg.typeOf(e))
@@ -742,8 +713,19 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return interfaceMethodWrapper(fn.Prog, typ, id)
 		}
 
+		// Bound method closure?  (e.m where m is a method)
+		if m, recv := b.findMethod(fn, e.X, id); m != nil {
+			c := &MakeClosure{
+				Fn:       boundMethodWrapper(m),
+				Bindings: []Value{recv},
+			}
+			c.setPos(e.Sel.Pos())
+			c.setType(fn.Pkg.typeOf(e))
+			return fn.emit(c)
+		}
+
 		// e.f where e is an expression.  f may be a method.
-		return b.selector(fn, e, false, false)
+		return b.selectField(fn, e, false, false)
 
 	case *ast.IndexExpr:
 		switch t := fn.Pkg.typeOf(e.X).Underlying().(type) {

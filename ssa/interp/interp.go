@@ -480,7 +480,8 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			if fr.i.mode&DisableRecover != 0 {
 				return // let interpreter crash
 			}
-			fr.status, fr.panic = stPanic, recover()
+			fr.status = stPanic
+			fr.panic = recover()
 		}
 		fr.rundefers()
 		// Destroy the locals to avoid accidental use after return.

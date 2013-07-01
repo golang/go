@@ -133,6 +133,7 @@ var testdataTests = []string{
 	"mrvchain.go",
 	"boundmeth.go",
 	"ifaceprom.go",
+	"fieldprom.go",
 }
 
 func run(t *testing.T, dir, input string) bool {
@@ -164,7 +165,7 @@ func run(t *testing.T, dir, input string) bool {
 		}
 	}()
 
-	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go run exp/ssa/ssadump.go -build=CFP %s\n", input)
+	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go run src/code.google.com/p/go.tools/ssa/ssadump.go -build=CFP %s\n", input)
 	info, err := imp.CreateSourcePackage("main", files)
 	if err != nil {
 		t.Errorf("ssa.Builder.CreatePackage(%s) failed: %s", inputs, err.Error())
@@ -175,7 +176,7 @@ func run(t *testing.T, dir, input string) bool {
 	prog.CreatePackages(imp)
 	prog.BuildAll()
 
-	hint = fmt.Sprintf("To trace execution, run:\n%% go run exp/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
+	hint = fmt.Sprintf("To trace execution, run:\n%% go run src/code.google.com/p/go.tools/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
 	if exitCode := interp.Interpret(prog.Package(info.Pkg), 0, inputs[0], []string{}); exitCode != 0 {
 		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
 		return false
