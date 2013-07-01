@@ -169,6 +169,7 @@ var preempt = func() int {
 }
 
 func TestPreemptionGC(t *testing.T) {
+	t.Skip("preemption is disabled")
 	// Test that pending GC preempts running goroutines.
 	const P = 5
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P + 1))
