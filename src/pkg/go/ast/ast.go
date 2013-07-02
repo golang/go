@@ -920,7 +920,7 @@ type (
 		Doc  *CommentGroup // associated documentation; or nil
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
-		Type *FuncType     // position of Func keyword, parameters and results
+		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil (forward declaration)
 	}
 )
