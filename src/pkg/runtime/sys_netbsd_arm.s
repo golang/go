@@ -174,9 +174,9 @@ TEXT runtime·sigprocmask(SB),7,$0
 	RET
 
 TEXT runtime·sigreturn_tramp(SB),7,$-4
-	// in runtime·sigtramp, we saved ucontext into m->tls[0],
-	// here we just load it and call sys_setcontext
-	MOVW m_tls(m), R0
+	// on entry, SP points to siginfo, we add sizeof(ucontext)
+	// to SP to get a pointer to ucontext.
+	ADD $0x80, R13, R0 // 0x80 == sizeof(UcontextT)
 	SWI $0xa00134	// sys_setcontext
 	// something failed, we have to exit
 	MOVW $0x4242, R0 // magic return number
@@ -223,9 +223,6 @@ TEXT runtime·sigtramp(SB),7,$24
 	MOVW R1, 8(R13) // info
 	MOVW R2, 12(R13) // context
 	MOVW R4, 16(R13) // gp
-	// we also save the ucontext into m->tls[0] for easy
-	// signal return
-	MOVW R2, m_tls(m)
 
 	BL runtime·sighandler(SB)
 
