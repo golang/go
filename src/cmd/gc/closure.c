@@ -280,7 +280,7 @@ typecheckpartialcall(Node *fn, Node *sym)
 static Node*
 makepartialcall(Node *fn, Type *t0, Node *meth)
 {
-	Node *ptr, *n, *fld, *call, *xtype, *xfunc, *cv;
+	Node *ptr, *n, *fld, *call, *xtype, *xfunc, *cv, *savecurfn;
 	Type *rcvrtype, *basetype, *t;
 	NodeList *body, *l, *callargs, *retargs;
 	char *p;
@@ -304,6 +304,9 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	if(sym->flags & SymUniq)
 		return sym->def;
 	sym->flags |= SymUniq;
+	
+	savecurfn = curfn;
+	curfn = N;
 
 	xtype = nod(OTFUNC, N, N);
 	i = 0;
@@ -311,6 +314,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	callargs = nil;
 	ddd = 0;
 	xfunc = nod(ODCLFUNC, N, N);
+	curfn = xfunc;
 	for(t = getinargx(t0)->type; t; t = t->down) {
 		snprint(namebuf, sizeof namebuf, "a%d", i++);
 		n = newname(lookup(namebuf));
@@ -385,6 +389,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	typecheck(&xfunc, Etop);
 	sym->def = xfunc;
 	xtop = list(xtop, xfunc);
+	curfn = savecurfn;
 
 	return xfunc;
 }
