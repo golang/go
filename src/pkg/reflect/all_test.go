@@ -2368,6 +2368,74 @@ func TestSlice(t *testing.T) {
 	}
 }
 
+func TestSlice3(t *testing.T) {
+	xs := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	v := ValueOf(xs).Slice3(3, 5, 7).Interface().([]int)
+	if len(v) != 2 {
+		t.Errorf("len(xs.Slice3(3, 5, 7)) = %d", len(v))
+	}
+	if cap(v) != 4 {
+		t.Errorf("cap(xs.Slice3(3, 5, 7)) = %d", cap(v))
+	}
+	if !DeepEqual(v[0:4], xs[3:7:7]) {
+		t.Errorf("xs.Slice3(3, 5, 7)[0:4] = %v", v[0:4])
+	}
+	rv := ValueOf(&xs).Elem()
+	shouldPanic(func() { rv.Slice3(1, 2, 1) })
+	shouldPanic(func() { rv.Slice3(1, 1, 11) })
+	shouldPanic(func() { rv.Slice3(2, 2, 1) })
+
+	xa := [8]int{10, 20, 30, 40, 50, 60, 70, 80}
+	v = ValueOf(&xa).Elem().Slice3(2, 5, 6).Interface().([]int)
+	if len(v) != 3 {
+		t.Errorf("len(xa.Slice(2, 5, 6)) = %d", len(v))
+	}
+	if cap(v) != 4 {
+		t.Errorf("cap(xa.Slice(2, 5, 6)) = %d", cap(v))
+	}
+	if !DeepEqual(v[0:4], xa[2:6:6]) {
+		t.Errorf("xs.Slice(2, 5, 6)[0:4] = %v", v[0:4])
+	}
+	rv = ValueOf(&xa).Elem()
+	shouldPanic(func() { rv.Slice3(1, 2, 1) })
+	shouldPanic(func() { rv.Slice3(1, 1, 11) })
+	shouldPanic(func() { rv.Slice3(2, 2, 1) })
+
+	s := "hello world"
+	rv = ValueOf(&s).Elem()
+	shouldPanic(func() { rv.Slice3(1, 2, 3) })
+}
+
+func TestSetLenCap(t *testing.T) {
+	xs := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	xa := [8]int{10, 20, 30, 40, 50, 60, 70, 80}
+
+	vs := ValueOf(&xs).Elem()
+	shouldPanic(func() { vs.SetLen(10) })
+	shouldPanic(func() { vs.SetCap(10) })
+	shouldPanic(func() { vs.SetLen(-1) })
+	shouldPanic(func() { vs.SetCap(-1) })
+	shouldPanic(func() { vs.SetCap(6) }) // smaller than len
+	vs.SetLen(5)
+	if len(xs) != 5 || cap(xs) != 8 {
+		t.Errorf("after SetLen(5), len, cap = %d, %d, want 5, 8", len(xs), cap(xs))
+	}
+	vs.SetCap(6)
+	if len(xs) != 5 || cap(xs) != 6 {
+		t.Errorf("after SetCap(6), len, cap = %d, %d, want 5, 6", len(xs), cap(xs))
+	}
+	vs.SetCap(5)
+	if len(xs) != 5 || cap(xs) != 5 {
+		t.Errorf("after SetCap(5), len, cap = %d, %d, want 5, 5", len(xs), cap(xs))
+	}
+	shouldPanic(func() { vs.SetCap(4) }) // smaller than len
+	shouldPanic(func() { vs.SetLen(6) }) // bigger than cap
+
+	va := ValueOf(&xa).Elem()
+	shouldPanic(func() { va.SetLen(8) })
+	shouldPanic(func() { va.SetCap(8) })
+}
+
 func TestVariadic(t *testing.T) {
 	var b bytes.Buffer
 	V := ValueOf
