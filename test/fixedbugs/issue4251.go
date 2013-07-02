@@ -9,13 +9,13 @@
 package p
 
 func F1(s []byte) []byte {
-	return s[2:1]		// ERROR "inverted"
+	return s[2:1]		// ERROR "invalid slice index"
 }
 
 func F2(a [10]byte) []byte {
-	return a[2:1]		// ERROR "inverted"
+	return a[2:1]		// ERROR "invalid slice index"
 }
 
 func F3(s string) string {
-	return s[2:1]		// ERROR "inverted"
+	return s[2:1]		// ERROR "invalid slice index"
 }

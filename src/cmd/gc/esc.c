@@ -749,6 +749,8 @@ escassign(EscState *e, Node *dst, Node *src)
 	case ODOTTYPE2:
 	case OSLICE:
 	case OSLICEARR:
+	case OSLICE3:
+	case OSLICE3ARR:
 		// Conversions, field access, slice all preserve the input value.
 		escassign(e, dst, src->left);
 		break;

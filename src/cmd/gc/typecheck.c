@@ -33,6 +33,8 @@ static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
 static void	checkdefergo(Node*);
 static int	checkmake(Type*, char*, Node*);
+static int	checksliceindex(Node*, Type*);
+static int	checksliceconst(Node*, Node*);
 
 static	NodeList*	typecheckdefstack;
 
@@ -303,7 +305,7 @@ static void
 typecheck1(Node **np, int top)
 {
 	int et, aop, op, ptr;
-	Node *n, *l, *r;
+	Node *n, *l, *r, *lo, *mid, *hi;
 	NodeList *args;
 	int ok, ntop;
 	Type *t, *tp, *missing, *have, *badtype;
@@ -993,54 +995,63 @@ reswitch:
 			yyerror("cannot slice %N (type %T)", l, t);
 			goto error;
 		}
-		if(n->right->left != N) {
-			if((t = n->right->left->type) == T)
-				goto error;
-			if(!isint[t->etype]) {
-				yyerror("invalid slice index %N (type %T)", n->right->left, t);
+		if((lo = n->right->left) != N && checksliceindex(lo, tp) < 0)
+			goto error;
+		if((hi = n->right->right) != N && checksliceindex(hi, tp) < 0)
+			goto error;
+		if(checksliceconst(lo, hi) < 0)
+			goto error;
+		goto ret;
+
+	case OSLICE3:
+		ok |= Erv;
+		typecheck(&n->left, top);
+		typecheck(&n->right->left, Erv);
+		typecheck(&n->right->right->left, Erv);
+		typecheck(&n->right->right->right, Erv);
+		defaultlit(&n->left, T);
+		indexlit(&n->right->left);
+		indexlit(&n->right->right->left);
+		indexlit(&n->right->right->right);
+		l = n->left;
+		if(isfixedarray(l->type)) {
+			if(!islvalue(n->left)) {
+				yyerror("invalid operation %N (slice of unaddressable value)", n);
 				goto error;
 			}
-			if(n->right->left->op == OLITERAL) {
-				if(mpgetfix(n->right->left->val.u.xval) < 0) {
-					yyerror("invalid slice index %N (index must be non-negative)", n->right->left);
-					goto error;
-				} else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->left->val.u.xval) > tp->bound) {
-					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->left, tp->bound);
-					goto error;
-				} else if(mpcmpfixfix(n->right->left->val.u.xval, maxintval[TINT]) > 0) {
-					yyerror("invalid slice index %N (index too large)", n->right->left);
-					goto error;
-				}
-			}
+			n->left = nod(OADDR, n->left, N);
+			n->left->implicit = 1;
+			typecheck(&n->left, Erv);
+			l = n->left;
 		}
-		if(n->right->right != N) {
-			if((t = n->right->right->type) == T)
-				goto error;
-			if(!isint[t->etype]) {
-				yyerror("invalid slice index %N (type %T)", n->right->right, t);
-				goto error;
-			}
-			if(n->right->right->op == OLITERAL) {
-				if(mpgetfix(n->right->right->val.u.xval) < 0) {
-					yyerror("invalid slice index %N (index must be non-negative)", n->right->right);
-					goto error;
-				} else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->right->val.u.xval) > tp->bound) {
-					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->right, tp->bound);
-					goto error;
-				} else if(mpcmpfixfix(n->right->right->val.u.xval, maxintval[TINT]) > 0) {
-					yyerror("invalid slice index %N (index too large)", n->right->right);
-					goto error;
-				}
-			}
-		}
-		if(n->right->left != N
-		   && n->right->right != N
-		   && n->right->left->op == OLITERAL
-		   && n->right->right->op == OLITERAL
-		   && mpcmpfixfix(n->right->left->val.u.xval, n->right->right->val.u.xval) > 0) {
-			yyerror("inverted slice index %N > %N", n->right->left, n->right->right);
+		if((t = l->type) == T)
+			goto error;
+		tp = nil;
+		if(istype(t, TSTRING)) {
+			yyerror("invalid operation %N (3-index slice of string)", n);
 			goto error;
 		}
+		if(isptr[t->etype] && isfixedarray(t->type)) {
+			tp = t->type;
+			n->type = typ(TARRAY);
+			n->type->type = tp->type;
+			n->type->bound = -1;
+			dowidth(n->type);
+			n->op = OSLICE3ARR;
+		} else if(isslice(t)) {
+			n->type = t;
+		} else {
+			yyerror("cannot slice %N (type %T)", l, t);
+			goto error;
+		}
+		if((lo = n->right->left) != N && checksliceindex(lo, tp) < 0)
+			goto error;
+		if((mid = n->right->right->left) != N && checksliceindex(mid, tp) < 0)
+			goto error;
+		if((hi = n->right->right->right) != N && checksliceindex(hi, tp) < 0)
+			goto error;
+		if(checksliceconst(lo, hi) < 0 || checksliceconst(lo, mid) < 0 || checksliceconst(mid, hi) < 0)
+			goto error;
 		goto ret;
 
 	/*
@@ -1755,6 +1766,43 @@ error:
 
 out:
 	*np = n;
+}
+
+static int
+checksliceindex(Node *r, Type *tp)
+{
+	Type *t;
+
+	if((t = r->type) == T)
+		return -1;
+	if(!isint[t->etype]) {
+		yyerror("invalid slice index %N (type %T)", r, t);
+		return -1;
+	}
+	if(r->op == OLITERAL) {
+		if(mpgetfix(r->val.u.xval) < 0) {
+			yyerror("invalid slice index %N (index must be non-negative)", r);
+			return -1;
+		} else if(tp != nil && tp->bound > 0 && mpgetfix(r->val.u.xval) > tp->bound) {
+			yyerror("invalid slice index %N (out of bounds for %d-element array)", r, tp->bound);
+			return -1;
+		} else if(mpcmpfixfix(r->val.u.xval, maxintval[TINT]) > 0) {
+			yyerror("invalid slice index %N (index too large)", r);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static int
+checksliceconst(Node *lo, Node *hi)
+{
+	if(lo != N && hi != N && lo->op == OLITERAL && hi->op == OLITERAL
+	   && mpcmpfixfix(lo->val.u.xval, hi->val.u.xval) > 0) {
+		yyerror("invalid slice index: %N > %N", lo, hi);
+		return -1;
+	}
+	return 0;
 }
 
 static void
