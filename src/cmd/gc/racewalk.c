@@ -304,6 +304,8 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	case OSLICE:
 	case OSLICEARR:
+	case OSLICE3:
+	case OSLICE3ARR:
 		// Seems to only lead to double instrumentation.
 		//racewalknode(&n->left, init, 0, 0);
 		goto ret;

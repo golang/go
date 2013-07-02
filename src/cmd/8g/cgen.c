@@ -67,6 +67,8 @@ cgen(Node *n, Node *res)
 	case OSLICE:
 	case OSLICEARR:
 	case OSLICESTR:
+	case OSLICE3:
+	case OSLICE3ARR:
 		if (res->op != ONAME || !res->addable) {
 			tempname(&n1, n->type);
 			cgen_slice(n, &n1);
@@ -547,6 +549,8 @@ agen(Node *n, Node *res)
 	case OSLICE:
 	case OSLICEARR:
 	case OSLICESTR:
+	case OSLICE3:
+	case OSLICE3ARR:
 		tempname(&n1, n->type);
 		cgen_slice(n, &n1);
 		agen(&n1, res);

@@ -74,6 +74,6 @@ static struct {
 	112, LNAME,
 	"nested func not allowed",
 
-	642, ';',
+	644, ';',
 	"else must be followed by if or statement block"
 };

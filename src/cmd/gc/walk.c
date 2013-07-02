@@ -1116,6 +1116,27 @@ walkexpr(Node **np, NodeList **init)
 		n->right->right = safeexpr(n->right->right, init);
 		n = sliceany(n, init);  // chops n->right, sets n->list
 		goto ret;
+	
+	case OSLICE3:
+	case OSLICE3ARR:
+		if(n->right == N) // already processed
+			goto ret;
+
+		walkexpr(&n->left, init);
+		// TODO the OINDEX case is a bug elsewhere that needs to be traced.  it causes a crash on ([2][]int{ ... })[1][lo:hi]
+		// TODO the comment on the previous line was copied from case OSLICE. it might not even be true.
+		if(n->left->op == OINDEX)
+			n->left = copyexpr(n->left, n->left->type, init);
+		else
+			n->left = safeexpr(n->left, init);
+		walkexpr(&n->right->left, init);
+		n->right->left = safeexpr(n->right->left, init);
+		walkexpr(&n->right->right->left, init);
+		n->right->right->left = safeexpr(n->right->right->left, init);
+		walkexpr(&n->right->right->right, init);
+		n->right->right->right = safeexpr(n->right->right->right, init);
+		n = sliceany(n, init);  // chops n->right, sets n->list
+		goto ret;
 
 	case OADDR:
 		walkexpr(&n->left, init);
@@ -2575,21 +2596,28 @@ append(Node *n, NodeList **init)
 }
 
 
-// Generate frontend part for OSLICE[ARR|STR]
+// Generate frontend part for OSLICE[3][ARR|STR]
 // 
 static	Node*
 sliceany(Node* n, NodeList **init)
 {
-	int bounded;
-	Node *src, *lb, *hb, *bound, *chk, *chk1, *chk2;
-	int64 lbv, hbv, bv, w;
+	int bounded, slice3;
+	Node *src, *lb, *hb, *cb, *bound, *chk, *chk0, *chk1, *chk2;
+	int64 lbv, hbv, cbv, bv, w;
 	Type *bt;
 
 //	print("before sliceany: %+N\n", n);
 
 	src = n->left;
 	lb = n->right->left;
-	hb = n->right->right;
+	slice3 = n->op == OSLICE3 || n->op == OSLICE3ARR;
+	if(slice3) {
+		hb = n->right->right->left;
+		cb = n->right->right->right;
+	} else {
+		hb = n->right->right;
+		cb = hb;
+	}
 
 	bounded = n->etype;
 	
@@ -2610,6 +2638,13 @@ sliceany(Node* n, NodeList **init)
 			bv = mpgetfix(bound->val.u.xval);
 	}
 
+	if(isconst(cb, CTINT)) {
+		cbv = mpgetfix(cb->val.u.xval);
+		if(cbv < 0 || cbv > bv) {
+			yyerror("slice index out of bounds");
+			cbv = -1;
+		}
+	}
 	if(isconst(hb, CTINT)) {
 		hbv = mpgetfix(hb->val.u.xval);
 		if(hbv < 0 || hbv > bv) {
@@ -2631,10 +2666,13 @@ sliceany(Node* n, NodeList **init)
 	// generate
 	//     if hb > bound || lb > hb { panicslice() }
 	chk = N;
+	chk0 = N;
 	chk1 = N;
 	chk2 = N;
 
 	bt = types[simtype[TUINT]];
+	if(cb != N && cb->type->width > 4)
+		bt = types[TUINT64];
 	if(hb != N && hb->type->width > 4)
 		bt = types[TUINT64];
 	if(lb != N && lb->type->width > 4)
@@ -2642,10 +2680,26 @@ sliceany(Node* n, NodeList **init)
 
 	bound = cheapexpr(conv(bound, bt), init);
 
+	if(cb != N) {
+		cb = cheapexpr(conv(cb, bt), init);
+		if(!bounded)
+			chk0 = nod(OLT, bound, cb);
+	} else if(slice3) {
+		// When we figure out what this means, implement it.
+		fatal("slice3 with cb == N"); // rejected by parser
+	}
+		
 	if(hb != N) {
 		hb = cheapexpr(conv(hb, bt), init);
-		if(!bounded)
-			chk1 = nod(OLT, bound, hb);  
+		if(!bounded) {
+			if(cb != N)
+				chk1 = nod(OLT, cb, hb);
+			else
+				chk1 = nod(OLT, bound, hb);
+		}
+	} else if(slice3) {
+		// When we figure out what this means, implement it.
+		fatal("slice3 with hb == N"); // rejected by parser
 	} else if(n->op == OSLICEARR) {
 		hb = bound;
 	} else {
@@ -2661,11 +2715,17 @@ sliceany(Node* n, NodeList **init)
 			chk2 = nod(OLT, hb, lb);  
 	}
 
-	if(chk1 != N || chk2 != N) {
+	if(chk0 != N || chk1 != N || chk2 != N) {
 		chk = nod(OIF, N, N);
 		chk->nbody = list1(mkcall("panicslice", T, init));
-		if(chk1 != N)
-			chk->ntest = chk1;
+		if(chk0 != N)
+			chk->ntest = chk0;
+		if(chk1 != N) {
+			if(chk->ntest == N)
+				chk->ntest = chk1;
+			else
+				chk->ntest = nod(OOROR, chk->ntest, chk1);
+		}
 		if(chk2 != N) {
 			if(chk->ntest == N)
 				chk->ntest = chk2;
@@ -2683,10 +2743,12 @@ sliceany(Node* n, NodeList **init)
 	// cap = bound [ - lo ]
 	n->right = N;
 	n->list = nil;
+	if(!slice3)
+		cb = bound;
 	if(lb == N)
-		bound = conv(bound, types[simtype[TUINT]]);
+		bound = conv(cb, types[simtype[TUINT]]);
 	else
-		bound = nod(OSUB, conv(bound, types[simtype[TUINT]]), conv(lb, types[simtype[TUINT]]));
+		bound = nod(OSUB, conv(cb, types[simtype[TUINT]]), conv(lb, types[simtype[TUINT]]));
 	typecheck(&bound, Erv);
 	walkexpr(&bound, init);
 	n->list = list(n->list, bound);
