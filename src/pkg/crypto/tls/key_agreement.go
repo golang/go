@@ -10,6 +10,7 @@ import (
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"errors"
 	"io"
@@ -84,7 +85,7 @@ func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello 
 
 // md5SHA1Hash implements TLS 1.0's hybrid hash function which consists of the
 // concatenation of an MD5 and SHA1 hash.
-func md5SHA1Hash(slices ...[]byte) []byte {
+func md5SHA1Hash(slices [][]byte) []byte {
 	md5sha1 := make([]byte, md5.Size+sha1.Size)
 	hmd5 := md5.New()
 	for _, slice := range slices {
@@ -100,10 +101,29 @@ func md5SHA1Hash(slices ...[]byte) []byte {
 	return md5sha1
 }
 
+// sha256Hash implements TLS 1.2's hash function.
+func sha256Hash(slices [][]byte) []byte {
+	h := sha256.New()
+	for _, slice := range slices {
+		h.Write(slice)
+	}
+	return h.Sum(nil)
+}
+
+// hashForServerKeyExchange hashes the given slices and returns their digest
+// and the identifier of the hash function used.
+func hashForServerKeyExchange(version uint16, slices ...[]byte) ([]byte, crypto.Hash) {
+	if version >= VersionTLS12 {
+		return sha256Hash(slices), crypto.SHA256
+	}
+	return md5SHA1Hash(slices), crypto.MD5SHA1
+}
+
 // ecdheRSAKeyAgreement implements a TLS key agreement where the server
 // generates a ephemeral EC public/private key pair and signs it. The
 // pre-master secret is then calculated using ECDH.
 type ecdheRSAKeyAgreement struct {
+	version    uint16
 	privateKey []byte
 	curve      elliptic.Curve
 	x, y       *big.Int
@@ -150,16 +170,25 @@ Curve:
 	serverECDHParams[3] = byte(len(ecdhePublic))
 	copy(serverECDHParams[4:], ecdhePublic)
 
-	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
-	sig, err := rsa.SignPKCS1v15(config.rand(), cert.PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, md5sha1)
+	digest, hashFunc := hashForServerKeyExchange(ka.version, clientHello.random, hello.random, serverECDHParams)
+	sig, err := rsa.SignPKCS1v15(config.rand(), cert.PrivateKey.(*rsa.PrivateKey), hashFunc, digest)
 	if err != nil {
 		return nil, errors.New("failed to sign ECDHE parameters: " + err.Error())
 	}
 
 	skx := new(serverKeyExchangeMsg)
-	skx.key = make([]byte, len(serverECDHParams)+2+len(sig))
+	sigAndHashLen := 0
+	if ka.version >= VersionTLS12 {
+		sigAndHashLen = 2
+	}
+	skx.key = make([]byte, len(serverECDHParams)+sigAndHashLen+2+len(sig))
 	copy(skx.key, serverECDHParams)
 	k := skx.key[len(serverECDHParams):]
+	if ka.version >= VersionTLS12 {
+		k[0] = hashSHA256
+		k[1] = signatureRSA
+		k = k[2:]
+	}
 	k[0] = byte(len(sig) >> 8)
 	k[1] = byte(len(sig))
 	copy(k[2:], sig)
@@ -219,14 +248,21 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 	if len(sig) < 2 {
 		return errServerKeyExchange
 	}
+	if ka.version >= VersionTLS12 {
+		// ignore SignatureAndHashAlgorithm
+		sig = sig[2:]
+		if len(sig) < 2 {
+			return errServerKeyExchange
+		}
+	}
 	sigLen := int(sig[0])<<8 | int(sig[1])
 	if sigLen+2 != len(sig) {
 		return errServerKeyExchange
 	}
 	sig = sig[2:]
 
-	md5sha1 := md5SHA1Hash(clientHello.random, serverHello.random, serverECDHParams)
-	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), crypto.MD5SHA1, md5sha1, sig)
+	digest, hashFunc := hashForServerKeyExchange(ka.version, clientHello.random, serverHello.random, serverECDHParams)
+	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), hashFunc, digest, sig)
 }
 
 func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {

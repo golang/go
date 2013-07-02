@@ -18,6 +18,7 @@ const (
 	VersionSSL30 = 0x0300
 	VersionTLS10 = 0x0301
 	VersionTLS11 = 0x0302
+	VersionTLS12 = 0x0303
 )
 
 const (
@@ -27,7 +28,7 @@ const (
 	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
 
 	minVersion = VersionSSL30
-	maxVersion = VersionTLS11
+	maxVersion = VersionTLS12
 )
 
 // TLS record types.
@@ -63,12 +64,13 @@ const (
 
 // TLS extension numbers
 var (
-	extensionServerName      uint16 = 0
-	extensionStatusRequest   uint16 = 5
-	extensionSupportedCurves uint16 = 10
-	extensionSupportedPoints uint16 = 11
-	extensionSessionTicket   uint16 = 35
-	extensionNextProtoNeg    uint16 = 13172 // not IANA assigned
+	extensionServerName          uint16 = 0
+	extensionStatusRequest       uint16 = 5
+	extensionSupportedCurves     uint16 = 10
+	extensionSupportedPoints     uint16 = 11
+	extensionSignatureAlgorithms uint16 = 13
+	extensionSessionTicket       uint16 = 35
+	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
 )
 
 // TLS Elliptic Curves
@@ -98,6 +100,31 @@ const (
 	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
 	// Rest of these are reserved by the TLS spec
 )
+
+// Hash functions for TLS 1.2 (See RFC 5246, section A.4.1)
+const (
+	hashSHA1   uint8 = 2
+	hashSHA256 uint8 = 4
+)
+
+// Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
+const (
+	signatureRSA   uint8 = 1
+	signatureECDSA uint8 = 3
+)
+
+// signatureAndHash mirrors the TLS 1.2, SignatureAndHashAlgorithm struct. See
+// RFC 5246, section A.4.1.
+type signatureAndHash struct {
+	hash, signature uint8
+}
+
+// supportedSignatureAlgorithms contains the signature and hash algorithms that
+// the code will adverse as supported both in a TLS 1.2 ClientHello and
+// CertificateRequest.
+var supportedSignatureAlgorithms = []signatureAndHash{
+	{hashSHA256, signatureRSA},
+}
 
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {

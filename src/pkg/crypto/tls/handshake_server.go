@@ -5,7 +5,6 @@
 package tls
 
 import (
-	"crypto"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -292,7 +291,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		c.writeRecord(recordTypeHandshake, certStatus.marshal())
 	}
 
-	keyAgreement := hs.suite.ka()
+	keyAgreement := hs.suite.ka(c.vers)
 	skx, err := keyAgreement.generateServerKeyExchange(config, cert, hs.clientHello, hs.hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
@@ -307,6 +306,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		// Request a client certificate
 		certReq := new(certificateRequestMsg)
 		certReq.certificateTypes = []byte{certTypeRSASign}
+		if c.vers >= VersionTLS12 {
+			certReq.hasSignatureAndHash = true
+			certReq.signatureAndHashes = supportedSignatureAlgorithms
+		}
 
 		// An empty list of certificateAuthorities signals to
 		// the client that it may send any certificate in response
@@ -383,10 +386,8 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			return c.sendAlert(alertUnexpectedMessage)
 		}
 
-		digest := make([]byte, 0, 36)
-		digest = hs.finishedHash.serverMD5.Sum(digest)
-		digest = hs.finishedHash.serverSHA1.Sum(digest)
-		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
+		digest, hashFunc := hs.finishedHash.hashForClientCertificate()
+		err = rsa.VerifyPKCS1v15(pub, hashFunc, digest, certVerify.signature)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("could not validate signature of connection nonces: " + err.Error())

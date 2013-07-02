@@ -42,7 +42,7 @@ type cipherSuite struct {
 	keyLen int
 	macLen int
 	ivLen  int
-	ka     func() keyAgreement
+	ka     func(version uint16) keyAgreement
 	// If elliptic is set, a server will only consider this ciphersuite if
 	// the ClientHello indicated that the client supports an elliptic curve
 	// and point format that we can handle.
@@ -157,12 +157,14 @@ func (s tls10MAC) MAC(digestBuf, seq, header, data []byte) []byte {
 	return s.h.Sum(digestBuf[:0])
 }
 
-func rsaKA() keyAgreement {
+func rsaKA(version uint16) keyAgreement {
 	return rsaKeyAgreement{}
 }
 
-func ecdheRSAKA() keyAgreement {
-	return new(ecdheRSAKeyAgreement)
+func ecdheRSAKA(version uint16) keyAgreement {
+	return &ecdheRSAKeyAgreement{
+		version: version,
+	}
 }
 
 // mutualCipherSuite returns a cipherSuite given a list of supported
