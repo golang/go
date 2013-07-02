@@ -314,3 +314,23 @@ func TestOverflowSleep(t *testing.T) {
 		t.Fatalf("negative timeout didn't fire")
 	}
 }
+
+// Test that a panic while deleting a timer does not leave
+// the timers mutex held, deadlocking a ticker.Stop in a defer.
+func TestIssue5745(t *testing.T) {
+	ticker := NewTicker(Hour)
+	defer func() {
+		// would deadlock here before the fix due to
+		// lock taken before the segfault.
+		ticker.Stop()
+
+		if r := recover(); r == nil {
+			t.Error("Expected panic, but none happened.")
+		}
+	}()
+
+	// cause a panic due to a segfault
+	var timer *Timer
+	timer.Stop()
+	t.Error("Should be unreachable.")
+}
