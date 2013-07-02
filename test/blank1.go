@@ -13,9 +13,16 @@ var t struct {
 	_ int
 }
 
+type T struct {
+      _ []int
+}
+
 func main() {
 	_()	// ERROR "cannot use _ as value"
 	x := _+1	// ERROR "cannot use _ as value"
 	_ = x
 	_ = t._ // ERROR "cannot refer to blank field"
+
+      var v1, v2 T
+      _ = v1 == v2 // ERROR "cannot be compared|non-comparable"
 }

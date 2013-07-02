@@ -615,23 +615,23 @@ algtype1(Type *t, Type **bad)
 		return -1;  // needs special compare
 
 	case TSTRUCT:
-		if(t->type != T && t->type->down == T) {
+		if(t->type != T && t->type->down == T && !isblanksym(t->type->sym)) {
 			// One-field struct is same as that one field alone.
 			return algtype1(t->type->type, bad);
 		}
 		ret = AMEM;
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			// Blank fields and padding must be ignored,
-			// so need special compare.
-			if(isblanksym(t1->sym) || ispaddedfield(t1, t->width)) {
+			// All fields must be comparable.
+			a = algtype1(t1->type, bad);
+			if(a == ANOEQ)
+				return ANOEQ;
+
+			// Blank fields, padded fields, fields with non-memory
+			// equality need special compare.
+			if(a != AMEM || isblanksym(t1->sym) || ispaddedfield(t1, t->width)) {
 				ret = -1;
 				continue;
 			}
-			a = algtype1(t1->type, bad);
-			if(a == ANOEQ)
-				return ANOEQ;  // not comparable
-			if(a != AMEM)
-				ret = -1;  // needs special compare
 		}
 		return ret;
 	}

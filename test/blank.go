@@ -27,6 +27,10 @@ func (T) _() {
 func (T) _() {
 }
 
+type U struct {
+	_ struct{ a, b, c int }
+}
+
 const (
 	c0 = iota
 	_
@@ -115,6 +119,13 @@ func main() {
 		t2 := *(*T)(unsafe.Pointer(&T1{4, 5, 6}))
 		if t1 != t2 {
 			panic("T{} != T{}")
+		}
+
+		var u1, u2 interface{}
+		u1 = *(*U)(unsafe.Pointer(&T1{1, 2, 3}))
+		u2 = *(*U)(unsafe.Pointer(&T1{4, 5, 6}))
+		if u1 != u2 {
+			panic("U{} != U{}")
 		}
 	}
 
