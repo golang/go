@@ -20,8 +20,7 @@ type serverCodec struct {
 	c   io.Closer
 
 	// temporary work space
-	req  serverRequest
-	resp serverResponse
+	req serverRequest
 
 	// JSON-RPC clients can use arbitrary json values as request IDs.
 	// Package rpc expects uint64 request IDs.
