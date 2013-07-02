@@ -1475,6 +1475,19 @@ func (v Value) SetLen(n int) {
 	s.Len = n
 }
 
+// SetCap sets v's capacity to n.
+// It panics if v's Kind is not Slice or if n is smaller than the length or
+// greater than the capacity of the slice.
+func (v Value) SetCap(n int) {
+	v.mustBeAssignable()
+	v.mustBe(Slice)
+	s := (*SliceHeader)(v.val)
+	if n < int(s.Len) || n > int(s.Cap) {
+		panic("reflect: slice capacity out of range in SetCap")
+	}
+	s.Cap = n
+}
+
 // SetMapIndex sets the value associated with key in the map v to val.
 // It panics if v's Kind is not Map.
 // If val is the zero Value, SetMapIndex deletes the key from the map.
@@ -1531,17 +1544,18 @@ func (v Value) SetString(x string) {
 	*(*string)(v.val) = x
 }
 
-// Slice returns a slice of v.
-// It panics if v's Kind is not Array, Slice or String, or if v is an unaddressable array.
-func (v Value) Slice(beg, end int) Value {
+// Slice returns v[i:j].
+// It panics if v's Kind is not Array, Slice or String, or if v is an unaddressable array,
+// or if the indexes are out of bounds.
+func (v Value) Slice(i, j int) Value {
 	var (
 		cap  int
 		typ  *sliceType
 		base unsafe.Pointer
 	)
-	switch k := v.kind(); k {
+	switch kind := v.kind(); kind {
 	default:
-		panic(&ValueError{"reflect.Value.Slice", k})
+		panic(&ValueError{"reflect.Value.Slice", kind})
 
 	case Array:
 		if v.flag&flagAddr == 0 {
@@ -1560,17 +1574,17 @@ func (v Value) Slice(beg, end int) Value {
 
 	case String:
 		s := (*StringHeader)(v.val)
-		if beg < 0 || end < beg || end > s.Len {
+		if i < 0 || j < i || j > s.Len {
 			panic("reflect.Value.Slice: string slice index out of bounds")
 		}
 		var x string
 		val := (*StringHeader)(unsafe.Pointer(&x))
-		val.Data = s.Data + uintptr(beg)
-		val.Len = end - beg
+		val.Data = s.Data + uintptr(i)
+		val.Len = j - i
 		return Value{v.typ, unsafe.Pointer(&x), v.flag}
 	}
 
-	if beg < 0 || end < beg || end > cap {
+	if i < 0 || j < i || j > cap {
 		panic("reflect.Value.Slice: slice index out of bounds")
 	}
 
@@ -1579,9 +1593,56 @@ func (v Value) Slice(beg, end int) Value {
 
 	// Reinterpret as *SliceHeader to edit.
 	s := (*SliceHeader)(unsafe.Pointer(&x))
-	s.Data = uintptr(base) + uintptr(beg)*typ.elem.Size()
-	s.Len = end - beg
-	s.Cap = cap - beg
+	s.Data = uintptr(base) + uintptr(i)*typ.elem.Size()
+	s.Len = j - i
+	s.Cap = cap - i
+
+	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
+	return Value{typ.common(), unsafe.Pointer(&x), fl}
+}
+
+// Slice3 is the 3-index form of the slice operation: it returns v[i:j:k].
+// It panics if v's Kind is not Array or Slice, or if v is an unaddressable array,
+// or if the indexes are out of bounds.
+func (v Value) Slice3(i, j, k int) Value {
+	var (
+		cap  int
+		typ  *sliceType
+		base unsafe.Pointer
+	)
+	switch kind := v.kind(); kind {
+	default:
+		panic(&ValueError{"reflect.Value.Slice3", kind})
+
+	case Array:
+		if v.flag&flagAddr == 0 {
+			panic("reflect.Value.Slice: slice of unaddressable array")
+		}
+		tt := (*arrayType)(unsafe.Pointer(v.typ))
+		cap = int(tt.len)
+		typ = (*sliceType)(unsafe.Pointer(tt.slice))
+		base = v.val
+
+	case Slice:
+		typ = (*sliceType)(unsafe.Pointer(v.typ))
+		s := (*SliceHeader)(v.val)
+		base = unsafe.Pointer(s.Data)
+		cap = s.Cap
+	}
+
+	if i < 0 || j < i || k < j || k > cap {
+		panic("reflect.Value.Slice3: slice index out of bounds")
+	}
+
+	// Declare slice so that the garbage collector
+	// can see the base pointer in it.
+	var x []unsafe.Pointer
+
+	// Reinterpret as *SliceHeader to edit.
+	s := (*SliceHeader)(unsafe.Pointer(&x))
+	s.Data = uintptr(base) + uintptr(i)*typ.elem.Size()
+	s.Len = j - i
+	s.Cap = k - i
 
 	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
 	return Value{typ.common(), unsafe.Pointer(&x), fl}
