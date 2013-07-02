@@ -48,7 +48,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	// for declarations with implicit type.
 	if x == nil {
 		x = new(operand)
-		check.expr(x, rhs, nil, iota)
+		check.expr(x, rhs, iota)
 		// don't exit for declarations - we need the lhs first
 		if x.mode == invalid && !decl {
 			return
@@ -70,7 +70,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 		}
 
 		var z operand
-		check.expr(&z, lhs, nil, -1)
+		check.expr(&z, lhs, -1)
 		if z.mode == invalid || z.typ == Typ[Invalid] {
 			return
 		}
@@ -195,7 +195,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int, isCon
 		// Start with rhs so we have expression types
 		// for declarations with implicit types.
 		var x operand
-		check.expr(&x, rhs[0], nil, iota)
+		check.expr(&x, rhs[0], iota)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -335,7 +335,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			// (Caution: This evaluates e.Fun twice, once here and once
 			//           below as part of s.X. This has consequences for
 			//           check.callIdent. Perhaps this can be avoided.)
-			check.expr(&x, e.Fun, nil, -1)
+			check.expr(&x, e.Fun, -1)
 			if x.mode != invalid {
 				if b, ok := x.typ.(*Builtin); ok && !b.isStatement {
 					used = false
@@ -351,15 +351,15 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.errorf(s.Pos(), "%s not used", s.X)
 			// ok to continue
 		}
-		check.rawExpr(&x, s.X, nil, -1, false)
+		check.rawExpr(&x, s.X, nil, -1)
 		if x.mode == typexpr {
 			check.errorf(x.pos(), "%s is not an expression", &x)
 		}
 
 	case *ast.SendStmt:
 		var ch, x operand
-		check.expr(&ch, s.Chan, nil, -1)
-		check.expr(&x, s.Value, nil, -1)
+		check.expr(&ch, s.Chan, -1)
+		check.expr(&x, s.Value, -1)
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
@@ -526,7 +526,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.openScope(s)
 		check.optionalStmt(s.Init)
 		var x operand
-		check.expr(&x, s.Cond, nil, -1)
+		check.expr(&x, s.Cond, -1)
 		if x.mode != invalid && !isBoolean(x.typ) {
 			check.errorf(s.Cond.Pos(), "non-boolean condition in if statement")
 		}
@@ -545,7 +545,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.callIdent(ident, Universe.Lookup(nil, "true"))
 			tag = ident
 		}
-		check.expr(&x, tag, nil, -1)
+		check.expr(&x, tag, -1)
 
 		check.multipleDefaults(s.Body.List)
 		// TODO(gri) check also correct use of fallthrough
@@ -559,7 +559,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				for _, expr := range clause.List {
 					x := x // copy of x (don't modify original)
 					var y operand
-					check.expr(&y, expr, nil, -1)
+					check.expr(&y, expr, -1)
 					if y.mode == invalid {
 						continue // error reported before
 					}
@@ -645,7 +645,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			return
 		}
 		var x operand
-		check.expr(&x, expr.X, nil, -1)
+		check.expr(&x, expr.X, -1)
 		if x.mode == invalid {
 			return
 		}
@@ -670,7 +670,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			// Check each type in this type switch case.
 			var typ Type
 			for _, expr := range clause.List {
-				typ = check.typOrNil(expr, false)
+				typ = check.typOrNil(expr)
 				if typ != nil && typ != Typ[Invalid] {
 					if method, wrongType := MissingMethod(typ, T); method != nil {
 						var msg string
@@ -717,7 +717,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.optionalStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
-			check.expr(&x, s.Cond, nil, -1)
+			check.expr(&x, s.Cond, -1)
 			if x.mode != invalid && !isBoolean(x.typ) {
 				check.errorf(s.Cond.Pos(), "non-boolean condition in for statement")
 			}
@@ -731,7 +731,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// check expression to iterate over
 		decl := s.Tok == token.DEFINE
 		var x operand
-		check.expr(&x, s.X, nil, -1)
+		check.expr(&x, s.X, -1)
 		if x.mode == invalid {
 			// if we don't have a declaration, we can still check the loop's body
 			if !decl {

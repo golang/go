@@ -224,7 +224,12 @@ const (
 const (
 	_b0 = iota
 	_b1 = assert(iota + iota2 == 5)
+	_b2 = len([iota]int{}) // iota may appear in a type!
+	_b3 = assert(_b2 == 2)
+	_b4 = len(A /* ERROR "not a valid composite literal" */ {})
 )
+
+type A [iota /* ERROR "cannot use iota" */ ]int
 
 // special cases
 const (

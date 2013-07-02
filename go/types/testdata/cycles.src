@@ -59,9 +59,8 @@ type (
 	I4 interface{ f(I4) }
 
 	// testcase for issue 5090
-	// TODO(gri) fix this
 	I5 interface{ f(I6) }
-	I6 interface{ I5 /* ERROR "unimplemented" */ }
+	I6 interface{ I5 }
 
 	// maps
 	M0 map[M0]M0

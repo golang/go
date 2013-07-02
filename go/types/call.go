@@ -12,13 +12,13 @@ import (
 )
 
 func (check *checker) call(x *operand, e *ast.CallExpr, iota int) {
-	check.exprOrType(x, e.Fun, iota, false)
+	check.exprOrType(x, e.Fun, iota)
 	if x.mode == invalid {
 		// We don't have a valid call or conversion but we have list of arguments.
 		// Typecheck them independently for better partial type information in
 		// the presence of type errors.
 		for _, arg := range e.Args {
-			check.expr(x, arg, nil, iota)
+			check.expr(x, arg, iota)
 		}
 		goto Error
 
@@ -52,7 +52,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr, iota int) {
 		n := 0 // parameter count
 		if call != nil {
 			// We have a single argument that is a function call.
-			check.expr(x, call, nil, -1)
+			check.expr(x, call, iota)
 			if x.mode == invalid {
 				goto Error // TODO(gri): we can do better
 			}
@@ -153,7 +153,7 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 	z.typ = par.typ
 
 	if arg != nil {
-		check.expr(x, arg, z.typ, -1)
+		check.expr(x, arg, -1)
 	}
 	if x.mode == invalid {
 		return // ignore this argument
@@ -230,7 +230,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr, iota int) {
 		}
 	}
 
-	check.exprOrType(x, e.X, iota, false)
+	check.exprOrType(x, e.X, iota)
 	if x.mode == invalid {
 		goto Error
 	}

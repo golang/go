@@ -103,7 +103,7 @@ func init() {
 		// Error has a nil package in its qualified name since it is in no package
 		sig := &Signature{results: NewTuple(NewVar(token.NoPos, nil, "", Typ[String]))}
 		methods := []*Func{NewFunc(token.NoPos, nil, "Error", sig)}
-		def(NewTypeName(token.NoPos, nil, "error", &Named{underlying: NewInterface(methods)}))
+		def(NewTypeName(token.NoPos, nil, "error", &Named{underlying: NewInterface(methods), complete: true}))
 	}
 
 	for _, c := range predeclaredConstants {

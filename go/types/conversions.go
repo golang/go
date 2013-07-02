@@ -25,7 +25,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 	}
 
 	// evaluate argument
-	check.expr(x, conv.Args[0], nil, iota)
+	check.expr(x, conv.Args[0], iota)
 	if x.mode == invalid {
 		goto Error
 	}

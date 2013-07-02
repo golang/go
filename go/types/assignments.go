@@ -89,7 +89,7 @@ func (check *checker) assignMulti(lhs []Object, rhs []ast.Expr) {
 	if len(lhs) == len(rhs) {
 		var x operand
 		for i, e := range rhs {
-			check.expr(&x, e, nil, -1)
+			check.expr(&x, e, -1)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -106,7 +106,7 @@ func (check *checker) assignMulti(lhs []Object, rhs []ast.Expr) {
 		// Start with rhs so we have expression types
 		// for declarations with implicit types.
 		var x operand
-		check.expr(&x, rhs[0], nil, -1)
+		check.expr(&x, rhs[0], -1)
 		if x.mode == invalid {
 			goto Error
 		}

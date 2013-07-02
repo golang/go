@@ -188,9 +188,9 @@ type (
 // cycles in function/method declarations
 // (test cases for issue 5217 and variants)
 func f1(x f1 /* ERROR "not a type" */ ) {}
-func f2(x *f2 /* ERROR "cannot indirect" */ ) {}
+func f2(x *f2 /* ERROR "not a type" */ ) {}
 func f3() (x f3 /* ERROR "not a type" */ ) { return }
-func f4() (x *f4 /* ERROR "cannot indirect" */ ) { return }
+func f4() (x *f4 /* ERROR "not a type" */ ) { return }
 
 func (S0) m1(x S0 /* ERROR "field or method" */ .m1) {}
 func (S0) m2(x *S0 /* ERROR "field or method" */ .m2) {}

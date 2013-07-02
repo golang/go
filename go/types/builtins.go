@@ -50,7 +50,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 			// respective cases below do the work
 		default:
 			// argument must be an expression
-			check.expr(x, arg0, nil, iota)
+			check.expr(x, arg0, iota)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -65,7 +65,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		}
 		resultTyp := x.typ
 		for _, arg := range args[1:] {
-			check.expr(x, arg, nil, iota)
+			check.expr(x, arg, iota)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -134,7 +134,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		}
 
 		var y operand
-		check.expr(&y, args[1], nil, iota)
+		check.expr(&y, args[1], iota)
 		if y.mode == invalid {
 			goto Error
 		}
@@ -196,7 +196,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 
 	case _Copy:
 		var y operand
-		check.expr(&y, args[1], nil, iota)
+		check.expr(&y, args[1], iota)
 		if y.mode == invalid {
 			goto Error
 		}
@@ -233,7 +233,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			goto Error
 		}
-		check.expr(x, args[1], nil, iota)
+		check.expr(x, args[1], iota)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -271,7 +271,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		x.typ = Typ[k]
 
 	case _Make:
-		resultTyp := check.typ(arg0, false)
+		resultTyp := check.typ(arg0, iota, nil, false)
 		if resultTyp == Typ[Invalid] {
 			goto Error
 		}
@@ -303,7 +303,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		x.typ = resultTyp
 
 	case _New:
-		resultTyp := check.typ(arg0, false)
+		resultTyp := check.typ(arg0, iota, nil, false)
 		if resultTyp == Typ[Invalid] {
 			goto Error
 		}
@@ -315,7 +315,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 
 	case _Print, _Println:
 		for _, arg := range args {
-			check.expr(x, arg, nil, -1)
+			check.expr(x, arg, iota)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -337,7 +337,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
 			goto Error
 		}
-		check.expr(x, arg.X, nil, -1)
+		check.expr(x, arg.X, iota)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -397,7 +397,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		var t operand
 		x1 := x
 		for _, arg := range args {
-			check.rawExpr(x1, arg, nil, iota, true) // permit trace for types, e.g.: new(trace(T))
+			check.rawExpr(x1, arg, nil, iota) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%s: %s", x1.pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}

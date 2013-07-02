@@ -326,7 +326,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	check.topScope = pkg.scope
 	for _, obj := range objList {
 		if obj.Type() == nil {
-			check.declareObject(obj, false)
+			check.declareObject(obj, nil, false)
 		}
 	}
 	check.objMap = nil // done with global declarations
@@ -335,7 +335,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	// - done by the caller for now
 }
 
-func (check *checker) declareObject(obj Object, cycleOk bool) {
+// declareObject declares obj in the top-most scope.
+// See declareType for the details on def and cycleOk.
+func (check *checker) declareObject(obj Object, def *Named, cycleOk bool) {
 	d := check.objMap[obj]
 
 	// adjust file scope for current object
@@ -348,7 +350,7 @@ func (check *checker) declareObject(obj Object, cycleOk bool) {
 	case *Var:
 		check.declareVar(obj, d.typ, d.init)
 	case *TypeName:
-		check.declareType(obj, d.typ, cycleOk)
+		check.declareType(obj, d.typ, def, cycleOk)
 	case *Func:
 		check.declareFunc(obj)
 	default:
@@ -367,11 +369,10 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 	obj.visited = true
 	iota, ok := exact.Int64Val(obj.val) // set in phase 1
 	assert(ok)
-	// obj.val = exact.MakeUnknown() //do we need this? should we set val to nil?
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, false)
+		obj.typ = check.typ(typ, int(iota), nil, false)
 	}
 
 	var x operand
@@ -380,7 +381,7 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 		goto Error // error reported before
 	}
 
-	check.expr(&x, init, nil, int(iota))
+	check.expr(&x, init, int(iota))
 	if x.mode == invalid {
 		goto Error
 	}
@@ -406,7 +407,7 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, false)
+		obj.typ = check.typ(typ, -1, nil, false)
 	}
 
 	if init == nil {
@@ -423,7 +424,7 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 	}
 
 	var x operand
-	check.expr(&x, init, nil, -1)
+	check.expr(&x, init, -1)
 	if x.mode == invalid {
 		goto Error
 	}
@@ -473,10 +474,46 @@ Error:
 	return
 }
 
-func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
+func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycleOk bool) {
+	assert(obj.Type() == nil)
+
 	named := &Named{obj: obj}
-	obj.typ = named // mark object so recursion terminates in case of cycles
-	named.underlying = check.typ(typ, cycleOk).Underlying()
+	obj.typ = named // make sure recursive type declarations terminate
+
+	// If this type (named) defines the type of another (def) type declaration,
+	// set def's underlying type to this type so that we can resolve the true
+	// underlying of def later.
+	if def != nil {
+		def.underlying = named
+	}
+
+	// Typecheck typ - it may be a named type that is not yet complete.
+	// For instance, consider:
+	//
+	//	type (
+	//		A B
+	//		B *C
+	//		C A
+	//	)
+	//
+	// When we declare obj = C, typ is the identifier A which is incomplete.
+	u := check.typ(typ, -1, named, cycleOk)
+
+	// Determine the unnamed underlying type.
+	// In the above example, the underlying type of A was (temporarily) set
+	// to B whose underlying type was set to *C. Such "forward chains" always
+	// end in an unnamed type (cycles are terminated with an invalid type).
+	for {
+		n, _ := u.(*Named)
+		if n == nil {
+			break
+		}
+		u = n.underlying
+	}
+	named.underlying = u
+
+	// the underlying type has been determined
+	named.complete = true
 
 	// typecheck associated method signatures
 	if scope := check.methods[obj]; scope != nil {
@@ -512,7 +549,7 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, cycleOk bool) {
 				oldScope := check.topScope
 				check.topScope = fileScope
 
-				sig := check.typ(m.decl.Type, cycleOk).(*Signature)
+				sig := check.typ(m.decl.Type, -1, nil, cycleOk).(*Signature)
 				params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
 
 				check.topScope = oldScope // reset topScope
@@ -534,7 +571,7 @@ func (check *checker) declareFunc(obj *Func) {
 	// TODO(gri) there is no reason to make this a special case: receivers are simply parameters
 	if fdecl.Recv == nil {
 		obj.typ = Typ[Invalid] // guard against cycles
-		sig := check.typ(fdecl.Type, false).(*Signature)
+		sig := check.typ(fdecl.Type, -1, nil, false).(*Signature)
 		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 			check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
 			// ok to continue
@@ -643,7 +680,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 				check.declare(check.topScope, s.Name, obj)
-				check.declareType(obj, s.Type, false)
+				check.declareType(obj, s.Type, nil, false)
 
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
