@@ -283,3 +283,192 @@ func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
 
 // StringsAreSorted tests whether a slice of strings is sorted in increasing order.
 func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+
+// Notes on stable sorting:
+// The used algorithms are simple and provable correct on all input and use
+// only logarithmic additional stack space.  They perform well if compared
+// experimentaly to other stable in-place sorting algorithms.
+//
+// Remarks on other algoritms evaluated:
+//  - GCC's 4.6.3 stable_sort with merge_without_buffer from libstdc++:
+//    Not faster.
+//  - GCC's __rotate for block rotations: Not faster.
+//  - "Practical in-place mergesort" from  Jyrki Katajainen, Tomi A. Pasanen
+//    and Jukka Teuhola; Nordic Journal of Computing 3,1 (1996), 27-40:
+//    The given algorithms are in-place, number of Swap and Assignments
+//    grow as n log n but the algorithm is not stable.
+//  - "Fast Stable In-Plcae Sorting with O(n) Data Moves" J.I. Munro and
+//    V. Raman in Algorithmica (1996) 16, 115-160:
+//    This algorithm either needs additional 2n bits or works only if there
+//    are enough different elements available to encode some permutations
+//    which have to be undone later (so not stable an any input).
+//  - All the optimal in-place sorting/merging algorithms I found are either
+//    unstable or rely on enough different elements in each step to encode the
+//    performed block rearrangements. See also "In-Place Merging Algorithms",
+//    Denham Coates-Evely, Department of Computer Science, Kings College,
+//    January 2004 and the reverences in there.
+//  - Often "optimal" algorithms are optimal in the number of assignments
+//    but Interface has only Swap as operation.
+
+// Stable sorts data while keeping the original order of equal elements.
+//
+// It makes one call to data.Len to determine n, O(n*log(n)) calls to
+// data.Less and O(n*log(n)*log(n)) calls to data.Swap.
+func Stable(data Interface) {
+	n := data.Len()
+	blockSize := 20
+	a, b := 0, blockSize
+	for b <= n {
+		insertionSort(data, a, b)
+		a = b
+		b += blockSize
+	}
+	insertionSort(data, a, n)
+
+	for blockSize < n {
+		a, b = 0, 2*blockSize
+		for b <= n {
+			symMerge(data, a, a+blockSize, b)
+			a = b
+			b += 2 * blockSize
+		}
+		symMerge(data, a, a+blockSize, n)
+		blockSize *= 2
+	}
+}
+
+// SymMerge merges the two sorted subsequences data[a:m] and data[m:b] using
+// the SymMerge algorithm from Pok-Son Kim and Arne Kutzner, "Stable Minimum
+// Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
+// Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
+// Computer Science, pages 714-723. Springer, 2004.
+//
+// Let M = m-a and N = b-n. Wolog M < N.
+// The recursion depth is bound by ceil(log(N+M)).
+// The algorithm needs O(M*log(N/M + 1)) calls to data.Less.
+// The algorithm needs O((M+N)*log(M)) calls to data.Swap.
+//
+// The paper gives O((M+N)*log(M)) as the number of assignments assuming a
+// rotation algorithm wich uses O(M+N+gcd(M+N)) assignments. The argumentation
+// in the paper carries through for Swap operations, especially as the block
+// swapping rotate uses only O(M+N) Swaps.
+func symMerge(data Interface, a, m, b int) {
+	if a >= m || m >= b {
+		return
+	}
+
+	mid := a + (b-a)/2
+	n := mid + m
+	start := 0
+	if m > mid {
+		start = n - b
+		r, p := mid, n-1
+		for start < r {
+			c := start + (r-start)/2
+			if !data.Less(p-c, c) {
+				start = c + 1
+			} else {
+				r = c
+			}
+		}
+	} else {
+		start = a
+		r, p := m, n-1
+		for start < r {
+			c := start + (r-start)/2
+			if !data.Less(p-c, c) {
+				start = c + 1
+			} else {
+				r = c
+			}
+		}
+	}
+	end := n - start
+	rotate(data, start, m, end)
+	symMerge(data, a, start, mid)
+	symMerge(data, mid, end, b)
+}
+
+// Rotate two consecutives blocks u = data[a:m] and v = data[m:b] in data:
+// Data of the form 'x u v y' is changed to 'x v u y'.
+// Rotate performs at most b-a many calls to data.Swap.
+func rotate(data Interface, a, m, b int) {
+	i := m - a
+	if i == 0 {
+		return
+	}
+	j := b - m
+	if j == 0 {
+		return
+	}
+
+	if i == j {
+		swapRange(data, a, m, i)
+		return
+	}
+
+	p := a + i
+	for i != j {
+		if i > j {
+			swapRange(data, p-i, p, j)
+			i -= j
+		} else {
+			swapRange(data, p-i, p+j-i, i)
+			j -= i
+		}
+	}
+	swapRange(data, p-i, p, i)
+}
+
+/*
+Complexity of Stable Sorting
+
+
+Complexity of block swapping rotation
+
+Each Swap puts one new element into its correct, final position.
+Elements which reach their final position are no longer moved.
+Thus block swapping rotation needs |u|+|v| calls to Swaps.
+This is best possible as each element might need a move.
+
+Pay attention when comparing to other optimal algorithms which
+typically count the number of assignments instead of swaps:
+E.g. the optimal algorithm of Dudzinski and Dydek for in-place
+rotations uses O(u + v + gcd(u,v)) assignments which is
+better than our O(3 * (u+v)) as gcd(u,v) <= u.
+
+
+Stable sorting by SymMerge and BlockSwap rotations
+
+SymMerg complexity for same size input M = N:
+Calls to Less:  O(M*log(N/M+1)) = O(N*log(2)) = O(N)
+Calls to Swap:  O((M+N)*log(M)) = O(2*N*log(N)) = O(N*log(N))
+
+(The following argument does not fuzz over a missing -1 or
+other stuff which does not impact the final result).
+
+Let n = data.Len(). Assume n = 2^k.
+
+Plain merge sort performs log(n) = k iterations.
+On iteration i the algorithm merges 2^(k-i) blocks, each of size 2^i.
+
+Thus iteration i of merge sort performs:
+Calls to Less  O(2^(k-i) * 2^i) = O(2^k) = O(2^log(n)) = O(n)
+Calls to Swap  O(2^(k-i) * 2^i * log(2^i)) = O(2^k * i) = O(n*i)
+
+In total k = log(n) iterations are performed; so in total:
+Calls to Less O(log(n) * n)
+Calls to Swap O(n + 2*n + 3*n + ... + (k-1)*n + k*n)
+   = O((k/2) * k * n) = O(n * k^2) = O(n * log^2(n))
+
+
+Above results should generalize to arbitrary n = 2^k + p
+and should not be influenced by the initial insertion sort phase:
+Insertion sort is O(n^2) on Swap and Less, thus O(bs^2) per block of
+size bs at n/bs blocks:  O(bs*n) Swaps and Less during insertion sort.
+Merge sort iterations start at i = log(bs). With t = log(bs) constant:
+Calls to Less O((log(n)-t) * n + bs*n) = O(log(n)*n + (bs-t)*n)
+   = O(n * log(n))
+Calls to Swap O(n * log^2(n) - (t^2+t)/2*n) = O(n * log^2(n))
+
+*/
