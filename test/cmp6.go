@@ -53,7 +53,7 @@ func main() {
 
 	// Comparison of structs should have a good message
 	use(t3 == t3) // ERROR "struct|expected"
-	use(t4 == t4) // ok; the []int is a blank field
+	use(t4 == t4) // ERROR "cannot be compared|non-comparable"
 
 	// Slices, functions, and maps too.
 	var x []int

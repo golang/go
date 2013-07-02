@@ -296,7 +296,7 @@ func main() {
 	{
 		var x = struct {
 			x int
-			_ []int
+			_ string
 			y float64
 			_ float64
 			z int
