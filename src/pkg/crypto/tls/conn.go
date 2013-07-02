@@ -748,7 +748,9 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	case typeCertificate:
 		m = new(certificateMsg)
 	case typeCertificateRequest:
-		m = new(certificateRequestMsg)
+		m = &certificateRequestMsg{
+			hasSignatureAndHash: c.vers >= VersionTLS12,
+		}
 	case typeCertificateStatus:
 		m = new(certificateStatusMsg)
 	case typeServerKeyExchange:
@@ -758,7 +760,9 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	case typeClientKeyExchange:
 		m = new(clientKeyExchangeMsg)
 	case typeCertificateVerify:
-		m = new(certificateVerifyMsg)
+		m = &certificateVerifyMsg{
+			hasSignatureAndHash: c.vers >= VersionTLS12,
+		}
 	case typeNextProtocol:
 		m = new(nextProtoMsg)
 	case typeFinished:

@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -16,8 +15,6 @@ import (
 )
 
 func (c *Conn) clientHandshake() error {
-	finishedHash := newFinishedHash(VersionTLS10)
-
 	if c.config == nil {
 		c.config = defaultConfig()
 	}
@@ -45,7 +42,10 @@ func (c *Conn) clientHandshake() error {
 		return errors.New("short read from Rand")
 	}
 
-	finishedHash.Write(hello.marshal())
+	if hello.vers >= VersionTLS12 {
+		hello.signatureAndHashes = supportedSignatureAlgorithms
+	}
+
 	c.writeRecord(recordTypeHandshake, hello.marshal())
 
 	msg, err := c.readHandshake()
@@ -56,7 +56,6 @@ func (c *Conn) clientHandshake() error {
 	if !ok {
 		return c.sendAlert(alertUnexpectedMessage)
 	}
-	finishedHash.Write(serverHello.marshal())
 
 	vers, ok := c.config.mutualVersion(serverHello.vers)
 	if !ok || vers < VersionTLS10 {
@@ -65,6 +64,10 @@ func (c *Conn) clientHandshake() error {
 	}
 	c.vers = vers
 	c.haveVers = true
+
+	finishedHash := newFinishedHash(c.vers)
+	finishedHash.Write(hello.marshal())
+	finishedHash.Write(serverHello.marshal())
 
 	if serverHello.compressionMethod != compressionNone {
 		return c.sendAlert(alertUnexpectedMessage)
@@ -148,7 +151,7 @@ func (c *Conn) clientHandshake() error {
 		return err
 	}
 
-	keyAgreement := suite.ka()
+	keyAgreement := suite.ka(c.vers)
 
 	skx, ok := msg.(*serverKeyExchangeMsg)
 	if ok {
@@ -269,10 +272,8 @@ func (c *Conn) clientHandshake() error {
 
 	if chainToSend != nil {
 		certVerify := new(certificateVerifyMsg)
-		digest := make([]byte, 0, 36)
-		digest = finishedHash.serverMD5.Sum(digest)
-		digest = finishedHash.serverSHA1.Sum(digest)
-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, digest)
+		digest, hashFunc := finishedHash.hashForClientCertificate()
+		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey.(*rsa.PrivateKey), hashFunc, digest)
 		if err != nil {
 			return c.sendAlert(alertInternalError)
 		}

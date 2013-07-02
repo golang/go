@@ -135,6 +135,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 			m.sessionTicket = randomBytes(rand.Intn(300), rand)
 		}
 	}
+	if rand.Intn(10) > 5 {
+		m.signatureAndHashes = supportedSignatureAlgorithms
+	}
 
 	return reflect.ValueOf(m)
 }
