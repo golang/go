@@ -504,7 +504,7 @@ func countOps(t *testing.T, algo func(Interface), name string) {
 			desc:    name,
 			t:       t,
 			data:    make([]int, n),
-			maxswap: 1 << 31,
+			maxswap: 1<<31 - 1,
 		}
 		for i := 0; i < n; i++ {
 			td.data[i] = rand.Intn(n / 5)
