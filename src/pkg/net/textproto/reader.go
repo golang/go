@@ -456,7 +456,16 @@ func (r *Reader) ReadDotLines() ([]string, error) {
 //	}
 //
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
-	m := make(MIMEHeader, 4)
+	// Avoid lots of small slice allocations later by allocating one
+	// large one ahead of time which we'll cut up into smaller
+	// slices. If this isn't big enough later, we allocate small ones.
+	var strs []string
+	hint := r.upcomingHeaderNewlines()
+	if hint > 0 {
+		strs = make([]string, hint)
+	}
+
+	m := make(MIMEHeader, hint)
 	for {
 		kv, err := r.readContinuedLineSlice()
 		if len(kv) == 0 {
@@ -483,12 +492,46 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 		}
 		value := string(kv[i:])
 
-		m[key] = append(m[key], value)
+		vv := m[key]
+		if vv == nil && len(strs) > 0 {
+			// More than likely this will be a single-element key.
+			// Most headers aren't multi-valued.
+			// Set the capacity on strs[0] to 1, so any future append
+			// won't extend the slice into the other strings.
+			vv, strs = strs[:1:1], strs[1:]
+			vv[0] = value
+			m[key] = vv
+		} else {
+			m[key] = append(vv, value)
+		}
 
 		if err != nil {
 			return m, err
 		}
 	}
+}
+
+// upcomingHeaderNewlines returns an approximation of the number of newlines
+// that will be in this header. If it gets confused, it returns 0.
+func (r *Reader) upcomingHeaderNewlines() (n int) {
+	// Try to determine the 'hint' size.
+	r.R.Peek(1) // force a buffer load if empty
+	s := r.R.Buffered()
+	if s == 0 {
+		return
+	}
+	peek, _ := r.R.Peek(s)
+	for len(peek) > 0 {
+		i := bytes.IndexByte(peek, '\n')
+		if i < 3 {
+			// Not present (-1) or found within the next few bytes,
+			// implying we're at the end ("\r\n\r\n" or "\n\n")
+			return
+		}
+		n++
+		peek = peek[i+1:]
+	}
+	return
 }
 
 // CanonicalMIMEHeaderKey returns the canonical format of the
