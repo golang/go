@@ -2139,13 +2139,8 @@ start:
 		case token.GOTO:
 			block = fn.labelledBlock(s.Label)._goto
 		}
-		if block == nil {
-			// TODO(gri): fix: catch these in the typechecker.
-			fmt.Printf("ignoring illegal branch: %s %s\n", s.Tok, s.Label)
-		} else {
-			emitJump(fn, block)
-			fn.currentBlock = fn.newBasicBlock("unreachable")
-		}
+		emitJump(fn, block)
+		fn.currentBlock = fn.newBasicBlock("unreachable")
 
 	case *ast.BlockStmt:
 		b.stmtList(fn, s.List)
