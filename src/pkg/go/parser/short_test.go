@@ -78,12 +78,6 @@ var invalids = []string{
 	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,
 	`package p; func f() { var s []int; _ = s[::: /* ERROR "expected ']'" */ ] };`,
 	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
-	`package p; func f() { var s []int; g(s[::] /* ERROR "index must be present" */) };`,
-	`package p; func f() { var s []int; g(s[i::] /* ERROR "index must be present" */) };`,
-	`package p; func f() { var s []int; g(s[i:j:] /* ERROR "index must be present" */) };`,
-	`package p; func f() { var s []int; g(s[::k] /* ERROR "index must be present" */) };`,
-	`package p; func f() { var s []int; g(s[:j:] /* ERROR "index must be present" */) };`,
-	`package p; func f() { var s []int; g(s[i::k] /* ERROR "index must be present" */) };`,
 }
 
 func TestInvalid(t *testing.T) {

@@ -1187,10 +1187,6 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 
 	if ncolons > 0 {
 		// slice expression
-		if ncolons == 2 && (index[1] == nil || index[2] == nil) {
-			// only i is optional in a[i:j:k]
-			p.error(rbrack, "2nd and 3rd index must be present full slice expression")
-		}
 		return &ast.SliceExpr{X: x, Lbrack: lbrack, Low: index[0], High: index[1], Max: index[2], Rbrack: rbrack}
 	}
 
