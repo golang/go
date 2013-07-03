@@ -57,17 +57,11 @@ func (info *PackageInfo) Imports() []*types.Package {
 // Precondition: e belongs to the package's ASTs.
 //
 func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
-	// For Ident, b.types may be more specific than
-	// b.obj(id.(*ast.Ident)).GetType(),
-	// e.g. in the case of typeswitch.
 	if t, ok := info.types[e]; ok {
 		return t
 	}
-	// The typechecker doesn't notify us of all Idents,
-	// e.g. s.Key and s.Value in a RangeStmt.
-	// So we have this fallback.
-	// TODO(gri): This is a typechecker bug.  When fixed,
-	// eliminate this case and panic.
+	// Defining ast.Idents (id := expr) get only Ident callbacks
+	// but not Expr callbacks.
 	if id, ok := e.(*ast.Ident); ok {
 		return info.ObjectOf(id).Type()
 	}
