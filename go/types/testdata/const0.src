@@ -231,8 +231,43 @@ const (
 
 type A [iota /* ERROR "cannot use iota" */ ]int
 
+// constant expressions with operands accross different
+// constant declarations must use the right iota values
+const (
+	_c0 = iota
+	_c1
+	_c2
+	_x = _c2 + _d1 + _e0 // 3
+)
+
+const (
+	_d0 = iota
+	_d1
+)
+
+const (
+	_e0 = iota
+)
+
+var _ = assert(_x == 3)
+
 // special cases
 const (
 	_n0 = nil /* ERROR "invalid constant type" */
 	_n1 = [ /* ERROR "not constant" */ ]int{}
 )
+
+// iotas must not be usable in expressions outside constant declarations
+type _ [iota /* ERROR "iota outside constant decl" */ ]byte
+var _ = iota /* ERROR "iota outside constant decl" */
+func _() {
+	_ = iota /* ERROR "iota outside constant decl" */
+	const _ = iota
+	_ = iota /* ERROR "iota outside constant decl" */
+}
+
+func _() {
+	iota := 123
+	const x = iota /* ERROR "is not constant" */
+	var y = iota
+}

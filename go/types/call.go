@@ -11,19 +11,19 @@ import (
 	"go/token"
 )
 
-func (check *checker) call(x *operand, e *ast.CallExpr, iota int) {
-	check.exprOrType(x, e.Fun, iota)
+func (check *checker) call(x *operand, e *ast.CallExpr) {
+	check.exprOrType(x, e.Fun)
 	if x.mode == invalid {
 		// We don't have a valid call or conversion but we have list of arguments.
 		// Typecheck them independently for better partial type information in
 		// the presence of type errors.
 		for _, arg := range e.Args {
-			check.expr(x, arg, iota)
+			check.expr(x, arg)
 		}
 		goto Error
 
 	} else if x.mode == typexpr {
-		check.conversion(x, e, x.typ, iota)
+		check.conversion(x, e, x.typ)
 
 	} else if sig, ok := x.typ.Underlying().(*Signature); ok {
 		// check parameters
@@ -52,7 +52,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr, iota int) {
 		n := 0 // parameter count
 		if call != nil {
 			// We have a single argument that is a function call.
-			check.expr(x, call, iota)
+			check.expr(x, call)
 			if x.mode == invalid {
 				goto Error // TODO(gri): we can do better
 			}
@@ -104,7 +104,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr, iota int) {
 		}
 
 	} else if bin, ok := x.typ.(*Builtin); ok {
-		check.builtin(x, e, bin, iota)
+		check.builtin(x, e, bin)
 
 	} else {
 		check.invalidOp(x.pos(), "cannot call non-function %s", x)
@@ -153,7 +153,7 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 	z.typ = par.typ
 
 	if arg != nil {
-		check.expr(x, arg, -1)
+		check.expr(x, arg)
 	}
 	if x.mode == invalid {
 		return // ignore this argument
@@ -176,7 +176,7 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 	}
 }
 
-func (check *checker) selector(x *operand, e *ast.SelectorExpr, iota int) {
+func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -230,7 +230,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr, iota int) {
 		}
 	}
 
-	check.exprOrType(x, e.X, iota)
+	check.exprOrType(x, e.X)
 	if x.mode == invalid {
 		goto Error
 	}

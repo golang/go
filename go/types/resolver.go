@@ -335,7 +335,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	// - done by the caller for now
 }
 
-// declareObject declares obj in the top-most scope.
+// declareObject completes the declaration of obj in its respective file scope.
 // See declareType for the details on def and cycleOk.
 func (check *checker) declareObject(obj Object, def *Named, cycleOk bool) {
 	d := check.objMap[obj]
@@ -343,6 +343,10 @@ func (check *checker) declareObject(obj Object, def *Named, cycleOk bool) {
 	// adjust file scope for current object
 	oldScope := check.topScope
 	check.topScope = d.file // for lookup
+
+	// save current iota
+	oldIota := check.iota
+	check.iota = nil
 
 	switch obj := obj.(type) {
 	case *Const:
@@ -357,6 +361,7 @@ func (check *checker) declareObject(obj Object, def *Named, cycleOk bool) {
 		unreachable()
 	}
 
+	check.iota = oldIota
 	check.topScope = oldScope
 }
 
@@ -367,12 +372,14 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 		return
 	}
 	obj.visited = true
-	iota, ok := exact.Int64Val(obj.val) // set in phase 1
-	assert(ok)
+
+	// use the correct value of iota
+	assert(check.iota == nil)
+	check.iota = obj.val
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, int(iota), nil, false)
+		obj.typ = check.typ(typ, nil, false)
 	}
 
 	var x operand
@@ -381,12 +388,13 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 		goto Error // error reported before
 	}
 
-	check.expr(&x, init, int(iota))
+	check.expr(&x, init)
 	if x.mode == invalid {
 		goto Error
 	}
 
 	check.assign(obj, &x)
+	check.iota = nil
 	return
 
 Error:
@@ -395,6 +403,7 @@ Error:
 	} else {
 		obj.val = exact.MakeUnknown()
 	}
+	check.iota = nil
 }
 
 func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
@@ -405,9 +414,12 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 	}
 	obj.visited = true
 
+	// var declarations cannot use iota
+	assert(check.iota == nil)
+
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, -1, nil, false)
+		obj.typ = check.typ(typ, nil, false)
 	}
 
 	if init == nil {
@@ -424,7 +436,7 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 	}
 
 	var x operand
-	check.expr(&x, init, -1)
+	check.expr(&x, init)
 	if x.mode == invalid {
 		goto Error
 	}
@@ -477,6 +489,9 @@ Error:
 func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycleOk bool) {
 	assert(obj.Type() == nil)
 
+	// type declarations cannot use iota
+	assert(check.iota == nil)
+
 	named := &Named{obj: obj}
 	obj.typ = named // make sure recursive type declarations terminate
 
@@ -497,7 +512,7 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycle
 	//	)
 	//
 	// When we declare obj = C, typ is the identifier A which is incomplete.
-	u := check.typ(typ, -1, named, cycleOk)
+	u := check.typ(typ, named, cycleOk)
 
 	// Determine the unnamed underlying type.
 	// In the above example, the underlying type of A was (temporarily) set
@@ -549,7 +564,7 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycle
 				oldScope := check.topScope
 				check.topScope = fileScope
 
-				sig := check.typ(m.decl.Type, -1, nil, cycleOk).(*Signature)
+				sig := check.typ(m.decl.Type, nil, cycleOk).(*Signature)
 				params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
 
 				check.topScope = oldScope // reset topScope
@@ -566,12 +581,15 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycle
 }
 
 func (check *checker) declareFunc(obj *Func) {
+	// func declarations cannot use iota
+	assert(check.iota == nil)
+
 	fdecl := obj.decl
 	// methods are typechecked when their receivers are typechecked
 	// TODO(gri) there is no reason to make this a special case: receivers are simply parameters
 	if fdecl.Recv == nil {
 		obj.typ = Typ[Invalid] // guard against cycles
-		sig := check.typ(fdecl.Type, -1, nil, false).(*Signature)
+		sig := check.typ(fdecl.Type, nil, false).(*Signature)
 		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 			check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
 			// ok to continue

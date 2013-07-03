@@ -16,10 +16,9 @@ import (
 
 // ident typechecks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
-// iota >= 0 indicates that the expression is part of a constant declaration.
 // For the meaning of def and cycleOk, see check.typ, below.
 //
-func (check *checker) ident(x *operand, e *ast.Ident, iota int, def *Named, cycleOk bool) {
+func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) {
 	x.mode = invalid
 	x.expr = e
 
@@ -56,11 +55,11 @@ func (check *checker) ident(x *operand, e *ast.Ident, iota int, def *Named, cycl
 			return
 		}
 		if obj == universeIota {
-			if iota < 0 {
-				check.invalidAST(e.Pos(), "cannot use iota outside constant declaration")
+			if check.iota == nil {
+				check.errorf(e.Pos(), "cannot use iota outside constant declaration")
 				return
 			}
-			x.val = exact.MakeInt64(int64(iota))
+			x.val = check.iota
 		} else {
 			x.val = obj.val // may be nil if we don't know the constant value
 		}
@@ -93,14 +92,13 @@ func (check *checker) ident(x *operand, e *ast.Ident, iota int, def *Named, cycl
 
 // typ typechecks the type expression e and initializes x with the type of e.
 // If an error occurred, x.mode is set to invalid.
-// iota >= 0 indicates that the expression is part of a constant declaration.
 // If def != nil, e is the type specification for the named type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are typechecked.
 // If cycleOk is set, e (or elements of e) may refer to a named type that is not
 // yet completely set up.
 //
-func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res Type) {
+func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) (res Type) {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		defer check.untrace("=> %s", res)
@@ -117,7 +115,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 	switch e := e.(type) {
 	case *ast.Ident:
 		var x operand
-		check.ident(&x, e, iota, def, cycleOk)
+		check.ident(&x, e, def, cycleOk)
 
 		switch x.mode {
 		case typexpr:
@@ -132,7 +130,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 
 	case *ast.SelectorExpr:
 		var x operand
-		check.selector(&x, e, iota)
+		check.selector(&x, e)
 
 		switch x.mode {
 		case typexpr:
@@ -146,12 +144,12 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 		}
 
 	case *ast.ParenExpr:
-		return check.typ(e.X, iota, def, cycleOk)
+		return check.typ(e.X, def, cycleOk)
 
 	case *ast.ArrayType:
 		if e.Len != nil {
 			var x operand
-			check.expr(&x, e.Len, iota)
+			check.expr(&x, e.Len)
 			if x.mode != constant {
 				if x.mode != invalid {
 					check.errorf(x.pos(), "array length %s must be constant", &x)
@@ -174,7 +172,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 			}
 
 			typ.len = n
-			typ.elt = check.typ(e.Elt, iota, nil, cycleOk)
+			typ.elt = check.typ(e.Elt, nil, cycleOk)
 			return typ
 
 		} else {
@@ -183,7 +181,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 				def.underlying = typ
 			}
 
-			typ.elt = check.typ(e.Elt, iota, nil, true)
+			typ.elt = check.typ(e.Elt, nil, true)
 			return typ
 		}
 
@@ -202,7 +200,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 			def.underlying = typ
 		}
 
-		typ.base = check.typ(e.X, iota, nil, true)
+		typ.base = check.typ(e.X, nil, true)
 		return typ
 
 	case *ast.FuncType:
@@ -238,8 +236,8 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 			def.underlying = typ
 		}
 
-		typ.key = check.typ(e.Key, iota, nil, true)
-		typ.elt = check.typ(e.Value, iota, nil, true)
+		typ.key = check.typ(e.Key, nil, true)
+		typ.elt = check.typ(e.Value, nil, true)
 		return typ
 
 	case *ast.ChanType:
@@ -249,7 +247,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 		}
 
 		typ.dir = e.Dir
-		typ.elt = check.typ(e.Value, iota, nil, true)
+		typ.elt = check.typ(e.Value, nil, true)
 		return typ
 
 	default:
@@ -265,7 +263,7 @@ func (check *checker) typ(e ast.Expr, iota int, def *Named, cycleOk bool) (res T
 //
 func (check *checker) typOrNil(e ast.Expr) Type {
 	var x operand
-	check.rawExpr(&x, e, nil, -1)
+	check.rawExpr(&x, e, nil)
 	switch x.mode {
 	case invalid:
 		// ignore - error reported before
@@ -302,7 +300,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		}
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag
-		typ := check.typ(ftype, -1, nil, true)
+		typ := check.typ(ftype, nil, true)
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
@@ -337,7 +335,7 @@ func (check *checker) collectMethods(list *ast.FieldList, cycleOk bool) (methods
 	}
 	scope := NewScope(nil)
 	for _, f := range list.List {
-		typ := check.typ(f.Type, -1, nil, cycleOk)
+		typ := check.typ(f.Type, nil, cycleOk)
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag
 		if len(f.Names) > 0 {
@@ -413,7 +411,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 	}
 
 	for _, f := range list.List {
-		typ = check.typ(f.Type, -1, nil, cycleOk)
+		typ = check.typ(f.Type, nil, cycleOk)
 		tag = check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields

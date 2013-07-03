@@ -48,6 +48,7 @@ type checker struct {
 
 	objMap   map[Object]*decl // if set we are in the package-global declaration phase (otherwise all objects seen must be declared)
 	topScope *Scope           // topScope for lookups, non-global declarations
+	iota     exact.Value      // value of iota in a constant declaration; nil otherwise
 
 	// functions
 	funclist []function  // list of functions/methods with correct signatures and non-empty bodies

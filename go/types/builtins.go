@@ -16,12 +16,11 @@ import (
 // TODO(gri): Several built-ins are missing assignment checks. As a result,
 //            non-constant shift arguments may not be properly type-checked.
 
-// builtin typechecks a built-in call. The built-in type is bin, and iota is the current
-// value of iota or -1 if iota doesn't have a value in the current context. The result
-// of the call is returned via x. If the call has type errors, the returned x is marked
-// as invalid (x.mode == invalid).
+// builtin typechecks a built-in call. The built-in type is bin, and the result
+// of the call is returned via x. If the call has type errors, the returned x is
+// marked as invalid (x.mode == invalid).
 //
-func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota int) {
+func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 	args := call.Args
 	id := bin.id
 
@@ -50,7 +49,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 			// respective cases below do the work
 		default:
 			// argument must be an expression
-			check.expr(x, arg0, iota)
+			check.expr(x, arg0)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -65,7 +64,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		}
 		resultTyp := x.typ
 		for _, arg := range args[1:] {
-			check.expr(x, arg, iota)
+			check.expr(x, arg)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -134,7 +133,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		}
 
 		var y operand
-		check.expr(&y, args[1], iota)
+		check.expr(&y, args[1])
 		if y.mode == invalid {
 			goto Error
 		}
@@ -196,7 +195,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 
 	case _Copy:
 		var y operand
-		check.expr(&y, args[1], iota)
+		check.expr(&y, args[1])
 		if y.mode == invalid {
 			goto Error
 		}
@@ -233,7 +232,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			goto Error
 		}
-		check.expr(x, args[1], iota)
+		check.expr(x, args[1])
 		if x.mode == invalid {
 			goto Error
 		}
@@ -271,7 +270,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		x.typ = Typ[k]
 
 	case _Make:
-		resultTyp := check.typ(arg0, iota, nil, false)
+		resultTyp := check.typ(arg0, nil, false)
 		if resultTyp == Typ[Invalid] {
 			goto Error
 		}
@@ -291,7 +290,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		}
 		var sizes []int64 // constant integer arguments, if any
 		for _, arg := range args[1:] {
-			if s, ok := check.index(arg, -1, iota); ok && s >= 0 {
+			if s, ok := check.index(arg, -1); ok && s >= 0 {
 				sizes = append(sizes, s)
 			}
 		}
@@ -303,7 +302,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		x.typ = resultTyp
 
 	case _New:
-		resultTyp := check.typ(arg0, iota, nil, false)
+		resultTyp := check.typ(arg0, nil, false)
 		if resultTyp == Typ[Invalid] {
 			goto Error
 		}
@@ -315,7 +314,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 
 	case _Print, _Println:
 		for _, arg := range args {
-			check.expr(x, arg, iota)
+			check.expr(x, arg)
 			if x.mode == invalid {
 				goto Error
 			}
@@ -337,7 +336,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
 			goto Error
 		}
-		check.expr(x, arg.X, iota)
+		check.expr(x, arg.X)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -397,7 +396,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin, iota
 		var t operand
 		x1 := x
 		for _, arg := range args {
-			check.rawExpr(x1, arg, nil, iota) // permit trace for types, e.g.: new(trace(T))
+			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%s: %s", x1.pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}

@@ -41,14 +41,14 @@ func (check *checker) assignment(x *operand, to Type) bool {
 // if its type is not set, it is deduced from the type of x or set to Typ[Invalid] in
 // case of an error.
 //
-func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota int, isConst bool) {
+func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, isConst bool) {
 	assert(!isConst || decl)
 
 	// Start with rhs so we have an expression type
 	// for declarations with implicit type.
 	if x == nil {
 		x = new(operand)
-		check.expr(x, rhs, iota)
+		check.expr(x, rhs)
 		// don't exit for declarations - we need the lhs first
 		if x.mode == invalid && !decl {
 			return
@@ -70,7 +70,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 		}
 
 		var z operand
-		check.expr(&z, lhs, -1)
+		check.expr(&z, lhs)
 		if z.mode == invalid || z.typ == Typ[Invalid] {
 			return
 		}
@@ -174,7 +174,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 // of the corresponding rhs expressions, or set to Typ[Invalid] in case of an error.
 // Precondition: len(lhs) > 0 .
 //
-func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int, isConst bool) {
+func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, isConst bool) {
 	assert(len(lhs) > 0)
 	assert(!isConst || decl)
 
@@ -182,7 +182,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int, isCon
 	// matching pair as an individual pair.
 	if len(lhs) == len(rhs) {
 		for i, e := range rhs {
-			check.assign1to1(lhs[i], e, nil, decl, iota, isConst)
+			check.assign1to1(lhs[i], e, nil, decl, isConst)
 		}
 		return
 	}
@@ -195,7 +195,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int, isCon
 		// Start with rhs so we have expression types
 		// for declarations with implicit types.
 		var x operand
-		check.expr(&x, rhs[0], iota)
+		check.expr(&x, rhs[0])
 		if x.mode == invalid {
 			goto Error
 		}
@@ -207,7 +207,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int, isCon
 				obj := t.At(i)
 				x.expr = nil // TODO(gri) should do better here
 				x.typ = obj.typ
-				check.assign1to1(lhs[i], nil, &x, decl, iota, isConst)
+				check.assign1to1(lhs[i], nil, &x, decl, isConst)
 			}
 			return
 		}
@@ -215,10 +215,10 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int, isCon
 		if x.mode == valueok && len(lhs) == 2 {
 			// comma-ok expression
 			x.mode = value
-			check.assign1to1(lhs[0], nil, &x, decl, iota, isConst)
+			check.assign1to1(lhs[0], nil, &x, decl, isConst)
 
 			x.typ = Typ[UntypedBool]
-			check.assign1to1(lhs[1], nil, &x, decl, iota, isConst)
+			check.assign1to1(lhs[1], nil, &x, decl, isConst)
 			return
 		}
 	}
@@ -307,6 +307,10 @@ func (check *checker) closeScope() {
 
 // stmt typechecks statement s.
 func (check *checker) stmt(s ast.Stmt) {
+	// statements cannot use iota in general
+	// (constant declarations set it explicitly)
+	assert(check.iota == nil)
+
 	switch s := s.(type) {
 	case *ast.BadStmt, *ast.EmptyStmt:
 		// ignore
@@ -335,7 +339,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			// (Caution: This evaluates e.Fun twice, once here and once
 			//           below as part of s.X. This has consequences for
 			//           check.callIdent. Perhaps this can be avoided.)
-			check.expr(&x, e.Fun, -1)
+			check.expr(&x, e.Fun)
 			if x.mode != invalid {
 				if b, ok := x.typ.(*Builtin); ok && !b.isStatement {
 					used = false
@@ -351,15 +355,15 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.errorf(s.Pos(), "%s not used", s.X)
 			// ok to continue
 		}
-		check.rawExpr(&x, s.X, nil, -1)
+		check.rawExpr(&x, s.X, nil)
 		if x.mode == typexpr {
 			check.errorf(x.pos(), "%s is not an expression", &x)
 		}
 
 	case *ast.SendStmt:
 		var ch, x operand
-		check.expr(&ch, s.Chan, -1)
-		check.expr(&x, s.Value, -1)
+		check.expr(&ch, s.Chan)
+		check.expr(&x, s.Value)
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
@@ -382,11 +386,11 @@ func (check *checker) stmt(s ast.Stmt) {
 		}
 		var x operand
 		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
-		check.binary(&x, s.X, Y, op, -1)
+		check.binary(&x, s.X, Y, op)
 		if x.mode == invalid {
 			return
 		}
-		check.assign1to1(s.X, nil, &x, false, -1, false)
+		check.assign1to1(s.X, nil, &x, false, false)
 
 	case *ast.AssignStmt:
 		switch s.Tok {
@@ -418,7 +422,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				check.declareShort(check.topScope, lhs) // scope starts after the assignment
 
 			} else {
-				check.assignNtoM(s.Lhs, s.Rhs, s.Tok == token.DEFINE, -1, false)
+				check.assignNtoM(s.Lhs, s.Rhs, s.Tok == token.DEFINE, false)
 			}
 
 		default:
@@ -457,21 +461,21 @@ func (check *checker) stmt(s ast.Stmt) {
 				return
 			}
 			var x operand
-			check.binary(&x, s.Lhs[0], s.Rhs[0], op, -1)
+			check.binary(&x, s.Lhs[0], s.Rhs[0], op)
 			if x.mode == invalid {
 				return
 			}
-			check.assign1to1(s.Lhs[0], nil, &x, false, -1, false)
+			check.assign1to1(s.Lhs[0], nil, &x, false, false)
 		}
 
 	case *ast.GoStmt:
 		var x operand
-		check.call(&x, s.Call, -1)
+		check.call(&x, s.Call)
 		// TODO(gri) If a builtin is called, the builtin must be valid this context.
 
 	case *ast.DeferStmt:
 		var x operand
-		check.call(&x, s.Call, -1)
+		check.call(&x, s.Call)
 		// TODO(gri) If a builtin is called, the builtin must be valid this context.
 
 	case *ast.ReturnStmt:
@@ -508,7 +512,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			}
 			if len(s.Results) > 0 || !named {
 				// TODO(gri) assignNtoM should perhaps not require len(lhs) > 0
-				check.assignNtoM(lhs, s.Results, false, -1, false)
+				check.assignNtoM(lhs, s.Results, false, false)
 			}
 		} else if len(s.Results) > 0 {
 			check.errorf(s.Pos(), "no result values expected")
@@ -526,7 +530,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.openScope(s)
 		check.optionalStmt(s.Init)
 		var x operand
-		check.expr(&x, s.Cond, -1)
+		check.expr(&x, s.Cond)
 		if x.mode != invalid && !isBoolean(x.typ) {
 			check.errorf(s.Cond.Pos(), "non-boolean condition in if statement")
 		}
@@ -545,7 +549,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.callIdent(ident, Universe.Lookup(nil, "true"))
 			tag = ident
 		}
-		check.expr(&x, tag, -1)
+		check.expr(&x, tag)
 
 		check.multipleDefaults(s.Body.List)
 		// TODO(gri) check also correct use of fallthrough
@@ -559,7 +563,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				for _, expr := range clause.List {
 					x := x // copy of x (don't modify original)
 					var y operand
-					check.expr(&y, expr, -1)
+					check.expr(&y, expr)
 					if y.mode == invalid {
 						continue // error reported before
 					}
@@ -645,7 +649,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			return
 		}
 		var x operand
-		check.expr(&x, expr.X, -1)
+		check.expr(&x, expr.X)
 		if x.mode == invalid {
 			return
 		}
@@ -717,7 +721,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.optionalStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
-			check.expr(&x, s.Cond, -1)
+			check.expr(&x, s.Cond)
 			if x.mode != invalid && !isBoolean(x.typ) {
 				check.errorf(s.Cond.Pos(), "non-boolean condition in for statement")
 			}
@@ -731,7 +735,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// check expression to iterate over
 		decl := s.Tok == token.DEFINE
 		var x operand
-		check.expr(&x, s.X, -1)
+		check.expr(&x, s.X)
 		if x.mode == invalid {
 			// if we don't have a declaration, we can still check the loop's body
 			if !decl {
@@ -792,7 +796,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if s.Key != nil {
 			x.typ = key
 			x.expr = s.Key
-			check.assign1to1(s.Key, nil, &x, decl, -1, false)
+			check.assign1to1(s.Key, nil, &x, decl, false)
 		} else {
 			check.invalidAST(s.Pos(), "range clause requires index iteration variable")
 			// ok to continue
@@ -800,7 +804,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if s.Value != nil {
 			x.typ = val
 			x.expr = s.Value
-			check.assign1to1(s.Value, nil, &x, decl, -1, false)
+			check.assign1to1(s.Value, nil, &x, decl, false)
 		}
 
 		check.stmt(s.Body)

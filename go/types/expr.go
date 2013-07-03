@@ -17,7 +17,6 @@ import (
 // - don't print error messages referring to invalid types (they are likely spurious errors)
 // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
 // - rethink error handling: should all callers check if x.mode == valid after making a call?
-// - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
 // - consider storing error messages in invalid operands for better error messages/debugging output
 
 // TODO(gri) Test issues
@@ -39,9 +38,6 @@ If a hint argument is present, it is the composite literal element type
 of an outer composite literal; it is used to type-check composite literal
 elements that have no explicit type specification in the source
 (e.g.: []T{{...}, {...}}, the hint is the type T in this case).
-
-If an iota argument >= 0 is present, it is the value of iota for the
-specific expression.
 
 All expressions are checked via rawExpr, which dispatches according
 to expression kind. Upon returning, rawExpr is recording the types and
@@ -611,11 +607,11 @@ var binaryOpPredicates = opPredicates{
 	token.LOR:  isBoolean,
 }
 
-func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota int) {
+func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 	var y operand
 
-	check.expr(x, lhs, iota)
-	check.expr(&y, rhs, iota)
+	check.expr(x, lhs)
+	check.expr(&y, rhs)
 
 	if x.mode == invalid {
 		return
@@ -686,10 +682,9 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota
 
 // index checks an index/size expression arg for validity.
 // If length >= 0, it is the upper bound for arg.
-// TODO(gri): Do we need iota?
-func (check *checker) index(arg ast.Expr, length int64, iota int) (i int64, ok bool) {
+func (check *checker) index(arg ast.Expr, length int64) (i int64, ok bool) {
 	var x operand
-	check.expr(&x, arg, iota)
+	check.expr(&x, arg)
 
 	// an untyped constant must be representable as Int
 	check.convertUntyped(&x, Typ[Int])
@@ -726,7 +721,7 @@ func (check *checker) index(arg ast.Expr, length int64, iota int) (i int64, ok b
 // the literal length if known (length >= 0). It returns the length of the
 // literal (maximum index value + 1).
 //
-func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota int) int64 {
+func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64 {
 	visited := make(map[int64]bool, len(elts))
 	var index, max int64
 	for _, e := range elts {
@@ -734,7 +729,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 		validIndex := false
 		eval := e
 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-			if i, ok := check.index(kv.Key, length, iota); ok {
+			if i, ok := check.index(kv.Key, length); ok {
 				if i >= 0 {
 					index = i
 				}
@@ -761,7 +756,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 
 		// check element against composite literal element type
 		var x operand
-		check.exprWithHint(&x, eval, typ, iota)
+		check.exprWithHint(&x, eval, typ)
 		if !check.assignment(&x, typ) && x.mode != invalid {
 			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
 		}
@@ -810,9 +805,8 @@ func (check *checker) callExpr(x *operand, ignore *bool) {
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.
 // If hint != nil, it is the type of a composite literal element.
-// iota >= 0 indicates that the expression is part of a constant declaration.
 //
-func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
+func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 	// make sure x has a valid state for deferred functions in case of bailout
 	// (was issue 5770)
 	x.mode = invalid
@@ -832,7 +826,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, iota, nil, false)
+		check.ident(x, e, nil, false)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -848,7 +842,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		}
 
 	case *ast.FuncLit:
-		if sig, ok := check.typ(e.Type, iota, nil, false).(*Signature); ok {
+		if sig, ok := check.typ(e.Type, nil, false).(*Signature); ok {
 			x.mode = value
 			x.typ = sig
 			check.later(nil, sig, e.Body)
@@ -869,12 +863,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{len: -1, elt: check.typ(atyp.Elt, iota, nil, false)}
+					typ = &Array{len: -1, elt: check.typ(atyp.Elt, nil, false)}
 					openArray = true
 				}
 			}
 			if typ == nil {
-				typ = check.typ(e.Type, iota, nil, false)
+				typ = check.typ(e.Type, nil, false)
 			}
 		}
 		if typ == nil {
@@ -915,7 +909,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 						continue
 					}
 					visited[i] = true
-					check.expr(x, kv.Value, iota)
+					check.expr(x, kv.Value)
 					etyp := fld.typ
 					if !check.assignment(x, etyp) {
 						if x.mode != invalid {
@@ -931,7 +925,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 						check.errorf(kv.Pos(), "mixture of field:value and value elements in struct literal")
 						continue
 					}
-					check.expr(x, e, iota)
+					check.expr(x, e)
 					if i >= len(fields) {
 						check.errorf(x.pos(), "too many values in struct literal")
 						break // cannot continue
@@ -952,14 +946,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 			}
 
 		case *Array:
-			n := check.indexedElts(e.Elts, utyp.elt, utyp.len, iota)
+			n := check.indexedElts(e.Elts, utyp.elt, utyp.len)
 			// if we have an "open" [...]T array, set the length now that we know it
 			if openArray {
 				utyp.len = n
 			}
 
 		case *Slice:
-			check.indexedElts(e.Elts, utyp.elt, -1, iota)
+			check.indexedElts(e.Elts, utyp.elt, -1)
 
 		case *Map:
 			visited := make(map[interface{}]bool, len(e.Elts))
@@ -969,7 +963,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 					check.errorf(e.Pos(), "missing key in map literal")
 					continue
 				}
-				check.expr(x, kv.Key, iota)
+				check.expr(x, kv.Key)
 				if !check.assignment(x, utyp.key) {
 					if x.mode != invalid {
 						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.key)
@@ -983,7 +977,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 					}
 					visited[x.val] = true
 				}
-				check.exprWithHint(x, kv.Value, utyp.elt, iota)
+				check.exprWithHint(x, kv.Value, utyp.elt)
 				if !check.assignment(x, utyp.elt) {
 					if x.mode != invalid {
 						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.elt)
@@ -1001,13 +995,13 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		x.typ = typ
 
 	case *ast.ParenExpr:
-		check.rawExpr(x, e.X, nil, iota)
+		check.rawExpr(x, e.X, nil)
 
 	case *ast.SelectorExpr:
-		check.selector(x, e, iota)
+		check.selector(x, e)
 
 	case *ast.IndexExpr:
-		check.expr(x, e.X, iota)
+		check.expr(x, e.X)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1051,7 +1045,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 
 		case *Map:
 			var key operand
-			check.expr(&key, e.Index, iota)
+			check.expr(&key, e.Index)
 			if !check.assignment(&key, typ.key) {
 				if key.mode != invalid {
 					check.invalidOp(key.pos(), "cannot use %s as map index of type %s", &key, typ.key)
@@ -1074,11 +1068,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 			return
 		}
 
-		check.index(e.Index, length, iota)
+		check.index(e.Index, length)
 		// ok to continue
 
 	case *ast.SliceExpr:
-		check.expr(x, e.X, iota)
+		check.expr(x, e.X)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1134,14 +1128,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 
 		lo := int64(0)
 		if e.Low != nil {
-			if i, ok := check.index(e.Low, length, iota); ok && i >= 0 {
+			if i, ok := check.index(e.Low, length); ok && i >= 0 {
 				lo = i
 			}
 		}
 
 		hi := int64(-1)
 		if e.High != nil {
-			if i, ok := check.index(e.High, length, iota); ok && i >= 0 {
+			if i, ok := check.index(e.High, length); ok && i >= 0 {
 				hi = i
 			}
 		} else if length >= 0 {
@@ -1154,7 +1148,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		}
 
 	case *ast.TypeAssertExpr:
-		check.expr(x, e.X, iota)
+		check.expr(x, e.X)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1168,7 +1162,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		typ := check.typ(e.Type, iota, nil, false)
+		typ := check.typ(e.Type, nil, false)
 		if typ == Typ[Invalid] {
 			goto Error
 		}
@@ -1192,10 +1186,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		x.typ = typ
 
 	case *ast.CallExpr:
-		check.call(x, e, iota)
+		check.call(x, e)
 
 	case *ast.StarExpr:
-		check.exprOrType(x, e.X, iota)
+		check.exprOrType(x, e.X)
 		switch x.mode {
 		case invalid:
 			goto Error
@@ -1212,7 +1206,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		}
 
 	case *ast.UnaryExpr:
-		check.expr(x, e.X, iota)
+		check.expr(x, e.X)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1222,7 +1216,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 		}
 
 	case *ast.BinaryExpr:
-		check.binary(x, e.X, e.Y, e.Op, iota)
+		check.binary(x, e.X, e.Y, e.Op)
 		if x.mode == invalid {
 			goto Error
 		}
@@ -1235,7 +1229,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int) {
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		x.mode = typexpr
-		x.typ = check.typ(e, iota, nil, false)
+		x.typ = check.typ(e, nil, false)
 		// check.typ is already notifying clients
 		// of e's type; don't do it a 2nd time
 		ignore = true
@@ -1258,10 +1252,9 @@ Error:
 
 // expr typechecks expression e and initializes x with the expression value.
 // If an error occurred, x.mode is set to invalid.
-// iota >= 0 indicates that the expression is part of a constant declaration.
 //
-func (check *checker) expr(x *operand, e ast.Expr, iota int) {
-	check.rawExpr(x, e, nil, iota)
+func (check *checker) expr(x *operand, e ast.Expr) {
+	check.rawExpr(x, e, nil)
 	switch x.mode {
 	case novalue:
 		check.errorf(x.pos(), "%s used as value", x)
@@ -1275,11 +1268,10 @@ func (check *checker) expr(x *operand, e ast.Expr, iota int) {
 // exprWithHint typechecks expression e and initializes x with the expression value.
 // If an error occurred, x.mode is set to invalid.
 // If hint != nil, it is the type of a composite literal element.
-// iota >= 0 indicates that the expression is part of a constant declaration.
 //
-func (check *checker) exprWithHint(x *operand, e ast.Expr, hint Type, iota int) {
+func (check *checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
-	check.rawExpr(x, e, hint, iota)
+	check.rawExpr(x, e, hint)
 	switch x.mode {
 	case novalue:
 		check.errorf(x.pos(), "%s used as value", x)
@@ -1292,10 +1284,9 @@ func (check *checker) exprWithHint(x *operand, e ast.Expr, hint Type, iota int) 
 
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.
 // If an error occurred, x.mode is set to invalid.
-// iota >= 0 indicates that the expression is part of a constant declaration.
 //
-func (check *checker) exprOrType(x *operand, e ast.Expr, iota int) {
-	check.rawExpr(x, e, nil, iota)
+func (check *checker) exprOrType(x *operand, e ast.Expr) {
+	check.rawExpr(x, e, nil)
 	if x.mode == novalue {
 		check.errorf(x.pos(), "%s used as value or type", x)
 		x.mode = invalid
