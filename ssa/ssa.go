@@ -1235,12 +1235,15 @@ func (c *CallCommon) Pos() token.Pos { return c.pos }
 // In either "call" or "invoke" mode, if the callee is a method, its
 // receiver is represented by sig.Recv, not sig.Params().At(0).
 //
+// Signature returns nil for a call to a built-in function.
+//
 func (c *CallCommon) Signature() *types.Signature {
 	if c.Recv != nil {
 		iface := c.Recv.Type().Underlying().(*types.Interface)
 		return iface.Method(c.Method).Type().(*types.Signature)
 	}
-	return c.Func.Type().Underlying().(*types.Signature)
+	sig, _ := c.Func.Type().Underlying().(*types.Signature) // nil for *Builtin
+	return sig
 }
 
 // StaticCallee returns the called function if this is a trivially

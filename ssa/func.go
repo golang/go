@@ -256,7 +256,7 @@ func (f *Function) createSyntacticParams() {
 		for _, field := range f.syntax.resultFields.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
-				f.namedResults = append(f.namedResults, f.addNamedLocal(f.Pkg.objectOf(n)))
+				f.namedResults = append(f.namedResults, f.addLocalForIdent(n))
 			}
 		}
 	}
@@ -384,6 +384,10 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l.name = obj.Name()
 	f.objects[obj] = l
 	return l
+}
+
+func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
+	return f.addNamedLocal(f.Pkg.objectOf(id))
 }
 
 // addLocal creates an anonymous local variable of type typ, adds it

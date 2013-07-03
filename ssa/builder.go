@@ -1119,7 +1119,7 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		for i, id := range spec.Names {
 			var lval lvalue = blank{}
 			if !isBlankIdent(id) {
-				lval = address{addr: fn.addNamedLocal(fn.Pkg.objectOf(id))}
+				lval = address{addr: fn.addLocalForIdent(id)}
 			}
 			b.exprInPlace(fn, lval, spec.Values[i])
 		}
@@ -1129,7 +1129,7 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		// Locals are implicitly zero-initialized.
 		for _, id := range spec.Names {
 			if !isBlankIdent(id) {
-				fn.addNamedLocal(fn.Pkg.objectOf(id))
+				fn.addLocalForIdent(id)
 			}
 		}
 
@@ -1139,7 +1139,7 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		result := tuple.Type().(*types.Tuple)
 		for i, id := range spec.Names {
 			if !isBlankIdent(id) {
-				lhs := fn.addNamedLocal(fn.Pkg.objectOf(id))
+				lhs := fn.addLocalForIdent(id)
 				emitStore(fn, lhs, emitExtract(fn, tuple, i, result.At(i).Type()))
 			}
 		}
@@ -1446,16 +1446,13 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		b.stmt(fn, s.Init)
 	}
 
-	var x, y Value
-	var id *ast.Ident
+	var x Value
 	switch ass := s.Assign.(type) {
 	case *ast.ExprStmt: // x.(type)
 		x = b.expr(fn, unparen(ass.X).(*ast.TypeAssertExpr).X)
 	case *ast.AssignStmt: // y := x.(type)
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
-		id = ass.Lhs[0].(*ast.Ident)
-		y = fn.addNamedLocal(fn.Pkg.objectOf(id))
-		emitStore(fn, y, x)
+		emitStore(fn, fn.addLocalForIdent(ass.Lhs[0].(*ast.Ident)), x)
 	}
 
 	done := fn.newBasicBlock("typeswitch.done")
@@ -1488,10 +1485,10 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			fn.currentBlock = next
 		}
 		fn.currentBlock = body
-		if id != nil && len(cc.List) == 1 && casetype != tUntypedNil {
+		if obj := fn.Pkg.info.TypeCaseVar(cc); obj != nil {
 			// Declare a new shadow local variable of the
 			// same name but a more specific type.
-			y2 := fn.addNamedLocal(fn.Pkg.info.TypeCaseVar(cc))
+			y2 := fn.addNamedLocal(obj)
 			y2.name += "'" // debugging aid
 			y2.typ = pointer(casetype)
 			emitStore(fn, y2, ti)
@@ -1502,9 +1499,6 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		}
 		b.stmtList(fn, cc.Body)
 		fn.targets = fn.targets.tail
-		if id != nil {
-			fn.objects[fn.Pkg.objectOf(id)] = y // restore previous y binding
-		}
 		emitJump(fn, done)
 		fn.currentBlock = next
 	}
@@ -1634,12 +1628,18 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 			r++
 
 		case *ast.AssignStmt: // x := <-states[state].Chan
-			xdecl := fn.addNamedLocal(fn.Pkg.objectOf(comm.Lhs[0].(*ast.Ident)))
-			emitStore(fn, xdecl, emitExtract(fn, sel, r, vars[r].Type()))
+			if comm.Tok == token.DEFINE {
+				fn.addLocalForIdent(comm.Lhs[0].(*ast.Ident))
+			}
+			x := b.addr(fn, comm.Lhs[0], false) // non-escaping
+			x.store(fn, emitExtract(fn, sel, r, vars[r].Type()))
 
 			if len(comm.Lhs) == 2 { // x, ok := ...
-				okdecl := fn.addNamedLocal(fn.Pkg.objectOf(comm.Lhs[1].(*ast.Ident)))
-				emitStore(fn, okdecl, emitExtract(fn, sel, 1, okdecl.Type().Deref()))
+				if comm.Tok == token.DEFINE {
+					fn.addLocalForIdent(comm.Lhs[1].(*ast.Ident))
+				}
+				ok := b.addr(fn, comm.Lhs[1], false) // non-escaping
+				ok.store(fn, emitExtract(fn, sel, 1, ok.typ().Deref()))
 			}
 			r++
 		}
@@ -1929,10 +1929,10 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	// always creates a new one.
 	if s.Tok == token.DEFINE {
 		if tk != nil {
-			fn.addNamedLocal(fn.Pkg.objectOf(s.Key.(*ast.Ident)))
+			fn.addLocalForIdent(s.Key.(*ast.Ident))
 		}
 		if tv != nil {
-			fn.addNamedLocal(fn.Pkg.objectOf(s.Value.(*ast.Ident)))
+			fn.addLocalForIdent(s.Value.(*ast.Ident))
 		}
 	}
 

@@ -180,6 +180,14 @@ func main() {
 	if <-ch != 1 {
 		panic("couldn't receive")
 	}
+	// A "receive" select-case that doesn't declare its vars.  (regression test)
+	anint := 0
+	ok := false
+	select {
+	case anint, ok = <-ch:
+	case anint = <-ch:
+	default:
+	}
 
 	// Anon structs with methods.
 	anon := struct{ T }{T: T{z: 1}}
