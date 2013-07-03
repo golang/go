@@ -258,7 +258,6 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
-	s.method = make(map[string]*methodType)
 
 	// Install the methods
 	s.method = suitableMethods(s.typ, true)
