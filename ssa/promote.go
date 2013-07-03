@@ -287,7 +287,9 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 	fn := &Function{
 		name:      cand.method.Name(),
 		Signature: sig,
+		Synthetic: "promotion wrapper for " + cand.String(),
 		Prog:      prog,
+		pos:       cand.method.Pos(),
 	}
 	fn.startBody()
 	fn.addSpilledParam(sig.Recv())
@@ -393,6 +395,8 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, id Id) *Function {
 		fn = &Function{
 			name:      meth.Name(),
 			Signature: meth.Type().(*types.Signature),
+			Synthetic: fmt.Sprintf("interface method wrapper for %s.%s", typ, id),
+			pos:       meth.Pos(),
 			Prog:      prog,
 		}
 		fn.startBody()
@@ -445,7 +449,9 @@ func boundMethodWrapper(meth *Function) *Function {
 		fn = &Function{
 			name:      "bound$" + meth.String(),
 			Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
+			Synthetic: "bound method wrapper for " + meth.String(),
 			Prog:      prog,
+			pos:       meth.Pos(),
 		}
 
 		cap := &Capture{name: "recv", typ: s.Recv().Type(), parent: fn}
@@ -492,6 +498,8 @@ func indirectionWrapper(meth *Function) *Function {
 			name:      meth.Name(),
 			Signature: types.NewSignature(recv, s.Params(), s.Results(), s.IsVariadic()),
 			Prog:      prog,
+			Synthetic: "receiver indirection wrapper for " + meth.String(),
+			pos:       meth.Pos(),
 		}
 
 		fn.startBody()

@@ -137,12 +137,12 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 			}
 		case *Type:
 			for _, meth := range pkg.Prog.MethodSet(mem.Type()) {
-				if meth.Pos() == pos {
+				if meth.Synthetic == "" && meth.Pos() == pos {
 					return meth
 				}
 			}
 			for _, meth := range pkg.Prog.MethodSet(pointer(mem.Type())) {
-				if meth.Pos() == pos {
+				if meth.Synthetic == "" && meth.Pos() == pos {
 					return meth
 				}
 			}
@@ -223,5 +223,6 @@ func CanonicalPos(n ast.Node) token.Pos {
 	}
 
 	// Almost anything can be a constant expression (*Literal).
+	// TODO(adonovan): actually that's not so; audit and restrict.
 	return n.Pos()
 }

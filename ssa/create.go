@@ -109,7 +109,9 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 
 	case *types.Func:
 		var fs *funcSyntax
+		synthetic := "loaded from gc object file"
 		if decl, ok := syntax.(*ast.FuncDecl); ok {
+			synthetic = ""
 			fs = &funcSyntax{
 				recvField:    decl.Recv,
 				paramFields:  decl.Type.Params,
@@ -121,6 +123,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		fn := &Function{
 			name:      name,
 			Signature: sig,
+			Synthetic: synthetic,
 			pos:       obj.Pos(), // (iff syntax)
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
@@ -183,6 +186,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 		if decl.Recv == nil && id.Name == "init" {
 			if !pkg.Init.pos.IsValid() {
 				pkg.Init.pos = decl.Name.Pos()
+				pkg.Init.Synthetic = ""
 			}
 			return // init blocks aren't functions
 		}
@@ -211,6 +215,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 	p.Init = &Function{
 		name:      "init",
 		Signature: new(types.Signature),
+		Synthetic: "package initializer",
 		Pkg:       p,
 		Prog:      prog,
 	}

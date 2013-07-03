@@ -82,7 +82,7 @@ func main() {
 	//   const message    message = "Hello, World!":untyped string
 	//
 	// # Name: main.init
-	// # Synthetic
+	// # Synthetic: package initializer
 	// func init():
 	// .0.entry:                                                               P:0 S:2
 	// 	t0 = *init$guard                                                   bool
@@ -95,7 +95,7 @@ func main() {
 	// 	ret
 	//
 	// # Name: main.main
-	// # Declared at hello.go:8:6
+	// # Location: hello.go:8:6
 	// func main():
 	// .0.entry:                                                               P:0 S:0
 	// 	a0 = new [1]interface{}                                 *[1]interface{}

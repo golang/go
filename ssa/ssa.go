@@ -262,7 +262,8 @@ type Instruction interface {
 //
 // Pos() returns the declaring ast.FuncLit.Type.Func or the position
 // of the ast.FuncDecl.Name, if the function was explicit in the
-// source.
+// source.  Synthetic wrappers, for which Synthetic != "", may share
+// the same position as the function they wrap.
 //
 // Type() returns the function's Signature.
 //
@@ -271,6 +272,7 @@ type Function struct {
 	Signature *types.Signature
 	pos       token.Pos
 
+	Synthetic string       // provenance of synthetic function; "" for true source functions
 	Enclosing *Function    // enclosing function if anon; nil if global
 	Pkg       *Package     // enclosing package for Go source functions; otherwise nil
 	Prog      *Program     // enclosing program

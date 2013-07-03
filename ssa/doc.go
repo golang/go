@@ -117,4 +117,9 @@
 // defs/uses of named variables together, esp. because SSA splits them
 // into separate webs.
 //
+// TODO(adonovan): write an example showing how to visit all functions
+// in a Program, including package init functions, methods of named
+// and anon types, and functions used as values but never called
+// directly.
+//
 package ssa

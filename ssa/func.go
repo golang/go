@@ -536,10 +536,11 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 //
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.String())
+	if syn := f.Synthetic; syn != "" {
+		fmt.Fprintln(w, "# Synthetic:", syn)
+	}
 	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Fset.Position(pos))
-	} else {
-		fmt.Fprintln(w, "# Synthetic")
+		fmt.Fprintf(w, "# Location: %s\n", f.Prog.Fset.Position(pos))
 	}
 
 	if f.Enclosing != nil {
@@ -639,6 +640,6 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 //
 // TODO(adonovan): think harder about the API here.
 //
-func NewFunction(name string, sig *types.Signature) *Function {
-	return &Function{name: name, Signature: sig}
+func NewFunction(name string, sig *types.Signature, provenance string) *Function {
+	return &Function{name: name, Signature: sig, Synthetic: provenance}
 }
