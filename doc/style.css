@@ -497,7 +497,10 @@ div.play .buttons a {
 	padding: 10px;
 	cursor: pointer;
 }
-div.play .output .exit {
+.output .stderr {
+	color: #933;
+}
+.output .system {
 	color: #999;
 }
 
