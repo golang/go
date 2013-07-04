@@ -764,62 +764,66 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 	return max
 }
 
-func (check *checker) callExpr(x *operand, ignore *bool) {
-	if *ignore {
-		return
-	}
-
-	// convert x into a user-friendly set of values
-	var typ Type
-	var val exact.Value
-	switch x.mode {
-	case invalid:
-		return // nothing to do
-	case novalue:
-		typ = (*Tuple)(nil)
-	case constant:
-		typ = x.typ
-		val = x.val
-	default:
-		typ = x.typ
-	}
-
-	// if the operand is untyped, delay notification
-	// until it becomes typed or until the end of
-	// type checking
-	if isUntyped(typ) {
-		check.untyped[x.expr] = exprInfo{false, typ.(*Basic), val}
-		return
-	}
-
-	// TODO(gri) ensure that literals always report
-	// their dynamic (never interface) type.
-	// This is not the case yet.
-
-	if check.ctxt.Expr != nil {
-		assert(x.expr != nil && typ != nil)
-		check.ctxt.Expr(x.expr, typ, val)
-	}
-}
-
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.
 // If hint != nil, it is the type of a composite literal element.
 //
 func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
-	// make sure x has a valid state for deferred functions in case of bailout
+	if trace {
+		check.trace(e.Pos(), "%s", e)
+		check.indent++
+	}
+
+	check.expr0(x, e, hint)
+
+	// convert x into a user-friendly set of values
+	notify := check.ctxt.Expr
+	var typ Type
+	var val exact.Value
+	switch x.mode {
+	case invalid:
+		typ = Typ[Invalid]
+		notify = nil // nothing to do
+	case novalue:
+		typ = (*Tuple)(nil)
+	case constant:
+		typ = x.typ
+		val = x.val
+	case typexprn:
+		x.mode = typexpr
+		typ = x.typ
+		notify = nil // clients were already notified
+	default:
+		typ = x.typ
+	}
+	assert(x.expr != nil && typ != nil)
+
+	if isUntyped(typ) {
+		// delay notification until it becomes typed
+		// or until the end of type checking
+		check.untyped[x.expr] = exprInfo{false, typ.(*Basic), val}
+	} else if notify != nil {
+		// notify clients
+		// TODO(gri) ensure that literals always report
+		// their dynamic (never interface) type.
+		// This is not the case yet.
+		notify(x.expr, typ, val)
+	}
+
+	if trace {
+		check.indent--
+		check.trace(e.Pos(), "=> %s", x)
+	}
+}
+
+// expr0 contains the core of type checking of expressions.
+// Must only be called by rawExpr.
+//
+func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
+	// make sure x has a valid state in case of bailout
 	// (was issue 5770)
 	x.mode = invalid
 	x.typ = Typ[Invalid]
-
-	if trace {
-		check.trace(e.Pos(), "%s", e)
-		defer check.untrace("=> %s", x)
-	}
-
-	// record final type of x if untyped, notify clients of type otherwise
-	ignore := false // if set, don't do anything in the deferred call
-	defer check.callExpr(x, &ignore)
 
 	switch e := e.(type) {
 	case *ast.BadExpr:
@@ -1065,7 +1069,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 
 		if e.Index == nil {
 			check.invalidAST(e.Pos(), "missing index expression for %s", x)
-			return
+			goto Error
 		}
 
 		check.index(e.Index, length)
@@ -1182,7 +1186,6 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 			// ok to continue
 		}
 		x.mode = valueok
-		x.expr = e
 		x.typ = typ
 
 	case *ast.CallExpr:
@@ -1228,11 +1231,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType:
-		x.mode = typexpr
+		x.mode = typexprn // not typexpr; Context.Expr callback was invoked by check.typ
 		x.typ = check.typ(e, nil, false)
-		// check.typ is already notifying clients
-		// of e's type; don't do it a 2nd time
-		ignore = true
 
 	default:
 		if debug {

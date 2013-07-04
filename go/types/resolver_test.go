@@ -45,6 +45,7 @@ var sources = []string{
 	func (_ T) m() {}
 	var i I
 	var _ = i.m
+	func _(s []int) { for i, x := range s {} } 
 	`,
 }
 
@@ -53,7 +54,7 @@ var pkgnames = []string{
 	"math",
 }
 
-func TestResolveQualifiedIdents(t *testing.T) {
+func TestResolveIdents(t *testing.T) {
 	// parse package files
 	fset := token.NewFileSet()
 	var files []*ast.File
@@ -74,7 +75,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
 		}
 		idents[id] = obj
 	}
-	pkg, err := ctxt.Check("testResolveQualifiedIdents", fset, files...)
+	pkg, err := ctxt.Check("testResolveIdents", fset, files...)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -22,6 +22,7 @@ const (
 	invalid  operandMode = iota // operand is invalid (due to an earlier error) - ignore
 	novalue                     // operand represents no value (result of a function call w/o result)
 	typexpr                     // operand is a type
+	typexprn                    // like typexpr; only used to communicate between checker.expr0 and checker.rawExpr
 	constant                    // operand is a constant; the operand's typ is a Basic type
 	variable                    // operand is an addressable variable
 	value                       // operand is a computed value
@@ -32,6 +33,7 @@ var operandModeString = [...]string{
 	invalid:  "invalid",
 	novalue:  "no value",
 	typexpr:  "type",
+	typexprn: "type/n",
 	constant: "constant",
 	variable: "variable",
 	value:    "value",

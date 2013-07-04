@@ -51,9 +51,11 @@ type checker struct {
 	iota     exact.Value      // value of iota in a constant declaration; nil otherwise
 
 	// functions
-	funclist []function  // list of functions/methods with correct signatures and non-empty bodies
-	funcsig  *Signature  // signature of currently typechecked function
-	pos      []token.Pos // stack of expr positions; debugging support, used if trace is set
+	funclist []function // list of functions/methods with correct signatures and non-empty bodies
+	funcsig  *Signature // signature of currently typechecked function
+
+	// debugging
+	indent int // indentation for tracing
 }
 
 func (check *checker) callIdent(id *ast.Ident, obj Object) {

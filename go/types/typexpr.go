@@ -98,20 +98,32 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 // If cycleOk is set, e (or elements of e) may refer to a named type that is not
 // yet completely set up.
 //
-func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) (res Type) {
+func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) Type {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
-		defer check.untrace("=> %s", res)
+		check.indent++
 	}
 
-	// notify clients of type
-	if f := check.ctxt.Expr; f != nil {
-		defer func() {
-			assert(e != nil && res != nil && !isUntyped(res))
-			f(e, res, nil)
-		}()
+	t := check.typ0(e, def, cycleOk)
+	assert(e != nil && t != nil && !isUntyped(t))
+
+	// notify clients
+	if notify := check.ctxt.Expr; notify != nil {
+		notify(e, t, nil)
 	}
 
+	if trace {
+		check.indent--
+		check.trace(e.Pos(), "=> %s", t)
+	}
+
+	return t
+}
+
+// typ0 contains the core of type checking of types.
+// Must only be called by typ.
+//
+func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
 	switch e := e.(type) {
 	case *ast.Ident:
 		var x operand

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 )
 
 // TODO(gri) eventually assert should disappear.
@@ -22,32 +23,6 @@ func assert(p bool) {
 
 func unreachable() {
 	panic("unreachable")
-}
-
-func (check *checker) printTrace(format string, args []interface{}) {
-	const dots = ".  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  "
-	n := len(check.pos) - 1
-	i := 3 * n
-	for i > len(dots) {
-		fmt.Print(dots)
-		i -= len(dots)
-	}
-	// i <= len(dots)
-	fmt.Printf("%s:\t", check.fset.Position(check.pos[n]))
-	fmt.Print(dots[0:i])
-	fmt.Println(check.formatMsg(format, args))
-}
-
-func (check *checker) trace(pos token.Pos, format string, args ...interface{}) {
-	check.pos = append(check.pos, pos)
-	check.printTrace(format, args)
-}
-
-func (check *checker) untrace(format string, args ...interface{}) {
-	if len(format) > 0 {
-		check.printTrace(format, args)
-	}
-	check.pos = check.pos[:len(check.pos)-1]
 }
 
 func (check *checker) formatMsg(format string, args []interface{}) string {
@@ -70,6 +45,14 @@ func (check *checker) formatMsg(format string, args []interface{}) string {
 		}
 	}
 	return fmt.Sprintf(format, args...)
+}
+
+func (check *checker) trace(pos token.Pos, format string, args ...interface{}) {
+	fmt.Printf("%s:\t%s%s\n",
+		check.fset.Position(pos),
+		strings.Repeat(".  ", check.indent),
+		check.formatMsg(format, args),
+	)
 }
 
 // dump is only needed for debugging

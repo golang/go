@@ -33,7 +33,6 @@ package types
 // pass without errors. Please do not file issues against these for now
 // since they are known already:
 //
-// BUG(gri): Method expressions and method values work accidentally and may not be fully checked.
 // BUG(gri): Conversions of constants only change the type, not the value (e.g., int(1.1) is wrong).
 // BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).
 // BUG(gri): Use of labels is not checked.
@@ -89,7 +88,8 @@ type Context struct {
 
 	// If Expr != nil, it is called exactly once for each expression x
 	// that is type-checked: typ is the expression type, and val is the
-	// value if x is constant, val is nil otherwise.
+	// value if x is constant, val is nil otherwise. Expr is not called
+	// for identifiers appearing on the lhs of declarations.
 	//
 	// If x is a literal value (constant, composite literal), typ is always
 	// the dynamic type of x (never an interface type). Otherwise, typ is x's

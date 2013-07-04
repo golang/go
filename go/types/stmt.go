@@ -738,6 +738,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.expr(&x, s.X)
 		if x.mode == invalid {
 			// if we don't have a declaration, we can still check the loop's body
+			// (otherwise we can't because we are missing the declared variables)
 			if !decl {
 				check.stmt(s.Body)
 			}
