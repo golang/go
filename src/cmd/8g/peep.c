@@ -147,6 +147,7 @@ peep(void)
 		case ALEAL:
 			if(regtyp(&p->to))
 			if(p->from.sym != S)
+			if(p->from.index == D_NONE || p->from.index == D_CONST)
 				conprop(r);
 			break;
 
