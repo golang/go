@@ -11,6 +11,7 @@ import (
 	"html"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -162,18 +163,43 @@ type Token struct {
 	Pos   int
 	Start bool
 	Count int
+	Norm  float64 // count normalized to 0-1
 }
 
 // Tokens returns a Profile as a set of Tokens within the provided src.
 func (p *Profile) Tokens(src []byte) (tokens []Token) {
-	line, col := 1, 1
+	// Find maximum counts.
+	max := 0
+	for _, b := range p.Blocks {
+		if b.Count > max {
+			max = b.Count
+		}
+	}
+	// Divisor for normalization.
+	divisor := math.Log(float64(max + 1))
+
+	// tok returns a Token, populating the Norm field with a normalized Count.
+	tok := func(pos int, start bool, count int) Token {
+		t := Token{Pos: pos, Start: start, Count: count}
+		if !start || count == 0 {
+			return t
+		}
+		if max == 1 {
+			t.Norm = 0.4 // "set" mode; use pale color
+		} else {
+			t.Norm = math.Log(float64(count+1)) / divisor
+		}
+		return t
+	}
+
+	line, col := 1, 2
 	for si, bi := 0, 0; si < len(src) && bi < len(p.Blocks); {
 		b := p.Blocks[bi]
 		if b.StartLine == line && b.StartCol == col {
-			tokens = append(tokens, Token{Pos: si, Start: true, Count: b.Count})
+			tokens = append(tokens, tok(si, true, b.Count))
 		}
 		if b.EndLine == line && b.EndCol == col {
-			tokens = append(tokens, Token{Pos: si, Start: false})
+			tokens = append(tokens, tok(si, false, 0))
 			bi++
 			continue // Don't advance through src; maybe the next block starts here.
 		}
@@ -203,16 +229,21 @@ func (t tokensByPos) Less(i, j int) bool {
 // source code, and tokens, and writes it to the given Writer.
 func htmlGen(w io.Writer, filename string, src []byte, tokens []Token) error {
 	dst := bufio.NewWriter(w)
+	fmt.Fprintln(dst, `<body style="background: black; color: white">`)
 	fmt.Fprintf(dst, "<h1>%s</h1>\n<pre>", html.EscapeString(filename))
 	for i := range src {
 		for len(tokens) > 0 && tokens[0].Pos == i {
 			t := tokens[0]
 			if t.Start {
-				color := "#CFC" // Green
-				if t.Count == 0 {
-					color = "#FCC" // Red
+				c := "rgb(255, 0, 0)" // Red
+				if t.Count > 0 {
+					// Gradient from pale green (low count)
+					// to bright green (high count)
+					r := 240 - int(220*t.Norm)
+					b := 170 + r/3
+					c = fmt.Sprintf("rgb(%v, 255, %v)", r, b)
 				}
-				fmt.Fprintf(dst, `<span style="background: %v" title="%v">`, color, t.Count)
+				fmt.Fprintf(dst, `<span style="color: %v" title="%v">`, c, t.Count)
 			} else {
 				dst.WriteString("</span>")
 			}
