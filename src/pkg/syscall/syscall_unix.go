@@ -230,6 +230,43 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
 	return sendto(fd, p, flags, ptr, n)
 }
 
+func SetsockoptByte(fd, level, opt int, value byte) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), 1)
+}
+
+func SetsockoptInt(fd, level, opt int, value int) (err error) {
+	var n = int32(value)
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+}
+
+func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
+}
+
+func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), SizeofIPMreq)
+}
+
+func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), SizeofIPv6Mreq)
+}
+
+func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
+}
+
+func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), SizeofLinger)
+}
+
+func SetsockoptString(fd, level, opt int, s string) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
+}
+
+func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
+}
+
 func Socket(domain, typ, proto int) (fd int, err error) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
 		return -1, EAFNOSUPPORT
