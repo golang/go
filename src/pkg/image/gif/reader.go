@@ -190,6 +190,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			// A wonderfully Go-like piece of magic.
 			br := &blockReader{r: d.r}
 			lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
+			defer lzwr.Close()
 			if _, err = io.ReadFull(lzwr, m.Pix); err != nil {
 				if err != io.ErrUnexpectedEOF {
 					return err
