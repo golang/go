@@ -485,40 +485,8 @@ func GetsockoptUcred(fd, level, opt int) (*Ucred, error) {
 	return &value, err
 }
 
-func SetsockoptInt(fd, level, opt int, value int) (err error) {
-	var n = int32(value)
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
-}
-
-func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
-}
-
-func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
-}
-
-func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
-}
-
-func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
-}
-
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
-}
-
-func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
-}
-
-func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
-}
-func SetsockoptString(fd, level, opt int, s string) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
 }
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
