@@ -390,7 +390,7 @@ func stateInStringEscU123(s *scanner, c int) int {
 	return s.error(c, "in \\u hexadecimal character escape")
 }
 
-// stateInStringEscU123 is the state after reading `-` during a number.
+// stateNeg is the state after reading `-` during a number.
 func stateNeg(s *scanner, c int) int {
 	if c == '0' {
 		s.step = state0
