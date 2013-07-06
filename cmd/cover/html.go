@@ -6,9 +6,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"go/build"
-	"html"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"math"
@@ -36,20 +37,7 @@ func htmlOutput(profile, outfile string) error {
 		return err
 	}
 
-	var out *os.File
-	if outfile == "" {
-		var dir string
-		dir, err = ioutil.TempDir("", "cover")
-		if err != nil {
-			return err
-		}
-		out, err = os.Create(filepath.Join(dir, "coverage.html"))
-	} else {
-		out, err = os.Create(outfile)
-	}
-	if err != nil {
-		return err
-	}
+	var files []*templateFile
 
 	for fn, profile := range profiles {
 		dir, file := filepath.Split(fn)
@@ -61,14 +49,32 @@ func htmlOutput(profile, outfile string) error {
 		if err != nil {
 			return fmt.Errorf("can't read %q: %v", fn, err)
 		}
-		err = htmlGen(out, fn, src, profile.Tokens(src))
+		var buf bytes.Buffer
+		err = htmlGen(&buf, src, profile.Tokens(src))
 		if err != nil {
-			out.Close()
 			return err
 		}
+		files = append(files, &templateFile{
+			Name: fn,
+			Body: template.HTML(buf.String()),
+		})
 	}
 
-	err = out.Close()
+	var out *os.File
+	if outfile == "" {
+		var dir string
+		dir, err = ioutil.TempDir("", "cover")
+		if err != nil {
+			return err
+		}
+		out, err = os.Create(filepath.Join(dir, "coverage.html"))
+	} else {
+		out, err = os.Create(outfile)
+	}
+	err = htmlTemplate.Execute(out, templateData{Files: files})
+	if err == nil {
+		err = out.Close()
+	}
 	if err != nil {
 		return err
 	}
@@ -227,23 +233,17 @@ func (t tokensByPos) Less(i, j int) bool {
 
 // htmlGen generates an HTML coverage report with the provided filename,
 // source code, and tokens, and writes it to the given Writer.
-func htmlGen(w io.Writer, filename string, src []byte, tokens []Token) error {
+func htmlGen(w io.Writer, src []byte, tokens []Token) error {
 	dst := bufio.NewWriter(w)
-	fmt.Fprintln(dst, `<body style="background: black; color: white">`)
-	fmt.Fprintf(dst, "<h1>%s</h1>\n<pre>", html.EscapeString(filename))
 	for i := range src {
 		for len(tokens) > 0 && tokens[0].Pos == i {
 			t := tokens[0]
 			if t.Start {
-				c := "rgb(255, 0, 0)" // Red
+				n := 0
 				if t.Count > 0 {
-					// Gradient from pale green (low count)
-					// to bright green (high count)
-					r := 240 - int(220*t.Norm)
-					b := 170 + r/3
-					c = fmt.Sprintf("rgb(%v, 255, %v)", r, b)
+					n = int(math.Floor(t.Norm*10)) + 1
 				}
-				fmt.Fprintf(dst, `<span style="color: %v" title="%v">`, c, t.Count)
+				fmt.Fprintf(dst, `<span class="cov%v" title="%v">`, n, t.Count)
 			} else {
 				dst.WriteString("</span>")
 			}
@@ -254,13 +254,14 @@ func htmlGen(w io.Writer, filename string, src []byte, tokens []Token) error {
 			dst.WriteString("&gt;")
 		case '<':
 			dst.WriteString("&lt;")
+		case '&':
+			dst.WriteString("&amp;")
 		case '\t':
 			dst.WriteString("        ")
 		default:
 			dst.WriteByte(b)
 		}
 	}
-	dst.WriteString("</pre>\n")
 	return dst.Flush()
 }
 
@@ -280,3 +281,74 @@ func startBrowser(url string) bool {
 	cmd := exec.Command(args[0], append(args[1:], url)...)
 	return cmd.Start() == nil
 }
+
+// rgb returns an rgb value for the specified coverage value
+// between 0 (no coverage) and 11 (max coverage).
+func rgb(n int) string {
+	if n == 0 {
+		return "rgb(255, 0, 0)" // Red
+	}
+	// Gradient from pale green (low count)
+	// to bright green (high count)
+	r := 240 - 22*(n-1)
+	b := 170 + r/3
+	return fmt.Sprintf("rgb(%v, 255, %v)", r, b)
+}
+
+// colors generates the CSS rules for coverage colors.
+func colors() template.CSS {
+	var buf bytes.Buffer
+	for i := 0; i < 12; i++ {
+		fmt.Fprintf(&buf, ".cov%v { color: %v }\n", i, rgb(i))
+	}
+	return template.CSS(buf.String())
+}
+
+var htmlTemplate = template.Must(template.New("html").Funcs(template.FuncMap{
+	"colors": colors,
+}).Parse(tmplHTML))
+
+type templateData struct {
+	Files []*templateFile
+}
+
+type templateFile struct {
+	Name string
+	Body template.HTML
+}
+
+const tmplHTML = `
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			body { background: black; color: white; }
+			{{colors}}
+		</style>
+	</head>
+	<body>
+		<div id="nav">
+			<select id="files">
+			{{range $i, $f := .Files}}
+			<option value="file{{$i}}">{{$f.Name}}</option>
+			{{end}}
+			</select>
+		</div>
+		{{range $i, $f := .Files}}
+		<pre class="file" id="file{{$i}}" {{if $i}}style="display: none"{{end}}>{{$f.Body}}</pre>
+		{{end}}
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible = document.getElementById('file0');
+		files.addEventListener('change', onChange, false);
+		function onChange() {
+			visible.style.display = 'none';
+			visible = document.getElementById(files.value);
+			visible.style.display = 'block';
+		}
+	})();
+	</script>
+</html>
+`
