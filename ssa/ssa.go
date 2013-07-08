@@ -378,7 +378,8 @@ type Parameter struct {
 // constants.
 //
 // Pos() returns the canonical position (see CanonicalPos) of the
-// originating constant expression, if explicit in the source.
+// originating constant expression (ast.Ident or ast.BasicLit, or
+// ast.{Call,Selector,Unary,Binary}Expr), if explicit in the source.
 //
 // Example printed form:
 // 	42:int

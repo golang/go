@@ -169,21 +169,24 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return CanonicalPos(n.X)
 
 	case *ast.CallExpr:
-		// f(x):    *Call, *Go, *Defer.
-		// T(x):    *ChangeType, *Convert, *MakeInterface, *ChangeInterface.
+		// f(x):    *Call, *Go, *Defer, *Literal (e.g. len)
+		// T(x):    *ChangeType, *Convert, *MakeInterface, *ChangeInterface, *Literal.
 		// make():  *MakeMap, *MakeChan, *MakeSlice.
 		// new():   *Alloc.
 		// panic(): *Panic.
 		return n.Lparen
 
+	case *ast.BasicLit:
+		return n.ValuePos // *Literal
+
 	case *ast.Ident:
-		return n.NamePos // *Parameter, *Alloc, *Capture
+		return n.NamePos // *Parameter, *Alloc, *Capture, *Literal
 
 	case *ast.TypeAssertExpr:
 		return n.Lparen // *ChangeInterface or *TypeAssertExpr
 
 	case *ast.SelectorExpr:
-		return n.Sel.NamePos // *MakeClosure, *Field or *FieldAddr
+		return n.Sel.NamePos // *MakeClosure, *Field, *FieldAddr, *Literal
 
 	case *ast.FuncLit:
 		return n.Type.Func // *Function or *MakeClosure
@@ -192,10 +195,10 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return n.Lbrace // *Alloc or *Slice
 
 	case *ast.BinaryExpr:
-		return n.OpPos // *Phi or *BinOp
+		return n.OpPos // *Phi, *BinOp or *Literal
 
 	case *ast.UnaryExpr:
-		return n.OpPos // *Phi or *UnOp
+		return n.OpPos // *Phi, *UnOp, or *Literal
 
 	case *ast.IndexExpr:
 		return n.Lbrack // *Index or *IndexAddr
@@ -222,7 +225,5 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return n.Colon // *MapUpdate
 	}
 
-	// Almost anything can be a constant expression (*Literal).
-	// TODO(adonovan): actually that's not so; audit and restrict.
-	return n.Pos()
+	return token.NoPos
 }
