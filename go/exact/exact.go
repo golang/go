@@ -280,7 +280,7 @@ func BitLen(x Value) int {
 // Sign returns -1, 0, or 1 depending on whether
 // x < 0, x == 0, or x > 0. For complex values z,
 // the sign is 0 if z == 0, otherwise it is != 0.
-// The result is 0 for unknown values.
+// The result is 1 for unknown values.
 func Sign(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
@@ -298,7 +298,7 @@ func Sign(x Value) int {
 	case complexVal:
 		return x.re.Sign() | x.im.Sign()
 	case unknownVal:
-		return 0
+		return 1 // avoid spurious division by zero errors
 	}
 	panic(fmt.Sprintf("invalid Sign(%v)", x))
 }

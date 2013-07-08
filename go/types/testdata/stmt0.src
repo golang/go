@@ -14,7 +14,7 @@ func assignments() {
 	c = s /* ERROR "cannot assign" */
 	s = b /* ERROR "cannot assign" */
 
-	v0 /* ERROR "mismatch" */, v1, v2 := 1, 2, 3, 4
+	v0, v1, v2 := 1 /* ERROR "mismatch" */ , 2, 3, 4
 
 	b = true
 
@@ -45,6 +45,24 @@ func assignments() {
 		_ map[int]string = nil
 		_ chan int = nil
 	)
+
+	// test cases for issue 5500
+	_ = func() (int, bool) {
+		var m map[int]int
+		return m /* ERROR "assignment count mismatch" */ [0]
+	}
+
+	g := func(int, bool){}
+	var m map[int]int
+	g/* ERROR "too few arguments" */ (m[0])
+}
+
+func shortVarDecls() {
+	const c = 0
+	type d int
+	a, b, c /* ERROR "cannot assign" */ , d /* ERROR "cannot assign" */  := 1, "zwei", 3.0, 4
+	var _ int = a // a is of type int
+	var _ string = b // b is of type string
 }
 
 func incdecs() {

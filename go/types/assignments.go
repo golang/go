@@ -10,90 +10,92 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// TODO(gri) initialize is very close to the 2nd half of assign1to1.
-func (check *checker) assign(obj Object, x *operand) {
-	// Determine typ of lhs: If the object doesn't have a type
-	// yet, determine it from the type of x; if x is invalid,
-	// set the object type to Typ[Invalid].
-	var typ Type
-	switch obj := obj.(type) {
-	default:
-		unreachable()
+func (check *checker) initConst(lhs *Const, x *operand) {
+	lhs.val = exact.MakeUnknown()
 
-	case *Const:
-		typ = obj.typ // may already be Typ[Invalid]
-		if typ == nil {
-			typ = Typ[Invalid]
-			if x.mode != invalid {
-				typ = x.typ
-			}
-			obj.typ = typ
+	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+		if lhs.typ == nil {
+			lhs.typ = Typ[Invalid]
 		}
-
-	case *Var:
-		typ = obj.typ // may already be Typ[Invalid]
-		if typ == nil {
-			typ = Typ[Invalid]
-			if x.mode != invalid {
-				typ = x.typ
-				if isUntyped(typ) {
-					// convert untyped types to default types
-					if typ == Typ[UntypedNil] {
-						check.errorf(x.pos(), "use of untyped nil")
-						typ = Typ[Invalid]
-					} else {
-						typ = defaultType(typ)
-					}
-				}
-			}
-			obj.typ = typ
-		}
+		return // nothing else to check
 	}
 
-	// nothing else to check if we don't have a valid lhs or rhs
-	if typ == Typ[Invalid] || x.mode == invalid {
-		return
+	// If the lhs doesn't have a type yet, use the type of x.
+	if lhs.typ == nil {
+		lhs.typ = x.typ
 	}
 
-	if !check.assignment(x, typ) {
+	if !check.assignment(x, lhs.typ) {
 		if x.mode != invalid {
-			if x.typ != Typ[Invalid] && typ != Typ[Invalid] {
-				check.errorf(x.pos(), "cannot initialize %s (type %s) with %s", obj.Name(), typ, x)
-			}
+			check.errorf(x.pos(), "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
 		}
 		return
 	}
 
-	// for constants, set their value
-	if obj, _ := obj.(*Const); obj != nil {
-		obj.val = exact.MakeUnknown() // failure case: we don't know the constant value
-		if x.mode == constant {
-			if isConstType(x.typ) {
-				obj.val = x.val
-			} else if x.typ != Typ[Invalid] {
-				check.errorf(x.pos(), "%s has invalid constant type", x)
+	// rhs must be a constant
+	if x.mode != constant {
+		check.errorf(x.pos(), "%s is not constant", x)
+		return
+	}
+
+	// rhs type must be a valid constant type
+	if !isConstType(x.typ) {
+		check.errorf(x.pos(), "%s has invalid constant type", x)
+		return
+	}
+
+	lhs.val = x.val
+}
+
+func (check *checker) initVar(lhs *Var, x *operand) {
+	typ := x.typ
+
+	if x.mode == invalid || typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+		if lhs.typ == nil {
+			lhs.typ = Typ[Invalid]
+		}
+		return // nothing else to check
+	}
+
+	// If the lhs doesn't have a type yet, use the type of x.
+	if lhs.typ == nil {
+		if isUntyped(typ) {
+			// convert untyped types to default types
+			if typ == Typ[UntypedNil] {
+				check.errorf(x.pos(), "use of untyped nil")
+				lhs.typ = Typ[Invalid]
+				return // nothing else to check
 			}
-		} else if x.mode != invalid {
-			check.errorf(x.pos(), "%s is not constant", x)
+			typ = defaultType(typ)
+		}
+		lhs.typ = typ
+	}
+
+	if !check.assignment(x, lhs.typ) {
+		if x.mode != invalid {
+			check.errorf(x.pos(), "cannot initialize variable %s (type %s) with %s", lhs.Name(), lhs.typ, x)
 		}
 	}
 }
 
-func (check *checker) assignMulti(lhs []Object, rhs []ast.Expr) {
+func invalidateVars(list []*Var) {
+	for _, obj := range list {
+		if obj.typ == nil {
+			obj.typ = Typ[Invalid]
+		}
+	}
+}
+
+func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 	assert(len(lhs) > 0)
 
-	const decl = false
-
-	// If the lhs and rhs have corresponding expressions, treat each
-	// matching pair as an individual pair.
+	// If the lhs and rhs have corresponding expressions,
+	// treat each matching pair as an individual pair.
 	if len(lhs) == len(rhs) {
 		var x operand
 		for i, e := range rhs {
 			check.expr(&x, e)
-			if x.mode == invalid {
-				goto Error
-			}
-			check.assign(lhs[i], &x)
+			check.initVar(lhs[i], &x)
 		}
 		return
 	}
@@ -108,49 +110,85 @@ func (check *checker) assignMulti(lhs []Object, rhs []ast.Expr) {
 		var x operand
 		check.expr(&x, rhs[0])
 		if x.mode == invalid {
-			goto Error
+			invalidateVars(lhs)
+			return
 		}
 
 		if t, ok := x.typ.(*Tuple); ok && len(lhs) == t.Len() {
 			// function result
-			x.mode = value
-			for i := 0; i < len(lhs); i++ {
-				obj := t.At(i)
-				x.expr = nil // TODO(gri) should do better here
-				x.typ = obj.typ
-				check.assign(lhs[i], &x)
+			for i, lhs := range lhs {
+				x.mode = value
+				x.expr = rhs[0]
+				x.typ = t.At(i).typ
+				check.initVar(lhs, &x)
 			}
 			return
 		}
 
-		if x.mode == valueok && len(lhs) == 2 {
+		if allowCommaOk && x.mode == valueok && len(lhs) == 2 {
 			// comma-ok expression
 			x.mode = value
-			check.assign(lhs[0], &x)
+			check.initVar(lhs[0], &x)
 
+			x.mode = value
 			x.typ = Typ[UntypedBool]
-			check.assign(lhs[1], &x)
+			check.initVar(lhs[1], &x)
 			return
 		}
 	}
 
-	check.errorf(lhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
+	// lhs variables may be function parameters (return assignment);
+	// use rhs position information for properly located error messages
+	check.errorf(rhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
+	invalidateVars(lhs)
+}
 
-Error:
-	// In case of a declaration, set all lhs types to Typ[Invalid].
-	for _, obj := range lhs {
-		switch obj := obj.(type) {
-		case *Const:
-			if obj.typ == nil {
-				obj.typ = Typ[Invalid]
+func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
+	scope := check.topScope
+
+	// collect lhs variables
+	vars := make([]*Var, len(lhs))
+	for i, lhs := range lhs {
+		var obj *Var
+		if ident, _ := lhs.(*ast.Ident); ident != nil {
+			// Use the correct obj if the ident is redeclared. The
+			// variable's scope starts after the declaration; so we
+			// must use Scope.Lookup here and call Scope.Insert later.
+			if alt := scope.Lookup(nil, ident.Name); alt != nil {
+				// redeclared object must be a variable
+				if alt, _ := alt.(*Var); alt != nil {
+					obj = alt
+				} else {
+					check.errorf(lhs.Pos(), "cannot assign to %s", lhs)
+				}
+			} else {
+				// declare new variable
+				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 			}
-			obj.val = exact.MakeUnknown()
-		case *Var:
-			if obj.typ == nil {
-				obj.typ = Typ[Invalid]
-			}
-		default:
-			unreachable()
+			check.callIdent(ident, obj) // obj may be nil
+		} else {
+			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		}
+		if obj == nil {
+			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+		}
+		vars[i] = obj
+	}
+
+	check.initVars(vars, rhs, true)
+
+	// declare variables
+	n := 0 // number of new variables
+	for _, obj := range vars {
+		if obj.name == "_" {
+			obj.setParent(scope)
+			continue // blank identifiers are not visible
+		}
+		if scope.Insert(obj) == nil {
+			n++ // new declaration
+		}
+	}
+	if n == 0 {
+		check.errorf(vars[0].Pos(), "no new variables on left side of :=")
 	}
 }

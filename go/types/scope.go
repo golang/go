@@ -119,10 +119,12 @@ func (s *Scope) LookupParent(name string) Object {
 // If s already contains an object with the same package path
 // and name, Insert leaves s unchanged and returns that object.
 // Otherwise it inserts obj, sets the object's scope to s, and
-// returns nil.
+// returns nil. The object must not have the blank _ name.
 //
 func (s *Scope) Insert(obj Object) Object {
-	if alt := s.Lookup(obj.Pkg(), obj.Name()); alt != nil {
+	name := obj.Name()
+	assert(name != "_")
+	if alt := s.Lookup(obj.Pkg(), name); alt != nil {
 		return alt
 	}
 	s.entries = append(s.entries, obj)

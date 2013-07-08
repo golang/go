@@ -9,8 +9,6 @@ package types
 import (
 	"go/ast"
 	"go/token"
-
-	"code.google.com/p/go.tools/go/exact"
 )
 
 // assigment reports whether x can be assigned to a variable of type 'to',
@@ -36,14 +34,15 @@ func (check *checker) assignment(x *operand, to Type) bool {
 	return x.mode != invalid && x.isAssignable(check.ctxt, to)
 }
 
+// TODO(gri) assign1to1 is only used in one place now with decl = true.
+// Remove and consolidate with other assignment functions.
+
 // assign1to1 typechecks a single assignment of the form lhs = rhs (if rhs != nil), or
 // lhs = x (if rhs == nil). If decl is set, the lhs expression must be an identifier;
 // if its type is not set, it is deduced from the type of x or set to Typ[Invalid] in
 // case of an error.
 //
-func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, isConst bool) {
-	assert(!isConst || decl)
-
+func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool) {
 	// Start with rhs so we have an expression type
 	// for declarations with implicit type.
 	if x == nil {
@@ -91,52 +90,25 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, isCon
 		return
 	}
 
-	// Determine typ of lhs: If the object doesn't have a type
-	// yet, determine it from the type of x; if x is invalid,
-	// set the object type to Typ[Invalid].
-	var obj Object
-	var typ Type
-	if isConst {
-		obj = NewConst(ident.Pos(), check.pkg, ident.Name, nil, nil)
-	} else {
-		obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
-	}
+	// Determine the type of lhs from the type of x;
+	// if x is invalid, set the object type to Typ[Invalid].
+	obj := NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 	defer check.declare(check.topScope, ident, obj)
 
-	// TODO(gri) remove this switch, combine with code above
-	switch obj := obj.(type) {
-	default:
-		unreachable()
-
-	case *Const:
-		typ = obj.typ // may already be Typ[Invalid]
-		if typ == nil {
-			typ = Typ[Invalid]
-			if x.mode != invalid {
-				typ = x.typ
+	var typ Type = Typ[Invalid]
+	if x.mode != invalid {
+		typ = x.typ
+		if isUntyped(typ) {
+			// convert untyped types to default types
+			if typ == Typ[UntypedNil] {
+				check.errorf(x.pos(), "use of untyped nil")
+				typ = Typ[Invalid]
+			} else {
+				typ = defaultType(typ)
 			}
-			obj.typ = typ
-		}
-
-	case *Var:
-		typ = obj.typ // may already be Typ[Invalid]
-		if typ == nil {
-			typ = Typ[Invalid]
-			if x.mode != invalid {
-				typ = x.typ
-				if isUntyped(typ) {
-					// convert untyped types to default types
-					if typ == Typ[UntypedNil] {
-						check.errorf(x.pos(), "use of untyped nil")
-						typ = Typ[Invalid]
-					} else {
-						typ = defaultType(typ)
-					}
-				}
-			}
-			obj.typ = typ
 		}
 	}
+	obj.typ = typ
 
 	// nothing else to check if we don't have a valid lhs or rhs
 	if typ == Typ[Invalid] || x.mode == invalid {
@@ -151,38 +123,22 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, isCon
 		}
 		return
 	}
-
-	// for constants, set their value
-	if obj, _ := obj.(*Const); obj != nil {
-		obj.val = exact.MakeUnknown() // failure case: we don't know the constant value
-		if x.mode == constant {
-			if isConstType(x.typ) {
-				obj.val = x.val
-			} else if x.typ != Typ[Invalid] {
-				check.errorf(x.pos(), "%s has invalid constant type", x)
-			}
-		} else if x.mode != invalid {
-			check.errorf(x.pos(), "%s is not constant", x)
-		}
-	}
 }
 
-// TODO(gri) assignNtoM is only used in one place now. remove and consolidate with other assignment functions.
+// TODO(gri) assignNtoM is only used in one place now.
+// Remove and consolidate with other assignment functions.
 
-// assignNtoM typechecks a general assignment. If decl is set, the lhs expressions
-// must be identifiers; if their types are not set, they are deduced from the types
-// of the corresponding rhs expressions, or set to Typ[Invalid] in case of an error.
+// assignNtoM typechecks a regular assignment.
 // Precondition: len(lhs) > 0 .
 //
-func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, isConst bool) {
+func (check *checker) assignNtoM(lhs, rhs []ast.Expr) {
 	assert(len(lhs) > 0)
-	assert(!isConst || decl)
 
 	// If the lhs and rhs have corresponding expressions, treat each
 	// matching pair as an individual pair.
 	if len(lhs) == len(rhs) {
 		for i, e := range rhs {
-			check.assign1to1(lhs[i], e, nil, decl, isConst)
+			check.assign1to1(lhs[i], e, nil, false)
 		}
 		return
 	}
@@ -197,7 +153,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, isConst bool) {
 		var x operand
 		check.expr(&x, rhs[0])
 		if x.mode == invalid {
-			goto Error
+			return
 		}
 
 		if t, ok := x.typ.(*Tuple); ok && len(lhs) == t.Len() {
@@ -207,7 +163,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, isConst bool) {
 				obj := t.At(i)
 				x.expr = nil // TODO(gri) should do better here
 				x.typ = obj.typ
-				check.assign1to1(lhs[i], nil, &x, decl, isConst)
+				check.assign1to1(lhs[i], nil, &x, false)
 			}
 			return
 		}
@@ -215,44 +171,15 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, isConst bool) {
 		if x.mode == valueok && len(lhs) == 2 {
 			// comma-ok expression
 			x.mode = value
-			check.assign1to1(lhs[0], nil, &x, decl, isConst)
+			check.assign1to1(lhs[0], nil, &x, false)
 
 			x.typ = Typ[UntypedBool]
-			check.assign1to1(lhs[1], nil, &x, decl, isConst)
+			check.assign1to1(lhs[1], nil, &x, false)
 			return
 		}
 	}
 
 	check.errorf(lhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
-
-Error:
-	// In case of a declaration, set all lhs types to Typ[Invalid].
-	if decl {
-		for _, e := range lhs {
-			ident, _ := e.(*ast.Ident)
-			if ident == nil {
-				check.errorf(e.Pos(), "cannot declare %s", e)
-				continue
-			}
-
-			var obj Object
-			if isConst {
-				obj = NewConst(ident.Pos(), check.pkg, ident.Name, nil, nil)
-			} else {
-				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
-			}
-			defer check.declare(check.topScope, ident, obj)
-
-			switch obj := obj.(type) {
-			case *Const:
-				obj.typ = Typ[Invalid]
-			case *Var:
-				obj.typ = Typ[Invalid]
-			default:
-				unreachable()
-			}
-		}
-	}
 }
 
 func (check *checker) optionalStmt(s ast.Stmt) {
@@ -390,7 +317,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		check.assign1to1(s.X, nil, &x, false, false)
+		check.assign1to1(s.X, nil, &x, false)
 
 	case *ast.AssignStmt:
 		switch s.Tok {
@@ -400,29 +327,10 @@ func (check *checker) stmt(s ast.Stmt) {
 				return
 			}
 			if s.Tok == token.DEFINE {
-				// short variable declaration
-				lhs := make([]Object, len(s.Lhs))
-				for i, x := range s.Lhs {
-					var obj Object
-					if ident, ok := x.(*ast.Ident); ok {
-						// use the correct obj if the ident is redeclared
-						obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
-						if alt := check.topScope.Lookup(nil, ident.Name); alt != nil {
-							obj = alt
-						}
-						check.callIdent(ident, obj)
-					} else {
-						check.errorf(x.Pos(), "cannot declare %s", x)
-						// create a dummy variable
-						obj = NewVar(x.Pos(), check.pkg, "_", nil)
-					}
-					lhs[i] = obj
-				}
-				check.assignMulti(lhs, s.Rhs)
-				check.declareShort(check.topScope, lhs) // scope starts after the assignment
-
+				check.shortVarDecl(s.Lhs, s.Rhs)
 			} else {
-				check.assignNtoM(s.Lhs, s.Rhs, s.Tok == token.DEFINE, false)
+				// regular assignment
+				check.assignNtoM(s.Lhs, s.Rhs)
 			}
 
 		default:
@@ -465,7 +373,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			if x.mode == invalid {
 				return
 			}
-			check.assign1to1(s.Lhs[0], nil, &x, false, false)
+			check.assign1to1(s.Lhs[0], nil, &x, false)
 		}
 
 	case *ast.GoStmt:
@@ -482,37 +390,18 @@ func (check *checker) stmt(s ast.Stmt) {
 		sig := check.funcsig
 		if n := sig.results.Len(); n > 0 {
 			// determine if the function has named results
-			{
-				named := false
-				lhs := make([]Object, len(sig.results.vars))
-				for i, res := range sig.results.vars {
-					if res.name != "" {
-						// a blank (_) result parameter is a named result
-						named = true
-					}
-					lhs[i] = res
-				}
-				if len(s.Results) > 0 || !named {
-					check.assignMulti(lhs, s.Results)
-					return
-				}
-			}
-
-			// TODO(gri) should not have to compute lhs, named every single time - clean this up
-			lhs := make([]ast.Expr, n)
-			named := false // if set, function has named results
+			named := false
+			lhs := make([]*Var, n)
 			for i, res := range sig.results.vars {
-				if len(res.name) > 0 {
+				if res.name != "" {
 					// a blank (_) result parameter is a named result
 					named = true
 				}
-				name := ast.NewIdent(res.name)
-				name.NamePos = s.Pos()
-				lhs[i] = name
+				lhs[i] = res
 			}
 			if len(s.Results) > 0 || !named {
-				// TODO(gri) assignNtoM should perhaps not require len(lhs) > 0
-				check.assignNtoM(lhs, s.Results, false, false)
+				check.initVars(lhs, s.Results, false)
+				return
 			}
 		} else if len(s.Results) > 0 {
 			check.errorf(s.Pos(), "no result values expected")
@@ -797,7 +686,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if s.Key != nil {
 			x.typ = key
 			x.expr = s.Key
-			check.assign1to1(s.Key, nil, &x, decl, false)
+			check.assign1to1(s.Key, nil, &x, decl)
 		} else {
 			check.invalidAST(s.Pos(), "range clause requires index iteration variable")
 			// ok to continue
@@ -805,7 +694,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if s.Value != nil {
 			x.typ = val
 			x.expr = s.Value
-			check.assign1to1(s.Value, nil, &x, decl, false)
+			check.assign1to1(s.Value, nil, &x, decl)
 		}
 
 		check.stmt(s.Body)

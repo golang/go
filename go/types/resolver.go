@@ -29,22 +29,6 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 	}
 }
 
-func (check *checker) declareShort(scope *Scope, list []Object) {
-	n := 0 // number of new objects
-	for _, obj := range list {
-		if obj.Name() == "_" {
-			obj.setParent(scope)
-			continue // blank identifiers are not visible
-		}
-		if scope.Insert(obj) == nil {
-			n++ // new declaration
-		}
-	}
-	if n == 0 {
-		check.errorf(list[0].Pos(), "no new variables on left side of :=")
-	}
-}
-
 // A decl describes a package-level const, type, var, or func declaration.
 type decl struct {
 	file *Scope   // scope of file containing this declaration
@@ -393,7 +377,7 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 		goto Error
 	}
 
-	check.assign(obj, &x)
+	check.initConst(obj, &x)
 	check.iota = nil
 	return
 
@@ -448,7 +432,7 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 			for i, lhs := range proj.lhs {
 				x.expr = nil // TODO(gri) should do better here
 				x.typ = t.At(i).typ
-				check.assign(lhs, &x)
+				check.initVar(lhs, &x)
 			}
 			return
 		}
@@ -456,10 +440,10 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 		if x.mode == valueok && len(proj.lhs) == 2 {
 			// comma-ok expression
 			x.mode = value
-			check.assign(proj.lhs[0], &x)
+			check.initVar(proj.lhs[0], &x)
 
 			x.typ = Typ[UntypedBool]
-			check.assign(proj.lhs[1], &x)
+			check.initVar(proj.lhs[1], &x)
 			return
 		}
 
@@ -468,7 +452,7 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 		goto Error
 	}
 
-	check.assign(obj, &x)
+	check.initVar(obj, &x)
 	return
 
 Error:

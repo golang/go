@@ -41,9 +41,10 @@ func appendArgs() ([]string, string) {
 	return []string{"foo"}, "bar"
 }
 
-func h() (interface{}, bool) {
+func h() (i interface{}, ok bool) {
 	m := map[int]string{1: "hi"}
-	return m[1] // string->interface{} conversion within multi-valued expression
+	i, ok = m[1] // string->interface{} conversion within multi-valued expression
+	return
 }
 
 func main() {
