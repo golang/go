@@ -409,6 +409,13 @@ func (b *Build) Do() error {
 }
 
 func (b *Build) tour() error {
+	defer func() {
+		// Clean work files from GOPATH directory.
+		for _, d := range []string{"bin", "pkg", "src"} {
+			os.RemoveAll(filepath.Join(b.gopath, d))
+		}
+	}()
+
 	// go get the gotour package.
 	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", *tourPath+"/gotour")
 	if err != nil {
