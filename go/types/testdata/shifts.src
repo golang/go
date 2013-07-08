@@ -143,13 +143,13 @@ func shifts6() {
 
 	_ = make([]int, 1.0)
 	_ = make([]int, 1.0<<s)
-	_ = make([]int, 1.1 /* ERROR "integer" */ <<s)
+	_ = make([]int, 1.1 /* ERROR "must be integer" */ <<s)
 
 	_ = float32(1)
-	_ = float32(1<<s)
+	_ = float32(1 /* ERROR "must be integer" */ <<s)
 	_ = float32(1.0)
-	_ = float32(1.0 /* ERROR "int" */ <<s)
-	_ = float32(1.1 /* ERROR "int" */ <<s)
+	_ = float32(1.0 /* ERROR "must be integer" */ <<s)
+	_ = float32(1.1 /* ERROR "must be integer" */ <<s)
 
 	var b []int
 	_ = append(b, 1<<s)

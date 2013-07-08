@@ -18,6 +18,8 @@ import (
 // x is marked as invalid (x.mode == invalid).
 //
 func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type) {
+	var final Type // declare before gotos
+
 	// all conversions have one argument
 	if len(conv.Args) != 1 {
 		check.invalidOp(conv.Pos(), "%s conversion requires exactly one argument", conv)
@@ -62,9 +64,20 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type) {
 		x.mode = value
 	}
 
-	// the conversion argument types are final; for now we just use x.typ
-	// TODO(gri) Fix this. For untyped constants, the type should be typ.
-	check.updateExprType(x.expr, x.typ, true)
+	// The conversion argument types are final. For untyped values the
+	// conversion provides the type, per the spec: "A constant may be
+	// given a type explicitly by a constant declaration or conversion,...".
+	final = x.typ
+	if isUntyped(final) {
+		final = typ
+		// For conversions to interfaces, use the argument type's
+		// default type instead. Keep untyped nil for untyped nil
+		// arguments.
+		if _, ok := typ.Underlying().(*Interface); ok {
+			final = defaultType(x.typ)
+		}
+	}
+	check.updateExprType(x.expr, final, true)
 
 	check.conversions[conv] = true // for cap/len checking
 	x.expr = conv

@@ -247,16 +247,13 @@ func identicalMethods(a, b []*Func) bool {
 }
 
 // defaultType returns the default "typed" type for an "untyped" type;
-// it returns the incoming type for all other types. If there is no
-// corresponding untyped type, the result is Typ[Invalid].
+// it returns the incoming type for all other types. The default type
+// for untyped nil is untyped nil.
 //
 func defaultType(typ Type) Type {
 	if t, ok := typ.(*Basic); ok {
-		k := Invalid
+		k := t.kind
 		switch t.kind {
-		// case UntypedNil:
-		//      There is no default type for nil. For a good error message,
-		//      catch this case before calling this function.
 		case UntypedBool:
 			k = Bool
 		case UntypedInt:
