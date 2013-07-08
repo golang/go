@@ -130,26 +130,6 @@ func asInt(x value) int {
 	panic(fmt.Sprintf("cannot convert %T to int", x))
 }
 
-// asUint64 converts x, which must be an unsigned integer, to a uint64
-// suitable for use as a bitwise shift count.
-func asUint64(x value) uint64 {
-	switch x := x.(type) {
-	case uint:
-		return uint64(x)
-	case uint8:
-		return uint64(x)
-	case uint16:
-		return uint64(x)
-	case uint32:
-		return uint64(x)
-	case uint64:
-		return x
-	case uintptr:
-		return uint64(x)
-	}
-	panic(fmt.Sprintf("cannot convert %T to uint64", x))
-}
-
 // zero returns a new "zero" value of the specified type.
 func zero(t types.Type) value {
 	switch t := t.(type) {
@@ -563,7 +543,7 @@ func binop(op token.Token, x, y value) value {
 		}
 
 	case token.SHL:
-		y := asUint64(y)
+		y := uint64(asInt(y))
 		switch x.(type) {
 		case int:
 			return x.(int) << y
@@ -590,7 +570,7 @@ func binop(op token.Token, x, y value) value {
 		}
 
 	case token.SHR:
-		y := asUint64(y)
+		y := uint64(asInt(y))
 		switch x.(type) {
 		case int:
 			return x.(int) >> y

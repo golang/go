@@ -160,11 +160,23 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))
 	}
 
+	// Check that value-defining instructions have valid types.
 	if v, ok := instr.(Value); ok {
-		if v.Type() == nil {
+		t := v.Type()
+		if t == nil {
 			s.errorf("no type: %s = %s", v.Name(), v)
+		} else if t == tRangeIter {
+			// not a proper type; ignore.
+		} else if b, ok := t.Underlying().(*types.Basic); ok && b.Info()&types.IsUntyped != 0 {
+			s.errorf("instruction has 'untyped' result: %s = %s : %s", v.Name(), v, t)
 		}
 	}
+
+	// TODO(adonovan): sanity-check Literals used as instruction Operands(),
+	// e.g. reject Literals with "untyped" types.
+	//
+	// All other non-Instruction Values can be found via their
+	// enclosing Function or Package.
 }
 
 func (s *sanity) checkFinalInstr(idx int, instr Instruction) {

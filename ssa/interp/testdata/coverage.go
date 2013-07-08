@@ -270,6 +270,16 @@ func main() {
 	}
 }
 
+type mybool bool
+
+func (mybool) f() {}
+
+func init() {
+	var x, y int
+	var b mybool = x == y // x==y is an untyped bool
+	b.f()
+}
+
 // Simple closures.
 func init() {
 	b := 3
