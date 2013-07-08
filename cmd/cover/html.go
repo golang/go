@@ -288,11 +288,11 @@ func rgb(n int) string {
 	if n == 0 {
 		return "rgb(255, 0, 0)" // Red
 	}
-	// Gradient from pale green (low count)
-	// to bright green (high count)
-	r := 240 - 22*(n-1)
-	b := 170 + r/3
-	return fmt.Sprintf("rgb(%v, 255, %v)", r, b)
+	// Gradient from pale blue (low count) to yellow (high count)
+	r := 185 + 7*(n-1)
+	g := 185 + 7*(n-1)
+	b := 5 + 25*(11-n)
+	return fmt.Sprintf("rgb(%v, %v, %v)", r, g, b)
 }
 
 // colors generates the CSS rules for coverage colors.
@@ -322,7 +322,21 @@ const tmplHTML = `
 <html>
 	<head>
 		<style>
-			body { background: black; color: white; }
+			body {
+				background: black; color: white;
+			}
+			#legend {
+				margin: 20px 0;
+			}
+			#legend .box {
+				display: inline;
+				padding: 10px;
+				border: 1px solid white;
+			}
+			#legend span {
+				font-family: monospace;
+				margin: 0 5px;
+			}
 			{{colors}}
 		</style>
 	</head>
@@ -333,6 +347,23 @@ const tmplHTML = `
 			<option value="file{{$i}}">{{$f.Name}}</option>
 			{{end}}
 			</select>
+		</div>
+		<div id="legend">
+			<div class="box">
+				<span>not tracked</span>
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">*</span>
+				<span class="cov11">high coverage</span>
+			</div>
 		</div>
 		{{range $i, $f := .Files}}
 		<pre class="file" id="file{{$i}}" {{if $i}}style="display: none"{{end}}>{{$f.Body}}</pre>
