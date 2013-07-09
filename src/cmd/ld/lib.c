@@ -665,6 +665,9 @@ hostlink(void)
 	case '6':
 		argv[argc++] = "-m64";
 		break;
+	case '5':
+		// nothing required for arm
+		break;
 	}
 	if(!debug['s'] && !debug_s) {
 		argv[argc++] = "-gdwarf-2"; 
