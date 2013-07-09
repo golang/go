@@ -796,8 +796,8 @@ func (b *builder) build(a *action) (err error) {
 		for _, file := range a.p.GoFiles {
 			sourceFile := filepath.Join(a.p.Dir, file)
 			cover := a.p.coverVars[file]
-			if cover == nil {
-				// Not covering this file
+			if cover == nil || isTestFile(file) {
+				// Not covering this file.
 				gofiles = append(gofiles, file)
 				continue
 			}
