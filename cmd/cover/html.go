@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(adg): floating nav bar + legend
+// TODO(adg): set-specific legend
+
 package main
 
 import (
@@ -182,7 +185,7 @@ func (p *Profile) Tokens(src []byte) (tokens []Token) {
 		}
 	}
 	// Divisor for normalization.
-	divisor := math.Log(float64(max + 1))
+	divisor := math.Log(float64(max))
 
 	// tok returns a Token, populating the Norm field with a normalized Count.
 	tok := func(pos int, start bool, count int) Token {
@@ -190,10 +193,10 @@ func (p *Profile) Tokens(src []byte) (tokens []Token) {
 		if !start || count == 0 {
 			return t
 		}
-		if max == 1 {
+		if max <= 1 {
 			t.Norm = 0.4 // "set" mode; use pale color
-		} else {
-			t.Norm = math.Log(float64(count+1)) / divisor
+		} else if count > 0 {
+			t.Norm = math.Log(float64(count)) / divisor
 		}
 		return t
 	}
@@ -241,7 +244,7 @@ func htmlGen(w io.Writer, src []byte, tokens []Token) error {
 			if t.Start {
 				n := 0
 				if t.Count > 0 {
-					n = int(math.Floor(t.Norm*10)) + 1
+					n = int(math.Floor(t.Norm*9)) + 1
 				}
 				fmt.Fprintf(dst, `<span class="cov%v" title="%v">`, n, t.Count)
 			} else {
@@ -283,22 +286,22 @@ func startBrowser(url string) bool {
 }
 
 // rgb returns an rgb value for the specified coverage value
-// between 0 (no coverage) and 11 (max coverage).
+// between 0 (no coverage) and 10 (max coverage).
 func rgb(n int) string {
 	if n == 0 {
-		return "rgb(255, 0, 0)" // Red
+		return "rgb(192, 0, 0)" // Red
 	}
-	// Gradient from pale blue (low count) to yellow (high count)
-	r := 185 + 7*(n-1)
-	g := 185 + 7*(n-1)
-	b := 5 + 25*(11-n)
+	// Gradient from gray to green.
+	r := 128 - 12*(n-1)
+	g := 128 + 12*(n-1)
+	b := 128 + 3*(n-1)
 	return fmt.Sprintf("rgb(%v, %v, %v)", r, g, b)
 }
 
 // colors generates the CSS rules for coverage colors.
 func colors() template.CSS {
 	var buf bytes.Buffer
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 11; i++ {
 		fmt.Fprintf(&buf, ".cov%v { color: %v }\n", i, rgb(i))
 	}
 	return template.CSS(buf.String())
@@ -323,7 +326,8 @@ const tmplHTML = `
 	<head>
 		<style>
 			body {
-				background: black; color: white;
+				background: black;
+				color: rgb(80, 80, 80);
 			}
 			#legend {
 				margin: 20px 0;
@@ -334,8 +338,11 @@ const tmplHTML = `
 				border: 1px solid white;
 			}
 			#legend span {
-				font-family: monospace;
 				margin: 0 5px;
+			}
+			pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
 			}
 			{{colors}}
 		</style>
@@ -361,8 +368,7 @@ const tmplHTML = `
 				<span class="cov7">*</span>
 				<span class="cov8">*</span>
 				<span class="cov9">*</span>
-				<span class="cov10">*</span>
-				<span class="cov11">high coverage</span>
+				<span class="cov10">high coverage</span>
 			</div>
 		</div>
 		{{range $i, $f := .Files}}
