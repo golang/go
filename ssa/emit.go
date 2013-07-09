@@ -38,6 +38,11 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type, pos token.
 	switch op {
 	case token.SHL, token.SHR:
 		x = emitConv(f, x, t)
+		// y may be signed or an 'untyped' constant.
+		// TODO(adonovan): whence signed values?
+		if b, ok := y.Type().Underlying().(*types.Basic); ok && b.Info()&types.IsUnsigned == 0 {
+			y = emitConv(f, y, types.Typ[types.Uint64])
+		}
 
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
 		x = emitConv(f, x, t)
