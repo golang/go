@@ -236,6 +236,19 @@ func panic(v interface{})
 // panicking.
 func recover() interface{}
 
+// The print built-in function formats its arguments in an implementation-
+// specific way and writes the result to standard error.
+// Print is useful for bootstrapping and debugging; it is not guaranteed
+// to stay in the language.
+func print(args ...Type)
+
+// The println built-in function formats its arguments in an implementation-
+// specific way and writes the result to standard error.
+// Spaces are always added between arguments and a newline is appended.
+// Println is useful for bootstrapping and debugging; it is not guaranteed
+// to stay in the language.
+func println(args ...Type)
+
 // The error built-in interface type is the conventional interface for
 // representing an error condition, with the nil value representing no error.
 type error interface {
