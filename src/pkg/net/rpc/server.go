@@ -247,10 +247,12 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		sname = name
 	}
 	if sname == "" {
-		log.Fatal("rpc: no service name for type", s.typ.String())
+		s := "rpc.Register: no service name for type " + s.typ.String()
+		log.Print(s)
+		return errors.New(s)
 	}
 	if !isExported(sname) && !useName {
-		s := "rpc Register: type " + sname + " is not exported"
+		s := "rpc.Register: type " + sname + " is not exported"
 		log.Print(s)
 		return errors.New(s)
 	}
