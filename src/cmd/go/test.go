@@ -808,11 +808,21 @@ func recompileForTest(pmain, preal, ptest *Package, testDir string) {
 
 var coverIndex = 0
 
+// isTestFile reports whether the source file is a set of tests and should therefore
+// be excluded from coverage analysis.
+func isTestFile(file string) bool {
+	// We don't cover tests, only the code they test.
+	return strings.HasSuffix(file, "_test.go")
+}
+
 // declareCoverVars attaches the required cover variables names
 // to the files, to be used when annotating the files.
 func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
 	coverVars := make(map[string]*CoverVar)
 	for _, file := range files {
+		if isTestFile(file) {
+			continue
+		}
 		coverVars[file] = &CoverVar{
 			File: filepath.Join(importPath, file),
 			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
@@ -902,11 +912,7 @@ func (b *builder) runTest(a *action) error {
 		if testShowPass {
 			a.testOutput.Write(out)
 		}
-		coverWhere := ""
-		if testCoverPaths != nil {
-			coverWhere = " in " + strings.Join(testCoverPaths, ", ")
-		}
-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s%s\n", a.p.ImportPath, t, coveragePercentage(out), coverWhere)
+		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s\n", a.p.ImportPath, t, coveragePercentage(out))
 		return nil
 	}
 
@@ -931,10 +937,12 @@ func coveragePercentage(out []byte) string {
 	// The string looks like
 	//	test coverage for encoding/binary: 79.9% of statements
 	// Extract the piece from the percentage to the end of the line.
-	re := regexp.MustCompile(`test coverage for [^ ]+: (.*)\n`)
+	re := regexp.MustCompile(`coverage for [^ ]+: (.*)\n`)
 	matches := re.FindSubmatch(out)
 	if matches == nil {
-		return "(missing coverage statistics)"
+		// Probably running "go test -cover" not "go test -cover fmt".
+		// The coverage output will appear in the output directly.
+		return ""
 	}
 	return fmt.Sprintf("\tcoverage: %s", matches[1])
 }
@@ -1034,6 +1042,22 @@ type testFuncs struct {
 
 func (t *testFuncs) CoverEnabled() bool {
 	return testCover
+}
+
+// Covered returns a string describing which packages are being tested for coverage.
+// If the covered package is the same as the tested package, it returns the empty string.
+// Otherwise it is a comma-separated human-readable list of packages beginning with
+// " in", ready for use in the coverage message.
+func (t *testFuncs) Covered() string {
+	if testCoverPaths == nil {
+		return ""
+	}
+	return " in " + strings.Join(testCoverPaths, ", ")
+}
+
+// Tested returns the name of the package being tested.
+func (t *testFuncs) Tested() string {
+	return t.Package.Name
 }
 
 type testFunc struct {
@@ -1157,7 +1181,8 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 		panic("coverage: mismatched sizes")
 	}
 	if coverCounters[fileName] != nil {
-		panic("coverage: duplicate counter array for " + fileName)
+		// Already registered.
+		return
 	}
 	coverCounters[fileName] = counter
 	block := make([]testing.CoverBlock, len(counter))
@@ -1176,6 +1201,7 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 
 func main() {
 {{if .CoverEnabled}}
+	testing.CoveredPackage({{printf "%q" .Tested}}, {{printf "%q" .Covered}})
 	testing.RegisterCover(coverCounters, coverBlocks)
 {{end}}
 	testing.Main(matchString, tests, benchmarks, examples)

@@ -27,12 +27,25 @@ var (
 	coverBlocks   map[string][]CoverBlock
 )
 
+var (
+	testedPackage  string // The package being tested.
+	coveredPackage string // List of the package[s] being covered, if distinct from the tested package.
+)
+
 // RegisterCover records the coverage data accumulators for the tests.
 // NOTE: This struct is internal to the testing infrastructure and may change.
 // It is not covered (yet) by the Go 1 compatibility guidelines.
 func RegisterCover(c map[string][]uint32, b map[string][]CoverBlock) {
 	coverCounters = c
 	coverBlocks = b
+}
+
+// CoveredPackage records the names of the packages being tested and covered.
+// NOTE: This function is internal to the testing infrastructure and may change.
+// It is not covered (yet) by the Go 1 compatibility guidelines.
+func CoveredPackage(tested, covered string) {
+	testedPackage = tested
+	coveredPackage = covered
 }
 
 // mustBeNil checks the error and, if present, reports it and exits.
@@ -55,16 +68,7 @@ func coverReport() {
 	}
 
 	var active, total int64
-	packageName := ""
 	for name, counts := range coverCounters {
-		if packageName == "" {
-			// Package name ends at last slash.
-			for i, c := range name {
-				if c == '/' {
-					packageName = name[:i]
-				}
-			}
-		}
 		blocks := coverBlocks[name]
 		for i, count := range counts {
 			stmts := int64(blocks[i].Stmts)
@@ -85,8 +89,5 @@ func coverReport() {
 	if total == 0 {
 		total = 1
 	}
-	if packageName == "" {
-		packageName = "package"
-	}
-	fmt.Printf("test coverage for %s: %.1f%% of statements\n", packageName, 100*float64(active)/float64(total))
+	fmt.Printf("coverage for %s: %.1f%% of statements%s\n", testedPackage, 100*float64(active)/float64(total), coveredPackage)
 }
