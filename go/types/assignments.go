@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements initialization and assignment checks.
+
 package types
 
 import (
@@ -9,6 +11,29 @@ import (
 
 	"code.google.com/p/go.tools/go/exact"
 )
+
+// assignment reports whether x can be assigned to a variable of type 'to',
+// if necessary by attempting to convert untyped values to the appropriate
+// type. If x.mode == invalid upon return, then assignment has already
+// issued an error message and the caller doesn't have to report another.
+// TODO(gri) This latter behavior is for historic reasons and complicates
+// callers. Needs to be cleaned up.
+func (check *checker) assignment(x *operand, to Type) bool {
+	if x.mode == invalid {
+		return false
+	}
+
+	if t, ok := x.typ.(*Tuple); ok {
+		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
+		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
+		x.mode = invalid
+		return false
+	}
+
+	check.convertUntyped(x, to)
+
+	return x.mode != invalid && x.isAssignable(check.ctxt, to)
+}
 
 func (check *checker) initConst(lhs *Const, x *operand) {
 	lhs.val = exact.MakeUnknown()
@@ -48,9 +73,7 @@ func (check *checker) initConst(lhs *Const, x *operand) {
 }
 
 func (check *checker) initVar(lhs *Var, x *operand) {
-	typ := x.typ
-
-	if x.mode == invalid || typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -59,6 +82,7 @@ func (check *checker) initVar(lhs *Var, x *operand) {
 
 	// If the lhs doesn't have a type yet, use the type of x.
 	if lhs.typ == nil {
+		typ := x.typ
 		if isUntyped(typ) {
 			// convert untyped types to default types
 			if typ == Typ[UntypedNil] {
@@ -78,10 +102,35 @@ func (check *checker) initVar(lhs *Var, x *operand) {
 	}
 }
 
-func invalidateVars(list []*Var) {
-	for _, obj := range list {
-		if obj.typ == nil {
-			obj.typ = Typ[Invalid]
+func (check *checker) assignVar(lhs ast.Expr, x *operand) {
+	if x.mode == invalid || x.typ == Typ[Invalid] {
+		return
+	}
+
+	// Don't evaluate lhs if it is the blank identifier.
+	if ident, _ := lhs.(*ast.Ident); ident != nil && ident.Name == "_" {
+		check.callIdent(ident, nil)
+		check.updateExprType(x.expr, x.typ, true) // rhs has its final type
+		return
+	}
+
+	var z operand
+	check.expr(&z, lhs)
+	if z.mode == invalid || z.typ == Typ[Invalid] {
+		return
+	}
+
+	if z.mode == constant || z.mode == value {
+		check.errorf(z.pos(), "cannot assign to non-variable %s", &z)
+		return
+	}
+
+	// TODO(gri) z.mode can also be valueok which in some cases is ok (maps)
+	// but in others isn't (channels). Complete the checks here.
+
+	if !check.assignment(x, z.typ) {
+		if x.mode != invalid {
+			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
 		}
 	}
 }
@@ -143,6 +192,57 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 	invalidateVars(lhs)
 }
 
+func (check *checker) assignVars(lhs, rhs []ast.Expr) {
+	assert(len(lhs) > 0)
+
+	// If the lhs and rhs have corresponding expressions,
+	// treat each matching pair as an individual pair.
+	if len(lhs) == len(rhs) {
+		var x operand
+		for i, e := range rhs {
+			check.expr(&x, e)
+			check.assignVar(lhs[i], &x)
+		}
+		return
+	}
+
+	// Otherwise, the rhs must be a single expression (possibly
+	// a function call returning multiple values, or a comma-ok
+	// expression).
+	if len(rhs) == 1 {
+		// len(lhs) > 1
+		var x operand
+		check.expr(&x, rhs[0])
+		if x.mode == invalid {
+			return
+		}
+
+		if t, ok := x.typ.(*Tuple); ok && len(lhs) == t.Len() {
+			// function result
+			for i, lhs := range lhs {
+				x.mode = value
+				x.expr = rhs[0]
+				x.typ = t.At(i).typ
+				check.assignVar(lhs, &x)
+			}
+			return
+		}
+
+		if x.mode == valueok && len(lhs) == 2 {
+			// comma-ok expression
+			x.mode = value
+			check.assignVar(lhs[0], &x)
+
+			x.mode = value
+			x.typ = Typ[UntypedBool]
+			check.assignVar(lhs[1], &x)
+			return
+		}
+	}
+
+	check.errorf(rhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
+}
+
 func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 	scope := check.topScope
 
@@ -190,5 +290,13 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 	}
 	if n == 0 {
 		check.errorf(vars[0].Pos(), "no new variables on left side of :=")
+	}
+}
+
+func invalidateVars(list []*Var) {
+	for _, obj := range list {
+		if obj.typ == nil {
+			obj.typ = Typ[Invalid]
+		}
 	}
 }

@@ -68,7 +68,9 @@ type Context struct {
 	// is nil if the identifier was not declared. Ident may be called
 	// multiple times for the same identifier (e.g., for typed variable
 	// declarations with multiple initialization statements); but Ident
-	// will report the same obj for a given id in this case.
+	// will report the same obj for a given id in this case. The object
+	// may not be fully set up at the time of the callback (e.g., its type
+	// may be nil and only filled in later).
 	Ident func(id *ast.Ident, obj Object)
 	// TODO(gri) Can we make this stronger, so that Ident is called
 	// always exactly once (w/o resorting to a map, internally)?
