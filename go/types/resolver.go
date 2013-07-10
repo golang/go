@@ -59,12 +59,29 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	var objList []Object
 	var objMap = make(map[Object]*decl)
 	var methods []*mdecl
-	var fileScope *Scope // current file scope, used by add
+	var fileScope *Scope // current file scope, used by collect
 
-	add := func(obj Object, typ, init ast.Expr) {
+	declare := func(ident *ast.Ident, obj Object, typ, init ast.Expr) {
+		assert(ident.Name == obj.Name())
+
+		// spec: "A package-scope or file-scope identifier with name init
+		// may only be declared to be a function with this (func()) signature."
+		if ident.Name == "init" {
+			f, _ := obj.(*Func)
+			if f == nil {
+				check.callIdent(ident, nil)
+				check.errorf(ident.Pos(), "cannot declare init - must be func")
+				return
+			}
+			// don't declare init functions in the package scope - they are invisible
+			f.parent = pkg.scope
+			check.callIdent(ident, obj)
+		} else {
+			check.declare(pkg.scope, ident, obj)
+		}
+
 		objList = append(objList, obj)
 		objMap[obj] = &decl{fileScope, typ, init}
-		// TODO(gri) move check.declare call here
 	}
 
 	for _, file := range files {
@@ -104,6 +121,10 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						name := imp.name
 						if s.Name != nil {
 							name = s.Name.Name
+							if name == "init" {
+								check.errorf(s.Name.Pos(), "cannot declare init - must be func")
+								continue
+							}
 						}
 
 						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil, imp.complete)
@@ -143,13 +164,13 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 							// declare all constants
 							for i, name := range s.Names {
 								obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
-								check.declare(pkg.scope, name, obj)
 
 								var init ast.Expr
 								if i < len(last.Values) {
 									init = last.Values[i]
 								}
-								add(obj, last.Type, init)
+
+								declare(name, obj, last.Type, init)
 							}
 
 							// arity of lhs and rhs must match
@@ -170,7 +191,6 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 							for i, name := range s.Names {
 								obj := NewVar(name.Pos(), pkg, name.Name, nil)
 								lhs[i] = obj
-								check.declare(pkg.scope, name, obj)
 
 								var init ast.Expr
 								switch len(s.Values) {
@@ -185,7 +205,8 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 										init = s.Values[i]
 									}
 								}
-								add(obj, s.Type, init)
+
+								declare(name, obj, s.Type, init)
 							}
 
 							// report if there are too many initialization expressions
@@ -206,8 +227,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						check.declare(pkg.scope, s.Name, obj)
-						add(obj, s.Type, nil)
+						declare(s.Name, obj, s.Type, nil)
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
@@ -222,14 +242,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 				}
 				obj := NewFunc(d.Name.Pos(), pkg, d.Name.Name, nil)
 				obj.decl = d
-				if obj.name == "init" {
-					// init functions are not visible - don't declare them in package scope
-					obj.parent = pkg.scope
-					check.callIdent(d.Name, obj)
-				} else {
-					check.declare(pkg.scope, d.Name, obj)
-				}
-				add(obj, nil, nil)
+				declare(d.Name, obj, nil, nil)
 
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
@@ -241,8 +254,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	for _, scope := range scopes {
 		for _, obj := range scope.entries {
 			if alt := pkg.scope.Lookup(nil, obj.Name()); alt != nil {
-				// TODO(gri) better error message
-				check.errorf(alt.Pos(), "%s redeclared in this block by import of package %s", obj.Name(), obj.Pkg().Name())
+				check.errorf(alt.Pos(), "%s already declared in this file through import of package %s", obj.Name(), obj.Pkg().Name())
 			}
 		}
 	}
@@ -306,8 +318,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 	// Phase 4) Typecheck all objects in objList but not function bodies.
 
-	check.objMap = objMap // indicate we are doing global declarations (objects may not have a type yet)
-	check.topScope = pkg.scope
+	check.objMap = objMap // indicate that we are checking global declarations (objects may not have a type yet)
 	for _, obj := range objList {
 		if obj.Type() == nil {
 			check.declareObject(obj, nil, false)

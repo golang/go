@@ -14,6 +14,7 @@ import (
 	// reflect defines a type "flag" which shows up in the gc export data
 	"reflect"
 	. "reflect"
+	init /* ERROR "cannot declare init" */ "fmt"
 )
 
 // reflect.flag must not be visible in this package
@@ -21,7 +22,7 @@ type flag int
 type _ reflect /* ERROR "not exported" */ .flag
 
 // dot-imported exported objects may conflict with local objects
-type Value /* ERROR "redeclared in this block by import" */ struct{}
+type Value /* ERROR "already declared in this file" */ struct{}
 
 const pi = 3.1415
 
@@ -49,6 +50,17 @@ type (
 	_ struct{ pi /* ERROR "not a type" */ }
 )
 
+
+// declarations of init
+const _, init /* ERROR "cannot declare init" */ , _ = 0, 1, 2
+type init /* ERROR "cannot declare init" */ struct{}
+var _, init /* ERROR "cannot declare init" */ int
+
+func init() {}
+
+func _() { const init = 0 }
+func _() { type init int }
+func _() { var init int }
 
 // invalid array types
 type (
