@@ -105,23 +105,31 @@ func dirList(w ResponseWriter, f File) {
 //
 // Note that *os.File implements the io.ReadSeeker interface.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
-	size, err := content.Seek(0, os.SEEK_END)
-	if err != nil {
-		Error(w, "seeker can't seek", StatusInternalServerError)
-		return
+	sizeFunc := func() (int64, error) {
+		size, err := content.Seek(0, os.SEEK_END)
+		if err != nil {
+			return 0, errSeeker
+		}
+		_, err = content.Seek(0, os.SEEK_SET)
+		if err != nil {
+			return 0, errSeeker
+		}
+		return size, nil
 	}
-	_, err = content.Seek(0, os.SEEK_SET)
-	if err != nil {
-		Error(w, "seeker can't seek", StatusInternalServerError)
-		return
-	}
-	serveContent(w, req, name, modtime, size, content)
+	serveContent(w, req, name, modtime, sizeFunc, content)
 }
+
+// errSeeker is returned by ServeContent's sizeFunc when the content
+// doesn't seek properly. The underlying Seeker's error text isn't
+// included in the sizeFunc reply so it's not sent over HTTP to end
+// users.
+var errSeeker = errors.New("seeker can't seek")
 
 // if name is empty, filename is unknown. (used for mime type, before sniffing)
 // if modtime.IsZero(), modtime is unknown.
 // content must be seeked to the beginning of the file.
-func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, size int64, content io.ReadSeeker) {
+// The sizeFunc is called at most once. Its error, if any, is sent in the HTTP response.
+func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, sizeFunc func() (int64, error), content io.ReadSeeker) {
 	if checkLastModified(w, r, modtime) {
 		return
 	}
@@ -149,6 +157,12 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			}
 		}
 		w.Header().Set("Content-Type", ctype)
+	}
+
+	size, err := sizeFunc()
+	if err != nil {
+		Error(w, err.Error(), StatusInternalServerError)
+		return
 	}
 
 	// handle Content-Range header.
@@ -378,7 +392,8 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	}
 
 	// serverContent will check modification time
-	serveContent(w, r, d.Name(), d.ModTime(), d.Size(), f)
+	sizeFunc := func() (int64, error) { return d.Size(), nil }
+	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
 }
 
 // localRedirect gives a Moved Permanently response.
