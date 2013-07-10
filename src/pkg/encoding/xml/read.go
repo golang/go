@@ -57,7 +57,7 @@ import (
 //      If there is no such field, the character data is discarded.
 //
 //   * If the XML element contains comments, they are accumulated in
-//      the first struct field that has tag ",comments".  The struct
+//      the first struct field that has tag ",comment".  The struct
 //      field may have type []byte or string.  If there is no such
 //      field, the comments are discarded.
 //
