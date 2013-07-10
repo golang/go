@@ -76,9 +76,8 @@ func (p *anonFieldPath) isIndirect() bool {
 // type's method-set.
 //
 type candidate struct {
-	method   *types.Func    // method object of abstract or concrete type
-	concrete *Function      // actual method (iff concrete)
-	path     *anonFieldPath // desugared selector path
+	method *types.Func    // method object of abstract or concrete type
+	path   *anonFieldPath // desugared selector path
 }
 
 func (c candidate) String() string {
@@ -90,9 +89,16 @@ func (c candidate) String() string {
 	return s + "." + c.method.Name()
 }
 
-// ptrRecv returns true if this candidate has a pointer receiver.
+func (c candidate) isConcrete() bool {
+	return c.method.Type().(*types.Signature).Recv() != nil
+}
+
+// ptrRecv returns true if this candidate is a concrete method with a
+// pointer receiver.
+//
 func (c candidate) ptrRecv() bool {
-	return c.concrete != nil && isPointer(c.concrete.Signature.Recv().Type())
+	recv := c.method.Type().(*types.Signature).Recv()
+	return recv != nil && isPointer(recv.Type())
 }
 
 // MethodSet returns the method set for type typ, building wrapper
@@ -101,6 +107,7 @@ func (c candidate) ptrRecv() bool {
 // A nil result indicates an empty set.
 //
 // Thread-safe.
+//
 func (p *Program) MethodSet(typ types.Type) MethodSet {
 	if !canHaveConcreteMethods(typ, true) {
 		return nil
@@ -120,9 +127,11 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 // buildMethodSet computes the concrete method set for type typ.
 // It is the implementation of Program.MethodSet.
 //
+// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
+//
 func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 	if prog.mode&LogSource != 0 {
-		defer logStack("buildMethodSet %s %T", typ, typ)()
+		defer logStack("buildMethodSet %s", typ)()
 	}
 
 	// cands maps ids (field and method names) encountered at any
@@ -151,12 +160,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 
 			if nt, ok := t.(*types.Named); ok {
 				for i, n := 0, nt.NumMethods(); i < n; i++ {
-					m := nt.Method(i)
-					concrete := prog.concreteMethods[m]
-					if concrete == nil {
-						panic(fmt.Sprintf("no ssa.Function for methodset(%s)[%s]", t, m.Name()))
-					}
-					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, concrete, node)
+					addCandidate(nextcands, nt.Method(i), node)
 				}
 				t = nt.Underlying()
 			}
@@ -164,8 +168,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			switch t := t.(type) {
 			case *types.Interface:
 				for i, n := 0, t.NumMethods(); i < n; i++ {
-					m := t.Method(i)
-					addCandidate(nextcands, MakeId(m.Name(), m.Pkg()), m, nil, node)
+					addCandidate(nextcands, t.Method(i), node)
 				}
 
 			case *types.Struct:
@@ -218,7 +221,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 		var method *Function
 		if cand.path == nil {
 			// Trivial member of method-set; no promotion needed.
-			method = cand.concrete
+			method = prog.concreteMethods[cand.method]
 
 			if !cand.ptrRecv() && isPointer(typ) {
 				// Call to method on T from receiver of type *T.
@@ -235,11 +238,11 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 	return mset
 }
 
-// addCandidate adds the promotion candidate (method, node) to m[id].
-// If m[id] already exists (whether nil or not), m[id] is set to nil.
-// If method denotes a concrete method, concrete is its implementation.
+// addCandidate adds the promotion candidate (method, node) to m[(name, package)].
+// If a map entry already exists (whether nil or not), its value is set to nil.
 //
-func addCandidate(m map[Id]*candidate, id Id, method *types.Func, concrete *Function, node *anonFieldPath) {
+func addCandidate(m map[Id]*candidate, method *types.Func, node *anonFieldPath) {
+	id := MakeId(method.Name(), method.Pkg())
 	prev, found := m[id]
 	switch {
 	case prev != nil:
@@ -249,7 +252,7 @@ func addCandidate(m map[Id]*candidate, id Id, method *types.Func, concrete *Func
 		// Already blocked.
 	default:
 		// A viable candidate.
-		m[id] = &candidate{method, concrete, node}
+		m[id] = &candidate{method, node}
 	}
 }
 
@@ -270,6 +273,8 @@ func addCandidate(m map[Id]*candidate, id Id, method *types.Func, concrete *Func
 // typ is the receiver type of the wrapper method.  cand is the
 // candidate method to be promoted; it may be concrete or an interface
 // method.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
 //
 func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function {
 	old := cand.method.Type().(*types.Signature)
@@ -321,8 +326,8 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 	}
 
 	var c Call
-	if cand.concrete != nil {
-		c.Call.Func = cand.concrete
+	if cand.isConcrete() {
+		c.Call.Func = prog.concreteMethods[cand.method]
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		iface := v.Type().Underlying().(*types.Interface)

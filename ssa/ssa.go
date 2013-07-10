@@ -42,7 +42,7 @@ type Package struct {
 	Object  *types.Package         // the type checker's package object for this package
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package-level vars and funcs, keyed by object
-	Init    *Function              // the package's (concatenated) init function
+	Init    *Function              // the package's (concatenated) init function [TODO use Func("init")]
 
 	// The following fields are set transiently, then cleared
 	// after building.
@@ -379,8 +379,7 @@ type Parameter struct {
 // constants.
 //
 // Pos() returns the canonical position (see CanonicalPos) of the
-// originating constant expression (ast.Ident or ast.BasicLit, or
-// ast.{Call,Selector,Unary,Binary}Expr), if explicit in the source.
+// originating constant expression, if explicit in the source.
 //
 // Example printed form:
 // 	42:int

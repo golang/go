@@ -234,7 +234,18 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		// No position information.
 		scope := p.Object.Scope()
 		for i, n := 0, scope.NumEntries(); i < n; i++ {
-			memberFromObject(p, scope.At(i), nil)
+			obj := scope.At(i)
+			if obj, ok := obj.(*types.TypeName); ok {
+				mset := types.NewMethodSet(obj.Type())
+				for i, n := 0, mset.Len(); i < n; i++ {
+					memberFromObject(p, mset.At(i), nil)
+				}
+				mset = types.NewMethodSet(types.NewPointer(obj.Type()))
+				for i, n := 0, mset.Len(); i < n; i++ {
+					memberFromObject(p, mset.At(i), nil)
+				}
+			}
+			memberFromObject(p, obj, nil)
 		}
 	}
 
