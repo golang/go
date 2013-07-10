@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(adg): floating nav bar + legend
 // TODO(adg): set-specific legend
 
 package main
@@ -329,34 +328,46 @@ const tmplHTML = `
 				background: black;
 				color: rgb(80, 80, 80);
 			}
-			#legend {
-				margin: 20px 0;
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
 			}
-			#legend .box {
-				display: inline;
-				padding: 10px;
-				border: 1px solid white;
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
 			}
 			#legend span {
 				margin: 0 5px;
-			}
-			pre, #legend span {
-				font-family: Menlo, monospace;
-				font-weight: bold;
 			}
 			{{colors}}
 		</style>
 	</head>
 	<body>
-		<div id="nav">
-			<select id="files">
-			{{range $i, $f := .Files}}
-			<option value="file{{$i}}">{{$f.Name}}</option>
-			{{end}}
-			</select>
-		</div>
-		<div id="legend">
-			<div class="box">
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				{{range $i, $f := .Files}}
+				<option value="file{{$i}}">{{$f.Name}}</option>
+				{{end}}
+				</select>
+			</div>
+			<div id="legend">
 				<span>not tracked</span>
 				<span class="cov0">no coverage</span>
 				<span class="cov1">low coverage</span>
@@ -371,9 +382,11 @@ const tmplHTML = `
 				<span class="cov10">high coverage</span>
 			</div>
 		</div>
+		<div id="content">
 		{{range $i, $f := .Files}}
 		<pre class="file" id="file{{$i}}" {{if $i}}style="display: none"{{end}}>{{$f.Body}}</pre>
 		{{end}}
+		</div>
 	</body>
 	<script>
 	(function() {
@@ -384,6 +397,7 @@ const tmplHTML = `
 			visible.style.display = 'none';
 			visible = document.getElementById(files.value);
 			visible.style.display = 'block';
+			window.scrollTo(0, 0);
 		}
 	})();
 	</script>
