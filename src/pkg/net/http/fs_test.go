@@ -567,7 +567,10 @@ func TestServeContent(t *testing.T) {
 	defer ts.Close()
 
 	type testCase struct {
-		file             string
+		// One of file or content must be set:
+		file    string
+		content io.ReadSeeker
+
 		modtime          time.Time
 		serveETag        string // optional
 		serveContentType string // optional
@@ -615,6 +618,14 @@ func TestServeContent(t *testing.T) {
 			},
 			wantStatus: 304,
 		},
+		"not_modified_etag_no_seek": {
+			content:   panicOnSeek{nil}, // should never be called
+			serveETag: `"foo"`,
+			reqHeader: map[string]string{
+				"If-None-Match": `"foo"`,
+			},
+			wantStatus: 304,
+		},
 		"range_good": {
 			file:      "testdata/style.css",
 			serveETag: `"A"`,
@@ -638,15 +649,21 @@ func TestServeContent(t *testing.T) {
 		},
 	}
 	for testName, tt := range tests {
-		f, err := os.Open(tt.file)
-		if err != nil {
-			t.Fatalf("test %q: %v", testName, err)
+		var content io.ReadSeeker
+		if tt.file != "" {
+			f, err := os.Open(tt.file)
+			if err != nil {
+				t.Fatalf("test %q: %v", testName, err)
+			}
+			defer f.Close()
+			content = f
+		} else {
+			content = tt.content
 		}
-		defer f.Close()
 
 		servec <- serveParam{
 			name:        filepath.Base(tt.file),
-			content:     f,
+			content:     content,
 			modtime:     tt.modtime,
 			etag:        tt.serveETag,
 			contentType: tt.serveContentType,
@@ -763,3 +780,5 @@ func TestLinuxSendfileChild(*testing.T) {
 		panic(err)
 	}
 }
+
+type panicOnSeek struct{ io.ReadSeeker }
