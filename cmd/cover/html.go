@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(adg): set-specific legend
-
 package main
 
 import (
@@ -22,6 +20,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // htmlOutput reads the profile data from profile and generates an HTML
@@ -39,9 +38,12 @@ func htmlOutput(profile, outfile string) error {
 		return err
 	}
 
-	var files []*templateFile
+	var d templateData
 
 	for fn, profile := range profiles {
+		if profile.Mode == "set" {
+			d.Set = true
+		}
 		dir, file := filepath.Split(fn)
 		pkg, err := build.Import(dir, ".", build.FindOnly)
 		if err != nil {
@@ -56,7 +58,7 @@ func htmlOutput(profile, outfile string) error {
 		if err != nil {
 			return err
 		}
-		files = append(files, &templateFile{
+		d.Files = append(d.Files, &templateFile{
 			Name: fn,
 			Body: template.HTML(buf.String()),
 		})
@@ -73,7 +75,7 @@ func htmlOutput(profile, outfile string) error {
 	} else {
 		out, err = os.Create(outfile)
 	}
-	err = htmlTemplate.Execute(out, templateData{Files: files})
+	err = htmlTemplate.Execute(out, d)
 	if err == nil {
 		err = out.Close()
 	}
@@ -92,6 +94,7 @@ func htmlOutput(profile, outfile string) error {
 
 // Profile represents the profiling data for a specific file.
 type Profile struct {
+	Mode   string
 	Blocks []ProfileBlock
 }
 
@@ -107,18 +110,22 @@ type ProfileBlock struct {
 func ParseProfiles(r io.Reader) (map[string]*Profile, error) {
 	files := make(map[string]*Profile)
 	buf := bufio.NewReader(r)
-	// First line is mode.
-	mode, err := buf.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	_ = mode // TODO: Use the mode to affect the display.
+	// First line is "mode: foo", where foo is "set", "count", or "atomic".
 	// Rest of file is in the format
 	//	encoding/base64/base64.go:34.44,37.40 3 1
 	// where the fields are: name.go:line.column,line.column numberOfStatements count
 	s := bufio.NewScanner(buf)
+	mode := ""
 	for s.Scan() {
 		line := s.Text()
+		if mode == "" {
+			const p = "mode: "
+			if !strings.HasPrefix(line, p) || line == p {
+				return nil, fmt.Errorf("bad mode line: %v", line)
+			}
+			mode = line[len(p):]
+			continue
+		}
 		m := lineRe.FindStringSubmatch(line)
 		if m == nil {
 			return nil, fmt.Errorf("line %q doesn't match expected format: %v", m, lineRe)
@@ -126,7 +133,7 @@ func ParseProfiles(r io.Reader) (map[string]*Profile, error) {
 		fn := m[1]
 		p := files[fn]
 		if p == nil {
-			p = new(Profile)
+			p = &Profile{Mode: mode}
 			files[fn] = p
 		}
 		p.Blocks = append(p.Blocks, ProfileBlock{
@@ -193,7 +200,7 @@ func (p *Profile) Tokens(src []byte) (tokens []Token) {
 			return t
 		}
 		if max <= 1 {
-			t.Norm = 0.4 // "set" mode; use pale color
+			t.Norm = 0.8 // "set" mode; use cov8
 		} else if count > 0 {
 			t.Norm = math.Log(float64(count)) / divisor
 		}
@@ -312,6 +319,7 @@ var htmlTemplate = template.Must(template.New("html").Funcs(template.FuncMap{
 
 type templateData struct {
 	Files []*templateFile
+	Set   bool
 }
 
 type templateFile struct {
@@ -369,6 +377,10 @@ const tmplHTML = `
 			</div>
 			<div id="legend">
 				<span>not tracked</span>
+			{{if .Set}}
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			{{else}}
 				<span class="cov0">no coverage</span>
 				<span class="cov1">low coverage</span>
 				<span class="cov2">*</span>
@@ -380,6 +392,7 @@ const tmplHTML = `
 				<span class="cov8">*</span>
 				<span class="cov9">*</span>
 				<span class="cov10">high coverage</span>
+			{{end}}
 			</div>
 		</div>
 		<div id="content">
