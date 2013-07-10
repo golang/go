@@ -47,7 +47,6 @@ var invalids = []string{
 	`package p; func f() { if { /* ERROR "expected operand" */ } };`,
 	`package p; func f() { if ; { /* ERROR "expected operand" */ } };`,
 	`package p; func f() { if f(); { /* ERROR "expected operand" */ } };`,
-	`package p; const c; /* ERROR "expected '='" */`,
 	`package p; func f() { if _ /* ERROR "expected condition" */ = range x; true {} };`,
 	`package p; func f() { switch _ /* ERROR "expected condition" */ = range x; true {} };`,
 	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,

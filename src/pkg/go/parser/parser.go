@@ -2180,8 +2180,9 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
 	idents := p.parseIdentList()
 	typ := p.tryType()
 	var values []ast.Expr
-	if p.tok == token.ASSIGN || keyword == token.CONST && (typ != nil || iota == 0) || keyword == token.VAR && typ == nil {
-		p.expect(token.ASSIGN)
+	// always permit optional initialization for more tolerant parsing
+	if p.tok == token.ASSIGN {
+		p.next()
 		values = p.parseRhsList()
 	}
 	p.expectSemi() // call before accessing p.linecomment
