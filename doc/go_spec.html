@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 21, 2013",
+	"Subtitle": "Version of July 9, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -640,10 +640,10 @@ expressions</a>.
 
 <p>
 A type determines the set of values and operations specific to values of that
-type.  A type may be specified by a
-(possibly <a href="#Qualified_identifiers">qualified</a>)
-<a href="#Type_declarations"><i>type name</i></a> or a <i>type literal</i>,
-which composes a new type from previously declared types.
+type. Types may be <i>named</i> or <i>unnamed</i>. Named types are specified
+by a (possibly <a href="#Qualified_identifiers">qualified</a>)
+<a href="#Type_declarations"><i>type name</i></a>; unnamed types are specified
+using a <i>type literal</i>, which composes a new type from existing types.
 </p>
 
 <pre class="ebnf">
@@ -1358,9 +1358,9 @@ Two types are either <i>identical</i> or <i>different</i>.
 </p>
 
 <p>
-Two named types are identical if their type names originate in the same
+Two <a href="#Types">named types</a> are identical if their type names originate in the same
 <a href="#Type_declarations">TypeSpec</a>.
-A named and an unnamed type are always different. Two unnamed types are identical
+A named and an <a href="#Types">unnamed type</a> are always different. Two unnamed types are identical
 if the corresponding type literals are identical, that is, if they have the same
 literal structure and corresponding components have identical types. In detail:
 </p>
@@ -1442,7 +1442,7 @@ A value <code>x</code> is <i>assignable</i> to a variable of type <code>T</code>
 <li>
 <code>x</code>'s type <code>V</code> and <code>T</code> have identical
 <a href="#Types">underlying types</a> and at least one of <code>V</code>
-or <code>T</code> is not a named type.
+or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
 <li>
 <code>T</code> is an interface type and
