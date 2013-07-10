@@ -81,14 +81,13 @@ type candidate struct {
 	path     *anonFieldPath // desugared selector path
 }
 
-// For debugging.
 func (c candidate) String() string {
 	s := ""
 	// Inefficient!
 	for p := c.path; p != nil; p = p.tail {
 		s = "." + p.field.Name() + s
 	}
-	return "@" + s + "." + c.method.Name()
+	return s + "." + c.method.Name()
 }
 
 // ptrRecv returns true if this candidate has a pointer receiver.
@@ -110,15 +109,12 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 	p.methodsMu.Lock()
 	defer p.methodsMu.Unlock()
 
-	// TODO(adonovan): Using Types as map keys doesn't properly
-	// de-dup.  e.g. *Named are canonical but *Struct and
-	// others are not.  Need to de-dup using typemap.T.
-	mset := p.methodSets[typ]
+	mset := p.methodSets.At(typ)
 	if mset == nil {
 		mset = buildMethodSet(p, typ)
-		p.methodSets[typ] = mset
+		p.methodSets.Set(typ, mset)
 	}
-	return mset
+	return mset.(MethodSet)
 }
 
 // buildMethodSet computes the concrete method set for type typ.
@@ -282,12 +278,12 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 	// TODO(adonovan): consult memoization cache keyed by (typ, cand).
 	// Needs typemap.  Also needs hash/eq functions for 'candidate'.
 	if prog.mode&LogSource != 0 {
-		defer logStack("promotionWrapper %s, %s, type %s", typ, cand, sig)()
+		defer logStack("promotionWrapper (%s)%s, type %s", typ, cand, sig)()
 	}
 	fn := &Function{
 		name:      cand.method.Name(),
 		Signature: sig,
-		Synthetic: "promotion wrapper for " + cand.String(),
+		Synthetic: fmt.Sprintf("promotion wrapper for (%s)%s", typ, cand),
 		Prog:      prog,
 		pos:       cand.method.Pos(),
 	}

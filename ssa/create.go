@@ -39,7 +39,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		PackagesByPath:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
-		methodSets:          make(map[types.Type]MethodSet),
 		concreteMethods:     make(map[*types.Func]*Function),
 		indirectionWrappers: make(map[*Function]*Function),
 		boundMethodWrappers: make(map[*Function]*Function),

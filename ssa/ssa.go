@@ -11,6 +11,7 @@ import (
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/types/typemap"
 	"code.google.com/p/go.tools/importer"
 )
 
@@ -25,7 +26,7 @@ type Program struct {
 	mode            BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
-	methodSets          map[types.Type]MethodSet  // concrete method set each type [TODO(adonovan): de-dup]
+	methodSets          typemap.M                 // maps type to its concrete MethodSet
 	indirectionWrappers map[*Function]*Function   // func(*T) wrappers for T-methods
 	boundMethodWrappers map[*Function]*Function   // wrappers for curried x.Method closures
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
