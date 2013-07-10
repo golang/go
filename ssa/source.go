@@ -108,13 +108,13 @@ func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function 
 		case *ast.GenDecl:
 			if decl.Tok == token.VAR && n >= 3 {
 				// Package-level 'var' initializer.
-				return pkg.Init
+				return pkg.init
 			}
 
 		case *ast.FuncDecl:
 			if decl.Recv == nil && decl.Name.Name == "init" {
 				// Explicit init() function.
-				return pkg.Init
+				return pkg.init
 			}
 			// Declared function/method.
 			return findNamedFunc(pkg, decl.Name.NamePos)

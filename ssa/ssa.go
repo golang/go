@@ -42,7 +42,7 @@ type Package struct {
 	Object  *types.Package         // the type checker's package object for this package
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package-level vars and funcs, keyed by object
-	Init    *Function              // the package's (concatenated) init function [TODO use Func("init")]
+	init    *Function              // Func("init"); the package's (concatenated) init function
 
 	// The following fields are set transiently, then cleared
 	// after building.
@@ -107,10 +107,6 @@ type Type struct {
 //
 // NB: a Constant is not a Value; it contains a literal Value, which
 // it augments with the name and position of its 'const' declaration.
-//
-// TODO(adonovan): if we decide to add a token.Pos to literal, we
-// should then add a name too, and merge Constant and Literal.
-// Experiment.
 //
 type Constant struct {
 	name  string

@@ -609,7 +609,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 	}()
 
 	// Run!
-	call(i, nil, token.NoPos, mainpkg.Init, nil)
+	call(i, nil, token.NoPos, mainpkg.Func("init"), nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		call(i, nil, token.NoPos, mainFn, nil)
 		exitCode = 0

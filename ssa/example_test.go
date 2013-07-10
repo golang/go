@@ -67,12 +67,8 @@ func main() {
 	mainPkg.Build()
 
 	// Print out the package-level functions.
-	mainPkg.Init.DumpTo(os.Stdout)
-	for _, mem := range mainPkg.Members {
-		if fn, ok := mem.(*ssa.Function); ok {
-			fn.DumpTo(os.Stdout)
-		}
-	}
+	mainPkg.Func("init").DumpTo(os.Stdout)
+	mainPkg.Func("main").DumpTo(os.Stdout)
 
 	// Output:
 	//

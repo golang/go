@@ -183,9 +183,9 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	case *ast.FuncDecl:
 		id := decl.Name
 		if decl.Recv == nil && id.Name == "init" {
-			if !pkg.Init.pos.IsValid() {
-				pkg.Init.pos = decl.Name.Pos()
-				pkg.Init.Synthetic = ""
+			if !pkg.init.pos.IsValid() {
+				pkg.init.pos = decl.Name.Pos()
+				pkg.init.Synthetic = ""
 			}
 			return // init blocks aren't functions
 		}
@@ -210,14 +210,15 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		info:    info, // transient (CREATE and BUILD phases)
 	}
 
-	// Add init() function (but not to Members since it can't be referenced).
-	p.Init = &Function{
+	// Add init() function.
+	p.init = &Function{
 		name:      "init",
 		Signature: new(types.Signature),
 		Synthetic: "package initializer",
 		Pkg:       p,
 		Prog:      prog,
 	}
+	p.Members[p.init.name] = p.init
 
 	// CREATE phase.
 	// Allocate all package members: vars, funcs and consts and types.

@@ -69,9 +69,9 @@ func main() {
 		isExt := pkg != mainPkg
 
 		// init()
-		if isExt && !isEmpty(pkg.Init) {
+		if isExt && !isEmpty(pkg.init) {
 			t.Errorf("external package %s has non-empty init", pkg)
-		} else if !isExt && isEmpty(pkg.Init) {
+		} else if !isExt && isEmpty(pkg.init) {
 			t.Errorf("main package %s has empty init", pkg)
 		}
 

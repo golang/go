@@ -73,7 +73,7 @@ type builder struct {
 // Intra-package references are edges in the initialization dependency
 // graph.  If the result v is a Function or Global belonging to
 // 'from', the package on whose behalf this lookup occurs, then lookup
-// emits initialization code into from.Init if not already done.
+// emits initialization code into from.init if not already done.
 //
 func (b *builder) lookup(from *Package, obj types.Object) Value {
 	v := from.Prog.Value(obj)
@@ -988,7 +988,7 @@ func (b *builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token)
 	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ(), token.NoPos))
 }
 
-// buildGlobal emits code to the g.Pkg.Init function for the variable
+// buildGlobal emits code to the g.Pkg.init function for the variable
 // definition(s) of g.  Effects occur out of lexical order; see
 // explanation at globalValueSpec.
 // Precondition: g == g.Prog.Value(obj)
@@ -998,7 +998,7 @@ func (b *builder) buildGlobal(g *Global, obj types.Object) {
 	if spec == nil {
 		return // already built (or in progress)
 	}
-	b.globalValueSpec(g.Pkg.Init, spec, g, obj)
+	b.globalValueSpec(g.Pkg.init, spec, g, obj)
 }
 
 // globalValueSpec emits to init code to define one or all of the vars
@@ -2055,7 +2055,7 @@ start:
 		fn.emit(&v)
 
 	case *ast.ReturnStmt:
-		if fn == fn.Pkg.Init {
+		if fn == fn.Pkg.init {
 			// A "return" within an init block is treated
 			// like a "goto" to the next init block.  We
 			// use the outermost BREAK target for this purpose.
@@ -2241,7 +2241,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 		// Nothing to do for CONST, IMPORT.
 		case token.VAR:
 			for _, spec := range decl.Specs {
-				b.globalValueSpec(pkg.Init, spec.(*ast.ValueSpec), nil, nil)
+				b.globalValueSpec(pkg.init, spec.(*ast.ValueSpec), nil, nil)
 			}
 		case token.TYPE:
 			for _, spec := range decl.Specs {
@@ -2269,7 +2269,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 			if pkg.Prog.mode&LogSource != 0 {
 				fmt.Fprintln(os.Stderr, "build init block @", pkg.Prog.Fset.Position(decl.Pos()))
 			}
-			init := pkg.Init
+			init := pkg.init
 
 			// A return statement within an init block is
 			// treated like a "goto" to the the next init
@@ -2332,7 +2332,7 @@ func (p *Package) Build() {
 	if p.Prog.mode&LogSource != 0 {
 		defer logStack("build %s", p)()
 	}
-	init := p.Init
+	init := p.init
 	init.startBody()
 
 	// Make init() skip if package is already initialized.
@@ -2346,7 +2346,7 @@ func (p *Package) Build() {
 	// Call the init() function of each package we import.
 	for _, typkg := range p.info.Imports() {
 		var v Call
-		v.Call.Func = p.Prog.packages[typkg].Init
+		v.Call.Func = p.Prog.packages[typkg].init
 		v.Call.pos = init.pos
 		v.setType(types.NewTuple())
 		init.emit(&v)
