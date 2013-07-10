@@ -15,14 +15,58 @@ const anything = 1e9 // Just some unlikely value that means "we got here, don't 
 func testAll() {
 	testSimple()
 	testBlockRun()
+	testIf()
 	testFor()
 	testSwitch()
+	testTypeSwitch()
 	testSelect1()
 	testSelect2()
 }
 
 func testSimple() {
 	check(LINE, 1)
+}
+
+func testIf() {
+	if true {
+		check(LINE, 1)
+	} else {
+		check(LINE, 0)
+	}
+	if false {
+		check(LINE, 0)
+	} else {
+		check(LINE, 1)
+	}
+	for i := 0; i < 3; i++ {
+		if checkVal(LINE, 3, i) <= 2 {
+			check(LINE, 3)
+		}
+		if checkVal(LINE, 3, i) <= 1 {
+			check(LINE, 2)
+		}
+		if checkVal(LINE, 3, i) <= 0 {
+			check(LINE, 1)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		if checkVal(LINE, 3, i) <= 1 {
+			check(LINE, 2)
+		} else {
+			check(LINE, 1)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		if checkVal(LINE, 3, i) <= 0 {
+			check(LINE, 1)
+		} else if checkVal(LINE, 2, i) <= 1 {
+			check(LINE, 1)
+		} else if checkVal(LINE, 1, i) <= 2 {
+			check(LINE, 1)
+		} else if checkVal(LINE, 0, i) <= 3 {
+			check(LINE, 0)
+		}
+	}
 }
 
 func testFor() {
@@ -60,6 +104,24 @@ func testSwitch() {
 			check(LINE, 1)
 		default:
 			check(LINE, 2)
+		}
+	}
+}
+
+func testTypeSwitch() {
+	var x = []interface{}{1, 2.0, "hi"}
+	for _, v := range x {
+		switch v.(type) {
+		case int:
+			check(LINE, 1)
+		case float64:
+			check(LINE, 1)
+		case string:
+			check(LINE, 1)
+		case complex128:
+			check(LINE, 0)
+		default:
+			check(LINE, 0)
 		}
 	}
 }

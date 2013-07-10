@@ -146,6 +146,38 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 		n.List = f.addCounters(n.Lbrace, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
+	case *ast.IfStmt:
+		ast.Walk(f, n.Body)
+		if n.Else == nil {
+			return nil
+		}
+		// The elses are special, because if we have
+		//	if x {
+		//	} else if y {
+		//	}
+		// we want to cover the "if y". To do this, we need a place to drop the counter,
+		// so we add a hidden block:
+		//	if x {
+		//	} else {
+		//		if y {
+		//		}
+		//	}
+		const backupToElse = token.Pos(len("else ")) // The AST doesn't remember the else location. We can make an accurate guess.
+		switch stmt := n.Else.(type) {
+		case *ast.IfStmt:
+			block := &ast.BlockStmt{
+				Lbrace: stmt.If - backupToElse, // So the covered part looks like it starts at the "else".
+				List:   []ast.Stmt{stmt},
+				Rbrace: stmt.End(),
+			}
+			n.Else = block
+		case *ast.BlockStmt:
+			stmt.Lbrace -= backupToElse // So the block looks like it starts at the "else".
+		default:
+			panic("unexpected node type in if")
+		}
+		ast.Walk(f, n.Else)
+		return nil
 	case *ast.SelectStmt:
 		// Don't annotate an empty select - creates a syntax error.
 		if n.Body == nil || len(n.Body.List) == 0 {
@@ -507,7 +539,7 @@ func (f *File) addVariables(w io.Writer) {
 	for i, block := range f.blocks {
 		start := f.fset.Position(block.startByte)
 		end := f.fset.Position(block.endByte)
-		fmt.Fprintf(w, "\t\t%d, %d, %#x, // %d\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
+		fmt.Fprintf(w, "\t\t%d, %d, %#x, // [%d]\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
 	}
 
 	// Close the position array.
