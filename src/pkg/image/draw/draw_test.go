@@ -7,6 +7,8 @@ package draw
 import (
 	"image"
 	"image/color"
+	"image/png"
+	"os"
 	"testing"
 )
 
@@ -350,5 +352,78 @@ func TestFill(t *testing.T) {
 		src = &image.Uniform{C: c}
 		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
 		check("whole")
+	}
+}
+
+// TestFloydSteinbergCheckerboard tests that the result of Floyd-Steinberg
+// error diffusion of a uniform 50% gray source image with a black-and-white
+// palette is a checkerboard pattern.
+func TestFloydSteinbergCheckerboard(t *testing.T) {
+	b := image.Rect(0, 0, 640, 480)
+	// We can't represent 50% exactly, but 0x7fff / 0xffff is close enough.
+	src := &image.Uniform{color.Gray16{0x7fff}}
+	dst := image.NewPaletted(b, color.Palette{color.Black, color.White})
+	FloydSteinberg.Draw(dst, b, src, image.Point{})
+	nErr := 0
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			got := dst.Pix[dst.PixOffset(x, y)]
+			want := uint8(x+y) % 2
+			if got != want {
+				t.Errorf("at (%d, %d): got %d, want %d", x, y, got, want)
+				if nErr++; nErr == 10 {
+					t.Fatal("there may be more errors")
+				}
+			}
+		}
+	}
+}
+
+// embeddedPaletted is an Image that behaves like an *image.Paletted but whose
+// type is not *image.Paletted.
+type embeddedPaletted struct {
+	*image.Paletted
+}
+
+// TestPaletted tests that the drawPaletted function behaves the same
+// regardless of whether dst is an *image.Paletted.
+func TestPaletted(t *testing.T) {
+	f, err := os.Open("../testdata/video-001.png")
+	if err != nil {
+		t.Fatal("open: %v", err)
+	}
+	defer f.Close()
+	src, err := png.Decode(f)
+	if err != nil {
+		t.Fatal("decode: %v", err)
+	}
+	b := src.Bounds()
+
+	cgaPalette := color.Palette{
+		color.RGBA{0x00, 0x00, 0x00, 0xff},
+		color.RGBA{0x55, 0xff, 0xff, 0xff},
+		color.RGBA{0xff, 0x55, 0xff, 0xff},
+		color.RGBA{0xff, 0xff, 0xff, 0xff},
+	}
+	drawers := map[string]Drawer{
+		"src":             Src,
+		"floyd-steinberg": FloydSteinberg,
+	}
+
+loop:
+	for dName, d := range drawers {
+		dst0 := image.NewPaletted(b, cgaPalette)
+		dst1 := image.NewPaletted(b, cgaPalette)
+		d.Draw(dst0, b, src, image.Point{})
+		d.Draw(embeddedPaletted{dst1}, b, src, image.Point{})
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				if !eq(dst0.At(x, y), dst1.At(x, y)) {
+					t.Errorf("%s: at (%d, %d), %v versus %v",
+						dName, x, y, dst0.At(x, y), dst1.At(x, y))
+					continue loop
+				}
+			}
+		}
 	}
 }
