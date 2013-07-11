@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 9, 2013",
+	"Subtitle": "Version of July 11, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -4664,7 +4664,6 @@ for i, _ := range testdata.a {
 }
 
 var a [10]string
-m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
 for i, s := range a {
 	// type of i is int
 	// type of s is string
@@ -4674,6 +4673,7 @@ for i, s := range a {
 
 var key string
 var val interface {}  // value type of m is assignable to val
+m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
 for key, val = range m {
 	h(key, val)
 }
