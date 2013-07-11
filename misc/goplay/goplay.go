@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"text/template"
 )
@@ -92,10 +91,6 @@ func compile(req *http.Request) (out []byte, err error) {
 	// x is the base name for .go, .6, executable files
 	x := filepath.Join(tmpdir, "compile"+strconv.Itoa(<-uniq))
 	src := x + ".go"
-	bin := x
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
-	}
 
 	// rewrite filename in error output
 	defer func() {
@@ -116,16 +111,13 @@ func compile(req *http.Request) (out []byte, err error) {
 		return
 	}
 
-	// build x.go, creating x
+	// go run x.go
 	dir, file := filepath.Split(src)
-	out, err = run(dir, "go", "build", "-o", bin, file)
-	defer os.Remove(bin)
+	out, err = run(dir, "go", "run", file)
 	if err != nil {
 		return
 	}
-
-	// run x
-	return run("", bin)
+	return out, nil
 }
 
 // error writes compile, link, or runtime errors to the HTTP connection.
