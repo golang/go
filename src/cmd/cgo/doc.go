@@ -49,7 +49,7 @@ to the flags derived from these directives.  Package-specific flags should
 be set using the directives, not the environment variables, so that builds
 work in unmodified environments.
 
-Within the Go file, C identifiers or field names that are keywords in Go
+Within the Go file, C's struct field names that are keywords in Go
 can be accessed by prefixing them with an underscore: if x points at a C
 struct with a field named "type", x._type accesses the field.
 
@@ -62,6 +62,9 @@ The C type void* is represented by Go's unsafe.Pointer.
 
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
+
+As Go doesn't have support for C's union type in the general case,
+C's union types are represented as a Go byte array with the same length.
 
 Go structs cannot embed fields with C types.
 
