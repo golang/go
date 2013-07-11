@@ -170,7 +170,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.fp += 2*sizeof(uintptr);
 
 		// Do not unwind past the bottom of the stack.
-		if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
 			break;
 
 		// Unwind to next frame.
