@@ -38,7 +38,7 @@ TEXT runtime·asmstdcall(SB),7,$0
 
 	RET
 
-TEXT	runtime·badsignal(SB),7,$24
+TEXT	runtime·badsignal2(SB),7,$24
 	// stderr
 	MOVL	$-12, 0(SP)
 	MOVL	SP, BP
@@ -86,7 +86,7 @@ TEXT runtime·sigtramp(SB),7,$28
 	MOVL	m(CX), AX
 	CMPL	AX, $0
 	JNE	2(PC)
-	CALL	runtime·badsignal(SB)
+	CALL	runtime·badsignal2(SB)
 
 	MOVL	g(CX), CX
 	MOVL	CX, 8(SP)

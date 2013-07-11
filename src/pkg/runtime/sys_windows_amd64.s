@@ -60,7 +60,7 @@ loadregs:
 
 	RET
 
-TEXT runtime·badsignal(SB),7,$48
+TEXT runtime·badsignal2(SB),7,$48
 	// stderr
 	MOVQ	$-12, CX // stderr
 	MOVQ	CX, 0(SP)
@@ -118,7 +118,7 @@ TEXT runtime·sigtramp(SB),7,$0
 	MOVQ	m(CX), AX
 	CMPQ	AX, $0
 	JNE	2(PC)
-	CALL	runtime·badsignal(SB)
+	CALL	runtime·badsignal2(SB)
 
 	MOVQ	g(CX), CX
 	MOVQ	CX, 16(SP)
