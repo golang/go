@@ -16,10 +16,17 @@ import (
 // m is the maximum color value returned by image.Color.RGBA.
 const m = 1<<16 - 1
 
-// A draw.Image is an image.Image with a Set method to change a single pixel.
+// Image is an image.Image with a Set method to change a single pixel.
 type Image interface {
 	image.Image
 	Set(x, y int, c color.Color)
+}
+
+// Quantizer produces a palette for an image.
+type Quantizer interface {
+	// Quantize appends up to cap(p) - len(p) colors to p and returns the
+	// updated palette suitable for converting m to a paletted image.
+	Quantize(p color.Palette, m image.Image) color.Palette
 }
 
 // Op is a Porter-Duff compositing operator.
