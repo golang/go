@@ -96,11 +96,6 @@ func Pipe(p []int) (err error) {
 	return
 }
 
-// TODO
-func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	return -1, ENOSYS
-}
-
 /*
  * Wrapped
  */
