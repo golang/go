@@ -195,9 +195,20 @@ func checkFiles(t *testing.T, testfiles []string) {
 		pkgName = files[0].Name.Name
 	}
 
+	if *listErrors {
+		t.Errorf("--- %s:", pkgName)
+		for _, err := range errlist {
+			t.Error(err)
+		}
+	}
+
 	// typecheck and collect typechecker errors
 	var ctxt Context
 	ctxt.Error = func(err error) {
+		if *listErrors {
+			t.Error(err)
+			return
+		}
 		// Ignore error messages containing "previous declaration":
 		// They are follow-up error messages after a redeclaration
 		// error.
@@ -208,10 +219,6 @@ func checkFiles(t *testing.T, testfiles []string) {
 	ctxt.Check(pkgName, fset, files...)
 
 	if *listErrors {
-		t.Errorf("--- %s: %d errors found", pkgName, len(errlist))
-		for _, err := range errlist {
-			t.Error(err)
-		}
 		return
 	}
 
