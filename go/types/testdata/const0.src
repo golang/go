@@ -180,8 +180,8 @@ const (
 const (
 	a1, a2, a3 = 7, 3.1415926, "foo"
 	b1, b2, b3 = b3, b1, 42
-	c1, c2, c3  /* ERROR "missing initialization" */ = 1, 2
-	d1, d2, d3 = 1, 2, 3, 4 /* ERROR "too many initialization" */
+	c1, c2, c3  /* ERROR "missing init expr for c3" */ = 1, 2
+	d1, d2, d3 = 1, 2, 3, 4 /* ERROR "extra init expr 4" */
 	_p0 = assert(a1 == 7)
 	_p1 = assert(a2 == 3.1415926)
 	_p2 = assert(a3 == "foo")
@@ -194,8 +194,8 @@ func _() {
 	const (
 		a1, a2, a3 = 7, 3.1415926, "foo"
 		b1, b2, b3 = b3, b1, 42
-		c1, c2, c3  /* ERROR "missing initialization" */ = 1, 2
-		d1, d2, d3 = 1, 2, 3, 4 /* ERROR "too many initialization" */
+		c1, c2, c3  /* ERROR "missing init expr for c3" */ = 1, 2
+		d1, d2, d3 = 1, 2, 3, 4 /* ERROR "extra init expr 4" */
 		_p0 = assert(a1 == 7)
 		_p1 = assert(a2 == 3.1415926)
 		_p2 = assert(a3 == "foo")

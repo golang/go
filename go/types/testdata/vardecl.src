@@ -1,0 +1,44 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package vardecl
+
+func f() {}
+
+// Var decls must have a type or an initializer.
+var _ int
+var _, _ int
+
+var _ /* ERROR "missing type or init expr" */
+var _ /* ERROR "missing type or init expr" */, _
+var _ /* ERROR "missing type or init expr" */, _, _
+
+// The initializer must be an expression.
+var _ = int /* ERROR "not an expression" */
+var _ = f /* ERROR "used as value" */ ()
+
+// Identifier and expression arity must match.
+var _, _ = 1, 2
+var _ = 1, 2 /* ERROR "extra init expr 2" */
+var _ /* ERROR "assignment count mismatch" */ , _ = 1  // TODO(gri) better error message here
+var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+
+var _, _ int = 1, 2
+var _ int = 1, 2 /* ERROR "extra init expr 2" */
+var _ /* ERROR "assignment count mismatch" */ , _ int = 1  // TODO(gri) better error message here
+var _, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+
+var (
+	_, _ = 1, 2
+	_ = 1, 2 /* ERROR "extra init expr 2" */
+	_ /* ERROR "assignment count mismatch" */ , _ = 1  // TODO(gri) better error message here
+	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+
+	_, _ int = 1, 2
+	_ int = 1, 2 /* ERROR "extra init expr 2" */
+	_ /* ERROR "assignment count mismatch" */ , _ int = 1  // TODO(gri) better error message here
+	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+)
+
+// TODO(gri) consolidate other var decl checks in this file

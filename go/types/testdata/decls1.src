@@ -100,15 +100,15 @@ var (
 // Multiple assignment expressions
 var (
 	m1a, m1b = 1, 2
-	m2a, m2b, m2c /* ERROR "missing initialization" */ = 1, 2
-	m3a, m3b = 1, 2, 3 /* ERROR "too many initialization" */ 
+	m2a, m2b, m2c /* ERROR "missing init expr for m2c" */ = 1, 2
+	m3a, m3b = 1, 2, 3 /* ERROR "extra init expr 3" */
 )
 
 func _() {
 	var (
 		m1a, m1b = 1, 2
-		m2a, m2b, m2c /* ERROR "missing initialization" */ = 1, 2
-		m3a, m3b = 1, 2, 3 /* ERROR "too many initialization" */ 
+		m2a, m2b, m2c /* ERROR "missing init expr for m2c" */ = 1, 2
+		m3a, m3b = 1, 2, 3 /* ERROR "extra init expr 3" */
 	)
 }
 

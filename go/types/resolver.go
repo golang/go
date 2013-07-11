@@ -49,6 +49,38 @@ type projExpr struct {
 	ast.Expr        // rhs
 }
 
+// arityMatch checks that the lhs and rhs of a const or var decl
+// have the appropriate number of names and init exprs. For const
+// decls, init is the value spec providing the init exprs; for
+// var decls, init is nil (the init exprs are in s in this case).
+func (check *checker) arityMatch(s, init *ast.ValueSpec) {
+	l := len(s.Names)
+	r := len(s.Values)
+	if init != nil {
+		r = len(init.Values)
+	}
+
+	switch {
+	case init == nil && r == 0:
+		// var decl w/o init expr
+		if s.Type == nil {
+			check.errorf(s.Pos(), "missing type or init expr")
+		}
+	case l < r:
+		if l < len(s.Values) {
+			// init exprs from s
+			n := s.Values[l]
+			check.errorf(n.Pos(), "extra init expr %s", n)
+		} else {
+			// init exprs "inherited"
+			check.errorf(s.Pos(), "extra init expr at %s", init.Pos())
+		}
+	case l > r && (init != nil || r != 1):
+		n := s.Names[r]
+		check.errorf(n.Pos(), "missing init expr for %s", n)
+	}
+}
+
 func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 	pkg := check.pkg
 
@@ -100,7 +132,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 				// ignore
 
 			case *ast.GenDecl:
-				var last *ast.ValueSpec // last list of const initializers seen
+				var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
 				for iota, spec := range d.Specs {
 					switch s := spec.(type) {
 					case *ast.ImportSpec:
@@ -110,7 +142,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						path, _ := strconv.Unquote(s.Path.Value)
 						imp, err := importer(pkg.imports, path)
 						if imp == nil && err == nil {
-							err = errors.New("Context.Import returned niil")
+							err = errors.New("Context.Import returned nil")
 						}
 						if err != nil {
 							check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
@@ -157,8 +189,11 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 						switch d.Tok {
 						case token.CONST:
 							// determine which initialization expressions to use
-							if len(s.Values) > 0 {
+							switch {
+							case s.Type != nil || len(s.Values) > 0:
 								last = s
+							case last == nil:
+								last = new(ast.ValueSpec) // make sure last exists
 							}
 
 							// declare all constants
@@ -173,17 +208,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 								declare(name, obj, last.Type, init)
 							}
 
-							// arity of lhs and rhs must match
-							if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
-								switch {
-								case lhs < rhs:
-									x := s.Values[lhs]
-									check.errorf(x.Pos(), "too many initialization expressions")
-								case lhs > rhs && rhs != 1:
-									n := s.Names[rhs]
-									check.errorf(n.Pos(), "missing initialization expression for %s", n)
-								}
-							}
+							check.arityMatch(s, last)
 
 						case token.VAR:
 							// declare all variables
@@ -199,6 +224,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 									init = s.Values[i]
 								case 1:
 									// rhs must be a multi-valued expression
+									// (lhs may not be fully set up yet, but
+									// that's fine because declare simply collects
+									// the information for later processing.)
 									init = &projExpr{lhs, s.Values[0]}
 								default:
 									if i < len(s.Values) {
@@ -209,17 +237,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 								declare(name, obj, s.Type, init)
 							}
 
-							// report if there are too many initialization expressions
-							if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
-								switch {
-								case lhs < rhs:
-									x := s.Values[lhs]
-									check.errorf(x.Pos(), "too many initialization expressions")
-								case lhs > rhs && rhs != 1:
-									n := s.Names[rhs]
-									check.errorf(n.Pos(), "missing initialization expression for %s", n)
-								}
-							}
+							check.arityMatch(s, nil)
 
 						default:
 							check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
@@ -377,27 +395,13 @@ func (check *checker) declareConst(obj *Const, typ, init ast.Expr) {
 		obj.typ = check.typ(typ, nil, false)
 	}
 
+	// check initialization
 	var x operand
-
-	if init == nil {
-		goto Error // error reported before
+	if init != nil {
+		check.expr(&x, init)
 	}
-
-	check.expr(&x, init)
-	if x.mode == invalid {
-		goto Error
-	}
-
 	check.initConst(obj, &x)
-	check.iota = nil
-	return
 
-Error:
-	if obj.typ == nil {
-		obj.typ = Typ[Invalid]
-	} else {
-		obj.val = exact.MakeUnknown()
-	}
 	check.iota = nil
 }
 
@@ -602,56 +606,49 @@ func (check *checker) declStmt(decl ast.Decl) {
 		// ignore
 
 	case *ast.GenDecl:
-		var last []ast.Expr // last list of const initializers seen
+		var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
 		for iota, spec := range d.Specs {
 			switch s := spec.(type) {
 			case *ast.ValueSpec:
 				switch d.Tok {
 				case token.CONST:
-					// determine which initialization expressions to use
-					if len(s.Values) > 0 {
-						last = s.Values
+					// determine which init exprs to use
+					switch {
+					case s.Type != nil || len(s.Values) > 0:
+						last = s
+					case last == nil:
+						last = new(ast.ValueSpec) // make sure last exists
 					}
 
 					// declare all constants
 					lhs := make([]*Const, len(s.Names))
 					for i, name := range s.Names {
 						obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
-						check.callIdent(name, obj)
 						lhs[i] = obj
 
 						var init ast.Expr
-						if i < len(last) {
-							init = last[i]
+						if i < len(last.Values) {
+							init = last.Values[i]
 						}
 
-						check.declareConst(obj, s.Type, init)
+						check.declareConst(obj, last.Type, init)
 					}
 
-					// arity of lhs and rhs must match
-					switch lhs, rhs := len(s.Names), len(last); {
-					case lhs < rhs:
-						x := last[lhs]
-						check.errorf(x.Pos(), "too many initialization expressions")
-					case lhs > rhs:
-						n := s.Names[rhs]
-						check.errorf(n.Pos(), "missing initialization expression for %s", n)
-					}
+					check.arityMatch(s, last)
 
-					for _, obj := range lhs {
-						check.declare(check.topScope, nil, obj)
+					for i, name := range s.Names {
+						check.declare(check.topScope, name, lhs[i])
 					}
 
 				case token.VAR:
-					// declare all variables
+					// For declareVar called with a projExpr we need the fully
+					// initialized lhs. Compute it in a separate pre-pass.
 					lhs := make([]*Var, len(s.Names))
 					for i, name := range s.Names {
-						obj := NewVar(name.Pos(), pkg, name.Name, nil)
-						check.callIdent(name, obj)
-						lhs[i] = obj
+						lhs[i] = NewVar(name.Pos(), pkg, name.Name, nil)
 					}
 
-					// iterate in 2 phases because declareVar requires fully initialized lhs!
+					// declare all variables
 					for i, obj := range lhs {
 						var init ast.Expr
 						switch len(s.Values) {
@@ -670,20 +667,10 @@ func (check *checker) declStmt(decl ast.Decl) {
 						check.declareVar(obj, s.Type, init)
 					}
 
-					// arity of lhs and rhs must match
-					if lhs, rhs := len(s.Names), len(s.Values); rhs > 0 {
-						switch {
-						case lhs < rhs:
-							x := s.Values[lhs]
-							check.errorf(x.Pos(), "too many initialization expressions")
-						case lhs > rhs && rhs != 1:
-							n := s.Names[rhs]
-							check.errorf(n.Pos(), "missing initialization expression for %s", n)
-						}
-					}
+					check.arityMatch(s, nil)
 
-					for _, obj := range lhs {
-						check.declare(check.topScope, nil, obj)
+					for i, name := range s.Names {
+						check.declare(check.topScope, name, lhs[i])
 					}
 
 				default:

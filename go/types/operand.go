@@ -19,14 +19,14 @@ import (
 type operandMode int
 
 const (
-	invalid  operandMode = iota // operand is invalid (due to an earlier error) - ignore
+	invalid  operandMode = iota // operand is invalid
 	novalue                     // operand represents no value (result of a function call w/o result)
 	typexpr                     // operand is a type
 	typexprn                    // like typexpr; only used to communicate between checker.expr0 and checker.rawExpr
 	constant                    // operand is a constant; the operand's typ is a Basic type
 	variable                    // operand is an addressable variable
 	value                       // operand is a computed value
-	valueok                     // like mode == value, but operand may be used in a comma,ok expression
+	valueok                     // like value, but operand may be used in a comma,ok expression
 )
 
 var operandModeString = [...]string{
@@ -42,7 +42,8 @@ var operandModeString = [...]string{
 
 // An operand represents an intermediate value during type checking.
 // Operands have an (addressing) mode, the expression evaluating to
-// the operand, the operand's type, and for constants a constant value.
+// the operand, the operand's type, and a value if mode == constant.
+// The zero value of operand is a ready to use invalid operand.
 //
 type operand struct {
 	mode operandMode

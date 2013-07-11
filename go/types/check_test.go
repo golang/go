@@ -51,6 +51,8 @@ var tests = [][]string{
 	{"testdata/decls2a.src", "testdata/decls2b.src"},
 	{"testdata/decls3.src"},
 	{"testdata/const0.src"},
+	{"testdata/constdecl.src"},
+	{"testdata/vardecl.src"},
 	{"testdata/expr0.src"},
 	{"testdata/expr1.src"},
 	{"testdata/expr2.src"},
