@@ -99,11 +99,12 @@ func startNewServer() {
 	newServer = NewServer()
 	newServer.Register(new(Arith))
 	newServer.RegisterName("net.rpc.Arith", new(Arith))
+	newServer.RegisterName("newServer.Arith", new(Arith))
 
 	var l net.Listener
 	l, newServerAddr = listenTCP()
 	log.Println("NewServer test RPC server listening on", newServerAddr)
-	go Accept(l)
+	go newServer.Accept(l)
 
 	newServer.HandleHTTP(newHttpPath, "/bar")
 	httpOnce.Do(startHttpServer)
@@ -120,6 +121,7 @@ func TestRPC(t *testing.T) {
 	testRPC(t, serverAddr)
 	newOnce.Do(startNewServer)
 	testRPC(t, newServerAddr)
+	testNewServerRPC(t, newServerAddr)
 }
 
 func testRPC(t *testing.T, addr string) {
@@ -241,6 +243,25 @@ func testRPC(t *testing.T, addr string) {
 	args = &Args{7, 8}
 	reply = new(Reply)
 	err = client.Call("net.rpc.Arith.Add", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.Error())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
+}
+
+func testNewServerRPC(t *testing.T, addr string) {
+	client, err := Dial("tcp", addr)
+	if err != nil {
+		t.Fatal("dialing", err)
+	}
+	defer client.Close()
+
+	// Synchronous calls
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err = client.Call("newServer.Arith.Add", args, reply)
 	if err != nil {
 		t.Errorf("Add: expected no error but got string %q", err.Error())
 	}
