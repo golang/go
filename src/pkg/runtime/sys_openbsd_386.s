@@ -170,11 +170,12 @@ TEXT runtime·sigtramp(SB),7,$44
 	// check that m exists
 	MOVL	m(CX), BX
 	CMPL	BX, $0
-	JNE	5(PC)
+	JNE	6(PC)
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
-	CALL	runtime·badsignal(SB)
-	RET
+	MOVL	$runtime·badsignal(SB), AX
+	CALL	AX
+	JMP 	sigtramp_ret
 
 	// save g
 	MOVL	g(CX), DI
@@ -199,7 +200,8 @@ TEXT runtime·sigtramp(SB),7,$44
 	get_tls(CX)
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
-	
+
+sigtramp_ret:
 	// call sigreturn
 	MOVL	context+8(FP), AX
 	MOVL	$0, 0(SP)		// syscall gap

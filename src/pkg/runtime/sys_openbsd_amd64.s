@@ -204,9 +204,10 @@ TEXT runtime·sigtramp(SB),7,$64
 	// check that m exists
 	MOVQ	m(BX), BP
 	CMPQ	BP, $0
-	JNE	4(PC)
+	JNE	5(PC)
 	MOVQ	DI, 0(SP)
-	CALL	runtime·badsignal(SB)
+	MOVQ	$runtime·badsignal(SB), AX
+	CALL	AX
 	RET
 
 	// save g

@@ -127,7 +127,7 @@ TEXT runtime·sigtramp(SB),7,$0
 	MOVL	m(AX), BX
 	CMPL	BX, $0
 	JNE	3(PC)
-	CALL	runtime·badsignal(SB) // will exit
+	CALL	runtime·badsignal2(SB) // will exit
 	RET
 
 	// save args

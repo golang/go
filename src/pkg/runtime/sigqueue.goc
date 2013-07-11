@@ -28,6 +28,7 @@ package runtime
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "cgocall.h"
 
 static struct {
 	Note;
@@ -154,4 +155,12 @@ func signal_disable(s uint32) {
 		return;
 	sig.wanted[s/32] &= ~(1U<<(s&31));
 	runtime·sigdisable(s);
+}
+
+// This runs on a foreign stack, without an m or a g.  No stack split.
+#pragma textflag 7
+void
+runtime·badsignal(uintptr sig)
+{
+	runtime·cgocallback((void (*)(void))runtime·sigsend, &sig, sizeof(sig));
 }

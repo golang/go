@@ -158,9 +158,10 @@ TEXT runtime·sigtramp(SB),7,$24
 	BL.NE	(R0)
 
 	CMP $0, m
-	BNE 3(PC)
+	BNE 4(PC)
 	// signal number is already prepared in 4(R13)
-	BL runtime·badsignal(SB)
+	MOVW $runtime·badsignal(SB), R11
+	BL (R11)
 	RET
 
 	// save g

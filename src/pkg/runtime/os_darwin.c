@@ -523,30 +523,6 @@ runtime·setprof(bool on)
 		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
 }
 
-#pragma dataflag 16 // no pointers
-static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
-
-// This runs on a foreign stack, without an m or a g.  No stack split.
-#pragma textflag 7
-void
-runtime·badsignal(int32 sig)
-{
-	int32 len;
-
-	if (sig == SIGPROF) {
-		return;  // Ignore SIGPROFs intended for a non-Go thread.
-	}
-	runtime·write(2, badsignal, sizeof badsignal - 1);
-	if (0 <= sig && sig < NSIG) {
-		// Can't call findnull() because it will split stack.
-		for(len = 0; runtime·sigtab[sig].name[len]; len++)
-			;
-		runtime·write(2, runtime·sigtab[sig].name, len);
-	}
-	runtime·write(2, "\n", 1);
-	runtime·exit(1);
-}
-
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
