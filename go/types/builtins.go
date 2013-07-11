@@ -236,7 +236,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 		if x.mode == invalid {
 			goto Error
 		}
-		if !x.isAssignable(check.ctxt, m.key) {
+		if !x.isAssignableTo(check.ctxt, m.key) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			goto Error
 		}

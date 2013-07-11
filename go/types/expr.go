@@ -471,7 +471,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 	// TODO(gri) deal with interface vs non-interface comparison
 
 	valid := false
-	if x.isAssignable(check.ctxt, y.typ) || y.isAssignable(check.ctxt, x.typ) {
+	if x.isAssignableTo(check.ctxt, y.typ) || y.isAssignableTo(check.ctxt, x.typ) {
 		switch op {
 		case token.EQL, token.NEQ:
 			valid = isComparable(x.typ) ||

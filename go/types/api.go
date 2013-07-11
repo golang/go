@@ -35,7 +35,7 @@ package types
 //
 // BUG(gri): Conversions of constants only change the type, not the value (e.g., int(1.1) is wrong).
 // BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).
-// BUG(gri): Use of labels is not checked.
+// BUG(gri): Use of labels is only partially checked.
 // BUG(gri): Unused variables and imports are not reported.
 // BUG(gri): Interface vs non-interface comparisons are not correctly implemented.
 // BUG(gri): Switch statements don't check correct use of 'fallthrough'.
@@ -149,4 +149,11 @@ func (ctxt *Context) Check(path string, fset *token.FileSet, files ...*ast.File)
 func Check(path string, fset *token.FileSet, files ...*ast.File) (*Package, error) {
 	var ctxt Context
 	return ctxt.Check(path, fset, files...)
+}
+
+// IsAssignableTo reports whether a value of type V
+// is assignable to a variable of type T.
+func IsAssignableTo(V, T Type) bool {
+	x := operand{mode: value, typ: V}
+	return x.isAssignableTo(nil, T) // context not needed for non-constant x
 }

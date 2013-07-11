@@ -122,12 +122,12 @@ func (x *operand) isNil() bool {
 	return x.mode == constant && x.val.Kind() == exact.Nil
 }
 
-// TODO(gri) The functions operand.isAssignable, checker.convertUntyped,
+// TODO(gri) The functions operand.isAssignableTo, checker.convertUntyped,
 //           checker.isRepresentable, and checker.assignOperand are
 //           overlapping in functionality. Need to simplify and clean up.
 
-// isAssignable reports whether x is assignable to a variable of type T.
-func (x *operand) isAssignable(ctxt *Context, T Type) bool {
+// isAssignableTo reports whether x is assignable to a variable of type T.
+func (x *operand) isAssignableTo(ctxt *Context, T Type) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true // avoid spurious errors
 	}

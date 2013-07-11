@@ -93,7 +93,7 @@ Error:
 
 func (x *operand) isConvertible(ctxt *Context, T Type) bool {
 	// "x is assignable to T"
-	if x.isAssignable(ctxt, T) {
+	if x.isAssignableTo(ctxt, T) {
 		return true
 	}
 
