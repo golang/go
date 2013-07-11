@@ -147,7 +147,7 @@ func optimizeBlocks(f *Function) {
 
 		if debugBlockOpt {
 			f.DumpTo(os.Stderr)
-			MustSanityCheck(f, nil)
+			mustSanityCheck(f, nil)
 		}
 
 		for _, b := range f.Blocks {

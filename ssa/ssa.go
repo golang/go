@@ -55,11 +55,12 @@ type Package struct {
 // const, var, func and type declarations respectively.
 //
 type Member interface {
-	Name() string       // the declared name of the package member
-	String() string     // human-readable information about the value
-	Pos() token.Pos     // position of member's declaration, if known
-	Type() types.Type   // the type of the package member
-	Token() token.Token // token.{VAR,FUNC,CONST,TYPE}
+	Name() string         // declared name of the package member
+	String() string       // package-qualified name of the package member
+	Object() types.Object // typechecker's object for this member, if any
+	Pos() token.Pos       // position of member's declaration, if known
+	Type() types.Type     // type of the package member
+	Token() token.Token   // token.{VAR,FUNC,CONST,TYPE}
 }
 
 // An Id identifies the name of a field of a struct type, or the name
@@ -96,7 +97,7 @@ type MethodSet map[Id]*Function
 // Type() returns a *types.Named.
 //
 type Type struct {
-	Object *types.TypeName
+	object *types.TypeName
 }
 
 // A Constant is a Member of Package representing a package-level
@@ -109,9 +110,9 @@ type Type struct {
 // it augments with the name and position of its 'const' declaration.
 //
 type Constant struct {
-	name  string
-	Value *Literal
-	pos   token.Pos
+	object *types.Const
+	Value  *Literal
+	pos    token.Pos
 }
 
 // An SSA value that can be referenced by an instruction.
@@ -266,6 +267,7 @@ type Instruction interface {
 //
 type Function struct {
 	name      string
+	object    types.Object // a *types.Func; may be nil for init, wrappers, etc.
 	Signature *types.Signature
 	pos       token.Pos
 
@@ -395,9 +397,10 @@ type Literal struct {
 // identifier.
 //
 type Global struct {
-	name string
-	typ  types.Type
-	pos  token.Pos
+	name   string
+	object types.Object // a *types.Var; may be nil for synthetics e.g. init$guard
+	typ    types.Type
+	pos    token.Pos
 
 	Pkg *Package
 
@@ -1315,12 +1318,14 @@ func (v *Global) Name() string            { return v.name }
 func (v *Global) Pos() token.Pos          { return v.pos }
 func (*Global) Referrers() *[]Instruction { return nil }
 func (v *Global) Token() token.Token      { return token.VAR }
+func (v *Global) Object() types.Object    { return v.object }
 
 func (v *Function) Name() string            { return v.name }
 func (v *Function) Type() types.Type        { return v.Signature }
 func (v *Function) Pos() token.Pos          { return v.pos }
 func (*Function) Referrers() *[]Instruction { return nil }
 func (v *Function) Token() token.Token      { return token.FUNC }
+func (v *Function) Object() types.Object    { return v.object }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
@@ -1346,17 +1351,23 @@ func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
 func (v *anInstruction) SetBlock(block *BasicBlock) { v.block = block }
 
-func (t *Type) Name() string       { return t.Object.Name() }
-func (t *Type) Pos() token.Pos     { return t.Object.Pos() }
-func (t *Type) String() string     { return t.Name() }
-func (t *Type) Type() types.Type   { return t.Object.Type() }
-func (t *Type) Token() token.Token { return token.TYPE }
+func (t *Type) Name() string         { return t.object.Name() }
+func (t *Type) Pos() token.Pos       { return t.object.Pos() }
+func (t *Type) Type() types.Type     { return t.object.Type() }
+func (t *Type) Token() token.Token   { return token.TYPE }
+func (t *Type) Object() types.Object { return t.object }
+func (t *Type) String() string {
+	return fmt.Sprintf("%s.%s", t.object.Pkg().Path(), t.object.Name())
+}
 
-func (c *Constant) Name() string       { return c.name }
-func (c *Constant) Pos() token.Pos     { return c.pos }
-func (c *Constant) String() string     { return c.Name() }
-func (c *Constant) Type() types.Type   { return c.Value.Type() }
-func (c *Constant) Token() token.Token { return token.CONST }
+func (c *Constant) Name() string   { return c.object.Name() }
+func (c *Constant) Pos() token.Pos { return c.object.Pos() }
+func (c *Constant) String() string {
+	return fmt.Sprintf("%s.%s", c.object.Pkg().Path(), c.object.Name())
+}
+func (c *Constant) Type() types.Type     { return c.object.Type() }
+func (c *Constant) Token() token.Token   { return token.CONST }
+func (c *Constant) Object() types.Object { return c.object }
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.

@@ -285,6 +285,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 	if prog.mode&LogSource != 0 {
 		defer logStack("promotionWrapper (%s)%s, type %s", typ, cand, sig)()
 	}
+	// TODO(adonovan): is there a *types.Func for this function?
 	fn := &Function{
 		name:      cand.method.Name(),
 		Signature: sig,
@@ -395,6 +396,7 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, id Id) *Function {
 		}
 		fn = &Function{
 			name:      meth.Name(),
+			object:    meth,
 			Signature: meth.Type().(*types.Signature),
 			Synthetic: fmt.Sprintf("interface method wrapper for %s.%s", typ, id),
 			pos:       meth.Pos(),
@@ -495,6 +497,7 @@ func indirectionWrapper(meth *Function) *Function {
 		s := meth.Signature
 		recv := types.NewVar(token.NoPos, meth.Pkg.Object, "recv",
 			types.NewPointer(s.Recv().Type()))
+		// TODO(adonovan): is there a *types.Func for this method?
 		fn = &Function{
 			name:      meth.Name(),
 			Signature: types.NewSignature(recv, s.Params(), s.Results(), s.IsVariadic()),

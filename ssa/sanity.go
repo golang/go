@@ -17,26 +17,26 @@ type sanity struct {
 	insane   bool
 }
 
-// SanityCheck performs integrity checking of the SSA representation
+// sanityCheck performs integrity checking of the SSA representation
 // of the function fn and returns true if it was valid.  Diagnostics
 // are written to reporter if non-nil, os.Stderr otherwise.  Some
 // diagnostics are only warnings and do not imply a negative result.
 //
-// Sanity checking is intended to facilitate the debugging of code
+// Sanity-checking is intended to facilitate the debugging of code
 // transformation passes.
 //
-func SanityCheck(fn *Function, reporter io.Writer) bool {
+func sanityCheck(fn *Function, reporter io.Writer) bool {
 	if reporter == nil {
 		reporter = os.Stderr
 	}
 	return (&sanity{reporter: reporter}).checkFunction(fn)
 }
 
-// MustSanityCheck is like SanityCheck but panics instead of returning
+// mustSanityCheck is like sanityCheck but panics instead of returning
 // a negative result.
 //
-func MustSanityCheck(fn *Function, reporter io.Writer) {
-	if !SanityCheck(fn, reporter) {
+func mustSanityCheck(fn *Function, reporter io.Writer) {
+	if !sanityCheck(fn, reporter) {
 		panic("SanityCheck failed")
 	}
 }
@@ -343,4 +343,33 @@ func (s *sanity) checkFunction(fn *Function) bool {
 	s.block = nil
 	s.fn = nil
 	return !s.insane
+}
+
+// sanityCheckPackage checks invariants of packages upon creation.
+// It does not require that the package is built.
+// Unlike sanityCheck (for functions), it just panics at the first error.
+func sanityCheckPackage(pkg *Package) {
+	for name, mem := range pkg.Members {
+		if name != mem.Name() {
+			panic(fmt.Sprintf("%s: %T.Name() = %s, want %s",
+				pkg.Object.Path(), mem, mem.Name(), name))
+		}
+		obj := mem.Object()
+		if obj == nil {
+			// This check is sound because fields
+			// {Global,Function}.object have type
+			// types.Object.  (If they were declared as
+			// *types.{Var,Func}, we'd have a non-empty
+			// interface containing a nil pointer.)
+
+			continue // not all members have typechecker objects
+		}
+		if obj.Name() != name {
+			panic(fmt.Sprintf("%s: %T.Object().Name() = %s, want %s",
+				pkg.Object.Path(), mem, obj.Name(), name))
+		}
+		if obj.Pos() != mem.Pos() {
+			panic(fmt.Sprintf("%s Pos=%d obj.Pos=%d", mem, mem.Pos(), obj.Pos()))
+		}
+	}
 }
