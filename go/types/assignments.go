@@ -24,7 +24,7 @@ func (check *checker) assignment(x *operand, to Type) bool {
 	}
 
 	if t, ok := x.typ.(*Tuple); ok {
-		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
+		assert(t.Len() > 1)
 		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
 		x.mode = invalid
 		return false
@@ -136,11 +136,13 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) {
 }
 
 func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
-	assert(len(lhs) > 0)
+	l := len(lhs)
+	r := len(rhs)
+	assert(l > 0)
 
 	// If the lhs and rhs have corresponding expressions,
 	// treat each matching pair as an individual pair.
-	if len(lhs) == len(rhs) {
+	if l == r {
 		var x operand
 		for i, e := range rhs {
 			check.expr(&x, e)
@@ -152,8 +154,8 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 	// Otherwise, the rhs must be a single expression (possibly
 	// a function call returning multiple values, or a comma-ok
 	// expression).
-	if len(rhs) == 1 {
-		// len(lhs) > 1
+	if r == 1 {
+		// l > 1
 		// Start with rhs so we have expression types
 		// for declarations with implicit types.
 		var x operand
@@ -163,18 +165,21 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 			return
 		}
 
-		if t, ok := x.typ.(*Tuple); ok && len(lhs) == t.Len() {
+		if t, ok := x.typ.(*Tuple); ok {
 			// function result
-			for i, lhs := range lhs {
-				x.mode = value
-				x.expr = rhs[0]
-				x.typ = t.At(i).typ
-				check.initVar(lhs, &x)
+			r = t.Len()
+			if l == r {
+				for i, lhs := range lhs {
+					x.mode = value
+					x.expr = rhs[0]
+					x.typ = t.At(i).typ
+					check.initVar(lhs, &x)
+				}
+				return
 			}
-			return
 		}
 
-		if allowCommaOk && x.mode == valueok && len(lhs) == 2 {
+		if allowCommaOk && x.mode == valueok && l == 2 {
 			// comma-ok expression
 			x.mode = value
 			check.initVar(lhs[0], &x)
@@ -186,18 +191,20 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 		}
 	}
 
-	// lhs variables may be function parameters (return assignment);
-	// use rhs position information for properly located error messages
-	check.errorf(rhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
+	// lhs variables may be function result parameters (return statement);
+	// use rhs position for properly located error messages
+	check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
 	invalidateVars(lhs)
 }
 
 func (check *checker) assignVars(lhs, rhs []ast.Expr) {
-	assert(len(lhs) > 0)
+	l := len(lhs)
+	r := len(rhs)
+	assert(l > 0)
 
 	// If the lhs and rhs have corresponding expressions,
 	// treat each matching pair as an individual pair.
-	if len(lhs) == len(rhs) {
+	if l == r {
 		var x operand
 		for i, e := range rhs {
 			check.expr(&x, e)
@@ -209,26 +216,29 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 	// Otherwise, the rhs must be a single expression (possibly
 	// a function call returning multiple values, or a comma-ok
 	// expression).
-	if len(rhs) == 1 {
-		// len(lhs) > 1
+	if r == 1 {
+		// l > 1
 		var x operand
 		check.expr(&x, rhs[0])
 		if x.mode == invalid {
 			return
 		}
 
-		if t, ok := x.typ.(*Tuple); ok && len(lhs) == t.Len() {
+		if t, ok := x.typ.(*Tuple); ok {
 			// function result
-			for i, lhs := range lhs {
-				x.mode = value
-				x.expr = rhs[0]
-				x.typ = t.At(i).typ
-				check.assignVar(lhs, &x)
+			r = t.Len()
+			if l == r {
+				for i, lhs := range lhs {
+					x.mode = value
+					x.expr = rhs[0]
+					x.typ = t.At(i).typ
+					check.assignVar(lhs, &x)
+				}
+				return
 			}
-			return
 		}
 
-		if x.mode == valueok && len(lhs) == 2 {
+		if x.mode == valueok && l == 2 {
 			// comma-ok expression
 			x.mode = value
 			check.assignVar(lhs[0], &x)
@@ -240,7 +250,7 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 		}
 	}
 
-	check.errorf(rhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
+	check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
 }
 
 func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {

@@ -42,11 +42,13 @@ type mdecl struct {
 	meth *ast.FuncDecl
 }
 
-// A projExpr projects the index'th value of a multi-valued expression.
-// projExpr implements ast.Expr.
-type projExpr struct {
-	lhs      []*Var // all variables on the lhs
-	ast.Expr        // rhs
+// A multiExpr describes the lhs variables and a single but
+// (expected to be) multi-valued rhs init expr of a variable
+// declaration.
+type multiExpr struct {
+	lhs      []*Var
+	rhs      []ast.Expr // len(rhs) == 1
+	ast.Expr            // dummy to satisfy ast.Expr interface
 }
 
 // arityMatch checks that the lhs and rhs of a const or var decl
@@ -227,7 +229,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 									// (lhs may not be fully set up yet, but
 									// that's fine because declare simply collects
 									// the information for later processing.)
-									init = &projExpr{lhs, s.Values[0]}
+									init = &multiExpr{lhs, s.Values, nil}
 								default:
 									if i < len(s.Values) {
 										init = s.Values[i]
@@ -421,68 +423,23 @@ func (check *checker) declareVar(obj *Var, typ, init ast.Expr) {
 		obj.typ = check.typ(typ, nil, false)
 	}
 
+	// check initialization
 	if init == nil {
 		if typ == nil {
+			// error reported before by arityMatch
 			obj.typ = Typ[Invalid]
 		}
-		return // error reported before
+		return
 	}
 
-	// unpack projection expression, if any
-	proj, multi := init.(*projExpr)
-	if multi {
-		init = proj.Expr
+	if m, _ := init.(*multiExpr); m != nil {
+		check.initVars(m.lhs, m.rhs, true)
+		return
 	}
 
 	var x operand
 	check.expr(&x, init)
-	if x.mode == invalid {
-		goto Error
-	}
-
-	if multi {
-		if t, ok := x.typ.(*Tuple); ok && len(proj.lhs) == t.Len() {
-			// function result
-			x.mode = value
-			for i, lhs := range proj.lhs {
-				x.expr = nil // TODO(gri) should do better here
-				x.typ = t.At(i).typ
-				check.initVar(lhs, &x)
-			}
-			return
-		}
-
-		if x.mode == valueok && len(proj.lhs) == 2 {
-			// comma-ok expression
-			x.mode = value
-			check.initVar(proj.lhs[0], &x)
-
-			x.typ = Typ[UntypedBool]
-			check.initVar(proj.lhs[1], &x)
-			return
-		}
-
-		// TODO(gri) better error message
-		check.errorf(proj.lhs[0].Pos(), "assignment count mismatch")
-		goto Error
-	}
-
 	check.initVar(obj, &x)
-	return
-
-Error:
-	// mark all involved variables so we can avoid repeated error messages
-	if multi {
-		for _, obj := range proj.lhs {
-			if obj.typ == nil {
-				obj.typ = Typ[Invalid]
-				obj.visited = true
-			}
-		}
-	} else if obj.typ == nil {
-		obj.typ = Typ[Invalid]
-	}
-	return
 }
 
 func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycleOk bool) {
@@ -641,7 +598,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					}
 
 				case token.VAR:
-					// For declareVar called with a projExpr we need the fully
+					// For declareVar called with a multiExpr we need the fully
 					// initialized lhs. Compute it in a separate pre-pass.
 					lhs := make([]*Var, len(s.Names))
 					for i, name := range s.Names {
@@ -656,8 +613,8 @@ func (check *checker) declStmt(decl ast.Decl) {
 							// lhs and rhs match
 							init = s.Values[i]
 						case 1:
-							// rhs must be a multi-valued expression
-							init = &projExpr{lhs, s.Values[0]}
+							// rhs is expected to be a multi-valued expression
+							init = &multiExpr{lhs, s.Values, nil}
 						default:
 							if i < len(s.Values) {
 								init = s.Values[i]
