@@ -73,6 +73,7 @@ func main() {
 	// Output:
 	//
 	// package main:
+	//   func  init       func()
 	//   var   init$guard *bool
 	//   func  main       func()
 	//   const message    message = "Hello, World!":untyped string
