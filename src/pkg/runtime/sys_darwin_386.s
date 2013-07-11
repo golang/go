@@ -238,11 +238,12 @@ TEXT runtime·sigtramp(SB),7,$40
 	// check that m exists
 	MOVL	m(CX), BP
 	CMPL	BP, $0
-	JNE	5(PC)
+	JNE	6(PC)
 	MOVL	sig+8(FP), BX
 	MOVL	BX, 0(SP)
-	CALL	runtime·badsignal(SB)
-	RET
+	MOVL	$runtime·badsignal(SB), AX
+	CALL	AX
+	JMP 	sigtramp_ret
 
 	// save g
 	MOVL	g(CX), DI
@@ -269,6 +270,7 @@ TEXT runtime·sigtramp(SB),7,$40
 	MOVL	20(SP), DI
 	MOVL	DI, g(CX)
 
+sigtramp_ret:
 	// call sigreturn
 	MOVL	context+16(FP), CX
 	MOVL	style+4(FP), BX

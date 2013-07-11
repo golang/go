@@ -155,13 +155,14 @@ TEXT runtime·sigaction(SB),7,$-8
 
 TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
-	
+
 	// check that m exists
 	MOVQ	m(BX), BP
 	CMPQ	BP, $0
-	JNE	4(PC)
+	JNE	5(PC)
 	MOVQ	DI, 0(SP)
-	CALL	runtime·badsignal(SB)
+	MOVQ	$runtime·badsignal(SB), AX
+	CALL	AX
 	RET
 
 	// save g
@@ -176,7 +177,7 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
 	MOVQ	R10, 24(SP)
-	
+
 	CALL	runtime·sighandler(SB)
 
 	// restore g

@@ -192,13 +192,17 @@ TEXT runtime·sigaction(SB),7,$0
 TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
 
+	MOVQ	R8, 32(SP)	// save ucontext
+	MOVQ	SI, 40(SP)	// save infostyle
+
 	// check that m exists
 	MOVQ	m(BX), BP
 	CMPQ	BP, $0
-	JNE	4(PC)
+	JNE	5(PC)
 	MOVL	DX, 0(SP)
-	CALL	runtime·badsignal(SB)
-	RET
+	MOVQ	$runtime·badsignal(SB), AX
+	CALL	AX
+	JMP 	sigtramp_ret
 
 	// save g
 	MOVQ	g(BX), R10
@@ -213,8 +217,6 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	R8, 16(SP)
 	MOVQ	R10, 24(SP)
 
-	MOVQ	R8, 32(SP)	// save ucontext
-	MOVQ	SI, 40(SP)	// save infostyle
 	CALL	DI
 
 	// restore g
@@ -222,6 +224,7 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	48(SP), R10
 	MOVQ	R10, g(BX)
 
+sigtramp_ret:
 	// call sigreturn
 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
 	MOVQ	32(SP), DI	// saved ucontext
