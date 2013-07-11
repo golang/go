@@ -134,15 +134,12 @@ func (s *Scope) Insert(obj Object) Object {
 
 // String returns a string representation of the scope, for debugging.
 func (s *Scope) String() string {
-	if s == nil {
-		return "scope {}"
-	}
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "scope %p {", s)
-	if s != nil && len(s.entries) > 0 {
+	if s.NumEntries() > 0 {
 		fmt.Fprintln(&buf)
 		for _, obj := range s.entries {
-			fmt.Fprintf(&buf, "\t%s\t%T\n", obj.Name(), obj)
+			fmt.Fprintf(&buf, "\t%s\n", obj)
 		}
 	}
 	fmt.Fprintf(&buf, "}\n")

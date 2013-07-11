@@ -32,16 +32,10 @@ func (check *checker) formatMsg(format string, args []interface{}) string {
 			args[i] = "<nil>"
 		case operand:
 			panic("internal error: should always pass *operand")
-		case *operand:
-			args[i] = a.String()
 		case token.Pos:
-			args[i] = check.fset.Position(a).String()
+			args[i] = check.fset.Position(a)
 		case ast.Expr:
 			args[i] = exprString(a)
-		case Type:
-			args[i] = typeString(a)
-		case Object:
-			args[i] = fmt.Sprintf("%s (%T)", a.Name(), a)
 		}
 	}
 	return fmt.Sprintf(format, args...)

@@ -5,6 +5,7 @@
 package types
 
 import (
+	"bytes"
 	"go/ast"
 	"go/token"
 
@@ -19,15 +20,14 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
-	Parent() *Scope // the scope in which this object is declared
+	Parent() *Scope // scope in which this object is declared
 	Pos() token.Pos // position of object identifier in declaration
 	Pkg() *Package  // nil for objects in the Universe scope and labels
-	Name() string   // the package local object name
-	Type() Type     // the object type
+	Name() string   // package local object name
+	Type() Type     // object type
+	String() string
 
 	setParent(*Scope)
-
-	// TODO(gri) provide String method!
 }
 
 // An object implements the common parts of an Object.
@@ -44,6 +44,31 @@ func (obj *object) Pos() token.Pos { return obj.pos }
 func (obj *object) Pkg() *Package  { return obj.pkg }
 func (obj *object) Name() string   { return obj.name }
 func (obj *object) Type() Type     { return obj.typ }
+
+func (obj *object) toString(kind string) string {
+	var buf bytes.Buffer
+
+	buf.WriteString(kind)
+	buf.WriteByte(' ')
+
+	// qualified name
+	if obj.pkg != nil {
+		buf.WriteString(obj.pkg.name)
+		buf.WriteByte('.')
+	}
+	buf.WriteString(obj.name)
+
+	// type
+	if t := obj.typ; t == nil {
+		buf.WriteString("<nil>")
+	} else if u := t.Underlying(); u == nil {
+		buf.WriteString("<incomplete>")
+	} else {
+		buf.WriteString(u.String())
+	}
+
+	return buf.String()
+}
 
 func (obj *object) setParent(parent *Scope) { obj.parent = parent }
 
@@ -62,6 +87,7 @@ func NewPackage(pos token.Pos, path, name string, scope *Scope, imports map[stri
 	return obj
 }
 
+func (obj *Package) String() string               { return obj.toString("package") }
 func (obj *Package) Path() string                 { return obj.path }
 func (obj *Package) Scope() *Scope                { return obj.scope }
 func (obj *Package) Imports() map[string]*Package { return obj.imports }
@@ -79,6 +105,7 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Valu
 	return &Const{object{nil, pos, pkg, name, typ}, val, false}
 }
 
+func (obj *Const) String() string   { return obj.toString("const") }
 func (obj *Const) Val() exact.Value { return obj.val }
 
 // A TypeName represents a declared type.
@@ -89,6 +116,8 @@ type TypeName struct {
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ}}
 }
+
+func (obj *TypeName) String() string { return obj.toString("type") }
 
 // A Variable represents a declared variable (including function parameters and results).
 type Var struct {
@@ -101,6 +130,8 @@ func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
 	return &Var{object{nil, pos, pkg, name, typ}, false}
 }
 
+func (obj *Var) String() string { return obj.toString("var") }
+
 // A Field represents a struct field.
 type Field struct {
 	object
@@ -111,6 +142,7 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool
 	return &Field{object{nil, pos, pkg, name, typ}, anonymous}
 }
 
+func (obj *Field) String() string  { return obj.toString("field") }
 func (obj *Field) Anonymous() bool { return obj.anonymous }
 
 func (f *Field) isMatch(pkg *Package, name string) bool {
@@ -136,6 +168,8 @@ func NewFunc(pos token.Pos, pkg *Package, name string, typ Type) *Func {
 	return &Func{object{nil, pos, pkg, name, typ}, nil}
 }
 
+func (obj *Func) String() string { return obj.toString("func") }
+
 // A Label represents a declared label.
 type Label struct {
 	object
@@ -144,3 +178,5 @@ type Label struct {
 func NewLabel(pos token.Pos, name string) *Label {
 	return &Label{object{nil, pos, nil, name, nil}}
 }
+
+func (obj *Label) String() string { return obj.toString("label") }
