@@ -432,7 +432,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	int64 base;
 	MachoSect *sect;
 	MachoRel *rel;
-	Sym *s, *outer;
+	Sym *s, *s1, *outer;
 	MachoCmd *c;
 	MachoSymtab *symtab;
 	MachoDysymtab *dsymtab;
@@ -635,10 +635,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		outer->sub = s;
 		s->outer = outer;
 		s->value = sym->value - sect->addr;
-		if(i+1 < symtab->nsym)
-			s->size = (sym+1)->value - sym->value;
-		else
-			s->size = sect->addr + sect->size - sym->value;
 		if(!(s->cgoexport & CgoExportDynamic))
 			s->dynimplib = nil;	// satisfy dynimport
 		if(outer->type == STEXT) {
@@ -668,17 +664,26 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		sect = &c->seg.sect[i];
 		if((s = sect->sym) == S)
 			continue;
-		if(s->sub)
+		if(s->sub) {
 			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
+			
+			// assign sizes, now that we know symbols in sorted order.
+			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
+				if(s1->sub)
+					s1->size = s1->sub->value - s1->value;
+				else
+					s1->size = s->value + s->size - s1->value;
+			}
+		}
 		if(s->type == STEXT) {
 			if(etextp)
 				etextp->next = s;
 			else
 				textp = s;
 			etextp = s;
-			for(s = s->sub; s != S; s = s->sub) {
-				etextp->next = s;
-				etextp = s;
+			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
+				etextp->next = s1;
+				etextp = s1;
 			}
 		}
 	}
