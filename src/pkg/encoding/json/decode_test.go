@@ -568,14 +568,14 @@ func TestUnmarshalPtrPtr(t *testing.T) {
 }
 
 func TestEscape(t *testing.T) {
-	const input = `"foobar"<html>`
-	const expected = `"\"foobar\"\u003chtml\u003e"`
+	const input = `"foobar"<html>` + " [\u2028 \u2029]"
+	const expected = `"\"foobar\"\u003chtml\u003e [\u2028 \u2029]"`
 	b, err := Marshal(input)
 	if err != nil {
 		t.Fatalf("Marshal error: %v", err)
 	}
 	if s := string(b); s != expected {
-		t.Errorf("Encoding of [%s] was [%s], want [%s]", input, s, expected)
+		t.Errorf("Encoding of [%s]:\n got [%s]\nwant [%s]", input, s, expected)
 	}
 }
 

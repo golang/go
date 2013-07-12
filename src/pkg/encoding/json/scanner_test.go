@@ -63,6 +63,25 @@ func TestCompact(t *testing.T) {
 	}
 }
 
+func TestCompactSeparators(t *testing.T) {
+	// U+2028 and U+2029 should be escaped inside strings.
+	// They should not appear outside strings.
+	tests := []struct {
+		in, compact string
+	}{
+		{"{\"\u2028\": 1}", `{"\u2028":1}`},
+		{"{\"\u2029\" :2}", `{"\u2029":2}`},
+	}
+	for _, tt := range tests {
+		var buf bytes.Buffer
+		if err := Compact(&buf, []byte(tt.in)); err != nil {
+			t.Errorf("Compact(%q): %v", tt.in, err)
+		} else if s := buf.String(); s != tt.compact {
+			t.Errorf("Compact(%q) = %q, want %q", tt.in, s, tt.compact)
+		}
+	}
+}
+
 func TestIndent(t *testing.T) {
 	var buf bytes.Buffer
 	for _, tt := range examples {

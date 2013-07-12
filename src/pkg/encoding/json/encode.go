@@ -149,14 +149,14 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// HTMLEscape appends to dst the JSON-encoded src with <, >, and &
-// characters inside string literals changed to \u003c, \u003e, \u0026
+// HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029
+// characters inside string literals changed to \u003c, \u003e, \u0026, \u2028, \u2029
 // so that the JSON will be safe to embed inside HTML <script> tags.
 // For historical reasons, web browsers don't honor standard HTML
 // escaping within <script> tags, so an alternative JSON encoding must
 // be used.
 func HTMLEscape(dst *bytes.Buffer, src []byte) {
-	// < > & can only appear in string literals,
+	// The characters can only appear in string literals,
 	// so just scan the string one byte at a time.
 	start := 0
 	for i, c := range src {
@@ -168,6 +168,15 @@ func HTMLEscape(dst *bytes.Buffer, src []byte) {
 			dst.WriteByte(hex[c>>4])
 			dst.WriteByte(hex[c&0xF])
 			start = i + 1
+		}
+		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
+		if c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
+			if start < i {
+				dst.Write(src[start:i])
+			}
+			dst.WriteString(`\u202`)
+			dst.WriteByte(hex[src[i+2]&0xF])
+			start = i + 3
 		}
 	}
 	if start < len(src) {
@@ -547,6 +556,23 @@ func (e *encodeState) string(s string) (int, error) {
 		c, size := utf8.DecodeRuneInString(s[i:])
 		if c == utf8.RuneError && size == 1 {
 			e.error(&InvalidUTF8Error{s})
+		}
+		// U+2028 is LINE SEPARATOR.
+		// U+2029 is PARAGRAPH SEPARATOR.
+		// They are both technically valid characters in JSON strings,
+		// but don't work in JSONP, which has to be evaluated as JavaScript,
+		// and can lead to security holes there. It is valid JSON to
+		// escape them, so we do so unconditionally.
+		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
+		if c == '\u2028' || c == '\u2029' {
+			if start < i {
+				e.WriteString(s[start:i])
+			}
+			e.WriteString(`\u202`)
+			e.WriteByte(hex[c&0xF])
+			i += size
+			start = i
+			continue
 		}
 		i += size
 	}
