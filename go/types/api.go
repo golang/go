@@ -54,7 +54,7 @@ import (
 )
 
 // A Context specifies the supporting context for type checking.
-// An empty Context is a ready-to-use default context.
+// The zero value for a Context is a ready-to-use default context.
 type Context struct {
 	// If Error != nil, it is called with each error found
 	// during type checking. The error strings of errors with
@@ -145,7 +145,7 @@ func (ctxt *Context) Check(path string, fset *token.FileSet, files ...*ast.File)
 	return check(ctxt, path, fset, files...)
 }
 
-// Check is shorthand for ctxt.Check where ctxt is a default (empty) context.
+// Check is shorthand for ctxt.Check where ctxt is a default context.
 func Check(path string, fset *token.FileSet, files ...*ast.File) (*Package, error) {
 	var ctxt Context
 	return ctxt.Check(path, fset, files...)

@@ -56,8 +56,8 @@ var testTypes = []testEntry{
 	}`, `struct{x int; y int; z float32 "foo"}`},
 	{`struct {
 		string
-		elems []T
-	}`, `struct{string; elems []p.T}`},
+		elems []complex128
+	}`, `struct{string; elems []complex128}`},
 
 	// pointers
 	dup("*int"),

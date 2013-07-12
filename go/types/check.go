@@ -58,6 +58,17 @@ type checker struct {
 	indent int // indentation for tracing
 }
 
+func newChecker(ctxt *Context, fset *token.FileSet, pkg *Package) *checker {
+	return &checker{
+		ctxt:        ctxt,
+		fset:        fset,
+		pkg:         pkg,
+		methods:     make(map[*TypeName]*Scope),
+		conversions: make(map[*ast.CallExpr]bool),
+		untyped:     make(map[ast.Expr]exprInfo),
+	}
+}
+
 func (check *checker) callIdent(id *ast.Ident, obj Object) {
 	if f := check.ctxt.Ident; f != nil {
 		assert(id != nil)
@@ -93,6 +104,22 @@ func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
+func (check *checker) handleBailout(err *error) {
+	switch p := recover().(type) {
+	case nil, bailout:
+		// normal return or early exit
+		*err = check.firsterr
+	default:
+		// unexpected panic: don't crash clients
+		if debug {
+			check.dump("INTERNAL PANIC: %v", p)
+			panic(p)
+		}
+		// TODO(gri) add a test case for this scenario
+		*err = fmt.Errorf("types internal error: %v", p)
+	}
+}
+
 func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
 	pkg = &Package{
 		path:    pkgPath,
@@ -100,32 +127,8 @@ func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.Fil
 		imports: make(map[string]*Package),
 	}
 
-	// initialize checker
-	check := checker{
-		ctxt:        ctxt,
-		fset:        fset,
-		pkg:         pkg,
-		methods:     make(map[*TypeName]*Scope),
-		conversions: make(map[*ast.CallExpr]bool),
-		untyped:     make(map[ast.Expr]exprInfo),
-	}
-
-	// handle panics
-	defer func() {
-		switch p := recover().(type) {
-		case nil, bailout:
-			// normal return or early exit
-			err = check.firsterr
-		default:
-			// unexpected panic: don't crash clients
-			if debug {
-				check.dump("INTERNAL PANIC: %v", p)
-				panic(p)
-			}
-			// TODO(gri) add a test case for this scenario
-			err = fmt.Errorf("types internal error: %v", p)
-		}
-	}()
+	check := newChecker(ctxt, fset, pkg)
+	defer check.handleBailout(&err)
 
 	// we need a reasonable path to continue
 	if path.Clean(pkgPath) == "." {

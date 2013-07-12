@@ -8,24 +8,33 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"io"
+	"strings"
 )
 
 // TODO(gri) Provide scopes with a name or other mechanism so that
 //           objects can use that information for better printing.
 
-// A Scope maintains a set of objects and a link to its containing (parent)
-// scope. Objects may be inserted and looked up by name, or by package path
-// and name. A nil *Scope acts like an empty scope for operations that do not
-// modify the scope or access a scope's parent scope.
+// A Scope maintains a set of objects and links to its containing
+// (parent) and contained (children) scopes.
+// Objects may be inserted and looked up by name, or by package path
+// and name. A nil *Scope acts like an empty scope for operations that
+// do not modify the scope or access a scope's parent scope.
 type Scope struct {
-	parent  *Scope
-	entries []Object
-	node    ast.Node
+	parent   *Scope
+	children []*Scope
+	entries  []Object
+	node     ast.Node
 }
 
-// NewScope returns a new, empty scope.
+// NewScope returns a new, empty scope contained in the given parent
+// scope, if any.
 func NewScope(parent *Scope) *Scope {
-	return &Scope{parent: parent}
+	scope := &Scope{parent: parent}
+	if parent != nil {
+		parent.children = append(parent.children, scope)
+	}
+	return scope
 }
 
 // Parent returns the scope's containing (parent) scope.
@@ -59,6 +68,20 @@ func (s *Scope) IsEmpty() bool {
 // At returns the i'th scope entry for 0 <= i < NumEntries().
 func (s *Scope) At(i int) Object {
 	return s.entries[i]
+}
+
+// NumChildren() returns the number of scopes nested in s.
+// If s == nil, the result is 0.
+func (s *Scope) NumChildren() int {
+	if s == nil {
+		return 0
+	}
+	return len(s.children)
+}
+
+// Child returns the i'th child scope for 0 <= i < NumChildren().
+func (s *Scope) Child(i int) *Scope {
+	return s.children[i]
 }
 
 // Lookup returns the object in scope s with the given package
@@ -132,16 +155,34 @@ func (s *Scope) Insert(obj Object) Object {
 	return nil
 }
 
+func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
+	const ind = ".  "
+	indn := strings.Repeat(ind, n)
+
+	if s.NumEntries() == 0 {
+		fmt.Fprintf(w, "%sscope %p {}\n", indn, s)
+		return
+	}
+
+	fmt.Fprintf(w, "%sscope %p {\n", indn, s)
+	indn1 := indn + ind
+	for _, obj := range s.entries {
+		fmt.Fprintf(w, "%s%s\n", indn1, obj)
+	}
+
+	if recurse {
+		for _, s := range s.children {
+			fmt.Fprintln(w)
+			s.WriteTo(w, n+1, recurse)
+		}
+	}
+
+	fmt.Fprintf(w, "%s}", indn)
+}
+
 // String returns a string representation of the scope, for debugging.
 func (s *Scope) String() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "scope %p {", s)
-	if s.NumEntries() > 0 {
-		fmt.Fprintln(&buf)
-		for _, obj := range s.entries {
-			fmt.Fprintf(&buf, "\t%s\n", obj)
-		}
-	}
-	fmt.Fprintf(&buf, "}\n")
+	s.WriteTo(&buf, 0, false)
 	return buf.String()
 }
