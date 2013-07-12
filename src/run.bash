@@ -68,72 +68,88 @@ esac
 xcd() {
 	echo
 	echo '#' $1
-	builtin cd "$GOROOT"/src/$1
+	builtin cd "$GOROOT"/src/$1 || exit 1
 }
+
+# NOTE: "set -e" cannot help us in subshells. It works until you test it with ||.
+#
+#	$ bash --version
+#	GNU bash, version 3.2.48(1)-release (x86_64-apple-darwin12)
+#	Copyright (C) 2007 Free Software Foundation, Inc.
+#
+#	$ set -e; (set -e; false; echo still here); echo subshell exit status $?
+#	subshell exit status 1
+#	# subshell stopped early, set exit status, but outer set -e didn't stop.
+#
+#	$ set -e; (set -e; false; echo still here) || echo stopped
+#	still here
+#	# somehow the '|| echo stopped' broke the inner set -e.
+#	
+# To avoid this bug, every command in a subshell should have '|| exit 1' on it.
+# Strictly speaking, the test may be unnecessary on the final command of
+# the subshell, but it aids later editing and may avoid future bash bugs.
 
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/stdio
-go run $GOROOT/test/run.go - .
+go run $GOROOT/test/run.go - . || exit 1
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/life
-go run $GOROOT/test/run.go - .
+go run $GOROOT/test/run.go - . || exit 1
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
-set -e
-go test -ldflags '-linkmode=auto'
-go test -ldflags '-linkmode=internal'
+go test -ldflags '-linkmode=auto' || exit 1
+go test -ldflags '-linkmode=internal' || exit 1
 case "$GOHOSTOS-$GOARCH" in
 openbsd-386 | openbsd-amd64)
 	# test linkmode=external, but __thread not supported, so skip testtls.
-	go test -ldflags '-linkmode=external'
+	go test -ldflags '-linkmode=external' || exit 1
 	;;
 darwin-386 | darwin-amd64)
 	# linkmode=external fails on OS X 10.6 and earlier == Darwin
 	# 10.8 and earlier.
 	case $(uname -r) in
 	[0-9].* | 10.*) ;;
-	*) go test -ldflags '-linkmode=external' ;;
+	*) go test -ldflags '-linkmode=external'  || exit 1;;
 	esac
 	;;
 freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64)
-	go test -ldflags '-linkmode=external'
-	go test -ldflags '-linkmode=auto' ../testtls
-	go test -ldflags '-linkmode=external' ../testtls
+	go test -ldflags '-linkmode=external' || exit 1
+	go test -ldflags '-linkmode=auto' ../testtls || exit 1
+	go test -ldflags '-linkmode=external' ../testtls || exit 1
 esac
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/testso
-./test.bash
+./test.bash || exit 1
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS-$GOARCH" != linux-amd64 ] ||
 (xcd ../misc/cgo/testasan
-go run main.go
+go run main.go || exit 1
 ) || exit $?
 
 (xcd ../doc/progs
-time ./run
+time ./run || exit 1
 ) || exit $?
 
 [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
 (xcd ../doc/articles/wiki
-make clean
-./test.bash
+make clean || exit 1
+./test.bash || exit 1
 ) || exit $?
 
 (xcd ../doc/codewalk
 # TODO: test these too.
-set -e
-go build pig.go
-go build urlpoll.go
+go build pig.go || exit 1
+go build urlpoll.go || exit 1
 rm -f pig urlpoll
 ) || exit $?
 
@@ -143,19 +159,19 @@ go build ../misc/dashboard/builder ../misc/goplay
 
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
-./timing.sh -test
+./timing.sh -test || exit 1
 ) || exit $?
 
 [ "$GOOS" == openbsd ] || # golang.org/issue/5057
 (
 echo
 echo '#' ../test/bench/go1
-go test ../test/bench/go1
+go test ../test/bench/go1 || exit 1
 ) || exit $?
 
 (xcd ../test
 unset GOMAXPROCS
-time go run run.go
+time go run run.go || exit 1
 ) || exit $?
 
 echo
