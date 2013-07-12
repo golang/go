@@ -75,8 +75,8 @@ func PrintfTests() {
 	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
 	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
-	fmt.Printf("%s", stringerv)
-	fmt.Printf("%T", stringerv)
+	fmt.Printf("%s", &stringerv)
+	fmt.Printf("%T", &stringerv)
 	fmt.Printf("%*%", 2) // Ridiculous but allowed.
 	// Some bad format/argTypes
 	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"

@@ -63,31 +63,21 @@ func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
 	}
 }
 
+var (
+	stringerMethodType = types.New("func() string")
+	errorType          = types.New("interface{ Error() string }")
+	stringerType       = types.New("interface{ String() string }")
+)
+
 func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 	// TODO: for now, we can only test builtin types, untyped constants, and Stringer/Errors.
 	typ := f.pkg.types[arg]
 	if typ == nil {
 		return true
 	}
-	// If we can use a string and this is a named type, does it implement the Stringer or Error interface?
-	// TODO: Simplify when we have the IsAssignableTo predicate in go/types.
-	if named, ok := typ.(*types.Named); ok && t&argString != 0 {
-		for i := 0; i < named.NumMethods(); i++ {
-			method := named.Method(i)
-			// Method must be either String or Error.
-			if method.Name() != "String" && method.Name() != "Error" {
-				continue
-			}
-			sig := method.Type().(*types.Signature)
-			// There must be zero arguments and one return.
-			if sig.Params().Len() != 0 || sig.Results().Len() != 1 {
-				continue
-			}
-			// Result must be string.
-			if !isUniverseString(sig.Results().At(0).Type()) {
-				continue
-			}
-			// It's a Stringer and we can print it.
+	// If we can use a string, does arg implement the Stringer or Error interface?
+	if t&argString != 0 {
+		if types.IsAssignableTo(typ, errorType) || types.IsAssignableTo(typ, stringerType) {
 			return true
 		}
 	}
@@ -156,6 +146,12 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 //	func Error() string
 // where "string" is the universe's string type. We know the method is called "Error".
 func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
+	typ := f.pkg.types[call]
+	if typ != nil {
+		// We know it's called "Error", so just check the function signature.
+		return types.IsIdentical(f.pkg.types[call.Fun], stringerMethodType)
+	}
+	// Without types, we can still check by hand.
 	// Is it a selector expression? Otherwise it's a function call, not a method call.
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
@@ -166,7 +162,7 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 		return false
 	}
 	// Check the type of the method declaration
-	typ := f.pkg.types[sel]
+	typ = f.pkg.types[sel]
 	if typ == nil {
 		return false
 	}
