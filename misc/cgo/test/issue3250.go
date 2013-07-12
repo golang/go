@@ -46,7 +46,7 @@ import (
 
 func test3250(t *testing.T) {
 	const (
-		thres = 5
+		thres = 1
 		sig   = syscall.SIGCHLD
 	)
 	type result struct {
