@@ -241,7 +241,7 @@ runtime·newstack(void)
 		runtime·throw("runtime: stack split argsize");
 	}
 
-	if(gp->stackguard0 == StackPreempt) {
+	if(gp->stackguard0 == (uintptr)StackPreempt) {
 		if(gp == m->g0)
 			runtime·throw("runtime: preempt g0");
 		if(oldstatus == Grunning && (m->p == nil || m->p->status != Prunning))

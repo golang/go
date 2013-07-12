@@ -438,6 +438,7 @@ dostkoff(void)
 		}
 
 		q = P;
+		q1 = P;
 		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
 			diag("nosplit func likely to overflow stack");
 
@@ -497,6 +498,7 @@ dostkoff(void)
 				q1->pcond = p;
 			}
 
+			q1 = P;
 			if(autoffset <= StackSmall) {
 				// small stack: SP <= stackguard
 				//	CMPQ SP, stackguard
@@ -519,14 +521,38 @@ dostkoff(void)
 				p->from.type = D_AX;
 				p->to.type = D_INDIR+D_CX;
 			} else {
-				// such a large stack we need to protect against wraparound
-				// if SP is close to zero:
+				// Such a large stack we need to protect against wraparound.
+				// If SP is close to zero:
 				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
 				// The +StackGuard on both sides is required to keep the left side positive:
 				// SP is allowed to be slightly below stackguard. See stack.h.
+				//
+				// Preemption sets stackguard to StackPreempt, a very large value.
+				// That breaks the math above, so we have to check for that explicitly.
+				//	MOVQ	stackguard, CX
+				//	CMPQ	CX, $StackPreempt
+				//	JEQ	label-of-call-to-morestack
 				//	LEAQ	StackGuard(SP), AX
-				//	SUBQ	stackguard, AX
+				//	SUBQ	CX, AX
 				//	CMPQ	AX, $(autoffset+(StackGuard-StackSmall))
+
+				p = appendp(p);
+				p->as = AMOVQ;
+				p->from.type = D_INDIR+D_CX;
+				p->from.offset = 0;
+				p->to.type = D_SI;
+
+				p = appendp(p);
+				p->as = ACMPQ;
+				p->from.type = D_SI;
+				p->to.type = D_CONST;
+				p->to.offset = StackPreempt;
+
+				p = appendp(p);
+				p->as = AJEQ;
+				p->to.type = D_BRANCH;
+				q1 = p;
+
 				p = appendp(p);
 				p->as = ALEAQ;
 				p->from.type = D_INDIR+D_SP;
@@ -535,8 +561,7 @@ dostkoff(void)
 				
 				p = appendp(p);
 				p->as = ASUBQ;
-				p->from.type = D_INDIR+D_CX;
-				p->from.offset = 0;
+				p->from.type = D_SI;
 				p->to.type = D_AX;
 				
 				p = appendp(p);
@@ -550,7 +575,6 @@ dostkoff(void)
 			p = appendp(p);
 			p->as = AJHI;
 			p->to.type = D_BRANCH;
-			p->to.offset = 4;
 			q = p;
 
 			// If we ask for more stack, we'll get a minimum of StackMin bytes.
@@ -627,6 +651,8 @@ dostkoff(void)
 
 		if(q != P)
 			q->pcond = p->link;
+		if(q1 != P)
+			q1->pcond = q->link;
 
 		if(autoffset) {
 			p = appendp(p);

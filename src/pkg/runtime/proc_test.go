@@ -219,6 +219,76 @@ func stackGrowthRecursive(i int) {
 	}
 }
 
+func TestPreemptSplitBig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	stop := make(chan int)
+	go big(stop)
+	for i := 0; i < 3; i++ {
+		time.Sleep(1 * time.Microsecond) // let big start running
+		runtime.GC()
+	}
+	close(stop)
+}
+
+func big(stop chan int) int {
+	n := 0
+	for {
+		// delay so that gc is sure to have asked for a preemption
+		for i := int64(0); i < 1e9; i++ {
+			n++
+		}
+
+		// call bigframe, which used to miss the preemption in its prologue.
+		bigframe(stop)
+
+		// check if we've been asked to stop.
+		select {
+		case <-stop:
+			return n
+		}
+	}
+}
+
+func bigframe(stop chan int) int {
+	// not splitting the stack will overflow.
+	// small will notice that it needs a stack split and will
+	// catch the overflow.
+	var x [8192]byte
+	return small(stop, &x)
+}
+
+func small(stop chan int, x *[8192]byte) int {
+	for i := range x {
+		x[i] = byte(i)
+	}
+	sum := 0
+	for i := range x {
+		sum += int(x[i])
+	}
+
+	// keep small from being a leaf function, which might
+	// make it not do any stack check at all.
+	nonleaf(stop)
+
+	return sum
+}
+
+func nonleaf(stop chan int) bool {
+	// do something that won't be inlined:
+	select {
+	case <-stop:
+		return true
+	default:
+		return false
+	}
+}
+
+func poll() {
+}
+
 func TestSchedLocalQueue(t *testing.T) {
 	runtime.TestSchedLocalQueue1()
 }
