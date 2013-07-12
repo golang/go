@@ -234,10 +234,11 @@ ok:
 	//		Gobuf 24 sched;
 	//		'Y' 48 stack0;
 	//	}
+	//	StackMin = 128;
 	// into output like
 	//	#define g_sched 24
 	//	#define g_stack0 48
-	//
+	//	#define const_StackMin 128
 	aggr = nil;
 	splitlines(&lines, bstr(&in));
 	for(i=0; i<lines.len; i++) {
@@ -264,6 +265,12 @@ ok:
 			if(p[xstrlen(p)-1] == ';')
 				p[xstrlen(p)-1] = '\0';
 			bwritestr(&out, bprintf(&b, "#define %s_%s %s\n", aggr, fields.p[n-1], fields.p[n-2]));
+		}
+		if(fields.len == 3 && streq(fields.p[1], "=")) { // generated from enumerated constants
+			p = fields.p[2];
+			if(p[xstrlen(p)-1] == ';')
+				p[xstrlen(p)-1] = '\0';
+			bwritestr(&out, bprintf(&b, "#define const_%s %s\n", fields.p[0], p));
 		}
 	}
 
