@@ -864,6 +864,8 @@ elfemitreloc(void)
 	elfrelocsect(segtext.sect, textp);
 	for(sect=segtext.sect->next; sect!=nil; sect=sect->next)
 		elfrelocsect(sect, datap);	
+	for(sect=segrodata.sect; sect!=nil; sect=sect->next)
+		elfrelocsect(sect, datap);	
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		elfrelocsect(sect, datap);	
 }
@@ -1001,7 +1003,7 @@ doelf(void)
 
 		s = lookup(".plt", 0);
 		s->reachable = 1;
-		s->type = SELFROSECT;
+		s->type = SELFRXSECT;
 		
 		elfsetupplt();
 		
@@ -1104,6 +1106,8 @@ asmbelfsetup(void)
 	elfshname("");
 	
 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+		elfshalloc(sect);
+	for(sect=segrodata.sect; sect!=nil; sect=sect->next)
 		elfshalloc(sect);
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		elfshalloc(sect);
@@ -1232,6 +1236,8 @@ asmbelf(vlong symo)
 	USED(resoff);
 
 	elfphload(&segtext);
+	if(segrodata.sect != nil)
+		elfphload(&segrodata);
 	elfphload(&segdata);
 
 	/* Dynamic linking sections */
@@ -1397,11 +1403,15 @@ elfobj:
 
 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
 		elfshbits(sect);
+	for(sect=segrodata.sect; sect!=nil; sect=sect->next)
+		elfshbits(sect);
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		elfshbits(sect);
 
 	if(linkmode == LinkExternal) {
 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+			elfshreloc(sect);
+		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
 			elfshreloc(sect);
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
 			elfshreloc(sect);

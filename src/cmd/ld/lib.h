@@ -33,7 +33,11 @@ enum
 	Sxxx,
 
 	/* order here is order in output file */
+	/* readonly, executable */
 	STEXT,
+	SELFRXSECT,
+	
+	/* readonly, non-executable */
 	STYPE,
 	SSTRING,
 	SGOSTRING,
@@ -42,6 +46,8 @@ enum
 	SSYMTAB,
 	SPCLNTAB,
 	SELFROSECT,
+	
+	/* writable, non-executable */
 	SMACHOPLT,
 	SELFSECT,
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
@@ -54,6 +60,7 @@ enum
 	SNOPTRBSS,
 	STLSBSS,
 
+	/* not mapped */
 	SXREF,
 	SMACHOSYMSTR,
 	SMACHOSYMTAB,
@@ -177,6 +184,7 @@ enum
 };
 
 EXTERN	Segment	segtext;
+EXTERN	Segment	segrodata;
 EXTERN	Segment	segdata;
 EXTERN	Segment	segdwarf;
 
