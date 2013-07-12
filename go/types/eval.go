@@ -41,6 +41,8 @@ func New(str string) Type {
 
 // Eval returns the type and, if constant, the value for the
 // expression or type literal string str evaluated in scope.
+// If the expression contains function literals, the function
+// bodies are ignored (though they must be syntactically correct).
 //
 // If pkg == nil, the Universe scope is used and the provided
 // scope is ignored. Otherwise, the scope must belong to the
