@@ -10,14 +10,14 @@ package cgotest
 #include <signal.h>
 #include <pthread.h>
 
-static void *thread(void *p) {
+static void *thread1(void *p) {
 	(void)p;
 	pthread_kill(pthread_self(), SIGPROF);
 	return NULL;
 }
 void test5337() {
 	pthread_t tid;
-	pthread_create(&tid, 0, thread, NULL);
+	pthread_create(&tid, 0, thread1, NULL);
 	pthread_join(tid, 0);
 }
 */
