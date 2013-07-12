@@ -38,7 +38,7 @@ runtime·xchg64(uint64 volatile* addr, uint64 v)
 	uint64 old;
 
 	do
-		old = addr;
+		old = *addr;
 	while(!runtime·cas64(addr, old, v));
 
 	return old;
