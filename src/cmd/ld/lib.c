@@ -36,6 +36,13 @@
 
 #include	<ar.h>
 
+enum
+{
+	// Whether to assume that the external linker is "gold"
+	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
+	AssumeGoldLinker = 0,
+};
+
 int iconv(Fmt*);
 
 char	symname[]	= SYMDEF;
@@ -676,6 +683,10 @@ hostlink(void)
 	}
 	if(HEADTYPE == Hdarwin)
 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
+	
+	if(iself && AssumeGoldLinker)
+		argv[argc++] = "-Wl,--rosegment";
+
 	argv[argc++] = "-o";
 	argv[argc++] = outfile;
 	

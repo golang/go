@@ -595,11 +595,18 @@ asmb(void)
 	sect = segtext.sect;
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 	codeblk(sect->vaddr, sect->len);
-
-	/* output read-only data in text segment (rodata, gosymtab, pclntab, ...) */
 	for(sect = sect->next; sect != nil; sect = sect->next) {
 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 		datblk(sect->vaddr, sect->len);
+	}
+	
+	if(segrodata.filelen > 0) {
+		if(debug['v'])
+			Bprint(&bso, "%5.2f rodatblk\n", cputime());
+		Bflush(&bso);
+
+		cseek(segrodata.fileoff);
+		datblk(segrodata.vaddr, segrodata.filelen);
 	}
 
 	if(debug['v'])
@@ -655,7 +662,7 @@ asmb(void)
 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		Elfsym:
-			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		case Hwindows:
