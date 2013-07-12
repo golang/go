@@ -49,7 +49,7 @@ time go test std -short -timeout=$(expr 120 \* $timeout_scale)s
 echo
 
 echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
-GOMAXPROCS=2 go test runtime -short -timeout=$(expr 240 \* $timeout_scale)s -cpu=1,2,4
+GOMAXPROCS=2 go test runtime -short -timeout=$(expr 300 \* $timeout_scale)s -cpu=1,2,4
 echo
 
 echo '# sync -cpu=10'
