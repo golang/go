@@ -374,13 +374,11 @@ TEXT runtime·cas(SB), 7, $0
 //		*val = new;
 //		return 1;
 //	} else {
-//		*old = *val
 //		return 0;
 //	}
 TEXT runtime·cas64(SB), 7, $0
 	MOVQ	8(SP), BX
-	MOVQ	16(SP), BP
-	MOVQ	0(BP), AX
+	MOVQ	16(SP), AX
 	MOVQ	24(SP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
@@ -388,7 +386,6 @@ TEXT runtime·cas64(SB), 7, $0
 	MOVL	$1, AX
 	RET
 cas64_fail:
-	MOVQ	AX, 0(BP)
 	MOVL	$0, AX
 	RET
 

@@ -92,16 +92,15 @@ runtime·atomicstore(uint32 volatile* addr, uint32 v)
 
 #pragma textflag 7
 bool
-runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
 {
 	bool res;
 	
 	runtime·lock(LOCK(addr));
-	if(*addr == *old) {
+	if(*addr == old) {
 		*addr = new;
 		res = true;
 	} else {
-		*old = *addr;
 		res = false;
 	}
 	runtime·unlock(LOCK(addr));

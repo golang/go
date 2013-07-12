@@ -761,7 +761,7 @@ int32	runtime·write(int32, void*, int32);
 int32	runtime·close(int32);
 int32	runtime·mincore(void*, uintptr, byte*);
 bool	runtime·cas(uint32*, uint32, uint32);
-bool	runtime·cas64(uint64*, uint64*, uint64);
+bool	runtime·cas64(uint64*, uint64, uint64);
 bool	runtime·casp(void**, void*, void*);
 // Don't confuse with XADD x86 instruction,
 // this one is actually 'addx', that is, add-and-fetch.

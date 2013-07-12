@@ -157,11 +157,12 @@ TestAtomic64(void)
 	z64 = 42;
 	x64 = 0;
 	PREFETCH(&z64);
-	if(runtime·cas64(&z64, &x64, 1))
+	if(runtime·cas64(&z64, x64, 1))
 		runtime·throw("cas64 failed");
-	if(x64 != 42)
+	if(x64 != 0)
 		runtime·throw("cas64 failed");
-	if(!runtime·cas64(&z64, &x64, 1))
+	x64 = 42;
+	if(!runtime·cas64(&z64, x64, 1))
 		runtime·throw("cas64 failed");
 	if(x64 != 42 || z64 != 1)
 		runtime·throw("cas64 failed");
@@ -193,7 +194,7 @@ runtime·check(void)
 	uint64 h;
 	float32 i, i1;
 	float64 j, j1;
-	void* k;
+	byte *k, *k1;
 	uint16* l;
 	struct x1 {
 		byte x;
@@ -231,6 +232,17 @@ runtime·check(void)
 		runtime·throw("cas3");
 	if(z != 4)
 		runtime·throw("cas4");
+
+	k = (byte*)0xfedcb123;
+	if(sizeof(void*) == 8)
+		k = (byte*)((uintptr)k<<10);
+	if(runtime·casp((void**)&k, nil, nil))
+		runtime·throw("casp1");
+	k1 = k+1;
+	if(!runtime·casp((void**)&k, k, k1))
+		runtime·throw("casp2");
+	if(k != k1)
+		runtime·throw("casp3");
 
 	*(uint64*)&j = ~0ULL;
 	if(j == j)
