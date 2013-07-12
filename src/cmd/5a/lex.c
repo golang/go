@@ -68,7 +68,7 @@ main(int argc, char *argv[])
 	ARGBEGIN {
 	default:
 		c = ARGC();
-		if(c >= 0 || c < sizeof(debug))
+		if(c >= 0 && c < sizeof(debug))
 			debug[c] = 1;
 		break;
 
