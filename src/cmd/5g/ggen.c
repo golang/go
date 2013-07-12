@@ -84,6 +84,20 @@ ginscall(Node *f, int proc)
 	case 0:	// normal call
 	case -1:	// normal call but no return
 		if(f->op == ONAME && f->class == PFUNC) {
+			if(f == deferreturn) {
+				// Deferred calls will appear to be returning to
+				// the BL deferreturn(SB) that we are about to emit.
+				// However, the stack trace code will show the line
+				// of the instruction before that return PC. 
+				// To avoid that instruction being an unrelated instruction,
+				// insert a NOP so that we will have the right line number.
+				// ARM NOP 0x00000000 is really AND.EQ R0, R0, R0.
+				// Use the latter form because the NOP pseudo-instruction
+				// would be removed by the linker.
+				nodreg(&r, types[TINT], 0);
+				p = gins(AAND, &r, &r);
+				p->scond = C_SCOND_EQ;
+			}
 			p = gins(ABL, N, f);
 			afunclit(&p->to, f);
 			if(proc == -1 || noreturn(p))
