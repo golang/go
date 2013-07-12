@@ -44,8 +44,8 @@ import (
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
 //
-// Array and slice values encode as JSON arrays, except that a slice of
-// bytes encodes as a base64-encoded string, and a nil slice
+// Array and slice values encode as JSON arrays, except that
+// []byte encodes as a base64-encoded string, and a nil slice
 // encodes as the null JSON object.
 //
 // Struct values encode as JSON objects. Each exported struct field
