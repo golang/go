@@ -144,9 +144,9 @@ runtime·parfordo(ParFor *desc)
 			if(victim >= tid)
 				victim++;
 			victimpos = &desc->thr[victim].pos;
-			pos = runtime·atomicload64(victimpos);
 			for(;;) {
 				// See if it has any work.
+				pos = runtime·atomicload64(victimpos);
 				begin = (uint32)pos;
 				end = (uint32)(pos>>32);
 				if(begin+1 >= end) {
@@ -159,7 +159,7 @@ runtime·parfordo(ParFor *desc)
 				}
 				begin2 = begin + (end-begin)/2;
 				newpos = (uint64)begin | (uint64)begin2<<32;
-				if(runtime·cas64(victimpos, &pos, newpos)) {
+				if(runtime·cas64(victimpos, pos, newpos)) {
 					begin = begin2;
 					break;
 				}

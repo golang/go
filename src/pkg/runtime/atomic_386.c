@@ -24,10 +24,10 @@ runtime·xadd64(uint64 volatile* addr, int64 v)
 {
 	uint64 old;
 
-	old = *addr;
-	while(!runtime·cas64(addr, &old, old+v)) {
-		// nothing
-	}
+	do
+		old = *addr;
+	while(!runtime·cas64(addr, old, old+v));
+
 	return old+v;
 }
 
@@ -37,9 +37,9 @@ runtime·xchg64(uint64 volatile* addr, uint64 v)
 {
 	uint64 old;
 
-	old = *addr;
-	while(!runtime·cas64(addr, &old, v)) {
-		// nothing
-	}
+	do
+		old = addr;
+	while(!runtime·cas64(addr, old, v));
+
 	return old;
 }
