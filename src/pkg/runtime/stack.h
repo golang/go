@@ -109,4 +109,4 @@ enum {
 // Stored into g->stackguard0 to cause split stack check failure.
 // Must be greater than any real sp.
 // 0xfffffade in hex.
-#define StackPreempt ((uintptr)-1314)
+#define StackPreempt ((uint64)-1314)

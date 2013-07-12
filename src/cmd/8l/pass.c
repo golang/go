@@ -439,6 +439,7 @@ dostkoff(void)
 			autoffset = 0;
 
 		q = P;
+		q1 = P;
 		if(pmorestack != P)
 		if(!(p->from.scale & NOSPLIT)) {
 			p = appendp(p);	// load g into CX
@@ -525,6 +526,7 @@ dostkoff(void)
 				p->as = ANOP;
 				q1->pcond = p;
 			}
+			q1 = P;
 
 			if(autoffset <= StackSmall) {
 				// small stack: SP <= stackguard
@@ -548,14 +550,37 @@ dostkoff(void)
 				p->from.type = D_AX;
 				p->to.type = D_INDIR+D_CX;
 			} else {
-				// such a large stack we need to protect against wraparound
+				// Such a large stack we need to protect against wraparound
 				// if SP is close to zero.
 				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
 				// The +StackGuard on both sides is required to keep the left side positive:
 				// SP is allowed to be slightly below stackguard. See stack.h.
+				//
+				// Preemption sets stackguard to StackPreempt, a very large value.
+				// That breaks the math above, so we have to check for that explicitly.
+				//	MOVL	stackguard, CX
+				//	CMPL	CX, $StackPreempt
+				//	JEQ	label-of-call-to-morestack
 				//	LEAL	StackGuard(SP), AX
 				//	SUBL	stackguard, AX
 				//	CMPL	AX, $(autoffset+(StackGuard-StackSmall))
+				p = appendp(p);
+				p->as = AMOVL;
+				p->from.type = D_INDIR+D_CX;
+				p->from.offset = 0;
+				p->to.type = D_SI;
+
+				p = appendp(p);
+				p->as = ACMPL;
+				p->from.type = D_SI;
+				p->to.type = D_CONST;
+				p->to.offset = (uint32)StackPreempt;
+
+				p = appendp(p);
+				p->as = AJEQ;
+				p->to.type = D_BRANCH;
+				q1 = p;
+
 				p = appendp(p);
 				p->as = ALEAL;
 				p->from.type = D_INDIR+D_SP;
@@ -564,7 +589,7 @@ dostkoff(void)
 				
 				p = appendp(p);
 				p->as = ASUBL;
-				p->from.type = D_INDIR+D_CX;
+				p->from.type = D_SI;
 				p->from.offset = 0;
 				p->to.type = D_AX;
 				
@@ -618,6 +643,8 @@ dostkoff(void)
 
 		if(q != P)
 			q->pcond = p->link;
+		if(q1 != P)
+			q1->pcond = q->link;
 
 		if(autoffset) {
 			p = appendp(p);

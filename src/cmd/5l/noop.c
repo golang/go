@@ -209,15 +209,22 @@ noops(void)
 						p->from.reg = 1;
 						p->reg = 2;
 					} else {
-						// such a large stack we need to protect against wraparound
+						// Such a large stack we need to protect against wraparound
 						// if SP is close to zero.
 						//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
 						// The +StackGuard on both sides is required to keep the left side positive:
 						// SP is allowed to be slightly below stackguard. See stack.h.
-						//	MOVW $StackGuard(SP), R2
-						//	SUB R1, R2
-						//	MOVW $(autosize+(StackGuard-StackSmall)), R3
-						//	CMP R3, R2
+						//	CMP $StackPreempt, R1
+						//	MOVW.NE $StackGuard(SP), R2
+						//	SUB.NE R1, R2
+						//	MOVW.NE $(autosize+(StackGuard-StackSmall)), R3
+						//	CMP.NE R3, R2
+						p = appendp(p);
+						p->as = ACMP;
+						p->from.type = D_CONST;
+						p->from.offset = (uint32)StackPreempt;
+						p->reg = 1;
+
 						p = appendp(p);
 						p->as = AMOVW;
 						p->from.type = D_CONST;
@@ -225,6 +232,7 @@ noops(void)
 						p->from.offset = StackGuard;
 						p->to.type = D_REG;
 						p->to.reg = 2;
+						p->scond = C_SCOND_NE;
 						
 						p = appendp(p);
 						p->as = ASUB;
@@ -232,6 +240,7 @@ noops(void)
 						p->from.reg = 1;
 						p->to.type = D_REG;
 						p->to.reg = 2;
+						p->scond = C_SCOND_NE;
 						
 						p = appendp(p);
 						p->as = AMOVW;
@@ -239,12 +248,14 @@ noops(void)
 						p->from.offset = autosize + (StackGuard - StackSmall);
 						p->to.type = D_REG;
 						p->to.reg = 3;
+						p->scond = C_SCOND_NE;
 						
 						p = appendp(p);
 						p->as = ACMP;
 						p->from.type = D_REG;
 						p->from.reg = 3;
 						p->reg = 2;
+						p->scond = C_SCOND_NE;
 					}
 					
 					// MOVW.LS		$autosize, R1
