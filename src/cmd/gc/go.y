@@ -197,6 +197,10 @@ import_stmt:
 			importdot(ipkg, pack);
 			break;
 		}
+		if(strcmp(my->name, "init") == 0) {
+			yyerror("cannot import package as init - init must be a func");
+			break;
+		}
 		if(my->name[0] == '_' && my->name[1] == '\0')
 			break;
 		if(my->def) {
