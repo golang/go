@@ -1191,3 +1191,32 @@ func TestSkipArrayObjects(t *testing.T) {
 		t.Errorf("got error %q, want nil", err)
 	}
 }
+
+// Test that types of byte slices (such as net.IP) both
+// marshal and unmarshal.
+func TestByteSliceType(t *testing.T) {
+	type A []byte
+	type S struct {
+		A A
+	}
+
+	for x, in := range []S{
+		S{},
+		S{A: []byte{'1'}},
+		S{A: []byte{'1', '2', '3', '4', '5'}},
+	} {
+		data, err := Marshal(&in)
+		if err != nil {
+			t.Errorf("#%d: got Marshal error %q, want nil", x, err)
+			continue
+		}
+		var out S
+		err = Unmarshal(data, &out)
+		if err != nil {
+			t.Fatalf("#%d: got Unmarshal error %q, want nil", x, err)
+		}
+		if !reflect.DeepEqual(&out, &in) {
+			t.Fatalf("#%d: got %v, want %v", x, &out, &in)
+		}
+	}
+}
