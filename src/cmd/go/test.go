@@ -937,7 +937,7 @@ func coveragePercentage(out []byte) string {
 	// The string looks like
 	//	test coverage for encoding/binary: 79.9% of statements
 	// Extract the piece from the percentage to the end of the line.
-	re := regexp.MustCompile(`coverage for [^ ]+: (.*)\n`)
+	re := regexp.MustCompile(`coverage: (.*)\n`)
 	matches := re.FindSubmatch(out)
 	if matches == nil {
 		// Probably running "go test -cover" not "go test -cover fmt".
