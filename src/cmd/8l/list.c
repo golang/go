@@ -356,7 +356,7 @@ Iconv(Fmt *fp)
 void
 diag(char *fmt, ...)
 {
-	char buf[STRINGSZ], *tn, *sep;
+	char buf[1024], *tn, *sep;
 	va_list arg;
 
 	tn = "";
