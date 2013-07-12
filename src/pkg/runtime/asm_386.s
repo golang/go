@@ -319,30 +319,26 @@ TEXT runtime·cas(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
-// bool runtime·cas64(uint64 *val, uint64 *old, uint64 new)
+// bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:
 //	if(*val == *old){
 //		*val = new;
 //		return 1;
 //	} else {
-//		*old = *val
 //		return 0;
 //	}
 TEXT runtime·cas64(SB), 7, $0
 	MOVL	4(SP), BP
-	MOVL	8(SP), SI
-	MOVL	0(SI), AX
-	MOVL	4(SI), DX
-	MOVL	12(SP), BX
-	MOVL	16(SP), CX
+	MOVL	8(SP), AX
+	MOVL	12(SP), DX
+	MOVL	16(SP), BX
+	MOVL	20(SP), CX
 	LOCK
 	CMPXCHG8B	0(BP)
 	JNZ	cas64_fail
 	MOVL	$1, AX
 	RET
 cas64_fail:
-	MOVL	AX, 0(SI)
-	MOVL	DX, 4(SI)
 	MOVL	$0, AX
 	RET
 
