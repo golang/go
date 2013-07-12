@@ -209,8 +209,12 @@ func (e *UnsupportedValueError) Error() string {
 	return "json: unsupported value: " + e.Str
 }
 
-// An InvalidUTF8Error is returned by Marshal when attempting
-// to encode a string value with invalid UTF-8 sequences.
+// Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
+// attempting to encode a string value with invalid UTF-8 sequences.
+// As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
+// replacing invalid bytes with the Unicode replacement rune U+FFFD.
+// This error is no longer generated but is kept for backwards compatibility
+// with programs that might mention it.
 type InvalidUTF8Error struct {
 	S string // the whole string value that caused the error
 }
@@ -555,7 +559,13 @@ func (e *encodeState) string(s string) (int, error) {
 		}
 		c, size := utf8.DecodeRuneInString(s[i:])
 		if c == utf8.RuneError && size == 1 {
-			e.error(&InvalidUTF8Error{s})
+			if start < i {
+				e.WriteString(s[start:i])
+			}
+			e.WriteString(`\ufffd`)
+			i += size
+			start = i
+			continue
 		}
 		// U+2028 is LINE SEPARATOR.
 		// U+2029 is PARAGRAPH SEPARATOR.

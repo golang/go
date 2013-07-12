@@ -393,15 +393,10 @@ func TestMarshal(t *testing.T) {
 
 func TestMarshalBadUTF8(t *testing.T) {
 	s := "hello\xffworld"
+	const enc = `"hello\ufffdworld"`
 	b, err := Marshal(s)
-	if err == nil {
-		t.Fatal("Marshal bad UTF8: no error")
-	}
-	if len(b) != 0 {
-		t.Fatal("Marshal returned data")
-	}
-	if _, ok := err.(*InvalidUTF8Error); !ok {
-		t.Fatalf("Marshal did not return InvalidUTF8Error: %T %v", err, err)
+	if string(b) != enc || err != nil {
+		t.Errorf("Marshal(%q) = %#q, %v, want %#q, nil", s, b, err, enc)
 	}
 }
 
