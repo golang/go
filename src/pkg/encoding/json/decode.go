@@ -660,7 +660,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		default:
 			d.saveError(&UnmarshalTypeError{"string", v.Type()})
 		case reflect.Slice:
-			if v.Type() != byteSliceType {
+			if v.Type().Elem().Kind() != reflect.Uint8 {
 				d.saveError(&UnmarshalTypeError{"string", v.Type()})
 				break
 			}
