@@ -196,8 +196,10 @@ uchar	yml_mb[] =
 	Ymb,	Yrb,	Zm_r,	1,
 	0
 };
-uchar	yml_ml[] =
+uchar	yxchg[] =
 {
+	Yax,	Yrl,	Z_rp,	1,
+	Yrl,	Yax,	Zrp_,	1,
 	Yrl,	Yml,	Zr_m,	1,
 	Yml,	Yrl,	Zm_r,	1,
 	0
@@ -696,8 +698,8 @@ Optab optab[] =
 	{ AWAIT,	ynone,	Px, 0x9b },
 	{ AWORD,	ybyte,	Px, 2 },
 	{ AXCHGB,	yml_mb,	Pb, 0x86,0x86 },
-	{ AXCHGL,	yml_ml,	Px, 0x87,0x87 },
-	{ AXCHGW,	yml_ml,	Pe, 0x87,0x87 },
+	{ AXCHGL,	yxchg,	Px, 0x90,0x90,0x87,0x87 },
+	{ AXCHGW,	yxchg,	Pe, 0x90,0x90,0x87,0x87 },
 	{ AXLAT,	ynone,	Px, 0xd7 },
 	{ AXORB,	yxorb,	Pb, 0x34,0x80,(06),0x30,0x32 },
 	{ AXORL,	yxorl,	Px, 0x83,(06),0x35,0x81,(06),0x31,0x33 },
