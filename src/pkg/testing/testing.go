@@ -122,8 +122,7 @@ var (
 
 	// Report as tests are run; default is silent for success.
 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
-	coverMode        = flag.String("test.covermode", "", "cover mode: set, count, atomic; default is none")
-	coverProfile     = flag.String("test.coverprofile", "", "write a coveraage profile to the named file after execution")
+	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
 	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
 	memProfileRate   = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
@@ -489,6 +488,10 @@ func before() {
 	if *blockProfile != "" && *blockProfileRate >= 0 {
 		runtime.SetBlockProfileRate(*blockProfileRate)
 	}
+	if *coverProfile != "" && cover.Mode == "" {
+		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
+		os.Exit(2)
+	}
 }
 
 // after runs after all testing.
@@ -520,7 +523,7 @@ func after() {
 		}
 		f.Close()
 	}
-	if *coverMode != "" {
+	if cover.Mode != "" {
 		coverReport()
 	}
 }
