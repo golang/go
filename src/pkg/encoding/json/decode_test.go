@@ -391,12 +391,23 @@ func TestMarshal(t *testing.T) {
 	}
 }
 
+var badUTF8 = []struct {
+	in, out string
+}{
+	{"hello\xffworld", `"hello\ufffdworld"`},
+	{"", `""`},
+	{"\xff", `"\ufffd"`},
+	{"\xff\xff", `"\ufffd\ufffd"`},
+	{"a\xffb", `"a\ufffdb"`},
+	{"\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", `"日本\ufffd\ufffd\ufffd"`},
+}
+
 func TestMarshalBadUTF8(t *testing.T) {
-	s := "hello\xffworld"
-	const enc = `"hello\ufffdworld"`
-	b, err := Marshal(s)
-	if string(b) != enc || err != nil {
-		t.Errorf("Marshal(%q) = %#q, %v, want %#q, nil", s, b, err, enc)
+	for _, tt := range badUTF8 {
+		b, err := Marshal(tt.in)
+		if string(b) != tt.out || err != nil {
+			t.Errorf("Marshal(%q) = %#q, %v, want %#q, nil", tt.in, b, err, tt.out)
+		}
 	}
 }
 
