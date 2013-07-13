@@ -744,7 +744,6 @@ control the execution of any test:
 
 	-cover
 	    Enable coverage analysis.
-	    TODO: This feature is not yet fully implemented.
 
 	-covermode set,count,atomic
 	    Set the mode for coverage analysis for the package[s]
@@ -754,18 +753,18 @@ control the execution of any test:
 		count: int: how many times does this statement run?
 		atomic: int: count, but correct in multithreaded tests;
 			significantly more expensive.
-	    Implies -cover.
+	    Sets -cover.
 
 	-coverpkg pkg1,pkg2,pkg3
 	    Apply coverage analysis in each test to the given list of packages.
-	    If this option is not present, each test applies coverage analysis to
-	    the package being tested. Packages are specified as import paths.
-	    Implies -cover.
+	    The default is for each test to analyze only the package being tested.
+	    Packages are specified as import paths.
+	    Sets -cover.
 
 	-coverprofile cover.out
 	    Write a coverage profile to the specified file after all tests
 	    have passed.
-	    Implies -cover.
+	    Sets -cover.
 
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or

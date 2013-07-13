@@ -139,18 +139,18 @@ control the execution of any test:
 		count: int: how many times does this statement run?
 		atomic: int: count, but correct in multithreaded tests;
 			significantly more expensive.
-	    Implies -cover.
+	    Sets -cover.
 
 	-coverpkg pkg1,pkg2,pkg3
 	    Apply coverage analysis in each test to the given list of packages.
 	    The default is for each test to analyze only the package being tested.
 	    Packages are specified as import paths.
-	    Implies -cover.
+	    Sets -cover.
 
 	-coverprofile cover.out
 	    Write a coverage profile to the specified file after all tests
 	    have passed.
-	    Implies -cover.
+	    Sets -cover.
 
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
@@ -1040,6 +1040,10 @@ type testFuncs struct {
 	Cover      []coverInfo
 }
 
+func (t *testFuncs) CoverMode() string {
+	return testCoverMode
+}
+
 func (t *testFuncs) CoverEnabled() bool {
 	return testCover
 }
@@ -1201,8 +1205,12 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 
 func main() {
 {{if .CoverEnabled}}
-	testing.CoveredPackage({{printf "%q" .Tested}}, {{printf "%q" .Covered}})
-	testing.RegisterCover(coverCounters, coverBlocks)
+	testing.RegisterCover(testing.Cover{
+		Mode: {{printf "%q" .CoverMode}},
+		Counters: coverCounters,
+		Blocks: coverBlocks,
+		CoveredPackages: {{printf "%q" .Covered}},
+	})
 {{end}}
 	testing.Main(matchString, tests, benchmarks, examples)
 }
