@@ -136,7 +136,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		} else {
 			// Method declaration.
 			_, method := namedTypeMethodIndex(
-				recv.Type().Deref().(*types.Named),
+				deref(recv.Type()).(*types.Named),
 				MakeId(name, pkg.Object))
 			pkg.Prog.concreteMethods[method] = fn
 		}

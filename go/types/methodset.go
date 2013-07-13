@@ -9,7 +9,6 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"sort"
 )
 
@@ -25,7 +24,7 @@ func (s *MethodSet) String() string {
 		fmt.Fprintln(&buf)
 	}
 	for _, m := range s.list {
-		fmt.Fprintf(&buf, "\t%s\n", key(m.pkg, m.name))
+		fmt.Fprintf(&buf, "\t%s\n", m.uniqueName())
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()
@@ -39,16 +38,16 @@ func (s *MethodSet) At(i int) *Func { return s.list[i] }
 
 // Lookup returns the method with matching package and name, or nil if not found.
 func (s *MethodSet) Lookup(pkg *Package, name string) *Func {
-	k := key(pkg, name)
+	key := (&object{pkg: pkg, name: name}).uniqueName()
 
 	i := sort.Search(len(s.list), func(i int) bool {
 		m := s.list[i]
-		return key(m.pkg, m.name) >= k
+		return m.uniqueName() >= key
 	})
 
 	if i < len(s.list) {
 		m := s.list[i]
-		if key(m.pkg, m.name) == k {
+		if m.uniqueName() == key {
 			return m
 		}
 	}
@@ -157,20 +156,9 @@ func NewMethodSet(typ Type) *MethodSet {
 			list = append(list, m)
 		}
 	}
-	sort.Sort(byKey(list))
+	sort.Sort(byUniqueName(list))
 
 	return &MethodSet{list}
-}
-
-// key computes a unique (lookup and sort) key given a package and name.
-func key(pkg *Package, name string) string {
-	if ast.IsExported(name) {
-		return name
-	}
-	if pkg == nil {
-		panic("unexported object without package information: " + name)
-	}
-	return pkg.path + "." + name
 }
 
 // A fieldSet is a set of fields and name collisions.
@@ -181,15 +169,15 @@ type fieldSet map[string]*Field // a nil entry indicates a name collision
 // If multiples is set, f appears multiple times
 // and is treated as a collision at this level.
 func (s fieldSet) add(f *Field, multiples bool) {
-	k := key(f.pkg, f.name)
+	key := f.uniqueName()
 	// if f is not in the set, add it
 	if !multiples {
-		if _, found := s[k]; !found {
-			s[k] = f
+		if _, found := s[key]; !found {
+			s[key] = f
 			return
 		}
 	}
-	s[k] = nil // collision
+	s[key] = nil // collision
 }
 
 // A methodSet is a set of methods and name collisions.
@@ -201,25 +189,21 @@ type methodSet map[string]*Func // a nil entry indicates a name collision
 // and is treated as a collision at this level.
 func (s methodSet) add(list []*Func, multiples bool) {
 	for _, m := range list {
-		k := key(m.pkg, m.name)
+		key := m.uniqueName()
 		// if m is not in the set, add it
 		if !multiples {
-			if _, found := s[k]; !found {
-				s[k] = m
+			if _, found := s[key]; !found {
+				s[key] = m
 				continue
 			}
 		}
-		s[k] = nil // collision
+		s[key] = nil // collision
 	}
 }
 
-// byKey function lists can be sorted by key(pkg, name).
-type byKey []*Func
+// byUniqueName function lists can be sorted by their unique names.
+type byUniqueName []*Func
 
-func (a byKey) Len() int { return len(a) }
-func (a byKey) Less(i, j int) bool {
-	x := a[i]
-	y := a[j]
-	return key(x.pkg, x.name) < key(y.pkg, y.name)
-}
-func (a byKey) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a byUniqueName) Len() int           { return len(a) }
+func (a byUniqueName) Less(i, j int) bool { return a[i].uniqueName() < a[j].uniqueName() }
+func (a byUniqueName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

@@ -310,7 +310,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	// important optimisation for pointer analysis because the
 	// extra indirection really hurts precision under Das's
 	// algorithm.
-	switch alloc.Type().Deref().Underlying().(type) {
+	switch deref(alloc.Type()).Underlying().(type) {
 	case *types.Array, *types.Struct:
 		return false
 	}
@@ -379,7 +379,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 					Comment: alloc.Name(),
 				}
 				phi.pos = alloc.Pos()
-				phi.setType(alloc.Type().Deref())
+				phi.setType(deref(alloc.Type()))
 				phi.block = v
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "place %s = %s at block %s\n", phi.Name(), phi, v)
@@ -426,7 +426,7 @@ func replaceAll(x, y Value) {
 func renamed(renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = zeroLiteral(alloc.Type().Deref())
+		v = zeroLiteral(deref(alloc.Type()))
 		renaming[alloc.index] = v
 	}
 	return v

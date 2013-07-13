@@ -175,7 +175,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 								// gcimported package scopes contain non-exported
 								// objects such as types used in partially exported
 								// objects - do not accept them
-								if ast.IsExported(obj.Name()) {
+								if obj.IsExported() {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for types aliases.
 									check.declare(fileScope, nil, obj)

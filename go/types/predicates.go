@@ -6,8 +6,6 @@
 
 package types
 
-import "go/ast"
-
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -133,7 +131,7 @@ func IsIdentical(x, y Type) bool {
 					g := y.fields[i]
 					if f.anonymous != g.anonymous ||
 						x.Tag(i) != y.Tag(i) ||
-						!f.isMatch(g.pkg, g.name) ||
+						!f.SameName(g.pkg, g.name) ||
 						!IsIdentical(f.typ, g.typ) {
 						return false
 					}
@@ -208,19 +206,6 @@ func identicalTypes(a, b *Tuple) bool {
 	return true
 }
 
-// qname computes the "qualified name" of a function.
-// TODO(gri) This is similar in functionality to Field.isMatch.
-//           Try to consolidate.
-func qname(f *Func) string {
-	if ast.IsExported(f.name) {
-		return f.name
-	}
-	if f.pkg == nil {
-		panic("unexported function without package information")
-	}
-	return f.pkg.path + "." + f.name
-}
-
 // identicalMethods returns true if both slices a and b have the
 // same length and corresponding entries have identical types.
 // TODO(gri) make this more efficient (e.g., sort them on completion)
@@ -231,14 +216,14 @@ func identicalMethods(a, b []*Func) bool {
 
 	m := make(map[string]*Func)
 	for _, x := range a {
-		k := qname(x)
-		assert(m[k] == nil) // method list must not have duplicate entries
-		m[k] = x
+		key := x.uniqueName()
+		assert(m[key] == nil) // method list must not have duplicate entries
+		m[key] = x
 	}
 
 	for _, y := range b {
-		k := qname(y)
-		if x := m[k]; x == nil || !IsIdentical(x.typ, y.typ) {
+		key := y.uniqueName()
+		if x := m[key]; x == nil || !IsIdentical(x.typ, y.typ) {
 			return false
 		}
 	}

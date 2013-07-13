@@ -302,7 +302,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		}
 
 	case "new":
-		return emitNew(fn, typ.Underlying().Deref(), pos)
+		return emitNew(fn, deref(typ), pos)
 
 	case "len", "cap":
 		// Special case: len or cap of an array or *array is
@@ -310,7 +310,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		// We must still evaluate the value, though.  (If it
 		// was side-effect free, the whole call would have
 		// been constant-folded.)
-		t := fn.Pkg.typeOf(args[0]).Deref().Underlying()
+		t := deref(fn.Pkg.typeOf(args[0])).Underlying()
 		if at, ok := t.(*types.Array); ok {
 			b.expr(fn, args[0]) // for effects only
 			return intLiteral(at.Len())
@@ -357,7 +357,7 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 	}
 
 	// Apply field selections.
-	st := tx.Deref().Underlying().(*types.Struct)
+	st := deref(tx).Underlying().(*types.Struct)
 	for i, index := range indices {
 		f := st.Field(index)
 		ft := f.Type()
@@ -407,7 +407,7 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 		}
 
 		// May be nil at end of last iteration:
-		st, _ = ft.Deref().Underlying().(*types.Struct)
+		st, _ = deref(ft).Underlying().(*types.Struct)
 	}
 
 	return v
@@ -447,7 +447,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return address{addr: v}
 
 	case *ast.CompositeLit:
-		t := fn.Pkg.typeOf(e).Deref()
+		t := deref(fn.Pkg.typeOf(e))
 		var v Value
 		if escaping {
 			v = emitNew(fn, t, e.Lbrace)
@@ -1639,7 +1639,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 					fn.addLocalForIdent(comm.Lhs[1].(*ast.Ident))
 				}
 				ok := b.addr(fn, comm.Lhs[1], false) // non-escaping
-				ok.store(fn, emitExtract(fn, sel, 1, ok.typ().Deref()))
+				ok.store(fn, emitExtract(fn, sel, 1, deref(ok.typ())))
 			}
 			r++
 		}
@@ -1736,7 +1736,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 
 	// Determine number of iterations.
 	var length Value
-	if arr, ok := x.Type().Deref().(*types.Array); ok {
+	if arr, ok := deref(x.Type()).Underlying().(*types.Array); ok {
 		// For array or *array, the number of iterations is
 		// known statically thanks to the type.  We avoid a
 		// data dependence upon x, permitting later dead-code

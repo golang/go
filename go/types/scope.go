@@ -31,7 +31,8 @@ type Scope struct {
 // scope, if any.
 func NewScope(parent *Scope) *Scope {
 	scope := &Scope{parent: parent}
-	if parent != nil {
+	// don't add children to Universe scope!
+	if parent != nil && parent != Universe {
 		parent.children = append(parent.children, scope)
 	}
 	return scope
@@ -42,10 +43,22 @@ func (s *Scope) Parent() *Scope {
 	return s.parent
 }
 
-// Node returns the ast.Node responsible for this scope.
+// Node returns the ast.Node responsible for this scope,
+// which may be one of the following:
+//
+//	ast.File
+//	ast.FuncType
+//	ast.BlockStmt
+//	ast.IfStmt
+//	ast.SwitchStmt
+//	ast.TypeSwitchStmt
+//	ast.CaseClause
+//	ast.CommClause
+//	ast.ForStmt
+//	ast.RangeStmt
+//
 // The result is nil if there is no corresponding node
-// (e.g., for the universe scope, package scope, or
-// imported packages).
+// (universe and package scopes).
 func (s *Scope) Node() ast.Node {
 	return s.node
 }
@@ -107,13 +120,8 @@ func (s *Scope) Lookup(pkg *Package, name string) Object {
 	}
 
 	// slow path: both pkg path and name must match
-	// TODO(gri) if packages were canonicalized, we could just compare the packages
 	for _, obj := range s.entries {
-		// spec:
-		// "Two identifiers are different if they are spelled differently,
-		// or if they appear in different packages and are not exported.
-		// Otherwise, they are the same."
-		if obj.Name() == name && (ast.IsExported(name) || obj.Pkg().path == pkg.path) {
+		if obj.SameName(pkg, name) {
 			return obj
 		}
 	}
@@ -138,6 +146,8 @@ func (s *Scope) LookupParent(name string) Object {
 	return nil
 }
 
+// TODO(gri): Should Insert not be exported?
+
 // Insert attempts to insert an object obj into scope s.
 // If s already contains an object with the same package path
 // and name, Insert leaves s unchanged and returns that object.
@@ -155,6 +165,10 @@ func (s *Scope) Insert(obj Object) Object {
 	return nil
 }
 
+// WriteTo writes a string representation of the scope to w.
+// The level of indentation is controlled by n >= 0, with
+// n == 0 for no indentation.
+// If recurse is set, it also prints nested (children) scopes.
 func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 	const ind = ".  "
 	indn := strings.Repeat(ind, n)

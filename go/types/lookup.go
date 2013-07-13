@@ -6,8 +6,6 @@
 
 package types
 
-import "go/ast"
-
 // TODO(gri) The named type consolidation and seen maps below must be
 //           indexed by unique keys for a given type. Verify that named
 //           types always have only one representation (even when imported
@@ -129,7 +127,7 @@ func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
-					if f.isMatch(pkg, name) {
+					if f.SameName(pkg, name) {
 						assert(f.typ != nil)
 						index = concat(e.index, i)
 						if obj != nil || e.multiples {
@@ -274,8 +272,6 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 
 // Deref dereferences typ if it is a pointer and returns its base and true.
 // Otherwise it returns (typ, false).
-// In contrast, Type.Deref also dereferenciates if type is a named type
-// that is a pointer.
 func deref(typ Type) (Type, bool) {
 	if p, _ := typ.(*Pointer); p != nil {
 		return p.base, true
@@ -297,11 +293,7 @@ func fieldIndex(fields []*Field, pkg *Package, name string) int {
 		return -1 // blank identifiers are never found
 	}
 	for i, f := range fields {
-		// spec:
-		// "Two identifiers are different if they are spelled differently,
-		// or if they appear in different packages and are not exported.
-		// Otherwise, they are the same."
-		if f.name == name && (ast.IsExported(name) || f.pkg.path == pkg.path) {
+		if f.SameName(pkg, name) {
 			return i
 		}
 	}
@@ -312,11 +304,7 @@ func fieldIndex(fields []*Field, pkg *Package, name string) int {
 func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
 	assert(name != "_")
 	for i, m := range methods {
-		// spec:
-		// "Two identifiers are different if they are spelled differently,
-		// or if they appear in different packages and are not exported.
-		// Otherwise, they are the same."
-		if m.name == name && (ast.IsExported(name) || m.pkg.path == pkg.path) {
+		if m.SameName(pkg, name) {
 			return i, m
 		}
 	}

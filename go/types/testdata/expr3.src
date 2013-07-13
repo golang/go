@@ -146,6 +146,12 @@ func struct_literals() {
 	_ = T0{1, 2} /* ERROR "too few values" */
 	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
 	_ = T0{1, "foo" /* ERROR "cannot convert" */, 3.4  /* ERROR "overflows" */}
+
+	// invalid type
+	type P *struct{
+		x int
+	}
+	_ = P /* ERROR "invalid composite literal type" */ {}
 }
 
 func array_literals() {

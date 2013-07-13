@@ -55,6 +55,14 @@ func pointer(typ types.Type) *types.Pointer {
 	return types.NewPointer(typ)
 }
 
+// deref returns a pointer's element type; otherwise it returns typ.
+func deref(typ types.Type) types.Type {
+	if p, ok := typ.Underlying().(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return typ
+}
+
 // namedTypeMethodIndex returns the method (and its index) named id
 // within the set of explicitly declared concrete methods of named
 // type typ.  If not found, panic ensues.

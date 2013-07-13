@@ -156,7 +156,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			if node != nil {
 				t = node.field.Type()
 			}
-			t = t.Deref()
+			t = deref(t)
 
 			if nt, ok := t.(*types.Named); ok {
 				for i, n := 0, nt.NumMethods(); i < n; i++ {
@@ -309,7 +309,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 	// Iterate over selections e.A.B.C.f in the natural order [A,B,C].
 	for _, p := range cand.path.reverse() {
 		// Loop invariant: v holds a pointer to a struct.
-		if _, ok := v.Type().Deref().Underlying().(*types.Struct); !ok {
+		if _, ok := deref(v.Type()).Underlying().(*types.Struct); !ok {
 			panic(fmt.Sprint("not a *struct: ", v.Type(), p.field.Type))
 		}
 		sel := &FieldAddr{

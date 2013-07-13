@@ -24,7 +24,7 @@ func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 //
 func emitLoad(f *Function, addr Value) *UnOp {
 	v := &UnOp{Op: token.MUL, X: addr}
-	v.setType(addr.Type().Deref())
+	v.setType(deref(addr.Type()))
 	f.emit(v)
 	return v
 }
@@ -203,7 +203,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 func emitStore(f *Function, addr, val Value) *Store {
 	s := &Store{
 		Addr: addr,
-		Val:  emitConv(f, val, addr.Type().Deref()),
+		Val:  emitConv(f, val, deref(addr.Type())),
 	}
 	f.emit(s)
 	return s

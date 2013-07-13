@@ -15,12 +15,6 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// TODO(gri) Calling IsIdentity on struct or interface types created
-// with New or Eval in the Universe context will crash if the types
-// contain non-exported fields or methods because those require a non-
-// nil package. The type checker should disallow non-exported methods
-// and fields in types in Universe scope.
-
 // New is a convenience function to create a new type from a given
 // expression or type literal string evaluated in Universe scope.
 // New(str) is shorthand for Eval(str, nil, nil), but only returns

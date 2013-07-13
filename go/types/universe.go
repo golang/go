@@ -7,7 +7,6 @@
 package types
 
 import (
-	"go/ast"
 	"go/token"
 	"strings"
 
@@ -132,7 +131,7 @@ func def(obj Object) {
 	}
 	// exported identifiers go into package unsafe
 	scope := Universe
-	if ast.IsExported(name) {
+	if obj.IsExported() {
 		scope = Unsafe.scope
 		// set Pkg field
 		switch obj := obj.(type) {

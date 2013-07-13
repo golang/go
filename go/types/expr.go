@@ -880,7 +880,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 			goto Error
 		}
 
-		switch utyp := typ.Deref().Underlying().(type) {
+		switch typ, _ := deref(typ); utyp := typ.Underlying().(type) {
 		case *Struct:
 			if len(e.Elts) == 0 {
 				break
@@ -991,7 +991,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 			}
 
 		default:
-			check.errorf(e.Pos(), "%s is not a valid composite literal type", typ)
+			check.errorf(e.Pos(), "invalid composite literal type %s", typ)
 			goto Error
 		}
 

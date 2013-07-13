@@ -20,13 +20,21 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
-	Parent() *Scope // scope in which this object is declared
-	Pos() token.Pos // position of object identifier in declaration
-	Pkg() *Package  // nil for objects in the Universe scope and labels
-	Name() string   // package local object name
-	Type() Type     // object type
+	Parent() *Scope   // scope in which this object is declared
+	Pos() token.Pos   // position of object identifier in declaration
+	Pkg() *Package    // nil for objects in the Universe scope and labels
+	Name() string     // package local object name
+	Type() Type       // object type
+	IsExported() bool // reports whether the name starts with a capital letter
+
+	// SameName reports whether the object's name is the same as some
+	// other qualified name, per the rules of Uniqueness of identifiers.
+	SameName(pkg *Package, name string) bool
+
+	// String returns a human-readable string of the object.
 	String() string
 
+	// setParent sets the parent scope of the object.
 	setParent(*Scope)
 }
 
@@ -39,11 +47,49 @@ type object struct {
 	typ    Type
 }
 
-func (obj *object) Parent() *Scope { return obj.parent }
-func (obj *object) Pos() token.Pos { return obj.pos }
-func (obj *object) Pkg() *Package  { return obj.pkg }
-func (obj *object) Name() string   { return obj.name }
-func (obj *object) Type() Type     { return obj.typ }
+func (obj *object) Parent() *Scope   { return obj.parent }
+func (obj *object) Pos() token.Pos   { return obj.pos }
+func (obj *object) Pkg() *Package    { return obj.pkg }
+func (obj *object) Name() string     { return obj.name }
+func (obj *object) Type() Type       { return obj.typ }
+func (obj *object) IsExported() bool { return ast.IsExported(obj.name) }
+
+func (obj *object) SameName(pkg *Package, name string) bool {
+	// spec:
+	// "Two identifiers are different if they are spelled differently,
+	// or if they appear in different packages and are not exported.
+	// Otherwise, they are the same."
+	if name != obj.name {
+		return false
+	}
+	// obj.Name == name
+	if obj.IsExported() {
+		return true
+	}
+	// not exported, so packages must be the same (pkg == nil for
+	// fields in Universe scope; this can only happen for types
+	// introduced via Eval)
+	if pkg == nil || obj.pkg == nil {
+		return pkg == obj.pkg
+	}
+	// pkg != nil && obj.pkg != nil
+	return pkg.path == obj.pkg.path
+}
+
+func (obj *object) uniqueName() string {
+	if obj.IsExported() {
+		return obj.name
+	}
+	// unexported names need the package path for differentiation
+	path := ""
+	if obj.pkg != nil {
+		path = obj.pkg.path
+		if path == "" {
+			path = "?"
+		}
+	}
+	return path + "." + obj.name
+}
 
 func (obj *object) toString(kind string, typ Type) string {
 	var buf bytes.Buffer
@@ -135,18 +181,6 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool
 
 func (obj *Field) String() string  { return obj.toString("field", obj.typ) }
 func (obj *Field) Anonymous() bool { return obj.anonymous }
-
-func (f *Field) isMatch(pkg *Package, name string) bool {
-	// spec:
-	// "Two identifiers are different if they are spelled differently,
-	// or if they appear in different packages and are not exported.
-	// Otherwise, they are the same."
-	if name != f.name {
-		return false
-	}
-	// f.Name == name
-	return ast.IsExported(name) || pkg.path == f.pkg.path
-}
 
 // A Func represents a declared function.
 type Func struct {

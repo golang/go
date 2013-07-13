@@ -196,7 +196,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			if exp == nil {
 				check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
 				goto Error
-			} else if !ast.IsExported(exp.Name()) {
+			} else if !exp.IsExported() {
 				// gcimported package scopes contain non-exported
 				// objects such as types used in partially exported
 				// objects - do not accept them

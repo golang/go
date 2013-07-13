@@ -14,17 +14,8 @@ type Type interface {
 	// Underlying returns the underlying type of a type.
 	Underlying() Type
 
-	// For a pointer type (or a named type denoting a pointer type),
-	// Deref returns the pointer's element type. For all other types,
-	// Deref returns the receiver.
-	Deref() Type
-
 	// String returns a string representation of a type.
 	String() string
-
-	// TODO(gri) Which other functionality should move here?
-	// Candidates are all predicates (IsIdentical(), etc.),
-	// and some others. What is the design principle?
 }
 
 // BasicKind describes the kind of basic type.
@@ -370,25 +361,6 @@ func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
-
-func (t *Basic) Deref() Type     { return t }
-func (t *Array) Deref() Type     { return t }
-func (t *Slice) Deref() Type     { return t }
-func (t *Struct) Deref() Type    { return t }
-func (t *Pointer) Deref() Type   { return t.base }
-func (t *Tuple) Deref() Type     { return t }
-func (t *Signature) Deref() Type { return t }
-func (t *Builtin) Deref() Type   { return t }
-func (t *Interface) Deref() Type { return t }
-func (t *Map) Deref() Type       { return t }
-func (t *Chan) Deref() Type      { return t }
-func (t *Named) Deref() Type {
-	// TODO(gri) Is this the right operation here given how Deref is used?
-	if p, ok := t.underlying.(*Pointer); ok {
-		return p.base
-	}
-	return t
-}
 
 func (t *Basic) String() string     { return typeString(t) }
 func (t *Array) String() string     { return typeString(t) }

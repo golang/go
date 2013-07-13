@@ -466,7 +466,7 @@ func (p *gcParser) parseField() (*Field, string) {
 	anonymous := false
 	if name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
-		switch typ := typ.Deref().(type) {
+		switch typ, _ := deref(typ); typ := typ.(type) {
 		case *Basic: // basic types are named types
 			pkg = nil
 			name = typ.name
