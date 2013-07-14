@@ -203,7 +203,7 @@ func (w *Writer) Err(m string) (err error) {
 	return err
 }
 
-// Wanring logs a message with severity LOG_WARNING, ignoring the
+// Warning logs a message with severity LOG_WARNING, ignoring the
 // severity passed to New.
 func (w *Writer) Warning(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_WARNING, m)
