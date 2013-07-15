@@ -202,7 +202,7 @@ var pkgDeps = map[string][]string{
 	"go/build":            {"L4", "OS", "GOPARSER"},
 	"html":                {"L4"},
 	"image/draw":          {"L4"},
-	"image/gif":           {"L4", "compress/lzw"},
+	"image/gif":           {"L4", "compress/lzw", "image/draw"},
 	"image/jpeg":          {"L4"},
 	"image/png":           {"L4", "compress/zlib"},
 	"index/suffixarray":   {"L4", "regexp"},
