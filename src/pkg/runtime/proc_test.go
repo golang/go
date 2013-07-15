@@ -227,7 +227,7 @@ func TestPreemptSplitBig(t *testing.T) {
 	stop := make(chan int)
 	go big(stop)
 	for i := 0; i < 3; i++ {
-		time.Sleep(1 * time.Microsecond) // let big start running
+		time.Sleep(10 * time.Microsecond) // let big start running
 		runtime.GC()
 	}
 	close(stop)
@@ -237,7 +237,7 @@ func big(stop chan int) int {
 	n := 0
 	for {
 		// delay so that gc is sure to have asked for a preemption
-		for i := int64(0); i < 1e9; i++ {
+		for i := 0; i < 1e9; i++ {
 			n++
 		}
 
@@ -284,9 +284,6 @@ func nonleaf(stop chan int) bool {
 	default:
 		return false
 	}
-}
-
-func poll() {
 }
 
 func TestSchedLocalQueue(t *testing.T) {
