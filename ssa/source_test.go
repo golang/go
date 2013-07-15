@@ -299,7 +299,6 @@ func TestObjValueLookup(t *testing.T) {
 	for _, c := range f.Comments {
 		text := c.Text()
 		pos := imp.Fset.Position(c.Pos())
-		fmt.Println(pos.Line, text)
 		for _, m := range re.FindAllStringSubmatch(text, -1) {
 			key := fmt.Sprintf("%s:%d", m[2], pos.Line)
 			value := m[1] + m[3]

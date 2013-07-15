@@ -91,7 +91,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	case *types.Const:
 		c := &Constant{
 			object: obj,
-			Value:  NewLiteral(obj.Val(), obj.Type(), obj.Pos()),
+			Value:  NewLiteral(obj.Val(), obj.Type()),
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c

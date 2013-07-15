@@ -159,6 +159,10 @@ func zero(t types.Type) value {
 			panic("untyped nil has no zero value")
 		}
 		if t.Info()&types.IsUntyped != 0 {
+			// TODO(adonovan): make it an invariant that
+			// this is unreachable.  Currently some
+			// literals have 'untyped' types when they
+			// should be defaulted by the typechecker.
 			t = ssa.DefaultType(t).(*types.Basic)
 		}
 		switch t.Kind() {

@@ -37,9 +37,9 @@ func (prog *Program) PathEnclosingInterval(imp *importer.Importer, start, end to
 				continue
 			}
 			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
-				// TODO(adonovan): return the
-				// importPath; remove Prog as a
-				// parameter.
+				// TODO(adonovan): return info in lieu
+				// of pkg; remove Prog as a parameter;
+				// move to importer.
 				return prog.PackagesByPath[importPath], path, exact
 			}
 		}
@@ -171,24 +171,21 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return CanonicalPos(n.X)
 
 	case *ast.CallExpr:
-		// f(x):    *Call, *Go, *Defer, *Literal (e.g. len)
-		// T(x):    *ChangeType, *Convert, *MakeInterface, *ChangeInterface, *Literal.
+		// f(x):    *Call, *Go, *Defer.
+		// T(x):    *ChangeType, *Convert, *MakeInterface, *ChangeInterface.
 		// make():  *MakeMap, *MakeChan, *MakeSlice.
 		// new():   *Alloc.
 		// panic(): *Panic.
 		return n.Lparen
 
-	case *ast.BasicLit:
-		return n.ValuePos // *Literal
-
 	case *ast.Ident:
-		return n.NamePos // *Parameter, *Alloc, *Capture, *Literal
+		return n.NamePos // *Parameter, *Alloc, *Capture
 
 	case *ast.TypeAssertExpr:
 		return n.Lparen // *ChangeInterface or *TypeAssertExpr
 
 	case *ast.SelectorExpr:
-		return n.Sel.NamePos // *MakeClosure, *Field, *FieldAddr, *Literal
+		return n.Sel.NamePos // *MakeClosure, *Field, *FieldAddr
 
 	case *ast.FuncLit:
 		return n.Type.Func // *Function or *MakeClosure
@@ -197,10 +194,10 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return n.Lbrace // *Alloc or *Slice
 
 	case *ast.BinaryExpr:
-		return n.OpPos // *Phi, *BinOp or *Literal
+		return n.OpPos // *Phi or *BinOp
 
 	case *ast.UnaryExpr:
-		return n.OpPos // *Phi, *UnOp, or *Literal
+		return n.OpPos // *Phi or *UnOp
 
 	case *ast.IndexExpr:
 		return n.Lbrack // *Index or *IndexAddr
@@ -277,25 +274,18 @@ func (prog *Program) FuncValue(obj *types.Func) Value {
 // constant obj.  The result may be a *Literal, or nil if not found.
 //
 func (prog *Program) ConstValue(obj *types.Const) *Literal {
+	// TODO(adonovan): opt: share (don't reallocate)
+	// Literals for const objects.
+
 	// Universal constant? {true,false,nil}
 	if obj.Parent() == types.Universe {
-		// TODO(adonovan): opt: share, don't reallocate.
-		return NewLiteral(obj.Val(), obj.Type(), obj.Pos())
+		return NewLiteral(obj.Val(), obj.Type())
 	}
 	// Package-level named constant?
 	if v := prog.packageLevelValue(obj); v != nil {
 		return v.(*Literal)
 	}
-	// TODO(adonovan): need a per-function const object map.  For
-	// now, just return a new literal.
-	//
-	// Design question: should literal (constant) values even have
-	// a position?  Is their identity important?  Should two
-	// different references to Math.pi be distinguishable in any
-	// way?  From an analytical perspective, their type and value
-	// tell you all you need to know; they're interchangeable.
-	// Experiment with removing Literal.Pos().
-	return NewLiteral(obj.Val(), obj.Type(), obj.Pos())
+	return NewLiteral(obj.Val(), obj.Type())
 }
 
 // VarValue returns the SSA Value that corresponds to a specific

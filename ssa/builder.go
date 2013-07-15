@@ -57,8 +57,8 @@ var (
 	// SSA Value constants.
 	vZero  = intLiteral(0)
 	vOne   = intLiteral(1)
-	vTrue  = NewLiteral(exact.MakeBool(true), tBool, token.NoPos)
-	vFalse = NewLiteral(exact.MakeBool(false), tBool, token.NoPos)
+	vTrue  = NewLiteral(exact.MakeBool(true), tBool)
+	vFalse = NewLiteral(exact.MakeBool(false), tBool)
 )
 
 // builder holds state associated with the package currently being built.
@@ -547,12 +547,7 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 //
 func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		// TODO(adonovan): if e is an ident referring to a named
-		// Const, should we share the Constant's literal?
-		// Then it won't have a position within the function.
-		// Do we want it to have the position of the Ident or
-		// the definition of the const expression?
-		lit := NewLiteral(v, fn.Pkg.typeOf(e), CanonicalPos(e))
+		lit := NewLiteral(v, fn.Pkg.typeOf(e))
 		if id, ok := unparen(e).(*ast.Ident); ok {
 			emitDebugRef(fn, id, lit)
 		}

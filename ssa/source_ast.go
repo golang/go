@@ -4,7 +4,7 @@ package ssa
 
 // It has no dependencies on ssa or go/types.
 // TODO(adonovan): move it somewhere more general,
-// e.g. go.tools/astutil?
+// e.g. go.tools/importer?
 
 import (
 	"fmt"

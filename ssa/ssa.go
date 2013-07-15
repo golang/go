@@ -377,8 +377,7 @@ type Parameter struct {
 // Type(), using the same representation as package go/exact uses for
 // constants.
 //
-// Pos() returns the canonical position (see CanonicalPos) of the
-// originating constant expression, if explicit in the source.
+// Pos() returns token.NoPos.
 //
 // Example printed form:
 // 	42:int
@@ -388,7 +387,6 @@ type Parameter struct {
 type Literal struct {
 	typ   types.Type
 	Value exact.Value
-	pos   token.Pos
 }
 
 // A Global is a named Value holding the address of a package-level
@@ -1165,7 +1163,7 @@ type DebugRef struct {
 // Register is a mix-in embedded by all SSA values that are also
 // instructions, i.e. virtual registers, and provides implementations
 // of the Value interface's Name() and Type() methods: the name is
-// simply a numbered register (e.g. "t0") and the type is the Type_
+// simply a numbered register (e.g. "t0") and the type is the typ
 // field.
 //
 // Temporary names are automatically assigned to each Register on
