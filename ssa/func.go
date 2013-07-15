@@ -145,10 +145,9 @@ type lblock struct {
 
 // funcSyntax holds the syntax tree for the function declaration and body.
 type funcSyntax struct {
-	recvField    *ast.FieldList
-	paramFields  *ast.FieldList
-	resultFields *ast.FieldList
-	body         *ast.BlockStmt
+	recvField *ast.FieldList
+	body      *ast.BlockStmt
+	functype  *ast.FuncType
 }
 
 // labelledBlock returns the branch target associated with the
@@ -185,7 +184,9 @@ func (f *Function) addParamObj(obj types.Object) *Parameter {
 	if name == "" {
 		name = fmt.Sprintf("arg%d", len(f.Params))
 	}
-	return f.addParam(name, obj.Type(), obj.Pos())
+	param := f.addParam(name, obj.Type(), obj.Pos())
+	param.object = obj
+	return param
 }
 
 // addSpilledParam declares a parameter that is pre-spilled to the
@@ -238,9 +239,9 @@ func (f *Function) createSyntacticParams() {
 	}
 
 	// Parameters.
-	if f.syntax.paramFields != nil {
+	if f.syntax.functype.Params != nil {
 		n := len(f.Params) // 1 if has recv, 0 otherwise
-		for _, field := range f.syntax.paramFields.List {
+		for _, field := range f.syntax.functype.Params.List {
 			for _, n := range field.Names {
 				f.addSpilledParam(f.Pkg.objectOf(n))
 			}
@@ -252,8 +253,8 @@ func (f *Function) createSyntacticParams() {
 	}
 
 	// Named results.
-	if f.syntax.resultFields != nil {
-		for _, field := range f.syntax.resultFields.List {
+	if f.syntax.functype.Results != nil {
+		for _, field := range f.syntax.functype.Results.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
 				f.namedResults = append(f.namedResults, f.addLocalForIdent(n))
@@ -371,6 +372,12 @@ func (f *Function) removeNilBlocks() {
 		f.Blocks[i] = nil
 	}
 	f.Blocks = f.Blocks[:j]
+}
+
+// debugInfo reports whether debug info is wanted for this function.
+func (f *Function) debugInfo() bool {
+	// TODO(adonovan): make the policy finer grained.
+	return f.Prog.mode&DebugInfo != 0
 }
 
 // addNamedLocal creates a local variable, adds it to function f and

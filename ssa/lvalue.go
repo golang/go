@@ -4,8 +4,10 @@ package ssa
 // expressions.
 
 import (
-	"code.google.com/p/go.tools/go/types"
+	"go/ast"
 	"go/token"
+
+	"code.google.com/p/go.tools/go/types"
 )
 
 // An lvalue represents an assignable location that may appear on the
@@ -15,23 +17,39 @@ import (
 type lvalue interface {
 	store(fn *Function, v Value) // stores v into the location
 	load(fn *Function) Value     // loads the contents of the location
+	address(fn *Function) Value  // address of the location
 	typ() types.Type             // returns the type of the location
 }
 
 // An address is an lvalue represented by a true pointer.
 type address struct {
-	addr Value
-	star token.Pos // source position, if explicit *addr
+	addr    Value
+	starPos token.Pos    // source position, if from explicit *addr
+	id      *ast.Ident   // source syntax, if from *ast.Ident
+	object  types.Object // source var, if from *ast.Ident
 }
 
 func (a address) load(fn *Function) Value {
 	load := emitLoad(fn, a.addr)
-	load.pos = a.star
+	load.pos = a.starPos
 	return load
 }
 
 func (a address) store(fn *Function, v Value) {
-	emitStore(fn, a.addr, v).pos = a.star
+	store := emitStore(fn, a.addr, v)
+	store.pos = a.starPos
+	if a.id != nil {
+		// store.Val is v converted for assignability.
+		emitDebugRef(fn, a.id, store.Val)
+	}
+}
+
+func (a address) address(fn *Function) Value {
+	if a.id != nil {
+		// NB: this kind of DebugRef yields the object's address.
+		emitDebugRef(fn, a.id, a.addr)
+	}
+	return a.addr
 }
 
 func (a address) typ() types.Type {
@@ -65,6 +83,10 @@ func (e *element) store(fn *Function, v Value) {
 	})
 }
 
+func (e *element) address(fn *Function) Value {
+	panic("map/string elements are not addressable")
+}
+
 func (e *element) typ() types.Type {
 	return e.t
 }
@@ -80,6 +102,10 @@ func (bl blank) load(fn *Function) Value {
 
 func (bl blank) store(fn *Function, v Value) {
 	// no-op
+}
+
+func (bl blank) address(fn *Function) Value {
+	panic("blank var is not addressable")
 }
 
 func (bl blank) typ() types.Type {

@@ -355,6 +355,11 @@ func (s *MapUpdate) String() string {
 	return fmt.Sprintf("%s[%s] = %s", relName(s.Map, s), relName(s.Key, s), relName(s.Value, s))
 }
 
+func (s *DebugRef) String() string {
+	p := s.Parent().Prog.Fset.Position(s.pos)
+	return fmt.Sprintf("; %s is %s @ %d:%d", s.X.Name(), s.object, p.Line, p.Column)
+}
+
 func (p *Package) String() string {
 	return "package " + p.Object.Path()
 }

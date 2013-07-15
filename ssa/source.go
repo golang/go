@@ -2,13 +2,12 @@ package ssa
 
 // This file defines utilities for working with source positions.
 
-// TODO(adonovan): move this and source_ast.go to a new subpackage
-// since neither depends on SSA internals.
-
 import (
-	"code.google.com/p/go.tools/importer"
 	"go/ast"
 	"go/token"
+
+	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/importer"
 )
 
 // TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
@@ -34,10 +33,13 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 func (prog *Program) PathEnclosingInterval(imp *importer.Importer, start, end token.Pos) (pkg *Package, path []ast.Node, exact bool) {
 	for importPath, info := range imp.Packages {
 		for _, f := range info.Files {
-			if !tokenFileContainsPos(prog.Fset.File(f.Package), start) {
+			if !tokenFileContainsPos(imp.Fset.File(f.Package), start) {
 				continue
 			}
 			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
+				// TODO(adonovan): return the
+				// importPath; remove Prog as a
+				// parameter.
 				return prog.PackagesByPath[importPath], path, exact
 			}
 		}
@@ -226,4 +228,142 @@ func CanonicalPos(n ast.Node) token.Pos {
 	}
 
 	return token.NoPos
+}
+
+// --- Lookup functions for source-level named entities (types.Objects) ---
+
+// Package returns the SSA Package corresponding to the specified
+// type-checker package object.
+// It returns nil if no such SSA package has been created.
+//
+func (prog *Program) Package(obj *types.Package) *Package {
+	return prog.packages[obj]
+}
+
+// packageLevelValue returns the package-level value corresponding to
+// the specified named object, which may be a package-level const
+// (*Literal), var (*Global) or func (*Function) of some package in
+// prog.  It returns nil if the object is not found.
+//
+func (prog *Program) packageLevelValue(obj types.Object) Value {
+	if pkg, ok := prog.packages[obj.Pkg()]; ok {
+		return pkg.values[obj]
+	}
+	return nil
+}
+
+// FuncValue returns the SSA Value denoted by the source-level named
+// function obj.  The result may be a *Function or a *Builtin, or nil
+// if not found.
+//
+func (prog *Program) FuncValue(obj *types.Func) Value {
+	// Universal built-in?
+	if v, ok := prog.builtins[obj]; ok {
+		return v
+	}
+	// Package-level function?
+	if v := prog.packageLevelValue(obj); v != nil {
+		return v
+	}
+	// Concrete method?
+	if v := prog.concreteMethods[obj]; v != nil {
+		return v
+	}
+	// TODO(adonovan): interface method wrappers?  other wrappers?
+	return nil
+}
+
+// ConstValue returns the SSA Value denoted by the source-level named
+// constant obj.  The result may be a *Literal, or nil if not found.
+//
+func (prog *Program) ConstValue(obj *types.Const) *Literal {
+	// Universal constant? {true,false,nil}
+	if obj.Parent() == types.Universe {
+		// TODO(adonovan): opt: share, don't reallocate.
+		return NewLiteral(obj.Val(), obj.Type(), obj.Pos())
+	}
+	// Package-level named constant?
+	if v := prog.packageLevelValue(obj); v != nil {
+		return v.(*Literal)
+	}
+	// TODO(adonovan): need a per-function const object map.  For
+	// now, just return a new literal.
+	//
+	// Design question: should literal (constant) values even have
+	// a position?  Is their identity important?  Should two
+	// different references to Math.pi be distinguishable in any
+	// way?  From an analytical perspective, their type and value
+	// tell you all you need to know; they're interchangeable.
+	// Experiment with removing Literal.Pos().
+	return NewLiteral(obj.Val(), obj.Type(), obj.Pos())
+}
+
+// VarValue returns the SSA Value that corresponds to a specific
+// identifier denoting the source-level named variable obj.
+//
+// VarValue returns nil if a local variable was not found, perhaps
+// because its package was not built, the DebugInfo flag was not set
+// during SSA construction, or the value was optimized away.
+//
+// ref must be the path to an ast.Ident (e.g. from
+// PathEnclosingInterval), and that ident must resolve to obj.
+//
+// The Value of a defining (as opposed to referring) identifier is the
+// value assigned to it in its definition.
+//
+// In many cases where the identifier appears in an lvalue context,
+// the resulting Value is the var's address, not its value.
+// For example, x in all these examples:
+//    x.y = 0
+//    x[0] = 0
+//    _ = x[:]
+//    x = X{}
+//    _ = &x
+//    x.method()    (iff method is on &x)
+// and all package-level vars.  (This situation can be detected by
+// comparing the types of the Var and Value.)
+//
+func (prog *Program) VarValue(obj *types.Var, ref []ast.Node) Value {
+	id := ref[0].(*ast.Ident)
+
+	// Package-level variable?
+	if v := prog.packageLevelValue(obj); v != nil {
+		return v.(*Global)
+	}
+
+	// It's a local variable (or param) of some function.
+
+	// The reference may occur inside a lexically nested function,
+	// so find that first.
+	pkg := prog.packages[obj.Pkg()]
+	if pkg == nil {
+		panic("no package for " + obj.String())
+	}
+
+	fn := EnclosingFunction(pkg, ref)
+	if fn == nil {
+		return nil // e.g. SSA not built
+	}
+
+	// Defining ident of a parameter?
+	if id.Pos() == obj.Pos() {
+		for _, param := range fn.Params {
+			if param.Object() == obj {
+				return param
+			}
+		}
+	}
+
+	// Other ident?
+	for _, b := range fn.Blocks {
+		for _, instr := range b.Instrs {
+			if ref, ok := instr.(*DebugRef); ok {
+				if ref.Pos() == id.Pos() {
+					return ref.X
+				}
+			}
+		}
+	}
+
+	return nil // e.g. DebugInfo unset, or var optimized away
 }

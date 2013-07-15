@@ -76,7 +76,7 @@ type builder struct {
 // emits initialization code into from.init if not already done.
 //
 func (b *builder) lookup(from *Package, obj types.Object) Value {
-	v := from.Prog.Value(obj)
+	v := from.Prog.packages[obj.Pkg()].values[obj]
 	switch v := v.(type) {
 	case *Function:
 		if from == v.Pkg {
@@ -351,7 +351,7 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 		// for !wantAddr, when safe (i.e. e.X is addressible),
 		// since (FieldAddr;Load) is cheaper than (Load;Field).
 		// Requires go/types to expose addressibility.
-		v = b.addr(fn, e.X, escaping).(address).addr
+		v = b.addr(fn, e.X, escaping).address(fn)
 	} else {
 		v = b.expr(fn, e.X)
 	}
@@ -439,12 +439,15 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 	switch e := e.(type) {
 	case *ast.Ident:
+		if isBlankIdent(e) {
+			return blank{}
+		}
 		obj := fn.Pkg.objectOf(e)
 		v := b.lookup(fn.Pkg, obj) // var (address)
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
-		return address{addr: v}
+		return address{addr: v, id: e, object: obj}
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
@@ -477,7 +480,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		var et types.Type
 		switch t := fn.Pkg.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
-			x = b.addr(fn, e.X, escaping).(address).addr
+			x = b.addr(fn, e.X, escaping).address(fn)
 			et = pointer(t.Elem())
 		case *types.Pointer: // *array
 			x = b.expr(fn, e.X)
@@ -502,7 +505,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return address{addr: fn.emit(v)}
 
 	case *ast.StarExpr:
-		return address{addr: b.expr(fn, e.X), star: e.Star}
+		return address{addr: b.expr(fn, e.X), starPos: e.Star}
 	}
 
 	panic(fmt.Sprintf("unexpected address expression: %T", e))
@@ -516,13 +519,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 // in an addressable location.
 //
 func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
-	if addr, ok := loc.(address); ok {
+	if _, ok := loc.(address); ok {
 		if e, ok := e.(*ast.CompositeLit); ok {
-			typ := addr.typ()
+			typ := loc.typ()
 			switch typ.Underlying().(type) {
 			case *types.Pointer: // implicit & -- possibly escaping
-				ptr := b.addr(fn, e, true).(address).addr
-				addr.store(fn, ptr) // copy address
+				ptr := b.addr(fn, e, true).address(fn)
+				loc.store(fn, ptr) // copy address
 				return
 
 			case *types.Interface:
@@ -531,7 +534,7 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 				// Fall back to copying.
 
 			default:
-				b.compLit(fn, addr.addr, e, typ) // in place
+				b.compLit(fn, loc.address(fn), e, typ) // in place
 				return
 			}
 		}
@@ -544,7 +547,16 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 //
 func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		return NewLiteral(v, fn.Pkg.typeOf(e), CanonicalPos(e))
+		// TODO(adonovan): if e is an ident referring to a named
+		// Const, should we share the Constant's literal?
+		// Then it won't have a position within the function.
+		// Do we want it to have the position of the Ident or
+		// the definition of the const expression?
+		lit := NewLiteral(v, fn.Pkg.typeOf(e), CanonicalPos(e))
+		if id, ok := unparen(e).(*ast.Ident); ok {
+			emitDebugRef(fn, id, lit)
+		}
+		return lit
 	}
 
 	switch e := e.(type) {
@@ -561,9 +573,8 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			Pkg:       fn.Pkg,
 			Prog:      fn.Prog,
 			syntax: &funcSyntax{
-				paramFields:  e.Type.Params,
-				resultFields: e.Type.Results,
-				body:         e.Body,
+				functype: e.Type,
+				body:     e.Body,
 			},
 		}
 		fn.AnonFuncs = append(fn.AnonFuncs, fn2)
@@ -621,7 +632,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	case *ast.UnaryExpr:
 		switch e.Op {
 		case token.AND: // &X --- potentially escaping.
-			return b.addr(fn, e.X, true).(address).addr
+			return b.addr(fn, e.X, true).address(fn)
 		case token.ADD:
 			return b.expr(fn, e.X)
 		case token.NOT, token.ARROW, token.SUB, token.XOR: // ! <- - ^
@@ -657,7 +668,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		switch fn.Pkg.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
 			// Potentially escaping.
-			x = b.addr(fn, e.X, true).(address).addr
+			x = b.addr(fn, e.X, true).address(fn)
 		case *types.Basic, *types.Slice, *types.Pointer: // *array
 			x = b.expr(fn, e.X)
 		default:
@@ -691,8 +702,10 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			}
 			return v // (func)
 		}
-		// Local?
-		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
+		// Local var.
+		v := emitLoad(fn, fn.lookup(obj, false)) // var (address)
+		emitDebugRef(fn, e, v)
+		return v
 
 	case *ast.SelectorExpr:
 		// p.M where p is a package.
@@ -811,7 +824,7 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 			// pointer formal receiver; but the actual
 			// value is not a pointer.
 			// Implicit & -- possibly escaping.
-			return m, b.addr(fn, base, true).(address).addr
+			return m, b.addr(fn, base, true).address(fn)
 		}
 	}
 	return nil, nil
@@ -829,25 +842,12 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	sel, ok := unparen(e.Fun).(*ast.SelectorExpr)
 
 	// Case 0: e.Fun evaluates normally to a function.
-	if !ok {
+	if !ok || fn.Pkg.info.IsPackageRef(sel) != nil {
 		c.Func = b.expr(fn, e.Fun)
 		return
 	}
 
-	// Case 1: call of form x.F() where x is a package name.
-	if obj := fn.Pkg.info.IsPackageRef(sel); obj != nil {
-		// This is a specialization of expr(ast.Ident(obj)).
-		if v := b.lookup(fn.Pkg, obj); v != nil {
-			if _, ok := v.(*Function); !ok {
-				v = emitLoad(fn, v) // var (address)
-			}
-			c.Func = v
-			return
-		}
-		panic("undefined package-qualified name: " + obj.Name())
-	}
-
-	// Case 2a: X.f() or (*X).f(): a statically dipatched call to
+	// Case 1: X.f() or (*X).f(): a statically dipatched call to
 	// the method f in the method-set of X or *X.  X may be
 	// an interface.  Treat like case 0.
 	// TODO(adonovan): opt: inline expr() here, to make the call static
@@ -991,7 +991,7 @@ func (b *builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token)
 // buildGlobal emits code to the g.Pkg.init function for the variable
 // definition(s) of g.  Effects occur out of lexical order; see
 // explanation at globalValueSpec.
-// Precondition: g == g.Prog.Value(obj)
+// Precondition: g == g.Prog.value(obj)
 //
 func (b *builder) buildGlobal(g *Global, obj types.Object) {
 	spec := g.spec
@@ -1014,7 +1014,7 @@ func (b *builder) buildGlobal(g *Global, obj types.Object) {
 // B) with g and obj nil, to initialize all globals in the same ValueSpec.
 //    This occurs during the left-to-right traversal over the ast.File.
 //
-// Precondition: g == g.Prog.Value(obj)
+// Precondition: g == g.Prog.value(obj)
 //
 // Package-level var initialization order is quite subtle.
 // The side effects of:
@@ -1061,7 +1061,7 @@ func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 			} else {
 				// Mode B: initialize all globals.
 				if !isBlankIdent(id) {
-					g2 := init.Prog.Value(init.Pkg.objectOf(id)).(*Global)
+					g2 := init.Pkg.values[init.Pkg.objectOf(id)].(*Global)
 					if g2.spec == nil {
 						continue // already done
 					}
@@ -1095,7 +1095,7 @@ func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 			result := tuple.Type().(*types.Tuple)
 			for i, id := range spec.Names {
 				if !isBlankIdent(id) {
-					g := init.Prog.Value(init.Pkg.objectOf(id)).(*Global)
+					g := init.Pkg.values[init.Pkg.objectOf(id)].(*Global)
 					g.spec = nil // just an optimization
 					emitStore(init, g, emitExtract(init, tuple, i, result.At(i).Type()))
 				}
@@ -1117,10 +1117,10 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		// e.g. var x, y = 0, 1
 		// 1:1 assignment
 		for i, id := range spec.Names {
-			var lval lvalue = blank{}
 			if !isBlankIdent(id) {
-				lval = address{addr: fn.addLocalForIdent(id)}
+				fn.addLocalForIdent(id)
 			}
+			lval := b.addr(fn, id, false) // non-escaping
 			b.exprInPlace(fn, lval, spec.Values[i])
 		}
 
@@ -1129,7 +1129,12 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		// Locals are implicitly zero-initialized.
 		for _, id := range spec.Names {
 			if !isBlankIdent(id) {
-				fn.addLocalForIdent(id)
+				lhs := fn.addLocalForIdent(id)
+				// TODO(adonovan): opt: use zero literal in
+				// lieu of load, if type permits.
+				if fn.debugInfo() {
+					emitDebugRef(fn, id, emitLoad(fn, lhs))
+				}
 			}
 		}
 
@@ -1139,8 +1144,9 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		result := tuple.Type().(*types.Tuple)
 		for i, id := range spec.Names {
 			if !isBlankIdent(id) {
-				lhs := fn.addLocalForIdent(id)
-				emitStore(fn, lhs, emitExtract(fn, tuple, i, result.At(i).Type()))
+				fn.addLocalForIdent(id)
+				lhs := b.addr(fn, id, false) // non-escaping
+				lhs.store(fn, emitExtract(fn, tuple, i, result.At(i).Type()))
 			}
 		}
 	}
@@ -1452,7 +1458,10 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		x = b.expr(fn, unparen(ass.X).(*ast.TypeAssertExpr).X)
 	case *ast.AssignStmt: // y := x.(type)
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
-		emitStore(fn, fn.addLocalForIdent(ass.Lhs[0].(*ast.Ident)), x)
+		id := ass.Lhs[0].(*ast.Ident)
+		fn.addLocalForIdent(id)
+		lval := b.addr(fn, id, false) //  non-escaping
+		lval.store(fn, x)
 	}
 
 	done := fn.newBasicBlock("typeswitch.done")
@@ -1999,9 +2008,11 @@ start:
 
 	case *ast.DeclStmt: // Con, Var or Typ
 		d := s.Decl.(*ast.GenDecl)
-		for _, spec := range d.Specs {
-			if vs, ok := spec.(*ast.ValueSpec); ok {
-				b.localValueSpec(fn, vs)
+		if d.Tok == token.VAR {
+			for _, spec := range d.Specs {
+				if vs, ok := spec.(*ast.ValueSpec); ok {
+					b.localValueSpec(fn, vs)
+				}
 			}
 		}
 
@@ -2290,7 +2301,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 
 		} else {
 			// Package-level function.
-			b.buildFunction(pkg.Prog.Value(pkg.objectOf(id)).(*Function))
+			b.buildFunction(pkg.values[pkg.objectOf(id)].(*Function))
 		}
 	}
 

@@ -150,6 +150,9 @@ func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
 // read the next instruction from.
 func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 	switch instr := instr.(type) {
+	case *ssa.DebugRef:
+		// no-op
+
 	case *ssa.UnOp:
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 

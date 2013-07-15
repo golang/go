@@ -23,6 +23,7 @@ const (
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
+	DebugInfo                                    // Include DebugRef instructions [TODO(adonovan): finer grain?]
 )
 
 // NewProgram returns a new SSA Program initially containing no
@@ -88,10 +89,12 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pkg.Members[name] = &Type{object: obj}
 
 	case *types.Const:
-		pkg.Members[name] = &Constant{
+		c := &Constant{
 			object: obj,
 			Value:  NewLiteral(obj.Val(), obj.Type(), obj.Pos()),
 		}
+		pkg.values[obj] = c.Value
+		pkg.Members[name] = c
 
 	case *types.Var:
 		spec, _ := syntax.(*ast.ValueSpec)
@@ -112,10 +115,9 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		if decl, ok := syntax.(*ast.FuncDecl); ok {
 			synthetic = ""
 			fs = &funcSyntax{
-				recvField:    decl.Recv,
-				paramFields:  decl.Type.Params,
-				resultFields: decl.Type.Results,
-				body:         decl.Body,
+				functype:  decl.Type,
+				recvField: decl.Recv,
+				body:      decl.Body,
 			}
 		}
 		sig := obj.Type().(*types.Signature)

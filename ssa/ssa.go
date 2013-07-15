@@ -351,6 +351,7 @@ type Capture struct {
 //
 type Parameter struct {
 	name      string
+	object    types.Object // a *types.Var; nil for non-source locals
 	typ       types.Type
 	pos       token.Pos
 	parent    *Function
@@ -412,13 +413,14 @@ type Global struct {
 // A Builtin represents a built-in function, e.g. len.
 //
 // Builtins are immutable values.  Builtins do not have addresses.
+// Builtins can only appear in CallCommon.Func.
 //
 // Type() returns a *types.Builtin.
 // Built-in functions may have polymorphic or variadic types that are
 // not expressible in Go's type system.
 //
 type Builtin struct {
-	Object *types.Func // canonical types.Universe object for this built-in
+	object *types.Func // canonical types.Universe object for this built-in
 }
 
 // Value-defining instructions  ----------------------------------------
@@ -1136,6 +1138,28 @@ type MapUpdate struct {
 	pos   token.Pos
 }
 
+// A DebugRef instruction provides the position information for a
+// specific source-level reference that denotes the SSA value X.
+//
+// DebugRef is a pseudo-instruction: it has no dynamic effect.
+//
+// Pos() returns the ast.Ident or ast.Selector.Sel of the source-level
+// reference.
+//
+// Object() returns the source-level (var/const) object denoted by
+// that reference.
+//
+// (By representing these as instructions, rather than out-of-band,
+// consistency is maintained during transformation passes by the
+// ordinary SSA renaming machinery.)
+//
+type DebugRef struct {
+	anInstruction
+	X      Value        // the value whose position we're declaring
+	pos    token.Pos    // location of the reference
+	object types.Object // the identity of the source var/const
+}
+
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
 // Register is a mix-in embedded by all SSA values that are also
@@ -1302,10 +1326,11 @@ func (s *Call) Value() *Call  { return s }
 func (s *Defer) Value() *Call { return nil }
 func (s *Go) Value() *Call    { return nil }
 
-func (v *Builtin) Type() types.Type        { return v.Object.Type() }
-func (v *Builtin) Name() string            { return v.Object.Name() }
+func (v *Builtin) Type() types.Type        { return v.object.Type() }
+func (v *Builtin) Name() string            { return v.object.Name() }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 func (v *Builtin) Pos() token.Pos          { return token.NoPos }
+func (v *Builtin) Object() types.Object    { return v.object }
 
 func (v *Capture) Type() types.Type          { return v.typ }
 func (v *Capture) Name() string              { return v.name }
@@ -1329,6 +1354,7 @@ func (v *Function) Object() types.Object    { return v.object }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
+func (v *Parameter) Object() types.Object      { return v.object }
 func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
 func (v *Parameter) Pos() token.Pos            { return v.pos }
 func (v *Parameter) Parent() *Function         { return v.parent }
@@ -1401,29 +1427,6 @@ func (p *Package) Type(name string) (t *Type) {
 	return
 }
 
-// Value returns the program-level value corresponding to the
-// specified named object, which may be a universal built-in
-// (*Builtin) or a package-level var (*Global) or func (*Function) of
-// some package in prog.  It returns nil if the object is not found.
-//
-func (prog *Program) Value(obj types.Object) Value {
-	if p := obj.Pkg(); p != nil {
-		if pkg, ok := prog.packages[p]; ok {
-			return pkg.values[obj]
-		}
-		return nil
-	}
-	return prog.builtins[obj]
-}
-
-// Package returns the SSA package corresponding to the specified
-// type-checker package object.
-// It returns nil if no such SSA package has been created.
-//
-func (prog *Program) Package(pkg *types.Package) *Package {
-	return prog.packages[pkg]
-}
-
 func (v *Call) Pos() token.Pos      { return v.Call.pos }
 func (s *Defer) Pos() token.Pos     { return s.Call.pos }
 func (s *Go) Pos() token.Pos        { return s.Call.pos }
@@ -1435,6 +1438,7 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
+func (s *DebugRef) Pos() token.Pos  { return s.pos }
 
 // Operands.
 
@@ -1476,6 +1480,10 @@ func (v *ChangeType) Operands(rands []*Value) []*Value {
 
 func (v *Convert) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
+}
+
+func (s *DebugRef) Operands(rands []*Value) []*Value {
+	return append(rands, &s.X)
 }
 
 func (v *Extract) Operands(rands []*Value) []*Value {

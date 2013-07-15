@@ -19,6 +19,7 @@ import (
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
 The value is a sequence of zero or more of these letters:
 C	perform sanity [C]hecking of the SSA form.
+D	include debug info for every function.
 P	log [P]ackage inventory.
 F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
@@ -56,6 +57,8 @@ func main() {
 	var mode ssa.BuilderMode
 	for _, c := range *buildFlag {
 		switch c {
+		case 'D':
+			mode |= ssa.DebugInfo
 		case 'P':
 			mode |= ssa.LogPackages | ssa.BuildSerially
 		case 'F':

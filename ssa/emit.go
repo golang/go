@@ -3,6 +3,7 @@ package ssa
 // Helpers for emitting SSA instructions.
 
 import (
+	"go/ast"
 	"go/token"
 
 	"code.google.com/p/go.tools/go/types"
@@ -27,6 +28,27 @@ func emitLoad(f *Function, addr Value) *UnOp {
 	v.setType(deref(addr.Type()))
 	f.emit(v)
 	return v
+}
+
+// emitDebugRef emits to f a DebugRef pseudo-instruction associating
+// reference id with local var/const value v.
+//
+func emitDebugRef(f *Function, id *ast.Ident, v Value) {
+	if !f.debugInfo() {
+		return // debugging not enabled
+	}
+	if isBlankIdent(id) {
+		return
+	}
+	obj := f.Pkg.objectOf(id)
+	if obj.Parent() == types.Universe {
+		return // skip nil/true/false
+	}
+	f.emit(&DebugRef{
+		X:      v,
+		pos:    id.Pos(),
+		object: obj,
+	})
 }
 
 // emitArith emits to f code to compute the binary operation op(x, y)
