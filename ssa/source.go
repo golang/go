@@ -7,45 +7,7 @@ import (
 	"go/token"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
 )
-
-// TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
-func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
-	p := int(pos)
-	base := f.Base()
-	return base <= p && p < base+f.Size()
-}
-
-// PathEnclosingInterval returns the Package and ast.Node that
-// contain source interval [start, end), and all the node's ancestors
-// up to the AST root.  It searches all files of all packages in the
-// program prog.  exact is defined as for standalone
-// PathEnclosingInterval.
-//
-// imp provides ASTs for the program's packages.
-//
-// pkg may be nil if no SSA package has yet been created for the found
-// package.  Call prog.CreatePackages(imp) to avoid this.
-//
-// The result is (nil, nil, false) if not found.
-//
-func (prog *Program) PathEnclosingInterval(imp *importer.Importer, start, end token.Pos) (pkg *Package, path []ast.Node, exact bool) {
-	for importPath, info := range imp.Packages {
-		for _, f := range info.Files {
-			if !tokenFileContainsPos(imp.Fset.File(f.Package), start) {
-				continue
-			}
-			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
-				// TODO(adonovan): return info in lieu
-				// of pkg; remove Prog as a parameter;
-				// move to importer.
-				return prog.PackagesByPath[importPath], path, exact
-			}
-		}
-	}
-	return nil, nil, false
-}
 
 // EnclosingFunction returns the function that contains the syntax
 // node denoted by path.

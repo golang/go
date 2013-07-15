@@ -9,7 +9,7 @@ package ssa
 // - bound method wrappers, for uncalled obj.Method closures.
 // - indirection wrappers, for calls to T-methods on a *T receiver.
 
-// TODO(adonovan): rename to methods.go.
+// TODO(adonovan): rename to wrappers.go when promotion logic has evaporated.
 
 import (
 	"code.google.com/p/go.tools/go/types"
@@ -126,6 +126,8 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 
 // buildMethodSet computes the concrete method set for type typ.
 // It is the implementation of Program.MethodSet.
+//
+// TODO(adonovan): use go/types.MethodSet(typ) when it's ready.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
 //

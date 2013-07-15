@@ -1,10 +1,6 @@
-package ssa
+package importer
 
 // This file defines utilities for working with source positions.
-
-// It has no dependencies on ssa or go/types.
-// TODO(adonovan): move it somewhere more general,
-// e.g. go.tools/importer?
 
 import (
 	"fmt"
@@ -622,4 +618,33 @@ func NodeDescription(n ast.Node) string {
 
 	}
 	panic(fmt.Sprintf("unexpected node type: %T", n))
+}
+
+// TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
+func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
+	p := int(pos)
+	base := f.Base()
+	return base <= p && p < base+f.Size()
+}
+
+// PathEnclosingInterval returns the PackageInfo and ast.Node that
+// contain source interval [start, end), and all the node's ancestors
+// up to the AST root.  It searches all ast.Files of all packages in the
+// Importer imp.  exact is defined as for standalone
+// PathEnclosingInterval.
+//
+// The result is (nil, nil, false) if not found.
+//
+func (imp *Importer) PathEnclosingInterval(start, end token.Pos) (pkg *PackageInfo, path []ast.Node, exact bool) {
+	for _, info := range imp.Packages {
+		for _, f := range info.Files {
+			if !tokenFileContainsPos(imp.Fset.File(f.Package), start) {
+				continue
+			}
+			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
+				return info, path, exact
+			}
+		}
+	}
+	return nil, nil, false
 }
