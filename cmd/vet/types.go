@@ -69,11 +69,21 @@ var (
 	stringerType       = types.New("interface{ String() string }")
 )
 
-func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
-	// TODO: for now, we can only test builtin types, untyped constants, and Stringer/Errors.
-	typ := f.pkg.types[arg]
+// matchArgType reports an error if printf verb t is not appropriate
+// for operand arg.
+//
+// typ is used only for recursive calls; external callers must supply nil.
+//
+// (Recursion arises from the compound types {map,chan,slice} which
+// may be printed with %d etc. if that is appropriate for their element
+// types.)
+func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool {
 	if typ == nil {
-		return true
+		// external call
+		typ = f.pkg.types[arg]
+		if typ == nil {
+			return true // probably a type check problem
+		}
 	}
 	// If we can use a string, does arg implement the Stringer or Error interface?
 	if t&argString != 0 {
@@ -81,48 +91,81 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 			return true
 		}
 	}
-	basic, ok := typ.Underlying().(*types.Basic)
-	if !ok {
+
+	switch typ := typ.Underlying().(type) {
+	case *types.Signature:
+		return t&argPointer != 0
+
+	case *types.Map:
+		// Recurse: map[int]int matches %d.
+		return t&argPointer != 0 ||
+			(f.matchArgType(t, typ.Key(), arg) && f.matchArgType(t, typ.Elem(), arg))
+
+	case *types.Chan:
+		return t&argPointer != 0
+
+	case *types.Slice:
+		if types.IsIdentical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
+			return true // %s matches []byte
+		}
+		// Recurse: []int matches %d.
+		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
+
+	case *types.Basic:
+		switch typ.Kind() {
+		case types.UntypedBool,
+			types.Bool:
+			return t&argBool != 0
+
+		case types.UntypedInt,
+			types.Int,
+			types.Int8,
+			types.Int16,
+			types.Int32,
+			types.Int64,
+			types.Uint,
+			types.Uint8,
+			types.Uint16,
+			types.Uint32,
+			types.Uint64,
+			types.Uintptr:
+			return t&argInt != 0
+
+		case types.UntypedFloat,
+			types.Float32,
+			types.Float64:
+			return t&argFloat != 0
+
+		case types.UntypedComplex,
+			types.Complex64,
+			types.Complex128:
+			return t&argComplex != 0
+
+		case types.UntypedString,
+			types.String:
+			return t&argString != 0
+
+		case types.UnsafePointer:
+			return t&(argPointer|argInt) != 0
+
+		case types.UntypedRune:
+			return t&(argInt|argRune) != 0
+
+		case types.UntypedNil:
+			return t&argPointer != 0 // TODO?
+
+		case types.Invalid:
+			if *verbose {
+				f.Warnf(arg.Pos(), "printf argument %v has invalid or unknown type", f.gofmt(arg))
+			}
+			return true // Probably a type check problem.
+		}
+		panic("unreachable")
+
+	default:
 		return true
 	}
-	switch basic.Kind() {
-	case types.Bool:
-		return t&argBool != 0
-	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
-		fallthrough
-	case types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64, types.Uintptr:
-		return t&argInt != 0
-	case types.Float32, types.Float64, types.Complex64, types.Complex128:
-		return t&argFloat != 0
-	case types.String:
-		return t&argString != 0
-	case types.UnsafePointer:
-		return t&(argPointer|argInt) != 0
-	case types.UntypedBool:
-		return t&argBool != 0
-	case types.UntypedComplex:
-		return t&argFloat != 0
-	case types.UntypedFloat:
-		// If it's integral, we can use an int format.
-		switch f.pkg.values[arg].Kind() {
-		case exact.Int:
-			return t&(argInt|argFloat) != 0
-		}
-		return t&argFloat != 0
-	case types.UntypedInt:
-		return t&argInt != 0
-	case types.UntypedRune:
-		return t&(argInt|argRune) != 0
-	case types.UntypedString:
-		return t&argString != 0
-	case types.UntypedNil:
-		return t&argPointer != 0 // TODO?
-	case types.Invalid:
-		if *verbose {
-			f.Warnf(arg.Pos(), "printf argument %v has invalid or unknown type", arg)
-		}
-		return true // Probably a type check problem.
-	}
+
 	return false
 }
 
@@ -186,10 +229,5 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 		return false
 	}
 	// It must have return type "string" from the universe.
-	return isUniverseString(sig.Results().At(0).Type())
-}
-
-// isUniverseString reports whether the type is the predeclared type "string".
-func isUniverseString(typ types.Type) bool {
-	return types.IsIdentical(typ, types.Typ[types.String])
+	return sig.Results().At(0).Type() == types.Typ[types.String]
 }

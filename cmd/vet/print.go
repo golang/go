@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"code.google.com/p/go.tools/go/exact"
 )
 
 var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")
@@ -58,53 +60,6 @@ func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
 	}
 }
 
-// literal returns the literal value represented by the expression, or nil if it is not a literal.
-func (f *File) literal(value ast.Expr) *ast.BasicLit {
-	switch v := value.(type) {
-	case *ast.BasicLit:
-		return v
-	case *ast.ParenExpr:
-		return f.literal(v.X)
-	case *ast.BinaryExpr:
-		if v.Op != token.ADD {
-			break
-		}
-		litX := f.literal(v.X)
-		litY := f.literal(v.Y)
-		if litX != nil && litY != nil {
-			lit := *litX
-			x, errX := strconv.Unquote(litX.Value)
-			y, errY := strconv.Unquote(litY.Value)
-			if errX == nil && errY == nil {
-				return &ast.BasicLit{
-					ValuePos: lit.ValuePos,
-					Kind:     lit.Kind,
-					Value:    strconv.Quote(x + y),
-				}
-			}
-		}
-	case *ast.Ident:
-		// See if it's a constant or initial value (we can't tell the difference).
-		if v.Obj == nil || v.Obj.Decl == nil {
-			return nil
-		}
-		valueSpec, ok := v.Obj.Decl.(*ast.ValueSpec)
-		if ok && len(valueSpec.Names) == len(valueSpec.Values) {
-			// Find the index in the list of names
-			var i int
-			for i = 0; i < len(valueSpec.Names); i++ {
-				if valueSpec.Names[i].Name == v.Name {
-					if lit, ok := valueSpec.Values[i].(*ast.BasicLit); ok {
-						return lit
-					}
-					return nil
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
 // It is constructed by parsePrintfVerb.
 type formatState struct {
@@ -127,23 +82,20 @@ type formatState struct {
 // call.Args[formatIndex] is (well, should be) the format argument.
 func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 	if formatIndex >= len(call.Args) {
+		f.Warn(call.Pos(), "too few arguments in call to", name)
 		return
 	}
-	lit := f.literal(call.Args[formatIndex])
+	lit := f.pkg.values[call.Args[formatIndex]]
 	if lit == nil {
 		if *verbose {
-			f.Warn(call.Pos(), "can't check non-literal format in call to", name)
+			f.Warn(call.Pos(), "can't check non-constant format in call to", name)
 		}
 		return
 	}
-	if lit.Kind != token.STRING {
-		f.Badf(call.Pos(), "literal %v not a string in call to", lit.Value, name)
+	if lit.Kind() != exact.String {
+		f.Badf(call.Pos(), "constant %v not a string in call to", lit, name)
 	}
-	format, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		// Shouldn't happen if parser returned no errors, but be safe.
-		f.Badf(call.Pos(), "invalid quoted string literal")
-	}
+	format := exact.StringVal(lit)
 	firstArg := formatIndex + 1 // Arguments are immediately after format string.
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > firstArg {
@@ -325,6 +277,7 @@ const (
 	argRune
 	argString
 	argFloat
+	argComplex
 	argPointer
 	anyType printfArgType = ^0
 )
@@ -356,12 +309,12 @@ var printVerbs = []printVerb{
 	{'b', numFlag, argInt | argFloat},
 	{'c', "-", argRune | argInt},
 	{'d', numFlag, argInt},
-	{'e', numFlag, argFloat},
-	{'E', numFlag, argFloat},
-	{'f', numFlag, argFloat},
-	{'F', numFlag, argFloat},
-	{'g', numFlag, argFloat},
-	{'G', numFlag, argFloat},
+	{'e', numFlag, argFloat | argComplex},
+	{'E', numFlag, argFloat | argComplex},
+	{'f', numFlag, argFloat | argComplex},
+	{'F', numFlag, argFloat | argComplex},
+	{'g', numFlag, argFloat | argComplex},
+	{'G', numFlag, argFloat | argComplex},
 	{'o', sharpNumFlag, argInt},
 	{'p', "-#", argPointer},
 	{'q', " -+.0#", argRune | argInt | argString},
@@ -410,7 +363,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 			return
 		}
 		arg := call.Args[argNum]
-		if !f.matchArgType(argInt, arg) {
+		if !f.matchArgType(argInt, nil, arg) {
 			f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(arg))
 			return false
 		}
@@ -423,7 +376,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		return false
 	}
 	arg := call.Args[argNum]
-	if !f.matchArgType(v.typ, arg) {
+	if !f.matchArgType(v.typ, nil, arg) {
 		typeString := ""
 		if typ := f.pkg.types[arg]; typ != nil {
 			typeString = typ.String()
