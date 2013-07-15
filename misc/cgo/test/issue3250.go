@@ -45,6 +45,7 @@ import (
 )
 
 func test3250(t *testing.T) {
+	t.Skip("skipped, see golang.org/issue/5885")
 	const (
 		thres = 1
 		sig   = syscall.SIGCHLD
