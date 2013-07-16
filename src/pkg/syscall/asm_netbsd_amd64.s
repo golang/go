@@ -11,7 +11,7 @@
 // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
 // Trap # in AX, args in DI SI DX, return in AX DX
 
-TEXT	·Syscall(SB),7,$0
+TEXT	·Syscall(SB),7,$0-64
 	CALL	runtime·entersyscall(SB)
 	MOVQ	8(SP), AX	// syscall entry
 	MOVQ	16(SP), DI
@@ -34,7 +34,7 @@ ok:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall6(SB),7,$0
+TEXT	·Syscall6(SB),7,$0-88
 	CALL	runtime·entersyscall(SB)
 	MOVQ	8(SP), AX	// syscall entry
 	MOVQ	16(SP), DI
@@ -57,7 +57,7 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall9(SB),7,$0
+TEXT	·Syscall9(SB),7,$0-112
 	CALL	runtime·entersyscall(SB)
 	MOVQ	8(SP), AX	// syscall entry
 	MOVQ	16(SP), DI
@@ -76,20 +76,20 @@ TEXT	·Syscall9(SB),7,$0
 	SYSCALL
 	JCC	ok9
 	ADDQ    $32, SP
-	MOVQ	$-1, 64(SP)	// r1
-	MOVQ	$0, 72(SP)	// r2
-	MOVQ	AX, 80(SP)	// errno
+	MOVQ	$-1, 88(SP)	// r1
+	MOVQ	$0, 96(SP)	// r2
+	MOVQ	AX, 104(SP)	// errno
 	CALL	runtime·exitsyscall(SB)
 	RET
 ok9:
 	ADDQ    $32, SP
-	MOVQ	AX, 64(SP)	// r1
-	MOVQ	DX, 72(SP)	// r2
-	MOVQ	$0, 80(SP)	// errno
+	MOVQ	AX, 88(SP)	// r1
+	MOVQ	DX, 96(SP)	// r2
+	MOVQ	$0, 104(SP)	// errno
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·RawSyscall(SB),7,$0
+TEXT	·RawSyscall(SB),7,$0-64
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -109,7 +109,7 @@ ok1:
 	MOVQ	$0, 56(SP)	// errno
 	RET
 
-TEXT	·RawSyscall6(SB),7,$0
+TEXT	·RawSyscall6(SB),7,$0-88
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
