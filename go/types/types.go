@@ -197,8 +197,18 @@ type Signature struct {
 
 // NewSignature returns a new function type for the given receiver, parameters,
 // and results, either of which may be nil. If isVariadic is set, the function
-// is variadic.
+// is variadic, it must have at least one parameter, and the last parameter
+// must be of unnamed slice type.
 func NewSignature(recv *Var, params, results *Tuple, isVariadic bool) *Signature {
+	if isVariadic {
+		n := params.Len()
+		if n == 0 {
+			panic("types.NewSignature: variadic function must have at least one parameter")
+		}
+		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
+			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
+		}
+	}
 	return &Signature{nil, nil, recv, params, results, isVariadic}
 }
 

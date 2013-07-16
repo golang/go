@@ -14,73 +14,70 @@ import (
 func (check *checker) call(x *operand, e *ast.CallExpr) {
 	check.exprOrType(x, e.Fun)
 	if x.mode == invalid {
-		// We don't have a valid call or conversion but we have list of arguments.
+		// We don't have a valid call or conversion but we have a list of arguments.
 		// Typecheck them independently for better partial type information in
 		// the presence of type errors.
 		for _, arg := range e.Args {
 			check.expr(x, arg)
 		}
-		goto Error
+		x.mode = invalid
+		x.expr = e
+		return
+	}
 
-	} else if x.mode == typexpr {
+	if x.mode == typexpr {
 		check.conversion(x, e, x.typ)
+		return
+	}
 
-	} else if sig, ok := x.typ.Underlying().(*Signature); ok {
-		// check parameters
+	if sig, ok := x.typ.Underlying().(*Signature); ok {
+		// function/method call
 
-		// If we have a trailing ... at the end of the parameter
-		// list, the last argument must match the parameter type
-		// []T of a variadic function parameter x ...T.
 		passSlice := false
 		if e.Ellipsis.IsValid() {
+			// last argument is of the form x...
 			if sig.isVariadic {
 				passSlice = true
 			} else {
-				check.errorf(e.Ellipsis, "cannot use ... in call to %s", e.Fun)
+				check.errorf(e.Ellipsis, "cannot use ... in call to non-variadic %s", e.Fun)
 				// ok to continue
 			}
 		}
 
-		// If we have a single argument that is a function call
-		// we need to handle it separately. Determine if this
-		// is the case without checking the argument.
-		var call *ast.CallExpr
-		if len(e.Args) == 1 {
-			call, _ = unparen(e.Args[0]).(*ast.CallExpr)
-		}
-
-		n := 0 // parameter count
-		if call != nil {
-			// We have a single argument that is a function call.
-			check.expr(x, call)
-			if x.mode == invalid {
-				goto Error // TODO(gri): we can do better
-			}
-			if t, ok := x.typ.(*Tuple); ok {
-				// multiple result values
-				n = t.Len()
-				for i := 0; i < n; i++ {
-					obj := t.At(i)
-					x.mode = value
-					x.expr = nil // TODO(gri) can we do better here? (for good error messages)
-					x.typ = obj.typ
-					check.argument(sig, i, nil, x, passSlice && i+1 == n)
+		// evaluate arguments
+		n := len(e.Args) // argument count
+		if n == 1 {
+			// single argument but possibly a multi-valued function call
+			arg := e.Args[0]
+			check.expr(x, arg)
+			if x.mode != invalid {
+				if t, ok := x.typ.(*Tuple); ok {
+					// argument is multi-valued function call
+					n = t.Len()
+					for i := 0; i < n; i++ {
+						x.mode = value
+						x.expr = arg
+						x.typ = t.At(i).typ
+						check.argument(sig, i, x, passSlice && i == n-1)
+					}
+				} else {
+					// single value
+					check.argument(sig, 0, x, passSlice)
 				}
 			} else {
-				// single result value
-				n = 1
-				check.argument(sig, 0, nil, x, passSlice)
+				n = sig.params.Len() // avoid additional argument length errors below
 			}
-
 		} else {
-			// We don't have a single argument or it is not a function call.
-			n = len(e.Args)
+			// zero or multiple arguments
 			for i, arg := range e.Args {
-				check.argument(sig, i, arg, x, passSlice && i+1 == n)
+				check.expr(x, arg)
+				if x.mode != invalid {
+					check.argument(sig, i, x, passSlice && i == n-1)
+				}
 			}
 		}
 
-		// determine if we have enough arguments
+		// check argument count
 		if sig.isVariadic {
 			// a variadic function accepts an "empty"
 			// last argument: count one extra
@@ -97,82 +94,64 @@ func (check *checker) call(x *operand, e *ast.CallExpr) {
 			x.mode = novalue
 		case 1:
 			x.mode = value
-			x.typ = sig.results.vars[0].typ
+			x.typ = sig.results.vars[0].typ // unpack tuple
 		default:
 			x.mode = value
 			x.typ = sig.results
 		}
-
-	} else if bin, ok := x.typ.(*Builtin); ok {
-		check.builtin(x, e, bin)
-
-	} else {
-		check.invalidOp(x.pos(), "cannot call non-function %s", x)
-		goto Error
+		x.expr = e
+		return
 	}
 
-	// everything went well
-	x.expr = e
-	return
+	if bin, ok := x.typ.(*Builtin); ok {
+		check.builtin(x, e, bin)
+		return
+	}
 
-Error:
+	check.invalidOp(x.pos(), "cannot call non-function %s", x)
 	x.mode = invalid
 	x.expr = e
 }
 
-// argument typechecks passing an argument arg (if arg != nil) or
-// x (if arg == nil) to the i'th parameter of the given signature.
+// argument checks passing of argument x to the i'th parameter of the given signature.
 // If passSlice is set, the argument is followed by ... in the call.
-//
-func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, passSlice bool) {
-	// determine parameter
-	var par *Var
+func (check *checker) argument(sig *Signature, i int, x *operand, passSlice bool) {
 	n := sig.params.Len()
-	if i < n {
-		par = sig.params.vars[i]
-	} else if sig.isVariadic {
-		par = sig.params.vars[n-1]
-	} else {
-		var pos token.Pos
-		switch {
-		case arg != nil:
-			pos = arg.Pos()
-		case x != nil:
-			pos = x.pos()
-		default:
-			// TODO(gri) what position to use?
+
+	// determine parameter type
+	var typ Type
+	switch {
+	case i < n:
+		typ = sig.params.vars[i].typ
+	case sig.isVariadic:
+		typ = sig.params.vars[n-1].typ
+		if debug {
+			if _, ok := typ.(*Slice); !ok {
+				check.dump("%s: expected slice type, got %s", sig.params.vars[n-1].Pos(), typ)
+			}
 		}
-		check.errorf(pos, "too many arguments")
+	default:
+		check.errorf(x.pos(), "too many arguments")
 		return
 	}
 
-	// determine argument
-	var z operand
-	z.mode = variable
-	z.expr = nil // TODO(gri) can we do better here? (for good error messages)
-	z.typ = par.typ
-
-	if arg != nil {
-		check.expr(x, arg)
-	}
-	if x.mode == invalid {
-		return // ignore this argument
-	}
-
-	// check last argument of the form x...
 	if passSlice {
-		if i+1 != n {
+		// argument is of the form x...
+		if i != n-1 {
 			check.errorf(x.pos(), "can only use ... with matching parameter")
-			return // ignore this argument
+			return
 		}
-		// spec: "If the final argument is assignable to a slice type []T,
-		// it may be passed unchanged as the value for a ...T parameter if
-		// the argument is followed by ..."
-		z.typ = &Slice{elt: z.typ} // change final parameter type to []T
+		if _, ok := x.typ.(*Slice); !ok {
+			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
+			return
+		}
+	} else if sig.isVariadic && i >= n-1 {
+		// use the variadic parameter slice's element type
+		typ = typ.(*Slice).elt
 	}
 
-	if !check.assignment(x, z.typ) && x.mode != invalid {
-		check.errorf(x.pos(), "cannot pass argument %s to %s", x, &z)
+	if !check.assignment(x, typ) && x.mode != invalid {
+		check.errorf(x.pos(), "cannot pass argument %s to parameter of type %s", x, typ)
 	}
 }
 

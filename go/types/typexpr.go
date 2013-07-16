@@ -298,7 +298,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	if list == nil {
 		return
 	}
-	var last *Var
+
 	for i, field := range list.List {
 		ftype := field.Type
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
@@ -307,37 +307,33 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 				isVariadic = true
 			} else {
 				check.invalidAST(field.Pos(), "... not permitted")
-				// ok to continue
+				// ignore ... and continue
 			}
 		}
+		typ := check.typ(ftype, nil, true)
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag
-		typ := check.typ(ftype, nil, true)
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
 				par := NewVar(name.Pos(), check.pkg, name.Name, typ)
 				check.declare(scope, name, par)
-
-				last = par
-				copy := *par
-				params = append(params, &copy)
+				params = append(params, par)
 			}
 		} else {
 			// anonymous parameter
 			par := NewVar(ftype.Pos(), check.pkg, "", typ)
 			check.callImplicitObj(field, par)
-
-			last = nil // not accessible inside function
 			params = append(params, par)
 		}
 	}
-	// For a variadic function, change the last parameter's object type
-	// from T to []T (this is the type used inside the function), but
-	// keep the params list unchanged (this is the externally visible type).
-	if isVariadic && last != nil {
+
+	// For a variadic function, change the last parameter's type from T to []T.
+	if isVariadic && len(params) > 0 {
+		last := params[len(params)-1]
 		last.typ = &Slice{elt: last.typ}
 	}
+
 	return
 }
 
@@ -345,6 +341,7 @@ func (check *checker) collectMethods(list *ast.FieldList, cycleOk bool) (methods
 	if list == nil {
 		return nil
 	}
+
 	scope := NewScope(nil)
 	for _, f := range list.List {
 		typ := check.typ(f.Type, nil, cycleOk)
@@ -385,6 +382,7 @@ func (check *checker) collectMethods(list *ast.FieldList, cycleOk bool) (methods
 			}
 		}
 	}
+
 	return
 }
 

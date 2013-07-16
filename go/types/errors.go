@@ -188,10 +188,12 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, isVariadic bool) {
 				buf.WriteString(v.name)
 				buf.WriteByte(' ')
 			}
+			typ := v.typ
 			if isVariadic && i == len(tup.vars)-1 {
 				buf.WriteString("...")
+				typ = typ.(*Slice).elt
 			}
-			writeType(buf, v.typ)
+			writeType(buf, typ)
 		}
 	}
 	buf.WriteByte(')')

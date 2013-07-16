@@ -535,6 +535,9 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 		isVariadic = true
 	}
 	typ := p.parseType()
+	if isVariadic {
+		typ = &Slice{elt: typ}
+	}
 	// ignore argument tag (e.g. "noescape")
 	if p.tok == scanner.String {
 		p.next()

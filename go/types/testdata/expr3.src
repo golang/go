@@ -298,6 +298,7 @@ func f2(u float32, s string) {}
 func fs(s []byte) {}
 func fv(x ...int) {}
 func fi(x ... interface{}) {}
+func (T) fm(x ...int)
 
 func g0() {}
 func g1() int { return 0}
@@ -335,16 +336,43 @@ func _calls() {
 	fs /* ERROR "too few arguments" */ ()
 	fs(g0 /* ERROR "used as value" */ ())
 	fs(g1 /* ERROR "cannot pass" */ ())
-	// fs(g2()) // TODO(gri) missing position in error message
+	fs(g2 /* ERROR "cannot pass" */ /* ERROR "too many arguments" */ ())
 	fs(gs())
 
 	fv()
 	fv(1, 2.0, x)
 	fv(s /* ERROR "cannot pass" */ )
 	fv(s...)
+	fv(x /* ERROR "cannot use" */ ...)
 	fv(1, s /* ERROR "can only use ... with matching parameter" */ ...)
 	fv(gs /* ERROR "cannot pass" */ ())
 	fv(gs /* ERROR "cannot pass" */ ()...)
+
+	var t T
+	t.fm()
+	t.fm(1, 2.0, x)
+	t.fm(s /* ERROR "cannot pass" */ )
+	t.fm(g1())
+	t.fm(1, s /* ERROR "can only use ... with matching parameter" */ ...)
+	t.fm(gs /* ERROR "cannot pass" */ ())
+	t.fm(gs /* ERROR "cannot pass" */ ()...)
+
+	T.fm(t, )
+	T.fm(t, 1, 2.0, x)
+	T.fm(t, s /* ERROR "cannot pass" */ )
+	T.fm(t, g1())
+	T.fm(t, 1, s /* ERROR "can only use ... with matching parameter" */ ...)
+	T.fm(t, gs /* ERROR "cannot pass" */ ())
+	T.fm(t, gs /* ERROR "cannot pass" */ ()...)
+
+	var i interface{ fm(x ...int) } = t
+	i.fm()
+	i.fm(1, 2.0, x)
+	i.fm(s /* ERROR "cannot pass" */ )
+	i.fm(g1())
+	i.fm(1, s /* ERROR "can only use ... with matching parameter" */ ...)
+	i.fm(gs /* ERROR "cannot pass" */ ())
+	i.fm(gs /* ERROR "cannot pass" */ ()...)
 
 	fi()
 	fi(1, 2.0, x, 3.14, "foo")
