@@ -33,6 +33,7 @@ var gorootTests = []string{
 	"varinit.go",
 	"escape3.go",
 	"initcomma.go",
+	"cmp.go",
 	"compos.go",
 	"turing.go",
 	"indirect.go",
@@ -68,6 +69,7 @@ var gorootTests = []string{
 	"typeswitch.go",
 	"stringrange.go",
 	"reorder.go",
+	"method3.go",
 	"literal.go",
 	"nul1.go",
 	"zerodivide.go",
@@ -100,17 +102,16 @@ var gorootTests = []string{
 	// "solitaire.go", // works, but too slow (~30s).
 	// "const.go",     // works but for but one bug: constant folder doesn't consider representations.
 	// "init1.go",     // too slow (80s) and not that interesting. Cheats on ReadMemStats check too.
+	// "rotate.go rotate0.go", // emits source for a test
+	// "rotate.go rotate1.go", // emits source for a test
+	// "rotate.go rotate2.go", // emits source for a test
+	// "rotate.go rotate3.go", // emits source for a test
+	// "64bit.go",             // emits source for a test
+	// "run.go",               // test driver, not a test.
 
 	// Typechecker failures:
-	// "switch.go",            // bug re: switch ... { case 1.0:... case 1:... }
-	// "rune.go",              // error re: rune as index
-	// "64bit.go",             // error re: comparison
-	// "cmp.go",               // error re: comparison
-	// "rotate.go rotate0.go", // error re: shifts
-	// "rotate.go rotate1.go", // error re: shifts
-	// "rotate.go rotate2.go", // error re: shifts
-	// "rotate.go rotate3.go", // error re: shifts
-	// "run.go",               // produces wrong constant for bufio.runeError; also, not really a test.
+	// "switch.go",            // https://code.google.com/p/go/issues/detail?id=5505
+	// "rune.go",              // https://code.google.com/p/go/issues/detail?id=5895
 
 	// Broken.  TODO(adonovan): fix.
 	// copy.go         // very slow; but with N=4 quickly crashes, slice index out of range.
@@ -118,7 +119,6 @@ var gorootTests = []string{
 	// recover1.go     // error: "spurious recover"
 	// recover2.go     // panic: interface conversion: string is not error: missing method Error
 	// recover3.go     // logic errors: panicked with wrong Error.
-	// method3.go      // Fails dynamically; (*T).f vs (T).f are distinct methods.
 	// args.go         // works, but requires specific os.Args from the driver.
 	// index.go        // a template, not a real test.
 	// mallocfin.go    // SetFinalizer not implemented.

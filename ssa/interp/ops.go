@@ -1324,14 +1324,13 @@ func conv(t_dst, t_src types.Type, x value) value {
 // On success it returns "", on failure, an error message.
 //
 func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
-	mset := findMethodSet(i, x.t)
-	it := itype.Underlying().(*types.Interface)
-	for i, n := 0, it.NumMethods(); i < n; i++ {
-		m := it.Method(i)
-		id := ssa.MakeId(m.Name(), m.Pkg())
-		if mset[id] == nil {
-			return fmt.Sprintf("interface conversion: %v is not %v: missing method %v", x.t, itype, id)
+	if meth, wrongType := types.MissingMethod(x.t, itype); meth != nil {
+		reason := "is missing"
+		if wrongType {
+			reason = "has wrong type"
 		}
+		return fmt.Sprintf("interface conversion: %v is not %v: method %s %s",
+			x.t, itype, meth.Name(), reason)
 	}
 	return "" // ok
 }

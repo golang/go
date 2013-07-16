@@ -105,7 +105,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 					return meth
 				}
 			}
-			for _, meth := range pkg.Prog.MethodSet(pointer(mem.Type())) {
+			for _, meth := range pkg.Prog.MethodSet(types.NewPointer(mem.Type())) {
 				if meth.Synthetic == "" && meth.Pos() == pos {
 					return meth
 				}

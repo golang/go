@@ -63,6 +63,7 @@ var externals = map[string]externalFn{
 	"runtime.GC":                      ext۰runtime۰GC,
 	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
 	"runtime.Gosched":                 ext۰runtime۰Gosched,
+	"runtime.NumCPU":                  ext۰runtime۰NumCPU,
 	"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
 	"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
 	"runtime.getgoroot":               ext۰runtime۰getgoroot,
@@ -161,6 +162,10 @@ func ext۰runtime۰GC(fn *ssa.Function, args []value) value {
 func ext۰runtime۰Gosched(fn *ssa.Function, args []value) value {
 	runtime.Gosched()
 	return nil
+}
+
+func ext۰runtime۰NumCPU(fn *ssa.Function, args []value) value {
+	return runtime.NumCPU()
 }
 
 func ext۰runtime۰ReadMemStats(fn *ssa.Function, args []value) value {
@@ -289,7 +294,6 @@ func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
 // os/signal/signal_unix.go:16:func signal_recv() uint32
 // runtime/debug.go:13:func LockOSThread()
 // runtime/debug.go:17:func UnlockOSThread()
-// runtime/debug.go:27:func NumCPU() int
 // runtime/debug.go:30:func NumCgoCall() int64
 // runtime/debug.go:33:func NumGoroutine() int
 // runtime/debug.go:90:func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)

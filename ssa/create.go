@@ -102,7 +102,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Pkg:    pkg,
 			name:   name,
 			object: obj,
-			typ:    pointer(obj.Type()), // address
+			typ:    types.NewPointer(obj.Type()), // address
 			pos:    obj.Pos(),
 			spec:   spec,
 		}
@@ -139,7 +139,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			// Method declaration.
 			_, method := namedTypeMethodIndex(
 				deref(recv.Type()).(*types.Named),
-				MakeId(name, pkg.Object))
+				makeId(name, pkg.Object))
 			pkg.Prog.concreteMethods[method] = fn
 		}
 
@@ -257,7 +257,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 	initguard := &Global{
 		Pkg:  p,
 		name: "init$guard",
-		typ:  pointer(tBool),
+		typ:  types.NewPointer(tBool),
 	}
 	p.Members[initguard.Name()] = initguard
 

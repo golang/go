@@ -14,7 +14,7 @@ import (
 //
 func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 	return f.emit(&Alloc{
-		typ:  pointer(typ),
+		typ:  types.NewPointer(typ),
 		Heap: true,
 		pos:  pos,
 	})
@@ -194,7 +194,6 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		}
 
 		// Convert (non-nil) "untyped" literals to their default type.
-		// TODO(gri): expose types.isUntyped().
 		if t, ok := ut_src.(*types.Basic); ok && t.Info()&types.IsUntyped != 0 {
 			val = emitConv(f, val, DefaultType(ut_src))
 		}

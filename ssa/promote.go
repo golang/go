@@ -176,7 +176,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			case *types.Struct:
 				for i, n := 0, t.NumFields(); i < n; i++ {
 					f := t.Field(i)
-					nextcands[MakeId(f.Name(), f.Pkg())] = nil // a field: block id
+					nextcands[makeId(f.Name(), f.Pkg())] = nil // a field: block id
 					// Queue up anonymous fields for next iteration.
 					// Break cycles to ensure termination.
 					if f.Anonymous() && !node.contains(f) {
@@ -244,7 +244,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 // If a map entry already exists (whether nil or not), its value is set to nil.
 //
 func addCandidate(m map[Id]*candidate, method *types.Func, node *anonFieldPath) {
-	id := MakeId(method.Name(), method.Pkg())
+	id := makeId(method.Name(), method.Pkg())
 	prev, found := m[id]
 	switch {
 	case prev != nil:
@@ -318,7 +318,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 			X:     v,
 			Field: p.index,
 		}
-		sel.setType(pointer(p.field.Type()))
+		sel.setType(types.NewPointer(p.field.Type()))
 		v = fn.emit(sel)
 		if isPointer(p.field.Type()) {
 			v = emitLoad(fn, v)
@@ -334,7 +334,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		iface := v.Type().Underlying().(*types.Interface)
-		id := MakeId(cand.method.Name(), cand.method.Pkg())
+		id := makeId(cand.method.Name(), cand.method.Pkg())
 		c.Call.Method, _ = interfaceMethodIndex(iface, id)
 		c.Call.Recv = v
 	}

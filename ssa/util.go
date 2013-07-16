@@ -7,7 +7,6 @@ import (
 	"go/ast"
 	"io"
 	"os"
-	"reflect"
 
 	"code.google.com/p/go.tools/go/types"
 )
@@ -33,9 +32,6 @@ func unparen(e ast.Expr) ast.Expr {
 // isBlankIdent returns true iff e is an Ident with name "_".
 // They have no associated types.Object, and thus no type.
 //
-// TODO(gri): consider making typechecker not treat them differently.
-// It's one less thing for clients like us to worry about.
-//
 func isBlankIdent(e ast.Expr) bool {
 	id, ok := e.(*ast.Ident)
 	return ok && id.Name == "_"
@@ -47,12 +43,6 @@ func isBlankIdent(e ast.Expr) bool {
 func isPointer(typ types.Type) bool {
 	_, ok := typ.Underlying().(*types.Pointer)
 	return ok
-}
-
-// pointer(typ) returns the type that is a pointer to typ.
-// TODO(adonovan): inline and eliminate.
-func pointer(typ types.Type) *types.Pointer {
-	return types.NewPointer(typ)
 }
 
 // deref returns a pointer's element type; otherwise it returns typ.
@@ -67,12 +57,10 @@ func deref(typ types.Type) types.Type {
 // within the set of explicitly declared concrete methods of named
 // type typ.  If not found, panic ensues.
 //
-// TODO(gri): move this functionality into the go/types API?
-//
 func namedTypeMethodIndex(typ *types.Named, id Id) (int, *types.Func) {
 	for i, n := 0, typ.NumMethods(); i < n; i++ {
 		m := typ.Method(i)
-		if MakeId(m.Name(), m.Pkg()) == id {
+		if makeId(m.Name(), m.Pkg()) == id {
 			return i, m
 		}
 	}
@@ -83,12 +71,10 @@ func namedTypeMethodIndex(typ *types.Named, id Id) (int, *types.Func) {
 // within the method-set of interface type typ.  If not found, panic
 // ensues.
 //
-// TODO(gri): move this functionality into the go/types API.
-//
 func interfaceMethodIndex(typ *types.Interface, id Id) (int, *types.Func) {
 	for i, n := 0, typ.NumMethods(); i < n; i++ {
 		m := typ.Method(i)
-		if MakeId(m.Name(), m.Pkg()) == id {
+		if makeId(m.Name(), m.Pkg()) == id {
 			return i, m
 		}
 	}
@@ -108,7 +94,7 @@ outer:
 		xm := x.Method(i)
 		for j, m := 0, y.NumMethods(); j < m; j++ {
 			ym := y.Method(j)
-			if MakeId(xm.Name(), xm.Pkg()) == MakeId(ym.Name(), ym.Pkg()) {
+			if makeId(xm.Name(), xm.Pkg()) == makeId(ym.Name(), ym.Pkg()) {
 				if !types.IsIdentical(xm.Type(), ym.Type()) {
 					return false // common name but conflicting types
 				}
@@ -141,8 +127,8 @@ func canHaveConcreteMethods(typ types.Type, allowPtr bool) bool {
 }
 
 // DefaultType returns the default "typed" type for an "untyped" type;
-// it returns the incoming type for all other types. If there is no
-// corresponding untyped type, the result is types.Typ[types.Invalid].
+// it returns the incoming type for all other types.  The default type
+// for untyped nil is untyped nil.
 //
 // Exported to exp/ssa/interp.
 //
@@ -150,11 +136,8 @@ func canHaveConcreteMethods(typ types.Type, allowPtr bool) bool {
 //
 func DefaultType(typ types.Type) types.Type {
 	if t, ok := typ.(*types.Basic); ok {
-		k := types.Invalid
-		switch t.Kind() {
-		// case UntypedNil:
-		//      There is no default type for nil. For a good error message,
-		//      catch this case before calling this function.
+		k := t.Kind()
+		switch k {
 		case types.UntypedBool:
 			k = types.Bool
 		case types.UntypedInt:
@@ -176,16 +159,13 @@ func DefaultType(typ types.Type) types.Type {
 // makeId returns the Id (name, pkg) if the name is exported or
 // (name, nil) otherwise.
 //
-// Exported to exp/ssa/interp.
-//
-func MakeId(name string, pkg *types.Package) (id Id) {
+func makeId(name string, pkg *types.Package) (id Id) {
 	id.Name = name
 	if !ast.IsExported(name) {
 		id.Pkg = pkg
-		// TODO(gri): fix
-		// if pkg.Path() == "" {
-		// 	panic("Package " + pkg.Name() + "has empty Path")
-		// }
+		if pkg.Path() == "" {
+			panic("empty types.Package.Path()")
+		}
 	}
 	return
 }
@@ -195,11 +175,9 @@ type ids []Id // a sortable slice of Id
 func (p ids) Len() int { return len(p) }
 func (p ids) Less(i, j int) bool {
 	x, y := p[i], p[j]
-	// *Package pointers are canonical so order by them.
-	// Don't use x.Pkg.ImportPath because sometimes it's empty.
-	// (TODO(gri): fix that.)
-	return reflect.ValueOf(x.Pkg).Pointer() < reflect.ValueOf(y.Pkg).Pointer() ||
-		x.Pkg == y.Pkg && x.Name < y.Name
+	// TODO(adonovan): opt: where's Go's 3-valued strings.Compare function?
+	return x.Pkg.Path() < y.Pkg.Path() ||
+		x.Pkg.Path() == y.Pkg.Path() && x.Name < y.Name
 }
 func (p ids) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 

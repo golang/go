@@ -238,7 +238,7 @@ func identicalMethods(a, b []*Func) bool {
 func defaultType(typ Type) Type {
 	if t, ok := typ.(*Basic); ok {
 		k := t.kind
-		switch t.kind {
+		switch k {
 		case UntypedBool:
 			k = Bool
 		case UntypedInt:

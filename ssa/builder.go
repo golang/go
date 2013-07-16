@@ -373,7 +373,7 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 			if isLast {
 				ff.setPos(e.Sel.Pos())
 			}
-			ff.setType(pointer(ft))
+			ff.setType(types.NewPointer(ft))
 			v = fn.emit(ff)
 
 			// Now: v is a pointer to a struct field (field lvalue).
@@ -481,13 +481,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		switch t := fn.Pkg.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
 			x = b.addr(fn, e.X, escaping).address(fn)
-			et = pointer(t.Elem())
+			et = types.NewPointer(t.Elem())
 		case *types.Pointer: // *array
 			x = b.expr(fn, e.X)
-			et = pointer(t.Elem().Underlying().(*types.Array).Elem())
+			et = types.NewPointer(t.Elem().Underlying().(*types.Array).Elem())
 		case *types.Slice:
 			x = b.expr(fn, e.X)
-			et = pointer(t.Elem())
+			et = types.NewPointer(t.Elem())
 		case *types.Map:
 			return &element{
 				m: b.expr(fn, e.X),
@@ -708,7 +708,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return b.expr(fn, e.Sel)
 		}
 
-		id := MakeId(e.Sel.Name, fn.Pkg.Object)
+		id := makeId(e.Sel.Name, fn.Pkg.Object)
 
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
@@ -814,7 +814,7 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 	}
 	if !isPointer(typ) {
 		// Consult method-set of *X.
-		if m := fn.Prog.MethodSet(pointer(typ))[id]; m != nil {
+		if m := fn.Prog.MethodSet(types.NewPointer(typ))[id]; m != nil {
 			// A method found only in MS(*X) must have a
 			// pointer formal receiver; but the actual
 			// value is not a pointer.
@@ -852,7 +852,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		return
 	}
 
-	id := MakeId(sel.Sel.Name, fn.Pkg.Object)
+	id := makeId(sel.Sel.Name, fn.Pkg.Object)
 
 	// Let X be the type of x.
 
@@ -944,7 +944,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 					X:     a,
 					Index: intLiteral(int64(i)),
 				}
-				iaddr.setType(pointer(vt))
+				iaddr.setType(types.NewPointer(vt))
 				fn.emit(iaddr)
 				emitStore(fn, iaddr, arg)
 			}
@@ -1042,7 +1042,7 @@ func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 		for i, id := range spec.Names {
 			var lval lvalue = blank{}
 			if g != nil {
-				// Mode A: initialized only a single global, g
+				// Mode A: initialize only a single global, g
 				if isBlankIdent(id) || init.Pkg.objectOf(id) != obj {
 					continue
 				}
@@ -1241,7 +1241,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 				X:     addr,
 				Field: fieldIndex,
 			}
-			faddr.setType(pointer(sf.Type()))
+			faddr.setType(types.NewPointer(sf.Type()))
 			fn.emit(faddr)
 			b.exprInPlace(fn, address{addr: faddr}, e)
 		}
@@ -1274,7 +1274,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 				X:     array,
 				Index: idx,
 			}
-			iaddr.setType(pointer(at.Elem()))
+			iaddr.setType(types.NewPointer(at.Elem()))
 			fn.emit(iaddr)
 			b.exprInPlace(fn, address{addr: iaddr}, e)
 		}
@@ -1489,7 +1489,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			// same name but a more specific type.
 			y2 := fn.addNamedLocal(obj)
 			y2.name += "'" // debugging aid
-			y2.typ = pointer(casetype)
+			y2.typ = types.NewPointer(casetype)
 			emitStore(fn, y2, ti)
 		}
 		fn.targets = &targets{
@@ -1787,7 +1787,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 				X:     x,
 				Index: k,
 			}
-			instr.setType(pointer(t.Elem().(*types.Array).Elem()))
+			instr.setType(types.NewPointer(t.Elem().(*types.Array).Elem()))
 			v = emitLoad(fn, fn.emit(instr))
 
 		case *types.Slice:
@@ -1795,7 +1795,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 				X:     x,
 				Index: k,
 			}
-			instr.setType(pointer(t.Elem()))
+			instr.setType(types.NewPointer(t.Elem()))
 			v = emitLoad(fn, fn.emit(instr))
 
 		default:
@@ -2264,6 +2264,9 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 		}
 		if isBlankIdent(id) {
 			// no-op
+
+			// TODO(adonovan): test: can references within
+			// the blank functions' body affect the program?
 
 		} else if id.Name == "init" {
 			// init() block
