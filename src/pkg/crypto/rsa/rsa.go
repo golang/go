@@ -5,8 +5,6 @@
 // Package rsa implements RSA encryption as specified in PKCS#1.
 package rsa
 
-// TODO(agl): Add support for PSS padding.
-
 import (
 	"crypto/rand"
 	"crypto/subtle"
