@@ -323,10 +323,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 0);
 		goto ret;
 
-	case OTYPESW:
-		racewalknode(&n->right, init, 0, 0);
-		goto ret;
-
 	// should not appear in AST by now
 	case OSEND:
 	case ORECV:
@@ -402,6 +398,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case ONONAME:
 	case OLITERAL:
 	case OSLICESTR:  // always preceded by bounds checking, avoid double instrumentation.
+	case OTYPESW:    // ignored by code generation, do not instrument.
 		goto ret;
 	}
 
