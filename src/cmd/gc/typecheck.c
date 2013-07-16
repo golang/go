@@ -839,7 +839,7 @@ reswitch:
 					"\t\thave %S%hhT\n\t\twant %S%hhT", n->type, t, missing->sym,
 					have->sym, have->type, missing->sym, missing->type);
 			else if(ptr)
-				yyerror("impossible type assertion:\n\t%T does not implement %T (%S method requires pointer receiver)",
+				yyerror("impossible type assertion:\n\t%T does not implement %T (%S method has pointer receiver)",
 					n->type, t, missing->sym);
 			else if(have)
 				yyerror("impossible type assertion:\n\t%T does not implement %T (missing %S method)\n"

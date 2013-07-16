@@ -1260,7 +1260,7 @@ assignop(Type *src, Type *dst, char **why)
 					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
 					have->sym, have->type, missing->sym, missing->type);
 			else if(ptr)
-				*why = smprint(":\n\t%T does not implement %T (%S method requires pointer receiver)",
+				*why = smprint(":\n\t%T does not implement %T (%S method has pointer receiver)",
 					src, dst, missing->sym);
 			else if(have)
 				*why = smprint(":\n\t%T does not implement %T (missing %S method)\n"
