@@ -322,34 +322,44 @@ TEXT runtime·install_exception_handler(SB),7,$0
 TEXT runtime·remove_exception_handler(SB),7,$0
 	RET
 
-TEXT runtime·osyield(SB),7,$8
-	// Tried NtYieldExecution but it doesn't yield hard enough.
-	// NtWaitForSingleObject being used here as Sleep(0).
-	// The CALL is safe because NtXxx is a system call wrapper:
-	// it puts the right system call number in AX, then does
-	// a SYSENTER and a RET.
-	MOVQ	runtime·NtWaitForSingleObject(SB), AX
-	MOVQ	$1, BX
-	NEGQ	BX
-	MOVQ	SP, R8 // ptime
-	MOVQ	BX, (R8)
-	MOVQ	$-1, CX // handle
-	MOVQ	$0, DX // alertable
+// Sleep duration is in 100ns units.
+TEXT runtime·usleep1(SB),7,$0
+	MOVL	duration+0(FP), BX
+	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
+
+	// Execute call on m->g0 stack, in case we are not actually
+	// calling a system call wrapper, like when running under WINE.
+	get_tls(R15)
+	CMPQ	R15, $0
+	JNE	3(PC)
+	// Not a Go-managed thread. Do not switch stack.
 	CALL	AX
 	RET
 
-TEXT runtime·usleep(SB),7,$8
-	// The CALL is safe because NtXxx is a system call wrapper:
-	// it puts the right system call number in AX, then does
-	// a SYSENTER and a RET.
-	MOVQ	runtime·NtWaitForSingleObject(SB), AX
-	// Have 1us units; want negative 100ns units.
-	MOVL	usec+0(FP), BX
-	IMULQ	$10, BX
+	MOVQ	m(R15), R14
+	MOVQ	m_g0(R14), R14
+	CMPQ	g(R15), R14
+	JNE	3(PC)
+	// executing on m->g0 already
+	CALL	AX
+	RET
+
+	// Switch to m->g0 stack and back.
+	MOVQ	(g_sched+gobuf_sp)(R14), R14
+	MOVQ	SP, -8(R14)
+	LEAQ	-8(R14), SP
+	CALL	AX
+	MOVQ	0(SP), SP
+	RET
+
+// Runs on OS stack. duration (in 100ns units) is in BX.
+TEXT runtime·usleep2(SB),7,$8
+	// Want negative 100ns units.
 	NEGQ	BX
 	MOVQ	SP, R8 // ptime
 	MOVQ	BX, (R8)
 	MOVQ	$-1, CX // handle
 	MOVQ	$0, DX // alertable
+	MOVQ	runtime·NtWaitForSingleObject(SB), AX
 	CALL	AX
 	RET
