@@ -29,15 +29,22 @@
 // THE SOFTWARE.
 
 #include "gc.h"
+#include "../../pkg/runtime/funcdata.h"
 
 Prog*
 gtext(Sym *s, int32 stkoff)
 {
 	vlong v;
-	
+
 	v = 0;
-	if(!(textflag & NOSPLIT))
-		v |= argsize() << 32;
+	if(!(textflag & NOSPLIT) || !hasdotdotdot()) {
+		v = argsize();
+		// Change argsize 0 to 1 to be mark that
+		// the argument size is present.
+		if(v == 0)
+			v = 1;
+		v <<= 32;
+	}
 	v |= stkoff & 0xffffffff;
 	if((textflag & NOSPLIT) && stkoff >= 128)
 		yyerror("stack frame too large for NOSPLIT function");

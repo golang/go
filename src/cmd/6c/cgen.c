@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include "gc.h"
+#include "../../pkg/runtime/funcdata.h"
 
 /* ,x/^(print|prtree)\(/i/\/\/ */
 int castup(Type*, Type*);
@@ -944,6 +945,7 @@ cgen(Node *n, Node *nn)
 			return;
 		}
 		gargs(r, &nod, &nod1);
+		gpcdata(PCDATA_ArgSize, curarg);
 		if(l->addable < INDEXED) {
 			reglcgen(&nod, l, nn);
 			nod.op = OREGISTER;
@@ -951,6 +953,7 @@ cgen(Node *n, Node *nn)
 			regfree(&nod);
 		} else
 			gopcode(OFUNC, n->type, Z, l);
+		gpcdata(PCDATA_ArgSize, -1);
 		if(REGARG >= 0 && reg[REGARG])
 			reg[REGARG]--;
 		if(nn != Z) {

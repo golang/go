@@ -34,10 +34,15 @@ Prog*
 gtext(Sym *s, int32 stkoff)
 {
 	int32 a;
-	
+
 	a = 0;
-	if(!(textflag & NOSPLIT))
+	if(!(textflag & NOSPLIT) || !hasdotdotdot()) {
 		a = argsize();
+		// Change argsize 0 to 1 to be mark that
+		// the argument size is present.
+		if(a == 0)
+			a = 1;
+	}
 	else if(stkoff >= 128)
 		yyerror("stack frame too large for NOSPLIT function");
 
