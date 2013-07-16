@@ -51,6 +51,18 @@ ispkgin(const char **pkgs, int n)
 	return 0;
 }
 
+static int
+isforkfunc(Node *fn)
+{
+	// Special case for syscall.forkAndExecInChild.
+	// In the child, this function must not acquire any locks, because
+	// they might have been locked at the time of the fork.  This means
+	// no rescheduling, no malloc calls, and no new stack segments.
+	// Race instrumentation does all of the above.
+	return myimportpath != nil && strcmp(myimportpath, "syscall") == 0 &&
+		strcmp(fn->nname->sym->name, "forkAndExecInChild") == 0;
+}
+
 void
 racewalk(Node *fn)
 {
@@ -58,7 +70,7 @@ racewalk(Node *fn)
 	Node *nodpc;
 	char s[1024];
 
-	if(ispkgin(omit_pkgs, nelem(omit_pkgs)))
+	if(ispkgin(omit_pkgs, nelem(omit_pkgs)) || isforkfunc(fn))
 		return;
 
 	if(!ispkgin(noinst_pkgs, nelem(noinst_pkgs))) {
