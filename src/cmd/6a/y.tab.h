@@ -50,28 +50,29 @@
      LTYPER = 266,
      LTYPET = 267,
      LTYPEG = 268,
-     LTYPES = 269,
-     LTYPEM = 270,
-     LTYPEI = 271,
-     LTYPEXC = 272,
-     LTYPEX = 273,
-     LTYPERT = 274,
-     LCONST = 275,
-     LFP = 276,
-     LPC = 277,
-     LSB = 278,
-     LBREG = 279,
-     LLREG = 280,
-     LSREG = 281,
-     LFREG = 282,
-     LMREG = 283,
-     LXREG = 284,
-     LFCONST = 285,
-     LSCONST = 286,
-     LSP = 287,
-     LNAME = 288,
-     LLAB = 289,
-     LVAR = 290
+     LTYPEPC = 269,
+     LTYPES = 270,
+     LTYPEM = 271,
+     LTYPEI = 272,
+     LTYPEXC = 273,
+     LTYPEX = 274,
+     LTYPERT = 275,
+     LCONST = 276,
+     LFP = 277,
+     LPC = 278,
+     LSB = 279,
+     LBREG = 280,
+     LLREG = 281,
+     LSREG = 282,
+     LFREG = 283,
+     LMREG = 284,
+     LXREG = 285,
+     LFCONST = 286,
+     LSCONST = 287,
+     LSP = 288,
+     LNAME = 289,
+     LLAB = 290,
+     LVAR = 291
    };
 #endif
 /* Tokens.  */
@@ -86,28 +87,29 @@
 #define LTYPER 266
 #define LTYPET 267
 #define LTYPEG 268
-#define LTYPES 269
-#define LTYPEM 270
-#define LTYPEI 271
-#define LTYPEXC 272
-#define LTYPEX 273
-#define LTYPERT 274
-#define LCONST 275
-#define LFP 276
-#define LPC 277
-#define LSB 278
-#define LBREG 279
-#define LLREG 280
-#define LSREG 281
-#define LFREG 282
-#define LMREG 283
-#define LXREG 284
-#define LFCONST 285
-#define LSCONST 286
-#define LSP 287
-#define LNAME 288
-#define LLAB 289
-#define LVAR 290
+#define LTYPEPC 269
+#define LTYPES 270
+#define LTYPEM 271
+#define LTYPEI 272
+#define LTYPEXC 273
+#define LTYPEX 274
+#define LTYPERT 275
+#define LCONST 276
+#define LFP 277
+#define LPC 278
+#define LSB 279
+#define LBREG 280
+#define LLREG 281
+#define LSREG 282
+#define LFREG 283
+#define LMREG 284
+#define LXREG 285
+#define LFCONST 286
+#define LSCONST 287
+#define LSP 288
+#define LNAME 289
+#define LLAB 290
+#define LVAR 291
 
 
 
@@ -124,7 +126,7 @@ typedef union YYSTYPE
 	Gen2	gen2;
 }
 /* Line 1529 of yacc.c.  */
-#line 128 "y.tab.h"
+#line 130 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

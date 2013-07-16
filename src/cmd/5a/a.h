@@ -98,6 +98,7 @@ struct	Gen
 {
 	Sym*	sym;
 	int32	offset;
+	int32	offset2;
 	short	type;
 	short	reg;
 	short	name;

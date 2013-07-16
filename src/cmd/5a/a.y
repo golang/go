@@ -54,7 +54,7 @@
 %token	<lval>	LTYPEG LTYPEH LTYPEI LTYPEJ LTYPEK
 %token	<lval>	LTYPEL LTYPEM LTYPEN LTYPEBX LTYPEPLD
 %token	<lval>	LCONST LSP LSB LFP LPC
-%token	<lval>	LTYPEX LR LREG LF LFREG LC LCREG LPSR LFCR
+%token	<lval>	LTYPEX LTYPEPC LR LREG LF LFREG LC LCREG LPSR LFCR
 %token	<lval>	LCOND LS LAT
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST
@@ -223,6 +223,16 @@ inst:
 	{
 		outcode($1, Always, &$2, $4, &$6);
 	}
+|	LTYPEB name ',' con ',' imm '-' con
+	{
+		// Change explicit 0 argument size to 1
+		// so that we can distinguish it from missing.
+		if($8 == 0)
+			$8 = 1;
+		$6.type = D_CONST2;
+		$6.offset2 = $8;
+		outcode($1, Always, &$2, $4, &$6);
+	}
 /*
  * DATA
  */
@@ -308,6 +318,13 @@ inst:
 |	LTYPEPLD oreg
 	{
 		outcode($1, Always, &$2, NREG, &nullgen);
+	}
+/*
+ * PCDATA
+ */
+|	LTYPEPC imm ',' imm
+	{
+		outcode($1, Always, &$2, NREG, &$4);
 	}
 /*
  * END

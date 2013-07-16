@@ -414,6 +414,7 @@ struct
 	"MULAWB",	LTYPEN, AMULAWB,
 
 	"USEFIELD",	LTYPEN, AUSEFIELD,
+	"PCDATA",	LTYPEPC,	APCDATA,
 
 	0
 };
@@ -523,6 +524,13 @@ zaddr(Gen *a, int s)
 		Bputc(&obuf, a->offset);
 		break;
 
+	case D_CONST2:
+		l = a->offset2;
+		Bputc(&obuf, l);
+		Bputc(&obuf, l>>8);
+		Bputc(&obuf, l>>16);
+		Bputc(&obuf, l>>24);
+		// fall through
 	case D_OREG:
 	case D_CONST:
 	case D_BRANCH:
