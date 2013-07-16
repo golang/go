@@ -610,7 +610,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	top = hash >> (sizeof(uintptr)*8 - 8);
 	if(top == 0)
 		top = 1;
-	inserti = 0;
+	inserti = nil;
 	insertk = nil;
 	insertv = nil;
 	while(true) {
@@ -1485,12 +1485,8 @@ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
 	key = 0;
 	ok = false;
 	res = it->key;
-	if(res == nil) {
-		key = 0;
-		ok = false;
-	} else {
+	if(res != nil) {
 		tkey = it->t->key;
-		key = 0;
 		if(tkey->size <= sizeof(key))
 			tkey->alg->copy(tkey->size, (byte*)&key, res);
 		else
