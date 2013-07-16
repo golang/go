@@ -14,7 +14,7 @@
 // Trap # in BP, args on stack above caller pc.
 // NxM requires that Plan 9 system calls be
 // marked with $0x8000 in AX.
-TEXT	·Syscall(SB),7,$0
+TEXT	·Syscall(SB),7,$0-64
 	CALL	runtime·entersyscall(SB)
 	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
@@ -50,7 +50,7 @@ copyresult3:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall6(SB),7,$0
+TEXT	·Syscall6(SB),7,$0-88
 	CALL	runtime·entersyscall(SB)
 	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
@@ -89,7 +89,7 @@ copyresult4:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT ·RawSyscall(SB),7,$0
+TEXT ·RawSyscall(SB),7,$0-64
 	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
@@ -105,7 +105,7 @@ TEXT ·RawSyscall(SB),7,$0
 	MOVQ	AX, err+56(SP)
 	RET
 
-TEXT	·RawSyscall6(SB),7,$0
+TEXT	·RawSyscall6(SB),7,$0-88
 	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
@@ -127,7 +127,7 @@ TEXT	·RawSyscall6(SB),7,$0
 #define SYS_SEEK 39	/* from zsysnum_plan9_amd64.go */
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
-TEXT ·seek(SB),7,$0
+TEXT ·seek(SB),7,$0-64
 	LEAQ	newoffset+40(SP), AX
 	MOVQ	AX, placeholder+8(SP)
 	
@@ -158,7 +158,7 @@ copyresult6:
 
 //func exit(code int)
 // Import runtime·exit for cleanly exiting.
-TEXT ·exit(SB),7,$8
+TEXT ·exit(SB),7,$8-4
 	MOVQ	code+0(FP), AX
 	MOVQ	AX, 0(SP)
 	CALL	runtime·exit(SB)
