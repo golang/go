@@ -893,13 +893,8 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 	// f(x, y, z...): pass slice z straight through.
 	if e.Ellipsis != 0 {
 		for i, arg := range e.Args {
-			// TODO(gri): annoyingly Signature.Params doesn't
-			// reflect the slice type for a final ...T param.
-			t := sig.Params().At(i).Type()
-			if sig.IsVariadic() && i == len(e.Args)-1 {
-				t = types.NewSlice(t)
-			}
-			args = append(args, emitConv(fn, b.expr(fn, arg), t))
+			v := emitConv(fn, b.expr(fn, arg), sig.Params().At(i).Type())
+			args = append(args, v)
 		}
 		return args
 	}
@@ -935,8 +930,8 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 	// and construction of slice.
 	if sig.IsVariadic() {
 		varargs := args[offset+np:]
-		vt := sig.Params().At(np).Type()
-		st := types.NewSlice(vt)
+		st := sig.Params().At(np).Type().(*types.Slice)
+		vt := st.Elem()
 		if len(varargs) == 0 {
 			args = append(args, nilLiteral(st))
 		} else {

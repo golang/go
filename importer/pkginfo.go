@@ -158,12 +158,12 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		var t0, t1 types.Type
 		t0 = info.TypeOf(e) // infer arg[0] type from result type
 		if e.Ellipsis != 0 {
-			// append([]T, []T) []T
-			// append([]byte, string) []byte
+			// append(tslice, tslice...) []T
+			// append(byteslice, "foo"...) []byte
 			t1 = info.TypeOf(e.Args[1]) // no conversion
 		} else {
-			// append([]T, ...T) []T
-			t1 = t0.Underlying().(*types.Slice).Elem()
+			// append([]T, x, y, z) []T
+			t1 = t0.Underlying()
 			isVariadic = true
 		}
 		params = append(params,
@@ -175,7 +175,7 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		// Note, arg0 may have any type, not necessarily tEface.
 		params = append(params,
 			types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])),
-			types.NewVar(token.NoPos, nil, "", tEface))
+			types.NewVar(token.NoPos, nil, "", types.NewSlice(tEface)))
 
 	case "close":
 		params = append(params, types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])))
