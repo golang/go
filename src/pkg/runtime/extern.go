@@ -78,18 +78,8 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
 // It returns the number of entries written to pc.
 func Callers(skip int, pc []uintptr) int
 
-type Func struct { // Keep in sync with runtime.h:struct Func
-	name   string
-	typ    string  // go type string
-	src    string  // src file name
-	pcln   []byte  // pc/ln tab for this func
-	entry  uintptr // entry pc
-	pc0    uintptr // starting pc, ln for table
-	ln0    int32
-	frame  int32   // stack frame size
-	args   int32   // in/out args size
-	locals int32   // locals size
-	ptrs   []int32 // pointer map
+type Func struct {
+	opaque struct{} // unexported field to disallow conversions
 }
 
 // FuncForPC returns a *Func describing the function that contains the
@@ -97,10 +87,14 @@ type Func struct { // Keep in sync with runtime.h:struct Func
 func FuncForPC(pc uintptr) *Func
 
 // Name returns the name of the function.
-func (f *Func) Name() string { return f.name }
+func (f *Func) Name() string {
+	return funcname_go(f)
+}
 
 // Entry returns the entry address of the function.
-func (f *Func) Entry() uintptr { return f.entry }
+func (f *Func) Entry() uintptr {
+	return funcentry_go(f)
+}
 
 // FileLine returns the file name and line number of the
 // source code corresponding to the program counter pc.
@@ -112,6 +106,8 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 
 // implemented in symtab.c
 func funcline_go(*Func, uintptr) (string, int)
+func funcname_go(*Func) string
+func funcentry_go(*Func) uintptr
 
 // SetFinalizer sets the finalizer associated with x to f.
 // When the garbage collector finds an unreachable block

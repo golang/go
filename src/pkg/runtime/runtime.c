@@ -294,12 +294,11 @@ runtime·Caller(intgo skip, uintptr retpc, String retfile, intgo retline, bool r
 		retbool = true;  // have retpc at least
 	} else {
 		retpc = rpc[1];
-		retfile = f->src;
 		pc = retpc;
 		g = runtime·findfunc(rpc[0]);
 		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
 			pc--;
-		retline = runtime·funcline(f, pc);
+		retline = runtime·funcline(f, pc, &retfile);
 		retbool = true;
 	}
 	FLUSH(&retpc);

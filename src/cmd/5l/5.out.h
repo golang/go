@@ -197,8 +197,12 @@ enum	as
 	AMULAWB,
 	
 	AUSEFIELD,
-	ALOCALS,
 	ATYPE,
+	AFUNCDATA,
+	APCDATA,
+
+	// TODO: Remove these.
+	ALOCALS,
 	ANPTRS,
 	APTRS,
 

@@ -316,6 +316,7 @@ main(int argc, char *argv[])
 	span();
 	addexport();
 	textaddress();
+	functab();
 	pclntab();
 	symtab();
 	dodata();
@@ -552,6 +553,7 @@ loop:
 		addhist(p->line, D_FILE);		/* 'z' */
 		if(p->to.offset)
 			addhist(p->to.offset, D_FILE1);	/* 'Z' */
+		savehist(p->line, p->to.offset);
 		histfrogp = 0;
 		goto loop;
 
@@ -695,6 +697,7 @@ loop:
 			diag("%s: redefinition: %s\n%P", pn, s->name, p);
 		}
 		s->type = STEXT;
+		s->hist = gethist();
 		s->value = pc;
 		s->args = p->to.offset2;
 		s->nptrs = -1;

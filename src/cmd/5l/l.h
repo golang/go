@@ -172,6 +172,7 @@ struct	Sym
 	char*	dynimplib;
 	char*	dynimpvers;
 	struct Section*	sect;
+	struct Hist*	hist;
 	
 	// STEXT
 	Auto*	autom;
@@ -282,7 +283,7 @@ enum
 	MINSIZ		= 64,
 	NENT		= 100,
 	MAXIO		= 8192,
-	MAXHIST		= 20,	/* limit of path elements for history symbols */
+	MAXHIST		= 40,	/* limit of path elements for history symbols */
 	MINLC	= 4,
 };
 
@@ -319,7 +320,6 @@ EXTERN	char*	rpath;
 EXTERN	uint32	stroffset;
 EXTERN	int32	symsize;
 EXTERN	Sym*	textp;
-EXTERN	int	version;
 EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;

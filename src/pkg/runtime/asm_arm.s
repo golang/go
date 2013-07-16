@@ -368,12 +368,12 @@ havem:
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 
 	// Push gobuf.pc
+	// Frame size here must match the frame size above plus the push
+	// to trick traceback routines into doing the right thing.
 	MOVW	(g_sched+gobuf_pc)(g), R5
-	MOVW.W	R5, -16(R4)
+	MOVW.W	R5, -20(R4)
 
 	// Push arguments to cgocallbackg.
-	// Frame size here must match the frame size above
-	// to trick traceback routines into doing the right thing.
 	MOVW	R0, 4(R4)
 	MOVW	R1, 8(R4)
 	MOVW	R2, 12(R4)
@@ -385,7 +385,7 @@ havem:
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVW	0(R13), R5
 	MOVW	R5, (g_sched+gobuf_pc)(g)
-	ADD	$(12+4), R13, R4
+	ADD	$(16+4), R13, R4
 	MOVW	R4, (g_sched+gobuf_sp)(g)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.

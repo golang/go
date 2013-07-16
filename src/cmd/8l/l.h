@@ -159,6 +159,7 @@ struct	Sym
 	char*	dynimplib;
 	char*	dynimpvers;
 	struct Section*	sect;
+	struct Hist*	hist;	// for ATEXT
 	
 	// STEXT
 	Auto*	autom;
@@ -187,7 +188,7 @@ enum
 	STRINGSZ	= 200,
 	MINLC		= 1,
 	MAXIO		= 8192,
-	MAXHIST		= 20,				/* limit of path elements for history symbols */
+	MAXHIST		= 40,				/* limit of path elements for history symbols */
 
 	Yxxx		= 0,
 	Ynone,
@@ -313,7 +314,6 @@ EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
 EXTERN	Sym*	textp;
 EXTERN	int32	textsize;
-EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
 EXTERN	int	tlsoffset;

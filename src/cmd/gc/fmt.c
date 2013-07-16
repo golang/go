@@ -415,6 +415,8 @@ Zconv(Fmt *fp)
 
 	s = sp->s;
 	se = s + sp->len;
+
+	// NOTE: Keep in sync with ../ld/go.c:/^Zconv.
 	while(s < se) {
 		n = chartorune(&r, s);
 		s += n;

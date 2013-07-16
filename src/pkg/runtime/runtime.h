@@ -401,21 +401,25 @@ enum
 	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
 };
 
-// NOTE(rsc): keep in sync with extern.go:/type.Func.
-// Eventually, the loaded symbol table should be closer to this form.
+// layout of in-memory per-function information prepared by linker
+// See http://golang.org/s/go12symtab.
 struct	Func
 {
-	String	name;
-	String	type;	// go type string
-	String	src;	// src file name
-	Slice	pcln;	// pc/ln tab for this func
-	uintptr	entry;	// entry pc
-	uintptr	pc0;	// starting pc, ln for table
-	int32	ln0;
-	int32	frame;	// stack frame size
+	String	*name;	// function name
+	uintptr	entry;	// start pc
+	
+	// TODO: Remove these fields.
 	int32	args;	// in/out args size
 	int32	locals;	// locals size
-	Slice	ptrs;	// pointer map
+	int32	frame;	// legacy frame size; use pcsp if possible
+	int32	ptrsoff;
+	int32	ptrslen;
+
+	int32	pcsp;
+	int32	pcfile;
+	int32	pcln;
+	int32	npcdata;
+	int32	nfuncdata;
 };
 
 // layout of Itab known to compilers
@@ -790,7 +794,9 @@ void	runtime·unminit(void);
 void	runtime·signalstack(byte*, int32);
 void	runtime·symtabinit(void);
 Func*	runtime·findfunc(uintptr);
-int32	runtime·funcline(Func*, uintptr);
+int32	runtime·funcline(Func*, uintptr, String*);
+int32	runtime·funcarglen(Func*, uintptr);
+int32	runtime·funcspdelta(Func*, uintptr);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);

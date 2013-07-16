@@ -15,15 +15,18 @@ void _mod(void);
 void _divu(void);
 void _modu(void);
 
+static String unknown = { (uint8*)"?", 1 };
+
 int32
 runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
 {
-	int32 i, n, nprint, skip0;
+	int32 i, n, nprint, skip0, line;
 	uintptr x, tracepc;
 	bool waspanic, printing;
 	Func *f, *f2;
 	Stkframe frame;
 	Stktop *stk;
+	String file;
 
 	skip0 = skip;
 
@@ -76,11 +79,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// Derive frame pointer and link register.
 		if(frame.lr == 0)
 			frame.lr = *(uintptr*)frame.sp;
-		if(frame.fp == 0) {
-			frame.fp = frame.sp;
-			if(frame.pc > f->entry && f->frame >= sizeof(uintptr))
-				frame.fp += f->frame;
-		}
+		if(frame.fp == 0)
+			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
 
 		// Derive size of arguments.
 		frame.argp = (byte*)frame.fp + sizeof(uintptr);
@@ -96,7 +96,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
 			frame.arglen = f2->frame; // conservative overestimate
 		else {
-			runtime·printf("runtime: unknown argument frame size for %S\n", f->name);
+			runtime·printf("runtime: unknown argument frame size for %S\n", *f->name);
 			if(!printing)
 				runtime·throw("invalid stack");
 		}
@@ -113,7 +113,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.varlen = frame.fp - frame.sp;
 		} else {
 			if(f->locals > frame.fp - frame.sp) {
-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, f->name);
+				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, *f->name);
 				runtime·throw("invalid stack");
 			}
 			frame.varp = (byte*)frame.fp - f->locals;
@@ -138,7 +138,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
 				if(n > 0 && frame.pc > f->entry && !waspanic)
 					tracepc -= sizeof(uintptr);
-				runtime·printf("%S(", f->name);
+				runtime·printf("%S(", *f->name);
 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
 					if(i >= 5) {
 						runtime·prints(", ...");
@@ -149,7 +149,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 					runtime·printhex(((uintptr*)frame.argp)[i]);
 				}
 				runtime·prints(")\n");
-				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+				line = runtime·funcline(f, tracepc, &file);
+				runtime·printf("\t%S:%d", file, line);
 				if(frame.pc > f->entry)
 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
 				if(m->throwing && gp == m->curg)
@@ -164,7 +165,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		waspanic = f->entry == (uintptr)runtime·sigpanic;
 
 		// Do not unwind past the bottom of the stack.
-		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)_rt0_go)
 			break;
 
 		// Unwind to next frame.
@@ -172,16 +173,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		frame.lr = 0;
 		frame.sp = frame.fp;
 		frame.fp = 0;
-		
-		// If this was div or divu or mod or modu, the caller had
-		// an extra 8 bytes on its stack.  Adjust sp.
-		if(f->entry == (uintptr)_div || f->entry == (uintptr)_divu || f->entry == (uintptr)_mod || f->entry == (uintptr)_modu)
-			frame.sp += 8;
-		
-		// If this was deferproc or newproc, the caller had an extra 12.
-		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
-			frame.sp += 12;
-
+	
 		// sighandler saves the lr on stack before faking a call to sigpanic
 		if(waspanic) {
 			x = *(uintptr*)frame.sp;
@@ -203,16 +195,19 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 static void
 printcreatedby(G *gp)
 {
+	int32 line;
 	uintptr pc, tracepc;
 	Func *f;
+	String file;
 
 	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
 		&& runtime·showframe(f, gp) && gp->goid != 1) {
-		runtime·printf("created by %S\n", f->name);
+		runtime·printf("created by %S\n", *f->name);
 		tracepc = pc;	// back up to CALL instruction for funcline.
 		if(pc > f->entry)
 			tracepc -= sizeof(uintptr);
-		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+		line = runtime·funcline(f, tracepc, &file);
+		runtime·printf("\t%S:%d", file, line);
 		if(pc > f->entry)
 			runtime·printf(" +%p", (uintptr)(pc - f->entry));
 		runtime·printf("\n");
