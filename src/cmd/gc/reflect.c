@@ -474,6 +474,8 @@ haspointers(Type *t)
 	case TUINTPTR:
 	case TFLOAT32:
 	case TFLOAT64:
+	case TCOMPLEX64:
+	case TCOMPLEX128:
 	case TBOOL:
 		return 0;
 	case TARRAY:
