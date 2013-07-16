@@ -410,15 +410,19 @@ runtime·dopanic(int32 unused)
 {
 	static bool didothers;
 	bool crash;
+	int32 t;
 
 	if(g->sig != 0)
 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
 
-	if(runtime·gotraceback(&crash)){
+	if((t = runtime·gotraceback(&crash)) > 0){
 		if(g != m->g0) {
 			runtime·printf("\n");
 			runtime·goroutineheader(g);
+			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
+		} else if(t >= 2) {
+			runtime·printf("\nruntime stack:\n");
 			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
 		}
 		if(!didothers) {
