@@ -2131,9 +2131,9 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 				for(; tn; tn=tn->down) {
 					if(assignop(tn->type, tl->type->type, &why) == 0) {
 						if(call != N)
-							yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type, call, why);
+							yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type->type, call, why);
 						else
-							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
 					}
 				}
 				goto out;
