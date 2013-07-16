@@ -298,6 +298,7 @@ void	patch(Prog*, int32);
 int	sconst(Node*);
 void	gpseudo(int, Sym*, Node*);
 void	gprefetch(Node*);
+void	gpcdata(int, int);
 
 /*
  * swt.c

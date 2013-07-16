@@ -30,6 +30,17 @@
 
 #include "gc.h"
 
+int
+hasdotdotdot(void)
+{
+	Type *t;
+
+	for(t=thisfn->down; t!=T; t=t->down)
+		if(t->etype == TDOT)
+			return 1;
+	return 0;
+}
+
 vlong
 argsize(void)
 {

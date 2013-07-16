@@ -1519,6 +1519,15 @@ gpseudo(int a, Sym *s, Node *n)
 }
 
 void
+gpcdata(int index, int value)
+{
+	Node n1;
+	
+	n1 = *nodconst(index);
+	gins(APCDATA, &n1, nodconst(value));
+}
+
+void
 gprefetch(Node *n)
 {
 	Node n1;
