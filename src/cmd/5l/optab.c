@@ -246,6 +246,8 @@ Optab	optab[] =
 	{ AMULAWT,	C_REG,	C_REG,	C_REGREG2,		99, 4, 0 },
 
 	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, 	 0, 0, 0 },
+	{ APCDATA,	C_LCON,	C_NONE,	C_LCON,		0, 0, 0 },
+	{ AFUNCDATA,	C_LCON,	C_NONE,	C_ADDR,	0, 0, 0 },
 
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };

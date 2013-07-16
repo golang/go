@@ -141,7 +141,7 @@ span(void)
 				if(checkpool(op, p->as == ACASE ? casesz(p) : m))
 					c = p->pc = scan(op, p, c);
 			}
-			if(m == 0) {
+			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
 				diag("zero-width instruction\n%P", p);
 				continue;
 			}
@@ -211,7 +211,7 @@ span(void)
 				}
  */
 				m = o->size;
-				if(m == 0) {
+				if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
 					if(p->as == ATEXT) {
 						autosize = p->to.offset + 4;
 						if(p->from.sym != S)
@@ -890,6 +890,8 @@ buildop(void)
 		case APLD:
 		case AUNDEF:
 		case ACLZ:
+		case AFUNCDATA:
+		case APCDATA:
 			break;
 		}
 	}

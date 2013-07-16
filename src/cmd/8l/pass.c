@@ -410,7 +410,7 @@ dostkoff(void)
 {
 	Prog *p, *q, *q1;
 	int32 autoffset, deltasp;
-	int a;
+	int a, arg;
 	Prog *pmorestack;
 	Sym *symmorestack;
 	Sym *plan9_tos;
@@ -623,11 +623,16 @@ dostkoff(void)
 			if(StackTop + cursym->text->to.offset2 + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
 				p->from.offset = (autoffset+7) & ~7LL;
 
+			arg = cursym->text->to.offset2;
+			if(arg == 1) // special marker for known 0
+				arg = 0;
+			if(arg&3)
+				diag("misaligned argument size in stack split");
 			p = appendp(p);	// save arg size in AX
 			p->as = AMOVL;
 			p->to.type = D_AX;
 			p->from.type = D_CONST;
-			p->from.offset = cursym->text->to.offset2;
+			p->from.offset = arg;
 
 			p = appendp(p);
 			p->as = ACALL;

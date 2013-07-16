@@ -58,6 +58,7 @@ noops(void)
 {
 	Prog *p, *q, *q1, *q2;
 	int o;
+	int32 arg;
 	Prog *pmorestack;
 	Sym *symmorestack;
 
@@ -272,7 +273,12 @@ noops(void)
 					p->as = AMOVW;
 					p->scond = C_SCOND_LS;
 					p->from.type = D_CONST;
-					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
+					arg = cursym->text->to.offset2;
+					if(arg == 1) // special marker for known 0
+						arg = 0;
+					if(arg&3)
+						diag("misaligned argument size in stack split");
+					p->from.offset = arg;
 					p->to.type = D_REG;
 					p->to.reg = 2;
 	
