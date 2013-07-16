@@ -23,5 +23,5 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	d += (time.Second - time.Nanosecond)
 	secs := int(d.Seconds())
 
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs))
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.SO_KEEPALIVE, secs))
 }
