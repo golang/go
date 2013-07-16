@@ -115,8 +115,22 @@ clearfat(Node *nl)
 void
 ginscall(Node *f, int proc)
 {
+	int32 arg;
 	Prog *p;
 	Node reg, r1, con;
+
+	if(f->type != T)
+		setmaxarg(f->type);
+
+	arg = -1;
+	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+		arg = f->type->argwid;
+		if(proc == 1 || proc == 2)
+			arg += 2*widthptr;
+	}
+
+	if(arg != -1)
+		gargsize(arg);
 
 	switch(proc) {
 	default:
@@ -177,6 +191,9 @@ ginscall(Node *f, int proc)
 		}
 		break;
 	}
+	
+	if(arg != -1)
+		gargsize(-1);
 }
 
 /*
@@ -237,14 +254,11 @@ cgen_callinter(Node *n, Node *res, int proc)
 		gins(ALEAL, &nodo, &nodr);	// REG = &(20+offset(REG)) -- i.tab->fun[f]
 	}
 
-	// BOTCH nodr.type = fntype;
 	nodr.type = n->left->type;
 	ginscall(&nodr, proc);
 
 	regfree(&nodr);
 	regfree(&nodo);
-
-	setmaxarg(n->left->type);
 }
 
 /*
@@ -271,8 +285,6 @@ cgen_call(Node *n, int proc)
 
 	genlist(n->list);		// assign the args
 	t = n->left->type;
-
-	setmaxarg(t);
 
 	// call tempname pointer
 	if(n->left->ullman >= UINF) {

@@ -31,6 +31,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
+#include "../../pkg/runtime/funcdata.h"
 
 // TODO(rsc): Can make this bigger if we move
 // the text segment up higher in 5l for all GOOS.
@@ -207,6 +208,16 @@ ggloblnod(Node *nam)
 		p->reg = RODATA;
 	if(nam->type != T && !haspointers(nam->type))
 		p->reg |= NOPTR;
+}
+
+void
+gargsize(int32 size)
+{
+	Node n1, n2;
+	
+	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
+	nodconst(&n2, types[TINT32], size);
+	gins(APCDATA, &n1, &n2);
 }
 
 void

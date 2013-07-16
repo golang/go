@@ -131,6 +131,7 @@ int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*, Node*);
 void	nodfconst(Node*, Type*, Mpflt*);
 void	gtrack(Sym*);
+void	gargsize(vlong);
 
 /*
  * cplx.c
