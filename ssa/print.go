@@ -47,7 +47,7 @@ func relName(v Value, i Instruction) string {
 // This method is provided only for debugging.
 // It never appears in disassembly, which uses Value.Name().
 
-func (v *Literal) String() string {
+func (v *Const) String() string {
 	return v.Name()
 }
 
@@ -379,7 +379,7 @@ func (p *Package) DumpTo(w io.Writer) {
 	sort.Strings(names)
 	for _, name := range names {
 		switch mem := p.Members[name].(type) {
-		case *Constant:
+		case *NamedConst:
 			fmt.Fprintf(w, "  const %-*s %s = %s\n", maxname, name, mem.Name(), mem.Value.Name())
 
 		case *Function:

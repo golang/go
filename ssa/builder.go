@@ -55,10 +55,10 @@ var (
 	tEface      = new(types.Interface)
 
 	// SSA Value constants.
-	vZero  = intLiteral(0)
-	vOne   = intLiteral(1)
-	vTrue  = NewLiteral(exact.MakeBool(true), tBool)
-	vFalse = NewLiteral(exact.MakeBool(false), tBool)
+	vZero  = intConst(0)
+	vOne   = intConst(1)
+	vTrue  = NewConst(exact.MakeBool(true), tBool)
+	vFalse = NewConst(exact.MakeBool(false), tBool)
 )
 
 // builder holds state associated with the package currently being built.
@@ -126,7 +126,7 @@ func (b *builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
 	}
 
 	switch cond := b.expr(fn, e).(type) {
-	case *Literal:
+	case *Const:
 		// Dispatch constant conditions statically.
 		if exact.BoolVal(cond.Value) {
 			emitJump(fn, t)
@@ -313,7 +313,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		t := deref(fn.Pkg.typeOf(args[0])).Underlying()
 		if at, ok := t.(*types.Array); ok {
 			b.expr(fn, args[0]) // for effects only
-			return intLiteral(at.Len())
+			return intConst(at.Len())
 		}
 		// Otherwise treat as normal.
 
@@ -547,11 +547,11 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 //
 func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		lit := NewLiteral(v, fn.Pkg.typeOf(e))
+		c := NewConst(v, fn.Pkg.typeOf(e))
 		if id, ok := unparen(e).(*ast.Ident); ok {
-			emitDebugRef(fn, id, lit)
+			emitDebugRef(fn, id, c)
 		}
-		return lit
+		return c
 	}
 
 	switch e := e.(type) {
@@ -933,7 +933,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 		st := sig.Params().At(np).Type().(*types.Slice)
 		vt := st.Elem()
 		if len(varargs) == 0 {
-			args = append(args, nilLiteral(st))
+			args = append(args, nilConst(st))
 		} else {
 			// Replace a suffix of args with a slice containing it.
 			at := types.NewArray(vt, int64(len(varargs)))
@@ -942,7 +942,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{
 					X:     a,
-					Index: intLiteral(int64(i)),
+					Index: intConst(int64(i)),
 				}
 				iaddr.setType(types.NewPointer(vt))
 				fn.emit(iaddr)
@@ -1120,8 +1120,6 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 		for _, id := range spec.Names {
 			if !isBlankIdent(id) {
 				lhs := fn.addLocalForIdent(id)
-				// TODO(adonovan): opt: use zero literal in
-				// lieu of load, if type permits.
 				if fn.debugInfo() {
 					emitDebugRef(fn, id, emitLoad(fn, lhs))
 				}
@@ -1201,7 +1199,7 @@ func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 	var i int64 = -1
 	for _, e := range elts {
 		if kv, ok := e.(*ast.KeyValueExpr); ok {
-			i = b.expr(fn, kv.Key).(*Literal).Int64()
+			i = b.expr(fn, kv.Key).(*Const).Int64()
 		} else {
 			i++
 		}
@@ -1258,17 +1256,17 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			array = addr
 		}
 
-		var idx *Literal
+		var idx *Const
 		for _, e := range e.Elts {
 			if kv, ok := e.(*ast.KeyValueExpr); ok {
-				idx = b.expr(fn, kv.Key).(*Literal)
+				idx = b.expr(fn, kv.Key).(*Const)
 				e = kv.Value
 			} else {
 				var idxval int64
 				if idx != nil {
 					idxval = idx.Int64() + 1
 				}
-				idx = intLiteral(idxval)
+				idx = intConst(idxval)
 			}
 			iaddr := &IndexAddr{
 				X:     array,
@@ -1286,7 +1284,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 		}
 
 	case *types.Map:
-		m := &MakeMap{Reserve: intLiteral(int64(len(e.Elts)))}
+		m := &MakeMap{Reserve: intConst(int64(len(e.Elts)))}
 		m.setPos(e.Lbrace)
 		m.setType(typ)
 		emitStore(fn, addr, fn.emit(m))
@@ -1474,7 +1472,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			casetype = fn.Pkg.typeOf(cond)
 			var condv Value
 			if casetype == tUntypedNil {
-				condv = emitCompare(fn, token.EQL, x, nilLiteral(x.Type()), token.NoPos)
+				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
 			} else {
 				yok := emitTypeTest(fn, x, casetype, token.NoPos)
 				ti = emitExtract(fn, yok, 0, casetype)
@@ -1616,7 +1614,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		}
 		body := fn.newBasicBlock("select.body")
 		next := fn.newBasicBlock("select.next")
-		emitIf(fn, emitCompare(fn, token.EQL, idx, intLiteral(int64(state)), token.NoPos), body, next)
+		emitIf(fn, emitCompare(fn, token.EQL, idx, intConst(int64(state)), token.NoPos), body, next)
 		fn.currentBlock = body
 		fn.targets = &targets{
 			tail:   fn.targets,
@@ -1741,7 +1739,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 		// data dependence upon x, permitting later dead-code
 		// elimination if x is pure, static unrolling, etc.
 		// Ranging over a nil *array may have >0 iterations.
-		length = intLiteral(arr.Len())
+		length = intConst(arr.Len())
 	} else {
 		// length = len(x).
 		var c Call
@@ -1752,7 +1750,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	}
 
 	index := fn.addLocal(tInt, token.NoPos)
-	emitStore(fn, index, intLiteral(-1))
+	emitStore(fn, index, intConst(-1))
 
 	loop = fn.newBasicBlock("rangeindex.loop")
 	emitJump(fn, loop)

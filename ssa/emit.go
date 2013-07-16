@@ -110,9 +110,9 @@ func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 		y = emitConv(f, y, x.Type())
 	} else if _, ok := yt.(*types.Interface); ok {
 		x = emitConv(f, x, y.Type())
-	} else if _, ok := x.(*Literal); ok {
+	} else if _, ok := x.(*Const); ok {
 		x = emitConv(f, x, y.Type())
-	} else if _, ok := y.(*Literal); ok {
+	} else if _, ok := y.(*Const); ok {
 		y = emitConv(f, y, x.Type())
 	} else {
 		// other cases, e.g. channels.  No-op.
@@ -188,9 +188,9 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			return emitTypeAssert(f, val, typ, token.NoPos)
 		}
 
-		// Untyped nil literal?  Return interface-typed nil literal.
+		// Untyped nil constant?  Return interface-typed nil constant.
 		if ut_src == tUntypedNil {
-			return nilLiteral(typ)
+			return nilConst(typ)
 		}
 
 		// Convert (non-nil) "untyped" literals to their default type.
@@ -203,13 +203,13 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		return f.emit(mi)
 	}
 
-	// Conversion of a literal to a non-interface type results in
-	// a new literal of the destination type and (initially) the
+	// Conversion of a constant to a non-interface type results in
+	// a new constant of the destination type and (initially) the
 	// same abstract value.  We don't compute the representation
 	// change yet; this defers the point at which the number of
 	// possible representations explodes.
-	if l, ok := val.(*Literal); ok {
-		return NewLiteral(l.Value, typ)
+	if c, ok := val.(*Const); ok {
+		return NewConst(c.Value, typ)
 	}
 
 	// A representation-changing conversion.

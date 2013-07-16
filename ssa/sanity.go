@@ -173,8 +173,8 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		}
 	}
 
-	// TODO(adonovan): sanity-check Literals used as instruction Operands(),
-	// e.g. reject Literals with "untyped" types.
+	// TODO(adonovan): sanity-check Consts used as instruction Operands(),
+	// e.g. reject Consts with "untyped" types.
 	//
 	// All other non-Instruction Values can be found via their
 	// enclosing Function or Package.

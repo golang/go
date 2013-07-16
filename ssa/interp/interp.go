@@ -110,8 +110,8 @@ func (fr *frame) get(key ssa.Value) value {
 		return nil
 	case *ssa.Function, *ssa.Builtin:
 		return key
-	case *ssa.Literal:
-		return literalValue(key)
+	case *ssa.Const:
+		return constValue(key)
 	case *ssa.Global:
 		if r, ok := fr.i.globals[key]; ok {
 			return r

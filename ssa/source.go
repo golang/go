@@ -201,7 +201,7 @@ func (prog *Program) Package(obj *types.Package) *Package {
 
 // packageLevelValue returns the package-level value corresponding to
 // the specified named object, which may be a package-level const
-// (*Literal), var (*Global) or func (*Function) of some package in
+// (*Const), var (*Global) or func (*Function) of some package in
 // prog.  It returns nil if the object is not found.
 //
 func (prog *Program) packageLevelValue(obj types.Object) Value {
@@ -233,21 +233,21 @@ func (prog *Program) FuncValue(obj *types.Func) Value {
 }
 
 // ConstValue returns the SSA Value denoted by the source-level named
-// constant obj.  The result may be a *Literal, or nil if not found.
+// constant obj.  The result may be a *Const, or nil if not found.
 //
-func (prog *Program) ConstValue(obj *types.Const) *Literal {
+func (prog *Program) ConstValue(obj *types.Const) *Const {
 	// TODO(adonovan): opt: share (don't reallocate)
-	// Literals for const objects.
+	// Consts for const objects.
 
 	// Universal constant? {true,false,nil}
 	if obj.Parent() == types.Universe {
-		return NewLiteral(obj.Val(), obj.Type())
+		return NewConst(obj.Val(), obj.Type())
 	}
 	// Package-level named constant?
 	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Literal)
+		return v.(*Const)
 	}
-	return NewLiteral(obj.Val(), obj.Type())
+	return NewConst(obj.Val(), obj.Type())
 }
 
 // VarValue returns the SSA Value that corresponds to a specific

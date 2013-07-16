@@ -25,7 +25,7 @@ func TestObjValueLookup(t *testing.T) {
 	}
 
 	// Maps each var Ident (represented "name:linenum") to the
-	// kind of ssa.Value we expect (represented "Literal", "&Alloc").
+	// kind of ssa.Value we expect (represented "Constant", "&Alloc").
 	expectations := make(map[string]string)
 
 	// Find all annotations of form x::BinOp, &y::Alloc, etc.
@@ -127,20 +127,20 @@ func checkFuncValue(t *testing.T, prog *ssa.Program, obj *types.Func) {
 }
 
 func checkConstValue(t *testing.T, prog *ssa.Program, obj *types.Const) {
-	lit := prog.ConstValue(obj)
-	// fmt.Printf("ConstValue(%s) = %s\n", obj, lit) // debugging
-	if lit == nil {
+	c := prog.ConstValue(obj)
+	// fmt.Printf("ConstValue(%s) = %s\n", obj, c) // debugging
+	if c == nil {
 		t.Errorf("ConstValue(%s) == nil", obj)
 		return
 	}
-	if !types.IsIdentical(lit.Type(), obj.Type()) {
-		t.Errorf("ConstValue(%s).Type() == %s", obj, lit.Type())
+	if !types.IsIdentical(c.Type(), obj.Type()) {
+		t.Errorf("ConstValue(%s).Type() == %s", obj, c.Type())
 		return
 	}
 	if obj.Name() != "nil" {
-		if !exact.Compare(lit.Value, token.EQL, obj.Val()) {
+		if !exact.Compare(c.Value, token.EQL, obj.Val()) {
 			t.Errorf("ConstValue(%s).Value (%s) != %s",
-				obj, lit.Value, obj.Val())
+				obj, c.Value, obj.Val())
 			return
 		}
 	}

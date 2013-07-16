@@ -50,7 +50,7 @@ type Package struct {
 	info    *importer.PackageInfo // package ASTs and type information
 }
 
-// A Member is a member of a Go package, implemented by *Constant,
+// A Member is a member of a Go package, implemented by *NamedConst,
 // *Global, *Function, or *Type; they are created by package-level
 // const, var, func and type declarations respectively.
 //
@@ -100,18 +100,18 @@ type Type struct {
 	object *types.TypeName
 }
 
-// A Constant is a Member of Package representing a package-level
-// constant value.
+// A NamedConst is a Member of Package representing a package-level
+// named constant value.
 //
 // Pos() returns the position of the declaring ast.ValueSpec.Names[*]
 // identifier.
 //
-// NB: a Constant is not a Value; it contains a literal Value, which
+// NB: a NamedConst is not a Value; it contains a constant Value, which
 // it augments with the name and position of its 'const' declaration.
 //
-type Constant struct {
+type NamedConst struct {
 	object *types.Const
-	Value  *Literal
+	Value  *Const
 	pos    token.Pos
 }
 
@@ -123,7 +123,7 @@ type Value interface {
 	//
 	// This is the same as the source name for Parameters,
 	// Builtins, Functions, Captures, Globals and some Allocs.
-	// For literals, it is a representation of the literal's value
+	// For constants, it is a representation of the constant's value
 	// and type.  For all other Values this is the name of the
 	// virtual register defined by the instruction.
 	//
@@ -151,7 +151,7 @@ type Value interface {
 	//
 	// Referrers is currently only defined for the function-local
 	// values Capture, Parameter and all value-defining instructions.
-	// It returns nil for Function, Builtin, Literal and Global.
+	// It returns nil for Function, Builtin, Const and Global.
 	//
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
@@ -358,22 +358,22 @@ type Parameter struct {
 	referrers []Instruction
 }
 
-// A Literal represents the value of a constant expression.
+// A Const represents the value of a constant expression.
 //
 // It may have a nil, boolean, string or numeric (integer, fraction or
 // complex) value, or a []byte or []rune conversion of a string
-// literal.
+// constant.
 //
-// Literals may be of named types.  A literal's underlying type can be
+// Consts may be of named types.  A constant's underlying type can be
 // a basic type, possibly one of the "untyped" types, or a slice type
-// whose elements' underlying type is byte or rune.  A nil literal can
+// whose elements' underlying type is byte or rune.  A nil constant can
 // have any reference type: interface, map, channel, pointer, slice,
 // or function---but not "untyped nil".
 //
-// All source-level constant expressions are represented by a Literal
+// All source-level constant expressions are represented by a Const
 // of equal type and value.
 //
-// Value holds the exact value of the literal, independent of its
+// Value holds the exact value of the constant, independent of its
 // Type(), using the same representation as package go/exact uses for
 // constants.
 //
@@ -384,7 +384,7 @@ type Parameter struct {
 //	"hello":untyped string
 //	3+4i:MyComplex
 //
-type Literal struct {
+type Const struct {
 	typ   types.Type
 	Value exact.Value
 }
@@ -619,7 +619,7 @@ type ChangeInterface struct {
 // Use Program.MethodSet(X.Type()) to find the method-set of X.
 //
 // To construct the zero value of an interface type T, use:
-// 	NewLiteral(exact.MakeNil(), T, pos)
+// 	NewConst(exact.MakeNil(), T, pos)
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
 // from an explicit conversion in the source.
@@ -1384,14 +1384,14 @@ func (t *Type) String() string {
 	return fmt.Sprintf("%s.%s", t.object.Pkg().Path(), t.object.Name())
 }
 
-func (c *Constant) Name() string   { return c.object.Name() }
-func (c *Constant) Pos() token.Pos { return c.object.Pos() }
-func (c *Constant) String() string {
+func (c *NamedConst) Name() string   { return c.object.Name() }
+func (c *NamedConst) Pos() token.Pos { return c.object.Pos() }
+func (c *NamedConst) String() string {
 	return fmt.Sprintf("%s.%s", c.object.Pkg().Path(), c.object.Name())
 }
-func (c *Constant) Type() types.Type     { return c.object.Type() }
-func (c *Constant) Token() token.Token   { return token.CONST }
-func (c *Constant) Object() types.Object { return c.object }
+func (c *NamedConst) Type() types.Type     { return c.object.Type() }
+func (c *NamedConst) Token() token.Token   { return token.CONST }
+func (c *NamedConst) Object() types.Object { return c.object }
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.
@@ -1412,8 +1412,8 @@ func (p *Package) Var(name string) (g *Global) {
 // Const returns the package-level constant of the specified name,
 // or nil if not found.
 //
-func (p *Package) Const(name string) (c *Constant) {
-	c, _ = p.Members[name].(*Constant)
+func (p *Package) Const(name string) (c *NamedConst) {
+	c, _ = p.Members[name].(*NamedConst)
 	return
 }
 

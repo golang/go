@@ -20,60 +20,60 @@ type targetPanic struct {
 // If the target program calls exit, the interpreter panics with this type.
 type exitPanic int
 
-// literalValue returns the value of the literal with the
-// dynamic type tag appropriate for l.Type().
-func literalValue(l *ssa.Literal) value {
-	if l.IsNil() {
-		return zero(l.Type()) // typed nil
+// constValue returns the value of the constant with the
+// dynamic type tag appropriate for c.Type().
+func constValue(c *ssa.Const) value {
+	if c.IsNil() {
+		return zero(c.Type()) // typed nil
 	}
 
 	// By destination type:
-	switch t := l.Type().Underlying().(type) {
+	switch t := c.Type().Underlying().(type) {
 	case *types.Basic:
-		// TODO(adonovan): eliminate untyped literals from SSA form.
+		// TODO(adonovan): eliminate untyped constants from SSA form.
 		switch t.Kind() {
 		case types.Bool, types.UntypedBool:
-			return exact.BoolVal(l.Value)
+			return exact.BoolVal(c.Value)
 		case types.Int, types.UntypedInt:
 			// Assume sizeof(int) is same on host and target.
-			return int(l.Int64())
+			return int(c.Int64())
 		case types.Int8:
-			return int8(l.Int64())
+			return int8(c.Int64())
 		case types.Int16:
-			return int16(l.Int64())
+			return int16(c.Int64())
 		case types.Int32, types.UntypedRune:
-			return int32(l.Int64())
+			return int32(c.Int64())
 		case types.Int64:
-			return l.Int64()
+			return c.Int64()
 		case types.Uint:
 			// Assume sizeof(uint) is same on host and target.
-			return uint(l.Uint64())
+			return uint(c.Uint64())
 		case types.Uint8:
-			return uint8(l.Uint64())
+			return uint8(c.Uint64())
 		case types.Uint16:
-			return uint16(l.Uint64())
+			return uint16(c.Uint64())
 		case types.Uint32:
-			return uint32(l.Uint64())
+			return uint32(c.Uint64())
 		case types.Uint64:
-			return l.Uint64()
+			return c.Uint64()
 		case types.Uintptr:
 			// Assume sizeof(uintptr) is same on host and target.
-			return uintptr(l.Uint64())
+			return uintptr(c.Uint64())
 		case types.Float32:
-			return float32(l.Float64())
+			return float32(c.Float64())
 		case types.Float64, types.UntypedFloat:
-			return l.Float64()
+			return c.Float64()
 		case types.Complex64:
-			return complex64(l.Complex128())
+			return complex64(c.Complex128())
 		case types.Complex128, types.UntypedComplex:
-			return l.Complex128()
+			return c.Complex128()
 		case types.String, types.UntypedString:
-			if l.Value.Kind() == exact.String {
-				return exact.StringVal(l.Value)
+			if c.Value.Kind() == exact.String {
+				return exact.StringVal(c.Value)
 			}
-			return string(rune(l.Int64()))
+			return string(rune(c.Int64()))
 		case types.UnsafePointer:
-			panic("unsafe.Pointer literal") // not possible
+			panic("unsafe.Pointer constant") // not possible
 		case types.UntypedNil:
 			// nil was handled above.
 		}
@@ -84,13 +84,13 @@ func literalValue(l *ssa.Literal) value {
 			switch et.Kind() {
 			case types.Byte: // string -> []byte
 				var v []value
-				for _, b := range []byte(exact.StringVal(l.Value)) {
+				for _, b := range []byte(exact.StringVal(c.Value)) {
 					v = append(v, b)
 				}
 				return v
 			case types.Rune: // string -> []rune
 				var v []value
-				for _, r := range []rune(exact.StringVal(l.Value)) {
+				for _, r := range []rune(exact.StringVal(c.Value)) {
 					v = append(v, r)
 				}
 				return v
@@ -98,7 +98,7 @@ func literalValue(l *ssa.Literal) value {
 		}
 	}
 
-	panic(fmt.Sprintf("literalValue: Value.(type)=%T Type()=%s", l.Value, l.Type()))
+	panic(fmt.Sprintf("constValue: Value.(type)=%T Type()=%s", c.Value, c.Type()))
 }
 
 // asInt converts x, which must be an integer, to an int suitable for
@@ -161,7 +161,7 @@ func zero(t types.Type) value {
 		if t.Info()&types.IsUntyped != 0 {
 			// TODO(adonovan): make it an invariant that
 			// this is unreachable.  Currently some
-			// literals have 'untyped' types when they
+			// constants have 'untyped' types when they
 			// should be defaulted by the typechecker.
 			t = ssa.DefaultType(t).(*types.Basic)
 		}

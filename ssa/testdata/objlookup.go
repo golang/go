@@ -35,28 +35,28 @@ type S struct {
 }
 
 func main() {
-	var v0 int = 1 // v0::Literal (simple local value spec)
-	if v0 > 0 {    // v0::Literal
-		v0 = 2 // v0::Literal
+	var v0 int = 1 // v0::Const (simple local value spec)
+	if v0 > 0 {    // v0::Const
+		v0 = 2 // v0::Const
 	}
 	print(v0) // v0::Phi
 
 	// v1 is captured and thus implicitly address-taken.
-	var v1 int = 1         // v1::Literal
-	v1 = 2                 // v1::Literal
+	var v1 int = 1         // v1::Const
+	v1 = 2                 // v1::Const
 	fmt.Println(v1)        // v1::UnOp (load)
 	f := func(param int) { // f::MakeClosure param::Parameter
-		if y := 1; y > 0 { // y::Literal
+		if y := 1; y > 0 { // y::Const
 			print(v1, param) // v1::UnOp (load) param::Parameter
 		}
-		param = 2      // param::Literal
-		println(param) // param::Literal
+		param = 2      // param::Const
+		println(param) // param::Const
 	}
 
 	f(0) // f::MakeClosure
 
-	var v2 int // v2::Literal (implicitly zero-initialized local value spec)
-	print(v2)  // v2::Literal
+	var v2 int // v2::Const (implicitly zero-initialized local value spec)
+	print(v2)  // v2::Const
 
 	m := make(map[string]int) // m::MakeMap
 
@@ -68,9 +68,9 @@ func main() {
 	v3++    // v3::BinOp (assign with op)
 	v3 += 2 // v3::BinOp (assign with op)
 
-	v5, v6 := false, "" // v5::Literal v6::Literal (defining assignment)
-	print(v5)           // v5::Literal
-	print(v6)           // v6::Literal
+	v5, v6 := false, "" // v5::Const v6::Const (defining assignment)
+	print(v5)           // v5::Const
+	print(v6)           // v6::Const
 
 	var v7 S // v7::UnOp (load from Alloc)
 	v7.x = 1 // &v7::Alloc
@@ -88,8 +88,8 @@ func main() {
 
 	v10 := &v9 // v10::Alloc &v9::Alloc
 
-	var v11 *J = nil // v11::Literal
-	v11.method()     // v11::Literal
+	var v11 *J = nil // v11::Const
+	v11.method()     // v11::Const
 
 	var v12 J    // v12::UnOp (load from Alloc)
 	v12.method() // &v12::Alloc (implicitly address-taken)
@@ -100,7 +100,7 @@ func main() {
 		println(v13) // v13::nil
 	}
 
-	switch x := 1; x { // x::Literal
+	switch x := 1; x { // x::Const
 	case v0: // v0::Phi
 	}
 
@@ -108,10 +108,10 @@ func main() {
 		v++ // v::BinOp
 	}
 
-	if y := 0; y > 1 { // y::Literal y::Literal
+	if y := 0; y > 1 { // y::Const y::Const
 	}
 
-	var i interface{}      // i::Literal (nil interface)
+	var i interface{}      // i::Const (nil interface)
 	i = 1                  // i::MakeInterface
 	switch i := i.(type) { // i::MakeInterface i::MakeInterface
 	case int:

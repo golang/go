@@ -115,7 +115,7 @@ func lift(fn *Function) {
 	// buildDomTree.  For example:
 	//
 	// - Alloc never loaded?  Eliminate.
-	// - Alloc never stored?  Replace all loads with a zero literal.
+	// - Alloc never stored?  Replace all loads with a zero constant.
 	// - Alloc stored once?  Replace loads with dominating store;
 	//   don't forget that an Alloc is itself an effective store
 	//   of zero.
@@ -187,8 +187,8 @@ func lift(fn *Function) {
 
 	// renaming maps an alloc (keyed by index) to its replacement
 	// value.  Initially the renaming contains nil, signifying the
-	// zero literal of the appropriate type; we construct the
-	// Literal lazily at most once on each path through the domtree.
+	// zero constant of the appropriate type; we construct the
+	// Const lazily at most once on each path through the domtree.
 	// TODO(adonovan): opt: cache per-function not per subtree.
 	renaming := make([]Value, numAllocs)
 
@@ -304,8 +304,8 @@ type newPhiMap map[*BasicBlock][]newPhi
 //
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	// Don't lift aggregates into registers, because we don't have
-	// a way to express their zero-literals.
-	// TODO(adonovan): define zero-literals for aggregates, or
+	// a way to express their zero-constants.
+	// TODO(adonovan): define zero-constants for aggregates, or
 	// add a separate SRA pass.  Lifting aggregates is an
 	// important optimisation for pointer analysis because the
 	// extra indirection really hurts precision under Das's
@@ -426,7 +426,7 @@ func replaceAll(x, y Value) {
 func renamed(renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = zeroLiteral(deref(alloc.Type()))
+		v = zeroConst(deref(alloc.Type()))
 		renaming[alloc.index] = v
 	}
 	return v

@@ -57,7 +57,7 @@
 //   *Capture           ✔
 //   *ChangeInterface   ✔               ✔
 //   *ChangeType        ✔               ✔
-//   *Constant                                          ✔ (const)
+//   *Const             ✔
 //   *Convert           ✔               ✔
 //   *Defer                             ✔
 //   *Extract           ✔               ✔
@@ -70,7 +70,6 @@
 //   *Index             ✔               ✔
 //   *IndexAddr         ✔               ✔
 //   *Jump                              ✔
-//   *Literal           ✔
 //   *Lookup            ✔               ✔
 //   *MakeChan          ✔               ✔
 //   *MakeClosure       ✔               ✔
@@ -78,6 +77,7 @@
 //   *MakeMap           ✔               ✔
 //   *MakeSlice         ✔               ✔
 //   *MapUpdate                         ✔
+//   *NamedConst                                        ✔ (const)
 //   *Next              ✔               ✔
 //   *Panic                             ✔
 //   *Parameter         ✔
