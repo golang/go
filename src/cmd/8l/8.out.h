@@ -578,8 +578,12 @@ enum	as
 	APSHUFB,
 
 	AUSEFIELD,
-	ALOCALS,
 	ATYPE,
+	AFUNCDATA,
+	APCDATA,
+	
+	// TODO: Remove these.
+	ALOCALS,
 	ANPTRS,
 	APTRS,
 

@@ -16,6 +16,8 @@ void runtime·sigpanic(void);
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
 
+static String unknown = { (uint8*)"?", 1 };
+
 // Generic traceback.  Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
@@ -23,12 +25,13 @@ void runtime·sigpanic(void);
 int32
 runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
 {
-	int32 i, n, nprint;
+	int32 i, n, nprint, line;
 	uintptr tracepc;
 	bool waspanic, printing;
-	Func *f, *f2;
+	Func *f, *flr;
 	Stkframe frame;
 	Stktop *stk;
+	String file;
 
 	USED(lr0);
 
@@ -62,33 +65,36 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.sp = stk->gobuf.sp;
 			frame.lr = 0;
 			frame.fp = 0;
+			frame.fn = nil;
 			if(printing && runtime·showframe(nil, gp))
 				runtime·printf("----- stack segment boundary -----\n");
 			stk = (Stktop*)stk->stackbase;
 			continue;
 		}
-		if(frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil) {
-			if(callback != nil)
+		f = frame.fn;
+		if(f == nil && (frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil)) {
+			if(callback != nil) {
+				runtime·printf("unknown pc %p\n", frame.pc);
 				runtime·throw("unknown pc");
+			}
 			break;
 		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
 		if(frame.fp == 0) {
-			frame.fp = frame.sp;
-			if(frame.pc > f->entry && f->frame >= sizeof(uintptr))
-				frame.fp += f->frame;
-			else
-				frame.fp += sizeof(uintptr);
+			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
+			frame.fp += sizeof(uintptr); // caller PC
 		}
 		if(frame.lr == 0)
 			frame.lr = ((uintptr*)frame.fp)[-1];
+		flr = runtime·findfunc(frame.lr);
 
 		// Derive size of arguments.
 		frame.argp = (byte*)frame.fp;
-		frame.arglen = 0;
-		if(f->args != ArgsSizeUnknown)
+		if(flr != nil && (i = runtime·funcarglen(flr, frame.lr)) >= 0)
+			frame.arglen = i;
+		else if(f->args != ArgsSizeUnknown)
 			frame.arglen = f->args;
 		else if(runtime·haszeroargs(f->entry))
 			frame.arglen = 0;
@@ -96,10 +102,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.arglen = stk->argsize;
 		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
 			frame.arglen = 2*sizeof(uintptr) + *(int32*)frame.argp;
-		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
-			frame.arglen = f2->frame; // conservative overestimate
+		else if(flr != nil && flr->frame >= sizeof(uintptr))
+			frame.arglen = flr->frame; // conservative overestimate
 		else {
-			runtime·printf("runtime: unknown argument frame size for %S\n", f->name);
+			runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n", *f->name, frame.lr, flr ? *flr->name : unknown);
 			if(!printing)
 				runtime·throw("invalid stack");
 		}
@@ -116,7 +122,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.varlen = frame.fp - sizeof(uintptr) - frame.sp;
 		} else {
 			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, f->name);
+				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, *f->name);
 				runtime·throw("invalid stack");
 			}
 			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
@@ -141,7 +147,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
 				if(n > 0 && frame.pc > f->entry && !waspanic)
 					tracepc--;
-				runtime·printf("%S(", f->name);
+				runtime·printf("%S(", *f->name);
 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
 					if(i >= 5) {
 						runtime·prints(", ...");
@@ -152,7 +158,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 					runtime·printhex(((uintptr*)frame.argp)[i]);
 				}
 				runtime·prints(")\n");
-				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+				line = runtime·funcline(f, tracepc, &file);
+				runtime·printf("\t%S:%d", file, line);
 				if(frame.pc > f->entry)
 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
 				if(m->throwing && gp == m->curg)
@@ -166,14 +173,12 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	skipped:
 		waspanic = f->entry == (uintptr)runtime·sigpanic;
 
-		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
-			frame.fp += 2*sizeof(uintptr);
-
 		// Do not unwind past the bottom of the stack.
-		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)_rt0_go)
 			break;
 
 		// Unwind to next frame.
+		frame.fn = flr;
 		frame.pc = frame.lr;
 		frame.lr = 0;
 		frame.sp = frame.fp;
@@ -189,16 +194,19 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 static void
 printcreatedby(G *gp)
 {
+	int32 line;
+	String file;
 	uintptr pc, tracepc;
 	Func *f;
 
 	// Show what created goroutine, except main goroutine (goid 1).
 	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
-		runtime·printf("created by %S\n", f->name);
+		runtime·printf("created by %S\n", *f->name);
 		tracepc = pc;	// back up to CALL instruction for funcline.
 		if(pc > f->entry)
 			tracepc--;
-		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+		line =  runtime·funcline(f, tracepc, &file);
+		runtime·printf("\t%S:%d", file, line);
 		if(pc > f->entry)
 			runtime·printf(" +%p", (uintptr)(pc - f->entry));
 		runtime·printf("\n");

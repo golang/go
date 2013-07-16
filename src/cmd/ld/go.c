@@ -613,7 +613,7 @@ markflood(void)
 }
 
 static char*
-morename[] =
+markextra[] =
 {
 	"runtime.morestack",
 	"runtime.morestackx",
@@ -629,6 +629,12 @@ morename[] =
 	"runtime.morestack32",
 	"runtime.morestack40",
 	"runtime.morestack48",
+	
+	// on arm, lock in the div/mod helpers too
+	"_div",
+	"_divu",
+	"_mod",
+	"_modu",
 };
 
 static int
@@ -676,8 +682,8 @@ deadcode(void)
 	mark(lookup(INITENTRY, 0));
 	if(flag_shared)
 		mark(lookup(LIBINITENTRY, 0));
-	for(i=0; i<nelem(morename); i++)
-		mark(lookup(morename[i], 0));
+	for(i=0; i<nelem(markextra); i++)
+		mark(lookup(markextra[i], 0));
 
 	for(i=0; i<ndynexp; i++)
 		mark(dynexp[i]);
@@ -794,6 +800,8 @@ Zconv(Fmt *fp)
 		return fmtstrcpy(fp, "<nil>");
 
 	se = s + strlen(s);
+
+	// NOTE: Keep in sync with ../gc/go.c:/^Zconv.
 	while(s < se) {
 		n = chartorune(&r, s);
 		s += n;
@@ -821,6 +829,9 @@ Zconv(Fmt *fp)
 		case '\\':
 			fmtrune(fp, '\\');
 			fmtrune(fp, r);
+			break;
+		case 0xFEFF: // BOM, basically disallowed in source code
+			fmtstrcpy(fp, "\\uFEFF");
 			break;
 		}
 	}

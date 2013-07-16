@@ -573,9 +573,9 @@ havem:
 	MOVL	BP, 0(DI)
 
 	// Push arguments to cgocallbackg.
-	// Frame size here must match the frame size above
+	// Frame size here must match the frame size above plus the pushes
 	// to trick traceback routines into doing the right thing.
-	SUBL	$12, DI
+	SUBL	$20, DI
 	MOVL	AX, 0(DI)
 	MOVL	BX, 4(DI)
 	MOVL	DX, 8(DI)
@@ -587,9 +587,9 @@ havem:
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVL	g(CX), SI
-	MOVL	12(SP), BP
+	MOVL	20(SP), BP
 	MOVL	BP, (g_sched+gobuf_pc)(SI)
-	LEAL	(12+4)(SP), DI
+	LEAL	(20+4)(SP), DI
 	MOVL	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.

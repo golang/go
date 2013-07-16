@@ -763,7 +763,7 @@ setuintxx(Sym *s, vlong off, uint64 v, vlong wid)
 			s->p[off+i] = cast[inuxi8[i]];
 		break;
 	}
-	return off;
+	return off+wid;
 }
 
 vlong
@@ -800,28 +800,28 @@ adduint64(Sym *s, uint64 v)
 	return adduintxx(s, v, 8);
 }
 
-void
+vlong
 setuint8(Sym *s, vlong r, uint8 v)
 {
-	setuintxx(s, r, v, 1);
+	return setuintxx(s, r, v, 1);
 }
 
-void
+vlong
 setuint16(Sym *s, vlong r, uint16 v)
 {
-	setuintxx(s, r, v, 2);
+	return setuintxx(s, r, v, 2);
 }
 
-void
+vlong
 setuint32(Sym *s, vlong r, uint32 v)
 {
-	setuintxx(s, r, v, 4);
+	return setuintxx(s, r, v, 4);
 }
 
-void
+vlong
 setuint64(Sym *s, vlong r, uint64 v)
 {
-	setuintxx(s, r, v, 8);
+	return setuintxx(s, r, v, 8);
 }
 
 vlong
@@ -842,7 +842,7 @@ addaddrplus(Sym *s, Sym *t, vlong add)
 	r->siz = PtrSize;
 	r->type = D_ADDR;
 	r->add = add;
-	return i;
+	return i + r->siz;
 }
 
 static vlong
@@ -863,7 +863,7 @@ addaddrplus4(Sym *s, Sym *t, vlong add)
 	r->siz = 4;
 	r->type = D_ADDR;
 	r->add = add;
-	return i;
+	return i + r->siz;
 }
 
 vlong
@@ -884,7 +884,7 @@ addpcrelplus(Sym *s, Sym *t, vlong add)
 	r->add = add;
 	r->type = D_PCREL;
 	r->siz = 4;
-	return i;
+	return i + r->siz;
 }
 
 vlong
@@ -911,7 +911,7 @@ setaddrplus(Sym *s, vlong off, Sym *t, vlong add)
 	r->siz = PtrSize;
 	r->type = D_ADDR;
 	r->add = add;
-	return off;
+	return off + r->siz;
 }
 
 vlong
@@ -937,7 +937,7 @@ addsize(Sym *s, Sym *t)
 	r->off = i;
 	r->siz = PtrSize;
 	r->type = D_SIZE;
-	return i;
+	return i + r->siz;
 }
 
 void

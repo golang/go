@@ -1339,14 +1339,11 @@ Optab optab[] =
 	{ AAESKEYGENASSIST,	yaes2,	Pq, 0x3a,0xdf,(0) },
 
 	{ APSHUFD,	yaes2,	Pq,	0x70,(0) },
+	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
 
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
-	{ ALOCALS },
-	{ ATYPE },
-	{ ANPTRS },
-	{ APTRS },
-
-	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
+	{ AFUNCDATA,	ynop,	Px, 0,0 },
+	{ APCDATA,	ynop,	Px, 0,0 },
 
 	{ AEND },
 	0

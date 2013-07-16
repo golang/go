@@ -52,6 +52,14 @@ int	nlibdir = 0;
 static int	maxlibdir = 0;
 static int	cout = -1;
 
+// symbol version, incremented each time a file is loaded.
+// version==1 is reserved for savehist.
+enum
+{
+	HistVersion = 1,
+};
+int	version = HistVersion;
+
 // Set if we see an object compiled by the host compiler that is not
 // from a package that is known to support internal linking mode.
 static int	externalobj = 0;
@@ -1447,6 +1455,194 @@ pclntab(void)
 	Bflush(&bso);
 }
 
+void
+addvarint(Sym *s, uint32 val)
+{
+	int32 n;
+	uint32 v;
+	uchar *p;
+
+	n = 0;
+	for(v = val; v >= 0x80; v >>= 7)
+		n++;
+	n++;
+
+	symgrow(s, s->np+n);
+
+	p = s->p + s->np - n;
+	for(v = val; v >= 0x80; v >>= 7)
+		*p++ = v | 0x80;
+	*p++ = v;
+}
+
+// funcpctab appends to dst a pc-value table mapping the code in func to the values
+// returned by valfunc parameterized by arg. The invocation of valfunc to update the
+// current value is, for each p,
+//
+//	val = valfunc(func, val, p, 0, arg);
+//	record val as value at p->pc;
+//	val = valfunc(func, val, p, 1, arg);
+//
+// where func is the function, val is the current value, p is the instruction being
+// considered, and arg can be used to further parameterize valfunc.
+void
+funcpctab(Sym *dst, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32, Prog*, int32, int32), int32 arg)
+{
+	int dbg, i, start;
+	int32 oldval, val, started;
+	uint32 delta;
+	vlong pc;
+	Prog *p;
+
+	// To debug a specific function, uncomment second line and change name.
+	dbg = 0;
+	//dbg = strcmp(func->name, "main.main") == 0;
+
+	debug['O'] += dbg;
+
+	start = dst->np;
+
+	if(debug['O'])
+		Bprint(&bso, "funcpctab %s -> %s [valfunc=%s]\n", func->name, dst->name, desc);
+
+	val = -1;
+	oldval = val;
+	pc = func->value;
+	
+	if(debug['O'])
+		Bprint(&bso, "%6llux %6d %P\n", pc, val, func->text);
+
+	started = 0;
+	for(p=func->text; p != P; p = p->link) {
+		// Update val. If it's not changing, keep going.
+		val = valfunc(func, val, p, 0, arg);
+		if(val == oldval && started) {
+			val = valfunc(func, val, p, 1, arg);
+			if(debug['O'])
+				Bprint(&bso, "%6llux %6s %P\n", p->pc, "", p);
+			continue;
+		}
+
+		// If the pc of the next instruction is the same as the
+		// pc of this instruction, this instruction is not a real
+		// instruction. Keep going, so that we only emit a delta
+		// for a true instruction boundary in the program.
+		if(p->link && p->link->pc == p->pc) {
+			val = valfunc(func, val, p, 1, arg);
+			if(debug['O'])
+				Bprint(&bso, "%6llux %6s %P\n", p->pc, "", p);
+			continue;
+		}
+
+		// The table is a sequence of (value, pc) pairs, where each
+		// pair states that the given value is in effect from the current position
+		// up to the given pc, which becomes the new current position.
+		// To generate the table as we scan over the program instructions,
+		// we emit a "(value" when pc == func->value, and then
+		// each time we observe a change in value we emit ", pc) (value".
+		// When the scan is over, we emit the closing ", pc)".
+		//
+		// The table is delta-encoded. The value deltas are signed and
+		// transmitted in zig-zag form, where a complement bit is placed in bit 0,
+		// and the pc deltas are unsigned. Both kinds of deltas are sent
+		// as variable-length little-endian base-128 integers,
+		// where the 0x80 bit indicates that the integer continues.
+
+		if(debug['O'])
+			Bprint(&bso, "%6llux %6d %P\n", p->pc, val, p);
+
+		if(!started)
+			started = 1;
+		else {
+			addvarint(dst, (p->pc - pc) / MINLC);
+			pc = p->pc;
+		}
+		delta = val - oldval;
+		if(delta>>31)
+			delta = 1 | ~(delta<<1);
+		else
+			delta <<= 1;
+		addvarint(dst, delta);
+		oldval = val;
+		started = 1;
+		val = valfunc(func, val, p, 1, arg);
+	}
+
+	if(started) {
+		if(debug['O'])
+			Bprint(&bso, "%6llux done\n", func->value+func->size);
+		addvarint(dst, (func->value+func->size - pc) / MINLC);
+		addvarint(dst, 0); // terminator
+	}
+
+	if(debug['O']) {
+		Bprint(&bso, "wrote %d bytes\n", dst->np - start);
+		for(i=start; i<dst->np; i++)
+			Bprint(&bso, " %02ux", dst->p[i]);
+		Bprint(&bso, "\n");
+	}
+
+	debug['O'] -= dbg;
+}
+
+// pctofileline computes either the file number (arg == 0)
+// or the line number (arg == 1) to use at p.
+// Because p->lineno applies to p, phase == 0 (before p)
+// takes care of the update.
+static int32
+pctofileline(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
+{
+	int32 f, l;
+
+	if(p->as == ATEXT || p->as == ANOP || p->as == AUSEFIELD || p->line == 0 || phase == 1)
+		return oldval;
+	getline(sym->hist, p->line, &f, &l);
+	if(f == 0) {
+	//	print("getline failed for %s %P\n", cursym->name, p);
+		return oldval;
+	}
+	if(arg == 0)
+		return f;
+	return l;
+}
+
+// pctospadj computes the sp adjustment in effect.
+// It is oldval plus any adjustment made by p itself.
+// The adjustment by p takes effect only after p, so we
+// apply the change during phase == 1.
+static int32
+pctospadj(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
+{
+	USED(arg);
+
+	if(oldval == -1) // starting
+		oldval = 0;
+	if(phase == 0)
+		return oldval;
+	if(oldval + p->spadj < -10000 || oldval + p->spadj > 1000000000) {
+		diag("overflow in spadj: %d + %d = %d", oldval, p->spadj, oldval + p->spadj);
+		errorexit();
+	}
+	return oldval + p->spadj;
+}
+
+// pctopcdata computes the pcdata value in effect at p.
+// A PCDATA instruction sets the value in effect at future
+// non-PCDATA instructions.
+// Since PCDATA instructions have no width in the final code,
+// it does not matter which phase we use for the update.
+static int32
+pctopcdata(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
+{
+	if(phase == 0 || p->as != APCDATA || p->from.offset != arg)
+		return oldval;
+	if((int32)p->to.offset != p->to.offset) {
+		diag("overflow in PCDATA instruction: %P", p);
+		errorexit();
+	}
+	return p->to.offset;
+}
+
 #define	LOG	5
 void
 mkfwd(void)
@@ -2001,3 +2197,421 @@ erealloc(void *p, long n)
 	}
 	return p;
 }
+
+// Saved history stacks encountered while reading archives.
+// Keeping them allows us to answer virtual lineno -> file:line
+// queries.
+//
+// The history stack is a complex data structure, described best at the
+// bottom of http://plan9.bell-labs.com/magic/man2html/6/a.out.
+// One of the key benefits of interpreting it here is that the runtime
+// does not have to. Perhaps some day the compilers could generate
+// a simpler linker input too.
+
+struct Hist
+{
+	int32 line;
+	int32 off;
+	Sym *file;
+};
+
+static Hist *histcopy;
+static Hist *hist;
+static int32 nhist;
+static int32 maxhist;
+static int32 histdepth;
+static int32 nhistfile;
+static Sym *filesyms;
+
+// savehist processes a single line, off history directive
+// found in the input object file.
+void
+savehist(int32 line, int32 off)
+{
+	char tmp[1024];
+	Sym *file;
+	Hist *h;
+
+	tmp[0] = '\0';
+	copyhistfrog(tmp, sizeof tmp);
+
+	if(tmp[0]) {
+		file = lookup(tmp, HistVersion);
+		if(file->type != SFILEPATH) {
+			file->value = ++nhistfile;
+			file->type = SFILEPATH;
+			file->next = filesyms;
+			filesyms = file;
+		}
+	} else
+		file = nil;
+
+	if(file != nil && line == 1 && off == 0) {
+		// start of new stack
+		if(histdepth != 0) {
+			diag("history stack phase error: unexpected start of new stack depth=%d file=%s", histdepth, tmp);
+			errorexit();
+		}
+		nhist = 0;
+		histcopy = nil;
+	}
+	
+	if(nhist >= maxhist) {
+		if(maxhist == 0)
+			maxhist = 1;
+		maxhist *= 2;
+		hist = erealloc(hist, maxhist*sizeof hist[0]);
+	}
+	h = &hist[nhist++];
+	h->line = line;
+	h->off = off;
+	h->file = file;
+	
+	if(file != nil) {
+		if(off == 0)
+			histdepth++;
+	} else {
+		if(off != 0) {
+			diag("history stack phase error: bad offset in pop");
+			errorexit();
+		}
+		histdepth--;
+	}
+}
+
+// gethist returns the history stack currently in effect.
+// The result is valid indefinitely.
+Hist*
+gethist(void)
+{
+	if(histcopy == nil) {
+		if(nhist == 0)
+			return nil;
+		histcopy = mal((nhist+1)*sizeof hist[0]);
+		memmove(histcopy, hist, nhist*sizeof hist[0]);
+		histcopy[nhist].line = -1;
+	}
+	return histcopy;
+}
+
+typedef struct Hstack Hstack;
+struct Hstack
+{
+	Hist *h;
+	int delta;
+};
+
+// getline sets *f to the file number and *l to the line number
+// of the virtual line number line according to the history stack h.
+void
+getline(Hist *h, int32 line, int32 *f, int32 *l)
+{
+	Hstack stk[100];
+	int nstk, start;
+	Hist *top, *h0;
+	static Hist *lasth;
+	static int32 laststart, lastend, lastdelta, lastfile;
+
+	h0 = h;
+	*f = 0;
+	*l = 0;
+	start = 0;
+	if(h == nil || line == 0) {
+		print("%s: getline: h=%p line=%d\n", cursym->name, h, line);
+		return;
+	}
+
+	// Cache span used during last lookup, so that sequential
+	// translation of line numbers in compiled code is efficient.
+	if(!debug['O'] && lasth == h && laststart <= line && line < lastend) {
+		*f = lastfile;
+		*l = line - lastdelta;
+		return;
+	}
+
+	if(debug['O'])
+		print("getline %d laststart=%d lastend=%d\n", line, laststart, lastend);
+	
+	nstk = 0;
+	for(; h->line != -1; h++) {
+		if(debug['O'])
+			print("\t%s %d %d\n", h->file ? h->file->name : "?", h->line, h->off);
+
+		if(h->line > line) {
+			if(nstk == 0) {
+				diag("history stack phase error: empty stack at line %d", (int)line);
+				errorexit();
+			}
+			top = stk[nstk-1].h;
+			lasth = h;
+			lastfile = top->file->value;
+			laststart = start;
+			lastend = h->line;
+			lastdelta = stk[nstk-1].delta;
+			*f = lastfile;
+			*l = line - lastdelta;
+			if(debug['O'])
+				print("\tgot %d %d [%d %d %d]\n", *f, *l, laststart, lastend, lastdelta);
+			return;
+		}
+		if(h->file == nil) {
+			// pop included file
+			if(nstk == 0) {
+				diag("history stack phase error: stack underflow");
+				errorexit();
+			}
+			nstk--;
+			if(nstk > 0)
+				stk[nstk-1].delta += h->line - stk[nstk].h->line;
+			start = h->line;
+		} else if(h->off == 0) {
+			// push included file
+			if(nstk >= nelem(stk)) {
+				diag("history stack phase error: stack overflow");
+				errorexit();
+			}
+			start = h->line;
+			stk[nstk].h = h;
+			stk[nstk].delta = h->line - 1;
+			nstk++;
+		} else {
+			// #line directive
+			if(nstk == 0) {
+				diag("history stack phase error: stack underflow");
+				errorexit();
+			}
+			stk[nstk-1].h = h;
+			stk[nstk-1].delta = h->line - h->off;
+			start = h->line;
+		}
+		if(debug['O'])
+			print("\t\tnstk=%d delta=%d\n", nstk, stk[nstk].delta);
+	}
+
+	diag("history stack phase error: cannot find line for %d", line);
+	nstk = 0;
+	for(h = h0; h->line != -1; h++) {
+		print("\t%d %d %s\n", h->line, h->off, h->file ? h->file->name : "");
+		if(h->file == nil)
+			nstk--;
+		else if(h->off == 0)
+			nstk++;
+	}
+}
+
+// defgostring returns a symbol for the Go string containing text.
+Sym*
+defgostring(char *text)
+{
+	char *p;
+	Sym *s;
+	int32 n;
+	
+	n = strlen(text);
+	p = smprint("go.string.\"%Z\"", text);
+	s = lookup(p, 0);
+	if(s->size == 0) {
+		s->type = SGOSTRING;
+		s->reachable = 1;
+		s->size = 2*PtrSize+n;
+		symgrow(s, 2*PtrSize+n);
+		setaddrplus(s, 0, s, 2*PtrSize);
+		setuintxx(s, PtrSize, n, PtrSize);
+		memmove(s->p+2*PtrSize, text, n);
+	}
+	s->reachable = 1;
+	return s;
+}
+
+// addpctab appends to f a pc-value table, storing its offset at off.
+// The pc-value table is for func and reports the value of valfunc
+// parameterized by arg.
+static int32
+addpctab(Sym *f, int32 off, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32, Prog*, int32, int32), int32 arg)
+{
+	int32 start;
+	
+	start = f->np;
+	funcpctab(f, func, desc, valfunc, arg);
+	if(start == f->np) {
+		// no table
+		return setuint32(f, off, 0);
+	}
+	if((int32)start > (int32)f->np) {
+		diag("overflow adding pc-table: symbol too large");
+		errorexit();
+	}
+	return setuint32(f, off, start);
+}
+
+// functab initializes the functab and filetab symbols with
+// runtime function and file name information.
+void
+functab(void)
+{
+	Prog *p;
+	int32 i, n, start;
+	uint32 *havepc, *havefunc;
+	Sym *ftab, *f;
+	int32 npcdata, nfuncdata, off, end;
+	char *q;
+	
+	ftab = lookup("functab", 0);
+	ftab->type = SRODATA;
+	ftab->reachable = 1;
+
+	if(debug['s'])
+		return;
+
+	adduintxx(ftab, 0, PtrSize);
+
+	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		q = smprint("go.func.%s", cursym->name);
+		f = lookup(q, cursym->version);
+		f->type = SRODATA;
+		f->reachable = 1;
+		free(q);
+
+		addaddrplus(ftab, cursym, 0);
+		addaddrplus(ftab, f, 0);
+
+		npcdata = 0;
+		nfuncdata = 0;
+		for(p = cursym->text; p != P; p = p->link) {
+			if(p->as == APCDATA && p->from.offset >= npcdata)
+				npcdata = p->from.offset+1;
+			if(p->as == AFUNCDATA && p->from.offset >= nfuncdata)
+				nfuncdata = p->from.offset+1;
+		}
+
+		off = 0;
+		// fixed size of struct, checked below
+		end = 2*PtrSize + 5*4 + 5*4 + npcdata*4 + nfuncdata*PtrSize;
+		if(nfuncdata > 0 && (end&(PtrSize-1)))
+			end += 4;
+		symgrow(f, end);
+
+		// name *string
+		off = setaddr(f, off, defgostring(cursym->name));
+		
+		// entry uintptr
+		off = setaddr(f, off, cursym);
+
+		// args int32
+		// TODO: Move into funcinfo.
+		if(cursym->text == nil || (cursym->text->textflag & NOSPLIT) && cursym->args == 0 && cursym->nptrs < 0) {
+			// This might be a vararg function and have no
+			// predetermined argument size.  This check is
+			// approximate and will also match 0 argument
+			// nosplit functions compiled by 6c.
+			off = setuint32(f, off, ArgsSizeUnknown);
+		} else
+			off = setuint32(f, off, cursym->args);
+
+		// locals int32
+		// TODO: Move into funcinfo.
+		off = setuint32(f, off, cursym->locals);
+	
+		// frame int32
+		// TODO: Remove entirely. The pcsp table is more precise.
+		// This is only used by a fallback case during stack walking
+		// when a called function doesn't have argument information.
+		// We need to make sure everything has argument information
+		// and then remove this.
+		if(cursym->text == nil)
+			off = setuint32(f, off, 0);
+		else
+			off = setuint32(f, off, (uint32)cursym->text->to.offset+PtrSize);
+
+		// TODO: Move into funcinfo.
+		// ptrsoff, ptrslen int32
+		start = f->np;
+		for(i = 0; i < cursym->nptrs; i += 32)
+			adduint32(f, cursym->ptrs[i/32]);
+		off = setuint32(f, off, start);
+		off = setuint32(f, off, (f->np - start)/4);
+
+		// pcsp table (offset int32)
+		off = addpctab(f, off, cursym, "pctospadj", pctospadj, 0);
+
+		// pcfile table (offset int32)
+		off = addpctab(f, off, cursym, "pctofileline file", pctofileline, 0);
+
+		// pcln table (offset int32)
+		off = addpctab(f, off, cursym, "pctofileline line", pctofileline, 1);
+		
+		// npcdata int32
+		off = setuint32(f, off, npcdata);
+		
+		// nfuncdata int32
+		off = setuint32(f, off, nfuncdata);
+		
+		// tabulate which pc and func data we have.
+		n = ((npcdata+31)/32 + (nfuncdata+31)/32)*4;
+		havepc = mal(n);
+		havefunc = havepc + (npcdata+31)/32;
+		for(p = cursym->text; p != P; p = p->link) {
+			if(p->as == AFUNCDATA) {
+				if((havefunc[p->from.offset/32]>>(p->from.offset%32))&1)
+					diag("multiple definitions for FUNCDATA $%d", i);
+				havefunc[p->from.offset/32] |= 1<<(p->from.offset%32);
+			}
+			if(p->as == APCDATA)
+				havepc[p->from.offset/32] |= 1<<(p->from.offset%32);
+		}
+
+		// pcdata.
+		for(i=0; i<npcdata; i++) {
+			if(!(havepc[i/32]>>(i%32))&1) {
+				off = setuint32(f, off, 0);
+				continue;
+			}
+			off = addpctab(f, off, cursym, "pctopcdata", pctopcdata, i);
+		}
+		
+		unmal(havepc, n);
+		
+		// funcdata, must be pointer-aligned and we're only int32-aligned.
+		// Unlike pcdata, can gather in a single pass.
+		// Missing funcdata will be 0 (nil pointer).
+		if(nfuncdata > 0) {
+			if(off&(PtrSize-1))
+				off += 4;
+			for(p = cursym->text; p != P; p = p->link) {
+				if(p->as == AFUNCDATA) {
+					i = p->from.offset;
+					if(p->to.type == D_CONST)
+						setuintxx(f, off+PtrSize*i, p->to.offset, PtrSize);
+					else
+						setaddrplus(f, off+PtrSize*i, p->to.sym, p->to.offset);
+				}
+			}
+			off += nfuncdata*PtrSize;
+		}
+
+		if(off != end) {
+			diag("bad math in functab: off=%d but end=%d (npcdata=%d nfuncdata=%d)", off, end, npcdata, nfuncdata);
+			errorexit();
+		}
+		
+		f->size = f->np;
+	
+		// Final entry of table is just end pc.
+		if(cursym->next == nil) {
+			addaddrplus(ftab, cursym, cursym->size);
+			adduintxx(ftab, 0, PtrSize);
+		}
+	}
+
+	setuintxx(ftab, 0, (ftab->np-PtrSize)/(2*PtrSize) - 1, PtrSize);
+	ftab->size = ftab->np;
+
+	ftab = lookup("filetab", 0);
+	ftab->type = SRODATA;
+	ftab->reachable = 1;
+	symgrow(ftab, (nhistfile+1)*PtrSize);
+	setuintxx(ftab, 0, nhistfile+1, PtrSize);
+	for(f = filesyms; f != S; f = f->next)
+		setaddr(ftab, f->value*PtrSize, defgostring(f->name));
+	ftab->size = ftab->np;
+}	

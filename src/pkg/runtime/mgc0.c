@@ -1390,7 +1390,7 @@ addframeroots(Stkframe *frame, void*)
 	Func *f;
 	byte *ap;
 	int32 i, j, nuintptr;
-	uint32 w, b;
+	uint32 w, b, *ptrs;
 
 	// Scan local variables if stack frame has been allocated.
 	if(frame->varlen > 0)
@@ -1399,11 +1399,12 @@ addframeroots(Stkframe *frame, void*)
 	// Scan arguments.
 	// Use pointer information if known.
 	f = frame->fn;
-	if(f->args > 0 && f->ptrs.array != nil) {
+	if(f->args > 0 && f->ptrslen > 0) {
 		ap = frame->argp;
 		nuintptr = f->args / sizeof(uintptr);
-		for(i = 0; i < f->ptrs.len; i++) {
-			w = ((uint32*)f->ptrs.array)[i];
+		ptrs = (uint32*)((byte*)f + f->ptrsoff);
+		for(i = 0; i < f->ptrslen; i++) {
+			w = ptrs[i];
 			b = 1;
 			j = nuintptr;
 			if(j > 32)

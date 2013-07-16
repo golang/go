@@ -466,7 +466,8 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 void
 symtab(void)
 {
-	Sym *s, *symtype, *symtypelink, *symgostring;
+	Sym *s, *symtype, *symtypelink, *symgostring, *symgofunc;
+
 	dosymtype();
 
 	// Define these so that they'll get put into the symbol table.
@@ -519,6 +520,12 @@ symtab(void)
 	s->reachable = 1;
 	symgostring = s;
 	
+	s = lookup("go.func.*", 0);
+	s->type = SGOFUNC;
+	s->size = 0;
+	s->reachable = 1;
+	symgofunc = s;
+	
 	symtypelink = lookup("typelink", 0);
 
 	symt = lookup("symtab", 0);
@@ -547,6 +554,11 @@ symtab(void)
 			s->type = SGOSTRING;
 			s->hide = 1;
 			s->outer = symgostring;
+		}
+		if(strncmp(s->name, "go.func.", 8) == 0) {
+			s->type = SGOFUNC;
+			s->hide = 1;
+			s->outer = symgofunc;
 		}
 	}
 

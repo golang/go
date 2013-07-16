@@ -1001,10 +1001,9 @@ Optab optab[] =
 	{ APSHUFB,	ymshufb,Pq, 0x38, 0x00 },
 
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
-	{ ALOCALS },
 	{ ATYPE },
-	{ ANPTRS },
-	{ APTRS },
+	{ AFUNCDATA,	ynop,	Px, 0,0 },
+	{ APCDATA,	ynop,	Px, 0,0 },
 
 	0
 };
