@@ -589,7 +589,10 @@ dostkoff(void)
 			if(StackTop + textarg + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
 				moreconst1 = autoffset;
 			moreconst2 = textarg;
-
+			if(moreconst2 == 1) // special marker
+				moreconst2 = 0;
+			if((moreconst2&7) != 0)
+				diag("misaligned argument size in stack split");
 			// 4 varieties varieties (const1==0 cross const2==0)
 			// and 6 subvarieties of (const1==0 and const2!=0)
 			p = appendp(p);

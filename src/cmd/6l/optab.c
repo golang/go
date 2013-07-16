@@ -53,6 +53,16 @@ uchar	ynop[] =
 	Yxr,	Ynone,	Zpseudo,1,
 	0
 };
+uchar	yfuncdata[] =
+{
+	Yi32,	Ym,	Zpseudo,	0,
+	0
+};
+uchar	ypcdata[] = 
+{
+	Yi32,	Yi32,	Zpseudo,	0,
+	0
+};
 uchar	yxorb[] =
 {
 	Yi32,	Yal,	Zib_,	1,
@@ -1342,8 +1352,8 @@ Optab optab[] =
 	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
 
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
-	{ AFUNCDATA,	ynop,	Px, 0,0 },
-	{ APCDATA,	ynop,	Px, 0,0 },
+	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
+	{ APCDATA,	ypcdata,	Px, 0,0 },
 
 	{ AEND },
 	0
