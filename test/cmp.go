@@ -43,8 +43,8 @@ func main() {
 	var d string = "hel" // try to get different pointer
 	d = d + "lo"
 
-	// exp/ssa/interp can't handle unsafe.Pointer.
-	if os.Getenv("GOSSAINTERP") != "" {
+	// go.tools/ssa/interp can't handle unsafe.Pointer.
+	if os.Getenv("GOSSAINTERP") == "" {
 		if stringptr(c) == stringptr(d) {
 			panic("compiler too smart -- got same string")
 		}
