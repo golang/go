@@ -1199,6 +1199,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ALOCALS:	/* funny */
 	case ANPTRS:
 	case APTRS:
+	case APCDATA:
 		return 0;
 	}
 }
