@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
+#include "funcdata.h"
 
 TEXT _rt0_go(SB),7,$0
 	// copy arguments forward on an even stack
@@ -95,7 +96,9 @@ ok:
 	// create a new goroutine to start program
 	PUSHL	$runtime·main·f(SB)	// entry
 	PUSHL	$0	// arg size
+	ARGSIZE(8)
 	CALL	runtime·newproc(SB)
+	ARGSIZE(-1)
 	POPL	AX
 	POPL	AX
 
@@ -108,11 +111,11 @@ ok:
 DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
 GLOBL	runtime·main·f(SB),8,$4
 
-TEXT runtime·breakpoint(SB),7,$0
+TEXT runtime·breakpoint(SB),7,$0-0
 	INT $3
 	RET
 
-TEXT runtime·asminit(SB),7,$0
+TEXT runtime·asminit(SB),7,$0-0
 	// Linux and MinGW start the FPU in extended double precision.
 	// Other operating systems use double precision.
 	// Change to double precision to match them,
@@ -128,7 +131,7 @@ TEXT runtime·asminit(SB),7,$0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), 7, $0
+TEXT runtime·gosave(SB), 7, $0-4
 	MOVL	4(SP), AX		// gobuf
 	LEAL	4(SP), BX		// caller's SP
 	MOVL	BX, gobuf_sp(AX)
@@ -143,7 +146,7 @@ TEXT runtime·gosave(SB), 7, $0
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), 7, $0
+TEXT runtime·gogo(SB), 7, $0-4
 	MOVL	4(SP), BX		// gobuf
 	MOVL	gobuf_g(BX), DX
 	MOVL	0(DX), CX		// make sure g != nil
@@ -162,7 +165,7 @@ TEXT runtime·gogo(SB), 7, $0
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), 7, $0
+TEXT runtime·mcall(SB), 7, $0-4
 	MOVL	fn+0(FP), DI
 	
 	get_tls(CX)
@@ -241,7 +244,7 @@ TEXT runtime·morestack(SB),7,$0
 // with the desired args running the desired function.
 //
 // func call(fn *byte, arg *byte, argsize uint32).
-TEXT reflect·call(SB), 7, $0
+TEXT reflect·call(SB), 7, $0-12
 	get_tls(CX)
 	MOVL	m(CX), BX
 
@@ -307,7 +310,7 @@ TEXT runtime·lessstack(SB), 7, $0
 //		return 1;
 //	}else
 //		return 0;
-TEXT runtime·cas(SB), 7, $0
+TEXT runtime·cas(SB), 7, $0-12
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	MOVL	12(SP), CX
@@ -327,7 +330,7 @@ TEXT runtime·cas(SB), 7, $0
 //	} else {
 //		return 0;
 //	}
-TEXT runtime·cas64(SB), 7, $0
+TEXT runtime·cas64(SB), 7, $0-20
 	MOVL	4(SP), BP
 	MOVL	8(SP), AX
 	MOVL	12(SP), DX
@@ -349,7 +352,7 @@ cas64_fail:
 //		return 1;
 //	}else
 //		return 0;
-TEXT runtime·casp(SB), 7, $0
+TEXT runtime·casp(SB), 7, $0-12
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	MOVL	12(SP), CX
@@ -365,7 +368,7 @@ TEXT runtime·casp(SB), 7, $0
 // Atomically:
 //	*val += delta;
 //	return *val;
-TEXT runtime·xadd(SB), 7, $0
+TEXT runtime·xadd(SB), 7, $0-8
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	MOVL	AX, CX
@@ -374,13 +377,13 @@ TEXT runtime·xadd(SB), 7, $0
 	ADDL	CX, AX
 	RET
 
-TEXT runtime·xchg(SB), 7, $0
+TEXT runtime·xchg(SB), 7, $0-8
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	XCHGL	AX, 0(BX)
 	RET
 
-TEXT runtime·procyield(SB),7,$0
+TEXT runtime·procyield(SB),7,$0-0
 	MOVL	4(SP), AX
 again:
 	PAUSE
@@ -388,13 +391,13 @@ again:
 	JNZ	again
 	RET
 
-TEXT runtime·atomicstorep(SB), 7, $0
+TEXT runtime·atomicstorep(SB), 7, $0-8
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	XCHGL	AX, 0(BX)
 	RET
 
-TEXT runtime·atomicstore(SB), 7, $0
+TEXT runtime·atomicstore(SB), 7, $0-8
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	XCHGL	AX, 0(BX)
@@ -403,7 +406,7 @@ TEXT runtime·atomicstore(SB), 7, $0
 // uint64 atomicload64(uint64 volatile* addr);
 // so actually
 // void atomicload64(uint64 *res, uint64 volatile *addr);
-TEXT runtime·atomicload64(SB), 7, $0
+TEXT runtime·atomicload64(SB), 7, $0-8
 	MOVL    4(SP), BX
 	MOVL	8(SP), AX
 	// MOVQ (%EAX), %MM0
@@ -415,7 +418,7 @@ TEXT runtime·atomicload64(SB), 7, $0
 	RET
 
 // void runtime·atomicstore64(uint64 volatile* addr, uint64 v);
-TEXT runtime·atomicstore64(SB), 7, $0
+TEXT runtime·atomicstore64(SB), 7, $0-12
 	MOVL	4(SP), AX
 	// MOVQ and EMMS were introduced on the Pentium MMX.
 	// MOVQ 0x8(%ESP), %MM0
@@ -464,7 +467,7 @@ TEXT gosave<>(SB),7,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT runtime·asmcgocall(SB),7,$0
+TEXT runtime·asmcgocall(SB),7,$0-8
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	MOVL	SP, DX
@@ -500,7 +503,7 @@ TEXT runtime·asmcgocall(SB),7,$0
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),7,$12
+TEXT runtime·cgocallback(SB),7,$12-12
 	LEAL	fn+0(FP), AX
 	MOVL	AX, 0(SP)
 	MOVL	frame+4(FP), AX
@@ -513,7 +516,7 @@ TEXT runtime·cgocallback(SB),7,$12
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),7,$12
+TEXT runtime·cgocallback_gofunc(SB),7,$12-12
 	// If m is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
@@ -613,7 +616,7 @@ havem:
 	RET
 
 // void setmg(M*, G*); set m and g. for use by needm.
-TEXT runtime·setmg(SB), 7, $0
+TEXT runtime·setmg(SB), 7, $0-8
 #ifdef GOOS_windows
 	MOVL	mm+0(FP), AX
 	CMPL	AX, $0
@@ -633,7 +636,7 @@ settls:
 	RET
 
 // void setmg_gcc(M*, G*); set m and g. for use by gcc
-TEXT setmg_gcc<>(SB), 7, $0	
+TEXT setmg_gcc<>(SB), 7, $0
 	get_tls(AX)
 	MOVL	mm+0(FP), DX
 	MOVL	DX, m(AX)
@@ -642,7 +645,7 @@ TEXT setmg_gcc<>(SB), 7, $0
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
-TEXT runtime·stackcheck(SB), 7, $0
+TEXT runtime·stackcheck(SB), 7, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX
 	CMPL	g_stackbase(AX), SP
@@ -653,7 +656,7 @@ TEXT runtime·stackcheck(SB), 7, $0
 	INT	$3
 	RET
 
-TEXT runtime·memclr(SB),7,$0
+TEXT runtime·memclr(SB),7,$0-8
 	MOVL	4(SP), DI		// arg 1 addr
 	MOVL	8(SP), CX		// arg 2 count
 	MOVL	CX, BX
@@ -668,31 +671,31 @@ TEXT runtime·memclr(SB),7,$0
 	STOSB
 	RET
 
-TEXT runtime·getcallerpc(SB),7,$0
+TEXT runtime·getcallerpc(SB),7,$0-4
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	-4(AX),AX		// get calling pc
 	RET
 
-TEXT runtime·setcallerpc(SB),7,$0
+TEXT runtime·setcallerpc(SB),7,$0-8
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	x+4(FP), BX
 	MOVL	BX, -4(AX)		// set calling pc
 	RET
 
-TEXT runtime·getcallersp(SB), 7, $0
+TEXT runtime·getcallersp(SB), 7, $0-4
 	MOVL	sp+0(FP), AX
 	RET
 
 // int64 runtime·cputicks(void), so really
 // void runtime·cputicks(int64 *ticks)
-TEXT runtime·cputicks(SB),7,$0
+TEXT runtime·cputicks(SB),7,$0-4
 	RDTSC
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
 	MOVL	DX, 4(DI)
 	RET
 
-TEXT runtime·ldt0setup(SB),7,$16
+TEXT runtime·ldt0setup(SB),7,$16-0
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
 	// the entry number is just a hint.  setldt will set up GS with what it used.
@@ -703,13 +706,13 @@ TEXT runtime·ldt0setup(SB),7,$16
 	CALL	runtime·setldt(SB)
 	RET
 
-TEXT runtime·emptyfunc(SB),0,$0
+TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
-TEXT runtime·abort(SB),7,$0
+TEXT runtime·abort(SB),7,$0-0
 	INT $0x3
 
-TEXT runtime·stackguard(SB),7,$0
+TEXT runtime·stackguard(SB),7,$0-8
 	MOVL	SP, DX
 	MOVL	DX, sp+0(FP)
 	get_tls(CX)
@@ -721,13 +724,13 @@ TEXT runtime·stackguard(SB),7,$0
 GLOBL runtime·tls0(SB), $32
 
 // hash function using AES hardware instructions
-TEXT runtime·aeshash(SB),7,$0
+TEXT runtime·aeshash(SB),7,$0-12
 	MOVL	4(SP), DX	// ptr to hash value
 	MOVL	8(SP), CX	// size
 	MOVL	12(SP), AX	// ptr to data
 	JMP	runtime·aeshashbody(SB)
 
-TEXT runtime·aeshashstr(SB),7,$0
+TEXT runtime·aeshashstr(SB),7,$0-12
 	MOVL	4(SP), DX	// ptr to hash value
 	MOVL	12(SP), AX	// ptr to string struct
 	MOVL	4(AX), CX	// length of string
@@ -737,7 +740,7 @@ TEXT runtime·aeshashstr(SB),7,$0
 // AX: data
 // CX: length
 // DX: ptr to seed input / hash output
-TEXT runtime·aeshashbody(SB),7,$0
+TEXT runtime·aeshashbody(SB),7,$0-12
 	MOVL	(DX), X0	// seed to low 32 bits of xmm0
 	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
 	MOVO	runtime·aeskeysched+0(SB), X2
@@ -771,7 +774,7 @@ aessmall:
 	// a page boundary, so we can load it directly.
 	MOVOU	(AX), X1
 	ADDL	CX, CX
-	PAND	masks(SB)(CX*8), X1
+	PAND	masks<>(SB)(CX*8), X1
 	JMP	partial
 highpartial:
 	// address ends in 1111xxxx.  Might be up against
@@ -779,7 +782,7 @@ highpartial:
 	// Then shift bytes down using pshufb.
 	MOVOU	-16(AX)(CX*1), X1
 	ADDL	CX, CX
-	PSHUFB	shifts(SB)(CX*8), X1
+	PSHUFB	shifts<>(SB)(CX*8), X1
 partial:
 	// incorporate partial block into hash
 	AESENC	X3, X0
@@ -792,7 +795,7 @@ finalize:
 	MOVL	X0, (DX)
 	RET
 
-TEXT runtime·aeshash32(SB),7,$0
+TEXT runtime·aeshash32(SB),7,$0-12
 	MOVL	4(SP), DX	// ptr to hash value
 	MOVL	12(SP), AX	// ptr to data
 	MOVL	(DX), X0	// seed
@@ -803,7 +806,7 @@ TEXT runtime·aeshash32(SB),7,$0
 	MOVL	X0, (DX)
 	RET
 
-TEXT runtime·aeshash64(SB),7,$0
+TEXT runtime·aeshash64(SB),7,$0-12
 	MOVL	4(SP), DX	// ptr to hash value
 	MOVL	12(SP), AX	// ptr to data
 	MOVQ	(AX), X0	// data
@@ -814,181 +817,181 @@ TEXT runtime·aeshash64(SB),7,$0
 	MOVL	X0, (DX)
 	RET
 
-
 // simple mask to get rid of data in the high part of the register.
-TEXT masks(SB),7,$0
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x00(SB)/4, $0x00000000
+DATA masks<>+0x04(SB)/4, $0x00000000
+DATA masks<>+0x08(SB)/4, $0x00000000
+DATA masks<>+0x0c(SB)/4, $0x00000000
 	
-	LONG $0x000000ff
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x10(SB)/4, $0x000000ff
+DATA masks<>+0x14(SB)/4, $0x00000000
+DATA masks<>+0x18(SB)/4, $0x00000000
+DATA masks<>+0x1c(SB)/4, $0x00000000
 	
-	LONG $0x0000ffff
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x20(SB)/4, $0x0000ffff
+DATA masks<>+0x24(SB)/4, $0x00000000
+DATA masks<>+0x28(SB)/4, $0x00000000
+DATA masks<>+0x2c(SB)/4, $0x00000000
 	
-	LONG $0x00ffffff
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x30(SB)/4, $0x00ffffff
+DATA masks<>+0x34(SB)/4, $0x00000000
+DATA masks<>+0x38(SB)/4, $0x00000000
+DATA masks<>+0x3c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x40(SB)/4, $0xffffffff
+DATA masks<>+0x44(SB)/4, $0x00000000
+DATA masks<>+0x48(SB)/4, $0x00000000
+DATA masks<>+0x4c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0x000000ff
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x50(SB)/4, $0xffffffff
+DATA masks<>+0x54(SB)/4, $0x000000ff
+DATA masks<>+0x58(SB)/4, $0x00000000
+DATA masks<>+0x5c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0x0000ffff
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x60(SB)/4, $0xffffffff
+DATA masks<>+0x64(SB)/4, $0x0000ffff
+DATA masks<>+0x68(SB)/4, $0x00000000
+DATA masks<>+0x6c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0x00ffffff
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x70(SB)/4, $0xffffffff
+DATA masks<>+0x74(SB)/4, $0x00ffffff
+DATA masks<>+0x78(SB)/4, $0x00000000
+DATA masks<>+0x7c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x00000000
-	LONG $0x00000000
+DATA masks<>+0x80(SB)/4, $0xffffffff
+DATA masks<>+0x84(SB)/4, $0xffffffff
+DATA masks<>+0x88(SB)/4, $0x00000000
+DATA masks<>+0x8c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x000000ff
-	LONG $0x00000000
+DATA masks<>+0x90(SB)/4, $0xffffffff
+DATA masks<>+0x94(SB)/4, $0xffffffff
+DATA masks<>+0x98(SB)/4, $0x000000ff
+DATA masks<>+0x9c(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x0000ffff
-	LONG $0x00000000
+DATA masks<>+0xa0(SB)/4, $0xffffffff
+DATA masks<>+0xa4(SB)/4, $0xffffffff
+DATA masks<>+0xa8(SB)/4, $0x0000ffff
+DATA masks<>+0xac(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x00ffffff
-	LONG $0x00000000
+DATA masks<>+0xb0(SB)/4, $0xffffffff
+DATA masks<>+0xb4(SB)/4, $0xffffffff
+DATA masks<>+0xb8(SB)/4, $0x00ffffff
+DATA masks<>+0xbc(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x00000000
+DATA masks<>+0xc0(SB)/4, $0xffffffff
+DATA masks<>+0xc4(SB)/4, $0xffffffff
+DATA masks<>+0xc8(SB)/4, $0xffffffff
+DATA masks<>+0xcc(SB)/4, $0x00000000
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x000000ff
+DATA masks<>+0xd0(SB)/4, $0xffffffff
+DATA masks<>+0xd4(SB)/4, $0xffffffff
+DATA masks<>+0xd8(SB)/4, $0xffffffff
+DATA masks<>+0xdc(SB)/4, $0x000000ff
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x0000ffff
+DATA masks<>+0xe0(SB)/4, $0xffffffff
+DATA masks<>+0xe4(SB)/4, $0xffffffff
+DATA masks<>+0xe8(SB)/4, $0xffffffff
+DATA masks<>+0xec(SB)/4, $0x0000ffff
 	
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0x00ffffff
+DATA masks<>+0xf0(SB)/4, $0xffffffff
+DATA masks<>+0xf4(SB)/4, $0xffffffff
+DATA masks<>+0xf8(SB)/4, $0xffffffff
+DATA masks<>+0xfc(SB)/4, $0x00ffffff
 
-	// these are arguments to pshufb.  They move data down from
-	// the high bytes of the register to the low bytes of the register.
-	// index is how many bytes to move.
-TEXT shifts(SB),7,$0
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
-	LONG $0x00000000
-	
-	LONG $0xffffff0f
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0xffff0f0e
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0xff0f0e0d
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0x0f0e0d0c
-	LONG $0xffffffff
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0x0e0d0c0b
-	LONG $0xffffff0f
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0x0d0c0b0a
-	LONG $0xffff0f0e
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0x0c0b0a09
-	LONG $0xff0f0e0d
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0x0b0a0908
-	LONG $0x0f0e0d0c
-	LONG $0xffffffff
-	LONG $0xffffffff
-	
-	LONG $0x0a090807
-	LONG $0x0e0d0c0b
-	LONG $0xffffff0f
-	LONG $0xffffffff
-	
-	LONG $0x09080706
-	LONG $0x0d0c0b0a
-	LONG $0xffff0f0e
-	LONG $0xffffffff
-	
-	LONG $0x08070605
-	LONG $0x0c0b0a09
-	LONG $0xff0f0e0d
-	LONG $0xffffffff
-	
-	LONG $0x07060504
-	LONG $0x0b0a0908
-	LONG $0x0f0e0d0c
-	LONG $0xffffffff
-	
-	LONG $0x06050403
-	LONG $0x0a090807
-	LONG $0x0e0d0c0b
-	LONG $0xffffff0f
-	
-	LONG $0x05040302
-	LONG $0x09080706
-	LONG $0x0d0c0b0a
-	LONG $0xffff0f0e
-	
-	LONG $0x04030201
-	LONG $0x08070605
-	LONG $0x0c0b0a09
-	LONG $0xff0f0e0d
+GLOBL masks<>(SB),8,$256
 
-TEXT runtime·memeq(SB),7,$0
+// these are arguments to pshufb.  They move data down from
+// the high bytes of the register to the low bytes of the register.
+// index is how many bytes to move.
+DATA shifts<>+0x00(SB)/4, $0x00000000
+DATA shifts<>+0x04(SB)/4, $0x00000000
+DATA shifts<>+0x08(SB)/4, $0x00000000
+DATA shifts<>+0x0c(SB)/4, $0x00000000
+	
+DATA shifts<>+0x10(SB)/4, $0xffffff0f
+DATA shifts<>+0x14(SB)/4, $0xffffffff
+DATA shifts<>+0x18(SB)/4, $0xffffffff
+DATA shifts<>+0x1c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x20(SB)/4, $0xffff0f0e
+DATA shifts<>+0x24(SB)/4, $0xffffffff
+DATA shifts<>+0x28(SB)/4, $0xffffffff
+DATA shifts<>+0x2c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x30(SB)/4, $0xff0f0e0d
+DATA shifts<>+0x34(SB)/4, $0xffffffff
+DATA shifts<>+0x38(SB)/4, $0xffffffff
+DATA shifts<>+0x3c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x40(SB)/4, $0x0f0e0d0c
+DATA shifts<>+0x44(SB)/4, $0xffffffff
+DATA shifts<>+0x48(SB)/4, $0xffffffff
+DATA shifts<>+0x4c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x50(SB)/4, $0x0e0d0c0b
+DATA shifts<>+0x54(SB)/4, $0xffffff0f
+DATA shifts<>+0x58(SB)/4, $0xffffffff
+DATA shifts<>+0x5c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x60(SB)/4, $0x0d0c0b0a
+DATA shifts<>+0x64(SB)/4, $0xffff0f0e
+DATA shifts<>+0x68(SB)/4, $0xffffffff
+DATA shifts<>+0x6c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x70(SB)/4, $0x0c0b0a09
+DATA shifts<>+0x74(SB)/4, $0xff0f0e0d
+DATA shifts<>+0x78(SB)/4, $0xffffffff
+DATA shifts<>+0x7c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x80(SB)/4, $0x0b0a0908
+DATA shifts<>+0x84(SB)/4, $0x0f0e0d0c
+DATA shifts<>+0x88(SB)/4, $0xffffffff
+DATA shifts<>+0x8c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0x90(SB)/4, $0x0a090807
+DATA shifts<>+0x94(SB)/4, $0x0e0d0c0b
+DATA shifts<>+0x98(SB)/4, $0xffffff0f
+DATA shifts<>+0x9c(SB)/4, $0xffffffff
+	
+DATA shifts<>+0xa0(SB)/4, $0x09080706
+DATA shifts<>+0xa4(SB)/4, $0x0d0c0b0a
+DATA shifts<>+0xa8(SB)/4, $0xffff0f0e
+DATA shifts<>+0xac(SB)/4, $0xffffffff
+	
+DATA shifts<>+0xb0(SB)/4, $0x08070605
+DATA shifts<>+0xb4(SB)/4, $0x0c0b0a09
+DATA shifts<>+0xb8(SB)/4, $0xff0f0e0d
+DATA shifts<>+0xbc(SB)/4, $0xffffffff
+	
+DATA shifts<>+0xc0(SB)/4, $0x07060504
+DATA shifts<>+0xc4(SB)/4, $0x0b0a0908
+DATA shifts<>+0xc8(SB)/4, $0x0f0e0d0c
+DATA shifts<>+0xcc(SB)/4, $0xffffffff
+	
+DATA shifts<>+0xd0(SB)/4, $0x06050403
+DATA shifts<>+0xd4(SB)/4, $0x0a090807
+DATA shifts<>+0xd8(SB)/4, $0x0e0d0c0b
+DATA shifts<>+0xdc(SB)/4, $0xffffff0f
+	
+DATA shifts<>+0xe0(SB)/4, $0x05040302
+DATA shifts<>+0xe4(SB)/4, $0x09080706
+DATA shifts<>+0xe8(SB)/4, $0x0d0c0b0a
+DATA shifts<>+0xec(SB)/4, $0xffff0f0e
+	
+DATA shifts<>+0xf0(SB)/4, $0x04030201
+DATA shifts<>+0xf4(SB)/4, $0x08070605
+DATA shifts<>+0xf8(SB)/4, $0x0c0b0a09
+DATA shifts<>+0xfc(SB)/4, $0xff0f0e0d
+
+GLOBL shifts<>(SB),8,$256
+
+TEXT runtime·memeq(SB),7,$0-12
 	MOVL	a+0(FP), SI
 	MOVL	b+4(FP), DI
 	MOVL	count+8(FP), BX
 	JMP	runtime·memeqbody(SB)
 
-
-TEXT bytes·Equal(SB),7,$0
+TEXT bytes·Equal(SB),7,$0-25
 	MOVL	a_len+4(FP), BX
 	MOVL	b_len+16(FP), CX
 	XORL	AX, AX
@@ -1004,7 +1007,7 @@ eqret:
 // a in SI
 // b in DI
 // count in BX
-TEXT runtime·memeqbody(SB),7,$0
+TEXT runtime·memeqbody(SB),7,$0-0
 	XORL	AX, AX
 
 	CMPL	BX, $4
@@ -1097,7 +1100,7 @@ equal:
 	SETEQ	AX
 	RET
 
-TEXT runtime·cmpstring(SB),7,$0
+TEXT runtime·cmpstring(SB),7,$0-20
 	MOVL	s1+0(FP), SI
 	MOVL	s1+4(FP), BX
 	MOVL	s2+8(FP), DI
@@ -1106,7 +1109,7 @@ TEXT runtime·cmpstring(SB),7,$0
 	MOVL	AX, res+16(FP)
 	RET
 
-TEXT bytes·Compare(SB),7,$0
+TEXT bytes·Compare(SB),7,$0-28
 	MOVL	s1+0(FP), SI
 	MOVL	s1+4(FP), BX
 	MOVL	s2+12(FP), DI
@@ -1122,7 +1125,7 @@ TEXT bytes·Compare(SB),7,$0
 //   DX = blen
 // output:
 //   AX = 1/0/-1
-TEXT runtime·cmpbody(SB),7,$0
+TEXT runtime·cmpbody(SB),7,$0-0
 	CMPL	SI, DI
 	JEQ	cmp_allsame
 	CMPL	BX, DX

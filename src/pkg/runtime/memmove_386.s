@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-TEXT runtime·memmove(SB), 7, $0
+TEXT runtime·memmove(SB), 7, $0-12
 	MOVL	to+0(FP), DI
 	MOVL	fr+4(FP), SI
 	MOVL	n+8(FP), BX

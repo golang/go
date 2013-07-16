@@ -56,7 +56,7 @@ FR2 = 4
 FW3 = 4
 FR3 = 8					/* shared with TE */
 
-TEXT runtime·memmove(SB), 7, $4
+TEXT runtime·memmove(SB), 7, $4-12
 _memmove:
 	MOVW	to+0(FP), R(TS)
 	MOVW	from+4(FP), R(FROM)
