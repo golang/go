@@ -5,7 +5,7 @@
 // +build race
 
 // func runtime·racefuncenter(pc uintptr)
-TEXT	runtime·racefuncenter(SB), 7, $16
+TEXT	runtime·racefuncenter(SB), 7, $16-8
 	MOVQ	DX, saved-8(SP) // save function entry context (for closures)
 	MOVQ	pc+0(FP), DX
 	MOVQ	DX, arg-16(SP)
