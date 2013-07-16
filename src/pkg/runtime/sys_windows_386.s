@@ -327,28 +327,39 @@ TEXT runtime·remove_exception_handler(SB),7,$0
 
 	RET
 
-TEXT runtime·osyield(SB),7,$20
-	// Tried NtYieldExecution but it doesn't yield hard enough.
-	// NtWaitForSingleObject being used here as Sleep(0).
-	MOVL	runtime·NtWaitForSingleObject(SB), AX
-	MOVL	$-1, hi-4(SP)
-	MOVL	$-1, lo-8(SP)
-	LEAL	lo-8(SP), BX
-	MOVL	BX, ptime-12(SP)
-	MOVL	$0, alertable-16(SP)
-	MOVL	$-1, handle-20(SP)
-	MOVL	SP, BP
-	CALL	checkstack4<>(SB)
+// Sleep duration is in 100ns units.
+TEXT runtime·usleep1(SB),7,$0
+	MOVL	duration+0(FP), BX
+	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
+
+	// Execute call on m->g0 stack, in case we are not actually
+	// calling a system call wrapper, like when running under WINE.
+	get_tls(CX)
+	CMPL	CX, $0
+	JNE	3(PC)
+	// Not a Go-managed thread. Do not switch stack.
 	CALL	AX
-	MOVL	BP, SP
 	RET
 
-TEXT runtime·usleep(SB),7,$20
-	MOVL	runtime·NtWaitForSingleObject(SB), AX 
-	// Have 1us units; need negative 100ns units.
-	// Assume multiply by 10 will not overflow 32-bit word.
-	MOVL	usec+0(FP), BX
-	IMULL	$10, BX
+	MOVL	m(CX), BP
+	MOVL	m_g0(BP), SI
+	CMPL	g(CX), SI
+	JNE	3(PC)
+	// executing on m->g0 already
+	CALL	AX
+	RET
+
+	// Switch to m->g0 stack and back.
+	MOVL	(g_sched+gobuf_sp)(SI), SI
+	MOVL	SP, -4(SI)
+	LEAL	-4(SI), SP
+	CALL	AX
+	MOVL	0(SP), SP
+	RET
+
+// Runs on OS stack. duration (in 100ns units) is in BX.
+TEXT runtime·usleep2(SB),7,$20
+	// Want negative 100ns units.
 	NEGL	BX
 	MOVL	$-1, hi-4(SP)
 	MOVL	BX, lo-8(SP)
@@ -357,15 +368,7 @@ TEXT runtime·usleep(SB),7,$20
 	MOVL	$0, alertable-16(SP)
 	MOVL	$-1, handle-20(SP)
 	MOVL	SP, BP
-	CALL	checkstack4<>(SB)
+	MOVL	runtime·NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVL	BP, SP
-	RET
-
-// This function requires 4 bytes of stack,
-// to simulate what calling NtWaitForSingleObject will use.
-// (It is just a CALL to the system call dispatch.)
-// If the linker okays the call to checkstack4 (a NOSPLIT function)
-// then the call to NtWaitForSingleObject is okay too.
-TEXT checkstack4<>(SB),7,$4
 	RET

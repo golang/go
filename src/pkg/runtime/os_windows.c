@@ -275,6 +275,23 @@ runtime·stdcall(void *fn, int32 count, ...)
 	return (void*)c.r1;
 }
 
+extern void runtime·usleep1(uint32);
+
+#pragma textflag 7
+void
+runtime·osyield(void)
+{
+	runtime·usleep1(1);
+}
+
+#pragma textflag 7
+void
+runtime·usleep(uint32 us)
+{
+	// Have 1us units; want 100ns units.
+	runtime·usleep1(10*us);
+}
+
 uint32
 runtime·issigpanic(uint32 code)
 {
