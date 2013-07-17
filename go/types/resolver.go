@@ -510,7 +510,7 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycle
 		}
 		// typecheck method signatures
 		var methods []*Func
-		if !scope.IsEmpty() {
+		if scope.NumEntries() > 0 {
 			for _, obj := range scope.entries {
 				m := obj.(*Func)
 

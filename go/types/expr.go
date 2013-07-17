@@ -430,7 +430,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 			return // error already reported
 		}
 	case *Interface:
-		if !x.isNil() && !t.IsEmpty() /* empty interfaces are ok */ {
+		if !x.isNil() && t.NumMethods() > 0 /* empty interfaces are ok */ {
 			goto Error
 		}
 		// Update operand types to the default type rather then
@@ -443,7 +443,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 			target = Typ[UntypedNil]
 		} else {
 			// cannot assign untyped values to non-empty interfaces
-			if !t.IsEmpty() {
+			if t.NumMethods() > 0 {
 				goto Error
 			}
 			target = defaultType(x.typ)

@@ -72,8 +72,10 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 }
 
 func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+	// WARNING: The code in this function is extremely subtle - do not modify casually!
+
 	if name == "_" {
-		return // empty fields/methods are never found
+		return // blank fields/methods are never found
 	}
 
 	// Start with typ as single entry at lowest depth.
@@ -82,14 +84,14 @@ func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 	t, _ := typ.(*Named)
 	current := []embeddedType{{t, nil, isPtr, false}}
 
-	// named types that we have seen already
-	seen := make(map[*Named]bool)
+	// named types that we have seen already, allocated lazily
+	var seen map[*Named]bool
 
 	// search current depth
 	for len(current) > 0 {
 		var next []embeddedType // embedded types found at current depth
 
-		// look for (pkg, name) in all types at this depth
+		// look for (pkg, name) in all types at current depth
 		for _, e := range current {
 			// The very first time only, e.typ may be nil.
 			// In this case, we don't have a named type and
@@ -98,10 +100,13 @@ func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 				if seen[e.typ] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
-					// were eliminated before). The type at that depth shadows
+					// were consolidated before). The type at that depth shadows
 					// this same type at the current depth, so we can ignore
 					// this one.
 					continue
+				}
+				if seen == nil {
+					seen = make(map[*Named]bool)
 				}
 				seen[e.typ] = true
 
@@ -224,7 +229,7 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 	// Note: This is stronger than the current spec. Should the spec require this?
 
 	// fast path for common case
-	if T.IsEmpty() {
+	if T.NumMethods() == 0 {
 		return
 	}
 

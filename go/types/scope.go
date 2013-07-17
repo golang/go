@@ -39,9 +39,7 @@ func NewScope(parent *Scope) *Scope {
 }
 
 // Parent returns the scope's containing (parent) scope.
-func (s *Scope) Parent() *Scope {
-	return s.parent
-}
+func (s *Scope) Parent() *Scope { return s.parent }
 
 // Node returns the ast.Node responsible for this scope,
 // which may be one of the following:
@@ -59,9 +57,7 @@ func (s *Scope) Parent() *Scope {
 //
 // The result is nil if there is no corresponding node
 // (universe and package scopes).
-func (s *Scope) Node() ast.Node {
-	return s.node
-}
+func (s *Scope) Node() ast.Node { return s.node }
 
 // NumEntries() returns the number of scope entries.
 // If s == nil, the result is 0.
@@ -72,16 +68,8 @@ func (s *Scope) NumEntries() int {
 	return len(s.entries)
 }
 
-// IsEmpty reports whether the scope is empty.
-// If s == nil, the result is true.
-func (s *Scope) IsEmpty() bool {
-	return s == nil || len(s.entries) == 0
-}
-
 // At returns the i'th scope entry for 0 <= i < NumEntries().
-func (s *Scope) At(i int) Object {
-	return s.entries[i]
-}
+func (s *Scope) At(i int) Object { return s.entries[i] }
 
 // NumChildren() returns the number of scopes nested in s.
 // If s == nil, the result is 0.
@@ -93,9 +81,7 @@ func (s *Scope) NumChildren() int {
 }
 
 // Child returns the i'th child scope for 0 <= i < NumChildren().
-func (s *Scope) Child(i int) *Scope {
-	return s.children[i]
-}
+func (s *Scope) Child(i int) *Scope { return s.children[i] }
 
 // Lookup returns the object in scope s with the given package
 // and name if such an object exists; otherwise the result is nil.

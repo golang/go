@@ -143,6 +143,10 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.Prog.concreteMethods[method] = fn
 		}
 
+	case *types.Method:
+		// TODO(adonovan): do something more sensible here?
+		memberFromObject(pkg, obj.Func, syntax)
+
 	default: // (incl. *types.Package)
 		panic(fmt.Sprintf("unexpected Object type: %T", obj))
 	}

@@ -236,7 +236,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		}
 
 		// verify that m is in the method set of x.typ
-		// (the receiver is nil if f is an interface method)
+		// (the receiver is nil if m is an interface method)
 		if recv := m.typ.(*Signature).recv; recv != nil {
 			if _, isPtr := deref(recv.typ); isPtr && !indirect {
 				check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
@@ -264,14 +264,8 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		case *Field:
 			x.mode = variable
 			x.typ = obj.typ
-		case *Func:
-			// TODO(gri) Temporary check to verify corresponding lookup via method sets.
-			//           Remove eventually.
-			if m := NewMethodSet(x.typ).Lookup(check.pkg, sel); m != obj {
-				check.dump("%s: %v", e.Pos(), obj.name)
-				panic("method sets and lookup don't agree")
-			}
 
+		case *Func:
 			// TODO(gri) This code appears elsewhere, too. Factor!
 			// verify that obj is in the method set of x.typ (or &(x.typ) if x is addressable)
 			// (the receiver is nil if obj is an interface method)
@@ -287,8 +281,35 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				}
 			}
 
+			if debug {
+				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
+				typ := x.typ
+				if x.mode == variable {
+					// If typ is not an (unnamed) pointer, use *typ instead,
+					// because the the method set of *typ includes the methods
+					// of typ.
+					// Variables are addressable, so we can always take their
+					// address.
+					if _, isPtr := typ.(*Pointer); !isPtr {
+						typ = &Pointer{base: typ}
+					}
+				}
+				// If we created a synthetic pointer type above, we will throw
+				// away the method set computed here after use.
+				// TODO(gri) Consider also using a method set cache for the lifetime
+				// of checker once we rely on MethodSet lookup instead of individual
+				// lookup.
+				mset := typ.MethodSet()
+				if m := mset.Lookup(check.pkg, sel); m == nil || m.Func != obj {
+					check.dump("%s: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
+					check.dump("%s\n", mset)
+					panic("method sets and lookup don't agree")
+				}
+			}
+
 			x.mode = value
 			x.typ = obj.typ
+
 		default:
 			unreachable()
 		}

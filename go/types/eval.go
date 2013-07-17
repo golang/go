@@ -29,10 +29,6 @@ func New(str string) Type {
 	return typ
 }
 
-// TODO(gri): Try to find a better name than Eval. Not everybody
-// agrees that it's the best name for the functionality provided.
-// Change EvalNode in correspondence.
-
 // Eval returns the type and, if constant, the value for the
 // expression or type literal string str evaluated in scope.
 // If the expression contains function literals, the function

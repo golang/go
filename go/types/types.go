@@ -14,6 +14,9 @@ type Type interface {
 	// Underlying returns the underlying type of a type.
 	Underlying() Type
 
+	// MethodSet returns the method set of a type.
+	MethodSet() *MethodSet
+
 	// String returns a string representation of a type.
 	String() string
 }
@@ -121,9 +124,11 @@ func (s *Slice) Elem() Type { return s.elt }
 
 // A Struct represents a struct type.
 type Struct struct {
-	fields  []*Field
-	tags    []string // field tags; nil if there are no tags
-	offsets []int64  // field offsets in bytes, lazily computed
+	fields []*Field
+	tags   []string // field tags; nil if there are no tags
+	// TODO(gri) access to offsets is not threadsafe - fix this
+	offsets []int64         // field offsets in bytes, lazily initialized
+	mset    cachedMethodSet // method set, lazily initialized
 }
 
 // NewStruct returns a new struct with the given fields and corresponding field tags.
@@ -150,11 +155,12 @@ func (s *Struct) Tag(i int) string {
 
 // A Pointer represents a pointer type.
 type Pointer struct {
-	base Type
+	base Type            // element type
+	mset cachedMethodSet // method set, lazily initialized
 }
 
 // NewPointer returns a new pointer type for the given element (base) type.
-func NewPointer(elem Type) *Pointer { return &Pointer{elem} }
+func NewPointer(elem Type) *Pointer { return &Pointer{base: elem} }
 
 // Elem returns the element type for the given pointer p.
 func (p *Pointer) Elem() Type { return p.base }
@@ -266,30 +272,24 @@ type Builtin struct {
 }
 
 // Name returns the name of the built-in function b.
-func (b *Builtin) Name() string {
-	return b.name
-}
+func (b *Builtin) Name() string { return b.name }
 
 // An Interface represents an interface type.
 type Interface struct {
-	methods []*Func
+	methods []*Func         // methods declared with or embedded in this interface
+	mset    cachedMethodSet // method set for interface, lazily initialized
 }
 
 // NewInterface returns a new interface for the given methods.
 func NewInterface(methods []*Func) *Interface {
-	return &Interface{methods}
+	return &Interface{methods: methods}
 }
 
 // NumMethods returns the number of methods of interface t.
 func (t *Interface) NumMethods() int { return len(t.methods) }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
-func (t *Interface) Method(i int) *Func {
-	return t.methods[i]
-}
-
-// IsEmpty() reports whether t is an empty interface.
-func (t *Interface) IsEmpty() bool { return len(t.methods) == 0 }
+func (t *Interface) Method(i int) *Func { return t.methods[i] }
 
 // A Map represents a map type.
 type Map struct {
@@ -326,10 +326,11 @@ func (c *Chan) Elem() Type { return c.elt }
 
 // A Named represents a named type.
 type Named struct {
-	obj        *TypeName // corresponding declared object
-	underlying Type      // possibly a *Named if !complete; never a *Named if complete
-	complete   bool      // if set, the underlying type has been determined
-	methods    []*Func   // methods declared for this type (not the method set of this type)
+	obj        *TypeName       // corresponding declared object
+	underlying Type            // possibly a *Named if !complete; never a *Named if complete
+	complete   bool            // if set, the underlying type has been determined
+	methods    []*Func         // methods declared for this type (not the method set of this type)
+	mset       cachedMethodSet // method set for this type, lazily initialized
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -339,7 +340,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj, underlying, true, methods}
+	typ := &Named{obj: obj, underlying: underlying, complete: true, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -353,9 +354,7 @@ func (t *Named) Obj() *TypeName { return t.obj }
 func (t *Named) NumMethods() int { return len(t.methods) }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
-func (t *Named) Method(i int) *Func {
-	return t.methods[i]
-}
+func (t *Named) Method(i int) *Func { return t.methods[i] }
 
 // Implementations for Type methods.
 
@@ -371,6 +370,19 @@ func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
+
+func (t *Basic) MethodSet() *MethodSet     { return &emptyMethodSet }
+func (t *Array) MethodSet() *MethodSet     { return &emptyMethodSet }
+func (t *Slice) MethodSet() *MethodSet     { return &emptyMethodSet }
+func (t *Struct) MethodSet() *MethodSet    { return t.mset.of(t) }
+func (t *Pointer) MethodSet() *MethodSet   { return t.mset.of(t) }
+func (t *Tuple) MethodSet() *MethodSet     { return &emptyMethodSet }
+func (t *Signature) MethodSet() *MethodSet { return &emptyMethodSet }
+func (t *Builtin) MethodSet() *MethodSet   { return &emptyMethodSet }
+func (t *Interface) MethodSet() *MethodSet { return t.mset.of(t) }
+func (t *Map) MethodSet() *MethodSet       { return &emptyMethodSet }
+func (t *Chan) MethodSet() *MethodSet      { return &emptyMethodSet }
+func (t *Named) MethodSet() *MethodSet     { return t.mset.of(t) }
 
 func (t *Basic) String() string     { return typeString(t) }
 func (t *Array) String() string     { return typeString(t) }

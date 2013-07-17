@@ -194,7 +194,7 @@ func (x *operand) isAssignableTo(ctxt *Context, T Type) bool {
 				return Vb.kind == UntypedBool && isBoolean(Tu)
 			}
 		case *Interface:
-			return x.isNil() || t.IsEmpty()
+			return x.isNil() || t.NumMethods() == 0
 		case *Pointer, *Signature, *Slice, *Map, *Chan:
 			return x.isNil()
 		}
