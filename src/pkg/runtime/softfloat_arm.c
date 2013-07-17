@@ -576,9 +576,12 @@ done:
 	return 0;
 }
 
+// The ... here is because there are actually 16 registers
+// being passed (r0, r1, and so on) amd we are too lazy
+// to list them all.
 #pragma textflag 7
 uint32*
-runtime·_sfloat2(uint32 *lr, uint32 r0)
+runtime·_sfloat2(uint32 *lr, uint32 r0, ...)
 {
 	uint32 skip;
 

@@ -48,6 +48,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		frame.pc = *(uintptr*)frame.sp;
 		frame.sp += sizeof(uintptr);
 	}
+	
+	f = runtime·findfunc(frame.pc);
+	if(f == nil) {
+		if(callback != nil) {
+			runtime·printf("runtime: unknown pc %p\n", frame.pc);
+			runtime·throw("unknown pc");
+		}
+		return 0;
+	}
+	frame.fn = f;
 
 	n = 0;
 	stk = (Stktop*)gp->stackbase;
@@ -69,16 +79,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			if(printing && runtime·showframe(nil, gp))
 				runtime·printf("----- stack segment boundary -----\n");
 			stk = (Stktop*)stk->stackbase;
+
+			f = runtime·findfunc(frame.pc);
+			if(f == nil) {
+				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
+				runtime·throw("unknown pc");
+			}
+			frame.fn = f;
 			continue;
 		}
 		f = frame.fn;
-		if(f == nil && (frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil)) {
-			if(callback != nil) {
-				runtime·printf("unknown pc %p\n", frame.pc);
-				runtime·throw("unknown pc");
-			}
-			break;
-		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
@@ -86,28 +96,42 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
 			frame.fp += sizeof(uintptr); // caller PC
 		}
-		if(frame.lr == 0)
-			frame.lr = ((uintptr*)frame.fp)[-1];
-		flr = runtime·findfunc(frame.lr);
+		if(runtime·topofstack(f)) {
+			frame.lr = 0;
+			flr = nil;
+		} else {
+			if(frame.lr == 0)
+				frame.lr = ((uintptr*)frame.fp)[-1];
+			flr = runtime·findfunc(frame.lr);
+			if(flr == nil) {
+				runtime·printf("runtime: unexpected return pc for %S called from %p", *f->name, frame.lr);
+				runtime·throw("unknown caller pc");
+			}
+		}
 
 		// Derive size of arguments.
-		frame.argp = (byte*)frame.fp;
-		if(flr != nil && (i = runtime·funcarglen(flr, frame.lr)) >= 0)
-			frame.arglen = i;
-		else if(f->args != ArgsSizeUnknown)
-			frame.arglen = f->args;
-		else if(runtime·haszeroargs(f->entry))
-			frame.arglen = 0;
-		else if(frame.lr == (uintptr)runtime·lessstack)
-			frame.arglen = stk->argsize;
-		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
-			frame.arglen = 2*sizeof(uintptr) + *(int32*)frame.argp;
-		else if(flr != nil && flr->frame >= sizeof(uintptr))
-			frame.arglen = flr->frame; // conservative overestimate
-		else {
-			runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n", *f->name, frame.lr, flr ? *flr->name : unknown);
-			if(!printing)
-				runtime·throw("invalid stack");
+		// Most functions have a fixed-size argument block,
+		// so we can use metadata about the function f.
+		// Not all, though: there are some variadic functions
+		// in package runtime, and for those we use call-specific
+		// metadata recorded by f's caller.
+		if(callback != nil || printing) {
+			frame.argp = (byte*)frame.fp;
+			if(f->args != ArgsSizeUnknown)
+				frame.arglen = f->args;
+			else if(flr == nil)
+				frame.arglen = 0;
+			else if(frame.lr == (uintptr)runtime·lessstack)
+				frame.arglen = stk->argsize;
+			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
+				frame.arglen = i;
+			else {
+				runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n",
+					*f->name, frame.lr, flr ? *flr->name : unknown);
+				if(!printing)
+					runtime·throw("invalid stack");
+				frame.arglen = 0;
+			}
 		}
 
 		// Derive location and size of local variables.
@@ -174,7 +198,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		waspanic = f->entry == (uintptr)runtime·sigpanic;
 
 		// Do not unwind past the bottom of the stack.
-		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)_rt0_go)
+		if(flr == nil)
 			break;
 
 		// Unwind to next frame.
