@@ -10,6 +10,7 @@
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "funcdata.h"
 
 typedef struct Ftab Ftab;
 struct Ftab
@@ -81,25 +82,16 @@ funcdata(Func *f, int32 i)
 // Return associated data value for targetpc in func f.
 // (Source file is f->src.)
 static int32
-pcvalue(Func *f, int32 off, uintptr targetpc)
+pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
 {
 	byte *p;
 	uintptr pc;
-	int32 value, vdelta, pcshift;
+	int32 value, vdelta;
 	uint32 uvdelta, pcdelta;
 
 	enum {
 		debug = 0
 	};
-
-	switch(thechar) {
-	case '5':
-		pcshift = 2;
-		break;
-	default:	// 6, 8
-		pcshift = 0;
-		break;
-	}
 
 	// The table is a delta-encoded sequence of (value, pc) pairs.
 	// Each pair states the given value is in effect up to pc.
@@ -126,7 +118,7 @@ pcvalue(Func *f, int32 off, uintptr targetpc)
 		else
 			uvdelta >>= 1;
 		vdelta = (int32)uvdelta;
-		pcdelta = readvarint(&p) << pcshift;
+		pcdelta = readvarint(&p) * PCQuantum;
 		value += vdelta;
 		pc += pcdelta;
 		if(debug)
@@ -137,23 +129,43 @@ pcvalue(Func *f, int32 off, uintptr targetpc)
 	
 	// If there was a table, it should have covered all program counters.
 	// If not, something is wrong.
+	if(runtime·panicking || !strict)
+		return -1;
 	runtime·printf("runtime: invalid pc-encoded table f=%S pc=%p targetpc=%p tab=%p\n",
 		*f->name, pc, targetpc, p);
+	p = (byte*)f + off;
+	pc = f->entry;
+	value = -1;
+	for(;;) {
+		uvdelta = readvarint(&p);
+		if(uvdelta == 0 && pc != f->entry)
+			break;
+		if(uvdelta&1)
+			uvdelta = ~(uvdelta>>1);
+		else
+			uvdelta >>= 1;
+		vdelta = (int32)uvdelta;
+		pcdelta = readvarint(&p) * PCQuantum;
+		value += vdelta;
+		pc += pcdelta;
+		runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
+	}
+	
 	runtime·throw("invalid runtime symbol table");
 	return -1;
 }
 
 static String unknown = { (uint8*)"?", 1 };
 
-int32
-runtime·funcline(Func *f, uintptr targetpc, String *file)
+static int32
+funcline(Func *f, uintptr targetpc, String *file, bool strict)
 {
 	int32 line;
 	int32 fileno;
 
 	*file = unknown;
-	fileno = pcvalue(f, f->pcfile, targetpc);
-	line = pcvalue(f, f->pcln, targetpc);
+	fileno = pcvalue(f, f->pcfile, targetpc, strict);
+	line = pcvalue(f, f->pcln, targetpc, strict);
 	if(fileno == -1 || line == -1 || fileno >= nfiletab) {
 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
 		return 0;
@@ -163,11 +175,17 @@ runtime·funcline(Func *f, uintptr targetpc, String *file)
 }
 
 int32
+runtime·funcline(Func *f, uintptr targetpc, String *file)
+{
+	return funcline(f, targetpc, file, true);
+}
+
+int32
 runtime·funcspdelta(Func *f, uintptr targetpc)
 {
 	int32 x;
 	
-	x = pcvalue(f, f->pcsp, targetpc);
+	x = pcvalue(f, f->pcsp, targetpc, true);
 	if(x&(sizeof(void*)-1))
 		runtime·printf("invalid spdelta %d %d\n", f->pcsp, x);
 	return x;
@@ -178,19 +196,23 @@ pcdatavalue(Func *f, int32 table, uintptr targetpc)
 {
 	if(table < 0 || table >= f->npcdata)
 		return -1;
-	return pcvalue(f, (&f->nfuncdata)[1+table], targetpc);
+	return pcvalue(f, (&f->nfuncdata)[1+table], targetpc, true);
 }
 
 int32
 runtime·funcarglen(Func *f, uintptr targetpc)
 {
-	return pcdatavalue(f, 0, targetpc);
+	if(targetpc == f->entry)
+		return 0;
+	return pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
 }
 
 void
 runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
 {
-	retline = runtime·funcline(f, targetpc, &retfile);
+	// Pass strict=false here, because anyone can call this function,
+	// and they might just be wrong about targetpc belonging to f.
+	retline = funcline(f, targetpc, &retfile, false);
 	FLUSH(&retline);
 }
 

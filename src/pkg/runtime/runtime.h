@@ -690,6 +690,7 @@ int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int3
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
+bool	runtime·topofstack(Func*);
 
 /*
  * external data
