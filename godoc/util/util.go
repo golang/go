@@ -1,44 +1,44 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains support functionality for godoc.
-
-package main
+// Package util contains utility types and functions for godoc.
+package util
 
 import (
+	"io"
 	pathpkg "path"
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 // An RWValue wraps a value and permits mutually exclusive
 // access to it and records the time the value was last set.
-//
 type RWValue struct {
 	mutex     sync.RWMutex
 	value     interface{}
 	timestamp time.Time // time of last set()
 }
 
-func (v *RWValue) set(value interface{}) {
+func (v *RWValue) Set(value interface{}) {
 	v.mutex.Lock()
 	v.value = value
 	v.timestamp = time.Now()
 	v.mutex.Unlock()
 }
 
-func (v *RWValue) get() (interface{}, time.Time) {
+func (v *RWValue) Get() (interface{}, time.Time) {
 	v.mutex.RLock()
 	defer v.mutex.RUnlock()
 	return v.value, v.timestamp
 }
 
-// isText returns true if a significant prefix of s looks like correct UTF-8;
+// IsText returns whether a significant prefix of s looks like correct UTF-8;
 // that is, if it is likely that s is human-readable text.
-//
-func isText(s []byte) bool {
+func IsText(s []byte) bool {
 	const max = 1024 // at least utf8.UTFMax
 	if len(s) > max {
 		s = s[0:max]
@@ -62,12 +62,16 @@ var textExt = map[string]bool{
 	".js":  false, // must be served raw
 }
 
-// isTextFile returns true if the file has a known extension indicating
+// FileSystem is a minimal virtual filesystem.
+type FileSystem interface {
+	Open(name string) (io.ReadCloser, error)
+}
+
+// IsTextFile returns whether the file has a known extension indicating
 // a text file, or if a significant chunk of the specified file looks like
 // correct UTF-8; that is, if it is likely that the file contains human-
 // readable text.
-//
-func isTextFile(filename string) bool {
+func IsTextFile(fs vfs.Opener, filename string) bool {
 	// if the extension is known, use it for decision making
 	if isText, found := textExt[pathpkg.Ext(filename)]; found {
 		return isText
@@ -87,5 +91,5 @@ func isTextFile(filename string) bool {
 		return false
 	}
 
-	return isText(buf[0:n])
+	return IsText(buf[0:n])
 }

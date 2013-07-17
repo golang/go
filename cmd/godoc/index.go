@@ -54,6 +54,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"code.google.com/p/go.tools/godoc/util"
 )
 
 // ----------------------------------------------------------------------------
@@ -634,7 +636,7 @@ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *
 			return
 		}
 
-		if isText(src) {
+		if util.IsText(src) {
 			// only add the file to the file set (for the full text index)
 			file = x.fset.AddFile(filename, x.fset.Base(), len(src))
 			file.SetLinesForContent(src)

@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 // fs is the file system that godoc reads from and serves.
@@ -51,17 +53,11 @@ const debugNS = false
 // The FileSystem interface specifies the methods godoc is using
 // to access the file system for which it serves documentation.
 type FileSystem interface {
-	Open(path string) (readSeekCloser, error)
+	Open(path string) (vfs.ReadSeekCloser, error)
 	Lstat(path string) (os.FileInfo, error)
 	Stat(path string) (os.FileInfo, error)
 	ReadDir(path string) ([]os.FileInfo, error)
 	String() string
-}
-
-type readSeekCloser interface {
-	io.Reader
-	io.Seeker
-	io.Closer
 }
 
 // ReadFile reads the file named by path from fs and returns the contents.
@@ -97,7 +93,7 @@ func (root osFS) resolve(path string) string {
 	return filepath.Join(string(root), path)
 }
 
-func (root osFS) Open(path string) (readSeekCloser, error) {
+func (root osFS) Open(path string) (vfs.ReadSeekCloser, error) {
 	f, err := os.Open(root.resolve(path))
 	if err != nil {
 		return nil, err
@@ -319,7 +315,7 @@ func (ns nameSpace) resolve(path string) []mountedFS {
 }
 
 // Open implements the FileSystem Open method.
-func (ns nameSpace) Open(path string) (readSeekCloser, error) {
+func (ns nameSpace) Open(path string) (vfs.ReadSeekCloser, error) {
 	var err error
 	for _, m := range ns.resolve(path) {
 		if debugNS {
@@ -552,7 +548,7 @@ func (h *httpDir) Readdir(count int) ([]os.FileInfo, error) {
 // httpFile implements http.File for a file (not directory) in a FileSystem.
 type httpFile struct {
 	fs FileSystem
-	readSeekCloser
+	vfs.ReadSeekCloser
 	name string
 }
 

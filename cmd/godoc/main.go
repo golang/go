@@ -212,7 +212,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		index, _ := searchIndex.get()
+		index, _ := searchIndex.Get()
 		err = index.(*Index).Write(f)
 		if err != nil {
 			log.Fatal(err)

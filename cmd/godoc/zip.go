@@ -27,6 +27,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 // zipFI is the zip-file based implementation of FileInfo
@@ -107,7 +109,7 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
 	return i, zipFI{name, file}, nil
 }
 
-func (fs *zipFS) Open(abspath string) (readSeekCloser, error) {
+func (fs *zipFS) Open(abspath string) (vfs.ReadSeekCloser, error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	if err != nil {
 		return nil, err

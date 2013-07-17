@@ -32,25 +32,12 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"code.google.com/p/go.tools/godoc/util"
 )
 
 // ----------------------------------------------------------------------------
 // Globals
-
-type delayTime struct {
-	RWValue
-}
-
-func (dt *delayTime) backoff(max time.Duration) {
-	dt.mutex.Lock()
-	v := dt.value.(time.Duration) * 2
-	if v > max {
-		v = max
-	}
-	dt.value = v
-	// don't change dt.timestamp - calling backoff indicates an error condition
-	dt.mutex.Unlock()
-}
 
 var (
 	verbose = flag.Bool("v", false, "verbose mode")
@@ -76,9 +63,9 @@ var (
 	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
 
 	// file system information
-	fsTree      RWValue // *Directory tree of packages, updated with each sync (but sync code is removed now)
-	fsModified  RWValue // timestamp of last call to invalidateIndex
-	docMetadata RWValue // mapping from paths to *Metadata
+	fsTree      util.RWValue // *Directory tree of packages, updated with each sync (but sync code is removed now)
+	fsModified  util.RWValue // timestamp of last call to invalidateIndex
+	docMetadata util.RWValue // mapping from paths to *Metadata
 
 	// http handlers
 	fileServer http.Handler // default file server
@@ -112,7 +99,7 @@ func initFSTree() {
 		log.Println("Warning: FSTree is nil")
 		return
 	}
-	fsTree.set(dir)
+	fsTree.Set(dir)
 	invalidateIndex()
 }
 
@@ -250,7 +237,7 @@ func infoKind_htmlFunc(info SpotInfo) string {
 func infoLineFunc(info SpotInfo) int {
 	line := info.Lori()
 	if info.IsIndex() {
-		index, _ := searchIndex.get()
+		index, _ := searchIndex.Get()
 		if index != nil {
 			line = index.(*Index).Snippet(line).Line
 		} else {
@@ -266,7 +253,7 @@ func infoLineFunc(info SpotInfo) int {
 
 func infoSnippet_htmlFunc(info SpotInfo) string {
 	if info.IsIndex() {
-		index, _ := searchIndex.get()
+		index, _ := searchIndex.Get()
 		// Snippet.Text was HTML-escaped when it was generated
 		return index.(*Index).Snippet(info.Lori()).Text
 	}
@@ -838,7 +825,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 		if redirect(w, r) {
 			return
 		}
-		if index := pathpkg.Join(abspath, "index.html"); isTextFile(index) {
+		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(fs, index) {
 			serveHTMLDoc(w, r, index, index)
 			return
 		}
@@ -846,7 +833,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isTextFile(abspath) {
+	if util.IsTextFile(fs, abspath) {
 		if redirectFile(w, r) {
 			return
 		}
@@ -1168,7 +1155,7 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) *Pag
 	// get directory information, if any
 	var dir *Directory
 	var timestamp time.Time
-	if tree, ts := fsTree.get(); tree != nil && tree.(*Directory) != nil {
+	if tree, ts := fsTree.Get(); tree != nil && tree.(*Directory) != nil {
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet been computed)
@@ -1256,7 +1243,7 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Search
 
-var searchIndex RWValue
+var searchIndex util.RWValue
 
 type SearchResult struct {
 	Query string
@@ -1276,7 +1263,7 @@ type SearchResult struct {
 func lookup(query string) (result SearchResult) {
 	result.Query = query
 
-	index, timestamp := searchIndex.get()
+	index, timestamp := searchIndex.Get()
 	if index != nil {
 		index := index.(*Index)
 
@@ -1311,7 +1298,7 @@ func lookup(query string) (result SearchResult) {
 
 	// is the result accurate?
 	if *indexEnabled {
-		if _, ts := fsModified.get(); timestamp.Before(ts) {
+		if _, ts := fsModified.Get(); timestamp.Before(ts) {
 			// The index is older than the latest file system change under godoc's observation.
 			result.Alert = "Indexing in progress: result may be inaccurate"
 		}
@@ -1422,7 +1409,7 @@ func updateMetadata() {
 		}
 	}
 	scan("/doc")
-	docMetadata.set(metadata)
+	docMetadata.Set(metadata)
 }
 
 // Send a value on this channel to trigger a metadata refresh.
@@ -1455,7 +1442,7 @@ func refreshMetadataLoop() {
 // exists.
 //
 func metadataFor(relpath string) *Metadata {
-	if m, _ := docMetadata.get(); m != nil {
+	if m, _ := docMetadata.Get(); m != nil {
 		meta := m.(map[string]*Metadata)
 		// If metadata for this relpath exists, return it.
 		if p := meta[relpath]; p != nil {
@@ -1479,7 +1466,7 @@ func metadataFor(relpath string) *Metadata {
 // under godoc's observation change so that the indexer is kicked on.
 //
 func invalidateIndex() {
-	fsModified.set(nil)
+	fsModified.Set(nil)
 	refreshMetadata()
 }
 
@@ -1487,16 +1474,16 @@ func invalidateIndex() {
 // than any of the file systems under godoc's observation.
 //
 func indexUpToDate() bool {
-	_, fsTime := fsModified.get()
-	_, siTime := searchIndex.get()
+	_, fsTime := fsModified.Get()
+	_, siTime := searchIndex.Get()
 	return !fsTime.After(siTime)
 }
 
 // feedDirnames feeds the directory names of all directories
 // under the file system given by root to channel c.
 //
-func feedDirnames(root *RWValue, c chan<- string) {
-	if dir, _ := root.get(); dir != nil {
+func feedDirnames(root *util.RWValue, c chan<- string) {
+	if dir, _ := root.Get(); dir != nil {
 		for d := range dir.(*Directory).iter(false) {
 			c <- d.Path
 		}
@@ -1536,7 +1523,7 @@ func readIndex(filenames string) error {
 	if err := x.Read(io.MultiReader(files...)); err != nil {
 		return err
 	}
-	searchIndex.set(x)
+	searchIndex.Set(x)
 	return nil
 }
 
@@ -1547,7 +1534,7 @@ func updateIndex() {
 	start := time.Now()
 	index := NewIndex(fsDirnames(), *maxResults > 0, *indexThrottle)
 	stop := time.Now()
-	searchIndex.set(index)
+	searchIndex.Set(index)
 	if *verbose {
 		secs := stop.Sub(start).Seconds()
 		stats := index.Stats()
