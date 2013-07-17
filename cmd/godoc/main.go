@@ -48,6 +48,9 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"code.google.com/p/go.tools/godoc/vfs"
+	"code.google.com/p/go.tools/godoc/vfs/zipfs"
 )
 
 const defaultAddr = ":6060" // default webserver address
@@ -172,9 +175,9 @@ func main() {
 	//             same is true for the http handlers in initHandlers.
 	if *zipfile == "" {
 		// use file system of underlying OS
-		fs.Bind("/", OS(*goroot), "/", bindReplace)
+		fs.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
 		if *templateDir != "" {
-			fs.Bind("/lib/godoc", OS(*templateDir), "/", bindBefore)
+			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
 		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
@@ -183,12 +186,12 @@ func main() {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
 		defer rc.Close() // be nice (e.g., -writeIndex mode)
-		fs.Bind("/", NewZipFS(rc, *zipfile), *goroot, bindReplace)
+		fs.Bind("/", zipvfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
 	}
 
 	// Bind $GOPATH trees into Go root.
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		fs.Bind("/src/pkg", OS(p), "/src", bindAfter)
+		fs.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
 	}
 
 	readTemplates()
@@ -339,18 +342,18 @@ func main() {
 	var forceCmd bool
 	var abspath, relpath string
 	if filepath.IsAbs(path) {
-		fs.Bind(target, OS(path), "/", bindReplace)
+		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
 		abspath = target
 	} else if build.IsLocalImport(path) {
 		cwd, _ := os.Getwd() // ignore errors
 		path = filepath.Join(cwd, path)
-		fs.Bind(target, OS(path), "/", bindReplace)
+		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
 		abspath = target
 	} else if strings.HasPrefix(path, cmdPrefix) {
 		path = strings.TrimPrefix(path, cmdPrefix)
 		forceCmd = true
 	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
-		fs.Bind(target, OS(bp.Dir), "/", bindReplace)
+		fs.Bind(target, vfs.OS(bp.Dir), "/", vfs.BindReplace)
 		abspath = target
 		relpath = bp.ImportPath
 	} else {

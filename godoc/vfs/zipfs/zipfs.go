@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file provides an implementation of the FileSystem
+// Package zipfs file provides an implementation of the FileSystem
 // interface based on the contents of a .zip file.
 //
 // Assumptions:
@@ -15,8 +15,7 @@
 //   like absolute paths w/o a leading '/'; i.e., the paths are considered
 //   relative to the root of the file system.
 // - All path arguments to file system methods must be absolute paths.
-
-package main
+package zipvfs
 
 import (
 	"archive/zip"
@@ -190,7 +189,7 @@ func (fs *zipFS) ReadDir(abspath string) ([]os.FileInfo, error) {
 	return list, nil
 }
 
-func NewZipFS(rc *zip.ReadCloser, name string) FileSystem {
+func New(rc *zip.ReadCloser, name string) vfs.FileSystem {
 	list := make(zipList, len(rc.File))
 	copy(list, rc.File) // sort a copy of rc.File
 	sort.Sort(list)

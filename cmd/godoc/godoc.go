@@ -34,6 +34,7 @@ import (
 	"unicode/utf8"
 
 	"code.google.com/p/go.tools/godoc/util"
+	"code.google.com/p/go.tools/godoc/vfs/httpfs"
 )
 
 // ----------------------------------------------------------------------------
@@ -77,7 +78,7 @@ var (
 )
 
 func initHandlers() {
-	fileServer = http.FileServer(&httpFS{fs})
+	fileServer = http.FileServer(httpfs.New(fs))
 	cmdHandler = docServer{"/cmd/", "/src/cmd"}
 	pkgHandler = docServer{"/pkg/", "/src/pkg"}
 }
