@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"io"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -98,6 +99,12 @@ const (
 	certTypeDSSSign    = 2 // A certificate containing a DSA key
 	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
 	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
+
+	// See RFC4492 sections 3 and 5.5.
+	certTypeECDSASign      = 64 // A certificate containing an ECDSA-capable public key, signed with ECDSA.
+	certTypeRSAFixedECDH   = 65 // A certificate containing an ECDH-capable public key, signed with RSA.
+	certTypeECDSAFixedECDH = 66 // A certificate containing an ECDH-capable public key, signed with ECDSA.
+
 	// Rest of these are reserved by the TLS spec
 )
 
@@ -120,10 +127,11 @@ type signatureAndHash struct {
 }
 
 // supportedSignatureAlgorithms contains the signature and hash algorithms that
-// the code will adverse as supported both in a TLS 1.2 ClientHello and
+// the code can advertise as supported both in a TLS 1.2 ClientHello and
 // CertificateRequest.
 var supportedSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
+	{hashSHA256, signatureECDSA},
 }
 
 // ConnectionState records basic TLS details about the connection.
@@ -372,7 +380,7 @@ func (c *Config) BuildNameToCertificate() {
 // A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
 	Certificate [][]byte
-	PrivateKey  crypto.PrivateKey // supported types: *rsa.PrivateKey
+	PrivateKey  crypto.PrivateKey // supported types: *rsa.PrivateKey, *ecdsa.PrivateKey
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
 	OCSPStaple []byte
@@ -394,6 +402,13 @@ type handshakeMessage interface {
 	marshal() []byte
 	unmarshal([]byte) bool
 }
+
+// TODO(jsing): Make these available to both crypto/x509 and crypto/tls.
+type dsaSignature struct {
+	R, S *big.Int
+}
+
+type ecdsaSignature dsaSignature
 
 var emptyConfig Config
 
