@@ -29,7 +29,7 @@
 // lines in the input that will not appear in the output but are easy
 // to identify by pattern.
 
-package main
+package godoc
 
 import (
 	"bytes"
@@ -38,19 +38,21 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 // Functions in this file panic on error, but the panic is recovered
 // to an error by 'code'.
 
-var templateFuncs = template.FuncMap{
+var TemplateFuncs = template.FuncMap{
 	"code": code,
 }
 
 // contents reads and returns the content of the named file
 // (from the virtual file system, so for example /doc refers to $GOROOT/doc).
 func contents(name string) string {
-	file, err := ReadFile(fs, name)
+	file, err := vfs.ReadFile(FS, name)
 	if err != nil {
 		log.Panic(err)
 	}

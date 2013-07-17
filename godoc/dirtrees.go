@@ -4,7 +4,7 @@
 
 // This file contains the code dealing with package directory trees.
 
-package main
+package godoc
 
 import (
 	"bytes"
@@ -69,7 +69,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	list, _ := fs.ReadDir(path)
+	list, _ := FS.ReadDir(path)
 
 	// determine number of subdirectories and if there are package files
 	ndirs := 0
@@ -161,9 +161,9 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 // are assumed to contain package files even if their contents are not known
 // (i.e., in this case the tree may contain directories w/o any package files).
 //
-func newDirectory(root string, maxDepth int) *Directory {
+func NewDirectory(root string, maxDepth int) *Directory {
 	// The root could be a symbolic link so use Stat not Lstat.
-	d, err := fs.Stat(root)
+	d, err := FS.Stat(root)
 	// If we fail here, report detailed error messages; otherwise
 	// is is hard to see why a directory tree was not built.
 	switch {

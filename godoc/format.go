@@ -8,7 +8,7 @@
 // built on top of FormatSelections, a generic formatter
 // for "selected" text.
 
-package main
+package godoc
 
 import (
 	"fmt"
@@ -284,11 +284,10 @@ func regexpSelection(text []byte, expr string) Selection {
 
 var selRx = regexp.MustCompile(`^([0-9]+):([0-9]+)`)
 
-// rangeSelection computes the Selection for a text range described
+// RangeSelection computes the Selection for a text range described
 // by the argument str; the range description must match the selRx
 // regular expression.
-//
-func rangeSelection(str string) Selection {
+func RangeSelection(str string) Selection {
 	m := selRx.FindStringSubmatch(str)
 	if len(m) >= 2 {
 		from, _ := strconv.Atoi(m[1])

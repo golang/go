@@ -8,6 +8,7 @@ package vfs
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 )
 
@@ -31,4 +32,14 @@ type ReadSeekCloser interface {
 	io.Reader
 	io.Seeker
 	io.Closer
+}
+
+// ReadFile reads the file named by path from fs and returns the contents.
+func ReadFile(fs Opener, path string) ([]byte, error) {
+	rc, err := fs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return ioutil.ReadAll(rc)
 }

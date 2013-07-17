@@ -35,27 +35,44 @@
 // - translate the Pos values back into file and line information and
 //   sort the result
 
-package main
+package godoc
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"index/suffixarray"
 	"io"
+	"log"
 	"os"
 	pathpkg "path"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
 	"unicode"
 
 	"code.google.com/p/go.tools/godoc/util"
+)
+
+// TODO(bradfitz,adg): legacy flag vars. clean up.
+var (
+	MaxResults = 1000
+
+	// index throttle value; 0.0 = no time allocated, 1.0 = full throttle
+	IndexThrottle float64 = 0.75
+
+	// IndexFiles is a glob pattern specifying index files; if
+	// not empty, the index is read from these files in sorted
+	// order")
+	IndexFiles string
 )
 
 // ----------------------------------------------------------------------------
@@ -115,67 +132,6 @@ func (h RunList) reduce(less Comparer, newRun func(h RunList) interface{}) RunLi
 
 	return hh
 }
-
-// ----------------------------------------------------------------------------
-// SpotInfo
-
-// A SpotInfo value describes a particular identifier spot in a given file;
-// It encodes three values: the SpotKind (declaration or use), a line or
-// snippet index "lori", and whether it's a line or index.
-//
-// The following encoding is used:
-//
-//   bits    32   4    1       0
-//   value    [lori|kind|isIndex]
-//
-type SpotInfo uint32
-
-// SpotKind describes whether an identifier is declared (and what kind of
-// declaration) or used.
-type SpotKind uint32
-
-const (
-	PackageClause SpotKind = iota
-	ImportDecl
-	ConstDecl
-	TypeDecl
-	VarDecl
-	FuncDecl
-	MethodDecl
-	Use
-	nKinds
-)
-
-func init() {
-	// sanity check: if nKinds is too large, the SpotInfo
-	// accessor functions may need to be updated
-	if nKinds > 8 {
-		panic("internal error: nKinds > 8")
-	}
-}
-
-// makeSpotInfo makes a SpotInfo.
-func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
-	// encode lori: bits [4..32)
-	x := SpotInfo(lori) << 4
-	if int(x>>4) != lori {
-		// lori value doesn't fit - since snippet indices are
-		// most certainly always smaller then 1<<28, this can
-		// only happen for line numbers; give it no line number (= 0)
-		x = 0
-	}
-	// encode kind: bits [1..4)
-	x |= SpotInfo(kind) << 1
-	// encode isIndex: bit 0
-	if isIndex {
-		x |= 1
-	}
-	return x
-}
-
-func (x SpotInfo) Kind() SpotKind { return SpotKind(x >> 1 & 7) }
-func (x SpotInfo) Lori() int      { return int(x >> 4) }
-func (x SpotInfo) IsIndex() bool  { return x&1 != 0 }
 
 // ----------------------------------------------------------------------------
 // KindRun
@@ -482,8 +438,8 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	}
 }
 
-func (x *Indexer) visitFieldList(kind SpotKind, list *ast.FieldList) {
-	for _, f := range list.List {
+func (x *Indexer) visitFieldList(kind SpotKind, flist *ast.FieldList) {
+	for _, f := range flist.List {
 		x.decl = nil // no snippets for fields
 		for _, name := range f.Names {
 			x.visitIdent(kind, name)
@@ -593,7 +549,7 @@ func pkgName(filename string) string {
 // failed (that is, if the file was not added), it returns file == nil.
 func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
 	// open file
-	f, err := fs.Open(filename)
+	f, err := FS.Open(filename)
 	if err != nil {
 		return
 	}
@@ -772,7 +728,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Ind
 
 	// index all files in the directories given by dirnames
 	for dirname := range dirnames {
-		list, err := fs.ReadDir(dirname)
+		list, err := FS.ReadDir(dirname)
 		if err != nil {
 			continue // ignore this directory
 		}
@@ -1078,4 +1034,114 @@ func (x *Index) LookupRegexp(r *regexp.Regexp, n int) (found int, result []FileL
 	addLines()
 
 	return
+}
+
+// InvalidateIndex should be called whenever any of the file systems
+// under godoc's observation change so that the indexer is kicked on.
+func InvalidateIndex() {
+	FSModified.Set(nil)
+	refreshMetadata()
+}
+
+// indexUpToDate() returns true if the search index is not older
+// than any of the file systems under godoc's observation.
+//
+func indexUpToDate() bool {
+	_, fsTime := FSModified.Get()
+	_, siTime := SearchIndex.Get()
+	return !fsTime.After(siTime)
+}
+
+// feedDirnames feeds the directory names of all directories
+// under the file system given by root to channel c.
+//
+func feedDirnames(root *util.RWValue, c chan<- string) {
+	if dir, _ := root.Get(); dir != nil {
+		for d := range dir.(*Directory).iter(false) {
+			c <- d.Path
+		}
+	}
+}
+
+// fsDirnames() returns a channel sending all directory names
+// of all the file systems under godoc's observation.
+//
+func fsDirnames() <-chan string {
+	c := make(chan string, 256) // buffered for fewer context switches
+	go func() {
+		feedDirnames(&FSTree, c)
+		close(c)
+	}()
+	return c
+}
+
+func readIndex(filenames string) error {
+	matches, err := filepath.Glob(filenames)
+	if err != nil {
+		return err
+	} else if matches == nil {
+		return fmt.Errorf("no index files match %q", filenames)
+	}
+	sort.Strings(matches) // make sure files are in the right order
+	files := make([]io.Reader, 0, len(matches))
+	for _, filename := range matches {
+		f, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		files = append(files, f)
+	}
+	x := new(Index)
+	if err := x.Read(io.MultiReader(files...)); err != nil {
+		return err
+	}
+	SearchIndex.Set(x)
+	return nil
+}
+
+func UpdateIndex() {
+	if Verbose {
+		log.Printf("updating index...")
+	}
+	start := time.Now()
+	index := NewIndex(fsDirnames(), MaxResults > 0, IndexThrottle)
+	stop := time.Now()
+	SearchIndex.Set(index)
+	if Verbose {
+		secs := stop.Sub(start).Seconds()
+		stats := index.Stats()
+		log.Printf("index updated (%gs, %d bytes of source, %d files, %d lines, %d unique words, %d spots)",
+			secs, stats.Bytes, stats.Files, stats.Lines, stats.Words, stats.Spots)
+	}
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	log.Printf("before GC: bytes = %d footprint = %d", memstats.HeapAlloc, memstats.Sys)
+	runtime.GC()
+	runtime.ReadMemStats(memstats)
+	log.Printf("after  GC: bytes = %d footprint = %d", memstats.HeapAlloc, memstats.Sys)
+}
+
+// RunIndexer runs forever, indexing.
+func RunIndexer() {
+	// initialize the index from disk if possible
+	if IndexFiles != "" {
+		if err := readIndex(IndexFiles); err != nil {
+			log.Printf("error reading index: %s", err)
+		}
+	}
+
+	// repeatedly update the index when it goes out of date
+	for {
+		if !indexUpToDate() {
+			// index possibly out of date - make a new one
+			UpdateIndex()
+		}
+		delay := 60 * time.Second // by default, try every 60s
+		if false {                // TODO(bradfitz): was: *testDir != "" {
+			// in test mode, try once a second for fast startup
+			delay = 1 * time.Second
+		}
+		time.Sleep(delay)
+	}
 }

@@ -7,7 +7,7 @@
 //
 // Note: At the moment, this only creates HTML snippets.
 
-package main
+package godoc
 
 import (
 	"bytes"

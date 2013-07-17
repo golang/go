@@ -8,7 +8,7 @@
 // doesn't have complete type information, but it's
 // reasonably good for browsing.
 
-package main
+package godoc
 
 import (
 	"fmt"
@@ -94,7 +94,7 @@ func linksFor(node ast.Node) (list []link) {
 			switch m {
 			case identUse:
 				if n.Obj == nil && predeclared[n.Name] {
-					info.path = builtinPkgPath
+					info.path = BuiltinPkgPath
 				}
 				info.name = n.Name
 			case identDef:

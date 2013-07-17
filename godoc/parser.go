@@ -5,17 +5,19 @@
 // This file contains support functions for parsing .go files
 // accessed via godoc's file system fs.
 
-package main
+package godoc
 
 import (
 	"go/ast"
 	"go/parser"
 	"go/token"
 	pathpkg "path"
+
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {
-	src, err := ReadFile(fs, filename)
+	src, err := vfs.ReadFile(FS, filename)
 	if err != nil {
 		return nil, err
 	}

@@ -49,6 +49,7 @@ import (
 	"runtime"
 	"strings"
 
+	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/vfs"
 	"code.google.com/p/go.tools/godoc/vfs/zipfs"
 )
@@ -75,15 +76,6 @@ var (
 	// command-line searches
 	query = flag.Bool("q", false, "arguments are considered search queries")
 )
-
-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
-	w.WriteHeader(http.StatusNotFound)
-	servePage(w, Page{
-		Title:    "File " + relpath,
-		Subtitle: relpath,
-		Body:     applyTemplate(errorHTML, "errorHTML", err), // err may contain an absolute path!
-	})
-}
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
@@ -165,8 +157,8 @@ func main() {
 		usage()
 	}
 
-	if *tabwidth < 0 {
-		log.Fatalf("negative tabwidth %d", *tabwidth)
+	if godoc.TabWidth < 0 {
+		log.Fatalf("negative tabwidth %d", godoc.TabWidth)
 	}
 
 	// Determine file system to use.
@@ -175,9 +167,9 @@ func main() {
 	//             same is true for the http handlers in initHandlers.
 	if *zipfile == "" {
 		// use file system of underlying OS
-		fs.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
+		godoc.FS.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
 		if *templateDir != "" {
-			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
+			godoc.FS.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
 		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
@@ -186,20 +178,20 @@ func main() {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
 		defer rc.Close() // be nice (e.g., -writeIndex mode)
-		fs.Bind("/", zipvfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
+		godoc.FS.Bind("/", zipvfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
 	}
 
 	// Bind $GOPATH trees into Go root.
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		fs.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
+		godoc.FS.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
 	}
 
 	readTemplates()
-	initHandlers()
+	godoc.InitHandlers(godoc.FS)
 
 	if *writeIndex {
 		// Write search index and exit.
-		if *indexFiles == "" {
+		if godoc.IndexFiles == "" {
 			log.Fatal("no index file specified")
 		}
 
@@ -207,16 +199,16 @@ func main() {
 		*verbose = true // want to see what happens
 		initFSTree()
 
-		*indexThrottle = 1
-		updateIndex()
+		godoc.IndexThrottle = 1.0
+		godoc.UpdateIndex()
 
-		log.Println("writing index file", *indexFiles)
-		f, err := os.Create(*indexFiles)
+		log.Println("writing index file", godoc.IndexFiles)
+		f, err := os.Create(godoc.IndexFiles)
 		if err != nil {
 			log.Fatal(err)
 		}
-		index, _ := searchIndex.Get()
-		err = index.(*Index).Write(f)
+		index, _ := godoc.SearchIndex.Get()
+		err = index.(*godoc.Index).Write(f)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -229,7 +221,7 @@ func main() {
 	if *urlFlag != "" {
 		registerPublicHandlers(http.DefaultServeMux)
 		initFSTree()
-		updateMetadata()
+		godoc.UpdateMetadata()
 		// Try up to 10 fetches, following redirects.
 		urlstr := *urlFlag
 		for i := 0; i < 10; i++ {
@@ -273,16 +265,16 @@ func main() {
 			log.Printf("version = %s", runtime.Version())
 			log.Printf("address = %s", *httpAddr)
 			log.Printf("goroot = %s", *goroot)
-			log.Printf("tabwidth = %d", *tabwidth)
+			log.Printf("tabwidth = %d", godoc.TabWidth)
 			switch {
-			case !*indexEnabled:
+			case !godoc.IndexEnabled:
 				log.Print("search index disabled")
-			case *maxResults > 0:
-				log.Printf("full text index enabled (maxresults = %d)", *maxResults)
+			case godoc.MaxResults > 0:
+				log.Printf("full text index enabled (maxresults = %d)", godoc.MaxResults)
 			default:
 				log.Print("identifier search index enabled")
 			}
-			fs.Fprint(os.Stderr)
+			godoc.FS.Fprint(os.Stderr)
 			handler = loggingHandler(handler)
 		}
 
@@ -293,13 +285,13 @@ func main() {
 		go initFSTree()
 
 		// Immediately update metadata.
-		updateMetadata()
+		godoc.UpdateMetadata()
 		// Periodically refresh metadata.
-		go refreshMetadataLoop()
+		go godoc.RefreshMetadataLoop()
 
 		// Initialize search index.
-		if *indexEnabled {
-			go indexer()
+		if godoc.IndexEnabled {
+			go godoc.RunIndexer()
 		}
 
 		// Start http server.
@@ -310,10 +302,11 @@ func main() {
 		return
 	}
 
+	packageText := godoc.PackageText
+
 	// Command line mode.
 	if *html {
-		packageText = packageHTML
-		searchText = packageHTML
+		packageText = godoc.PackageHTML
 	}
 
 	if *query {
@@ -341,52 +334,52 @@ func main() {
 	var forceCmd bool
 	var abspath, relpath string
 	if filepath.IsAbs(path) {
-		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
+		godoc.FS.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
 		abspath = target
 	} else if build.IsLocalImport(path) {
 		cwd, _ := os.Getwd() // ignore errors
 		path = filepath.Join(cwd, path)
-		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
+		godoc.FS.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
 		abspath = target
 	} else if strings.HasPrefix(path, cmdPrefix) {
 		path = strings.TrimPrefix(path, cmdPrefix)
 		forceCmd = true
 	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
-		fs.Bind(target, vfs.OS(bp.Dir), "/", vfs.BindReplace)
+		godoc.FS.Bind(target, vfs.OS(bp.Dir), "/", vfs.BindReplace)
 		abspath = target
 		relpath = bp.ImportPath
 	} else {
-		abspath = pathpkg.Join(pkgHandler.fsRoot, path)
+		abspath = pathpkg.Join(godoc.PkgHandler.FSRoot(), path)
 	}
 	if relpath == "" {
 		relpath = abspath
 	}
 
-	var mode PageInfoMode
-	if relpath == builtinPkgPath {
+	var mode godoc.PageInfoMode
+	if relpath == godoc.BuiltinPkgPath {
 		// the fake built-in package contains unexported identifiers
-		mode = noFiltering
+		mode = godoc.NoFiltering
 	}
 	if *srcMode {
 		// only filter exports if we don't have explicit command-line filter arguments
 		if flag.NArg() > 1 {
-			mode |= noFiltering
+			mode |= godoc.NoFiltering
 		}
-		mode |= showSource
+		mode |= godoc.ShowSource
 	}
 
 	// first, try as package unless forced as command
-	var info *PageInfo
+	var info *godoc.PageInfo
 	if !forceCmd {
-		info = pkgHandler.getPageInfo(abspath, relpath, mode)
+		info = godoc.PkgHandler.GetPageInfo(abspath, relpath, mode)
 	}
 
 	// second, try as command unless the path is absolute
 	// (the go command invokes godoc w/ absolute paths; don't override)
-	var cinfo *PageInfo
+	var cinfo *godoc.PageInfo
 	if !filepath.IsAbs(path) {
-		abspath = pathpkg.Join(cmdHandler.fsRoot, path)
-		cinfo = cmdHandler.getPageInfo(abspath, relpath, mode)
+		abspath = pathpkg.Join(godoc.CmdHandler.FSRoot(), path)
+		cinfo = godoc.CmdHandler.GetPageInfo(abspath, relpath, mode)
 	}
 
 	// determine what to use
@@ -442,10 +435,10 @@ func main() {
 				}
 				if *html {
 					var buf bytes.Buffer
-					writeNode(&buf, info.FSet, cn)
-					FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
+					godoc.WriteNode(&buf, info.FSet, cn)
+					godoc.FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
 				} else {
-					writeNode(os.Stdout, info.FSet, cn)
+					godoc.WriteNode(os.Stdout, info.FSet, cn)
 				}
 				fmt.Println()
 			}
