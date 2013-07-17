@@ -253,6 +253,7 @@ struct	G
 	bool	issystem;	// do not output in stack dump
 	bool	isbackground;	// ignore in deadlock detector
 	bool	blockingsyscall;	// hint that the next syscall will block
+	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;

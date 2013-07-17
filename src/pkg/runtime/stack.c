@@ -250,7 +250,7 @@ runtime·newstack(void)
 		// We are interested in preempting user Go code, not runtime code.
 		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing) {
 			// Let the goroutine keep running for now.
-			// TODO(dvyukov): remember but delay the preemption.
+			// gp->preempt is set, so it will be preempted next time.
 			gp->stackguard0 = gp->stackguard;
 			gp->status = oldstatus;
 			runtime·gogo(&gp->sched);	// never return
