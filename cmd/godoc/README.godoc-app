@@ -1,0 +1,61 @@
+Copyright 2011 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+
+godoc on appengine
+------------------
+
+Prerequisites
+-------------
+
+* Go appengine SDK
+  https://developers.google.com/appengine/downloads#Google_App_Engine_SDK_for_Go
+
+* Go sources at tip under $GOROOT
+
+
+Directory structure
+-------------------
+
+* Let $APPDIR be the directory containing the app engine files.
+  (e.g., $APPDIR=$HOME/godoc-app)
+
+* $APPDIR contains the following entries (this may change depending on
+  app-engine release and version of godoc):
+
+	app.yaml
+	godoc.zip
+	godoc/
+	index.split.*
+
+* The app.yaml file is set up per app engine documentation.
+  For instance:
+
+	application: godoc-app
+	version: 1
+	runtime: go
+	api_version: go1
+
+	handlers:
+	- url: /.*
+	  script: _go_app
+
+* The godoc/ directory contains a copy of the files under $GOROOT/src/cmd/godoc
+  with doc.go excluded (it belongs to pseudo-package "documentation")
+
+
+Configuring and running godoc
+-----------------------------
+
+To configure godoc, run
+
+	bash setup-godoc-app.bash
+
+to create the godoc.zip, index.split.*, and godoc/appconfig.go files
+based on $GOROOT and $APPDIR. See the script for details on usage.
+
+To run godoc locally, using the app-engine emulator, run
+
+	<path to google_appengine>/dev_appserver.py $APPDIR
+
+godoc should come up at http://localhost:8080 .
