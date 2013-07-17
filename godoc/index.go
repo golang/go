@@ -79,16 +79,12 @@ var (
 // InterfaceSlice is a helper type for sorting interface
 // slices according to some slice-specific sort criteria.
 
-type Comparer func(x, y interface{}) bool
+type comparer func(x, y interface{}) bool
 
-type InterfaceSlice struct {
+type interfaceSlice struct {
 	slice []interface{}
-	less  Comparer
+	less  comparer
 }
-
-func (p *InterfaceSlice) Len() int           { return len(p.slice) }
-func (p *InterfaceSlice) Less(i, j int) bool { return p.less(p.slice[i], p.slice[j]) }
-func (p *InterfaceSlice) Swap(i, j int)      { p.slice[i], p.slice[j] = p.slice[j], p.slice[i] }
 
 // ----------------------------------------------------------------------------
 // RunList
@@ -101,13 +97,17 @@ func (p *InterfaceSlice) Swap(i, j int)      { p.slice[i], p.slice[j] = p.slice[
 // a list of y's with the same x.
 type RunList []interface{}
 
-func (h RunList) sort(less Comparer) {
-	sort.Sort(&InterfaceSlice{h, less})
+func (h RunList) sort(less comparer) {
+	sort.Sort(&interfaceSlice{h, less})
 }
+
+func (p *interfaceSlice) Len() int           { return len(p.slice) }
+func (p *interfaceSlice) Less(i, j int) bool { return p.less(p.slice[i], p.slice[j]) }
+func (p *interfaceSlice) Swap(i, j int)      { p.slice[i], p.slice[j] = p.slice[j], p.slice[i] }
 
 // Compress entries which are the same according to a sort criteria
 // (specified by less) into "runs".
-func (h RunList) reduce(less Comparer, newRun func(h RunList) interface{}) RunList {
+func (h RunList) reduce(less comparer, newRun func(h RunList) interface{}) RunList {
 	if len(h) == 0 {
 		return nil
 	}
