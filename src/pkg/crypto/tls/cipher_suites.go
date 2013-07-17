@@ -55,8 +55,11 @@ var cipherSuites = []*cipherSuite{
 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
 	// and RC4 comes before AES (because of the Lucky13 attack).
 	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
+	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, true, cipherRC4, macSHA1},
 	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, true, cipherAES, macSHA1},
 	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, true, cipherAES, macSHA1},
 	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
 	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1},
 	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, false, cipherAES, macSHA1},
@@ -161,8 +164,16 @@ func rsaKA(version uint16) keyAgreement {
 	return rsaKeyAgreement{}
 }
 
+func ecdheECDSAKA(version uint16) keyAgreement {
+	return &ecdheKeyAgreement{
+		sigType: signatureECDSA,
+		version: version,
+	}
+}
+
 func ecdheRSAKA(version uint16) keyAgreement {
-	return &ecdheRSAKeyAgreement{
+	return &ecdheKeyAgreement{
+		sigType: signatureRSA,
 		version: version,
 	}
 }
@@ -186,12 +197,15 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 // A list of the possible cipher suite ids. Taken from
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
 const (
-	TLS_RSA_WITH_RC4_128_SHA            uint16 = 0x0005
-	TLS_RSA_WITH_3DES_EDE_CBC_SHA       uint16 = 0x000a
-	TLS_RSA_WITH_AES_128_CBC_SHA        uint16 = 0x002f
-	TLS_RSA_WITH_AES_256_CBC_SHA        uint16 = 0x0035
-	TLS_ECDHE_RSA_WITH_RC4_128_SHA      uint16 = 0xc011
-	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA uint16 = 0xc012
-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA  uint16 = 0xc013
-	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA  uint16 = 0xc014
+	TLS_RSA_WITH_RC4_128_SHA             uint16 = 0x0005
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA        uint16 = 0x000a
+	TLS_RSA_WITH_AES_128_CBC_SHA         uint16 = 0x002f
+	TLS_RSA_WITH_AES_256_CBC_SHA         uint16 = 0x0035
+	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA     uint16 = 0xc007
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA uint16 = 0xc009
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA uint16 = 0xc00a
+	TLS_ECDHE_RSA_WITH_RC4_128_SHA       uint16 = 0xc011
+	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA  uint16 = 0xc012
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA   uint16 = 0xc013
+	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA   uint16 = 0xc014
 )

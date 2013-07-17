@@ -274,10 +274,14 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 
 // hashForClientCertificate returns a digest and hash function identifier
 // suitable for signing by a TLS client certificate.
-func (h finishedHash) hashForClientCertificate() ([]byte, crypto.Hash) {
+func (h finishedHash) hashForClientCertificate(sigType uint8) ([]byte, crypto.Hash) {
 	if h.version >= VersionTLS12 {
 		digest := h.server.Sum(nil)
 		return digest, crypto.SHA256
+	}
+	if sigType == signatureECDSA {
+		digest := h.server.Sum(nil)
+		return digest, crypto.SHA1
 	}
 
 	digest := make([]byte, 0, 36)

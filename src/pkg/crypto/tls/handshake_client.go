@@ -6,9 +6,11 @@ package tls
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
+	"encoding/asn1"
 	"errors"
 	"io"
 	"strconv"
@@ -124,7 +126,10 @@ func (c *Conn) clientHandshake() error {
 		}
 	}
 
-	if _, ok := certs[0].PublicKey.(*rsa.PublicKey); !ok {
+	switch certs[0].PublicKey.(type) {
+	case *rsa.PublicKey, *ecdsa.PublicKey:
+		break
+	default:
 		return c.sendAlert(alertUnsupportedCertificate)
 	}
 
@@ -187,12 +192,13 @@ func (c *Conn) clientHandshake() error {
 
 		finishedHash.Write(certReq.marshal())
 
-		// For now, we only know how to sign challenges with RSA
-		rsaAvail := false
+		var rsaAvail, ecdsaAvail bool
 		for _, certType := range certReq.certificateTypes {
-			if certType == certTypeRSASign {
+			switch certType {
+			case certTypeRSASign:
 				rsaAvail = true
-				break
+			case certTypeECDSASign:
+				ecdsaAvail = true
 			}
 		}
 
@@ -201,7 +207,7 @@ func (c *Conn) clientHandshake() error {
 		// certReq.certificateAuthorities
 	findCert:
 		for i, chain := range c.config.Certificates {
-			if !rsaAvail {
+			if !rsaAvail && !ecdsaAvail {
 				continue
 			}
 
@@ -216,7 +222,10 @@ func (c *Conn) clientHandshake() error {
 					}
 				}
 
-				if x509Cert.PublicKeyAlgorithm != x509.RSA {
+				switch {
+				case rsaAvail && x509Cert.PublicKeyAlgorithm == x509.RSA:
+				case ecdsaAvail && x509Cert.PublicKeyAlgorithm == x509.ECDSA:
+				default:
 					continue findCert
 				}
 
@@ -271,9 +280,21 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	if chainToSend != nil {
+		var signed []byte
 		certVerify := new(certificateVerifyMsg)
-		digest, hashFunc := finishedHash.hashForClientCertificate()
-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey.(*rsa.PrivateKey), hashFunc, digest)
+		switch key := c.config.Certificates[0].PrivateKey.(type) {
+		case *ecdsa.PrivateKey:
+			digest, _ := finishedHash.hashForClientCertificate(signatureECDSA)
+			r, s, err := ecdsa.Sign(c.config.rand(), key, digest)
+			if err == nil {
+				signed, err = asn1.Marshal(ecdsaSignature{r, s})
+			}
+		case *rsa.PrivateKey:
+			digest, hashFunc := finishedHash.hashForClientCertificate(signatureRSA)
+			signed, err = rsa.SignPKCS1v15(c.config.rand(), key, hashFunc, digest)
+		default:
+			err = errors.New("unknown private key type")
+		}
 		if err != nil {
 			return c.sendAlert(alertInternalError)
 		}

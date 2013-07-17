@@ -5,9 +5,12 @@
 package tls
 
 import (
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
+	"encoding/asn1"
 	"errors"
 	"io"
 )
@@ -305,7 +308,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	if config.ClientAuth >= RequestClientCert {
 		// Request a client certificate
 		certReq := new(certificateRequestMsg)
-		certReq.certificateTypes = []byte{certTypeRSASign}
+		certReq.certificateTypes = []byte{
+			byte(certTypeRSASign),
+			byte(certTypeECDSASign),
+		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAndHash = true
 			certReq.signatureAndHashes = supportedSignatureAlgorithms
@@ -327,7 +333,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	hs.finishedHash.Write(helloDone.marshal())
 	c.writeRecord(recordTypeHandshake, helloDone.marshal())
 
-	var pub *rsa.PublicKey // public key for client auth, if any
+	var pub crypto.PublicKey // public key for client auth, if any
 
 	msg, err := c.readHandshake()
 	if err != nil {
@@ -372,7 +378,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 	// If we received a client cert in response to our certificate request message,
 	// the client will send us a certificateVerifyMsg immediately after the
-	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceding
+	// clientKeyExchangeMsg.  This message is a digest of all preceding
 	// handshake-layer messages that is signed using the private key corresponding
 	// to the client's certificate. This allows us to verify that the client is in
 	// possession of the private key of the certificate.
@@ -386,8 +392,25 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			return c.sendAlert(alertUnexpectedMessage)
 		}
 
-		digest, hashFunc := hs.finishedHash.hashForClientCertificate()
-		err = rsa.VerifyPKCS1v15(pub, hashFunc, digest, certVerify.signature)
+		switch key := pub.(type) {
+		case *ecdsa.PublicKey:
+			ecdsaSig := new(ecdsaSignature)
+			if _, err = asn1.Unmarshal(certVerify.signature, ecdsaSig); err != nil {
+				break
+			}
+			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+				err = errors.New("ECDSA signature contained zero or negative values")
+				break
+			}
+			digest, _ := hs.finishedHash.hashForClientCertificate(signatureECDSA)
+			if !ecdsa.Verify(key, digest, ecdsaSig.R, ecdsaSig.S) {
+				err = errors.New("ECDSA verification failure")
+				break
+			}
+		case *rsa.PublicKey:
+			digest, hashFunc := hs.finishedHash.hashForClientCertificate(signatureRSA)
+			err = rsa.VerifyPKCS1v15(key, hashFunc, digest, certVerify.signature)
+		}
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("could not validate signature of connection nonces: " + err.Error())
@@ -507,7 +530,7 @@ func (hs *serverHandshakeState) sendFinished() error {
 // processCertsFromClient takes a chain of client certificates either from a
 // Certificates message or from a sessionState and verifies them. It returns
 // the public key of the leaf certificate.
-func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (*rsa.PublicKey, error) {
+func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (crypto.PublicKey, error) {
 	c := hs.c
 
 	hs.certsFromClient = certificates
@@ -554,8 +577,11 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (*
 	}
 
 	if len(certs) > 0 {
-		pub, ok := certs[0].PublicKey.(*rsa.PublicKey)
-		if !ok {
+		var pub crypto.PublicKey
+		switch key := certs[0].PublicKey.(type) {
+		case *ecdsa.PublicKey, *rsa.PublicKey:
+			pub = key
+		default:
 			return nil, c.sendAlert(alertUnsupportedCertificate)
 		}
 		c.peerCertificates = certs
