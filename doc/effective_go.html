@@ -1915,7 +1915,7 @@ initializer can be a general expression computed at run time.
 var (
     home   = os.Getenv("HOME")
     user   = os.Getenv("USER")
-    goRoot = os.Getenv("GOROOT")
+    gopath = os.Getenv("GOPATH")
 )
 </pre>
 
@@ -1944,11 +1944,11 @@ func init() {
     if home == "" {
         home = "/home/" + user
     }
-    if goRoot == "" {
-        goRoot = home + "/go"
+    if gopath == "" {
+        gopath = home + "/go"
     }
-    // goRoot may be overridden by --goroot flag on command line.
-    flag.StringVar(&amp;goRoot, "goroot", goRoot, "Go root directory")
+    // gopath may be overridden by --gopath flag on command line.
+    flag.StringVar(&amp;gopath, "gopath", gopath, "override default GOPATH")
 }
 </pre>
 
