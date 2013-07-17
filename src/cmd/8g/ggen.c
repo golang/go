@@ -78,9 +78,9 @@ clearfat(Node *nl)
 	c = w % 4;	// bytes
 	q = w / 4;	// quads
 
-	gconreg(AMOVL, 0, D_AX);
 	nodreg(&n1, types[tptr], D_DI);
 	agen(nl, &n1);
+	gconreg(AMOVL, 0, D_AX);
 
 	if(q >= 4) {
 		gconreg(AMOVL, q, D_CX);
