@@ -38,6 +38,7 @@ import (
 // holds the source tree, and so on.  This means that the URLs served by
 // the godoc server are the same as the paths in the virtual file
 // system, which helps keep things simple.
+// TODO(bradfitz): delete this global
 var FS = vfs.NameSpace{}
 
 // Old flags
@@ -53,8 +54,6 @@ var (
 	// the web interface.
 	// TODO(bradfitz,adg): delete this flag
 	ShowPlayground = false
-
-	IndexEnabled = false
 
 	ShowTimestamps = false
 

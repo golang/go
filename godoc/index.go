@@ -1038,9 +1038,9 @@ func (x *Index) LookupRegexp(r *regexp.Regexp, n int) (found int, result []FileL
 
 // InvalidateIndex should be called whenever any of the file systems
 // under godoc's observation change so that the indexer is kicked on.
-func InvalidateIndex() {
-	FSModified.Set(nil)
-	refreshMetadata()
+func (c *Corpus) invalidateIndex() {
+	c.fsModified.Set(nil)
+	c.refreshMetadata()
 }
 
 // indexUpToDate() returns true if the search index is not older

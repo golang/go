@@ -62,7 +62,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 	cw, err := loadCodewalk(abspath + ".xml")
 	if err != nil {
 		log.Print(err)
-		godoc.ServeError(w, r, relpath, err)
+		pres.ServeError(w, r, relpath, err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	godoc.ServePage(w, godoc.Page{
+	pres.ServePage(w, godoc.Page{
 		Title:    "Codewalk: " + cw.Title,
 		Tabtitle: cw.Title,
 		Body:     applyTemplate(codewalkHTML, "codewalk", cw),
@@ -188,7 +188,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 	dir, err := godoc.FS.ReadDir(abspath)
 	if err != nil {
 		log.Print(err)
-		godoc.ServeError(w, r, relpath, err)
+		pres.ServeError(w, r, relpath, err)
 		return
 	}
 	var v []interface{}
@@ -205,7 +205,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 		}
 	}
 
-	godoc.ServePage(w, godoc.Page{
+	pres.ServePage(w, godoc.Page{
 		Title: "Codewalks",
 		Body:  applyTemplate(codewalkdirHTML, "codewalkdir", v),
 	})
@@ -222,7 +222,7 @@ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
 	data, err := vfs.ReadFile(godoc.FS, abspath)
 	if err != nil {
 		log.Print(err)
-		godoc.ServeError(w, r, f, err)
+		pres.ServeError(w, r, f, err)
 		return
 	}
 	lo, _ := strconv.Atoi(r.FormValue("lo"))

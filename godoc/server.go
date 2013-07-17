@@ -42,16 +42,19 @@ var (
 	DocMetadata util.RWValue // mapping from paths to *Metadata
 )
 
-func InitHandlers(fs vfs.FileSystem) {
-	FileServer = http.FileServer(httpfs.New(fs))
-	CmdHandler = Server{"/cmd/", "/src/cmd"}
-	PkgHandler = Server{"/pkg/", "/src/pkg"}
+func InitHandlers(p *Presentation) {
+	c := p.Corpus
+	FileServer = http.FileServer(httpfs.New(c.fs))
+	CmdHandler = Server{p, c, "/cmd/", "/src/cmd"}
+	PkgHandler = Server{p, c, "/pkg/", "/src/pkg"}
 }
 
 // Server is a godoc server.
 type Server struct {
-	pattern string // url pattern; e.g. "/pkg/"
-	fsRoot  string // file system root to which the pattern is mapped
+	p       *Presentation
+	c       *Corpus // copy of p.Corpus
+	pattern string  // url pattern; e.g. "/pkg/"
+	fsRoot  string  // file system root to which the pattern is mapped
 }
 
 func (s *Server) FSRoot() string { return s.fsRoot }
@@ -178,7 +181,7 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 		// command-line mode); compute one level for this page
 		// note: cannot use path filter here because in general
 		//       it doesn't contain the FSTree path
-		dir = NewDirectory(abspath, 1)
+		dir = h.c.newDirectory(abspath, 1)
 		timestamp = time.Now()
 	}
 	info.Dirs = dir.listing(true)
@@ -202,12 +205,12 @@ func (h *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	info := h.GetPageInfo(abspath, relpath, mode)
 	if info.Err != nil {
 		log.Print(info.Err)
-		ServeError(w, r, relpath, info.Err)
+		h.p.ServeError(w, r, relpath, info.Err)
 		return
 	}
 
 	if mode&NoHTML != 0 {
-		ServeText(w, applyTemplate(PackageText, "packageText", info))
+		h.p.ServeText(w, applyTemplate(PackageText, "packageText", info))
 		return
 	}
 
@@ -243,7 +246,7 @@ func (h *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tabtitle = "Commands"
 	}
 
-	ServePage(w, Page{
+	h.p.ServePage(w, Page{
 		Title:    title,
 		Tabtitle: tabtitle,
 		Subtitle: subtitle,
@@ -431,16 +434,16 @@ func redirectFile(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	return
 }
 
-func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
-	src, err := vfs.ReadFile(FS, abspath)
+func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
+	src, err := vfs.ReadFile(p.Corpus.fs, abspath)
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
-		ServeError(w, r, relpath, err)
+		p.ServeError(w, r, relpath, err)
 		return
 	}
 
 	if r.FormValue("m") == "text" {
-		ServeText(w, src)
+		p.ServeText(w, src)
 		return
 	}
 
@@ -450,37 +453,37 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	buf.WriteString("</pre>")
 	fmt.Fprintf(&buf, `<p><a href="/%s?m=text">View as plain text</a></p>`, htmlpkg.EscapeString(relpath))
 
-	ServePage(w, Page{
+	p.ServePage(w, Page{
 		Title:    title + " " + relpath,
 		Tabtitle: relpath,
 		Body:     buf.Bytes(),
 	})
 }
 
-func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	if redirect(w, r) {
 		return
 	}
 
 	list, err := FS.ReadDir(abspath)
 	if err != nil {
-		ServeError(w, r, relpath, err)
+		p.ServeError(w, r, relpath, err)
 		return
 	}
 
-	ServePage(w, Page{
+	p.ServePage(w, Page{
 		Title:    "Directory " + relpath,
 		Tabtitle: relpath,
 		Body:     applyTemplate(DirlistHTML, "dirlistHTML", list),
 	})
 }
 
-func ServeHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
 	src, err := vfs.ReadFile(FS, abspath)
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
-		ServeError(w, r, relpath, err)
+		p.ServeError(w, r, relpath, err)
 		return
 	}
 
@@ -502,13 +505,13 @@ func ServeHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		tmpl, err := template.New("main").Funcs(TemplateFuncs).Parse(string(src))
 		if err != nil {
 			log.Printf("parsing template %s: %v", relpath, err)
-			ServeError(w, r, relpath, err)
+			p.ServeError(w, r, relpath, err)
 			return
 		}
 		var buf bytes.Buffer
 		if err := tmpl.Execute(&buf, nil); err != nil {
 			log.Printf("executing template %s: %v", relpath, err)
-			ServeError(w, r, relpath, err)
+			p.ServeError(w, r, relpath, err)
 			return
 		}
 		src = buf.Bytes()
@@ -521,14 +524,14 @@ func ServeHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		src = buf.Bytes()
 	}
 
-	ServePage(w, Page{
+	p.ServePage(w, Page{
 		Title:    meta.Title,
 		Subtitle: meta.Subtitle,
 		Body:     src,
 	})
 }
 
-func serveFile(w http.ResponseWriter, r *http.Request) {
+func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 	relpath := r.URL.Path
 
 	// Check to see if we need to redirect or serve another file.
@@ -553,18 +556,18 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
 			return
 		}
-		ServeHTMLDoc(w, r, abspath, relpath)
+		p.ServeHTMLDoc(w, r, abspath, relpath)
 		return
 
 	case ".go":
-		serveTextFile(w, r, abspath, relpath, "Source file")
+		p.serveTextFile(w, r, abspath, relpath, "Source file")
 		return
 	}
 
 	dir, err := FS.Lstat(abspath)
 	if err != nil {
 		log.Print(err)
-		ServeError(w, r, relpath, err)
+		p.ServeError(w, r, relpath, err)
 		return
 	}
 
@@ -573,10 +576,10 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(FS, index) {
-			ServeHTMLDoc(w, r, index, index)
+			p.ServeHTMLDoc(w, r, index, index)
 			return
 		}
-		serveDirectory(w, r, abspath, relpath)
+		p.serveDirectory(w, r, abspath, relpath)
 		return
 	}
 
@@ -584,7 +587,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 		if redirectFile(w, r) {
 			return
 		}
-		serveTextFile(w, r, abspath, relpath, "Text file")
+		p.serveTextFile(w, r, abspath, relpath, "Text file")
 		return
 	}
 
@@ -603,7 +606,7 @@ func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ServeText(w http.ResponseWriter, text []byte) {
+func (p *Presentation) ServeText(w http.ResponseWriter, text []byte) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(text)
 }

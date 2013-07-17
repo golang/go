@@ -58,11 +58,11 @@ func extractMetadata(b []byte) (meta Metadata, tail []byte, err error) {
 
 // UpdateMetadata scans $GOROOT/doc for HTML files, reads their metadata,
 // and updates the DocMetadata map.
-func UpdateMetadata() {
+func (c *Corpus) updateMetadata() {
 	metadata := make(map[string]*Metadata)
 	var scan func(string) // scan is recursive
 	scan = func(dir string) {
-		fis, err := FS.ReadDir(dir)
+		fis, err := c.fs.ReadDir(dir)
 		if err != nil {
 			log.Println("updateMetadata:", err)
 			return
@@ -77,7 +77,7 @@ func UpdateMetadata() {
 				continue
 			}
 			// Extract metadata from the file.
-			b, err := vfs.ReadFile(FS, name)
+			b, err := vfs.ReadFile(c.fs, name)
 			if err != nil {
 				log.Printf("updateMetadata %s: %v", name, err)
 				continue
@@ -123,27 +123,22 @@ func MetadataFor(relpath string) *Metadata {
 	return nil
 }
 
-// Send a value on this channel to trigger a metadata refresh.
-// It is buffered so that if a signal is not lost if sent during a refresh.
-//
-var refreshMetadataSignal = make(chan bool, 1)
-
 // refreshMetadata sends a signal to update DocMetadata. If a refresh is in
 // progress the metadata will be refreshed again afterward.
 //
-func refreshMetadata() {
+func (c *Corpus) refreshMetadata() {
 	select {
-	case refreshMetadataSignal <- true:
+	case c.refreshMetadataSignal <- true:
 	default:
 	}
 }
 
 // RefreshMetadataLoop runs forever, updating DocMetadata when the underlying
 // file system changes. It should be launched in a goroutine.
-func RefreshMetadataLoop() {
+func (c *Corpus) refreshMetadataLoop() {
 	for {
-		<-refreshMetadataSignal
-		UpdateMetadata()
+		<-c.refreshMetadataSignal
+		c.updateMetadata()
 		time.Sleep(10 * time.Second) // at most once every 10 seconds
 	}
 }

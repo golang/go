@@ -50,6 +50,7 @@ func isPkgDir(fi os.FileInfo) bool {
 }
 
 type treeBuilder struct {
+	c        *Corpus
 	maxDepth int
 }
 
@@ -69,7 +70,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	list, _ := FS.ReadDir(path)
+	list, _ := b.c.fs.ReadDir(path)
 
 	// determine number of subdirectories and if there are package files
 	ndirs := 0
@@ -161,9 +162,9 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 // are assumed to contain package files even if their contents are not known
 // (i.e., in this case the tree may contain directories w/o any package files).
 //
-func NewDirectory(root string, maxDepth int) *Directory {
+func (c *Corpus) newDirectory(root string, maxDepth int) *Directory {
 	// The root could be a symbolic link so use Stat not Lstat.
-	d, err := FS.Stat(root)
+	d, err := c.fs.Stat(root)
 	// If we fail here, report detailed error messages; otherwise
 	// is is hard to see why a directory tree was not built.
 	switch {
@@ -177,7 +178,7 @@ func NewDirectory(root string, maxDepth int) *Directory {
 	if maxDepth < 0 {
 		maxDepth = 1e6 // "infinity"
 	}
-	b := treeBuilder{maxDepth}
+	b := treeBuilder{c, maxDepth}
 	// the file set provided is only for local parsing, no position
 	// information escapes and thus we don't need to save the set
 	return b.newDirTree(token.NewFileSet(), root, d.Name(), 0)

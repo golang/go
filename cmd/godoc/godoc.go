@@ -9,16 +9,12 @@ import (
 	"flag"
 	"fmt"
 	htmlpkg "html"
-
 	"log"
 	"net/http"
 	"net/url"
-
 	pathpkg "path"
-
 	"regexp"
 	"runtime"
-
 	"strings"
 	"text/template"
 
@@ -55,8 +51,7 @@ var (
 
 	// file system roots
 	// TODO(gri) consider the invariant that goroot always end in '/'
-	goroot  = flag.String("goroot", runtime.GOROOT(), "Go root directory")
-	testDir = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
+	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 
 	// layout control
 	_           = flagInt(&godoc.TabWidth, "tabwidth", 4, "tab width")
@@ -67,8 +62,8 @@ var (
 	_           = flagBool(&godoc.DeclLinks, "links", true, "link identifiers to their declarations")
 
 	// search index
-	_ = flagBool(&godoc.IndexEnabled, "index", false, "enable search index")
-	_ = flagString(&godoc.IndexFiles, "index_files", "", "glob pattern specifying index files;"+
+	indexEnabled = flag.Bool("index", false, "enable search index")
+	indexFiles   = flag.String("index_files", "", "glob pattern specifying index files;"+
 		"if not empty, the index is read from these files in sorted order")
 	_ = flagInt(&godoc.MaxResults, "maxresults", 10000, "maximum number of full text search results shown")
 	_ = flagFloat64(&godoc.IndexThrottle, "index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
@@ -76,6 +71,8 @@ var (
 	// source code notes
 	_ = flagString(&godoc.NotesRx, "notes", "BUG", "regular expression matching note markers to show")
 )
+
+var pres *godoc.Presentation
 
 func registerPublicHandlers(mux *http.ServeMux) {
 	godoc.CmdHandler.RegisterWithMux(mux)
@@ -86,16 +83,6 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.Handle("/robots.txt", godoc.FileServer)
 	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
 	mux.HandleFunc("/", serveFile)
-}
-
-func initFSTree() {
-	dir := godoc.NewDirectory(pathpkg.Join("/", *testDir), -1)
-	if dir == nil {
-		log.Println("Warning: FSTree is nil")
-		return
-	}
-	godoc.FSTree.Set(dir)
-	godoc.InvalidateIndex()
 }
 
 // ----------------------------------------------------------------------------
@@ -176,12 +163,12 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	src, err := vfs.ReadFile(godoc.FS, abspath)
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
-		godoc.ServeError(w, r, relpath, err)
+		pres.ServeError(w, r, relpath, err)
 		return
 	}
 
 	if r.FormValue("m") == "text" {
-		godoc.ServeText(w, src)
+		pres.ServeText(w, src)
 		return
 	}
 
@@ -191,7 +178,7 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	buf.WriteString("</pre>")
 	fmt.Fprintf(&buf, `<p><a href="/%s?m=text">View as plain text</a></p>`, htmlpkg.EscapeString(relpath))
 
-	godoc.ServePage(w, godoc.Page{
+	pres.ServePage(w, godoc.Page{
 		Title:    title + " " + relpath,
 		Tabtitle: relpath,
 		Body:     buf.Bytes(),
@@ -205,11 +192,11 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 
 	list, err := godoc.FS.ReadDir(abspath)
 	if err != nil {
-		godoc.ServeError(w, r, relpath, err)
+		pres.ServeError(w, r, relpath, err)
 		return
 	}
 
-	godoc.ServePage(w, godoc.Page{
+	pres.ServePage(w, godoc.Page{
 		Title:    "Directory " + relpath,
 		Tabtitle: relpath,
 		Body:     applyTemplate(godoc.DirlistHTML, "dirlistHTML", list),
@@ -241,7 +228,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
 			return
 		}
-		godoc.ServeHTMLDoc(w, r, abspath, relpath)
+		pres.ServeHTMLDoc(w, r, abspath, relpath)
 		return
 
 	case ".go":
@@ -252,7 +239,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 	dir, err := godoc.FS.Lstat(abspath)
 	if err != nil {
 		log.Print(err)
-		godoc.ServeError(w, r, relpath, err)
+		pres.ServeError(w, r, relpath, err)
 		return
 	}
 
@@ -261,7 +248,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(godoc.FS, index) {
-			godoc.ServeHTMLDoc(w, r, index, index)
+			pres.ServeHTMLDoc(w, r, index, index)
 			return
 		}
 		serveDirectory(w, r, abspath, relpath)
@@ -362,7 +349,7 @@ func lookup(query string) (result SearchResult) {
 	}
 
 	// is the result accurate?
-	if godoc.IndexEnabled {
+	if pres.Corpus.IndexEnabled {
 		if _, ts := godoc.FSModified.Get(); timestamp.Before(ts) {
 			// The index is older than the latest file system change under godoc's observation.
 			result.Alert = "Indexing in progress: result may be inaccurate"
@@ -379,7 +366,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	result := lookup(query)
 
 	if godoc.GetPageInfoMode(r)&godoc.NoHTML != 0 {
-		godoc.ServeText(w, applyTemplate(godoc.SearchText, "searchText", result))
+		pres.ServeText(w, applyTemplate(godoc.SearchText, "searchText", result))
 		return
 	}
 
@@ -390,7 +377,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 		title = fmt.Sprintf(`No results found for query %q`, query)
 	}
 
-	godoc.ServePage(w, godoc.Page{
+	pres.ServePage(w, godoc.Page{
 		Title:    title,
 		Tabtitle: query,
 		Query:    query,

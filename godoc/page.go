@@ -37,11 +37,11 @@ var (
 	SearchDescXML *template.Template
 )
 
-func ServePage(w http.ResponseWriter, page Page) {
+func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 	if page.Tabtitle == "" {
 		page.Tabtitle = page.Title
 	}
-	page.SearchBox = IndexEnabled
+	page.SearchBox = p.Corpus.IndexEnabled
 	page.Playground = ShowPlayground
 	page.Version = runtime.Version()
 	if err := GodocHTML.Execute(w, page); err != nil && err != http.ErrBodyNotAllowed {
@@ -51,9 +51,9 @@ func ServePage(w http.ResponseWriter, page Page) {
 	}
 }
 
-func ServeError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
 	w.WriteHeader(http.StatusNotFound)
-	ServePage(w, Page{
+	p.ServePage(w, Page{
 		Title:    "File " + relpath,
 		Subtitle: relpath,
 		Body:     applyTemplate(ErrorHTML, "errorHTML", err), // err may contain an absolute path!

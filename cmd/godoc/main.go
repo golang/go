@@ -158,9 +158,8 @@ func main() {
 		usage()
 	}
 
-	if godoc.TabWidth < 0 {
-		log.Fatalf("negative tabwidth %d", godoc.TabWidth)
-	}
+	fs := vfs.NameSpace{}
+	godoc.FS = fs // temp hack
 
 	// Determine file system to use.
 	// TODO(gri) - fs and fsHttp should really be the same. Try to unify.
@@ -168,9 +167,9 @@ func main() {
 	//             same is true for the http handlers in initHandlers.
 	if *zipfile == "" {
 		// use file system of underlying OS
-		godoc.FS.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
+		fs.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
 		if *templateDir != "" {
-			godoc.FS.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
+			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
 		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
@@ -179,16 +178,23 @@ func main() {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
 		defer rc.Close() // be nice (e.g., -writeIndex mode)
-		godoc.FS.Bind("/", zipvfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
+		fs.Bind("/", zipvfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
 	}
 
 	// Bind $GOPATH trees into Go root.
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		godoc.FS.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
+		fs.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
 	}
 
 	readTemplates()
-	godoc.InitHandlers(godoc.FS)
+
+	corpus := godoc.NewCorpus(fs)
+	corpus.IndexEnabled = *indexEnabled
+	corpus.IndexFiles = *indexFiles
+
+	pres = godoc.NewPresentation(corpus)
+	// ...
+	godoc.InitHandlers(pres)
 
 	if *writeIndex {
 		// Write search index and exit.
@@ -198,7 +204,6 @@ func main() {
 
 		log.Println("initialize file systems")
 		*verbose = true // want to see what happens
-		initFSTree()
 
 		godoc.IndexThrottle = 1.0
 		godoc.UpdateIndex()
@@ -221,8 +226,7 @@ func main() {
 	// Print content that would be served at the URL *urlFlag.
 	if *urlFlag != "" {
 		registerPublicHandlers(http.DefaultServeMux)
-		initFSTree()
-		godoc.UpdateMetadata()
+
 		// Try up to 10 fetches, following redirects.
 		urlstr := *urlFlag
 		for i := 0; i < 10; i++ {
@@ -268,30 +272,21 @@ func main() {
 			log.Printf("goroot = %s", *goroot)
 			log.Printf("tabwidth = %d", godoc.TabWidth)
 			switch {
-			case !godoc.IndexEnabled:
+			case !*indexEnabled:
 				log.Print("search index disabled")
 			case godoc.MaxResults > 0:
 				log.Printf("full text index enabled (maxresults = %d)", godoc.MaxResults)
 			default:
 				log.Print("identifier search index enabled")
 			}
-			godoc.FS.Fprint(os.Stderr)
+			fs.Fprint(os.Stderr)
 			handler = loggingHandler(handler)
 		}
 
 		registerPublicHandlers(http.DefaultServeMux)
 
-		// Initialize default directory tree with corresponding timestamp.
-		// (Do it in a goroutine so that launch is quick.)
-		go initFSTree()
-
-		// Immediately update metadata.
-		godoc.UpdateMetadata()
-		// Periodically refresh metadata.
-		go godoc.RefreshMetadataLoop()
-
 		// Initialize search index.
-		if godoc.IndexEnabled {
+		if *indexEnabled {
 			go godoc.RunIndexer()
 		}
 
@@ -335,18 +330,18 @@ func main() {
 	var forceCmd bool
 	var abspath, relpath string
 	if filepath.IsAbs(path) {
-		godoc.FS.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
+		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
 		abspath = target
 	} else if build.IsLocalImport(path) {
 		cwd, _ := os.Getwd() // ignore errors
 		path = filepath.Join(cwd, path)
-		godoc.FS.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
+		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
 		abspath = target
 	} else if strings.HasPrefix(path, cmdPrefix) {
 		path = strings.TrimPrefix(path, cmdPrefix)
 		forceCmd = true
 	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
-		godoc.FS.Bind(target, vfs.OS(bp.Dir), "/", vfs.BindReplace)
+		fs.Bind(target, vfs.OS(bp.Dir), "/", vfs.BindReplace)
 		abspath = target
 		relpath = bp.ImportPath
 	} else {
