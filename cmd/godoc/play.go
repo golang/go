@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Common Playground functionality.
-
 package main
 
 import (
@@ -11,19 +9,11 @@ import (
 	"fmt"
 	"go/format"
 	"net/http"
+
+	_ "code.google.com/p/go.talks/pkg/playground"
 )
 
-// The server that will service compile and share requests.
-const playgroundBaseURL = "http://play.golang.org"
-
-func registerPlaygroundHandlers(mux *http.ServeMux) {
-	if *showPlayground {
-		mux.HandleFunc("/compile", bounceToPlayground)
-		mux.HandleFunc("/share", bounceToPlayground)
-	} else {
-		mux.HandleFunc("/compile", disabledHandler)
-		mux.HandleFunc("/share", disabledHandler)
-	}
+func init() {
 	http.HandleFunc("/fmt", fmtHandler)
 }
 

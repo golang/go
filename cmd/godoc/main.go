@@ -287,7 +287,6 @@ func main() {
 		}
 
 		registerPublicHandlers(http.DefaultServeMux)
-		registerPlaygroundHandlers(http.DefaultServeMux)
 
 		// Initialize default directory tree with corresponding timestamp.
 		// (Do it in a goroutine so that launch is quick.)

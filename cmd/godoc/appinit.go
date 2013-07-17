@@ -52,7 +52,6 @@ func init() {
 	readTemplates()
 	initHandlers()
 	registerPublicHandlers(http.DefaultServeMux)
-	registerPlaygroundHandlers(http.DefaultServeMux)
 
 	// initialize default directory tree with corresponding timestamp.
 	initFSTree()
