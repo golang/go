@@ -40,6 +40,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	_ "net/http/pprof" // to serve /debug/pprof/*
 	"net/url"
 	"os"
@@ -236,22 +237,22 @@ func main() {
 
 			// Invoke default HTTP handler to serve request
 			// to our buffering httpWriter.
-			w := &httpWriter{h: http.Header{}, code: 200}
+			w := httptest.NewRecorder()
 			http.DefaultServeMux.ServeHTTP(w, req)
 
 			// Return data, error, or follow redirect.
-			switch w.code {
+			switch w.Code {
 			case 200: // ok
-				os.Stdout.Write(w.Bytes())
+				os.Stdout.Write(w.Body.Bytes())
 				return
 			case 301, 302, 303, 307: // redirect
-				redirect := w.h.Get("Location")
+				redirect := w.HeaderMap.Get("Location")
 				if redirect == "" {
-					log.Fatalf("HTTP %d without Location header", w.code)
+					log.Fatalf("HTTP %d without Location header", w.Code)
 				}
 				urlstr = redirect
 			default:
-				log.Fatalf("HTTP error %d", w.code)
+				log.Fatalf("HTTP error %d", w.Code)
 			}
 		}
 		log.Fatalf("too many redirects")
@@ -453,13 +454,3 @@ func main() {
 		log.Printf("packageText.Execute: %s", err)
 	}
 }
-
-// An httpWriter is an http.ResponseWriter writing to a bytes.Buffer.
-type httpWriter struct {
-	bytes.Buffer
-	h    http.Header
-	code int
-}
-
-func (w *httpWriter) Header() http.Header  { return w.h }
-func (w *httpWriter) WriteHeader(code int) { w.code = code }
