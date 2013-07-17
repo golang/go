@@ -13,6 +13,7 @@ package runtime
 #include "type.h"
 #include "typekind.h"
 #include "race.h"
+#include "stack.h"
 
 MHeap runtime·mheap;
 
@@ -94,6 +95,8 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = 0;
 
 	m->mallocing = 0;
+	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 
 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
 		if(size >= rate)

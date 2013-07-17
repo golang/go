@@ -294,6 +294,8 @@ runtime·ready(G *gp)
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0)  // TODO: fast atomic
 		wakep();
 	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 }
 
 int32
@@ -475,6 +477,8 @@ runtime·starttheworld(void)
 		newm(mhelpgc, nil);
 	}
 	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 }
 
 // Called to start an M.
@@ -564,6 +568,8 @@ runtime·allocm(P *p)
 	if(p == m->p)
 		releasep();
 	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 
 	return mp;
 }
@@ -1008,6 +1014,7 @@ execute(G *gp)
 		runtime·throw("execute: bad g status");
 	}
 	gp->status = Grunning;
+	gp->preempt = false;
 	gp->stackguard0 = gp->stackguard;
 	m->p->tick++;
 	m->curg = gp;
@@ -1433,6 +1440,8 @@ runtime·exitsyscall(void)
 		// so okay to clear gcstack and gcsp.
 		g->gcstack = (uintptr)nil;
 		g->gcsp = (uintptr)nil;
+		if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
+			g->stackguard0 = StackPreempt;
 		return;
 	}
 
@@ -1450,6 +1459,8 @@ runtime·exitsyscall(void)
 			g->status = Grunning;
 			g->gcstack = (uintptr)nil;
 			g->gcsp = (uintptr)nil;
+			if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
+				g->stackguard0 = StackPreempt;
 			return;
 		}
 	}
@@ -1620,6 +1631,8 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
 		wakep();
 	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 	return newg;
 }
 
@@ -2174,6 +2187,7 @@ if(1) return;
 	gp = mp->curg;
 	if(gp == nil || gp == mp->g0)
 		return;
+	gp->preempt = true;
 	gp->stackguard0 = StackPreempt;
 }
 

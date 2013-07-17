@@ -2014,6 +2014,7 @@ runtime·gc(int32 force)
 	}
 
 	// all done
+	m->gcing = 0;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 
@@ -2031,6 +2032,8 @@ runtime·gc(int32 force)
 		// give the queued finalizers, if any, a chance to run
 		runtime·gosched();
 	}
+	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 }
 
 static void
@@ -2115,7 +2118,6 @@ gc(struct gc_args *args)
 
 	cachestats();
 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
-	m->gcing = 0;
 
 	t4 = runtime·nanotime();
 	mstats.last_gc = t4;

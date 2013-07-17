@@ -5,6 +5,7 @@
 // +build darwin netbsd openbsd plan9 windows
 
 #include "runtime.h"
+#include "stack.h"
 
 // This implementation depends on OS-specific implementations of
 //
@@ -112,6 +113,8 @@ runtime·unlock(Lock *l)
 
 	if(--m->locks < 0)
 		runtime·throw("runtime·unlock: lock count");
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 }
 
 // One-time notifications.
