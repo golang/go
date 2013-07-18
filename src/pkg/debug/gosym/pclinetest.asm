@@ -26,9 +26,10 @@ BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
 BYTE $2;
 #include "pclinetest.h"
 BYTE $2;
+BYTE $255;
 
 TEXT pcfromline(SB),7,$0	// Each record stores its line delta, then n, then n more bytes
-BYTE $31; BYTE $0;
+BYTE $32; BYTE $0;
 BYTE $1; BYTE $1; BYTE $0;
 BYTE $1; BYTE $0;
 
@@ -44,6 +45,7 @@ BYTE $3; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
 
 
 BYTE $4; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
+BYTE $255;
 
 TEXT main(SB),7,$0
 	// Prevent GC of our test symbols

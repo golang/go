@@ -21,9 +21,13 @@ var (
 	pclinetestBinary string
 )
 
-func dotest() bool {
-	// For now, only works on ELF platforms.
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+func dotest(self bool) bool {
+	// For now, only works on amd64 platforms.
+	if runtime.GOARCH != "amd64" {
+		return false
+	}
+	// Self test reads test binary; only works on Linux.
+	if self && runtime.GOOS != "linux" {
 		return false
 	}
 	if pclinetestBinary != "" {
@@ -41,7 +45,8 @@ func dotest() bool {
 	// the resulting binary looks like it was built from pclinetest.s,
 	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
-	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -E main -o %s %s.6",
+	pclinetestBinary = "pclinetest"
+	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
 		pclinetestBinary, pclinetestBinary, pclinetestBinary)
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Stdout = os.Stdout
@@ -100,12 +105,16 @@ func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
 var goarch = os.Getenv("O")
 
 func TestLineFromAline(t *testing.T) {
-	if !dotest() {
+	if !dotest(true) {
 		return
 	}
 	defer endtest()
 
 	tab := getTable(t)
+	if tab.go12line != nil {
+		// aline's don't exist in the Go 1.2 table.
+		t.Skip("not relevant to Go 1.2 symbol table")
+	}
 
 	// Find the sym package
 	pkg := tab.LookupFunc("debug/gosym.TestLineFromAline").Obj
@@ -148,12 +157,16 @@ func TestLineFromAline(t *testing.T) {
 }
 
 func TestLineAline(t *testing.T) {
-	if !dotest() {
+	if !dotest(true) {
 		return
 	}
 	defer endtest()
 
 	tab := getTable(t)
+	if tab.go12line != nil {
+		// aline's don't exist in the Go 1.2 table.
+		t.Skip("not relevant to Go 1.2 symbol table")
+	}
 
 	for _, o := range tab.Files {
 		// A source file can appear multiple times in a
@@ -190,7 +203,7 @@ func TestLineAline(t *testing.T) {
 }
 
 func TestPCLine(t *testing.T) {
-	if !dotest() {
+	if !dotest(false) {
 		return
 	}
 	defer endtest()
@@ -206,16 +219,17 @@ func TestPCLine(t *testing.T) {
 	sym := tab.LookupFunc("linefrompc")
 	wantLine := 0
 	for pc := sym.Entry; pc < sym.End; pc++ {
-		file, line, fn := tab.PCToLine(pc)
 		off := pc - text.Addr // TODO(rsc): should not need off; bug in 8g
+		if textdat[off] == 255 {
+			break
+		}
 		wantLine += int(textdat[off])
-		t.Logf("off is %d", off)
+		t.Logf("off is %d %#x (max %d)", off, textdat[off], sym.End-pc)
+		file, line, fn := tab.PCToLine(pc)
 		if fn == nil {
 			t.Errorf("failed to get line of PC %#x", pc)
-		} else if !strings.HasSuffix(file, "pclinetest.asm") {
-			t.Errorf("expected %s (%s) at PC %#x, got %s (%s)", "pclinetest.asm", sym.Name, pc, file, fn.Name)
-		} else if line != wantLine || fn != sym {
-			t.Errorf("expected :%d (%s) at PC %#x, got :%d (%s)", wantLine, sym.Name, pc, line, fn.Name)
+		} else if !strings.HasSuffix(file, "pclinetest.asm") || line != wantLine || fn != sym {
+			t.Errorf("PCToLine(%#x) = %s:%d (%s), want %s:%d (%s)", pc, file, line, fn.Name, "pclinetest.asm", wantLine, sym.Name)
 		}
 	}
 
@@ -227,6 +241,9 @@ func TestPCLine(t *testing.T) {
 	for pc := sym.Value; pc < sym.End; pc += 2 + uint64(textdat[off]) {
 		file, line, fn := tab.PCToLine(pc)
 		off = pc - text.Addr
+		if textdat[off] == 255 {
+			break
+		}
 		wantLine += int(textdat[off])
 		if line != wantLine {
 			t.Errorf("expected line %d at PC %#x in pcfromline, got %d", wantLine, pc, line)
