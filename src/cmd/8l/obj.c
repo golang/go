@@ -316,7 +316,6 @@ main(int argc, char *argv[])
 	span();
 	addexport();
 	textaddress();
-	functab();
 	pclntab();
 	symtab();
 	dodata();

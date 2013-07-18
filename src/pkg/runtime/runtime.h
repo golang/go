@@ -402,12 +402,14 @@ enum
 	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
 };
 
-// layout of in-memory per-function information prepared by linker
+// Layout of in-memory per-function information prepared by linker
 // See http://golang.org/s/go12symtab.
+// Keep in sync with linker and with ../../libmach/sym.c
+// and with package debug/gosym.
 struct	Func
 {
-	String	*name;	// function name
 	uintptr	entry;	// start pc
+	int32	nameoff;	// function name
 	
 	// TODO: Remove these fields.
 	int32	args;	// in/out args size
@@ -799,6 +801,7 @@ Func*	runtime·findfunc(uintptr);
 int32	runtime·funcline(Func*, uintptr, String*);
 int32	runtime·funcarglen(Func*, uintptr);
 int32	runtime·funcspdelta(Func*, uintptr);
+int8*	runtime·funcname(Func*);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);

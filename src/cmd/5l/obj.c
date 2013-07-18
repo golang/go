@@ -278,7 +278,6 @@ main(int argc, char *argv[])
 	span();
 	addexport();
 	// textaddress() functionality is handled in span()
-	functab();
 	pclntab();
 	symtab();
 	dodata();
