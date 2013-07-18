@@ -30,14 +30,12 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"errors"
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
 	"go/printer"
-	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -49,6 +47,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"text/template"
 
 	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/vfs"
@@ -76,7 +75,114 @@ var (
 
 	// command-line searches
 	query = flag.Bool("q", false, "arguments are considered search queries")
+
+	verbose = flag.Bool("v", false, "verbose mode")
+
+	// file system roots
+	// TODO(gri) consider the invariant that goroot always end in '/'
+	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+
+	// layout control
+	tabWidth       = flag.Int("tabwidth", 4, "tab width")
+	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
+	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+	showPlayground = flag.Bool("play", false, "enable playground in web interface")
+	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
+	declLinks      = flag.Bool("links", true, "link identifiers to their declarations")
+
+	// search index
+	indexEnabled = flag.Bool("index", false, "enable search index")
+	indexFiles   = flag.String("index_files", "", "glob pattern specifying index files;"+
+		"if not empty, the index is read from these files in sorted order")
+	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
+
+	// source code notes
+	notesRx = flag.String("notes", "BUG", "regular expression matching note markers to show")
 )
+
+var (
+	pres *godoc.Presentation
+	fs   = vfs.NameSpace{}
+)
+
+func registerPublicHandlers(mux *http.ServeMux) {
+	if pres == nil {
+		panic("nil Presentation")
+	}
+	godoc.CmdHandler.RegisterWithMux(mux)
+	godoc.PkgHandler.RegisterWithMux(mux)
+	mux.HandleFunc("/doc/codewalk/", codewalk)
+	mux.Handle("/doc/play/", godoc.FileServer)
+	mux.HandleFunc("/search", pres.HandleSearch)
+	mux.Handle("/robots.txt", godoc.FileServer)
+	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
+	mux.HandleFunc("/", pres.ServeFile)
+}
+
+// ----------------------------------------------------------------------------
+// Templates
+
+func readTemplate(name string) *template.Template {
+	if pres == nil {
+		panic("no global Presentation set yet")
+	}
+	path := "lib/godoc/" + name
+
+	// use underlying file system fs to read the template file
+	// (cannot use template ParseFile functions directly)
+	data, err := vfs.ReadFile(fs, path)
+	if err != nil {
+		log.Fatal("readTemplate: ", err)
+	}
+	// be explicit with errors (for app engine use)
+	t, err := template.New(name).Funcs(pres.FuncMap()).Parse(string(data))
+	if err != nil {
+		log.Fatal("readTemplate: ", err)
+	}
+	return t
+}
+
+func readTemplates(p *godoc.Presentation) {
+	// have to delay until after flags processing since paths depend on goroot
+	codewalkHTML = readTemplate("codewalk.html")
+	codewalkdirHTML = readTemplate("codewalkdir.html")
+	p.DirlistHTML = readTemplate("dirlist.html")
+	p.ErrorHTML = readTemplate("error.html")
+	p.ExampleHTML = readTemplate("example.html")
+	p.GodocHTML = readTemplate("godoc.html")
+	p.PackageHTML = readTemplate("package.html")
+	p.PackageText = readTemplate("package.txt")
+	p.SearchHTML = readTemplate("search.html")
+	p.SearchText = readTemplate("search.txt")
+	p.SearchDescXML = readTemplate("opensearch.xml")
+}
+
+// ----------------------------------------------------------------------------
+// Files
+
+func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		log.Printf("%s.Execute: %s", name, err)
+	}
+	return buf.Bytes()
+}
+
+func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
+	data := map[string]interface{}{
+		"BaseURL": fmt.Sprintf("http://%s", r.Host),
+	}
+	if err := pres.SearchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
+		// Only log if there's an error that's not about writing on HEAD requests.
+		// See Issues 5451 and 5454.
+		log.Printf("searchDescXML.Execute: %s", err)
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Packages
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
@@ -91,36 +197,6 @@ func loggingHandler(h http.Handler) http.Handler {
 		log.Printf("%s\t%s", req.RemoteAddr, req.URL)
 		h.ServeHTTP(w, req)
 	})
-}
-
-func remoteSearch(query string) (res *http.Response, err error) {
-	// list of addresses to try
-	var addrs []string
-	if *serverAddr != "" {
-		// explicit server address - only try this one
-		addrs = []string{*serverAddr}
-	} else {
-		addrs = []string{
-			defaultAddr,
-			"golang.org",
-		}
-	}
-
-	// remote search
-	search := remoteSearchURL(query, *html)
-	for _, addr := range addrs {
-		url := "http://" + addr + search
-		res, err = http.Get(url)
-		if err == nil && res.StatusCode == http.StatusOK {
-			break
-		}
-	}
-
-	if err == nil && res.StatusCode != http.StatusOK {
-		err = errors.New(res.Status)
-	}
-
-	return
 }
 
 // Does s look like a regular expression?
@@ -149,6 +225,44 @@ func makeRx(names []string) (rx *regexp.Regexp) {
 	return
 }
 
+func handleURLFlag() {
+	registerPublicHandlers(http.DefaultServeMux)
+
+	// Try up to 10 fetches, following redirects.
+	urlstr := *urlFlag
+	for i := 0; i < 10; i++ {
+		// Prepare request.
+		u, err := url.Parse(urlstr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		req := &http.Request{
+			URL: u,
+		}
+
+		// Invoke default HTTP handler to serve request
+		// to our buffering httpWriter.
+		w := httptest.NewRecorder()
+		http.DefaultServeMux.ServeHTTP(w, req)
+
+		// Return data, error, or follow redirect.
+		switch w.Code {
+		case 200: // ok
+			os.Stdout.Write(w.Body.Bytes())
+			return
+		case 301, 302, 303, 307: // redirect
+			redirect := w.HeaderMap.Get("Location")
+			if redirect == "" {
+				log.Fatalf("HTTP %d without Location header", w.Code)
+			}
+			urlstr = redirect
+		default:
+			log.Fatalf("HTTP error %d", w.Code)
+		}
+	}
+	log.Fatalf("too many redirects")
+}
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -175,7 +289,7 @@ func main() {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
 		defer rc.Close() // be nice (e.g., -writeIndex mode)
-		fs.Bind("/", zipvfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
+		fs.Bind("/", zipfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
 	}
 
 	// Bind $GOPATH trees into Go root.
@@ -186,6 +300,12 @@ func main() {
 	corpus := godoc.NewCorpus(fs)
 	corpus.IndexEnabled = *indexEnabled
 	corpus.IndexFiles = *indexFiles
+	if *writeIndex {
+		corpus.IndexThrottle = 1.0
+	}
+	if err := corpus.Init(); err != nil {
+		log.Fatal(err)
+	}
 
 	pres = godoc.NewPresentation(corpus)
 	pres.TabWidth = *tabWidth
@@ -193,8 +313,11 @@ func main() {
 	pres.ShowPlayground = *showPlayground
 	pres.ShowExamples = *showExamples
 	pres.DeclLinks = *declLinks
+	if *notesRx != "" {
+		pres.NotesRx = regexp.MustCompile(*notesRx)
+	}
 
-	readTemplates()
+	readTemplates(pres)
 
 	godoc.InitHandlers(pres)
 
@@ -207,7 +330,6 @@ func main() {
 		log.Println("initialize file systems")
 		*verbose = true // want to see what happens
 
-		corpus.IndexThrottle = 1.0
 		corpus.UpdateIndex()
 
 		log.Println("writing index file", *indexFiles)
@@ -227,41 +349,8 @@ func main() {
 
 	// Print content that would be served at the URL *urlFlag.
 	if *urlFlag != "" {
-		registerPublicHandlers(http.DefaultServeMux)
-
-		// Try up to 10 fetches, following redirects.
-		urlstr := *urlFlag
-		for i := 0; i < 10; i++ {
-			// Prepare request.
-			u, err := url.Parse(urlstr)
-			if err != nil {
-				log.Fatal(err)
-			}
-			req := &http.Request{
-				URL: u,
-			}
-
-			// Invoke default HTTP handler to serve request
-			// to our buffering httpWriter.
-			w := httptest.NewRecorder()
-			http.DefaultServeMux.ServeHTTP(w, req)
-
-			// Return data, error, or follow redirect.
-			switch w.Code {
-			case 200: // ok
-				os.Stdout.Write(w.Body.Bytes())
-				return
-			case 301, 302, 303, 307: // redirect
-				redirect := w.HeaderMap.Get("Location")
-				if redirect == "" {
-					log.Fatalf("HTTP %d without Location header", w.Code)
-				}
-				urlstr = redirect
-			default:
-				log.Fatalf("HTTP error %d", w.Code)
-			}
-		}
-		log.Fatalf("too many redirects")
+		handleURLFlag()
+		return
 	}
 
 	if *httpAddr != "" {
@@ -300,22 +389,15 @@ func main() {
 		return
 	}
 
-	packageText := godoc.PackageText
+	packageText := pres.PackageText
 
 	// Command line mode.
 	if *html {
-		packageText = godoc.PackageHTML
+		packageText = pres.PackageHTML
 	}
 
 	if *query {
-		// Command-line queries.
-		for i := 0; i < flag.NArg(); i++ {
-			res, err := remoteSearch(flag.Arg(i))
-			if err != nil {
-				log.Fatalf("remoteSearch: %s", err)
-			}
-			io.Copy(os.Stdout, res.Body)
-		}
+		handleRemoteSearch()
 		return
 	}
 

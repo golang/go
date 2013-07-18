@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"runtime"
-	"text/template"
 )
 
 // Page describes the contents of the top-level godoc webpage.
@@ -25,18 +24,6 @@ type Page struct {
 	Version    string
 }
 
-var (
-	DirlistHTML,
-	ErrorHTML,
-	ExampleHTML,
-	GodocHTML,
-	PackageHTML,
-	PackageText,
-	SearchHTML,
-	SearchText,
-	SearchDescXML *template.Template
-)
-
 func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 	if page.Tabtitle == "" {
 		page.Tabtitle = page.Title
@@ -44,7 +31,7 @@ func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 	page.SearchBox = p.Corpus.IndexEnabled
 	page.Playground = p.ShowPlayground
 	page.Version = runtime.Version()
-	if err := GodocHTML.Execute(w, page); err != nil && err != http.ErrBodyNotAllowed {
+	if err := p.GodocHTML.Execute(w, page); err != nil && err != http.ErrBodyNotAllowed {
 		// Only log if there's an error that's not about writing on HEAD requests.
 		// See Issues 5451 and 5454.
 		log.Printf("GodocHTML.Execute: %s", err)
@@ -56,6 +43,6 @@ func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpat
 	p.ServePage(w, Page{
 		Title:    "File " + relpath,
 		Subtitle: relpath,
-		Body:     applyTemplate(ErrorHTML, "errorHTML", err), // err may contain an absolute path!
+		Body:     applyTemplate(p.ErrorHTML, "errorHTML", err), // err may contain an absolute path!
 	})
 }

@@ -375,12 +375,12 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 			out = ""
 		}
 
-		if ExampleHTML == nil {
+		if p.ExampleHTML == nil {
 			out = ""
 			return ""
 		}
 
-		err := ExampleHTML.Execute(&buf, struct {
+		err := p.ExampleHTML.Execute(&buf, struct {
 			Name, Doc, Code, Play, Output string
 		}{eg.Name, eg.Doc, code, play, out})
 		if err != nil {

@@ -15,7 +15,7 @@
 //   like absolute paths w/o a leading '/'; i.e., the paths are considered
 //   relative to the root of the file system.
 // - All path arguments to file system methods must be absolute paths.
-package zipvfs
+package zipfs
 
 import (
 	"archive/zip"

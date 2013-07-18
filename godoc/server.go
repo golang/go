@@ -213,7 +213,7 @@ func (h *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mode&NoHTML != 0 {
-		h.p.ServeText(w, applyTemplate(PackageText, "packageText", info))
+		h.p.ServeText(w, applyTemplate(h.p.PackageText, "packageText", info))
 		return
 	}
 
@@ -253,7 +253,7 @@ func (h *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Title:    title,
 		Tabtitle: tabtitle,
 		Subtitle: subtitle,
-		Body:     applyTemplate(PackageHTML, "packageHTML", info),
+		Body:     applyTemplate(h.p.PackageHTML, "packageHTML", info),
 	})
 }
 
@@ -463,7 +463,7 @@ func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, ab
 	p.ServePage(w, Page{
 		Title:    "Directory " + relpath,
 		Tabtitle: relpath,
-		Body:     applyTemplate(DirlistHTML, "dirlistHTML", list),
+		Body:     applyTemplate(p.DirlistHTML, "dirlistHTML", list),
 	})
 }
 
@@ -587,12 +587,12 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 	FileServer.ServeHTTP(w, r)
 }
 
-func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
+func (p *Presentation) serveSearchDesc(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
 	data := map[string]interface{}{
 		"BaseURL": fmt.Sprintf("http://%s", r.Host),
 	}
-	if err := SearchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
+	if err := p.SearchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
 		// Only log if there's an error that's not about writing on HEAD requests.
 		// See Issues 5451 and 5454.
 		log.Printf("searchDescXML.Execute: %s", err)

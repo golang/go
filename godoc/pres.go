@@ -14,6 +14,16 @@ import (
 type Presentation struct {
 	Corpus *Corpus
 
+	DirlistHTML,
+	ErrorHTML,
+	ExampleHTML,
+	GodocHTML,
+	PackageHTML,
+	PackageText,
+	SearchHTML,
+	SearchText,
+	SearchDescXML *template.Template
+
 	// TabWidth optionally specifies the tab width.
 	TabWidth int
 
@@ -22,6 +32,8 @@ type Presentation struct {
 	ShowExamples   bool
 	DeclLinks      bool
 
+	// NotesRx optionally specifies a regexp to match
+	// notes to render in the output.
 	NotesRx *regexp.Regexp
 
 	initFuncMapOnce sync.Once

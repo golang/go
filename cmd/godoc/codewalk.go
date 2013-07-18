@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	pathpkg "path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -30,6 +31,8 @@ import (
 	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/vfs"
 )
+
+var codewalkHTML, codewalkdirHTML *template.Template
 
 // Handler for /doc/codewalk/ and below.
 func codewalk(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +79,20 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 		Tabtitle: cw.Title,
 		Body:     applyTemplate(codewalkHTML, "codewalk", cw),
 	})
+}
+
+func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
+	canonical := pathpkg.Clean(r.URL.Path)
+	if !strings.HasSuffix(canonical, "/") {
+		canonical += "/"
+	}
+	if r.URL.Path != canonical {
+		url := *r.URL
+		url.Path = canonical
+		http.Redirect(w, r, url.String(), http.StatusMovedPermanently)
+		redirected = true
+	}
+	return
 }
 
 // A Codewalk represents a single codewalk read from an XML file.
