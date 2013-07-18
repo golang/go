@@ -27,46 +27,10 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
-
-	"code.google.com/p/go.tools/godoc/util"
-	"code.google.com/p/go.tools/godoc/vfs"
 )
 
-// FS is the file system that godoc reads from and serves.
-// It is a virtual file system that operates on slash-separated paths,
-// and its root corresponds to the Go distribution root: /src/pkg
-// holds the source tree, and so on.  This means that the URLs served by
-// the godoc server are the same as the paths in the virtual file
-// system, which helps keep things simple.
-// TODO(bradfitz): delete this global
-var FS = vfs.NameSpace{}
-
-// Old flags
-var (
-	// DeclLinks controls whether identifers are linked to their declaration.
-	DeclLinks = true
-
-	// ShowExamples controls whether to show examples in command-line mode.
-	// TODO(bradfitz,adg): delete this flag
-	ShowExamples = false
-
-	// ShowPlayground controls whether to enable the playground in
-	// the web interface.
-	// TODO(bradfitz,adg): delete this flag
-	ShowPlayground = false
-
-	ShowTimestamps = false
-
-	Verbose = false
-
-	TabWidth = 4
-
-	// regular expression matching note markers to show
-	NotesRx = "BUG"
-)
-
-// SearchIndex is the search index in use.
-var SearchIndex util.RWValue
+// Verbose controls logging verbosity.
+var Verbose = false
 
 // Fake relative package path for built-ins. Documentation for all globals
 // (not just exported ones) will be shown for packages in this directory.
@@ -77,39 +41,57 @@ const BuiltinPkgPath = "builtin"
 // Convention: template function names ending in "_html" or "_url" produce
 //             HTML- or URL-escaped strings; all other function results may
 //             require explicit escaping in the template.
-var FuncMap = template.FuncMap{
-	// various helpers
-	"filename": filenameFunc,
-	"repeat":   strings.Repeat,
+func (p *Presentation) FuncMap() template.FuncMap {
+	p.initFuncMapOnce.Do(p.initFuncMap)
+	return p.funcMap
+}
 
-	// access to FileInfos (directory listings)
-	"fileInfoName": fileInfoNameFunc,
-	"fileInfoTime": fileInfoTimeFunc,
+func (p *Presentation) TemplateFuncs() template.FuncMap {
+	p.initFuncMapOnce.Do(p.initFuncMap)
+	return p.templateFuncs
+}
 
-	// access to search result information
-	"infoKind_html":    infoKind_htmlFunc,
-	"infoLine":         infoLineFunc,
-	"infoSnippet_html": infoSnippet_htmlFunc,
+func (p *Presentation) initFuncMap() {
+	if p.Corpus == nil {
+		panic("nil Presentation.Corpus")
+	}
+	p.templateFuncs = template.FuncMap{
+		"code": p.code,
+	}
+	p.funcMap = template.FuncMap{
+		// various helpers
+		"filename": filenameFunc,
+		"repeat":   strings.Repeat,
 
-	// formatting of AST nodes
-	"node":         nodeFunc,
-	"node_html":    node_htmlFunc,
-	"comment_html": comment_htmlFunc,
-	"comment_text": comment_textFunc,
+		// access to FileInfos (directory listings)
+		"fileInfoName": fileInfoNameFunc,
+		"fileInfoTime": fileInfoTimeFunc,
 
-	// support for URL attributes
-	"pkgLink":     pkgLinkFunc,
-	"srcLink":     srcLinkFunc,
-	"posLink_url": posLink_urlFunc,
+		// access to search result information
+		"infoKind_html":    infoKind_htmlFunc,
+		"infoLine":         p.infoLineFunc,
+		"infoSnippet_html": p.infoSnippet_htmlFunc,
 
-	// formatting of Examples
-	"example_html":   example_htmlFunc,
-	"example_text":   example_textFunc,
-	"example_name":   example_nameFunc,
-	"example_suffix": example_suffixFunc,
+		// formatting of AST nodes
+		"node":         p.nodeFunc,
+		"node_html":    p.node_htmlFunc,
+		"comment_html": comment_htmlFunc,
+		"comment_text": comment_textFunc,
 
-	// formatting of Notes
-	"noteTitle": noteTitle,
+		// support for URL attributes
+		"pkgLink":     pkgLinkFunc,
+		"srcLink":     srcLinkFunc,
+		"posLink_url": posLink_urlFunc,
+
+		// formatting of Examples
+		"example_html":   p.example_htmlFunc,
+		"example_text":   p.example_textFunc,
+		"example_name":   p.example_nameFunc,
+		"example_suffix": p.example_suffixFunc,
+
+		// formatting of Notes
+		"noteTitle": noteTitle,
+	}
 }
 
 func filenameFunc(path string) string {
@@ -148,10 +130,10 @@ func infoKind_htmlFunc(info SpotInfo) string {
 	return infoKinds[info.Kind()] // infoKind entries are html-escaped
 }
 
-func infoLineFunc(info SpotInfo) int {
+func (p *Presentation) infoLineFunc(info SpotInfo) int {
 	line := info.Lori()
 	if info.IsIndex() {
-		index, _ := SearchIndex.Get()
+		index, _ := p.Corpus.searchIndex.Get()
 		if index != nil {
 			line = index.(*Index).Snippet(line).Line
 		} else {
@@ -165,27 +147,27 @@ func infoLineFunc(info SpotInfo) int {
 	return line
 }
 
-func infoSnippet_htmlFunc(info SpotInfo) string {
+func (p *Presentation) infoSnippet_htmlFunc(info SpotInfo) string {
 	if info.IsIndex() {
-		index, _ := SearchIndex.Get()
+		index, _ := p.Corpus.searchIndex.Get()
 		// Snippet.Text was HTML-escaped when it was generated
 		return index.(*Index).Snippet(info.Lori()).Text
 	}
 	return `<span class="alert">no snippet text available</span>`
 }
 
-func nodeFunc(info *PageInfo, node interface{}) string {
+func (p *Presentation) nodeFunc(info *PageInfo, node interface{}) string {
 	var buf bytes.Buffer
-	writeNode(&buf, info.FSet, node)
+	p.writeNode(&buf, info.FSet, node)
 	return buf.String()
 }
 
-func node_htmlFunc(info *PageInfo, node interface{}, linkify bool) string {
+func (p *Presentation) node_htmlFunc(info *PageInfo, node interface{}, linkify bool) string {
 	var buf1 bytes.Buffer
-	writeNode(&buf1, info.FSet, node)
+	p.writeNode(&buf1, info.FSet, node)
 
 	var buf2 bytes.Buffer
-	if n, _ := node.(ast.Node); n != nil && linkify && DeclLinks {
+	if n, _ := node.(ast.Node); n != nil && linkify && p.DeclLinks {
 		LinkifyText(&buf2, buf1.Bytes(), n)
 	} else {
 		FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
@@ -307,8 +289,8 @@ func srcLinkFunc(s string) string {
 	return pathpkg.Clean("/" + s)
 }
 
-func example_textFunc(info *PageInfo, funcName, indent string) string {
-	if !ShowExamples {
+func (p *Presentation) example_textFunc(info *PageInfo, funcName, indent string) string {
+	if !p.ShowExamples {
 		return ""
 	}
 
@@ -328,7 +310,7 @@ func example_textFunc(info *PageInfo, funcName, indent string) string {
 		// print code
 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
 		var buf1 bytes.Buffer
-		writeNode(&buf1, info.FSet, cnode)
+		p.writeNode(&buf1, info.FSet, cnode)
 		code := buf1.String()
 		// Additional formatting if this is a function body.
 		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
@@ -348,7 +330,7 @@ func example_textFunc(info *PageInfo, funcName, indent string) string {
 	return buf.String()
 }
 
-func example_htmlFunc(info *PageInfo, funcName string) string {
+func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string {
 	var buf bytes.Buffer
 	for _, eg := range info.Examples {
 		name := stripExampleSuffix(eg.Name)
@@ -359,7 +341,7 @@ func example_htmlFunc(info *PageInfo, funcName string) string {
 
 		// print code
 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
-		code := node_htmlFunc(info, cnode, true)
+		code := p.node_htmlFunc(info, cnode, true)
 		out := eg.Output
 		wholeFile := true
 
@@ -379,7 +361,7 @@ func example_htmlFunc(info *PageInfo, funcName string) string {
 		// Write out the playground code in standard Go style
 		// (use tabs, no comment highlight, etc).
 		play := ""
-		if eg.Play != nil && ShowPlayground {
+		if eg.Play != nil && p.ShowPlayground {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, info.FSet, eg.Play); err != nil {
 				log.Print(err)
@@ -410,7 +392,7 @@ func example_htmlFunc(info *PageInfo, funcName string) string {
 
 // example_nameFunc takes an example function name and returns its display
 // name. For example, "Foo_Bar_quux" becomes "Foo.Bar (Quux)".
-func example_nameFunc(s string) string {
+func (p *Presentation) example_nameFunc(s string) string {
 	name, suffix := splitExampleName(s)
 	// replace _ with . for method names
 	name = strings.Replace(name, "_", ".", 1)
@@ -423,7 +405,7 @@ func example_nameFunc(s string) string {
 
 // example_suffixFunc takes an example function name and returns its suffix in
 // parenthesized form. For example, "Foo_Bar_quux" becomes " (Quux)".
-func example_suffixFunc(name string) string {
+func (p *Presentation) example_suffixFunc(name string) string {
 	_, suffix := splitExampleName(name)
 	return suffix
 }
@@ -462,7 +444,7 @@ func splitExampleName(s string) (name, suffix string) {
 }
 
 // Write an AST node to w.
-func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
+func (p *Presentation) writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	// convert trailing tabs into spaces using a tconv filter
 	// to ensure a good outcome in most browsers (there may still
 	// be tabs in comments and strings, but converting those into
@@ -472,10 +454,13 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	//           with an another printer mode (which is more efficiently
 	//           implemented in the printer than here with another layer)
 	mode := printer.TabIndent | printer.UseSpaces
-	err := (&printer.Config{Mode: mode, Tabwidth: TabWidth}).Fprint(&tconv{output: w}, fset, x)
+	err := (&printer.Config{Mode: mode, Tabwidth: p.TabWidth}).Fprint(&tconv{p: p, output: w}, fset, x)
 	if err != nil {
 		log.Print(err)
 	}
 }
 
-var WriteNode = writeNode
+// WriteNote writes x to w.
+func (p *Presentation) WriteNode(w io.Writer, fset *token.FileSet, x interface{}) {
+	p.writeNode(w, fset, x)
+}

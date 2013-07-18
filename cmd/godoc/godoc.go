@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	htmlpkg "html"
 	"log"
 	"net/http"
 	"net/url"
@@ -19,32 +18,8 @@ import (
 	"text/template"
 
 	"code.google.com/p/go.tools/godoc"
-	"code.google.com/p/go.tools/godoc/util"
 	"code.google.com/p/go.tools/godoc/vfs"
 )
-
-// ----------------------------------------------------------------------------
-// Globals
-
-func flagBool(b *bool, name string, value bool, usage string) interface{} {
-	flag.BoolVar(b, name, value, usage)
-	return nil
-}
-
-func flagInt(v *int, name string, value int, usage string) interface{} {
-	flag.IntVar(v, name, value, usage)
-	return nil
-}
-
-func flagString(v *string, name string, value string, usage string) interface{} {
-	flag.StringVar(v, name, value, usage)
-	return nil
-}
-
-func flagFloat64(v *float64, name string, value float64, usage string) interface{} {
-	flag.Float64Var(v, name, value, usage)
-	return nil
-}
 
 var (
 	verbose = flag.Bool("v", false, "verbose mode")
@@ -54,27 +29,33 @@ var (
 	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 
 	// layout control
-	_           = flagInt(&godoc.TabWidth, "tabwidth", 4, "tab width")
-	_           = flagBool(&godoc.ShowTimestamps, "timestamps", false, "show timestamps with directory listings")
-	templateDir = flag.String("templates", "", "directory containing alternate template files")
-	_           = flagBool(&godoc.ShowPlayground, "play", false, "enable playground in web interface")
-	_           = flagBool(&godoc.ShowExamples, "ex", false, "show examples in command line mode")
-	_           = flagBool(&godoc.DeclLinks, "links", true, "link identifiers to their declarations")
+	tabWidth       = flag.Int("tabwidth", 4, "tab width")
+	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
+	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+	showPlayground = flag.Bool("play", false, "enable playground in web interface")
+	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
+	declLinks      = flag.Bool("links", true, "link identifiers to their declarations")
 
 	// search index
 	indexEnabled = flag.Bool("index", false, "enable search index")
 	indexFiles   = flag.String("index_files", "", "glob pattern specifying index files;"+
 		"if not empty, the index is read from these files in sorted order")
-	_ = flagInt(&godoc.MaxResults, "maxresults", 10000, "maximum number of full text search results shown")
-	_ = flagFloat64(&godoc.IndexThrottle, "index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
+	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
 
 	// source code notes
-	_ = flagString(&godoc.NotesRx, "notes", "BUG", "regular expression matching note markers to show")
+	notesRx = flag.String("notes", "BUG", "regular expression matching note markers to show")
 )
 
-var pres *godoc.Presentation
+var (
+	pres *godoc.Presentation
+	fs   = vfs.NameSpace{}
+)
 
 func registerPublicHandlers(mux *http.ServeMux) {
+	if pres == nil {
+		panic("nil Presentation")
+	}
 	godoc.CmdHandler.RegisterWithMux(mux)
 	godoc.PkgHandler.RegisterWithMux(mux)
 	mux.HandleFunc("/doc/codewalk/", codewalk)
@@ -82,23 +63,26 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/search", search)
 	mux.Handle("/robots.txt", godoc.FileServer)
 	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
-	mux.HandleFunc("/", serveFile)
+	mux.HandleFunc("/", pres.ServeFile)
 }
 
 // ----------------------------------------------------------------------------
 // Templates
 
 func readTemplate(name string) *template.Template {
+	if pres == nil {
+		panic("no global Presentation set yet")
+	}
 	path := "lib/godoc/" + name
 
 	// use underlying file system fs to read the template file
 	// (cannot use template ParseFile functions directly)
-	data, err := vfs.ReadFile(godoc.FS, path)
+	data, err := vfs.ReadFile(fs, path)
 	if err != nil {
 		log.Fatal("readTemplate: ", err)
 	}
 	// be explicit with errors (for app engine use)
-	t, err := template.New(name).Funcs(godoc.FuncMap).Parse(string(data))
+	t, err := template.New(name).Funcs(pres.FuncMap()).Parse(string(data))
 	if err != nil {
 		log.Fatal("readTemplate: ", err)
 	}
@@ -145,125 +129,6 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 		redirected = true
 	}
 	return
-}
-
-func redirectFile(w http.ResponseWriter, r *http.Request) (redirected bool) {
-	c := pathpkg.Clean(r.URL.Path)
-	c = strings.TrimRight(c, "/")
-	if r.URL.Path != c {
-		url := *r.URL
-		url.Path = c
-		http.Redirect(w, r, url.String(), http.StatusMovedPermanently)
-		redirected = true
-	}
-	return
-}
-
-func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
-	src, err := vfs.ReadFile(godoc.FS, abspath)
-	if err != nil {
-		log.Printf("ReadFile: %s", err)
-		pres.ServeError(w, r, relpath, err)
-		return
-	}
-
-	if r.FormValue("m") == "text" {
-		pres.ServeText(w, src)
-		return
-	}
-
-	var buf bytes.Buffer
-	buf.WriteString("<pre>")
-	godoc.FormatText(&buf, src, 1, pathpkg.Ext(abspath) == ".go", r.FormValue("h"), godoc.RangeSelection(r.FormValue("s")))
-	buf.WriteString("</pre>")
-	fmt.Fprintf(&buf, `<p><a href="/%s?m=text">View as plain text</a></p>`, htmlpkg.EscapeString(relpath))
-
-	pres.ServePage(w, godoc.Page{
-		Title:    title + " " + relpath,
-		Tabtitle: relpath,
-		Body:     buf.Bytes(),
-	})
-}
-
-func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
-	if redirect(w, r) {
-		return
-	}
-
-	list, err := godoc.FS.ReadDir(abspath)
-	if err != nil {
-		pres.ServeError(w, r, relpath, err)
-		return
-	}
-
-	pres.ServePage(w, godoc.Page{
-		Title:    "Directory " + relpath,
-		Tabtitle: relpath,
-		Body:     applyTemplate(godoc.DirlistHTML, "dirlistHTML", list),
-	})
-}
-
-func serveFile(w http.ResponseWriter, r *http.Request) {
-	relpath := r.URL.Path
-
-	// Check to see if we need to redirect or serve another file.
-	if m := godoc.MetadataFor(relpath); m != nil {
-		if m.Path != relpath {
-			// Redirect to canonical path.
-			http.Redirect(w, r, m.Path, http.StatusMovedPermanently)
-			return
-		}
-		// Serve from the actual filesystem path.
-		relpath = m.FilePath()
-	}
-
-	abspath := relpath
-	relpath = relpath[1:] // strip leading slash
-
-	switch pathpkg.Ext(relpath) {
-	case ".html":
-		if strings.HasSuffix(relpath, "/index.html") {
-			// We'll show index.html for the directory.
-			// Use the dir/ version as canonical instead of dir/index.html.
-			http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
-			return
-		}
-		pres.ServeHTMLDoc(w, r, abspath, relpath)
-		return
-
-	case ".go":
-		serveTextFile(w, r, abspath, relpath, "Source file")
-		return
-	}
-
-	dir, err := godoc.FS.Lstat(abspath)
-	if err != nil {
-		log.Print(err)
-		pres.ServeError(w, r, relpath, err)
-		return
-	}
-
-	if dir != nil && dir.IsDir() {
-		if redirect(w, r) {
-			return
-		}
-		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(godoc.FS, index) {
-			pres.ServeHTMLDoc(w, r, index, index)
-			return
-		}
-		serveDirectory(w, r, abspath, relpath)
-		return
-	}
-
-	if util.IsTextFile(godoc.FS, abspath) {
-		if redirectFile(w, r) {
-			return
-		}
-		serveTextFile(w, r, abspath, relpath, "Text file")
-		return
-	}
-
-	godoc.FileServer.ServeHTTP(w, r)
 }
 
 func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
@@ -315,14 +180,13 @@ type SearchResult struct {
 func lookup(query string) (result SearchResult) {
 	result.Query = query
 
-	index, timestamp := godoc.SearchIndex.Get()
+	corp := pres.Corpus
+	index, timestamp := corp.CurrentIndex()
 	if index != nil {
-		index := index.(*godoc.Index)
-
 		// identifier search
 		var err error
 		result.Pak, result.Hit, result.Alt, err = index.Lookup(query)
-		if err != nil && godoc.MaxResults <= 0 {
+		if err != nil && corp.MaxResults <= 0 {
 			// ignore the error if full text search is enabled
 			// since the query may be a valid regular expression
 			result.Alert = "Error in query string: " + err.Error()
@@ -330,7 +194,7 @@ func lookup(query string) (result SearchResult) {
 		}
 
 		// full text search
-		if godoc.MaxResults > 0 && query != "" {
+		if corp.MaxResults > 0 && query != "" {
 			rx, err := regexp.Compile(query)
 			if err != nil {
 				result.Alert = "Error in query regular expression: " + err.Error()
@@ -340,8 +204,8 @@ func lookup(query string) (result SearchResult) {
 			// maxResults results and thus the result may be incomplete (to be
 			// precise, we should remove one result from the result set, but
 			// nobody is going to count the results on the result page).
-			result.Found, result.Textual = index.LookupRegexp(rx, godoc.MaxResults+1)
-			result.Complete = result.Found <= godoc.MaxResults
+			result.Found, result.Textual = index.LookupRegexp(rx, corp.MaxResults+1)
+			result.Complete = result.Found <= corp.MaxResults
 			if !result.Complete {
 				result.Found-- // since we looked for maxResults+1
 			}
@@ -350,7 +214,7 @@ func lookup(query string) (result SearchResult) {
 
 	// is the result accurate?
 	if pres.Corpus.IndexEnabled {
-		if _, ts := godoc.FSModified.Get(); timestamp.Before(ts) {
+		if ts := pres.Corpus.FSModifiedTime(); timestamp.Before(ts) {
 			// The index is older than the latest file system change under godoc's observation.
 			result.Alert = "Indexing in progress: result may be inaccurate"
 		}

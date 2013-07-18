@@ -42,7 +42,7 @@ func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 		page.Tabtitle = page.Title
 	}
 	page.SearchBox = p.Corpus.IndexEnabled
-	page.Playground = ShowPlayground
+	page.Playground = p.ShowPlayground
 	page.Version = runtime.Version()
 	if err := GodocHTML.Execute(w, page); err != nil && err != http.ErrBodyNotAllowed {
 		// Only log if there's an error that's not about writing on HEAD requests.

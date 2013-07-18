@@ -43,7 +43,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If directory exists, serve list of code walks.
-	dir, err := godoc.FS.Lstat(abspath)
+	dir, err := fs.Lstat(abspath)
 	if err == nil && dir.IsDir() {
 		codewalkDir(w, r, relpath, abspath)
 		return
@@ -51,7 +51,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 
 	// If file exists, serve using standard file server.
 	if err == nil {
-		serveFile(w, r)
+		pres.ServeFile(w, r)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (st *Codestep) String() string {
 
 // loadCodewalk reads a codewalk from the named XML file.
 func loadCodewalk(filename string) (*Codewalk, error) {
-	f, err := godoc.FS.Open(filename)
+	f, err := fs.Open(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func loadCodewalk(filename string) (*Codewalk, error) {
 			i = len(st.Src)
 		}
 		filename := st.Src[0:i]
-		data, err := vfs.ReadFile(godoc.FS, filename)
+		data, err := vfs.ReadFile(fs, filename)
 		if err != nil {
 			st.Err = err
 			continue
@@ -185,7 +185,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 		Title string
 	}
 
-	dir, err := godoc.FS.ReadDir(abspath)
+	dir, err := fs.ReadDir(abspath)
 	if err != nil {
 		log.Print(err)
 		pres.ServeError(w, r, relpath, err)
@@ -219,7 +219,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 // the usual godoc HTML wrapper.
 func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
 	abspath := f
-	data, err := vfs.ReadFile(godoc.FS, abspath)
+	data, err := vfs.ReadFile(fs, abspath)
 	if err != nil {
 		log.Print(err)
 		pres.ServeError(w, r, f, err)

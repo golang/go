@@ -16,6 +16,7 @@ type tconv struct {
 	output io.Writer
 	state  int // indenting or collecting
 	indent int // valid if state == indenting
+	p      *Presentation
 }
 
 func (p *tconv) writeIndent() (err error) {
@@ -44,7 +45,7 @@ func (p *tconv) Write(data []byte) (n int, err error) {
 		case indenting:
 			switch b {
 			case '\t':
-				p.indent += TabWidth
+				p.indent += p.p.TabWidth
 			case '\n':
 				p.indent = 0
 				if _, err = p.output.Write(data[n : n+1]); err != nil {

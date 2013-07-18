@@ -158,9 +158,6 @@ func main() {
 		usage()
 	}
 
-	fs := vfs.NameSpace{}
-	godoc.FS = fs // temp hack
-
 	// Determine file system to use.
 	// TODO(gri) - fs and fsHttp should really be the same. Try to unify.
 	//           - fsHttp doesn't need to be set up in command-line mode,
@@ -186,35 +183,40 @@ func main() {
 		fs.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
 	}
 
-	readTemplates()
-
 	corpus := godoc.NewCorpus(fs)
 	corpus.IndexEnabled = *indexEnabled
 	corpus.IndexFiles = *indexFiles
 
 	pres = godoc.NewPresentation(corpus)
-	// ...
+	pres.TabWidth = *tabWidth
+	pres.ShowTimestamps = *showTimestamps
+	pres.ShowPlayground = *showPlayground
+	pres.ShowExamples = *showExamples
+	pres.DeclLinks = *declLinks
+
+	readTemplates()
+
 	godoc.InitHandlers(pres)
 
 	if *writeIndex {
 		// Write search index and exit.
-		if godoc.IndexFiles == "" {
+		if *indexFiles == "" {
 			log.Fatal("no index file specified")
 		}
 
 		log.Println("initialize file systems")
 		*verbose = true // want to see what happens
 
-		godoc.IndexThrottle = 1.0
-		godoc.UpdateIndex()
+		corpus.IndexThrottle = 1.0
+		corpus.UpdateIndex()
 
-		log.Println("writing index file", godoc.IndexFiles)
-		f, err := os.Create(godoc.IndexFiles)
+		log.Println("writing index file", *indexFiles)
+		f, err := os.Create(*indexFiles)
 		if err != nil {
 			log.Fatal(err)
 		}
-		index, _ := godoc.SearchIndex.Get()
-		err = index.(*godoc.Index).Write(f)
+		index, _ := corpus.CurrentIndex()
+		err = index.Write(f)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -270,12 +272,12 @@ func main() {
 			log.Printf("version = %s", runtime.Version())
 			log.Printf("address = %s", *httpAddr)
 			log.Printf("goroot = %s", *goroot)
-			log.Printf("tabwidth = %d", godoc.TabWidth)
+			log.Printf("tabwidth = %d", *tabWidth)
 			switch {
 			case !*indexEnabled:
 				log.Print("search index disabled")
-			case godoc.MaxResults > 0:
-				log.Printf("full text index enabled (maxresults = %d)", godoc.MaxResults)
+			case *maxResults > 0:
+				log.Printf("full text index enabled (maxresults = %d)", *maxResults)
 			default:
 				log.Print("identifier search index enabled")
 			}
@@ -287,7 +289,7 @@ func main() {
 
 		// Initialize search index.
 		if *indexEnabled {
-			go godoc.RunIndexer()
+			go corpus.RunIndexer()
 		}
 
 		// Start http server.
@@ -431,10 +433,10 @@ func main() {
 				}
 				if *html {
 					var buf bytes.Buffer
-					godoc.WriteNode(&buf, info.FSet, cn)
+					pres.WriteNode(&buf, info.FSet, cn)
 					godoc.FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
 				} else {
-					godoc.WriteNode(os.Stdout, info.FSet, cn)
+					pres.WriteNode(os.Stdout, info.FSet, cn)
 				}
 				fmt.Println()
 			}

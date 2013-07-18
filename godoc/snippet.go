@@ -21,10 +21,10 @@ type Snippet struct {
 	Text string // HTML-escaped
 }
 
-func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+func (p *Presentation) newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
 	// TODO instead of pretty-printing the node, should use the original source instead
 	var buf1 bytes.Buffer
-	writeNode(&buf1, fset, decl)
+	p.writeNode(&buf1, fset, decl)
 	// wrap text with <pre> tag
 	var buf2 bytes.Buffer
 	buf2.WriteString("<pre>")
@@ -55,7 +55,7 @@ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
 	return nil
 }
 
-func genSnippet(fset *token.FileSet, d *ast.GenDecl, id *ast.Ident) *Snippet {
+func (p *Presentation) genSnippet(fset *token.FileSet, d *ast.GenDecl, id *ast.Ident) *Snippet {
 	s := findSpec(d.Specs, id)
 	if s == nil {
 		return nil //  declaration doesn't contain id - exit gracefully
@@ -71,10 +71,10 @@ func genSnippet(fset *token.FileSet, d *ast.GenDecl, id *ast.Ident) *Snippet {
 		Rparen: d.Rparen,
 	}
 
-	return newSnippet(fset, dd, id)
+	return p.newSnippet(fset, dd, id)
 }
 
-func funcSnippet(fset *token.FileSet, d *ast.FuncDecl, id *ast.Ident) *Snippet {
+func (p *Presentation) funcSnippet(fset *token.FileSet, d *ast.FuncDecl, id *ast.Ident) *Snippet {
 	if d.Name != id {
 		return nil //  declaration doesn't contain id - exit gracefully
 	}
@@ -87,19 +87,30 @@ func funcSnippet(fset *token.FileSet, d *ast.FuncDecl, id *ast.Ident) *Snippet {
 		Type: d.Type,
 	}
 
-	return newSnippet(fset, dd, id)
+	return p.newSnippet(fset, dd, id)
 }
 
 // NewSnippet creates a text snippet from a declaration decl containing an
 // identifier id. Parts of the declaration not containing the identifier
 // may be removed for a more compact snippet.
-//
-func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) (s *Snippet) {
+func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+	// TODO(bradfitz, adg): remove this function.  But it's used by indexer, which
+	// doesn't have a *Presentation, and NewSnippet needs a TabWidth.
+	var p Presentation
+	p.TabWidth = 4
+	return p.NewSnippet(fset, decl, id)
+}
+
+// NewSnippet creates a text snippet from a declaration decl containing an
+// identifier id. Parts of the declaration not containing the identifier
+// may be removed for a more compact snippet.
+func (p *Presentation) NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+	var s *Snippet
 	switch d := decl.(type) {
 	case *ast.GenDecl:
-		s = genSnippet(fset, d, id)
+		s = p.genSnippet(fset, d, id)
 	case *ast.FuncDecl:
-		s = funcSnippet(fset, d, id)
+		s = p.funcSnippet(fset, d, id)
 	}
 
 	// handle failure gracefully
@@ -108,5 +119,5 @@ func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) (s *Snippet) 
 		fmt.Fprintf(&buf, `<span class="alert">could not generate a snippet for <span class="highlight">%s</span></span>`, id.Name)
 		s = &Snippet{fset.Position(id.Pos()).Line, buf.String()}
 	}
-	return
+	return s
 }

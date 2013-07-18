@@ -19,7 +19,6 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -35,11 +34,6 @@ var (
 	FileServer http.Handler // default file server
 	CmdHandler Server
 	PkgHandler Server
-
-	// file system information
-	FSTree      util.RWValue // *Directory tree of packages, updated with each sync (but sync code is removed now)
-	FSModified  util.RWValue // timestamp of last call to invalidateIndex
-	DocMetadata util.RWValue // mapping from paths to *Metadata
 )
 
 func InitHandlers(p *Presentation) {
@@ -83,8 +77,17 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 	// set ctxt.GOOS and ctxt.GOARCH before calling ctxt.ImportDir.
 	ctxt := build.Default
 	ctxt.IsAbsPath = pathpkg.IsAbs
-	ctxt.ReadDir = fsReadDir
-	ctxt.OpenFile = fsOpenFile
+	ctxt.ReadDir = func(dir string) ([]os.FileInfo, error) {
+		return h.c.fs.ReadDir(filepath.ToSlash(dir))
+	}
+	ctxt.OpenFile = func(name string) (r io.ReadCloser, err error) {
+		data, err := vfs.ReadFile(h.c.fs, filepath.ToSlash(name))
+		if err != nil {
+			return nil, err
+		}
+		return ioutil.NopCloser(bytes.NewReader(data)), nil
+	}
+
 	pkginfo, err := ctxt.ImportDir(abspath, 0)
 	// continue if there are no Go source files; we still want the directory info
 	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
@@ -109,7 +112,7 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 	if len(pkgfiles) > 0 {
 		// build package AST
 		fset := token.NewFileSet()
-		files, err := parseFiles(fset, abspath, pkgfiles)
+		files, err := h.c.parseFiles(fset, abspath, pkgfiles)
 		if err != nil {
 			info.Err = err
 			return info
@@ -133,7 +136,7 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 
 			// collect examples
 			testfiles := append(pkginfo.TestGoFiles, pkginfo.XTestGoFiles...)
-			files, err = parseFiles(fset, abspath, testfiles)
+			files, err = h.c.parseFiles(fset, abspath, testfiles)
 			if err != nil {
 				log.Println("parsing examples:", err)
 			}
@@ -142,7 +145,7 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 			// collect any notes that we want to show
 			if info.PDoc.Notes != nil {
 				// could regexp.Compile only once per godoc, but probably not worth it
-				if rx, err := regexp.Compile(NotesRx); err == nil {
+				if rx := h.p.NotesRx; rx != nil {
 					for m, n := range info.PDoc.Notes {
 						if rx.MatchString(m) {
 							if info.Notes == nil {
@@ -169,7 +172,7 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 	// get directory information, if any
 	var dir *Directory
 	var timestamp time.Time
-	if tree, ts := FSTree.Get(); tree != nil && tree.(*Directory) != nil {
+	if tree, ts := h.c.fsTree.Get(); tree != nil && tree.(*Directory) != nil {
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet been computed)
@@ -223,7 +226,7 @@ func (h *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		tabtitle = info.Dirname
 		title = "Directory "
-		if ShowTimestamps {
+		if h.p.ShowTimestamps {
 			subtitle = "Last update: " + info.DirTime.String()
 		}
 	}
@@ -290,20 +293,6 @@ func GetPageInfoMode(r *http.Request) PageInfoMode {
 // PageInfoMode by overriding this variable.
 var AdjustPageInfoMode = func(_ *http.Request, mode PageInfoMode) PageInfoMode {
 	return mode
-}
-
-// fsReadDir implements ReadDir for the go/build package.
-func fsReadDir(dir string) ([]os.FileInfo, error) {
-	return FS.ReadDir(filepath.ToSlash(dir))
-}
-
-// fsOpenFile implements OpenFile for the go/build package.
-func fsOpenFile(name string) (r io.ReadCloser, err error) {
-	data, err := vfs.ReadFile(FS, filepath.ToSlash(name))
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.NopCloser(bytes.NewReader(data)), nil
 }
 
 // poorMansImporter returns a (dummy) package object named
@@ -465,7 +454,7 @@ func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, ab
 		return
 	}
 
-	list, err := FS.ReadDir(abspath)
+	list, err := p.Corpus.fs.ReadDir(abspath)
 	if err != nil {
 		p.ServeError(w, r, relpath, err)
 		return
@@ -480,7 +469,7 @@ func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, ab
 
 func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
-	src, err := vfs.ReadFile(FS, abspath)
+	src, err := vfs.ReadFile(p.Corpus.fs, abspath)
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
 		p.ServeError(w, r, relpath, err)
@@ -502,7 +491,7 @@ func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, absp
 
 	// evaluate as template if indicated
 	if meta.Template {
-		tmpl, err := template.New("main").Funcs(TemplateFuncs).Parse(string(src))
+		tmpl, err := template.New("main").Funcs(p.TemplateFuncs()).Parse(string(src))
 		if err != nil {
 			log.Printf("parsing template %s: %v", relpath, err)
 			p.ServeError(w, r, relpath, err)
@@ -531,11 +520,15 @@ func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, absp
 	})
 }
 
+func (p *Presentation) ServeFile(w http.ResponseWriter, r *http.Request) {
+	p.serveFile(w, r)
+}
+
 func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 	relpath := r.URL.Path
 
 	// Check to see if we need to redirect or serve another file.
-	if m := MetadataFor(relpath); m != nil {
+	if m := p.Corpus.MetadataFor(relpath); m != nil {
 		if m.Path != relpath {
 			// Redirect to canonical path.
 			http.Redirect(w, r, m.Path, http.StatusMovedPermanently)
@@ -564,7 +557,7 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dir, err := FS.Lstat(abspath)
+	dir, err := p.Corpus.fs.Lstat(abspath)
 	if err != nil {
 		log.Print(err)
 		p.ServeError(w, r, relpath, err)
@@ -575,7 +568,7 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 		if redirect(w, r) {
 			return
 		}
-		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(FS, index) {
+		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(p.Corpus.fs, index) {
 			p.ServeHTMLDoc(w, r, index, index)
 			return
 		}
@@ -583,7 +576,7 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if util.IsTextFile(FS, abspath) {
+	if util.IsTextFile(p.Corpus.fs, abspath) {
 		if redirectFile(w, r) {
 			return
 		}

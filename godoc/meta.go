@@ -99,14 +99,14 @@ func (c *Corpus) updateMetadata() {
 		}
 	}
 	scan("/doc")
-	DocMetadata.Set(metadata)
+	c.docMetadata.Set(metadata)
 }
 
 // MetadataFor returns the *Metadata for a given relative path or nil if none
 // exists.
 //
-func MetadataFor(relpath string) *Metadata {
-	if m, _ := DocMetadata.Get(); m != nil {
+func (c *Corpus) MetadataFor(relpath string) *Metadata {
+	if m, _ := c.docMetadata.Get(); m != nil {
 		meta := m.(map[string]*Metadata)
 		// If metadata for this relpath exists, return it.
 		if p := meta[relpath]; p != nil {

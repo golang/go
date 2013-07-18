@@ -5,6 +5,8 @@
 package godoc
 
 import (
+	"regexp"
+	"sync"
 	"text/template"
 )
 
@@ -19,6 +21,12 @@ type Presentation struct {
 	ShowPlayground bool
 	ShowExamples   bool
 	DeclLinks      bool
+
+	NotesRx *regexp.Regexp
+
+	initFuncMapOnce sync.Once
+	funcMap         template.FuncMap
+	templateFuncs   template.FuncMap
 }
 
 // NewPresentation returns a new Presentation from a corpus.
@@ -32,8 +40,4 @@ func NewPresentation(c *Corpus) *Presentation {
 		ShowExamples: true,
 		DeclLinks:    true,
 	}
-}
-
-func (p *Presentation) FuncMap() template.FuncMap {
-	panic("")
 }

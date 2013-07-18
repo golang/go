@@ -7,6 +7,7 @@ package godoc
 import (
 	"errors"
 	pathpkg "path"
+	"time"
 
 	"code.google.com/p/go.tools/godoc/util"
 	"code.google.com/p/go.tools/godoc/vfs"
@@ -46,6 +47,8 @@ type Corpus struct {
 	fsModified  util.RWValue // timestamp of last call to invalidateIndex
 	docMetadata util.RWValue // mapping from paths to *Metadata
 
+	// SearchIndex is the search index in use.
+	searchIndex util.RWValue
 }
 
 // NewCorpus returns a new Corpus from a filesystem.
@@ -59,6 +62,17 @@ func NewCorpus(fs vfs.FileSystem) *Corpus {
 		IndexEnabled: true,
 	}
 	return c
+}
+
+func (c *Corpus) CurrentIndex() (*Index, time.Time) {
+	v, t := c.searchIndex.Get()
+	idx, _ := v.(*Index)
+	return idx, t
+}
+
+func (c *Corpus) FSModifiedTime() time.Time {
+	_, ts := c.fsModified.Get()
+	return ts
 }
 
 // Init initializes Corpus, once options on Corpus are set.

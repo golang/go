@@ -62,19 +62,6 @@ import (
 	"code.google.com/p/go.tools/godoc/util"
 )
 
-// TODO(bradfitz,adg): legacy flag vars. clean up.
-var (
-	MaxResults = 1000
-
-	// index throttle value; 0.0 = no time allocated, 1.0 = full throttle
-	IndexThrottle float64 = 0.75
-
-	// IndexFiles is a glob pattern specifying index files; if
-	// not empty, the index is read from these files in sorted
-	// order")
-	IndexFiles string
-)
-
 // ----------------------------------------------------------------------------
 // InterfaceSlice is a helper type for sorting interface
 // slices according to some slice-specific sort criteria.
@@ -384,6 +371,7 @@ type Statistics struct {
 // interface for walking file trees, and the ast.Visitor interface for
 // walking Go ASTs.
 type Indexer struct {
+	c        *Corpus
 	fset     *token.FileSet          // file set for all indexed files
 	sources  bytes.Buffer            // concatenated sources
 	packages map[string]*Pak         // map of canonicalized *Paks
@@ -549,7 +537,7 @@ func pkgName(filename string) string {
 // failed (that is, if the file was not added), it returns file == nil.
 func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
 	// open file
-	f, err := FS.Open(filename)
+	f, err := x.c.fs.Open(filename)
 	if err != nil {
 		return
 	}
@@ -716,19 +704,20 @@ func canonical(w string) string { return strings.ToLower(w) }
 // NewIndex creates a new index for the .go files
 // in the directories given by dirnames.
 //
-func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
+func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
 	var x Indexer
 	th := util.NewThrottle(throttle, 100*time.Millisecond) // run at least 0.1s at a time
 
 	// initialize Indexer
 	// (use some reasonably sized maps to start)
+	x.c = c
 	x.fset = token.NewFileSet()
 	x.packages = make(map[string]*Pak, 256)
 	x.words = make(map[string]*IndexResult, 8192)
 
 	// index all files in the directories given by dirnames
 	for dirname := range dirnames {
-		list, err := FS.ReadDir(dirname)
+		list, err := c.fs.ReadDir(dirname)
 		if err != nil {
 			continue // ignore this directory
 		}
@@ -1046,19 +1035,19 @@ func (c *Corpus) invalidateIndex() {
 // indexUpToDate() returns true if the search index is not older
 // than any of the file systems under godoc's observation.
 //
-func indexUpToDate() bool {
-	_, fsTime := FSModified.Get()
-	_, siTime := SearchIndex.Get()
+func (c *Corpus) indexUpToDate() bool {
+	_, fsTime := c.fsModified.Get()
+	_, siTime := c.searchIndex.Get()
 	return !fsTime.After(siTime)
 }
 
 // feedDirnames feeds the directory names of all directories
 // under the file system given by root to channel c.
 //
-func feedDirnames(root *util.RWValue, c chan<- string) {
-	if dir, _ := root.Get(); dir != nil {
+func (c *Corpus) feedDirnames(ch chan<- string) {
+	if dir, _ := c.fsTree.Get(); dir != nil {
 		for d := range dir.(*Directory).iter(false) {
-			c <- d.Path
+			ch <- d.Path
 		}
 	}
 }
@@ -1066,16 +1055,16 @@ func feedDirnames(root *util.RWValue, c chan<- string) {
 // fsDirnames() returns a channel sending all directory names
 // of all the file systems under godoc's observation.
 //
-func fsDirnames() <-chan string {
-	c := make(chan string, 256) // buffered for fewer context switches
+func (c *Corpus) fsDirnames() <-chan string {
+	ch := make(chan string, 256) // buffered for fewer context switches
 	go func() {
-		feedDirnames(&FSTree, c)
-		close(c)
+		c.feedDirnames(ch)
+		close(ch)
 	}()
-	return c
+	return ch
 }
 
-func readIndex(filenames string) error {
+func (c *Corpus) readIndex(filenames string) error {
 	matches, err := filepath.Glob(filenames)
 	if err != nil {
 		return err
@@ -1096,18 +1085,18 @@ func readIndex(filenames string) error {
 	if err := x.Read(io.MultiReader(files...)); err != nil {
 		return err
 	}
-	SearchIndex.Set(x)
+	c.searchIndex.Set(x)
 	return nil
 }
 
-func UpdateIndex() {
+func (c *Corpus) UpdateIndex() {
 	if Verbose {
 		log.Printf("updating index...")
 	}
 	start := time.Now()
-	index := NewIndex(fsDirnames(), MaxResults > 0, IndexThrottle)
+	index := NewIndex(c, c.fsDirnames(), c.MaxResults > 0, c.IndexThrottle)
 	stop := time.Now()
-	SearchIndex.Set(index)
+	c.searchIndex.Set(index)
 	if Verbose {
 		secs := stop.Sub(start).Seconds()
 		stats := index.Stats()
@@ -1123,19 +1112,19 @@ func UpdateIndex() {
 }
 
 // RunIndexer runs forever, indexing.
-func RunIndexer() {
+func (c *Corpus) RunIndexer() {
 	// initialize the index from disk if possible
-	if IndexFiles != "" {
-		if err := readIndex(IndexFiles); err != nil {
+	if c.IndexFiles != "" {
+		if err := c.readIndex(c.IndexFiles); err != nil {
 			log.Printf("error reading index: %s", err)
 		}
 	}
 
 	// repeatedly update the index when it goes out of date
 	for {
-		if !indexUpToDate() {
+		if !c.indexUpToDate() {
 			// index possibly out of date - make a new one
-			UpdateIndex()
+			c.UpdateIndex()
 		}
 		delay := 60 * time.Second // by default, try every 60s
 		if false {                // TODO(bradfitz): was: *testDir != "" {
