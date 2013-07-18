@@ -192,6 +192,27 @@ var preempt = func() int {
 	return sum
 }
 
+func TestPreemption(t *testing.T) {
+	t.Skip("preemption is disabled")
+	// Test that goroutines are preempted at function calls.
+	const N = 5
+	c := make(chan bool)
+	var x uint32
+	for g := 0; g < 2; g++ {
+		go func(g int) {
+			for i := 0; i < N; i++ {
+				for atomic.LoadUint32(&x) != uint32(g) {
+					preempt()
+				}
+				atomic.StoreUint32(&x, uint32(1-g))
+			}
+			c <- true
+		}(g)
+	}
+	<-c
+	<-c
+}
+
 func TestPreemptionGC(t *testing.T) {
 	t.Skip("preemption is disabled")
 	// Test that pending GC preempts running goroutines.

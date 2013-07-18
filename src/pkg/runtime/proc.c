@@ -94,7 +94,7 @@ static void wakep(void);
 static void stoplockedm(void);
 static void startlockedm(G*);
 static void sysmon(void);
-static uint32 retake(uint32*);
+static uint32 retake(int64);
 static void inclocked(int32);
 static void checkdead(void);
 static void exitsyscall0(G*);
@@ -2071,7 +2071,6 @@ sysmon(void)
 	uint32 idle, delay;
 	int64 now, lastpoll;
 	G *gp;
-	uint32 ticks[MaxGomaxprocs];
 
 	idle = 0;  // how many cycles in succession we had not wokeup somebody
 	delay = 0;
@@ -2103,19 +2102,29 @@ sysmon(void)
 			injectglist(gp);
 		}
 		// retake P's blocked in syscalls
-		if(retake(ticks))
+		// and preempt long running G's
+		if(retake(now))
 			idle = 0;
 		else
 			idle++;
 	}
 }
 
+typedef struct Pdesc Pdesc;
+struct Pdesc
+{
+	uint32	tick;
+	int64	when;
+};
+static Pdesc pdesc[MaxGomaxprocs];
+
 static uint32
-retake(uint32 *ticks)
+retake(int64 now)
 {
 	uint32 i, s, n;
 	int64 t;
 	P *p;
+	Pdesc *pd;
 
 	n = 0;
 	for(i = 0; i < runtime·gomaxprocs; i++) {
@@ -2123,24 +2132,34 @@ retake(uint32 *ticks)
 		if(p==nil)
 			continue;
 		t = p->tick;
-		if(ticks[i] != t) {
-			ticks[i] = t;
+		pd = &pdesc[i];
+		if(pd->tick != t) {
+			pd->tick = t;
+			pd->when = now;
 			continue;
 		}
 		s = p->status;
-		if(s != Psyscall)
-			continue;
-		if(p->runqhead == p->runqtail && runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0)  // TODO: fast atomic
-			continue;
-		// Need to increment number of locked M's before the CAS.
-		// Otherwise the M from which we retake can exit the syscall,
-		// increment nmidle and report deadlock.
-		inclocked(-1);
-		if(runtime·cas(&p->status, s, Pidle)) {
-			n++;
-			handoffp(p);
+		if(s == Psyscall) {
+			// Retake P from syscall if it's there for more than 1 sysmon tick (20us).
+			// But only if there is other work to do.
+			if(p->runqhead == p->runqtail &&
+				runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0)
+				continue;
+			// Need to increment number of locked M's before the CAS.
+			// Otherwise the M from which we retake can exit the syscall,
+			// increment nmidle and report deadlock.
+			inclocked(-1);
+			if(runtime·cas(&p->status, s, Pidle)) {
+				n++;
+				handoffp(p);
+			}
+			inclocked(1);
+		} else if(s == Prunning) {
+			// Preempt G if it's running for more than 10ms.
+			if(pd->when + 10*1000*1000 > now)
+				continue;
+			preemptone(p);
 		}
-		inclocked(1);
 	}
 	return n;
 }
