@@ -1383,6 +1383,8 @@ addroot(Obj obj)
 	work.nroot++;
 }
 
+extern byte pclntab[]; // base for f->ptrsoff
+
 // Scan a stack frame: local variables and function arguments/results.
 static void
 addframeroots(Stkframe *frame, void*)
@@ -1402,7 +1404,7 @@ addframeroots(Stkframe *frame, void*)
 	if(f->args > 0 && f->ptrslen > 0) {
 		ap = frame->argp;
 		nuintptr = f->args / sizeof(uintptr);
-		ptrs = (uint32*)((byte*)f + f->ptrsoff);
+		ptrs = (uint32*)(pclntab + f->ptrsoff);
 		for(i = 0; i < f->ptrslen; i++) {
 			w = ptrs[i];
 			b = 1;

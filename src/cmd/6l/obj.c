@@ -289,7 +289,6 @@ main(int argc, char *argv[])
 		dope();
 	addexport();
 	textaddress();
-	functab();
 	pclntab();
 	symtab();
 	dodata();

@@ -104,7 +104,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				frame.lr = ((uintptr*)frame.fp)[-1];
 			flr = runtime·findfunc(frame.lr);
 			if(flr == nil) {
-				runtime·printf("runtime: unexpected return pc for %S called from %p", *f->name, frame.lr);
+				runtime·printf("runtime: unexpected return pc for %s called from %p", runtime·funcname(f), frame.lr);
 				runtime·throw("unknown caller pc");
 			}
 		}
@@ -126,8 +126,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
 				frame.arglen = i;
 			else {
-				runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n",
-					*f->name, frame.lr, flr ? *flr->name : unknown);
+				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
+					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
 				if(!printing)
 					runtime·throw("invalid stack");
 				frame.arglen = 0;
@@ -146,7 +146,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.varlen = frame.fp - sizeof(uintptr) - frame.sp;
 		} else {
 			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, *f->name);
+				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
 				runtime·throw("invalid stack");
 			}
 			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
@@ -171,7 +171,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
 				if(n > 0 && frame.pc > f->entry && !waspanic)
 					tracepc--;
-				runtime·printf("%S(", *f->name);
+				runtime·printf("%s(", runtime·funcname(f));
 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
 					if(i >= 5) {
 						runtime·prints(", ...");
@@ -225,7 +225,7 @@ printcreatedby(G *gp)
 
 	// Show what created goroutine, except main goroutine (goid 1).
 	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
-		runtime·printf("created by %S\n", *f->name);
+		runtime·printf("created by %s\n", runtime·funcname(f));
 		tracepc = pc;	// back up to CALL instruction for funcline.
 		if(pc > f->entry)
 			tracepc--;

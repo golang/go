@@ -16,15 +16,15 @@ typedef struct Ftab Ftab;
 struct Ftab
 {
 	uintptr	entry;
-	Func	*func;
+	uintptr	funcoff;
 };
 
-extern uintptr functab[];
+extern byte pclntab[];
 
 static Ftab *ftab;
 static uintptr nftab;
-extern String *filetab[];
-static uintptr nfiletab;
+static uint32 *filetab;
+static uint32 nfiletab;
 
 static String end = { (uint8*)"end", 3 };
 
@@ -32,20 +32,32 @@ void
 runtime·symtabinit(void)
 {
 	int32 i, j;
-
-	ftab = (Ftab*)(functab+1);
-	nftab = functab[0];
+	Func *f1, *f2;
 	
+	// See golang.org/s/go12symtab for header: 0xfffffffb,
+	// two zero bytes, a byte giving the PC quantum,
+	// and a byte giving the pointer width in bytes.
+	if(*(uint32*)pclntab != 0xfffffffb || pclntab[4] != 0 || pclntab[5] != 0 || pclntab[6] != PCQuantum || pclntab[7] != sizeof(void*)) {
+		runtime·printf("runtime: function symbol table header: 0x%x 0x%x\n", *(uint32*)pclntab, *(uint32*)(pclntab+4));
+		runtime·throw("invalid function symbol table\n");
+	}
+
+	nftab = *(uintptr*)(pclntab+8);
+	ftab = (Ftab*)(pclntab+8+sizeof(void*));
 	for(i=0; i<nftab; i++) {
 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
 		if(ftab[i].entry > ftab[i+1].entry) {
-			runtime·printf("function symbol table not sorted by program counter: %p %S > %p %S", ftab[i].entry, *ftab[i].func->name, ftab[i+1].entry, i+1 == nftab ? end : *ftab[i+1].func->name);
+			f1 = (Func*)(pclntab + ftab[i].funcoff);
+			f2 = (Func*)(pclntab + ftab[i+1].funcoff);
+			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == nftab ? "end" : runtime·funcname(f2));
 			for(j=0; j<=i; j++)
-				runtime·printf("\t%p %S\n", ftab[j].entry, *ftab[j].func->name);
+				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(pclntab + ftab[j].funcoff)));
 			runtime·throw("invalid runtime symbol table");
 		}
 	}
-	nfiletab = (uintptr)filetab[0];
+	
+	filetab = (uint32*)(pclntab + *(uint32*)&ftab[nftab].funcoff);
+	nfiletab = filetab[0];
 }
 
 static uint32
@@ -79,6 +91,26 @@ funcdata(Func *f, int32 i)
 	return ((uintptr*)p)[i];
 }
 
+static bool
+step(byte **pp, uintptr *pc, int32 *value, bool first)
+{
+	uint32 uvdelta, pcdelta;
+	int32 vdelta;
+
+	uvdelta = readvarint(pp);
+	if(uvdelta == 0 && !first)
+		return 0;
+	if(uvdelta&1)
+		uvdelta = ~(uvdelta>>1);
+	else
+		uvdelta >>= 1;
+	vdelta = (int32)uvdelta;
+	pcdelta = readvarint(pp) * PCQuantum;
+	*value += vdelta;
+	*pc += pcdelta;
+	return 1;
+}
+
 // Return associated data value for targetpc in func f.
 // (Source file is f->src.)
 static int32
@@ -86,8 +118,7 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
 {
 	byte *p;
 	uintptr pc;
-	int32 value, vdelta;
-	uint32 uvdelta, pcdelta;
+	int32 value;
 
 	enum {
 		debug = 0
@@ -101,26 +132,15 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
 	// The table ends at a value delta of 0 except in the first pair.
 	if(off == 0)
 		return -1;
-	p = (byte*)f + off;
+	p = pclntab + off;
 	pc = f->entry;
 	value = -1;
 
 	if(debug && !runtime·panicking)
-		runtime·printf("pcvalue start f=%S [%p] pc=%p targetpc=%p value=%d tab=%p\n",
-			*f->name, f, pc, targetpc, value, p);
+		runtime·printf("pcvalue start f=%s [%p] pc=%p targetpc=%p value=%d tab=%p\n",
+			runtime·funcname(f), f, pc, targetpc, value, p);
 	
-	for(;;) {
-		uvdelta = readvarint(&p);
-		if(uvdelta == 0 && pc != f->entry)
-			break;
-		if(uvdelta&1)
-			uvdelta = ~(uvdelta>>1);
-		else
-			uvdelta >>= 1;
-		vdelta = (int32)uvdelta;
-		pcdelta = readvarint(&p) * PCQuantum;
-		value += vdelta;
-		pc += pcdelta;
+	while(step(&p, &pc, &value, pc == f->entry)) {
 		if(debug)
 			runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
 		if(targetpc < pc)
@@ -131,31 +151,28 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
 	// If not, something is wrong.
 	if(runtime·panicking || !strict)
 		return -1;
-	runtime·printf("runtime: invalid pc-encoded table f=%S pc=%p targetpc=%p tab=%p\n",
-		*f->name, pc, targetpc, p);
+	runtime·printf("runtime: invalid pc-encoded table f=%s pc=%p targetpc=%p tab=%p\n",
+		runtime·funcname(f), pc, targetpc, p);
 	p = (byte*)f + off;
 	pc = f->entry;
 	value = -1;
-	for(;;) {
-		uvdelta = readvarint(&p);
-		if(uvdelta == 0 && pc != f->entry)
-			break;
-		if(uvdelta&1)
-			uvdelta = ~(uvdelta>>1);
-		else
-			uvdelta >>= 1;
-		vdelta = (int32)uvdelta;
-		pcdelta = readvarint(&p) * PCQuantum;
-		value += vdelta;
-		pc += pcdelta;
+	
+	while(step(&p, &pc, &value, pc == f->entry))
 		runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
-	}
 	
 	runtime·throw("invalid runtime symbol table");
 	return -1;
 }
 
 static String unknown = { (uint8*)"?", 1 };
+
+int8*
+runtime·funcname(Func *f)
+{
+	if(f == nil || f->nameoff == 0)
+		return nil;
+	return (int8*)(pclntab + f->nameoff);
+}
 
 static int32
 funcline(Func *f, uintptr targetpc, String *file, bool strict)
@@ -170,7 +187,7 @@ funcline(Func *f, uintptr targetpc, String *file, bool strict)
 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
 		return 0;
 	}
-	*file = *filetab[fileno];
+	*file = runtime·gostringnocopy(pclntab + filetab[fileno]);
 	return line;
 }
 
@@ -219,7 +236,7 @@ runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
 void
 runtime·funcname_go(Func *f, String ret)
 {
-	ret = *f->name;
+	ret = runtime·gostringnocopy((uint8*)runtime·funcname(f));
 	FLUSH(&ret);
 }
 
@@ -247,7 +264,7 @@ runtime·findfunc(uintptr addr)
 	while(nf > 0) {
 		n = nf/2;
 		if(f[n].entry <= addr && addr < f[n+1].entry)
-			return f[n].func;
+			return (Func*)(pclntab + f[n].funcoff);
 		else if(addr < f[n].entry)
 			nf = n;
 		else {
@@ -298,10 +315,12 @@ bool
 runtime·showframe(Func *f, G *gp)
 {
 	static int32 traceback = -1;
+	String name;
 
 	if(m->throwing && gp != nil && (gp == m->curg || gp == m->caughtsig))
 		return 1;
 	if(traceback < 0)
 		traceback = runtime·gotraceback(nil);
-	return traceback > 1 || f != nil && contains(*f->name, ".") && !hasprefix(*f->name, "runtime.");
+	name = runtime·gostringnocopy((uint8*)runtime·funcname(f));
+	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.");
 }

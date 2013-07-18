@@ -371,7 +371,7 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 	Reloc *rel;
 
 	USED(size);
-	
+
 	// type byte
 	if('A' <= t && t <= 'Z')
 		c = t - 'A' + (ver ? 26 : 0);

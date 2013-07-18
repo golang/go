@@ -46,7 +46,7 @@ enum
 	SFUNCTAB,
 	STYPELINK,
 	SSYMTAB, // TODO: move to unmapped section
-	SPCLNTAB, // TODO: move to unmapped section
+	SPCLNTAB,
 	SELFROSECT,
 	
 	/* writable, non-executable */
@@ -227,7 +227,6 @@ void	objfile(char *file, char *pkg);
 void	libinit(void);
 void	pclntab(void);
 void	symtab(void);
-void	functab(void);
 void	Lflag(char *arg);
 void	usage(void);
 void	adddynrel(Sym*, Reloc*);
