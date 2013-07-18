@@ -3,11 +3,13 @@ package importer
 // TODO(gri): absorb this into go/types.
 
 import (
-	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/types"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
+
+	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/types"
 )
 
 // PackageInfo holds the ASTs and facts derived by the type-checker
@@ -16,14 +18,14 @@ import (
 // Not mutated once constructed.
 //
 type PackageInfo struct {
-	Pkg   *types.Package
-	Files []*ast.File // abstract syntax for the package's files
+	Pkg        *types.Package
+	Err        error       // non-nil if the package had static errors
+	Files      []*ast.File // abstract syntax for the package's files
+	types.Info             // type-checker deductions.
+}
 
-	// Type-checker deductions.
-	types     map[ast.Expr]types.Type        // inferred types of expressions
-	constants map[ast.Expr]exact.Value       // values of constant expressions
-	idents    map[*ast.Ident]types.Object    // resolved objects for named entities
-	typecases map[*ast.CaseClause]*types.Var // implicit vars for single-type typecases
+func (info *PackageInfo) String() string {
+	return fmt.Sprintf("PackageInfo(%s)", info.Pkg.Path())
 }
 
 // Imports returns the set of packages imported by this one, in source
@@ -57,7 +59,7 @@ func (info *PackageInfo) Imports() []*types.Package {
 // Precondition: e belongs to the package's ASTs.
 //
 func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
-	if t, ok := info.types[e]; ok {
+	if t, ok := info.Types[e]; ok {
 		return t
 	}
 	// Defining ast.Idents (id := expr) get only Ident callbacks
@@ -73,20 +75,18 @@ func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
 // Precondition: e belongs to the package's ASTs.
 //
 func (info *PackageInfo) ValueOf(e ast.Expr) exact.Value {
-	return info.constants[e]
+	return info.Values[e]
 }
 
 // ObjectOf returns the typechecker object denoted by the specified id.
 // Precondition: id belongs to the package's ASTs.
 //
 func (info *PackageInfo) ObjectOf(id *ast.Ident) types.Object {
-	return info.idents[id]
+	return info.Objects[id]
 }
 
 // IsType returns true iff expression e denotes a type.
 // Precondition: e belongs to the package's ASTs.
-// e must be a true expression, not a KeyValueExpr, or an Ident
-// appearing in a SelectorExpr or declaration.
 //
 func (info *PackageInfo) IsType(e ast.Expr) bool {
 	switch e := e.(type) {
@@ -126,7 +126,10 @@ func (info *PackageInfo) IsPackageRef(sel *ast.SelectorExpr) types.Object {
 // case clause in a type switch, or nil if not found.
 //
 func (info *PackageInfo) TypeCaseVar(cc *ast.CaseClause) *types.Var {
-	return info.typecases[cc]
+	if v := info.Implicits[cc]; v != nil {
+		return v.(*types.Var)
+	}
+	return nil
 }
 
 var (
@@ -145,9 +148,6 @@ var (
 // This logic could be part of the typechecker, and should arguably
 // be moved there and made accessible via an additional types.Context
 // callback.
-//
-// The returned Signature is degenerate and only intended for use by
-// emitCallArgs.
 //
 func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature {
 	var params []*types.Var

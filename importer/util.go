@@ -38,7 +38,8 @@ func CreatePackageFromArgs(imp *Importer, args []string) (info *PackageInfo, res
 		files, err = ParseFiles(imp.Fset, ".", args[:i]...)
 		rest = args[i:]
 		if err == nil {
-			info, err = imp.CreateSourcePackage("main", files)
+			info = imp.CreateSourcePackage("main", files)
+			err = info.Err
 		}
 
 	default:

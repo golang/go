@@ -114,7 +114,9 @@ func main() {
 
 	// Create and build SSA-form program representation.
 	prog := ssa.NewProgram(imp.Fset, mode)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	prog.BuildAll()
 
 	// Run the interpreter.

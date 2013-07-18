@@ -47,16 +47,18 @@ func main() {
 	}
 
 	// Create a "main" package containing one file.
-	info, err := imp.CreateSourcePackage("main", []*ast.File{file})
-	if err != nil {
-		fmt.Printf(err.Error()) // type error
+	info := imp.CreateSourcePackage("main", []*ast.File{file})
+	if info.Err != nil {
+		fmt.Printf(info.Err.Error()) // type error
 		return
 	}
 
 	// Create SSA-form program representation.
 	var mode ssa.BuilderMode
 	prog := ssa.NewProgram(imp.Fset, mode)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	mainPkg := prog.Package(info.Pkg)
 
 	// Print out the package.

@@ -7,7 +7,7 @@ package ssa
 // definitions of all package members are created, method-sets are
 // computed, and wrapper methods are synthesized.  The create phase
 // proceeds in topological order over the import dependency graph,
-// initiated by client calls to CreatePackages.
+// initiated by client calls to Program.CreatePackage.
 //
 // In the BUILD phase (builder.go), the builder traverses the AST of
 // each Go source function and generates SSA instructions for the
@@ -447,7 +447,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
-		return address{addr: v, id: e, object: obj}
+		return &address{addr: v, id: e, object: obj}
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
@@ -458,7 +458,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			v = fn.addLocal(t, e.Lbrace)
 		}
 		b.compLit(fn, v, e, t) // initialize in place
-		return address{addr: v}
+		return &address{addr: v}
 
 	case *ast.ParenExpr:
 		return b.addr(fn, e.X, escaping)
@@ -467,13 +467,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		// p.M where p is a package.
 		if obj := fn.Pkg.info.IsPackageRef(e); obj != nil {
 			if v := b.lookup(fn.Pkg, obj); v != nil {
-				return address{addr: v}
+				return &address{addr: v}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
 		}
 
 		// e.f where e is an expression.
-		return address{addr: b.selectField(fn, e, true, escaping)}
+		return &address{addr: b.selectField(fn, e, true, escaping)}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -502,10 +502,10 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			Index: emitConv(fn, b.expr(fn, e.Index), tInt),
 		}
 		v.setType(et)
-		return address{addr: fn.emit(v)}
+		return &address{addr: fn.emit(v)}
 
 	case *ast.StarExpr:
-		return address{addr: b.expr(fn, e.X), starPos: e.Star}
+		return &address{addr: b.expr(fn, e.X), starPos: e.Star}
 	}
 
 	panic(fmt.Sprintf("unexpected address expression: %T", e))
@@ -519,7 +519,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 // in an addressable location.
 //
 func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
-	if _, ok := loc.(address); ok {
+	if _, ok := loc.(*address); ok {
 		if e, ok := e.(*ast.CompositeLit); ok {
 			typ := loc.typ()
 			switch typ.Underlying().(type) {
@@ -1047,7 +1047,7 @@ func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 					continue
 				}
 				g.spec = nil
-				lval = address{addr: g}
+				lval = &address{addr: g}
 			} else {
 				// Mode B: initialize all globals.
 				if !isBlankIdent(id) {
@@ -1056,7 +1056,7 @@ func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 						continue // already done
 					}
 					g2.spec = nil
-					lval = address{addr: g2}
+					lval = &address{addr: g2}
 				}
 			}
 			if init.Prog.mode&LogSource != 0 {
@@ -1241,7 +1241,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			faddr.setType(types.NewPointer(sf.Type()))
 			fn.emit(faddr)
-			b.exprInPlace(fn, address{addr: faddr}, e)
+			b.exprInPlace(fn, &address{addr: faddr}, e)
 		}
 
 	case *types.Array, *types.Slice:
@@ -1274,7 +1274,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			iaddr.setType(types.NewPointer(at.Elem()))
 			fn.emit(iaddr)
-			b.exprInPlace(fn, address{addr: iaddr}, e)
+			b.exprInPlace(fn, &address{addr: iaddr}, e)
 		}
 		if t != at { // slice
 			s := &Slice{X: array}

@@ -57,24 +57,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	return prog
 }
 
-// CreatePackages creates an SSA Package for each type-checker package
-// held by imp.  All such packages must be error-free.
-//
-// The created packages may be accessed via the Program.Packages field.
-//
-// A package in the 'created' state has its Members mapping populated,
-// but a subsequent call to Package.Build() or Program.BuildAll() is
-// required to build SSA code for the bodies of its functions.
-//
-func (prog *Program) CreatePackages(imp *importer.Importer) {
-	// TODO(adonovan): make this idempotent, so that a second call
-	// to CreatePackages creates only the packages that appeared
-	// in imp since the first.
-	for path, info := range imp.Packages {
-		createPackage(prog, path, info)
-	}
-}
-
 // memberFromObject populates package pkg with a member for the
 // typechecker object obj.
 //
@@ -143,10 +125,6 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.Prog.concreteMethods[method] = fn
 		}
 
-	case *types.Method:
-		// TODO(adonovan): do something more sensible here?
-		memberFromObject(pkg, obj.Func, syntax)
-
 	default: // (incl. *types.Package)
 		panic(fmt.Sprintf("unexpected Object type: %T", obj))
 	}
@@ -202,13 +180,23 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
-// createPackage constructs an SSA Package from an error-free
-// package described by info, and populates its Members mapping.
+// CreatePackage constructs and returns an SSA Package from an
+// error-free package described by info, and populates its Members
+// mapping.
+//
+// Repeated calls with the same info returns the same Package.
 //
 // The real work of building SSA form for each function is not done
 // until a subsequent call to Package.Build().
 //
-func createPackage(prog *Program, importPath string, info *importer.PackageInfo) {
+func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
+	if info.Err != nil {
+		panic(fmt.Sprintf("package %s has errors: %s", info, info.Err))
+	}
+	if p := prog.packages[info.Pkg]; p != nil {
+		return p // already loaded
+	}
+
 	p := &Package{
 		Prog:    prog,
 		Members: make(map[string]Member),
@@ -246,11 +234,11 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 			if obj, ok := obj.(*types.TypeName); ok {
 				mset := types.NewMethodSet(obj.Type())
 				for i, n := 0, mset.Len(); i < n; i++ {
-					memberFromObject(p, mset.At(i), nil)
+					memberFromObject(p, mset.At(i).Func, nil)
 				}
 				mset = types.NewMethodSet(types.NewPointer(obj.Type()))
 				for i, n := 0, mset.Len(); i < n; i++ {
-					memberFromObject(p, mset.At(i), nil)
+					memberFromObject(p, mset.At(i).Func, nil)
 				}
 			}
 			memberFromObject(p, obj, nil)
@@ -269,10 +257,12 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		p.DumpTo(os.Stderr)
 	}
 
-	prog.PackagesByPath[importPath] = p
+	prog.PackagesByPath[info.Pkg.Path()] = p
 	prog.packages[p.Object] = p
 
 	if prog.mode&SanityCheckFunctions != 0 {
 		sanityCheckPackage(p)
 	}
+
+	return p
 }

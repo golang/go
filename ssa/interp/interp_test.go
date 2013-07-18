@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
@@ -79,22 +80,22 @@ var gorootTests = []string{
 	"ddd.go",
 	"blank.go", // partly disabled; TODO(adonovan): skip blank fields in struct{_} equivalence.
 	"map.go",
-	"bom.go",
 	"closedchan.go",
 	"divide.go",
 	"rename.go",
 	"const3.go",
 	"nil.go",
 	"recover.go", // partly disabled; TODO(adonovan): fix.
-	// Slow tests follow.
-	"cmplxdivide.go cmplxdivide1.go",
-	"append.go",
-	"crlf.go", // doesn't actually assert anything
 	"typeswitch1.go",
 	"floatcmp.go",
-	"gc1.go",
+	"crlf.go", // doesn't actually assert anything
+	// Slow tests follow.
+	"bom.go", // ~1.7s
+	"gc1.go", // ~1.7s
+	"cmplxdivide.go cmplxdivide1.go", // ~2.4s
 
 	// Working, but not worth enabling:
+	// "append.go",    // works, but slow (15s).
 	// "gc2.go",       // works, but slow, and cheats on the memory check.
 	// "sigchld.go",   // works, but only on POSIX.
 	// "peano.go",     // works only up to n=9, and slow even then.
@@ -111,7 +112,6 @@ var gorootTests = []string{
 
 	// Typechecker failures:
 	// "switch.go",            // https://code.google.com/p/go/issues/detail?id=5505
-	// "rune.go",              // https://code.google.com/p/go/issues/detail?id=5895
 
 	// Broken.  TODO(adonovan): fix.
 	// copy.go         // very slow; but with N=4 quickly crashes, slice index out of range.
@@ -138,6 +138,8 @@ var testdataTests = []string{
 
 func run(t *testing.T, dir, input string) bool {
 	fmt.Printf("Input: %s\n", input)
+
+	start := time.Now()
 
 	var inputs []string
 	for _, i := range strings.Split(input, " ") {
@@ -166,14 +168,16 @@ func run(t *testing.T, dir, input string) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go run src/code.google.com/p/go.tools/ssa/ssadump.go -build=CFP %s\n", input)
-	info, err := imp.CreateSourcePackage("main", files)
-	if err != nil {
-		t.Errorf("ssa.Builder.CreatePackage(%s) failed: %s", inputs, err.Error())
+	info := imp.CreateSourcePackage("main", files)
+	if info.Err != nil {
+		t.Errorf("importer.CreateSourcePackage(%s) failed: %s", inputs, info.Err.Error())
 		return false
 	}
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	prog.BuildAll()
 
 	hint = fmt.Sprintf("To trace execution, run:\n%% go run src/code.google.com/p/go.tools/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
@@ -183,6 +187,11 @@ func run(t *testing.T, dir, input string) bool {
 	}
 
 	hint = "" // call off the hounds
+
+	if false {
+		fmt.Println(input, time.Since(start)) // test profiling
+	}
+
 	return true
 }
 

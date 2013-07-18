@@ -131,7 +131,11 @@ func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return imp.CreateSourcePackage(importPath, files)
+	info := imp.CreateSourcePackage(importPath, files)
+	if info.Err != nil {
+		return nil, info.Err
+	}
+	return info, nil
 }
 
 // CreateSourcePackage invokes the type-checker on files and returns a
@@ -146,33 +150,20 @@ func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
 // The ParseFiles utility may be helpful for parsing a set of Go
 // source files.
 //
-func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) (*PackageInfo, error) {
+// The result is always non-nil; the presence of errors is indicated
+// by the PackageInfo.Err field.
+//
+func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) *PackageInfo {
 	pkgInfo := &PackageInfo{
-		Files:     files,
-		types:     make(map[ast.Expr]types.Type),
-		idents:    make(map[*ast.Ident]types.Object),
-		constants: make(map[ast.Expr]exact.Value),
-		typecases: make(map[*ast.CaseClause]*types.Var),
+		Files: files,
+		Info: types.Info{
+			Types:     make(map[ast.Expr]types.Type),
+			Values:    make(map[ast.Expr]exact.Value),
+			Objects:   make(map[*ast.Ident]types.Object),
+			Implicits: make(map[ast.Node]types.Object),
+		},
 	}
-
-	info := &types.Info{
-		Types:     pkgInfo.types,
-		Values:    pkgInfo.constants,
-		Objects:   pkgInfo.idents,
-		Implicits: make(map[ast.Node]types.Object),
-	}
-	var firstErr error
-	pkgInfo.Pkg, firstErr = imp.context.TypeChecker.Check(importPath, imp.Fset, files, info)
-	if firstErr != nil {
-		return nil, firstErr
-	}
-
-	for node, obj := range info.Implicits {
-		if cc, ok := node.(*ast.CaseClause); ok {
-			pkgInfo.typecases[cc] = obj.(*types.Var)
-		}
-	}
-
+	pkgInfo.Pkg, pkgInfo.Err = imp.context.TypeChecker.Check(importPath, imp.Fset, files, &pkgInfo.Info)
 	imp.Packages[importPath] = pkgInfo
-	return pkgInfo, nil
+	return pkgInfo
 }

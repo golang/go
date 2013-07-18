@@ -29,13 +29,13 @@ type address struct {
 	object  types.Object // source var, if from *ast.Ident
 }
 
-func (a address) load(fn *Function) Value {
+func (a *address) load(fn *Function) Value {
 	load := emitLoad(fn, a.addr)
 	load.pos = a.starPos
 	return load
 }
 
-func (a address) store(fn *Function, v Value) {
+func (a *address) store(fn *Function, v Value) {
 	store := emitStore(fn, a.addr, v)
 	store.pos = a.starPos
 	if a.id != nil {
@@ -44,7 +44,7 @@ func (a address) store(fn *Function, v Value) {
 	}
 }
 
-func (a address) address(fn *Function) Value {
+func (a *address) address(fn *Function) Value {
 	if a.id != nil {
 		// NB: this kind of DebugRef yields the object's address.
 		emitDebugRef(fn, a.id, a.addr)
@@ -52,7 +52,7 @@ func (a address) address(fn *Function) Value {
 	return a.addr
 }
 
-func (a address) typ() types.Type {
+func (a *address) typ() types.Type {
 	return deref(a.addr.Type())
 }
 

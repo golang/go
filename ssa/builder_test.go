@@ -42,14 +42,16 @@ func main() {
 		return
 	}
 
-	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
-	if err != nil {
-		t.Error(err.Error())
+	info := imp.CreateSourcePackage("main", []*ast.File{f})
+	if info.Err != nil {
+		t.Error(info.Err.Error())
 		return
 	}
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	mainPkg := prog.Package(info.Pkg)
 	mainPkg.Build()
 
