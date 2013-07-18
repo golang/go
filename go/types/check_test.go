@@ -195,7 +195,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 		pkgName = files[0].Name.Name
 	}
 
-	if *listErrors {
+	if *listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
 		for _, err := range errlist {
 			t.Error(err)

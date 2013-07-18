@@ -540,9 +540,6 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 
 	if x.mode == constant {
 		if y.mode == constant {
-			if untypedx {
-				x.typ = Typ[UntypedInt]
-			}
 			// rhs must be within reasonable bounds
 			const stupidShift = 1024
 			s, ok := exact.Uint64Val(y.val)
@@ -558,22 +555,18 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 
 		// non-constant shift with constant lhs
 		if untypedx {
-			// spec: "If the left operand of a non-constant shift expression is
-			// an untyped constant, the type of the constant is what it would be
-			// if the shift expression were replaced by its left operand alone;
-			// the type is int if it cannot be determined from the context (for
-			// instance, if the shift expression is an operand in a comparison
-			// against an untyped constant)".
-
+			// spec: "If the left operand of a non-constant shift
+			// expression is an untyped constant, the type of the
+			// constant is what it would be if the shift expression
+			// were replaced by its left operand alone.".
+			//
 			// Delay operand checking until we know the final type:
 			// The lhs expression must be in the untyped map, mark
 			// the entry as lhs shift operand.
-			if info, ok := check.untyped[x.expr]; ok {
-				info.isLhs = true
-				check.untyped[x.expr] = info
-			} else {
-				unreachable()
-			}
+			info, found := check.untyped[x.expr]
+			assert(found)
+			info.isLhs = true
+			check.untyped[x.expr] = info
 			// keep x's type
 			x.mode = value
 			return
@@ -587,7 +580,6 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 		return
 	}
 
-	// non-constant shift
 	x.mode = value
 }
 
