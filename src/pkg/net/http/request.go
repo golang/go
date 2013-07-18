@@ -424,6 +424,10 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 }
 
 // NewRequest returns a new Request given a method, URL, and optional body.
+//
+// If the provided body is also an io.Closer, the returned
+// Request.Body is set to body and will be closed by the Client
+// methods Do, Post, and PostForm, and Transport.RoundTrip.
 func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
