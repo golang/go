@@ -186,7 +186,12 @@ TEXT runtime·mcall(SB), 7, $0-8
 
 // Called during function prolog when more stack is needed.
 // Caller has already done get_tls(CX); MOVQ m(CX), BX.
-TEXT runtime·morestack(SB),7,$0
+//
+// The traceback routines see morestack on a g0 as being
+// the top of a stack (for example, morestack calling newstack
+// calling the scheduler calling newm calling gc), so we must
+// record an argument size. For that purpose, it has no arguments.
+TEXT runtime·morestack(SB),7,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVQ	m_g0(BX), SI
 	CMPQ	g(CX), SI
@@ -268,7 +273,10 @@ TEXT reflect·call(SB), 7, $0-20
 	RET
 
 // Return point when leaving stack.
-TEXT runtime·lessstack(SB), 7, $0
+//
+// Lessstack can appear in stack traces for the same reason
+// as morestack; in that context, it has 0 arguments.
+TEXT runtime·lessstack(SB), 7, $0-0
 	// Save return value in m->cret
 	get_tls(CX)
 	MOVQ	m(CX), BX

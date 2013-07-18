@@ -83,7 +83,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			f = runtime·findfunc(frame.pc);
 			if(f == nil) {
 				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
-				runtime·throw("unknown pc");
+				if(callback != nil)
+					runtime·throw("unknown pc");
 			}
 			frame.fn = f;
 			continue;
@@ -104,8 +105,9 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				frame.lr = ((uintptr*)frame.fp)[-1];
 			flr = runtime·findfunc(frame.lr);
 			if(flr == nil) {
-				runtime·printf("runtime: unexpected return pc for %s called from %p", runtime·funcname(f), frame.lr);
-				runtime·throw("unknown caller pc");
+				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+				if(callback != nil)
+					runtime·throw("unknown caller pc");
 			}
 		}
 
@@ -128,7 +130,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			else {
 				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
 					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
-				if(!printing)
+				if(callback != nil)
 					runtime·throw("invalid stack");
 				frame.arglen = 0;
 			}
@@ -147,7 +149,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		} else {
 			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
 				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
-				runtime·throw("invalid stack");
+				if(callback != nil)
+					runtime·throw("invalid stack");
 			}
 			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
 			frame.varlen = f->locals;

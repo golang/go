@@ -170,7 +170,12 @@ TEXT runtime·mcall(SB), 7, $-4-4
 // NB. we do not save R0 because we've forced 5c to pass all arguments
 // on the stack.
 // using frame size $-4 means do not save LR on stack.
-TEXT runtime·morestack(SB),7,$-4
+//
+// The traceback routines see morestack on a g0 as being
+// the top of a stack (for example, morestack calling newstack
+// calling the scheduler calling newm calling gc), so we must
+// record an argument size. For that purpose, it has no arguments.
+TEXT runtime·morestack(SB),7,$-4-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	m_g0(m), R4
 	CMP	g, R4
@@ -197,7 +202,7 @@ TEXT runtime·morestack(SB),7,$-4
 	// Call newstack on m->g0's stack.
 	MOVW	m_g0(m), g
 	MOVW	(g_sched+gobuf_sp)(g), SP
-	B	runtime·newstack(SB)
+	BL	runtime·newstack(SB)
 
 // Called from reflection library.  Mimics morestack,
 // reuses stack growth code to create a frame
@@ -241,14 +246,17 @@ TEXT reflect·call(SB), 7, $-4-12
 
 // Return point when leaving stack.
 // using frame size $-4 means do not save LR on stack.
-TEXT runtime·lessstack(SB), 7, $-4
+//
+// Lessstack can appear in stack traces for the same reason
+// as morestack; in that context, it has 0 arguments.
+TEXT runtime·lessstack(SB), 7, $-4-0
 	// Save return value in m->cret
 	MOVW	R0, m_cret(m)
 
 	// Call oldstack on m->g0's stack.
 	MOVW	m_g0(m), g
 	MOVW	(g_sched+gobuf_sp)(g), SP
-	B	runtime·oldstack(SB)
+	BL	runtime·oldstack(SB)
 
 // void jmpdefer(fn, sp);
 // called from deferreturn.
