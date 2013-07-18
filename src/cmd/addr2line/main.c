@@ -31,7 +31,7 @@ void
 main(int argc, char **argv)
 {
 	int fd;
-	char *p;
+	char *p, *q;
 	uvlong pc;
 	Symbol s;
 	Fhdr fhdr;
@@ -67,6 +67,17 @@ main(int argc, char **argv)
 		if(p == nil)
 			break;
 		p[Blinelen(&bin)-1] = '\0';
+		q = strchr(p, ':');
+		if(q != nil) {
+			// reverse: translate file:line to pc
+			*q++ = '\0';
+			pc = file2pc(p, atoi(q));
+			if(pc == ~(uvlong)0)
+				Bprint(&bout, "!%r\n");
+			else
+				Bprint(&bout, "0x%llux\n", pc);
+			continue;
+		}			
 		pc = strtoull(p, 0, 16);
 		if(!findsym(pc, CTEXT, &s))
 			s.name = "??";

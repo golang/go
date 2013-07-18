@@ -103,6 +103,17 @@ static int	txtcomp(const void*, const void*);
 static int	filecomp(const void*, const void*);
 
 /*
+ * Go 1.2 pcln table (also contains pcsp).
+ */
+#define Go12PclnMagic 0xfffffffb
+#define Go12PclnMagicRev 0xfbffffff
+static int	isgo12pcline(void);
+static uvlong go12pc2sp(uvlong);
+static int32 go12fileline(char*, int, uvlong);
+static void	go12clean(void);
+static uvlong go12file2pc(char*, int);
+
+/*
  *	initialize the symbol tables
  */
 int
@@ -444,6 +455,7 @@ cleansyms(void)
 	if(pcline)
 		free(pcline);
 	pcline = 0;
+	go12clean();
 }
 
 /*
@@ -998,12 +1010,14 @@ file2pc(char *file, int32 line)
 	uvlong pc, start, end;
 	short *name;
 
+	if(isgo12pcline())
+		return go12file2pc(file, line);
 	if(buildtbls() == 0 || files == 0)
-		return ~0;
+		return ~(uvlong)0;
 	name = encfname(file);
 	if(name == 0) {			/* encode the file name */
 		werrstr("file %s not found", file);
-		return ~0;
+		return ~(uvlong)0;
 	}
 		/* find this history stack */
 	for(i = 0, fp = files; i < nfiles; i++, fp++)
@@ -1012,7 +1026,7 @@ file2pc(char *file, int32 line)
 	free(name);
 	if(i >= nfiles) {
 		werrstr("line %d in file %s not found", line, file);
-		return ~0;
+		return ~(uvlong)0;
 	}
 	start = fp->addr;		/* first text addr this file */
 	if(i < nfiles-1)
@@ -1026,9 +1040,9 @@ file2pc(char *file, int32 line)
 	if(debug)
 		print("find pc for %d - between: %llux and %llux\n", line, start, end);
 	pc = line2addr(line, start, end);
-	if(pc == ~0) {
+	if(pc == ~(uvlong)0) {
 		werrstr("line %d not in file %s", line, file);
-		return ~0;
+		return ~(uvlong)0;
 	}
 	return pc;
 }
@@ -1168,6 +1182,9 @@ fileline(char *str, int n, uvlong dot)
 {
 	int32 line, top, bot, mid;
 	File *f;
+
+	if(isgo12pcline())
+		return go12fileline(str, n, dot);
 
 	*str = 0;
 	if(buildtbls() == 0)
@@ -1368,13 +1385,16 @@ pc2sp(uvlong pc)
 	uchar *c, u;
 	uvlong currpc, currsp;
 
+	if(isgo12pcline())
+		return go12pc2sp(pc);
+
 	if(spoff == 0)
-		return ~0;
+		return ~(uvlong)0;
 	currsp = 0;
 	currpc = txtstart - mach->pcquant;
 
 	if(pc<currpc || pc>txtend)
-		return ~0;
+		return ~(uvlong)0;
 	for(c = spoff; c < spoffend; c++) {
 		if (currpc >= pc)
 			return currsp;
@@ -1391,7 +1411,7 @@ pc2sp(uvlong pc)
 			currpc += mach->pcquant*(u-129);
 		currpc += mach->pcquant;
 	}
-	return ~0;
+	return ~(uvlong)0;
 }
 
 /*
@@ -1412,7 +1432,7 @@ pc2line(uvlong pc)
 	else
 		currpc = txtstart-mach->pcquant;
 	if(pc<currpc || pc>txtend)
-		return ~0;
+		return -1;
 
 	for(c = pcline; c < pclineend && currpc < pc; c++) {
 		u = *c;
@@ -1448,11 +1468,11 @@ line2addr(int32 line, uvlong basepc, uvlong endpc)
 	int found;
 
 	if(pcline == 0 || line == 0)
-		return ~0;
+		return ~(uvlong)0;
 
 	currline = 0;
 	currpc = txtstart-mach->pcquant;
-	pc = ~0;
+	pc = ~(uvlong)0;
 	found = 0;
 	delta = HUGEINT;
 
@@ -1485,7 +1505,7 @@ line2addr(int32 line, uvlong basepc, uvlong endpc)
 	}
 	if(found)
 		return pc;
-	return ~0;
+	return ~(uvlong)0;
 }
 
 /*
@@ -1539,3 +1559,316 @@ dumphist(char *name)
 		free(fname);
 }
 #endif
+
+// Go 1.2 pcln table
+// See golang.org/s/go12symtab.
+
+static int32 pcquantum;
+static int32 pcptrsize;
+static uvlong (*pcswav)(uvlong);
+static uint32 (*pcswal)(uint32);
+static uvlong (*pcuintptr)(uchar*);
+static uchar *functab;
+static uint32 nfunctab;
+static uint32 *filetab;
+static uint32 nfiletab;
+
+static uint32
+xswal(uint32 v)
+{
+	return (v>>24) | ((v>>8)&0xFF00) | ((v<<8)&0xFF0000) | v<<24;
+}
+
+static uvlong
+xswav(uvlong v)
+{
+	return (uvlong)xswal(v)<<32 | xswal(v>>32);
+}
+
+static uvlong
+noswav(uvlong v)
+{
+	return v;
+}
+
+static uint32
+noswal(uint32 v)
+{
+	return v;
+}
+
+static uvlong
+readuintptr64(uchar *p)
+{
+	return pcswav(*(uvlong*)p);
+}
+
+static uvlong
+readuintptr32(uchar *p)
+{
+	return pcswal(*(uint32*)p);
+}
+
+static void
+go12clean(void)
+{
+	pcquantum = 0;
+	pcswav = nil;
+	pcswal = nil;
+	functab = nil;
+	nfunctab = 0;
+	filetab = nil;
+	nfiletab = 0;
+}
+
+static void
+go12init(void)
+{
+	uint32 m;
+	uchar *p;
+
+	if(pcquantum != 0)
+		return;
+	pcquantum = -1; // not go 1.2
+	if(pcline == nil || pclineend - pcline < 16 ||
+		pcline[4] != 0 || pcline[5] != 0 ||
+		(pcline[6] != 1 && pcline[6] != 4) ||
+		(pcline[7] != 4 && pcline[7] != 8))
+		return;
+
+	// header is magic, 00 00 pcquantum ptrsize
+	m = *(uint32*)pcline;
+	if(m == Go12PclnMagic) {
+		pcswav = noswav;
+		pcswal = noswal;
+	} else {
+		pcswav = xswav;
+		pcswal = xswal;
+	}
+	pcptrsize = pcline[7];
+	
+	if(pcptrsize == 4)
+		pcuintptr = readuintptr32;
+	else
+		pcuintptr = readuintptr64;
+
+	nfunctab = pcuintptr(pcline+8);
+	functab = pcline + 8 + pcptrsize;
+	
+	// functab is 2*nfunctab pointer-sized values.
+	// The offset to the file table follows.
+	p = functab + nfunctab*2*pcptrsize + pcptrsize;
+	if(p+4 > pclineend)
+		return;
+	filetab = (uint32*)(pcline + pcswal(*(uint32*)p));
+	if((uchar*)filetab+4 > pclineend)
+		return;
+	
+	// File table begins with count.
+	nfiletab = pcswal(filetab[0]);
+	if((uchar*)(filetab + nfiletab) > pclineend)
+		return;
+
+	// Committed.
+	pcquantum = pcline[6];
+}
+
+static int
+isgo12pcline(void)
+{
+	go12init();
+	return pcquantum > 0;
+}
+
+static uchar*
+go12findfunc(uvlong pc)
+{
+	uchar *f, *fm;
+	int32 nf, m;
+
+	if(pc < pcuintptr(functab) || pc >= pcuintptr(functab+2*nfunctab*pcptrsize))
+		return nil;
+
+	// binary search to find func with entry <= addr.
+	f = functab;
+	nf = nfunctab;
+	while(nf > 0) {
+		m = nf/2;
+		fm = f + 2*pcptrsize*m;
+		if(pcuintptr(fm) <= pc && pc < pcuintptr(fm+2*pcptrsize)) {
+			f = pcline + pcuintptr(fm+pcptrsize);
+			if(f >= pclineend)
+				return nil;
+			return f;
+		} else if(pc < pcuintptr(fm))
+			nf = m;
+		else {
+			f += (m+1)*2*pcptrsize;
+			nf -= m+1;
+		}
+	}
+	return nil;
+}
+
+static uint32
+readvarint(uchar **pp)
+{
+	uchar *p;
+	uint32 v;
+	int32 shift;
+	
+	v = 0;
+	p = *pp;
+	for(shift = 0;; shift += 7) {
+		v |= (*p & 0x7F) << shift;
+		if(!(*p++ & 0x80))
+			break;
+	}
+	*pp = p;
+	return v;
+}
+
+static char*
+pcstring(uint32 off)
+{
+	if(off == 0 || off >= pclineend - pcline ||
+	   memchr(pcline + off, '\0', pclineend - (pcline + off)) == nil)
+		return "?";
+	return (char*)pcline+off;
+}
+
+
+static int
+step(uchar **pp, uvlong *pc, int32 *value, int first)
+{
+	uint32 uvdelta, pcdelta;
+	int32 vdelta;
+
+	uvdelta = readvarint(pp);
+	if(uvdelta == 0 && !first)
+		return 0;
+	if(uvdelta&1)
+		uvdelta = ~(uvdelta>>1);
+	else
+		uvdelta >>= 1;
+	vdelta = (int32)uvdelta;
+	pcdelta = readvarint(pp) * pcquantum;
+	*value += vdelta;
+	*pc += pcdelta;
+	return 1;
+}
+
+static int32
+pcvalue(uint32 off, uvlong entry, uvlong targetpc)
+{
+	uvlong pc;
+	int32 val;
+	uchar *p;
+	
+	val = -1;
+	pc = entry;
+	if(off == 0 || off >= pclineend - pcline)
+		return -1;	
+	p = pcline + off;
+	while(step(&p, &pc, &val, pc == entry)) {
+		if(targetpc < pc)
+			return val;
+	}
+	return -1;
+}
+
+static uvlong
+go12pc2sp(uvlong pc)
+{
+	uchar *f;
+	uint32 off;
+	uvlong entry;
+	int32 sp;
+
+	f = go12findfunc(pc);
+	if(f == nil)
+		return ~(uvlong)0;
+	entry = pcuintptr(f);
+	off = pcswal(*(uint32*)(f+pcptrsize+6*4));
+	sp = pcvalue(off, entry, pc);
+	if(sp < 0)
+		return ~(uvlong)0;
+	return sp;
+}
+
+static int32
+go12fileline(char *str, int n, uvlong pc)
+{
+	uchar *f;
+	uint32 fileoff, lineoff;
+	uvlong entry;
+	int lno, fno;
+
+	f = go12findfunc(pc);
+	if(f == nil)
+		return 0;
+	entry = pcuintptr(f);
+	fileoff = pcswal(*(uint32*)(f+pcptrsize+7*4));
+	lineoff = pcswal(*(uint32*)(f+pcptrsize+8*4));
+	lno = pcvalue(lineoff, entry, pc);
+	fno = pcvalue(fileoff, entry, pc);
+	if(lno < 0 || fno <= 0 || fno >= nfiletab) {
+		return 0;
+	}
+	snprint(str, n, "%s:%d", pcstring(pcswal(filetab[fno])), lno);
+	return 1;
+}
+
+static uvlong
+go12file2pc(char *file, int line)
+{
+	int fno;
+	int32 i, fval, lval;
+	uchar *func, *fp, *lp;
+	uvlong fpc, lpc, fstartpc, lstartpc, entry;
+
+	// Map file to file number.
+	// NOTE(rsc): Could introduce a hash table for repeated
+	// lookups if anyone ever calls this.
+	for(fno=1; fno<nfiletab; fno++)
+		if(strcmp(pcstring(pcswal(filetab[fno])), file) == 0)
+			goto havefile;
+	werrstr("cannot find file");
+	return ~(uvlong)0;
+
+havefile:
+	// Consider each func.
+	// Run file number program to find file match,
+	// then run line number program to find line match.
+	// Most file number programs are tiny, and most will
+	// not mention the file number, so this should be fairly
+	// quick.
+	for(i=0; i<nfunctab; i++) {
+		func = pcline + pcuintptr(functab+i*2*pcptrsize+pcptrsize);
+		entry = pcuintptr(func);
+		fp = pcline + pcswal(*(uint32*)(func+pcptrsize+7*4));
+		lp = pcline + pcswal(*(uint32*)(func+pcptrsize+8*4));
+		fval = lval = -1;
+		fpc = lpc = entry;
+		fstartpc = fpc;
+		while(step(&fp, &fpc, &fval, fpc==entry)) {
+			if(fval == fno && fstartpc < fpc) {
+				lstartpc = lpc;
+				while(lpc < fpc && step(&lp, &lpc, &lval, lpc==entry)) {
+					if(lval == line) {
+						if(fstartpc <= lstartpc) {
+							return lstartpc;
+						}
+						if(fstartpc < lpc) {
+							return fstartpc;
+						}
+					}
+					lstartpc = lpc;
+				}
+			}
+			fstartpc = fpc;
+		}
+	}
+	werrstr("cannot find line in file");
+	return ~(uvlong)0;
+}
