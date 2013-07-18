@@ -576,23 +576,44 @@ done:
 	return 0;
 }
 
-// The ... here is because there are actually 16 registers
-// being passed (r0, r1, and so on) amd we are too lazy
-// to list them all.
+typedef struct Sfregs Sfregs;
+
+// NOTE: These are all recorded as pointers because they are possibly live registers,
+// and we don't know what they contain. Recording them as pointers should be
+// safer than not.
+struct Sfregs
+{
+	uint32 *r0;
+	uint32 *r1;
+	uint32 *r2;
+	uint32 *r3;
+	uint32 *r4;
+	uint32 *r5;
+	uint32 *r6;
+	uint32 *r7;
+	uint32 *r8;
+	uint32 *r9;
+	uint32 *r10;
+	uint32 *r11;
+	uint32 *r12;
+	uint32 *r13;
+	uint32 cspr;
+};
+
 #pragma textflag 7
 uint32*
-runtime·_sfloat2(uint32 *lr, uint32 r0, ...)
+runtime·_sfloat2(uint32 *lr, Sfregs regs)
 {
 	uint32 skip;
 
-	skip = stepflt(lr, &r0);
+	skip = stepflt(lr, (uint32*)&regs.r0);
 	if(skip == 0) {
 		runtime·printf("sfloat2 %p %x\n", lr, *lr);
 		fabort(); // not ok to fail first instruction
 	}
 
 	lr += skip;
-	while(skip = stepflt(lr, &r0))
+	while(skip = stepflt(lr, (uint32*)&regs.r0))
 		lr += skip;
 	return lr;
 }
