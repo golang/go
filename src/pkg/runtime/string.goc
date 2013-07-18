@@ -170,10 +170,13 @@ concatstring(intgo n, String *s)
 	return out;
 }
 
+// NOTE: Cannot use func syntax, because we need the ...,
+// to signal to the garbage collector that this function does
+// not have a fixed size argument count.
 #pragma textflag 7
-// s1 is the first of n strings.
-// the output string follows.
-func concatstring(n int, s1 String) {
+void
+runtime·concatstring(int32 n, String s1, ...)
+{
 	(&s1)[n] = concatstring(n, &s1);
 }
 
