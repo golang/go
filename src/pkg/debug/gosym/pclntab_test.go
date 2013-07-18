@@ -30,6 +30,10 @@ func dotest(self bool) bool {
 	if self && runtime.GOOS != "linux" {
 		return false
 	}
+	// Command below expects "sh", so Unix.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		return false
+	}
 	if pclinetestBinary != "" {
 		return true
 	}
