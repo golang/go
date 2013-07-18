@@ -1614,6 +1614,7 @@ static int32
 pctospadj(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
 {
 	USED(arg);
+	USED(sym);
 
 	if(oldval == -1) // starting
 		oldval = 0;
@@ -1634,6 +1635,8 @@ pctospadj(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
 static int32
 pctopcdata(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
 {
+	USED(sym);
+
 	if(phase == 0 || p->as != APCDATA || p->from.offset != arg)
 		return oldval;
 	if((int32)p->to.offset != p->to.offset) {
