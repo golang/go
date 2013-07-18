@@ -2112,10 +2112,20 @@ savehist(int32 line, int32 off)
 	Sym *file;
 	Hist *h;
 
-	tmp[0] = '\0';
-	copyhistfrog(tmp, sizeof tmp);
-
-	if(tmp[0]) {
+	// NOTE(rsc): We used to do the copyhistfrog first and this
+	// condition was if(tmp[0] != '\0') to check for an empty string,
+	// implying that histfrogp == 0, implying that this is a history pop.
+	// However, on Windows in the misc/cgo test, the linker is
+	// presented with an ANAME corresponding to an empty string,
+	// that ANAME ends up being the only histfrog, and thus we have
+	// a situation where histfrogp > 0 (not a pop) but the path we find
+	// is the empty string. Really that shouldn't happen, but it doesn't
+	// seem to be bothering anyone yet, and it's easier to fix the condition
+	// to test histfrogp than to track down where that empty string is
+	// coming from. Probably it is coming from go tool pack's P command.
+	if(histfrogp > 0) {
+		tmp[0] = '\0';
+		copyhistfrog(tmp, sizeof tmp);
 		file = lookup(tmp, HistVersion);
 		if(file->type != SFILEPATH) {
 			file->value = ++nhistfile;
