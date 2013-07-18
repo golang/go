@@ -260,7 +260,7 @@ func TestTeeReader(t *testing.T) {
 	}
 }
 
-func TestSectionReader_ReadAt(tst *testing.T) {
+func TestSectionReader_ReadAt(t *testing.T) {
 	dat := "a long sample data, 1234567890"
 	tests := []struct {
 		data   string
@@ -282,12 +282,40 @@ func TestSectionReader_ReadAt(tst *testing.T) {
 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 - 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: nil},
 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: EOF},
 	}
-	for i, t := range tests {
-		r := strings.NewReader(t.data)
-		s := NewSectionReader(r, int64(t.off), int64(t.n))
-		buf := make([]byte, t.bufLen)
-		if n, err := s.ReadAt(buf, int64(t.at)); n != len(t.exp) || string(buf[:n]) != t.exp || err != t.err {
-			tst.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, t.at, buf[:n], err, t.exp, t.err)
+	for i, tt := range tests {
+		r := strings.NewReader(tt.data)
+		s := NewSectionReader(r, int64(tt.off), int64(tt.n))
+		buf := make([]byte, tt.bufLen)
+		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
+			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
 		}
+	}
+}
+
+func TestSectionReader_Seek(t *testing.T) {
+	// Verifies that NewSectionReader's Seeker behaves like bytes.NewReader (which is like strings.NewReader)
+	br := bytes.NewReader([]byte("foo"))
+	sr := NewSectionReader(br, 0, int64(len("foo")))
+
+	for whence := 0; whence <= 2; whence++ {
+		for offset := int64(-3); offset <= 4; offset++ {
+			brOff, brErr := br.Seek(offset, whence)
+			srOff, srErr := sr.Seek(offset, whence)
+			if (brErr != nil) != (srErr != nil) || brOff != srOff {
+				t.Errorf("For whence %d, offset %d: bytes.Reader.Seek = (%v, %v) != SectionReader.Seek = (%v, %v)",
+					whence, offset, brOff, brErr, srErr, srOff)
+			}
+		}
+	}
+
+	// And verify we can just seek past the end and get an EOF
+	got, err := sr.Seek(100, 0)
+	if err != nil || got != 100 {
+		t.Errorf("Seek = %v, %v; want 100, nil", got, err)
+	}
+
+	n, err := sr.Read(make([]byte, 10))
+	if n != 0 || err != EOF {
+		t.Errorf("Read = %v, %v; want 0, EOF", n, err)
 	}
 }
