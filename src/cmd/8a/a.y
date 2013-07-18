@@ -54,7 +54,7 @@
 %left	'*' '/' '%'
 %token	<lval>	LTYPE0 LTYPE1 LTYPE2 LTYPE3 LTYPE4
 %token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPES LTYPEM LTYPEI LTYPEG LTYPEXC
-%token	<lval>	LTYPEX LTYPEPC LCONST LFP LPC LSB
+%token	<lval>	LTYPEX LTYPEPC LTYPEF LCONST LFP LPC LSB
 %token	<lval>	LBREG LLREG LSREG LFREG LXREG
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST LSP
@@ -63,7 +63,7 @@
 %type	<con2>	con2
 %type	<gen>	mem imm imm2 reg nam rel rem rim rom omem nmem
 %type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim
-%type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9 spec10 spec11
+%type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9 spec10 spec11 spec12
 %%
 prog:
 |	prog
@@ -119,6 +119,7 @@ inst:
 |	LTYPEXC spec9	{ outcode($1, &$2); }
 |	LTYPEX spec10	{ outcode($1, &$2); }
 |	LTYPEPC spec11	{ outcode($1, &$2); }
+|	LTYPEF spec12	{ outcode($1, &$2); }
 
 nonnon:
 	{
@@ -309,11 +310,24 @@ spec10:	/* PINSRD */
 	}
 
 spec11:	/* PCDATA */
-	imm ',' imm
+	rim ',' rim
 	{
+		if($1.type != D_CONST || $3.type != D_CONST)
+			yyerror("arguments to PCDATA must be integer constants");
 		$$.from = $1;
 		$$.to = $3;
 	}
+
+spec12:	/* FUNCDATA */
+	rim ',' rim
+	{
+		if($1.type != D_CONST)
+			yyerror("index for FUNCDATA must be integer constant");
+		if($3.type != D_EXTERN && $3.type != D_STATIC)
+			yyerror("value for FUNCDATA must be symbol reference");
+ 		$$.from = $1;
+ 		$$.to = $3;
+ 	}
 
 rem:
 	reg

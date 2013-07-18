@@ -53,24 +53,24 @@
      LTYPEC = 269,
      LTYPED = 270,
      LTYPEE = 271,
-     LTYPEF = 272,
-     LTYPEG = 273,
-     LTYPEH = 274,
-     LTYPEI = 275,
-     LTYPEJ = 276,
-     LTYPEK = 277,
-     LTYPEL = 278,
-     LTYPEM = 279,
-     LTYPEN = 280,
-     LTYPEBX = 281,
-     LTYPEPLD = 282,
-     LCONST = 283,
-     LSP = 284,
-     LSB = 285,
-     LFP = 286,
-     LPC = 287,
-     LTYPEX = 288,
-     LTYPEPC = 289,
+     LTYPEG = 272,
+     LTYPEH = 273,
+     LTYPEI = 274,
+     LTYPEJ = 275,
+     LTYPEK = 276,
+     LTYPEL = 277,
+     LTYPEM = 278,
+     LTYPEN = 279,
+     LTYPEBX = 280,
+     LTYPEPLD = 281,
+     LCONST = 282,
+     LSP = 283,
+     LSB = 284,
+     LFP = 285,
+     LPC = 286,
+     LTYPEX = 287,
+     LTYPEPC = 288,
+     LTYPEF = 289,
      LR = 290,
      LREG = 291,
      LF = 292,
@@ -104,24 +104,24 @@
 #define LTYPEC 269
 #define LTYPED 270
 #define LTYPEE 271
-#define LTYPEF 272
-#define LTYPEG 273
-#define LTYPEH 274
-#define LTYPEI 275
-#define LTYPEJ 276
-#define LTYPEK 277
-#define LTYPEL 278
-#define LTYPEM 279
-#define LTYPEN 280
-#define LTYPEBX 281
-#define LTYPEPLD 282
-#define LCONST 283
-#define LSP 284
-#define LSB 285
-#define LFP 286
-#define LPC 287
-#define LTYPEX 288
-#define LTYPEPC 289
+#define LTYPEG 272
+#define LTYPEH 273
+#define LTYPEI 274
+#define LTYPEJ 275
+#define LTYPEK 276
+#define LTYPEL 277
+#define LTYPEM 278
+#define LTYPEN 279
+#define LTYPEBX 280
+#define LTYPEPLD 281
+#define LCONST 282
+#define LSP 283
+#define LSB 284
+#define LFP 285
+#define LPC 286
+#define LTYPEX 287
+#define LTYPEPC 288
+#define LTYPEF 289
 #define LR 290
 #define LREG 291
 #define LF 292
