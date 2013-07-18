@@ -67,15 +67,9 @@ func TestResolveIdents(t *testing.T) {
 	}
 
 	// resolve and type-check package AST
-	idents := make(map[*ast.Ident]Object)
 	var ctxt Context
-	ctxt.Ident = func(id *ast.Ident, obj Object) {
-		if old, found := idents[id]; found && old != obj {
-			t.Errorf("%s: identifier %s reported multiple times with different objects", fset.Position(id.Pos()), id.Name)
-		}
-		idents[id] = obj
-	}
-	pkg, err := ctxt.Check("testResolveIdents", fset, files...)
+	idents := make(map[*ast.Ident]Object)
+	pkg, err := ctxt.Check("testResolveIdents", fset, files, &Info{Objects: idents})
 	if err != nil {
 		t.Fatal(err)
 	}

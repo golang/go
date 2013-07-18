@@ -147,38 +147,32 @@ func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
 // source files.
 //
 func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) (*PackageInfo, error) {
-	info := &PackageInfo{
+	pkgInfo := &PackageInfo{
 		Files:     files,
 		types:     make(map[ast.Expr]types.Type),
 		idents:    make(map[*ast.Ident]types.Object),
 		constants: make(map[ast.Expr]exact.Value),
 		typecases: make(map[*ast.CaseClause]*types.Var),
 	}
-	tc := imp.context.TypeChecker
-	tc.Expr = func(x ast.Expr, typ types.Type, val exact.Value) {
-		info.types[x] = typ
-		if val != nil {
-			info.constants[x] = val
-		}
-	}
-	tc.Ident = func(ident *ast.Ident, obj types.Object) {
-		// Invariants:
-		// - obj is non-nil.
-		// - isBlankIdent(ident) <=> obj.GetType()==nil
-		info.idents[ident] = obj
-	}
-	tc.ImplicitObj = func(node ast.Node, obj types.Object) {
-		if cc, ok := node.(*ast.CaseClause); ok {
-			info.typecases[cc] = obj.(*types.Var)
-		}
+
+	info := &types.Info{
+		Types:     pkgInfo.types,
+		Values:    pkgInfo.constants,
+		Objects:   pkgInfo.idents,
+		Implicits: make(map[ast.Node]types.Object),
 	}
 	var firstErr error
-	info.Pkg, firstErr = tc.Check(importPath, imp.Fset, files...)
-	tc.Expr = nil
-	tc.Ident = nil
+	pkgInfo.Pkg, firstErr = imp.context.TypeChecker.Check(importPath, imp.Fset, files, info)
 	if firstErr != nil {
 		return nil, firstErr
 	}
-	imp.Packages[importPath] = info
-	return info, nil
+
+	for node, obj := range info.Implicits {
+		if cc, ok := node.(*ast.CaseClause); ok {
+			pkgInfo.typecases[cc] = obj.(*types.Var)
+		}
+	}
+
+	imp.Packages[importPath] = pkgInfo
+	return pkgInfo, nil
 }

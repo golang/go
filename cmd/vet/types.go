@@ -19,24 +19,21 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.Type)
 	pkg.values = make(map[ast.Expr]exact.Value)
-	exprFn := func(x ast.Expr, typ types.Type, val exact.Value) {
-		pkg.types[x] = typ
-		if val != nil {
-			pkg.values[x] = val
-		}
-	}
-	identFn := func(id *ast.Ident, obj types.Object) {
-		pkg.idents[id] = obj
-		pkg.growSpan(id, obj)
-	}
 	// By providing the Context with our own error function, it will continue
 	// past the first error. There is no need for that function to do anything.
 	context := types.Context{
-		Ident: identFn,
-		Expr:  exprFn,
 		Error: func(error) {},
 	}
-	_, err := context.Check(pkg.path, fs, astFiles...)
+	info := &types.Info{
+		Types:   pkg.types,
+		Values:  pkg.values,
+		Objects: pkg.idents,
+	}
+	_, err := context.Check(pkg.path, fs, astFiles, info)
+	// update spans
+	for id, obj := range pkg.idents {
+		pkg.growSpan(id, obj)
+	}
 	return err
 }
 

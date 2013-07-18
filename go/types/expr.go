@@ -387,10 +387,8 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		return
 	}
 
-	// Everything's fine, notify client of final type for x.
-	if f := check.ctxt.Expr; f != nil {
-		f(x, typ, old.val)
-	}
+	// Everything's fine, record final type and value for x.
+	check.recordTypeAndValue(x, typ, old.val)
 }
 
 // convertUntyped attempts to set the type of an untyped value to the target type.
@@ -769,13 +767,13 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 	check.expr0(x, e, hint)
 
 	// convert x into a user-friendly set of values
-	notify := check.ctxt.Expr
+	record := true
 	var typ Type
 	var val exact.Value
 	switch x.mode {
 	case invalid:
 		typ = Typ[Invalid]
-		notify = nil // nothing to do
+		record = false // nothing to do
 	case novalue:
 		typ = (*Tuple)(nil)
 	case constant:
@@ -784,7 +782,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 	case typexprn:
 		x.mode = typexpr
 		typ = x.typ
-		notify = nil // clients were already notified
+		record = false // type was already recorded
 	default:
 		typ = x.typ
 	}
@@ -794,12 +792,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 		// delay notification until it becomes typed
 		// or until the end of type checking
 		check.untyped[x.expr] = exprInfo{false, typ.(*Basic), val}
-	} else if notify != nil {
-		// notify clients
+	} else if record {
 		// TODO(gri) ensure that literals always report
 		// their dynamic (never interface) type.
 		// This is not the case yet.
-		notify(x.expr, typ, val)
+		check.recordTypeAndValue(e, typ, val)
 	}
 
 	if trace {
@@ -898,7 +895,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 						continue
 					}
 					fld := fields[i]
-					check.callIdent(key, fld)
+					check.recordObject(key, fld)
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)

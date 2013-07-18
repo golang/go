@@ -23,7 +23,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	x.expr = e
 
 	obj := check.topScope.LookupParent(e.Name)
-	check.callIdent(e, obj)
+	check.recordObject(e, obj)
 	if obj == nil {
 		if e.Name == "_" {
 			check.errorf(e.Pos(), "cannot use _ as value or type")
@@ -107,10 +107,7 @@ func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) Type {
 	t := check.typ0(e, def, cycleOk)
 	assert(e != nil && t != nil && !isUntyped(t))
 
-	// notify clients
-	if notify := check.ctxt.Expr; notify != nil {
-		notify(e, t, nil)
-	}
+	check.recordTypeAndValue(e, t, nil)
 
 	if trace {
 		check.indent--
@@ -323,7 +320,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		} else {
 			// anonymous parameter
 			par := NewVar(ftype.Pos(), check.pkg, "", typ)
-			check.callImplicitObj(field, par)
+			check.recordImplicit(field, par)
 			params = append(params, par)
 		}
 	}

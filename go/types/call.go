@@ -170,7 +170,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
 		if pkg, ok := check.topScope.LookupParent(ident.Name).(*Package); ok {
-			check.callIdent(ident, pkg)
+			check.recordObject(ident, pkg)
 			exp := pkg.scope.Lookup(nil, sel)
 			if exp == nil {
 				check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
@@ -182,7 +182,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
 				goto Error
 			}
-			check.callIdent(e.Sel, exp)
+			check.recordObject(e.Sel, exp)
 			// Simplified version of the code for *ast.Idents:
 			// - imported packages use types.Scope and types.Objects
 			// - imported objects are always fully initialized
@@ -225,7 +225,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	check.callIdent(e.Sel, obj)
+	check.recordObject(e.Sel, obj)
 
 	if x.mode == typexpr {
 		// method expression

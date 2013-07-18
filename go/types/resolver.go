@@ -25,7 +25,7 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 		obj = nil // for callIdent below
 	}
 	if id != nil {
-		check.callIdent(id, obj)
+		check.recordObject(id, obj)
 	}
 }
 
@@ -83,7 +83,7 @@ func (check *checker) arityMatch(s, init *ast.ValueSpec) {
 	}
 }
 
-func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
+func (check *checker) resolveFiles(files []*ast.File) {
 	pkg := check.pkg
 
 	// Phase 1: Pre-declare all package scope objects so that they can be found
@@ -103,13 +103,13 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 		if ident.Name == "init" {
 			f, _ := obj.(*Func)
 			if f == nil {
-				check.callIdent(ident, nil)
+				check.recordObject(ident, nil)
 				check.errorf(ident.Pos(), "cannot declare init - must be func")
 				return
 			}
 			// don't declare init functions in the package scope - they are invisible
 			f.parent = pkg.scope
-			check.callIdent(ident, obj)
+			check.recordObject(ident, obj)
 		} else {
 			check.declare(pkg.scope, ident, obj)
 		}
@@ -118,9 +118,14 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 		objMap[obj] = &decl{fileScope, typ, init}
 	}
 
+	importer := check.ctxt.Import
+	if importer == nil {
+		importer = GcImport
+	}
+
 	for _, file := range files {
 		// the package identifier denotes the current package, but it is in no scope
-		check.callIdent(file.Name, pkg)
+		check.recordObject(file.Name, pkg)
 
 		fileScope = NewScope(pkg.scope)
 		if retainASTLinks {
@@ -138,9 +143,6 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 				for iota, spec := range d.Specs {
 					switch s := spec.(type) {
 					case *ast.ImportSpec:
-						if importer == nil {
-							continue
-						}
 						path, _ := strconv.Unquote(s.Path.Value)
 						imp, err := importer(pkg.imports, path)
 						if imp == nil && err == nil {
@@ -163,9 +165,9 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 
 						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil, imp.complete)
 						if s.Name != nil {
-							check.callIdent(s.Name, imp2)
+							check.recordObject(s.Name, imp2)
 						} else {
-							check.callImplicitObj(s, imp2)
+							check.recordImplicit(s, imp2)
 						}
 
 						// add import to file scope
@@ -179,7 +181,7 @@ func (check *checker) resolveFiles(files []*ast.File, importer Importer) {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for types aliases.
 									check.declare(fileScope, nil, obj)
-									check.callImplicitObj(s, obj)
+									check.recordImplicit(s, obj)
 								}
 							}
 						} else {

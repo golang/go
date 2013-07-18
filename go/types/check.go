@@ -38,6 +38,7 @@ type exprInfo struct {
 type checker struct {
 	ctxt *Context
 	fset *token.FileSet
+	Info
 
 	// lazily initialized
 	pkg         *Package               // current package
@@ -69,17 +70,29 @@ func newChecker(ctxt *Context, fset *token.FileSet, pkg *Package) *checker {
 	}
 }
 
-func (check *checker) callIdent(id *ast.Ident, obj Object) {
-	if f := check.ctxt.Ident; f != nil {
-		assert(id != nil)
-		f(id, obj)
+func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) {
+	assert(x != nil && typ != nil)
+	if m := check.Types; m != nil {
+		m[x] = typ
+	}
+	if val != nil {
+		if m := check.Values; m != nil {
+			m[x] = val
+		}
 	}
 }
 
-func (check *checker) callImplicitObj(node ast.Node, obj Object) {
-	if f := check.ctxt.ImplicitObj; f != nil {
-		assert(node != nil && obj != nil)
-		f(node, obj)
+func (check *checker) recordObject(id *ast.Ident, obj Object) {
+	assert(id != nil)
+	if m := check.Objects; m != nil {
+		m[id] = obj
+	}
+}
+
+func (check *checker) recordImplicit(node ast.Node, obj Object) {
+	assert(node != nil && obj != nil)
+	if m := check.Implicits; m != nil {
+		m[node] = obj
 	}
 }
 
@@ -111,16 +124,16 @@ func (check *checker) handleBailout(err *error) {
 		*err = check.firsterr
 	default:
 		// unexpected panic: don't crash clients
+		// TODO(gri) add a test case for this scenario
+		*err = fmt.Errorf("types internal error: %v", p)
 		if debug {
 			check.dump("INTERNAL PANIC: %v", p)
 			panic(p)
 		}
-		// TODO(gri) add a test case for this scenario
-		*err = fmt.Errorf("types internal error: %v", p)
 	}
 }
 
-func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.File) (pkg *Package, err error) {
+func (ctxt *Context) check(pkgPath string, fset *token.FileSet, files []*ast.File, info *Info) (pkg *Package, err error) {
 	pkg = &Package{
 		path:    pkgPath,
 		scope:   NewScope(Universe),
@@ -132,8 +145,13 @@ func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.Fil
 
 	// we need a reasonable path to continue
 	if path.Clean(pkgPath) == "." {
-		check.errorf(token.NoPos, "Check invoked with invalid package path: %q", pkgPath)
+		check.errorf(token.NoPos, "invalid package path provided: %q", pkgPath)
 		return
+	}
+
+	// install optional info
+	if info != nil {
+		check.Info = *info
 	}
 
 	// determine package name and files
@@ -151,16 +169,9 @@ func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.Fil
 			// ignore this file
 		}
 	}
-	files = files[:i]
-
-	// resolve identifiers
-	imp := ctxt.Import
-	if imp == nil {
-		imp = GcImport
-	}
 
 	// TODO(gri) resolveFiles needs to be split up and renamed (cleanup)
-	check.resolveFiles(files, imp)
+	check.resolveFiles(files[:i])
 
 	// typecheck all function/method bodies
 	// (funclist may grow when checking statements - do not use range clause!)
@@ -195,9 +206,9 @@ func check(ctxt *Context, pkgPath string, fset *token.FileSet, files ...*ast.Fil
 	// TODO(gri) Consider doing this before and
 	// after function body checking for smaller
 	// map size and more immediate feedback.
-	if ctxt.Expr != nil {
+	if check.Types != nil || check.Values != nil {
 		for x, info := range check.untyped {
-			ctxt.Expr(x, info.typ, info.val)
+			check.recordTypeAndValue(x, info.typ, info.val)
 		}
 	}
 

@@ -72,10 +72,9 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	}
 
 	// typecheck package files
-	ctxt := Context{
-		Error: func(err error) { t.Error(err) },
-	}
-	ctxt.Check(path, fset, files...)
+	var ctxt Context
+	ctxt.Error = func(err error) { t.Error(err) }
+	ctxt.Check(path, fset, files, nil)
 	pkgCount++
 }
 

@@ -97,8 +97,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			used = true
 			// but some builtins are excluded
 			// (Caution: This evaluates e.Fun twice, once here and once
-			//           below as part of s.X. This has consequences for
-			//           check.callIdent. Perhaps this can be avoided.)
+			//           below as part of s.X. Perhaps this can be avoided.)
 			check.expr(&x, e.Fun)
 			if x.mode != invalid {
 				if b, ok := x.typ.(*Builtin); ok && !b.isStatement {
@@ -268,7 +267,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if tag == nil {
 			// use fake true tag value and position it at the opening { of the switch
 			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
-			check.callIdent(ident, Universe.Lookup(nil, "true"))
+			check.recordObject(ident, Universe.Lookup(nil, "true"))
 			tag = ident
 		}
 		check.expr(&x, tag)
@@ -418,7 +417,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				if len(clause.List) == 1 && typ != nil {
 					obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, typ)
 					check.declare(check.topScope, nil, obj)
-					check.callImplicitObj(clause, obj)
+					check.recordImplicit(clause, obj)
 				}
 			}
 			check.stmtList(clause.Body)

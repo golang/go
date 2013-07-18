@@ -109,7 +109,7 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) {
 
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident, _ := lhs.(*ast.Ident); ident != nil && ident.Name == "_" {
-		check.callIdent(ident, nil)
+		check.recordObject(ident, nil)
 		check.updateExprType(x.expr, x.typ, true) // rhs has its final type
 		return
 	}
@@ -275,7 +275,7 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 				// declare new variable
 				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 			}
-			check.callIdent(ident, obj) // obj may be nil
+			check.recordObject(ident, obj) // obj may be nil
 		} else {
 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		}

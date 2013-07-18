@@ -21,8 +21,7 @@ func makePkg(t *testing.T, src string) (*Package, error) {
 		return nil, err
 	}
 	// use the package name as package path
-	pkg, err := Check(file.Name.Name, fset, file)
-	return pkg, err
+	return Check(file.Name.Name, fset, []*ast.File{file})
 }
 
 type testEntry struct {

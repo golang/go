@@ -216,7 +216,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 			errlist = append(errlist, err)
 		}
 	}
-	ctxt.Check(pkgName, fset, files...)
+	ctxt.Check(pkgName, fset, files, nil)
 
 	if *listErrors {
 		return

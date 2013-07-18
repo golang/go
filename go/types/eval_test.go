@@ -7,6 +7,7 @@
 package types
 
 import (
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"strings"
@@ -98,7 +99,7 @@ func f(a int, s string) float64 {
 		t.Fatal(err)
 	}
 
-	pkg, err := Check("p", fset, file)
+	pkg, err := Check("p", fset, []*ast.File{file})
 	if err != nil {
 		t.Fatal(err)
 	}
