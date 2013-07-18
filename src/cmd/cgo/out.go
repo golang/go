@@ -32,7 +32,7 @@ func (p *Package) writeDefs() {
 	fflg := creat(*objDir + "_cgo_flags")
 	for k, v := range p.CgoFlags {
 		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, strings.Join(v, " "))
-		if k == "LDFLAGS" {
+		if k == "LDFLAGS" && !*gccgo {
 			for _, arg := range v {
 				fmt.Fprintf(fc, "#pragma cgo_ldflag %q\n", arg)
 			}
@@ -105,7 +105,10 @@ func (p *Package) writeDefs() {
 			fmt.Fprintf(fm, "extern char %s[];\n", n.C)
 			fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
 
-			fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", n.C)
+			if !*gccgo {
+				fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", n.C)
+			}
+
 			fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 
 			cVars[n.C] = true
