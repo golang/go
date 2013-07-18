@@ -244,11 +244,11 @@ runtime·newstack(void)
 	if(gp->stackguard0 == (uintptr)StackPreempt) {
 		if(gp == m->g0)
 			runtime·throw("runtime: preempt g0");
-		if(oldstatus == Grunning && (m->p == nil || m->p->status != Prunning))
+		if(oldstatus == Grunning && m->p == nil)
 			runtime·throw("runtime: g is running but p is not");
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.
-		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing) {
+		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing || m->p->status != Prunning) {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
 			gp->stackguard0 = gp->stackguard;
