@@ -175,10 +175,19 @@ runtime·deferreturn(uintptr arg0, ...)
 	argp = (byte*)&arg0;
 	if(d->argp != argp)
 		return;
+
+	// Moving arguments around.
+	// Do not allow preemption here, because the garbage collector
+	// won't know the form of the arguments until the jmpdefer can
+	// flip the PC over to fn.
+	m->locks++;
 	runtime·memmove(argp, d->args, d->siz);
 	fn = d->fn;
 	popdefer();
 	freedefer(d);
+	m->locks--;
+	if(m->locks == 0 && g->preempt)
+		g->stackguard0 = StackPreempt;
 	runtime·jmpdefer(fn, argp);
 }
 
