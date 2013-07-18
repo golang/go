@@ -93,7 +93,8 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 		return
 	}
 	if lit.Kind() != exact.String {
-		f.Badf(call.Pos(), "constant %v not a string in call to", lit, name)
+		f.Badf(call.Pos(), "constant %v not a string in call to %s", lit, name)
+		return
 	}
 	format := exact.StringVal(lit)
 	firstArg := formatIndex + 1 // Arguments are immediately after format string.
