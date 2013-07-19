@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include "gc.h"
+#include "../../pkg/runtime/funcdata.h"
 
 int
 hasdotdotdot(void)
@@ -54,9 +55,9 @@ argsize(void)
 		case TVOID:
 			break;
 		case TDOT:
-			yyerror("function takes ... without textflag NOSPLIT");
-			s += 64;
-			break;
+			if((textflag & NOSPLIT) == 0)
+				yyerror("function takes ... without textflag NOSPLIT");
+			return ArgsSizeUnknown;
 		default:
 			s = align(s, t, Aarg1, nil);
 			s = align(s, t, Aarg2, nil);

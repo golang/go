@@ -81,13 +81,6 @@ enum
 	NHASH = 100003,
 };
 
-enum
-{
-	// This value is known to the garbage collector and should be kept in
-	// sync with runtime/pkg/runtime.h
-	ArgsSizeUnknown = 0x80000000
-};
-
 typedef struct Library Library;
 struct Library
 {

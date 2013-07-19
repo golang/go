@@ -33,6 +33,7 @@
 #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
 #include <libc.h>
 #include "a.h"
+#include "../../pkg/runtime/funcdata.h"
 %}
 %union
 {
@@ -217,18 +218,18 @@ inst:
  */
 |	LTYPEB name ',' imm
 	{
+		$4.type = D_CONST2;
+		$4.offset2 = ArgsSizeUnknown;
 		outcode($1, Always, &$2, 0, &$4);
 	}
 |	LTYPEB name ',' con ',' imm
 	{
+		$6.type = D_CONST2;
+		$6.offset2 = ArgsSizeUnknown;
 		outcode($1, Always, &$2, $4, &$6);
 	}
 |	LTYPEB name ',' con ',' imm '-' con
 	{
-		// Change explicit 0 argument size to 1
-		// so that we can distinguish it from missing.
-		if($8 == 0)
-			$8 = 1;
 		$6.type = D_CONST2;
 		$6.offset2 = $8;
 		outcode($1, Always, &$2, $4, &$6);

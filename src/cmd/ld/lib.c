@@ -33,6 +33,7 @@
 #include	"lib.h"
 #include	"../ld/elf.h"
 #include	"../../pkg/runtime/stack.h"
+#include	"../../pkg/runtime/funcdata.h"
 
 #include	<ar.h>
 
@@ -2414,13 +2415,9 @@ pclntab(void)
 		
 		// args int32
 		// TODO: Move into funcinfo.
-		if(cursym->text == nil || (cursym->text->textflag & NOSPLIT) && cursym->args == 0 && cursym->nptrs < 0) {
-			// This might be a vararg function and have no
-			// predetermined argument size.  This check is
-			// approximate and will also match 0 argument
-			// nosplit functions compiled by 6c.
+		if(cursym->text == nil)
 			off = setuint32(ftab, off, ArgsSizeUnknown);
-		} else
+		else
 			off = setuint32(ftab, off, cursym->args);
 
 		// locals int32
