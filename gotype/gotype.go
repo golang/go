@@ -169,7 +169,7 @@ func processFiles(path string, filenames []string, allFiles bool) {
 
 func processPackage(path string, fset *token.FileSet, files []*ast.File) {
 	type bailout struct{}
-	ctxt := types.Context{
+	conf := types.Config{
 		Error: func(err error) {
 			if !*allErrors && errorCount >= 10 {
 				panic(bailout{})
@@ -186,7 +186,7 @@ func processPackage(path string, fset *token.FileSet, files []*ast.File) {
 		}
 	}()
 
-	ctxt.Check(path, fset, files...)
+	conf.Check(path, fset, files, nil)
 }
 
 func main() {
