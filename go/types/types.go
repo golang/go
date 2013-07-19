@@ -124,7 +124,7 @@ func (s *Slice) Elem() Type { return s.elt }
 
 // A Struct represents a struct type.
 type Struct struct {
-	fields []*Field
+	fields []*Var
 	tags   []string // field tags; nil if there are no tags
 	// TODO(gri) access to offsets is not threadsafe - fix this
 	offsets []int64         // field offsets in bytes, lazily initialized
@@ -135,7 +135,7 @@ type Struct struct {
 // If a field with index i has a tag, tags[i] must be that tag, but len(tags) may be
 // only as long as required to hold the tag with the largest index i. Consequently,
 // if no field has a tag, tags may be nil.
-func NewStruct(fields []*Field, tags []string) *Struct {
+func NewStruct(fields []*Var, tags []string) *Struct {
 	return &Struct{fields: fields, tags: tags}
 }
 
@@ -143,7 +143,7 @@ func NewStruct(fields []*Field, tags []string) *Struct {
 func (s *Struct) NumFields() int { return len(s.fields) }
 
 // Field returns the i'th field for 0 <= i < NumFields().
-func (s *Struct) Field(i int) *Field { return s.fields[i] }
+func (s *Struct) Field(i int) *Var { return s.fields[i] }
 
 // Tag returns the i'th field tag for 0 <= i < NumFields().
 func (s *Struct) Tag(i int) string {

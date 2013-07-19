@@ -395,7 +395,7 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Field, tags []string) {
+func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Var, tags []string) {
 	if list == nil {
 		return
 	}
@@ -412,7 +412,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			tags = append(tags, tag)
 		}
 
-		fld := NewField(pos, check.pkg, name, typ, anonymous)
+		fld := NewFieldVar(pos, check.pkg, name, typ, anonymous)
 		check.declare(scope, ident, fld)
 		fields = append(fields, fld)
 	}

@@ -238,12 +238,12 @@ func NewMethodSet(typ Type) *MethodSet {
 // A fieldSet is a set of fields and name collisions.
 // A collision indicates that multiple fields with the
 // same unique name appeared.
-type fieldSet map[string]*Field // a nil entry indicates a name collision
+type fieldSet map[string]*Var // a nil entry indicates a name collision
 
 // Add adds field f to the field set s.
 // If multiples is set, f appears multiple times
 // and is treated as a collision.
-func (s fieldSet) add(f *Field, multiples bool) fieldSet {
+func (s fieldSet) add(f *Var, multiples bool) fieldSet {
 	if s == nil {
 		s = make(fieldSet)
 	}

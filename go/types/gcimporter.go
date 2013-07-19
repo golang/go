@@ -460,7 +460,7 @@ func (p *gcParser) parseName(materializePkg bool) (pkg *Package, name string) {
 
 // Field = Name Type [ string_lit ] .
 //
-func (p *gcParser) parseField() (*Field, string) {
+func (p *gcParser) parseField() (*Var, string) {
 	pkg, name := p.parseName(true)
 	typ := p.parseType()
 	anonymous := false
@@ -482,14 +482,14 @@ func (p *gcParser) parseField() (*Field, string) {
 	if p.tok == scanner.String {
 		tag = p.expect(scanner.String)
 	}
-	return NewField(token.NoPos, pkg, name, typ, anonymous), tag
+	return NewFieldVar(token.NoPos, pkg, name, typ, anonymous), tag
 }
 
 // StructType = "struct" "{" [ FieldList ] "}" .
 // FieldList  = Field { ";" Field } .
 //
 func (p *gcParser) parseStructType() Type {
-	var fields []*Field
+	var fields []*Var
 	var tags []string
 
 	p.expectKeyword("struct")

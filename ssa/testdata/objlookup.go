@@ -31,7 +31,7 @@ type I interface {
 }
 
 type S struct {
-	x int
+	x int // x::nil
 }
 
 func main() {
@@ -73,7 +73,7 @@ func main() {
 	print(v6)           // v6::Const
 
 	var v7 S // v7::UnOp (load from Alloc)
-	v7.x = 1 // &v7::Alloc
+	v7.x = 1 // &v7::Alloc x::nil TODO(adonovan): do better for x
 
 	var v8 [1]int // v8::UnOp (load from Alloc)
 	v8[0] = 0     // &v8::Alloc

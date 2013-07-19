@@ -76,7 +76,7 @@ type Config struct {
 	// of the given struct fields, in bytes. Otherwise DefaultOffsetsof
 	// is called. Offsetsof must implement the offset guarantees
 	// required by the spec.
-	Offsetsof func(fields []*Field) []int64
+	Offsetsof func(fields []*Var) []int64
 
 	// If Sizeof != nil, it is called to determine the size of the
 	// given type. Otherwise, DefaultSizeof is called. Sizeof must

@@ -107,7 +107,7 @@ func align(x, a int64) int64 {
 
 // DefaultOffsetsof implements the default field offset computation
 // for unsafe.Offsetof. It is used if Config.Offsetsof == nil.
-func DefaultOffsetsof(fields []*Field) []int64 {
+func DefaultOffsetsof(fields []*Var) []int64 {
 	offsets := make([]int64, len(fields))
 	var o int64
 	for i, f := range fields {

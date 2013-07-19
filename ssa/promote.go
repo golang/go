@@ -27,10 +27,10 @@ import (
 type anonFieldPath struct {
 	tail  *anonFieldPath
 	index int // index of field within enclosing types.Struct.Fields
-	field *types.Field
+	field *types.Var
 }
 
-func (p *anonFieldPath) contains(f *types.Field) bool {
+func (p *anonFieldPath) contains(f *types.Var) bool {
 	for ; p != nil; p = p.tail {
 		if p.field == f {
 			return true

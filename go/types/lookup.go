@@ -12,7 +12,7 @@ package types
 //           indirectly via different packages.)
 
 // LookupFieldOrMethod looks up a field or method with given package and name
-// in typ and returns the corresponding *Field or *Func, an index sequence,
+// in typ and returns the corresponding *Var or *Func, an index sequence,
 // and a bool indicating if there were any pointer indirections on the path
 // to the field or method.
 //
@@ -61,7 +61,7 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 			// start the search with the underlying type *T
 			if obj2, index2, indirect2 := lookupFieldOrMethod(u, pkg, name); obj2 != nil {
 				// only if the result is a field can we keep it
-				if _, ok := obj2.(*Field); ok {
+				if _, ok := obj2.(*Var); ok {
 					return obj2, index2, indirect2
 				}
 			}
@@ -293,7 +293,7 @@ func concat(list []int, i int) []int {
 }
 
 // fieldIndex returns the index for the field with matching package and name, or a value < 0.
-func fieldIndex(fields []*Field, pkg *Package, name string) int {
+func fieldIndex(fields []*Var, pkg *Package, name string) int {
 	if name == "_" {
 		return -1 // blank identifiers are never found
 	}

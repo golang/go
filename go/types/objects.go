@@ -156,31 +156,24 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 
 func (obj *TypeName) String() string { return obj.toString("type", obj.typ.Underlying()) }
 
-// A Variable represents a declared variable (including function parameters and results).
+// A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
 
-	visited bool // for initialization cycle detection
+	anonymous bool // if set, this variable is an anonymous struct field, and name is the type name
+	visited   bool // for initialization cycle detection
 }
 
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object{nil, pos, pkg, name, typ}, false}
+	return &Var{object{nil, pos, pkg, name, typ}, false, false}
 }
 
-func (obj *Var) String() string { return obj.toString("var", obj.typ) }
-
-// A Field represents a struct field.
-type Field struct {
-	object
-	anonymous bool
+func NewFieldVar(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
+	return &Var{object{nil, pos, pkg, name, typ}, anonymous, false}
 }
 
-func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Field {
-	return &Field{object{nil, pos, pkg, name, typ}, anonymous}
-}
-
-func (obj *Field) String() string  { return obj.toString("field", obj.typ) }
-func (obj *Field) Anonymous() bool { return obj.anonymous }
+func (obj *Var) Anonymous() bool { return obj.anonymous }
+func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
 
 // A Func represents a declared function.
 type Func struct {

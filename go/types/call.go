@@ -261,7 +261,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	} else {
 		// regular selector
 		switch obj := obj.(type) {
-		case *Field:
+		case *Var:
 			x.mode = variable
 			x.typ = obj.typ
 
