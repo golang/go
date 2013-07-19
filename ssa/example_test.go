@@ -37,7 +37,7 @@ func main() {
 }
 `
 	// Construct an importer.  Imports will be loaded as if by 'go build'.
-	imp := importer.New(&importer.Context{Loader: importer.MakeGoBuildLoader(nil)})
+	imp := importer.New(&importer.Config{Loader: importer.MakeGoBuildLoader(nil)})
 
 	// Parse the input file.
 	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, parser.DeclarationErrors)

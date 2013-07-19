@@ -146,10 +146,9 @@ func run(t *testing.T, dir, input string) bool {
 		inputs = append(inputs, dir+i)
 	}
 
-	impctx := &importer.Context{
+	imp := importer.New(&importer.Config{
 		Loader: importer.MakeGoBuildLoader(nil),
-	}
-	imp := importer.New(impctx)
+	})
 	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
 	if err != nil {
 		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())

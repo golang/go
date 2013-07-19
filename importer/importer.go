@@ -17,15 +17,15 @@ import (
 
 // An Importer's methods are not thread-safe.
 type Importer struct {
-	context  *Context                // the client context
+	config   *Config                 // the client configuration
 	Fset     *token.FileSet          // position info for all files seen
 	Packages map[string]*PackageInfo // keys are import paths
 	errors   map[string]error        // cache of errors by import path
 }
 
-// Context specifies the supporting context for the importer.
+// Config specifies the configuration for the importer.
 //
-type Context struct {
+type Config struct {
 	// TypeChecker contains options relating to the type checker.
 	// The Importer will override any user-supplied values for its
 	// Expr, Ident, ImplicitObj and Import fields; other fields
@@ -59,16 +59,16 @@ type Context struct {
 type SourceLoader func(fset *token.FileSet, path string) (files []*ast.File, err error)
 
 // New returns a new, empty Importer using configuration options
-// specified by context.
+// specified by config.
 //
-func New(context *Context) *Importer {
+func New(config *Config) *Importer {
 	imp := &Importer{
-		context:  context,
+		config:   config,
 		Fset:     token.NewFileSet(),
 		Packages: make(map[string]*PackageInfo),
 		errors:   make(map[string]error),
 	}
-	imp.context.TypeChecker.Import = imp.doImport
+	imp.config.TypeChecker.Import = imp.doImport
 	return imp
 }
 
@@ -95,7 +95,7 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (p
 	// a PackageInfo and update our map (imp.Packages) and the
 	// type-checker's map (imports).
 	var info *PackageInfo
-	if imp.context.Loader != nil {
+	if imp.config.Loader != nil {
 		info, err = imp.LoadPackage(path)
 	} else if pkg, err = types.GcImport(imports, path); err == nil {
 		info = &PackageInfo{Pkg: pkg}
@@ -119,15 +119,17 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (p
 // PackageInfo.
 //
 // Not idempotent!
-// Precondition: Importer.context.Loader != nil.
+// Precondition: Importer.config.Loader != nil.
+// TODO(adonovan): fix: violated in call from CreatePackageFromArgs!
 // Not thread-safe!
 // TODO(adonovan): rethink this API.
 //
+//
 func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
-	if imp.context.Loader == nil {
+	if imp.config.Loader == nil {
 		panic("Importer.LoadPackage without a SourceLoader")
 	}
-	files, err := imp.context.Loader(imp.Fset, importPath)
+	files, err := imp.config.Loader(imp.Fset, importPath)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +165,7 @@ func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) *
 			Implicits: make(map[ast.Node]types.Object),
 		},
 	}
-	pkgInfo.Pkg, pkgInfo.Err = imp.context.TypeChecker.Check(importPath, imp.Fset, files, &pkgInfo.Info)
+	pkgInfo.Pkg, pkgInfo.Err = imp.config.TypeChecker.Check(importPath, imp.Fset, files, &pkgInfo.Info)
 	imp.Packages[importPath] = pkgInfo
 	return pkgInfo
 }

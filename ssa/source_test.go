@@ -17,7 +17,7 @@ import (
 )
 
 func TestObjValueLookup(t *testing.T) {
-	imp := importer.New(new(importer.Context)) // (uses GCImporter)
+	imp := importer.New(new(importer.Config)) // (uses GCImporter)
 	f, err := parser.ParseFile(imp.Fset, "testdata/objlookup.go", nil, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
 		t.Errorf("parse error: %s", err)

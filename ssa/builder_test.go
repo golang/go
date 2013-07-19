@@ -34,7 +34,7 @@ func main() {
         w.Write(nil)    // interface invoke of external declared method
 }
 `
-	imp := importer.New(new(importer.Context)) // no Loader; uses GC importer
+	imp := importer.New(new(importer.Config)) // no Loader; uses GC importer
 
 	f, err := parser.ParseFile(imp.Fset, "<input>", test, parser.DeclarationErrors)
 	if err != nil {
