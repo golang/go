@@ -51,7 +51,7 @@ func main() {
 		runtime.GC()
 	}
 	if count != 0 {
-		println(count, "out of", N, "finalizer are called")
+		println(count, "out of", N, "finalizer are not called")
 		panic("not all finalizers are called")
 	}
 }
