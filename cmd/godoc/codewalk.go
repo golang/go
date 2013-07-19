@@ -13,6 +13,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -93,6 +94,14 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 		redirected = true
 	}
 	return
+}
+
+func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		log.Printf("%s.Execute: %s", name, err)
+	}
+	return buf.Bytes()
 }
 
 // A Codewalk represents a single codewalk read from an XML file.

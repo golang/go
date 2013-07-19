@@ -6,6 +6,7 @@ package godoc
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -96,4 +97,16 @@ func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		Query:    query,
 		Body:     applyTemplate(p.SearchHTML, "searchHTML", result),
 	})
+}
+
+func (p *Presentation) serveSearchDesc(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
+	data := map[string]interface{}{
+		"BaseURL": fmt.Sprintf("http://%s", r.Host),
+	}
+	if err := p.SearchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
+		// Only log if there's an error that's not about writing on HEAD requests.
+		// See Issues 5451 and 5454.
+		log.Printf("searchDescXML.Execute: %s", err)
+	}
 }

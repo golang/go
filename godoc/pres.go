@@ -73,6 +73,8 @@ func NewPresentation(c *Corpus) *Presentation {
 	p.cmdHandler.registerWithMux(p.mux)
 	p.pkgHandler.registerWithMux(p.mux)
 	p.mux.HandleFunc("/", p.ServeFile)
+	p.mux.HandleFunc("/search", p.HandleSearch)
+	p.mux.HandleFunc("/opensearch.xml", p.serveSearchDesc)
 	return p
 }
 

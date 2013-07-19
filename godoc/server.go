@@ -567,18 +567,6 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 	p.fileServer.ServeHTTP(w, r)
 }
 
-func (p *Presentation) serveSearchDesc(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
-	data := map[string]interface{}{
-		"BaseURL": fmt.Sprintf("http://%s", r.Host),
-	}
-	if err := p.SearchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
-		// Only log if there's an error that's not about writing on HEAD requests.
-		// See Issues 5451 and 5454.
-		log.Printf("searchDescXML.Execute: %s", err)
-	}
-}
-
 func (p *Presentation) ServeText(w http.ResponseWriter, text []byte) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(text)

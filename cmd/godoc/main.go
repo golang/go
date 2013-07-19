@@ -106,18 +106,6 @@ var (
 	fs   = vfs.NameSpace{}
 )
 
-func registerPublicHandlers(mux *http.ServeMux) {
-	if pres == nil {
-		panic("nil Presentation")
-	}
-	mux.HandleFunc("/doc/codewalk/", codewalk)
-	mux.Handle("/doc/play/", pres.FileServer())
-	mux.HandleFunc("/search", pres.HandleSearch)
-	mux.Handle("/robots.txt", pres.FileServer())
-	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
-	mux.Handle("/", pres)
-}
-
 // ----------------------------------------------------------------------------
 // Templates
 
@@ -155,32 +143,6 @@ func readTemplates(p *godoc.Presentation) {
 	p.SearchText = readTemplate("search.txt")
 	p.SearchDescXML = readTemplate("opensearch.xml")
 }
-
-// ----------------------------------------------------------------------------
-// Files
-
-func applyTemplate(t *template.Template, name string, data interface{}) []byte {
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, data); err != nil {
-		log.Printf("%s.Execute: %s", name, err)
-	}
-	return buf.Bytes()
-}
-
-func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
-	data := map[string]interface{}{
-		"BaseURL": fmt.Sprintf("http://%s", r.Host),
-	}
-	if err := pres.SearchDescXML.Execute(w, &data); err != nil && err != http.ErrBodyNotAllowed {
-		// Only log if there's an error that's not about writing on HEAD requests.
-		// See Issues 5451 and 5454.
-		log.Printf("searchDescXML.Execute: %s", err)
-	}
-}
-
-// ----------------------------------------------------------------------------
-// Packages
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
@@ -224,8 +186,6 @@ func makeRx(names []string) (rx *regexp.Regexp) {
 }
 
 func handleURLFlag() {
-	registerPublicHandlers(http.DefaultServeMux)
-
 	// Try up to 10 fetches, following redirects.
 	urlstr := *urlFlag
 	for i := 0; i < 10; i++ {
@@ -317,6 +277,7 @@ func main() {
 	}
 
 	readTemplates(pres)
+	registerHandlers(pres)
 
 	if *writeIndex {
 		// Write search index and exit.
@@ -370,8 +331,6 @@ func main() {
 			fs.Fprint(os.Stderr)
 			handler = loggingHandler(handler)
 		}
-
-		registerPublicHandlers(http.DefaultServeMux)
 
 		// Initialize search index.
 		if *indexEnabled {
