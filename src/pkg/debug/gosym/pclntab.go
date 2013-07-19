@@ -339,7 +339,7 @@ func (t *LineTable) go12PCToLine(pc uint64) (line int) {
 		return -1
 	}
 	entry := t.uintptr(f)
-	linetab := t.binary.Uint32(f[t.ptrsize+8*4:])
+	linetab := t.binary.Uint32(f[t.ptrsize+5*4:])
 	return int(t.pcvalue(linetab, entry, pc))
 }
 
@@ -356,7 +356,7 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 		return ""
 	}
 	entry := t.uintptr(f)
-	filetab := t.binary.Uint32(f[t.ptrsize+7*4:])
+	filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 	fno := t.pcvalue(filetab, entry, pc)
 	if fno <= 0 {
 		return ""
@@ -384,8 +384,8 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	for i := uint32(0); i < t.nfunctab; i++ {
 		f := t.Data[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
 		entry := t.uintptr(f)
-		filetab := t.binary.Uint32(f[t.ptrsize+7*4:])
-		linetab := t.binary.Uint32(f[t.ptrsize+8*4:])
+		filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
+		linetab := t.binary.Uint32(f[t.ptrsize+5*4:])
 		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line))
 		if pc != 0 {
 			return pc
