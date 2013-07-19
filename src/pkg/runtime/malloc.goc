@@ -672,6 +672,7 @@ runtime·settype(void *v, uintptr t)
 		runtime·throw("settype: zero type");
 
 	mp = m;
+	m->locks++;
 	buf = mp->settype_buf;
 	i = mp->settype_bufsize;
 	buf[i+0] = (uintptr)v;
@@ -687,6 +688,10 @@ runtime·settype(void *v, uintptr t)
 		s = runtime·MHeap_Lookup(&runtime·mheap, v);
 		*(uintptr*)((uintptr)v+s->elemsize-sizeof(uintptr)) = t;
 	}
+
+	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 }
 
 void
