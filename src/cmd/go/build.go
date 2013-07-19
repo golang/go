@@ -1811,8 +1811,10 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 		}
 	}
 
-	// clang is too smart about command-line arguments
 	if strings.Contains(a[0], "clang") {
+		// disable ASCII art in clang errors, if possible
+		a = append(a, "-fno-caret-diagnostics")
+		// clang is too smart about command-line arguments
 		a = append(a, "-Qunused-arguments")
 	}
 

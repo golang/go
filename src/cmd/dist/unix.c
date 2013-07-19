@@ -656,6 +656,8 @@ main(int argc, char **argv)
 	setvbuf(stdout, nil, _IOLBF, 0);
 	setvbuf(stderr, nil, _IOLBF, 0);
 
+	setenv("TERM", "dumb", 1); // disable escape codes in clang errors
+
 	binit(&b);
 	
 	slash = "/";

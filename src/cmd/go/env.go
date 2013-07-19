@@ -45,6 +45,9 @@ func mkEnv() []envVar {
 		{"GORACE", os.Getenv("GORACE")},
 		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},
+
+		// disable escape codes in clang errors
+		{"TERM", "dumb"},
 	}
 
 	if goos != "plan9" {
