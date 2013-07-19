@@ -216,7 +216,7 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	p.Members[p.init.name] = p.init
 
 	// CREATE phase.
-	// Allocate all package members: vars, funcs and consts and types.
+	// Allocate all package members: vars, funcs, consts and types.
 	if len(info.Files) > 0 {
 		// Go source package.
 		for _, file := range info.Files {
@@ -232,6 +232,9 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		for i, n := 0, scope.NumEntries(); i < n; i++ {
 			obj := scope.At(i)
 			if obj, ok := obj.(*types.TypeName); ok {
+				// TODO(adonovan): are the set of Func
+				// objects passed to memberFromObject
+				// duplicate-free?  I doubt it.  Check.
 				mset := types.NewMethodSet(obj.Type())
 				for i, n := 0, mset.Len(); i < n; i++ {
 					memberFromObject(p, mset.At(i).Func, nil)

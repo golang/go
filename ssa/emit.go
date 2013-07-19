@@ -342,3 +342,34 @@ func emitTailCall(f *Function, call *Call) {
 	f.emit(&ret)
 	f.currentBlock = nil
 }
+
+// emitImplicitSelections emits to f code to apply the sequence of
+// implicit field selections specified by indices to base value v, and
+// returns the selected value.
+//
+func emitImplicitSelections(f *Function, v Value, indices []int) Value {
+	for _, index := range indices {
+		fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
+
+		if isPointer(v.Type()) {
+			instr := &FieldAddr{
+				X:     v,
+				Field: index,
+			}
+			instr.setType(types.NewPointer(fld.Type()))
+			v = f.emit(instr)
+			// Load the field's value iff indirectly embedded.
+			if isPointer(fld.Type()) {
+				v = emitLoad(f, v)
+			}
+		} else {
+			instr := &Field{
+				X:     v,
+				Field: index,
+			}
+			instr.setType(fld.Type())
+			v = f.emit(instr)
+		}
+	}
+	return v
+}

@@ -356,60 +356,33 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 		v = b.expr(fn, e.X)
 	}
 
-	// Apply field selections.
-	st := deref(tx).Underlying().(*types.Struct)
-	for i, index := range indices {
-		f := st.Field(index)
-		ft := f.Type()
+	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
 
-		isLast := i == len(indices)-1
-
-		// Invariant: v.Type() is a struct or *struct.
-		if isPointer(v.Type()) {
-			ff := &FieldAddr{
-				X:     v,
-				Field: index,
-			}
-			if isLast {
-				ff.setPos(e.Sel.Pos())
-			}
-			ff.setType(types.NewPointer(ft))
-			v = fn.emit(ff)
-
-			// Now: v is a pointer to a struct field (field lvalue).
-
-			if isLast {
-				// Explicit, final field selection.
-
-				// Load the field's value iff we don't want its address.
-				if !wantAddr {
-					v = emitLoad(fn, v)
-				}
-			} else {
-				// Implicit field selection.
-
-				// Load the field's value iff indirectly embedded.
-				if isPointer(ft) {
-					v = emitLoad(fn, v)
-				}
-			}
-
-		} else {
-			ff := &Field{
-				X:     v,
-				Field: index,
-			}
-			if isLast {
-				ff.setPos(e.Sel.Pos())
-			}
-			ff.setType(ft)
-			v = fn.emit(ff)
+	// Final explicit field selection.
+	// Invariant: v.Type() is a possibly named struct or *struct.
+	index := indices[len(indices)-1]
+	fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
+	if isPointer(v.Type()) {
+		instr := &FieldAddr{
+			X:     v,
+			Field: index,
 		}
-
-		// May be nil at end of last iteration:
-		st, _ = deref(ft).Underlying().(*types.Struct)
+		instr.setPos(e.Sel.Pos())
+		instr.setType(types.NewPointer(fld.Type()))
+		v = fn.emit(instr)
+		// Load the field's value iff we don't want its address.
+		if !wantAddr {
+			v = emitLoad(fn, v)
+		}
+	} else {
+		instr := &Field{
+			X:     v,
+			Field: index,
+		}
+		instr.setPos(e.Sel.Pos())
+		instr.setType(fld.Type())
+		v = fn.emit(instr)
 	}
-
 	return v
 }
 
@@ -713,6 +686,8 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
 			typ := fn.Pkg.typeOf(e.X)
+			// TODO(adonovan): opt: it's overkill to
+			// generate the entire method set here.
 			if m := fn.Prog.MethodSet(typ)[id]; m != nil {
 				return emitConv(fn, m, fn.Pkg.typeOf(e))
 			}
@@ -801,6 +776,8 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 	typ := fn.Pkg.typeOf(base)
 
 	// Consult method-set of X.
+	// TODO(adonovan): opt: it's overkill to generate the entire
+	// method set here.
 	if m := fn.Prog.MethodSet(typ)[id]; m != nil {
 		aptr := isPointer(typ)
 		fptr := isPointer(m.Signature.Recv().Type())
@@ -814,6 +791,8 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 	}
 	if !isPointer(typ) {
 		// Consult method-set of *X.
+		// TODO(adonovan): opt: it's overkill to generate the
+		// entire method set here.
 		if m := fn.Prog.MethodSet(types.NewPointer(typ))[id]; m != nil {
 			// A method found only in MS(*X) must have a
 			// pointer formal receiver; but the actual

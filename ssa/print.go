@@ -392,6 +392,10 @@ func (p *Package) DumpTo(w io.Writer) {
 			// methods themselves may differ,
 			// e.g. promotion wrappers.
 			// NB: if mem.Type() is a pointer, mset is empty.
+			//
+			// TODO(adonovan): opt: avoid constructing the
+			// entire ssa.MethodSet by using the
+			// types.MethodSet if possible.
 			mset := p.Prog.MethodSet(types.NewPointer(mem.Type()))
 			var keys ids
 			for id := range mset {

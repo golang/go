@@ -1,7 +1,7 @@
 package ssa
 
-// This file defines utilities for method-set computation, synthesis
-// of wrapper methods, and desugaring of implicit field selections.
+// This file defines utilities for method-set computation including
+// synthesis of wrapper methods.
 //
 // Wrappers include:
 // - promotion wrappers for methods of embedded fields.
@@ -9,334 +9,170 @@ package ssa
 // - bound method wrappers, for uncalled obj.Method closures.
 // - indirection wrappers, for calls to T-methods on a *T receiver.
 
-// TODO(adonovan): rename to wrappers.go when promotion logic has evaporated.
+// TODO(adonovan): rename to wrappers.go.
 
 import (
-	"code.google.com/p/go.tools/go/types"
 	"fmt"
 	"go/token"
+
+	"code.google.com/p/go.tools/go/types"
 )
-
-// anonFieldPath is a linked list of anonymous fields that
-// breadth-first traversal has entered, rightmost (outermost) first.
-// e.g. "e.f" denoting "e.A.B.C.f" would have a path [C, B, A].
-// Common tails may be shared.
-//
-// It is used by various "promotion"-related algorithms.
-//
-type anonFieldPath struct {
-	tail  *anonFieldPath
-	index int // index of field within enclosing types.Struct.Fields
-	field *types.Var
-}
-
-func (p *anonFieldPath) contains(f *types.Var) bool {
-	for ; p != nil; p = p.tail {
-		if p.field == f {
-			return true
-		}
-	}
-	return false
-}
-
-// reverse returns the linked list reversed, as a slice.
-func (p *anonFieldPath) reverse() []*anonFieldPath {
-	n := 0
-	for q := p; q != nil; q = q.tail {
-		n++
-	}
-	s := make([]*anonFieldPath, n)
-	n = 0
-	for ; p != nil; p = p.tail {
-		s[len(s)-1-n] = p
-		n++
-	}
-	return s
-}
-
-// isIndirect returns true if the path indirects a pointer.
-func (p *anonFieldPath) isIndirect() bool {
-	for ; p != nil; p = p.tail {
-		if isPointer(p.field.Type()) {
-			return true
-		}
-	}
-	return false
-}
-
-// Method Set construction ----------------------------------------
-
-// A candidate is a method eligible for promotion: a method of an
-// abstract (interface) or concrete (anonymous struct or named) type,
-// along with the anonymous field path via which it is implicitly
-// reached.  If there is exactly one candidate for a given id, it will
-// be promoted to membership of the original type's method-set.
-//
-// Candidates with path=nil are trivially members of the original
-// type's method-set.
-//
-type candidate struct {
-	method *types.Func    // method object of abstract or concrete type
-	path   *anonFieldPath // desugared selector path
-}
-
-func (c candidate) String() string {
-	s := ""
-	// Inefficient!
-	for p := c.path; p != nil; p = p.tail {
-		s = "." + p.field.Name() + s
-	}
-	return s + "." + c.method.Name()
-}
-
-func (c candidate) isConcrete() bool {
-	return c.method.Type().(*types.Signature).Recv() != nil
-}
-
-// ptrRecv returns true if this candidate is a concrete method with a
-// pointer receiver.
-//
-func (c candidate) ptrRecv() bool {
-	recv := c.method.Type().(*types.Signature).Recv()
-	return recv != nil && isPointer(recv.Type())
-}
 
 // MethodSet returns the method set for type typ, building wrapper
 // methods as needed for embedded field promotion, and indirection for
 // *T receiver types, etc.
 // A nil result indicates an empty set.
 //
+// TODO(adonovan): opt: most uses of MethodSet() only access one
+// member; only generation of object code for MakeInterface needs them
+// all.  Build it incrementally.
+//
 // Thread-safe.
 //
-func (p *Program) MethodSet(typ types.Type) MethodSet {
+func (prog *Program) MethodSet(typ types.Type) MethodSet {
+	if typ.MethodSet().Len() == 0 {
+		return nil
+	}
+	if _, ok := deref(typ).Underlying().(*types.Interface); ok {
+		// TODO(gri): fix: go/types bug: pointer-to-interface
+		// has no methods---yet go/types says it has!
+		return nil
+	}
 	if !canHaveConcreteMethods(typ, true) {
 		return nil
 	}
 
-	p.methodsMu.Lock()
-	defer p.methodsMu.Unlock()
-
-	mset := p.methodSets.At(typ)
-	if mset == nil {
-		mset = buildMethodSet(p, typ)
-		p.methodSets.Set(typ, mset)
-	}
-	return mset.(MethodSet)
-}
-
-// buildMethodSet computes the concrete method set for type typ.
-// It is the implementation of Program.MethodSet.
-//
-// TODO(adonovan): use go/types.MethodSet(typ) when it's ready.
-//
-// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
-//
-func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 	if prog.mode&LogSource != 0 {
-		defer logStack("buildMethodSet %s", typ)()
+		defer logStack("MethodSet %s", typ)()
 	}
 
-	// cands maps ids (field and method names) encountered at any
-	// level of of the breadth-first traversal to a unique
-	// promotion candidate.  A nil value indicates a "blocked" id
-	// (i.e. a field or ambiguous method).
-	//
-	// nextcands is the same but carries just the level in progress.
-	cands, nextcands := make(map[Id]*candidate), make(map[Id]*candidate)
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
 
-	var next, list []*anonFieldPath
-	list = append(list, nil) // hack: nil means "use typ"
-
-	// For each level of the type graph...
-	for len(list) > 0 {
-		// Invariant: next=[], nextcands={}.
-
-		// Collect selectors from one level into 'nextcands'.
-		// Record the next levels into 'next'.
-		for _, node := range list {
-			t := typ // first time only
-			if node != nil {
-				t = node.field.Type()
-			}
-			t = deref(t)
-
-			if nt, ok := t.(*types.Named); ok {
-				for i, n := 0, nt.NumMethods(); i < n; i++ {
-					addCandidate(nextcands, nt.Method(i), node)
-				}
-				t = nt.Underlying()
-			}
-
-			switch t := t.(type) {
-			case *types.Interface:
-				for i, n := 0, t.NumMethods(); i < n; i++ {
-					addCandidate(nextcands, t.Method(i), node)
-				}
-
-			case *types.Struct:
-				for i, n := 0, t.NumFields(); i < n; i++ {
-					f := t.Field(i)
-					nextcands[makeId(f.Name(), f.Pkg())] = nil // a field: block id
-					// Queue up anonymous fields for next iteration.
-					// Break cycles to ensure termination.
-					if f.Anonymous() && !node.contains(f) {
-						next = append(next, &anonFieldPath{node, i, f})
-					}
-				}
-			}
-		}
-
-		// Examine collected selectors.
-		// Promote unique, non-blocked ones to cands.
-		for id, cand := range nextcands {
-			delete(nextcands, id)
-			if cand == nil {
-				// Update cands so we ignore it at all deeper levels.
-				// Don't clobber existing (shallower) binding!
-				if _, ok := cands[id]; !ok {
-					cands[id] = nil // block id
-				}
-				continue
-			}
-			if _, ok := cands[id]; ok {
-				// Ignore candidate: a shallower binding exists.
-			} else {
-				cands[id] = cand
-			}
-		}
-		list, next = next, list[:0] // reuse array
+	if mset := prog.methodSets.At(typ); mset != nil {
+		return mset.(MethodSet) // cache hit
 	}
 
-	// Build method sets and wrapper methods.
 	mset := make(MethodSet)
-	for id, cand := range cands {
-		if cand == nil {
-			continue // blocked; ignore
-		}
-		if cand.ptrRecv() && !isPointer(typ) && !cand.path.isIndirect() {
-			// A candidate concrete method f with receiver
-			// *C is promoted into the method set of
-			// (non-pointer) E iff the implicit path selection
-			// is indirect, e.g. e.A->B.C.f
-			continue
-		}
-		var method *Function
-		if cand.path == nil {
-			// Trivial member of method-set; no promotion needed.
-			method = prog.concreteMethods[cand.method]
-
-			if !cand.ptrRecv() && isPointer(typ) {
-				// Call to method on T from receiver of type *T.
-				method = indirectionWrapper(method)
-			}
-		} else {
-			method = promotionWrapper(prog, typ, cand)
-		}
-		if method == nil {
-			panic("unexpected nil method in method set")
-		}
-		mset[id] = method
+	tmset := typ.MethodSet()
+	for i, n := 0, tmset.Len(); i < n; i++ {
+		obj := tmset.At(i)
+		mset[makeId(obj.Func.Name(), obj.Func.Pkg())] = makeMethod(prog, typ, obj)
 	}
+	prog.methodSets.Set(typ, mset)
 	return mset
 }
 
-// addCandidate adds the promotion candidate (method, node) to m[(name, package)].
-// If a map entry already exists (whether nil or not), its value is set to nil.
+// makeMethod returns the concrete Function for the method obj,
+// adapted if necessary so that its receiver type is typ.
 //
-func addCandidate(m map[Id]*candidate, method *types.Func, node *anonFieldPath) {
-	id := makeId(method.Name(), method.Pkg())
-	prev, found := m[id]
-	switch {
-	case prev != nil:
-		// Two candidates for same selector: ambiguous; block it.
-		m[id] = nil
-	case found:
-		// Already blocked.
-	default:
-		// A viable candidate.
-		m[id] = &candidate{method, node}
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
+//
+func makeMethod(prog *Program, typ types.Type, obj *types.Method) *Function {
+	// Promoted method accessed via implicit field selections?
+	if len(obj.Index()) > 1 {
+		return promotionWrapper(prog, typ, obj)
 	}
+
+	method := prog.concreteMethods[obj.Func]
+	if method == nil {
+		panic("no concrete method for " + obj.Func.String())
+	}
+
+	// Call to method on T from receiver of type *T?
+	if !isPointer(method.Signature.Recv().Type()) && isPointer(typ) {
+		method = indirectionWrapper(method)
+	}
+
+	return method
 }
 
-// promotionWrapper returns a synthetic Function that delegates to a
-// "promoted" method.  For example, given these decls:
+// promotionWrapper returns a synthetic wrapper Function that performs
+// a sequence of implicit field selections then tailcalls a "promoted"
+// method.  For example, given these decls:
 //
 //    type A struct {B}
 //    type B struct {*C}
 //    type C ...
 //    func (*C) f()
 //
-// then promotionWrapper(typ=A, cand={method:(*C).f, path:[B,*C]}) will
+// then promotionWrapper(typ=A, obj={Func:(*C).f, Indices=[B,C,f]})
 // synthesize this wrapper method:
 //
 //    func (a A) f() { return a.B.C->f() }
 //
 // prog is the program to which the synthesized method will belong.
-// typ is the receiver type of the wrapper method.  cand is the
-// candidate method to be promoted; it may be concrete or an interface
-// method.
+// typ is the receiver type of the wrapper method.  obj is the
+// type-checker's object for the promoted method; its Func may be a
+// concrete or an interface method.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
-func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function {
-	old := cand.method.Type().(*types.Signature)
+func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Function {
+	old := obj.Func.Type().(*types.Signature)
 	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	// TODO(adonovan): consult memoization cache keyed by (typ, cand).
-	// Needs typemap.  Also needs hash/eq functions for 'candidate'.
-	if prog.mode&LogSource != 0 {
-		defer logStack("promotionWrapper (%s)%s, type %s", typ, cand, sig)()
+	promotedRecv := obj.Func.Type().(*types.Signature).Recv()
+
+	// TODO(gri): fix: promotedRecv should always be non-nil but
+	// for now it's nil for interface methods that were promoted.
+	promotedRecvString := "INTERFACE?"
+	if promotedRecv != nil {
+		promotedRecvString = promotedRecv.String()
 	}
-	// TODO(adonovan): is there a *types.Func for this function?
+	// TODO(adonovan): include implicit field path in description.
+	description := fmt.Sprintf("promotion wrapper for (%s).%s",
+		promotedRecvString, obj.Func.Name())
+
+	if prog.mode&LogSource != 0 {
+		defer logStack("make %s to (%s)", description, typ)()
+	}
 	fn := &Function{
-		name:      cand.method.Name(),
+		name:      obj.Name(),
+		object:    obj,
 		Signature: sig,
-		Synthetic: fmt.Sprintf("promotion wrapper for (%s)%s", typ, cand),
+		Synthetic: description,
 		Prog:      prog,
-		pos:       cand.method.Pos(),
+		pos:       obj.Pos(),
 	}
 	fn.startBody()
 	fn.addSpilledParam(sig.Recv())
 	createParams(fn)
 
-	// Each promotion wrapper performs a sequence of selections,
-	// then tailcalls the promoted method.
-	// We use pointer arithmetic (FieldAddr possibly followed by
-	// Load) in preference to value extraction (Field possibly
-	// preceded by Load).
 	var v Value = fn.Locals[0] // spilled receiver
 	if isPointer(typ) {
 		v = emitLoad(fn, v)
 	}
-	// Iterate over selections e.A.B.C.f in the natural order [A,B,C].
-	for _, p := range cand.path.reverse() {
-		// Loop invariant: v holds a pointer to a struct.
-		if _, ok := deref(v.Type()).Underlying().(*types.Struct); !ok {
-			panic(fmt.Sprint("not a *struct: ", v.Type(), p.field.Type))
-		}
-		sel := &FieldAddr{
-			X:     v,
-			Field: p.index,
-		}
-		sel.setType(types.NewPointer(p.field.Type()))
-		v = fn.emit(sel)
-		if isPointer(p.field.Type()) {
-			v = emitLoad(fn, v)
-		}
-	}
-	if !cand.ptrRecv() {
-		v = emitLoad(fn, v)
-	}
+
+	// Invariant: v is a pointer, either
+	//   value of *A receiver param, or
+	// address of  A spilled receiver.
+
+	// We use pointer arithmetic (FieldAddr possibly followed by
+	// Load) in preference to value extraction (Field possibly
+	// preceded by Load).
+
+	indices := obj.Index()
+	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
+
+	// Invariant: v is a pointer, either
+	//   value of implicit *C field, or
+	// address of implicit  C field.
 
 	var c Call
-	if cand.isConcrete() {
-		c.Call.Func = prog.concreteMethods[cand.method]
+	if promotedRecv != nil { // concrete method    TODO(gri): temporary hack
+		if !isPointer(old.Recv().Type()) {
+			v = emitLoad(fn, v)
+		}
+		m := prog.concreteMethods[obj.Func]
+		if m == nil {
+			panic("oops: " + fn.Synthetic)
+		}
+		c.Call.Func = m
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
-		iface := v.Type().Underlying().(*types.Interface)
-		id := makeId(cand.method.Name(), cand.method.Pkg())
-		c.Call.Method, _ = interfaceMethodIndex(iface, id)
-		c.Call.Recv = v
+		c.Call.Method = indices[len(indices)-1]
+		c.Call.Recv = emitLoad(fn, v)
 	}
 	for _, arg := range fn.Params[1:] {
 		c.Call.Args = append(c.Call.Args, arg)
@@ -380,7 +216,7 @@ func createParams(fn *Function) {
 // TODO(adonovan): opt: currently the stub is created even when used
 // in call position: I.f(i, 0).  Clearly this is suboptimal.
 //
-// EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
 func interfaceMethodWrapper(prog *Program, typ types.Type, id Id) *Function {
 	index, meth := interfaceMethodIndex(typ.Underlying().(*types.Interface), id)

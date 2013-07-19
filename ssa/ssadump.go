@@ -52,7 +52,7 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
+	impctx := importer.Config{Loader: importer.MakeGoBuildLoader(nil)}
 
 	var mode ssa.BuilderMode
 	for _, c := range *buildFlag {
