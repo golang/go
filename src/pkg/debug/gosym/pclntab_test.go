@@ -49,7 +49,6 @@ func dotest(self bool) bool {
 	// the resulting binary looks like it was built from pclinetest.s,
 	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
-	pclinetestBinary = "pclinetest"
 	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
 		pclinetestBinary, pclinetestBinary, pclinetestBinary)
 	cmd := exec.Command("sh", "-c", command)
