@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 )
 
@@ -42,6 +43,9 @@ func TestGodoc(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	bin := filepath.Join(tmp, "godoc")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	cmd := exec.Command("go", "build", "-o", bin)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Building godoc: %v", err)
