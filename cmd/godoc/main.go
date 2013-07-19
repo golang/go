@@ -110,14 +110,12 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	if pres == nil {
 		panic("nil Presentation")
 	}
-	godoc.CmdHandler.RegisterWithMux(mux)
-	godoc.PkgHandler.RegisterWithMux(mux)
 	mux.HandleFunc("/doc/codewalk/", codewalk)
-	mux.Handle("/doc/play/", godoc.FileServer)
+	mux.Handle("/doc/play/", pres.FileServer())
 	mux.HandleFunc("/search", pres.HandleSearch)
-	mux.Handle("/robots.txt", godoc.FileServer)
+	mux.Handle("/robots.txt", pres.FileServer())
 	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
-	mux.HandleFunc("/", pres.ServeFile)
+	mux.Handle("/", pres)
 }
 
 // ----------------------------------------------------------------------------
@@ -298,6 +296,7 @@ func main() {
 	}
 
 	corpus := godoc.NewCorpus(fs)
+	corpus.Verbose = *verbose
 	corpus.IndexEnabled = *indexEnabled
 	corpus.IndexFiles = *indexFiles
 	if *writeIndex {
@@ -318,8 +317,6 @@ func main() {
 	}
 
 	readTemplates(pres)
-
-	godoc.InitHandlers(pres)
 
 	if *writeIndex {
 		// Write search index and exit.
@@ -429,14 +426,14 @@ func main() {
 		abspath = target
 		relpath = bp.ImportPath
 	} else {
-		abspath = pathpkg.Join(godoc.PkgHandler.FSRoot(), path)
+		abspath = pathpkg.Join(pres.PkgFSRoot(), path)
 	}
 	if relpath == "" {
 		relpath = abspath
 	}
 
 	var mode godoc.PageInfoMode
-	if relpath == godoc.BuiltinPkgPath {
+	if relpath == "builtin" {
 		// the fake built-in package contains unexported identifiers
 		mode = godoc.NoFiltering
 	}
@@ -451,15 +448,15 @@ func main() {
 	// first, try as package unless forced as command
 	var info *godoc.PageInfo
 	if !forceCmd {
-		info = godoc.PkgHandler.GetPageInfo(abspath, relpath, mode)
+		info = pres.GetPkgPageInfo(abspath, relpath, mode)
 	}
 
 	// second, try as command unless the path is absolute
 	// (the go command invokes godoc w/ absolute paths; don't override)
 	var cinfo *godoc.PageInfo
 	if !filepath.IsAbs(path) {
-		abspath = pathpkg.Join(godoc.CmdHandler.FSRoot(), path)
-		cinfo = godoc.CmdHandler.GetPageInfo(abspath, relpath, mode)
+		abspath = pathpkg.Join(pres.CmdFSRoot(), path)
+		cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
 	}
 
 	// determine what to use

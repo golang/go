@@ -1090,14 +1090,14 @@ func (c *Corpus) readIndex(filenames string) error {
 }
 
 func (c *Corpus) UpdateIndex() {
-	if Verbose {
+	if c.Verbose {
 		log.Printf("updating index...")
 	}
 	start := time.Now()
 	index := NewIndex(c, c.fsDirnames(), c.MaxResults > 0, c.IndexThrottle)
 	stop := time.Now()
 	c.searchIndex.Set(index)
-	if Verbose {
+	if c.Verbose {
 		secs := stop.Sub(start).Seconds()
 		stats := index.Stats()
 		log.Printf("index updated (%gs, %d bytes of source, %d files, %d lines, %d unique words, %d spots)",

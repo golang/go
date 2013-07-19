@@ -29,12 +29,9 @@ import (
 	"unicode/utf8"
 )
 
-// Verbose controls logging verbosity.
-var Verbose = false
-
 // Fake relative package path for built-ins. Documentation for all globals
 // (not just exported ones) will be shown for packages in this directory.
-const BuiltinPkgPath = "builtin"
+const builtinPkgPath = "builtin"
 
 // FuncMap defines template functions used in godoc templates.
 //
@@ -232,7 +229,7 @@ func pkgLinkFunc(path string) string {
 	// because of the irregular mapping under goroot
 	// we need to correct certain relative paths
 	relpath = strings.TrimPrefix(relpath, "src/pkg/")
-	return PkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
+	return "pkg/" + relpath // remove trailing '/' for relative URL
 }
 
 // n must be an ast.Node or a *doc.Note

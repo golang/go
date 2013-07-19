@@ -21,6 +21,9 @@ import (
 type Corpus struct {
 	fs vfs.FileSystem
 
+	// Verbose logging.
+	Verbose bool
+
 	// IndexEnabled controls whether indexing is enabled.
 	IndexEnabled bool
 

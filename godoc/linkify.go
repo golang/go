@@ -94,7 +94,7 @@ func linksFor(node ast.Node) (list []link) {
 			switch m {
 			case identUse:
 				if n.Obj == nil && predeclared[n.Name] {
-					info.path = BuiltinPkgPath
+					info.path = builtinPkgPath
 				}
 				info.name = n.Name
 			case identDef:

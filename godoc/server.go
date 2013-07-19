@@ -25,35 +25,18 @@ import (
 
 	"code.google.com/p/go.tools/godoc/util"
 	"code.google.com/p/go.tools/godoc/vfs"
-	"code.google.com/p/go.tools/godoc/vfs/httpfs"
 )
 
-// TODO(bradfitz,adg): these are moved from godoc.go globals.
-// Clean this up.
-var (
-	FileServer http.Handler // default file server
-	CmdHandler Server
-	PkgHandler Server
-)
-
-func InitHandlers(p *Presentation) {
-	c := p.Corpus
-	FileServer = http.FileServer(httpfs.New(c.fs))
-	CmdHandler = Server{p, c, "/cmd/", "/src/cmd"}
-	PkgHandler = Server{p, c, "/pkg/", "/src/pkg"}
-}
-
-// Server is a godoc server.
-type Server struct {
+// handlerServer is a migration from an old godoc http Handler type.
+// This should probably merge into something else.
+type handlerServer struct {
 	p       *Presentation
 	c       *Corpus // copy of p.Corpus
 	pattern string  // url pattern; e.g. "/pkg/"
 	fsRoot  string  // file system root to which the pattern is mapped
 }
 
-func (s *Server) FSRoot() string { return s.fsRoot }
-
-func (s *Server) RegisterWithMux(mux *http.ServeMux) {
+func (s *handlerServer) registerWithMux(mux *http.ServeMux) {
 	mux.Handle(s.pattern, s)
 }
 
@@ -65,7 +48,7 @@ func (s *Server) RegisterWithMux(mux *http.ServeMux) {
 // directories, PageInfo.Dirs is nil. If an error occurred, PageInfo.Err is
 // set to the respective error but the error is not logged.
 //
-func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageInfo {
+func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageInfo {
 	info := &PageInfo{Dirname: abspath}
 
 	// Restrict to the package files that would be used when building
@@ -194,15 +177,15 @@ func (h *Server) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageIn
 	return info
 }
 
-func (h *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if redirect(w, r) {
 		return
 	}
 
 	relpath := pathpkg.Clean(r.URL.Path[len(h.pattern):])
 	abspath := pathpkg.Join(h.fsRoot, relpath)
-	mode := GetPageInfoMode(r)
-	if relpath == BuiltinPkgPath {
+	mode := h.p.GetPageInfoMode(r)
+	if relpath == builtinPkgPath {
 		mode = NoFiltering
 	}
 	info := h.GetPageInfo(abspath, relpath, mode)
@@ -279,19 +262,16 @@ var modeNames = map[string]PageInfoMode{
 // GetPageInfoMode computes the PageInfoMode flags by analyzing the request
 // URL form value "m". It is value is a comma-separated list of mode names
 // as defined by modeNames (e.g.: m=src,text).
-func GetPageInfoMode(r *http.Request) PageInfoMode {
+func (p *Presentation) GetPageInfoMode(r *http.Request) PageInfoMode {
 	var mode PageInfoMode
 	for _, k := range strings.Split(r.FormValue("m"), ",") {
 		if m, found := modeNames[strings.TrimSpace(k)]; found {
 			mode |= m
 		}
 	}
-	return AdjustPageInfoMode(r, mode)
-}
-
-// AdjustPageInfoMode allows specialized versions of godoc to adjust
-// PageInfoMode by overriding this variable.
-var AdjustPageInfoMode = func(_ *http.Request, mode PageInfoMode) PageInfoMode {
+	if p.AdjustPageInfoMode != nil {
+		mode = p.AdjustPageInfoMode(r, mode)
+	}
 	return mode
 }
 
@@ -584,7 +564,7 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	FileServer.ServeHTTP(w, r)
+	p.fileServer.ServeHTTP(w, r)
 }
 
 func (p *Presentation) serveSearchDesc(w http.ResponseWriter, r *http.Request) {
