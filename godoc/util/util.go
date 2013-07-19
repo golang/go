@@ -6,7 +6,6 @@
 package util
 
 import (
-	"io"
 	pathpkg "path"
 	"sync"
 	"time"
@@ -60,11 +59,6 @@ func IsText(s []byte) bool {
 var textExt = map[string]bool{
 	".css": false, // must be served raw
 	".js":  false, // must be served raw
-}
-
-// FileSystem is a minimal virtual filesystem.
-type FileSystem interface {
-	Open(name string) (io.ReadCloser, error)
 }
 
 // IsTextFile returns whether the file has a known extension indicating
