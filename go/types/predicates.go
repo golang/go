@@ -131,7 +131,7 @@ func IsIdentical(x, y Type) bool {
 					g := y.fields[i]
 					if f.anonymous != g.anonymous ||
 						x.Tag(i) != y.Tag(i) ||
-						!f.SameName(g.pkg, g.name) ||
+						!f.sameId(g.pkg, g.name) ||
 						!IsIdentical(f.typ, g.typ) {
 						return false
 					}
@@ -216,13 +216,13 @@ func identicalMethods(a, b []*Func) bool {
 
 	m := make(map[string]*Func)
 	for _, x := range a {
-		key := x.uniqueName()
+		key := x.Id()
 		assert(m[key] == nil) // method list must not have duplicate entries
 		m[key] = x
 	}
 
 	for _, y := range b {
-		key := y.uniqueName()
+		key := y.Id()
 		if x := m[key]; x == nil || !IsIdentical(x.typ, y.typ) {
 			return false
 		}

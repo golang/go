@@ -26,16 +26,33 @@ type Object interface {
 	Name() string     // package local object name
 	Type() Type       // object type
 	IsExported() bool // reports whether the name starts with a capital letter
-
-	// SameName reports whether the object's name is the same as some
-	// other qualified name, per the rules of Uniqueness of identifiers.
-	SameName(pkg *Package, name string) bool
+	Id() string       // object id (see Id below)
 
 	// String returns a human-readable string of the object.
 	String() string
 
 	// setParent sets the parent scope of the object.
 	setParent(*Scope)
+
+	// sameId reports whether obj.Id() and Id(pkg, name) are the same.
+	sameId(pkg *Package, name string) bool
+}
+
+// Id returns name if it is exported, otherwise it
+// returns the name qualified with the package path.
+func Id(pkg *Package, name string) string {
+	if ast.IsExported(name) {
+		return name
+	}
+	// unexported names need the package path for differentiation
+	path := ""
+	if pkg != nil {
+		path = pkg.path
+		if path == "" {
+			path = "?"
+		}
+	}
+	return path + "." + name
 }
 
 // An object implements the common parts of an Object.
@@ -53,8 +70,27 @@ func (obj *object) Pkg() *Package    { return obj.pkg }
 func (obj *object) Name() string     { return obj.name }
 func (obj *object) Type() Type       { return obj.typ }
 func (obj *object) IsExported() bool { return ast.IsExported(obj.name) }
+func (obj *object) Id() string       { return Id(obj.pkg, obj.name) }
 
-func (obj *object) SameName(pkg *Package, name string) bool {
+func (obj *object) toString(kind string, typ Type) string {
+	var buf bytes.Buffer
+
+	buf.WriteString(kind)
+	buf.WriteByte(' ')
+	if obj.pkg != nil {
+		buf.WriteString(obj.pkg.name)
+		buf.WriteByte('.')
+	}
+	buf.WriteString(obj.name)
+	buf.WriteByte(' ')
+	writeType(&buf, typ)
+
+	return buf.String()
+}
+
+func (obj *object) setParent(parent *Scope) { obj.parent = parent }
+
+func (obj *object) sameId(pkg *Package, name string) bool {
 	// spec:
 	// "Two identifiers are different if they are spelled differently,
 	// or if they appear in different packages and are not exported.
@@ -75,39 +111,6 @@ func (obj *object) SameName(pkg *Package, name string) bool {
 	// pkg != nil && obj.pkg != nil
 	return pkg.path == obj.pkg.path
 }
-
-func (obj *object) uniqueName() string {
-	if obj.IsExported() {
-		return obj.name
-	}
-	// unexported names need the package path for differentiation
-	path := ""
-	if obj.pkg != nil {
-		path = obj.pkg.path
-		if path == "" {
-			path = "?"
-		}
-	}
-	return path + "." + obj.name
-}
-
-func (obj *object) toString(kind string, typ Type) string {
-	var buf bytes.Buffer
-
-	buf.WriteString(kind)
-	buf.WriteByte(' ')
-	if obj.pkg != nil {
-		buf.WriteString(obj.pkg.name)
-		buf.WriteByte('.')
-	}
-	buf.WriteString(obj.name)
-	buf.WriteByte(' ')
-	writeType(&buf, typ)
-
-	return buf.String()
-}
-
-func (obj *object) setParent(parent *Scope) { obj.parent = parent }
 
 // A Package represents the contents (objects) of a Go package.
 type Package struct {

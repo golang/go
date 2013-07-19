@@ -601,6 +601,7 @@ func (p *gcParser) parseInterfaceType() Type {
 	var scope *Scope // lazily allocated (empty interfaces are not uncommon)
 	var methods []*Func
 
+	typ := new(Interface)
 	p.expectKeyword("interface")
 	p.expect('{')
 	for i := 0; p.tok != '}'; i++ {
@@ -609,6 +610,9 @@ func (p *gcParser) parseInterfaceType() Type {
 		}
 		pkg, name := p.parseName(true)
 		sig := p.parseSignature()
+		// TODO(gri) Ideally, we should use a named type here instead of
+		// typ, for less verbose printing of interface method signatures.
+		sig.recv = NewVar(token.NoPos, pkg, "", typ)
 		m := NewFunc(token.NoPos, pkg, name, sig)
 		if scope == nil {
 			scope = NewScope(nil)
@@ -619,8 +623,9 @@ func (p *gcParser) parseInterfaceType() Type {
 		methods = append(methods, m)
 	}
 	p.expect('}')
+	typ.methods = methods
 
-	return NewInterface(methods)
+	return typ
 }
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .

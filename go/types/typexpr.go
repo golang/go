@@ -232,11 +232,13 @@ func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
 
 	case *ast.InterfaceType:
 		typ := new(Interface)
+		var recv Type = typ
 		if def != nil {
 			def.underlying = typ
+			recv = def // use named receiver type if available
 		}
 
-		typ.methods = check.collectMethods(e.Methods, cycleOk)
+		typ.methods = check.collectMethods(recv, e.Methods, cycleOk)
 		return typ
 
 	case *ast.MapType:
@@ -334,7 +336,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) collectMethods(list *ast.FieldList, cycleOk bool) (methods []*Func) {
+func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk bool) (methods []*Func) {
 	if list == nil {
 		return nil
 	}
@@ -347,11 +349,12 @@ func (check *checker) collectMethods(list *ast.FieldList, cycleOk bool) (methods
 		if len(f.Names) > 0 {
 			// methods (the parser ensures that there's only one
 			// and we don't care if a constructed AST has more)
-			sig, ok := typ.(*Signature)
-			if !ok {
+			sig, _ := typ.(*Signature)
+			if sig == nil {
 				check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
 				continue
 			}
+			sig.recv = NewVar(token.NoPos, check.pkg, "", recv)
 			for _, name := range f.Names {
 				m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
 				check.declare(scope, name, m)

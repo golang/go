@@ -225,6 +225,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
+	// TODO(gri) don't create a lookupResult if no Objects map exists
 	check.recordObject(e.Sel, lookupResult(x.typ, obj, index, indirect))
 
 	if x.mode == typexpr {
@@ -236,12 +237,9 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		}
 
 		// verify that m is in the method set of x.typ
-		// (the receiver is nil if m is an interface method)
-		if recv := m.typ.(*Signature).recv; recv != nil {
-			if _, isPtr := deref(recv.typ); isPtr && !indirect {
-				check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
-				goto Error
-			}
+		if _, isPtr := deref(m.typ.(*Signature).recv.typ); isPtr && !indirect {
+			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
+			goto Error
 		}
 
 		// the receiver type becomes the type of the first function
@@ -268,17 +266,14 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		case *Func:
 			// TODO(gri) This code appears elsewhere, too. Factor!
 			// verify that obj is in the method set of x.typ (or &(x.typ) if x is addressable)
-			// (the receiver is nil if obj is an interface method)
 			//
 			// spec: "A method call x.m() is valid if the method set of (the type of) x
 			//        contains m and the argument list can be assigned to the parameter
 			//        list of m. If x is addressable and &x's method set contains m, x.m()
 			//        is shorthand for (&x).m()".
-			if recv := obj.typ.(*Signature).recv; recv != nil {
-				if _, isPtr := deref(recv.typ); isPtr && !indirect && x.mode != variable {
-					check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x)
-					goto Error
-				}
+			if _, isPtr := deref(obj.typ.(*Signature).recv.typ); isPtr && !indirect && x.mode != variable {
+				check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x)
+				goto Error
 			}
 
 			if debug {

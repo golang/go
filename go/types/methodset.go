@@ -77,7 +77,7 @@ func (s *MethodSet) String() string {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "MethodSet {")
 	for _, m := range s.list {
-		fmt.Fprintf(&buf, "\t%s -> %s\n", m.uniqueName(), m.Func)
+		fmt.Fprintf(&buf, "\t%s -> %s\n", m.Id(), m.Func)
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()
@@ -95,14 +95,14 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Method {
 		return nil
 	}
 
-	key := (&object{pkg: pkg, name: name}).uniqueName()
+	key := Id(pkg, name)
 	i := sort.Search(len(s.list), func(i int) bool {
 		m := s.list[i]
-		return m.uniqueName() >= key
+		return m.Id() >= key
 	})
 	if i < len(s.list) {
 		m := s.list[i]
-		if m.uniqueName() == key {
+		if m.Id() == key {
 			return m
 		}
 	}
@@ -268,7 +268,7 @@ func (s fieldSet) add(f *Var, multiples bool) fieldSet {
 	if s == nil {
 		s = make(fieldSet)
 	}
-	key := f.uniqueName()
+	key := f.Id()
 	// if f is not in the set, add it
 	if !multiples {
 		if _, found := s[key]; !found {
@@ -296,7 +296,7 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 		s = make(methodSet)
 	}
 	for i, f := range list {
-		key := f.uniqueName()
+		key := f.Id()
 		// if f is not in the set, add it
 		if !multiples {
 			if _, found := s[key]; !found && (indirect || !ptrRecv(f)) {
@@ -320,5 +320,5 @@ func ptrRecv(f *Func) bool {
 type byUniqueName []*Method
 
 func (a byUniqueName) Len() int           { return len(a) }
-func (a byUniqueName) Less(i, j int) bool { return a[i].uniqueName() < a[j].uniqueName() }
+func (a byUniqueName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
 func (a byUniqueName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

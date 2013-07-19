@@ -119,6 +119,10 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.Members[name] = fn
 		} else {
 			// Method declaration.
+			// TODO(adonovan) Move this test elsewhere.
+			if _, ok := recv.Type().Underlying().(*types.Interface); ok {
+				return // ignore interface methods
+			}
 			_, method := namedTypeMethodIndex(
 				deref(recv.Type()).(*types.Named),
 				makeId(name, pkg.Object))

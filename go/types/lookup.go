@@ -152,7 +152,7 @@ func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
-					if f.SameName(pkg, name) {
+					if f.sameId(pkg, name) {
 						assert(f.typ != nil)
 						index = concat(e.index, i)
 						if obj != nil || e.multiples {
@@ -318,7 +318,7 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
 		return -1 // blank identifiers are never found
 	}
 	for i, f := range fields {
-		if f.SameName(pkg, name) {
+		if f.sameId(pkg, name) {
 			return i
 		}
 	}
@@ -329,7 +329,7 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
 func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
 	assert(name != "_")
 	for i, m := range methods {
-		if m.SameName(pkg, name) {
+		if m.sameId(pkg, name) {
 			return i, m
 		}
 	}

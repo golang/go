@@ -107,7 +107,7 @@ func (s *Scope) Lookup(pkg *Package, name string) Object {
 
 	// slow path: both pkg path and name must match
 	for _, obj := range s.entries {
-		if obj.SameName(pkg, name) {
+		if obj.sameId(pkg, name) {
 			return obj
 		}
 	}

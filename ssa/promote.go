@@ -114,12 +114,16 @@ func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Functio
 
 	promotedRecv := obj.Func.Type().(*types.Signature).Recv()
 
-	// TODO(gri): fix: promotedRecv should always be non-nil but
-	// for now it's nil for interface methods that were promoted.
-	promotedRecvString := "INTERFACE?"
-	if promotedRecv != nil {
+	// TODO(adonovan): Interface method receivers used to be nil, but
+	// aren't anymore. Nil them again so this code works for now. Fix.
+	var promotedRecvString string
+	if _, ok := promotedRecv.Type().Underlying().(*types.Interface); ok {
+		promotedRecv = nil
+		promotedRecvString = "INTERFACE?"
+	} else {
 		promotedRecvString = promotedRecv.String()
 	}
+
 	// TODO(adonovan): include implicit field path in description.
 	description := fmt.Sprintf("promotion wrapper for (%s).%s",
 		promotedRecvString, obj.Func.Name())
