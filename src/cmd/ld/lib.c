@@ -2458,7 +2458,7 @@ pclntab(void)
 		for(p = cursym->text; p != P; p = p->link) {
 			if(p->as == AFUNCDATA) {
 				if((havefunc[p->from.offset/32]>>(p->from.offset%32))&1)
-					diag("multiple definitions for FUNCDATA $%d", i);
+					diag("multiple definitions for FUNCDATA $%d", p->from.offset);
 				havefunc[p->from.offset/32] |= 1<<(p->from.offset%32);
 			}
 			if(p->as == APCDATA)
