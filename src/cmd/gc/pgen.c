@@ -17,7 +17,7 @@ compile(Node *fn)
 {
 	Plist *pl;
 	Node nod1, *n, *gcnod;
-	Prog *pfuncdata, *ptxt, *p, *p1;
+	Prog *ptxt, *p, *p1;
 	int32 lno;
 	Type *t;
 	Iter save;
@@ -99,7 +99,7 @@ compile(Node *fn)
 	gcnod->class = PEXTERN;
 
 	nodconst(&nod1, types[TINT32], FUNCDATA_GC);
-	pfuncdata = gins(AFUNCDATA, &nod1, gcnod);
+	gins(AFUNCDATA, &nod1, gcnod);
 
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
