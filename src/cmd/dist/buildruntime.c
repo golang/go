@@ -248,6 +248,8 @@ ok:
 				aggr = "g";
 			else if(streq(fields.p[1], "M"))
 				aggr = "m";
+			else if(streq(fields.p[1], "P"))
+				aggr = "p";
 			else if(streq(fields.p[1], "Gobuf"))
 				aggr = "gobuf";
 			else if(streq(fields.p[1], "WinCall"))
