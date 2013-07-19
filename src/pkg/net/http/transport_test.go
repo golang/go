@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1608,6 +1609,42 @@ func TestIdleConnChannelLeak(t *testing.T) {
 			t.Fatalf("ForDisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
 		}
 	}
+}
+
+// Verify the status quo: that the Client.Post function coerces its
+// body into a ReadCloser if it's a Closer, and that the Transport
+// then closes it.
+func TestTransportClosesRequestBody(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(http.HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.Copy(ioutil.Discard, r.Body)
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	cl := &Client{Transport: tr}
+
+	closes := 0
+
+	res, err := cl.Post(ts.URL, "text/plain", countCloseReader{&closes, strings.NewReader("hello")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if closes != 1 {
+		t.Errorf("closes = %d; want 1", closes)
+	}
+}
+
+type countCloseReader struct {
+	n *int
+	io.Reader
+}
+
+func (cr countCloseReader) Close() error {
+	(*cr.n)++
+	return nil
 }
 
 // rgz is a gzip quine that uncompresses to itself.
