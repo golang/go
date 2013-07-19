@@ -407,12 +407,16 @@ static char *proto_gccargs[] = {
 	// native Plan 9 compilers don't like non-standard prototypes
 	// so let gcc catch them.
 	"-Wstrict-prototypes",
+	"-Wextra",
+	"-Wunused",
+	"-Wuninitialized",
 	"-Wno-sign-compare",
 	"-Wno-missing-braces",
 	"-Wno-parentheses",
 	"-Wno-unknown-pragmas",
 	"-Wno-switch",
 	"-Wno-comment",
+	"-Wno-missing-field-initializers",
 	"-Werror",
 	"-fno-common",
 	"-ggdb",
@@ -620,6 +624,8 @@ install(char *dir)
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
 		if(clang) {
+			// disable ASCII art in clang errors, if possible
+			vadd(&gccargs, "-fno-caret-diagnostics");
 			// clang is too smart about unused command-line arguments
 			vadd(&gccargs, "-Qunused-arguments");
 		}
