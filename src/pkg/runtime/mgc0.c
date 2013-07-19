@@ -2274,7 +2274,11 @@ runfinq(void)
 				framesz = sizeof(uintptr) + f->nret;
 				if(framecap < framesz) {
 					runtime·free(frame);
-					frame = runtime·mal(framesz);
+					// The frame does not contain pointers interesting for GC,
+					// all not yet finalized objects are stored in finc.
+					// If we do not mark it as FlagNoPointers,
+					// the last finalized object is not collected.
+					frame = runtime·mallocgc(framesz, FlagNoPointers, 0, 1);
 					framecap = framesz;
 				}
 				*(void**)frame = f->arg;
