@@ -77,6 +77,10 @@ codgen(Node *n, Node *nn)
 {
 	Prog *sp;
 	Node *n1, nod, nod1;
+	Sym *gcsym;
+	static int ngcsym;
+	static char namebuf[40];
+	int32 off;
 
 	cursafe = 0;
 	curarg = 0;
@@ -97,8 +101,7 @@ codgen(Node *n, Node *nn)
 
 	p = gtext(n1->sym, stkoff);
 	sp = p;
-	gins(ALOCALS, Z, nodconst(stkoff));
-
+	
 	/*
 	 * isolate first argument
 	 */
@@ -135,6 +138,34 @@ codgen(Node *n, Node *nn)
 	if(thechar=='6' || thechar=='7')	/* [sic] */
 		maxargsafe = xround(maxargsafe, 8);
 	sp->to.offset += maxargsafe;
+	
+	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
+	gcsym = slookup(namebuf);
+	gcsym->class = CSTATIC;
+
+	memset(&nod, 0, sizeof nod);
+	nod.op = ONAME;
+	nod.sym = gcsym;
+	nod.class = CSTATIC;
+
+	gins(AFUNCDATA, nodconst(FUNCDATA_GC), &nod);
+
+	// TODO(rsc): "stkoff" is not right. It does not account for
+	// the possibility of data stored in .safe variables.
+	// Unfortunately those move up and down just like
+	// the argument frame (and in fact dovetail with it)
+	// so the number we need is not available or even
+	// well-defined. Probably we need to make the safe
+	// area its own section.
+	// That said, we've been using stkoff for months
+	// and nothing too terrible has happened.
+	off = 0;
+	gextern(gcsym, nodconst(stkoff), off, 4); // locals
+	off += 4;
+	gextern(gcsym, nodconst(0), off, 4); // nptrs
+	off += 4;
+	gcsym->type = typ(0, T);
+	gcsym->type->width = off;
 }
 
 void

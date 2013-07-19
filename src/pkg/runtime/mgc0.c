@@ -13,6 +13,7 @@
 #include "type.h"
 #include "typekind.h"
 #include "hashmap.h"
+#include "funcdata.h"
 
 enum {
 	Debug = 0,
@@ -1385,6 +1386,14 @@ addroot(Obj obj)
 
 extern byte pclntab[]; // base for f->ptrsoff
 
+typedef struct GCFunc GCFunc;
+struct GCFunc
+{
+	uint32	locals; // size of local variables in bytes
+	uint32	nptrs; // number of words that follow
+	uint32	ptrs[1]; // bitmap of pointers in arguments
+};
+
 // Scan a stack frame: local variables and function arguments/results.
 static void
 addframeroots(Stkframe *frame, void*)
@@ -1392,21 +1401,28 @@ addframeroots(Stkframe *frame, void*)
 	Func *f;
 	byte *ap;
 	int32 i, j, nuintptr;
-	uint32 w, b, *ptrs;
+	uint32 w, b;
+	GCFunc *gcf;
 
+	f = frame->fn;
+	gcf = runtime·funcdata(f, FUNCDATA_GC);
+	
 	// Scan local variables if stack frame has been allocated.
-	if(frame->varlen > 0)
-		addroot((Obj){frame->varp, frame->varlen, 0});
+	i = frame->varp - (byte*)frame->sp;
+	if(i > 0) {
+		if(gcf == nil)
+			addroot((Obj){frame->varp - i, i, 0});
+		else if(i >= gcf->locals)
+			addroot((Obj){frame->varp - gcf->locals, gcf->locals, 0});
+	}
 
 	// Scan arguments.
 	// Use pointer information if known.
-	f = frame->fn;
-	if(f->args > 0 && f->ptrslen > 0) {
+	if(f->args > 0 && gcf != nil && gcf->nptrs > 0) {
 		ap = frame->argp;
 		nuintptr = f->args / sizeof(uintptr);
-		ptrs = (uint32*)(pclntab + f->ptrsoff);
-		for(i = 0; i < f->ptrslen; i++) {
-			w = ptrs[i];
+		for(i = 0; i < gcf->nptrs; i++) {
+			w = gcf->ptrs[i];
 			b = 1;
 			j = nuintptr;
 			if(j > 32)
@@ -2017,8 +2033,10 @@ runtime·gc(int32 force)
 
 	// all done
 	m->gcing = 0;
+	m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
+	m->locks--;
 
 	// now that gc is done and we're back on g stack, kick off finalizer thread if needed
 	if(finq != nil) {
@@ -2185,8 +2203,10 @@ runtime·ReadMemStats(MStats *stats)
 	updatememstats(nil);
 	*stats = mstats;
 	m->gcing = 0;
+	m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
+	m->locks--;
 }
 
 void

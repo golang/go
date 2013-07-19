@@ -132,10 +132,7 @@ peep(void)
 		case AGLOBL:
 		case ANAME:
 		case ASIGNAME:
-		case ALOCALS:
 		case ATYPE:
-		case ANPTRS:
-		case APTRS:
 			p = p->link;
 		}
 	}

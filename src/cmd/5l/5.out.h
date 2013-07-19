@@ -201,11 +201,6 @@ enum	as
 	AFUNCDATA,
 	APCDATA,
 
-	// TODO: Remove these.
-	ALOCALS,
-	ANPTRS,
-	APTRS,
-
 	ALAST,
 };
 

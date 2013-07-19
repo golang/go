@@ -2354,7 +2354,7 @@ void
 pclntab(void)
 {
 	Prog *p;
-	int32 i, n, nfunc, start, funcstart, nameoff;
+	int32 i, n, nfunc, start, funcstart;
 	uint32 *havepc, *havefunc;
 	Sym *ftab, *s;
 	int32 npcdata, nfuncdata, off, end;
@@ -2409,9 +2409,7 @@ pclntab(void)
 		off = setaddr(ftab, off, cursym);
 
 		// name int32
-		// Filled in below, after we emit the ptrs.
-		nameoff = off;
-		off += 4;
+		off = setuint32(ftab, off, ftabaddstring(ftab, cursym->name));
 		
 		// args int32
 		// TODO: Move into funcinfo.
@@ -2420,9 +2418,8 @@ pclntab(void)
 		else
 			off = setuint32(ftab, off, cursym->args);
 
-		// locals int32
-		// TODO: Move into funcinfo.
-		off = setuint32(ftab, off, cursym->locals);
+		// Dead space. TODO: Delete (and update all parsers).
+		off = setuint32(ftab, off, 0);
 	
 		// frame int32
 		// TODO: Remove entirely. The pcsp table is more precise.
@@ -2435,23 +2432,9 @@ pclntab(void)
 		else
 			off = setuint32(ftab, off, (uint32)cursym->text->to.offset+PtrSize);
 
-		// TODO: Move into funcinfo.
-		// ptrsoff, ptrslen int32
-		start = ftab->np;
-		if(start&3) {
-			diag("bad math in functab: ptrs misaligned");
-			errorexit();
-		}
-		ftab->size = ftab->np; // for adduint32
-		for(i = 0; i < cursym->nptrs; i += 32)
-			adduint32(ftab, cursym->ptrs[i/32]);
-		off = setuint32(ftab, off, start);
-		off = setuint32(ftab, off, i/32);
-
-		// Now that ptrs are emitted, can fill in function name.
-		// The string is appended to ftab; we waited until now
-		// to avoid misaligning the ptrs data.
-		setuint32(ftab, nameoff, ftabaddstring(ftab, cursym->name));
+		// Dead space. TODO: Delete (and update all parsers).
+		off = setuint32(ftab, off, 0);
+		off = setuint32(ftab, off, 0);
 
 		// pcsp table (offset int32)
 		off = addpctab(ftab, off, cursym, "pctospadj", pctospadj, 0);

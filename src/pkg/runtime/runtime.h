@@ -407,10 +407,10 @@ struct	Func
 	
 	// TODO: Remove these fields.
 	int32	args;	// in/out args size
-	int32	locals;	// locals size
+	int32	x1;	// locals size
 	int32	frame;	// legacy frame size; use pcsp if possible
-	int32	ptrsoff;
-	int32	ptrslen;
+	int32	x2;
+	int32	x3;
 
 	int32	pcsp;
 	int32	pcfile;
@@ -677,10 +677,9 @@ struct Stkframe
 	uintptr	lr;	// program counter at caller aka link register
 	uintptr	sp;	// stack pointer at pc
 	uintptr	fp;	// stack pointer at caller aka frame pointer
+	byte*	varp;		// top of local variables
 	byte*	argp;	// pointer to function arguments
 	uintptr	arglen;	// number of bytes at argp
-	byte*	varp;	// pointer to local variables
-	uintptr	varlen;	// number of bytes at varp
 };
 
 int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*, bool);
@@ -856,6 +855,7 @@ void	runtime·netpollready(G**, PollDesc*, int32);
 void	runtime·crash(void);
 void	runtime·parsedebugvars(void);
 void	_rt0_go(void);
+void*	runtime·funcdata(Func*, int32);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"c"	int32
