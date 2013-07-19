@@ -225,7 +225,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	check.recordObject(e.Sel, obj)
+	check.recordObject(e.Sel, lookupResult(x.typ, obj, index, indirect))
 
 	if x.mode == typexpr {
 		// method expression

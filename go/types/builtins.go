@@ -355,6 +355,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, base)
 			goto Error
 		}
+		check.recordObject(arg.Sel, lookupResult(base, obj, index, indirect))
 		offs := check.conf.offsetof(base, index)
 		x.mode = constant
 		x.val = exact.MakeInt64(offs)

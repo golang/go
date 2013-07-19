@@ -13,34 +13,55 @@ import (
 	"sync"
 )
 
-// TODO(gri) Move Method and accessors to objects.go.
+// TODO(gri) Move Method to objects.go?
 // TODO(gri) Method.Type() returns the wrong receiver type.
 
-// A Method represents a concrete or abstract (interface)
-// method of a method set.
+// A Method represents a concrete or abstract (interface) method x.m
+// and corresponding path. The method belongs to the method set of x.
 type Method struct {
 	*Func
+	selectorPath
+}
+
+// Type returns the promoted signature type of m (i.e., the receiver
+// type is Recv()).
+func (m *Method) Type() Type {
+	sig := *m.Func.typ.(*Signature)
+	recv := *sig.recv
+	recv.typ = m.recv
+	sig.recv = &recv
+	return &sig
+}
+
+// A selectorPath describes the path from a value x to one of its fields
+// or methods f for a selector expression x.f. A path may include implicit
+// field selections (e.g., x.f may be x.a.b.c.f).
+type selectorPath struct {
 	recv     Type
 	index    []int
 	indirect bool
 }
 
-// Recv returns the receiver type for m, which is the type
-// for which the method set containing m was computed. For
-// interface methods, the receiver type is the type of the
-// interface.
-func (m *Method) Recv() Type { return m.recv }
+// Recv returns the type of x for the path p for x.f.
+func (p *selectorPath) Recv() Type { return p.recv }
 
-// Index describes the path to the concrete (possibly embedded)
-// function implementing this method. See LookupFieldOrMethod
-// for details.
-func (m *Method) Index() []int { return m.index }
+// Index describes the path from x to the concrete (possibly embedded) field
+// or method f for the path p for x.f.
+//
+// The last index entry is the field or method index of the type declaring f;
+// either:
+//
+//	1) the list of declared methods of a named type; or
+//	2) the list of methods of an interface type; or
+//	3) the list of fields of a struct type.
+//
+// The earlier index entries are the indices of the embedded fields implicitly
+// traversed to get from (the type of) x to f, starting at embedding depth 0.
+func (p *selectorPath) Index() []int { return p.index }
 
-// Indirect reports whether any pointer indirections was
-// required to get from a value of m's receiver type to
-// the receiver type of the concrete function implementing m.
-// For interface methods, Indirect is undefined.
-func (m *Method) Indirect() bool { return m.indirect }
+// Indirect reports whether any pointer indirection was required to get from
+// a value x to f for the path p for x.f.
+func (p *selectorPath) Indirect() bool { return p.indirect }
 
 // A MethodSet is an ordered set of concrete or abstract (interface) methods.
 // The zero value for a MethodSet is a ready-to-use empty method set.
@@ -279,7 +300,7 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 		// if f is not in the set, add it
 		if !multiples {
 			if _, found := s[key]; !found && (indirect || !ptrRecv(f)) {
-				s[key] = &Method{Func: f, index: concat(index, i), indirect: indirect}
+				s[key] = &Method{f, selectorPath{index: concat(index, i), indirect: indirect}}
 				continue
 			}
 		}
