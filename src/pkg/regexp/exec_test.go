@@ -67,13 +67,6 @@ func TestRE2Search(t *testing.T) {
 	testRE2(t, "testdata/re2-search.txt")
 }
 
-func TestRE2Exhaustive(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping TestRE2Exhaustive during short test")
-	}
-	testRE2(t, "testdata/re2-exhaustive.txt.bz2")
-}
-
 func testRE2(t *testing.T, file string) {
 	f, err := os.Open(file)
 	if err != nil {
