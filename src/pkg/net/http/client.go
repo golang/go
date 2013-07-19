@@ -74,8 +74,8 @@ type RoundTripper interface {
 	// authentication, or cookies.
 	//
 	// RoundTrip should not modify the request, except for
-	// consuming the Body.  The request's URL and Header fields
-	// are guaranteed to be initialized.
+	// consuming and closing the Body. The request's URL and
+	// Header fields are guaranteed to be initialized.
 	RoundTrip(*Request) (*Response, error)
 }
 
@@ -346,6 +346,9 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
 // Post issues a POST to the specified URL.
 //
 // Caller should close resp.Body when done reading from it.
+//
+// If the provided body is also an io.Closer, it is closed after the
+// body is successfully written to the server.
 func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
