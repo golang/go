@@ -118,6 +118,10 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.values[obj] = fn
 			pkg.Members[name] = fn
 		} else {
+			// TODO(adonovan): interface methods now have
+			// objects, but we probably don't want to call
+			// memberFromObject for them.
+
 			// Method declaration.
 			// TODO(adonovan) Move this test elsewhere.
 			if _, ok := recv.Type().Underlying().(*types.Interface); ok {
@@ -125,7 +129,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			}
 			_, method := namedTypeMethodIndex(
 				deref(recv.Type()).(*types.Named),
-				makeId(name, pkg.Object))
+				types.Id(pkg.Object, name))
 			pkg.Prog.concreteMethods[method] = fn
 		}
 

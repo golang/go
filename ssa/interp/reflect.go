@@ -409,14 +409,14 @@ func initReflect(i *interpreter) {
 	}
 
 	i.rtypeMethods = ssa.MethodSet{
-		ssa.Id{nil, "Bits"}:   newMethod(i.reflectPackage, rtypeType, "Bits"),
-		ssa.Id{nil, "Elem"}:   newMethod(i.reflectPackage, rtypeType, "Elem"),
-		ssa.Id{nil, "Kind"}:   newMethod(i.reflectPackage, rtypeType, "Kind"),
-		ssa.Id{nil, "NumOut"}: newMethod(i.reflectPackage, rtypeType, "NumOut"),
-		ssa.Id{nil, "Out"}:    newMethod(i.reflectPackage, rtypeType, "Out"),
-		ssa.Id{nil, "String"}: newMethod(i.reflectPackage, rtypeType, "String"),
+		"Bits":   newMethod(i.reflectPackage, rtypeType, "Bits"),
+		"Elem":   newMethod(i.reflectPackage, rtypeType, "Elem"),
+		"Kind":   newMethod(i.reflectPackage, rtypeType, "Kind"),
+		"NumOut": newMethod(i.reflectPackage, rtypeType, "NumOut"),
+		"Out":    newMethod(i.reflectPackage, rtypeType, "Out"),
+		"String": newMethod(i.reflectPackage, rtypeType, "String"),
 	}
 	i.errorMethods = ssa.MethodSet{
-		ssa.Id{nil, "Error"}: newMethod(i.reflectPackage, errorType, "Error"),
+		"Error": newMethod(i.reflectPackage, errorType, "Error"),
 	}
 }

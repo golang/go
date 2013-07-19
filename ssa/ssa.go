@@ -63,26 +63,6 @@ type Member interface {
 	Token() token.Token   // token.{VAR,FUNC,CONST,TYPE}
 }
 
-// An Id identifies the name of a field of a struct type, or the name
-// of a method of an interface or a named type.
-//
-// For exported names, i.e. those beginning with a Unicode upper-case
-// letter, a simple string is unambiguous.
-//
-// However, a method set or struct may contain multiple unexported
-// names with identical spelling that are logically distinct because
-// they originate in different packages.  Unexported names must
-// therefore be disambiguated by their package too.
-//
-// The Pkg field of an Id is therefore nil iff the name is exported.
-//
-// This type is suitable for use as a map key because the equivalence
-// relation == is consistent with identifier equality.
-type Id struct {
-	Pkg  *types.Package
-	Name string
-}
-
 // A MethodSet contains all the methods for a particular type T.
 // The method sets for T and *T are distinct entities.
 //
@@ -90,7 +70,10 @@ type Id struct {
 // T.  The method set of *T may contain synthetic indirection methods
 // that wrap methods whose receiver type is T.
 //
-type MethodSet map[Id]*Function
+// The keys of a method set are strings returned by the types.Id()
+// function.
+//
+type MethodSet map[string]*Function
 
 // A Type is a Member of a Package representing a package-level named type.
 //
@@ -1284,9 +1267,8 @@ func (c *CallCommon) StaticCallee() *Function {
 
 // MethodId returns the Id for the method called by c, which must
 // have "invoke" mode.
-func (c *CallCommon) MethodId() Id {
-	m := c.Recv.Type().Underlying().(*types.Interface).Method(c.Method)
-	return makeId(m.Name(), m.Pkg())
+func (c *CallCommon) MethodId() string {
+	return c.Recv.Type().Underlying().(*types.Interface).Method(c.Method).Id()
 }
 
 // Description returns a description of the mode of this call suitable

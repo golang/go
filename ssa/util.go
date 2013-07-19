@@ -57,10 +57,10 @@ func deref(typ types.Type) types.Type {
 // within the set of explicitly declared concrete methods of named
 // type typ.  If not found, panic ensues.
 //
-func namedTypeMethodIndex(typ *types.Named, id Id) (int, *types.Func) {
+func namedTypeMethodIndex(typ *types.Named, id string) (int, *types.Func) {
 	for i, n := 0, typ.NumMethods(); i < n; i++ {
 		m := typ.Method(i)
-		if makeId(m.Name(), m.Pkg()) == id {
+		if m.Id() == id {
 			return i, m
 		}
 	}
@@ -71,10 +71,10 @@ func namedTypeMethodIndex(typ *types.Named, id Id) (int, *types.Func) {
 // within the method-set of interface type typ.  If not found, panic
 // ensues.
 //
-func interfaceMethodIndex(typ *types.Interface, id Id) (int, *types.Func) {
+func interfaceMethodIndex(typ *types.Interface, id string) (int, *types.Func) {
 	for i, n := 0, typ.NumMethods(); i < n; i++ {
 		m := typ.Method(i)
-		if makeId(m.Name(), m.Pkg()) == id {
+		if m.Id() == id {
 			return i, m
 		}
 	}
@@ -94,7 +94,7 @@ outer:
 		xm := x.Method(i)
 		for j, m := 0, y.NumMethods(); j < m; j++ {
 			ym := y.Method(j)
-			if makeId(xm.Name(), xm.Pkg()) == makeId(ym.Name(), ym.Pkg()) {
+			if xm.Id() == ym.Id() {
 				if !types.IsIdentical(xm.Type(), ym.Type()) {
 					return false // common name but conflicting types
 				}
@@ -155,31 +155,6 @@ func DefaultType(typ types.Type) types.Type {
 	}
 	return typ
 }
-
-// makeId returns the Id (name, pkg) if the name is exported or
-// (name, nil) otherwise.
-//
-func makeId(name string, pkg *types.Package) (id Id) {
-	id.Name = name
-	if !ast.IsExported(name) {
-		id.Pkg = pkg
-		if pkg.Path() == "" {
-			panic("empty types.Package.Path()")
-		}
-	}
-	return
-}
-
-type ids []Id // a sortable slice of Id
-
-func (p ids) Len() int { return len(p) }
-func (p ids) Less(i, j int) bool {
-	x, y := p[i], p[j]
-	// TODO(adonovan): opt: where's Go's 3-valued strings.Compare function?
-	return x.Pkg.Path() < y.Pkg.Path() ||
-		x.Pkg.Path() == y.Pkg.Path() && x.Name < y.Name
-}
-func (p ids) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
 // logStack prints the formatted "start" message to stderr and
 // returns a closure that prints the corresponding "end" message.

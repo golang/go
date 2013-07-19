@@ -681,7 +681,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return b.expr(fn, e.Sel)
 		}
 
-		id := makeId(e.Sel.Name, fn.Pkg.Object)
+		id := types.Id(fn.Pkg.Object, e.Sel.Name)
 
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
@@ -772,7 +772,7 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 //
 // findMethod returns (nil, nil) if no such method was found.
 //
-func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Value) {
+func (b *builder) findMethod(fn *Function, base ast.Expr, id string) (*Function, Value) {
 	typ := fn.Pkg.typeOf(base)
 
 	// Consult method-set of X.
@@ -831,7 +831,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		return
 	}
 
-	id := makeId(sel.Sel.Name, fn.Pkg.Object)
+	id := types.Id(fn.Pkg.Object, sel.Sel.Name)
 
 	// Let X be the type of x.
 

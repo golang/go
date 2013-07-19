@@ -57,7 +57,7 @@ func (prog *Program) MethodSet(typ types.Type) MethodSet {
 	tmset := typ.MethodSet()
 	for i, n := 0, tmset.Len(); i < n; i++ {
 		obj := tmset.At(i)
-		mset[makeId(obj.Func.Name(), obj.Func.Pkg())] = makeMethod(prog, typ, obj)
+		mset[obj.Func.Id()] = makeMethod(prog, typ, obj)
 	}
 	prog.methodSets.Set(typ, mset)
 	return mset
@@ -112,21 +112,8 @@ func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Functio
 	old := obj.Func.Type().(*types.Signature)
 	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	promotedRecv := obj.Func.Type().(*types.Signature).Recv()
-
-	// TODO(adonovan): Interface method receivers used to be nil, but
-	// aren't anymore. Nil them again so this code works for now. Fix.
-	var promotedRecvString string
-	if _, ok := promotedRecv.Type().Underlying().(*types.Interface); ok {
-		promotedRecv = nil
-		promotedRecvString = "INTERFACE?"
-	} else {
-		promotedRecvString = promotedRecv.String()
-	}
-
 	// TODO(adonovan): include implicit field path in description.
-	description := fmt.Sprintf("promotion wrapper for (%s).%s",
-		promotedRecvString, obj.Func.Name())
+	description := fmt.Sprintf("promotion wrapper for (%s).%s", old.Recv(), obj.Func.Name())
 
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, typ)()
@@ -164,7 +151,7 @@ func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Functio
 	// address of implicit  C field.
 
 	var c Call
-	if promotedRecv != nil { // concrete method    TODO(gri): temporary hack
+	if _, ok := old.Recv().Type().Underlying().(*types.Interface); !ok { // concrete method
 		if !isPointer(old.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
@@ -222,7 +209,7 @@ func createParams(fn *Function) {
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
-func interfaceMethodWrapper(prog *Program, typ types.Type, id Id) *Function {
+func interfaceMethodWrapper(prog *Program, typ types.Type, id string) *Function {
 	index, meth := interfaceMethodIndex(typ.Underlying().(*types.Interface), id)
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
