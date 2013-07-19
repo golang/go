@@ -7,7 +7,9 @@
 // be written using #defines. It is included by the runtime package
 // as well as the compilers.
 
-#define PCDATA_ArgSize 0
+#define PCDATA_ArgSize 0 /* argument size at CALL instruction */
+
+#define FUNCDATA_GC 0 /* garbage collector block */
 
 // To be used in assembly.
 #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n

@@ -830,7 +830,6 @@ buildop(void)
 		case ARFE:
 		case ATEXT:
 		case AUSEFIELD:
-		case ALOCALS:
 		case ACASE:
 		case ABCASE:
 		case ATYPE:

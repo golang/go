@@ -78,17 +78,17 @@ readvarint(byte **pp)
 	return v;
 }
 
-static uintptr
-funcdata(Func *f, int32 i)
+void*
+runtime·funcdata(Func *f, int32 i)
 {
 	byte *p;
 
 	if(i < 0 || i >= f->nfuncdata)
-		return 0;
+		return nil;
 	p = (byte*)&f->nfuncdata + 4 + f->npcdata*4;
 	if(sizeof(void*) == 8 && ((uintptr)p & 4))
 		p += 4;
-	return ((uintptr*)p)[i];
+	return ((void**)p)[i];
 }
 
 static bool

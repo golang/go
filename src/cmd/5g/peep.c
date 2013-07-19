@@ -76,10 +76,7 @@ peep(void)
 		case AGLOBL:
 		case ANAME:
 		case ASIGNAME:
-		case ALOCALS:
 		case ATYPE:
-		case ANPTRS:
-		case APTRS:
 			p = p->link;
 		}
 	}
@@ -1196,10 +1193,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 				return 3;
 		return 0;
 
-	case ALOCALS:	/* funny */
-	case ANPTRS:
-	case APTRS:
 	case APCDATA:
+	case AFUNCDATA:
 		return 0;
 	}
 }

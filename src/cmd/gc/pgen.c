@@ -6,21 +6,25 @@
 #include	<libc.h>
 #include	"gg.h"
 #include	"opt.h"
+#include	"../../pkg/runtime/funcdata.h"
 
 static void allocauto(Prog* p);
-static void pointermap(Node* fn);
+static int pointermap(Sym*, int, Node*);
+static void gcsymbol(Sym*, Node*);
 
 void
 compile(Node *fn)
 {
 	Plist *pl;
-	Node nod1, *n;
-	Prog *plocals, *ptxt, *p, *p1;
+	Node nod1, *n, *gcnod;
+	Prog *pfuncdata, *ptxt, *p, *p1;
 	int32 lno;
 	Type *t;
 	Iter save;
 	vlong oldstksize;
 	NodeList *l;
+	Sym *gcsym;
+	static int ngcsym;
 
 	if(newproc == N) {
 		newproc = sysfunc("newproc");
@@ -89,7 +93,13 @@ compile(Node *fn)
 
 	ginit();
 
-	plocals = gins(ALOCALS, N, N);
+	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
+	gcsym = lookup(namebuf);
+	gcnod = newname(gcsym);
+	gcnod->class = PEXTERN;
+
+	nodconst(&nod1, types[TINT32], FUNCDATA_GC);
+	pfuncdata = gins(AFUNCDATA, &nod1, gcnod);
 
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
@@ -108,8 +118,6 @@ compile(Node *fn)
 			break;
 		}
 	}
-
-	pointermap(fn);
 
 	genlist(curfn->enter);
 
@@ -151,9 +159,9 @@ compile(Node *fn)
 
 	oldstksize = stksize;
 	allocauto(ptxt);
-
-	plocals->to.type = D_CONST;
-	plocals->to.offset = stksize;
+	
+	// Emit garbage collection symbol.
+	gcsymbol(gcsym, fn);
 
 	if(0)
 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
@@ -169,6 +177,17 @@ compile(Node *fn)
 
 ret:
 	lineno = lno;
+}
+
+static void
+gcsymbol(Sym *gcsym, Node *fn)
+{
+	int off;
+
+	off = 0;
+	off = duint32(gcsym, off, stksize); // size of local block
+	off = pointermap(gcsym, off, fn); // pointer bitmap for args (must be last)
+	ggloblsym(gcsym, off, 0, 1);
 }
 
 static void
@@ -278,12 +297,11 @@ walktype(Type *type, Bvec *bv)
 
 // Compute a bit vector to describes the pointer containing locations
 // in the argument list.
-static void
-pointermap(Node *fn)
+static int
+pointermap(Sym *gcsym, int off, Node *fn)
 {
 	Type *thistype, *inargtype, *outargtype;
 	Bvec *bv;
-	Prog *prog;
 	int32 i;
 
 	thistype = getthisx(fn->type);
@@ -296,17 +314,11 @@ pointermap(Node *fn)
 		walktype(inargtype, bv);
 	if(outargtype != nil)
 		walktype(outargtype, bv);
-	prog = gins(ANPTRS, N, N);
-	prog->to.type = D_CONST;
-	prog->to.offset = bv->n;
-	for(i = 0; i < bv->n; i += 32) {
-		prog = gins(APTRS, N, N);
-		prog->from.type = D_CONST;
-		prog->from.offset = i / 32;
-		prog->to.type = D_CONST;
-		prog->to.offset = bv->b[i / 32];
-	}
+	off = duint32(gcsym, off, bv->n);
+	for(i = 0; i < bv->n; i += 32)
+		off = duint32(gcsym, off, bv->b[i/32]);
 	free(bv);
+	return off;
 }
 
 // Sort the list of stack variables.  autos after anything else,

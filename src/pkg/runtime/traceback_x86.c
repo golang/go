@@ -111,6 +111,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 					runtime·throw("unknown caller pc");
 			}
 		}
+		
+		frame.varp = (byte*)frame.fp - sizeof(uintptr);
 
 		// Derive size of arguments.
 		// Most functions have a fixed-size argument block,
@@ -135,26 +137,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 					runtime·throw("invalid stack");
 				frame.arglen = 0;
 			}
-		}
-
-		// Derive location and size of local variables.
-		if(frame.fp == frame.sp + sizeof(uintptr)) {
-			// Function has not created a frame for itself yet.
-			frame.varp = nil;
-			frame.varlen = 0;
-		} else if(f->locals == 0) {
-			// Assume no information, so use whole frame.
-			// TODO: Distinguish local==0 from local==unknown.
-			frame.varp = (byte*)frame.sp;
-			frame.varlen = frame.fp - sizeof(uintptr) - frame.sp;
-		} else {
-			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
-				if(callback != nil)
-					runtime·throw("invalid stack");
-			}
-			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
-			frame.varlen = f->locals;
 		}
 
 		if(skip > 0) {

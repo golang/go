@@ -154,8 +154,6 @@ struct	Sym
 	int32	elfsym;
 	int32	locals;	// size of stack frame locals area
 	int32	args;	// size of stack frame incoming arguments area
-	int32	nptrs;	// number of bits in the pointer map
-	uint32*	ptrs;	// pointer map data
 	uchar	special;
 	uchar	fnptr;	// used as fn ptr
 	uchar	stkcheck;
@@ -436,7 +434,6 @@ int32	immaddr(int32);
 int32	opbra(int, int);
 int	brextra(Prog*);
 int	isbranch(Prog*);
-void	fnptrs(void);
 void	doelf(void);
 void	dozerostk(void); // used by -Z
 

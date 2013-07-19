@@ -111,6 +111,7 @@ regopt(Prog *p)
 		case AGLOBL:
 		case ANAME:
 		case ASIGNAME:
+		case AFUNCDATA:
 			continue;
 		}
 		r = rega();
@@ -584,6 +585,7 @@ brk:
 			case AGLOBL:
 			case ANAME:
 			case ASIGNAME:
+			case AFUNCDATA:
 				break;
 			}
 		}
