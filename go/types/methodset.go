@@ -114,9 +114,9 @@ func (c *cachedMethodSet) of(typ Type) *MethodSet {
 	return mset
 }
 
-// NewMethodSet computes the method set for the given type.
+// NewMethodSet computes the method set for the given type T.
 // It always returns a non-nil method set, even if it is empty.
-func NewMethodSet(typ Type) *MethodSet {
+func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
 	// method set up to the current depth, allocated lazily
@@ -124,7 +124,7 @@ func NewMethodSet(typ Type) *MethodSet {
 
 	// Start with typ as single entry at lowest depth.
 	// If typ is not a named type, insert a nil type instead.
-	typ, isPtr := deref(typ)
+	typ, isPtr := deref(T)
 	t, _ := typ.(*Named)
 	current := []embeddedType{{t, nil, isPtr, false}}
 
@@ -227,7 +227,7 @@ func NewMethodSet(typ Type) *MethodSet {
 	var list []*Method
 	for _, m := range base {
 		if m != nil {
-			m.recv = typ
+			m.recv = T
 			list = append(list, m)
 		}
 	}
