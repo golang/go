@@ -67,9 +67,9 @@ func TestResolveIdents(t *testing.T) {
 	}
 
 	// resolve and type-check package AST
-	var ctxt Context
+	var conf Config
 	idents := make(map[*ast.Ident]Object)
-	pkg, err := ctxt.Check("testResolveIdents", fset, files, &Info{Objects: idents})
+	pkg, err := conf.Check("testResolveIdents", fset, files, &Info{Objects: idents})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestResolveIdents(t *testing.T) {
 		})
 	}
 
-	// check that each identifier in the source is enumerated by the Context.Ident callback
+	// check that each identifier in the source is found in the idents map
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if x, ok := n.(*ast.Ident); ok {

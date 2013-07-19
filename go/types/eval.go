@@ -86,8 +86,8 @@ func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (t
 	}
 
 	// initialize checker
-	var ctxt Context
-	check := newChecker(&ctxt, fset, pkg)
+	var conf Config
+	check := newChecker(&conf, fset, pkg)
 	check.topScope = scope
 	defer check.handleBailout(&err)
 
@@ -95,7 +95,7 @@ func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (t
 	var x operand
 	check.exprOrType(&x, node)
 	switch x.mode {
-	case invalid, novalue, typexprn:
+	case invalid, novalue:
 		fallthrough
 	default:
 		unreachable() // or bailed out with error

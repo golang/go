@@ -46,9 +46,9 @@ var (
 		return
 	}
 
-	var ctxt Context
+	var conf Config
 	types := make(map[ast.Expr]Type)
-	_, err = ctxt.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
 	if err != nil {
 		t.Error(err)
 	}

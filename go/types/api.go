@@ -4,7 +4,7 @@
 
 // Package types declares the data types and implements
 // the algorithms for type-checking of Go packages.
-// Use Check and Context.Check to invoke the type-checker.
+// Use Check and Config.Check to invoke the type-checker.
 //
 // Type-checking consists of several interdependent phases:
 //
@@ -34,19 +34,19 @@ import (
 // list of *ast.Files and corresponding file set, and the import path
 // the package is identified with. The path must not be empty or dot (".").
 //
-// For more control over type-checking and results, use Context.Check.
+// For more control over type-checking and results, use Config.Check.
 func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error) {
-	var ctxt Context
-	pkg, err := ctxt.check(path, fset, files, nil)
+	var conf Config
+	pkg, err := conf.check(path, fset, files, nil)
 	if err != nil {
 		return nil, err
 	}
 	return pkg, nil
 }
 
-// A Context specifies the supporting context for type checking.
-// The zero value for a Context is a ready-to-use default context.
-type Context struct {
+// A Config specifies the configuration for type checking.
+// The zero value for Config is a ready-to-use default configuration.
+type Config struct {
 	// If Error != nil, it is called with each error found
 	// during type checking. The error strings of errors with
 	// detailed position information are formatted as follows:
@@ -103,7 +103,7 @@ type Info struct {
 	// are not recorded.
 	Objects map[*ast.Ident]Object
 
-	// If Implicits != nil, it records the object for each node the implicitly
+	// If Implicits != nil, it records the object for each node that implicitly
 	// declares objects. The following node and object types may appear:
 	//
 	//	node               obj
@@ -118,15 +118,15 @@ type Info struct {
 // error if any, and if info != nil, additional type information. The package is
 // specified by a list of *ast.Files and corresponding file set, and the import
 // path the package is identified with. The path must not be empty or dot (".").
-func (ctxt *Context) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
-	return ctxt.check(path, fset, files, info)
+func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
+	return conf.check(path, fset, files, info)
 }
 
 // IsAssignableTo reports whether a value of type V
 // is assignable to a variable of type T.
 func IsAssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.isAssignableTo(nil, T) // context not needed for non-constant x
+	return x.isAssignableTo(nil, T) // config not needed for non-constant x
 }
 
 // BUG(gri): Conversions of constants only change the type, not the value (e.g., int(1.1) is wrong).

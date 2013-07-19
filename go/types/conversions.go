@@ -58,7 +58,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type) {
 		// TODO(gri) verify the remaining conversions.
 	} else {
 		// non-constant conversion
-		if !x.isConvertible(check.ctxt, typ) {
+		if !x.isConvertible(check.conf, typ) {
 			goto ErrorMsg
 		}
 		x.mode = value
@@ -91,9 +91,9 @@ Error:
 	x.expr = conv
 }
 
-func (x *operand) isConvertible(ctxt *Context, T Type) bool {
+func (x *operand) isConvertible(conf *Config, T Type) bool {
 	// "x is assignable to T"
-	if x.isAssignableTo(ctxt, T) {
+	if x.isAssignableTo(conf, T) {
 		return true
 	}
 

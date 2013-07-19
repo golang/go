@@ -61,7 +61,8 @@ constant lhs must be representable as an integer.
 
 When an expression gets its final type, either on the way out from rawExpr,
 on the way down in updateExprType, or at the end of the type checker run,
-if present the Context.Expr method is invoked to notify a go/types client.
+the type (and constant value, if any) is recorded via Info.Types and Values,
+if present.
 */
 
 type opPredicates map[token.Token]func(Type) bool
@@ -124,7 +125,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 		typ := x.typ.Underlying().(*Basic)
 		size := -1
 		if isUnsigned(typ) {
-			size = int(check.ctxt.sizeof(typ))
+			size = int(check.conf.sizeof(typ))
 		}
 		x.val = exact.UnaryOp(op, x.val, size)
 		// Typed constants must be representable in
@@ -154,7 +155,7 @@ func isComparison(op token.Token) bool {
 	return false
 }
 
-func isRepresentableConst(x exact.Value, ctxt *Context, as BasicKind) bool {
+func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 	switch x.Kind() {
 	case exact.Unknown:
 		return true
@@ -166,7 +167,7 @@ func isRepresentableConst(x exact.Value, ctxt *Context, as BasicKind) bool {
 		if x, ok := exact.Int64Val(x); ok {
 			switch as {
 			case Int:
-				var s = uint(ctxt.sizeof(Typ[as])) * 8
+				var s = uint(conf.sizeof(Typ[as])) * 8
 				return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
 			case Int8:
 				const s = 8
@@ -180,7 +181,7 @@ func isRepresentableConst(x exact.Value, ctxt *Context, as BasicKind) bool {
 			case Int64:
 				return true
 			case Uint, Uintptr:
-				if s := uint(ctxt.sizeof(Typ[as])) * 8; s < 64 {
+				if s := uint(conf.sizeof(Typ[as])) * 8; s < 64 {
 					return 0 <= x && x <= int64(1)<<s-1
 				}
 				return 0 <= x
@@ -211,7 +212,7 @@ func isRepresentableConst(x exact.Value, ctxt *Context, as BasicKind) bool {
 		n := exact.BitLen(x)
 		switch as {
 		case Uint, Uintptr:
-			var s = uint(ctxt.sizeof(Typ[as])) * 8
+			var s = uint(conf.sizeof(Typ[as])) * 8
 			return exact.Sign(x) >= 0 && n <= int(s)
 		case Uint64:
 			return exact.Sign(x) >= 0 && n <= 64
@@ -270,7 +271,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 		return
 	}
 
-	if !isRepresentableConst(x.val, check.ctxt, typ.kind) {
+	if !isRepresentableConst(x.val, check.conf, typ.kind) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			msg = "%s overflows (or cannot be accurately represented as) %s"
@@ -287,7 +288,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 // If typ is still an untyped and not the final type, updateExprType
 // only updates the recorded untyped type for x and possibly its
 // operands. Otherwise (i.e., typ is not an untyped type anymore,
-// or it is the final type for x), Context.Expr is invoked, if present.
+// or it is the final type for x), the type and value are recorded.
 // Also, if x is a constant, it must be representable as a value of typ,
 // and if x is the (formerly untyped) lhs operand of a non-constant
 // shift, it must be an integer value.
@@ -469,7 +470,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 	// TODO(gri) deal with interface vs non-interface comparison
 
 	valid := false
-	if x.isAssignableTo(check.ctxt, y.typ) || y.isAssignableTo(check.ctxt, x.typ) {
+	if x.isAssignableTo(check.conf, y.typ) || y.isAssignableTo(check.conf, x.typ) {
 		switch op {
 		case token.EQL, token.NEQ:
 			valid = isComparable(x.typ) ||
@@ -779,10 +780,6 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 	case constant:
 		typ = x.typ
 		val = x.val
-	case typexprn:
-		x.mode = typexpr
-		typ = x.typ
-		record = false // type was already recorded
 	default:
 		typ = x.typ
 	}
@@ -1220,8 +1217,13 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType:
-		x.mode = typexprn // not typexpr; Context.Expr callback was invoked by check.typ
+		x.mode = typexpr
 		x.typ = check.typ(e, nil, false)
+		// Note: rawExpr (caller of expr0) will call check.recordTypeAndValue
+		// even though check.typ has already called it. This is fine as both
+		// times the same expression and type are recorded. It is also not a
+		// performance issue because we only reach here for composite literal
+		// types, which are comparatively rare.
 
 	default:
 		if debug {

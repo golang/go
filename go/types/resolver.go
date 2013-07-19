@@ -86,14 +86,14 @@ func (check *checker) arityMatch(s, init *ast.ValueSpec) {
 func (check *checker) resolveFiles(files []*ast.File) {
 	pkg := check.pkg
 
-	// Phase 1: Pre-declare all package scope objects so that they can be found
-	//          when type-checking package objects.
+	// Phase 1: Pre-declare all package-level objects so that they can be found
+	//          independent of source order.
 
 	var scopes []*Scope // corresponding file scope per file
 	var objList []Object
 	var objMap = make(map[Object]*decl)
 	var methods []*mdecl
-	var fileScope *Scope // current file scope, used by collect
+	var fileScope *Scope // current file scope, used by declare
 
 	declare := func(ident *ast.Ident, obj Object, typ, init ast.Expr) {
 		assert(ident.Name == obj.Name())
@@ -118,7 +118,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		objMap[obj] = &decl{fileScope, typ, init}
 	}
 
-	importer := check.ctxt.Import
+	importer := check.conf.Import
 	if importer == nil {
 		importer = GcImport
 	}
@@ -146,7 +146,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						path, _ := strconv.Unquote(s.Path.Value)
 						imp, err := importer(pkg.imports, path)
 						if imp == nil && err == nil {
-							err = errors.New("Context.Import returned nil")
+							err = errors.New("Config.Import returned nil")
 						}
 						if err != nil {
 							check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)

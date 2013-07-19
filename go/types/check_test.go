@@ -203,8 +203,8 @@ func checkFiles(t *testing.T, testfiles []string) {
 	}
 
 	// typecheck and collect typechecker errors
-	var ctxt Context
-	ctxt.Error = func(err error) {
+	var conf Config
+	conf.Error = func(err error) {
 		if *listErrors {
 			t.Error(err)
 			return
@@ -216,7 +216,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 			errlist = append(errlist, err)
 		}
 	}
-	ctxt.Check(pkgName, fset, files, nil)
+	conf.Check(pkgName, fset, files, nil)
 
 	if *listErrors {
 		return

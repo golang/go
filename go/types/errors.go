@@ -58,7 +58,7 @@ func (check *checker) err(err error) {
 	if check.firsterr == nil {
 		check.firsterr = err
 	}
-	f := check.ctxt.Error
+	f := check.conf.Error
 	if f == nil {
 		panic(bailout{}) // report only first error
 	}

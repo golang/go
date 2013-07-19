@@ -22,7 +22,6 @@ const (
 	invalid  operandMode = iota // operand is invalid
 	novalue                     // operand represents no value (result of a function call w/o result)
 	typexpr                     // operand is a type
-	typexprn                    // like typexpr; only used to communicate between checker.expr0 and checker.rawExpr
 	constant                    // operand is a constant; the operand's typ is a Basic type
 	variable                    // operand is an addressable variable
 	value                       // operand is a computed value
@@ -33,7 +32,6 @@ var operandModeString = [...]string{
 	invalid:  "invalid",
 	novalue:  "no value",
 	typexpr:  "type",
-	typexprn: "type/n",
 	constant: "constant",
 	variable: "variable",
 	value:    "value",
@@ -127,7 +125,7 @@ func (x *operand) isNil() bool {
 //           overlapping in functionality. Need to simplify and clean up.
 
 // isAssignableTo reports whether x is assignable to a variable of type T.
-func (x *operand) isAssignableTo(ctxt *Context, T Type) bool {
+func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true // avoid spurious errors
 	}
@@ -186,7 +184,7 @@ func (x *operand) isAssignableTo(ctxt *Context, T Type) bool {
 		switch t := Tu.(type) {
 		case *Basic:
 			if x.mode == constant {
-				return isRepresentableConst(x.val, ctxt, t.kind)
+				return isRepresentableConst(x.val, conf, t.kind)
 			}
 			// The result of a comparison is an untyped boolean,
 			// but may not be a constant.
@@ -207,5 +205,5 @@ func (x *operand) isAssignableTo(ctxt *Context, T Type) bool {
 func (x *operand) isInteger() bool {
 	return x.mode == invalid ||
 		isInteger(x.typ) ||
-		x.mode == constant && isRepresentableConst(x.val, nil, UntypedInt) // no context required for UntypedInt
+		x.mode == constant && isRepresentableConst(x.val, nil, UntypedInt) // no *Config required for UntypedInt
 }

@@ -30,7 +30,7 @@ type Context struct {
 	// The Importer will override any user-supplied values for its
 	// Expr, Ident, ImplicitObj and Import fields; other fields
 	// will be passed through to the type checker.
-	TypeChecker types.Context
+	TypeChecker types.Config
 
 	// If Loader is non-nil, it is used to satisfy imports.
 	//

@@ -236,7 +236,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 		if x.mode == invalid {
 			goto Error
 		}
-		if !x.isAssignableTo(check.ctxt, m.key) {
+		if !x.isAssignableTo(check.conf, m.key) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			goto Error
 		}
@@ -327,7 +327,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 
 	case _Alignof:
 		x.mode = constant
-		x.val = exact.MakeInt64(check.ctxt.alignof(x.typ))
+		x.val = exact.MakeInt64(check.conf.alignof(x.typ))
 		x.typ = Typ[Uintptr]
 
 	case _Offsetof:
@@ -355,14 +355,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, base)
 			goto Error
 		}
-		offs := check.ctxt.offsetof(base, index)
+		offs := check.conf.offsetof(base, index)
 		x.mode = constant
 		x.val = exact.MakeInt64(offs)
 		x.typ = Typ[Uintptr]
 
 	case _Sizeof:
 		x.mode = constant
-		x.val = exact.MakeInt64(check.ctxt.sizeof(x.typ))
+		x.val = exact.MakeInt64(check.conf.sizeof(x.typ))
 		x.typ = Typ[Uintptr]
 
 	case _Assert:

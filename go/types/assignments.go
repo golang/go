@@ -32,7 +32,7 @@ func (check *checker) assignment(x *operand, to Type) bool {
 
 	check.convertUntyped(x, to)
 
-	return x.mode != invalid && x.isAssignableTo(check.ctxt, to)
+	return x.mode != invalid && x.isAssignableTo(check.conf, to)
 }
 
 func (check *checker) initConst(lhs *Const, x *operand) {

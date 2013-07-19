@@ -14,6 +14,7 @@ import (
 )
 
 // TODO(gri) Move Method and accessors to objects.go.
+// TODO(gri) Method.Type() returns the wrong receiver type.
 
 // A Method represents a concrete or abstract (interface)
 // method of a method set.

@@ -36,7 +36,7 @@ type exprInfo struct {
 
 // A checker is an instance of the type checker.
 type checker struct {
-	ctxt *Context
+	conf *Config
 	fset *token.FileSet
 	Info
 
@@ -59,9 +59,9 @@ type checker struct {
 	indent int // indentation for tracing
 }
 
-func newChecker(ctxt *Context, fset *token.FileSet, pkg *Package) *checker {
+func newChecker(conf *Config, fset *token.FileSet, pkg *Package) *checker {
 	return &checker{
-		ctxt:        ctxt,
+		conf:        conf,
 		fset:        fset,
 		pkg:         pkg,
 		methods:     make(map[*TypeName]*Scope),
@@ -133,25 +133,20 @@ func (check *checker) handleBailout(err *error) {
 	}
 }
 
-func (ctxt *Context) check(pkgPath string, fset *token.FileSet, files []*ast.File, info *Info) (pkg *Package, err error) {
+func (conf *Config) check(pkgPath string, fset *token.FileSet, files []*ast.File, info *Info) (pkg *Package, err error) {
 	pkg = &Package{
 		path:    pkgPath,
 		scope:   NewScope(Universe),
 		imports: make(map[string]*Package),
 	}
 
-	check := newChecker(ctxt, fset, pkg)
+	check := newChecker(conf, fset, pkg)
 	defer check.handleBailout(&err)
 
 	// we need a reasonable path to continue
 	if path.Clean(pkgPath) == "." {
 		check.errorf(token.NoPos, "invalid package path provided: %q", pkgPath)
 		return
-	}
-
-	// install optional info
-	if info != nil {
-		check.Info = *info
 	}
 
 	// determine package name and files
@@ -168,6 +163,11 @@ func (ctxt *Context) check(pkgPath string, fset *token.FileSet, files []*ast.Fil
 			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
+	}
+
+	// install optional info
+	if info != nil {
+		check.Info = *info
 	}
 
 	// TODO(gri) resolveFiles needs to be split up and renamed (cleanup)

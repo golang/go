@@ -6,29 +6,29 @@
 
 package types
 
-func (ctxt *Context) alignof(typ Type) int64 {
-	if f := ctxt.Alignof; f != nil {
+func (conf *Config) alignof(typ Type) int64 {
+	if f := conf.Alignof; f != nil {
 		if a := f(typ); a >= 1 {
 			return a
 		}
-		panic("Context.Alignof returned an alignment < 1")
+		panic("Config.Alignof returned an alignment < 1")
 	}
 	return DefaultAlignof(typ)
 }
 
-func (ctxt *Context) offsetsof(s *Struct) []int64 {
+func (conf *Config) offsetsof(s *Struct) []int64 {
 	offsets := s.offsets
 	if offsets == nil && s.NumFields() > 0 {
 		// compute offsets on demand
-		if f := ctxt.Offsetsof; f != nil {
+		if f := conf.Offsetsof; f != nil {
 			offsets = f(s.fields)
 			// sanity checks
 			if len(offsets) != s.NumFields() {
-				panic("Context.Offsetsof returned the wrong number of offsets")
+				panic("Config.Offsetsof returned the wrong number of offsets")
 			}
 			for _, o := range offsets {
 				if o < 0 {
-					panic("Context.Offsetsof returned an offset < 0")
+					panic("Config.Offsetsof returned an offset < 0")
 				}
 			}
 		} else {
@@ -42,22 +42,22 @@ func (ctxt *Context) offsetsof(s *Struct) []int64 {
 // offsetof returns the offset of the field specified via
 // the index sequence relative to typ. All embedded fields
 // must be structs (rather than pointer to structs).
-func (ctxt *Context) offsetof(typ Type, index []int) int64 {
+func (conf *Config) offsetof(typ Type, index []int) int64 {
 	var o int64
 	for _, i := range index {
 		s := typ.Underlying().(*Struct)
-		o += ctxt.offsetsof(s)[i]
+		o += conf.offsetsof(s)[i]
 		typ = s.fields[i].typ
 	}
 	return o
 }
 
-func (ctxt *Context) sizeof(typ Type) int64 {
-	if f := ctxt.Sizeof; f != nil {
+func (conf *Config) sizeof(typ Type) int64 {
+	if f := conf.Sizeof; f != nil {
 		if s := f(typ); s >= 0 {
 			return s
 		}
-		panic("Context.Sizeof returned a size < 0")
+		panic("Config.Sizeof returned a size < 0")
 	}
 	return DefaultSizeof(typ)
 }
@@ -67,7 +67,7 @@ func (ctxt *Context) sizeof(typ Type) int64 {
 const DefaultMaxAlign = 8
 
 // DefaultAlignof implements the default alignment computation
-// for unsafe.Alignof. It is used if Context.Alignof == nil.
+// for unsafe.Alignof. It is used if Config.Alignof == nil.
 func DefaultAlignof(typ Type) int64 {
 	// For arrays and structs, alignment is defined in terms
 	// of alignment of the elements and fields, respectively.
@@ -106,7 +106,7 @@ func align(x, a int64) int64 {
 }
 
 // DefaultOffsetsof implements the default field offset computation
-// for unsafe.Offsetof. It is used if Context.Offsetsof == nil.
+// for unsafe.Offsetof. It is used if Config.Offsetsof == nil.
 func DefaultOffsetsof(fields []*Field) []int64 {
 	offsets := make([]int64, len(fields))
 	var o int64
@@ -124,7 +124,7 @@ func DefaultOffsetsof(fields []*Field) []int64 {
 const DefaultPtrSize = 8
 
 // DefaultSizeof implements the default size computation
-// for unsafe.Sizeof. It is used if Context.Sizeof == nil.
+// for unsafe.Sizeof. It is used if Config.Sizeof == nil.
 func DefaultSizeof(typ Type) int64 {
 	switch t := typ.Underlying().(type) {
 	case *Basic:
