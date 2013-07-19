@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "funcdata.h"
 
 void runtime·sigpanic(void);
 

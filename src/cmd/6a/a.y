@@ -33,6 +33,7 @@
 #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
 #include <libc.h>
 #include "a.h"
+#include "../../pkg/runtime/funcdata.h"
 %}
 %union	{
 	Sym	*sym;
@@ -620,27 +621,21 @@ con:
 con2:
 	LCONST
 	{
-		$$ = $1 & 0xffffffffLL;
+		$$ = ($1 & 0xffffffffLL) +
+			((vlong)ArgsSizeUnknown << 32);
 	}
 |	'-' LCONST
 	{
-		$$ = -$2 & 0xffffffffLL;
+		$$ = (-$2 & 0xffffffffLL) +
+			((vlong)ArgsSizeUnknown << 32);
 	}
 |	LCONST '-' LCONST
 	{
-		// Change explicit 0 argument size to 1
-		// so that we can distinguish it from missing.
-		if($3 == 0)
-			$3 = 1;
 		$$ = ($1 & 0xffffffffLL) +
 			(($3 & 0xffffLL) << 32);
 	}
 |	'-' LCONST '-' LCONST
 	{
-		// Change explicit 0 argument size to 1
-		// so that we can distinguish it from missing.
-		if($4 == 0)
-			$4 = 1;
 		$$ = (-$2 & 0xffffffffLL) +
 			(($4 & 0xffffLL) << 32);
 	}

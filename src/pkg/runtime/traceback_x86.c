@@ -7,6 +7,7 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "funcdata.h"
 
 void runtime·deferproc(void);
 void runtime·newproc(void);
