@@ -1563,6 +1563,15 @@ dumphist(char *name)
 // Go 1.2 pcln table
 // See golang.org/s/go12symtab.
 
+// Func layout
+#define FuncEntry (0)
+#define FuncName (pcptrsize)
+#define FuncArgs (pcptrsize+4)
+#define FuncFrame (pcptrsize+2*4)
+#define FuncPCSP (pcptrsize+3*4)
+#define FuncPCFile (pcptrsize+4*4)
+#define FuncPCLine (pcptrsize+5*4)
+
 static int32 pcquantum;
 static int32 pcptrsize;
 static uvlong (*pcswav)(uvlong);
@@ -1788,8 +1797,8 @@ go12pc2sp(uvlong pc)
 	f = go12findfunc(pc);
 	if(f == nil)
 		return ~(uvlong)0;
-	entry = pcuintptr(f);
-	off = pcswal(*(uint32*)(f+pcptrsize+6*4));
+	entry = pcuintptr(f+FuncEntry);
+	off = pcswal(*(uint32*)(f+FuncPCSP));
 	sp = pcvalue(off, entry, pc);
 	if(sp < 0)
 		return ~(uvlong)0;
@@ -1807,9 +1816,9 @@ go12fileline(char *str, int n, uvlong pc)
 	f = go12findfunc(pc);
 	if(f == nil)
 		return 0;
-	entry = pcuintptr(f);
-	fileoff = pcswal(*(uint32*)(f+pcptrsize+7*4));
-	lineoff = pcswal(*(uint32*)(f+pcptrsize+8*4));
+	entry = pcuintptr(f+FuncEntry);
+	fileoff = pcswal(*(uint32*)(f+FuncPCFile));
+	lineoff = pcswal(*(uint32*)(f+FuncPCLine));
 	lno = pcvalue(lineoff, entry, pc);
 	fno = pcvalue(fileoff, entry, pc);
 	if(lno < 0 || fno <= 0 || fno >= nfiletab) {
@@ -1845,9 +1854,9 @@ havefile:
 	// quick.
 	for(i=0; i<nfunctab; i++) {
 		func = pcline + pcuintptr(functab+i*2*pcptrsize+pcptrsize);
-		entry = pcuintptr(func);
-		fp = pcline + pcswal(*(uint32*)(func+pcptrsize+7*4));
-		lp = pcline + pcswal(*(uint32*)(func+pcptrsize+8*4));
+		entry = pcuintptr(func+FuncEntry);
+		fp = pcline + pcswal(*(uint32*)(func+FuncPCFile));
+		lp = pcline + pcswal(*(uint32*)(func+FuncPCLine));
 		fval = lval = -1;
 		fpc = lpc = entry;
 		fstartpc = fpc;

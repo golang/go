@@ -2400,7 +2400,7 @@ pclntab(void)
 
 		// fixed size of struct, checked below
 		off = funcstart;
-		end = funcstart + PtrSize + 6*4 + 5*4 + npcdata*4 + nfuncdata*PtrSize;
+		end = funcstart + PtrSize + 3*4 + 5*4 + npcdata*4 + nfuncdata*PtrSize;
 		if(nfuncdata > 0 && (end&(PtrSize-1)))
 			end += 4;
 		symgrow(ftab, end);
@@ -2417,9 +2417,6 @@ pclntab(void)
 			off = setuint32(ftab, off, ArgsSizeUnknown);
 		else
 			off = setuint32(ftab, off, cursym->args);
-
-		// Dead space. TODO: Delete (and update all parsers).
-		off = setuint32(ftab, off, 0);
 	
 		// frame int32
 		// TODO: Remove entirely. The pcsp table is more precise.
@@ -2431,10 +2428,6 @@ pclntab(void)
 			off = setuint32(ftab, off, 0);
 		else
 			off = setuint32(ftab, off, (uint32)cursym->text->to.offset+PtrSize);
-
-		// Dead space. TODO: Delete (and update all parsers).
-		off = setuint32(ftab, off, 0);
-		off = setuint32(ftab, off, 0);
 
 		// pcsp table (offset int32)
 		off = addpctab(ftab, off, cursym, "pctospadj", pctospadj, 0);

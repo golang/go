@@ -405,12 +405,9 @@ struct	Func
 	uintptr	entry;	// start pc
 	int32	nameoff;	// function name
 	
-	// TODO: Remove these fields.
+	// TODO: Perhaps remove these fields.
 	int32	args;	// in/out args size
-	int32	x1;	// locals size
 	int32	frame;	// legacy frame size; use pcsp if possible
-	int32	x2;
-	int32	x3;
 
 	int32	pcsp;
 	int32	pcfile;
