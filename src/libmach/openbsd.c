@@ -7,6 +7,8 @@
 int
 ctlproc(int pid, char *msg)
 {
+	USED(pid);
+	USED(msg);
 	sysfatal("ctlproc unimplemented in OpenBSD");
 	return -1;
 }
@@ -14,6 +16,7 @@ ctlproc(int pid, char *msg)
 char*
 proctextfile(int pid)
 {
+	USED(pid);
 	sysfatal("proctextfile unimplemented in OpenBSD");
 	return nil;
 }
@@ -21,6 +24,7 @@ proctextfile(int pid)
 char*
 procstatus(int pid)
 {
+	USED(pid);
 	sysfatal("procstatus unimplemented in OpenBSD");
 	return nil;
 }
@@ -28,6 +32,8 @@ procstatus(int pid)
 Map*
 attachproc(int pid, Fhdr *fp)
 {
+	USED(pid);
+	USED(fp);
 	sysfatal("attachproc unimplemented in OpenBSD");
 	return nil;
 }
@@ -35,12 +41,16 @@ attachproc(int pid, Fhdr *fp)
 void
 detachproc(Map *m)
 {
+	USED(m);
 	sysfatal("detachproc unimplemented in OpenBSD");
 }
 
 int
 procthreadpids(int pid, int *p, int np)
 {
+	USED(pid);
+	USED(p);
+	USED(np);
 	sysfatal("procthreadpids unimplemented in OpenBSD");
 	return -1;
 }
