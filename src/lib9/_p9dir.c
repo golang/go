@@ -43,6 +43,9 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 	char tmp[20];
 	int sz, fd;
 
+#ifdef _WIN32
+	USED(lst);
+#endif
 	fd = -1;
 	USED(fd);
 	sz = 0;

@@ -14,6 +14,7 @@ fork(void)
 int
 p9rfork(int flags)
 {
+	USED(flags);
 	return -1;
 }
 

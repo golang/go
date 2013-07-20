@@ -48,6 +48,8 @@ futimes(int fd, struct timeval *tv)
 static int
 futimes(int fd, struct timeval *tv)
 {
+	USED(fd);
+	USED(tv);
 	werrstr("futimes not available");
 	return -1;
 }
