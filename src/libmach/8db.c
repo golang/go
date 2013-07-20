@@ -480,7 +480,14 @@ static Optable optab0FAE[8]=
 [0x07] =	{ 0,0,		"SFENCE" },
 };
 
-/* 0F18 */
+static Optable optab0F18[4]=
+{
+[0x00] =	{ 0,0,		"PREFETCHNTA	%e" },
+[0x01] = 	{ 0,0,		"PREFECTCH0	%e" },
+[0x02] = 	{ 0,0,		"PREFECTCH1	%e" },
+[0x03] = 	{ 0,0,		"PREFECTCH2	%e" },
+};
+
 /* 0F0D */
 
 static Optable optab0FBA[8]=
@@ -523,6 +530,22 @@ static Optable optab0FC7[8]=
 [0x01] =	{ 0,0,		"CMPXCHG8B	%e" },
 };
 
+static Optable optab660F38[256]=
+{
+[0x00] =	{ RM,0,		"PSHUFB	%x,%X" },
+[0xdc] =	{ RM,0,		"AESENC	%x,%X" },
+[0xdb] =	{ RM,0,		"AESIMC	%x,%X," },
+[0xdd] =	{ RM,0,		"AESENCLAST	%x,%X" },
+[0xde] =	{ RM,0,		"AESDEC	%x,%X" },
+[0xdf] =	{ RM,0,		"AESDECLAST	%x,%X" },
+};
+
+static Optable optab660F3A[256]=
+{
+[0x22] =	{ RM,Ib,		"PINSR%S	%i,%e,%X" },
+[0xdf] =	{ RM,Ib,		"AESKEYGENASSIST	%i,%x,%X" },
+};
+
 static Optable optab660F71[8]=
 {
 [0x02] =	{ Ib,0,		"PSRLW	%i,%X" },
@@ -550,12 +573,14 @@ static Optable optab660F[256]=
 [0x2B] =	{ RM,0,		"MOVNTPD	%x,%e" },
 [0x2E] =	{ RM,0,		"UCOMISD	%x,%X" },
 [0x2F] =	{ RM,0,		"COMISD	%x,%X" },
+[0x38] =	{ AUX,0,		optab660F38 },
+[0x3A] =	{ AUX,0,		optab660F3A },
 [0x5A] =	{ RM,0,		"CVTPD2PS	%x,%X" },
 [0x5B] =	{ RM,0,		"CVTPS2PL	%x,%X" },
-[0x6A] =	{ RM,0,		"PUNPCKHLQ %x,%X" },
-[0x6B] =	{ RM,0,		"PACKSSLW %x,%X" },
-[0x6C] =	{ RM,0,		"PUNPCKLQDQ %x,%X" },
-[0x6D] =	{ RM,0,		"PUNPCKHQDQ %x,%X" },
+[0x6A] =	{ RM,0,		"PUNPCKHLQ	%x,%X" },
+[0x6B] =	{ RM,0,		"PACKSSLW	%x,%X" },
+[0x6C] =	{ RM,0,		"PUNPCKLQDQ	%x,%X" },
+[0x6D] =	{ RM,0,		"PUNPCKHQDQ	%x,%X" },
 [0x6E] =	{ RM,0,		"MOV%S	%e,%X" },
 [0x6F] =	{ RM,0,		"MOVO	%x,%X" },		/* MOVDQA */
 [0x70] =	{ RM,Ib,		"PSHUFL	%i,%x,%X" },
@@ -574,6 +599,12 @@ static Optable optab660F[256]=
 [0xF7] =	{ RM,0,		"MASKMOVOU	%x,%X" },
 };
 
+static Optable optabF20F38[256]=
+{
+[0xf0] =	{ RM,0,		"CRC32B	%e, %r" },
+[0xf1] =	{ RM,0,		"CRC32%S	%e, %r" },
+};
+
 static Optable optabF20F[256]=
 {
 [0x10] =	{ RM,0,		"MOVSD	%x,%X" },
@@ -581,6 +612,7 @@ static Optable optabF20F[256]=
 [0x2A] =	{ RM,0,		"CVTS%S2SD	%e,%X" },
 [0x2C] =	{ RM,0,		"CVTTSD2S%S	%x,%r" },
 [0x2D] =	{ RM,0,		"CVTSD2S%S	%x,%r" },
+[0x38] =	{ AUX,0,		optabF20F38 },
 [0x5A] =	{ RM,0,		"CVTSD2SS	%x,%X" },
 [0x6F] =	{ RM,0,		"MOVOU	%x,%X" },
 [0x70] =	{ RM,Ib,		"PSHUFLW	%i,%x,%X" },
@@ -627,6 +659,7 @@ static Optable optab0F[256]=
 [0x15] =	{ RM,0,		"UNPCKH%s	%x,%X" },
 [0x16] =	{ RM,0,		"MOV[L]H%s	%x,%X" },	/* TO DO: L if source is XMM */
 [0x17] =	{ RM,0,		"MOVH%s	%X,%x" },
+[0x18] =	{ RMOP,0,		optab0F18 },
 [0x1F] =	{ RM,0,		"NOP%S	%e" },
 [0x20] =	{ RMR,0,		"MOVL	%C,%e" },
 [0x21] =	{ RMR,0,		"MOVL	%D,%e" },
@@ -676,27 +709,27 @@ static Optable optab0F[256]=
 [0x5D] =	{ RM,0,		"MIN%s	%x,%X" },
 [0x5E] =	{ RM,0,		"DIV%s	%x,%X" },		/* TO DO: S/P S/D */
 [0x5F] =	{ RM,0,		"MAX%s	%x,%X" },
-[0x60] =	{ RM,0,		"PUNPCKLBW %m,%M" },
-[0x61] =	{ RM,0,		"PUNPCKLWL %m,%M" },
-[0x62] =	{ RM,0,		"PUNPCKLLQ %m,%M" },
-[0x63] =	{ RM,0,		"PACKSSWB %m,%M" },
-[0x64] =	{ RM,0,		"PCMPGTB %m,%M" },
-[0x65] =	{ RM,0,		"PCMPGTW %m,%M" },
-[0x66] =	{ RM,0,		"PCMPGTL %m,%M" },
-[0x67] =	{ RM,0,		"PACKUSWB %m,%M" },
-[0x68] =	{ RM,0,		"PUNPCKHBW %m,%M" },
-[0x69] =	{ RM,0,		"PUNPCKHWL %m,%M" },
-[0x6A] =	{ RM,0,		"PUNPCKHLQ %m,%M" },
-[0x6B] =	{ RM,0,		"PACKSSLW %m,%M" },
-[0x6E] =	{ RM,0,		"MOV%S %e,%M" },
-[0x6F] =	{ RM,0,		"MOVQ %m,%M" },
+[0x60] =	{ RM,0,		"PUNPCKLBW	%m,%M" },
+[0x61] =	{ RM,0,		"PUNPCKLWL	%m,%M" },
+[0x62] =	{ RM,0,		"PUNPCKLLQ	%m,%M" },
+[0x63] =	{ RM,0,		"PACKSSWB	%m,%M" },
+[0x64] =	{ RM,0,		"PCMPGTB	%m,%M" },
+[0x65] =	{ RM,0,		"PCMPGTW	%m,%M" },
+[0x66] =	{ RM,0,		"PCMPGTL	%m,%M" },
+[0x67] =	{ RM,0,		"PACKUSWB	%m,%M" },
+[0x68] =	{ RM,0,		"PUNPCKHBW	%m,%M" },
+[0x69] =	{ RM,0,		"PUNPCKHWL	%m,%M" },
+[0x6A] =	{ RM,0,		"PUNPCKHLQ	%m,%M" },
+[0x6B] =	{ RM,0,		"PACKSSLW	%m,%M" },
+[0x6E] =	{ RM,0,		"MOV%S	%e,%M" },
+[0x6F] =	{ RM,0,		"MOVQ	%m,%M" },
 [0x70] =	{ RM,Ib,		"PSHUFW	%i,%m,%M" },
-[0x74] =	{ RM,0,		"PCMPEQB %m,%M" },
-[0x75] =	{ RM,0,		"PCMPEQW %m,%M" },
-[0x76] =	{ RM,0,		"PCMPEQL %m,%M" },
+[0x74] =	{ RM,0,		"PCMPEQB	%m,%M" },
+[0x75] =	{ RM,0,		"PCMPEQW	%m,%M" },
+[0x76] =	{ RM,0,		"PCMPEQL	%m,%M" },
 [0x77] =	{ 0,0,		"EMMS" },
-[0x7E] =	{ RM,0,		"MOV%S %M,%e" },
-[0x7F] =	{ RM,0,		"MOVQ %M,%m" },
+[0x7E] =	{ RM,0,		"MOV%S	%M,%e" },
+[0x7F] =	{ RM,0,		"MOVQ	%M,%m" },
 [0xAE] =	{ RMOP,0,		optab0FAE },
 [0xAA] =	{ 0,0,		"RSM" },
 [0xB0] =	{ RM,0,		"CMPXCHGB	%r,%e" },
@@ -714,48 +747,48 @@ static Optable optab0F[256]=
 [0xCD] =	{ 0,0,		"BSWAP	BP" },
 [0xCE] =	{ 0,0,		"BSWAP	SI" },
 [0xCF] =	{ 0,0,		"BSWAP	DI" },
-[0xD1] =	{ RM,0,		"PSRLW %m,%M" },
-[0xD2] =	{ RM,0,		"PSRLL %m,%M" },
-[0xD3] =	{ RM,0,		"PSRLQ %m,%M" },
-[0xD5] =	{ RM,0,		"PMULLW %m,%M" },
+[0xD1] =	{ RM,0,		"PSRLW	%m,%M" },
+[0xD2] =	{ RM,0,		"PSRLL	%m,%M" },
+[0xD3] =	{ RM,0,		"PSRLQ	%m,%M" },
+[0xD5] =	{ RM,0,		"PMULLW	%m,%M" },
 [0xD6] =	{ RM,0,		"MOVQOZX	%m*,%X" },
-[0xD7] =	{ RM,0,		"PMOVMSKB %m,%r" },
-[0xD8] =	{ RM,0,		"PSUBUSB %m,%M" },
-[0xD9] =	{ RM,0,		"PSUBUSW %m,%M" },
-[0xDA] =	{ RM,0,		"PMINUB %m,%M" },
-[0xDB] =	{ RM,0,		"PAND %m,%M" },
-[0xDC] =	{ RM,0,		"PADDUSB %m,%M" },
-[0xDD] =	{ RM,0,		"PADDUSW %m,%M" },
-[0xDE] =	{ RM,0,		"PMAXUB %m,%M" },
-[0xDF] =	{ RM,0,		"PANDN %m,%M" },
-[0xE0] =	{ RM,0,		"PAVGB %m,%M" },
-[0xE1] =	{ RM,0,		"PSRAW %m,%M" },
-[0xE2] =	{ RM,0,		"PSRAL %m,%M" },
-[0xE3] =	{ RM,0,		"PAVGW %m,%M" },
-[0xE4] =	{ RM,0,		"PMULHUW %m,%M" },
-[0xE5] =	{ RM,0,		"PMULHW %m,%M" },
+[0xD7] =	{ RM,0,		"PMOVMSKB	%m,%r" },
+[0xD8] =	{ RM,0,		"PSUBUSB	%m,%M" },
+[0xD9] =	{ RM,0,		"PSUBUSW	%m,%M" },
+[0xDA] =	{ RM,0,		"PMINUB	%m,%M" },
+[0xDB] =	{ RM,0,		"PAND	%m,%M" },
+[0xDC] =	{ RM,0,		"PADDUSB	%m,%M" },
+[0xDD] =	{ RM,0,		"PADDUSW	%m,%M" },
+[0xDE] =	{ RM,0,		"PMAXUB	%m,%M" },
+[0xDF] =	{ RM,0,		"PANDN	%m,%M" },
+[0xE0] =	{ RM,0,		"PAVGB	%m,%M" },
+[0xE1] =	{ RM,0,		"PSRAW	%m,%M" },
+[0xE2] =	{ RM,0,		"PSRAL	%m,%M" },
+[0xE3] =	{ RM,0,		"PAVGW	%m,%M" },
+[0xE4] =	{ RM,0,		"PMULHUW	%m,%M" },
+[0xE5] =	{ RM,0,		"PMULHW	%m,%M" },
 [0xE7] =	{ RM,0,		"MOVNTQ	%M,%e" },
-[0xE8] =	{ RM,0,		"PSUBSB %m,%M" },
-[0xE9] =	{ RM,0,		"PSUBSW %m,%M" },
-[0xEA] =	{ RM,0,		"PMINSW %m,%M" },
-[0xEB] =	{ RM,0,		"POR %m,%M" },
-[0xEC] =	{ RM,0,		"PADDSB %m,%M" },
-[0xED] =	{ RM,0,		"PADDSW %m,%M" },
-[0xEE] =	{ RM,0,		"PMAXSW %m,%M" },
-[0xEF] =	{ RM,0,		"PXOR %m,%M" },
-[0xF1] =	{ RM,0,		"PSLLW %m,%M" },
-[0xF2] =	{ RM,0,		"PSLLL %m,%M" },
-[0xF3] =	{ RM,0,		"PSLLQ %m,%M" },
+[0xE8] =	{ RM,0,		"PSUBSB	%m,%M" },
+[0xE9] =	{ RM,0,		"PSUBSW	%m,%M" },
+[0xEA] =	{ RM,0,		"PMINSW	%m,%M" },
+[0xEB] =	{ RM,0,		"POR	%m,%M" },
+[0xEC] =	{ RM,0,		"PADDSB	%m,%M" },
+[0xED] =	{ RM,0,		"PADDSW	%m,%M" },
+[0xEE] =	{ RM,0,		"PMAXSW	%m,%M" },
+[0xEF] =	{ RM,0,		"PXOR	%m,%M" },
+[0xF1] =	{ RM,0,		"PSLLW	%m,%M" },
+[0xF2] =	{ RM,0,		"PSLLL	%m,%M" },
+[0xF3] =	{ RM,0,		"PSLLQ	%m,%M" },
 [0xF4] =	{ RM,0,		"PMULULQ	%m,%M" },
-[0xF5] =	{ RM,0,		"PMADDWL %m,%M" },
-[0xF6] =	{ RM,0,		"PSADBW %m,%M" },
+[0xF5] =	{ RM,0,		"PMADDWL	%m,%M" },
+[0xF6] =	{ RM,0,		"PSADBW	%m,%M" },
 [0xF7] =	{ RMR,0,		"MASKMOVQ	%m,%M" },
-[0xF8] =	{ RM,0,		"PSUBB %m,%M" },
-[0xF9] =	{ RM,0,		"PSUBW %m,%M" },
-[0xFA] =	{ RM,0,		"PSUBL %m,%M" },
-[0xFC] =	{ RM,0,		"PADDB %m,%M" },
-[0xFD] =	{ RM,0,		"PADDW %m,%M" },
-[0xFE] =	{ RM,0,		"PADDL %m,%M" },
+[0xF8] =	{ RM,0,		"PSUBB	%m,%M" },
+[0xF9] =	{ RM,0,		"PSUBW	%m,%M" },
+[0xFA] =	{ RM,0,		"PSUBL	%m,%M" },
+[0xFC] =	{ RM,0,		"PADDB	%m,%M" },
+[0xFD] =	{ RM,0,		"PADDW	%m,%M" },
+[0xFE] =	{ RM,0,		"PADDL	%m,%M" },
 
 [0x80] =	{ Iwds,0,		"JOS	%p" },
 [0x81] =	{ Iwds,0,		"JOC	%p" },
@@ -950,9 +983,9 @@ static Optable optabD9[64+8] =
 [0x00] =	{ 0,0,		"FMOVF	%e,F0" },
 [0x02] =	{ 0,0,		"FMOVF	F0,%e" },
 [0x03] =	{ 0,0,		"FMOVFP	F0,%e" },
-[0x04] =	{ 0,0,		"FLDENV%S %e" },
+[0x04] =	{ 0,0,		"FLDENV%S	%e" },
 [0x05] =	{ 0,0,		"FLDCW	%e" },
-[0x06] =	{ 0,0,		"FSTENV%S %e" },
+[0x06] =	{ 0,0,		"FSTENV%S	%e" },
 [0x07] =	{ 0,0,		"FSTCW	%e" },
 [0x08] =	{ 0,0,		"FMOVD	F0,F0" },		/* Mod R/M = 11xx xxxx*/
 [0x09] =	{ 0,0,		"FMOVD	F1,F0" },
@@ -1099,14 +1132,14 @@ static Optable optabDD[8+8] =
 [0x00] =	{ 0,0,		"FMOVD	%e,F0" },
 [0x02] =	{ 0,0,		"FMOVD	F0,%e" },
 [0x03] =	{ 0,0,		"FMOVDP	F0,%e" },
-[0x04] =	{ 0,0,		"FRSTOR%S %e" },
-[0x06] =	{ 0,0,		"FSAVE%S %e" },
+[0x04] =	{ 0,0,		"FRSTOR%S	%e" },
+[0x06] =	{ 0,0,		"FSAVE%S	%e" },
 [0x07] =	{ 0,0,		"FSTSW	%e" },
 [0x08] =	{ 0,0,		"FFREED	%f" },
 [0x0a] =	{ 0,0,		"FMOVD	%f,F0" },
 [0x0b] =	{ 0,0,		"FMOVDP	%f,F0" },
 [0x0c] =	{ 0,0,		"FUCOMD	%f,F0" },
-[0x0d] =	{ 0,0,		"FUCOMDP %f,F0" },
+[0x0d] =	{ 0,0,		"FUCOMDP	%f,F0" },
 };
 
 static Optable optabDE[8+8] =
@@ -1122,9 +1155,9 @@ static Optable optabDE[8+8] =
 [0x08] =	{ 0,0,		"FADDDP	F0,%f" },
 [0x09] =	{ 0,0,		"FMULDP	F0,%f" },
 [0x0b] =	{ Op_R1,0,		"FCOMPDP" },
-[0x0c] =	{ 0,0,		"FSUBRDP F0,%f" },
+[0x0c] =	{ 0,0,		"FSUBRDP	F0,%f" },
 [0x0d] =	{ 0,0,		"FSUBDP	F0,%f" },
-[0x0e] =	{ 0,0,		"FDIVRDP F0,%f" },
+[0x0e] =	{ 0,0,		"FDIVRDP	F0,%f" },
 [0x0f] =	{ 0,0,		"FDIVDP	F0,%f" },
 };
 
@@ -1863,14 +1896,23 @@ badop:
 				return 0;
 			obase = (Optable*)op->proto;
 			switch (ip->opre) {
-			case 0x66:	op = optab660F; break;
-			case 0xF2:	op = optabF20F; break;
-			case 0xF3:	op = optabF30F; break;
-			default:	op = nil; break;
+			case 0x66:
+				op = optab660F;
+				break;
+			case 0xF2:
+				op = optabF20F;
+				ip->prefix = 0; /* discard REPNE */
+				break;
+			case 0xF3:
+				op = optabF30F;
+				ip->prefix = 0; /* discard REP */
+				break;
+			default:
+				op = nil;
+				break;
 			}
 			if(op != nil && op[c].proto != nil)
 				obase = op;
-			norex = 1;	/* no more rex prefixes */
 			/* otherwise the optab entry captures it */
 			goto newop;
 		case AUX:	/* Multi-byte op code - Auxiliary table */
@@ -1885,8 +1927,6 @@ badop:
 			ip->prefix = (char*)op->proto;
 			if (igetc(map, ip, &c) < 0)
 				return 0;
-			if (ip->opre && c == 0x0F)
-				ip->prefix = 0;
 			goto newop;
 		case SEG:	/* Segment Prefix */
 			ip->segment = (char*)op->proto;
