@@ -161,6 +161,11 @@ reexportdep(Node *n)
 	case OCONV:
 	case OCONVIFACE:
 	case OCONVNOP:
+	case ORUNESTR:
+	case OARRAYBYTESTR:
+	case OARRAYRUNESTR:
+	case OSTRARRAYBYTE:
+	case OSTRARRAYRUNE:
 	case ODOTTYPE:
 	case ODOTTYPE2:
 	case OSTRUCTLIT:
