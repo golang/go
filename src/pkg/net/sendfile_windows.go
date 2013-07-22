@@ -59,7 +59,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	o.Init(c, 'w')
 	o.n = uint32(n)
 	o.src = syscall.Handle(f.Fd())
-	done, err := iosrv.ExecIO(&o, 0)
+	done, err := iosrv.ExecIO(&o)
 	if err != nil {
 		return 0, err, false
 	}

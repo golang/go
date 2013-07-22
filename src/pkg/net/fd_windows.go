@@ -74,39 +74,39 @@ type anOpIface interface {
 	Submit() error
 }
 
-// IO completion result parameters.
-type ioResult struct {
-	qty uint32
-	err error
-}
-
 // anOp implements functionality common to all IO operations.
+// Its beginning must be the same as runtime.net_anOp. Keep these in sync.
 type anOp struct {
 	// Used by IOCP interface, it must be first field
 	// of the struct, as our code rely on it.
 	o syscall.Overlapped
 
-	resultc chan ioResult
-	errnoc  chan error
-	fd      *netFD
+	// fields used by runtime.netpoll
+	runtimeCtx uintptr
+	mode       int32
+	errno      int32
+	qty        uint32
+
+	errnoc chan error
+	fd     *netFD
 }
 
-func (o *anOp) Init(fd *netFD, mode int) {
+func (o *anOp) Init(fd *netFD, mode int32) {
 	o.fd = fd
-	var i int
-	if mode == 'r' {
-		i = 0
-	} else {
-		i = 1
+	o.mode = mode
+	o.runtimeCtx = fd.pd.runtimeCtx
+	if !canCancelIO {
+		var i int
+		if mode == 'r' {
+			i = 0
+		} else {
+			i = 1
+		}
+		if fd.errnoc[i] == nil {
+			fd.errnoc[i] = make(chan error)
+		}
+		o.errnoc = fd.errnoc[i]
 	}
-	if fd.resultc[i] == nil {
-		fd.resultc[i] = make(chan ioResult, 1)
-	}
-	o.resultc = fd.resultc[i]
-	if fd.errnoc[i] == nil {
-		fd.errnoc[i] = make(chan error)
-	}
-	o.errnoc = fd.errnoc[i]
 }
 
 func (o *anOp) Op() *anOp {
@@ -120,48 +120,13 @@ type bufOp struct {
 	buf syscall.WSABuf
 }
 
-func (o *bufOp) Init(fd *netFD, buf []byte, mode int) {
+func (o *bufOp) Init(fd *netFD, buf []byte, mode int32) {
 	o.anOp.Init(fd, mode)
 	o.buf.Len = uint32(len(buf))
 	if len(buf) == 0 {
 		o.buf.Buf = nil
 	} else {
 		o.buf.Buf = (*byte)(unsafe.Pointer(&buf[0]))
-	}
-}
-
-// resultSrv will retrieve all IO completion results from
-// iocp and send them to the correspondent waiting client
-// goroutine via channel supplied in the request.
-type resultSrv struct {
-	iocp syscall.Handle
-}
-
-func runtime_blockingSyscallHint()
-
-func (s *resultSrv) Run() {
-	var o *syscall.Overlapped
-	var key uint32
-	var r ioResult
-	for {
-		r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, 0)
-		if r.err == syscall.Errno(syscall.WAIT_TIMEOUT) && o == nil {
-			runtime_blockingSyscallHint()
-			r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, syscall.INFINITE)
-		}
-		switch {
-		case r.err == nil:
-			// Dequeued successfully completed IO packet.
-		case r.err == syscall.Errno(syscall.WAIT_TIMEOUT) && o == nil:
-			// Wait has timed out (should not happen now, but might be used in the future).
-			panic("GetQueuedCompletionStatus timed out")
-		case o == nil:
-			// Failed to dequeue anything -> report the error.
-			panic("GetQueuedCompletionStatus failed " + r.err.Error())
-		default:
-			// Dequeued failed IO packet.
-		}
-		(*anOp)(unsafe.Pointer(o)).resultc <- r
 	}
 }
 
@@ -192,18 +157,14 @@ func (s *ioSrv) ProcessRemoteIO() {
 // ExecIO executes a single IO operation oi. It submits and cancels
 // IO in the current thread for systems where Windows CancelIoEx API
 // is available. Alternatively, it passes the request onto
-// a special goroutine and waits for completion or cancels request.
-// deadline is unix nanos.
-func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
+// runtime netpoll and waits for completion or cancels request.
+func (s *ioSrv) ExecIO(oi anOpIface) (int, error) {
 	var err error
 	o := oi.Op()
-	// Calculate timeout delta.
-	var delta int64
-	if deadline != 0 {
-		delta = deadline - time.Now().UnixNano()
-		if delta <= 0 {
-			return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, errTimeout}
-		}
+	// Notify runtime netpoll about starting IO.
+	err = o.fd.pd.Prepare(int(o.mode))
+	if err != nil {
+		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, err}
 	}
 	// Start IO.
 	if canCancelIO {
@@ -223,67 +184,56 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 	default:
 		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, err}
 	}
-	// Setup timer, if deadline is given.
-	var timer <-chan time.Time
-	if delta > 0 {
-		t := time.NewTimer(time.Duration(delta) * time.Nanosecond)
-		defer t.Stop()
-		timer = t.C
-	}
 	// Wait for our request to complete.
-	var r ioResult
-	var cancelled, timeout bool
-	select {
-	case r = <-o.resultc:
-	case <-timer:
-		cancelled = true
-		timeout = true
-	case <-o.fd.closec:
-		cancelled = true
-	}
-	if cancelled {
-		// Cancel it.
-		if canCancelIO {
-			err := syscall.CancelIoEx(syscall.Handle(o.Op().fd.sysfd), &o.o)
-			// Assuming ERROR_NOT_FOUND is returned, if IO is completed.
-			if err != nil && err != syscall.ERROR_NOT_FOUND {
-				// TODO(brainman): maybe do something else, but panic.
-				panic(err)
-			}
-		} else {
-			s.canchan <- oi
-			<-o.errnoc
+	err = o.fd.pd.Wait(int(o.mode))
+	if err == nil {
+		// All is good. Extract our IO results and return.
+		if o.errno != 0 {
+			err = syscall.Errno(o.errno)
+			return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, err}
 		}
-		// Wait for IO to be canceled or complete successfully.
-		r = <-o.resultc
-		if r.err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
-			if timeout {
-				r.err = errTimeout
-			} else {
-				r.err = errClosing
-			}
+		return int(o.qty), nil
+	}
+	// IO is interrupted by "close" or "timeout"
+	netpollErr := err
+	switch netpollErr {
+	case errClosing, errTimeout:
+		// will deal with those.
+	default:
+		panic("net: unexpected runtime.netpoll error: " + netpollErr.Error())
+	}
+	// Cancel our request.
+	if canCancelIO {
+		err := syscall.CancelIoEx(syscall.Handle(o.Op().fd.sysfd), &o.o)
+		// Assuming ERROR_NOT_FOUND is returned, if IO is completed.
+		if err != nil && err != syscall.ERROR_NOT_FOUND {
+			// TODO(brainman): maybe do something else, but panic.
+			panic(err)
 		}
+	} else {
+		s.canchan <- oi
+		<-o.errnoc
 	}
-	if r.err != nil {
-		err = &OpError{oi.Name(), o.fd.net, o.fd.laddr, r.err}
+	// Wait for cancellation to complete.
+	o.fd.pd.WaitCanceled(int(o.mode))
+	if o.errno != 0 {
+		err = syscall.Errno(o.errno)
+		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
+			err = netpollErr
+		}
+		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, err}
 	}
-	return int(r.qty), err
+	// We issued cancellation request. But, it seems, IO operation succeeded
+	// before cancellation request run. We need to treat IO operation as
+	// succeeded (the bytes are actually sent/recv from network).
+	return int(o.qty), nil
 }
 
 // Start helper goroutines.
-var resultsrv *resultSrv
 var iosrv *ioSrv
 var onceStartServer sync.Once
 
 func startServer() {
-	resultsrv = new(resultSrv)
-	var err error
-	resultsrv.iocp, err = syscall.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 1)
-	if err != nil {
-		panic("CreateIoCompletionPort: " + err.Error())
-	}
-	go resultsrv.Run()
-
 	iosrv = new(ioSrv)
 	if !canCancelIO {
 		// Only CancelIo API is available. Lets start special goroutine
@@ -309,38 +259,30 @@ type netFD struct {
 	net         string
 	laddr       Addr
 	raddr       Addr
-	resultc     [2]chan ioResult // read/write completion results
-	errnoc      [2]chan error    // read/write submit or cancel operation errors
-	closec      chan bool        // used by Close to cancel pending IO
+	errnoc      [2]chan error // read/write submit or cancel operation errors
 
 	// serialize access to Read and Write methods
 	rio, wio sync.Mutex
 
-	// read and write deadlines
-	rdeadline, wdeadline deadline
+	// wait server
+	pd pollDesc
 }
 
-func allocFD(fd syscall.Handle, family, sotype int, net string) *netFD {
+func newFD(fd syscall.Handle, family, sotype int, net string) (*netFD, error) {
+	if initErr != nil {
+		return nil, initErr
+	}
+	onceStartServer.Do(startServer)
 	netfd := &netFD{
 		sysfd:  fd,
 		family: family,
 		sotype: sotype,
 		net:    net,
-		closec: make(chan bool),
 	}
-	return netfd
-}
-
-func newFD(fd syscall.Handle, family, proto int, net string) (*netFD, error) {
-	if initErr != nil {
-		return nil, initErr
-	}
-	onceStartServer.Do(startServer)
-	// Associate our socket with resultsrv.iocp.
-	if _, err := syscall.CreateIoCompletionPort(syscall.Handle(fd), resultsrv.iocp, 0, 0); err != nil {
+	if err := netfd.pd.Init(netfd); err != nil {
 		return nil, err
 	}
-	return allocFD(fd, family, proto, net), nil
+	return netfd, nil
 }
 
 func (fd *netFD) setAddr(laddr, raddr Addr) {
@@ -386,7 +328,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 	var o connectOp
 	o.Init(fd, 'w')
 	o.ra = ra
-	_, err := iosrv.ExecIO(&o, fd.wdeadline.value())
+	_, err := iosrv.ExecIO(&o)
 	if err != nil {
 		return err
 	}
@@ -438,7 +380,7 @@ func (fd *netFD) Close() error {
 	}
 	defer fd.decref()
 	// unblock pending reader and writer
-	close(fd.closec)
+	fd.pd.Evict()
 	// wait for both reader and writer to exit
 	fd.rio.Lock()
 	defer fd.rio.Unlock()
@@ -495,7 +437,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	defer fd.rio.Unlock()
 	var o readOp
 	o.Init(fd, buf, 'r')
-	n, err := iosrv.ExecIO(&o, fd.rdeadline.value())
+	n, err := iosrv.ExecIO(&o)
 	if err == nil && n == 0 {
 		err = io.EOF
 	}
@@ -532,7 +474,7 @@ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	var o readFromOp
 	o.Init(fd, buf, 'r')
 	o.rsan = int32(unsafe.Sizeof(o.rsa))
-	n, err = iosrv.ExecIO(&o, fd.rdeadline.value())
+	n, err = iosrv.ExecIO(&o)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -564,7 +506,7 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	defer fd.wio.Unlock()
 	var o writeOp
 	o.Init(fd, buf, 'w')
-	return iosrv.ExecIO(&o, fd.wdeadline.value())
+	return iosrv.ExecIO(&o)
 }
 
 // WriteTo to network.
@@ -596,7 +538,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	var o writeToOp
 	o.Init(fd, buf, 'w')
 	o.sa = sa
-	return iosrv.ExecIO(&o, fd.wdeadline.value())
+	return iosrv.ExecIO(&o)
 }
 
 // Accept new network connections.
@@ -631,17 +573,17 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	}
 
 	// Associate our new socket with IOCP.
-	onceStartServer.Do(startServer)
-	if _, err := syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); err != nil {
+	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
+	if err != nil {
 		closesocket(s)
-		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, err}
+		return nil, &OpError{"accept", fd.net, fd.laddr, err}
 	}
 
 	// Submit accept request.
 	var o acceptOp
 	o.Init(fd, 'r')
 	o.newsock = s
-	_, err = iosrv.ExecIO(&o, fd.rdeadline.value())
+	_, err = iosrv.ExecIO(&o)
 	if err != nil {
 		closesocket(s)
 		return nil, err
@@ -663,7 +605,6 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	lsa, _ := lrsa.Sockaddr()
 	rsa, _ := rrsa.Sockaddr()
 
-	netfd := allocFD(s, fd.family, fd.sotype, fd.net)
 	netfd.setAddr(toAddr(lsa), toAddr(rsa))
 	return netfd, nil
 }

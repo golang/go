@@ -30,6 +30,9 @@ enum {
 	EXCEPTION_FLT_UNDERFLOW		= 0xc0000093,
 	EXCEPTION_INT_DIVIDE_BY_ZERO	= 0xc0000094,
 	EXCEPTION_INT_OVERFLOW		= 0xc0000095,
+
+	INFINITE	= 0xffffffff,
+	WAIT_TIMEOUT	= 0x102,
 };
 
 typedef struct SystemInfo SystemInfo;
@@ -37,6 +40,7 @@ typedef struct ExceptionRecord ExceptionRecord;
 typedef struct FloatingSaveArea FloatingSaveArea;
 typedef struct M128a M128a;
 typedef struct Context Context;
+typedef struct Overlapped Overlapped;
 
 #pragma pack on
 
@@ -97,6 +101,12 @@ struct Context {
 	uint32	Esp;
 	uint32	SegSs;
 	uint8	ExtendedRegisters[512];
+};
+struct Overlapped {
+	uint32	Internal;
+	uint32	InternalHigh;
+	byte	anon0[8];
+	byte	*hEvent;
 };
 
 
