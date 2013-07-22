@@ -128,11 +128,10 @@ In addition to saving pages, we will want to load pages, too:
 {{code "doc/articles/wiki/part1-noerror.go" `/^func loadPage/` `/^}/`}}
 
 <p>
-The function <code>loadPage</code> constructs the file name from
-the title parameter, reads the file's contents into a new
-variable <code>body</code>, and returns two values: a pointer to a
-<code>Page</code> literal constructed with the proper title and body
-values and <code>nil</code> for the error value.
+The function <code>loadPage</code> constructs the file name from the title
+parameter, reads the file's contents into a new variable <code>body</code>, and
+returns a pointer to a <code>Page</code> literal constructed with the proper
+title and body values.
 </p>
 
 <p>
