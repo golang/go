@@ -124,7 +124,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 }
 
 // Verify verifies the signature in r, s of hash using the public key, pub. It
-// returns true iff the signature is valid.
+// returns whether the signature is valid.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	// See [NSA] 3.4.2
 	c := pub.Curve

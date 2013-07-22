@@ -183,7 +183,7 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
 // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
 type ObjectIdentifier []int
 
-// Equal returns true iff oi and other represent the same identifier.
+// Equal returns whether oi and other represent the same identifier.
 func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
 	if len(oi) != len(other) {
 		return false
