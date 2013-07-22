@@ -905,11 +905,15 @@ void	runtime·unlock(Lock*);
  * wake up early, it must wait to call noteclear until it
  * can be sure that no other goroutine is calling
  * notewakeup.
+ *
+ * notesleep/notetsleep are generally called on g0,
+ * notetsleepg is similar to notetsleep but is called on user g.
  */
 void	runtime·noteclear(Note*);
 void	runtime·notesleep(Note*);
 void	runtime·notewakeup(Note*);
 bool	runtime·notetsleep(Note*, int64);  // false - timeout
+bool	runtime·notetsleepg(Note*, int64);  // false - timeout
 
 /*
  * low-level synchronization for implementing the above

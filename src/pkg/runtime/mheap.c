@@ -460,9 +460,7 @@ runtime·MHeap_Scavenger(void)
 	h = &runtime·mheap;
 	for(k=0;; k++) {
 		runtime·noteclear(&note);
-		runtime·entersyscallblock();
-		runtime·notetsleep(&note, tick);
-		runtime·exitsyscall();
+		runtime·notetsleepg(&note, tick);
 
 		runtime·lock(h);
 		now = runtime·nanotime();
@@ -474,9 +472,7 @@ runtime·MHeap_Scavenger(void)
 			runtime·noteclear(&note);
 			notep = &note;
 			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
-			runtime·entersyscallblock();
-			runtime·notesleep(&note);
-			runtime·exitsyscall();
+			runtime·notetsleepg(&note, -1);
 			if(runtime·debug.gctrace > 0)
 				runtime·printf("scvg%d: GC forced\n", k);
 			runtime·lock(h);

@@ -106,9 +106,7 @@ func signal_recv() (m uint32) {
 				new = HASWAITER;
 			if(runtime·cas(&sig.state, old, new)) {
 				if (new == HASWAITER) {
-					runtime·entersyscallblock();
-					runtime·notesleep(&sig);
-					runtime·exitsyscall();
+					runtime·notetsleepg(&sig, -1);
 					runtime·noteclear(&sig);
 				}
 				break;
