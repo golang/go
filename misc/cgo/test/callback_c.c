@@ -57,3 +57,10 @@ twoSleep(int n)
 	BackgroundSleep(n);
 	return mysleep(n);
 }
+
+void
+callGoStackCheck(void)
+{
+	extern void goStackCheck(void);
+	goStackCheck();
+}
