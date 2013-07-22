@@ -1214,10 +1214,27 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
 	FLUSH(&recvOK);
 }
 
+static void closechan(Hchan *c, void *pc);
+
 // closechan(sel *byte);
 #pragma textflag 7
 void
 runtime·closechan(Hchan *c)
+{
+	closechan(c, runtime·getcallerpc(&c));
+}
+
+// For reflect
+//	func chanclose(c chan)
+#pragma textflag 7
+void
+reflect·chanclose(Hchan *c)
+{
+	closechan(c, runtime·getcallerpc(&c));
+}
+
+static void
+closechan(Hchan *c, void *pc)
 {
 	SudoG *sg;
 	G* gp;
@@ -1235,7 +1252,7 @@ runtime·closechan(Hchan *c)
 	}
 
 	if(raceenabled) {
-		runtime·racewritepc(c, runtime·getcallerpc(&c), runtime·closechan);
+		runtime·racewritepc(c, pc, runtime·closechan);
 		runtime·racerelease(c);
 	}
 
@@ -1262,14 +1279,6 @@ runtime·closechan(Hchan *c)
 	}
 
 	runtime·unlock(c);
-}
-
-// For reflect
-//	func chanclose(c chan)
-void
-reflect·chanclose(Hchan *c)
-{
-	runtime·closechan(c);
 }
 
 // For reflect
