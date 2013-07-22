@@ -266,7 +266,7 @@ func (m *icmpMessage) Marshal() ([]byte, error) {
 	s = s + s>>16
 	// Place checksum back in header; using ^= avoids the
 	// assumption the checksum bytes are zero.
-	b[2] ^= byte(^s & 0xff)
+	b[2] ^= byte(^s)
 	b[3] ^= byte(^s >> 8)
 	return b, nil
 }
@@ -309,8 +309,8 @@ func (p *icmpEcho) Len() int {
 // reply message body p.
 func (p *icmpEcho) Marshal() ([]byte, error) {
 	b := make([]byte, 4+len(p.Data))
-	b[0], b[1] = byte(p.ID>>8), byte(p.ID&0xff)
-	b[2], b[3] = byte(p.Seq>>8), byte(p.Seq&0xff)
+	b[0], b[1] = byte(p.ID>>8), byte(p.ID)
+	b[2], b[3] = byte(p.Seq>>8), byte(p.Seq)
 	copy(b[4:], p.Data)
 	return b, nil
 }
