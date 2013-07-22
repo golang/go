@@ -1376,7 +1376,7 @@ addvarint(Sym *s, uint32 val)
 	p = s->p + s->np - n;
 	for(v = val; v >= 0x80; v >>= 7)
 		*p++ = v | 0x80;
-	*p++ = v;
+	*p = v;
 }
 
 // funcpctab appends to dst a pc-value table mapping the code in func to the values
@@ -1423,7 +1423,7 @@ funcpctab(Sym *dst, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32, Prog*, 
 		if(val == oldval && started) {
 			val = valfunc(func, val, p, 1, arg);
 			if(debug['O'])
-				Bprint(&bso, "%6llux %6s %P\n", p->pc, "", p);
+				Bprint(&bso, "%6llux %6s %P\n", (vlong)p->pc, "", p);
 			continue;
 		}
 
@@ -1434,7 +1434,7 @@ funcpctab(Sym *dst, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32, Prog*, 
 		if(p->link && p->link->pc == p->pc) {
 			val = valfunc(func, val, p, 1, arg);
 			if(debug['O'])
-				Bprint(&bso, "%6llux %6s %P\n", p->pc, "", p);
+				Bprint(&bso, "%6llux %6s %P\n", (vlong)p->pc, "", p);
 			continue;
 		}
 
@@ -1453,11 +1453,9 @@ funcpctab(Sym *dst, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32, Prog*, 
 		// where the 0x80 bit indicates that the integer continues.
 
 		if(debug['O'])
-			Bprint(&bso, "%6llux %6d %P\n", p->pc, val, p);
+			Bprint(&bso, "%6llux %6d %P\n", (vlong)p->pc, val, p);
 
-		if(!started)
-			started = 1;
-		else {
+		if(started) {
 			addvarint(dst, (p->pc - pc) / MINLC);
 			pc = p->pc;
 		}
@@ -1474,7 +1472,7 @@ funcpctab(Sym *dst, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32, Prog*, 
 
 	if(started) {
 		if(debug['O'])
-			Bprint(&bso, "%6llux done\n", func->value+func->size);
+			Bprint(&bso, "%6llux done\n", (vlong)func->value+func->size);
 		addvarint(dst, (func->value+func->size - pc) / MINLC);
 		addvarint(dst, 0); // terminator
 	}
