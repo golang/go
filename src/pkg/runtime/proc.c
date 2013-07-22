@@ -1310,7 +1310,7 @@ goexit0(G *gp)
 	m->curg = nil;
 	m->lockedg = nil;
 	if(m->locked & ~LockExternal) {
-		runtime·printf("invalid m->locked = %d", m->locked);
+		runtime·printf("invalid m->locked = %d\n", m->locked);
 		runtime·throw("internal lockOSThread error");
 	}	
 	m->locked = 0;
