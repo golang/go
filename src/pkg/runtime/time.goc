@@ -131,6 +131,11 @@ runtime·deltimer(Timer *t)
 {
 	int32 i;
 
+	// Dereference t so that any panic happens before the lock is held.
+	// Discard result, because t might be moving in the heap.
+	i = t->i;
+	USED(i);
+
 	runtime·lock(&timers);
 
 	// t may not be registered anymore and may have
