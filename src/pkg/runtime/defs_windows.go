@@ -7,8 +7,8 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
-GOARCH=386 cgo -cdefs defs.go >386/defs.h
+GOARCH=amd64 go tool cgo -cdefs defs_windows.go > defs_windows_amd64.h
+GOARCH=386 go tool cgo -cdefs defs_windows.go > defs_windows_386.h
 */
 
 package runtime
@@ -57,6 +57,9 @@ const (
 	EXCEPTION_FLT_UNDERFLOW        = C.STATUS_FLOAT_UNDERFLOW
 	EXCEPTION_INT_DIVIDE_BY_ZERO   = C.STATUS_INTEGER_DIVIDE_BY_ZERO
 	EXCEPTION_INT_OVERFLOW         = C.STATUS_INTEGER_OVERFLOW
+
+	INFINITE     = C.INFINITE
+	WAIT_TIMEOUT = C.WAIT_TIMEOUT
 )
 
 type SystemInfo C.SYSTEM_INFO
@@ -64,3 +67,4 @@ type ExceptionRecord C.EXCEPTION_RECORD
 type FloatingSaveArea C.FLOATING_SAVE_AREA
 type M128a C.M128A
 type Context C.CONTEXT
+type Overlapped C.OVERLAPPED
