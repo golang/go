@@ -231,3 +231,16 @@ runtime·notetsleep(Note *n, int64 ns)
 		}
 	}
 }
+
+bool
+runtime·notetsleepg(Note *n, int64 ns)
+{
+	bool res;
+
+	if(g == m->g0)
+		runtime·throw("notetsleepg on g0");
+	runtime·entersyscallblock();
+	res = runtime·notetsleep(n, ns);
+	runtime·exitsyscall();
+	return res;
+}

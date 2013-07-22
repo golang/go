@@ -358,9 +358,7 @@ getprofile(Profile *p)
 		return ret;
 
 	// Wait for new log.
-	runtime·entersyscallblock();
-	runtime·notesleep(&p->wait);
-	runtime·exitsyscall();
+	runtime·notetsleepg(&p->wait, -1);
 	runtime·noteclear(&p->wait);
 
 	n = p->handoff;
