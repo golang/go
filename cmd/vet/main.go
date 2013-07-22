@@ -150,7 +150,9 @@ func main() {
 		}
 		return
 	}
-	doPackage(".", flag.Args())
+	if !doPackage(".", flag.Args()) {
+		warnf("no files checked")
+	}
 	os.Exit(exitCode)
 }
 
@@ -201,7 +203,8 @@ type Package struct {
 }
 
 // doPackage analyzes the single package constructed from the named files.
-func doPackage(directory string, names []string) {
+// It returns whether any files were checked.
+func doPackage(directory string, names []string) bool {
 	var files []*File
 	var astFiles []*ast.File
 	fs := token.NewFileSet()
@@ -210,13 +213,13 @@ func doPackage(directory string, names []string) {
 		if err != nil {
 			// Warn but continue to next package.
 			warnf("%s: %s", name, err)
-			return
+			return false
 		}
 		defer f.Close()
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
 			warnf("%s: %s", name, err)
-			return
+			return false
 		}
 		checkBuildTag(name, data)
 		var parsedFile *ast.File
@@ -224,11 +227,14 @@ func doPackage(directory string, names []string) {
 			parsedFile, err = parser.ParseFile(fs, name, bytes.NewReader(data), 0)
 			if err != nil {
 				warnf("%s: %s", name, err)
-				return
+				return false
 			}
 			astFiles = append(astFiles, parsedFile)
 		}
 		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
+	}
+	if len(astFiles) == 0 {
+		return false
 	}
 	pkg := new(Package)
 	pkg.path = astFiles[0].Name.Name
@@ -245,6 +251,7 @@ func doPackage(directory string, names []string) {
 		}
 	}
 	asmCheck(pkg)
+	return true
 }
 
 func visit(path string, f os.FileInfo, err error) error {
