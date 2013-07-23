@@ -229,6 +229,20 @@ func typeswitch0() {
 	}
 }
 
+// Test correct scope setup.
+// (no redeclaration errors expected in the type switch)
+func typeswitch1() {
+	var t I
+	switch t := t; t := t.(type) {
+	case nil:
+		var _ I = t
+	case T:
+		var _ T = t
+	default:
+		var _ I = t
+	}
+}
+
 func rangeloops() {
 	var (
 		x int

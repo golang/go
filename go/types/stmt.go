@@ -381,12 +381,6 @@ func (check *checker) stmt(s ast.Stmt) {
 			return
 		}
 
-		var obj Object
-		if lhs != nil {
-			obj = NewVar(lhs.Pos(), check.pkg, lhs.Name, x.typ)
-			check.declare(check.topScope, lhs, obj)
-		}
-
 		check.multipleDefaults(s.Body.List)
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
@@ -411,14 +405,19 @@ func (check *checker) stmt(s ast.Stmt) {
 				}
 			}
 			check.openScope(clause)
-			// If lhs exists, declare a corresponding object in the case-local scope if necessary.
+			// If lhs exists, declare a corresponding variable in the case-local scope if necessary.
 			if lhs != nil {
-				// A single-type case clause implicitly declares a new variable shadowing lhs.
-				if len(clause.List) == 1 && typ != nil {
-					obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, typ)
-					check.declare(check.topScope, nil, obj)
-					check.recordImplicit(clause, obj)
+				// spec: "The TypeSwitchGuard may include a short variable declaration.
+				// When that form is used, the variable is declared at the beginning of
+				// the implicit block in each clause. In clauses with a case listing
+				// exactly one type, the variable has that type; otherwise, the variable
+				// has the type of the expression in the TypeSwitchGuard."
+				if len(clause.List) != 1 || typ == nil {
+					typ = x.typ
 				}
+				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, typ)
+				check.declare(check.topScope, nil, obj)
+				check.recordImplicit(clause, obj)
 			}
 			check.stmtList(clause.Body)
 			check.closeScope()
