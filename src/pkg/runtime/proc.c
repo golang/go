@@ -651,10 +651,10 @@ runtime·needm(byte x)
 	g->stackguard0 = g->stackguard;
 
 	// On windows/386, we need to put an SEH frame (two words)
-	// somewhere on the current stack. We are called
-	// from needm, and we know there is some available
-	// space one word into the argument frame. Use that.
-	m->seh = (SEH*)((uintptr*)&x + 1);
+	// somewhere on the current stack. We are called from cgocallback_gofunc
+	// and we know that it will leave two unused words below m->curg->sched.sp.
+	// Use those.
+	m->seh = (SEH*)((uintptr*)m->curg->sched.sp - 3);
 
 	// Initialize this thread to use the m.
 	runtime·asminit();
