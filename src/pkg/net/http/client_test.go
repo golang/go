@@ -666,6 +666,36 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	}
 }
 
+// Test for golang.org/issue/5829; the Transport should respect TLSClientConfig.ServerName
+// when not empty.
+//
+// tls.Config.ServerName (non-empty, set to "example.com") takes
+// precedence over "some-other-host.tld" which previously incorrectly
+// took precedence. We don't actually connect to (or even resolve)
+// "some-other-host.tld", though, because of the Transport.Dial hook.
+//
+// The httptest.Server has a cert with "example.com" as its name.
+func TestTransportUsesTLSConfigServerName(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello"))
+	}))
+	defer ts.Close()
+
+	tr := newTLSTransport(t, ts)
+	tr.TLSClientConfig.ServerName = "example.com" // one of httptest's Server cert names
+	tr.Dial = func(netw, addr string) (net.Conn, error) {
+		return net.Dial(netw, ts.Listener.Addr().String())
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	res, err := c.Get("https://some-other-host.tld/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+}
+
 // Verify Response.ContentLength is populated. http://golang.org/issue/4126
 func TestClientHeadContentLength(t *testing.T) {
 	defer afterTest(t)
