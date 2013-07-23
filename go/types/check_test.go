@@ -209,10 +209,10 @@ func checkFiles(t *testing.T, testfiles []string) {
 			t.Error(err)
 			return
 		}
-		// Ignore error messages containing "previous declaration":
+		// Ignore error messages containing "other declaration":
 		// They are follow-up error messages after a redeclaration
 		// error.
-		if !strings.Contains(err.Error(), "previous declaration") {
+		if !strings.Contains(err.Error(), "other declaration") {
 			errlist = append(errlist, err)
 		}
 	}

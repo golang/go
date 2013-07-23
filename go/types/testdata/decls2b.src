@@ -41,3 +41,13 @@ func f_double /* ERROR "redeclared" */ () {}
 func (T /* ERROR "undeclared" */ ) _() {}
 func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
 func (T1) _() int { return "foo" /* ERROR "cannot convert" */ }
+
+// Methods with undeclared receiver type can still be checked.
+// Verify by checking that errors are reported.
+func (Foo /* ERROR "undeclared" */ ) m() {}
+func (Foo /* ERROR "undeclared" */ ) m(undeclared /* ERROR "undeclared" */ ) {}
+func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot convert" */ }
+
+func (Foo /* ERROR "undeclared" */ ) _() {}
+func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
+func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot convert" */ }

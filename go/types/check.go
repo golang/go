@@ -38,22 +38,22 @@ type exprInfo struct {
 type checker struct {
 	conf *Config
 	fset *token.FileSet
-	pkg  *Package // current package
+	pkg  *Package
 
 	methods     map[string][]*Func     // maps type names to associated methods
 	conversions map[*ast.CallExpr]bool // set of type-checked conversions (to distinguish from calls)
 	untyped     map[ast.Expr]exprInfo  // map of expressions without final type
 
-	firsterr error // first error encountered
+	firstErr error // first error encountered
 	Info           // collected type info
 
-	objMap   map[Object]*declInfo // if set we are in the package-level declaration phase (otherwise all objects seen must be declared)
-	topScope *Scope               // topScope for lookups, non-global declarations
-	iota     exact.Value          // value of iota in a constant declaration; nil otherwise
+	objMap   map[Object]declInfo // if set we are in the package-level declaration phase (otherwise all objects seen must be declared)
+	topScope *Scope              // current topScope for lookups
+	iota     exact.Value         // value of iota in a constant declaration; nil otherwise
 
 	// functions
-	funclist []function // list of functions/methods with correct signatures and non-empty bodies
-	funcsig  *Signature // signature of currently type-checked function
+	funcList []funcInfo // list of functions/methods with correct signatures and non-empty bodies
+	funcSig  *Signature // signature of currently type-checked function
 
 	// debugging
 	indent int // indentation for tracing
@@ -96,24 +96,6 @@ func (check *checker) recordImplicit(node ast.Node, obj Object) {
 	}
 }
 
-type function struct {
-	file *Scope
-	obj  *Func // for debugging/tracing only
-	sig  *Signature
-	body *ast.BlockStmt
-}
-
-// later adds a function with non-empty body to the list of functions
-// that need to be processed after all package-level declarations
-// are type-checked.
-//
-func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
-	// functions implemented elsewhere (say in assembly) have no body
-	if body != nil {
-		check.funclist = append(check.funclist, function{check.topScope, f, sig, body})
-	}
-}
-
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
@@ -121,7 +103,7 @@ func (check *checker) handleBailout(err *error) {
 	switch p := recover().(type) {
 	case nil, bailout:
 		// normal return or early exit
-		*err = check.firsterr
+		*err = check.firstErr
 	default:
 		// unexpected panic: don't crash clients
 		// TODO(gri) add a test case for this scenario

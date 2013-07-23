@@ -40,7 +40,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 			check.dump("%s: %s should have been declared (we are inside a function)", e.Pos(), e)
 			unreachable()
 		}
-		check.declareObject(obj, def, cycleOk)
+		check.objDecl(obj, def, cycleOk)
 		typ = obj.Type()
 	}
 	assert(typ != nil)

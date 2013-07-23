@@ -79,10 +79,10 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.declStmt(s.Decl)
 
 	case *ast.LabeledStmt:
-		scope := check.funcsig.labels
+		scope := check.funcSig.labels
 		if scope == nil {
 			scope = new(Scope) // no label scope chain
-			check.funcsig.labels = scope
+			check.funcSig.labels = scope
 		}
 		label := s.Label
 		check.declare(scope, label, NewLabel(label.Pos(), label.Name))
@@ -219,7 +219,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// TODO(gri) If a builtin is called, the builtin must be valid this context.
 
 	case *ast.ReturnStmt:
-		sig := check.funcsig
+		sig := check.funcSig
 		if n := sig.results.Len(); n > 0 {
 			// determine if the function has named results
 			named := false

@@ -55,8 +55,8 @@ func (check *checker) dump(format string, args ...interface{}) {
 }
 
 func (check *checker) err(err error) {
-	if check.firsterr == nil {
-		check.firsterr = err
+	if check.firstErr == nil {
+		check.firstErr = err
 	}
 	f := check.conf.Error
 	if f == nil {
