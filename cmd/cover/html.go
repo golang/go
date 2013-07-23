@@ -275,7 +275,7 @@ func htmlGen(w io.Writer, src []byte, tokens []Token) error {
 }
 
 // startBrowser tries to open the URL in a browser
-// and returns whether it succeed.
+// and reports whether it succeeds.
 func startBrowser(url string) bool {
 	// try to start the browser
 	var args []string

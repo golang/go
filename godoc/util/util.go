@@ -35,7 +35,7 @@ func (v *RWValue) Get() (interface{}, time.Time) {
 	return v.value, v.timestamp
 }
 
-// IsText returns whether a significant prefix of s looks like correct UTF-8;
+// IsText reports whether a significant prefix of s looks like correct UTF-8;
 // that is, if it is likely that s is human-readable text.
 func IsText(s []byte) bool {
 	const max = 1024 // at least utf8.UTFMax
@@ -61,7 +61,7 @@ var textExt = map[string]bool{
 	".js":  false, // must be served raw
 }
 
-// IsTextFile returns whether the file has a known extension indicating
+// IsTextFile reports whether the file has a known extension indicating
 // a text file, or if a significant chunk of the specified file looks like
 // correct UTF-8; that is, if it is likely that the file contains human-
 // readable text.
