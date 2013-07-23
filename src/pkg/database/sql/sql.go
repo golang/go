@@ -759,10 +759,10 @@ func (db *DB) queryConn(dc *driverConn, releaseConn func(error), query string, a
 	ds := driverStmt{dc, si}
 	rowsi, err := rowsiFromStatement(ds, args...)
 	if err != nil {
-		releaseConn(err)
 		dc.Lock()
 		si.Close()
 		dc.Unlock()
+		releaseConn(err)
 		return nil, err
 	}
 

@@ -1046,6 +1046,20 @@ func TestRowsCloseOrder(t *testing.T) {
 	}
 }
 
+func TestStmtCloseOrder(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxIdleConns(0)
+	setStrictFakeConnClose(t)
+	defer setStrictFakeConnClose(nil)
+
+	_, err := db.Query("SELECT|non_existent|name|")
+	if err == nil {
+		t.Fatal("Quering non-existent table should fail")
+	}
+}
+
 func manyConcurrentQueries(t testOrBench) {
 	maxProcs, numReqs := 16, 500
 	if testing.Short() {
