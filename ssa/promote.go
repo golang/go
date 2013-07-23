@@ -23,14 +23,20 @@ import (
 // *T receiver types, etc.
 // A nil result indicates an empty set.
 //
-// TODO(adonovan): opt: most uses of MethodSet() only access one
-// member; only generation of object code for MakeInterface needs them
-// all.  Build it incrementally.
-//
 // Thread-safe.
 //
 func (prog *Program) MethodSet(typ types.Type) MethodSet {
-	if typ.MethodSet().Len() == 0 {
+	return prog.populateMethodSet(typ, "")
+}
+
+// populateMethodSet returns the method set for typ, ensuring that it
+// contains at least key id.  If id is empty, the entire method set is
+// populated.
+//
+func (prog *Program) populateMethodSet(typ types.Type, id string) MethodSet {
+	tmset := typ.MethodSet()
+	n := tmset.Len()
+	if n == 0 {
 		return nil
 	}
 	if _, ok := deref(typ).Underlying().(*types.Interface); ok {
@@ -38,29 +44,53 @@ func (prog *Program) MethodSet(typ types.Type) MethodSet {
 		// has no methods---yet go/types says it has!
 		return nil
 	}
-	if !canHaveConcreteMethods(typ, true) {
-		return nil
-	}
 
 	if prog.mode&LogSource != 0 {
-		defer logStack("MethodSet %s", typ)()
+		defer logStack("MethodSet %s id=%s", typ, id)()
 	}
 
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
 
-	if mset := prog.methodSets.At(typ); mset != nil {
-		return mset.(MethodSet) // cache hit
+	mset, _ := prog.methodSets.At(typ).(MethodSet)
+	if mset == nil {
+		mset = make(MethodSet)
+		prog.methodSets.Set(typ, mset)
 	}
 
-	mset := make(MethodSet)
-	tmset := typ.MethodSet()
-	for i, n := 0, tmset.Len(); i < n; i++ {
-		obj := tmset.At(i)
-		mset[obj.Func.Id()] = makeMethod(prog, typ, obj)
+	if len(mset) < n {
+		if id != "" { // single method
+			// tmset.Lookup() is no use to us with only an Id string.
+			if mset[id] == nil {
+				for i := 0; i < n; i++ {
+					obj := tmset.At(i)
+					if obj.Id() == id {
+						mset[id] = makeMethod(prog, typ, obj)
+						return mset
+					}
+				}
+			}
+		}
+
+		// complete set
+		for i := 0; i < n; i++ {
+			obj := tmset.At(i)
+			if id := obj.Id(); mset[id] == nil {
+				mset[id] = makeMethod(prog, typ, obj)
+			}
+		}
 	}
-	prog.methodSets.Set(typ, mset)
+
 	return mset
+}
+
+// LookupMethod returns the method id of type typ, building wrapper
+// methods on demand.  It returns nil if the typ has no such method.
+//
+// Thread-safe.
+//
+func (prog *Program) LookupMethod(typ types.Type, id string) *Function {
+	return prog.populateMethodSet(typ, id)[id]
 }
 
 // makeMethod returns the concrete Function for the method obj,

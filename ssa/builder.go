@@ -686,9 +686,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
 			typ := fn.Pkg.typeOf(e.X)
-			// TODO(adonovan): opt: it's overkill to
-			// generate the entire method set here.
-			if m := fn.Prog.MethodSet(typ)[id]; m != nil {
+			if m := fn.Prog.LookupMethod(typ, id); m != nil {
 				return emitConv(fn, m, fn.Pkg.typeOf(e))
 			}
 
@@ -776,9 +774,7 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id string) (*Function,
 	typ := fn.Pkg.typeOf(base)
 
 	// Consult method-set of X.
-	// TODO(adonovan): opt: it's overkill to generate the entire
-	// method set here.
-	if m := fn.Prog.MethodSet(typ)[id]; m != nil {
+	if m := fn.Prog.LookupMethod(typ, id); m != nil {
 		aptr := isPointer(typ)
 		fptr := isPointer(m.Signature.Recv().Type())
 		if aptr == fptr {
@@ -791,9 +787,7 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id string) (*Function,
 	}
 	if !isPointer(typ) {
 		// Consult method-set of *X.
-		// TODO(adonovan): opt: it's overkill to generate the
-		// entire method set here.
-		if m := fn.Prog.MethodSet(types.NewPointer(typ))[id]; m != nil {
+		if m := fn.Prog.LookupMethod(types.NewPointer(typ), id); m != nil {
 			// A method found only in MS(*X) must have a
 			// pointer formal receiver; but the actual
 			// value is not a pointer.

@@ -106,26 +106,6 @@ outer:
 	return true
 }
 
-// canHaveConcreteMethods returns true iff typ may have concrete
-// methods associated with it.  Callers must supply allowPtr=true.
-//
-// TODO(gri): consider putting this in go/types.  It's surprisingly subtle.
-func canHaveConcreteMethods(typ types.Type, allowPtr bool) bool {
-	switch typ := typ.(type) {
-	case *types.Pointer:
-		return allowPtr && canHaveConcreteMethods(typ.Elem(), false)
-	case *types.Named:
-		switch typ.Underlying().(type) {
-		case *types.Pointer, *types.Interface:
-			return false
-		}
-		return true
-	case *types.Struct:
-		return true
-	}
-	return false
-}
-
 // DefaultType returns the default "typed" type for an "untyped" type;
 // it returns the incoming type for all other types.  The default type
 // for untyped nil is untyped nil.
