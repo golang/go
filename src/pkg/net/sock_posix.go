@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-var listenerBacklog = maxListenerBacklog()
-
 // Generic POSIX socket creation.
 func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	s, err := sysSocket(f, t, p)

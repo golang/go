@@ -259,6 +259,8 @@ type PacketConn interface {
 	SetWriteDeadline(t time.Time) error
 }
 
+var listenerBacklog = maxListenerBacklog()
+
 // A Listener is a generic network listener for stream-oriented protocols.
 //
 // Multiple goroutines may invoke methods on a Listener simultaneously.
