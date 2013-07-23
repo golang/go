@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements typechecking of identifiers and type expressions.
+// This file implements type-checking of identifiers and type expressions.
 
 package types
 
@@ -14,7 +14,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// ident typechecks identifier e and initializes x with the value or type of e.
+// ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
 // For the meaning of def and cycleOk, see check.typ, below.
 //
@@ -90,11 +90,10 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	x.typ = typ
 }
 
-// typ typechecks the type expression e and initializes x with the type of e.
-// If an error occurred, x.mode is set to invalid.
+// typ type-checks the type expression e and returns its type, or Typ[Invalid].
 // If def != nil, e is the type specification for the named type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
-// any components of e are typechecked.
+// any components of e are type-checked.
 // If cycleOk is set, e (or elements of e) may refer to a named type that is not
 // yet completely set up.
 //
@@ -117,11 +116,71 @@ func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) Type {
 	return t
 }
 
+// funcType type-checks a function or method type and returns its signature.
+func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Named) *Signature {
+	sig := new(Signature)
+	if def != nil {
+		def.underlying = sig
+	}
+
+	scope := NewScope(check.topScope)
+	if retainASTLinks {
+		scope.node = ftyp
+	}
+	recv_, _ := check.collectParams(scope, recv, false)
+	params, isVariadic := check.collectParams(scope, ftyp.Params, true)
+	results, _ := check.collectParams(scope, ftyp.Results, false)
+
+	if len(recv_) > 0 {
+		// There must be exactly one receiver.
+		if len(recv_) > 1 {
+			check.invalidAST(recv_[1].Pos(), "method must have exactly one receiver")
+			// ok to continue
+		}
+		recv := recv_[0]
+		// spec: "The receiver type must be of the form T or *T where T is a type name."
+		// (ignore invalid types - error was reported before)
+		if t, _ := deref(recv.typ); t != Typ[Invalid] {
+			ok := true
+			if T, _ := t.(*Named); T != nil {
+				// spec: "The type denoted by T is called the receiver base type; it must not
+				// be a pointer or interface type and it must be declared in the same package
+				// as the method."
+				switch T.underlying.(type) {
+				case *Pointer, *Interface:
+					ok = false
+				}
+				if T.obj.pkg != check.pkg {
+					ok = false
+				}
+			} else {
+				ok = false
+			}
+			if !ok {
+				// TODO(gri) provide better error message depending on error
+				check.errorf(recv.pos, "invalid receiver %s", recv)
+				// ok to continue
+			}
+		}
+		sig.recv = recv
+	}
+
+	sig.scope = scope
+	sig.params = NewTuple(params...)
+	sig.results = NewTuple(results...)
+	sig.isVariadic = isVariadic
+
+	return sig
+}
+
 // typ0 contains the core of type checking of types.
 // Must only be called by typ.
 //
 func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
 	switch e := e.(type) {
+	case *ast.BadExpr:
+		// ignore - error reported before
+
 	case *ast.Ident:
 		var x operand
 		check.ident(&x, e, def, cycleOk)
@@ -213,22 +272,7 @@ func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
 		return typ
 
 	case *ast.FuncType:
-		typ := new(Signature)
-		if def != nil {
-			def.underlying = typ
-		}
-
-		scope := NewScope(check.topScope)
-		if retainASTLinks {
-			scope.node = e
-		}
-		typ.scope = scope
-		params, isVariadic := check.collectParams(scope, e.Params, true)
-		results, _ := check.collectParams(scope, e.Results, false)
-		typ.params = NewTuple(params...)
-		typ.results = NewTuple(results...)
-		typ.isVariadic = isVariadic
-		return typ
+		return check.funcType(nil, e, def)
 
 	case *ast.InterfaceType:
 		typ := new(Interface)
@@ -268,7 +312,7 @@ func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
 	return Typ[Invalid]
 }
 
-// typeOrNil typechecks the type expression (or nil value) e
+// typeOrNil type-checks the type expression (or nil value) e
 // and returns the typ of e, or nil.
 // If e is neither a type nor nil, typOrNil returns Typ[Invalid].
 //
@@ -343,6 +387,7 @@ func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk boo
 
 	scope := NewScope(nil)
 	for _, f := range list.List {
+		// TODO(gri) Consider calling funcType here.
 		typ := check.typ(f.Type, nil, cycleOk)
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag

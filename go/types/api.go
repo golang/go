@@ -32,7 +32,8 @@ import (
 // Check type-checks a package and returns the resulting package object,
 // or a nil package and the first error. The package is specified by a
 // list of *ast.Files and corresponding file set, and the import path
-// the package is identified with. The path must not be empty or dot (".").
+// the package is identified with. The clean path must not be empty or
+// dot (".").
 //
 // For more control over type-checking and results, use Config.Check.
 func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error) {
@@ -106,10 +107,11 @@ type Info struct {
 	// If Implicits != nil, it records the object for each node that implicitly
 	// declares objects. The following node and object types may appear:
 	//
-	//	node               obj
+	//	node               declared object
+	//
 	//	*ast.ImportSpec    *Package (imports w/o renames), or imported objects (dot-imports)
-	//	*ast.CaseClause    type-specific variable introduced for each single-type type switch clause
-	//      *ast.Field         anonymous struct field or parameter, embedded interface
+	//	*ast.CaseClause    type-specific *Var introduced for each single-type type switch clause
+	//      *ast.Field         anonymous struct field or parameter *Var
 	//
 	Implicits map[ast.Node]Object
 }
@@ -117,7 +119,7 @@ type Info struct {
 // Check type-checks a package and returns the resulting package object, the first
 // error if any, and if info != nil, additional type information. The package is
 // specified by a list of *ast.Files and corresponding file set, and the import
-// path the package is identified with. The path must not be empty or dot (".").
+// path the package is identified with. The clean path must not be empty or dot (".").
 func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
 	return conf.check(path, fset, files, info)
 }

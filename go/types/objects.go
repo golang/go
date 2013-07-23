@@ -181,12 +181,10 @@ func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
 // A Func represents a declared function.
 type Func struct {
 	object
-
-	decl *ast.FuncDecl // TODO(gri) can we get rid of this field?
 }
 
 func NewFunc(pos token.Pos, pkg *Package, name string, typ Type) *Func {
-	return &Func{object{nil, pos, pkg, name, typ}, nil}
+	return &Func{object{nil, pos, pkg, name, typ}}
 }
 
 func (obj *Func) String() string { return obj.toString("func", obj.typ) }

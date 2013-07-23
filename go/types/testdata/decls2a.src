@@ -15,7 +15,7 @@ type T1 struct{
 }
 
 func (T1) m() {}
-func (T1) m /* ERROR "redeclared" */ () {}
+func (T1) m /* ERROR "already declared" */ () {}
 func (x *T1) f /* ERROR "field and method" */ () {}
 
 // Conflict between embedded field and method name,
@@ -77,11 +77,11 @@ type T5 interface {
 	m() int
 }
 
-func (T5 /* ERROR "invalid receiver" */) m1() {}
-func (T5 /* ERROR "invalid receiver" */) m2() {}
+func (T5 /* ERROR "invalid receiver" */ ) m1() {}
+func (T5 /* ERROR "invalid receiver" */ ) m2() {}
 
 // Methods associated with non-local or unnamed types.
-func (int /* ERROR "non-local type" */ ) m() {}
+func (int /* ERROR "invalid receiver" */ ) m() {}
 func ([ /* ERROR "identifier" */ ]int) m() {}
 func (time /* ERROR "identifier" */ .Time) m() {}
 func (x interface /* ERROR "identifier" */ {}) m() {}

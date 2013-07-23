@@ -10,7 +10,7 @@ import "io"
 
 const pi = 3.1415
 
-func (T1) m /* ERROR "redeclared" */ () {}
+func (T1) m /* ERROR "already declared" */ () {}
 func (T2) m(io.Writer) {}
 
 type T3 struct {
@@ -35,3 +35,9 @@ const c_double /* ERROR "redeclared" */ = 0
 type t_double  /* ERROR "redeclared" */ int
 var v_double /* ERROR "redeclared" */ int
 func f_double /* ERROR "redeclared" */ () {}
+
+// Blank methods need to be type-checked.
+// Verify by checking that errors are reported.
+func (T /* ERROR "undeclared" */ ) _() {}
+func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
+func (T1) _() int { return "foo" /* ERROR "cannot convert" */ }

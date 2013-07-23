@@ -6,6 +6,7 @@ package types
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -29,17 +30,12 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 	}
 }
 
-// A decl describes a package-level const, type, var, or func declaration.
-type decl struct {
-	file *Scope   // scope of file containing this declaration
-	typ  ast.Expr // type, or nil
-	init ast.Expr // initialization expression, or nil
-}
-
-// An mdecl describes a method declaration.
-type mdecl struct {
-	file *Scope // scope of file containing this declaration
-	meth *ast.FuncDecl
+// A declInfo describes a package-level const, type, var, or func declaration.
+type declInfo struct {
+	file  *Scope        // scope of file containing this declaration
+	typ   ast.Expr      // type, or nil
+	init  ast.Expr      // initialization expression, or nil
+	fdecl *ast.FuncDecl // function declaration, or nil
 }
 
 // A multiExpr describes the lhs variables and a single but
@@ -83,19 +79,22 @@ func (check *checker) arityMatch(s, init *ast.ValueSpec) {
 	}
 }
 
+// TODO(gri) Split resolveFiles into smaller components.
+
 func (check *checker) resolveFiles(files []*ast.File) {
 	pkg := check.pkg
 
 	// Phase 1: Pre-declare all package-level objects so that they can be found
-	//          independent of source order.
+	//          independent of source order. Collect methods for a later phase.
 
-	var scopes []*Scope // corresponding file scope per file
-	var objList []Object
-	var objMap = make(map[Object]*decl)
-	var methods []*mdecl
-	var fileScope *Scope // current file scope, used by declare
+	var (
+		fileScope *Scope                       // current file scope, used by declare
+		scopes    []*Scope                     // corresponding file scope per file
+		objList   []Object                     // list of objects to type-check
+		objMap    = make(map[Object]*declInfo) // declaration info for each object (incl. methods)
+	)
 
-	declare := func(ident *ast.Ident, obj Object, typ, init ast.Expr) {
+	declare := func(ident *ast.Ident, obj Object, typ, init ast.Expr, fdecl *ast.FuncDecl) {
 		assert(ident.Name == obj.Name())
 
 		// spec: "A package-scope or file-scope identifier with name init
@@ -115,7 +114,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 
 		objList = append(objList, obj)
-		objMap[obj] = &decl{fileScope, typ, init}
+		objMap[obj] = &declInfo{fileScope, typ, init, fdecl}
 	}
 
 	importer := check.conf.Import
@@ -209,7 +208,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 									init = last.Values[i]
 								}
 
-								declare(name, obj, last.Type, init)
+								declare(name, obj, last.Type, init, nil)
 							}
 
 							check.arityMatch(s, last)
@@ -238,7 +237,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 									}
 								}
 
-								declare(name, obj, s.Type, init)
+								declare(name, obj, s.Type, init, nil)
 							}
 
 							check.arityMatch(s, nil)
@@ -249,7 +248,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						declare(s.Name, obj, s.Type, nil)
+						declare(s.Name, obj, s.Type, nil, nil)
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
@@ -257,14 +256,39 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				}
 
 			case *ast.FuncDecl:
-				if d.Recv != nil {
-					// collect method
-					methods = append(methods, &mdecl{fileScope, d})
+				obj := NewFunc(d.Name.Pos(), pkg, d.Name.Name, nil)
+				if d.Recv == nil {
+					// regular function
+					declare(d.Name, obj, nil, nil, d)
 					continue
 				}
-				obj := NewFunc(d.Name.Pos(), pkg, d.Name.Name, nil)
-				obj.decl = d
-				declare(d.Name, obj, nil, nil)
+
+				// Methods are associated with the receiver base type
+				// which we don't have yet. Instead, collect methods
+				// with receiver base type name so that they are known
+				// when the receiver base type is type-checked.
+
+				// The receiver type must be one of the following
+				// - *ast.Ident
+				// - *ast.StarExpr{*ast.Ident}
+				// - *ast.BadExpr (parser error)
+				typ := d.Recv.List[0].Type
+				if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
+					typ = ptr.X
+				}
+
+				// Associate method with receiver base type name, if possible.
+				// Methods with receiver types that are not type names, that
+				// are blank _ names, or methods with blank names are ignored;
+				// the respective error will be reported when the method signature
+				// is type-checked.
+				if ident, _ := typ.(*ast.Ident); ident != nil && ident.Name != "_" && obj.name != "_" {
+					check.methods[ident.Name] = append(check.methods[ident.Name], obj)
+				}
+
+				// Collect methods like other objects.
+				objList = append(objList, obj)
+				objMap[obj] = &declInfo{fileScope, nil, nil, d}
 
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
@@ -272,7 +296,8 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 	}
 
-	// Phase 2: Objects in file scopes and package scopes must have different names.
+	// Phase 2: Verify that objects in package and file scopes have different names.
+
 	for _, scope := range scopes {
 		for _, obj := range scope.entries {
 			if alt := pkg.scope.Lookup(nil, obj.Name()); alt != nil {
@@ -281,64 +306,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 	}
 
-	// Phase 3: Associate methods with types.
-	//          We do this after all top-level type names have been collected.
-
-	for _, meth := range methods {
-		m := meth.meth
-		// The receiver type must be one of the following:
-		// - *ast.Ident
-		// - *ast.StarExpr{*ast.Ident}
-		// - *ast.BadExpr (parser error)
-		typ := m.Recv.List[0].Type
-		if ptr, ok := typ.(*ast.StarExpr); ok {
-			typ = ptr.X
-		}
-		// determine receiver base type name
-		// Note: We cannot simply call check.typ because this will require
-		//       check.objMap to be usable, which it isn't quite yet.
-		ident, ok := typ.(*ast.Ident)
-		if !ok {
-			// Disabled for now since the parser reports this error.
-			// check.errorf(typ.Pos(), "receiver base type must be an (unqualified) identifier")
-			continue // ignore this method
-		}
-		// determine receiver base type object
-		var tname *TypeName
-		if obj := pkg.scope.LookupParent(ident.Name); obj != nil {
-			obj, ok := obj.(*TypeName)
-			if !ok {
-				check.errorf(ident.Pos(), "%s is not a type", ident.Name)
-				continue // ignore this method
-			}
-			if obj.pkg != pkg {
-				check.errorf(ident.Pos(), "cannot define method on non-local type %s", ident.Name)
-				continue // ignore this method
-			}
-			tname = obj
-		} else {
-			// identifier not declared/resolved
-			if ident.Name == "_" {
-				check.errorf(ident.Pos(), "cannot use _ as value or type")
-			} else {
-				check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
-			}
-			continue // ignore this method
-		}
-		// declare method in receiver base type scope
-		scope := check.methods[tname] // lazily allocated
-		if scope == nil {
-			scope = new(Scope)
-			check.methods[tname] = scope
-		}
-		fun := NewFunc(m.Name.Pos(), check.pkg, m.Name.Name, nil)
-		fun.decl = m
-		check.declare(scope, m.Name, fun)
-		// HACK(gri) change method parent scope to file scope containing the declaration
-		fun.parent = meth.file // remember the file scope
-	}
-
-	// Phase 4) Typecheck all objects in objList but not function bodies.
+	// Phase 3: Typecheck all objects in objList, but not function bodies.
 
 	check.objMap = objMap // indicate that we are checking global declarations (objects may not have a type yet)
 	for _, obj := range objList {
@@ -348,8 +316,31 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	}
 	check.objMap = nil // done with global declarations
 
-	// Phase 5) Typecheck all functions.
-	// - done by the caller for now
+	// At this point we may have a non-empty check.methods map; this means that not all
+	// entries were deleted at the end of declareType, because the respective receiver
+	// base types were not declared. In that case, an error was reported when declaring
+	// those methods. We can now safely discard this map.
+	check.methods = nil
+
+	// Phase 4: Typecheck all functions bodies.
+
+	// (funclist may grow when checking statements - cannot use range clause)
+	for i := 0; i < len(check.funclist); i++ {
+		f := check.funclist[i]
+		if trace {
+			s := "<function literal>"
+			if f.obj != nil {
+				s = f.obj.name
+			}
+			fmt.Println("---", s)
+		}
+		check.topScope = f.sig.scope // open the function scope
+		check.funcsig = f.sig
+		check.stmtList(f.body.List)
+		if f.sig.results.Len() > 0 && f.body != nil && !check.isTerminating(f.body, "") {
+			check.errorf(f.body.Rbrace, "missing return")
+		}
+	}
 }
 
 // declareObject completes the declaration of obj in its respective file scope.
@@ -373,7 +364,7 @@ func (check *checker) declareObject(obj Object, def *Named, cycleOk bool) {
 	case *TypeName:
 		check.declareType(obj, d.typ, def, cycleOk)
 	case *Func:
-		check.declareFunc(obj)
+		check.declareFunc(obj, d.fdecl)
 	default:
 		unreachable()
 	}
@@ -488,73 +479,77 @@ func (check *checker) declareType(obj *TypeName, typ ast.Expr, def *Named, cycle
 	// the underlying type has been determined
 	named.complete = true
 
-	// typecheck associated method signatures
-	if scope := check.methods[obj]; scope != nil {
-		switch t := named.underlying.(type) {
-		case *Struct:
-			// struct fields must not conflict with methods
-			if t.fields == nil {
-				break
-			}
-			for _, f := range t.fields {
-				if m := scope.Lookup(nil, f.name); m != nil {
-					check.errorf(m.Pos(), "type %s has both field and method named %s", obj.name, f.name)
-					// ok to continue
-				}
-			}
-		case *Interface:
-			// methods cannot be associated with an interface type
-			for _, m := range scope.entries {
-				recv := m.(*Func).decl.Recv.List[0].Type
-				check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.name, obj.name)
-				// ok to continue
-			}
-		}
-		// typecheck method signatures
-		var methods []*Func
-		if scope.NumEntries() > 0 {
-			for _, obj := range scope.entries {
-				m := obj.(*Func)
-
-				// set the correct file scope for checking this method type
-				fileScope := m.parent
-				assert(fileScope != nil)
-				oldScope := check.topScope
-				check.topScope = fileScope
-
-				sig := check.typ(m.decl.Type, nil, cycleOk).(*Signature)
-				params, _ := check.collectParams(sig.scope, m.decl.Recv, false)
-
-				check.topScope = oldScope // reset topScope
-
-				sig.recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
-				m.typ = sig
-				methods = append(methods, m)
-				check.later(m, sig, m.decl.Body)
-			}
-		}
-		named.methods = methods
-		delete(check.methods, obj) // we don't need this scope anymore
+	// type-check signatures of associated methods
+	methods := check.methods[obj.name]
+	if len(methods) == 0 {
+		return // no methods
 	}
+
+	// spec: "For a base type, the non-blank names of methods bound
+	// to it must be unique."
+	// => use a scope to determine redeclarations
+	scope := NewScope(nil)
+
+	// spec: "If the base type is a struct type, the non-blank method
+	// and field names must be distinct."
+	// => pre-populate the scope to find conflicts
+	if t, _ := named.underlying.(*Struct); t != nil {
+		for _, fld := range t.fields {
+			if fld.name != "_" {
+				scope.Insert(fld)
+			}
+		}
+	}
+
+	// check each method
+	for _, m := range methods {
+		assert(m.name != "_") // _ methods were excluded before
+		mdecl := check.objMap[m]
+		alt := scope.Insert(m)
+		m.parent = mdecl.file // correct parent scope (scope.Insert used scope)
+
+		if alt != nil {
+			switch alt := alt.(type) {
+			case *Var:
+				check.errorf(m.pos, "field and method with the same name %s", m.name)
+				if pos := alt.pos; pos.IsValid() {
+					check.errorf(pos, "previous declaration of %s", m.name)
+				}
+				m = nil
+			case *Func:
+				check.errorf(m.pos, "method %s already declared for %s", m.name, named)
+				if pos := alt.pos; pos.IsValid() {
+					check.errorf(pos, "previous declaration of %s", m.name)
+				}
+				m = nil
+			}
+		}
+
+		check.recordObject(mdecl.fdecl.Name, m)
+
+		// If the method is valid, type-check its signature,
+		// and collect it with the named base type.
+		if m != nil {
+			check.declareObject(m, nil, true)
+			named.methods = append(named.methods, m)
+		}
+	}
+
+	delete(check.methods, obj.name) // we don't need them anymore
 }
 
-func (check *checker) declareFunc(obj *Func) {
+func (check *checker) declareFunc(obj *Func, fdecl *ast.FuncDecl) {
 	// func declarations cannot use iota
 	assert(check.iota == nil)
 
-	fdecl := obj.decl
-	// methods are typechecked when their receivers are typechecked
-	// TODO(gri) there is no reason to make this a special case: receivers are simply parameters
-	if fdecl.Recv == nil {
-		obj.typ = Typ[Invalid] // guard against cycles
-		sig := check.typ(fdecl.Type, nil, false).(*Signature)
-		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
-			check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
-			// ok to continue
-		}
-		obj.typ = sig
-		check.later(obj, sig, fdecl.Body)
+	obj.typ = Typ[Invalid] // guard against cycles
+	sig := check.funcType(fdecl.Recv, fdecl.Type, nil)
+	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+		check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
+		// ok to continue
 	}
+	obj.typ = sig
+	check.later(obj, sig, fdecl.Body)
 }
 
 func (check *checker) declStmt(decl ast.Decl) {

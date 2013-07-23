@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements the Check function, which typechecks a package.
+// This file implements the Check function, which drives type-checking.
 
 package types
 
@@ -29,31 +29,31 @@ const retainASTLinks = true
 
 // exprInfo stores type and constant value for an untyped expression.
 type exprInfo struct {
-	isLhs bool // expression is lhs operand of a shift with delayed type check
+	isLhs bool // expression is lhs operand of a shift with delayed type-check
 	typ   *Basic
 	val   exact.Value // constant value; or nil (if not a constant)
 }
 
-// A checker is an instance of the type checker.
+// A checker is an instance of the type-checker.
 type checker struct {
 	conf *Config
 	fset *token.FileSet
-	Info
+	pkg  *Package // current package
 
-	// lazily initialized
-	pkg         *Package               // current package
-	firsterr    error                  // first error encountered
-	methods     map[*TypeName]*Scope   // maps type names to associated methods
+	methods     map[string][]*Func     // maps type names to associated methods
 	conversions map[*ast.CallExpr]bool // set of type-checked conversions (to distinguish from calls)
 	untyped     map[ast.Expr]exprInfo  // map of expressions without final type
 
-	objMap   map[Object]*decl // if set we are in the package-global declaration phase (otherwise all objects seen must be declared)
-	topScope *Scope           // topScope for lookups, non-global declarations
-	iota     exact.Value      // value of iota in a constant declaration; nil otherwise
+	firsterr error // first error encountered
+	Info           // collected type info
+
+	objMap   map[Object]*declInfo // if set we are in the package-level declaration phase (otherwise all objects seen must be declared)
+	topScope *Scope               // topScope for lookups, non-global declarations
+	iota     exact.Value          // value of iota in a constant declaration; nil otherwise
 
 	// functions
 	funclist []function // list of functions/methods with correct signatures and non-empty bodies
-	funcsig  *Signature // signature of currently typechecked function
+	funcsig  *Signature // signature of currently type-checked function
 
 	// debugging
 	indent int // indentation for tracing
@@ -64,7 +64,7 @@ func newChecker(conf *Config, fset *token.FileSet, pkg *Package) *checker {
 		conf:        conf,
 		fset:        fset,
 		pkg:         pkg,
-		methods:     make(map[*TypeName]*Scope),
+		methods:     make(map[string][]*Func),
 		conversions: make(map[*ast.CallExpr]bool),
 		untyped:     make(map[ast.Expr]exprInfo),
 	}
@@ -97,15 +97,15 @@ func (check *checker) recordImplicit(node ast.Node, obj Object) {
 }
 
 type function struct {
-	file *Scope // only valid if resolve is set
-	obj  *Func  // for debugging/tracing only
+	file *Scope
+	obj  *Func // for debugging/tracing only
 	sig  *Signature
 	body *ast.BlockStmt
 }
 
 // later adds a function with non-empty body to the list of functions
 // that need to be processed after all package-level declarations
-// are typechecked.
+// are type-checked.
 //
 func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
 	// functions implemented elsewhere (say in assembly) have no body
@@ -170,27 +170,7 @@ func (conf *Config) check(pkgPath string, fset *token.FileSet, files []*ast.File
 		check.Info = *info
 	}
 
-	// TODO(gri) resolveFiles needs to be split up and renamed (cleanup)
 	check.resolveFiles(files[:i])
-
-	// typecheck all function/method bodies
-	// (funclist may grow when checking statements - do not use range clause!)
-	for i := 0; i < len(check.funclist); i++ {
-		f := check.funclist[i]
-		if trace {
-			s := "<function literal>"
-			if f.obj != nil {
-				s = f.obj.name
-			}
-			fmt.Println("---", s)
-		}
-		check.topScope = f.sig.scope // open the function scope
-		check.funcsig = f.sig
-		check.stmtList(f.body.List)
-		if f.sig.results.Len() > 0 && f.body != nil && !check.isTerminating(f.body, "") {
-			check.errorf(f.body.Rbrace, "missing return")
-		}
-	}
 
 	// remaining untyped expressions must indeed be untyped
 	if debug {
