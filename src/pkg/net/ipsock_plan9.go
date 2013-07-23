@@ -12,9 +12,6 @@ import (
 	"syscall"
 )
 
-// /sys/include/ape/sys/socket.h:/SOMAXCONN
-var listenerBacklog = 5
-
 // probeIPv6Stack returns two boolean values.  If the first boolean
 // value is true, kernel supports basic IPv6 functionality.  If the
 // second boolean value is true, kernel supports IPv6 IPv4-mapping.
