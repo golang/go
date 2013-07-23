@@ -519,15 +519,15 @@ func (*ChanType) exprNode()      {}
 //
 func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
 
-// IsExported returns whether name is an exported Go symbol
-// (i.e., whether it begins with an uppercase letter).
+// IsExported reports whether name is an exported Go symbol
+// (that is, whether it begins with an upper-case letter).
 //
 func IsExported(name string) bool {
 	ch, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(ch)
 }
 
-// IsExported returns whether id is an exported Go symbol
+// IsExported reports whether id is an exported Go symbol
 // (i.e., whether it begins with an uppercase letter).
 //
 func (id *Ident) IsExported() bool { return IsExported(id.Name) }

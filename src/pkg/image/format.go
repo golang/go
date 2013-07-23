@@ -47,7 +47,7 @@ func asReader(r io.Reader) reader {
 	return bufio.NewReader(r)
 }
 
-// Match returns whether magic matches b. Magic may contain "?" wildcards.
+// Match reports whether magic matches b. Magic may contain "?" wildcards.
 func match(magic string, b []byte) bool {
 	if len(magic) != len(b) {
 		return false

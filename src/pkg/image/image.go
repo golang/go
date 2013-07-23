@@ -126,7 +126,7 @@ func (p *RGBA) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *RGBA) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
@@ -234,7 +234,7 @@ func (p *RGBA64) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *RGBA64) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
@@ -329,7 +329,7 @@ func (p *NRGBA) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *NRGBA) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
@@ -437,7 +437,7 @@ func (p *NRGBA64) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *NRGBA64) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
@@ -525,7 +525,7 @@ func (p *Alpha) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *Alpha) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
@@ -616,7 +616,7 @@ func (p *Alpha16) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *Alpha16) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
@@ -704,7 +704,7 @@ func (p *Gray) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *Gray) Opaque() bool {
 	return true
 }
@@ -782,7 +782,7 @@ func (p *Gray16) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *Gray16) Opaque() bool {
 	return true
 }
@@ -873,7 +873,7 @@ func (p *Paletted) SubImage(r Rectangle) Image {
 	}
 }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (p *Paletted) Opaque() bool {
 	var present [256]bool
 	i0, i1 := 0, p.Rect.Dx()

@@ -525,7 +525,7 @@ saveorignode(Node *n)
 	n->orig = norig;
 }
 
-// ispaddedfield returns whether the given field
+// ispaddedfield reports whether the given field
 // is followed by padding. For the case where t is
 // the last field, total gives the size of the enclosing struct.
 static int

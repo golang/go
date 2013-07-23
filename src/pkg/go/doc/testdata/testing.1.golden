@@ -130,7 +130,7 @@ TYPES
 	// FailNow marks the function as having failed and stops its ...
 	func (c *B) FailNow()
 
-	// Failed returns whether the function has failed. 
+	// Failed reports whether the function has failed. 
 	func (c *B) Failed() bool
 
 	// Fatal is equivalent to Log() followed by FailNow(). 
@@ -232,7 +232,7 @@ TYPES
 	// FailNow marks the function as having failed and stops its ...
 	func (c *T) FailNow()
 
-	// Failed returns whether the function has failed. 
+	// Failed reports whether the function has failed. 
 	func (c *T) Failed() bool
 
 	// Fatal is equivalent to Log() followed by FailNow(). 
@@ -278,7 +278,7 @@ TYPES
 	// FailNow marks the function as having failed and stops its ...
 	func (c *common) FailNow()
 
-	// Failed returns whether the function has failed. 
+	// Failed reports whether the function has failed. 
 	func (c *common) Failed() bool
 
 	// Fatal is equivalent to Log() followed by FailNow(). 

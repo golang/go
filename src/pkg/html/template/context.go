@@ -29,7 +29,7 @@ func (c context) String() string {
 	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, c.err)
 }
 
-// eq returns whether two contexts are equal.
+// eq reports whether two contexts are equal.
 func (c context) eq(d context) bool {
 	return c.state == d.state &&
 		c.delim == d.delim &&

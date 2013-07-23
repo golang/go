@@ -173,7 +173,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 // canonical key for "accept-encoding" is "Accept-Encoding".
 func CanonicalHeaderKey(s string) string { return textproto.CanonicalMIMEHeaderKey(s) }
 
-// hasToken returns whether token appears with v, ASCII
+// hasToken reports whether token appears with v, ASCII
 // case-insensitive, with space or comma boundaries.
 // token must be all lowercase.
 // v may contain mixed cased.

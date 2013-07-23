@@ -34,7 +34,7 @@ type Sym struct {
 	Func *Func
 }
 
-// Static returns whether this symbol is static (not visible outside its file).
+// Static reports whether this symbol is static (not visible outside its file).
 func (s *Sym) Static() bool { return s.Type >= 'a' }
 
 // PackageName returns the package part of the symbol name,

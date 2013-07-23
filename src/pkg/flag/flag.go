@@ -699,7 +699,7 @@ func (f *FlagSet) usage() {
 	}
 }
 
-// parseOne parses one flag. It returns whether a flag was seen.
+// parseOne parses one flag. It reports whether a flag was seen.
 func (f *FlagSet) parseOne() (bool, error) {
 	if len(f.args) == 0 {
 		return false, nil

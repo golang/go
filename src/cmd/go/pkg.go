@@ -492,12 +492,12 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	return p
 }
 
-// usesSwig returns whether the package needs to run SWIG.
+// usesSwig reports whether the package needs to run SWIG.
 func (p *Package) usesSwig() bool {
 	return len(p.SwigFiles) > 0 || len(p.SwigCXXFiles) > 0
 }
 
-// usesCgo returns whether the package needs to run cgo
+// usesCgo reports whether the package needs to run cgo
 func (p *Package) usesCgo() bool {
 	return len(p.CgoFiles) > 0
 }

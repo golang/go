@@ -183,7 +183,7 @@ type Request struct {
 	TLS *tls.ConnectionState
 }
 
-// ProtoAtLeast returns whether the HTTP protocol used
+// ProtoAtLeast reports whether the HTTP protocol used
 // in the request is at least major.minor.
 func (r *Request) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||

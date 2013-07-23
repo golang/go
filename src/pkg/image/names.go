@@ -41,7 +41,7 @@ func (c *Uniform) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point
 
 func (c *Uniform) At(x, y int) color.Color { return c.C }
 
-// Opaque scans the entire image and returns whether or not it is fully opaque.
+// Opaque scans the entire image and reports whether it is fully opaque.
 func (c *Uniform) Opaque() bool {
 	_, _, _, a := c.C.RGBA()
 	return a == 0xffff

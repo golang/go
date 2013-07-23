@@ -142,7 +142,7 @@ func (e *entry) pathMatch(requestPath string) bool {
 	return false
 }
 
-// hasDotSuffix returns whether s ends in "."+suffix.
+// hasDotSuffix reports whether s ends in "."+suffix.
 func hasDotSuffix(s, suffix string) bool {
 	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
 }
@@ -316,7 +316,7 @@ func canonicalHost(host string) (string, error) {
 	return toASCII(host)
 }
 
-// hasPort returns whether host contains a port number. host may be a host
+// hasPort reports whether host contains a port number. host may be a host
 // name, an IPv4 or an IPv6 address.
 func hasPort(host string) bool {
 	colons := strings.Count(host, ":")
@@ -357,7 +357,7 @@ func jarKey(host string, psl PublicSuffixList) string {
 	return host[prevDot+1:]
 }
 
-// isIP returns whether host is an IP address.
+// isIP reports whether host is an IP address.
 func isIP(host string) bool {
 	return net.ParseIP(host) != nil
 }
@@ -380,7 +380,7 @@ func defaultPath(path string) string {
 // is compared to c.Expires to determine deletion of c. defPath and host are the
 // default-path and the canonical host name of the URL c was received from.
 //
-// remove is whether the jar should delete this cookie, as it has already
+// remove records whether the jar should delete this cookie, as it has already
 // expired with respect to now. In this case, e may be incomplete, but it will
 // be valid to call e.id (which depends on e's Name, Domain and Path).
 //

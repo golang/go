@@ -44,7 +44,7 @@ initname(char *s)
 	return strcmp(s, "init") == 0;
 }
 
-// exportedsym returns whether a symbol will be visible
+// exportedsym reports whether a symbol will be visible
 // to files that import our package.
 static int
 exportedsym(Sym *sym)

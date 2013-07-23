@@ -130,7 +130,7 @@ type T struct {
 // Fail marks the function as having failed but continues execution.
 func (c *common) Fail() { c.failed = true }
 
-// Failed returns whether the function has failed.
+// Failed reports whether the function has failed.
 func (c *common) Failed() bool { return c.failed }
 
 // FailNow marks the function as having failed and stops its execution.
