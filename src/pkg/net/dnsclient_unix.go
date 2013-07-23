@@ -46,7 +46,7 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 		}
 
 		if cfg.timeout == 0 {
-			c.SetReadDeadline(time.Time{})
+			c.SetReadDeadline(noDeadline)
 		} else {
 			c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
 		}

@@ -15,7 +15,7 @@ var deadlineSetTimeTests = []struct {
 	input    time.Time
 	expected int64
 }{
-	{time.Time{}, 0},
+	{noDeadline, 0},
 	{time.Date(2009, 11, 10, 23, 00, 00, 00, time.UTC), 1257894000000000000}, // 2009-11-10 23:00:00 +0000 UTC
 }
 
@@ -42,7 +42,7 @@ var deadlineExpiredTests = []struct {
 	// the start of TestDeadlineExpired
 	{time.Now().Add(5 * time.Minute), false},
 	{time.Now().Add(-5 * time.Minute), true},
-	{time.Time{}, false}, // no deadline set
+	{noDeadline, false},
 }
 
 func TestDeadlineExpired(t *testing.T) {

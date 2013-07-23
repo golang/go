@@ -63,7 +63,7 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		}
 		fd.isConnected = true
 		if !deadline.IsZero() {
-			setWriteDeadline(fd, time.Time{})
+			setWriteDeadline(fd, noDeadline)
 		}
 	}
 
