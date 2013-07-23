@@ -514,8 +514,8 @@ func (t *Transport) dialConn(cm *connectMethod) (*persistConn, error) {
 		if err = conn.(*tls.Conn).Handshake(); err != nil {
 			return nil, err
 		}
-		if t.TLSClientConfig == nil || !t.TLSClientConfig.InsecureSkipVerify {
-			if err = conn.(*tls.Conn).VerifyHostname(cm.tlsHost()); err != nil {
+		if !cfg.InsecureSkipVerify {
+			if err = conn.(*tls.Conn).VerifyHostname(cfg.ServerName); err != nil {
 				return nil, err
 			}
 		}
