@@ -375,21 +375,18 @@ func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
 	return re.prefix, re.prefixComplete
 }
 
-// MatchReader returns whether the Regexp matches the text read by the
-// RuneReader.  The return value is a boolean: true for match, false for no
-// match.
+// MatchReader reports whether the Regexp matches the text read by the
+// RuneReader.
 func (re *Regexp) MatchReader(r io.RuneReader) bool {
 	return re.doExecute(r, nil, "", 0, 0) != nil
 }
 
-// MatchString returns whether the Regexp matches the string s.
-// The return value is a boolean: true for match, false for no match.
+// MatchString reports whether the Regexp matches the string s.
 func (re *Regexp) MatchString(s string) bool {
 	return re.doExecute(nil, nil, s, 0, 0) != nil
 }
 
-// Match returns whether the Regexp matches the byte slice b.
-// The return value is a boolean: true for match, false for no match.
+// Match reports whether the Regexp matches the byte slice b.
 func (re *Regexp) Match(b []byte) bool {
 	return re.doExecute(nil, b, "", 0, 0) != nil
 }

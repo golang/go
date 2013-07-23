@@ -238,7 +238,7 @@ type transferReader struct {
 	Trailer          Header
 }
 
-// bodyAllowedForStatus returns whether a given response status code
+// bodyAllowedForStatus reports whether a given response status code
 // permits a body.  See RFC2616, section 4.4.
 func bodyAllowedForStatus(status int) bool {
 	switch {

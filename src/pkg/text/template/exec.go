@@ -201,7 +201,7 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 }
 
-// isTrue returns whether the value is 'true', in the sense of not the zero of its type,
+// isTrue reports whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value.
 func isTrue(val reflect.Value) (truth, ok bool) {
 	if !val.IsValid() {

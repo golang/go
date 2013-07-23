@@ -736,7 +736,7 @@ xstrrchr(char *p, int c)
 	return strrchr(p, c);
 }
 
-// xsamefile returns whether f1 and f2 are the same file (or dir)
+// xsamefile reports whether f1 and f2 are the same file (or dir)
 int
 xsamefile(char *f1, char *f2)
 {

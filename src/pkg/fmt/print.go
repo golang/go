@@ -43,7 +43,7 @@ type State interface {
 	// Precision returns the value of the precision option and whether it has been set.
 	Precision() (prec int, ok bool)
 
-	// Flag returns whether the flag c, a character, has been set.
+	// Flag reports whether the flag c, a character, has been set.
 	Flag(c int) bool
 }
 

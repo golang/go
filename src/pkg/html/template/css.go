@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 )
 
-// endsWithCSSKeyword returns whether b ends with an ident that
+// endsWithCSSKeyword reports whether b ends with an ident that
 // case-insensitively matches the lower-case kw.
 func endsWithCSSKeyword(b []byte, kw string) bool {
 	i := len(b) - len(kw)
@@ -34,7 +34,7 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
 	return string(bytes.ToLower(b[i:])) == kw
 }
 
-// isCSSNmchar returns whether rune is allowed anywhere in a CSS identifier.
+// isCSSNmchar reports whether rune is allowed anywhere in a CSS identifier.
 func isCSSNmchar(r rune) bool {
 	// Based on the CSS3 nmchar production but ignores multi-rune escape
 	// sequences.
@@ -99,7 +99,7 @@ func decodeCSS(s []byte) []byte {
 	return b
 }
 
-// isHex returns whether the given character is a hex digit.
+// isHex reports reports whether the given character is a hex digit.
 func isHex(c byte) bool {
 	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
@@ -144,7 +144,7 @@ func skipCSSSpace(c []byte) []byte {
 	return c
 }
 
-// isCSSSpace returns whether b is a CSS space char as defined in wc.
+// isCSSSpace reports whether b is a CSS space char as defined in wc.
 func isCSSSpace(b byte) bool {
 	switch b {
 	case '\t', '\n', '\f', '\r', ' ':

@@ -28,7 +28,7 @@ func (f *Field) Set(x, y int, b bool) {
 	f.s[y][x] = b
 }
 
-// Alive returns whether the specified cell is alive.
+// Alive reports whether the specified cell is alive.
 // If the x or y coordinates are outside the field boundaries they are wrapped
 // toroidally. For instance, an x value of -1 is treated as width-1.
 func (f *Field) Alive(x, y int) bool {

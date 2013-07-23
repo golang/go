@@ -168,7 +168,7 @@ func fixPragmaCacheControl(header Header) {
 	}
 }
 
-// ProtoAtLeast returns whether the HTTP protocol used
+// ProtoAtLeast reports whether the HTTP protocol used
 // in the response is at least major.minor.
 func (r *Response) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||

@@ -77,7 +77,7 @@ func Count(s, sep []byte) int {
 	return count
 }
 
-// Contains returns whether subslice is within b.
+// Contains reports whether subslice is within b.
 func Contains(b, subslice []byte) bool {
 	return Index(b, subslice) != -1
 }

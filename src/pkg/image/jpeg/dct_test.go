@@ -90,7 +90,7 @@ func TestDCT(t *testing.T) {
 	}
 }
 
-// differ returns whether any pair-wise elements in b0 and b1 differ by 2 or
+// differ reports whether any pair-wise elements in b0 and b1 differ by 2 or
 // more. That tolerance is because there isn't a single definitive decoding of
 // a given JPEG image, even before the YCbCr to RGB conversion; implementations
 // can have different IDCT rounding errors.

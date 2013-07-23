@@ -27,7 +27,7 @@ func Inf(sign int) float64 {
 // NaN returns an IEEE 754 ``not-a-number'' value.
 func NaN() float64 { return Float64frombits(uvnan) }
 
-// IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
+// IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.
 func IsNaN(f float64) (is bool) {
 	// IEEE 754 says that only NaNs satisfy f != f.
 	// To avoid the floating-point hardware, could use:
@@ -36,10 +36,10 @@ func IsNaN(f float64) (is bool) {
 	return f != f
 }
 
-// IsInf returns whether f is an infinity, according to sign.
-// If sign > 0, IsInf returns whether f is positive infinity.
-// If sign < 0, IsInf returns whether f is negative infinity.
-// If sign == 0, IsInf returns whether f is either infinity.
+// IsInf reports whether f is an infinity, according to sign.
+// If sign > 0, IsInf reports whether f is positive infinity.
+// If sign < 0, IsInf reports whether f is negative infinity.
+// If sign == 0, IsInf reports whether f is either infinity.
 func IsInf(f float64, sign int) bool {
 	// Test for infinity by comparing against maximum float.
 	// To avoid the floating-point hardware, could use:

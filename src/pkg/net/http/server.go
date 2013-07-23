@@ -336,7 +336,7 @@ func (w *response) requestTooLarge() {
 	}
 }
 
-// needsSniff returns whether a Content-Type still needs to be sniffed.
+// needsSniff reports whether a Content-Type still needs to be sniffed.
 func (w *response) needsSniff() bool {
 	return !w.cw.wroteHeader && w.handlerHeader.Get("Content-Type") == "" && w.written < sniffLen
 }
@@ -1044,7 +1044,7 @@ func (c *conn) closeWriteAndWait() {
 	time.Sleep(rstAvoidanceDelay)
 }
 
-// validNPN returns whether the proto is not a blacklisted Next
+// validNPN reports whether the proto is not a blacklisted Next
 // Protocol Negotiation protocol.  Empty and built-in protocol types
 // are blacklisted and can't be overridden with alternate
 // implementations.

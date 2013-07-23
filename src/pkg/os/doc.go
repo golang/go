@@ -58,7 +58,7 @@ func (p *ProcessState) SystemTime() time.Duration {
 	return p.systemTime()
 }
 
-// Exited returns whether the program has exited.
+// Exited reports whether the program has exited.
 func (p *ProcessState) Exited() bool {
 	return p.exited()
 }
