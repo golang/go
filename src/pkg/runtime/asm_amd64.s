@@ -563,7 +563,7 @@ TEXT runtime·cgocallback(SB),7,$24-24
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),7,$24-24
+TEXT runtime·cgocallback_gofunc(SB),7,$16-24
 	// If m is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
@@ -571,13 +571,12 @@ TEXT runtime·cgocallback_gofunc(SB),7,$24-24
 	// the linker analysis by using an indirect call through AX.
 	get_tls(CX)
 #ifdef GOOS_windows
+	MOVL	$0, BP
 	CMPQ	CX, $0
-	JNE	3(PC)
-	PUSHQ	$0
-	JMP	needm
+	JNE	2(PC)
 #endif
 	MOVQ	m(CX), BP
-	PUSHQ	BP
+	MOVQ	BP, 8(SP)
 	CMPQ	BP, $0
 	JNE	havem
 needm:
@@ -591,55 +590,42 @@ havem:
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
 	// switch back to m->curg stack.
+	// NOTE: unwindm knows that the saved g->sched.sp is at 0(SP).
 	MOVQ	m_g0(BP), SI
-	PUSHQ	(g_sched+gobuf_sp)(SI)
+	MOVQ	(g_sched+gobuf_sp)(SI), AX
+	MOVQ	AX, 0(SP)
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
 
-	// Switch to m->curg stack and call runtime.cgocallbackg
-	// with the three arguments.  Because we are taking over
-	// the execution of m->curg but *not* resuming what had
-	// been running, we need to save that information (m->curg->sched)
-	// so that we can restore it when we're done. 
+	// Switch to m->curg stack and call runtime.cgocallbackg.
+	// Because we are taking over the execution of m->curg
+	// but *not* resuming what had been running, we need to
+	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
 	// To save m->curg->sched.pc, we push it onto the stack.
 	// This has the added benefit that it looks to the traceback
 	// routine like cgocallbackg is going to return to that
-	// PC (because we defined cgocallbackg to have
-	// a frame size of 24, the same amount that we use below),
+	// PC (because the frame we allocate below has the same
+	// size as cgocallback_gofunc's frame declared above)
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
-	MOVQ	fn+0(FP), AX
-	MOVQ	frame+8(FP), BX
-	MOVQ	framesize+16(FP), DX
-
+	//
+	// In the new goroutine, 0(SP) and 8(SP) are unused except
+	// on Windows, where they are the SEH block.
 	MOVQ	m_curg(BP), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
-
-	// Push gobuf.pc
 	MOVQ	(g_sched+gobuf_pc)(SI), BP
-	SUBQ	$8, DI
-	MOVQ	BP, 0(DI)
-
-	// Push arguments to cgocallbackg.
-	// Frame size here must match the frame size above plus the pushes
-	// to trick traceback routines into doing the right thing.
-	SUBQ	$40, DI
-	MOVQ	AX, 0(DI)
-	MOVQ	BX, 8(DI)
-	MOVQ	DX, 16(DI)
-	
-	// Switch stack and make the call.
-	MOVQ	DI, SP
+	MOVQ	BP, -8(DI)
+	LEAQ	-(8+16)(DI), SP
 	CALL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVQ	g(CX), SI
-	MOVQ	40(SP), BP
+	MOVQ	16(SP), BP
 	MOVQ	BP, (g_sched+gobuf_pc)(SI)
-	LEAQ	(40+8)(SP), DI
+	LEAQ	(16+8)(SP), DI
 	MOVQ	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -649,11 +635,12 @@ havem:
 	MOVQ	m_g0(BP), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
-	POPQ	(g_sched+gobuf_sp)(SI)
+	MOVQ	0(SP), AX
+	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 	
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
-	POPQ	BP
+	MOVQ	8(SP), BP
 	CMPQ	BP, $0
 	JNE 3(PC)
 	MOVQ	$runtime·dropm(SB), AX

@@ -228,13 +228,25 @@ runtime·cfree(void *p)
 
 static FuncVal unwindmf = {unwindm};
 
+typedef struct CallbackArgs CallbackArgs;
+struct CallbackArgs
+{
+	FuncVal *fn;
+	void *arg;
+	uintptr argsize;
+};
+
+#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+(3+(thechar=='5'))*sizeof(void*))
+
 void
-runtime·cgocallbackg(FuncVal *fn, void *arg, uintptr argsize)
+runtime·cgocallbackg(void)
 {
 	Defer d;
+	CallbackArgs *cb;
 
 	if(m->racecall) {
-		reflect·call(fn, arg, argsize);
+		cb = CBARGS;
+		reflect·call(cb->fn, cb->arg, cb->argsize);
 		return;
 	}
 
@@ -261,7 +273,8 @@ runtime·cgocallbackg(FuncVal *fn, void *arg, uintptr argsize)
 		runtime·raceacquire(&cgosync);
 
 	// Invoke callback.
-	reflect·call(fn, arg, argsize);
+	cb = CBARGS;
+	reflect·call(cb->fn, cb->arg, cb->argsize);
 
 	if(raceenabled)
 		runtime·racereleasemerge(&cgosync);
@@ -286,8 +299,10 @@ unwindm(void)
 		runtime·throw("runtime: unwindm not implemented");
 	case '8':
 	case '6':
-	case '5':
 		m->g0->sched.sp = *(uintptr*)m->g0->sched.sp;
+		break;
+	case '5':
+		m->g0->sched.sp = *(uintptr*)((byte*)m->g0->sched.sp + 4);
 		break;
 	}
 }
