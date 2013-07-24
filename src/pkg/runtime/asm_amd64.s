@@ -563,7 +563,7 @@ TEXT runtime·cgocallback(SB),7,$24-24
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),7,$16-24
+TEXT runtime·cgocallback_gofunc(SB),7,$8-24
 	// If m is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
@@ -576,12 +576,14 @@ TEXT runtime·cgocallback_gofunc(SB),7,$16-24
 	JEQ	2(PC)
 #endif
 	MOVQ	m(CX), BP
-	MOVQ	BP, 8(SP)
+	MOVQ	BP, R8 // holds oldm until end of function
 	CMPQ	BP, $0
 	JNE	havem
 needm:
+	MOVQ	R8, 0(SP)
 	MOVQ	$runtime·needm(SB), AX
 	CALL	AX
+	MOVQ	0(SP), R8
 	get_tls(CX)
 	MOVQ	m(CX), BP
 
@@ -610,22 +612,23 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, 0(SP) and 8(SP) are unused except
-	// on Windows, where they are the SEH block.
+	// In the new goroutine, 0(SP) holds the saved R8.
 	MOVQ	m_curg(BP), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
 	MOVQ	(g_sched+gobuf_pc)(SI), BP
 	MOVQ	BP, -8(DI)
-	LEAQ	-(8+16)(DI), SP
+	LEAQ	-(8+8)(DI), SP
+	MOVQ	R8, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
+	MOVQ	0(SP), R8
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVQ	g(CX), SI
-	MOVQ	16(SP), BP
+	MOVQ	8(SP), BP
 	MOVQ	BP, (g_sched+gobuf_pc)(SI)
-	LEAQ	(16+8)(SP), DI
+	LEAQ	(8+8)(SP), DI
 	MOVQ	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -640,8 +643,7 @@ havem:
 	
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
-	MOVQ	8(SP), BP
-	CMPQ	BP, $0
+	CMPQ	R8, $0
 	JNE 3(PC)
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX

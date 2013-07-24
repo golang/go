@@ -236,7 +236,24 @@ struct CallbackArgs
 	uintptr argsize;
 };
 
-#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+(3+(thechar=='5'))*sizeof(void*))
+// Location of callback arguments depends on stack frame layout
+// and size of stack frame of cgocallback_gofunc.
+
+// On arm, stack frame is two words and there's a saved LR between
+// SP and the stack frame and between the stack frame and the arguments.
+#ifdef GOARCH_arm
+#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
+#endif
+
+// On amd64, stack frame is one word, plus caller PC.
+#ifdef GOARCH_amd64
+#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
+#endif
+
+// On 386, stack frame is three words, plus caller PC.
+#ifdef GOARCH_386
+#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
+#endif
 
 void
 runtime·cgocallbackg(void)
