@@ -485,10 +485,14 @@ runtime·starttheworld(void)
 void
 runtime·mstart(void)
 {
+#ifdef GOOS_windows
+#ifdef GOARCH_386
 	// It is used by windows-386 only. Unfortunately, seh needs
 	// to be located on os stack, and mstart runs on os stack
 	// for both m0 and m.
 	SEH seh;
+#endif
+#endif
 
 	if(g != m->g0)
 		runtime·throw("bad runtime·mstart");
