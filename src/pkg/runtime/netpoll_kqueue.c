@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin
+// +build darwin freebsd,amd64 freebsd,386 openbsd
 
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
@@ -37,23 +37,15 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
 	// when fd is closed.
 	ev[0].ident = (uint32)fd;
 	ev[0].filter = EVFILT_READ;
-	ev[0].flags = EV_ADD|EV_RECEIPT|EV_CLEAR;
+	ev[0].flags = EV_ADD|EV_CLEAR;
 	ev[0].fflags = 0;
 	ev[0].data = 0;
 	ev[0].udata = (byte*)pd;
 	ev[1] = ev[0];
 	ev[1].filter = EVFILT_WRITE;
-	n = runtime·kevent(kq, ev, 2, ev, 2, nil);
+	n = runtime·kevent(kq, ev, 2, nil, 0, nil);
 	if(n < 0)
 		return -n;
-	if(n != 2 ||
-		(ev[0].flags&EV_ERROR) == 0 || ev[0].ident != (uint32)fd || ev[0].filter != EVFILT_READ ||
-		(ev[1].flags&EV_ERROR) == 0 || ev[1].ident != (uint32)fd || ev[1].filter != EVFILT_WRITE)
-		return EFAULT;  // just to mark out from other errors
-	if(ev[0].data != 0)
-		return ev[0].data;
-	if(ev[1].data != 0)
-		return ev[1].data;
 	return 0;
 }
 
