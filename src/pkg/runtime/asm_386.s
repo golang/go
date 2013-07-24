@@ -524,7 +524,7 @@ TEXT runtime·cgocallback(SB),7,$12-12
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),7,$8-12
+TEXT runtime·cgocallback_gofunc(SB),7,$12-12
 	// If m is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
@@ -537,12 +537,14 @@ TEXT runtime·cgocallback_gofunc(SB),7,$8-12
 	JEQ	2(PC)
 #endif
 	MOVL	m(CX), BP
-	MOVL	BP, 4(SP)
+	MOVL	BP, DX // saved copy of oldm
 	CMPL	BP, $0
 	JNE	havem
 needm:
+	MOVL	DX, 0(SP)
 	MOVL	$runtime·needm(SB), AX
 	CALL	AX
+	MOVL	0(SP), DX
 	get_tls(CX)
 	MOVL	m(CX), BP
 
@@ -552,6 +554,7 @@ havem:
 	// Save current sp in m->g0->sched.sp in preparation for
 	// switch back to m->curg stack.
 	// NOTE: unwindm knows that the saved g->sched.sp is at 0(SP).
+	// On Windows, the SEH is at 4(SP) and 8(SP).
 	MOVL	m_g0(BP), SI
 	MOVL	(g_sched+gobuf_sp)(SI), AX
 	MOVL	AX, 0(SP)
@@ -571,22 +574,24 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, 0(SP) and 4(SP) are unused except
-	// on Windows, where they are the SEH block.
+	// In the new goroutine, 0(SP) holds the saved oldm (DX) register.
+	// 4(SP) and 8(SP) are unused.
 	MOVL	m_curg(BP), SI
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), DI // prepare stack as DI
 	MOVL	(g_sched+gobuf_pc)(SI), BP
 	MOVL	BP, -4(DI)
-	LEAL	-(4+8)(DI), SP
+	LEAL	-(4+12)(DI), SP
+	MOVL	DX, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
+	MOVL	0(SP), DX
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVL	g(CX), SI
-	MOVL	8(SP), BP
+	MOVL	12(SP), BP
 	MOVL	BP, (g_sched+gobuf_pc)(SI)
-	LEAL	(8+4)(SP), DI
+	LEAL	(12+4)(SP), DI
 	MOVL	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -601,8 +606,7 @@ havem:
 	
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
-	MOVL	8(SP), BP
-	CMPL	BP, $0
+	CMPL	DX, $0
 	JNE 3(PC)
 	MOVL	$runtime·dropm(SB), AX
 	CALL	AX

@@ -499,7 +499,11 @@ runtime·mstart(void)
 	runtime·gosave(&m->g0->sched);
 	m->g0->sched.pc = (uintptr)-1;  // make sure it is never used
 	m->g0->stackguard = m->g0->stackguard0;  // cgo sets only stackguard0, copy it to stackguard
+#ifdef GOOS_windows
+#ifdef GOARCH_386
 	m->seh = &seh;
+#endif
+#endif
 	runtime·asminit();
 	runtime·minit();
 
@@ -650,11 +654,15 @@ runtime·needm(byte x)
 	g->stackguard = (uintptr)(&x - 32*1024);
 	g->stackguard0 = g->stackguard;
 
+#ifdef GOOS_windows
+#ifdef GOARCH_386
 	// On windows/386, we need to put an SEH frame (two words)
 	// somewhere on the current stack. We are called from cgocallback_gofunc
 	// and we know that it will leave two unused words below m->curg->sched.sp.
 	// Use those.
-	m->seh = (SEH*)((uintptr*)m->curg->sched.sp - 3);
+	m->seh = (SEH*)((uintptr*)&x + 1);
+#endif
+#endif
 
 	// Initialize this thread to use the m.
 	runtime·asminit();
@@ -734,7 +742,12 @@ runtime·dropm(void)
 
 	// Undo whatever initialization minit did during needm.
 	runtime·unminit();
+
+#ifdef GOOS_windows
+#ifdef GOARCH_386
 	m->seh = nil;  // reset dangling typed pointer
+#endif
+#endif
 
 	// Clear m and g, and return m to the extra list.
 	// After the call to setmg we can only call nosplit functions.
