@@ -5,7 +5,9 @@
 ;; license that can be found in the LICENSE file.
 
 (require 'cl)
+(require 'etags)
 (require 'ffap)
+(require 'ring)
 (require 'url)
 
 ;; XEmacs compatibility guidelines
@@ -925,6 +927,7 @@ description at POINT."
           (message "%s" file))
          (t
           (push-mark)
+          (ring-insert find-tag-marker-ring (point-marker))
           (godef--find-file-line-column file other-window))))
     (file-error (message "Could not run godef binary"))))
 
