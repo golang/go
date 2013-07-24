@@ -146,7 +146,7 @@ func TestGcImportedTypes(t *testing.T) {
 			continue
 		}
 
-		obj := pkg.scope.Lookup(nil, objName)
+		obj := pkg.scope.Lookup(objName)
 
 		// TODO(gri) should define an accessor on Object
 		var kind ast.ObjKind

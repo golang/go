@@ -23,14 +23,29 @@ func (check *checker) reportAltDecl(obj Object) {
 	}
 }
 
-func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
+func (check *checker) declareObj(scope *Scope, id *ast.Ident, obj Object) {
 	if obj.Name() == "_" {
 		// blank identifiers are not declared
 		obj.setParent(scope)
+		obj = nil
 	} else if alt := scope.Insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
-		obj = nil // for callIdent below
+		obj = nil
+	}
+	if id != nil {
+		check.recordObject(id, obj)
+	}
+}
+
+func (check *checker) declareFld(oset *objset, id *ast.Ident, obj Object) {
+	if obj.Name() == "_" {
+		// blank identifiers are not declared
+		obj = nil
+	} else if alt := oset.insert(obj); alt != nil {
+		check.errorf(obj.Pos(), "%s redeclared", obj.Name())
+		check.reportAltDecl(alt)
+		obj = nil
 	}
 	if id != nil {
 		check.recordObject(id, obj)
@@ -128,7 +143,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			return
 		}
 
-		check.declare(pkg.scope, ident, obj)
+		check.declareObj(pkg.scope, ident, obj)
 		objList = append(objList, obj)
 		objMap[obj] = declInfo{scope, typ, init, nil}
 	}
@@ -195,13 +210,13 @@ func (check *checker) resolveFiles(files []*ast.File) {
 								if obj.IsExported() {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for types aliases.
-									check.declare(scope, nil, obj)
+									check.declareObj(scope, nil, obj)
 									check.recordImplicit(s, obj)
 								}
 							}
 						} else {
 							// declare imported package object in file scope
-							check.declare(scope, nil, imp2)
+							check.declareObj(scope, nil, imp2)
 						}
 
 					case *ast.ValueSpec:
@@ -281,7 +296,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						obj.parent = pkg.scope
 						check.recordObject(d.Name, obj)
 					} else {
-						check.declare(pkg.scope, d.Name, obj)
+						check.declareObj(pkg.scope, d.Name, obj)
 					}
 				} else {
 					// Associate method with receiver base type name, if possible.
@@ -313,7 +328,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	for _, scope := range scopes {
 		for _, obj := range scope.entries {
-			if alt := pkg.scope.Lookup(nil, obj.Name()); alt != nil {
+			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				check.errorf(alt.Pos(), "%s already declared in this file through import of package %s", obj.Name(), obj.Pkg().Name())
 			}
 		}
@@ -503,41 +518,39 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 
 	// spec: "For a base type, the non-blank names of methods bound
 	// to it must be unique."
-	// => use a scope to determine redeclarations
-	scope := NewScope(nil)
+	// => use an objset to determine redeclarations
+	var mset objset
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	// => pre-populate the scope to find conflicts
+	// => pre-populate the objset to find conflicts
+	// TODO(gri) consider keeping the objset with the struct instead
 	if t, _ := named.underlying.(*Struct); t != nil {
 		for _, fld := range t.fields {
 			if fld.name != "_" {
-				scope.Insert(fld)
+				assert(mset.insert(fld) == nil)
 			}
 		}
 	}
 
 	// check each method
 	for _, m := range methods {
-		assert(m.name != "_") // _ methods were excluded before
-		mdecl := check.objMap[m]
-		alt := scope.Insert(m)
-		m.parent = mdecl.file // correct parent scope (scope.Insert used scope)
+		ident := check.objMap[m].fdecl.Name
 
-		if alt != nil {
-			switch alt := alt.(type) {
+		if alt := mset.insert(m); alt != nil {
+			switch alt.(type) {
 			case *Var:
 				check.errorf(m.pos, "field and method with the same name %s", m.name)
-				check.reportAltDecl(alt)
-				m = nil
 			case *Func:
 				check.errorf(m.pos, "method %s already declared for %s", m.name, named)
-				check.reportAltDecl(alt)
-				m = nil
+			default:
+				unreachable()
 			}
+			check.reportAltDecl(alt)
+			m = nil
 		}
 
-		check.recordObject(mdecl.fdecl.Name, m)
+		check.recordObject(ident, m)
 
 		// If the method is valid, type-check its signature,
 		// and collect it with the named base type.
@@ -604,7 +617,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					check.arityMatch(s, last)
 
 					for i, name := range s.Names {
-						check.declare(check.topScope, name, lhs[i])
+						check.declareObj(check.topScope, name, lhs[i])
 					}
 
 				case token.VAR:
@@ -637,7 +650,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					check.arityMatch(s, nil)
 
 					for i, name := range s.Names {
-						check.declare(check.topScope, name, lhs[i])
+						check.declareObj(check.topScope, name, lhs[i])
 					}
 
 				default:
@@ -646,7 +659,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				check.declare(check.topScope, s.Name, obj)
+				check.declareObj(check.topScope, s.Name, obj)
 				check.typeDecl(obj, s.Type, nil, false)
 
 			default:

@@ -116,7 +116,7 @@ func init() {
 		def(NewFunc(token.NoPos, nil, f.name, f))
 	}
 
-	universeIota = Universe.Lookup(nil, "iota").(*Const)
+	universeIota = Universe.Lookup("iota").(*Const)
 }
 
 // Objects with names containing blanks are internal and not entered into

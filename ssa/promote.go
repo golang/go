@@ -140,7 +140,7 @@ func makeMethod(prog *Program, typ types.Type, obj *types.Method) *Function {
 //
 func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Function {
 	old := obj.Func.Type().(*types.Signature)
-	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
+	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
 	// TODO(adonovan): include implicit field path in description.
 	description := fmt.Sprintf("promotion wrapper for (%s).%s", old.Recv(), obj.Func.Name())
@@ -310,7 +310,7 @@ func boundMethodWrapper(meth *Function) *Function {
 		s := meth.Signature
 		fn = &Function{
 			name:      "bound$" + meth.String(),
-			Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
+			Signature: types.NewSignature(nil, nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
 			Synthetic: "bound method wrapper for " + meth.String(),
 			Prog:      prog,
 			pos:       meth.Pos(),
@@ -359,7 +359,7 @@ func indirectionWrapper(meth *Function) *Function {
 		// TODO(adonovan): is there a *types.Func for this method?
 		fn = &Function{
 			name:      meth.Name(),
-			Signature: types.NewSignature(recv, s.Params(), s.Results(), s.IsVariadic()),
+			Signature: types.NewSignature(nil, recv, s.Params(), s.Results(), s.IsVariadic()),
 			Prog:      prog,
 			Synthetic: "receiver indirection wrapper for " + meth.String(),
 			pos:       meth.Pos(),

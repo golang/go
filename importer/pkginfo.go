@@ -116,7 +116,7 @@ func (info *PackageInfo) IsType(e ast.Expr) bool {
 func (info *PackageInfo) IsPackageRef(sel *ast.SelectorExpr) types.Object {
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkg, ok := info.ObjectOf(id).(*types.Package); ok {
-			return pkg.Scope().Lookup(nil, sel.Sel.Name)
+			return pkg.Scope().Lookup(sel.Sel.Name)
 		}
 	}
 	return nil
@@ -245,5 +245,5 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 		panic("unknown builtin: " + builtin)
 	}
 
-	return types.NewSignature(nil, types.NewTuple(params...), nil, isVariadic)
+	return types.NewSignature(nil, nil, types.NewTuple(params...), nil, isVariadic)
 }

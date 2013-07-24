@@ -85,7 +85,7 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.funcSig.labels = scope
 		}
 		label := s.Label
-		check.declare(scope, label, NewLabel(label.Pos(), label.Name))
+		check.declareObj(scope, label, NewLabel(label.Pos(), label.Name))
 		check.stmt(s.Stmt)
 
 	case *ast.ExprStmt:
@@ -267,7 +267,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if tag == nil {
 			// use fake true tag value and position it at the opening { of the switch
 			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
-			check.recordObject(ident, Universe.Lookup(nil, "true"))
+			check.recordObject(ident, Universe.Lookup("true"))
 			tag = ident
 		}
 		check.expr(&x, tag)
@@ -416,7 +416,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					typ = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, typ)
-				check.declare(check.topScope, nil, obj)
+				check.declareObj(check.topScope, nil, obj)
 				check.recordImplicit(clause, obj)
 			}
 			check.stmtList(clause.Body)
@@ -552,7 +552,7 @@ func (check *checker) stmt(s ast.Stmt) {
 
 			// declare variables
 			for i, ident := range idents {
-				check.declare(check.topScope, ident, vars[i])
+				check.declareObj(check.topScope, ident, vars[i])
 			}
 		} else {
 			// ordinary assignment

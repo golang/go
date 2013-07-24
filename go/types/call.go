@@ -171,7 +171,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	if ident, ok := e.X.(*ast.Ident); ok {
 		if pkg, ok := check.topScope.LookupParent(ident.Name).(*Package); ok {
 			check.recordObject(ident, pkg)
-			exp := pkg.scope.Lookup(nil, sel)
+			exp := pkg.scope.Lookup(sel)
 			if exp == nil {
 				check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
 				goto Error

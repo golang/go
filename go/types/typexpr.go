@@ -360,7 +360,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			// named parameter
 			for _, name := range field.Names {
 				par := NewVar(name.Pos(), check.pkg, name.Name, typ)
-				check.declare(scope, name, par)
+				check.declareObj(scope, name, par)
 				params = append(params, par)
 			}
 		} else {
@@ -385,7 +385,8 @@ func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk boo
 		return nil
 	}
 
-	scope := NewScope(nil)
+	var mset objset
+
 	for _, f := range list.List {
 		// TODO(gri) Consider calling funcType here.
 		typ := check.typ(f.Type, nil, cycleOk)
@@ -402,7 +403,7 @@ func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk boo
 			sig.recv = NewVar(token.NoPos, check.pkg, "", recv)
 			for _, name := range f.Names {
 				m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
-				check.declare(scope, name, m)
+				check.declareFld(&mset, name, m)
 				methods = append(methods, m)
 			}
 		} else {
@@ -417,7 +418,7 @@ func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk boo
 				check.errorf(f.Type.Pos(), "reference to incomplete type %s - unimplemented", f.Type)
 			case *Interface:
 				for _, m := range t.methods {
-					check.declare(scope, nil, m)
+					check.declareFld(&mset, nil, m)
 					methods = append(methods, m)
 				}
 			default:
@@ -448,7 +449,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		return
 	}
 
-	scope := NewScope(nil)
+	var fset objset
 
 	var typ Type   // current field typ
 	var tag string // current field tag
@@ -461,7 +462,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		}
 
 		fld := NewFieldVar(pos, check.pkg, name, typ, anonymous)
-		check.declare(scope, ident, fld)
+		check.declareFld(&fset, ident, fld)
 		fields = append(fields, fld)
 	}
 

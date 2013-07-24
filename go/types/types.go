@@ -193,7 +193,7 @@ func (t *Tuple) At(i int) *Var { return t.vars[i] }
 
 // A Signature represents a (non-builtin) function type.
 type Signature struct {
-	scope      *Scope // function scope
+	scope      *Scope // function scope, always present
 	labels     *Scope // label scope, or nil (lazily allocated)
 	recv       *Var   // nil if not a method
 	params     *Tuple // (incoming) parameters from left to right; or nil
@@ -205,7 +205,9 @@ type Signature struct {
 // and results, either of which may be nil. If isVariadic is set, the function
 // is variadic, it must have at least one parameter, and the last parameter
 // must be of unnamed slice type.
-func NewSignature(recv *Var, params, results *Tuple, isVariadic bool) *Signature {
+func NewSignature(scope *Scope, recv *Var, params, results *Tuple, isVariadic bool) *Signature {
+	// TODO(gri) Should we rely on the correct (non-nil) incoming scope
+	//           or should this function allocate and populate a scope?
 	if isVariadic {
 		n := params.Len()
 		if n == 0 {
@@ -215,7 +217,7 @@ func NewSignature(recv *Var, params, results *Tuple, isVariadic bool) *Signature
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{nil, nil, recv, params, results, isVariadic}
+	return &Signature{scope, nil, recv, params, results, isVariadic}
 }
 
 // Recv returns the receiver of signature s, or nil.

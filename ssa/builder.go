@@ -1716,7 +1716,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup(nil, "len")]
+		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup("len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)

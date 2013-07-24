@@ -264,7 +264,7 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 			// Use the correct obj if the ident is redeclared. The
 			// variable's scope starts after the declaration; so we
 			// must use Scope.Lookup here and call Scope.Insert later.
-			if alt := scope.Lookup(nil, ident.Name); alt != nil {
+			if alt := scope.Lookup(ident.Name); alt != nil {
 				// redeclared object must be a variable
 				if alt, _ := alt.(*Var); alt != nil {
 					obj = alt

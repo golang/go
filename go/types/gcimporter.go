@@ -207,7 +207,7 @@ func declConst(pkg *Package, name string) *Const {
 	// the constant may have been imported before - if it exists
 	// already in the respective scope, return that constant
 	scope := pkg.scope
-	if obj := scope.Lookup(nil, name); obj != nil {
+	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Const)
 	}
 	// otherwise create a new constant and insert it into the scope
@@ -218,7 +218,7 @@ func declConst(pkg *Package, name string) *Const {
 
 func declTypeName(pkg *Package, name string) *TypeName {
 	scope := pkg.scope
-	if obj := scope.Lookup(nil, name); obj != nil {
+	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*TypeName)
 	}
 	obj := NewTypeName(token.NoPos, pkg, name, nil)
@@ -231,7 +231,7 @@ func declTypeName(pkg *Package, name string) *TypeName {
 
 func declVar(pkg *Package, name string) *Var {
 	scope := pkg.scope
-	if obj := scope.Lookup(nil, name); obj != nil {
+	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Var)
 	}
 	obj := NewVar(token.NoPos, pkg, name, nil)
@@ -241,7 +241,7 @@ func declVar(pkg *Package, name string) *Var {
 
 func declFunc(pkg *Package, name string) *Func {
 	scope := pkg.scope
-	if obj := scope.Lookup(nil, name); obj != nil {
+	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Func)
 	}
 	obj := NewFunc(token.NoPos, pkg, name, nil)
@@ -390,7 +390,7 @@ func (p *gcParser) parseExportedName() (pkg *Package, name string) {
 //
 func (p *gcParser) parseBasicType() Type {
 	id := p.expect(scanner.Ident)
-	obj := Universe.Lookup(nil, id)
+	obj := Universe.Lookup(id)
 	if obj, ok := obj.(*TypeName); ok {
 		return obj.typ
 	}

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements Scopes.
+
 package types
 
 import (
@@ -16,15 +18,16 @@ import (
 //           objects can use that information for better printing.
 
 // A Scope maintains a set of objects and links to its containing
-// (parent) and contained (children) scopes.
-// Objects may be inserted and looked up by name, or by package path
-// and name. A nil *Scope acts like an empty scope for operations that
-// do not modify the scope or access a scope's parent scope.
+// (parent) and contained (children) scopes. Objects may be inserted
+// and looked up by name. The zero value for Scope is a ready-to-use
+// empty scope.
 type Scope struct {
 	parent   *Scope
 	children []*Scope
-	entries  []Object
 	node     ast.Node
+
+	entries []Object
+	objmap  map[string]Object // lazily allocated for large scopes
 }
 
 // NewScope returns a new, empty scope contained in the given parent
@@ -60,74 +63,39 @@ func (s *Scope) Parent() *Scope { return s.parent }
 func (s *Scope) Node() ast.Node { return s.node }
 
 // NumEntries() returns the number of scope entries.
-// If s == nil, the result is 0.
-func (s *Scope) NumEntries() int {
-	if s == nil {
-		return 0 // empty scope
-	}
-	return len(s.entries)
-}
+func (s *Scope) NumEntries() int { return len(s.entries) }
 
 // At returns the i'th scope entry for 0 <= i < NumEntries().
 func (s *Scope) At(i int) Object { return s.entries[i] }
 
 // NumChildren() returns the number of scopes nested in s.
-// If s == nil, the result is 0.
-func (s *Scope) NumChildren() int {
-	if s == nil {
-		return 0
-	}
-	return len(s.children)
-}
+func (s *Scope) NumChildren() int { return len(s.children) }
 
 // Child returns the i'th child scope for 0 <= i < NumChildren().
 func (s *Scope) Child(i int) *Scope { return s.children[i] }
 
-// Lookup returns the object in scope s with the given package
-// and name if such an object exists; otherwise the result is nil.
-// A nil scope acts like an empty scope, and parent scopes are ignored.
-//
-// If pkg != nil, both pkg.Path() and name are used to identify an
-// entry, per the Go rules for identifier equality. If pkg == nil,
-// only the name is used and the package path is ignored.
-func (s *Scope) Lookup(pkg *Package, name string) Object {
-	if s == nil {
-		return nil // empty scope
+// Lookup returns the object in scope s with the given name if such an
+// object exists; otherwise the result is nil.
+func (s *Scope) Lookup(name string) Object {
+	if s.objmap != nil {
+		return s.objmap[name]
 	}
-
-	// fast path: only the name must match
-	if pkg == nil {
-		for _, obj := range s.entries {
-			if obj.Name() == name {
-				return obj
-			}
-		}
-		return nil
-	}
-
-	// slow path: both pkg path and name must match
 	for _, obj := range s.entries {
-		if obj.sameId(pkg, name) {
+		if obj.Name() == name {
 			return obj
 		}
 	}
-
-	// not found
 	return nil
-
-	// TODO(gri) Optimize Lookup by also maintaining a map representation
-	//           for larger scopes.
 }
 
-// LookupParent follows the parent chain of scopes starting with s until it finds
-// a scope where Lookup(nil, name) returns a non-nil object, and then returns that
-// object. If no such scope exists, the result is nil.
+// LookupParent follows the parent chain of scopes starting with s until
+// it finds a scope where Lookup(name) returns a non-nil object, and then
+// returns that object. If no such scope exists, the result is nil.
 func (s *Scope) LookupParent(name string) Object {
-	for s != nil {
-		if obj := s.Lookup(nil, name); obj != nil {
+	for ; s != nil; s = s.parent {
+		if obj := s.Lookup(name); obj != nil {
 			return obj
 		}
-		s = s.parent
 	}
 	return nil
 }
@@ -135,19 +103,34 @@ func (s *Scope) LookupParent(name string) Object {
 // TODO(gri): Should Insert not be exported?
 
 // Insert attempts to insert an object obj into scope s.
-// If s already contains an object with the same package path
-// and name, Insert leaves s unchanged and returns that object.
-// Otherwise it inserts obj, sets the object's scope to s, and
-// returns nil. The object must not have the blank _ name.
-//
+// If s already contains an alternative object alt with
+// the same name, Insert leaves s unchanged and returns alt.
+// Otherwise it inserts obj, sets the object's scope to
+// s, and returns nil. The object name must not be blank _.
 func (s *Scope) Insert(obj Object) Object {
 	name := obj.Name()
 	assert(name != "_")
-	if alt := s.Lookup(obj.Pkg(), name); alt != nil {
+	if alt := s.Lookup(name); alt != nil {
 		return alt
 	}
+
+	// populate parallel objmap for larger scopes
+	// TODO(gri) what is the right threshold? should we only use a map?
+	if len(s.entries) == 32 {
+		m := make(map[string]Object)
+		for _, obj := range s.entries {
+			m[obj.Name()] = obj
+		}
+		s.objmap = m
+	}
+
+	// add object
 	s.entries = append(s.entries, obj)
+	if s.objmap != nil {
+		s.objmap[name] = obj
+	}
 	obj.setParent(s)
+
 	return nil
 }
 
@@ -159,7 +142,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 	const ind = ".  "
 	indn := strings.Repeat(ind, n)
 
-	if s.NumEntries() == 0 {
+	if len(s.entries) == 0 {
 		fmt.Fprintf(w, "%sscope %p {}\n", indn, s)
 		return
 	}
