@@ -28,7 +28,7 @@ func TestSelf(t *testing.T) {
 	}
 
 	_, err := Check("go/types", fset, files)
-	if err == nil {
+	if err != nil {
 		// Importing go.tools/go/exact doensn't work in the
 		// build dashboard environment at the moment. Don't
 		// report an error for now so that the build remains
