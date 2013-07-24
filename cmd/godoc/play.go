@@ -2,12 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build playground
-
-// TODO(bradfitz,adg): move the
-// code.google.com/p/go.talks/pkg/playground package elsewhere, so
-// go.tools doesn't depend on go.talks.
-
 package main
 
 import (
@@ -16,7 +10,9 @@ import (
 	"go/format"
 	"net/http"
 
-	_ "code.google.com/p/go.talks/pkg/playground"
+	// This package registers "/compile" and "/share" handlers
+	// that redirect to the golang.org playground.
+	_ "code.google.com/p/go.tools/godoc/playground"
 )
 
 func init() {
