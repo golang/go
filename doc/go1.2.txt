@@ -26,3 +26,4 @@ net: new build tag netgo for building a pure Go net package (CL 7100050).
 sort: new Stable function provides stable sort (CL 9612044).
 syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10980043).
 testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
+unicode: add In, a nicer-to-use but equivalent version of IsOneOf (CL 11672044).
