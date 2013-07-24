@@ -480,6 +480,9 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			t, isPtr := deref(typ)
 			switch t := t.(type) {
 			case *Basic:
+				if t == Typ[Invalid] {
+					continue // ignore this field - error was reported before
+				}
 				add(f, nil, t.name, true, pos)
 			case *Named:
 				// spec: "An embedded type must be specified as a type name
@@ -497,9 +500,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 				}
 				add(f, nil, t.obj.name, true, pos)
 			default:
-				if typ != Typ[Invalid] {
-					check.invalidAST(pos, "anonymous field type %s must be named", typ)
-				}
+				check.invalidAST(pos, "anonymous field type %s must be named", typ)
 			}
 		}
 	}
