@@ -106,10 +106,20 @@ func (s *Scope) LookupParent(name string) Object {
 // If s already contains an alternative object alt with
 // the same name, Insert leaves s unchanged and returns alt.
 // Otherwise it inserts obj, sets the object's scope to
-// s, and returns nil. The object name must not be blank _.
+// s, and returns nil. Objects with blank "_" names are
+// not inserted, but have their parent field set to s.
 func (s *Scope) Insert(obj Object) Object {
 	name := obj.Name()
-	assert(name != "_")
+
+	// spec: "The blank identifier, represented by the underscore
+	// character _, may be used in a declaration like any other
+	// identifier but the declaration does not introduce a new
+	// binding."
+	if name == "_" {
+		obj.setParent(s)
+		return nil
+	}
+
 	if alt := s.Lookup(name); alt != nil {
 		return alt
 	}

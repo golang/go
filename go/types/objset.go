@@ -19,11 +19,13 @@ type objset struct {
 // insert attempts to insert an object obj into objset s.
 // If s already contains an alternative object alt with
 // the same name, insert leaves s unchanged and returns alt.
-// Otherwise it inserts obj and returns nil.
-// The object name must not be blank _.
-func (s *objset) insert(obj Object) (alt Object) {
+// Otherwise it inserts obj and returns nil. Objects with
+// blank "_" names are ignored.
+func (s *objset) insert(obj Object) Object {
 	name := obj.Name()
-	assert(name != "_")
+	if name == "_" {
+		return nil
+	}
 	id := Id(obj.Pkg(), name)
 	if alt := s.objmap[id]; alt != nil {
 		return alt

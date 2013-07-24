@@ -87,30 +87,31 @@ type Config struct {
 
 // Info holds result type information for a package.
 type Info struct {
-	// If Types != nil, it records the type for each expression that is
-	// type-checked. Expressions corresponding to identifiers on the lhs
-	// of a declaration are recorded in Objects, not Types.
+	// If Types != nil, it records the expression and corresponding type
+	// for each expression that is type-checked. Identifiers declaring a
+	// variable are recorded in Objects, not Types.
 	Types map[ast.Expr]Type
 
-	// If Values != nil, it records the value of each constant expression
-	// that is type-checked.
+	// If Values != nil, it records the expression and corresponding value
+	// for each constant expression that is type-checked.
 	Values map[ast.Expr]exact.Value
 
-	// If Objects != nil, it records the object denoted by each identifier
-	// that is type-checked (including package names, dots "." of dot-imports,
-	// and blank "_" identifiers). For identifiers that were not declared,
-	// the corresponding object is nil.
+	// If Objects != nil, it records the identifier and corresponding object
+	// for each identifier that is type-checked (including package names,
+	// dots "." of dot-imports, and blank "_" identifiers). For identifiers
+	// that were not declared due to an error, the corresponding object is nil.
 	// BUG(gri) Label identifiers in break, continue, or goto statements
 	// are not recorded.
 	Objects map[*ast.Ident]Object
 
-	// If Implicits != nil, it records the object for each node that implicitly
-	// declares objects. The following node and object types may appear:
+	// If Implicits != nil, it records the node and corresponding object for
+	// each node that is type-checked and that implicitly declared an object.
+	// The following node and object types may appear:
 	//
 	//	node               declared object
 	//
 	//	*ast.ImportSpec    *Package (imports w/o renames), or imported objects (dot-imports)
-	//	*ast.CaseClause    type-specific *Var introduced for each single-type type switch clause
+	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
 	//      *ast.Field         anonymous struct field or parameter *Var
 	//
 	Implicits map[ast.Node]Object

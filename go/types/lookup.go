@@ -314,12 +314,11 @@ func concat(list []int, i int) []int {
 
 // fieldIndex returns the index for the field with matching package and name, or a value < 0.
 func fieldIndex(fields []*Var, pkg *Package, name string) int {
-	if name == "_" {
-		return -1 // blank identifiers are never found
-	}
-	for i, f := range fields {
-		if f.sameId(pkg, name) {
-			return i
+	if name != "_" {
+		for i, f := range fields {
+			if f.sameId(pkg, name) {
+				return i
+			}
 		}
 	}
 	return -1
@@ -327,10 +326,11 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
 
 // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
 func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
-	assert(name != "_")
-	for i, m := range methods {
-		if m.sameId(pkg, name) {
-			return i, m
+	if name != "_" {
+		for i, m := range methods {
+			if m.sameId(pkg, name) {
+				return i, m
+			}
 		}
 	}
 	return -1, nil

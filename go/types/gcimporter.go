@@ -494,7 +494,7 @@ func (p *gcParser) parseStructType() Type {
 
 	p.expectKeyword("struct")
 	p.expect('{')
-	scope := NewScope(nil)
+	var fset objset
 	for i := 0; p.tok != '}'; i++ {
 		if i > 0 {
 			p.expect(';')
@@ -506,15 +506,13 @@ func (p *gcParser) parseStructType() Type {
 		if tags != nil {
 			tags = append(tags, tag)
 		}
-		if fld.name == "_" {
-			// blank identifiers are not declared
-			fld.setParent(scope)
-		} else if alt := scope.Insert(fld); alt != nil {
+		if alt := fset.insert(fld); alt != nil {
 			pname := "<no pkg name>"
 			if pkg := alt.Pkg(); pkg != nil {
 				pname = pkg.name
 			}
 			p.errorf("multiple fields named %s.%s", pname, alt.Name())
+			continue
 		}
 		fields = append(fields, fld)
 	}
@@ -598,12 +596,12 @@ func (p *gcParser) parseSignature() *Signature {
 // visible in the export data.
 //
 func (p *gcParser) parseInterfaceType() Type {
-	var scope *Scope // lazily allocated (empty interfaces are not uncommon)
+	typ := new(Interface)
 	var methods []*Func
 
-	typ := new(Interface)
 	p.expectKeyword("interface")
 	p.expect('{')
+	var mset objset
 	for i := 0; p.tok != '}'; i++ {
 		if i > 0 {
 			p.expect(';')
@@ -614,17 +612,15 @@ func (p *gcParser) parseInterfaceType() Type {
 		// typ, for less verbose printing of interface method signatures.
 		sig.recv = NewVar(token.NoPos, pkg, "", typ)
 		m := NewFunc(token.NoPos, pkg, name, sig)
-		if scope == nil {
-			scope = NewScope(nil)
-		}
-		if alt := scope.Insert(m); alt != nil {
+		if alt := mset.insert(m); alt != nil {
 			p.errorf("multiple methods named %s.%s", alt.Pkg().name, alt.Name())
+			continue
 		}
 		methods = append(methods, m)
 	}
 	p.expect('}')
-	typ.methods = methods
 
+	typ.methods = methods
 	return typ
 }
 
