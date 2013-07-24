@@ -534,7 +534,7 @@ TEXT runtime·cgocallback_gofunc(SB),7,$8-12
 #ifdef GOOS_windows
 	MOVL	$0, BP
 	CMPL	CX, $0
-	JNE	2(PC)
+	JEQ	2(PC)
 #endif
 	MOVL	m(CX), BP
 	MOVL	BP, 4(SP)
