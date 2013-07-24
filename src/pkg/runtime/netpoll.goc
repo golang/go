@@ -253,7 +253,7 @@ netpollblock(PollDesc *pd, int32 mode)
 		return true;
 	}
 	if(*gpp != nil)
-		runtime·throw("epoll: double wait");
+		runtime·throw("netpollblock: double wait");
 	*gpp = g;
 	runtime·park(runtime·unlock, &pd->Lock, "IO wait");
 	runtime·lock(pd);
