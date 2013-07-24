@@ -356,6 +356,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
+			check.recordObject(lhs, nil) // lhs is implicitly declared in each cause clause
 
 			rhs = guard.Rhs[0]
 

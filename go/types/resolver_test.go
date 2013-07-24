@@ -45,7 +45,12 @@ var sources = []string{
 	func (_ T) m() {}
 	var i I
 	var _ = i.m
-	func _(s []int) { for i, x := range s {} } 
+	func _(s []int) { for i, x := range s {} }
+	func _(x interface{}) {
+		switch x := x.(type) {
+		case int:
+		}
+	}
 	`,
 }
 
