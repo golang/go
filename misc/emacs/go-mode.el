@@ -87,6 +87,18 @@
       (concat "\\<" s "\\>")
     (concat "\\_<" s "\\_>")))
 
+;; Move up one level of parentheses.
+(defun go-goto-opening-parenthesis (&optional legacy-unused)
+  ;; The old implementation of go-goto-opening-parenthesis had an
+  ;; optional argument to speed up the function. It didn't change the
+  ;; function's outcome.
+
+  ;; Silently fail if there's no matching opening parenthesis.
+  (condition-case nil
+      (backward-up-list)
+    (scan-error nil)))
+
+
 (defconst go-dangling-operators-regexp "[^-]-\\|[^+]\\+\\|[/*&><.=|^]")
 (defconst go-identifier-regexp "[[:word:][:multibyte:]]+")
 (defconst go-label-regexp go-identifier-regexp)
@@ -289,18 +301,6 @@ curly brace we are checking. If they match, we return non-nil."
             (if (and (= (go-paren-level) start-nesting) (= old-point (point)))
                 t))))))
 
-(defun go-goto-opening-parenthesis (&optional char)
-  (let ((start-nesting (go-paren-level)))
-    (while (and (not (bobp))
-                (>= (go-paren-level) start-nesting))
-      (if (zerop (skip-chars-backward
-                  (if char
-                      (case char (?\] "^[") (?\} "^{") (?\) "^("))
-                    "^[{(")))
-          (if (go-in-string-or-comment-p)
-              (go-goto-beginning-of-string-or-comment)
-            (backward-char))))))
-
 (defun go--indentation-for-opening-parenthesis ()
   "Return the semantic indentation for the current opening parenthesis.
 
@@ -325,7 +325,7 @@ current line will be returned."
        ((go-in-string-p)
         (current-indentation))
        ((looking-at "[])}]")
-        (go-goto-opening-parenthesis (char-after))
+        (go-goto-opening-parenthesis)
         (if (go-previous-line-has-dangling-op-p)
             (- (current-indentation) tab-width)
           (go--indentation-for-opening-parenthesis)))
