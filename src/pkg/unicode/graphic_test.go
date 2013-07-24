@@ -71,7 +71,7 @@ func TestNumberLatin1(t *testing.T) {
 func TestIsPrintLatin1(t *testing.T) {
 	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsPrint(i)
-		want := IsOneOf(PrintRanges, i)
+		want := In(i, PrintRanges...)
 		if i == ' ' {
 			want = true
 		}
@@ -84,7 +84,7 @@ func TestIsPrintLatin1(t *testing.T) {
 func TestIsGraphicLatin1(t *testing.T) {
 	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsGraphic(i)
-		want := IsOneOf(GraphicRanges, i)
+		want := In(i, GraphicRanges...)
 		if got != want {
 			t.Errorf("%U incorrect: got %t; want %t", i, got, want)
 		}
