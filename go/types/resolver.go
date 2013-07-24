@@ -27,7 +27,6 @@ func (check *checker) declareObj(scope *Scope, id *ast.Ident, obj Object) {
 	if obj.Name() == "_" {
 		// blank identifiers are not declared
 		obj.setParent(scope)
-		obj = nil
 	} else if alt := scope.Insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -41,7 +40,6 @@ func (check *checker) declareObj(scope *Scope, id *ast.Ident, obj Object) {
 func (check *checker) declareFld(oset *objset, id *ast.Ident, obj Object) {
 	if obj.Name() == "_" {
 		// blank identifiers are not declared
-		obj = nil
 	} else if alt := oset.insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
