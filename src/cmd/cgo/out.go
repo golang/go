@@ -321,6 +321,9 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		Type: gtype,
 	}
 
+	// Builtins defined in the C prolog.
+	inProlog := name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes"
+
 	if *gccgo {
 		// Gccgo style hooks.
 		fmt.Fprint(fgo2, "\n")
@@ -334,8 +337,10 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 
 		conf.Fprint(fgo2, fset, d)
 		fmt.Fprint(fgo2, " {\n")
-		fmt.Fprint(fgo2, "\tdefer syscall.CgocallDone()\n")
-		fmt.Fprint(fgo2, "\tsyscall.Cgocall()\n")
+		if !inProlog {
+			fmt.Fprint(fgo2, "\tdefer syscall.CgocallDone()\n")
+			fmt.Fprint(fgo2, "\tsyscall.Cgocall()\n")
+		}
 		if n.AddError {
 			fmt.Fprint(fgo2, "\tsyscall.SetErrno(0)\n")
 		}
@@ -366,7 +371,11 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		fmt.Fprint(fgo2, "}\n")
 
 		// declare the C function.
-		fmt.Fprintf(fgo2, "//extern %s\n", n.C)
+		if inProlog {
+			fmt.Fprintf(fgo2, "//extern %s\n", n.C)
+		} else {
+			fmt.Fprintf(fgo2, "//extern _cgo%s%s\n", cPrefix, n.Mangle)
+		}
 		d.Name = ast.NewIdent(cname)
 		if n.AddError {
 			l := d.Type.Results.List
@@ -380,8 +389,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	conf.Fprint(fgo2, fset, d)
 	fmt.Fprint(fgo2, "\n")
 
-	if name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" {
-		// The builtins are already defined in the C prolog.
+	if inProlog {
 		return
 	}
 
@@ -469,7 +477,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	p.Written[name] = true
 
 	if *gccgo {
-		// we don't use wrappers with gccgo.
+		p.writeGccgoOutputFunc(fgcc, n)
 		return
 	}
 
@@ -522,6 +530,54 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\t*(int*)(a->e) = errno;\n")
 	}
+	fmt.Fprintf(fgcc, "}\n")
+	fmt.Fprintf(fgcc, "\n")
+}
+
+// Write out a wrapper for a function when using gccgo.  This is a
+// simple wrapper that just calls the real function.  We only need a
+// wrapper to support static functions in the prologue--without a
+// wrapper, we can't refer to the function, since the reference is in
+// a different file.
+func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+	if t := n.FuncType.Result; t != nil {
+		fmt.Fprintf(fgcc, "%s\n", t.C.String())
+	} else {
+		fmt.Fprintf(fgcc, "void\n")
+	}
+	fmt.Fprintf(fgcc, "_cgo%s%s(", cPrefix, n.Mangle)
+	for i, t := range n.FuncType.Params {
+		if i > 0 {
+			fmt.Fprintf(fgcc, ", ")
+		}
+		c := t.Typedef
+		if c == "" {
+			c = t.C.String()
+		}
+		fmt.Fprintf(fgcc, "%s p%d", c, i)
+	}
+	fmt.Fprintf(fgcc, ")\n")
+	fmt.Fprintf(fgcc, "{\n")
+	fmt.Fprintf(fgcc, "\t")
+	if t := n.FuncType.Result; t != nil {
+		fmt.Fprintf(fgcc, "return ")
+		// Cast to void* to avoid warnings due to omitted qualifiers.
+		if c := t.C.String(); c[len(c)-1] == '*' {
+			fmt.Fprintf(fgcc, "(void*)")
+		}
+	}
+	fmt.Fprintf(fgcc, "%s(", n.C)
+	for i, t := range n.FuncType.Params {
+		if i > 0 {
+			fmt.Fprintf(fgcc, ", ")
+		}
+		// Cast to void* to avoid warnings due to omitted qualifiers.
+		if c := t.C.String(); c[len(c)-1] == '*' {
+			fmt.Fprintf(fgcc, "(void*)")
+		}
+		fmt.Fprintf(fgcc, "p%d", i)
+	}
+	fmt.Fprintf(fgcc, ");\n")
 	fmt.Fprintf(fgcc, "}\n")
 	fmt.Fprintf(fgcc, "\n")
 }
