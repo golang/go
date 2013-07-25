@@ -164,7 +164,7 @@ var program = `
 // DO NOT EDIT.
 // Generate with: go run gen.go{{if .Full}} -full{{end}} | gofmt >md5block.go
 
-// +build !amd64
+// +build !amd64,!386,!arm
 
 package md5
 
