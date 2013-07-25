@@ -678,23 +678,28 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 	var m int
 	for {
+		if b.Available() == 0 {
+			if err1 := b.flush(); err1 != nil {
+				return n, err1
+			}
+		}
 		m, err = r.Read(b.buf[b.n:])
 		if m == 0 {
 			break
 		}
 		b.n += m
 		n += int64(m)
-		if b.Available() == 0 {
-			if err1 := b.flush(); err1 != nil {
-				return n, err1
-			}
-		}
 		if err != nil {
 			break
 		}
 	}
 	if err == io.EOF {
-		err = nil
+		// If we filled the buffer exactly, flush pre-emptively.
+		if b.Available() == 0 {
+			err = b.flush()
+		} else {
+			err = nil
+		}
 	}
 	return n, err
 }
