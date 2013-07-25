@@ -78,7 +78,7 @@ var (
 func TestParseProcNet(t *testing.T) {
 	defer func() {
 		if p := recover(); p != nil {
-			t.Fatalf("panicked")
+			t.Fatalf("parseProcNetIGMP or parseProtNetIGMP6 panicked: %v", p)
 		}
 	}()
 
