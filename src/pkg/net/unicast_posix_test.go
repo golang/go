@@ -436,8 +436,8 @@ func TestWildWildcardListener(t *testing.T) {
 	}
 
 	defer func() {
-		if recover() != nil {
-			t.Fatalf("panicked")
+		if p := recover(); p != nil {
+			t.Fatalf("Listen, ListenPacket or protocol-specific Listen panicked: %v", p)
 		}
 	}()
 
