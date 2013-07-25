@@ -1379,6 +1379,13 @@ walkexpr(Node **np, NodeList **init)
 	fatal("missing switch %O", n->op);
 
 ret:
+	// Expressions that are constant at run time but not
+	// considered const by the language spec are not turned into
+	// constants until walk. For example, if n is y%1 == 0, the
+	// walk of y%1 may have replaced it by 0.
+	// Check whether n with its updated args is itself now a constant.
+	evconst(n);
+
 	ullmancalc(n);
 
 	if(debug['w'] && n != N)
