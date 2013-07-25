@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // If src != nil, readSource converts src to a []byte if possible;
@@ -115,11 +116,13 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 	return
 }
 
-// ParseDir calls ParseFile for the files in the directory specified by path and
-// returns a map of package name -> package AST with all the packages found. If
-// filter != nil, only the files with os.FileInfo entries passing through the filter
-// are considered. The mode bits are passed to ParseFile unchanged. Position
-// information is recorded in the file set fset.
+// ParseDir calls ParseFile for all files with names ending in ".go" in the
+// directory specified by path and returns a map of package name -> package
+// AST with all the packages found.
+//
+// If filter != nil, only the files with os.FileInfo entries passing through
+// the filter (and ending in ".go") are considered. The mode bits are passed
+// to ParseFile unchanged. Position information is recorded in fset.
 //
 // If the directory couldn't be read, a nil map and the respective error are
 // returned. If a parse error occurred, a non-nil but incomplete map and the
@@ -139,7 +142,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 
 	pkgs = make(map[string]*ast.Package)
 	for _, d := range list {
-		if filter == nil || filter(d) {
+		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
 			filename := filepath.Join(path, d.Name())
 			if src, err := ParseFile(fset, filename, nil, mode); err == nil {
 				name := src.Name.Name
