@@ -81,6 +81,30 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+func TestLarge(t *testing.T) {
+	const N = 10000
+	ok := "2bb571599a4180e1d542f76904adc3df" // md5sum of "0123456789" * 1000
+	block := make([]byte, 10004)
+	c := New()
+	for offset := 0; offset < 4; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("md5 TestLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
+	}
+}
+
 func ExampleNew() {
 	h := New()
 	io.WriteString(h, "The fog is getting thicker!")
