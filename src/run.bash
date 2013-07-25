@@ -125,6 +125,11 @@ esac
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
+(xcd ../misc/cgo/testcdefs
+./test.bash || exit 1
+) || exit $?
+
+[ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/testso
 ./test.bash || exit 1
