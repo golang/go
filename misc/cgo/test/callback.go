@@ -143,6 +143,10 @@ func testBlocking(t *testing.T) {
 // Test that the stack can be unwound through a call out and call back
 // into Go.
 func testCallbackCallers(t *testing.T) {
+	if runtime.Compiler != "gc" {
+		// The exact function names are not going to be the same.
+		t.Skip("skipping for non-gc toolchain")
+	}
 	pc := make([]uintptr, 100)
 	n := 0
 	name := []string{
