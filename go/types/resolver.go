@@ -196,7 +196,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						// add import to file scope
 						if name == "." {
 							// merge imported scope with file scope
-							for _, obj := range imp.scope.entries {
+							for _, obj := range imp.scope.elems {
 								// gcimported package scopes contain non-exported
 								// objects such as types used in partially exported
 								// objects - do not accept them
@@ -320,7 +320,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// Phase 2: Verify that objects in package and file scopes have different names.
 
 	for _, scope := range scopes {
-		for _, obj := range scope.entries {
+		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				check.errorf(alt.Pos(), "%s already declared in this file through import of package %s", obj.Name(), obj.Pkg().Name())
 			}

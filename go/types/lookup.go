@@ -98,7 +98,7 @@ func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 		return // blank fields/methods are never found
 	}
 
-	// Start with typ as single entry at lowest depth.
+	// Start with typ as single entry at shallowest depth.
 	// If typ is not a named type, insert a nil type instead.
 	typ, isPtr := deref(typ)
 	t, _ := typ.(*Named)
@@ -280,11 +280,8 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 		}
 
 		// verify that f is in the method set of typ
-		// (the receiver is nil if f is an interface method)
-		if recv := f.typ.(*Signature).recv; recv != nil {
-			if _, isPtr := deref(recv.typ); isPtr && !indirect {
-				return m, false
-			}
+		if !indirect && ptrRecv(f) {
+			return m, false
 		}
 
 		if !IsIdentical(obj.Type(), m.typ) {

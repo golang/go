@@ -81,7 +81,7 @@ func (check *checker) stmt(s ast.Stmt) {
 	case *ast.LabeledStmt:
 		scope := check.funcSig.labels
 		if scope == nil {
-			scope = new(Scope) // no label scope chain
+			scope = NewScope(nil) // no label scope chain
 			check.funcSig.labels = scope
 		}
 		label := s.Label

@@ -86,8 +86,8 @@ var predeclaredFunctions = [...]*Builtin{
 }
 
 func init() {
-	Universe = new(Scope)
-	Unsafe = NewPackage(token.NoPos, "unsafe", "unsafe", NewScope(nil), nil, true)
+	Universe = NewScope(nil)
+	Unsafe = NewPackage(token.NoPos, "unsafe", "unsafe", NewScope(Universe), nil, true)
 
 	// predeclared types
 	for _, t := range Typ {

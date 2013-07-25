@@ -288,11 +288,11 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 	check.initVars(vars, rhs, true)
 
 	// declare variables
-	n := scope.NumEntries()
+	n := scope.Len()
 	for _, obj := range vars {
 		scope.Insert(obj)
 	}
-	if n == scope.NumEntries() {
+	if n == scope.Len() {
 		check.errorf(vars[0].Pos(), "no new variables on left side of :=")
 	}
 }

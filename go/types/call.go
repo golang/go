@@ -237,7 +237,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		}
 
 		// verify that m is in the method set of x.typ
-		if _, isPtr := deref(m.typ.(*Signature).recv.typ); isPtr && !indirect {
+		if !indirect && ptrRecv(m) {
 			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
 			goto Error
 		}
@@ -271,7 +271,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			//        contains m and the argument list can be assigned to the parameter
 			//        list of m. If x is addressable and &x's method set contains m, x.m()
 			//        is shorthand for (&x).m()".
-			if _, isPtr := deref(obj.typ.(*Signature).recv.typ); isPtr && !indirect && x.mode != variable {
+			if !indirect && x.mode != variable && ptrRecv(obj) {
 				check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x)
 				goto Error
 			}
@@ -281,7 +281,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				typ := x.typ
 				if x.mode == variable {
 					// If typ is not an (unnamed) pointer, use *typ instead,
-					// because the the method set of *typ includes the methods
+					// because the method set of *typ includes the methods
 					// of typ.
 					// Variables are addressable, so we can always take their
 					// address.

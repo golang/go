@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"io"
+	"sort"
 	"strings"
 )
 
@@ -25,20 +26,18 @@ type Scope struct {
 	parent   *Scope
 	children []*Scope
 	node     ast.Node
-
-	entries []Object
-	objmap  map[string]Object // lazily allocated for large scopes
+	elems    map[string]Object // lazily allocated
 }
 
 // NewScope returns a new, empty scope contained in the given parent
 // scope, if any.
 func NewScope(parent *Scope) *Scope {
-	scope := &Scope{parent: parent}
+	s := &Scope{parent: parent}
 	// don't add children to Universe scope!
 	if parent != nil && parent != Universe {
-		parent.children = append(parent.children, scope)
+		parent.children = append(parent.children, s)
 	}
-	return scope
+	return s
 }
 
 // Parent returns the scope's containing (parent) scope.
@@ -62,11 +61,20 @@ func (s *Scope) Parent() *Scope { return s.parent }
 // (universe and package scopes).
 func (s *Scope) Node() ast.Node { return s.node }
 
-// NumEntries() returns the number of scope entries.
-func (s *Scope) NumEntries() int { return len(s.entries) }
+// Len() returns the number of scope elements.
+func (s *Scope) Len() int { return len(s.elems) }
 
-// At returns the i'th scope entry for 0 <= i < NumEntries().
-func (s *Scope) At(i int) Object { return s.entries[i] }
+// Names returns the scope's element names in sorted order.
+func (s *Scope) Names() []string {
+	names := make([]string, len(s.elems))
+	i := 0
+	for name := range s.elems {
+		names[i] = name
+		i++
+	}
+	sort.Strings(names)
+	return names
+}
 
 // NumChildren() returns the number of scopes nested in s.
 func (s *Scope) NumChildren() int { return len(s.children) }
@@ -77,15 +85,7 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
 // Lookup returns the object in scope s with the given name if such an
 // object exists; otherwise the result is nil.
 func (s *Scope) Lookup(name string) Object {
-	if s.objmap != nil {
-		return s.objmap[name]
-	}
-	for _, obj := range s.entries {
-		if obj.Name() == name {
-			return obj
-		}
-	}
-	return nil
+	return s.elems[name]
 }
 
 // LookupParent follows the parent chain of scopes starting with s until
@@ -93,7 +93,7 @@ func (s *Scope) Lookup(name string) Object {
 // returns that object. If no such scope exists, the result is nil.
 func (s *Scope) LookupParent(name string) Object {
 	for ; s != nil; s = s.parent {
-		if obj := s.Lookup(name); obj != nil {
+		if obj := s.elems[name]; obj != nil {
 			return obj
 		}
 	}
@@ -110,7 +110,6 @@ func (s *Scope) LookupParent(name string) Object {
 // not inserted, but have their parent field set to s.
 func (s *Scope) Insert(obj Object) Object {
 	name := obj.Name()
-
 	// spec: "The blank identifier, represented by the underscore
 	// character _, may be used in a declaration like any other
 	// identifier but the declaration does not introduce a new
@@ -119,48 +118,35 @@ func (s *Scope) Insert(obj Object) Object {
 		obj.setParent(s)
 		return nil
 	}
-
-	if alt := s.Lookup(name); alt != nil {
+	if alt := s.elems[name]; alt != nil {
 		return alt
 	}
-
-	// populate parallel objmap for larger scopes
-	// TODO(gri) what is the right threshold? should we only use a map?
-	if len(s.entries) == 32 {
-		m := make(map[string]Object)
-		for _, obj := range s.entries {
-			m[obj.Name()] = obj
-		}
-		s.objmap = m
+	if s.elems == nil {
+		s.elems = make(map[string]Object)
 	}
-
-	// add object
-	s.entries = append(s.entries, obj)
-	if s.objmap != nil {
-		s.objmap[name] = obj
-	}
+	s.elems[name] = obj
 	obj.setParent(s)
-
 	return nil
 }
 
-// WriteTo writes a string representation of the scope to w.
+// WriteTo writes a string representation of the scope to w,
+// with the scope elements sorted by name.
 // The level of indentation is controlled by n >= 0, with
 // n == 0 for no indentation.
-// If recurse is set, it also prints nested (children) scopes.
+// If recurse is set, it also writes nested (children) scopes.
 func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 	const ind = ".  "
 	indn := strings.Repeat(ind, n)
 
-	if len(s.entries) == 0 {
+	if len(s.elems) == 0 {
 		fmt.Fprintf(w, "%sscope %p {}\n", indn, s)
 		return
 	}
 
 	fmt.Fprintf(w, "%sscope %p {\n", indn, s)
 	indn1 := indn + ind
-	for _, obj := range s.entries {
-		fmt.Fprintf(w, "%s%s\n", indn1, obj)
+	for _, name := range s.Names() {
+		fmt.Fprintf(w, "%s%s\n", indn1, s.elems[name])
 	}
 
 	if recurse {

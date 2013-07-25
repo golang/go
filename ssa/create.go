@@ -48,8 +48,8 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	}
 
 	// Create Values for built-in functions.
-	for i, n := 0, types.Universe.NumEntries(); i < n; i++ {
-		if obj, ok := types.Universe.At(i).(*types.Func); ok {
+	for _, name := range types.Universe.Names() {
+		if obj, ok := types.Universe.Lookup(name).(*types.Func); ok {
 			prog.builtins[obj] = &Builtin{obj}
 		}
 	}
@@ -237,8 +237,8 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		// No code.
 		// No position information.
 		scope := p.Object.Scope()
-		for i, n := 0, scope.NumEntries(); i < n; i++ {
-			obj := scope.At(i)
+		for _, name := range scope.Names() {
+			obj := scope.Lookup(name)
 			if obj, ok := obj.(*types.TypeName); ok {
 				// TODO(adonovan): are the set of Func
 				// objects passed to memberFromObject

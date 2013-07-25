@@ -143,7 +143,7 @@ func NewMethodSet(T Type) *MethodSet {
 	// method set up to the current depth, allocated lazily
 	var base methodSet
 
-	// Start with typ as single entry at lowest depth.
+	// Start with typ as single entry at shallowest depth.
 	// If typ is not a named type, insert a nil type instead.
 	typ, isPtr := deref(T)
 	t, _ := typ.(*Named)
@@ -258,7 +258,7 @@ func NewMethodSet(T Type) *MethodSet {
 
 // A fieldSet is a set of fields and name collisions.
 // A collision indicates that multiple fields with the
-// same unique name appeared.
+// same unique id appeared.
 type fieldSet map[string]*Var // a nil entry indicates a name collision
 
 // Add adds field f to the field set s.
@@ -282,7 +282,7 @@ func (s fieldSet) add(f *Var, multiples bool) fieldSet {
 
 // A methodSet is a set of methods and name collisions.
 // A collision indicates that multiple methods with the
-// same unique name appeared.
+// same unique id appeared.
 type methodSet map[string]*Method // a nil entry indicates a name collision
 
 // Add adds all functions in list to the method set s.

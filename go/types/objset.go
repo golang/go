@@ -13,7 +13,7 @@ package types
 // An objset is a set of objects identified by their unique id.
 // The zero value for objset is a ready-to-use empty objset.
 type objset struct {
-	objmap map[string]Object // allocated lazily
+	elems map[string]Object // allocated lazily
 }
 
 // insert attempts to insert an object obj into objset s.
@@ -27,12 +27,12 @@ func (s *objset) insert(obj Object) Object {
 		return nil
 	}
 	id := Id(obj.Pkg(), name)
-	if alt := s.objmap[id]; alt != nil {
+	if alt := s.elems[id]; alt != nil {
 		return alt
 	}
-	if s.objmap == nil {
-		s.objmap = make(map[string]Object)
+	if s.elems == nil {
+		s.elems = make(map[string]Object)
 	}
-	s.objmap[id] = obj
+	s.elems[id] = obj
 	return nil
 }
