@@ -28,8 +28,8 @@ import (
 // boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	var probes = []struct {
-		la TCPAddr
-		ok bool
+		laddr TCPAddr
+		ok    bool
 	}{
 		// IPv6 communication capability
 		{TCPAddr{IP: ParseIP("::1")}, false},
@@ -44,12 +44,11 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 		}
 		defer closesocket(s)
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
-		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
+		sa, err := probes[i].laddr.sockaddr(syscall.AF_INET6)
 		if err != nil {
 			continue
 		}
-		err = syscall.Bind(s, sa)
-		if err != nil {
+		if err := syscall.Bind(s, sa); err != nil {
 			continue
 		}
 		probes[i].ok = true
