@@ -22,13 +22,12 @@ type Program struct {
 	PackagesByPath  map[string]*Package         // all loaded Packages, keyed by import path
 	packages        map[*types.Package]*Package // all loaded Packages, keyed by object
 	builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
-	concreteMethods map[*types.Func]*Function   // maps named concrete methods to their code
+	concreteMethods map[*types.Func]*Function   // maps declared concrete methods to their code
 	mode            BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
 	methodSets          typemap.M                 // maps type to its concrete MethodSet
-	indirectionWrappers map[*Function]*Function   // func(*T) wrappers for T-methods
-	boundMethodWrappers map[*Function]*Function   // wrappers for curried x.Method closures
+	boundMethodWrappers map[*types.Func]*Function // wrappers for curried x.Method closures
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
 
@@ -72,6 +71,10 @@ type Member interface {
 //
 // The keys of a method set are strings returned by the types.Id()
 // function.
+//
+// TODO(adonovan): encapsulate the representation behind both Id-based
+// and types.Method-based accessors and enable lazy population.
+// Perhaps hide it entirely within the Program API.
 //
 type MethodSet map[string]*Function
 
@@ -250,7 +253,8 @@ type Instruction interface {
 //
 type Function struct {
 	name      string
-	object    types.Object // a *types.Func; may be nil for init, wrappers, etc.
+	object    types.Object  // a declared *types.Func; nil for init, wrappers, etc.
+	method    *types.Method // info about provenance of synthetic methods [currently unused]
 	Signature *types.Signature
 	pos       token.Pos
 
@@ -1177,7 +1181,7 @@ type anInstruction struct {
 // Each CallCommon exists in one of two modes, function call and
 // interface method invocation, or "call" and "invoke" for short.
 //
-// 1. "call" mode: when Recv is nil (!IsInvoke), a CallCommon
+// 1. "call" mode: when Method is nil (!IsInvoke), a CallCommon
 // represents an ordinary function call of the value in Func.
 //
 // In the common case in which Func is a *Function, this indicates a
@@ -1197,10 +1201,10 @@ type anInstruction struct {
 // 	go t3()
 //	defer t5(...t6)
 //
-// 2. "invoke" mode: when Recv is non-nil (IsInvoke), a CallCommon
+// 2. "invoke" mode: when Method is non-nil (IsInvoke), a CallCommon
 // represents a dynamically dispatched call to an interface method.
-// In this mode, Recv is the interface value and Method is the index
-// of the method within the interface type of the receiver.
+// In this mode, Recv is the interface value and Method is the
+// interface's abstract method.
 //
 // Recv is implicitly supplied to the concrete method implementation
 // as the receiver parameter; in other words, Args[0] holds not the
@@ -1219,17 +1223,18 @@ type anInstruction struct {
 // readability of the printed form.)
 //
 type CallCommon struct {
-	Recv        Value     // receiver, iff interface method invocation
-	Method      int       // index of interface method; call MethodId() for its Id
-	Func        Value     // target of call, iff function call
-	Args        []Value   // actual parameters, including receiver in invoke mode
-	HasEllipsis bool      // true iff last Args is a slice of '...' args (needed?)
-	pos         token.Pos // position of CallExpr.Lparen, iff explicit in source
+	// TODO(adonovan): combine Recv/Func fields since Method now discriminates.
+	Recv        Value       // receiver (in "invoke" mode)
+	Method      *types.Func // abstract method (in "invoke" mode)
+	Func        Value       // target of call (in "call" mode)
+	Args        []Value     // actual parameters, including receiver in invoke mode
+	HasEllipsis bool        // true iff last Args is a slice of '...' args (needed?)
+	pos         token.Pos   // position of CallExpr.Lparen, iff explicit in source
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.
 func (c *CallCommon) IsInvoke() bool {
-	return c.Recv != nil
+	return c.Method != nil
 }
 
 func (c *CallCommon) Pos() token.Pos { return c.pos }
@@ -1245,9 +1250,8 @@ func (c *CallCommon) Pos() token.Pos { return c.pos }
 // Signature returns nil for a call to a built-in function.
 //
 func (c *CallCommon) Signature() *types.Signature {
-	if c.Recv != nil {
-		iface := c.Recv.Type().Underlying().(*types.Interface)
-		return iface.Method(c.Method).Type().(*types.Signature)
+	if c.Method != nil {
+		return c.Method.Type().(*types.Signature)
 	}
 	sig, _ := c.Func.Type().Underlying().(*types.Signature) // nil for *Builtin
 	return sig
@@ -1263,12 +1267,6 @@ func (c *CallCommon) StaticCallee() *Function {
 		return fn.Fn.(*Function)
 	}
 	return nil
-}
-
-// MethodId returns the Id for the method called by c, which must
-// have "invoke" mode.
-func (c *CallCommon) MethodId() string {
-	return c.Recv.Type().Underlying().(*types.Interface).Method(c.Method).Id()
 }
 
 // Description returns a description of the mode of this call suitable

@@ -133,16 +133,16 @@ func (fr *frame) rundefers() {
 	fr.defers = fr.defers[:0]
 }
 
-// findMethodSet returns the method set for type typ, which may be one
+// lookupMethod returns the method set for type typ, which may be one
 // of the interpreter's fake types.
-func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
+func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa.Function {
 	switch typ {
 	case rtypeType:
-		return i.rtypeMethods
+		return i.rtypeMethods[meth.Id()]
 	case errorType:
-		return i.errorMethods
+		return i.errorMethods[meth.Id()]
 	}
-	return i.prog.MethodSet(typ)
+	return i.prog.LookupMethod(typ.MethodSet().Lookup(meth.Pkg(), meth.Name()))
 }
 
 // visitInstr interprets a single ssa.Instruction within the activation
@@ -391,11 +391,10 @@ func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
 		if recv.t == nil {
 			panic("method invoked on nil interface")
 		}
-		id := call.MethodId()
-		fn = findMethodSet(fr.i, recv.t)[id]
+		fn = lookupMethod(fr.i, recv.t, call.Method)
 		if fn == nil {
 			// Unreachable in well-typed programs.
-			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, id))
+			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, call.Method))
 		}
 		args = append(args, copyVal(recv.v))
 	}

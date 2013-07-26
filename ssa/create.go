@@ -41,8 +41,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
 		concreteMethods:     make(map[*types.Func]*Function),
-		indirectionWrappers: make(map[*Function]*Function),
-		boundMethodWrappers: make(map[*Function]*Function),
+		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
 	}
@@ -118,23 +117,13 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.values[obj] = fn
 			pkg.Members[name] = fn
 		} else {
-			// TODO(adonovan): interface methods now have
-			// objects, but we probably don't want to call
-			// memberFromObject for them.
-
-			// Method declaration.
-			// TODO(adonovan) Move this test elsewhere.
-			if _, ok := recv.Type().Underlying().(*types.Interface); ok {
-				return // ignore interface methods
-			}
-			_, method := namedTypeMethodIndex(
-				deref(recv.Type()).(*types.Named),
-				types.Id(pkg.Object, name))
-			pkg.Prog.concreteMethods[method] = fn
+			// Concrete method.
+			_ = deref(recv.Type()).(*types.Named) // assertion
+			pkg.Prog.concreteMethods[obj] = fn
 		}
 
 	default: // (incl. *types.Package)
-		panic(fmt.Sprintf("unexpected Object type: %T", obj))
+		panic("unexpected Object type: " + obj.String())
 	}
 }
 
@@ -239,20 +228,13 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		scope := p.Object.Scope()
 		for _, name := range scope.Names() {
 			obj := scope.Lookup(name)
+			memberFromObject(p, obj, nil)
 			if obj, ok := obj.(*types.TypeName); ok {
-				// TODO(adonovan): are the set of Func
-				// objects passed to memberFromObject
-				// duplicate-free?  I doubt it.  Check.
-				mset := types.NewMethodSet(obj.Type())
-				for i, n := 0, mset.Len(); i < n; i++ {
-					memberFromObject(p, mset.At(i).Func, nil)
-				}
-				mset = types.NewMethodSet(types.NewPointer(obj.Type()))
-				for i, n := 0, mset.Len(); i < n; i++ {
-					memberFromObject(p, mset.At(i).Func, nil)
+				named := obj.Type().(*types.Named)
+				for i, n := 0, named.NumMethods(); i < n; i++ {
+					memberFromObject(p, named.Method(i), nil)
 				}
 			}
-			memberFromObject(p, obj, nil)
 		}
 	}
 

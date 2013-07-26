@@ -53,59 +53,6 @@ func deref(typ types.Type) types.Type {
 	return typ
 }
 
-// namedTypeMethodIndex returns the method (and its index) named id
-// within the set of explicitly declared concrete methods of named
-// type typ.  If not found, panic ensues.
-//
-func namedTypeMethodIndex(typ *types.Named, id string) (int, *types.Func) {
-	for i, n := 0, typ.NumMethods(); i < n; i++ {
-		m := typ.Method(i)
-		if m.Id() == id {
-			return i, m
-		}
-	}
-	panic(fmt.Sprint("method not found: ", id, " in named type ", typ))
-}
-
-// interfaceMethodIndex returns the method (and its index) named id
-// within the method-set of interface type typ.  If not found, panic
-// ensues.
-//
-func interfaceMethodIndex(typ *types.Interface, id string) (int, *types.Func) {
-	for i, n := 0, typ.NumMethods(); i < n; i++ {
-		m := typ.Method(i)
-		if m.Id() == id {
-			return i, m
-		}
-	}
-	panic(fmt.Sprint("method not found: ", id, " in interface ", typ))
-}
-
-// isSuperinterface returns true if x is a superinterface of y,
-// i.e.  x's methods are a subset of y's.
-//
-func isSuperinterface(x, y *types.Interface) bool {
-	if y.NumMethods() < x.NumMethods() {
-		return false
-	}
-	// TODO(adonovan): opt: this is quadratic.
-outer:
-	for i, n := 0, x.NumMethods(); i < n; i++ {
-		xm := x.Method(i)
-		for j, m := 0, y.NumMethods(); j < m; j++ {
-			ym := y.Method(j)
-			if xm.Id() == ym.Id() {
-				if !types.IsIdentical(xm.Type(), ym.Type()) {
-					return false // common name but conflicting types
-				}
-				continue outer
-			}
-		}
-		return false // y doesn't have this method
-	}
-	return true
-}
-
 // DefaultType returns the default "typed" type for an "untyped" type;
 // it returns the incoming type for all other types.  The default type
 // for untyped nil is untyped nil.

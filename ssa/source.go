@@ -257,6 +257,8 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // because its package was not built, the DebugInfo flag was not set
 // during SSA construction, or the value was optimized away.
 //
+// TODO(adonovan): test on x.f where x is a field.
+//
 // ref must be the path to an ast.Ident (e.g. from
 // PathEnclosingInterval), and that ident must resolve to obj.
 //

@@ -89,6 +89,17 @@ func typeCheck() {
 	_ = i.(func()) // type assertion: receiver type disappears
 }
 
+type errString string
+
+func (err errString) Error() string {
+	return string(err)
+}
+
+// Regression test for a builder crash.
+func regress1(x error) func() string {
+	return x.Error
+}
+
 func main() {
 	valueReceiver()
 	pointerReceiver()
@@ -96,4 +107,8 @@ func main() {
 	promotedReceiver()
 	anonStruct()
 	typeCheck()
+
+	if e := regress1(errString("hi"))(); e != "hi" {
+		panic(e)
+	}
 }

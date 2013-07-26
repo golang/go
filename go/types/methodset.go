@@ -23,6 +23,12 @@ type Method struct {
 	selectorPath
 }
 
+// TODO(gri): expose this or something like it (e.g. lookupResult) to
+// make life easier for callers of LookupFieldOrMethod.
+func NewMethod(f *Func, recv Type, index []int, indirect bool) *Method {
+	return &Method{f, selectorPath{recv, index, indirect}}
+}
+
 // Type returns the promoted signature type of m (i.e., the receiver
 // type is Recv()).
 func (m *Method) Type() Type {
@@ -31,6 +37,10 @@ func (m *Method) Type() Type {
 	recv.typ = m.recv
 	sig.recv = &recv
 	return &sig
+}
+
+func (m *Method) String() string {
+	return fmt.Sprintf("method (%s).%s %s", m.Recv(), m.Name(), m.Type())
 }
 
 // A selectorPath describes the path from a value x to one of its fields

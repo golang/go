@@ -27,7 +27,7 @@ import (
 func main() {
         var t testing.T
 	t.Parallel()    // static call to external declared method
-        t.Fail()        // static call to synthetic promotion wrapper
+        t.Fail()        // static call to promoted external declared method
         testing.Short() // static call to external package-level function
 
         var w io.Writer = new(bytes.Buffer)
@@ -110,7 +110,7 @@ func main() {
 
 	expectedCallee := []string{
 		"(*testing.T).Parallel",
-		"(*testing.T).Fail",
+		"(*testing.common).Fail",
 		"testing.Short",
 		"N/A",
 	}
@@ -123,7 +123,7 @@ func main() {
 				if want := expectedCallee[callNum]; want != "N/A" {
 					got := call.StaticCallee().String()
 					if want != got {
-						t.Errorf("%dth call from main.main: got callee %s, want %s",
+						t.Errorf("call #%d from main.main: got callee %s, want %s",
 							callNum, got, want)
 					}
 				}

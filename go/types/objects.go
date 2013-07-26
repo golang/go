@@ -6,6 +6,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -46,6 +47,10 @@ func Id(pkg *Package, name string) string {
 	}
 	// unexported names need the package path for differentiation
 	path := ""
+	// TODO(gri): shouldn't !ast.IsExported(name) => pkg != nil be an precondition?
+	// if pkg == nil {
+	// 	panic("nil package in lookup of unexported name")
+	// }
 	if pkg != nil {
 		path = pkg.path
 		if path == "" {
@@ -82,8 +87,10 @@ func (obj *object) toString(kind string, typ Type) string {
 		buf.WriteByte('.')
 	}
 	buf.WriteString(obj.name)
-	buf.WriteByte(' ')
-	writeType(&buf, typ)
+	if typ != nil {
+		buf.WriteByte(' ')
+		writeType(&buf, typ)
+	}
 
 	return buf.String()
 }
@@ -127,7 +134,7 @@ func NewPackage(pos token.Pos, path, name string, scope *Scope, imports map[stri
 	return obj
 }
 
-func (obj *Package) String() string               { return obj.toString("package", nil) }
+func (obj *Package) String() string               { return fmt.Sprintf("package %s", obj.Path()) }
 func (obj *Package) Path() string                 { return obj.path }
 func (obj *Package) Scope() *Scope                { return obj.scope }
 func (obj *Package) Imports() map[string]*Package { return obj.imports }
@@ -178,7 +185,9 @@ func NewFieldVar(pos token.Pos, pkg *Package, name string, typ Type, anonymous b
 func (obj *Var) Anonymous() bool { return obj.anonymous }
 func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
 
-// A Func represents a declared function.
+// A Func represents a declared function, concrete method, or abstract
+// (interface) method.  Its Type() is a *Signature.
+// An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
 }
@@ -187,7 +196,33 @@ func NewFunc(pos token.Pos, pkg *Package, name string, typ Type) *Func {
 	return &Func{object{nil, pos, pkg, name, typ}}
 }
 
-func (obj *Func) String() string { return obj.toString("func", obj.typ) }
+func (obj *Func) String() string {
+	var buf bytes.Buffer
+
+	buf.WriteString("func ")
+	sig := obj.typ.(*Signature)
+	if recv := sig.Recv(); recv != nil {
+		buf.WriteByte('(')
+		if _, ok := recv.Type().(*Interface); ok {
+			// gcimporter creates abstract methods of
+			// named interfaces using the interface type
+			// (not the named type) as the receiver.
+			// Don't print it in full.
+			buf.WriteString("interface")
+		} else {
+			writeType(&buf, recv.Type())
+		}
+		buf.WriteByte(')')
+		buf.WriteByte(' ')
+	}
+	if obj.pkg != nil {
+		buf.WriteString(obj.pkg.name)
+		buf.WriteByte('.')
+	}
+	buf.WriteString(obj.name)
+	writeSignature(&buf, sig)
+	return buf.String()
+}
 
 // A Label represents a declared label.
 type Label struct {
@@ -198,4 +233,4 @@ func NewLabel(pos token.Pos, name string) *Label {
 	return &Label{object{nil, pos, nil, name, nil}}
 }
 
-func (obj *Label) String() string { return obj.toString("label", nil) }
+func (obj *Label) String() string { return fmt.Sprintf("label %s", obj.Name()) }

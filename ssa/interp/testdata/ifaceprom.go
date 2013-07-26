@@ -26,10 +26,33 @@ func (impl) two() string {
 func main() {
 	var s S
 	s.I = impl{}
+	if one := s.I.one(); one != 1 {
+		panic(one)
+	}
 	if one := s.one(); one != 1 {
 		panic(one)
 	}
+	closOne := s.I.one
+	if one := closOne(); one != 1 {
+		panic(one)
+	}
+	closOne = s.one
+	if one := closOne(); one != 1 {
+		panic(one)
+	}
+
+	if two := s.I.two(); two != "two" {
+		panic(two)
+	}
 	if two := s.two(); two != "two" {
+		panic(two)
+	}
+	closTwo := s.I.two
+	if two := closTwo(); two != "two" {
+		panic(two)
+	}
+	closTwo = s.two
+	if two := closTwo(); two != "two" {
 		panic(two)
 	}
 }

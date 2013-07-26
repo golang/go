@@ -4,10 +4,9 @@ package ssa
 // synthesis of wrapper methods.
 //
 // Wrappers include:
-// - promotion wrappers for methods of embedded fields.
+// - indirection/promotion wrappers for methods of embedded fields.
 // - interface method wrappers for closures of I.f.
 // - bound method wrappers, for uncalled obj.Method closures.
-// - indirection wrappers, for calls to T-methods on a *T receiver.
 
 // TODO(adonovan): rename to wrappers.go.
 
@@ -18,35 +17,54 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+// recvType returns the receiver type of method obj.
+func recvType(obj *types.Func) types.Type {
+	return obj.Type().(*types.Signature).Recv().Type()
+}
+
 // MethodSet returns the method set for type typ, building wrapper
 // methods as needed for embedded field promotion, and indirection for
 // *T receiver types, etc.
 // A nil result indicates an empty set.
 //
+// This function should only be called when you need to construct the
+// entire method set, synthesizing all wrappers, for example during
+// the processing of a MakeInterface instruction or when visiting all
+// reachable functions.
+//
+// If you only need to look up a single method (obj), avoid this
+// function and use LookupMethod instead:
+//
+//      meth := types.MethodSet(typ).Lookup(pkg, name)
+// 	m := prog.MethodSet(typ)[meth.Id()]   // don't do this
+//	m := prog.LookupMethod(meth)          // use this instead
+//
+// If you only need to enumerate the keys, use types.MethodSet
+// instead.
+//
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
 // Thread-safe.
 //
 func (prog *Program) MethodSet(typ types.Type) MethodSet {
-	return prog.populateMethodSet(typ, "")
+	return prog.populateMethodSet(typ, nil)
 }
 
 // populateMethodSet returns the method set for typ, ensuring that it
-// contains at least key id.  If id is empty, the entire method set is
-// populated.
+// contains at least the value for obj, if that is a key.
+// If id is empty, the entire method set is populated.
 //
-func (prog *Program) populateMethodSet(typ types.Type, id string) MethodSet {
-	tmset := typ.MethodSet()
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (prog *Program) populateMethodSet(typ types.Type, meth *types.Method) MethodSet {
+	tmset := methodSet(typ)
 	n := tmset.Len()
 	if n == 0 {
 		return nil
 	}
-	if _, ok := deref(typ).Underlying().(*types.Interface); ok {
-		// TODO(gri): fix: go/types bug: pointer-to-interface
-		// has no methods---yet go/types says it has!
-		return nil
-	}
 
 	if prog.mode&LogSource != 0 {
-		defer logStack("MethodSet %s id=%s", typ, id)()
+		defer logStack("populateMethodSet %s meth=%v", typ, meth)()
 	}
 
 	prog.methodsMu.Lock()
@@ -59,24 +77,18 @@ func (prog *Program) populateMethodSet(typ types.Type, id string) MethodSet {
 	}
 
 	if len(mset) < n {
-		if id != "" { // single method
-			// tmset.Lookup() is no use to us with only an Id string.
+		if meth != nil { // single method
+			id := meth.Id()
 			if mset[id] == nil {
-				for i := 0; i < n; i++ {
-					obj := tmset.At(i)
-					if obj.Id() == id {
-						mset[id] = makeMethod(prog, typ, obj)
-						return mset
-					}
-				}
+				mset[id] = findMethod(prog, meth)
 			}
-		}
-
-		// complete set
-		for i := 0; i < n; i++ {
-			obj := tmset.At(i)
-			if id := obj.Id(); mset[id] == nil {
-				mset[id] = makeMethod(prog, typ, obj)
+		} else {
+			// complete set
+			for i := 0; i < n; i++ {
+				meth := tmset.At(i)
+				if id := meth.Id(); mset[id] == nil {
+					mset[id] = findMethod(prog, meth)
+				}
 			}
 		}
 	}
@@ -84,49 +96,70 @@ func (prog *Program) populateMethodSet(typ types.Type, id string) MethodSet {
 	return mset
 }
 
+func methodSet(typ types.Type) *types.MethodSet {
+	// TODO(adonovan): temporary workaround.  Inline it away when fixed.
+	if _, ok := deref(typ).Underlying().(*types.Interface); ok && isPointer(typ) {
+		// TODO(gri): fix: go/types bug: pointer-to-interface
+		// has no methods---yet go/types says it has!
+		return new(types.MethodSet)
+	}
+	return typ.MethodSet()
+}
+
 // LookupMethod returns the method id of type typ, building wrapper
 // methods on demand.  It returns nil if the typ has no such method.
 //
 // Thread-safe.
 //
-func (prog *Program) LookupMethod(typ types.Type, id string) *Function {
-	return prog.populateMethodSet(typ, id)[id]
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (prog *Program) LookupMethod(meth *types.Method) *Function {
+	return prog.populateMethodSet(meth.Recv(), meth)[meth.Id()]
 }
 
-// makeMethod returns the concrete Function for the method obj,
-// adapted if necessary so that its receiver type is typ.
+// concreteMethod returns the concrete method denoted by obj.
+// Panic ensues if there is no such method (e.g. it's a standalone
+// function).
+//
+func (prog *Program) concreteMethod(obj *types.Func) *Function {
+	fn := prog.concreteMethods[obj]
+	if fn == nil {
+		panic("no concrete method: " + obj.String())
+	}
+	return fn
+}
+
+// findMethod returns the concrete Function for the method meth,
+// synthesizing wrappers as needed.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
-func makeMethod(prog *Program, typ types.Type, obj *types.Method) *Function {
-	// Promoted method accessed via implicit field selections?
-	if len(obj.Index()) > 1 {
-		return promotionWrapper(prog, typ, obj)
+func findMethod(prog *Program, meth *types.Method) *Function {
+	needsPromotion := len(meth.Index()) > 1
+	needsIndirection := !isPointer(recvType(meth.Func)) && isPointer(meth.Recv())
+
+	if needsPromotion || needsIndirection {
+		return makeWrapper(prog, meth.Recv(), meth)
 	}
 
-	method := prog.concreteMethods[obj.Func]
-	if method == nil {
-		panic("no concrete method for " + obj.Func.String())
+	if _, ok := meth.Recv().Underlying().(*types.Interface); ok {
+		return interfaceMethodWrapper(prog, meth.Recv(), meth.Func)
 	}
 
-	// Call to method on T from receiver of type *T?
-	if !isPointer(method.Signature.Recv().Type()) && isPointer(typ) {
-		method = indirectionWrapper(method)
-	}
-
-	return method
+	// Invariant: fn.Signature.Recv().Type() == recvType(meth.Func)
+	return prog.concreteMethod(meth.Func)
 }
 
-// promotionWrapper returns a synthetic wrapper Function that performs
-// a sequence of implicit field selections then tailcalls a "promoted"
-// method.  For example, given these decls:
+// makeWrapper returns a synthetic wrapper Function that optionally
+// performs receiver indirection, implicit field selections and then a
+// tailcall of a "promoted" method.  For example, given these decls:
 //
 //    type A struct {B}
 //    type B struct {*C}
 //    type C ...
 //    func (*C) f()
 //
-// then promotionWrapper(typ=A, obj={Func:(*C).f, Indices=[B,C,f]})
+// then makeWrapper(typ=A, obj={Func:(*C).f, Indices=[B,C,f]})
 // synthesize this wrapper method:
 //
 //    func (a A) f() { return a.B.C->f() }
@@ -138,23 +171,21 @@ func makeMethod(prog *Program, typ types.Type, obj *types.Method) *Function {
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
-func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Function {
-	old := obj.Func.Type().(*types.Signature)
+func makeWrapper(prog *Program, typ types.Type, meth *types.Method) *Function {
+	old := meth.Func.Type().(*types.Signature)
 	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	// TODO(adonovan): include implicit field path in description.
-	description := fmt.Sprintf("promotion wrapper for (%s).%s", old.Recv(), obj.Func.Name())
-
+	description := fmt.Sprintf("wrapper for (%s).%s", old.Recv(), meth.Func.Name())
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, typ)()
 	}
 	fn := &Function{
-		name:      obj.Name(),
-		object:    obj,
+		name:      meth.Name(),
+		method:    meth,
 		Signature: sig,
 		Synthetic: description,
 		Prog:      prog,
-		pos:       obj.Pos(),
+		pos:       meth.Pos(),
 	}
 	fn.startBody()
 	fn.addSpilledParam(sig.Recv())
@@ -162,6 +193,8 @@ func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Functio
 
 	var v Value = fn.Locals[0] // spilled receiver
 	if isPointer(typ) {
+		// TODO(adonovan): consider emitting a nil-pointer check here
+		// with a nice error message, like gc does.
 		v = emitLoad(fn, v)
 	}
 
@@ -173,7 +206,7 @@ func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Functio
 	// Load) in preference to value extraction (Field possibly
 	// preceded by Load).
 
-	indices := obj.Index()
+	indices := meth.Index()
 	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
 
 	// Invariant: v is a pointer, either
@@ -185,14 +218,10 @@ func promotionWrapper(prog *Program, typ types.Type, obj *types.Method) *Functio
 		if !isPointer(old.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
-		m := prog.concreteMethods[obj.Func]
-		if m == nil {
-			panic("oops: " + fn.Synthetic)
-		}
-		c.Call.Func = m
+		c.Call.Func = prog.concreteMethod(meth.Func)
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
-		c.Call.Method = indices[len(indices)-1]
+		c.Call.Method = meth.Func
 		c.Call.Recv = emitLoad(fn, v)
 	}
 	for _, arg := range fn.Params[1:] {
@@ -219,9 +248,9 @@ func createParams(fn *Function) {
 
 // Wrappers for standalone interface methods ----------------------------------
 
-// interfaceMethodWrapper returns a synthetic wrapper function permitting a
-// method id of interface typ to be called like a standalone function,
-// e.g.:
+// interfaceMethodWrapper returns a synthetic wrapper function
+// permitting an abstract method obj to be called like a standalone
+// function, e.g.:
 //
 //   type I interface { f(x int) R }
 //   m := I.f  // wrapper
@@ -234,38 +263,41 @@ func createParams(fn *Function) {
 //     return i.f(x, ...)
 //   }
 //
+// typ is the type of the receiver (I here).  It isn't necessarily
+// equal to the recvType(obj) because one interface may embed another.
+// TODO(adonovan): more tests.
+//
 // TODO(adonovan): opt: currently the stub is created even when used
 // in call position: I.f(i, 0).  Clearly this is suboptimal.
 //
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
-func interfaceMethodWrapper(prog *Program, typ types.Type, id string) *Function {
-	index, meth := interfaceMethodIndex(typ.Underlying().(*types.Interface), id)
-	prog.methodsMu.Lock()
-	defer prog.methodsMu.Unlock()
+func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Function {
 	// If one interface embeds another they'll share the same
 	// wrappers for common methods.  This is safe, but it might
 	// confuse some tools because of the implicit interface
 	// conversion applied to the first argument.  If this becomes
 	// a problem, we should include 'typ' in the memoization key.
-	fn, ok := prog.ifaceMethodWrappers[meth]
+	fn, ok := prog.ifaceMethodWrappers[obj]
 	if !ok {
+		description := fmt.Sprintf("interface method wrapper for %s.%s", typ, obj)
 		if prog.mode&LogSource != 0 {
-			defer logStack("interfaceMethodWrapper %s.%s", typ, id)()
+			defer logStack("%s", description)()
 		}
 		fn = &Function{
-			name:      meth.Name(),
-			object:    meth,
-			Signature: meth.Type().(*types.Signature),
-			Synthetic: fmt.Sprintf("interface method wrapper for %s.%s", typ, id),
-			pos:       meth.Pos(),
+			name:      obj.Name(),
+			object:    obj,
+			Signature: obj.Type().(*types.Signature),
+			Synthetic: description,
+			pos:       obj.Pos(),
 			Prog:      prog,
 		}
 		fn.startBody()
 		fn.addParam("recv", typ, token.NoPos)
 		createParams(fn)
 		var c Call
-		c.Call.Method = index
+
+		c.Call.Method = obj
 		c.Call.Recv = fn.Params[0]
 		for _, arg := range fn.Params[1:] {
 			c.Call.Args = append(c.Call.Args, arg)
@@ -273,7 +305,7 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, id string) *Function 
 		emitTailCall(fn, &c)
 		fn.finishBody()
 
-		prog.ifaceMethodWrappers[meth] = fn
+		prog.ifaceMethodWrappers[obj] = fn
 	}
 	return fn
 }
@@ -281,12 +313,12 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, id string) *Function 
 // Wrappers for bound methods -------------------------------------------------
 
 // boundMethodWrapper returns a synthetic wrapper function that
-// delegates to a concrete method.  The wrapper has one free variable,
-// the method's receiver.  Use MakeClosure with such a wrapper to
-// construct a bound-method closure.
-// e.g.:
+// delegates to a concrete or interface method.
+// The wrapper has one free variable, the method's receiver.
+// Use MakeClosure with such a wrapper to construct a bound-method
+// closure.  e.g.:
 //
-//   type T int
+//   type T int          or:  type T interface { meth() }
 //   func (t T) meth()
 //   var t T
 //   f := t.meth
@@ -298,22 +330,22 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, id string) *Function 
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
 //
-func boundMethodWrapper(meth *Function) *Function {
-	prog := meth.Prog
+func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
-	fn, ok := prog.boundMethodWrappers[meth]
+	fn, ok := prog.boundMethodWrappers[obj]
 	if !ok {
+		description := fmt.Sprintf("bound method wrapper for %s", obj)
 		if prog.mode&LogSource != 0 {
-			defer logStack("boundMethodWrapper %s", meth)()
+			defer logStack("%s", description)()
 		}
-		s := meth.Signature
+		s := obj.Type().(*types.Signature)
 		fn = &Function{
-			name:      "bound$" + meth.String(),
+			name:      "bound$" + obj.String(),
 			Signature: types.NewSignature(nil, nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
-			Synthetic: "bound method wrapper for " + meth.String(),
+			Synthetic: description,
 			Prog:      prog,
-			pos:       meth.Pos(),
+			pos:       obj.Pos(),
 		}
 
 		cap := &Capture{name: "recv", typ: s.Recv().Type(), parent: fn}
@@ -321,65 +353,21 @@ func boundMethodWrapper(meth *Function) *Function {
 		fn.startBody()
 		createParams(fn)
 		var c Call
-		c.Call.Func = meth
-		c.Call.Args = []Value{cap}
+
+		if _, ok := recvType(obj).Underlying().(*types.Interface); !ok { // concrete
+			c.Call.Func = prog.concreteMethod(obj)
+			c.Call.Args = []Value{cap}
+		} else {
+			c.Call.Recv = cap
+			c.Call.Method = obj
+		}
 		for _, arg := range fn.Params {
 			c.Call.Args = append(c.Call.Args, arg)
 		}
 		emitTailCall(fn, &c)
 		fn.finishBody()
 
-		prog.boundMethodWrappers[meth] = fn
-	}
-	return fn
-}
-
-// Receiver indirection wrapper ------------------------------------
-
-// indirectionWrapper returns a synthetic method with *T receiver
-// that delegates to meth, which has a T receiver.
-//
-//      func (recv *T) f(...) ... {
-//              return (*recv).f(...)
-//      }
-//
-// EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
-//
-func indirectionWrapper(meth *Function) *Function {
-	prog := meth.Prog
-	fn, ok := prog.indirectionWrappers[meth]
-	if !ok {
-		if prog.mode&LogSource != 0 {
-			defer logStack("makeIndirectionWrapper %s", meth)()
-		}
-
-		s := meth.Signature
-		recv := types.NewVar(token.NoPos, meth.Pkg.Object, "recv",
-			types.NewPointer(s.Recv().Type()))
-		// TODO(adonovan): is there a *types.Func for this method?
-		fn = &Function{
-			name:      meth.Name(),
-			Signature: types.NewSignature(nil, recv, s.Params(), s.Results(), s.IsVariadic()),
-			Prog:      prog,
-			Synthetic: "receiver indirection wrapper for " + meth.String(),
-			pos:       meth.Pos(),
-		}
-
-		fn.startBody()
-		fn.addParamObj(recv)
-		createParams(fn)
-		// TODO(adonovan): consider emitting a nil-pointer check here
-		// with a nice error message, like gc does.
-		var c Call
-		c.Call.Func = meth
-		c.Call.Args = append(c.Call.Args, emitLoad(fn, fn.Params[0]))
-		for _, arg := range fn.Params[1:] {
-			c.Call.Args = append(c.Call.Args, arg)
-		}
-		emitTailCall(fn, &c)
-		fn.finishBody()
-
-		prog.indirectionWrappers[meth] = fn
+		prog.boundMethodWrappers[obj] = fn
 	}
 	return fn
 }

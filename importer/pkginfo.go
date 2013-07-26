@@ -122,6 +122,26 @@ func (info *PackageInfo) IsPackageRef(sel *ast.SelectorExpr) types.Object {
 	return nil
 }
 
+// ClassifySelector returns one of token.{PACKAGE,VAR,TYPE} to
+// indicate whether the base operand of sel is a package, expression
+// or type, respectively.
+//
+// Examples:
+// PACKAGE: fmt.Println (func), math.Pi (const), types.Universe (var)
+// VAR:     info.IsType (*Method), info.Objects (*Field)
+// TYPE:    PackageInfo.IsType (func)
+//
+func (info *PackageInfo) ClassifySelector(sel *ast.SelectorExpr) token.Token {
+	switch {
+	case info.IsPackageRef(sel) != nil:
+		return token.PACKAGE
+	case info.IsType(sel.X):
+		return token.TYPE
+	default:
+		return token.VAR
+	}
+}
+
 // TypeCaseVar returns the implicit variable created by a single-type
 // case clause in a type switch, or nil if not found.
 //

@@ -273,7 +273,8 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 	if ti, ok := t.Underlying().(*types.Interface); ok {
 		// Even when ti==txi, we still need ChangeInterface
 		// since it performs a nil-check.
-		if isSuperinterface(ti, txi) {
+		// TODO(adonovan): needs more tests.
+		if types.IsAssignableTo(ti, txi) {
 			c := &ChangeInterface{X: x}
 			c.setPos(pos)
 			c.setType(t)
@@ -347,6 +348,10 @@ func emitTailCall(f *Function, call *Call) {
 // implicit field selections specified by indices to base value v, and
 // returns the selected value.
 //
+// If v is the address of a struct, the result will be the address of
+// a field; if it is the value of a struct, the result will be the
+// value of a field.
+//
 func emitImplicitSelections(f *Function, v Value, indices []int) Value {
 	for _, index := range indices {
 		fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
@@ -370,6 +375,38 @@ func emitImplicitSelections(f *Function, v Value, indices []int) Value {
 			instr.setType(fld.Type())
 			v = f.emit(instr)
 		}
+	}
+	return v
+}
+
+// emitFieldSelection emits to f code to select the index'th field of v.
+//
+// If wantAddr, the input must be a pointer-to-struct and the result
+// will be the field's address; otherwise the result will be the
+// field's value.
+//
+func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos token.Pos) Value {
+	fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
+	if isPointer(v.Type()) {
+		instr := &FieldAddr{
+			X:     v,
+			Field: index,
+		}
+		instr.setPos(pos)
+		instr.setType(types.NewPointer(fld.Type()))
+		v = f.emit(instr)
+		// Load the field's value iff we don't want its address.
+		if !wantAddr {
+			v = emitLoad(f, v)
+		}
+	} else {
+		instr := &Field{
+			X:     v,
+			Field: index,
+		}
+		instr.setPos(pos)
+		instr.setType(fld.Type())
+		v = f.emit(instr)
 	}
 	return v
 }

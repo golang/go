@@ -461,7 +461,8 @@ func (f *Function) emit(instr Instruction) Value {
 //
 // If from==f.Pkg, suppress package qualification.
 func (f *Function) fullName(from *Package) string {
-	// TODO(adonovan): expose less fragile case discrimination.
+	// TODO(adonovan): expose less fragile case discrimination
+	// using f.method.
 
 	// Anonymous?
 	if f.Enclosing != nil {
