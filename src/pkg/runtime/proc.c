@@ -160,10 +160,14 @@ extern void main·main(void);
 
 static FuncVal scavenger = {runtime·MHeap_Scavenger};
 
+static FuncVal initDone = { runtime·unlockOSThread };
+
 // The main goroutine.
 void
 runtime·main(void)
 {
+	Defer d;
+
 	newm(sysmon, nil);
 
 	// Lock the main goroutine onto this, the main OS thread,
@@ -173,10 +177,24 @@ runtime·main(void)
 	// by calling runtime.LockOSThread during initialization
 	// to preserve the lock.
 	runtime·lockOSThread();
+	
+	// Defer unlock so that runtime.Goexit during init does the unlock too.
+	d.fn = &initDone;
+	d.siz = 0;
+	d.link = g->defer;
+	d.argp = (void*)-1;
+	d.special = true;
+	d.free = false;
+	g->defer = &d;
+
 	if(m != &runtime·m0)
 		runtime·throw("runtime·main not on m0");
 	runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
 	main·init();
+
+	if(g->defer != &d || d.fn != &initDone)
+		runtime·throw("runtime: bad defer entry after init");
+	g->defer = d.link;
 	runtime·unlockOSThread();
 
 	main·main();
