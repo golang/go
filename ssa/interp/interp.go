@@ -382,12 +382,13 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 // interface method lookup if needed.
 //
 func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
-	if call.Func != nil {
+	v := fr.get(call.Value)
+	if call.Method == nil {
 		// Function call.
-		fn = fr.get(call.Func)
+		fn = v
 	} else {
 		// Interface method invocation.
-		recv := fr.get(call.Recv).(iface)
+		recv := v.(iface)
 		if recv.t == nil {
 			panic("method invoked on nil interface")
 		}

@@ -60,7 +60,6 @@ func jumpThreading(f *Function, b *BasicBlock) bool {
 		return false // don't apply to entry block
 	}
 	if b.Instrs == nil {
-		fmt.Println("empty block ", b)
 		return false
 	}
 	if _, ok := b.Instrs[0].(*Jump); !ok {

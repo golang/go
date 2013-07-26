@@ -778,7 +778,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// e.Fun is not a selector.
 	// Evaluate it in the usual way.
 	if !ok {
-		c.Func = b.expr(fn, e.Fun)
+		c.Value = b.expr(fn, e.Fun)
 		return
 	}
 
@@ -787,7 +787,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// e.Fun refers to a package-level func or var.
 	// Evaluate it in the usual way.
 	if selKind == token.PACKAGE {
-		c.Func = b.expr(fn, e.Fun)
+		c.Value = b.expr(fn, e.Fun)
 		return
 	}
 
@@ -802,7 +802,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		// interface wrapper function, or promotion wrapper.
 		//
 		// For now, we evaluate it in the usual way.
-		c.Func = b.expr(fn, e.Fun)
+		c.Value = b.expr(fn, e.Fun)
 
 		// TODO(adonovan): opt: inline expr() here, to make
 		// the call static and to avoid generation of
@@ -841,11 +841,11 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 				v = emitLoad(fn, v)
 			}
 			// Invoke-mode call.
-			c.Recv = v
+			c.Value = v
 			c.Method = obj
 		} else {
 			// "Call"-mode call.
-			c.Func = fn.Prog.concreteMethod(obj)
+			c.Value = fn.Prog.concreteMethod(obj)
 			c.Args = append(c.Args, v)
 		}
 		return
@@ -854,7 +854,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		// Field access: x.f() where x.f is a function value
 		// in a struct field f; not a method call.
 		// Evaluate it in the usual way.
-		c.Func = b.expr(fn, e.Fun)
+		c.Value = b.expr(fn, e.Fun)
 		return
 	}
 
@@ -1731,7 +1731,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup("len")]
+		c.Call.Value = fn.Prog.builtins[types.Universe.Lookup("len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -2336,7 +2336,7 @@ func (p *Package) Build() {
 	// Call the init() function of each package we import.
 	for _, obj := range p.info.Imports() {
 		var v Call
-		v.Call.Func = p.Prog.packages[obj].init
+		v.Call.Value = p.Prog.packages[obj].init
 		v.Call.pos = init.pos
 		v.setType(types.NewTuple())
 		init.emit(&v)

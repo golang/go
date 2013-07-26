@@ -51,8 +51,8 @@ func (prog *Program) MethodSet(typ types.Type) MethodSet {
 }
 
 // populateMethodSet returns the method set for typ, ensuring that it
-// contains at least the value for obj, if that is a key.
-// If id is empty, the entire method set is populated.
+// contains at least the function for meth, if that is a key.
+// If meth is nil, the entire method set is populated.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
@@ -106,8 +106,9 @@ func methodSet(typ types.Type) *types.MethodSet {
 	return typ.MethodSet()
 }
 
-// LookupMethod returns the method id of type typ, building wrapper
-// methods on demand.  It returns nil if the typ has no such method.
+// LookupMethod returns the Function for the specified method object,
+// building wrapper methods on demand.  It returns nil if the typ has
+// no such method.
 //
 // Thread-safe.
 //
@@ -146,7 +147,6 @@ func findMethod(prog *Program, meth *types.Method) *Function {
 		return interfaceMethodWrapper(prog, meth.Recv(), meth.Func)
 	}
 
-	// Invariant: fn.Signature.Recv().Type() == recvType(meth.Func)
 	return prog.concreteMethod(meth.Func)
 }
 
@@ -175,7 +175,7 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Method) *Function {
 	old := meth.Func.Type().(*types.Signature)
 	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	description := fmt.Sprintf("wrapper for (%s).%s", old.Recv(), meth.Func.Name())
+	description := fmt.Sprintf("wrapper for %s", meth.Func)
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, typ)()
 	}
@@ -218,11 +218,11 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Method) *Function {
 		if !isPointer(old.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
-		c.Call.Func = prog.concreteMethod(meth.Func)
+		c.Call.Value = prog.concreteMethod(meth.Func)
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		c.Call.Method = meth.Func
-		c.Call.Recv = emitLoad(fn, v)
+		c.Call.Value = emitLoad(fn, v)
 	}
 	for _, arg := range fn.Params[1:] {
 		c.Call.Args = append(c.Call.Args, arg)
@@ -298,7 +298,7 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Fun
 		var c Call
 
 		c.Call.Method = obj
-		c.Call.Recv = fn.Params[0]
+		c.Call.Value = fn.Params[0]
 		for _, arg := range fn.Params[1:] {
 			c.Call.Args = append(c.Call.Args, arg)
 		}
@@ -341,24 +341,24 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 		}
 		s := obj.Type().(*types.Signature)
 		fn = &Function{
-			name:      "bound$" + obj.String(),
-			Signature: types.NewSignature(nil, nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
+			name:      "bound$" + obj.FullName(),
+			Signature: types.NewSignature(nil, nil, s.Params(), s.Results(), s.IsVariadic()),
 			Synthetic: description,
 			Prog:      prog,
 			pos:       obj.Pos(),
 		}
 
-		cap := &Capture{name: "recv", typ: s.Recv().Type(), parent: fn}
+		cap := &Capture{name: "recv", typ: recvType(obj), parent: fn}
 		fn.FreeVars = []*Capture{cap}
 		fn.startBody()
 		createParams(fn)
 		var c Call
 
 		if _, ok := recvType(obj).Underlying().(*types.Interface); !ok { // concrete
-			c.Call.Func = prog.concreteMethod(obj)
+			c.Call.Value = prog.concreteMethod(obj)
 			c.Call.Args = []Value{cap}
 		} else {
-			c.Call.Recv = cap
+			c.Call.Value = cap
 			c.Call.Method = obj
 		}
 		for _, arg := range fn.Params {

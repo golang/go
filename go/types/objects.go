@@ -196,10 +196,15 @@ func NewFunc(pos token.Pos, pkg *Package, name string, typ Type) *Func {
 	return &Func{object{nil, pos, pkg, name, typ}}
 }
 
-func (obj *Func) String() string {
+// FullName returns the package- or receiver-type-qualified name of
+// function or method obj.
+func (obj *Func) FullName() string {
 	var buf bytes.Buffer
+	obj.fullname(&buf)
+	return buf.String()
+}
 
-	buf.WriteString("func ")
+func (obj *Func) fullname(buf *bytes.Buffer) {
 	sig := obj.typ.(*Signature)
 	if recv := sig.Recv(); recv != nil {
 		buf.WriteByte('(')
@@ -210,17 +215,22 @@ func (obj *Func) String() string {
 			// Don't print it in full.
 			buf.WriteString("interface")
 		} else {
-			writeType(&buf, recv.Type())
+			writeType(buf, recv.Type())
 		}
 		buf.WriteByte(')')
-		buf.WriteByte(' ')
-	}
-	if obj.pkg != nil {
+		buf.WriteByte('.')
+	} else if obj.pkg != nil {
 		buf.WriteString(obj.pkg.name)
 		buf.WriteByte('.')
 	}
 	buf.WriteString(obj.name)
-	writeSignature(&buf, sig)
+}
+
+func (obj *Func) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("func ")
+	obj.fullname(&buf)
+	writeSignature(&buf, obj.typ.(*Signature))
 	return buf.String()
 }
 

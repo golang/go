@@ -1182,19 +1182,18 @@ type anInstruction struct {
 // interface method invocation, or "call" and "invoke" for short.
 //
 // 1. "call" mode: when Method is nil (!IsInvoke), a CallCommon
-// represents an ordinary function call of the value in Func.
+// represents an ordinary function call of the value in Value.
 //
-// In the common case in which Func is a *Function, this indicates a
+// In the common case in which Value is a *Function, this indicates a
 // statically dispatched call to a package-level function, an
 // anonymous function, or a method of a named type.  Also statically
-// dispatched, but less common, Func may be a *MakeClosure, indicating
+// dispatched, but less common, Value may be a *MakeClosure, indicating
 // an immediately applied function literal with free variables.  Any
-// other Value of Func indicates a dynamically dispatched function
+// other value of Value indicates a dynamically dispatched function
 // call.  The StaticCallee method returns the callee in these cases.
 //
-// Args contains the arguments to the call.  If Func is a method,
-// Args[0] contains the receiver parameter.  Recv and Method are not
-// used in this mode.
+// Args contains the arguments to the call.  If Value is a method,
+// Args[0] contains the receiver parameter.
 //
 // Example printed form:
 // 	t2 = println(t0, t1)
@@ -1203,13 +1202,12 @@ type anInstruction struct {
 //
 // 2. "invoke" mode: when Method is non-nil (IsInvoke), a CallCommon
 // represents a dynamically dispatched call to an interface method.
-// In this mode, Recv is the interface value and Method is the
+// In this mode, Value is the interface value and Method is the
 // interface's abstract method.
 //
-// Recv is implicitly supplied to the concrete method implementation
+// Value is implicitly supplied to the concrete method implementation
 // as the receiver parameter; in other words, Args[0] holds not the
-// receiver but the first true argument.  Func is not used in this
-// mode.
+// receiver but the first true argument.
 //
 // Example printed form:
 // 	t1 = invoke t0.String()
@@ -1223,11 +1221,9 @@ type anInstruction struct {
 // readability of the printed form.)
 //
 type CallCommon struct {
-	// TODO(adonovan): combine Recv/Func fields since Method now discriminates.
-	Recv        Value       // receiver (in "invoke" mode)
-	Method      *types.Func // abstract method (in "invoke" mode)
-	Func        Value       // target of call (in "call" mode)
-	Args        []Value     // actual parameters, including receiver in invoke mode
+	Value       Value       // receiver (invoke mode) or func value (call mode)
+	Method      *types.Func // abstract method (invoke mode)
+	Args        []Value     // actual parameters (in static method call, includes receiver)
 	HasEllipsis bool        // true iff last Args is a slice of '...' args (needed?)
 	pos         token.Pos   // position of CallExpr.Lparen, iff explicit in source
 }
@@ -1253,14 +1249,14 @@ func (c *CallCommon) Signature() *types.Signature {
 	if c.Method != nil {
 		return c.Method.Type().(*types.Signature)
 	}
-	sig, _ := c.Func.Type().Underlying().(*types.Signature) // nil for *Builtin
+	sig, _ := c.Value.Type().Underlying().(*types.Signature) // nil for *Builtin
 	return sig
 }
 
 // StaticCallee returns the called function if this is a trivially
 // static "call"-mode call.
 func (c *CallCommon) StaticCallee() *Function {
-	switch fn := c.Func.(type) {
+	switch fn := c.Value.(type) {
 	case *Function:
 		return fn
 	case *MakeClosure:
@@ -1272,7 +1268,7 @@ func (c *CallCommon) StaticCallee() *Function {
 // Description returns a description of the mode of this call suitable
 // for a user interface, e.g. "static method call".
 func (c *CallCommon) Description() string {
-	switch fn := c.Func.(type) {
+	switch fn := c.Value.(type) {
 	case nil:
 		return "dynamic method call" // ("invoke" mode)
 	case *MakeClosure:
@@ -1429,7 +1425,7 @@ func (v *BinOp) Operands(rands []*Value) []*Value {
 }
 
 func (c *CallCommon) Operands(rands []*Value) []*Value {
-	rands = append(rands, &c.Recv, &c.Func)
+	rands = append(rands, &c.Value)
 	for i := range c.Args {
 		rands = append(rands, &c.Args[i])
 	}
