@@ -1,8 +1,37 @@
-Given a Notepad++ installation at <DIR>:
+Notepad++ syntax highlighting
+-----------------------------
 
-1. Add the contents of userDefineLang.xml at <DIR>\userDefineLang.xml
-	between <NotepadPlus> ... </NotepadPlus>
-	
-2. Copy go.xml to <DIR>\plugins\APIs
+The userDefineLang.xml uses the new User Defined Language system (UDL2),
+which needs Notepad++ v6.2 or higher.
 
-3. Restart Notepad++
+Installing from Notepad++ Installer
+
+  1. Add the contents of userDefineLang.xml at %APPDATA%\Notepad++\userDefineLang.xml
+     between <NotepadPlus> ... </NotepadPlus>
+  2. Restart Notepad++
+
+Installing from Notepad++ zip/7z package
+
+  1. Given a Notepad++ installation at <DIR>.
+  2. Add the contents of userDefineLang.xml at <DIR>\userDefineLang.xml
+     between <NotepadPlus> ... </NotepadPlus>
+  3. Restart Notepad++
+
+Reference
+
+  1. http://sourceforge.net/apps/mediawiki/notepad-plus/index.php?title=User_Defined_Languages
+  2. http://notepad-plus-plus.org/news/notepad-6.2-release-udl2.html
+  3. http://udl20.weebly.com/index.html
+
+
+Notepad++ keyword auto-completion
+---------------------------------
+
+  1. Given a Notepad++ installation at <DIR>.
+  2. Copy go.xml to <DIR>\plugins\APIs
+  3. Restart Notepad++
+
+Reference
+
+  1. http://sourceforge.net/apps/mediawiki/notepad-plus/index.php?title=Auto_Completion
+
