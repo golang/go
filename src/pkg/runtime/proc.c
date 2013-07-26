@@ -1941,7 +1941,7 @@ procresize(int32 new)
 	for(i = 0; i < new; i++) {
 		p = runtime·allp[i];
 		if(p == nil) {
-			p = (P*)runtime·mallocgc(sizeof(*p), 0, 0, 1);
+			p = (P*)runtime·mallocgc(sizeof(*p), 0, FlagNoInvokeGC);
 			p->status = Pgcstop;
 			runtime·atomicstorep(&runtime·allp[i], p);
 		}
@@ -1953,7 +1953,7 @@ procresize(int32 new)
 		}
 		if(p->runq == nil) {
 			p->runqsize = 128;
-			p->runq = (G**)runtime·mallocgc(p->runqsize*sizeof(G*), 0, 0, 1);
+			p->runq = (G**)runtime·mallocgc(p->runqsize*sizeof(G*), 0, FlagNoInvokeGC);
 		}
 	}
 

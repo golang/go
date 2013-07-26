@@ -259,7 +259,7 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 		// done lazily later.
 		buckets = nil;
 	} else {
-		buckets = runtime·mallocgc(bucketsize << B, 0, 1, 0);
+		buckets = runtime·mallocgc(bucketsize << B, 0, FlagNoZero);
 		for(i = 0; i < (uintptr)1 << B; i++) {
 			b = (Bucket*)(buckets + i * bucketsize);
 			clearbucket(b);
@@ -330,7 +330,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				if((hash & newbit) == 0) {
 					if(xi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
-						newx = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+						newx = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 						clearbucket(newx);
 						x->overflow = newx;
 						x = newx;
@@ -355,7 +355,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				} else {
 					if(yi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
-						newy = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+						newy = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 						clearbucket(newy);
 						y->overflow = newy;
 						y = newy;
@@ -451,7 +451,7 @@ hash_grow(MapType *t, Hmap *h)
 	old_buckets = h->buckets;
 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
-	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, 1, 0);
+	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, FlagNoZero);
 	flags = (h->flags & ~(Iterator | OldIterator));
 	if((h->flags & Iterator) != 0) {
 		flags |= OldIterator;
@@ -597,7 +597,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
 	if(h->buckets == nil) {
-		h->buckets = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+		h->buckets = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 		b = (Bucket*)(h->buckets);
 		clearbucket(b);
 	}
@@ -647,7 +647,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	if(inserti == nil) {
 		// all current buckets are full, allocate a new one.
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		newb = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+		newb = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 		clearbucket(newb);
 		b->overflow = newb;
 		inserti = newb->tophash;
@@ -658,13 +658,13 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	// store new key/value at insert position
 	if((h->flags & IndirectKey) != 0) {
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		kmem = runtime·mallocgc(t->key->size, 0, 1, 0);
+		kmem = runtime·mallocgc(t->key->size, 0, FlagNoZero);
 		*(byte**)insertk = kmem;
 		insertk = kmem;
 	}
 	if((h->flags & IndirectValue) != 0) {
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		vmem = runtime·mallocgc(t->elem->size, 0, 1, 0);
+		vmem = runtime·mallocgc(t->elem->size, 0, FlagNoZero);
 		*(byte**)insertv = vmem;
 		insertv = vmem;
 	}
@@ -1102,15 +1102,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
 	if(key->alg->hash == runtime·nohash)
 		runtime·throw("runtime.makemap: unsupported map key type");
 
-	h = runtime·mal(sizeof(*h));
-
-	if(UseSpanType) {
-		if(false) {
-			runtime·printf("makemap %S: %p\n", *typ->string, h);
-		}
-		runtime·settype(h, (uintptr)typ | TypeInfo_Map);
-	}
-
+	h = runtime·mallocgc(sizeof(*h), (uintptr)typ | TypeInfo_Map, 0);
 	hash_init(typ, h, hint);
 
 	// these calculations are compiler dependent.

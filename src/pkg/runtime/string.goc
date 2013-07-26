@@ -45,7 +45,7 @@ gostringsize(intgo l)
 	if(l == 0)
 		return runtime·emptystring;
 	// leave room for NUL for C runtime (e.g., callers of getenv)
-	s.str = runtime·mallocgc(l+1, FlagNoPointers, 1, 0);
+	s.str = runtime·mallocgc(l+1, 0, FlagNoPointers|FlagNoZero);
 	s.len = l;
 	s.str[l] = 0;
 	for(;;) {
@@ -83,7 +83,7 @@ runtime·gobytes(byte *p, intgo n)
 {
 	Slice sl;
 
-	sl.array = runtime·mallocgc(n, FlagNoPointers, 1, 0);
+	sl.array = runtime·mallocgc(n, 0, FlagNoPointers|FlagNoZero);
 	sl.len = n;
 	sl.cap = n;
 	runtime·memmove(sl.array, p, n);
@@ -250,7 +250,7 @@ func slicebytetostring(b Slice) (s String) {
 }
 
 func stringtoslicebyte(s String) (b Slice) {
-	b.array = runtime·mallocgc(s.len, FlagNoPointers, 1, 0);
+	b.array = runtime·mallocgc(s.len, 0, FlagNoPointers|FlagNoZero);
 	b.len = s.len;
 	b.cap = s.len;
 	runtime·memmove(b.array, s.str, s.len);
@@ -299,7 +299,7 @@ func stringtoslicerune(s String) (b Slice) {
 		n++;
 	}
 
-	b.array = runtime·mallocgc(n*sizeof(r[0]), FlagNoPointers, 1, 0);
+	b.array = runtime·mallocgc(n*sizeof(r[0]), 0, FlagNoPointers|FlagNoZero);
 	b.len = n;
 	b.cap = n;
 	p = s.str;
