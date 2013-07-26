@@ -373,6 +373,10 @@ func _Offsetof() {
 	var y1p *S1
 	assert(unsafe.Offsetof(y1p.S0) == 32)
 
+	type P *S1
+	var p P = y1p
+	assert(unsafe.Offsetof(p.S0) == 32)
+
 	var y2 S2
 	assert(unsafe.Offsetof(y2.S1) == 0)
 	_ = unsafe.Offsetof(y2 /* ERROR "embedded via a pointer" */ .x)

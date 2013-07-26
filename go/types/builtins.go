@@ -340,7 +340,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 		if x.mode == invalid {
 			goto Error
 		}
-		base, _ := deref(x.typ)
+		base := derefStructPtr(x.typ)
 		sel := arg.Sel.Name
 		obj, index, indirect := LookupFieldOrMethod(base, check.pkg, arg.Sel.Name)
 		switch obj.(type) {

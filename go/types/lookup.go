@@ -292,13 +292,24 @@ func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
 	return
 }
 
-// Deref dereferences typ if it is a pointer and returns its base and true.
+// deref dereferences typ if it is a *Pointer and returns its base and true.
 // Otherwise it returns (typ, false).
 func deref(typ Type) (Type, bool) {
 	if p, _ := typ.(*Pointer); p != nil {
 		return p.base, true
 	}
 	return typ, false
+}
+
+// derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
+// (named or unnamed) struct and returns its base. Otherwise it returns typ.
+func derefStructPtr(typ Type) Type {
+	if p, _ := typ.Underlying().(*Pointer); p != nil {
+		if _, ok := p.base.Underlying().(*Struct); ok {
+			return p.base
+		}
+	}
+	return typ
 }
 
 // concat returns the result of concatenating list and i.
