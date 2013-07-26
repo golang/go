@@ -124,7 +124,7 @@ outwinname(Biobuf *b, Hist *h, char *ds, char *p)
 		outzfile(b, p+1);
 	} else {
 		// relative name
-		if(h->offset == 0 && pathname && pathname[1] == ':') {
+		if(h->offset >= 0 && pathname && pathname[1] == ':') {
 			if(tolowerrune(ds[0]) == tolowerrune(pathname[0])) {
 				// using current drive
 				zfile(b, pathname, 3);	// leading "c:/"
