@@ -11,26 +11,6 @@ package types
 //           types always have only one representation (even when imported
 //           indirectly via different packages.)
 
-// TODO(gri) Move Field to objects.go?
-
-// A Field represents a struct field x.f and corresponding path.
-type Field struct {
-	*Var
-	selectorPath
-}
-
-func lookupResult(typ Type, obj Object, index []int, indirect bool) Object {
-	switch obj := obj.(type) {
-	case nil:
-		return nil
-	case *Var:
-		return &Field{obj, selectorPath{typ, index, indirect}}
-	case *Func:
-		return &Method{obj, selectorPath{typ, index, indirect}}
-	}
-	panic("unreachable")
-}
-
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in typ and returns the corresponding *Var or *Func, an index sequence,
 // and a bool indicating if there were any pointer indirections on the path

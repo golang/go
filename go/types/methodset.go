@@ -13,8 +13,78 @@ import (
 	"sync"
 )
 
-// TODO(gri) Move Method to objects.go?
-// TODO(gri) Method.Type() returns the wrong receiver type.
+// SelectorKind describes the kind of a selector expression recv.obj.
+type SelectionKind int
+
+const (
+	FieldVal   SelectionKind = iota // recv.obj is a struct field selector
+	MethodVal                       // recv.obj is a method selector
+	MethodExpr                      // recv.obj is a method expression
+	PackageObj                      // recv.obj is a qualified identifier
+)
+
+// A Selection describes a selector expression recv.obj.
+type Selection struct {
+	kind         SelectionKind
+	obj          Object
+	selectorPath // not valid for PackageObj
+}
+
+func (s *Selection) Kind() SelectionKind { return s.kind }
+func (s *Selection) Obj() Object         { return s.obj }
+
+// Type returns the type of the selector recv.obj which may be different
+// from the type of the selected object obj.
+//
+// Given the example declarations:
+//
+// 	type T struct{ x int; E }
+// 	type E struct{}
+// 	func (e E) m() {}
+// 	var p *T
+//
+// the following relationships exist:
+//
+//	Kind          Selector    Recv type    Selection type
+//
+//      FieldVal      p.x         T            int (type of x)
+//      MethodVal     p.m         *T           func (e *T) m()
+//      MethodExpr    T.m         T            func m(_ T)
+//      PackageObj    math.Pi     nil          untyped numeric constant (type of Pi)
+//
+func (s *Selection) Type() Type {
+	switch s.kind {
+	case MethodVal:
+		// The type of recv.obj is a method with its receiver type
+		// changed to s.recv.
+		// TODO(gri) Similar code is already in Method.Type below.
+		//           Method may go away in favor of Selection.
+		sig := *s.obj.(*Func).typ.(*Signature)
+		recv := *sig.recv
+		recv.typ = s.recv
+		sig.recv = &recv
+		return &sig
+
+	case MethodExpr:
+		// The type of recv.obj is a function (without receiver)
+		// and an additional first argument of type recv.
+		// TODO(gri) Similar code is already in call.go - factor!
+		sig := *s.obj.(*Func).typ.(*Signature)
+		arg0 := *sig.recv
+		arg0.typ = s.recv
+		var params []*Var
+		if sig.params != nil {
+			params = sig.params.vars
+		}
+		sig.params = NewTuple(append([]*Var{&arg0}, params...)...)
+		return &sig
+	}
+
+	// In all other cases, the type of recv.obj is the type of obj.
+	return s.obj.Type()
+}
+
+// TODO(gri) Replace Method in favor of Selection (make Method an interface?).
 
 // A Method represents a concrete or abstract (interface) method x.m
 // and corresponding path. The method belongs to the method set of x.

@@ -96,6 +96,15 @@ func (check *checker) recordImplicit(node ast.Node, obj Object) {
 	}
 }
 
+func (check *checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
+	assert(obj != nil && (recv == nil || len(index) > 0))
+	check.recordObject(x.Sel, obj)
+	// TODO(gri) Should we also call recordTypeAndValue?
+	if m := check.Selections; m != nil {
+		m[x] = &Selection{kind, obj, selectorPath{recv, index, indirect}}
+	}
+}
+
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 

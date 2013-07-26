@@ -356,8 +356,8 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 			goto Error
 		}
 
-		// TODO(gri) don't create a lookupResult if no Objects map exists
-		check.recordObject(arg.Sel, lookupResult(base, obj, index, indirect))
+		// TODO(gri) Should we pass x.typ instead of base (and indirect report if derefStructPtr indirected)?
+		check.recordSelection(arg, FieldVal, base, obj, index, false)
 
 		offs := check.conf.offsetof(base, index)
 		x.mode = constant

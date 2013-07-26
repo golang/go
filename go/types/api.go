@@ -115,6 +115,12 @@ type Info struct {
 	//      *ast.Field         anonymous struct field or parameter *Var
 	//
 	Implicits map[ast.Node]Object
+
+	// If Selections != nil, it records the selector expression and corresponding
+	// selection, i.e., package object (qualified identifier), struct field (field
+	// selector), or method (method expression or value) for each selector expression
+	// that is type-checked.
+	Selections map[*ast.SelectorExpr]*Selection
 }
 
 // Check type-checks a package and returns the resulting package object, the first

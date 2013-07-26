@@ -182,7 +182,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
 				goto Error
 			}
-			check.recordObject(e.Sel, exp)
+			check.recordSelection(e, PackageObj, nil, exp, nil, false)
 			// Simplified version of the code for *ast.Idents:
 			// - imported packages use types.Scope and types.Objects
 			// - imported objects are always fully initialized
@@ -225,9 +225,6 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	// TODO(gri) don't create a lookupResult if no Objects map exists
-	check.recordObject(e.Sel, lookupResult(x.typ, obj, index, indirect))
-
 	if x.mode == typexpr {
 		// method expression
 		m, _ := obj.(*Func)
@@ -241,6 +238,8 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
 			goto Error
 		}
+
+		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
 
 		// the receiver type becomes the type of the first function
 		// argument of the method expression's function type
@@ -260,6 +259,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		// regular selector
 		switch obj := obj.(type) {
 		case *Var:
+			check.recordSelection(e, FieldVal, x.typ, obj, index, indirect)
 			x.mode = variable
 			x.typ = obj.typ
 
@@ -275,6 +275,8 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x)
 				goto Error
 			}
+
+			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
 
 			if debug {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
