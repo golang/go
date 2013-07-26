@@ -1521,3 +1521,31 @@ func ExampleNewTripleDESCipher() {
 	// See crypto/cipher for how to use a cipher.Block for encryption and
 	// decryption.
 }
+
+func BenchmarkEncrypt(b *testing.B) {
+	tt := encryptDESTests[0]
+	c, err := NewCipher(tt.key)
+	if err != nil {
+		b.Fatal("NewCipher:", err)
+	}
+	out := make([]byte, len(tt.in))
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.Encrypt(out, tt.in)
+	}
+}
+
+func BenchmarkDecrypt(b *testing.B) {
+	tt := encryptDESTests[0]
+	c, err := NewCipher(tt.key)
+	if err != nil {
+		b.Fatal("NewCipher:", err)
+	}
+	out := make([]byte, len(tt.out))
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.Decrypt(out, tt.out)
+	}
+}

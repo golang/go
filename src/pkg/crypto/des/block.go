@@ -40,7 +40,7 @@ func decryptBlock(subkeys []uint64, dst, src []byte) {
 
 // DES Feistel function
 func feistel(right uint32, key uint64) (result uint32) {
-	sBoxLocations := key ^ permuteBlock(uint64(right), expansionFunction[:])
+	sBoxLocations := key ^ expandBlock(right)
 	var sBoxResult uint32
 	for i := uint8(0); i < 8; i++ {
 		sBoxLocation := uint8(sBoxLocations>>42) & 0x3f
@@ -59,6 +59,18 @@ func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	for position, n := range permutation {
 		bit := (src >> n) & 1
 		block |= bit << uint((len(permutation)-1)-position)
+	}
+	return
+}
+
+// expandBlock expands an input block of 32 bits,
+// producing an output block of 48 bits.
+func expandBlock(src uint32) (block uint64) {
+	src = (src << 5) | (src >> 27)
+	for i := 0; i < 8; i++ {
+		block <<= 6
+		block |= uint64(src) & (1<<6 - 1)
+		src = (src << 4) | (src >> 28)
 	}
 	return
 }
