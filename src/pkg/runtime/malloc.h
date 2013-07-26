@@ -442,7 +442,7 @@ void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
 
-void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
+void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
 void*	runtime·persistentalloc(uintptr size, uintptr align);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
@@ -459,7 +459,6 @@ void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
 void*	runtime·cnewarray(Type*, intgo);
 
-void	runtime·settype(void*, uintptr);
 void	runtime·settype_flush(M*, bool);
 void	runtime·settype_sysfree(MSpan*);
 uintptr	runtime·gettype(void*);
@@ -467,9 +466,11 @@ uintptr	runtime·gettype(void*);
 enum
 {
 	// flags to malloc
-	FlagNoPointers = 1<<0,	// no pointers here
-	FlagNoProfiling = 1<<1,	// must not profile
-	FlagNoGC = 1<<2,	// must not free or scan for pointers
+	FlagNoPointers	= 1<<0,	// no pointers here
+	FlagNoProfiling	= 1<<1,	// must not profile
+	FlagNoGC	= 1<<2,	// must not free or scan for pointers
+	FlagNoZero	= 1<<3, // don't zero memory
+	FlagNoInvokeGC	= 1<<4, // don't invoke GC
 };
 
 void	runtime·MProf_Malloc(void*, uintptr);

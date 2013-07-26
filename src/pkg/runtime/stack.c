@@ -105,7 +105,7 @@ runtime·stackalloc(uint32 n)
 		m->stackinuse++;
 		return v;
 	}
-	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
+	return runtime·mallocgc(n, 0, FlagNoProfiling|FlagNoGC|FlagNoZero|FlagNoInvokeGC);
 }
 
 void

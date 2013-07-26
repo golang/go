@@ -2298,7 +2298,7 @@ runfinq(void)
 					// all not yet finalized objects are stored in finc.
 					// If we do not mark it as FlagNoPointers,
 					// the last finalized object is not collected.
-					frame = runtime·mallocgc(framesz, FlagNoPointers, 0, 1);
+					frame = runtime·mallocgc(framesz, 0, FlagNoPointers|FlagNoInvokeGC);
 					framecap = framesz;
 				}
 				*(void**)frame = f->arg;

@@ -107,11 +107,10 @@ runtime·makechan_c(ChanType *t, int64 hint)
 		runtime·panicstring("makechan: size out of range");
 
 	// allocate memory in one call
-	c = (Hchan*)runtime·mal(sizeof(*c) + hint*elem->size);
+	c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, (uintptr)t | TypeInfo_Chan, 0);
 	c->elemsize = elem->size;
 	c->elemalg = elem->alg;
 	c->dataqsiz = hint;
-	runtime·settype(c, (uintptr)t | TypeInfo_Chan);
 
 	if(debug)
 		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; dataqsiz=%D\n",
