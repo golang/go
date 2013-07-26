@@ -461,6 +461,7 @@ brk:
 			case AGLOBL:
 			case ANAME:
 			case ASIGNAME:
+			case AFUNCDATA:
 				break;
 			}
 		}
