@@ -101,7 +101,7 @@ func (check *checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, r
 	check.recordObject(x.Sel, obj)
 	// TODO(gri) Should we also call recordTypeAndValue?
 	if m := check.Selections; m != nil {
-		m[x] = &Selection{kind, obj, selectorPath{recv, index, indirect}}
+		m[x] = &Selection{kind, recv, obj, index, indirect}
 	}
 }
 

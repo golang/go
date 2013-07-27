@@ -13,140 +13,11 @@ import (
 	"sync"
 )
 
-// SelectorKind describes the kind of a selector expression recv.obj.
-type SelectionKind int
-
-const (
-	FieldVal   SelectionKind = iota // recv.obj is a struct field selector
-	MethodVal                       // recv.obj is a method selector
-	MethodExpr                      // recv.obj is a method expression
-	PackageObj                      // recv.obj is a qualified identifier
-)
-
-// A Selection describes a selector expression recv.obj.
-type Selection struct {
-	kind         SelectionKind
-	obj          Object
-	selectorPath // not valid for PackageObj
-}
-
-func (s *Selection) Kind() SelectionKind { return s.kind }
-func (s *Selection) Obj() Object         { return s.obj }
-
-// Type returns the type of the selector recv.obj which may be different
-// from the type of the selected object obj.
-//
-// Given the example declarations:
-//
-// 	type T struct{ x int; E }
-// 	type E struct{}
-// 	func (e E) m() {}
-// 	var p *T
-//
-// the following relationships exist:
-//
-//	Kind          Selector    Recv type    Selection type
-//
-//      FieldVal      p.x         T            int (type of x)
-//      MethodVal     p.m         *T           func (e *T) m()
-//      MethodExpr    T.m         T            func m(_ T)
-//      PackageObj    math.Pi     nil          untyped numeric constant (type of Pi)
-//
-func (s *Selection) Type() Type {
-	switch s.kind {
-	case MethodVal:
-		// The type of recv.obj is a method with its receiver type
-		// changed to s.recv.
-		// TODO(gri) Similar code is already in Method.Type below.
-		//           Method may go away in favor of Selection.
-		sig := *s.obj.(*Func).typ.(*Signature)
-		recv := *sig.recv
-		recv.typ = s.recv
-		sig.recv = &recv
-		return &sig
-
-	case MethodExpr:
-		// The type of recv.obj is a function (without receiver)
-		// and an additional first argument of type recv.
-		// TODO(gri) Similar code is already in call.go - factor!
-		sig := *s.obj.(*Func).typ.(*Signature)
-		arg0 := *sig.recv
-		arg0.typ = s.recv
-		var params []*Var
-		if sig.params != nil {
-			params = sig.params.vars
-		}
-		sig.params = NewTuple(append([]*Var{&arg0}, params...)...)
-		return &sig
-	}
-
-	// In all other cases, the type of recv.obj is the type of obj.
-	return s.obj.Type()
-}
-
-// TODO(gri) Replace Method in favor of Selection (make Method an interface?).
-
-// A Method represents a concrete or abstract (interface) method x.m
-// and corresponding path. The method belongs to the method set of x.
-type Method struct {
-	*Func
-	selectorPath
-}
-
-// TODO(gri): expose this or something like it (e.g. lookupResult) to
-// make life easier for callers of LookupFieldOrMethod.
-func NewMethod(f *Func, recv Type, index []int, indirect bool) *Method {
-	return &Method{f, selectorPath{recv, index, indirect}}
-}
-
-// Type returns the promoted signature type of m (i.e., the receiver
-// type is Recv()).
-func (m *Method) Type() Type {
-	sig := *m.Func.typ.(*Signature)
-	recv := *sig.recv
-	recv.typ = m.recv
-	sig.recv = &recv
-	return &sig
-}
-
-func (m *Method) String() string {
-	return fmt.Sprintf("method (%s).%s %s", m.Recv(), m.Name(), m.Type())
-}
-
-// A selectorPath describes the path from a value x to one of its fields
-// or methods f for a selector expression x.f. A path may include implicit
-// field selections (e.g., x.f may be x.a.b.c.f).
-type selectorPath struct {
-	recv     Type
-	index    []int
-	indirect bool
-}
-
-// Recv returns the type of x for the path p for x.f.
-func (p *selectorPath) Recv() Type { return p.recv }
-
-// Index describes the path from x to the concrete (possibly embedded) field
-// or method f for the path p for x.f.
-//
-// The last index entry is the field or method index of the type declaring f;
-// either:
-//
-//	1) the list of declared methods of a named type; or
-//	2) the list of methods of an interface type; or
-//	3) the list of fields of a struct type.
-//
-// The earlier index entries are the indices of the embedded fields implicitly
-// traversed to get from (the type of) x to f, starting at embedding depth 0.
-func (p *selectorPath) Index() []int { return p.index }
-
-// Indirect reports whether any pointer indirection was required to get from
-// a value x to f for the path p for x.f.
-func (p *selectorPath) Indirect() bool { return p.indirect }
-
-// A MethodSet is an ordered set of concrete or abstract (interface) methods.
+// A MethodSet is an ordered set of concrete or abstract (interface) methods;
+// a method is a MethodVal selection.
 // The zero value for a MethodSet is a ready-to-use empty method set.
 type MethodSet struct {
-	list []*Method
+	list []*Selection
 }
 
 func (s *MethodSet) String() string {
@@ -156,8 +27,9 @@ func (s *MethodSet) String() string {
 
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "MethodSet {")
-	for _, m := range s.list {
-		fmt.Fprintf(&buf, "\t%s -> %s\n", m.Id(), m.Func)
+	for _, f := range s.list {
+		m := f.obj.(*Func)
+		fmt.Fprintf(&buf, "\t%s -> %s\n", m.Id(), m)
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()
@@ -167,10 +39,10 @@ func (s *MethodSet) String() string {
 func (s *MethodSet) Len() int { return len(s.list) }
 
 // At returns the i'th method in s for 0 <= i < s.Len().
-func (s *MethodSet) At(i int) *Method { return s.list[i] }
+func (s *MethodSet) At(i int) *Selection { return s.list[i] }
 
 // Lookup returns the method with matching package and name, or nil if not found.
-func (s *MethodSet) Lookup(pkg *Package, name string) *Method {
+func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 	if s.Len() == 0 {
 		return nil
 	}
@@ -178,11 +50,11 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Method {
 	key := Id(pkg, name)
 	i := sort.Search(len(s.list), func(i int) bool {
 		m := s.list[i]
-		return m.Id() >= key
+		return m.obj.Id() >= key
 	})
 	if i < len(s.list) {
 		m := s.list[i]
-		if m.Id() == key {
+		if m.obj.Id() == key {
 			return m
 		}
 	}
@@ -325,7 +197,7 @@ func NewMethodSet(T Type) *MethodSet {
 	}
 
 	// collect methods
-	var list []*Method
+	var list []*Selection
 	for _, m := range base {
 		if m != nil {
 			m.recv = T
@@ -363,7 +235,7 @@ func (s fieldSet) add(f *Var, multiples bool) fieldSet {
 // A methodSet is a set of methods and name collisions.
 // A collision indicates that multiple methods with the
 // same unique id appeared.
-type methodSet map[string]*Method // a nil entry indicates a name collision
+type methodSet map[string]*Selection // a nil entry indicates a name collision
 
 // Add adds all functions in list to the method set s.
 // If multiples is set, every function in list appears multiple times
@@ -380,7 +252,7 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 		// if f is not in the set, add it
 		if !multiples {
 			if _, found := s[key]; !found && (indirect || !ptrRecv(f)) {
-				s[key] = &Method{f, selectorPath{index: concat(index, i), indirect: indirect}}
+				s[key] = &Selection{MethodVal, nil, f, concat(index, i), indirect}
 				continue
 			}
 		}
@@ -397,8 +269,8 @@ func ptrRecv(f *Func) bool {
 }
 
 // byUniqueName function lists can be sorted by their unique names.
-type byUniqueName []*Method
+type byUniqueName []*Selection
 
 func (a byUniqueName) Len() int           { return len(a) }
-func (a byUniqueName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
+func (a byUniqueName) Less(i, j int) bool { return a[i].obj.Id() < a[j].obj.Id() }
 func (a byUniqueName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

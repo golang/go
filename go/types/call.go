@@ -297,7 +297,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				// of checker once we rely on MethodSet lookup instead of individual
 				// lookup.
 				mset := typ.MethodSet()
-				if m := mset.Lookup(check.pkg, sel); m == nil || m.Func != obj {
+				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
 					check.dump("%s: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
 					check.dump("%s\n", mset)
 					panic("method sets and lookup don't agree")

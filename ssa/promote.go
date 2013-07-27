@@ -56,7 +56,7 @@ func (prog *Program) MethodSet(typ types.Type) MethodSet {
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
-func (prog *Program) populateMethodSet(typ types.Type, meth *types.Method) MethodSet {
+func (prog *Program) populateMethodSet(typ types.Type, meth *types.Selection) MethodSet {
 	tmset := methodSet(typ)
 	n := tmset.Len()
 	if n == 0 {
@@ -78,7 +78,7 @@ func (prog *Program) populateMethodSet(typ types.Type, meth *types.Method) Metho
 
 	if len(mset) < n {
 		if meth != nil { // single method
-			id := meth.Id()
+			id := meth.Obj().Id()
 			if mset[id] == nil {
 				mset[id] = findMethod(prog, meth)
 			}
@@ -86,7 +86,7 @@ func (prog *Program) populateMethodSet(typ types.Type, meth *types.Method) Metho
 			// complete set
 			for i := 0; i < n; i++ {
 				meth := tmset.At(i)
-				if id := meth.Id(); mset[id] == nil {
+				if id := meth.Obj().Id(); mset[id] == nil {
 					mset[id] = findMethod(prog, meth)
 				}
 			}
@@ -114,8 +114,8 @@ func methodSet(typ types.Type) *types.MethodSet {
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
-func (prog *Program) LookupMethod(meth *types.Method) *Function {
-	return prog.populateMethodSet(meth.Recv(), meth)[meth.Id()]
+func (prog *Program) LookupMethod(meth *types.Selection) *Function {
+	return prog.populateMethodSet(meth.Recv(), meth)[meth.Obj().Id()]
 }
 
 // concreteMethod returns the concrete method denoted by obj.
@@ -135,19 +135,20 @@ func (prog *Program) concreteMethod(obj *types.Func) *Function {
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
-func findMethod(prog *Program, meth *types.Method) *Function {
+func findMethod(prog *Program, meth *types.Selection) *Function {
 	needsPromotion := len(meth.Index()) > 1
-	needsIndirection := !isPointer(recvType(meth.Func)) && isPointer(meth.Recv())
+	mfunc := meth.Obj().(*types.Func)
+	needsIndirection := !isPointer(recvType(mfunc)) && isPointer(meth.Recv())
 
 	if needsPromotion || needsIndirection {
 		return makeWrapper(prog, meth.Recv(), meth)
 	}
 
 	if _, ok := meth.Recv().Underlying().(*types.Interface); ok {
-		return interfaceMethodWrapper(prog, meth.Recv(), meth.Func)
+		return interfaceMethodWrapper(prog, meth.Recv(), mfunc)
 	}
 
-	return prog.concreteMethod(meth.Func)
+	return prog.concreteMethod(mfunc)
 }
 
 // makeWrapper returns a synthetic wrapper Function that optionally
@@ -171,21 +172,22 @@ func findMethod(prog *Program, meth *types.Method) *Function {
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
-func makeWrapper(prog *Program, typ types.Type, meth *types.Method) *Function {
-	old := meth.Func.Type().(*types.Signature)
+func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function {
+	mfunc := meth.Obj().(*types.Func)
+	old := mfunc.Type().(*types.Signature)
 	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	description := fmt.Sprintf("wrapper for %s", meth.Func)
+	description := fmt.Sprintf("wrapper for %s", mfunc)
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, typ)()
 	}
 	fn := &Function{
-		name:      meth.Name(),
+		name:      mfunc.Name(),
 		method:    meth,
 		Signature: sig,
 		Synthetic: description,
 		Prog:      prog,
-		pos:       meth.Pos(),
+		pos:       mfunc.Pos(),
 	}
 	fn.startBody()
 	fn.addSpilledParam(sig.Recv())
@@ -218,10 +220,10 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Method) *Function {
 		if !isPointer(old.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
-		c.Call.Value = prog.concreteMethod(meth.Func)
+		c.Call.Value = prog.concreteMethod(mfunc)
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
-		c.Call.Method = meth.Func
+		c.Call.Method = mfunc
 		c.Call.Value = emitLoad(fn, v)
 	}
 	for _, arg := range fn.Params[1:] {

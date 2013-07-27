@@ -253,8 +253,8 @@ type Instruction interface {
 //
 type Function struct {
 	name      string
-	object    types.Object  // a declared *types.Func; nil for init, wrappers, etc.
-	method    *types.Method // info about provenance of synthetic methods [currently unused]
+	object    types.Object     // a declared *types.Func; nil for init, wrappers, etc.
+	method    *types.Selection // info about provenance of synthetic methods [currently unused]
 	Signature *types.Signature
 	pos       token.Pos
 
