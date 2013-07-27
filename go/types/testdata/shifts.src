@@ -15,7 +15,7 @@ func shifts1() {
 		v2 = 1<<u0
 		v3 = 1<<"foo" /* ERROR "cannot convert" */
 		v4 = 1<<- /* ERROR "stupid shift" */ 1
-		v5 = 1<<1025 /* ERROR "stupid shift" */
+		v5 = 1<<1075 /* ERROR "stupid shift" */
 		v6 = 1 /* ERROR "overflows" */ <<100
 
 		v10 uint = 1 << 0

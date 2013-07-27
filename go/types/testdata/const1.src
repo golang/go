@@ -1,0 +1,157 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// implicit constant conversions
+
+package const1
+
+// TODO(gri) add int/uint/uintptr sizes and tests
+
+const (
+	minInt8 = -1<<(8<<iota - 1)
+	minInt16
+	minInt32
+	minInt64
+)
+
+const (
+	maxInt8 = 1<<(8<<iota - 1) - 1
+	maxInt16
+	maxInt32
+	maxInt64
+)
+
+const (
+	maxUint8 = 1<<(8<<iota) - 1
+	maxUint16
+	maxUint32
+	maxUint64
+)
+
+const (
+	smallestFloat32 = 1.0 / (1<<(127 - 1 + 23))
+	smallestFloat64 = 1.0 / (1<<(1023 - 1 + 52))
+)
+
+const (
+	_ = assert(smallestFloat32 > 0)
+	_ = assert(smallestFloat64 > 0)
+)
+
+const (
+	maxFloat32 = 1<<127 * (1<<24 - 1) / (1.0<<23)
+	maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
+)
+
+var (
+	_ int8 = minInt8 /* ERROR "overflows" */ - 1
+	_ int8 = minInt8
+	_ int8 = maxInt8
+	_ int8 = maxInt8 /* ERROR "overflows" */ + 1
+	_ int8 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ int16 = minInt16 /* ERROR "overflows" */ - 1
+	_ int16 = minInt16
+	_ int16 = maxInt16
+	_ int16 = maxInt16 /* ERROR "overflows" */ + 1
+	_ int16 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ int32 = minInt32 /* ERROR "overflows" */ - 1
+	_ int32 = minInt32
+	_ int32 = maxInt32
+	_ int32 = maxInt32 /* ERROR "overflows" */ + 1
+	_ int32 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ int64 = minInt64 /* ERROR "overflows" */ - 1
+	_ int64 = minInt64
+	_ int64 = maxInt64
+	_ int64 = maxInt64 /* ERROR "overflows" */ + 1
+	_ int64 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ uint8 = 0 /* ERROR "overflows" */ - 1
+	_ uint8 = 0
+	_ uint8 = maxUint8
+	_ uint8 = maxUint8 /* ERROR "overflows" */ + 1
+	_ uint8 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ uint16 = 0 /* ERROR "overflows" */ - 1
+	_ uint16 = 0
+	_ uint16 = maxUint16
+	_ uint16 = maxUint16 /* ERROR "overflows" */ + 1
+	_ uint16 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ uint32 = 0 /* ERROR "overflows" */ - 1
+	_ uint32 = 0
+	_ uint32 = maxUint32
+	_ uint32 = maxUint32 /* ERROR "overflows" */ + 1
+	_ uint32 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ uint64 = 0 /* ERROR "overflows" */ - 1
+	_ uint64 = 0
+	_ uint64 = maxUint64
+	_ uint64 = maxUint64 /* ERROR "overflows" */ + 1
+	_ uint64 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ float32 = minInt64
+	_ float64 = minInt64
+	_ complex64 = minInt64
+	_ complex128 = minInt64
+)
+
+var (
+	_ float32 = maxUint64
+	_ float64 = maxUint64
+	_ complex64 = maxUint64
+	_ complex128 = maxUint64
+)
+
+// TODO(gri) find smaller deltas below
+
+const delta32 = maxFloat32 >> 23
+
+var (
+	_ float32 = - /* ERROR "overflow" */ (maxFloat32 + delta32)
+	_ float32 = -maxFloat32
+	_ float32 = maxFloat32
+	_ float32 = maxFloat32 /* ERROR "overflow" */ + delta32
+)
+
+const delta64 = maxFloat64 >> 52
+
+var (
+	_ float64 = - /* ERROR "overflow" */ (maxFloat64 + delta64)
+	_ float64 = -maxFloat64
+	_ float64 = maxFloat64
+	_ float64 = maxFloat64 /* ERROR "overflow" */ + delta64
+)
+
+var (
+	_ complex64 = - /* ERROR "overflow" */ (maxFloat32 + delta32)
+	_ complex64 = -maxFloat32
+	_ complex64 = maxFloat32
+	_ complex64 = maxFloat32 /* ERROR "overflow" */ + delta32
+)
+
+var (
+	_ complex128 = - /* ERROR "overflow" */ (maxFloat64 + delta64)
+	_ complex128 = -maxFloat64
+	_ complex128 = maxFloat64
+	_ complex128 = maxFloat64 /* ERROR "overflow" */ + delta64
+)

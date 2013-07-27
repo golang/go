@@ -9,6 +9,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	"math"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -155,6 +156,19 @@ func isComparison(op token.Token) bool {
 	return false
 }
 
+func fitsFloat32(x exact.Value) bool {
+	f, _ := exact.Float64Val(x)
+	// We assume that float32(f) returns an Inf if f
+	// cannot be represented as a float32, or if f
+	// is an Inf. This is not supported by the spec.
+	return !math.IsInf(float64(float32(f)), 0)
+}
+
+func fitsFloat64(x exact.Value) bool {
+	f, _ := exact.Float64Val(x)
+	return !math.IsInf(f, 0)
+}
+
 func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 	switch x.Kind() {
 	case exact.Unknown:
@@ -196,15 +210,8 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 				return 0 <= x && x <= 1<<s-1
 			case Uint64:
 				return 0 <= x
-			case Float32:
-				return true // TODO(gri) fix this
-			case Float64:
-				return true // TODO(gri) fix this
-			case Complex64:
-				return true // TODO(gri) fix this
-			case Complex128:
-				return true // TODO(gri) fix this
-			case UntypedInt, UntypedFloat, UntypedComplex:
+			case Float32, Float64, Complex64, Complex128,
+				UntypedInt, UntypedFloat, UntypedComplex:
 				return true
 			}
 		}
@@ -216,28 +223,20 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 			return exact.Sign(x) >= 0 && n <= int(s)
 		case Uint64:
 			return exact.Sign(x) >= 0 && n <= 64
-		case Float32:
-			return true // TODO(gri) fix this
-		case Float64:
-			return true // TODO(gri) fix this
-		case Complex64:
-			return true // TODO(gri) fix this
-		case Complex128:
-			return true // TODO(gri) fix this
+		case Float32, Complex64:
+			return fitsFloat32(x)
+		case Float64, Complex128:
+			return fitsFloat64(x)
 		case UntypedInt, UntypedFloat, UntypedComplex:
 			return true
 		}
 
 	case exact.Float:
 		switch as {
-		case Float32:
-			return true // TODO(gri) fix this
-		case Float64:
-			return true // TODO(gri) fix this
-		case Complex64:
-			return true // TODO(gri) fix this
-		case Complex128:
-			return true // TODO(gri) fix this
+		case Float32, Complex64:
+			return fitsFloat32(x)
+		case Float64, Complex128:
+			return fitsFloat64(x)
 		case UntypedFloat, UntypedComplex:
 			return true
 		}
@@ -245,9 +244,9 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 	case exact.Complex:
 		switch as {
 		case Complex64:
-			return true // TODO(gri) fix this
+			return fitsFloat32(exact.Real(x)) && fitsFloat32(exact.Imag(x))
 		case Complex128:
-			return true // TODO(gri) fix this
+			return fitsFloat64(exact.Real(x)) && fitsFloat64(exact.Imag(x))
 		case UntypedComplex:
 			return true
 		}
@@ -540,9 +539,9 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 	if x.mode == constant {
 		if y.mode == constant {
 			// rhs must be within reasonable bounds
-			const stupidShift = 1024
+			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
 			s, ok := exact.Uint64Val(y.val)
-			if !ok || s >= stupidShift {
+			if !ok || s > stupidShift {
 				check.invalidOp(y.pos(), "%s: stupid shift", y)
 				x.mode = invalid
 				return
