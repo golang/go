@@ -71,6 +71,8 @@ runtime·netpoll(bool block)
 
 	if(iocphandle == INVALID_HANDLE_VALUE)
 		return nil;
+	gp = nil;
+retry:
 	o = nil;
 	errno = 0;
 	qty = 0;
@@ -104,7 +106,8 @@ runtime·netpoll(bool block)
 	}
 	o->errno = errno;
 	o->qty = qty;
-	gp = nil;
 	runtime·netpollready(&gp, (void*)o->runtimeCtx, mode);
+	if(block && gp == nil)
+		goto retry;
 	return gp;
 }
