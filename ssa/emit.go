@@ -160,7 +160,7 @@ func isValuePreserving(ut_src, ut_dst types.Type) bool {
 // emitConv emits to f code to convert Value val to exactly type typ,
 // and returns the converted value.  Implicit conversions are required
 // by language assignability rules in assignments, parameter passing,
-// etc.
+// etc.  Conversions cannot fail dynamically.
 //
 func emitConv(f *Function, val Value, typ types.Type) Value {
 	t_src := val.Type()
@@ -185,7 +185,9 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 
 		// Assignment from one interface type to another?
 		if _, ok := ut_src.(*types.Interface); ok {
-			return emitTypeAssert(f, val, typ, token.NoPos)
+			c := &ChangeInterface{X: val}
+			c.setType(typ)
+			return f.emit(c)
 		}
 
 		// Untyped nil constant?  Return interface-typed nil constant.
@@ -268,20 +270,6 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 // returns the value.  x.Type() must be an interface.
 //
 func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
-	// Simplify infallible assertions.
-	txi := x.Type().Underlying().(*types.Interface)
-	if ti, ok := t.Underlying().(*types.Interface); ok {
-		// Even when ti==txi, we still need ChangeInterface
-		// since it performs a nil-check.
-		// TODO(adonovan): needs more tests.
-		if types.IsAssignableTo(ti, txi) {
-			c := &ChangeInterface{X: x}
-			c.setPos(pos)
-			c.setType(t)
-			return f.emit(c)
-		}
-	}
-
 	a := &TypeAssert{X: x, AssertedType: t}
 	a.setPos(pos)
 	a.setType(t)
@@ -292,10 +280,6 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 // a (value, ok) tuple.  x.Type() must be an interface.
 //
 func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
-	// TODO(adonovan): opt: simplify infallible tests as per
-	// emitTypeAssert, and return (x, vTrue).
-	// (Requires that exprN returns a slice of extracted values,
-	// not a single Value of type *types.Tuple.)
 	a := &TypeAssert{
 		X:            x,
 		AssertedType: t,

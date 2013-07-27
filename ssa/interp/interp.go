@@ -164,11 +164,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
 
 	case *ssa.ChangeInterface:
-		x := fr.get(instr.X)
-		if x.(iface).t == nil {
-			panic(fmt.Sprintf("interface conversion: interface is nil, not %s", instr.Type()))
-		}
-		fr.env[instr] = x
+		fr.env[instr] = fr.get(instr.X)
 
 	case *ssa.ChangeType:
 		fr.env[instr] = fr.get(instr.X) // (can't fail)

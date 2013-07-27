@@ -582,10 +582,7 @@ type Convert struct {
 
 // ChangeInterface constructs a value of one interface type from a
 // value of another interface type known to be assignable to it.
-//
-// This operation fails if the operand is nil.
-// For all other operands, well-typedness ensures success.
-// Use TypeAssert for interface conversions that are uncertain.
+// This operation cannot fail.
 //
 // Pos() returns the ast.CallExpr.Lparen if the instruction arose from
 // an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
@@ -813,6 +810,7 @@ type SelectState struct {
 	Dir  ast.ChanDir // direction of case
 	Chan Value       // channel to use (for send or receive)
 	Send Value       // value to send (for send)
+	Pos  token.Pos   // position of token.ARROW
 }
 
 // The Select instruction tests whether (or blocks until) one or more
@@ -915,8 +913,9 @@ type Next struct {
 // If AssertedType is an interface, TypeAssert checks whether the
 // dynamic type of the interface is assignable to it, and if so, the
 // result of the conversion is a copy of the interface value X.
-// If AssertedType is a superinterface of X.Type(), the operation
-// cannot fail; ChangeInterface is preferred in this case.
+// If AssertedType is a superinterface of X.Type(), the operation will
+// fail iff the operand is nil.  (Contrast with ChangeInterface, which
+// performs no nil-check.)
 //
 // Type() reflects the actual type of the result, possibly a
 // 2-types.Tuple; AssertedType is the asserted type.

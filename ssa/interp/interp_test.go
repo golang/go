@@ -129,11 +129,13 @@ var gorootTests = []string{
 
 // These are files in go.tools/ssa/interp/testdata/.
 var testdataTests = []string{
-	"coverage.go",
-	"mrvchain.go",
 	"boundmeth.go",
-	"ifaceprom.go",
+	"coverage.go",
 	"fieldprom.go",
+	"ifaceconv.go",
+	"ifaceprom.go",
+	"methprom.go",
+	"mrvchain.go",
 }
 
 func run(t *testing.T, dir, input string) bool {

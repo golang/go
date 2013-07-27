@@ -523,6 +523,8 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 				switch y := y.(type) {
 				case *Convert:
 					y.pos = e.Lparen
+				case *ChangeInterface:
+					y.pos = e.Lparen
 				case *ChangeType:
 					y.pos = e.Lparen
 				case *MakeInterface:
@@ -662,8 +664,6 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			wantAddr := isPointer(recvType(obj))
 			escaping := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, indices, isIndirect)
-			// TODO(adonovan): test the case where
-			// *struct{I} inherits a method from interface I.
 			c := &MakeClosure{
 				Fn:       boundMethodWrapper(fn.Prog, obj),
 				Bindings: []Value{v},
@@ -761,7 +761,11 @@ func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, in
 	}
 
 	last := len(indices) - 1
-	return emitImplicitSelections(fn, v, indices[:last])
+	v = emitImplicitSelections(fn, v, indices[:last])
+	if !wantAddr && isPointer(v.Type()) {
+		v = emitLoad(fn, v)
+	}
+	return v
 }
 
 // setCallFunc populates the function parts of a CallCommon structure
@@ -836,10 +840,6 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		escaping := true
 		v := b.receiver(fn, sel.X, wantAddr, escaping, indices, isIndirect)
 		if _, ok := deref(v.Type()).Underlying().(*types.Interface); ok {
-			if isPointer(v.Type()) {
-				// *struct{I} inherits methods from I.
-				v = emitLoad(fn, v)
-			}
 			// Invoke-mode call.
 			c.Value = v
 			c.Method = obj
@@ -1540,18 +1540,23 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 				Chan: ch,
 				Send: emitConv(fn, b.expr(fn, comm.Value),
 					ch.Type().Underlying().(*types.Chan).Elem()),
+				Pos: comm.Arrow,
 			})
 
 		case *ast.AssignStmt: // x := <-ch
+			unary := unparen(comm.Rhs[0]).(*ast.UnaryExpr)
 			states = append(states, SelectState{
 				Dir:  ast.RECV,
-				Chan: b.expr(fn, unparen(comm.Rhs[0]).(*ast.UnaryExpr).X),
+				Chan: b.expr(fn, unary.X),
+				Pos:  unary.OpPos,
 			})
 
 		case *ast.ExprStmt: // <-ch
+			unary := unparen(comm.X).(*ast.UnaryExpr)
 			states = append(states, SelectState{
 				Dir:  ast.RECV,
-				Chan: b.expr(fn, unparen(comm.X).(*ast.UnaryExpr).X),
+				Chan: b.expr(fn, unary.X),
+				Pos:  unary.OpPos,
 			})
 		}
 	}

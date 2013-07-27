@@ -839,8 +839,12 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 	var v value
 	err := ""
 	if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
-		v = itf
-		err = checkInterface(i, idst, itf)
+		if itf.t == nil {
+			err = fmt.Sprintf("interface conversion: interface is nil, not %s", instr.AssertedType)
+		} else {
+			v = itf
+			err = checkInterface(i, idst, itf)
+		}
 
 	} else if types.IsIdentical(itf.t, instr.AssertedType) {
 		v = copyVal(itf.v) // extract value
