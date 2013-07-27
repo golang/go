@@ -465,7 +465,7 @@ xrealwd(Buf *b, char *path)
 	torune(&rnew, path);
 	if(!SetCurrentDirectoryW(rnew))
 		fatal("chdir %s: %s", path, errstr());
-	free(rnew);
+	xfree(rnew);
 	xgetwd(b);
 	if(!SetCurrentDirectoryW(old)) {
 		breset(b);
