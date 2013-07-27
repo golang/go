@@ -123,7 +123,7 @@ func (c *Commit) Valid() error {
 // build history and the AppEngine datastore limit of 1mb.
 const maxResults = 1000
 
-// AddResult adds the denormalized Reuslt data to the Commit's Result field.
+// AddResult adds the denormalized Result data to the Commit's Result field.
 // It must be called from inside a datastore transaction.
 func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 	if err := datastore.Get(c, com.Key(c), com); err != nil {
