@@ -88,11 +88,13 @@ func (info *PackageInfo) ObjectOf(id *ast.Ident) types.Object {
 // IsType returns true iff expression e denotes a type.
 // Precondition: e belongs to the package's ASTs.
 //
+// TODO(gri): move this into go/types.
+//
 func (info *PackageInfo) IsType(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.SelectorExpr: // pkg.Type
-		if obj := info.IsPackageRef(e); obj != nil {
-			_, isType := obj.(*types.TypeName)
+		if sel := info.Selections[e]; sel.Kind() == types.PackageObj {
+			_, isType := sel.Obj().(*types.TypeName)
 			return isType
 		}
 	case *ast.StarExpr: // *T
@@ -106,40 +108,6 @@ func (info *PackageInfo) IsType(e ast.Expr) bool {
 		return info.IsType(e.X)
 	}
 	return false
-}
-
-// IsPackageRef returns the identity of the object if sel is a
-// package-qualified reference to a named const, var, func or type.
-// Otherwise it returns nil.
-// Precondition: sel belongs to the package's ASTs.
-//
-func (info *PackageInfo) IsPackageRef(sel *ast.SelectorExpr) types.Object {
-	if id, ok := sel.X.(*ast.Ident); ok {
-		if pkg, ok := info.ObjectOf(id).(*types.Package); ok {
-			return pkg.Scope().Lookup(sel.Sel.Name)
-		}
-	}
-	return nil
-}
-
-// ClassifySelector returns one of token.{PACKAGE,VAR,TYPE} to
-// indicate whether the base operand of sel is a package, expression
-// or type, respectively.
-//
-// Examples:
-// PACKAGE: fmt.Println (func), math.Pi (const), types.Universe (var)
-// VAR:     info.IsType (*Method), info.Objects (*Field)
-// TYPE:    PackageInfo.IsType (func)
-//
-func (info *PackageInfo) ClassifySelector(sel *ast.SelectorExpr) token.Token {
-	switch {
-	case info.IsPackageRef(sel) != nil:
-		return token.PACKAGE
-	case info.IsType(sel.X):
-		return token.TYPE
-	default:
-		return token.VAR
-	}
 }
 
 // TypeCaseVar returns the implicit variable created by a single-type

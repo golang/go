@@ -159,10 +159,11 @@ func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) *
 	pkgInfo := &PackageInfo{
 		Files: files,
 		Info: types.Info{
-			Types:     make(map[ast.Expr]types.Type),
-			Values:    make(map[ast.Expr]exact.Value),
-			Objects:   make(map[*ast.Ident]types.Object),
-			Implicits: make(map[ast.Node]types.Object),
+			Types:      make(map[ast.Expr]types.Type),
+			Values:     make(map[ast.Expr]exact.Value),
+			Objects:    make(map[*ast.Ident]types.Object),
+			Implicits:  make(map[ast.Node]types.Object),
+			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		},
 	}
 	pkgInfo.Pkg, pkgInfo.Err = imp.config.TypeChecker.Check(importPath, imp.Fset, files, &pkgInfo.Info)
