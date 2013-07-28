@@ -4,8 +4,6 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
-// Socket options
-
 package net
 
 import (
@@ -124,14 +122,6 @@ func setKeepAlive(fd *netFD, keepalive bool) error {
 	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive)))
-}
-
-func setNoDelay(fd *netFD, noDelay bool) error {
-	if err := fd.incref(false); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
 }
 
 func setLinger(fd *netFD, sec int) error {
