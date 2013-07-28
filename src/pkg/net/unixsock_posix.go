@@ -13,13 +13,6 @@ import (
 	"time"
 )
 
-func (a *UnixAddr) isUnnamed() bool {
-	if a == nil || a.Name == "" {
-		return true
-	}
-	return false
-}
-
 func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.Time) (*netFD, error) {
 	var sotype int
 	switch net {
@@ -36,12 +29,12 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.T
 	var la, ra syscall.Sockaddr
 	switch mode {
 	case "dial":
-		if !laddr.isUnnamed() {
+		if !laddr.isWildcard() {
 			la = &syscall.SockaddrUnix{Name: laddr.Name}
 		}
 		if raddr != nil {
 			ra = &syscall.SockaddrUnix{Name: raddr.Name}
-		} else if sotype != syscall.SOCK_DGRAM || laddr.isUnnamed() {
+		} else if sotype != syscall.SOCK_DGRAM || laddr.isWildcard() {
 			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
 		}
 	case "listen":
@@ -104,6 +97,29 @@ func sotypeToNet(sotype int) string {
 	default:
 		panic("sotypeToNet unknown socket type")
 	}
+}
+
+func (a *UnixAddr) family() int {
+	return syscall.AF_UNIX
+}
+
+// isWildcard reports whether a is a wildcard address.
+func (a *UnixAddr) isWildcard() bool {
+	return a == nil || a.Name == ""
+}
+
+func (a *UnixAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+	if a == nil {
+		return nil, nil
+	}
+	return &syscall.SockaddrUnix{Name: a.Name}, nil
+}
+
+func (a *UnixAddr) toAddr() sockaddr {
+	if a == nil {
+		return nil
+	}
+	return a
 }
 
 // UnixConn is an implementation of the Conn interface for connections
