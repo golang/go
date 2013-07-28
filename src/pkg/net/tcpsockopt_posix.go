@@ -2,30 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd linux netbsd
+// +build darwin freebsd linux netbsd openbsd windows
 
 package net
 
 import (
 	"os"
 	"syscall"
-	"time"
 )
 
-// Set keep alive period.
-func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+func setNoDelay(fd *netFD, noDelay bool) error {
 	if err := fd.incref(false); err != nil {
 		return err
 	}
 	defer fd.decref()
-
-	// The kernel expects seconds so round to next highest second.
-	d += (time.Second - time.Nanosecond)
-	secs := int(d.Seconds())
-
-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs))
-	if err != nil {
-		return err
-	}
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
 }

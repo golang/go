@@ -20,11 +20,7 @@ func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
 		return err
 	}
 	defer fd.decref()
-	err := syscall.SetsockoptIPMreq(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
 }
 
 func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
@@ -36,11 +32,7 @@ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
 		return err
 	}
 	defer fd.decref()
-	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF, v)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF, v))
 }
 
 func setIPv6MulticastLoopback(fd *netFD, v bool) error {
@@ -48,11 +40,7 @@ func setIPv6MulticastLoopback(fd *netFD, v bool) error {
 		return err
 	}
 	defer fd.decref()
-	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, boolint(v))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, boolint(v)))
 }
 
 func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
@@ -65,9 +53,5 @@ func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
 		return err
 	}
 	defer fd.decref()
-	err := syscall.SetsockoptIPv6Mreq(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq))
 }
