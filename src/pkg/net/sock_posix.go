@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// A sockaddr represents a TCP, UDP, IP network endpoint address that
-// can be converted into a syscall.Sockaddr.
+// A sockaddr represents a TCP, UDP, IP or Unix network endpoint
+// address that can be converted into a syscall.Sockaddr.
 type sockaddr interface {
 	Addr
 	family() int
