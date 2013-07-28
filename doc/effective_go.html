@@ -882,7 +882,7 @@ func nextInt(b []byte, i int) (int, int) {
     }
     x := 0
     for ; i &lt; len(b) &amp;&amp; isDigit(b[i]); i++ {
-        x = x*10 + int(b[i])-'0'
+        x = x*10 + int(b[i]) - '0'
     }
     return x, i
 }
@@ -1496,7 +1496,7 @@ with colon-separated key-value pairs,
 so it's easy to build them during initialization.
 </p>
 <pre>
-var timeZone = map[string] int {
+var timeZone = map[string]int{
     "UTC":  0*60*60,
     "EST": -5*60*60,
     "CST": -6*60*60,
@@ -1523,7 +1523,7 @@ Set the map entry to <code>true</code> to put the value in the set, and then
 test it by simple indexing.
 </p>
 <pre>
-attended := map[string] bool {
+attended := map[string]bool{
     "Ann": true,
     "Joe": true,
     ...
@@ -3437,7 +3437,7 @@ the parse stack by hand:
 </p>
 
 <pre>
-if pos==0 {
+if pos == 0 {
     re.error("'*' illegal at start of expression")
 }
 </pre>
