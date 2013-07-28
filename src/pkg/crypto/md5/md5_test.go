@@ -105,14 +105,6 @@ func TestLarge(t *testing.T) {
 	}
 }
 
-func ExampleNew() {
-	h := New()
-	io.WriteString(h, "The fog is getting thicker!")
-	io.WriteString(h, "And Leon's getting laaarger!")
-	fmt.Printf("%x", h.Sum(nil))
-	// Output: e2c569be17396eca2a2e3c11578123ed
-}
-
 var bench = New()
 var buf = make([]byte, 8192+1)
 var sum = make([]byte, bench.Size())
