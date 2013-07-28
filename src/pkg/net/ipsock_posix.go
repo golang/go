@@ -120,15 +120,6 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 
 // Internet sockets (TCP, UDP, IP)
 
-// A sockaddr represents a TCP, UDP or IP network address that can
-// be converted into a syscall.Sockaddr.
-type sockaddr interface {
-	Addr
-	family() int
-	isWildcard() bool
-	sockaddr(family int) (syscall.Sockaddr, error)
-}
-
 func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	var la, ra syscall.Sockaddr
 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
