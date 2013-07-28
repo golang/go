@@ -11,6 +11,16 @@ import (
 	"time"
 )
 
+// A sockaddr represents a TCP, UDP, IP network endpoint address that
+// can be converted into a syscall.Sockaddr.
+type sockaddr interface {
+	Addr
+	family() int
+	isWildcard() bool
+	sockaddr(family int) (syscall.Sockaddr, error)
+	toAddr() sockaddr
+}
+
 // Generic POSIX socket creation.
 func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	s, err := sysSocket(f, t, p)
