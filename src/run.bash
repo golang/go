@@ -185,3 +185,5 @@ go tool api -c $GOROOT/api/go1.txt,$GOROOT/api/go1.1.txt -next $GOROOT/api/next.
 
 echo
 echo ALL TESTS PASSED
+
+exit 1
