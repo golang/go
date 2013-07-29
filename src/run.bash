@@ -152,10 +152,7 @@ make clean || exit 1
 ) || exit $?
 
 (xcd ../doc/codewalk
-# TODO: test these too.
-go build pig.go || exit 1
-go build urlpoll.go || exit 1
-rm -f pig urlpoll
+time ./run || exit 1
 ) || exit $?
 
 echo
