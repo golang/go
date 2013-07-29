@@ -138,9 +138,11 @@ runtime·notesleep(Note *n)
 
 #pragma textflag 7
 static bool
-notetsleep(Note *n, int64 ns)
+notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
 {
-	int64 deadline, now;
+	// Conceptually, deadline and now are local variables.
+	// They are passed as arguments so that the space for them
+	// does not count against our nosplit stack sequence.
 
 	if(ns < 0) {
 		while(runtime·atomicload((uint32*)&n->key) == 0)
@@ -174,7 +176,7 @@ runtime·notetsleep(Note *n, int64 ns)
 
 	if(m->profilehz > 0)
 		runtime·setprof(false);
-	res = notetsleep(n, ns);
+	res = notetsleep(n, ns, 0, 0);
 	if(m->profilehz > 0)
 		runtime·setprof(true);
 	return res;
@@ -192,7 +194,7 @@ runtime·notetsleepg(Note *n, int64 ns)
 		runtime·throw("notetsleepg on g0");
 
 	runtime·entersyscallblock();
-	res = notetsleep(n, ns);
+	res = notetsleep(n, ns, 0, 0);
 	runtime·exitsyscall();
 	return res;
 }
