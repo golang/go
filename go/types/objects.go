@@ -76,13 +76,15 @@ func (obj *object) Name() string     { return obj.name }
 func (obj *object) Type() Type       { return obj.typ }
 func (obj *object) IsExported() bool { return ast.IsExported(obj.name) }
 func (obj *object) Id() string       { return Id(obj.pkg, obj.name) }
+func (obj *object) String() string   { panic("abstract") }
 
 func (obj *object) toString(kind string, typ Type) string {
 	var buf bytes.Buffer
 
 	buf.WriteString(kind)
 	buf.WriteByte(' ')
-	if obj.pkg != nil {
+	// For package-level objects, package-qualify the name.
+	if obj.pkg != nil && obj.pkg.scope.Lookup(obj.name) == obj {
 		buf.WriteString(obj.pkg.name)
 		buf.WriteByte('.')
 	}
@@ -205,23 +207,24 @@ func (obj *Func) FullName() string {
 }
 
 func (obj *Func) fullname(buf *bytes.Buffer) {
-	sig := obj.typ.(*Signature)
-	if recv := sig.Recv(); recv != nil {
-		buf.WriteByte('(')
-		if _, ok := recv.Type().(*Interface); ok {
-			// gcimporter creates abstract methods of
-			// named interfaces using the interface type
-			// (not the named type) as the receiver.
-			// Don't print it in full.
-			buf.WriteString("interface")
-		} else {
-			writeType(buf, recv.Type())
+	if sig, _ := obj.typ.(*Signature); sig != nil { // may be a *Builtin
+		if recv := sig.Recv(); recv != nil {
+			buf.WriteByte('(')
+			if _, ok := recv.Type().(*Interface); ok {
+				// gcimporter creates abstract methods of
+				// named interfaces using the interface type
+				// (not the named type) as the receiver.
+				// Don't print it in full.
+				buf.WriteString("interface")
+			} else {
+				writeType(buf, recv.Type())
+			}
+			buf.WriteByte(')')
+			buf.WriteByte('.')
+		} else if obj.pkg != nil {
+			buf.WriteString(obj.pkg.name)
+			buf.WriteByte('.')
 		}
-		buf.WriteByte(')')
-		buf.WriteByte('.')
-	} else if obj.pkg != nil {
-		buf.WriteString(obj.pkg.name)
-		buf.WriteByte('.')
 	}
 	buf.WriteString(obj.name)
 }
@@ -230,7 +233,9 @@ func (obj *Func) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("func ")
 	obj.fullname(&buf)
-	writeSignature(&buf, obj.typ.(*Signature))
+	if sig, _ := obj.typ.(*Signature); sig != nil {
+		writeSignature(&buf, sig)
+	}
 	return buf.String()
 }
 

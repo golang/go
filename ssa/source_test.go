@@ -70,9 +70,6 @@ func TestObjValueLookup(t *testing.T) {
 	for obj := range objs {
 		switch obj := obj.(type) {
 		case *types.Func:
-			if obj.Name() == "interfaceMethod" {
-				continue // TODO(adonovan): not yet implemented.
-			}
 			checkFuncValue(t, prog, obj)
 
 		case *types.Const:

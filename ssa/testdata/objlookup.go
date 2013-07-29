@@ -12,7 +12,8 @@ package main
 // its value (x) or its address (&x).
 //
 // For const and func objects, the results don't vary by reference and
-// are always values not addresses, so no annotations are needed.
+// are always values not addresses, so no annotations are needed.  The
+// declaration is enough.
 
 import "fmt"
 
@@ -27,7 +28,7 @@ var globalVar int // &globalVar::Global
 func globalFunc() {}
 
 type I interface {
-	interfaceMethod() // TODO(adonovan): unimplemented (blacklisted in source_test)
+	interfaceMethod()
 }
 
 type S struct {
@@ -72,8 +73,9 @@ func main() {
 	print(v5)           // v5::Const
 	print(v6)           // v6::Const
 
-	var v7 S // v7::UnOp (load from Alloc)
-	v7.x = 1 // &v7::Alloc x::nil TODO(adonovan): do better for x
+	var v7 S    // v7::UnOp (load from Alloc)
+	v7.x = 1    // &v7::Alloc x::Const
+	print(v7.x) // v7::UnOp x::Field
 
 	var v8 [1]int // v8::UnOp (load from Alloc)
 	v8[0] = 0     // &v8::Alloc
@@ -93,6 +95,13 @@ func main() {
 
 	var v12 J    // v12::UnOp (load from Alloc)
 	v12.method() // &v12::Alloc (implicitly address-taken)
+
+	// NB, in the following, 'method' resolves to the *types.Func
+	// of (*J).method, so it doesn't help us locate the specific
+	// ssa.Values here: a bound-method closure and a promotion
+	// wrapper.
+	_ = v11.method // v11::Const
+	_ = (*struct{ J }).method
 
 	// These vars are optimised away.
 	if false {

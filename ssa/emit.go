@@ -182,7 +182,6 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 
 	// Conversion to, or construction of a value of, an interface type?
 	if _, ok := ut_dst.(*types.Interface); ok {
-
 		// Assignment from one interface type to another?
 		if _, ok := ut_src.(*types.Interface); ok {
 			c := &ChangeInterface{X: val}

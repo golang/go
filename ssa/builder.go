@@ -391,7 +391,11 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			wantAddr := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 			last := len(sel.Index()) - 1
-			return &address{addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos())}
+			return &address{
+				addr:   emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
+				id:     e.Sel,
+				object: sel.Obj(),
+			}
 		}
 
 	case *ast.IndexExpr:
@@ -651,7 +655,9 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			last := len(indices) - 1
 			v := b.expr(fn, e.X)
 			v = emitImplicitSelections(fn, v, indices[:last])
-			return emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
+			v = emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
+			emitDebugRef(fn, e.Sel, v)
+			return v
 		}
 
 		panic("unexpected expression-relative selector")

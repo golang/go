@@ -224,8 +224,9 @@ func (prog *Program) FuncValue(obj *types.Func) Value {
 	if v := prog.packageLevelValue(obj); v != nil {
 		return v
 	}
-	// TODO(adonovan): interface method wrappers?  other wrappers?
-	return nil
+	// Interface method wrapper?
+	sel := types.NewSelection(types.MethodExpr, recvType(obj), obj, nil, false)
+	return prog.LookupMethod(sel)
 }
 
 // ConstValue returns the SSA Value denoted by the source-level named
