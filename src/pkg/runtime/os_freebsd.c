@@ -54,6 +54,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 			return;
 		goto fail;
 	}
+	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
 	ts.tv_nsec = 0;
 	ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
 	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, &ts);
