@@ -2385,7 +2385,7 @@ func (p *parser) parseFile() *ast.File {
 	// Go spec: The package clause is not a declaration;
 	// the package name does not appear in any scope.
 	ident := p.parseIdent()
-	if ident.Name == "_" {
+	if ident.Name == "_" && p.mode&DeclarationErrors != 0 {
 		p.error(p.pos, "invalid package name _")
 	}
 	p.expectSemi()
