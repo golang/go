@@ -847,6 +847,10 @@ func TestWriterReadFrom(t *testing.T) {
 				t.Errorf("ws[%d],rs[%d]: w.ReadFrom(r) = %d, %v, want %d, nil", wi, ri, n, err, len(input))
 				continue
 			}
+			if err := w.Flush(); err != nil {
+				t.Errorf("Flush returned %v", err)
+				continue
+			}
 			if got, want := b.String(), string(input); got != want {
 				t.Errorf("ws[%d], rs[%d]:\ngot  %q\nwant %q\n", wi, ri, got, want)
 			}
@@ -1000,6 +1004,24 @@ func TestReaderClearError(t *testing.T) {
 	}
 	if r.nread != 2 {
 		t.Errorf("num reads = %d; want 2", r.nread)
+	}
+}
+
+// Test for golang.org/issue/5947
+func TestWriterReadFromWhileFull(t *testing.T) {
+	buf := new(bytes.Buffer)
+	w := NewWriterSize(buf, 10)
+
+	// Fill buffer exactly.
+	n, err := w.Write([]byte("0123456789"))
+	if n != 10 || err != nil {
+		t.Fatalf("Write returned (%v, %v), want (10, nil)", n, err)
+	}
+
+	// Use ReadFrom to read in some data.
+	n2, err := w.ReadFrom(strings.NewReader("abcdef"))
+	if n2 != 6 || err != nil {
+		t.Fatalf("ReadFrom returned (%v, %v), want (6, nil)", n, err)
 	}
 }
 
