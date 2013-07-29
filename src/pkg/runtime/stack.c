@@ -246,6 +246,8 @@ runtime·newstack(void)
 			runtime·throw("runtime: preempt g0");
 		if(oldstatus == Grunning && m->p == nil)
 			runtime·throw("runtime: g is running but p is not");
+		if(oldstatus == Gsyscall && m->locks == 0)
+			runtime·throw("runtime: stack split during syscall");
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.
 		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing || m->p->status != Prunning) {

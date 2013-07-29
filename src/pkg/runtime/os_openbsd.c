@@ -59,11 +59,11 @@ runtime·semacreate(void)
 	return 1;
 }
 
+#pragma textflag 7
 int32
 runtime·semasleep(int64 ns)
 {
 	Timespec ts;
-	int64 secs;
 
 	// spin-mutex lock
 	while(runtime·xchg(&m->waitsemalock, 1))
@@ -78,12 +78,8 @@ runtime·semasleep(int64 ns)
 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
 			else {
 				ns += runtime·nanotime();
-				secs = ns/1000000000LL;
-				// Avoid overflow
-				if(secs >= 1LL<<31)
-					secs = (1LL<<31) - 1;
-				ts.tv_sec = secs;
-				ts.tv_nsec = ns%1000000000LL;
+				ts.tv_nsec = 0;
+				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)ts.tv_nsec);
 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);
 			}
 			// reacquire lock

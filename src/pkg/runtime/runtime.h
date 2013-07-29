@@ -222,6 +222,29 @@ struct	GCStats
 	uint64	nosyield;
 	uint64	nsleep;
 };
+
+struct	WinCall
+{
+	void	(*fn)(void*);
+	uintptr	n;	// number of parameters
+	void*	args;	// parameters
+	uintptr	r1;	// return values
+	uintptr	r2;
+	uintptr	err;	// error number
+};
+struct	SEH
+{
+	void*	prev;
+	void*	handler;
+};
+// describes how to handle callback
+struct	WinCallbackContext
+{
+	void*	gobody;		// Go function to call
+	uintptr	argsize;	// callback arguments size (in bytes)
+	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
+};
+
 struct	G
 {
 	// stackguard0 can be set to StackPreempt as opposed to stackguard
@@ -327,6 +350,7 @@ struct	M
 
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
+	WinCall	wincall;
 #endif
 #ifdef GOOS_plan9
 	int8*		notesig;
@@ -430,28 +454,6 @@ struct	Itab
 	int32	bad;
 	int32	unused;
 	void	(*fun[])(void);
-};
-
-struct	WinCall
-{
-	void	(*fn)(void*);
-	uintptr	n;	// number of parameters
-	void*	args;	// parameters
-	uintptr	r1;	// return values
-	uintptr	r2;
-	uintptr	err;	// error number
-};
-struct	SEH
-{
-	void*	prev;
-	void*	handler;
-};
-// describes how to handle callback
-struct	WinCallbackContext
-{
-	void*	gobody;		// Go function to call
-	uintptr	argsize;	// callback arguments size (in bytes)
-	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
 };
 
 #ifdef GOOS_windows
@@ -816,6 +818,7 @@ int32	runtime·gcount(void);
 void	runtime·mcall(void(*)(G*));
 uint32	runtime·fastrand1(void);
 void	runtime·rewindmorestack(Gobuf*);
+int32	runtime·timediv(int64, int32, int32*);
 
 void runtime·setmg(M*, G*);
 void runtime·newextram(void);

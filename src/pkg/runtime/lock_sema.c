@@ -81,7 +81,11 @@ unlocked:
 			}
 			if(v&LOCKED) {
 				// Queued.  Wait.
+				if(m->profilehz > 0)
+					runtime·setprof(false);
 				runtime·semasleep(-1);
+				if(m->profilehz > 0)
+					runtime·setprof(true);
 				i = 0;
 			}
 		}
@@ -149,6 +153,9 @@ runtime·notewakeup(Note *n)
 void
 runtime·notesleep(Note *n)
 {
+	if(g != m->g0)
+		runtime·throw("notesleep not on g0");
+
 	if(m->waitsema == 0)
 		m->waitsema = runtime·semacreate();
 	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup)
@@ -164,19 +171,13 @@ runtime·notesleep(Note *n)
 		runtime·setprof(true);
 }
 
-bool
-runtime·notetsleep(Note *n, int64 ns)
+#pragma textflag 7
+static bool
+notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
 {
-	M *mp;
-	int64 deadline, now;
-
-	if(ns < 0) {
-		runtime·notesleep(n);
-		return true;
-	}
-
-	if(m->waitsema == 0)
-		m->waitsema = runtime·semacreate();
+	// Conceptually, deadline and mp are local variables.
+	// They are passed as arguments so that the space for them
+	// does not count against our nosplit stack sequence.
 
 	// Register for wakeup on n->waitm.
 	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
@@ -185,30 +186,27 @@ runtime·notetsleep(Note *n, int64 ns)
 		return true;
 	}
 
-	if(m->profilehz > 0)
-		runtime·setprof(false);
+	if(ns < 0) {
+		// Queued.  Sleep.
+		runtime·semasleep(-1);
+		return true;
+	}
+
 	deadline = runtime·nanotime() + ns;
 	for(;;) {
 		// Registered.  Sleep.
 		if(runtime·semasleep(ns) >= 0) {
 			// Acquired semaphore, semawakeup unregistered us.
 			// Done.
-			if(m->profilehz > 0)
-				runtime·setprof(true);
 			return true;
 		}
 
 		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
-		now = runtime·nanotime();
-		if(now >= deadline)
+		ns = deadline - runtime·nanotime();
+		if(ns <= 0)
 			break;
-
 		// Deadline hasn't arrived.  Keep sleeping.
-		ns = deadline - now;
 	}
-
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 
 	// Deadline arrived.  Still registered.  Semaphore not acquired.
 	// Want to give up and return, but have to unregister first,
@@ -226,12 +224,33 @@ runtime·notetsleep(Note *n, int64 ns)
 			if(runtime·semasleep(-1) < 0)
 				runtime·throw("runtime: unable to acquire - semaphore out of sync");
 			return true;
-		} else {
+		} else
 			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
-		}
 	}
 }
 
+bool
+runtime·notetsleep(Note *n, int64 ns)
+{
+	bool res;
+
+	if(g != m->g0 && !m->gcing)
+		runtime·throw("notetsleep not on g0");
+
+	if(m->waitsema == 0)
+		m->waitsema = runtime·semacreate();
+
+	if(m->profilehz > 0)
+		runtime·setprof(false);
+	res = notetsleep(n, ns, 0, nil);
+	if(m->profilehz > 0)
+		runtime·setprof(true);
+	return res;
+}
+
+// same as runtime·notetsleep, but called on user g (not g0)
+// does not need to call runtime·setprof, because entersyscallblock does it
+// calls only nosplit functions between entersyscallblock/exitsyscall
 bool
 runtime·notetsleepg(Note *n, int64 ns)
 {
@@ -239,8 +258,12 @@ runtime·notetsleepg(Note *n, int64 ns)
 
 	if(g == m->g0)
 		runtime·throw("notetsleepg on g0");
+
+	if(m->waitsema == 0)
+		m->waitsema = runtime·semacreate();
+
 	runtime·entersyscallblock();
-	res = runtime·notetsleep(n, ns);
+	res = notetsleep(n, ns, 0, nil);
 	runtime·exitsyscall();
 	return res;
 }

@@ -22,19 +22,6 @@ unimplemented(int8 *name)
 	*(int32*)1231 = 1231;
 }
 
-int32
-runtime·semasleep(int64 ns)
-{
-	int32 v;
-
-	if(m->profilehz > 0)
-		runtime·setprof(false);
-	v = runtime·mach_semacquire(m->waitsema, ns);
-	if(m->profilehz > 0)
-		runtime·setprof(true);
-	return v;
-}
-
 void
 runtime·semawakeup(M *mp)
 {
@@ -155,10 +142,15 @@ runtime·unminit(void)
 // Mach IPC, to get at semaphores
 // Definitions are in /usr/include/mach on a Mac.
 
+#pragma textflag 7
 static void
 macherror(int32 r, int8 *fn)
 {
-	runtime·printf("mach error %s: %d\n", fn, r);
+	runtime·prints("mach error ");
+	runtime·prints(fn);
+	runtime·prints(": ");
+	runtime·printint(r);
+	runtime·prints("\n");
 	runtime·throw("mach error");
 }
 
@@ -405,25 +397,22 @@ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
 int32 runtime·mach_semaphore_signal(uint32 sema);
 int32 runtime·mach_semaphore_signal_all(uint32 sema);
 
+#pragma textflag 7
 int32
-runtime·mach_semacquire(uint32 sem, int64 ns)
+runtime·semasleep(int64 ns)
 {
-	int32 r;
-	int64 secs;
+	int32 r, secs, nsecs;
 
 	if(ns >= 0) {
-		secs = ns/1000000000LL;
-		// Avoid overflow
-		if(secs > 1LL<<30)
-			secs = 1LL<<30;
-		r = runtime·mach_semaphore_timedwait(sem, secs, ns%1000000000LL);
+		secs = runtime·timediv(ns, 1000000000, &nsecs);
+		r = runtime·mach_semaphore_timedwait(m->waitsema, secs, nsecs);
 		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
 			return -1;
 		if(r != 0)
 			macherror(r, "semaphore_wait");
 		return 0;
 	}
-	while((r = runtime·mach_semaphore_wait(sem)) != 0) {
+	while((r = runtime·mach_semaphore_wait(m->waitsema)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
 		macherror(r, "semaphore_wait");

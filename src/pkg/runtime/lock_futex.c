@@ -83,7 +83,11 @@ runtime·lock(Lock *l)
 		if(v == MUTEX_UNLOCKED)
 			return;
 		wait = MUTEX_SLEEPING;
+		if(m->profilehz > 0)
+			runtime·setprof(false);
 		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
+		if(m->profilehz > 0)
+			runtime·setprof(true);
 	}
 }
 
@@ -122,6 +126,8 @@ runtime·notewakeup(Note *n)
 void
 runtime·notesleep(Note *n)
 {
+	if(g != m->g0)
+		runtime·throw("notesleep not on g0");
 	if(m->profilehz > 0)
 		runtime·setprof(false);
 	while(runtime·atomicload((uint32*)&n->key) == 0)
@@ -130,21 +136,21 @@ runtime·notesleep(Note *n)
 		runtime·setprof(true);
 }
 
-bool
-runtime·notetsleep(Note *n, int64 ns)
+#pragma textflag 7
+static bool
+notetsleep(Note *n, int64 ns)
 {
 	int64 deadline, now;
 
 	if(ns < 0) {
-		runtime·notesleep(n);
+		while(runtime·atomicload((uint32*)&n->key) == 0)
+			runtime·futexsleep((uint32*)&n->key, 0, -1);
 		return true;
 	}
 
 	if(runtime·atomicload((uint32*)&n->key) != 0)
 		return true;
 
-	if(m->profilehz > 0)
-		runtime·setprof(false);
 	deadline = runtime·nanotime() + ns;
 	for(;;) {
 		runtime·futexsleep((uint32*)&n->key, 0, ns);
@@ -155,11 +161,28 @@ runtime·notetsleep(Note *n, int64 ns)
 			break;
 		ns = deadline - now;
 	}
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 	return runtime·atomicload((uint32*)&n->key) != 0;
 }
 
+bool
+runtime·notetsleep(Note *n, int64 ns)
+{
+	bool res;
+
+	if(g != m->g0 && !m->gcing)
+		runtime·throw("notetsleep not on g0");
+
+	if(m->profilehz > 0)
+		runtime·setprof(false);
+	res = notetsleep(n, ns);
+	if(m->profilehz > 0)
+		runtime·setprof(true);
+	return res;
+}
+
+// same as runtime·notetsleep, but called on user g (not g0)
+// does not need to call runtime·setprof, because entersyscallblock does it
+// calls only nosplit functions between entersyscallblock/exitsyscall
 bool
 runtime·notetsleepg(Note *n, int64 ns)
 {
@@ -167,8 +190,9 @@ runtime·notetsleepg(Note *n, int64 ns)
 
 	if(g == m->g0)
 		runtime·throw("notetsleepg on g0");
+
 	runtime·entersyscallblock();
-	res = runtime·notetsleep(n, ns);
+	res = notetsleep(n, ns);
 	runtime·exitsyscall();
 	return res;
 }

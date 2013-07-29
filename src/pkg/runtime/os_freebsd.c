@@ -41,29 +41,26 @@ getncpu(void)
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
 
+#pragma textflag 7
 void
 runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {
 	int32 ret;
-	Timespec ts, *tsp;
-	int64 secs;
+	Timespec ts;
 
-	if(ns < 0)
-		tsp = nil;
-	else {
-		secs = ns / 1000000000LL;
-		// Avoid overflow
-		if(secs > 1LL<<30)
-			secs = 1LL<<30;
-		ts.tv_sec = secs;
-		ts.tv_nsec = ns % 1000000000LL;
-		tsp = &ts;
+	if(ns < 0) {
+		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, nil);
+		if(ret >= 0 || ret == -EINTR)
+			return;
+		goto fail;
 	}
-
-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, tsp);
+	ts.tv_nsec = 0;
+	ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, &ts);
 	if(ret >= 0 || ret == -EINTR)
 		return;
 
+fail:
 	runtime·printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
 	*(int32*)0x1005 = 0x1005;
 }

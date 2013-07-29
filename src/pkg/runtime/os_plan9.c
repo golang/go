@@ -260,6 +260,7 @@ runtime·semacreate(void)
 	return 1;
 }
 
+#pragma textflag 7
 int32
 runtime·semasleep(int64 ns)
 {
@@ -267,10 +268,7 @@ runtime·semasleep(int64 ns)
 	int32 ms;
 
 	if(ns >= 0) {
-		if(ns/1000000 > 0x7fffffffll)
-			ms = 0x7fffffff;
-		else
-			ms = ns/1000000;
+		ms = runtime·timediv(ns, 1000000, nil);
 		ret = runtime·plan9_tsemacquire(&m->waitsemacount, ms);
 		if(ret == 1)
 			return 0;  // success
