@@ -429,7 +429,7 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
 	res = 0;
 	for(bit = 0x40000000; bit != 0; bit >>= 1) {
 		if(v >= (int64)bit*div) {
-			v -= (int64)bit*div;
+			v = v - (int64)bit*div;
 			res += bit;
 		}
 	}
