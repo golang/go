@@ -808,7 +808,7 @@ uintptr	runtime·ifacehash(Iface, uintptr);
 uintptr	runtime·efacehash(Eface, uintptr);
 void*	runtime·malloc(uintptr size);
 void	runtime·free(void *v);
-bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr);
+bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, void*);
 void	runtime·runpanic(Panic*);
 uintptr	runtime·getcallersp(void*);
 int32	runtime·mcount(void);

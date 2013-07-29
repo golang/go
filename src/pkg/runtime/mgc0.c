@@ -109,6 +109,7 @@ struct Finalizer
 	FuncVal *fn;
 	void *arg;
 	uintptr nret;
+	PtrType *ot;
 };
 
 typedef struct FinBlock FinBlock;
@@ -1583,10 +1584,11 @@ handlespecial(byte *p, uintptr size)
 {
 	FuncVal *fn;
 	uintptr nret;
+	PtrType *ot;
 	FinBlock *block;
 	Finalizer *f;
 
-	if(!runtime·getfinalizer(p, true, &fn, &nret)) {
+	if(!runtime·getfinalizer(p, true, &fn, &nret, &ot)) {
 		runtime·setblockspecial(p, false);
 		runtime·MProf_Free(p, size);
 		return false;
@@ -1609,6 +1611,7 @@ handlespecial(byte *p, uintptr size)
 	finq->cnt++;
 	f->fn = fn;
 	f->nret = nret;
+	f->ot = ot;
 	f->arg = p;
 	runtime·unlock(&finlock);
 	return true;
@@ -2272,6 +2275,7 @@ runfinq(void)
 	FinBlock *fb, *next;
 	byte *frame;
 	uint32 framesz, framecap, i;
+	Eface *ef;
 
 	frame = nil;
 	framecap = 0;
@@ -2291,7 +2295,7 @@ runfinq(void)
 			next = fb->next;
 			for(i=0; i<fb->cnt; i++) {
 				f = &fb->fin[i];
-				framesz = sizeof(uintptr) + f->nret;
+				framesz = sizeof(Eface) + f->nret;
 				if(framecap < framesz) {
 					runtime·free(frame);
 					// The frame does not contain pointers interesting for GC,
@@ -2301,10 +2305,17 @@ runfinq(void)
 					frame = runtime·mallocgc(framesz, 0, FlagNoPointers|FlagNoInvokeGC);
 					framecap = framesz;
 				}
-				*(void**)frame = f->arg;
-				reflect·call(f->fn, frame, sizeof(uintptr) + f->nret);
+				if(f->ot == nil)
+					*(void**)frame = f->arg;
+				else {
+					ef = (Eface*)frame;
+					ef->type = f->ot;
+					ef->data = f->arg;
+				}
+				reflect·call(f->fn, frame, framesz);
 				f->fn = nil;
 				f->arg = nil;
+				f->ot = nil;
 			}
 			fb->cnt = 0;
 			fb->next = finc;
