@@ -40,7 +40,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		PackagesByPath:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
-		concreteMethods:     make(map[*types.Func]*Function),
 		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
@@ -101,25 +100,19 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 				body:      decl.Body,
 			}
 		}
-		sig := obj.Type().(*types.Signature)
 		fn := &Function{
 			name:      name,
 			object:    obj,
-			Signature: sig,
+			Signature: obj.Type().(*types.Signature),
 			Synthetic: synthetic,
 			pos:       obj.Pos(), // (iff syntax)
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
 			syntax:    fs,
 		}
-		if recv := sig.Recv(); recv == nil {
-			// Function declaration.
-			pkg.values[obj] = fn
-			pkg.Members[name] = fn
-		} else {
-			// Concrete method.
-			_ = deref(recv.Type()).(*types.Named) // assertion
-			pkg.Prog.concreteMethods[obj] = fn
+		pkg.values[obj] = fn
+		if fn.Signature.Recv() == nil {
+			pkg.Members[name] = fn // package-level function
 		}
 
 	default: // (incl. *types.Package)

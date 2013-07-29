@@ -18,12 +18,11 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Fset            *token.FileSet              // position information for the files of this Program
-	PackagesByPath  map[string]*Package         // all loaded Packages, keyed by import path
-	packages        map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
-	concreteMethods map[*types.Func]*Function   // maps declared concrete methods to their code
-	mode            BuilderMode                 // set of mode bits for SSA construction
+	Fset           *token.FileSet              // position information for the files of this Program
+	PackagesByPath map[string]*Package         // all loaded Packages, keyed by import path
+	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
+	builtins       map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	mode           BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
 	methodSets          typemap.M                 // maps type to its concrete MethodSet
@@ -40,7 +39,7 @@ type Package struct {
 	Prog    *Program               // the owning program
 	Object  *types.Package         // the type checker's package object for this package
 	Members map[string]Member      // all package members keyed by name
-	values  map[types.Object]Value // package-level vars and funcs, keyed by object
+	values  map[types.Object]Value // package-level vars & funcs (incl. methods), keyed by object
 	init    *Function              // Func("init"); the package's (concatenated) init function
 
 	// The following fields are set transiently, then cleared

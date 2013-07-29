@@ -220,12 +220,8 @@ func (prog *Program) FuncValue(obj *types.Func) Value {
 	if v, ok := prog.builtins[obj]; ok {
 		return v
 	}
-	// Package-level function?
+	// Package-level function or declared method?
 	if v := prog.packageLevelValue(obj); v != nil {
-		return v
-	}
-	// Concrete method?
-	if v := prog.concreteMethods[obj]; v != nil {
 		return v
 	}
 	// TODO(adonovan): interface method wrappers?  other wrappers?

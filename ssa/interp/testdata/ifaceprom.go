@@ -1,7 +1,7 @@
 package main
 
 // Test of promotion of methods of an interface embedded within a
-// struct.  In particular, this test excercises that the correct
+// struct.  In particular, this test exercises that the correct
 // method is called.
 
 type I interface {

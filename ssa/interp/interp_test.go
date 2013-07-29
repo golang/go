@@ -134,6 +134,7 @@ var testdataTests = []string{
 	"fieldprom.go",
 	"ifaceconv.go",
 	"ifaceprom.go",
+	"initorder.go",
 	"methprom.go",
 	"mrvchain.go",
 }

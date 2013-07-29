@@ -118,16 +118,14 @@ func (prog *Program) LookupMethod(meth *types.Selection) *Function {
 	return prog.populateMethodSet(meth.Recv(), meth)[meth.Obj().Id()]
 }
 
-// concreteMethod returns the concrete method denoted by obj.
-// Panic ensues if there is no such method (e.g. it's a standalone
-// function).
+// declaredFunc returns the concrete function/method denoted by obj.
+// Panic ensues if there is none.
 //
-func (prog *Program) concreteMethod(obj *types.Func) *Function {
-	fn := prog.concreteMethods[obj]
-	if fn == nil {
-		panic("no concrete method: " + obj.String())
+func (prog *Program) declaredFunc(obj *types.Func) *Function {
+	if v := prog.packageLevelValue(obj); v != nil {
+		return v.(*Function)
 	}
-	return fn
+	panic("no concrete method: " + obj.String())
 }
 
 // findMethod returns the concrete Function for the method meth,
@@ -137,18 +135,18 @@ func (prog *Program) concreteMethod(obj *types.Func) *Function {
 //
 func findMethod(prog *Program, meth *types.Selection) *Function {
 	needsPromotion := len(meth.Index()) > 1
-	mfunc := meth.Obj().(*types.Func)
-	needsIndirection := !isPointer(recvType(mfunc)) && isPointer(meth.Recv())
+	obj := meth.Obj().(*types.Func)
+	needsIndirection := !isPointer(recvType(obj)) && isPointer(meth.Recv())
 
 	if needsPromotion || needsIndirection {
 		return makeWrapper(prog, meth.Recv(), meth)
 	}
 
 	if _, ok := meth.Recv().Underlying().(*types.Interface); ok {
-		return interfaceMethodWrapper(prog, meth.Recv(), mfunc)
+		return interfaceMethodWrapper(prog, meth.Recv(), obj)
 	}
 
-	return prog.concreteMethod(mfunc)
+	return prog.declaredFunc(obj)
 }
 
 // makeWrapper returns a synthetic wrapper Function that optionally
@@ -173,21 +171,21 @@ func findMethod(prog *Program, meth *types.Selection) *Function {
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
 func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function {
-	mfunc := meth.Obj().(*types.Func)
-	old := mfunc.Type().(*types.Signature)
+	obj := meth.Obj().(*types.Func)
+	old := obj.Type().(*types.Signature)
 	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	description := fmt.Sprintf("wrapper for %s", mfunc)
+	description := fmt.Sprintf("wrapper for %s", obj)
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, typ)()
 	}
 	fn := &Function{
-		name:      mfunc.Name(),
+		name:      obj.Name(),
 		method:    meth,
 		Signature: sig,
 		Synthetic: description,
 		Prog:      prog,
-		pos:       mfunc.Pos(),
+		pos:       obj.Pos(),
 	}
 	fn.startBody()
 	fn.addSpilledParam(sig.Recv())
@@ -220,10 +218,10 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 		if !isPointer(old.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
-		c.Call.Value = prog.concreteMethod(mfunc)
+		c.Call.Value = prog.declaredFunc(obj)
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
-		c.Call.Method = mfunc
+		c.Call.Method = obj
 		c.Call.Value = emitLoad(fn, v)
 	}
 	for _, arg := range fn.Params[1:] {
@@ -357,7 +355,7 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 		var c Call
 
 		if _, ok := recvType(obj).Underlying().(*types.Interface); !ok { // concrete
-			c.Call.Value = prog.concreteMethod(obj)
+			c.Call.Value = prog.declaredFunc(obj)
 			c.Call.Args = []Value{cap}
 		} else {
 			c.Call.Value = cap
