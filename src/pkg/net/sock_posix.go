@@ -15,9 +15,24 @@ import (
 // address that can be converted into a syscall.Sockaddr.
 type sockaddr interface {
 	Addr
+
+	// family returns the platform-dependent address family
+	// identifier.
 	family() int
+
+	// isWildcard reports whether the address is a wildcard
+	// address.
 	isWildcard() bool
+
+	// sockaddr returns the address converted into a syscall
+	// sockaddr type that implements syscall.Sockaddr
+	// interface. It returns a nil interface when the address is
+	// nil.
 	sockaddr(family int) (syscall.Sockaddr, error)
+
+	// toAddr returns the address represented in sockaddr
+	// interface. It returns a nil interface when the address is
+	// nil.
 	toAddr() sockaddr
 }
 
