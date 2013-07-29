@@ -27,7 +27,7 @@ arg=0
 
 /* replaced use of R10 by R11 because the former can be the data segment base register */
 
-TEXT _mulv(SB), $0
+TEXT _mulv(SB), 7, $0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R2	/* l0 */
 	MOVW	8(FP), R11	/* h0 */
