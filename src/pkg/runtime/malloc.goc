@@ -799,6 +799,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 	int32 i;
 	uintptr nret;
 	Type *t;
+	Type *fint;
+	PtrType *ot;
 
 	if(obj.type == nil) {
 		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
@@ -813,11 +815,17 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		goto throw;
 	}
 	nret = 0;
+	ot = nil;
 	if(finalizer.type != nil) {
 		if(finalizer.type->kind != KindFunc)
 			goto badfunc;
 		ft = (FuncType*)finalizer.type;
-		if(ft->dotdotdot || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
+		if(ft->dotdotdot || ft->in.len != 1)
+			goto badfunc;
+		fint = *(Type**)ft->in.array;
+		if(fint->kind == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0)
+			ot = (PtrType*)obj.type;
+		else if(fint != obj.type)
 			goto badfunc;
 
 		// compute size needed for return parameters
@@ -828,14 +836,14 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		nret = ROUND(nret, sizeof(void*));
 	}
 	
-	if(!runtime·addfinalizer(obj.data, finalizer.data, nret)) {
+	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, ot)) {
 		runtime·printf("runtime.SetFinalizer: finalizer already set\n");
 		goto throw;
 	}
 	return;
 
 badfunc:
-	runtime·printf("runtime.SetFinalizer: second argument is %S, not func(%S)\n", *finalizer.type->string, *obj.type->string);
+	runtime·printf("runtime.SetFinalizer: second argument is %S, not func(%S) or func(interface{})\n", *finalizer.type->string, *obj.type->string);
 throw:
 	runtime·throw("runtime.SetFinalizer");
 }

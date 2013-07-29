@@ -122,8 +122,9 @@ func funcentry_go(*Func) uintptr
 // The argument x must be a pointer to an object allocated by
 // calling new or by taking the address of a composite literal.
 // The argument f must be a function that takes a single argument
-// of x's type and can have arbitrary ignored return values.
-// If either of these is not true, SetFinalizer aborts the program.
+// of x's type or interface{}, and can have arbitrary ignored return
+// values. If either of these is not true, SetFinalizer aborts the
+// program.
 //
 // Finalizers are run in dependency order: if A points at B, both have
 // finalizers, and they are otherwise unreachable, only the finalizer

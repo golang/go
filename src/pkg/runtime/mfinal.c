@@ -13,6 +13,7 @@ struct Fin
 {
 	FuncVal *fn;
 	uintptr nret;
+	void *ot;
 };
 
 // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
@@ -42,7 +43,7 @@ static struct {
 } fintab[TABSZ];
 
 static void
-addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret)
+addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret, void *ot)
 {
 	int32 i, j;
 
@@ -67,6 +68,7 @@ ret:
 	t->key[i] = k;
 	t->val[i].fn = fn;
 	t->val[i].nret = nret;
+	t->val[i].ot = ot;
 }
 
 static bool
@@ -87,6 +89,7 @@ lookfintab(Fintab *t, void *k, bool del, Fin *f)
 				t->key[i] = (void*)-1;
 				t->val[i].fn = nil;
 				t->val[i].nret = 0;
+				t->val[i].ot = nil;
 				t->ndead++;
 			}
 			return true;
@@ -123,7 +126,7 @@ resizefintab(Fintab *tab)
 	for(i=0; i<tab->max; i++) {
 		k = tab->key[i];
 		if(k != nil && k != (void*)-1)
-			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret);
+			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret, tab->val[i].ot);
 	}
 	
 	runtime·free(tab->key);
@@ -137,7 +140,7 @@ resizefintab(Fintab *tab)
 }
 
 bool
-runtime·addfinalizer(void *p, FuncVal *f, uintptr nret)
+runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, void *ot)
 {
 	Fintab *tab;
 	byte *base;
@@ -166,7 +169,7 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret)
 		resizefintab(tab);
 	}
 
-	addfintab(tab, p, f, nret);
+	addfintab(tab, p, f, nret, ot);
 	runtime·setblockspecial(p, true);
 	runtime·unlock(tab);
 	return true;
@@ -175,7 +178,7 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret)
 // get finalizer; if del, delete finalizer.
 // caller is responsible for updating RefHasFinalizer (special) bit.
 bool
-runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret)
+runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, void **ot)
 {
 	Fintab *tab;
 	bool res;
@@ -189,6 +192,7 @@ runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret)
 		return false;
 	*fn = f.fn;
 	*nret = f.nret;
+	*ot = f.ot;
 	return true;
 }
 

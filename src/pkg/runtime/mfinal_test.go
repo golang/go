@@ -9,7 +9,93 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func TestFinalizerTypeSucceed(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("Skipping on non-amd64 machine")
+	}
+	ch := make(chan bool)
+	func() {
+		v := new(int)
+		*v = 97531
+		runtime.SetFinalizer(v, func(v *int) {
+			if *v != 97531 {
+				t.Errorf("*int in finalizer has the wrong value: %d\n", *v)
+			}
+			close(ch)
+		})
+		v = nil
+	}()
+	runtime.GC()
+	select {
+	case <-ch:
+	case <-time.After(time.Second * 4):
+		t.Errorf("Finalizer set by SetFinalizer(*int, func(*int)) didn't run")
+	}
+}
+
+func TestFinalizerInterface(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("Skipping on non-amd64 machine")
+	}
+	ch := make(chan bool)
+	func() {
+		v := new(int)
+		*v = 97531
+		runtime.SetFinalizer(v, func(v interface{}) {
+			i, ok := v.(*int)
+			if !ok {
+				t.Errorf("Expected *int from interface{} in finalizer, got %v", *i)
+			}
+			if *i != 97531 {
+				t.Errorf("*int from interface{} has the wrong value: %d\n", *i)
+			}
+			close(ch)
+		})
+		v = nil
+	}()
+	runtime.GC()
+	select {
+	case <-ch:
+	case <-time.After(time.Second * 4):
+		t.Errorf("Finalizer set by SetFinalizer(*int, func(interface{})) didn't run")
+	}
+}
+
+type bigValue struct {
+	fill uint64
+	it   bool
+	up   string
+}
+
+func TestFinalizerInterfaceBig(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("Skipping on non-amd64 machine")
+	}
+	ch := make(chan bool)
+	func() {
+		v := &bigValue{0xDEADBEEFDEADBEEF, true, "It matters not how strait the gate"}
+		runtime.SetFinalizer(v, func(v interface{}) {
+			i, ok := v.(*bigValue)
+			if !ok {
+				t.Errorf("Expected *bigValue from interface{} in finalizer, got %v", *i)
+			}
+			if i.fill != 0xDEADBEEFDEADBEEF && i.it != true && i.up != "It matters not how strait the gate" {
+				t.Errorf("*bigValue from interface{} has the wrong value: %d\n", *i)
+			}
+			close(ch)
+		})
+		v = nil
+	}()
+	runtime.GC()
+	select {
+	case <-ch:
+	case <-time.After(time.Second * 4):
+		t.Errorf("Finalizer set by SetFinalizer(*bigValue, func(interface{})) didn't run")
+	}
+}
 
 func fin(v *int) {
 }
