@@ -103,7 +103,6 @@ func (a *UnixAddr) family() int {
 	return syscall.AF_UNIX
 }
 
-// isWildcard reports whether a is a wildcard address.
 func (a *UnixAddr) isWildcard() bool {
 	return a == nil || a.Name == ""
 }
