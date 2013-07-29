@@ -62,6 +62,7 @@ struct  Vlong
 
 void    runtime·abort(void);
 
+#pragma textflag 7
 void
 _addv(Vlong *r, Vlong a, Vlong b)
 {
