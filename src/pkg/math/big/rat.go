@@ -164,8 +164,9 @@ func quotToFloat(a, b nat) (f float64, exact bool) {
 }
 
 // Float64 returns the nearest float64 value for x and a bool indicating
-// whether f represents x exactly. The sign of f always matches the sign
-// of x, even if f == 0.
+// whether f represents x exactly. If the magnitude of x is too large to
+// be represented by a float64, f is an infinity and exact is false.
+// The sign of f always matches the sign of x, even if f == 0.
 func (x *Rat) Float64() (f float64, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
