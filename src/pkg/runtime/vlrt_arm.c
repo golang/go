@@ -624,14 +624,12 @@ _ul2v(Vlong *ret, ulong ul)
 	ret->hi = 0;
 }
 
+#pragma textflag 7
 void
 _si2v(Vlong *ret, int si)
 {
-	long t;
-
-	t = si;
-	ret->lo = t;
-	ret->hi = t >> 31;
+	ret->lo = (long)si;
+	ret->hi = (long)si >> 31;
 }
 
 void
