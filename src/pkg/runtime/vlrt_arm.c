@@ -66,27 +66,20 @@ void    runtime·abort(void);
 void
 _addv(Vlong *r, Vlong a, Vlong b)
 {
-	ulong lo, hi;
-
-	lo = a.lo + b.lo;
-	hi = a.hi + b.hi;
-	if(lo < a.lo)
-		hi++;
-	r->lo = lo;
-	r->hi = hi;
+	r->lo = a.lo + b.lo;
+	r->hi = a.hi + b.hi;
+	if(r->lo < a.lo)
+		r->hi++;
 }
 
+#pragma textflag 7
 void
 _subv(Vlong *r, Vlong a, Vlong b)
 {
-	ulong lo, hi;
-
-	lo = a.lo - b.lo;
-	hi = a.hi - b.hi;
-	if(lo > a.lo)
-		hi--;
-	r->lo = lo;
-	r->hi = hi;
+	r->lo = a.lo - b.lo;
+	r->hi = a.hi - b.hi;
+	if(r->lo > a.lo)
+		r->hi--;
 }
 
 void
