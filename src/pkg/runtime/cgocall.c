@@ -255,22 +255,39 @@ struct CallbackArgs
 #define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
 #endif
 
+void runtime·cgocallbackg1(void);
+
+#pragma textflag 7
 void
 runtime·cgocallbackg(void)
 {
-	Defer d;
-	CallbackArgs *cb;
-
-	if(m->racecall) {
-		cb = CBARGS;
-		reflect·call(cb->fn, cb->arg, cb->argsize);
-		return;
+	if(g != m->curg) {
+		runtime·prints("runtime: bad g in cgocallback");
+		runtime·exit(2);
 	}
 
-	if(g != m->curg)
-		runtime·throw("runtime: bad g in cgocallback");
+	if(m->racecall) {
+		// We were not in syscall, so no need to call runtime·exitsyscall.
+		// However we must set m->locks for the following reason.
+		// Race detector runtime makes __tsan_symbolize cgo callback
+		// holding internal mutexes. The mutexes are not cooperative with Go scheduler.
+		// So if we deschedule a goroutine that holds race detector internal mutex
+		// (e.g. preempt it), another goroutine will deadlock trying to acquire the same mutex.
+		m->locks++;
+		runtime·cgocallbackg1();
+		m->locks--;
+	} else {
+		runtime·exitsyscall();	// coming out of cgo call
+		runtime·cgocallbackg1();
+		runtime·entersyscall();	// going back to cgo call
+	}
+}
 
-	runtime·exitsyscall();	// coming out of cgo call
+void
+runtime·cgocallbackg1(void)
+{
+	CallbackArgs *cb;
+	Defer d;
 
 	if(m->needextram) {
 		m->needextram = 0;
@@ -286,14 +303,14 @@ runtime·cgocallbackg(void)
 	d.free = false;
 	g->defer = &d;
 
-	if(raceenabled)
+	if(raceenabled && !m->racecall)
 		runtime·raceacquire(&cgosync);
 
 	// Invoke callback.
 	cb = CBARGS;
 	reflect·call(cb->fn, cb->arg, cb->argsize);
 
-	if(raceenabled)
+	if(raceenabled && !m->racecall)
 		runtime·racereleasemerge(&cgosync);
 
 	// Pop defer.
@@ -302,8 +319,6 @@ runtime·cgocallbackg(void)
 	if(g->defer != &d || d.fn != &unwindmf)
 		runtime·throw("runtime: bad defer entry in cgocallback");
 	g->defer = d.link;
-
-	runtime·entersyscall();	// going back to cgo call
 }
 
 static void

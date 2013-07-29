@@ -110,6 +110,7 @@ static void pidleput(P*);
 static void injectglist(G*);
 static void preemptall(void);
 static void preemptone(P*);
+static bool exitsyscallfast(void);
 
 // The bootstrap sequence is:
 //
@@ -1379,6 +1380,10 @@ save(void *pc, uintptr sp)
 void
 ·entersyscall(int32 dummy)
 {
+	// Disable preemption because during this function g is in Gsyscall status,
+	// but can have inconsistent g->sched, do not let GC observe it.
+	m->locks++;
+
 	if(m->profilehz > 0)
 		runtime·setprof(false);
 
@@ -1417,6 +1422,12 @@ void
 		runtime·unlock(&runtime·sched);
 		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	}
+
+	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
+	// We set stackguard to StackPreempt so that first split stack check calls morestack.
+	// Morestack detects this case and throws.
+	g->stackguard0 = StackPreempt;
+	m->locks--;
 }
 
 // The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
@@ -1425,6 +1436,8 @@ void
 ·entersyscallblock(int32 dummy)
 {
 	P *p;
+
+	m->locks++;  // see comment in entersyscall
 
 	if(m->profilehz > 0)
 		runtime·setprof(false);
@@ -1449,56 +1462,48 @@ void
 
 	// Resave for traceback during blocked call.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+
+	g->stackguard0 = StackPreempt;  // see comment in entersyscall
+	m->locks--;
 }
 
 // The goroutine g exited its system call.
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
+#pragma textflag 7
 void
 runtime·exitsyscall(void)
 {
-	P *p;
+	m->locks++;  // see comment in entersyscall
 
 	// Check whether the profiler needs to be turned on.
 	if(m->profilehz > 0)
 		runtime·setprof(true);
 
-	// Try to re-acquire the last P.
-	if(m->p && m->p->status == Psyscall && runtime·cas(&m->p->status, Psyscall, Prunning)) {
+	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+		inclocked(-1);
+
+	if(exitsyscallfast()) {
 		// There's a cpu for us, so we can run.
-		m->mcache = m->p->mcache;
-		m->p->m = m;
 		m->p->tick++;
 		g->status = Grunning;
 		// Garbage collector isn't running (since we are),
 		// so okay to clear gcstack and gcsp.
 		g->gcstack = (uintptr)nil;
 		g->gcsp = (uintptr)nil;
-		if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		m->locks--;
+		if(g->preempt) {
+			// restore the preemption request in case we've cleared it in newstack
 			g->stackguard0 = StackPreempt;
+		} else {
+			// otherwise restore the real stackguard, we've spoiled it in entersyscall/entersyscallblock
+			g->stackguard0 = g->stackguard;
+		}
 		return;
 	}
 
-	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
-		inclocked(-1);
-	// Try to get any other idle P.
-	m->p = nil;
-	if(runtime·sched.pidle) {
-		runtime·lock(&runtime·sched);
-		p = pidleget();
-		runtime·unlock(&runtime·sched);
-		if(p) {
-			acquirep(p);
-			m->p->tick++;
-			g->status = Grunning;
-			g->gcstack = (uintptr)nil;
-			g->gcsp = (uintptr)nil;
-			if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
-				g->stackguard0 = StackPreempt;
-			return;
-		}
-	}
+	m->locks--;
 
 	// Call the scheduler.
 	runtime·mcall(exitsyscall0);
@@ -1511,6 +1516,33 @@ runtime·exitsyscall(void)
 	// is not running.
 	g->gcstack = (uintptr)nil;
 	g->gcsp = (uintptr)nil;
+}
+
+#pragma textflag 7
+static bool
+exitsyscallfast(void)
+{
+	P *p;
+
+	// Try to re-acquire the last P.
+	if(m->p && m->p->status == Psyscall && runtime·cas(&m->p->status, Psyscall, Prunning)) {
+		// There's a cpu for us, so we can run.
+		m->mcache = m->p->mcache;
+		m->p->m = m;
+		return true;
+	}
+	// Try to get any other idle P.
+	m->p = nil;
+	if(runtime·sched.pidle) {
+		runtime·lock(&runtime·sched);
+		p = pidleget();
+		runtime·unlock(&runtime·sched);
+		if(p) {
+			acquirep(p);
+			return true;
+		}
+	}
+	return false;
 }
 
 // runtime·exitsyscall slow path on g0.

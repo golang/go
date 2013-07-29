@@ -164,21 +164,19 @@ runtime·write(int32 fd, void *buf, int32 n)
 
 #define INFINITE ((uintptr)0xFFFFFFFF)
 
+#pragma textflag 7
 int32
 runtime·semasleep(int64 ns)
 {
-	uintptr ms;
-
+	// store ms in ns to save stack space
 	if(ns < 0)
-		ms = INFINITE;
-	else if(ns/1000000 > 0x7fffffffLL)
-		ms = 0x7fffffff;
+		ns = INFINITE;
 	else {
-		ms = ns/1000000;
-		if(ms == 0)
-			ms = 1;
+		ns = runtime·timediv(ns, 1000000, nil);
+		if(ns == 0)
+			ns = 1;
 	}
-	if(runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, ms) != 0)
+	if(runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, (uintptr)ns) != 0)
 		return -1;  // timeout
 	return 0;
 }
@@ -237,6 +235,7 @@ runtime·unminit(void)
 	runtime·remove_exception_handler();
 }
 
+#pragma textflag 7
 int64
 runtime·nanotime(void)
 {
@@ -266,13 +265,11 @@ time·now(int64 sec, int32 usec)
 void *
 runtime·stdcall(void *fn, int32 count, ...)
 {
-	WinCall c;
-
-	c.fn = fn;
-	c.n = count;
-	c.args = (uintptr*)&count + 1;
-	runtime·asmcgocall(runtime·asmstdcall, &c);
-	return (void*)c.r1;
+	m->wincall.fn = fn;
+	m->wincall.n = count;
+	m->wincall.args = (uintptr*)&count + 1;
+	runtime·asmcgocall(runtime·asmstdcall, &m->wincall);
+	return (void*)m->wincall.r1;
 }
 
 extern void runtime·usleep1(uint32);

@@ -325,41 +325,40 @@ TEXT runtime·morestack11(SB),7,$0
 // subcases of morestack01
 // with const of 8,16,...48
 TEXT runtime·morestack8(SB),7,$0
-	PUSHQ	$1
+	MOVQ	$1, R8
 	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
 TEXT runtime·morestack16(SB),7,$0
-	PUSHQ	$2
+	MOVQ	$2, R8
 	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
 TEXT runtime·morestack24(SB),7,$0
-	PUSHQ	$3
+	MOVQ	$3, R8
 	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
 TEXT runtime·morestack32(SB),7,$0
-	PUSHQ	$4
+	MOVQ	$4, R8
 	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
 TEXT runtime·morestack40(SB),7,$0
-	PUSHQ	$5
+	MOVQ	$5, R8
 	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
 TEXT runtime·morestack48(SB),7,$0
-	PUSHQ	$6
+	MOVQ	$6, R8
 	MOVQ	$morestack<>(SB), AX
 	JMP	AX
 
 TEXT morestack<>(SB),7,$0
 	get_tls(CX)
 	MOVQ	m(CX), BX
-	POPQ	AX
-	SHLQ	$35, AX
-	MOVQ	AX, m_moreframesize(BX)
+	SHLQ	$35, R8
+	MOVQ	R8, m_moreframesize(BX)
 	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
