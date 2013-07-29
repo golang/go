@@ -79,3 +79,25 @@ var (
 		}
 	}
 }
+
+func TestIssue5815(t *testing.T) {
+	pkg, err := GcImport(make(map[string]*Package), "strings")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, obj := range pkg.scope.elems {
+		if obj.Pkg() == nil {
+			t.Errorf("no pkg for %s", obj)
+		}
+		if tname, _ := obj.(*TypeName); tname != nil {
+			if named, _ := tname.typ.(*Named); named != nil {
+				for _, m := range named.methods {
+					if m.pkg == nil {
+						t.Errorf("no pkg for %s", m)
+					}
+				}
+			}
+		}
+	}
+}

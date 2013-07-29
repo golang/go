@@ -425,20 +425,23 @@ func (p *gcParser) parseMapType() Type {
 
 // Name = identifier | "?" | QualifiedName .
 //
-// If materializePkg is set, a package is returned for fully qualified names.
-// That package may be a fake package (without name, scope, and not in the
-// p.imports map), created for the sole purpose of providing a package path
-// for QualifiedNames. Fake packages are created when the package id is not
-// found in the p.imports map; we cannot create a real package in that case
-// because we don't have a package name.
+// If materializePkg is set, the returned package is guaranteed to be set.
+// For fully qualified names, the returned package may be a fake package
+// (without name, scope, and not in the p.imports map), created for the
+// sole purpose of providing a package path. Fake packages are created
+// when the package id is not found in the p.imports map; in that case
+// we cannot create a real package because we don't have a package name.
+// For non-qualified names, the returned package is the imported package.
 //
 func (p *gcParser) parseName(materializePkg bool) (pkg *Package, name string) {
 	switch p.tok {
 	case scanner.Ident:
+		pkg = p.imports[p.id]
 		name = p.lit
 		p.next()
 	case '?':
 		// anonymous
+		pkg = p.imports[p.id]
 		p.next()
 	case '@':
 		// exported name prefixed with package path
@@ -611,10 +614,6 @@ func (p *gcParser) parseInterfaceType() Type {
 		// TODO(gri) Ideally, we should use a named type here instead of
 		// typ, for less verbose printing of interface method signatures.
 		sig.recv = NewVar(token.NoPos, pkg, "", typ)
-		// TODO(gri): fix: pkg may be nil!
-		if pkg == nil {
-			pkg = p.imports[p.id]
-		}
 		m := NewFunc(token.NoPos, pkg, name, sig)
 		if alt := mset.insert(m); alt != nil {
 			p.errorf("multiple methods named %s.%s", alt.Pkg().name, alt.Name())
@@ -902,7 +901,7 @@ func (p *gcParser) parseMethodDecl() {
 	base := typ.(*Named)
 
 	// parse method name, signature, and possibly inlined body
-	pkg, name := p.parseName(true) // unexported method names in imports are qualified with their package.
+	pkg, name := p.parseName(true)
 	sig := p.parseFunc()
 	sig.recv = recv
 
@@ -910,10 +909,6 @@ func (p *gcParser) parseMethodDecl() {
 	// and method exists already
 	// TODO(gri) This is a quadratic algorithm - ok for now because method counts are small.
 	if _, m := lookupMethod(base.methods, pkg, name); m == nil {
-		// TODO(gri): fix: pkg may be nil.
-		if pkg == nil {
-			pkg = p.imports[p.id]
-		}
 		base.methods = append(base.methods, NewFunc(token.NoPos, pkg, name, sig))
 	}
 }
