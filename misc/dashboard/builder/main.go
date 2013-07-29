@@ -61,7 +61,7 @@ var (
 	failAll        = flag.Bool("fail", false, "fail all builds")
 	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
-	cmdTimeout     = flag.Duration("cmdTimeout", 5*time.Minute, "Maximum time to wait for an external command")
+	cmdTimeout     = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
 	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits (0 disables commit poller)")
 	verbose        = flag.Bool("v", false, "verbose")
 )
