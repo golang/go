@@ -119,7 +119,7 @@ const rlimInf32 = ^uint32(0)
 const rlimInf64 = ^uint64(0)
 
 func Getrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, rlim, nil)
+	err = prlimit(0, resource, nil, rlim)
 	if err != ENOSYS {
 		return err
 	}
@@ -147,7 +147,7 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 //sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
 
 func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, nil, rlim)
+	err = prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
 	}
