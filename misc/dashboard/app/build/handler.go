@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"appengine"
 	"appengine/datastore"
@@ -98,8 +99,8 @@ func addCommit(c appengine.Context, com *Commit) error {
 			return errors.New("parent commit not found")
 		}
 	}
-	// update the tip Tag if this is the Go repo
-	if p.Path == "" {
+	// update the tip Tag if this is the Go repo and this isn't on a release branch
+	if p.Path == "" && !strings.HasPrefix(com.Desc, "[release-branch") {
 		t := &Tag{Kind: "tip", Hash: com.Hash}
 		if _, err = datastore.Put(c, t.Key(c), t); err != nil {
 			return fmt.Errorf("putting Tag: %v", err)
