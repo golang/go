@@ -61,7 +61,13 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 		return;
 
 fail:
-	runtime·printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
+	runtime·prints("umtx_wait addr=");
+	runtime·printpointer(addr);
+	runtime·prints(" val=");
+	runtime·printint(val);
+	runtime·prints(" ret=");
+	runtime·printint(ret);
+	runtime·prints("\n");
 	*(int32*)0x1005 = 0x1005;
 }
 
