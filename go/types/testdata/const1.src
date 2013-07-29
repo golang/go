@@ -6,13 +6,22 @@
 
 package const1
 
-// TODO(gri) add int/uint/uintptr sizes and tests
+const(
+	mi = ^int(0)
+	mu = ^uint(0)
+	mp = ^uintptr(0)
+
+	logSizeofInt     = uint(mi>>8&1 + mi>>16&1 + mi>>32&1)
+	logSizeofUint    = uint(mu>>8&1 + mu>>16&1 + mu>>32&1)
+	logSizeofUintptr = uint(mp>>8&1 + mp>>16&1 + mp>>32&1)
+)
 
 const (
 	minInt8 = -1<<(8<<iota - 1)
 	minInt16
 	minInt32
 	minInt64
+	minInt = -1<<(8<<logSizeofInt - 1)
 )
 
 const (
@@ -20,6 +29,7 @@ const (
 	maxInt16
 	maxInt32
 	maxInt64
+	maxInt = 1<<(8<<logSizeofInt - 1) - 1
 )
 
 const (
@@ -27,6 +37,8 @@ const (
 	maxUint16
 	maxUint32
 	maxUint64
+	maxUint    = 1<<(8<<logSizeofUint) - 1
+	maxUintptr = 1<<(8<<logSizeofUintptr) - 1
 )
 
 const (
@@ -77,6 +89,14 @@ var (
 )
 
 var (
+	_ int = minInt /* ERROR "overflows" */ - 1
+	_ int = minInt
+	_ int = maxInt
+	_ int = maxInt /* ERROR "overflows" */ + 1
+	_ int = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
 	_ uint8 = 0 /* ERROR "overflows" */ - 1
 	_ uint8 = 0
 	_ uint8 = maxUint8
@@ -106,6 +126,22 @@ var (
 	_ uint64 = maxUint64
 	_ uint64 = maxUint64 /* ERROR "overflows" */ + 1
 	_ uint64 = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ uint = 0 /* ERROR "overflows" */ - 1
+	_ uint = 0
+	_ uint = maxUint
+	_ uint = maxUint /* ERROR "overflows" */ + 1
+	_ uint = smallestFloat64 /* ERROR "overflows" */
+)
+
+var (
+	_ uintptr = 0 /* ERROR "overflows" */ - 1
+	_ uintptr = 0
+	_ uintptr = maxUintptr
+	_ uintptr = maxUintptr /* ERROR "overflows" */ + 1
+	_ uintptr = smallestFloat64 /* ERROR "overflows" */
 )
 
 var (

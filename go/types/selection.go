@@ -76,8 +76,8 @@ func (s *Selection) Obj() Object { return s.obj }
 func (s *Selection) Type() Type {
 	switch s.kind {
 	case MethodVal:
-		// The type of x.f is a method with its receiver type to the
-		// type of x.
+		// The type of x.f is a method with its receiver type set
+		// to the type of x.
 		sig := *s.obj.(*Func).typ.(*Signature)
 		recv := *sig.recv
 		recv.typ = s.recv
