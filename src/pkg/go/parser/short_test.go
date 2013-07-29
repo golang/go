@@ -34,6 +34,7 @@ var valids = []string{
 	`package p; func f() { switch ; {} };`,
 	`package p; func f() { for _ = range "foo" + "bar" {} };`,
 	`package p; func f() { var s []int; g(s[:], s[i:], s[:j], s[i:j], s[i:j:k], s[:j:k]) };`,
+	`package p; var ( _ = (struct {*T}).m; _ = (interface {T}).m )`,
 }
 
 func TestValid(t *testing.T) {
