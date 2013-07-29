@@ -288,7 +288,7 @@ func newFD(fd syscall.Handle, family, sotype int, net string) (*netFD, error) {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
-	runtime.SetFinalizer(fd, (*netFD).closesocket)
+	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
 // Make new connection.
@@ -366,6 +366,9 @@ func (fd *netFD) decref() {
 	fd.sysmu.Lock()
 	fd.sysref--
 	if fd.closing && fd.sysref == 0 && fd.sysfd != syscall.InvalidHandle {
+		// Poller may want to unregister fd in readiness notification mechanism,
+		// so this must be executed before closesocket.
+		fd.pd.Close()
 		closesocket(fd.sysfd)
 		fd.sysfd = syscall.InvalidHandle
 		// no need for a finalizer anymore
@@ -407,10 +410,6 @@ func (fd *netFD) CloseRead() error {
 
 func (fd *netFD) CloseWrite() error {
 	return fd.shutdown(syscall.SHUT_WR)
-}
-
-func (fd *netFD) closesocket() error {
-	return closesocket(fd.sysfd)
 }
 
 // Read from network.
@@ -585,14 +584,14 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	o.newsock = s
 	_, err = iosrv.ExecIO(&o)
 	if err != nil {
-		closesocket(s)
+		netfd.Close()
 		return nil, err
 	}
 
 	// Inherit properties of the listening socket.
 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
 	if err != nil {
-		closesocket(s)
+		netfd.Close()
 		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
 	}
 
