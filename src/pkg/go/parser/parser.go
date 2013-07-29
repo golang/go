@@ -1408,7 +1408,7 @@ L:
 			}
 			switch p.tok {
 			case token.IDENT:
-				x = p.parseSelector(p.checkExpr(x))
+				x = p.parseSelector(p.checkExprOrType(x))
 			case token.LPAREN:
 				x = p.parseTypeAssertion(p.checkExpr(x))
 			default:
