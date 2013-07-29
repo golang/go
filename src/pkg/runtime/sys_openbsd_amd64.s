@@ -164,7 +164,7 @@ TEXT time·now(SB), 7, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),7,$32
+TEXT runtime·nanotime(SB),7,$24
 	MOVQ	$0, DI			// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$232, AX		// sys_clock_gettime
