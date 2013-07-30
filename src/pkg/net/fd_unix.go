@@ -9,6 +9,7 @@ package net
 import (
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -29,7 +30,6 @@ type netFD struct {
 	family      int
 	sotype      int
 	isConnected bool
-	sysfile     *os.File
 	net         string
 	laddr       Addr
 	raddr       Addr
@@ -70,7 +70,7 @@ func newFD(fd, family, sotype int, net string) (*netFD, error) {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
-	fd.sysfile = os.NewFile(uintptr(fd.sysfd), fd.net)
+	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
 func (fd *netFD) name() string {
@@ -129,15 +129,11 @@ func (fd *netFD) decref() {
 	fd.sysref--
 	if fd.closing && fd.sysref == 0 {
 		// Poller may want to unregister fd in readiness notification mechanism,
-		// so this must be executed before sysfile.Close().
+		// so this must be executed before closesocket.
 		fd.pd.Close()
-		if fd.sysfile != nil {
-			fd.sysfile.Close()
-			fd.sysfile = nil
-		} else {
-			closesocket(fd.sysfd)
-		}
+		closesocket(fd.sysfd)
 		fd.sysfd = -1
+		runtime.SetFinalizer(fd, nil)
 	}
 	fd.sysmu.Unlock()
 }
