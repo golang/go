@@ -80,6 +80,8 @@ func PrintfTests() {
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
 	fmt.Printf("%s", &stringerv)
 	fmt.Printf("%T", &stringerv)
+	fmt.Printf("%v", notstringerv)
+	fmt.Printf("%T", notstringerv)
 	fmt.Printf("%*%", 2) // Ridiculous but allowed.
 
 	fmt.Printf("%g", 1+2i)
@@ -107,6 +109,8 @@ func PrintfTests() {
 	fmt.Printf("%X", 2.3)                      // ERROR "arg 2.3 for printf verb %X of wrong type"
 	fmt.Printf("%s", stringerv)                // ERROR "arg stringerv for printf verb %s of wrong type"
 	fmt.Printf("%t", stringerv)                // ERROR "arg stringerv for printf verb %t of wrong type"
+	fmt.Printf("%q", notstringerv)             // ERROR "arg notstringerv for printf verb %q of wrong type"
+	fmt.Printf("%t", notstringerv)             // ERROR "arg notstringerv for printf verb %t of wrong type"
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
@@ -198,3 +202,7 @@ func (*stringer) Warn(int, ...interface{}) string {
 func (*stringer) Warnf(int, string, ...interface{}) string {
 	return "warnf"
 }
+
+type notstringer struct{}
+
+var notstringerv notstringer

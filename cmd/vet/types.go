@@ -75,6 +75,10 @@ var (
 // may be printed with %d etc. if that is appropriate for their element
 // types.)
 func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool {
+	// %v, %T accept any argument type.
+	if t == anyType {
+		return true
+	}
 	if typ == nil {
 		// external call
 		typ = f.pkg.types[arg]
@@ -107,6 +111,9 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		}
 		// Recurse: []int matches %d.
 		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
+
+	case *types.Pointer:
+		return t&argPointer != 0
 
 	case *types.Basic:
 		switch typ.Kind() {
@@ -158,9 +165,6 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 			return true // Probably a type check problem.
 		}
 		panic("unreachable")
-
-	default:
-		return true
 	}
 
 	return false
