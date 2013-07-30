@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file tests types.Check by using it to
-// typecheck the standard library.
+// typecheck the standard library and tests.
 
 package types
 
@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -33,6 +34,86 @@ func TestStdlib(t *testing.T) {
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src/pkg"))
 	if *verbose {
 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
+	}
+}
+
+func TestStdtest(t *testing.T) {
+	path := filepath.Join(runtime.GOROOT(), "test")
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fset := token.NewFileSet()
+	for _, f := range files {
+		// filter directory contents
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".go") {
+			continue
+		}
+
+		// explicitly exclude files that the type-checker still has problems with
+		switch f.Name() {
+		case "cmplxdivide.go":
+			// This test also needs file cmplxdivide1.go; ignore.
+			continue
+		case "goto.go", "label1.go":
+			// TODO(gri) implement missing label checks
+			continue
+		case "map1.go":
+			// TODO(gri) fix map key checking
+			continue
+		case "shift2.go":
+			// TODO(gri) fix constant shift expression error
+			// (default type for 1.0<<1 is int, not float64).
+			continue
+		case "sizeof.go", "switch.go":
+			// TODO(gri) tone down duplicate checking in expression switches
+			continue
+		case "switch4.go":
+			// TODO(gri) fix fallthrough checking
+			continue
+		case "typeswitch2.go":
+			// TODO(gri) implement duplicate checking in type switches
+			continue
+		}
+
+		// parse file
+		filename := filepath.Join(path, f.Name())
+		// TODO(gri) The parser loses comments when bailing out early,
+		//           and then we don't see the errorcheck command for
+		//           some files. Use parser.AllErrors for now. Fix this.
+		file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments|parser.AllErrors)
+
+		// check per-file instructions
+		// For now we only check two cases.
+		expectErrors := false
+		if len(file.Comments) > 0 {
+			if group := file.Comments[0]; len(group.List) > 0 {
+				cmd := strings.TrimSpace(group.List[0].Text[2:]) // 2: ignore // or /* of comment
+				switch cmd {
+				case "skip":
+					continue
+				case "errorcheck":
+					expectErrors = true
+				}
+			}
+		}
+
+		// type-check file if it parsed cleanly
+		if err == nil {
+			_, err = Check(filename, fset, []*ast.File{file})
+		}
+
+		if expectErrors {
+			if err == nil {
+				t.Errorf("expected errors but found none in %s", filename)
+			}
+		} else {
+			if err != nil {
+				t.Error(err)
+			}
+		}
 	}
 }
 
