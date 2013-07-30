@@ -43,6 +43,7 @@ var sources = []string{
 	type I interface{ m() }
 	var _ = T{a: 1, b: 2, c: 3}
 	func (_ T) m() {}
+	func (T) _() {}
 	var i I
 	var _ = i.m
 	func _(s []int) { for i, x := range s {} }

@@ -294,17 +294,15 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				} else {
 					// Associate method with receiver base type name, if possible.
 					// Ignore methods that have an invalid receiver, or a blank _
-					// receiver or method name. They will be type-checked later,
-					// with non-method functions.
-					if obj.name != "_" {
-						if list := d.Recv.List; len(list) > 0 {
-							typ := list[0].Type
-							if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
-								typ = ptr.X
-							}
-							if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
-								check.methods[base.Name] = append(check.methods[base.Name], obj)
-							}
+					// receiver name. They will be type-checked later, with regular
+					// functions.
+					if list := d.Recv.List; len(list) > 0 {
+						typ := list[0].Type
+						if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
+							typ = ptr.X
+						}
+						if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
+							check.methods[base.Name] = append(check.methods[base.Name], obj)
 						}
 					}
 				}
@@ -547,7 +545,11 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 		// and collect it with the named base type.
 		if m != nil {
 			check.objDecl(m, nil, true)
-			named.methods = append(named.methods, m)
+			// Methods with blank _ names cannot be found.
+			// Don't add them to the method list.
+			if m.name != "_" {
+				named.methods = append(named.methods, m)
+			}
 		}
 	}
 
