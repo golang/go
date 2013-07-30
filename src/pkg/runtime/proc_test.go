@@ -344,49 +344,6 @@ func BenchmarkStackGrowthDeep(b *testing.B) {
 	benchmarkStackGrowth(b, 1024)
 }
 
-func BenchmarkSyscall(b *testing.B) {
-	benchmarkSyscall(b, 0, 1)
-}
-
-func BenchmarkSyscallWork(b *testing.B) {
-	benchmarkSyscall(b, 100, 1)
-}
-
-func BenchmarkSyscallExcess(b *testing.B) {
-	benchmarkSyscall(b, 0, 4)
-}
-
-func BenchmarkSyscallExcessWork(b *testing.B) {
-	benchmarkSyscall(b, 100, 4)
-}
-
-func benchmarkSyscall(b *testing.B, work, excess int) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1) * excess
-	N := int32(b.N / CallsPerSched)
-	c := make(chan bool, procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			foo := 42
-			for atomic.AddInt32(&N, -1) >= 0 {
-				runtime.Gosched()
-				for g := 0; g < CallsPerSched; g++ {
-					runtime.Entersyscall()
-					for i := 0; i < work; i++ {
-						foo *= 2
-						foo /= 2
-					}
-					runtime.Exitsyscall()
-				}
-			}
-			c <- foo == 42
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
-}
-
 func BenchmarkCreateGoroutines(b *testing.B) {
 	benchmarkCreateGoroutines(b, 1)
 }
