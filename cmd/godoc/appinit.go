@@ -12,18 +12,12 @@ package main
 import (
 	"archive/zip"
 	"log"
-	"net/http"
 	"path"
-)
 
-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
-	w.WriteHeader(http.StatusNotFound)
-	servePage(w, Page{
-		Title:    "File " + relpath,
-		Subtitle: relpath,
-		Body:     applyTemplate(errorHTML, "errorHTML", err), // err may contain an absolute path!
-	})
-}
+	"code.google.com/p/go.tools/godoc"
+	"code.google.com/p/go.tools/godoc/vfs"
+	"code.google.com/p/go.tools/godoc/vfs/zipfs"
+)
 
 func init() {
 	log.Println("initializing godoc ...")
@@ -31,13 +25,7 @@ func init() {
 	log.Printf(".zip GOROOT = %s", zipGoroot)
 	log.Printf("index files = %s", indexFilenames)
 
-	// initialize flags for app engine
-	*goroot = path.Join("/", zipGoroot) // fsHttp paths are relative to '/'
-	*indexEnabled = true
-	*indexFiles = indexFilenames
-	*maxResults = 100    // reduce latency by limiting the number of fulltext search results
-	*indexThrottle = 0.3 // in case *indexFiles is empty (and thus the indexer is run)
-	*showPlayground = true
+	goroot := path.Join("/", zipGoroot) // fsHttp paths are relative to '/'
 
 	// read .zip file and set up file systems
 	const zipfile = zipFilename
@@ -46,23 +34,25 @@ func init() {
 		log.Fatalf("%s: %s\n", zipfile, err)
 	}
 	// rc is never closed (app running forever)
-	fs.Bind("/", NewZipFS(rc, zipFilename), *goroot, bindReplace)
+	fs.Bind("/", zipfs.New(rc, zipFilename), goroot, vfs.BindReplace)
 
-	// initialize http handlers
-	readTemplates()
-	initHandlers()
-	registerPublicHandlers(http.DefaultServeMux)
+	corpus := godoc.NewCorpus(fs)
+	corpus.Verbose = false
+	corpus.IndexEnabled = true
+	corpus.IndexFiles = indexFilenames
 
-	// initialize default directory tree with corresponding timestamp.
-	initFSTree()
-
-	// Immediately update metadata.
-	updateMetadata()
-
-	// initialize search index
-	if *indexEnabled {
-		go indexer()
+	if err := corpus.Init(); err != nil {
+		log.Fatal(err)
 	}
+
+	pres = godoc.NewPresentation(corpus)
+	pres.TabWidth = 8
+	pres.ShowPlayground = true
+	pres.ShowExamples = true
+	pres.DeclLinks = true
+
+	readTemplates(pres)
+	registerHandlers(pres)
 
 	log.Println("godoc initialization complete")
 }
