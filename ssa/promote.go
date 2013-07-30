@@ -32,21 +32,20 @@ func methodSetOf(typ types.Type) *types.MethodSet {
 	return typ.MethodSet()
 }
 
-// LookupMethod returns the Function for the specified method object,
-// building wrapper methods on demand.  It returns nil if the typ has
-// no such method.
+// Method returns the Function implementing method meth, building
+// wrapper methods on demand.
 //
 // Thread-safe.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
-func (prog *Program) LookupMethod(meth *types.Selection) *Function {
+func (prog *Program) Method(meth *types.Selection) *Function {
 	if meth == nil {
-		panic("LookupMethod(nil)")
+		panic("Method(nil)")
 	}
 	typ := meth.Recv()
 	if prog.mode&LogSource != 0 {
-		defer logStack("LookupMethod %s %v", typ, meth)()
+		defer logStack("Method %s %v", typ, meth)()
 	}
 
 	prog.methodsMu.Lock()

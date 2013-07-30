@@ -46,12 +46,6 @@ type Selection struct {
 	indirect bool   // set if there was any pointer indirection on the path, false if kind == PackageObj
 }
 
-// NewSelection returns a new Selection.
-// TODO(gri) At the moment this is only used by package ssa.
-func NewSelection(kind SelectionKind, recv Type, obj Object, index []int, indirect bool) *Selection {
-	return &Selection{kind, recv, obj, index, indirect}
-}
-
 // Kind returns the selection kind.
 func (s *Selection) Kind() SelectionKind { return s.kind }
 

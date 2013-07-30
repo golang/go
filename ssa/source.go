@@ -103,7 +103,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 		case *Type:
 			mset := methodSetOf(types.NewPointer(mem.Type()))
 			for i, n := 0, mset.Len(); i < n; i++ {
-				// Don't call LookupMethod: avoid creating wrappers.
+				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
 				if obj.Pos() == pos {
 					return pkg.values[obj].(*Function)
@@ -224,8 +224,8 @@ func (prog *Program) FuncValue(obj *types.Func) Value {
 		return v
 	}
 	// Interface method wrapper?
-	sel := types.NewSelection(types.MethodExpr, recvType(obj), obj, nil, false)
-	return prog.LookupMethod(sel)
+	meth := methodSetOf(recvType(obj)).Lookup(obj.Pkg(), obj.Name())
+	return prog.Method(meth)
 }
 
 // ConstValue returns the SSA Value denoted by the source-level named

@@ -633,7 +633,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// For declared methods, a simple conversion will suffice.
-			return emitConv(fn, fn.Prog.LookupMethod(sel), fn.Pkg.typeOf(e))
+			return emitConv(fn, fn.Prog.Method(sel), fn.Pkg.typeOf(e))
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.

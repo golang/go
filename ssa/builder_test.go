@@ -100,7 +100,7 @@ func main() {
 				}
 				mset := types.NewPointer(mem.Type()).MethodSet()
 				for i, n := 0, mset.Len(); i < n; i++ {
-					m := prog.LookupMethod(mset.At(i))
+					m := prog.Method(mset.At(i))
 					// For external types, only synthetic wrappers have code.
 					expExt := !strings.Contains(m.Synthetic, "wrapper")
 					if expExt && !isEmpty(m) {
