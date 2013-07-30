@@ -60,9 +60,6 @@ func TestStdtest(t *testing.T) {
 		case "goto.go", "label1.go":
 			// TODO(gri) implement missing label checks
 			continue
-		case "map1.go":
-			// TODO(gri) fix map key checking
-			continue
 		case "sizeof.go", "switch.go":
 			// TODO(gri) tone down duplicate checking in expression switches
 			continue

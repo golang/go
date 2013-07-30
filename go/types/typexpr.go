@@ -293,6 +293,15 @@ func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
 
 		typ.key = check.typ(e.Key, nil, true)
 		typ.elt = check.typ(e.Value, nil, true)
+
+		// spec: "The comparison operators == and != must be fully defined
+		// for operands of the key type; thus the key type must not be a
+		// function, map, or slice."
+		if !isComparable(typ.key) {
+			check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
+			// ok to continue
+		}
+
 		return typ
 
 	case *ast.ChanType:

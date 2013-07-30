@@ -63,7 +63,7 @@ type (
 	I6 interface{ I5 }
 
 	// maps
-	M0 map[M0]M0
+	M0 map[M0 /* ERROR "invalid map key" */ ]M0
 
 	// channels
 	C0 chan C0
@@ -103,7 +103,7 @@ func _() {
 		i0 /* ERROR "cycle" */ interface{ i0 }
 
 		// maps
-		m0 map[m0]m0
+		m0 map[m0 /* ERROR "invalid map key" */ ]m0
 
 		// channels
 		c0 chan c0
