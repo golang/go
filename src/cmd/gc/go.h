@@ -751,6 +751,7 @@ struct	Io
 	int32	ilineno;
 	int	nlsemi;
 	int	eofnl;
+	int	last;
 	int	peekc;
 	int	peekc1;	// second peekc for ...
 	char*	cp;	// used for content when bin==nil
