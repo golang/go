@@ -163,6 +163,52 @@ function setupDropdownPlayground() {
   $('#menu').css('min-width', '+=60');
 }
 
+function setupInlinePlayground() {
+	'use strict';
+	// Set up playground when each element is toggled.
+	$('div.play').each(function (i, el) {
+		// Set up playground for this example.
+		var setup = function() {
+			var code = $('.code', el);
+			playground({
+				'codeEl':   code,
+				'outputEl': $('.output', el),
+				'runEl':    $('.run', el),
+				'fmtEl':    $('.fmt', el),
+				'shareEl':  $('.share', el),
+				'shareRedirect': 'http://play.golang.org/p/'
+			});
+
+			// Make the code textarea resize to fit content.
+			var resize = function() {
+				code.height(0);
+				var h = code[0].scrollHeight;
+				code.height(h+20); // minimize bouncing.
+				code.closest('.input').height(h);
+			};
+			code.on('keydown', resize);
+			code.on('keyup', resize);
+			code.keyup(); // resize now.
+		};
+		
+		// If example already visible, set up playground now.
+		if ($(el).is(':visible')) {
+			setup();
+			return;
+		}
+
+		// Otherwise, set up playground when example is expanded.
+		var built = false;
+		$(el).closest('.toggle').click(function() {
+			// Only set up once.
+			if (!built) {
+				setup();
+				built = true;
+			}
+		});
+	});
+}
+
 // fixFocus tries to put focus to div#page so that keyboard navigation works.
 function fixFocus() {
   var page = $('div#page');
@@ -186,6 +232,15 @@ function toggleHash() {
     }
 }
 
+function addPlusButtons() {
+  var po = document.createElement('script');
+  po.type = 'text/javascript';
+  po.async = true;
+  po.src = 'https://apis.google.com/js/plusone.js';
+  var s = document.getElementsByTagName('script')[0];
+  s.parentNode.insertBefore(po, s);
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -196,8 +251,16 @@ $(document).ready(function() {
   bindToggleLinks(".examplesLink", "");
   bindToggleLinks(".indexLink", "");
   setupDropdownPlayground();
+  setupInlinePlayground();
   fixFocus();
   toggleHash();
+  addPlusButtons();
+
+  // godoc.html defines window.initFuncs in the <head> tag, and root.html and
+  // codewalk.js push their on-page-ready functions to the list.
+  // We execute those functions here, to avoid loading jQuery until the page
+  // content is loaded.
+  for (var i = 0; i < window.initFuncs.length; i++) window.initFuncs[i]();
 });
 
 })();

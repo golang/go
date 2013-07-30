@@ -116,7 +116,7 @@ function feedLoaded(result) {
 	}
 }
 
-$(function() {
+window.initFuncs.push(function() {
 	// Set up playground.
 	playground({
 		"codeEl":        "#learn .code",
