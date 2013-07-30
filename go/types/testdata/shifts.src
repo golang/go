@@ -4,8 +4,31 @@
 
 package shifts
 
+func shifts0() {
+	// basic constant shifts
+	const (
+		s = 10
+		_ = 0<<0
+		_ = 1<<s
+		_ = 1<<- /* ERROR "stupid shift" */ 1
+		_ = 2.0<<1
+
+		_ int = 2<<s
+		_ float32 = 2<<s
+		_ complex64 = 2<<s
+
+		_ int = 2.0<<s
+		_ float32 = 2.0<<s
+		_ complex64 = 2.0<<s
+
+		_ int = 'a'<<s
+		_ float32 = 'a'<<s
+		_ complex64 = 'a'<<s
+	)
+}
+
 func shifts1() {
-	// basics
+	// basic non-constant shifts
 	var (
 		i0 int
 		u0 uint

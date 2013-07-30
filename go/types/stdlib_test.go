@@ -63,10 +63,6 @@ func TestStdtest(t *testing.T) {
 		case "map1.go":
 			// TODO(gri) fix map key checking
 			continue
-		case "shift2.go":
-			// TODO(gri) fix constant shift expression error
-			// (default type for 1.0<<1 is int, not float64).
-			continue
 		case "sizeof.go", "switch.go":
 			// TODO(gri) tone down duplicate checking in expression switches
 			continue

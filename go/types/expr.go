@@ -546,7 +546,13 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 				x.mode = invalid
 				return
 			}
-			// everything's ok
+			// The lhs is representable as an integer but may not be an integer
+			// (e.g., 2.0, an untyped float) - this can only happen for untyped
+			// non-integer numeric constants. Correct the type so that the shift
+			// result is of integer type.
+			if !isInteger(x.typ) {
+				x.typ = Typ[UntypedInt]
+			}
 			x.val = exact.Shift(x.val, op, uint(s))
 			return
 		}
