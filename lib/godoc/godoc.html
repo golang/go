@@ -8,14 +8,10 @@
   <title>The Go Programming Language</title>
 {{end}}
 <link type="text/css" rel="stylesheet" href="/doc/style.css">
-<script type="text/javascript" src="/doc/jquery.js"></script>
-{{if .Playground}}
-<script type="text/javascript" src="/doc/play/playground.js"></script>
-{{end}}
-<script type="text/javascript" src="/doc/godocs.js"></script>
 {{if .SearchBox}}
 <link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
 {{end}}
+<script type="text/javascript">window.initFuncs = [];</script>
 </head>
 <body>
 
@@ -87,13 +83,12 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 </div><!-- .container -->
 </div><!-- #page -->
 
+<script type="text/javascript" src="/doc/jquery.js"></script>
+{{if .Playground}}
+<script type="text/javascript" src="/doc/play/playground.js"></script>
+{{end}}
+<script type="text/javascript" src="/doc/godocs.js"></script>
+
 </body>
-<script type="text/javascript">
-  (function() {
-    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
-    po.src = 'https://apis.google.com/js/plusone.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
-  })();
-</script>
 </html>
 

@@ -296,7 +296,7 @@ CodewalkViewer.prototype.updateHeight = function() {
   this.sizer.height(codeHeight);
 };
 
-jQuery(document).ready(function() {
+window.initFuncs.push(function() {
   var viewer = new CodewalkViewer(jQuery('#codewalk-main'));
   viewer.selectFirstComment();
   viewer.targetCommentLinksAtBlank();
