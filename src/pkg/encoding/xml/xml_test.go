@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 const testInput = `
@@ -712,5 +713,16 @@ func TestEscapeTextInvalidChar(t *testing.T) {
 
 	if text != expected {
 		t.Errorf("have %v, want %v", text, expected)
+	}
+}
+
+func TestIssue5880(t *testing.T) {
+	type T []byte
+	data, err := Marshal(T{192, 168, 0, 1})
+	if err != nil {
+		t.Errorf("Marshal error: %v", err)
+	}
+	if !utf8.Valid(data) {
+		t.Errorf("Marshal generated invalid UTF-8: %x", data)
 	}
 }
