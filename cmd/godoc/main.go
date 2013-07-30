@@ -47,7 +47,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"text/template"
 
 	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/vfs"
