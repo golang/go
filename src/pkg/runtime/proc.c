@@ -2266,7 +2266,7 @@ preemptone(P *p)
 // For now, disable.
 // The if(1) silences a compiler warning about the rest of the
 // function being unreachable.
-if(1) return;
+if(0) return;
 
 	mp = p->m;
 	if(mp == nil || mp == m)
