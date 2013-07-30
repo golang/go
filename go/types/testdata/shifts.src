@@ -55,11 +55,7 @@ func shifts2() {
 		j int32 = 1<<s     // 1 has type int32; j == 0
 		k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
 		m int = 1.0<<s     // 1.0 has type int
-		// Disabled test below. gc and gccgo disagree: gc permits it per spec special case,
-		// gccgo does not (issue 4881). The spec special case seems not justified (issue 4883),
-		// and go/types agrees with gccgo.
-		// n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
-		n = 1.0 /* ERROR "must be integer" */ <<s != 0
+		n = 1.0<<s != i    // 1.0 has type int; n == false if ints are 32bits in size
 		o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
 		p = 1<<s == 1<<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
 		u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
@@ -233,15 +229,15 @@ func shifts8() {
 	_ = complex(1.0 /* ERROR "shifted operand 1.0 \(type float64\) must be integer" */ <<s, 1)
 	_ = complex(1.0, 1 /* ERROR "shifted operand 1 \(type float64\) must be integer" */ <<s)
 
-	// TODO(gri): enable tests using conversions (the spec is unclear)
-	// _ = int(1.<<s)
-	// _ = int(1.1<<s)
-	// _ = float32(1<<s)
-	// _ = float32(1.<<s)
-	// _ = float32(1.1<<s)
+	_ = int(1.<<s)
+	_ = int(1.1 /* ERROR "shifted operand .* must be integer" */ <<s)
+	_ = float32(1 /* ERROR "shifted operand .* must be integer" */ <<s)
+	_ = float32(1. /* ERROR "shifted operand .* must be integer" */ <<s)
+	_ = float32(1.1 /* ERROR "shifted operand .* must be integer" */ <<s)
+	// TODO(gri) the error messages for these two are incorrect - disabled for now
 	// _ = complex64(1<<s)
 	// _ = complex64(1.<<s)
-	// _ = complex64(1.1<<s)
+	_ = complex64(1.1 /* ERROR "shifted operand .* must be integer" */ <<s)
 }
 
 func shifts9() {
