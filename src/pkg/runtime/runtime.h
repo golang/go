@@ -277,8 +277,8 @@ struct	G
 	int32	sig;
 	int32	writenbuf;
 	byte*	writebuf;
-	DeferChunk	*dchunk;
-	DeferChunk	*dchunknext;
+	DeferChunk*	dchunk;
+	DeferChunk*	dchunknext;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
 	uintptr	sigpc;
@@ -323,7 +323,7 @@ struct	M
 	M*	alllink;	// on allm
 	M*	schedlink;
 	uint32	machport;	// Return address for Mach IPC (OS X)
-	MCache	*mcache;
+	MCache*	mcache;
 	int32	stackinuse;
 	uint32	stackcachepos;
 	uint32	stackcachecnt;
@@ -353,7 +353,7 @@ struct	M
 	WinCall	wincall;
 #endif
 #ifdef GOOS_plan9
-	int8*		notesig;
+	int8*	notesig;
 	byte*	errstr;
 #endif
 	SEH*	seh;
