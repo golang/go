@@ -408,7 +408,7 @@ func initReflect(i *interpreter) {
 		Members: make(map[string]ssa.Member),
 	}
 
-	i.rtypeMethods = ssa.MethodSet{
+	i.rtypeMethods = methodSet{
 		"Bits":   newMethod(i.reflectPackage, rtypeType, "Bits"),
 		"Elem":   newMethod(i.reflectPackage, rtypeType, "Elem"),
 		"Kind":   newMethod(i.reflectPackage, rtypeType, "Kind"),
@@ -416,7 +416,7 @@ func initReflect(i *interpreter) {
 		"Out":    newMethod(i.reflectPackage, rtypeType, "Out"),
 		"String": newMethod(i.reflectPackage, rtypeType, "String"),
 	}
-	i.errorMethods = ssa.MethodSet{
+	i.errorMethods = methodSet{
 		"Error": newMethod(i.reflectPackage, errorType, "Error"),
 	}
 }

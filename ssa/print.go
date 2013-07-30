@@ -379,31 +379,22 @@ func (p *Package) DumpTo(w io.Writer) {
 
 		case *Type:
 			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.Type().Underlying())
-			// We display only mset(*T) since its keys
-			// are a superset of mset(T)'s keys, though the
-			// methods themselves may differ,
-			// e.g. promotion wrappers.
-			// NB: if mem.Type() is a pointer, mset is empty.
-			//
-			// TODO(adonovan): opt: avoid constructing the
-			// entire ssa.MethodSet by using the
-			// types.MethodSet if possible.
-			mset := p.Prog.MethodSet(types.NewPointer(mem.Type()))
-			var keys []string
-			for id := range mset {
-				keys = append(keys, id)
-			}
-			sort.Strings(keys)
-			for _, id := range keys {
-				method := mset[id]
-				// TODO(adonovan): show pointerness of receiver of declared method, not the index
-
-				fmt.Fprintf(w, "    method %s %s\n", id, method.Signature)
+			// Iterate over the keys of mset(*T) since they
+			// are a superset of mset(T)'s keys.
+			// The keys of a types.MethodSet are sorted (by Id).
+			mset := methodSetOf(mem.Type())
+			pmset := methodSetOf(types.NewPointer(mem.Type()))
+			for i, n := 0, pmset.Len(); i < n; i++ {
+				meth := pmset.At(i)
+				// If the method also exists in mset(T), show that instead.
+				if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
+					meth = m
+				}
+				fmt.Fprintf(w, "    %s\n", meth)
 			}
 
 		case *Global:
 			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type())
-
 		}
 	}
 }

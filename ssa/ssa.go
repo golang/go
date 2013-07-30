@@ -25,7 +25,7 @@ type Program struct {
 	mode           BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
-	methodSets          typemap.M                 // maps type to its concrete MethodSet
+	methodSets          typemap.M                 // maps type to its concrete methodSet
 	boundMethodWrappers map[*types.Func]*Function // wrappers for curried x.Method closures
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
@@ -60,22 +60,6 @@ type Member interface {
 	Type() types.Type     // type of the package member
 	Token() token.Token   // token.{VAR,FUNC,CONST,TYPE}
 }
-
-// A MethodSet contains all the methods for a particular type T.
-// The method sets for T and *T are distinct entities.
-//
-// All methods in the method set for T have a receiver type of exactly
-// T.  The method set of *T may contain synthetic indirection methods
-// that wrap methods whose receiver type is T.
-//
-// The keys of a method set are strings returned by the types.Id()
-// function.
-//
-// TODO(adonovan): encapsulate the representation behind both Id-based
-// and types.Method-based accessors and enable lazy population.
-// Perhaps hide it entirely within the Program API.
-//
-type MethodSet map[string]*Function
 
 // A Type is a Member of a Package representing a package-level named type.
 //
@@ -599,7 +583,8 @@ type ChangeInterface struct {
 // MakeInterface constructs an instance of an interface type from a
 // value of a concrete type.
 //
-// Use Program.MethodSet(X.Type()) to find the method-set of X.
+// Use X.Type().MethodSet() to find the method-set of X, and
+// Program.LookupMethod(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
 // 	NewConst(exact.MakeNil(), T, pos)

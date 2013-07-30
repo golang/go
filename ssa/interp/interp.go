@@ -79,14 +79,16 @@ const (
 	EnableTracing                   // Print a trace of all instructions as they are interpreted.
 )
 
+type methodSet map[string]*ssa.Function
+
 // State shared between all interpreted goroutines.
 type interpreter struct {
 	prog           *ssa.Program         // the SSA program
 	globals        map[ssa.Value]*value // addresses of global variables (immutable)
 	mode           Mode                 // interpreter options
 	reflectPackage *ssa.Package         // the fake reflect package
-	errorMethods   ssa.MethodSet        // the method set of reflect.error, which implements the error interface.
-	rtypeMethods   ssa.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
+	errorMethods   methodSet            // the method set of reflect.error, which implements the error interface.
+	rtypeMethods   methodSet            // the method set of rtype, which implements the reflect.Type interface.
 }
 
 type frame struct {

@@ -2257,6 +2257,10 @@ func (prog *Program) BuildAll() {
 
 // Build builds SSA code for all functions and vars in package p.
 //
+// Precondition: CreatePackage must have been called for all of p's
+// direct imports (and hence its direct imports must have been
+// error-free).
+//
 // Build is idempotent and thread-safe.
 //
 func (p *Package) Build() {
@@ -2283,8 +2287,12 @@ func (p *Package) Build() {
 
 	// Call the init() function of each package we import.
 	for _, obj := range p.info.Imports() {
+		prereq := p.Prog.packages[obj]
+		if prereq == nil {
+			panic(fmt.Sprintf("Package(%q).Build(): unsatisified import: Program.CreatePackage(%q) was not called", p.Object.Path(), obj.Path()))
+		}
 		var v Call
-		v.Call.Value = p.Prog.packages[obj].init
+		v.Call.Value = prereq.init
 		v.Call.pos = init.pos
 		v.setType(types.NewTuple())
 		init.emit(&v)

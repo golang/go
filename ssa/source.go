@@ -1,6 +1,7 @@
 package ssa
 
-// This file defines utilities for working with source positions.
+// This file defines utilities for working with source positions
+// or source-level named entities ("objects").
 
 import (
 	"go/ast"
@@ -100,14 +101,12 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				return mem
 			}
 		case *Type:
-			for _, meth := range pkg.Prog.MethodSet(mem.Type()) {
-				if meth.Synthetic == "" && meth.Pos() == pos {
-					return meth
-				}
-			}
-			for _, meth := range pkg.Prog.MethodSet(types.NewPointer(mem.Type())) {
-				if meth.Synthetic == "" && meth.Pos() == pos {
-					return meth
+			mset := methodSetOf(types.NewPointer(mem.Type()))
+			for i, n := 0, mset.Len(); i < n; i++ {
+				// Don't call LookupMethod: avoid creating wrappers.
+				obj := mset.At(i).Obj().(*types.Func)
+				if obj.Pos() == pos {
+					return pkg.values[obj].(*Function)
 				}
 			}
 		}

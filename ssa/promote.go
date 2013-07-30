@@ -22,81 +22,7 @@ func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
 }
 
-// MethodSet returns the method set for type typ, building wrapper
-// methods as needed for embedded field promotion, and indirection for
-// *T receiver types, etc.
-// A nil result indicates an empty set.
-//
-// This function should only be called when you need to construct the
-// entire method set, synthesizing all wrappers, for example during
-// the processing of a MakeInterface instruction or when visiting all
-// reachable functions.
-//
-// If you only need to look up a single method (obj), avoid this
-// function and use LookupMethod instead:
-//
-//      meth := types.MethodSet(typ).Lookup(pkg, name)
-// 	m := prog.MethodSet(typ)[meth.Id()]   // don't do this
-//	m := prog.LookupMethod(meth)          // use this instead
-//
-// If you only need to enumerate the keys, use types.MethodSet
-// instead.
-//
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
-// Thread-safe.
-//
-func (prog *Program) MethodSet(typ types.Type) MethodSet {
-	return prog.populateMethodSet(typ, nil)
-}
-
-// populateMethodSet returns the method set for typ, ensuring that it
-// contains at least the function for meth, if that is a key.
-// If meth is nil, the entire method set is populated.
-//
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
-func (prog *Program) populateMethodSet(typ types.Type, meth *types.Selection) MethodSet {
-	tmset := methodSet(typ)
-	n := tmset.Len()
-	if n == 0 {
-		return nil
-	}
-
-	if prog.mode&LogSource != 0 {
-		defer logStack("populateMethodSet %s meth=%v", typ, meth)()
-	}
-
-	prog.methodsMu.Lock()
-	defer prog.methodsMu.Unlock()
-
-	mset, _ := prog.methodSets.At(typ).(MethodSet)
-	if mset == nil {
-		mset = make(MethodSet)
-		prog.methodSets.Set(typ, mset)
-	}
-
-	if len(mset) < n {
-		if meth != nil { // single method
-			id := meth.Obj().Id()
-			if mset[id] == nil {
-				mset[id] = findMethod(prog, meth)
-			}
-		} else {
-			// complete set
-			for i := 0; i < n; i++ {
-				meth := tmset.At(i)
-				if id := meth.Obj().Id(); mset[id] == nil {
-					mset[id] = findMethod(prog, meth)
-				}
-			}
-		}
-	}
-
-	return mset
-}
-
-func methodSet(typ types.Type) *types.MethodSet {
+func methodSetOf(typ types.Type) *types.MethodSet {
 	// TODO(adonovan): temporary workaround.  Inline it away when fixed.
 	if _, ok := deref(typ).Underlying().(*types.Interface); ok && isPointer(typ) {
 		// TODO(gri): fix: go/types bug: pointer-to-interface
@@ -115,7 +41,31 @@ func methodSet(typ types.Type) *types.MethodSet {
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
 func (prog *Program) LookupMethod(meth *types.Selection) *Function {
-	return prog.populateMethodSet(meth.Recv(), meth)[meth.Obj().Id()]
+	if meth == nil {
+		panic("LookupMethod(nil)")
+	}
+	typ := meth.Recv()
+	if prog.mode&LogSource != 0 {
+		defer logStack("LookupMethod %s %v", typ, meth)()
+	}
+
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
+
+	type methodSet map[string]*Function
+	mset, _ := prog.methodSets.At(typ).(methodSet)
+	if mset == nil {
+		mset = make(methodSet)
+		prog.methodSets.Set(typ, mset)
+	}
+
+	id := meth.Obj().Id()
+	fn := mset[id]
+	if fn == nil {
+		fn = findMethod(prog, meth)
+		mset[id] = fn
+	}
+	return fn
 }
 
 // declaredFunc returns the concrete function/method denoted by obj.

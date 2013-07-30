@@ -73,6 +73,9 @@ func MakeGoBuildLoader(ctxt *build.Context) SourceLoader {
 		// TODO(adonovan): fix: Do we need cwd? Shouldn't
 		// ImportDir(path) / $GOROOT suffice?
 		bp, err := ctxt.Import(path, srcDir, 0)
+		if _, ok := err.(*build.NoGoError); ok {
+			return nil, nil // empty directory
+		}
 		if err != nil {
 			return // import failed
 		}

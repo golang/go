@@ -8,8 +8,10 @@
 package importer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
+	"os"
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
@@ -28,8 +30,8 @@ type Importer struct {
 type Config struct {
 	// TypeChecker contains options relating to the type checker.
 	// The Importer will override any user-supplied values for its
-	// Expr, Ident, ImplicitObj and Import fields; other fields
-	// will be passed through to the type checker.
+	// Error and Import fields; other fields will be passed
+	// through to the type checker.
 	TypeChecker types.Config
 
 	// If Loader is non-nil, it is used to satisfy imports.
@@ -68,6 +70,7 @@ func New(config *Config) *Importer {
 		Packages: make(map[string]*PackageInfo),
 		errors:   make(map[string]error),
 	}
+	imp.config.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
 	imp.config.TypeChecker.Import = imp.doImport
 	return imp
 }
@@ -81,25 +84,27 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (p
 		return types.Unsafe, nil
 	}
 
-	if info, ok := imp.Packages[path]; ok {
-		imports[path] = info.Pkg
-		pkg = info.Pkg
-		return // positive cache hit
-	}
-
-	if err = imp.errors[path]; err != nil {
-		return // negative cache hit
-	}
-
 	// Load the source/binary for 'path', type-check it, construct
 	// a PackageInfo and update our map (imp.Packages) and the
 	// type-checker's map (imports).
 	var info *PackageInfo
 	if imp.config.Loader != nil {
 		info, err = imp.LoadPackage(path)
-	} else if pkg, err = types.GcImport(imports, path); err == nil {
-		info = &PackageInfo{Pkg: pkg}
-		imp.Packages[path] = info
+	} else {
+		if info, ok := imp.Packages[path]; ok {
+			imports[path] = info.Pkg
+			pkg = info.Pkg
+			return // positive cache hit
+		}
+
+		if err = imp.errors[path]; err != nil {
+			return // negative cache hit
+		}
+
+		if pkg, err = types.GcImport(imports, path); err == nil {
+			info = &PackageInfo{Pkg: pkg}
+			imp.Packages[path] = info
+		}
 	}
 
 	if err == nil {
@@ -124,8 +129,15 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (p
 // Not thread-safe!
 // TODO(adonovan): rethink this API.
 //
-//
 func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
+	if info, ok := imp.Packages[importPath]; ok {
+		return info, nil // positive cache hit
+	}
+
+	if err := imp.errors[importPath]; err != nil {
+		return nil, err // negative cache hit
+	}
+
 	if imp.config.Loader == nil {
 		panic("Importer.LoadPackage without a SourceLoader")
 	}
