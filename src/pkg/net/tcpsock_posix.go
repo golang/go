@@ -121,7 +121,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return setKeepAlive(c.fd, keepalive)
 }
 
-// SetKeepAliveIdlePeriod sets period between keep alives.
+// SetKeepAlivePeriod sets period between keep alives.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
