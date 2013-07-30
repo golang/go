@@ -35,6 +35,9 @@ grammar && NF>0 {
 	}
 	rulelhs[$1] = r
 	rulesize[$1] = NF-2
+	if(rulesize[$1] == 1 && $3 == "%empty") {
+		rulesize[$1] = 0
+	}
 	if(rulesize[$1] == 3 && $3 $4 $5 == "/*empty*/") {
 		rulesize[$1] = 0
 	}
