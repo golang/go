@@ -1758,7 +1758,7 @@ func EscapeText(w io.Writer, s []byte) error {
 		case '\r':
 			esc = esc_cr
 		default:
-			if !isInCharacterRange(r) {
+			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
 				esc = esc_fffd
 				break
 			}
