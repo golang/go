@@ -63,9 +63,6 @@ func TestStdtest(t *testing.T) {
 		case "sizeof.go", "switch.go":
 			// TODO(gri) tone down duplicate checking in expression switches
 			continue
-		case "switch4.go":
-			// TODO(gri) fix fallthrough checking
-			continue
 		case "typeswitch2.go":
 			// TODO(gri) implement duplicate checking in type switches
 			continue

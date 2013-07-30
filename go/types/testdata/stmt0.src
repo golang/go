@@ -127,8 +127,11 @@ func defers() {
 	defer len(c) // TODO(gri) this should not be legal
 }
 
-func switches() {
+func switches0() {
 	var x int
+
+	switch x {
+	}
 
 	switch x {
 	default:
@@ -159,6 +162,53 @@ func switches() {
 	switch uint64(x) {
 	case 1<<64-1:
 	case 1<<64-1:
+	}
+}
+
+func switches1() {
+	fallthrough /* ERROR "fallthrough statement out of place" */
+
+	var x int
+	switch x {
+	case 0:
+		fallthrough /* ERROR "fallthrough statement out of place" */
+		break
+	case 1:
+		fallthrough
+	case 2:
+	default:
+		fallthrough
+	case 3:
+		fallthrough /* ERROR "fallthrough statement out of place" */
+	}
+
+	var y interface{}
+	switch y.(type) {
+	case int:
+		fallthrough /* ERROR "fallthrough statement out of place" */
+	default:
+	}
+
+	switch x {
+	case 0:
+		if x == 0 {
+			fallthrough /* ERROR "fallthrough statement out of place" */
+		}
+	}
+
+	switch x {
+	case 0:
+		L1: fallthrough
+	case 1:
+		L2: L3: L4: fallthrough
+	default:
+	}
+
+	switch x {
+	case 0:
+		L5: fallthrough
+	default:
+		L6: L7: L8: fallthrough /* ERROR "fallthrough statement out of place" */
 	}
 }
 

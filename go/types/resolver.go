@@ -358,7 +358,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 		check.topScope = f.sig.scope // open the function scope
 		check.funcSig = f.sig
-		check.stmtList(f.body.List)
+		check.stmtList(f.body.List, false)
 		if f.sig.results.Len() > 0 && !check.isTerminating(f.body, "") {
 			check.errorf(f.body.Rbrace, "missing return")
 		}
