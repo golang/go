@@ -329,6 +329,8 @@ main(int argc, char *argv[])
 		curio.peekc = 0;
 		curio.peekc1 = 0;
 		curio.nlsemi = 0;
+		curio.eofnl = 0;
+		curio.last = 0;
 
 		// Skip initial BOM if present.
 		if(Bgetrune(curio.bin) != BOM)
@@ -1602,7 +1604,7 @@ check:
 		}
 	case EOF:
 		// insert \n at EOF
-		if(curio.eofnl)
+		if(curio.eofnl || curio.last == '\n')
 			return EOF;
 		curio.eofnl = 1;
 		c = '\n';
@@ -1611,6 +1613,7 @@ check:
 			lexlineno++;
 		break;
 	}
+	curio.last = c;
 	return c;
 }
 
