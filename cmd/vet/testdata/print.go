@@ -79,9 +79,15 @@ func PrintfTests() {
 	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
 	fmt.Printf("%s", &stringerv)
+	fmt.Printf("%v", &stringerv)
 	fmt.Printf("%T", &stringerv)
 	fmt.Printf("%v", notstringerv)
 	fmt.Printf("%T", notstringerv)
+	fmt.Printf("%q", stringerarrayv)
+	fmt.Printf("%v", stringerarrayv)
+	fmt.Printf("%s", stringerarrayv)
+	fmt.Printf("%v", notstringerarrayv)
+	fmt.Printf("%T", notstringerarrayv)
 	fmt.Printf("%*%", 2) // Ridiculous but allowed.
 
 	fmt.Printf("%g", 1+2i)
@@ -111,6 +117,9 @@ func PrintfTests() {
 	fmt.Printf("%t", stringerv)                // ERROR "arg stringerv for printf verb %t of wrong type"
 	fmt.Printf("%q", notstringerv)             // ERROR "arg notstringerv for printf verb %q of wrong type"
 	fmt.Printf("%t", notstringerv)             // ERROR "arg notstringerv for printf verb %t of wrong type"
+	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
+	fmt.Printf("%t", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %t of wrong type"
+	fmt.Printf("%q", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %q of wrong type"
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
@@ -206,3 +215,15 @@ func (*stringer) Warnf(int, string, ...interface{}) string {
 type notstringer struct{}
 
 var notstringerv notstringer
+
+type stringerarray [4]float64
+
+func (stringerarray) String() string {
+	return "string"
+}
+
+var stringerarrayv stringerarray
+
+type notstringerarray [4]float64
+
+var notstringerarrayv notstringerarray

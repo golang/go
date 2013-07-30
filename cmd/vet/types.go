@@ -98,18 +98,27 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		return t&argPointer != 0
 
 	case *types.Map:
-		// Recurse: map[int]int matches %d.
+		// Recur: map[int]int matches %d.
 		return t&argPointer != 0 ||
 			(f.matchArgType(t, typ.Key(), arg) && f.matchArgType(t, typ.Elem(), arg))
 
 	case *types.Chan:
 		return t&argPointer != 0
 
-	case *types.Slice:
+	case *types.Array:
+		// Same as slice.
 		if types.IsIdentical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
 			return true // %s matches []byte
 		}
-		// Recurse: []int matches %d.
+		// Recur: []int matches %d.
+		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
+
+	case *types.Slice:
+		// Same as array.
+		if types.IsIdentical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
+			return true // %s matches []byte
+		}
+		// Recur: []int matches %d.
 		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
 
 	case *types.Pointer:
