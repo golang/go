@@ -113,6 +113,14 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
 
 	case *types.Pointer:
+		// Ugly, but dealing with an edge case: a known pointer to an invalid type,
+		// probably something from a failed import.
+		if typ.Elem().String() == "invalid type" {
+			if *verbose {
+				f.Warnf(arg.Pos(), "printf argument %v is pointer to invalid or unknown type", f.gofmt(arg))
+			}
+			return true // special case
+		}
 		return t&argPointer != 0
 
 	case *types.Basic:
