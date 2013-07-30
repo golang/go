@@ -88,7 +88,8 @@ func PrintfTests() {
 	fmt.Printf("%s", stringerarrayv)
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
-	fmt.Printf("%*%", 2) // Ridiculous but allowed.
+	fmt.Printf("%*%", 2)               // Ridiculous but allowed.
+	fmt.Printf("%s", interface{}(nil)) // Nothing useful we can say.
 
 	fmt.Printf("%g", 1+2i)
 	// Some bad format/argTypes
@@ -120,6 +121,7 @@ func PrintfTests() {
 	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%t", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%q", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %q of wrong type"
+	fmt.Printf("%s", nonemptyinterface)        // ERROR "for printf verb %s of wrong type"
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
@@ -227,3 +229,7 @@ var stringerarrayv stringerarray
 type notstringerarray [4]float64
 
 var notstringerarrayv notstringerarray
+
+var nonemptyinterface = interface {
+	f()
+}(nil)

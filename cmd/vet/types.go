@@ -132,6 +132,15 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		}
 		return t&argPointer != 0
 
+	case *types.Interface:
+		// If the static type of the argument is empty interface, there's little we can do.
+		// Example:
+		//	func f(x interface{}) { fmt.Printf("%s", x) }
+		// Whether x is valid for %s depends on the type of the argument to f. One day
+		// we will be able to do better. For now, we assume that empty interface is OK
+		// but non-empty interfaces, with Stringer and Error handled above, are errors.
+		return typ.NumMethods() == 0
+
 	case *types.Basic:
 		switch typ.Kind() {
 		case types.UntypedBool,
