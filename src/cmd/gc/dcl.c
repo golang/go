@@ -141,6 +141,8 @@ testdclstack(void)
 
 	for(d=dclstack; d!=S; d=d->link) {
 		if(d->name == nil) {
+			if(nerrors != 0)
+				errorexit();
 			yyerror("mark left on the stack");
 			continue;
 		}
