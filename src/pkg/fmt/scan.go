@@ -885,7 +885,7 @@ func (s *ss) hexDigit(d rune) int {
 	case 'A', 'B', 'C', 'D', 'E', 'F':
 		return 10 + digit - 'A'
 	}
-	s.errorString("Scan: illegal hex digit")
+	s.errorString("illegal hex digit")
 	return 0
 }
 
@@ -915,7 +915,7 @@ func (s *ss) hexString() string {
 		s.buf.WriteByte(b)
 	}
 	if len(s.buf) == 0 {
-		s.errorString("Scan: no hex data for %x string")
+		s.errorString("no hex data for %x string")
 		return ""
 	}
 	return string(s.buf)
@@ -994,7 +994,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 		val := reflect.ValueOf(v)
 		ptr := val
 		if ptr.Kind() != reflect.Ptr {
-			s.errorString("Scan: type not a pointer: " + val.Type().String())
+			s.errorString("type not a pointer: " + val.Type().String())
 			return
 		}
 		switch v := ptr.Elem(); v.Kind() {
@@ -1010,7 +1010,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 			// For now, can only handle (renamed) []byte.
 			typ := v.Type()
 			if typ.Elem().Kind() != reflect.Uint8 {
-				s.errorString("Scan: can't handle type: " + val.Type().String())
+				s.errorString("can't scan type: " + val.Type().String())
 			}
 			str := s.convertString(verb)
 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
@@ -1024,7 +1024,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 		case reflect.Complex64, reflect.Complex128:
 			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
 		default:
-			s.errorString("Scan: can't handle type: " + val.Type().String())
+			s.errorString("can't scan type: " + val.Type().String())
 		}
 	}
 }
@@ -1057,7 +1057,7 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 				break
 			}
 			if !isSpace(r) {
-				s.errorString("Scan: expected newline")
+				s.errorString("expected newline")
 				break
 			}
 		}
