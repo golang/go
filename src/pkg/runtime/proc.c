@@ -1536,6 +1536,10 @@ exitsyscallfast(void)
 	if(runtime·sched.pidle) {
 		runtime·lock(&runtime·sched);
 		p = pidleget();
+		if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
+			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+			runtime·notewakeup(&runtime·sched.sysmonnote);
+		}
 		runtime·unlock(&runtime·sched);
 		if(p) {
 			acquirep(p);
@@ -1559,6 +1563,10 @@ exitsyscall0(G *gp)
 	p = pidleget();
 	if(p == nil)
 		globrunqput(gp);
+	else if(runtime·atomicload(&runtime·sched.sysmonwait)) {
+		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+		runtime·notewakeup(&runtime·sched.sysmonnote);
+	}
 	runtime·unlock(&runtime·sched);
 	if(p) {
 		acquirep(p);
@@ -1924,24 +1932,38 @@ static struct {
 	uintptr pcbuf[100];
 } prof;
 
+static void
+System(void)
+{
+}
+
 // Called if we receive a SIGPROF signal.
 void
 runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 {
 	int32 n;
+	bool traceback;
 
-	// Windows does profiling in a dedicated thread w/o m.
-	if(!Windows && (m == nil || m->mcache == nil))
-		return;
 	if(prof.fn == nil || prof.hz == 0)
 		return;
+	traceback = true;
+	// Windows does profiling in a dedicated thread w/o m.
+	if(!Windows && (m == nil || m->mcache == nil))
+		traceback = false;
+	if(gp == m->g0 || gp == m->gsignal)
+		traceback = false;
+	if(m != nil && m->racecall)
+		traceback = false;
 
 	runtime·lock(&prof);
 	if(prof.fn == nil) {
 		runtime·unlock(&prof);
 		return;
 	}
-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+	n = 1;
+	prof.pcbuf[0] = (uintptr)pc;
+	if(traceback)
+		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
 	if(n > 0)
 		prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
