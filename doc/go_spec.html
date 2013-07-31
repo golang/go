@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 31, 2013",
+	"Subtitle": "Version of July 25, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -1909,7 +1909,7 @@ ShortVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
 <p>
-It is shorthand for a regular <a href="#Variable_declarations">variable declaration</a>
+It is a shorthand for a regular <a href="#Variable_declarations">variable declaration</a>
 with initializer expressions but no types:
 </p>
 
@@ -2245,7 +2245,7 @@ element index plus one. A slice literal has the form
 </pre>
 
 <p>
-and is shorthand for a slice operation applied to an array:
+and is a shortcut for a slice operation applied to an array:
 </p>
 
 <pre>
@@ -2462,7 +2462,7 @@ is also a pointer to a struct, <code>x.y.z</code> is shorthand
 for <code>(*(*x).y).z</code>, and so on.
 If <code>x</code> contains an anonymous field of type <code>*A</code>,
 where <code>A</code> is also a struct type,
-<code>x.f</code> is shorthand for <code>(*x.A).f</code>.
+<code>x.f</code> is a shortcut for <code>(*x.A).f</code>.
 </p>
 
 <p>
@@ -2519,9 +2519,10 @@ a[x]
 </pre>
 
 <p>
-denotes the element of the array, pointer to array, slice, string or map <code>a</code> indexed by <code>x</code>.
-The value <code>x</code> is called the <i>index</i> or <i>map key</i>, respectively.
-The following rules apply:
+denotes the element of the array, slice, string or map <code>a</code> indexed by <code>x</code>.
+The value <code>x</code> is called the
+<i>index</i> or <i>map key</i>, respectively. The following
+rules apply:
 </p>
 
 <p>
@@ -2536,48 +2537,44 @@ If <code>a</code> is not a map:
 </ul>
 
 <p>
-For <code>a</code> of <a href="#Array_types">array type</a> <code>A</code>:
+For <code>a</code> of type <code>A</code> or <code>*A</code>
+where <code>A</code> is an <a href="#Array_types">array type</a>:
 </p>
 <ul>
 	<li>a <a href="#Constants">constant</a> index must be in range</li>
-	<li>if <code>x</code> is out of range at run time,
+	<li>if <code>a</code> is <code>nil</code> or if <code>x</code> is out of range at run time,
 	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
 	    <code>a[x]</code> is the element type of <code>A</code></li>
 </ul>
 
 <p>
-For <code>a</code> of <a href="#Pointer_types">pointer</a> to array type:
+For <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="#Slice_types">slice type</a>:
 </p>
 <ul>
-	<li><code>a[x]</code> is shorthand for <code>(*a)[x]</code></li>
-</ul>
-
-<p>
-For <code>a</code> of <a href="#Slice_types">slice type</a> <code>S</code>:
-</p>
-<ul>
-	<li>if <code>x</code> is out of range at run time,
+	<li>if the slice is <code>nil</code> or if <code>x</code> is out of range at run time,
 	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the slice element at index <code>x</code> and the type of
 	    <code>a[x]</code> is the element type of <code>S</code></li>
 </ul>
 
 <p>
-For <code>a</code> of <a href="#String_types">string type</a>:
+For <code>a</code> of type <code>T</code>
+where <code>T</code> is a <a href="#String_types">string type</a>:
 </p>
 <ul>
 	<li>a <a href="#Constants">constant</a> index must be in range
 	    if the string <code>a</code> is also constant</li>
 	<li>if <code>x</code> is out of range at run time,
 	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
-	<li><code>a[x]</code> is the non-constant byte value at index <code>x</code> and the type of
+	<li><code>a[x]</code> is the byte at index <code>x</code> and the type of
 	    <code>a[x]</code> is <code>byte</code></li>
 	<li><code>a[x]</code> may not be assigned to</li>
 </ul>
 
 <p>
-For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
+For <code>a</code> of type <code>M</code>
+where <code>M</code> is a <a href="#Map_types">map type</a>:
 </p>
 <ul>
 	<li><code>x</code>'s type must be
@@ -2631,9 +2628,9 @@ a[low : high]
 </pre>
 
 <p>
-constructs a substring or slice. The <i>indices</i> <code>low</code> and
-<code>high</code> select which elements of operand <code>a</code> appear
-in the result. The result has indices starting at 0 and length equal to
+constructs a substring or slice. The indices <code>low</code> and
+<code>high</code> select which elements appear in the result. The result has
+indices starting at 0 and length equal to
 <code>high</code>&nbsp;-&nbsp;<code>low</code>.
 After slicing the array <code>a</code>
 </p>
@@ -2666,34 +2663,24 @@ a[:]   // same as a[0 : len(a)]
 </pre>
 
 <p>
-If <code>a</code> is a pointer to an array, <code>a[low : high]</code> is shorthand for
-<code>(*a)[low : high]</code>.
-</p>
-
-<p>
-For arrays or strings, the indices are <i>in range</i> if
-<code>0</code> &lt;= <code>low</code> &lt;= <code>high</code> &lt;= <code>len(a)</code>,
+For arrays or strings, the indices <code>low</code> and <code>high</code> are
+<i>in range</i> if <code>0</code> &lt;= <code>low</code> &lt;= <code>high</code> &lt;= <code>len(a)</code>,
 otherwise they are <i>out of range</i>.
 For slices, the upper index bound is the slice capacity <code>cap(a)</code> rather than the length.
 A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
 <code>int</code>.
-If both indices are constant, they must satisfy <code>low &lt;= high</code>.
-If the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
+If both indices
+are constant, they must satisfy <code>low &lt;= high</code>. If <code>a</code> is <code>nil</code>
+or if the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <p>
-Except for <a href="#Constants">untyped strings</a>, if the sliced operand is a string or slice,
-the result of the slice operation is a non-constant value of the same type as the operand.
-For untyped string operands the result is a non-constant value of type <code>string</code>.
+If the sliced operand is a string or slice, the result of the slice operation
+is a string or slice of the same type.
 If the sliced operand is an array, it must be <a href="#Address_operators">addressable</a>
 and the result of the slice operation is a slice with the same element type as the array.
 </p>
 
-<!-- TODO: should this be an implementation restriction? -->
-<p>
-If the sliced operand of a valid slice expression is a <code>nil</code> slice, the result
-is a <code>nil</code> slice.
-<p>
 
 <h3 id="Type_assertions">Type assertions</h3>
 
