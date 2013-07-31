@@ -533,48 +533,65 @@ static uint8 empty_value[MAXVALUESIZE];
 #define HASH_LOOKUP2 runtime·mapaccess2_fast32
 #define KEYTYPE uint32
 #define HASHFUNC runtime·algarray[AMEM32].hash
-#define EQFUNC(x,y) ((x) == (y))
-#define EQMAYBE(x,y) ((x) == (y))
-#define HASMAYBE false
-#define QUICKEQ(x) true
+#define FASTKEY(x) true
+#define QUICK_NE(x,y) ((x) != (y))
+#define QUICK_EQ(x,y) true
+#define SLOW_EQ(x,y) true
+#define MAYBE_EQ(x,y) true
 #include "hashmap_fast.c"
 
 #undef HASH_LOOKUP1
 #undef HASH_LOOKUP2
 #undef KEYTYPE
 #undef HASHFUNC
-#undef EQFUNC
-#undef EQMAYBE
-#undef HASMAYBE
-#undef QUICKEQ
+#undef FASTKEY
+#undef QUICK_NE
+#undef QUICK_EQ
+#undef SLOW_EQ
+#undef MAYBE_EQ
 
 #define HASH_LOOKUP1 runtime·mapaccess1_fast64
 #define HASH_LOOKUP2 runtime·mapaccess2_fast64
 #define KEYTYPE uint64
 #define HASHFUNC runtime·algarray[AMEM64].hash
-#define EQFUNC(x,y) ((x) == (y))
-#define EQMAYBE(x,y) ((x) == (y))
-#define HASMAYBE false
-#define QUICKEQ(x) true
+#define FASTKEY(x) true
+#define QUICK_NE(x,y) ((x) != (y))
+#define QUICK_EQ(x,y) true
+#define SLOW_EQ(x,y) true
+#define MAYBE_EQ(x,y) true
 #include "hashmap_fast.c"
 
 #undef HASH_LOOKUP1
 #undef HASH_LOOKUP2
 #undef KEYTYPE
 #undef HASHFUNC
-#undef EQFUNC
-#undef EQMAYBE
-#undef HASMAYBE
-#undef QUICKEQ
+#undef FASTKEY
+#undef QUICK_NE
+#undef QUICK_EQ
+#undef SLOW_EQ
+#undef MAYBE_EQ
+
+#ifdef GOARCH_amd64
+#define CHECKTYPE uint64
+#endif
+#ifdef GOARCH_386
+#define CHECKTYPE uint32
+#endif
+#ifdef GOARCH_arm
+// can't use uint32 on arm because our loads aren't aligned.
+// TODO: use uint32 for arm v6+?
+#define CHECKTYPE uint8
+#endif
 
 #define HASH_LOOKUP1 runtime·mapaccess1_faststr
 #define HASH_LOOKUP2 runtime·mapaccess2_faststr
 #define KEYTYPE String
 #define HASHFUNC runtime·algarray[ASTRING].hash
-#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·memeq((x).str, (y).str, (x).len)))
-#define EQMAYBE(x,y) ((x).len == (y).len)
-#define HASMAYBE true
-#define QUICKEQ(x) ((x).len < 32)
+#define FASTKEY(x) ((x).len < 32)
+#define QUICK_NE(x,y) ((x).len != (y).len)
+#define QUICK_EQ(x,y) ((x).str == (y).str)
+#define SLOW_EQ(x,y) runtime·memeq((x).str, (y).str, (x).len)
+#define MAYBE_EQ(x,y) (*(CHECKTYPE*)(x).str == *(CHECKTYPE*)(y).str && *(CHECKTYPE*)((x).str + (x).len - sizeof(CHECKTYPE)) == *(CHECKTYPE*)((y).str + (x).len - sizeof(CHECKTYPE)))
 #include "hashmap_fast.c"
 
 static void

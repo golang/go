@@ -254,3 +254,17 @@ func BenchmarkMapIterEmpty(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkSameLengthMap(b *testing.B) {
+	// long strings, same length, differ in first few
+	// and last few bytes.
+	m := make(map[string]bool)
+	s1 := "foo" + strings.Repeat("-", 100) + "bar"
+	s2 := "goo" + strings.Repeat("-", 100) + "ber"
+	m[s1] = true
+	m[s2] = true
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = m[s1]
+	}
+}
