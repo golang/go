@@ -5,6 +5,7 @@
 // makeFuncStub is the code half of the function returned by MakeFunc.
 // See the comment on the declaration of makeFuncStub in makefunc.go
 // for more details.
+// No argsize here, gc generates argsize info at call site.
 TEXT ·makeFuncStub(SB),7,$16
 	MOVQ	DX, 0(SP)
 	LEAQ	argframe+0(FP), CX
@@ -15,6 +16,7 @@ TEXT ·makeFuncStub(SB),7,$16
 // methodValueCall is the code half of the function returned by makeMethodValue.
 // See the comment on the declaration of methodValueCall in makefunc.go
 // for more details.
+// No argsize here, gc generates argsize info at call site.
 TEXT ·methodValueCall(SB),7,$16
 	MOVQ	DX, 0(SP)
 	LEAQ	argframe+0(FP), CX
