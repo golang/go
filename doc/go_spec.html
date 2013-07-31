@@ -4126,6 +4126,20 @@ A send on a closed channel proceeds by causing a <a href="#Run_time_panics">run-
 A send on a <code>nil</code> channel blocks forever.
 </p>
 
+<p>
+Channels act as first-in-first-out queues.
+For example, if a single goroutine sends on a channel values
+that are received by a single goroutine, the values are received in the order sent.
+</p>
+
+<p>
+A single channel may be used for send and receive
+operations and calls to the built-in functions
+<a href="#Length_and_capacity"><code>cap</code></a> and
+<a href="#Length_and_capacity"><code>len</code></a>
+by any number of goroutines without further synchronization.
+</p>
+
 <pre>
 ch &lt;- 3
 </pre>
