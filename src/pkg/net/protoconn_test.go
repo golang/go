@@ -103,6 +103,7 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	}
 	defer c.Close()
 	c.SetKeepAlive(false)
+	c.SetKeepAlivePeriod(3 * time.Second)
 	c.SetLinger(0)
 	c.SetNoDelay(false)
 	c.LocalAddr()
