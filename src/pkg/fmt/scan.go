@@ -437,6 +437,9 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 		if r == eof {
 			return
 		}
+		if r == '\r' && s.peek("\n") {
+			continue
+		}
 		if r == '\n' {
 			if stopAtNewline {
 				break

@@ -215,6 +215,10 @@
 	stops if it does not, with the return value of the function
 	indicating the number of arguments scanned.
 
+	In all the scanning functions, a carriage return followed
+	immediately by a newline is treated as a plain newline
+	(\r\n means the same as \n).
+
 	In all the scanning functions, if an operand implements method
 	Scan (that is, it implements the Scanner interface) that
 	method will be used to scan the text for that operand.  Also,
