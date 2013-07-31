@@ -45,7 +45,7 @@ TEXT _mulv(SB), 7, $0
 // trampoline for _sfloat2. passes LR as arg0 and
 // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
 // be changed by _sfloat2.
-TEXT _sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
+TEXT _sfloat(SB), 7, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	R14, 4(R13)
 	MOVW	R0, 8(R13)
 	MOVW	$12(R13), R0
