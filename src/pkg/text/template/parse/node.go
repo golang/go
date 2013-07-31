@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+var textFormat = "%s" // Changed to "%q" in tests for better error messages.
+
 // A Node is an element in the parse tree. The interface is trivial.
 // The interface contains an unexported method so that only
 // types local to this package can satisfy it.
@@ -125,7 +127,7 @@ func newText(pos Pos, text string) *TextNode {
 }
 
 func (t *TextNode) String() string {
-	return fmt.Sprintf("%q", t.Text)
+	return fmt.Sprintf(textFormat, t.Text)
 }
 
 func (t *TextNode) Copy() Node {

@@ -33,10 +33,10 @@ var multiParseTests = []multiParseTest{
 		nil},
 	{"one", `{{define "foo"}} FOO {{end}}`, noError,
 		[]string{"foo"},
-		[]string{`" FOO "`}},
+		[]string{" FOO "}},
 	{"two", `{{define "foo"}} FOO {{end}}{{define "bar"}} BAR {{end}}`, noError,
 		[]string{"foo", "bar"},
-		[]string{`" FOO "`, `" BAR "`}},
+		[]string{" FOO ", " BAR "}},
 	// errors
 	{"missing end", `{{define "foo"}} FOO `, hasError,
 		nil,
