@@ -146,6 +146,13 @@ func IsIdentical(x, y Type) bool {
 			return IsIdentical(x.base, y.base)
 		}
 
+	case *Tuple:
+		// Two tuples types are identical if they have the same number of elements
+		// and corresponding elements have identical types.
+		if y, ok := y.(*Tuple); ok {
+			return identicalTuples(x, y)
+		}
+
 	case *Signature:
 		// Two function types are identical if they have the same number of parameters
 		// and result values, corresponding parameter and result types are identical,
@@ -153,8 +160,8 @@ func IsIdentical(x, y Type) bool {
 		// names are not required to match.
 		if y, ok := y.(*Signature); ok {
 			return x.isVariadic == y.isVariadic &&
-				identicalTypes(x.params, y.params) &&
-				identicalTypes(x.results, y.results)
+				identicalTuples(x.params, y.params) &&
+				identicalTuples(x.results, y.results)
 		}
 
 	case *Interface:
@@ -189,9 +196,9 @@ func IsIdentical(x, y Type) bool {
 	return false
 }
 
-// identicalTypes returns true if both lists a and b have the
-// same length and corresponding objects have identical types.
-func identicalTypes(a, b *Tuple) bool {
+// identicalTuples returns true if both tuples a and b have the
+// same length and corresponding elements have identical types.
+func identicalTuples(a, b *Tuple) bool {
 	if a.Len() != b.Len() {
 		return false
 	}

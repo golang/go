@@ -159,7 +159,8 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 		// Start with rhs so we have expression types
 		// for declarations with implicit types.
 		var x operand
-		check.expr(&x, rhs[0])
+		rhs := rhs[0]
+		check.expr(&x, rhs)
 		if x.mode == invalid {
 			invalidateVars(lhs)
 			return
@@ -171,7 +172,7 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 			if l == r {
 				for i, lhs := range lhs {
 					x.mode = value
-					x.expr = rhs[0]
+					x.expr = rhs
 					x.typ = t.At(i).typ
 					check.initVar(lhs, &x)
 				}
@@ -181,10 +182,13 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 
 		if allowCommaOk && x.mode == valueok && l == 2 {
 			// comma-ok expression
+			check.recordCommaOkType(rhs, x.typ)
+
 			x.mode = value
 			check.initVar(lhs[0], &x)
 
 			x.mode = value
+			x.expr = rhs
 			x.typ = Typ[UntypedBool]
 			check.initVar(lhs[1], &x)
 			return
@@ -219,7 +223,8 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 	if r == 1 {
 		// l > 1
 		var x operand
-		check.expr(&x, rhs[0])
+		rhs := rhs[0]
+		check.expr(&x, rhs)
 		if x.mode == invalid {
 			return
 		}
@@ -230,7 +235,7 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 			if l == r {
 				for i, lhs := range lhs {
 					x.mode = value
-					x.expr = rhs[0]
+					x.expr = rhs
 					x.typ = t.At(i).typ
 					check.assignVar(lhs, &x)
 				}
@@ -240,10 +245,13 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 
 		if x.mode == valueok && l == 2 {
 			// comma-ok expression
+			check.recordCommaOkType(rhs, x.typ)
+
 			x.mode = value
 			check.assignVar(lhs[0], &x)
 
 			x.mode = value
+			x.expr = rhs
 			x.typ = Typ[UntypedBool]
 			check.assignVar(lhs[1], &x)
 			return

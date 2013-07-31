@@ -133,7 +133,10 @@ func writeExpr(buf *bytes.Buffer, expr ast.Expr) {
 
 	case *ast.TypeAssertExpr:
 		writeExpr(buf, x.X)
-		buf.WriteString(".(...)")
+		buf.WriteString(".(")
+		// TODO(gri) expand writeExpr so that types are not handled by default case
+		writeExpr(buf, x.Type)
+		buf.WriteByte(')')
 
 	case *ast.CallExpr:
 		writeExpr(buf, x.Fun)

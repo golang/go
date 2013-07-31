@@ -148,7 +148,7 @@ var testExprs = []testEntry{
 	{"func(a, b int) []int {}(1, 2)[x]", "(func literal)(1, 2)[x]"},
 	{"[]int{1, 2, 3}", "(composite literal)"},
 	{"[]int{1, 2, 3}[x:]", "(composite literal)[x:]"},
-	{"i.([]string)", "i.(...)"},
+	{"i.([]string)", "i.(<expr *ast.ArrayType>)"},
 }
 
 func TestExprs(t *testing.T) {
