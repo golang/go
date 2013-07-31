@@ -233,3 +233,37 @@ func TestIssue4103(t *testing.T) {
 		t.Errorf("l1.Len() = %d, want 3", n)
 	}
 }
+
+func TestMove(t *testing.T) {
+	l := New()
+	e1 := l.PushBack(1)
+	e2 := l.PushBack(2)
+	e3 := l.PushBack(3)
+	e4 := l.PushBack(4)
+
+	l.MoveAfter(e3, e3)
+	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
+	l.MoveBefore(e2, e2)
+	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
+
+	l.MoveAfter(e3, e2)
+	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
+	l.MoveBefore(e2, e3)
+	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
+
+	l.MoveBefore(e2, e4)
+	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
+	e1, e2, e3, e4 = e1, e3, e2, e4
+
+	l.MoveBefore(e4, e1)
+	checkListPointers(t, l, []*Element{e4, e1, e2, e3})
+	e1, e2, e3, e4 = e4, e1, e2, e3
+
+	l.MoveAfter(e4, e1)
+	checkListPointers(t, l, []*Element{e1, e4, e2, e3})
+	e1, e2, e3, e4 = e1, e4, e2, e3
+
+	l.MoveAfter(e2, e3)
+	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
+	e1, e2, e3, e4 = e1, e3, e2, e4
+}

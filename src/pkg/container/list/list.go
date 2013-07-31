@@ -179,6 +179,24 @@ func (l *List) MoveToBack(e *Element) {
 	l.insert(l.remove(e), l.root.prev)
 }
 
+// MoveBefore moves element e to its new position before mark.
+// If e is not an element of l, or e == mark, the list is not modified.
+func (l *List) MoveBefore(e, mark *Element) {
+	if e.list != l || e == mark {
+		return
+	}
+	l.insert(l.remove(e), mark.prev)
+}
+
+// MoveAfter moves element e to its new position after mark.
+// If e is not an element of l, or e == mark, the list is not modified.
+func (l *List) MoveAfter(e, mark *Element) {
+	if e.list != l || e == mark {
+		return
+	}
+	l.insert(l.remove(e), mark)
+}
+
 // PushBackList inserts a copy of an other list at the back of list l.
 // The lists l and other may be the same.
 func (l *List) PushBackList(other *List) {
