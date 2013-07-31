@@ -1112,6 +1112,9 @@ runtime·makemap_c(MapType *typ, int64 hint)
 	Type *key;
 
 	key = typ->key;
+	
+	if(sizeof(Hmap) > 48)
+		runtime·panicstring("hmap too large");
 
 	if(hint < 0 || (int32)hint != hint)
 		runtime·panicstring("makemap: size out of range");
