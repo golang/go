@@ -362,7 +362,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
-		return &address{addr: v, id: e, object: obj}
+		return &address{addr: v, expr: e, object: obj}
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
@@ -373,7 +373,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			v = fn.addLocal(t, e.Lbrace)
 		}
 		b.compLit(fn, v, e, t) // initialize in place
-		return &address{addr: v}
+		return &address{addr: v, expr: e}
 
 	case *ast.ParenExpr:
 		return b.addr(fn, e.X, escaping)
@@ -383,7 +383,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		case types.PackageObj:
 			obj := sel.Obj()
 			if v := b.lookup(fn.Pkg, obj); v != nil {
-				return &address{addr: v}
+				return &address{addr: v, expr: e}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
 
@@ -393,7 +393,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			last := len(sel.Index()) - 1
 			return &address{
 				addr:   emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
-				id:     e.Sel,
+				expr:   e.Sel, // TODO plus e itself?
 				object: sel.Obj(),
 			}
 		}
@@ -424,11 +424,12 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			X:     x,
 			Index: emitConv(fn, b.expr(fn, e.Index), tInt),
 		}
+		v.setPos(e.Lbrack)
 		v.setType(et)
-		return &address{addr: fn.emit(v)}
+		return &address{addr: fn.emit(v), expr: e}
 
 	case *ast.StarExpr:
-		return &address{addr: b.expr(fn, e.X), starPos: e.Star}
+		return &address{addr: b.expr(fn, e.X), starPos: e.Star, expr: e}
 	}
 
 	panic(fmt.Sprintf("unexpected address expression: %T", e))
@@ -468,13 +469,16 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 // expr lowers a single-result expression e to SSA form, emitting code
 // to fn and returning the Value defined by the expression.
 //
-func (b *builder) expr(fn *Function, e ast.Expr) Value {
+func (b *builder) expr(fn *Function, e ast.Expr) (result Value) {
+	// Is expression a constant?
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		c := NewConst(v, fn.Pkg.typeOf(e))
-		if id, ok := unparen(e).(*ast.Ident); ok {
-			emitDebugRef(fn, id, c)
-		}
-		return c
+		return NewConst(v, fn.Pkg.typeOf(e))
+	}
+
+	e = unparen(e)
+
+	if fn.debugInfo() {
+		defer func() { emitDebugRef(fn, e, result) }()
 	}
 
 	switch e := e.(type) {
@@ -507,9 +511,6 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			fv.outer = nil
 		}
 		return fn.emit(v)
-
-	case *ast.ParenExpr:
-		return b.expr(fn, e.X)
 
 	case *ast.TypeAssertExpr: // single-result form only
 		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
@@ -621,9 +622,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return v // (func)
 		}
 		// Local var.
-		v := emitLoad(fn, fn.lookup(obj, false)) // var (address)
-		emitDebugRef(fn, e, v)
-		return v
+		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
 
 	case *ast.SelectorExpr:
 		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
@@ -670,6 +669,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 				X:     b.expr(fn, e.X),
 				Index: emitConv(fn, b.expr(fn, e.Index), tInt),
 			}
+			v.setPos(e.Lbrack)
 			v.setType(t.Elem())
 			return fn.emit(v)
 
@@ -1176,7 +1176,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			faddr.setType(types.NewPointer(sf.Type()))
 			fn.emit(faddr)
-			b.exprInPlace(fn, &address{addr: faddr}, e)
+			b.exprInPlace(fn, &address{addr: faddr, expr: e}, e)
 		}
 
 	case *types.Array, *types.Slice:
@@ -1209,7 +1209,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			iaddr.setType(types.NewPointer(at.Elem()))
 			fn.emit(iaddr)
-			b.exprInPlace(fn, &address{addr: iaddr}, e)
+			b.exprInPlace(fn, &address{addr: iaddr, expr: e}, e)
 		}
 		if t != at { // slice
 			s := &Slice{X: array}
@@ -1416,7 +1416,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
 				ti = x
 			} else {
-				yok := emitTypeTest(fn, x, casetype, token.NoPos)
+				yok := emitTypeTest(fn, x, casetype, cc.Case)
 				ti = emitExtract(fn, yok, 0, casetype)
 				condv = emitExtract(fn, yok, 1, tBool)
 			}
@@ -1485,34 +1485,52 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 
 	// First evaluate all channels in all cases, and find
 	// the directions of each state.
-	var states []SelectState
+	var states []*SelectState
 	blocking := true
+	debugInfo := fn.debugInfo()
 	for _, clause := range s.Body.List {
+		var st *SelectState
 		switch comm := clause.(*ast.CommClause).Comm.(type) {
 		case nil: // default case
 			blocking = false
+			continue
 
 		case *ast.SendStmt: // ch<- i
 			ch := b.expr(fn, comm.Chan)
-			states = append(states, SelectState{
+			st = &SelectState{
 				Dir:  ast.SEND,
 				Chan: ch,
 				Send: emitConv(fn, b.expr(fn, comm.Value),
 					ch.Type().Underlying().(*types.Chan).Elem()),
-			})
+				Pos: comm.Arrow,
+			}
+			if debugInfo {
+				st.DebugNode = comm
+			}
 
 		case *ast.AssignStmt: // x := <-ch
-			states = append(states, SelectState{
+			recv := unparen(comm.Rhs[0]).(*ast.UnaryExpr)
+			st = &SelectState{
 				Dir:  ast.RECV,
-				Chan: b.expr(fn, unparen(comm.Rhs[0]).(*ast.UnaryExpr).X),
-			})
+				Chan: b.expr(fn, recv.X),
+				Pos:  recv.OpPos,
+			}
+			if debugInfo {
+				st.DebugNode = recv
+			}
 
 		case *ast.ExprStmt: // <-ch
-			states = append(states, SelectState{
+			recv := unparen(comm.X).(*ast.UnaryExpr)
+			st = &SelectState{
 				Dir:  ast.RECV,
-				Chan: b.expr(fn, unparen(comm.X).(*ast.UnaryExpr).X),
-			})
+				Chan: b.expr(fn, recv.X),
+				Pos:  recv.OpPos,
+			}
+			if debugInfo {
+				st.DebugNode = recv
+			}
 		}
+		states = append(states, st)
 	}
 
 	// We dispatch on the (fair) result of Select using a
@@ -1569,6 +1587,10 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		}
 		switch comm := clause.Comm.(type) {
 		case *ast.ExprStmt: // <-ch
+			if debugInfo {
+				v := emitExtract(fn, sel, r, vars[r].Type())
+				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v)
+			}
 			r++
 
 		case *ast.AssignStmt: // x := <-states[state].Chan
@@ -1576,7 +1598,11 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 				fn.addLocalForIdent(comm.Lhs[0].(*ast.Ident))
 			}
 			x := b.addr(fn, comm.Lhs[0], false) // non-escaping
-			x.store(fn, emitExtract(fn, sel, r, vars[r].Type()))
+			v := emitExtract(fn, sel, r, vars[r].Type())
+			if debugInfo {
+				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v)
+			}
+			x.store(fn, v)
 
 			if len(comm.Lhs) == 2 { // x, ok := ...
 				if comm.Tok == token.DEFINE {
@@ -1989,14 +2015,14 @@ start:
 	case *ast.GoStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
 		// panic is treated like an ordinary function call.
-		var v Go
+		v := Go{pos: s.Go}
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
 	case *ast.DeferStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
 		// panic is treated like an ordinary function call.
-		var v Defer
+		v := Defer{pos: s.Defer}
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
@@ -2113,6 +2139,8 @@ start:
 		}
 
 		fn.currentBlock = done
+
+		// TODO statement debug info.
 
 	case *ast.SwitchStmt:
 		b.switchStmt(fn, s, label)
