@@ -563,17 +563,17 @@ var reorderTests = []struct {
 	{"%d %d %d %#[1]o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015"},
 
 	// Erroneous cases.
-	{"%[d", SE{2, 1}, "%d!(BADINDEX)"},
+	{"%[d", SE{2, 1}, "%!d(BADINDEX)"},
 	{"%]d", SE{2, 1}, "%!](int=2)d%!(EXTRA int=1)"},
-	{"%[]d", SE{2, 1}, "%d!(BADINDEX)"},
-	{"%[-3]d", SE{2, 1}, "%d!(BADINDEX)"},
-	{"%[99]d", SE{2, 1}, "%d!(BADINDEX)"},
+	{"%[]d", SE{2, 1}, "%!d(BADINDEX)"},
+	{"%[-3]d", SE{2, 1}, "%!d(BADINDEX)"},
+	{"%[99]d", SE{2, 1}, "%!d(BADINDEX)"},
 	{"%[3]", SE{2, 1}, "%!(NOVERB)"},
-	{"%[1].2d", SE{5, 6}, "%d!(BADINDEX)"},
-	{"%[1]2d", SE{2, 1}, "%d!(BADINDEX)"},
-	{"%3.[2]d", SE{7}, "%d!(BADINDEX)"},
-	{"%.[2]d", SE{7}, "%d!(BADINDEX)"},
-	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %o!(MISSING)"},
+	{"%[1].2d", SE{5, 6}, "%!d(BADINDEX)"},
+	{"%[1]2d", SE{2, 1}, "%!d(BADINDEX)"},
+	{"%3.[2]d", SE{7}, "%!d(BADINDEX)"},
+	{"%.[2]d", SE{7}, "%!d(BADINDEX)"},
+	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %!o(MISSING)"},
 }
 
 func TestReorder(t *testing.T) {
@@ -877,16 +877,16 @@ var panictests = []struct {
 }{
 	// String
 	{"%s", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%s", Panic{io.ErrUnexpectedEOF}, "%s!(PANIC=unexpected EOF)"},
-	{"%s", Panic{3}, "%s!(PANIC=3)"},
+	{"%s", Panic{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+	{"%s", Panic{3}, "%!s(PANIC=3)"},
 	// GoString
 	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%#v", Panic{io.ErrUnexpectedEOF}, "%v!(PANIC=unexpected EOF)"},
-	{"%#v", Panic{3}, "%v!(PANIC=3)"},
+	{"%#v", Panic{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
+	{"%#v", Panic{3}, "%!v(PANIC=3)"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
-	{"%s", PanicF{io.ErrUnexpectedEOF}, "%s!(PANIC=unexpected EOF)"},
-	{"%s", PanicF{3}, "%s!(PANIC=3)"},
+	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+	{"%s", PanicF{3}, "%!s(PANIC=3)"},
 }
 
 func TestPanics(t *testing.T) {
