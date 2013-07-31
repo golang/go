@@ -248,6 +248,7 @@ func main() {
 	switch {
 	default:
 		fallthrough
+	case false:
 	}
 
 	// string -> []rune conversion.
