@@ -781,6 +781,44 @@ func TestMinutesInTimeZone(t *testing.T) {
 	}
 }
 
+type SecondsTimeZoneOffsetTest struct {
+	format         string
+	value          string
+	expectedoffset int
+}
+
+var secondsTimeZoneOffsetTests = []SecondsTimeZoneOffsetTest{
+	{"2006-01-02T15:04:05-070000", "1871-01-01T05:33:02-003408", -(34*60 + 8)},
+	{"2006-01-02T15:04:05-07:00:00", "1871-01-01T05:33:02-00:34:08", -(34*60 + 8)},
+	{"2006-01-02T15:04:05-070000", "1871-01-01T05:33:02+003408", 34*60 + 8},
+	{"2006-01-02T15:04:05-07:00:00", "1871-01-01T05:33:02+00:34:08", 34*60 + 8},
+	{"2006-01-02T15:04:05Z070000", "1871-01-01T05:33:02-003408", -(34*60 + 8)},
+	{"2006-01-02T15:04:05Z07:00:00", "1871-01-01T05:33:02+00:34:08", 34*60 + 8},
+}
+
+func TestParseSecondsInTimeZone(t *testing.T) {
+	// should accept timezone offsets with seconds like: Zone America/New_York   -4:56:02 -      LMT     1883 Nov 18 12:03:58
+	for _, test := range secondsTimeZoneOffsetTests {
+		time, err := Parse(test.format, test.value)
+		if err != nil {
+			t.Fatal("error parsing date:", err)
+		}
+		_, offset := time.Zone()
+		if offset != test.expectedoffset {
+			t.Errorf("ZoneOffset = %d, want %d", offset, test.expectedoffset)
+		}
+	}
+}
+
+func TestFormatSecondsInTimeZone(t *testing.T) {
+	d := Date(1871, 9, 17, 20, 4, 26, 0, FixedZone("LMT", -(34*60+8)))
+	timestr := d.Format("2006-01-02T15:04:05Z070000")
+	expected := "1871-09-17T20:04:26-003408"
+	if timestr != expected {
+		t.Errorf("Got %s, want %s", timestr, expected)
+	}
+}
+
 type ISOWeekTest struct {
 	year       int // year
 	month, day int // month and day
