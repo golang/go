@@ -1536,6 +1536,10 @@ exitsyscallfast(void)
 	if(runtime·sched.pidle) {
 		runtime·lock(&runtime·sched);
 		p = pidleget();
+		if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
+			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+			runtime·notewakeup(&runtime·sched.sysmonnote);
+		}
 		runtime·unlock(&runtime·sched);
 		if(p) {
 			acquirep(p);
@@ -1559,6 +1563,10 @@ exitsyscall0(G *gp)
 	p = pidleget();
 	if(p == nil)
 		globrunqput(gp);
+	else if(runtime·atomicload(&runtime·sched.sysmonwait)) {
+		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+		runtime·notewakeup(&runtime·sched.sysmonnote);
+	}
 	runtime·unlock(&runtime·sched);
 	if(p) {
 		acquirep(p);
