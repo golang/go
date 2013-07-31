@@ -373,6 +373,9 @@ func testMapLookups(t *testing.T, m map[string]string) {
 }
 
 func TestMapSize(t *testing.T) {
+	if runtime.GOMAXPROCS(-1) != 1 {
+		t.Skip("gomaxprocs > 1 - not accurate")
+	}
 	var m map[struct{}]struct{}
 	size := bytesPerRun(100, func() {
 		m = make(map[struct{}]struct{})
