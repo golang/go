@@ -16,20 +16,21 @@ import (
 // Some constants in the form of bytes, to avoid string overhead.
 // Needlessly fastidious, I suppose.
 var (
-	commaSpaceBytes = []byte(", ")
-	nilAngleBytes   = []byte("<nil>")
-	nilParenBytes   = []byte("(nil)")
-	nilBytes        = []byte("nil")
-	mapBytes        = []byte("map[")
-	missingBytes    = []byte("!(MISSING)")
-	badIndexBytes   = []byte("!(BADINDEX)")
-	panicBytes      = []byte("!(PANIC=")
-	extraBytes      = []byte("%!(EXTRA ")
-	irparenBytes    = []byte("i)")
-	bytesBytes      = []byte("[]byte{")
-	badWidthBytes   = []byte("%!(BADWIDTH)")
-	badPrecBytes    = []byte("%!(BADPREC)")
-	noVerbBytes     = []byte("%!(NOVERB)")
+	commaSpaceBytes  = []byte(", ")
+	nilAngleBytes    = []byte("<nil>")
+	nilParenBytes    = []byte("(nil)")
+	nilBytes         = []byte("nil")
+	mapBytes         = []byte("map[")
+	percentBangBytes = []byte("%!")
+	missingBytes     = []byte("(MISSING)")
+	badIndexBytes    = []byte("(BADINDEX)")
+	panicBytes       = []byte("(PANIC=")
+	extraBytes       = []byte("%!(EXTRA ")
+	irparenBytes     = []byte("i)")
+	bytesBytes       = []byte("[]byte{")
+	badWidthBytes    = []byte("%!(BADWIDTH)")
+	badPrecBytes     = []byte("%!(BADPREC)")
+	noVerbBytes      = []byte("%!(NOVERB)")
 )
 
 // State represents the printer state passed to custom formatters.
@@ -660,7 +661,7 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 			// Nested panics; the recursion in printArg cannot succeed.
 			panic(err)
 		}
-		p.buf.WriteByte('%')
+		p.buf.Write(percentBangBytes)
 		p.add(verb)
 		p.buf.Write(panicBytes)
 		p.panicking = true
@@ -1165,12 +1166,12 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			continue
 		}
 		if !p.goodArgNum {
-			p.buf.WriteByte('%')
+			p.buf.Write(percentBangBytes)
 			p.add(c)
 			p.buf.Write(badIndexBytes)
 			continue
 		} else if argNum >= len(a) { // out of operands
-			p.buf.WriteByte('%')
+			p.buf.Write(percentBangBytes)
 			p.add(c)
 			p.buf.Write(missingBytes)
 			continue
