@@ -231,7 +231,7 @@ addlib(char *src, char *obj)
 	if(p != nil)
 		*p = '\0';
 
-	if(debug['v'])
+	if(debug['v'] > 1)
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
 
 	addlibpath(src, obj, pname, name);
@@ -330,7 +330,7 @@ loadlib(void)
 	}
 
 	for(i=0; i<libraryp; i++) {
-		if(debug['v'])
+		if(debug['v'] > 1)
 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
 		iscgo |= strcmp(library[i].pkg, "runtime/cgo") == 0;
 		objfile(library[i].file, library[i].pkg);
@@ -433,7 +433,7 @@ objfile(char *file, char *pkg)
 
 	pkg = smprint("%i", pkg);
 
-	if(debug['v'])
+	if(debug['v'] > 1)
 		Bprint(&bso, "%5.2f ldobj: %s (%s)\n", cputime(), file, pkg);
 	Bflush(&bso);
 	f = Bopen(file, 0);
@@ -2049,7 +2049,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		}
 	}
 	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %ud\n", symsize);
+		Bprint(&bso, "%5.2f symsize = %ud\n", cputime(), symsize);
 	Bflush(&bso);
 }
 
@@ -2356,7 +2356,9 @@ pclntab(void)
 	uint32 *havepc, *havefunc;
 	Sym *ftab, *s;
 	int32 npcdata, nfuncdata, off, end;
+	int64 funcdata_bytes;
 	
+	funcdata_bytes = 0;
 	ftab = lookup("pclntab", 0);
 	ftab->type = SPCLNTAB;
 	ftab->reachable = 1;
@@ -2478,8 +2480,13 @@ pclntab(void)
 					i = p->from.offset;
 					if(p->to.type == D_CONST)
 						setuintxx(ftab, off+PtrSize*i, p->to.offset, PtrSize);
-					else
+					else {
+						if(!p->to.sym->hide) {
+							funcdata_bytes += p->to.sym->size;
+							p->to.sym->hide = 1;
+						}
 						setaddrplus(ftab, off+PtrSize*i, p->to.sym, p->to.offset);
+					}
 				}
 			}
 			off += nfuncdata*PtrSize;
@@ -2506,4 +2513,7 @@ pclntab(void)
 		setuint32(ftab, start + s->value*4, ftabaddstring(ftab, s->name));
 
 	ftab->size = ftab->np;
+	
+	if(debug['v'])
+		Bprint(&bso, "%5.2f pclntab=%lld bytes, funcdata total %lld bytes\n", cputime(), (vlong)ftab->size, (vlong)funcdata_bytes);
 }	
