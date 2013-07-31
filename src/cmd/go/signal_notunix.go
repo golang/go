@@ -11,3 +11,7 @@ import (
 )
 
 var signalsToIgnore = []os.Signal{os.Interrupt}
+
+// signalTrace is the signal to send to make a Go program
+// crash with a stack trace.
+var signalTrace os.Signal = nil
