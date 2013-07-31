@@ -7,7 +7,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -20,7 +22,7 @@ func TestObjValueLookup(t *testing.T) {
 	imp := importer.New(new(importer.Config)) // (uses GCImporter)
 	f, err := parser.ParseFile(imp.Fset, "testdata/objlookup.go", nil, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
-		t.Errorf("parse error: %s", err)
+		t.Error(err)
 		return
 	}
 
@@ -46,12 +48,13 @@ func TestObjValueLookup(t *testing.T) {
 		return
 	}
 
-	prog := ssa.NewProgram(imp.Fset, ssa.DebugInfo /*|ssa.LogFunctions*/)
+	prog := ssa.NewProgram(imp.Fset, 0 /*|ssa.LogFunctions*/)
 	for _, info := range imp.Packages {
 		prog.CreatePackage(info)
 	}
-	pkg := prog.Package(info.Pkg)
-	pkg.Build()
+	mainPkg := prog.Package(info.Pkg)
+	mainPkg.SetDebugMode(true)
+	mainPkg.Build()
 
 	// Gather all idents and objects in file.
 	objs := make(map[types.Object]bool)
@@ -175,6 +178,78 @@ func checkVarValue(t *testing.T, prog *ssa.Program, ref []ast.Node, obj *types.V
 		}
 		if !types.IsIdentical(v.Type(), expType) {
 			t.Errorf("%s.Type() == %s, want %s", prefix, v.Type(), expType)
+		}
+	}
+}
+
+// Ensure that, in debug mode, we can determine the ssa.Value
+// corresponding to every ast.Expr.
+func TestValueForExpr(t *testing.T) {
+	imp := importer.New(new(importer.Config)) // (uses GCImporter)
+	f, err := parser.ParseFile(imp.Fset, "testdata/valueforexpr.go", nil,
+		parser.DeclarationErrors|parser.ParseComments)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	info := imp.CreateSourcePackage("main", []*ast.File{f})
+	if info.Err != nil {
+		t.Error(info.Err.Error())
+		return
+	}
+
+	prog := ssa.NewProgram(imp.Fset, 0)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
+	mainPkg := prog.Package(info.Pkg)
+	mainPkg.SetDebugMode(true)
+	mainPkg.Build()
+
+	fn := mainPkg.Func("f")
+
+	if false {
+		fn.DumpTo(os.Stderr) // debugging
+	}
+
+	// Find the actual AST node for each canonical position.
+	parenExprByPos := make(map[token.Pos]*ast.ParenExpr)
+	ast.Inspect(f, func(n ast.Node) bool {
+		if n != nil {
+			if e, ok := n.(*ast.ParenExpr); ok {
+				parenExprByPos[e.Pos()] = e
+			}
+		}
+		return true
+	})
+
+	// Find all annotations of form /*@kind*/.
+	for _, c := range f.Comments {
+		text := strings.TrimSpace(c.Text())
+		if text == "" || text[0] != '@' {
+			continue
+		}
+		text = text[1:]
+		pos := c.End() + 1
+		position := imp.Fset.Position(pos)
+		var e ast.Expr
+		if target := parenExprByPos[pos]; target == nil {
+			t.Errorf("%s: annotation doesn't precede ParenExpr: %q", position, text)
+			continue
+		} else {
+			e = target.X
+		}
+
+		v := fn.ValueForExpr(e) // (may be nil)
+		got := strings.TrimPrefix(fmt.Sprintf("%T", v), "*ssa.")
+		if want := text; got != want {
+			t.Errorf("%s: got value %q, want %q", position, got, want)
+		}
+		if v != nil {
+			if !types.IsIdentical(v.Type(), info.TypeOf(e)) {
+				t.Errorf("%s: got type %s, want %s", position, info.TypeOf(e), v.Type())
+			}
 		}
 	}
 }

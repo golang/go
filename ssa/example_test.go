@@ -42,14 +42,14 @@ func main() {
 	// Parse the input file.
 	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, parser.DeclarationErrors)
 	if err != nil {
-		fmt.Printf(err.Error()) // parse error
+		fmt.Print(err.Error()) // parse error
 		return
 	}
 
 	// Create a "main" package containing one file.
 	info := imp.CreateSourcePackage("main", []*ast.File{file})
 	if info.Err != nil {
-		fmt.Printf(info.Err.Error()) // type error
+		fmt.Print(info.Err.Error()) // type error
 		return
 	}
 

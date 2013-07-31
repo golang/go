@@ -3,6 +3,9 @@ package ssa
 // This file defines utilities for working with source positions
 // or source-level named entities ("objects").
 
+// TODO(adonovan): test that {Value,Instruction}.Pos() positions match
+// the originating syntax, as specified.
+
 import (
 	"go/ast"
 	"go/token"
@@ -114,78 +117,39 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 	return nil
 }
 
-// CanonicalPos returns the canonical position of the AST node n,
+// ValueForExpr returns the SSA Value that corresponds to non-constant
+// expression e.
 //
-// For each Node kind that may generate an SSA Value or Instruction,
-// exactly one token within it is designated as "canonical".  The
-// position of that token is returned by {Value,Instruction}.Pos().
-// The specifications of those methods determine the implementation of
-// this function.
+// It returns nil if no value was found, e.g.
+//    - the expression is not lexically contained within f;
+//    - f was not built with debug information; or
+//    - e is a constant expression.  (For efficiency, no debug
+//      information is stored for constants. Use
+//      importer.PackageInfo.ValueOf(e) instead.)
+//    - the value was optimised away.
 //
-// TODO(adonovan): test coverage.
+// The types of e and the result are equal (modulo "untyped" bools
+// resulting from comparisons) and they have equal "pointerness".
 //
-func CanonicalPos(n ast.Node) token.Pos {
-	// Comments show the Value/Instruction kinds v that may be
-	// created by n such that CanonicalPos(n) == v.Pos().
-	switch n := n.(type) {
-	case *ast.ParenExpr:
-		return CanonicalPos(n.X)
-
-	case *ast.CallExpr:
-		// f(x):    *Call, *Go, *Defer.
-		// T(x):    *ChangeType, *Convert, *MakeInterface, *ChangeInterface.
-		// make():  *MakeMap, *MakeChan, *MakeSlice.
-		// new():   *Alloc.
-		// panic(): *Panic.
-		return n.Lparen
-
-	case *ast.Ident:
-		return n.NamePos // *Parameter, *Alloc, *Capture
-
-	case *ast.TypeAssertExpr:
-		return n.Lparen // *ChangeInterface or *TypeAssertExpr
-
-	case *ast.SelectorExpr:
-		return n.Sel.NamePos // *MakeClosure, *Field, *FieldAddr
-
-	case *ast.FuncLit:
-		return n.Type.Func // *Function or *MakeClosure
-
-	case *ast.CompositeLit:
-		return n.Lbrace // *Alloc or *Slice
-
-	case *ast.BinaryExpr:
-		return n.OpPos // *Phi or *BinOp
-
-	case *ast.UnaryExpr:
-		return n.OpPos // *Phi or *UnOp
-
-	case *ast.IndexExpr:
-		return n.Lbrack // *Index or *IndexAddr
-
-	case *ast.SliceExpr:
-		return n.Lbrack // *Slice
-
-	case *ast.SelectStmt:
-		return n.Select // *Select
-
-	case *ast.RangeStmt:
-		return n.For // *Range
-
-	case *ast.ReturnStmt:
-		return n.Return // *Ret
-
-	case *ast.SendStmt:
-		return n.Arrow // *Send
-
-	case *ast.StarExpr:
-		return n.Star // *Store
-
-	case *ast.KeyValueExpr:
-		return n.Colon // *MapUpdate
+// (Tip: to find the ssa.Value given a source position, use
+// importer.PathEnclosingInterval to locate the ast.Node, then
+// EnclosingFunction to locate the Function, then ValueForExpr to find
+// the ssa.Value.)
+//
+func (f *Function) ValueForExpr(e ast.Expr) Value {
+	if f.debugInfo() { // (opt)
+		e = unparen(e)
+		for _, b := range f.Blocks {
+			for _, instr := range b.Instrs {
+				if ref, ok := instr.(*DebugRef); ok {
+					if ref.Expr == e {
+						return ref.X
+					}
+				}
+			}
+		}
 	}
-
-	return token.NoPos
+	return nil
 }
 
 // --- Lookup functions for source-level named entities (types.Objects) ---
@@ -233,7 +197,7 @@ func (prog *Program) FuncValue(obj *types.Func) Value {
 //
 func (prog *Program) ConstValue(obj *types.Const) *Const {
 	// TODO(adonovan): opt: share (don't reallocate)
-	// Consts for const objects.
+	// Consts for const objects and constant ast.Exprs.
 
 	// Universal constant? {true,false,nil}
 	if obj.Parent() == types.Universe {
@@ -250,10 +214,8 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // identifier denoting the source-level named variable obj.
 //
 // VarValue returns nil if a local variable was not found, perhaps
-// because its package was not built, the DebugInfo flag was not set
-// during SSA construction, or the value was optimized away.
-//
-// TODO(adonovan): test on x.f where x is a field.
+// because its package was not built, the debug information was not
+// requested during SSA construction, or the value was optimized away.
 //
 // ref must be the path to an ast.Ident (e.g. from
 // PathEnclosingInterval), and that ident must resolve to obj.
@@ -315,5 +277,5 @@ func (prog *Program) VarValue(obj *types.Var, ref []ast.Node) Value {
 		}
 	}
 
-	return nil // e.g. DebugInfo unset, or var optimized away
+	return nil // e.g. debug info not requested, or var optimized away
 }

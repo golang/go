@@ -20,6 +20,8 @@ import (
 	"code.google.com/p/go.tools/ssa"
 )
 
+const debugMode = false
+
 func allPackages() []string {
 	var pkgs []string
 	root := filepath.Join(runtime.GOROOT(), "src/pkg") + "/"
@@ -70,10 +72,10 @@ func TestStdlib(t *testing.T) {
 	alloc := memstats.Alloc
 
 	// Create SSA packages.
-	prog := ssa.NewProgram(imp.Fset, ssa.DebugInfo|ssa.SanityCheckFunctions)
+	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
 	for _, info := range imp.Packages {
 		if info.Err == nil {
-			prog.CreatePackage(info)
+			prog.CreatePackage(info).SetDebugMode(debugMode)
 		}
 	}
 

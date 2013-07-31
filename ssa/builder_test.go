@@ -38,7 +38,7 @@ func main() {
 
 	f, err := parser.ParseFile(imp.Fset, "<input>", test, parser.DeclarationErrors)
 	if err != nil {
-		t.Errorf("parse error: %s", err)
+		t.Error(err)
 		return
 	}
 

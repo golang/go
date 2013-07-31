@@ -23,7 +23,6 @@ const (
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
-	DebugInfo                                    // Include DebugRef instructions [TODO(adonovan): finer grain?]
 )
 
 // NewProgram returns a new SSA Program initially containing no

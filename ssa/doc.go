@@ -59,6 +59,7 @@
 //   *ChangeType        ✔               ✔
 //   *Const             ✔
 //   *Convert           ✔               ✔
+//   *DebugRef                          ✔
 //   *Defer                             ✔
 //   *Extract           ✔               ✔
 //   *Field             ✔               ✔
@@ -86,7 +87,9 @@
 //   *Ret                               ✔
 //   *RunDefers                         ✔
 //   *Select            ✔               ✔
+//   *Send                              ✔
 //   *Slice             ✔               ✔
+//   *Store                             ✔
 //   *Type                                              ✔ (type)
 //   *TypeAssert        ✔               ✔
 //   *UnOp              ✔               ✔
@@ -110,16 +113,14 @@
 // TODO(adonovan): Consider the exceptional control-flow implications
 // of defer and recover().
 //
-// TODO(adonovan): Consider how token.Pos source location information
-// should be made available generally.  Currently it is only present
-// in package Members and selected Instructions for which there is a
-// direct source correspondence.  We'll need to work harder to tie all
-// defs/uses of named variables together, esp. because SSA splits them
-// into separate webs.
-//
 // TODO(adonovan): write an example showing how to visit all functions
 // in a Program, including package init functions, methods of named
 // and anon types, and functions used as values but never called
-// directly.
+// directly.  See AllFunctions().
+//
+// TODO(adonovan): write a how-to document for all the various cases
+// of trying to determine corresponding elements across the four
+// domains of source locations, ast.Nodes, types.Objects,
+// ssa.Values/Instructions.
 //
 package ssa

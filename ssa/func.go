@@ -374,10 +374,18 @@ func (f *Function) removeNilBlocks() {
 	f.Blocks = f.Blocks[:j]
 }
 
+// SetDebugMode sets the debug mode for package pkg.  If true, all its
+// functions will include full debug info.  This greatly increases
+// the size of the instruction stream.
+//
+func (pkg *Package) SetDebugMode(debug bool) {
+	// TODO(adonovan): do we want ast.File granularity?
+	pkg.debug = debug
+}
+
 // debugInfo reports whether debug info is wanted for this function.
 func (f *Function) debugInfo() bool {
-	// TODO(adonovan): make the policy finer grained.
-	return f.Prog.mode&DebugInfo != 0
+	return f.Pkg.debug
 }
 
 // addNamedLocal creates a local variable, adds it to function f and

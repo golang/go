@@ -41,6 +41,7 @@ type Package struct {
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package-level vars & funcs (incl. methods), keyed by object
 	init    *Function              // Func("init"); the package's (concatenated) init function
+	debug   bool                   // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
@@ -125,14 +126,20 @@ type Value interface {
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
 
-	// Pos returns the location of the source construct that
-	// gave rise to this value, or token.NoPos if it was not
-	// explicit in the source.
+	// Pos returns the location of the AST token most closely
+	// associated with the operation that gave rise to this value,
+	// or token.NoPos if it was not explicit in the source.
 	//
-	// For each ast.Expr type, a particular field is designated as
-	// the canonical location for the expression, e.g. the Lparen
-	// for an *ast.CallExpr.  This enables us to find the value
-	// corresponding to a given piece of source syntax.
+	// For each ast.Node type, a particular token is designated as
+	// the closest location for the expression, e.g. the Lparen
+	// for an *ast.CallExpr.  This permits a compact but
+	// approximate mapping from Values to source positions for use
+	// in diagnostic messages, for example.
+	//
+	// (Do not use this position to determine which Value
+	// corresponds to an ast.Expr; use Function.ValueForExpr
+	// instead.  NB: it requires that the function was built with
+	// debug information.)
 	//
 	Pos() token.Pos
 }
@@ -191,15 +198,22 @@ type Instruction interface {
 	// Values.)
 	Operands(rands []*Value) []*Value
 
-	// Pos returns the location of the source construct that
-	// gave rise to this instruction, or token.NoPos if it was not
-	// explicit in the source.
+	// Pos returns the location of the AST token most closely
+	// associated with the operation that gave rise to this
+	// instruction, or token.NoPos if it was not explicit in the
+	// source.
 	//
-	// For each ast.Expr type, a particular field is designated as
-	// the canonical location for the expression, e.g. the Lparen
-	// for an *ast.CallExpr.  This enables us to find the
-	// instruction corresponding to a given piece of source
-	// syntax.
+	// For each ast.Node type, a particular token is designated as
+	// the closest location for the expression, e.g. the Go token
+	// for an *ast.GoStmt.  This permits a compact but approximate
+	// mapping from Instructions to source positions for use in
+	// diagnostic messages, for example.
+	//
+	// (Do not use this position to determine which Instruction
+	// corresponds to an ast.Expr; see the notes for Value.Pos.
+	// This position may be used to determine which non-Value
+	// Instruction corresponds to some ast.Stmts, but not all: If
+	// and Jump instructions have no Pos(), for example.)
 	//
 	Pos() token.Pos
 }
@@ -791,10 +805,11 @@ type Lookup struct {
 // It represents one goal state and its corresponding communication.
 //
 type SelectState struct {
-	Dir  ast.ChanDir // direction of case
-	Chan Value       // channel to use (for send or receive)
-	Send Value       // value to send (for send)
-	Pos  token.Pos   // position of token.ARROW
+	Dir       ast.ChanDir // direction of case
+	Chan      Value       // channel to use (for send or receive)
+	Send      Value       // value to send (for send)
+	Pos       token.Pos   // position of token.ARROW
+	DebugNode ast.Node    // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
 }
 
 // The Select instruction tests whether (or blocks until) one or more
@@ -834,7 +849,7 @@ type SelectState struct {
 //
 type Select struct {
 	Register
-	States   []SelectState
+	States   []*SelectState
 	Blocking bool
 }
 
@@ -906,8 +921,9 @@ type Next struct {
 //
 // Pos() returns the ast.CallExpr.Lparen if the instruction arose from
 // an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
-// instruction arose from an explicit e.(T) operation; or token.NoPos
-// otherwise.
+// instruction arose from an explicit e.(T) operation; or the
+// ast.CaseClause.Case if the instruction arose from a case of a
+// type-switch statement.
 //
 // Example printed form:
 // 	t1 = typeassert t0.(int)
@@ -1037,6 +1053,8 @@ type Panic struct {
 //
 // See CallCommon for generic function call documentation.
 //
+// Pos() returns the ast.GoStmt.Go.
+//
 // Example printed form:
 // 	go println(t0, t1)
 // 	go t3()
@@ -1045,12 +1063,15 @@ type Panic struct {
 type Go struct {
 	anInstruction
 	Call CallCommon
+	pos  token.Pos
 }
 
 // The Defer instruction pushes the specified call onto a stack of
 // functions to be called by a RunDefers instruction or by a panic.
 //
 // See CallCommon for generic function call documentation.
+//
+// Pos() returns the ast.DeferStmt.Defer.
 //
 // Example printed form:
 // 	defer println(t0, t1)
@@ -1060,6 +1081,7 @@ type Go struct {
 type Defer struct {
 	anInstruction
 	Call CallCommon
+	pos  token.Pos
 }
 
 // The Send instruction sends X on channel Chan.
@@ -1107,15 +1129,15 @@ type MapUpdate struct {
 }
 
 // A DebugRef instruction provides the position information for a
-// specific source-level reference that denotes the SSA value X.
+// specific source-level expression that compiles to the SSA value X.
 //
 // DebugRef is a pseudo-instruction: it has no dynamic effect.
 //
-// Pos() returns the ast.Ident or ast.Selector.Sel of the source-level
-// reference.
+// Pos() returns Expr.Pos(), the position of the source-level
+// expression.
 //
-// Object() returns the source-level (var/const) object denoted by
-// that reference.
+// Object() returns the source-level (var/const/func) object denoted
+// by Expr if it is an *ast.Ident; otherwise it is nil.
 //
 // (By representing these as instructions, rather than out-of-band,
 // consistency is maintained during transformation passes by the
@@ -1124,8 +1146,8 @@ type MapUpdate struct {
 type DebugRef struct {
 	anInstruction
 	X      Value        // the value whose position we're declaring
-	pos    token.Pos    // location of the reference
-	object types.Object // the identity of the source var/const
+	Expr   ast.Expr     // the referring expression
+	object types.Object // the identity of the source var/const/func
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
@@ -1385,8 +1407,8 @@ func (p *Package) Type(name string) (t *Type) {
 }
 
 func (v *Call) Pos() token.Pos      { return v.Call.pos }
-func (s *Defer) Pos() token.Pos     { return s.Call.pos }
-func (s *Go) Pos() token.Pos        { return s.Call.pos }
+func (s *Defer) Pos() token.Pos     { return s.pos }
+func (s *Go) Pos() token.Pos        { return s.pos }
 func (s *MapUpdate) Pos() token.Pos { return s.pos }
 func (s *Panic) Pos() token.Pos     { return s.pos }
 func (s *Ret) Pos() token.Pos       { return s.pos }
@@ -1395,7 +1417,7 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
-func (s *DebugRef) Pos() token.Pos  { return s.pos }
+func (s *DebugRef) Pos() token.Pos  { return s.Expr.Pos() }
 
 // Operands.
 

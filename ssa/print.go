@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"io"
+	"reflect"
 	"sort"
 
 	"code.google.com/p/go.tools/go/types"
@@ -348,8 +349,14 @@ func (s *MapUpdate) String() string {
 }
 
 func (s *DebugRef) String() string {
-	p := s.Parent().Prog.Fset.Position(s.pos)
-	return fmt.Sprintf("; %s is %s @ %d:%d", s.X.Name(), s.object, p.Line, p.Column)
+	p := s.Parent().Prog.Fset.Position(s.Pos())
+	var descr interface{}
+	if s.object != nil {
+		descr = s.object // e.g. "var x int"
+	} else {
+		descr = reflect.TypeOf(s.Expr) // e.g. "*ast.CallExpr"
+	}
+	return fmt.Sprintf("; %s is %s @ %d:%d", s.X.Name(), descr, p.Line, p.Column)
 }
 
 func (p *Package) String() string {

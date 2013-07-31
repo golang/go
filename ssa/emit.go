@@ -31,22 +31,28 @@ func emitLoad(f *Function, addr Value) *UnOp {
 }
 
 // emitDebugRef emits to f a DebugRef pseudo-instruction associating
-// reference id with local var/const value v.
+// expression e with value v.
 //
-func emitDebugRef(f *Function, id *ast.Ident, v Value) {
+func emitDebugRef(f *Function, e ast.Expr, v Value) {
 	if !f.debugInfo() {
 		return // debugging not enabled
 	}
-	if isBlankIdent(id) {
-		return
+	if v == nil || e == nil {
+		panic("nil")
 	}
-	obj := f.Pkg.objectOf(id)
-	if obj.Parent() == types.Universe {
-		return // skip nil/true/false
+	var obj types.Object
+	if id, ok := e.(*ast.Ident); ok {
+		if isBlankIdent(id) {
+			return
+		}
+		obj = f.Pkg.objectOf(id)
+		if _, ok := obj.(*types.Const); ok {
+			return
+		}
 	}
 	f.emit(&DebugRef{
 		X:      v,
-		pos:    id.Pos(),
+		Expr:   unparen(e),
 		object: obj,
 	})
 }

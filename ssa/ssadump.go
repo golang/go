@@ -54,11 +54,12 @@ func main() {
 
 	impctx := importer.Config{Loader: importer.MakeGoBuildLoader(nil)}
 
+	var debugMode bool
 	var mode ssa.BuilderMode
 	for _, c := range *buildFlag {
 		switch c {
 		case 'D':
-			mode |= ssa.DebugInfo
+			debugMode = true
 		case 'P':
 			mode |= ssa.LogPackages | ssa.BuildSerially
 		case 'F':
@@ -115,7 +116,7 @@ func main() {
 	// Create and build SSA-form program representation.
 	prog := ssa.NewProgram(imp.Fset, mode)
 	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+		prog.CreatePackage(info).SetDebugMode(debugMode)
 	}
 	prog.BuildAll()
 
