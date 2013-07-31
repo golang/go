@@ -24,7 +24,7 @@ type T struct {
 	U16         uint16
 	X           string
 	FloatZero   float64
-	ComplexZero float64
+	ComplexZero complex128
 	// Nested structs.
 	U *U
 	// Struct with String method.
