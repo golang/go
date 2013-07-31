@@ -61,6 +61,11 @@ var matchTests = []MatchTest{
 	{"[-x]", "a", false, ErrBadPattern},
 	{"\\", "a", false, ErrBadPattern},
 	{"[a-b-c]", "a", false, ErrBadPattern},
+	{"[", "a", false, ErrBadPattern},
+	{"[^", "a", false, ErrBadPattern},
+	{"[^bc", "a", false, ErrBadPattern},
+	{"a[", "a", false, nil},
+	{"a[", "ab", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 

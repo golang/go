@@ -132,6 +132,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 			r, n := utf8.DecodeRuneInString(s)
 			s = s[n:]
 			chunk = chunk[1:]
+			// We can't end right after '[', we're expecting at least
+			// a closing bracket and possibly a caret.
+			if len(chunk) == 0 {
+				err = ErrBadPattern
+				return
+			}
 			// possibly negated
 			negated := chunk[0] == '^'
 			if negated {
