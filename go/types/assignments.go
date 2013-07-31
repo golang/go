@@ -72,12 +72,12 @@ func (check *checker) initConst(lhs *Const, x *operand) {
 	lhs.val = x.val
 }
 
-func (check *checker) initVar(lhs *Var, x *operand) {
+func (check *checker) initVar(lhs *Var, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		return // nothing else to check
+		return nil // nothing else to check
 	}
 
 	// If the lhs doesn't have a type yet, use the type of x.
@@ -88,7 +88,7 @@ func (check *checker) initVar(lhs *Var, x *operand) {
 			if typ == Typ[UntypedNil] {
 				check.errorf(x.pos(), "use of untyped nil")
 				lhs.typ = Typ[Invalid]
-				return // nothing else to check
+				return nil // nothing else to check
 			}
 			typ = defaultType(typ)
 		}
@@ -99,30 +99,45 @@ func (check *checker) initVar(lhs *Var, x *operand) {
 		if x.mode != invalid {
 			check.errorf(x.pos(), "cannot initialize variable %s (type %s) with %s", lhs.Name(), lhs.typ, x)
 		}
+		return nil
 	}
+
+	return lhs.typ
 }
 
-func (check *checker) assignVar(lhs ast.Expr, x *operand) {
+func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] {
-		return
+		return nil
 	}
 
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident, _ := lhs.(*ast.Ident); ident != nil && ident.Name == "_" {
 		check.recordObject(ident, nil)
-		check.updateExprType(x.expr, x.typ, true) // rhs has its final type
-		return
+		// If the lhs is untyped, determine the default type.
+		// The spec is unclear about this, but gc appears to
+		// do this.
+		typ := x.typ
+		if isUntyped(typ) {
+			// convert untyped types to default types
+			if typ == Typ[UntypedNil] {
+				check.errorf(x.pos(), "use of untyped nil")
+				return nil // nothing else to check
+			}
+			typ = defaultType(typ)
+		}
+		check.updateExprType(x.expr, typ, true) // rhs has its final type
+		return typ
 	}
 
 	var z operand
 	check.expr(&z, lhs)
 	if z.mode == invalid || z.typ == Typ[Invalid] {
-		return
+		return nil
 	}
 
 	if z.mode == constant || z.mode == value {
 		check.errorf(z.pos(), "cannot assign to non-variable %s", &z)
-		return
+		return nil
 	}
 
 	// TODO(gri) z.mode can also be valueok which in some cases is ok (maps)
@@ -132,7 +147,10 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) {
 		if x.mode != invalid {
 			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
 		}
+		return nil
 	}
+
+	return z.typ
 }
 
 func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
@@ -182,15 +200,17 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 
 		if allowCommaOk && x.mode == valueok && l == 2 {
 			// comma-ok expression
-			check.recordCommaOkType(rhs, x.typ)
-
 			x.mode = value
-			check.initVar(lhs[0], &x)
+			t1 := check.initVar(lhs[0], &x)
 
 			x.mode = value
 			x.expr = rhs
 			x.typ = Typ[UntypedBool]
-			check.initVar(lhs[1], &x)
+			t2 := check.initVar(lhs[1], &x)
+
+			if t1 != nil && t2 != nil {
+				check.recordCommaOkTypes(rhs, t1, t2)
+			}
 			return
 		}
 	}
@@ -245,15 +265,17 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 
 		if x.mode == valueok && l == 2 {
 			// comma-ok expression
-			check.recordCommaOkType(rhs, x.typ)
-
 			x.mode = value
-			check.assignVar(lhs[0], &x)
+			t1 := check.assignVar(lhs[0], &x)
 
 			x.mode = value
 			x.expr = rhs
 			x.typ = Typ[UntypedBool]
-			check.assignVar(lhs[1], &x)
+			t2 := check.assignVar(lhs[1], &x)
+
+			if t1 != nil && t2 != nil {
+				check.recordCommaOkTypes(rhs, t1, t2)
+			}
 			return
 		}
 	}

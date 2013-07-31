@@ -34,19 +34,23 @@ func TestCommaOkTypes(t *testing.T) {
 	var tests = []struct {
 		src  string
 		expr string // comma-ok expression string
-		typ  Type   // type of first comma-ok value
+		typ  string // typestring of comma-ok value
 	}{
 		{`package p; var x interface{}; var _, _ = x.(int)`,
 			`x.(int)`,
-			Typ[Int],
+			`(int, bool)`,
 		},
-		{`package p; var m map[string]complex128; var _, _ = m["foo"]`,
+		{`package p; var x interface{}; func _() { _, _ = x.(int) }`,
+			`x.(int)`,
+			`(int, bool)`,
+		},
+		{`package p; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
 			`m["foo"]`,
-			Typ[Complex128],
+			`(complex128, p.mybool)`,
 		},
 		{`package p; var c chan string; var _, _ = <-c`,
 			`<-c`,
-			Typ[String],
+			`(string, bool)`,
 		},
 	}
 
@@ -75,13 +79,8 @@ func TestCommaOkTypes(t *testing.T) {
 		}
 
 		// check that type is correct
-		got, _ := typ.(*Tuple)
-		want := NewTuple(
-			NewVar(token.NoPos, nil, "", test.typ),
-			NewVar(token.NoPos, nil, "", Typ[UntypedBool]),
-		)
-		if got == nil || !identicalTuples(got, want) {
-			t.Errorf("%s: got %s; want %s", path, got, want)
+		if got := typ.String(); got != test.typ {
+			t.Errorf("%s: got %s; want %s", path, got, test.typ)
 		}
 	}
 }

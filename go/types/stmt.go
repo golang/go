@@ -509,6 +509,7 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 			val = typ.elt
 		case *Chan:
 			key = typ.elt
+			val = Typ[Invalid]
 			if typ.dir&ast.RECV == 0 {
 				check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
 				// ok to continue

@@ -82,14 +82,14 @@ func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) 
 	}
 }
 
-func (check *checker) recordCommaOkType(x ast.Expr, typ Type) {
-	assert(x != nil && typ != nil)
+func (check *checker) recordCommaOkTypes(x ast.Expr, t1, t2 Type) {
+	assert(x != nil && !isUntyped(t1) && !isUntyped(t2) && isBoolean(t2))
 	if m := check.Types; m != nil {
 		assert(m[x] != nil) // should have been recorded already
 		pos := x.Pos()
 		m[x] = NewTuple(
-			NewVar(pos, check.pkg, "", typ),
-			NewVar(pos, check.pkg, "", Typ[UntypedBool]),
+			NewVar(pos, check.pkg, "", t1),
+			NewVar(pos, check.pkg, "", t2),
 		)
 	}
 }
