@@ -259,6 +259,9 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 }
 
 func TestDirJoin(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping test on windows")
+	}
 	wfi, err := os.Stat("/etc/hosts")
 	if err != nil {
 		t.Skip("skipping test; no /etc/hosts file")
