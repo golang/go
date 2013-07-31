@@ -421,16 +421,16 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
 {
 	int32 res, bit;
 
-	if(v >= div*0x7fffffffLL) {
+	if(v >= (int64)div*0x7fffffffLL) {
 		if(rem != nil)
 			*rem = 0;
 		return 0x7fffffff;
 	}
 	res = 0;
-	for(bit = 0x40000000; bit != 0; bit >>= 1) {
-		if(v >= (int64)bit*div) {
-			v = v - (int64)bit*div;
-			res += bit;
+	for(bit = 30; bit >= 0; bit--) {
+		if(v >= ((int64)div<<bit)) {
+			v = v - ((int64)div<<bit);
+			res += 1<<bit;
 		}
 	}
 	if(rem != nil)
