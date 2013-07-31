@@ -96,12 +96,12 @@ struct Hmap
 {
 	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
 	uint32  flags;
+	uint32 hash0;        // hash seed
 	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
 	uint8   keysize;      // key size in bytes
 	uint8   valuesize;    // value size in bytes
 	uint16  bucketsize;   // bucket size in bytes
 
-	uintptr hash0;        // hash seed
 	byte    *buckets;     // array of 2^B Buckets. may be nil if count==0.
 	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
 	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)

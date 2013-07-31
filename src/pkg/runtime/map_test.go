@@ -371,3 +371,41 @@ func testMapLookups(t *testing.T, m map[string]string) {
 		}
 	}
 }
+
+func TestMapSize(t *testing.T) {
+	var m map[struct{}]struct{}
+	size := bytesPerRun(100, func() {
+		m = make(map[struct{}]struct{})
+	})
+	if size > 48 {
+		t.Errorf("size = %v; want <= 48", size)
+	}
+}
+
+// like testing.AllocsPerRun, but for bytes of memory, not number of allocations.
+func bytesPerRun(runs int, f func()) (avg float64) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	// Warm up the function
+	f()
+
+	// Measure the starting statistics
+	var memstats runtime.MemStats
+	runtime.ReadMemStats(&memstats)
+	sum := 0 - memstats.Alloc
+
+	// Run the function the specified number of times
+	for i := 0; i < runs; i++ {
+		f()
+	}
+
+	// Read the final statistics
+	runtime.ReadMemStats(&memstats)
+	sum += memstats.Alloc
+
+	// Average the mallocs over the runs (not counting the warm-up).
+	// We are forced to return a float64 because the API is silly, but do
+	// the division as integers so we can ask if AllocsPerRun()==1
+	// instead of AllocsPerRun()<2.
+	return float64(sum / uint64(runs))
+}
