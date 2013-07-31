@@ -118,7 +118,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// Most functions have a fixed-size argument block,
 		// so we can use metadata about the function f.
 		// Not all, though: there are some variadic functions
-		// in package runtime, and for those we use call-specific
+		// in package runtime and reflect, and for those we use call-specific
 		// metadata recorded by f's caller.
 		if(callback != nil || printing) {
 			frame.argp = (byte*)frame.fp;
