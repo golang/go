@@ -156,8 +156,8 @@
 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
 		Invalid or invalid use of argument index: %!(BADINDEX)
-			Printf("%*[2]d", 7):       %d(BADINDEX)
-			Printf("%.[2]d", 7):       %d(BADINDEX)
+			Printf("%*[2]d", 7):       %d!(BADINDEX)
+			Printf("%.[2]d", 7):       %d!(BADINDEX)
 
 	All errors begin with the string "%!" followed sometimes
 	by a single character (the verb) and end with a parenthesized
