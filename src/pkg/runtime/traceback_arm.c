@@ -9,8 +9,6 @@
 
 void runtime·sigpanic(void);
 
-static String unknown = { (uint8*)"?", 1 };
-
 int32
 runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
 {
