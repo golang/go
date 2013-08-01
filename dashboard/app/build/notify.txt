@@ -1,0 +1,9 @@
+Change {{shortHash .Commit.Hash}} broke the {{.Builder}} build:
+http://{{.Hostname}}/log/{{.Result.LogHash}}
+
+{{.Commit.Desc}}
+
+http://code.google.com/p/go/source/detail?r={{shortHash .Commit.Hash}}
+
+$ tail -200 < log
+{{printf "%s" .Log.Text | tail 200}}

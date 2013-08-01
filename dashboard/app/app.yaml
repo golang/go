@@ -1,0 +1,20 @@
+# Update with
+#	google_appengine/appcfg.py [-V test-build] update .
+#
+# Using -V test-build will run as test-build.golang.org.
+
+application: golang-org
+version: build
+runtime: go
+api_version: go1
+
+handlers:
+- url: /static
+  static_dir: static
+- url: /log/.+
+  script: _go_app
+- url: /(|commit|packages|result|tag|todo)
+  script: _go_app
+- url: /(init|buildtest|key|_ah/queue/go/delay)
+  script: _go_app
+  login: admin

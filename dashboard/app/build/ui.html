@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>Go Build Dashboard</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 0; margin: 0;
+      }
+      h1, h2 {
+        margin: 0;
+        padding: 5px;
+      }
+      h1 {
+        background: #eee;
+      }
+      h2 {
+        margin-top: 20px;
+      }
+      .build, .packages {
+        margin: 5px;
+        border-collapse: collapse;
+      }
+      .build td, .build th, .packages td, .packages th {
+        vertical-align: top;
+        padding: 2px 4px;
+        font-size: 10pt;
+      }
+      .build tr.commit:nth-child(2n) {
+        background-color: #f0f0f0;
+      }
+      .build .hash {
+        font-family: monospace;
+        font-size: 9pt;
+      }
+      .build .result {
+        text-align: center;
+        width: 2em;
+      }
+      .col-hash, .col-result {
+        border-right: solid 1px #ccc;
+      }
+      .build .arch {
+        font-size: 66%;
+        font-weight: normal;
+      }
+      .build .time {
+        color: #666;
+      }
+      .build .ok {
+        font-size: 83%;
+      }
+      .build .desc, .build .time, .build .user {
+        white-space: nowrap;
+      }
+      .paginate {
+        padding: 0.5em;
+      }
+      .paginate a {
+        padding: 0.5em;
+        background: #eee;
+        color: blue;
+      }
+      .paginate a.inactive {
+        color: #999;
+      }
+      .fail {
+        color: #C00;
+      }
+    </style>
+  </head>
+  <body>
+
+    <h1>Go Build Status</h1>
+
+  {{if $.Commits}}
+
+    <table class="build">
+      <colgroup class="col-hash"></colgroup>
+    {{range $.Builders | builderSpans}}
+      <colgroup class="col-result" span="{{.N}}"></colgroup>
+    {{end}}
+      <colgroup class="col-user"></colgroup>
+      <colgroup class="col-time"></colgroup>
+      <colgroup class="col-desc"></colgroup>
+      <tr>
+        <!-- extra row to make alternating colors use dark for first result -->
+      </tr>
+      <tr>
+        <th>&nbsp;</th>
+    {{range $.Builders | builderSpans}}
+        <th colspan="{{.N}}">{{.OS}}</th>
+    {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
+      <tr>
+        <th>&nbsp;</th>
+    {{range $.Builders}}
+        <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+    {{end}}
+      </tr>
+    {{range $c := $.Commits}}
+      <tr class="commit">
+        <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
+        {{range $.Builders}}
+          <td class="result">
+            {{with $c.Result . ""}}
+              {{if .OK}}
+                <span class="ok">ok</span>
+              {{else}}
+                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+              {{end}}
+            {{else}}
+              &nbsp;
+            {{end}}
+          </td>
+        {{end}}
+        <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+        <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
+        <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+      </tr>
+    {{end}}
+    </table>
+
+    {{with $.Pagination}}
+    <div class="paginate">
+      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
+      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
+      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
+    </div>
+    {{end}}
+
+  {{else}}
+    <p>No commits to display. Hm.</p>
+  {{end}}
+
+  {{with $.TipState}}
+    {{$goHash := .Tag.Hash}}
+    <h2>
+      Sub-repositories at tip
+      <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
+    </h2>
+
+    <table class="build">
+      <colgroup class="col-package"></colgroup>
+      <colgroup class="col-hash"></colgroup>
+      {{range $.Builders | builderSpans}}
+        <colgroup class="col-result" span="{{.N}}"></colgroup>
+      {{end}}
+      <colgroup class="col-user"></colgroup>
+      <colgroup class="col-time"></colgroup>
+      <colgroup class="col-desc"></colgroup>
+      <tr>
+        <!-- extra row to make alternating colors use dark for first result -->
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        {{range $.Builders | builderSpans}}
+          <th colspan="{{.N}}">{{.OS}}</th>
+        {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        {{range $.Builders}}
+          <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+        {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
+    {{range $pkg := .Packages}}
+      <tr class="commit">
+        <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
+        <td class="hash">
+          {{$h := $pkg.Commit.Hash}}
+          <a href="{{repoURL $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
+        </td>
+        {{range $.Builders}}
+          <td class="result">
+            {{with $pkg.Commit.Result . $goHash}}
+              {{if .OK}}
+                <span class="ok">ok</span>
+              {{else}}
+                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+              {{end}}
+            {{else}}
+              &nbsp;
+            {{end}}
+          </td>
+        {{end}}
+        {{with $pkg.Commit}}
+          <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+          <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
+          <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+        {{end}}
+      </tr>
+    {{end}}
+    </table>
+  {{end}}
+
+  </body>
+</html>
