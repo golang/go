@@ -97,11 +97,11 @@ func main() {
 	// # Location: hello.go:8:6
 	// func main():
 	// .0.entry:                                                               P:0 S:0
-	// 	a0 = new [1]interface{}                                 *[1]interface{}
-	// 	t0 = &a0[0:untyped integer]                                *interface{}
-	// 	t1 = make interface{} <- string ("Hello, World!":string)    interface{}
-	// 	*t0 = t1
-	// 	t2 = slice a0[:]                                          []interface{}
-	// 	t3 = fmt.Println(t2)                                 (n int, err error)
+	// 	t0 = new [1]interface{} (varargs)                       *[1]interface{}
+	// 	t1 = &t0[0:untyped integer]                                *interface{}
+	// 	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
+	// 	*t1 = t2
+	// 	t3 = slice t0[:]                                          []interface{}
+	// 	t4 = fmt.Println(t3)                                 (n int, err error)
 	// 	ret
 }

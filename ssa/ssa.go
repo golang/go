@@ -437,13 +437,10 @@ type Builtin struct {
 // 	t1 = new int
 //
 type Alloc struct {
-	anInstruction
-	name      string
-	typ       types.Type
-	Heap      bool
-	pos       token.Pos
-	referrers []Instruction
-	index     int // dense numbering; for lifting
+	Register
+	Comment string
+	Heap    bool
+	index   int // dense numbering; for lifting
 }
 
 // The Phi instruction represents an SSA φ-node, which combines values
@@ -1339,7 +1336,6 @@ func (v *Parameter) Pos() token.Pos            { return v.pos }
 func (v *Parameter) Parent() *Function         { return v.parent }
 
 func (v *Alloc) Type() types.Type          { return v.typ }
-func (v *Alloc) Name() string              { return v.name }
 func (v *Alloc) Referrers() *[]Instruction { return &v.referrers }
 func (v *Alloc) Pos() token.Pos            { return v.pos }
 

@@ -77,7 +77,7 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s", op, deref(v.Type()))
+	return fmt.Sprintf("%s %s (%s)", op, deref(v.Type()), v.Comment)
 }
 
 func (v *Phi) String() string {

@@ -12,12 +12,12 @@ import (
 // emitNew emits to f a new (heap Alloc) instruction allocating an
 // object of type typ.  pos is the optional source location.
 //
-func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
-	return f.emit(&Alloc{
-		typ:  types.NewPointer(typ),
-		Heap: true,
-		pos:  pos,
-	})
+func emitNew(f *Function, typ types.Type, pos token.Pos) *Alloc {
+	v := &Alloc{Heap: true}
+	v.setType(types.NewPointer(typ))
+	v.setPos(pos)
+	f.emit(v)
+	return v
 }
 
 // emitLoad emits to f an instruction to load the address addr into a

@@ -303,7 +303,9 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		}
 
 	case "new":
-		return emitNew(fn, deref(typ), pos)
+		alloc := emitNew(fn, deref(typ), pos)
+		alloc.Comment = "new"
+		return alloc
 
 	case "len", "cap":
 		// Special case: len or cap of an array or *array is
@@ -367,12 +369,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
-		var v Value
+		var v *Alloc
 		if escaping {
 			v = emitNew(fn, t, e.Lbrace)
 		} else {
 			v = fn.addLocal(t, e.Lbrace)
 		}
+		v.Comment = "complit"
 		b.compLit(fn, v, e, t) // initialize in place
 		return &address{addr: v, expr: e}
 
@@ -875,6 +878,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 			at := types.NewArray(vt, int64(len(varargs)))
 			// Don't set pos for implicit Allocs.
 			a := emitNew(fn, at, token.NoPos)
+			a.Comment = "varargs"
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{
 					X:     a,
@@ -1186,7 +1190,9 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 		switch t := t.(type) {
 		case *types.Slice:
 			at = types.NewArray(t.Elem(), b.arrayLen(fn, e.Elts))
-			array = emitNew(fn, at, e.Lbrace)
+			alloc := emitNew(fn, at, e.Lbrace)
+			alloc.Comment = "slicelit"
+			array = alloc
 		case *types.Array:
 			at = t
 			array = addr

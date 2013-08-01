@@ -195,11 +195,9 @@ func (f *Function) addParamObj(obj types.Object) *Parameter {
 //
 func (f *Function) addSpilledParam(obj types.Object) {
 	param := f.addParamObj(obj)
-	spill := &Alloc{
-		name: obj.Name() + "~", // "~" means "spilled"
-		typ:  types.NewPointer(obj.Type()),
-		pos:  obj.Pos(),
-	}
+	spill := &Alloc{Comment: obj.Name()}
+	spill.setType(types.NewPointer(obj.Type()))
+	spill.setPos(obj.Pos())
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
 	f.emit(spill)
@@ -266,21 +264,12 @@ func (f *Function) createSyntacticParams() {
 // numberRegisters assigns numbers to all SSA registers
 // (value-defining Instructions) in f, to aid debugging.
 // (Non-Instruction Values are named at construction.)
-// NB: named Allocs retain their existing name.
-// TODO(adonovan): when we have source position info,
-// preserve names only for source locals.
 //
 func numberRegisters(f *Function) {
-	a, v := 0, 0
+	v := 0
 	for _, b := range f.Blocks {
 		for _, instr := range b.Instrs {
-			switch instr := instr.(type) {
-			case *Alloc:
-				// Allocs may be named at birth.
-				if instr.name == "" {
-					instr.name = fmt.Sprintf("a%d", a)
-					a++
-				}
+			switch instr.(type) {
 			case Value:
 				instr.(interface {
 					setNum(int)
@@ -396,7 +385,7 @@ func (f *Function) debugInfo() bool {
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos())
-	l.name = obj.Name()
+	l.Comment = obj.Name()
 	f.objects[obj] = l
 	return l
 }
@@ -409,7 +398,9 @@ func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
 // to function f and returns it.  pos is the optional source location.
 //
 func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
-	v := &Alloc{typ: types.NewPointer(typ), pos: pos}
+	v := &Alloc{}
+	v.setType(types.NewPointer(typ))
+	v.setPos(pos)
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v

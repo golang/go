@@ -606,7 +606,7 @@ func NodeDescription(n ast.Node) string {
 	case *ast.SwitchStmt:
 		return "switch statement"
 	case *ast.TypeAssertExpr:
-		return "type assertioh"
+		return "type assertion"
 	case *ast.TypeSpec:
 		return "type specification"
 	case *ast.TypeSwitchStmt:
