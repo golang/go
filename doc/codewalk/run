@@ -17,5 +17,5 @@ echo foo | go run markov.go | grep foo > /dev/null || fail markov
 go run pig.go | grep 'Wins, losses staying at k = 100: 210/990 (21.2%), 780/990 (78.8%)' > /dev/null || fail pig
 
 # sharemem.xml: only build the example, as it uses the network
-go build -o /dev/null urlpoll.go || fail urlpoll
-
+go build urlpoll.go || fail urlpoll
+rm -f urlpoll
