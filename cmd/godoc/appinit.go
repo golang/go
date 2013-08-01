@@ -40,10 +40,10 @@ func init() {
 	corpus.Verbose = false
 	corpus.IndexEnabled = true
 	corpus.IndexFiles = indexFilenames
-
 	if err := corpus.Init(); err != nil {
 		log.Fatal(err)
 	}
+	go corups.RunIndexer()
 
 	pres = godoc.NewPresentation(corpus)
 	pres.TabWidth = 8
