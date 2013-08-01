@@ -305,7 +305,11 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			}
 
 			x.mode = value
-			x.typ = obj.typ
+
+			// remove receiver
+			sig := *obj.typ.(*Signature)
+			sig.recv = nil
+			x.typ = &sig
 
 		default:
 			unreachable()

@@ -37,6 +37,7 @@ func sanityCheck(fn *Function, reporter io.Writer) bool {
 //
 func mustSanityCheck(fn *Function, reporter io.Writer) {
 	if !sanityCheck(fn, reporter) {
+		fn.DumpTo(os.Stderr)
 		panic("SanityCheck failed")
 	}
 }
@@ -141,7 +142,17 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *Lookup:
 	case *MakeChan:
 	case *MakeClosure:
-		// TODO(adonovan): check FreeVars count matches.
+		numFree := len(instr.Fn.(*Function).FreeVars)
+		numBind := len(instr.Bindings)
+		if numFree != numBind {
+			s.errorf("MakeClosure has %d Bindings for function %s with %d free vars",
+				numBind, instr.Fn, numFree)
+
+		}
+		if recv := instr.Type().(*types.Signature).Recv(); recv != nil {
+			s.errorf("MakeClosure's type includes receiver %s", recv.Type())
+		}
+
 	case *MakeInterface:
 	case *MakeMap:
 	case *MakeSlice:
