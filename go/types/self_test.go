@@ -42,9 +42,15 @@ func TestSelf(t *testing.T) {
 		return // skip benchmark in short mode
 	}
 
+	benchmark(fset, files, false)
+	benchmark(fset, files, true)
+}
+
+func benchmark(fset *token.FileSet, files []*ast.File, full bool) {
 	b := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			Check("go/types", fset, files)
+			conf := Config{IgnoreFuncBodies: !full}
+			conf.Check("go/types", fset, files, nil)
 		}
 	})
 

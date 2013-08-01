@@ -48,6 +48,10 @@ func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
+	// If IgnoreFuncBodies is set, function bodies are not
+	// type-checked.
+	IgnoreFuncBodies bool
+
 	// If Error != nil, it is called with each error found
 	// during type checking. The error strings of errors with
 	// detailed position information are formatted as follows:
@@ -99,7 +103,9 @@ type Info struct {
 	// If Objects != nil, it records the identifier and corresponding object
 	// for each identifier that is type-checked (including package names,
 	// dots "." of dot-imports, and blank "_" identifiers). For identifiers
-	// that were not declared due to an error, the corresponding object is nil.
+	// that are not declared (due to an error, or because they are symbolic
+	// as the t in t := x.(type) of a type switch header), the corresponding
+	// object is nil.
 	// BUG(gri) Label identifiers in break, continue, or goto statements
 	// are not recorded.
 	Objects map[*ast.Ident]Object

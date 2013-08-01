@@ -71,7 +71,7 @@ type funcInfo struct {
 // later appends a function with non-empty body to check.funcList.
 func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
 	// functions implemented elsewhere (say in assembly) have no body
-	if body != nil {
+	if !check.conf.IgnoreFuncBodies && body != nil {
 		check.funcList = append(check.funcList, funcInfo{f, sig, body})
 	}
 }
