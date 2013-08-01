@@ -59,7 +59,15 @@ TEXT _sfloat(SB), 7, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	64(R13), R1
 	WORD	$0xe128f001	// msr cpsr_f, r1
 	MOVW	$12(R13), R0
-	MOVM.IA.W	(R0), [R1-R12]
+	// Restore R1-R8 and R11-R12, but ignore the saved R9 (m) and R10 (g).
+	// Both are maintained by the runtime and always have correct values,
+	// so there is no need to restore old values here.
+	// The g should not have changed, but m may have, if we were preempted
+	// and restarted on a different thread, in which case restoring the old
+	// value is incorrect and will cause serious confusion in the runtime.
+	MOVM.IA.W	(R0), [R1-R8]
+	MOVW	$52(R13), R0
+	MOVM.IA.W	(R0), [R11-R12]
 	MOVW	8(R13), R0
 	RET
 
