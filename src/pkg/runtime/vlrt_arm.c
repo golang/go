@@ -425,9 +425,6 @@ _rshlv(Vlong *r, Vlong a, int b)
 void
 _lshv(Vlong *r, Vlong a, int b)
 {
-	ulong t;
-
-	t = a.lo;
 	if(b >= 32) {
 		r->lo = 0;
 		if(b >= 64) {
@@ -435,16 +432,16 @@ _lshv(Vlong *r, Vlong a, int b)
 			r->hi = 0;
 			return;
 		}
-		r->hi = t << (b-32);
+		r->hi = a.lo << (b-32);
 		return;
 	}
 	if(b <= 0) {
-		r->lo = t;
+		r->lo = a.lo;
 		r->hi = a.hi;
 		return;
 	}
-	r->lo = t << b;
-	r->hi = (t >> (32-b)) | (a.hi << b);
+	r->lo = a.lo << b;
+	r->hi = (a.lo >> (32-b)) | (a.hi << b);
 }
 
 void
@@ -722,6 +719,7 @@ _v2ul(Vlong rv)
 	return rv.lo;
 }
 
+#pragma textflag 7
 long
 _v2si(Vlong rv)
 {
@@ -775,6 +773,7 @@ _gtv(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo > rv.lo);
 }
 
+#pragma textflag 7
 int
 _gev(Vlong lv, Vlong rv)
 {
