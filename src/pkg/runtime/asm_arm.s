@@ -204,6 +204,10 @@ TEXT runtime·morestack(SB),7,$-4-0
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·newstack(SB)
 
+	// Not reached, but make sure the return PC from the call to newstack
+	// is still in this function, and not the beginning of the next.
+	RET
+
 // Called from reflection library.  Mimics morestack,
 // reuses stack growth code to create a frame
 // with the desired args running the desired function.
