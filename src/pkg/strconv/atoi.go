@@ -33,7 +33,8 @@ func rangeError(fn, str string) *NumError {
 
 const intSize = 32 << uint(^uint(0)>>63)
 
-const IntSize = intSize // number of bits in int, uint (32 or 64)
+// IntSize is the size in bits of an int or uint value.
+const IntSize = intSize
 
 // Return the first number n such that n*base >= 1<<64.
 func cutoff64(base int) uint64 {
