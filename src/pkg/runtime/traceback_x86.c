@@ -17,8 +17,6 @@ void runtime·sigpanic(void);
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
 
-static String unknown = { (uint8*)"?", 1 };
-
 // Generic traceback.  Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
