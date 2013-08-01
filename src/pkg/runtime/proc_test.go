@@ -94,9 +94,14 @@ func TestYieldLocked(t *testing.T) {
 }
 
 func TestGoroutineParallelism(t *testing.T) {
-	const P = 4
+	P := 4
+	N := 10
+	if testing.Short() {
+		P = 3
+		N = 3
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
-	for try := 0; try < 10; try++ {
+	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
 		for p := 0; p < P; p++ {
@@ -194,7 +199,10 @@ var preempt = func() int {
 
 func TestPreemption(t *testing.T) {
 	// Test that goroutines are preempted at function calls.
-	const N = 5
+	N := 5
+	if testing.Short() {
+		N = 2
+	}
 	c := make(chan bool)
 	var x uint32
 	for g := 0; g < 2; g++ {
@@ -214,7 +222,12 @@ func TestPreemption(t *testing.T) {
 
 func TestPreemptionGC(t *testing.T) {
 	// Test that pending GC preempts running goroutines.
-	const P = 5
+	P := 5
+	N := 10
+	if testing.Short() {
+		P = 3
+		N = 2
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P + 1))
 	var stop uint32
 	for i := 0; i < P; i++ {
@@ -224,7 +237,7 @@ func TestPreemptionGC(t *testing.T) {
 			}
 		}()
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < N; i++ {
 		runtime.Gosched()
 		runtime.GC()
 	}
