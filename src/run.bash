@@ -156,8 +156,8 @@ time ./run || exit 1
 ) || exit $?
 
 echo
-echo '#' ../misc/dashboard/builder ../misc/goplay
-go build ../misc/dashboard/builder ../misc/goplay
+echo '#' ../misc/goplay
+go build ../misc/goplay
 
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
