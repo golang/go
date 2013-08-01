@@ -4,6 +4,8 @@
 
 package main
 
+import "os/exec"
+
 func init() {
 	addBuildFlagsNX(cmdFmt)
 	addBuildFlagsNX(cmdDoc)
@@ -59,6 +61,11 @@ See also: go fix, go fmt, go vet.
 }
 
 func runDoc(cmd *Command, args []string) {
+	_, err := exec.LookPath("godoc")
+	if err != nil {
+		errorf("go doc: can't find godoc; to install:\n\tgo get code.google.com/p/go.tools/cmd/godoc")
+		return
+	}
 	for _, pkg := range packages(args) {
 		if pkg.ImportPath == "command-line arguments" {
 			errorf("go doc: cannot use package file list")
