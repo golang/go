@@ -372,6 +372,22 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
 
 func TestURLString(t *testing.T) {
 	DoTestString(t, Parse, "Parse", urltests)
+
+	// no leading slash on path should prepend
+	// slash on String() call
+	noslash := URLTest{
+		"http://www.google.com/search",
+		&URL{
+			Scheme: "http",
+			Host:   "www.google.com",
+			Path:   "search",
+		},
+		"",
+	}
+	s := noslash.out.String()
+	if s != noslash.in {
+		t.Errorf("Expected %s; go %s", noslash.in, s)
+	}
 }
 
 type EscapeTest struct {
