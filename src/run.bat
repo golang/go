@@ -61,8 +61,8 @@ if errorlevel 1 goto fail
 echo.
 :norace
 
-echo # ..\misc\dashboard\builder ..\misc\goplay
-go build ..\misc\dashboard\builder ..\misc\goplay
+echo # ..\misc\goplay
+go build ..\misc\goplay
 if errorlevel 1 goto fail
 echo.
 
