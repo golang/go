@@ -12,6 +12,7 @@ import (
 	"log"
 	. "net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -82,6 +83,29 @@ func TestServerContentType(t *testing.T) {
 		}
 		resp.Body.Close()
 	}
+}
+
+// Issue 5953: shouldn't sniff if the handler set a Content-Type header,
+// even if it's the empty string.
+func TestServerIssue5953(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header()["Content-Type"] = []string{""}
+		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
+	}))
+	defer ts.Close()
+
+	resp, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := resp.Header["Content-Type"]
+	want := []string{""}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Content-Type = %q; want %q", got, want)
+	}
+	resp.Body.Close()
 }
 
 func TestContentTypeWithCopy(t *testing.T) {
