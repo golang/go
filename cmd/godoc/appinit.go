@@ -43,7 +43,7 @@ func init() {
 	if err := corpus.Init(); err != nil {
 		log.Fatal(err)
 	}
-	go corups.RunIndexer()
+	go corpus.RunIndexer()
 
 	pres = godoc.NewPresentation(corpus)
 	pres.TabWidth = 8
