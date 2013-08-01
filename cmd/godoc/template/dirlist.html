@@ -1,0 +1,31 @@
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+
+<p>
+<table class="layout">
+<tr>
+	<th align="left">File</th>
+	<td width="25">&nbsp;</td>
+	<th align="right">Bytes</th>
+	<td width="25">&nbsp;</td>
+	<th align="left">Modified</th>
+</tr>
+<tr>
+	<td><a href="..">..</a></td>
+</tr>
+{{range .}}
+<tr>
+	{{$name_html := fileInfoName . | html}}
+	<td align="left"><a href="{{$name_html}}">{{$name_html}}</a></td>
+	<td></td>
+	<td align="right">{{html .Size}}</td>
+	<td></td>
+	<td align="left">{{fileInfoTime . | html}}</td>
+</tr>
+{{end}}
+
+</table>
+</p>

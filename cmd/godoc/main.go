@@ -53,7 +53,10 @@ import (
 	"code.google.com/p/go.tools/godoc/vfs/zipfs"
 )
 
-const defaultAddr = ":6060" // default webserver address
+const (
+	defaultAddr  = ":6060" // default webserver address
+	templatePath = "code.google.com/p/go.tools/cmd/godoc/template"
+)
 
 var (
 	// file system to serve
@@ -187,14 +190,19 @@ func main() {
 	}
 
 	// Determine file system to use.
-	// TODO(gri) - fs and fsHttp should really be the same. Try to unify.
-	//           - fsHttp doesn't need to be set up in command-line mode,
-	//             same is true for the http handlers in initHandlers.
 	if *zipfile == "" {
 		// use file system of underlying OS
 		fs.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
 		if *templateDir != "" {
 			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
+		} else {
+			// Read templates from go.tools repository; if not
+			// found there, fall back on $GOROOT/lib/godoc
+			// which will be present in binary distributions.
+			pkg, err := build.Import(templatePath, "", build.FindOnly)
+			if err == nil {
+				fs.Bind("/lib/godoc", vfs.OS(pkg.Dir), "/", vfs.BindReplace)
+			}
 		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')

@@ -1,0 +1,109 @@
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+{{$query_url := urlquery .Query}}
+{{with .Alert}}
+	<p>
+	<span class="alert" style="font-size:120%">{{html .}}</span>
+	</p>
+{{end}}
+{{with .Alt}}
+	<p>
+	<span class="alert" style="font-size:120%">Did you mean: </span>
+	{{range .Alts}}
+		<a href="search?q={{urlquery .}}" style="font-size:120%">{{html .}}</a>
+	{{end}}
+	</p>
+{{end}}
+{{with .Pak}}
+	<h2 id="Packages">Package {{html $.Query}}</h2>
+	<p>
+	<table class="layout">
+	{{range .}}
+		{{$pkg_html := pkgLink .Pak.Path | html}}
+		<tr><td><a href="/{{$pkg_html}}">{{$pkg_html}}</a></td></tr>
+	{{end}}
+	</table>
+	</p>
+{{end}}
+{{with .Hit}}
+	{{with .Decls}}
+		<h2 id="Global">Package-level declarations</h2>
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<h3 id="Global_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
+			{{range .Files}}
+				{{$src_html := srcLink .File.Path | html}}
+				{{range .Groups}}
+					{{range .}}
+						<a href="{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{$src_html}}:{{infoLine .}}</a>
+						{{infoSnippet_html .}}
+					{{end}}
+				{{end}}
+			{{end}}
+		{{end}}
+	{{end}}
+	{{with .Others}}
+		<h2 id="Local">Local declarations and uses</h2>
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<h3 id="Local_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
+			{{range .Files}}
+				{{$src_html := srcLink .File.Path | html}}
+				<a href="{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>
+				<table class="layout">
+				{{range .Groups}}
+					<tr>
+					<td width="25"></td>
+					<th align="left" valign="top">{{index . 0 | infoKind_html}}</th>
+					<td align="left" width="4"></td>
+					<td>
+					{{range .}}
+						<a href="{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{infoLine .}}</a>
+					{{end}}
+					</td>
+					</tr>
+				{{end}}
+				</table>
+			{{end}}
+		{{end}}
+	{{end}}
+{{end}}
+{{with .Textual}}
+	{{if $.Complete}}
+		<h2 id="Textual">{{html $.Found}} textual occurrences</h2>
+	{{else}}
+		<h2 id="Textual">More than {{html $.Found}} textual occurrences</h2>
+		<p>
+		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $.Query}}" are shown.</span>
+		</p>
+	{{end}}
+	<p>
+	<table class="layout">
+	{{range .}}
+		{{$src_html := srcLink .Filename | html}}
+		<tr>
+		<td align="left" valign="top">
+		<a href="{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>:
+		</td>
+		<td align="left" width="4"></td>
+		<th align="left" valign="top">{{len .Lines}}</th>
+		<td align="left" width="4"></td>
+		<td align="left">
+		{{range .Lines}}
+			<a href="{{$src_html}}?h={{$query_url}}#L{{html .}}">{{html .}}</a>
+		{{end}}
+		{{if not $.Complete}}
+			...
+		{{end}}
+		</td>
+		</tr>
+	{{end}}
+	{{if not $.Complete}}
+		<tr><td align="left">...</td></tr>
+	{{end}}
+	</table>
+	</p>
+{{end}}
