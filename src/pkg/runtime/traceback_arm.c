@@ -193,20 +193,21 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	return n;		
 }
 
-static void
-printcreatedby(G *gp)
+void
+runtime·printcreatedby(G *gp)
 {
 	int32 line;
 	uintptr pc, tracepc;
 	Func *f;
 	String file;
 
-	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
-		&& runtime·showframe(f, gp) && gp->goid != 1) {
+	// Show what created goroutine, except main goroutine (goid 1).
+	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil &&
+		runtime·showframe(f, gp) && gp->goid != 1) {
 		runtime·printf("created by %s\n", runtime·funcname(f));
 		tracepc = pc;	// back up to CALL instruction for funcline.
 		if(pc > f->entry)
-			tracepc -= sizeof(uintptr);
+			tracepc -= PCQuantum;
 		line = runtime·funcline(f, tracepc, &file);
 		runtime·printf("\t%S:%d", file, line);
 		if(pc > f->entry)
@@ -229,7 +230,7 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
 	// If that means we print nothing at all, repeat forcing all frames printed.
 	if(runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, false) == 0)
 		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, true);
-	printcreatedby(gp);
+	runtime·printcreatedby(gp);
 }
 
 // func caller(n int) (pc uintptr, file string, line int, ok bool)

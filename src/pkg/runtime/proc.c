@@ -267,9 +267,10 @@ runtime·tracebackothers(G *me)
 			continue;
 		runtime·printf("\n");
 		runtime·goroutineheader(gp);
-		if(gp->status == Grunning)
+		if(gp->status == Grunning) {
 			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
-		else
+			runtime·printcreatedby(gp);
+		} else
 			runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
 	}
 }

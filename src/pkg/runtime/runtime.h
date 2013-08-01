@@ -1039,6 +1039,7 @@ Hchan*	runtime·makechan_c(ChanType*, int64);
 void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
 bool	runtime·showframe(Func*, G*);
+void	runtime·printcreatedby(G*);
 
 void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
 
