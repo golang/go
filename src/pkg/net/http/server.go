@@ -1196,6 +1196,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // Helper handlers
 
 // Error replies to the request with the specified error message and HTTP code.
+// The error message should be plain text.
 func Error(w ResponseWriter, error string, code int) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(code)
