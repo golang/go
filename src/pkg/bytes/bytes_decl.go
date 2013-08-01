@@ -7,13 +7,13 @@ package bytes
 //go:noescape
 
 // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
-func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
+func IndexByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
 
 //go:noescape
 
 // Equal returns a boolean reporting whether a == b.
 // A nil argument is equivalent to an empty slice.
-func Equal(a, b []byte) bool // asm_arm.s or ../runtime/asm_{386,amd64}.s
+func Equal(a, b []byte) bool // ../runtime/asm_$GOARCH.s
 
 //go:noescape
 
