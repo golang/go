@@ -792,7 +792,8 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 	} else {
 		// If no content type, apply sniffing algorithm to body.
-		if header.get("Content-Type") == "" && w.req.Method != "HEAD" {
+		_, haveType := header["Content-Type"]
+		if !haveType && w.req.Method != "HEAD" {
 			setHeader.contentType = DetectContentType(p)
 		}
 	}
