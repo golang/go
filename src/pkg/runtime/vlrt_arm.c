@@ -421,6 +421,7 @@ _rshlv(Vlong *r, Vlong a, int b)
 	r->lo = (t << (32-b)) | (a.lo >> b);
 }
 
+#pragma textflag 7
 void
 _lshv(Vlong *r, Vlong a, int b)
 {
