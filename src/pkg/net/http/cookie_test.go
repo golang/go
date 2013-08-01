@@ -226,3 +226,34 @@ func TestReadCookies(t *testing.T) {
 		}
 	}
 }
+
+func TestCookieSanitizeValue(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"foo", "foo"},
+		{"foo bar", "foobar"},
+		{"\x00\x7e\x7f\x80", "\x7e"},
+		{`"withquotes"`, "withquotes"},
+	}
+	for _, tt := range tests {
+		if got := sanitizeCookieValue(tt.in); got != tt.want {
+			t.Errorf("sanitizeCookieValue(%q) = %q; want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestCookieSanitizePath(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"/path", "/path"},
+		{"/path with space/", "/path with space/"},
+		{"/just;no;semicolon\x00orstuff/", "/justnosemicolonorstuff/"},
+	}
+	for _, tt := range tests {
+		if got := sanitizeCookiePath(tt.in); got != tt.want {
+			t.Errorf("sanitizeCookiePath(%q) = %q; want %q", tt.in, got, tt.want)
+		}
+	}
+}

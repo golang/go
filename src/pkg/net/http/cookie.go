@@ -7,6 +7,7 @@ package http
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -139,12 +140,12 @@ func SetCookie(w ResponseWriter, cookie *Cookie) {
 // header (if other fields are set).
 func (c *Cookie) String() string {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+	fmt.Fprintf(&b, "%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
 	if len(c.Path) > 0 {
-		fmt.Fprintf(&b, "; Path=%s", sanitizeValue(c.Path))
+		fmt.Fprintf(&b, "; Path=%s", sanitizeCookiePath(c.Path))
 	}
 	if len(c.Domain) > 0 {
-		fmt.Fprintf(&b, "; Domain=%s", sanitizeValue(c.Domain))
+		fmt.Fprintf(&b, "; Domain=%s", sanitizeCookieDomain(c.Domain))
 	}
 	if c.Expires.Unix() > 0 {
 		fmt.Fprintf(&b, "; Expires=%s", c.Expires.UTC().Format(time.RFC1123))
@@ -209,14 +210,68 @@ func readCookies(h Header, filter string) []*Cookie {
 
 var cookieNameSanitizer = strings.NewReplacer("\n", "-", "\r", "-")
 
-func sanitizeName(n string) string {
+// http://tools.ietf.org/html/rfc6265#section-4.1.1
+// domain-av         = "Domain=" domain-value
+// domain-value      = <subdomain>
+//	; defined in [RFC1034], Section 3.5, as
+//      ; enhanced by [RFC1123], Section 2.1
+func sanitizeCookieDomain(v string) string {
+	// TODO: implement http://tools.ietf.org/html/rfc1034#section-3.5
+	return oldCookieValueSanitizer.Replace(v)
+}
+
+func sanitizeCookieName(n string) string {
 	return cookieNameSanitizer.Replace(n)
 }
 
-var cookieValueSanitizer = strings.NewReplacer("\n", " ", "\r", " ", ";", " ")
+// This is the replacer used in the original Go cookie code.
+// It's not correct, but it's here for now until it's replaced.
+var oldCookieValueSanitizer = strings.NewReplacer("\n", " ", "\r", " ", ";", " ")
 
-func sanitizeValue(v string) string {
-	return cookieValueSanitizer.Replace(v)
+// http://tools.ietf.org/html/rfc6265#section-4.1.1
+// cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+// cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+//           ; US-ASCII characters excluding CTLs,
+//           ; whitespace DQUOTE, comma, semicolon,
+//           ; and backslash
+func sanitizeCookieValue(v string) string {
+	return sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
+}
+
+func validCookieValueByte(b byte) bool {
+	return 0x20 < b && b < 0x7f && b != '"' && b != ',' && b != ';' && b != '\\'
+}
+
+// path-av           = "Path=" path-value
+// path-value        = <any CHAR except CTLs or ";">
+func sanitizeCookiePath(v string) string {
+	return sanitizeOrWarn("Cookie.Path", validCookiePathByte, v)
+}
+
+func validCookiePathByte(b byte) bool {
+	return 0x20 <= b && b < 0x7f && b != ';'
+}
+
+func sanitizeOrWarn(fieldName string, valid func(byte) bool, v string) string {
+	ok := true
+	for i := 0; i < len(v); i++ {
+		if valid(v[i]) {
+			continue
+		}
+		log.Printf("net/http: invalid byte %q in %s; dropping invalid bytes", v[i], fieldName)
+		ok = false
+		break
+	}
+	if ok {
+		return v
+	}
+	buf := make([]byte, 0, len(v))
+	for i := 0; i < len(v); i++ {
+		if b := v[i]; valid(b) {
+			buf = append(buf, b)
+		}
+	}
+	return string(buf)
 }
 
 func unquoteCookieValue(v string) string {
