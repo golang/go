@@ -37,34 +37,21 @@ func TestStdlib(t *testing.T) {
 	}
 }
 
-func TestStdtest(t *testing.T) {
-	path := filepath.Join(runtime.GOROOT(), "test")
-
+func testTestDir(t *testing.T, path string, ignore ...string) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	excluded := make(map[string]bool)
+	for _, filename := range ignore {
+		excluded[filename] = true
+	}
+
 	fset := token.NewFileSet()
 	for _, f := range files {
 		// filter directory contents
-		if f.IsDir() || !strings.HasSuffix(f.Name(), ".go") {
-			continue
-		}
-
-		// explicitly exclude files that the type-checker still has problems with
-		switch f.Name() {
-		case "cmplxdivide.go":
-			// This test also needs file cmplxdivide1.go; ignore.
-			continue
-		case "goto.go", "label1.go":
-			// TODO(gri) implement missing label checks
-			continue
-		case "sizeof.go", "switch.go":
-			// TODO(gri) tone down duplicate checking in expression switches
-			continue
-		case "typeswitch2.go":
-			// TODO(gri) implement duplicate checking in type switches
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".go") || excluded[f.Name()] {
 			continue
 		}
 
@@ -76,13 +63,13 @@ func TestStdtest(t *testing.T) {
 		file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments|parser.AllErrors)
 
 		// check per-file instructions
-		// For now we only check two cases.
+		// For now we only check some cases.
 		expectErrors := false
 		if len(file.Comments) > 0 {
 			if group := file.Comments[0]; len(group.List) > 0 {
 				cmd := strings.TrimSpace(group.List[0].Text[2:]) // 2: ignore // or /* of comment
 				switch cmd {
-				case "skip":
+				case "skip", "compiledir":
 					continue
 				case "errorcheck":
 					expectErrors = true
@@ -105,6 +92,33 @@ func TestStdtest(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestStdtest(t *testing.T) {
+	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+		"cmplxdivide.go",       // also needs file cmplxdivide1.go - ignore
+		"goto.go", "label1.go", // TODO(gri) implement missing label checks
+		"sizeof.go", "switch.go", // TODO(gri) tone down duplicate checking in expr switches
+		"typeswitch2.go", // TODO(gri) implement duplicate checking in type switches
+	)
+}
+
+func TestStdfixed(t *testing.T) {
+	testTestDir(t, filepath.Join(runtime.GOROOT(), "test/fixedbugs"),
+		"bug050.go", "bug088.go", "bug106.go", // TODO(gri) parser loses comments when bailing out early
+		"bug222.go", "bug282.go", "bug306.go", // TODO(gri) parser loses comments when bailing out early
+		"bug136.go", "bug179.go", "bug344.go", // TODO(gri) implement missing label checks
+		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
+		"bug176.go",                           // TODO(gri) composite literal array index must be non-negative constant
+		"bug200.go",                           // TODO(gri) complete duplicate checking in expr switches
+		"bug223.go", "bug413.go", "bug459.go", // TODO(gri) complete initialization checks
+		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+		"bug250.go",    // TODO(gri) fix recursive interfaces
+		"bug326.go",    // TODO(gri) assignment doesn't guard against len(rhs) == 0
+		"bug373.go",    // TODO(gri) implement use checks
+		"bug376.go",    // TODO(gri) built-ins must be called (no built-in function expressions)
+		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
+	)
 }
 
 // Package paths of excluded packages.

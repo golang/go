@@ -110,12 +110,13 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	// Don't evaluate lhs if it is the blank identifier.
-	if ident, _ := lhs.(*ast.Ident); ident != nil && ident.Name == "_" {
+	// Don't evaluate lhs if it is the (possibly parenthesized) blank identifier.
+	if ident, _ := unparen(lhs).(*ast.Ident); ident != nil && ident.Name == "_" {
 		check.recordObject(ident, nil)
 		// If the lhs is untyped, determine the default type.
 		// The spec is unclear about this, but gc appears to
 		// do this.
+		// TODO(gri) This is still not correct (try: _ = nil; _ = 1<<1e3)
 		typ := x.typ
 		if isUntyped(typ) {
 			// convert untyped types to default types

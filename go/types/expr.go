@@ -542,7 +542,7 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
 			s, ok := exact.Uint64Val(y.val)
 			if !ok || s > stupidShift {
-				check.invalidOp(y.pos(), "%s: stupid shift", y)
+				check.invalidOp(y.pos(), "stupid shift count %s", y)
 				x.mode = invalid
 				return
 			}
@@ -575,6 +575,11 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 			x.mode = value
 			return
 		}
+	}
+
+	// constant rhs must be >= 0
+	if y.mode == constant && exact.Sign(y.val) < 0 {
+		check.invalidOp(y.pos(), "shift count %s must not be negative", y)
 	}
 
 	// non-constant shift - lhs must be an integer

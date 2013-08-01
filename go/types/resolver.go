@@ -288,6 +288,11 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
 						check.recordObject(d.Name, obj)
+						// init functions must have a body
+						if d.Body == nil {
+							check.errorf(obj.pos, "missing function body")
+							// ok to continue
+						}
 					} else {
 						check.declareObj(pkg.scope, d.Name, obj)
 					}

@@ -55,6 +55,11 @@ func assignments() {
 	g := func(int, bool){}
 	var m map[int]int
 	g/* ERROR "too few arguments" */ (m[0])
+
+	// assignments to _
+	_ = nil /* ERROR "use of untyped nil" */
+	_ = 1<<1000 // TODO(gri) this should fail
+	(_) = 0
 }
 
 func shortVarDecls() {
