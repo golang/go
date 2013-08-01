@@ -459,6 +459,9 @@ func (u *URL) String() string {
 				buf.WriteString(h)
 			}
 		}
+		if u.Path != "" && u.Path[0] != '/' {
+			buf.WriteByte('/')
+		}
 		buf.WriteString(escape(u.Path, encodePath))
 	}
 	if u.RawQuery != "" {
