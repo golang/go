@@ -130,14 +130,7 @@ func Index(s, sep string) int {
 	case n == 0:
 		return 0
 	case n == 1:
-		c := sep[0]
-		// special case worth making fast
-		for i := 0; i < len(s); i++ {
-			if s[i] == c {
-				return i
-			}
-		}
-		return -1
+		return IndexByte(s, sep[0])
 	case n == len(s):
 		if sep == s {
 			return 0
@@ -162,6 +155,16 @@ func Index(s, sep string) int {
 		i++
 		if h == hashsep && s[i-n:i] == sep {
 			return i - n
+		}
+	}
+	return -1
+}
+
+// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+func IndexByte(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
 		}
 	}
 	return -1
