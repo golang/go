@@ -371,12 +371,12 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 	haveExamples = len(examples) > 0
 	testOk := RunTests(matchString, tests)
 	exampleOk := RunExamples(matchString, examples)
+	stopAlarm()
 	if !testOk || !exampleOk {
 		fmt.Println("FAIL")
 		os.Exit(1)
 	}
 	fmt.Println("PASS")
-	stopAlarm()
 	RunBenchmarks(matchString, benchmarks)
 	after()
 }
@@ -561,7 +561,9 @@ var timer *time.Timer
 // startAlarm starts an alarm if requested.
 func startAlarm() {
 	if *timeout > 0 {
-		timer = time.AfterFunc(*timeout, alarm)
+		timer = time.AfterFunc(*timeout, func() {
+			panic(fmt.Sprintf("test timed out after %v", *timeout))
+		})
 	}
 }
 
@@ -570,11 +572,6 @@ func stopAlarm() {
 	if *timeout > 0 {
 		timer.Stop()
 	}
-}
-
-// alarm is called if the timeout expires.
-func alarm() {
-	panic("test timed out")
 }
 
 func parseCpuList() {
