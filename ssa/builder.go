@@ -225,7 +225,8 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		tuple = fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
+		t := fn.Pkg.typeOf(e).(*types.Tuple).At(0).Type()
+		return emitTypeTest(fn, b.expr(fn, e.X), t, e.Lparen)
 
 	case *ast.UnaryExpr: // must be receive <-
 		typ = fn.Pkg.typeOf(e.X).Underlying().(*types.Chan).Elem()
@@ -393,7 +394,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			last := len(sel.Index()) - 1
 			return &address{
 				addr:   emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
-				expr:   e.Sel, // TODO plus e itself?
+				expr:   e.Sel,
 				object: sel.Obj(),
 			}
 		}
