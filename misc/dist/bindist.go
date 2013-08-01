@@ -31,7 +31,6 @@ import (
 var (
 	tag             = flag.String("tag", "release", "mercurial tag to check out")
 	repo            = flag.String("repo", "https://code.google.com/p/go", "repo URL")
-	tourPath        = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
 	verbose         = flag.Bool("v", false, "verbose output")
 	upload          = flag.Bool("upload", true, "upload resulting files to Google Code")
 	wxsFile         = flag.String("wxs", "", "path to custom installer.wxs")
@@ -44,6 +43,8 @@ var (
 
 const (
 	uploadURL = "https://go.googlecode.com/files"
+	godocPath = "code.google.com/p/go.tools/cmd/godoc"
+	tourPath  = "code.google.com/p/go-tour"
 )
 
 var preBuildCleanFiles = []string{
@@ -173,11 +174,11 @@ func (b *Build) Do() error {
 	b.gopath = work
 
 	// Clone Go distribution and update to tag.
-	_, err = b.run(work, "hg", "clone", "-q", *repo, b.root)
+	_, err = b.hgCmd(work, "clone", *repo, b.root)
 	if err != nil {
 		return err
 	}
-	_, err = b.run(b.root, "hg", "update", *tag)
+	_, err = b.hgCmd(b.root, "update", *tag)
 	if err != nil {
 		return err
 	}
@@ -214,7 +215,7 @@ func (b *Build) Do() error {
 				return err
 			}
 			// Re-install std without -race, so that we're not left
-			// with a slower, race-enabled cmd/go, cmd/godoc, etc.
+			// with a slower, race-enabled cmd/go, etc.
 			_, err = b.run(src, goCmd, "install", "-a", "std")
 			// Re-building go command leaves old versions of go.exe as go.exe~ on windows.
 			// See (*builder).copyFile in $GOROOT/src/cmd/go/build.go for details.
@@ -223,6 +224,10 @@ func (b *Build) Do() error {
 				os.Remove(goCmd + "~")
 			}
 		}
+		if err != nil {
+			return err
+		}
+		err = b.godoc()
 		if err != nil {
 			return err
 		}
@@ -408,6 +413,28 @@ func (b *Build) Do() error {
 	return err
 }
 
+func (b *Build) godoc() error {
+	defer func() {
+		// Clean work files from GOPATH directory.
+		for _, d := range []string{"bin", "pkg", "src"} {
+			os.RemoveAll(filepath.Join(b.gopath, d))
+		}
+	}()
+
+	// go get the godoc package.
+	// The go tool knows to install to $GOROOT/bin.
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", godocPath)
+	if err != nil {
+		return err
+	}
+
+	// Copy templates from go.tools/cmd/godoc/template to GOROOT/lib/godoc.
+	return cpDir(
+		filepath.Join(b.root, "lib", "godoc"),
+		filepath.Join(b.gopath, "src", filepath.FromSlash(godocPath), "template"),
+	)
+}
+
 func (b *Build) tour() error {
 	defer func() {
 		// Clean work files from GOPATH directory.
@@ -417,13 +444,13 @@ func (b *Build) tour() error {
 	}()
 
 	// go get the gotour package.
-	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", *tourPath+"/gotour")
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", tourPath+"/gotour")
 	if err != nil {
 		return err
 	}
 
 	// Copy all the tour content to $GOROOT/misc/tour.
-	importPath := filepath.FromSlash(*tourPath)
+	importPath := filepath.FromSlash(tourPath)
 	tourSrc := filepath.Join(b.gopath, "src", importPath)
 	contentDir := filepath.Join(b.root, "misc", "tour")
 	if err = cpAllDir(contentDir, tourSrc, tourContent...); err != nil {
@@ -436,14 +463,21 @@ func (b *Build) tour() error {
 	}
 
 	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
-	ext := ""
-	if runtime.GOOS == "windows" {
-		ext = ".exe"
-	}
 	return cp(
-		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"+ext),
-		filepath.Join(b.gopath, "bin", "gotour"+ext),
+		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"+ext()),
+		filepath.Join(b.gopath, "bin", "gotour"+ext()),
 	)
+}
+
+func ext() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
+func (b *Build) hgCmd(dir string, args ...string) ([]byte, error) {
+	return b.run(dir, "hg", append([]string{"--config", "extensions.codereview=!"}, args...)...)
 }
 
 func (b *Build) run(dir, name string, args ...string) ([]byte, error) {
