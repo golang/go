@@ -225,22 +225,18 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 // is missing or simply has the wrong type.
 //
 func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
-	// an interface type implements T if it has no methods with conflicting signatures
-	// Note: This is stronger than the current spec. Should the spec require this?
-
 	// fast path for common case
 	if T.NumMethods() == 0 {
 		return
 	}
 
-	// An interface type implements T if it has at least the methods of T.
+	// The dynamic type of a value stored in an interface may implement T,
+	// but only if all the shared interface methods have matching signatures.
+	// Note: This is stronger than the current spec. Should the spec require this?
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
 		for _, m := range T.methods {
 			_, obj := lookupMethod(ityp.methods, m.pkg, m.name)
-			if obj == nil {
-				return m, false
-			}
-			if !IsIdentical(obj.Type(), m.typ) {
+			if obj != nil && !IsIdentical(obj.Type(), m.typ) {
 				return m, true
 			}
 		}

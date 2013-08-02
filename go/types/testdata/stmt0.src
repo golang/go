@@ -298,6 +298,19 @@ func typeswitch1() {
 	}
 }
 
+// Test correct typeswitch against interface types.
+type A interface { a() }
+type B interface { b() }
+type C interface { a(int) }
+
+func typeswitch2() {
+   switch A(nil).(type) {
+   case A:
+   case B:
+   case C /* ERROR "cannot have dynamic type" */:
+   }
+}
+
 func rangeloops() {
 	var (
 		x int

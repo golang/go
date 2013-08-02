@@ -44,12 +44,19 @@ func interface_conversions() {
 
 	type I2 interface{
 		m1()
-		m2()
+		m2(x int)
+	}
+
+	type I3 interface{
+		m1()
+		m2() int
 	}
 
 	var e E
 	var i1 I1
 	var i2 I2
+	var i3 I3
+
 	_ = E(0)
 	_ = E(nil)
 	_ = E(e)
@@ -59,10 +66,18 @@ func interface_conversions() {
 	_ = I1 /* ERROR "cannot convert" */ (0)
 	_ = I1(nil)
 	_ = I1(i1)
-	_ = I1 /* ERROR "cannot convert" */ (e)
+	_ = I1(e)
 	_ = I1(i2)
 
-	_ = I2 /* ERROR "cannot convert" */ (i1)
+	_ = I2(nil)
+	_ = I2(i1)
+	_ = I2(i2)
+	_ = I2 /* ERROR "cannot convert" */ (i3)
+
+	_ = I3(nil)
+	_ = I3(i1)
+	_ = I3 /* ERROR "cannot convert" */ (i2)
+	_ = I3(i3)
 
 	// TODO(gri) add more tests, improve error message
 }

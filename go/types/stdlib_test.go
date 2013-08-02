@@ -108,6 +108,7 @@ func TestStdfixed(t *testing.T) {
 		"bug050.go", "bug088.go", "bug106.go", // TODO(gri) parser loses comments when bailing out early
 		"bug222.go", "bug282.go", "bug306.go", // TODO(gri) parser loses comments when bailing out early
 		"bug136.go", "bug179.go", "bug344.go", // TODO(gri) implement missing label checks
+		"bug251.go",                           // TODO(gri) incorrect cycle checks for interface types
 		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
 		"bug176.go",                           // TODO(gri) composite literal array index must be non-negative constant
 		"bug200.go",                           // TODO(gri) complete duplicate checking in expr switches
