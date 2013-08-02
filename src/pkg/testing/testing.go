@@ -575,16 +575,19 @@ func stopAlarm() {
 }
 
 func parseCpuList() {
-	if len(*cpuListStr) == 0 {
-		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
-	} else {
-		for _, val := range strings.Split(*cpuListStr, ",") {
-			cpu, err := strconv.Atoi(val)
-			if err != nil || cpu <= 0 {
-				fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu", val)
-				os.Exit(1)
-			}
-			cpuList = append(cpuList, cpu)
+	for _, val := range strings.Split(*cpuListStr, ",") {
+		val = strings.TrimSpace(val)
+		if val == "" {
+			continue
 		}
+		cpu, err := strconv.Atoi(val)
+		if err != nil || cpu <= 0 {
+			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
+			os.Exit(1)
+		}
+		cpuList = append(cpuList, cpu)
+	}
+	if cpuList == nil {
+		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
 	}
 }
