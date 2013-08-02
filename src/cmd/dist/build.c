@@ -589,7 +589,7 @@ static void
 install(char *dir)
 {
 	char *name, *p, *elem, *prefix, *exe;
-	bool islib, ispkg, isgo, stale, clang;
+	bool islib, ispkg, isgo, stale;
 	Buf b, b1, path;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
@@ -639,7 +639,7 @@ install(char *dir)
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
-		if(clang) {
+		if(contains(gccargs.p[0], "clang")) {
 			// disable ASCII art in clang errors, if possible
 			vadd(&gccargs, "-fno-caret-diagnostics");
 			// clang is too smart about unused command-line arguments
