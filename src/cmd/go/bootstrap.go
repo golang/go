@@ -25,6 +25,6 @@ func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
 	return "", nil, errHTTP
 }
 
-func parseMetaGoImports(r io.Reader) (imports []metaImport) {
+func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
 	panic("unreachable")
 }
