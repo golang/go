@@ -50,6 +50,7 @@ const (
 var preBuildCleanFiles = []string{
 	"lib/codereview",
 	"misc/dashboard/godashboard",
+	"src/cmd/api",
 	"src/cmd/cov",
 	"src/cmd/prof",
 	"src/pkg/exp",
