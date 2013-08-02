@@ -26,8 +26,9 @@ char *tooldir;
 char *gochar;
 char *goversion;
 char *slash;	// / for unix, \ for windows
-
-bool	rebuildall = 0;
+char *defaultcc;
+bool	rebuildall;
+bool defaultclang;
 
 static bool shouldbuild(char*, char*);
 static void copy(char*, char*, int);
@@ -146,6 +147,20 @@ init(void)
 		if(!streq(goextlinkenabled, "0") && !streq(goextlinkenabled, "1"))
 			fatal("unknown $GO_EXTLINK_ENABLED %s", goextlinkenabled);
 	}
+	
+	xgetenv(&b, "CC");
+	if(b.len == 0) {
+		// Use clang on OS X, because gcc is deprecated there.
+		// Xcode for OS X 10.9 Mavericks will ship a fake "gcc" binary that
+		// actually runs clang. We prepare different command
+		// lines for the two binaries, so it matters what we call it.
+		// See golang.org/issue/5822.
+		if(defaultclang)
+			bprintf(&b, "clang");
+		else
+			bprintf(&b, "gcc");
+	}
+	defaultcc = btake(&b);
 
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
@@ -525,6 +540,9 @@ static struct {
 		"../ld/*",
 		"enam.c",
 	}},
+	{"cmd/go", {
+		"zdefaultcc.go",
+	}},
 	{"cmd/", {
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
@@ -557,6 +575,7 @@ static struct {
 	{"opnames.h", gcopnames},
 	{"enam.c", mkenam},
 	{"zasm_", mkzasm},
+	{"zdefaultcc.go", mkzdefaultcc},
 	{"zsys_", mkzsys},
 	{"zgoarch_", mkzgoarch},
 	{"zgoos_", mkzgoos},
@@ -616,10 +635,7 @@ install(char *dir)
 
 	// set up gcc command line on first run.
 	if(gccargs.len == 0) {
-		xgetenv(&b, "CC");
-		if(b.len == 0)
-			bprintf(&b, "gcc");
-		clang = contains(bstr(&b), "clang");
+		bprintf(&b, "%s", defaultcc);
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
@@ -1443,6 +1459,7 @@ cmdenv(int argc, char **argv)
 	if(argc > 0)
 		usage();
 
+	xprintf(format, "CC", defaultcc);
 	xprintf(format, "GOROOT", goroot);
 	xprintf(format, "GOBIN", gobin);
 	xprintf(format, "GOARCH", goarch);

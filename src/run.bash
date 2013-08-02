@@ -124,7 +124,10 @@ freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd6
 esac
 ) || exit $?
 
-[ "$CGO_ENABLED" != 1 ] ||
+# This tests cgo -godefs. That mode is not supported,
+# so it's okay if it doesn't work on some systems.
+# In particular, it works badly with clang on OS X.
+[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
 (xcd ../misc/cgo/testcdefs
 ./test.bash || exit 1
 ) || exit $?

@@ -1772,8 +1772,9 @@ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) er
 }
 
 // gccCmd returns a gcc command line prefix
+// defaultCC is defined in zdefaultcc.go, written by cmd/dist.
 func (b *builder) gccCmd(objdir string) []string {
-	return b.ccompilerCmd("CC", "gcc", objdir)
+	return b.ccompilerCmd("CC", defaultCC, objdir)
 }
 
 // gxxCmd returns a g++ command line prefix
@@ -1789,7 +1790,7 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 
 	compiler := strings.Fields(os.Getenv(envvar))
 	if len(compiler) == 0 {
-		compiler = append(compiler, defcmd)
+		compiler = strings.Fields(defcmd)
 	}
 	a := []string{compiler[0], "-I", objdir, "-g", "-O2"}
 	a = append(a, compiler[1:]...)
