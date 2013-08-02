@@ -150,6 +150,13 @@ func PrintfTests() {
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
 	Printf("d%", 2)              // ERROR "missing verb at end of format string in Printf call"
+	Printf("%d", percentDV)
+	Printf("%d", &percentDV)
+	Printf("%d", notPercentDV)  // ERROR "arg notPercentDV for printf verb %d of wrong type"
+	Printf("%d", &notPercentDV) // ERROR "arg &notPercentDV for printf verb %d of wrong type"
+	Printf("%p", &notPercentDV) // Works regardless: we print it as a pointer.
+	Printf("%s", percentSV)
+	Printf("%s", &percentSV)
 	// Good argument reorderings.
 	Printf("%[1]d", 3)
 	Printf("%[1]*d", 3, 1)
@@ -214,7 +221,9 @@ func (*stringer) Warnf(int, string, ...interface{}) string {
 	return "warnf"
 }
 
-type notstringer struct{}
+type notstringer struct {
+	f float64
+}
 
 var notstringerv notstringer
 
@@ -233,3 +242,30 @@ var notstringerarrayv notstringerarray
 var nonemptyinterface = interface {
 	f()
 }(nil)
+
+// A data type we can print with "%d".
+type percentDStruct struct {
+	a int
+	b []byte
+	c *float64
+}
+
+var percentDV percentDStruct
+
+// A data type we cannot print correctly with "%d".
+type notPercentDStruct struct {
+	a int
+	b []byte
+	c bool
+}
+
+var notPercentDV notPercentDStruct
+
+// A data type we can print with "%s".
+type percentSStruct struct {
+	a string
+	b []byte
+	c stringerarray
+}
+
+var percentSV percentSStruct

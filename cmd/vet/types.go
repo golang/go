@@ -111,7 +111,7 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d.
-		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
+		return t&argPointer != 0 || f.matchArgType(t, typ.Elem().Underlying(), arg)
 
 	case *types.Slice:
 		// Same as array.
@@ -119,7 +119,7 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d.
-		return t&argPointer != 0 || f.matchArgType(t, typ.Elem(), arg)
+		return t&argPointer != 0 || f.matchArgType(t, typ.Elem().Underlying(), arg)
 
 	case *types.Pointer:
 		// Ugly, but dealing with an edge case: a known pointer to an invalid type,
@@ -130,7 +130,19 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 			}
 			return true // special case
 		}
-		return t&argPointer != 0
+		// If it's actually a pointer with %p, it prints as one.
+		if t == argPointer {
+			return true
+		}
+		// If it's pointer to struct, that's equivalent in our analysis to whether we can print the struct.
+		if str, ok := typ.Elem().Underlying().(*types.Struct); ok {
+			return f.matchStructArgType(t, str, arg)
+		}
+		// The rest can print with %p as pointers, or as integers with %x etc.
+		return t&(argInt|argPointer) != 0
+
+	case *types.Struct:
+		return f.matchStructArgType(t, typ, arg)
 
 	case *types.Interface:
 		// If the static type of the argument is empty interface, there's little we can do.
@@ -194,6 +206,17 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 	}
 
 	return false
+}
+
+// matchStructArgType reports whether all the elements of the struct match the expected
+// type. For instance, with "%d" all the elements must be printable with the "%d" format.
+func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Expr) bool {
+	for i := 0; i < typ.NumFields(); i++ {
+		if !f.matchArgType(t, typ.Field(i).Type(), arg) {
+			return false
+		}
+	}
+	return true
 }
 
 // numArgsInSignature tells how many formal arguments the function type
