@@ -390,12 +390,12 @@ type embeddedPaletted struct {
 func TestPaletted(t *testing.T) {
 	f, err := os.Open("../testdata/video-001.png")
 	if err != nil {
-		t.Fatal("open: %v", err)
+		t.Fatalf("open: %v", err)
 	}
 	defer f.Close()
 	src, err := png.Decode(f)
 	if err != nil {
-		t.Fatal("decode: %v", err)
+		t.Fatalf("decode: %v", err)
 	}
 	b := src.Bounds()
 
