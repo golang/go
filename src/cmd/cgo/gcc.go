@@ -646,19 +646,20 @@ func (p *Package) rewriteRef(f *File) {
 	}
 }
 
-// gccName returns the name of the compiler to run.  Use $CC if set in
-// the environment, otherwise just "gcc".
-
-func (p *Package) gccName() string {
+// gccBaseCmd returns the start of the compiler command line.
+// It uses $CC if set, or else $GCC, or else the compiler recorded
+// during the initial build as defaultCC.
+// defaultCC is defined in zdefaultcc.go, written by cmd/dist.
+func (p *Package) gccBaseCmd() []string {
 	// Use $CC if set, since that's what the build uses.
-	if ret := os.Getenv("CC"); ret != "" {
+	if ret := strings.Fields(os.Getenv("CC")); len(ret) > 0 {
 		return ret
 	}
-	// Fall back to $GCC if set, since that's what we used to use.
-	if ret := os.Getenv("GCC"); ret != "" {
+	// Try $GCC if set, since that's what we used to use.
+	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
 		return ret
 	}
-	return "gcc"
+	return strings.Fields(defaultCC)
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
@@ -681,17 +682,16 @@ func gccTmp() string {
 // gccCmd returns the gcc command line to use for compiling
 // the input.
 func (p *Package) gccCmd() []string {
-	c := []string{
-		p.gccName(),
+	c := append(p.gccBaseCmd(),
 		"-Wall",                             // many warnings
 		"-Werror",                           // warnings are errors
-		"-o" + gccTmp(),                     // write object to tmp
+		"-o"+gccTmp(),                       // write object to tmp
 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
 		"-c",  // do not link
 		"-xc", // input language is C
-	}
-	if strings.Contains(p.gccName(), "clang") {
+	)
+	if strings.Contains(c[0], "clang") {
 		c = append(c,
 			"-ferror-limit=0",
 			// Apple clang version 1.7 (tags/Apple/clang-77) (based on LLVM 2.9svn)
@@ -800,7 +800,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 // #defines that gcc encountered while processing the input
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
-	base := []string{p.gccName(), "-E", "-dM", "-xc"}
+	base := append(p.gccBaseCmd(), "-E", "-dM", "-xc")
 	base = append(base, p.gccMachine()...)
 	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
 	return stdout

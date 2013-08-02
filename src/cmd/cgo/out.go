@@ -498,7 +498,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
 	// and http://golang.org/issue/5603.
 	extraAttr := ""
-	if !strings.Contains(p.gccName(), "clang") && (goarch == "amd64" || goarch == "386") {
+	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
 		extraAttr = ", __gcc_struct__"
 	}
 	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__%v)) *a = v;\n", ctype, extraAttr)
