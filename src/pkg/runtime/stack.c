@@ -201,6 +201,13 @@ runtime·newstack(void)
 	bool reflectcall;
 	uintptr free;
 
+	if(m->morebuf.g != m->curg) {
+		runtime·printf("runtime: newstack called from g=%p\n"
+			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",
+			m->morebuf.g, m, m->curg, m->g0, m->gsignal);
+		runtime·throw("runtime: wrong goroutine in newstack");
+	}
+
 	// gp->status is usually Grunning, but it could be Gsyscall if a stack split
 	// happens during a function call inside entersyscall.
 	gp = m->curg;
