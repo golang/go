@@ -24,7 +24,7 @@ const debugMode = false
 
 func allPackages() []string {
 	var pkgs []string
-	root := filepath.Join(runtime.GOROOT(), "src/pkg") + "/"
+	root := filepath.Join(runtime.GOROOT(), "src/pkg") + string(os.PathSeparator)
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		// Prune the search if we encounter any of these names:
 		switch filepath.Base(path) {
