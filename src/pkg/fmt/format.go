@@ -24,8 +24,6 @@ const (
 var padZeroBytes = make([]byte, nByte)
 var padSpaceBytes = make([]byte, nByte)
 
-var newline = []byte{'\n'}
-
 func init() {
 	for i := 0; i < nByte; i++ {
 		padZeroBytes[i] = '0'

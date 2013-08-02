@@ -906,7 +906,7 @@ type Recur struct {
 	failed *bool
 }
 
-func (r Recur) String() string {
+func (r *Recur) String() string {
 	if recurCount++; recurCount > 10 {
 		*r.failed = true
 		return "FAIL"
@@ -919,13 +919,13 @@ func (r Recur) String() string {
 
 func TestBadVerbRecursion(t *testing.T) {
 	failed := false
-	r := Recur{3, &failed}
+	r := &Recur{3, &failed}
 	Sprintf("recur@%p value: %d\n", &r, r.i)
 	if failed {
 		t.Error("fail with pointer")
 	}
 	failed = false
-	r = Recur{4, &failed}
+	r = &Recur{4, &failed}
 	Sprintf("recur@%p, value: %d\n", r, r.i)
 	if failed {
 		t.Error("fail with value")
