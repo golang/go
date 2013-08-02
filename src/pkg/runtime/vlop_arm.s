@@ -23,6 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "zasm_GOOS_GOARCH.h"
+
 arg=0
 
 /* replaced use of R10 by R11 because the former can be the data segment base register */
@@ -54,7 +56,28 @@ TEXT _sfloat(SB), 7, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	R1, 60(R13)
 	WORD	$0xe10f1000 // mrs r1, cpsr
 	MOVW	R1, 64(R13)
+	// Disable preemption of this goroutine during _sfloat2 by
+	// m->locks++ and m->locks-- around the call.
+	// Rescheduling this goroutine may cause the loss of the
+	// contents of the software floating point registers in 
+	// m->freghi, m->freglo, m->fflag, if the goroutine is moved
+	// to a different m or another goroutine runs on this m.
+	// Rescheduling at ordinary function calls is okay because
+	// all registers are caller save, but _sfloat2 and the things
+	// that it runs are simulating the execution of individual
+	// program instructions, and those instructions do not expect
+	// the floating point registers to be lost.
+	// An alternative would be to move the software floating point
+	// registers into G, but they do not need to be kept at the 
+	// usual places a goroutine reschedules (at function calls),
+	// so it would be a waste of 132 bytes per G.
+	MOVW	m_locks(m), R1
+	ADD	$1, R1
+	MOVW	R1, m_locks(m)
 	BL	runtime·_sfloat2(SB)
+	MOVW	m_locks(m), R1
+	SUB	$1, R1
+	MOVW	R1, m_locks(m)
 	MOVW	R0, 0(R13)
 	MOVW	64(R13), R1
 	WORD	$0xe128f001	// msr cpsr_f, r1
