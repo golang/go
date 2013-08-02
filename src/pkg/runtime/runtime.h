@@ -985,6 +985,7 @@ void	runtime·printuint(uint64);
 void	runtime·printhex(uint64);
 void	runtime·printslice(Slice);
 void	runtime·printcomplex(Complex128);
+void	runtime·newstackcall(FuncVal*, byte*, uint32);
 void	reflect·call(FuncVal*, byte*, uint32);
 void	runtime·panic(Eface);
 void	runtime·panicindex(void);

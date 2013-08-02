@@ -1926,6 +1926,12 @@ runtime·badmcall2(void)  // called from assembly
 	runtime·throw("runtime: mcall function returned");
 }
 
+void
+runtime·badreflectcall(void) // called from assembly
+{
+	runtime·panicstring("runtime: arg size to reflect.call more than 1GB");
+}
+
 static struct {
 	Lock;
 	void (*fn)(uintptr*, int32);

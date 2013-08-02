@@ -241,10 +241,10 @@ runtime·panic(Eface e)
 			break;
 		// take defer off list in case of recursive panic
 		popdefer();
-		g->ispanic = true;	// rock for newstack, where reflect.call ends up
+		g->ispanic = true;	// rock for newstack, where reflect.newstackcall ends up
 		argp = d->argp;
 		pc = d->pc;
-		reflect·call(d->fn, (byte*)d->args, d->siz);
+		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
 		freedefer(d);
 		if(p->recovered) {
 			g->panic = p->link;
