@@ -159,6 +159,12 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 // ----------------------------------------------------------------------------
 // gcParser
 
+// TODO(gri) Imported objects don't have position information.
+//           Ideally use the debug table line info; alternatively
+//           create some fake position (or the position of the
+//           import). That way error messages referring to imported
+//           objects can print meaningful information.
+
 // gcParser parses the exports inside a gc compiler-produced
 // object/archive file and populates its scope with the results.
 type gcParser struct {
@@ -853,6 +859,7 @@ func (p *gcParser) parseTypeDecl() {
 
 	if name := obj.typ.(*Named); name.underlying == nil {
 		name.underlying = typ
+		name.complete = true
 	}
 }
 
