@@ -244,12 +244,12 @@ TEXT runtime·morestack(SB),7,$0-0
 	MOVL	$0, 0x1003	// crash if newstack returns
 	RET
 
-// Called from reflection library.  Mimics morestack,
+// Called from panic.  Mimics morestack,
 // reuses stack growth code to create a frame
 // with the desired args running the desired function.
 //
 // func call(fn *byte, arg *byte, argsize uint32).
-TEXT reflect·call(SB), 7, $0-12
+TEXT runtime·newstackcall(SB), 7, $0-12
 	get_tls(CX)
 	MOVL	m(CX), BX
 
@@ -264,12 +264,12 @@ TEXT reflect·call(SB), 7, $0-12
 
 	// Save our own state as the PC and SP to restore
 	// if this goroutine needs to be restarted.
-	MOVL	$reflect·call(SB), (g_sched+gobuf_pc)(AX)
+	MOVL	$runtime·newstackcall(SB), (g_sched+gobuf_pc)(AX)
 	MOVL	SP, (g_sched+gobuf_sp)(AX)
 
 	// Set up morestack arguments to call f on a new stack.
 	// We set f's frame size to 1, as a hint to newstack
-	// that this is a call from reflect·call.
+	// that this is a call from runtime·newstackcall.
 	// If it turns out that f needs a larger frame than
 	// the default stack, f's usual stack growth prolog will
 	// allocate a new segment (and recopy the arguments).
@@ -291,6 +291,95 @@ TEXT reflect·call(SB), 7, $0-12
 	MOVL	$0, 0x1103	// crash if newstack returns
 	RET
 
+// reflect·call: call a function with the given argument list
+// func call(f *FuncVal, arg *byte, argsize uint32).
+// we don't have variable-sized frames, so we use a small number
+// of constant-sized-frame functions to encode a few bits of size in the pc.
+// Caution: ugly multiline assembly macros in your future!
+
+#define DISPATCH(NAME,MAXSIZE)		\
+	CMPL	CX, $MAXSIZE;		\
+	JA	3(PC);			\
+	MOVL	$runtime·NAME(SB), AX;	\
+	JMP	AX
+// Note: can't just "JMP runtime·NAME(SB)" - bad inlining results.
+
+TEXT reflect·call(SB), 7, $0-12
+	MOVL	argsize+8(FP), CX
+	DISPATCH(call16, 16)
+	DISPATCH(call32, 32)
+	DISPATCH(call64, 64)
+	DISPATCH(call128, 128)
+	DISPATCH(call256, 256)
+	DISPATCH(call512, 512)
+	DISPATCH(call1024, 1024)
+	DISPATCH(call2048, 2048)
+	DISPATCH(call4096, 4096)
+	DISPATCH(call8192, 8192)
+	DISPATCH(call16384, 16384)
+	DISPATCH(call32768, 32768)
+	DISPATCH(call65536, 65536)
+	DISPATCH(call131072, 131072)
+	DISPATCH(call262144, 262144)
+	DISPATCH(call524288, 524288)
+	DISPATCH(call1048576, 1048576)
+	DISPATCH(call2097152, 2097152)
+	DISPATCH(call4194304, 4194304)
+	DISPATCH(call8388608, 8388608)
+	DISPATCH(call16777216, 16777216)
+	DISPATCH(call33554432, 33554432)
+	DISPATCH(call67108864, 67108864)
+	DISPATCH(call134217728, 134217728)
+	DISPATCH(call268435456, 268435456)
+	DISPATCH(call536870912, 536870912)
+	DISPATCH(call1073741824, 1073741824)
+	MOVL	$runtime·badreflectcall(SB), AX
+	JMP	AX
+
+#define CALLFN(NAME,MAXSIZE,FLAGS)		\
+TEXT runtime·NAME(SB), FLAGS, $MAXSIZE-12;	\
+	/* copy arguments to stack */		\
+	MOVL	argptr+4(FP), SI;		\
+	MOVL	argsize+8(FP), CX;		\
+	MOVL	SP, DI;				\
+	REP;MOVSB;				\
+	/* call function */			\
+	MOVL	f+0(FP), DX;			\
+	CALL	(DX);				\
+	/* copy return values back */		\
+	MOVL	argptr+4(FP), DI;		\
+	MOVL	argsize+8(FP), CX;		\
+	MOVL	SP, SI;				\
+	REP;MOVSB;				\
+	RET
+
+CALLFN(call16, 16, 7)
+CALLFN(call32, 32, 7)
+CALLFN(call64, 64, 7)
+CALLFN(call128, 128, 0)
+CALLFN(call256, 256, 0)
+CALLFN(call512, 512, 0)
+CALLFN(call1024, 1024, 0)
+CALLFN(call2048, 2048, 0)
+CALLFN(call4096, 4096, 0)
+CALLFN(call8192, 8192, 0)
+CALLFN(call16384, 16384, 0)
+CALLFN(call32768, 32768, 0)
+CALLFN(call65536, 65536, 0)
+CALLFN(call131072, 131072, 0)
+CALLFN(call262144, 262144, 0)
+CALLFN(call524288, 524288, 0)
+CALLFN(call1048576, 1048576, 0)
+CALLFN(call2097152, 2097152, 0)
+CALLFN(call4194304, 4194304, 0)
+CALLFN(call8388608, 8388608, 0)
+CALLFN(call16777216, 16777216, 0)
+CALLFN(call33554432, 33554432, 0)
+CALLFN(call67108864, 67108864, 0)
+CALLFN(call134217728, 134217728, 0)
+CALLFN(call268435456, 268435456, 0)
+CALLFN(call536870912, 536870912, 0)
+CALLFN(call1073741824, 1073741824, 0)
 
 // Return point when leaving stack.
 //

@@ -208,12 +208,12 @@ TEXT runtime·morestack(SB),7,$-4-0
 	// is still in this function, and not the beginning of the next.
 	RET
 
-// Called from reflection library.  Mimics morestack,
+// Called from panic.  Mimics morestack,
 // reuses stack growth code to create a frame
 // with the desired args running the desired function.
 //
 // func call(fn *byte, arg *byte, argsize uint32).
-TEXT reflect·call(SB), 7, $-4-12
+TEXT runtime·newstackcall(SB), 7, $-4-12
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
 	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
@@ -222,14 +222,14 @@ TEXT reflect·call(SB), 7, $-4-12
 
 	// Save our own state as the PC and SP to restore
 	// if this goroutine needs to be restarted.
-	MOVW	$reflect·call(SB), R11
+	MOVW	$runtime·newstackcall(SB), R11
 	MOVW	R11, (g_sched+gobuf_pc)(g)
 	MOVW	LR, (g_sched+gobuf_lr)(g)
 	MOVW	SP, (g_sched+gobuf_sp)(g)
 
 	// Set up morestack arguments to call f on a new stack.
 	// We set f's frame size to 1, as a hint to newstack
-	// that this is a call from reflect·call.
+	// that this is a call from runtime·newstackcall.
 	// If it turns out that f needs a larger frame than
 	// the default stack, f's usual stack growth prolog will
 	// allocate a new segment (and recopy the arguments).
@@ -247,6 +247,105 @@ TEXT reflect·call(SB), 7, $-4-12
 	MOVW	m_g0(m), g
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	B	runtime·newstack(SB)
+
+// reflect·call: call a function with the given argument list
+// func call(f *FuncVal, arg *byte, argsize uint32).
+// we don't have variable-sized frames, so we use a small number
+// of constant-sized-frame functions to encode a few bits of size in the pc.
+// Caution: ugly multiline assembly macros in your future!
+
+#define DISPATCH(NAME,MAXSIZE)		\
+	CMP	$MAXSIZE, R0;		\
+	B.HI	3(PC);			\
+	MOVW	$runtime·NAME(SB), R1;	\
+	B	(R1)
+
+TEXT reflect·call(SB), 7, $-4-12
+	MOVW	argsize+8(FP), R0
+	DISPATCH(call16, 16)
+	DISPATCH(call32, 32)
+	DISPATCH(call64, 64)
+	DISPATCH(call128, 128)
+	DISPATCH(call256, 256)
+	DISPATCH(call512, 512)
+	DISPATCH(call1024, 1024)
+	DISPATCH(call2048, 2048)
+	DISPATCH(call4096, 4096)
+	DISPATCH(call8192, 8192)
+	DISPATCH(call16384, 16384)
+	DISPATCH(call32768, 32768)
+	DISPATCH(call65536, 65536)
+	DISPATCH(call131072, 131072)
+	DISPATCH(call262144, 262144)
+	DISPATCH(call524288, 524288)
+	DISPATCH(call1048576, 1048576)
+	DISPATCH(call2097152, 2097152)
+	DISPATCH(call4194304, 4194304)
+	DISPATCH(call8388608, 8388608)
+	DISPATCH(call16777216, 16777216)
+	DISPATCH(call33554432, 33554432)
+	DISPATCH(call67108864, 67108864)
+	DISPATCH(call134217728, 134217728)
+	DISPATCH(call268435456, 268435456)
+	DISPATCH(call536870912, 536870912)
+	DISPATCH(call1073741824, 1073741824)
+	MOVW	$runtime·badreflectcall(SB), R1
+	B	(R1)
+
+#define CALLFN(NAME,MAXSIZE,FLAGS)		\
+TEXT runtime·NAME(SB), FLAGS, $MAXSIZE-12;	\
+	/* copy arguments to stack */		\
+	MOVW	argptr+4(FP), R0;		\
+	MOVW	argsize+8(FP), R2;		\
+	ADD	$4, SP, R1;			\
+	CMP	$0, R2;				\
+	B.EQ	5(PC);				\
+	MOVBU.P	1(R0), R5;			\
+	MOVBU.P R5, 1(R1);			\
+	SUB	$1, R2, R2;			\
+	B	-5(PC);				\
+	/* call function */			\
+	MOVW	f+0(FP), R7;			\
+	MOVW	(R7), R0;			\
+	BL	(R0);				\
+	/* copy return values back */		\
+	MOVW	argptr+4(FP), R0;		\
+	MOVW	argsize+8(FP), R2;		\
+	ADD	$4, SP, R1;			\
+	CMP	$0, R2;				\
+	RET.EQ	;				\
+	MOVBU.P	1(R1), R5;			\
+	MOVBU.P R5, 1(R0);			\
+	SUB	$1, R2, R2;			\
+	B	-5(PC)				\
+
+CALLFN(call16, 16, 7)
+CALLFN(call32, 32, 7)
+CALLFN(call64, 64, 7)
+CALLFN(call128, 128, 0)
+CALLFN(call256, 256, 0)
+CALLFN(call512, 512, 0)
+CALLFN(call1024, 1024, 0)
+CALLFN(call2048, 2048, 0)
+CALLFN(call4096, 4096, 0)
+CALLFN(call8192, 8192, 0)
+CALLFN(call16384, 16384, 0)
+CALLFN(call32768, 32768, 0)
+CALLFN(call65536, 65536, 0)
+CALLFN(call131072, 131072, 0)
+CALLFN(call262144, 262144, 0)
+CALLFN(call524288, 524288, 0)
+CALLFN(call1048576, 1048576, 0)
+CALLFN(call2097152, 2097152, 0)
+CALLFN(call4194304, 4194304, 0)
+CALLFN(call8388608, 8388608, 0)
+CALLFN(call16777216, 16777216, 0)
+CALLFN(call33554432, 33554432, 0)
+CALLFN(call67108864, 67108864, 0)
+CALLFN(call134217728, 134217728, 0)
+CALLFN(call268435456, 268435456, 0)
+CALLFN(call536870912, 536870912, 0)
+CALLFN(call1073741824, 1073741824, 0)
 
 // Return point when leaving stack.
 // using frame size $-4 means do not save LR on stack.

@@ -1522,7 +1522,7 @@ pctospadj(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
 		oldval = 0;
 	if(phase == 0)
 		return oldval;
-	if(oldval + p->spadj < -10000 || oldval + p->spadj > 1000000000) {
+	if(oldval + p->spadj < -10000 || oldval + p->spadj > 1100000000) {
 		diag("overflow in spadj: %d + %d = %d", oldval, p->spadj, oldval + p->spadj);
 		errorexit();
 	}

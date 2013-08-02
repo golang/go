@@ -183,7 +183,7 @@ runtime·oldstack(void)
 	runtime·gogo(&gp->sched);
 }
 
-// Called from reflect·call or from runtime·morestack when a new
+// Called from runtime·newstackcall or from runtime·morestack when a new
 // stack segment is needed.  Allocate a new stack big enough for
 // m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
 // and then act as though runtime·lessstack called the function at
@@ -198,7 +198,7 @@ runtime·newstack(void)
 	uintptr *src, *dst, *dstend;
 	G *gp;
 	Gobuf label;
-	bool reflectcall;
+	bool newstackcall;
 	uintptr free;
 
 	if(m->morebuf.g != m->curg) {
@@ -217,12 +217,12 @@ runtime·newstack(void)
 	argsize = m->moreargsize;
 	gp->status = Gwaiting;
 	gp->waitreason = "stack split";
-	reflectcall = framesize==1;
-	if(reflectcall)
+	newstackcall = framesize==1;
+	if(newstackcall)
 		framesize = 0;
 
-	// For reflectcall the context already points to beginning of reflect·call.
-	if(!reflectcall)
+	// For newstackcall the context already points to beginning of runtime·newstackcall.
+	if(!newstackcall)
 		runtime·rewindmorestack(&gp->sched);
 
 	sp = gp->sched.sp;
@@ -269,8 +269,8 @@ runtime·newstack(void)
 		runtime·gosched0(gp);	// never return
 	}
 
-	if(reflectcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
-		// special case: called from reflect.call (framesize==1)
+	if(newstackcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
+		// special case: called from runtime.newstackcall (framesize==1)
 		// to call code with an arbitrary argument size,
 		// and we have enough space on the current stack.
 		// the new Stktop* is necessary to unwind, but
@@ -334,7 +334,7 @@ runtime·newstack(void)
 	label.sp = sp;
 	label.pc = (uintptr)runtime·lessstack;
 	label.g = m->curg;
-	if(reflectcall)
+	if(newstackcall)
 		runtime·gostartcallfn(&label, (FuncVal*)m->cret);
 	else {
 		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
