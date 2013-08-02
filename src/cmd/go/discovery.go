@@ -13,17 +13,35 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
 	"strings"
 )
 
+// charsetReader returns a reader for the given charset. Currently
+// it only supports UTF-8 and ASCII. Otherwise, it returns a meaningful
+// error which is printed by go get, so the user can find why the package
+// wasn't downloaded if the encoding is not supported. Note that, in
+// order to reduce potential errors, ASCII is treated as UTF-8 (i.e. characters
+// greater than 0x7f are not rejected).
+func charsetReader(charset string, input io.Reader) (io.Reader, error) {
+	switch strings.ToLower(charset) {
+	case "ascii":
+		return input, nil
+	default:
+		return nil, fmt.Errorf("can't decode XML document using charset %q", charset)
+	}
+}
+
 // parseMetaGoImports returns meta imports from the HTML in r.
 // Parsing ends at the end of the <head> section or the beginning of the <body>.
-func parseMetaGoImports(r io.Reader) (imports []metaImport) {
+func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 	d := xml.NewDecoder(r)
+	d.CharsetReader = charsetReader
 	d.Strict = false
+	var t xml.Token
 	for {
-		t, err := d.Token()
+		t, err = d.Token()
 		if err != nil {
 			return
 		}
