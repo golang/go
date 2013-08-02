@@ -641,8 +641,6 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
 
 var (
 	intBits     = reflect.TypeOf(0).Bits()
-	floatBits   = reflect.TypeOf(0.0).Bits()
-	complexBits = reflect.TypeOf(1i).Bits()
 	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
 )
 

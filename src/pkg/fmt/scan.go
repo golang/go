@@ -479,11 +479,6 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 	return s.buf
 }
 
-// typeError indicates that the type of the operand did not match the format
-func (s *ss) typeError(arg interface{}, expected string) {
-	s.errorString("expected argument of type pointer to " + expected + "; found " + reflect.TypeOf(arg).String())
-}
-
 var complexError = errors.New("syntax error scanning complex number")
 var boolError = errors.New("syntax error scanning boolean")
 

@@ -54,7 +54,6 @@ var (
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
-	stringVal1           string
 	bytesVal             []byte
 	runeVal              rune
 	complex64Val         complex64
