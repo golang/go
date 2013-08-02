@@ -772,7 +772,7 @@ func (b *builder) build(a *action) (err error) {
 
 	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
 		!hasString(a.p.HFiles, "zasm_"+buildContext.GOOS+"_"+buildContext.GOARCH+".h") {
-		return fmt.Errorf("%s/%s must be bootstrapped using make.bash", buildContext.GOOS, buildContext.GOARCH)
+		return fmt.Errorf("%s/%s must be bootstrapped using make%v", buildContext.GOOS, buildContext.GOARCH, defaultSuffix())
 	}
 
 	// Make build directory.
@@ -2241,4 +2241,17 @@ func raceInit() {
 	}
 	buildContext.InstallSuffix += "race"
 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
+}
+
+// defaultSuffix returns file extension used for command files in
+// current os environment.
+func defaultSuffix() string {
+	switch runtime.GOOS {
+	case "windows":
+		return ".bat"
+	case "plan9":
+		return ".rc"
+	default:
+		return ".bash"
+	}
 }
