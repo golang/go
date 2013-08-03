@@ -36,7 +36,10 @@ mkzdefaultcc(char *dir, char *file)
 	// Convert file name to replace.
 	binit(&b);	
 	bwritestr(&b, file);
-	bsubst(&b, "/go/zdefaultcc.go", "/cgo/zdefaultcc.go");
+	if(slash[0] == '/')
+		bsubst(&b, "/go/zdefaultcc.go", "/cgo/zdefaultcc.go");
+	else
+		bsubst(&b, "\\go\\zdefaultcc.go", "\\cgo\\zdefaultcc.go");
 	writefile(&out, bstr(&b), 0);
 
 	bfree(&b);
