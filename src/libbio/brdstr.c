@@ -37,14 +37,14 @@ Brdstr(Biobuf *bp, int delim, int nulldelim)
 		linelen = Blinelen(bp);
 		if(n == 0 && linelen == 0)
 			return nil;
-		nq = realloc(q, n+linelen+1);
+		nq = realloc(q, (size_t)(n+linelen+1));
 		if(nq == nil) {
 			free(q);
 			return nil;
 		}
 		q = nq;
 		if(p != nil) {
-			memmove(q+n, p, linelen);
+			memmove(q+n, p, (size_t)linelen);
 			n += linelen;
 			if(nulldelim)
 				q[n-1] = '\0';

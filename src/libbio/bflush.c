@@ -37,7 +37,7 @@ Bflush(Biobuf *bp)
 		n = bp->bsize+bp->ocount;
 		if(n == 0)
 			return 0;
-		c = write(bp->fid, bp->bbuf, n);
+		c = (int)write(bp->fid, bp->bbuf, (size_t)n);
 		if(n == c) {
 			bp->offset += n;
 			bp->ocount = -bp->bsize;

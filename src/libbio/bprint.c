@@ -49,7 +49,7 @@ bflush(Fmt *f)
 		return 0;
 
 	bp = f->farg;
-	bp->ocount = (char*)f->to - (char*)f->stop;
+	bp->ocount = (int)((char*)f->to - (char*)f->stop);
 	if(Bflush(bp) < 0) {
 		f->stop = nil;
 		f->to = nil;
@@ -76,7 +76,7 @@ Bvprint(Biobuf *bp, char *fmt, va_list arg)
 	n = fmtvprint(&f, fmt, arg);
 
 	if(f.stop != nil)
-		bp->ocount = (char*)f.to - (char*)f.stop;
+		bp->ocount = (int)((char*)f.to - (char*)f.stop);
 
 	return n;
 }

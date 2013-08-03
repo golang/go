@@ -62,9 +62,9 @@ Bseek(Biobuf *bp, vlong offset, int base)
 		 */
 		if(base == 0) {
 			d = n - Boffset(bp);
-			bufsz = bp->ebuf - bp->gbuf;
+			bufsz = (int)(bp->ebuf - bp->gbuf);
 			if(-bufsz <= d && d <= bufsz){
-				bp->icount += d;
+				bp->icount += (int)d;
 				if(d >= 0) {
 					if(bp->icount <= 0)
 						return n;

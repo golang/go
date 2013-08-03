@@ -40,13 +40,13 @@ Bgetrune(Biobuf *bp)
 		bp->runesize = 1;
 		return c;
 	}
-	str[0] = c;
+	str[0] = (char)c;
 
 	for(i=1;;) {
 		c = Bgetc(bp);
 		if(c < 0)
 			return c;
-		str[i++] = c;
+		str[i++] = (char)c;
 
 		if(fullrune(str, i)) {
 			bp->runesize = chartorune(&rune, str);

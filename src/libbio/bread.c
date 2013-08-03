@@ -41,11 +41,11 @@ Bread(Biobuf *bp, void *ap, long count)
 	while(c > 0) {
 		n = -ic;
 		if(n > c)
-			n = c;
+			n = (int)c;
 		if(n == 0) {
 			if(bp->state != Bractive)
 				break;
-			i = read(bp->fid, bp->bbuf, bp->bsize);
+			i = (int)read(bp->fid, bp->bbuf, (size_t)bp->bsize);
 			if(i <= 0) {
 				bp->state = Bracteof;
 				if(i < 0)
@@ -55,13 +55,13 @@ Bread(Biobuf *bp, void *ap, long count)
 			bp->gbuf = bp->bbuf;
 			bp->offset += i;
 			if(i < bp->bsize) {
-				memmove(bp->ebuf-i, bp->bbuf, i);
+				memmove(bp->ebuf-i, bp->bbuf, (size_t)i);
 				bp->gbuf = bp->ebuf-i;
 			}
 			ic = -i;
 			continue;
 		}
-		memmove(p, bp->ebuf+ic, n);
+		memmove(p, bp->ebuf+ic, (size_t)n);
 		c -= n;
 		ic += n;
 		p += n;

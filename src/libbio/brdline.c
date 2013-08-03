@@ -51,9 +51,9 @@ Brdline(Biobuf *bp, int delim)
 	 * first try in remainder of buffer (gbuf doesn't change)
 	 */
 	ip = (char*)bp->ebuf - i;
-	ep = memchr(ip, delim, i);
+	ep = memchr(ip, delim, (size_t)i);
 	if(ep) {
-		j = (ep - ip) + 1;
+		j = (int)((ep - ip) + 1);
 		bp->rdline = j;
 		bp->icount += j;
 		return ip;
@@ -63,7 +63,7 @@ Brdline(Biobuf *bp, int delim)
 	 * copy data to beginning of buffer
 	 */
 	if(i < bp->bsize)
-		memmove(bp->bbuf, ip, i);
+		memmove(bp->bbuf, ip, (size_t)i);
 	bp->gbuf = bp->bbuf;
 
 	/*
@@ -71,12 +71,12 @@ Brdline(Biobuf *bp, int delim)
 	 */
 	ip = (char*)bp->bbuf + i;
 	while(i < bp->bsize) {
-		j = read(bp->fid, ip, bp->bsize-i);
+		j = (int)read(bp->fid, ip, (size_t)(bp->bsize-i));
 		if(j <= 0) {
 			/*
 			 * end of file with no delim
 			 */
-			memmove(bp->ebuf-i, bp->bbuf, i);
+			memmove(bp->ebuf-i, bp->bbuf, (size_t)i);
 			bp->rdline = i;
 			bp->icount = -i;
 			bp->gbuf = bp->ebuf-i;
@@ -84,7 +84,7 @@ Brdline(Biobuf *bp, int delim)
 		}
 		bp->offset += j;
 		i += j;
-		ep = memchr(ip, delim, j);
+		ep = memchr(ip, delim, (size_t)j);
 		if(ep) {
 			/*
 			 * found in new piece
@@ -92,10 +92,10 @@ Brdline(Biobuf *bp, int delim)
 			 */
 			ip = (char*)bp->ebuf - i;
 			if(i < bp->bsize){
-				memmove(ip, bp->bbuf, i);
+				memmove(ip, bp->bbuf, (size_t)i);
 				bp->gbuf = (unsigned char*)ip;
 			}
-			j = (ep - (char*)bp->bbuf) + 1;
+			j = (int)((ep - (char*)bp->bbuf) + 1);
 			bp->rdline = j;
 			bp->icount = j - i;
 			return ip;
