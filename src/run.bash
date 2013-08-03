@@ -161,6 +161,7 @@ time ./run || exit 1
 echo
 echo '#' ../misc/goplay
 go build ../misc/goplay
+rm -f goplay
 
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
