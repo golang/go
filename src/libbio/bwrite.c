@@ -41,11 +41,11 @@ Bwrite(Biobuf *bp, void *ap, long count)
 	while(c > 0) {
 		n = -oc;
 		if(n > c)
-			n = c;
+			n = (int)c;
 		if(n == 0) {
 			if(bp->state != Bwactive)
 				return Beof;
-			i = write(bp->fid, bp->bbuf, bp->bsize);
+			i = (int)write(bp->fid, bp->bbuf, (size_t)bp->bsize);
 			if(i != bp->bsize) {
 				bp->state = Binactive;
 				return Beof;
@@ -54,7 +54,7 @@ Bwrite(Biobuf *bp, void *ap, long count)
 			oc = -bp->bsize;
 			continue;
 		}
-		memmove(bp->ebuf+oc, p, n);
+		memmove(bp->ebuf+oc, p, (size_t)n);
 		oc += n;
 		c -= n;
 		p += n;

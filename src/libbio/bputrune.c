@@ -35,9 +35,9 @@ Bputrune(Biobuf *bp, long c)
 	char str[UTFmax];
 	int n;
 
-	rune = c;
+	rune = (Rune)c;
 	if(rune < Runeself) {
-		Bputc(bp, rune);
+		Bputc(bp, (int)rune);
 		return 1;
 	}
 	n = runetochar(str, &rune);

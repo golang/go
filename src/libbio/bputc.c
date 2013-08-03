@@ -35,7 +35,7 @@ Bputc(Biobuf *bp, int c)
 	for(;;) {
 		i = bp->ocount;
 		if(i) {
-			bp->ebuf[i++] = c;
+			bp->ebuf[i++] = (unsigned char)c;
 			bp->ocount = i;
 			return 0;
 		}
