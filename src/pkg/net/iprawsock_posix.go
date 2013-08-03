@@ -39,12 +39,15 @@ func (a *IPAddr) isWildcard() bool {
 }
 
 func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+	if a == nil {
+		return nil, nil
+	}
 	return ipToSockaddr(family, a.IP, 0, a.Zone)
 }
 
 func (a *IPAddr) toAddr() sockaddr {
-	if a == nil { // nil *IPAddr
-		return nil // nil interface
+	if a == nil {
+		return nil
 	}
 	return a
 }
@@ -178,7 +181,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 	if raddr == nil {
 		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +202,7 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	default:
 		return nil, UnknownNetworkError(netProto)
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
+	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
 	if err != nil {
 		return nil, err
 	}

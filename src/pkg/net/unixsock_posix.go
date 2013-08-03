@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.Time) (*netFD, error) {
+func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Time) (*netFD, error) {
 	var sotype int
 	switch net {
 	case "unix":
@@ -26,19 +26,18 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.T
 		return nil, UnknownNetworkError(net)
 	}
 
-	var la, ra syscall.Sockaddr
 	switch mode {
 	case "dial":
-		if !laddr.isWildcard() {
-			la = &syscall.SockaddrUnix{Name: laddr.Name}
+		if laddr != nil && laddr.isWildcard() {
+			laddr = nil
 		}
-		if raddr != nil {
-			ra = &syscall.SockaddrUnix{Name: raddr.Name}
-		} else if sotype != syscall.SOCK_DGRAM || laddr.isWildcard() {
+		if raddr != nil && raddr.isWildcard() {
+			raddr = nil
+		}
+		if raddr == nil && (sotype != syscall.SOCK_DGRAM || laddr == nil) {
 			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
 		}
 	case "listen":
-		la = &syscall.SockaddrUnix{Name: laddr.Name}
 	default:
 		return nil, errors.New("unknown mode: " + mode)
 	}
@@ -50,7 +49,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.T
 		f = sockaddrToUnixpacket
 	}
 
-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, la, ra, deadline, f)
+	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
 	if err != nil {
 		goto error
 	}

@@ -39,12 +39,15 @@ func (a *UDPAddr) isWildcard() bool {
 }
 
 func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+	if a == nil {
+		return nil, nil
+	}
 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
 func (a *UDPAddr) toAddr() sockaddr {
-	if a == nil { // nil *UDPAddr
-		return nil // nil interface
+	if a == nil {
+		return nil
 	}
 	return a
 }
@@ -173,7 +176,7 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +199,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	if laddr == nil {
 		laddr = &UDPAddr{}
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +219,7 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
 	if gaddr == nil || gaddr.IP == nil {
 		return nil, &OpError{"listen", net, nil, errMissingAddress}
 	}
-	fd, err := internetSocket(net, gaddr.toAddr(), nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
 	if err != nil {
 		return nil, err
 	}

@@ -46,12 +46,15 @@ func (a *TCPAddr) isWildcard() bool {
 }
 
 func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+	if a == nil {
+		return nil, nil
+	}
 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
 func (a *TCPAddr) toAddr() sockaddr {
-	if a == nil { // nil *TCPAddr
-		return nil // nil interface
+	if a == nil {
+		return nil
 	}
 	return a
 }
@@ -156,7 +159,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 
 func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 
 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
@@ -186,7 +189,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 		if err == nil {
 			fd.Close()
 		}
-		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+		fd, err = internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 	}
 
 	if err != nil {
@@ -294,7 +297,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
 	if err != nil {
 		return nil, err
 	}
