@@ -8,10 +8,24 @@ package net
 
 import "time"
 
-var supportsIPv6, supportsIPv4map bool
+var (
+	// supportsIPv4 reports whether the platform supports IPv4
+	// networking functionality.
+	supportsIPv4 bool
+
+	// supportsIPv6 reports whether the platfrom supports IPv6
+	// networking functionality.
+	supportsIPv6 bool
+
+	// supportsIPv4map reports whether the platform supports
+	// mapping an IPv4 address inside an IPv6 address at transport
+	// layer protocols.  See RFC 4291, RFC 4038 and RFC 3493.
+	supportsIPv4map bool
+)
 
 func init() {
 	sysInit()
+	supportsIPv4 = probeIPv4Stack()
 	supportsIPv6, supportsIPv4map = probeIPv6Stack()
 }
 
@@ -41,23 +55,32 @@ func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
 	return nil
 }
 
-func anyaddr(x IP) IP {
-	if x4 := x.To4(); x4 != nil {
-		return x4
+// anyaddr returns IP addresses that we can use with the current
+// kernel configuration.  It returns nil when ip is not suitable for
+// the configuration and an IP address.
+func anyaddr(ip IP) IP {
+	if ip4 := ipv4only(ip); ip4 != nil {
+		return ip4
 	}
-	if supportsIPv6 {
-		return x
+	return ipv6only(ip)
+}
+
+// ipv4only returns IPv4 addresses that we can use with the kernel's
+// IPv4 addressing modes.  It returns IPv4-mapped IPv6 addresses as
+// IPv4 addresses and returns other IPv6 address types as nils.
+func ipv4only(ip IP) IP {
+	if supportsIPv4 {
+		return ip.To4()
 	}
 	return nil
 }
 
-func ipv4only(x IP) IP { return x.To4() }
-
-func ipv6only(x IP) IP {
-	// Only return addresses that we can use
-	// with the kernel's IPv6 addressing modes.
-	if len(x) == IPv6len && x.To4() == nil && supportsIPv6 {
-		return x
+// ipv6only returns IPv6 addresses that we can use with the kernel's
+// IPv6 addressing modes.  It returns IPv4-mapped IPv6 addresses as
+// nils and returns other IPv6 address types as IPv6 addresses.
+func ipv6only(ip IP) IP {
+	if supportsIPv6 && len(ip) == IPv6len && ip.To4() == nil {
+		return ip
 	}
 	return nil
 }
