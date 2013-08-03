@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 // Tree is the representation of a single parsed template.
@@ -198,27 +197,6 @@ func (t *Tree) stopParse() {
 	t.lex = nil
 	t.vars = nil
 	t.funcs = nil
-}
-
-// atEOF returns true if, possibly after spaces, we're at EOF.
-func (t *Tree) atEOF() bool {
-	for {
-		token := t.peek()
-		switch token.typ {
-		case itemEOF:
-			return true
-		case itemText:
-			for _, r := range token.val {
-				if !unicode.IsSpace(r) {
-					return false
-				}
-			}
-			t.next() // skip spaces.
-			continue
-		}
-		break
-	}
-	return false
 }
 
 // Parse parses the template definition string to construct a representation of
