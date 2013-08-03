@@ -50,8 +50,6 @@ type tx struct {
 	x int
 }
 
-var txType = reflect.TypeOf((*tx)(nil)).Elem()
-
 // A type that can unmarshal itself.
 
 type unmarshaler struct {
@@ -1070,7 +1068,6 @@ func TestUnmarshalNulls(t *testing.T) {
 
 func TestStringKind(t *testing.T) {
 	type stringKind string
-	type aMap map[stringKind]int
 
 	var m1, m2 map[stringKind]int
 	m1 = map[stringKind]int{

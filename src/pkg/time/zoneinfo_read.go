@@ -11,10 +11,6 @@ package time
 
 import "errors"
 
-const (
-	headerSize = 4 + 16 + 4*7
-)
-
 // Simple I/O interface to binary blob of data.
 type data struct {
 	p     []byte

@@ -178,19 +178,6 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, 
 	return
 }
 
-// lookupOffset returns information about the time zone with
-// the given offset (such as -5*60*60).
-func (l *Location) lookupOffset(offset int) (name string, isDST bool, ok bool) {
-	l = l.get()
-	for i := range l.zone {
-		zone := &l.zone[i]
-		if zone.offset == offset {
-			return zone.name, zone.isDST, true
-		}
-	}
-	return
-}
-
 // NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
 // syntax too, but I don't feel like implementing it today.
 

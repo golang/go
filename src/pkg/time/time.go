@@ -669,7 +669,6 @@ const (
 	daysPer400Years  = 365*400 + 97
 	daysPer100Years  = 365*100 + 24
 	daysPer4Years    = 365*4 + 1
-	days1970To2001   = 31*365 + 8
 )
 
 // date computes the year, day of year, and when full=true,
