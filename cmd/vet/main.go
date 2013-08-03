@@ -38,7 +38,7 @@ var report = map[string]*bool{
 	"assign":      flag.Bool("assign", false, "check for useless assignments"),
 	"atomic":      flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
 	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
-	"composites":  flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
+	"composites":  flag.Bool("composites", false, "check that composite literals used field-keyed elements"),
 	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
 	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
 	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
@@ -400,7 +400,7 @@ func (f *File) walkCallExpr(call *ast.CallExpr) {
 
 // walkCompositeLit walks a composite literal.
 func (f *File) walkCompositeLit(c *ast.CompositeLit) {
-	f.checkUntaggedLiteral(c)
+	f.checkUnkeyedLiteral(c)
 }
 
 // walkFieldTag walks a struct field tag.

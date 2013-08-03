@@ -49,9 +49,9 @@ Non-standard signatures for methods with familiar names, including:
 
 Struct tags that do not follow the format understood by reflect.StructTag.Get.
 
-4. Untagged composite literals, flag -composites
+4. Unkeyed composite literals, flag -composites
 
-Composite struct literals that do not use the type-tagged syntax.
+Composite struct literals that do not use the field-keyed syntax.
 
 
 Usage:

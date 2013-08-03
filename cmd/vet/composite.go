@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the test for untagged struct literals.
+// This file contains the test for unkeyed struct literals.
 
 package main
 
@@ -14,9 +14,9 @@ import (
 
 var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
 
-// checkUntaggedLiteral checks if a composite literal is a struct literal with
-// untagged fields.
-func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
+// checkUnkeyedLiteral checks if a composite literal is a struct literal with
+// unkeyed fields.
+func (f *File) checkUnkeyedLiteral(c *ast.CompositeLit) {
 	if !vet("composites") {
 		return
 	}
@@ -36,9 +36,9 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 	case *ast.MapType:
 		return
 	case *ast.StructType:
-		return // a literal struct type does not need to use tags
+		return // a literal struct type does not need to use keys
 	case *ast.Ident:
-		// A simple type name like t or T does not need tags either,
+		// A simple type name like t or T does not need keys either,
 		// since it is almost certainly declared in the current package.
 		// (The exception is names being used via import . "pkg", but
 		// those are already breaking the Go 1 compatibility promise,
@@ -59,7 +59,7 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 
 	// It's a struct, or we can't tell it's not a struct because we don't have types.
 
-	// Check if the CompositeLit contains an untagged field.
+	// Check if the CompositeLit contains an unkeyed field.
 	allKeyValue := true
 	for _, e := range c.Elts {
 		if _, ok := e.(*ast.KeyValueExpr); !ok {
@@ -88,11 +88,11 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		return
 	}
 	typeName := path + "." + s.Sel.Name
-	if *compositeWhiteList && untaggedLiteralWhitelist[typeName] {
+	if *compositeWhiteList && unkeyedLiteralWhitelist[typeName] {
 		return
 	}
 
-	f.Warn(c.Pos(), typeString+" composite literal uses untagged fields")
+	f.Warn(c.Pos(), typeString+" composite literal uses unkeyed fields")
 }
 
 // pkgPath returns the import path "image/png" for the package name "png".
@@ -118,7 +118,7 @@ func pkgPath(f *File, pkgName string) (path string) {
 	return ""
 }
 
-var untaggedLiteralWhitelist = map[string]bool{
+var unkeyedLiteralWhitelist = map[string]bool{
 	/*
 		These types are actually slices. Syntactically, we cannot tell
 		whether the Typ in pkg.Typ{1, 2, 3} is a slice or a struct, so we

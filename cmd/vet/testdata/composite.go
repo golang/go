@@ -50,7 +50,7 @@ var Okay4 = MyStruct{
 // Testing is awkward because we need to reference things from a separate package
 // to trigger the warnings.
 
-var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
+var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "unkeyed fields"
 	"Name",
 	"Usage",
 	nil, // Value

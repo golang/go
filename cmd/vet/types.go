@@ -40,7 +40,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 // isStruct reports whether the composite literal c is a struct.
 // If it is not (probably a struct), it returns a printable form of the type.
 func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
-	// Check that the CompositeLit's type is a slice or array (which needs no tag), if possible.
+	// Check that the CompositeLit's type is a slice or array (which needs no field keys), if possible.
 	typ := pkg.types[c]
 	// If it's a named type, pull out the underlying type. If it's not, the Underlying
 	// method returns the type itself.
