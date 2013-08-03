@@ -13,6 +13,17 @@ import (
 	"time"
 )
 
+func probeIPv4Stack() bool {
+	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	switch err {
+	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+		return false
+	case nil:
+		closesocket(s)
+	}
+	return true
+}
+
 // Should we try to use the IPv4 socket interface if we're
 // only dealing with IPv4 sockets?  As long as the host system
 // understands IPv6, it's okay to pass IPv4 addresses to the IPv6

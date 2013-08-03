@@ -12,10 +12,18 @@ import (
 	"syscall"
 )
 
+func probeIPv4Stack() bool {
+	// TODO(mikio): implement this when Plan 9 supports IPv6-only
+	// kernel.
+	return true
+}
+
 // probeIPv6Stack returns two boolean values.  If the first boolean
 // value is true, kernel supports basic IPv6 functionality.  If the
 // second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+	// TODO(mikio): implement this once Plan 9 gets an IPv6
+	// protocol stack implementation.
 	return false, false
 }
 
