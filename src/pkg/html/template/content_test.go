@@ -264,12 +264,6 @@ func TestStringer(t *testing.T) {
 func TestEscapingNilNonemptyInterfaces(t *testing.T) {
 	tmpl := Must(New("x").Parse("{{.E}}"))
 
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("panic during template execution: %v", r)
-		}
-	}()
-
 	got := new(bytes.Buffer)
 	testData := struct{ E error }{} // any non-empty interface here will do; error is just ready at hand
 	tmpl.Execute(got, testData)
