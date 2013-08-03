@@ -37,7 +37,7 @@ type sockaddr interface {
 }
 
 // Generic POSIX socket creation.
-func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	s, err := sysSocket(f, t, p)
 	if err != nil {
 		return nil, err
@@ -48,23 +48,42 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		return nil, err
 	}
 
-	// This socket is used by a listener.
-	if ulsa != nil && ursa == nil {
+	// This function makes a network file descriptor for stream
+	// and datagram dialers, stream and datagram listeners.
+	//
+	// For dialers, they will require either named or unnamed
+	// sockets for their flights.  We can assume that it's just a
+	// request from a dialer that wants a named socket when both
+	// laddr and raddr are not nil.  A dialer will also require a
+	// connection setup initiated socket when raddr is not nil.
+	//
+	// For listeners and some dialers on datagram networks, they
+	// will only require named sockets.  So we can assume that
+	// it's just for a listener or a datagram dialer when laddr is
+	// not nil but raddr is nil.
+
+	var lsa syscall.Sockaddr
+	if laddr != nil && raddr == nil {
 		// We provide a socket that listens to a wildcard
-		// address with reusable UDP port when the given ulsa
+		// address with reusable UDP port when the given laddr
 		// is an appropriate UDP multicast address prefix.
 		// This makes it possible for a single UDP listener
 		// to join multiple different group addresses, for
 		// multiple UDP listeners that listen on the same UDP
 		// port to join the same group address.
-		if ulsa, err = listenerSockaddr(s, f, ulsa, toAddr); err != nil {
+		if lsa, err = listenerSockaddr(s, f, laddr); err != nil {
+			closesocket(s)
+			return nil, err
+		}
+	} else if laddr != nil && raddr != nil {
+		if lsa, err = laddr.sockaddr(f); err != nil {
 			closesocket(s)
 			return nil, err
 		}
 	}
 
-	if ulsa != nil {
-		if err = syscall.Bind(s, ulsa); err != nil {
+	if lsa != nil {
+		if err = syscall.Bind(s, lsa); err != nil {
 			closesocket(s)
 			return nil, err
 		}
@@ -75,12 +94,19 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		return nil, err
 	}
 
-	// This socket is used by a dialer.
-	if ursa != nil {
+	var rsa syscall.Sockaddr
+	if raddr != nil {
+		rsa, err = raddr.sockaddr(f)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if rsa != nil {
 		if !deadline.IsZero() {
 			setWriteDeadline(fd, deadline)
 		}
-		if err = fd.connect(ulsa, ursa); err != nil {
+		if err = fd.connect(lsa, rsa); err != nil {
 			fd.Close()
 			return nil, err
 		}
@@ -90,13 +116,11 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		}
 	}
 
-	lsa, _ := syscall.Getsockname(s)
-	laddr := toAddr(lsa)
-	rsa, _ := syscall.Getpeername(s)
-	if rsa == nil {
-		rsa = ursa
+	lsa, _ = syscall.Getsockname(s)
+	if rsa, _ = syscall.Getpeername(s); rsa != nil {
+		fd.setAddr(toAddr(lsa), toAddr(rsa))
+	} else {
+		fd.setAddr(toAddr(lsa), raddr)
 	}
-	raddr := toAddr(rsa)
-	fd.setAddr(laddr, raddr)
 	return fd, nil
 }

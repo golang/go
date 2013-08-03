@@ -132,19 +132,8 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 // Internet sockets (TCP, UDP, IP)
 
 func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
-	var la, ra syscall.Sockaddr
 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
-	if laddr != nil {
-		if la, err = laddr.sockaddr(family); err != nil {
-			goto Error
-		}
-	}
-	if raddr != nil {
-		if ra, err = raddr.sockaddr(family); err != nil {
-			goto Error
-		}
-	}
-	fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, deadline, toAddr)
+	fd, err = socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
 	if err != nil {
 		goto Error
 	}
