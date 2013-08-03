@@ -259,3 +259,28 @@ func TestStringer(t *testing.T) {
 		t.Errorf("expected %q got %q", expect, b.String())
 	}
 }
+
+// https://code.google.com/p/go/issues/detail?id=5982
+func TestEscapingNilNonemptyInterfaces(t *testing.T) {
+	tmpl := Must(New("x").Parse("{{.E}}"))
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic during template execution: %v", r)
+		}
+	}()
+
+	got := new(bytes.Buffer)
+	testData := struct{ E error }{} // any non-empty interface here will do; error is just ready at hand
+	tmpl.Execute(got, testData)
+
+	// Use this data instead of just hard-coding "&lt;nil&gt;" to avoid
+	// dependencies on the html escaper and the behavior of fmt w.r.t. nil.
+	want := new(bytes.Buffer)
+	data := struct{ E string }{E: fmt.Sprint(nil)}
+	tmpl.Execute(want, data)
+
+	if !bytes.Equal(want.Bytes(), got.Bytes()) {
+		t.Errorf("expected %q got %q", string(want.Bytes()), string(got.Bytes()))
+	}
+}
