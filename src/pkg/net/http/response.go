@@ -32,7 +32,7 @@ type Response struct {
 	ProtoMinor int    // e.g. 0
 
 	// Header maps header keys to values.  If the response had multiple
-	// headers with the same key, they will be concatenated, with comma
+	// headers with the same key, they may be concatenated, with comma
 	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
 	// be semantically equivalent to a comma-delimited sequence.) Values
 	// duplicated by other fields in this struct (e.g., ContentLength) are
