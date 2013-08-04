@@ -116,7 +116,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 
 	m->mallocing = 0;
 	if(UseSpanType && !(flag & FlagNoPointers) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
-		runtime·settype_flush(m, false);
+		runtime·settype_flush(m);
 	m->locks--;
 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
@@ -563,14 +563,13 @@ runtime·persistentalloc(uintptr size, uintptr align)
 static Lock settype_lock;
 
 void
-runtime·settype_flush(M *mp, bool sysalloc)
+runtime·settype_flush(M *mp)
 {
 	uintptr *buf, *endbuf;
 	uintptr size, ofs, j, t;
 	uintptr ntypes, nbytes2, nbytes3;
 	uintptr *data2;
 	byte *data3;
-	bool sysalloc3;
 	void *v;
 	uintptr typ, p;
 	MSpan *s;
@@ -605,20 +604,9 @@ runtime·settype_flush(M *mp, bool sysalloc)
 		case MTypes_Empty:
 			ntypes = (s->npages << PageShift) / size;
 			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
-
-			if(!sysalloc) {
-				data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
-			} else {
-				data3 = runtime·SysAlloc(nbytes3);
-				if(data3 == nil)
-					runtime·throw("runtime: cannot allocate memory");
-				if(0) runtime·printf("settype(0->3): SysAlloc(%x) --> %p\n", (uint32)nbytes3, data3);
-			}
-
+			data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
 			s->types.compression = MTypes_Bytes;
-			s->types.sysalloc = sysalloc;
 			s->types.data = (uintptr)data3;
-
 			((uintptr*)data3)[1] = typ;
 			data3[8*sizeof(uintptr) + ofs] = 1;
 			break;
@@ -643,20 +631,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
 			} else {
 				ntypes = (s->npages << PageShift) / size;
 				nbytes2 = ntypes * sizeof(uintptr);
-
-				if(!sysalloc) {
-					data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
-				} else {
-					data2 = runtime·SysAlloc(nbytes2);
-					if(data2 == nil)
-						runtime·throw("runtime: cannot allocate memory");
-					if(0) runtime·printf("settype.(3->2): SysAlloc(%x) --> %p\n", (uint32)nbytes2, data2);
-				}
-
-				sysalloc3 = s->types.sysalloc;
-
+				data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
 				s->types.compression = MTypes_Words;
-				s->types.sysalloc = sysalloc;
 				s->types.data = (uintptr)data2;
 
 				// Move the contents of data3 to data2. Then deallocate data3.
@@ -665,12 +641,6 @@ runtime·settype_flush(M *mp, bool sysalloc)
 					t = ((uintptr*)data3)[t];
 					data2[j] = t;
 				}
-				if(sysalloc3) {
-					nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
-					if(0) runtime·printf("settype.(3->2): SysFree(%p,%x)\n", data3, (uint32)nbytes3);
-					runtime·SysFree(data3, nbytes3);
-				}
-
 				data2[ofs] = typ;
 			}
 			break;
@@ -679,33 +649,6 @@ runtime·settype_flush(M *mp, bool sysalloc)
 	runtime·unlock(&settype_lock);
 
 	mp->settype_bufsize = 0;
-}
-
-void
-runtime·settype_sysfree(MSpan *s)
-{
-	uintptr ntypes, nbytes;
-
-	if(!s->types.sysalloc)
-		return;
-
-	nbytes = (uintptr)-1;
-
-	switch (s->types.compression) {
-	case MTypes_Words:
-		ntypes = (s->npages << PageShift) / s->elemsize;
-		nbytes = ntypes * sizeof(uintptr);
-		break;
-	case MTypes_Bytes:
-		ntypes = (s->npages << PageShift) / s->elemsize;
-		nbytes = 8*sizeof(uintptr) + 1*ntypes;
-		break;
-	}
-
-	if(nbytes != (uintptr)-1) {
-		if(0) runtime·printf("settype: SysFree(%p,%x)\n", (void*)s->types.data, (uint32)nbytes);
-		runtime·SysFree((void*)s->types.data, nbytes);
-	}
 }
 
 uintptr

@@ -330,8 +330,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	MSpan *t;
 	PageID p;
 
-	if(s->types.sysalloc)
-		runtime·settype_sysfree(s);
 	s->types.compression = MTypes_Empty;
 
 	if(s->state != MSpanInUse || s->ref != 0) {

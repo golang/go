@@ -334,7 +334,6 @@ enum
 struct MTypes
 {
 	byte	compression;	// one of MTypes_*
-	bool	sysalloc;	// whether (void*)data is from runtime·SysAlloc
 	uintptr	data;
 };
 
@@ -459,7 +458,7 @@ void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
 void*	runtime·cnewarray(Type*, intgo);
 
-void	runtime·settype_flush(M*, bool);
+void	runtime·settype_flush(M*);
 void	runtime·settype_sysfree(MSpan*);
 uintptr	runtime·gettype(void*);
 
