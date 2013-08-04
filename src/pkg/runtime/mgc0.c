@@ -2084,7 +2084,7 @@ gc(struct gc_args *args)
 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
 
 	for(mp=runtime·allm; mp; mp=mp->alllink)
-		runtime·settype_flush(mp, false);
+		runtime·settype_flush(mp);
 
 	heap0 = 0;
 	obj0 = 0;
