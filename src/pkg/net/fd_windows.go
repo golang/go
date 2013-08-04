@@ -579,6 +579,8 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	}
 
 	// Submit accept request.
+	fd.rio.Lock()
+	defer fd.rio.Unlock()
 	var o acceptOp
 	o.Init(fd, 'r')
 	o.newsock = s
