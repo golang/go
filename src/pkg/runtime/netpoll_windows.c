@@ -78,8 +78,7 @@ retry:
 	qty = 0;
 	wait = INFINITE;
 	if(!block)
-		// TODO(brainman): should use 0 here instead, but scheduler hogs CPU
-		wait = 1;
+		wait = 0;
 	// TODO(brainman): Need a loop here to fetch all pending notifications
 	// (or at least a batch). Scheduler will behave better if is given
 	// a batch of newly runnable goroutines.

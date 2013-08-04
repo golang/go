@@ -24,6 +24,7 @@
 #pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
 #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
 #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
+#pragma dynimport runtime·LoadLibraryA LoadLibraryA "kernel32.dll"
 #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
 #pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
@@ -55,6 +56,7 @@ extern void *runtime·GetSystemInfo;
 extern void *runtime·GetSystemTimeAsFileTime;
 extern void *runtime·GetThreadContext;
 extern void *runtime·LoadLibrary;
+extern void *runtime·LoadLibraryA;
 extern void *runtime·ResumeThread;
 extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
@@ -78,6 +80,9 @@ getproccount(void)
 void
 runtime·osinit(void)
 {
+	void *kernel32;
+	void *SetProcessPriorityBoost;
+
 	// -1 = current process, -2 = current thread
 	runtime·stdcall(runtime·DuplicateHandle, 7,
 		(uintptr)-1, (uintptr)-2, (uintptr)-1, &m->thread,
@@ -85,6 +90,17 @@ runtime·osinit(void)
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
 	runtime·ncpu = getproccount();
+
+	kernel32 = runtime·stdcall(runtime·LoadLibraryA, 1, "kernel32.dll");
+	if(kernel32 != nil) {
+		// Windows dynamic priority boosting assumes that a process has different types
+		// of dedicated threads -- GUI, IO, computational, etc. Go processes use
+		// equivalent threads that all do a mix of GUI, IO, computations, etc.
+		// In such context dynamic priority boosting does nothing but harm, so we turn it off.
+		SetProcessPriorityBoost = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "SetProcessPriorityBoost");
+		if(SetProcessPriorityBoost != nil)  // supported since Windows XP
+			runtime·stdcall(SetProcessPriorityBoost, 2, (uintptr)-1, (uintptr)1);
+	}
 }
 
 void
