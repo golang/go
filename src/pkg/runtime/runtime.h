@@ -269,7 +269,6 @@ struct	G
 	bool	ispanic;
 	bool	issystem;	// do not output in stack dump
 	bool	isbackground;	// ignore in deadlock detector
-	bool	blockingsyscall;	// hint that the next syscall will block
 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
@@ -313,7 +312,6 @@ struct	M
 	int32	dying;
 	int32	profilehz;
 	int32	helpgc;
-	bool	blockingsyscall;
 	bool	spinning;
 	uint32	fastrand;
 	uint64	ncgocall;	// number of cgo calls in total
