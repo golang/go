@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -293,4 +294,36 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 
 		<-done
 	}
+}
+
+func TestTCPConcurrentAccept(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	ln, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	const N = 10
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for i := 0; i < N; i++ {
+		go func() {
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					break
+				}
+				c.Close()
+			}
+			wg.Done()
+		}()
+	}
+	for i := 0; i < 10*N; i++ {
+		c, err := Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Fatalf("Dial failed: %v", err)
+		}
+		c.Close()
+	}
+	ln.Close()
+	wg.Wait()
 }
