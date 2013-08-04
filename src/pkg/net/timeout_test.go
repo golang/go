@@ -423,8 +423,6 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)
-	case "windows":
-		t.Skipf("skipping test on %q, see issue 5971", runtime.GOOS)
 	}
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
