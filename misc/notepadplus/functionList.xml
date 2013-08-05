@@ -1,0 +1,31 @@
+<!-- <NotepadPlus> -->
+	<!-- <functionList> -->
+		<!-- <associationMap> -->
+			<association ext=".go" id="go"/>
+
+		<!-- </associationMap> -->
+		<!-- <parsers> -->
+			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">
+				<function
+				    mainExpr="(^func\s+[\w]+)|(^func\s*\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+)"
+					displayMode="$className->$functionName">
+					<functionName>
+						<nameExpr expr="(((func)[\s][\w]+)|(\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+))"/>
+						<nameExpr expr="(((func)[\s][\w]+)|(\)\s*[\w]+))"/>
+						<nameExpr expr="(([\s][\w]+)|(\)\s*[\w]+))"/>
+						<nameExpr expr="[\w]+"/>
+					</functionName>
+					<className>
+						<nameExpr expr="\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+"/>
+						<nameExpr expr="\(\s*[\w]+\s+\*?\s*[\w]+\s*\)"/>
+						<nameExpr expr="[\w]+\s+\*?\s*[\w]+\s*\)"/>
+						<nameExpr expr="\*?\s*[\w]+\s*\)"/>
+						<nameExpr expr="[\w]+\s*\)"/>
+						<nameExpr expr="[\w]+"/>
+					</className>
+				</function>
+			</parser>
+
+		<!-- </parsers> -->
+	<!-- </functionList> -->
+<!-- </NotepadPlus> -->
