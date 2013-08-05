@@ -160,16 +160,6 @@ func Index(s, sep string) int {
 	return -1
 }
 
-// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
-func IndexByte(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
-
 // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
 func LastIndex(s, sep string) int {
 	n := len(sep)
