@@ -63,6 +63,19 @@ func TestHelloWorldBZ2(t *testing.T) {
 	}
 }
 
+func TestConcat(t *testing.T) {
+	out, err := decompressHex(helloWorldBZ2Hex + helloWorldBZ2Hex)
+	if err != nil {
+		t.Errorf("error from Read: %s", err)
+		return
+	}
+
+	hello2 := bytes.Repeat(helloWorld, 2)
+	if !bytes.Equal(hello2, out) {
+		t.Errorf("got %x, want %x", out, hello2)
+	}
+}
+
 func testZeros(t *testing.T, inHex string, n int) {
 	out, err := decompressHex(inHex)
 	if err != nil {
