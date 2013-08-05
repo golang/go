@@ -408,7 +408,7 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	if !strings.HasPrefix(vers, "HTTP/") {
 		return 0, 0, false
 	}
-	dot := strings.IndexByte(vers, '.')
+	dot := strings.Index(vers, ".")
 	if dot < 0 {
 		return 0, 0, false
 	}
@@ -473,8 +473,8 @@ func (r *Request) SetBasicAuth(username, password string) {
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
 func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
-	s1 := strings.IndexByte(line, ' ')
-	s2 := strings.IndexByte(line[s1+1:], ' ')
+	s1 := strings.Index(line, " ")
+	s2 := strings.Index(line[s1+1:], " ")
 	if s1 < 0 || s2 < 0 {
 		return
 	}
