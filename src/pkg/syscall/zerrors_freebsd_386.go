@@ -438,7 +438,9 @@ const (
 	FLUSHO                            = 0x800000
 	F_CANCEL                          = 0x5
 	F_DUP2FD                          = 0xa
+	F_DUP2FD_CLOEXEC                  = 0x12
 	F_DUPFD                           = 0x0
+	F_DUPFD_CLOEXEC                   = 0x11
 	F_GETFD                           = 0x1
 	F_GETFL                           = 0x3
 	F_GETLK                           = 0xb

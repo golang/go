@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -405,15 +406,46 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 	return netfd, nil
 }
 
-func (fd *netFD) dup() (f *os.File, err error) {
+// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
+// If the kernel doesn't support it, this is set to 0.
+var tryDupCloexec = int32(1)
+
+func dupCloseOnExec(fd int) (newfd int, err error) {
+	if atomic.LoadInt32(&tryDupCloexec) == 1 {
+		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
+		switch e1 {
+		case 0:
+			return int(r0), nil
+		case syscall.EINVAL:
+			// Old kernel. Fall back to the portable way
+			// from now on.
+			atomic.StoreInt32(&tryDupCloexec, 0)
+		default:
+			return -1, e1
+		}
+	}
+	return dupCloseOnExecOld(fd)
+}
+
+// dupCloseOnExecUnixOld is the traditional way to dup an fd and
+// set its O_CLOEXEC bit, using two system calls.
+func dupCloseOnExecOld(fd int) (newfd int, err error) {
 	syscall.ForkLock.RLock()
-	ns, err := syscall.Dup(fd.sysfd)
+	defer syscall.ForkLock.RUnlock()
+	newfd, err = syscall.Dup(fd)
+	if err != nil {
+		return -1, err
+	}
+	syscall.CloseOnExec(newfd)
+	return
+}
+
+func (fd *netFD) dup() (f *os.File, err error) {
+	ns, err := dupCloseOnExec(fd.sysfd)
 	if err != nil {
 		syscall.ForkLock.RUnlock()
 		return nil, &OpError{"dup", fd.net, fd.laddr, err}
 	}
-	syscall.CloseOnExec(ns)
-	syscall.ForkLock.RUnlock()
 
 	// We want blocking mode for the new fd, hence the double negative.
 	// This also puts the old fd into blocking mode, meaning that
