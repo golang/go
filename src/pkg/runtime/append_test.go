@@ -38,8 +38,16 @@ func BenchmarkAppend4Bytes(b *testing.B) {
 	benchmarkAppendBytes(b, 4)
 }
 
+func BenchmarkAppend7Bytes(b *testing.B) {
+	benchmarkAppendBytes(b, 7)
+}
+
 func BenchmarkAppend8Bytes(b *testing.B) {
 	benchmarkAppendBytes(b, 8)
+}
+
+func BenchmarkAppend15Bytes(b *testing.B) {
+	benchmarkAppendBytes(b, 15)
 }
 
 func BenchmarkAppend16Bytes(b *testing.B) {
