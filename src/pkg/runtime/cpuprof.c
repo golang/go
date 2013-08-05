@@ -331,7 +331,7 @@ getprofile(Profile *p)
 
 	if(p->wholding) {
 		// Release previous log to signal handling side.
-		// Loop because we are racing against setprofile(off).
+		// Loop because we are racing against SetCPUProfileRate(0).
 		for(;;) {
 			n = p->handoff;
 			if(n == 0) {

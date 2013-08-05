@@ -248,12 +248,6 @@ runtime·memlimit(void)
 	return 0;
 }
 
-void
-runtime·setprof(bool on)
-{
-	USED(on);
-}
-
 extern void runtime·sigtramp(void);
 
 typedef struct sigaction {
