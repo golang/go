@@ -1359,8 +1359,6 @@ goexit0(G *gp)
 static void
 save(void *pc, uintptr sp)
 {
-	g->gcpc = (uintptr)pc;
-	g->gcsp = sp;
 	g->sched.pc = (uintptr)pc;
 	g->sched.sp = sp;
 	g->sched.lr = 0;
@@ -1388,15 +1386,16 @@ void
 	if(m->profilehz > 0)
 		runtime·setprof(false);
 
-	// Leave SP around for gc and traceback.
+	// Leave SP around for GC and traceback.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
-
-	g->gcstack = g->stackbase;
-	g->gcguard = g->stackguard;
+	g->syscallsp = g->sched.sp;
+	g->syscallpc = g->sched.pc;
+	g->syscallstack = g->stackbase;
+	g->syscallguard = g->stackguard;
 	g->status = Gsyscall;
-	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
+	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
-		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
+		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
 		runtime·throw("entersyscall");
 	}
 
@@ -1443,16 +1442,16 @@ void
 	if(m->profilehz > 0)
 		runtime·setprof(false);
 
-	// Leave SP around for gc and traceback.
+	// Leave SP around for GC and traceback.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
-	g->gcsp = g->sched.sp;
-	g->gcpc = g->sched.pc;
-	g->gcstack = g->stackbase;
-	g->gcguard = g->stackguard;
+	g->syscallsp = g->sched.sp;
+	g->syscallpc = g->sched.pc;
+	g->syscallstack = g->stackbase;
+	g->syscallguard = g->stackguard;
 	g->status = Gsyscall;
-	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
-		// runtime·printf("entersyscallblock inconsistent %p [%p,%p]\n",
-		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
+	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
+		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
 		runtime·throw("entersyscallblock");
 	}
 
@@ -1491,8 +1490,8 @@ runtime·exitsyscall(void)
 		g->status = Grunning;
 		// Garbage collector isn't running (since we are),
 		// so okay to clear gcstack and gcsp.
-		g->gcstack = (uintptr)nil;
-		g->gcsp = (uintptr)nil;
+		g->syscallstack = (uintptr)nil;
+		g->syscallsp = (uintptr)nil;
 		m->locks--;
 		if(g->preempt) {
 			// restore the preemption request in case we've cleared it in newstack
@@ -1515,8 +1514,8 @@ runtime·exitsyscall(void)
 	// Must wait until now because until gosched returns
 	// we don't know for sure that the garbage collector
 	// is not running.
-	g->gcstack = (uintptr)nil;
-	g->gcsp = (uintptr)nil;
+	g->syscallstack = (uintptr)nil;
+	g->syscallsp = (uintptr)nil;
 }
 
 #pragma textflag 7

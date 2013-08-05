@@ -229,8 +229,8 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
 
 	if(gp->status == Gsyscall) {
 		// Override signal registers if blocked in system call.
-		pc = gp->sched.pc;
-		sp = gp->sched.sp;
+		pc = gp->syscallpc;
+		sp = gp->syscallsp;
 	}
 	
 	// Print traceback. By default, omits runtime frames.
