@@ -2275,12 +2275,6 @@ preemptone(P *p)
 	M *mp;
 	G *gp;
 
-// Preemption requires more robust traceback routines.
-// For now, disable.
-// The if(1) silences a compiler warning about the rest of the
-// function being unreachable.
-if(0) return;
-
 	mp = p->m;
 	if(mp == nil || mp == m)
 		return;
