@@ -413,6 +413,8 @@ var formatTests = []FormatTest{
 	{"am/pm", "3pm", "9pm"},
 	{"AM/PM", "3PM", "9PM"},
 	{"two-digit year", "06 01 02", "09 02 04"},
+	// Three-letter months and days must not be followed by lower-case letter.
+	{"Janet", "Hi Janet, the Month is January", "Hi Janet, the Month is February"},
 	// Time stamps, Fractional seconds.
 	{"Stamp", Stamp, "Feb  4 21:00:57"},
 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
@@ -505,6 +507,8 @@ var parseTests = []ParseTest{
 	// Leading zeros in other places should not be taken as fractional seconds.
 	{"zero1", "2006.01.02.15.04.05.0", "2010.02.04.21.00.57.0", false, false, 1, 1},
 	{"zero2", "2006.01.02.15.04.05.00", "2010.02.04.21.00.57.01", false, false, 1, 2},
+	// Month and day names only match when not followed by a lower-case letter.
+	{"Janet", "Hi Janet, the Month is January: Jan _2 15:04:05 2006", "Hi Janet, the Month is February: Feb  4 21:00:57 2010", false, true, 1, 0},
 
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two
