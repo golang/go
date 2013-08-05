@@ -98,6 +98,7 @@ func TestStdtest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go",       // also needs file cmplxdivide1.go - ignore
 		"goto.go", "label1.go", // TODO(gri) implement missing label checks
+		"mapnan.go", "sigchld.go", // don't work on Windows; testTestDir should consult build tags
 		"sizeof.go", "switch.go", // TODO(gri) tone down duplicate checking in expr switches
 		"typeswitch2.go", // TODO(gri) implement duplicate checking in type switches
 	)
