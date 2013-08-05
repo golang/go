@@ -141,6 +141,7 @@ func TestUnixAutobind(t *testing.T) {
 
 func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 	for _, laddr := range []string{"", testUnixAddr()} {
+		laddr := laddr
 		taddr := testUnixAddr()
 		ta, err := ResolveUnixAddr("unix", taddr)
 		if err != nil {
@@ -196,6 +197,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 
 func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 	for _, laddr := range []string{"", testUnixAddr()} {
+		laddr := laddr
 		taddr := testUnixAddr()
 		ta, err := ResolveUnixAddr("unixgram", taddr)
 		if err != nil {
