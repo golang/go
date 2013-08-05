@@ -2623,7 +2623,7 @@ sliceany(Node* n, NodeList **init)
 		cb = n->right->right->right;
 	} else {
 		hb = n->right->right;
-		cb = hb;
+		cb = N;
 	}
 
 	bounded = n->etype;
