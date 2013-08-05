@@ -504,7 +504,7 @@ TEXT runtime·atomicstore(SB), 7, $0-8
 // so actually
 // void atomicload64(uint64 *res, uint64 volatile *addr);
 TEXT runtime·atomicload64(SB), 7, $0-8
-	MOVL    4(SP), BX
+	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	// MOVQ (%EAX), %MM0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
@@ -1218,6 +1218,20 @@ TEXT bytes·IndexByte(SB),7,$0
 	SUBL	SI, DI
 	SUBL	$1, DI
 	MOVL	DI, ret+16(FP)
+	RET
+
+TEXT strings·IndexByte(SB),7,$0
+	MOVL	s+0(FP), SI
+	MOVL	s_len+4(FP), CX
+	MOVB	c+8(FP), AL
+	MOVL	SI, DI
+	CLD; REPN; SCASB
+	JZ 3(PC)
+	MOVL	$-1, ret+12(FP)
+	RET
+	SUBL	SI, DI
+	SUBL	$1, DI
+	MOVL	DI, ret+12(FP)
 	RET
 
 // input:

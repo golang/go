@@ -1224,6 +1224,25 @@ TEXT bytes·IndexByte(SB),7,$0
 	MOVQ s+0(FP), SI
 	MOVQ s_len+8(FP), BX
 	MOVB c+24(FP), AL
+	CALL runtime·indexbytebody(SB)
+	MOVQ AX, ret+32(FP)
+	RET
+
+TEXT strings·IndexByte(SB),7,$0
+	MOVQ s+0(FP), SI
+	MOVQ s_len+8(FP), BX
+	MOVB c+16(FP), AL
+	CALL runtime·indexbytebody(SB)
+	MOVQ AX, ret+24(FP)
+	RET
+
+// input:
+//   SI: data
+//   BX: data len
+//   AL: byte sought
+// output:
+//   AX
+TEXT runtime·indexbytebody(SB),7,$0
 	MOVQ SI, DI
 
 	CMPQ BX, $16
@@ -1281,7 +1300,7 @@ condition:
 	JZ success
 
 failure:
-	MOVQ $-1, ret+32(FP)
+	MOVQ $-1, AX
 	RET
 
 // handle for lengths < 16
@@ -1289,7 +1308,7 @@ indexbyte_small:
 	MOVQ BX, CX
 	REPN; SCASB
 	JZ success
-	MOVQ $-1, ret+32(FP)
+	MOVQ $-1, AX
 	RET
 
 // we've found the chunk containing the byte
@@ -1299,13 +1318,13 @@ ssesuccess:
 	BSFW DX, DX
 	SUBQ SI, DI
 	ADDQ DI, DX
-	MOVQ DX, ret+32(FP)
+	MOVQ DX, AX
 	RET
 
 success:
 	SUBQ SI, DI
 	SUBL $1, DI
-	MOVQ DI, ret+32(FP)
+	MOVQ DI, AX
 	RET
 
 TEXT bytes·Equal(SB),7,$0-49
