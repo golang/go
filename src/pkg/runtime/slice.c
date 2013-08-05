@@ -95,7 +95,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 	p = ret.array+ret.len*w;
 	q = y.array;
 	w *= y.len;
-	if(w <= appendCrossover) {
+	if(appendCrossover > 0 && w <= appendCrossover) {
 		if(p <= q || w <= p-q) // No overlap.
 			while(w-- > 0)
 				*p++ = *q++;
@@ -148,7 +148,7 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 	w = y.len;
 	p = ret.array+ret.len;
 	q = y.str;
-	if(w <= appendCrossover) {
+	if(appendCrossover > 0 && w <= appendCrossover) {
 		while(w-- > 0)
 			*p++ = *q++;
 	} else {
