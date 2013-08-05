@@ -102,6 +102,16 @@ const (
 // std0x records the std values for "01", "02", ..., "06".
 var std0x = [...]int{stdZeroMonth, stdZeroDay, stdZeroHour12, stdZeroMinute, stdZeroSecond, stdYear}
 
+// startsWithLowerCase reports whether the the string has a lower-case letter at the beginning.
+// Its purpose is to prevent matching strings like "Month" when looking for "Mon".
+func startsWithLowerCase(str string) bool {
+	if len(str) == 0 {
+		return false
+	}
+	c := str[0]
+	return 'a' <= c && c <= 'z'
+}
+
 // nextStdChunk finds the first occurrence of a std string in
 // layout and returns the text before, the std string, and the text after.
 func nextStdChunk(layout string) (prefix string, std int, suffix string) {
@@ -112,7 +122,9 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 				if len(layout) >= i+7 && layout[i:i+7] == "January" {
 					return layout[0:i], stdLongMonth, layout[i+7:]
 				}
-				return layout[0:i], stdMonth, layout[i+3:]
+				if !startsWithLowerCase(layout[i+3:]) {
+					return layout[0:i], stdMonth, layout[i+3:]
+				}
 			}
 
 		case 'M': // Monday, Mon, MST
@@ -121,7 +133,9 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 					if len(layout) >= i+6 && layout[i:i+6] == "Monday" {
 						return layout[0:i], stdLongWeekDay, layout[i+6:]
 					}
-					return layout[0:i], stdWeekDay, layout[i+3:]
+					if !startsWithLowerCase(layout[i+3:]) {
+						return layout[0:i], stdWeekDay, layout[i+3:]
+					}
 				}
 				if layout[i:i+3] == "MST" {
 					return layout[0:i], stdTZ, layout[i+3:]
