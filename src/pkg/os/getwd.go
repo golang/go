@@ -22,7 +22,9 @@ func Getwd() (pwd string, err error) {
 	// If the operating system provides a Getwd call, use it.
 	if syscall.ImplementsGetwd {
 		s, e := syscall.Getwd()
-		return s, NewSyscallError("getwd", e)
+		if e != syscall.ENOTSUP {
+			return s, NewSyscallError("getwd", e)
+		}
 	}
 
 	// Otherwise, we're trying to find our way back to ".".

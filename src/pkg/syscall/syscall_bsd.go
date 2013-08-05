@@ -18,17 +18,6 @@ import (
 )
 
 /*
- * Pseudo-system calls
- */
-
-// The const provides a compile-time constant so clients
-// can adjust to whether there is a working Getwd and avoid
-// even linking this function into the binary.  See ../os/getwd.go.
-const ImplementsGetwd = false
-
-func Getwd() (string, error) { return "", ENOTSUP }
-
-/*
  * Wrapped
  */
 
