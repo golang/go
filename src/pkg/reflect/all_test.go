@@ -3509,14 +3509,3 @@ func (x *exhaustive) Choose(max int) int {
 func (x *exhaustive) Maybe() bool {
 	return x.Choose(2) == 1
 }
-
-func bigArgFunc(v [(1<<30)+64]byte) {
-}
-
-func TestBigArgs(t *testing.T) {
-	if !testing.Short() && ^uint(0)>>32 != 0 { // test on 64-bit only
-		v := new([(1<<30)+64]byte)
-		bigArgFunc(*v) // regular calls are ok
-		shouldPanic(func() {ValueOf(bigArgFunc).Call([]Value{ValueOf(*v)})}) // ... just not reflect calls
-	}
-}
