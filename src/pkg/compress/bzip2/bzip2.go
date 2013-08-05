@@ -22,14 +22,17 @@ func (s StructuralError) Error() string {
 
 // A reader decompresses bzip2 compressed data.
 type reader struct {
-	br        bitReader
-	setupDone bool // true if we have parsed the bzip2 header.
-	blockSize int  // blockSize in bytes, i.e. 900 * 1024.
-	eof       bool
-	buf       []byte    // stores Burrows-Wheeler transformed data.
-	c         [256]uint // the `C' array for the inverse BWT.
-	tt        []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
-	tPos      uint32    // Index of the next output byte in tt.
+	br           bitReader
+	fileCRC      uint32
+	blockCRC     uint32
+	wantBlockCRC uint32
+	setupDone    bool // true if we have parsed the bzip2 header.
+	blockSize    int  // blockSize in bytes, i.e. 900 * 1024.
+	eof          bool
+	buf          []byte    // stores Burrows-Wheeler transformed data.
+	c            [256]uint // the `C' array for the inverse BWT.
+	tt           []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
+	tPos         uint32    // Index of the next output byte in tt.
 
 	preRLE      []uint32 // contains the RLE data still to be processed.
 	preRLEUsed  int      // number of entries of preRLE used.
@@ -50,12 +53,14 @@ const bzip2BlockMagic = 0x314159265359
 const bzip2FinalMagic = 0x177245385090
 
 // setup parses the bzip2 header.
-func (bz2 *reader) setup() error {
+func (bz2 *reader) setup(needMagic bool) error {
 	br := &bz2.br
 
-	magic := br.ReadBits(16)
-	if magic != bzip2FileMagic {
-		return StructuralError("bad magic value")
+	if needMagic {
+		magic := br.ReadBits(16)
+		if magic != bzip2FileMagic {
+			return StructuralError("bad magic value")
+		}
 	}
 
 	t := br.ReadBits(8)
@@ -68,8 +73,11 @@ func (bz2 *reader) setup() error {
 		return StructuralError("invalid compression level")
 	}
 
+	bz2.fileCRC = 0
 	bz2.blockSize = 100 * 1024 * (int(level) - '0')
-	bz2.tt = make([]uint32, bz2.blockSize)
+	if bz2.blockSize > len(bz2.tt) {
+		bz2.tt = make([]uint32, bz2.blockSize)
+	}
 	return nil
 }
 
@@ -79,7 +87,7 @@ func (bz2 *reader) Read(buf []byte) (n int, err error) {
 	}
 
 	if !bz2.setupDone {
-		err = bz2.setup()
+		err = bz2.setup(true)
 		brErr := bz2.br.Err()
 		if brErr != nil {
 			err = brErr
@@ -98,14 +106,14 @@ func (bz2 *reader) Read(buf []byte) (n int, err error) {
 	return
 }
 
-func (bz2 *reader) read(buf []byte) (n int, err error) {
+func (bz2 *reader) readFromBlock(buf []byte) int {
 	// bzip2 is a block based compressor, except that it has a run-length
 	// preprocessing step. The block based nature means that we can
 	// preallocate fixed-size buffers and reuse them. However, the RLE
 	// preprocessing would require allocating huge buffers to store the
 	// maximum expansion. Thus we process blocks all at once, except for
 	// the RLE which we decompress as required.
-
+	n := 0
 	for (bz2.repeats > 0 || bz2.preRLEUsed < len(bz2.preRLE)) && n < len(buf) {
 		// We have RLE data pending.
 
@@ -148,34 +156,87 @@ func (bz2 *reader) read(buf []byte) (n int, err error) {
 		n++
 	}
 
-	if n > 0 {
-		return
+	return n
+}
+
+func (bz2 *reader) read(buf []byte) (int, error) {
+	for {
+		n := bz2.readFromBlock(buf)
+		if n > 0 {
+			bz2.blockCRC = updateCRC(bz2.blockCRC, buf[:n])
+			return n, nil
+		}
+
+		// End of block. Check CRC.
+		if bz2.blockCRC != bz2.wantBlockCRC {
+			bz2.br.err = StructuralError("block checksum mismatch")
+			return 0, bz2.br.err
+		}
+
+		// Find next block.
+		br := &bz2.br
+		switch br.ReadBits64(48) {
+		default:
+			return 0, StructuralError("bad magic value found")
+
+		case bzip2BlockMagic:
+			// Start of block.
+			err := bz2.readBlock()
+			if err != nil {
+				return 0, err
+			}
+
+		case bzip2FinalMagic:
+			// Check end-of-file CRC.
+			wantFileCRC := uint32(br.ReadBits64(32))
+			if br.err != nil {
+				return 0, br.err
+			}
+			if bz2.fileCRC != wantFileCRC {
+				br.err = StructuralError("file checksum mismatch")
+				return 0, br.err
+			}
+
+			// Skip ahead to byte boundary.
+			// Is there a file concatenated to this one?
+			// It would start with BZ.
+			if br.bits%8 != 0 {
+				br.ReadBits(br.bits % 8)
+			}
+			b, err := br.r.ReadByte()
+			if err == io.EOF {
+				br.err = io.EOF
+				bz2.eof = true
+				return 0, io.EOF
+			}
+			if err != nil {
+				br.err = err
+				return 0, err
+			}
+			z, err := br.r.ReadByte()
+			if err != nil {
+				if err == io.EOF {
+					err = io.ErrUnexpectedEOF
+				}
+				br.err = err
+				return 0, err
+			}
+			if b != 'B' || z != 'Z' {
+				return 0, StructuralError("bad magic value in continuation file")
+			}
+			if err := bz2.setup(false); err != nil {
+				return 0, err
+			}
+		}
 	}
-
-	// No RLE data is pending so we need to read a block.
-
-	br := &bz2.br
-	magic := br.ReadBits64(48)
-	if magic == bzip2FinalMagic {
-		br.ReadBits64(32) // ignored CRC
-		bz2.eof = true
-		return 0, io.EOF
-	} else if magic != bzip2BlockMagic {
-		return 0, StructuralError("bad magic value found")
-	}
-
-	err = bz2.readBlock()
-	if err != nil {
-		return 0, err
-	}
-
-	return bz2.read(buf)
 }
 
 // readBlock reads a bzip2 block. The magic number should already have been consumed.
 func (bz2 *reader) readBlock() (err error) {
 	br := &bz2.br
-	br.ReadBits64(32) // skip checksum. TODO: check it if we can figure out what it is.
+	bz2.wantBlockCRC = uint32(br.ReadBits64(32)) // skip checksum. TODO: check it if we can figure out what it is.
+	bz2.blockCRC = 0
+	bz2.fileCRC = (bz2.fileCRC<<1 | bz2.fileCRC>>31) ^ bz2.wantBlockCRC
 	randomized := br.ReadBits(1)
 	if randomized != 0 {
 		return StructuralError("deprecated randomized files")
@@ -390,4 +451,34 @@ func inverseBWT(tt []uint32, origPtr uint, c []uint) uint32 {
 	}
 
 	return tt[origPtr] >> 8
+}
+
+// This is a standard CRC32 like in hash/crc32 except that all the shifts are reversed,
+// causing the bits in the input to be processed in the reverse of the usual order.
+
+var crctab [256]uint32
+
+func init() {
+	const poly = 0x04C11DB7
+	for i := range crctab {
+		crc := uint32(i) << 24
+		for j := 0; j < 8; j++ {
+			if crc&0x80000000 != 0 {
+				crc = (crc << 1) ^ poly
+			} else {
+				crc <<= 1
+			}
+		}
+		crctab[i] = crc
+	}
+}
+
+// updateCRC updates the crc value to incorporate the data in b.
+// The initial value is 0.
+func updateCRC(val uint32, b []byte) uint32 {
+	crc := ^val
+	for _, v := range b {
+		crc = crctab[byte(crc>>24)^v] ^ (crc << 8)
+	}
+	return ^crc
 }

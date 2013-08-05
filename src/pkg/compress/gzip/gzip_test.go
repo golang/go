@@ -197,3 +197,20 @@ func TestWriterFlush(t *testing.T) {
 		t.Fatal("Flush didn't flush any data")
 	}
 }
+
+// Multiple gzip files concatenated form a valid gzip file.
+func TestConcat(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	w.Write([]byte("hello "))
+	w.Close()
+	w = NewWriter(&buf)
+	w.Write([]byte("world\n"))
+	w.Close()
+
+	r, err := NewReader(&buf)
+	data, err := ioutil.ReadAll(r)
+	if string(data) != "hello world\n" || err != nil {
+		t.Fatalf("ReadAll = %q, %v, want %q, nil", data, err, "hello world")
+	}
+}
