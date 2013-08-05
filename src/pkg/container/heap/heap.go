@@ -6,6 +6,8 @@
 // heap.Interface. A heap is a tree with the property that each node is the
 // minimum-valued node in its subtree.
 //
+// The minimum element in the tree is the root, at index 0.
+//
 // A heap is a common way to implement a priority queue. To build a priority
 // queue, implement the Heap interface with the (negative) priority as the
 // ordering for the Less method, so Push adds items while Pop removes the
@@ -54,7 +56,7 @@ func Push(h Interface, x interface{}) {
 
 // Pop removes the minimum element (according to Less) from the heap
 // and returns it. The complexity is O(log(n)) where n = h.Len().
-// Same as Remove(h, 0).
+// It is equivalent to Remove(h, 0).
 //
 func Pop(h Interface) interface{} {
 	n := h.Len() - 1
@@ -74,6 +76,15 @@ func Remove(h Interface, i int) interface{} {
 		up(h, i)
 	}
 	return h.Pop()
+}
+
+// Fix reestablishes the heap ordering after the element at index i has changed its value.
+// Changing the value of the element at index i and then calling Fix is equivalent to,
+// but less expensive than, calling Remove(h, i) followed by a Push of the new value.
+// The complexity is O(log(n)) where n = h.Len().
+func Fix(h Interface, i int) {
+	down(h, i, h.Len())
+	up(h, i)
 }
 
 func up(h Interface, j int) {
