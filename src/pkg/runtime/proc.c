@@ -61,7 +61,6 @@ enum { MaxGomaxprocs = 1<<8 };
 Sched	runtime·sched;
 int32	runtime·gomaxprocs;
 uint32	runtime·needextram;
-bool	runtime·singleproc;
 bool	runtime·iscgo;
 uint32	runtime·gcwaiting;
 M	runtime·m0;
@@ -2060,7 +2059,6 @@ procresize(int32 new)
 		p->status = Pidle;
 		pidleput(p);
 	}
-	runtime·singleproc = new == 1;
 	runtime·atomicstore((uint32*)&runtime·gomaxprocs, new);
 }
 

@@ -2347,7 +2347,7 @@ runtime·markallocated(void *v, uintptr n, bool noptr)
 		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
 		if(noptr)
 			bits |= bitNoPointers<<shift;
-		if(runtime·singleproc) {
+		if(runtime·gomaxprocs == 1) {
 			*b = bits;
 			break;
 		} else {
@@ -2377,7 +2377,7 @@ runtime·markfreed(void *v, uintptr n)
 	for(;;) {
 		obits = *b;
 		bits = (obits & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
-		if(runtime·singleproc) {
+		if(runtime·gomaxprocs == 1) {
 			*b = bits;
 			break;
 		} else {
@@ -2497,7 +2497,7 @@ runtime·setblockspecial(void *v, bool s)
 			bits = obits | (bitSpecial<<shift);
 		else
 			bits = obits & ~(bitSpecial<<shift);
-		if(runtime·singleproc) {
+		if(runtime·gomaxprocs == 1) {
 			*b = bits;
 			break;
 		} else {
