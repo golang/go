@@ -66,16 +66,16 @@ func interface_conversions() {
 	_ = I1 /* ERROR "cannot convert" */ (0)
 	_ = I1(nil)
 	_ = I1(i1)
-	_ = I1(e)
+	_ = I1 /* ERROR "cannot convert" */ (e)
 	_ = I1(i2)
 
 	_ = I2(nil)
-	_ = I2(i1)
+	_ = I2 /* ERROR "cannot convert" */ (i1)
 	_ = I2(i2)
 	_ = I2 /* ERROR "cannot convert" */ (i3)
 
 	_ = I3(nil)
-	_ = I3(i1)
+	_ = I3 /* ERROR "cannot convert" */ (i1)
 	_ = I3 /* ERROR "cannot convert" */ (i2)
 	_ = I3(i3)
 

@@ -1152,8 +1152,8 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 		if x.mode == invalid {
 			goto Error
 		}
-		var T *Interface
-		if T, _ = x.typ.Underlying().(*Interface); T == nil {
+		xtyp, _ := x.typ.Underlying().(*Interface)
+		if xtyp == nil {
 			check.invalidOp(x.pos(), "%s is not an interface", x)
 			goto Error
 		}
@@ -1162,27 +1162,13 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		typ := check.typ(e.Type, nil, false)
-		if typ == Typ[Invalid] {
+		T := check.typ(e.Type, nil, false)
+		if T == Typ[Invalid] {
 			goto Error
 		}
-		if method, wrongType := MissingMethod(typ, T); method != nil {
-			var msg string
-			if wrongType {
-				msg = "%s cannot have dynamic type %s (wrong type for method %s)"
-			} else if _, ok := typ.Underlying().(*Interface); !ok {
-				// Concrete types must have all methods of T. Interfaces
-				// may not have all methods of T statically, but may have
-				// them dynamically; don't report an error in that case.
-				msg = "%s cannot have dynamic type %s (missing method %s)"
-			}
-			if msg != "" {
-				check.errorf(e.Type.Pos(), msg, x, typ, method.name)
-			}
-			// ok to continue
-		}
+		check.typeAssertion(x.pos(), x, xtyp, T)
 		x.mode = valueok
-		x.typ = typ
+		x.typ = T
 
 	case *ast.CallExpr:
 		check.call(x, e)
@@ -1249,6 +1235,21 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 Error:
 	x.mode = invalid
 	x.expr = e
+}
+
+// typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
+func (check *checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, T Type) {
+	method, wrongType := MissingMethod(T, xtyp, false)
+	if method == nil {
+		return
+	}
+	var msg string
+	if wrongType {
+		msg = "%s cannot have dynamic type %s (wrong type for method %s)"
+	} else {
+		msg = "%s cannot have dynamic type %s (missing method %s)"
+	}
+	check.errorf(pos, msg, x, T, method.name)
 }
 
 // expr typechecks expression e and initializes x with the expression value.

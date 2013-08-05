@@ -393,8 +393,8 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 		if x.mode == invalid {
 			return
 		}
-		var T *Interface
-		if T, _ = x.typ.Underlying().(*Interface); T == nil {
+		xtyp, _ := x.typ.Underlying().(*Interface)
+		if xtyp == nil {
 			check.errorf(x.pos(), "%s is not an interface", &x)
 			return
 		}
@@ -406,20 +406,11 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 				continue // error reported before
 			}
 			// Check each type in this type switch case.
-			var typ Type
+			var T Type
 			for _, expr := range clause.List {
-				typ = check.typOrNil(expr)
-				if typ != nil && typ != Typ[Invalid] {
-					if method, wrongType := MissingMethod(typ, T); method != nil {
-						var msg string
-						if wrongType {
-							msg = "%s cannot have dynamic type %s (wrong type for method %s)"
-						} else {
-							msg = "%s cannot have dynamic type %s (missing method %s)"
-						}
-						check.errorf(expr.Pos(), msg, &x, typ, method.name)
-						// ok to continue
-					}
+				T = check.typOrNil(expr)
+				if T != nil && T != Typ[Invalid] {
+					check.typeAssertion(expr.Pos(), &x, xtyp, T)
 				}
 			}
 			check.openScope(clause)
@@ -430,10 +421,10 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 				// the implicit block in each clause. In clauses with a case listing
 				// exactly one type, the variable has that type; otherwise, the variable
 				// has the type of the expression in the TypeSwitchGuard."
-				if len(clause.List) != 1 || typ == nil {
-					typ = x.typ
+				if len(clause.List) != 1 || T == nil {
+					T = x.typ
 				}
-				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, typ)
+				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
 				check.declareObj(check.topScope, nil, obj)
 				check.recordImplicit(clause, obj)
 			}

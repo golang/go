@@ -1328,7 +1328,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 // On success it returns "", on failure, an error message.
 //
 func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
-	if meth, wrongType := types.MissingMethod(x.t, itype); meth != nil {
+	if meth, wrongType := types.MissingMethod(x.t, itype, true); meth != nil {
 		reason := "is missing"
 		if wrongType {
 			reason = "has wrong type"

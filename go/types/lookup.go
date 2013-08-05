@@ -220,23 +220,33 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 	return list[:n]
 }
 
-// MissingMethod returns (nil, false) if typ implements T, otherwise
-// it returns the first missing method required by T and whether it
-// is missing or simply has the wrong type.
+// MissingMethod returns (nil, false) if typ implements T, otherwise it
+// returns a missing method required by T and whether it is missing or
+// just has the wrong type.
 //
-func MissingMethod(typ Type, T *Interface) (method *Func, wrongType bool) {
+// For typ of interface type, if static is set, implements checks that all
+// methods of T are present in typ (e.g., for a conversion T(x) where x is
+// of type typ). Otherwise, implements only checks that methods of T which
+// are also present in typ have matching types (e.g., for a type assertion
+// x.(T) where x is of interface type typ).
+//
+func MissingMethod(typ Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	// fast path for common case
 	if T.NumMethods() == 0 {
 		return
 	}
 
-	// The dynamic type of a value stored in an interface may implement T,
-	// but only if all the shared interface methods have matching signatures.
-	// Note: This is stronger than the current spec. Should the spec require this?
+	// TODO(gri) Consider using methods sets here. Might be more efficient.
+
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
 		for _, m := range T.methods {
 			_, obj := lookupMethod(ityp.methods, m.pkg, m.name)
-			if obj != nil && !IsIdentical(obj.Type(), m.typ) {
+			switch {
+			case obj == nil:
+				if static {
+					return m, false
+				}
+			case !IsIdentical(obj.Type(), m.typ):
 				return m, true
 			}
 		}
