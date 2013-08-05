@@ -7,6 +7,7 @@ package crypto
 
 import (
 	"hash"
+	"strconv"
 )
 
 // Hash identifies a cryptographic hash function that is implemented in another
@@ -59,7 +60,7 @@ func (h Hash) New() hash.Hash {
 			return f()
 		}
 	}
-	panic("crypto: requested hash function is unavailable")
+	panic("crypto: requested hash function #" + strconv.Itoa(int(h)) + " is unavailable")
 }
 
 // Available reports whether the given hash function is linked into the binary.
