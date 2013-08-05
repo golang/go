@@ -2560,7 +2560,7 @@ One place this situation arises is when it is necessary to guarantee within the 
 it actually satisfies the interface.
 If a type—for example,
 <code><a href="/pkg/encoding/json/#RawMessage">json.RawMessage</a></code>—needs
-a custom its JSON representation, it should implement
+a custom JSON representation, it should implement
 <code>json.Marshaler</code>, but there are no static conversions that would
 cause the compiler to verify this automatically.
 If the type inadvertently fails to satisfy the interface, the JSON encoder will still work,
