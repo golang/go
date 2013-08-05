@@ -18,7 +18,7 @@ import (
 // When any of the arguments result in a standard violation then
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
-	slash := strings.IndexByte(t, '/')
+	slash := strings.Index(t, "/")
 	if slash == -1 {
 		return ""
 	}
@@ -91,7 +91,7 @@ func checkMediaTypeDisposition(s string) error {
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-	i := strings.IndexByte(v, ';')
+	i := strings.Index(v, ";")
 	if i == -1 {
 		i = len(v)
 	}
@@ -127,7 +127,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 		}
 
 		pmap := params
-		if idx := strings.IndexByte(key, '*'); idx != -1 {
+		if idx := strings.Index(key, "*"); idx != -1 {
 			baseName := key[:idx]
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)

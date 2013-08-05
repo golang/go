@@ -421,7 +421,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		return
 	}
 	userinfo, host := authority[:i], authority[i+1:]
-	if strings.IndexByte(userinfo, ':') < 0 {
+	if strings.Index(userinfo, ":") < 0 {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return
 		}
@@ -536,7 +536,7 @@ func parseQuery(m Values, query string) (err error) {
 			continue
 		}
 		value := ""
-		if i := strings.IndexByte(key, '='); i >= 0 {
+		if i := strings.Index(key, "="); i >= 0 {
 			key, value = key[:i], key[i+1:]
 		}
 		key, err1 := QueryUnescape(key)

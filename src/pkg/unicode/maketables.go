@@ -616,7 +616,7 @@ func verifyRange(name string, inCategory Op, table *unicode.RangeTable) {
 }
 
 func parseScript(line string, scripts map[string][]Script) {
-	comment := strings.IndexByte(line, '#')
+	comment := strings.Index(line, "#")
 	if comment >= 0 {
 		line = line[0:comment]
 	}

@@ -429,7 +429,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// check for a quotient
-	sep := strings.IndexByte(s, '/')
+	sep := strings.Index(s, "/")
 	if sep >= 0 {
 		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
 			return nil, false
@@ -443,7 +443,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// check for a decimal point
-	sep = strings.IndexByte(s, '.')
+	sep = strings.Index(s, ".")
 	// check for an exponent
 	e := strings.IndexAny(s, "eE")
 	var exp Int

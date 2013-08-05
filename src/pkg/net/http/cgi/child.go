@@ -40,7 +40,7 @@ func Request() (*http.Request, error) {
 func envMap(env []string) map[string]string {
 	m := make(map[string]string)
 	for _, kv := range env {
-		if idx := strings.IndexByte(kv, '='); idx != -1 {
+		if idx := strings.Index(kv, "="); idx != -1 {
 			m[kv[:idx]] = kv[idx+1:]
 		}
 	}

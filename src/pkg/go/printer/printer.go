@@ -474,7 +474,7 @@ func stripCommonPrefix(lines []string) {
 	 * Check for vertical "line of stars" and correct prefix accordingly.
 	 */
 	lineOfStars := false
-	if i := strings.IndexByte(prefix, '*'); i >= 0 {
+	if i := strings.Index(prefix, "*"); i >= 0 {
 		// Line of stars present.
 		if i > 0 && prefix[i-1] == ' ' {
 			i-- // remove trailing blank from prefix so stars remain aligned

@@ -1026,7 +1026,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	i := strings.IndexByte(s, ':')
+	i := strings.Index(s, ":")
 	if i < 0 {
 		name.Local = s
 	} else {
