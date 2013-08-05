@@ -293,7 +293,7 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
 				out[n] = -1
 				out[n+1] = -1
 			} else {
-				k := strings.Index(pair, "-")
+				k := strings.IndexByte(pair, '-')
 				if k < 0 {
 					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
 				}
@@ -456,7 +456,7 @@ Reading:
 				continue Reading
 			}
 		case ':':
-			i := strings.Index(flag[1:], ":")
+			i := strings.IndexByte(flag[1:], ':')
 			if i < 0 {
 				t.Logf("skip: %s", line)
 				continue Reading

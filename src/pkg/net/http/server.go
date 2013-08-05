@@ -1262,7 +1262,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 			}
 
 			var query string
-			if i := strings.Index(urlStr, "?"); i != -1 {
+			if i := strings.IndexByte(urlStr, '?'); i != -1 {
 				urlStr, query = urlStr[:i], urlStr[i:]
 			}
 
@@ -1494,7 +1494,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 		if pattern[0] != '/' {
 			// In pattern, at least the last character is a '/', so
 			// strings.Index can't be -1.
-			path = pattern[strings.Index(pattern, "/"):]
+			path = pattern[strings.IndexByte(pattern, '/'):]
 		}
 		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently), pattern: pattern}
 	}

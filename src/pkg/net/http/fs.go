@@ -467,7 +467,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		if ra == "" {
 			continue
 		}
-		i := strings.Index(ra, "-")
+		i := strings.IndexByte(ra, '-')
 		if i < 0 {
 			return nil, errors.New("invalid range")
 		}
