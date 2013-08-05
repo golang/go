@@ -83,11 +83,7 @@ runtime·lock(Lock *l)
 		if(v == MUTEX_UNLOCKED)
 			return;
 		wait = MUTEX_SLEEPING;
-		if(m->profilehz > 0)
-			runtime·setprof(false);
 		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
-		if(m->profilehz > 0)
-			runtime·setprof(true);
 	}
 }
 
@@ -133,12 +129,8 @@ runtime·notesleep(Note *n)
 {
 	if(g != m->g0)
 		runtime·throw("notesleep not on g0");
-	if(m->profilehz > 0)
-		runtime·setprof(false);
 	while(runtime·atomicload((uint32*)&n->key) == 0)
 		runtime·futexsleep((uint32*)&n->key, 0, -1);
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 }
 
 #pragma textflag 7
@@ -179,16 +171,11 @@ runtime·notetsleep(Note *n, int64 ns)
 	if(g != m->g0 && !m->gcing)
 		runtime·throw("notetsleep not on g0");
 
-	if(m->profilehz > 0)
-		runtime·setprof(false);
 	res = notetsleep(n, ns, 0, 0);
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 	return res;
 }
 
 // same as runtime·notetsleep, but called on user g (not g0)
-// does not need to call runtime·setprof, because entersyscallblock does it
 // calls only nosplit functions between entersyscallblock/exitsyscall
 bool
 runtime·notetsleepg(Note *n, int64 ns)

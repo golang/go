@@ -81,11 +81,7 @@ unlocked:
 			}
 			if(v&LOCKED) {
 				// Queued.  Wait.
-				if(m->profilehz > 0)
-					runtime·setprof(false);
 				runtime·semasleep(-1);
-				if(m->profilehz > 0)
-					runtime·setprof(true);
 				i = 0;
 			}
 		}
@@ -164,11 +160,7 @@ runtime·notesleep(Note *n)
 		return;
 	}
 	// Queued.  Sleep.
-	if(m->profilehz > 0)
-		runtime·setprof(false);
 	runtime·semasleep(-1);
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 }
 
 #pragma textflag 7
@@ -240,16 +232,11 @@ runtime·notetsleep(Note *n, int64 ns)
 	if(m->waitsema == 0)
 		m->waitsema = runtime·semacreate();
 
-	if(m->profilehz > 0)
-		runtime·setprof(false);
 	res = notetsleep(n, ns, 0, nil);
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 	return res;
 }
 
 // same as runtime·notetsleep, but called on user g (not g0)
-// does not need to call runtime·setprof, because entersyscallblock does it
 // calls only nosplit functions between entersyscallblock/exitsyscall
 bool
 runtime·notetsleepg(Note *n, int64 ns)

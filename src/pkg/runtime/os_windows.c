@@ -474,12 +474,6 @@ runtime·memlimit(void)
 	return 0;
 }
 
-void
-runtime·setprof(bool on)
-{
-	USED(on);
-}
-
 #pragma dataflag 16 // no pointers
 int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
 int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;

@@ -1384,9 +1384,6 @@ void
 	// but can have inconsistent g->sched, do not let GC observe it.
 	m->locks++;
 
-	if(m->profilehz > 0)
-		runtime·setprof(false);
-
 	// Leave SP around for gc and traceback.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 
@@ -1439,9 +1436,6 @@ void
 
 	m->locks++;  // see comment in entersyscall
 
-	if(m->profilehz > 0)
-		runtime·setprof(false);
-
 	// Leave SP around for gc and traceback.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	g->gcsp = g->sched.sp;
@@ -1476,10 +1470,6 @@ void
 runtime·exitsyscall(void)
 {
 	m->locks++;  // see comment in entersyscall
-
-	// Check whether the profiler needs to be turned on.
-	if(m->profilehz > 0)
-		runtime·setprof(true);
 
 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
 		inclocked(-1);

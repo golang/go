@@ -274,12 +274,6 @@ runtime·memlimit(void)
 	return rl.rlim_cur - used;
 }
 
-void
-runtime·setprof(bool on)
-{
-	USED(on);
-}
-
 #ifdef GOARCH_386
 #define sa_handler k_sa_handler
 #endif

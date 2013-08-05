@@ -12,7 +12,6 @@ extern SigTab runtime·sigtab[];
 
 static Sigset sigset_none;
 static Sigset sigset_all = ~(Sigset)0;
-static Sigset sigset_prof = 1<<(SIGPROF-1);
 
 static void
 unimplemented(int8 *name)
@@ -129,7 +128,6 @@ runtime·minit(void)
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
 
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
-	runtime·setprof(m->profilehz > 0);
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -479,37 +477,6 @@ runtime·memlimit(void)
 	// ulimit -v, so it's unclear why we'd try to stay within
 	// the limit.
 	return 0;
-}
-
-// NOTE(rsc): On OS X, when the CPU profiling timer expires, the SIGPROF
-// signal is not guaranteed to be sent to the thread that was executing to
-// cause it to expire.  It can and often does go to a sleeping thread, which is
-// not interesting for our profile.  This is filed Apple Bug Report #9177434,
-// copied to http://code.google.com/p/go/source/detail?r=35b716c94225.
-// To work around this bug, we disable receipt of the profiling signal on
-// a thread while in blocking system calls.  This forces the kernel to deliver
-// the profiling signal to an executing thread.
-//
-// The workaround fails on OS X machines using a 64-bit Snow Leopard kernel.
-// In that configuration, the kernel appears to want to deliver SIGPROF to the
-// sleeping threads regardless of signal mask and, worse, does not deliver
-// the signal until the thread wakes up on its own.
-//
-// If necessary, we can switch to using ITIMER_REAL for OS X and handle
-// the kernel-generated SIGALRM by generating our own SIGALRMs to deliver
-// to all the running threads.  SIGALRM does not appear to be affected by
-// the 64-bit Snow Leopard bug.  However, as of this writing Mountain Lion
-// is in preview, making Snow Leopard two versions old, so it is unclear how
-// much effort we need to spend on one buggy kernel.
-
-// Control whether profiling signal can be delivered to this thread.
-void
-runtime·setprof(bool on)
-{
-	if(on)
-		runtime·sigprocmask(SIG_UNBLOCK, &sigset_prof, nil);
-	else
-		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
 }
 
 void
