@@ -890,7 +890,7 @@ func TestHostname(t *testing.T) {
 	}
 	want := run(t, []string{"/bin/hostname"})
 	if hostname != want {
-		i := strings.Index(hostname, ".")
+		i := strings.IndexByte(hostname, '.')
 		if i < 0 || hostname[0:i] != want {
 			t.Errorf("Hostname() = %q, want %q", hostname, want)
 		}

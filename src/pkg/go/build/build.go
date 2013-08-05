@@ -877,7 +877,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 
 		// Split at colon.
 		line = strings.TrimSpace(line[4:])
-		i := strings.Index(line, ":")
+		i := strings.IndexByte(line, ':')
 		if i < 0 {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
@@ -1022,7 +1022,7 @@ func (ctxt *Context) match(name string) bool {
 	if name == "" {
 		return false
 	}
-	if i := strings.Index(name, ","); i >= 0 {
+	if i := strings.IndexByte(name, ','); i >= 0 {
 		// comma-separated list
 		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
 	}
@@ -1076,7 +1076,7 @@ func (ctxt *Context) match(name string) bool {
 //     name_$(GOOS)_$(GOARCH)_test.*
 //
 func (ctxt *Context) goodOSArchFile(name string) bool {
-	if dot := strings.Index(name, "."); dot != -1 {
+	if dot := strings.IndexByte(name, '.'); dot != -1 {
 		name = name[:dot]
 	}
 	l := strings.Split(name, "_")
