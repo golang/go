@@ -35,3 +35,25 @@ Reference
 
   1. http://sourceforge.net/apps/mediawiki/notepad-plus/index.php?title=Auto_Completion
 
+Notepad++ Function List
+-----------------------
+
+The functionList.xml uses the Function List Pane new feature,
+which needs Notepad++ v6.4 or higher.
+
+Installing from Notepad++ Installer
+
+  1. Add the contents of userDefineLang.xml at %APPDATA%\Notepad++\functionList.xml
+     between <associationMap> ... </associationMap> and <parsers> ... </parsers>
+  2. Restart Notepad++
+
+Installing from Notepad++ zip/7z package
+
+  1. Given a Notepad++ installation at <DIR>.
+  2. Add the contents of functionList.xml at <DIR>\functionList.xml
+     between <associationMap> ... </associationMap> and <parsers> ... </parsers>
+  3. Restart Notepad++
+
+Reference
+
+  1. http://notepad-plus-plus.org/features/function-list.html
