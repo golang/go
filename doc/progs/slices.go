@@ -28,7 +28,7 @@ func AppendByte(slice []byte, data ...byte) []byte {
 // STOP OMIT
 
 // Filter returns a new slice holding only
-// the elements of s that satisfy f()
+// the elements of s that satisfy fn.
 func Filter(s []int, fn func(int) bool) []int {
 	var p []int // == nil
 	for _, i := range s {
