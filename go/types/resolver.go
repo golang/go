@@ -544,11 +544,10 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 			m = nil
 		}
 
-		check.recordObject(ident, m)
-
 		// If the method is valid, type-check its signature,
 		// and collect it with the named base type.
 		if m != nil {
+			check.recordObject(ident, m)
 			check.objDecl(m, nil, true)
 			// Methods with blank _ names cannot be found.
 			// Don't add them to the method list.
