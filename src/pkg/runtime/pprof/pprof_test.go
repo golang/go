@@ -78,11 +78,12 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 	val = val[:l]
 
 	if l < 13 {
-		if runtime.GOOS == "darwin" {
-			t.Logf("ignoring failure on OS X; see golang.org/issue/6047")
+		t.Logf("profile too short: %#x", val)
+		if badOS[runtime.GOOS] {
+			t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)
 			return
 		}
-		t.Fatalf("profile too short: %#x", val)
+		t.FailNow()
 	}
 
 	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
@@ -124,7 +125,7 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 		t.Logf("no CPU profile samples collected")
 		ok = false
 	}
-	min := total / uintptr(len(have)) / 2
+	min := total / uintptr(len(have)) / 3
 	for i, name := range need {
 		if have[i] < min {
 			t.Logf("%s has %d samples out of %d, want at least %d, ideally %d", name, have[i], total, min, total/uintptr(len(have)))
@@ -133,10 +134,17 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 	}
 
 	if !ok {
-		if runtime.GOOS == "darwin" {
-			t.Logf("ignoring failure on OS X; see golang.org/issue/6047")
+		if badOS[runtime.GOOS] {
+			t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)
 			return
 		}
 		t.FailNow()
 	}
+}
+
+// Operating systems that are expected to fail the tests. See issue 6047.
+var badOS = map[string]bool{
+	"darwin":  true,
+	"netbsd":  true,
+	"openbsd": true,
 }
