@@ -156,7 +156,14 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
 			sas = append(sas, sa)
 		case RTAX_NETMASK:
 			if rsa.Family == AF_UNSPEC {
-				rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
+				switch rsa.Len {
+				case SizeofSockaddrInet4:
+					rsa.Family = AF_INET
+				case SizeofSockaddrInet6:
+					rsa.Family = AF_INET6
+				default:
+					rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
+				}
 			}
 			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
 			if err != nil {
