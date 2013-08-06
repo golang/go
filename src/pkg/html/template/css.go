@@ -99,7 +99,7 @@ func decodeCSS(s []byte) []byte {
 	return b
 }
 
-// isHex reports reports whether the given character is a hex digit.
+// isHex reports whether the given character is a hex digit.
 func isHex(c byte) bool {
 	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
