@@ -6,13 +6,11 @@ package zip
 
 import (
 	"bufio"
-	"compress/flate"
 	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -125,15 +123,12 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 	}
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
-	switch f.Method {
-	case Store: // (no compression)
-		rc = ioutil.NopCloser(r)
-	case Deflate:
-		rc = flate.NewReader(r)
-	default:
+	dcomp := decompressor(f.Method)
+	if dcomp == nil {
 		err = ErrAlgorithm
 		return
 	}
+	rc = dcomp(r)
 	var desr io.Reader
 	if f.hasDataDescriptor() {
 		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
