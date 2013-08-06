@@ -61,7 +61,7 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
 func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 	const msgLen = 512
 	conns := b.N
-	numConcurrent := runtime.GOMAXPROCS(-1) * 16
+	numConcurrent := runtime.GOMAXPROCS(-1) * 2
 	msgs := 1
 	if persistent {
 		conns = numConcurrent
@@ -147,6 +147,129 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
+}
+
+func BenchmarkTCP4ConcurrentReadWrite(b *testing.B) {
+	benchmarkTCPConcurrentReadWrite(b, "127.0.0.1:0")
+}
+
+func BenchmarkTCP6ConcurrentReadWrite(b *testing.B) {
+	if !supportsIPv6 {
+		b.Skip("ipv6 is not supported")
+	}
+	benchmarkTCPConcurrentReadWrite(b, "[::1]:0")
+}
+
+func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+	// The benchmark creates GOMAXPROCS client/server pairs.
+	// Each pair creates 4 goroutines: client reader/writer and server reader/writer.
+	// The benchmark stresses concurrent reading and writing to the same connection.
+	// Such pattern is used in net/http and net/rpc.
+
+	b.StopTimer()
+
+	P := runtime.GOMAXPROCS(0)
+	N := b.N / P
+	W := 1000
+
+	// Setup P client/server connections.
+	clients := make([]Conn, P)
+	servers := make([]Conn, P)
+	ln, err := Listen("tcp", laddr)
+	if err != nil {
+		b.Fatalf("Listen failed: %v", err)
+	}
+	defer ln.Close()
+	done := make(chan bool)
+	go func() {
+		for p := 0; p < P; p++ {
+			s, err := ln.Accept()
+			if err != nil {
+				b.Fatalf("Accept failed: %v", err)
+			}
+			servers[p] = s
+		}
+		done <- true
+	}()
+	for p := 0; p < P; p++ {
+		c, err := Dial("tcp", ln.Addr().String())
+		if err != nil {
+			b.Fatalf("Dial failed: %v", err)
+		}
+		clients[p] = c
+	}
+	<-done
+
+	b.StartTimer()
+
+	var wg sync.WaitGroup
+	wg.Add(4 * P)
+	for p := 0; p < P; p++ {
+		// Client writer.
+		go func(c Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				v := byte(i)
+				for w := 0; w < W; w++ {
+					v *= v
+				}
+				buf[0] = v
+				_, err := c.Write(buf[:])
+				if err != nil {
+					b.Fatalf("Write failed: %v", err)
+				}
+			}
+		}(clients[p])
+
+		// Pipe between server reader and server writer.
+		pipe := make(chan byte, 128)
+
+		// Server reader.
+		go func(s Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				_, err := s.Read(buf[:])
+				if err != nil {
+					b.Fatalf("Read failed: %v", err)
+				}
+				pipe <- buf[0]
+			}
+		}(servers[p])
+
+		// Server writer.
+		go func(s Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				v := <-pipe
+				for w := 0; w < W; w++ {
+					v *= v
+				}
+				buf[0] = v
+				_, err := s.Write(buf[:])
+				if err != nil {
+					b.Fatalf("Write failed: %v", err)
+				}
+			}
+			s.Close()
+		}(servers[p])
+
+		// Client reader.
+		go func(c Conn) {
+			defer wg.Done()
+			var buf [1]byte
+			for i := 0; i < N; i++ {
+				_, err := c.Read(buf[:])
+				if err != nil {
+					b.Fatalf("Read failed: %v", err)
+				}
+			}
+			c.Close()
+		}(clients[p])
+	}
+	wg.Wait()
 }
 
 type resolveTCPAddrTest struct {
