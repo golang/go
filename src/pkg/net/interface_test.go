@@ -108,11 +108,22 @@ func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) {
 func testAddrs(t *testing.T, ifat []Addr) {
 	for _, ifa := range ifat {
 		switch ifa := ifa.(type) {
-		case *IPAddr, *IPNet:
+		case *IPAddr:
 			if ifa == nil {
 				t.Errorf("\tunexpected value: %v", ifa)
 			} else {
 				t.Logf("\tinterface address %q", ifa.String())
+			}
+		case *IPNet:
+			if ifa == nil {
+				t.Errorf("\tunexpected value: %v", ifa)
+			} else {
+				_, prefixLen := ifa.Mask.Size()
+				if ifa.IP.To4() != nil && prefixLen != 8*IPv4len || ifa.IP.To16() != nil && ifa.IP.To4() == nil && prefixLen != 8*IPv6len {
+					t.Errorf("\tunexpected value: %v, %v, %v, %v", ifa, ifa.IP, ifa.Mask, prefixLen)
+				} else {
+					t.Logf("\tinterface address %q", ifa.String())
+				}
 			}
 		default:
 			t.Errorf("\tunexpected type: %T", ifa)
