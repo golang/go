@@ -168,6 +168,15 @@ func BenchmarkIndex(b *testing.B) {
 	}
 }
 
+func BenchmarkIndexByte(b *testing.B) {
+	if got := IndexByte(benchmarkString, 'v'); got != 17 {
+		b.Fatalf("wrong index: expected 17, got=%d", got)
+	}
+	for i := 0; i < b.N; i++ {
+		IndexByte(benchmarkString, 'v')
+	}
+}
+
 var explodetests = []struct {
 	s string
 	n int
