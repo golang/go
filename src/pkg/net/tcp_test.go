@@ -330,7 +330,7 @@ func TestTCPConcurrentAccept(t *testing.T) {
 }
 
 func TestTCPReadWriteMallocs(t *testing.T) {
-	maxMallocs := 0
+	maxMallocs := 10000
 	switch runtime.GOOS {
 	// Add other OSes if you know how many mallocs they do.
 	case "windows":
