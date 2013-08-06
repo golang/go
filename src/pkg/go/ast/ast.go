@@ -528,7 +528,7 @@ func IsExported(name string) bool {
 }
 
 // IsExported reports whether id is an exported Go symbol
-// (i.e., whether it begins with an uppercase letter).
+// (that is, whether it begins with an uppercase letter).
 //
 func (id *Ident) IsExported() bool { return IsExported(id.Name) }
 
