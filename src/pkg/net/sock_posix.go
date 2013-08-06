@@ -7,6 +7,7 @@
 package net
 
 import (
+	"os"
 	"syscall"
 	"time"
 )
@@ -48,6 +49,15 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
 		return nil, err
 	}
 
+	if fd, err = newFD(s, f, t, net); err != nil {
+		closesocket(s)
+		return nil, err
+	}
+	if err := fd.init(); err != nil {
+		fd.Close()
+		return nil, err
+	}
+
 	// This function makes a network file descriptor for stream
 	// and datagram dialers, stream and datagram listeners.
 	//
@@ -62,69 +72,115 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
 	// it's just for a listener or a datagram dialer when laddr is
 	// not nil but raddr is nil.
 
-	var lsa syscall.Sockaddr
 	if laddr != nil && raddr == nil {
-		// We provide a socket that listens to a wildcard
-		// address with reusable UDP port when the given laddr
-		// is an appropriate UDP multicast address prefix.
-		// This makes it possible for a single UDP listener
-		// to join multiple different group addresses, for
-		// multiple UDP listeners that listen on the same UDP
-		// port to join the same group address.
-		if lsa, err = listenerSockaddr(s, f, laddr); err != nil {
-			closesocket(s)
-			return nil, err
-		}
-	} else if laddr != nil && raddr != nil {
-		if lsa, err = laddr.sockaddr(f); err != nil {
-			closesocket(s)
-			return nil, err
+		switch t {
+		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
+			if err := fd.listenStream(laddr, toAddr); err != nil {
+				fd.Close()
+				return nil, err
+			}
+			return fd, nil
+		case syscall.SOCK_DGRAM:
+			if err := fd.listenDatagram(laddr, toAddr); err != nil {
+				fd.Close()
+				return nil, err
+			}
+			return fd, nil
 		}
 	}
-
-	if lsa != nil {
-		if err = syscall.Bind(s, lsa); err != nil {
-			closesocket(s)
-			return nil, err
-		}
-	}
-
-	if fd, err = newFD(s, f, t, net); err != nil {
-		closesocket(s)
-		return nil, err
-	}
-	if err := fd.init(); err != nil {
+	if err := fd.dial(laddr, raddr, deadline, toAddr); err != nil {
 		fd.Close()
 		return nil, err
 	}
+	return fd, nil
+}
 
+func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) error {
+	var err error
+	var lsa syscall.Sockaddr
+	if laddr != nil {
+		if lsa, err = laddr.sockaddr(fd.family); err != nil {
+			return err
+		} else if lsa != nil {
+			if err := syscall.Bind(fd.sysfd, lsa); err != nil {
+				return os.NewSyscallError("bind", err)
+			}
+		}
+	}
 	var rsa syscall.Sockaddr
 	if raddr != nil {
-		rsa, err = raddr.sockaddr(f)
-		if err != nil {
-			return nil, err
+		if rsa, err = raddr.sockaddr(fd.family); err != nil {
+			return err
+		} else if rsa != nil {
+			if !deadline.IsZero() {
+				setWriteDeadline(fd, deadline)
+			}
+			if err := fd.connect(lsa, rsa); err != nil {
+				return err
+			}
+			fd.isConnected = true
+			if !deadline.IsZero() {
+				setWriteDeadline(fd, noDeadline)
+			}
 		}
 	}
-
-	if rsa != nil {
-		if !deadline.IsZero() {
-			setWriteDeadline(fd, deadline)
-		}
-		if err = fd.connect(lsa, rsa); err != nil {
-			fd.Close()
-			return nil, err
-		}
-		fd.isConnected = true
-		if !deadline.IsZero() {
-			setWriteDeadline(fd, noDeadline)
-		}
-	}
-
-	lsa, _ = syscall.Getsockname(s)
-	if rsa, _ = syscall.Getpeername(s); rsa != nil {
+	lsa, _ = syscall.Getsockname(fd.sysfd)
+	if rsa, _ = syscall.Getpeername(fd.sysfd); rsa != nil {
 		fd.setAddr(toAddr(lsa), toAddr(rsa))
 	} else {
 		fd.setAddr(toAddr(lsa), raddr)
 	}
-	return fd, nil
+	return nil
+}
+
+func (fd *netFD) listenStream(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr) error {
+	if err := setDefaultListenerSockopts(fd.sysfd); err != nil {
+		return err
+	}
+	if lsa, err := laddr.sockaddr(fd.family); err != nil {
+		return err
+	} else if lsa != nil {
+		if err := syscall.Bind(fd.sysfd, lsa); err != nil {
+			return os.NewSyscallError("bind", err)
+		}
+	}
+	lsa, _ := syscall.Getsockname(fd.sysfd)
+	fd.setAddr(toAddr(lsa), nil)
+	return nil
+}
+
+func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr) error {
+	switch addr := laddr.(type) {
+	case *UDPAddr:
+		// We provide a socket that listens to a wildcard
+		// address with reusable UDP port when the given laddr
+		// is an appropriate UDP multicast address prefix.
+		// This makes it possible for a single UDP listener to
+		// join multiple different group addresses, for
+		// multiple UDP listeners that listen on the same UDP
+		// port to join the same group address.
+		if addr.IP != nil && addr.IP.IsMulticast() {
+			if err := setDefaultMulticastSockopts(fd.sysfd); err != nil {
+				return err
+			}
+			addr := *addr
+			switch fd.family {
+			case syscall.AF_INET:
+				addr.IP = IPv4zero
+			case syscall.AF_INET6:
+				addr.IP = IPv6unspecified
+			}
+			laddr = &addr
+		}
+	}
+	if lsa, err := laddr.sockaddr(fd.family); err != nil {
+		return err
+	} else if lsa != nil {
+		if err := syscall.Bind(fd.sysfd, lsa); err != nil {
+			return os.NewSyscallError("bind", err)
+		}
+	}
+	lsa, _ := syscall.Getsockname(fd.sysfd)
+	fd.setAddr(toAddr(lsa), nil)
+	return nil
 }
