@@ -295,7 +295,7 @@ runtime·cgocallbackg1(void)
 
 	// Invoke callback.
 	cb = CBARGS;
-	reflect·call(cb->fn, cb->arg, cb->argsize);
+	runtime·newstackcall(cb->fn, cb->arg, cb->argsize);
 
 	if(raceenabled && !m->racecall)
 		runtime·racereleasemerge(&cgosync);
