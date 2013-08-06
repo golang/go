@@ -350,8 +350,6 @@ runtime·printpointer(void *p)
 void
 runtime·printstring(String v)
 {
-	extern uint32 runtime·maxstring;
-
 	if(v.len > runtime·maxstring) {
 		gwrite("[string too long]", 17);
 		return;
