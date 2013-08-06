@@ -1,6 +1,13 @@
+pkg container/heap, func Fix(Interface, int)
 pkg container/list, method (*List) MoveAfter(*Element, *Element)
 pkg container/list, method (*List) MoveBefore(*Element, *Element)
 pkg crypto, type PublicKey interface {}
+pkg crypto/cipher, func NewGCM(Block) (AEAD, error)
+pkg crypto/cipher, type AEAD interface { NonceSize, Open, Overhead, Seal }
+pkg crypto/cipher, type AEAD interface, NonceSize() int
+pkg crypto/cipher, type AEAD interface, Open([]uint8, []uint8, []uint8, []uint8) ([]uint8, error)
+pkg crypto/cipher, type AEAD interface, Overhead() int
+pkg crypto/cipher, type AEAD interface, Seal([]uint8, []uint8, []uint8, []uint8) []uint8
 pkg crypto/md5, func Sum([]uint8) [Size]uint8
 pkg crypto/rsa, const PSSSaltLengthAuto ideal-int
 pkg crypto/rsa, const PSSSaltLengthEqualsHash ideal-int
@@ -760,6 +767,8 @@ pkg syscall (darwin-amd64-cgo), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (freebsd-386), const F_DUP2FD_CLOEXEC ideal-int
+pkg syscall (freebsd-386), const F_DUPFD_CLOEXEC ideal-int
 pkg syscall (freebsd-386), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-386), const PRIO_PGRP ideal-int
 pkg syscall (freebsd-386), const PRIO_PROCESS ideal-int
@@ -1219,7 +1228,9 @@ pkg syscall (freebsd-386-cgo), const FD_SETSIZE ideal-int
 pkg syscall (freebsd-386-cgo), const FLUSHO ideal-int
 pkg syscall (freebsd-386-cgo), const F_CANCEL ideal-int
 pkg syscall (freebsd-386-cgo), const F_DUP2FD ideal-int
+pkg syscall (freebsd-386-cgo), const F_DUP2FD_CLOEXEC ideal-int
 pkg syscall (freebsd-386-cgo), const F_DUPFD ideal-int
+pkg syscall (freebsd-386-cgo), const F_DUPFD_CLOEXEC ideal-int
 pkg syscall (freebsd-386-cgo), const F_GETFD ideal-int
 pkg syscall (freebsd-386-cgo), const F_GETFL ideal-int
 pkg syscall (freebsd-386-cgo), const F_GETLK ideal-int
@@ -2967,6 +2978,8 @@ pkg syscall (freebsd-386-cgo), type WaitStatus uint32
 pkg syscall (freebsd-386-cgo), var Stderr int
 pkg syscall (freebsd-386-cgo), var Stdin int
 pkg syscall (freebsd-386-cgo), var Stdout int
+pkg syscall (freebsd-amd64), const F_DUP2FD_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64), const F_DUPFD_CLOEXEC ideal-int
 pkg syscall (freebsd-amd64), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-amd64), const PRIO_PGRP ideal-int
 pkg syscall (freebsd-amd64), const PRIO_PROCESS ideal-int
@@ -3426,7 +3439,9 @@ pkg syscall (freebsd-amd64-cgo), const FD_SETSIZE ideal-int
 pkg syscall (freebsd-amd64-cgo), const FLUSHO ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_CANCEL ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_DUP2FD ideal-int
+pkg syscall (freebsd-amd64-cgo), const F_DUP2FD_CLOEXEC ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_DUPFD ideal-int
+pkg syscall (freebsd-amd64-cgo), const F_DUPFD_CLOEXEC ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_GETFD ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_GETFL ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_GETLK ideal-int
