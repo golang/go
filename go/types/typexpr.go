@@ -23,7 +23,6 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	x.expr = e
 
 	obj := check.topScope.LookupParent(e.Name)
-	check.recordObject(e, obj)
 	if obj == nil {
 		if e.Name == "_" {
 			check.errorf(e.Pos(), "cannot use _ as value or type")
@@ -32,6 +31,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		}
 		return
 	}
+	check.recordObject(e, obj)
 
 	typ := obj.Type()
 	if typ == nil {

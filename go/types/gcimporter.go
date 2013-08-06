@@ -107,7 +107,6 @@ func GcImportData(imports map[string]*Package, filename, id string, data *bufio.
 // corresponding package object to the imports map, and returns the object.
 // Local import paths are interpreted relative to the current working directory.
 // The imports map must contains all packages already imported.
-// GcImport satisfies the ast.Importer signature.
 //
 func GcImport(imports map[string]*Package, path string) (pkg *Package, err error) {
 	if path == "unsafe" {

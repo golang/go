@@ -169,7 +169,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		if pkg, ok := check.topScope.LookupParent(ident.Name).(*Package); ok {
+		if pkg, _ := check.topScope.LookupParent(ident.Name).(*Package); pkg != nil {
 			check.recordObject(ident, pkg)
 			exp := pkg.scope.Lookup(sel)
 			if exp == nil {

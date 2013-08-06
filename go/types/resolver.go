@@ -27,7 +27,7 @@ func (check *checker) declareObj(scope *Scope, id *ast.Ident, obj Object) {
 	if alt := scope.Insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
-		obj = nil
+		return
 	}
 	if id != nil {
 		check.recordObject(id, obj)
@@ -38,7 +38,7 @@ func (check *checker) declareFld(oset *objset, id *ast.Ident, obj Object) {
 	if alt := oset.insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
-		obj = nil
+		return
 	}
 	if id != nil {
 		check.recordObject(id, obj)
@@ -131,7 +131,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		// spec: "A package-scope or file-scope identifier with name init
 		// may only be declared to be a function with this (func()) signature."
 		if ident.Name == "init" {
-			check.recordObject(ident, nil)
 			check.errorf(ident.Pos(), "cannot declare init - must be func")
 			return
 		}
@@ -529,8 +528,6 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 
 	// check each method
 	for _, m := range methods {
-		ident := check.objMap[m].fdecl.Name
-
 		if alt := mset.insert(m); alt != nil {
 			switch alt.(type) {
 			case *Var:
@@ -541,19 +538,14 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 				unreachable()
 			}
 			check.reportAltDecl(alt)
-			m = nil
+			continue
 		}
-
-		// If the method is valid, type-check its signature,
-		// and collect it with the named base type.
-		if m != nil {
-			check.recordObject(ident, m)
-			check.objDecl(m, nil, true)
-			// Methods with blank _ names cannot be found.
-			// Don't add them to the method list.
-			if m.name != "_" {
-				named.methods = append(named.methods, m)
-			}
+		check.recordObject(check.objMap[m].fdecl.Name, m)
+		check.objDecl(m, nil, true)
+		// Methods with blank _ names cannot be found.
+		// Don't add them to the method list.
+		if m.name != "_" {
+			named.methods = append(named.methods, m)
 		}
 	}
 

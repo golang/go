@@ -89,29 +89,28 @@ type Config struct {
 	Sizeof func(Type) int64
 }
 
-// Info holds result type information for a package.
+// Info holds result type information for a type-checked package.
+// Only the information for which a map is provided is collected.
+// If the package has type errors, the collected information may
+// be incomplete.
 type Info struct {
-	// If Types != nil, it records the expression and corresponding type
-	// for each expression that is type-checked. Identifiers declaring a
-	// variable are recorded in Objects, not Types.
+	// Types maps expressions to their types. Identifiers on the
+	// lhs of declarations are collected in Objects, not Types.
 	Types map[ast.Expr]Type
 
-	// If Values != nil, it records the expression and corresponding value
-	// for each constant expression that is type-checked.
+	// Values maps constant expressions to their values.
 	Values map[ast.Expr]exact.Value
 
-	// If Objects != nil, it records the identifier and corresponding object
-	// for each identifier that is type-checked (including package names,
-	// dots "." of dot-imports, and blank "_" identifiers). For identifiers
-	// that are not declared (due to an error, or because they are symbolic
-	// as the t in t := x.(type) of a type switch header), the corresponding
-	// object is nil.
+	// Objects maps identifiers to their corresponding objects (including
+	// package names, dots "." of dot-imports, and blank "_" identifiers).
+	// For identifiers that do not denote objects (e.g., blank identifiers
+	// on the lhs of assignments, or symbolic variables t in t := x.(type)
+	// of type switch headers), the corresponding objects are nil.
 	// BUG(gri) Label identifiers in break, continue, or goto statements
-	// are not recorded.
+	// are not yet mapped.
 	Objects map[*ast.Ident]Object
 
-	// If Implicits != nil, it records the node and corresponding object for
-	// each node that is type-checked and that implicitly declared an object.
+	// Implicits maps nodes to their implicitly declared objects, if any.
 	// The following node and object types may appear:
 	//
 	//	node               declared object
@@ -122,10 +121,7 @@ type Info struct {
 	//
 	Implicits map[ast.Node]Object
 
-	// If Selections != nil, it records the selector expression and corresponding
-	// selection, i.e., package object (qualified identifier), struct field (field
-	// selector), or method (method expression or value) for each selector expression
-	// that is type-checked.
+	// Selections maps selector expressions to their corresponding selections.
 	Selections map[*ast.SelectorExpr]*Selection
 }
 

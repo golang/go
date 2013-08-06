@@ -236,7 +236,7 @@ func MissingMethod(typ Type, T *Interface, static bool) (method *Func, wrongType
 		return
 	}
 
-	// TODO(gri) Consider using methods sets here. Might be more efficient.
+	// TODO(gri) Consider using method sets here. Might be more efficient.
 
 	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
 		for _, m := range T.methods {

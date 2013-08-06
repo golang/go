@@ -306,7 +306,9 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 				// declare new variable
 				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
 			}
-			check.recordObject(ident, obj) // obj may be nil
+			if obj != nil {
+				check.recordObject(ident, obj)
+			}
 		} else {
 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		}
