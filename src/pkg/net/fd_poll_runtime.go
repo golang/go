@@ -38,7 +38,11 @@ func (pd *pollDesc) Init(fd *netFD) error {
 }
 
 func (pd *pollDesc) Close() {
+	if pd.runtimeCtx == 0 {
+		return
+	}
 	runtime_pollClose(pd.runtimeCtx)
+	pd.runtimeCtx = 0
 }
 
 func (pd *pollDesc) Lock() {
@@ -53,6 +57,9 @@ func (pd *pollDesc) Wakeup() {
 // Evict evicts fd from the pending list, unblocking any I/O running on fd.
 // Return value is whether the pollServer should be woken up.
 func (pd *pollDesc) Evict() bool {
+	if pd.runtimeCtx == 0 {
+		return false
+	}
 	runtime_pollUnblock(pd.runtimeCtx)
 	return false
 }
