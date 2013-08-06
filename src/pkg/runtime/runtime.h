@@ -253,10 +253,10 @@ struct	G
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
-	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
-	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
-	uintptr	gcpc;		// if status==Gsyscall, gcpc = sched.pc to use during gc
-	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+	uintptr	syscallstack;		// if status==Gsyscall, syscallstack = stackbase to use during gc
+	uintptr	syscallsp;		// if status==Gsyscall, syscallsp = sched.sp to use during gc
+	uintptr	syscallpc;		// if status==Gsyscall, syscallpc = sched.pc to use during gc
+	uintptr	syscallguard;		// if status==Gsyscall, syscallguard = stackguard to use during gc
 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
 	G*	alllink;	// on allg
