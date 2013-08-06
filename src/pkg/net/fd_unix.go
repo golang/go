@@ -413,6 +413,19 @@ var tryDupCloexec = int32(1)
 func dupCloseOnExec(fd int) (newfd int, err error) {
 	if atomic.LoadInt32(&tryDupCloexec) == 1 {
 		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
+		if runtime.GOOS == "darwin" && e1 == syscall.EBADF {
+			// On OS X 10.6 and below (but we only support
+			// >= 10.6), F_DUPFD_CLOEXEC is unsupported
+			// and fcntl there falls back (undocumented)
+			// to doing an ioctl instead, returning EBADF
+			// in this case because fd is not of the
+			// expected device fd type.  Treat it as
+			// EINVAL instead, so we fall back to the
+			// normal dup path.
+			// TODO: only do this on 10.6 if we can detect 10.6
+			// cheaply.
+			e1 = syscall.EINVAL
+		}
 		switch e1 {
 		case 0:
 			return int(r0), nil
