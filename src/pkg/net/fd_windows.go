@@ -242,14 +242,12 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 		return nil, initErr
 	}
 	onceStartServer.Do(startServer)
-	fd := &netFD{
-		sysfd:  sysfd,
-		family: family,
-		sotype: sotype,
-		net:    net,
-	}
+	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net}, nil
+}
+
+func (fd *netFD) init() error {
 	if err := fd.pd.Init(fd); err != nil {
-		return nil, err
+		return err
 	}
 	fd.rop.mode = 'r'
 	fd.wop.mode = 'w'
@@ -261,7 +259,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 		fd.rop.errc = make(chan error)
 		fd.rop.errc = make(chan error)
 	}
-	return fd, nil
+	return nil
 }
 
 func (fd *netFD) setAddr(laddr, raddr Addr) {
@@ -472,6 +470,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	if err != nil {
 		closesocket(s)
 		return nil, &OpError{"accept", fd.net, fd.laddr, err}
+	}
+	if err := netfd.init(); err != nil {
+		fd.Close()
+		return nil, err
 	}
 
 	// Submit accept request.

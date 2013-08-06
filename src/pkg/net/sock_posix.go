@@ -93,6 +93,10 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
 		closesocket(s)
 		return nil, err
 	}
+	if err := fd.init(); err != nil {
+		fd.Close()
+		return nil, err
+	}
 
 	var rsa syscall.Sockaddr
 	if raddr != nil {

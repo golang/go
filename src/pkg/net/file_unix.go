@@ -67,6 +67,10 @@ func newFileFD(f *os.File) (*netFD, error) {
 		closesocket(fd)
 		return nil, err
 	}
+	if err := netfd.init(); err != nil {
+		netfd.Close()
+		return nil, err
+	}
 	netfd.setAddr(laddr, raddr)
 	return netfd, nil
 }

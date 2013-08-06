@@ -55,17 +55,15 @@ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn,
 	return dial(net, addr, localAddr, ra, deadline)
 }
 
-func newFD(fd, family, sotype int, net string) (*netFD, error) {
-	netfd := &netFD{
-		sysfd:  fd,
-		family: family,
-		sotype: sotype,
-		net:    net,
+func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net}, nil
+}
+
+func (fd *netFD) init() error {
+	if err := fd.pd.Init(fd); err != nil {
+		return err
 	}
-	if err := netfd.pd.Init(netfd); err != nil {
-		return nil, err
-	}
-	return netfd, nil
+	return nil
 }
 
 func (fd *netFD) setAddr(laddr, raddr Addr) {
@@ -399,6 +397,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 
 	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
 		closesocket(s)
+		return nil, err
+	}
+	if err = netfd.init(); err != nil {
+		fd.Close()
 		return nil, err
 	}
 	lsa, _ := syscall.Getsockname(netfd.sysfd)
