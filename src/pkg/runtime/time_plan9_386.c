@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "os_GOOS.h"
 
+#pragma textflag 7
 int64
 runtime·nanotime(void)
 {
