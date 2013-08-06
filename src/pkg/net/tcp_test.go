@@ -6,6 +6,7 @@ package net
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"runtime"
 	"sync"
@@ -326,4 +327,47 @@ func TestTCPConcurrentAccept(t *testing.T) {
 	}
 	ln.Close()
 	wg.Wait()
+}
+
+func TestTCPReadWriteMallocs(t *testing.T) {
+	maxMallocs := 0
+	switch runtime.GOOS {
+	// Add other OSes if you know how many mallocs they do.
+	case "windows":
+		maxMallocs = 0
+	}
+	ln, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	defer ln.Close()
+	var server Conn
+	errc := make(chan error)
+	go func() {
+		var err error
+		server, err = ln.Accept()
+		errc <- err
+	}()
+	client, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial failed: %v", err)
+	}
+	if err := <-errc; err != nil {
+		t.Fatalf("Accept failed: %v", err)
+	}
+	defer server.Close()
+	var buf [128]byte
+	mallocs := testing.AllocsPerRun(1000, func() {
+		_, err := server.Write(buf[:])
+		if err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+		_, err = io.ReadFull(client, buf[:])
+		if err != nil {
+			t.Fatalf("Read failed: %v", err)
+		}
+	})
+	if int(mallocs) > maxMallocs {
+		t.Fatalf("Got %v allocs, want %v", mallocs, maxMallocs)
+	}
 }

@@ -16,9 +16,9 @@ extern void *runtime·GetQueuedCompletionStatus;
 
 #define INVALID_HANDLE_VALUE ((uintptr)-1)
 
-// net_anOp must be the same as beginning of net.anOp. Keep these in sync.
-typedef struct net_anOp net_anOp;
-struct net_anOp
+// net_op must be the same as beginning of net.operation. Keep these in sync.
+typedef struct net_op net_op;
+struct net_op
 {
 	// used by windows
 	Overlapped	o;
@@ -66,7 +66,7 @@ runtime·netpoll(bool block)
 {
 	uint32 wait, qty, key;
 	int32 mode, errno;
-	net_anOp *o;
+	net_op *o;
 	G *gp;
 
 	if(iocphandle == INVALID_HANDLE_VALUE)
