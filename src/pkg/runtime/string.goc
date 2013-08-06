@@ -10,6 +10,7 @@ package runtime
 
 String	runtime·emptystring;
 
+#pragma textflag 7
 intgo
 runtime·findnull(byte *s)
 {
