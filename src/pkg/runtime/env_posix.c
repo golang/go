@@ -11,7 +11,8 @@ Slice syscall·envs;
 byte*
 runtime·getenv(int8 *s)
 {
-	int32 i, j, len;
+	int32 i, j;
+	intgo len;
 	byte *v, *bs;
 	String* envv;
 	int32 envc;

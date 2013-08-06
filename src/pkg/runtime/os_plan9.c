@@ -194,7 +194,8 @@ runtime·goexitsall(int8 *status)
 int32
 runtime·postnote(int32 pid, int8* msg)
 {
-	int32 fd, len;
+	int32 fd;
+	intgo len;
 	uint8 buf[128];
 	uint8 tmp[16];
 	uint8 *p, *q;

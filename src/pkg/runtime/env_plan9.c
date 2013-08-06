@@ -8,7 +8,8 @@
 byte*
 runtime·getenv(int8 *s)
 {
-	int32 fd, len, n, r;
+	int32 fd, n, r;
+	intgo len;
 	byte file[128];
 	byte *p;
 

@@ -12,7 +12,7 @@ static void vprintf(int8*, byte*);
 // write to goroutine-local buffer if diverting output,
 // or else standard error.
 static void
-gwrite(void *v, int32 n)
+gwrite(void *v, intgo n)
 {
 	if(g == nil || g->writebuf == nil) {
 		runtime·write(2, v, n);

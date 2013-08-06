@@ -393,7 +393,7 @@ void
 runtime·parsedebugvars(void)
 {
 	byte *p;
-	int32 i, n;
+	intgo i, n;
 
 	p = runtime·getenv("GODEBUG");
 	if(p == nil)
