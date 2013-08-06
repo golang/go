@@ -151,7 +151,6 @@ func testCallbackCallers(t *testing.T) {
 	n := 0
 	name := []string{
 		"test.goCallback",
-		"runtime.call16",
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback_gofunc",
