@@ -10,10 +10,10 @@ package runtime
 
 String	runtime·emptystring;
 
-int32
+intgo
 runtime·findnull(byte *s)
 {
-	int32 l;
+	intgo l;
 
 	if(s == nil)
 		return 0;
@@ -22,10 +22,10 @@ runtime·findnull(byte *s)
 	return l;
 }
 
-int32
+intgo
 runtime·findnullw(uint16 *s)
 {
-	int32 l;
+	intgo l;
 
 	if(s == nil)
 		return 0;

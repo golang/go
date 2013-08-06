@@ -32,7 +32,7 @@ runtime·sighandler(void *v, int8 *s, G *gp)
 	Ureg *ureg;
 	uintptr *sp;
 	SigTab *sig, *nsig;
-	int32 len, i;
+	intgo len, i;
 
 	if(!s)
 		return NCONT;

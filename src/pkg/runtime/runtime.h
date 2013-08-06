@@ -717,8 +717,8 @@ extern	DebugVars	runtime·debug;
  */
 int32	runtime·strcmp(byte*, byte*);
 byte*	runtime·strstr(byte*, byte*);
-int32	runtime·findnull(byte*);
-int32	runtime·findnullw(uint16*);
+intgo	runtime·findnull(byte*);
+intgo	runtime·findnullw(uint16*);
 void	runtime·dump(byte*, int32);
 int32	runtime·runetochar(byte*, int32);
 int32	runtime·charntorune(int32*, uint8*, int32);
