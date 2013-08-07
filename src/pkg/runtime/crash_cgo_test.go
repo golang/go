@@ -7,6 +7,7 @@
 package runtime_test
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -15,6 +16,9 @@ func TestCgoCrashHandler(t *testing.T) {
 }
 
 func TestCgoSignalDeadlock(t *testing.T) {
+	if testing.Short() && runtime.GOOS == "windows" {
+		t.Skip("Skipping in short mode") // takes up to 64 seconds
+	}
 	got := executeTest(t, cgoSignalDeadlockSource, nil)
 	want := "OK\n"
 	if got != want {
