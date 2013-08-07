@@ -1387,56 +1387,74 @@ addroot(Obj obj)
 
 extern byte pclntab[]; // base for f->ptrsoff
 
-typedef struct GCFunc GCFunc;
-struct GCFunc
+typedef struct BitVector BitVector;
+struct BitVector
 {
-	uint32	locals; // size of local variables in bytes
-	uint32	nptrs; // number of words that follow
-	uint32	ptrs[1]; // bitmap of pointers in arguments
+	int32 n;
+	uint32 data[];
 };
+
+// Starting from scanp, scans words corresponding to set bits.
+static void
+scanbitvector(byte *scanp, BitVector *bv)
+{
+	uint32 *wp;
+	uint32 w;
+	int32 i, remptrs;
+
+	wp = bv->data;
+	for(remptrs = bv->n; remptrs > 0; remptrs -= 32) {
+		w = *wp++;
+		if(remptrs < 32)
+			i = remptrs;
+		else
+			i = 32;
+		for(; i > 0; i--) {
+			if(w & 1)
+				addroot((Obj){scanp, PtrSize, 0});
+			w >>= 1;
+			scanp += PtrSize;
+		}
+	}
+}
 
 // Scan a stack frame: local variables and function arguments/results.
 static void
 addframeroots(Stkframe *frame, void*)
 {
 	Func *f;
-	byte *ap;
-	int32 i, j, nuintptr;
-	uint32 w, b;
-	GCFunc *gcf;
+	BitVector *args, *locals;
+	uintptr size;
 
 	f = frame->fn;
-	gcf = runtime·funcdata(f, FUNCDATA_GC);
-	
+
 	// Scan local variables if stack frame has been allocated.
-	i = frame->varp - (byte*)frame->sp;
-	if(i > 0) {
-		if(gcf == nil)
-			addroot((Obj){frame->varp - i, i, 0});
-		else if(i >= gcf->locals)
-			addroot((Obj){frame->varp - gcf->locals, gcf->locals, 0});
+	// Use pointer information if known.
+	if(frame->varp > (byte*)frame->sp) {
+		locals = runtime·funcdata(f, FUNCDATA_GCLocals);
+		if(locals == nil) {
+			// No locals information, scan everything.
+			size = frame->varp - (byte*)frame->sp;
+			addroot((Obj){frame->varp - size, size, 0});
+		} else if(locals->n < 0) {
+			// Locals size information, scan just the
+			// locals.
+			size = -locals->n;
+			addroot((Obj){frame->varp - size, size, 0});
+		} else if(locals->n > 0) {
+			// Locals bitmap information, scan just the
+			// pointers in locals.
+			size = locals->n*PtrSize;
+			scanbitvector(frame->varp - size, locals);
+		}
 	}
 
 	// Scan arguments.
 	// Use pointer information if known.
-	if(f->args > 0 && gcf != nil && gcf->nptrs > 0) {
-		ap = frame->argp;
-		nuintptr = f->args / sizeof(uintptr);
-		for(i = 0; i < gcf->nptrs; i++) {
-			w = gcf->ptrs[i];
-			b = 1;
-			j = nuintptr;
-			if(j > 32)
-				j = 32;
-			for(; j > 0; j--) {
-				if(w & b)
-					addroot((Obj){ap, sizeof(uintptr), 0});
-				b <<= 1;
-				ap += sizeof(uintptr);
-			}
-			nuintptr -= 32;
-		}
-	} else
+	args = runtime·funcdata(f, FUNCDATA_GCArgs);
+	if(args != nil && args->n > 0)
+		scanbitvector(frame->argp, args);
+	else
 		addroot((Obj){frame->argp, frame->arglen, 0});
 }
 

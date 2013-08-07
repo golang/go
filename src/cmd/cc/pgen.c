@@ -78,9 +78,9 @@ void
 codgen(Node *n, Node *nn)
 {
 	Prog *sp;
-	Node *n1, nod, nod1;
-	Sym *gcsym;
-	static int ngcsym;
+	Node *n1, nod, nod1, nod2;
+	Sym *gcsym, *gclocalssym;
+	static int ngcsym, ngclocalssym;
 	static char namebuf[40];
 	int32 off;
 
@@ -116,7 +116,17 @@ codgen(Node *n, Node *nn)
 	nod.op = ONAME;
 	nod.sym = gcsym;
 	nod.class = CSTATIC;
-	gins(AFUNCDATA, nodconst(FUNCDATA_GC), &nod);
+	gins(AFUNCDATA, nodconst(FUNCDATA_GCArgs), &nod);
+
+	snprint(namebuf, sizeof(namebuf), "gclocalssym·%d", ngclocalssym++);
+	gclocalssym = slookup(namebuf);
+	gclocalssym->class = CSTATIC;
+
+	memset(&nod2, 0, sizeof(nod2));
+	nod2.op = ONAME;
+	nod2.sym = gclocalssym;
+	nod2.class = CSTATIC;
+	gins(AFUNCDATA, nodconst(FUNCDATA_GCLocals), &nod2);
 
 	/*
 	 * isolate first argument
@@ -165,11 +175,15 @@ codgen(Node *n, Node *nn)
 	// That said, we've been using stkoff for months
 	// and nothing too terrible has happened.
 	off = 0;
-	gextern(gcsym, nodconst(stkoff), off, 4); // locals
-	off += 4;
 	off = pointermap(gcsym, off); // nptrs and ptrs[...]
 	gcsym->type = typ(0, T);
 	gcsym->type->width = off;
+
+	off = 0;
+	gextern(gclocalssym, nodconst(-stkoff), off, 4); // locals
+	off += 4;
+	gclocalssym->type = typ(0, T);
+	gclocalssym->type->width = off;
 }
 
 void
