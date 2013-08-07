@@ -765,3 +765,37 @@ func TestEmptyPasswordAuth(t *testing.T) {
 	}
 	defer resp.Body.Close()
 }
+
+func TestBasicAuth(t *testing.T) {
+	defer afterTest(t)
+	tr := &recordingTransport{}
+	client := &Client{Transport: tr}
+
+	url := "http://My%20User:My%20Pass@dummy.faketld/"
+	expected := "My User:My Pass"
+	client.Get(url)
+
+	if tr.req.Method != "GET" {
+		t.Errorf("got method %q, want %q", tr.req.Method, "GET")
+	}
+	if tr.req.URL.String() != url {
+		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
+	}
+	if tr.req.Header == nil {
+		t.Fatalf("expected non-nil request Header")
+	}
+	auth := tr.req.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Basic ") {
+		encoded := auth[6:]
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := string(decoded)
+		if expected != s {
+			t.Errorf("Invalid Authorization header. Got %q, wanted %q", s, expected)
+		}
+	} else {
+		t.Errorf("Invalid auth %q", auth)
+	}
+}
