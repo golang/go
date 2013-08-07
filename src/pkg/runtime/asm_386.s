@@ -537,7 +537,7 @@ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-12
 // 1. pop the caller
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0
+TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVL	4(SP), DX	// fn
 	MOVL	8(SP), BX	// caller sp
 	LEAL	-4(BX), SP	// caller sp after CALL

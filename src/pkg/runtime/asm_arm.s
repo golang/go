@@ -367,7 +367,7 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 // 1. grab stored LR for caller
 // 2. sub 4 bytes to get back to BL deferreturn
 // 3. B to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0
+TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
 	MOVW	fn+0(FP), R7
