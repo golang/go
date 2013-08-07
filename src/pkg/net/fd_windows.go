@@ -257,7 +257,7 @@ func (fd *netFD) init() error {
 	fd.wop.runtimeCtx = fd.pd.runtimeCtx
 	if !canCancelIO {
 		fd.rop.errc = make(chan error)
-		fd.rop.errc = make(chan error)
+		fd.wop.errc = make(chan error)
 	}
 	return nil
 }
