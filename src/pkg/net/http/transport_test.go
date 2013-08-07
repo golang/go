@@ -470,12 +470,18 @@ func TestTransportHeadResponses(t *testing.T) {
 		res, err := c.Head(ts.URL)
 		if err != nil {
 			t.Errorf("error on loop %d: %v", i, err)
+			continue
 		}
 		if e, g := "123", res.Header.Get("Content-Length"); e != g {
 			t.Errorf("loop %d: expected Content-Length header of %q, got %q", i, e, g)
 		}
 		if e, g := int64(123), res.ContentLength; e != g {
 			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", i, e, g)
+		}
+		if all, err := ioutil.ReadAll(res.Body); err != nil {
+			t.Errorf("loop %d: Body ReadAll: %v", i, err)
+		} else if len(all) != 0 {
+			t.Errorf("Bogus body %q", all)
 		}
 	}
 }

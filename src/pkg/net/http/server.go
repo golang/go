@@ -246,6 +246,10 @@ func (cw *chunkWriter) Write(p []byte) (n int, err error) {
 	if !cw.wroteHeader {
 		cw.writeHeader(p)
 	}
+	if cw.res.req.Method == "HEAD" {
+		// Eat writes.
+		return len(p), nil
+	}
 	if cw.chunking {
 		_, err = fmt.Fprintf(cw.res.conn.buf, "%x\r\n", len(p))
 		if err != nil {
@@ -704,6 +708,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	cw.wroteHeader = true
 
 	w := cw.res
+	isHEAD := w.req.Method == "HEAD"
 
 	// header is written out to w.conn.buf below. Depending on the
 	// state of the handler, we either own the map or not. If we
@@ -735,7 +740,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// response header and this is our first (and last) write, set
 	// it, even to zero. This helps HTTP/1.0 clients keep their
 	// "keep-alive" connections alive.
-	if w.handlerDone && header.get("Content-Length") == "" && w.req.Method != "HEAD" {
+	if w.handlerDone && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
 		w.contentLength = int64(len(p))
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
@@ -752,7 +757,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// Check for a explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
-	if w.req.wantsHttp10KeepAlive() && (w.req.Method == "HEAD" || hasCL) {
+	if w.req.wantsHttp10KeepAlive() && (isHEAD || hasCL) {
 		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"
@@ -793,7 +798,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	} else {
 		// If no content type, apply sniffing algorithm to body.
 		_, haveType := header["Content-Type"]
-		if !haveType && w.req.Method != "HEAD" {
+		if !haveType {
 			setHeader.contentType = DetectContentType(p)
 		}
 	}
@@ -905,7 +910,7 @@ func (w *response) bodyAllowed() bool {
 	if !w.wroteHeader {
 		panic("")
 	}
-	return w.status != StatusNotModified && w.req.Method != "HEAD"
+	return w.status != StatusNotModified
 }
 
 // The Life Of A Write is like this:
@@ -983,7 +988,7 @@ func (w *response) finishRequest() {
 		w.req.MultipartForm.RemoveAll()
 	}
 
-	if w.contentLength != -1 && w.bodyAllowed() && w.contentLength != w.written {
+	if w.req.Method != "HEAD" && w.contentLength != -1 && w.bodyAllowed() && w.contentLength != w.written {
 		// Did not write enough. Avoid getting out of sync.
 		w.closeAfterReply = true
 	}
