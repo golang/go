@@ -1406,6 +1406,16 @@ L:
 	}
 } // ERROR "missing return"
 
+func _() int {
+	switch x.(type) {
+	default:
+		return 4
+	case int, float64:
+		print(2)
+		panic(3)
+	}
+}
+
 // again, with func literals
 
 var _ = func() int {
@@ -2797,5 +2807,15 @@ L:
 		return 4
 	}
 } // ERROR "missing return"
+
+var _ = func() int {
+	switch x.(type) {
+	default:
+		return 4
+	case int, float64:
+		print(2)
+		panic(3)
+	}
+}
 
 /**/
