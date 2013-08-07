@@ -9,22 +9,22 @@
 #include	"../../pkg/runtime/funcdata.h"
 
 static void allocauto(Prog* p);
-static int pointermap(Sym*, int, Node*);
-static void gcsymbol(Sym*, Node*);
+static void dumpgcargs(Node*, Sym*);
+static void dumpgclocals(Node*, Sym*);
 
 void
 compile(Node *fn)
 {
 	Plist *pl;
-	Node nod1, *n, *gcnod;
+	Node nod1, *n, *gcargsnod, *gclocalsnod;
 	Prog *ptxt, *p, *p1;
 	int32 lno;
 	Type *t;
 	Iter save;
 	vlong oldstksize;
 	NodeList *l;
-	Sym *gcsym;
-	static int ngcsym;
+	Sym *gcargssym, *gclocalssym;
+	static int ngcargs, ngclocals;
 
 	if(newproc == N) {
 		newproc = sysfunc("newproc");
@@ -93,13 +93,21 @@ compile(Node *fn)
 
 	ginit();
 
-	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
-	gcsym = lookup(namebuf);
-	gcnod = newname(gcsym);
-	gcnod->class = PEXTERN;
+	snprint(namebuf, sizeof namebuf, "gcargs·%d", ngcargs++);
+	gcargssym = lookup(namebuf);
+	gcargsnod = newname(gcargssym);
+	gcargsnod->class = PEXTERN;
 
-	nodconst(&nod1, types[TINT32], FUNCDATA_GC);
-	gins(AFUNCDATA, &nod1, gcnod);
+	nodconst(&nod1, types[TINT32], FUNCDATA_GCArgs);
+	gins(AFUNCDATA, &nod1, gcargsnod);
+
+	snprint(namebuf, sizeof(namebuf), "gclocals·%d", ngclocals++);
+	gclocalssym = lookup(namebuf);
+	gclocalsnod = newname(gclocalssym);
+	gclocalsnod->class = PEXTERN;
+
+	nodconst(&nod1, types[TINT32], FUNCDATA_GCLocals);
+	gins(AFUNCDATA, &nod1, gclocalsnod);
 
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
@@ -159,35 +167,27 @@ compile(Node *fn)
 
 	oldstksize = stksize;
 	allocauto(ptxt);
-	
-	// Emit garbage collection symbol.
-	gcsymbol(gcsym, fn);
 
 	if(0)
 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
 
 	setlineno(curfn);
-	if((int64)stksize+maxarg > (1ULL<<31))
+	if((int64)stksize+maxarg > (1ULL<<31)) {
 		yyerror("stack frame too large (>2GB)");
+		goto ret;
+	}
 
 	defframe(ptxt);
 
 	if(0)
 		frame(0);
 
+	// Emit garbage collection symbols.
+	dumpgcargs(fn, gcargssym);
+	dumpgclocals(curfn, gclocalssym);
+
 ret:
 	lineno = lno;
-}
-
-static void
-gcsymbol(Sym *gcsym, Node *fn)
-{
-	int off;
-
-	off = 0;
-	off = duint32(gcsym, off, stksize); // size of local block
-	off = pointermap(gcsym, off, fn); // pointer bitmap for args (must be last)
-	ggloblsym(gcsym, off, 0, 1);
 }
 
 static void
@@ -296,13 +296,15 @@ walktype(Type *type, Bvec *bv)
 }
 
 // Compute a bit vector to describes the pointer containing locations
-// in the argument list.
-static int
-pointermap(Sym *gcsym, int off, Node *fn)
+// in the in and out argument list and dump the bitvector length and
+// data to the provided symbol.
+static void
+dumpgcargs(Node *fn, Sym *sym)
 {
 	Type *thistype, *inargtype, *outargtype;
 	Bvec *bv;
 	int32 i;
+	int off;
 
 	thistype = getthisx(fn->type);
 	inargtype = getinargx(fn->type);
@@ -314,11 +316,42 @@ pointermap(Sym *gcsym, int off, Node *fn)
 		walktype(inargtype, bv);
 	if(outargtype != nil)
 		walktype(outargtype, bv);
-	off = duint32(gcsym, off, bv->n);
+	off = duint32(sym, 0, bv->n);
 	for(i = 0; i < bv->n; i += 32)
-		off = duint32(gcsym, off, bv->b[i/32]);
+		off = duint32(sym, off, bv->b[i/32]);
 	free(bv);
-	return off;
+	ggloblsym(sym, off, 0, 1);
+}
+
+// Compute a bit vector to describes the pointer containing locations
+// in local variables and dumps the bitvector length and data out to
+// the provided symbol.
+static void
+dumpgclocals(Node* fn, Sym *sym)
+{
+	Bvec *bv;
+	NodeList *ll;
+	Node *node;
+	vlong xoffset;
+	int32 i;
+	int off;
+
+	bv = bvalloc(rnd(stksize, widthptr) / widthptr);
+	for(ll = fn->dcl; ll != nil; ll = ll->next) {
+		node = ll->n;
+		if(node->class == PAUTO && node->op == ONAME) {
+			if(haspointers(node->type)) {
+				xoffset = node->xoffset + rnd(stksize,widthptr);
+				walktype1(node->type, &xoffset, bv);
+			}
+		}
+	}
+	off = duint32(sym, 0, bv->n);
+	for(i = 0; i < bv->n; i += 32) {
+		off = duint32(sym, off, bv->b[i/32]);
+	}
+	free(bv);
+	ggloblsym(sym, off, 0, 1);
 }
 
 // Sort the list of stack variables.  autos after anything else,

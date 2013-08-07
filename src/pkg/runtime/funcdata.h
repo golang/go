@@ -9,7 +9,8 @@
 
 #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
 
-#define FUNCDATA_GC 0 /* garbage collector block */
+#define FUNCDATA_GCArgs 0 /* garbage collector blocks */
+#define FUNCDATA_GCLocals 1
 
 // To be used in assembly.
 #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
