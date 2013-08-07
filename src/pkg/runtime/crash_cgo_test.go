@@ -26,6 +26,14 @@ func TestCgoSignalDeadlock(t *testing.T) {
 	}
 }
 
+func TestCgoTraceback(t *testing.T) {
+	got := executeTest(t, cgoTracebackSource, nil)
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 const cgoSignalDeadlockSource = `
 package main
 
@@ -87,6 +95,25 @@ func main() {
 		fmt.Printf("HANG\n")
 		return
 	}
+	fmt.Printf("OK\n")
+}
+`
+
+const cgoTracebackSource = `
+package main
+
+/* void foo(void) {} */
+import "C"
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	C.foo()
+	buf := make([]byte, 1)
+	runtime.Stack(buf, true)
 	fmt.Printf("OK\n")
 }
 `
