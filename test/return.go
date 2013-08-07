@@ -272,7 +272,6 @@ func _() int {
 } // ERROR "missing return"
 
 func _() int {
-L:
 	print(1)
 	if x == nil {
 		panic(2)
@@ -972,7 +971,6 @@ func _() int {
 } // ERROR "missing return"
 
 func _() int {
-L:
 	if x == nil {
 		panic(2)
 	} else if x == 1 {
@@ -1666,7 +1664,6 @@ var _ = func() int {
 } // ERROR "missing return"
 
 var _ = func() int {
-L:
 	print(1)
 	if x == nil {
 		panic(2)
@@ -2366,7 +2363,6 @@ var _ = func() int {
 } // ERROR "missing return"
 
 var _ = func() int {
-L:
 	if x == nil {
 		panic(2)
 	} else if x == 1 {
