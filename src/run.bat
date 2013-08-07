@@ -121,7 +121,7 @@ set GOMAXPROCS=%OLDGOMAXPROCS%
 set OLDGOMAXPROCS=
 
 echo # Checking API compatibility.
-go tool api -c ..\api\go1.txt,..\api\go1.1.txt -next ..\api\next.txt -except ..\api\except.txt
+go run --tags=from_src_run "%GOROOT%\src\cmd\api\run.go"
 if errorlevel 1 goto fail
 echo.
 

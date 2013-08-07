@@ -180,12 +180,9 @@ unset GOMAXPROCS
 time go run run.go || exit 1
 ) || exit $?
 
-if [ -d "$GOROOT/src/cmd/api" ]
-then
-	echo
-	echo '# Checking API compatibility.'
-	go tool api -c $GOROOT/api/go1.txt,$GOROOT/api/go1.1.txt -next $GOROOT/api/next.txt -except $GOROOT/api/except.txt
-fi
+echo
+echo '# Checking API compatibility.'
+go run --tags=from_src_run $GOROOT/src/cmd/api/run.go
 
 echo
 echo ALL TESTS PASSED
