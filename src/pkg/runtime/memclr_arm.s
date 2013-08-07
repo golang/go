@@ -23,12 +23,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "../../cmd/ld/textflag.h"
+
 TO = 8
 TOE = 11
 N = 12
 TMP = 12				/* N and TMP don't overlap */
 
-TEXT runtime·memclr(SB),7,$0-8
+TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	MOVW	ptr+0(FP), R(TO)
 	MOVW	n+4(FP), R(N)
 	MOVW	$0, R(0)

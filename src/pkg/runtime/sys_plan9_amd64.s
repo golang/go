@@ -3,38 +3,39 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),7,$0
+TEXT runtime·setldt(SB),NOSPLIT,$0
 	RET
 
-TEXT runtime·open(SB),7,$0
+TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$14, BP
 	SYSCALL
 	RET
 
-TEXT runtime·pread(SB),7,$0
+TEXT runtime·pread(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$50, BP
 	SYSCALL
 	RET
 
-TEXT runtime·pwrite(SB),7,$0
+TEXT runtime·pwrite(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$51, BP
 	SYSCALL
 	RET
 
 // int32 _seek(int64*, int32, int64, int32)
-TEXT _seek<>(SB),7,$0
+TEXT _seek<>(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$39, BP
 	SYSCALL
 	RET
 
 // int64 seek(int32, int64, int32)
-TEXT runtime·seek(SB),7,$56
+TEXT runtime·seek(SB),NOSPLIT,$56
 	LEAQ	new+48(SP), CX
 	MOVQ	CX, 0(SP)
 	MOVQ	fd+0(FP), CX
@@ -50,67 +51,67 @@ TEXT runtime·seek(SB),7,$56
 	MOVQ	new+48(SP), AX
 	RET
 
-TEXT runtime·close(SB),7,$0
+TEXT runtime·close(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$4, BP
 	SYSCALL
 	RET
 
-TEXT runtime·exits(SB),7,$0
+TEXT runtime·exits(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$8, BP
 	SYSCALL
 	RET
 
-TEXT runtime·brk_(SB),7,$0
+TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$24, BP
 	SYSCALL
 	RET
 
-TEXT runtime·sleep(SB),7,$0
+TEXT runtime·sleep(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$17, BP
 	SYSCALL
 	RET
 
-TEXT runtime·plan9_semacquire(SB),7,$0
+TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$37, BP
 	SYSCALL
 	RET
 
-TEXT runtime·plan9_tsemacquire(SB),7,$0
+TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$52, BP
 	SYSCALL
 	RET
 
-TEXT runtime·notify(SB),7,$0
+TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$28, BP
 	SYSCALL
 	RET
 
-TEXT runtime·noted(SB),7,$0
+TEXT runtime·noted(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$29, BP
 	SYSCALL
 	RET
 	
-TEXT runtime·plan9_semrelease(SB),7,$0
+TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$38, BP
 	SYSCALL
 	RET
 
-TEXT runtime·nanotime(SB),7,$0
+TEXT runtime·nanotime(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$60, BP
 	SYSCALL
 	RET
 
-TEXT runtime·rfork(SB),7,$0
+TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$19, BP // rfork
 	SYSCALL
@@ -148,11 +149,11 @@ TEXT runtime·rfork(SB),7,$0
 	RET
 
 // This is needed by asm_amd64.s
-TEXT runtime·settls(SB),7,$0
+TEXT runtime·settls(SB),NOSPLIT,$0
 	RET
 
 // void sigtramp(void *ureg, int8 *note)
-TEXT runtime·sigtramp(SB),7,$0
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	get_tls(AX)
 
 	// check that m exists
@@ -198,7 +199,7 @@ TEXT runtime·sigtramp(SB),7,$0
 	CALL	runtime·noted(SB)
 	RET
 
-TEXT runtime·setfpmasks(SB),7,$8
+TEXT runtime·setfpmasks(SB),NOSPLIT,$8
 	STMXCSR	0(SP)
 	MOVL	0(SP), AX
 	ANDL	$~0x3F, AX
@@ -215,7 +216,7 @@ TEXT runtime·setfpmasks(SB),7,$8
 // in entersyscall mode, without going
 // through the allocator (issue 4994).
 // See ../syscall/asm_plan9_386.s:/·Syscall/
-TEXT runtime·errstr(SB),7,$0
+TEXT runtime·errstr(SB),NOSPLIT,$0
 	get_tls(AX)
 	MOVQ	m(AX), BX
 	MOVQ	m_errstr(BX), CX

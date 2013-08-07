@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_386_windows(SB),7,$12
+#include "../../cmd/ld/textflag.h"
+
+TEXT _rt0_386_windows(SB),NOSPLIT,$12
 	MOVL	12(SP), AX
 	LEAL	16(SP), BX
 	MOVL	AX, 4(SP)
@@ -10,7 +12,7 @@ TEXT _rt0_386_windows(SB),7,$12
 	MOVL	$-1, 0(SP) // return PC for main
 	JMP	main(SB)
 
-TEXT main(SB),7,$0
+TEXT main(SB),NOSPLIT,$0
 	JMP	_rt0_go(SB)
 
 

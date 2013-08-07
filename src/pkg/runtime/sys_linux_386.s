@@ -7,22 +7,23 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
-TEXT runtime·exit(SB),7,$0
+TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$252, AX	// syscall number
 	MOVL	4(SP), BX
 	CALL	*runtime·_vdso(SB)
 	INT $3	// not reached
 	RET
 
-TEXT runtime·exit1(SB),7,$0
+TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVL	$1, AX	// exit - exit the current os thread
 	MOVL	4(SP), BX
 	CALL	*runtime·_vdso(SB)
 	INT $3	// not reached
 	RET
 
-TEXT runtime·open(SB),7,$0
+TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX		// syscall - open
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -30,13 +31,13 @@ TEXT runtime·open(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·close(SB),7,$0
+TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
 	MOVL	4(SP), BX
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·write(SB),7,$0
+TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	$4, AX		// syscall - write
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -44,7 +45,7 @@ TEXT runtime·write(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·read(SB),7,$0
+TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	$3, AX		// syscall - read
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -52,14 +53,14 @@ TEXT runtime·read(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·getrlimit(SB),7,$0
+TEXT runtime·getrlimit(SB),NOSPLIT,$0
 	MOVL	$191, AX		// syscall - ugetrlimit
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·usleep(SB),7,$8
+TEXT runtime·usleep(SB),NOSPLIT,$8
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -77,7 +78,7 @@ TEXT runtime·usleep(SB),7,$8
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·raise(SB),7,$12
+TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$224, AX	// syscall - gettid
 	CALL	*runtime·_vdso(SB)
 	MOVL	AX, BX	// arg 1 tid
@@ -86,7 +87,7 @@ TEXT runtime·raise(SB),7,$12
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·setitimer(SB),7,$0-24
+TEXT runtime·setitimer(SB),NOSPLIT,$0-24
 	MOVL	$104, AX			// syscall - setitimer
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -94,7 +95,7 @@ TEXT runtime·setitimer(SB),7,$0-24
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·mincore(SB),7,$0-24
+TEXT runtime·mincore(SB),NOSPLIT,$0-24
 	MOVL	$218, AX			// syscall - mincore
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -103,7 +104,7 @@ TEXT runtime·mincore(SB),7,$0-24
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
+TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$265, AX			// syscall - clock_gettime
 	MOVL	$0, BX
 	LEAL	8(SP), CX
@@ -120,7 +121,7 @@ TEXT time·now(SB), 7, $32
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), 7, $32
+TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$265, AX			// syscall - clock_gettime
 	MOVL	$0, BX
 	LEAL	8(SP), CX
@@ -141,7 +142,7 @@ TEXT runtime·nanotime(SB), 7, $32
 	MOVL	DX, 4(DI)
 	RET
 
-TEXT runtime·rtsigprocmask(SB),7,$0
+TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	$175, AX		// syscall entry
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -153,7 +154,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0
 	INT $3
 	RET
 
-TEXT runtime·rt_sigaction(SB),7,$0
+TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVL	$174, AX		// syscall - rt_sigaction
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -162,7 +163,7 @@ TEXT runtime·rt_sigaction(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·sigtramp(SB),7,$44
+TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
 	// check that m exists
@@ -202,7 +203,7 @@ TEXT runtime·sigtramp(SB),7,$44
 
 	RET
 
-TEXT runtime·sigreturn(SB),7,$0
+TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	MOVL	$173, AX	// rt_sigreturn
 	// Sigreturn expects same SP as signal handler,
 	// so cannot CALL *runtime._vsdo(SB) here.
@@ -210,7 +211,7 @@ TEXT runtime·sigreturn(SB),7,$0
 	INT $3	// not reached
 	RET
 
-TEXT runtime·mmap(SB),7,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	$192, AX	// mmap2
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -226,7 +227,7 @@ TEXT runtime·mmap(SB),7,$0
 	INCL	AX
 	RET
 
-TEXT runtime·munmap(SB),7,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVL	$91, AX	// munmap
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -236,7 +237,7 @@ TEXT runtime·munmap(SB),7,$0
 	INT $3
 	RET
 
-TEXT runtime·madvise(SB),7,$0
+TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	$219, AX	// madvise
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -247,7 +248,7 @@ TEXT runtime·madvise(SB),7,$0
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),7,$0
+TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVL	$240, AX	// futex
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -259,7 +260,7 @@ TEXT runtime·futex(SB),7,$0
 	RET
 
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),7,$0
+TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$120, AX	// clone
 	MOVL	flags+4(SP), BX
 	MOVL	stack+8(SP), CX
@@ -339,7 +340,7 @@ TEXT runtime·clone(SB),7,$0
 	MOVL	$0x1234, 0x1005
 	RET
 
-TEXT runtime·sigaltstack(SB),7,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
 	MOVL	new+4(SP), BX
 	MOVL	old+8(SP), CX
@@ -372,7 +373,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
 #define USEABLE 0x40
 
 // setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),7,$32
+TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	entry+0(FP), BX	// entry
 	MOVL	address+4(FP), CX	// base address
 
@@ -419,12 +420,12 @@ TEXT runtime·setldt(SB),7,$32
 
 	RET
 
-TEXT runtime·osyield(SB),7,$0
+TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$158, AX
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·sched_getaffinity(SB),7,$0
+TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	$242, AX		// syscall - sched_getaffinity
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -433,21 +434,21 @@ TEXT runtime·sched_getaffinity(SB),7,$0
 	RET
 
 // int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),7,$0
+TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVL    $254, AX
 	MOVL	4(SP), BX
 	CALL	*runtime·_vdso(SB)
 	RET
 
 // int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),7,$0
+TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL    $329, AX
 	MOVL	4(SP), BX
 	CALL	*runtime·_vdso(SB)
 	RET
 
 // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
-TEXT runtime·epollctl(SB),7,$0
+TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	$255, AX
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -457,7 +458,7 @@ TEXT runtime·epollctl(SB),7,$0
 	RET
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),7,$0
+TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVL	$256, AX
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX
@@ -467,7 +468,7 @@ TEXT runtime·epollwait(SB),7,$0
 	RET
 
 // void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$0
+TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	$55, AX  // fcntl
 	MOVL	4(SP), BX  // fd
 	MOVL	$2, CX  // F_SETFD

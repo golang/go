@@ -12,9 +12,10 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),7,$0
+TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
@@ -23,14 +24,14 @@ TEXT runtime·exit(SB),7,$0
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),7,$0
+TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+361), AX	// syscall entry
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·open(SB),7,$0
+TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI		// arg 1 pathname
 	MOVL	16(SP), SI		// arg 2 flags
 	MOVL	20(SP), DX		// arg 3 mode
@@ -38,13 +39,13 @@ TEXT runtime·open(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·close(SB),7,$0
+TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVL	$(0x2000000+6), AX	// syscall entry
 	SYSCALL
 	RET
 
-TEXT runtime·read(SB),7,$0
+TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -52,7 +53,7 @@ TEXT runtime·read(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·write(SB),7,$0
+TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -60,7 +61,7 @@ TEXT runtime·write(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·raise(SB),7,$24
+TEXT runtime·raise(SB),NOSPLIT,$24
 	MOVL	$(0x2000000+20), AX // getpid
 	SYSCALL
 	MOVQ	AX, DI	// arg 1 - pid
@@ -70,7 +71,7 @@ TEXT runtime·raise(SB),7,$24
 	SYSCALL
 	RET
 
-TEXT runtime·setitimer(SB), 7, $0
+TEXT runtime·setitimer(SB), NOSPLIT, $0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -78,7 +79,7 @@ TEXT runtime·setitimer(SB), 7, $0
 	SYSCALL
 	RET
 
-TEXT runtime·madvise(SB), 7, $0
+TEXT runtime·madvise(SB), NOSPLIT, $0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVQ	16(SP), SI		// arg 2 len
 	MOVL	24(SP), DX		// arg 3 advice
@@ -99,7 +100,7 @@ TEXT runtime·madvise(SB), 7, $0
 #define	gtod_sec_base	0x78
 
 // int64 nanotime(void)
-TEXT runtime·nanotime(SB), 7, $32
+TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
 	// Loop trying to take a consistent snapshot
 	// of the time parameters.
@@ -149,7 +150,7 @@ systime:
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB),7,$0
+TEXT time·now(SB),NOSPLIT,$0
 	CALL	runtime·nanotime(SB)
 
 	// generated code for
@@ -167,7 +168,7 @@ TEXT time·now(SB),7,$0
 	MOVL	CX, nsec+8(FP)
 	RET
 
-TEXT runtime·sigprocmask(SB),7,$0
+TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -177,7 +178,7 @@ TEXT runtime·sigprocmask(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaction(SB),7,$0
+TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
 	MOVQ	24(SP), DX		// arg 3 oact
@@ -189,7 +190,7 @@ TEXT runtime·sigaction(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),7,$64
+TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	get_tls(BX)
 
 	MOVQ	R8, 32(SP)	// save ucontext
@@ -232,7 +233,7 @@ sigtramp_ret:
 	SYSCALL
 	INT $3	// not reached
 
-TEXT runtime·mmap(SB),7,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVQ	16(SP), SI		// arg 2 len
 	MOVL	24(SP), DX		// arg 3 prot
@@ -243,7 +244,7 @@ TEXT runtime·mmap(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·munmap(SB),7,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVQ	16(SP), SI		// arg 2 len
 	MOVL	$(0x2000000+73), AX	// syscall entry
@@ -252,7 +253,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaltstack(SB),7,$0
+TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
 	MOVQ	$(0x2000000+53), AX
@@ -261,7 +262,7 @@ TEXT runtime·sigaltstack(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),7,$16
+TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -280,7 +281,7 @@ TEXT runtime·usleep(SB),7,$16
 	RET
 
 // void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
-TEXT runtime·bsdthread_create(SB),7,$0
+TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
@@ -308,7 +309,7 @@ TEXT runtime·bsdthread_create(SB),7,$0
 //	R8 = stack
 //	R9 = flags (= 0)
 //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
-TEXT runtime·bsdthread_start(SB),7,$0
+TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
 
 	PUSHQ	DX
@@ -336,7 +337,7 @@ TEXT runtime·bsdthread_start(SB),7,$0
 // void bsdthread_register(void)
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),7,$0
+TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
 	MOVQ	$runtime·bsdthread_start(SB), DI	// threadstart
 	MOVQ	$0, SI	// wqthread, not used by us
 	MOVQ	$0, DX	// pthsize, not used by us
@@ -354,7 +355,7 @@ TEXT runtime·bsdthread_register(SB),7,$0
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
 
 // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
-TEXT runtime·mach_msg_trap(SB),7,$0
+TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -368,17 +369,17 @@ TEXT runtime·mach_msg_trap(SB),7,$0
 	POPQ	R11
 	RET
 
-TEXT runtime·mach_task_self(SB),7,$0
+TEXT runtime·mach_task_self(SB),NOSPLIT,$0
 	MOVL	$(0x1000000+28), AX	// task_self_trap
 	SYSCALL
 	RET
 
-TEXT runtime·mach_thread_self(SB),7,$0
+TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
 	MOVL	$(0x1000000+27), AX	// thread_self_trap
 	SYSCALL
 	RET
 
-TEXT runtime·mach_reply_port(SB),7,$0
+TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 	MOVL	$(0x1000000+26), AX	// mach_reply_port
 	SYSCALL
 	RET
@@ -387,14 +388,14 @@ TEXT runtime·mach_reply_port(SB),7,$0
 // instead of requiring the use of RPC.
 
 // uint32 mach_semaphore_wait(uint32)
-TEXT runtime·mach_semaphore_wait(SB),7,$0
+TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
 	SYSCALL
 	RET
 
 // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
-TEXT runtime·mach_semaphore_timedwait(SB),7,$0
+TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVL	12(SP), SI
 	MOVL	16(SP), DX
@@ -403,21 +404,21 @@ TEXT runtime·mach_semaphore_timedwait(SB),7,$0
 	RET
 
 // uint32 mach_semaphore_signal(uint32)
-TEXT runtime·mach_semaphore_signal(SB),7,$0
+TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
 	SYSCALL
 	RET
 
 // uint32 mach_semaphore_signal_all(uint32)
-TEXT runtime·mach_semaphore_signal_all(SB),7,$0
+TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
 	SYSCALL
 	RET
 
 // set tls base to DI
-TEXT runtime·settls(SB),7,$32
+TEXT runtime·settls(SB),NOSPLIT,$32
 	/*
 	* Same as in sys_darwin_386.s:/ugliness, different constant.
 	* See cgo/gcc_darwin_amd64.c for the derivation
@@ -429,7 +430,7 @@ TEXT runtime·settls(SB),7,$32
 	SYSCALL
 	RET
 
-TEXT runtime·sysctl(SB),7,$0
+TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVQ	24(SP), DX
@@ -445,7 +446,7 @@ TEXT runtime·sysctl(SB),7,$0
 	RET
 
 // int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),7,$0
+TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVQ    $0, DI
 	MOVQ    $0, SI
 	MOVQ    $0, DX
@@ -456,7 +457,7 @@ TEXT runtime·kqueue(SB),7,$0
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),7,$0
+TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL    8(SP), DI
 	MOVQ    16(SP), SI
 	MOVL    24(SP), DX
@@ -470,7 +471,7 @@ TEXT runtime·kevent(SB),7,$0
 	RET
 
 // void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$0
+TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL    8(SP), DI  // fd
 	MOVQ    $2, SI  // F_SETFD
 	MOVQ    $1, DX  // FD_CLOEXEC

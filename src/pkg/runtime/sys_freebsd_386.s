@@ -7,18 +7,19 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 	
-TEXT runtime·sys_umtx_op(SB),7,$-4
+TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 	MOVL	$454, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·thr_new(SB),7,$-4
+TEXT runtime·thr_new(SB),NOSPLIT,$-4
 	MOVL	$455, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·thr_start(SB),7,$0
+TEXT runtime·thr_start(SB),NOSPLIT,$0
 	MOVL	mm+0(FP), AX
 	MOVL	m_g0(AX), BX
 	LEAL	m_tls(AX), BP
@@ -43,45 +44,45 @@ TEXT runtime·thr_start(SB),7,$0
 	MOVL	0, AX			// crash (not reached)
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),7,$-4
+TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$1, AX
 	INT	$0x80
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),7,$-4
+TEXT runtime·exit1(SB),NOSPLIT,$-4
 	MOVL	$431, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·open(SB),7,$-4
+TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·close(SB),7,$-4
+TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·read(SB),7,$-4
+TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·write(SB),7,$-4
+TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·getrlimit(SB),7,$-4
+TEXT runtime·getrlimit(SB),NOSPLIT,$-4
 	MOVL	$194, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),7,$16
+TEXT runtime·raise(SB),NOSPLIT,$16
 	// thr_self(&8(SP))
 	LEAL	8(SP), AX
 	MOVL	AX, 4(SP)
@@ -96,7 +97,7 @@ TEXT runtime·raise(SB),7,$16
 	INT	$0x80
 	RET
 
-TEXT runtime·mmap(SB),7,$32
+TEXT runtime·mmap(SB),NOSPLIT,$32
 	LEAL arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -112,26 +113,26 @@ TEXT runtime·mmap(SB),7,$32
 	INT	$0x80
 	RET
 
-TEXT runtime·munmap(SB),7,$-4
+TEXT runtime·munmap(SB),NOSPLIT,$-4
 	MOVL	$73, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·madvise(SB),7,$-4
+TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX	// madvise
 	INT	$0x80
 	// ignore failure - maybe pages are locked
 	RET
 
-TEXT runtime·setitimer(SB), 7, $-4
+TEXT runtime·setitimer(SB), NOSPLIT, $-4
 	MOVL	$83, AX
 	INT	$0x80
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
+TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)
@@ -148,7 +149,7 @@ TEXT time·now(SB), 7, $32
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), 7, $32
+TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)
@@ -170,14 +171,14 @@ TEXT runtime·nanotime(SB), 7, $32
 	RET
 
 
-TEXT runtime·sigaction(SB),7,$-4
+TEXT runtime·sigaction(SB),NOSPLIT,$-4
 	MOVL	$416, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),7,$44
+TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
 	// check that m exists
@@ -224,14 +225,14 @@ sigtramp_ret:
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaltstack(SB),7,$0
+TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$53, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),7,$20
+TEXT runtime·usleep(SB),NOSPLIT,$20
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -266,7 +267,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 */
 
 // setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),7,$32
+TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
 	// see comment in sys_linux_386.s; freebsd is similar
 	ADDL	$0x8, BX
@@ -299,7 +300,7 @@ TEXT runtime·setldt(SB),7,$32
 	MOVW	AX, GS
 	RET
 
-TEXT runtime·i386_set_ldt(SB),7,$16
+TEXT runtime·i386_set_ldt(SB),NOSPLIT,$16
 	LEAL	args+0(FP), AX	// 0(FP) == 4(SP) before SP got moved
 	MOVL	$0, 0(SP)	// syscall gap
 	MOVL	$1, 4(SP)
@@ -311,7 +312,7 @@ TEXT runtime·i386_set_ldt(SB),7,$16
 	INT	$3
 	RET
 
-TEXT runtime·sysctl(SB),7,$28
+TEXT runtime·sysctl(SB),NOSPLIT,$28
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -329,12 +330,12 @@ TEXT runtime·sysctl(SB),7,$28
 	MOVL	$0, AX
 	RET
 
-TEXT runtime·osyield(SB),7,$-4
+TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVL	$331, AX		// sys_sched_yield
 	INT	$0x80
 	RET
 
-TEXT runtime·sigprocmask(SB),7,$16
+TEXT runtime·sigprocmask(SB),NOSPLIT,$16
 	MOVL	$0, 0(SP)		// syscall gap
 	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
 	MOVL	args+0(FP), AX
@@ -348,7 +349,7 @@ TEXT runtime·sigprocmask(SB),7,$16
 	RET
 
 // int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),7,$0
+TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	$269, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -356,7 +357,7 @@ TEXT runtime·kqueue(SB),7,$0
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),7,$0
+TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	$270, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -364,7 +365,7 @@ TEXT runtime·kevent(SB),7,$0
 	RET
 
 // int32 runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$32
+TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	MOVL	$92, AX		// fcntl
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	fd+0(FP), BX

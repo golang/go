@@ -3,27 +3,28 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),7,$0
+TEXT runtime·setldt(SB),NOSPLIT,$0
 	RET
 
-TEXT runtime·open(SB),7,$0
+TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL    $14, AX
 	INT     $64
 	RET
 
-TEXT runtime·pread(SB),7,$0
+TEXT runtime·pread(SB),NOSPLIT,$0
 	MOVL    $50, AX
 	INT     $64
 	RET
 
-TEXT runtime·pwrite(SB),7,$0
+TEXT runtime·pwrite(SB),NOSPLIT,$0
 	MOVL    $51, AX
 	INT     $64
 	RET
 
-TEXT runtime·seek(SB),7,$0
+TEXT runtime·seek(SB),NOSPLIT,$0
 	MOVL	$39, AX
 	INT	$64
 	CMPL	AX, $-1
@@ -33,52 +34,52 @@ TEXT runtime·seek(SB),7,$0
 	MOVL	AX, 4(CX)
 	RET
 
-TEXT runtime·close(SB),7,$0
+TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$64
 	RET
 
-TEXT runtime·exits(SB),7,$0
+TEXT runtime·exits(SB),NOSPLIT,$0
 	MOVL    $8, AX
 	INT     $64
 	RET
 
-TEXT runtime·brk_(SB),7,$0
+TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVL    $24, AX
 	INT     $64
 	RET
 
-TEXT runtime·sleep(SB),7,$0
+TEXT runtime·sleep(SB),NOSPLIT,$0
 	MOVL    $17, AX
 	INT     $64
 	RET
 
-TEXT runtime·plan9_semacquire(SB),7,$0
+TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
 	MOVL	$37, AX
 	INT	$64
 	RET
 
-TEXT runtime·plan9_tsemacquire(SB),7,$0
+TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVL	$52, AX
 	INT	$64
 	RET
 
-TEXT runtime·notify(SB),7,$0
+TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVL	$28, AX
 	INT	$64
 	RET
 
-TEXT runtime·noted(SB),7,$0
+TEXT runtime·noted(SB),NOSPLIT,$0
 	MOVL	$29, AX
 	INT	$64
 	RET
 	
-TEXT runtime·plan9_semrelease(SB),7,$0
+TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVL	$38, AX
 	INT	$64
 	RET
 	
-TEXT runtime·rfork(SB),7,$0
+TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL    $19, AX // rfork
 	INT     $64
 
@@ -120,7 +121,7 @@ TEXT runtime·rfork(SB),7,$0
 	RET
 
 // void sigtramp(void *ureg, int8 *note)
-TEXT runtime·sigtramp(SB),7,$0
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	get_tls(AX)
 
 	// check that m exists
@@ -168,7 +169,7 @@ TEXT runtime·sigtramp(SB),7,$0
 	RET
 
 // Only used by the 64-bit runtime.
-TEXT runtime·setfpmasks(SB),7,$0
+TEXT runtime·setfpmasks(SB),NOSPLIT,$0
 	RET
 
 #define ERRMAX 128	/* from os_plan9.h */
@@ -179,7 +180,7 @@ TEXT runtime·setfpmasks(SB),7,$0
 // in entersyscall mode, without going
 // through the allocator (issue 4994).
 // See ../syscall/asm_plan9_386.s:/·Syscall/
-TEXT runtime·errstr(SB),7,$0
+TEXT runtime·errstr(SB),NOSPLIT,$0
 	get_tls(AX)
 	MOVL	m(AX), BX
 	MOVL	m_errstr(BX), CX

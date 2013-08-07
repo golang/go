@@ -23,6 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "../../cmd/ld/textflag.h"
+
 // TE or TS are spilled to the stack during bulk register moves.
 TS = 0
 TE = 8
@@ -56,7 +58,7 @@ FR2 = 4
 FW3 = 4
 FR3 = 8					/* shared with TE */
 
-TEXT runtime·memmove(SB), 7, $4-12
+TEXT runtime·memmove(SB), NOSPLIT, $4-12
 _memmove:
 	MOVW	to+0(FP), R(TS)
 	MOVW	from+4(FP), R(FROM)

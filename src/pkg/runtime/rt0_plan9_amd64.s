@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_amd64_plan9(SB),7,$-8
+#include "../../cmd/ld/textflag.h"
+
+TEXT _rt0_amd64_plan9(SB),NOSPLIT,$-8
 	LEAQ	8(SP), SI // argv
 	MOVQ	0(SP), DI // argc
 	MOVQ	$_rt0_go(SB), AX

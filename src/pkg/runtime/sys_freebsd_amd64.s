@@ -7,8 +7,9 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 	
-TEXT runtime·sys_umtx_op(SB),7,$0
+TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ 8(SP), DI
 	MOVL 16(SP), SI
 	MOVL 20(SP), DX
@@ -18,14 +19,14 @@ TEXT runtime·sys_umtx_op(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·thr_new(SB),7,$0
+TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVQ 8(SP), DI
 	MOVQ 16(SP), SI
 	MOVL $455, AX
 	SYSCALL
 	RET
 
-TEXT runtime·thr_start(SB),7,$0
+TEXT runtime·thr_start(SB),NOSPLIT,$0
 	MOVQ	DI, R13 // m
 
 	// set up FS to point at m->tls
@@ -44,21 +45,21 @@ TEXT runtime·thr_start(SB),7,$0
 	MOVQ 0, AX			// crash (not reached)
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),7,$-8
+TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$1, AX
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),7,$-8
+TEXT runtime·exit1(SB),NOSPLIT,$-8
 	MOVQ	8(SP), DI		// arg 1 exit status
 	MOVL	$431, AX
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·open(SB),7,$-8
+TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	8(SP), DI		// arg 1 pathname
 	MOVL	16(SP), SI		// arg 2 flags
 	MOVL	20(SP), DX		// arg 3 mode
@@ -66,13 +67,13 @@ TEXT runtime·open(SB),7,$-8
 	SYSCALL
 	RET
 
-TEXT runtime·close(SB),7,$-8
+TEXT runtime·close(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVL	$6, AX
 	SYSCALL
 	RET
 
-TEXT runtime·read(SB),7,$-8
+TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -80,7 +81,7 @@ TEXT runtime·read(SB),7,$-8
 	SYSCALL
 	RET
 
-TEXT runtime·write(SB),7,$-8
+TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -88,14 +89,14 @@ TEXT runtime·write(SB),7,$-8
 	SYSCALL
 	RET
 
-TEXT runtime·getrlimit(SB),7,$-8
+TEXT runtime·getrlimit(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	$194, AX
 	SYSCALL
 	RET
 
-TEXT runtime·raise(SB),7,$16
+TEXT runtime·raise(SB),NOSPLIT,$16
 	// thr_self(&8(SP))
 	LEAQ	8(SP), DI	// arg 1 &8(SP)
 	MOVL	$432, AX
@@ -107,7 +108,7 @@ TEXT runtime·raise(SB),7,$16
 	SYSCALL
 	RET
 
-TEXT runtime·setitimer(SB), 7, $-8
+TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -116,7 +117,7 @@ TEXT runtime·setitimer(SB), 7, $-8
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
+TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	MOVQ	$0, DI
 	LEAQ	8(SP), SI
@@ -129,7 +130,7 @@ TEXT time·now(SB), 7, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB), 7, $32
+TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	MOVQ	$0, DI
 	LEAQ	8(SP), SI
@@ -143,7 +144,7 @@ TEXT runtime·nanotime(SB), 7, $32
 	ADDQ	DX, AX
 	RET
 
-TEXT runtime·sigaction(SB),7,$-8
+TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
 	MOVQ	24(SP), DX		// arg 3 oact
@@ -153,7 +154,7 @@ TEXT runtime·sigaction(SB),7,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),7,$64
+TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	get_tls(BX)
 
 	// check that m exists
@@ -186,7 +187,7 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	R10, g(BX)
 	RET
 
-TEXT runtime·mmap(SB),7,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVQ	16(SP), SI		// arg 2 len
 	MOVL	24(SP), DX		// arg 3 prot
@@ -197,7 +198,7 @@ TEXT runtime·mmap(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·munmap(SB),7,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVQ	16(SP), SI		// arg 2 len
 	MOVL	$73, AX
@@ -206,7 +207,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·madvise(SB),7,$0
+TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -215,7 +216,7 @@ TEXT runtime·madvise(SB),7,$0
 	// ignore failure - maybe pages are locked
 	RET
 	
-TEXT runtime·sigaltstack(SB),7,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
 	MOVQ	$53, AX
@@ -224,7 +225,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),7,$16
+TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -241,7 +242,7 @@ TEXT runtime·usleep(SB),7,$16
 	RET
 
 // set tls base to DI
-TEXT runtime·settls(SB),7,$8
+TEXT runtime·settls(SB),NOSPLIT,$8
 	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
 	MOVQ	DI, 0(SP)
 	MOVQ	SP, SI
@@ -252,7 +253,7 @@ TEXT runtime·settls(SB),7,$8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sysctl(SB),7,$0
+TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI		// arg 1 - name
 	MOVL	16(SP), SI		// arg 2 - namelen
 	MOVQ	24(SP), DX		// arg 3 - oldp
@@ -267,12 +268,12 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVL	$0, AX
 	RET
 
-TEXT runtime·osyield(SB),7,$-4
+TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVL	$331, AX		// sys_sched_yield
 	SYSCALL
 	RET
 
-TEXT runtime·sigprocmask(SB),7,$0
+TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
 	MOVQ	8(SP), SI		// arg 2 - set
 	MOVQ	16(SP), DX		// arg 3 - oset
@@ -283,7 +284,7 @@ TEXT runtime·sigprocmask(SB),7,$0
 	RET
 
 // int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),7,$0
+TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVQ	$0, DI
 	MOVQ	$0, SI
 	MOVQ	$0, DX
@@ -294,7 +295,7 @@ TEXT runtime·kqueue(SB),7,$0
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),7,$0
+TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -308,7 +309,7 @@ TEXT runtime·kevent(SB),7,$0
 	RET
 
 // void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$0
+TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	8(SP), DI	// fd
 	MOVQ	$2, SI		// F_SETFD
 	MOVQ	$1, DX		// FD_CLOEXEC

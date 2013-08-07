@@ -3,9 +3,10 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),7,$0
+TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	c+0(FP), BX
 
 	// SetLastError(0).
@@ -38,7 +39,7 @@ TEXT runtime·asmstdcall(SB),7,$0
 
 	RET
 
-TEXT	runtime·badsignal2(SB),7,$24
+TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 	// stderr
 	MOVL	$-12, 0(SP)
 	MOVL	SP, BP
@@ -59,16 +60,16 @@ TEXT	runtime·badsignal2(SB),7,$24
 	RET
 
 // faster get/set last error
-TEXT runtime·getlasterror(SB),7,$0
+TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	0x34(FS), AX
 	RET
 
-TEXT runtime·setlasterror(SB),7,$0
+TEXT runtime·setlasterror(SB),NOSPLIT,$0
 	MOVL	err+0(FP), AX
 	MOVL	AX, 0x34(FS)
 	RET
 
-TEXT runtime·sigtramp(SB),7,$28
+TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// unwinding?
 	MOVL	info+0(FP), CX
 	TESTL	$6, 4(CX)		// exception flags
@@ -106,21 +107,21 @@ TEXT runtime·sigtramp(SB),7,$28
 sigdone:
 	RET
 
-TEXT runtime·ctrlhandler(SB),7,$0
+TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
 	PUSHL	$runtime·ctrlhandler1(SB)
 	CALL	runtime·externalthreadhandler(SB)
 	MOVL	4(SP), CX
 	ADDL	$12, SP
 	JMP	CX
 
-TEXT runtime·profileloop(SB),7,$0
+TEXT runtime·profileloop(SB),NOSPLIT,$0
 	PUSHL	$runtime·profileloop1(SB)
 	CALL	runtime·externalthreadhandler(SB)
 	MOVL	4(SP), CX
 	ADDL	$12, SP
 	JMP	CX
 
-TEXT runtime·externalthreadhandler(SB),7,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	PUSHL	BX
@@ -166,7 +167,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 
 GLOBL runtime·cbctxts(SB), $4
 
-TEXT runtime·callbackasm1+0(SB),7,$0
+TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
 
 	// remove return address from stack, we are not returning there
@@ -251,7 +252,7 @@ TEXT runtime·callbackasm1+0(SB),7,$0
 	RET
 
 // void tstart(M *newm);
-TEXT runtime·tstart(SB),7,$0
+TEXT runtime·tstart(SB),NOSPLIT,$0
 	MOVL	newm+4(SP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
@@ -276,7 +277,7 @@ TEXT runtime·tstart(SB),7,$0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),7,$0
+TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	MOVL	newm+4(SP), BX
 
 	PUSHL	BX
@@ -293,13 +294,13 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 	RET
 
 // setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),7,$0
+TEXT runtime·setldt(SB),NOSPLIT,$0
 	MOVL	address+4(FP), CX
 	MOVL	CX, 0x14(FS)
 	RET
 
 // void install_exception_handler()
-TEXT runtime·install_exception_handler(SB),7,$0
+TEXT runtime·install_exception_handler(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVL	m(CX), CX		// m
 
@@ -316,7 +317,7 @@ TEXT runtime·install_exception_handler(SB),7,$0
 	RET
 
 // void remove_exception_handler()
-TEXT runtime·remove_exception_handler(SB),7,$0
+TEXT runtime·remove_exception_handler(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVL	m(CX), CX		// m
 
@@ -328,7 +329,7 @@ TEXT runtime·remove_exception_handler(SB),7,$0
 	RET
 
 // Sleep duration is in 100ns units.
-TEXT runtime·usleep1(SB),7,$0
+TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	duration+0(FP), BX
 	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
 
@@ -358,7 +359,7 @@ TEXT runtime·usleep1(SB),7,$0
 	RET
 
 // Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2(SB),7,$20
+TEXT runtime·usleep2(SB),NOSPLIT,$20
 	// Want negative 100ns units.
 	NEGL	BX
 	MOVL	$-1, hi-4(SP)

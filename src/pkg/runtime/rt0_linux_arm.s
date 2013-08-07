@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_arm_linux(SB),7,$-4
+#include "../../cmd/ld/textflag.h"
+
+TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
 	// We first need to detect the kernel ABI, and warn the user
 	// if the system only supports OABI
 	// The strategy here is to call some EABI syscall to see if
@@ -43,7 +45,7 @@ TEXT _rt0_arm_linux(SB),7,$-4
 	ADD	$4, R13
 	B	_rt0_go(SB)
 
-TEXT bad_abi<>(SB),7,$-4
+TEXT bad_abi<>(SB),NOSPLIT,$-4
 	// give diagnosis and exit
 	MOVW	$2, R0 // stderr
 	MOVW	$bad_abi_msg(SB), R1 // data
@@ -64,7 +66,7 @@ DATA bad_abi_msg+0x28(SB)/4, $"nels"
 DATA bad_abi_msg+0x2c(SB)/1, $0xa
 GLOBL bad_abi_msg(SB), $45
 
-TEXT oabi_syscall<>(SB),7,$-4
+TEXT oabi_syscall<>(SB),NOSPLIT,$-4
 	ADD $1, PC, R4
 	WORD $0xe12fff14 //BX	(R4) // enter thumb mode
 	// TODO(minux): only supports little-endian CPUs
