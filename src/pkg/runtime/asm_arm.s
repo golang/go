@@ -4,9 +4,10 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "funcdata.h"
+#include "../../cmd/ld/textflag.h"
 
 // using frame size $-4 means do not save LR on stack.
-TEXT _rt0_go(SB),7,$-4
+TEXT _rt0_go(SB),NOSPLIT,$-4
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
@@ -75,9 +76,9 @@ TEXT _rt0_go(SB),7,$-4
 	MOVW	R0, (R1)	// fail hard
 
 DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),8,$4
+GLOBL	runtime·main·f(SB),RODATA,$4
 
-TEXT runtime·breakpoint(SB),7,$0-0
+TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	// gdb won't skip this breakpoint instruction automatically,
 	// so you must manually "set $pc+=4" to skip it and continue.
 	WORD    $0xe1200071 // BKPT 0x0001
@@ -85,7 +86,7 @@ TEXT runtime·breakpoint(SB),7,$0-0
 
 GLOBL runtime·goarm(SB), $4
 
-TEXT runtime·asminit(SB),7,$0-0
+TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
 	MOVW runtime·goarm(SB), R11
 	CMP $5, R11
@@ -101,7 +102,7 @@ TEXT runtime·asminit(SB),7,$0-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), 7, $-4-4
+TEXT runtime·gosave(SB), NOSPLIT, $-4-4
 	MOVW	0(FP), R0		// gobuf
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
@@ -114,7 +115,7 @@ TEXT runtime·gosave(SB), 7, $-4-4
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), 7, $-4-4
+TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	0(FP), R1		// gobuf
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
@@ -137,7 +138,7 @@ TEXT runtime·gogo(SB), 7, $-4-4
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), 7, $-4-4
+TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 	MOVW	fn+0(FP), R0
 
 	// Save caller state in g->sched.
@@ -175,7 +176,7 @@ TEXT runtime·mcall(SB), 7, $-4-4
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),7,$-4-0
+TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	m_g0(m), R4
 	CMP	g, R4
@@ -213,7 +214,7 @@ TEXT runtime·morestack(SB),7,$-4-0
 // with the desired args running the desired function.
 //
 // func call(fn *byte, arg *byte, argsize uint32).
-TEXT runtime·newstackcall(SB), 7, $-4-12
+TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
 	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
@@ -260,7 +261,7 @@ TEXT runtime·newstackcall(SB), 7, $-4-12
 	MOVW	$runtime·NAME(SB), R1;	\
 	B	(R1)
 
-TEXT reflect·call(SB), 7, $-4-12
+TEXT reflect·call(SB), NOSPLIT, $-4-12
 	MOVW	argsize+8(FP), R0
 	DISPATCH(call16, 16)
 	DISPATCH(call32, 32)
@@ -352,7 +353,7 @@ CALLFN(call1073741824, 1073741824)
 //
 // Lessstack can appear in stack traces for the same reason
 // as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), 7, $-4-0
+TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 	// Save return value in m->cret
 	MOVW	R0, m_cret(m)
 
@@ -366,7 +367,7 @@ TEXT runtime·lessstack(SB), 7, $-4-0
 // 1. grab stored LR for caller
 // 2. sub 4 bytes to get back to BL deferreturn
 // 3. B to fn
-TEXT runtime·jmpdefer(SB), 7, $0
+TEXT runtime·jmpdefer(SB), NOSPLIT, $0
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
 	MOVW	fn+0(FP), R7
@@ -376,7 +377,7 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	B	(R1)
 
 // Save state of caller into g->sched. Smashes R11.
-TEXT gosave<>(SB),7,$0
+TEXT gosave<>(SB),NOSPLIT,$0
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	$0, R11
@@ -389,7 +390,7 @@ TEXT gosave<>(SB),7,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT	runtime·asmcgocall(SB),7,$0-8
+TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
 	MOVW	R13, R2
@@ -421,7 +422,7 @@ TEXT	runtime·asmcgocall(SB),7,$0-8
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),7,$12-12
+TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 	MOVW	$fn+0(FP), R0
 	MOVW	R0, 4(R13)
 	MOVW	frame+4(FP), R0
@@ -434,7 +435,7 @@ TEXT runtime·cgocallback(SB),7,$12-12
 
 // cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT	runtime·cgocallback_gofunc(SB),7,$8-12
+TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	// Load m and g from thread-local storage.
 	MOVW	_cgo_load_gm(SB), R0
 	CMP	$0, R0
@@ -513,7 +514,7 @@ havem:
 	RET
 
 // void setmg(M*, G*); set m and g. for use by needm.
-TEXT runtime·setmg(SB), 7, $0-8
+TEXT runtime·setmg(SB), NOSPLIT, $0-8
 	MOVW	mm+0(FP), m
 	MOVW	gg+4(FP), g
 
@@ -524,16 +525,16 @@ TEXT runtime·setmg(SB), 7, $0-8
 
 	RET
 
-TEXT runtime·getcallerpc(SB),7,$-4-4
+TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
 	MOVW	0(SP), R0
 	RET
 
-TEXT runtime·setcallerpc(SB),7,$-4-8
+TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
 	MOVW	x+4(FP), R0
 	MOVW	R0, 0(SP)
 	RET
 
-TEXT runtime·getcallersp(SB),7,$-4-4
+TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R0
 	MOVW	$-4(R0), R0
 	RET
@@ -541,7 +542,7 @@ TEXT runtime·getcallersp(SB),7,$-4-4
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
-TEXT runtime·abort(SB),7,$-4-0
+TEXT runtime·abort(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
@@ -556,10 +557,10 @@ TEXT runtime·abort(SB),7,$-4-0
 // To implement runtime·cas in sys_$GOOS_arm.s
 // using the native instructions, use:
 //
-//	TEXT runtime·cas(SB),7,$0
+//	TEXT runtime·cas(SB),NOSPLIT,$0
 //		B	runtime·armcas(SB)
 //
-TEXT runtime·armcas(SB),7,$0-12
+TEXT runtime·armcas(SB),NOSPLIT,$0-12
 	MOVW	valptr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
@@ -576,7 +577,7 @@ casfail:
 	MOVW	$0, R0
 	RET
 
-TEXT runtime·stackguard(SB),7,$0-8
+TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVW	R13, R1
 	MOVW	g_stackguard(g), R2
 	MOVW	R1, sp+0(FP)
@@ -584,20 +585,20 @@ TEXT runtime·stackguard(SB),7,$0-8
 	RET
 
 // AES hashing not implemented for ARM
-TEXT runtime·aeshash(SB),7,$-4-0
+TEXT runtime·aeshash(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),7,$-4-0
+TEXT runtime·aeshash32(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),7,$-4-0
+TEXT runtime·aeshash64(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),7,$-4-0
+TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
-TEXT runtime·memeq(SB),7,$-4-12
+TEXT runtime·memeq(SB),NOSPLIT,$-4-12
 	MOVW	a+0(FP), R1
 	MOVW	b+4(FP), R2
 	MOVW	n+8(FP), R3
@@ -615,7 +616,7 @@ _next:
 	RET
 
 // TODO: share code with memeq?
-TEXT bytes·Equal(SB),7,$0
+TEXT bytes·Equal(SB),NOSPLIT,$0
 	MOVW	a_len+4(FP), R1
 	MOVW	b_len+16(FP), R3
 	
@@ -644,7 +645,7 @@ _equal:
 	MOVBU	R0, ret+24(FP)
 	RET
 
-TEXT bytes·IndexByte(SB),7,$0
+TEXT bytes·IndexByte(SB),NOSPLIT,$0
 	MOVW	s+0(FP), R0
 	MOVW	s_len+4(FP), R1
 	MOVBU	c+12(FP), R2	// byte to find
@@ -668,7 +669,7 @@ _notfound:
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT strings·IndexByte(SB),7,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0
 	MOVW	s+0(FP), R0
 	MOVW	s_len+4(FP), R1
 	MOVBU	c+8(FP), R2	// byte to find
