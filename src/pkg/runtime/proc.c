@@ -712,11 +712,18 @@ runtime·newextram(void)
 	gp->sched.sp = gp->stackbase;
 	gp->sched.lr = 0;
 	gp->sched.g = gp;
+	gp->syscallpc = gp->sched.pc;
+	gp->syscallsp = gp->sched.sp;
+	gp->syscallstack = gp->stackbase;
+	gp->syscallguard = gp->stackguard;
 	gp->status = Gsyscall;
 	mp->curg = gp;
 	mp->locked = LockInternal;
 	mp->lockedg = gp;
 	gp->lockedm = mp;
+	gp->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
+	if(raceenabled)
+		gp->racectx = runtime·racegostart(runtime·newextram);
 	// put on allg for garbage collector
 	runtime·lock(&runtime·sched);
 	if(runtime·lastg == nil)
@@ -725,9 +732,6 @@ runtime·newextram(void)
 		runtime·lastg->alllink = gp;
 	runtime·lastg = gp;
 	runtime·unlock(&runtime·sched);
-	gp->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
-	if(raceenabled)
-		gp->racectx = runtime·racegostart(runtime·newextram);
 
 	// Add m to the extra list.
 	mnext = lockextra(true);

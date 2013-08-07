@@ -415,6 +415,8 @@ runtime·startpanic(void)
 		runtime·exit(3);
 	}
 	m->dying = 1;
+	if(g != nil)
+		g->writebuf = nil;
 	runtime·xadd(&runtime·panicking, 1);
 	runtime·lock(&paniclk);
 }
