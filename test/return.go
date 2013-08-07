@@ -666,17 +666,6 @@ func _() int {
 	}
 }
 
-func _() int {
-	print(1)
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	default:
-		return 4
-	}
-}
-
 // if no default or some case doesn't terminate, switch is no longer okay
 
 func _() int {
@@ -705,17 +694,6 @@ func _() int {
 	case int:
 		print(2)
 		panic(3)
-	}
-} // ERROR "missing return"
-
-func _() int {
-	print(1)
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	case float64:
-		return 4
 	}
 } // ERROR "missing return"
 
@@ -1356,16 +1334,6 @@ func _() int {
 	}
 }
 
-func _() int {
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	default:
-		return 4
-	}
-}
-
 // if no default or some case doesn't terminate, switch is no longer okay
 
 func _() int {
@@ -1391,16 +1359,6 @@ func _() int {
 	case int:
 		print(2)
 		panic(3)
-	}
-} // ERROR "missing return"
-
-func _() int {
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	case float64:
-		return 4
 	}
 } // ERROR "missing return"
 
@@ -2102,17 +2060,6 @@ var _ = func() int {
 	}
 }
 
-var _ = func() int {
-	print(1)
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	default:
-		return 4
-	}
-}
-
 // if no default or some case doesn't terminate, switch is no longer okay
 
 var _ = func() int {
@@ -2141,17 +2088,6 @@ var _ = func() int {
 	case int:
 		print(2)
 		panic(3)
-	}
-} // ERROR "missing return"
-
-var _ = func() int {
-	print(1)
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	case float64:
-		return 4
 	}
 } // ERROR "missing return"
 
@@ -2792,16 +2728,6 @@ var _ = func() int {
 	}
 }
 
-var _ = func() int {
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	default:
-		return 4
-	}
-}
-
 // if no default or some case doesn't terminate, switch is no longer okay
 
 var _ = func() int {
@@ -2827,16 +2753,6 @@ var _ = func() int {
 	case int:
 		print(2)
 		panic(3)
-	}
-} // ERROR "missing return"
-
-var _ = func() int {
-	switch x.(type) {
-	case int:
-		print(2)
-		fallthrough
-	case float64:
-		return 4
 	}
 } // ERROR "missing return"
 
