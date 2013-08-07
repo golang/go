@@ -632,22 +632,20 @@ func Test304Responses(t *testing.T) {
 	}
 }
 
-// TestHeadResponses verifies that responses to HEAD requests don't
-// declare that they're chunking in their response headers, aren't
-// allowed to produce output, and don't set a Content-Type since
-// the real type of the body data cannot be inferred.
+// TestHeadResponses verifies that all MIME type sniffing and Content-Length
+// counting of GET requests also happens on HEAD requests.
 func TestHeadResponses(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		_, err := w.Write([]byte("Ignored body"))
-		if err != ErrBodyNotAllowed {
-			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+		_, err := w.Write([]byte("<html>"))
+		if err != nil {
+			t.Errorf("ResponseWriter.Write: %v", err)
 		}
 
 		// Also exercise the ReaderFrom path
-		_, err = io.Copy(w, strings.NewReader("Ignored body"))
-		if err != ErrBodyNotAllowed {
-			t.Errorf("on Copy, expected ErrBodyNotAllowed, got %v", err)
+		_, err = io.Copy(w, strings.NewReader("789a"))
+		if err != nil {
+			t.Errorf("Copy(ResponseWriter, ...): %v", err)
 		}
 	}))
 	defer ts.Close()
@@ -658,9 +656,11 @@ func TestHeadResponses(t *testing.T) {
 	if len(res.TransferEncoding) > 0 {
 		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
 	}
-	ct := res.Header.Get("Content-Type")
-	if ct != "" {
-		t.Errorf("expected no Content-Type; got %s", ct)
+	if ct := res.Header.Get("Content-Type"); ct != "text/html; charset=utf-8" {
+		t.Errorf("Content-Type: %q; want text/html; charset=utf-8", ct)
+	}
+	if v := res.ContentLength; v != 10 {
+		t.Errorf("Content-Length: %d; want 10", v)
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
