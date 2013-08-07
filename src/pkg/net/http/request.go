@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -467,8 +466,7 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 // With HTTP Basic Authentication the provided username and password
 // are not encrypted.
 func (r *Request) SetBasicAuth(username, password string) {
-	s := username + ":" + password
-	r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(s)))
+	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.

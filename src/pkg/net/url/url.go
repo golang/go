@@ -451,8 +451,8 @@ func (u *URL) String() string {
 	} else {
 		if u.Scheme != "" || u.Host != "" || u.User != nil {
 			buf.WriteString("//")
-			if u := u.User; u != nil {
-				buf.WriteString(u.String())
+			if ui := u.User; ui != nil {
+				buf.WriteString(ui.String())
 				buf.WriteByte('@')
 			}
 			if h := u.Host; h != "" {

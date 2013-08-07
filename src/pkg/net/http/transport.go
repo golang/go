@@ -13,7 +13,6 @@ import (
 	"bufio"
 	"compress/gzip"
 	"crypto/tls"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -273,7 +272,9 @@ func (cm *connectMethod) proxyAuth() string {
 		return ""
 	}
 	if u := cm.proxyURL.User; u != nil {
-		return "Basic " + base64.URLEncoding.EncodeToString([]byte(u.String()))
+		username := u.Username()
+		password, _ := u.Password()
+		return "Basic " + basicAuth(username, password)
 	}
 	return ""
 }
