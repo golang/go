@@ -24,7 +24,7 @@ type opaqueType struct {
 func (t *opaqueType) String() string { return t.name }
 
 // A bogus "reflect" type-checker package.  Shared across interpreters.
-var reflectTypesPackage = types.NewPackage(token.NoPos, "reflect", "reflect", nil, nil, true)
+var reflectTypesPackage = types.NewPackage(token.NoPos, "reflect", "reflect", nil, nil)
 
 // rtype is the concrete type the interpreter uses to implement the
 // reflect.Type interface.  Since its type is opaque to the target

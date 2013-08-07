@@ -173,12 +173,12 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			check.recordObject(ident, pkg)
 			exp := pkg.scope.Lookup(sel)
 			if exp == nil {
-				check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
+				if !pkg.fake {
+					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
+				}
 				goto Error
-			} else if !exp.IsExported() {
-				// gcimported package scopes contain non-exported
-				// objects such as types used in partially exported
-				// objects - do not accept them
+			}
+			if !exp.IsExported() {
 				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
 				goto Error
 			}

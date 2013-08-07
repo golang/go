@@ -165,14 +165,22 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				for iota, spec := range d.Specs {
 					switch s := spec.(type) {
 					case *ast.ImportSpec:
+						var imp *Package
 						path, _ := strconv.Unquote(s.Path.Value)
-						imp, err := importer(pkg.imports, path)
-						if imp == nil && err == nil {
-							err = errors.New("Config.Import returned nil")
-						}
-						if err != nil {
-							check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
-							continue
+						if path == "C" && check.conf.FakeImportC {
+							// TODO(gri) shouldn't create a new one each time
+							imp = NewPackage(token.NoPos, "C", "C", NewScope(nil), nil)
+							imp.fake = true
+						} else {
+							var err error
+							imp, err = importer(pkg.imports, path)
+							if imp == nil && err == nil {
+								err = errors.New("Config.Import returned nil but no error")
+							}
+							if err != nil {
+								check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
+								continue
+							}
 						}
 
 						// local name overrides imported package name
@@ -185,7 +193,9 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							}
 						}
 
-						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil, imp.complete)
+						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil)
+						imp2.complete = imp.complete
+						imp2.fake = imp.fake
 						if s.Name != nil {
 							check.recordObject(s.Name, imp2)
 						} else {

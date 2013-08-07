@@ -28,8 +28,7 @@ func (s *MethodSet) String() string {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "MethodSet {")
 	for _, f := range s.list {
-		m := f.obj.(*Func)
-		fmt.Fprintf(&buf, "\t%s -> %s\n", m.Id(), m)
+		fmt.Fprintln(&buf, f)
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()

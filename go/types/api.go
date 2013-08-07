@@ -29,16 +29,15 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// Check type-checks a package and returns the resulting package object,
-// or a nil package and the first error. The package is specified by a
-// list of *ast.Files and corresponding file set, and the import path
-// the package is identified with. The clean path must not be empty or
-// dot (".").
+// Check type-checks a package and returns the resulting complete package
+// object, or a nil package and the first error. The package is specified
+// by a list of *ast.Files and corresponding file set, and the import path
+// the package is identified with. The clean path must not be empty or dot (".").
 //
 // For more control over type-checking and results, use Config.Check.
 func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error) {
 	var conf Config
-	pkg, err := conf.check(path, fset, files, nil)
+	pkg, err := conf.Check(path, fset, files, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +50,12 @@ type Config struct {
 	// If IgnoreFuncBodies is set, function bodies are not
 	// type-checked.
 	IgnoreFuncBodies bool
+
+	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
+	// and expressions with qualified identifiers referrring to package
+	// C are silently ignored.
+	// Caution: Effects may be unpredictable - do not use casually!
+	FakeImportC bool
 
 	// If Error != nil, it is called with each error found
 	// during type checking. The error strings of errors with
@@ -125,12 +130,20 @@ type Info struct {
 	Selections map[*ast.SelectorExpr]*Selection
 }
 
-// Check type-checks a package and returns the resulting package object, the first
-// error if any, and if info != nil, additional type information. The package is
-// specified by a list of *ast.Files and corresponding file set, and the import
-// path the package is identified with. The clean path must not be empty or dot (".").
+// Check type-checks a package and returns the resulting package object,
+// the first error if any, and if info != nil, additional type information.
+// The package is marked as complete if no errors occurred, otherwise it is
+// incomplete.
+//
+// The package is specified by a list of *ast.Files and corresponding file
+// set, and the import path the package is identified with. The clean path
+// must not be empty or dot (".").
 func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
-	return conf.check(path, fset, files, info)
+	pkg, err := conf.check(path, fset, files, info)
+	if err == nil {
+		pkg.complete = true
+	}
+	return pkg, err
 }
 
 // IsAssignableTo reports whether a value of type V

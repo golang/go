@@ -122,16 +122,24 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 }
 
 // A Package represents the contents (objects) of a Go package.
+//
+// A package is complete if all its package scope objects are present.
+// Incomplete packages may arise via imports where the exported data
+// contains only partial information about transitively imported and
+// re-exported packages; or as a result of type-checking a package
+// that contains errors.
+//
 type Package struct {
 	object
 	path     string              // import path, "" for current (non-imported) package
 	scope    *Scope              // imported objects
 	imports  map[string]*Package // map of import paths to imported packages
-	complete bool                // if set, this package was imported completely
+	complete bool                // if set, this package is complete
+	fake     bool                // if set, this package is fake (internal use only)
 }
 
-func NewPackage(pos token.Pos, path, name string, scope *Scope, imports map[string]*Package, complete bool) *Package {
-	obj := &Package{object{nil, pos, nil, name, Typ[Invalid]}, path, scope, imports, complete}
+func NewPackage(pos token.Pos, path, name string, scope *Scope, imports map[string]*Package) *Package {
+	obj := &Package{object{nil, pos, nil, name, Typ[Invalid]}, path, scope, imports, false, false}
 	obj.pkg = obj
 	return obj
 }
@@ -141,6 +149,9 @@ func (obj *Package) Path() string                 { return obj.path }
 func (obj *Package) Scope() *Scope                { return obj.scope }
 func (obj *Package) Imports() map[string]*Package { return obj.imports }
 func (obj *Package) Complete() bool               { return obj.complete }
+
+// MarkComplete marks a package as complete.
+func (obj *Package) MarkComplete() { obj.complete = true }
 
 // A Const represents a declared constant.
 type Const struct {
