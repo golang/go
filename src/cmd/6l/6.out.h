@@ -30,11 +30,7 @@
 
 #define	NSYM	50
 #define	NSNAME	8
-#define NOPROF	(1<<0)
-#define DUPOK	(1<<1)
-#define NOSPLIT	(1<<2)
-#define RODATA	(1<<3)
-#define NOPTR	(1<<4)
+#include "../ld/textflag.h"
 
 /*
  *	amd64
