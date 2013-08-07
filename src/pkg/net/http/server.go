@@ -850,7 +850,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 	if w.closeAfterReply && !hasToken(cw.header.get("Connection"), "close") {
 		delHeader("Connection")
-		setHeader.connection = "close"
+		if w.req.ProtoAtLeast(1, 1) {
+			setHeader.connection = "close"
+		}
 	}
 
 	w.conn.buf.WriteString(statusLine(w.req, code))
@@ -1458,7 +1460,9 @@ func (mux *ServeMux) handler(host, path string) (h Handler, pattern string) {
 // pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 	if r.RequestURI == "*" {
-		w.Header().Set("Connection", "close")
+		if r.ProtoAtLeast(1, 1) {
+			w.Header().Set("Connection", "close")
+		}
 		w.WriteHeader(StatusBadRequest)
 		return
 	}

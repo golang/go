@@ -1757,6 +1757,64 @@ func TestWriteAfterHijack(t *testing.T) {
 	}
 }
 
+// http://code.google.com/p/go/issues/detail?id=5955
+// Note that this does not test the "request too large"
+// exit path from the http server. This is intentional;
+// not sending Connection: close is just a minor wire
+// optimization and is pointless if dealing with a
+// badly behaved client.
+func TestHTTP10ConnectionHeader(t *testing.T) {
+	defer afterTest(t)
+
+	mux := NewServeMux()
+	mux.Handle("/", HandlerFunc(func(resp ResponseWriter, req *Request) {}))
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// net/http uses HTTP/1.1 for requests, so write requests manually
+	tests := []struct {
+		req    string   // raw http request
+		expect []string // expected Connection header(s)
+	}{
+		{
+			req:    "GET / HTTP/1.0\r\n\r\n",
+			expect: nil,
+		},
+		{
+			req:    "OPTIONS * HTTP/1.0\r\n\r\n",
+			expect: nil,
+		},
+		{
+			req:    "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n",
+			expect: []string{"keep-alive"},
+		},
+	}
+
+	for _, tt := range tests {
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatal("dial err:", err)
+		}
+
+		_, err = fmt.Fprint(conn, tt.req)
+		if err != nil {
+			t.Fatal("conn write err:", err)
+		}
+
+		resp, err := ReadResponse(bufio.NewReader(conn), &Request{Method: "GET"})
+		if err != nil {
+			t.Fatal("ReadResponse err:", err)
+		}
+		conn.Close()
+		resp.Body.Close()
+
+		got := resp.Header["Connection"]
+		if !reflect.DeepEqual(got, tt.expect) {
+			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", got, tt.expect)
+		}
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
