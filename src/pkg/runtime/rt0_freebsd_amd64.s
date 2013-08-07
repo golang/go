@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_amd64_freebsd(SB),7,$-8
+#include "../../cmd/ld/textflag.h"
+
+TEXT _rt0_amd64_freebsd(SB),NOSPLIT,$-8
 	LEAQ	8(DI), SI // argv
 	MOVQ	0(DI), DI // argc
 	MOVQ	$main(SB), AX
 	JMP	AX
 
-TEXT main(SB),7,$-8
+TEXT main(SB),NOSPLIT,$-8
 	MOVQ	$_rt0_go(SB), AX
 	JMP	AX

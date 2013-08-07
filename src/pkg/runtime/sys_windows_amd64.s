@@ -3,13 +3,14 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // maxargs should be divisible by 2, as Windows stack
 // must be kept 16-byte aligned on syscall entry.
 #define maxargs 16
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),7,$0
+TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into CX.
 	PUSHQ	CX			// save for later
 	MOVQ	wincall_fn(CX), AX
@@ -60,7 +61,7 @@ loadregs:
 
 	RET
 
-TEXT runtime·badsignal2(SB),7,$48
+TEXT runtime·badsignal2(SB),NOSPLIT,$48
 	// stderr
 	MOVQ	$-12, CX // stderr
 	MOVQ	CX, 0(SP)
@@ -83,18 +84,18 @@ TEXT runtime·badsignal2(SB),7,$48
 	RET
 
 // faster get/set last error
-TEXT runtime·getlasterror(SB),7,$0
+TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVQ	0x30(GS), AX
 	MOVL	0x68(AX), AX
 	RET
 
-TEXT runtime·setlasterror(SB),7,$0
+TEXT runtime·setlasterror(SB),NOSPLIT,$0
 	MOVL	err+0(FP), AX
 	MOVQ	0x30(GS),	CX
 	MOVL	AX, 0x68(CX)
 	RET
 
-TEXT runtime·sigtramp(SB),7,$0
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// CX: exception record
 	// R8: context
 
@@ -139,20 +140,20 @@ TEXT runtime·sigtramp(SB),7,$0
 sigdone:
 	RET
 
-TEXT runtime·ctrlhandler(SB),7,$8
+TEXT runtime·ctrlhandler(SB),NOSPLIT,$8
 	MOVQ	CX, 16(SP)		// spill
 	MOVQ	$runtime·ctrlhandler1(SB), CX
 	MOVQ	CX, 0(SP)
 	CALL	runtime·externalthreadhandler(SB)
 	RET
 
-TEXT runtime·profileloop(SB),7,$8
+TEXT runtime·profileloop(SB),NOSPLIT,$8
 	MOVQ	$runtime·profileloop1(SB), CX
 	MOVQ	CX, 0(SP)
 	CALL	runtime·externalthreadhandler(SB)
 	RET
 
-TEXT runtime·externalthreadhandler(SB),7,$0
+TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	PUSHQ	BX
@@ -198,7 +199,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 
 GLOBL runtime·cbctxts(SB), $8
 
-TEXT runtime·callbackasm1(SB),7,$0
+TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	// Construct args vector for cgocallback().
 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
 	// args from the 5th on are on the stack.
@@ -276,7 +277,7 @@ TEXT runtime·callbackasm1(SB),7,$0
 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
-TEXT runtime·setstacklimits(SB),7,$0
+TEXT runtime·setstacklimits(SB),NOSPLIT,$0
 	MOVQ	0x30(GS), CX
 	MOVQ	$0, 0x10(CX)
 	MOVQ	$0xffffffffffff, AX
@@ -284,7 +285,7 @@ TEXT runtime·setstacklimits(SB),7,$0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),7,$0
+TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// CX contains first arg newm
 	MOVQ	m_g0(CX), DX		// g
 
@@ -310,20 +311,20 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 	RET
 
 // set tls base to DI
-TEXT runtime·settls(SB),7,$0
+TEXT runtime·settls(SB),NOSPLIT,$0
 	MOVQ	DI, 0x28(GS)
 	RET
 
 // void install_exception_handler()
-TEXT runtime·install_exception_handler(SB),7,$0
+TEXT runtime·install_exception_handler(SB),NOSPLIT,$0
 	CALL	runtime·setstacklimits(SB)
 	RET
 
-TEXT runtime·remove_exception_handler(SB),7,$0
+TEXT runtime·remove_exception_handler(SB),NOSPLIT,$0
 	RET
 
 // Sleep duration is in 100ns units.
-TEXT runtime·usleep1(SB),7,$0
+TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	duration+0(FP), BX
 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
 
@@ -353,7 +354,7 @@ TEXT runtime·usleep1(SB),7,$0
 	RET
 
 // Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2(SB),7,$8
+TEXT runtime·usleep2(SB),NOSPLIT,$8
 	// Want negative 100ns units.
 	NEGQ	BX
 	MOVQ	SP, R8 // ptime

@@ -7,42 +7,43 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),7,$-4
+TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$1, AX
 	INT	$0x80
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),7,$-4
+TEXT runtime·exit1(SB),NOSPLIT,$-4
 	MOVL	$310, AX		// sys__lwp_exit
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·open(SB),7,$-4
+TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·close(SB),7,$-4
+TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·read(SB),7,$-4
+TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·write(SB),7,$-4
+TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
 	RET
 
-TEXT runtime·usleep(SB),7,$24
+TEXT runtime·usleep(SB),NOSPLIT,$24
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -61,7 +62,7 @@ TEXT runtime·usleep(SB),7,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),7,$12
+TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$311, AX		// sys__lwp_self
 	INT	$0x80
 	MOVL	$0, 0(SP)
@@ -72,7 +73,7 @@ TEXT runtime·raise(SB),7,$12
 	INT	$0x80
 	RET
 
-TEXT runtime·mmap(SB),7,$36
+TEXT runtime·mmap(SB),NOSPLIT,$36
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -90,26 +91,26 @@ TEXT runtime·mmap(SB),7,$36
 	INT	$0x80
 	RET
 
-TEXT runtime·munmap(SB),7,$-4
+TEXT runtime·munmap(SB),NOSPLIT,$-4
 	MOVL	$73, AX			// sys_munmap
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·madvise(SB),7,$-4
+TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
 	// ignore failure - maybe pages are locked
 	RET
 
-TEXT runtime·setitimer(SB),7,$-4
+TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	MOVL	$425, AX		// sys_setitimer
 	INT	$0x80
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
+TEXT time·now(SB), NOSPLIT, $32
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)		// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -127,7 +128,7 @@ TEXT time·now(SB), 7, $32
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),7,$32
+TEXT runtime·nanotime(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)		// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -150,21 +151,21 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	DX, 4(DI)
 	RET
 
-TEXT runtime·getcontext(SB),7,$-4
+TEXT runtime·getcontext(SB),NOSPLIT,$-4
 	MOVL	$307, AX		// sys_getcontext
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigprocmask(SB),7,$-4
+TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
 	MOVL	$293, AX		// sys_sigprocmask
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigreturn_tramp(SB),7,$0
+TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$0
 	LEAL	140(SP), AX		// Load address of ucontext
 	MOVL	AX, 4(SP)
 	MOVL	$308, AX		// sys_setcontext
@@ -173,7 +174,7 @@ TEXT runtime·sigreturn_tramp(SB),7,$0
 	MOVL	$1, AX			// sys_exit
 	INT	$0x80
 
-TEXT runtime·sigaction(SB),7,$24
+TEXT runtime·sigaction(SB),NOSPLIT,$24
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -190,7 +191,7 @@ TEXT runtime·sigaction(SB),7,$24
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigtramp(SB),7,$44
+TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
 	// check that m exists
@@ -229,7 +230,7 @@ TEXT runtime·sigtramp(SB),7,$44
 	RET
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid);
-TEXT runtime·lwp_create(SB),7,$16
+TEXT runtime·lwp_create(SB),NOSPLIT,$16
 	MOVL	$0, 0(SP)
 	MOVL	context+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - context
@@ -243,7 +244,7 @@ TEXT runtime·lwp_create(SB),7,$16
 	NEGL	AX
 	RET
 
-TEXT runtime·lwp_tramp(SB),7,$0
+TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 
 	// Set FS to point at m->tls
 	LEAL	m_tls(BX), BP
@@ -274,7 +275,7 @@ TEXT runtime·lwp_tramp(SB),7,$0
 	MOVL	$0x1234, 0x1005
 	RET
 
-TEXT runtime·sigaltstack(SB),7,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$281, AX		// sys___sigaltstack14
 	MOVL	new+4(SP), BX
 	MOVL	old+8(SP), CX
@@ -284,14 +285,14 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	INT	$3
 	RET
 
-TEXT runtime·setldt(SB),7,$8
+TEXT runtime·setldt(SB),NOSPLIT,$8
 	// Under NetBSD we set the GS base instead of messing with the LDT.
 	MOVL	16(SP), AX		// tls0
 	MOVL	AX, 0(SP)
 	CALL	runtime·settls(SB)
 	RET
 
-TEXT runtime·settls(SB),7,$16
+TEXT runtime·settls(SB),NOSPLIT,$16
 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
 	MOVL	base+0(FP), CX
 	ADDL	$8, CX
@@ -303,27 +304,27 @@ TEXT runtime·settls(SB),7,$16
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·osyield(SB),7,$-4
+TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVL	$350, AX		// sys_sched_yield
 	INT	$0x80
 	RET
 
-TEXT runtime·lwp_park(SB),7,$-4
+TEXT runtime·lwp_park(SB),NOSPLIT,$-4
 	MOVL	$434, AX		// sys__lwp_park
 	INT	$0x80
 	RET
 
-TEXT runtime·lwp_unpark(SB),7,$-4
+TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
 	MOVL	$321, AX		// sys__lwp_unpark
 	INT	$0x80
 	RET
 
-TEXT runtime·lwp_self(SB),7,$-4
+TEXT runtime·lwp_self(SB),NOSPLIT,$-4
 	MOVL	$311, AX		// sys__lwp_self
 	INT	$0x80
 	RET
 
-TEXT runtime·sysctl(SB),7,$28
+TEXT runtime·sysctl(SB),NOSPLIT,$28
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD

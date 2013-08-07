@@ -7,20 +7,21 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
-TEXT runtime·exit(SB),7,$0-8
+TEXT runtime·exit(SB),NOSPLIT,$0-8
 	MOVL	8(SP), DI
 	MOVL	$231, AX	// exitgroup - force all os threads to exit
 	SYSCALL
 	RET
 
-TEXT runtime·exit1(SB),7,$0-8
+TEXT runtime·exit1(SB),NOSPLIT,$0-8
 	MOVL	8(SP), DI
 	MOVL	$60, AX	// exit - exit the current os thread
 	SYSCALL
 	RET
 
-TEXT runtime·open(SB),7,$0-16
+TEXT runtime·open(SB),NOSPLIT,$0-16
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -28,13 +29,13 @@ TEXT runtime·open(SB),7,$0-16
 	SYSCALL
 	RET
 
-TEXT runtime·close(SB),7,$0-16
+TEXT runtime·close(SB),NOSPLIT,$0-16
 	MOVL	8(SP), DI
 	MOVL	$3, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT runtime·write(SB),7,$0-24
+TEXT runtime·write(SB),NOSPLIT,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -42,7 +43,7 @@ TEXT runtime·write(SB),7,$0-24
 	SYSCALL
 	RET
 
-TEXT runtime·read(SB),7,$0-24
+TEXT runtime·read(SB),NOSPLIT,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -50,14 +51,14 @@ TEXT runtime·read(SB),7,$0-24
 	SYSCALL
 	RET
 
-TEXT runtime·getrlimit(SB),7,$0-24
+TEXT runtime·getrlimit(SB),NOSPLIT,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	$97, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT runtime·usleep(SB),7,$16
+TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -75,7 +76,7 @@ TEXT runtime·usleep(SB),7,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raise(SB),7,$12
+TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$186, AX	// syscall - gettid
 	SYSCALL
 	MOVL	AX, DI	// arg 1 tid
@@ -84,7 +85,7 @@ TEXT runtime·raise(SB),7,$12
 	SYSCALL
 	RET
 
-TEXT runtime·setitimer(SB),7,$0-24
+TEXT runtime·setitimer(SB),NOSPLIT,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -92,7 +93,7 @@ TEXT runtime·setitimer(SB),7,$0-24
 	SYSCALL
 	RET
 
-TEXT runtime·mincore(SB),7,$0-24
+TEXT runtime·mincore(SB),NOSPLIT,$0-24
 	MOVQ	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -101,7 +102,7 @@ TEXT runtime·mincore(SB),7,$0-24
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB),7,$16
+TEXT time·now(SB),NOSPLIT,$16
 	// Be careful. We're calling a function with gcc calling convention here.
 	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
 	// call uses another 8.
@@ -129,7 +130,7 @@ fallback_gtod:
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB),7,$16
+TEXT runtime·nanotime(SB),NOSPLIT,$16
 	// Duplicate time.now here to avoid using up precious stack space.
 	// See comment above in time.now.
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
@@ -159,7 +160,7 @@ fallback_gtod_nt:
 	ADDQ	DX, AX
 	RET
 
-TEXT runtime·rtsigprocmask(SB),7,$0-32
+TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-32
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -171,7 +172,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0-32
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·rt_sigaction(SB),7,$0-32
+TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-32
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -180,7 +181,7 @@ TEXT runtime·rt_sigaction(SB),7,$0-32
 	SYSCALL
 	RET
 
-TEXT runtime·sigtramp(SB),7,$64
+TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	get_tls(BX)
 
 	// check that m exists
@@ -213,12 +214,12 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	R10, g(BX)
 	RET
 
-TEXT runtime·sigreturn(SB),7,$0
+TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	MOVL	$15, AX	// rt_sigreturn
 	SYSCALL
 	INT $3	// not reached
 
-TEXT runtime·mmap(SB),7,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
 	MOVQ	16(SP), SI
@@ -235,7 +236,7 @@ TEXT runtime·mmap(SB),7,$0
 	INCQ	AX
 	RET
 
-TEXT runtime·munmap(SB),7,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	$11, AX	// munmap
@@ -245,7 +246,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·madvise(SB),7,$0
+TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -256,7 +257,7 @@ TEXT runtime·madvise(SB),7,$0
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),7,$0
+TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -268,7 +269,7 @@ TEXT runtime·futex(SB),7,$0
 	RET
 
 // int64 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),7,$0
+TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	flags+8(SP), DI
 	MOVQ	stack+16(SP), SI
 
@@ -313,7 +314,7 @@ TEXT runtime·clone(SB),7,$0
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
-TEXT runtime·sigaltstack(SB),7,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
 	MOVQ	$131, AX
@@ -324,7 +325,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	RET
 
 // set tls base to DI
-TEXT runtime·settls(SB),7,$32
+TEXT runtime·settls(SB),NOSPLIT,$32
 	ADDQ	$16, DI	// ELF wants to use -16(FS), -8(FS)
 
 	MOVQ	DI, SI
@@ -336,12 +337,12 @@ TEXT runtime·settls(SB),7,$32
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·osyield(SB),7,$0
+TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$24, AX
 	SYSCALL
 	RET
 
-TEXT runtime·sched_getaffinity(SB),7,$0
+TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVQ	24(SP), DX
@@ -350,21 +351,21 @@ TEXT runtime·sched_getaffinity(SB),7,$0
 	RET
 
 // int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),7,$0
+TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVL    8(SP), DI
 	MOVL    $213, AX                        // syscall entry
 	SYSCALL
 	RET
 
 // int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),7,$0
+TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVL	$291, AX			// syscall entry
 	SYSCALL
 	RET
 
 // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
-TEXT runtime·epollctl(SB),7,$0
+TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVL	12(SP), SI
 	MOVL	16(SP), DX
@@ -374,7 +375,7 @@ TEXT runtime·epollctl(SB),7,$0
 	RET
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),7,$0
+TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -384,7 +385,7 @@ TEXT runtime·epollwait(SB),7,$0
 	RET
 
 // void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$0
+TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL    8(SP), DI  // fd
 	MOVQ    $2, SI  // F_SETFD
 	MOVQ    $1, DX  // FD_CLOEXEC

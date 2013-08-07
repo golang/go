@@ -7,9 +7,10 @@
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),7,$0
+TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$1, AX
 	INT	$0x80
 	MOVL	$0xf1, 0xf1  // crash
@@ -17,34 +18,34 @@ TEXT runtime·exit(SB),7,$0
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT runtime·exit1(SB),7,$0
+TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVL	$361, AX
 	INT	$0x80
 	JAE 2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·open(SB),7,$0
+TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·close(SB),7,$0
+TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$6, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·read(SB),7,$0
+TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	$3, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·write(SB),7,$0
+TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),7,$16
+TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$20, AX // getpid
 	INT	$0x80
 	MOVL	AX, 4(SP)	// pid
@@ -55,25 +56,25 @@ TEXT runtime·raise(SB),7,$16
 	INT	$0x80
 	RET
 
-TEXT runtime·mmap(SB),7,$0
+TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	$197, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·madvise(SB),7,$0
+TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	$75, AX
 	INT	$0x80
 	// ignore failure - maybe pages are locked
 	RET
 
-TEXT runtime·munmap(SB),7,$0
+TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVL	$73, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·setitimer(SB),7,$0
+TEXT runtime·setitimer(SB),NOSPLIT,$0
 	MOVL	$83, AX
 	INT	$0x80
 	RET
@@ -94,7 +95,7 @@ TEXT runtime·setitimer(SB),7,$0
 // 64-bit unix nanoseconds returned in DX:AX.
 // I'd much rather write this in C but we need
 // assembly for the 96-bit multiply and RDTSC.
-TEXT runtime·now(SB),7,$40
+TEXT runtime·now(SB),NOSPLIT,$40
 	MOVL	$0xffff0000, BP /* comm page base */
 	
 	// Test for slow CPU. If so, the math is completely
@@ -192,7 +193,7 @@ systime:
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB),7,$0
+TEXT time·now(SB),NOSPLIT,$0
 	CALL	runtime·now(SB)
 	MOVL	$1000000000, CX
 	DIVL	CX
@@ -203,21 +204,21 @@ TEXT time·now(SB),7,$0
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),7,$0
+TEXT runtime·nanotime(SB),NOSPLIT,$0
 	CALL	runtime·now(SB)
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
 	MOVL	DX, 4(DI)
 	RET
 
-TEXT runtime·sigprocmask(SB),7,$0
+TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaction(SB),7,$0
+TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVL	$46, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -232,7 +233,7 @@ TEXT runtime·sigaction(SB),7,$0
 //	12(FP)	siginfo style
 //	16(FP)	siginfo
 //	20(FP)	context
-TEXT runtime·sigtramp(SB),7,$40
+TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	get_tls(CX)
 	
 	// check that m exists
@@ -282,14 +283,14 @@ sigtramp_ret:
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigaltstack(SB),7,$0
+TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVL	$53, AX
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·usleep(SB),7,$32
+TEXT runtime·usleep(SB),NOSPLIT,$32
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -311,7 +312,7 @@ TEXT runtime·usleep(SB),7,$32
 
 // void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
 // System call args are: func arg stack pthread flags.
-TEXT runtime·bsdthread_create(SB),7,$32
+TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 	MOVL	$360, AX
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	func+12(FP), BX
@@ -340,7 +341,7 @@ TEXT runtime·bsdthread_create(SB),7,$32
 //	DI = stack top
 //	SI = flags (= 0x1000000)
 //	SP = stack - C_32_STK_ALIGN
-TEXT runtime·bsdthread_start(SB),7,$0
+TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	// set up ldt 7+id to point at m->tls.
 	// m->tls is at m+40.  newosproc left
 	// the m->id in tls[0].
@@ -371,7 +372,7 @@ TEXT runtime·bsdthread_start(SB),7,$0
 // void bsdthread_register(void)
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
-TEXT runtime·bsdthread_register(SB),7,$40
+TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
 	MOVL	$366, AX
 	// 0(SP) is where kernel expects caller PC; ignored
 	MOVL	$runtime·bsdthread_start(SB), 4(SP)	// threadstart
@@ -398,23 +399,23 @@ TEXT runtime·bsdthread_register(SB),7,$40
 // in the high 16 bits that seems to be the
 // argument count in bytes but is not always.
 // INT $0x80 works fine for those.
-TEXT runtime·sysenter(SB),7,$0
+TEXT runtime·sysenter(SB),NOSPLIT,$0
 	POPL	DX
 	MOVL	SP, CX
 	BYTE $0x0F; BYTE $0x34;  // SYSENTER
 	// returns to DX with SP set to CX
 
-TEXT runtime·mach_msg_trap(SB),7,$0
+TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
 	MOVL	$-31, AX
 	CALL	runtime·sysenter(SB)
 	RET
 
-TEXT runtime·mach_reply_port(SB),7,$0
+TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 	MOVL	$-26, AX
 	CALL	runtime·sysenter(SB)
 	RET
 
-TEXT runtime·mach_task_self(SB),7,$0
+TEXT runtime·mach_task_self(SB),NOSPLIT,$0
 	MOVL	$-28, AX
 	CALL	runtime·sysenter(SB)
 	RET
@@ -423,32 +424,32 @@ TEXT runtime·mach_task_self(SB),7,$0
 // instead of requiring the use of RPC.
 
 // uint32 mach_semaphore_wait(uint32)
-TEXT runtime·mach_semaphore_wait(SB),7,$0
+TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	$-36, AX
 	CALL	runtime·sysenter(SB)
 	RET
 
 // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
-TEXT runtime·mach_semaphore_timedwait(SB),7,$0
+TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	$-38, AX
 	CALL	runtime·sysenter(SB)
 	RET
 
 // uint32 mach_semaphore_signal(uint32)
-TEXT runtime·mach_semaphore_signal(SB),7,$0
+TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	$-33, AX
 	CALL	runtime·sysenter(SB)
 	RET
 
 // uint32 mach_semaphore_signal_all(uint32)
-TEXT runtime·mach_semaphore_signal_all(SB),7,$0
+TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	$-34, AX
 	CALL	runtime·sysenter(SB)
 	RET
 
 // setldt(int entry, int address, int limit)
 // entry and limit are ignored.
-TEXT runtime·setldt(SB),7,$32
+TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
 
 	/*
@@ -483,7 +484,7 @@ TEXT runtime·setldt(SB),7,$32
 	MOVW	GS, AX
 	RET
 
-TEXT runtime·sysctl(SB),7,$0
+TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	$202, AX
 	INT	$0x80
 	JAE	3(PC)
@@ -493,7 +494,7 @@ TEXT runtime·sysctl(SB),7,$0
 	RET
 
 // int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),7,$0
+TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	$362, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -501,7 +502,7 @@ TEXT runtime·kqueue(SB),7,$0
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),7,$0
+TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	$363, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -509,7 +510,7 @@ TEXT runtime·kevent(SB),7,$0
 	RET
 
 // int32 runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$32
+TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	MOVL	$92, AX  // fcntl
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	fd+0(FP), BX

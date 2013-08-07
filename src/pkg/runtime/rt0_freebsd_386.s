@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_386_freebsd(SB),7,$8
+#include "../../cmd/ld/textflag.h"
+
+TEXT _rt0_386_freebsd(SB),NOSPLIT,$8
 	MOVL	8(SP), AX
 	LEAL	12(SP), BX
 	MOVL	AX, 0(SP)
@@ -10,5 +12,5 @@ TEXT _rt0_386_freebsd(SB),7,$8
 	CALL	main(SB)
 	INT	$3
 
-TEXT main(SB),7,$0
+TEXT main(SB),NOSPLIT,$0
 	JMP	_rt0_go(SB)

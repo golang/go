@@ -23,11 +23,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "../../cmd/ld/textflag.h"
+
 /*
  * C runtime for 64-bit divide.
  */
 
-TEXT _mul64by32(SB), 7, $0
+TEXT _mul64by32(SB), NOSPLIT, $0
 	MOVL	r+0(FP), CX
 	MOVL	a+4(FP), AX
 	MULL	b+12(FP)
@@ -39,7 +41,7 @@ TEXT _mul64by32(SB), 7, $0
 	MOVL	BX, 4(CX)
 	RET
 
-TEXT _div64by32(SB), 7, $0
+TEXT _div64by32(SB), NOSPLIT, $0
 	MOVL	r+12(FP), CX
 	MOVL	a+0(FP), AX
 	MOVL	a+4(FP), DX

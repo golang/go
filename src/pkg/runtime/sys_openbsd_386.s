@@ -7,15 +7,16 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 // Exit the entire program (like C exit)
-TEXT runtime·exit(SB),7,$-4
+TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$1, AX
 	INT	$0x80
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),7,$8
+TEXT runtime·exit1(SB),NOSPLIT,$8
 	MOVL	$0, 0(SP)
 	MOVL	$0, 4(SP)		// arg 1 - notdead
 	MOVL	$302, AX		// sys___threxit
@@ -24,27 +25,27 @@ TEXT runtime·exit1(SB),7,$8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·open(SB),7,$-4
+TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·close(SB),7,$-4
+TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·read(SB),7,$-4
+TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
 	RET
 
-TEXT runtime·write(SB),7,$-4
+TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
 	RET
 
-TEXT runtime·usleep(SB),7,$20
+TEXT runtime·usleep(SB),NOSPLIT,$20
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
@@ -62,7 +63,7 @@ TEXT runtime·usleep(SB),7,$20
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),7,$12
+TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$299, AX		// sys_getthrid
 	INT	$0x80
 	MOVL	$0, 0(SP)
@@ -73,7 +74,7 @@ TEXT runtime·raise(SB),7,$12
 	INT	$0x80
 	RET
 
-TEXT runtime·mmap(SB),7,$36
+TEXT runtime·mmap(SB),NOSPLIT,$36
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -91,27 +92,27 @@ TEXT runtime·mmap(SB),7,$36
 	INT	$0x80
 	RET
 
-TEXT runtime·munmap(SB),7,$-4
+TEXT runtime·munmap(SB),NOSPLIT,$-4
 	MOVL	$73, AX			// sys_munmap
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·madvise(SB),7,$-4
+TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·setitimer(SB),7,$-4
+TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	MOVL	$83, AX
 	INT	$0x80
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
+TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)
@@ -128,7 +129,7 @@ TEXT time·now(SB), 7, $32
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),7,$32
+TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVL	$232, AX
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)
@@ -149,14 +150,14 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	DX, 4(DI)
 	RET
 
-TEXT runtime·sigaction(SB),7,$-4
+TEXT runtime·sigaction(SB),NOSPLIT,$-4
 	MOVL	$46, AX			// sys_sigaction
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigprocmask(SB),7,$-4
+TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
 	MOVL	$48, AX			// sys_sigprocmask
 	INT	$0x80
 	JAE	2(PC)
@@ -164,7 +165,7 @@ TEXT runtime·sigprocmask(SB),7,$-4
 	MOVL	AX, oset+0(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),7,$44
+TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
 	// check that m exists
@@ -212,7 +213,7 @@ sigtramp_ret:
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·tfork(SB),7,$12
+TEXT runtime·tfork(SB),NOSPLIT,$12
 
 	// Copy mp, gp and fn from the parent stack onto the child stack.
 	MOVL	params+4(FP), AX
@@ -289,7 +290,7 @@ TEXT runtime·tfork(SB),7,$12
 	MOVL	$0x1234, 0x1005
 	RET
 
-TEXT runtime·sigaltstack(SB),7,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$288, AX		// sys_sigaltstack
 	MOVL	new+4(SP), BX
 	MOVL	old+8(SP), CX
@@ -299,14 +300,14 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	INT	$3
 	RET
 
-TEXT runtime·setldt(SB),7,$4
+TEXT runtime·setldt(SB),NOSPLIT,$4
 	// Under OpenBSD we set the GS base instead of messing with the LDT.
 	MOVL	tls0+4(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	runtime·settls(SB)
 	RET
 
-TEXT runtime·settls(SB),7,$8
+TEXT runtime·settls(SB),NOSPLIT,$8
 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
 	MOVL	tlsbase+0(FP), CX
 	ADDL	$8, CX
@@ -318,22 +319,22 @@ TEXT runtime·settls(SB),7,$8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·osyield(SB),7,$-4
+TEXT runtime·osyield(SB),NOSPLIT,$-4
 	MOVL	$298, AX		// sys_sched_yield
 	INT	$0x80
 	RET
 
-TEXT runtime·thrsleep(SB),7,$-4
+TEXT runtime·thrsleep(SB),NOSPLIT,$-4
 	MOVL	$300, AX		// sys___thrsleep
 	INT	$0x80
 	RET
 
-TEXT runtime·thrwakeup(SB),7,$-4
+TEXT runtime·thrwakeup(SB),NOSPLIT,$-4
 	MOVL	$301, AX		// sys___thrwakeup
 	INT	$0x80
 	RET
 
-TEXT runtime·sysctl(SB),7,$28
+TEXT runtime·sysctl(SB),NOSPLIT,$28
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
@@ -352,7 +353,7 @@ TEXT runtime·sysctl(SB),7,$28
 	RET
 
 // int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),7,$0
+TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	$362, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -360,7 +361,7 @@ TEXT runtime·kqueue(SB),7,$0
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),7,$0
+TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	$363, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -368,7 +369,7 @@ TEXT runtime·kevent(SB),7,$0
 	RET
 
 // int32 runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),7,$32
+TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	MOVL	$92, AX		// fcntl
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	fd+0(FP), BX
