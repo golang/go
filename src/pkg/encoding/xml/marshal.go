@@ -271,7 +271,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 			continue
 		}
 		fv := finfo.value(val)
-		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
+		if (finfo.flags&fOmitEmpty != 0 || fv.Kind() == reflect.Ptr) && isEmptyValue(fv) {
 			continue
 		}
 		p.WriteByte(' ')
@@ -285,6 +285,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		}
 		p.WriteString(finfo.name)
 		p.WriteString(`="`)
+		// Handle pointer values by following the pointer,
+		// Pointer is known to be non-nil because we called isEmptyValue above.
+		if fv.Kind() == reflect.Ptr {
+			fv = fv.Elem()
+		}
 		if err := p.marshalSimple(fv.Type(), fv); err != nil {
 			return err
 		}
@@ -363,6 +368,10 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			continue
 		}
 		vf := finfo.value(val)
+		// Handle pointer values by following the pointer
+		if vf.Kind() == reflect.Ptr && !isEmptyValue(vf) {
+			vf = vf.Elem()
+		}
 		switch finfo.flags & fMode {
 		case fCharData:
 			var scratch [64]byte
