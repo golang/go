@@ -1,39 +1,33 @@
+// +build api_tool
+
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Api computes the exported API of a set of Go packages.
-//
-// BUG(bradfitz): Note that this tool is only currently suitable
-// for use on the Go standard library, not arbitrary packages.
-// Once the Go AST has type information, this tool will be more
-// reliable without hard-coded hacks throughout.
+// Binary api computes the exported API of a set of Go packages.
 package main
 
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/doc"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
+
+	"code.google.com/p/go.tools/go/types"
 )
 
 // Flags
@@ -130,35 +124,31 @@ func main() {
 		c.Compiler = build.Default.Compiler
 	}
 
-	var pkgs []string
+	var pkgNames []string
 	if flag.NArg() > 0 {
-		pkgs = flag.Args()
+		pkgNames = flag.Args()
 	} else {
 		stds, err := exec.Command("go", "list", "std").Output()
 		if err != nil {
 			log.Fatal(err)
 		}
-		pkgs = strings.Fields(string(stds))
+		pkgNames = strings.Fields(string(stds))
 	}
 
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
 	for _, context := range contexts {
-		w := NewWalker()
-		w.context = context
+		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
 
-		for _, pkg := range pkgs {
-			w.wantedPkg[pkg] = true
+		for _, name := range pkgNames {
+			// - Package "unsafe" contains special signatures requiring
+			//   extra care when printing them - ignore since it is not
+			//   going to change w/o a language change.
+			// - We don't care about the API of commands.
+			if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
+				w.export(w.Import(name))
+			}
 		}
 
-		for _, pkg := range pkgs {
-			if strings.HasPrefix(pkg, "cmd/") {
-				continue
-			}
-			if fi, err := os.Stat(filepath.Join(w.root, pkg)); err != nil || !fi.IsDir() {
-				log.Fatalf("no source in tree for package %q", pkg)
-			}
-			w.WalkPackage(pkg)
-		}
 		ctxName := contextName(context)
 		for _, f := range w.Features() {
 			if featureCtx[f] == nil {
@@ -194,7 +184,7 @@ func main() {
 	if *checkFile == "" {
 		sort.Strings(features)
 		for _, f := range features {
-			fmt.Fprintf(bw, "%s\n", f)
+			fmt.Fprintln(bw, f)
 		}
 		return
 	}
@@ -206,6 +196,22 @@ func main() {
 	optional := fileFeatures(*nextFile)
 	exception := fileFeatures(*exceptFile)
 	fail = !compareAPI(bw, features, required, optional, exception)
+}
+
+// export emits the exported package features.
+func (w *Walker) export(pkg *types.Package) {
+	if *verbose {
+		log.Println(pkg)
+	}
+	pop := w.pushScope("pkg " + pkg.Path())
+	w.current = pkg
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		if ast.IsExported(name) {
+			w.emitObj(scope.Lookup(name))
+		}
+	}
+	pop()
 }
 
 func set(items []string) map[string]bool {
@@ -304,52 +310,25 @@ func fileFeatures(filename string) []string {
 	return strings.Split(text, "\n")
 }
 
-// pkgSymbol represents a symbol in a package
-type pkgSymbol struct {
-	pkg    string // "net/http"
-	symbol string // "RoundTripper"
-}
-
 var fset = token.NewFileSet()
 
 type Walker struct {
-	context         *build.Context
-	root            string
-	scope           []string
-	features        map[string]bool // set
-	lastConstType   string
-	curPackageName  string
-	curPackage      *ast.Package
-	prevConstType   map[pkgSymbol]string
-	constDep        map[string]string // key's const identifier has type of future value const identifier
-	packageState    map[string]loadState
-	interfaces      map[pkgSymbol]*ast.InterfaceType
-	functionTypes   map[pkgSymbol]string // symbol => return type
-	selectorFullPkg map[string]string    // "http" => "net/http", updated by imports
-	wantedPkg       map[string]bool      // packages requested on the command line
+	context  *build.Context
+	root     string
+	scope    []string
+	current  *types.Package
+	features map[string]bool           // set
+	imported map[string]*types.Package // packages already imported
 }
 
-func NewWalker() *Walker {
+func NewWalker(context *build.Context, root string) *Walker {
 	return &Walker{
-		features:        make(map[string]bool),
-		packageState:    make(map[string]loadState),
-		interfaces:      make(map[pkgSymbol]*ast.InterfaceType),
-		functionTypes:   make(map[pkgSymbol]string),
-		selectorFullPkg: make(map[string]string),
-		wantedPkg:       make(map[string]bool),
-		prevConstType:   make(map[pkgSymbol]string),
-		root:            filepath.Join(build.Default.GOROOT, "src/pkg"),
+		context:  context,
+		root:     root,
+		features: map[string]bool{},
+		imported: map[string]*types.Package{"unsafe": types.Unsafe},
 	}
 }
-
-// loadState is the state of a package's parsing.
-type loadState int
-
-const (
-	notLoaded loadState = iota
-	loading
-	loaded
-)
 
 func (w *Walker) Features() (fs []string) {
 	for f := range w.features {
@@ -359,127 +338,133 @@ func (w *Walker) Features() (fs []string) {
 	return
 }
 
-// fileDeps returns the imports in a file.
-func fileDeps(f *ast.File) (pkgs []string) {
-	for _, is := range f.Imports {
-		fpkg, err := strconv.Unquote(is.Path.Value)
-		if err != nil {
-			log.Fatalf("error unquoting import string %q: %v", is.Path.Value, err)
-		}
-		if fpkg != "C" {
-			pkgs = append(pkgs, fpkg)
-		}
-	}
-	return
-}
-
 var parsedFileCache = make(map[string]*ast.File)
 
-func parseFile(filename string) (*ast.File, error) {
-	f, ok := parsedFileCache[filename]
-	if !ok {
-		var err error
+func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+	filename := filepath.Join(dir, file)
+	f, _ := parsedFileCache[filename]
+	if f != nil {
+		return f, nil
+	}
+
+	var err error
+
+	// generate missing context-dependent files.
+
+	if w.context != nil && file == fmt.Sprintf("zgoos_%s.go", w.context.GOOS) {
+		src := fmt.Sprintf("package runtime; const theGoos = `%s`", w.context.GOOS)
+		f, err = parser.ParseFile(fset, filename, src, 0)
+		if err != nil {
+			log.Fatalf("incorrect generated file: %s", err)
+		}
+	}
+
+	if w.context != nil && file == fmt.Sprintf("zgoarch_%s.go", w.context.GOARCH) {
+		src := fmt.Sprintf("package runtime; const theGoarch = `%s`", w.context.GOARCH)
+		f, err = parser.ParseFile(fset, filename, src, 0)
+		if err != nil {
+			log.Fatalf("incorrect generated file: %s", err)
+		}
+	}
+
+	if f == nil {
 		f, err = parser.ParseFile(fset, filename, nil, 0)
 		if err != nil {
 			return nil, err
 		}
-		parsedFileCache[filename] = f
 	}
-	return clone(f).(*ast.File), nil
+
+	parsedFileCache[filename] = f
+	return f, nil
 }
 
-// WalkPackage walks all files in package `name'.
-// WalkPackage does nothing if the package has already been loaded.
-func (w *Walker) WalkPackage(name string) {
-	switch w.packageState[name] {
-	case loading:
-		log.Fatalf("import cycle loading package %q?", name)
-	case loaded:
-		return
+func contains(list []string, s string) bool {
+	for _, t := range list {
+		if t == s {
+			return true
+		}
 	}
-	w.packageState[name] = loading
-	defer func() {
-		w.packageState[name] = loaded
-	}()
-	dir := filepath.Join(w.root, filepath.FromSlash(name))
+	return false
+}
 
-	ctxt := w.context
-	if ctxt == nil {
-		ctxt = &build.Default
+// Importing is a sentinel taking the place in Walker.imported
+// for a package that is in the process of being imported.
+var importing types.Package
+
+func (w *Walker) Import(name string) (pkg *types.Package) {
+	pkg = w.imported[name]
+	if pkg != nil {
+		if pkg == &importing {
+			log.Fatalf("cycle importing package %q", name)
+		}
+		return pkg
 	}
-	info, err := ctxt.ImportDir(dir, 0)
+	w.imported[name] = &importing
+
+	// Determine package files.
+	dir := filepath.Join(w.root, filepath.FromSlash(name))
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		log.Fatalf("no source in tree for package %q", pkg)
+	}
+
+	context := w.context
+	if context == nil {
+		context = &build.Default
+	}
+	info, err := context.ImportDir(dir, 0)
 	if err != nil {
-		if strings.Contains(err.Error(), "no Go source files") {
+		if _, nogo := err.(*build.NoGoError); nogo {
 			return
 		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
+	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
 
-	apkg := &ast.Package{
-		Files: make(map[string]*ast.File),
+	// Certain files only exist when building for the specified context.
+	// Add them manually.
+	if name == "runtime" {
+		n := fmt.Sprintf("zgoos_%s.go", w.context.GOOS)
+		if !contains(filenames, n) {
+			filenames = append(filenames, n)
+		}
+
+		n = fmt.Sprintf("zgoarch_%s.go", w.context.GOARCH)
+		if !contains(filenames, n) {
+			filenames = append(filenames, n)
+		}
 	}
 
-	files := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
-	for _, file := range files {
-		f, err := parseFile(filepath.Join(dir, file))
+	// Parse package files.
+	var files []*ast.File
+	for _, file := range filenames {
+		f, err := w.parseFile(dir, file)
 		if err != nil {
-			log.Fatalf("error parsing package %s, file %s: %v", name, file, err)
+			log.Fatalf("error parsing package %s: %s", name, err)
 		}
-		apkg.Files[file] = f
+		files = append(files, f)
+	}
 
-		for _, dep := range fileDeps(f) {
-			w.WalkPackage(dep)
+	// Type-check package files.
+	conf := types.Config{
+		IgnoreFuncBodies: true,
+		FakeImportC:      true,
+		Import: func(imports map[string]*types.Package, name string) (*types.Package, error) {
+			pkg := w.Import(name)
+			imports[name] = pkg
+			return pkg, nil
+		},
+	}
+	pkg, err = conf.Check(name, fset, files, nil)
+	if err != nil {
+		ctxt := "<no context>"
+		if w.context != nil {
+			ctxt = fmt.Sprintf("%s-%s", w.context.GOOS, w.context.GOARCH)
 		}
+		log.Fatalf("error typechecking package %s: %s (%s)", name, err, ctxt)
 	}
 
-	if *verbose {
-		log.Printf("package %s", name)
-	}
-	pop := w.pushScope("pkg " + name)
-	defer pop()
-
-	w.curPackageName = name
-	w.curPackage = apkg
-	w.constDep = map[string]string{}
-
-	for _, afile := range apkg.Files {
-		w.recordTypes(afile)
-	}
-
-	// Register all function declarations first.
-	for _, afile := range apkg.Files {
-		for _, di := range afile.Decls {
-			if d, ok := di.(*ast.FuncDecl); ok {
-				w.peekFuncDecl(d)
-			}
-		}
-	}
-
-	for _, afile := range apkg.Files {
-		w.walkFile(afile)
-	}
-
-	w.resolveConstantDeps()
-
-	// Now that we're done walking types, vars and consts
-	// in the *ast.Package, use go/doc to do the rest
-	// (functions and methods). This is done here because
-	// go/doc is destructive.  We can't use the
-	// *ast.Package after this.
-	dpkg := doc.New(apkg, name, doc.AllMethods)
-
-	for _, t := range dpkg.Types {
-		// Move funcs up to the top-level, not hiding in the Types.
-		dpkg.Funcs = append(dpkg.Funcs, t.Funcs...)
-
-		for _, m := range t.Methods {
-			w.walkFuncDecl(m.Decl)
-		}
-	}
-
-	for _, f := range dpkg.Funcs {
-		w.walkFuncDecl(f.Decl)
-	}
+	w.imported[name] = pkg
+	return
 }
 
 // pushScope enters a new scope (walking a package, type, node, etc)
@@ -498,707 +483,310 @@ func (w *Walker) pushScope(name string) (popFunc func()) {
 	}
 }
 
-func (w *Walker) recordTypes(file *ast.File) {
-	for _, di := range file.Decls {
-		switch d := di.(type) {
-		case *ast.GenDecl:
-			switch d.Tok {
-			case token.TYPE:
-				for _, sp := range d.Specs {
-					ts := sp.(*ast.TypeSpec)
-					name := ts.Name.Name
-					if ast.IsExported(name) {
-						if it, ok := ts.Type.(*ast.InterfaceType); ok {
-							w.noteInterface(name, it)
-						}
-					}
-				}
-			}
-		}
+func sortedMethodNames(typ *types.Interface) []string {
+	n := typ.NumMethods()
+	list := make([]string, n)
+	for i := range list {
+		list[i] = typ.Method(i).Name()
 	}
+	sort.Strings(list)
+	return list
 }
 
-func (w *Walker) walkFile(file *ast.File) {
-	// Not entering a scope here; file boundaries aren't interesting.
-	for _, di := range file.Decls {
-		switch d := di.(type) {
-		case *ast.GenDecl:
-			switch d.Tok {
-			case token.IMPORT:
-				for _, sp := range d.Specs {
-					is := sp.(*ast.ImportSpec)
-					fpath, err := strconv.Unquote(is.Path.Value)
-					if err != nil {
-						log.Fatal(err)
-					}
-					name := path.Base(fpath)
-					if is.Name != nil {
-						name = is.Name.Name
-					}
-					w.selectorFullPkg[name] = fpath
-				}
-			case token.CONST:
-				for _, sp := range d.Specs {
-					w.walkConst(sp.(*ast.ValueSpec))
-				}
-			case token.TYPE:
-				for _, sp := range d.Specs {
-					w.walkTypeSpec(sp.(*ast.TypeSpec))
-				}
-			case token.VAR:
-				for _, sp := range d.Specs {
-					w.walkVar(sp.(*ast.ValueSpec))
-				}
-			default:
-				log.Fatalf("unknown token type %d in GenDecl", d.Tok)
-			}
-		case *ast.FuncDecl:
-			// Ignore. Handled in subsequent pass, by go/doc.
+func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+	switch typ := typ.(type) {
+	case *types.Basic:
+		s := typ.Name()
+		switch typ.Kind() {
+		case types.UnsafePointer:
+			s = "unsafe.Pointer"
+		case types.UntypedBool:
+			s = "ideal-bool"
+		case types.UntypedInt:
+			s = "ideal-int"
+		case types.UntypedRune:
+			// "ideal-char" for compatibility with old tool
+			// TODO(gri) change to "ideal-rune"
+			s = "ideal-char"
+		case types.UntypedFloat:
+			s = "ideal-float"
+		case types.UntypedComplex:
+			s = "ideal-complex"
+		case types.UntypedString:
+			s = "ideal-string"
+		case types.UntypedNil:
+			panic("should never see untyped nil type")
 		default:
-			log.Printf("unhandled %T, %#v\n", di, di)
-			printer.Fprint(os.Stderr, fset, di)
-			os.Stderr.Write([]byte("\n"))
+			switch s {
+			case "byte":
+				s = "uint8"
+			case "rune":
+				s = "int32"
+			}
 		}
-	}
-}
+		buf.WriteString(s)
 
-var constType = map[token.Token]string{
-	token.INT:    "ideal-int",
-	token.FLOAT:  "ideal-float",
-	token.STRING: "ideal-string",
-	token.CHAR:   "ideal-char",
-	token.IMAG:   "ideal-imag",
-}
+	case *types.Array:
+		fmt.Fprintf(buf, "[%d]", typ.Len())
+		w.writeType(buf, typ.Elem())
 
-var varType = map[token.Token]string{
-	token.INT:    "int",
-	token.FLOAT:  "float64",
-	token.STRING: "string",
-	token.CHAR:   "rune",
-	token.IMAG:   "complex128",
-}
+	case *types.Slice:
+		buf.WriteString("[]")
+		w.writeType(buf, typ.Elem())
 
-var errTODO = errors.New("TODO")
+	case *types.Struct:
+		buf.WriteString("struct")
 
-func (w *Walker) constValueType(vi interface{}) (string, error) {
-	switch v := vi.(type) {
-	case *ast.BasicLit:
-		litType, ok := constType[v.Kind]
-		if !ok {
-			return "", fmt.Errorf("unknown basic literal kind %#v", v)
-		}
-		return litType, nil
-	case *ast.UnaryExpr:
-		return w.constValueType(v.X)
-	case *ast.SelectorExpr:
-		lhs := w.nodeString(v.X)
-		rhs := w.nodeString(v.Sel)
-		pkg, ok := w.selectorFullPkg[lhs]
-		if !ok {
-			return "", fmt.Errorf("unknown constant reference; unknown package in expression %s.%s", lhs, rhs)
-		}
-		if t, ok := w.prevConstType[pkgSymbol{pkg, rhs}]; ok {
-			return t, nil
-		}
-		return "", fmt.Errorf("unknown constant reference to %s.%s", lhs, rhs)
-	case *ast.Ident:
-		if v.Name == "iota" {
-			return "ideal-int", nil // hack.
-		}
-		if v.Name == "false" || v.Name == "true" {
-			return "bool", nil
-		}
-		if v.Name == "intSize" && w.curPackageName == "strconv" {
-			// Hack.
-			return "ideal-int", nil
-		}
-		if t, ok := w.prevConstType[pkgSymbol{w.curPackageName, v.Name}]; ok {
-			return t, nil
-		}
-		return constDepPrefix + v.Name, nil
-	case *ast.BinaryExpr:
-		switch v.Op {
-		case token.EQL, token.LSS, token.GTR, token.NOT, token.NEQ, token.LEQ, token.GEQ:
-			return "bool", nil
-		}
-		left, err := w.constValueType(v.X)
-		if err != nil {
-			return "", err
-		}
-		right, err := w.constValueType(v.Y)
-		if err != nil {
-			return "", err
-		}
-		if left != right {
-			// TODO(bradfitz): encode the real rules here,
-			// rather than this mess.
-			if left == "ideal-int" && right == "ideal-float" {
-				return "ideal-float", nil // math.Log2E
-			}
-			if left == "ideal-char" && right == "ideal-int" {
-				return "ideal-int", nil // math/big.MaxBase
-			}
-			if left == "ideal-int" && right == "ideal-char" {
-				return "ideal-int", nil // text/scanner.GoWhitespace
-			}
-			if left == "ideal-int" && right == "Duration" {
-				// Hack, for package time.
-				return "Duration", nil
-			}
-			if left == "ideal-int" && !strings.HasPrefix(right, "ideal-") {
-				return right, nil
-			}
-			if right == "ideal-int" && !strings.HasPrefix(left, "ideal-") {
-				return left, nil
-			}
-			if strings.HasPrefix(left, constDepPrefix) && strings.HasPrefix(right, constDepPrefix) {
-				// Just pick one.
-				// e.g. text/scanner GoTokens const-dependency:ScanIdents, const-dependency:ScanFloats
-				return left, nil
-			}
-			return "", fmt.Errorf("in BinaryExpr, unhandled type mismatch; left=%q, right=%q", left, right)
-		}
-		return left, nil
-	case *ast.CallExpr:
-		// Not a call, but a type conversion.
-		return w.nodeString(v.Fun), nil
-	case *ast.ParenExpr:
-		return w.constValueType(v.X)
-	}
-	return "", fmt.Errorf("unknown const value type %T", vi)
-}
+	case *types.Pointer:
+		buf.WriteByte('*')
+		w.writeType(buf, typ.Elem())
 
-func (w *Walker) varValueType(vi interface{}) (string, error) {
-	switch v := vi.(type) {
-	case *ast.BasicLit:
-		litType, ok := varType[v.Kind]
-		if !ok {
-			return "", fmt.Errorf("unknown basic literal kind %#v", v)
+	case *types.Tuple:
+		panic("should never see a tuple type")
+
+	case *types.Signature:
+		buf.WriteString("func")
+		w.writeSignature(buf, typ)
+
+	case *types.Interface:
+		buf.WriteString("interface{")
+		if typ.NumMethods() > 0 {
+			buf.WriteByte(' ')
+			buf.WriteString(strings.Join(sortedMethodNames(typ), ", "))
+			buf.WriteByte(' ')
 		}
-		return litType, nil
-	case *ast.CompositeLit:
-		return w.nodeString(v.Type), nil
-	case *ast.FuncLit:
-		return w.nodeString(w.namelessType(v.Type)), nil
-	case *ast.UnaryExpr:
-		if v.Op == token.AND {
-			typ, err := w.varValueType(v.X)
-			return "*" + typ, err
+		buf.WriteString("}")
+
+	case *types.Map:
+		buf.WriteString("map[")
+		w.writeType(buf, typ.Key())
+		buf.WriteByte(']')
+		w.writeType(buf, typ.Elem())
+
+	case *types.Chan:
+		var s string
+		switch typ.Dir() {
+		case ast.SEND:
+			s = "chan<- "
+		case ast.RECV:
+			s = "<-chan "
+		default:
+			s = "chan "
 		}
-		return "", fmt.Errorf("unknown unary expr: %#v", v)
-	case *ast.SelectorExpr:
-		return "", errTODO
-	case *ast.Ident:
-		node, _, ok := w.resolveName(v.Name)
-		if !ok {
-			return "", fmt.Errorf("unresolved identifier: %q", v.Name)
+		buf.WriteString(s)
+		w.writeType(buf, typ.Elem())
+
+	case *types.Named:
+		obj := typ.Obj()
+		pkg := obj.Pkg()
+		if pkg != nil && pkg != w.current {
+			buf.WriteString(pkg.Name())
+			buf.WriteByte('.')
 		}
-		return w.varValueType(node)
-	case *ast.BinaryExpr:
-		left, err := w.varValueType(v.X)
-		if err != nil {
-			return "", err
-		}
-		right, err := w.varValueType(v.Y)
-		if err != nil {
-			return "", err
-		}
-		if left != right {
-			return "", fmt.Errorf("in BinaryExpr, unhandled type mismatch; left=%q, right=%q", left, right)
-		}
-		return left, nil
-	case *ast.ParenExpr:
-		return w.varValueType(v.X)
-	case *ast.CallExpr:
-		var funSym pkgSymbol
-		if selnode, ok := v.Fun.(*ast.SelectorExpr); ok {
-			// assume it is not a method.
-			pkg, ok := w.selectorFullPkg[w.nodeString(selnode.X)]
-			if !ok {
-				return "", fmt.Errorf("not a package: %s", w.nodeString(selnode.X))
-			}
-			funSym = pkgSymbol{pkg, selnode.Sel.Name}
-			if retType, ok := w.functionTypes[funSym]; ok {
-				if ast.IsExported(retType) && pkg != w.curPackageName {
-					// otherpkg.F returning an exported type from otherpkg.
-					return pkg + "." + retType, nil
-				} else {
-					return retType, nil
-				}
-			}
-		} else {
-			funSym = pkgSymbol{w.curPackageName, w.nodeString(v.Fun)}
-			if retType, ok := w.functionTypes[funSym]; ok {
-				return retType, nil
-			}
-		}
-		// maybe a function call; maybe a conversion.  Need to lookup type.
-		// TODO(bradfitz): this is a hack, but arguably most of this tool is,
-		// until the Go AST has type information.
-		nodeStr := w.nodeString(v.Fun)
-		switch nodeStr {
-		case "string", "[]byte":
-			return nodeStr, nil
-		}
-		return "", fmt.Errorf("not a known function %q", nodeStr)
+		buf.WriteString(typ.Obj().Name())
+
 	default:
-		return "", fmt.Errorf("unknown const value type %T", vi)
+		panic(fmt.Sprintf("unknown type %T", typ))
 	}
 }
 
-// resolveName finds a top-level node named name and returns the node
-// v and its type t, if known.
-func (w *Walker) resolveName(name string) (v interface{}, t interface{}, ok bool) {
-	for _, file := range w.curPackage.Files {
-		for _, di := range file.Decls {
-			switch d := di.(type) {
-			case *ast.GenDecl:
-				switch d.Tok {
-				case token.VAR:
-					for _, sp := range d.Specs {
-						vs := sp.(*ast.ValueSpec)
-						for i, vname := range vs.Names {
-							if vname.Name == name {
-								if len(vs.Values) > i {
-									return vs.Values[i], vs.Type, true
-								}
-								return nil, vs.Type, true
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return nil, nil, false
-}
-
-// constDepPrefix is a magic prefix that is used by constValueType
-// and walkConst to signal that a type isn't known yet. These are
-// resolved at the end of walking of a package's files.
-const constDepPrefix = "const-dependency:"
-
-func (w *Walker) walkConst(vs *ast.ValueSpec) {
-	for _, ident := range vs.Names {
-		litType := ""
-		if vs.Type != nil {
-			litType = w.nodeString(vs.Type)
-		} else {
-			litType = w.lastConstType
-			if vs.Values != nil {
-				if len(vs.Values) != 1 {
-					log.Fatalf("const %q, values: %#v", ident.Name, vs.Values)
-				}
-				var err error
-				litType, err = w.constValueType(vs.Values[0])
-				if err != nil {
-					log.Fatalf("unknown kind in const %q (%T): %v", ident.Name, vs.Values[0], err)
-				}
-			}
-		}
-		if dep := strings.TrimPrefix(litType, constDepPrefix); dep != litType {
-			w.constDep[ident.Name] = dep
-			continue
-		}
-		if litType == "" {
-			log.Fatalf("unknown kind in const %q", ident.Name)
-		}
-		w.lastConstType = litType
-
-		w.prevConstType[pkgSymbol{w.curPackageName, ident.Name}] = litType
-
-		if ast.IsExported(ident.Name) {
-			w.emitFeature(fmt.Sprintf("const %s %s", ident, litType))
-		}
-	}
-}
-
-func (w *Walker) resolveConstantDeps() {
-	var findConstType func(string) string
-	findConstType = func(ident string) string {
-		if dep, ok := w.constDep[ident]; ok {
-			return findConstType(dep)
-		}
-		if t, ok := w.prevConstType[pkgSymbol{w.curPackageName, ident}]; ok {
-			return t
-		}
-		return ""
-	}
-	for ident := range w.constDep {
-		if !ast.IsExported(ident) {
-			continue
-		}
-		t := findConstType(ident)
-		if t == "" {
-			log.Fatalf("failed to resolve constant %q", ident)
-		}
-		w.emitFeature(fmt.Sprintf("const %s %s", ident, t))
-	}
-}
-
-func (w *Walker) walkVar(vs *ast.ValueSpec) {
-	for i, ident := range vs.Names {
-		if !ast.IsExported(ident.Name) {
-			continue
-		}
-
-		typ := ""
-		if vs.Type != nil {
-			typ = w.nodeString(vs.Type)
-		} else {
-			if len(vs.Values) == 0 {
-				log.Fatalf("no values for var %q", ident.Name)
-			}
-			if len(vs.Values) > 1 {
-				log.Fatalf("more than 1 values in ValueSpec not handled, var %q", ident.Name)
-			}
-			var err error
-			typ, err = w.varValueType(vs.Values[i])
-			if err != nil {
-				log.Fatalf("unknown type of variable %q, type %T, error = %v\ncode: %s",
-					ident.Name, vs.Values[i], err, w.nodeString(vs.Values[i]))
-			}
-		}
-		w.emitFeature(fmt.Sprintf("var %s %s", ident, typ))
-	}
-}
-
-func (w *Walker) nodeString(node interface{}) string {
-	if node == nil {
-		return ""
-	}
-	var b bytes.Buffer
-	printer.Fprint(&b, fset, node)
-	return b.String()
-}
-
-func (w *Walker) nodeDebug(node interface{}) string {
-	if node == nil {
-		return ""
-	}
-	var b bytes.Buffer
-	ast.Fprint(&b, fset, node, nil)
-	return b.String()
-}
-
-func (w *Walker) noteInterface(name string, it *ast.InterfaceType) {
-	w.interfaces[pkgSymbol{w.curPackageName, name}] = it
-}
-
-func (w *Walker) walkTypeSpec(ts *ast.TypeSpec) {
-	name := ts.Name.Name
-	if !ast.IsExported(name) {
-		return
-	}
-	switch t := ts.Type.(type) {
-	case *ast.StructType:
-		w.walkStructType(name, t)
-	case *ast.InterfaceType:
-		w.walkInterfaceType(name, t)
+func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
+	w.writeParams(buf, sig.Params(), sig.IsVariadic())
+	switch res := sig.Results(); res.Len() {
+	case 0:
+		// nothing to do
+	case 1:
+		buf.WriteByte(' ')
+		w.writeType(buf, res.At(0).Type())
 	default:
-		w.emitFeature(fmt.Sprintf("type %s %s", name, w.nodeString(w.namelessType(ts.Type))))
+		buf.WriteByte(' ')
+		w.writeParams(buf, res, false)
 	}
 }
 
-func (w *Walker) walkStructType(name string, t *ast.StructType) {
+func (w *Walker) writeParams(buf *bytes.Buffer, t *types.Tuple, variadic bool) {
+	buf.WriteByte('(')
+	for i, n := 0, t.Len(); i < n; i++ {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		typ := t.At(i).Type()
+		if variadic && i+1 == n {
+			buf.WriteString("...")
+			typ = typ.(*types.Slice).Elem()
+		}
+		w.writeType(buf, typ)
+	}
+	buf.WriteByte(')')
+}
+
+func (w *Walker) typeString(typ types.Type) string {
+	var buf bytes.Buffer
+	w.writeType(&buf, typ)
+	return buf.String()
+}
+
+func (w *Walker) signatureString(sig *types.Signature) string {
+	var buf bytes.Buffer
+	w.writeSignature(&buf, sig)
+	return buf.String()
+}
+
+func (w *Walker) emitObj(obj types.Object) {
+	switch obj := obj.(type) {
+	case *types.Const:
+		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
+
+	case *types.Var:
+		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
+
+	case *types.TypeName:
+		w.emitType(obj)
+
+	case *types.Func:
+		w.emitFunc(obj)
+
+	default:
+		panic("unknown object: " + obj.String())
+	}
+}
+
+func (w *Walker) emitType(obj *types.TypeName) {
+	name := obj.Name()
+	typ := obj.Type()
+	switch typ := typ.Underlying().(type) {
+	case *types.Struct:
+		w.emitStructType(name, typ)
+	case *types.Interface:
+		w.emitIfaceType(name, typ)
+		return // methods are handled by emitIfaceType
+	default:
+		w.emitf("type %s %s", name, w.typeString(typ.Underlying()))
+	}
+
+	// emit methods with value receiver
+	var methodNames map[string]bool
+	vset := typ.MethodSet()
+	for i, n := 0, vset.Len(); i < n; i++ {
+		m := vset.At(i)
+		if m.Obj().IsExported() {
+			w.emitMethod(m)
+			if methodNames == nil {
+				methodNames = make(map[string]bool)
+			}
+			methodNames[m.Obj().Name()] = true
+		}
+	}
+
+	// emit methods with pointer receiver; exclude
+	// methods that we have emitted already
+	// (the method set of *T includes the methods of T)
+	pset := types.NewPointer(typ).MethodSet()
+	for i, n := 0, pset.Len(); i < n; i++ {
+		m := pset.At(i)
+		if m.Obj().IsExported() && !methodNames[m.Obj().Name()] {
+			w.emitMethod(m)
+		}
+	}
+}
+
+func (w *Walker) emitStructType(name string, typ *types.Struct) {
 	typeStruct := fmt.Sprintf("type %s struct", name)
-	w.emitFeature(typeStruct)
-	pop := w.pushScope(typeStruct)
-	defer pop()
-	for _, f := range t.Fields.List {
-		typ := f.Type
-		for _, name := range f.Names {
-			if ast.IsExported(name.Name) {
-				w.emitFeature(fmt.Sprintf("%s %s", name, w.nodeString(w.namelessType(typ))))
-			}
+	w.emitf(typeStruct)
+	defer w.pushScope(typeStruct)()
+
+	for i := 0; i < typ.NumFields(); i++ {
+		f := typ.Field(i)
+		if !f.IsExported() {
+			continue
 		}
-		if f.Names == nil {
-			switch v := typ.(type) {
-			case *ast.Ident:
-				if ast.IsExported(v.Name) {
-					w.emitFeature(fmt.Sprintf("embedded %s", v.Name))
-				}
-			case *ast.StarExpr:
-				switch vv := v.X.(type) {
-				case *ast.Ident:
-					if ast.IsExported(vv.Name) {
-						w.emitFeature(fmt.Sprintf("embedded *%s", vv.Name))
-					}
-				case *ast.SelectorExpr:
-					w.emitFeature(fmt.Sprintf("embedded %s", w.nodeString(typ)))
-				default:
-					log.Fatalf("unable to handle embedded starexpr before %T", typ)
-				}
-			case *ast.SelectorExpr:
-				w.emitFeature(fmt.Sprintf("embedded %s", w.nodeString(typ)))
-			default:
-				log.Fatalf("unable to handle embedded %T", typ)
-			}
+		typ := f.Type()
+		if f.Anonymous() {
+			w.emitf("embedded %s", w.typeString(typ))
+			continue
 		}
+		w.emitf("%s %s", f.Name(), w.typeString(typ))
 	}
 }
 
-// method is a method of an interface.
-type method struct {
-	name string // "Read"
-	sig  string // "([]byte) (int, error)", from funcSigString
-}
-
-// interfaceMethods returns the expanded list of exported methods for an interface.
-// The boolean complete reports whether the list contains all methods (that is, the
-// interface has no unexported methods).
-// pkg is the complete package name ("net/http")
-// iname is the interface name.
-func (w *Walker) interfaceMethods(pkg, iname string) (methods []method, complete bool) {
-	t, ok := w.interfaces[pkgSymbol{pkg, iname}]
-	if !ok {
-		log.Fatalf("failed to find interface %s.%s", pkg, iname)
-	}
-
-	complete = true
-	for _, f := range t.Methods.List {
-		typ := f.Type
-		switch tv := typ.(type) {
-		case *ast.FuncType:
-			for _, mname := range f.Names {
-				if ast.IsExported(mname.Name) {
-					ft := typ.(*ast.FuncType)
-					methods = append(methods, method{
-						name: mname.Name,
-						sig:  w.funcSigString(ft),
-					})
-				} else {
-					complete = false
-				}
-			}
-		case *ast.Ident:
-			embedded := typ.(*ast.Ident).Name
-			if embedded == "error" {
-				methods = append(methods, method{
-					name: "Error",
-					sig:  "() string",
-				})
-				continue
-			}
-			if !ast.IsExported(embedded) {
-				log.Fatalf("unexported embedded interface %q in exported interface %s.%s; confused",
-					embedded, pkg, iname)
-			}
-			m, c := w.interfaceMethods(pkg, embedded)
-			methods = append(methods, m...)
-			complete = complete && c
-		case *ast.SelectorExpr:
-			lhs := w.nodeString(tv.X)
-			rhs := w.nodeString(tv.Sel)
-			fpkg, ok := w.selectorFullPkg[lhs]
-			if !ok {
-				log.Fatalf("can't resolve selector %q in interface %s.%s", lhs, pkg, iname)
-			}
-			m, c := w.interfaceMethods(fpkg, rhs)
-			methods = append(methods, m...)
-			complete = complete && c
-		default:
-			log.Fatalf("unknown type %T in interface field", typ)
-		}
-	}
-	return
-}
-
-func (w *Walker) walkInterfaceType(name string, t *ast.InterfaceType) {
-	methNames := []string{}
+func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
 	pop := w.pushScope("type " + name + " interface")
-	methods, complete := w.interfaceMethods(w.curPackageName, name)
-	for _, m := range methods {
-		methNames = append(methNames, m.name)
-		w.emitFeature(fmt.Sprintf("%s%s", m.name, m.sig))
+
+	var methodNames []string
+	complete := true
+	mset := typ.MethodSet()
+	for i, n := 0, mset.Len(); i < n; i++ {
+		m := mset.At(i).Obj().(*types.Func)
+		if !m.IsExported() {
+			complete = false
+			continue
+		}
+		methodNames = append(methodNames, m.Name())
+		w.emitf("%s%s", m.Name(), w.signatureString(m.Type().(*types.Signature)))
 	}
+
 	if !complete {
 		// The method set has unexported methods, so all the
 		// implementations are provided by the same package,
 		// so the method set can be extended. Instead of recording
 		// the full set of names (below), record only that there were
 		// unexported methods. (If the interface shrinks, we will notice
-		// because a method signature emitted during the last loop,
+		// because a method signature emitted during the last loop
 		// will disappear.)
-		w.emitFeature("unexported methods")
+		w.emitf("unexported methods")
 	}
+
 	pop()
 
 	if !complete {
 		return
 	}
 
-	sort.Strings(methNames)
-	if len(methNames) == 0 {
-		w.emitFeature(fmt.Sprintf("type %s interface {}", name))
-	} else {
-		w.emitFeature(fmt.Sprintf("type %s interface { %s }", name, strings.Join(methNames, ", ")))
-	}
-}
-
-func (w *Walker) peekFuncDecl(f *ast.FuncDecl) {
-	if f.Recv != nil {
+	if len(methodNames) == 0 {
+		w.emitf("type %s interface {}", name)
 		return
 	}
-	// Record return type for later use.
-	if f.Type.Results != nil && len(f.Type.Results.List) == 1 {
-		retType := w.nodeString(w.namelessType(f.Type.Results.List[0].Type))
-		w.functionTypes[pkgSymbol{w.curPackageName, f.Name.Name}] = retType
-	}
+
+	sort.Strings(methodNames)
+	w.emitf("type %s interface { %s }", name, strings.Join(methodNames, ", "))
 }
 
-func (w *Walker) walkFuncDecl(f *ast.FuncDecl) {
-	if !ast.IsExported(f.Name.Name) {
-		return
+func (w *Walker) emitFunc(f *types.Func) {
+	sig := f.Type().(*types.Signature)
+	if sig.Recv() != nil {
+		panic("method considered a regular function: " + f.String())
 	}
-	if f.Recv != nil {
-		// Method.
-		recvType := w.nodeString(f.Recv.List[0].Type)
-		keep := ast.IsExported(recvType) ||
-			(strings.HasPrefix(recvType, "*") &&
-				ast.IsExported(recvType[1:]))
-		if !keep {
-			return
-		}
-		w.emitFeature(fmt.Sprintf("method (%s) %s%s", recvType, f.Name.Name, w.funcSigString(f.Type)))
-		return
-	}
-	// Else, a function
-	w.emitFeature(fmt.Sprintf("func %s%s", f.Name.Name, w.funcSigString(f.Type)))
+	w.emitf("func %s%s", f.Name(), w.signatureString(sig))
 }
 
-func (w *Walker) funcSigString(ft *ast.FuncType) string {
-	var b bytes.Buffer
-	writeField := func(b *bytes.Buffer, f *ast.Field) {
-		if n := len(f.Names); n > 1 {
-			for i := 0; i < n; i++ {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(w.nodeString(w.namelessType(f.Type)))
-			}
-		} else {
-			b.WriteString(w.nodeString(w.namelessType(f.Type)))
+func (w *Walker) emitMethod(m *types.Selection) {
+	sig := m.Type().(*types.Signature)
+	recv := sig.Recv().Type()
+	// report exported methods with unexported reveiver base type
+	if true {
+		base := recv
+		if p, _ := recv.(*types.Pointer); p != nil {
+			base = p.Elem()
+		}
+		if obj := base.(*types.Named).Obj(); !obj.IsExported() {
+			log.Fatalf("exported method with unexported receiver base type: %s", m)
 		}
 	}
-	b.WriteByte('(')
-	if ft.Params != nil {
-		for i, f := range ft.Params.List {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			writeField(&b, f)
-		}
-	}
-	b.WriteByte(')')
-	if ft.Results != nil {
-		nr := 0
-		for _, f := range ft.Results.List {
-			if n := len(f.Names); n > 1 {
-				nr += n
-			} else {
-				nr++
-			}
-		}
-		if nr > 0 {
-			b.WriteByte(' ')
-			if nr > 1 {
-				b.WriteByte('(')
-			}
-			for i, f := range ft.Results.List {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				writeField(&b, f)
-			}
-			if nr > 1 {
-				b.WriteByte(')')
-			}
-		}
-	}
-	return b.String()
+	w.emitf("method (%s) %s%s", w.typeString(recv), m.Obj().Name(), w.signatureString(sig))
 }
 
-// namelessType returns a type node that lacks any variable names.
-func (w *Walker) namelessType(t interface{}) interface{} {
-	ft, ok := t.(*ast.FuncType)
-	if !ok {
-		return t
-	}
-	return &ast.FuncType{
-		Params:  w.namelessFieldList(ft.Params),
-		Results: w.namelessFieldList(ft.Results),
-	}
-}
-
-// namelessFieldList returns a deep clone of fl, with the cloned fields
-// lacking names.
-func (w *Walker) namelessFieldList(fl *ast.FieldList) *ast.FieldList {
-	fl2 := &ast.FieldList{}
-	if fl != nil {
-		for _, f := range fl.List {
-			repeats := 1
-			if len(f.Names) > 1 {
-				repeats = len(f.Names)
-			}
-			for i := 0; i < repeats; i++ {
-				fl2.List = append(fl2.List, w.namelessField(f))
-			}
-		}
-	}
-	return fl2
-}
-
-// namelessField clones f, but not preserving the names of fields.
-// (comments and tags are also ignored)
-func (w *Walker) namelessField(f *ast.Field) *ast.Field {
-	return &ast.Field{
-		Type: f.Type,
-	}
-}
-
-var (
-	byteRx = regexp.MustCompile(`\bbyte\b`)
-	runeRx = regexp.MustCompile(`\brune\b`)
-)
-
-func (w *Walker) emitFeature(feature string) {
-	if !w.wantedPkg[w.curPackageName] {
-		return
-	}
-	if strings.Contains(feature, "byte") {
-		feature = byteRx.ReplaceAllString(feature, "uint8")
-	}
-	if strings.Contains(feature, "rune") {
-		feature = runeRx.ReplaceAllString(feature, "int32")
-	}
-	f := strings.Join(w.scope, ", ") + ", " + feature
-	if _, dup := w.features[f]; dup {
-		panic("duplicate feature inserted: " + f)
-	}
-
+func (w *Walker) emitf(format string, args ...interface{}) {
+	f := strings.Join(w.scope, ", ") + ", " + fmt.Sprintf(format, args...)
 	if strings.Contains(f, "\n") {
-		// TODO: for now, just skip over the
-		// runtime.MemStatsType.BySize type, which this tool
-		// doesn't properly handle. It's pretty low-level,
-		// though, so not super important to protect against.
-		if strings.HasPrefix(f, "pkg runtime") && strings.Contains(f, "BySize [61]struct") {
-			return
-		}
 		panic("feature contains newlines: " + f)
 	}
 
+	if _, dup := w.features[f]; dup {
+		panic("duplicate feature inserted: " + f)
+	}
 	w.features[f] = true
+
 	if *verbose {
 		log.Printf("feature: %s", f)
 	}
-}
-
-func strListContains(l []string, s string) bool {
-	for _, v := range l {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }

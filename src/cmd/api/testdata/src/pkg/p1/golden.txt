@@ -1,7 +1,7 @@
 pkg p1, const A ideal-int
 pkg p1, const A64 int64
 pkg p1, const AIsLowerA ideal-int
-pkg p1, const B ideal-int
+pkg p1, const B0 ideal-int
 pkg p1, const ConstChase2 ideal-int
 pkg p1, const ConversionConst MyInt
 pkg p1, const FloatConst ideal-float
@@ -10,6 +10,7 @@ pkg p1, func Bar(int8, int16, int64)
 pkg p1, func Bar1(int8, int16, int64) uint64
 pkg p1, func Bar2(int8, int16, int64) (uint8, uint64)
 pkg p1, func BarE() Error
+pkg p1, func Now() Time
 pkg p1, func PlainFunc(int, int, string) (*B, error)
 pkg p1, func TakesFunc(func(int) int)
 pkg p1, method (*B) JustOnB()
@@ -34,9 +35,9 @@ pkg p1, type ByteStruct struct, R int32
 pkg p1, type Codec struct
 pkg p1, type Codec struct, Func func(int, int) int
 pkg p1, type EmbedSelector struct
-pkg p1, type EmbedSelector struct, embedded time.Time
+pkg p1, type EmbedSelector struct, embedded Time
 pkg p1, type EmbedURLPtr struct
-pkg p1, type EmbedURLPtr struct, embedded *url.URL
+pkg p1, type EmbedURLPtr struct, embedded *URL
 pkg p1, type Embedded struct
 pkg p1, type Error interface { Error, Temporary }
 pkg p1, type Error interface, Error() string
@@ -58,7 +59,7 @@ pkg p1, type Public interface, X()
 pkg p1, type Public interface, Y()
 pkg p1, type S struct
 pkg p1, type S struct, Public *int
-pkg p1, type S struct, PublicTime time.Time
+pkg p1, type S struct, PublicTime Time
 pkg p1, type S2 struct
 pkg p1, type S2 struct, Extra bool
 pkg p1, type S2 struct, embedded S
@@ -68,6 +69,8 @@ pkg p1, type T struct
 pkg p1, type TPtrExported struct
 pkg p1, type TPtrExported struct, embedded *Embedded
 pkg p1, type TPtrUnexported struct
+pkg p1, type Time struct
+pkg p1, type URL struct
 pkg p1, var Byte uint8
 pkg p1, var ByteConv []uint8
 pkg p1, var ByteFunc func(uint8) int32
@@ -81,5 +84,5 @@ pkg p1, var V1 uint64
 pkg p1, var V2 p2.Twoer
 pkg p1, var VError Error
 pkg p1, var X I
-pkg p1, var X int64
+pkg p1, var X0 int64
 pkg p1, var Y int

@@ -35,7 +35,7 @@ var (
 
 var ChecksumError = ptwo.NewError("gzip checksum error")
 
-const B = 2
+const B0 = 2
 const StrConst = "foo"
 const FloatConst = 1.5
 
@@ -43,14 +43,18 @@ type myInt int
 
 type MyInt int
 
+type Time struct{}
+
 type S struct {
 	Public     *int
 	private    *int
-	PublicTime time.Time
+	PublicTime Time
 }
 
+type URL struct{}
+
 type EmbedURLPtr struct {
-	*url.URL
+	*URL
 }
 
 type S2 struct {
@@ -58,7 +62,7 @@ type S2 struct {
 	Extra bool
 }
 
-var X int64
+var X0 int64
 
 var (
 	Y int
@@ -163,7 +167,7 @@ func (*common) OnBothTandBPtr() {}
 func (common) OnBothTandBVal()  {}
 
 type EmbedSelector struct {
-	time.Time
+	Time
 }
 
 const (
@@ -174,10 +178,15 @@ const (
 
 func ellipsis(...string) {}
 
+func Now() Time {
+	var now Time
+	return now
+}
+
 var x = &S{
 	Public:     nil,
 	private:    nil,
-	publicTime: time.Now(),
+	PublicTime: Now(),
 }
 
 var parenExpr = (1 + 5)

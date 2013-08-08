@@ -1,3 +1,7 @@
+pkg archive/zip, func RegisterCompressor(uint16, Compressor)
+pkg archive/zip, func RegisterDecompressor(uint16, Decompressor)
+pkg archive/zip, type Compressor func(io.Writer) (io.WriteCloser, error)
+pkg archive/zip, type Decompressor func(io.Reader) io.ReadCloser
 pkg container/heap, func Fix(Interface, int)
 pkg container/list, method (*List) MoveAfter(*Element, *Element)
 pkg container/list, method (*List) MoveBefore(*Element, *Element)
@@ -8,18 +12,18 @@ pkg crypto/cipher, type AEAD interface, NonceSize() int
 pkg crypto/cipher, type AEAD interface, Open([]uint8, []uint8, []uint8, []uint8) ([]uint8, error)
 pkg crypto/cipher, type AEAD interface, Overhead() int
 pkg crypto/cipher, type AEAD interface, Seal([]uint8, []uint8, []uint8, []uint8) []uint8
-pkg crypto/md5, func Sum([]uint8) [Size]uint8
+pkg crypto/md5, func Sum([]uint8) [16]uint8
 pkg crypto/rsa, const PSSSaltLengthAuto ideal-int
 pkg crypto/rsa, const PSSSaltLengthEqualsHash ideal-int
 pkg crypto/rsa, func SignPSS(io.Reader, *PrivateKey, crypto.Hash, []uint8, *PSSOptions) ([]uint8, error)
 pkg crypto/rsa, func VerifyPSS(*PublicKey, crypto.Hash, []uint8, []uint8, *PSSOptions) error
 pkg crypto/rsa, type PSSOptions struct
 pkg crypto/rsa, type PSSOptions struct, SaltLength int
-pkg crypto/sha1, func Sum([]uint8) [Size]uint8
-pkg crypto/sha256, func Sum224([]uint8) [Size224]uint8
-pkg crypto/sha256, func Sum256([]uint8) [Size]uint8
-pkg crypto/sha512, func Sum384([]uint8) [Size384]uint8
-pkg crypto/sha512, func Sum512([]uint8) [Size]uint8
+pkg crypto/sha1, func Sum([]uint8) [20]uint8
+pkg crypto/sha256, func Sum224([]uint8) [28]uint8
+pkg crypto/sha256, func Sum256([]uint8) [32]uint8
+pkg crypto/sha512, func Sum384([]uint8) [48]uint8
+pkg crypto/sha512, func Sum512([]uint8) [64]uint8
 pkg crypto/subtle, func ConstantTimeLessOrEq(int, int) int
 pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA uint16
 pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA uint16
@@ -38,6 +42,7 @@ pkg flag, type Getter interface { Get, Set, String }
 pkg flag, type Getter interface, Get() interface{}
 pkg flag, type Getter interface, Set(string) error
 pkg flag, type Getter interface, String() string
+pkg flag, var CommandLine *FlagSet
 pkg go/ast, type SliceExpr struct, Max Expr
 pkg go/ast, type TypeAssertExpr struct, Lparen token.Pos
 pkg go/ast, type TypeAssertExpr struct, Rparen token.Pos
@@ -31701,20 +31706,136 @@ pkg syscall (openbsd-amd64-cgo), type WaitStatus uint32
 pkg syscall (openbsd-amd64-cgo), var Stderr int
 pkg syscall (openbsd-amd64-cgo), var Stdin int
 pkg syscall (openbsd-amd64-cgo), var Stdout int
+pkg syscall (windows-386), const BASE_PROTOCOL ideal-int
 pkg syscall (windows-386), const ERROR_HANDLE_EOF Errno
+pkg syscall (windows-386), const FILE_SKIP_COMPLETION_PORT_ON_SUCCESS ideal-int
+pkg syscall (windows-386), const FILE_SKIP_SET_EVENT_ON_HANDLE ideal-int
+pkg syscall (windows-386), const LAYERED_PROTOCOL ideal-int
+pkg syscall (windows-386), const MAX_PROTOCOL_CHAIN ideal-int
 pkg syscall (windows-386), const NetSetupDomainName ideal-int
 pkg syscall (windows-386), const NetSetupUnjoined ideal-int
 pkg syscall (windows-386), const NetSetupUnknownStatus ideal-int
 pkg syscall (windows-386), const NetSetupWorkgroupName ideal-int
+pkg syscall (windows-386), const PFL_HIDDEN ideal-int
+pkg syscall (windows-386), const PFL_MATCHES_PROTOCOL_ZERO ideal-int
+pkg syscall (windows-386), const PFL_MULTIPLE_PROTO_ENTRIES ideal-int
+pkg syscall (windows-386), const PFL_NETWORKDIRECT_PROVIDER ideal-int
+pkg syscall (windows-386), const PFL_RECOMMENDED_PROTO_ENTRY ideal-int
 pkg syscall (windows-386), const PROCESS_TERMINATE ideal-int
+pkg syscall (windows-386), const WSAPROTOCOL_LEN ideal-int
+pkg syscall (windows-386), const XP1_CONNECTIONLESS ideal-int
+pkg syscall (windows-386), const XP1_CONNECT_DATA ideal-int
+pkg syscall (windows-386), const XP1_DISCONNECT_DATA ideal-int
+pkg syscall (windows-386), const XP1_EXPEDITED_DATA ideal-int
+pkg syscall (windows-386), const XP1_GRACEFUL_CLOSE ideal-int
+pkg syscall (windows-386), const XP1_GUARANTEED_DELIVERY ideal-int
+pkg syscall (windows-386), const XP1_GUARANTEED_ORDER ideal-int
+pkg syscall (windows-386), const XP1_IFS_HANDLES ideal-int
+pkg syscall (windows-386), const XP1_MESSAGE_ORIENTED ideal-int
+pkg syscall (windows-386), const XP1_MULTIPOINT_CONTROL_PLANE ideal-int
+pkg syscall (windows-386), const XP1_MULTIPOINT_DATA_PLANE ideal-int
+pkg syscall (windows-386), const XP1_PARTIAL_MESSAGE ideal-int
+pkg syscall (windows-386), const XP1_PSEUDO_STREAM ideal-int
+pkg syscall (windows-386), const XP1_QOS_SUPPORTED ideal-int
+pkg syscall (windows-386), const XP1_SAN_SUPPORT_SDP ideal-int
+pkg syscall (windows-386), const XP1_SUPPORT_BROADCAST ideal-int
+pkg syscall (windows-386), const XP1_SUPPORT_MULTIPOINT ideal-int
+pkg syscall (windows-386), const XP1_UNI_RECV ideal-int
+pkg syscall (windows-386), const XP1_UNI_SEND ideal-int
+pkg syscall (windows-386), func LoadSetFileCompletionNotificationModes() error
 pkg syscall (windows-386), func NetGetJoinInformation(*uint16, **uint16, *uint32) error
+pkg syscall (windows-386), func SetFileCompletionNotificationModes(Handle, uint8) error
+pkg syscall (windows-386), func WSAEnumProtocols(*int32, *WSAProtocolInfo, *uint32) (int32, error)
+pkg syscall (windows-386), type IpMaskString struct, String [16]uint8
+pkg syscall (windows-386), type WSAProtocolChain struct
+pkg syscall (windows-386), type WSAProtocolChain struct, ChainEntries [7]uint32
+pkg syscall (windows-386), type WSAProtocolChain struct, ChainLen int32
+pkg syscall (windows-386), type WSAProtocolInfo struct
+pkg syscall (windows-386), type WSAProtocolInfo struct, AddressFamily int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, CatalogEntryId uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, MaxSockAddr int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, MessageSize uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, MinSockAddr int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, NetworkByteOrder int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, Protocol int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ProtocolChain WSAProtocolChain
+pkg syscall (windows-386), type WSAProtocolInfo struct, ProtocolMaxOffset int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ProtocolName [256]uint16
+pkg syscall (windows-386), type WSAProtocolInfo struct, ProviderFlags uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ProviderId GUID
+pkg syscall (windows-386), type WSAProtocolInfo struct, ProviderReserved uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, SecurityScheme int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ServiceFlags1 uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ServiceFlags2 uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ServiceFlags3 uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, ServiceFlags4 uint32
+pkg syscall (windows-386), type WSAProtocolInfo struct, SocketType int32
+pkg syscall (windows-386), type WSAProtocolInfo struct, Version int32
+pkg syscall (windows-amd64), const BASE_PROTOCOL ideal-int
 pkg syscall (windows-amd64), const ERROR_HANDLE_EOF Errno
+pkg syscall (windows-amd64), const FILE_SKIP_COMPLETION_PORT_ON_SUCCESS ideal-int
+pkg syscall (windows-amd64), const FILE_SKIP_SET_EVENT_ON_HANDLE ideal-int
+pkg syscall (windows-amd64), const LAYERED_PROTOCOL ideal-int
+pkg syscall (windows-amd64), const MAX_PROTOCOL_CHAIN ideal-int
 pkg syscall (windows-amd64), const NetSetupDomainName ideal-int
 pkg syscall (windows-amd64), const NetSetupUnjoined ideal-int
 pkg syscall (windows-amd64), const NetSetupUnknownStatus ideal-int
 pkg syscall (windows-amd64), const NetSetupWorkgroupName ideal-int
+pkg syscall (windows-amd64), const PFL_HIDDEN ideal-int
+pkg syscall (windows-amd64), const PFL_MATCHES_PROTOCOL_ZERO ideal-int
+pkg syscall (windows-amd64), const PFL_MULTIPLE_PROTO_ENTRIES ideal-int
+pkg syscall (windows-amd64), const PFL_NETWORKDIRECT_PROVIDER ideal-int
+pkg syscall (windows-amd64), const PFL_RECOMMENDED_PROTO_ENTRY ideal-int
 pkg syscall (windows-amd64), const PROCESS_TERMINATE ideal-int
+pkg syscall (windows-amd64), const WSAPROTOCOL_LEN ideal-int
+pkg syscall (windows-amd64), const XP1_CONNECTIONLESS ideal-int
+pkg syscall (windows-amd64), const XP1_CONNECT_DATA ideal-int
+pkg syscall (windows-amd64), const XP1_DISCONNECT_DATA ideal-int
+pkg syscall (windows-amd64), const XP1_EXPEDITED_DATA ideal-int
+pkg syscall (windows-amd64), const XP1_GRACEFUL_CLOSE ideal-int
+pkg syscall (windows-amd64), const XP1_GUARANTEED_DELIVERY ideal-int
+pkg syscall (windows-amd64), const XP1_GUARANTEED_ORDER ideal-int
+pkg syscall (windows-amd64), const XP1_IFS_HANDLES ideal-int
+pkg syscall (windows-amd64), const XP1_MESSAGE_ORIENTED ideal-int
+pkg syscall (windows-amd64), const XP1_MULTIPOINT_CONTROL_PLANE ideal-int
+pkg syscall (windows-amd64), const XP1_MULTIPOINT_DATA_PLANE ideal-int
+pkg syscall (windows-amd64), const XP1_PARTIAL_MESSAGE ideal-int
+pkg syscall (windows-amd64), const XP1_PSEUDO_STREAM ideal-int
+pkg syscall (windows-amd64), const XP1_QOS_SUPPORTED ideal-int
+pkg syscall (windows-amd64), const XP1_SAN_SUPPORT_SDP ideal-int
+pkg syscall (windows-amd64), const XP1_SUPPORT_BROADCAST ideal-int
+pkg syscall (windows-amd64), const XP1_SUPPORT_MULTIPOINT ideal-int
+pkg syscall (windows-amd64), const XP1_UNI_RECV ideal-int
+pkg syscall (windows-amd64), const XP1_UNI_SEND ideal-int
+pkg syscall (windows-amd64), func LoadSetFileCompletionNotificationModes() error
 pkg syscall (windows-amd64), func NetGetJoinInformation(*uint16, **uint16, *uint32) error
+pkg syscall (windows-amd64), func SetFileCompletionNotificationModes(Handle, uint8) error
+pkg syscall (windows-amd64), func WSAEnumProtocols(*int32, *WSAProtocolInfo, *uint32) (int32, error)
+pkg syscall (windows-amd64), type IpMaskString struct, String [16]uint8
+pkg syscall (windows-amd64), type WSAProtocolChain struct
+pkg syscall (windows-amd64), type WSAProtocolChain struct, ChainEntries [7]uint32
+pkg syscall (windows-amd64), type WSAProtocolChain struct, ChainLen int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, AddressFamily int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, CatalogEntryId uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, MaxSockAddr int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, MessageSize uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, MinSockAddr int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, NetworkByteOrder int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, Protocol int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ProtocolChain WSAProtocolChain
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ProtocolMaxOffset int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ProtocolName [256]uint16
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ProviderFlags uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ProviderId GUID
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ProviderReserved uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, SecurityScheme int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ServiceFlags1 uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ServiceFlags2 uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ServiceFlags3 uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, ServiceFlags4 uint32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, SocketType int32
+pkg syscall (windows-amd64), type WSAProtocolInfo struct, Version int32
 pkg testing, func RegisterCover(Cover)
 pkg testing, type Cover struct
 pkg testing, type Cover struct, Blocks map[string][]CoverBlock

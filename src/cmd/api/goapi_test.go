@@ -1,3 +1,5 @@
+// +build api_tool
+
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -33,12 +35,10 @@ func TestGolden(t *testing.T) {
 		if !fi.IsDir() {
 			continue
 		}
-		w := NewWalker()
-		w.wantedPkg[fi.Name()] = true
 
-		w.root = "testdata/src/pkg"
 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
-		w.WalkPackage(fi.Name())
+		w := NewWalker(nil, "testdata/src/pkg")
+		w.export(w.Import(fi.Name()))
 
 		if *updateGolden {
 			os.Remove(goldenFile)
