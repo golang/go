@@ -27,7 +27,11 @@ var initErr error
 // package uses CancelIoEx API, if present, otherwise it fallback
 // to CancelIo.
 
-var canCancelIO bool // determines if CancelIoEx API is present
+var (
+	canCancelIO                               bool // determines if CancelIoEx API is present
+	skipSyncNotif                             bool
+	hasLoadSetFileCompletionNotificationModes bool
+)
 
 func sysInit() {
 	var d syscall.WSAData
@@ -39,6 +43,27 @@ func sysInit() {
 	if syscall.LoadGetAddrInfo() == nil {
 		lookupPort = newLookupPort
 		lookupIP = newLookupIP
+	}
+
+	hasLoadSetFileCompletionNotificationModes = syscall.LoadSetFileCompletionNotificationModes() == nil
+	if hasLoadSetFileCompletionNotificationModes {
+		// It's not safe to use FILE_SKIP_COMPLETION_PORT_ON_SUCCESS if non IFS providers are installed:
+		// http://support.microsoft.com/kb/2568167
+		skipSyncNotif = true
+		protos := [2]int32{syscall.IPPROTO_TCP, 0}
+		var buf [32]syscall.WSAProtocolInfo
+		len := uint32(unsafe.Sizeof(buf))
+		n, err := syscall.WSAEnumProtocols(&protos[0], &buf[0], &len)
+		if err != nil {
+			skipSyncNotif = false
+		} else {
+			for i := int32(0); i < n; i++ {
+				if buf[i].ServiceFlags1&syscall.XP1_IFS_HANDLES == 0 {
+					skipSyncNotif = false
+					break
+				}
+			}
+		}
 	}
 }
 
@@ -148,7 +173,12 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 	}
 	switch err {
 	case nil:
-		// IO completed immediately, but we need to get our completion message anyway.
+		// IO completed immediately
+		if o.fd.skipSyncNotif {
+			// No completion message will follow, so return immediately.
+			return int(o.qty), nil
+		}
+		// Need to get our completion message anyway.
 	case syscall.ERROR_IO_PENDING:
 		// IO started, and we have to wait for its completion.
 		err = nil
@@ -222,13 +252,14 @@ type netFD struct {
 	closing bool
 
 	// immutable until Close
-	sysfd       syscall.Handle
-	family      int
-	sotype      int
-	isConnected bool
-	net         string
-	laddr       Addr
-	raddr       Addr
+	sysfd         syscall.Handle
+	family        int
+	sotype        int
+	isConnected   bool
+	skipSyncNotif bool
+	net           string
+	laddr         Addr
+	raddr         Addr
 
 	rop operation // read operation
 	wop operation // write operation
@@ -248,6 +279,19 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 func (fd *netFD) init() error {
 	if err := fd.pd.Init(fd); err != nil {
 		return err
+	}
+	if hasLoadSetFileCompletionNotificationModes {
+		// We do not use events, so we can skip them always.
+		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
+		// It's not safe to skip completion notifications for UDP:
+		// http://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
+		if skipSyncNotif && fd.net == "tcp" {
+			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
+		}
+		err := syscall.SetFileCompletionNotificationModes(fd.sysfd, flags)
+		if err == nil && flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
+			fd.skipSyncNotif = true
+		}
 	}
 	fd.rop.mode = 'r'
 	fd.wop.mode = 'w'
