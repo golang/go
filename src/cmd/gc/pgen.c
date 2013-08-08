@@ -336,12 +336,12 @@ dumpgclocals(Node* fn, Sym *sym)
 	int32 i;
 	int off;
 
-	bv = bvalloc(rnd(stksize, widthptr) / widthptr);
+	bv = bvalloc(stkptrsize / widthptr);
 	for(ll = fn->dcl; ll != nil; ll = ll->next) {
 		node = ll->n;
 		if(node->class == PAUTO && node->op == ONAME) {
 			if(haspointers(node->type)) {
-				xoffset = node->xoffset + rnd(stksize,widthptr);
+				xoffset = node->xoffset + stksize;
 				walktype1(node->type, &xoffset, bv);
 			}
 		}
@@ -354,25 +354,40 @@ dumpgclocals(Node* fn, Sym *sym)
 	ggloblsym(sym, off, 0, 1);
 }
 
-// Sort the list of stack variables.  autos after anything else,
-// within autos, unused after used, and within used on reverse alignment.
-// non-autos sort on offset.
+// Sort the list of stack variables. Autos after anything else,
+// within autos, unused after used, within used, things with
+// pointers first, and then decreasing size.
+// Because autos are laid out in decreasing addresses
+// on the stack, pointers first and decreasing size
+// really means, in memory, pointers near the top of the 
+// stack and increasing in size.
+// Non-autos sort on offset.
 static int
 cmpstackvar(Node *a, Node *b)
 {
+	int ap, bp;
+
 	if (a->class != b->class)
-		return (a->class == PAUTO) ? 1 : -1;
+		return (a->class == PAUTO) ? +1 : -1;
 	if (a->class != PAUTO) {
 		if (a->xoffset < b->xoffset)
 			return -1;
 		if (a->xoffset > b->xoffset)
-			return 1;
+			return +1;
 		return 0;
 	}
 	if ((a->used == 0) != (b->used == 0))
 		return b->used - a->used;
-	return b->type->align - a->type->align;
 
+	ap = haspointers(a->type);
+	bp = haspointers(b->type);
+	if(ap != bp)
+		return bp - ap;
+	if(a->type->width < b->type->width)
+		return +1;
+	if(a->type->width > b->type->width)
+		return -1;
+	return 0;
 }
 
 // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
@@ -382,9 +397,13 @@ allocauto(Prog* ptxt)
 	NodeList *ll;
 	Node* n;
 	vlong w;
+	vlong ptrlimit;
 
-	if(curfn->dcl == nil)
+	if(curfn->dcl == nil) {
+		stksize = 0;
+		stkptrsize = 0;
 		return;
+	}
 
 	// Mark the PAUTO's unused.
 	for(ll=curfn->dcl; ll != nil; ll=ll->next)
@@ -402,6 +421,7 @@ allocauto(Prog* ptxt)
 		// No locals used at all
 		curfn->dcl = nil;
 		stksize = 0;
+		stkptrsize = 0;
 		fixautoused(ptxt);
 		return;
 	}
@@ -417,6 +437,7 @@ allocauto(Prog* ptxt)
 
 	// Reassign stack offsets of the locals that are still there.
 	stksize = 0;
+	ptrlimit = -1;
 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
 		n = ll->n;
 		if (n->class != PAUTO || n->op != ONAME)
@@ -428,6 +449,8 @@ allocauto(Prog* ptxt)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
+		if(ptrlimit < 0 && haspointers(n->type))
+			ptrlimit = stksize - w;
 		if(thechar == '5')
 			stksize = rnd(stksize, widthptr);
 		if(stksize >= (1ULL<<31)) {
@@ -436,11 +459,18 @@ allocauto(Prog* ptxt)
 		}
 		n->stkdelta = -stksize - n->xoffset;
 	}
+	stksize = rnd(stksize, widthptr);
+
+	if(ptrlimit < 0)
+		stkptrsize = 0;
+	else
+		stkptrsize = stksize - ptrlimit;
+	stkptrsize = rnd(stkptrsize, widthptr);
 
 	fixautoused(ptxt);
 
 	// The debug information needs accurate offsets on the symbols.
-	for(ll = curfn->dcl ;ll != nil; ll=ll->next) {
+	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
 		if (ll->n->class != PAUTO || ll->n->op != ONAME)
 			continue;
 		ll->n->xoffset += ll->n->stkdelta;
