@@ -127,7 +127,7 @@ func (l *List) Remove(e *Element) interface{} {
 	return e.Value
 }
 
-// Pushfront inserts a new element e with value v at the front of list l and returns e.
+// PushFront inserts a new element e with value v at the front of list l and returns e.
 func (l *List) PushFront(v interface{}) *Element {
 	l.lazyInit()
 	return l.insertValue(v, &l.root)
