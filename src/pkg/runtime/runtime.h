@@ -853,6 +853,7 @@ void	runtime·netpollinit(void);
 int32	runtime·netpollopen(uintptr, PollDesc*);
 int32   runtime·netpollclose(uintptr);
 void	runtime·netpollready(G**, PollDesc*, int32);
+uintptr	runtime·netpollfd(PollDesc*);
 void	runtime·crash(void);
 void	runtime·parsedebugvars(void);
 void	_rt0_go(void);

@@ -68,6 +68,8 @@ extern void *runtime·timeBeginPeriod;
 extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 
+void *runtime·GetQueuedCompletionStatusEx;
+
 static int32
 getproccount(void)
 {
@@ -100,6 +102,7 @@ runtime·osinit(void)
 		SetProcessPriorityBoost = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "SetProcessPriorityBoost");
 		if(SetProcessPriorityBoost != nil)  // supported since Windows XP
 			runtime·stdcall(SetProcessPriorityBoost, 2, (uintptr)-1, (uintptr)1);
+		runtime·GetQueuedCompletionStatusEx = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "GetQueuedCompletionStatusEx");
 	}
 }
 

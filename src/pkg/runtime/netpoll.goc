@@ -206,6 +206,12 @@ func runtime_pollUnblock(pd *PollDesc) {
 		runtime·ready(wg);
 }
 
+uintptr
+runtime·netpollfd(PollDesc *pd)
+{
+	return pd->fd;
+}
+
 // make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
 void
 runtime·netpollready(G **gpp, PollDesc *pd, int32 mode)
