@@ -22,6 +22,11 @@ import (
 	"strconv"
 )
 
+// goToolsVersion is the hg revision of the go.tools subrepo we need
+// to build cmd/api.  This only needs to be updated whenever a go/types
+// bug fix is needed by the cmd/api tool.
+const goToolsVersion = "6698ca2900e2"
+
 var goroot string
 
 func main() {
@@ -36,10 +41,15 @@ func main() {
 		return
 	}
 
-	out, err := exec.Command("go", "install", "--tags=api_tool", "cmd/api").CombinedOutput()
+	gopath := prepGoPath()
+
+	cmd := exec.Command("go", "install", "--tags=api_tool", "cmd/api")
+	cmd.Env = append([]string{"GOPATH=" + gopath}, os.Environ()...)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error installing cmd/api: %v\n%s", err, out)
 	}
+
 	out, err = exec.Command("go", "tool", "api",
 		"-c", file("go1", "go1.1"),
 		"-next", file("next"),
@@ -62,4 +72,46 @@ func file(s ...string) string {
 func forceAPICheck() bool {
 	v, _ := strconv.ParseBool(os.Getenv("GO_FORCE_API_CHECK"))
 	return v
+}
+
+// prepGoPath returns a GOPATH for the "go" tool to compile the API tool with.
+// It tries to re-use a go.tools checkout from a previous run if possible,
+// else it hg clones it.
+func prepGoPath() string {
+	const tempBase = "go.tools.TMP"
+
+	// The GOPATH we'll return
+	gopath := filepath.Join(os.TempDir(), "gopath-api", goToolsVersion)
+
+	// cloneDir is where we run "hg clone".
+	cloneDir := filepath.Join(gopath, "src", "code.google.com", "p")
+
+	// The dir we clone into. We only atomically rename it to finalDir on
+	// clone success.
+	tmpDir := filepath.Join(cloneDir, tempBase)
+
+	// finalDir is where the checkout will live once it's complete.
+	// If this exists already, we're done.
+	finalDir := filepath.Join(cloneDir, "go.tools")
+
+	if fi, err := os.Stat(finalDir); err == nil && fi.IsDir() {
+		return gopath
+	}
+
+	if err := os.MkdirAll(cloneDir, 0700); err != nil {
+		log.Fatal(err)
+	}
+	cmd := exec.Command("hg",
+		"clone", "--rev="+goToolsVersion,
+		"https://code.google.com/p/go.tools",
+		tempBase)
+	cmd.Dir = cloneDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("Error running hg clone on go.tools: %v\n%s", err, out)
+	}
+	if err := os.Rename(tmpDir, finalDir); err != nil {
+		log.Fatal(err)
+	}
+	return gopath
 }
