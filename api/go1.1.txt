@@ -92,6 +92,7 @@ pkg encoding/json, method (Number) String() string
 pkg encoding/json, type Number string
 pkg encoding/xml, func EscapeText(io.Writer, []uint8) error
 pkg encoding/xml, method (*Encoder) Indent(string, string)
+pkg encoding/xml, method (Encoder) ReadFrom(io.Reader) (int64, error)
 pkg encoding/xml, type Decoder struct, DefaultSpace string
 pkg go/ast, func NewCommentMap(*token.FileSet, Node, []*CommentGroup) CommentMap
 pkg go/ast, method (CommentMap) Comments() []*CommentGroup
@@ -1700,6 +1701,7 @@ pkg testing, method (BenchmarkResult) AllocsPerOp() int64
 pkg testing, method (BenchmarkResult) MemString() string
 pkg testing, type BenchmarkResult struct, MemAllocs uint64
 pkg testing, type BenchmarkResult struct, MemBytes uint64
+pkg text/template, method (Template) ErrorContext(parse.Node) (string, string)
 pkg text/template/parse, const NodeChain NodeType
 pkg text/template/parse, const NodeNil NodeType
 pkg text/template/parse, method (*ChainNode) Add(string)
