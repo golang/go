@@ -341,7 +341,7 @@ dumpgclocals(Node* fn, Sym *sym)
 		node = ll->n;
 		if(node->class == PAUTO && node->op == ONAME) {
 			if(haspointers(node->type)) {
-				xoffset = node->xoffset + stksize;
+				xoffset = node->xoffset + stkptrsize;
 				walktype1(node->type, &xoffset, bv);
 			}
 		}
@@ -397,7 +397,6 @@ allocauto(Prog* ptxt)
 	NodeList *ll;
 	Node* n;
 	vlong w;
-	vlong ptrlimit;
 
 	if(curfn->dcl == nil) {
 		stksize = 0;
@@ -437,7 +436,7 @@ allocauto(Prog* ptxt)
 
 	// Reassign stack offsets of the locals that are still there.
 	stksize = 0;
-	ptrlimit = -1;
+	stkptrsize = 0;
 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
 		n = ll->n;
 		if (n->class != PAUTO || n->op != ONAME)
@@ -449,8 +448,8 @@ allocauto(Prog* ptxt)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
-		if(ptrlimit < 0 && haspointers(n->type))
-			ptrlimit = stksize - w;
+		if(haspointers(n->type))
+			stkptrsize = stksize;
 		if(thechar == '5')
 			stksize = rnd(stksize, widthptr);
 		if(stksize >= (1ULL<<31)) {
@@ -460,11 +459,6 @@ allocauto(Prog* ptxt)
 		n->stkdelta = -stksize - n->xoffset;
 	}
 	stksize = rnd(stksize, widthptr);
-
-	if(ptrlimit < 0)
-		stkptrsize = 0;
-	else
-		stkptrsize = stksize - ptrlimit;
 	stkptrsize = rnd(stkptrsize, widthptr);
 
 	fixautoused(ptxt);
