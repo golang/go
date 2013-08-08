@@ -149,9 +149,6 @@ func Lstat(name string) (fi FileInfo, err error) {
 	return fileInfoFromStat(&stat, name), nil
 }
 
-// lstat is overridden in tests.
-var lstat = Lstat
-
 func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	dirname := f.name
 	if dirname == "" {

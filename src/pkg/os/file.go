@@ -238,3 +238,6 @@ func Open(name string) (file *File, err error) {
 func Create(name string) (file *File, err error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
+
+// lstat is overridden in tests.
+var lstat = Lstat
