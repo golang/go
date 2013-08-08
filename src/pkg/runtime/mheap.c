@@ -412,8 +412,8 @@ scavengelist(MSpan *list, uint64 now, uint64 limit)
 	return sumreleased;
 }
 
-static uintptr
-scavenge(uint64 now, uint64 limit)
+static void
+scavenge(int32 k, uint64 now, uint64 limit)
 {
 	uint32 i;
 	uintptr sumreleased;
@@ -424,7 +424,14 @@ scavenge(uint64 now, uint64 limit)
 	for(i=0; i < nelem(h->free); i++)
 		sumreleased += scavengelist(&h->free[i], now, limit);
 	sumreleased += scavengelist(&h->large, now, limit);
-	return sumreleased;
+
+	if(runtime·debug.gctrace > 0) {
+		if(sumreleased > 0)
+			runtime·printf("scvg%d: %D MB released\n", k, (uint64)sumreleased>>20);
+		runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
+			k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
+			mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
+	}
 }
 
 static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
@@ -437,8 +444,7 @@ runtime·MHeap_Scavenger(void)
 {
 	MHeap *h;
 	uint64 tick, now, forcegc, limit;
-	uint32 k;
-	uintptr sumreleased;
+	int32 k;
 	Note note, *notep;
 
 	g->issystem = true;
@@ -476,16 +482,8 @@ runtime·MHeap_Scavenger(void)
 			runtime·lock(h);
 			now = runtime·nanotime();
 		}
-		sumreleased = scavenge(now, limit);
+		scavenge(k, now, limit);
 		runtime·unlock(h);
-
-		if(runtime·debug.gctrace > 0) {
-			if(sumreleased > 0)
-				runtime·printf("scvg%d: %p MB released\n", k, sumreleased>>20);
-			runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
-				k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
-				mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
-		}
 	}
 }
 
@@ -494,7 +492,7 @@ runtime∕debug·freeOSMemory(void)
 {
 	runtime·gc(1);
 	runtime·lock(&runtime·mheap);
-	scavenge(~(uintptr)0, 0);
+	scavenge(-1, ~(uintptr)0, 0);
 	runtime·unlock(&runtime·mheap);
 }
 
