@@ -153,6 +153,7 @@ struct	Type
 	uchar	broke;  	// broken type definition.
 	uchar	isddd;		// TFIELD is ... argument
 	uchar	align;
+	uchar	haspointers;	// 0 unknown, 1 no, 2 yes
 
 	Node*	nod;		// canonical OTYPE node
 	Type*	orig;		// original type (type literal or predefined type)
@@ -937,6 +938,7 @@ EXTERN	NodeList*	lastconst;
 EXTERN	Node*	lasttype;
 EXTERN	vlong	maxarg;
 EXTERN	vlong	stksize;		// stack size for current frame
+EXTERN	vlong	stkptrsize;		// prefix of stack containing pointers for current frame
 EXTERN	int32	blockgen;		// max block number
 EXTERN	int32	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment

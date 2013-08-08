@@ -459,6 +459,10 @@ int
 haspointers(Type *t)
 {
 	Type *t1;
+	int ret;
+
+	if(t->haspointers != 0)
+		return t->haspointers - 1;
 
 	switch(t->etype) {
 	case TINT:
@@ -477,16 +481,24 @@ haspointers(Type *t)
 	case TCOMPLEX64:
 	case TCOMPLEX128:
 	case TBOOL:
-		return 0;
+		ret = 0;
+		break;
 	case TARRAY:
-		if(t->bound < 0)	// slice
-			return 1;
-		return haspointers(t->type);
+		if(t->bound < 0) {	// slice
+			ret = 1;
+			break;
+		}
+		ret = haspointers(t->type);
+		break;
 	case TSTRUCT:
-		for(t1=t->type; t1!=T; t1=t1->down)
-			if(haspointers(t1->type))
-				return 1;
-		return 0;
+		ret = 0;
+		for(t1=t->type; t1!=T; t1=t1->down) {
+			if(haspointers(t1->type)) {
+				ret = 1;
+				break;
+			}
+		}
+		break;
 	case TSTRING:
 	case TPTR32:
 	case TPTR64:
@@ -496,8 +508,12 @@ haspointers(Type *t)
 	case TMAP:
 	case TFUNC:
 	default:
-		return 1;
+		ret = 1;
+		break;
 	}
+	
+	t->haspointers = 1+ret;
+	return ret;
 }
 
 /*
