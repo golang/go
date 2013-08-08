@@ -1877,7 +1877,8 @@ lit:
 	default:
 		return 0;
 	case AADD: case ASUB: case AAND: case AORR: case AEOR:
-	case AMOVB: case AMOVBU: case AMOVH: case AMOVHU:
+	case AMOVB: case AMOVBS: case AMOVBU:
+	case AMOVH: case AMOVHS: case AMOVHU:
 	case AMOVW:
 		break;
 	}

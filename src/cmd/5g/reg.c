@@ -374,6 +374,7 @@ regopt(Prog *firstp)
 		 */
 		case ANOP:
 		case AMOVB:
+		case AMOVBS:
 		case AMOVBU:
 		case AMOVD:
 		case AMOVDF:
@@ -381,6 +382,7 @@ regopt(Prog *firstp)
 		case AMOVF:
 		case AMOVFW:
 		case AMOVH:
+		case AMOVHS:
 		case AMOVHU:
 		case AMOVW:
 		case AMOVWD:

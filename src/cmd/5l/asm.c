@@ -954,7 +954,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		r = p->to.reg;
 		o1 |= (p->from.reg)|(r<<12);
 		o2 |= (r)|(r<<12);
-		if(p->as == AMOVB || p->as == AMOVBU) {
+		if(p->as == AMOVB || p->as == AMOVBS || p->as == AMOVBU) {
 			o1 |= (24<<7);
 			o2 |= (24<<7);
 		} else {
@@ -1035,7 +1035,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		if(r == NREG)
 			r = o->param;
 		o2 = olrr(REGTMP,r, p->to.reg, p->scond);
-		if(p->as == AMOVBU || p->as == AMOVB)
+		if(p->as == AMOVBU || p->as == AMOVBS || p->as == AMOVB)
 			o2 |= 1<<22;
 		break;
 
@@ -1224,7 +1224,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		if(p->to.reg == NREG)
 			diag("MOV to shifter operand");
 		o1 = osrr(p->from.reg, p->to.offset, p->to.reg, p->scond);
-		if(p->as == AMOVB || p->as == AMOVBU)
+		if(p->as == AMOVB || p->as == AMOVBS || p->as == AMOVBU)
 			o1 |= 1<<22;
 		break;
 
@@ -1265,7 +1265,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		if(!o1)
 			break;
 		o2 = olr(0, REGTMP, p->to.reg, p->scond);
-		if(p->as == AMOVBU || p->as == AMOVB)
+		if(p->as == AMOVBU || p->as == AMOVBS || p->as == AMOVB)
 			o2 |= 1<<22;
 		if(o->flag & LPCREL) {
 			o3 = o2;
@@ -1309,9 +1309,9 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		if(r == NREG)
 			r = o->param;
 		o1 = olhr(instoffset, r, p->to.reg, p->scond);
-		if(p->as == AMOVB)
+		if(p->as == AMOVB || p->as == AMOVBS)
 			o1 ^= (1<<5)|(1<<6);
-		else if(p->as == AMOVH)
+		else if(p->as == AMOVH || p->as == AMOVHS)
 			o1 ^= (1<<6);
 		break;
 	case 72:	/* movh/movhu R,L(R) -> strh */
@@ -1331,9 +1331,9 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		if(r == NREG)
 			r = o->param;
 		o2 = olhrr(REGTMP, r, p->to.reg, p->scond);
-		if(p->as == AMOVB)
+		if(p->as == AMOVB || p->as == AMOVBS)
 			o2 ^= (1<<5)|(1<<6);
-		else if(p->as == AMOVH)
+		else if(p->as == AMOVH || p->as == AMOVHS)
 			o2 ^= (1<<6);
 		break;
 	case 74:	/* bx $I */
@@ -1485,9 +1485,9 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		if(!o1)
 			break;
 		o2 = olhr(0, REGTMP, p->to.reg, p->scond);
-		if(p->as == AMOVB)
+		if(p->as == AMOVB || p->as == AMOVBS)
 			o2 ^= (1<<5)|(1<<6);
-		else if(p->as == AMOVH)
+		else if(p->as == AMOVH || p->as == AMOVHS)
 			o2 ^= (1<<6);
 		if(o->flag & LPCREL) {
 			o3 = o2;

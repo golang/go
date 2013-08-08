@@ -135,8 +135,10 @@ enum	as
 	AMODU,
 
 	AMOVB,
+	AMOVBS,
 	AMOVBU,
 	AMOVH,
+	AMOVHS,
 	AMOVHU,
 	AMOVW,
 	AMOVM,
