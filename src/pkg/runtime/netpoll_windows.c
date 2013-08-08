@@ -10,9 +10,11 @@
 
 #pragma dynimport runtime·CreateIoCompletionPort CreateIoCompletionPort "kernel32.dll"
 #pragma dynimport runtime·GetQueuedCompletionStatus GetQueuedCompletionStatus "kernel32.dll"
+#pragma dynimport runtime·WSAGetOverlappedResult WSAGetOverlappedResult "ws2_32.dll"
 
 extern void *runtime·CreateIoCompletionPort;
 extern void *runtime·GetQueuedCompletionStatus;
+extern void *runtime·WSAGetOverlappedResult;
 
 #define INVALID_HANDLE_VALUE ((uintptr)-1)
 
@@ -23,11 +25,22 @@ struct net_op
 	// used by windows
 	Overlapped	o;
 	// used by netpoll
-	uintptr	runtimeCtx;
+	PollDesc*	pd;
 	int32	mode;
 	int32	errno;
 	uint32	qty;
 };
+
+typedef struct OverlappedEntry OverlappedEntry;
+struct OverlappedEntry
+{
+	uintptr	key;
+	net_op*	op;  // In reality it's Overlapped*, but we cast it to net_op* anyway.
+	uintptr	internal;
+	uint32	qty;
+};
+
+static void handlecompletion(G **gpp, net_op *o, int32 errno, uint32 qty);
 
 static uintptr iocphandle = INVALID_HANDLE_VALUE;  // completion port io handle
 
@@ -64,49 +77,72 @@ runtime·netpollclose(uintptr fd)
 G*
 runtime·netpoll(bool block)
 {
-	uint32 wait, qty, key;
-	int32 mode, errno;
-	net_op *o;
+	OverlappedEntry entries[64];
+	uint32 wait, qty, key, flags, n, i;
+	int32 errno;
+	net_op *op;
 	G *gp;
 
 	if(iocphandle == INVALID_HANDLE_VALUE)
 		return nil;
 	gp = nil;
+	wait = 0;
+	if(block)
+		wait = INFINITE;
 retry:
-	o = nil;
-	errno = 0;
-	qty = 0;
-	wait = INFINITE;
-	if(!block)
-		wait = 0;
-	// TODO(brainman): Need a loop here to fetch all pending notifications
-	// (or at least a batch). Scheduler will behave better if is given
-	// a batch of newly runnable goroutines.
-	// TODO(brainman): Call GetQueuedCompletionStatusEx() here when possible.
-	if(runtime·stdcall(runtime·GetQueuedCompletionStatus, 5, iocphandle, &qty, &key, &o, (uintptr)wait) == 0) {
-		errno = runtime·getlasterror();
-		if(o == nil && errno == WAIT_TIMEOUT) {
-			if(!block)
+	if(runtime·GetQueuedCompletionStatusEx != nil) {
+		n = nelem(entries) / runtime·gomaxprocs;
+		if(n < 8)
+			n = 8;
+		if(runtime·stdcall(runtime·GetQueuedCompletionStatusEx, 6, iocphandle, entries, (uintptr)n, &n, (uintptr)wait, (uintptr)0) == 0) {
+			errno = runtime·getlasterror();
+			if(!block && errno == WAIT_TIMEOUT)
 				return nil;
-			runtime·throw("netpoll: GetQueuedCompletionStatus timed out");
+			runtime·printf("netpoll: GetQueuedCompletionStatusEx failed (errno=%d)\n", errno);
+			runtime·throw("netpoll: GetQueuedCompletionStatusEx failed");
 		}
-		if(o == nil) {
-			runtime·printf("netpoll: GetQueuedCompletionStatus failed (errno=%d)\n", errno);
-			runtime·throw("netpoll: GetQueuedCompletionStatus failed");
+		for(i = 0; i < n; i++) {
+			op = entries[i].op;
+			errno = 0;
+			qty = 0;
+			if(runtime·stdcall(runtime·WSAGetOverlappedResult, 5, runtime·netpollfd(op->pd), op, &qty, (uintptr)0, (uintptr)&flags) == 0)
+				errno = runtime·getlasterror();
+			handlecompletion(&gp, op, errno, qty);
 		}
-		// dequeued failed IO packet, so report that
+	} else {
+		op = nil;
+		errno = 0;
+		qty = 0;
+		if(runtime·stdcall(runtime·GetQueuedCompletionStatus, 5, iocphandle, &qty, &key, &op, (uintptr)wait) == 0) {
+			errno = runtime·getlasterror();
+			if(!block && errno == WAIT_TIMEOUT)
+				return nil;
+			if(op == nil) {
+				runtime·printf("netpoll: GetQueuedCompletionStatus failed (errno=%d)\n", errno);
+				runtime·throw("netpoll: GetQueuedCompletionStatus failed");
+			}
+			// dequeued failed IO packet, so report that
+		}
+		handlecompletion(&gp, op, errno, qty);
 	}
-	if(o == nil)
-		runtime·throw("netpoll: GetQueuedCompletionStatus returned o == nil");
-	mode = o->mode;
+	if(block && gp == nil)
+		goto retry;
+	return gp;
+}
+
+static void
+handlecompletion(G **gpp, net_op *op, int32 errno, uint32 qty)
+{
+	int32 mode;
+
+	if(op == nil)
+		runtime·throw("netpoll: GetQueuedCompletionStatus returned op == nil");
+	mode = op->mode;
 	if(mode != 'r' && mode != 'w') {
 		runtime·printf("netpoll: GetQueuedCompletionStatus returned invalid mode=%d\n", mode);
 		runtime·throw("netpoll: GetQueuedCompletionStatus returned invalid mode");
 	}
-	o->errno = errno;
-	o->qty = qty;
-	runtime·netpollready(&gp, (void*)o->runtimeCtx, mode);
-	if(block && gp == nil)
-		goto retry;
-	return gp;
+	op->errno = errno;
+	op->qty = qty;
+	runtime·netpollready(gpp, op->pd, mode);
 }

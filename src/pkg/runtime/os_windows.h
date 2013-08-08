@@ -4,6 +4,7 @@
 
 extern void *runtime·LoadLibrary;
 extern void *runtime·GetProcAddress;
+extern void *runtime·GetQueuedCompletionStatusEx;
 
 // Call a Windows function with stdcall conventions,
 // and switch to os stack during the call.
