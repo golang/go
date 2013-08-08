@@ -149,6 +149,9 @@ func Lstat(name string) (fi FileInfo, err error) {
 	return fileInfoFromStat(&stat, name), nil
 }
 
+// lstat is overridden in tests.
+var lstat = Lstat
+
 func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	dirname := f.name
 	if dirname == "" {
@@ -158,12 +161,14 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	names, err := f.Readdirnames(n)
 	fi = make([]FileInfo, len(names))
 	for i, filename := range names {
-		fip, lerr := Lstat(dirname + filename)
-		if err == nil {
+		fip, lerr := lstat(dirname + filename)
+		if lerr == nil {
 			fi[i] = fip
-			err = lerr
 		} else {
 			fi[i] = &fileStat{name: filename}
+			if err == nil {
+				err = lerr
+			}
 		}
 	}
 	return fi, err
