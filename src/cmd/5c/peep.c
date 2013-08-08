@@ -127,8 +127,10 @@ loop1:
 			}
 			continue;
 		case AMOVH:
+		case AMOVHS:
 		case AMOVHU:
 		case AMOVB:
+		case AMOVBS:
 		case AMOVBU:
 			if(p->to.type != D_REG)
 				continue;
@@ -152,6 +154,7 @@ loop1:
 		switch(p->as) {
 		case AMOVW:
 		case AMOVB:
+		case AMOVBS:
 		case AMOVBU:
 			if(p->from.type == D_OREG && p->from.offset == 0)
 				xtramodes(r, &p->from);
@@ -824,7 +827,7 @@ xtramodes(Reg *r, Adr *a)
 	Adr v;
 
 	p = r->prog;
-	if(p->as == AMOVB && p->from.type == D_OREG)	/* byte load */
+	if((p->as == AMOVB || p->as == AMOVBS) && p->from.type == D_OREG)	/* byte load */
 		return 0;
 	v = *a;
 	v.type = D_REG;
@@ -836,7 +839,7 @@ xtramodes(Reg *r, Adr *a)
 		case AADD:
 			if(p1->from.type == D_REG ||
 			   (p1->from.type == D_SHIFT && (p1->from.offset&(1<<4)) == 0 &&
-			    (p->as != AMOVB || (a == &p->from && (p1->from.offset&~0xf) == 0))) ||
+			    ((p->as != AMOVB && p->as != AMOVBS) || (a == &p->from && (p1->from.offset&~0xf) == 0))) ||
 			   (p1->from.type == D_CONST &&
 			    p1->from.offset > -4096 && p1->from.offset < 4096))
 			if(nochange(uniqs(r1), r, p1)) {
@@ -961,8 +964,10 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AMOVF:
 	case AMOVD:
 	case AMOVH:
+	case AMOVHS:
 	case AMOVHU:
 	case AMOVB:
+	case AMOVBS:
 	case AMOVBU:
 	case AMOVDW:
 	case AMOVWD:

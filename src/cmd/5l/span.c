@@ -813,8 +813,10 @@ buildop(void)
 			break;
 		case AMOVW:
 		case AMOVB:
+		case AMOVBS:
 		case AMOVBU:
 		case AMOVH:
+		case AMOVHS:
 		case AMOVHU:
 			break;
 		case ASWPW:

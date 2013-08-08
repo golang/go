@@ -175,8 +175,10 @@ regopt(Prog *p)
 		 */
 		case ANOP:
 		case AMOVB:
+		case AMOVBS:
 		case AMOVBU:
 		case AMOVH:
+		case AMOVHS:
 		case AMOVHU:
 		case AMOVW:
 		case AMOVF:
