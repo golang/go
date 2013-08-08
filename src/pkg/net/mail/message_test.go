@@ -225,6 +225,16 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// Custom example with "." in name. For issue 4938
+		{
+			`Asem H. <noreply@example.com>`,
+			[]*Address{
+				{
+					Name:    `Asem H.`,
+					Address: "noreply@example.com",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		if len(test.exp) == 1 {

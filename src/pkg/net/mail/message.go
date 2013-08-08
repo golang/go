@@ -342,7 +342,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			word, err = p.consumeQuotedString()
 		} else {
 			// atom
-			word, err = p.consumeAtom(false)
+			word, err = p.consumeAtom(true)
 		}
 
 		// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
