@@ -276,6 +276,25 @@ type Strings struct {
 	X []string `xml:"A>B,omitempty"`
 }
 
+type PointerFieldsTest struct {
+	XMLName  Name    `xml:"dummy"`
+	Name     *string `xml:"name,attr"`
+	Age      *uint   `xml:"age,attr"`
+	Empty    *string `xml:"empty,attr"`
+	Contents *string `xml:",chardata"`
+}
+
+type ChardataEmptyTest struct {
+	XMLName  Name    `xml:"test"`
+	Contents *string `xml:",chardata"`
+}
+
+var (
+	nameAttr     = "Sarah"
+	ageAttr      = uint(12)
+	contentsAttr = "lorem ipsum"
+)
+
 // Unless explicitly stated as such (or *Plain), all of the
 // tests below are two-way tests. When introducing new tests,
 // please try to make them two-way as well to ensure that
@@ -671,6 +690,20 @@ var marshalTests = []struct {
 	{
 		Value:     &OmitAttrTest{},
 		ExpectXML: `<OmitAttrTest></OmitAttrTest>`,
+	},
+
+	// pointer fields
+	{
+		Value:       &PointerFieldsTest{Name: &nameAttr, Age: &ageAttr, Contents: &contentsAttr},
+		ExpectXML:   `<dummy name="Sarah" age="12">lorem ipsum</dummy>`,
+		MarshalOnly: true,
+	},
+
+	// empty chardata pointer field
+	{
+		Value:       &ChardataEmptyTest{},
+		ExpectXML:   `<test></test>`,
+		MarshalOnly: true,
 	},
 
 	// omitempty on fields
