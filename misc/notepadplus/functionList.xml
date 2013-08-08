@@ -7,7 +7,7 @@
 		<!-- <parsers> -->
 			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">
 				<function
-					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w+\s*\*?\s*\w+\s*\)\s*\w+)"
+					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w*\s*\*?\s*\w+\s*\)\s*\w+)"
 					displayMode="$className->$functionName">
 					<functionName>
 						<nameExpr expr="((func\s+\w+)|(\)\s*\w+))"/>
