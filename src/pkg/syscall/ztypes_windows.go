@@ -964,3 +964,69 @@ var WSAID_CONNECTEX = GUID{
 	0x4660,
 	[8]byte{0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e},
 }
+
+const (
+	FILE_SKIP_COMPLETION_PORT_ON_SUCCESS = 1
+	FILE_SKIP_SET_EVENT_ON_HANDLE        = 2
+)
+
+const (
+	WSAPROTOCOL_LEN    = 255
+	MAX_PROTOCOL_CHAIN = 7
+	BASE_PROTOCOL      = 1
+	LAYERED_PROTOCOL   = 0
+
+	XP1_CONNECTIONLESS           = 0x00000001
+	XP1_GUARANTEED_DELIVERY      = 0x00000002
+	XP1_GUARANTEED_ORDER         = 0x00000004
+	XP1_MESSAGE_ORIENTED         = 0x00000008
+	XP1_PSEUDO_STREAM            = 0x00000010
+	XP1_GRACEFUL_CLOSE           = 0x00000020
+	XP1_EXPEDITED_DATA           = 0x00000040
+	XP1_CONNECT_DATA             = 0x00000080
+	XP1_DISCONNECT_DATA          = 0x00000100
+	XP1_SUPPORT_BROADCAST        = 0x00000200
+	XP1_SUPPORT_MULTIPOINT       = 0x00000400
+	XP1_MULTIPOINT_CONTROL_PLANE = 0x00000800
+	XP1_MULTIPOINT_DATA_PLANE    = 0x00001000
+	XP1_QOS_SUPPORTED            = 0x00002000
+	XP1_UNI_SEND                 = 0x00008000
+	XP1_UNI_RECV                 = 0x00010000
+	XP1_IFS_HANDLES              = 0x00020000
+	XP1_PARTIAL_MESSAGE          = 0x00040000
+	XP1_SAN_SUPPORT_SDP          = 0x00080000
+
+	PFL_MULTIPLE_PROTO_ENTRIES  = 0x00000001
+	PFL_RECOMMENDED_PROTO_ENTRY = 0x00000002
+	PFL_HIDDEN                  = 0x00000004
+	PFL_MATCHES_PROTOCOL_ZERO   = 0x00000008
+	PFL_NETWORKDIRECT_PROVIDER  = 0x00000010
+)
+
+type WSAProtocolInfo struct {
+	ServiceFlags1     uint32
+	ServiceFlags2     uint32
+	ServiceFlags3     uint32
+	ServiceFlags4     uint32
+	ProviderFlags     uint32
+	ProviderId        GUID
+	CatalogEntryId    uint32
+	ProtocolChain     WSAProtocolChain
+	Version           int32
+	AddressFamily     int32
+	MaxSockAddr       int32
+	MinSockAddr       int32
+	SocketType        int32
+	Protocol          int32
+	ProtocolMaxOffset int32
+	NetworkByteOrder  int32
+	SecurityScheme    int32
+	MessageSize       uint32
+	ProviderReserved  uint32
+	ProtocolName      [WSAPROTOCOL_LEN + 1]uint16
+}
+
+type WSAProtocolChain struct {
+	ChainLen     int32
+	ChainEntries [MAX_PROTOCOL_CHAIN]uint32
+}
