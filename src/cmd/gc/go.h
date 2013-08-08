@@ -63,6 +63,8 @@ enum
 	ACPLX128,
 
 	BADWIDTH	= -1000000000,
+	
+	MaxStackVarSize = 10*1024*1024,
 };
 
 extern vlong	MAXWIDTH;
@@ -1470,6 +1472,7 @@ void	ggloblnod(Node *nam);
 void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
+void	movelarge(NodeList*);
 int	isfat(Type*);
 void	markautoused(Prog*);
 Plist*	newplist(void);

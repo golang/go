@@ -418,6 +418,10 @@ main(int argc, char *argv[])
 	// Phase 5: Escape analysis.
 	if(!debug['N'])
 		escapes(xtop);
+	
+	// Escape analysis moved escaped values off stack.
+	// Move large values off stack too.
+	movelarge(xtop);
 
 	// Phase 6: Compile top level functions.
 	for(l=xtop; l; l=l->next)

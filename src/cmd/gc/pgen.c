@@ -447,3 +447,26 @@ allocauto(Prog* ptxt)
 		ll->n->stkdelta = 0;
 	}
 }
+
+static void movelargefn(Node*);
+
+void
+movelarge(NodeList *l)
+{
+	for(; l; l=l->next)
+		if(l->n->op == ODCLFUNC)
+			movelargefn(l->n);
+}
+
+static void
+movelargefn(Node *fn)
+{
+	NodeList *l;
+	Node *n;
+
+	for(l=fn->dcl; l != nil; l=l->next) {
+		n = l->n;
+		if(n->class == PAUTO && n->type != T && n->type->width > MaxStackVarSize)
+			addrescapes(n);
+	}
+}
