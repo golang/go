@@ -1815,6 +1815,51 @@ func TestHTTP10ConnectionHeader(t *testing.T) {
 	}
 }
 
+// See golang.org/issue/5660
+func TestServerReaderFromOrder(t *testing.T) {
+	defer afterTest(t)
+	pr, pw := io.Pipe()
+	const size = 3 << 20
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		rw.Header().Set("Content-Type", "text/plain") // prevent sniffing path
+		done := make(chan bool)
+		go func() {
+			io.Copy(rw, pr)
+			close(done)
+		}()
+		time.Sleep(25 * time.Millisecond) // give Copy a chance to break things
+		n, err := io.Copy(ioutil.Discard, req.Body)
+		if err != nil {
+			t.Errorf("handler Copy: %v", err)
+			return
+		}
+		if n != size {
+			t.Errorf("handler Copy = %d; want %d", n, size)
+		}
+		pw.Write([]byte("hi"))
+		pw.Close()
+		<-done
+	}))
+	defer ts.Close()
+
+	req, err := NewRequest("POST", ts.URL, io.LimitReader(neverEnding('a'), size))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if string(all) != "hi" {
+		t.Errorf("Body = %q; want hi", all)
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()

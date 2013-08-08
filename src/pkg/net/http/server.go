@@ -16,6 +16,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"os"
 	"path"
 	"runtime"
 	"strconv"
@@ -345,11 +346,44 @@ func (w *response) needsSniff() bool {
 	return !w.cw.wroteHeader && w.handlerHeader.Get("Content-Type") == "" && w.written < sniffLen
 }
 
+// writerOnly hides an io.Writer value's optional ReadFrom method
+// from io.Copy.
 type writerOnly struct {
 	io.Writer
 }
 
+func srcIsRegularFile(src io.Reader) (isRegular bool, err error) {
+	switch v := src.(type) {
+	case *os.File:
+		fi, err := v.Stat()
+		if err != nil {
+			return false, err
+		}
+		return fi.Mode().IsRegular(), nil
+	case *io.LimitedReader:
+		return srcIsRegularFile(v.R)
+	default:
+		return
+	}
+}
+
+// ReadFrom is here to optimize copying from an *os.File regular file
+// to a *net.TCPConn with sendfile.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+	// Our underlying w.conn.rwc is usually a *TCPConn (with its
+	// own ReadFrom method). If not, or if our src isn't a regular
+	// file, just fall back to the normal copy method.
+	rf, ok := w.conn.rwc.(io.ReaderFrom)
+	regFile, err := srcIsRegularFile(src)
+	if err != nil {
+		return 0, err
+	}
+	if !ok || !regFile {
+		return io.Copy(writerOnly{w}, src)
+	}
+
+	// sendfile path:
+
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
 	}
@@ -367,16 +401,12 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 
 	// Now that cw has been flushed, its chunking field is guaranteed initialized.
 	if !w.cw.chunking && w.bodyAllowed() {
-		if rf, ok := w.conn.rwc.(io.ReaderFrom); ok {
-			n0, err := rf.ReadFrom(src)
-			n += n0
-			w.written += n0
-			return n, err
-		}
+		n0, err := rf.ReadFrom(src)
+		n += n0
+		w.written += n0
+		return n, err
 	}
 
-	// Fall back to default io.Copy implementation.
-	// Use wrapper to hide w.ReadFrom from io.Copy.
 	n0, err := io.Copy(writerOnly{w}, src)
 	n += n0
 	return n, err
