@@ -57,6 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error running API checker: %v\n%s", err, out)
 	}
+	fmt.Print(string(out))
 }
 
 // file expands s to $GOROOT/api/s.txt.
