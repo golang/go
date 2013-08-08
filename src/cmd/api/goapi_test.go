@@ -10,8 +10,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -136,6 +138,31 @@ func TestCompareAPI(t *testing.T) {
 		}
 		if got := buf.String(); got != tt.out {
 			t.Errorf("%s: output differs\nGOT:\n%s\nWANT:\n%s", tt.name, got, tt.out)
+		}
+	}
+}
+
+func BenchmarkAll(b *testing.B) {
+	stds, err := exec.Command("go", "list", "std").Output()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	pkgNames := strings.Fields(string(stds))
+
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
+
+	for i := 0; i < b.N; i++ {
+		for _, context := range contexts {
+			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
+			for _, name := range pkgNames {
+				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
+					w.export(w.Import(name))
+				}
+			}
+			w.Features()
 		}
 	}
 }
