@@ -12,6 +12,8 @@ cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
 cmd/go: test coverage (CL 10413044).
 
+container/heap: added Fix (CL 12265043).
+container/list: added MoveBefore and MoveAfter (CL 12021044).
 crypto/md5: Sum function to simplify hashing (CL10624044).
 crypto/sha1: Sum function to simplify hashing (CL 10571043).
 crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
@@ -27,6 +29,7 @@ image/draw: added Quantizer type (CL 11148043).
 image/gif: added Encode and EncodeAll (CL 10896043).
 io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
 net: new build tag netgo for building a pure Go net package (CL 7100050).
+runtime: allow SetFinalizer with a func(interface{}) (CL 11858043).
 runtime: preemption of goroutines at function entry (CL 12371043).
 sort: new Stable function provides stable sort (CL 9612044).
 syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10980043).
