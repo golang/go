@@ -64,8 +64,8 @@ Empty strings:
   ^              at beginning of text or line (flag m=true)
   $              at end of text (like \z not \Z) or line (flag m=true)
   \A             at beginning of text
-  \b             at word boundary (\w on one side and \W, \A, or \z on the other)
-  \B             not a word boundary
+  \b             at ASCII word boundary (\w on one side and \W, \A, or \z on the other)
+  \B             not an ASCII word boundary
   \z             at end of text
 
 Escape sequences:
@@ -104,8 +104,8 @@ Perl character classes:
   \D             not digits (== [^0-9])
   \s             whitespace (== [\t\n\f\r ])
   \S             not whitespace (== [^\t\n\f\r ])
-  \w             word characters (== [0-9A-Za-z_])
-  \W             not word characters (== [^0-9A-Za-z_])
+  \w             ASCII word characters (== [0-9A-Za-z_])
+  \W             not ASCII word characters (== [^0-9A-Za-z_])
 
 ASCII character classes:
   [:alnum:]      alphanumeric (== [0-9A-Za-z])
