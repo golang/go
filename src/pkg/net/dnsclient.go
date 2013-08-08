@@ -122,12 +122,9 @@ func isDomainName(s string) bool {
 	if len(s) > 255 {
 		return false
 	}
-	if s[len(s)-1] != '.' { // simplify checking loop: make name end in dot
-		s += "."
-	}
 
 	last := byte('.')
-	ok := false // ok once we've seen a letter
+	ok := false // Ok once we've seen a letter.
 	partlen := 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -141,13 +138,13 @@ func isDomainName(s string) bool {
 			// fine
 			partlen++
 		case c == '-':
-			// byte before dash cannot be dot
+			// Byte before dash cannot be dot.
 			if last == '.' {
 				return false
 			}
 			partlen++
 		case c == '.':
-			// byte before dot cannot be dot, dash
+			// Byte before dot cannot be dot, dash.
 			if last == '.' || last == '-' {
 				return false
 			}
@@ -157,6 +154,9 @@ func isDomainName(s string) bool {
 			partlen = 0
 		}
 		last = c
+	}
+	if last == '-' || partlen > 63 {
+		return false
 	}
 
 	return ok

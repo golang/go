@@ -5,6 +5,7 @@
 package net
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -16,7 +17,6 @@ type testCase struct {
 var tests = []testCase{
 	// RFC2181, section 11.
 	{"_xmpp-server._tcp.google.com", true},
-	{"_xmpp-server._tcp.google.com", true},
 	{"foo.com", true},
 	{"1foo.com", true},
 	{"26.0.0.73.com", true},
@@ -24,6 +24,10 @@ var tests = []testCase{
 	{"fo1o.com", true},
 	{"foo1.com", true},
 	{"a.b..com", false},
+	{"a.b-.com", false},
+	{"a.b.com-", false},
+	{"a.b..", false},
+	{"b.com.", true},
 }
 
 func getTestCases(ch chan<- testCase) {
@@ -60,6 +64,20 @@ func TestDNSNames(t *testing.T) {
 		if isDomainName(tc.name) != tc.result {
 			t.Errorf("isDomainName(%v) failed: Should be %v",
 				tc.name, tc.result)
+		}
+	}
+}
+
+func BenchmarkDNSNames(b *testing.B) {
+	benchmarks := append(tests, []testCase{
+		{strings.Repeat("a", 63), true},
+		{strings.Repeat("a", 64), false},
+	}...)
+	for n := 0; n < b.N; n++ {
+		for _, tc := range benchmarks {
+			if isDomainName(tc.name) != tc.result {
+				b.Errorf("isDomainName(%q) = %v; want %v", tc.name, !tc.result, tc.result)
+			}
 		}
 	}
 }
