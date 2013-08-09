@@ -998,6 +998,7 @@ coverage information gathered via go test -coverprofile=INPUT."
                           (get-buffer gocov-buffer-name)
                           (clone-indirect-buffer gocov-buffer-name nil))
       (save-excursion
+        (remove-overlays)
         (overlay-put
          (make-overlay
           (point-min)
