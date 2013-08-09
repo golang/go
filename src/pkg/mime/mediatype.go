@@ -47,7 +47,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteByte('"')
 		offset := 0
 		for index, character := range value {
-			if character == '"' || character == '\r' {
+			if character == '"' || character == '\\' {
 				b.WriteString(value[offset:index])
 				offset = index
 				b.WriteByte('\\')
