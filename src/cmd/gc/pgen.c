@@ -8,6 +8,8 @@
 #include	"opt.h"
 #include	"../../pkg/runtime/funcdata.h"
 
+enum { BitsPerPointer = 2 };
+
 static void allocauto(Prog* p);
 static void dumpgcargs(Node*, Sym*);
 static void dumpgclocals(Node*, Sym*);
@@ -227,7 +229,7 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
 	case TMAP:
 		if(*xoffset % widthptr != 0)
 			fatal("walktype1: invalid alignment, %T", t);
-		bvset(bv, *xoffset / widthptr);
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
 		*xoffset += t->width;
 		break;
 
@@ -235,7 +237,7 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { byte *str; intgo len; }
 		if(*xoffset % widthptr != 0)
 			fatal("walktype1: invalid alignment, %T", t);
-		bvset(bv, *xoffset / widthptr);
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
 		*xoffset += t->width;
 		break;
 
@@ -245,8 +247,10 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { Type* type; union { void* ptr, uintptr val } data; }
 		if(*xoffset % widthptr != 0)
 			fatal("walktype1: invalid alignment, %T", t);
-		bvset(bv, *xoffset / widthptr);
-		bvset(bv, (*xoffset + widthptr) / widthptr);
+		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1);
+		if(isnilinter(t))
+			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer));
+		bvset(bv, ((*xoffset + widthptr) / widthptr) * BitsPerPointer);
 		*xoffset += t->width;
 		break;
 
@@ -259,7 +263,7 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
 			// struct { byte* array; uintgo len; uintgo cap; }
 			if(*xoffset % widthptr != 0)
 				fatal("walktype1: invalid TARRAY alignment, %T", t);
-			bvset(bv, *xoffset / widthptr);
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
 			*xoffset += t->width;
 		} else if(!haspointers(t->type))
 				*xoffset += t->width;
@@ -309,7 +313,7 @@ dumpgcargs(Node *fn, Sym *sym)
 	thistype = getthisx(fn->type);
 	inargtype = getinargx(fn->type);
 	outargtype = getoutargx(fn->type);
-	bv = bvalloc(fn->type->argwid / widthptr);
+	bv = bvalloc((fn->type->argwid / widthptr) * BitsPerPointer);
 	if(thistype != nil)
 		walktype(thistype, bv);
 	if(inargtype != nil)
@@ -336,7 +340,7 @@ dumpgclocals(Node* fn, Sym *sym)
 	int32 i;
 	int off;
 
-	bv = bvalloc(stkptrsize / widthptr);
+	bv = bvalloc((stkptrsize / widthptr) * BitsPerPointer);
 	for(ll = fn->dcl; ll != nil; ll = ll->next) {
 		node = ll->n;
 		if(node->class == PAUTO && node->op == ONAME) {

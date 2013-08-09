@@ -33,6 +33,9 @@ enum {
 	PRECISE = 1,
 	LOOP = 2,
 	PC_BITS = PRECISE | LOOP,
+
+	// Pointer map
+	BitsPerPointer = 2,
 };
 
 // Bits in per-word bitmap.
@@ -1409,10 +1412,11 @@ scanbitvector(byte *scanp, BitVector *bv)
 			i = remptrs;
 		else
 			i = 32;
+		i /= BitsPerPointer;
 		for(; i > 0; i--) {
-			if(w & 1)
+			if(w & 3)
 				addroot((Obj){scanp, PtrSize, 0});
-			w >>= 1;
+			w >>= BitsPerPointer;
 			scanp += PtrSize;
 		}
 	}
@@ -1444,7 +1448,7 @@ addframeroots(Stkframe *frame, void*)
 		} else if(locals->n > 0) {
 			// Locals bitmap information, scan just the
 			// pointers in locals.
-			size = locals->n*PtrSize;
+			size = (locals->n*PtrSize) / BitsPerPointer;
 			scanbitvector(frame->varp - size, locals);
 		}
 	}

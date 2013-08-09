@@ -31,6 +31,8 @@
 #include "gc.h"
 #include "../../pkg/runtime/funcdata.h"
 
+enum { BitsPerPointer = 2 };
+
 static void dumpgcargs(Type *fn, Sym *sym);
 
 int
@@ -674,7 +676,7 @@ walktype1(Type *t, int32 offset, Bvec *bv)
 		// pointer types
 		if((offset + t->offset) % ewidth[TIND] != 0)
 			yyerror("unaligned pointer");
-		bvset(bv, (offset + t->offset) / ewidth[TIND]);
+		bvset(bv, ((offset + t->offset) / ewidth[TIND])*BitsPerPointer);
 		break;
 
 	case TSTRUCT:
@@ -701,6 +703,7 @@ dumpgcargs(Type *fn, Sym *sym)
 	Bvec *bv;
 	Type *t;
 	int32 i;
+	int32 argbytes;
 	int32 symoffset, argoffset;
 
 	if(hasdotdotdot()) {
@@ -709,7 +712,8 @@ dumpgcargs(Type *fn, Sym *sym)
 		gextern(sym, nodconst(0), 0, 4); // nptrs=0
 		symoffset = 4;
 	} else {
-		bv = bvalloc((argsize() + ewidth[TIND] - 1) / ewidth[TIND]);
+		argbytes = (argsize() + ewidth[TIND] - 1);
+		bv = bvalloc((argbytes  / ewidth[TIND]) * BitsPerPointer);
 		argoffset = align(0, fn->link, Aarg0, nil);
 		if(argoffset > 0) {
 			// The C calling convention returns structs by
