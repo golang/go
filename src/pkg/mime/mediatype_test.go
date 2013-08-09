@@ -282,8 +282,17 @@ type formatTest struct {
 
 var formatTests = []formatTest{
 	{"noslash", nil, ""},
+	{"foo bar/baz", nil, ""},
+	{"foo/bar baz", nil, ""},
 	{"foo/BAR", nil, "foo/bar"},
 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
+	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},
+	{"foo/BAR", map[string]string{"quote": `With "quote`}, `foo/bar; quote="With \"quote"`},
+	{"foo/BAR", map[string]string{"bslash": `With \backslash`}, `foo/bar; bslash="With \\backslash"`},
+	{"foo/BAR", map[string]string{"both": `With \backslash and "quote`}, `foo/bar; both="With \\backslash and \"quote"`},
+	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
+	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
+	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
 }
 
 func TestFormatMediaType(t *testing.T) {
