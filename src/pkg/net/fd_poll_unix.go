@@ -252,14 +252,23 @@ func (pd *pollDesc) Close() {
 }
 
 func (pd *pollDesc) Lock() {
+	if pd.pollServer == nil {
+		return
+	}
 	pd.pollServer.Lock()
 }
 
 func (pd *pollDesc) Unlock() {
+	if pd.pollServer == nil {
+		return
+	}
 	pd.pollServer.Unlock()
 }
 
 func (pd *pollDesc) Wakeup() {
+	if pd.pollServer == nil {
+		return
+	}
 	pd.pollServer.Wakeup()
 }
 
@@ -294,6 +303,9 @@ func (pd *pollDesc) WaitWrite() error {
 }
 
 func (pd *pollDesc) Evict() bool {
+	if pd.pollServer == nil {
+		return false
+	}
 	return pd.pollServer.Evict(pd)
 }
 
