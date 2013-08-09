@@ -16,7 +16,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -24,7 +23,6 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -38,8 +36,12 @@ a web browser displaying annotated source code:
 	go tool cover -html=c.out
 The same, but write the generated HTML to a file instead of starting a browser:
 	go tool cover -html=c.out -o coverage.html
+Write to standard output coverage percentages for each function:
+	go tool cover -func=c.out
 Generate modified source code with coverage annotations (what go test -cover does):
 	go tool cover  -mode=set -var=CoverageVariableName program.go
+
+Only one of -html, -func, or -mode may be set.
 `
 
 func usage() {
@@ -52,8 +54,9 @@ func usage() {
 var (
 	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
 	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
-	output  = flag.String("o", "", "file for output (static HTML or annotated Go source); default: stdout")
+	output  = flag.String("o", "", "file for output; default: stdout")
 	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
+	funcOut = flag.String("func", "", "output coverage profile information for each function")
 )
 
 var profile string // The profile to read; the value of -html but stored separately for future flexibility.
@@ -68,19 +71,31 @@ const (
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+
 	profile = *htmlOut
+	if *funcOut != "" {
+		if profile != "" {
+			flag.Usage()
+		}
+		profile = *funcOut
+	}
 
 	// Must either display a profile or rewrite Go source.
 	if (profile == "") == (*mode == "") {
 		flag.Usage()
 	}
 
-	// Generate HTML.
-	if *htmlOut != "" {
+	// Generate HTML or function coverage information.
+	if profile != "" {
 		if flag.NArg() != 0 {
 			flag.Usage()
 		}
-		err := htmlOutput(profile, *output)
+		var err error
+		if *htmlOut != "" {
+			err = htmlOutput(profile, *output)
+		} else {
+			err = funcOutput(profile, *output)
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cover: %v\n", err)
 			os.Exit(2)
@@ -254,22 +269,13 @@ func (f *File) addImport(path string) string {
 }
 
 func cover(name string) {
-	fs := token.NewFileSet()
-	f, err := os.Open(name)
-	if err != nil {
-		log.Fatalf("cover: %s: %s", name, err)
-	}
-	defer f.Close()
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		log.Fatalf("cover: %s: %s", name, err)
-	}
-	parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+	fset := token.NewFileSet()
+	parsedFile, err := parser.ParseFile(fset, name, nil, 0)
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
 	file := &File{
-		fset:    fs,
+		fset:    fset,
 		name:    name,
 		astFile: parsedFile,
 	}
