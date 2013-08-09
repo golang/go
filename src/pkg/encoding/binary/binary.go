@@ -134,30 +134,67 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // blank (_) field names is skipped; i.e., blank field names
 // may be used for padding.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
-	// Fast path for basic types.
+	// Fast path for basic types and slices.
 	if n := intDestSize(data); n != 0 {
 		var b [8]byte
-		bs := b[:n]
+		var bs []byte
+		if n > len(b) {
+			bs = make([]byte, n)
+		} else {
+			bs = b[:n]
+		}
 		if _, err := io.ReadFull(r, bs); err != nil {
 			return err
 		}
-		switch v := data.(type) {
+		switch data := data.(type) {
 		case *int8:
-			*v = int8(b[0])
+			*data = int8(b[0])
 		case *uint8:
-			*v = b[0]
+			*data = b[0]
 		case *int16:
-			*v = int16(order.Uint16(bs))
+			*data = int16(order.Uint16(bs))
 		case *uint16:
-			*v = order.Uint16(bs)
+			*data = order.Uint16(bs)
 		case *int32:
-			*v = int32(order.Uint32(bs))
+			*data = int32(order.Uint32(bs))
 		case *uint32:
-			*v = order.Uint32(bs)
+			*data = order.Uint32(bs)
 		case *int64:
-			*v = int64(order.Uint64(bs))
+			*data = int64(order.Uint64(bs))
 		case *uint64:
-			*v = order.Uint64(bs)
+			*data = order.Uint64(bs)
+		case []int8:
+			for i, x := range bs { // Easier to loop over the input for 8-bit cases.
+				data[i] = int8(x)
+			}
+		case []uint8:
+			for i, x := range bs { // Easier to loop over the input for 8-bit cases.
+				data[i] = x
+			}
+		case []int16:
+			for i := range data {
+				data[i] = int16(order.Uint16(bs[2*i:]))
+			}
+		case []uint16:
+			for i := range data {
+				data[i] = order.Uint16(bs[2*i:])
+			}
+		case []int32:
+			for i := range data {
+				data[i] = int32(order.Uint32(bs[4*i:]))
+			}
+		case []uint32:
+			for i := range data {
+				data[i] = order.Uint32(bs[4*i:])
+			}
+		case []int64:
+			for i := range data {
+				data[i] = int64(order.Uint64(bs[8*i:]))
+			}
+		case []uint64:
+			for i := range data {
+				data[i] = order.Uint64(bs[8*i:])
+			}
 		}
 		return nil
 	}
@@ -572,18 +609,33 @@ func (e *encoder) skip(v reflect.Value) {
 	e.buf = e.buf[n:]
 }
 
-// intDestSize returns the size of the integer that ptrType points to,
-// or 0 if the type is not supported.
-func intDestSize(ptrType interface{}) int {
-	switch ptrType.(type) {
+// intDestSize returns the size of the data required to represent the data when encoded.
+func intDestSize(data interface{}) int {
+	switch data := data.(type) {
 	case *int8, *uint8:
 		return 1
+	case []int8:
+		return len(data)
+	case []uint8:
+		return len(data)
 	case *int16, *uint16:
 		return 2
+	case []int16:
+		return 2 * len(data)
+	case []uint16:
+		return 2 * len(data)
 	case *int32, *uint32:
 		return 4
+	case []int32:
+		return 4 * len(data)
+	case []uint32:
+		return 4 * len(data)
 	case *int64, *uint64:
 		return 8
+	case []int64:
+		return 8 * len(data)
+	case []uint64:
+		return 8 * len(data)
 	}
 	return 0
 }
