@@ -538,7 +538,7 @@ func TestEscape(t *testing.T) {
 		{
 			"typed HTML in script",
 			`<button onclick="alert({{.W}})">`,
-			`<button onclick="alert(&#34;&amp;iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
+			`<button onclick="alert(&#34;\u0026iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
 		},
 		{
 			"typed HTML in RCDATA",
