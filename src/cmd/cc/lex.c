@@ -118,6 +118,7 @@ main(int argc, char *argv[])
 {
 	int c;
 
+	quotefmtinstall(); // before cinit, which overrides %Q
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	tinit();
@@ -126,7 +127,6 @@ main(int argc, char *argv[])
 	arginit();
 	
 	fmtstrinit(&pragcgobuf);
-	quotefmtinstall();
 
 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
 	ndef = 0;
