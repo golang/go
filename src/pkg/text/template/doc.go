@@ -44,7 +44,8 @@ data, defined in detail below.
 */
 //	{{/* a comment */}}
 //		A comment; discarded. May contain newlines.
-//		Comments do not nest.
+//		Comments do not nest and must start and end at the
+//		delimiters, as shown here.
 /*
 
 	{{pipeline}}

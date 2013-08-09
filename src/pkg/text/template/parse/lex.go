@@ -243,11 +243,16 @@ func lexLeftDelim(l *lexer) stateFn {
 // lexComment scans a comment. The left comment marker is known to be present.
 func lexComment(l *lexer) stateFn {
 	l.pos += Pos(len(leftComment))
-	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
+	i := strings.Index(l.input[l.pos:], rightComment)
 	if i < 0 {
 		return l.errorf("unclosed comment")
 	}
-	l.pos += Pos(i + len(rightComment) + len(l.rightDelim))
+	l.pos += Pos(i + len(rightComment))
+	if !strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+		return l.errorf("comment ends before closing delimiter")
+
+	}
+	l.pos += Pos(len(l.rightDelim))
 	l.ignore()
 	return lexText
 }
