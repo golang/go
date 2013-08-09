@@ -107,8 +107,8 @@ static G* globrunqget(P*, int32);
 static P* pidleget(void);
 static void pidleput(P*);
 static void injectglist(G*);
-static void preemptall(void);
-static void preemptone(P*);
+static bool preemptall(void);
+static bool preemptone(P*);
 static bool exitsyscallfast(void);
 
 // The bootstrap sequence is:
@@ -372,6 +372,34 @@ runtime·helpgc(int32 nproc)
 		runtime·notewakeup(&mp->park);
 	}
 	runtime·unlock(&runtime·sched);
+}
+
+// Similar to stoptheworld but best-effort and can be called several times.
+// There is no reverse operation, used during crashing.
+// This function must not lock any mutexes.
+void
+runtime·freezetheworld(void)
+{
+	int32 i;
+
+	if(runtime·gomaxprocs == 1)
+		return;
+	// stopwait and preemption requests can be lost
+	// due to races with concurrently executing threads,
+	// so try several times
+	for(i = 0; i < 5; i++) {
+		// this should tell the scheduler to not start any new goroutines
+		runtime·sched.stopwait = 0x7fffffff;
+		runtime·atomicstore((uint32*)&runtime·gcwaiting, 1);
+		// this should stop running goroutines
+		if(!preemptall())
+			break;  // no running goroutines
+		runtime·usleep(1000);
+	}
+	// to be sure
+	runtime·usleep(1000);
+	preemptall();
+	runtime·usleep(1000);
 }
 
 void
@@ -1518,6 +1546,12 @@ exitsyscallfast(void)
 {
 	P *p;
 
+	// Freezetheworld sets stopwait but does not retake P's.
+	if(runtime·sched.stopwait) {
+		m->p = nil;
+		return false;
+	}
+
 	// Try to re-acquire the last P.
 	if(m->p && m->p->status == Psyscall && runtime·cas(&m->p->status, Psyscall, Prunning)) {
 		// There's a cpu for us, so we can run.
@@ -2243,18 +2277,22 @@ retake(int64 now)
 // This function is purely best-effort.  It can fail to inform a goroutine if a
 // processor just started running it.
 // No locks need to be held.
-static void
+// Returns true if preemption request was issued to at least one goroutine.
+static bool
 preemptall(void)
 {
 	P *p;
 	int32 i;
+	bool res;
 
+	res = false;
 	for(i = 0; i < runtime·gomaxprocs; i++) {
 		p = runtime·allp[i];
 		if(p == nil || p->status != Prunning)
 			continue;
-		preemptone(p);
+		res |= preemptone(p);
 	}
+	return res;
 }
 
 // Tell the goroutine running on processor P to stop.
@@ -2263,7 +2301,8 @@ preemptall(void)
 // correct goroutine, that goroutine might ignore the request if it is
 // simultaneously executing runtime·newstack.
 // No lock needs to be held.
-static void
+// Returns true if preemption request was issued.
+static bool
 preemptone(P *p)
 {
 	M *mp;
@@ -2271,12 +2310,13 @@ preemptone(P *p)
 
 	mp = p->m;
 	if(mp == nil || mp == m)
-		return;
+		return false;
 	gp = mp->curg;
 	if(gp == nil || gp == mp->g0)
-		return;
+		return false;
 	gp->preempt = true;
 	gp->stackguard0 = StackPreempt;
+	return true;
 }
 
 // Put mp on midle list.

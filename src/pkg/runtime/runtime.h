@@ -837,6 +837,7 @@ int32	runtime·callers(int32, uintptr*, int32);
 int64	runtime·nanotime(void);
 void	runtime·dopanic(int32);
 void	runtime·startpanic(void);
+void	runtime·freezetheworld(void);
 void	runtime·unwindstack(G*, byte*);
 void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
 void	runtime·resetcpuprofiler(int32);

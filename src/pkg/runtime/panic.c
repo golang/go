@@ -419,6 +419,7 @@ runtime·startpanic(void)
 		g->writebuf = nil;
 	runtime·xadd(&runtime·panicking, 1);
 	runtime·lock(&paniclk);
+	runtime·freezetheworld();
 }
 
 void
