@@ -123,29 +123,29 @@ func TestTypedContent(t *testing.T) {
 		{
 			`<script>alert({{.}})</script>`,
 			[]string{
-				`"\u003cb\u003e \"foo%\" O'Reilly &bar;"`,
+				`"\u003cb\u003e \"foo%\" O'Reilly \u0026bar;"`,
 				`"a[href =~ \"//example.com\"]#foo"`,
-				`"Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;tc!"`,
+				`"Hello, \u003cb\u003eWorld\u003c/b\u003e \u0026amp;tc!"`,
 				`" dir=\"ltr\""`,
 				// Not escaped.
 				`c && alert("Hello, World!");`,
 				// Escape sequence not over-escaped.
 				`"Hello, World & O'Reilly\x21"`,
-				`"greeting=H%69&addressee=(World)"`,
+				`"greeting=H%69\u0026addressee=(World)"`,
 			},
 		},
 		{
 			`<button onclick="alert({{.}})">`,
 			[]string{
-				`&#34;\u003cb\u003e \&#34;foo%\&#34; O&#39;Reilly &amp;bar;&#34;`,
+				`&#34;\u003cb\u003e \&#34;foo%\&#34; O&#39;Reilly \u0026bar;&#34;`,
 				`&#34;a[href =~ \&#34;//example.com\&#34;]#foo&#34;`,
-				`&#34;Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;amp;tc!&#34;`,
+				`&#34;Hello, \u003cb\u003eWorld\u003c/b\u003e \u0026amp;tc!&#34;`,
 				`&#34; dir=\&#34;ltr\&#34;&#34;`,
 				// Not JS escaped but HTML escaped.
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
 				// Escape sequence not over-escaped.
 				`&#34;Hello, World &amp; O&#39;Reilly\x21&#34;`,
-				`&#34;greeting=H%69&amp;addressee=(World)&#34;`,
+				`&#34;greeting=H%69\u0026addressee=(World)&#34;`,
 			},
 		},
 		{
