@@ -91,15 +91,11 @@ func (b blocksByStart) Less(i, j int) bool {
 var lineRe = regexp.MustCompile(`^(.+):([0-9]+).([0-9]+),([0-9]+).([0-9]+) ([0-9]+) ([0-9]+)$`)
 
 func toInt(s string) int {
-	i64, err := strconv.ParseInt(s, 10, 64)
+	i, err := strconv.Atoi(s)
 	if err != nil {
 		panic(err)
 	}
-	const maxInt = int64(int(^uint(0) >> 1))
-	if i64 > maxInt {
-		i64 = maxInt
-	}
-	return int(i64)
+	return i
 }
 
 // Boundary represents the position in a source file of the beginning or end of a
