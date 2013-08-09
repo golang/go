@@ -186,21 +186,21 @@ if [ ! -x $GOROOT/bin/godoc ]; then
 	ok=false
 fi
 
-TEST cmd/api installs into tool
+TEST cmd/fix installs into tool
 GOOS=$(./testgo env GOOS)
 GOARCH=$(./testgo env GOARCH)
-rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api
-./testgo install cmd/api
-if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api ]; then
-	echo 'did not install cmd/api to $GOROOT/pkg/tool'
-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/api
+rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix
+./testgo install cmd/fix
+if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix ]; then
+	echo 'did not install cmd/fix to $GOROOT/pkg/tool'
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix
 	ok=false
 fi
-rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api
-GOBIN=$d/gobin ./testgo install cmd/api
-if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api ]; then
-	echo 'did not install cmd/api to $GOROOT/pkg/tool with $GOBIN set'
-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/api
+rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix
+GOBIN=$d/gobin ./testgo install cmd/fix
+if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix ]; then
+	echo 'did not install cmd/fix to $GOROOT/pkg/tool with $GOBIN set'
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix
 	ok=false
 fi
 
@@ -434,20 +434,34 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
 fi
 
 TEST go get cover
-./testgo get code.google.com/p/go.tools/cmd/cover
+./testgo get code.google.com/p/go.tools/cmd/cover || ok=false
 
 unset GOPATH
 rm -rf $d
 
 # Only succeeds if source order is preserved.
 TEST source file name order preserved
-./testgo test testdata/example[12]_test.go
+./testgo test testdata/example[12]_test.go || ok=false
 
 # Check that coverage analysis works at all.
 # Don't worry about the exact numbers
 TEST coverage runs
-./testgo test -short -coverpkg=strings strings regexp
-./testgo test -short -cover strings math regexp
+./testgo test -short -coverpkg=strings strings regexp || ok=false
+./testgo test -short -cover strings math regexp || ok=false
+
+TEST cgo depends on syscall
+rm -rf $GOROOT/pkg/*_race
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/foo
+echo '
+package foo
+//#include <stdio.h>
+import "C"
+' >$d/src/foo/foo.go
+./testgo build -race foo || ok=false
+rm -rf $d
+unset GOPATH
 
 # clean up
 if $started; then stop; fi
