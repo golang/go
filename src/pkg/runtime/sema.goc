@@ -182,6 +182,17 @@ runtime·semrelease(uint32 volatile *addr)
 	}
 }
 
+// TODO(dvyukov): move to netpoll.goc once it's used by all OSes.
+void net·runtime_Semacquire(uint32 *addr)
+{
+	runtime·semacquire(addr, true);
+}
+
+void net·runtime_Semrelease(uint32 *addr)
+{
+	runtime·semrelease(addr);
+}
+
 func runtime_Semacquire(addr *uint32) {
 	runtime·semacquire(addr, true);
 }

@@ -206,14 +206,6 @@ func runtime_pollUnblock(pd *PollDesc) {
 		runtime·ready(wg);
 }
 
-func runtime_Semacquire(addr *uint32) {
-	runtime·semacquire(addr, true);
-}
-
-func runtime_Semrelease(addr *uint32) {
-	runtime·semrelease(addr);
-}
-
 uintptr
 runtime·netpollfd(PollDesc *pd)
 {
