@@ -153,16 +153,55 @@
   "Coverage color of untracked code."
   :group 'go-cover)
 
+(defface go-coverage-0
+  '((t (:foreground "#c00000")))
+  "Coverage color for uncovered code."
+  :group 'go-cover)
+(defface go-coverage-1
+  '((t (:foreground "#808080")))
+  "Coverage color for covered code with weight 1."
+  :group 'go-cover)
+(defface go-coverage-2
+  '((t (:foreground "#748c83")))
+  "Coverage color for covered code with weight 2."
+  :group 'go-cover)
+(defface go-coverage-3
+  '((t (:foreground "#689886")))
+  "Coverage color for covered code with weight 3."
+  :group 'go-cover)
+(defface go-coverage-4
+  '((t (:foreground "#5ca489")))
+  "Coverage color for covered code with weight 4."
+  :group 'go-cover)
+(defface go-coverage-5
+  '((t (:foreground "#50b08c")))
+  "Coverage color for covered code with weight 5."
+  :group 'go-cover)
+(defface go-coverage-6
+  '((t (:foreground "#44bc8f")))
+  "Coverage color for covered code with weight 6."
+  :group 'go-cover)
+(defface go-coverage-7
+  '((t (:foreground "#38c892")))
+  "Coverage color for covered code with weight 7."
+  :group 'go-cover)
+(defface go-coverage-8
+  '((t (:foreground "#2cd495")))
+  "Coverage color for covered code with weight 8.
+For mode=set, all covered lines will have this weight."
+  :group 'go-cover)
+(defface go-coverage-9
+  '((t (:foreground "#20e098")))
+  "Coverage color for covered code with weight 9."
+  :group 'go-cover)
+(defface go-coverage-10
+  '((t (:foreground "#14ec9b")))
+  "Coverage color for covered code with weight 10."
+  :group 'go-cover)
 (defface go-coverage-covered
   '((t (:foreground "#2cd495")))
   "Coverage color of covered code."
   :group 'go-cover)
-
-(defface go-coverage-uncovered
-  '((t (:foreground "#c00000")))
-  "Coverage color of uncovered code."
-  :group 'go-cover)
-
 
 (defvar go-mode-syntax-table
   (let ((st (make-syntax-table)))
@@ -960,7 +999,7 @@ description at POINT."
     (point)))
 
 (defstruct go--covered
-  start-line start-column end-line end-column covered)
+  start-line start-column end-line end-column covered count)
 
 (defun go-coverage (input)
   "Open a clone of the current buffer and overlay it with
@@ -968,7 +1007,9 @@ coverage information gathered via go test -coverprofile=INPUT."
   (interactive "fCoverage file: ")
   (let ((ranges '())
         (file-name (file-name-nondirectory (buffer-file-name)))
-        (gocov-buffer-name (concat (buffer-name) "<gocov>")))
+        (gocov-buffer-name (concat (buffer-name) "<gocov>"))
+        (max-count 0)
+        divisor)
 
     (with-temp-buffer
       (insert-file-contents input)
@@ -982,6 +1023,9 @@ coverage information gathered via go test -coverprofile=INPUT."
               (start-line start-column end-line end-column num count)
               (mapcar 'string-to-number rest)
 
+            (if (> count max-count)
+                (setq max-count count))
+
             (if (and (string= (file-name-nondirectory file) file-name))
                 (push
                  (make-go--covered
@@ -989,10 +1033,14 @@ coverage information gathered via go test -coverprofile=INPUT."
                   :start-column start-column
                   :end-line end-line
                   :end-column end-column
-                  :covered (/= count 0))
+                  :covered (/= count 0)
+                  :count count)
                  ranges)))
 
-          (forward-line))))
+          (forward-line)))
+
+      (if (> max-count 0)
+          (setq divisor (log max-count))))
 
     (with-current-buffer (or
                           (get-buffer gocov-buffer-name)
@@ -1006,15 +1054,26 @@ coverage information gathered via go test -coverprofile=INPUT."
          'face 'go-coverage-untracked)
 
         (dolist (range ranges)
-          (overlay-put
-           (make-overlay
-            (go--line-column-to-point
-             (go--covered-start-line range)
-             (go--covered-start-column range))
-            (go--line-column-to-point
-             (go--covered-end-line range)
-             (go--covered-end-column range)))
-           'face (if (go--covered-covered range) 'go-coverage-covered 'go-coverage-uncovered))))
+          (let* ((count (go--covered-count range))
+                 (norm (cond
+                        ((= count 0)
+                         -0.1)
+                        ((= max-count 1)
+                         0.8)
+                        (t
+                         (/ (log count) divisor))))
+                 (n (1+ (floor (* norm 9))))
+                 (face (concat "go-coverage-" (number-to-string n)))
+                 (ov (make-overlay
+                      (go--line-column-to-point
+                       (go--covered-start-line range)
+                       (go--covered-start-column range))
+                      (go--line-column-to-point
+                       (go--covered-end-line range)
+                       (go--covered-end-column range)))))
+
+            (overlay-put ov 'face face)
+            (overlay-put ov 'help-echo (format "Count: %d" count)))))
 
       (display-buffer (current-buffer) 'display-buffer-reuse-window))))
 
