@@ -52,6 +52,7 @@ typedef	struct	Hist	Hist;
 typedef	struct	Term	Term;
 typedef	struct	Init	Init;
 typedef	struct	Bits	Bits;
+typedef	struct	Bvec	Bvec;
 typedef	struct	Dynimp	Dynimp;
 typedef	struct	Dynexp	Dynexp;
 
@@ -74,6 +75,12 @@ typedef	Rune	TRune;	/* target system type */
 struct	Bits
 {
 	uint32	b[BITS];
+};
+
+struct Bvec
+{
+	int32	n;	// number of bits
+	uint32	b[];
 };
 
 struct	Node
@@ -749,6 +756,12 @@ int	bnum(Bits);
 Bits	blsh(uint);
 int	beq(Bits, Bits);
 int	bset(Bits, uint);
+
+/*
+ *	bv.c
+ */
+Bvec*	bvalloc(int32 n);
+void	bvset(Bvec *bv, int32 i);
 
 /*
  * dpchk.c
