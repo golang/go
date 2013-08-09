@@ -17,15 +17,9 @@ import (
 
 // debugging/development support
 const (
-	debug = false // leave on during development
+	debug = true  // leave on during development
 	trace = false // turn on for detailed type resolution traces
 )
-
-// If retainASTLinks is set, scopes maintain a link to the node
-// responsible for it.
-// TODO(gri) Decide if this should be a permanent (always present)
-//           or optional feature (enabled with a mode flag).
-const retainASTLinks = true
 
 // exprInfo stores type and constant value for an untyped expression.
 type exprInfo struct {
@@ -114,6 +108,13 @@ func (check *checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, r
 	// TODO(gri) Should we also call recordTypeAndValue?
 	if m := check.Selections; m != nil {
 		m[x] = &Selection{kind, recv, obj, index, indirect}
+	}
+}
+
+func (check *checker) recordScope(node ast.Node, scope *Scope) {
+	assert(node != nil && scope != nil)
+	if m := check.Scopes; m != nil {
+		m[node] = scope
 	}
 }
 

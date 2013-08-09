@@ -124,9 +124,8 @@ func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Nam
 	}
 
 	scope := NewScope(check.topScope)
-	if retainASTLinks {
-		scope.node = ftyp
-	}
+	check.recordScope(ftyp, scope)
+
 	recv_, _ := check.collectParams(scope, recv, false)
 	params, isVariadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)

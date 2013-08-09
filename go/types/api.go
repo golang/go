@@ -52,7 +52,7 @@ type Config struct {
 	IgnoreFuncBodies bool
 
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
-	// and expressions with qualified identifiers referrring to package
+	// and expressions with qualified identifiers referring to package
 	// C are silently ignored.
 	// Caution: Effects may be unpredictable - do not use casually!
 	FakeImportC bool
@@ -128,6 +128,26 @@ type Info struct {
 
 	// Selections maps selector expressions to their corresponding selections.
 	Selections map[*ast.SelectorExpr]*Selection
+
+	// Scopes maps ast.Nodes to the scopes they define. Note that package scopes
+	// are not associated with a specific node but with all files belonging to a
+	// package. Thus, the package scope can be found in the type-checked package
+	// object.
+	//
+	// The following node types may appear in Scopes:
+	//
+	//	*ast.File
+	//	*ast.FuncType
+	//	*ast.BlockStmt
+	//	*ast.IfStmt
+	//	*ast.SwitchStmt
+	//	*ast.TypeSwitchStmt
+	//	*ast.CaseClause
+	//	*ast.CommClause
+	//	*ast.ForStmt
+	//	*ast.RangeStmt
+	//
+	Scopes map[ast.Node]*Scope
 }
 
 // Check type-checks a package and returns the resulting package object,

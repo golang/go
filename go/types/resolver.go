@@ -150,9 +150,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		check.recordObject(file.Name, pkg)
 
 		scope = NewScope(pkg.scope)
-		if retainASTLinks {
-			scope.node = file
-		}
+		check.recordScope(file, scope)
 		scopes = append(scopes, scope)
 
 		for _, decl := range file.Decls {

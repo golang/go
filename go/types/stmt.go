@@ -55,9 +55,7 @@ func (check *checker) multipleDefaults(list []ast.Stmt) {
 
 func (check *checker) openScope(node ast.Node) {
 	s := NewScope(check.topScope)
-	if retainASTLinks {
-		s.node = node
-	}
+	check.recordScope(node, s)
 	check.topScope = s
 }
 

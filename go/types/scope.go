@@ -9,7 +9,6 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"io"
 	"sort"
 	"strings"
@@ -25,7 +24,6 @@ import (
 type Scope struct {
 	parent   *Scope
 	children []*Scope
-	node     ast.Node
 	elems    map[string]Object // lazily allocated
 }
 
@@ -42,24 +40,6 @@ func NewScope(parent *Scope) *Scope {
 
 // Parent returns the scope's containing (parent) scope.
 func (s *Scope) Parent() *Scope { return s.parent }
-
-// Node returns the ast.Node responsible for this scope,
-// which may be one of the following:
-//
-//	ast.File
-//	ast.FuncType
-//	ast.BlockStmt
-//	ast.IfStmt
-//	ast.SwitchStmt
-//	ast.TypeSwitchStmt
-//	ast.CaseClause
-//	ast.CommClause
-//	ast.ForStmt
-//	ast.RangeStmt
-//
-// The result is nil if there is no corresponding node
-// (universe and package scopes).
-func (s *Scope) Node() ast.Node { return s.node }
 
 // Len() returns the number of scope elements.
 func (s *Scope) Len() int { return len(s.elems) }
