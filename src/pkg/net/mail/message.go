@@ -342,6 +342,8 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			word, err = p.consumeQuotedString()
 		} else {
 			// atom
+			// We actually parse dot-atom here to be more permissive
+			// than what RFC 5322 specifies.
 			word, err = p.consumeAtom(true)
 		}
 
