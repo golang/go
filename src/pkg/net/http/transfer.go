@@ -254,7 +254,7 @@ func bodyAllowedForStatus(status int) bool {
 
 // msg is *Request or *Response.
 func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
-	t := &transferReader{}
+	t := &transferReader{RequestMethod: "GET"}
 
 	// Unify input
 	isResponse := false
@@ -262,11 +262,13 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	case *Response:
 		t.Header = rr.Header
 		t.StatusCode = rr.StatusCode
-		t.RequestMethod = rr.Request.Method
 		t.ProtoMajor = rr.ProtoMajor
 		t.ProtoMinor = rr.ProtoMinor
 		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
 		isResponse = true
+		if rr.Request != nil {
+			t.RequestMethod = rr.Request.Method
+		}
 	case *Request:
 		t.Header = rr.Header
 		t.ProtoMajor = rr.ProtoMajor
@@ -274,7 +276,6 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		// Transfer semantics for Requests are exactly like those for
 		// Responses with status code 200, responding to a GET method
 		t.StatusCode = 200
-		t.RequestMethod = "GET"
 	default:
 		panic("unexpected type")
 	}
