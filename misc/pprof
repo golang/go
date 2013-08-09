@@ -78,6 +78,7 @@
 use strict;
 use warnings;
 use Getopt::Long;
+use File::Temp;
 
 my $PPROF_VERSION = "1.5";
 
@@ -133,6 +134,13 @@ my @prefix_list = ();
 # Used as separator to parse "addr2line -i" output.
 my $sep_symbol = '_fini';
 my $sep_address = undef;
+
+my $OS = $^O;
+my $DEVNULL = "/dev/null";
+if ($^O =~ /MSWin32|cygwin|msys/) {
+	$OS = "windows";
+	$DEVNULL = "NUL";
+}
 
 ##### Argument parsing #####
 
@@ -286,8 +294,9 @@ sub Init() {
   # Setup tmp-file name and handler to clean it up.
   # We do this in the very beginning so that we can use
   # error() and cleanup() function anytime here after.
-  $main::tmpfile_sym = "/tmp/pprof$$.sym";
-  $main::tmpfile_ps = "/tmp/pprof$$";
+  $main::tmpfile_sym = File::Temp->new()->filename;
+  $main::tmpfile_ps = File::Temp->new()->filename;
+  
   $main::next_tmpfile = 0;
   $SIG{'INT'} = \&sighandler;
 
@@ -696,7 +705,7 @@ sub ReadlineMightFail {
 sub RunGV {
   my $fname = shift;
   my $bg = shift;       # "" or " &" if we should run in background
-  if (!system("$GV --version >/dev/null 2>&1")) {
+  if (!system("$GV --version >$DEVNULL 2>&1")) {
     # Options using double dash are supported by this gv version.
     # Also, turn on noantialias to better handle bug in gv for
     # postscript files with large dimensions.
@@ -1246,7 +1255,7 @@ sub Disassemble {
                     "--start-address=0x$start_addr " .
                     "--stop-address=0x$end_addr $prog");
 
-  if (system("$objdump --help >/dev/null 2>&1") != 0) {
+  if (system("$objdump --help >$DEVNULL 2>&1") != 0) {
     # objdump must not exist.  Fall back to go tool objdump.
     $objdump = "go tool objdump";
     $cmd = "$objdump $prog 0x$start_addr 0x$end_addr";
@@ -4426,7 +4435,7 @@ sub MapToSymbols {
 
   # If "addr2line" isn't installed on the system at all, just use
   # nm to get what info we can (function names, but not line numbers).
-  if (system("$addr2line --help >/dev/null 2>&1") != 0) {
+  if (system("$addr2line --help >$DEVNULL 2>&1") != 0) {
     MapSymbolsWithNM($image, $offset, $pclist, $symbols);
     return;
   }
@@ -4444,7 +4453,7 @@ sub MapToSymbols {
   if (defined($sep_address)) {
     # Only add " -i" to addr2line if the binary supports it.
     # addr2line --help returns 0, but not if it sees an unknown flag first.
-    if (system("$cmd -i --help >/dev/null 2>&1") == 0) {
+    if (system("$cmd -i --help >$DEVNULL 2>&1") == 0) {
       $cmd .= " -i";
     } else {
       $sep_address = undef;   # no need for sep_address if we don't support -i
@@ -4599,7 +4608,12 @@ sub ConfigureObjTools {
   (-e $prog_file)  || error("$prog_file does not exist.\n");
 
   # Follow symlinks (at least for systems where "file" supports that)
-  my $file_type = `/usr/bin/file -L $prog_file 2>/dev/null || /usr/bin/file $prog_file`;
+  my $file_cmd = "/usr/bin/file -L $prog_file 2>$DEVNULL || /usr/bin/file $prog_file 2>$DEVNULL";
+  if ($^O eq "MSWin32") {
+    $file_cmd = "file -L $prog_file 2>NUL || file $prog_file 2>NUL";
+  }
+  my $file_type = `$file_cmd`;
+
   if ($file_type =~ /64-bit/) {
     # Change $address_length to 16 if the program file is ELF 64-bit.
     # We can't detect this from many (most?) heap or lock contention
@@ -4608,14 +4622,13 @@ sub ConfigureObjTools {
     $address_length = 16;
   }
 
-  if ($file_type =~ /MS Windows/) {
+  if (($file_type =~ /MS Windows/) || ($OS eq "windows")) {
     # For windows, we provide a version of nm and addr2line as part of
     # the opensource release, which is capable of parsing
     # Windows-style PDB executables.  It should live in the path, or
     # in the same directory as pprof.
     $obj_tool_map{"nm_pdb"} = "nm-pdb";
     $obj_tool_map{"addr2line_pdb"} = "addr2line-pdb";
-    $obj_tool_map{"is_windows"} = "true";
   }
 
   if ($file_type =~ /Mach-O/) {
@@ -4801,29 +4814,23 @@ sub GetProcedureBoundaries {
   # in an incompatible way.  So first we test whether our nm supports
   # --demangle and -f.
   my $demangle_flag = "";
-  if (system("$nm --demangle $image >/dev/null 2>&1") == 0) {
+  if (system("$nm --demangle $image >$DEVNULL 2>&1") == 0) {
     # In this mode, we do "nm --demangle <foo>"
     $demangle_flag = "--demangle";
   }
   my $flatten_flag = "";
-  if (system("$nm -f $image >/dev/null 2>&1") == 0) {
+  if (system("$nm -f $image >$DEVNULL 2>&1") == 0) {
     $flatten_flag = "-f";
   }
 
   # Finally, in the case $image isn't a debug library, we try again with
   # -D to at least get *exported* symbols.  If we can't use --demangle, too bad.
   my @nm_commands = ("$nm -n $flatten_flag $demangle_flag" .
-                     " $image 2>/dev/null",
+                     " $image 2>$DEVNULL",
                      "$nm -D -n $flatten_flag $demangle_flag" .
-                     " $image 2>/dev/null",
+                     " $image 2>$DEVNULL",
                      # go tool nm is for Go binaries
-                     "go tool nm $image 2>/dev/null | sort");
-
-  # If the executable is an MS Windows Go executable, we'll
-  # have set up obj_tool_map("is_windows").
-  if (exists $obj_tool_map{"is_windows"}) {
-    @nm_commands = ("go tool nm $image 2>/dev/null | sort");
-  }
+                     "go tool nm $image 2>$DEVNULL | sort");
 
   foreach my $nm_command (@nm_commands) {
     my $symbol_table = GetProcedureBoundariesViaNm($nm_command, $regexp);
