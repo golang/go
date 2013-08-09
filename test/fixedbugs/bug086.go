@@ -6,12 +6,12 @@
 
 package main
 
-func f() int {	// GCCGO_ERROR "control"
+func f() int {
 	if false {
 		return 0;
 	}
 	// we should not be able to return successfully w/o a return statement
-} // GC_ERROR "return"
+} // ERROR "return"
 
 func main() {
 	print(f(), "\n");
