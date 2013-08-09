@@ -3419,6 +3419,40 @@ func BenchmarkFieldByName3(b *testing.B) {
 	}
 }
 
+type S struct {
+	i1 int64
+	i2 int64
+}
+
+func BenchmarkInterfaceBig(b *testing.B) {
+	v := ValueOf(S{})
+	for i := 0; i < b.N; i++ {
+		v.Interface()
+	}
+	b.StopTimer()
+}
+
+func TestAllocsInterfaceBig(t *testing.T) {
+	v := ValueOf(S{})
+	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
+		t.Errorf("allocs:", allocs)
+	}
+}
+
+func BenchmarkInterfaceSmall(b *testing.B) {
+	v := ValueOf(int64(0))
+	for i := 0; i < b.N; i++ {
+		v.Interface()
+	}
+}
+
+func TestAllocsInterfaceSmall(t *testing.T) {
+	v := ValueOf(int64(0))
+	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
+		t.Errorf("allocs:", allocs)
+	}
+}
+
 // An exhaustive is a mechanism for writing exhaustive or stochastic tests.
 // The basic usage is:
 //

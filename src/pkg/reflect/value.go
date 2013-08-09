@@ -1004,7 +1004,8 @@ func valueInterface(v Value, safe bool) interface{} {
 	eface.typ = v.typ
 	eface.word = v.iword()
 
-	if v.flag&flagIndir != 0 && v.typ.size > ptrSize {
+	// Don't need to allocate if v is not addressable or fits in one word.
+	if v.flag&flagAddr != 0 && v.typ.size > ptrSize {
 		// eface.word is a pointer to the actual data,
 		// which might be changed.  We need to return
 		// a pointer to unchanging data, so make a copy.
