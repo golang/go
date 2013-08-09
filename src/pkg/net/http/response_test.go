@@ -348,6 +348,29 @@ some body`,
 
 		"some body",
 	},
+
+	// Unchunked response without Content-Length, Request is nil
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Header: Header{
+				"Connection": {"close"}, // TODO(rsc): Delete?
+			},
+			Close:         true,
+			ContentLength: -1,
+		},
+
+		"Body here\n",
+	},
 }
 
 func TestReadResponse(t *testing.T) {
