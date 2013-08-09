@@ -164,9 +164,9 @@ func TestSliceRoundTrip(t *testing.T) {
 		}
 		for i := 0; i < src.Len(); i++ {
 			if unsigned {
-				src.Index(i).SetUint(uint64(i * 0x87654321))
+				src.Index(i).SetUint(uint64(i * 0x07654321))
 			} else {
-				src.Index(i).SetInt(int64(i * 0x87654321))
+				src.Index(i).SetInt(int64(i * 0x07654321))
 			}
 		}
 		buf.Reset()
