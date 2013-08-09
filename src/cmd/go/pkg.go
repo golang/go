@@ -323,6 +323,23 @@ func expandScanner(err error) error {
 	return err
 }
 
+var raceExclude = map[string]bool{
+	"runtime/race": true,
+	"runtime/cgo":  true,
+	"cmd/cgo":      true,
+	"syscall":      true,
+	"errors":       true,
+}
+
+var cgoExclude = map[string]bool{
+	"runtime/cgo": true,
+}
+
+var cgoSyscallExclude = map[string]bool{
+	"runtime/cgo":  true,
+	"runtime/race": true,
+}
+
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package {
@@ -375,17 +392,22 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 
 	importPaths := p.Imports
-	// Packages that use cgo import runtime/cgo implicitly,
-	// except runtime/cgo itself.
-	if len(p.CgoFiles) > 0 && (!p.Standard || p.ImportPath != "runtime/cgo") {
+	// Packages that use cgo import runtime/cgo implicitly.
+	// Packages that use cgo also import syscall implicitly,
+	// to wrap errno.
+	// Exclude certain packages to avoid circular dependencies.
+	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoExclude[p.ImportPath]) {
 		importPaths = append(importPaths, "runtime/cgo")
+	}
+	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+		importPaths = append(importPaths, "syscall")
 	}
 	// Everything depends on runtime, except runtime and unsafe.
 	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
 		importPaths = append(importPaths, "runtime")
 		// When race detection enabled everything depends on runtime/race.
-		// Exclude runtime/cgo and cmd/cgo to avoid circular dependencies.
-		if buildRace && (!p.Standard || (p.ImportPath != "runtime/race" && p.ImportPath != "runtime/cgo" && p.ImportPath != "cmd/cgo")) {
+		// Exclude certain packages to avoid circular dependencies.
+		if buildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
 			importPaths = append(importPaths, "runtime/race")
 		}
 	}
