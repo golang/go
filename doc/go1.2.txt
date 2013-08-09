@@ -10,6 +10,7 @@ Please keep the list sorted (as in sort.Strings of the lines).
 
 cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
+cmd/gc: make missing package error fatal (CL 12677043).
 cmd/go: test coverage (CL 10413044).
 
 container/heap: added Fix (CL 12265043).
@@ -19,7 +20,9 @@ crypto/sha1: Sum function to simplify hashing (CL 10571043).
 crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
 crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
 crypto/tls: add support for TLS 1.1. (CL 7872043).
+encoding/csv: always allow trailing commas (CL 11916045).
 encoding/json: accept but correct invalid UTF-8 in Marshal (CL 11211045).
+encoding/xml: allow attributes stored in pointers to be marshaled (CL 8653047).
 flag: add Getter interface (CL 10472043).
 flag: export commandLine (now CommandLine) (CL 12587043).
 fmt: indexed access to arguments in Printf etc. (CL 9680043).
@@ -28,10 +31,12 @@ image/draw: added Drawer, FloydSteinberg and the op.Draw method (CL 10977043).
 image/draw: added Quantizer type (CL 11148043).
 image/gif: added Encode and EncodeAll (CL 10896043).
 io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
+ioutil: add WriteString to Discard (CL 12580045).
 net: new build tag netgo for building a pure Go net package (CL 7100050).
 runtime: allow SetFinalizer with a func(interface{}) (CL 11858043).
 runtime: preemption of goroutines at function entry (CL 12371043).
 sort: new Stable function provides stable sort (CL 9612044).
+strings: add IndexByte, for consistency with bytes package (CL 12214044).
 syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10980043).
 testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
 time: Allow Parse and Format to handle time zone offsets with seconds (CL 8132044)
