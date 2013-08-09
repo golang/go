@@ -337,16 +337,17 @@ const (
 
 // A Package describes the Go package found in a directory.
 type Package struct {
-	Dir        string // directory containing package sources
-	Name       string // package name
-	Doc        string // documentation synopsis
-	ImportPath string // import path of package ("" if unknown)
-	Root       string // root of Go tree where this package lives
-	SrcRoot    string // package source root directory ("" if unknown)
-	PkgRoot    string // package install root directory ("" if unknown)
-	BinDir     string // command install directory ("" if unknown)
-	Goroot     bool   // package found in Go root
-	PkgObj     string // installed .a file
+	Dir        string   // directory containing package sources
+	Name       string   // package name
+	Doc        string   // documentation synopsis
+	ImportPath string   // import path of package ("" if unknown)
+	Root       string   // root of Go tree where this package lives
+	SrcRoot    string   // package source root directory ("" if unknown)
+	PkgRoot    string   // package install root directory ("" if unknown)
+	BinDir     string   // command install directory ("" if unknown)
+	Goroot     bool     // package found in Go root
+	PkgObj     string   // installed .a file
+	AllTags    []string // tags that can influence file selection in this directory
 
 	// Source files
 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -578,6 +579,7 @@ Found:
 	imported := make(map[string][]token.Position)
 	testImported := make(map[string][]token.Position)
 	xTestImported := make(map[string][]token.Position)
+	allTags := make(map[string]bool)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
 		if d.IsDir() {
@@ -595,7 +597,7 @@ Found:
 		}
 		ext := name[i:]
 
-		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
+		if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
 			if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			}
@@ -634,7 +636,7 @@ Found:
 		}
 
 		// Look for +build comments to accept or reject the file.
-		if !ctxt.UseAllFiles && !ctxt.shouldBuild(data) {
+		if !ctxt.shouldBuild(data, allTags) && !ctxt.UseAllFiles {
 			if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			}
@@ -736,6 +738,7 @@ Found:
 			}
 		}
 		if isCgo {
+			allTags["cgo"] = true
 			if ctxt.CgoEnabled {
 				p.CgoFiles = append(p.CgoFiles, name)
 			}
@@ -750,6 +753,11 @@ Found:
 	if p.Name == "" {
 		return p, &NoGoError{p.Dir}
 	}
+
+	for tag := range allTags {
+		p.AllTags = append(p.AllTags, tag)
+	}
+	sort.Strings(p.AllTags)
 
 	p.Imports, p.ImportPos = cleanImports(imported)
 	p.TestImports, p.TestImportPos = cleanImports(testImported)
@@ -800,7 +808,7 @@ var slashslash = []byte("//")
 //
 // marks the file as applicable only on Windows and Linux.
 //
-func (ctxt *Context) shouldBuild(content []byte) bool {
+func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
 	// Pass 1. Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
 	end := 0
@@ -825,6 +833,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 
 	// Pass 2.  Process each line in the run.
 	p = content
+	allok := true
 	for len(p) > 0 {
 		line := p
 		if i := bytes.IndexByte(line, '\n'); i >= 0 {
@@ -841,19 +850,19 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 				if f[0] == "+build" {
 					ok := false
 					for _, tok := range f[1:] {
-						if ctxt.match(tok) {
+						if ctxt.match(tok, allTags) {
 							ok = true
-							break
 						}
 					}
 					if !ok {
-						return false // this one doesn't match
+						allok = false
 					}
 				}
 			}
 		}
 	}
-	return true // everything matches
+
+	return allok
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.
@@ -893,7 +902,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if len(cond) > 0 {
 			ok := false
 			for _, c := range cond {
-				if ctxt.match(c) {
+				if ctxt.match(c, nil) {
 					ok = true
 					break
 				}
@@ -1018,19 +1027,28 @@ func splitQuoted(s string) (r []string, err error) {
 //	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
 //	a comma-separated list of any of these
 //
-func (ctxt *Context) match(name string) bool {
+func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 	if name == "" {
+		if allTags != nil {
+			allTags[name] = true
+		}
 		return false
 	}
 	if i := strings.Index(name, ","); i >= 0 {
 		// comma-separated list
-		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
+		ok1 := ctxt.match(name[:i], allTags)
+		ok2 := ctxt.match(name[i+1:], allTags)
+		return ok1 && ok2
 	}
 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
 		return false
 	}
 	if strings.HasPrefix(name, "!") { // negation
-		return len(name) > 1 && !ctxt.match(name[1:])
+		return len(name) > 1 && !ctxt.match(name[1:], allTags)
+	}
+
+	if allTags != nil {
+		allTags[name] = true
 	}
 
 	// Tags must be letters, digits, underscores or dots.
@@ -1075,7 +1093,7 @@ func (ctxt *Context) match(name string) bool {
 //     name_$(GOARCH)_test.*
 //     name_$(GOOS)_$(GOARCH)_test.*
 //
-func (ctxt *Context) goodOSArchFile(name string) bool {
+func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	if dot := strings.Index(name, "."); dot != -1 {
 		name = name[:dot]
 	}
@@ -1085,12 +1103,16 @@ func (ctxt *Context) goodOSArchFile(name string) bool {
 	}
 	n := len(l)
 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+		allTags[l[n-2]] = true
+		allTags[l[n-1]] = true
 		return l[n-2] == ctxt.GOOS && l[n-1] == ctxt.GOARCH
 	}
 	if n >= 1 && knownOS[l[n-1]] {
+		allTags[l[n-1]] = true
 		return l[n-1] == ctxt.GOOS
 	}
 	if n >= 1 && knownArch[l[n-1]] {
+		allTags[l[n-1]] = true
 		return l[n-1] == ctxt.GOARCH
 	}
 	return true
