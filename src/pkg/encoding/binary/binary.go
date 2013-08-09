@@ -135,7 +135,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // may be used for padding.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
-	if n := intDestSize(data); n != 0 {
+	if n := intReadSize(data); n != 0 {
 		var b [8]byte
 		var bs []byte
 		if n > len(b) {
@@ -609,8 +609,9 @@ func (e *encoder) skip(v reflect.Value) {
 	e.buf = e.buf[n:]
 }
 
-// intDestSize returns the size of the data required to represent the data when encoded.
-func intDestSize(data interface{}) int {
+// intReadSize returns the size of the data required to represent the data when encoded.
+// It returns zero if the type cannot be implemented by the fast path in Read.
+func intReadSize(data interface{}) int {
 	switch data := data.(type) {
 	case *int8, *uint8:
 		return 1
