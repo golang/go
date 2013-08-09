@@ -186,9 +186,9 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 		if len(f) < 6 {
 			continue
 		}
-		port, _, portOk := dtoi(f[2], 0)
+		port, _, portOk := dtoi(f[4], 0)
 		priority, _, priorityOk := dtoi(f[3], 0)
-		weight, _, weightOk := dtoi(f[4], 0)
+		weight, _, weightOk := dtoi(f[2], 0)
 		if !(portOk && priorityOk && weightOk) {
 			continue
 		}
