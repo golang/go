@@ -349,15 +349,19 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			// Install cross-compiled binaries to subdirectories of bin.
 			elem = full
 		}
-		switch goTools[p.ImportPath] {
-		case toRoot: // default, if p.ImportPath not in goTools
-			if p.build.BinDir != "" {
-				p.target = filepath.Join(p.build.BinDir, elem)
-			}
-		case toTool:
-			p.target = filepath.Join(gorootPkg, "tool", full)
-		case toBin:
+		if p.build.BinDir != gobin && goTools[p.ImportPath] == toBin {
+			// Override BinDir.
+			// This is from a subrepo but installs to $GOROOT/bin
+			// by default anyway (like godoc).
 			p.target = filepath.Join(gorootBin, elem)
+		} else if p.build.BinDir != "" {
+			// Install to GOBIN or bin of GOPATH entry.
+			p.target = filepath.Join(p.build.BinDir, elem)
+		}
+		if goTools[p.ImportPath] == toTool {
+			// This is for 'go tool'.
+			// Override all the usual logic and force it into the tool directory.
+			p.target = filepath.Join(gorootPkg, "tool", full)
 		}
 		if p.target != "" && buildContext.GOOS == "windows" {
 			p.target += ".exe"

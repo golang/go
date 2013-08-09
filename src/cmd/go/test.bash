@@ -5,15 +5,44 @@
 
 set -e
 go build -o testgo
+go() {
+	echo TEST ERROR: ran go, not testgo: go "$@" >&2
+	exit 2
+}
+
+started=false
+TEST() {
+	if $started; then
+		stop
+	fi
+	echo TEST: "$@"
+	started=true
+	ok=true
+}
+stop() {
+	if ! $started; then
+		echo TEST ERROR: stop missing start >&2
+		exit 2
+	fi
+	started=false
+	if $ok; then
+		echo PASS
+	else
+		echo FAIL
+		allok=false
+	fi
+}
 
 ok=true
+allok=true
 
 unset GOPATH
 unset GOBIN
 
+TEST 'file:line in error messages'
 # Test that error messages have file:line information at beginning of
 # the line. Also test issue 4917: that the error is on stderr.
-d=$(mktemp -d -t testgoXXX)
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 fn=$d/err.go
 echo "package main" > $fn
 echo 'import "bar"' >> $fn
@@ -28,6 +57,7 @@ rm -r $d
 # Test local (./) imports.
 testlocal() {
 	local="$1"
+	TEST local imports $2 '(easy)'
 	./testgo build -o hello "testdata/$local/easy.go"
 	./hello >hello.out
 	if ! grep -q '^easysub\.Hello' hello.out; then
@@ -36,6 +66,7 @@ testlocal() {
 		ok=false
 	fi
 	
+	TEST local imports $2 '(easysub)'
 	./testgo build -o hello "testdata/$local/easysub/main.go"
 	./hello >hello.out
 	if ! grep -q '^easysub\.Hello' hello.out; then
@@ -44,6 +75,7 @@ testlocal() {
 		ok=false
 	fi
 	
+	TEST local imports $2 '(hard)'
 	./testgo build -o hello "testdata/$local/hard.go"
 	./hello >hello.out
 	if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
@@ -55,6 +87,7 @@ testlocal() {
 	rm -f hello.out hello
 	
 	# Test that go install x.go fails.
+	TEST local imports $2 '(go install should fail)'
 	if ./testgo install "testdata/$local/easy.go" >/dev/null 2>&1; then
 		echo "go install testdata/$local/easy.go succeeded"
 		ok=false
@@ -62,22 +95,24 @@ testlocal() {
 }
 
 # Test local imports
-testlocal local
+testlocal local ''
 
 # Test local imports again, with bad characters in the directory name.
 bad='#$%:, &()*;<=>?\^{}'
 rm -rf "testdata/$bad"
 cp -R testdata/local "testdata/$bad"
-testlocal "$bad"
+testlocal "$bad" 'with bad characters in path'
 rm -rf "testdata/$bad"
 
 # Test tests with relative imports.
+TEST relative imports '(go test)'
 if ! ./testgo test ./testdata/testimport; then
 	echo "go test ./testdata/testimport failed"
 	ok=false
 fi
 
 # Test installation with relative imports.
+TEST relative imports '(go test -i)'
 if ! ./testgo test -i ./testdata/testimport; then
     echo "go test -i ./testdata/testimport failed"
     ok=false
@@ -85,6 +120,7 @@ fi
 
 # Test tests with relative imports in packages synthesized
 # from Go files named on the command line.
+TEST relative imports in command-line package
 if ! ./testgo test ./testdata/testimport/*.go; then
 	echo "go test ./testdata/testimport/*.go failed"
 	ok=false
@@ -92,6 +128,7 @@ fi
 
 # Test that without $GOBIN set, binaries get installed
 # into the GOPATH bin directory.
+TEST install into GOPATH
 rm -rf testdata/bin
 if ! GOPATH=$(pwd)/testdata ./testgo install go-cmd-test; then
 	echo "go install go-cmd-test failed"
@@ -102,6 +139,7 @@ elif ! test -x testdata/bin/go-cmd-test; then
 fi
 
 # And with $GOBIN set, binaries get installed to $GOBIN.
+TEST install into GOBIN
 if ! GOBIN=$(pwd)/testdata/bin1 GOPATH=$(pwd)/testdata ./testgo install go-cmd-test; then
 	echo "go install go-cmd-test failed"
 	ok=false
@@ -112,12 +150,14 @@ fi
 
 # Without $GOBIN set, installing a program outside $GOPATH should fail
 # (there is nowhere to install it).
+TEST install without destination
 if ./testgo install testdata/src/go-cmd-test/helloworld.go; then
 	echo "go install testdata/src/go-cmd-test/helloworld.go should have failed, did not"
 	ok=false
 fi
 
 # With $GOBIN set, should install there.
+TEST install to GOBIN '(command-line package)'
 if ! GOBIN=$(pwd)/testdata/bin1 ./testgo install testdata/src/go-cmd-test/helloworld.go; then
 	echo "go install testdata/src/go-cmd-test/helloworld.go failed"
 	ok=false
@@ -126,24 +166,88 @@ elif ! test -x testdata/bin1/helloworld; then
 	ok=false
 fi
 
+TEST godoc installs into GOBIN
+d=$(mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir $d/gobin
+GOBIN=$d/gobin ./testgo get code.google.com/p/go.tools/cmd/godoc
+if [ ! -x $d/gobin/godoc ]; then
+	echo did not install godoc to '$GOBIN'
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc
+	ok=false
+fi
+
+TEST godoc installs into GOROOT
+rm -f $GOROOT/bin/godoc
+./testgo install code.google.com/p/go.tools/cmd/godoc
+if [ ! -x $GOROOT/bin/godoc ]; then
+	echo did not install godoc to '$GOROOT/bin'
+	./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc
+	ok=false
+fi
+
+TEST cmd/api installs into tool
+GOOS=$(./testgo env GOOS)
+GOARCH=$(./testgo env GOARCH)
+rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api
+./testgo install cmd/api
+if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api ]; then
+	echo 'did not install cmd/api to $GOROOT/pkg/tool'
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/api
+	ok=false
+fi
+rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api
+GOBIN=$d/gobin ./testgo install cmd/api
+if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api ]; then
+	echo 'did not install cmd/api to $GOROOT/pkg/tool with $GOBIN set'
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/api
+	ok=false
+fi
+
+TEST gopath program installs into GOBIN
+mkdir $d/src/progname
+echo 'package main; func main() {}' >$d/src/progname/p.go
+GOBIN=$d/gobin ./testgo install progname
+if [ ! -x $d/gobin/progname ]; then
+	echo 'did not install progname to $GOBIN/progname'
+	./testgo list -f 'Target: {{.Target}}' cmd/api
+	ok=false
+fi
+rm -f $d/gobin/progname $d/bin/progname
+
+TEST gopath program installs into GOPATH/bin
+./testgo install progname
+if [ ! -x $d/bin/progname ]; then
+	echo 'did not install progname to $GOPATH/bin/progname'
+	./testgo list -f 'Target: {{.Target}}' progname
+	ok=false
+fi
+
+unset GOPATH
+rm -rf $d
+
 # Reject relative paths in GOPATH.
+TEST reject relative paths in GOPATH '(command-line package)'
 if GOPATH=. ./testgo build testdata/src/go-cmd-test/helloworld.go; then
     echo 'GOPATH="." go build should have failed, did not'
     ok=false
 fi
 
+TEST reject relative paths in GOPATH 
 if GOPATH=:$(pwd)/testdata:. ./testgo build go-cmd-test; then
     echo 'GOPATH=":$(pwd)/testdata:." go build should have failed, did not'
     ok=false
 fi
 
 # issue 4104
+TEST go test with package listed multiple times
 if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
     echo 'go test fmt fmt fmt fmt fmt tested the same package multiple times'
     ok=false
 fi
 
 # ensure that output of 'go list' is consistent between runs
+TEST go list is consistent
 ./testgo list std > test_std.list
 if ! ./testgo list std | cmp -s test_std.list - ; then
 	echo "go list std ordering is inconsistent"
@@ -152,31 +256,37 @@ fi
 rm -f test_std.list
 
 # issue 4096. Validate the output of unsuccessful go install foo/quxx 
+TEST unsuccessful go install should mention missing package
 if [ $(./testgo install 'foo/quxx' 2>&1 | grep -c 'cannot find package "foo/quxx" in any of') -ne 1 ] ; then
 	echo 'go install foo/quxx expected error: .*cannot find package "foo/quxx" in any of'
 	ok=false
 fi 
 # test GOROOT search failure is reported
+TEST GOROOT search failure reporting
 if [ $(./testgo install 'foo/quxx' 2>&1 | egrep -c 'foo/quxx \(from \$GOROOT\)$') -ne 1 ] ; then
         echo 'go install foo/quxx expected error: .*foo/quxx (from $GOROOT)'
         ok=false
 fi
 # test multiple GOPATH entries are reported separately
+TEST multiple GOPATH entries reported separately
 if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/./src/foo/quxx') -ne 2 ] ; then
         echo 'go install foo/quxx expected error: .*testdata/a/src/foo/quxx (from $GOPATH)\n.*testdata/b/src/foo/quxx'
         ok=false
 fi
 # test (from $GOPATH) annotation is reported for the first GOPATH entry
+TEST mention GOPATH in first GOPATH entry
 if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/a/src/foo/quxx \(from \$GOPATH\)$') -ne 1 ] ; then
         echo 'go install foo/quxx expected error: .*testdata/a/src/foo/quxx (from $GOPATH)'
         ok=false
 fi
 # but not on the second
+TEST but not the second entry
 if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/b/src/foo/quxx$') -ne 1 ] ; then
         echo 'go install foo/quxx expected error: .*testdata/b/src/foo/quxx'
         ok=false
 fi
 # test missing GOPATH is reported
+TEST missing GOPATH is reported
 if [ $(GOPATH= ./testgo install 'foo/quxx' 2>&1 | egrep -c '\(\$GOPATH not set\)$') -ne 1 ] ; then
         echo 'go install foo/quxx expected error: ($GOPATH not set)'
         ok=false
@@ -184,6 +294,7 @@ fi
 
 # issue 4186. go get cannot be used to download packages to $GOROOT
 # Test that without GOPATH set, go get should fail
+TEST without GOPATH, go get fails
 d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src/pkg
 if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
@@ -191,7 +302,9 @@ if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch
 	ok=false
 fi	
 rm -rf $d
+
 # Test that with GOPATH=$GOROOT, go get should fail
+TEST with GOPATH=GOROOT, go get fails
 d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src/pkg
 if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
@@ -200,7 +313,7 @@ if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpat
 fi
 rm -rf $d
 
-# issue 3941: args with spaces
+TEST ldflags arguments with spaces '(issue 3941)'
 d=$(mktemp -d -t testgoXXX)
 cat >$d/main.go<<EOF
 package main
@@ -217,7 +330,7 @@ if ! grep -q '^hello world' hello.out; then
 fi
 rm -rf $d
 
-# test that go test -cpuprofile leaves binary behind
+TEST go test -cpuprofile leaves binary behind
 ./testgo test -cpuprofile strings.prof strings || ok=false
 if [ ! -x strings.test ]; then
 	echo "go test -cpuprofile did not create strings.test"
@@ -225,9 +338,10 @@ if [ ! -x strings.test ]; then
 fi
 rm -f strings.prof strings.test
 
-# issue 4568. test that symlinks don't screw things up too badly.
+TEST symlinks do not confuse go list '(issue 4568)'
 old=$(pwd)
-d=$(mktemp -d -t testgoXXX)
+tmp=$(cd /tmp && pwd -P)
+d=$(TMPDIR=$tmp mktemp -d -t testgoXXX)
 mkdir -p $d/src
 (
 	ln -s $d $d/src/dir1
@@ -235,8 +349,8 @@ mkdir -p $d/src
 	echo package p >p.go
 	export GOPATH=$d
 	if [ "$($old/testgo list -f '{{.Root}}' .)" != "$d" ]; then
-		echo got lost in symlink tree:
-		pwd
+		echo Confused by symlinks.
+		echo "Package in current directory $(pwd) should have Root $d"
 		env|grep WD
 		$old/testgo list -json . dir1
 		touch $d/failed
@@ -247,8 +361,8 @@ if [ -f $d/failed ]; then
 fi
 rm -rf $d
 
-# issue 4515.
-d=$(mktemp -d -t testgoXXX)
+TEST 'install with tags (issue 4515)'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 mkdir -p $d/src/example/a $d/src/example/b $d/bin
 cat >$d/src/example/a/main.go <<EOF
 package main
@@ -280,8 +394,8 @@ fi
 unset GOPATH
 rm -rf $d
 
-# issue 4773. case-insensitive collisions
-d=$(mktemp -d -t testgoXXX)
+TEST case collisions '(issue 4773)'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d
 mkdir -p $d/src/example/a $d/src/example/b
 cat >$d/src/example/a/a.go <<EOF
@@ -318,22 +432,29 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
 	echo go list example/b did not report file name collision.
 	ok=false
 fi
+
+TEST go get cover
+./testgo get code.google.com/p/go.tools/cmd/cover
+
 unset GOPATH
 rm -rf $d
 
 # Only succeeds if source order is preserved.
+TEST source file name order preserved
 ./testgo test testdata/example[12]_test.go
 
 # Check that coverage analysis works at all.
 # Don't worry about the exact numbers
-./testgo test -coverpkg=strings strings regexp
-./testgo test -cover strings math regexp
+TEST coverage runs
+./testgo test -short -coverpkg=strings strings regexp
+./testgo test -short -cover strings math regexp
 
 # clean up
+if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
 rm -f testgo
 
-if $ok; then
+if $allok; then
 	echo PASS
 else
 	echo FAIL
