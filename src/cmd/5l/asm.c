@@ -1639,6 +1639,8 @@ oprrr(int a, int sc)
 	case ACMP:	return o | (0xa<<21) | (1<<20);
 	case ACMN:	return o | (0xb<<21) | (1<<20);
 	case AORR:	return o | (0xc<<21);
+	case AMOVB:
+	case AMOVH:
 	case AMOVW:	return o | (0xd<<21);
 	case ABIC:	return o | (0xe<<21);
 	case AMVN:	return o | (0xf<<21);

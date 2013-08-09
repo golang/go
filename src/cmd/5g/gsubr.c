@@ -706,16 +706,24 @@ gmove(Node *f, Node *t)
 	 * integer copy and truncate
 	 */
 	case CASE(TINT8, TINT8):	// same size
+		if(!ismem(f)) {
+			a = AMOVB;
+			break;
+		}
 	case CASE(TUINT8, TINT8):
 	case CASE(TINT16, TINT8):	// truncate
 	case CASE(TUINT16, TINT8):
 	case CASE(TINT32, TINT8):
 	case CASE(TUINT32, TINT8):
-		a = AMOVB;
+		a = AMOVBS;
 		break;
 
-	case CASE(TINT8, TUINT8):
 	case CASE(TUINT8, TUINT8):
+		if(!ismem(f)) {
+			a = AMOVB;
+			break;
+		}
+	case CASE(TINT8, TUINT8):
 	case CASE(TINT16, TUINT8):
 	case CASE(TUINT16, TUINT8):
 	case CASE(TINT32, TUINT8):
@@ -725,7 +733,7 @@ gmove(Node *f, Node *t)
 
 	case CASE(TINT64, TINT8):	// truncate low word
 	case CASE(TUINT64, TINT8):
-		a = AMOVB;
+		a = AMOVBS;
 		goto trunc64;
 
 	case CASE(TINT64, TUINT8):
@@ -734,14 +742,22 @@ gmove(Node *f, Node *t)
 		goto trunc64;
 
 	case CASE(TINT16, TINT16):	// same size
+		if(!ismem(f)) {
+			a = AMOVH;
+			break;
+		}
 	case CASE(TUINT16, TINT16):
 	case CASE(TINT32, TINT16):	// truncate
 	case CASE(TUINT32, TINT16):
-		a = AMOVH;
+		a = AMOVHS;
 		break;
 
-	case CASE(TINT16, TUINT16):
 	case CASE(TUINT16, TUINT16):
+		if(!ismem(f)) {
+			a = AMOVH;
+			break;
+		}
+	case CASE(TINT16, TUINT16):
 	case CASE(TINT32, TUINT16):
 	case CASE(TUINT32, TUINT16):
 		a = AMOVHU;
@@ -749,7 +765,7 @@ gmove(Node *f, Node *t)
 
 	case CASE(TINT64, TINT16):	// truncate low word
 	case CASE(TUINT64, TINT16):
-		a = AMOVH;
+		a = AMOVHS;
 		goto trunc64;
 
 	case CASE(TINT64, TUINT16):
@@ -801,7 +817,7 @@ gmove(Node *f, Node *t)
 	case CASE(TINT8, TUINT16):
 	case CASE(TINT8, TINT32):
 	case CASE(TINT8, TUINT32):
-		a = AMOVB;
+		a = AMOVBS;
 		goto rdst;
 	case CASE(TINT8, TINT64):	// convert via int32
 	case CASE(TINT8, TUINT64):
@@ -821,7 +837,7 @@ gmove(Node *f, Node *t)
 
 	case CASE(TINT16, TINT32):	// sign extend int16
 	case CASE(TINT16, TUINT32):
-		a = AMOVH;
+		a = AMOVHS;
 		goto rdst;
 	case CASE(TINT16, TINT64):	// convert via int32
 	case CASE(TINT16, TUINT64):
@@ -893,13 +909,13 @@ gmove(Node *f, Node *t)
 		ta = AMOVW;
 		switch(tt) {
 		case TINT8:
-			ta = AMOVB;
+			ta = AMOVBS;
 			break;
 		case TUINT8:
 			ta = AMOVBU;
 			break;
 		case TINT16:
-			ta = AMOVH;
+			ta = AMOVHS;
 			break;
 		case TUINT16:
 			ta = AMOVHU;
@@ -940,13 +956,13 @@ gmove(Node *f, Node *t)
 		fa = AMOVW;
 		switch(ft) {
 		case TINT8:
-			fa = AMOVB;
+			fa = AMOVBS;
 			break;
 		case TUINT8:
 			fa = AMOVBU;
 			break;
 		case TINT16:
-			fa = AMOVH;
+			fa = AMOVHS;
 			break;
 		case TUINT16:
 			fa = AMOVHU;
@@ -1189,7 +1205,7 @@ checkref(Node *n, int force)
 	m1.xoffset = 0;
 	m1.op = OINDREG;
 	m1.type = types[TUINT8];
-	gins(AMOVBU, &m1, &m2);
+	gins(AMOVB, &m1, &m2);
 	regfree(&m2);
 	regfree(&m1);
 }
@@ -1575,8 +1591,11 @@ optoas(int op, Type *t)
 		break;
 
 	case CASE(OAS, TBOOL):
-	case CASE(OAS, TINT8):
 		a = AMOVB;
+		break;
+
+	case CASE(OAS, TINT8):
+		a = AMOVBS;
 		break;
 
 	case CASE(OAS, TUINT8):
@@ -1584,7 +1603,7 @@ optoas(int op, Type *t)
 		break;
 
 	case CASE(OAS, TINT16):
-		a = AMOVH;
+		a = AMOVHS;
 		break;
 
 	case CASE(OAS, TUINT16):

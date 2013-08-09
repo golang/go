@@ -822,7 +822,7 @@ addmove(Reg *r, int bn, int rn, int f)
 		print("What is this %E\n", v->etype);
 
 	case TINT8:
-		p1->as = AMOVB;
+		p1->as = AMOVBS;
 		break;
 	case TBOOL:
 	case TUINT8:
@@ -830,7 +830,7 @@ addmove(Reg *r, int bn, int rn, int f)
 		p1->as = AMOVBU;
 		break;
 	case TINT16:
-		p1->as = AMOVH;
+		p1->as = AMOVHS;
 		break;
 	case TUINT16:
 		p1->as = AMOVHU;

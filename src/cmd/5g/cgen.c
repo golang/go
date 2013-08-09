@@ -466,6 +466,16 @@ abop:	// asymmetric binary
 		cgen(nl, &n1);
 	}
 	gins(a, &n2, &n1);
+	// Normalize result for types smaller than word.
+	if(n->type->width < widthptr) {
+		switch(n->op) {
+		case OADD:
+		case OSUB:
+		case OMUL:
+			gins(optoas(OAS, n->type), &n1, &n1);
+			break;
+		}
+	}
 	gmove(&n1, res);
 	regfree(&n1);
 	if(n2.op != OLITERAL)
