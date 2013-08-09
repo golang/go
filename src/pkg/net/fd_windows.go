@@ -105,7 +105,6 @@ type operation struct {
 	qty        uint32
 
 	// fields used only by net package
-	mu     sync.Mutex
 	fd     *netFD
 	errc   chan error
 	buf    syscall.WSABuf
@@ -246,10 +245,8 @@ func startServer() {
 
 // Network file descriptor.
 type netFD struct {
-	// locking/lifetime of sysfd
-	sysmu   sync.Mutex
-	sysref  int
-	closing bool
+	// locking/lifetime of sysfd + serialize access to Read and Write methods
+	fdmu fdMutex
 
 	// immutable until Close
 	sysfd         syscall.Handle
@@ -313,6 +310,9 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 }
 
 func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+	// Do not need to call fd.writeLock here,
+	// because fd is not yet accessible to user,
+	// so no concurrent operations are possible.
 	if !canUseConnectEx(fd.net) {
 		return syscall.Connect(fd.sysfd, ra)
 	}
@@ -332,8 +332,6 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 	}
 	// Call ConnectEx API.
 	o := &fd.wop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.sa = ra
 	_, err := iosrv.ExecIO(o, "ConnectEx", func(o *operation) error {
 		return syscall.ConnectEx(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
@@ -345,64 +343,80 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 	return syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
 }
 
+func (fd *netFD) destroy() {
+	if fd.sysfd == syscall.InvalidHandle {
+		return
+	}
+	// Poller may want to unregister fd in readiness notification mechanism,
+	// so this must be executed before closesocket.
+	fd.pd.Close()
+	closesocket(fd.sysfd)
+	fd.sysfd = syscall.InvalidHandle
+	// no need for a finalizer anymore
+	runtime.SetFinalizer(fd, nil)
+}
+
 // Add a reference to this fd.
-// If closing==true, mark the fd as closing.
 // Returns an error if the fd cannot be used.
-func (fd *netFD) incref(closing bool) error {
-	if fd == nil {
+func (fd *netFD) incref() error {
+	if !fd.fdmu.Incref() {
 		return errClosing
 	}
-	fd.sysmu.Lock()
-	if fd.closing {
-		fd.sysmu.Unlock()
-		return errClosing
-	}
-	fd.sysref++
-	if closing {
-		fd.closing = true
-	}
-	closing = fd.closing
-	fd.sysmu.Unlock()
 	return nil
 }
 
-// Remove a reference to this FD and close if we've been asked to do so (and
-// there are no references left.
+// Remove a reference to this FD and close if we've been asked to do so
+// (and there are no references left).
 func (fd *netFD) decref() {
-	if fd == nil {
-		return
+	if fd.fdmu.Decref() {
+		fd.destroy()
 	}
-	fd.sysmu.Lock()
-	fd.sysref--
-	if fd.closing && fd.sysref == 0 && fd.sysfd != syscall.InvalidHandle {
-		// Poller may want to unregister fd in readiness notification mechanism,
-		// so this must be executed before closesocket.
-		fd.pd.Close()
-		closesocket(fd.sysfd)
-		fd.sysfd = syscall.InvalidHandle
-		// no need for a finalizer anymore
-		runtime.SetFinalizer(fd, nil)
+}
+
+// Add a reference to this fd and lock for reading.
+// Returns an error if the fd cannot be used.
+func (fd *netFD) readLock() error {
+	if !fd.fdmu.RWLock(true) {
+		return errClosing
 	}
-	fd.sysmu.Unlock()
+	return nil
+}
+
+// Unlock for reading and remove a reference to this FD.
+func (fd *netFD) readUnlock() {
+	if fd.fdmu.RWUnlock(true) {
+		fd.destroy()
+	}
+}
+
+// Add a reference to this fd and lock for writing.
+// Returns an error if the fd cannot be used.
+func (fd *netFD) writeLock() error {
+	if !fd.fdmu.RWLock(false) {
+		return errClosing
+	}
+	return nil
+}
+
+// Unlock for writing and remove a reference to this FD.
+func (fd *netFD) writeUnlock() {
+	if fd.fdmu.RWUnlock(false) {
+		fd.destroy()
+	}
 }
 
 func (fd *netFD) Close() error {
-	if err := fd.incref(true); err != nil {
-		return err
+	if !fd.fdmu.IncrefAndClose() {
+		return errClosing
 	}
-	defer fd.decref()
 	// unblock pending reader and writer
 	fd.pd.Evict()
-	// wait for both reader and writer to exit
-	fd.rop.mu.Lock()
-	fd.wop.mu.Lock()
-	fd.rop.mu.Unlock()
-	fd.wop.mu.Unlock()
+	fd.decref()
 	return nil
 }
 
 func (fd *netFD) shutdown(how int) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -422,13 +436,11 @@ func (fd *netFD) CloseWrite() error {
 }
 
 func (fd *netFD) Read(buf []byte) (int, error) {
-	if err := fd.incref(false); err != nil {
+	if err := fd.readLock(); err != nil {
 		return 0, err
 	}
-	defer fd.decref()
+	defer fd.readUnlock()
 	o := &fd.rop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.InitBuf(buf)
 	n, err := iosrv.ExecIO(o, "WSARecv", func(o *operation) error {
 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
@@ -443,13 +455,11 @@ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	if len(buf) == 0 {
 		return 0, nil, nil
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.readLock(); err != nil {
 		return 0, nil, err
 	}
-	defer fd.decref()
+	defer fd.readUnlock()
 	o := &fd.rop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.InitBuf(buf)
 	n, err = iosrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
 		if o.rsa == nil {
@@ -466,13 +476,11 @@ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 }
 
 func (fd *netFD) Write(buf []byte) (int, error) {
-	if err := fd.incref(false); err != nil {
+	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
-	defer fd.decref()
+	defer fd.writeUnlock()
 	o := &fd.wop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.InitBuf(buf)
 	return iosrv.ExecIO(o, "WSASend", func(o *operation) error {
 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
@@ -483,13 +491,11 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	if len(buf) == 0 {
 		return 0, nil
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
-	defer fd.decref()
+	defer fd.writeUnlock()
 	o := &fd.wop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.InitBuf(buf)
 	o.sa = sa
 	return iosrv.ExecIO(o, "WSASendto", func(o *operation) error {
@@ -498,10 +504,10 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 }
 
 func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
-	if err := fd.incref(false); err != nil {
+	if err := fd.readLock(); err != nil {
 		return nil, err
 	}
-	defer fd.decref()
+	defer fd.readUnlock()
 
 	// Get new socket.
 	s, err := sysSocket(fd.family, fd.sotype, 0)
@@ -522,8 +528,6 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 
 	// Submit accept request.
 	o := &fd.rop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.handle = s
 	var rawsa [2]syscall.RawSockaddrAny
 	o.rsan = int32(unsafe.Sizeof(rawsa[0]))

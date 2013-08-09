@@ -17,7 +17,7 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 	}
 	var a [4]byte
 	copy(a[:], ip.To4())
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -25,7 +25,7 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 }
 
 func setIPv4MulticastLoopback(fd *netFD, v bool) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()

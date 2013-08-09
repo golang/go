@@ -16,7 +16,7 @@ func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
 	if err := setIPv4MreqToInterface(mreq, ifi); err != nil {
 		return err
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -28,7 +28,7 @@ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
 	if ifi != nil {
 		v = ifi.Index
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -36,7 +36,7 @@ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
 }
 
 func setIPv6MulticastLoopback(fd *netFD, v bool) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -49,7 +49,7 @@ func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
 	if ifi != nil {
 		mreq.Interface = uint32(ifi.Index)
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()

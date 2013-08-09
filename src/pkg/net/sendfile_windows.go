@@ -34,13 +34,12 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 		return 0, nil, false
 	}
 
-	if err := fd.incref(false); err != nil {
+	if err := fd.writeLock(); err != nil {
 		return 0, err, true
 	}
-	defer fd.decref()
+	defer fd.writeUnlock()
+
 	o := &fd.wop
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	o.qty = uint32(n)
 	o.handle = syscall.Handle(f.Fd())
 	done, err := iosrv.ExecIO(o, "TransmitFile", func(o *operation) error {

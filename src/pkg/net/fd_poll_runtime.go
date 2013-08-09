@@ -132,7 +132,7 @@ func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
 	if t.IsZero() {
 		d = 0
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	runtime_pollSetDeadline(fd.pd.runtimeCtx, d, mode)

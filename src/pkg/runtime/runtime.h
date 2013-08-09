@@ -1021,7 +1021,7 @@ bool	runtime·isInf(float64 f, int32 sign);
 bool	runtime·isNaN(float64 f);
 float64	runtime·ldexp(float64 d, int32 e);
 float64	runtime·modf(float64 d, float64 *ip);
-void	runtime·semacquire(uint32*);
+void	runtime·semacquire(uint32*, bool);
 void	runtime·semrelease(uint32*);
 int32	runtime·gomaxprocsfunc(int32 n);
 void	runtime·procyield(uint32);
