@@ -202,48 +202,85 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	case int8:
 		bs = b[:1]
 		b[0] = byte(v)
+	case []int8:
+		bs = make([]byte, len(v))
+		for i, x := range v {
+			bs[i] = byte(x)
+		}
 	case *uint8:
 		bs = b[:1]
 		b[0] = *v
 	case uint8:
 		bs = b[:1]
 		b[0] = byte(v)
+	case []uint8:
+		bs = v
 	case *int16:
 		bs = b[:2]
 		order.PutUint16(bs, uint16(*v))
 	case int16:
 		bs = b[:2]
 		order.PutUint16(bs, uint16(v))
+	case []int16:
+		bs = make([]byte, 2*len(v))
+		for i, x := range v {
+			order.PutUint16(bs[2*i:], uint16(x))
+		}
 	case *uint16:
 		bs = b[:2]
 		order.PutUint16(bs, *v)
 	case uint16:
 		bs = b[:2]
 		order.PutUint16(bs, v)
+	case []uint16:
+		bs = make([]byte, 2*len(v))
+		for i, x := range v {
+			order.PutUint16(bs[2*i:], x)
+		}
 	case *int32:
 		bs = b[:4]
 		order.PutUint32(bs, uint32(*v))
 	case int32:
 		bs = b[:4]
 		order.PutUint32(bs, uint32(v))
+	case []int32:
+		bs = make([]byte, 4*len(v))
+		for i, x := range v {
+			order.PutUint32(bs[4*i:], uint32(x))
+		}
 	case *uint32:
 		bs = b[:4]
 		order.PutUint32(bs, *v)
 	case uint32:
 		bs = b[:4]
 		order.PutUint32(bs, v)
+	case []uint32:
+		bs = make([]byte, 4*len(v))
+		for i, x := range v {
+			order.PutUint32(bs[4*i:], x)
+		}
 	case *int64:
 		bs = b[:8]
 		order.PutUint64(bs, uint64(*v))
 	case int64:
 		bs = b[:8]
 		order.PutUint64(bs, uint64(v))
+	case []int64:
+		bs = make([]byte, 8*len(v))
+		for i, x := range v {
+			order.PutUint64(bs[8*i:], uint64(x))
+		}
 	case *uint64:
 		bs = b[:8]
 		order.PutUint64(bs, *v)
 	case uint64:
 		bs = b[:8]
 		order.PutUint64(bs, v)
+	case []uint64:
+		bs = make([]byte, 8*len(v))
+		for i, x := range v {
+			order.PutUint64(bs[8*i:], x)
+		}
 	}
 	if bs != nil {
 		_, err := w.Write(bs)
