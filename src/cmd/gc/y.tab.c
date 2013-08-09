@@ -2428,8 +2428,7 @@ yyreduce:
     {
 		prevlineno = lineno;
 		yyerror("package statement must be first");
-		flusherrors();
-		mkpackage("main");
+		errorexit();
 	}
     break;
 
