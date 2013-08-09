@@ -1,8 +1,8 @@
-// +build from_src_run
-
 // Copyright 2013 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// +build ignore
 
 // The run program is invoked via "go run" from src/run.bash or
 // src/run.bat conditionally builds and runs the cmd/api tool.
