@@ -182,7 +182,7 @@ time go run run.go || exit 1
 
 echo
 echo '# Checking API compatibility.'
-go run --tags=from_src_run $GOROOT/src/cmd/api/run.go
+time go run $GOROOT/src/cmd/api/run.go
 
 echo
 echo ALL TESTS PASSED

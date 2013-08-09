@@ -1,8 +1,8 @@
-// +build api_tool
-
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// +build api_tool
 
 // Binary api computes the exported API of a set of Go packages.
 package main
@@ -387,6 +387,38 @@ func contains(list []string, s string) bool {
 	return false
 }
 
+var (
+	pkgCache = map[string]*types.Package{} // map tagKey to package
+	pkgTags  = map[string][]string{}       // map import dir to list of relevant tags
+)
+
+// tagKey returns the tag-based key to use in the pkgCache.
+// It is a comma-separated string; the first part is dir, the rest tags.
+// The satisfied tags are derived from context but only those that
+// matter (the ones listed in the tags argument) are used.
+// The tags list, which came from go/build's Package.AllTags,
+// is known to be sorted.
+func tagKey(dir string, context *build.Context, tags []string) string {
+	ctags := map[string]bool{
+		context.GOOS:   true,
+		context.GOARCH: true,
+	}
+	if context.CgoEnabled {
+		ctags["cgo"] = true
+	}
+	for _, tag := range context.BuildTags {
+		ctags[tag] = true
+	}
+	// TODO: ReleaseTags (need to load default)
+	key := dir
+	for _, tag := range tags {
+		if ctags[tag] {
+			key += "," + tag
+		}
+	}
+	return key
+}
+
 // Importing is a sentinel taking the place in Walker.imported
 // for a package that is in the process of being imported.
 var importing types.Package
@@ -411,6 +443,19 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	if context == nil {
 		context = &build.Default
 	}
+
+	// Look in cache.
+	// If we've already done an import with the same set
+	// of relevant tags, reuse the result.
+	var key string
+	if tags, ok := pkgTags[dir]; ok {
+		key = tagKey(dir, context, tags)
+		if pkg := pkgCache[key]; pkg != nil {
+			w.imported[name] = pkg
+			return pkg
+		}
+	}
+
 	info, err := context.ImportDir(dir, 0)
 	if err != nil {
 		if _, nogo := err.(*build.NoGoError); nogo {
@@ -418,6 +463,13 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
+
+	// Save tags list first time we see a directory.
+	if _, ok := pkgTags[dir]; !ok {
+		pkgTags[dir] = info.AllTags
+		key = tagKey(dir, context, info.AllTags)
+	}
+
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
 
 	// Certain files only exist when building for the specified context.
@@ -462,6 +514,8 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 		}
 		log.Fatalf("error typechecking package %s: %s (%s)", name, err, ctxt)
 	}
+
+	pkgCache[key] = pkg
 
 	w.imported[name] = pkg
 	return
