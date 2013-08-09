@@ -72,7 +72,7 @@ func (e *ParseError) Error() string {
 
 // These are the errors that can be returned in ParseError.Error
 var (
-	ErrTrailingComma = errors.New("extra delimiter at end of line")
+	ErrTrailingComma = errors.New("extra delimiter at end of line") // no longer used
 	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
 	ErrQuote         = errors.New("extraneous \" in field")
 	ErrFieldCount    = errors.New("wrong number of fields in line")
@@ -98,16 +98,14 @@ var (
 // If LazyQuotes is true, a quote may appear in an unquoted field and a
 // non-doubled quote may appear in a quoted field.
 //
-// If TrailingComma is true, the last field may be an unquoted empty field.
-//
 // If TrimLeadingSpace is true, leading white space in a field is ignored.
 type Reader struct {
-	Comma            rune // Field delimiter (set to ',' by NewReader)
-	Comment          rune // Comment character for start of line
-	FieldsPerRecord  int  // Number of expected fields per record
-	LazyQuotes       bool // Allow lazy quotes
-	TrailingComma    bool // Allow trailing comma
-	TrimLeadingSpace bool // Trim leading space
+	Comma            rune // field delimiter (set to ',' by NewReader)
+	Comment          rune // comment character for start of line
+	FieldsPerRecord  int  // number of expected fields per record
+	LazyQuotes       bool // allow lazy quotes
+	TrailingComma    bool // ignored; here for backwards compatibility
+	TrimLeadingSpace bool // trim leading space
 	line             int
 	column           int
 	r                *bufio.Reader
@@ -257,23 +255,15 @@ func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 	r.field.Reset()
 
 	r1, err := r.readRune()
-	if err != nil {
-		// If we have EOF and are not at the start of a line
-		// then we return the empty field.  We have already
-		// checked for trailing commas if needed.
-		if err == io.EOF && r.column != 0 {
-			return true, 0, err
-		}
-		return false, 0, err
+	for err == nil && r.TrimLeadingSpace && r1 != '\n' && unicode.IsSpace(r1) {
+		r1, err = r.readRune()
 	}
 
-	if r.TrimLeadingSpace {
-		for r1 != '\n' && unicode.IsSpace(r1) {
-			r1, err = r.readRune()
-			if err != nil {
-				return false, 0, err
-			}
-		}
+	if err == io.EOF && r.column != 0 {
+		return true, 0, err
+	}
+	if err != nil {
+		return false, 0, err
 	}
 
 	switch r1 {
@@ -349,25 +339,5 @@ func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 		return false, 0, err
 	}
 
-	if !r.TrailingComma {
-		// We don't allow trailing commas.  See if we
-		// are at the end of the line (being mindful
-		// of trimming spaces).
-		c := r.column
-		r1, err = r.readRune()
-		if r.TrimLeadingSpace {
-			for r1 != '\n' && unicode.IsSpace(r1) {
-				r1, err = r.readRune()
-				if err != nil {
-					break
-				}
-			}
-		}
-		if err == io.EOF || r1 == '\n' {
-			r.column = c // report the comma
-			return false, 0, r.error(ErrTrailingComma)
-		}
-		r.unreadRune()
-	}
 	return true, r1, nil
 }
