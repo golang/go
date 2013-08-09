@@ -83,6 +83,7 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
 	var hints C.struct_addrinfo
 
 	hints.ai_flags = cgoAddrInfoFlags()
+	hints.ai_socktype = C.SOCK_STREAM
 
 	h := C.CString(name)
 	defer C.free(unsafe.Pointer(h))
@@ -109,7 +110,7 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
 		}
 	}
 	for r := res; r != nil; r = r.ai_next {
-		// Everything comes back twice, once for UDP and once for TCP.
+		// We only asked for SOCK_STREAM, but check anyhow.
 		if r.ai_socktype != C.SOCK_STREAM {
 			continue
 		}
