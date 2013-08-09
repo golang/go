@@ -421,6 +421,45 @@ func TestMarshalNumberZeroVal(t *testing.T) {
 	}
 }
 
+func TestMarshalEmbeds(t *testing.T) {
+	top := &Top{
+		Level0: 1,
+		Embed0: Embed0{
+			Level1b: 2,
+			Level1c: 3,
+		},
+		Embed0a: &Embed0a{
+			Level1a: 5,
+			Level1b: 6,
+		},
+		Embed0b: &Embed0b{
+			Level1a: 8,
+			Level1b: 9,
+			Level1c: 10,
+			Level1d: 11,
+			Level1e: 12,
+		},
+		Loop: Loop{
+			Loop1: 13,
+			Loop2: 14,
+		},
+		Embed0p: Embed0p{
+			Point: image.Point{X: 15, Y: 16},
+		},
+		Embed0q: Embed0q{
+			Point: Point{Z: 17},
+		},
+	}
+	b, err := Marshal(top)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17}"
+	if string(b) != want {
+		t.Errorf("Wrong marshal result.\n got: %q\nwant: %q", b, want)
+	}
+}
+
 func TestUnmarshal(t *testing.T) {
 	for i, tt := range unmarshalTests {
 		var scan scanner
@@ -436,7 +475,7 @@ func TestUnmarshal(t *testing.T) {
 		}
 		// v = new(right-type)
 		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
-		dec := NewDecoder(bytes.NewBuffer(in))
+		dec := NewDecoder(bytes.NewReader(in))
 		if tt.useNumber {
 			dec.UseNumber()
 		}
@@ -461,7 +500,7 @@ func TestUnmarshal(t *testing.T) {
 				continue
 			}
 			vv := reflect.New(reflect.TypeOf(tt.ptr).Elem())
-			dec = NewDecoder(bytes.NewBuffer(enc))
+			dec = NewDecoder(bytes.NewReader(enc))
 			if tt.useNumber {
 				dec.UseNumber()
 			}
@@ -471,6 +510,8 @@ func TestUnmarshal(t *testing.T) {
 			}
 			if !reflect.DeepEqual(v.Elem().Interface(), vv.Elem().Interface()) {
 				t.Errorf("#%d: mismatch\nhave: %#+v\nwant: %#+v", i, v.Elem().Interface(), vv.Elem().Interface())
+				t.Errorf("     In: %q", strings.Map(noSpace, string(in)))
+				t.Errorf("Marshal: %q", strings.Map(noSpace, string(enc)))
 				continue
 			}
 		}
