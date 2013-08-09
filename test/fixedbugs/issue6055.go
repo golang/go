@@ -6,11 +6,17 @@
 
 package main
 
+import "runtime"
+
 type Closer interface {
 	Close()
 }
 
 func nilInterfaceDeferCall() {
+	defer func() {
+		// make sure a traceback happens with jmpdefer on the stack
+		runtime.GC()
+	}()
 	var x Closer
 	defer x.Close()
 }
