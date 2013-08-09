@@ -11,7 +11,7 @@ import (
 )
 
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()

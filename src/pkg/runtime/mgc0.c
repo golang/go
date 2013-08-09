@@ -2019,7 +2019,7 @@ runtime·gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
-	runtime·semacquire(&runtime·worldsema);
+	runtime·semacquire(&runtime·worldsema, false);
 	if(!force && mstats.heap_alloc < mstats.next_gc) {
 		// typically threads which lost the race to grab
 		// worldsema exit here when gc is done.
@@ -2218,7 +2218,7 @@ runtime·ReadMemStats(MStats *stats)
 	// because stoptheworld can only be used by
 	// one goroutine at a time, and there might be
 	// a pending garbage collection already calling it.
-	runtime·semacquire(&runtime·worldsema);
+	runtime·semacquire(&runtime·worldsema, false);
 	m->gcing = 1;
 	runtime·stoptheworld();
 	updatememstats(nil);

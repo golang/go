@@ -326,7 +326,7 @@ runtime·RaceReleaseMerge(void *addr)
 void
 runtime·RaceSemacquire(uint32 *s)
 {
-	runtime·semacquire(s);
+	runtime·semacquire(s, false);
 }
 
 // func RaceSemrelease(s *uint32)

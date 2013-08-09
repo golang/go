@@ -12,7 +12,7 @@ import (
 )
 
 func setNoDelay(fd *netFD, noDelay bool) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()

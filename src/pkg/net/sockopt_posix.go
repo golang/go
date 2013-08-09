@@ -101,7 +101,7 @@ done:
 }
 
 func setReadBuffer(fd *netFD, bytes int) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -109,7 +109,7 @@ func setReadBuffer(fd *netFD, bytes int) error {
 }
 
 func setWriteBuffer(fd *netFD, bytes int) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -117,7 +117,7 @@ func setWriteBuffer(fd *netFD, bytes int) error {
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) error {
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
@@ -133,7 +133,7 @@ func setLinger(fd *netFD, sec int) error {
 		l.Onoff = 0
 		l.Linger = 0
 	}
-	if err := fd.incref(false); err != nil {
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()

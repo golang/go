@@ -447,7 +447,7 @@ func Stack(b Slice, all bool) (n int) {
 	pc = (uintptr)runtime·getcallerpc(&b);
 
 	if(all) {
-		runtime·semacquire(&runtime·worldsema);
+		runtime·semacquire(&runtime·worldsema, false);
 		m->gcing = 1;
 		runtime·stoptheworld();
 	}
@@ -494,7 +494,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 	ok = false;
 	n = runtime·gcount();
 	if(n <= b.len) {
-		runtime·semacquire(&runtime·worldsema);
+		runtime·semacquire(&runtime·worldsema, false);
 		m->gcing = 1;
 		runtime·stoptheworld();
 

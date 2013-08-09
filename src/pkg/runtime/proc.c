@@ -1836,7 +1836,7 @@ runtime·gomaxprocsfunc(int32 n)
 	}
 	runtime·unlock(&runtime·sched);
 
-	runtime·semacquire(&runtime·worldsema);
+	runtime·semacquire(&runtime·worldsema, false);
 	m->gcing = 1;
 	runtime·stoptheworld();
 	newprocs = n;

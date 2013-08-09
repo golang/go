@@ -98,8 +98,8 @@ cansemacquire(uint32 *addr)
 	return 0;
 }
 
-static void
-semacquireimpl(uint32 volatile *addr, int32 profile)
+void
+runtime·semacquire(uint32 volatile *addr, bool profile)
 {
 	Sema s;	// Needs to be allocated on stack, otherwise garbage collector could deallocate it
 	SemaRoot *root;
@@ -145,12 +145,6 @@ semacquireimpl(uint32 volatile *addr, int32 profile)
 }
 
 void
-runtime·semacquire(uint32 volatile *addr)
-{
-	semacquireimpl(addr, 0);
-}
-
-void
 runtime·semrelease(uint32 volatile *addr)
 {
 	Sema *s;
@@ -189,7 +183,7 @@ runtime·semrelease(uint32 volatile *addr)
 }
 
 func runtime_Semacquire(addr *uint32) {
-	semacquireimpl(addr, 1);
+	runtime·semacquire(addr, true);
 }
 
 func runtime_Semrelease(addr *uint32) {
