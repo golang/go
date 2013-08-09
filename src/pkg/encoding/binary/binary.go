@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package binary implements translation between numbers and byte sequences
-// and encoding and decoding of varints.
+// Package binary implements simple translation between numbers and byte
+// sequences and encoding and decoding of varints.
 //
 // Numbers are translated by reading and writing fixed-size values.
 // A fixed-size value is either a fixed-size arithmetic
@@ -13,6 +13,11 @@
 // Varints are a method of encoding integers using one or more bytes;
 // numbers with smaller absolute value take a smaller number of bytes.
 // For a specification, see http://code.google.com/apis/protocolbuffers/docs/encoding.html.
+//
+// This package favors simplicity over efficiency. Clients that require
+// high-performance serialization, especially for large data structures,
+// should look at more advanced solutions such as the encoding/gob
+// package or protocol buffers.
 package binary
 
 import (
