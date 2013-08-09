@@ -94,10 +94,10 @@ Optab	optab[] =
 	{ AMVN,		C_LCON,	C_NONE,	C_REG,		13, 8, 0,	LFROM },
 	{ ACMP,		C_LCON,	C_REG,	C_NONE,		13, 8, 0,	LFROM },
 
-	{ AMOVB,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
+	{ AMOVB,	C_REG,	C_NONE,	C_REG,		 1, 4, 0 },
 	{ AMOVBS,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
 	{ AMOVBU,	C_REG,	C_NONE,	C_REG,		58, 4, 0 },
-	{ AMOVH,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
+	{ AMOVH,	C_REG,	C_NONE,	C_REG,		 1, 4, 0 },
 	{ AMOVHS,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
 	{ AMOVHU,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
 

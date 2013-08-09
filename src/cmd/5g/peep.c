@@ -35,8 +35,11 @@
 #include "opt.h"
 
 int	xtramodes(Reg*, Adr*);
+int	shortprop(Reg *r);
 int	shiftprop(Reg *r);
 void	constprop(Adr *c1, Adr *v1, Reg *r);
+
+Reg*	findpre(Reg *r, Adr *v);
 void	predicate(void);
 int	copyau1(Prog *p, Adr *v);
 int	isdconst(Addr *a);
@@ -45,10 +48,9 @@ void
 peep(void)
 {
 	Reg *r, *r1, *r2;
-	Prog *p, *p1;
+	Prog *p;
 	int t;
 
-	p1 = nil;
 /*
  * complete R structure
  */
@@ -101,6 +103,8 @@ loop1:
 //			}
 			break;
 
+		case AMOVB:
+		case AMOVH:
 		case AMOVW:
 		case AMOVF:
 		case AMOVD:
@@ -120,6 +124,16 @@ loop1:
 			}
 			break;
 
+		case AMOVHS:
+		case AMOVHU:
+		case AMOVBS:
+		case AMOVBU:
+			if(p->from.type == D_REG) {
+				if(shortprop(r))
+					t++;
+			}
+			break;
+
 #ifdef NOTDEF
 			if(p->scond == C_SCOND_NONE)
 			if(regtyp(&p->to))
@@ -132,7 +146,6 @@ loop1:
 	}
 	if(t)
 		goto loop1;
-
 
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
@@ -150,30 +163,6 @@ loop1:
 					p->from.reg = p->to.reg;
 				p->reg = NREG;
 			}
-			break;
-
-		case AMOVH:
-		case AMOVHS:
-		case AMOVHU:
-		case AMOVB:
-		case AMOVBS:
-		case AMOVBU:
-			/*
-			 * look for MOVB x,R; MOVB R,R
-			 */
-			r1 = r->link;
-			if(p->to.type != D_REG)
-				break;
-			if(r1 == R)
-				break;
-			p1 = r1->prog;
-			if(p1->as != p->as)
-				break;
-			if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
-				break;
-			if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
-				break;
-			excise(r1);
 			break;
 		}
 	}
@@ -393,6 +382,8 @@ subprop(Reg *r0)
 
 		case AMOVF:
 		case AMOVD:
+		case AMOVB:
+		case AMOVH:
 		case AMOVW:
 			if(p->to.type == v1->type)
 			if(p->to.reg == v1->reg)
@@ -585,6 +576,64 @@ constprop(Adr *c1, Adr *v1, Reg *r)
 		if(r->s2)
 			constprop(c1, v1, r->s2);
 	}
+}
+
+/*
+ * shortprop eliminates redundant zero/sign extensions.
+ *
+ *   MOVBS x, R
+ *   <no use R>
+ *   MOVBS R, R'
+ *
+ * changed to
+ *
+ *   MOVBS x, R
+ *   ...
+ *   MOVB  R, R' (compiled to mov)
+ *
+ * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
+ */
+int
+shortprop(Reg *r)
+{
+	Prog *p, *p1;
+	Reg *r1;
+
+	p = r->prog;
+	r1 = findpre(r, &p->from);
+	if(r1 == R)
+		return 0;
+
+	p1 = r1->prog;
+	if(p1->as == p->as) {
+		// Two consecutive extensions.
+		goto gotit;
+	}
+
+	if(p1->as == AMOVW && isdconst(&p1->from)
+	   && p1->from.offset >= 0 && p1->from.offset < 128) {
+		// Loaded an immediate.
+		goto gotit;
+	}
+
+	return 0;
+
+gotit:
+	if(debug['P'])
+		print("shortprop\n%P\n%P", p1, p);
+	switch(p->as) {
+	case AMOVBS:
+	case AMOVBU:
+		p->as = AMOVB;
+		break;
+	case AMOVHS:
+	case AMOVHU:
+		p->as = AMOVH;
+		break;
+	}
+	if(debug['P'])
+		print(" => %A\n", p->as);
+	return 1;
 }
 
 /*

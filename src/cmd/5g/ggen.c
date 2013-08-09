@@ -640,6 +640,8 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 			gshift(AMOVW, &n2, SHIFT_LL, v, &n1);
 			gshift(AORR, &n2, SHIFT_LR, w-v, &n1);
 			regfree(&n2);
+			// Ensure sign/zero-extended result.
+			gins(optoas(OAS, nl->type), &n1, &n1);
 		}
 		gmove(&n1, res);
 		regfree(&n1);
@@ -665,6 +667,8 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 			else // OLSH
 				gshift(AMOVW, &n1, SHIFT_LL, sc, &n1);
 		}
+		if(w < 32 && op == OLSH)
+			gins(optoas(OAS, nl->type), &n1, &n1);
 		gmove(&n1, res);
 		regfree(&n1);
 		return;
@@ -738,6 +742,9 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 	regfree(&n3);
 
 	patch(p3, pc);
+	// Left-shift of smaller word must be sign/zero-extended.
+	if(w < 32 && op == OLSH)
+		gins(optoas(OAS, nl->type), &n2, &n2);
 	gmove(&n2, res);
 
 	regfree(&n1);
@@ -798,7 +805,7 @@ clearfat(Node *nl)
 	}
 
 	while(c > 0) {
-		p = gins(AMOVBU, &nz, &dst);
+		p = gins(AMOVB, &nz, &dst);
 		p->to.type = D_OREG;
 		p->to.offset = 1;
  		p->scond |= C_PBIT;
