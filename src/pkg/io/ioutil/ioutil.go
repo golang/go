@@ -132,6 +132,10 @@ func (devNull) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func (devNull) WriteString(s string) (int, error) {
+	return len(s), nil
+}
+
 func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
 	buf := blackHole()
 	defer blackHolePut(buf)
