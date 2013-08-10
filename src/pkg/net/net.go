@@ -372,6 +372,12 @@ func (e UnknownNetworkError) Error() string   { return "unknown network " + stri
 func (e UnknownNetworkError) Temporary() bool { return false }
 func (e UnknownNetworkError) Timeout() bool   { return false }
 
+type InvalidAddrError string
+
+func (e InvalidAddrError) Error() string   { return string(e) }
+func (e InvalidAddrError) Timeout() bool   { return false }
+func (e InvalidAddrError) Temporary() bool { return false }
+
 // DNSConfigError represents an error reading the machine's DNS configuration.
 type DNSConfigError struct {
 	Err error
