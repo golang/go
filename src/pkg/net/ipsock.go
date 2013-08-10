@@ -85,12 +85,6 @@ func ipv6only(ip IP) IP {
 	return nil
 }
 
-type InvalidAddrError string
-
-func (e InvalidAddrError) Error() string   { return string(e) }
-func (e InvalidAddrError) Timeout() bool   { return false }
-func (e InvalidAddrError) Temporary() bool { return false }
-
 // SplitHostPort splits a network address of the form "host:port",
 // "[host]:port" or "[ipv6-host%zone]:port" into host or
 // ipv6-host%zone and port.  A literal address or host name for IPv6
