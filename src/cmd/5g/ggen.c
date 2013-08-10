@@ -9,9 +9,15 @@
 #include "gg.h"
 #include "opt.h"
 
+static Prog* appendp(Prog*, int, int, int, int32, int, int, int32);
+
 void
-defframe(Prog *ptxt)
+defframe(Prog *ptxt, Bvec *bv)
 {
+	int i, first;
+	uint32 frame;
+	Prog *p, *p1;
+	
 	// fill in argument size
 	ptxt->to.type = D_CONST2;
 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
@@ -19,8 +25,60 @@ defframe(Prog *ptxt)
 	// fill in final stack size
 	if(stksize > maxstksize)
 		maxstksize = stksize;
-	ptxt->to.offset = rnd(maxstksize+maxarg, widthptr);
+	frame = rnd(maxstksize+maxarg, widthptr);
+	ptxt->to.offset = frame;
 	maxstksize = 0;
+
+	// insert code to clear pointered part of the frame,
+	// so that garbage collector only sees initialized values
+	// when it looks for pointers.
+	p = ptxt;
+	while(p->link->as == AFUNCDATA || p->link->as == APCDATA || p->link->as == ATYPE)
+		p = p->link;
+	if(stkptrsize >= 8*widthptr) {
+		p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+		p = appendp(p, AADD, D_CONST, NREG, 4+frame-stkptrsize, D_REG, 1, 0);
+		p->reg = REGSP;
+		p = appendp(p, AADD, D_CONST, NREG, stkptrsize, D_REG, 2, 0);
+		p->reg = 1;
+		p1 = p = appendp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);
+		p->scond |= C_PBIT;
+		p = appendp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);
+		p->reg = 2;
+		p = appendp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);
+		patch(p, p1);
+	} else {
+		first = 1;
+		for(i=0; i<stkptrsize; i+=widthptr) {
+			if(bvget(bv, i/widthptr)) {
+				if(first) {
+					p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+					first = 0;
+				}
+				p = appendp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame-stkptrsize+i);
+			}
+		}
+	}
+}
+
+static Prog*
+appendp(Prog *p, int as, int ftype, int freg, int32 foffset, int ttype, int treg, int32 toffset)
+{
+	Prog *q;
+	
+	q = mal(sizeof(*q));
+	clearp(q);
+	q->as = as;
+	q->lineno = p->lineno;
+	q->from.type = ftype;
+	q->from.reg = freg;
+	q->from.offset = foffset;
+	q->to.type = ttype;
+	q->to.reg = treg;
+	q->to.offset = toffset;
+	q->link = p->link;
+	p->link = q;
+	return q;
 }
 
 // Sweep the prog list to mark any used nodes.

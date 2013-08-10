@@ -1458,7 +1458,7 @@ void	cgen_callinter(Node *n, Node *res, int proc);
 void	cgen_ret(Node *n);
 void	clearfat(Node *n);
 void	compile(Node*);
-void	defframe(Prog*);
+void	defframe(Prog*, Bvec*);
 int	dgostringptr(Sym*, int off, char *str);
 int	dgostrlitptr(Sym*, int off, Strlit*);
 int	dstringptr(Sym *s, int off, char *str);
