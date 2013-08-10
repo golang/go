@@ -12,11 +12,12 @@ enum { BitsPerPointer = 2 };
 
 static void allocauto(Prog* p);
 static void dumpgcargs(Node*, Sym*);
-static void dumpgclocals(Node*, Sym*);
+static Bvec* dumpgclocals(Node*, Sym*);
 
 void
 compile(Node *fn)
 {
+	Bvec *bv;
 	Plist *pl;
 	Node nod1, *n, *gcargsnod, *gclocalsnod;
 	Prog *ptxt, *p, *p1;
@@ -179,14 +180,15 @@ compile(Node *fn)
 		goto ret;
 	}
 
-	defframe(ptxt);
+	// Emit garbage collection symbols.
+	dumpgcargs(fn, gcargssym);
+	bv = dumpgclocals(curfn, gclocalssym);
+
+	defframe(ptxt, bv);
+	free(bv);
 
 	if(0)
 		frame(0);
-
-	// Emit garbage collection symbols.
-	dumpgcargs(fn, gcargssym);
-	dumpgclocals(curfn, gclocalssym);
 
 ret:
 	lineno = lno;
@@ -329,8 +331,8 @@ dumpgcargs(Node *fn, Sym *sym)
 
 // Compute a bit vector to describes the pointer containing locations
 // in local variables and dumps the bitvector length and data out to
-// the provided symbol.
-static void
+// the provided symbol. Returns the vector for use and freeing by caller.
+static Bvec*
 dumpgclocals(Node* fn, Sym *sym)
 {
 	Bvec *bv;
@@ -354,8 +356,8 @@ dumpgclocals(Node* fn, Sym *sym)
 	for(i = 0; i < bv->n; i += 32) {
 		off = duint32(sym, off, bv->b[i/32]);
 	}
-	free(bv);
 	ggloblsym(sym, off, 0, 1);
+	return bv;
 }
 
 // Sort the list of stack variables. Autos after anything else,
