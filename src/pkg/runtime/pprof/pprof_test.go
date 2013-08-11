@@ -11,10 +11,13 @@ import (
 	"bytes"
 	"hash/crc32"
 	"os/exec"
+	"regexp"
 	"runtime"
 	. "runtime/pprof"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -147,4 +150,56 @@ var badOS = map[string]bool{
 	"darwin":  true,
 	"netbsd":  true,
 	"openbsd": true,
+}
+
+func TestBlockProfile(t *testing.T) {
+	runtime.SetBlockProfileRate(1)
+	defer runtime.SetBlockProfileRate(0)
+	produceChanContention()
+	produceMutexContention()
+	var w bytes.Buffer
+	Lookup("block").WriteTo(&w, 1)
+	prof := w.String()
+
+	if !strings.HasPrefix(prof, "--- contention:\ncycles/second=") {
+		t.Fatalf("Bad profile header:\n%v", prof)
+	}
+
+	reChan := regexp.MustCompile(`
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.produceChanContention\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`)
+	if !reChan.MatchString(prof) {
+		t.Fatalf("Bad chan entry, expect:\n%v\ngot:\n%v", reChan, prof)
+	}
+
+	reMutex := regexp.MustCompile(`
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/pkg/sync/mutex\.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.produceMutexContention\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`)
+	if !reMutex.MatchString(prof) {
+		t.Fatalf("Bad mutex entry, expect:\n%v\ngot:\n%v", reMutex, prof)
+	}
+}
+
+func produceChanContention() {
+	c := make(chan bool)
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		c <- true
+	}()
+	<-c
+}
+
+func produceMutexContention() {
+	var mu sync.Mutex
+	mu.Lock()
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		mu.Unlock()
+	}()
+	mu.Lock()
 }
