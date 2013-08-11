@@ -1025,6 +1025,38 @@ func TestWriterReadFromWhileFull(t *testing.T) {
 	}
 }
 
+func TestReaderReset(t *testing.T) {
+	r := NewReader(strings.NewReader("foo foo"))
+	buf := make([]byte, 3)
+	r.Read(buf)
+	if string(buf) != "foo" {
+		t.Errorf("buf = %q; want foo", buf)
+	}
+	r.Reset(strings.NewReader("bar bar"))
+	all, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(all) != "bar bar" {
+		t.Errorf("ReadAll = %q; want bar bar", all)
+	}
+}
+
+func TestWriterReset(t *testing.T) {
+	var buf1, buf2 bytes.Buffer
+	w := NewWriter(&buf1)
+	w.WriteString("foo")
+	w.Reset(&buf2) // and not flushed
+	w.WriteString("bar")
+	w.Flush()
+	if buf1.String() != "" {
+		t.Errorf("buf1 = %q; want empty", buf1.String())
+	}
+	if buf2.String() != "bar" {
+		t.Errorf("buf2 = %q; want bar", buf2.String())
+	}
+}
+
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
 	r io.Reader
