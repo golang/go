@@ -16,7 +16,7 @@ uintptr	runtime·raceinit(void);
 void	runtime·racefini(void);
 
 void	runtime·racemapshadow(void *addr, uintptr size);
-void	runtime·racemalloc(void *p, uintptr sz, void *pc);
+void	runtime·racemalloc(void *p, uintptr sz);
 void	runtime·racefree(void *p);
 uintptr	runtime·racegostart(void *pc);
 void	runtime·racegoend(void);

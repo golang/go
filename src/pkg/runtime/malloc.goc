@@ -141,10 +141,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	if(!(flag & FlagNoInvokeGC) && mstats.heap_alloc >= mstats.next_gc)
 		runtime·gc(0);
 
-	if(raceenabled) {
-		runtime·racemalloc(v, size, m->racepc);
-		m->racepc = nil;
-	}
+	if(raceenabled)
+		runtime·racemalloc(v, size);
 	return v;
 }
 
@@ -702,8 +700,6 @@ runtime·mal(uintptr n)
 void
 runtime·new(Type *typ, uint8 *ret)
 {
-	if(raceenabled)
-		m->racepc = runtime·getcallerpc(&typ);
 	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoPointers : 0);
 	FLUSH(&ret);
 }
