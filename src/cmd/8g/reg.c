@@ -131,6 +131,7 @@ regopt(Prog *firstp)
 {
 	Reg *r, *r1;
 	Prog *p;
+	ProgInfo info, info2;
 	int i, z, nr;
 	uint32 vreg;
 	Bits bit;
@@ -190,14 +191,9 @@ regopt(Prog *firstp)
 	 */
 	nr = 0;
 	for(p=firstp; p!=P; p=p->link) {
-		switch(p->as) {
-		case ADATA:
-		case AGLOBL:
-		case ANAME:
-		case ASIGNAME:
-		case ATYPE:
+		proginfo(&info, p);
+		if(info.flags & Skip)
 			continue;
-		}
 		r = rega();
 		nr++;
 		if(firstr == R) {
@@ -214,10 +210,8 @@ regopt(Prog *firstp)
 
 		r1 = r->p1;
 		if(r1 != R) {
-			switch(r1->prog->as) {
-			case ARET:
-			case AJMP:
-			case AIRETL:
+			proginfo(&info2, r1->prog);
+			if(info2.flags & Break) {
 				r->p1 = R;
 				r1->s1 = R;
 			}
@@ -227,302 +221,31 @@ regopt(Prog *firstp)
 		if(p->as == ACALL && p->to.type == D_EXTERN)
 			continue;
 
-		// Addressing makes some registers used.
-		if(p->from.type >= D_INDIR)
-			r->use1.b[0] |= RtoB(p->from.type-D_INDIR);
-		if(p->from.index != D_NONE)
-			r->use1.b[0] |= RtoB(p->from.index);
-		if(p->to.type >= D_INDIR)
-			r->use2.b[0] |= RtoB(p->to.type-D_INDIR);
-		if(p->to.index != D_NONE)
-			r->use2.b[0] |= RtoB(p->to.index);
+		r->use1.b[0] |= info.reguse | info.regindex;
+		r->set.b[0] |= info.regset;
 
 		bit = mkvar(r, &p->from);
-		if(bany(&bit))
-		switch(p->as) {
-		/*
-		 * funny
-		 */
-		case ALEAL:
-		case AFMOVD:
-		case AFMOVF:
-		case AFMOVL: 
-		case AFMOVW:
-		case AFMOVV:
-			setaddrs(bit);
-			break;
-
-		/*
-		 * left side read
-		 */
-		default:
-			for(z=0; z<BITS; z++)
-				r->use1.b[z] |= bit.b[z];
-			break;
-
-		/*
-		 * left side read+write
-		 */
-		case AXCHGB:
-		case AXCHGW:
-		case AXCHGL:
-			for(z=0; z<BITS; z++) {
-				r->use1.b[z] |= bit.b[z];
-				r->set.b[z] |= bit.b[z];
-			}
-			break;
+		if(bany(&bit)) {
+			if(info.flags & LeftAddr)
+				setaddrs(bit);
+			if(info.flags & LeftRead)
+				for(z=0; z<BITS; z++)
+					r->use1.b[z] |= bit.b[z];
+			if(info.flags & LeftWrite)
+				for(z=0; z<BITS; z++)
+					r->set.b[z] |= bit.b[z];
 		}
 
 		bit = mkvar(r, &p->to);
-		if(bany(&bit))
-		switch(p->as) {
-		default:
-			yyerror("reg: unknown op: %A", p->as);
-			break;
-
-		/*
-		 * right side read
-		 */
-		case ACMPB:
-		case ACMPL:
-		case ACMPW:
-		case ACOMISS:
-		case ACOMISD:
-		case AUCOMISS:
-		case AUCOMISD:
-		case ATESTB:
-		case ATESTL:
-		case ATESTW:
-			for(z=0; z<BITS; z++)
-				r->use2.b[z] |= bit.b[z];
-			break;
-
-		/*
-		 * right side write
-		 */
-		case AFSTSW:
-		case ALEAL:
-		case ANOP:
-		case AMOVL:
-		case AMOVB:
-		case AMOVW:
-		case AMOVBLSX:
-		case AMOVBLZX:
-		case AMOVBWSX:
-		case AMOVBWZX:
-		case AMOVWLSX:
-		case AMOVWLZX:
-		case APOPL:
-
-		case AMOVSS:
-		case AMOVSD:
-		case ACVTSD2SL:
-		case ACVTSD2SS:
-		case ACVTSL2SD:
-		case ACVTSL2SS:
-		case ACVTSS2SD:
-		case ACVTSS2SL:
-		case ACVTTSD2SL:
-		case ACVTTSS2SL:
-			for(z=0; z<BITS; z++)
-				r->set.b[z] |= bit.b[z];
-			break;
-
-		/*
-		 * right side read+write
-		 */
-		case AINCB:
-		case AINCL:
-		case AINCW:
-		case ADECB:
-		case ADECL:
-		case ADECW:
-
-		case AADDB:
-		case AADDL:
-		case AADDW:
-		case AANDB:
-		case AANDL:
-		case AANDW:
-		case ASUBB:
-		case ASUBL:
-		case ASUBW:
-		case AORB:
-		case AORL:
-		case AORW:
-		case AXORB:
-		case AXORL:
-		case AXORW:
-		case ASALB:
-		case ASALL:
-		case ASALW:
-		case ASARB:
-		case ASARL:
-		case ASARW:
-		case ARCLB:
-		case ARCLL:
-		case ARCLW:
-		case ARCRB:
-		case ARCRL:
-		case ARCRW:
-		case AROLB:
-		case AROLL:
-		case AROLW:
-		case ARORB:
-		case ARORL:
-		case ARORW:
-		case ASHLB:
-		case ASHLL:
-		case ASHLW:
-		case ASHRB:
-		case ASHRL:
-		case ASHRW:
-		case AIMULL:
-		case AIMULW:
-		case ANEGB:
-		case ANEGL:
-		case ANEGW:
-		case ANOTB:
-		case ANOTL:
-		case ANOTW:
-		case AADCL:
-		case ASBBL:
-
-		case ASETCC:
-		case ASETCS:
-		case ASETEQ:
-		case ASETGE:
-		case ASETGT:
-		case ASETHI:
-		case ASETLE:
-		case ASETLS:
-		case ASETLT:
-		case ASETMI:
-		case ASETNE:
-		case ASETOC:
-		case ASETOS:
-		case ASETPC:
-		case ASETPL:
-		case ASETPS:
-
-		case AXCHGB:
-		case AXCHGW:
-		case AXCHGL:
-
-		case AADDSD:
-		case AADDSS:
-		case ACMPSD:
-		case ACMPSS:
-		case ADIVSD:
-		case ADIVSS:
-		case AMAXSD:
-		case AMAXSS:
-		case AMINSD:
-		case AMINSS:
-		case AMULSD:
-		case AMULSS:
-		case ARCPSS:
-		case ARSQRTSS:
-		case ASQRTSD:
-		case ASQRTSS:
-		case ASUBSD:
-		case ASUBSS:
-		case AXORPD:
-			for(z=0; z<BITS; z++) {
-				r->set.b[z] |= bit.b[z];
-				r->use2.b[z] |= bit.b[z];
-			}
-			break;
-
-		/*
-		 * funny
-		 */
-		case AFMOVDP:
-		case AFMOVFP:
-		case AFMOVLP:
-		case AFMOVVP:
-		case AFMOVWP:
-		case ACALL:
-			setaddrs(bit);
-			break;
-		}
-
-		switch(p->as) {
-		case AIMULL:
-		case AIMULW:
-			if(p->to.type != D_NONE)
-				break;
-
-		case AIDIVL:
-		case AIDIVW:
-		case ADIVL:
-		case ADIVW:
-		case AMULL:
-		case AMULW:
-			r->set.b[0] |= RtoB(D_AX) | RtoB(D_DX);
-			r->use1.b[0] |= RtoB(D_AX) | RtoB(D_DX);
-			break;
-
-		case AIDIVB:
-		case AIMULB:
-		case ADIVB:
-		case AMULB:
-			r->set.b[0] |= RtoB(D_AX);
-			r->use1.b[0] |= RtoB(D_AX);
-			break;
-
-		case ACWD:
-			r->set.b[0] |= RtoB(D_AX) | RtoB(D_DX);
-			r->use1.b[0] |= RtoB(D_AX);
-			break;
-
-		case ACDQ:
-			r->set.b[0] |= RtoB(D_DX);
-			r->use1.b[0] |= RtoB(D_AX);
-			break;
-
-		case AREP:
-		case AREPN:
-		case ALOOP:
-		case ALOOPEQ:
-		case ALOOPNE:
-			r->set.b[0] |= RtoB(D_CX);
-			r->use1.b[0] |= RtoB(D_CX);
-			break;
-
-		case AMOVSB:
-		case AMOVSL:
-		case AMOVSW:
-		case ACMPSB:
-		case ACMPSL:
-		case ACMPSW:
-			r->set.b[0] |= RtoB(D_SI) | RtoB(D_DI);
-			r->use1.b[0] |= RtoB(D_SI) | RtoB(D_DI);
-			break;
-
-		case ASTOSB:
-		case ASTOSL:
-		case ASTOSW:
-		case ASCASB:
-		case ASCASL:
-		case ASCASW:
-			r->set.b[0] |= RtoB(D_DI);
-			r->use1.b[0] |= RtoB(D_AX) | RtoB(D_DI);
-			break;
-
-		case AINSB:
-		case AINSL:
-		case AINSW:
-			r->set.b[0] |= RtoB(D_DX) | RtoB(D_DI);
-			r->use1.b[0] |= RtoB(D_DI);
-			break;
-
-		case AOUTSB:
-		case AOUTSL:
-		case AOUTSW:
-			r->set.b[0] |= RtoB(D_DI);
-			r->use1.b[0] |= RtoB(D_DX) | RtoB(D_DI);
-			break;
+		if(bany(&bit)) {	
+			if(info.flags & RightAddr)
+				setaddrs(bit);
+			if(info.flags & RightRead)
+				for(z=0; z<BITS; z++)
+					r->use2.b[z] |= bit.b[z];
+			if(info.flags & RightWrite)
+				for(z=0; z<BITS; z++)
+					r->set.b[z] |= bit.b[z];
 		}
 	}
 	if(firstr == R)
