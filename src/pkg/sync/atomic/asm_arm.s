@@ -8,7 +8,7 @@
 
 // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
 
-TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0
+TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	addr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
@@ -28,7 +28,7 @@ casfail:
 	MOVBU	R0, ret+12(FP)
 	RET
 
-TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0
+TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
 	BL	fastCheck64<>(SB)
 	MOVW	addr+0(FP), R1
 	// make unaligned atomic access panic
@@ -57,7 +57,7 @@ cas64fail:
 	MOVBU	R0, ret+20(FP)
 	RET
 
-TEXT ·armAddUint32(SB),NOSPLIT,$0
+TEXT ·armAddUint32(SB),NOSPLIT,$0-12
 	MOVW	addr+0(FP), R1
 	MOVW	delta+4(FP), R2
 addloop:
@@ -70,7 +70,7 @@ addloop:
 	MOVW	R3, ret+8(FP)
 	RET
 
-TEXT ·armAddUint64(SB),NOSPLIT,$0
+TEXT ·armAddUint64(SB),NOSPLIT,$0-20
 	BL	fastCheck64<>(SB)
 	MOVW	addr+0(FP), R1
 	// make unaligned atomic access panic
@@ -91,7 +91,7 @@ add64loop:
 	MOVW	R5, rethi+16(FP)
 	RET
 
-TEXT ·armLoadUint64(SB),NOSPLIT,$0
+TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
 	BL	fastCheck64<>(SB)
 	MOVW	addr+0(FP), R1
 	// make unaligned atomic access panic
@@ -107,7 +107,7 @@ load64loop:
 	MOVW	R3, valhi+8(FP)
 	RET
 
-TEXT ·armStoreUint64(SB),NOSPLIT,$0
+TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
 	BL	fastCheck64<>(SB)
 	MOVW	addr+0(FP), R1
 	// make unaligned atomic access panic
@@ -131,7 +131,7 @@ store64loop:
 // which will make uses of the 64-bit atomic operations loop forever.
 // If things are working, set okLDREXD to avoid future checks.
 // https://bugs.launchpad.net/qemu/+bug/670883.
-TEXT	check64<>(SB),NOSPLIT,$16
+TEXT	check64<>(SB),NOSPLIT,$16-0
 	MOVW	$10, R1
 	// 8-aligned stack address scratch space.
 	MOVW	$8(R13), R5
@@ -156,7 +156,7 @@ TEXT	fastCheck64<>(SB),NOSPLIT,$-4
 	RET.NE
 	B	slowCheck64<>(SB)
 
-TEXT slowCheck64<>(SB),NOSPLIT,$0
+TEXT slowCheck64<>(SB),NOSPLIT,$0-0
 	BL	check64<>(SB)
 	// Still here, must be okay.
 	MOVW	$1, R0

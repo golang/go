@@ -43,7 +43,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0
 TEXT ·LoadInt32(SB),NOSPLIT,$0
 	B ·LoadUint32(SB)
 
-TEXT ·LoadUint32(SB),NOSPLIT,$0
+TEXT ·LoadUint32(SB),NOSPLIT,$0-8
 	MOVW addr+0(FP), R1
 load32loop:
 	LDREX (R1), R2		// loads R2
@@ -68,7 +68,7 @@ TEXT ·LoadPointer(SB),NOSPLIT,$0
 TEXT ·StoreInt32(SB),NOSPLIT,$0
 	B ·StoreUint32(SB)
 
-TEXT ·StoreUint32(SB),NOSPLIT,$0
+TEXT ·StoreUint32(SB),NOSPLIT,$0-8
 	MOVW addr+0(FP), R1
 	MOVW val+4(FP), R2
 storeloop:

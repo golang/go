@@ -1203,3 +1203,40 @@ func TestUnaligned64(t *testing.T) {
 	shouldPanic(t, "CompareAndSwapUint64", func() { CompareAndSwapUint64(p, 1, 2) })
 	shouldPanic(t, "AddUint64", func() { AddUint64(p, 3) })
 }
+
+func TestNilDeref(t *testing.T) {
+	funcs := [...]func(){
+		func() { CompareAndSwapInt32(nil, 0, 0) },
+		func() { CompareAndSwapInt64(nil, 0, 0) },
+		func() { CompareAndSwapUint32(nil, 0, 0) },
+		func() { CompareAndSwapUint64(nil, 0, 0) },
+		func() { CompareAndSwapUintptr(nil, 0, 0) },
+		func() { CompareAndSwapPointer(nil, nil, nil) },
+		func() { AddInt32(nil, 0) },
+		func() { AddUint32(nil, 0) },
+		func() { AddInt64(nil, 0) },
+		func() { AddUint64(nil, 0) },
+		func() { AddUintptr(nil, 0) },
+		func() { LoadInt32(nil) },
+		func() { LoadInt64(nil) },
+		func() { LoadUint32(nil) },
+		func() { LoadUint64(nil) },
+		func() { LoadUintptr(nil) },
+		func() { LoadPointer(nil) },
+		func() { StoreInt32(nil, 0) },
+		func() { StoreInt64(nil, 0) },
+		func() { StoreUint32(nil, 0) },
+		func() { StoreUint64(nil, 0) },
+		func() { StoreUintptr(nil, 0) },
+		func() { StorePointer(nil, nil) },
+	}
+	for _, f := range funcs {
+		func() {
+			defer func() {
+				runtime.GC()
+				recover()
+			}()
+			f()
+		}()
+	}
+}
