@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../../cmd/ld/textflag.h"
+
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
 // func mulWW(x, y Word) (z1, z0 Word)
-TEXT ·mulWW(SB),7,$0
+TEXT ·mulWW(SB),NOSPLIT,$0
 	MOVL x+0(FP), AX
 	MULL y+4(FP)
 	MOVL DX, z1+8(FP)
@@ -15,7 +17,7 @@ TEXT ·mulWW(SB),7,$0
 
 
 // func divWW(x1, x0, y Word) (q, r Word)
-TEXT ·divWW(SB),7,$0
+TEXT ·divWW(SB),NOSPLIT,$0
 	MOVL x1+0(FP), DX
 	MOVL x0+4(FP), AX
 	DIVL y+8(FP)
@@ -25,7 +27,7 @@ TEXT ·divWW(SB),7,$0
 
 
 // func addVV(z, x, y []Word) (c Word)
-TEXT ·addVV(SB),7,$0
+TEXT ·addVV(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), CX
@@ -50,7 +52,7 @@ E1:	CMPL BX, BP		// i < n
 
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SBBL instead of ADCL and label names)
-TEXT ·subVV(SB),7,$0
+TEXT ·subVV(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), CX
@@ -74,7 +76,7 @@ E2:	CMPL BX, BP		// i < n
 
 
 // func addVW(z, x []Word, y Word) (c Word)
-TEXT ·addVW(SB),7,$0
+TEXT ·addVW(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), AX	// c = y
@@ -96,7 +98,7 @@ E3:	CMPL BX, BP		// i < n
 
 
 // func subVW(z, x []Word, y Word) (c Word)
-TEXT ·subVW(SB),7,$0
+TEXT ·subVW(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), AX	// c = y
@@ -119,7 +121,7 @@ E4:	CMPL BX, BP		// i < n
 
 
 // func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB),7,$0
+TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVL z_len+4(FP), BX	// i = z
 	SUBL $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
@@ -154,7 +156,7 @@ X8b:	MOVL $0, c+28(FP)
 
 
 // func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB),7,$0
+TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVL z_len+4(FP), BP
 	SUBL $1, BP		// n--
 	JL X9b			// n < 0	(n <= 0)
@@ -191,7 +193,7 @@ X9b:	MOVL $0, c+28(FP)
 
 
 // func mulAddVWW(z, x []Word, y, r Word) (c Word)
-TEXT ·mulAddVWW(SB),7,$0
+TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), BP
@@ -218,7 +220,7 @@ E5:	CMPL BX, $0		// i < 0
 
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
-TEXT ·addMulVVW(SB),7,$0
+TEXT ·addMulVVW(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), BP
@@ -246,7 +248,7 @@ E6:	CMPL BX, $0		// i < 0
 
 
 // func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
-TEXT ·divWVW(SB),7,$0
+TEXT ·divWVW(SB),NOSPLIT,$0
 	MOVL z+0(FP), DI
 	MOVL xn+12(FP), DX	// r = xn
 	MOVL x+16(FP), SI
@@ -265,7 +267,7 @@ E7:	SUBL $1, BX		// i--
 	RET
 
 // func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),7,$0
+TEXT ·bitLen(SB),NOSPLIT,$0
 	BSRL x+0(FP), AX
 	JZ Z1
 	INCL AX

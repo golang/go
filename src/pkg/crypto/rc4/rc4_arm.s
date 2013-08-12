@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../../cmd/ld/textflag.h"
+
 // Registers
 dst = 0
 src = 1
@@ -16,7 +18,7 @@ t = 11
 t2 = 12
 
 // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
-TEXT ·xorKeyStream(SB),7,$0
+TEXT ·xorKeyStream(SB),NOSPLIT,$0
 	MOVW 0(FP), R(dst)
 	MOVW 4(FP), R(src)
 	MOVW 8(FP), R(n)

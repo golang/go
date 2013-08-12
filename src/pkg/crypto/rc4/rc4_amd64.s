@@ -2,6 +2,8 @@
 //	http://www.zorinaq.com/papers/rc4-amd64.html
 //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
 
+#include "../../../cmd/ld/textflag.h"
+
 // Local modifications:
 //
 // Transliterated from GNU to 6a assembly syntax by the Go authors.
@@ -36,7 +38,7 @@
 ** a 1.8 GHz AMD Opteron (rev C0) processor.
 */
 
-TEXT ·xorKeyStream(SB),7,$0
+TEXT ·xorKeyStream(SB),NOSPLIT,$0
 	MOVQ	n+16(FP),	BX		// rbx = ARG(len)
 	MOVQ	src+8(FP),	SI		// in = ARG(in)
 	MOVQ	dst+0(FP),	DI		// out = ARG(out)

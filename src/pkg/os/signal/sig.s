@@ -6,16 +6,18 @@
 
 // +build amd64 arm 386
 
+#include "../../../cmd/ld/textflag.h"
+
 #ifdef GOARCH_arm
 #define JMP B
 #endif
 
-TEXT ·signal_disable(SB),7,$0
+TEXT ·signal_disable(SB),NOSPLIT,$0
 	JMP runtime·signal_disable(SB)
 
-TEXT ·signal_enable(SB),7,$0
+TEXT ·signal_enable(SB),NOSPLIT,$0
 	JMP runtime·signal_enable(SB)
 
-TEXT ·signal_recv(SB),7,$0
+TEXT ·signal_recv(SB),NOSPLIT,$0
 	JMP runtime·signal_recv(SB)
 

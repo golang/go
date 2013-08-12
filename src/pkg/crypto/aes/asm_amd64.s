@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../../cmd/ld/textflag.h"
+
 // func hasAsm() bool
 // returns whether AES-NI is supported
-TEXT ·hasAsm(SB),7,$0
+TEXT ·hasAsm(SB),NOSPLIT,$0
 	XORQ AX, AX
 	INCL AX
 	CPUID
@@ -14,7 +16,7 @@ TEXT ·hasAsm(SB),7,$0
 	RET
 
 // func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
-TEXT ·encryptBlockAsm(SB),7,$0
+TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
 	MOVQ nr+0(FP), CX
 	MOVQ xk+8(FP), AX
 	MOVQ dst+16(FP), DX
@@ -63,7 +65,7 @@ Lenc128:
 	RET
 
 // func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
-TEXT ·decryptBlockAsm(SB),7,$0
+TEXT ·decryptBlockAsm(SB),NOSPLIT,$0
 	MOVQ nr+0(FP), CX
 	MOVQ xk+8(FP), AX
 	MOVQ dst+16(FP), DX
@@ -113,7 +115,7 @@ Ldec128:
 
 // func expandKeyAsm(nr int, key *byte, enc, dec *uint32) {
 // Note that round keys are stored in uint128 format, not uint32
-TEXT ·expandKeyAsm(SB),7,$0
+TEXT ·expandKeyAsm(SB),NOSPLIT,$0
 	MOVQ nr+0(FP), CX
 	MOVQ key+8(FP), AX
 	MOVQ enc+16(FP), BX
@@ -217,7 +219,7 @@ Lexp_dec_loop:
 
 #define PSHUFD_X0_X0_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc0
 #define PSHUFD_X1_X1_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc9
-TEXT _expand_key_128<>(SB),7,$0
+TEXT _expand_key_128<>(SB),NOSPLIT,$0
 	PSHUFD $0xff, X1, X1
 	SHUFPS $0x10, X0, X4
 	PXOR X4, X0
@@ -230,7 +232,7 @@ TEXT _expand_key_128<>(SB),7,$0
 
 #define PSLLDQ_X5_ BYTE $0x66; BYTE $0x0f; BYTE $0x73; BYTE $0xfd
 #define PSHUFD_X0_X3_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xd8
-TEXT _expand_key_192a<>(SB),7,$0
+TEXT _expand_key_192a<>(SB),NOSPLIT,$0
 	PSHUFD $0x55, X1, X1
 	SHUFPS $0x10, X0, X4
 	PXOR X4, X0
@@ -253,7 +255,7 @@ TEXT _expand_key_192a<>(SB),7,$0
 	ADDQ $32, BX
 	RET
 
-TEXT _expand_key_192b<>(SB),7,$0
+TEXT _expand_key_192b<>(SB),NOSPLIT,$0
 	PSHUFD $0x55, X1, X1
 	SHUFPS $0x10, X0, X4
 	PXOR X4, X0
@@ -271,10 +273,10 @@ TEXT _expand_key_192b<>(SB),7,$0
 	ADDQ $16, BX
 	RET
 
-TEXT _expand_key_256a<>(SB),7,$0
+TEXT _expand_key_256a<>(SB),NOSPLIT,$0
 	JMP _expand_key_128<>(SB)
 
-TEXT _expand_key_256b<>(SB),7,$0
+TEXT _expand_key_256b<>(SB),NOSPLIT,$0
 	PSHUFD $0xaa, X1, X1
 	SHUFPS $0x10, X2, X4
 	PXOR X4, X2

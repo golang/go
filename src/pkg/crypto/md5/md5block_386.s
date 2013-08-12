@@ -6,6 +6,8 @@
 // #defines generating 8a assembly, and adjusted for 386,
 // by the Go Authors.
 
+#include "../../../cmd/ld/textflag.h"
+
 // MD5 optimized for AMD64.
 //
 // Author: Marc Bevand <bevand_m (at) epita.fr>
@@ -57,7 +59,7 @@
 	XORL	c,		BP; \
 	ADDL	b,		a
 
-TEXT	·block(SB),7,$24-16
+TEXT	·block(SB),NOSPLIT,$24-16
 	MOVL	dig+0(FP),	BP
 	MOVL	p+4(FP),	SI
 	MOVL	p_len+8(FP), DX

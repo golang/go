@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../../cmd/ld/textflag.h"
+
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
 #define CFLAG 29	// bit position of carry flag
 
 // func addVV(z, x, y []Word) (c Word)
-TEXT ·addVV(SB),7,$0
+TEXT ·addVV(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
@@ -36,7 +38,7 @@ E1:
 
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SBC instead of ADC and label names)
-TEXT ·subVV(SB),7,$0
+TEXT ·subVV(SB),NOSPLIT,$0
 	MOVW	$(1<<CFLAG), R0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
@@ -64,7 +66,7 @@ E2:
 
 
 // func addVW(z, x []Word, y Word) (c Word)
-TEXT ·addVW(SB),7,$0
+TEXT ·addVW(SB),NOSPLIT,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
@@ -98,7 +100,7 @@ E3:
 
 
 // func subVW(z, x []Word, y Word) (c Word)
-TEXT ·subVW(SB),7,$0
+TEXT ·subVW(SB),NOSPLIT,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
@@ -133,7 +135,7 @@ E4:
 
 
 // func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB),7,$0
+TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
 	CMP	$0, R5
 	BEQ	X7
@@ -182,7 +184,7 @@ X7:
 
 
 // func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB),7,$0
+TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
 	CMP	$0, R5
 	BEQ	X6
@@ -232,7 +234,7 @@ X6:
 
 
 // func mulAddVWW(z, x []Word, y, r Word) (c Word)
-TEXT ·mulAddVWW(SB),7,$0
+TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
@@ -260,7 +262,7 @@ E8:
 
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
-TEXT ·addMulVVW(SB),7,$0
+TEXT ·addMulVVW(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
@@ -291,19 +293,19 @@ E9:
 
 
 // func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
-TEXT ·divWVW(SB),7,$0
+TEXT ·divWVW(SB),NOSPLIT,$0
 	// ARM has no multiword division, so use portable code.
 	B ·divWVW_g(SB)
 
 
 // func divWW(x1, x0, y Word) (q, r Word)
-TEXT ·divWW(SB),7,$0
+TEXT ·divWW(SB),NOSPLIT,$0
 	// ARM has no multiword division, so use portable code.
 	B ·divWW_g(SB)
 
 
 // func mulWW(x, y Word) (z1, z0 Word)
-TEXT ·mulWW(SB),7,$0
+TEXT ·mulWW(SB),NOSPLIT,$0
 	MOVW	x+0(FP), R1
 	MOVW	y+4(FP), R2
 	MULLU	R1, R2, (R4, R3)
@@ -312,7 +314,7 @@ TEXT ·mulWW(SB),7,$0
 	RET
 
 // func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),7,$0
+TEXT ·bitLen(SB),NOSPLIT,$0
 	MOVW	x+0(FP), R0
 	CLZ 	R0, R0
 	MOVW	$32, R1
