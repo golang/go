@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Modf(f float64) (int float64, frac float64)
-TEXT ·Modf(SB),7,$0
+TEXT ·Modf(SB),NOSPLIT,$0
 	FMOVD   f+0(FP), F0  // F0=f
 	FMOVD   F0, F1       // F0=f, F1=f
 	FSTCW   -2(SP)       // save old Control Word

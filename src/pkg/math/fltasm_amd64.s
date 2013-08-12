@@ -23,7 +23,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-TEXT	·SetFPControl(SB), 7, $8
+#include "../../cmd/ld/textflag.h"
+
+TEXT	·SetFPControl(SB), NOSPLIT, $8
 	// Set new
 	MOVL	p+0(FP), DI
 	XORL	$(0x3F<<7), DI
@@ -37,7 +39,7 @@ TEXT	·SetFPControl(SB), 7, $8
 	LDMXCSR	0(SP)
 	RET
 
-TEXT	·GetFPControl(SB), 7, $0
+TEXT	·GetFPControl(SB), NOSPLIT, $0
 	WAIT
 	STMXCSR	0(SP)
 	MOVWLZX	0(SP), AX

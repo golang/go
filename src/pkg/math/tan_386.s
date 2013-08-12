@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Tan(x float64) float64
-TEXT ·Tan(SB),7,$0
+TEXT ·Tan(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FPTAN                // F0=1, F1=tan(x) if -2**63 < x < 2**63
 	FSTSW   AX           // AX=status word

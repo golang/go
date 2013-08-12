@@ -2,5 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT ·Exp(SB),7,$0
+#include "../../cmd/ld/textflag.h"
+
+TEXT ·Exp(SB),NOSPLIT,$0
 	B ·exp(SB)

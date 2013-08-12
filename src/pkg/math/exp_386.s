@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Exp(x float64) float64
-TEXT ·Exp(SB),7,$0
+TEXT ·Exp(SB),NOSPLIT,$0
 // test bits for not-finite
 	MOVL    x_hi+4(FP), AX
 	ANDL    $0x7ff00000, AX

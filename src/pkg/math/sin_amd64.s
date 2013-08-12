@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT ·Sin(SB),7,$0
+#include "../../cmd/ld/textflag.h"
+
+TEXT ·Sin(SB),NOSPLIT,$0
 	JMP	·sin(SB)
 
-TEXT ·Cos(SB),7,$0
+TEXT ·Cos(SB),NOSPLIT,$0
 	JMP	·cos(SB)

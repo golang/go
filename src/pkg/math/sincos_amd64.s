@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // The method is based on a paper by Naoki Shibata: "Efficient evaluation
 // methods of elementary functions suitable for SIMD computation", Proc.
 // of International Supercomputing Conference 2010 (ISC'10), pp. 25 -- 32
@@ -31,7 +33,7 @@
 #define T4 5.51146384479717813051146e-07 // (+1.0/1814400)
 
 // func Sincos(d float64) (sin, cos float64)
-TEXT ·Sincos(SB),7,$0
+TEXT ·Sincos(SB),NOSPLIT,$0
 	// test for special cases
 	MOVQ    $~(1<<63), DX // sign bit mask
 	MOVQ    x+0(FP), BX

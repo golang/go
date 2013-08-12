@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Expm1(x float64) float64
-TEXT ·Expm1(SB),7,$0
+TEXT ·Expm1(SB),NOSPLIT,$0
 	FLDLN2               // F0=log(2) = 1/log2(e) ~ 0.693147
 	FMOVD   x+0(FP), F0  // F0=x, F1=1/log2(e)
 	FABS                 // F0=|x|, F1=1/log2(e) 
