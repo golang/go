@@ -29,6 +29,7 @@ package runtime
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "cgocall.h"
+#include "../../cmd/ld/textflag.h"
 
 static struct {
 	Note;
@@ -156,7 +157,7 @@ func signal_disable(s uint32) {
 }
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·badsignal(uintptr sig)
 {

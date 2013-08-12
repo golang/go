@@ -7,6 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
+#include "../../cmd/ld/textflag.h"
 
 extern SigTab runtime·sigtab[];
 
@@ -32,7 +33,7 @@ enum
 //	if(*addr == val) sleep
 // Might be woken up spuriously; that's allowed.
 // Don't sleep longer than ns; ns < 0 means forever.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {

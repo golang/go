@@ -4,8 +4,9 @@
 
 #include "runtime.h"
 #include "os_GOOS.h"
+#include "../../cmd/ld/textflag.h"
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int64
 runtime·nanotime(void)
 {

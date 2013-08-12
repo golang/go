@@ -7,6 +7,7 @@
 #include "type.h"
 #include "typekind.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
 void
 runtime·printiface(Iface i)
@@ -170,7 +171,7 @@ copyout(Type *t, void **src, void *dst)
 		alg->copy(size, dst, *src);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
 {
@@ -183,7 +184,7 @@ runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
 }
 
 // func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, ...)
 {
@@ -205,7 +206,7 @@ runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, ...)
 }
 
 // func convT2E(typ *byte, elem any) (ret any)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·convT2E(Type *t, ...)
 {
@@ -223,7 +224,7 @@ runtime·convT2E(Type *t, ...)
 static void assertI2Tret(Type *t, Iface i, byte *ret);
 
 // func ifaceI2T(typ *byte, iface any) (ret any)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·assertI2T(Type *t, Iface i, ...)
 {
@@ -256,7 +257,7 @@ assertI2Tret(Type *t, Iface i, byte *ret)
 }
 
 // func ifaceI2T2(typ *byte, iface any) (ret any, ok bool)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·assertI2T2(Type *t, Iface i, ...)
 {
@@ -288,7 +289,7 @@ runtime·assertI2TOK(Type *t, Iface i, bool ok)
 static void assertE2Tret(Type *t, Eface e, byte *ret);
 
 // func ifaceE2T(typ *byte, iface any) (ret any)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·assertE2T(Type *t, Eface e, ...)
 {
@@ -319,7 +320,7 @@ assertE2Tret(Type *t, Eface e, byte *ret)
 }
 
 // func ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·assertE2T2(Type *t, Eface e, ...)
 {

@@ -5,13 +5,14 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "../../cmd/ld/textflag.h"
 
 #define AT_NULL		0
 #define AT_RANDOM	25
 #define AT_SYSINFO	32
 extern uint32 runtime·_vdso;
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·linux_setup_vdso(int32 argc, byte **argv)
 {

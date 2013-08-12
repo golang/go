@@ -12,7 +12,7 @@
 
 // +build ignore
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 {
@@ -124,7 +124,7 @@ dohash:
 	FLUSH(&value);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 {

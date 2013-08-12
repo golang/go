@@ -14,6 +14,7 @@ package runtime
 #include "typekind.h"
 #include "race.h"
 #include "stack.h"
+#include "../../cmd/ld/textflag.h"
 
 // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
 #pragma dataflag 16
@@ -696,7 +697,7 @@ runtime·mal(uintptr n)
 	return runtime·mallocgc(n, 0, 0);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·new(Type *typ, uint8 *ret)
 {

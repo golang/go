@@ -9,6 +9,7 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "race.h"
+#include "../../cmd/ld/textflag.h"
 
 void runtime∕race·Initialize(uintptr *racectx);
 void runtime∕race·MapShadow(void *addr, uintptr size);
@@ -66,7 +67,7 @@ runtime·racemapshadow(void *addr, uintptr size)
 
 // Called from instrumented code.
 // If we split stack, getcallerpc() can return runtime·lessstack().
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·racewrite(uintptr addr)
 {
@@ -77,7 +78,7 @@ runtime·racewrite(uintptr addr)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·racewriterange(uintptr addr, uintptr sz)
 {
@@ -90,7 +91,7 @@ runtime·racewriterange(uintptr addr, uintptr sz)
 
 // Called from instrumented code.
 // If we split stack, getcallerpc() can return runtime·lessstack().
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·raceread(uintptr addr)
 {
@@ -101,7 +102,7 @@ runtime·raceread(uintptr addr)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·racereadrange(uintptr addr, uintptr sz)
 {
@@ -113,7 +114,7 @@ runtime·racereadrange(uintptr addr, uintptr sz)
 }
 
 // Called from runtime·racefuncenter (assembly).
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·racefuncenter1(uintptr pc)
 {
@@ -128,7 +129,7 @@ runtime·racefuncenter1(uintptr pc)
 }
 
 // Called from instrumented code.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·racefuncexit(void)
 {
@@ -337,7 +338,7 @@ runtime·RaceSemrelease(uint32 *s)
 }
 
 // func RaceRead(addr unsafe.Pointer)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·RaceRead(void *addr)
 {
@@ -345,7 +346,7 @@ runtime·RaceRead(void *addr)
 }
 
 // func RaceWrite(addr unsafe.Pointer)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·RaceWrite(void *addr)
 {
@@ -353,7 +354,7 @@ runtime·RaceWrite(void *addr)
 }
 
 // func RaceReadRange(addr unsafe.Pointer, len int)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·RaceReadRange(void *addr, intgo len)
 {
@@ -361,7 +362,7 @@ runtime·RaceReadRange(void *addr, intgo len)
 }
 
 // func RaceWriteRange(addr unsafe.Pointer, len int)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·RaceWriteRange(void *addr, intgo len)
 {

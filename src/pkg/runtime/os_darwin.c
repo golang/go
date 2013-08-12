@@ -7,6 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
+#include "../../cmd/ld/textflag.h"
 
 extern SigTab runtime·sigtab[];
 
@@ -140,7 +141,7 @@ runtime·unminit(void)
 // Mach IPC, to get at semaphores
 // Definitions are in /usr/include/mach on a Mac.
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 static void
 macherror(int32 r, int8 *fn)
 {
@@ -395,7 +396,7 @@ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
 int32 runtime·mach_semaphore_signal(uint32 sema);
 int32 runtime·mach_semaphore_signal_all(uint32 sema);
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int32
 runtime·semasleep(int64 ns)
 {
@@ -462,7 +463,7 @@ runtime·sigpanic(void)
 	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·osyield(void)
 {

@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 static struct {
 	Lock l;
@@ -13,7 +14,7 @@ static struct {
 #define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
 
 // Atomic add and return new value.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint32
 runtime·xadd(uint32 volatile *val, int32 delta)
 {
@@ -27,7 +28,7 @@ runtime·xadd(uint32 volatile *val, int32 delta)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint32
 runtime·xchg(uint32 volatile* addr, uint32 v)
 {
@@ -40,7 +41,7 @@ runtime·xchg(uint32 volatile* addr, uint32 v)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·procyield(uint32 cnt)
 {
@@ -50,21 +51,21 @@ runtime·procyield(uint32 cnt)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint32
 runtime·atomicload(uint32 volatile* addr)
 {
 	return runtime·xadd(addr, 0);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void*
 runtime·atomicloadp(void* volatile* addr)
 {
 	return (void*)runtime·xadd((uint32 volatile*)addr, 0);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·atomicstorep(void* volatile* addr, void* v)
 {
@@ -77,7 +78,7 @@ runtime·atomicstorep(void* volatile* addr, void* v)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·atomicstore(uint32 volatile* addr, uint32 v)
 {
@@ -90,7 +91,7 @@ runtime·atomicstore(uint32 volatile* addr, uint32 v)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 bool
 runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
 {
@@ -107,7 +108,7 @@ runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
 	return res;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint64
 runtime·xadd64(uint64 volatile *addr, int64 delta)
 {
@@ -120,7 +121,7 @@ runtime·xadd64(uint64 volatile *addr, int64 delta)
 	return res;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint64
 runtime·xchg64(uint64 volatile *addr, uint64 v)
 {
@@ -133,7 +134,7 @@ runtime·xchg64(uint64 volatile *addr, uint64 v)
 	return res;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint64
 runtime·atomicload64(uint64 volatile *addr)
 {
@@ -145,7 +146,7 @@ runtime·atomicload64(uint64 volatile *addr)
 	return res;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·atomicstore64(uint64 volatile *addr, uint64 v)
 {
