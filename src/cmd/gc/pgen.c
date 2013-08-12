@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// "Portable" code generation.
+// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
+// Must code to the intersection of the three back ends.
+
 #include	<u.h>
 #include	<libc.h>
 #include	"gg.h"

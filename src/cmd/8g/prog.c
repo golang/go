@@ -38,6 +38,8 @@ static ProgInfo progtable[ALAST] = {
 	[ATEXT]=	{Pseudo},
 	[AFUNCDATA]=	{Pseudo},
 	[APCDATA]=	{Pseudo},
+	[AUNDEF]=	{OK},
+	[AUSEFIELD]=	{OK},
 
 	// NOP is an internal no-op that also stands
 	// for USED and SET annotations, not the Intel opcode.
@@ -286,10 +288,6 @@ static ProgInfo progtable[ALAST] = {
 
 	[AUCOMISD]=	{SizeD | LeftRead | RightRead},
 	[AUCOMISS]=	{SizeF | LeftRead | RightRead},
-
-	[AUNDEF]=	{OK},
-
-	[AUSEFIELD]=	{OK},
 
 	[AXCHGB]=	{SizeB | LeftRdwr | RightRdwr},
 	[AXCHGL]=	{SizeL | LeftRdwr | RightRdwr},

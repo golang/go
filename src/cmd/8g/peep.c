@@ -99,7 +99,7 @@ peep(void)
 			r2->link = r1;
 
 			r2->prog = p;
-			p->reg = r2;
+			p->opt = r2;
 
 			r2->p1 = r;
 			r->s1 = r2;

@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include	"../gc/popt.h"
+
 #define	Z	N
 #define	Adr	Addr
 
@@ -50,7 +52,7 @@ typedef	struct	Rgn	Rgn;
 // A Reg is a wrapper around a single Prog (one instruction) that holds
 // register optimization information while the optimizer runs.
 // r->prog is the instruction.
-// r->prog->regp points back to r.
+// r->prog->opt points back to r.
 struct	Reg
 {
 
@@ -141,7 +143,6 @@ void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
 void	dumpone(Reg*);
 void	dumpit(char*, Reg*);
-int	noreturn(Prog *p);
 
 /*
  * peep.c

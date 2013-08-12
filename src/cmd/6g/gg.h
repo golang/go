@@ -41,7 +41,7 @@ struct	Prog
 	Addr	from;		// src address
 	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
-	void*	reg;		// pointer to containing Reg struct
+	void*	opt;		// for optimizer passes
 };
 
 #define TEXTFLAG from.scale
