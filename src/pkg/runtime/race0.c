@@ -105,11 +105,10 @@ runtime·racefingo(void)
 }
 
 void
-runtime·racemalloc(void *p, uintptr sz, void *pc)
+runtime·racemalloc(void *p, uintptr sz)
 {
 	USED(p);
 	USED(sz);
-	USED(pc);
 }
 
 void

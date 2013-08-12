@@ -339,7 +339,6 @@ struct	M
 	GCStats	gcstats;
 	bool	racecall;
 	bool	needextram;
-	void*	racepc;
 	void	(*waitunlockf)(Lock*);
 	void*	waitlock;
 
