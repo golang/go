@@ -4,6 +4,8 @@
 //
 // ARM version of md5block.go
 
+#include "../../../cmd/ld/textflag.h"
+
 // Register definitions
 table = 0	// Pointer to MD5 constants table
 data = 1	// Pointer to data to hash
@@ -32,7 +34,7 @@ p_data = -8	// -8(SP) current data pointer
 buf = -8-4*16	//-72(SP) 16 words temporary buffer
 		// 3 words at 4..12(R13) for called routine parameters
 
-TEXT	·block(SB), 7, $84-16
+TEXT	·block(SB), NOSPLIT, $84-16
 	MOVW	p+4(FP), R(data)	// pointer to the data
 	MOVW	p_len+8(FP), R(t0)	// number of bytes
 	ADD	R(data), R(t0)

@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../../cmd/ld/textflag.h"
+
 /*
  * void crosscall2(void (*fn)(void*, int32), void*, int32)
  * Save registers and call fn with two arguments.
  */
-TEXT crosscall2(SB),7,$-4
+TEXT crosscall2(SB),NOSPLIT,$-4
 	/* 
 	 * We still need to save all callee save register as before, and then
 	 *  push 2 args for fn (R1 and R2).

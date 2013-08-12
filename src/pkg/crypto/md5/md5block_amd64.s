@@ -5,13 +5,15 @@
 // Translated from Perl generating GNU assembly into
 // #defines generating 6a assembly by the Go Authors.
 
+#include "../../../cmd/ld/textflag.h"
+
 // MD5 optimized for AMD64.
 //
 // Author: Marc Bevand <bevand_m (at) epita.fr>
 // Licence: I hereby disclaim the copyright on this code and place it
 // in the public domain.
 
-TEXT	·block(SB),7,$0-32
+TEXT	·block(SB),NOSPLIT,$0-32
 	MOVQ	dig+0(FP),	BP
 	MOVQ	p+8(FP),	SI
 	MOVQ	p_len+16(FP), DX

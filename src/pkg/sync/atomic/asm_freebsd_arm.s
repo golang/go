@@ -2,46 +2,48 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../../cmd/ld/textflag.h"
+
 // FreeBSD/ARM atomic operations.
 // TODO(minux): this only supports ARMv6K or higher.
 
-TEXT ·CompareAndSwapInt32(SB),7,$0
+TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
 	B ·CompareAndSwapUint32(SB)
 
-TEXT ·CompareAndSwapUint32(SB),7,$0
+TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
 	B ·armCompareAndSwapUint32(SB)
 
-TEXT ·CompareAndSwapUintptr(SB),7,$0
+TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
 	B ·CompareAndSwapUint32(SB)
 
-TEXT ·CompareAndSwapPointer(SB),7,$0
+TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
 	B ·CompareAndSwapUint32(SB)
 
-TEXT ·AddInt32(SB),7,$0
+TEXT ·AddInt32(SB),NOSPLIT,$0
 	B ·AddUint32(SB)
 
-TEXT ·AddUint32(SB),7,$0
+TEXT ·AddUint32(SB),NOSPLIT,$0
 	B ·armAddUint32(SB)
 
-TEXT ·AddUintptr(SB),7,$0
+TEXT ·AddUintptr(SB),NOSPLIT,$0
 	B ·AddUint32(SB)
 
-TEXT ·CompareAndSwapInt64(SB),7,$0
+TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
 	B ·CompareAndSwapUint64(SB)
 
-TEXT ·CompareAndSwapUint64(SB),7,$-4
+TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
 	B ·armCompareAndSwapUint64(SB)
 
-TEXT ·AddInt64(SB),7,$0
+TEXT ·AddInt64(SB),NOSPLIT,$0
 	B ·addUint64(SB)
 
-TEXT ·AddUint64(SB),7,$0
+TEXT ·AddUint64(SB),NOSPLIT,$0
 	B ·addUint64(SB)
 
-TEXT ·LoadInt32(SB),7,$0
+TEXT ·LoadInt32(SB),NOSPLIT,$0
 	B ·LoadUint32(SB)
 
-TEXT ·LoadUint32(SB),7,$0
+TEXT ·LoadUint32(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R1
 load32loop:
 	LDREX (R1), R2		// loads R2
@@ -51,22 +53,22 @@ load32loop:
 	MOVW R2, val+4(FP)
 	RET
 
-TEXT ·LoadInt64(SB),7,$0
+TEXT ·LoadInt64(SB),NOSPLIT,$0
 	B ·loadUint64(SB)
 
-TEXT ·LoadUint64(SB),7,$0
+TEXT ·LoadUint64(SB),NOSPLIT,$0
 	B ·loadUint64(SB)
 
-TEXT ·LoadUintptr(SB),7,$0
+TEXT ·LoadUintptr(SB),NOSPLIT,$0
 	B ·LoadUint32(SB)
 
-TEXT ·LoadPointer(SB),7,$0
+TEXT ·LoadPointer(SB),NOSPLIT,$0
 	B ·LoadUint32(SB)
 
-TEXT ·StoreInt32(SB),7,$0
+TEXT ·StoreInt32(SB),NOSPLIT,$0
 	B ·StoreUint32(SB)
 
-TEXT ·StoreUint32(SB),7,$0
+TEXT ·StoreUint32(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R1
 	MOVW val+4(FP), R2
 storeloop:
@@ -76,14 +78,14 @@ storeloop:
 	BNE storeloop
 	RET
 
-TEXT ·StoreInt64(SB),7,$0
+TEXT ·StoreInt64(SB),NOSPLIT,$0
 	B ·storeUint64(SB)
 
-TEXT ·StoreUint64(SB),7,$0
+TEXT ·StoreUint64(SB),NOSPLIT,$0
 	B ·storeUint64(SB)
 
-TEXT ·StoreUintptr(SB),7,$0
+TEXT ·StoreUintptr(SB),NOSPLIT,$0
 	B ·StoreUint32(SB)
 
-TEXT ·StorePointer(SB),7,$0
+TEXT ·StorePointer(SB),NOSPLIT,$0
 	B ·StoreUint32(SB)
