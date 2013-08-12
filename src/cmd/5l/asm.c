@@ -798,7 +798,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		r = p->reg;
 		if(p->to.type == D_NONE)
 			rt = 0;
-		if(p->as == AMOVW || p->as == AMVN)
+		if(p->as == AMOVB || p->as == AMOVH || p->as == AMOVW || p->as == AMVN)
 			r = 0;
 		else
 		if(r == NREG)
