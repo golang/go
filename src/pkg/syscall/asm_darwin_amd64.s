@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 //
 // System call support for AMD64, Darwin
 //
@@ -10,7 +12,7 @@
 // func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
 // Trap # in AX, args in DI SI DX, return in AX DX
 
-TEXT	·Syscall(SB),7,$0-64
+TEXT	·Syscall(SB),NOSPLIT,$0-64
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -34,7 +36,7 @@ ok:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall6(SB),7,$0-88
+TEXT	·Syscall6(SB),NOSPLIT,$0-88
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -58,7 +60,7 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT ·RawSyscall(SB),7,$0-64
+TEXT ·RawSyscall(SB),NOSPLIT,$0-64
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -79,7 +81,7 @@ ok1:
 	MOVQ	$0, 56(SP)	// errno
 	RET
 
-TEXT	·RawSyscall6(SB),7,$0-88
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX

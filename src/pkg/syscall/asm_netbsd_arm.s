@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 //
 // System call support for ARM, NetBSD
 //
@@ -10,7 +12,7 @@
 // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
 // func Syscall9(trap int32, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int32)
 
-TEXT	·Syscall(SB),7,$0-28
+TEXT	·Syscall(SB),NOSPLIT,$0-28
 	BL runtime·entersyscall(SB)
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
@@ -32,7 +34,7 @@ error:
 	BL runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall6(SB),7,$0-40
+TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	BL runtime·entersyscall(SB)
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
@@ -57,7 +59,7 @@ error6:
 	BL runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall9(SB),7,$0-52
+TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	BL runtime·entersyscall(SB)
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
@@ -82,7 +84,7 @@ error9:
 	BL runtime·exitsyscall(SB)
 	RET
 
-TEXT	·RawSyscall(SB),7,$0-28
+TEXT	·RawSyscall(SB),NOSPLIT,$0-28
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
 	MOVW 8(FP), R2 // a2
@@ -101,7 +103,7 @@ errorr:
 	MOVW R0, 24(FP) // err
 	RET
 
-TEXT	·RawSyscall6(SB),7,$0-40
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
 	MOVW 8(FP), R2 // a2
