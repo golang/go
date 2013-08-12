@@ -61,7 +61,8 @@ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
 linux-linux-amd64-1 | darwin-darwin-amd64-1)
 	echo
 	echo '# Testing race detector.'
-	go test -race -i flag
+	go test -race -i runtime/race flag
+	go test -race -run=Output runtime/race
 	go test -race -short flag
 esac
 

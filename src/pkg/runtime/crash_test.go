@@ -44,14 +44,16 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
 	src := filepath.Join(dir, "main.go")
 	f, err := os.Create(src)
 	if err != nil {
-		t.Fatalf("failed to create %v: %v", src, err)
+		t.Fatalf("failed to create file: %v", err)
 	}
 	err = st.Execute(f, data)
 	if err != nil {
 		f.Close()
 		t.Fatalf("failed to execute template: %v", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close file: %v", err)
+	}
 
 	got, _ := testEnv(exec.Command("go", "run", src)).CombinedOutput()
 	return string(got)
