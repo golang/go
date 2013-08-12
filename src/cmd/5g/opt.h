@@ -165,3 +165,55 @@ int32	RtoB(int);
 int32	FtoB(int);
 int	BtoR(int32);
 int	BtoF(int32);
+
+/*
+ * prog.c
+ */
+typedef struct ProgInfo ProgInfo;
+struct ProgInfo
+{
+	uint32 flags; // the bits below
+};
+
+enum
+{
+	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+	Pseudo = 1<<1,
+	
+	// There's nothing to say about the instruction,
+	// but it's still okay to see.
+	OK = 1<<2,
+
+	// Size of right-side write, or right-side read if no write.
+	SizeB = 1<<3,
+	SizeW = 1<<4,
+	SizeL = 1<<5,
+	SizeQ = 1<<6,
+	SizeF = 1<<7, // float aka float32
+	SizeD = 1<<8, // double aka float64
+
+	// Left side: address taken, read, write.
+	LeftAddr = 1<<9,
+	LeftRead = 1<<10,
+	LeftWrite = 1<<11,
+	
+	// Register in middle; never written.
+	RegRead = 1<<12,
+	CanRegRead = 1<<13,
+	
+	// Right side: address taken, read, write.
+	RightAddr = 1<<14,
+	RightRead = 1<<15,
+	RightWrite = 1<<16,
+
+	// Instruction kinds
+	Move = 1<<17, // straight move
+	Conv = 1<<18, // size conversion
+	Cjmp = 1<<19, // conditional jump
+	Break = 1<<20, // breaks control flow (no fallthrough)
+	Call = 1<<21, // function call
+	Jump = 1<<22, // jump
+	Skip = 1<<23, // data instruction
+};
+
+void proginfo(ProgInfo*, Prog*);

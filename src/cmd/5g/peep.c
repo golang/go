@@ -50,6 +50,7 @@ peep(void)
 	Reg *r, *r1, *r2;
 	Prog *p;
 	int t;
+	ProgInfo info;
 
 /*
  * complete R structure
@@ -58,28 +59,24 @@ peep(void)
 		r1 = r->link;
 		if(r1 == R)
 			break;
-		p = r->prog->link;
-		while(p != r1->prog)
-		switch(p->as) {
-		default:
+		for(p = r->prog->link; p != r1->prog; p = p->link) {
+			proginfo(&info, p);
+			if(info.flags & Skip)
+				continue;
+
 			r2 = rega();
 			r->link = r2;
 			r2->link = r1;
 
 			r2->prog = p;
+			p->regp = r2;
+
 			r2->p1 = r;
 			r->s1 = r2;
 			r2->s1 = r1;
 			r1->p1 = r2;
 
 			r = r2;
-
-		case ADATA:
-		case AGLOBL:
-		case ANAME:
-		case ASIGNAME:
-		case ATYPE:
-			p = p->link;
 		}
 	}
 //dumpit("begin", firstr);
@@ -324,6 +321,7 @@ subprop(Reg *r0)
 	Adr *v1, *v2;
 	Reg *r;
 	int t;
+	ProgInfo info;
 
 	p = r0->prog;
 	v1 = &p->from;
@@ -336,68 +334,30 @@ subprop(Reg *r0)
 		if(uniqs(r) == R)
 			break;
 		p = r->prog;
-		switch(p->as) {
-		case ABL:
+		proginfo(&info, p);
+		if(info.flags & Call)
 			return 0;
 
+		if((info.flags & CanRegRead) && p->to.type == D_REG) {
+			info.flags |= RegRead;
+			info.flags &= ~(CanRegRead | RightRead);
+			p->reg = p->to.reg;
+		}
+
+		switch(p->as) {
 		case AMULLU:
 		case AMULA:
 		case AMVN:
 			return 0;
-
-		case ACMN:
-		case AADD:
-		case ASUB:
-		case ASBC:
-		case ARSB:
-		case ASLL:
-		case ASRL:
-		case ASRA:
-		case AORR:
-		case AAND:
-		case AEOR:
-		case AMUL:
-		case AMULU:
-		case ADIV:
-		case ADIVU:
-		case AMOD:
-		case AMODU:
-
-		case AADDD:
-		case AADDF:
-		case ASUBD:
-		case ASUBF:
-		case AMULD:
-		case AMULF:
-		case ADIVD:
-		case ADIVF:
-			if(p->to.type == v1->type)
-			if(p->to.reg == v1->reg)
-			if(p->scond == C_SCOND_NONE) {
-				if(p->reg == NREG)
-					p->reg = p->to.reg;
-				goto gotit;
-			}
-			break;
-
-		case AMOVF:
-		case AMOVD:
-		case AMOVB:
-		case AMOVH:
-		case AMOVW:
+		}
+		
+		if((info.flags & (RightRead|RightWrite)) == RightWrite) {
 			if(p->to.type == v1->type)
 			if(p->to.reg == v1->reg)
 			if(p->scond == C_SCOND_NONE)
 				goto gotit;
-			break;
-
-		case AMOVM:
-			t = 1<<v2->reg;
-			if((p->from.type == D_CONST && (p->from.offset&t)) ||
-			   (p->to.type == D_CONST && (p->to.offset&t)))
-				return 0;
-			break;
 		}
+
 		if(copyau(&p->from, v2) ||
 		   copyau1(p, v2) ||
 		   copyau(&p->to, v2))

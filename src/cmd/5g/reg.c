@@ -180,7 +180,8 @@ regopt(Prog *firstp)
 	int i, z, nr;
 	uint32 vreg;
 	Bits bit;
-	
+	ProgInfo info, info2;
+
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
 	}
@@ -243,14 +244,10 @@ regopt(Prog *firstp)
 	 */
 	nr = 0;
 	for(p=firstp; p != P; p = p->link) {
-		switch(p->as) {
-		case ADATA:
-		case AGLOBL:
-		case ANAME:
-		case ASIGNAME:
-		case ATYPE:
+		proginfo(&info, p);
+		if(info.flags & Skip)
 			continue;
-		}
+
 		r = rega();
 		nr++;
 		if(firstr == R) {
@@ -267,10 +264,8 @@ regopt(Prog *firstp)
 
 		r1 = r->p1;
 		if(r1 != R) {
-			switch(r1->prog->as) {
-			case ARET:
-			case AB:
-			case ARFE:
+			proginfo(&info2, r1->prog);
+			if(info2.flags & Break) {
 				r->p1 = R;
 				r1->s1 = R;
 			}
@@ -280,140 +275,29 @@ regopt(Prog *firstp)
 		if(p->as == ABL && p->to.type == D_EXTERN)
 			continue;
 
-		/*
-		 * left side always read
-		 */
-		bit = mkvar(r, &p->from);
-		for(z=0; z<BITS; z++)
-			r->use1.b[z] |= bit.b[z];
-		
-		/*
-		 * middle always read when present
-		 */
-		if(p->reg != NREG) {
+		if(info.flags & LeftRead) {
+			bit = mkvar(r, &p->from);
+			for(z=0; z<BITS; z++)
+				r->use1.b[z] |= bit.b[z];
+		}
+
+		if(info.flags & RegRead) {	
 			if(p->from.type != D_FREG)
 				r->use1.b[0] |= RtoB(p->reg);
 			else
 				r->use1.b[0] |= FtoB(p->reg);
 		}
 
-		/*
-		 * right side depends on opcode
-		 */
-		bit = mkvar(r, &p->to);
-		if(bany(&bit))
-		switch(p->as) {
-		default:
-			yyerror("reg: unknown op: %A", p->as);
-			break;
-		
-		/*
-		 * right side read
-		 */
-		case ATST:
-		case ATEQ:
-		case ACMP:
-		case ACMN:
-		case ACMPD:
-		case ACMPF:
-		rightread:
-			for(z=0; z<BITS; z++)
-				r->use2.b[z] |= bit.b[z];
-			break;
-			
-		/*
-		 * right side read or read+write, depending on middle
-		 *	ADD x, z => z += x
-		 *	ADD x, y, z  => z = x + y
-		 */
-		case AADD:
-		case AAND:
-		case AEOR:
-		case ASUB:
-		case ARSB:
-		case AADC:
-		case ASBC:
-		case ARSC:
-		case AORR:
-		case ABIC:
-		case ASLL:
-		case ASRL:
-		case ASRA:
-		case AMUL:
-		case AMULU:
-		case ADIV:
-		case AMOD:
-		case AMODU:
-		case ADIVU:
-			if(p->reg != NREG)
-				goto rightread;
-			// fall through
-
-		/*
-		 * right side read+write
-		 */
-		case AADDF:
-		case AADDD:
-		case ASUBF:
-		case ASUBD:
-		case AMULF:
-		case AMULD:
-		case ADIVF:
-		case ADIVD:
-		case AMULA:
-		case AMULAL:
-		case AMULALU:
-			for(z=0; z<BITS; z++) {
-				r->use2.b[z] |= bit.b[z];
-				r->set.b[z] |= bit.b[z];
-			}
-			break;
-
-		/*
-		 * right side write
-		 */
-		case ANOP:
-		case AMOVB:
-		case AMOVBS:
-		case AMOVBU:
-		case AMOVD:
-		case AMOVDF:
-		case AMOVDW:
-		case AMOVF:
-		case AMOVFW:
-		case AMOVH:
-		case AMOVHS:
-		case AMOVHU:
-		case AMOVW:
-		case AMOVWD:
-		case AMOVWF:
-		case AMVN:
-		case AMULL:
-		case AMULLU:
-			if((p->scond & C_SCOND) != C_SCOND_NONE)
+		if(info.flags & (RightAddr | RightRead | RightWrite)) {
+			bit = mkvar(r, &p->to);
+			if(info.flags & RightAddr)
+				setaddrs(bit);
+			if(info.flags & RightRead)
 				for(z=0; z<BITS; z++)
 					r->use2.b[z] |= bit.b[z];
-			for(z=0; z<BITS; z++)
-				r->set.b[z] |= bit.b[z];
-			break;
-
-		/*
-		 * funny
-		 */
-		case ABL:
-			setaddrs(bit);
-			break;
-		}
-
-		if(p->as == AMOVM) {
-			z = p->to.offset;
-			if(p->from.type == D_CONST)
-				z = p->from.offset;
-			for(i=0; z; i++) {
-				if(z&1)
-					regbits |= RtoB(i);
-				z >>= 1;
-			}
+			if(info.flags & RightWrite)
+				for(z=0; z<BITS; z++)
+					r->set.b[z] |= bit.b[z];
 		}
 	}
 	if(firstr == R)
