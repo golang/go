@@ -16,8 +16,8 @@ import (
 func ExampleRead() {
 	c := 10
 	b := make([]byte, c)
-	n, err := io.ReadFull(rand.Reader, b)
-	if n != len(b) || err != nil {
+	_, err := io.ReadFull(rand.Reader, b)
+	if err != nil {
 		fmt.Println("error:", err)
 		return
 	}
