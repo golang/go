@@ -12,6 +12,14 @@ import (
 	"strings"
 )
 
+func ExampleWriter() {
+	w := bufio.NewWriter(os.Stdout)
+	fmt.Fprint(w, "Hello, ")
+	fmt.Fprint(w, "world!")
+	w.Flush() // Don't forget to flush!
+	// Output: Hello, world!
+}
+
 // The simplest use of a Scanner, to read standard input as a set of lines.
 func ExampleScanner_lines() {
 	scanner := bufio.NewScanner(os.Stdin)
