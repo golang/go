@@ -81,19 +81,19 @@ GLOBL	runtime·main·f(SB),RODATA,$4
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	// gdb won't skip this breakpoint instruction automatically,
 	// so you must manually "set $pc+=4" to skip it and continue.
-	WORD    $0xe1200071 // BKPT 0x0001
+	WORD	$0xe1200071	// BKPT 0x0001
 	RET
 
 GLOBL runtime·goarm(SB), $4
 
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
-	MOVW runtime·goarm(SB), R11
-	CMP $5, R11
-	BLE 4(PC)
-	WORD $0xeef1ba10	// vmrs r11, fpscr
-	BIC $(1<<24), R11
-	WORD $0xeee1ba10	// vmsr fpscr, r11
+	MOVW	runtime·goarm(SB), R11
+	CMP	$5, R11
+	BLE	4(PC)
+	WORD	$0xeef1ba10	// vmrs r11, fpscr
+	BIC	$(1<<24), R11
+	WORD	$0xeee1ba10	// vmsr fpscr, r11
 	RET
 
 /*
@@ -448,7 +448,7 @@ TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	// the linker analysis by using an indirect call.
 	MOVW	m, savedm-4(SP)
 	CMP	$0, m
-	B.NE havem
+	B.NE	havem
 	MOVW	$runtime·needm(SB), R0
 	BL	(R0)
 
@@ -566,11 +566,11 @@ TEXT runtime·armcas(SB),NOSPLIT,$0-12
 	MOVW	new+8(FP), R3
 casl:
 	LDREX	(R1), R0
-	CMP		R0, R2
-	BNE		casfail
+	CMP	R0, R2
+	BNE	casfail
 	STREX	R3, (R1), R0
-	CMP		$0, R0
-	BNE		casl
+	CMP	$0, R0
+	BNE	casl
 	MOVW	$1, R0
 	RET
 casfail:

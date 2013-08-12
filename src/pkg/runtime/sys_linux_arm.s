@@ -371,7 +371,7 @@ casagain:
 	MOVW	new+8(FP), R1
 	BL	cas<>(SB)
 	BCC	cascheck
-	MOVW $1, R0
+	MOVW	$1, R0
 	RET
 cascheck:
 	// Kernel lies; double-check.
@@ -380,7 +380,7 @@ cascheck:
 	MOVW	0(R2), R3
 	CMP	R0, R3
 	BEQ	casagain
-	MOVW $0, R0
+	MOVW	$0, R0
 	RET
 
 TEXT runtime·casp(SB),NOSPLIT,$0
@@ -439,5 +439,5 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	$2, R1	// F_SETFD
 	MOVW	$1, R2	// FD_CLOEXEC
 	MOVW	$SYS_fcntl, R7
-	SWI $0
+	SWI	$0
 	RET

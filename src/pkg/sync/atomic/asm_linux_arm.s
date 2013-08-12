@@ -35,7 +35,7 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
 	MOVW	old+4(FP), R0
 casagain:
 	MOVW	new+8(FP), R1
-	BL cas<>(SB)
+	BL	cas<>(SB)
 	BCC	cascheck
 	MOVW	$1, R0
 casret:
@@ -88,7 +88,7 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0
 	MOVW	R1, (R1)
 	MOVW	$4(FP), R0 // oldval
 	MOVW	$12(FP), R1 // newval
-	BL		cas64<>(SB)
+	BL	cas64<>(SB)
 	MOVW.CS	$1, R0 // C is set if the kernel has changed *ptr
 	MOVW.CC	$0, R0
 	MOVW	R0, 20(FP)
@@ -124,7 +124,7 @@ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4
 	MOVW.CS	R1, PC
 	MOVB	runtime·armArch(SB), R0
 	// LDREXD, STREXD only present on ARMv6K or higher
-	CMP		$6, R0 // TODO(minux): how to differentiate ARMv6 with ARMv6K?
+	CMP	$6, R0 // TODO(minux): how to differentiate ARMv6 with ARMv6K?
 	MOVW.CS	$·armCompareAndSwapUint64(SB), R1
 	MOVW.CS	R1, armCAS64(SB)
 	MOVW.CS	R1, PC
@@ -140,7 +140,7 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
 	MOVW	armCAS64(SB), R0
 	CMP 	$0, R0
 	MOVW.NE	R0, PC
-	B		setupAndCallCAS64<>(SB)
+	B	setupAndCallCAS64<>(SB)
 
 TEXT ·AddInt64(SB),NOSPLIT,$0
 	B	·addUint64(SB)
