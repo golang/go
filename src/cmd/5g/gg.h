@@ -39,7 +39,7 @@ struct	Prog
 	uint32	loc;		// pc offset in this func
 	uint32	lineno;		// source line that generated this
 	Prog*	link;		// next instruction in this func
-	void*	regp;		// points to enclosing Reg struct
+	void*	opt;		// for optimizer passes
 	short	as;		// opcode
 	uchar	reg;		// doubles as width in DATA op
 	uchar	scond;
