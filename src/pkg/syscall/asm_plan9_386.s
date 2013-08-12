@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 //
 // System call support for 386, Plan 9
 //
@@ -12,7 +14,7 @@
 //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
 // Trap # in AX, args on stack above caller pc.
-TEXT	·Syscall(SB),7,$0-32
+TEXT	·Syscall(SB),NOSPLIT,$0-32
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -47,7 +49,7 @@ copyresult3:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall6(SB),7,$0-44
+TEXT	·Syscall6(SB),NOSPLIT,$0-44
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -85,7 +87,7 @@ copyresult4:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT ·RawSyscall(SB),7,$0-32
+TEXT ·RawSyscall(SB),NOSPLIT,$0-32
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -100,7 +102,7 @@ TEXT ·RawSyscall(SB),7,$0-32
 	MOVL	AX, err+28(SP)
 	RET
 
-TEXT	·RawSyscall6(SB),7,$0-44
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -121,7 +123,7 @@ TEXT	·RawSyscall6(SB),7,$0-44
 #define SYS_SEEK 39	/* from zsysnum_plan9_386.go */
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
-TEXT ·seek(SB),7,$0-40
+TEXT ·seek(SB),NOSPLIT,$0-40
 	LEAL	newoffset+24(SP), AX
 	MOVL	AX, placeholder+4(SP)
 	
@@ -152,7 +154,7 @@ copyresult6:
 
 //func exit(code int)
 // Import runtime·exit for cleanly exiting.
-TEXT ·exit(SB),7,$4-4
+TEXT ·exit(SB),NOSPLIT,$4-4
 	MOVL	code+0(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	runtime·exit(SB)
