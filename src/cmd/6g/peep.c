@@ -43,33 +43,14 @@ static int regconsttyp(Adr*);
 static int
 needc(Prog *p)
 {
+	ProgInfo info;
+
 	while(p != P) {
-		switch(p->as) {
-		case AADCL:
-		case AADCQ:
-		case ASBBL:
-		case ASBBQ:
-		case ARCRB:
-		case ARCRW:
-		case ARCRL:
-		case ARCRQ:
+		proginfo(&info, p);
+		if(info.flags & UseCarry)
 			return 1;
-		case AADDB:
-		case AADDW:
-		case AADDL:
-		case AADDQ:
-		case ASUBB:
-		case ASUBW:
-		case ASUBL:
-		case ASUBQ:
-		case AJMP:
-		case ARET:
-		case ACALL:
+		if(info.flags & (SetCarry|KillCarry))
 			return 0;
-		default:
-			if(p->to.type == D_BRANCH)
-				return 0;
-		}
 		p = p->link;
 	}
 	return 0;
@@ -100,6 +81,7 @@ peep(void)
 	Reg *r, *r1, *r2;
 	Prog *p, *p1;
 	int t;
+	ProgInfo info;
 
 	/*
 	 * complete R structure
@@ -110,9 +92,11 @@ peep(void)
 		if(r1 == R)
 			break;
 		p = r->prog->link;
-		while(p != r1->prog)
-		switch(p->as) {
-		default:
+		for(p = r->prog->link; p != r1->prog; p = p->link) {
+			proginfo(&info, p);
+			if(info.flags & Skip)
+				continue;
+
 			r2 = rega();
 			r->link = r2;
 			r2->link = r1;
@@ -127,13 +111,6 @@ peep(void)
 
 			r = r2;
 			t++;
-
-		case ADATA:
-		case AGLOBL:
-		case ANAME:
-		case ASIGNAME:
-		case ATYPE:
-			p = p->link;
 		}
 	}
 	
@@ -467,6 +444,9 @@ regtyp(Adr *a)
 // when possible.  a movb into a register
 // can smash the entire 32-bit register without
 // causing any trouble.
+//
+// TODO: Using the Q forms here instead of the L forms
+// seems unnecessary, and it makes the instructions longer.
 static void
 elimshortmov(Reg *r)
 {
@@ -556,6 +536,7 @@ elimshortmov(Reg *r)
 	}
 }
 
+// is 'a' a register or constant?
 static int
 regconsttyp(Adr *a)
 {
@@ -577,34 +558,17 @@ prevl(Reg *r0, int reg)
 {
 	Prog *p;
 	Reg *r;
+	ProgInfo info;
 
 	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
 		p = r->prog;
 		if(p->to.type == reg) {
-			switch(p->as) {
-			case AADDL:
-			case AANDL:
-			case ADECL:
-			case ADIVL:
-			case AIDIVL:
-			case AIMULL:
-			case AINCL:
-			case AMOVL:
-			case AMULL:
-			case AORL:
-			case ARCLL:
-			case ARCRL:
-			case AROLL:
-			case ARORL:
-			case ASALL:
-			case ASARL:
-			case ASHLL:
-			case ASHRL:
-			case ASUBL:
-			case AXORL:
-				return 1;
+			proginfo(&info, p);
+			if(info.flags & RightWrite) {
+				if(info.flags & SizeL)
+					return 1;
+				return 0;
 			}
-			return 0;
 		}
 	}
 	return 0;
@@ -628,6 +592,7 @@ int
 subprop(Reg *r0)
 {
 	Prog *p;
+	ProgInfo info;
 	Adr *v1, *v2;
 	Reg *r;
 	int t;
@@ -656,95 +621,22 @@ subprop(Reg *r0)
 			break;
 		}
 		p = r->prog;
-		switch(p->as) {
-		case ACALL:
+		proginfo(&info, p);
+		if(info.flags & Call) {
 			if(debug['P'] && debug['v'])
 				print("\tfound %P; return 0\n", p);
 			return 0;
-
-		case AIMULL:
-		case AIMULQ:
-		case AIMULW:
-			if(p->to.type != D_NONE)
-				break;
-			goto giveup;
-
-		case ARCLB:
-		case ARCLL:
-		case ARCLQ:
-		case ARCLW:
-		case ARCRB:
-		case ARCRL:
-		case ARCRQ:
-		case ARCRW:
-		case AROLB:
-		case AROLL:
-		case AROLQ:
-		case AROLW:
-		case ARORB:
-		case ARORL:
-		case ARORQ:
-		case ARORW:
-		case ASALB:
-		case ASALL:
-		case ASALQ:
-		case ASALW:
-		case ASARB:
-		case ASARL:
-		case ASARQ:
-		case ASARW:
-		case ASHLB:
-		case ASHLL:
-		case ASHLQ:
-		case ASHLW:
-		case ASHRB:
-		case ASHRL:
-		case ASHRQ:
-		case ASHRW:
-			if(p->from.type == D_CONST)
-				break;
-			goto giveup;
-
-		case ADIVB:
-		case ADIVL:
-		case ADIVQ:
-		case ADIVW:
-		case AIDIVB:
-		case AIDIVL:
-		case AIDIVQ:
-		case AIDIVW:
-		case AIMULB:
-		case AMULB:
-		case AMULL:
-		case AMULQ:
-		case AMULW:
-
-		case AREP:
-		case AREPN:
-
-		case ACWD:
-		case ACDQ:
-		case ACQO:
-
-		case ASTOSB:
-		case ASTOSL:
-		case ASTOSQ:
-		case AMOVSB:
-		case AMOVSL:
-		case AMOVSQ:
-		giveup:
-			if(debug['P'] && debug['v'])
-				print("\tfound %P; return 0\n", p);
-			return 0;
-
-		case AMOVL:
-		case AMOVQ:
-		case AMOVSS:
-		case AMOVSD:
-			if(p->to.type == v1->type)
-				goto gotit;
-			break;
 		}
+
+		if(info.reguse | info.regset) {
+			if(debug['P'] && debug['v'])
+				print("\tfound %P; return 0\n", p);
+			return 0;
+		}
+
+		if((info.flags & Move) && (info.flags & (SizeL|SizeQ|SizeF|SizeD)) && p->to.type == v1->type)
+			goto gotit;
+
 		if(copyau(&p->from, v2) ||
 		   copyau(&p->to, v2)) {
 		   	if(debug['P'] && debug['v'])
@@ -904,255 +796,10 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 int
 copyu(Prog *p, Adr *v, Adr *s)
 {
+	ProgInfo info;
 
 	switch(p->as) {
-
-	default:
-		if(debug['P'])
-			print("unknown op %A\n", p->as);
-		/* SBBL; ADCL; FLD1; SAHF */
-		return 2;
-
-
-	case ANEGB:
-	case ANEGW:
-	case ANEGL:
-	case ANEGQ:
-	case ANOTB:
-	case ANOTW:
-	case ANOTL:
-	case ANOTQ:
-		if(copyas(&p->to, v))
-			return 2;
-		break;
-
-	case ALEAL:	/* lhs addr, rhs store */
-	case ALEAQ:
-		if(copyas(&p->from, v))
-			return 2;
-
-
-	case ANOP:	/* rhs store */
-	case AMOVL:
-	case AMOVQ:
-	case AMOVBLSX:
-	case AMOVBLZX:
-	case AMOVBQSX:
-	case AMOVBQZX:
-	case AMOVLQSX:
-	case AMOVLQZX:
-	case AMOVWLSX:
-	case AMOVWLZX:
-	case AMOVWQSX:
-	case AMOVWQZX:
-	case AMOVQL:
-
-	case AMOVSS:
-	case AMOVSD:
-	case ACVTSD2SL:
-	case ACVTSD2SQ:
-	case ACVTSD2SS:
-	case ACVTSL2SD:
-	case ACVTSL2SS:
-	case ACVTSQ2SD:
-	case ACVTSQ2SS:
-	case ACVTSS2SD:
-	case ACVTSS2SL:
-	case ACVTSS2SQ:
-	case ACVTTSD2SL:
-	case ACVTTSD2SQ:
-	case ACVTTSS2SL:
-	case ACVTTSS2SQ:
-		if(copyas(&p->to, v)) {
-			if(s != A)
-				return copysub(&p->from, v, s, 1);
-			if(copyau(&p->from, v))
-				return 4;
-			return 3;
-		}
-		goto caseread;
-
-	case ARCLB:
-	case ARCLL:
-	case ARCLQ:
-	case ARCLW:
-	case ARCRB:
-	case ARCRL:
-	case ARCRQ:
-	case ARCRW:
-	case AROLB:
-	case AROLL:
-	case AROLQ:
-	case AROLW:
-	case ARORB:
-	case ARORL:
-	case ARORQ:
-	case ARORW:
-	case ASALB:
-	case ASALL:
-	case ASALQ:
-	case ASALW:
-	case ASARB:
-	case ASARL:
-	case ASARQ:
-	case ASARW:
-	case ASHLB:
-	case ASHLL:
-	case ASHLQ:
-	case ASHLW:
-	case ASHRB:
-	case ASHRL:
-	case ASHRQ:
-	case ASHRW:
-		if(copyas(&p->to, v))
-			return 2;
-		if(copyas(&p->from, v))
-			if(p->from.type == D_CX)
-				return 2;
-		goto caseread;
-
-	case AADDB:	/* rhs rar */
-	case AADDL:
-	case AADDQ:
-	case AADDW:
-	case AANDB:
-	case AANDL:
-	case AANDQ:
-	case AANDW:
-	case ADECL:
-	case ADECQ:
-	case ADECW:
-	case AINCL:
-	case AINCQ:
-	case AINCW:
-	case ASUBB:
-	case ASUBL:
-	case ASUBQ:
-	case ASUBW:
-	case AORB:
-	case AORL:
-	case AORQ:
-	case AORW:
-	case AXORB:
-	case AXORL:
-	case AXORQ:
-	case AXORW:
-	case AMOVB:
-	case AMOVW:
-
-	case AADDSD:
-	case AADDSS:
-	case ACMPSD:
-	case ACMPSS:
-	case ADIVSD:
-	case ADIVSS:
-	case AMAXSD:
-	case AMAXSS:
-	case AMINSD:
-	case AMINSS:
-	case AMULSD:
-	case AMULSS:
-	case ARCPSS:
-	case ARSQRTSS:
-	case ASQRTSD:
-	case ASQRTSS:
-	case ASUBSD:
-	case ASUBSS:
-	case AXORPD:
-		if(copyas(&p->to, v))
-			return 2;
-		goto caseread;
-
-	case ACMPL:	/* read only */
-	case ACMPW:
-	case ACMPB:
-	case ACMPQ:
-
-	case ACOMISD:
-	case ACOMISS:
-	case AUCOMISD:
-	case AUCOMISS:
-	caseread:
-		if(s != A) {
-			if(copysub(&p->from, v, s, 1))
-				return 1;
-			return copysub(&p->to, v, s, 1);
-		}
-		if(copyau(&p->from, v))
-			return 1;
-		if(copyau(&p->to, v))
-			return 1;
-		break;
-
-	case AJGE:	/* no reference */
-	case AJNE:
-	case AJLE:
-	case AJEQ:
-	case AJHI:
-	case AJLS:
-	case AJMI:
-	case AJPL:
-	case AJGT:
-	case AJLT:
-	case AJCC:
-	case AJCS:
-
-	case AADJSP:
-	case AWAIT:
-	case ACLD:
-		break;
-
-	case AIMULL:
-	case AIMULQ:
-	case AIMULW:
-		if(p->to.type != D_NONE) {
-			if(copyas(&p->to, v))
-				return 2;
-			goto caseread;
-		}
-
-	case ADIVB:
-	case ADIVL:
-	case ADIVQ:
-	case ADIVW:
-	case AIDIVB:
-	case AIDIVL:
-	case AIDIVQ:
-	case AIDIVW:
-	case AIMULB:
-	case AMULB:
-	case AMULL:
-	case AMULQ:
-	case AMULW:
-
-	case ACWD:
-	case ACDQ:
-	case ACQO:
-		if(v->type == D_AX || v->type == D_DX)
-			return 2;
-		goto caseread;
-
-	case AREP:
-	case AREPN:
-		if(v->type == D_CX)
-			return 2;
-		goto caseread;
-
-	case AMOVSB:
-	case AMOVSL:
-	case AMOVSQ:
-		if(v->type == D_DI || v->type == D_SI)
-			return 2;
-		goto caseread;
-
-	case ASTOSB:
-	case ASTOSL:
-	case ASTOSQ:
-		if(v->type == D_AX || v->type == D_DI)
-			return 2;
-		goto caseread;
-
-	case AJMP:	/* funny */
+	case AJMP:
 		if(s != A) {
 			if(copysub(&p->to, v, s, 1))
 				return 1;
@@ -1162,12 +809,12 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 1;
 		return 0;
 
-	case ARET:	/* funny */
+	case ARET:
 		if(s != A)
 			return 1;
 		return 3;
 
-	case ACALL:	/* funny */
+	case ACALL:
 		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
 			return 2;
 		if(REGARG >= 0 && v->type == (uchar)REGARG)
@@ -1184,11 +831,47 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 4;
 		return 3;
 
-	case ATEXT:	/* funny */
+	case ATEXT:
 		if(REGARG >= 0 && v->type == (uchar)REGARG)
 			return 3;
 		return 0;
 	}
+
+	proginfo(&info, p);
+
+	if((info.reguse|info.regset) & RtoB(v->type))
+		return 2;
+		
+	if(info.flags & LeftAddr)
+		if(copyas(&p->from, v))
+			return 2;
+
+	if((info.flags & (RightRead|RightWrite)) == (RightRead|RightWrite))
+		if(copyas(&p->to, v))
+			return 2;
+	
+	if(info.flags & RightWrite) {
+		if(copyas(&p->to, v)) {
+			if(s != A)
+				return copysub(&p->from, v, s, 1);
+			if(copyau(&p->from, v))
+				return 4;
+			return 3;
+		}
+	}
+	
+	if(info.flags & (LeftAddr|LeftRead|LeftWrite|RightAddr|RightRead|RightWrite)) {
+		if(s != A) {
+			if(copysub(&p->from, v, s, 1))
+				return 1;
+			return copysub(&p->to, v, s, 1);
+		}
+		if(copyau(&p->from, v))
+			return 1;
+		if(copyau(&p->to, v))
+			return 1;
+	}
+
 	return 0;
 }
 
