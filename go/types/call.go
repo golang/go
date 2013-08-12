@@ -26,13 +26,29 @@ func (check *checker) call(x *operand, e *ast.CallExpr) {
 	}
 
 	if x.mode == typexpr {
-		check.conversion(x, e, x.typ)
+		// conversion
+		T := x.typ
+		x.mode = invalid
+		switch n := len(e.Args); n {
+		case 0:
+			check.errorf(e.Rparen, "missing argument in conversion to %s", T)
+		case 1:
+			check.expr(x, e.Args[0])
+			if x.mode != invalid {
+				check.conversion(x, T)
+				if x.mode != invalid {
+					check.conversions[e] = true // for cap/len checking
+				}
+			}
+		default:
+			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
+		}
+		x.expr = e
 		return
 	}
 
 	if sig, ok := x.typ.Underlying().(*Signature); ok {
 		// function/method call
-
 		passSlice := false
 		if e.Ellipsis.IsValid() {
 			// last argument is of the form x...
@@ -84,7 +100,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) {
 			n++
 		}
 		if n < sig.params.Len() {
-			check.errorf(e.Fun.Pos(), "too few arguments in call to %s", e.Fun)
+			check.errorf(e.Rparen, "too few arguments in call to %s", e.Fun)
 			// ok to continue
 		}
 

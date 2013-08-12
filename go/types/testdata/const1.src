@@ -56,138 +56,249 @@ const (
 	maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
 )
 
-var (
+const (
 	_ int8 = minInt8 /* ERROR "overflows" */ - 1
 	_ int8 = minInt8
 	_ int8 = maxInt8
 	_ int8 = maxInt8 /* ERROR "overflows" */ + 1
 	_ int8 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = int8(minInt8 /* ERROR "cannot convert" */ - 1)
+	_ = int8(minInt8)
+	_ = int8(maxInt8)
+	_ = int8(maxInt8 /* ERROR "cannot convert" */ + 1)
+	_ = int8(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ int16 = minInt16 /* ERROR "overflows" */ - 1
 	_ int16 = minInt16
 	_ int16 = maxInt16
 	_ int16 = maxInt16 /* ERROR "overflows" */ + 1
 	_ int16 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = int16(minInt16 /* ERROR "cannot convert" */ - 1)
+	_ = int16(minInt16)
+	_ = int16(maxInt16)
+	_ = int16(maxInt16 /* ERROR "cannot convert" */ + 1)
+	_ = int16(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ int32 = minInt32 /* ERROR "overflows" */ - 1
 	_ int32 = minInt32
 	_ int32 = maxInt32
 	_ int32 = maxInt32 /* ERROR "overflows" */ + 1
 	_ int32 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = int32(minInt32 /* ERROR "cannot convert" */ - 1)
+	_ = int32(minInt32)
+	_ = int32(maxInt32)
+	_ = int32(maxInt32 /* ERROR "cannot convert" */ + 1)
+	_ = int32(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ int64 = minInt64 /* ERROR "overflows" */ - 1
 	_ int64 = minInt64
 	_ int64 = maxInt64
 	_ int64 = maxInt64 /* ERROR "overflows" */ + 1
 	_ int64 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = int64(minInt64 /* ERROR "cannot convert" */ - 1)
+	_ = int64(minInt64)
+	_ = int64(maxInt64)
+	_ = int64(maxInt64 /* ERROR "cannot convert" */ + 1)
+	_ = int64(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ int = minInt /* ERROR "overflows" */ - 1
 	_ int = minInt
 	_ int = maxInt
 	_ int = maxInt /* ERROR "overflows" */ + 1
 	_ int = smallestFloat64 /* ERROR "overflows" */
+
+	_ = int(minInt /* ERROR "cannot convert" */ - 1)
+	_ = int(minInt)
+	_ = int(maxInt)
+	_ = int(maxInt /* ERROR "cannot convert" */ + 1)
+	_ = int(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ uint8 = 0 /* ERROR "overflows" */ - 1
 	_ uint8 = 0
 	_ uint8 = maxUint8
 	_ uint8 = maxUint8 /* ERROR "overflows" */ + 1
 	_ uint8 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = uint8(0 /* ERROR "cannot convert" */ - 1)
+	_ = uint8(0)
+	_ = uint8(maxUint8)
+	_ = uint8(maxUint8 /* ERROR "cannot convert" */ + 1)
+	_ = uint8(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ uint16 = 0 /* ERROR "overflows" */ - 1
 	_ uint16 = 0
 	_ uint16 = maxUint16
 	_ uint16 = maxUint16 /* ERROR "overflows" */ + 1
 	_ uint16 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = uint16(0 /* ERROR "cannot convert" */ - 1)
+	_ = uint16(0)
+	_ = uint16(maxUint16)
+	_ = uint16(maxUint16 /* ERROR "cannot convert" */ + 1)
+	_ = uint16(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ uint32 = 0 /* ERROR "overflows" */ - 1
 	_ uint32 = 0
 	_ uint32 = maxUint32
 	_ uint32 = maxUint32 /* ERROR "overflows" */ + 1
 	_ uint32 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = uint32(0 /* ERROR "cannot convert" */ - 1)
+	_ = uint32(0)
+	_ = uint32(maxUint32)
+	_ = uint32(maxUint32 /* ERROR "cannot convert" */ + 1)
+	_ = uint32(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ uint64 = 0 /* ERROR "overflows" */ - 1
 	_ uint64 = 0
 	_ uint64 = maxUint64
 	_ uint64 = maxUint64 /* ERROR "overflows" */ + 1
 	_ uint64 = smallestFloat64 /* ERROR "overflows" */
+
+	_ = uint64(0 /* ERROR "cannot convert" */ - 1)
+	_ = uint64(0)
+	_ = uint64(maxUint64)
+	_ = uint64(maxUint64 /* ERROR "cannot convert" */ + 1)
+	_ = uint64(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ uint = 0 /* ERROR "overflows" */ - 1
 	_ uint = 0
 	_ uint = maxUint
 	_ uint = maxUint /* ERROR "overflows" */ + 1
 	_ uint = smallestFloat64 /* ERROR "overflows" */
+
+	_ = uint(0 /* ERROR "cannot convert" */ - 1)
+	_ = uint(0)
+	_ = uint(maxUint)
+	_ = uint(maxUint /* ERROR "cannot convert" */ + 1)
+	_ = uint(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ uintptr = 0 /* ERROR "overflows" */ - 1
 	_ uintptr = 0
 	_ uintptr = maxUintptr
 	_ uintptr = maxUintptr /* ERROR "overflows" */ + 1
 	_ uintptr = smallestFloat64 /* ERROR "overflows" */
+
+	_ = uintptr(0 /* ERROR "cannot convert" */ - 1)
+	_ = uintptr(0)
+	_ = uintptr(maxUintptr)
+	_ = uintptr(maxUintptr /* ERROR "cannot convert" */ + 1)
+	_ = uintptr(smallestFloat64 /* ERROR "cannot convert" */)
 )
 
-var (
+const (
 	_ float32 = minInt64
 	_ float64 = minInt64
 	_ complex64 = minInt64
 	_ complex128 = minInt64
+
+	_ = float32(minInt64)
+	_ = float64(minInt64)
+	_ = complex64(minInt64)
+	_ = complex128(minInt64)
 )
 
-var (
+const (
 	_ float32 = maxUint64
 	_ float64 = maxUint64
 	_ complex64 = maxUint64
 	_ complex128 = maxUint64
+
+	_ = float32(maxUint64)
+	_ = float64(maxUint64)
+	_ = complex64(maxUint64)
+	_ = complex128(maxUint64)
 )
 
 // TODO(gri) find smaller deltas below
 
-const delta32 = maxFloat32 >> 23
+const delta32 = maxFloat32/(1 << 23)
 
-var (
+const (
 	_ float32 = - /* ERROR "overflow" */ (maxFloat32 + delta32)
 	_ float32 = -maxFloat32
 	_ float32 = maxFloat32
 	_ float32 = maxFloat32 /* ERROR "overflow" */ + delta32
+
+	_ = float32(- /* ERROR "cannot convert" */ (maxFloat32 + delta32))
+	_ = float32(-maxFloat32)
+	_ = float32(maxFloat32)
+	_ = float32(maxFloat32 /* ERROR "cannot convert" */ + delta32)
 )
 
-const delta64 = maxFloat64 >> 52
+const delta64 = maxFloat64/(1 << 52)
 
-var (
+const (
 	_ float64 = - /* ERROR "overflow" */ (maxFloat64 + delta64)
 	_ float64 = -maxFloat64
 	_ float64 = maxFloat64
 	_ float64 = maxFloat64 /* ERROR "overflow" */ + delta64
+
+	_ = float64(- /* ERROR "cannot convert" */ (maxFloat64 + delta64))
+	_ = float64(-maxFloat64)
+	_ = float64(maxFloat64)
+	_ = float64(maxFloat64 /* ERROR "cannot convert" */ + delta64)
 )
 
-var (
+const (
 	_ complex64 = - /* ERROR "overflow" */ (maxFloat32 + delta32)
 	_ complex64 = -maxFloat32
 	_ complex64 = maxFloat32
 	_ complex64 = maxFloat32 /* ERROR "overflow" */ + delta32
+
+	_ = complex64(- /* ERROR "cannot convert" */ (maxFloat32 + delta32))
+	_ = complex64(-maxFloat32)
+	_ = complex64(maxFloat32)
+	_ = complex64(maxFloat32 /* ERROR "cannot convert" */ + delta32)
 )
 
-var (
+const (
 	_ complex128 = - /* ERROR "overflow" */ (maxFloat64 + delta64)
 	_ complex128 = -maxFloat64
 	_ complex128 = maxFloat64
 	_ complex128 = maxFloat64 /* ERROR "overflow" */ + delta64
+
+	_ = complex128(- /* ERROR "cannot convert" */ (maxFloat64 + delta64))
+	_ = complex128(-maxFloat64)
+	_ = complex128(maxFloat64)
+	_ = complex128(maxFloat64 /* ERROR "cannot convert" */ + delta64)
+)
+
+// Initialization of typed constant and conversion are the same:
+const (
+	f32 = 1 + smallestFloat32
+	x32 float32 = f32
+	y32 = float32(f32)
+	_ = assert(x32 - y32 == 0)
+)
+
+const (
+	f64 = 1 + smallestFloat64
+	x64 float64 = f64
+	y64 = float64(f64)
+	_ = assert(x64 - y64 == 0)
 )

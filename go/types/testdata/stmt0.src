@@ -54,7 +54,7 @@ func assignments() {
 
 	g := func(int, bool){}
 	var m map[int]int
-	g/* ERROR "too few arguments" */ (m[0])
+	g(m[0]) /* ERROR "too few arguments" */
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */

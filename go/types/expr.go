@@ -158,10 +158,23 @@ func isComparison(op token.Token) bool {
 
 func fitsFloat32(x exact.Value) bool {
 	f, _ := exact.Float64Val(x)
-	// We assume that float32(f) returns an Inf if f
-	// cannot be represented as a float32, or if f
-	// is an Inf. This is not supported by the spec.
+	// spec: "In all non-constant conversions involving floating-point
+	// or complex values, if the result type cannot represent the value
+	// the conversion succeeds but the result value is implementation-
+	// dependent."
+	//
+	// We assume that float32(f) returns an Inf if f cannot be represented
+	// as a float32, or if f is an Inf.
 	return !math.IsInf(float64(float32(f)), 0)
+}
+
+func roundFloat32(x exact.Value) exact.Value {
+	f, _ := exact.Float64Val(x)
+	f = float64(float32(f))
+	if !math.IsInf(f, 0) {
+		return exact.MakeFloat64(f)
+	}
+	return nil
 }
 
 func fitsFloat64(x exact.Value) bool {
@@ -169,7 +182,22 @@ func fitsFloat64(x exact.Value) bool {
 	return !math.IsInf(f, 0)
 }
 
-func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
+func roundFloat64(x exact.Value) exact.Value {
+	f, _ := exact.Float64Val(x)
+	if !math.IsInf(f, 0) {
+		return exact.MakeFloat64(f)
+	}
+	return nil
+}
+
+// isRepresentableConst reports whether x can be represented as
+// value of the given basic type kind and for the configuration
+// provided (only needed for int/uint sizes).
+//
+// If rounded != nil, *rounded is set to the rounded value of x for
+// representable floating-point values; it is left alone otherwise.
+// It is ok to provide the addressof the first argument for rounded.
+func isRepresentableConst(x exact.Value, conf *Config, as BasicKind, rounded *exact.Value) bool {
 	switch x.Kind() {
 	case exact.Unknown:
 		return true
@@ -224,9 +252,23 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 		case Uint64:
 			return exact.Sign(x) >= 0 && n <= 64
 		case Float32, Complex64:
-			return fitsFloat32(x)
+			if rounded == nil {
+				return fitsFloat32(x)
+			}
+			r := roundFloat32(x)
+			if r != nil {
+				*rounded = r
+				return true
+			}
 		case Float64, Complex128:
-			return fitsFloat64(x)
+			if rounded == nil {
+				return fitsFloat64(x)
+			}
+			r := roundFloat64(x)
+			if r != nil {
+				*rounded = r
+				return true
+			}
 		case UntypedInt, UntypedFloat, UntypedComplex:
 			return true
 		}
@@ -234,9 +276,23 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 	case exact.Float:
 		switch as {
 		case Float32, Complex64:
-			return fitsFloat32(x)
+			if rounded == nil {
+				return fitsFloat32(x)
+			}
+			r := roundFloat32(x)
+			if r != nil {
+				*rounded = r
+				return true
+			}
 		case Float64, Complex128:
-			return fitsFloat64(x)
+			if rounded == nil {
+				return fitsFloat64(x)
+			}
+			r := roundFloat64(x)
+			if r != nil {
+				*rounded = r
+				return true
+			}
 		case UntypedFloat, UntypedComplex:
 			return true
 		}
@@ -244,9 +300,25 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind) bool {
 	case exact.Complex:
 		switch as {
 		case Complex64:
-			return fitsFloat32(exact.Real(x)) && fitsFloat32(exact.Imag(x))
+			if rounded == nil {
+				return fitsFloat32(exact.Real(x)) && fitsFloat32(exact.Imag(x))
+			}
+			re := roundFloat32(exact.Real(x))
+			im := roundFloat32(exact.Imag(x))
+			if re != nil && im != nil {
+				*rounded = exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
+				return true
+			}
 		case Complex128:
-			return fitsFloat64(exact.Real(x)) && fitsFloat64(exact.Imag(x))
+			if rounded == nil {
+				return fitsFloat64(exact.Real(x)) && fitsFloat64(exact.Imag(x))
+			}
+			re := roundFloat64(exact.Real(x))
+			im := roundFloat64(exact.Imag(x))
+			if re != nil && im != nil {
+				*rounded = exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
+				return true
+			}
 		case UntypedComplex:
 			return true
 		}
@@ -270,7 +342,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 		return
 	}
 
-	if !isRepresentableConst(x.val, check.conf, typ.kind) {
+	if !isRepresentableConst(x.val, check.conf, typ.kind, &x.val) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			msg = "%s overflows (or cannot be accurately represented as) %s"
@@ -512,7 +584,7 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 
 	// The lhs must be of integer type or be representable
 	// as an integer; otherwise the shift has no chance.
-	if !isInteger(x.typ) && (!untypedx || !isRepresentableConst(x.val, nil, UntypedInt)) {
+	if !isInteger(x.typ) && (!untypedx || !isRepresentableConst(x.val, nil, UntypedInt, nil)) {
 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
 		x.mode = invalid
 		return

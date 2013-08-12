@@ -6,89 +6,57 @@
 
 package types
 
-import (
-	"go/ast"
+import "code.google.com/p/go.tools/go/exact"
 
-	"code.google.com/p/go.tools/go/exact"
-)
-
-// conversion typechecks the type conversion conv to type typ.
-// The result of the conversion is returned via x.
-// If the conversion has type errors, the returned
-// x is marked as invalid (x.mode == invalid).
-//
-func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type) {
-	var final Type // declare before gotos
-
-	// all conversions have one argument
-	if len(conv.Args) != 1 {
-		check.invalidOp(conv.Pos(), "%s conversion requires exactly one argument", conv)
-		goto Error
-	}
-
-	// evaluate argument
-	check.expr(x, conv.Args[0])
-	if x.mode == invalid {
-		goto Error
-	}
-
-	if x.mode == constant && isConstType(typ) {
+// Conversion type-checks the conversion T(x).
+// The result is in x.
+func (check *checker) conversion(x *operand, T Type) {
+	switch {
+	case x.mode == constant && isConstType(T):
 		// constant conversion
-		typ := typ.Underlying().(*Basic)
-		// For now just implement string(x) where x is an integer,
-		// as a temporary work-around for issue 4982, which is a
-		// common issue.
-		if typ.kind == String {
-			switch {
-			case x.isInteger():
-				codepoint := int64(-1)
-				if i, ok := exact.Int64Val(x.val); ok {
-					codepoint = i
-				}
-				// If codepoint < 0 the absolute value is too large (or unknown) for
-				// conversion. This is the same as converting any other out-of-range
-				// value - let string(codepoint) do the work.
-				x.val = exact.MakeString(string(codepoint))
-			case isString(x.typ):
-				// nothing to do
-			default:
-				goto ErrorMsg
+		switch t := T.Underlying().(*Basic); {
+		case isRepresentableConst(x.val, check.conf, t.kind, &x.val):
+			// nothing to do
+		case x.isInteger() && isString(t):
+			codepoint := int64(-1)
+			if i, ok := exact.Int64Val(x.val); ok {
+				codepoint = i
 			}
+			// If codepoint < 0 the absolute value is too large (or unknown) for
+			// conversion. This is the same as converting any other out-of-range
+			// value - let string(codepoint) do the work.
+			x.val = exact.MakeString(string(codepoint))
+		default:
+			x.mode = invalid
 		}
-		// TODO(gri) verify the remaining conversions.
-	} else {
+	case x.isConvertible(check.conf, T):
 		// non-constant conversion
-		if !x.isConvertible(check.conf, typ) {
-			goto ErrorMsg
-		}
 		x.mode = value
+	default:
+		x.mode = invalid
+	}
+
+	if x.mode == invalid {
+		check.errorf(x.pos(), "cannot convert %s to %s", x, T)
+		return
 	}
 
 	// The conversion argument types are final. For untyped values the
 	// conversion provides the type, per the spec: "A constant may be
 	// given a type explicitly by a constant declaration or conversion,...".
-	final = x.typ
+	final := x.typ
 	if isUntyped(final) {
-		final = typ
+		final = T
 		// For conversions to interfaces, use the argument type's
 		// default type instead. Keep untyped nil for untyped nil
 		// arguments.
-		if _, ok := typ.Underlying().(*Interface); ok {
+		if _, ok := T.Underlying().(*Interface); ok {
 			final = defaultType(x.typ)
 		}
 	}
+
+	x.typ = T
 	check.updateExprType(x.expr, final, true)
-
-	check.conversions[conv] = true // for cap/len checking
-	x.expr = conv
-	x.typ = typ
-	return
-
-ErrorMsg:
-	check.invalidOp(conv.Pos(), "cannot convert %s to %s", x, typ)
-Error:
-	x.mode = invalid
-	x.expr = conv
 }
 
 func (x *operand) isConvertible(conf *Config, T Type) bool {

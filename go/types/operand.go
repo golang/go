@@ -184,7 +184,7 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 		switch t := Tu.(type) {
 		case *Basic:
 			if x.mode == constant {
-				return isRepresentableConst(x.val, conf, t.kind)
+				return isRepresentableConst(x.val, conf, t.kind, nil)
 			}
 			// The result of a comparison is an untyped boolean,
 			// but may not be a constant.
@@ -205,5 +205,5 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 func (x *operand) isInteger() bool {
 	return x.mode == invalid ||
 		isInteger(x.typ) ||
-		x.mode == constant && isRepresentableConst(x.val, nil, UntypedInt) // no *Config required for UntypedInt
+		x.mode == constant && isRepresentableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
 }

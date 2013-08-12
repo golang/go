@@ -8,9 +8,11 @@ package conversions
 
 // argument count
 var (
-	_ = int /* ERROR "one argument" */ ()
-	_ = int /* ERROR "one argument" */ (1, 2)
+	_ = int() /* ERROR "missing argument" */
+	_ = int(1, 2 /* ERROR "too many arguments" */ )
 )
+
+// numeric constant conversions are in const1.src.
 
 func string_conversions() {
 	const A = string(65)
@@ -25,15 +27,10 @@ func string_conversions() {
 	type mystring string
 	const _ mystring = mystring("foo")
 
-	const _ = string  /* ERROR "cannot convert" */ (true)
-	const _ = string  /* ERROR "cannot convert" */ (1.2)
-	const _ = string  /* ERROR "cannot convert" */ (nil)
+	const _ = string(true /* ERROR "cannot convert" */ )
+	const _ = string(1.2 /* ERROR "cannot convert" */ )
+	const _ = string(nil /* ERROR "cannot convert" */ )
 }
-
-// 
-var (
-	_ = int8(0)
-)
 
 func interface_conversions() {
 	type E interface{}
@@ -63,20 +60,20 @@ func interface_conversions() {
 	_ = E(i1)
 	_ = E(i2)
 
-	_ = I1 /* ERROR "cannot convert" */ (0)
+	_ = I1(0 /* ERROR "cannot convert" */ )
 	_ = I1(nil)
 	_ = I1(i1)
-	_ = I1 /* ERROR "cannot convert" */ (e)
+	_ = I1(e /* ERROR "cannot convert" */ )
 	_ = I1(i2)
 
 	_ = I2(nil)
-	_ = I2 /* ERROR "cannot convert" */ (i1)
+	_ = I2(i1 /* ERROR "cannot convert" */ )
 	_ = I2(i2)
-	_ = I2 /* ERROR "cannot convert" */ (i3)
+	_ = I2(i3 /* ERROR "cannot convert" */ )
 
 	_ = I3(nil)
-	_ = I3 /* ERROR "cannot convert" */ (i1)
-	_ = I3 /* ERROR "cannot convert" */ (i2)
+	_ = I3(i1 /* ERROR "cannot convert" */ )
+	_ = I3(i2 /* ERROR "cannot convert" */ )
 	_ = I3(i3)
 
 	// TODO(gri) add more tests, improve error message

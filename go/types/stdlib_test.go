@@ -105,9 +105,10 @@ func TestStdtest(t *testing.T) {
 }
 
 func TestStdfixed(t *testing.T) {
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test/fixedbugs"),
+	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug050.go", "bug088.go", "bug106.go", // TODO(gri) parser loses comments when bailing out early
 		"bug222.go", "bug282.go", "bug306.go", // TODO(gri) parser loses comments when bailing out early
+		"issue4776.go",                        // TODO(gri) parser loses comments when bailing out early
 		"bug136.go", "bug179.go", "bug344.go", // TODO(gri) implement missing label checks
 		"bug251.go",                           // TODO(gri) incorrect cycle checks for interface types
 		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
@@ -121,6 +122,10 @@ func TestStdfixed(t *testing.T) {
 		"bug376.go",    // TODO(gri) built-ins must be called (no built-in function expressions)
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
 	)
+}
+
+func TestStdken(t *testing.T) {
+	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
 }
 
 // Package paths of excluded packages.

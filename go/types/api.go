@@ -173,7 +173,6 @@ func IsAssignableTo(V, T Type) bool {
 	return x.isAssignableTo(nil, T) // config not needed for non-constant x
 }
 
-// BUG(gri): Conversions of constants only change the type, not the value (e.g., int(1.1) is wrong).
 // BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).
 // BUG(gri): Use of labels is only partially checked.
 // BUG(gri): Unused variables and imports are not reported.
