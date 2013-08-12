@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "type.h"
+#include "../../cmd/ld/textflag.h"
 
 //static Lock debuglock;
 
@@ -52,7 +53,7 @@ runtime·prints(int8 *s)
 	gwrite(s, runtime·findnull((byte*)s));
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·printf(int8 *s, ...)
 {
@@ -179,7 +180,7 @@ vprintf(int8 *s, byte *base)
 	//runtime·unlock(&debuglock);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·goprintf(String s, ...)
 {

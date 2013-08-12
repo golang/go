@@ -6,6 +6,7 @@
 
 #include "runtime.h"
 #include "stack.h"
+#include "../../cmd/ld/textflag.h"
 
 // This implementation depends on OS-specific implementations of
 //
@@ -133,7 +134,7 @@ runtime·notesleep(Note *n)
 		runtime·futexsleep((uint32*)&n->key, 0, -1);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 static bool
 notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
 {

@@ -6,6 +6,7 @@
 #include "arch_GOARCH.h"
 #include "stack.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
 // Code related to defer, panic and recover.
 
@@ -122,7 +123,7 @@ freedefer(Defer *d)
 // are available sequentially after &fn; they would not be
 // copied if a stack split occurred.  It's OK for this to call
 // functions that split the stack.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uintptr
 runtime·deferproc(int32 siz, FuncVal *fn, ...)
 {
@@ -161,7 +162,7 @@ runtime·deferproc(int32 siz, FuncVal *fn, ...)
 // an argument frame size. deferreturn is a very special function,
 // and if the runtime ever asks for its frame size, that means
 // the traceback routines are probably broken.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·deferreturn(uintptr arg0, ...)
 {
@@ -332,7 +333,7 @@ runtime·unwindstack(G *gp, byte *sp)
 // The implementation of the predeclared function recover.
 // Cannot split the stack because it needs to reliably
 // find the stack segment of its caller.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·recover(byte *argp, Eface ret)
 {

@@ -23,6 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "../../cmd/ld/textflag.h"
+
 // declared here to avoid include of runtime.h
 void	runtime·panicstring(char*);
 
@@ -62,7 +64,7 @@ struct  Vlong
 
 void    runtime·abort(void);
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 _addv(Vlong *r, Vlong a, Vlong b)
 {
@@ -72,7 +74,7 @@ _addv(Vlong *r, Vlong a, Vlong b)
 		r->hi++;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 _subv(Vlong *r, Vlong a, Vlong b)
 {
@@ -421,7 +423,7 @@ _rshlv(Vlong *r, Vlong a, int b)
 	r->lo = (t << (32-b)) | (a.lo >> b);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 _lshv(Vlong *r, Vlong a, int b)
 {
@@ -615,7 +617,7 @@ _ul2v(Vlong *ret, ulong ul)
 	ret->hi = 0;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 _si2v(Vlong *ret, int si)
 {
@@ -719,7 +721,7 @@ _v2ul(Vlong rv)
 	return rv.lo;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 long
 _v2si(Vlong rv)
 {
@@ -773,7 +775,7 @@ _gtv(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo > rv.lo);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int
 _gev(Vlong lv, Vlong rv)
 {

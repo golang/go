@@ -7,6 +7,7 @@
 #include "stack.h"
 #include "cgocall.h"
 #include "race.h"
+#include "../../cmd/ld/textflag.h"
 
 // Cgo call and callback support.
 //
@@ -244,7 +245,7 @@ struct CallbackArgs
 
 void runtime·cgocallbackg1(void);
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·cgocallbackg(void)
 {

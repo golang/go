@@ -23,6 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "../../cmd/ld/textflag.h"
+
 /*
  * C runtime for 64-bit divide, others.
  *
@@ -423,7 +425,7 @@ _rshlv(Vlong *r, Vlong a, int b)
 	r->lo = (t << (32-b)) | (a.lo >> b);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 _lshv(Vlong *r, Vlong a, int b)
 {

@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 int8 *goos = "plan9";
 extern SigTab runtime·sigtab[];
@@ -115,14 +116,14 @@ runtime·initsig(void)
 {
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·osyield(void)
 {
 	runtime·sleep(0);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·usleep(uint32 µs)
 {
@@ -261,7 +262,7 @@ runtime·semacreate(void)
 	return 1;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int32
 runtime·semasleep(int64 ns)
 {
@@ -327,7 +328,7 @@ runtime·memlimit(void)
 static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·badsignal2(void)
 {

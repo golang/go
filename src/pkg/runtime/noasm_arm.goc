@@ -7,8 +7,9 @@
 
 package runtime
 #include "runtime.h"
+#include "../../cmd/ld/textflag.h"
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 func cmpstring(s1 String, s2 String) (v int) {
 	uintgo i, l;
 	byte c1, c2;
@@ -40,7 +41,7 @@ func cmpstring(s1 String, s2 String) (v int) {
  done:;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 func bytes·Compare(s1 Slice, s2 Slice) (v int) {
 	uintgo i, l;
 	byte c1, c2;

@@ -7,6 +7,7 @@
 #include "type.h"
 #include "race.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
 #define	MAXALIGN	8
 #define	NOSELGEN	1
@@ -436,7 +437,7 @@ closed:
 }
 
 // chansend1(hchan *chan any, elem any);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·chansend1(ChanType *t, Hchan* c, ...)
 {
@@ -444,7 +445,7 @@ runtime·chansend1(ChanType *t, Hchan* c, ...)
 }
 
 // chanrecv1(hchan *chan any) (elem any);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·chanrecv1(ChanType *t, Hchan* c, ...)
 {
@@ -452,7 +453,7 @@ runtime·chanrecv1(ChanType *t, Hchan* c, ...)
 }
 
 // chanrecv2(hchan *chan any) (elem any, received bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·chanrecv2(ChanType *t, Hchan* c, ...)
 {
@@ -482,7 +483,7 @@ runtime·chanrecv2(ChanType *t, Hchan* c, ...)
 //		... bar
 //	}
 //
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectnbsend(ChanType *t, Hchan *c, ...)
 {
@@ -512,7 +513,7 @@ runtime·selectnbsend(ChanType *t, Hchan *c, ...)
 //		... bar
 //	}
 //
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 {
@@ -538,7 +539,7 @@ runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 //		... bar
 //	}
 //
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
 {
@@ -552,7 +553,7 @@ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool sele
 //
 // The "uintptr selected" is really "bool selected" but saying
 // uintptr gets us the right alignment for the output parameter block.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
 {
@@ -608,7 +609,7 @@ reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bo
 static void newselect(int32, Select**);
 
 // newselect(size uint32) (sel *byte);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·newselect(int32 size, ...)
 {
@@ -653,7 +654,7 @@ newselect(int32 size, Select **selp)
 static void selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so);
 
 // selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
 {
@@ -694,7 +695,7 @@ selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so)
 static void selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool*, int32 so);
 
 // selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
 {
@@ -709,7 +710,7 @@ runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
 }
 
 // selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
 {
@@ -751,7 +752,7 @@ selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool *received, int32 so
 static void selectdefault(Select*, void*, int32);
 
 // selectdefault(sel *byte) (selected bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectdefault(Select *sel, bool selected)
 {
@@ -838,7 +839,7 @@ static void* selectgo(Select**);
 //
 // overwrites return pc on stack to signal which case of the select
 // to run, so cannot appear at the top of a split stack.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·selectgo(Select *sel)
 {
@@ -1216,7 +1217,7 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
 static void closechan(Hchan *c, void *pc);
 
 // closechan(sel *byte);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·closechan(Hchan *c)
 {
@@ -1225,7 +1226,7 @@ runtime·closechan(Hchan *c)
 
 // For reflect
 //	func chanclose(c chan)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 reflect·chanclose(Hchan *c)
 {

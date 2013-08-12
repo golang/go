@@ -7,6 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
+#include "../../cmd/ld/textflag.h"
 
 enum
 {
@@ -59,7 +60,7 @@ runtime·semacreate(void)
 	return 1;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int32
 runtime·semasleep(int64 ns)
 {

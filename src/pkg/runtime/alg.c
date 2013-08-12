@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "type.h"
+#include "../../cmd/ld/textflag.h"
 
 #define M0 (sizeof(uintptr)==4 ? 2860486313UL : 33054211828000289ULL)
 #define M1 (sizeof(uintptr)==4 ? 3267000013UL : 23344194077549503ULL)
@@ -499,7 +500,7 @@ runtime·hashinit(void)
 }
 
 // func equal(t *Type, x T, y T) (ret bool)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·equal(Type *t, ...)
 {

@@ -6,6 +6,7 @@
 #include "type.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "../../cmd/ld/textflag.h"
 
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
@@ -183,7 +184,7 @@ runtime·write(int32 fd, void *buf, int32 n)
 
 #define INFINITE ((uintptr)0xFFFFFFFF)
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int32
 runtime·semasleep(int64 ns)
 {
@@ -254,7 +255,7 @@ runtime·unminit(void)
 	runtime·remove_exception_handler();
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int64
 runtime·nanotime(void)
 {
@@ -280,7 +281,7 @@ time·now(int64 sec, int32 usec)
 }
 
 // Calling stdcall on os stack.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void *
 runtime·stdcall(void *fn, int32 count, ...)
 {
@@ -293,14 +294,14 @@ runtime·stdcall(void *fn, int32 count, ...)
 
 extern void runtime·usleep1(uint32);
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·osyield(void)
 {
 	runtime·usleep1(1);
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·usleep(uint32 us)
 {

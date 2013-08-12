@@ -593,6 +593,7 @@ static uint8 empty_value[MAXVALUESIZE];
 #define SLOW_EQ(x,y) runtime·memeq((x).str, (y).str, (x).len)
 #define MAYBE_EQ(x,y) (*(CHECKTYPE*)(x).str == *(CHECKTYPE*)(y).str && *(CHECKTYPE*)((x).str + (x).len - sizeof(CHECKTYPE)) == *(CHECKTYPE*)((y).str + (x).len - sizeof(CHECKTYPE)))
 #include "hashmap_fast.c"
+#include "../../cmd/ld/textflag.h"
 
 static void
 hash_insert(MapType *t, Hmap *h, void *key, void *value)
@@ -1181,7 +1182,7 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
 }
 
 // mapaccess1(hmap *map[any]any, key any) (val any);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·mapaccess1(MapType *t, Hmap *h, ...)
 {
@@ -1213,7 +1214,7 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 }
 
 // mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·mapaccess2(MapType *t, Hmap *h, ...)
 {
@@ -1297,7 +1298,7 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
 }
 
 // mapassign1(mapType *type, hmap *map[any]any, key any, val any);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·mapassign1(MapType *t, Hmap *h, ...)
 {
@@ -1315,7 +1316,7 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
 }
 
 // mapdelete(mapType *type, hmap *map[any]any, key any)
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·mapdelete(MapType *t, Hmap *h, ...)
 {
@@ -1445,7 +1446,7 @@ reflect·mapiternext(struct hash_iter *it)
 }
 
 // mapiter1(hiter *any) (key any);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·mapiter1(struct hash_iter *it, ...)
 {
@@ -1526,7 +1527,7 @@ reflect·maplen(Hmap *h, intgo len)
 }
 
 // mapiter2(hiter *any) (key any, val any);
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·mapiter2(struct hash_iter *it, ...)
 {

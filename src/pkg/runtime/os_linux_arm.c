@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "../../cmd/ld/textflag.h"
 
 #define AT_NULL		0
 #define AT_PLATFORM	15 // introduced in at least 2.6.11
@@ -32,7 +33,7 @@ runtime·checkgoarm(void)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·setup_auxv(int32 argc, void *argv_list)
 {
@@ -71,7 +72,7 @@ runtime·setup_auxv(int32 argc, void *argv_list)
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int64
 runtime·cputicks(void)
 {

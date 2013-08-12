@@ -8,6 +8,7 @@
 #include "stack.h"
 #include "race.h"
 #include "type.h"
+#include "../../cmd/ld/textflag.h"
 
 // Goroutine scheduler
 // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
@@ -665,7 +666,7 @@ static void unlockextra(M*);
 //
 // When the callback is done with the m, it calls dropm to
 // put the m back on the list.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·needm(byte x)
 {
@@ -821,7 +822,7 @@ runtime·dropm(void)
 // to runtime.extram. If nilokay is true, then lockextra will
 // return a nil list head if that's what it finds. If nilokay is false,
 // lockextra will keep waiting until the list head is no longer nil.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 static M*
 lockextra(bool nilokay)
 {
@@ -849,7 +850,7 @@ lockextra(bool nilokay)
 	return mp;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 static void
 unlockextra(M *mp)
 {
@@ -1359,7 +1360,7 @@ runtime·gosched0(G *gp)
 // Need to mark it as nosplit, because it runs with sp > stackbase (as runtime·lessstack).
 // Since it does not return it does not matter.  But if it is preempted
 // at the split stack check, GC will complain about inconsistent sp.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·goexit(void)
 {
@@ -1387,7 +1388,7 @@ goexit0(G *gp)
 	schedule();
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 static void
 save(void *pc, uintptr sp)
 {
@@ -1407,7 +1408,7 @@ save(void *pc, uintptr sp)
 // Entersyscall cannot split the stack: the runtime·gosave must
 // make g->sched refer to the caller's stack segment, because
 // entersyscall is going to return immediately after.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 ·entersyscall(int32 dummy)
 {
@@ -1460,7 +1461,7 @@ void
 }
 
 // The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 ·entersyscallblock(int32 dummy)
 {
@@ -1497,7 +1498,7 @@ void
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·exitsyscall(void)
 {
@@ -1540,7 +1541,7 @@ runtime·exitsyscall(void)
 	g->syscallsp = (uintptr)nil;
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 static bool
 exitsyscallfast(void)
 {
@@ -1660,7 +1661,7 @@ runtime·malg(int32 stacksize)
 // are available sequentially after &fn; they would not be
 // copied if a stack split occurred.  It's OK for this to call
 // functions that split the stack.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·newproc(int32 siz, FuncVal* fn, ...)
 {

@@ -7,10 +7,11 @@ package runtime
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "race.h"
+#include "../../cmd/ld/textflag.h"
 
 String	runtime·emptystring;
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 intgo
 runtime·findnull(byte *s)
 {
@@ -174,7 +175,7 @@ concatstring(intgo n, String *s)
 // NOTE: Cannot use func syntax, because we need the ...,
 // to signal to the garbage collector that this function does
 // not have a fixed size argument count.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·concatstring(intgo n, String s1, ...)
 {

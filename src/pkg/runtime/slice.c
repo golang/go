@@ -8,6 +8,7 @@
 #include "typekind.h"
 #include "malloc.h"
 #include "race.h"
+#include "../../cmd/ld/textflag.h"
 
 enum
 {
@@ -57,7 +58,7 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
 }
 
 // appendslice(type *Type, x, y, []T) []T
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 {
@@ -114,7 +115,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 
 
 // appendstr([]byte, string) []byte
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 {
@@ -217,7 +218,7 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 }
 
 // copy(to any, fr any, wid uintptr) int
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 {
@@ -260,7 +261,7 @@ out:
 	}
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 void
 runtime·slicestringcopy(Slice to, String fm, intgo ret)
 {

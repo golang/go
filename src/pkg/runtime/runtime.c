@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 enum {
 	maxround = sizeof(uintptr),
@@ -415,7 +416,7 @@ runtime·parsedebugvars(void)
 // This is a very special function, do not use it if you are not sure what you are doing.
 // int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
 // Handles overflow in a time-specific manner.
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int32
 runtime·timediv(int64 v, int32 div, int32 *rem)
 {

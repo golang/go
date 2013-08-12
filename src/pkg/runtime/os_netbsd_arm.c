@@ -6,6 +6,7 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "signal_GOOS_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 void
 runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
@@ -23,7 +24,7 @@ runtime·checkgoarm(void)
 	// TODO(minux)
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int64
 runtime·cputicks() {
 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().

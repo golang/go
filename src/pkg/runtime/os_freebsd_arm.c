@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "../../cmd/ld/textflag.h"
 
 void
 runtime·checkgoarm(void)
@@ -12,7 +13,7 @@ runtime·checkgoarm(void)
 	// TODO(minux)
 }
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 int64
 runtime·cputicks(void)
 {

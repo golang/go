@@ -7,6 +7,7 @@
 // It uses true little-endian doubles, while the 7500 used mixed-endian.
 
 #include "runtime.h"
+#include "../../cmd/ld/textflag.h"
 
 #define CPSR 14
 #define FLAGS_N (1U << 31)
@@ -600,7 +601,7 @@ struct Sfregs
 	uint32 cspr;
 };
 
-#pragma textflag 7
+#pragma textflag NOSPLIT
 uint32*
 runtime·_sfloat2(uint32 *lr, Sfregs regs)
 {
