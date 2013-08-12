@@ -25,6 +25,7 @@ crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
 crypto/tls: add support for TLS 1.1. (CL 7872043).
 encoding/csv: always allow trailing commas (CL 12294043)
 encoding/json: accept but correct invalid UTF-8 in Marshal (CL 11211045).
+encoding/json: always escape ampersands (CL 12708044).
 encoding/xml: allow attributes stored in pointers to be marshaled (CL 8653047).
 flag: add Getter interface (CL 10472043).
 flag: export commandLine (now CommandLine) (CL 12587043).
