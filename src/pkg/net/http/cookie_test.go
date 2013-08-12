@@ -32,6 +32,22 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
 		"cookie-4=four; Path=/restricted/",
 	},
+	{
+		&Cookie{Name: "cookie-5", Value: "five", Domain: "wrong;bad.abc"},
+		"cookie-5=five",
+	},
+	{
+		&Cookie{Name: "cookie-6", Value: "six", Domain: "bad-.abc"},
+		"cookie-6=six",
+	},
+	{
+		&Cookie{Name: "cookie-7", Value: "seven", Domain: "127.0.0.1"},
+		"cookie-7=seven; Domain=127.0.0.1",
+	},
+	{
+		&Cookie{Name: "cookie-8", Value: "eight", Domain: "::1"},
+		"cookie-8=eight",
+	},
 }
 
 func TestWriteSetCookies(t *testing.T) {
