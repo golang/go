@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 #define Big		0x4330000000000000 // 2**52
 
 // func Floor(x float64) float64
-TEXT ·Floor(SB),7,$0
+TEXT ·Floor(SB),NOSPLIT,$0
 	MOVQ	x+0(FP), AX
 	MOVQ	$~(1<<63), DX // sign bit mask
 	ANDQ	AX,DX // DX = |x|
@@ -27,7 +29,7 @@ isBig_floor:
 	RET
 
 // func Ceil(x float64) float64
-TEXT ·Ceil(SB),7,$0
+TEXT ·Ceil(SB),NOSPLIT,$0
 	MOVQ	x+0(FP), AX
 	MOVQ	$~(1<<63), DX // sign bit mask
 	MOVQ	AX, BX // BX = copy of x
@@ -53,7 +55,7 @@ isBig_ceil:
 	RET
 
 // func Trunc(x float64) float64
-TEXT ·Trunc(SB),7,$0
+TEXT ·Trunc(SB),NOSPLIT,$0
 	MOVQ	x+0(FP), AX
 	MOVQ	$~(1<<63), DX // sign bit mask
 	MOVQ	AX, BX // BX = copy of x

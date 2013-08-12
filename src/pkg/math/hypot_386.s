@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Hypot(p, q float64) float64
-TEXT ·Hypot(SB),7,$0
+TEXT ·Hypot(SB),NOSPLIT,$0
 // test bits for not-finite
 	MOVL    p_hi+4(FP), AX   // high word p
 	ANDL    $0x7ff00000, AX

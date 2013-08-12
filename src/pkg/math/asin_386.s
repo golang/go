@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Asin(x float64) float64
-TEXT ·Asin(SB),7,$0
+TEXT ·Asin(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=sin(x)
 	FMOVD   F0, F1       // F0=sin(x), F1=sin(x)
 	FMULD   F0, F0       // F0=sin(x)*sin(x), F1=sin(x)
@@ -15,7 +17,7 @@ TEXT ·Asin(SB),7,$0
 	RET
 
 // func Acos(x float64) float64
-TEXT ·Acos(SB),7,$0
+TEXT ·Acos(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=cos(x)
 	FMOVD   F0, F1       // F0=cos(x), F1=cos(x)
 	FMULD   F0, F0       // F0=cos(x)*cos(x), F1=cos(x)

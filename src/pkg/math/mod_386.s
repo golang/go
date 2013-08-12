@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 // func Mod(x, y float64) float64
-TEXT ·Mod(SB),7,$0
+TEXT ·Mod(SB),NOSPLIT,$0
 	FMOVD   y+8(FP), F0  // F0=y
 	FMOVD   x+0(FP), F0  // F0=x, F1=y
 	FPREM                // F0=reduced_x, F1=y

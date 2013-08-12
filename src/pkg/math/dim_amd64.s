@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "../../cmd/ld/textflag.h"
+
 #define PosInf 0x7FF0000000000000
 #define NaN    0x7FF8000000000001
 #define NegInf 0xFFF0000000000000
 
 // func Dim(x, y float64) float64
-TEXT ·Dim(SB),7,$0
+TEXT ·Dim(SB),NOSPLIT,$0
 	// (+Inf, +Inf) special case
 	MOVQ    x+0(FP), BX
 	MOVQ    y+8(FP), CX
@@ -45,7 +47,7 @@ isDimNaN:
 	RET
 
 // func ·Max(x, y float64) float64
-TEXT ·Max(SB),7,$0
+TEXT ·Max(SB),NOSPLIT,$0
 	// +Inf special cases
 	MOVQ    $PosInf, AX
 	MOVQ    x+0(FP), R8
@@ -98,7 +100,7 @@ isMaxZero:
 */
 
 // func Min(x, y float64) float64
-TEXT ·Min(SB),7,$0
+TEXT ·Min(SB),NOSPLIT,$0
 	// -Inf special cases
 	MOVQ    $NegInf, AX
 	MOVQ    x+0(FP), R8
