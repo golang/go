@@ -8,6 +8,9 @@ Please keep the descriptions to a single line, starting with the
 package or cmd/xxx directory name, and ending in a CL number.
 Please keep the list sorted (as in sort.Strings of the lines).
 
+Performance:
+net: improve windows performance by up to 30% (CL 8670044).
+
 cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
@@ -44,6 +47,7 @@ runtime: allow SetFinalizer with a func(interface{}) (CL 11858043).
 runtime: preemption of goroutines at function entry (CL 12371043).
 sort: new Stable function provides stable sort (CL 9612044).
 strings: add IndexByte, for consistency with bytes package (CL 12214044).
+sync/atomic: add Swap functions (CL 12670045).
 syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10980043).
 testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
 time: Allow Parse and Format to handle time zone offsets with seconds (CL 8132044)
