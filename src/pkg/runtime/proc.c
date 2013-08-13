@@ -2410,6 +2410,7 @@ runtime·schedtrace(bool detailed)
 {
 	static int64 starttime;
 	int64 now;
+	int64 id1, id2, id3;
 	int32 i, q, t, h, s;
 	int8 *fmt;
 	M *mp, *lockedm;
@@ -2467,11 +2468,20 @@ runtime·schedtrace(bool detailed)
 		p = mp->p;
 		gp = mp->curg;
 		lockedg = mp->lockedg;
-		runtime·printf("  M%d: p=%d curg=%D mallocing=%d throwing=%d gcing=%d"
+		id1 = -1;
+		if(p)
+			id1 = p->id;
+		id2 = -1;
+		if(gp)
+			id2 = gp->goid;
+		id3 = -1;
+		if(lockedg)
+			id3 = lockedg->goid;
+		runtime·printf("  M%d: p=%D curg=%D mallocing=%d throwing=%d gcing=%d"
 			" locks=%d dying=%d helpgc=%d spinning=%d lockedg=%D\n",
-			mp->id, p ? p->id : -1, gp ? gp->goid : (int64)-1,
+			mp->id, id1, id2,
 			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
-			mp->spinning, lockedg ? lockedg->goid : (int64)-1);
+			mp->spinning, id3);
 	}
 	for(gp = runtime·allg; gp; gp = gp->alllink) {
 		mp = gp->m;
