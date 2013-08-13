@@ -175,9 +175,9 @@ func TestCPUProfileWithFork(t *testing.T) {
 
 // Operating systems that are expected to fail the tests. See issue 6047.
 var badOS = map[string]bool{
-	"darwin":  true,
-	"netbsd":  true,
-	"openbsd": true,
+	"darwin": true,
+	//"netbsd":  true,
+	//"openbsd": true,
 }
 
 func TestBlockProfile(t *testing.T) {
