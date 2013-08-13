@@ -64,6 +64,7 @@ type T struct {
 	VariadicFunc    func(...string) string
 	VariadicFuncInt func(int, ...string) string
 	NilOKFunc       func(*int) bool
+	ErrFunc         func() (string, error)
 	// Template to test evaluation of templates.
 	Tmpl *Template
 	// Unexported field; cannot be accessed by template.
@@ -129,6 +130,7 @@ var tVal = &T{
 	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
 	VariadicFuncInt:   func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
 	NilOKFunc:         func(s *int) bool { return s == nil },
+	ErrFunc:           func() (string, error) { return "bla", nil },
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -322,6 +324,7 @@ var execTests = []execTest{
 	{"if .BinaryFunc call", "{{ if .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{end}}", "[1=2]", tVal, true},
 	{"if not .BinaryFunc call", "{{ if not .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{else}}No{{end}}", "No", tVal, true},
 	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]interface{}{"S": bytes.NewBufferString("foozle")}, true},
+	{".ErrFunc", "{{call .ErrFunc}}", "bla", tVal, true},
 
 	// Erroneous function calls (check args).
 	{".BinaryFuncTooFew", "{{call .BinaryFunc `1`}}", "", tVal, false},
