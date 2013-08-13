@@ -1372,6 +1372,8 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 	return nil
 }
 
+var rowsCloseHook func(*Rows, *error)
+
 // Close closes the Rows, preventing further enumeration. If the
 // end is encountered, the Rows are closed automatically. Close
 // is idempotent.
@@ -1381,6 +1383,9 @@ func (rs *Rows) Close() error {
 	}
 	rs.closed = true
 	err := rs.rowsi.Close()
+	if fn := rowsCloseHook; fn != nil {
+		fn(rs, &err)
+	}
 	if rs.closeStmt != nil {
 		rs.closeStmt.Close()
 	}

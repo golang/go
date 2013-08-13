@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -1108,6 +1109,52 @@ func manyConcurrentQueries(t testOrBench) {
 	}
 
 	wg.Wait()
+}
+
+func TestIssue6081(t *testing.T) {
+	t.Skip("known broken test")
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	drv := db.driver.(*fakeDriver)
+	drv.mu.Lock()
+	opens0 := drv.openCount
+	closes0 := drv.closeCount
+	drv.mu.Unlock()
+
+	stmt, err := db.Prepare("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rowsCloseHook = func(rows *Rows, err *error) {
+		*err = driver.ErrBadConn
+	}
+	defer func() { rowsCloseHook = nil }()
+	for i := 0; i < 10; i++ {
+		rows, err := stmt.Query()
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+	if n := len(stmt.css); n > 1 {
+		t.Errorf("len(css slice) = %d; want <= 1", n)
+	}
+	stmt.Close()
+	if n := len(stmt.css); n != 0 {
+		t.Errorf("len(css slice) after Close = %d; want 0", n)
+	}
+
+	drv.mu.Lock()
+	opens := drv.openCount - opens0
+	closes := drv.closeCount - closes0
+	drv.mu.Unlock()
+	if opens < 9 {
+		t.Errorf("opens = %d; want >= 9", opens)
+	}
+	if closes < 9 {
+		t.Errorf("closes = %d; want >= 9", closes)
+	}
 }
 
 func TestConcurrency(t *testing.T) {
