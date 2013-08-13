@@ -83,7 +83,6 @@ struct	Rgn
 
 EXTERN	int32	exregoffset;		// not set
 EXTERN	int32	exfregoffset;		// not set
-EXTERN	Reg*	firstr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
 EXTERN	Reg**	rpo2r;

@@ -222,6 +222,8 @@ loop1:
 		if(regtyp(&p->to))
 			p->as = AMOVAPD;
 	}
+	
+	flowend(g);
 }
 
 void

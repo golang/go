@@ -35,6 +35,7 @@ void	fixjmp(Prog*);
 Graph*	flowstart(Prog*, int);
 void	flowrpo(Graph*);
 void	flowend(Graph*);
+void	mergetemp(Prog*);
 int	noreturn(Prog*);
 Flow*	uniqp(Flow*);
 Flow*	uniqs(Flow*);

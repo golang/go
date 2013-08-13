@@ -192,8 +192,7 @@ struct	Type
 	// for TFORW, where to copy the eventual value to
 	NodeList	*copyto;
 	
-	// for usefield
-	Node	*lastfn;
+	Node	*lastfn;	// for usefield
 };
 #define	T	((Type*)0)
 
@@ -331,6 +330,7 @@ struct	Node
 	int32	iota;
 	uint32	walkgen;
 	int32	esclevel;
+	void*	opt;	// for optimization passes
 };
 #define	N	((Node*)0)
 
