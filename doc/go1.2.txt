@@ -14,6 +14,7 @@ cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
 cmd/gc: make missing package error fatal (CL 12677043).
 cmd/go: test coverage (CL 10413044).
 
+bufio: add Reset methods to Reader and Writer (CL 12603049).
 compress/bzip2: support concatenated files (CL 12387044).
 container/heap: added Fix (CL 12265043).
 container/list: added MoveBefore and MoveAfter (CL 12021044).
