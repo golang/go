@@ -29,6 +29,7 @@ var tests = []struct {
 	{"Package Καλημέρα κόσμε.", 36, "Package Καλημέρα κόσμε."},
 	{"Package こんにちは 世界\n", 31, "Package こんにちは 世界"},
 	{"Package foo does bar.", 21, "Package foo does bar."},
+	{"Package foo does these things:\n  - a\n  - b", 30, "Package foo does these things:"},
 	{"Copyright 2012 Google, Inc. Package foo does bar.", 27, ""},
 	{"All Rights reserved. Package foo does bar.", 20, ""},
 	{"All rights reserved. Package foo does bar.", 20, ""},
