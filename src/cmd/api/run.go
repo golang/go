@@ -16,6 +16,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,6 +110,10 @@ func prepGoPath() string {
 	cmd.Dir = cloneDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if _, err := http.Head("http://ip.appspot.com/"); err != nil {
+			log.Printf("# Skipping API check; network appears to be unavailable")
+			os.Exit(0)
+		}
 		log.Fatalf("Error running hg clone on go.tools: %v\n%s", err, out)
 	}
 	if err := os.Rename(tmpDir, finalDir); err != nil {
