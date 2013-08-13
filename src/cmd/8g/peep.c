@@ -35,8 +35,15 @@
 
 #define	REGEXT	0
 
-static void	conprop(Reg *r);
-static void elimshortmov(Reg *r);
+static void	conprop(Flow *r);
+static void	elimshortmov(Graph*);
+static int	regtyp(Adr*);
+static int	subprop(Flow*);
+static int	copyprop(Graph*, Flow*);
+static int	copy1(Adr*, Adr*, Flow*, int);
+static int	copyas(Adr*, Adr*);
+static int	copyau(Adr*, Adr*);
+static int	copysub(Adr*, Adr*, Adr*, int);
 
 // do we need the carry bit
 static int
@@ -55,19 +62,19 @@ needc(Prog *p)
 	return 0;
 }
 
-static Reg*
-rnops(Reg *r)
+static Flow*
+rnops(Flow *r)
 {
 	Prog *p;
-	Reg *r1;
+	Flow *r1;
 
-	if(r != R)
+	if(r != nil)
 	for(;;) {
 		p = r->prog;
 		if(p->as != ANOP || p->from.type != D_NONE || p->to.type != D_NONE)
 			break;
 		r1 = uniqs(r);
-		if(r1 == R)
+		if(r1 == nil)
 			break;
 		r = r1;
 	}
@@ -75,49 +82,25 @@ rnops(Reg *r)
 }
 
 void
-peep(void)
+peep(Prog *firstp)
 {
-	Reg *r, *r1, *r2;
+	Flow *r, *r1;
+	Graph *g;
 	Prog *p, *p1;
 	int t;
-	ProgInfo info;
 
-	/*
-	 * complete R structure
-	 */
-	for(r=firstr; r!=R; r=r1) {
-		r1 = r->link;
-		if(r1 == R)
-			break;
-		for(p = r->prog->link; p != r1->prog; p = p->link) {
-			proginfo(&info, p);
-			if(info.flags & Skip)
-				continue;
-
-			r2 = rega();
-			r->link = r2;
-			r2->link = r1;
-
-			r2->prog = p;
-			p->opt = r2;
-
-			r2->p1 = r;
-			r->s1 = r2;
-			r2->s1 = r1;
-			r1->p1 = r2;
-
-			r = r2;
-		}
-	}
+	g = flowstart(firstp, sizeof(Flow));
+	if(g == nil)
+		return;
 
 	// byte, word arithmetic elimination.
-	elimshortmov(r);
+	elimshortmov(g);
 
 	// constant propagation
-	// find MOV $con,R followed by
-	// another MOV $con,R without
-	// setting R in the interim
-	for(r=firstr; r!=R; r=r->link) {
+	// find MOV $con,nil followed by
+	// another MOV $con,nil without
+	// setting nil in the interim
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
 		case ALEAL:
@@ -141,10 +124,10 @@ peep(void)
 
 loop1:
 	if(debug['P'] && debug['v'])
-		dumpit("loop1", firstr);
+		dumpit("loop1", g->start, 0);
 
 	t = 0;
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
 		case AMOVL:
@@ -152,11 +135,11 @@ loop1:
 		case AMOVSD:
 			if(regtyp(&p->to))
 			if(regtyp(&p->from)) {
-				if(copyprop(r)) {
+				if(copyprop(g, r)) {
 					excise(r);
 					t++;
 				} else
-				if(subprop(r) && copyprop(r)) {
+				if(subprop(r) && copyprop(g, r)) {
 					excise(r);
 					t++;
 				}
@@ -169,7 +152,7 @@ loop1:
 		case AMOVWLSX:
 			if(regtyp(&p->to)) {
 				r1 = rnops(uniqs(r));
-				if(r1 != R) {
+				if(r1 != nil) {
 					p1 = r1->prog;
 					if(p->as == p1->as && p->to.type == p1->from.type){
 						p1->as = AMOVL;
@@ -232,7 +215,7 @@ loop1:
 	// can be replaced by MOVAPD, which moves the pair of float64s
 	// instead of just the lower one.  We only use the lower one, but
 	// the processor can do better if we do moves using both.
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		if(p->as == AMOVSD)
 		if(regtyp(&p->from))
@@ -242,7 +225,7 @@ loop1:
 }
 
 void
-excise(Reg *r)
+excise(Flow *r)
 {
 	Prog *p;
 
@@ -257,39 +240,7 @@ excise(Reg *r)
 	ostats.ndelmov++;
 }
 
-Reg*
-uniqp(Reg *r)
-{
-	Reg *r1;
-
-	r1 = r->p1;
-	if(r1 == R) {
-		r1 = r->p2;
-		if(r1 == R || r1->p2link != R)
-			return R;
-	} else
-		if(r->p2 != R)
-			return R;
-	return r1;
-}
-
-Reg*
-uniqs(Reg *r)
-{
-	Reg *r1;
-
-	r1 = r->s1;
-	if(r1 == R) {
-		r1 = r->s2;
-		if(r1 == R)
-			return R;
-	} else
-		if(r->s2 != R)
-			return R;
-	return r1;
-}
-
-int
+static int
 regtyp(Adr *a)
 {
 	int t;
@@ -310,11 +261,12 @@ regtyp(Adr *a)
 // can smash the entire 64-bit register without
 // causing any trouble.
 static void
-elimshortmov(Reg *r)
+elimshortmov(Graph *g)
 {
 	Prog *p;
+	Flow *r;
 
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		if(regtyp(&p->to)) {
 			switch(p->as) {
@@ -409,12 +361,12 @@ elimshortmov(Reg *r)
  * hopefully, then the former or latter MOV
  * will be eliminated by copy propagation.
  */
-int
-subprop(Reg *r0)
+static int
+subprop(Flow *r0)
 {
 	Prog *p;
 	Adr *v1, *v2;
-	Reg *r;
+	Flow *r;
 	int t;
 	ProgInfo info;
 
@@ -425,10 +377,10 @@ subprop(Reg *r0)
 	v2 = &p->to;
 	if(!regtyp(v2))
 		return 0;
-	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
+	for(r=uniqp(r0); r!=nil; r=uniqp(r)) {
 		if(debug['P'] && debug['v'])
 			print("\t? %P\n", r->prog);
-		if(uniqs(r) == R)
+		if(uniqs(r) == nil)
 			break;
 		p = r->prog;
 		proginfo(&info, p);
@@ -483,25 +435,25 @@ gotit:
  *	set v1	F=1
  *	set v2	return success
  */
-int
-copyprop(Reg *r0)
+static int
+copyprop(Graph *g, Flow *r0)
 {
 	Prog *p;
 	Adr *v1, *v2;
-	Reg *r;
+	Flow *r;
 
 	p = r0->prog;
 	v1 = &p->from;
 	v2 = &p->to;
 	if(copyas(v1, v2))
 		return 1;
-	for(r=firstr; r!=R; r=r->link)
+	for(r=g->start; r!=nil; r=r->link)
 		r->active = 0;
 	return copy1(v1, v2, r0->s1, 0);
 }
 
-int
-copy1(Adr *v1, Adr *v2, Reg *r, int f)
+static int
+copy1(Adr *v1, Adr *v2, Flow *r, int f)
 {
 	int t;
 	Prog *p;
@@ -514,11 +466,11 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 	r->active = 1;
 	if(debug['P'])
 		print("copy %D->%D f=%d\n", v1, v2, f);
-	for(; r != R; r = r->s1) {
+	for(; r != nil; r = r->s1) {
 		p = r->prog;
 		if(debug['P'])
 			print("%P", p);
-		if(!f && uniqp(r) == R) {
+		if(!f && uniqp(r) == nil) {
 			f = 1;
 			if(debug['P'])
 				print("; merge; f=%d", f);
@@ -672,7 +624,7 @@ copyu(Prog *p, Adr *v, Adr *s)
  * could be set/use depending on
  * semantics
  */
-int
+static int
 copyas(Adr *a, Adr *v)
 {
 	if(a->type != v->type)
@@ -688,7 +640,7 @@ copyas(Adr *a, Adr *v)
 /*
  * either direct or indirect
  */
-int
+static int
 copyau(Adr *a, Adr *v)
 {
 
@@ -707,7 +659,7 @@ copyau(Adr *a, Adr *v)
  * substitute s for v in a
  * return failure to substitute
  */
-int
+static int
 copysub(Adr *a, Adr *v, Adr *s, int f)
 {
 	int t;
@@ -740,9 +692,9 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 }
 
 static void
-conprop(Reg *r0)
+conprop(Flow *r0)
 {
-	Reg *r;
+	Flow *r;
 	Prog *p, *p0;
 	int t;
 	Adr *v0;
@@ -753,9 +705,9 @@ conprop(Reg *r0)
 
 loop:
 	r = uniqs(r);
-	if(r == R || r == r0)
+	if(r == nil || r == r0)
 		return;
-	if(uniqp(r) == R)
+	if(uniqp(r) == nil)
 		return;
 
 	p = r->prog;

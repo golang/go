@@ -34,57 +34,43 @@
 #include "gg.h"
 #include "opt.h"
 
-int	xtramodes(Reg*, Adr*);
-int	shortprop(Reg *r);
-int	shiftprop(Reg *r);
-void	constprop(Adr *c1, Adr *v1, Reg *r);
+static int	xtramodes(Graph*, Flow*, Adr*);
+static int	shortprop(Flow *r);
+static int	regtyp(Adr*);
+static int	subprop(Flow*);
+static int	copyprop(Graph*, Flow*);
+static int	copy1(Adr*, Adr*, Flow*, int);
+static int	copyas(Adr*, Adr*);
+static int	copyau(Adr*, Adr*);
+static int	copysub(Adr*, Adr*, Adr*, int);
+static int	copysub1(Prog*, Adr*, Adr*, int);
+static Flow*	findpre(Flow *r, Adr *v);
+static int	copyau1(Prog *p, Adr *v);
+static int	isdconst(Addr *a);
 
-Reg*	findpre(Reg *r, Adr *v);
-void	predicate(void);
-int	copyau1(Prog *p, Adr *v);
-int	isdconst(Addr *a);
+// UNUSED
+int	shiftprop(Flow *r);
+void	constprop(Adr *c1, Adr *v1, Flow *r);
+void	predicate(Graph*);
 
 void
-peep(void)
+peep(Prog *firstp)
 {
-	Reg *r, *r1, *r2;
+	Flow *r;
+	Graph *g;
 	Prog *p;
 	int t;
-	ProgInfo info;
 
-/*
- * complete R structure
- */
-	for(r=firstr; r!=R; r=r1) {
-		r1 = r->link;
-		if(r1 == R)
-			break;
-		for(p = r->prog->link; p != r1->prog; p = p->link) {
-			proginfo(&info, p);
-			if(info.flags & Skip)
-				continue;
-
-			r2 = rega();
-			r->link = r2;
-			r2->link = r1;
-
-			r2->prog = p;
-			p->opt = r2;
-
-			r2->p1 = r;
-			r->s1 = r2;
-			r2->s1 = r1;
-			r1->p1 = r2;
-
-			r = r2;
-		}
-	}
-//dumpit("begin", firstr);
+	g = flowstart(firstp, sizeof(Flow));
+	if(g == nil)
+		return;
 
 loop1:
+	if(debug['P'] && debug['v'])
+		dumpit("loop1", g->start, 0);
 
 	t = 0;
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
 		case ASLL:
@@ -108,12 +94,12 @@ loop1:
 			if(regtyp(&p->from))
 			if(p->from.type == p->to.type)
 			if(p->scond == C_SCOND_NONE) {
-				if(copyprop(r)) {
+				if(copyprop(g, r)) {
 					excise(r);
 					t++;
 					break;
 				}
-				if(subprop(r) && copyprop(r)) {
+				if(subprop(r) && copyprop(g, r)) {
 					excise(r);
 					t++;
 					break;
@@ -144,7 +130,7 @@ loop1:
 	if(t)
 		goto loop1;
 
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
 		case AEOR:
@@ -164,7 +150,7 @@ loop1:
 		}
 	}
 
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
 		case AMOVW:
@@ -172,10 +158,10 @@ loop1:
 		case AMOVBS:
 		case AMOVBU:
 			if(p->from.type == D_OREG && p->from.offset == 0)
-				xtramodes(r, &p->from);
+				xtramodes(g, r, &p->from);
 			else
 			if(p->to.type == D_OREG && p->to.offset == 0)
-				xtramodes(r, &p->to);
+				xtramodes(g, r, &p->to);
 			else
 				continue;
 			break;
@@ -186,7 +172,7 @@ loop1:
 //			if(isdconst(&p->from) || p->from.offset != 0)
 //				continue;
 //			r2 = r->s1;
-//			if(r2 == R)
+//			if(r2 == nil)
 //				continue;
 //			t = r2->prog->as;
 //			switch(t) {
@@ -213,8 +199,8 @@ loop1:
 //			r1 = r;
 //			do
 //				r1 = uniqp(r1);
-//			while (r1 != R && r1->prog->as == ANOP);
-//			if(r1 == R)
+//			while (r1 != nil && r1->prog->as == ANOP);
+//			if(r1 == nil)
 //				continue;
 //			p1 = r1->prog;
 //			if(p1->to.type != D_REG)
@@ -249,47 +235,10 @@ loop1:
 		}
 	}
 
-//	predicate();
+//	predicate(g);
 }
 
-/*
- * uniqp returns a "unique" predecessor to instruction r.
- * If the instruction is the first one or has multiple
- * predecessors due to jump, R is returned.
- */
-Reg*
-uniqp(Reg *r)
-{
-	Reg *r1;
-
-	r1 = r->p1;
-	if(r1 == R) {
-		r1 = r->p2;
-		if(r1 == R || r1->p2link != R)
-			return R;
-	} else
-		if(r->p2 != R)
-			return R;
-	return r1;
-}
-
-Reg*
-uniqs(Reg *r)
-{
-	Reg *r1;
-
-	r1 = r->s1;
-	if(r1 == R) {
-		r1 = r->s2;
-		if(r1 == R)
-			return R;
-	} else
-		if(r->s2 != R)
-			return R;
-	return r1;
-}
-
-int
+static int
 regtyp(Adr *a)
 {
 
@@ -314,12 +263,12 @@ regtyp(Adr *a)
  * hopefully, then the former or latter MOV
  * will be eliminated by copy propagation.
  */
-int
-subprop(Reg *r0)
+static int
+subprop(Flow *r0)
 {
 	Prog *p;
 	Adr *v1, *v2;
-	Reg *r;
+	Flow *r;
 	int t;
 	ProgInfo info;
 
@@ -330,8 +279,8 @@ subprop(Reg *r0)
 	v2 = &p->to;
 	if(!regtyp(v2))
 		return 0;
-	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
-		if(uniqs(r) == R)
+	for(r=uniqp(r0); r!=nil; r=uniqp(r)) {
+		if(uniqs(r) == nil)
 			break;
 		p = r->prog;
 		proginfo(&info, p);
@@ -405,25 +354,25 @@ gotit:
  *	set v1	F=1
  *	set v2	return success
  */
-int
-copyprop(Reg *r0)
+static int
+copyprop(Graph *g, Flow *r0)
 {
 	Prog *p;
 	Adr *v1, *v2;
-	Reg *r;
+	Flow *r;
 
 	p = r0->prog;
 	v1 = &p->from;
 	v2 = &p->to;
 	if(copyas(v1, v2))
 		return 1;
-	for(r=firstr; r!=R; r=r->link)
+	for(r=g->start; r!=nil; r=r->link)
 		r->active = 0;
 	return copy1(v1, v2, r0->s1, 0);
 }
 
-int
-copy1(Adr *v1, Adr *v2, Reg *r, int f)
+static int
+copy1(Adr *v1, Adr *v2, Flow *r, int f)
 {
 	int t;
 	Prog *p;
@@ -436,11 +385,11 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 	r->active = 1;
 	if(debug['P'])
 		print("copy %D->%D f=%d\n", v1, v2, f);
-	for(; r != R; r = r->s1) {
+	for(; r != nil; r = r->s1) {
 		p = r->prog;
 		if(debug['P'])
 			print("%P", p);
-		if(!f && uniqp(r) == R) {
+		if(!f && uniqp(r) == nil) {
 			f = 1;
 			if(debug['P'])
 				print("; merge; f=%d", f);
@@ -499,6 +448,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 	return 1;
 }
 
+// UNUSED
 /*
  * The idea is to remove redundant constants.
  *	$c1->v1
@@ -507,17 +457,17 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
  * The v1->v2 should be eliminated by copy propagation.
  */
 void
-constprop(Adr *c1, Adr *v1, Reg *r)
+constprop(Adr *c1, Adr *v1, Flow *r)
 {
 	Prog *p;
 
 	if(debug['P'])
 		print("constprop %D->%D\n", c1, v1);
-	for(; r != R; r = r->s1) {
+	for(; r != nil; r = r->s1) {
 		p = r->prog;
 		if(debug['P'])
 			print("%P", p);
-		if(uniqp(r) == R) {
+		if(uniqp(r) == nil) {
 			if(debug['P'])
 				print("; merge; return\n");
 			return;
@@ -541,27 +491,27 @@ constprop(Adr *c1, Adr *v1, Reg *r)
 /*
  * shortprop eliminates redundant zero/sign extensions.
  *
- *   MOVBS x, R
- *   <no use R>
- *   MOVBS R, R'
+ *   MOVBS x, nil
+ *   <no use nil>
+ *   MOVBS nil, nil'
  *
  * changed to
  *
- *   MOVBS x, R
+ *   MOVBS x, nil
  *   ...
- *   MOVB  R, R' (compiled to mov)
+ *   MOVB  nil, nil' (compiled to mov)
  *
  * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
  */
-int
-shortprop(Reg *r)
+static int
+shortprop(Flow *r)
 {
 	Prog *p, *p1;
-	Reg *r1;
+	Flow *r1;
 
 	p = r->prog;
 	r1 = findpre(r, &p->from);
-	if(r1 == R)
+	if(r1 == nil)
 		return 0;
 
 	p1 = r1->prog;
@@ -596,6 +546,7 @@ gotit:
 	return 1;
 }
 
+// UNUSED
 /*
  * ASLL x,y,w
  * .. (not use w, not set x y w)
@@ -609,9 +560,9 @@ gotit:
  */
 #define FAIL(msg) { if(debug['P']) print("\t%s; FAILURE\n", msg); return 0; }
 int
-shiftprop(Reg *r)
+shiftprop(Flow *r)
 {
-	Reg *r1;
+	Flow *r1;
 	Prog *p, *p1, *p2;
 	int n, o;
 	Adr a;
@@ -631,9 +582,9 @@ shiftprop(Reg *r)
 	for(;;) {
 		/* find first use of shift result; abort if shift operands or result are changed */
 		r1 = uniqs(r1);
-		if(r1 == R)
+		if(r1 == nil)
 			FAIL("branch");
-		if(uniqp(r1) == R)
+		if(uniqp(r1) == nil)
 			FAIL("merge");
 		p1 = r1->prog;
 		if(debug['P'])
@@ -704,7 +655,7 @@ shiftprop(Reg *r)
 	if(p1->to.reg != n)
 	for (;;) {
 		r1 = uniqs(r1);
-		if(r1 == R)
+		if(r1 == nil)
 			FAIL("inconclusive");
 		p1 = r1->prog;
 		if(debug['P'])
@@ -757,40 +708,40 @@ shiftprop(Reg *r)
  * before r. It must be a set, and there must be
  * a unique path from that instruction to r.
  */
-Reg*
-findpre(Reg *r, Adr *v)
+static Flow*
+findpre(Flow *r, Adr *v)
 {
-	Reg *r1;
+	Flow *r1;
 
-	for(r1=uniqp(r); r1!=R; r=r1,r1=uniqp(r)) {
+	for(r1=uniqp(r); r1!=nil; r=r1,r1=uniqp(r)) {
 		if(uniqs(r1) != r)
-			return R;
+			return nil;
 		switch(copyu(r1->prog, v, A)) {
 		case 1: /* used */
 		case 2: /* read-alter-rewrite */
-			return R;
+			return nil;
 		case 3: /* set */
 		case 4: /* set and used */
 			return r1;
 		}
 	}
-	return R;
+	return nil;
 }
 
 /*
  * findinc finds ADD instructions with a constant
  * argument which falls within the immed_12 range.
  */
-Reg*
-findinc(Reg *r, Reg *r2, Adr *v)
+static Flow*
+findinc(Flow *r, Flow *r2, Adr *v)
 {
-	Reg *r1;
+	Flow *r1;
 	Prog *p;
 
 
-	for(r1=uniqs(r); r1!=R && r1!=r2; r=r1,r1=uniqs(r)) {
+	for(r1=uniqs(r); r1!=nil && r1!=r2; r=r1,r1=uniqs(r)) {
 		if(uniqp(r1) != r)
-			return R;
+			return nil;
 		switch(copyu(r1->prog, v, A)) {
 		case 0: /* not touched */
 			continue;
@@ -801,14 +752,14 @@ findinc(Reg *r, Reg *r2, Adr *v)
 			if(p->from.offset > -4096 && p->from.offset < 4096)
 				return r1;
 		default:
-			return R;
+			return nil;
 		}
 	}
-	return R;
+	return nil;
 }
 
-int
-nochange(Reg *r, Reg *r2, Prog *p)
+static int
+nochange(Flow *r, Flow *r2, Prog *p)
 {
 	Adr a[3];
 	int i, n;
@@ -830,7 +781,7 @@ nochange(Reg *r, Reg *r2, Prog *p)
 	}
 	if(n == 0)
 		return 1;
-	for(; r!=R && r!=r2; r=uniqs(r)) {
+	for(; r!=nil && r!=r2; r=uniqs(r)) {
 		p = r->prog;
 		for(i=0; i<n; i++)
 			if(copyu(p, &a[i], A) > 1)
@@ -839,10 +790,10 @@ nochange(Reg *r, Reg *r2, Prog *p)
 	return 1;
 }
 
-int
-findu1(Reg *r, Adr *v)
+static int
+findu1(Flow *r, Adr *v)
 {
-	for(; r != R; r = r->s1) {
+	for(; r != nil; r = r->s1) {
 		if(r->active)
 			return 0;
 		r->active = 1;
@@ -861,12 +812,12 @@ findu1(Reg *r, Adr *v)
 	return 0;
 }
 
-int
-finduse(Reg *r, Adr *v)
+static int
+finduse(Graph *g, Flow *r, Adr *v)
 {
-	Reg *r1;
+	Flow *r1;
 
-	for(r1=firstr; r1!=R; r1=r1->link)
+	for(r1=g->start; r1!=nil; r1=r1->link)
 		r1->active = 0;
 	return findu1(r, v);
 }
@@ -884,10 +835,10 @@ finduse(Reg *r, Adr *v)
  * into 
  *   MOVBU  R0<<0(R1),R0
  */
-int
-xtramodes(Reg *r, Adr *a)
+static int
+xtramodes(Graph *g, Flow *r, Adr *a)
 {
-	Reg *r1, *r2, *r3;
+	Flow *r1, *r2, *r3;
 	Prog *p, *p1;
 	Adr v;
 
@@ -895,7 +846,7 @@ xtramodes(Reg *r, Adr *a)
 	v = *a;
 	v.type = D_REG;
 	r1 = findpre(r, &v);
-	if(r1 != R) {
+	if(r1 != nil) {
 		p1 = r1->prog;
 		if(p1->to.type == D_REG && p1->to.reg == v.reg)
 		switch(p1->as) {
@@ -910,7 +861,7 @@ xtramodes(Reg *r, Adr *a)
 			    p1->from.offset > -4096 && p1->from.offset < 4096))
 			if(nochange(uniqs(r1), r, p1)) {
 				if(a != &p->from || v.reg != p->to.reg)
-				if (finduse(r->s1, &v)) {
+				if (finduse(g, r->s1, &v)) {
 					if(p1->reg == NREG || p1->reg == v.reg)
 						/* pre-indexing */
 						p->scond |= C_WBIT;
@@ -938,7 +889,7 @@ xtramodes(Reg *r, Adr *a)
 			break;
 		case AMOVW:
 			if(p1->from.type == D_REG)
-			if((r2 = findinc(r1, r, &p1->from)) != R) {
+			if((r2 = findinc(r1, r, &p1->from)) != nil) {
 			for(r3=uniqs(r2); r3->prog->as==ANOP; r3=uniqs(r3))
 				;
 			if(r3 == r) {
@@ -947,7 +898,7 @@ xtramodes(Reg *r, Adr *a)
 				a->reg = p1->to.reg;
 				a->offset = p1->from.offset;
 				p->scond |= C_PBIT;
-				if(!finduse(r, &r1->prog->to))
+				if(!finduse(g, r, &r1->prog->to))
 					excise(r1);
 				excise(r2);
 				return 1;
@@ -957,7 +908,7 @@ xtramodes(Reg *r, Adr *a)
 		}
 	}
 	if(a != &p->from || a->reg != p->to.reg)
-	if((r1 = findinc(r, R, &v)) != R) {
+	if((r1 = findinc(r, nil, &v)) != nil) {
 		/* post-indexing */
 		p1 = r1->prog;
 		a->offset = p1->from.offset;
@@ -1218,7 +1169,7 @@ copyu(Prog *p, Adr *v, Adr *s)
  * could be set/use depending on
  * semantics
  */
-int
+static int
 copyas(Adr *a, Adr *v)
 {
 
@@ -1241,7 +1192,7 @@ copyas(Adr *a, Adr *v)
 /*
  * either direct or indirect
  */
-int
+static int
 copyau(Adr *a, Adr *v)
 {
 
@@ -1282,7 +1233,7 @@ copyau(Adr *a, Adr *v)
  *	ADD r,r,r
  *	CMP r,r,
  */
-int
+static int
 copyau1(Prog *p, Adr *v)
 {
 
@@ -1307,7 +1258,7 @@ copyau1(Prog *p, Adr *v)
  * substitute s for v in a
  * return failure to substitute
  */
-int
+static int
 copysub(Adr *a, Adr *v, Adr *s, int f)
 {
 
@@ -1330,7 +1281,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 	return 0;
 }
 
-int
+static int
 copysub1(Prog *p1, Adr *v, Adr *s, int f)
 {
 
@@ -1365,9 +1316,9 @@ struct {
 };
 
 typedef struct {
-	Reg *start;
-	Reg *last;
-	Reg *end;
+	Flow *start;
+	Flow *last;
+	Flow *end;
 	int len;
 } Joininfo;
 
@@ -1387,13 +1338,13 @@ enum {
 	Keepbranch
 };
 
-int
+static int
 isbranch(Prog *p)
 {
 	return (ABEQ <= p->as) && (p->as <= ABLE);
 }
 
-int
+static int
 predicable(Prog *p)
 {
 	switch(p->as) {
@@ -1423,7 +1374,7 @@ predicable(Prog *p)
  *
  * C_SBIT may also have been set explicitly in p->scond.
  */
-int
+static int
 modifiescpsr(Prog *p)
 {
 	switch(p->as) {
@@ -1452,8 +1403,8 @@ modifiescpsr(Prog *p)
  * Find the maximal chain of instructions starting with r which could
  * be executed conditionally
  */
-int
-joinsplit(Reg *r, Joininfo *j)
+static int
+joinsplit(Flow *r, Joininfo *j)
 {
 	j->start = r;
 	j->last = r;
@@ -1488,8 +1439,8 @@ joinsplit(Reg *r, Joininfo *j)
 	return Toolong;
 }
 
-Reg*
-successor(Reg *r)
+static Flow*
+successor(Flow *r)
 {
 	if(r->s1)
 		return r->s1;
@@ -1497,11 +1448,11 @@ successor(Reg *r)
 		return r->s2;
 }
 
-void
-applypred(Reg *rstart, Joininfo *j, int cond, int branch)
+static void
+applypred(Flow *rstart, Joininfo *j, int cond, int branch)
 {
 	int pred;
-	Reg *r;
+	Flow *r;
 
 	if(j->len == 0)
 		return;
@@ -1534,13 +1485,13 @@ applypred(Reg *rstart, Joininfo *j, int cond, int branch)
 }
 
 void
-predicate(void)
+predicate(Graph *g)
 {
-	Reg *r;
+	Flow *r;
 	int t1, t2;
 	Joininfo j1, j2;
 
-	for(r=firstr; r!=R; r=r->link) {
+	for(r=g->start; r!=nil; r=r->link) {
 		if (isbranch(r->prog)) {
 			t1 = joinsplit(r->s1, &j1);
 			t2 = joinsplit(r->s2, &j2);
@@ -1563,7 +1514,7 @@ predicate(void)
 	}
 }
 
-int
+static int
 isdconst(Addr *a)
 {
 	if(a->type == D_CONST && a->reg == NREG)

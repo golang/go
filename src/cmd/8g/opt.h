@@ -55,6 +55,7 @@ typedef	struct	Rgn	Rgn;
 // r->prog->opt points back to r.
 struct	Reg
 {
+	Flow	f;
 
 	Bits	set;  		// variables written by this instruction.
 	Bits	use1; 		// variables read by prog->from.
@@ -96,7 +97,6 @@ struct	Rgn
 EXTERN	int32	exregoffset;		// not set
 EXTERN	int32	exfregoffset;		// not set
 EXTERN	Reg*	firstr;
-EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
 EXTERN	Reg**	rpo2r;
@@ -141,27 +141,15 @@ void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
 void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
-void	dumpone(Reg*);
-void	dumpit(char*, Reg*);
+void	dumpone(Flow*, int);
+void	dumpit(char*, Flow*, int);
 
 /*
  * peep.c
  */
-void	peep(void);
-void	excise(Reg*);
-Reg*	uniqp(Reg*);
-Reg*	uniqs(Reg*);
-int	regtyp(Adr*);
-int	anyvar(Adr*);
-int	subprop(Reg*);
-int	copyprop(Reg*);
-int	copy1(Adr*, Adr*, Reg*, int);
+void	peep(Prog*);
+void	excise(Flow*);
 int	copyu(Prog*, Adr*, Adr*);
-
-int	copyas(Adr*, Adr*);
-int	copyau(Adr*, Adr*);
-int	copysub(Adr*, Adr*, Adr*, int);
-int	copysub1(Prog*, Adr*, Adr*, int);
 
 int32	RtoB(int);
 int32	FtoB(int);

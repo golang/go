@@ -55,6 +55,7 @@ typedef	struct	Rgn	Rgn;
 // r->prog->opt points back to r.
 struct	Reg
 {
+	Flow	f;
 
 	Bits	set;  		// variables written by this instruction.
 	Bits	use1; 		// variables read by prog->from.
@@ -68,19 +69,6 @@ struct	Reg
 	Bits	act;
 
 	int32	regu;		// register used bitmap
-	int32	rpo;		// reverse post ordering
-	int32	active;
-
-	uint16	loop;		// x5 for every loop
-	uchar	refset;		// diagnostic generated
-
-	Reg*	p1;     	// predecessors of this instruction: p1,
-	Reg*	p2;     	// and then p2 linked though p2link.
-	Reg*	p2link;
-	Reg*	s1;     	// successors of this instruction (at most two: s1 and s2).
-	Reg*	s2;
-	Reg*	link;   	// next instruction in function code
-	Prog*	prog;   	// actual instruction
 };
 #define	R	((Reg*)0)
 
@@ -96,10 +84,7 @@ struct	Rgn
 EXTERN	int32	exregoffset;		// not set
 EXTERN	int32	exfregoffset;		// not set
 EXTERN	Reg*	firstr;
-EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
-EXTERN	Reg*	freer;
-EXTERN	Reg**	rpo2r;
 EXTERN	Rgn	region[NRGN];
 EXTERN	Rgn*	rgp;
 EXTERN	int	nregion;
@@ -113,7 +98,6 @@ EXTERN	Bits	addrs;
 EXTERN	Bits	ovar;
 EXTERN	int	change;
 EXTERN	int32	maxnr;
-EXTERN	int32*	idom;
 
 EXTERN	struct
 {
@@ -128,40 +112,26 @@ EXTERN	struct
 /*
  * reg.c
  */
-Reg*	rega(void);
 int	rcmp(const void*, const void*);
 void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
 Bits	mkvar(Reg*, Adr*);
 void	prop(Reg*, Bits, Bits);
-void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
 uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
 void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
-void	dumpone(Reg*);
-void	dumpit(char*, Reg*);
+void	dumpone(Flow*, int);
+void	dumpit(char*, Flow*, int);
 
 /*
  * peep.c
  */
-void	peep(void);
-void	excise(Reg*);
-Reg*	uniqp(Reg*);
-Reg*	uniqs(Reg*);
-int	regtyp(Adr*);
-int	anyvar(Adr*);
-int	subprop(Reg*);
-int	copyprop(Reg*);
-int	copy1(Adr*, Adr*, Reg*, int);
+void	peep(Prog*);
+void	excise(Flow*);
 int	copyu(Prog*, Adr*, Adr*);
-
-int	copyas(Adr*, Adr*);
-int	copyau(Adr*, Adr*);
-int	copysub(Adr*, Adr*, Adr*, int);
-int	copysub1(Prog*, Adr*, Adr*, int);
 
 int32	RtoB(int);
 int32	FtoB(int);
