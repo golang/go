@@ -114,6 +114,19 @@ func (rc *ReadCloser) Close() error {
 	return rc.f.Close()
 }
 
+// DataOffset returns the offset of the file's possibly-compressed
+// data, relative to the beginning of the zip file.
+//
+// Most callers should instead use Open, which transparently
+// decompresses data and verifies checksums.
+func (f *File) DataOffset() (offset int64, err error) {
+	bodyOffset, err := f.findBodyOffset()
+	if err != nil {
+		return
+	}
+	return f.headerOffset + bodyOffset, nil
+}
+
 // Open returns a ReadCloser that provides access to the File's contents.
 // Multiple files may be read concurrently.
 func (f *File) Open() (rc io.ReadCloser, err error) {
