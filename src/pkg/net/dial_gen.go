@@ -24,7 +24,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
 	if timeout <= 0 {
 		ra, err := resolveAddr("dial", net, addr, noDeadline)
 		if err != nil {
-			return nil, err
+			return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
 		}
 		return dial(net, addr, localAddr, ra, noDeadline)
 	}
@@ -42,7 +42,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
 		}
 		ra, err := resolveAddr("dial", net, addr, noDeadline)
 		if err != nil {
-			ch <- pair{nil, err}
+			ch <- pair{nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}}
 			return
 		}
 		resolvedAddr <- ra // in case we need it for OpError
@@ -64,7 +64,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
 			Op:   "dial",
 			Net:  net,
 			Addr: ra,
-			Err:  &timeoutError{},
+			Err:  errTimeout,
 		}
 		return nil, err
 	case p := <-ch:

@@ -41,7 +41,7 @@ func sysInit() {
 func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
 	ra, err := resolveAddr("dial", net, addr, deadline)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
 	}
 	return dial(net, addr, localAddr, ra, deadline)
 }
