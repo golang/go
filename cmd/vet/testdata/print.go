@@ -7,6 +7,7 @@
 package testdata
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"unsafe" // just for test case printing unsafe.Pointer
@@ -188,6 +189,9 @@ func PrintfTests() {
 	et4.Error() // ok, not an error method.
 	var et5 errorTest5
 	et5.error() // ok, not an error method.
+	// Tests of redundant String and Error method invocations.
+	Printf("%s", stringerv.String())         // ERROR "redundant invocation of String method of stringerv"
+	Printf("%v", errors.New("whee").Error()) // ERROR "redundant invocation of Error method of errors.New..whee.."
 }
 
 // Printf is used by the test so we must declare it.

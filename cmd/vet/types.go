@@ -273,11 +273,26 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	if sig.Params().Len() > 0 {
 		return false
 	}
-	// Finally the real questions.
-	// There must be one result.
-	if sig.Results().Len() != 1 {
+	// Finally the real question.
+	return hasStringReturn(sig)
+}
+
+// returnsString reports whether expr is a call of a function that returns a string.
+// If it cannot be type checked it returns true.
+func (f *File) returnsString(expr ast.Expr) bool {
+	typ := f.pkg.types[expr]
+	if typ == nil {
+		return true
+	}
+	sig, ok := typ.(*types.Signature)
+	if !ok {
 		return false
 	}
-	// It must have return type "string" from the universe.
-	return sig.Results().At(0).Type() == types.Typ[types.String]
+	return hasStringReturn(sig)
+}
+
+// hasStringReturn reports whether the function signature has exactly
+// one return value, of universe type string.
+func hasStringReturn(sig *types.Signature) bool {
+	return sig.Results().Len() == 1 && sig.Results().At(0).Type() == types.Typ[types.String]
 }
