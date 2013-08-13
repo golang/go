@@ -13,7 +13,7 @@ TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
 casloop:
-	// LDREX and STREX were introduced in ARM 6.
+	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R0
 	CMP	R0, R2
 	BNE	casfail
@@ -40,7 +40,7 @@ TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
 	MOVW	newlo+12(FP), R4
 	MOVW	newhi+16(FP), R5
 cas64loop:
-	// LDREXD and STREXD were introduced in ARM 11.
+	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R6  // loads R6 and R7
 	CMP	R2, R6
 	BNE	cas64fail
@@ -61,7 +61,7 @@ TEXT ·armAddUint32(SB),NOSPLIT,$0-12
 	MOVW	addr+0(FP), R1
 	MOVW	delta+4(FP), R2
 addloop:
-	// LDREX and STREX were introduced in ARM 6.
+	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R3
 	ADD	R2, R3
 	STREX	R3, (R1), R0
@@ -80,7 +80,7 @@ TEXT ·armAddUint64(SB),NOSPLIT,$0-20
 	MOVW	deltalo+4(FP), R2
 	MOVW	deltahi+8(FP), R3
 add64loop:
-	// LDREXD and STREXD were introduced in ARM 11.
+	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
 	ADD.S	R2, R4
 	ADC	R3, R5
@@ -95,7 +95,7 @@ TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
 	MOVW	addr+0(FP), R1
 	MOVW	new+4(FP), R2
 swaploop:
-	// LDREX and STREX were introduced in ARM 6.
+	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R3
 	STREX	R2, (R1), R0
 	CMP	$0, R0
@@ -113,7 +113,7 @@ TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
 	MOVW	newlo+4(FP), R2
 	MOVW	newhi+8(FP), R3
 swap64loop:
-	// LDREXD and STREXD were introduced in ARM 11.
+	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
