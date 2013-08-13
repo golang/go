@@ -36,6 +36,7 @@
 #define	NREGVAR	32	/* 16 general + 16 floating */
 #define	REGBITS	((uint32)0xffffffff)
 
+static	Reg*	firstr;
 static	int	first	= 1;
 
 int
@@ -155,6 +156,7 @@ regopt(Prog *firstp)
 	}
 
 	fixjmp(firstp);
+	mergetemp(firstp);
 	
 	/*
 	 * control flow is more complicated in generated go code
@@ -248,9 +250,6 @@ regopt(Prog *firstp)
 	 * pass 2
 	 * find looping structure
 	 */
-	for(r = firstr; r != R; r = (Reg*)r->f.link)
-		r->f.active = 0;
-	change = 0;
 	flowrpo(g);
 
 	if(debug['R'] && debug['v'])

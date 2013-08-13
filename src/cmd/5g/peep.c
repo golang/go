@@ -236,6 +236,8 @@ loop1:
 	}
 
 //	predicate(g);
+
+	flowend(g);
 }
 
 static int

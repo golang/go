@@ -182,6 +182,9 @@ fixjmp(Prog *firstp)
 	}
 }
 
+#undef alive
+#undef dead
+
 // Control flow analysis. The Flow structures hold predecessor and successor
 // information as well as basic loop analysis.
 //
@@ -392,6 +395,9 @@ flowrpo(Graph *g)
 	if(g->rpo == nil || idom == nil)
 		fatal("out of memory");
 
+	for(r1 = g->start; r1 != nil; r1 = r1->link)
+		r1->active = 0;
+
 	rpo2r = g->rpo;
 	d = postorder(g->start, rpo2r, 0);
 	nr = g->num;
@@ -428,6 +434,9 @@ flowrpo(Graph *g)
 			loopmark(rpo2r, i, r1);
 	}
 	free(idom);
+
+	for(r1 = g->start; r1 != nil; r1 = r1->link)
+		r1->active = 0;
 }
 
 Flow*
@@ -462,3 +471,296 @@ uniqs(Flow *r)
 	return r1;
 }
 
+// The compilers assume they can generate temporary variables
+// as needed to preserve the right semantics or simplify code
+// generation and the back end will still generate good code.
+// This results in a large number of ephemeral temporary variables.
+// Merge temps with non-overlapping lifetimes and equal types using the
+// greedy algorithm in Poletto and Sarkar, "Linear Scan Register Allocation",
+// ACM TOPLAS 1999.
+
+typedef struct TempVar TempVar;
+typedef struct TempFlow TempFlow;
+
+struct TempVar
+{
+	Node *node;
+	TempFlow *def; // definition of temp var
+	TempFlow *use; // use list, chained through TempFlow.uselink
+	TempVar *freelink; // next free temp in Type.opt list
+	TempVar *merge; // merge var with this one
+	uint32 start; // smallest Prog.loc in live range
+	uint32 end; // largest Prog.loc in live range
+	uchar addr; // address taken - no accurate end
+	uchar removed; // removed from program
+};
+
+struct TempFlow
+{
+	Flow	f;
+	TempFlow *uselink;
+};
+
+static int
+startcmp(const void *va, const void *vb)
+{
+	TempVar *a, *b;
+	
+	a = *(TempVar**)va;
+	b = *(TempVar**)vb;
+
+	if(a->start < b->start)
+		return -1;
+	if(a->start > b->start)
+		return +1;
+	return 0;
+}
+
+// Is n available for merging?
+static int
+canmerge(Node *n)
+{
+	return n->class == PAUTO && !n->addrtaken && strncmp(n->sym->name, "autotmp", 7) == 0;
+}
+
+static void mergewalk(TempVar*, TempFlow*, uint32);
+
+void
+mergetemp(Prog *firstp)
+{
+	int i, j, nvar, ninuse, nfree, nkill;
+	TempVar *var, *v, *v1, **bystart, **inuse;
+	TempFlow *r;
+	NodeList *l, **lp;
+	Node *n;
+	Prog *p, *p1;
+	Type *t;
+	ProgInfo info, info1;
+	int32 gen;
+	Graph *g;
+
+	enum { Debug = 0 };
+
+	g = flowstart(firstp, sizeof(TempFlow));
+	if(g == nil)
+		return;
+
+	// Build list of all mergeable variables.
+	nvar = 0;
+	for(l = curfn->dcl; l != nil; l = l->next)
+		if(canmerge(l->n))
+			nvar++;
+	
+	var = calloc(nvar*sizeof var[0], 1);
+	nvar = 0;
+	for(l = curfn->dcl; l != nil; l = l->next) {
+		n = l->n;
+		if(canmerge(n)) {
+			v = &var[nvar++];
+			n->opt = v;
+			v->node = n;
+		}
+	}
+	
+	// Build list of uses.
+	// We assume that the earliest reference to a temporary is its definition.
+	// This is not true of variables in general but our temporaries are all
+	// single-use (that's why we have so many!).
+	for(r = (TempFlow*)g->start; r != nil; r = (TempFlow*)r->f.link) {
+		p = r->f.prog;
+		proginfo(&info, p);
+
+		if(p->from.node != N && p->from.node->opt && p->to.node != N && p->to.node->opt)
+			fatal("double node %P", p);
+		if((n = p->from.node) != N && (v = n->opt) != nil ||
+		   (n = p->to.node) != N && (v = n->opt) != nil) {
+		   	if(v->def == nil)
+		   		v->def = r;
+			r->uselink = v->use;
+			v->use = r;
+			if(n == p->from.node && (info.flags & LeftAddr))
+				v->addr = 1;
+		}
+	}
+	
+	if(Debug > 1)
+		dumpit("before", g->start, 0);
+	
+	nkill = 0;
+
+	// Special case.
+	for(v = var; v < var+nvar; v++) {
+		if(v->addr)
+			continue;
+		// Used in only one instruction, which had better be a write.
+		if((r = v->use) != nil && r->uselink == nil) {
+			p = r->f.prog;
+			proginfo(&info, p);
+			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
+				p->as = ANOP;
+				p->to = zprog.to;
+				v->removed = 1;
+				if(Debug)
+					print("drop write-only %S\n", v->node->sym);
+			} else
+				fatal("temp used and not set: %P", p);
+			nkill++;
+			continue;
+		}
+		
+		// Written in one instruction, read in the next, otherwise unused,
+		// no jumps to the next instruction. Happens mainly in 386 compiler.
+		if((r = v->use) != nil && r->f.link == &r->uselink->f && r->uselink->uselink == nil && uniqp(r->f.link) == &r->f) {
+			p = r->f.prog;
+			proginfo(&info, p);
+			p1 = r->f.link->prog;
+			proginfo(&info1, p1);
+			enum {
+				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD,
+			};
+			if(p->from.node == v->node && p1->to.node == v->node && (info.flags & Move) &&
+			   !((info.flags|info1.flags) & (LeftAddr|RightAddr)) &&
+			   (info.flags & SizeAny) == (info1.flags & SizeAny)) {
+				p1->from = p->from;
+				excise(&r->f);
+				v->removed = 1;
+				if(Debug)
+					print("drop immediate-use %S\n", v->node->sym);
+			}
+			nkill++;
+			continue;
+		}			   
+	}
+
+	// Traverse live range of each variable to set start, end.
+	// Each flood uses a new value of gen so that we don't have
+	// to clear all the r->f.active words after each variable.
+	gen = 0;
+	for(v = var; v < var+nvar; v++) {
+		gen++;
+		for(r = v->use; r != nil; r = r->uselink)
+			mergewalk(v, r, gen);
+	}
+
+	// Sort variables by start.
+	bystart = malloc(nvar*sizeof bystart[0]);
+	for(i=0; i<nvar; i++)
+		bystart[i] = &var[i];
+	qsort(bystart, nvar, sizeof bystart[0], startcmp);
+
+	// List of in-use variables, sorted by end, so that the ones that
+	// will last the longest are the earliest ones in the array.
+	// The tail inuse[nfree:] holds no-longer-used variables.
+	// In theory we should use a sorted tree so that insertions are
+	// guaranteed O(log n) and then the loop is guaranteed O(n log n).
+	// In practice, it doesn't really matter.
+	inuse = malloc(nvar*sizeof inuse[0]);
+	ninuse = 0;
+	nfree = nvar;
+	for(i=0; i<nvar; i++) {
+		v = bystart[i];
+		if(v->addr || v->removed)
+			continue;
+
+		// Expire no longer in use.
+		while(ninuse > 0 && inuse[ninuse-1]->end < v->start) {
+			v1 = inuse[--ninuse];
+			inuse[--nfree] = v1;
+		}
+
+		// Find old temp to reuse if possible.
+		t = v->node->type;
+		for(j=nfree; j<nvar; j++) {
+			v1 = inuse[j];
+			if(eqtype(t, v1->node->type)) {
+				inuse[j] = inuse[nfree++];
+				if(v1->merge)
+					v->merge = v1->merge;
+				else
+					v->merge = v1;
+				nkill++;
+				break;
+			}
+		}
+
+		// Sort v into inuse.
+		j = ninuse++;
+		while(j > 0 && inuse[j-1]->end < v->end) {
+			inuse[j] = inuse[j-1];
+			j--;
+		}
+		inuse[j] = v;
+	}
+
+	if(Debug) {
+		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
+		for(v=var; v<var+nvar; v++) {
+			print("var %#N %T %d-%d", v->node, v->node->type, v->start, v->end);
+			if(v->addr)
+				print(" addr=1");
+			if(v->removed)
+				print(" dead=1");
+			if(v->merge)
+				print(" merge %#N", v->merge->node);
+			if(v->start == v->end)
+				print(" %P", v->def->f.prog);
+			print("\n");
+		}
+	
+		if(Debug > 1)
+			dumpit("after", g->start, 0);
+	}
+
+	// Update node references to use merged temporaries.
+	for(r = (TempFlow*)g->start; r != nil; r = (TempFlow*)r->f.link) {
+		p = r->f.prog;
+		if((n = p->from.node) != N && (v = n->opt) != nil && v->merge != nil)
+			p->from.node = v->merge->node;
+		if((n = p->to.node) != N && (v = n->opt) != nil && v->merge != nil)
+			p->to.node = v->merge->node;
+	}
+
+	// Delete merged nodes from declaration list.
+	for(lp = &curfn->dcl; (l = *lp); ) {
+		curfn->dcl->end = l;
+		n = l->n;
+		v = n->opt;
+		if(v && (v->merge || v->removed)) {
+			*lp = l->next;
+			continue;
+		}
+		lp = &l->next;
+	}
+
+	// Clear aux structures.
+	for(v=var; v<var+nvar; v++)
+		v->node->opt = nil;
+	free(var);
+	free(bystart);
+	free(inuse);
+	flowend(g);
+}
+
+static void
+mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
+{
+	Prog *p;
+	TempFlow *r1, *r, *r2;
+	
+	for(r1 = r0; r1 != nil; r1 = (TempFlow*)r1->f.p1) {
+		if(r1->f.active == gen)
+			break;
+		r1->f.active = gen;
+		p = r1->f.prog;
+		if(v->end < p->loc)
+			v->end = p->loc;
+		if(r1 == v->def) {
+			v->start = p->loc;
+			break;
+		}
+	}
+	
+	for(r = r0; r != r1; r = (TempFlow*)r->f.p1)
+		for(r2 = (TempFlow*)r->f.p2; r2 != nil; r2 = (TempFlow*)r2->f.p2link)
+			mergewalk(v, r2, gen);
+}
