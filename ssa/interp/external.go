@@ -67,6 +67,7 @@ var externals = map[string]externalFn{
 	"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
 	"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
 	"runtime.getgoroot":               ext۰runtime۰getgoroot,
+	"sync.runtime_Syncsemcheck":       ext۰sync۰runtime_Syncsemcheck,
 	"sync/atomic.AddInt32":            ext۰atomic۰AddInt32,
 	"sync/atomic.CompareAndSwapInt32": ext۰atomic۰CompareAndSwapInt32,
 	"sync/atomic.LoadInt32":           ext۰atomic۰LoadInt32,
@@ -148,6 +149,11 @@ func ext۰runtime۰Breakpoint(fn *ssa.Function, args []value) value {
 
 func ext۰runtime۰getgoroot(fn *ssa.Function, args []value) value {
 	return os.Getenv("GOROOT")
+}
+
+func ext۰sync۰runtime_Syncsemcheck(fn *ssa.Function, args []value) value {
+	// TODO(adonovan): do equivalent of calling runtime_Syncsemcheck(size uintptr) here
+	return nil
 }
 
 func ext۰runtime۰GOMAXPROCS(fn *ssa.Function, args []value) value {
