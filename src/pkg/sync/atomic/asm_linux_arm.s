@@ -32,6 +32,9 @@ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
 // Implement using kernel cas for portability.
 TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	addr+0(FP), R2
+	// trigger potential paging fault here,
+	// because we don't know how to traceback through __kuser_cmpxchg
+	MOVW	(R2), R0
 	MOVW	old+4(FP), R0
 casagain:
 	MOVW	new+8(FP), R1
@@ -102,6 +105,9 @@ TEXT cas64<>(SB),NOSPLIT,$0
 TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
 	MOVW	addr+0(FP), R2 // ptr
+	// trigger potential paging fault here,
+	// because we don't know how to traceback through __kuser_cmpxchg64
+	MOVW	(R2), R0
 	// make unaligned atomic access panic
 	AND.S	$7, R2, R1
 	BEQ 	2(PC)
