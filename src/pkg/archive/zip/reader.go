@@ -179,9 +179,8 @@ func (r *checksumReader) Close() error { return r.rc.Close() }
 // findBodyOffset does the minimum work to verify the file has a header
 // and returns the file body offset.
 func (f *File) findBodyOffset() (int64, error) {
-	r := io.NewSectionReader(f.zipr, f.headerOffset, f.zipsize-f.headerOffset)
 	var buf [fileHeaderLen]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
+	if _, err := f.zipr.ReadAt(buf[:], f.headerOffset); err != nil {
 		return 0, err
 	}
 	b := readBuf(buf[:])

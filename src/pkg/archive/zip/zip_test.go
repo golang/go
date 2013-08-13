@@ -17,14 +17,14 @@ import (
 )
 
 func TestOver65kFiles(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow test; skipping")
-	}
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
 	const nFiles = (1 << 16) + 42
 	for i := 0; i < nFiles; i++ {
-		_, err := w.Create(fmt.Sprintf("%d.dat", i))
+		_, err := w.CreateHeader(&FileHeader{
+			Name:   fmt.Sprintf("%d.dat", i),
+			Method: Store, // avoid Issue 6136 and Issue 6138
+		})
 		if err != nil {
 			t.Fatalf("creating file %d: %v", i, err)
 		}
