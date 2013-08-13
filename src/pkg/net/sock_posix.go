@@ -113,14 +113,14 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
 			return err
 		} else if rsa != nil {
 			if !deadline.IsZero() {
-				setWriteDeadline(fd, deadline)
+				fd.setWriteDeadline(deadline)
 			}
 			if err := fd.connect(lsa, rsa); err != nil {
 				return err
 			}
 			fd.isConnected = true
 			if !deadline.IsZero() {
-				setWriteDeadline(fd, noDeadline)
+				fd.setWriteDeadline(noDeadline)
 			}
 		}
 	}

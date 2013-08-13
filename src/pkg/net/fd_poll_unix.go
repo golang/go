@@ -353,18 +353,18 @@ func (pd *pollDesc) Init(fd *netFD) error {
 
 // TODO(dfc) these unused error returns could be removed
 
-func setReadDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setDeadline(t time.Time) error {
+	fd.setReadDeadline(t)
+	fd.setWriteDeadline(t)
+	return nil
+}
+
+func (fd *netFD) setReadDeadline(t time.Time) error {
 	fd.pd.rdeadline.setTime(t)
 	return nil
 }
 
-func setWriteDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setWriteDeadline(t time.Time) error {
 	fd.pd.wdeadline.setTime(t)
-	return nil
-}
-
-func setDeadline(fd *netFD, t time.Time) error {
-	setReadDeadline(fd, t)
-	setWriteDeadline(fd, t)
 	return nil
 }

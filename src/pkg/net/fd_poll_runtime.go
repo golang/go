@@ -115,16 +115,16 @@ func convertErr(res int) error {
 	panic("unreachable")
 }
 
-func setReadDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setDeadline(t time.Time) error {
+	return setDeadlineImpl(fd, t, 'r'+'w')
+}
+
+func (fd *netFD) setReadDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r')
 }
 
-func setWriteDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setWriteDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'w')
-}
-
-func setDeadline(fd *netFD, t time.Time) error {
-	return setDeadlineImpl(fd, t, 'r'+'w')
 }
 
 func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
