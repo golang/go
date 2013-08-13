@@ -175,6 +175,7 @@ timerproc(void)
 
 	for(;;) {
 		runtime·lock(&timers);
+		timers.sleeping = false;
 		now = runtime·nanotime();
 		for(;;) {
 			if(timers.len == 0) {
