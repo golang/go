@@ -38,21 +38,6 @@
 
 static	int	first	= 1;
 
-Reg*
-rega(void)
-{
-	Reg *r;
-
-	r = freer;
-	if(r == R) {
-		r = mal(sizeof(*r));
-	} else
-		freer = r->link;
-
-	*r = zreg;
-	return r;
-}
-
 int
 rcmp(const void *a1, const void *a2)
 {
@@ -157,8 +142,9 @@ regopt(Prog *firstp)
 {
 	Reg *r, *r1;
 	Prog *p;
-	ProgInfo info, info2;
-	int i, z, nr;
+	Graph *g;
+	ProgInfo info;
+	int i, z;
 	uint32 vreg;
 	Bits bit;
 
@@ -169,20 +155,7 @@ regopt(Prog *firstp)
 	}
 
 	fixjmp(firstp);
-
-	// count instructions
-	nr = 0;
-	for(p=firstp; p!=P; p=p->link)
-		nr++;
-	// if too big dont bother
-	if(nr >= 10000) {
-//		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
-		return;
-	}
-
-	firstr = R;
-	lastr = R;
-
+	
 	/*
 	 * control flow is more complicated in generated go code
 	 * than in generated c code.  define pseudo-variables for
@@ -214,33 +187,14 @@ regopt(Prog *firstp)
 	 * allocate pcs
 	 * find use and set of variables
 	 */
-	nr = 0;
-	for(p=firstp; p!=P; p=p->link) {
-		proginfo(&info, p);
-		if(info.flags & Skip)
-			continue;
-		r = rega();
-		nr++;
-		if(firstr == R) {
-			firstr = r;
-			lastr = r;
-		} else {
-			lastr->link = r;
-			r->p1 = lastr;
-			lastr->s1 = r;
-			lastr = r;
-		}
-		r->prog = p;
-		p->opt = r;
+	g = flowstart(firstp, sizeof(Reg));
+	if(g == nil)
+		return;
+	firstr = (Reg*)g->start;
 
-		r1 = r->p1;
-		if(r1 != R) {
-			proginfo(&info2, r1->prog);
-			if(info2.flags & Break) {
-				r->p1 = R;
-				r1->s1 = R;
-			}
-		}
+	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+		p = r->f.prog;
+		proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.
 		if(p->as == ACALL && p->to.type == D_EXTERN)
@@ -273,8 +227,6 @@ regopt(Prog *firstp)
 					r->set.b[z] |= bit.b[z];
 		}
 	}
-	if(firstr == R)
-		return;
 
 	for(i=0; i<nvar; i++) {
 		Var *v = var+i;
@@ -290,45 +242,19 @@ regopt(Prog *firstp)
 	}
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass1", firstr);
+		dumpit("pass1", &firstr->f, 1);
 
 	/*
 	 * pass 2
-	 * turn branch references to pointers
-	 * build back pointers
-	 */
-	for(r=firstr; r!=R; r=r->link) {
-		p = r->prog;
-		if(p->to.type == D_BRANCH) {
-			if(p->to.u.branch == P)
-				fatal("pnil %P", p);
-			r1 = p->to.u.branch->opt;
-			if(r1 == R)
-				fatal("rnil %P", p);
-			if(r1 == r) {
-				//fatal("ref to self %P", p);
-				continue;
-			}
-			r->s2 = r1;
-			r->p2link = r1->p2;
-			r1->p2 = r;
-		}
-	}
-
-	if(debug['R'] && debug['v'])
-		dumpit("pass2", firstr);
-
-	/*
-	 * pass 2.5
 	 * find looping structure
 	 */
-	for(r = firstr; r != R; r = r->link)
-		r->active = 0;
+	for(r = firstr; r != R; r = (Reg*)r->f.link)
+		r->f.active = 0;
 	change = 0;
-	loopit(firstr, nr);
+	flowrpo(g);
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass2.5", firstr);
+		dumpit("pass2", &firstr->f, 1);
 
 	/*
 	 * pass 3
@@ -337,17 +263,17 @@ regopt(Prog *firstp)
 	 */
 loop1:
 	change = 0;
-	for(r = firstr; r != R; r = r->link)
-		r->active = 0;
-	for(r = firstr; r != R; r = r->link)
-		if(r->prog->as == ARET)
+	for(r = firstr; r != R; r = (Reg*)r->f.link)
+		r->f.active = 0;
+	for(r = firstr; r != R; r = (Reg*)r->f.link)
+		if(r->f.prog->as == ARET)
 			prop(r, zbits, zbits);
 loop11:
 	/* pick up unreachable code */
 	i = 0;
 	for(r = firstr; r != R; r = r1) {
-		r1 = r->link;
-		if(r1 && r1->active && !r->active) {
+		r1 = (Reg*)r->f.link;
+		if(r1 && r1->f.active && !r->f.active) {
 			prop(r, zbits, zbits);
 			i = 1;
 		}
@@ -358,7 +284,7 @@ loop11:
 		goto loop1;
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass3", firstr);
+		dumpit("pass3", &firstr->f, 1);
 
 	/*
 	 * pass 4
@@ -367,20 +293,20 @@ loop11:
 	 */
 loop2:
 	change = 0;
-	for(r = firstr; r != R; r = r->link)
-		r->active = 0;
+	for(r = firstr; r != R; r = (Reg*)r->f.link)
+		r->f.active = 0;
 	synch(firstr, zbits);
 	if(change)
 		goto loop2;
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass4", firstr);
+		dumpit("pass4", &firstr->f, 1);
 
 	/*
 	 * pass 4.5
 	 * move register pseudo-variables into regu.
 	 */
-	for(r = firstr; r != R; r = r->link) {
+	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		r->regu = (r->refbehind.b[0] | r->set.b[0]) & REGBITS;
 
 		r->set.b[0] &= ~REGBITS;
@@ -404,26 +330,26 @@ loop2:
 		for(z=0; z<BITS; z++)
 			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
 			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
-		if(bany(&bit) && !r->refset) {
+		if(bany(&bit) && !r->f.refset) {
 			// should never happen - all variables are preset
 			if(debug['w'])
-				print("%L: used and not set: %Q\n", r->prog->lineno, bit);
-			r->refset = 1;
+				print("%L: used and not set: %Q\n", r->f.prog->lineno, bit);
+			r->f.refset = 1;
 		}
 	}
-	for(r = firstr; r != R; r = r->link)
+	for(r = firstr; r != R; r = (Reg*)r->f.link)
 		r->act = zbits;
 	rgp = region;
 	nregion = 0;
-	for(r = firstr; r != R; r = r->link) {
+	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		for(z=0; z<BITS; z++)
 			bit.b[z] = r->set.b[z] &
 			  ~(r->refahead.b[z] | r->calahead.b[z] | addrs.b[z]);
-		if(bany(&bit) && !r->refset) {
+		if(bany(&bit) && !r->f.refset) {
 			if(debug['w'])
-				print("%L: set and not used: %Q\n", r->prog->lineno, bit);
-			r->refset = 1;
-			excise(r);
+				print("%L: set and not used: %Q\n", r->f.prog->lineno, bit);
+			r->f.refset = 1;
+			excise(&r->f);
 		}
 		for(z=0; z<BITS; z++)
 			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
@@ -450,7 +376,7 @@ brk:
 	qsort(region, nregion, sizeof(region[0]), rcmp);
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass5", firstr);
+		dumpit("pass5", &firstr->f, 1);
 
 	/*
 	 * pass 6
@@ -476,19 +402,23 @@ brk:
 	}
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass6", firstr);
+		dumpit("pass6", &firstr->f, 1);
+	
+	/*
+	 * free aux structures. peep allocates new ones.
+	 */
+	flowend(g);
+	firstr = R;
 
 	/*
 	 * pass 7
 	 * peep-hole on basic block
 	 */
-	if(!debug['R'] || debug['P']) {
-		peep();
-	}
+	if(!debug['R'] || debug['P'])
+		peep(firstp);
 
 	/*
 	 * eliminate nops
-	 * free aux structures
 	 */
 	for(p=firstp; p!=P; p=p->link) {
 		while(p->link != P && p->link->as == ANOP)
@@ -496,11 +426,6 @@ brk:
 		if(p->to.type == D_BRANCH)
 			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
 				p->to.u.branch = p->to.u.branch->link;
-	}
-
-	if(lastr != R) {
-		lastr->link = freer;
-		freer = firstr;
 	}
 
 	if(debug['R']) {
@@ -545,7 +470,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	clearp(p1);
 	p1->loc = 9999;
 
-	p = r->prog;
+	p = r->f.prog;
 	p1->link = p->link;
 	p->link = p1;
 	p1->lineno = p->lineno;
@@ -769,7 +694,7 @@ prop(Reg *r, Bits ref, Bits cal)
 	Reg *r1, *r2;
 	int z;
 
-	for(r1 = r; r1 != R; r1 = r1->p1) {
+	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.p1) {
 		for(z=0; z<BITS; z++) {
 			ref.b[z] |= r1->refahead.b[z];
 			if(ref.b[z] != r1->refahead.b[z]) {
@@ -782,9 +707,9 @@ prop(Reg *r, Bits ref, Bits cal)
 				change++;
 			}
 		}
-		switch(r1->prog->as) {
+		switch(r1->f.prog->as) {
 		case ACALL:
-			if(noreturn(r1->prog))
+			if(noreturn(r1->f.prog))
 				break;
 			for(z=0; z<BITS; z++) {
 				cal.b[z] |= ref.b[z] | externs.b[z];
@@ -824,150 +749,13 @@ prop(Reg *r, Bits ref, Bits cal)
 			r1->refbehind.b[z] = ref.b[z];
 			r1->calbehind.b[z] = cal.b[z];
 		}
-		if(r1->active)
+		if(r1->f.active)
 			break;
-		r1->active = 1;
+		r1->f.active = 1;
 	}
-	for(; r != r1; r = r->p1)
-		for(r2 = r->p2; r2 != R; r2 = r2->p2link)
+	for(; r != r1; r = (Reg*)r->f.p1)
+		for(r2 = (Reg*)r->f.p2; r2 != R; r2 = (Reg*)r2->f.p2link)
 			prop(r2, r->refbehind, r->calbehind);
-}
-
-/*
- * find looping structure
- *
- * 1) find reverse postordering
- * 2) find approximate dominators,
- *	the actual dominators if the flow graph is reducible
- *	otherwise, dominators plus some other non-dominators.
- *	See Matthew S. Hecht and Jeffrey D. Ullman,
- *	"Analysis of a Simple Algorithm for Global Data Flow Problems",
- *	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
- *	Oct. 1-3, 1973, pp.  207-217.
- * 3) find all nodes with a predecessor dominated by the current node.
- *	such a node is a loop head.
- *	recursively, all preds with a greater rpo number are in the loop
- */
-int32
-postorder(Reg *r, Reg **rpo2r, int32 n)
-{
-	Reg *r1;
-
-	r->rpo = 1;
-	r1 = r->s1;
-	if(r1 && !r1->rpo)
-		n = postorder(r1, rpo2r, n);
-	r1 = r->s2;
-	if(r1 && !r1->rpo)
-		n = postorder(r1, rpo2r, n);
-	rpo2r[n] = r;
-	n++;
-	return n;
-}
-
-int32
-rpolca(int32 *idom, int32 rpo1, int32 rpo2)
-{
-	int32 t;
-
-	if(rpo1 == -1)
-		return rpo2;
-	while(rpo1 != rpo2){
-		if(rpo1 > rpo2){
-			t = rpo2;
-			rpo2 = rpo1;
-			rpo1 = t;
-		}
-		while(rpo1 < rpo2){
-			t = idom[rpo2];
-			if(t >= rpo2)
-				fatal("bad idom");
-			rpo2 = t;
-		}
-	}
-	return rpo1;
-}
-
-int
-doms(int32 *idom, int32 r, int32 s)
-{
-	while(s > r)
-		s = idom[s];
-	return s == r;
-}
-
-int
-loophead(int32 *idom, Reg *r)
-{
-	int32 src;
-
-	src = r->rpo;
-	if(r->p1 != R && doms(idom, src, r->p1->rpo))
-		return 1;
-	for(r = r->p2; r != R; r = r->p2link)
-		if(doms(idom, src, r->rpo))
-			return 1;
-	return 0;
-}
-
-void
-loopmark(Reg **rpo2r, int32 head, Reg *r)
-{
-	if(r->rpo < head || r->active == head)
-		return;
-	r->active = head;
-	r->loop += LOOP;
-	if(r->p1 != R)
-		loopmark(rpo2r, head, r->p1);
-	for(r = r->p2; r != R; r = r->p2link)
-		loopmark(rpo2r, head, r);
-}
-
-void
-loopit(Reg *r, int32 nr)
-{
-	Reg *r1;
-	int32 i, d, me;
-
-	if(nr > maxnr) {
-		rpo2r = mal(nr * sizeof(Reg*));
-		idom = mal(nr * sizeof(int32));
-		maxnr = nr;
-	}
-
-	d = postorder(r, rpo2r, 0);
-	if(d > nr)
-		fatal("too many reg nodes %d %d", d, nr);
-	nr = d;
-	for(i = 0; i < nr / 2; i++) {
-		r1 = rpo2r[i];
-		rpo2r[i] = rpo2r[nr - 1 - i];
-		rpo2r[nr - 1 - i] = r1;
-	}
-	for(i = 0; i < nr; i++)
-		rpo2r[i]->rpo = i;
-
-	idom[0] = 0;
-	for(i = 0; i < nr; i++) {
-		r1 = rpo2r[i];
-		me = r1->rpo;
-		d = -1;
-		// rpo2r[r->rpo] == r protects against considering dead code,
-		// which has r->rpo == 0.
-		if(r1->p1 != R && rpo2r[r1->p1->rpo] == r1->p1 && r1->p1->rpo < me)
-			d = r1->p1->rpo;
-		for(r1 = r1->p2; r1 != nil; r1 = r1->p2link)
-			if(rpo2r[r1->rpo] == r1 && r1->rpo < me)
-				d = rpolca(idom, d, r1->rpo);
-		idom[i] = d;
-	}
-
-	for(i = 0; i < nr; i++) {
-		r1 = rpo2r[i];
-		r1->loop++;
-		if(r1->p2 != R && loophead(idom, r1))
-			loopmark(rpo2r, i, r1);
-	}
 }
 
 void
@@ -976,7 +764,7 @@ synch(Reg *r, Bits dif)
 	Reg *r1;
 	int z;
 
-	for(r1 = r; r1 != R; r1 = r1->s1) {
+	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.s1) {
 		for(z=0; z<BITS; z++) {
 			dif.b[z] = (dif.b[z] &
 				~(~r1->refbehind.b[z] & r1->refahead.b[z])) |
@@ -986,13 +774,13 @@ synch(Reg *r, Bits dif)
 				change++;
 			}
 		}
-		if(r1->active)
+		if(r1->f.active)
 			break;
-		r1->active = 1;
+		r1->f.active = 1;
 		for(z=0; z<BITS; z++)
 			dif.b[z] &= ~(~r1->calbehind.b[z] & r1->calahead.b[z]);
-		if(r1->s2 != R)
-			synch(r1->s2, dif);
+		if(r1->f.s2 != nil)
+			synch((Reg*)r1->f.s2, dif);
 	}
 }
 
@@ -1057,7 +845,7 @@ paint1(Reg *r, int bn)
 	for(;;) {
 		if(!(r->refbehind.b[z] & bb))
 			break;
-		r1 = r->p1;
+		r1 = (Reg*)r->f.p1;
 		if(r1 == R)
 			break;
 		if(!(r1->refahead.b[z] & bb))
@@ -1068,35 +856,35 @@ paint1(Reg *r, int bn)
 	}
 
 	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
-		change -= CLOAD * r->loop;
+		change -= CLOAD * r->f.loop;
 	}
 	for(;;) {
 		r->act.b[z] |= bb;
 
 		if(r->use1.b[z] & bb) {
-			change += CREF * r->loop;
+			change += CREF * r->f.loop;
 		}
 
 		if((r->use2.b[z]|r->set.b[z]) & bb) {
-			change += CREF * r->loop;
+			change += CREF * r->f.loop;
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
-			change -= CLOAD * r->loop;
+			change -= CLOAD * r->f.loop;
 		}
 
 		if(r->refbehind.b[z] & bb)
-			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
+			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
 				if(r1->refahead.b[z] & bb)
 					paint1(r1, bn);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
-		r1 = r->s2;
+		r1 = (Reg*)r->f.s2;
 		if(r1 != R)
 			if(r1->refbehind.b[z] & bb)
 				paint1(r1, bn);
-		r = r->s1;
+		r = (Reg*)r->f.s1;
 		if(r == R)
 			break;
 		if(r->act.b[z] & bb)
@@ -1119,7 +907,7 @@ regset(Reg *r, uint32 bb)
 		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
 		if(v.type == 0)
 			fatal("zero v.type for %#ux", b);
-		c = copyu(r->prog, &v, A);
+		c = copyu(r->f.prog, &v, A);
 		if(c == 3)
 			set |= b;
 		bb &= ~b;
@@ -1138,7 +926,7 @@ reguse(Reg *r, uint32 bb)
 	v = zprog.from;
 	while(b = bb & ~(bb-1)) {
 		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		c = copyu(r->prog, &v, A);
+		c = copyu(r->f.prog, &v, A);
 		if(c == 1 || c == 2 || c == 4)
 			set |= b;
 		bb &= ~b;
@@ -1161,7 +949,7 @@ paint2(Reg *r, int bn)
 	for(;;) {
 		if(!(r->refbehind.b[z] & bb))
 			break;
-		r1 = r->p1;
+		r1 = (Reg*)r->f.p1;
 		if(r1 == R)
 			break;
 		if(!(r1->refahead.b[z] & bb))
@@ -1176,17 +964,17 @@ paint2(Reg *r, int bn)
 		vreg |= r->regu;
 
 		if(r->refbehind.b[z] & bb)
-			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
+			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
 				if(r1->refahead.b[z] & bb)
 					vreg |= paint2(r1, bn);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
-		r1 = r->s2;
+		r1 = (Reg*)r->f.s2;
 		if(r1 != R)
 			if(r1->refbehind.b[z] & bb)
 				vreg |= paint2(r1, bn);
-		r = r->s1;
+		r = (Reg*)r->f.s1;
 		if(r == R)
 			break;
 		if(!(r->act.b[z] & bb))
@@ -1196,7 +984,7 @@ paint2(Reg *r, int bn)
 	}
 
 	bb = vreg;
-	for(; r; r=r->s1) {
+	for(; r; r=(Reg*)r->f.s1) {
 		x = r->regu & ~bb;
 		if(x) {
 			vreg |= reguse(r, x);
@@ -1221,7 +1009,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 	for(;;) {
 		if(!(r->refbehind.b[z] & bb))
 			break;
-		r1 = r->p1;
+		r1 = (Reg*)r->f.p1;
 		if(r1 == R)
 			break;
 		if(!(r1->refahead.b[z] & bb))
@@ -1235,7 +1023,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 		addmove(r, bn, rn, 0);
 	for(;;) {
 		r->act.b[z] |= bb;
-		p = r->prog;
+		p = r->f.prog;
 
 		if(r->use1.b[z] & bb) {
 			if(debug['R'] && debug['v'])
@@ -1257,17 +1045,17 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 		r->regu |= rb;
 
 		if(r->refbehind.b[z] & bb)
-			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
+			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
 				if(r1->refahead.b[z] & bb)
 					paint3(r1, bn, rb, rn);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
-		r1 = r->s2;
+		r1 = (Reg*)r->f.s2;
 		if(r1 != R)
 			if(r1->refbehind.b[z] & bb)
 				paint3(r1, bn, rb, rn);
-		r = r->s1;
+		r = (Reg*)r->f.s1;
 		if(r == R)
 			break;
 		if(r->act.b[z] & bb)
@@ -1331,60 +1119,64 @@ BtoF(int32 b)
 }
 
 void
-dumpone(Reg *r)
+dumpone(Flow *f, int isreg)
 {
 	int z;
 	Bits bit;
+	Reg *r;
 
-	print("%d:%P", r->loop, r->prog);
-	for(z=0; z<BITS; z++)
-		bit.b[z] =
-			r->set.b[z] |
-			r->use1.b[z] |
-			r->use2.b[z] |
-			r->refbehind.b[z] |
-			r->refahead.b[z] |
-			r->calbehind.b[z] |
-			r->calahead.b[z] |
-			r->regdiff.b[z] |
-			r->act.b[z] |
-				0;
-	if(bany(&bit)) {
-		print("\t");
-		if(bany(&r->set))
-			print(" s:%Q", r->set);
-		if(bany(&r->use1))
-			print(" u1:%Q", r->use1);
-		if(bany(&r->use2))
-			print(" u2:%Q", r->use2);
-		if(bany(&r->refbehind))
-			print(" rb:%Q ", r->refbehind);
-		if(bany(&r->refahead))
-			print(" ra:%Q ", r->refahead);
-		if(bany(&r->calbehind))
-			print(" cb:%Q ", r->calbehind);
-		if(bany(&r->calahead))
-			print(" ca:%Q ", r->calahead);
-		if(bany(&r->regdiff))
-			print(" d:%Q ", r->regdiff);
-		if(bany(&r->act))
-			print(" a:%Q ", r->act);
+	print("%d:%P", f->loop, f->prog);
+	if(isreg) {	
+		r = (Reg*)f;
+		for(z=0; z<BITS; z++)
+			bit.b[z] =
+				r->set.b[z] |
+				r->use1.b[z] |
+				r->use2.b[z] |
+				r->refbehind.b[z] |
+				r->refahead.b[z] |
+				r->calbehind.b[z] |
+				r->calahead.b[z] |
+				r->regdiff.b[z] |
+				r->act.b[z] |
+					0;
+		if(bany(&bit)) {
+			print("\t");
+			if(bany(&r->set))
+				print(" s:%Q", r->set);
+			if(bany(&r->use1))
+				print(" u1:%Q", r->use1);
+			if(bany(&r->use2))
+				print(" u2:%Q", r->use2);
+			if(bany(&r->refbehind))
+				print(" rb:%Q ", r->refbehind);
+			if(bany(&r->refahead))
+				print(" ra:%Q ", r->refahead);
+			if(bany(&r->calbehind))
+				print(" cb:%Q ", r->calbehind);
+			if(bany(&r->calahead))
+				print(" ca:%Q ", r->calahead);
+			if(bany(&r->regdiff))
+				print(" d:%Q ", r->regdiff);
+			if(bany(&r->act))
+				print(" a:%Q ", r->act);
+		}
 	}
 	print("\n");
 }
 
 void
-dumpit(char *str, Reg *r0)
+dumpit(char *str, Flow *r0, int isreg)
 {
-	Reg *r, *r1;
+	Flow *r, *r1;
 
 	print("\n%s\n", str);
-	for(r = r0; r != R; r = r->link) {
-		dumpone(r);
+	for(r = r0; r != nil; r = r->link) {
+		dumpone(r, isreg);
 		r1 = r->p2;
-		if(r1 != R) {
+		if(r1 != nil) {
 			print("	pred:");
-			for(; r1 != R; r1 = r1->p2link)
+			for(; r1 != nil; r1 = r1->p2link)
 				print(" %.4ud", r1->prog->loc);
 			print("\n");
 		}
