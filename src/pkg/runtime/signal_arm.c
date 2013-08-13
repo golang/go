@@ -46,8 +46,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	bool crash;
 
 	if(sig == SIGPROF) {
-		if(gp != m->g0 && gp != m->gsignal)
-			runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp);
+		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp);
 		return;
 	}
 

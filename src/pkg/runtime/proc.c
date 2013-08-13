@@ -1990,26 +1990,45 @@ static struct {
 	uintptr pcbuf[100];
 } prof;
 
+static void
+System(void)
+{
+}
+
 // Called if we receive a SIGPROF signal.
 void
 runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 {
 	int32 n;
+	bool traceback;
 
-	// Windows does profiling in a dedicated thread w/o m.
-	if(!Windows && (m == nil || m->mcache == nil))
-		return;
 	if(prof.fn == nil || prof.hz == 0)
 		return;
+	traceback = true;
+	// Windows does profiling in a dedicated thread w/o m.
+	if(!Windows && (m == nil || m->mcache == nil))
+		traceback = false;
+	if(gp == m->g0 || gp == m->gsignal)
+		traceback = false;
+	// Race detector calls asmcgocall w/o entersyscall/exitsyscall,
+	// we can not currently unwind through asmcgocall.
+	if(m != nil && m->racecall)
+		traceback = false;
 
 	runtime·lock(&prof);
 	if(prof.fn == nil) {
 		runtime·unlock(&prof);
 		return;
 	}
-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
-	if(n > 0)
-		prof.fn(prof.pcbuf, n);
+	n = 0;
+	if(traceback)
+		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+	if(!traceback || n <= 0) {
+		n = 2;
+		prof.pcbuf[0] = (uintptr)pc;
+		prof.pcbuf[1] = (uintptr)System + 1;
+	}
+	prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
 }
 
