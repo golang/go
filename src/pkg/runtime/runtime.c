@@ -388,6 +388,8 @@ static struct {
 	int32*	value;
 } dbgvar[] = {
 	{"gctrace", &runtime·debug.gctrace},
+	{"schedtrace", &runtime·debug.schedtrace},
+	{"scheddetail", &runtime·debug.scheddetail},
 };
 
 void
