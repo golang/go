@@ -85,10 +85,10 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
 	afnet, _, err := parseNetwork(net)
 	if err != nil {
-		return nil, &OpError{op, net, nil, err}
+		return nil, err
 	}
 	if op == "dial" && addr == "" {
-		return nil, &OpError{op, net, nil, errMissingAddress}
+		return nil, errMissingAddress
 	}
 	switch afnet {
 	case "unix", "unixgram", "unixpacket":
@@ -148,7 +148,7 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 
 func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
 	if la != nil && la.Network() != ra.Network() {
-		return nil, &OpError{"dial", net, ra, errors.New("mismatched local addr type " + la.Network())}
+		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
 	}
 	switch ra := ra.(type) {
 	case *TCPAddr:
@@ -164,7 +164,7 @@ func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error)
 		la, _ := la.(*UnixAddr)
 		c, err = dialUnix(net, la, ra, deadline)
 	default:
-		err = &OpError{"dial", net + " " + addr, ra, UnknownNetworkError(net)}
+		err = &OpError{Op: "dial", Net: net, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: addr}}
 	}
 	if err != nil {
 		return nil, err
@@ -186,15 +186,16 @@ func (a stringAddr) String() string  { return a.addr }
 func Listen(net, laddr string) (Listener, error) {
 	la, err := resolveAddr("listen", net, laddr, noDeadline)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
 	switch la := la.(type) {
 	case *TCPAddr:
 		return ListenTCP(net, la)
 	case *UnixAddr:
 		return ListenUnix(net, la)
+	default:
+		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
 	}
-	return nil, UnknownNetworkError(net)
 }
 
 // ListenPacket announces on the local network address laddr.
@@ -204,7 +205,7 @@ func Listen(net, laddr string) (Listener, error) {
 func ListenPacket(net, laddr string) (PacketConn, error) {
 	la, err := resolveAddr("listen", net, laddr, noDeadline)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
 	switch la := la.(type) {
 	case *UDPAddr:
@@ -213,6 +214,7 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
 		return ListenIP(net, la)
 	case *UnixAddr:
 		return ListenUnixgram(net, la)
+	default:
+		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
 	}
-	return nil, UnknownNetworkError(net)
 }
