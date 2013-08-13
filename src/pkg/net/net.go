@@ -160,7 +160,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setDeadline(c.fd, t)
+	return c.fd.setDeadline(t)
 }
 
 // SetReadDeadline implements the Conn SetReadDeadline method.
@@ -168,7 +168,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setReadDeadline(c.fd, t)
+	return c.fd.setReadDeadline(t)
 }
 
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
@@ -176,7 +176,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return setWriteDeadline(c.fd, t)
+	return c.fd.setWriteDeadline(t)
 }
 
 // SetReadBuffer sets the size of the operating system's

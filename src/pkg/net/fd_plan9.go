@@ -108,15 +108,15 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
 	return os.NewFile(uintptr(dfd), s), nil
 }
 
-func setDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setDeadline(t time.Time) error {
 	return syscall.EPLAN9
 }
 
-func setReadDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setReadDeadline(t time.Time) error {
 	return syscall.EPLAN9
 }
 
-func setWriteDeadline(fd *netFD, t time.Time) error {
+func (fd *netFD) setWriteDeadline(t time.Time) error {
 	return syscall.EPLAN9
 }
 

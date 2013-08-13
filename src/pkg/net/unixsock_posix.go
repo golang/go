@@ -347,7 +347,7 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
 	if l == nil || l.fd == nil {
 		return syscall.EINVAL
 	}
-	return setDeadline(l.fd, t)
+	return l.fd.setDeadline(t)
 }
 
 // File returns a copy of the underlying os.File, set to blocking
