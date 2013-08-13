@@ -6,6 +6,32 @@
 
 #include "../../../cmd/ld/textflag.h"
 
+TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+	JMP	·SwapUint32(SB)
+
+TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+	MOVQ	addr+0(FP), BP
+	MOVL	new+8(FP), AX
+	XCHGL	AX, 0(BP)
+	MOVL	AX, new+16(FP)
+	RET
+
+TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+	JMP	·SwapUint64(SB)
+
+TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+	MOVQ	addr+0(FP), BP
+	MOVQ	new+8(FP), AX
+	XCHGQ	AX, 0(BP)
+	MOVQ	AX, new+16(FP)
+	RET
+
+TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+	JMP	·SwapUint64(SB)
+
+TEXT ·SwapPointer(SB),NOSPLIT,$0-24
+	JMP	·SwapUint64(SB)
+
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
 	JMP	·CompareAndSwapUint32(SB)
 

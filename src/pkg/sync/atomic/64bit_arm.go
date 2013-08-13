@@ -34,3 +34,13 @@ func addUint64(val *uint64, delta uint64) (new uint64) {
 	}
 	return
 }
+
+func swapUint64(addr *uint64, new uint64) (old uint64) {
+	for {
+		old := *addr
+		if CompareAndSwapUint64(addr, old, new) {
+			break
+		}
+	}
+	return
+}

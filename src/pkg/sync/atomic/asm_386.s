@@ -6,6 +6,53 @@
 
 #include "../../../cmd/ld/textflag.h"
 
+TEXT ·SwapInt32(SB),NOSPLIT,$0-12
+	JMP	·SwapUint32(SB)
+
+TEXT ·SwapUint32(SB),NOSPLIT,$0-12
+	MOVL	addr+0(FP), BP
+	MOVL	new+4(FP), AX
+	XCHGL	AX, 0(BP)
+	MOVL	AX, new+8(FP)
+	RET
+
+TEXT ·SwapInt64(SB),NOSPLIT,$0-20
+	JMP	·SwapUint64(SB)
+
+TEXT ·SwapUint64(SB),NOSPLIT,$0-20
+	// no XCHGQ so use CMPXCHG8B loop
+	MOVL	addr+0(FP), BP
+	TESTL	$7, BP
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
+	// CX:BX = new
+	MOVL	new_lo+4(FP), BX
+	MOVL	new_hi+8(FP), CX
+	// DX:AX = *addr
+	MOVL	0(BP), AX
+	MOVL	4(BP), DX
+swaploop:
+	// if *addr == DX:AX
+	//	*addr = CX:BX
+	// else
+	//	DX:AX = *addr
+	// all in one instruction
+	LOCK
+	CMPXCHG8B	0(BP)
+	JNZ	swaploop
+
+	// success
+	// return DX:AX
+	MOVL	AX, new_lo+12(FP)
+	MOVL	DX, new_hi+16(FP)
+	RET
+
+TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
+	JMP	·SwapUint32(SB)
+
+TEXT ·SwapPointer(SB),NOSPLIT,$0-12
+	JMP	·SwapUint32(SB)
+
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
 	JMP	·CompareAndSwapUint32(SB)
 

@@ -91,6 +91,37 @@ add64loop:
 	MOVW	R5, rethi+16(FP)
 	RET
 
+TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
+	MOVW	addr+0(FP), R1
+	MOVW	new+4(FP), R2
+swaploop:
+	// LDREX and STREX were introduced in ARM 6.
+	LDREX	(R1), R3
+	STREX	R2, (R1), R0
+	CMP	$0, R0
+	BNE	swaploop
+	MOVW	R3, old+8(FP)
+	RET
+
+TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
+	BL	fastCheck64<>(SB)
+	MOVW	addr+0(FP), R1
+	// make unaligned atomic access panic
+	AND.S	$7, R1, R2
+	BEQ 	2(PC)
+	MOVW	R2, (R2)
+	MOVW	newlo+4(FP), R2
+	MOVW	newhi+8(FP), R3
+swap64loop:
+	// LDREXD and STREXD were introduced in ARM 11.
+	LDREXD	(R1), R4	// loads R4 and R5
+	STREXD	R2, (R1), R0	// stores R2 and R3
+	CMP	$0, R0
+	BNE	swap64loop
+	MOVW	R4, oldlo+12(FP)
+	MOVW	R5, oldhi+16(FP)
+	RET
+
 TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
 	BL	fastCheck64<>(SB)
 	MOVW	addr+0(FP), R1
