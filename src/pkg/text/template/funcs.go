@@ -199,7 +199,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 		argv[i] = value
 	}
 	result := v.Call(argv)
-	if len(result) == 2 {
+	if len(result) == 2 && !result[1].IsNil() {
 		return result[0].Interface(), result[1].Interface().(error)
 	}
 	return result[0].Interface(), nil
