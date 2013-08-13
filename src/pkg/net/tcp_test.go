@@ -494,3 +494,78 @@ func TestTCPReadWriteMallocs(t *testing.T) {
 		t.Fatalf("Got %v allocs, want %v", mallocs, maxMallocs)
 	}
 }
+
+func TestTCPStress(t *testing.T) {
+	const conns = 2
+	const msgs = 1e4
+	const msgLen = 512
+
+	sendMsg := func(c Conn, buf []byte) bool {
+		n, err := c.Write(buf)
+		if n != len(buf) || err != nil {
+			t.Logf("Write failed: %v", err)
+			return false
+		}
+		return true
+	}
+	recvMsg := func(c Conn, buf []byte) bool {
+		for read := 0; read != len(buf); {
+			n, err := c.Read(buf)
+			read += n
+			if err != nil {
+				t.Logf("Read failed: %v", err)
+				return false
+			}
+		}
+		return true
+	}
+
+	ln, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	defer ln.Close()
+	// Acceptor.
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				break
+			}
+			// Server connection.
+			go func(c Conn) {
+				defer c.Close()
+				var buf [msgLen]byte
+				for m := 0; m < msgs; m++ {
+					if !recvMsg(c, buf[:]) || !sendMsg(c, buf[:]) {
+						break
+					}
+				}
+			}(c)
+		}
+	}()
+	done := make(chan bool)
+	for i := 0; i < conns; i++ {
+		// Client connection.
+		go func() {
+			defer func() {
+				done <- true
+			}()
+			c, err := Dial("tcp", ln.Addr().String())
+			if err != nil {
+				t.Logf("Dial failed: %v", err)
+				return
+			}
+			defer c.Close()
+			var buf [msgLen]byte
+			for m := 0; m < msgs; m++ {
+				if !sendMsg(c, buf[:]) || !recvMsg(c, buf[:]) {
+					break
+				}
+			}
+		}()
+	}
+	for i := 0; i < conns; i++ {
+		<-done
+	}
+}
