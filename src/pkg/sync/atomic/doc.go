@@ -47,6 +47,8 @@ import (
 
 // BUG(rsc): On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
 //
+// On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
+//
 // On both ARM and x86-32, it is the caller's responsibility to arrange for 64-bit
 // alignment of 64-bit words accessed atomically. The first word in a global
 // variable or in an allocated struct or slice can be relied upon to be
