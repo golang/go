@@ -395,13 +395,14 @@ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 }
 
 // NoGoError is the error used by Import to describe a directory
-// containing no Go source files.
+// containing no buildable Go source files. (It may still contain
+// test files, files hidden by build tags, and so on.)
 type NoGoError struct {
 	Dir string
 }
 
 func (e *NoGoError) Error() string {
-	return "no Go source files in " + e.Dir
+	return "no buildable Go source files in " + e.Dir
 }
 
 // Import returns details about the Go package named by the import path,
