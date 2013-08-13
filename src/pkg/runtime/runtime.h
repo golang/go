@@ -361,9 +361,10 @@ struct P
 {
 	Lock;
 
-	uint32	status;  // one of Pidle/Prunning/...
+	uint32	status;	// one of Pidle/Prunning/...
 	P*	link;
-	uint32	tick;   // incremented on every scheduler or system call
+	uint32	schedtick;	// incremented on every scheduler call
+	uint32	syscalltick;	// incremented on every system call
 	M*	m;	// back-link to associated M (nil if idle)
 	MCache*	mcache;
 

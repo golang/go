@@ -1085,7 +1085,7 @@ execute(G *gp)
 	gp->status = Grunning;
 	gp->preempt = false;
 	gp->stackguard0 = gp->stackguard;
-	m->p->tick++;
+	m->p->schedtick++;
 	m->curg = gp;
 	gp->m = m;
 
@@ -1272,7 +1272,7 @@ top:
 	// Check the global runnable queue once in a while to ensure fairness.
 	// Otherwise two goroutines can completely occupy the local runqueue
 	// by constantly respawning each other.
-	tick = m->p->tick;
+	tick = m->p->schedtick;
 	// This is a fancy way to say tick%61==0,
 	// it uses 2 MUL instructions instead of a single DIV and so is faster on modern processors.
 	if(tick - (((uint64)tick*0x4325c53fu)>>36)*61 == 0 && runtime·sched.runqsize > 0) {
@@ -1440,7 +1440,6 @@ void
 	}
 
 	m->mcache = nil;
-	m->p->tick++;
 	m->p->m = nil;
 	runtime·atomicstore(&m->p->status, Psyscall);
 	if(runtime·gcwaiting) {
@@ -1509,7 +1508,7 @@ runtime·exitsyscall(void)
 
 	if(exitsyscallfast()) {
 		// There's a cpu for us, so we can run.
-		m->p->tick++;
+		m->p->syscalltick++;
 		g->status = Grunning;
 		// Garbage collector isn't running (since we are),
 		// so okay to clear gcstack and gcsp.
@@ -1539,6 +1538,7 @@ runtime·exitsyscall(void)
 	// is not running.
 	g->syscallstack = (uintptr)nil;
 	g->syscallsp = (uintptr)nil;
+	m->p->syscalltick++;
 }
 
 #pragma textflag NOSPLIT
@@ -2282,8 +2282,10 @@ sysmon(void)
 typedef struct Pdesc Pdesc;
 struct Pdesc
 {
-	uint32	tick;
-	int64	when;
+	uint32	schedtick;
+	int64	schedwhen;
+	uint32	syscalltick;
+	int64	syscallwhen;
 };
 static Pdesc pdesc[MaxGomaxprocs];
 
@@ -2300,17 +2302,17 @@ retake(int64 now)
 		p = runtime·allp[i];
 		if(p==nil)
 			continue;
-		t = p->tick;
 		pd = &pdesc[i];
-		if(pd->tick != t) {
-			pd->tick = t;
-			pd->when = now;
-			continue;
-		}
 		s = p->status;
 		if(s == Psyscall) {
 			// Retake P from syscall if it's there for more than 1 sysmon tick (20us).
 			// But only if there is other work to do.
+			t = p->syscalltick;
+			if(pd->syscalltick != t) {
+				pd->syscalltick = t;
+				pd->syscallwhen = now;
+				continue;
+			}
 			if(p->runqhead == p->runqtail &&
 				runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0)
 				continue;
@@ -2326,7 +2328,13 @@ retake(int64 now)
 			incidlelocked(1);
 		} else if(s == Prunning) {
 			// Preempt G if it's running for more than 10ms.
-			if(pd->when + 10*1000*1000 > now)
+			t = p->schedtick;
+			if(pd->schedtick != t) {
+				pd->schedtick = t;
+				pd->schedwhen = now;
+				continue;
+			}
+			if(pd->schedwhen + 10*1000*1000 > now)
 				continue;
 			preemptone(p);
 		}
