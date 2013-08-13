@@ -113,10 +113,13 @@ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
 	runtime·lock(pd);
 	err = checkerr(pd, mode);
 	if(err == 0) {
-		if(!netpollblock(pd, mode)) {
+		while(!netpollblock(pd, mode)) {
 			err = checkerr(pd, mode);
-			if(err == 0)
-				runtime·throw("runtime_pollWait: unblocked by ioready");
+			if(err != 0)
+				break;
+			// Can happen if timeout has fired and unblocked us,
+			// but before we had a chance to run, timeout has been reset.
+			// Pretend it has not happened and retry.
 		}
 	}
 	runtime·unlock(pd);
