@@ -47,6 +47,7 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 		for i := 0; i < 2000; i++ {
 			crc32.ChecksumIEEE(buf)
 		}
+		<-c
 	})
 }
 
