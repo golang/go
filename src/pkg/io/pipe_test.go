@@ -268,3 +268,35 @@ func TestWriteNil(t *testing.T) {
 	ReadFull(r, b[0:2])
 	r.Close()
 }
+
+func TestWriteAfterWriterClose(t *testing.T) {
+	r, w := Pipe()
+
+	done := make(chan bool)
+	var writeErr error
+	go func() {
+		_, err := w.Write([]byte("hello"))
+		if err != nil {
+			t.Errorf("got error: %q; expected none", err)
+		}
+		w.Close()
+		_, writeErr = w.Write([]byte("world"))
+		done <- true
+	}()
+
+	buf := make([]byte, 100)
+	var result string
+	n, err := ReadFull(r, buf)
+	if err != nil && err != ErrUnexpectedEOF {
+		t.Fatalf("got: %q; want: %q", err, ErrUnexpectedEOF)
+	}
+	result = string(buf[0:n])
+	<-done
+
+	if result != "hello" {
+		t.Errorf("got: %q; want: %q", result, "hello")
+	}
+	if writeErr != ErrClosedPipe {
+		t.Errorf("got: %q; want: %q", writeErr, ErrClosedPipe)
+	}
+}
