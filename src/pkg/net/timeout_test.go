@@ -703,3 +703,36 @@ func TestProlongTimeout(t *testing.T) {
 		c.Write(buf[:])
 	}
 }
+
+func TestDeadlineRace(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	ln := newLocalListener(t)
+	defer ln.Close()
+	c, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+	done := make(chan bool)
+	go func() {
+		t := time.NewTicker(2 * time.Microsecond).C
+		for {
+			if err := c.SetDeadline(time.Now().Add(2 * time.Microsecond)); err != nil {
+				break
+			}
+			<-t
+		}
+		done <- true
+	}()
+	var buf [1]byte
+	for i := 0; i < 1024; i++ {
+		c.Read(buf[:]) // ignore possible timeout errors
+	}
+	c.Close()
+	<-done
+}
