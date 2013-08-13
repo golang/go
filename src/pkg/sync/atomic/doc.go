@@ -13,6 +13,13 @@
 // Share memory by communicating;
 // don't communicate by sharing memory.
 //
+// The swap operation, implemented by the SwapT functions, is the atomic
+// equivalent of:
+//
+//	old = *addr
+//	*addr = new
+//	return old
+//
 // The compare-and-swap operation, implemented by the CompareAndSwapT
 // functions, is the atomic equivalent of:
 //
@@ -44,6 +51,24 @@ import (
 // alignment of 64-bit words accessed atomically. The first word in a global
 // variable or in an allocated struct or slice can be relied upon to be
 // 64-bit aligned.
+
+// SwapInt32 atomically stores new into *addr and returns the previous *addr value.
+func SwapInt32(addr *int32, new int32) (old int32)
+
+// SwapInt64 atomically stores new into *addr and returns the previous *addr value.
+func SwapInt64(addr *int64, new int64) (old int64)
+
+// SwapUint32 atomically stores new into *addr and returns the previous *addr value.
+func SwapUint32(addr *uint32, new uint32) (old uint32)
+
+// SwapUint64 atomically stores new into *addr and returns the previous *addr value.
+func SwapUint64(addr *uint64, new uint64) (old uint64)
+
+// SwapUintptr atomically stores new into *addr and returns the previous *addr value.
+func SwapUintptr(addr *uintptr, new uintptr) (old uintptr)
+
+// SwapPointer atomically stores new into *addr and returns the previous *addr value.
+func SwapPointer(addr *unsafe.Pointer, new unsafe.Pointer) (old unsafe.Pointer)
 
 // CompareAndSwapInt32 executes the compare-and-swap operation for an int32 value.
 func CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)

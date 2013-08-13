@@ -5,7 +5,9 @@
 package atomic_test
 
 import (
+	"fmt"
 	"runtime"
+	"strings"
 	. "sync/atomic"
 	"testing"
 	"unsafe"
@@ -37,6 +39,142 @@ var test64err = func() (err interface{}) {
 	AddInt64(&x, 1)
 	return nil
 }()
+
+func TestSwapInt32(t *testing.T) {
+	var x struct {
+		before int32
+		i      int32
+		after  int32
+	}
+	x.before = magic32
+	x.after = magic32
+	var j int32
+	for delta := int32(1); delta+delta > delta; delta += delta {
+		k := SwapInt32(&x.i, delta)
+		if x.i != delta || k != j {
+			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+		}
+		j = delta
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestSwapUint32(t *testing.T) {
+	var x struct {
+		before uint32
+		i      uint32
+		after  uint32
+	}
+	x.before = magic32
+	x.after = magic32
+	var j uint32
+	for delta := uint32(1); delta+delta > delta; delta += delta {
+		k := SwapUint32(&x.i, delta)
+		if x.i != delta || k != j {
+			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+		}
+		j = delta
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestSwapInt64(t *testing.T) {
+	if test64err != nil {
+		t.Skipf("Skipping 64-bit tests: %v", test64err)
+	}
+	var x struct {
+		before int64
+		i      int64
+		after  int64
+	}
+	x.before = magic64
+	x.after = magic64
+	var j int64
+	for delta := int64(1); delta+delta > delta; delta += delta {
+		k := SwapInt64(&x.i, delta)
+		if x.i != delta || k != j {
+			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+		}
+		j = delta
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
+	}
+}
+
+func TestSwapUint64(t *testing.T) {
+	if test64err != nil {
+		t.Skipf("Skipping 64-bit tests: %v", test64err)
+	}
+	var x struct {
+		before uint64
+		i      uint64
+		after  uint64
+	}
+	x.before = magic64
+	x.after = magic64
+	var j uint64
+	for delta := uint64(1); delta+delta > delta; delta += delta {
+		k := SwapUint64(&x.i, delta)
+		if x.i != delta || k != j {
+			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+		}
+		j = delta
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
+	}
+}
+
+func TestSwapUintptr(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      uintptr
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	var j uintptr
+	for delta := uintptr(1); delta+delta > delta; delta += delta {
+		k := SwapUintptr(&x.i, delta)
+		if x.i != delta || k != j {
+			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+		}
+		j = delta
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
+func TestSwapPointer(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      unsafe.Pointer
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	var j uintptr
+	for delta := uintptr(1); delta+delta > delta; delta += delta {
+		k := SwapPointer(&x.i, unsafe.Pointer(delta))
+		if uintptr(x.i) != delta || uintptr(k) != j {
+			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+		}
+		j = delta
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
 
 func TestAddInt32(t *testing.T) {
 	var x struct {
@@ -608,27 +746,85 @@ func TestStorePointer(t *testing.T) {
 // uses the atomic operation to add 1 to a value.  After running
 // multiple hammers in parallel, check that we end with the correct
 // total.
+// Swap can't add 1, so it uses a different scheme.
+// The functions repeatedly generate a pseudo-random number such that
+// low bits are equal to high bits, swap, check that the old value
+// has low and high bits equal.
 
-var hammer32 = []struct {
-	name string
-	f    func(*uint32, int)
-}{
-	{"AddInt32", hammerAddInt32},
-	{"AddUint32", hammerAddUint32},
-	{"AddUintptr", hammerAddUintptr32},
-	{"CompareAndSwapInt32", hammerCompareAndSwapInt32},
-	{"CompareAndSwapUint32", hammerCompareAndSwapUint32},
-	{"CompareAndSwapUintptr", hammerCompareAndSwapUintptr32},
-	{"CompareAndSwapPointer", hammerCompareAndSwapPointer32},
+var hammer32 = map[string]func(*uint32, int){
+	"SwapInt32":             hammerSwapInt32,
+	"SwapUint32":            hammerSwapUint32,
+	"SwapUintptr":           hammerSwapUintptr32,
+	"SwapPointer":           hammerSwapPointer32,
+	"AddInt32":              hammerAddInt32,
+	"AddUint32":             hammerAddUint32,
+	"AddUintptr":            hammerAddUintptr32,
+	"CompareAndSwapInt32":   hammerCompareAndSwapInt32,
+	"CompareAndSwapUint32":  hammerCompareAndSwapUint32,
+	"CompareAndSwapUintptr": hammerCompareAndSwapUintptr32,
+	"CompareAndSwapPointer": hammerCompareAndSwapPointer32,
 }
 
 func init() {
 	var v uint64 = 1 << 50
 	if uintptr(v) != 0 {
 		// 64-bit system; clear uintptr tests
-		hammer32[2].f = nil
-		hammer32[5].f = nil
-		hammer32[6].f = nil
+		delete(hammer32, "SwapUintptr")
+		delete(hammer32, "SwapPointer")
+		delete(hammer32, "AddUintptr")
+		delete(hammer32, "CompareAndSwapUintptr")
+		delete(hammer32, "CompareAndSwapPointer")
+	}
+}
+
+func hammerSwapInt32(uaddr *uint32, count int) {
+	addr := (*int32)(unsafe.Pointer(uaddr))
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uint32(seed+i)<<16 | uint32(seed+i)<<16>>16
+		old := uint32(SwapInt32(addr, int32(new)))
+		if old>>16 != old<<16>>16 {
+			panic(fmt.Sprintf("SwapInt32 is not atomic: %v", old))
+		}
+	}
+}
+
+func hammerSwapUint32(addr *uint32, count int) {
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uint32(seed+i)<<16 | uint32(seed+i)<<16>>16
+		old := SwapUint32(addr, new)
+		if old>>16 != old<<16>>16 {
+			panic(fmt.Sprintf("SwapUint32 is not atomic: %v", old))
+		}
+	}
+}
+
+func hammerSwapUintptr32(uaddr *uint32, count int) {
+	// only safe when uintptr is 32-bit.
+	// not called on 64-bit systems.
+	addr := (*uintptr)(unsafe.Pointer(uaddr))
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uintptr(seed+i)<<16 | uintptr(seed+i)<<16>>16
+		old := SwapUintptr(addr, new)
+		if old>>16 != old<<16>>16 {
+			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+		}
+	}
+}
+
+func hammerSwapPointer32(uaddr *uint32, count int) {
+	// only safe when uintptr is 32-bit.
+	// not called on 64-bit systems.
+	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uintptr(seed+i)<<16 | uintptr(seed+i)<<16>>16
+		old := uintptr(SwapPointer(addr, unsafe.Pointer(new)))
+		if old>>16 != old<<16>>16 {
+			panic(fmt.Sprintf("SwapPointer is not atomic: %v", old))
+		}
 	}
 }
 
@@ -713,47 +909,103 @@ func TestHammer32(t *testing.T) {
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(p))
 
-	for _, tt := range hammer32 {
-		if tt.f == nil {
-			continue
-		}
+	for name, testf := range hammer32 {
 		c := make(chan int)
 		var val uint32
 		for i := 0; i < p; i++ {
 			go func() {
-				tt.f(&val, n)
-				c <- 1
+				defer func() {
+					if err := recover(); err != nil {
+						t.Error(err.(string))
+					}
+					c <- 1
+				}()
+				testf(&val, n)
 			}()
 		}
 		for i := 0; i < p; i++ {
 			<-c
 		}
-		if val != uint32(n)*p {
-			t.Fatalf("%s: val=%d want %d", tt.name, val, n*p)
+		if !strings.HasPrefix(name, "Swap") && val != uint32(n)*p {
+			t.Fatalf("%s: val=%d want %d", name, val, n*p)
 		}
 	}
 }
 
-var hammer64 = []struct {
-	name string
-	f    func(*uint64, int)
-}{
-	{"AddInt64", hammerAddInt64},
-	{"AddUint64", hammerAddUint64},
-	{"AddUintptr", hammerAddUintptr64},
-	{"CompareAndSwapInt64", hammerCompareAndSwapInt64},
-	{"CompareAndSwapUint64", hammerCompareAndSwapUint64},
-	{"CompareAndSwapUintptr", hammerCompareAndSwapUintptr64},
-	{"CompareAndSwapPointer", hammerCompareAndSwapPointer64},
+var hammer64 = map[string]func(*uint64, int){
+	"SwapInt64":             hammerSwapInt64,
+	"SwapUint64":            hammerSwapUint64,
+	"SwapUintptr":           hammerSwapUintptr64,
+	"SwapPointer":           hammerSwapPointer64,
+	"AddInt64":              hammerAddInt64,
+	"AddUint64":             hammerAddUint64,
+	"AddUintptr":            hammerAddUintptr64,
+	"CompareAndSwapInt64":   hammerCompareAndSwapInt64,
+	"CompareAndSwapUint64":  hammerCompareAndSwapUint64,
+	"CompareAndSwapUintptr": hammerCompareAndSwapUintptr64,
+	"CompareAndSwapPointer": hammerCompareAndSwapPointer64,
 }
 
 func init() {
 	var v uint64 = 1 << 50
 	if uintptr(v) == 0 {
 		// 32-bit system; clear uintptr tests
-		hammer64[2].f = nil
-		hammer64[5].f = nil
-		hammer64[6].f = nil
+		delete(hammer64, "SwapUintptr")
+		delete(hammer64, "SwapPointer")
+		delete(hammer64, "AddUintptr")
+		delete(hammer64, "CompareAndSwapUintptr")
+		delete(hammer64, "CompareAndSwapPointer")
+	}
+}
+
+func hammerSwapInt64(uaddr *uint64, count int) {
+	addr := (*int64)(unsafe.Pointer(uaddr))
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uint64(seed+i)<<32 | uint64(seed+i)<<32>>32
+		old := uint64(SwapInt64(addr, int64(new)))
+		if old>>32 != old<<32>>32 {
+			panic(fmt.Sprintf("SwapInt64 is not atomic: %v", old))
+		}
+	}
+}
+
+func hammerSwapUint64(addr *uint64, count int) {
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uint64(seed+i)<<32 | uint64(seed+i)<<32>>32
+		old := SwapUint64(addr, new)
+		if old>>32 != old<<32>>32 {
+			panic(fmt.Sprintf("SwapUint64 is not atomic: %v", old))
+		}
+	}
+}
+
+func hammerSwapUintptr64(uaddr *uint64, count int) {
+	// only safe when uintptr is 64-bit.
+	// not called on 32-bit systems.
+	addr := (*uintptr)(unsafe.Pointer(uaddr))
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
+		old := SwapUintptr(addr, new)
+		if old>>32 != old<<32>>32 {
+			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+		}
+	}
+}
+
+func hammerSwapPointer64(uaddr *uint64, count int) {
+	// only safe when uintptr is 64-bit.
+	// not called on 32-bit systems.
+	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
+	seed := int(uintptr(unsafe.Pointer(&count)))
+	for i := 0; i < count; i++ {
+		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
+		old := uintptr(SwapPointer(addr, unsafe.Pointer(new)))
+		if old>>32 != old<<32>>32 {
+			panic(fmt.Sprintf("SwapPointer is not atomic: %v", old))
+		}
 	}
 }
 
@@ -841,23 +1093,25 @@ func TestHammer64(t *testing.T) {
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(p))
 
-	for _, tt := range hammer64 {
-		if tt.f == nil {
-			continue
-		}
+	for name, testf := range hammer64 {
 		c := make(chan int)
 		var val uint64
 		for i := 0; i < p; i++ {
 			go func() {
-				tt.f(&val, n)
-				c <- 1
+				defer func() {
+					if err := recover(); err != nil {
+						t.Error(err.(string))
+					}
+					c <- 1
+				}()
+				testf(&val, n)
 			}()
 		}
 		for i := 0; i < p; i++ {
 			<-c
 		}
-		if val != uint64(n)*p {
-			t.Fatalf("%s: val=%d want %d", tt.name, val, n*p)
+		if !strings.HasPrefix(name, "Swap") && val != uint64(n)*p {
+			t.Fatalf("%s: val=%d want %d", name, val, n*p)
 		}
 	}
 }

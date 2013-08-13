@@ -76,6 +76,26 @@ addloop1:
 TEXT ·AddUintptr(SB),NOSPLIT,$0
 	B	·AddUint32(SB)
 
+TEXT ·SwapInt32(SB),NOSPLIT,$0
+	B	·SwapUint32(SB)
+
+// Implement using kernel cas for portability.
+TEXT ·SwapUint32(SB),NOSPLIT,$0-12
+	MOVW	addr+0(FP), R2
+	MOVW	new+4(FP), R1
+swaploop1:
+	MOVW	0(R2), R0
+	BL	cas<>(SB)
+	BCC	swaploop1
+	MOVW	R0, old+8(FP)
+	RET
+
+TEXT ·SwapUintptr(SB),NOSPLIT,$0
+	B	·SwapUint32(SB)
+
+TEXT ·SwapPointer(SB),NOSPLIT,$0
+	B	·SwapUint32(SB)
+
 TEXT cas64<>(SB),NOSPLIT,$0
 	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
 
@@ -147,6 +167,12 @@ TEXT ·AddInt64(SB),NOSPLIT,$0
 
 TEXT ·AddUint64(SB),NOSPLIT,$0
 	B	·addUint64(SB)
+
+TEXT ·SwapInt64(SB),NOSPLIT,$0
+	B	·swapUint64(SB)
+
+TEXT ·SwapUint64(SB),NOSPLIT,$0
+	B	·swapUint64(SB)
 
 TEXT ·LoadInt32(SB),NOSPLIT,$0
 	B	·LoadUint32(SB)
