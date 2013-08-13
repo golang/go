@@ -21,22 +21,23 @@ package sync
 #include "runtime.h"
 #include "arch_GOARCH.h"
 
-typedef struct Sema Sema;
-struct Sema
+typedef struct SemaWaiter SemaWaiter;
+struct SemaWaiter
 {
 	uint32 volatile*	addr;
 	G*	g;
 	int64	releasetime;
-	Sema*	prev;
-	Sema*	next;
+	int32	nrelease;	// -1 for acquire
+	SemaWaiter*	prev;
+	SemaWaiter*	next;
 };
 
 typedef struct SemaRoot SemaRoot;
 struct SemaRoot
 {
 	Lock;
-	Sema*	head;
-	Sema*	tail;
+	SemaWaiter*	head;
+	SemaWaiter*	tail;
 	// Number of waiters. Read w/o the lock.
 	uint32 volatile	nwait;
 };
@@ -59,7 +60,7 @@ semroot(uint32 *addr)
 }
 
 static void
-semqueue(SemaRoot *root, uint32 volatile *addr, Sema *s)
+semqueue(SemaRoot *root, uint32 volatile *addr, SemaWaiter *s)
 {
 	s->g = g;
 	s->addr = addr;
@@ -73,7 +74,7 @@ semqueue(SemaRoot *root, uint32 volatile *addr, Sema *s)
 }
 
 static void
-semdequeue(SemaRoot *root, Sema *s)
+semdequeue(SemaRoot *root, SemaWaiter *s)
 {
 	if(s->next)
 		s->next->prev = s->prev;
@@ -101,7 +102,7 @@ cansemacquire(uint32 *addr)
 void
 runtime·semacquire(uint32 volatile *addr, bool profile)
 {
-	Sema s;	// Needs to be allocated on stack, otherwise garbage collector could deallocate it
+	SemaWaiter s;	// Needs to be allocated on stack, otherwise garbage collector could deallocate it
 	SemaRoot *root;
 	int64 t0;
 	
@@ -147,7 +148,7 @@ runtime·semacquire(uint32 volatile *addr, bool profile)
 void
 runtime·semrelease(uint32 volatile *addr)
 {
-	Sema *s;
+	SemaWaiter *s;
 	SemaRoot *root;
 
 	root = semroot(addr);
@@ -199,4 +200,94 @@ func runtime_Semacquire(addr *uint32) {
 
 func runtime_Semrelease(addr *uint32) {
 	runtime·semrelease(addr);
+}
+
+typedef struct SyncSema SyncSema;
+struct SyncSema
+{
+	Lock;
+	SemaWaiter*	head;
+	SemaWaiter*	tail;
+};
+
+func runtime_Syncsemcheck(size uintptr) {
+	if(size != sizeof(SyncSema)) {
+		runtime·printf("bad SyncSema size: sync:%D runtime:%D\n", (int64)size, (int64)sizeof(SyncSema));
+		runtime·throw("bad SyncSema size");
+	}
+}
+
+// Syncsemacquire waits for a pairing Syncsemrelease on the same semaphore s.
+func runtime_Syncsemacquire(s *SyncSema) {
+	SemaWaiter w, *wake;
+	int64 t0;
+
+	w.g = g;
+	w.nrelease = -1;
+	w.next = nil;
+	w.releasetime = 0;
+	t0 = 0;
+	if(runtime·blockprofilerate > 0) {
+		t0 = runtime·cputicks();
+		w.releasetime = -1;
+	}
+
+	runtime·lock(s);
+	if(s->head && s->head->nrelease > 0) {
+		// have pending release, consume it
+		wake = nil;
+		s->head->nrelease--;
+		if(s->head->nrelease == 0) {
+			wake = s->head;
+			s->head = wake->next;
+			if(s->head == nil)
+				s->tail = nil;
+		}
+		runtime·unlock(s);
+		if(wake)
+			runtime·ready(wake->g);
+	} else {
+		// enqueue itself
+		if(s->tail == nil)
+			s->head = &w;
+		else
+			s->tail->next = &w;
+		s->tail = &w;
+		runtime·park(runtime·unlock, s, "semacquire");
+		if(t0)
+			runtime·blockevent(w.releasetime - t0, 2);
+	}
+}
+
+// Syncsemrelease waits for n pairing Syncsemacquire on the same semaphore s.
+func runtime_Syncsemrelease(s *SyncSema, n uint32) {
+	SemaWaiter w, *wake;
+
+	w.g = g;
+	w.nrelease = (int32)n;
+	w.next = nil;
+	w.releasetime = 0;
+
+	runtime·lock(s);
+	while(w.nrelease > 0 && s->head && s->head->nrelease < 0) {
+		// have pending acquire, satisfy it
+		wake = s->head;
+		s->head = wake->next;
+		if(s->head == nil)
+			s->tail = nil;
+		if(wake->releasetime)
+			wake->releasetime = runtime·cputicks();
+		runtime·ready(wake->g);
+		w.nrelease--;
+	}
+	if(w.nrelease > 0) {
+		// enqueue itself
+		if(s->tail == nil)
+			s->head = &w;
+		else
+			s->tail->next = &w;
+		s->tail = &w;
+		runtime·park(runtime·unlock, s, "semarelease");
+	} else
+		runtime·unlock(s);
 }
