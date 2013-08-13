@@ -17,6 +17,7 @@
 package net
 
 import (
+	"io"
 	"math/rand"
 	"sync"
 	"time"
@@ -25,6 +26,13 @@ import (
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
 func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error) {
+	var useTCP bool
+	switch c.(type) {
+	case *UDPConn:
+		useTCP = false
+	case *TCPConn:
+		useTCP = true
+	}
 	if len(name) >= 256 {
 		return nil, &DNSError{Err: "name too long", Name: name}
 	}
@@ -38,7 +46,10 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 	if !ok {
 		return nil, &DNSError{Err: "internal error - cannot pack message", Name: name}
 	}
-
+	if useTCP {
+		mlen := uint16(len(msg))
+		msg = append([]byte{byte(mlen >> 8), byte(mlen)}, msg...)
+	}
 	for attempt := 0; attempt < cfg.attempts; attempt++ {
 		n, err := c.Write(msg)
 		if err != nil {
@@ -50,9 +61,19 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 		} else {
 			c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
 		}
-
-		buf := make([]byte, 2000) // More than enough.
-		n, err = c.Read(buf)
+		buf := make([]byte, 2000)
+		if useTCP {
+			n, err = io.ReadFull(c, buf[:2])
+			if err != nil {
+				if e, ok := err.(Error); ok && e.Timeout() {
+					continue
+				}
+			}
+			buf = make([]byte, uint16(buf[0])<<8+uint16(buf[1]))
+			n, err = io.ReadFull(c, buf)
+		} else {
+			n, err = c.Read(buf)
+		}
 		if err != nil {
 			if e, ok := err.(Error); ok && e.Timeout() {
 				continue
@@ -97,6 +118,19 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs 
 		if merr != nil {
 			err = merr
 			continue
+		}
+		if msg.truncated { // see RFC 5966
+			c, cerr = Dial("tcp", server)
+			if cerr != nil {
+				err = cerr
+				continue
+			}
+			msg, merr = exchange(cfg, c, name, qtype)
+			c.Close()
+			if merr != nil {
+				err = merr
+				continue
+			}
 		}
 		cname, addrs, err = answer(name, server, msg, qtype)
 		if err == nil || err.(*DNSError).Err == noSuchHost {
