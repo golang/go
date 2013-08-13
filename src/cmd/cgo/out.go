@@ -97,7 +97,7 @@ func (p *Package) writeDefs() {
 	cVars := make(map[string]bool)
 	for _, key := range nameKeys(p.Name) {
 		n := p.Name[key]
-		if n.Kind != "var" {
+		if !n.IsVar() {
 			continue
 		}
 
@@ -113,17 +113,26 @@ func (p *Package) writeDefs() {
 
 			cVars[n.C] = true
 		}
-
+		var amp string
+		var node ast.Node
+		if n.Kind == "var" {
+			amp = "&"
+			node = &ast.StarExpr{X: n.Type.Go}
+		} else if n.Kind == "fpvar" {
+			node = n.Type.Go
+		} else {
+			panic(fmt.Errorf("invalid var kind %q", n.Kind))
+		}
 		if *gccgo {
 			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, n.Mangle)
-			fmt.Fprintf(&gccgoInit, "\t%s = &%s;\n", n.Mangle, n.C)
+			fmt.Fprintf(&gccgoInit, "\t%s = %s%s;\n", n.Mangle, amp, n.C)
 		} else {
-			fmt.Fprintf(fc, "void *·%s = &%s;\n", n.Mangle, n.C)
+			fmt.Fprintf(fc, "void *·%s = %s%s;\n", n.Mangle, amp, n.C)
 		}
 		fmt.Fprintf(fc, "\n")
 
 		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
-		conf.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
+		conf.Fprint(fgo2, fset, node)
 		fmt.Fprintf(fgo2, "\n")
 	}
 	fmt.Fprintf(fc, "\n")

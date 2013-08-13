@@ -76,6 +76,33 @@ function returns void).  For example:
 	n, err := C.sqrt(-1)
 	_, err := C.voidFunc()
 
+Calling C function pointers is currently not supported, however you can
+declare Go variables which hold C function pointers and pass them
+back and forth between Go and C. C code may call function pointers
+received from Go. For example:
+
+	package main
+	// typedef int (*intFunc) ();
+	//
+	// int
+	// bridge_int_func(intFunc f)
+	// {
+	//		return f();
+	// }
+	//
+	// int fortytwo()
+	// {
+	//	    return 42;
+	// }
+	import "C"
+	import "fmt"
+
+	func main() {
+		f := C.intFunc(C.fortytwo)
+		fmt.Println(int(C.bridge_int_func(f)))
+		// Output: 42
+	}
+
 In C, a function argument written as a fixed size array
 actually requires a pointer to the first element of the array.
 C compilers are aware of this calling convention and adjust
