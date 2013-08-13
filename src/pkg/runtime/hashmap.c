@@ -259,10 +259,7 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 		// done lazily later.
 		buckets = nil;
 	} else {
-		buckets = runtime·mallocgc(bucketsize << B, 0, FlagNoZero | FlagNoPointers);
-		// Note: the array really does have pointers, but we tell the gc about
-		// them explicitly via gciter below.  We use FlagNoPointers to prevent
-		// the gc from scanning the bucket array itself.  Fixes issue 6119.
+		buckets = runtime·mallocgc(bucketsize << B, 0, FlagNoZero);
 		for(i = 0; i < (uintptr)1 << B; i++) {
 			b = (Bucket*)(buckets + i * bucketsize);
 			clearbucket(b);
@@ -333,7 +330,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				if((hash & newbit) == 0) {
 					if(xi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
-						newx = runtime·mallocgc(h->bucketsize, 0, FlagNoZero | FlagNoPointers);
+						newx = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 						clearbucket(newx);
 						x->overflow = newx;
 						x = newx;
@@ -358,7 +355,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				} else {
 					if(yi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
-						newy = runtime·mallocgc(h->bucketsize, 0, FlagNoZero | FlagNoPointers);
+						newy = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 						clearbucket(newy);
 						y->overflow = newy;
 						y = newy;
@@ -454,7 +451,7 @@ hash_grow(MapType *t, Hmap *h)
 	old_buckets = h->buckets;
 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
-	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, FlagNoZero | FlagNoPointers);
+	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, FlagNoZero);
 	flags = (h->flags & ~(Iterator | OldIterator));
 	if((h->flags & Iterator) != 0) {
 		flags |= OldIterator;
@@ -618,7 +615,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
 	if(h->buckets == nil) {
-		h->buckets = runtime·mallocgc(h->bucketsize, 0, FlagNoZero | FlagNoPointers);
+		h->buckets = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 		b = (Bucket*)(h->buckets);
 		clearbucket(b);
 	}
@@ -668,7 +665,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	if(inserti == nil) {
 		// all current buckets are full, allocate a new one.
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		newb = runtime·mallocgc(h->bucketsize, 0, FlagNoZero | FlagNoPointers);
+		newb = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
 		clearbucket(newb);
 		b->overflow = newb;
 		inserti = newb->tophash;
