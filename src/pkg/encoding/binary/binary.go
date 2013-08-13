@@ -135,7 +135,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // may be used for padding.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
-	if n := intReadSize(data); n != 0 {
+	if n := intDataSize(data); n != 0 {
 		var b [8]byte
 		var bs []byte
 		if n > len(b) {
@@ -164,13 +164,11 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 		case *uint64:
 			*data = order.Uint64(bs)
 		case []int8:
-			for i, x := range bs { // Easier to loop over the input for 8-bit cases.
+			for i, x := range bs { // Easier to loop over the input for 8-bit values.
 				data[i] = int8(x)
 			}
 		case []uint8:
-			for i, x := range bs { // Easier to loop over the input for 8-bit cases.
-				data[i] = x
-			}
+			copy(data, bs)
 		case []int16:
 			for i := range data {
 				data[i] = int16(order.Uint16(bs[2*i:]))
@@ -229,97 +227,95 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 // When writing structs, zero values are written for fields
 // with blank (_) field names.
 func Write(w io.Writer, order ByteOrder, data interface{}) error {
-	// Fast path for basic types.
-	var b [8]byte
-	var bs []byte
-	switch v := data.(type) {
-	case *int8:
-		bs = b[:1]
-		b[0] = byte(*v)
-	case int8:
-		bs = b[:1]
-		b[0] = byte(v)
-	case []int8:
-		bs = make([]byte, len(v))
-		for i, x := range v {
-			bs[i] = byte(x)
+	// Fast path for basic types and slices.
+	if n := intDataSize(data); n != 0 {
+		var b [8]byte
+		var bs []byte
+		if n > len(b) {
+			bs = make([]byte, n)
+		} else {
+			bs = b[:n]
 		}
-	case *uint8:
-		bs = b[:1]
-		b[0] = *v
-	case uint8:
-		bs = b[:1]
-		b[0] = byte(v)
-	case []uint8:
-		bs = v
-	case *int16:
-		bs = b[:2]
-		order.PutUint16(bs, uint16(*v))
-	case int16:
-		bs = b[:2]
-		order.PutUint16(bs, uint16(v))
-	case []int16:
-		bs = make([]byte, 2*len(v))
-		for i, x := range v {
-			order.PutUint16(bs[2*i:], uint16(x))
+		switch v := data.(type) {
+		case *int8:
+			bs = b[:1]
+			b[0] = byte(*v)
+		case int8:
+			bs = b[:1]
+			b[0] = byte(v)
+		case []int8:
+			for i, x := range v {
+				bs[i] = byte(x)
+			}
+		case *uint8:
+			bs = b[:1]
+			b[0] = *v
+		case uint8:
+			bs = b[:1]
+			b[0] = byte(v)
+		case []uint8:
+			bs = v
+		case *int16:
+			bs = b[:2]
+			order.PutUint16(bs, uint16(*v))
+		case int16:
+			bs = b[:2]
+			order.PutUint16(bs, uint16(v))
+		case []int16:
+			for i, x := range v {
+				order.PutUint16(bs[2*i:], uint16(x))
+			}
+		case *uint16:
+			bs = b[:2]
+			order.PutUint16(bs, *v)
+		case uint16:
+			bs = b[:2]
+			order.PutUint16(bs, v)
+		case []uint16:
+			for i, x := range v {
+				order.PutUint16(bs[2*i:], x)
+			}
+		case *int32:
+			bs = b[:4]
+			order.PutUint32(bs, uint32(*v))
+		case int32:
+			bs = b[:4]
+			order.PutUint32(bs, uint32(v))
+		case []int32:
+			for i, x := range v {
+				order.PutUint32(bs[4*i:], uint32(x))
+			}
+		case *uint32:
+			bs = b[:4]
+			order.PutUint32(bs, *v)
+		case uint32:
+			bs = b[:4]
+			order.PutUint32(bs, v)
+		case []uint32:
+			for i, x := range v {
+				order.PutUint32(bs[4*i:], x)
+			}
+		case *int64:
+			bs = b[:8]
+			order.PutUint64(bs, uint64(*v))
+		case int64:
+			bs = b[:8]
+			order.PutUint64(bs, uint64(v))
+		case []int64:
+			for i, x := range v {
+				order.PutUint64(bs[8*i:], uint64(x))
+			}
+		case *uint64:
+			bs = b[:8]
+			order.PutUint64(bs, *v)
+		case uint64:
+			bs = b[:8]
+			order.PutUint64(bs, v)
+		case []uint64:
+			for i, x := range v {
+				order.PutUint64(bs[8*i:], x)
+			}
 		}
-	case *uint16:
-		bs = b[:2]
-		order.PutUint16(bs, *v)
-	case uint16:
-		bs = b[:2]
-		order.PutUint16(bs, v)
-	case []uint16:
-		bs = make([]byte, 2*len(v))
-		for i, x := range v {
-			order.PutUint16(bs[2*i:], x)
-		}
-	case *int32:
-		bs = b[:4]
-		order.PutUint32(bs, uint32(*v))
-	case int32:
-		bs = b[:4]
-		order.PutUint32(bs, uint32(v))
-	case []int32:
-		bs = make([]byte, 4*len(v))
-		for i, x := range v {
-			order.PutUint32(bs[4*i:], uint32(x))
-		}
-	case *uint32:
-		bs = b[:4]
-		order.PutUint32(bs, *v)
-	case uint32:
-		bs = b[:4]
-		order.PutUint32(bs, v)
-	case []uint32:
-		bs = make([]byte, 4*len(v))
-		for i, x := range v {
-			order.PutUint32(bs[4*i:], x)
-		}
-	case *int64:
-		bs = b[:8]
-		order.PutUint64(bs, uint64(*v))
-	case int64:
-		bs = b[:8]
-		order.PutUint64(bs, uint64(v))
-	case []int64:
-		bs = make([]byte, 8*len(v))
-		for i, x := range v {
-			order.PutUint64(bs[8*i:], uint64(x))
-		}
-	case *uint64:
-		bs = b[:8]
-		order.PutUint64(bs, *v)
-	case uint64:
-		bs = b[:8]
-		order.PutUint64(bs, v)
-	case []uint64:
-		bs = make([]byte, 8*len(v))
-		for i, x := range v {
-			order.PutUint64(bs[8*i:], x)
-		}
-	}
-	if bs != nil {
 		_, err := w.Write(bs)
 		return err
 	}
@@ -609,29 +605,29 @@ func (e *encoder) skip(v reflect.Value) {
 	e.buf = e.buf[n:]
 }
 
-// intReadSize returns the size of the data required to represent the data when encoded.
-// It returns zero if the type cannot be implemented by the fast path in Read.
-func intReadSize(data interface{}) int {
+// intDataSize returns the size of the data required to represent the data when encoded.
+// It returns zero if the type cannot be implemented by the fast path in Read or Write.
+func intDataSize(data interface{}) int {
 	switch data := data.(type) {
-	case *int8, *uint8:
+	case int8, *int8, *uint8:
 		return 1
 	case []int8:
 		return len(data)
 	case []uint8:
 		return len(data)
-	case *int16, *uint16:
+	case int16, *int16, *uint16:
 		return 2
 	case []int16:
 		return 2 * len(data)
 	case []uint16:
 		return 2 * len(data)
-	case *int32, *uint32:
+	case int32, *int32, *uint32:
 		return 4
 	case []int32:
 		return 4 * len(data)
 	case []uint32:
 		return 4 * len(data)
-	case *int64, *uint64:
+	case int64, *int64, *uint64:
 		return 8
 	case []int64:
 		return 8 * len(data)
