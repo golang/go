@@ -99,18 +99,18 @@ static ProgInfo progtable[ALAST] = {
 	[ADECQ]=	{SizeQ | RightRdwr},
 	[ADECW]=	{SizeW | RightRdwr},
 
-	[ADIVB]=	{SizeB | LeftRead, AX, AX},
-	[ADIVL]=	{SizeL | LeftRead, AX|DX, AX|DX},
-	[ADIVQ]=	{SizeQ | LeftRead, AX|DX, AX|DX},
-	[ADIVW]=	{SizeW | LeftRead, AX|DX, AX|DX},
+	[ADIVB]=	{SizeB | LeftRead | SetCarry, AX, AX},
+	[ADIVL]=	{SizeL | LeftRead | SetCarry, AX|DX, AX|DX},
+	[ADIVQ]=	{SizeQ | LeftRead | SetCarry, AX|DX, AX|DX},
+	[ADIVW]=	{SizeW | LeftRead | SetCarry, AX|DX, AX|DX},
 
 	[ADIVSD]=	{SizeD | LeftRead | RightRdwr},
 	[ADIVSS]=	{SizeF | LeftRead | RightRdwr},
 
-	[AIDIVB]=	{SizeB | LeftRead, AX, AX},
-	[AIDIVL]=	{SizeL | LeftRead, AX|DX, AX|DX},
-	[AIDIVQ]=	{SizeQ | LeftRead, AX|DX, AX|DX},
-	[AIDIVW]=	{SizeW | LeftRead, AX|DX, AX|DX},
+	[AIDIVB]=	{SizeB | LeftRead | SetCarry, AX, AX},
+	[AIDIVL]=	{SizeL | LeftRead | SetCarry, AX|DX, AX|DX},
+	[AIDIVQ]=	{SizeQ | LeftRead | SetCarry, AX|DX, AX|DX},
+	[AIDIVW]=	{SizeW | LeftRead | SetCarry, AX|DX, AX|DX},
 
 	[AIMULB]=	{SizeB | LeftRead | SetCarry, AX, AX},
 	[AIMULL]=	{SizeL | LeftRead | ImulAXDX | SetCarry},
@@ -262,10 +262,10 @@ static ProgInfo progtable[ALAST] = {
 	[ASUBSD]=	{SizeD | LeftRead | RightRdwr},
 	[ASUBSS]=	{SizeF | LeftRead | RightRdwr},
 
-	[ATESTB]=	{SizeB | LeftRead | RightRead},
-	[ATESTL]=	{SizeL | LeftRead | RightRead},
-	[ATESTQ]=	{SizeQ | LeftRead | RightRead},
-	[ATESTW]=	{SizeW | LeftRead | RightRead},
+	[ATESTB]=	{SizeB | LeftRead | RightRead | SetCarry},
+	[ATESTL]=	{SizeL | LeftRead | RightRead | SetCarry},
+	[ATESTQ]=	{SizeQ | LeftRead | RightRead | SetCarry},
+	[ATESTW]=	{SizeW | LeftRead | RightRead | SetCarry},
 
 	[AUCOMISD]=	{SizeD | LeftRead | RightRead},
 	[AUCOMISS]=	{SizeF | LeftRead | RightRead},
