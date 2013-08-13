@@ -28,6 +28,17 @@ go1.1.1 (released 2013/06/13) includes several compiler and runtime bug fixes.
 See the <a href="https://code.google.com/p/go/source/list?name=release-branch.go1.1&r=43c4a41d24382a56a90e924800c681e435d9e399">change history</a> for details.
 </p>
 
+<p>
+go1.1.2 (released 2013/08/13) includes fixes to the <code>gc</code> compiler
+and <code>cgo</code>, and the <code>bufio</code>, <code>runtime</code>,
+<code>syscall</code>, and <code>time</code> packages.
+See the <a href="https://code.google.com/p/go/source/list?name=release-branch.go1.1&r=a6a9792f94acd4ff686b2bc57383d163608b91cf">change history</a> for details.
+If you use package syscall's <code>Getrlimit</code> and <code>Setrlimit</code>
+functions under Linux on the ARM or 386 architectures, please note change
+<a href="http://golang.org/change/55ac276af5a7">55ac276af5a7</a>
+that fixes <a href="http://golang.org/issue/5949">issue 5949</a>.
+</p>
+
 <h2 id="go1">go1 (released 2012/03/28)</h2>
 
 <p>
