@@ -2092,6 +2092,7 @@ procresize(int32 new)
 		p = runtime·allp[i];
 		if(p == nil) {
 			p = (P*)runtime·mallocgc(sizeof(*p), 0, FlagNoInvokeGC);
+			p->id = i;
 			p->status = Pgcstop;
 			runtime·atomicstorep(&runtime·allp[i], p);
 		}
@@ -2235,9 +2236,10 @@ static void
 sysmon(void)
 {
 	uint32 idle, delay;
-	int64 now, lastpoll;
+	int64 now, lastpoll, lasttrace;
 	G *gp;
 
+	lasttrace = 0;
 	idle = 0;  // how many cycles in succession we had not wokeup somebody
 	delay = 0;
 	for(;;) {
@@ -2248,7 +2250,8 @@ sysmon(void)
 		if(delay > 10*1000)  // up to 10ms
 			delay = 10*1000;
 		runtime·usleep(delay);
-		if(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {  // TODO: fast atomic
+		if(runtime·debug.schedtrace <= 0 &&
+			(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
 			runtime·lock(&runtime·sched);
 			if(runtime·atomicload(&runtime·gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
@@ -2285,6 +2288,11 @@ sysmon(void)
 			idle = 0;
 		else
 			idle++;
+
+		if(runtime·debug.schedtrace > 0 && lasttrace + runtime·debug.schedtrace*1000000ll <= now) {
+			lasttrace = now;
+			runtime·schedtrace(runtime·debug.scheddetail);
+		}
 	}
 }
 
@@ -2395,6 +2403,84 @@ preemptone(P *p)
 	gp->preempt = true;
 	gp->stackguard0 = StackPreempt;
 	return true;
+}
+
+void
+runtime·schedtrace(bool detailed)
+{
+	static int64 starttime;
+	int64 now;
+	int32 i, q, t, h, s;
+	int8 *fmt;
+	M *mp, *lockedm;
+	G *gp, *lockedg;
+	P *p;
+
+	now = runtime·nanotime();
+	if(starttime == 0)
+		starttime = now;
+
+	runtime·lock(&runtime·sched);
+	runtime·printf("SCHED %Dms: gomaxprocs=%d idleprocs=%d threads=%d idlethreads=%d runqueue=%d",
+		(now-starttime)/1000000, runtime·gomaxprocs, runtime·sched.npidle, runtime·sched.mcount,
+		runtime·sched.nmidle, runtime·sched.runqsize);
+	if(detailed) {
+		runtime·printf(" gcwaiting=%d nmidlelocked=%d nmspinning=%d stopwait=%d sysmonwait=%d\n",
+			runtime·gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
+			runtime·sched.stopwait, runtime·sched.sysmonwait);
+	}
+	// We must be careful while reading data from P's, M's and G's.
+	// Even if we hold schedlock, most data can be changed concurrently.
+	// E.g. (p->m ? p->m->id : -1) can crash if p->m changes from non-nil to nil.
+	for(i = 0; i < runtime·gomaxprocs; i++) {
+		p = runtime·allp[i];
+		if(p == nil)
+			continue;
+		mp = p->m;
+		t = p->runqtail;
+		h = p->runqhead;
+		s = p->runqsize;
+		q = t - h;
+		if(q < 0)
+			q += s;
+		if(detailed)
+			runtime·printf("  P%d: status=%d schedtick=%d syscalltick=%d m=%d runqsize=%d/%d gfreecnt=%d\n",
+				i, p->status, p->schedtick, p->syscalltick, mp ? mp->id : -1, q, s, p->gfreecnt);
+		else {
+			// In non-detailed mode format lengths of per-P run queues as:
+			// [len1 len2 len3 len4]
+			fmt = " %d";
+			if(runtime·gomaxprocs == 1)
+				fmt = " [%d]\n";
+			else if(i == 0)
+				fmt = " [%d";
+			else if(i == runtime·gomaxprocs-1)
+				fmt = " %d]\n";
+			runtime·printf(fmt, q);
+		}
+	}
+	if(!detailed) {
+		runtime·unlock(&runtime·sched);
+		return;
+	}
+	for(mp = runtime·allm; mp; mp = mp->alllink) {
+		p = mp->p;
+		gp = mp->curg;
+		lockedg = mp->lockedg;
+		runtime·printf("  M%d: p=%d curg=%D mallocing=%d throwing=%d gcing=%d"
+			" locks=%d dying=%d helpgc=%d spinning=%d lockedg=%D\n",
+			mp->id, p ? p->id : -1, gp ? gp->goid : (int64)-1,
+			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
+			mp->spinning, lockedg ? lockedg->goid : (int64)-1);
+	}
+	for(gp = runtime·allg; gp; gp = gp->alllink) {
+		mp = gp->m;
+		lockedm = gp->lockedm;
+		runtime·printf("  G%D: status=%d(%s) m=%d lockedm=%d\n",
+			gp->goid, gp->status, gp->waitreason, mp ? mp->id : -1,
+			lockedm ? lockedm->id : -1);
+	}
+	runtime·unlock(&runtime·sched);
 }
 
 // Put mp on midle list.

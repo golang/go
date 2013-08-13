@@ -420,6 +420,8 @@ runtime·startpanic(void)
 		g->writebuf = nil;
 	runtime·xadd(&runtime·panicking, 1);
 	runtime·lock(&paniclk);
+	if(runtime·debug.schedtrace > 0 || runtime·debug.scheddetail > 0)
+		runtime·schedtrace(true);
 	runtime·freezetheworld();
 }
 

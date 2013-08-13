@@ -361,6 +361,7 @@ struct P
 {
 	Lock;
 
+	int32	id;
 	uint32	status;	// one of Pidle/Prunning/...
 	P*	link;
 	uint32	schedtick;	// incremented on every scheduler call
@@ -532,6 +533,8 @@ struct CgoMal
 struct DebugVars
 {
 	int32	gctrace;
+	int32	schedtrace;
+	int32	scheddetail;
 };
 
 /*
@@ -823,6 +826,7 @@ void	runtime·exit(int32);
 void	runtime·breakpoint(void);
 void	runtime·gosched(void);
 void	runtime·gosched0(G*);
+void	runtime·schedtrace(bool);
 void	runtime·park(void(*)(Lock*), Lock*, int8*);
 void	runtime·tsleep(int64, int8*);
 M*	runtime·newm(void);
