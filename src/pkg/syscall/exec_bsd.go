@@ -21,6 +21,10 @@ type SysProcAttr struct {
 	Noctty     bool        // Detach fd 0 from controlling terminal
 }
 
+// Implemented in runtime package.
+func runtime_BeforeFork()
+func runtime_AfterFork()
+
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
 // If a dup or exec fails, write the errno error to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
@@ -57,8 +61,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
+	runtime_BeforeFork()
 	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
 	if err1 != 0 {
+		runtime_AfterFork()
 		return 0, err1
 	}
 
@@ -72,6 +78,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	if r1 != 0 {
 		// parent; return PID
+		runtime_AfterFork()
 		return int(r1), 0
 	}
 

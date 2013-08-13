@@ -1610,6 +1610,29 @@ exitsyscall0(G *gp)
 	schedule();  // Never returns.
 }
 
+// Called from syscall package before fork.
+void
+syscall·runtime_BeforeFork(void)
+{
+	// Fork can hang if preempted with signals frequently enough (see issue 5517).
+	// Ensure that we stay on the same M where we disable profiling.
+	m->locks++;
+	if(m->profilehz != 0)
+		runtime·resetcpuprofiler(0);
+}
+
+// Called from syscall package after fork in parent.
+void
+syscall·runtime_AfterFork(void)
+{
+	int32 hz;
+
+	hz = runtime·sched.profilehz;
+	if(hz != 0)
+		runtime·resetcpuprofiler(hz);
+	m->locks--;
+}
+
 // Hook used by runtime·malg to call runtime·stackalloc on the
 // scheduler stack.  This exists because runtime·stackalloc insists
 // on being called on the scheduler stack, to avoid trying to grow
@@ -2002,7 +2025,11 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 	if(fn == nil)
 		hz = 0;
 
-	// Stop profiler on this cpu so that it is safe to lock prof.
+	// Disable preemption, otherwise we can be rescheduled to another thread
+	// that has profiling enabled.
+	m->locks++;
+
+	// Stop profiler on this thread so that it is safe to lock prof.
 	// if a profiling signal came in while we had prof locked,
 	// it would deadlock.
 	runtime·resetcpuprofiler(0);
@@ -2017,6 +2044,8 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 
 	if(hz != 0)
 		runtime·resetcpuprofiler(hz);
+
+	m->locks--;
 }
 
 // Change number of processors.  The world is stopped, sched is locked.

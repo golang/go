@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// See issue 5659.
-// +build !race
-
 package pprof_test
 
 import (
@@ -142,6 +139,36 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 			return
 		}
 		t.FailNow()
+	}
+}
+
+func TestCPUProfileWithFork(t *testing.T) {
+	// Fork can hang if preempted with signals frequently enough (see issue 5517).
+	// Ensure that we do not do this.
+	heap := 1 << 30
+	if testing.Short() {
+		heap = 100 << 20
+	}
+	// This makes fork slower.
+	garbage := make([]byte, heap)
+	// Need to touch the slice, otherwise it won't be paged in.
+	done := make(chan bool)
+	go func() {
+		for i := range garbage {
+			garbage[i] = 42
+		}
+		done <- true
+	}()
+	<-done
+
+	var prof bytes.Buffer
+	if err := StartCPUProfile(&prof); err != nil {
+		t.Fatal(err)
+	}
+	defer StopCPUProfile()
+
+	for i := 0; i < 10; i++ {
+		exec.Command("go").CombinedOutput()
 	}
 }
 
