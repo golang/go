@@ -134,9 +134,13 @@ func runtime_pollWaitCanceled(pd *PollDesc, mode int) {
 }
 
 func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
+	G *rg, *wg;
+
 	runtime·lock(pd);
-	if(pd->closing)
-		goto ret;
+	if(pd->closing) {
+		runtime·unlock(pd);
+		return;
+	}
 	pd->seq++;  // invalidate current timers
 	// Reset current timers.
 	if(pd->rt.fv) {
@@ -148,9 +152,8 @@ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
 		pd->wt.fv = nil;
 	}
 	// Setup new timers.
-	if(d != 0 && d <= runtime·nanotime()) {
+	if(d != 0 && d <= runtime·nanotime())
 		d = -1;
-	}
 	if(mode == 'r' || mode == 'r'+'w')
 		pd->rd = d;
 	if(mode == 'w' || mode == 'r'+'w')
@@ -180,8 +183,18 @@ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
 			runtime·addtimer(&pd->wt);
 		}
 	}
-ret:
+	// If we set the new deadline in the past, unblock currently pending IO if any.
+	rg = nil;
+	wg = nil;
+	if(pd->rd < 0)
+		rg = netpollunblock(pd, 'r', false);
+	if(pd->wd < 0)
+		wg = netpollunblock(pd, 'w', false);
 	runtime·unlock(pd);
+	if(rg)
+		runtime·ready(rg);
+	if(wg)
+		runtime·ready(wg);
 }
 
 func runtime_pollUnblock(pd *PollDesc) {
