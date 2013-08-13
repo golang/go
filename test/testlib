@@ -16,29 +16,50 @@ pkgs() {
 	done | sort
 }
 
+_match() {
+	case $1 in
+	*,*)
+		#echo >&2 "match comma separated $1"
+		first=$(echo $1 | sed 's/,.*//')
+		rest=$(echo $1 | sed 's/[^,]*,//')
+		if _match $first && _match $rest; then
+			return 0
+		fi
+		return 1
+		;;
+	'!'*)
+		#echo >&2 "match negation $1"
+		neg=$(echo $1 | sed 's/^!//')
+		if _match $neg; then
+			return 1
+		fi
+		return 0
+		;;
+	$GOARCH|$GOOS)
+		#echo >&2 "match GOARCH or GOOS $1"
+		return 0
+		;;
+	esac
+	return 1
+}
+
 # +build aborts execution if the supplied tags don't match,
 # i.e. none of the tags (x or !x) matches GOARCH or GOOS.
 +build() {
 	if (( $# == 0 )); then
 		return
 	fi
+	m=0
 	for tag; do
-		case $tag in
-		$GOARCH|$GOOS)
-			#echo >&2 "match $tag in $1"
-			return # don't exclude.
-			;;
-		'!'$GOARCH|'!'$GOOS)
-			;;
-		'!'*)
-			# not x where x is neither GOOS nor GOARCH.
-			#echo >&2 "match $tag in $1"
-			return # don't exclude
-			;;
-		esac
+		if _match $tag; then
+			m=1
+		fi
 	done
-	# no match.
-	exit 0
+	if [ $m = 0 ]; then
+		#echo >&2 no match
+		exit 0
+	fi
+	unset m
 }
 
 compile() {
