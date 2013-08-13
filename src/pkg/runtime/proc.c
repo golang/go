@@ -30,7 +30,7 @@ struct Sched {
 
 	M*	midle;	 // idle m's waiting for work
 	int32	nmidle;	 // number of idle m's waiting for work
-	int32	mlocked; // number of locked m's waiting for work
+	int32	nmidlelocked; // number of locked m's waiting for work
 	int32	mcount;	 // number of m's that have been created
 
 	P*	pidle;  // idle P's
@@ -95,7 +95,7 @@ static void stoplockedm(void);
 static void startlockedm(G*);
 static void sysmon(void);
 static uint32 retake(int64);
-static void inclocked(int32);
+static void incidlelocked(int32);
 static void checkdead(void);
 static void exitsyscall0(G*);
 static void park0(G*);
@@ -1019,7 +1019,7 @@ stoplockedm(void)
 		p = releasep();
 		handoffp(p);
 	}
-	inclocked(1);
+	incidlelocked(1);
 	// Wait until another thread schedules lockedg again.
 	runtime·notesleep(&m->park);
 	runtime·noteclear(&m->park);
@@ -1042,7 +1042,7 @@ startlockedm(G *gp)
 	if(mp->nextp)
 		runtime·throw("startlockedm: m has p");
 	// directly handoff current P to the locked m
-	inclocked(-1);
+	incidlelocked(-1);
 	p = releasep();
 	mp->nextp = p;
 	runtime·notewakeup(&mp->park);
@@ -1485,7 +1485,7 @@ void
 	p = releasep();
 	handoffp(p);
 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
-		inclocked(1);
+		incidlelocked(1);
 
 	// Resave for traceback during blocked call.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
@@ -1505,7 +1505,7 @@ runtime·exitsyscall(void)
 	m->locks++;  // see comment in entersyscall
 
 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
-		inclocked(-1);
+		incidlelocked(-1);
 
 	if(exitsyscallfast()) {
 		// There's a cpu for us, so we can run.
@@ -2159,10 +2159,10 @@ releasep(void)
 }
 
 static void
-inclocked(int32 v)
+incidlelocked(int32 v)
 {
 	runtime·lock(&runtime·sched);
-	runtime·sched.mlocked += v;
+	runtime·sched.nmidlelocked += v;
 	if(v > 0)
 		checkdead();
 	runtime·unlock(&runtime·sched);
@@ -2177,12 +2177,12 @@ checkdead(void)
 	int32 run, grunning, s;
 
 	// -1 for sysmon
-	run = runtime·sched.mcount - runtime·sched.nmidle - runtime·sched.mlocked - 1;
+	run = runtime·sched.mcount - runtime·sched.nmidle - runtime·sched.nmidlelocked - 1;
 	if(run > 0)
 		return;
 	if(run < 0) {
-		runtime·printf("checkdead: nmidle=%d mlocked=%d mcount=%d\n",
-			runtime·sched.nmidle, runtime·sched.mlocked, runtime·sched.mcount);
+		runtime·printf("checkdead: nmidle=%d nmidlelocked=%d mcount=%d\n",
+			runtime·sched.nmidle, runtime·sched.nmidlelocked, runtime·sched.mcount);
 		runtime·throw("checkdead: inconsistent counts");
 	}
 	grunning = 0;
@@ -2238,7 +2238,18 @@ sysmon(void)
 		if(lastpoll != 0 && lastpoll + 10*1000*1000 > now) {
 			runtime·cas64(&runtime·sched.lastpoll, lastpoll, now);
 			gp = runtime·netpoll(false);  // non-blocking
-			injectglist(gp);
+			if(gp) {
+				// Need to decrement number of idle locked M's
+				// (pretending that one more is running) before injectglist.
+				// Otherwise it can lead to the following situation:
+				// injectglist grabs all P's but before it starts M's to run the P's,
+				// another M returns from syscall, finishes running its G,
+				// observes that there is no work to do and no other running M's
+				// and reports deadlock.
+				incidlelocked(-1);
+				injectglist(gp);
+				incidlelocked(1);
+			}
 		}
 		// retake P's blocked in syscalls
 		// and preempt long running G's
@@ -2284,15 +2295,16 @@ retake(int64 now)
 			if(p->runqhead == p->runqtail &&
 				runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0)
 				continue;
-			// Need to increment number of locked M's before the CAS.
+			// Need to decrement number of idle locked M's
+			// (pretending that one more is running) before the CAS.
 			// Otherwise the M from which we retake can exit the syscall,
 			// increment nmidle and report deadlock.
-			inclocked(-1);
+			incidlelocked(-1);
 			if(runtime·cas(&p->status, s, Pidle)) {
 				n++;
 				handoffp(p);
 			}
-			inclocked(1);
+			incidlelocked(1);
 		} else if(s == Prunning) {
 			// Preempt G if it's running for more than 10ms.
 			if(pd->when + 10*1000*1000 > now)
