@@ -1871,8 +1871,12 @@ runtime·gomaxprocsfunc(int32 n)
 	return ret;
 }
 
+// lockOSThread is called by runtime.LockOSThread and runtime.lockOSThread below
+// after they modify m->locked. Do not allow preemption during this call,
+// or else the m might be different in this function than in the caller.
+#pragma textflag NOSPLIT
 static void
-LockOSThread(void)
+lockOSThread(void)
 {
 	m->lockedg = g;
 	g->lockedm = m;
@@ -1882,18 +1886,23 @@ void
 runtime·LockOSThread(void)
 {
 	m->locked |= LockExternal;
-	LockOSThread();
+	lockOSThread();
 }
 
 void
 runtime·lockOSThread(void)
 {
 	m->locked += LockInternal;
-	LockOSThread();
+	lockOSThread();
 }
 
+
+// unlockOSThread is called by runtime.UnlockOSThread and runtime.unlockOSThread below
+// after they update m->locked. Do not allow preemption during this call,
+// or else the m might be in different in this function than in the caller.
+#pragma textflag NOSPLIT
 static void
-UnlockOSThread(void)
+unlockOSThread(void)
 {
 	if(m->locked != 0)
 		return;
@@ -1905,7 +1914,7 @@ void
 runtime·UnlockOSThread(void)
 {
 	m->locked &= ~LockExternal;
-	UnlockOSThread();
+	unlockOSThread();
 }
 
 void
@@ -1914,7 +1923,7 @@ runtime·unlockOSThread(void)
 	if(m->locked < LockInternal)
 		runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
 	m->locked -= LockInternal;
-	UnlockOSThread();
+	unlockOSThread();
 }
 
 bool
