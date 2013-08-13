@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin freebsd linux netbsd openbsd
+
 package net
 
 import (
@@ -10,9 +12,6 @@ import (
 )
 
 func TestTCPLookup(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skip("skipping unix dns test")
-	}
 	if testing.Short() || !*testExternal {
 		t.Skip("skipping test to avoid external network")
 	}
