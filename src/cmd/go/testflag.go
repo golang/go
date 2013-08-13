@@ -256,13 +256,13 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 				extra = equals < 0
 				if extra {
 					if i+1 >= len(args) {
-						usage()
+						testSyntaxError("missing argument for flag " + f.name)
 					}
 					value = args[i+1]
 				}
 			}
 			if f.present && !f.multiOK {
-				usage()
+				testSyntaxError(f.name + " flag may be set only once")
 			}
 			f.present = true
 			return
@@ -276,8 +276,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 func setBoolFlag(flag *bool, value string) {
 	x, err := strconv.ParseBool(value)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go test: illegal bool flag value %s\n", value)
-		usage()
+		testSyntaxError("illegal bool flag value " + value)
 	}
 	*flag = x
 }
@@ -286,8 +285,13 @@ func setBoolFlag(flag *bool, value string) {
 func setIntFlag(flag *int, value string) {
 	x, err := strconv.Atoi(value)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go test: illegal int flag value %s\n", value)
-		usage()
+		testSyntaxError("illegal int flag value " + value)
 	}
 	*flag = x
+}
+
+func testSyntaxError(msg string) {
+	fmt.Fprintf(os.Stderr, "go test: %s\n", msg)
+	fmt.Fprintf(os.Stderr, `run "go help test" or "go help testflag" for more information`+"\n")
+	os.Exit(2)
 }
