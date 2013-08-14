@@ -32,17 +32,17 @@ runtime·SysAlloc(uintptr n)
 void
 runtime·SysUnused(void *v, uintptr n)
 {
-	uintptr r;
+	void *r;
 
 	r = runtime·stdcall(runtime·VirtualFree, 3, v, n, (uintptr)MEM_DECOMMIT);
-	if(r == 0)
+	if(r == nil)
 		runtime·throw("runtime: failed to decommit pages");
 }
 
 void
 runtime·SysUsed(void *v, uintptr n)
 {
-	uintptr r;
+	void *r;
 
 	r = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
 	if(r != v)
