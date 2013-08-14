@@ -11,6 +11,7 @@
 enum {
 	MEM_COMMIT = 0x1000,
 	MEM_RESERVE = 0x2000,
+	MEM_DECOMMIT = 0x4000,
 	MEM_RELEASE = 0x8000,
 	
 	PAGE_READWRITE = 0x0004,
@@ -31,8 +32,21 @@ runtime·SysAlloc(uintptr n)
 void
 runtime·SysUnused(void *v, uintptr n)
 {
-	USED(v);
-	USED(n);
+	uintptr r;
+
+	r = runtime·stdcall(runtime·VirtualFree, 3, v, n, (uintptr)MEM_DECOMMIT);
+	if(r == 0)
+		runtime·throw("runtime: failed to decommit pages");
+}
+
+void
+runtime·SysUsed(void *v, uintptr n)
+{
+	uintptr r;
+
+	r = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
+	if(r != v)
+		runtime·throw("runtime: failed to commit pages");
 }
 
 void

@@ -56,6 +56,12 @@ runtime·SysUnused(void *v, uintptr nbytes)
 }
 
 void
+runtime·SysUsed(void *v, uintptr n)
+{
+	USED(v, nbytes);
+}
+
+void
 runtime·SysMap(void *v, uintptr nbytes)
 {
 	USED(v, nbytes);
