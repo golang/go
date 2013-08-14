@@ -295,7 +295,17 @@ int64 runtime·blockprofilerate;  // in CPU ticks
 void
 runtime·SetBlockProfileRate(intgo rate)
 {
-	runtime·atomicstore64((uint64*)&runtime·blockprofilerate, rate * runtime·tickspersecond() / (1000*1000*1000));
+	int64 r;
+
+	if(rate <= 0)
+		r = 0;  // disable profiling
+	else {
+		// convert ns to cycles, use float64 to prevent overflow during multiplication
+		r = (float64)rate*runtime·tickspersecond()/(1000*1000*1000);
+		if(r == 0)
+			r = 1;
+	}
+	runtime·atomicstore64((uint64*)&runtime·blockprofilerate, r);
 }
 
 void
