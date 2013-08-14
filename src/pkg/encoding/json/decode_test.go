@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"encoding"
 	"fmt"
 	"image"
 	"reflect"
@@ -57,12 +58,32 @@ type unmarshaler struct {
 }
 
 func (u *unmarshaler) UnmarshalJSON(b []byte) error {
-	*u = unmarshaler{true} // All we need to see that UnmarshalJson is called.
+	*u = unmarshaler{true} // All we need to see that UnmarshalJSON is called.
 	return nil
 }
 
 type ustruct struct {
 	M unmarshaler
+}
+
+type unmarshalerText struct {
+	T bool
+}
+
+// needed for re-marshaling tests
+func (u *unmarshalerText) MarshalText() ([]byte, error) {
+	return []byte(""), nil
+}
+
+func (u *unmarshalerText) UnmarshalText(b []byte) error {
+	*u = unmarshalerText{true} // All we need to see that UnmarshalText is called.
+	return nil
+}
+
+var _ encoding.TextUnmarshaler = (*unmarshalerText)(nil)
+
+type ustructText struct {
+	M unmarshalerText
 }
 
 var (
@@ -72,6 +93,13 @@ var (
 	umslice  = []unmarshaler{{true}}
 	umslicep = new([]unmarshaler)
 	umstruct = ustruct{unmarshaler{true}}
+
+	um0T, um1T unmarshalerText // target2 of unmarshaling
+	umpT       = &um1T
+	umtrueT    = unmarshalerText{true}
+	umsliceT   = []unmarshalerText{{true}}
+	umslicepT  = new([]unmarshalerText)
+	umstructT  = ustructText{unmarshalerText{true}}
 )
 
 // Test data structures for anonymous fields.
@@ -260,6 +288,13 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
 	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
 	{in: `{"M":{"T":false}}`, ptr: &umstruct, out: umstruct},
+
+	// UnmarshalText interface test
+	{in: `"X"`, ptr: &um0T, out: umtrueT}, // use "false" so test will fail if custom unmarshaler is not called
+	{in: `"X"`, ptr: &umpT, out: &umtrueT},
+	{in: `["X"]`, ptr: &umsliceT, out: umsliceT},
+	{in: `["X"]`, ptr: &umslicepT, out: &umsliceT},
+	{in: `{"M":"X"}`, ptr: &umstructT, out: umstructT},
 
 	{
 		in: `{
@@ -505,7 +540,7 @@ func TestUnmarshal(t *testing.T) {
 				dec.UseNumber()
 			}
 			if err := dec.Decode(vv.Interface()); err != nil {
-				t.Errorf("#%d: error re-unmarshaling: %v", i, err)
+				t.Errorf("#%d: error re-unmarshaling %#q: %v", i, enc, err)
 				continue
 			}
 			if !reflect.DeepEqual(v.Elem().Interface(), vv.Elem().Interface()) {
@@ -979,15 +1014,20 @@ func TestRefUnmarshal(t *testing.T) {
 		// Ref is defined in encode_test.go.
 		R0 Ref
 		R1 *Ref
+		R2 RefText
+		R3 *RefText
 	}
 	want := S{
 		R0: 12,
 		R1: new(Ref),
+		R2: 13,
+		R3: new(RefText),
 	}
 	*want.R1 = 12
+	*want.R3 = 13
 
 	var got S
-	if err := Unmarshal([]byte(`{"R0":"ref","R1":"ref"}`), &got); err != nil {
+	if err := Unmarshal([]byte(`{"R0":"ref","R1":"ref","R2":"ref","R3":"ref"}`), &got); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 	if !reflect.DeepEqual(got, want) {

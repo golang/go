@@ -12,6 +12,7 @@ package json
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/base64"
 	"math"
 	"reflect"
@@ -361,17 +362,29 @@ func newTypeEncoder(t reflect.Type, vx reflect.Value) encoderFunc {
 	if !vx.IsValid() {
 		vx = reflect.New(t).Elem()
 	}
+
 	_, ok := vx.Interface().(Marshaler)
 	if ok {
-		return valueIsMarshallerEncoder
+		return marshalerEncoder
 	}
-	// T doesn't match the interface. Check against *T too.
 	if vx.Kind() != reflect.Ptr && vx.CanAddr() {
 		_, ok = vx.Addr().Interface().(Marshaler)
 		if ok {
-			return valueAddrIsMarshallerEncoder
+			return addrMarshalerEncoder
 		}
 	}
+
+	_, ok = vx.Interface().(encoding.TextMarshaler)
+	if ok {
+		return textMarshalerEncoder
+	}
+	if vx.Kind() != reflect.Ptr && vx.CanAddr() {
+		_, ok = vx.Addr().Interface().(encoding.TextMarshaler)
+		if ok {
+			return addrTextMarshalerEncoder
+		}
+	}
+
 	switch vx.Kind() {
 	case reflect.Bool:
 		return boolEncoder
@@ -406,7 +419,7 @@ func invalidValueEncoder(e *encodeState, v reflect.Value, quoted bool) {
 	e.WriteString("null")
 }
 
-func valueIsMarshallerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+func marshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
 	if v.Kind() == reflect.Ptr && v.IsNil() {
 		e.WriteString("null")
 		return
@@ -422,9 +435,9 @@ func valueIsMarshallerEncoder(e *encodeState, v reflect.Value, quoted bool) {
 	}
 }
 
-func valueAddrIsMarshallerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+func addrMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
 	va := v.Addr()
-	if va.Kind() == reflect.Ptr && va.IsNil() {
+	if va.IsNil() {
 		e.WriteString("null")
 		return
 	}
@@ -433,6 +446,37 @@ func valueAddrIsMarshallerEncoder(e *encodeState, v reflect.Value, quoted bool) 
 	if err == nil {
 		// copy JSON into buffer, checking validity.
 		err = compact(&e.Buffer, b, true)
+	}
+	if err != nil {
+		e.error(&MarshalerError{v.Type(), err})
+	}
+}
+
+func textMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+	if v.Kind() == reflect.Ptr && v.IsNil() {
+		e.WriteString("null")
+		return
+	}
+	m := v.Interface().(encoding.TextMarshaler)
+	b, err := m.MarshalText()
+	if err == nil {
+		_, err = e.stringBytes(b)
+	}
+	if err != nil {
+		e.error(&MarshalerError{v.Type(), err})
+	}
+}
+
+func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+	va := v.Addr()
+	if va.IsNil() {
+		e.WriteString("null")
+		return
+	}
+	m := va.Interface().(encoding.TextMarshaler)
+	b, err := m.MarshalText()
+	if err == nil {
+		_, err = e.stringBytes(b)
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
@@ -728,6 +772,7 @@ func (sv stringValues) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
 func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
 func (sv stringValues) get(i int) string   { return sv[i].String() }
 
+// NOTE: keep in sync with stringBytes below.
 func (e *encodeState) string(s string) (int, error) {
 	len0 := e.Len()
 	e.WriteByte('"')
@@ -795,6 +840,79 @@ func (e *encodeState) string(s string) (int, error) {
 	}
 	if start < len(s) {
 		e.WriteString(s[start:])
+	}
+	e.WriteByte('"')
+	return e.Len() - len0, nil
+}
+
+// NOTE: keep in sync with string above.
+func (e *encodeState) stringBytes(s []byte) (int, error) {
+	len0 := e.Len()
+	e.WriteByte('"')
+	start := 0
+	for i := 0; i < len(s); {
+		if b := s[i]; b < utf8.RuneSelf {
+			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' && b != '&' {
+				i++
+				continue
+			}
+			if start < i {
+				e.Write(s[start:i])
+			}
+			switch b {
+			case '\\', '"':
+				e.WriteByte('\\')
+				e.WriteByte(b)
+			case '\n':
+				e.WriteByte('\\')
+				e.WriteByte('n')
+			case '\r':
+				e.WriteByte('\\')
+				e.WriteByte('r')
+			default:
+				// This encodes bytes < 0x20 except for \n and \r,
+				// as well as < and >. The latter are escaped because they
+				// can lead to security holes when user-controlled strings
+				// are rendered into JSON and served to some browsers.
+				e.WriteString(`\u00`)
+				e.WriteByte(hex[b>>4])
+				e.WriteByte(hex[b&0xF])
+			}
+			i++
+			start = i
+			continue
+		}
+		c, size := utf8.DecodeRune(s[i:])
+		if c == utf8.RuneError && size == 1 {
+			if start < i {
+				e.Write(s[start:i])
+			}
+			e.WriteString(`\ufffd`)
+			i += size
+			start = i
+			continue
+		}
+		// U+2028 is LINE SEPARATOR.
+		// U+2029 is PARAGRAPH SEPARATOR.
+		// They are both technically valid characters in JSON strings,
+		// but don't work in JSONP, which has to be evaluated as JavaScript,
+		// and can lead to security holes there. It is valid JSON to
+		// escape them, so we do so unconditionally.
+		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
+		if c == '\u2028' || c == '\u2029' {
+			if start < i {
+				e.Write(s[start:i])
+			}
+			e.WriteString(`\u202`)
+			e.WriteByte(hex[c&0xF])
+			i += size
+			start = i
+			continue
+		}
+		i += size
+	}
+	if start < len(s) {
+		e.Write(s[start:])
 	}
 	e.WriteByte('"')
 	return e.Len() - len0, nil
