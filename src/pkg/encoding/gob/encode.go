@@ -6,6 +6,7 @@ package gob
 
 import (
 	"bytes"
+	"encoding"
 	"math"
 	"reflect"
 	"unsafe"
@@ -511,10 +512,20 @@ func isZero(val reflect.Value) bool {
 
 // encGobEncoder encodes a value that implements the GobEncoder interface.
 // The data is sent as a byte array.
-func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value) {
+func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, ut *userTypeInfo, v reflect.Value) {
 	// TODO: should we catch panics from the called method?
-	// We know it's a GobEncoder, so just call the method directly.
-	data, err := v.Interface().(GobEncoder).GobEncode()
+
+	var data []byte
+	var err error
+	// We know it's one of these.
+	switch ut.externalEnc {
+	case xGob:
+		data, err = v.Interface().(GobEncoder).GobEncode()
+	case xBinary:
+		data, err = v.Interface().(encoding.BinaryMarshaler).MarshalBinary()
+	case xText:
+		data, err = v.Interface().(encoding.TextMarshaler).MarshalText()
+	}
 	if err != nil {
 		error_(err)
 	}
@@ -550,7 +561,7 @@ var encOpTable = [...]encOp{
 func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int) {
 	ut := userType(rt)
 	// If the type implements GobEncoder, we handle it without further processing.
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		return enc.gobEncodeOpFor(ut)
 	}
 	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
@@ -661,7 +672,7 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 			return
 		}
 		state.update(i)
-		state.enc.encodeGobEncoder(state.b, v)
+		state.enc.encodeGobEncoder(state.b, ut, v)
 	}
 	return &op, int(ut.encIndir) // encIndir: op will get called with p == address of receiver.
 }
@@ -672,10 +683,10 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 	engine := new(encEngine)
 	seen := make(map[reflect.Type]*encOp)
 	rt := ut.base
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		rt = ut.user
 	}
-	if !ut.isGobEncoder &&
+	if ut.externalEnc == 0 &&
 		srt.Kind() == reflect.Struct {
 		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
 			f := srt.Field(fieldNum)
@@ -736,13 +747,13 @@ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInf
 	defer catchError(&enc.err)
 	engine := enc.lockAndGetEncEngine(ut)
 	indir := ut.indir
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		indir = int(ut.encIndir)
 	}
 	for i := 0; i < indir; i++ {
 		value = reflect.Indirect(value)
 	}
-	if !ut.isGobEncoder && value.Type().Kind() == reflect.Struct {
+	if ut.externalEnc == 0 && value.Type().Kind() == reflect.Struct {
 		enc.encodeStruct(b, engine, unsafeAddr(value))
 	} else {
 		enc.encodeSingle(b, engine, unsafeAddr(value))
