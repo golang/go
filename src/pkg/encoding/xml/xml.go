@@ -67,6 +67,11 @@ func (e StartElement) Copy() StartElement {
 	return e
 }
 
+// End returns the corresponding XML end element.
+func (e StartElement) End() EndElement {
+	return EndElement{e.Name}
+}
+
 // An EndElement represents an XML end element.
 type EndElement struct {
 	Name Name

@@ -7,12 +7,12 @@ package xml
 import (
 	"bufio"
 	"bytes"
+	"encoding"
 	"fmt"
 	"io"
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const (
@@ -319,6 +319,7 @@ func (p *printer) popPrefix() {
 var (
 	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
 	marshalerAttrType = reflect.TypeOf((*MarshalerAttr)(nil)).Elem()
+	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 )
 
 // marshalValue writes one or more XML elements representing val.
@@ -348,14 +349,25 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	}
 
 	// Check for marshaler.
-	if typ.Name() != "" && val.CanAddr() {
+	if val.CanInterface() && typ.Implements(marshalerType) {
+		return p.marshalInterface(val.Interface().(Marshaler), defaultStart(typ, finfo, startTemplate))
+	}
+	if val.CanAddr() {
 		pv := val.Addr()
 		if pv.CanInterface() && pv.Type().Implements(marshalerType) {
-			return p.marshalInterface(pv.Interface().(Marshaler), pv.Type(), finfo, startTemplate)
+			return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
 		}
 	}
-	if val.CanInterface() && typ.Implements(marshalerType) {
-		return p.marshalInterface(val.Interface().(Marshaler), typ, finfo, startTemplate)
+
+	// Check for text marshaler.
+	if val.CanInterface() && typ.Implements(textMarshalerType) {
+		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), defaultStart(typ, finfo, startTemplate))
+	}
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
+			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
+		}
 	}
 
 	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
@@ -416,6 +428,21 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			continue
 		}
 
+		if fv.Kind() == reflect.Interface && fv.IsNil() {
+			continue
+		}
+
+		if fv.CanInterface() && fv.Type().Implements(marshalerAttrType) {
+			attr, err := fv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
+			if err != nil {
+				return err
+			}
+			if attr.Name.Local != "" {
+				start.Attr = append(start.Attr, attr)
+			}
+			continue
+		}
+
 		if fv.CanAddr() {
 			pv := fv.Addr()
 			if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
@@ -430,18 +457,25 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			}
 		}
 
-		if fv.CanInterface() && fv.Type().Implements(marshalerAttrType) {
-			if fv.Kind() == reflect.Interface && fv.IsNil() {
-				continue
-			}
-			attr, err := fv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
+		if fv.CanInterface() && fv.Type().Implements(textMarshalerType) {
+			text, err := fv.Interface().(encoding.TextMarshaler).MarshalText()
 			if err != nil {
 				return err
 			}
-			if attr.Name.Local != "" {
-				start.Attr = append(start.Attr, attr)
-			}
+			start.Attr = append(start.Attr, Attr{name, string(text)})
 			continue
+		}
+
+		if fv.CanAddr() {
+			pv := fv.Addr()
+			if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
+				text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
+				if err != nil {
+					return err
+				}
+				start.Attr = append(start.Attr, Attr{name, string(text)})
+				continue
+			}
 		}
 
 		// Dereference or skip nil pointer, interface values.
@@ -490,10 +524,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	return p.cachedWriteError()
 }
 
-// marshalInterface marshals a Marshaler interface value.
-func (p *printer) marshalInterface(val Marshaler, typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) error {
+// defaultStart returns the default start element to use,
+// given the reflect type, field info, and start template.
+func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) StartElement {
 	var start StartElement
-
 	// Precedence for the XML element name is as above,
 	// except that we do not look inside structs for the first field.
 	if startTemplate != nil {
@@ -509,7 +543,11 @@ func (p *printer) marshalInterface(val Marshaler, typ reflect.Type, finfo *field
 		// since it has the Marshaler methods.
 		start.Name.Local = typ.Elem().Name()
 	}
+	return start
+}
 
+// marshalInterface marshals a Marshaler interface value.
+func (p *printer) marshalInterface(val Marshaler, start StartElement) error {
 	// Push a marker onto the tag stack so that MarshalXML
 	// cannot close the XML tags that it did not open.
 	p.tags = append(p.tags, Name{})
@@ -526,6 +564,19 @@ func (p *printer) marshalInterface(val Marshaler, typ reflect.Type, finfo *field
 	}
 	p.tags = p.tags[:n-1]
 	return nil
+}
+
+// marshalTextInterface marshals a TextMarshaler interface value.
+func (p *printer) marshalTextInterface(val encoding.TextMarshaler, start StartElement) error {
+	if err := p.writeStart(&start); err != nil {
+		return err
+	}
+	text, err := val.MarshalText()
+	if err != nil {
+		return err
+	}
+	EscapeText(p, text)
+	return p.writeEnd(start.Name)
 }
 
 // writeStart writes the given start element.
@@ -591,13 +642,7 @@ func (p *printer) writeEnd(name Name) error {
 	return nil
 }
 
-var timeType = reflect.TypeOf(time.Time{})
-
 func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []byte, error) {
-	// Normally we don't see structs, but this can happen for an attribute.
-	if val.Type() == timeType {
-		return val.Interface().(time.Time).Format(time.RFC3339Nano), nil, nil
-	}
 	switch val.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(val.Int(), 10), nil, nil
@@ -629,10 +674,6 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 var ddBytes = []byte("--")
 
 func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
-	if val.Type() == timeType {
-		_, err := p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
-		return err
-	}
 	s := parentStack{p: p}
 	for i := range tinfo.fields {
 		finfo := &tinfo.fields[i]
@@ -651,6 +692,25 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 
 		switch finfo.flags & fMode {
 		case fCharData:
+			if vf.CanInterface() && vf.Type().Implements(textMarshalerType) {
+				data, err := vf.Interface().(encoding.TextMarshaler).MarshalText()
+				if err != nil {
+					return err
+				}
+				Escape(p, data)
+				continue
+			}
+			if vf.CanAddr() {
+				pv := vf.Addr()
+				if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
+					data, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
+					if err != nil {
+						return err
+					}
+					Escape(p, data)
+					continue
+				}
+			}
 			var scratch [64]byte
 			switch vf.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -670,10 +730,6 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 					if err := EscapeText(p, elem); err != nil {
 						return err
 					}
-				}
-			case reflect.Struct:
-				if vf.Type() == timeType {
-					Escape(p, []byte(vf.Interface().(time.Time).Format(time.RFC3339Nano)))
 				}
 			}
 			continue

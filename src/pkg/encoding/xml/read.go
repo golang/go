@@ -6,12 +6,12 @@ package xml
 
 import (
 	"bytes"
+	"encoding"
 	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
@@ -178,8 +178,7 @@ func receiverType(val interface{}) string {
 	return "(" + t.String() + ")"
 }
 
-// unmarshalInterface unmarshals a single XML element into val,
-// which is known to implement Unmarshaler.
+// unmarshalInterface unmarshals a single XML element into val.
 // start is the opening tag of the element.
 func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error {
 	// Record that decoder must stop at end tag corresponding to start.
@@ -198,6 +197,31 @@ func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error
 	}
 
 	return nil
+}
+
+// unmarshalTextInterface unmarshals a single XML element into val.
+// The chardata contained in the element (but not its children)
+// is passed to the text unmarshaler.
+func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler, start *StartElement) error {
+	var buf []byte
+	depth := 1
+	for depth > 0 {
+		t, err := p.Token()
+		if err != nil {
+			return err
+		}
+		switch t := t.(type) {
+		case CharData:
+			if depth == 1 {
+				buf = append(buf, t...)
+			}
+		case StartElement:
+			depth++
+		case EndElement:
+			depth--
+		}
+	}
+	return val.UnmarshalText(buf)
 }
 
 // unmarshalAttr unmarshals a single XML attribute into val.
@@ -221,7 +245,18 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 		}
 	}
 
-	// TODO: Check for and use encoding.TextUnmarshaler.
+	// Not an UnmarshalerAttr; try encoding.TextUnmarshaler.
+	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
+		// This is an unmarshaler with a non-pointer receiver,
+		// so it's likely to be incorrect, but we do what we're told.
+		return val.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+	}
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
+			return pv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		}
+	}
 
 	copyValue(val, []byte(attr.Value))
 	return nil
@@ -230,6 +265,7 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 var (
 	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
 	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
+	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 )
 
 // Unmarshal a single XML element into val.
@@ -268,7 +304,16 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		}
 	}
 
-	// TODO: Check for and use encoding.TextUnmarshaler.
+	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
+		return p.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler), start)
+	}
+
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
+			return p.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler), start)
+		}
+	}
 
 	var (
 		data         []byte
@@ -330,10 +375,6 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		typ := v.Type()
 		if typ == nameType {
 			v.Set(reflect.ValueOf(start.Name))
-			break
-		}
-		if typ == timeType {
-			saveData = v
 			break
 		}
 
@@ -464,6 +505,23 @@ Loop:
 		}
 	}
 
+	if saveData.IsValid() && saveData.CanInterface() && saveData.Type().Implements(textUnmarshalerType) {
+		if err := saveData.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
+			return err
+		}
+		saveData = reflect.Value{}
+	}
+
+	if saveData.IsValid() && saveData.CanAddr() {
+		pv := saveData.Addr()
+		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
+			if err := pv.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
+				return err
+			}
+			saveData = reflect.Value{}
+		}
+	}
+
 	if err := copyValue(saveData, data); err != nil {
 		return err
 	}
@@ -486,6 +544,8 @@ Loop:
 }
 
 func copyValue(dst reflect.Value, src []byte) (err error) {
+	dst0 := dst
+
 	if dst.Kind() == reflect.Ptr {
 		if dst.IsNil() {
 			dst.Set(reflect.New(dst.Type().Elem()))
@@ -496,9 +556,9 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 	// Save accumulated data.
 	switch dst.Kind() {
 	case reflect.Invalid:
-		// Probably a commendst.
+		// Probably a comment.
 	default:
-		return errors.New("cannot happen: unknown type " + dst.Type().String())
+		return errors.New("cannot unmarshal into " + dst0.Type().String())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		itmp, err := strconv.ParseInt(string(src), 10, dst.Type().Bits())
 		if err != nil {
@@ -531,14 +591,6 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 			src = []byte{}
 		}
 		dst.SetBytes(src)
-	case reflect.Struct:
-		if dst.Type() == timeType {
-			tv, err := time.Parse(time.RFC3339, string(src))
-			if err != nil {
-				return err
-			}
-			dst.Set(reflect.ValueOf(tv))
-		}
 	}
 	return nil
 }
