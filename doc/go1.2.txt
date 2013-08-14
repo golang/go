@@ -27,10 +27,16 @@ crypto/sha1: Sum function to simplify hashing (CL 10571043).
 crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
 crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
 crypto/tls: add support for TLS 1.1. (CL 7872043).
-encoding/csv: always allow trailing commas (CL 12294043)
+encoding: new package defining generic encoding interfaces (CL 12541051).
+encoding/csv: always allow trailing commas (CL 12294043).
+encoding/gob: support generic encoding interfaces (CL 12681044).
 encoding/json: accept but correct invalid UTF-8 in Marshal (CL 11211045).
 encoding/json: always escape ampersands (CL 12708044).
+encoding/json: support generic encoding interfaces (CL 12703043).
 encoding/xml: allow attributes stored in pointers to be marshaled (CL 8653047).
+encoding/xml: add Marshaler, MarshalerAttr interfaces (CL 12919043).
+encoding/xml: add Unmarshaler, UnmarshalerAttr interfaces (CL 12556043).
+encoding/xml: support generic encoding interfaces (CL 12751045).
 flag: add Getter interface (CL 10472043).
 flag: export commandLine (now CommandLine) (CL 12587043).
 fmt: indexed access to arguments in Printf etc. (CL 9680043).
@@ -43,7 +49,7 @@ io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
 ioutil: add WriteString to Discard (CL 12580045).
 net: new build tag netgo for building a pure Go net package (CL 7100050).
 net/http: allow ReadResponse with nil *Request parameter (CL 9821043).
-runtime: allow SetFinalizer with a func(interface{}) (CL 11858043).
+runtime: relax constraint on finalizer func in SetFinalizer (CL 12895043).
 runtime: preemption of goroutines at function entry (CL 12371043).
 sort: new Stable function provides stable sort (CL 9612044).
 strings: add IndexByte, for consistency with bytes package (CL 12214044).
