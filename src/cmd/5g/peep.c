@@ -493,15 +493,15 @@ constprop(Adr *c1, Adr *v1, Flow *r)
 /*
  * shortprop eliminates redundant zero/sign extensions.
  *
- *   MOVBS x, nil
- *   <no use nil>
- *   MOVBS nil, nil'
+ *   MOVBS x, R
+ *   <no use R>
+ *   MOVBS R, R'
  *
  * changed to
  *
- *   MOVBS x, nil
+ *   MOVBS x, R
  *   ...
- *   MOVB  nil, nil' (compiled to mov)
+ *   MOVB  R, R' (compiled to mov)
  *
  * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
  */
