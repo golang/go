@@ -1212,7 +1212,7 @@ dodata(void)
 		diag("data or bss segment too large");
 	}
 	
-	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
+	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && iself && HEADTYPE != Hopenbsd) {
 		sect = addsection(&segdata, ".tbss", 06);
 		sect->align = PtrSize;
 		sect->vaddr = 0;
