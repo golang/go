@@ -216,11 +216,12 @@ regopt(Prog *firstp)
 		if(p->as == ABL && p->to.type == D_EXTERN)
 			continue;
 
-		if(info.flags & LeftRead) {
-			bit = mkvar(r, &p->from);
+		bit = mkvar(r, &p->from);
+		if(info.flags & LeftRead)
 			for(z=0; z<BITS; z++)
 				r->use1.b[z] |= bit.b[z];
-		}
+		if(info.flags & LeftAddr)
+			setaddrs(bit);
 
 		if(info.flags & RegRead) {	
 			if(p->from.type != D_FREG)
@@ -697,9 +698,6 @@ mkvar(Reg *r, Adr *a)
 	case D_BRANCH:
 		break;
 
-	case D_CONST:
-		flag = 1;
-		goto onereg;
 
 	case D_REGREG:
 	case D_REGREG2:
@@ -710,9 +708,9 @@ mkvar(Reg *r, Adr *a)
 			bit.b[0] |= RtoB(a->reg);
 		return bit;
 
+	case D_CONST:
 	case D_REG:
 	case D_SHIFT:
-	onereg:
 		if(a->reg != NREG) {
 			bit = zbits;
 			bit.b[0] = RtoB(a->reg);
