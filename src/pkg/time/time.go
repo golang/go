@@ -839,10 +839,10 @@ func (t Time) UnixNano() int64 {
 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
 }
 
-const timeGobVersion byte = 1
+const timeBinaryVersion byte = 1
 
-// GobEncode implements the gob.GobEncoder interface.
-func (t Time) GobEncode() ([]byte, error) {
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
 
 	if t.Location() == &utcLoc {
@@ -850,17 +850,17 @@ func (t Time) GobEncode() ([]byte, error) {
 	} else {
 		_, offset := t.Zone()
 		if offset%60 != 0 {
-			return nil, errors.New("Time.GobEncode: zone offset has fractional minute")
+			return nil, errors.New("Time.MarshalBinary: zone offset has fractional minute")
 		}
 		offset /= 60
 		if offset < -32768 || offset == -1 || offset > 32767 {
-			return nil, errors.New("Time.GobEncode: unexpected zone offset")
+			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
 		}
 		offsetMin = int16(offset)
 	}
 
 	enc := []byte{
-		timeGobVersion,    // byte 0 : version
+		timeBinaryVersion, // byte 0 : version
 		byte(t.sec >> 56), // bytes 1-8: seconds
 		byte(t.sec >> 48),
 		byte(t.sec >> 40),
@@ -880,18 +880,19 @@ func (t Time) GobEncode() ([]byte, error) {
 	return enc, nil
 }
 
-// GobDecode implements the gob.GobDecoder interface.
-func (t *Time) GobDecode(buf []byte) error {
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (t *Time) UnmarshalBinary(data []byte) error {
+	buf := data
 	if len(buf) == 0 {
-		return errors.New("Time.GobDecode: no data")
+		return errors.New("Time.UnmarshalBinary: no data")
 	}
 
-	if buf[0] != timeGobVersion {
-		return errors.New("Time.GobDecode: unsupported version")
+	if buf[0] != timeBinaryVersion {
+		return errors.New("Time.UnmarshalBinary: unsupported version")
 	}
 
 	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
-		return errors.New("Time.GobDecode: invalid length")
+		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
 
 	buf = buf[1:]
@@ -915,8 +916,22 @@ func (t *Time) GobDecode(buf []byte) error {
 	return nil
 }
 
+// TODO(rsc): Remove GobEncoder, GobDecoder, MarshalJSON, UnmarshalJSON in Go 2.
+// The same semantics will be provided by the generic MarshalBinary, MarshalText,
+// UnmarshalBinary, UnmarshalText.
+
+// GobEncode implements the gob.GobEncoder interface.
+func (t Time) GobEncode() ([]byte, error) {
+	return t.MarshalBinary()
+}
+
+// GobDecode implements the gob.GobDecoder interface.
+func (t *Time) GobDecode(data []byte) error {
+	return t.UnmarshalBinary(data)
+}
+
 // MarshalJSON implements the json.Marshaler interface.
-// Time is formatted as RFC3339.
+// The time is a quoted string in RFC 3339 format, with sub-second precision added if present.
 func (t Time) MarshalJSON() ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
@@ -925,10 +940,27 @@ func (t Time) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-// Time is expected in RFC3339 format.
+// The time is expected to be a quoted string in RFC 3339 format.
 func (t *Time) UnmarshalJSON(data []byte) (err error) {
 	// Fractional seconds are handled implicitly by Parse.
 	*t, err = Parse(`"`+RFC3339+`"`, string(data))
+	return
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+// The time is formatted in RFC 3339 format, with sub-second precision added if present.
+func (t Time) MarshalText() ([]byte, error) {
+	if y := t.Year(); y < 0 || y >= 10000 {
+		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
+	}
+	return []byte(t.Format(RFC3339Nano)), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+// The time is expected to be in RFC 3339 format.
+func (t *Time) UnmarshalText(data []byte) (err error) {
+	// Fractional seconds are handled implicitly by Parse.
+	*t, err = Parse(RFC3339, string(data))
 	return
 }
 
