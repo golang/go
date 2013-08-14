@@ -135,7 +135,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
 // sendType sends the type info to the other side, if necessary.
 func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Type) (sent bool) {
 	ut := userType(origt)
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		// The rules are different: regardless of the underlying type's representation,
 		// we need to tell the other side that the base type is a GobEncoder.
 		return enc.sendActualType(w, state, ut, ut.base)
@@ -184,7 +184,7 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
 	// Make sure the type is known to the other side.
 	// First, have we already sent this type?
 	rt := ut.base
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		rt = ut.user
 	}
 	if _, alreadySent := enc.sent[rt]; !alreadySent {

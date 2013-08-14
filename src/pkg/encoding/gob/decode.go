@@ -9,6 +9,7 @@ package gob
 
 import (
 	"bytes"
+	"encoding"
 	"errors"
 	"io"
 	"math"
@@ -767,15 +768,22 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
 // The data is encoded as a byte slice.
-func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value) {
+func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, v reflect.Value) {
 	// Read the bytes for the value.
 	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
 	if err != nil {
 		error_(err)
 	}
-	// We know it's a GobDecoder, so just call the method directly.
-	err = v.Interface().(GobDecoder).GobDecode(b)
+	// We know it's one of these.
+	switch ut.externalDec {
+	case xGob:
+		err = v.Interface().(GobDecoder).GobDecode(b)
+	case xBinary:
+		err = v.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary(b)
+	case xText:
+		err = v.Interface().(encoding.TextUnmarshaler).UnmarshalText(b)
+	}
 	if err != nil {
 		error_(err)
 	}
@@ -825,9 +833,10 @@ var decIgnoreOpMap = map[typeId]decOp{
 func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProgress map[reflect.Type]*decOp) (*decOp, int) {
 	ut := userType(rt)
 	// If the type implements GobEncoder, we handle it without further processing.
-	if ut.isGobDecoder {
+	if ut.externalDec != 0 {
 		return dec.gobDecodeOpFor(ut)
 	}
+
 	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
 	// Return the pointer to the op we're already building.
 	if opPtr := inProgress[rt]; opPtr != nil {
@@ -954,7 +963,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 				state.dec.ignoreStruct(*enginePtr)
 			}
 
-		case wire.GobEncoderT != nil:
+		case wire.GobEncoderT != nil, wire.BinaryMarshalerT != nil, wire.TextMarshalerT != nil:
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 				state.dec.ignoreGobDecoder(state)
 			}
@@ -993,7 +1002,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 		} else {
 			v = reflect.NewAt(rcvrType, p).Elem()
 		}
-		state.dec.decodeGobDecoder(state, v)
+		state.dec.decodeGobDecoder(ut, state, v)
 	}
 	return &op, int(ut.indir)
 
@@ -1010,12 +1019,18 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 	inProgress[fr] = fw
 	ut := userType(fr)
 	wire, ok := dec.wireType[fw]
-	// If fr is a GobDecoder, the wire type must be GobEncoder.
-	// And if fr is not a GobDecoder, the wire type must not be either.
-	if ut.isGobDecoder != (ok && wire.GobEncoderT != nil) { // the parentheses look odd but are correct.
+	// If wire was encoded with an encoding method, fr must have that method.
+	// And if not, it must not.
+	// At most one of the booleans in ut is set.
+	// We could possibly relax this constraint in the future in order to
+	// choose the decoding method using the data in the wireType.
+	// The parentheses look odd but are correct.
+	if (ut.externalDec == xGob) != (ok && wire.GobEncoderT != nil) ||
+		(ut.externalDec == xBinary) != (ok && wire.BinaryMarshalerT != nil) ||
+		(ut.externalDec == xText) != (ok && wire.TextMarshalerT != nil) {
 		return false
 	}
-	if ut.isGobDecoder { // This test trumps all others.
+	if ut.externalDec != 0 { // This test trumps all others.
 		return true
 	}
 	switch t := ut.base; t.Kind() {
@@ -1114,8 +1129,7 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err error) {
 	rt := ut.base
 	srt := rt
-	if srt.Kind() != reflect.Struct ||
-		ut.isGobDecoder {
+	if srt.Kind() != reflect.Struct || ut.externalDec != 0 {
 		return dec.compileSingle(remoteId, ut)
 	}
 	var wireStruct *structType
@@ -1223,7 +1237,7 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 		return
 	}
 	engine := *enginePtr
-	if st := base; st.Kind() == reflect.Struct && !ut.isGobDecoder {
+	if st := base; st.Kind() == reflect.Struct && ut.externalDec == 0 {
 		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
 			name := base.Name()
 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
