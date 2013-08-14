@@ -289,6 +289,31 @@ type ChardataEmptyTest struct {
 	Contents *string `xml:",chardata"`
 }
 
+type MyMarshalerTest struct {
+}
+
+var _ Marshaler = (*MyMarshalerTest)(nil)
+
+func (m *MyMarshalerTest) MarshalXML(e *Encoder, start StartElement) error {
+	e.EncodeToken(start)
+	e.EncodeToken(CharData([]byte("hello world")))
+	e.EncodeToken(EndElement{start.Name})
+	return nil
+}
+
+type MyMarshalerAttrTest struct {
+}
+
+var _ MarshalerAttr = (*MyMarshalerAttrTest)(nil)
+
+func (m *MyMarshalerAttrTest) MarshalXMLAttr(name Name) (Attr, error) {
+	return Attr{name, "hello world"}, nil
+}
+
+type MarshalerStruct struct {
+	Foo MyMarshalerAttrTest `xml:",attr"`
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -843,6 +868,15 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<Strings><A></A></Strings>`,
 		Value:     &Strings{},
+	},
+	// Custom marshalers.
+	{
+		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
+		Value:     &MyMarshalerTest{},
+	},
+	{
+		ExpectXML: `<MarshalerStruct Foo="hello world"></MarshalerStruct>`,
+		Value:     &MarshalerStruct{},
 	},
 }
 
