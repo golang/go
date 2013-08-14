@@ -201,11 +201,11 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
 TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	// this might be called in external code context,
 	// where g and m are not set.
-	// first save R0, because _cgo_load_gm will clobber it
+	// first save R0, because runtime·load_gm will clobber it
 	MOVW	R0, 4(R13) // signum
-	MOVW	_cgo_load_gm(SB), R0
+	MOVB	runtime·iscgo(SB), R0
 	CMP 	$0, R0
-	BL.NE	(R0)
+	BL.NE	runtime·load_gm(SB)
 
 	CMP $0, m
 	BNE 4(PC)
