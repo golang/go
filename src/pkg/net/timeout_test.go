@@ -710,6 +710,10 @@ func TestDeadlineRace(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
+	N := 1000
+	if testing.Short() {
+		N = 50
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	ln := newLocalListener(t)
 	defer ln.Close()
@@ -721,7 +725,7 @@ func TestDeadlineRace(t *testing.T) {
 	done := make(chan bool)
 	go func() {
 		t := time.NewTicker(2 * time.Microsecond).C
-		for {
+		for i := 0; i < N; i++ {
 			if err := c.SetDeadline(time.Now().Add(2 * time.Microsecond)); err != nil {
 				break
 			}
@@ -730,7 +734,7 @@ func TestDeadlineRace(t *testing.T) {
 		done <- true
 	}()
 	var buf [1]byte
-	for i := 0; i < 1024; i++ {
+	for i := 0; i < N; i++ {
 		c.Read(buf[:]) // ignore possible timeout errors
 	}
 	c.Close()
