@@ -82,7 +82,6 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
-	LIBINITENTRY = 0;
 	linkmode = LinkAuto;
 	nuxiinit();
 
@@ -119,7 +118,7 @@ main(int argc, char *argv[])
 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
 	flagcount("race", "enable race detector", &flag_race);
 	flagcount("s", "disable symbol table", &debug['s']);
-	flagcount("shared", "generate shared object", &flag_shared);
+	flagcount("shared", "generate shared object (implies -linkmode external)", &flag_shared);
 	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
 	flagcount("u", "reject unsafe packages", &debug['u']);
 	flagcount("v", "print link trace", &debug['v']);
@@ -139,6 +138,9 @@ main(int argc, char *argv[])
 	// Go was built; see ../../make.bash.
 	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
 		linkmode = LinkInternal;
+
+	if(flag_shared)
+		linkmode = LinkExternal;
 
 	switch(HEADTYPE) {
 	default:
@@ -365,7 +367,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 		adrgotype = zsym(pn, f, h);
 	s = a->sym;
 	t = a->type;
-	if(t == D_INDIR+D_GS)
+	if(t == D_INDIR+D_GS || a->index == D_GS)
 		a->offset += tlsoffset;
 	if(t != D_AUTO && t != D_PARAM) {
 		if(s && adrgotype)

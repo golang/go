@@ -119,17 +119,14 @@ libinit(void)
 	}
 
 	if(INITENTRY == nil) {
-		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
-		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+		INITENTRY = mal(strlen(goarch)+strlen(goos)+20);
+		if(!flag_shared) {
+			sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+		} else {
+			sprint(INITENTRY, "_rt0_%s_%s_lib", goarch, goos);
+		}
 	}
 	lookup(INITENTRY, 0)->type = SXREF;
-	if(flag_shared) {
-		if(LIBINITENTRY == nil) {
-			LIBINITENTRY = mal(strlen(goarch)+strlen(goos)+20);
-			sprint(LIBINITENTRY, "_rt0_%s_%s_lib", goarch, goos);
-		}
-		lookup(LIBINITENTRY, 0)->type = SXREF;
-	}
 }
 
 void
@@ -308,7 +305,13 @@ void
 loadlib(void)
 {
 	int i, w, x;
-	Sym *s;
+	Sym *s, *gmsym;
+
+	if(flag_shared) {
+		s = lookup("runtime.islibrary", 0);
+		s->dupok = 1;
+		adduint8(s, 1);
+	}
 
 	loadinternal("runtime");
 	if(thechar == '5')
@@ -357,7 +360,15 @@ loadlib(void)
 				} else
 					s->type = 0;
 			}
-	}
+	} 
+	gmsym = lookup("runtime.tlsgm", 0);
+	gmsym->type = STLSBSS;
+	gmsym->size = 2*PtrSize;
+	gmsym->hide = 1;
+	if(linkmode == LinkExternal)
+		gmsym->reachable = 1;
+	else
+		gmsym->reachable = 0;
 	
 	// Now that we know the link mode, trim the dynexp list.
 	x = CgoExportDynamic;
@@ -669,7 +680,7 @@ hostlink(void)
 		p = strchr(p + 1, ' ');
 	}
 
-	argv = malloc((10+nhostobj+nldflag+c)*sizeof argv[0]);
+	argv = malloc((13+nhostobj+nldflag+c)*sizeof argv[0]);
 	argc = 0;
 	if(extld == nil)
 		extld = "gcc";
@@ -682,7 +693,7 @@ hostlink(void)
 		argv[argc++] = "-m64";
 		break;
 	case '5':
-		// nothing required for arm
+		argv[argc++] = "-marm";
 		break;
 	}
 	if(!debug['s'] && !debug_s) {
@@ -696,6 +707,10 @@ hostlink(void)
 	if(iself && AssumeGoldLinker)
 		argv[argc++] = "-Wl,--rosegment";
 
+	if(flag_shared) {
+		argv[argc++] = "-Wl,-Bsymbolic";
+		argv[argc++] = "-shared";
+	}
 	argv[argc++] = "-o";
 	argv[argc++] = outfile;
 	

@@ -499,6 +499,9 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			local = expandpkg(local, pkg);
 			s = lookup(local, 0);
 
+			if(flag_shared && s == lookup("main", 0))
+				continue;
+
 			// export overrides import, for openbsd/cgo.
 			// see issue 4878.
 			if(s->dynimplib != nil) {
@@ -680,8 +683,6 @@ deadcode(void)
 		Bprint(&bso, "%5.2f deadcode\n", cputime());
 
 	mark(lookup(INITENTRY, 0));
-	if(flag_shared)
-		mark(lookup(LIBINITENTRY, 0));
 	for(i=0; i<nelem(markextra); i++)
 		mark(lookup(markextra[i], 0));
 

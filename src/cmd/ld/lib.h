@@ -55,7 +55,7 @@ enum
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
 	SMACHOGOT,
 	SNOPTRDATA,
-	SDATARELRO,
+	SINITARR,
 	SDATA,
 	SWINDOWS,
 	SBSS,
@@ -224,7 +224,6 @@ void	Lflag(char *arg);
 void	usage(void);
 void	adddynrel(Sym*, Reloc*);
 void	adddynrela(Sym*, Sym*, Reloc*);
-Sym*	lookuprel(void);
 void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
 void	ldobj(Biobuf*, char*, int64, char*, char*, int);
 void	ldelf(Biobuf*, char*, int64, char*);

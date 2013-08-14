@@ -99,12 +99,6 @@ int nelfsym = 1;
 static void addpltsym(Sym*);
 static void addgotsym(Sym*);
 
-Sym *
-lookuprel(void)
-{
-	return lookup(".rela", 0);
-}
-
 void
 adddynrela(Sym *rela, Sym *s, Reloc *r)
 {
@@ -312,9 +306,12 @@ elfreloc1(Reloc *r, vlong sectoff)
 		break;
 	
 	case D_TLS:
-		if(r->siz == 4)
-			VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
-		else
+		if(r->siz == 4) {
+			if(flag_shared)
+				VPUT(R_X86_64_GOTTPOFF | (uint64)elfsym<<32);
+			else
+				VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
+		} else
 			return -1;
 		break;		
 	}

@@ -89,7 +89,6 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
-	LIBINITENTRY = 0;
 	linkmode = LinkAuto;
 	nuxiinit();
 

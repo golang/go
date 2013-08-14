@@ -358,6 +358,18 @@ prefixof(Adr *a)
 	case D_INDIR+D_GS:
 		return 0x65;
 	}
+	switch(a->index) {
+	case D_CS:
+		return 0x2e;
+	case D_DS:
+		return 0x3e;
+	case D_ES:
+		return 0x26;
+	case D_FS:
+		return 0x64;
+	case D_GS:
+		return 0x65;
+	}
 	return 0;
 }
 
@@ -735,15 +747,20 @@ vaddr(Adr *a, Reloc *r)
 			diag("need reloc for %D", a);
 			errorexit();
 		}
-		if(flag_shared)
-			r->type = D_PCREL;
-		else
-			r->type = D_ADDR;
 		r->siz = 4;	// TODO: 8 for external symbols
 		r->off = -1;	// caller must fill in
 		r->sym = s;
 		r->add = v;
 		v = 0;
+		if(flag_shared) {
+			if(s->type == STLSBSS) {
+				r->xadd = r->add - r->siz;
+				r->type = D_TLS;
+				r->xsym = s;
+			} else
+				r->type = D_PCREL;
+		} else
+			r->type = D_ADDR;
 	}
 	return v;
 }
@@ -760,7 +777,7 @@ asmandsz(Adr *a, int r, int rex, int m64)
 	v = a->offset;
 	t = a->type;
 	rel.siz = 0;
-	if(a->index != D_NONE) {
+	if(a->index != D_NONE && a->index != D_FS && a->index != D_GS) {
 		if(t < D_INDIR) { 
 			switch(t) {
 			default:
@@ -888,18 +905,11 @@ putrelv:
 		
 		r = addrel(cursym);
 		r->off = curp->pc + andptr - and;
-		r->add = 0;
-		r->xadd = 0;
+		r->add = a->offset-tlsoffset;
+		r->xadd = r->add;
 		r->siz = 4;
 		r->type = D_TLS;
-		if(a->offset == tlsoffset+0)
-			s = lookup("runtime.g", 0);
-		else
-			s = lookup("runtime.m", 0);
-		s->type = STLSBSS;
-		s->reachable = 1;
-		s->size = PtrSize;
-		s->hide = 1;
+		s = lookup("runtime.tlsgm", 0);
 		r->sym = s;
 		r->xsym = s;
 		v = 0;

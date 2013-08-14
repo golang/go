@@ -271,7 +271,7 @@ patch(void)
 {
 	int32 c;
 	Prog *p, *q;
-	Sym *s;
+	Sym *s, *gmsym;
 	int32 vexit;
 
 	if(debug['v'])
@@ -282,6 +282,17 @@ patch(void)
 		Bprint(&bso, "%5.2f patch\n", cputime());
 	Bflush(&bso);
 
+	if(flag_shared) {
+		s = lookup("init_array", 0);
+		s->type = SINITARR;
+		s->reachable = 1;
+		s->hide = 1;
+		addaddr(s, lookup(INITENTRY, 0));
+	}
+
+	gmsym = lookup("runtime.tlsgm", 0);
+	if(linkmode != LinkExternal)
+		gmsym->reachable = 0;
 	s = lookup("exit", 0);
 	vexit = s->value;
 	for(cursym = textp; cursym != nil; cursym = cursym->next)
@@ -317,6 +328,59 @@ patch(void)
 				p->from.type = D_INDIR+D_FS;
 			if(p->to.type == D_INDIR+D_GS)
 				p->to.type = D_INDIR+D_FS;
+			if(p->from.index == D_GS)
+				p->from.index = D_FS;
+			if(p->to.index == D_GS)
+				p->to.index = D_FS;
+		}
+		if(!flag_shared) {
+			// Convert g() or m() accesses of the form
+			//   op n(reg)(GS*1), reg
+			// to
+			//   op n(GS*1), reg
+			if(p->from.index == D_FS || p->from.index == D_GS) {
+				p->from.type = D_INDIR + p->from.index;
+				p->from.index = D_NONE;
+			}
+			// Convert g() or m() accesses of the form
+			//   op reg, n(reg)(GS*1)
+			// to
+			//   op reg, n(GS*1)
+			if(p->to.index == D_FS || p->to.index == D_GS) {
+				p->to.type = D_INDIR + p->to.index;
+				p->to.index = D_NONE;
+			}
+			// Convert get_tls access of the form
+			//   op runtime.tlsgm(SB), reg
+			// to
+			//   NOP
+			if(gmsym != S && p->from.sym == gmsym) {
+				p->as = ANOP;
+				p->from.type = D_NONE;
+				p->to.type = D_NONE;
+				p->from.sym = nil;
+				p->to.sym = nil;
+				continue;
+			}
+		} else {
+			// Convert TLS reads of the form
+			//   op n(GS), reg
+			// to
+			//   MOVQ $runtime.tlsgm(SB), reg
+			//   op n(reg)(GS*1), reg
+			if((p->from.type == D_INDIR+D_FS || p->from.type == D_INDIR + D_GS) && p->to.type >= D_AX && p->to.type <= D_DI) {
+				q = appendp(p);
+				q->to = p->to;
+				q->as = p->as;
+				q->from.type = D_INDIR+p->to.type;
+				q->from.index = p->from.type - D_INDIR;
+				q->from.scale = 1;
+				q->from.offset = p->from.offset;
+				p->as = AMOVQ;
+				p->from.type = D_EXTERN;
+				p->from.sym = gmsym;
+				p->from.offset = 0;
+			}
 		}
 		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH) || (p->as == ARET && p->to.sym != nil)) {
 			s = p->to.sym;
@@ -411,7 +475,10 @@ dostkoff(void)
 	int32 autoffset, deltasp;
 	int a, pcsize;
 	uint32 moreconst1, moreconst2, i;
+	Sym *gmsym;
 
+
+	gmsym = lookup("runtime.tlsgm", 0);
 	for(i=0; i<nelem(morename); i++) {
 		symmorestack[i] = lookup(morename[i], 0);
 		if(symmorestack[i]->type != STEXT)
@@ -443,6 +510,14 @@ dostkoff(void)
 			diag("nosplit func likely to overflow stack");
 
 		if(!(p->from.scale & NOSPLIT)) {
+			if(flag_shared) {
+				// Load TLS offset with MOVQ $runtime.tlsgm(SB), CX
+				p = appendp(p);
+				p->as = AMOVQ;
+				p->from.type = D_EXTERN;
+				p->from.sym = gmsym;
+				p->to.type = D_CX;
+			}
 			p = appendp(p);	// load g into CX
 			p->as = AMOVQ;
 			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
@@ -451,6 +526,11 @@ dostkoff(void)
 				p->from.type = D_INDIR+D_FS;
 			else
 				p->from.type = D_INDIR+D_GS;
+			if(flag_shared) {
+				// Add TLS offset stored in CX
+				p->from.index = p->from.type - D_INDIR;
+				p->from.type = D_INDIR + D_CX;
+			}
 			p->from.offset = tlsoffset+0;
 			p->to.type = D_CX;
 			if(HEADTYPE == Hwindows) {

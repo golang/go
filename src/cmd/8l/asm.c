@@ -95,12 +95,6 @@ int	nelfsym = 1;
 static void	addpltsym(Sym*);
 static void	addgotsym(Sym*);
 
-Sym *
-lookuprel(void)
-{
-	return lookup(".rel", 0);
-}
-
 void
 adddynrela(Sym *rela, Sym *s, Reloc *r)
 {
@@ -366,6 +360,8 @@ int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
 	USED(s);
+	if(linkmode == LinkExternal)
+		return -1;
 	switch(r->type) {
 	case D_CONST:
 		*val = r->add;

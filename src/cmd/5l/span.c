@@ -90,7 +90,7 @@ span(void)
 	int32 c, otxt, out[6];
 	Section *sect;
 	uchar *bp;
-	Sym *sub;
+	Sym *sub, *gmsym;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
@@ -237,6 +237,9 @@ span(void)
 	 * code references to be relocated too, and then
 	 * perhaps we'd be able to parallelize the span loop above.
 	 */
+	gmsym = S;
+	if(linkmode == LinkExternal)
+		gmsym = lookup("runtime.tlsgm", 0);
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		p = cursym->text;
 		if(p == P || p->link == P)
@@ -249,7 +252,7 @@ span(void)
 			pc = p->pc;
 			curp = p;
 			o = oplook(p);
-			asmout(p, o, out);
+			asmout(p, o, out, gmsym);
 			for(i=0; i<o->size/4; i++) {
 				v = out[i];
 				*bp++ = v;
@@ -574,10 +577,7 @@ aclass(Adr *a)
 			if(s == S)
 				break;
 			instoffset = 0;	// s.b. unused but just in case
-			if(flag_shared)
-				return C_LCONADDR;
-			else
-				return C_LCON;
+			return C_LCONADDR;
 
 		case D_AUTO:
 			instoffset = autosize + a->offset;

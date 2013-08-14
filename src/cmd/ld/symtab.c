@@ -181,22 +181,13 @@ asmelfsym(void)
 	genasmsym(putelfsym);
 	
 	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd) {
-		s = lookup("runtime.m", 0);
+		s = lookup("runtime.tlsgm", 0);
 		if(s->sect == nil) {
 			cursym = nil;
 			diag("missing section for %s", s->name);
 			errorexit();
 		}
-		putelfsyment(putelfstr(s->name), 0, PtrSize, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
-		s->elfsym = numelfsym++;
-
-		s = lookup("runtime.g", 0);
-		if(s->sect == nil) {
-			cursym = nil;
-			diag("missing section for %s", s->name);
-			errorexit();
-		}
-		putelfsyment(putelfstr(s->name), PtrSize, PtrSize, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
+		putelfsyment(putelfstr(s->name), 0, 2*PtrSize, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
 		s->elfsym = numelfsym++;
 	}
 
@@ -478,10 +469,6 @@ symtab(void)
 	xdefine("etypelink", SRODATA, 0);
 	xdefine("rodata", SRODATA, 0);
 	xdefine("erodata", SRODATA, 0);
-	if(flag_shared) {
-		xdefine("datarelro", SDATARELRO, 0);
-		xdefine("edatarelro", SDATARELRO, 0);
-	}
 	xdefine("noptrdata", SNOPTRDATA, 0);
 	xdefine("enoptrdata", SNOPTRDATA, 0);
 	xdefine("data", SDATA, 0);

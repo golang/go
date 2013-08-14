@@ -60,13 +60,14 @@ noops(void)
 	int o;
 	int32 arg;
 	Prog *pmorestack;
-	Sym *symmorestack;
+	Sym *symmorestack, *tlsfallback, *gmsym;
 
 	/*
 	 * find leaf subroutines
 	 * strip NOPs
 	 * expand RET
 	 * expand BECOME pseudo
+	 * fixup TLS
 	 */
 
 	if(debug['v'])
@@ -81,6 +82,10 @@ noops(void)
 	pmorestack = symmorestack->text;
 	pmorestack->reg |= NOSPLIT;
 
+	tlsfallback = lookup("runtime.read_tls_fallback", 0);
+	gmsym = S;
+	if(linkmode == LinkExternal)
+		gmsym = lookup("runtime.tlsgm", 0);
 	q = P;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
@@ -145,6 +150,82 @@ noops(void)
 					}
 				}
 				break;
+			case AWORD:
+				// Rewrite TLS register fetch: MRC 15, 0, <reg>, C13, C0, 3
+				if((p->to.offset & 0xffff0fff) == 0xee1d0f70) {
+					if(HEADTYPE == Hopenbsd) {
+						p->as = ARET;
+					} else if(goarm < 7) {
+						if(tlsfallback->type != STEXT) {
+							diag("runtime·read_tls_fallback not defined");
+							errorexit();
+						}
+						// BL runtime.read_tls_fallback(SB)
+						p->as = ABL;
+						p->to.type = D_BRANCH;
+						p->to.sym = tlsfallback;
+						p->cond = tlsfallback->text;
+						p->to.offset = 0;
+						cursym->text->mark &= ~LEAF;
+					}
+					if(linkmode == LinkExternal) {
+						// runtime.tlsgm is relocated with R_ARM_TLS_LE32
+						// and $runtime.tlsgm will contain the TLS offset.
+						//
+						// MOV $runtime.tlsgm+tlsoffset(SB), REGTMP
+						// ADD REGTMP, <reg>
+						//
+						// In shared mode, runtime.tlsgm is relocated with
+						// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
+						// to the GOT entry containing the TLS offset.
+						//
+						// MOV runtime.tlsgm(SB), REGTMP
+						// ADD REGTMP, <reg>
+						// SUB -tlsoffset, <reg>
+						//
+						// The SUB compensates for tlsoffset
+						// used in runtime.save_gm and runtime.load_gm.
+						q = p;
+						p = appendp(p);
+						p->as = AMOVW;
+						p->scond = 14;
+						p->reg = NREG;
+						if(flag_shared) {
+							p->from.type = D_OREG;
+							p->from.offset = 0;
+						} else {
+							p->from.type = D_CONST;
+							p->from.offset = tlsoffset;
+						}
+						p->from.sym = gmsym;
+						p->from.name = D_EXTERN;
+						p->to.type = D_REG;
+						p->to.reg = REGTMP;
+						p->to.offset = 0;
+
+						p = appendp(p);
+						p->as = AADD;
+						p->scond = 14;
+						p->reg = NREG;
+						p->from.type = D_REG;
+						p->from.reg = REGTMP;
+						p->to.type = D_REG;
+						p->to.reg = (q->to.offset & 0xf000) >> 12;
+						p->to.offset = 0;
+
+						if(flag_shared) {
+							p = appendp(p);
+							p->as = ASUB;
+							p->scond = 14;
+							p->reg = NREG;
+							p->from.type = D_CONST;
+							p->from.offset = -tlsoffset;
+							p->to.type = D_REG;
+							p->to.reg = (q->to.offset & 0xf000) >> 12;
+							p->to.offset = 0;
+						}
+					}
+				}
 			}
 			q = p;
 		}
