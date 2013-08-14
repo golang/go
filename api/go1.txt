@@ -2425,6 +2425,13 @@ pkg encoding/xml, method (*UnsupportedTypeError) Error() string
 pkg encoding/xml, method (CharData) Copy() CharData
 pkg encoding/xml, method (Comment) Copy() Comment
 pkg encoding/xml, method (Directive) Copy() Directive
+pkg encoding/xml, method (Encoder) Available() int
+pkg encoding/xml, method (Encoder) Buffered() int
+pkg encoding/xml, method (Encoder) Flush() error
+pkg encoding/xml, method (Encoder) Write([]uint8) (int, error)
+pkg encoding/xml, method (Encoder) WriteByte(uint8) error
+pkg encoding/xml, method (Encoder) WriteRune(int32) (int, error)
+pkg encoding/xml, method (Encoder) WriteString(string) (int, error)
 pkg encoding/xml, method (ProcInst) Copy() ProcInst
 pkg encoding/xml, method (StartElement) Copy() StartElement
 pkg encoding/xml, method (UnmarshalError) Error() string
