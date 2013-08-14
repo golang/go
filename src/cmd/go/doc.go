@@ -236,7 +236,7 @@ Download and install packages and dependencies
 
 Usage:
 
-	go get [-d] [-fix] [-u] [build flags] [packages]
+	go get [-d] [-fix] [-t] [-u] [build flags] [packages]
 
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
@@ -246,6 +246,9 @@ it instructs get not to install the packages.
 
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
+
+The -t flag instructs get to also download the packages required to build
+the tests for the specified packages.
 
 The -u flag instructs get to use the network to update the named packages
 and their dependencies.  By default, get uses the network to check out
