@@ -992,6 +992,8 @@ install(char *dir)
 			vadd(&compile, bprintf(&b, "GOOS_%s", goos));
 			vadd(&compile, "-D");
 			vadd(&compile, bprintf(&b, "GOARCH_%s", goarch));
+			vadd(&compile, "-D");
+			vadd(&compile, bprintf(&b, "GOOS_GOARCH_%s_%s", goos, goarch));
 		}
 
 		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
@@ -1265,6 +1267,7 @@ static char *buildorder[] = {
 	"pkg/os",
 	"pkg/reflect",
 	"pkg/fmt",
+	"pkg/encoding",
 	"pkg/encoding/json",
 	"pkg/flag",
 	"pkg/path/filepath",
@@ -1317,6 +1320,7 @@ static char *cleantab[] = {
 	"pkg/bufio",
 	"pkg/bytes",
 	"pkg/container/heap",
+	"pkg/encoding",
 	"pkg/encoding/base64",
 	"pkg/encoding/json",
 	"pkg/errors",
