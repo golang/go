@@ -666,7 +666,7 @@ func writeBlock(w io.Writer, debug int) error {
 		}
 		fmt.Fprint(w, "\n")
 		if debug > 0 {
-			printStackRecord(w, r.Stack(), false)
+			printStackRecord(w, r.Stack(), true)
 		}
 	}
 

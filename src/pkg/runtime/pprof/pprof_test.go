@@ -181,10 +181,55 @@ var badOS = map[string]bool{
 }
 
 func TestBlockProfile(t *testing.T) {
+	type TestCase struct {
+		name string
+		f    func()
+		re   string
+	}
+	tests := [...]TestCase{
+		{"chan recv", blockChanRecv, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"chan send", blockChanSend, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"chan close", blockChanClose, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"select recv async", blockSelectRecvAsync, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"select send sync", blockSelectSendSync, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"mutex", blockMutex, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/pkg/sync/mutex\.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
+	}
+
 	runtime.SetBlockProfileRate(1)
 	defer runtime.SetBlockProfileRate(0)
-	produceChanContention()
-	produceMutexContention()
+	for _, test := range tests {
+		test.f()
+	}
 	var w bytes.Buffer
 	Lookup("block").WriteTo(&w, 1)
 	prof := w.String()
@@ -193,40 +238,73 @@ func TestBlockProfile(t *testing.T) {
 		t.Fatalf("Bad profile header:\n%v", prof)
 	}
 
-	reChan := regexp.MustCompile(`
-[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.produceChanContention\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
-`)
-	if !reChan.MatchString(prof) {
-		t.Fatalf("Bad chan entry, expect:\n%v\ngot:\n%v", reChan, prof)
-	}
-
-	reMutex := regexp.MustCompile(`
-[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/pkg/sync/mutex\.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.produceMutexContention\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
-`)
-	if !reMutex.MatchString(prof) {
-		t.Fatalf("Bad mutex entry, expect:\n%v\ngot:\n%v", reMutex, prof)
+	for _, test := range tests {
+		if !regexp.MustCompile(test.re).MatchString(prof) {
+			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
+		}
 	}
 }
 
-func produceChanContention() {
+const blockDelay = 10 * time.Millisecond
+
+func blockChanRecv() {
 	c := make(chan bool)
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(blockDelay)
 		c <- true
 	}()
 	<-c
 }
 
-func produceMutexContention() {
+func blockChanSend() {
+	c := make(chan bool)
+	go func() {
+		time.Sleep(blockDelay)
+		<-c
+	}()
+	c <- true
+}
+
+func blockChanClose() {
+	c := make(chan bool)
+	go func() {
+		time.Sleep(blockDelay)
+		close(c)
+	}()
+	<-c
+}
+
+func blockSelectRecvAsync() {
+	c := make(chan bool, 1)
+	c2 := make(chan bool, 1)
+	go func() {
+		time.Sleep(blockDelay)
+		c <- true
+	}()
+	select {
+	case <-c:
+	case <-c2:
+	}
+}
+
+func blockSelectSendSync() {
+	c := make(chan bool)
+	c2 := make(chan bool)
+	go func() {
+		time.Sleep(blockDelay)
+		<-c
+	}()
+	select {
+	case c <- true:
+	case c2 <- true:
+	}
+}
+
+func blockMutex() {
 	var mu sync.Mutex
 	mu.Lock()
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(blockDelay)
 		mu.Unlock()
 	}()
 	mu.Lock()
