@@ -146,30 +146,26 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 	return resolveAndDial(network, address, d.LocalAddr, d.deadline())
 }
 
-func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
+func dial(net, addr string, la, ra Addr, deadline time.Time) (Conn, error) {
 	if la != nil && la.Network() != ra.Network() {
 		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
 	}
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		c, err = dialTCP(net, la, ra, deadline)
+		return dialTCP(net, la, ra, deadline)
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
-		c, err = dialUDP(net, la, ra, deadline)
+		return dialUDP(net, la, ra, deadline)
 	case *IPAddr:
 		la, _ := la.(*IPAddr)
-		c, err = dialIP(net, la, ra, deadline)
+		return dialIP(net, la, ra, deadline)
 	case *UnixAddr:
 		la, _ := la.(*UnixAddr)
-		c, err = dialUnix(net, la, ra, deadline)
+		return dialUnix(net, la, ra, deadline)
 	default:
-		err = &OpError{Op: "dial", Net: net, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: addr}}
+		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: addr}}
 	}
-	if err != nil {
-		return nil, err
-	}
-	return
 }
 
 type stringAddr struct {
