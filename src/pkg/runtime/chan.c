@@ -851,6 +851,7 @@ selectgo(Select **selp)
 {
 	Select *sel;
 	uint32 o, i, j, k;
+	int64 t0;
 	Scase *cas, *dfl;
 	Hchan *c;
 	SudoG *sg;
@@ -864,6 +865,13 @@ selectgo(Select **selp)
 
 	if(debug)
 		runtime·printf("select: sel=%p\n", sel);
+
+	t0 = 0;
+	if(runtime·blockprofilerate > 0) {
+		t0 = runtime·cputicks();
+		for(i=0; i<sel->ncase; i++)
+			sel->scase[i].sg.releasetime = -1;
+	}
 
 	// The compiler rewrites selects that statically have
 	// only 0 or 1 cases plus default into simpler constructs.
@@ -1048,6 +1056,8 @@ asyncrecv:
 	if(sg != nil) {
 		gp = sg->g;
 		selunlock(sel);
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	} else {
 		selunlock(sel);
@@ -1066,6 +1076,8 @@ asyncsend:
 	if(sg != nil) {
 		gp = sg->g;
 		selunlock(sel);
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	} else {
 		selunlock(sel);
@@ -1085,6 +1097,8 @@ syncrecv:
 		c->elemalg->copy(c->elemsize, cas->sg.elem, sg->elem);
 	gp = sg->g;
 	gp->param = sg;
+	if(sg->releasetime)
+		sg->releasetime = runtime·cputicks();
 	runtime·ready(gp);
 	goto retc;
 
@@ -1110,6 +1124,8 @@ syncsend:
 		c->elemalg->copy(c->elemsize, sg->elem, cas->sg.elem);
 	gp = sg->g;
 	gp->param = sg;
+	if(sg->releasetime)
+		sg->releasetime = runtime·cputicks();
 	runtime·ready(gp);
 
 retc:
@@ -1123,6 +1139,8 @@ retc:
 		as = (byte*)selp + cas->so;
 		*as = true;
 	}
+	if(cas->sg.releasetime > 0)
+		runtime·blockevent(cas->sg.releasetime - t0, 2);
 	runtime·free(sel);
 	return pc;
 
@@ -1265,6 +1283,8 @@ closechan(Hchan *c, void *pc)
 			break;
 		gp = sg->g;
 		gp->param = nil;
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	}
 
@@ -1275,6 +1295,8 @@ closechan(Hchan *c, void *pc)
 			break;
 		gp = sg->g;
 		gp->param = nil;
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	}
 
