@@ -9,6 +9,7 @@ package or cmd/xxx directory name, and ending in a CL number.
 Please keep the list sorted (as in sort.Strings of the lines).
 
 Performance:
+encoding/json: faster encoding (CL 9129044).
 net: improve windows performance by up to 30% (CL 8670044).
 
 cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
@@ -17,6 +18,7 @@ cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
 cmd/gc: make missing package error fatal (CL 12677043).
 cmd/go: test coverage (CL 10413044).
 
+archive/zip: add File.DataOffset accessor (CL 12784045).
 bufio: add Reset methods to Reader and Writer (CL 12603049).
 compress/bzip2: support concatenated files (CL 12387044).
 container/heap: added Fix (CL 12265043).
@@ -48,7 +50,9 @@ image/gif: added Encode and EncodeAll (CL 10896043).
 io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
 ioutil: add WriteString to Discard (CL 12580045).
 net: new build tag netgo for building a pure Go net package (CL 7100050).
+net/http: don't allow sending invalid cookie lines (CL 12204043).
 net/http: allow ReadResponse with nil *Request parameter (CL 9821043).
+net/http: allow responses to HEAD requests, detect type and length (CL 12583043).
 runtime: relax constraint on finalizer func in SetFinalizer (CL 12895043).
 runtime: preemption of goroutines at function entry (CL 12371043).
 sort: new Stable function provides stable sort (CL 9612044).
