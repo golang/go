@@ -494,7 +494,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 
 	// Gcc wrapper unpacks the C argument struct
 	// and calls the actual C function.
-	fmt.Fprintf(fgcc, "__attribute__ ((visibility (\"hidden\"))) void\n")
+	fmt.Fprintf(fgcc, "void\n")
 	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fgcc, "{\n")
 	if n.AddError {
