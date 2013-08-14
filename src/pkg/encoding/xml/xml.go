@@ -16,6 +16,7 @@ package xml
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -174,18 +175,19 @@ type Decoder struct {
 	// the attribute xmlns="DefaultSpace".
 	DefaultSpace string
 
-	r         io.ByteReader
-	buf       bytes.Buffer
-	saved     *bytes.Buffer
-	stk       *stack
-	free      *stack
-	needClose bool
-	toClose   Name
-	nextToken Token
-	nextByte  int
-	ns        map[string]string
-	err       error
-	line      int
+	r              io.ByteReader
+	buf            bytes.Buffer
+	saved          *bytes.Buffer
+	stk            *stack
+	free           *stack
+	needClose      bool
+	toClose        Name
+	nextToken      Token
+	nextByte       int
+	ns             map[string]string
+	err            error
+	line           int
+	unmarshalDepth int
 }
 
 // NewDecoder creates a new XML parser reading from r.
@@ -223,10 +225,14 @@ func NewDecoder(r io.Reader) *Decoder {
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
 func (d *Decoder) Token() (t Token, err error) {
+	if d.stk != nil && d.stk.kind == stkEOF {
+		err = io.EOF
+		return
+	}
 	if d.nextToken != nil {
 		t = d.nextToken
 		d.nextToken = nil
-	} else if t, err = d.RawToken(); err != nil {
+	} else if t, err = d.rawToken(); err != nil {
 		return
 	}
 
@@ -322,6 +328,7 @@ type stack struct {
 const (
 	stkStart = iota
 	stkNs
+	stkEOF
 )
 
 func (d *Decoder) push(kind int) *stack {
@@ -345,6 +352,43 @@ func (d *Decoder) pop() *stack {
 		d.free = s
 	}
 	return s
+}
+
+// Record that after the current element is finished
+// (that element is already pushed on the stack)
+// Token should return EOF until popEOF is called.
+func (d *Decoder) pushEOF() {
+	// Walk down stack to find Start.
+	// It might not be the top, because there might be stkNs
+	// entries above it.
+	start := d.stk
+	for start.kind != stkStart {
+		start = start.next
+	}
+	// The stkNs entries below a start are associated with that
+	// element too; skip over them.
+	for start.next != nil && start.next.kind == stkNs {
+		start = start.next
+	}
+	s := d.free
+	if s != nil {
+		d.free = s.next
+	} else {
+		s = new(stack)
+	}
+	s.kind = stkEOF
+	s.next = start.next
+	start.next = s
+}
+
+// Undo a pushEOF.
+// The element must have been finished, so the EOF should be at the top of the stack.
+func (d *Decoder) popEOF() bool {
+	if d.stk == nil || d.stk.kind != stkEOF {
+		return false
+	}
+	d.pop()
+	return true
 }
 
 // Record that we are starting an element with the given name.
@@ -395,9 +439,9 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	}
 
-	// Pop stack until a Start is on the top, undoing the
+	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.
-	for d.stk != nil && d.stk.kind != stkStart {
+	for d.stk != nil && d.stk.kind != stkStart && d.stk.kind != stkEOF {
 		s := d.pop()
 		if s.ok {
 			d.ns[s.name.Local] = s.name.Space
@@ -429,10 +473,19 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 	return nil, false
 }
 
+var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method")
+
 // RawToken is like Token but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
 func (d *Decoder) RawToken() (Token, error) {
+	if d.unmarshalDepth > 0 {
+		return nil, errRawToken
+	}
+	return d.rawToken()
+}
+
+func (d *Decoder) rawToken() (Token, error) {
 	if d.err != nil {
 		return nil, d.err
 	}
@@ -484,8 +537,7 @@ func (d *Decoder) RawToken() (Token, error) {
 
 	case '?':
 		// <?: Processing instruction.
-		// TODO(rsc): Should parse the <?xml declaration to make sure
-		// the version is 1.0 and the encoding is UTF-8.
+		// TODO(rsc): Should parse the <?xml declaration to make sure the version is 1.0.
 		var target string
 		if target, ok = d.name(); !ok {
 			if d.err == nil {
@@ -1102,6 +1154,30 @@ func isName(s []byte) bool {
 	for n < len(s) {
 		s = s[n:]
 		c, n = utf8.DecodeRune(s)
+		if c == utf8.RuneError && n == 1 {
+			return false
+		}
+		if !unicode.Is(first, c) && !unicode.Is(second, c) {
+			return false
+		}
+	}
+	return true
+}
+
+func isNameString(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	c, n := utf8.DecodeRuneInString(s)
+	if c == utf8.RuneError && n == 1 {
+		return false
+	}
+	if !unicode.Is(first, c) {
+		return false
+	}
+	for n < len(s) {
+		s = s[n:]
+		c, n = utf8.DecodeRuneInString(s)
 		if c == utf8.RuneError && n == 1 {
 			return false
 		}
@@ -1776,6 +1852,45 @@ func EscapeText(w io.Writer, s []byte) error {
 		return err
 	}
 	return nil
+}
+
+// EscapeString writes to p the properly escaped XML equivalent
+// of the plain text data s.
+func (p *printer) EscapeString(s string) {
+	var esc []byte
+	last := 0
+	for i := 0; i < len(s); {
+		r, width := utf8.DecodeRuneInString(s[i:])
+		i += width
+		switch r {
+		case '"':
+			esc = esc_quot
+		case '\'':
+			esc = esc_apos
+		case '&':
+			esc = esc_amp
+		case '<':
+			esc = esc_lt
+		case '>':
+			esc = esc_gt
+		case '\t':
+			esc = esc_tab
+		case '\n':
+			esc = esc_nl
+		case '\r':
+			esc = esc_cr
+		default:
+			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
+				esc = esc_fffd
+				break
+			}
+			continue
+		}
+		p.WriteString(s[last : i-width])
+		p.Write(esc)
+		last = i
+	}
+	p.WriteString(s[last:])
 }
 
 // Escape is like EscapeText but omits the error return value.

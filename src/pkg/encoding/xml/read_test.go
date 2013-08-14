@@ -5,6 +5,7 @@
 package xml
 
 import (
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -619,5 +620,68 @@ func TestMarshalNSAttr(t *testing.T) {
 
 	if dst != src {
 		t.Errorf("Unmarshal = %q, want %q", dst, src)
+	}
+}
+
+type MyCharData struct {
+	body string
+}
+
+func (m *MyCharData) UnmarshalXML(d *Decoder, start StartElement) error {
+	for {
+		t, err := d.Token()
+		if err == io.EOF { // found end of element
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if char, ok := t.(CharData); ok {
+			m.body += string(char)
+		}
+	}
+	return nil
+}
+
+var _ Unmarshaler = (*MyCharData)(nil)
+
+func (m *MyCharData) UnmarshalXMLAttr(attr Attr) error {
+	panic("must not call")
+}
+
+type MyAttr struct {
+	attr string
+}
+
+func (m *MyAttr) UnmarshalXMLAttr(attr Attr) error {
+	m.attr = attr.Value
+	return nil
+}
+
+var _ UnmarshalerAttr = (*MyAttr)(nil)
+
+type MyStruct struct {
+	Data *MyCharData
+	Attr *MyAttr `xml:",attr"`
+
+	Data2 MyCharData
+	Attr2 MyAttr `xml:",attr"`
+}
+
+func TestUnmarshaler(t *testing.T) {
+	xml := `<?xml version="1.0" encoding="utf-8"?>
+		<MyStruct Attr="attr1" Attr2="attr2">
+		<Data>hello <!-- comment -->world</Data>
+		<Data2>howdy <!-- comment -->world</Data2>
+		</MyStruct>
+	`
+
+	var m MyStruct
+	if err := Unmarshal([]byte(xml), &m); err != nil {
+		t.Fatal(err)
+	}
+
+	if m.Data == nil || m.Attr == nil || m.Data.body != "hello world" || m.Attr.attr != "attr1" || m.Data2.body != "howdy world" || m.Attr2.attr != "attr2" {
+		t.Errorf("m=%#+v\n", m)
 	}
 }
