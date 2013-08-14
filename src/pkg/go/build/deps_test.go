@@ -200,7 +200,7 @@ var pkgDeps = map[string][]string{
 	"encoding/hex":        {"L4"},
 	"encoding/json":       {"L4", "encoding"},
 	"encoding/pem":        {"L4"},
-	"encoding/xml":        {"L4"},
+	"encoding/xml":        {"L4", "encoding"},
 	"flag":                {"L4", "OS"},
 	"go/build":            {"L4", "OS", "GOPARSER"},
 	"html":                {"L4"},
