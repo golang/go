@@ -98,9 +98,9 @@ peep(Prog *firstp)
 	elimshortmov(g);
 
 	// constant propagation
-	// find MOV $con,nil followed by
-	// another MOV $con,nil without
-	// setting nil in the interim
+	// find MOV $con,R followed by
+	// another MOV $con,R without
+	// setting R in the interim
 	for(r=g->start; r!=nil; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
