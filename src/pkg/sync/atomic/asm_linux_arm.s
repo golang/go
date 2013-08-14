@@ -88,9 +88,10 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-12
 	MOVW	new+4(FP), R1
 swaploop1:
 	MOVW	0(R2), R0
+	MOVW	R0, R4 // cas smashes R0
 	BL	cas<>(SB)
 	BCC	swaploop1
-	MOVW	R0, old+8(FP)
+	MOVW	R4, old+8(FP)
 	RET
 
 TEXT ·SwapUintptr(SB),NOSPLIT,$0
