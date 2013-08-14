@@ -1148,9 +1148,9 @@ var invalidEncodingTests = []struct {
 	bytes []byte
 	want  string
 }{
-	{[]byte{}, "Time.GobDecode: no data"},
-	{[]byte{0, 2, 3}, "Time.GobDecode: unsupported version"},
-	{[]byte{1, 2, 3}, "Time.GobDecode: invalid length"},
+	{[]byte{}, "Time.UnmarshalBinary: no data"},
+	{[]byte{0, 2, 3}, "Time.UnmarshalBinary: unsupported version"},
+	{[]byte{1, 2, 3}, "Time.UnmarshalBinary: invalid length"},
 }
 
 func TestInvalidTimeGob(t *testing.T) {
@@ -1160,6 +1160,10 @@ func TestInvalidTimeGob(t *testing.T) {
 		if err == nil || err.Error() != tt.want {
 			t.Errorf("time.GobDecode(%#v) error = %v, want %v", tt.bytes, err, tt.want)
 		}
+		err = ignored.UnmarshalBinary(tt.bytes)
+		if err == nil || err.Error() != tt.want {
+			t.Errorf("time.UnmarshalBinary(%#v) error = %v, want %v", tt.bytes, err, tt.want)
+		}
 	}
 }
 
@@ -1167,10 +1171,10 @@ var notEncodableTimes = []struct {
 	time Time
 	want string
 }{
-	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 1)), "Time.GobEncode: zone offset has fractional minute"},
-	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -1*60)), "Time.GobEncode: unexpected zone offset"},
-	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -32769*60)), "Time.GobEncode: unexpected zone offset"},
-	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 32768*60)), "Time.GobEncode: unexpected zone offset"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 1)), "Time.MarshalBinary: zone offset has fractional minute"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -1*60)), "Time.MarshalBinary: unexpected zone offset"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -32769*60)), "Time.MarshalBinary: unexpected zone offset"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 32768*60)), "Time.MarshalBinary: unexpected zone offset"},
 }
 
 func TestNotGobEncodableTime(t *testing.T) {
@@ -1178,6 +1182,10 @@ func TestNotGobEncodableTime(t *testing.T) {
 		_, err := tt.time.GobEncode()
 		if err == nil || err.Error() != tt.want {
 			t.Errorf("%v GobEncode error = %v, want %v", tt.time, err, tt.want)
+		}
+		_, err = tt.time.MarshalBinary()
+		if err == nil || err.Error() != tt.want {
+			t.Errorf("%v MarshalBinary error = %v, want %v", tt.time, err, tt.want)
 		}
 	}
 }
