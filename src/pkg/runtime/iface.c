@@ -482,6 +482,16 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 	ret->tab = itab(inter, t, 0);
 }
 
+bool
+runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface *ret)
+{
+	ret->tab = itab(inter, e.type, 1);
+	if(ret->tab == nil)
+		return false;
+	ret->data = e.data;
+	return true;
+}
+
 // For reflect
 //	func ifaceE2I(t *InterfaceType, e interface{}, dst *Iface)
 void

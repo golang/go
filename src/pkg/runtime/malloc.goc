@@ -741,6 +741,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 	Type *t;
 	Type *fint;
 	PtrType *ot;
+	Iface iface;
 
 	if(obj.type == nil) {
 		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
@@ -755,7 +756,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		goto throw;
 	}
 	nret = 0;
-	ot = nil;
+	ot = (PtrType*)obj.type;
+	fint = nil;
 	if(finalizer.type != nil) {
 		if(finalizer.type->kind != KindFunc)
 			goto badfunc;
@@ -763,9 +765,16 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		if(ft->dotdotdot || ft->in.len != 1)
 			goto badfunc;
 		fint = *(Type**)ft->in.array;
-		if(fint->kind == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0)
-			ot = (PtrType*)obj.type;
-		else if(fint != obj.type)
+		if(fint == obj.type) {
+			// ok - same type
+		} else if(fint->kind == KindPtr && (fint->x == nil || fint->x->name == nil || obj.type->x == nil || obj.type->x->name == nil) && ((PtrType*)fint)->elem == ((PtrType*)obj.type)->elem) {
+			// ok - not same type, but both pointers,
+			// one or the other is unnamed, and same element type, so assignable.
+		} else if(fint->kind == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0) {
+			// ok - satisfies empty interface
+		} else if(fint->kind == KindInterface && runtime·ifaceE2I2((InterfaceType*)fint, obj, &iface)) {
+			// ok - satisfies non-empty interface
+		} else
 			goto badfunc;
 
 		// compute size needed for return parameters
@@ -776,14 +785,14 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		nret = ROUND(nret, sizeof(void*));
 	}
 	
-	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, ot)) {
+	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
 		runtime·printf("runtime.SetFinalizer: finalizer already set\n");
 		goto throw;
 	}
 	return;
 
 badfunc:
-	runtime·printf("runtime.SetFinalizer: second argument is %S, not func(%S) or func(interface{})\n", *finalizer.type->string, *obj.type->string);
+	runtime·printf("runtime.SetFinalizer: cannot pass %S to finalizer %S\n", *obj.type->string, *finalizer.type->string);
 throw:
 	runtime·throw("runtime.SetFinalizer");
 }

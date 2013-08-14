@@ -12,55 +12,52 @@ import (
 	"time"
 )
 
-func TestFinalizerTypeSucceed(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
-	ch := make(chan bool)
-	func() {
-		v := new(int)
-		*v = 97531
-		runtime.SetFinalizer(v, func(v *int) {
-			if *v != 97531 {
-				t.Errorf("*int in finalizer has the wrong value: %d\n", *v)
-			}
-			close(ch)
-		})
-		v = nil
-	}()
-	runtime.GC()
-	select {
-	case <-ch:
-	case <-time.After(time.Second * 4):
-		t.Errorf("Finalizer set by SetFinalizer(*int, func(*int)) didn't run")
-	}
+type Tintptr *int // assignable to *int
+type Tint int     // *Tint implements Tinter, interface{}
+
+func (t *Tint) m() {}
+
+type Tinter interface {
+	m()
 }
 
-func TestFinalizerInterface(t *testing.T) {
+func TestFinalizerType(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skipf("Skipping on non-amd64 machine")
 	}
-	ch := make(chan bool)
-	func() {
-		v := new(int)
-		*v = 97531
-		runtime.SetFinalizer(v, func(v interface{}) {
-			i, ok := v.(*int)
-			if !ok {
-				t.Errorf("Expected *int from interface{} in finalizer, got %v", *i)
-			}
-			if *i != 97531 {
-				t.Errorf("*int from interface{} has the wrong value: %d\n", *i)
-			}
-			close(ch)
-		})
-		v = nil
-	}()
-	runtime.GC()
-	select {
-	case <-ch:
-	case <-time.After(time.Second * 4):
-		t.Errorf("Finalizer set by SetFinalizer(*int, func(interface{})) didn't run")
+
+	ch := make(chan bool, 10)
+	finalize := func(x *int) {
+		if *x != 97531 {
+			t.Errorf("finalizer %d, want %d", *x, 97531)
+		}
+		ch <- true
+	}
+
+	var finalizerTests = []struct {
+		convert   func(*int) interface{}
+		finalizer interface{}
+	}{
+		{func(x *int) interface{} { return x }, func(v *int) { finalize(v) }},
+		{func(x *int) interface{} { return Tintptr(x) }, func(v Tintptr) { finalize(v) }},
+		{func(x *int) interface{} { return Tintptr(x) }, func(v *int) { finalize(v) }},
+		{func(x *int) interface{} { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
+		{func(x *int) interface{} { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+	}
+
+	for _, tt := range finalizerTests {
+		func() {
+			v := new(int)
+			*v = 97531
+			runtime.SetFinalizer(tt.convert(v), tt.finalizer)
+			v = nil
+		}()
+		runtime.GC()
+		select {
+		case <-ch:
+		case <-time.After(time.Second * 4):
+			t.Errorf("Finalizer of type %T didn't run", tt.finalizer)
+		}
 	}
 }
 
