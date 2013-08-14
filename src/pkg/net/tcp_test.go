@@ -497,8 +497,11 @@ func TestTCPReadWriteMallocs(t *testing.T) {
 
 func TestTCPStress(t *testing.T) {
 	const conns = 2
-	const msgs = 1e4
 	const msgLen = 512
+	msgs := int(1e4)
+	if testing.Short() {
+		msgs = 1e2
+	}
 
 	sendMsg := func(c Conn, buf []byte) bool {
 		n, err := c.Write(buf)
