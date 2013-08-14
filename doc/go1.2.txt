@@ -17,6 +17,7 @@ cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
 cmd/gc: make missing package error fatal (CL 12677043).
 cmd/go: test coverage (CL 10413044).
+cmd/go: add -t flag to 'go get' to download test dependencies (CL 12566046).
 
 archive/zip: add File.DataOffset accessor (CL 12784045).
 bufio: add Reset methods to Reader and Writer (CL 12603049).
