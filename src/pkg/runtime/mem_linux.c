@@ -78,6 +78,13 @@ runtime·SysUnused(void *v, uintptr n)
 }
 
 void
+runtime·SysUsed(void *v, uintptr n)
+{
+	USED(v);
+	USED(n);
+}
+
+void
 runtime·SysFree(void *v, uintptr n)
 {
 	mstats.sys -= n;

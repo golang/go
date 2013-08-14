@@ -157,8 +157,9 @@ struct MLink
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
-// for other purposes.  The program reserves the right to start
-// accessing those pages in the future.
+// for other purposes.
+// SysUsed notifies the operating system that the contents
+// of the memory region are needed again.
 //
 // SysFree returns it unconditionally; this is only used if
 // an out-of-memory error has been detected midway through
@@ -174,6 +175,7 @@ struct MLink
 void*	runtime·SysAlloc(uintptr nbytes);
 void	runtime·SysFree(void *v, uintptr nbytes);
 void	runtime·SysUnused(void *v, uintptr nbytes);
+void	runtime·SysUsed(void *v, uintptr nbytes);
 void	runtime·SysMap(void *v, uintptr nbytes);
 void*	runtime·SysReserve(void *v, uintptr nbytes);
 

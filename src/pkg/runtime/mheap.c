@@ -156,6 +156,7 @@ HaveSpan:
 		// is just a unique constant not seen elsewhere in the
 		// runtime, as a clue in case it turns up unexpectedly in
 		// memory or in a stack trace.
+		runtime·SysUsed((void*)(s->start<<PageShift), s->npages<<PageShift);
 		*(uintptr*)(s->start<<PageShift) = (uintptr)0xbeadbeadbeadbeadULL;
 	}
 	s->npreleased = 0;
@@ -350,8 +351,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	if(sizeof(void*) == 8)
 		p -= (uintptr)h->arena_start >> PageShift;
 	if(p > 0 && (t = h->spans[p-1]) != nil && t->state != MSpanInUse) {
-		tp = (uintptr*)(t->start<<PageShift);
-		*tp |= *sp;	// propagate "needs zeroing" mark
+		if(t->npreleased == 0) {  // cant't touch this otherwise
+			tp = (uintptr*)(t->start<<PageShift);
+			*tp |= *sp;	// propagate "needs zeroing" mark
+		}
 		s->start = t->start;
 		s->npages += t->npages;
 		s->npreleased = t->npreleased; // absorb released pages
@@ -364,8 +367,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		mstats.mspan_sys = h->spanalloc.sys;
 	}
 	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
-		tp = (uintptr*)(t->start<<PageShift);
-		*sp |= *tp;	// propagate "needs zeroing" mark
+		if(t->npreleased == 0) {  // cant't touch this otherwise
+			tp = (uintptr*)(t->start<<PageShift);
+			*sp |= *tp;	// propagate "needs zeroing" mark
+		}
 		s->npages += t->npages;
 		s->npreleased += t->npreleased;
 		h->spans[p + s->npages - 1] = s;
@@ -401,7 +406,7 @@ scavengelist(MSpan *list, uint64 now, uint64 limit)
 
 	sumreleased = 0;
 	for(s=list->next; s != list; s=s->next) {
-		if((now - s->unusedsince) > limit) {
+		if((now - s->unusedsince) > limit && s->npreleased != s->npages) {
 			released = (s->npages - s->npreleased) << PageShift;
 			mstats.heap_released += released;
 			sumreleased += released;
