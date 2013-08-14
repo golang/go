@@ -92,7 +92,6 @@ pkg encoding/json, method (Number) String() string
 pkg encoding/json, type Number string
 pkg encoding/xml, func EscapeText(io.Writer, []uint8) error
 pkg encoding/xml, method (*Encoder) Indent(string, string)
-pkg encoding/xml, method (Encoder) ReadFrom(io.Reader) (int64, error)
 pkg encoding/xml, type Decoder struct, DefaultSpace string
 pkg go/ast, func NewCommentMap(*token.FileSet, Node, []*CommentGroup) CommentMap
 pkg go/ast, method (CommentMap) Comments() []*CommentGroup
