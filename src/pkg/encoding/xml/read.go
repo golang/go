@@ -7,6 +7,7 @@ package xml
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -137,6 +138,100 @@ type UnmarshalError string
 
 func (e UnmarshalError) Error() string { return string(e) }
 
+// Unmarshaler is the interface implemented by objects that can unmarshal
+// an XML element description of themselves.
+//
+// UnmarshalXML decodes a single XML element
+// beginning with the given start element.
+// If it returns an error, the outer call to Unmarshal stops and
+// returns that error.
+// UnmarshalXML must consume exactly one XML element.
+// One common implementation strategy is to unmarshal into
+// a separate value with a layout matching the expected XML
+// using d.DecodeElement,  and then to copy the data from
+// that value into the receiver.
+// Another common strategy is to use d.Token to process the
+// XML object one token at a time.
+// UnmarshalXML may not use d.RawToken.
+type Unmarshaler interface {
+	UnmarshalXML(d *Decoder, start StartElement) error
+}
+
+// UnmarshalerAttr is the interface implemented by objects that can unmarshal
+// an XML attribute description of themselves.
+//
+// UnmarshalXMLAttr decodes a single XML attribute.
+// If it returns an error, the outer call to Unmarshal stops and
+// returns that error.
+// UnmarshalXMLAttr is used only for struct fields with the
+// "attr" option in the field tag.
+type UnmarshalerAttr interface {
+	UnmarshalXMLAttr(attr Attr) error
+}
+
+// receiverType returns the receiver type to use in an expression like "%s.MethodName".
+func receiverType(val interface{}) string {
+	t := reflect.TypeOf(val)
+	if t.Name() != "" {
+		return t.String()
+	}
+	return "(" + t.String() + ")"
+}
+
+// unmarshalInterface unmarshals a single XML element into val,
+// which is known to implement Unmarshaler.
+// start is the opening tag of the element.
+func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error {
+	// Record that decoder must stop at end tag corresponding to start.
+	p.pushEOF()
+
+	p.unmarshalDepth++
+	err := val.UnmarshalXML(p, *start)
+	p.unmarshalDepth--
+	if err != nil {
+		p.popEOF()
+		return err
+	}
+
+	if !p.popEOF() {
+		return fmt.Errorf("xml: %s.UnmarshalXML did not consume entire <%s> element", receiverType(val), start.Name.Local)
+	}
+
+	return nil
+}
+
+// unmarshalAttr unmarshals a single XML attribute into val.
+func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			val.Set(reflect.New(val.Type().Elem()))
+		}
+		val = val.Elem()
+	}
+
+	if val.CanInterface() && val.Type().Implements(unmarshalerAttrType) {
+		// This is an unmarshaler with a non-pointer receiver,
+		// so it's likely to be incorrect, but we do what we're told.
+		return val.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+	}
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() && pv.Type().Implements(unmarshalerAttrType) {
+			return pv.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		}
+	}
+
+	// TODO: Check for and use encoding.TextUnmarshaler.
+
+	copyValue(val, []byte(attr.Value))
+	return nil
+}
+
+var (
+	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
+	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
+)
+
 // Unmarshal a single XML element into val.
 func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 	// Find start element if we need it.
@@ -153,12 +248,27 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		}
 	}
 
-	if pv := val; pv.Kind() == reflect.Ptr {
-		if pv.IsNil() {
-			pv.Set(reflect.New(pv.Type().Elem()))
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			val.Set(reflect.New(val.Type().Elem()))
 		}
-		val = pv.Elem()
+		val = val.Elem()
 	}
+
+	if val.CanInterface() && val.Type().Implements(unmarshalerType) {
+		// This is an unmarshaler with a non-pointer receiver,
+		// so it's likely to be incorrect, but we do what we're told.
+		return p.unmarshalInterface(val.Interface().(Unmarshaler), start)
+	}
+
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() && pv.Type().Implements(unmarshalerType) {
+			return p.unmarshalInterface(pv.Interface().(Unmarshaler), start)
+		}
+	}
+
+	// TODO: Check for and use encoding.TextUnmarshaler.
 
 	var (
 		data         []byte
@@ -264,7 +374,9 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 				// Look for attribute.
 				for _, a := range start.Attr {
 					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
-						copyValue(strv, []byte(a.Value))
+						if err := p.unmarshalAttr(strv, a); err != nil {
+							return err
+						}
 						break
 					}
 				}
