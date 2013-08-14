@@ -188,3 +188,29 @@ func _() {
 	(&T3{}).v2()
 	(&T3{}).p2()
 }
+
+// *T has no methods if T is an interface type
+func issue5918() {
+	var (
+		err error
+		_ = err.Error()
+		_ func() string = err.Error
+		_ func(error) string = error.Error
+
+		perr = &err
+		_ = perr /* ERROR "no field or method" */ .Error()
+		_ func() string = perr /* ERROR "no field or method" */ .Error
+		_ func(*error) string = ( /* ERROR "no field or method" */ *error).Error
+	)
+
+	type T *interface{ m() int }
+	var (
+		x T
+		_ = (*x).m()
+		_ = (*x).m
+
+		_ = x /* ERROR "no field or method" */ .m()
+		_ = x /* ERROR "no field or method" */ .m
+		_ = T /* ERROR "no field or method" */ .m
+	)
+}

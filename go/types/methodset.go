@@ -28,7 +28,7 @@ func (s *MethodSet) String() string {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "MethodSet {")
 	for _, f := range s.list {
-		fmt.Fprintln(&buf, f)
+		fmt.Fprintf(&buf, "\t%s\n", f)
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()
@@ -90,15 +90,28 @@ func (c *cachedMethodSet) of(typ Type) *MethodSet {
 // It always returns a non-nil method set, even if it is empty.
 func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+	//          This function and lookupFieldOrMethod should be kept in sync.
 
 	// method set up to the current depth, allocated lazily
 	var base methodSet
 
+	typ, isPtr := deref(T)
+	named, _ := typ.(*Named)
+
+	// *typ where typ is an interface has no methods.
+	if isPtr {
+		utyp := typ
+		if named != nil {
+			utyp = named.underlying
+		}
+		if _, ok := utyp.(*Interface); ok {
+			return &emptyMethodSet
+		}
+	}
+
 	// Start with typ as single entry at shallowest depth.
 	// If typ is not a named type, insert a nil type instead.
-	typ, isPtr := deref(T)
-	t, _ := typ.(*Named)
-	current := []embeddedType{{t, nil, isPtr, false}}
+	current := []embeddedType{{named, nil, isPtr, false}}
 
 	// named types that we have seen already, allocated lazily
 	var seen map[*Named]bool

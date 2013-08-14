@@ -22,16 +22,6 @@ func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
 }
 
-func methodSetOf(typ types.Type) *types.MethodSet {
-	// TODO(adonovan): temporary workaround.  Inline it away when fixed.
-	if _, ok := deref(typ).Underlying().(*types.Interface); ok && isPointer(typ) {
-		// TODO(gri): fix: go/types bug: pointer-to-interface
-		// has no methods---yet go/types says it has!
-		return new(types.MethodSet)
-	}
-	return typ.MethodSet()
-}
-
 // Method returns the Function implementing method meth, building
 // wrapper methods on demand.
 //

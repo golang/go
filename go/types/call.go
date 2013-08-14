@@ -298,17 +298,22 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
 				typ := x.typ
 				if x.mode == variable {
-					// If typ is not an (unnamed) pointer, use *typ instead,
-					// because the method set of *typ includes the methods
-					// of typ.
+					// If typ is not an (unnamed) pointer or an interface,
+					// use *typ instead, because the method set of *typ
+					// includes the methods of typ.
 					// Variables are addressable, so we can always take their
 					// address.
-					if _, isPtr := typ.(*Pointer); !isPtr {
-						typ = &Pointer{base: typ}
+					if _, ok := typ.(*Pointer); !ok {
+						if _, ok := typ.Underlying().(*Interface); !ok {
+							typ = &Pointer{base: typ}
+						}
 					}
 				}
 				// If we created a synthetic pointer type above, we will throw
 				// away the method set computed here after use.
+				// TODO(gri) Method set computation should probably always compute
+				// both, the value and the pointer receiver method set and represent
+				// them in a single structure.
 				// TODO(gri) Consider also using a method set cache for the lifetime
 				// of checker once we rely on MethodSet lookup instead of individual
 				// lookup.

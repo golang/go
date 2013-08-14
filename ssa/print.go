@@ -389,8 +389,8 @@ func (p *Package) DumpTo(w io.Writer) {
 			// Iterate over the keys of mset(*T) since they
 			// are a superset of mset(T)'s keys.
 			// The keys of a types.MethodSet are sorted (by Id).
-			mset := methodSetOf(mem.Type())
-			pmset := methodSetOf(types.NewPointer(mem.Type()))
+			mset := mem.Type().MethodSet()
+			pmset := types.NewPointer(mem.Type()).MethodSet()
 			for i, n := 0, pmset.Len(); i < n; i++ {
 				meth := pmset.At(i)
 				// If the method also exists in mset(T), show that instead.

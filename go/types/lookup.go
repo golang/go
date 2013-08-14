@@ -12,9 +12,9 @@ package types
 //           indirectly via different packages.)
 
 // LookupFieldOrMethod looks up a field or method with given package and name
-// in typ and returns the corresponding *Var or *Func, an index sequence,
-// and a bool indicating if there were any pointer indirections on the path
-// to the field or method.
+// in T and returns the corresponding *Var or *Func, an index sequence, and a
+// bool indicating if there were any pointer indirections on the path to the
+// field or method.
 //
 // The last index entry is the field or method index in the (possibly embedded)
 // type where the entry was found, either:
@@ -29,8 +29,8 @@ package types
 // If no entry is found, a nil object is returned. In this case, the returned
 // index sequence points to an ambiguous entry if it exists, or it is nil.
 //
-func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
-	obj, index, indirect = lookupFieldOrMethod(typ, pkg, name)
+func LookupFieldOrMethod(T Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+	obj, index, indirect = lookupFieldOrMethod(T, pkg, name)
 	if obj != nil {
 		return
 	}
@@ -54,7 +54,7 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 	// TODO(gri) WTF? There isn't a more direct way? Perhaps we should
 	//           outlaw named types to pointer types - they are almost
 	//           never what one wants, anyway.
-	if t, _ := typ.(*Named); t != nil {
+	if t, _ := T.(*Named); t != nil {
 		u := t.underlying
 		if _, ok := u.(*Pointer); ok {
 			// typ is a named type with an underlying type of the form *T,
@@ -71,18 +71,31 @@ func LookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index
 	return
 }
 
-func lookupFieldOrMethod(typ Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+func lookupFieldOrMethod(T Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+	//          This function and NewMethodSet should kept in sync.
 
 	if name == "_" {
 		return // blank fields/methods are never found
 	}
 
+	typ, isPtr := deref(T)
+	named, _ := typ.(*Named)
+
+	// *typ where typ is an interface has no methods.
+	if isPtr {
+		utyp := typ
+		if named != nil {
+			utyp = named.underlying
+		}
+		if _, ok := utyp.(*Interface); ok {
+			return
+		}
+	}
+
 	// Start with typ as single entry at shallowest depth.
 	// If typ is not a named type, insert a nil type instead.
-	typ, isPtr := deref(typ)
-	t, _ := typ.(*Named)
-	current := []embeddedType{{t, nil, isPtr, false}}
+	current := []embeddedType{{named, nil, isPtr, false}}
 
 	// named types that we have seen already, allocated lazily
 	var seen map[*Named]bool

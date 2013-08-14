@@ -45,7 +45,7 @@ func (visit *visitor) program() {
 }
 
 func (visit *visitor) methodSet(typ types.Type) {
-	mset := methodSetOf(typ)
+	mset := typ.MethodSet()
 	for i, n := 0, mset.Len(); i < n; i++ {
 		// Side-effect: creates all wrapper methods.
 		visit.function(visit.prog.Method(mset.At(i)))
