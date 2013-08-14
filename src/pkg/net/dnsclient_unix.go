@@ -26,13 +26,7 @@ import (
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
 func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error) {
-	var useTCP bool
-	switch c.(type) {
-	case *UDPConn:
-		useTCP = false
-	case *TCPConn:
-		useTCP = true
-	}
+	_, useTCP := c.(*TCPConn)
 	if len(name) >= 256 {
 		return nil, &DNSError{Err: "name too long", Name: name}
 	}
@@ -69,8 +63,11 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 					continue
 				}
 			}
-			buf = make([]byte, uint16(buf[0])<<8+uint16(buf[1]))
-			n, err = io.ReadFull(c, buf)
+			mlen := int(buf[0])<<8 | int(buf[1])
+			if mlen > len(buf) {
+				buf = make([]byte, mlen)
+			}
+			n, err = io.ReadFull(c, buf[:mlen])
 		} else {
 			n, err = c.Read(buf)
 		}
@@ -80,7 +77,7 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 			}
 			return nil, err
 		}
-		buf = buf[0:n]
+		buf = buf[:n]
 		in := new(dnsMsg)
 		if !in.Unpack(buf) || in.id != out.id {
 			continue
