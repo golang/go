@@ -178,12 +178,14 @@ relocsym(Sym *s)
 		switch(r->type) {
 		default:
 			o = 0;
-			if(linkmode == LinkExternal || archreloc(r, s, &o) < 0)
+			if(archreloc(r, s, &o) < 0)
 				diag("unknown reloc %d", r->type);
 			break;
 		case D_TLS:
 			r->done = 0;
 			o = 0;
+			if(thechar != '6')
+				o = r->add;
 			break;
 		case D_ADDR:
 			if(linkmode == LinkExternal && r->sym->type != SCONST) {
@@ -305,8 +307,6 @@ void
 dynrelocsym(Sym *s)
 {
 	Reloc *r;
-	Sym *rel;
-	Sym *got;
 	
 	if(HEADTYPE == Hwindows) {
 		Sym *rel, *targ;
@@ -343,22 +343,9 @@ dynrelocsym(Sym *s)
 		return;
 	}
 
-	got = rel = nil;
-	if(flag_shared) {
-		rel = lookuprel();
-		got = lookup(".got", 0);
-	}
-	s->rel_ro = 0;
 	for(r=s->r; r<s->r+s->nr; r++) {
 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
 			adddynrel(s, r);
-		if(flag_shared && r->sym != S && s->type != SDYNIMPORT && r->type == D_ADDR
-				&& (s == got || s->type == SDATA || s->type == SGOSTRING || s->type == STYPE || s->type == SRODATA)) {
-			// Create address based RELATIVE relocation
-			adddynrela(rel, s, r);
-			if(s->type < SNOPTRDATA)
-				s->rel_ro = 1;
-		}
 	}
 }
 
@@ -1099,12 +1086,6 @@ dodata(void)
 	}
 	*l = nil;
 
-	if(flag_shared) {
-		for(s=datap; s != nil; s = s->next) {
-			if(s->rel_ro)
-				s->type = SDATARELRO;
-		}
-	}
 	datap = listsort(datap, datcmp, offsetof(Sym, next));
 
 	/*
@@ -1138,12 +1119,12 @@ dodata(void)
 
 	/* pointer-free data */
 	sect = addsection(&segdata, ".noptrdata", 06);
-	sect->align = maxalign(s, SDATARELRO-1);
+	sect->align = maxalign(s, SINITARR-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
 	lookup("noptrdata", 0)->sect = sect;
 	lookup("enoptrdata", 0)->sect = sect;
-	for(; s != nil && s->type < SDATARELRO; s = s->next) {
+	for(; s != nil && s->type < SINITARR; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
 		s->type = SDATA;
@@ -1152,18 +1133,15 @@ dodata(void)
 	}
 	sect->len = datsize - sect->vaddr;
 
-	/* dynamic relocated rodata */
+	/* shared library initializer */
 	if(flag_shared) {
-		sect = addsection(&segdata, ".data.rel.ro", 06);
-		sect->align = maxalign(s, SDATARELRO);
+		sect = addsection(&segdata, ".init_array", 06);
+		sect->align = maxalign(s, SINITARR);
 		datsize = rnd(datsize, sect->align);
 		sect->vaddr = datsize;
-		lookup("datarelro", 0)->sect = sect;
-		lookup("edatarelro", 0)->sect = sect;
-		for(; s != nil && s->type == SDATARELRO; s = s->next) {
+		for(; s != nil && s->type == SINITARR; s = s->next) {
 			datsize = aligndatsize(datsize, s);
 			s->sect = sect;
-			s->type = SDATA;
 			s->value = datsize - sect->vaddr;
 			growdatsize(&datsize, s);
 		}
@@ -1178,7 +1156,7 @@ dodata(void)
 	lookup("data", 0)->sect = sect;
 	lookup("edata", 0)->sect = sect;
 	for(; s != nil && s->type < SBSS; s = s->next) {
-		if(s->type == SDATARELRO) {
+		if(s->type == SINITARR) {
 			cursym = s;
 			diag("unexpected symbol type %d", s->type);
 		}
@@ -1423,7 +1401,7 @@ textaddress(void)
 void
 address(void)
 {
-	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss, *datarelro;
+	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss;
 	Section *typelink;
 	Sym *sym, *sub;
 	uvlong va;
@@ -1473,7 +1451,6 @@ address(void)
 	noptr = nil;
 	bss = nil;
 	noptrbss = nil;
-	datarelro = nil;
 	for(s=segdata.sect; s != nil; s=s->next) {
 		vlen = s->len;
 		if(s->next)
@@ -1489,8 +1466,6 @@ address(void)
 			bss = s;
 		if(strcmp(s->name, ".noptrbss") == 0)
 			noptrbss = s;
-		if(strcmp(s->name, ".data.rel.ro") == 0)
-			datarelro = s;
 	}
 	segdata.filelen = bss->vaddr - segdata.vaddr;
 
@@ -1516,10 +1491,6 @@ address(void)
 	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
 	xdefine("typelink", SRODATA, typelink->vaddr);
 	xdefine("etypelink", SRODATA, typelink->vaddr + typelink->len);
-	if(datarelro != nil) {
-		xdefine("datarelro", SRODATA, datarelro->vaddr);
-		xdefine("edatarelro", SRODATA, datarelro->vaddr + datarelro->len);
-	}
 
 	sym = lookup("gcdata", 0);
 	xdefine("egcdata", SRODATA, symaddr(sym) + sym->size);

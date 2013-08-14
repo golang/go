@@ -13,7 +13,7 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	// copy arguments forward on an even stack
 	// use R13 instead of SP to avoid linker rewriting the offsets
 	MOVW	0(R13), R0		// argc
-	MOVW	$4(R13), R1		// argv
+	MOVW	4(R13), R1		// argv
 	SUB	$64, R13		// plenty of scratch
 	AND	$~7, R13
 	MOVW	R0, 60(R13)		// save argc, argv away
@@ -35,10 +35,15 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
 	// if there is an _cgo_init, call it.
-	MOVW	_cgo_init(SB), R2
-	CMP	$0, R2
-	MOVW.NE	g, R0 // first argument of _cgo_init is g
-	BL.NE	(R2) // will clobber R0-R3
+	MOVW	_cgo_init(SB), R4
+	CMP	$0, R4
+	B.EQ	nocgo
+	BL		runtime·save_gm(SB);
+	MOVW	g, R0 // first argument of _cgo_init is g
+	MOVW	$setmg_gcc<>(SB), R1 // second argument is address of save_gm
+	BL		(R4) // will clobber R0-R3
+
+nocgo:
 	// update stackguard after _cgo_init
 	MOVW	g_stackguard0(g), R0
 	MOVW	R0, g_stackguard(g)
@@ -119,9 +124,9 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	0(FP), R1		// gobuf
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
-	MOVW	_cgo_save_gm(SB), R2
+	MOVB	runtime·iscgo(SB), R2
 	CMP 	$0, R2 // if in Cgo, we have to save g and m
-	BL.NE	(R2) // this call will clobber R0
+	BL.NE	runtime·save_gm(SB) // this call will clobber R0
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
@@ -437,9 +442,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 // See cgocall.c for more details.
 TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	// Load m and g from thread-local storage.
-	MOVW	_cgo_load_gm(SB), R0
+	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
-	BL.NE	(R0)
+	BL.NE	runtime·load_gm(SB)
 
 	// If m is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
@@ -519,9 +524,9 @@ TEXT runtime·setmg(SB), NOSPLIT, $0-8
 	MOVW	gg+4(FP), g
 
 	// Save m and g to thread-local storage.
-	MOVW	_cgo_save_gm(SB), R0
+	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
-	BL.NE	(R0)
+	BL.NE	runtime·save_gm(SB)
 
 	RET
 
@@ -614,6 +619,34 @@ _next:
 
 	MOVW	$0, R0
 	RET
+
+// We have to resort to TLS variable to save g(R10) and
+// m(R9). One reason is that external code might trigger
+// SIGSEGV, and our runtime.sigtramp don't even know we
+// are in external code, and will continue to use R10/R9,
+// this might as well result in another SIGSEGV.
+// Note: all three functions will clobber R0, and the last
+// two can be called from 5c ABI code.
+
+// g (R10) at 8(TP), m (R9) at 12(TP)
+TEXT runtime·save_gm(SB),NOSPLIT,$0
+	MRC		15, 0, R0, C13, C0, 3 // Fetch TLS register
+	MOVW	g, 8(R0)
+	MOVW	m, 12(R0)
+	RET
+
+TEXT runtime·load_gm(SB),NOSPLIT,$0
+	MRC		15, 0, R0, C13, C0, 3 // Fetch TLS register
+	MOVW	8(R0), g
+	MOVW	12(R0), m
+	RET
+
+// void setmg_gcc(M*, G*); set m and g called from gcc.
+TEXT setmg_gcc<>(SB),NOSPLIT,$0
+	MOVW	R0, m
+	MOVW	R1, g
+	B		runtime·save_gm(SB)
+
 
 // TODO: share code with memeq?
 TEXT bytes·Equal(SB),NOSPLIT,$0

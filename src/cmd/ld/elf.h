@@ -569,6 +569,8 @@ typedef struct {
 #define	R_ARM_GOT_PREL		96
 #define	R_ARM_GNU_VTENTRY	100
 #define	R_ARM_GNU_VTINHERIT	101
+#define	R_ARM_TLS_IE32		107
+#define	R_ARM_TLS_LE32		108
 #define	R_ARM_RSBREL32		250
 #define	R_ARM_THM_RPC22		251
 #define	R_ARM_RREL32		252
@@ -576,7 +578,7 @@ typedef struct {
 #define	R_ARM_RPC24		254
 #define	R_ARM_RBASE		255
 
-#define	R_ARM_COUNT		37	/* Count of defined relocation types. */
+#define	R_ARM_COUNT		38	/* Count of defined relocation types. */
 
 
 #define	R_386_NONE	0	/* No relocation. */

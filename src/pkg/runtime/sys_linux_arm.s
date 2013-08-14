@@ -286,11 +286,11 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	// this might be called in external code context,
 	// where g and m are not set.
-	// first save R0, because _cgo_load_gm will clobber it
+	// first save R0, because runtime·load_gm will clobber it
 	MOVW	R0, 4(R13)
-	MOVW	_cgo_load_gm(SB), R0
+	MOVB	runtime·iscgo(SB), R0
 	CMP 	$0, R0
-	BL.NE	(R0)
+	BL.NE	runtime·load_gm(SB)
 
 	CMP 	$0, m
 	BNE 	4(PC)
@@ -441,3 +441,8 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	$SYS_fcntl, R7
 	SWI	$0
 	RET
+
+// b __kuser_get_tls @ 0xffff0fe0
+TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+	MOVW	$0xffff0fe0, R0
+	B	(R0)

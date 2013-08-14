@@ -93,12 +93,6 @@ braddoff(int32 a, int32 b)
 	return (((uint32)a) & 0xff000000U) | (0x00ffffffU & (uint32)(a + b));
 }
 
-Sym *
-lookuprel(void)
-{
-	return lookup(".rel", 0);
-}
-
 void
 adddynrela(Sym *rel, Sym *s, Reloc *r)
 {
@@ -264,6 +258,26 @@ elfreloc1(Reloc *r, vlong sectoff)
 		else
 			return -1;
 		break;
+
+	case D_CALL:
+		if(r->siz == 4) {
+			if((r->add & 0xff000000) == 0xeb000000) // BL
+				LPUT(R_ARM_CALL | elfsym<<8);
+			else
+				LPUT(R_ARM_JUMP24 | elfsym<<8);
+		} else
+			return -1;
+		break;
+
+	case D_TLS:
+		if(r->siz == 4) {
+			if(flag_shared)
+				LPUT(R_ARM_TLS_IE32 | elfsym<<8);
+			else
+				LPUT(R_ARM_TLS_LE32 | elfsym<<8);
+		} else
+			return -1;
+		break;
 	}
 
 	return 0;
@@ -308,6 +322,34 @@ machoreloc1(Reloc *r, vlong sectoff)
 int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
+	Sym *rs;
+
+	if(linkmode == LinkExternal) {
+		switch(r->type) {
+		case D_CALL:
+			r->done = 0;
+
+			// set up addend for eventual relocation via outer symbol.
+			rs = r->sym;
+			r->xadd = r->add;
+			if(r->xadd & 0x800000)
+				r->xadd |= ~0xffffff;
+			r->xadd *= 4;
+			while(rs->outer != nil) {
+				r->xadd += symaddr(rs) - symaddr(rs->outer);
+				rs = rs->outer;
+			}
+
+			if(rs->type != SHOSTOBJ && rs->sect == nil)
+				diag("missing section for %s", rs->name);
+			r->xsym = rs;
+
+			*val = braddoff((0xff000000U & (uint32)r->add), 
+							(0xffffff & (uint32)(r->xadd / 4)));
+			return 0;
+		}
+		return -1;
+	}
 	switch(r->type) {
 	case D_CONST:
 		*val = r->add;
@@ -766,7 +808,7 @@ nopstat(char *f, Count *c)
 }
 
 void
-asmout(Prog *p, Optab *o, int32 *out)
+asmout(Prog *p, Optab *o, int32 *out, Sym *gmsym)
 {
 	int32 o1, o2, o3, o4, o5, o6, v;
 	int r, rf, rt, rt2;
@@ -849,11 +891,19 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		break;
 
 	case 5:		/* bra s */
+		o1 = opbra(p->as, p->scond);
 		v = -8;
-		// TODO: Use addrel.
+		if(p->to.sym != S && p->to.sym->type != 0) {
+			rel = addrel(cursym);
+			rel->off = pc - cursym->value;
+			rel->siz = 4;
+			rel->sym = p->to.sym;
+			rel->add = o1 | ((v >> 2) & 0xffffff);
+			rel->type = D_CALL;
+			break;
+		}
 		if(p->cond != P)
 			v = (p->cond->pc - pc) - 8;
-		o1 = opbra(p->as, p->scond);
 		o1 |= (v >> 2) & 0xffffff;
 		break;
 
@@ -911,7 +961,13 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			rel->add = p->to.offset;
-			if(flag_shared) {
+			if(rel->sym == gmsym) {
+				rel->type = D_TLS;
+				if(flag_shared)
+					rel->add += pc - p->pcrel->pc - 8 - rel->siz;
+				rel->xadd = rel->add;
+				rel->xsym = rel->sym;
+			} else if(flag_shared) {
 				rel->type = D_PCREL;
 				rel->add += pc - p->pcrel->pc - 8;
 			} else
@@ -1242,9 +1298,22 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 
 	case 63:	/* bcase */
 		if(p->cond != P) {
-			o1 = p->cond->pc;
-			if(flag_shared)
-				o1 = o1 - p->pcrel->pc - 16;
+			rel = addrel(cursym);
+			rel->off = pc - cursym->value;
+			rel->siz = 4;
+			if(p->to.sym != S && p->to.sym->type != 0) {
+				rel->sym = p->to.sym;
+				rel->add = p->to.offset;
+			} else {
+				rel->sym = cursym;
+				rel->add = p->cond->pc - cursym->value;
+			}
+			if(o->flag & LPCREL) {
+				rel->type = D_PCREL;
+				rel->add += pc - p->pcrel->pc - 16 + rel->siz;
+			} else
+				rel->type = D_ADDR;
+			o1 = 0;
 		}
 		break;
 

@@ -246,6 +246,13 @@ patch(void)
 			p->cond = q;
 		}
 	}
+	if(flag_shared) {
+		s = lookup("init_array", 0);
+		s->type = SINITARR;
+		s->reachable = 1;
+		s->hide = 1;
+		addaddr(s, lookup(INITENTRY, 0));
+	}
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {

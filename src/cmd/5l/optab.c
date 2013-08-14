@@ -191,7 +191,7 @@ Optab	optab[] =
 	{ AMOVBU,	C_REG,	C_NONE,	C_SHIFT,	61, 4, 0 },
 
 	{ ACASE,	C_REG,	C_NONE,	C_NONE,		62, 4, 0, LPCREL, 8 },
-	{ ABCASE,	C_NONE, C_NONE, C_SBRA,		63, 4, 0 },
+	{ ABCASE,	C_NONE, C_NONE, C_SBRA,		63, 4, 0, LPCREL, 0 },
 
 	{ AMOVH,	C_REG,	C_NONE, C_HAUTO,	70, 4, REGSP,	0 },
 	{ AMOVH,	C_REG,	C_NONE,	C_HOREG,	70, 4, 0,	0 },

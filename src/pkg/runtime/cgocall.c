@@ -87,11 +87,6 @@
 void *_cgo_init;	/* filled in by dynamic linker when Cgo is available */
 static int64 cgosync;  /* represents possible synchronization in C code */
 
-// These two are only used by the architecture where TLS based storage isn't
-// the default for g and m (e.g., ARM)
-void *_cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
-void *_cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
-
 static void unwindm(void);
 
 // Call from Go to C.

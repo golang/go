@@ -35,15 +35,12 @@ runtime·checkgoarm(void)
 
 #pragma textflag NOSPLIT
 void
-runtime·setup_auxv(int32 argc, void *argv_list)
+runtime·setup_auxv(int32 argc, byte **argv)
 {
-	byte **argv;
 	byte **envp;
 	byte *rnd;
 	uint32 *auxv;
 	uint32 t;
-
-	argv = &argv_list;
 
 	// skip envp to get to ELF auxiliary vector.
 	for(envp = &argv[argc+1]; *envp != nil; envp++)

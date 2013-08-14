@@ -81,8 +81,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
-	LIBINITENTRY = 0;
-	linkmode = LinkInternal; // TODO: LinkAuto once everything works.
+	linkmode = LinkAuto;
 	nuxiinit();
 	
 	p = getgoarm();
@@ -126,34 +125,43 @@ main(int argc, char *argv[])
 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
 	flagcount("race", "enable race detector", &flag_race);
 	flagcount("s", "disable symbol table", &debug['s']);
+	flagcount("shared", "generate shared object (implies -linkmode external)", &flag_shared);
 	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
 	flagcount("u", "reject unsafe packages", &debug['u']);
 	flagcount("v", "print link trace", &debug['v']);
 	flagcount("w", "disable DWARF generation", &debug['w']);
-	flagcount("shared", "generate shared object", &flag_shared);
-	// TODO: link mode flag
 	
 	flagparse(&argc, &argv, usage);
 
 	if(argc != 1)
 		usage();
 
+	if(flag_shared)
+		linkmode = LinkExternal;
+
+	mywhatsys();
+
+	if(HEADTYPE == -1)
+		HEADTYPE = headtype(goos);
+
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
 		linkmode = LinkInternal;
 
-	if(linkmode == LinkExternal) {
-		diag("only -linkmode=internal is supported");
-		errorexit();
-	} else if(linkmode == LinkAuto) {
-		linkmode = LinkInternal;
+	switch(HEADTYPE) {
+	default:
+		if(linkmode == LinkAuto)
+			linkmode = LinkInternal;
+		if(linkmode == LinkExternal && strcmp(getgoextlinkenabled(), "1") != 0)
+			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+		break;
+	case Hlinux:
+		break;
 	}
 
 	libinit();
 
-	if(HEADTYPE == -1)
-		HEADTYPE = headtype(goos);
 	switch(HEADTYPE) {
 	default:
 		diag("unknown -H option");
@@ -208,7 +216,7 @@ main(int argc, char *argv[])
 	case Hnetbsd:
 		debug['d'] = 0;	// with dynamic linking
 		tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
-		                // this number is known to ../../pkg/runtime/cgo/gcc_linux_arm.c
+		                // this number is known to ../../pkg/runtime/rt0_*_arm.s
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
@@ -253,6 +261,7 @@ main(int argc, char *argv[])
 	// mark some functions that are only referenced after linker code editing
 	if(debug['F'])
 		mark(rlookup("_sfloat", 0));
+	mark(lookup("runtime.read_tls_fallback", 0));
 	deadcode();
 	if(textp == nil) {
 		diag("no code");

@@ -162,15 +162,19 @@ static struct {
 		"#define	m(r) 8(GS)\n"
 		"#define	procid(r) 16(GS)\n"
 	},
+	// The TLS accessors here are defined here to use initial exec model.
+	// If the linker is not outputting a shared library, it will reduce
+	// the TLS accessors to the local exec model, effectively removing
+	// get_tls().
 	{"amd64", "",
 		"// The offsets 0 and 8 are known to:\n"
 		"//	../../cmd/6l/pass.c:/D_GS\n"
 		"//	cgo/gcc_linux_amd64.c:/^threadentry\n"
 		"//	cgo/gcc_darwin_amd64.c:/^threadentry\n"
 		"//\n"
-		"#define	get_tls(r)\n"
-		"#define	g(r) 0(GS)\n"
-		"#define	m(r) 8(GS)\n"
+		"#define	get_tls(r) MOVQ runtime·tlsgm(SB), r\n"
+		"#define	g(r) 0(r)(GS*1)\n"
+		"#define	m(r) 8(r)(GS*1)\n"
 	},
 	
 	{"arm", "",

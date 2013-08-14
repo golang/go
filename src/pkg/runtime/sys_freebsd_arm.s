@@ -282,3 +282,7 @@ TEXT runtime·casp(SB),NOSPLIT,$0
 //		return 0;
 TEXT runtime·cas(SB),NOSPLIT,$0
 	B runtime·armcas(SB)
+
+TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+	MOVW $0xffff1000, R0
+	MOVW (R0), R0

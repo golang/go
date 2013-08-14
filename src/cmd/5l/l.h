@@ -183,7 +183,6 @@ struct	Sym
 	Reloc*	r;
 	int32	nr;
 	int32	maxr;
-	int 	rel_ro;
 };
 
 #define SIGNINTERN	(1729*325*1729)
@@ -293,7 +292,6 @@ EXTERN	int32	INITDAT;		/* data location */
 EXTERN	int32	INITRND;		/* data round above text location */
 EXTERN	int32	INITTEXT;		/* text location */
 EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
 EXTERN	int32	autosize;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
@@ -364,7 +362,7 @@ int	aclass(Adr*);
 void	addhist(int32, int);
 Prog*	appendp(Prog*);
 void	asmb(void);
-void	asmout(Prog*, Optab*, int32*);
+void	asmout(Prog*, Optab*, int32*, Sym*);
 int32	atolwhex(char*);
 Prog*	brloop(Prog*);
 void	buildop(void);

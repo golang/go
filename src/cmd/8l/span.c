@@ -695,18 +695,11 @@ putrelv:
 
 		r = addrel(cursym);
 		r->off = curp->pc + andptr - and;
-		r->add = 0;
-		r->xadd = 0;
+		r->add = a->offset-tlsoffset;
+		r->xadd = r->add;
 		r->siz = 4;
 		r->type = D_TLS;
-		if(a->offset == tlsoffset+0)
-			s = lookup("runtime.g", 0);
-		else
-			s = lookup("runtime.m", 0);
-		s->type = STLSBSS;
-		s->reachable = 1;
-		s->hide = 1;
-		s->size = PtrSize;
+		s = lookup("runtime.tlsgm", 0);
 		r->sym = s;
 		r->xsym = s;
 		v = 0;

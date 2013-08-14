@@ -118,7 +118,7 @@ darwin-386 | darwin-amd64)
 	*) go test -ldflags '-linkmode=external'  || exit 1;;
 	esac
 	;;
-freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64)
+freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
 	go test -ldflags '-linkmode=external' || exit 1
 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
 	go test -ldflags '-linkmode=external' ../testtls || exit 1

@@ -8,72 +8,26 @@
 #include <string.h>
 #include "libcgo.h"
 
-static void *threadentry(void*);
-
-// We have to resort to TLS variable to save g(R10) and
-// m(R9). One reason is that external code might trigger
-// SIGSEGV, and our runtime.sigtramp don't even know we
-// are in external code, and will continue to use R10/R9,
-// this might as well result in another SIGSEGV.
-// Note: all three functions will clobber R0, and the last
-// two can be called from 5c ABI code.
-void __aeabi_read_tp(void) __attribute__((naked));
-void x_cgo_save_gm(void) __attribute__((naked));
-void x_cgo_load_gm(void) __attribute__((naked));
-
-void
-__aeabi_read_tp(void)
-{
-	__asm__ __volatile__ (
 #ifdef ARM_TP_ADDRESS
-		// ARM_TP_ADDRESS is (ARM_VECTORS_HIGH + 0x1000) or 0xffff1000
-		// GCC inline asm doesn't provide a way to provide a constant
-		// to "ldr r0, =??" pseudo instruction, so we hardcode the value
-		// and check it with cpp.
+// ARM_TP_ADDRESS is (ARM_VECTORS_HIGH + 0x1000) or 0xffff1000
+// and is known to runtime.read_tls_fallback. Verify it with
+// cpp.
 #if ARM_TP_ADDRESS != 0xffff1000
 #error Wrong ARM_TP_ADDRESS!
 #endif
-		"ldr r0, =0xffff1000\n\t"
-		"ldr r0, [r0]\n\t"
-#else
-		"mrc p15, 0, r0, c13, c0, 3\n\t"
 #endif
-		"mov pc, lr\n\t"
-	);
-}
 
-// g (R10) at 8(TP), m (R9) at 12(TP)
-void
-x_cgo_load_gm(void)
-{
-	__asm__ __volatile__ (
-		"push {lr}\n\t"
-		"bl __aeabi_read_tp\n\t"
-		"ldr r10, [r0, #8]\n\t"
-		"ldr r9, [r0, #12]\n\t"
-		"pop {pc}\n\t"
-	);
-}
+static void *threadentry(void*);
+
+static void (*setmg_gcc)(void*, void*);
 
 void
-x_cgo_save_gm(void)
-{
-	__asm__ __volatile__ (
-		"push {lr}\n\t"
-		"bl __aeabi_read_tp\n\t"
-		"str r10, [r0, #8]\n\t"
-		"str r9, [r0, #12]\n\t"
-		"pop {pc}\n\t"
-	);
-}
-
-void
-x_cgo_init(G *g)
+x_cgo_init(G *g, void (*setmg)(void*, void*))
 {
 	pthread_attr_t attr;
 	size_t size;
-	x_cgo_save_gm(); // save g and m for the initial thread
 
+	setmg_gcc = setmg;
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	g->stackguard = (uintptr)&attr - size + 4096;
@@ -104,7 +58,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
-extern void crosscall_arm2(void (*fn)(void), void *g, void *m);
+extern void crosscall_arm2(void (*fn)(void), void (*setmg_gcc)(void*, void*), void *g, void *m);
 static void*
 threadentry(void *v)
 {
@@ -121,6 +75,6 @@ threadentry(void *v)
 	 */
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096 * 2;
 
-	crosscall_arm2(ts.fn, (void *)ts.g, (void *)ts.m);
+	crosscall_arm2(ts.fn, setmg_gcc, (void*)ts.m, (void*)ts.g);
 	return nil;
 }
