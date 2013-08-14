@@ -1112,7 +1112,6 @@ func manyConcurrentQueries(t testOrBench) {
 }
 
 func TestIssue6081(t *testing.T) {
-	t.Skip("known broken test")
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 

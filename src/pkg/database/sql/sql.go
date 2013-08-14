@@ -518,11 +518,11 @@ var (
 func (db *DB) connIfFree(wanted *driverConn) (*driverConn, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if wanted.inUse {
-		return nil, errConnBusy
-	}
 	if wanted.dbmuClosed {
 		return nil, errConnClosed
+	}
+	if wanted.inUse {
+		return nil, errConnBusy
 	}
 	for i, conn := range db.freeConn {
 		if conn != wanted {
@@ -590,6 +590,7 @@ func (db *DB) putConn(dc *driverConn, err error) {
 	if err == driver.ErrBadConn {
 		// Don't reuse bad connections.
 		db.mu.Unlock()
+		dc.Close()
 		return
 	}
 	if putConnHook != nil {
