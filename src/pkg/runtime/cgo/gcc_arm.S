@@ -25,8 +25,12 @@ EXT(crosscall_arm2):
 	mov r5, r1
 	mov r0, r2
 	mov r1, r3
-	bl r5 // setmg(m, g)
-	bl r4 // fn()
+	// setmg(m, g)
+	mov lr, pc
+	mov pc, r5
+	// fn()
+	mov lr, pc
+	mov pc, r4
 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
 
 .globl EXT(__stack_chk_fail_local)
