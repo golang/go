@@ -481,7 +481,6 @@ int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
 
-bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, void **ot);
 void	runtime·walkfintab(void (*fn)(void*));
 
 enum

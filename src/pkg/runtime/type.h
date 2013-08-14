@@ -98,3 +98,7 @@ struct PtrType
 	Type;
 	Type *elem;
 };
+
+// Here instead of in runtime.h because it uses the type names.
+bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
+bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, Type**, PtrType**);

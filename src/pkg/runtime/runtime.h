@@ -810,7 +810,6 @@ uintptr	runtime·ifacehash(Iface, uintptr);
 uintptr	runtime·efacehash(Eface, uintptr);
 void*	runtime·malloc(uintptr size);
 void	runtime·free(void *v);
-bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, void*);
 void	runtime·runpanic(Panic*);
 uintptr	runtime·getcallersp(void*);
 int32	runtime·mcount(void);
@@ -1046,7 +1045,7 @@ bool	runtime·showframe(Func*, G*);
 void	runtime·printcreatedby(G*);
 
 void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
-
+bool	runtime·ifaceE2I2(InterfaceType*, Eface, Iface*);
 uintptr	runtime·memlimit(void);
 
 // float.c

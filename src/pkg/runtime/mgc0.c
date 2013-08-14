@@ -112,6 +112,7 @@ struct Finalizer
 	FuncVal *fn;
 	void *arg;
 	uintptr nret;
+	Type *fint;
 	PtrType *ot;
 };
 
@@ -1607,10 +1608,11 @@ handlespecial(byte *p, uintptr size)
 	FuncVal *fn;
 	uintptr nret;
 	PtrType *ot;
+	Type *fint;
 	FinBlock *block;
 	Finalizer *f;
 
-	if(!runtime·getfinalizer(p, true, &fn, &nret, &ot)) {
+	if(!runtime·getfinalizer(p, true, &fn, &nret, &fint, &ot)) {
 		runtime·setblockspecial(p, false);
 		runtime·MProf_Free(p, size);
 		return false;
@@ -1633,6 +1635,7 @@ handlespecial(byte *p, uintptr size)
 	finq->cnt++;
 	f->fn = fn;
 	f->nret = nret;
+	f->fint = fint;
 	f->ot = ot;
 	f->arg = p;
 	runtime·unlock(&finlock);
@@ -2297,7 +2300,7 @@ runfinq(void)
 	FinBlock *fb, *next;
 	byte *frame;
 	uint32 framesz, framecap, i;
-	Eface *ef;
+	Eface *ef, ef1;
 
 	frame = nil;
 	framecap = 0;
@@ -2327,12 +2330,22 @@ runfinq(void)
 					frame = runtime·mallocgc(framesz, 0, FlagNoPointers|FlagNoInvokeGC);
 					framecap = framesz;
 				}
-				if(f->ot == nil)
+				if(f->fint == nil)
+					runtime·throw("missing type in runfinq");
+				if(f->fint->kind == KindPtr) {
+					// direct use of pointer
 					*(void**)frame = f->arg;
-				else {
+				} else if(((InterfaceType*)f->fint)->mhdr.len == 0) {
+					// convert to empty interface
 					ef = (Eface*)frame;
 					ef->type = f->ot;
 					ef->data = f->arg;
+				} else {
+					// convert to interface with methods, via empty interface.
+					ef1.type = f->ot;
+					ef1.data = f->arg;
+					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
+						runtime·throw("invalid type conversion in runfinq");
 				}
 				reflect·call(f->fn, frame, framesz);
 				f->fn = nil;
