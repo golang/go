@@ -1001,18 +1001,37 @@ description at POINT."
 (defstruct go--covered
   start-line start-column end-line end-column covered count)
 
-(defun go-coverage (input)
-  "Open a clone of the current buffer and overlay it with
-coverage information gathered via go test -coverprofile=INPUT."
-  (interactive "fCoverage file: ")
-  (let ((ranges '())
-        (file-name (file-name-nondirectory (buffer-file-name)))
-        (gocov-buffer-name (concat (buffer-name) "<gocov>"))
-        (max-count 0)
-        divisor)
+(defun go--coverage-file ()
+  "Return the coverage file to use, either by reading it from the
+current coverage buffer or by prompting for it."
+  (if (boundp 'go--coverage-current-file-name)
+      go--coverage-current-file-name
+    (read-file-name "Coverage file: " nil nil t)))
 
+(defun go--coverage-origin-buffer ()
+  "Return the buffer to base the coverage on."
+  (if (boundp 'go--coverage-origin-buffer)
+      go--coverage-origin-buffer
+    (current-buffer)))
+
+(defun go-coverage (&optional coverage-file)
+  "Open a clone of the current buffer and overlay it with
+coverage information gathered via go test -coverprofile=COVERAGE-FILE.
+
+If COVERAGE-FILE is nil, it will either be infered from the
+current buffer if it's already a coverage buffer, or be prompted
+for."
+  (interactive)
+  (setq coverage-file (or coverage-file (go--coverage-file)))
+  (let* ((ranges '())
+         (cur-buffer (current-buffer))
+         (origin-buffer (go--coverage-origin-buffer))
+         (file-name (file-name-nondirectory (buffer-file-name origin-buffer)))
+         (gocov-buffer-name (concat (buffer-name origin-buffer) "<gocov>"))
+         (max-count 0)
+         divisor)
     (with-temp-buffer
-      (insert-file-contents input)
+      (insert-file-contents coverage-file)
       (go--goto-line 2) ;; Skip over mode
       (while (not (eobp))
         (let* ((parts (split-string (buffer-substring (point-at-bol) (point-at-eol)) ":"))
@@ -1044,7 +1063,10 @@ coverage information gathered via go test -coverprofile=INPUT."
 
     (with-current-buffer (or
                           (get-buffer gocov-buffer-name)
-                          (clone-indirect-buffer gocov-buffer-name nil))
+                          (make-indirect-buffer origin-buffer gocov-buffer-name t))
+      (set (make-local-variable 'go--coverage-origin-buffer) origin-buffer)
+      (set (make-local-variable 'go--coverage-current-file-name) coverage-file)
+
       (save-excursion
         (remove-overlays)
         (overlay-put
@@ -1074,7 +1096,7 @@ coverage information gathered via go test -coverprofile=INPUT."
 
             (overlay-put ov 'face face)
             (overlay-put ov 'help-echo (format "Count: %d" count)))))
-
-      (display-buffer (current-buffer) 'display-buffer-reuse-window))))
+      (if (not (eq cur-buffer (current-buffer)))
+          (display-buffer (current-buffer) 'display-buffer-reuse-window)))))
 
 (provide 'go-mode)
