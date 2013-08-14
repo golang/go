@@ -360,16 +360,17 @@ loadlib(void)
 				} else
 					s->type = 0;
 			}
-	} 
+	}
+	
 	gmsym = lookup("runtime.tlsgm", 0);
 	gmsym->type = STLSBSS;
 	gmsym->size = 2*PtrSize;
 	gmsym->hide = 1;
-	if(linkmode == LinkExternal)
+	if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd)
 		gmsym->reachable = 1;
 	else
 		gmsym->reachable = 0;
-	
+
 	// Now that we know the link mode, trim the dynexp list.
 	x = CgoExportDynamic;
 	if(linkmode == LinkExternal)
