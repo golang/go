@@ -3287,7 +3287,10 @@ or an array indexing operation of an addressable array.
 As an exception to the addressability requirement, <code>x</code> may also be a
 (possibly parenthesized)
 <a href="#Composite_literals">composite literal</a>.
+If the evaluation of <code>x</code> would cause a <a href="#Run_time_panics">run-time panic</a>, 
+then the evaluation of <code>&x</code> does too.
 </p>
+
 <p>
 For an operand <code>x</code> of pointer type <code>*T</code>, the pointer
 indirection <code>*x</code> denotes the value of type <code>T</code> pointed
@@ -3302,6 +3305,10 @@ will cause a <a href="#Run_time_panics">run-time panic</a>.
 &amp;Point{2, 3}
 *p
 *pf(x)
+
+var x *int = nil
+*x   // causes a run-time panic
+&*x  // causes a run-time panic
 </pre>
 
 
