@@ -1010,7 +1010,7 @@ type coverInfo struct {
 func writeTestmain(out string, pmain, p *Package) error {
 	var cover []coverInfo
 	for _, cp := range pmain.imports {
-		if cp.coverVars != nil {
+		if len(cp.coverVars) > 0 {
 			cover = append(cover, coverInfo{cp, cp.coverVars})
 		}
 	}
