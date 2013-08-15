@@ -354,7 +354,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 
 // int32 runtime·kqueue(void);
 TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVL	$362, AX
+	MOVL	$269, AX
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
@@ -362,7 +362,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	$363, AX
+	MOVL	$270, AX
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
