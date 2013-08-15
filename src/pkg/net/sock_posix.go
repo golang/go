@@ -53,10 +53,6 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
 		closesocket(s)
 		return nil, err
 	}
-	if err := fd.init(); err != nil {
-		fd.Close()
-		return nil, err
-	}
 
 	// This function makes a network file descriptor for stream
 	// and datagram dialers, stream and datagram listeners.
@@ -75,7 +71,7 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
 	if laddr != nil && raddr == nil {
 		switch t {
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
-			if err := fd.listenStream(laddr, toAddr); err != nil {
+			if err := fd.listenStream(laddr, listenerBacklog, toAddr); err != nil {
 				fd.Close()
 				return nil, err
 			}
@@ -107,6 +103,9 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
 			}
 		}
 	}
+	if err := fd.init(); err != nil {
+		return err
+	}
 	var rsa syscall.Sockaddr
 	if raddr != nil {
 		if rsa, err = raddr.sockaddr(fd.family); err != nil {
@@ -133,7 +132,7 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
 	return nil
 }
 
-func (fd *netFD) listenStream(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr) error {
+func (fd *netFD) listenStream(laddr sockaddr, backlog int, toAddr func(syscall.Sockaddr) Addr) error {
 	if err := setDefaultListenerSockopts(fd.sysfd); err != nil {
 		return err
 	}
@@ -143,6 +142,12 @@ func (fd *netFD) listenStream(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr
 		if err := syscall.Bind(fd.sysfd, lsa); err != nil {
 			return os.NewSyscallError("bind", err)
 		}
+	}
+	if err := syscall.Listen(fd.sysfd, backlog); err != nil {
+		return os.NewSyscallError("listen", err)
+	}
+	if err := fd.init(); err != nil {
+		return err
 	}
 	lsa, _ := syscall.Getsockname(fd.sysfd)
 	fd.setAddr(toAddr(lsa), nil)
@@ -179,6 +184,9 @@ func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Ad
 		if err := syscall.Bind(fd.sysfd, lsa); err != nil {
 			return os.NewSyscallError("bind", err)
 		}
+	}
+	if err := fd.init(); err != nil {
+		return err
 	}
 	lsa, _ := syscall.Getsockname(fd.sysfd)
 	fd.setAddr(toAddr(lsa), nil)
