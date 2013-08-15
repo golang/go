@@ -704,7 +704,6 @@ extern	P**	runtime·allp;
 extern	int32	runtime·gomaxprocs;
 extern	uint32	runtime·needextram;
 extern	uint32	runtime·panicking;
-extern	uint32	runtime·gcwaiting;		// gc is waiting to run
 extern	int8*	runtime·goos;
 extern	int32	runtime·ncpu;
 extern	bool	runtime·iscgo;

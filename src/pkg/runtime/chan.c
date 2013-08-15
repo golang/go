@@ -169,9 +169,6 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 		return;  // not reached
 	}
 
-	if(runtime·gcwaiting)
-		runtime·gosched();
-
 	if(debug) {
 		runtime·printf("chansend: chan=%p; elem=", c);
 		c->elemalg->print(c->elemsize, ep);
@@ -294,9 +291,6 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 	SudoG mysg;
 	G *gp;
 	int64 t0;
-
-	if(runtime·gcwaiting)
-		runtime·gosched();
 
 	if(debug)
 		runtime·printf("chanrecv: chan=%p\n", c);
@@ -860,8 +854,6 @@ selectgo(Select **selp)
 	void *pc;
 
 	sel = *selp;
-	if(runtime·gcwaiting)
-		runtime·gosched();
 
 	if(debug)
 		runtime·printf("select: sel=%p\n", sel);
@@ -1259,9 +1251,6 @@ closechan(Hchan *c, void *pc)
 
 	if(c == nil)
 		runtime·panicstring("close of nil channel");
-
-	if(runtime·gcwaiting)
-		runtime·gosched();
 
 	runtime·lock(c);
 	if(c->closed) {

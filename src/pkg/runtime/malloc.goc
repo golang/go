@@ -41,8 +41,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	MSpan *s;
 	MLink *v;
 
-	if(runtime·gcwaiting && g != m->g0 && m->locks == 0 && !(flag & FlagNoInvokeGC))
-		runtime·gosched();
 	if(size == 0) {
 		// All 0-length allocations use this pointer.
 		// The language does not require the allocations to

@@ -1167,9 +1167,6 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
 		return;
 	}
 
-	if(runtime·gcwaiting)
-		runtime·gosched();
-
 	res = hash_lookup(t, h, &ak);
 
 	if(res != nil) {
@@ -1276,9 +1273,6 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
 {
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
-
-	if(runtime·gcwaiting)
-		runtime·gosched();
 
 	if(av == nil) {
 		hash_remove(t, h, ak);
@@ -1424,8 +1418,6 @@ runtime·mapiternext(struct hash_iter *it)
 {
 	if(raceenabled)
 		runtime·racereadpc(it->h, runtime·getcallerpc(&it), runtime·mapiternext);
-	if(runtime·gcwaiting)
-		runtime·gosched();
 
 	hash_next(it);
 	if(debug) {
