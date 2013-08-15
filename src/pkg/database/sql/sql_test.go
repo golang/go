@@ -39,15 +39,7 @@ const fakeDBName = "foo"
 
 var chrisBirthday = time.Unix(123456789, 0)
 
-type testOrBench interface {
-	Fatalf(string, ...interface{})
-	Errorf(string, ...interface{})
-	Fatal(...interface{})
-	Error(...interface{})
-	Logf(string, ...interface{})
-}
-
-func newTestDB(t testOrBench, name string) *DB {
+func newTestDB(t testing.TB, name string) *DB {
 	db, err := Open("test", fakeDBName)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -69,14 +61,14 @@ func newTestDB(t testOrBench, name string) *DB {
 	return db
 }
 
-func exec(t testOrBench, db *DB, query string, args ...interface{}) {
+func exec(t testing.TB, db *DB, query string, args ...interface{}) {
 	_, err := db.Exec(query, args...)
 	if err != nil {
 		t.Fatalf("Exec of %q: %v", query, err)
 	}
 }
 
-func closeDB(t testOrBench, db *DB) {
+func closeDB(t testing.TB, db *DB) {
 	if e := recover(); e != nil {
 		fmt.Printf("Panic: %v\n", e)
 		panic(e)
@@ -1061,7 +1053,7 @@ func TestStmtCloseOrder(t *testing.T) {
 	}
 }
 
-func manyConcurrentQueries(t testOrBench) {
+func manyConcurrentQueries(t testing.TB) {
 	maxProcs, numReqs := 16, 500
 	if testing.Short() {
 		maxProcs, numReqs = 4, 50
