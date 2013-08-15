@@ -46,6 +46,7 @@ struct Sched {
 	Lock	gflock;
 	G*	gfree;
 
+	uint32	gcwaiting;	// gc is waiting to run
 	int32	stopwait;
 	Note	stopnote;
 	uint32	sysmonwait;
@@ -63,7 +64,6 @@ Sched	runtime·sched;
 int32	runtime·gomaxprocs;
 uint32	runtime·needextram;
 bool	runtime·iscgo;
-uint32	runtime·gcwaiting;
 M	runtime·m0;
 G	runtime·g0;	 // idle goroutine for m0
 G*	runtime·allg;
@@ -391,7 +391,7 @@ runtime·freezetheworld(void)
 	for(i = 0; i < 5; i++) {
 		// this should tell the scheduler to not start any new goroutines
 		runtime·sched.stopwait = 0x7fffffff;
-		runtime·atomicstore((uint32*)&runtime·gcwaiting, 1);
+		runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
 		// this should stop running goroutines
 		if(!preemptall())
 			break;  // no running goroutines
@@ -413,7 +413,7 @@ runtime·stoptheworld(void)
 
 	runtime·lock(&runtime·sched);
 	runtime·sched.stopwait = runtime·gomaxprocs;
-	runtime·atomicstore((uint32*)&runtime·gcwaiting, 1);
+	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
 	preemptall();
 	// stop current P
 	m->p->status = Pgcstop;
@@ -477,7 +477,7 @@ runtime·starttheworld(void)
 		newprocs = 0;
 	} else
 		procresize(runtime·gomaxprocs);
-	runtime·gcwaiting = 0;
+	runtime·sched.gcwaiting = 0;
 
 	p1 = nil;
 	while(p = pidleget()) {
@@ -971,7 +971,7 @@ handoffp(P *p)
 		return;
 	}
 	runtime·lock(&runtime·sched);
-	if(runtime·gcwaiting) {
+	if(runtime·sched.gcwaiting) {
 		p->status = Pgcstop;
 		if(--runtime·sched.stopwait == 0)
 			runtime·notewakeup(&runtime·sched.stopnote);
@@ -1056,7 +1056,7 @@ gcstopm(void)
 {
 	P *p;
 
-	if(!runtime·gcwaiting)
+	if(!runtime·sched.gcwaiting)
 		runtime·throw("gcstopm: not waiting for gc");
 	if(m->spinning) {
 		m->spinning = false;
@@ -1107,7 +1107,7 @@ findrunnable(void)
 	int32 i;
 
 top:
-	if(runtime·gcwaiting) {
+	if(runtime·sched.gcwaiting) {
 		gcstopm();
 		goto top;
 	}
@@ -1141,7 +1141,7 @@ top:
 	}
 	// random steal from other P's
 	for(i = 0; i < 2*runtime·gomaxprocs; i++) {
-		if(runtime·gcwaiting)
+		if(runtime·sched.gcwaiting)
 			goto top;
 		p = runtime·allp[runtime·fastrand1()%runtime·gomaxprocs];
 		if(p == m->p)
@@ -1154,7 +1154,7 @@ top:
 stop:
 	// return P and block
 	runtime·lock(&runtime·sched);
-	if(runtime·gcwaiting) {
+	if(runtime·sched.gcwaiting) {
 		runtime·unlock(&runtime·sched);
 		goto top;
 	}
@@ -1263,7 +1263,7 @@ schedule(void)
 		runtime·throw("schedule: holding locks");
 
 top:
-	if(runtime·gcwaiting) {
+	if(runtime·sched.gcwaiting) {
 		gcstopm();
 		goto top;
 	}
@@ -1442,7 +1442,7 @@ void
 	m->mcache = nil;
 	m->p->m = nil;
 	runtime·atomicstore(&m->p->status, Psyscall);
-	if(runtime·gcwaiting) {
+	if(runtime·sched.gcwaiting) {
 		runtime·lock(&runtime·sched);
 		if (runtime·sched.stopwait > 0 && runtime·cas(&m->p->status, Psyscall, Pgcstop)) {
 			if(--runtime·sched.stopwait == 0)
@@ -2251,9 +2251,9 @@ sysmon(void)
 			delay = 10*1000;
 		runtime·usleep(delay);
 		if(runtime·debug.schedtrace <= 0 &&
-			(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
+			(runtime·sched.gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
 			runtime·lock(&runtime·sched);
-			if(runtime·atomicload(&runtime·gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
+			if(runtime·atomicload(&runtime·sched.gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
 				runtime·unlock(&runtime·sched);
 				runtime·notesleep(&runtime·sched.sysmonnote);
@@ -2427,7 +2427,7 @@ runtime·schedtrace(bool detailed)
 		runtime·sched.nmidle, runtime·sched.runqsize);
 	if(detailed) {
 		runtime·printf(" gcwaiting=%d nmidlelocked=%d nmspinning=%d stopwait=%d sysmonwait=%d\n",
-			runtime·gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
+			runtime·sched.gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
 			runtime·sched.stopwait, runtime·sched.sysmonwait);
 	}
 	// We must be careful while reading data from P's, M's and G's.
