@@ -196,6 +196,31 @@ func decorate(s string) string {
 	return buf.String()
 }
 
+// TB is the interface common to T and B.
+type TB interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fail()
+	FailNow()
+	Failed() bool
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	Skip(args ...interface{})
+	SkipNow()
+	Skipf(format string, args ...interface{})
+	Skipped() bool
+
+	// A private method to prevent users implementing the
+	// interface and so future additions to it will not
+	// violate Go 1 compatibility.
+	private()
+}
+
+var _ TB = (*T)(nil)
+var _ TB = (*B)(nil)
+
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 // Logs are accumulated during execution and dumped to standard error when done.
 type T struct {
@@ -203,6 +228,8 @@ type T struct {
 	name          string    // Name of test.
 	startParallel chan bool // Parallel tests will wait on this.
 }
+
+func (c *common) private() {}
 
 // Fail marks the function as having failed but continues execution.
 func (c *common) Fail() {
