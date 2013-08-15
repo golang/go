@@ -9,6 +9,8 @@ package or cmd/xxx directory name, and ending in a CL number.
 Please keep the list sorted (as in sort.Strings of the lines).
 
 Performance:
+compress/bzip2: faster decompression by 30% (CL 9915043).
+crypto/des: 5x faster encoding/decoding (CL 11874043, 12072045).
 encoding/json: faster encoding (CL 9129044).
 net: improve windows performance by up to 30% (CL 8670044).
 
