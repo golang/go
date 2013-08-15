@@ -353,8 +353,8 @@ var atoiError = errors.New("time: invalid number")
 // Duplicates functionality in strconv, but avoids dependency.
 func atoi(s string) (x int, err error) {
 	neg := false
-	if s != "" && s[0] == '-' {
-		neg = true
+	if s != "" && (s[0] == '-' || s[0] == '+') {
+		neg = s[0] == '-'
 		s = s[1:]
 	}
 	q, rem, err := leadingInt(s)
@@ -933,25 +933,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				value = value[3:]
 				break
 			}
-
-			if len(value) >= 3 && value[2] == 'T' {
-				p, value = value[0:3], value[3:]
-			} else if len(value) >= 4 && value[3] == 'T' {
-				p, value = value[0:4], value[4:]
-			} else {
+			n, ok := parseTimeZone(value)
+			if !ok {
 				err = errBad
 				break
 			}
-			for i := 0; i < len(p); i++ {
-				if p[i] < 'A' || 'Z' < p[i] {
-					err = errBad
-				}
-			}
-			if err != nil {
-				break
-			}
-			// It's a valid format.
-			zoneName = p
+			zoneName, value = value[:n], value[n:]
 
 		case stdFracSecond0:
 			// stdFracSecond0 requires the exact number of digits as specified in
@@ -1024,12 +1011,67 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 
 		// Otherwise, create fake zone with unknown offset.
-		t.loc = FixedZone(zoneName, 0)
+		if len(zoneName) > 3 && zoneName[:3] == "GMT" {
+			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
+			offset *= 3600
+		}
+		t.loc = FixedZone(zoneName, offset)
 		return t, nil
 	}
 
 	// Otherwise, fall back to default.
 	return Date(year, Month(month), day, hour, min, sec, nsec, defaultLocation), nil
+}
+
+// parseTimeZone parses a time zone string and returns its length.
+func parseTimeZone(value string) (length int, ok bool) {
+	if len(value) < 3 {
+		return 0, false
+	}
+	// GMT may have an offset.
+	if len(value) >= 3 && value[:3] == "GMT" {
+		length = parseGMT(value)
+		return length, true
+	}
+
+	if len(value) >= 3 && value[2] == 'T' {
+		length = 3
+	} else if len(value) >= 4 && value[3] == 'T' {
+		length = 4
+	} else {
+		return 0, false
+	}
+	for i := 0; i < length; i++ {
+		if value[i] < 'A' || 'Z' < value[i] {
+			return 0, false
+		}
+	}
+	return length, true
+}
+
+// parseGMT parses a GMT time zone. The input string is known to start "GMT".
+// The function checks whether that is followed by a sign and a number in the
+// range -14 through 12 excluding zero.
+func parseGMT(value string) int {
+	value = value[3:]
+	if len(value) == 0 {
+		return 3
+	}
+	sign := value[0]
+	if sign != '-' && sign != '+' {
+		return 3
+	}
+	x, rem, err := leadingInt(value[1:])
+	if err != nil {
+		return 3
+	}
+	if sign == '-' {
+		x = -x
+	}
+	if x == 0 || x < -14 || 12 < x {
+		return 3
+	}
+	return 3 + len(value) - len(rem)
 }
 
 func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
