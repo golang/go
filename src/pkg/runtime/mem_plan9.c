@@ -56,7 +56,7 @@ runtime·SysUnused(void *v, uintptr nbytes)
 }
 
 void
-runtime·SysUsed(void *v, uintptr n)
+runtime·SysUsed(void *v, uintptr nbytes)
 {
 	USED(v, nbytes);
 }
