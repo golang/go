@@ -1067,43 +1067,6 @@ gins(int as, Node *f, Node *t)
 	return p;
 }
 
-// Generate an instruction referencing *n
-// to force segv on nil pointer dereference.
-void
-checkref(Node *n, int force)
-{
-	Node m;
-
-	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
-		return;
-
-	regalloc(&m, types[TUINTPTR], n);
-	cgen(n, &m);
-	m.xoffset = 0;
-	m.op = OINDREG;
-	m.type = types[TUINT8];
-	gins(ATESTB, nodintconst(0), &m);
-	regfree(&m);
-}
-
-static void
-checkoffset(Addr *a, int canemitcode)
-{
-	Prog *p;
-
-	if(a->offset < unmappedzero)
-		return;
-	if(!canemitcode)
-		fatal("checkoffset %#llx, cannot emit code", a->offset);
-
-	// cannot rely on unmapped nil page at 0 to catch
-	// reference with large offset. instead, emit explicit
-	// test of 0(reg).
-	p = gins(ATESTB, nodintconst(0), N);
-	p->to = *a;
-	p->to.offset = 0;
-}
-
 /*
  * generate code to compute n;
  * make a refer to result.
@@ -1161,7 +1124,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->offset = n->xoffset;
 		if(a->offset != (int32)a->offset)
 			yyerror("offset %lld too large for OINDREG", a->offset);
-		checkoffset(a, canemitcode);
 		break;
 
 	case OPARAM:
@@ -1280,8 +1242,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;  // itab(nil)
 		a->etype = tptr;
 		a->width = widthptr;
-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
-			checkoffset(a, canemitcode);
 		break;
 
 	case OLEN:
@@ -1292,8 +1252,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->etype = simtype[TUINT];
 		a->offset += Array_nel;
 		a->width = widthint;
-		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
-			checkoffset(a, canemitcode);
 		break;
 
 	case OCAP:
@@ -1304,8 +1262,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->etype = simtype[TUINT];
 		a->offset += Array_cap;
 		a->width = widthint;
-		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
-			checkoffset(a, canemitcode);
 		break;
 
 //	case OADD:
@@ -2045,6 +2001,7 @@ odot:
 		n1.xoffset = oary[0];
 	} else {
 		cgen(nn, reg);
+		cgen_checknil(reg);
 		n1.xoffset = -(oary[0]+1);
 	}
 
@@ -2052,6 +2009,7 @@ odot:
 		if(oary[i] >= 0)
 			fatal("can't happen");
 		gins(AMOVQ, &n1, reg);
+		cgen_checknil(reg);
 		n1.xoffset = -(oary[i]+1);
 	}
 
@@ -2115,16 +2073,6 @@ oindex:
 	if(l->ullman <= r->ullman) {
 		if(xgen(l, reg, o))
 			o |= OAddable;
-	}
-
-	if(!(o & ODynam) && l->type->width >= unmappedzero && l->op == OIND) {
-		// cannot rely on page protections to
-		// catch array ptr == 0, so dereference.
-		n2 = *reg;
-		n2.xoffset = 0;
-		n2.op = OINDREG;
-		n2.type = types[TUINT8];
-		gins(ATESTB, nodintconst(0), &n2);
 	}
 
 	// check bounds

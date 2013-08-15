@@ -493,8 +493,8 @@ gen(Node *n)
 		cgen_ret(n);
 		break;
 	
-	case OCHECKNOTNIL:
-		checkref(n->left, 1);
+	case OCHECKNIL:
+		cgen_checknil(n->left);
 	}
 
 ret:
@@ -777,6 +777,8 @@ cgen_eface(Node *n, Node *res)
  * n->left is s
  * n->list is (cap(s)-lo(TUINT), hi-lo(TUINT)[, lo*width(TUINTPTR)])
  * caller (cgen) guarantees res is an addable ONAME.
+ *
+ * called for OSLICE, OSLICE3, OSLICEARR, OSLICE3ARR, OSLICESTR.
  */
 void
 cgen_slice(Node *n, Node *res)
@@ -808,21 +810,26 @@ cgen_slice(Node *n, Node *res)
 	dst.xoffset += Array_array;
 	dst.type = types[TUINTPTR];
 
-	if(n->op == OSLICEARR) {
-		if(!isptr[n->left->type->etype])
-			fatal("slicearr is supposed to work on pointer: %+N\n", n);
-		checkref(n->left, 0);
-	}
-
 	if(isnil(n->left)) {
 		tempname(&src, n->left->type);
 		cgen(n->left, &src);
 	} else
 		src = *n->left;
-	src.xoffset += Array_array;
+	if(n->op == OSLICE || n->op == OSLICE3 || n->op == OSLICESTR)
+		src.xoffset += Array_array;
 	src.type = types[TUINTPTR];
 
-	if(offs == N) {
+	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
+		if(!isptr[n->left->type->etype])
+			fatal("slicearr is supposed to work on pointer: %+N\n", n);
+		cgen(&src, &dst);
+		cgen_checknil(&dst);
+		if(offs != N) {
+			add = nod(OADD, &dst, offs);
+			typecheck(&add, Erv);
+			cgen(add, &dst);
+		}
+	} else if(offs == N) {
 		cgen(&src, &dst);
 	} else {
 		add = nod(OADD, &src, offs);

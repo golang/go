@@ -305,6 +305,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 	nodo.xoffset -= widthptr;
 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab
+	cgen_checknil(&nodr); // in case offset is huge
 
 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
 	
@@ -872,4 +873,44 @@ clearfat(Node *nl)
 	}
 	regfree(&dst);
 	regfree(&nz);
+}
+
+// Called after regopt and peep have run.
+// Expand CHECKNIL pseudo-op into actual nil pointer check.
+void
+expandchecks(Prog *firstp)
+{
+	int reg;
+	Prog *p, *p1;
+
+	for(p = firstp; p != P; p = p->link) {
+		if(p->as != ACHECKNIL)
+			continue;
+		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
+			warnl(p->lineno, "nil check %D", &p->from);
+		if(p->from.type != D_REG)
+			fatal("invalid nil check %P", p);
+		reg = p->from.reg;
+		// check is
+		//	CMP arg, $0
+		//	MOV.EQ arg, 0(arg)
+		p1 = mal(sizeof *p1);
+		clearp(p1);
+		p1->link = p->link;
+		p->link = p1;
+		p1->lineno = p->lineno;
+		p1->loc = 9999;
+		p1->as = AMOVW;
+		p1->from.type = D_REG;
+		p1->from.reg = reg;
+		p1->to.type = D_OREG;
+		p1->to.reg = reg;
+		p1->to.offset = 0;
+		p1->scond = C_SCOND_EQ;
+		p->as = ACMP;
+		p->from.type = D_CONST;
+		p->from.reg = NREG;
+		p->from.offset = 0;
+		p->reg = reg;
+	}
 }

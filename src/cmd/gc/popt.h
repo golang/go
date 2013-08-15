@@ -37,5 +37,6 @@ void	flowrpo(Graph*);
 void	flowend(Graph*);
 void	mergetemp(Prog*);
 int	noreturn(Prog*);
+int	regtyp(Addr*);
 Flow*	uniqp(Flow*);
 Flow*	uniqs(Flow*);
