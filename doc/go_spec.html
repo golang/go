@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 31, 2013",
+	"Subtitle": "Version of Aug 15, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -1017,6 +1017,7 @@ A field declaration may be followed by an optional string literal <i>tag</i>,
 which becomes an attribute for all the fields in the corresponding
 field declaration. The tags are made
 visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
+and take part in <a href="Type_identity">type identity</a> for structs
 but are otherwise ignored.
 </p>
 
@@ -2692,7 +2693,7 @@ and the result of the slice operation is a slice with the same element type as t
 <p>
 If the sliced operand of a valid slice expression is a <code>nil</code> slice, the result
 is a <code>nil</code> slice.
-<p>
+</p>
 
 <h3 id="Type_assertions">Type assertions</h3>
 
