@@ -301,10 +301,5 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = syscall.Listen(fd.sysfd, listenerBacklog)
-	if err != nil {
-		fd.Close()
-		return nil, &OpError{"listen", net, laddr, err}
-	}
 	return &TCPListener{fd}, nil
 }
