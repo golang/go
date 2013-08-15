@@ -37,7 +37,6 @@
 
 static void	conprop(Flow *r);
 static void	elimshortmov(Graph*);
-static int	regtyp(Adr*);
 static int	subprop(Flow*);
 static int	copyprop(Graph*, Flow*);
 static int	copy1(Adr*, Adr*, Flow*, int);
@@ -242,7 +241,7 @@ excise(Flow *r)
 	ostats.ndelmov++;
 }
 
-static int
+int
 regtyp(Adr *a)
 {
 	int t;

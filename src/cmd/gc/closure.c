@@ -407,8 +407,10 @@ walkpartialcall(Node *n, NodeList **init)
 	// Like walkclosure above.
 
 	if(isinter(n->left->type)) {
+		// Trigger panic for method on nil interface now.
+		// Otherwise it happens in the wrapper and is confusing.
 		n->left = cheapexpr(n->left, init);
-		checknotnil(n->left, init);
+		checknil(n->left, init);
 	}
 
 	typ = nod(OTSTRUCT, N, N);

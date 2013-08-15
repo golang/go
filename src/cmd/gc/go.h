@@ -573,7 +573,7 @@ enum
 	OITAB,	// itable word of an interface value.
 	OCLOSUREVAR, // variable reference at beginning of closure function
 	OCFUNC,	// reference to c function pointer (not go func value)
-	OCHECKNOTNIL, // emit code to ensure pointer/interface not nil
+	OCHECKNIL, // emit code to ensure pointer/interface not nil
 
 	// arch-specific registers
 	OREGISTER,	// a register, such as AX.
@@ -865,6 +865,8 @@ EXTERN	char	namebuf[NSYMB];
 EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	litbuf[NSYMB];
 EXTERN	int	debug[256];
+EXTERN	char*	debugstr;
+EXTERN	int	debug_checknil;
 EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	importmyname;	// my name for package
 EXTERN	Pkg*	localpkg;	// package being compiled
@@ -1445,16 +1447,18 @@ EXTERN	Prog*	firstpc;
 EXTERN	Prog*	retpc;
 
 EXTERN	Node*	nodfp;
+EXTERN	int	disable_checknil;
 
 int	anyregalloc(void);
 void	betypeinit(void);
 void	bgen(Node *n, int true, int likely, Prog *to);
-void	checkref(Node *n, int force);
-void	checknotnil(Node*, NodeList**);
+void	checknil(Node*, NodeList**);
+void	expandchecks(Prog*);
 void	cgen(Node*, Node*);
 void	cgen_asop(Node *n);
 void	cgen_call(Node *n, int proc);
 void	cgen_callinter(Node *n, Node *res, int proc);
+void	cgen_checknil(Node*);
 void	cgen_ret(Node *n);
 void	clearfat(Node *n);
 void	compile(Node*);

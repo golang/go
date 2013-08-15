@@ -184,7 +184,7 @@ walkstmt(Node **np)
 	case OLABEL:
 	case ODCLCONST:
 	case ODCLTYPE:
-	case OCHECKNOTNIL:
+	case OCHECKNIL:
 		break;
 
 	case OBLOCK:
@@ -405,8 +405,9 @@ walkexpr(Node **np, NodeList **init)
 
 	case OIND:
 		if(n->left->type->type->width == 0) {
+			// No actual copy will be generated, so emit an explicit nil check.
 			n->left = cheapexpr(n->left, init);
-			checknotnil(n->left, init);
+			checknil(n->left, init);
 		}
 		walkexpr(&n->left, init);
 		goto ret;
@@ -419,8 +420,9 @@ walkexpr(Node **np, NodeList **init)
 	case ODOTPTR:
 		usefield(n);
 		if(n->op == ODOTPTR && n->left->type->type->width == 0) {
+			// No actual copy will be generated, so emit an explicit nil check.
 			n->left = cheapexpr(n->left, init);
-			checknotnil(n->left, init);
+			checknil(n->left, init);
 		}
 		walkexpr(&n->left, init);
 		goto ret;

@@ -44,6 +44,18 @@ static struct {
 	{nil, nil},
 };
 
+// Debug arguments.
+// These can be specified with the -d flag, as in "-d checknil"
+// to set the debug_checknil variable. In general the list passed
+// to -d can be comma-separated.
+static struct {
+	char *name;
+	int *val;
+} debugtab[] = {
+	{"nil", &debug_checknil},
+	{nil, nil},
+};
+
 static void
 addexp(char *s)
 {
@@ -238,7 +250,7 @@ main(int argc, char *argv[])
 	flagfn0("V", "print compiler version", doversion);
 	flagcount("W", "debug parse tree after type checking", &debug['W']);
 	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
-	flagcount("d", "debug declarations", &debug['d']);
+	flagstr("d", "list: print debug information about items in list", &debugstr);
 	flagcount("e", "no limit on number of errors reported", &debug['e']);
 	flagcount("f", "debug stack frames", &debug['f']);
 	flagcount("g", "debug code generation", &debug['g']);
@@ -268,6 +280,24 @@ main(int argc, char *argv[])
 	if(flag_race) {
 		racepkg = mkpkg(strlit("runtime/race"));
 		racepkg->name = "race";
+	}
+	
+	// parse -d argument
+	if(debugstr) {
+		char *f[100];
+		int i, j, nf;
+		
+		nf = getfields(debugstr, f, nelem(f), 1, ",");
+		for(i=0; i<nf; i++) {
+			for(j=0; debugtab[j].name != nil; j++) {
+				if(strcmp(debugtab[j].name, f[i]) == 0) {
+					*debugtab[j].val = 1;
+					break;
+				}
+			}
+			if(j == nelem(debugtab))
+				fatal("unknown debug information -d '%s'\n", f[i]);
+		}
 	}
 
 	// enable inlining.  for now:

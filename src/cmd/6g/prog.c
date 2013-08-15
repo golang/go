@@ -40,6 +40,7 @@ static ProgInfo progtable[ALAST] = {
 	[APCDATA]=	{Pseudo},
 	[AUNDEF]=	{OK},
 	[AUSEFIELD]=	{OK},
+	[ACHECKNIL]=	{LeftRead},
 
 	// NOP is an internal no-op that also stands
 	// for USED and SET annotations, not the Intel opcode.

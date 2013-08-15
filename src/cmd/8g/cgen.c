@@ -476,12 +476,13 @@ igenindex(Node *n, Node *res, int bounded)
 /*
  * address gen
  *	res = &n;
+ * The generated code checks that the result is not nil.
  */
 void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, n4, tmp, nlen;
+	Node n1, n2, n3, tmp, nlen;
 	Type *t;
 	uint32 w;
 	uint64 v;
@@ -606,16 +607,6 @@ agen(Node *n, Node *res)
 		// len(a) is in nlen (if needed)
 		// w is width
 
-		// explicit check for nil if array is large enough
-		// that we might derive too big a pointer.
-		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
-			n4 = n3;
-			n4.op = OINDREG;
-			n4.type = types[TUINT8];
-			n4.xoffset = 0;
-			gins(ATESTB, nodintconst(0), &n4);
-		}
-
 		// constant index
 		if(isconst(nr, CTINT)) {
 			if(isconst(nl, CTSTR))
@@ -739,23 +730,11 @@ agen(Node *n, Node *res)
 
 	case OIND:
 		cgen(nl, res);
+		cgen_checknil(res);
 		break;
 
 	case ODOT:
 		agen(nl, res);
-		// explicit check for nil if struct is large enough
-		// that we might derive too big a pointer.  If the left node
-		// was ODOT we have already done the nil check.
-		if(nl->op != ODOT)
-		if(nl->type->width >= unmappedzero) {
-			regalloc(&n1, types[tptr], res);
-			gmove(res, &n1);
-			n1.op = OINDREG;
-			n1.type = types[TUINT8];
-			n1.xoffset = 0;
-			gins(ATESTB, nodintconst(0), &n1);
-			regfree(&n1);
-		}
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[tptr], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
@@ -767,17 +746,7 @@ agen(Node *n, Node *res)
 		if(!isptr[t->etype])
 			fatal("agen: not ptr %N", n);
 		cgen(nl, res);
-		// explicit check for nil if struct is large enough
-		// that we might derive too big a pointer.
-		if(nl->type->type->width >= unmappedzero) {
-			regalloc(&n1, types[tptr], res);
-			gmove(res, &n1);
-			n1.op = OINDREG;
-			n1.type = types[TUINT8];
-			n1.xoffset = 0;
-			gins(ATESTB, nodintconst(0), &n1);
-			regfree(&n1);
-		}
+		cgen_checknil(res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[tptr], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
@@ -793,6 +762,7 @@ agen(Node *n, Node *res)
  *
  * on exit, a has been changed to be *newreg.
  * caller must regfree(a).
+ * The generated code checks that the result is not *nil.
  */
 void
 igen(Node *n, Node *a, Node *res)
@@ -842,15 +812,7 @@ igen(Node *n, Node *a, Node *res)
 			regalloc(a, types[tptr], res);
 			cgen(n->left, a);
 		}
-		// explicit check for nil if struct is large enough
-		// that we might derive too big a pointer.
-		if(n->left->type->type->width >= unmappedzero) {
-			n1 = *a;
-			n1.op = OINDREG;
-			n1.type = types[TUINT8];
-			n1.xoffset = 0;
-			gins(ATESTB, nodintconst(0), &n1);
-		}
+		cgen_checknil(a);
 		a->op = OINDREG;
 		a->xoffset += n->xoffset;
 		a->type = n->type;

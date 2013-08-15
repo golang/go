@@ -36,7 +36,6 @@
 
 static int	xtramodes(Graph*, Flow*, Adr*);
 static int	shortprop(Flow *r);
-static int	regtyp(Adr*);
 static int	subprop(Flow*);
 static int	copyprop(Graph*, Flow*);
 static int	copy1(Adr*, Adr*, Flow*, int);
@@ -240,7 +239,7 @@ loop1:
 	flowend(g);
 }
 
-static int
+int
 regtyp(Adr *a)
 {
 
@@ -1055,6 +1054,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ADIVF:
 	case ADIVD:
 
+	case ACHECKNIL: /* read */
 	case ACMPF:	/* read, read, */
 	case ACMPD:
 	case ACMP:

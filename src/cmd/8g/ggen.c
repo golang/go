@@ -288,6 +288,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	regalloc(&nodr, types[tptr], &nodo);
 	if(n->left->xoffset == BADWIDTH)
 		fatal("cgen_callinter: badwidth");
+	cgen_checknil(&nodo);
 	nodo.op = OINDREG;
 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
 	
@@ -1215,4 +1216,52 @@ ret:
 	} else
 		patch(gbranch(optoas(a, nr->type), T, likely), to);
 
+}
+
+// Called after regopt and peep have run.
+// Expand CHECKNIL pseudo-op into actual nil pointer check.
+void
+expandchecks(Prog *firstp)
+{
+	Prog *p, *p1, *p2;
+
+	for(p = firstp; p != P; p = p->link) {
+		if(p->as != ACHECKNIL)
+			continue;
+		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
+			warnl(p->lineno, "nil check %D", &p->from);
+		// check is
+		//	CMP arg, $0
+		//	JNE 2(PC) (likely)
+		//	MOV AX, 0
+		p1 = mal(sizeof *p1);
+		p2 = mal(sizeof *p2);
+		clearp(p1);
+		clearp(p2);
+		p1->link = p2;
+		p2->link = p->link;
+		p->link = p1;
+		p1->lineno = p->lineno;
+		p2->lineno = p->lineno;
+		p1->loc = 9999;
+		p2->loc = 9999;
+		p->as = ACMPL;
+		p->to.type = D_CONST;
+		p->to.offset = 0;
+		p1->as = AJNE;
+		p1->from.type = D_CONST;
+		p1->from.offset = 1; // likely
+		p1->to.type = D_BRANCH;
+		p1->to.u.branch = p2->link;
+		// crash by write to memory address 0.
+		// if possible, since we know arg is 0, use 0(arg),
+		// which will be shorter to encode than plain 0.
+		p2->as = AMOVL;
+		p2->from.type = D_AX;
+		if(regtyp(&p->from))
+			p2->to.type = p->from.type + D_INDIR;
+		else
+			p2->to.type = D_INDIR+D_NONE;
+		p2->to.offset = 0;
+	}
 }

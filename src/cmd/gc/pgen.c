@@ -171,6 +171,7 @@ compile(Node *fn)
 	if(!debug['N'] || debug['R'] || debug['P']) {
 		regopt(ptxt);
 	}
+	expandchecks(ptxt);
 
 	oldstksize = stksize;
 	allocauto(ptxt);
@@ -503,4 +504,23 @@ movelargefn(Node *fn)
 		if(n->class == PAUTO && n->type != T && n->type->width > MaxStackVarSize)
 			addrescapes(n);
 	}
+}
+
+void
+cgen_checknil(Node *n)
+{
+	Node reg;
+
+	if(disable_checknil)
+		return;
+	while(n->op == ODOT || (n->op == OINDEX && isfixedarray(n->left->type->type))) // NOTE: not ODOTPTR
+		n = n->left;
+	if(thechar == '5' && n->op != OREGISTER) {
+		regalloc(&reg, types[tptr], N);
+		cgen(n, &reg);
+		gins(ACHECKNIL, &reg, N);
+		regfree(&reg);
+		return;
+	}
+	gins(ACHECKNIL, n, N);
 }

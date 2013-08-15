@@ -3769,7 +3769,7 @@ isbadimport(Strlit *path)
 }
 
 void
-checknotnil(Node *x, NodeList **init)
+checknil(Node *x, NodeList **init)
 {
 	Node *n;
 	
@@ -3777,7 +3777,7 @@ checknotnil(Node *x, NodeList **init)
 		x = nod(OITAB, x, N);
 		typecheck(&x, Erv);
 	}
-	n = nod(OCHECKNOTNIL, x, N);
+	n = nod(OCHECKNIL, x, N);
 	n->typecheck = 1;
 	*init = list(*init, n);
 }

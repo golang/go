@@ -197,6 +197,7 @@ enum	as
 	ATYPE,
 	AFUNCDATA,
 	APCDATA,
+	ACHECKNIL,
 
 	ALAST,
 };
