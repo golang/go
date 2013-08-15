@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin linux windows
+// +build darwin freebsd,amd64 freebsd,386 linux openbsd windows
 
 package net
 
