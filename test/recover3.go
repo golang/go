@@ -64,7 +64,8 @@ func main() {
 
 	i = 99999
 	var sl []int
-	check("array-bounds", func() { println(p[i]) }, "index out of range")
+	p1 := new([10]int)
+	check("array-bounds", func() { println(p1[i]) }, "index out of range")
 	check("slice-bounds", func() { println(sl[i]) }, "index out of range")
 
 	var inter interface{}
