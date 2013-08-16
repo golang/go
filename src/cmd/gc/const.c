@@ -1056,7 +1056,7 @@ nodcplxlit(Val r, Val i)
 }
 
 // idealkind returns a constant kind like consttype
-// but for an arbitrary "ideal" expression.
+// but for an arbitrary "ideal" (untyped constant) expression.
 static int
 idealkind(Node *n)
 {
