@@ -168,6 +168,14 @@ void
 runtime·main(void)
 {
 	Defer d;
+	
+	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
+	// Using decimal instead of binary GB and MB because
+	// they look nicer in the stack overflow failure message.
+	if(sizeof(void*) == 8)
+		runtime·maxstacksize = 1000000000;
+	else
+		runtime·maxstacksize = 250000000;
 
 	newm(sysmon, nil);
 
@@ -1668,6 +1676,7 @@ runtime·malg(int32 stacksize)
 			stk = g->param;
 			g->param = nil;
 		}
+		g->stacksize = StackSystem + stacksize;
 		newg->stack0 = (uintptr)stk;
 		newg->stackguard = (uintptr)stk + StackGuard;
 		newg->stackguard0 = newg->stackguard;

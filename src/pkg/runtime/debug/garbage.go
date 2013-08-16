@@ -24,6 +24,7 @@ func readGCStats(*[]time.Duration)
 func enableGC(bool) bool
 func setGCPercent(int) int
 func freeOSMemory()
+func setMaxStack(int) int
 
 // ReadGCStats reads statistics about garbage collection into stats.
 // The number of entries in the pause history is system-dependent;
@@ -98,4 +99,18 @@ func SetGCPercent(percent int) int {
 // returns memory to the operating system in a background task.)
 func FreeOSMemory() {
 	freeOSMemory()
+}
+
+// SetMaxStack sets the maximum amount of memory that
+// can be used by a single goroutine stack.
+// If any goroutine exceeds this limit while growing its stack,
+// the program crashes.
+// SetMaxStack returns the previous setting.
+// The initial setting is 1 GB on 64-bit systems, 250 MB on 32-bit systems.
+//
+// SetMaxStack is useful mainly for limiting the damage done by
+// goroutines that enter an infinite recursion. It only limits future
+// stack growth.
+func SetMaxStack(bytes int) int {
+	return setMaxStack(bytes)
 }

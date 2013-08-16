@@ -320,8 +320,10 @@ runtime·unwindstack(G *gp, byte *sp)
 		gp->stackbase = top->stackbase;
 		gp->stackguard = top->stackguard;
 		gp->stackguard0 = gp->stackguard;
-		if(top->free != 0)
+		if(top->free != 0) {
+			gp->stacksize -= top->free;
 			runtime·stackfree(stk, top->free);
+		}
 	}
 
 	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
