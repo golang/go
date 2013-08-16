@@ -50,6 +50,7 @@ import (
 
 	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/vfs"
+	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"code.google.com/p/go.tools/godoc/vfs/zipfs"
 )
 
@@ -196,13 +197,7 @@ func main() {
 		if *templateDir != "" {
 			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
 		} else {
-			// Read templates from go.tools repository; if not
-			// found there, fall back on $GOROOT/lib/godoc
-			// which will be present in binary distributions.
-			pkg, err := build.Import(templatePath, "", build.FindOnly)
-			if err == nil {
-				fs.Bind("/lib/godoc", vfs.OS(pkg.Dir), "/", vfs.BindReplace)
-			}
+			fs.Bind("/lib/godoc", mapfs.New(bakedFiles), "/", vfs.BindReplace)
 		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
