@@ -17,6 +17,7 @@ net: improve windows performance by up to 30% (CL 8670044).
 cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
+cmd/gc: three-index slicing to set cap as well as length (CL 10743046).
 cmd/gc: make missing package error fatal (CL 12677043).
 cmd/go: test coverage (CL 10413044).
 cmd/go: add -t flag to 'go get' to download test dependencies (CL 12566046).
