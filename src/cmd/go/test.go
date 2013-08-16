@@ -378,7 +378,7 @@ func runTest(cmd *Command, args []string) {
 			a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
 		}
 		b.do(a)
-		if !testC {
+		if !testC || a.failed {
 			return
 		}
 		b.init()
