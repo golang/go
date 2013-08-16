@@ -737,7 +737,15 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// response header and this is our first (and last) write, set
 	// it, even to zero. This helps HTTP/1.0 clients keep their
 	// "keep-alive" connections alive.
-	if w.handlerDone && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+	// Exceptions: 304 responses never get Content-Length, and if
+	// it was a HEAD request, we don't know the difference between
+	// 0 actual bytes and 0 bytes because the handler noticed it
+	// was a HEAD request and chose not to write anything.  So for
+	// HEAD, the handler should either write the Content-Length or
+	// write non-zero bytes.  If it's actually 0 bytes and the
+	// handler never looked at the Request.Method, we just don't
+	// send a Content-Length header.
+	if w.handlerDone && w.status != StatusNotModified && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
 		w.contentLength = int64(len(p))
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}

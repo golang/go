@@ -122,6 +122,28 @@ func reqBytes(req string) []byte {
 	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
 }
 
+type handlerTest struct {
+	handler Handler
+}
+
+func newHandlerTest(h Handler) handlerTest {
+	return handlerTest{h}
+}
+
+func (ht handlerTest) rawResponse(req string) string {
+	reqb := reqBytes(req)
+	var output bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(reqb),
+		Writer: &output,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	go Serve(ln, ht.handler)
+	<-conn.closec
+	return output.String()
+}
+
 func TestConsumingBodyOnNextConn(t *testing.T) {
 	conn := new(testConn)
 	for i := 0; i < 2; i++ {
@@ -1588,7 +1610,6 @@ func TestOptions(t *testing.T) {
 // ones, even if the handler modifies them (~erroneously) after the
 // first Write.
 func TestHeaderToWire(t *testing.T) {
-	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
 	tests := []struct {
 		name    string
 		handler func(ResponseWriter, *Request)
@@ -1751,17 +1772,10 @@ func TestHeaderToWire(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		var output bytes.Buffer
-		conn := &rwTestConn{
-			Reader: bytes.NewReader(req),
-			Writer: &output,
-			closec: make(chan bool, 1),
-		}
-		ln := &oneConnListener{conn: conn}
-		go Serve(ln, HandlerFunc(tc.handler))
-		<-conn.closec
-		if err := tc.check(output.String()); err != nil {
-			t.Errorf("%s: %v\nGot response:\n%s", tc.name, err, output.Bytes())
+		ht := newHandlerTest(HandlerFunc(tc.handler))
+		got := ht.rawResponse("GET / HTTP/1.1\nHost: golang.org")
+		if err := tc.check(got); err != nil {
+			t.Errorf("%s: %v\nGot response:\n%s", tc.name, err, got)
 		}
 	}
 }
@@ -1949,6 +1963,34 @@ func TestServerReaderFromOrder(t *testing.T) {
 	res.Body.Close()
 	if string(all) != "hi" {
 		t.Errorf("Body = %q; want hi", all)
+	}
+}
+
+// Issue 6157
+func TestNoContentTypeOnNotModified(t *testing.T) {
+	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.URL.Path == "/header" {
+			w.Header().Set("Content-Length", "123")
+		}
+		w.WriteHeader(StatusNotModified)
+		if r.URL.Path == "/more" {
+			w.Write([]byte("stuff"))
+		}
+	}))
+	for _, req := range []string{
+		"GET / HTTP/1.0",
+		"GET /header HTTP/1.0",
+		"GET /more HTTP/1.0",
+		"GET / HTTP/1.1",
+		"GET /header HTTP/1.1",
+		"GET /more HTTP/1.1",
+	} {
+		got := ht.rawResponse(req)
+		if !strings.Contains(got, "304 Not Modified") {
+			t.Errorf("Non-304 Not Modified for %q: %s", req, got)
+		} else if strings.Contains(got, "Content-Length") {
+			t.Errorf("Got a Content-Length from %q: %s", req, got)
+		}
 	}
 }
 
