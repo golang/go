@@ -14,7 +14,7 @@ static Prog* appendp(Prog*, int, int, int, int32, int, int, int32);
 void
 defframe(Prog *ptxt, Bvec *bv)
 {
-	int i, first;
+	int i, j, first;
 	uint32 frame;
 	Prog *p, *p1;
 	
@@ -49,8 +49,8 @@ defframe(Prog *ptxt, Bvec *bv)
 		patch(p, p1);
 	} else {
 		first = 1;
-		for(i=0; i<stkptrsize; i+=widthptr) {
-			if(bvget(bv, i/widthptr)) {
+		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2) {
+			if(bvget(bv, j) || bvget(bv, j+1)) {
 				if(first) {
 					p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
 					first = 0;
