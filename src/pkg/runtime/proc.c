@@ -1676,7 +1676,7 @@ runtime·malg(int32 stacksize)
 			stk = g->param;
 			g->param = nil;
 		}
-		g->stacksize = StackSystem + stacksize;
+		newg->stacksize = StackSystem + stacksize;
 		newg->stack0 = (uintptr)stk;
 		newg->stackguard = (uintptr)stk + StackGuard;
 		newg->stackguard0 = newg->stackguard;
