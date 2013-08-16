@@ -515,8 +515,8 @@ cgen_checknil(Node *n)
 		return;
 	while(n->op == ODOT || (n->op == OINDEX && isfixedarray(n->left->type->type))) // NOTE: not ODOTPTR
 		n = n->left;
-	if(thechar == '5' && n->op != OREGISTER) {
-		regalloc(&reg, types[tptr], N);
+	if((thechar == '5' && n->op != OREGISTER) || !n->addable) {
+		regalloc(&reg, types[tptr], n);
 		cgen(n, &reg);
 		gins(ACHECKNIL, &reg, N);
 		regfree(&reg);
