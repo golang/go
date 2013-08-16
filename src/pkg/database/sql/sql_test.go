@@ -6,6 +6,7 @@ package sql
 
 import (
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -1036,6 +1037,34 @@ func TestRowsCloseOrder(t *testing.T) {
 	err = rows.Close()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRowsImplicitClose(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want, fail := 2, errors.New("fail")
+	r := rows.rowsi.(*rowsCursor)
+	r.errPos, r.err = want, fail
+
+	got := 0
+	for rows.Next() {
+		got++
+	}
+	if got != want {
+		t.Errorf("got %d rows, want %d", got, want)
+	}
+	if err := rows.Err(); err != fail {
+		t.Errorf("got error %v, want %v", err, fail)
+	}
+	if !r.closed {
+		t.Errorf("r.closed is false, want true")
 	}
 }
 
