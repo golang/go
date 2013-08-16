@@ -61,6 +61,7 @@ var tests = []struct {
 }{
 	{"simple", `
 package main
+import "time"
 func main() {
 	done := make(chan bool)
 	x := 0
@@ -75,6 +76,7 @@ func startRacer(x *int, done chan bool) {
 	go racer(x, done)
 }
 func racer(x *int, done chan bool) {
+	time.Sleep(10*time.Millisecond)
 	store(x, 42)
 	done <- true
 }
@@ -82,26 +84,21 @@ func racer(x *int, done chan bool) {
 WARNING: DATA RACE
 Write by goroutine [0-9]:
   main\.store\(\)
-      .*/main\.go:11 \+0x[0-9,a-f]+
+      .*/main\.go:12 \+0x[0-9,a-f]+
   main\.racer\(\)
-      .*/main\.go:17 \+0x[0-9,a-f]+
+      .*/main\.go:19 \+0x[0-9,a-f]+
 
-Previous write by goroutine 1:
+Previous write by main goroutine:
   main\.store\(\)
-      .*/main\.go:11 \+0x[0-9,a-f]+
+      .*/main\.go:12 \+0x[0-9,a-f]+
+  main\.main\(\)
+      .*/main\.go:8 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.startRacer\(\)
+      .*/main\.go:15 \+0x[0-9,a-f]+
   main\.main\(\)
       .*/main\.go:7 \+0x[0-9,a-f]+
-
-Goroutine 3 \(running\) created at:
-  main\.startRacer\(\)
-      .*/main\.go:14 \+0x[0-9,a-f]+
-  main\.main\(\)
-      .*/main\.go:6 \+0x[0-9,a-f]+
-
-Goroutine 1 \(running\) created at:
-  _rt0_go\(\)
-      .*/src/pkg/runtime/asm_amd64\.s:[0-9]+ \+0x[0-9,a-f]+
-
 ==================
 Found 1 data race\(s\)
 exit status 66
