@@ -67,14 +67,14 @@
 (defun go--old-completion-list-style (list)
   (mapcar (lambda (x) (cons x nil)) list))
 
-;; GNU Emacs 24 has prog-mode, older GNU Emacs and XEmacs do not.
-;; Ideally we'd use defalias instead, but that breaks in XEmacs.
-;;
-;; TODO: If XEmacs decides to add prog-mode, change this to use
-;; defalias to alias prog-mode or fundamental-mode to go--prog-mode
-;; and use that in define-derived-mode.
+;; GNU Emacs 24 has prog-mode, older GNU Emacs and XEmacs do not, so
+;; copy its definition for those.
 (if (not (fboundp 'prog-mode))
-    (define-derived-mode prog-mode fundamental-mode "" ""))
+    (define-derived-mode prog-mode fundamental-mode "Prog"
+      "Major mode for editing source code."
+      (set (make-local-variable 'require-final-newline) mode-require-final-newline)
+      (set (make-local-variable 'parse-sexp-ignore-comments) t)
+      (setq bidi-paragraph-direction 'left-to-right)))
 
 (defun go--regexp-enclose-in-symbol (s)
   ;; XEmacs does not support \_<, GNU Emacs does. In GNU Emacs we make
