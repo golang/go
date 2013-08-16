@@ -608,9 +608,10 @@ rows:
 	}
 
 	cursor := &rowsCursor{
-		pos:  -1,
-		rows: mrows,
-		cols: s.colName,
+		pos:    -1,
+		rows:   mrows,
+		cols:   s.colName,
+		errPos: -1,
 	}
 	return cursor, nil
 }
@@ -634,6 +635,10 @@ type rowsCursor struct {
 	pos    int
 	rows   []*row
 	closed bool
+
+	// errPos and err are for making Next return early with error.
+	errPos int
+	err    error
 
 	// a clone of slices to give out to clients, indexed by the
 	// the original slice's first byte address.  we clone them
@@ -660,6 +665,9 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 		return errors.New("fakedb: cursor is closed")
 	}
 	rc.pos++
+	if rc.pos == rc.errPos {
+		return rc.err
+	}
 	if rc.pos >= len(rc.rows) {
 		return io.EOF // per interface spec
 	}

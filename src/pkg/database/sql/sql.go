@@ -1293,7 +1293,7 @@ type Rows struct {
 
 	closed    bool
 	lastcols  []driver.Value
-	lasterr   error
+	lasterr   error       // non-nil only if closed is true
 	closeStmt driver.Stmt // if non-nil, statement to Close on close
 }
 
@@ -1305,20 +1305,19 @@ func (rs *Rows) Next() bool {
 	if rs.closed {
 		return false
 	}
-	if rs.lasterr != nil {
-		return false
-	}
 	if rs.lastcols == nil {
 		rs.lastcols = make([]driver.Value, len(rs.rowsi.Columns()))
 	}
 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
-	if rs.lasterr == io.EOF {
+	if rs.lasterr != nil {
 		rs.Close()
+		return false
 	}
-	return rs.lasterr == nil
+	return true
 }
 
 // Err returns the error, if any, that was encountered during iteration.
+// Err may be called after an explicit or implicit Close.
 func (rs *Rows) Err() error {
 	if rs.lasterr == io.EOF {
 		return nil
@@ -1353,10 +1352,7 @@ func (rs *Rows) Columns() ([]string, error) {
 // is of type []byte, a copy is made and the caller owns the result.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.closed {
-		return errors.New("sql: Rows closed")
-	}
-	if rs.lasterr != nil {
-		return rs.lasterr
+		return errors.New("sql: Rows are closed")
 	}
 	if rs.lastcols == nil {
 		return errors.New("sql: Scan called without calling Next")
@@ -1375,9 +1371,9 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 
 var rowsCloseHook func(*Rows, *error)
 
-// Close closes the Rows, preventing further enumeration. If the
-// end is encountered, the Rows are closed automatically. Close
-// is idempotent.
+// Close closes the Rows, preventing further enumeration. If Next returns
+// false, the Rows are closed automatically and it will suffice to check the
+// result of Err. Close is idempotent and does not affect the result of Err.
 func (rs *Rows) Close() error {
 	if rs.closed {
 		return nil
