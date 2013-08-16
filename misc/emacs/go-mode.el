@@ -129,6 +129,8 @@
 
 (defvar go-dangling-cache)
 (defvar go-godoc-history nil)
+(defvar go--coverage-origin-buffer)
+(defvar go--coverage-current-file-name)
 
 (defgroup go nil
   "Major mode for editing Go code"
@@ -1020,8 +1022,7 @@ to scale it to a range [0,10].
 
 DIVISOR scales the absolute cover count to values from 0 to 10.
 For DIVISOR = 0 the count will always translate to 8."
-  (let* ((count (go--covered-count range))
-         (norm (cond
+  (let* ((norm (cond
                 ((= count 0)
                  -0.1) ;; Uncovered code, set to -0.1 so n becomes 0.
                 ((= divisor 0)
