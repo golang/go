@@ -14,7 +14,7 @@ static Prog* appendp(Prog*, int, int, vlong, int, vlong);
 void
 defframe(Prog *ptxt, Bvec *bv)
 {
-	int i;
+	int i, j;
 	uint32 frame;
 	Prog *p;
 
@@ -37,8 +37,8 @@ defframe(Prog *ptxt, Bvec *bv)
 		p = appendp(p, AREP, D_NONE, 0, D_NONE, 0);
 		appendp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
 	} else {
-		for(i=0; i<stkptrsize; i+=widthptr)
-			if(bvget(bv, i/widthptr))
+		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2)
+			if(bvget(bv, j) || bvget(bv, j+1))
 				p = appendp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame-stkptrsize+i);
 	}
 }
