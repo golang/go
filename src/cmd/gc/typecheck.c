@@ -90,7 +90,7 @@ static char* _typekind[] = {
 	[TARRAY]	= "array",
 	[TFUNC]		= "func",
 	[TNIL]		= "nil",
-	[TIDEAL]	= "ideal number",
+	[TIDEAL]	= "untyped number",
 };
 
 static char*

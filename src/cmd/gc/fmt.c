@@ -577,7 +577,7 @@ basicnames[] =
 	[TANY]		= "any",
 	[TSTRING]	= "string",
 	[TNIL]		= "nil",
-	[TIDEAL]	= "ideal",
+	[TIDEAL]	= "untyped number",
 	[TBLANK]	= "blank",
 };
 
@@ -619,7 +619,7 @@ typefmt(Fmt *fp, Type *t)
 
 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil) {
 		if(fmtmode == FErr && (t == idealbool || t == idealstring))
-			fmtstrcpy(fp, "ideal ");
+			fmtstrcpy(fp, "untyped ");
 		return fmtstrcpy(fp, basicnames[t->etype]);
 	}
 
