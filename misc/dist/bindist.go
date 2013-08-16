@@ -424,15 +424,7 @@ func (b *Build) godoc() error {
 	// go get the godoc package.
 	// The go tool knows to install to $GOROOT/bin.
 	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", godocPath)
-	if err != nil {
-		return err
-	}
-
-	// Copy templates from go.tools/cmd/godoc/template to GOROOT/lib/godoc.
-	return cpDir(
-		filepath.Join(b.root, "lib", "godoc"),
-		filepath.Join(b.gopath, "src", filepath.FromSlash(godocPath), "template"),
-	)
+	return err
 }
 
 func (b *Build) tour() error {
