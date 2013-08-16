@@ -16,7 +16,6 @@ The commands are:
 
     build       compile packages and dependencies
     clean       remove object files
-    doc         run godoc on package sources
     env         print Go environment information
     fix         run go tool fix on packages
     fmt         run gofmt on package sources
@@ -162,26 +161,6 @@ The -x flag causes clean to print remove commands as it executes them.
 For more about specifying packages, see 'go help packages'.
 
 
-Run godoc on package sources
-
-Usage:
-
-	go doc [-n] [-x] [packages]
-
-Doc runs the godoc command on the packages named by the
-import paths.
-
-For more about godoc, see 'godoc godoc'.
-For more about specifying packages, see 'go help packages'.
-
-The -n flag prints commands that would be executed.
-The -x flag prints commands as they are executed.
-
-To run godoc with specific options, run godoc itself.
-
-See also: go fix, go fmt, go vet.
-
-
 Print Go environment information
 
 Usage:
@@ -229,7 +208,7 @@ The -x flag prints commands as they are executed.
 
 To run gofmt with specific options, run gofmt itself.
 
-See also: go doc, go fix, go vet.
+See also: go fix, go vet.
 
 
 Download and install packages and dependencies
@@ -880,5 +859,3 @@ See the documentation of the testing package for more information.
 
 */
 package main
-
-// NOTE: cmdDoc is in fmt.go.

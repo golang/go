@@ -76,7 +76,6 @@ func (c *Command) Runnable() bool {
 var commands = []*Command{
 	cmdBuild,
 	cmdClean,
-	cmdDoc,
 	cmdEnv,
 	cmdFix,
 	cmdFmt,
@@ -213,8 +212,6 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
 
 {{end}}*/
 package main
-
-// NOTE: cmdDoc is in fmt.go.
 `
 
 // tmpl executes the given template text on data, writing the result to w.
