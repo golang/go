@@ -176,12 +176,16 @@ runtime·oldstack(void)
 	gp->stackguard = top->stackguard;
 	gp->stackguard0 = gp->stackguard;
 
-	if(top->free != 0)
+	if(top->free != 0) {
+		gp->stacksize -= top->free;
 		runtime·stackfree(old, top->free);
+	}
 
 	gp->status = oldstatus;
 	runtime·gogo(&gp->sched);
 }
+
+uintptr runtime·maxstacksize = 1<<20; // enough until runtime.main sets it for real
 
 // Called from runtime·newstackcall or from runtime·morestack when a new
 // stack segment is needed.  Allocate a new stack big enough for
@@ -285,6 +289,11 @@ runtime·newstack(void)
 		if(framesize < StackMin)
 			framesize = StackMin;
 		framesize += StackSystem;
+		gp->stacksize += framesize;
+		if(gp->stacksize > runtime·maxstacksize) {
+			runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+			runtime·throw("stack overflow");
+		}
 		stk = runtime·stackalloc(framesize);
 		top = (Stktop*)(stk+framesize-sizeof(*top));
 		free = framesize;
@@ -352,4 +361,12 @@ void
 runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
 {
 	runtime·gostartcall(gobuf, fv->fn, fv);
+}
+
+void
+runtime∕debug·setMaxStack(intgo in, intgo out)
+{
+	out = runtime·maxstacksize;
+	runtime·maxstacksize = in;
+	FLUSH(&out);
 }

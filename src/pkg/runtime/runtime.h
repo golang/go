@@ -259,6 +259,7 @@ struct	G
 	uintptr	syscallguard;		// if status==Gsyscall, syscallguard = stackguard to use during gc
 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
+	uintptr	stacksize;
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
@@ -713,6 +714,7 @@ extern	uint32	runtime·Hchansize;
 extern	uint32	runtime·cpuid_ecx;
 extern	uint32	runtime·cpuid_edx;
 extern	DebugVars	runtime·debug;
+extern	uintptr	runtime·maxstacksize;
 
 /*
  * common functions and data

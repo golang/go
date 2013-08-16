@@ -74,10 +74,10 @@ func testCrashHandler(t *testing.T, cgo bool) {
 	type crashTest struct {
 		Cgo bool
 	}
-	got := executeTest(t, crashSource, &crashTest{Cgo: cgo})
+	output := executeTest(t, crashSource, &crashTest{Cgo: cgo})
 	want := "main: recovered done\nnew-thread: recovered done\nsecond-new-thread: recovered done\nmain-again: recovered done\n"
-	if got != want {
-		t.Fatalf("expected %q, but got %q", want, got)
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
 	}
 }
 
@@ -86,10 +86,10 @@ func TestCrashHandler(t *testing.T) {
 }
 
 func testDeadlock(t *testing.T, source string) {
-	got := executeTest(t, source, nil)
+	output := executeTest(t, source, nil)
 	want := "fatal error: all goroutines are asleep - deadlock!\n"
-	if !strings.HasPrefix(got, want) {
-		t.Fatalf("expected %q, but got %q", want, got)
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
 
@@ -110,10 +110,18 @@ func TestLockedDeadlock2(t *testing.T) {
 }
 
 func TestGoexitDeadlock(t *testing.T) {
-	got := executeTest(t, goexitDeadlockSource, nil)
+	output := executeTest(t, goexitDeadlockSource, nil)
 	want := ""
-	if got != want {
-		t.Fatalf("expected %q, but got %q", want, got)
+	if output != "" {
+		t.Fatalf("expected no output:\n%s", want, output)
+	}
+}
+
+func TestStackOverflow(t *testing.T) {
+	output := executeTest(t, stackOverflowSource, nil)
+	want := "runtime: goroutine stack exceeds 4194304-byte limit\nfatal error: stack overflow"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
 
@@ -217,5 +225,21 @@ func main() {
       go F()
       go F()
       runtime.Goexit()
+}
+`
+
+const stackOverflowSource = `
+package main
+
+import "runtime/debug"
+
+func main() {
+	debug.SetMaxStack(4<<20)
+	f(make([]byte, 10))
+}
+
+func f(x []byte) byte {
+	var buf [64<<10]byte
+	return x[0] + f(buf[:])
 }
 `
