@@ -973,10 +973,10 @@ description at POINT."
   "Describe the expression at POINT."
   (interactive "d")
   (condition-case nil
-      (let ((description (nth 1 (godef--call point))))
-        (if (string= "" description)
+      (let ((description (cdr (butlast (godef--call point) 1))))
+        (if (not description)
             (message "No description found for expression at point")
-          (message "%s" description)))
+          (message "%s" (mapconcat 'identity description "\n"))))
     (file-error (message "Could not run godef binary"))))
 
 (defun godef-jump (point &optional other-window)
