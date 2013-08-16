@@ -98,7 +98,7 @@ func (mu *fdMutex) Decref() bool {
 		}
 		new := old - mutexRef
 		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
-			return new&(mutexClosed|mutexRef) == mutexClosed
+			return new&(mutexClosed|mutexRefMask) == mutexClosed
 		}
 	}
 }
@@ -174,7 +174,7 @@ func (mu *fdMutex) RWUnlock(read bool) bool {
 			if old&mutexMask != 0 {
 				runtime_Semrelease(mutexSema)
 			}
-			return new&(mutexClosed|mutexRef) == mutexClosed
+			return new&(mutexClosed|mutexRefMask) == mutexClosed
 		}
 	}
 }
