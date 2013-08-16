@@ -17,3 +17,5 @@ func ForceUSPacificForTesting() {
 	ResetLocalOnceForTest()
 	localOnce.Do(initTestingZone)
 }
+
+var ParseTimeZone = parseTimeZone

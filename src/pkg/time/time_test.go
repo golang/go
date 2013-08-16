@@ -666,6 +666,38 @@ func TestFormatAndParse(t *testing.T) {
 	}
 }
 
+type ParseTimeZoneTest struct {
+	value  string
+	length int
+	ok     bool
+}
+
+var parseTimeZoneTests = []ParseTimeZoneTest{
+	{"gmt hi there", 0, false},
+	{"GMT hi there", 3, true},
+	{"GMT+12 hi there", 6, true},
+	{"GMT+00 hi there", 3, true}, // 0 or 00 is not a legal offset.
+	{"GMT-5 hi there", 5, true},
+	{"GMT-51 hi there", 3, true},
+	{"ChST hi there", 4, true},
+	{"MSDx", 3, true},
+	{"MSDY", 0, false}, // four letters must end in T.
+	{"ESAST hi", 5, true},
+	{"ESASTT hi", 0, false}, // run of upper-case letters too long.
+	{"ESATY hi", 0, false},  // five letters must end in T.
+}
+
+func TestParseTimeZone(t *testing.T) {
+	for _, test := range parseTimeZoneTests {
+		length, ok := ParseTimeZone(test.value)
+		if ok != test.ok {
+			t.Errorf("expected %t for %q got %t", test.ok, test.value, ok)
+		} else if length != test.length {
+			t.Errorf("expected %d for %q got %d", test.length, test.value, length)
+		}
+	}
+}
+
 type ParseErrorTest struct {
 	format string
 	value  string

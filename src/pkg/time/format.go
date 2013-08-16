@@ -1027,8 +1027,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 // are human-generated and unpredictable. We can't do precise error checking.
 // On the other hand, for a correct parse there must be a time zone at the
 // beginning of the string, so it's almost always true that there's one
-// there. We check: 3 or 4 upper case letters (with one exception). If 4, the
-// last letter must be a T.
+// there. We look at the beginning of the string for a run of upper-case letters.
+// If there are more than 5, it's an error.
+// If there are 4 or 5 and the last is a T, it's a time zone.
+// If there are 3, it's a time zone.
+// Otherwise, other than special cases, it's not a time zone.
 // GMT is special because it can have an hour offset.
 func parseTimeZone(value string) (length int, ok bool) {
 	if len(value) < 3 {
@@ -1043,19 +1046,31 @@ func parseTimeZone(value string) (length int, ok bool) {
 		length = parseGMT(value)
 		return length, true
 	}
-	// There must be three upper-case letters.
-	for i := 0; i < 3; i++ {
-		c := value[i]
-		if c < 'A' || 'Z' < c {
-			return 0, false
+	// How many upper-case letters are there? Need at least three, at most five.
+	var nUpper int
+	for nUpper = 0; nUpper < 6; nUpper++ {
+		if nUpper >= len(value) {
+			break
+		}
+		if c := value[nUpper]; c < 'A' || 'Z' < c {
+			break
 		}
 	}
-	// There may be a fourth upper case letter. If so, in a time zone it's always a 'T'.
-	// (The last letter is often not a 'T' in three-letter zones: MSK, MSD, HAE, etc.)
-	if len(value) >= 4 && value[3] == 'T' {
-		return 4, true
+	switch nUpper {
+	case 0, 1, 2, 6:
+		return 0, false
+	case 5: // Must end in T to match.
+		if value[4] == 'T' {
+			return 5, true
+		}
+	case 4: // Must end in T to match.
+		if value[3] == 'T' {
+			return 4, true
+		}
+	case 3:
+		return 3, true
 	}
-	return 3, true
+	return 0, false
 }
 
 // parseGMT parses a GMT time zone. The input string is known to start "GMT".
