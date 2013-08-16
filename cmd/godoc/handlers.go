@@ -34,6 +34,8 @@ func registerHandlers(pres *godoc.Presentation) {
 	http.Handle("/doc/play/", pres.FileServer())
 	http.Handle("/robots.txt", pres.FileServer())
 	http.Handle("/", pres)
+	handlePathRedirects(pkgRedirects, "/pkg/")
+	handlePathRedirects(cmdRedirects, "/cmd/")
 }
 
 func readTemplate(name string) *template.Template {
@@ -69,4 +71,58 @@ func readTemplates(p *godoc.Presentation) {
 	p.SearchHTML = readTemplate("search.html")
 	p.SearchText = readTemplate("search.txt")
 	p.SearchDescXML = readTemplate("opensearch.xml")
+}
+
+// Packages that were renamed between r60 and go1.
+var pkgRedirects = map[string]string{
+	"asn1":              "encoding/asn1",
+	"big":               "math/big",
+	"cmath":             "math/cmplx",
+	"csv":               "encoding/csv",
+	"exec":              "os/exec",
+	"exp/template/html": "html/template",
+	"gob":               "encoding/gob",
+	"http":              "net/http",
+	"http/cgi":          "net/http/cgi",
+	"http/fcgi":         "net/http/fcgi",
+	"http/httptest":     "net/http/httptest",
+	"http/pprof":        "net/http/pprof",
+	"json":              "encoding/json",
+	"mail":              "net/mail",
+	"rand":              "math/rand",
+	"rpc":               "net/rpc",
+	"rpc/jsonrpc":       "net/rpc/jsonrpc",
+	"scanner":           "text/scanner",
+	"smtp":              "net/smtp",
+	"tabwriter":         "text/tabwriter",
+	"template":          "text/template",
+	"template/parse":    "text/template/parse",
+	"url":               "net/url",
+	"utf16":             "unicode/utf16",
+	"utf8":              "unicode/utf8",
+	"xml":               "encoding/xml",
+}
+
+// Commands that were renamed between r60 and go1.
+var cmdRedirects = map[string]string{
+	"gofix":     "fix",
+	"goinstall": "go",
+	"gopack":    "pack",
+	"govet":     "vet",
+	"goyacc":    "yacc",
+}
+
+func handlePathRedirects(redirects map[string]string, prefix string) {
+	for source, target := range pkgRedirects {
+		h := makeRedirectHandler(prefix + target + "/")
+		p := prefix + source
+		http.HandleFunc(p, h)
+		http.HandleFunc(p+"/", h)
+	}
+}
+
+func makeRedirectHandler(target string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}
 }
