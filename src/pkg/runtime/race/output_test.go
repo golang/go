@@ -41,11 +41,13 @@ func TestOutput(t *testing.T) {
 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
 		for _, env := range os.Environ() {
 			if strings.HasPrefix(env, "GODEBUG=") ||
-				strings.HasPrefix(env, "GOMAXPROCS=") {
+				strings.HasPrefix(env, "GOMAXPROCS=") ||
+				strings.HasPrefix(env, "GORACE=") {
 				continue
 			}
 			cmd.Env = append(cmd.Env, env)
 		}
+		cmd.Env = append(cmd.Env, "GORACE="+test.gorace)
 		got, _ := cmd.CombinedOutput()
 		if !regexp.MustCompile(test.re).MatchString(string(got)) {
 			t.Fatalf("failed test case %v, expect:\n%v\ngot:\n%s",
@@ -56,10 +58,11 @@ func TestOutput(t *testing.T) {
 
 var tests = []struct {
 	name   string
+	gorace string
 	source string
 	re     string
 }{
-	{"simple", `
+	{"simple", "atexit_sleep_ms=0", `
 package main
 import "time"
 func main() {
@@ -84,23 +87,70 @@ func racer(x *int, done chan bool) {
 WARNING: DATA RACE
 Write by goroutine [0-9]:
   main\.store\(\)
-      .*/main\.go:12 \+0x[0-9,a-f]+
+      .+/main\.go:12 \+0x[0-9,a-f]+
   main\.racer\(\)
-      .*/main\.go:19 \+0x[0-9,a-f]+
+      .+/main\.go:19 \+0x[0-9,a-f]+
 
 Previous write by main goroutine:
   main\.store\(\)
-      .*/main\.go:12 \+0x[0-9,a-f]+
+      .+/main\.go:12 \+0x[0-9,a-f]+
   main\.main\(\)
-      .*/main\.go:8 \+0x[0-9,a-f]+
+      .+/main\.go:8 \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   main\.startRacer\(\)
-      .*/main\.go:15 \+0x[0-9,a-f]+
+      .+/main\.go:15 \+0x[0-9,a-f]+
   main\.main\(\)
-      .*/main\.go:7 \+0x[0-9,a-f]+
+      .+/main\.go:7 \+0x[0-9,a-f]+
 ==================
 Found 1 data race\(s\)
+exit status 66
+`},
+
+	{"exitcode", "atexit_sleep_ms=0 exitcode=13", `
+package main
+func main() {
+	done := make(chan bool)
+	x := 0
+	go func() {
+		x = 42
+		done <- true
+	}()
+	x = 43
+	<-done
+}
+`, `exit status 13`},
+
+	{"strip_path_prefix", "atexit_sleep_ms=0 strip_path_prefix=/main.", `
+package main
+func main() {
+	done := make(chan bool)
+	x := 0
+	go func() {
+		x = 42
+		done <- true
+	}()
+	x = 43
+	<-done
+}
+`, `
+      go:7 \+0x[0-9,a-f]+
+`},
+
+	{"halt_on_error", "atexit_sleep_ms=0 halt_on_error=1", `
+package main
+func main() {
+	done := make(chan bool)
+	x := 0
+	go func() {
+		x = 42
+		done <- true
+	}()
+	x = 43
+	<-done
+}
+`, `
+==================
 exit status 66
 `},
 }
