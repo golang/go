@@ -10,15 +10,12 @@ import (
 )
 
 // firstSentenceLen returns the length of the first sentence in s.
-// The sentence ends at the first colon followed by a newline,
-// or at the first period followed by space and not preceded by
-// exactly one uppercase letter.
+// The sentence ends after the first period followed by space and
+// not preceded by exactly one uppercase letter.
+//
 func firstSentenceLen(s string) int {
 	var ppp, pp, p rune
 	for i, q := range s {
-		if p == ':' && q == '\n' {
-			return i
-		}
 		if q == '\n' || q == '\r' || q == '\t' {
 			q = ' '
 		}
