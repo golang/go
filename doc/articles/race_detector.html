@@ -128,6 +128,11 @@ access history is <code>32K * 2**history_size elements</code>.
 Increasing this value can avoid a "failed to restore the stack" error in reports, at the
 cost of increased memory usage.
 </li>
+
+<li>
+<code>halt_on_error</code> (default <code>0</code>): Controls whether the program
+exits after reporting first data race.
+</li>
 </ul>
 
 <p>
