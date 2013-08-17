@@ -214,15 +214,19 @@ func main() {
 		fs.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
 	}
 
+	httpMode := *httpAddr != ""
+
 	corpus := godoc.NewCorpus(fs)
 	corpus.Verbose = *verbose
-	corpus.IndexEnabled = *indexEnabled
+	corpus.IndexEnabled = *indexEnabled && httpMode
 	corpus.IndexFiles = *indexFiles
 	if *writeIndex {
 		corpus.IndexThrottle = 1.0
 	}
-	if err := corpus.Init(); err != nil {
-		log.Fatal(err)
+	if *writeIndex || httpMode || *urlFlag != "" {
+		if err := corpus.Init(); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	pres = godoc.NewPresentation(corpus)
@@ -270,7 +274,7 @@ func main() {
 		return
 	}
 
-	if *httpAddr != "" {
+	if httpMode {
 		// HTTP server mode.
 		var handler http.Handler = http.DefaultServeMux
 		if *verbose {
