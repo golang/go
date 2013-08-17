@@ -367,11 +367,11 @@ dumpgclocals(Node* fn, Sym *sym)
 
 // Sort the list of stack variables. Autos after anything else,
 // within autos, unused after used, within used, things with
-// pointers first, and then decreasing size.
+// pointers first, zeroed things first, and then decreasing size.
 // Because autos are laid out in decreasing addresses
-// on the stack, pointers first and decreasing size
-// really means, in memory, pointers near the top of the 
-// stack and increasing in size.
+// on the stack, pointers first, zeroed things first and decreasing size
+// really means, in memory, things with pointers needing zeroing at
+// the top of the stack and increasing in size.
 // Non-autos sort on offset.
 static int
 cmpstackvar(Node *a, Node *b)
@@ -394,6 +394,12 @@ cmpstackvar(Node *a, Node *b)
 	bp = haspointers(b->type);
 	if(ap != bp)
 		return bp - ap;
+
+	ap = a->needzero;
+	bp = b->needzero;
+	if(ap != bp)
+		return bp - ap;
+
 	if(a->type->width < b->type->width)
 		return +1;
 	if(a->type->width > b->type->width)
@@ -409,11 +415,12 @@ allocauto(Prog* ptxt)
 	Node* n;
 	vlong w;
 
-	if(curfn->dcl == nil) {
-		stksize = 0;
-		stkptrsize = 0;
+	stksize = 0;
+	stkptrsize = 0;
+	stkzerosize = 0;
+
+	if(curfn->dcl == nil)
 		return;
-	}
 
 	// Mark the PAUTO's unused.
 	for(ll=curfn->dcl; ll != nil; ll=ll->next)
@@ -421,6 +428,11 @@ allocauto(Prog* ptxt)
 			ll->n->used = 0;
 
 	markautoused(ptxt);
+	
+	// TODO: Remove when liveness analysis sets needzero instead.
+	for(ll=curfn->dcl; ll != nil; ll=ll->next)
+		if (ll->n->class == PAUTO)
+			ll->n->needzero = 1; // ll->n->addrtaken;
 
 	listsort(&curfn->dcl, cmpstackvar);
 
@@ -430,8 +442,6 @@ allocauto(Prog* ptxt)
 	if (n->class == PAUTO && n->op == ONAME && !n->used) {
 		// No locals used at all
 		curfn->dcl = nil;
-		stksize = 0;
-		stkptrsize = 0;
 		fixautoused(ptxt);
 		return;
 	}
@@ -446,8 +456,6 @@ allocauto(Prog* ptxt)
 	}
 
 	// Reassign stack offsets of the locals that are still there.
-	stksize = 0;
-	stkptrsize = 0;
 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
 		n = ll->n;
 		if (n->class != PAUTO || n->op != ONAME)
@@ -459,8 +467,11 @@ allocauto(Prog* ptxt)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
-		if(haspointers(n->type))
+		if(haspointers(n->type)) {
 			stkptrsize = stksize;
+			if(n->needzero)
+				stkzerosize = stksize;
+		}
 		if(thechar == '5')
 			stksize = rnd(stksize, widthptr);
 		if(stksize >= (1ULL<<31)) {
@@ -471,6 +482,7 @@ allocauto(Prog* ptxt)
 	}
 	stksize = rnd(stksize, widthptr);
 	stkptrsize = rnd(stkptrsize, widthptr);
+	stkzerosize = rnd(stkzerosize, widthptr);
 
 	fixautoused(ptxt);
 
