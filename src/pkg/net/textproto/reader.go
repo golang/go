@@ -203,7 +203,7 @@ func parseCodeLine(line string, expectCode int) (code int, continued bool, messa
 
 // ReadCodeLine reads a response code line of the form
 //	code message
-// where code is a 3-digit status code and the message
+// where code is a three-digit status code and the message
 // extends to the rest of the line.  An example of such a line is:
 //	220 plan9.bell-labs.com ESMTP
 //
@@ -231,7 +231,7 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 //	...
 //	code message line n
 //
-// where code is a 3-digit status code. The first line starts with the
+// where code is a three-digit status code. The first line starts with the
 // code and a hyphen. The response is terminated by a line that starts
 // with the same code followed by a space. Each line in message is
 // separated by a newline (\n).
