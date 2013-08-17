@@ -35,11 +35,11 @@ defframe(Prog *ptxt, Bvec *bv)
 	p = ptxt;
 	while(p->link->as == AFUNCDATA || p->link->as == APCDATA || p->link->as == ATYPE)
 		p = p->link;
-	if(stkptrsize >= 8*widthptr) {
+	if(stkzerosize >= 8*widthptr) {
 		p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
-		p = appendp(p, AADD, D_CONST, NREG, 4+frame-stkptrsize, D_REG, 1, 0);
+		p = appendp(p, AADD, D_CONST, NREG, 4+frame-stkzerosize, D_REG, 1, 0);
 		p->reg = REGSP;
-		p = appendp(p, AADD, D_CONST, NREG, stkptrsize, D_REG, 2, 0);
+		p = appendp(p, AADD, D_CONST, NREG, stkzerosize, D_REG, 2, 0);
 		p->reg = 1;
 		p1 = p = appendp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);
 		p->scond |= C_PBIT;
@@ -49,13 +49,13 @@ defframe(Prog *ptxt, Bvec *bv)
 		patch(p, p1);
 	} else {
 		first = 1;
-		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2) {
+		for(i=0, j=(stkptrsize-stkzerosize)/widthptr*2; i<stkzerosize; i+=widthptr, j+=2) {
 			if(bvget(bv, j) || bvget(bv, j+1)) {
 				if(first) {
 					p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
 					first = 0;
 				}
-				p = appendp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame-stkptrsize+i);
+				p = appendp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame-stkzerosize+i);
 			}
 		}
 	}

@@ -32,16 +32,16 @@ defframe(Prog *ptxt, Bvec *bv)
 	// so that garbage collector only sees initialized values
 	// when it looks for pointers.
 	p = ptxt;
-	if(stkptrsize >= 8*widthptr) {
+	if(stkzerosize >= 8*widthptr) {
 		p = appendp(p, AMOVL, D_CONST, 0, D_AX, 0);
-		p = appendp(p, AMOVL, D_CONST, stkptrsize/widthptr, D_CX, 0);
-		p = appendp(p, ALEAL, D_SP+D_INDIR, frame-stkptrsize, D_DI, 0);
+		p = appendp(p, AMOVL, D_CONST, stkzerosize/widthptr, D_CX, 0);
+		p = appendp(p, ALEAL, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);
 		p = appendp(p, AREP, D_NONE, 0, D_NONE, 0);
 		appendp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
 	} else {
-		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2)
+		for(i=0, j=(stkptrsize-stkzerosize)/widthptr*2; i<stkzerosize; i+=widthptr, j+=2)
 			if(bvget(bv, j) || bvget(bv, j+1))
-				p = appendp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame-stkptrsize+i);
+				p = appendp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
 	}
 }
 
