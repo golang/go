@@ -32,6 +32,9 @@ func cgoLookupHost(name string) (addrs []string, err error, completed bool) {
 }
 
 func cgoLookupPort(net, service string) (port int, err error, completed bool) {
+	acquireThread()
+	defer releaseThread()
+
 	var res *C.struct_addrinfo
 	var hints C.struct_addrinfo
 
@@ -79,6 +82,9 @@ func cgoLookupPort(net, service string) (port int, err error, completed bool) {
 }
 
 func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, completed bool) {
+	acquireThread()
+	defer releaseThread()
+
 	var res *C.struct_addrinfo
 	var hints C.struct_addrinfo
 

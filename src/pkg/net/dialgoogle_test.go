@@ -54,6 +54,30 @@ var googleaddrsipv4 = []string{
 	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
 }
 
+func TestDNSThreadLimit(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	const N = 10000
+	c := make(chan int, N)
+	for i := 0; i < N; i++ {
+		go func() {
+			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
+			c <- 1
+		}()
+	}
+	// Don't bother waiting for the stragglers; stop at 0.9 N.
+	for i := 0; i < N*9/10; i++ {
+		if i%100 == 0 {
+			//println("TestDNSThreadLimit:", i)
+		}
+		<-c
+	}
+
+	// If we're still here, it worked.
+}
+
 func TestDialGoogleIPv4(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("skipping test to avoid external network")

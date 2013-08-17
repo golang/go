@@ -433,3 +433,19 @@ func (d *deadline) setTime(t time.Time) {
 		d.set(t.UnixNano())
 	}
 }
+
+// Limit the number of concurrent cgo-using goroutines, because
+// each will block an entire operating system thread. The usual culprit
+// is resolving many DNS names in separate goroutines but the DNS
+// server is not responding. Then the many lookups each use a different
+// thread, and the system or the program runs out of threads.
+
+var threadLimit = make(chan struct{}, 500)
+
+func acquireThread() {
+	threadLimit <- struct{}{}
+}
+
+func releaseThread() {
+	<-threadLimit
+}
