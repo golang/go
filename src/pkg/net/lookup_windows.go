@@ -34,6 +34,8 @@ func lookupProtocol(name string) (proto int, err error) {
 	}
 	ch := make(chan result)
 	go func() {
+		acquireThread()
+		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		proto, err := getprotobyname(name)
@@ -56,6 +58,7 @@ func lookupHost(name string) (addrs []string, err error) {
 }
 
 func gethostbyname(name string) (addrs []IP, err error) {
+	// caller already acquired thread
 	h, err := syscall.GetHostByName(name)
 	if err != nil {
 		return nil, os.NewSyscallError("GetHostByName", err)
@@ -83,6 +86,8 @@ func oldLookupIP(name string) (addrs []IP, err error) {
 	}
 	ch := make(chan result)
 	go func() {
+		acquireThread()
+		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		addrs, err := gethostbyname(name)
@@ -93,6 +98,8 @@ func oldLookupIP(name string) (addrs []IP, err error) {
 }
 
 func newLookupIP(name string) (addrs []IP, err error) {
+	acquireThread()
+	defer releaseThread()
 	hints := syscall.AddrinfoW{
 		Family:   syscall.AF_UNSPEC,
 		Socktype: syscall.SOCK_STREAM,
@@ -122,6 +129,8 @@ func newLookupIP(name string) (addrs []IP, err error) {
 }
 
 func getservbyname(network, service string) (port int, err error) {
+	acquireThread()
+	defer releaseThread()
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
@@ -144,6 +153,8 @@ func oldLookupPort(network, service string) (port int, err error) {
 	}
 	ch := make(chan result)
 	go func() {
+		acquireThread()
+		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		port, err := getservbyname(network, service)
@@ -154,6 +165,8 @@ func oldLookupPort(network, service string) (port int, err error) {
 }
 
 func newLookupPort(network, service string) (port int, err error) {
+	acquireThread()
+	defer releaseThread()
 	var stype int32
 	switch network {
 	case "tcp4", "tcp6":
@@ -188,6 +201,8 @@ func newLookupPort(network, service string) (port int, err error) {
 }
 
 func lookupCNAME(name string) (cname string, err error) {
+	acquireThread()
+	defer releaseThread()
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
 	if e != nil {
@@ -202,6 +217,8 @@ func lookupCNAME(name string) (cname string, err error) {
 }
 
 func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+	acquireThread()
+	defer releaseThread()
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -224,6 +241,8 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 }
 
 func lookupMX(name string) (mx []*MX, err error) {
+	acquireThread()
+	defer releaseThread()
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
 	if e != nil {
@@ -240,6 +259,8 @@ func lookupMX(name string) (mx []*MX, err error) {
 }
 
 func lookupNS(name string) (ns []*NS, err error) {
+	acquireThread()
+	defer releaseThread()
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &r, nil)
 	if e != nil {
@@ -255,6 +276,8 @@ func lookupNS(name string) (ns []*NS, err error) {
 }
 
 func lookupTXT(name string) (txt []string, err error) {
+	acquireThread()
+	defer releaseThread()
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)
 	if e != nil {
@@ -273,6 +296,8 @@ func lookupTXT(name string) (txt []string, err error) {
 }
 
 func lookupAddr(addr string) (name []string, err error) {
+	acquireThread()
+	defer releaseThread()
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return nil, err
