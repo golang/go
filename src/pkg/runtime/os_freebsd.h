@@ -4,6 +4,8 @@
 
 #define SS_DISABLE 4
 
+typedef byte* kevent_udata;
+
 int32	runtime·thr_new(ThrParam*, int32);
 void	runtime·sigpanic(void);
 void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);

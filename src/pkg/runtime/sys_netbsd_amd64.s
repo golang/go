@@ -311,3 +311,34 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	$0, AX
 	RET
 
+// int32 runtime·kqueue(void)
+TEXT runtime·kqueue(SB),NOSPLIT,$0
+	MOVQ	$0, DI
+	MOVL	$344, AX
+	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
+	RET
+
+// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+TEXT runtime·kevent(SB),NOSPLIT,$0
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVQ	32(SP), R10
+	MOVL	40(SP), R8
+	MOVQ	48(SP), R9
+	MOVL	$435, AX
+	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
+	RET
+
+// void runtime·closeonexec(int32 fd)
+TEXT runtime·closeonexec(SB),NOSPLIT,$0
+	MOVL	8(SP), DI	// fd
+	MOVQ	$2, SI		// F_SETFD
+	MOVQ	$1, DX		// FD_CLOEXEC
+	MOVL	$92, AX		// fcntl
+	SYSCALL
+	RET

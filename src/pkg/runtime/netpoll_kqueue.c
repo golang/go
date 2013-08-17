@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd,amd64 freebsd,386 openbsd
+// +build darwin freebsd,amd64 freebsd,386 netbsd openbsd
 
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
+#include "os_GOOS.h"
 
 // Integrated network poller (kqueue-based implementation).
 
@@ -40,7 +41,7 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
 	ev[0].flags = EV_ADD|EV_CLEAR;
 	ev[0].fflags = 0;
 	ev[0].data = 0;
-	ev[0].udata = (byte*)pd;
+	ev[0].udata = (kevent_udata)pd;
 	ev[1] = ev[0];
 	ev[1].filter = EVFILT_WRITE;
 	n = runtime·kevent(kq, ev, 2, nil, 0, nil);
