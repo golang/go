@@ -3,6 +3,9 @@
 
 
 enum {
+	EINTR	= 0x4,
+	EFAULT	= 0xe,
+
 	PROT_NONE	= 0x0,
 	PROT_READ	= 0x1,
 	PROT_WRITE	= 0x2,
@@ -17,8 +20,6 @@ enum {
 	SA_SIGINFO	= 0x40,
 	SA_RESTART	= 0x2,
 	SA_ONSTACK	= 0x1,
-
-	EINTR	= 0x4,
 
 	SIGHUP		= 0x1,
 	SIGINT		= 0x2,
@@ -71,6 +72,14 @@ enum {
 	ITIMER_REAL	= 0x0,
 	ITIMER_VIRTUAL	= 0x1,
 	ITIMER_PROF	= 0x2,
+
+	EV_ADD		= 0x1,
+	EV_DELETE	= 0x2,
+	EV_CLEAR	= 0x20,
+	EV_RECEIPT	= 0,
+	EV_ERROR	= 0x4000,
+	EVFILT_READ	= 0x0,
+	EVFILT_WRITE	= 0x1,
 };
 
 typedef struct Sigaltstack Sigaltstack;
@@ -82,6 +91,7 @@ typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
 typedef struct McontextT McontextT;
 typedef struct UcontextT UcontextT;
+typedef struct Kevent Kevent;
 
 #pragma pack on
 
@@ -136,6 +146,16 @@ struct UcontextT {
 	McontextT	uc_mcontext;
 	int32	__uc_pad[2];
 };
+
+struct Kevent {
+	uint32	ident;
+	uint32	filter;
+	uint32	flags;
+	uint32	fflags;
+	int64	data;
+	int32	udata;
+};
+
 
 #pragma pack off
 // Created by cgo -cdefs - DO NOT EDIT

@@ -343,3 +343,32 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 	RET
 
 GLOBL runtime·tlsoffset(SB),$4
+
+// int32 runtime·kqueue(void)
+TEXT runtime·kqueue(SB),NOSPLIT,$0
+	MOVL	$344, AX
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	RET
+
+// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+TEXT runtime·kevent(SB),NOSPLIT,$0
+	MOVL	$435, AX
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	RET
+
+// int32 runtime·closeonexec(int32 fd)
+TEXT runtime·closeonexec(SB),NOSPLIT,$32
+	MOVL	$92, AX		// fcntl
+	// 0(SP) is where the caller PC would be; kernel skips it
+	MOVL	fd+0(FP), BX
+	MOVL	BX, 4(SP)	// fd
+	MOVL	$2, 8(SP)	// F_SETFD
+	MOVL	$1, 12(SP)	// FD_CLOEXEC
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	RET

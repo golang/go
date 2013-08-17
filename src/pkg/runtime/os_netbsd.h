@@ -8,6 +8,8 @@
 #define SIG_UNBLOCK 2
 #define SIG_SETMASK 3
 
+typedef uintptr kevent_udata;
+
 struct sigaction;
 
 void	runtime·sigpanic(void);

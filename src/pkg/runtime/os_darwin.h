@@ -4,6 +4,8 @@
 
 #define SS_DISABLE 4
 
+typedef byte* kevent_udata;
+
 int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
 int32	runtime·bsdthread_register(void);
 int32	runtime·mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
