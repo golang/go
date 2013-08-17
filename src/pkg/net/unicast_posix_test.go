@@ -349,12 +349,16 @@ func checkDualStackSecondListener(t *testing.T, net, laddr string, xerr, err err
 		if xerr == nil && err != nil || xerr != nil && err == nil {
 			t.Fatalf("Second Listen(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
 		}
-		l.(*TCPListener).Close()
+		if err == nil {
+			l.(*TCPListener).Close()
+		}
 	case "udp", "udp4", "udp6":
 		if xerr == nil && err != nil || xerr != nil && err == nil {
 			t.Fatalf("Second ListenPacket(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
 		}
-		l.(*UDPConn).Close()
+		if err == nil {
+			l.(*UDPConn).Close()
+		}
 	default:
 		t.Fatalf("Unexpected network: %q", net)
 	}
