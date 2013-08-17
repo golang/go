@@ -32,6 +32,7 @@ struct Sched {
 	int32	nmidle;	 // number of idle m's waiting for work
 	int32	nmidlelocked; // number of locked m's waiting for work
 	int32	mcount;	 // number of m's that have been created
+	int32	maxmcount;	// maximum number of m's allowed (or die)
 
 	P*	pidle;  // idle P's
 	uint32	npidle;
@@ -125,6 +126,8 @@ runtime·schedinit(void)
 {
 	int32 n, procs;
 	byte *p;
+
+	runtime·sched.maxmcount = 10000;
 
 	m->nomemprof++;
 	runtime·mprofinit();
@@ -284,6 +287,16 @@ runtime·tracebackothers(G *me)
 }
 
 static void
+checkmcount(void)
+{
+	// sched lock is held
+	if(runtime·sched.mcount > runtime·sched.maxmcount) {
+		runtime·printf("runtime: program exceeds %d-thread limit\n", runtime·sched.maxmcount);
+		runtime·throw("thread exhaustion");
+	}
+}
+
+static void
 mcommoninit(M *mp)
 {
 	// If there is no mcache runtime·callers() will crash,
@@ -295,7 +308,7 @@ mcommoninit(M *mp)
 
 	runtime·lock(&runtime·sched);
 	mp->id = runtime·sched.mcount++;
-
+	checkmcount();
 	runtime·mpreinit(mp);
 
 	// Add to runtime·allm so garbage collector doesn't free m
@@ -2820,4 +2833,15 @@ runtime·topofstack(Func *f)
 		f->entry == (uintptr)runtime·morestack ||
 		f->entry == (uintptr)runtime·lessstack ||
 		f->entry == (uintptr)_rt0_go;
+}
+
+void
+runtime∕debug·setMaxThreads(intgo in, intgo out)
+{
+	runtime·lock(&runtime·sched);
+	out = runtime·sched.maxmcount;
+	runtime·sched.maxmcount = in;
+	checkmcount();
+	runtime·unlock(&runtime·sched);
+	FLUSH(&out);
 }

@@ -125,6 +125,14 @@ func TestStackOverflow(t *testing.T) {
 	}
 }
 
+func TestThreadExhaustion(t *testing.T) {
+	output := executeTest(t, threadExhaustionSource, nil)
+	want := "runtime: program exceeds 10-thread limit\nfatal error: thread exhaustion"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
 const crashSource = `
 package main
 
@@ -241,5 +249,27 @@ func main() {
 func f(x []byte) byte {
 	var buf [64<<10]byte
 	return x[0] + f(buf[:])
+}
+`
+
+const threadExhaustionSource = `
+package main
+
+import (
+	"runtime"
+	"runtime/debug"
+)
+
+func main() {
+	debug.SetMaxThreads(10)
+	c := make(chan int)
+	for i := 0; i < 100; i++ {
+		go func() {
+			runtime.LockOSThread()
+			c <- 0
+			select{}
+		}()
+		<-c
+	}
 }
 `
