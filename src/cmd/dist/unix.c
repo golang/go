@@ -467,8 +467,9 @@ xworkdir(void)
 	if(b.len == 0)
 		bwritestr(&b, "/var/tmp");
 	bwritestr(&b, "/go-cbuild-XXXXXX");
-	if(mkdtemp(bstr(&b)) == nil)
-		fatal("mkdtemp: %s", strerror(errno));
+	p = bstr(&b);
+	if(mkdtemp(p) == nil)
+		fatal("mkdtemp(%s): %s", p, strerror(errno));
 	p = btake(&b);
 
 	bfree(&b);
