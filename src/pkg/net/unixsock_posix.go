@@ -186,6 +186,9 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
+	if addr == nil {
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+	}
 	if addr.Net != sotypeToNet(c.fd.sotype) {
 		return 0, syscall.EAFNOSUPPORT
 	}

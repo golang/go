@@ -73,6 +73,9 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if !c.ok() || c.fd.data == nil {
 		return 0, syscall.EINVAL
 	}
+	if addr == nil {
+		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: nil, Err: errMissingAddress}
+	}
 	h := new(udpHeader)
 	h.raddr = addr.IP.To16()
 	h.laddr = c.fd.laddr.(*UDPAddr).IP.To16()

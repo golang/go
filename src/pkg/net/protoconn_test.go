@@ -161,6 +161,15 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 	} else {
 		f.Close()
 	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatalf("UDPConn.WriteToUDP or WriteMsgUDP panicked: %v", p)
+		}
+	}()
+
+	c.WriteToUDP(wb, nil)
+	c.WriteMsgUDP(wb, nil, nil)
 }
 
 func TestIPConnSpecificMethods(t *testing.T) {
@@ -218,6 +227,15 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	} else {
 		f.Close()
 	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatalf("IPConn.WriteToIP or WriteMsgIP panicked: %v", p)
+		}
+	}()
+
+	c.WriteToIP(wb, nil)
+	c.WriteMsgIP(wb, nil, nil)
 }
 
 func TestUnixListenerSpecificMethods(t *testing.T) {
@@ -358,4 +376,15 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	} else {
 		f.Close()
 	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatalf("UnixConn.WriteToUnix or WriteMsgUnix panicked: %v", p)
+		}
+	}()
+
+	c1.WriteToUnix(wb, nil)
+	c1.WriteMsgUnix(wb, nil, nil)
+	c3.WriteToUnix(wb, nil)
+	c3.WriteMsgUnix(wb, nil, nil)
 }
