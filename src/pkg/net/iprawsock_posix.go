@@ -128,6 +128,9 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
+	if addr == nil {
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
 		return 0, &OpError{"write", c.fd.net, addr, err}
@@ -153,6 +156,9 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
 	if !c.ok() {
 		return 0, 0, syscall.EINVAL
+	}
+	if addr == nil {
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {

@@ -124,6 +124,9 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if c.fd.isConnected {
 		return 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
 	}
+	if addr == nil {
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
 		return 0, &OpError{"write", c.fd.net, addr, err}
@@ -152,6 +155,9 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 	}
 	if c.fd.isConnected {
 		return 0, 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
+	}
+	if addr == nil {
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
