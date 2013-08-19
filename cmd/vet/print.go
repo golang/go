@@ -385,33 +385,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)
 		return false
 	}
-	// Check %v, %s, %q, %x, %X for Error/String calls.
-	switch state.verb {
-	case 'v', 's', 'q', 'x', 'X':
-		f.checkIfArgIsRedundant(arg)
-	}
 	return true
-}
-
-// checkIfArgIsRedundant reports whether arg, assumed to be the argument of
-// a string-like format verb, ends in a redundant method invocation.
-func (f *File) checkIfArgIsRedundant(arg ast.Expr) {
-	ce, ok := arg.(*ast.CallExpr)
-	if !ok || len(ce.Args) > 0 {
-		return
-	}
-	sel, ok := ce.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return
-	}
-	n := sel.Sel.Name
-	if n != "String" && n != "Error" {
-		return
-	}
-	if !f.returnsString(sel) {
-		return
-	}
-	f.Warnf(arg.Pos(), "redundant invocation of %s method of %s", n, f.gofmt(sel.X))
 }
 
 // argCanBeChecked reports whether the specified argument is statically present;
