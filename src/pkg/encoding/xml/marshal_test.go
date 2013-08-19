@@ -1076,6 +1076,15 @@ func TestMarshalWriteIOErrors(t *testing.T) {
 	}
 }
 
+func TestEncodeTokenFlush(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	enc.EncodeToken(StartElement{Name: Name{Local: "some-tag"}})
+	if g, w := buf.String(), "<some-tag>"; g != w {
+		t.Errorf("Encoder wrote %q, want %q", g, w)
+	}
+}
+
 func BenchmarkMarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Marshal(atomValue)
