@@ -357,6 +357,9 @@ func (c *common) Skipped() bool {
 func (t *T) Parallel() {
 	t.signal <- (*T)(nil) // Release main testing loop
 	<-t.startParallel     // Wait for serial tests to finish
+	// Assuming Parallel is the first thing a test does, which is reasonable,
+	// reinitialize the test's start time because it's actually starting now.
+	t.start = time.Now()
 }
 
 // An internal type but exported because it is cross-package; part of the implementation
@@ -367,8 +370,6 @@ type InternalTest struct {
 }
 
 func tRunner(t *T, test *InternalTest) {
-	t.start = time.Now()
-
 	// When this goroutine is done, either because test.F(t)
 	// returned normally or because a test failure triggered
 	// a call to runtime.Goexit, record the duration and send
@@ -384,6 +385,7 @@ func tRunner(t *T, test *InternalTest) {
 		t.signal <- t
 	}()
 
+	t.start = time.Now()
 	test.F(t)
 }
 
