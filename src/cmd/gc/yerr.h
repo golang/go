@@ -21,16 +21,16 @@ static struct {
 	"missing import path; require quoted string",
 
 	377, ';',
-	"unexpected semicolon or newline before {",
+	"missing { after if clause",
 
 	398, ';',
-	"unexpected semicolon or newline before {",
+	"missing { after switch clause",
 
 	237, ';',
-	"unexpected semicolon or newline before {",
+	"missing { after for clause",
 
 	475, LBODY,
-	"unexpected semicolon or newline before {",
+	"missing { after for clause",
 
 	22, '{',
 	"unexpected semicolon or newline before {",
