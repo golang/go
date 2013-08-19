@@ -117,7 +117,12 @@ if [ "$(uname)" == "Darwin" ]; then
 fi
 ${CC:-gcc} $mflag -O2 -Wall -Werror -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
 
-eval $(./cmd/dist/dist env -p)
+# -e doesn't propagate out of eval, so check success by hand.
+eval $(./cmd/dist/dist env -p || echo FAIL=true)
+if [ "$FAIL" = true ]; then
+	exit 1
+fi
+
 echo
 
 if [ "$1" = "--dist-tool" ]; then
