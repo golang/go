@@ -5,6 +5,7 @@
 package vcs
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,7 +51,11 @@ func TestFromDir(t *testing.T) {
 	}
 
 	tests := make([]testStruct, len(vcsList))
-	tempDir := os.TempDir()
+	tempDir, err := ioutil.TempDir("", "vcstest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
 
 	for i, vcs := range vcsList {
 		tests[i] = testStruct{
@@ -67,5 +72,4 @@ func TestFromDir(t *testing.T) {
 		}
 		os.RemoveAll(test.path)
 	}
-	os.RemoveAll(tempDir)
 }
