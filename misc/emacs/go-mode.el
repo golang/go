@@ -1110,7 +1110,13 @@ for."
          (coverage-file (or coverage-file (go--coverage-file)))
          (ranges-and-divisor (go--coverage-parse-file
                               coverage-file
-                              (file-name-nondirectory (buffer-file-name origin-buffer)))))
+                              (file-name-nondirectory (buffer-file-name origin-buffer))))
+         (cov-mtime (nth 5 (file-attributes coverage-file)))
+         (cur-mtime (nth 5 (file-attributes (buffer-file-name origin-buffer)))))
+
+    (if (< (float-time cov-mtime) (float-time cur-mtime))
+        (message "Coverage file is older than the source file."))
+
     (with-current-buffer (or (get-buffer gocov-buffer-name)
                              (make-indirect-buffer origin-buffer gocov-buffer-name t))
       (set (make-local-variable 'go--coverage-origin-buffer) origin-buffer)
