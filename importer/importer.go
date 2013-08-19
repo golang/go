@@ -175,6 +175,7 @@ func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) *
 			Values:     make(map[ast.Expr]exact.Value),
 			Objects:    make(map[*ast.Ident]types.Object),
 			Implicits:  make(map[ast.Node]types.Object),
+			Scopes:     make(map[ast.Node]*types.Scope),
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		},
 	}
