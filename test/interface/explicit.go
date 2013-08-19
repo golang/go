@@ -80,3 +80,22 @@ var m2 M = jj // ERROR "incompatible|wrong type for M method"
 
 var m3 = M(ii) // ERROR "invalid|missing"
 var m4 = M(jj) // ERROR "invalid|wrong type for M method"
+
+
+type B1 interface {
+	_()
+}
+
+type B2 interface {
+	M()
+	_()
+}
+
+type T2 struct{}
+
+func (t *T2) M() {}
+func (t *T2) _() {}
+
+// Check that nothing satisfies an interface with blank methods.
+var b1 B1 = &T2{} // ERROR "incompatible|missing _ method"
+var b2 B2 = &T2{} // ERROR "incompatible|missing _ method"

@@ -265,8 +265,8 @@ imethods(Type *t)
 		last = a;
 
 		// Compiler can only refer to wrappers for
-		// named interface types.
-		if(t->sym == S)
+		// named interface types and non-blank methods.
+		if(t->sym == S || isblanksym(method))
 			continue;
 
 		// NOTE(rsc): Perhaps an oversight that
