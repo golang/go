@@ -2098,7 +2098,7 @@ runtime·gc(int32 force)
 	runtime·starttheworld();
 	m->locks--;
 
-	// now that gc is done and we're back on g stack, kick off finalizer thread if needed
+	// now that gc is done, kick off finalizer thread if needed
 	if(finq != nil) {
 		runtime·lock(&finlock);
 		// kick off or wake up goroutine to run queued finalizers
@@ -2109,11 +2109,12 @@ runtime·gc(int32 force)
 			runtime·ready(fing);
 		}
 		runtime·unlock(&finlock);
-		// give the queued finalizers, if any, a chance to run
-		runtime·gosched();
 	}
 	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
+	// give the queued finalizers, if any, a chance to run
+	if(g != m->g0)
+		runtime·gosched();
 }
 
 static void
