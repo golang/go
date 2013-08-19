@@ -59,6 +59,7 @@ var gorootTestTests = []string{
 	"gc.go",
 	"simassign.go",
 	"iota.go",
+	"nilptr2.go",
 	"goprint.go", // doesn't actually assert anything
 	"utf.go",
 	"method.go",

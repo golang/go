@@ -438,8 +438,6 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return &address{addr: fn.emit(v), expr: e}
 
 	case *ast.StarExpr:
-		// TODO(adonovan): fix: implement nil-check if e.X
-		// evaluates to nil, per http://golang.org/s/go12nil.
 		return &address{addr: b.expr(fn, e.X), starPos: e.Star, expr: e}
 	}
 
@@ -562,7 +560,14 @@ func (b *builder) expr(fn *Function, e ast.Expr) (result Value) {
 	case *ast.UnaryExpr:
 		switch e.Op {
 		case token.AND: // &X --- potentially escaping.
-			return b.addr(fn, e.X, true).address(fn)
+			addr := b.addr(fn, e.X, true)
+			if _, ok := unparen(e.X).(*ast.StarExpr); ok {
+				// &*p must panic if p is nil (http://golang.org/s/go12nil).
+				// For simplicity, we'll just (suboptimally) rely
+				// on the side effects of a load.
+				addr.load(fn)
+			}
+			return addr.address(fn)
 		case token.ADD:
 			return b.expr(fn, e.X)
 		case token.NOT, token.ARROW, token.SUB, token.XOR: // ! <- - ^
