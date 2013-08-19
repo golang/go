@@ -95,45 +95,45 @@ func (tr *Reader) Next() (*Header, error) {
 func mergePAX(hdr *Header, headers map[string]string) error {
 	for k, v := range headers {
 		switch k {
-		case "path":
+		case paxPath:
 			hdr.Name = v
-		case "linkpath":
+		case paxLinkpath:
 			hdr.Linkname = v
-		case "gname":
+		case paxGname:
 			hdr.Gname = v
-		case "uname":
+		case paxUname:
 			hdr.Uname = v
-		case "uid":
+		case paxUid:
 			uid, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {
 				return err
 			}
 			hdr.Uid = int(uid)
-		case "gid":
+		case paxGid:
 			gid, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {
 				return err
 			}
 			hdr.Gid = int(gid)
-		case "atime":
+		case paxAtime:
 			t, err := parsePAXTime(v)
 			if err != nil {
 				return err
 			}
 			hdr.AccessTime = t
-		case "mtime":
+		case paxMtime:
 			t, err := parsePAXTime(v)
 			if err != nil {
 				return err
 			}
 			hdr.ModTime = t
-		case "ctime":
+		case paxCtime:
 			t, err := parsePAXTime(v)
 			if err != nil {
 				return err
 			}
 			hdr.ChangeTime = t
-		case "size":
+		case paxSize:
 			size, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {
 				return err
