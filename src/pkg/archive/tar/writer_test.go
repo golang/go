@@ -243,15 +243,110 @@ func TestPax(t *testing.T) {
 	}
 }
 
+func TestPaxSymlink(t *testing.T) {
+	// Create an archive with a large linkname
+	fileinfo, err := os.Stat("testdata/small.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdr, err := FileInfoHeader(fileinfo, "")
+	hdr.Typeflag = TypeSymlink
+	if err != nil {
+		t.Fatalf("os.Stat:1 %v", err)
+	}
+	// Force a PAX long linkname to be written
+	longLinkname := strings.Repeat("1234567890/1234567890", 10)
+	hdr.Linkname = longLinkname
+
+	hdr.Size = 0
+	var buf bytes.Buffer
+	writer := NewWriter(&buf)
+	if err := writer.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Simple test to make sure PAX extensions are in effect
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
+		t.Fatal("Expected at least one PAX header to be written.")
+	}
+	// Test that we can get a long name back out of the archive.
+	reader := NewReader(&buf)
+	hdr, err = reader.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr.Linkname != longLinkname {
+		t.Fatal("Couldn't recover long link name")
+	}
+}
+
+func TestPaxNonAscii(t *testing.T) {
+	// Create an archive with non ascii. These should trigger a pax header
+	// because pax headers have a defined utf-8 encoding.
+	fileinfo, err := os.Stat("testdata/small.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hdr, err := FileInfoHeader(fileinfo, "")
+	if err != nil {
+		t.Fatalf("os.Stat:1 %v", err)
+	}
+
+	// some sample data
+	chineseFilename := "文件名"
+	chineseGroupname := "組"
+	chineseUsername := "用戶名"
+
+	hdr.Name = chineseFilename
+	hdr.Gname = chineseGroupname
+	hdr.Uname = chineseUsername
+
+	contents := strings.Repeat(" ", int(hdr.Size))
+
+	var buf bytes.Buffer
+	writer := NewWriter(&buf)
+	if err := writer.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = writer.Write([]byte(contents)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Simple test to make sure PAX extensions are in effect
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
+		t.Fatal("Expected at least one PAX header to be written.")
+	}
+	// Test that we can get a long name back out of the archive.
+	reader := NewReader(&buf)
+	hdr, err = reader.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr.Name != chineseFilename {
+		t.Fatal("Couldn't recover unicode name")
+	}
+	if hdr.Gname != chineseGroupname {
+		t.Fatal("Couldn't recover unicode group")
+	}
+	if hdr.Uname != chineseUsername {
+		t.Fatal("Couldn't recover unicode user")
+	}
+}
+
 func TestPAXHeader(t *testing.T) {
 	medName := strings.Repeat("CD", 50)
 	longName := strings.Repeat("AB", 100)
 	paxTests := [][2]string{
-		{"name=/etc/hosts", "19 name=/etc/hosts\n"},
+		{paxPath + "=/etc/hosts", "19 path=/etc/hosts\n"},
 		{"a=b", "6 a=b\n"},          // Single digit length
 		{"a=names", "11 a=names\n"}, // Test case involving carries
-		{"name=" + longName, fmt.Sprintf("210 name=%s\n", longName)},
-		{"name=" + medName, fmt.Sprintf("110 name=%s\n", medName)}}
+		{paxPath + "=" + longName, fmt.Sprintf("210 path=%s\n", longName)},
+		{paxPath + "=" + medName, fmt.Sprintf("110 path=%s\n", medName)}}
 
 	for _, test := range paxTests {
 		key, expected := test[0], test[1]
