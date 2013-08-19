@@ -257,7 +257,6 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
 		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1);
 		if(isnilinter(t))
 			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer));
-		bvset(bv, ((*xoffset + widthptr) / widthptr) * BitsPerPointer);
 		*xoffset += t->width;
 		break;
 
