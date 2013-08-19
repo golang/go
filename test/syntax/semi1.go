@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	if x; y		// ERROR "unexpected semicolon or newline before .?{.?|undefined"
+	if x; y		// ERROR "missing { after if clause|undefined"
 	{
 		z	// GCCGO_ERROR "undefined"
 
