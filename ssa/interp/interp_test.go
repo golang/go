@@ -22,7 +22,7 @@ import (
 //
 // TODO(adonovan): integrate into the $GOROOT/test driver scripts,
 // golden file checking, etc.
-var gorootTests = []string{
+var gorootTestTests = []string{
 	"235.go",
 	"alias1.go",
 	"chancap.go",
@@ -139,6 +139,17 @@ var testdataTests = []string{
 	"mrvchain.go",
 }
 
+// These are files in $GOROOT/src/pkg/.
+// These tests exercise the "testing" package.
+var gorootSrcPkgTests = []string{
+	"unicode/script_test.go",
+	"unicode/digit_test.go",
+	"hash/crc32/crc32.go hash/crc32/crc32_generic.go hash/crc32/crc32_test.go",
+	"path/path.go path/path_test.go",
+	// TODO(adonovan): figure out the package loading error here:
+	// "strings.go strings/search.go strings/search_test.go",
+}
+
 func run(t *testing.T, dir, input string) bool {
 	fmt.Printf("Input: %s\n", input)
 
@@ -182,8 +193,11 @@ func run(t *testing.T, dir, input string) bool {
 	}
 	prog.BuildAll()
 
+	mainPkg := prog.Package(info.Pkg)
+	mainPkg.CreateTestMainFunction() // (no-op if main already exists)
+
 	hint = fmt.Sprintf("To trace execution, run:\n%% go run src/code.google.com/p/go.tools/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
-	if exitCode := interp.Interpret(prog.Package(info.Pkg), 0, inputs[0], []string{}); exitCode != 0 {
+	if exitCode := interp.Interpret(mainPkg, 0, inputs[0], []string{}); exitCode != 0 {
 		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
 		return false
 	}
@@ -210,8 +224,14 @@ func TestInterp(t *testing.T) {
 	}
 
 	if !testing.Short() {
-		for _, input := range gorootTests {
+		for _, input := range gorootTestTests {
 			if !run(t, filepath.Join(build.Default.GOROOT, "test")+slash, input) {
+				failures = append(failures, input)
+			}
+		}
+
+		for _, input := range gorootSrcPkgTests {
+			if !run(t, filepath.Join(build.Default.GOROOT, "src/pkg")+slash, input) {
 				failures = append(failures, input)
 			}
 		}
