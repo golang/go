@@ -20,7 +20,7 @@ func f() {
 	_ = array[::] // ERROR "middle index required in 3-index slice" "final index required in 3-index slice"
 	_ = array[i::] // ERROR "middle index required in 3-index slice" "final index required in 3-index slice"
 	_ = array[:j:] // ERROR "final index required in 3-index slice"
-	_ = array[i:j:] // ERROR  "final index required in 3-index slice"
+	_ = array[i:j:] // ERROR "final index required in 3-index slice"
 	_ = array[::k] // ERROR "middle index required in 3-index slice"
 	_ = array[i::k] // ERROR "middle index required in 3-index slice"
 	_ = array[:j:k]

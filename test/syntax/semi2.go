@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	switch x; y	// ERROR "unexpected semicolon or newline before .?{.?|undefined"
+	switch x; y	// ERROR "missing { after switch clause|undefined"
 	{
 		z
 
