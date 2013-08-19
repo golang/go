@@ -21,16 +21,16 @@ static struct {
 	"missing import path; require quoted string",
 
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
-	"unexpected semicolon or newline before {",
+	"missing { after if clause",
 
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LSWITCH if_header ';'
-	"unexpected semicolon or newline before {",
+	"missing { after switch clause",
 
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR for_header ';'
-	"unexpected semicolon or newline before {",
+	"missing { after for clause",
 
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR ';' LBODY
-	"unexpected semicolon or newline before {",
+	"missing { after for clause",
 
 	% loadsys package imports LFUNC LNAME '(' ')' ';' '{'
 	"unexpected semicolon or newline before {",
