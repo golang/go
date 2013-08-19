@@ -257,7 +257,7 @@ type Function struct {
 
 	Synthetic string       // provenance of synthetic function; "" for true source functions
 	Enclosing *Function    // enclosing function if anon; nil if global
-	Pkg       *Package     // enclosing package for Go source functions; otherwise nil
+	Pkg       *Package     // enclosing package; nil for error.Error() and its wrappers
 	Prog      *Program     // enclosing program
 	Params    []*Parameter // function parameters; for methods, includes receiver
 	FreeVars  []*Capture   // free variables whose values must be supplied by closure
@@ -690,6 +690,9 @@ type MakeSlice struct {
 // The Slice instruction yields a slice of an existing string, slice
 // or *array X between optional integer bounds Low and High.
 //
+// Dynamically, this instruction panics if X evaluates to a nil *array
+// pointer.
+//
 // Type() returns string if the type of X was string, otherwise a
 // *types.Slice with the same element type as X.
 //
@@ -710,6 +713,9 @@ type Slice struct {
 //
 // The field is identified by its index within the field list of the
 // struct type of X.
+//
+// Dynamically, this instruction panics if X evaluates to a nil
+// pointer.
 //
 // Type() returns a (possibly named) *types.Pointer.
 //
@@ -748,6 +754,9 @@ type Field struct {
 //
 // The elements of maps and strings are not addressable; use Lookup or
 // MapUpdate instead.
+//
+// Dynamically, this instruction panics if X evaluates to a nil *array
+// pointer.
 //
 // Type() returns a (possibly named) *types.Pointer.
 //
@@ -1184,7 +1193,9 @@ type anInstruction struct {
 // interface method invocation, or "call" and "invoke" for short.
 //
 // 1. "call" mode: when Method is nil (!IsInvoke), a CallCommon
-// represents an ordinary function call of the value in Value.
+// represents an ordinary function call of the value in Value,
+// which may be a *Builtin, a *Function or any other value of kind
+// 'func'.
 //
 // In the common case in which Value is a *Function, this indicates a
 // statically dispatched call to a package-level function, an
@@ -1205,7 +1216,9 @@ type anInstruction struct {
 // 2. "invoke" mode: when Method is non-nil (IsInvoke), a CallCommon
 // represents a dynamically dispatched call to an interface method.
 // In this mode, Value is the interface value and Method is the
-// interface's abstract method.
+// interface's abstract method.  Note: an abstract method may be
+// shared by multiple interfaces due to embedding; Value.Type()
+// provides the specific interface used for this call.
 //
 // Value is implicitly supplied to the concrete method implementation
 // as the receiver parameter; in other words, Args[0] holds not the
@@ -1271,8 +1284,8 @@ func (c *CallCommon) StaticCallee() *Function {
 // for a user interface, e.g. "static method call".
 func (c *CallCommon) Description() string {
 	switch fn := c.Value.(type) {
-	case nil:
-		return "dynamic method call" // ("invoke" mode)
+	case *Builtin:
+		return "built-in function call"
 	case *MakeClosure:
 		return "static function closure call"
 	case *Function:
@@ -1280,6 +1293,9 @@ func (c *CallCommon) Description() string {
 			return "static method call"
 		}
 		return "static function call"
+	}
+	if c.IsInvoke() {
+		return "dynamic method call" // ("invoke" mode)
 	}
 	return "dynamic function call"
 }

@@ -91,7 +91,7 @@ func (e *element) typ() types.Type {
 	return e.t
 }
 
-// A blanks is a dummy variable whose name is "_".
+// A blank is a dummy variable whose name is "_".
 // It is not reified: loads are illegal and stores are ignored.
 //
 type blank struct{}

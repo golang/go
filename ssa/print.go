@@ -10,6 +10,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 )
@@ -34,6 +35,37 @@ func relName(v Value, i Instruction) string {
 		return v.fullName(pkg)
 	}
 	return v.Name()
+}
+
+// relType is like t.String(), but if t is a Named type belonging to
+// package from, optionally wrapped by one or more Pointer
+// constructors, package qualification is suppressed.
+//
+// TODO(gri): provide this functionality in go/types (using a
+// *types.Package, obviously).
+//
+// TODO(adonovan): use this more widely, e.g.
+// ChangeType, Literal, Convert, MakeInterface;
+// when displaying receiver, params, locals, captures of a Function;
+// and in the RHS type column for Value-defining Instructions.
+//
+func relType(t types.Type, from *Package) string {
+	if from != nil {
+		t2 := t
+		var nptr int // number of Pointers stripped off
+		for {
+			ptr, ok := t2.(*types.Pointer)
+			if !ok {
+				break
+			}
+			t2 = ptr.Elem()
+			nptr++
+		}
+		if n, ok := t2.(*types.Named); ok && n.Obj().Pkg() == from.Object {
+			return strings.Repeat("*", nptr) + n.Obj().Name()
+		}
+	}
+	return t.String()
 }
 
 // Value.String()
@@ -77,7 +109,7 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s (%s)", op, deref(v.Type()), v.Comment)
+	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), v.Parent().Pkg), v.Comment)
 }
 
 func (v *Phi) String() string {

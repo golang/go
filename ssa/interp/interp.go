@@ -1,4 +1,4 @@
-// Package exp/ssa/interp defines an interpreter for the SSA
+// Package ssa/interp defines an interpreter for the SSA
 // representation of Go programs.
 //
 // This interpreter is provided as an adjunct for testing the SSA

@@ -468,24 +468,24 @@ func (f *Function) fullName(from *Package) string {
 		return f.name
 	}
 
-	recv := f.Signature.Recv()
-
-	// Synthetic?
-	if f.Pkg == nil {
-		var recvType types.Type
-		if recv != nil {
-			recvType = recv.Type() // promotion wrapper
-		} else if strings.HasPrefix(f.name, "bound$") {
-			return f.name // bound method wrapper
-		} else {
-			recvType = f.Params[0].Type() // interface method wrapper
-		}
-		return fmt.Sprintf("(%s).%s", recvType, f.name)
+	// Declared method, or promotion/indirection wrapper?
+	if recv := f.Signature.Recv(); recv != nil {
+		return fmt.Sprintf("(%s).%s", relType(recv.Type(), from), f.name)
 	}
 
-	// Declared method?
-	if recv != nil {
-		return fmt.Sprintf("(%s).%s", recv.Type(), f.name)
+	// Other synthetic wrapper?
+	if f.Synthetic != "" {
+		// Bound method wrapper?
+		if strings.HasPrefix(f.name, "bound$") {
+			return f.name
+		}
+
+		// Interface method wrapper?
+		if strings.HasPrefix(f.Synthetic, "interface ") {
+			return fmt.Sprintf("(%s).%s", relType(f.Params[0].Type(), from), f.name)
+		}
+
+		// "package initializer" or "loaded from GC object file": fall through.
 	}
 
 	// Package-level function.

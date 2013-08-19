@@ -111,8 +111,8 @@ func findMethod(prog *Program, meth *types.Selection) *Function {
 //
 func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function {
 	obj := meth.Obj().(*types.Func)
-	old := obj.Type().(*types.Signature)
-	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
+	oldsig := obj.Type().(*types.Signature)
+	recv := types.NewVar(token.NoPos, nil, "recv", typ)
 
 	description := fmt.Sprintf("wrapper for %s", obj)
 	if prog.mode&LogSource != 0 {
@@ -121,13 +121,14 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 	fn := &Function{
 		name:      obj.Name(),
 		method:    meth,
-		Signature: sig,
+		Signature: changeRecv(oldsig, recv),
 		Synthetic: description,
 		Prog:      prog,
+		Pkg:       prog.packages[obj.Pkg()],
 		pos:       obj.Pos(),
 	}
 	fn.startBody()
-	fn.addSpilledParam(sig.Recv())
+	fn.addSpilledParam(recv)
 	createParams(fn)
 
 	var v Value = fn.Locals[0] // spilled receiver
@@ -153,8 +154,8 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 	// address of implicit  C field.
 
 	var c Call
-	if _, ok := old.Recv().Type().Underlying().(*types.Interface); !ok { // concrete method
-		if !isPointer(old.Recv().Type()) {
+	if _, ok := oldsig.Recv().Type().Underlying().(*types.Interface); !ok { // concrete method
+		if !isPointer(oldsig.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
 		c.Call.Value = prog.declaredFunc(obj)
@@ -219,17 +220,18 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Fun
 	// a problem, we should include 'typ' in the memoization key.
 	fn, ok := prog.ifaceMethodWrappers[obj]
 	if !ok {
-		description := fmt.Sprintf("interface method wrapper for %s.%s", typ, obj)
+		description := fmt.Sprintf("interface method wrapper for (%s).%s", typ, obj.Name())
 		if prog.mode&LogSource != 0 {
 			defer logStack("%s", description)()
 		}
 		fn = &Function{
 			name:      obj.Name(),
 			object:    obj,
-			Signature: obj.Type().(*types.Signature),
+			Signature: changeRecv(obj.Type().(*types.Signature), nil), // drop receiver
 			Synthetic: description,
 			pos:       obj.Pos(),
 			Prog:      prog,
+			Pkg:       prog.packages[obj.Pkg()],
 		}
 		fn.startBody()
 		fn.addParam("recv", typ, token.NoPos)
@@ -278,12 +280,12 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 		if prog.mode&LogSource != 0 {
 			defer logStack("%s", description)()
 		}
-		s := obj.Type().(*types.Signature)
 		fn = &Function{
 			name:      "bound$" + obj.FullName(),
-			Signature: types.NewSignature(nil, nil, s.Params(), s.Results(), s.IsVariadic()),
+			Signature: changeRecv(obj.Type().(*types.Signature), nil), // drop receiver
 			Synthetic: description,
 			Prog:      prog,
+			Pkg:       prog.packages[obj.Pkg()],
 			pos:       obj.Pos(),
 		}
 
@@ -309,4 +311,8 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 		prog.boundMethodWrappers[obj] = fn
 	}
 	return fn
+}
+
+func changeRecv(s *types.Signature, recv *types.Var) *types.Signature {
+	return types.NewSignature(nil, recv, s.Params(), s.Results(), s.IsVariadic())
 }

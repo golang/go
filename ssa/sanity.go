@@ -4,10 +4,12 @@ package ssa
 // Currently it checks CFG invariants but little at the instruction level.
 
 import (
-	"code.google.com/p/go.tools/go/types"
 	"fmt"
 	"io"
 	"os"
+	"strings"
+
+	"code.google.com/p/go.tools/go/types"
 )
 
 type sanity struct {
@@ -313,13 +315,22 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 
 func (s *sanity) checkFunction(fn *Function) bool {
 	// TODO(adonovan): check Function invariants:
-	// - check owning Package (if any) contains this (possibly anon) function
 	// - check params match signature
 	// - check transient fields are nil
 	// - warn if any fn.Locals do not appear among block instructions.
 	s.fn = fn
 	if fn.Prog == nil {
 		s.errorf("nil Prog")
+	}
+	// All functions have a package, except wrappers for error.Error()
+	// (and embedding of that method in other interfaces).
+	if fn.Pkg == nil {
+		if strings.Contains(fn.Synthetic, "wrapper") &&
+			strings.HasSuffix(fn.name, "Error") {
+			// wrapper for error.Error() has no package.
+		} else {
+			s.errorf("nil Pkg %q %q", fn.Synthetic, fn.name)
+		}
 	}
 	for i, l := range fn.Locals {
 		if l.Parent() != fn {
