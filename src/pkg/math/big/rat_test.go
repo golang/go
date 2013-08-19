@@ -407,6 +407,32 @@ func TestRatGobEncoding(t *testing.T) {
 	}
 }
 
+// Sending a nil Rat pointer (inside a slice) on a round trip through gob should yield a zero.
+// TODO: top-level nils.
+func TestGobEncodingNilRatInSlice(t *testing.T) {
+	buf := new(bytes.Buffer)
+	enc := gob.NewEncoder(buf)
+	dec := gob.NewDecoder(buf)
+
+	var in = make([]*Rat, 1)
+	err := enc.Encode(&in)
+	if err != nil {
+		t.Errorf("gob encode failed: %q", err)
+	}
+	var out []*Rat
+	err = dec.Decode(&out)
+	if err != nil {
+		t.Fatalf("gob decode failed: %q", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("wrong len; want 1 got %d", len(out))
+	}
+	var zero Rat
+	if out[0].Cmp(&zero) != 0 {
+		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
+	}
+}
+
 func TestIssue2379(t *testing.T) {
 	// 1) no aliasing
 	q := NewRat(3, 2)
