@@ -129,12 +129,17 @@ func (p *Package) copyBuild(pp *build.Package) {
 
 // A PackageError describes an error loading information about a package.
 type PackageError struct {
-	ImportStack []string // shortest path from package named on command line to this one
-	Pos         string   // position of error
-	Err         string   // the error itself
+	ImportStack   []string // shortest path from package named on command line to this one
+	Pos           string   // position of error
+	Err           string   // the error itself
+	isImportCycle bool     // the error is an import cycle
 }
 
 func (p *PackageError) Error() string {
+	// Import cycles deserve special treatment.
+	if p.isImportCycle {
+		return fmt.Sprintf("%s: %s\npackage %s\n", p.Pos, p.Err, strings.Join(p.ImportStack, "\n\timports "))
+	}
 	if p.Pos != "" {
 		// Omit import stack.  The full path to the file where the error
 		// is the most important thing.
@@ -271,13 +276,16 @@ func reusePackage(p *Package, stk *importStack) *Package {
 	if p.imports == nil {
 		if p.Error == nil {
 			p.Error = &PackageError{
-				ImportStack: stk.copy(),
-				Err:         "import cycle not allowed",
+				ImportStack:   stk.copy(),
+				Err:           "import cycle not allowed",
+				isImportCycle: true,
 			}
 		}
 		p.Incomplete = true
 	}
-	if p.Error != nil && stk.shorterThan(p.Error.ImportStack) {
+	// Don't rewrite the import stack in the error if we have an import cycle.
+	// If we do, we'll lose the path that describes the cycle.
+	if p.Error != nil && !p.Error.isImportCycle && stk.shorterThan(p.Error.ImportStack) {
 		p.Error.ImportStack = stk.copy()
 	}
 	return p
