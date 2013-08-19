@@ -15,7 +15,10 @@ import (
 	"unsafe"
 )
 
-var initErr error
+var (
+	initErr error
+	ioSync  uint64
+)
 
 // CancelIo Windows API cancels all outstanding IO for a particular
 // socket on current thread. To overcome that limitation, we run
@@ -448,6 +451,9 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	if err == nil && n == 0 {
 		err = io.EOF
 	}
+	if raceenabled {
+		raceAcquire(unsafe.Pointer(&ioSync))
+	}
 	return n, err
 }
 
@@ -480,6 +486,9 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
 	o := &fd.wop
 	o.InitBuf(buf)
 	return iosrv.ExecIO(o, "WSASend", func(o *operation) error {
