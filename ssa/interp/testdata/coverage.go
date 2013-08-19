@@ -188,6 +188,8 @@ func main() {
 	case anint = <-ch:
 	default:
 	}
+	_ = anint
+	_ = ok
 
 	// Anon structs with methods.
 	anon := struct{ T }{T: T{z: 1}}
@@ -276,6 +278,19 @@ type mybool bool
 func (mybool) f() {}
 
 func init() {
+	type mybool bool
+	var b mybool
+	var i interface{} = b || b // result preserves types of operands
+	_ = i.(mybool)
+
+	i = false && b // result preserves type of "typed" operand
+	_ = i.(mybool)
+
+	i = b || true // result preserves type of "typed" operand
+	_ = i.(mybool)
+}
+
+func init() {
 	var x, y int
 	var b mybool = x == y // x==y is an untyped bool
 	b.f()
@@ -359,7 +374,7 @@ func init() {
 // An I->I type-assert fails iff the value is nil.
 func init() {
 	defer func() {
-		r := recover()
+		r := fmt.Sprint(recover())
 		if r != "interface conversion: interface is nil, not main.I" {
 			panic("I->I type assertion succeeed for nil value")
 		}

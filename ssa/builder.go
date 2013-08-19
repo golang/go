@@ -146,14 +146,19 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 	rhs := fn.newBasicBlock("binop.rhs")
 	done := fn.newBasicBlock("binop.done")
 
+	// T(e) = T(e.X) = T(e.Y) after untyped constants have been
+	// eliminated.
+	t := fn.Pkg.typeOf(e)
+
 	var short Value // value of the short-circuit path
 	switch e.Op {
 	case token.LAND:
 		b.cond(fn, e.X, rhs, done)
-		short = vFalse
+		short = NewConst(exact.MakeBool(false), t)
+
 	case token.LOR:
 		b.cond(fn, e.X, done, rhs)
-		short = vTrue
+		short = NewConst(exact.MakeBool(true), t)
 	}
 
 	// Is rhs unreachable?
@@ -184,7 +189,7 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 
 	phi := &Phi{Edges: edges, Comment: e.Op.String()}
 	phi.pos = e.OpPos
-	phi.typ = phi.Edges[0].Type()
+	phi.typ = t
 	return done.emit(phi)
 }
 
@@ -433,6 +438,8 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return &address{addr: fn.emit(v), expr: e}
 
 	case *ast.StarExpr:
+		// TODO(adonovan): fix: implement nil-check if e.X
+		// evaluates to nil, per http://golang.org/s/go12nil.
 		return &address{addr: b.expr(fn, e.X), starPos: e.Star, expr: e}
 	}
 
@@ -580,7 +587,9 @@ func (b *builder) expr(fn *Function, e ast.Expr) (result Value) {
 			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), fn.Pkg.typeOf(e), e.OpPos)
 
 		case token.EQL, token.NEQ, token.GTR, token.LSS, token.LEQ, token.GEQ:
-			return emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
+			// TODO(gri): we shouldn't need DefaultType here.
+			cmp := emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
+			return emitConv(fn, cmp, DefaultType(fn.Pkg.typeOf(e)))
 		default:
 			panic("illegal op in BinaryExpr: " + e.Op.String())
 		}

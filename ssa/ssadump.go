@@ -19,7 +19,7 @@ import (
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
 The value is a sequence of zero or more of these letters:
 C	perform sanity [C]hecking of the SSA form.
-D	include debug info for every function.
+D	include [D]ebug info for every function.
 P	log [P]ackage inventory.
 F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
@@ -119,6 +119,8 @@ func main() {
 		prog.CreatePackage(info).SetDebugMode(debugMode)
 	}
 	prog.BuildAll()
+
+	prog.Package(info.Pkg).CreateTestMainFunction() // FIXME
 
 	// Run the interpreter.
 	if *runFlag {
