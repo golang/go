@@ -1,7 +1,10 @@
 pkg archive/zip, func RegisterCompressor(uint16, Compressor)
 pkg archive/zip, func RegisterDecompressor(uint16, Decompressor)
+pkg archive/zip, method (*File) DataOffset() (int64, error)
 pkg archive/zip, type Compressor func(io.Writer) (io.WriteCloser, error)
 pkg archive/zip, type Decompressor func(io.Reader) io.ReadCloser
+pkg bufio, method (*Reader) Reset(io.Reader)
+pkg bufio, method (*Writer) Reset(io.Writer)
 pkg container/heap, func Fix(Interface, int)
 pkg container/list, method (*List) MoveAfter(*Element, *Element)
 pkg container/list, method (*List) MoveBefore(*Element, *Element)
@@ -38,6 +41,25 @@ pkg crypto/x509, func MarshalECPrivateKey(*ecdsa.PrivateKey) ([]uint8, error)
 pkg crypto/x509, type Certificate struct, CRLDistributionPoints []string
 pkg crypto/x509, type Certificate struct, IssuingCertificateURL []string
 pkg crypto/x509, type Certificate struct, OCSPServer []string
+pkg encoding, type BinaryMarshaler interface { MarshalBinary }
+pkg encoding, type BinaryMarshaler interface, MarshalBinary() ([]uint8, error)
+pkg encoding, type BinaryUnmarshaler interface { UnmarshalBinary }
+pkg encoding, type BinaryUnmarshaler interface, UnmarshalBinary([]uint8) error
+pkg encoding, type TextMarshaler interface { MarshalText }
+pkg encoding, type TextMarshaler interface, MarshalText() ([]uint8, error)
+pkg encoding, type TextUnmarshaler interface { UnmarshalText }
+pkg encoding, type TextUnmarshaler interface, UnmarshalText([]uint8) error
+pkg encoding/xml, method (*Encoder) EncodeElement(interface{}, StartElement) error
+pkg encoding/xml, method (*Encoder) EncodeToken(Token) error
+pkg encoding/xml, method (StartElement) End() EndElement
+pkg encoding/xml, type Marshaler interface { MarshalXML }
+pkg encoding/xml, type Marshaler interface, MarshalXML(*Encoder, StartElement) error
+pkg encoding/xml, type MarshalerAttr interface { MarshalXMLAttr }
+pkg encoding/xml, type MarshalerAttr interface, MarshalXMLAttr(Name) (Attr, error)
+pkg encoding/xml, type Unmarshaler interface { UnmarshalXML }
+pkg encoding/xml, type Unmarshaler interface, UnmarshalXML(*Decoder, StartElement) error
+pkg encoding/xml, type UnmarshalerAttr interface { UnmarshalXMLAttr }
+pkg encoding/xml, type UnmarshalerAttr interface, UnmarshalXMLAttr(Attr) error
 pkg flag, type Getter interface { Get, Set, String }
 pkg flag, type Getter interface, Get() interface{}
 pkg flag, type Getter interface, Set(string) error
@@ -46,6 +68,7 @@ pkg flag, var CommandLine *FlagSet
 pkg go/ast, type SliceExpr struct, Max Expr
 pkg go/ast, type TypeAssertExpr struct, Lparen token.Pos
 pkg go/ast, type TypeAssertExpr struct, Rparen token.Pos
+pkg go/build, type Package struct, AllTags []string
 pkg go/build, type Package struct, CXXFiles []string
 pkg go/build, type Package struct, CgoCPPFLAGS []string
 pkg go/build, type Package struct, CgoCXXFLAGS []string
@@ -708,12 +731,22 @@ pkg log/syslog (openbsd-amd64-cgo), method (*Writer) Warning(string) error
 pkg log/syslog (openbsd-amd64-cgo), method (*Writer) Write([]uint8) (int, error)
 pkg log/syslog (openbsd-amd64-cgo), type Priority int
 pkg log/syslog (openbsd-amd64-cgo), type Writer struct
+pkg net, method (*IP) UnmarshalText([]uint8) error
 pkg net, method (*TCPConn) SetKeepAlivePeriod(time.Duration) error
+pkg net, method (IP) MarshalText() ([]uint8, error)
 pkg net/smtp, method (*Client) Close() error
 pkg reflect, method (Value) SetCap(int)
 pkg reflect, method (Value) Slice3(int, int, int) Value
+pkg runtime/debug, func SetMaxStack(int) int
+pkg runtime/debug, func SetMaxThreads(int) int
 pkg sort, func Stable(Interface)
 pkg strings, func IndexByte(string, uint8) int
+pkg sync/atomic, func SwapInt32(*int32, int32) int32
+pkg sync/atomic, func SwapInt64(*int64, int64) int64
+pkg sync/atomic, func SwapPointer(*unsafe.Pointer, unsafe.Pointer) unsafe.Pointer
+pkg sync/atomic, func SwapUint32(*uint32, uint32) uint32
+pkg sync/atomic, func SwapUint64(*uint64, uint64) uint64
+pkg sync/atomic, func SwapUintptr(*uintptr, uintptr) uintptr
 pkg syscall (darwin-386), const ICMP6_FILTER ideal-int
 pkg syscall (darwin-386), const PRIO_PGRP ideal-int
 pkg syscall (darwin-386), const PRIO_PROCESS ideal-int
@@ -31848,4 +31881,22 @@ pkg testing, type CoverBlock struct, Col1 uint16
 pkg testing, type CoverBlock struct, Line0 uint32
 pkg testing, type CoverBlock struct, Line1 uint32
 pkg testing, type CoverBlock struct, Stmts uint16
+pkg testing, type TB interface, Error(...interface{})
+pkg testing, type TB interface, Errorf(string, ...interface{})
+pkg testing, type TB interface, Fail()
+pkg testing, type TB interface, FailNow()
+pkg testing, type TB interface, Failed() bool
+pkg testing, type TB interface, Fatal(...interface{})
+pkg testing, type TB interface, Fatalf(string, ...interface{})
+pkg testing, type TB interface, Log(...interface{})
+pkg testing, type TB interface, Logf(string, ...interface{})
+pkg testing, type TB interface, Skip(...interface{})
+pkg testing, type TB interface, SkipNow()
+pkg testing, type TB interface, Skipf(string, ...interface{})
+pkg testing, type TB interface, Skipped() bool
+pkg testing, type TB interface, unexported methods
+pkg time, method (*Time) UnmarshalBinary([]uint8) error
+pkg time, method (*Time) UnmarshalText([]uint8) error
+pkg time, method (Time) MarshalBinary() ([]uint8, error)
+pkg time, method (Time) MarshalText() ([]uint8, error)
 pkg unicode, func In(int32, ...*RangeTable) bool
