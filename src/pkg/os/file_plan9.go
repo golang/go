@@ -133,6 +133,9 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 // Close closes the File, rendering it unusable for I/O.
 // It returns an error, if any.
 func (f *File) Close() error {
+	if f == nil {
+		return ErrInvalid
+	}
 	return f.file.close()
 }
 
@@ -156,6 +159,9 @@ func (file *file) close() error {
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
 func (f *File) Stat() (fi FileInfo, err error) {
+	if f == nil {
+		return nil, ErrInvalid
+	}
 	d, err := dirstat(f)
 	if err != nil {
 		return nil, err
@@ -167,8 +173,11 @@ func (f *File) Stat() (fi FileInfo, err error) {
 // It does not change the I/O offset.
 // If there is an error, it will be of type *PathError.
 func (f *File) Truncate(size int64) error {
-	var d syscall.Dir
+	if f == nil {
+		return ErrInvalid
+	}
 
+	var d syscall.Dir
 	d.Null()
 	d.Length = size
 
@@ -188,6 +197,9 @@ const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | Mod
 // Chmod changes the mode of the file to mode.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chmod(mode FileMode) error {
+	if f == nil {
+		return ErrInvalid
+	}
 	var d syscall.Dir
 
 	odir, e := dirstat(f)
@@ -419,6 +431,9 @@ func Lchown(name string, uid, gid int) error {
 // Chown changes the numeric uid and gid of the named file.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chown(uid, gid int) error {
+	if f == nil {
+		return ErrInvalid
+	}
 	return &PathError{"chown", f.name, syscall.EPLAN9}
 }
 
