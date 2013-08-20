@@ -204,7 +204,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			// - imported objects are always fully initialized
 			switch exp := exp.(type) {
 			case *Const:
-				assert(exp.Val != nil)
+				assert(exp.Val() != nil)
 				x.mode = constant
 				x.typ = exp.typ
 				x.val = exp.val
