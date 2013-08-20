@@ -266,7 +266,7 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	}
 	// There must be a receiver for it to be a method call. Otherwise it is
 	// a function, not something that satisfies the error interface.
-	if sig.Recv == nil {
+	if sig.Recv() == nil {
 		return false
 	}
 	// There must be no arguments. Already verified by type checking, but be thorough.

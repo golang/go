@@ -40,6 +40,7 @@ var report = map[string]*bool{
 	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
 	"composites":  flag.Bool("composites", false, "check that composite literals used field-keyed elements"),
 	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
+	"nilfunc":     flag.Bool("nilfunc", false, "check for comparisons between functions and nil"),
 	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
 	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
 	"shadow":      flag.Bool("shadow", false, "check for shadowed variables (experimental; must be set explicitly)"),
@@ -356,6 +357,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.AssignStmt:
 		f.walkAssignStmt(n)
+	case *ast.BinaryExpr:
+		f.walkBinaryExpr(n)
 	case *ast.CallExpr:
 		f.walkCallExpr(n)
 	case *ast.CompositeLit:
@@ -381,6 +384,10 @@ func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
 	f.checkAssignStmt(stmt)
 	f.checkAtomicAssignment(stmt)
 	f.checkShadowAssignment(stmt)
+}
+
+func (f *File) walkBinaryExpr(expr *ast.BinaryExpr) {
+	f.checkNilFuncComparison(expr)
 }
 
 // walkCall walks a call expression.
