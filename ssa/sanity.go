@@ -329,7 +329,7 @@ func (s *sanity) checkFunction(fn *Function) bool {
 			strings.HasSuffix(fn.name, "Error") {
 			// wrapper for error.Error() has no package.
 		} else {
-			s.errorf("nil Pkg %q %q", fn.Synthetic, fn.name)
+			s.errorf("nil Pkg")
 		}
 	}
 	for i, l := range fn.Locals {

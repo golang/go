@@ -49,6 +49,8 @@ func relName(v Value, i Instruction) string {
 // when displaying receiver, params, locals, captures of a Function;
 // and in the RHS type column for Value-defining Instructions.
 //
+// TODO(adonovan): fix: unsafe.Pointer has no ssa.Package.
+//
 func relType(t types.Type, from *Package) string {
 	if from != nil {
 		t2 := t
@@ -418,17 +420,7 @@ func (p *Package) DumpTo(w io.Writer) {
 
 		case *Type:
 			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.Type().Underlying())
-			// Iterate over the keys of mset(*T) since they
-			// are a superset of mset(T)'s keys.
-			// The keys of a types.MethodSet are sorted (by Id).
-			mset := mem.Type().MethodSet()
-			pmset := types.NewPointer(mem.Type()).MethodSet()
-			for i, n := 0, pmset.Len(); i < n; i++ {
-				meth := pmset.At(i)
-				// If the method also exists in mset(T), show that instead.
-				if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
-					meth = m
-				}
+			for _, meth := range IntuitiveMethodSet(mem.Type()) {
 				fmt.Fprintf(w, "    %s\n", meth)
 			}
 
@@ -436,6 +428,39 @@ func (p *Package) DumpTo(w io.Writer) {
 			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type())
 		}
 	}
+
+	fmt.Fprintf(w, "\n")
+}
+
+// IntuitiveMethodSet returns the intuitive method set of a type, T.
+//
+// The result contains MethodSet(T) and additionally, if T is a
+// concrete type, methods belonging to *T if there is no similarly
+// named method on T itself.  This corresponds to user intuition about
+// method sets; this function is intended only for user interfaces.
+//
+// The order of the result is as for types.MethodSet(T).
+//
+// TODO(gri): move this to go/types?
+//
+func IntuitiveMethodSet(T types.Type) []*types.Selection {
+	var result []*types.Selection
+	mset := T.MethodSet()
+	if _, ok := T.Underlying().(*types.Interface); ok {
+		for i, n := 0, mset.Len(); i < n; i++ {
+			result = append(result, mset.At(i))
+		}
+	} else {
+		pmset := types.NewPointer(T).MethodSet()
+		for i, n := 0, pmset.Len(); i < n; i++ {
+			meth := pmset.At(i)
+			if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
+				meth = m
+			}
+			result = append(result, meth)
+		}
+	}
+	return result
 }
 
 func commaOk(x bool) string {

@@ -5,7 +5,7 @@ package ssa
 //
 // Wrappers include:
 // - indirection/promotion wrappers for methods of embedded fields.
-// - interface method wrappers for closures of I.f.
+// - interface method wrappers for expressions I.f.
 // - bound method wrappers, for uncalled obj.Method closures.
 
 // TODO(adonovan): rename to wrappers.go.
@@ -199,7 +199,7 @@ func createParams(fn *Function) {
 //
 // The wrapper is defined as if by:
 //
-//   func I.f(i I, x int, ...) R {
+//   func (i I) f(x int, ...) R {
 //     return i.f(x, ...)
 //   }
 //
@@ -220,14 +220,14 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Fun
 	// a problem, we should include 'typ' in the memoization key.
 	fn, ok := prog.ifaceMethodWrappers[obj]
 	if !ok {
-		description := fmt.Sprintf("interface method wrapper for (%s).%s", typ, obj.Name())
+		description := "interface method wrapper"
 		if prog.mode&LogSource != 0 {
-			defer logStack("%s", description)()
+			defer logStack("(%s).%s, %s", typ, obj.Name(), description)()
 		}
 		fn = &Function{
 			name:      obj.Name(),
 			object:    obj,
-			Signature: changeRecv(obj.Type().(*types.Signature), nil), // drop receiver
+			Signature: obj.Type().(*types.Signature),
 			Synthetic: description,
 			pos:       obj.Pos(),
 			Prog:      prog,

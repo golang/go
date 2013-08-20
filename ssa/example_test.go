@@ -63,7 +63,6 @@ func main() {
 
 	// Print out the package.
 	mainPkg.DumpTo(os.Stdout)
-	fmt.Println()
 
 	// Build SSA code for bodies of functions in mainPkg.
 	mainPkg.Build()
