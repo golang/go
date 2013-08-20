@@ -153,7 +153,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 // Close closes the File, rendering it unusable for I/O.
 // It returns an error, if any.
 func (file *File) Close() error {
-	if f == nil {
+	if file == nil {
 		return ErrInvalid
 	}
 	return file.file.close()
