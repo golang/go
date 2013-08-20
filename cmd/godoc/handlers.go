@@ -58,19 +58,21 @@ func readTemplate(name string) *template.Template {
 	return t
 }
 
-func readTemplates(p *godoc.Presentation) {
-	// have to delay until after flags processing since paths depend on goroot
-	codewalkHTML = readTemplate("codewalk.html")
-	codewalkdirHTML = readTemplate("codewalkdir.html")
-	p.DirlistHTML = readTemplate("dirlist.html")
-	p.ErrorHTML = readTemplate("error.html")
-	p.ExampleHTML = readTemplate("example.html")
-	p.GodocHTML = readTemplate("godoc.html")
-	p.PackageHTML = readTemplate("package.html")
+func readTemplates(p *godoc.Presentation, html bool) {
 	p.PackageText = readTemplate("package.txt")
-	p.SearchHTML = readTemplate("search.html")
 	p.SearchText = readTemplate("search.txt")
-	p.SearchDescXML = readTemplate("opensearch.xml")
+
+	if html {
+		codewalkHTML = readTemplate("codewalk.html")
+		codewalkdirHTML = readTemplate("codewalkdir.html")
+		p.DirlistHTML = readTemplate("dirlist.html")
+		p.ErrorHTML = readTemplate("error.html")
+		p.ExampleHTML = readTemplate("example.html")
+		p.GodocHTML = readTemplate("godoc.html")
+		p.PackageHTML = readTemplate("package.html")
+		p.SearchHTML = readTemplate("search.html")
+		p.SearchDescXML = readTemplate("opensearch.xml")
+	}
 }
 
 // Packages that were renamed between r60 and go1.

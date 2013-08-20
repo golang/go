@@ -239,7 +239,7 @@ func main() {
 		pres.NotesRx = regexp.MustCompile(*notesRx)
 	}
 
-	readTemplates(pres)
+	readTemplates(pres, httpMode || *urlFlag != "" || *html)
 	registerHandlers(pres)
 
 	if *writeIndex {

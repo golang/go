@@ -51,7 +51,7 @@ func init() {
 	pres.ShowExamples = true
 	pres.DeclLinks = true
 
-	readTemplates(pres)
+	readTemplates(pres, true)
 	registerHandlers(pres)
 
 	log.Println("godoc initialization complete")
