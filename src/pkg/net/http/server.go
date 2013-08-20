@@ -953,6 +953,15 @@ func (w *response) bodyAllowed() bool {
 // bufferBeforeChunkingSize smaller and having bufio's fast-paths deal
 // with this instead.
 func (w *response) Write(data []byte) (n int, err error) {
+	return w.write(len(data), data, "")
+}
+
+func (w *response) WriteString(data string) (n int, err error) {
+	return w.write(len(data), nil, data)
+}
+
+// either dataB or dataS is non-zero.
+func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
 	if w.conn.hijacked() {
 		log.Print("http: response.Write on hijacked connection")
 		return 0, ErrHijacked
@@ -960,18 +969,22 @@ func (w *response) Write(data []byte) (n int, err error) {
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
 	}
-	if len(data) == 0 {
+	if lenData == 0 {
 		return 0, nil
 	}
 	if !w.bodyAllowed() {
 		return 0, ErrBodyNotAllowed
 	}
 
-	w.written += int64(len(data)) // ignoring errors, for errorKludge
+	w.written += int64(lenData) // ignoring errors, for errorKludge
 	if w.contentLength != -1 && w.written > w.contentLength {
 		return 0, ErrContentLength
 	}
-	return w.w.Write(data)
+	if dataB != nil {
+		return w.w.Write(dataB)
+	} else {
+		return w.w.WriteString(dataS)
+	}
 }
 
 func (w *response) finishRequest() {
