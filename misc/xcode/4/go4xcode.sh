@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# Illustrates how a Go language specification can be installed for Xcode 4.x.,
+# Illustrates how a Go language specification can be installed for Xcode 4+,
 # to enable syntax coloring, by adding an entry to a plugindata file.
 #
 # FIXME: Write a decent Xcode plugin to handle the file type association and
@@ -14,21 +14,33 @@ set -e
 # Assumes Xcode 4+.
 XCODE_MAJOR_VERSION=`xcodebuild -version | awk 'NR == 1 {print substr($2,1,1)}'`
 if [ "$XCODE_MAJOR_VERSION" -lt "4" ]; then
-	echo "Xcode 4.x not found."
+	echo "Xcode 4+ not found."
 	exit 1
 fi
 
-# DVTFOUNDATION_DIR may vary depending on Xcode setup. Change it to reflect
-# your current Xcode setup. Find suitable path with e.g.:
+# DVTFOUNDATION_DIR may vary depending on Xcode setup. If Xcode has installed
+# the `xcode-select` command, it will be determined automatically. Otherwise,
+# change it to reflect your current Xcode setup. Find suitable path with e.g.:
 #
 #	find / -type f -name 'DVTFoundation.xcplugindata' 2> /dev/null
 #
-# Example of DVTFOUNDATION_DIR's from "default" Xcode 4.x setups;
+# Example of DVTFOUNDATION_DIR's from "default" Xcode 4+ setups;
 #
 #	Xcode 4.1: /Developer/Library/PrivateFrameworks/DVTFoundation.framework/Versions/A/Resources/
 #	Xcode 4.3: /Applications/Xcode.app/Contents/SharedFrameworks/DVTFoundation.framework/Versions/A/Resources/
-#
+
+# Defaults to Xcode 4.3's DVTFOUNDATION_DIR. Path is modified automatically if
+# `xcode-select` command is available, as mentioned above.
 DVTFOUNDATION_DIR="/Applications/Xcode.app/Contents/SharedFrameworks/DVTFoundation.framework/Versions/A/Resources/"
+
+if type "xcode-select" > /dev/null; then
+    DVTFOUNDATION_DIR=`xcode-select --print-path`
+    DVTFOUNDATION_DIR+="/.."
+    FRAMEWORK_NAME="DVTFoundation.framework"    
+    DVTFOUNDATION_DIR=`find $DVTFOUNDATION_DIR -name $FRAMEWORK_NAME -print`
+    DVTFOUNDATION_DIR+="/Versions/A/Resources"
+fi
+
 PLUGINDATA_FILE="DVTFoundation.xcplugindata"
 
 PLISTBUDDY=/usr/libexec/PlistBuddy
@@ -84,7 +96,7 @@ GO_LANG_ENTRY="
 	</plist>
 "
 
-echo "Backing up plugindata file."
+echo "Backing up plugindata file (copied to $PLUGINDATA_FILE.bak)."
 cp $DVTFOUNDATION_DIR/$PLUGINDATA_FILE $DVTFOUNDATION_DIR/$PLUGINDATA_FILE.bak
 
 echo "Adding Go language specification entry."
