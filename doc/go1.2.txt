@@ -53,7 +53,6 @@ image/draw: added Drawer, FloydSteinberg and the op.Draw method (CL 10977043).
 image/draw: added Quantizer type (CL 11148043).
 image/gif: added Encode and EncodeAll (CL 10896043).
 io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
-ioutil: add WriteString to Discard (CL 12580045).
 net: new build tag netgo for building a pure Go net package (CL 7100050).
 net/http: don't allow sending invalid cookie lines (CL 12204043).
 net/http: allow ReadResponse with nil *Request parameter (CL 9821043).
