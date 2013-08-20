@@ -83,9 +83,9 @@ func (fi headerFileInfo) Sys() interface{}   { return fi.h }
 // Name returns the base name of the file.
 func (fi headerFileInfo) Name() string {
 	if fi.IsDir() {
-		return path.Clean(fi.h.Name)
+		return path.Base(path.Clean(fi.h.Name))
 	}
-	return fi.h.Name
+	return path.Base(fi.h.Name)
 }
 
 // Mode returns the permission and mode bits for the headerFileInfo.
@@ -195,6 +195,9 @@ const (
 // FileInfoHeader creates a partially-populated Header from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
 // If fi describes a directory, a slash is appended to the name.
+// Because os.FileInfo's Name method returns only the base name of
+// the file it describes, it may be necessary to modify the Name field
+// of the returned header to provide the full path name of the file.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("tar: FileInfo is nil")

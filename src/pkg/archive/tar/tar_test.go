@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -249,7 +251,14 @@ func TestHeaderRoundTrip(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		if got, want := h2.Name, g.h.Name; got != want {
+		if strings.Contains(fi.Name(), "/") {
+			t.Errorf("FileInfo of %q contains slash: %q", g.h.Name, fi.Name())
+		}
+		name := path.Base(g.h.Name)
+		if fi.IsDir() {
+			name += "/"
+		}
+		if got, want := h2.Name, name; got != want {
 			t.Errorf("i=%d: Name: got %v, want %v", i, got, want)
 		}
 		if got, want := h2.Size, g.h.Size; got != want {
