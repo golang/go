@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd,amd64 freebsd,386 netbsd openbsd
+// +build darwin freebsd netbsd openbsd
 
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"

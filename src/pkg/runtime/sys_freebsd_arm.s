@@ -269,6 +269,36 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVW.CS R8, (R8)
 	RET
 
+// int32 runtime·kqueue(void)
+TEXT runtime·kqueue(SB),NOSPLIT,$0
+	SWI $362	// sys_kqueue
+	RSB.CS $0, R0
+	RET
+
+// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+TEXT runtime·kevent(SB),NOSPLIT,$8
+	MOVW 0(FP), R0	// kq
+	MOVW 4(FP), R1	// changelist
+	MOVW 8(FP), R2	// nchanges
+	MOVW 12(FP), R3	// eventlist
+	MOVW 16(FP), R4	// nevents
+	MOVW R4, 4(R13)
+	MOVW 20(FP), R4	// timeout
+	MOVW R4, 8(R13)
+	ADD $4, R13	// pass arg 5 and 6 on stack
+	SWI $363	// sys_kevent
+	RSB.CS $0, R0
+	SUB $4, R13
+	RET
+
+// void runtime·closeonexec(int32 fd)
+TEXT runtime·closeonexec(SB),NOSPLIT,$0
+	MOVW 0(FP), R0	// fd
+	MOVW $2, R1	// F_SETFD
+	MOVW $1, R2	// FD_CLOEXEC
+	SWI $92		// sys_fcntl
+	RET
+
 TEXT runtime·casp(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
