@@ -5,5 +5,6 @@ pkg syscall (darwin-amd64), func Fchflags(string, int) error
 pkg syscall (darwin-amd64-cgo), func Fchflags(string, int) error
 pkg syscall (freebsd-386), func Fchflags(string, int) error
 pkg syscall (freebsd-amd64), func Fchflags(string, int) error
+pkg testing, func RegisterCover(Cover)
 pkg text/template/parse, type DotNode bool
 pkg text/template/parse, type Node interface { Copy, String, Type }
