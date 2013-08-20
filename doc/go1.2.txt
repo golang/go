@@ -14,6 +14,9 @@ crypto/des: 5x faster encoding/decoding (CL 11874043, 12072045).
 encoding/json: faster encoding (CL 9129044).
 net: improve windows performance by up to 30% (CL 8670044).
 
+Breaking change:
+archive/tar,archive/zip: fix os.FileInfo implementation to provide base name only (CL 13118043).
+
 cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
