@@ -12,6 +12,9 @@ import (
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
 func (file *File) Stat() (fi FileInfo, err error) {
+	if file == nil {
+		return nil, ErrInvalid
+	}
 	if file == nil || file.fd < 0 {
 		return nil, syscall.EINVAL
 	}

@@ -174,6 +174,9 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+	if f == nil {
+		return 0, ErrInvalid
+	}
 	r, e := f.seek(offset, whence)
 	if e == nil && f.dirinfo != nil && r != 0 {
 		e = syscall.EISDIR
@@ -216,6 +219,9 @@ func Chdir(dir string) error {
 // which must be a directory.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chdir() error {
+	if f == nil {
+		return ErrInvalid
+	}
 	if e := syscall.Fchdir(f.fd); e != nil {
 		return &PathError{"chdir", f.name, e}
 	}
