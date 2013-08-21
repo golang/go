@@ -35,10 +35,14 @@ func TestRepoRootForImportPath(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, _ := RepoRootForImportPath(test.path, false)
+		got, err := RepoRootForImportPath(test.path, false)
+		if err != nil {
+			t.Errorf("RepoRootForImport(%q): %v", test.path, err)
+			continue
+		}
 		want := test.want
 		if got.VCS.Name != want.VCS.Name || got.Repo != want.Repo {
-			t.Errorf("RepoRootForImport(%s) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.VCS, got.Repo, want.VCS, want.Repo)
+			t.Errorf("RepoRootForImport(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.VCS, got.Repo, want.VCS, want.Repo)
 		}
 	}
 }
@@ -68,7 +72,7 @@ func TestFromDir(t *testing.T) {
 		os.MkdirAll(test.path, 0755)
 		got, _, _ := FromDir(test.path, tempDir)
 		if got.Name != test.want.Name {
-			t.Errorf("FromDir(%s, %s) = %s, want %s", got, test.want)
+			t.Errorf("FromDir(%q, %q) = %s, want %s", test.path, tempDir, got, test.want)
 		}
 		os.RemoveAll(test.path)
 	}
