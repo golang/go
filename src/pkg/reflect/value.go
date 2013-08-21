@@ -2298,7 +2298,7 @@ func makeInt(f flag, bits uint64, t Type) Value {
 		// Assume ptrSize >= 4, so this must be uint64.
 		ptr := unsafe_New(typ)
 		*(*uint64)(unsafe.Pointer(ptr)) = bits
-		return Value{typ, ptr, f | flag(typ.Kind())<<flagKindShift}
+		return Value{typ, ptr, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 	}
 	var w iword
 	switch typ.size {
@@ -2322,7 +2322,7 @@ func makeFloat(f flag, v float64, t Type) Value {
 		// Assume ptrSize >= 4, so this must be float64.
 		ptr := unsafe_New(typ)
 		*(*float64)(unsafe.Pointer(ptr)) = v
-		return Value{typ, ptr, f | flag(typ.Kind())<<flagKindShift}
+		return Value{typ, ptr, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 	}
 
 	var w iword
@@ -2347,7 +2347,7 @@ func makeComplex(f flag, v complex128, t Type) Value {
 		case 16:
 			*(*complex128)(unsafe.Pointer(ptr)) = v
 		}
-		return Value{typ, ptr, f | flag(typ.Kind())<<flagKindShift}
+		return Value{typ, ptr, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 	}
 
 	// Assume ptrSize <= 8 so this must be complex64.
