@@ -69,6 +69,7 @@ sync/atomic: add Swap functions (CL 12670045).
 syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10980043).
 testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
 testing: add TB interface (intersection of T and B's methods) (CL 12962043).
+text/template: add comparison functions (CL 13091045).
 time: Allow Parse and Format to handle time zone offsets with seconds (CL 8132044)
 time: patterns require non-lowercase letter to follow Mon, Jan etc (CL 12448044).
 unicode: add In, a nicer-to-use but equivalent version of IsOneOf (CL 11672044).
