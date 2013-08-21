@@ -6,6 +6,7 @@ package template
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -35,6 +36,14 @@ var builtins = FuncMap{
 	"printf":   fmt.Sprintf,
 	"println":  fmt.Sprintln,
 	"urlquery": URLQueryEscaper,
+
+	// Comparisons
+	"eq": eq, // ==
+	"ge": ge, // >=
+	"gt": gt, // >
+	"le": le, // <=
+	"lt": lt, // <
+	"ne": ne, // !=
 }
 
 var builtinFuncs = createValueFuncs(builtins)
@@ -246,6 +255,151 @@ func or(arg0 interface{}, args ...interface{}) interface{} {
 func not(arg interface{}) (truth bool) {
 	truth, _ = isTrue(reflect.ValueOf(arg))
 	return !truth
+}
+
+// Comparison.
+
+// TODO: Perhaps allow comparison between signed and unsigned integers.
+
+var (
+	errBadComparisonType = errors.New("invalid type for comparison")
+	errBadComparison     = errors.New("incompatible types for comparison")
+)
+
+type kind int
+
+const (
+	invalidKind kind = iota
+	boolKind
+	complexKind
+	intKind
+	floatKind
+	integerKind
+	stringKind
+	uintKind
+)
+
+func basicKind(v reflect.Value) (kind, error) {
+	switch v.Kind() {
+	case reflect.Bool:
+		return boolKind, nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return intKind, nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return uintKind, nil
+	case reflect.Float32, reflect.Float64:
+		return floatKind, nil
+	case reflect.Complex64, reflect.Complex128:
+		return complexKind, nil
+	case reflect.String:
+		return stringKind, nil
+	}
+	return invalidKind, errBadComparisonType
+}
+
+// eq evaluates the comparison a == b.
+func eq(arg1, arg2 interface{}) (bool, error) {
+	v1 := reflect.ValueOf(arg1)
+	k1, err := basicKind(v1)
+	if err != nil {
+		return false, err
+	}
+	v2 := reflect.ValueOf(arg2)
+	k2, err := basicKind(v2)
+	if err != nil {
+		return false, err
+	}
+	if k1 != k2 {
+		return false, errBadComparison
+	}
+	truth := false
+	switch k1 {
+	case boolKind:
+		truth = v1.Bool() == v2.Bool()
+	case complexKind:
+		truth = v1.Complex() == v2.Complex()
+	case floatKind:
+		truth = v1.Float() == v2.Float()
+	case intKind:
+		truth = v1.Int() == v2.Int()
+	case stringKind:
+		truth = v1.String() == v2.String()
+	case uintKind:
+		truth = v1.Uint() == v2.Uint()
+	default:
+		panic("invalid kind")
+	}
+	return truth, nil
+}
+
+// ne evaluates the comparison a != b.
+func ne(arg1, arg2 interface{}) (bool, error) {
+	// != is the inverse of ==.
+	equal, err := eq(arg1, arg2)
+	return !equal, err
+}
+
+// lt evaluates the comparison a < b.
+func lt(arg1, arg2 interface{}) (bool, error) {
+	v1 := reflect.ValueOf(arg1)
+	k1, err := basicKind(v1)
+	if err != nil {
+		return false, err
+	}
+	v2 := reflect.ValueOf(arg2)
+	k2, err := basicKind(v2)
+	if err != nil {
+		return false, err
+	}
+	if k1 != k2 {
+		return false, errBadComparison
+	}
+	truth := false
+	switch k1 {
+	case boolKind, complexKind:
+		return false, errBadComparisonType
+	case floatKind:
+		truth = v1.Float() < v2.Float()
+	case intKind:
+		truth = v1.Int() < v2.Int()
+	case stringKind:
+		truth = v1.String() < v2.String()
+	case uintKind:
+		truth = v1.Uint() < v2.Uint()
+	default:
+		panic("invalid kind")
+	}
+	return truth, nil
+}
+
+// le evaluates the comparison <= b.
+func le(arg1, arg2 interface{}) (bool, error) {
+	// <= is < or ==.
+	lessThan, err := lt(arg1, arg2)
+	if lessThan || err != nil {
+		return lessThan, err
+	}
+	return eq(arg1, arg2)
+}
+
+// gt evaluates the comparison a > b.
+func gt(arg1, arg2 interface{}) (bool, error) {
+	// > is the inverse of <=.
+	lessOrEqual, err := le(arg1, arg2)
+	if err != nil {
+		return false, err
+	}
+	return !lessOrEqual, nil
+}
+
+// ge evaluates the comparison a >= b.
+func ge(arg1, arg2 interface{}) (bool, error) {
+	// >= is the inverse of <.
+	lessThan, err := lt(arg1, arg2)
+	if err != nil {
+		return false, err
+	}
+	return !lessThan, nil
 }
 
 // HTML escaping.

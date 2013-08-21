@@ -301,8 +301,32 @@ Predefined global functions are named as follows.
 		Returns the escaped value of the textual representation of
 		its arguments in a form suitable for embedding in a URL query.
 
-The boolean functions take any zero value to be false and a non-zero value to
-be true.
+The boolean functions take any zero value to be false and a non-zero
+value to be true.
+
+There is also a set of binary comparison operators defined as
+functions:
+
+	eq
+		Returns the boolean truth of arg1 == arg2
+	ne
+		Returns the boolean truth of arg1 != arg2
+	lt
+		Returns the boolean truth of arg1 < arg2
+	le
+		Returns the boolean truth of arg1 <= arg2
+	gt
+		Returns the boolean truth of arg1 > arg2
+	ge
+		Returns the boolean truth of arg1 >= arg2
+
+These functions work on basic types only (or named basic types,
+such as "type Celsius float32"). They implement the Go rules for
+comparison of values, except that size and exact type are ignored,
+so any integer value may be compared with any other integer value,
+any unsigned integer value may be compared with any other unsigned
+integer value, and so on. However, as usual, one may not compare
+an int with a float32 and so on.
 
 Associated templates
 

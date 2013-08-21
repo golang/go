@@ -863,3 +863,110 @@ func TestMessageForExecuteEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type cmpTest struct {
+	expr  string
+	truth string
+	ok    bool
+}
+
+var cmpTests = []cmpTest{
+	{"eq true true", "true", true},
+	{"eq true false", "false", true},
+	{"eq 1+2i 1+2i", "true", true},
+	{"eq 1+2i 1+3i", "false", true},
+	{"eq 1.5 1.5", "true", true},
+	{"eq 1.5 2.5", "false", true},
+	{"eq 1 1", "true", true},
+	{"eq 1 2", "false", true},
+	{"eq `xy` `xy`", "true", true},
+	{"eq `xy` `xyz`", "false", true},
+	{"eq .Xuint .Xuint", "true", true},
+	{"eq .Xuint .Yuint", "false", true},
+	{"ne true true", "false", true},
+	{"ne true false", "true", true},
+	{"ne 1+2i 1+2i", "false", true},
+	{"ne 1+2i 1+3i", "true", true},
+	{"ne 1.5 1.5", "false", true},
+	{"ne 1.5 2.5", "true", true},
+	{"ne 1 1", "false", true},
+	{"ne 1 2", "true", true},
+	{"ne `xy` `xy`", "false", true},
+	{"ne `xy` `xyz`", "true", true},
+	{"ne .Xuint .Xuint", "false", true},
+	{"ne .Xuint .Yuint", "true", true},
+	{"lt 1.5 1.5", "false", true},
+	{"lt 1.5 2.5", "true", true},
+	{"lt 1 1", "false", true},
+	{"lt 1 2", "true", true},
+	{"lt `xy` `xy`", "false", true},
+	{"lt `xy` `xyz`", "true", true},
+	{"lt .Xuint .Xuint", "false", true},
+	{"lt .Xuint .Yuint", "true", true},
+	{"le 1.5 1.5", "true", true},
+	{"le 1.5 2.5", "true", true},
+	{"le 2.5 1.5", "false", true},
+	{"le 1 1", "true", true},
+	{"le 1 2", "true", true},
+	{"le 2 1", "false", true},
+	{"le `xy` `xy`", "true", true},
+	{"le `xy` `xyz`", "true", true},
+	{"le `xyz` `xy`", "false", true},
+	{"le .Xuint .Xuint", "true", true},
+	{"le .Xuint .Yuint", "true", true},
+	{"le .Yuint .Xuint", "false", true},
+	{"gt 1.5 1.5", "false", true},
+	{"gt 1.5 2.5", "false", true},
+	{"gt 1 1", "false", true},
+	{"gt 2 1", "true", true},
+	{"gt 1 2", "false", true},
+	{"gt `xy` `xy`", "false", true},
+	{"gt `xy` `xyz`", "false", true},
+	{"gt .Xuint .Xuint", "false", true},
+	{"gt .Xuint .Yuint", "false", true},
+	{"gt .Yuint .Xuint", "true", true},
+	{"ge 1.5 1.5", "true", true},
+	{"ge 1.5 2.5", "false", true},
+	{"ge 2.5 1.5", "true", true},
+	{"ge 1 1", "true", true},
+	{"ge 1 2", "false", true},
+	{"ge 2 1", "true", true},
+	{"ge `xy` `xy`", "true", true},
+	{"ge `xy` `xyz`", "false", true},
+	{"ge `xyz` `xy`", "true", true},
+	{"ge .Xuint .Xuint", "true", true},
+	{"ge .Xuint .Yuint", "false", true},
+	{"ge .Yuint .Xuint", "true", true},
+	// Errors
+	{"eq 3 4 5", "", false},     // Too many arguments.
+	{"eq `xy` 1", "", false},    // Different types.
+	{"lt true true", "", false}, // Unordered types.
+	{"lt 1+0i 1+0i", "", false}, // Unordered types.
+}
+
+func TestComparison(t *testing.T) {
+	b := new(bytes.Buffer)
+	var cmpStruct = struct {
+		Xuint, Yuint uint
+	}{3, 4}
+	for _, test := range cmpTests {
+		text := fmt.Sprintf("{{if %s}}true{{else}}false{{end}}", test.expr)
+		tmpl, err := New("empty").Parse(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b.Reset()
+		err = tmpl.Execute(b, &cmpStruct)
+		if test.ok && err != nil {
+			t.Errorf("%s errored incorrectly: %s", test.expr, err)
+			continue
+		}
+		if !test.ok && err == nil {
+			t.Errorf("%s did not error")
+			continue
+		}
+		if b.String() != test.truth {
+			t.Errorf("%s: want %s; got %s", test.expr, test.truth, b.String())
+		}
+	}
+}
