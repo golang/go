@@ -453,6 +453,9 @@ func TestTCPConcurrentAccept(t *testing.T) {
 }
 
 func TestTCPReadWriteMallocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	maxMallocs := 10000
 	switch runtime.GOOS {
 	// Add other OSes if you know how many mallocs they do.

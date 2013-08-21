@@ -72,7 +72,12 @@ func TestClean(t *testing.T) {
 			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
 		}
 	}
+}
 
+func TestCleanMallocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	if runtime.GOMAXPROCS(0) > 1 {
 		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
 		return

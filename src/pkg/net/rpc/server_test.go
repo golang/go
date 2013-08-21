@@ -503,6 +503,9 @@ func countMallocs(dial func() (*Client, error), t *testing.T) float64 {
 }
 
 func TestCountMallocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	if runtime.GOMAXPROCS(0) > 1 {
 		t.Skip("skipping; GOMAXPROCS>1")
 	}
@@ -510,6 +513,9 @@ func TestCountMallocs(t *testing.T) {
 }
 
 func TestCountMallocsOverHTTP(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	if runtime.GOMAXPROCS(0) > 1 {
 		t.Skip("skipping; GOMAXPROCS>1")
 	}

@@ -2287,6 +2287,9 @@ func TestAddr(t *testing.T) {
 }
 
 func noAlloc(t *testing.T, n int, f func(int)) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	if runtime.GOMAXPROCS(0) > 1 {
 		t.Skip("skipping; GOMAXPROCS>1")
 	}
@@ -3433,6 +3436,9 @@ func BenchmarkInterfaceBig(b *testing.B) {
 }
 
 func TestAllocsInterfaceBig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	v := ValueOf(S{})
 	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
 		t.Errorf("allocs:", allocs)
@@ -3447,6 +3453,9 @@ func BenchmarkInterfaceSmall(b *testing.B) {
 }
 
 func TestAllocsInterfaceSmall(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
 	v := ValueOf(int64(0))
 	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
 		t.Errorf("allocs:", allocs)
