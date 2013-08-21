@@ -4,8 +4,6 @@
 
 package testdata
 
-import "os"
-
 func F() {}
 
 type T struct {

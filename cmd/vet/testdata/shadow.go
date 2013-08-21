@@ -14,11 +14,12 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 	var x int
 	if f != nil {
 		err := 3 // OK - different type.
+		_ = err
 	}
 	if f != nil {
 		_, err := f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
 		if err != nil {
-			return
+			return err
 		}
 		i := 3 // OK
 		_ = i
@@ -26,7 +27,7 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 	if f != nil {
 		var _, err = f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
 		if err != nil {
-			return
+			return err
 		}
 	}
 	for i := 0; i < 10; i++ {
@@ -39,14 +40,13 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 	switch shadowTemp := shadowTemp.(type) { // OK: obviously intentional idiomatic redeclaration
 	case int:
 		println("OK")
+		_ = shadowTemp
 	}
-	var shadowTemp = shadowTemp // OK: obviously intentional idiomatic redeclaration
-	if true {
+	if shadowTemp := shadowTemp; true { // OK: obviously intentional idiomatic redeclaration
 		var f *os.File // OK because f is not mentioned later in the function.
 		// The declaration of x is a shadow because x is mentioned below.
 		var x int // ERROR "declaration of x shadows declaration at testdata/shadow.go:14"
-		_ = x
-		f = nil
+		_, _, _ = x, f, shadowTemp
 	}
 	// Use a couple of variables to trigger shadowing errors.
 	_, _ = err, x
