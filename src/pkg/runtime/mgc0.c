@@ -1614,12 +1614,7 @@ addroots(void)
 		case Gdead:
 			break;
 		case Grunning:
-			if(gp != m->curg)
-				runtime·throw("mark - world not stopped");
-			if(g != m->g0)
-				runtime·throw("gc not on g0");
-			addstackroots(gp);
-			break;
+			runtime·throw("mark - world not stopped");
 		case Grunnable:
 		case Gsyscall:
 		case Gwaiting:
@@ -2046,7 +2041,7 @@ runtime·gc(int32 force)
 	// problems, don't bother trying to run gc
 	// while holding a lock.  The next mallocgc
 	// without a lock will do the gc instead.
-	if(!mstats.enablegc || m->locks > 0 || runtime·panicking)
+	if(!mstats.enablegc || g == m->g0 || m->locks > 0 || runtime·panicking)
 		return;
 
 	if(gcpercent == GcpercentUnknown) {	// first time through
@@ -2077,16 +2072,11 @@ runtime·gc(int32 force)
 	// we don't need to scan gc's internal state).  Also an
 	// enabler for copyable stacks.
 	for(i = 0; i < (runtime·debug.gctrace > 1 ? 2 : 1); i++) {
-		if(g == m->g0) {
-			// already on g0
-			gc(&a);
-		} else {
-			// switch to g0, call gc(&a), then switch back
-			g->param = &a;
-			g->status = Gwaiting;
-			g->waitreason = "garbage collection";
-			runtime·mcall(mgc);
-		}
+		// switch to g0, call gc(&a), then switch back
+		g->param = &a;
+		g->status = Gwaiting;
+		g->waitreason = "garbage collection";
+		runtime·mcall(mgc);
 		// record a new start time in case we're going around again
 		a.start_time = runtime·nanotime();
 	}
@@ -2110,11 +2100,8 @@ runtime·gc(int32 force)
 		}
 		runtime·unlock(&finlock);
 	}
-	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
-		g->stackguard0 = StackPreempt;
 	// give the queued finalizers, if any, a chance to run
-	if(g != m->g0)
-		runtime·gosched();
+	runtime·gosched();
 }
 
 static void
