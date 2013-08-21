@@ -1,8 +1,8 @@
 // DO NOT EDIT ** This file was generated with the bake tool ** DO NOT EDIT //
 
-package main
+package static
 
-var bakedFiles = map[string]string{
+var Files = map[string]string{
 	"codewalk.html": `<!--
 	Copyright 2010 The Go Authors. All rights reserved.
 	Use of this source code is governed by a BSD-style

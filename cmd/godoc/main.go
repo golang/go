@@ -49,6 +49,7 @@ import (
 	"strings"
 
 	"code.google.com/p/go.tools/godoc"
+	"code.google.com/p/go.tools/godoc/static"
 	"code.google.com/p/go.tools/godoc/vfs"
 	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"code.google.com/p/go.tools/godoc/vfs/zipfs"
@@ -197,7 +198,7 @@ func main() {
 		if *templateDir != "" {
 			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
 		} else {
-			fs.Bind("/lib/godoc", mapfs.New(bakedFiles), "/", vfs.BindReplace)
+			fs.Bind("/lib/godoc", mapfs.New(static.Files), "/", vfs.BindReplace)
 		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
