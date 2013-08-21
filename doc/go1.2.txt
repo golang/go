@@ -13,6 +13,7 @@ compress/bzip2: faster decompression by 30% (CL 9915043).
 crypto/des: 5x faster encoding/decoding (CL 11874043, 12072045).
 encoding/json: faster encoding (CL 9129044).
 net: improve windows performance by up to 30% (CL 8670044).
+net: improve performance on BSD by up to 30% (CL 8264043, 12927048, 13080043).
 
 Breaking change:
 archive/tar,archive/zip: fix os.FileInfo implementation to provide base name only (CL 13118043).
