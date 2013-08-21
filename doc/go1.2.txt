@@ -20,6 +20,7 @@ archive/tar,archive/zip: fix os.FileInfo implementation to provide base name onl
 
 cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
 cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
+cmd/5l: support for external linking for linux/arm (CL 12871044).
 cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
 cmd/gc: three-index slicing to set cap as well as length (CL 10743046).
 cmd/gc: make missing package error fatal (CL 12677043).
