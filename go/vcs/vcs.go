@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -36,6 +37,8 @@ type Cmd struct {
 	TagLookupCmd   []TagCmd // commands to lookup tags before running tagSyncCmd
 	TagSyncCmd     string   // command to sync to specific tag
 	TagSyncDefault string   // command to sync to default tag
+
+	LogCmd string // command to list repository changelogs in an XML format
 
 	Scheme  []string
 	PingCmd string
@@ -86,6 +89,8 @@ var vcsHg = &Cmd{
 	},
 	TagSyncCmd:     "update -r {tag}",
 	TagSyncDefault: "update default",
+
+	LogCmd: "log --encoding=utf-8 --limit={limit} --template={template}",
 
 	Scheme:  []string{"https", "http", "ssh"},
 	PingCmd: "identify {scheme}://{repo}",
@@ -143,6 +148,8 @@ var vcsSvn = &Cmd{
 
 	// There is no tag command in subversion.
 	// The branch information is all in the path names.
+
+	LogCmd: "log --xml --limit={limit}",
 
 	Scheme:  []string{"https", "http", "svn", "svn+ssh"},
 	PingCmd: "info {scheme}://{repo}",
@@ -216,7 +223,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 	return out, nil
 }
 
-// Ping pings the repo to determine if scheme used if valid.
+// Ping pings the repo to determine if scheme used is valid.
 // This repo must be pingable with this scheme and VCS.
 func (v *Cmd) Ping(scheme, repo string) error {
 	return v.runVerboseOnly(".", v.PingCmd, "scheme", scheme, "repo", repo)
@@ -226,6 +233,15 @@ func (v *Cmd) Ping(scheme, repo string) error {
 // The parent of dir must exist; dir must not.
 func (v *Cmd) Create(dir, repo string) error {
 	return v.run(".", v.CreateCmd, "dir", dir, "repo", repo)
+}
+
+// CreateAtRev creates a new copy of repo in dir at revision rev.
+// The parent of dir must exist; dir must not.
+// rev must be a valid revision in repo.
+func (v *Cmd) CreateAtRev(dir, repo, rev string) error {
+	// Append revision flag to CreateCmd
+	createAtRevCmd := v.CreateCmd + " --rev=" + rev
+	return v.run(".", createAtRevCmd, "dir", dir, "repo", repo)
 }
 
 // Download downloads any new changes for the repo in dir.
@@ -276,6 +292,30 @@ func (v *Cmd) TagSync(dir, tag string) error {
 		return v.run(dir, v.TagSyncDefault)
 	}
 	return v.run(dir, v.TagSyncCmd, "tag", tag)
+}
+
+// Log logs the changes for the repo in dir.
+// dir must be a valid VCS repo compatible with v.
+func (v *Cmd) Log(dir, logTemplate string) ([]byte, error) {
+	if err := v.Download(dir); err != nil {
+		return []byte{}, err
+	}
+
+	const N = 50 // how many revisions to grab
+	return v.runOutput(dir, v.LogCmd, "limit", strconv.Itoa(N), "template", logTemplate)
+}
+
+// LogAtRev logs the change for repo in dir at the rev revision.
+// dir must be a valid VCS repo compatible with v.
+// rev must be a valid revision for the repo in dir.
+func (v *Cmd) LogAtRev(dir, rev, logTemplate string) ([]byte, error) {
+	if err := v.Download(dir); err != nil {
+		return []byte{}, err
+	}
+
+	// Append revision flag to LogCmd.
+	logAtRevCmd := v.LogCmd + " --rev=" + rev
+	return v.runOutput(dir, logAtRevCmd, "limit", strconv.Itoa(1), "template", logTemplate)
 }
 
 // A vcsPath describes how to convert an import path into a
