@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	. "time"
@@ -68,33 +69,94 @@ func TestAfterStress(t *testing.T) {
 	atomic.StoreUint32(&stop, 1)
 }
 
-func BenchmarkAfterFunc(b *testing.B) {
-	i := b.N
-	c := make(chan bool)
-	var f func()
-	f = func() {
-		i--
-		if i >= 0 {
-			AfterFunc(0, f)
-		} else {
-			c <- true
-		}
+func benchmark(b *testing.B, bench func(n int)) {
+	garbage := make([]*Timer, 1<<17)
+	for i := 0; i < len(garbage); i++ {
+		garbage[i] = AfterFunc(Hour, nil)
 	}
 
-	AfterFunc(0, f)
-	<-c
+	const batch = 1000
+	P := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / batch)
+
+	b.ResetTimer()
+
+	var wg sync.WaitGroup
+	wg.Add(P)
+
+	for p := 0; p < P; p++ {
+		go func() {
+			for atomic.AddInt32(&N, -1) >= 0 {
+				bench(batch)
+			}
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	b.StopTimer()
+	for i := 0; i < len(garbage); i++ {
+		garbage[i].Stop()
+	}
+}
+
+func BenchmarkAfterFunc(b *testing.B) {
+	benchmark(b, func(n int) {
+		c := make(chan bool)
+		var f func()
+		f = func() {
+			n--
+			if n >= 0 {
+				AfterFunc(0, f)
+			} else {
+				c <- true
+			}
+		}
+
+		AfterFunc(0, f)
+		<-c
+	})
 }
 
 func BenchmarkAfter(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		<-After(1)
-	}
+	benchmark(b, func(n int) {
+		for i := 0; i < n; i++ {
+			<-After(1)
+		}
+	})
 }
 
 func BenchmarkStop(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		NewTimer(1 * Second).Stop()
-	}
+	benchmark(b, func(n int) {
+		for i := 0; i < n; i++ {
+			NewTimer(1 * Second).Stop()
+		}
+	})
+}
+
+func BenchmarkSimultaneousAfterFunc(b *testing.B) {
+	benchmark(b, func(n int) {
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			AfterFunc(0, wg.Done)
+		}
+		wg.Wait()
+	})
+}
+
+func BenchmarkStartStop(b *testing.B) {
+	benchmark(b, func(n int) {
+		timers := make([]*Timer, n)
+		for i := 0; i < n; i++ {
+			timers[i] = AfterFunc(Hour, nil)
+		}
+
+		for i := 0; i < n; i++ {
+			timers[i].Stop()
+		}
+	})
 }
 
 func TestAfter(t *testing.T) {

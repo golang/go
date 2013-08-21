@@ -225,18 +225,20 @@ static void
 siftup(int32 i)
 {
 	int32 p;
+	int64 when;
 	Timer **t, *tmp;
 
 	t = timers.t;
+	when = t[i]->when;
+	tmp = t[i];
 	while(i > 0) {
-		p = (i-1)/2;  // parent
-		if(t[i]->when >= t[p]->when)
+		p = (i-1)/4;  // parent
+		if(when >= t[p]->when)
 			break;
-		tmp = t[i];
 		t[i] = t[p];
-		t[p] = tmp;
 		t[i]->i = i;
-		t[p]->i = p;
+		t[p] = tmp;
+		tmp->i = p;
 		i = p;
 	}
 }
@@ -244,25 +246,42 @@ siftup(int32 i)
 static void
 siftdown(int32 i)
 {
-	int32 c, len;
+	int32 c, c3, len;
+	int64 when, w, w3;
 	Timer **t, *tmp;
 
 	t = timers.t;
 	len = timers.len;
+	when = t[i]->when;
+	tmp = t[i];
 	for(;;) {
-		c = i*2 + 1;  // left child
+		c = i*4 + 1;  // left child
+		c3 = c + 2;  // mid child
 		if(c >= len) {
 			break;
 		}
-		if(c+1 < len && t[c+1]->when < t[c]->when)
+		w = t[c]->when;
+		if(c+1 < len && t[c+1]->when < w) {
+			w = t[c+1]->when;
 			c++;
-		if(t[c]->when >= t[i]->when)
+		}
+		if(c3 < len) {
+			w3 = t[c3]->when;
+			if(c3+1 < len && t[c3+1]->when < w3) {
+				w3 = t[c3+1]->when;
+				c3++;
+			}
+			if(w3 < w) {
+				w = w3;
+				c = c3;
+			}
+		}
+		if(w >= when)
 			break;
-		tmp = t[i];
 		t[i] = t[c];
-		t[c] = tmp;
 		t[i]->i = i;
-		t[c]->i = c;
+		t[c] = tmp;
+		tmp->i = c;
 		i = c;
 	}
 }
