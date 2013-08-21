@@ -269,3 +269,19 @@ type percentSStruct struct {
 }
 
 var percentSV percentSStruct
+
+type recursiveStringer int
+
+func (s recursiveStringer) String() string {
+	fmt.Sprintf("%v", &s) // ERROR "arg &s for printf causes recursive call to String method"
+	fmt.Sprintf("%d", s)
+	fmt.Sprintf("%v", s)   // ERROR "arg s for printf causes recursive call to String method"
+	return fmt.Sprintln(s) // ERROR "arg s for print causes recursive call to String method"
+}
+
+type recursivePtrStringer int
+
+func (p *recursivePtrStringer) String() string {
+	fmt.Sprintf("%v", *p)  // ERROR "arg \*p for printf causes recursive call to String method"
+	return fmt.Sprintln(p) // ERROR "arg p for print causes recursive call to String method"
+}

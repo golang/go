@@ -87,6 +87,10 @@ type File struct {
 	content []byte
 	file    *ast.File
 	b       bytes.Buffer // for use by methods
+
+	// The last "String() string" method receiver we saw while walking.
+	// This is used by the recursiveStringer method in print.go.
+	lastStringerReceiver *ast.Object
 }
 
 func main() {
@@ -429,6 +433,29 @@ func (f *File) walkFuncDecl(d *ast.FuncDecl) {
 	if d.Recv != nil {
 		f.walkMethod(d.Name, d.Type)
 	}
+	f.prepStringerReceiver(d)
+}
+
+// prepStringerReceiver checks whether the given declaration is a fmt.Stringer
+// implementation, and if so sets the File's lastStringerReceiver field to the
+// declaration's receiver object.
+func (f *File) prepStringerReceiver(d *ast.FuncDecl) {
+	if !f.isStringer(d) {
+		return
+	}
+	if l := d.Recv.List; len(l) == 1 {
+		if n := l[0].Names; len(n) == 1 {
+			f.lastStringerReceiver = n[0].Obj
+		}
+	}
+}
+
+// isStringer returns true if the provided declaration is a "String() string"
+// method; an implementation of fmt.Stringer.
+func (f *File) isStringer(d *ast.FuncDecl) bool {
+	return d.Recv != nil && d.Name.Name == "String" &&
+		len(d.Type.Params.List) == 0 && len(d.Type.Results.List) == 1 &&
+		f.pkg.types[d.Type.Results.List[0].Type] == types.Typ[types.String]
 }
 
 // walkGenDecl walks a general declaration.

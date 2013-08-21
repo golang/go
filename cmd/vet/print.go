@@ -385,7 +385,36 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)
 		return false
 	}
+	if v.typ&argString != 0 && f.recursiveStringer(arg) {
+		f.Badf(call.Pos(), "arg %s for printf causes recursive call to String method", f.gofmt(arg))
+		return false
+	}
 	return true
+}
+
+// recursiveStringer reports whether the provided argument is r, *r, or &r
+// for the fmt.Stringer receiver identifier r.
+func (f *File) recursiveStringer(arg ast.Expr) bool {
+	if f.lastStringerReceiver == nil {
+		return false
+	}
+	var obj *ast.Object
+	switch e := arg.(type) {
+	case *ast.Ident:
+		obj = e.Obj
+	case *ast.StarExpr:
+		if id, ok := e.X.(*ast.Ident); ok {
+			obj = id.Obj
+		}
+	case *ast.UnaryExpr:
+		if id, ok := e.X.(*ast.Ident); ok && e.Op == token.AND {
+			obj = id.Obj
+		}
+	}
+	// We compare the underlying Object, which checks that the identifier
+	// is the one we declared as the receiver for the String method in
+	// which this printf appears.
+	return obj == f.lastStringerReceiver
 }
 
 // argCanBeChecked reports whether the specified argument is statically present;
@@ -462,6 +491,11 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 			if strings.HasSuffix(lit.Value, `\n"`) {
 				f.Badf(call.Pos(), "%s call ends with newline", name)
 			}
+		}
+	}
+	for _, arg := range args {
+		if f.recursiveStringer(arg) {
+			f.Badf(call.Pos(), "arg %s for print causes recursive call to String method", f.gofmt(arg))
 		}
 	}
 }
