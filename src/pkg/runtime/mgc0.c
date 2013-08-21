@@ -36,6 +36,10 @@ enum {
 
 	// Pointer map
 	BitsPerPointer = 2,
+	BitsNoPointer = 0,
+	BitsPointer = 1,
+	BitsIface = 2,
+	BitsEface = 3,
 };
 
 // Bits in per-word bitmap.
@@ -1398,26 +1402,52 @@ struct BitVector
 	uint32 data[];
 };
 
+// Scans an interface data value when the interface type indicates
+// that it is a pointer.
+static void
+scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue)
+{
+	Itab *tab;
+	Type *type;
+
+	if(afterprologue) {
+		if(bits == BitsIface) {
+			tab = *(Itab**)scanp;
+			if(tab->type->size <= sizeof(void*) && (tab->type->kind & KindNoPointers))
+				return;
+		} else { // bits == BitsEface
+			type = *(Type**)scanp;
+			if(type->size <= sizeof(void*) && (type->kind & KindNoPointers))
+				return;
+		}
+	}
+	addroot((Obj){scanp+PtrSize, PtrSize, 0});
+}
+
 // Starting from scanp, scans words corresponding to set bits.
 static void
-scanbitvector(byte *scanp, BitVector *bv)
+scanbitvector(byte *scanp, BitVector *bv, bool afterprologue)
 {
-	uint32 *wp;
-	uint32 w;
+	uintptr word, bits;
+	uint32 *wordp;
 	int32 i, remptrs;
 
-	wp = bv->data;
+	wordp = bv->data;
 	for(remptrs = bv->n; remptrs > 0; remptrs -= 32) {
-		w = *wp++;
+		word = *wordp++;
 		if(remptrs < 32)
 			i = remptrs;
 		else
 			i = 32;
 		i /= BitsPerPointer;
 		for(; i > 0; i--) {
-			if(w & 3)
-				addroot((Obj){scanp, PtrSize, 0});
-			w >>= BitsPerPointer;
+			bits = word & 3;
+			if(bits != BitsNoPointer && *(void**)scanp != nil)
+				if(bits == BitsPointer)
+					addroot((Obj){scanp, PtrSize, 0});
+				else
+					scaninterfacedata(bits, scanp, afterprologue);
+			word >>= BitsPerPointer;
 			scanp += PtrSize;
 		}
 	}
@@ -1430,12 +1460,14 @@ addframeroots(Stkframe *frame, void*)
 	Func *f;
 	BitVector *args, *locals;
 	uintptr size;
+	bool afterprologue;
 
 	f = frame->fn;
 
 	// Scan local variables if stack frame has been allocated.
 	// Use pointer information if known.
-	if(frame->varp > (byte*)frame->sp) {
+	afterprologue = (frame->varp > (byte*)frame->sp);
+	if(afterprologue) {
 		locals = runtime·funcdata(f, FUNCDATA_GCLocals);
 		if(locals == nil) {
 			// No locals information, scan everything.
@@ -1450,7 +1482,7 @@ addframeroots(Stkframe *frame, void*)
 			// Locals bitmap information, scan just the
 			// pointers in locals.
 			size = (locals->n*PtrSize) / BitsPerPointer;
-			scanbitvector(frame->varp - size, locals);
+			scanbitvector(frame->varp - size, locals, afterprologue);
 		}
 	}
 
@@ -1458,7 +1490,7 @@ addframeroots(Stkframe *frame, void*)
 	// Use pointer information if known.
 	args = runtime·funcdata(f, FUNCDATA_GCArgs);
 	if(args != nil && args->n > 0)
-		scanbitvector(frame->argp, args);
+		scanbitvector(frame->argp, args, false);
 	else
 		addroot((Obj){frame->argp, frame->arglen, 0});
 }
