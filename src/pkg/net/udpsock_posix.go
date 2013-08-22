@@ -170,10 +170,6 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
 // used as the local address for the connection.
 func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
-	return dialUDP(net, laddr, raddr, noDeadline)
-}
-
-func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
@@ -182,6 +178,10 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
+	return dialUDP(net, laddr, raddr, noDeadline)
+}
+
+func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
 	if err != nil {
 		return nil, err

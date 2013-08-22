@@ -247,15 +247,15 @@ func (c *UnixConn) CloseWrite() error {
 // which must be "unix", "unixgram" or "unixpacket".  If laddr is not
 // nil, it is used as the local address for the connection.
 func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
-	return dialUnix(net, laddr, raddr, noDeadline)
-}
-
-func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
 	switch net {
 	case "unix", "unixgram", "unixpacket":
 	default:
 		return nil, UnknownNetworkError(net)
 	}
+	return dialUnix(net, laddr, raddr, noDeadline)
+}
+
+func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
 	fd, err := unixSocket(net, laddr, raddr, "dial", deadline)
 	if err != nil {
 		return nil, err
