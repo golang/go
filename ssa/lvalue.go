@@ -24,9 +24,8 @@ type lvalue interface {
 // An address is an lvalue represented by a true pointer.
 type address struct {
 	addr    Value
-	starPos token.Pos    // source position, if from explicit *addr
-	expr    ast.Expr     // source syntax [debug mode]
-	object  types.Object // source var, if from *ast.Ident
+	starPos token.Pos // source position, if from explicit *addr
+	expr    ast.Expr  // source syntax [debug mode]
 }
 
 func (a *address) load(fn *Function) Value {
@@ -64,6 +63,7 @@ func (a *address) typ() types.Type {
 type element struct {
 	m, k Value      // map or string
 	t    types.Type // map element type or string byte type
+	pos  token.Pos  // source position of colon ({k:v}) or lbrack (m[k]=v)
 }
 
 func (e *element) load(fn *Function) Value {
@@ -71,16 +71,19 @@ func (e *element) load(fn *Function) Value {
 		X:     e.m,
 		Index: e.k,
 	}
+	l.setPos(e.pos)
 	l.setType(e.t)
 	return fn.emit(l)
 }
 
 func (e *element) store(fn *Function, v Value) {
-	fn.emit(&MapUpdate{
+	up := &MapUpdate{
 		Map:   e.m,
 		Key:   e.k,
 		Value: emitConv(fn, v, e.t),
-	})
+	}
+	up.pos = e.pos
+	fn.emit(up)
 }
 
 func (e *element) address(fn *Function) Value {

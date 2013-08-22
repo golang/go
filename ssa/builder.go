@@ -370,7 +370,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
-		return &address{addr: v, expr: e, object: obj}
+		return &address{addr: v, expr: e}
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
@@ -401,9 +401,8 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 			last := len(sel.Index()) - 1
 			return &address{
-				addr:   emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
-				expr:   e.Sel,
-				object: sel.Obj(),
+				addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
+				expr: e.Sel,
 			}
 		}
 
@@ -422,9 +421,10 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			et = types.NewPointer(t.Elem())
 		case *types.Map:
 			return &element{
-				m: b.expr(fn, e.X),
-				k: emitConv(fn, b.expr(fn, e.Index), t.Key()),
-				t: t.Elem(),
+				m:   b.expr(fn, e.X),
+				k:   emitConv(fn, b.expr(fn, e.Index), t.Key()),
+				t:   t.Elem(),
+				pos: e.Lbrack,
 			}
 		default:
 			panic("unexpected container type in IndexExpr: " + t.String())
@@ -452,21 +452,25 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 // in an addressable location.
 //
 func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
-	if _, ok := loc.(*address); ok {
-		if e, ok := e.(*ast.CompositeLit); ok {
-			typ := loc.typ()
-			switch typ.Underlying().(type) {
-			case *types.Pointer: // implicit & -- possibly escaping
+	if e, ok := e.(*ast.CompositeLit); ok {
+		// A CompositeLit never evaluates to a pointer,
+		// so if the type of the location is a pointer,
+		// an &-operation is implied.
+		if _, ok := loc.(blank); !ok { // avoid calling blank.typ()
+			if isPointer(loc.typ()) {
 				ptr := b.addr(fn, e, true).address(fn)
 				loc.store(fn, ptr) // copy address
 				return
+			}
+		}
 
-			case *types.Interface:
+		if _, ok := loc.(*address); ok {
+			typ := loc.typ()
+			if _, ok := typ.Underlying().(*types.Interface); ok {
 				// e.g. var x interface{} = T{...}
 				// Can't in-place initialize an interface value.
 				// Fall back to copying.
-
-			default:
+			} else {
 				b.compLit(fn, loc.address(fn), e, typ) // in place
 				return
 			}
@@ -1246,13 +1250,13 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 		emitStore(fn, addr, fn.emit(m))
 		for _, e := range e.Elts {
 			e := e.(*ast.KeyValueExpr)
-			up := &MapUpdate{
-				Map:   m,
-				Key:   emitConv(fn, b.expr(fn, e.Key), t.Key()),
-				Value: emitConv(fn, b.expr(fn, e.Value), t.Elem()),
-				pos:   e.Colon,
+			loc := &element{
+				m:   m,
+				k:   emitConv(fn, b.expr(fn, e.Key), t.Key()),
+				t:   t.Elem(),
+				pos: e.Colon,
 			}
-			fn.emit(up)
+			b.exprInPlace(fn, loc, e.Value)
 		}
 
 	case *types.Pointer:

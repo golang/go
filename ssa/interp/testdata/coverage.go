@@ -271,6 +271,10 @@ func main() {
 	if v, ok := map[string]string{}["foo5"]; v != "" || ok {
 		panic("oops")
 	}
+
+	// Regression test: implicit address-taken struct literal
+	// inside literal map element.
+	_ = map[int]*struct{}{0: {}}
 }
 
 type mybool bool

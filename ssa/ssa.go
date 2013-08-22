@@ -1121,7 +1121,8 @@ type Store struct {
 // The MapUpdate instruction updates the association of Map[Key] to
 // Value.
 //
-// Pos() returns the ast.KeyValueExpr.Colon, if explicit in the source.
+// Pos() returns the ast.KeyValueExpr.Colon or ast.IndexExpr.Lbrack,
+// if explicit in the source.
 //
 // Example printed form:
 //	t0[t1] = t2
