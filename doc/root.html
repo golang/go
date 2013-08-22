@@ -117,15 +117,19 @@ function feedLoaded(result) {
 }
 
 window.initFuncs.push(function() {
-	// Set up playground.
-	playground({
-		"codeEl":        "#learn .code",
-		"outputEl":      "#learn .output",
-		"runEl":         "#learn .run",
-		"shareEl":       "#learn .share",
-		"shareRedirect": "http://play.golang.org/p/",
-		"toysEl":        "#learn .toys select"
-	});
+	// Set up playground if enabled.
+	if (window.playground) {
+		window.playground({
+			"codeEl":        "#learn .code",
+			"outputEl":      "#learn .output",
+			"runEl":         "#learn .run",
+			"shareEl":       "#learn .share",
+			"shareRedirect": "http://play.golang.org/p/",
+			"toysEl":        "#learn .toys select"
+		});
+	} else {
+		$('#learn').hide()
+	}
 
 	// Load blog feed.
 	$('<script/>').attr('text', 'text/javascript')
