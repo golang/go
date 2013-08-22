@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -385,21 +386,21 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)
 		return false
 	}
-	if v.typ&argString != 0 && f.recursiveStringer(arg) {
+	if v.typ&argString != 0 && !bytes.Contains(state.flags, []byte{'#'}) && f.recursiveStringer(arg) {
 		f.Badf(call.Pos(), "arg %s for printf causes recursive call to String method", f.gofmt(arg))
 		return false
 	}
 	return true
 }
 
-// recursiveStringer reports whether the provided argument is r, *r, or &r
-// for the fmt.Stringer receiver identifier r.
-func (f *File) recursiveStringer(arg ast.Expr) bool {
+// recursiveStringer reports whether the provided argument is r or &r for the
+// fmt.Stringer receiver identifier r.
+func (f *File) recursiveStringer(e ast.Expr) bool {
 	if f.lastStringerReceiver == nil {
 		return false
 	}
 	var obj *ast.Object
-	switch e := arg.(type) {
+	switch e := e.(type) {
 	case *ast.Ident:
 		obj = e.Obj
 	case *ast.UnaryExpr:
