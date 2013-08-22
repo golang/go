@@ -8,6 +8,19 @@ import (
 	"time"
 )
 
+// protocols contains minimal mappings between internet protocol
+// names and numbers for platforms that don't have a complete list of
+// protocol numbers.
+//
+// See http://www.iana.org/assignments/protocol-numbers
+var protocols = map[string]int{
+	"icmp": 1, "ICMP": 1,
+	"igmp": 2, "IGMP": 2,
+	"tcp": 6, "TCP": 6,
+	"udp": 17, "UDP": 17,
+	"ipv6-icmp": 58, "IPV6-ICMP": 58, "IPv6-ICMP": 58,
+}
+
 var lookupGroup singleflight
 
 // lookupHostMerge wraps lookupHost, but makes sure that for any given

@@ -11,15 +11,11 @@ import (
 	"sync"
 )
 
-var (
-	protocols         map[string]int
-	onceReadProtocols sync.Once
-)
+var onceReadProtocols sync.Once
 
 // readProtocols loads contents of /etc/protocols into protocols map
 // for quick access.
 func readProtocols() {
-	protocols = make(map[string]int)
 	if file, err := open("/etc/protocols"); err == nil {
 		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 			// tcp    6   TCP    # transmission control protocol
@@ -31,9 +27,13 @@ func readProtocols() {
 				continue
 			}
 			if proto, _, ok := dtoi(f[1], 0); ok {
-				protocols[f[0]] = proto
+				if _, ok := protocols[f[0]]; !ok {
+					protocols[f[0]] = proto
+				}
 				for _, alias := range f[2:] {
-					protocols[alias] = proto
+					if _, ok := protocols[alias]; !ok {
+						protocols[alias] = proto
+					}
 				}
 			}
 		}

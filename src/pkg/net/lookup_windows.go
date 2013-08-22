@@ -42,6 +42,11 @@ func lookupProtocol(name string) (proto int, err error) {
 		ch <- result{proto: proto, err: err}
 	}()
 	r := <-ch
+	if r.err != nil {
+		if proto, ok := protocols[name]; ok {
+			return protol, nil
+		}
+	}
 	return r.proto, r.err
 }
 
