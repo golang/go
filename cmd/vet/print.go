@@ -402,10 +402,6 @@ func (f *File) recursiveStringer(arg ast.Expr) bool {
 	switch e := arg.(type) {
 	case *ast.Ident:
 		obj = e.Obj
-	case *ast.StarExpr:
-		if id, ok := e.X.(*ast.Ident); ok {
-			obj = id.Obj
-		}
 	case *ast.UnaryExpr:
 		if id, ok := e.X.(*ast.Ident); ok && e.Op == token.AND {
 			obj = id.Obj

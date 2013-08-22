@@ -282,6 +282,6 @@ func (s recursiveStringer) String() string {
 type recursivePtrStringer int
 
 func (p *recursivePtrStringer) String() string {
-	fmt.Sprintf("%v", *p)  // ERROR "arg \*p for printf causes recursive call to String method"
+	fmt.Sprintf("%v", *p)
 	return fmt.Sprintln(p) // ERROR "arg p for print causes recursive call to String method"
 }
