@@ -44,7 +44,7 @@ func lookupProtocol(name string) (proto int, err error) {
 	r := <-ch
 	if r.err != nil {
 		if proto, ok := protocols[name]; ok {
-			return protol, nil
+			return proto, nil
 		}
 	}
 	return r.proto, r.err
