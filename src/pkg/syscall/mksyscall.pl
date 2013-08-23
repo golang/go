@@ -27,6 +27,7 @@ my $_32bit = "";
 my $plan9 = 0;
 my $openbsd = 0;
 my $netbsd = 0;
+my $dragonfly = 0;
 my $arm = 0; # 64-bit value should use (even, odd)-pair
 
 if($ARGV[0] eq "-b32") {
@@ -46,6 +47,10 @@ if($ARGV[0] eq "-openbsd") {
 }
 if($ARGV[0] eq "-netbsd") {
 	$netbsd = 1;
+	shift;
+}
+if($ARGV[0] eq "-dragonfly") {
+	$dragonfly = 1;
 	shift;
 }
 if($ARGV[0] eq "-arm") {
@@ -152,6 +157,17 @@ while(<>) {
 			$n++;
 		} elsif($type eq "int64" && ($openbsd || $netbsd)) {
 			push @args, "0";
+			if($_32bit eq "big-endian") {
+				push @args, "uintptr($name>>32)", "uintptr($name)";
+			} elsif($_32bit eq "little-endian") {
+				push @args, "uintptr($name)", "uintptr($name>>32)";
+			} else {
+				push @args, "uintptr($name)";
+			}
+		} elsif($type eq "int64" && $dragonfly) {
+			if ($func !~ /^extp(read|write)/i) {
+				push @args, "0";
+			}
 			if($_32bit eq "big-endian") {
 				push @args, "uintptr($name>>32)", "uintptr($name)";
 			} elsif($_32bit eq "little-endian") {
