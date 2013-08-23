@@ -224,7 +224,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
 	}
 	switch runtime.GOOS {
-	case "darwin", "freebsd", "openbsd", "netbsd":
+	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
 		tests = append(tests, []test{
 			{"udp", "[localhost%" + ifi.Name + "]:0", true},
 			{"udp6", "[localhost%" + ifi.Name + "]:0", true},
