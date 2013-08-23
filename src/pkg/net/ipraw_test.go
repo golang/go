@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -73,8 +74,14 @@ var icmpEchoTests = []struct {
 }
 
 func TestConnICMPEcho(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	case "windows":
+	default:
+		if os.Getuid() != 0 {
+			t.Skip("skipping test; must be root")
+		}
 	}
 
 	for i, tt := range icmpEchoTests {
@@ -98,7 +105,7 @@ func TestConnICMPEcho(t *testing.T) {
 			typ = icmpv6EchoRequest
 		}
 		xid, xseq := os.Getpid()&0xffff, i+1
-		b, err := (&icmpMessage{
+		wb, err := (&icmpMessage{
 			Type: typ, Code: 0,
 			Body: &icmpEcho{
 				ID: xid, Seq: xseq,
@@ -108,18 +115,19 @@ func TestConnICMPEcho(t *testing.T) {
 		if err != nil {
 			t.Fatalf("icmpMessage.Marshal failed: %v", err)
 		}
-		if _, err := c.Write(b); err != nil {
+		if _, err := c.Write(wb); err != nil {
 			t.Fatalf("Conn.Write failed: %v", err)
 		}
 		var m *icmpMessage
+		rb := make([]byte, 20+len(wb))
 		for {
-			if _, err := c.Read(b); err != nil {
+			if _, err := c.Read(rb); err != nil {
 				t.Fatalf("Conn.Read failed: %v", err)
 			}
 			if net == "ip4" {
-				b = ipv4Payload(b)
+				rb = ipv4Payload(rb)
 			}
-			if m, err = parseICMPMessage(b); err != nil {
+			if m, err = parseICMPMessage(rb); err != nil {
 				t.Fatalf("parseICMPMessage failed: %v", err)
 			}
 			switch m.Type {
@@ -140,8 +148,14 @@ func TestConnICMPEcho(t *testing.T) {
 }
 
 func TestPacketConnICMPEcho(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	case "windows":
+	default:
+		if os.Getuid() != 0 {
+			t.Skip("skipping test; must be root")
+		}
 	}
 
 	for i, tt := range icmpEchoTests {
@@ -169,7 +183,7 @@ func TestPacketConnICMPEcho(t *testing.T) {
 			typ = icmpv6EchoRequest
 		}
 		xid, xseq := os.Getpid()&0xffff, i+1
-		b, err := (&icmpMessage{
+		wb, err := (&icmpMessage{
 			Type: typ, Code: 0,
 			Body: &icmpEcho{
 				ID: xid, Seq: xseq,
@@ -179,19 +193,20 @@ func TestPacketConnICMPEcho(t *testing.T) {
 		if err != nil {
 			t.Fatalf("icmpMessage.Marshal failed: %v", err)
 		}
-		if _, err := c.WriteTo(b, ra); err != nil {
+		if _, err := c.WriteTo(wb, ra); err != nil {
 			t.Fatalf("PacketConn.WriteTo failed: %v", err)
 		}
 		var m *icmpMessage
+		rb := make([]byte, 20+len(wb))
 		for {
-			if _, _, err := c.ReadFrom(b); err != nil {
+			if _, _, err := c.ReadFrom(rb); err != nil {
 				t.Fatalf("PacketConn.ReadFrom failed: %v", err)
 			}
 			// TODO: fix issue 3944
 			//if net == "ip4" {
-			//	b = ipv4Payload(b)
+			//	rb = ipv4Payload(rb)
 			//}
-			if m, err = parseICMPMessage(b); err != nil {
+			if m, err = parseICMPMessage(rb); err != nil {
 				t.Fatalf("parseICMPMessage failed: %v", err)
 			}
 			switch m.Type {
@@ -338,8 +353,13 @@ var ipConnLocalNameTests = []struct {
 }
 
 func TestIPConnLocalName(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	default:
+		if os.Getuid() != 0 {
+			t.Skip("skipping test; must be root")
+		}
 	}
 
 	for _, tt := range ipConnLocalNameTests {
@@ -355,8 +375,13 @@ func TestIPConnLocalName(t *testing.T) {
 }
 
 func TestIPConnRemoteName(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("skipping test; must be root")
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	default:
+		if os.Getuid() != 0 {
+			t.Skip("skipping test; must be root")
+		}
 	}
 
 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 10).To4()}

@@ -176,9 +176,11 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-	if os.Getuid() != 0 {
-		t.Skipf("skipping test; must be root")
+	case "windows":
+	default:
+		if os.Getuid() != 0 {
+			t.Skipf("skipping test; must be root")
+		}
 	}
 
 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
@@ -208,7 +210,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("icmpMessage.Marshal failed: %v", err)
 	}
-	rb := make([]byte, 20+128)
+	rb := make([]byte, 20+len(wb))
 	if _, err := c.WriteToIP(wb, c.LocalAddr().(*IPAddr)); err != nil {
 		t.Fatalf("IPConn.WriteToIP failed: %v", err)
 	}
