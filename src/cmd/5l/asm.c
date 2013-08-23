@@ -41,6 +41,7 @@ char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
 char openbsddynld[] = "XXX";
 char netbsddynld[] = "/libexec/ld.elf_so";
+char dragonflydynld[] = "/libexec/ld-elf.so.2";
 
 int32
 entryvalue(void)
