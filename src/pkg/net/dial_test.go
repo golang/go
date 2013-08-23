@@ -137,7 +137,7 @@ func TestSelfConnect(t *testing.T) {
 		n = 1000
 	}
 	switch runtime.GOOS {
-	case "darwin", "freebsd", "netbsd", "openbsd", "plan9", "windows":
+	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "windows":
 		// Non-Linux systems take a long time to figure
 		// out that there is nothing listening on localhost.
 		n = 100
