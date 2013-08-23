@@ -37,6 +37,25 @@ includes_Darwin='
 #include <termios.h>
 '
 
+includes_DragonFly='
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <net/bpf.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <termios.h>
+#include <netinet/ip.h>
+#include <net/ip_mroute/ip_mroute.h>
+'
+
 includes_FreeBSD='
 #include <sys/types.h>
 #include <sys/event.h>

@@ -121,6 +121,12 @@ darwin_amd64)
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
+dragonfly_amd64)
+	mkerrors="$mkerrors -m64"
+	mksyscall="./mksyscall.pl -dragonfly"
+	mksysnum="curl -s 'http://gitweb.dragonflybsd.org/dragonfly.git/blob_plain/HEAD:/sys/kern/syscalls.master' | ./mksysnum_dragonfly.pl"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
 freebsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
@@ -218,7 +224,7 @@ esac
 	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >$zerrors"; fi
 	syscall_goos="syscall_$GOOS.go"
 	case "$GOOS" in
-	darwin | freebsd | netbsd | openbsd)
+	darwin | dragonfly | freebsd | netbsd | openbsd)
 		syscall_goos="syscall_bsd.go $syscall_goos"
 		;;
 	windows)

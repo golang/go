@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd netbsd openbsd
+// +build darwin dragonfly freebsd netbsd openbsd
 
 // BSD system call wrappers shared by *BSD based systems
 // including OS X (Darwin) and FreeBSD.  Like the other
@@ -291,7 +291,9 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 		return
 	}
 	// TODO(jsing): Remove after OpenBSD 5.4 is released (see issue 3349).
-	if runtime.GOOS == "openbsd" && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
+	// TODO(jsing): Apparently dragonfly has the same "bug", which should
+	// be reported upstream.
+	if (runtime.GOOS == "dragonfly" || runtime.GOOS == "openbsd") && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
 		rsa.Addr.Family = AF_UNIX
 		rsa.Addr.Len = SizeofSockaddrUnix
 	}
