@@ -62,10 +62,10 @@ func TestDNSThreadLimit(t *testing.T) {
 	const N = 10000
 	c := make(chan int, N)
 	for i := 0; i < N; i++ {
-		go func() {
+		go func(i int) {
 			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
 			c <- 1
-		}()
+		}(i)
 	}
 	// Don't bother waiting for the stragglers; stop at 0.9 N.
 	for i := 0; i < N*9/10; i++ {
