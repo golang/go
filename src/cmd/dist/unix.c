@@ -674,6 +674,8 @@ main(int argc, char **argv)
 		gohostarch = "amd64";
 #elif defined(__linux__)
 	gohostos = "linux";
+#elif defined(__DragonFly__)
+	gohostos = "dragonfly";
 #elif defined(__FreeBSD__)
 	gohostos = "freebsd";
 #elif defined(__FreeBSD_kernel__)
