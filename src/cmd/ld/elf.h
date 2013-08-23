@@ -1009,6 +1009,7 @@ extern char linuxdynld[];
 extern char freebsddynld[];
 extern char netbsddynld[];
 extern char openbsddynld[];
+extern char dragonflydynld[];
 int	elfreloc1(Reloc*, vlong sectoff);
 void	putelfsectionsyms(void);
 

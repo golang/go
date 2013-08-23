@@ -48,6 +48,7 @@ Header headers[] = {
 	"plan9", Hplan9x64,
 	"elf", Helf,
 	"darwin", Hdarwin,
+	"dragonfly", Hdragonfly,
 	"linux", Hlinux,
 	"freebsd", Hfreebsd,
 	"netbsd", Hnetbsd,
@@ -62,6 +63,7 @@ Header headers[] = {
  *	-Hplan9 -T0x200028 -R0x200000	is plan9 64-bit format
  *	-Helf -T0x80110000 -R4096	is ELF32
  *	-Hdarwin -Tx -Rx		is apple MH-exec
+ *	-Hdragonfly -Tx -Rx		is DragonFly elf-exec
  *	-Hlinux -Tx -Rx			is linux elf-exec
  *	-Hfreebsd -Tx -Rx		is FreeBSD elf-exec
  *	-Hnetbsd -Tx -Rx		is NetBSD elf-exec
@@ -170,7 +172,7 @@ main(int argc, char *argv[])
 	default:
 		diag("unknown -H option");
 		errorexit();
-	case Hplan9x32:	/* plan 9 */
+	case Hplan9x32:		/* plan 9 */
 		HEADR = 32L;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+HEADR;
@@ -179,7 +181,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case Hplan9x64:	/* plan 9 */
+	case Hplan9x64:		/* plan 9 */
 		HEADR = 32L + 8L;
 		if(INITTEXT == -1)
 			INITTEXT = 0x200000+HEADR;
@@ -188,7 +190,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 0x200000;
 		break;
-	case Helf:	/* elf32 executable */
+	case Helf:		/* elf32 executable */
 		HEADR = rnd(52L+3*32L, 16);
 		if(INITTEXT == -1)
 			INITTEXT = 0x80110000L;
@@ -197,7 +199,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case Hdarwin:	/* apple MACH */
+	case Hdarwin:		/* apple MACH */
 		/*
 		 * OS X system constant - offset from 0(GS) to our TLS.
 		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_amd64.c.
@@ -212,10 +214,11 @@ main(int argc, char *argv[])
 		if(INITDAT == -1)
 			INITDAT = 0;
 		break;
-	case Hlinux:	/* elf64 executable */
-	case Hfreebsd:	/* freebsd */
-	case Hnetbsd:	/* netbsd */
-	case Hopenbsd:	/* openbsd */
+	case Hlinux:		/* elf64 executable */
+	case Hfreebsd:		/* freebsd */
+	case Hnetbsd:		/* netbsd */
+	case Hopenbsd:		/* openbsd */
+	case Hdragonfly:	/* dragonfly */
 		/*
 		 * ELF uses TLS offset negative from FS.
 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
@@ -232,7 +235,7 @@ main(int argc, char *argv[])
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case Hwindows: /* PE executable */
+	case Hwindows:		/* PE executable */
 		peinit();
 		HEADR = PEFILEHEADR;
 		if(INITTEXT == -1)
