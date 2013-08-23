@@ -75,7 +75,8 @@ func closesocket(s syscall.Handle) error {
 }
 
 func canUseConnectEx(net string) bool {
-	if net == "udp" || net == "udp4" || net == "udp6" {
+	switch net {
+	case "udp", "udp4", "udp6", "ip", "ip4", "ip6":
 		// ConnectEx windows API does not support connectionless sockets.
 		return false
 	}
