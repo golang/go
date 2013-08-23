@@ -37,39 +37,46 @@ type sockaddr interface {
 	toAddr() sockaddr
 }
 
-// Generic POSIX socket creation.
-func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
-	s, err := sysSocket(f, t, p)
+// socket returns a network file descriptor that is ready for
+// asynchronous I/O using the network poller.
+func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+	s, err := sysSocket(family, sotype, proto)
 	if err != nil {
 		return nil, err
 	}
-
-	if err = setDefaultSockopts(s, f, t, ipv6only); err != nil {
+	if err = setDefaultSockopts(s, family, sotype, ipv6only); err != nil {
+		closesocket(s)
+		return nil, err
+	}
+	if fd, err = newFD(s, family, sotype, net); err != nil {
 		closesocket(s)
 		return nil, err
 	}
 
-	if fd, err = newFD(s, f, t, net); err != nil {
-		closesocket(s)
-		return nil, err
-	}
-
-	// This function makes a network file descriptor for stream
-	// and datagram dialers, stream and datagram listeners.
+	// This function makes a network file descriptor for the
+	// following applications:
 	//
-	// For dialers, they will require either named or unnamed
-	// sockets for their flights.  We can assume that it's just a
-	// request from a dialer that wants a named socket when both
-	// laddr and raddr are not nil.  A dialer will also require a
-	// connection setup initiated socket when raddr is not nil.
+	// - An endpoint holder that opens a passive stream
+	//   connenction, known as a stream listener
 	//
-	// For listeners and some dialers on datagram networks, they
-	// will only require named sockets.  So we can assume that
-	// it's just for a listener or a datagram dialer when laddr is
-	// not nil but raddr is nil.
+	// - An endpoint holder that opens a destination-unspecific
+	//   datagram connection, known as a datagram listener
+	//
+	// - An endpoint holder that opens an active stream or a
+	//   destination-specific datagram connection, known as a
+	//   dialer
+	//
+	// - An endpoint holder that opens the other connection, such
+	//   as talking to the protocol stack inside the kernel
+	//
+	// For stream and datagram listeners, they will only require
+	// named sockets, so we can assume that it's just a request
+	// from stream or datagram listeners when laddr is not nil but
+	// raddr is nil. Otherwise we assume it's just for dialers or
+	// the other connection holders.
 
 	if laddr != nil && raddr == nil {
-		switch t {
+		switch sotype {
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
 			if err := fd.listenStream(laddr, listenerBacklog, toAddr); err != nil {
 				fd.Close()
