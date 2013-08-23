@@ -825,9 +825,16 @@ func TestOpenError(t *testing.T) {
 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
 					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
 				}
-			} else {
-				t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
+				continue
 			}
+			if runtime.GOOS == "dragonfly" {
+				// DragonFly incorrectly returns EACCES rather
+				// EISDIR when a directory is opened for write.
+				if tt.error == syscall.EISDIR && perr.Err == syscall.EACCES {
+					continue
+				}
+			}
+			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
 		}
 	}
 }

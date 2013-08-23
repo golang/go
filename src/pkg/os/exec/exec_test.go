@@ -445,7 +445,7 @@ func TestHelperProcess(*testing.T) {
 	// Determine which command to use to display open files.
 	ofcmd := "lsof"
 	switch runtime.GOOS {
-	case "freebsd", "netbsd", "openbsd":
+	case "dragonfly", "freebsd", "netbsd", "openbsd":
 		ofcmd = "fstat"
 	}
 
@@ -514,6 +514,9 @@ func TestHelperProcess(*testing.T) {
 			os.Exit(1)
 		}
 		switch runtime.GOOS {
+		case "dragonfly":
+			// TODO(jsing): Determine why DragonFly is leaking
+			// file descriptors...
 		case "darwin":
 			// TODO(bradfitz): broken? Sometimes.
 			// http://golang.org/issue/2603
