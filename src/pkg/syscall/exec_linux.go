@@ -20,6 +20,7 @@ type SysProcAttr struct {
 	Noctty     bool        // Detach fd 0 from controlling terminal
 	Ctty       int         // Controlling TTY fd (Linux only)
 	Pdeathsig  Signal      // Signal that the process will get when its parent dies (Linux only)
+	Cloneflags uintptr     // Flags for clone calls (Linux only)
 }
 
 // Implemented in runtime package.
@@ -61,7 +62,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, _, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
+	r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
 	if err1 != 0 {
 		runtime_AfterFork()
 		return 0, err1
