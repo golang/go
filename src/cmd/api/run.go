@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // goToolsVersion is the hg revision of the go.tools subrepo we need
@@ -45,7 +46,7 @@ func main() {
 	gopath := prepGoPath()
 
 	cmd := exec.Command("go", "install", "--tags=api_tool", "cmd/api")
-	cmd.Env = append([]string{"GOPATH=" + gopath}, os.Environ()...)
+	cmd.Env = append([]string{"GOPATH=" + gopath}, filterOut(os.Environ(), "GOARCH")...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error installing cmd/api: %v\n%s", err, out)
@@ -59,6 +60,22 @@ func main() {
 		log.Fatalf("Error running API checker: %v\n%s", err, out)
 	}
 	fmt.Print(string(out))
+}
+
+// filterOut returns a copy of the src environment without environment
+// variables from remove.
+// TODO: delete when issue 6201 is fixed.
+func filterOut(src []string, remove ...string) (out []string) {
+S:
+	for _, s := range src {
+		for _, r := range remove {
+			if strings.HasPrefix(s, r) && strings.HasPrefix(s, r+"=") {
+				continue S
+			}
+		}
+		out = append(out, s)
+	}
+	return
 }
 
 // file expands s to $GOROOT/api/s.txt.
