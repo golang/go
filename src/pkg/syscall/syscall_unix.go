@@ -18,7 +18,10 @@ var (
 	Stderr = 2
 )
 
-const darwinAMD64 = runtime.GOOS == "darwin" && runtime.GOARCH == "amd64"
+const (
+	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
+	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
+)
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)

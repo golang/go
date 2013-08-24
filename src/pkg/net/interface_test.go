@@ -109,14 +109,14 @@ func testAddrs(t *testing.T, ifat []Addr) {
 	for _, ifa := range ifat {
 		switch ifa := ifa.(type) {
 		case *IPAddr:
-			if ifa == nil {
-				t.Errorf("\tunexpected value: %v", ifa)
+			if ifa == nil || ifa.IP == nil {
+				t.Errorf("\tunexpected value: %v, %v", ifa, ifa.IP)
 			} else {
 				t.Logf("\tinterface address %q", ifa.String())
 			}
 		case *IPNet:
-			if ifa == nil {
-				t.Errorf("\tunexpected value: %v", ifa)
+			if ifa == nil || ifa.IP == nil || ifa.Mask == nil {
+				t.Errorf("\tunexpected value: %v, %v, %v", ifa, ifa.IP, ifa.Mask)
 			} else {
 				_, prefixLen := ifa.Mask.Size()
 				if ifa.IP.To4() != nil && prefixLen != 8*IPv4len || ifa.IP.To16() != nil && ifa.IP.To4() == nil && prefixLen != 8*IPv6len {
