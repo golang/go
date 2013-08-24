@@ -331,13 +331,11 @@ func numFD() int {
 	panic("numFDs not implemented on " + runtime.GOOS)
 }
 
-var testPoller = flag.Bool("poller", false, "platform supports runtime-integrated poller")
-
 // Assert that a failed Dial attempt does not leak
 // runtime.PollDesc structures
 func TestDialFailPDLeak(t *testing.T) {
-	if !*testPoller {
-		t.Skip("test disabled; use -poller to enable")
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
 	}
 
 	const loops = 10
