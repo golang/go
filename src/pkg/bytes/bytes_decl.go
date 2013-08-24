@@ -11,7 +11,8 @@ func IndexByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
 
 //go:noescape
 
-// Equal returns a boolean reporting whether a == b.
+// Equal returns a boolean reporting whether a and b
+// are the same length and contain the same bytes.
 // A nil argument is equivalent to an empty slice.
 func Equal(a, b []byte) bool // ../runtime/asm_$GOARCH.s
 
