@@ -123,7 +123,7 @@ resizefintab(Fintab *tab)
 		newtab.max *= 3;
 	}
 	
-	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], 0, FlagNoInvokeGC|FlagNoPointers);
+	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], 0, FlagNoInvokeGC|FlagNoScan);
 	newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, FlagNoInvokeGC);
 	
 	for(i=0; i<tab->max; i++) {

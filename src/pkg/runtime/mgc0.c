@@ -51,7 +51,7 @@ enum {
 // The bits in the word are packed together by type first, then by
 // heap location, so each 64-bit bitmap word consists of, from top to bottom,
 // the 16 bitSpecial bits for the corresponding heap words, then the 16 bitMarked bits,
-// then the 16 bitNoPointers/bitBlockBoundary bits, then the 16 bitAllocated bits.
+// then the 16 bitNoScan/bitBlockBoundary bits, then the 16 bitAllocated bits.
 // This layout makes it easier to iterate over the bits of a given type.
 //
 // The bitmap starts at mheap.arena_start and extends *backward* from
@@ -68,7 +68,7 @@ enum {
 //	/* then test bits & bitAllocated, bits & bitMarked, etc. */
 //
 #define bitAllocated		((uintptr)1<<(bitShift*0))
-#define bitNoPointers		((uintptr)1<<(bitShift*1))	/* when bitAllocated is set */
+#define bitNoScan		((uintptr)1<<(bitShift*1))	/* when bitAllocated is set */
 #define bitMarked		((uintptr)1<<(bitShift*2))	/* when bitAllocated is set */
 #define bitSpecial		((uintptr)1<<(bitShift*3))	/* when bitAllocated is set - has finalizer or being profiled */
 #define bitBlockBoundary	((uintptr)1<<(bitShift*1))	/* when bitAllocated is NOT set */
@@ -454,7 +454,7 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			}
 
 			// If object has no pointers, don't need to scan further.
-			if((bits & bitNoPointers) != 0)
+			if((bits & bitNoScan) != 0)
 				continue;
 
 			// Ask span about size class.
@@ -1198,7 +1198,7 @@ debug_scanblock(byte *b, uintptr n)
 			runtime·printf("found unmarked block %p in %p\n", obj, vp+i);
 
 		// If object has no pointers, don't need to scan further.
-		if((bits & bitNoPointers) != 0)
+		if((bits & bitNoScan) != 0)
 			continue;
 
 		debug_scanblock(obj, size);
@@ -2345,9 +2345,9 @@ runfinq(void)
 					runtime·free(frame);
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finc.
-					// If we do not mark it as FlagNoPointers,
+					// If we do not mark it as FlagNoScan,
 					// the last finalized object is not collected.
-					frame = runtime·mallocgc(framesz, 0, FlagNoPointers|FlagNoInvokeGC);
+					frame = runtime·mallocgc(framesz, 0, FlagNoScan|FlagNoInvokeGC);
 					framecap = framesz;
 				}
 				if(f->fint == nil)
@@ -2381,9 +2381,9 @@ runfinq(void)
 }
 
 // mark the block at v of size n as allocated.
-// If noptr is true, mark it as having no pointers.
+// If noscan is true, mark it as not needing scanning.
 void
-runtime·markallocated(void *v, uintptr n, bool noptr)
+runtime·markallocated(void *v, uintptr n, bool noscan)
 {
 	uintptr *b, obits, bits, off, shift;
 
@@ -2400,8 +2400,8 @@ runtime·markallocated(void *v, uintptr n, bool noptr)
 	for(;;) {
 		obits = *b;
 		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
-		if(noptr)
-			bits |= bitNoPointers<<shift;
+		if(noscan)
+			bits |= bitNoScan<<shift;
 		if(runtime·gomaxprocs == 1) {
 			*b = bits;
 			break;

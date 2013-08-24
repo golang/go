@@ -98,12 +98,14 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	}
 
 	if(!(flag & FlagNoGC))
-		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
+		runtime·markallocated(v, size, (flag&FlagNoScan) != 0);
 
 	if(DebugTypeAtBlockEnd)
 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
 
-	if(UseSpanType && !(flag & FlagNoPointers) && typ != 0) {
+	// TODO: save type even if FlagNoScan?  Potentially expensive but might help
+	// heap profiling/tracing.
+	if(UseSpanType && !(flag & FlagNoScan) && typ != 0) {
 		uintptr *buf, i;
 
 		buf = m->settype_buf;
@@ -114,7 +116,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	}
 
 	m->mallocing = 0;
-	if(UseSpanType && !(flag & FlagNoPointers) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
+	if(UseSpanType && !(flag & FlagNoScan) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
 		runtime·settype_flush(m);
 	m->locks--;
 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
@@ -601,7 +603,7 @@ runtime·settype_flush(M *mp)
 		case MTypes_Empty:
 			ntypes = (s->npages << PageShift) / size;
 			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
-			data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+			data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
 			s->types.compression = MTypes_Bytes;
 			s->types.data = (uintptr)data3;
 			((uintptr*)data3)[1] = typ;
@@ -628,7 +630,7 @@ runtime·settype_flush(M *mp)
 			} else {
 				ntypes = (s->npages << PageShift) / size;
 				nbytes2 = ntypes * sizeof(uintptr);
-				data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+				data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
 				s->types.compression = MTypes_Words;
 				s->types.data = (uintptr)data2;
 
@@ -699,7 +701,7 @@ runtime·mal(uintptr n)
 void
 runtime·new(Type *typ, uint8 *ret)
 {
-	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoPointers : 0);
+	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoScan : 0);
 	FLUSH(&ret);
 }
 
@@ -710,7 +712,7 @@ cnew(Type *typ, intgo n, int32 objtyp)
 		runtime·throw("runtime: invalid objtyp");
 	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
 		runtime·panicstring("runtime: allocation size out of range");
-	return runtime·mallocgc(typ->size*n, (uintptr)typ | objtyp, typ->kind&KindNoPointers ? FlagNoPointers : 0);
+	return runtime·mallocgc(typ->size*n, (uintptr)typ | objtyp, typ->kind&KindNoPointers ? FlagNoScan : 0);
 }
 
 // same as runtime·new, but callable from C
