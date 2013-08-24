@@ -15,7 +15,7 @@ func cmsgAlignOf(salen int) int {
 	salign := sizeofPtr
 	// NOTE: It seems like 64-bit Darwin kernel still requires 32-bit
 	// aligned access to BSD subsystem.
-	if darwinAMD64 {
+	if darwin64Bit {
 		salign = 4
 	}
 	return (salen + salign - 1) & ^(salign - 1)
