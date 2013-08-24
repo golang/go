@@ -14,7 +14,7 @@ func check(t *testing.T) {
 		t.Skip("user: not implemented; skipping tests")
 	}
 	switch runtime.GOOS {
-	case "linux", "freebsd", "darwin", "windows":
+	case "linux", "freebsd", "darwin", "windows", "plan9":
 		// test supported
 	default:
 		t.Skipf("user: Lookup not implemented on %q; skipping test", runtime.GOOS)
@@ -61,6 +61,10 @@ func compare(t *testing.T, want, got *User) {
 func TestLookup(t *testing.T) {
 	check(t)
 
+	if runtime.GOOS == "plan9" {
+		t.Skipf("Lookup not implemented on %q", runtime.GOOS)
+	}
+
 	want, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v", err)
@@ -74,6 +78,10 @@ func TestLookup(t *testing.T) {
 
 func TestLookupId(t *testing.T) {
 	check(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skipf("LookupId not implemented on %q", runtime.GOOS)
+	}
 
 	want, err := Current()
 	if err != nil {

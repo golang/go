@@ -16,6 +16,8 @@ var implemented = true // set to false by lookup_stubs.go's init
 // On posix systems Uid and Gid contain a decimal number
 // representing uid and gid. On windows Uid and Gid
 // contain security identifier (SID) in a string format.
+// On Plan 9, Uid, Gid, Username, and Name will be the
+// contents of /dev/user.
 type User struct {
 	Uid      string // user id
 	Gid      string // primary group id
