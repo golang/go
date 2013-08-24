@@ -686,6 +686,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	t->bound = mpgetfix(n->right->val.u.xval);
 	t->width = 0;
 	t->sym = nil;
+	t->haspointers = 0;
 	dowidth(t);
 
 	if(ctxt != 0) {
