@@ -110,12 +110,13 @@ func prepGoPath() string {
 	tmpDir := filepath.Join(cloneDir, tempBase)
 
 	// finalDir is where the checkout will live once it's complete.
-	// If this exists already, we're done.
 	finalDir := filepath.Join(cloneDir, "go.tools")
 
-	if fi, err := os.Stat(finalDir); err == nil && fi.IsDir() {
+	if goToolsCheckoutGood(finalDir) {
 		return gopath
 	}
+	os.RemoveAll(finalDir) // in case it's there but corrupt
+	os.RemoveAll(tmpDir)   // in case of aborted hg clone before
 
 	if err := os.MkdirAll(cloneDir, 0700); err != nil {
 		log.Fatal(err)
@@ -137,4 +138,30 @@ func prepGoPath() string {
 		log.Fatal(err)
 	}
 	return gopath
+}
+
+func goToolsCheckoutGood(dir string) bool {
+	if _, err := os.Stat(dir); err != nil {
+		return false
+	}
+
+	cmd := exec.Command("hg", "id", "--id")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	id := strings.TrimSpace(string(out))
+	if id != goToolsVersion {
+		return false
+	}
+
+	cmd = exec.Command("hg", "status")
+	cmd.Dir = dir
+	out, err = cmd.Output()
+	if err != nil || len(out) > 0 {
+		return false
+	}
+
+	return true
 }
