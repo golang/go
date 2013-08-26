@@ -425,10 +425,7 @@ func Repeat(s string, count int) string {
 	b := make([]byte, len(s)*count)
 	bp := 0
 	for i := 0; i < count; i++ {
-		for j := 0; j < len(s); j++ {
-			b[bp] = s[j]
-			bp++
-		}
+		bp += copy(b[bp:], s)
 	}
 	return string(b)
 }
