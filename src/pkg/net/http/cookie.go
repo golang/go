@@ -149,8 +149,13 @@ func (c *Cookie) String() string {
 		if validCookieDomain(c.Domain) {
 			// A c.Domain containing illegal characters is not
 			// sanitized but simply dropped which turns the cookie
-			// into a host-only cookie.
-			fmt.Fprintf(&b, "; Domain=%s", c.Domain)
+			// into a host-only cookie. A leading dot is okay
+			// but won't be sent.
+			d := c.Domain
+			if d[0] == '.' {
+				d = d[1:]
+			}
+			fmt.Fprintf(&b, "; Domain=%s", d)
 		} else {
 			log.Printf("net/http: invalid Cookie.Domain %q; dropping domain attribute",
 				c.Domain)
