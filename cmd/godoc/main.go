@@ -221,6 +221,7 @@ func main() {
 	corpus.Verbose = *verbose
 	corpus.IndexEnabled = *indexEnabled && httpMode
 	corpus.IndexFiles = *indexFiles
+	corpus.IndexThrottle = *indexThrottle
 	if *writeIndex {
 		corpus.IndexThrottle = 1.0
 	}
