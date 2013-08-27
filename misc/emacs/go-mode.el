@@ -150,6 +150,14 @@
   :type 'hook
   :group 'go)
 
+(defcustom go-command "go"
+  "The 'go' command.  Some users have multiple Go development
+trees and invoke the 'go' tool via a wrapper that sets GOROOT and
+GOPATH based on the current directory.  Such users should
+customize this variable to point to the wrapper script."
+  :type 'string
+  :group 'go)
+
 (defface go-coverage-untracked
   '((t (:foreground "#505050")))
   "Coverage color of untracked code."
@@ -844,7 +852,8 @@ uncommented, otherwise a new import will be added."
           ('none (insert "\nimport (\n\t" line "\n)\n")))))))
 
 (defun go-root-and-paths ()
-  (let* ((output (split-string (shell-command-to-string "go env GOROOT GOPATH") "\n"))
+  (let* ((output (split-string (shell-command-to-string (concat go-command " env GOROOT GOPATH"))
+                               "\n"))
          (root (car output))
          (paths (split-string (cadr output) ":")))
     (append (list root) paths)))
@@ -903,9 +912,10 @@ If IGNORE-CASE is non-nil, the comparison is case-insensitive."
                           (if (string= (file-truename (match-string 1 line)) (file-truename buffer-file-name))
                               (string-to-number (match-string 2 line)))))
                     (split-string (shell-command-to-string
-                                   (if (string-match "_test\.go$" buffer-file-truename)
-                                       "go test -c"
-                                     "go build -o /dev/null")) "\n")))))
+                                   (concat go-command
+                                           (if (string-match "_test\.go$" buffer-file-truename)
+                                               " test -c"
+                                             " build -o /dev/null"))) "\n")))))
 
 (defun go-remove-unused-imports (arg)
   "Removes all unused imports. If ARG is non-nil, unused imports
