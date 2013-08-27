@@ -482,18 +482,20 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 // expr lowers a single-result expression e to SSA form, emitting code
 // to fn and returning the Value defined by the expression.
 //
-func (b *builder) expr(fn *Function, e ast.Expr) (result Value) {
+func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	// Is expression a constant?
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
 		return NewConst(v, fn.Pkg.typeOf(e))
 	}
-
 	e = unparen(e)
-
+	v := b.expr0(fn, e)
 	if fn.debugInfo() {
-		defer func() { emitDebugRef(fn, e, result) }()
+		emitDebugRef(fn, e, v)
 	}
+	return v
+}
 
+func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		panic("non-constant BasicLit") // unreachable
@@ -827,6 +829,9 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 				c.Method = obj
 			} else {
 				// "Call"-mode call.
+				// TODO(adonovan): fix: in -build=G
+				// mode, declaredFunc panics for
+				// cross-package calls.
 				c.Value = fn.Prog.declaredFunc(obj)
 				c.Args = append(c.Args, v)
 			}

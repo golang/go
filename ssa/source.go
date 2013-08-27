@@ -217,8 +217,11 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // because its package was not built, the debug information was not
 // requested during SSA construction, or the value was optimized away.
 //
-// ref must be the path to an ast.Ident (e.g. from
-// PathEnclosingInterval), and that ident must resolve to obj.
+// ref is the path to an ast.Ident (e.g. from PathEnclosingInterval),
+// and that ident must resolve to obj.
+//
+// pkg is the package enclosing the reference.  (A reference to a var
+// may result in code, so we need to know where to find that code.)
 //
 // The Value of a defining (as opposed to referring) identifier is the
 // value assigned to it in its definition.
@@ -235,7 +238,7 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // and all package-level vars.  (This situation can be detected by
 // comparing the types of the Var and Value.)
 //
-func (prog *Program) VarValue(obj *types.Var, ref []ast.Node) Value {
+func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) Value {
 	id := ref[0].(*ast.Ident)
 
 	// Package-level variable?
@@ -243,15 +246,8 @@ func (prog *Program) VarValue(obj *types.Var, ref []ast.Node) Value {
 		return v.(*Global)
 	}
 
-	// It's a local variable (or param) of some function.
-
-	// The reference may occur inside a lexically nested function,
-	// so find that first.
-	pkg := prog.packages[obj.Pkg()]
-	if pkg == nil {
-		panic("no package for " + obj.String())
-	}
-
+	// Must be a function-local variable.
+	// (e.g. local, parameter, or field selection e.f)
 	fn := EnclosingFunction(pkg, ref)
 	if fn == nil {
 		return nil // e.g. SSA not built

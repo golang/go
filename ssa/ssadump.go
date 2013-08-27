@@ -120,7 +120,7 @@ func main() {
 	}
 	prog.BuildAll()
 
-	prog.Package(info.Pkg).CreateTestMainFunction() // FIXME
+	prog.Package(info.Pkg).CreateTestMainFunction() // TODO(adonovan): remove hack
 
 	// Run the interpreter.
 	if *runFlag {

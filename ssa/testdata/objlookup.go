@@ -16,6 +16,7 @@ package main
 // declaration is enough.
 
 import "fmt"
+import "os"
 
 type J int
 
@@ -131,4 +132,9 @@ func main() {
 	select {
 	case x := <-ch: // x::UnOp (receive) ch::MakeChan
 	}
+
+	// .Op is an inter-package FieldVal-selection.
+	var err os.PathError // err::UnOp
+	_ = err.Op           // err::UnOp Op::Field
+	_ = &err.Op          // &err::Alloc &Op::FieldAddr
 }

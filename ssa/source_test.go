@@ -96,7 +96,7 @@ func TestObjValueLookup(t *testing.T) {
 				wantAddr = true
 				exp = exp[1:]
 			}
-			checkVarValue(t, prog, ref, obj, exp, wantAddr)
+			checkVarValue(t, prog, mainPkg, ref, obj, exp, wantAddr)
 		}
 	}
 }
@@ -148,12 +148,12 @@ func checkConstValue(t *testing.T, prog *ssa.Program, obj *types.Const) {
 	}
 }
 
-func checkVarValue(t *testing.T, prog *ssa.Program, ref []ast.Node, obj *types.Var, expKind string, wantAddr bool) {
+func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.Node, obj *types.Var, expKind string, wantAddr bool) {
 	// The prefix of all assertions messages.
 	prefix := fmt.Sprintf("VarValue(%s @ L%d)",
 		obj, prog.Fset.Position(ref[0].Pos()).Line)
 
-	v := prog.VarValue(obj, ref)
+	v := prog.VarValue(obj, pkg, ref)
 
 	// Kind is the concrete type of the ssa Value.
 	gotKind := "nil"
