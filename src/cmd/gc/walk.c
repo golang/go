@@ -2729,6 +2729,7 @@ sliceany(Node* n, NodeList **init)
 	if(chk0 != N || chk1 != N || chk2 != N) {
 		chk = nod(OIF, N, N);
 		chk->nbody = list1(mkcall("panicslice", T, init));
+		chk->likely = -1;
 		if(chk0 != N)
 			chk->ntest = chk0;
 		if(chk1 != N) {
