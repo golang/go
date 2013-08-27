@@ -81,6 +81,13 @@ func chan4() {
 		print(chA) // @pointsto makechan@c4makeA:13
 		print(chB) // @pointsto makechan@c4makeB:13
 	}
+
+	for k := range chA {
+		print(k) // @pointsto main.incr
+	}
+	// Exercise constraint generation (regtest for a crash).
+	for _ = range chA {
+	}
 }
 
 func main() {

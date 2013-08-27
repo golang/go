@@ -508,7 +508,8 @@ type BinOp struct {
 // and a boolean indicating the success of the receive.  The
 // components of the tuple are accessed using Extract.
 //
-// Pos() returns the ast.UnaryExpr.OpPos, if explicit in the source,
+// Pos() returns the ast.UnaryExpr.OpPos or ast.RangeStmt.TokPos (for
+// ranging over a channel), if explicit in the source.
 //
 // Example printed form:
 // 	t0 = *x

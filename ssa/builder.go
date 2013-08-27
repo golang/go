@@ -1868,8 +1868,9 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 // channel x until it fails.
 // tk is the channel's element type, or nil if the k result is
 // not wanted
+// pos is the position of the '=' or ':=' token.
 //
-func (b *builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop, done *BasicBlock) {
+func (b *builder) rangeChan(fn *Function, x Value, tk types.Type, pos token.Pos) (k Value, loop, done *BasicBlock) {
 	//
 	// loop:                                   (target of continue)
 	//      ko = <-x                           (key, ok)
@@ -1889,8 +1890,9 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop
 		X:       x,
 		CommaOk: true,
 	}
+	recv.setPos(pos)
 	recv.setType(types.NewTuple(
-		types.NewVar(token.NoPos, nil, "k", tk),
+		types.NewVar(token.NoPos, nil, "k", x.Type().Underlying().(*types.Chan).Elem()),
 		varOk,
 	))
 	ko := fn.emit(recv)
@@ -1940,7 +1942,7 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 		k, v, loop, done = b.rangeIndexed(fn, x, tv)
 
 	case *types.Chan:
-		k, loop, done = b.rangeChan(fn, x, tk)
+		k, loop, done = b.rangeChan(fn, x, tk, s.TokPos)
 
 	case *types.Map, *types.Basic: // string
 		k, v, loop, done = b.rangeIter(fn, x, tk, tv, s.For)
