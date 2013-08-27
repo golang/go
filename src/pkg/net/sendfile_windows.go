@@ -42,7 +42,7 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 	o := &fd.wop
 	o.qty = uint32(n)
 	o.handle = syscall.Handle(f.Fd())
-	done, err := iosrv.ExecIO(o, "TransmitFile", func(o *operation) error {
+	done, err := wsrv.ExecIO(o, "TransmitFile", func(o *operation) error {
 		return syscall.TransmitFile(o.fd.sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 	})
 	if err != nil {

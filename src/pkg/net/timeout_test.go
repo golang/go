@@ -325,9 +325,6 @@ func TestReadWriteDeadline(t *testing.T) {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	if !canCancelIO {
-		t.Skip("skipping test on this system")
-	}
 	const (
 		readTimeout  = 50 * time.Millisecond
 		writeTimeout = 250 * time.Millisecond
