@@ -264,9 +264,10 @@ func (c *Client) Data() (io.WriteCloser, error) {
 	return &dataCloser{c, c.Text.DotWriter()}, nil
 }
 
-// SendMail connects to the server at addr, switches to TLS if possible,
-// authenticates with mechanism a if possible, and then sends an email from
-// address from, to addresses to, with message msg.
+// SendMail connects to the server at addr, switches to TLS if
+// possible, authenticates with the optional mechanism a if possible,
+// and then sends an email from address from, to addresses to, with
+// message msg.
 func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 	c, err := Dial(addr)
 	if err != nil {
