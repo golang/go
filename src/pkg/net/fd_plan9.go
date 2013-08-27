@@ -18,8 +18,6 @@ type netFD struct {
 	laddr, raddr     Addr
 }
 
-var canCancelIO = true // used for testing current package
-
 func sysInit() {
 }
 

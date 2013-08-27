@@ -830,7 +830,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	}
 	nhigh := runtime.NumGoroutine()
 	tr.CloseIdleConnections()
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 	runtime.GC()
 	nfinal := runtime.NumGoroutine()
 

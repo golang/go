@@ -33,8 +33,6 @@ type netFD struct {
 	pd pollDesc
 }
 
-var canCancelIO = true // used for testing current package
-
 func sysInit() {
 }
 

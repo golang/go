@@ -234,16 +234,20 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 }
 
 // Start helper goroutines.
-var iosrv *ioSrv
+var rsrv, wsrv *ioSrv
 var onceStartServer sync.Once
 
 func startServer() {
-	iosrv = new(ioSrv)
+	rsrv = new(ioSrv)
+	wsrv = new(ioSrv)
 	if !canCancelIO {
-		// Only CancelIo API is available. Lets start special goroutine
-		// locked to an OS thread, that both starts and cancels IO.
-		iosrv.req = make(chan ioSrvReq)
-		go iosrv.ProcessRemoteIO()
+		// Only CancelIo API is available. Lets start two special goroutines
+		// locked to an OS thread, that both starts and cancels IO. One will
+		// process read requests, while other will do writes.
+		rsrv.req = make(chan ioSrvReq)
+		go rsrv.ProcessRemoteIO()
+		wsrv.req = make(chan ioSrvReq)
+		go wsrv.ProcessRemoteIO()
 	}
 }
 
@@ -337,7 +341,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 	// Call ConnectEx API.
 	o := &fd.wop
 	o.sa = ra
-	_, err := iosrv.ExecIO(o, "ConnectEx", func(o *operation) error {
+	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
 		return syscall.ConnectEx(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
@@ -446,7 +450,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	defer fd.readUnlock()
 	o := &fd.rop
 	o.InitBuf(buf)
-	n, err := iosrv.ExecIO(o, "WSARecv", func(o *operation) error {
+	n, err := rsrv.ExecIO(o, "WSARecv", func(o *operation) error {
 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
 	})
 	if err == nil && n == 0 {
@@ -468,7 +472,7 @@ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	defer fd.readUnlock()
 	o := &fd.rop
 	o.InitBuf(buf)
-	n, err = iosrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
+	n, err = rsrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
 		if o.rsa == nil {
 			o.rsa = new(syscall.RawSockaddrAny)
 		}
@@ -492,7 +496,7 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	}
 	o := &fd.wop
 	o.InitBuf(buf)
-	return iosrv.ExecIO(o, "WSASend", func(o *operation) error {
+	return wsrv.ExecIO(o, "WSASend", func(o *operation) error {
 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
 	})
 }
@@ -508,7 +512,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	o := &fd.wop
 	o.InitBuf(buf)
 	o.sa = sa
-	return iosrv.ExecIO(o, "WSASendto", func(o *operation) error {
+	return wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
 	})
 }
@@ -541,7 +545,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	o.handle = s
 	var rawsa [2]syscall.RawSockaddrAny
 	o.rsan = int32(unsafe.Sizeof(rawsa[0]))
-	_, err = iosrv.ExecIO(o, "AcceptEx", func(o *operation) error {
+	_, err = rsrv.ExecIO(o, "AcceptEx", func(o *operation) error {
 		return syscall.AcceptEx(o.fd.sysfd, o.handle, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
 	})
 	if err != nil {
