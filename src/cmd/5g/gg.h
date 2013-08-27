@@ -51,7 +51,7 @@ struct	Prog
 
 #define REGALLOC_R0 0
 #define REGALLOC_RMAX REGEXT
-#define REGALLOC_F0 (REGALLOC_RMAX+1)
+#define REGALLOC_F0 NREG
 #define REGALLOC_FMAX (REGALLOC_F0 + FREGEXT)
 
 EXTERN	int32	dynloc;
