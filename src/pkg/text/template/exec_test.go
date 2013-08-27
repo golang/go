@@ -57,6 +57,7 @@ type T struct {
 	Err error
 	// Pointers
 	PI  *int
+	PS  *string
 	PSI *[]int
 	NIL *int
 	// Function (not method)
@@ -125,6 +126,7 @@ var tVal = &T{
 	Str:               bytes.NewBuffer([]byte("foozle")),
 	Err:               errors.New("erroozle"),
 	PI:                newInt(23),
+	PS:                newString("a string"),
 	PSI:               newIntSlice(21, 22, 23),
 	BinaryFunc:        func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
 	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
@@ -143,9 +145,11 @@ var iVal I = tVal
 
 // Helpers for creation.
 func newInt(n int) *int {
-	p := new(int)
-	*p = n
-	return p
+	return &n
+}
+
+func newString(s string) *string {
+	return &s
 }
 
 func newIntSlice(n ...int) *[]int {
@@ -282,6 +286,7 @@ var execTests = []execTest{
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},
+	{"*string", "{{.PS}}", "a string", tVal, true},
 	{"*[]int", "{{.PSI}}", "[21 22 23]", tVal, true},
 	{"*[]int[1]", "{{index .PSI 1}}", "22", tVal, true},
 	{"NIL", "{{.NIL}}", "<nil>", tVal, true},
@@ -391,6 +396,7 @@ var execTests = []execTest{
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
+	{"html", `{{html .PS}}`, "a string", tVal, true},
 
 	// JavaScript.
 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},

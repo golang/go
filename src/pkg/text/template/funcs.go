@@ -452,15 +452,7 @@ func HTMLEscapeString(s string) string {
 // HTMLEscaper returns the escaped HTML equivalent of the textual
 // representation of its arguments.
 func HTMLEscaper(args ...interface{}) string {
-	ok := false
-	var s string
-	if len(args) == 1 {
-		s, ok = args[0].(string)
-	}
-	if !ok {
-		s = fmt.Sprint(args...)
-	}
-	return HTMLEscapeString(s)
+	return HTMLEscapeString(evalArgs(args))
 }
 
 // JavaScript escaping.
@@ -545,26 +537,35 @@ func jsIsSpecial(r rune) bool {
 // JSEscaper returns the escaped JavaScript equivalent of the textual
 // representation of its arguments.
 func JSEscaper(args ...interface{}) string {
-	ok := false
-	var s string
-	if len(args) == 1 {
-		s, ok = args[0].(string)
-	}
-	if !ok {
-		s = fmt.Sprint(args...)
-	}
-	return JSEscapeString(s)
+	return JSEscapeString(evalArgs(args))
 }
 
 // URLQueryEscaper returns the escaped value of the textual representation of
 // its arguments in a form suitable for embedding in a URL query.
 func URLQueryEscaper(args ...interface{}) string {
-	s, ok := "", false
+	return url.QueryEscape(evalArgs(args))
+}
+
+// evalArgs formats the list of arguments into a string. It is therefore equivalent to
+//	fmt.Sprint(args...)
+// except that each argument is indirected (if a pointer), as required,
+// using the same rules as the default string evaluation during template
+// execution.
+func evalArgs(args []interface{}) string {
+	ok := false
+	var s string
+	// Fast path for simple common case.
 	if len(args) == 1 {
 		s, ok = args[0].(string)
 	}
 	if !ok {
+		for i, arg := range args {
+			a, ok := printableValue(reflect.ValueOf(arg))
+			if ok {
+				args[i] = a
+			} // else left fmt do its thing
+		}
 		s = fmt.Sprint(args...)
 	}
-	return url.QueryEscape(s)
+	return s
 }
