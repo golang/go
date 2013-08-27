@@ -14,7 +14,7 @@ func CanPoint(T types.Type) bool {
 	case *types.Named:
 		return CanPoint(T.Underlying())
 
-	case *types.Pointer, *types.Interface, *types.Map, *types.Chan, *types.Signature:
+	case *types.Pointer, *types.Interface, *types.Map, *types.Chan, *types.Signature, *types.Slice:
 		return true
 	}
 

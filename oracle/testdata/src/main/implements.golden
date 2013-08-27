@@ -1,0 +1,10 @@
+-------- @implements impl --------
+	Interface main.E:
+		main.C
+		main.D
+	Interface main.F:
+		*main.C
+		main.D
+	Interface main.FG:
+		*main.D
+

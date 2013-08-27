@@ -1,0 +1,46 @@
+-------- @describe ref-pkg-import --------
+import of package "lib"
+	const Const untyped integer = 3:untyped integer
+	func  Func  func()
+	type  Type  int
+		method (lib.Type) Method(x *int) *int
+	var   Var   int
+
+-------- @describe ref-const --------
+reference to const Const untyped integer
+defined here
+
+-------- @describe ref-func --------
+reference to func lib.Func()
+defined here
+
+-------- @describe ref-var --------
+reference to var Var int
+defined here
+value may point to these labels:
+	lib.Var
+
+-------- @describe ref-type --------
+reference to type lib.Type
+defined as int
+Method set:
+	method (lib.Type) Method(x *int) *int
+
+-------- @describe ref-method --------
+reference to func (lib.Type).Method(x *int) *int
+defined here
+
+-------- @describe p --------
+reference to var p *int
+defined here
+value may point to these labels:
+	main.a
+
+-------- @describe ref-pkg --------
+reference to package "lib"
+	const Const untyped integer = 3:untyped integer
+	func  Func  func()
+	type  Type  int
+		method (lib.Type) Method(x *int) *int
+	var   Var   int
+

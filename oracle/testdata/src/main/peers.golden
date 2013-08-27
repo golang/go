@@ -1,0 +1,73 @@
+-------- @describe describe-chA --------
+reference to var chA chan *int
+defined here
+value may point to these labels:
+	makechan
+	makechan
+
+-------- @describe describe-chA2 --------
+reference to var chA2 chan *int
+defined here
+value may point to these labels:
+	makechan
+
+-------- @describe describe-chB --------
+reference to var chB chan *int
+defined here
+value may point to these labels:
+	makechan
+
+-------- @peers peer-recv-chA --------
+This channel of type chan *int may be:
+	allocated here
+	allocated here
+	sent to, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
+	sent to, here
+	received from, here
+
+-------- @describe describe-rA --------
+reference to var rA *int
+defined here
+value may point to these labels:
+	main.a2
+	a1
+
+-------- @peers peer-recv-chB --------
+This channel of type chan *int may be:
+	allocated here
+	sent to, here
+	received from, here
+	received from, here
+
+-------- @describe describe-rB --------
+reference to var rB *int
+defined here
+value may point to these labels:
+	b
+
+-------- @peers peer-recv-chA' --------
+This channel of type chan *int may be:
+	allocated here
+	allocated here
+	sent to, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
+	sent to, here
+	received from, here
+
+-------- @peers peer-send-chA' --------
+This channel of type chan *int may be:
+	allocated here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
+	sent to, here
+	received from, here
+

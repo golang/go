@@ -1,0 +1,106 @@
+-------- @describe describe-A-x --------
+definition of var x *int
+value may point to these labels:
+	a
+	b
+
+-------- @callstack callstack-A --------
+Found a call path from root to main.A
+main.A
+dynamic function call from main.apply
+static function call from main.main
+
+-------- @describe describe-B-x --------
+definition of var x *int
+value may point to these labels:
+	a
+	b
+
+-------- @callers callers-B --------
+main.B is called from these 1 sites:
+	dynamic function call from main.apply
+
+-------- @callees callees-apply --------
+this dynamic function call dispatches to:
+	main.A
+	main.B
+
+-------- @callers callers-apply --------
+main.apply is called from these 2 sites:
+	static function call from main.main
+	static function call from main.main
+
+-------- @callers callers-store --------
+main.store is called from these 2 sites:
+	static function call from main.main
+	static function call from main.main
+
+-------- @describe describe-result-f --------
+reference to var f func() *int
+defined here
+value may point to these labels:
+	func@50.7
+
+-------- @callees callees-main.call-f --------
+this dynamic function call dispatches to:
+	func@50.7
+
+-------- @callers callers-main.call --------
+main.call is called from these 2 sites:
+	static function call from main.main
+	static function call from main.main
+
+-------- @callees callees-main-apply1 --------
+this static function call dispatches to:
+	main.apply
+
+-------- @describe describe-pc --------
+definition of var pc *int
+value may point to these labels:
+	c
+
+-------- @describe describe-pd --------
+reference to var pd *int
+defined here
+value may point to these labels:
+	d
+
+-------- @callees callees-err-no-call --------
+
+Error: there is no function call here
+
+-------- @callees callees-err-builtin --------
+
+Error: this is a call to the built-in 'print' operator
+
+-------- @callees callees-err-conversion --------
+
+Error: this is a type conversion, not a function call
+
+-------- @callees callees-err-bad-selection --------
+
+Error: ambiguous selection within function call (or conversion)
+
+-------- @callees callees-err-deadcode1 --------
+this call site is unreachable in this analysis
+
+-------- @callees callees-err-nil-func --------
+dynamic function call on nil value
+
+-------- @callees callees-err-nil-interface --------
+dynamic method call on nil value
+
+-------- @callees callees-err-deadcode2 --------
+this call site is unreachable in this analysis
+
+-------- @callstack callstack-err-deadcode --------
+main.deadcode is unreachable in this analysis scope
+
+-------- @callers callers-global --------
+main.init is called from these 1 sites:
+the root of the call graph
+
+-------- @callers callers-init --------
+main.init is called from these 1 sites:
+the root of the call graph
+

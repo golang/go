@@ -1,0 +1,14 @@
+-------- @freevars fv1 --------
+Free identifers:
+var x int
+type C main.C
+const exp untyped integer
+
+-------- @freevars fv2 --------
+Free identifers:
+var s.x int
+var s.t.a int
+var s.t.b int
+var x int
+var y int32
+
