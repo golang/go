@@ -350,7 +350,7 @@ func TestHeapsortBM(t *testing.T) {
 }
 
 func TestStableBM(t *testing.T) {
-	testBentleyMcIlroy(t, Stable, func(n int) int { return n * lg(n) * lg(n) })
+	testBentleyMcIlroy(t, Stable, func(n int) int { return n * lg(n) * lg(n) / 3 })
 }
 
 // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.
