@@ -2008,27 +2008,27 @@ lexinit1(void)
 	// error type
 	s = lookup("error");
 	s->lexical = LNAME;
-	errortype = t;
-	errortype->sym = s;
 	s1 = pkglookup("error", builtinpkg);
+	errortype = t;
+	errortype->sym = s1;
 	s1->lexical = LNAME;
 	s1->def = typenod(errortype);
 
 	// byte alias
 	s = lookup("byte");
 	s->lexical = LNAME;
-	bytetype = typ(TUINT8);
-	bytetype->sym = s;
 	s1 = pkglookup("byte", builtinpkg);
+	bytetype = typ(TUINT8);
+	bytetype->sym = s1;
 	s1->lexical = LNAME;
 	s1->def = typenod(bytetype);
 
 	// rune alias
 	s = lookup("rune");
 	s->lexical = LNAME;
-	runetype = typ(TINT32);
-	runetype->sym = s;
 	s1 = pkglookup("rune", builtinpkg);
+	runetype = typ(TINT32);
+	runetype->sym = s1;
 	s1->lexical = LNAME;
 	s1->def = typenod(runetype);
 }
