@@ -19,6 +19,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -110,12 +111,19 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 			// show extracted documentation
 			var m doc.Mode
 			if mode&NoFiltering != 0 {
-				m = doc.AllDecls
+				m |= doc.AllDecls
 			}
 			if mode&AllMethods != 0 {
 				m |= doc.AllMethods
 			}
 			info.PDoc = doc.New(pkg, pathpkg.Clean(relpath), m) // no trailing '/' in importpath
+			if mode&NoFactoryFuncs != 0 {
+				for _, t := range info.PDoc.Types {
+					info.PDoc.Funcs = append(info.PDoc.Funcs, t.Funcs...)
+					t.Funcs = nil
+				}
+				sort.Sort(funcsByName(info.PDoc.Funcs))
+			}
 
 			// collect examples
 			testfiles := append(pkginfo.TestGoFiles, pkginfo.XTestGoFiles...)
@@ -177,6 +185,12 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 	return info
 }
 
+type funcsByName []*doc.Func
+
+func (s funcsByName) Len() int           { return len(s) }
+func (s funcsByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s funcsByName) Less(i, j int) bool { return s[i].Name < s[j].Name }
+
 func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if redirect(w, r) {
 		return
@@ -186,7 +200,7 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	abspath := pathpkg.Join(h.fsRoot, relpath)
 	mode := h.p.GetPageInfoMode(r)
 	if relpath == builtinPkgPath {
-		mode = NoFiltering
+		mode = NoFiltering | NoFactoryFuncs
 	}
 	info := h.GetPageInfo(abspath, relpath, mode)
 	if info.Err != nil {
@@ -243,11 +257,12 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type PageInfoMode uint
 
 const (
-	NoFiltering PageInfoMode = 1 << iota // do not filter exports
-	AllMethods                           // show all embedded methods
-	ShowSource                           // show source code, do not extract documentation
-	NoHTML                               // show result in textual form, do not generate HTML
-	FlatDir                              // show directory in a flat (non-indented) manner
+	NoFiltering    PageInfoMode = 1 << iota // do not filter exports
+	AllMethods                              // show all embedded methods
+	ShowSource                              // show source code, do not extract documentation
+	NoHTML                                  // show result in textual form, do not generate HTML
+	FlatDir                                 // show directory in a flat (non-indented) manner
+	NoFactoryFuncs                          // don't associate factory functions with their result types
 )
 
 // modeNames defines names for each PageInfoMode flag.

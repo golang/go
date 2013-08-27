@@ -359,7 +359,7 @@ func main() {
 	var mode godoc.PageInfoMode
 	if relpath == "builtin" {
 		// the fake built-in package contains unexported identifiers
-		mode = godoc.NoFiltering
+		mode = godoc.NoFiltering | godoc.NoFactoryFuncs
 	}
 	if *srcMode {
 		// only filter exports if we don't have explicit command-line filter arguments
