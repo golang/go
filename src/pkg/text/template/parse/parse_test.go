@@ -194,6 +194,10 @@ var parseTests = []parseTest{
 		`{{if .X}}"hello"{{end}}`},
 	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,
 		`{{if .X}}"true"{{else}}"false"{{end}}`},
+	{"if with else if", "{{if .X}}true{{else if .Y}}false{{end}}", noError,
+		`{{if .X}}"true"{{else}}{{if .Y}}"false"{{end}}{{end}}`},
+	{"if else chain", "+{{if .X}}X{{else if .Y}}Y{{else if .Z}}Z{{end}}+", noError,
+		`"+"{{if .X}}"X"{{else}}{{if .Y}}"Y"{{else}}{{if .Z}}"Z"{{end}}{{end}}{{end}}"+"`},
 	{"simple range", "{{range .X}}hello{{end}}", noError,
 		`{{range .X}}"hello"{{end}}`},
 	{"chained field range", "{{range .X.Y.Z}}hello{{end}}", noError,
@@ -238,6 +242,7 @@ var parseTests = []parseTest{
 	{"dot applied to parentheses", "{{printf (printf .).}}", hasError, ""},
 	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
 	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
+	{"extra end after if", "{{if .X}}a{{else if .Y}}b{{end}}{{end}}", hasError, ""},
 	// Equals (and other chars) do not assignments make (yet).
 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
 	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},
