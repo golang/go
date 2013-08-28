@@ -11,6 +11,18 @@ import (
 	"time"
 )
 
+// BUG(mikio): On every POSIX platform, reads from the "ip4" network
+// using the ReadFrom or ReadFromIP method might not return a complete
+// IPv4 packet, including its header, even if there is space
+// available. This can occur even in cases where Read or ReadMsgIP
+// could return a complete packet. For this reason, it is recommended
+// that you do not uses these methods if it is important to receive a
+// full packet.
+//
+// The Go 1 compatibliity guidelines make it impossible for us to
+// change the behavior of these methods; use Read or ReadMsgIP
+// instead.
+
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:

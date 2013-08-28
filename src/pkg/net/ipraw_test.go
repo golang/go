@@ -202,7 +202,7 @@ func TestPacketConnICMPEcho(t *testing.T) {
 			if _, _, err := c.ReadFrom(rb); err != nil {
 				t.Fatalf("PacketConn.ReadFrom failed: %v", err)
 			}
-			// TODO: fix issue 3944
+			// See BUG section.
 			//if net == "ip4" {
 			//	rb = ipv4Payload(rb)
 			//}
