@@ -409,7 +409,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	}
 }
 
-func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
+func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
 	defer t.popVars(len(t.vars))
 	line = t.lex.lineNumber()
 	pipe = t.pipeline(context)
@@ -418,6 +418,23 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, 
 	switch next.Type() {
 	case nodeEnd: //done
 	case nodeElse:
+		if allowElseIf {
+			// Special case for "else if". If the "else" is followed immediately by an "if",
+			// the elseControl will have left the "if" token pending. Treat
+			//	{{if a}}_{{else if b}}_{{end}}
+			// as
+			//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}.
+			// To do this, parse the if as usual and stop at it {{end}}; the subsequent{{end}}
+			// is assumed. This technique works even for long if-else-if chains.
+			// TODO: Should we allow else-if in with and range?
+			if t.peek().typ == itemIf {
+				t.next() // Consume the "if" token.
+				elseList = newList(next.Position())
+				elseList.append(t.ifControl())
+				// Do not consume the next item - only one {{end}} required.
+				break
+			}
+		}
 		elseList, next = t.itemList()
 		if next.Type() != nodeEnd {
 			t.errorf("expected end; found %s", next)
@@ -431,7 +448,7 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, 
 //	{{if pipeline}} itemList {{else}} itemList {{end}}
 // If keyword is past.
 func (t *Tree) ifControl() Node {
-	return newIf(t.parseControl("if"))
+	return newIf(t.parseControl(true, "if"))
 }
 
 // Range:
@@ -439,7 +456,7 @@ func (t *Tree) ifControl() Node {
 //	{{range pipeline}} itemList {{else}} itemList {{end}}
 // Range keyword is past.
 func (t *Tree) rangeControl() Node {
-	return newRange(t.parseControl("range"))
+	return newRange(t.parseControl(false, "range"))
 }
 
 // With:
@@ -447,7 +464,7 @@ func (t *Tree) rangeControl() Node {
 //	{{with pipeline}} itemList {{else}} itemList {{end}}
 // If keyword is past.
 func (t *Tree) withControl() Node {
-	return newWith(t.parseControl("with"))
+	return newWith(t.parseControl(false, "with"))
 }
 
 // End:
@@ -461,6 +478,12 @@ func (t *Tree) endControl() Node {
 //	{{else}}
 // Else keyword is past.
 func (t *Tree) elseControl() Node {
+	// Special case for "else if".
+	peek := t.peekNonSpace()
+	if peek.typ == itemIf {
+		// We see "{{else if ... " but in effect rewrite it to {{else}}{{if ... ".
+		return newElse(peek.pos, t.lex.lineNumber())
+	}
 	return newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
 }
 

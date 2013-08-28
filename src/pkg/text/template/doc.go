@@ -63,6 +63,12 @@ data, defined in detail below.
 		If the value of the pipeline is empty, T0 is executed;
 		otherwise, T1 is executed.  Dot is unaffected.
 
+	{{if pipeline}} T1 {{else if pipeline}} T0 {{end}}
+		To simplify the appearance of if-else chains, the else action
+		of an if may include another if directly; the effect is exactly
+		the same as writing
+			{{if pipeline}} T1 {{else}}{{if pipeline}} T0 {{end}}{{end}}
+
 	{{range pipeline}} T1 {{end}}
 		The value of the pipeline must be an array, slice, map, or channel.
 		If the value of the pipeline has length zero, nothing is output;
