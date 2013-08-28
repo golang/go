@@ -133,18 +133,7 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 
 func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
-	fd, err = socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
-	if err != nil {
-		goto Error
-	}
-	return fd, nil
-
-Error:
-	addr := raddr
-	if mode == "listen" {
-		addr = laddr
-	}
-	return nil, &OpError{mode, net, addr, err}
+	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
 }
 
 func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
