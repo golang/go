@@ -15,7 +15,7 @@ import (
 )
 
 // run is a simple wrapper for exec.Run/Close
-func run(timeout time.Duration, envv []string, dir string, argv ...string) error {
+func run(d time.Duration, envv []string, dir string, argv ...string) error {
 	if *verbose {
 		log.Println("run", argv)
 	}
@@ -26,7 +26,15 @@ func run(timeout time.Duration, envv []string, dir string, argv ...string) error
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	return waitWithTimeout(timeout, cmd)
+	return timeout(d, func() error {
+		if err := cmd.Wait(); err != nil {
+			if _, ok := err.(TimeoutErr); ok {
+				cmd.Process.Kill()
+			}
+			return err
+		}
+		return nil
+	})
 }
 
 // runLog runs a process and returns the combined stdout/stderr. It returns
@@ -42,7 +50,7 @@ func runLog(timeout time.Duration, envv []string, dir string, argv ...string) (s
 // runOutput runs a process and directs any output to the supplied writer.
 // It returns exit status and error. The error returned is nil, if process
 // is started successfully, even if exit status is not successful.
-func runOutput(timeout time.Duration, envv []string, out io.Writer, dir string, argv ...string) (bool, error) {
+func runOutput(d time.Duration, envv []string, out io.Writer, dir string, argv ...string) (bool, error) {
 	if *verbose {
 		log.Println("runOutput", argv)
 	}
@@ -57,23 +65,40 @@ func runOutput(timeout time.Duration, envv []string, out io.Writer, dir string, 
 	if startErr != nil {
 		return false, startErr
 	}
-	if err := waitWithTimeout(timeout, cmd); err != nil {
+
+	if err := timeout(d, func() error {
+		if err := cmd.Wait(); err != nil {
+			if _, ok := err.(TimeoutErr); ok {
+				cmd.Process.Kill()
+			}
+			return err
+		}
+		return nil
+	}); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func waitWithTimeout(timeout time.Duration, cmd *exec.Cmd) error {
-	errc := make(chan error, 1)
+// timeout runs f and returns its error value, or if the function does not
+// complete before the provided duration it returns a timeout error.
+func timeout(d time.Duration, f func() error) error {
+	errc := make(chan error)
 	go func() {
-		errc <- cmd.Wait()
+		errc <- f()
 	}()
-	var err error
+	t := time.NewTimer(d)
+	defer t.Stop()
 	select {
-	case <-time.After(timeout):
-		cmd.Process.Kill()
-		err = fmt.Errorf("timed out after %v", timeout)
-	case err = <-errc:
+	case <-t.C:
+		return fmt.Errorf("timed out after %v", d)
+	case err := <-errc:
+		return err
 	}
-	return err
+}
+
+type TimeoutErr time.Duration
+
+func (e TimeoutErr) Error() string {
+	return fmt.Sprintf("timed out after %v", time.Duration(e))
 }

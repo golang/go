@@ -17,12 +17,14 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"code.google.com/p/go.tools/go/vcs"
 )
 
 const (
 	codeProject      = "go"
 	codePyScript     = "misc/dashboard/googlecode_upload.py"
-	hgUrl            = "https://code.google.com/p/go/"
+	hgUrl            = "code.google.com/p/go"
 	mkdirPerm        = 0750
 	waitInterval     = 30 * time.Second // time to wait before checking for new revs
 	pkgBuildInterval = 24 * time.Hour   // rebuild packages every 24 hours
@@ -85,8 +87,18 @@ func main() {
 	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
+
+	vcs.ShowCmd = *verbose
+	vcs.Verbose = *verbose
+
+	rr, err := vcs.RepoRootForImportPath(hgUrl, *verbose)
+	if err != nil {
+		log.Fatal("Error finding repository:", err)
+	}
+	rootPath := filepath.Join(*buildroot, "goroot")
 	goroot := &Repo{
-		Path: filepath.Join(*buildroot, "goroot"),
+		Path:   rootPath,
+		Master: rr,
 	}
 
 	// set up work environment, use existing enviroment if possible
@@ -100,7 +112,12 @@ func main() {
 			log.Fatalf("Error making build root (%s): %s", *buildroot, err)
 		}
 		var err error
-		goroot, err = RemoteRepo(hgUrl).Clone(goroot.Path, "tip")
+		goroot, err = RemoteRepo(hgUrl, rootPath)
+		if err != nil {
+			log.Fatalf("Error creating repository with url (%s): %s", hgUrl, err)
+		}
+
+		goroot, err = goroot.Clone(goroot.Path, "tip")
 		if err != nil {
 			log.Fatal("Error cloning repository:", err)
 		}
@@ -253,13 +270,13 @@ func (b *Builder) buildHash(hash string) error {
 	// create place in which to do work
 	workpath := filepath.Join(*buildroot, b.name+"-"+hash[:12])
 	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
-		return err
+		//return err
 	}
 	defer os.RemoveAll(workpath)
 
 	// pull before cloning to ensure we have the revision
 	if err := b.goroot.Pull(); err != nil {
-		return err
+		// return err
 	}
 
 	// clone repo at specified revision
@@ -499,8 +516,13 @@ func commitWatcher(goroot *Repo) {
 		commitPoll(goroot, "", key)
 		// Go sub-repositories.
 		for _, pkg := range dashboardPackages("subrepo") {
+			pkgmaster, err := vcs.RepoRootForImportPath(pkg, *verbose)
+			if err != nil {
+				log.Fatalf("Error finding subrepo (%s): %s", pkg, err)
+			}
 			pkgroot := &Repo{
-				Path: filepath.Join(*buildroot, pkg),
+				Path:   filepath.Join(*buildroot, pkg),
+				Master: pkgmaster,
 			}
 			commitPoll(pkgroot, pkg, key)
 		}
@@ -518,9 +540,15 @@ var logByHash = map[string]*HgLog{}
 // commitPoll pulls any new revisions from the hg server
 // and tells the server about them.
 func commitPoll(repo *Repo, pkg, key string) {
+	pkgPath := filepath.Join(*buildroot, repo.Master.Root)
 	if !repo.Exists() {
 		var err error
-		repo, err = RemoteRepo(repoURL(pkg)).Clone(repo.Path, "tip")
+		repo, err = RemoteRepo(pkg, pkgPath)
+		if err != nil {
+			log.Printf("Error cloning package (%s): %s", pkg, err)
+		}
+
+		repo, err = repo.Clone(repo.Path, "tip")
 		if err != nil {
 			log.Printf("%s: hg clone failed: %v", pkg, err)
 			if err := os.RemoveAll(repo.Path); err != nil {
@@ -598,18 +626,6 @@ func addCommit(pkg, hash, key string) bool {
 		return false
 	}
 	return true
-}
-
-var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`)
-
-// repoURL returns the repository URL for the supplied import path.
-func repoURL(importPath string) string {
-	m := repoRe.FindStringSubmatch(importPath)
-	if len(m) < 2 {
-		log.Printf("repoURL: couldn't decipher %q", importPath)
-		return ""
-	}
-	return "https://code.google.com/p/" + m[1]
 }
 
 // defaultSuffix returns file extension used for command files in

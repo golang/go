@@ -7,25 +7,31 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
+
+	"code.google.com/p/go.tools/go/vcs"
 )
 
 // Repo represents a mercurial repository.
 type Repo struct {
-	Path string
+	Path   string
+	Master *vcs.RepoRoot
 	sync.Mutex
 }
 
 // RemoteRepo constructs a *Repo representing a remote repository.
-func RemoteRepo(url string) *Repo {
-	return &Repo{
-		Path: url,
+func RemoteRepo(url, path string) (*Repo, error) {
+	rr, err := vcs.RepoRootForImportPath(url, *verbose)
+	if err != nil {
+		return nil, err
 	}
+	return &Repo{
+		Path:   path,
+		Master: rr,
+	}, nil
 }
 
 // Clone clones the current Repo to a new destination
@@ -33,11 +39,20 @@ func RemoteRepo(url string) *Repo {
 func (r *Repo) Clone(path, rev string) (*Repo, error) {
 	r.Lock()
 	defer r.Unlock()
-	if err := run(*cmdTimeout, nil, *buildroot, r.hgCmd("clone", "-r", rev, r.Path, path)...); err != nil {
+
+	err := timeout(*cmdTimeout, func() error {
+		err := r.Master.VCS.CreateAtRev(path, r.Master.Repo, rev)
+		if err != nil {
+			return err
+		}
+		return r.Master.VCS.TagSync(path, "")
+	})
+	if err != nil {
 		return nil, err
 	}
 	return &Repo{
-		Path: path,
+		Path:   path,
+		Master: r.Master,
 	}, nil
 }
 
@@ -46,12 +61,15 @@ func (r *Repo) Clone(path, rev string) (*Repo, error) {
 func (r *Repo) UpdateTo(hash string) error {
 	r.Lock()
 	defer r.Unlock()
-	return run(*cmdTimeout, nil, r.Path, r.hgCmd("update", hash)...)
+
+	return timeout(*cmdTimeout, func() error {
+		return r.Master.VCS.TagSync(r.Path, hash)
+	})
 }
 
 // Exists reports whether this Repo represents a valid Mecurial repository.
 func (r *Repo) Exists() bool {
-	fi, err := os.Stat(filepath.Join(r.Path, ".hg"))
+	fi, err := os.Stat(filepath.Join(r.Path, "."+r.Master.VCS.Cmd))
 	if err != nil {
 		return false
 	}
@@ -63,7 +81,10 @@ func (r *Repo) Exists() bool {
 func (r *Repo) Pull() error {
 	r.Lock()
 	defer r.Unlock()
-	return run(*cmdTimeout, nil, r.Path, r.hgCmd("pull")...)
+
+	return timeout(*cmdTimeout, func() error {
+		return r.Master.VCS.Download(r.Path)
+	})
 }
 
 // Log returns the changelog for this repository.
@@ -71,25 +92,25 @@ func (r *Repo) Log() ([]HgLog, error) {
 	if err := r.Pull(); err != nil {
 		return nil, err
 	}
-	const N = 50 // how many revisions to grab
-
 	r.Lock()
 	defer r.Unlock()
-	data, _, err := runLog(*cmdTimeout, nil, r.Path, r.hgCmd("log",
-		"--encoding=utf-8",
-		"--limit="+strconv.Itoa(N),
-		"--template="+xmlLogTemplate)...,
-	)
-	if err != nil {
-		return nil, err
-	}
 
 	var logStruct struct {
 		Log []HgLog
 	}
-	err = xml.Unmarshal([]byte("<Top>"+data+"</Top>"), &logStruct)
+	err := timeout(*cmdTimeout, func() error {
+		data, err := r.Master.VCS.Log(r.Path, xmlLogTemplate)
+		if err != nil {
+			return err
+		}
+
+		err = xml.Unmarshal([]byte("<Top>"+string(data)+"</Top>"), &logStruct)
+		if err != nil {
+			return fmt.Errorf("unmarshal %s log: %v", r.Master.VCS, err)
+		}
+		return nil
+	})
 	if err != nil {
-		log.Printf("unmarshal hg log: %v", err)
 		return nil, err
 	}
 	return logStruct.Log, nil
@@ -99,28 +120,28 @@ func (r *Repo) Log() ([]HgLog, error) {
 func (r *Repo) FullHash(rev string) (string, error) {
 	r.Lock()
 	defer r.Unlock()
-	s, _, err := runLog(*cmdTimeout, nil, r.Path,
-		r.hgCmd("log",
-			"--encoding=utf-8",
-			"--rev="+rev,
-			"--limit=1",
-			"--template={node}")...,
-	)
-	if err != nil {
-		return "", nil
-	}
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return "", fmt.Errorf("cannot find revision")
-	}
-	if len(s) != 40 {
-		return "", fmt.Errorf("hg returned invalid hash " + s)
-	}
-	return s, nil
-}
 
-func (r *Repo) hgCmd(args ...string) []string {
-	return append([]string{"hg", "--config", "extensions.codereview=!"}, args...)
+	var hash string
+	err := timeout(*cmdTimeout, func() error {
+		data, err := r.Master.VCS.LogAtRev(r.Path, rev, "{node}")
+		if err != nil {
+			return err
+		}
+
+		s := strings.TrimSpace(string(data))
+		if s == "" {
+			return fmt.Errorf("cannot find revision")
+		}
+		if len(s) != 40 {
+			return fmt.Errorf("%s returned invalid hash: %s", r.Master.VCS, s)
+		}
+		hash = s
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return hash, nil
 }
 
 // HgLog represents a single Mercurial revision.
