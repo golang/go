@@ -173,10 +173,10 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: UnknownNetworkError(net)}
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", net, nil, errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: errMissingAddress}
 	}
 	return dialUDP(net, laddr, raddr, noDeadline)
 }
@@ -184,7 +184,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
 	}
 	return newUDPConn(fd), nil
 }
@@ -200,14 +200,14 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: UnknownNetworkError(net)}
 	}
 	if laddr == nil {
 		laddr = &UDPAddr{}
 	}
 	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
 	}
 	return newUDPConn(fd), nil
 }
@@ -220,25 +220,25 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "listen", Net: net, Addr: gaddr, Err: UnknownNetworkError(net)}
 	}
 	if gaddr == nil || gaddr.IP == nil {
-		return nil, &OpError{"listen", net, nil, errMissingAddress}
+		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: errMissingAddress}
 	}
 	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Addr: gaddr, Err: err}
 	}
 	c := newUDPConn(fd)
 	if ip4 := gaddr.IP.To4(); ip4 != nil {
 		if err := listenIPv4MulticastUDP(c, ifi, ip4); err != nil {
 			c.Close()
-			return nil, &OpError{"listen", net, &IPAddr{IP: ip4}, err}
+			return nil, &OpError{Op: "listen", Net: net, Addr: &IPAddr{IP: ip4}, Err: err}
 		}
 	} else {
 		if err := listenIPv6MulticastUDP(c, ifi, gaddr.IP); err != nil {
 			c.Close()
-			return nil, &OpError{"listen", net, &IPAddr{IP: gaddr.IP}, err}
+			return nil, &OpError{Op: "listen", Net: net, Addr: &IPAddr{IP: gaddr.IP}, Err: err}
 		}
 	}
 	return c, nil

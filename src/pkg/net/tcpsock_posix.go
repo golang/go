@@ -150,10 +150,10 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: UnknownNetworkError(net)}
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", net, nil, errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: errMissingAddress}
 	}
 	return dialTCP(net, laddr, raddr, noDeadline)
 }
@@ -193,7 +193,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
 	}
 	return newTCPConn(fd), nil
 }
@@ -292,14 +292,14 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: UnknownNetworkError(net)}
 	}
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
 	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
 	if err != nil {
-		return nil, err
+		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
 	}
 	return &TCPListener{fd}, nil
 }
