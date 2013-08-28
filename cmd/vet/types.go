@@ -64,6 +64,8 @@ var (
 	stringerMethodType = types.New("func() string")
 	errorType          = types.New("interface{ Error() string }")
 	stringerType       = types.New("interface{ String() string }")
+	// One day this might work. See issue 6259.
+	// formatterType   = types.New("interface{Format(f fmt.State, c rune)}")
 )
 
 // matchArgType reports an error if printf verb t is not appropriate
@@ -85,6 +87,14 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		if typ == nil {
 			return true // probably a type check problem
 		}
+	}
+	// If the type implements fmt.Formatter, we have nothing to check.
+	// But (see issue 6259) that's not easy to verify, so instead we see
+	// if its method set contains a Format function. We could do better,
+	// even now, but we don't need to be 100% accurate. Wait for 6259 to
+	// be fixed instead. TODO.
+	if hasMethod(typ, "Format") {
+		return true
 	}
 	// If we can use a string, does arg implement the Stringer or Error interface?
 	if t&argString != 0 {
@@ -280,4 +290,17 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	}
 	// It must have return type "string" from the universe.
 	return sig.Results().At(0).Type() == types.Typ[types.String]
+}
+
+// hasMethod reports whether the type contains a method with the given name.
+// It is part of the workaround for Formatters and should be deleted when
+// that workaround is no longer necessary. TODO: delete when fixed.
+func hasMethod(typ types.Type, name string) bool {
+	set := typ.MethodSet()
+	for i := 0; i < set.Len(); i++ {
+		if set.At(i).Obj().Name() == name {
+			return true
+		}
+	}
+	return false
 }

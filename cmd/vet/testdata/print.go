@@ -88,6 +88,7 @@ func PrintfTests() {
 	fmt.Printf("%s", stringerarrayv)
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
+	fmt.Printf("%d", new(Formatter))
 	fmt.Printf("%*%", 2)               // Ridiculous but allowed.
 	fmt.Printf("%s", interface{}(nil)) // Nothing useful we can say.
 
@@ -121,6 +122,7 @@ func PrintfTests() {
 	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%t", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%q", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %q of wrong type"
+	fmt.Printf("%d", Formatter(true))          // ERROR "arg Formatter\(true\) for printf verb %d of wrong type"
 	fmt.Printf("%s", nonemptyinterface)        // ERROR "for printf verb %s of wrong type" (Disabled temporarily because of bug in IsAssignableTo)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
@@ -285,4 +287,9 @@ type recursivePtrStringer int
 func (p *recursivePtrStringer) String() string {
 	fmt.Sprintf("%v", *p)
 	return fmt.Sprintln(p) // ERROR "arg p for print causes recursive call to String method"
+}
+
+type Formatter bool
+
+func (*Formatter) Format(fmt.State, rune) {
 }
