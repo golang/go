@@ -774,7 +774,7 @@ func (p *pp) printArg(arg interface{}, verb rune, plus, goSyntax bool, depth int
 	case float64:
 		p.fmtFloat64(f, verb)
 	case complex64:
-		p.fmtComplex64(complex64(f), verb)
+		p.fmtComplex64(f, verb)
 	case complex128:
 		p.fmtComplex128(f, verb)
 	case int:
@@ -867,18 +867,18 @@ BigSwitch:
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		p.fmtInt64(f.Int(), verb)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		p.fmtUint64(uint64(f.Uint()), verb, goSyntax)
+		p.fmtUint64(f.Uint(), verb, goSyntax)
 	case reflect.Float32, reflect.Float64:
 		if f.Type().Size() == 4 {
 			p.fmtFloat32(float32(f.Float()), verb)
 		} else {
-			p.fmtFloat64(float64(f.Float()), verb)
+			p.fmtFloat64(f.Float(), verb)
 		}
 	case reflect.Complex64, reflect.Complex128:
 		if f.Type().Size() == 8 {
 			p.fmtComplex64(complex64(f.Complex()), verb)
 		} else {
-			p.fmtComplex128(complex128(f.Complex()), verb)
+			p.fmtComplex128(f.Complex(), verb)
 		}
 	case reflect.String:
 		p.fmtString(f.String(), verb, goSyntax)
