@@ -4,7 +4,8 @@
 
 package time
 
-// Sleep pauses the current goroutine for the duration d.
+// Sleep pauses the current goroutine for at least the duration d.
+// A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
 
 func nano() int64 {
