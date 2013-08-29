@@ -8,6 +8,7 @@
 #include "hashmap.h"
 #include "type.h"
 #include "race.h"
+#include "../../cmd/ld/textflag.h"
 
 // This file contains the implementation of Go's map type.
 //
@@ -524,7 +525,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 }
 
 // When an item is not found, fast versions return a pointer to this zeroed memory.
-#pragma dataflag 16 // no pointers
+#pragma dataflag RODATA
 static uint8 empty_value[MAXVALUESIZE];
 
 // Specialized versions of mapaccess1 for specific types.
@@ -593,7 +594,6 @@ static uint8 empty_value[MAXVALUESIZE];
 #define SLOW_EQ(x,y) runtime·memeq((x).str, (y).str, (x).len)
 #define MAYBE_EQ(x,y) (*(CHECKTYPE*)(x).str == *(CHECKTYPE*)(y).str && *(CHECKTYPE*)((x).str + (x).len - sizeof(CHECKTYPE)) == *(CHECKTYPE*)((y).str + (x).len - sizeof(CHECKTYPE)))
 #include "hashmap_fast.c"
-#include "../../cmd/ld/textflag.h"
 
 static void
 hash_insert(MapType *t, Hmap *h, void *key, void *value)

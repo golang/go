@@ -17,7 +17,7 @@ package runtime
 #include "../../cmd/ld/textflag.h"
 
 // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
-#pragma dataflag 16
+#pragma dataflag NOPTR
 MHeap runtime·mheap;
 
 int32	runtime·checking;

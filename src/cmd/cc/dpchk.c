@@ -567,7 +567,19 @@ pragfpround(void)
 void
 pragtextflag(void)
 {
-	textflag = getnsn();
+	Sym *s;
+
+	s = getsym();
+	if(s == S) {
+		textflag = getnsn();
+	} else {
+		if(s->macro) {
+			macexpand(s, symb);
+		}
+		if(symb[0] < '0' || symb[0] > '9')
+			yyerror("pragma textflag not an integer");
+		textflag = atoi(symb);
+	}
 	while(getnsc() != '\n')
 		;
 	if(debug['f'])
@@ -577,7 +589,19 @@ pragtextflag(void)
 void
 pragdataflag(void)
 {
-	dataflag = getnsn();
+	Sym *s;
+
+	s = getsym();
+	if(s == S) {
+		dataflag = getnsn();
+	} else {
+		if(s->macro) {
+			macexpand(s, symb);
+		}
+		if(symb[0] < '0' || symb[0] > '9')
+			yyerror("pragma dataflag not an integer");
+		dataflag = atoi(symb);
+	}
 	while(getnsc() != '\n')
 		;
 	if(debug['f'])
