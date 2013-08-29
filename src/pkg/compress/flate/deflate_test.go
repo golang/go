@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -423,4 +424,67 @@ func TestRegression2508(t *testing.T) {
 		}
 	}
 	w.Close()
+}
+
+func TestWriterReset(t *testing.T) {
+	for level := 0; level <= 9; level++ {
+		if testing.Short() && level > 1 {
+			break
+		}
+		w, err := NewWriter(ioutil.Discard, level)
+		if err != nil {
+			t.Fatalf("NewWriter: %v", err)
+		}
+		buf := []byte("hello world")
+		for i := 0; i < 1024; i++ {
+			w.Write(buf)
+		}
+		w.Reset(ioutil.Discard)
+
+		wref, err := NewWriter(ioutil.Discard, level)
+		if err != nil {
+			t.Fatalf("NewWriter: %v", err)
+		}
+
+		// DeepEqual doesn't compare functions.
+		w.d.fill, wref.d.fill = nil, nil
+		w.d.step, wref.d.step = nil, nil
+		if !reflect.DeepEqual(w, wref) {
+			t.Errorf("level %d Writer not reset after Reset", level)
+		}
+	}
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, NoCompression) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, DefaultCompression) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, BestCompression) })
+	dict := []byte("we are the world")
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, NoCompression, dict) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, DefaultCompression, dict) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, BestCompression, dict) })
+}
+
+func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error)) {
+	buf := new(bytes.Buffer)
+	w, err := newWriter(buf)
+	if err != nil {
+		t.Fatalf("NewWriter: %v", err)
+	}
+	b := []byte("hello world")
+	for i := 0; i < 1024; i++ {
+		w.Write(b)
+	}
+	w.Close()
+	out1 := buf.String()
+
+	buf2 := new(bytes.Buffer)
+	w.Reset(buf2)
+	for i := 0; i < 1024; i++ {
+		w.Write(b)
+	}
+	w.Close()
+	out2 := buf2.String()
+
+	if out1 != out2 {
+		t.Errorf("got %q, expected %q", out2, out1)
+	}
+	t.Logf("got %d bytes", len(out1))
 }
