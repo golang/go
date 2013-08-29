@@ -1448,7 +1448,9 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 	if r.Method != "CONNECT" {
 		if p := cleanPath(r.URL.Path); p != r.URL.Path {
 			_, pattern = mux.handler(r.Host, p)
-			return RedirectHandler(p, StatusMovedPermanently), pattern
+			url := *r.URL
+			url.Path = p
+			return RedirectHandler(url.String(), StatusMovedPermanently), pattern
 		}
 	}
 
