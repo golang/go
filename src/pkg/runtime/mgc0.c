@@ -199,6 +199,16 @@ static struct {
 	uint64 instr[GC_NUM_INSTR2];
 	uint64 putempty;
 	uint64 getfull;
+	struct {
+		uint64 foundbit;
+		uint64 foundword;
+		uint64 foundspan;
+	} flushptrbuf;
+	struct {
+		uint64 foundbit;
+		uint64 foundword;
+		uint64 foundspan;
+	} markonly;
 } gcstats;
 
 // markonly marks an object. It returns true if the object
@@ -208,7 +218,7 @@ static bool
 markonly(void *obj)
 {
 	byte *p;
-	uintptr *bitp, bits, shift, x, xbits, off;
+	uintptr *bitp, bits, shift, x, xbits, off, j;
 	MSpan *s;
 	PageID k;
 
@@ -230,8 +240,23 @@ markonly(void *obj)
 	bits = xbits >> shift;
 
 	// Pointing at the beginning of a block?
-	if((bits & (bitAllocated|bitBlockBoundary)) != 0)
+	if((bits & (bitAllocated|bitBlockBoundary)) != 0) {
+		if(CollectStats)
+			runtime·xadd64(&gcstats.markonly.foundbit, 1);
 		goto found;
+	}
+
+	// Pointing just past the beginning?
+	// Scan backward a little to find a block boundary.
+	for(j=shift; j-->0; ) {
+		if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
+			shift = j;
+			bits = xbits>>shift;
+			if(CollectStats)
+				runtime·xadd64(&gcstats.markonly.foundword, 1);
+			goto found;
+		}
+	}
 
 	// Otherwise consult span table to find beginning.
 	// (Manually inlined copy of MHeap_LookupMaybe.)
@@ -257,6 +282,8 @@ markonly(void *obj)
 	shift = off % wordsPerBitmapWord;
 	xbits = *bitp;
 	bits = xbits >> shift;
+	if(CollectStats)
+		runtime·xadd64(&gcstats.markonly.foundspan, 1);
 
 found:
 	// Now we have bits, bitp, and shift correct for
@@ -395,8 +422,11 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			bits = xbits >> shift;
 
 			// Pointing at the beginning of a block?
-			if((bits & (bitAllocated|bitBlockBoundary)) != 0)
+			if((bits & (bitAllocated|bitBlockBoundary)) != 0) {
+				if(CollectStats)
+					runtime·xadd64(&gcstats.flushptrbuf.foundbit, 1);
 				goto found;
+			}
 
 			ti = 0;
 
@@ -407,6 +437,8 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 					obj = (byte*)obj - (shift-j)*PtrSize;
 					shift = j;
 					bits = xbits>>shift;
+					if(CollectStats)
+						runtime·xadd64(&gcstats.flushptrbuf.foundword, 1);
 					goto found;
 				}
 			}
@@ -435,6 +467,8 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			shift = off % wordsPerBitmapWord;
 			xbits = *bitp;
 			bits = xbits >> shift;
+			if(CollectStats)
+				runtime·xadd64(&gcstats.flushptrbuf.foundspan, 1);
 
 		found:
 			// Now we have bits, bitp, and shift correct for
@@ -2233,6 +2267,9 @@ gc(struct gc_args *args)
 			runtime·printf("\ttotal:\t%D\n", ninstr);
 
 			runtime·printf("putempty: %D, getfull: %D\n", gcstats.putempty, gcstats.getfull);
+
+			runtime·printf("markonly base lookup: bit %D word %D span %D\n", gcstats.markonly.foundbit, gcstats.markonly.foundword, gcstats.markonly.foundspan);
+			runtime·printf("flushptrbuf base lookup: bit %D word %D span %D\n", gcstats.flushptrbuf.foundbit, gcstats.flushptrbuf.foundword, gcstats.flushptrbuf.foundspan);
 		}
 	}
 
