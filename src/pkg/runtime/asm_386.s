@@ -181,14 +181,16 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	m(CX), BX
 	MOVL	m_g0(BX), SI
 	CMPL	SI, AX	// if g == m->g0 call badmcall
-	JNE	2(PC)
-	CALL	runtime·badmcall(SB)
+	JNE	3(PC)
+	MOVL	$runtime·badmcall(SB), AX
+	JMP	AX
 	MOVL	SI, g(CX)	// g = m->g0
 	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
 	PUSHL	AX
 	CALL	DI
 	POPL	AX
-	CALL	runtime·badmcall2(SB)
+	MOVL	$runtime·badmcall2(SB), AX
+	JMP	AX
 	RET
 
 /*

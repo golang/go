@@ -157,12 +157,13 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 	MOVW	g, R1
 	MOVW	m_g0(m), g
 	CMP	g, R1
-	BL.EQ	runtime·badmcall(SB)
+	B.NE	2(PC)
+	B	runtime·badmcall(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	SUB	$8, SP
 	MOVW	R1, 4(SP)
 	BL	(R0)
-	BL	runtime·badmcall2(SB)
+	B	runtime·badmcall2(SB)
 	RET
 
 /*
