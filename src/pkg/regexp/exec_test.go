@@ -689,7 +689,7 @@ func BenchmarkMatchEasy1_1K(b *testing.B)   { benchmark(b, easy1, 1<<10) }
 func BenchmarkMatchEasy1_32K(b *testing.B)  { benchmark(b, easy1, 32<<10) }
 func BenchmarkMatchEasy1_1M(b *testing.B)   { benchmark(b, easy1, 1<<20) }
 func BenchmarkMatchEasy1_32M(b *testing.B)  { benchmark(b, easy1, 32<<20) }
-func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 1<<0) }
+func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 32<<0) }
 func BenchmarkMatchMedium_1K(b *testing.B)  { benchmark(b, medium, 1<<10) }
 func BenchmarkMatchMedium_32K(b *testing.B) { benchmark(b, medium, 32<<10) }
 func BenchmarkMatchMedium_1M(b *testing.B)  { benchmark(b, medium, 1<<20) }
