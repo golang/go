@@ -442,10 +442,16 @@ func (d *deadline) setTime(t time.Time) {
 
 var threadLimit = make(chan struct{}, 500)
 
+func init() {
+	for i := 0; i < cap(threadLimit); i++ {
+		threadLimit <- struct{}{}
+	}
+}
+
 func acquireThread() {
-	threadLimit <- struct{}{}
+	<-threadLimit
 }
 
 func releaseThread() {
-	<-threadLimit
+	threadLimit <- struct{}{}
 }
