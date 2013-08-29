@@ -285,6 +285,8 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	NodeList *body, *l, *callargs, *retargs;
 	char *p;
 	Sym *sym;
+	Pkg *spkg;
+	static Pkg* gopkg;
 	int i, ddd;
 
 	// TODO: names are not right
@@ -296,10 +298,18 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	basetype = rcvrtype;
 	if(isptr[rcvrtype->etype])
 		basetype = basetype->type;
-	if(basetype->sym == S)
+	if(basetype->etype != TINTER && basetype->sym == S)
 		fatal("missing base type for %T", rcvrtype);
 
-	sym = pkglookup(p, basetype->sym->pkg);
+	spkg = nil;
+	if(basetype->sym != S)
+		spkg = basetype->sym->pkg;
+	if(spkg == nil) {
+		if(gopkg == nil)
+			gopkg = mkpkg(strlit("go"));
+		spkg = gopkg;
+	}
+	sym = pkglookup(p, spkg);
 	free(p);
 	if(sym->flags & SymUniq)
 		return sym->def;
