@@ -42,6 +42,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -179,6 +180,11 @@ func doQuery(out io.Writer, q *query) {
 }
 
 func TestOracle(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		t.Skipf("skipping test on %q (no /usr/bin/diff)", runtime.GOOS)
+	}
+
 	for _, filename := range []string{
 		"testdata/src/main/calls.go",
 		"testdata/src/main/describe.go",
