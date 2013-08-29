@@ -324,7 +324,7 @@ runtime·memlimit(void)
 	return 0;
 }
 
-#pragma dataflag 16 // no pointers
+#pragma dataflag NOPTR
 static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
 
 // This runs on a foreign stack, without an m or a g.  No stack split.

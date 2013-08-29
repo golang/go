@@ -14,6 +14,7 @@
 #include "typekind.h"
 #include "hashmap.h"
 #include "funcdata.h"
+#include "../../cmd/ld/textflag.h"
 
 enum {
 	Debug = 0,
@@ -299,7 +300,7 @@ struct BufferList
 	uint32 busy;
 	byte pad[CacheLineSize];
 };
-#pragma dataflag 16  // no pointers
+#pragma dataflag NOPTR
 static BufferList bufferList[MaxGcproc];
 
 static Type *itabtype;

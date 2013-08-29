@@ -20,6 +20,7 @@
 package sync
 #include "runtime.h"
 #include "arch_GOARCH.h"
+#include "../../cmd/ld/textflag.h"
 
 typedef struct SemaWaiter SemaWaiter;
 struct SemaWaiter
@@ -50,7 +51,7 @@ struct semtable
 	SemaRoot;
 	uint8 pad[CacheLineSize-sizeof(SemaRoot)];
 };
-#pragma dataflag 16 /* mark semtable as 'no pointers', hiding from garbage collector */
+#pragma dataflag NOPTR /* mark semtable as 'no pointers', hiding from garbage collector */
 static struct semtable semtable[SEMTABLESZ];
 
 static SemaRoot*

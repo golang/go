@@ -169,7 +169,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
 		*rnd = runtime·startup_random_data;
 		*rnd_len = runtime·startup_random_data_len;
 	} else {
-		#pragma dataflag 16 // no pointers
+		#pragma dataflag NOPTR
 		static byte urandom_data[HashRandomBytes];
 		int32 fd;
 		fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
