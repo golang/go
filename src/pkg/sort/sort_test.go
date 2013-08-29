@@ -520,10 +520,16 @@ func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
 func bench(b *testing.B, size int, algo func(Interface), name string) {
 	b.StopTimer()
 	data := make(intPairs, size)
+	x := ^uint32(0)
 	for i := 0; i < b.N; i++ {
 		for n := size - 3; n <= size+3; n++ {
 			for i := 0; i < len(data); i++ {
-				data[i].a = rand.Intn(n / 5)
+				x += x
+				x ^= 1
+				if int32(x) < 0 {
+					x ^= 0x88888eef
+				}
+				data[i].a = int(x % uint32(n/5))
 			}
 			data.initB()
 			b.StartTimer()
