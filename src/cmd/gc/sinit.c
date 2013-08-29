@@ -25,10 +25,13 @@ static void init2list(NodeList*, NodeList**);
 static int staticinit(Node*, NodeList**);
 static Node *staticname(Type*, int);
 
+// init1 walks the AST starting at n, and accumulates in out
+// the list of definitions needing init code in dependency order.
 static void
 init1(Node *n, NodeList **out)
 {
 	NodeList *l;
+	Node *nv;
 
 	if(n == N)
 		return;
@@ -61,9 +64,29 @@ init1(Node *n, NodeList **out)
 	if(n->initorder == InitDone)
 		return;
 	if(n->initorder == InitPending) {
-		if(n->class == PFUNC)
-			return;
+		// Since mutually recursive sets of functions are allowed,
+		// we don't necessarily raise an error if n depends on a node
+		// which is already waiting for its dependencies to be visited.
+		//
+		// initlist contains a cycle of identifiers referring to each other.
+		// If this cycle contains a variable, then this variable refers to itself.
+		// Conversely, if there exists an initialization cycle involving
+		// a variable in the program, the tree walk will reach a cycle
+		// involving that variable.
+		if(n->class != PFUNC) {
+			nv = n;
+			goto foundinitloop;
+		}
+		for(l=initlist; l->n!=n; l=l->next) {
+			if(l->n->class != PFUNC) {
+				nv = l->n;
+				goto foundinitloop;
+			}
+		}
+		// The loop involves only functions, ok.
+		return;
 
+	foundinitloop:
 		// if there have already been errors printed,
 		// those errors probably confused us and
 		// there might not be a loop.  let the user
@@ -72,17 +95,26 @@ init1(Node *n, NodeList **out)
 		if(nerrors > 0)
 			errorexit();
 
-		print("%L: initialization loop:\n", n->lineno);
-		for(l=initlist;; l=l->next) {
-			if(l->next == nil)
-				break;
-			l->next->end = l;
-		}
+		// There is a loop involving nv. We know about
+		// n and initlist = n1 <- ... <- nv <- ... <- n <- ...
+		print("%L: initialization loop:\n", nv->lineno);
+		// Build back pointers in initlist.
+		for(l=initlist; l; l=l->next)
+			if(l->next != nil)
+				l->next->end = l;
+		// Print nv -> ... -> n1 -> n.
+		for(l=initlist; l->n!=nv; l=l->next);
 		for(; l; l=l->end)
 			print("\t%L %S refers to\n", l->n->lineno, l->n->sym);
-		print("\t%L %S\n", n->lineno, n->sym);
+		// Print n -> ... -> nv.
+		for(l=initlist; l->n!=n; l=l->next);
+		for(; l->n != nv; l=l->end)
+			print("\t%L %S refers to\n", l->n->lineno, l->n->sym);
+		print("\t%L %S\n", nv->lineno, nv->sym);
 		errorexit();
 	}
+
+	// reached a new unvisited node.
 	n->initorder = InitPending;
 	l = malloc(sizeof *l);
 	if(l == nil) {
@@ -116,31 +148,16 @@ init1(Node *n, NodeList **out)
 				break;
 			}
 
-		/*
-			n->defn->dodata = 1;
-			init1(n->defn->right, out);
+			init2(n->defn->right, out);
 			if(debug['j'])
 				print("%S\n", n->sym);
-			*out = list(*out, n->defn);
-			break;
-		*/
-			if(1) {
-				init2(n->defn->right, out);
-				if(debug['j'])
-					print("%S\n", n->sym);
-				if(isblank(n) || !staticinit(n, out)) {
-					if(debug['%']) dump("nonstatic", n->defn);
-					*out = list(*out, n->defn);
-				}
-			} else if(0) {
-				n->defn->dodata = 1;
-				init1(n->defn->right, out);
-				if(debug['j'])
-					print("%S\n", n->sym);
+			if(isblank(n) || !staticinit(n, out)) {
+				if(debug['%'])
+					dump("nonstatic", n->defn);
 				*out = list(*out, n->defn);
 			}
 			break;
-		
+
 		case OAS2FUNC:
 		case OAS2MAPR:
 		case OAS2DOTTYPE:
@@ -220,6 +237,9 @@ initreorder(NodeList *l, NodeList **out)
 	}
 }
 
+// initfix computes initialization order for a list l of top-level
+// declarations and outputs the corresponding list of statements
+// to include in the init() function body.
 NodeList*
 initfix(NodeList *l)
 {
