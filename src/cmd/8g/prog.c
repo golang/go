@@ -95,8 +95,10 @@ static ProgInfo progtable[ALAST] = {
 	[ADIVSD]=	{SizeD | LeftRead | RightRdwr},
 	[ADIVSS]=	{SizeF | LeftRead | RightRdwr},
 	
-	[AFLDCW]=	{SizeW | LeftAddr },
-	[AFSTCW]=	{SizeW | RightAddr },
+	[AFLDCW]=	{SizeW | LeftAddr},
+	[AFSTCW]=	{SizeW | RightAddr},
+
+	[AFSTSW]=	{SizeW | RightAddr | RightWrite},
 
 	[AFADDD]=	{SizeD | LeftAddr | RightRdwr},
 	[AFADDDP]=	{SizeD | LeftAddr | RightRdwr},
@@ -111,9 +113,15 @@ static ProgInfo progtable[ALAST] = {
 
 	[AFCHS]=	{SizeD | RightRdwr}, // also SizeF
 
-	[AFDIVD]=	{SizeD | LeftAddr | RightRdwr},
 	[AFDIVDP]=	{SizeD | LeftAddr | RightRdwr},
 	[AFDIVF]=	{SizeF | LeftAddr | RightRdwr},
+	[AFDIVD]=	{SizeD | LeftAddr | RightRdwr},
+
+	[AFDIVRDP]=	{SizeD | LeftAddr | RightRdwr},
+	[AFDIVRF]=	{SizeF | LeftAddr | RightRdwr},
+	[AFDIVRD]=	{SizeD | LeftAddr | RightRdwr},
+
+	[AFXCHD]=	{SizeD | LeftRdwr | RightRdwr},
 
 	[AFSUBD]=	{SizeD | LeftAddr | RightRdwr},
 	[AFSUBDP]=	{SizeD | LeftAddr | RightRdwr},
@@ -234,6 +242,8 @@ static ProgInfo progtable[ALAST] = {
 	[ARORB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
 	[ARORL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
 	[ARORW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
+
+	[ASAHF]=	{OK, AX, AX},
 
 	[ASALB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
 	[ASALL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
