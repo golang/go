@@ -146,6 +146,9 @@ func (hc *halfConn) changeCipherSpec() error {
 	hc.mac = hc.nextMac
 	hc.nextCipher = nil
 	hc.nextMac = nil
+	for i := range hc.seq {
+		hc.seq[i] = 0
+	}
 	return nil
 }
 
@@ -255,6 +258,26 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert)
 		switch c := hc.cipher.(type) {
 		case cipher.Stream:
 			c.XORKeyStream(payload, payload)
+		case cipher.AEAD:
+			explicitIVLen = 8
+			if len(payload) < explicitIVLen {
+				return false, 0, alertBadRecordMAC
+			}
+			nonce := payload[:8]
+			payload = payload[8:]
+
+			var additionalData [13]byte
+			copy(additionalData[:], hc.seq[:])
+			copy(additionalData[8:], b.data[:3])
+			n := len(payload) - c.Overhead()
+			additionalData[11] = byte(n >> 8)
+			additionalData[12] = byte(n)
+			var err error
+			payload, err = c.Open(payload[:0], nonce, payload, additionalData[:])
+			if err != nil {
+				return false, 0, alertBadRecordMAC
+			}
+			b.resize(recordHeaderLen + explicitIVLen + len(payload))
 		case cbcMode:
 			blockSize := c.BlockSize()
 			if hc.version >= VersionTLS11 {
@@ -305,13 +328,13 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert)
 		b.resize(recordHeaderLen + explicitIVLen + n)
 		remoteMAC := payload[n:]
 		localMAC := hc.mac.MAC(hc.inDigestBuf, hc.seq[0:], b.data[:recordHeaderLen], payload[:n])
-		hc.incSeq()
 
 		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
 			return false, 0, alertBadRecordMAC
 		}
 		hc.inDigestBuf = localMAC
 	}
+	hc.incSeq()
 
 	return true, recordHeaderLen + explicitIVLen, 0
 }
@@ -338,7 +361,6 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 	// mac
 	if hc.mac != nil {
 		mac := hc.mac.MAC(hc.outDigestBuf, hc.seq[0:], b.data[:recordHeaderLen], b.data[recordHeaderLen+explicitIVLen:])
-		hc.incSeq()
 
 		n := len(b.data)
 		b.resize(n + len(mac))
@@ -353,6 +375,20 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 		switch c := hc.cipher.(type) {
 		case cipher.Stream:
 			c.XORKeyStream(payload, payload)
+		case cipher.AEAD:
+			payloadLen := len(b.data) - recordHeaderLen - explicitIVLen
+			b.resize(len(b.data) + c.Overhead())
+			nonce := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
+			payload := b.data[recordHeaderLen+explicitIVLen:]
+			payload = payload[:payloadLen]
+
+			var additionalData [13]byte
+			copy(additionalData[:], hc.seq[:])
+			copy(additionalData[8:], b.data[:3])
+			additionalData[11] = byte(payloadLen >> 8)
+			additionalData[12] = byte(payloadLen)
+
+			c.Seal(payload[:0], nonce, payload, additionalData[:])
 		case cbcMode:
 			blockSize := c.BlockSize()
 			if explicitIVLen > 0 {
@@ -372,6 +408,7 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 	n := len(b.data) - recordHeaderLen
 	b.data[3] = byte(n >> 8)
 	b.data[4] = byte(n)
+	hc.incSeq()
 
 	return true, 0
 }
@@ -660,12 +697,25 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 			m = maxPlaintext
 		}
 		explicitIVLen := 0
+		explicitIVIsSeq := false
 
 		var cbc cbcMode
 		if c.out.version >= VersionTLS11 {
 			var ok bool
 			if cbc, ok = c.out.cipher.(cbcMode); ok {
 				explicitIVLen = cbc.BlockSize()
+			}
+		}
+		if explicitIVLen == 0 {
+			if _, ok := c.out.cipher.(cipher.AEAD); ok {
+				explicitIVLen = 8
+				// The AES-GCM construction in TLS has an
+				// explicit nonce so that the nonce can be
+				// random. However, the nonce is only 8 bytes
+				// which is too small for a secure, random
+				// nonce. Therefore we use the sequence number
+				// as the nonce.
+				explicitIVIsSeq = true
 			}
 		}
 		b.resize(recordHeaderLen + explicitIVLen + m)
@@ -682,8 +732,12 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 		b.data[4] = byte(m)
 		if explicitIVLen > 0 {
 			explicitIV := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
-			if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
-				break
+			if explicitIVIsSeq {
+				copy(explicitIV, c.out.seq[:])
+			} else {
+				if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
+					break
+				}
 			}
 		}
 		copy(b.data[recordHeaderLen+explicitIVLen:], data)
