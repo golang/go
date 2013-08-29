@@ -210,7 +210,7 @@ func TestOracle(t *testing.T) {
 		}
 
 		// Compare foo.got with foo.golden.
-		cmd := exec.Command("/usr/bin/diff", "-u3", golden, got) // assumes POSIX
+		cmd := exec.Command("/usr/bin/diff", "-u", golden, got) // assumes POSIX
 		buf := new(bytes.Buffer)
 		cmd.Stdout = buf
 		if err := cmd.Run(); err != nil {
