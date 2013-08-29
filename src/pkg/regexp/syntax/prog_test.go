@@ -103,3 +103,14 @@ func TestCompile(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkEmptyOpContext(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var r1 rune = -1
+		for _, r2 := range "foo, bar, baz\nsome input text.\n" {
+			EmptyOpContext(r1, r2)
+			r1 = r2
+		}
+		EmptyOpContext(r1, -1)
+	}
+}
