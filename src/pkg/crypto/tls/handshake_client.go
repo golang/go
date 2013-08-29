@@ -308,8 +308,14 @@ func (c *Conn) clientHandshake() error {
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
 		keysFromMasterSecret(c.vers, masterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
 
-	clientCipher := suite.cipher(clientKey, clientIV, false /* not for reading */)
-	clientHash := suite.mac(c.vers, clientMAC)
+	var clientCipher interface{}
+	var clientHash macFunction
+	if suite.cipher != nil {
+		clientCipher = suite.cipher(clientKey, clientIV, false /* not for reading */)
+		clientHash = suite.mac(c.vers, clientMAC)
+	} else {
+		clientCipher = suite.aead(clientKey, clientIV)
+	}
 	c.out.prepareCipherSpec(c.vers, clientCipher, clientHash)
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
@@ -329,8 +335,14 @@ func (c *Conn) clientHandshake() error {
 	finishedHash.Write(finished.marshal())
 	c.writeRecord(recordTypeHandshake, finished.marshal())
 
-	serverCipher := suite.cipher(serverKey, serverIV, true /* for reading */)
-	serverHash := suite.mac(c.vers, serverMAC)
+	var serverCipher interface{}
+	var serverHash macFunction
+	if suite.cipher != nil {
+		serverCipher = suite.cipher(serverKey, serverIV, true /* for reading */)
+		serverHash = suite.mac(c.vers, serverMAC)
+	} else {
+		serverCipher = suite.aead(serverKey, serverIV)
+	}
 	c.in.prepareCipherSpec(c.vers, serverCipher, serverHash)
 	c.readRecord(recordTypeChangeCipherSpec)
 	if err := c.error(); err != nil {
