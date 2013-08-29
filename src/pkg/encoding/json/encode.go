@@ -109,10 +109,6 @@ import (
 // an anonymous struct field in both current and earlier versions, give the field
 // a JSON tag of "-".
 //
-// The "overflow" option may be used with a struct field of a map type to
-// indicate that the map contents should be marshalled as if the keys are part
-// of the struct object itself.
-//
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
 // as map keys.
@@ -243,32 +239,6 @@ var hex = "0123456789abcdef"
 type encodeState struct {
 	bytes.Buffer // accumulated output
 	scratch      [64]byte
-	overflow     int
-}
-
-func (e *encodeState) startOverflow() {
-	e.overflow = e.Len()
-}
-
-func (e *encodeState) endOverflow() {
-	if e.overflow == 0 {
-		panic("endOverflow called before startOverflow")
-	}
-	start, end := e.overflow, e.Len()
-	b := e.Bytes()
-	if b[start] == '{' && b[end-1] == '}' {
-		// Remove surrounding { and }.
-		copy(b[start:], b[start+1:])
-		e.Truncate(end - 2)
-	} else if bytes.Equal(b[start:end], []byte("null")) {
-		// Drop "null".
-		e.Truncate(start)
-	}
-	// Remove trailing comma if overflow value was null or {}.
-	if start > 0 && e.Len() == start && b[start-1] == ',' {
-		e.Truncate(start - 1)
-	}
-	e.overflow = 0
 }
 
 // TODO(bradfitz): use a sync.Cache here
@@ -612,7 +582,7 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value, quoted bool) {
 	e.WriteByte('{')
 	first := true
 	for i, f := range se.fields {
-		fv := fieldByIndex(v, f.index, false)
+		fv := fieldByIndex(v, f.index)
 		if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
 			continue
 		}
@@ -620,16 +590,6 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value, quoted bool) {
 			first = false
 		} else {
 			e.WriteByte(',')
-		}
-		if f.overflow {
-			if tenc := se.fieldEncs[i]; tenc != nil {
-				e.startOverflow()
-				tenc(e, fv, f.quoted)
-				e.endOverflow()
-			} else {
-				panic("no encoder for " + fv.String())
-			}
-			continue
 		}
 		e.string(f.name)
 		e.WriteByte(':')
@@ -650,7 +610,7 @@ func newStructEncoder(t reflect.Type, vx reflect.Value) encoderFunc {
 		fieldEncs: make([]encoderFunc, len(fields)),
 	}
 	for i, f := range fields {
-		vxf := fieldByIndex(vx, f.index, false)
+		vxf := fieldByIndex(vx, f.index)
 		if vxf.IsValid() {
 			se.fieldEncs[i] = typeEncoder(vxf.Type(), vxf)
 		}
@@ -790,16 +750,11 @@ func isValidTag(s string) bool {
 	return true
 }
 
-// fieldByIndex fetches (and allocates, if create is true) the field in v
-// indentified by index.
-func fieldByIndex(v reflect.Value, index []int, create bool) reflect.Value {
+func fieldByIndex(v reflect.Value, index []int) reflect.Value {
 	for _, i := range index {
 		if v.Kind() == reflect.Ptr {
 			if v.IsNil() {
-				if !create {
-					return reflect.Value{}
-				}
-				v.Set(reflect.New(v.Type().Elem()))
+				return reflect.Value{}
 			}
 			v = v.Elem()
 		}
@@ -971,7 +926,6 @@ type field struct {
 	typ       reflect.Type
 	omitEmpty bool
 	quoted    bool
-	overflow  bool
 }
 
 // byName sorts field by name, breaking ties with depth,
@@ -1073,15 +1027,8 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, field{
-						name:      name,
-						tag:       tagged,
-						index:     index,
-						typ:       ft,
-						omitEmpty: opts.Contains("omitempty"),
-						quoted:    opts.Contains("string"),
-						overflow:  opts.Contains("overflow")},
-					)
+					fields = append(fields, field{name, tagged, index, ft,
+						opts.Contains("omitempty"), opts.Contains("string")})
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.

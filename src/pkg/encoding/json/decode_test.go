@@ -1275,23 +1275,3 @@ func TestSkipArrayObjects(t *testing.T) {
 		t.Errorf("got error %q, want nil", err)
 	}
 }
-
-func TestDecodeOverflow(t *testing.T) {
-	json := `{"A":1,"B":2,"C":3}`
-	type S struct {
-		A int
-		E map[string]interface{} `json:",overflow"`
-		C int
-	}
-	var (
-		want = S{1, map[string]interface{}{"B": float64(2)}, 3}
-		dest S
-	)
-	err := Unmarshal([]byte(json), &dest)
-	if err != nil {
-		t.Errorf("got error %q, want nil", err)
-	}
-	if !reflect.DeepEqual(dest, want) {
-		t.Errorf("Got %+v; want %+v", dest, want)
-	}
-}
