@@ -79,7 +79,6 @@ use strict;
 use warnings;
 use Getopt::Long;
 use File::Temp;
-use LWP::UserAgent;
 use File::Copy;
 
 my $PPROF_VERSION = "1.5";
@@ -502,7 +501,7 @@ sub Init() {
   # Remote profiling without a binary (using $SYMBOL_PAGE instead)
   if (IsProfileURL($ARGV[0])) {
     $main::use_symbol_page = 1;
-  } elsif (IsSymbolizedProfileFile($ARGV[0])) {
+  } elsif ($ARGV[0] && IsSymbolizedProfileFile($ARGV[0])) {
     $main::use_symbolized_profile = 1;
     $main::prog = $UNKNOWN_BINARY;  # will be set later from the profile file
   }
@@ -2979,11 +2978,7 @@ sub CheckSymbolPage {
   my $url = SymbolPageURL();
 print STDERR "Read $url\n";
 
-  my $ua = LWP::UserAgent->new;
-  my $response = $ua->get($url);
-  error("Failed to get symbol page from $url\n") unless $response->is_success;
-  
-  my $line = $response->content;
+  my $line = FetchHTTP($url);
   $line =~ s/\r//g;         # turn windows-looking lines into unix-looking lines
   unless (defined($line)) {
     error("$url doesn't exist\n");
@@ -3027,12 +3022,8 @@ sub FetchProgramName() {
   my ($scheme, $host, $port, $prefix, $path) = ParseProfileURL($main::pfile_args[0]);
   my $url = "$scheme://$host:$port$prefix$PROGRAM_NAME_PAGE";
   
-  my $ua = LWP::UserAgent->new;
-  my $response = $ua->get($url);
-  error("Failed to get program name from $url\n") unless $response->is_success;
-  my $cmdline = $response->content;
-  
-  $cmdline =~ s/\n.*//s;
+  my $cmdline = FetchHTTP($url);
+  $cmdline =~ s/\n.*//s; # first line only
   $cmdline =~ s/\r//g;   # turn windows-looking lines into unix-looking lines
   error("Failed to get program name from $url\n") unless defined($cmdline);
   $cmdline =~ s/\x00.+//;  # Remove argv[1] and latters.
@@ -3091,19 +3082,12 @@ sub FetchSymbols {
     $symbol_map = {};
 
     my $post_data = join("+", sort((map {"0x" . "$_"} @pcs)));
-    open(POSTFILE, ">$main::tmpfile_sym");
-    print POSTFILE $post_data;
-    close(POSTFILE);
-
     my $url = SymbolPageURL();
-    my $req = HTTP::Request->new(POST => $url);
-    $req->content($post_data);
-    my $lwp = LWP::UserAgent->new;
-    my $response = $lwp->request($req);
+    my $content = PostHTTP($url, $post_data);
     
     my $tmp_symbol = File::Temp->new()->filename;
     open(SYMBOL, ">$tmp_symbol");
-    print SYMBOL $response->content;
+    print SYMBOL $content;
     close(SYMBOL);
     
     open(SYMBOL, "<$tmp_symbol") || error("$tmp_symbol");
@@ -3186,8 +3170,7 @@ sub FetchDynamicProfile {
         $url = sprintf("$scheme://$profile_name" . "seconds=%d",
             $main::opt_seconds);
       }
-      $timeout = sprintf("%d",
-                              int($main::opt_seconds * 1.01 + 60));
+      $timeout = int($main::opt_seconds * 1.01 + 60);
     } else {
       # For non-CPU profiles, we add a type-extension to
       # the target profile file name.
@@ -3195,7 +3178,6 @@ sub FetchDynamicProfile {
       $suffix =~ s,/,.,g;
       $profile_file .= "$suffix";
       $url = "$scheme://$host:$port$prefix$path";
-      $timeout = "";
     }
 
     my $tmp_profile = File::Temp->new()->filename;
@@ -3214,18 +3196,14 @@ sub FetchDynamicProfile {
       print STDERR "Fetching $path profile from $host:$port to\n  ${real_profile}\n";
     }
 
-    my $ua = LWP::UserAgent->new;
-    $ua->timeout($timeout);
-    my $response = $ua->get($url);
-
-    error("Failed to get profile: $url $timeout!\n") unless $response->is_success;
+    my $content = FetchHTTP($url, $timeout);
     
     open(OUTFILE, ">$tmp_profile");
     binmode(OUTFILE);
-    print OUTFILE $response->content;
+    print OUTFILE $content;
     close(OUTFILE);
     
-    my $line = $response->content;
+    my $line = $content;
     $line !~ /^Could not enable CPU profiling/ || error($line);
     
     copy($tmp_profile, $real_profile) || error("Unable to copy profile\n");
@@ -4680,12 +4658,59 @@ sub ConfigureTool {
   return $path;
 }
 
-sub cleanup {
-  unlink($main::tmpfile_sym);
-  unlink(keys %main::tempnames);
-  if (defined($main::collected_profile)) {
-    unlink($main::collected_profile);
+# FetchHTTP retrieves a URL using either curl or LWP::UserAgent.
+# It returns the entire body of the page on success, or exits the program
+# with an error message on any failure.
+sub FetchHTTP {
+  my $url = shift;
+  my $timeout = shift;  # optional, in seconds
+  eval "use LWP::UserAgent ();";
+  if ($@) {
+    my @max;
+    push @max, "--max-time", $timeout if $timeout;
+    open(my $fh, "-|", "curl", @max, "-s", $url) or error("Neither LWP::UserAgent nor curl is installed: $!\n");
+    my $slurp = do { local $/; <$fh> };
+    close($fh);
+    if ($? != 0) {
+      error("Error fetching $url with curl: exit $?")
+    }
+    return $slurp;
   }
+  my $ua = LWP::UserAgent->new;
+  $ua->timeout($timeout) if $timeout;
+  my $res = $ua->get($url);
+  error("Failed to fetch $url\n") unless $res->is_success();
+  return $res->content();
+}
+
+sub PostHTTP {
+  my ($url, $post_data) = @_;
+  eval "use LWP::UserAgent ();";
+  if ($@) {
+    open(POSTFILE, ">$main::tmpfile_sym");
+    print POSTFILE $post_data;
+    close(POSTFILE);
+
+    open(my $fh, "-|", "curl", "-s", "-d", "\@$main::tmpfile_sym", $url) or error("Neither LWP::UserAgent nor curl is installed: $!\n");
+    my $slurp = do { local $/; <$fh> };
+    close($fh);
+    if ($? != 0) {
+      error("Error fetching $url with curl: exit $?")
+    }
+    return $slurp;
+  }
+  my $req = HTTP::Request->new(POST => $url);
+  $req->content($post_data);
+  my $ua = LWP::UserAgent->new;
+  my $res = $ua->request($req);
+  error("Failed to POST to $url\n") unless $res->is_success();
+  return $res->content();
+}
+
+sub cleanup {
+  unlink($main::tmpfile_sym) if defined $main::tmpfile_sym;
+  unlink(keys %main::tempnames) if %main::tempnames;
+  unlink($main::collected_profile) if defined $main::collected_profile;
 
   # We leave any collected profiles in $HOME/pprof in case the user wants
   # to look at them later.  We print a message informing them of this.
