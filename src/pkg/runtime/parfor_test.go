@@ -102,11 +102,6 @@ func TestParForSetup(t *testing.T) {
 
 // Test parallel parallelfor.
 func TestParForParallel(t *testing.T) {
-	if GOARCH != "amd64" {
-		t.Log("temporarily disabled, see http://golang.org/issue/4155")
-		return
-	}
-
 	N := uint64(1e7)
 	if testing.Short() {
 		N /= 10
