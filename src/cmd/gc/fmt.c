@@ -604,8 +604,11 @@ typefmt(Fmt *fp, Type *t)
 	if(!(fp->flags&FmtLong) && t->sym && t->etype != TFIELD && t != types[t->etype]) {
 		switch(fmtmode) {
 		case FTypeId:
-			if(fp->flags&FmtShort)
+			if(fp->flags&FmtShort) {
+				if(t->vargen)
+					return fmtprint(fp, "%hS·%d", t->sym, t->vargen);
 				return fmtprint(fp, "%hS", t->sym);
+			}
 			if(fp->flags&FmtUnsigned)
 				return fmtprint(fp, "%uS", t->sym);
 			// fallthrough
