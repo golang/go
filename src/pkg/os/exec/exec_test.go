@@ -152,6 +152,34 @@ func TestPipes(t *testing.T) {
 	check("Wait", err)
 }
 
+const stdinCloseTestString = "Some test string."
+
+// Issue 6270.
+func TestStdinClose(t *testing.T) {
+	check := func(what string, err error) {
+		if err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	}
+	cmd := helperCommand("stdinClose")
+	stdin, err := cmd.StdinPipe()
+	check("StdinPipe", err)
+	// Check that we can access methods of the underlying os.File.`
+	if _, ok := stdin.(interface {
+		Fd() uintptr
+	}); !ok {
+		t.Error("can't access methods of underlying *os.File")
+	}
+	check("Start", cmd.Start())
+	go func() {
+		_, err := io.Copy(stdin, strings.NewReader(stdinCloseTestString))
+		check("Copy", err)
+		// Before the fix, this next line would race with cmd.Wait.
+		check("Close", stdin.Close())
+	}()
+	check("Wait", cmd.Wait())
+}
+
 // Issue 5071
 func TestPipeLookPathLeak(t *testing.T) {
 	fd0 := numOpenFDS(t)
@@ -507,6 +535,17 @@ func TestHelperProcess(*testing.T) {
 				os.Exit(1)
 			}
 		}
+	case "stdinClose":
+		b, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if s := string(b); s != stdinCloseTestString {
+			fmt.Fprintf(os.Stderr, "Error: Read %q, want %q", s, stdinCloseTestString)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	case "read3": // read fd 3
 		fd3 := os.NewFile(3, "fd3")
 		bs, err := ioutil.ReadAll(fd3)

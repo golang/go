@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync"
 	"syscall"
 )
 
@@ -357,6 +358,8 @@ func (c *Cmd) CombinedOutput() ([]byte, error) {
 
 // StdinPipe returns a pipe that will be connected to the command's
 // standard input when the command starts.
+// If the returned WriteCloser is not closed before Wait is called,
+// Wait will close it.
 func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	if c.Stdin != nil {
 		return nil, errors.New("exec: Stdin already set")
@@ -370,8 +373,23 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	}
 	c.Stdin = pr
 	c.closeAfterStart = append(c.closeAfterStart, pr)
-	c.closeAfterWait = append(c.closeAfterWait, pw)
-	return pw, nil
+	wc := &closeOnce{File: pw}
+	c.closeAfterWait = append(c.closeAfterWait, wc)
+	return wc, nil
+}
+
+type closeOnce struct {
+	*os.File
+
+	close    sync.Once
+	closeErr error
+}
+
+func (c *closeOnce) Close() error {
+	c.close.Do(func() {
+		c.closeErr = c.File.Close()
+	})
+	return c.closeErr
 }
 
 // StdoutPipe returns a pipe that will be connected to the command's
