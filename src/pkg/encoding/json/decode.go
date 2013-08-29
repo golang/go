@@ -61,10 +61,6 @@ import (
 // Instead, they are replaced by the Unicode replacement
 // character U+FFFD.
 //
-// When unmarshalling into struct values, a struct field of map type with the
-// "overflow" option will store values whose keys do not match the other struct
-// fields.
-//
 func Unmarshal(data []byte, v interface{}) error {
 	// Check for well-formedness.
 	// Avoids filling out half a data structure
@@ -493,6 +489,8 @@ func (d *decodeState) object(v reflect.Value) {
 		return
 	}
 
+	var mapElem reflect.Value
+
 	for {
 		// Read opening " of string key or closing }.
 		op := d.scanWhile(scanSkipSpace)
@@ -514,7 +512,44 @@ func (d *decodeState) object(v reflect.Value) {
 		}
 
 		// Figure out field corresponding to key.
-		subv, mapv, destring := subValue(v, key)
+		var subv reflect.Value
+		destring := false // whether the value is wrapped in a string to be decoded first
+
+		if v.Kind() == reflect.Map {
+			elemType := v.Type().Elem()
+			if !mapElem.IsValid() {
+				mapElem = reflect.New(elemType).Elem()
+			} else {
+				mapElem.Set(reflect.Zero(elemType))
+			}
+			subv = mapElem
+		} else {
+			var f *field
+			fields := cachedTypeFields(v.Type())
+			for i := range fields {
+				ff := &fields[i]
+				if ff.name == key {
+					f = ff
+					break
+				}
+				if f == nil && strings.EqualFold(ff.name, key) {
+					f = ff
+				}
+			}
+			if f != nil {
+				subv = v
+				destring = f.quoted
+				for _, i := range f.index {
+					if subv.Kind() == reflect.Ptr {
+						if subv.IsNil() {
+							subv.Set(reflect.New(subv.Type().Elem()))
+						}
+						subv = subv.Elem()
+					}
+					subv = subv.Field(i)
+				}
+			}
+		}
 
 		// Read : before value.
 		if op == scanSkipSpace {
@@ -534,9 +569,9 @@ func (d *decodeState) object(v reflect.Value) {
 
 		// Write value back to map;
 		// if using struct, subv points into struct already.
-		if mapv.IsValid() {
-			kv := reflect.ValueOf(key).Convert(mapv.Type().Key())
-			mapv.SetMapIndex(kv, subv)
+		if v.Kind() == reflect.Map {
+			kv := reflect.ValueOf(key).Convert(v.Type().Key())
+			v.SetMapIndex(kv, subv)
 		}
 
 		// Next token must be , or }.
@@ -548,57 +583,6 @@ func (d *decodeState) object(v reflect.Value) {
 			d.error(errPhase)
 		}
 	}
-}
-
-// subValue returns (and allocates, if necessary) the field in the struct or
-// map v whose name matches key.
-func subValue(v reflect.Value, key string) (subv, mapv reflect.Value, destring bool) {
-	// Create new map element.
-	if v.Kind() == reflect.Map {
-		subv = reflect.New(v.Type().Elem()).Elem()
-		mapv = v
-		return
-	}
-
-	// Get struct field.
-	var f *field
-	fields := cachedTypeFields(v.Type())
-	for i := range fields {
-		ff := &fields[i]
-		if ff.name == key {
-			f = ff
-			break
-		}
-		if f == nil && strings.EqualFold(ff.name, key) {
-			f = ff
-		}
-	}
-	if f != nil {
-		subv = fieldByIndex(v, f.index, true)
-		destring = f.quoted
-		return
-	}
-
-	// Decode into overflow field if present.
-	for _, f := range fields {
-		if f.overflow {
-			// Find overflow field.
-			mapv = fieldByIndex(v, f.index, true)
-			if k := mapv.Kind(); k != reflect.Map {
-				panic("unsupported overflow field kind: " + k.String())
-			}
-			// Make map if necessary.
-			if mapv.IsNil() {
-				mapv.Set(reflect.MakeMap(mapv.Type()))
-			}
-			// Create new map element.
-			subv = reflect.New(mapv.Type().Elem()).Elem()
-			return
-		}
-	}
-
-	// Not found.
-	return
 }
 
 // literal consumes a literal from d.data[d.off-1:], decoding into the value v.

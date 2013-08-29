@@ -33,29 +33,6 @@ func ExampleMarshal() {
 	// {"ID":1,"Name":"Reds","Colors":["Crimson","Red","Ruby","Maroon"]}
 }
 
-func ExampleMarshal_overflow() {
-	type Record struct {
-		ID   string
-		Seq  int
-		Meta map[string]string `json:",overflow"`
-	}
-	r := Record{
-		ID:  "CheeseWhiz",
-		Seq: 42,
-		Meta: map[string]string{
-			"Created":   "1980-06-20",
-			"Destroyed": "1998-02-06",
-		},
-	}
-	b, err := json.Marshal(r)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	os.Stdout.Write(b)
-	// Output:
-	// {"ID":"CheeseWhiz","Seq":42,"Created":"1980-06-20","Destroyed":"1998-02-06"}
-}
-
 func ExampleUnmarshal() {
 	var jsonBlob = []byte(`[
 		{"Name": "Platypus", "Order": "Monotremata"},
@@ -73,29 +50,6 @@ func ExampleUnmarshal() {
 	fmt.Printf("%+v", animals)
 	// Output:
 	// [{Name:Platypus Order:Monotremata} {Name:Quoll Order:Dasyuromorphia}]
-}
-
-func ExampleUnmarshal_overflow() {
-	var jsonBlob = []byte(`
-		{
-			"Token": "Kaip4uM1ieng6Eiw",
-			"User":  "bimmler",
-			"Animal": "rabbit"
-		}
-	`)
-	type Auth struct {
-		Token string
-		User  string
-		Extra map[string]string `json:",overflow"`
-	}
-	var auth Auth
-	err := json.Unmarshal(jsonBlob, &auth)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	fmt.Printf("%+v", auth)
-	// Output:
-	// {Token:Kaip4uM1ieng6Eiw User:bimmler Extra:map[Animal:rabbit]}
 }
 
 // This example uses a Decoder to decode a stream of distinct JSON values.
