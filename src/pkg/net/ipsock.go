@@ -40,6 +40,24 @@ type netaddr interface {
 	toAddr() Addr
 }
 
+// An addrList represents a list of network endpoint addresses.
+type addrList []netaddr
+
+func (al addrList) toAddr() Addr {
+	switch len(al) {
+	case 0:
+		return nil
+	case 1:
+		return al[0].toAddr()
+	default:
+		// For now, we'll roughly pick first one without
+		// considering dealing with any preferences such as
+		// DNS TTL, transport path quality, network routing
+		// information.
+		return al[0].toAddr()
+	}
+}
+
 var errNoSuitableAddress = errors.New("no suitable address found")
 
 // firstFavoriteAddr returns an address that implemets netaddr
