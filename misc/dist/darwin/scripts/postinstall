@@ -8,24 +8,3 @@ find . -exec chmod ugo+r \{\} \;
 find bin -exec chmod ugo+rx \{\} \;
 find . -type d -exec chmod ugo+rx \{\} \;
 chmod o-w .
-
-echo "Installing miscellaneous files:"
-XCODE_SHARED_DIR="/Library/Application Support/Developer/Shared/Xcode"
-XCODE_MISC_DIR="$XCODE_SHARED_DIR/Specifications/"
-if [ -d "$XCODE_SHARED_DIR" ]; then
-	# Create the XCODE_MISC_DIR if it doesn't exist already
-	mkdir -p "$XCODE_MISC_DIR"
-
-	version=`/usr/bin/xcodebuild -version | sed -n -E 's/^Xcode ([0-9]+)\..*$/\1/p'`
-        
-        # Since command line tools are optional with Xcode 4, a failure of the 
-	# xcodebuild -version command is interpreted as meaning Xcode 4 is the 
-	# version used.
-	if [[ $? -ne 0 ]]; then
-		version=4
-	fi
-
-        echo "  Xcode $version"
-	cp $GOROOT/misc/xcode/$version/* "$XCODE_MISC_DIR"
-fi
-
