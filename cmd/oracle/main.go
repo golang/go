@@ -36,7 +36,7 @@ var posFlag = flag.String("pos", "",
 var modeFlag = flag.String("mode", "",
 	"Mode of query to perform: callers, callees, callstack, callgraph, describe.")
 
-var ptalogFlag = flag.String("ptalog", "pta.log",
+var ptalogFlag = flag.String("ptalog", "",
 	"Location of the points-to analysis log file, or empty to disable logging.")
 
 const usage = `Go source code oracle.

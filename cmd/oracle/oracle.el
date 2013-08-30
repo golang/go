@@ -89,7 +89,6 @@ result."
       (erase-buffer)
       (insert "Go Oracle\n")
       (let ((args (append (list go-oracle-command nil t nil
-                                "-ptalog=" ; avoid writing the huge log
                                 (format "-pos=%s %s" filename pos)
                                 (format "-mode=%s" mode))
                           (split-string go-oracle-scope " " t))))
@@ -118,6 +117,7 @@ result."
             (p 1))
         (while (not (null p))
           (let ((np (compilation-next-single-property-change p 'compilation-message)))
+            ;; TODO(adonovan): this can be verbose in the *Messages* buffer.
             (message "Post-processing link (%d%%)" (/ (* p 100) (point-max)))
             (if np
                 (when (equal (line-number-at-pos p) (line-number-at-pos np))
