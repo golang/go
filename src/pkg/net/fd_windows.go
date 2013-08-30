@@ -93,7 +93,7 @@ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn,
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
 	}
-	return dial(net, addr, localAddr, ra, deadline)
+	return dial(net, addr, localAddr, ra.toAddr(), deadline)
 }
 
 // operation contains superset of data necessary to perform all async IO.

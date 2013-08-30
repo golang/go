@@ -57,13 +57,6 @@ func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, 0, a.Zone)
 }
 
-func (a *IPAddr) toAddr() sockaddr {
-	if a == nil {
-		return nil
-	}
-	return a
-}
-
 // IPConn is the implementation of the Conn and PacketConn interfaces
 // for IP network connections.
 type IPConn struct {

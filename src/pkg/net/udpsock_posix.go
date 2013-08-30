@@ -45,13 +45,6 @@ func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
-func (a *UDPAddr) toAddr() sockaddr {
-	if a == nil {
-		return nil
-	}
-	return a
-}
-
 // UDPConn is the implementation of the Conn and PacketConn interfaces
 // for UDP network connections.
 type UDPConn struct {

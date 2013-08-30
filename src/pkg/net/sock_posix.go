@@ -17,6 +17,8 @@ import (
 type sockaddr interface {
 	Addr
 
+	netaddr
+
 	// family returns the platform-dependent address family
 	// identifier.
 	family() int
@@ -30,11 +32,6 @@ type sockaddr interface {
 	// interface. It returns a nil interface when the address is
 	// nil.
 	sockaddr(family int) (syscall.Sockaddr, error)
-
-	// toAddr returns the address represented in sockaddr
-	// interface. It returns a nil interface when the address is
-	// nil.
-	toAddr() sockaddr
 }
 
 // socket returns a network file descriptor that is ready for
