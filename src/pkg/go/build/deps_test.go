@@ -82,20 +82,21 @@ var pkgDeps = map[string][]string{
 	// L3 adds reflection and some basic utility packages
 	// and interface definitions, but nothing that makes
 	// system calls.
-	"crypto":          {"L2", "hash"},          // interfaces
-	"crypto/cipher":   {"L2", "crypto/subtle"}, // interfaces
-	"crypto/subtle":   {},
-	"encoding/base32": {"L2"},
-	"encoding/base64": {"L2"},
-	"encoding/binary": {"L2", "reflect"},
-	"hash":            {"L2"}, // interfaces
-	"hash/adler32":    {"L2", "hash"},
-	"hash/crc32":      {"L2", "hash"},
-	"hash/crc64":      {"L2", "hash"},
-	"hash/fnv":        {"L2", "hash"},
-	"image":           {"L2", "image/color"}, // interfaces
-	"image/color":     {"L2"},                // interfaces
-	"reflect":         {"L2"},
+	"crypto":              {"L2", "hash"},          // interfaces
+	"crypto/cipher":       {"L2", "crypto/subtle"}, // interfaces
+	"crypto/subtle":       {},
+	"encoding/base32":     {"L2"},
+	"encoding/base64":     {"L2"},
+	"encoding/binary":     {"L2", "reflect"},
+	"hash":                {"L2"}, // interfaces
+	"hash/adler32":        {"L2", "hash"},
+	"hash/crc32":          {"L2", "hash"},
+	"hash/crc64":          {"L2", "hash"},
+	"hash/fnv":            {"L2", "hash"},
+	"image":               {"L2", "image/color"}, // interfaces
+	"image/color":         {"L2"},                // interfaces
+	"image/color/palette": {"L2", "image/color"},
+	"reflect":             {"L2"},
 
 	"L3": {
 		"L2",
@@ -112,6 +113,7 @@ var pkgDeps = map[string][]string{
 		"hash/fnv",
 		"image",
 		"image/color",
+		"image/color/palette",
 		"reflect",
 	},
 
@@ -205,7 +207,7 @@ var pkgDeps = map[string][]string{
 	"go/build":            {"L4", "OS", "GOPARSER"},
 	"html":                {"L4"},
 	"image/draw":          {"L4"},
-	"image/gif":           {"L4", "compress/lzw", "image/draw"},
+	"image/gif":           {"L4", "compress/lzw", "image/color/palette", "image/draw"},
 	"image/jpeg":          {"L4"},
 	"image/png":           {"L4", "compress/zlib"},
 	"index/suffixarray":   {"L4", "regexp"},
@@ -231,7 +233,8 @@ var pkgDeps = map[string][]string{
 	// that shows up in programs that use cgo.
 	"C": {},
 
-	"os/user": {"L4", "CGO", "syscall"},
+	// Plan 9 alone needs io/ioutil and os.
+	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
 
 	// Basic networking.
 	// Because net must be used by any package that wants to
