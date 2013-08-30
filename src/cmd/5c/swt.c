@@ -525,12 +525,12 @@ outhist(Biobuf *b)
 				q = 0;
 			}
 			if(n) {
-				Bputc(b, ANAME);
-				Bputc(b, D_FILE);
-				Bputc(b, 1);
-				Bputc(b, '<');
+				BPUTC(b, ANAME);
+				BPUTC(b, D_FILE);
+				BPUTC(b, 1);
+				BPUTC(b, '<');
 				Bwrite(b, p, n);
-				Bputc(b, 0);
+				BPUTC(b, 0);
 			}
 			p = q;
 			if(p == 0 && op) {

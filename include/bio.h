@@ -70,10 +70,28 @@ struct	Biobuf
 	unsigned char	b[Bungetsize+Bsize];
 };
 
+/*
+ * These macros get 1-, 2-, and 4-byte integer values by reading the
+ * next few bytes in little-endian order.
+ */
 #define	BGETC(bp)\
-	((bp)->icount?(bp)->bbuf[(bp)->bsize+(bp)->icount++]:Bgetc((bp)))
+	((bp)->icount?(bp)->ebuf[(bp)->icount++]:Bgetc((bp)))
+#define	BGETLE2(bp)\
+	((bp)->icount<=-2?((bp)->icount+=2,((bp)->ebuf[(bp)->icount-2])|((bp)->ebuf[(bp)->icount-1]<<8)):Bgetle2((bp)))
+#define	BGETLE4(bp)\
+	((bp)->icount<=-4?((bp)->icount+=4,((bp)->ebuf[(bp)->icount-4])|((bp)->ebuf[(bp)->icount-3]<<8)|((bp)->ebuf[(bp)->icount-2]<<16)|((bp)->ebuf[(bp)->icount-1]<<24)):Bgetle4((bp)))
+
+/*
+ * These macros put 1-, 2-, and 4-byte integer values by writing the
+ * next few bytes in little-endian order.
+ */
 #define	BPUTC(bp,c)\
-	((bp)->ocount?(bp)->bbuf[(bp)->bsize+(bp)->ocount++]=(c),0:Bputc((bp),(c)))
+	((bp)->ocount?(bp)->ebuf[(bp)->ocount++]=(unsigned char)(c),0:Bputc((bp),(c)))
+#define	BPUTLE2(bp,c)\
+	((bp)->ocount<=-2?(bp)->ocount+=2,(bp)->ebuf[(bp)->ocount-2]=(unsigned char)(c),(bp)->ebuf[(bp)->ocount-1]=(unsigned char)(c>>8),0:Bputle2((bp),(c)))
+#define	BPUTLE4(bp,c)\
+	((bp)->ocount<=-4?(bp)->ocount+=4,(bp)->ebuf[(bp)->ocount-4]=(unsigned char)(c),(bp)->ebuf[(bp)->ocount-3]=(unsigned char)(c>>8),(bp)->ebuf[(bp)->ocount-2]=(unsigned char)(c>>16),(bp)->ebuf[(bp)->ocount-1]=(unsigned char)(c>>24),0:Bputle4((bp),(c)))
+
 #define	BOFFSET(bp)\
 	(((bp)->state==Bractive)?\
 		(bp)->offset + (bp)->icount:\
@@ -90,6 +108,8 @@ Biobuf*	Bfdopen(int, int);
 int	Bfildes(Biobuf*);
 int	Bflush(Biobuf*);
 int	Bgetc(Biobuf*);
+int	Bgetle2(Biobuf*);
+int	Bgetle4(Biobuf*);
 int	Bgetd(Biobuf*, double*);
 long	Bgetrune(Biobuf*);
 int	Binit(Biobuf*, int, int);
@@ -99,6 +119,8 @@ vlong	Boffset(Biobuf*);
 Biobuf*	Bopen(char*, int);
 int	Bprint(Biobuf*, char*, ...);
 int	Bputc(Biobuf*, int);
+int	Bputle2(Biobuf*, int);
+int	Bputle4(Biobuf*, int);
 int	Bputrune(Biobuf*, long);
 void*	Brdline(Biobuf*, int);
 char*	Brdstr(Biobuf*, int, int);

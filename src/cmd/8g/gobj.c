@@ -35,10 +35,9 @@
 void
 zname(Biobuf *b, Sym *s, int t)
 {
-	Bputc(b, ANAME);	/* as */
-	Bputc(b, ANAME>>8);	/* as */
-	Bputc(b, t);		/* type */
-	Bputc(b, s->sym);	/* sym */
+	BPUTLE2(b, ANAME);	/* as */
+	BPUTC(b, t);		/* type */
+	BPUTC(b, s->sym);	/* sym */
 
 	Bputname(b, s);
 }
@@ -46,13 +45,12 @@ zname(Biobuf *b, Sym *s, int t)
 void
 zfile(Biobuf *b, char *p, int n)
 {
-	Bputc(b, ANAME);
-	Bputc(b, ANAME>>8);
-	Bputc(b, D_FILE);
-	Bputc(b, 1);
-	Bputc(b, '<');
+	BPUTLE2(b, ANAME);
+	BPUTC(b, D_FILE);
+	BPUTC(b, 1);
+	BPUTC(b, '<');
 	Bwrite(b, p, n);
-	Bputc(b, 0);
+	BPUTC(b, 0);
 }
 
 void
@@ -60,12 +58,8 @@ zhist(Biobuf *b, int line, vlong offset)
 {
 	Addr a;
 
-	Bputc(b, AHISTORY);
-	Bputc(b, AHISTORY>>8);
-	Bputc(b, line);
-	Bputc(b, line>>8);
-	Bputc(b, line>>16);
-	Bputc(b, line>>24);
+	BPUTLE2(b, AHISTORY);
+	BPUTLE4(b, line);
 	zaddr(b, &zprog.from, 0, 0);
 	a = zprog.to;
 	if(offset != 0) {
@@ -114,54 +108,40 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 		t |= T_SCONST;
 		break;
 	}
-	Bputc(b, t);
+	BPUTC(b, t);
 
 	if(t & T_INDEX) {	/* implies index, scale */
-		Bputc(b, a->index);
-		Bputc(b, a->scale);
+		BPUTC(b, a->index);
+		BPUTC(b, a->scale);
 	}
 	if(t & T_OFFSET) {	/* implies offset */
 		l = a->offset;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 	}
 	if(t & T_OFFSET2) {	/* implies offset */
 		l = a->offset2;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 	}
 	if(t & T_SYM)		/* implies sym */
-		Bputc(b, s);
+		BPUTC(b, s);
 	if(t & T_FCONST) {
 		ieeedtod(&e, a->u.dval);
-		l = e;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
-		l = e >> 32;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, e);
+		BPUTLE4(b, e >> 32);
 		return;
 	}
 	if(t & T_SCONST) {
 		n = a->u.sval;
 		for(i=0; i<NSNAME; i++) {
-			Bputc(b, *n);
+			BPUTC(b, *n);
 			n++;
 		}
 		return;
 	}
 	if(t & T_TYPE)
-		Bputc(b, a->type);
+		BPUTC(b, a->type);
 	if(t & T_GOTYPE)
-		Bputc(b, gotype);
+		BPUTC(b, gotype);
 }
 
 static struct {
@@ -267,12 +247,8 @@ dumpfuncs(void)
 				break;
 			}
 
-			Bputc(bout, p->as);
-			Bputc(bout, p->as>>8);
-			Bputc(bout, p->lineno);
-			Bputc(bout, p->lineno>>8);
-			Bputc(bout, p->lineno>>16);
-			Bputc(bout, p->lineno>>24);
+			BPUTLE2(bout, p->as);
+			BPUTLE4(bout, p->lineno);
 			zaddr(bout, &p->from, sf, gf);
 			zaddr(bout, &p->to, st, gt);
 		}

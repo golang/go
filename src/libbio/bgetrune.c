@@ -35,7 +35,7 @@ Bgetrune(Biobuf *bp)
 	Rune rune;
 	char str[UTFmax];
 
-	c = Bgetc(bp);
+	c = BGETC(bp);
 	if(c < Runeself) {		/* one char */
 		bp->runesize = 1;
 		return c;
@@ -43,7 +43,7 @@ Bgetrune(Biobuf *bp)
 	str[0] = (char)c;
 
 	for(i=1;;) {
-		c = Bgetc(bp);
+		c = BGETC(bp);
 		if(c < 0)
 			return c;
 		str[i++] = (char)c;

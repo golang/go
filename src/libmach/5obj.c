@@ -63,7 +63,7 @@ _read5(Biobuf *bp, Prog *p)
 	int as, n;
 	Addr a;
 
-	as = Bgetc(bp);			/* as */
+	as = BGETC(bp);			/* as */
 	if(as < 0)
 		return 0;
 	p->kind = aNone;
@@ -74,11 +74,11 @@ _read5(Biobuf *bp, Prog *p)
 			p->sig = leswal(p->sig);
 		}
 		p->kind = aName;
-		p->type = type2char(Bgetc(bp));		/* type */
-		p->sym = Bgetc(bp);			/* sym */
+		p->type = type2char(BGETC(bp));		/* type */
+		p->sym = BGETC(bp);			/* sym */
 		n = 0;
 		for(;;) {
-			as = Bgetc(bp);
+			as = BGETC(bp);
 			if(as < 0)
 				return 0;
 			n++;
@@ -112,11 +112,11 @@ addr(Biobuf *bp)
 	Addr a;
 	long off;
 
-	a.type = Bgetc(bp);	/* a.type */
+	a.type = BGETC(bp);	/* a.type */
 	skip(bp,1);		/* reg */
-	a.sym = Bgetc(bp);	/* sym index */
-	a.name = Bgetc(bp);	/* sym type */
-	a.gotype = Bgetc(bp);	/* go type */
+	a.sym = BGETC(bp);	/* sym index */
+	a.name = BGETC(bp);	/* sym type */
+	a.gotype = BGETC(bp);	/* go type */
 	switch(a.type){
 	default:
 	case D_NONE:
@@ -127,21 +127,15 @@ addr(Biobuf *bp)
 		break;
 	case D_REGREG:
 	case D_REGREG2:
-		Bgetc(bp);
+		BGETC(bp);
 		break;
 	case D_CONST2:
-		Bgetc(bp);
-		Bgetc(bp);
-		Bgetc(bp);
-		Bgetc(bp);	// fall through
+		BGETLE4(bp);	// fall through
 	case D_OREG:
 	case D_CONST:
 	case D_BRANCH:
 	case D_SHIFT:
-		off = Bgetc(bp);
-		off |= Bgetc(bp) << 8;
-		off |= Bgetc(bp) << 16;
-		off |= Bgetc(bp) << 24;
+		off = BGETLE4(bp);
 		if(off < 0)
 			off = -off;
 		if(a.sym && (a.name==D_PARAM || a.name==D_AUTO))
@@ -173,5 +167,5 @@ static void
 skip(Biobuf *bp, int n)
 {
 	while (n-- > 0)
-		Bgetc(bp);
+		BGETC(bp);
 }

@@ -87,7 +87,7 @@ void
 Bputname(Biobuf *b, Sym *s)
 {
 	Bprint(b, "%s", s->pkg->prefix);
-	Bputc(b, '.');
+	BPUTC(b, '.');
 	Bwrite(b, s->name, strlen(s->name)+1);
 }
 

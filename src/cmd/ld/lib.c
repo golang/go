@@ -801,10 +801,10 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 
 	pn = estrdup(pn);
 
-	c1 = Bgetc(f);
-	c2 = Bgetc(f);
-	c3 = Bgetc(f);
-	c4 = Bgetc(f);
+	c1 = BGETC(f);
+	c2 = BGETC(f);
+	c3 = BGETC(f);
+	c4 = BGETC(f);
 	Bungetc(f);
 	Bungetc(f);
 	Bungetc(f);
@@ -882,12 +882,12 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 	/* skip over exports and other info -- ends with \n!\n */
 	import0 = Boffset(f);
 	c1 = '\n';	// the last line ended in \n
-	c2 = Bgetc(f);
-	c3 = Bgetc(f);
+	c2 = BGETC(f);
+	c3 = BGETC(f);
 	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
 		c1 = c2;
 		c2 = c3;
-		c3 = Bgetc(f);
+		c3 = BGETC(f);
 		if(c3 == Beof)
 			goto eof;
 	}
@@ -1219,16 +1219,6 @@ zerosig(char *sp)
 
 	s = lookup(sp, 0);
 	s->sig = 0;
-}
-
-int32
-Bget4(Biobuf *f)
-{
-	uchar p[4];
-
-	if(Bread(f, p, 4) != 4)
-		return 0;
-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
 void

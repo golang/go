@@ -132,16 +132,16 @@ objtype(Biobuf *bp, char **name)
 	 * Found one.  Skip until "\n!\n"
 	 */
 	for(;;) {
-		if((c = Bgetc(bp)) == Beof)
+		if((c = BGETC(bp)) == Beof)
 			return -1;
 		if(c != '\n')
 			continue;
-		c = Bgetc(bp);
+		c = BGETC(bp);
 		if(c != '!'){
 			Bungetc(bp);
 			continue;
 		}
-		c = Bgetc(bp);
+		c = BGETC(bp);
 		if(c != '\n'){
 			Bungetc(bp);
 			continue;
