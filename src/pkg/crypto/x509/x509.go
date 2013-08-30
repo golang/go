@@ -453,6 +453,18 @@ type Certificate struct {
 	NotBefore, NotAfter time.Time // Validity bounds.
 	KeyUsage            KeyUsage
 
+	// Extensions contains raw X.509 extensions. When parsing certificates,
+	// this can be used to extract non-critical extensions that are not
+	// parsed by this package. When marshaling certificates, the Extensions
+	// field is ignored, see ExtraExtensions.
+	Extensions []pkix.Extension
+
+	// ExtraExtensions contains extensions to be copied, raw, into any
+	// marshaled certificates. Values override any extensions that would
+	// otherwise be produced based on the other fields. The ExtraExtensions
+	// field is not populated when parsing certificates, see Extensions.
+	ExtraExtensions []pkix.Extension
+
 	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
 	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
 
@@ -798,6 +810,8 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 	out.NotAfter = in.TBSCertificate.Validity.NotAfter
 
 	for _, e := range in.TBSCertificate.Extensions {
+		out.Extensions = append(out.Extensions, e)
+
 		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 {
 			switch e.Id[3] {
 			case 15:
@@ -1104,11 +1118,23 @@ var (
 	oidAuthorityInfoAccessIssuers = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 2}
 )
 
+// oidNotInExtensions returns whether an extension with the given oid exists in
+// extensions.
+func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) bool {
+	for _, e := range extensions {
+		if e.Id.Equal(oid) {
+			return true
+		}
+	}
+	return false
+}
+
 func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
 
-	if template.KeyUsage != 0 {
+	if template.KeyUsage != 0 &&
+		!oidInExtensions(oidExtensionKeyUsage, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionKeyUsage
 		ret[n].Critical = true
 
@@ -1128,7 +1154,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0 {
+	if (len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0) &&
+		!oidInExtensions(oidExtensionExtendedKeyUsage, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionExtendedKeyUsage
 
 		var oids []asn1.ObjectIdentifier
@@ -1149,7 +1176,7 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if template.BasicConstraintsValid {
+	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionBasicConstraints
 		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, template.MaxPathLen})
 		ret[n].Critical = true
@@ -1159,7 +1186,7 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.SubjectKeyId) > 0 {
+	if len(template.SubjectKeyId) > 0 && !oidInExtensions(oidExtensionSubjectKeyId, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionSubjectKeyId
 		ret[n].Value, err = asn1.Marshal(template.SubjectKeyId)
 		if err != nil {
@@ -1168,7 +1195,7 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.AuthorityKeyId) > 0 {
+	if len(template.AuthorityKeyId) > 0 && !oidInExtensions(oidExtensionAuthorityKeyId, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionAuthorityKeyId
 		ret[n].Value, err = asn1.Marshal(authKeyId{template.AuthorityKeyId})
 		if err != nil {
@@ -1177,7 +1204,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.OCSPServer) > 0 || len(template.IssuingCertificateURL) > 0 {
+	if (len(template.OCSPServer) > 0 || len(template.IssuingCertificateURL) > 0) &&
+		!oidInExtensions(oidExtensionAuthorityInfoAccess, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionAuthorityInfoAccess
 		var aiaValues []authorityInfoAccess
 		for _, name := range template.OCSPServer {
@@ -1199,7 +1227,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 {
+	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0) &&
+		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionSubjectAltName
 		var rawValues []asn1.RawValue
 		for _, name := range template.DNSNames {
@@ -1223,7 +1252,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.PolicyIdentifiers) > 0 {
+	if len(template.PolicyIdentifiers) > 0 &&
+		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionCertificatePolicies
 		policies := make([]policyInformation, len(template.PolicyIdentifiers))
 		for i, policy := range template.PolicyIdentifiers {
@@ -1236,7 +1266,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.PermittedDNSDomains) > 0 {
+	if len(template.PermittedDNSDomains) > 0 &&
+		!oidInExtensions(oidExtensionNameConstraints, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionNameConstraints
 		ret[n].Critical = template.PermittedDNSDomainsCritical
 
@@ -1252,7 +1283,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.CRLDistributionPoints) > 0 {
+	if len(template.CRLDistributionPoints) > 0 &&
+		!oidInExtensions(oidExtensionCRLDistributionPoints, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionCRLDistributionPoints
 
 		var crlDp []distributionPoint
@@ -1277,7 +1309,7 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 	// Adding another extension here? Remember to update the maximum number
 	// of elements in the make() at the top of the function.
 
-	return ret[0:n], nil
+	return append(ret[:n], template.ExtraExtensions...), nil
 }
 
 func subjectBytes(cert *Certificate) ([]byte, error) {
