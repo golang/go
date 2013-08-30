@@ -28,6 +28,13 @@ func (a *UDPAddr) String() string {
 	return JoinHostPort(a.IP.String(), itoa(a.Port))
 }
 
+func (a *UDPAddr) toAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
 // ResolveUDPAddr parses addr as a UDP address of the form "host:port"
 // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
 // port name on the network net, which must be "udp", "udp4" or
@@ -46,5 +53,5 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.(*UDPAddr), nil
+	return a.toAddr().(*UDPAddr), nil
 }

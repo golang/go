@@ -52,13 +52,6 @@ func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
-func (a *TCPAddr) toAddr() sockaddr {
-	if a == nil {
-		return nil
-	}
-	return a
-}
-
 // TCPConn is an implementation of the Conn interface for TCP network
 // connections.
 type TCPConn struct {

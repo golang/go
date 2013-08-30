@@ -23,6 +23,13 @@ func (a *UnixAddr) String() string {
 	return a.Name
 }
 
+func (a *UnixAddr) toAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
 // ResolveUnixAddr parses addr as a Unix domain socket address.
 // The string net gives the network name, "unix", "unixgram" or
 // "unixpacket".

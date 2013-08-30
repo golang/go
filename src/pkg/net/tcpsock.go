@@ -24,6 +24,13 @@ func (a *TCPAddr) String() string {
 	return JoinHostPort(a.IP.String(), itoa(a.Port))
 }
 
+func (a *TCPAddr) toAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
 // ResolveTCPAddr parses addr as a TCP address of the form "host:port"
 // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
 // port name on the network net, which must be "tcp", "tcp4" or
@@ -42,5 +49,5 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.(*TCPAddr), nil
+	return a.toAddr().(*TCPAddr), nil
 }

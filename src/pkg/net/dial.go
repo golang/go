@@ -82,7 +82,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 	return "", 0, UnknownNetworkError(net)
 }
 
-func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
+func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
 	afnet, _, err := parseNetwork(net)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func Listen(net, laddr string) (Listener, error) {
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
-	switch la := la.(type) {
+	switch la := la.toAddr().(type) {
 	case *TCPAddr:
 		return ListenTCP(net, la)
 	case *UnixAddr:
@@ -203,7 +203,7 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
-	switch la := la.(type) {
+	switch la := la.toAddr().(type) {
 	case *UDPAddr:
 		return ListenUDP(net, la)
 	case *IPAddr:

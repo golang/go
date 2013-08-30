@@ -105,13 +105,6 @@ func (a *UnixAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return &syscall.SockaddrUnix{Name: a.Name}, nil
 }
 
-func (a *UnixAddr) toAddr() sockaddr {
-	if a == nil {
-		return nil
-	}
-	return a
-}
-
 // UnixConn is an implementation of the Conn interface for connections
 // to Unix domain sockets.
 type UnixConn struct {
