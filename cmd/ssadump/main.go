@@ -2,17 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
-package main
-
 // ssadump: a tool for displaying and interpreting the SSA form of Go programs.
+package main
 
 import (
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"runtime/pprof"
 
 	"code.google.com/p/go.tools/importer"
@@ -51,6 +49,18 @@ Examples:
 `
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
+func init() {
+	// If $GOMAXPROCS isn't set, use the full capacity of the machine.
+	// For small machines, use at least 4 threads.
+	if os.Getenv("GOMAXPROCS") == "" {
+		n := runtime.NumCPU()
+		if n < 4 {
+			n = 4
+		}
+		runtime.GOMAXPROCS(n)
+	}
+}
 
 func main() {
 	flag.Parse()
