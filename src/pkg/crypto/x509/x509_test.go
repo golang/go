@@ -237,6 +237,11 @@ func TestCertificateParse(t *testing.T) {
 	if err := certs[0].VerifyHostname("mail.google.com"); err != nil {
 		t.Error(err)
 	}
+
+	const expectedExtensions = 4
+	if n := len(certs[0].Extensions); n != expectedExtensions {
+		t.Errorf("want %d extensions, got %d", expectedExtensions, n)
+	}
 }
 
 var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be1300d06092a864886" +
@@ -309,6 +314,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 	testExtKeyUsage := []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageServerAuth}
 	testUnknownExtKeyUsage := []asn1.ObjectIdentifier{[]int{1, 2, 3}, []int{2, 59, 1}}
+	extraExtensionData := []byte("extra extension")
 
 	for _, test := range tests {
 		commonName := "test.example.com"
@@ -341,6 +347,19 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			PermittedDNSDomains: []string{".example.com", "example.com"},
 
 			CRLDistributionPoints: []string{"http://crl1.example.com/ca1.crl", "http://crl2.example.com/ca1.crl"},
+
+			ExtraExtensions: []pkix.Extension{
+				{
+					Id:    []int{1, 2, 3, 4},
+					Value: extraExtensionData,
+				},
+				// This extension should override the SubjectKeyId, above.
+				{
+					Id:       oidExtensionSubjectKeyId,
+					Critical: false,
+					Value:    []byte{0x04, 0x04, 4, 3, 2, 1},
+				},
+			},
 		}
 
 		derBytes, err := CreateCertificate(random, &template, &template, test.pub, test.priv)
@@ -401,6 +420,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if !reflect.DeepEqual(cert.CRLDistributionPoints, template.CRLDistributionPoints) {
 			t.Errorf("%s: CRL distribution points differ from template. Got %v, want %v", test.name, cert.CRLDistributionPoints, template.CRLDistributionPoints)
+		}
+
+		if !bytes.Equal(cert.SubjectKeyId, []byte{4, 3, 2, 1}) {
+			t.Errorf("%s: ExtraExtensions didn't override SubjectKeyId", test.name)
+		}
+
+		if bytes.Index(derBytes, extraExtensionData) == -1 {
+			t.Errorf("%s: didn't find extra extension in DER output", test.name)
 		}
 
 		if test.checkSig {
