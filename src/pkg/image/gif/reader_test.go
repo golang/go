@@ -11,11 +11,11 @@ import (
 
 // header, palette and trailer are parts of a valid 2x1 GIF image.
 const (
-	header = "GIF89a" +
+	headerStr = "GIF89a" +
 		"\x02\x00\x01\x00" + // width=2, height=1
 		"\x80\x00\x00" // headerFields=(a color map of 2 pixels), backgroundIndex, aspect
-	palette = "\x10\x20\x30\x40\x50\x60" // the color map, also known as a palette
-	trailer = "\x3b"
+	paletteStr = "\x10\x20\x30\x40\x50\x60" // the color map, also known as a palette
+	trailerStr = "\x3b"
 )
 
 func TestDecode(t *testing.T) {
@@ -41,8 +41,8 @@ func TestDecode(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		b := &bytes.Buffer{}
-		b.WriteString(header)
-		b.WriteString(palette)
+		b.WriteString(headerStr)
+		b.WriteString(paletteStr)
 		// Write an image with bounds 2x1 but tc.nPix pixels. If tc.nPix != 2
 		// then this should result in an invalid GIF image. First, write a
 		// magic 0x2c (image descriptor) byte, bounds=(0,0)-(2,1), a flags
@@ -61,7 +61,7 @@ func TestDecode(t *testing.T) {
 			b.WriteString("\x01\x02") // A 1-byte payload with an 0x02 byte.
 		}
 		b.WriteByte(0x00) // An empty block signifies the end of the image data.
-		b.WriteString(trailer)
+		b.WriteString(trailerStr)
 
 		got, err := Decode(b)
 		if err != tc.wantErr {
@@ -143,7 +143,7 @@ func TestNoPalette(t *testing.T) {
 
 	// Manufacture a GIF with no palette, so any pixel at all
 	// will be invalid.
-	b.WriteString(header[:len(header)-3])
+	b.WriteString(headerStr[:len(headerStr)-3])
 	b.WriteString("\x00\x00\x00") // No global palette.
 
 	// Image descriptor: 2x1, no local palette.
@@ -159,7 +159,7 @@ func TestNoPalette(t *testing.T) {
 	b.Write(enc.Bytes())
 	b.WriteByte(0x00) // An empty block signifies the end of the image data.
 
-	b.WriteString(trailer)
+	b.WriteString(trailerStr)
 
 	try(t, b.Bytes(), "gif: invalid pixel value")
 }
@@ -169,8 +169,8 @@ func TestPixelOutsidePaletteRange(t *testing.T) {
 		b := &bytes.Buffer{}
 
 		// Manufacture a GIF with a 2 color palette.
-		b.WriteString(header)
-		b.WriteString(palette)
+		b.WriteString(headerStr)
+		b.WriteString(paletteStr)
 
 		// Image descriptor: 2x1, no local palette.
 		b.WriteString("\x2c\x00\x00\x00\x00\x02\x00\x01\x00\x00\x02")
@@ -185,7 +185,7 @@ func TestPixelOutsidePaletteRange(t *testing.T) {
 		b.Write(enc.Bytes())
 		b.WriteByte(0x00) // An empty block signifies the end of the image data.
 
-		b.WriteString(trailer)
+		b.WriteString(trailerStr)
 
 		// No error expected, unless the pixels are beyond the 2 color palette.
 		want := ""

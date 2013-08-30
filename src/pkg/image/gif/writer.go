@@ -10,6 +10,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"image/color/palette"
 	"image/draw"
 	"io"
 )
@@ -248,7 +249,7 @@ type Options struct {
 	NumColors int
 
 	// Quantizer is used to produce a palette with size NumColors.
-	// color.Plan9Palette is used in place of a nil Quantizer.
+	// palette.Plan9 is used in place of a nil Quantizer.
 	Quantizer draw.Quantizer
 
 	// Drawer is used to convert the source image to the desired palette.
@@ -308,7 +309,7 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
 	pm, ok := m.(*image.Paletted)
 	if !ok || len(pm.Palette) > opts.NumColors {
 		// TODO: Pick a better sub-sample of the Plan 9 palette.
-		pm = image.NewPaletted(b, color.Plan9Palette[:opts.NumColors])
+		pm = image.NewPaletted(b, palette.Plan9[:opts.NumColors])
 		if opts.Quantizer != nil {
 			pm.Palette = opts.Quantizer.Quantize(make(color.Palette, 0, opts.NumColors), m)
 		}
