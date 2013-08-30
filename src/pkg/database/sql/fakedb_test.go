@@ -447,6 +447,10 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 		return c.prepareCreate(stmt, parts)
 	case "INSERT":
 		return c.prepareInsert(stmt, parts)
+	case "NOSERT":
+		// Do all the prep-work like for an INSERT but don't actually insert the row.
+		// Used for some of the concurrent tests.
+		return c.prepareInsert(stmt, parts)
 	default:
 		stmt.Close()
 		return nil, errf("unsupported command type %q", cmd)
@@ -497,13 +501,20 @@ func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 		}
 		return driver.ResultNoRows, nil
 	case "INSERT":
-		return s.execInsert(args)
+		return s.execInsert(args, true)
+	case "NOSERT":
+		// Do all the prep-work like for an INSERT but don't actually insert the row.
+		// Used for some of the concurrent tests.
+		return s.execInsert(args, false)
 	}
 	fmt.Printf("EXEC statement, cmd=%q: %#v\n", s.cmd, s)
 	return nil, fmt.Errorf("unimplemented statement Exec command type of %q", s.cmd)
 }
 
-func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
+// When doInsert is true, add the row to the table.
+// When doInsert is false do prep-work and error checking, but don't
+// actually add the row to the table.
+func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result, error) {
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
@@ -518,7 +529,10 @@ func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	cols := make([]interface{}, len(t.colname))
+	var cols []interface{}
+	if doInsert {
+		cols = make([]interface{}, len(t.colname))
+	}
 	argPos := 0
 	for n, colname := range s.colName {
 		colidx := t.columnIndex(colname)
@@ -532,10 +546,14 @@ func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
 		} else {
 			val = s.colValue[n]
 		}
-		cols[colidx] = val
+		if doInsert {
+			cols[colidx] = val
+		}
 	}
 
-	t.rows = append(t.rows, &row{cols: cols})
+	if doInsert {
+		t.rows = append(t.rows, &row{cols: cols})
+	}
 	return driver.RowsAffected(1), nil
 }
 
