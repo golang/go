@@ -87,7 +87,7 @@ func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *
 		if mode == "" {
 			return errors.New("You must specify a -mode to perform.")
 		}
-		return fmt.Errorf("Invalid mode type '%s'.", mode)
+		return fmt.Errorf("Invalid mode type: %q.", mode)
 	}
 
 	var loader importer.SourceLoader

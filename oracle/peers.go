@@ -21,22 +21,10 @@ import (
 // or the implicit receive in "for v := range ch".
 //
 func peers(o *oracle) (queryResult, error) {
-	// Determine the enclosing send/receive op for the specified position.
-	var arrowPos token.Pos
-	for _, n := range o.queryPath {
-		switch n := n.(type) {
-		case *ast.UnaryExpr:
-			if n.Op == token.ARROW {
-				arrowPos = n.OpPos
-				goto found
-			}
-		case *ast.SendStmt:
-			arrowPos = n.Arrow
-			goto found
-		}
+	arrowPos := findArrow(o)
+	if arrowPos == token.NoPos {
+		return nil, o.errorf(o.queryPath[0], "there is no send/receive here")
 	}
-	return nil, o.errorf(o.queryPath[0], "there is no send/receive here")
-found:
 
 	buildSSA(o)
 
@@ -88,6 +76,23 @@ found:
 		ops:          ops,
 		queryChanPts: queryChanPts,
 	}, nil
+}
+
+// findArrow returns the position of the enclosing send/receive op
+// (<-) for the query position, or token.NoPos if not found.
+//
+func findArrow(o *oracle) token.Pos {
+	for _, n := range o.queryPath {
+		switch n := n.(type) {
+		case *ast.UnaryExpr:
+			if n.Op == token.ARROW {
+				return n.OpPos
+			}
+		case *ast.SendStmt:
+			return n.Arrow
+		}
+	}
+	return token.NoPos
 }
 
 // chanOp abstracts an ssa.Send, ssa.Unop(ARROW), or a SelectState.
