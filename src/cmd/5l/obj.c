@@ -334,7 +334,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 	c = BGETC(f);
 	if(c < 0 || c > NSYM){
 		print("sym out of range: %d\n", c);
-		Bputc(f, ALAST+1);
+		BPUTC(f, ALAST+1);
 		return;
 	}
 	a->sym = h[c];
@@ -343,7 +343,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 
 	if((schar)a->reg < 0 || a->reg > NREG) {
 		print("register out of range %d\n", a->reg);
-		Bputc(f, ALAST+1);
+		BPUTC(f, ALAST+1);
 		return;	/*  force real diagnostic */
 	}
 
@@ -361,7 +361,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 	switch(a->type) {
 	default:
 		print("unknown type %d\n", a->type);
-		Bputc(f, ALAST+1);
+		BPUTC(f, ALAST+1);
 		return;	/*  force real diagnostic */
 
 	case D_NONE:
@@ -377,13 +377,13 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 		break;
 
 	case D_CONST2:
-		a->offset2 = Bget4(f);	// fall through
+		a->offset2 = BGETLE4(f);	// fall through
 	case D_BRANCH:
 	case D_OREG:
 	case D_CONST:
 	case D_OCONST:
 	case D_SHIFT:
-		a->offset = Bget4(f);
+		a->offset = BGETLE4(f);
 		break;
 
 	case D_SCONST:
@@ -392,8 +392,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 		break;
 
 	case D_FCONST:
-		a->ieee.l = Bget4(f);
-		a->ieee.h = Bget4(f);
+		a->ieee.l = BGETLE4(f);
+		a->ieee.h = BGETLE4(f);
 		break;
 	}
 	s = a->sym;
@@ -476,7 +476,7 @@ loop:
 	if(o == ANAME || o == ASIGNAME) {
 		sig = 0;
 		if(o == ASIGNAME)
-			sig = Bget4(f);
+			sig = BGETLE4(f);
 		v = BGETC(f); /* type */
 		o = BGETC(f); /* sym */
 		r = 0;
@@ -531,7 +531,7 @@ loop:
 	p->as = o;
 	p->scond = BGETC(f);
 	p->reg = BGETC(f);
-	p->line = Bget4(f);
+	p->line = BGETLE4(f);
 
 	zaddr(pn, f, &p->from, h);
 	fromgotype = adrgotype;

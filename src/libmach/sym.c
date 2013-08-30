@@ -371,13 +371,13 @@ decodename(Biobuf *bp, Sym *p)
 	p->type &= ~0x80;
 	if(p->type == 'z' || p->type == 'Z') {
 		o = Bseek(bp, 0, 1);
-		if(Bgetc(bp) < 0) {
+		if(BGETC(bp) < 0) {
 			werrstr("can't read symbol name");
 			return -1;
 		}
 		for(;;) {
-			c1 = Bgetc(bp);
-			c2 = Bgetc(bp);
+			c1 = BGETC(bp);
+			c2 = BGETC(bp);
 			if(c1 < 0 || c2 < 0) {
 				werrstr("can't read symbol name");
 				return -1;

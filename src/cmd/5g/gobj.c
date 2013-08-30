@@ -35,9 +35,9 @@
 void
 zname(Biobuf *b, Sym *s, int t)
 {
-	Bputc(b, ANAME);	/* as */
-	Bputc(b, t);		/* type */
-	Bputc(b, s->sym);	/* sym */
+	BPUTC(b, ANAME);	/* as */
+	BPUTC(b, t);		/* type */
+	BPUTC(b, s->sym);	/* sym */
 
 	Bputname(b, s);
 }
@@ -45,12 +45,12 @@ zname(Biobuf *b, Sym *s, int t)
 void
 zfile(Biobuf *b, char *p, int n)
 {
-	Bputc(b, ANAME);
-	Bputc(b, D_FILE);
-	Bputc(b, 1);
-	Bputc(b, '<');
+	BPUTC(b, ANAME);
+	BPUTC(b, D_FILE);
+	BPUTC(b, 1);
+	BPUTC(b, '<');
 	Bwrite(b, p, n);
-	Bputc(b, 0);
+	BPUTC(b, 0);
 }
 
 void
@@ -58,13 +58,10 @@ zhist(Biobuf *b, int line, vlong offset)
 {
 	Addr a;
 
-	Bputc(b, AHISTORY);
-	Bputc(b, C_SCOND_NONE);
-	Bputc(b, NREG);
-	Bputc(b, line);
-	Bputc(b, line>>8);
-	Bputc(b, line>>16);
-	Bputc(b, line>>24);
+	BPUTC(b, AHISTORY);
+	BPUTC(b, C_SCOND_NONE);
+	BPUTC(b, NREG);
+	BPUTLE4(b, line);
 	zaddr(b, &zprog.from, 0, 0);
 	a = zprog.to;
 	if(offset != 0) {
@@ -91,11 +88,11 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 		fatal("We should no longer generate these as types");
 
 	default:
-		Bputc(b, a->type);
-		Bputc(b, a->reg);
-		Bputc(b, s);
-		Bputc(b, a->name);
-		Bputc(b, gotype);
+		BPUTC(b, a->type);
+		BPUTC(b, a->reg);
+		BPUTC(b, s);
+		BPUTC(b, a->name);
+		BPUTC(b, gotype);
 	}
 
 	switch(a->type) {
@@ -110,10 +107,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 
 	case D_CONST2:
 		l = a->offset2;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24); // fall through
+		BPUTLE4(b, l); // fall through
 	case D_OREG:
 	case D_CONST:
 	case D_SHIFT:
@@ -122,10 +116,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 	case D_EXTERN:
 	case D_PARAM:
 		l = a->offset;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 		break;
 
 	case D_BRANCH:
@@ -133,37 +124,26 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 			fatal("unpatched branch");
 		a->offset = a->u.branch->loc;
 		l = a->offset;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 		break;
 
 	case D_SCONST:
 		n = a->u.sval;
 		for(i=0; i<NSNAME; i++) {
-			Bputc(b, *n);
+			BPUTC(b, *n);
 			n++;
 		}
 		break;
 
 	case D_REGREG:
 	case D_REGREG2:
-		Bputc(b, a->offset);
+		BPUTC(b, a->offset);
 		break;
 
 	case D_FCONST:
 		ieeedtod(&e, a->u.dval);
-		l = e;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
-		l = e >> 32;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, e);
+		BPUTLE4(b, e >> 32);
 		break;
 	}
 }
@@ -271,13 +251,10 @@ dumpfuncs(void)
 				break;
 			}
 
-			Bputc(bout, p->as);
-			Bputc(bout, p->scond);
- 			Bputc(bout, p->reg);
-			Bputc(bout, p->lineno);
-			Bputc(bout, p->lineno>>8);
-			Bputc(bout, p->lineno>>16);
-			Bputc(bout, p->lineno>>24);
+			BPUTC(bout, p->as);
+			BPUTC(bout, p->scond);
+ 			BPUTC(bout, p->reg);
+			BPUTLE4(bout, p->lineno);
 			zaddr(bout, &p->from, sf, gf);
 			zaddr(bout, &p->to, st, gt);
 		}

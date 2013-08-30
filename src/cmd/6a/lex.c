@@ -1101,15 +1101,14 @@ void
 zname(char *n, int t, int s)
 {
 
-	Bputc(&obuf, ANAME);		/* as(2) */
-	Bputc(&obuf, ANAME>>8);
-	Bputc(&obuf, t);		/* type */
-	Bputc(&obuf, s);		/* sym */
+	BPUTLE2(&obuf, ANAME);		/* as(2) */
+	BPUTC(&obuf, t);		/* type */
+	BPUTC(&obuf, s);		/* sym */
 	while(*n) {
-		Bputc(&obuf, *n);
+		BPUTC(&obuf, *n);
 		n++;
 	}
-	Bputc(&obuf, 0);
+	BPUTC(&obuf, 0);
 }
 
 void
@@ -1145,52 +1144,40 @@ zaddr(Gen *a, int s)
 	case D_NONE:
 		break;
 	}
-	Bputc(&obuf, t);
+	BPUTC(&obuf, t);
 
 	if(t & T_INDEX) {	/* implies index, scale */
-		Bputc(&obuf, a->index);
-		Bputc(&obuf, a->scale);
+		BPUTC(&obuf, a->index);
+		BPUTC(&obuf, a->scale);
 	}
 	if(t & T_OFFSET) {	/* implies offset */
 		l = a->offset;
-		Bputc(&obuf, l);
-		Bputc(&obuf, l>>8);
-		Bputc(&obuf, l>>16);
-		Bputc(&obuf, l>>24);
+		BPUTLE4(&obuf, l);
 		if(t & T_64) {
 			l = a->offset>>32;
-			Bputc(&obuf, l);
-			Bputc(&obuf, l>>8);
-			Bputc(&obuf, l>>16);
-			Bputc(&obuf, l>>24);
+			BPUTLE4(&obuf, l);
 		}
 	}
 	if(t & T_SYM)		/* implies sym */
-		Bputc(&obuf, s);
+		BPUTC(&obuf, s);
 	if(t & T_FCONST) {
 		ieeedtod(&e, a->dval);
 		l = e.l;
-		Bputc(&obuf, l);
-		Bputc(&obuf, l>>8);
-		Bputc(&obuf, l>>16);
-		Bputc(&obuf, l>>24);
+		BPUTLE4(&obuf, l);
 		l = e.h;
-		Bputc(&obuf, l);
-		Bputc(&obuf, l>>8);
-		Bputc(&obuf, l>>16);
-		Bputc(&obuf, l>>24);
+		BPUTLE4(&obuf, l);
 		return;
 	}
 	if(t & T_SCONST) {
 		n = a->sval;
 		for(i=0; i<NSNAME; i++) {
-			Bputc(&obuf, *n);
+			BPUTC(&obuf, *n);
 			n++;
 		}
 		return;
 	}
 	if(t & T_TYPE)
-		Bputc(&obuf, a->type);
+		BPUTC(&obuf, a->type);
 }
 
 void
@@ -1249,12 +1236,8 @@ jackpot:
 			goto jackpot;
 		break;
 	}
-	Bputc(&obuf, a);
-	Bputc(&obuf, a>>8);
-	Bputc(&obuf, stmtline);
-	Bputc(&obuf, stmtline>>8);
-	Bputc(&obuf, stmtline>>16);
-	Bputc(&obuf, stmtline>>24);
+	BPUTLE2(&obuf, a);
+	BPUTLE4(&obuf, stmtline);
 	zaddr(&g2->from, sf);
 	zaddr(&g2->to, st);
 
@@ -1329,13 +1312,12 @@ outhist(void)
 				q = 0;
 			}
 			if(n) {
-				Bputc(&obuf, ANAME);
-				Bputc(&obuf, ANAME>>8);
-				Bputc(&obuf, D_FILE);	/* type */
-				Bputc(&obuf, 1);	/* sym */
-				Bputc(&obuf, '<');
+				BPUTLE2(&obuf, ANAME);
+				BPUTC(&obuf, D_FILE);	/* type */
+				BPUTC(&obuf, 1);	/* sym */
+				BPUTC(&obuf, '<');
 				Bwrite(&obuf, p, n);
-				Bputc(&obuf, 0);
+				BPUTC(&obuf, 0);
 			}
 			p = q;
 			if(p == 0 && op) {
@@ -1345,12 +1327,8 @@ outhist(void)
 		}
 		g.offset = h->offset;
 
-		Bputc(&obuf, AHISTORY);
-		Bputc(&obuf, AHISTORY>>8);
-		Bputc(&obuf, h->line);
-		Bputc(&obuf, h->line>>8);
-		Bputc(&obuf, h->line>>16);
-		Bputc(&obuf, h->line>>24);
+		BPUTLE2(&obuf, AHISTORY);
+		BPUTLE4(&obuf, h->line);
 		zaddr(&nullgen, 0);
 		zaddr(&g, 0);
 

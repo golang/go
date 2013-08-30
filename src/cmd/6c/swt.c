@@ -311,12 +311,8 @@ outcode(void)
 				goto jackpot;
 			break;
 		}
-		Bputc(&b, p->as);
-		Bputc(&b, p->as>>8);
-		Bputc(&b, p->lineno);
-		Bputc(&b, p->lineno>>8);
-		Bputc(&b, p->lineno>>16);
-		Bputc(&b, p->lineno>>24);
+		BPUTLE2(&b, p->as);
+		BPUTLE4(&b, p->lineno);
 		zaddr(&b, &p->from, sf);
 		zaddr(&b, &p->to, st);
 	}
@@ -392,13 +388,12 @@ outhist(Biobuf *b)
 				q = 0;
 			}
 			if(n) {
-				Bputc(b, ANAME);
-				Bputc(b, ANAME>>8);
-				Bputc(b, D_FILE);
-				Bputc(b, 1);
-				Bputc(b, '<');
+				BPUTLE2(b, ANAME);
+				BPUTC(b, D_FILE);
+				BPUTC(b, 1);
+				BPUTC(b, '<');
 				Bwrite(b, p, n);
-				Bputc(b, 0);
+				BPUTC(b, 0);
 			}
 			p = q;
 			if(p == 0 && op) {
@@ -412,12 +407,8 @@ outhist(Biobuf *b)
 		if(h->offset)
 			pg.to.type = D_CONST;
 
-		Bputc(b, pg.as);
-		Bputc(b, pg.as>>8);
-		Bputc(b, pg.lineno);
-		Bputc(b, pg.lineno>>8);
-		Bputc(b, pg.lineno>>16);
-		Bputc(b, pg.lineno>>24);
+		BPUTLE2(b, pg.as);
+		BPUTLE4(b, pg.lineno);
 		zaddr(b, &pg.from, 0);
 		zaddr(b, &pg.to, 0);
 
@@ -436,26 +427,21 @@ zname(Biobuf *b, Sym *s, int t)
 
 	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
 		sig = sign(s);
-		Bputc(b, ASIGNAME);
-		Bputc(b, ASIGNAME>>8);
-		Bputc(b, sig);
-		Bputc(b, sig>>8);
-		Bputc(b, sig>>16);
-		Bputc(b, sig>>24);
+		BPUTLE2(b, ASIGNAME);
+		BPUTLE4(b, sig);
 		s->sig = SIGDONE;
 	}
 	else{
-		Bputc(b, ANAME);	/* as */
-		Bputc(b, ANAME>>8);	/* as */
+		BPUTLE2(b, ANAME);	/* as */
 	}
-	Bputc(b, t);			/* type */
-	Bputc(b, s->sym);		/* sym */
+	BPUTC(b, t);			/* type */
+	BPUTC(b, s->sym);		/* sym */
 	n = s->name;
 	while(*n) {
-		Bputc(b, *n);
+		BPUTC(b, *n);
 		n++;
 	}
-	Bputc(b, 0);
+	BPUTC(b, 0);
 }
 
 void
@@ -490,52 +476,40 @@ zaddr(Biobuf *b, Adr *a, int s)
 		t |= T_SCONST;
 		break;
 	}
-	Bputc(b, t);
+	BPUTC(b, t);
 
 	if(t & T_INDEX) {	/* implies index, scale */
-		Bputc(b, a->index);
-		Bputc(b, a->scale);
+		BPUTC(b, a->index);
+		BPUTC(b, a->scale);
 	}
 	if(t & T_OFFSET) {	/* implies offset */
 		l = a->offset;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 		if(t & T_64) {
 			l = a->offset>>32;
-			Bputc(b, l);
-			Bputc(b, l>>8);
-			Bputc(b, l>>16);
-			Bputc(b, l>>24);
+			BPUTLE4(b, l);
 		}
 	}
 	if(t & T_SYM)		/* implies sym */
-		Bputc(b, s);
+		BPUTC(b, s);
 	if(t & T_FCONST) {
 		ieeedtod(&e, a->dval);
 		l = e.l;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 		l = e.h;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
+		BPUTLE4(b, l);
 		return;
 	}
 	if(t & T_SCONST) {
 		n = a->sval;
 		for(i=0; i<NSNAME; i++) {
-			Bputc(b, *n);
+			BPUTC(b, *n);
 			n++;
 		}
 		return;
 	}
 	if(t & T_TYPE)
-		Bputc(b, a->type);
+		BPUTC(b, a->type);
 }
 
 int32

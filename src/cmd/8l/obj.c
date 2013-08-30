@@ -365,18 +365,18 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 	a->type = D_NONE;
 	a->offset = 0;
 	if(t & T_OFFSET)
-		a->offset = Bget4(f);
+		a->offset = BGETLE4(f);
 	a->offset2 = 0;
 	if(t & T_OFFSET2) {
-		a->offset2 = Bget4(f);
+		a->offset2 = BGETLE4(f);
 		a->type = D_CONST2;
 	}
 	a->sym = S;
 	if(t & T_SYM)
 		a->sym = zsym(pn, f, h);
 	if(t & T_FCONST) {
-		a->ieee.l = Bget4(f);
-		a->ieee.h = Bget4(f);
+		a->ieee.l = BGETLE4(f);
+		a->ieee.h = BGETLE4(f);
 		a->type = D_FCONST;
 	} else
 	if(t & T_SCONST) {
@@ -475,7 +475,7 @@ loop:
 	if(o == ANAME || o == ASIGNAME) {
 		sig = 0;
 		if(o == ASIGNAME)
-			sig = Bget4(f);
+			sig = BGETLE4(f);
 		v = BGETC(f);	/* type */
 		o = BGETC(f);	/* sym */
 		r = 0;
@@ -530,7 +530,7 @@ loop:
 
 	p = mal(sizeof(*p));
 	p->as = o;
-	p->line = Bget4(f);
+	p->line = BGETLE4(f);
 	p->back = 2;
 	zaddr(pn, f, &p->from, h);
 	fromgotype = adrgotype;

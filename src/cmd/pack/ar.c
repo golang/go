@@ -700,7 +700,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	// the ! comes immediately.  Catch that so we can avoid
 	// the call to scanpkg below, since scanpkg assumes that the
 	// Go metadata is present.
-	if(Bgetc(b) == '!')
+	if(BGETC(b) == '!')
 		goobject = 0;
 
 	Bseek(b, offset1, 0);
@@ -807,13 +807,13 @@ scanpkg(Biobuf *b, long size)
 	 * scan until $$
 	 */
 	for (n=0; n<size; ) {
-		c = Bgetc(b);
+		c = BGETC(b);
 		if(c == Beof)
 			break;
 		n++;
 		if(c != '$')
 			continue;
-		c = Bgetc(b);
+		c = BGETC(b);
 		if(c == Beof)
 			break;
 		n++;
@@ -828,7 +828,7 @@ scanpkg(Biobuf *b, long size)
 
 foundstart:
 	/* found $$; skip rest of line */
-	while((c = Bgetc(b)) != '\n')
+	while((c = BGETC(b)) != '\n')
 		if(c == Beof)
 			goto bad;
 
@@ -1263,7 +1263,7 @@ rl(int fd)
 		wrsym(&b, len, aend->sym);
 
 	if(symdefsize&0x01)
-		Bputc(&b, 0);
+		BPUTC(&b, 0);
 
 	if (gflag) {
 		len = pkgdefsize;
@@ -1283,7 +1283,7 @@ rl(int fd)
 		if (Bwrite(&b, pkgdefdata, pkgdefsize) != pkgdefsize)
 			wrerr();
 		if(len&0x01)
-			Bputc(&b, 0);
+			BPUTC(&b, 0);
 	}
 	Bterm(&b);
 }
@@ -1297,12 +1297,9 @@ wrsym(Biobuf *bp, long offset, Arsymref *as)
 	int off;
 
 	while(as) {
-		Bputc(bp, as->type);
+		BPUTC(bp, as->type);
 		off = as->offset+offset;
-		Bputc(bp, off);
-		Bputc(bp, off>>8);
-		Bputc(bp, off>>16);
-		Bputc(bp, off>>24);
+		BPUTLE4(bp, off);
 		if (Bwrite(bp, as->name, as->len+1) != as->len+1)
 			wrerr();
 		as = as->next;
@@ -1454,7 +1451,7 @@ select(int *ap, long mode)
 	n = *ap++;
 	while(--n>=0 && (mode&*ap++)==0)
 		ap++;
-	Bputc(&bout, *ap);
+	BPUTC(&bout, *ap);
 }
 
 /*
@@ -1506,7 +1503,7 @@ arread(Biobuf *b, Armember *bp)	/* read an image into a member buffer */
 		rderr();
 	}
 	if(bp->size&1)
-		Bgetc(b);
+		BGETC(b);
 }
 
 /*
@@ -1734,6 +1731,6 @@ arread_cutprefix(Biobuf *b, Armember *bp)
 	strncpy(bp->hdr.fmag, ARFMAG, 2);
 	Bseek(b, end, 0);
 	if(Boffset(b)&1)
-		Bgetc(b);
+		BGETC(b);
 	return 1;
 }

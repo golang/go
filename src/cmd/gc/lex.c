@@ -1616,10 +1616,10 @@ getc(void)
 			curio.cp++;
 	} else {
 	loop:
-		c = Bgetc(curio.bin);
+		c = BGETC(curio.bin);
 		if(c == 0xef) {
-			c1 = Bgetc(curio.bin);
-			c2 = Bgetc(curio.bin);
+			c1 = BGETC(curio.bin);
+			c2 = BGETC(curio.bin);
 			if(c1 == 0xbb && c2 == 0xbf) {
 				yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file");
 				goto loop;

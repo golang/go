@@ -67,6 +67,26 @@ loop:
 }
 
 int
+Bgetle2(Biobuf *bp)
+{
+	int l, h;
+
+	l = Bgetc(bp);
+	h = Bgetc(bp);
+	return l|(h<<8);
+}
+
+int
+Bgetle4(Biobuf *bp)
+{
+	int l, h;
+
+	l = Bgetle2(bp);
+	h = Bgetle2(bp);
+	return l|(h<<16);
+}
+
+int
 Bungetc(Biobuf *bp)
 {
 

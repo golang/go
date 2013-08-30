@@ -65,10 +65,10 @@ _read6(Biobuf *bp, Prog* p)
 	int as, n, c;
 	Addr a;
 
-	as = Bgetc(bp);		/* as(low) */
+	as = BGETC(bp);		/* as(low) */
 	if(as < 0)
 		return 0;
-	c = Bgetc(bp);		/* as(high) */
+	c = BGETC(bp);		/* as(high) */
 	if(c < 0)
 		return 0;
 	as |= ((c & 0xff) << 8);
@@ -80,11 +80,11 @@ _read6(Biobuf *bp, Prog* p)
 			p->sig = leswal(p->sig);
 		}
 		p->kind = aName;
-		p->type = type2char(Bgetc(bp));		/* type */
-		p->sym = Bgetc(bp);			/* sym */
+		p->type = type2char(BGETC(bp));		/* type */
+		p->sym = BGETC(bp);			/* sym */
 		n = 0;
 		for(;;) {
-			as = Bgetc(bp);
+			as = BGETC(bp);
 			if(as < 0)
 				return 0;
 			n++;
@@ -122,40 +122,34 @@ addr(Biobuf *bp)
 
 	off = 0;
 	a.sym = -1;
-	a.flags = Bgetc(bp);			/* flags */
+	a.flags = BGETC(bp);			/* flags */
 	a.gotype = 0;
 	if(a.flags & T_INDEX)
 		skip(bp, 2);
 	if(a.flags & T_OFFSET){
-		l = Bgetc(bp);
-		l |= Bgetc(bp) << 8;
-		l |= Bgetc(bp) << 16;
-		l |= Bgetc(bp) << 24;
+		l = BGETLE4(bp);
 		off = l;
 		if(a.flags & T_64){
-			l = Bgetc(bp);
-			l |= Bgetc(bp) << 8;
-			l |= Bgetc(bp) << 16;
-			l |= Bgetc(bp) << 24;
+			l = BGETLE4(bp);
 			off = ((vlong)l << 32) | (off & 0xFFFFFFFF);
 		}
 		if(off < 0)
 			off = -off;
 	}
 	if(a.flags & T_SYM)
-		a.sym = Bgetc(bp);
+		a.sym = BGETC(bp);
 	if(a.flags & T_FCONST)
 		skip(bp, 8);
 	else
 	if(a.flags & T_SCONST)
 		skip(bp, NSNAME);
 	if(a.flags & T_TYPE) {
-		t = Bgetc(bp);
+		t = BGETC(bp);
 		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
 			_offset(a.sym, off);
 	}
 	if(a.flags & T_GOTYPE)
-		a.gotype = Bgetc(bp);
+		a.gotype = BGETC(bp);
 	return a;
 }
 
@@ -175,5 +169,5 @@ static void
 skip(Biobuf *bp, int n)
 {
 	while (n-- > 0)
-		Bgetc(bp);
+		BGETC(bp);
 }
