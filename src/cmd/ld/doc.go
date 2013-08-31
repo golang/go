@@ -33,7 +33,7 @@ Options new in this version:
 		linker. This flag cannot be used when $GOOS is windows.
 	-H darwin     (only in 6l/8l)
 		Write Apple Mach-O binaries (default when $GOOS is darwin)
-	-H dragonfly  (only in 6l)
+	-H dragonfly  (only in 6l/8l)
 		Write DragonFly ELF binaries (default when $GOOS is dragonfly)
 	-H linux
 		Write Linux ELF binaries (default when $GOOS is linux)
