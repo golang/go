@@ -12,10 +12,10 @@ import (
 )
 
 type resolveUDPAddrTest struct {
-	net     string
-	litAddr string
-	addr    *UDPAddr
-	err     error
+	net           string
+	litAddrOrName string
+	addr          *UDPAddr
+	err           error
 }
 
 var resolveUDPAddrTests = []resolveUDPAddrTest{
@@ -42,13 +42,20 @@ func init() {
 			{"udp6", "[fe80::1%" + index + "]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
 		}...)
 	}
+	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+			{"udp", "localhost:5", &UDPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5}, nil},
+			{"udp4", "localhost:6", &UDPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 6}, nil},
+			{"udp6", "localhost:7", &UDPAddr{IP: IPv6loopback, Port: 7}, nil},
+		}...)
+	}
 }
 
 func TestResolveUDPAddr(t *testing.T) {
 	for _, tt := range resolveUDPAddrTests {
-		addr, err := ResolveUDPAddr(tt.net, tt.litAddr)
+		addr, err := ResolveUDPAddr(tt.net, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveUDPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
 		}
 		if !reflect.DeepEqual(addr, tt.addr) {
 			t.Fatalf("got %#v; expected %#v", addr, tt.addr)

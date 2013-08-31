@@ -273,10 +273,10 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 }
 
 type resolveTCPAddrTest struct {
-	net     string
-	litAddr string
-	addr    *TCPAddr
-	err     error
+	net           string
+	litAddrOrName string
+	addr          *TCPAddr
+	err           error
 }
 
 var resolveTCPAddrTests = []resolveTCPAddrTest{
@@ -303,13 +303,20 @@ func init() {
 			{"tcp6", "[fe80::1%" + index + "]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
 		}...)
 	}
+	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5}, nil},
+			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 6}, nil},
+			{"tcp6", "localhost:7", &TCPAddr{IP: IPv6loopback, Port: 7}, nil},
+		}...)
+	}
 }
 
 func TestResolveTCPAddr(t *testing.T) {
 	for _, tt := range resolveTCPAddrTests {
-		addr, err := ResolveTCPAddr(tt.net, tt.litAddr)
+		addr, err := ResolveTCPAddr(tt.net, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveTCPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+			t.Fatalf("ResolveTCPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
 		}
 		if !reflect.DeepEqual(addr, tt.addr) {
 			t.Fatalf("got %#v; expected %#v", addr, tt.addr)

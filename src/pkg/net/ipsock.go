@@ -60,42 +60,59 @@ func (al addrList) toAddr() Addr {
 
 var errNoSuitableAddress = errors.New("no suitable address found")
 
-// firstFavoriteAddr returns an address that implemets netaddr
-// interface.
-func firstFavoriteAddr(filter func(IP) IP, addrs []string, inetaddr func(IP) netaddr) (netaddr, error) {
-	if filter == nil {
-		// We'll take any IP address, but since the dialing code
-		// does not yet try multiple addresses, prefer to use
-		// an IPv4 address if possible.  This is especially relevant
-		// if localhost resolves to [ipv6-localhost, ipv4-localhost].
-		// Too much code assumes localhost == ipv4-localhost.
-		addr, err := firstSupportedAddr(ipv4only, addrs, inetaddr)
-		if err != nil {
-			addr, err = firstSupportedAddr(anyaddr, addrs, inetaddr)
+// firstFavoriteAddr returns an address or a list of addresses that
+// implement the netaddr interface. Known filters are nil, ipv4only
+// and ipv6only. It returns any address when filter is nil. The result
+// contains at least one address when error is nil.
+func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
+	if filter != nil {
+		return firstSupportedAddr(filter, ips, inetaddr)
+	}
+	var (
+		ipv4, ipv6, swap bool
+		list             addrList
+	)
+	for _, ip := range ips {
+		// We'll take any IP address, but since the dialing
+		// code does not yet try multiple addresses
+		// effectively, prefer to use an IPv4 address if
+		// possible. This is especially relevant if localhost
+		// resolves to [ipv6-localhost, ipv4-localhost]. Too
+		// much code assumes localhost == ipv4-localhost.
+		if ip4 := ipv4only(ip); ip4 != nil && !ipv4 {
+			list = append(list, inetaddr(ip4))
+			ipv4 = true
+			if ipv6 {
+				swap = true
+			}
+		} else if ip6 := ipv6only(ip); ip6 != nil && !ipv6 {
+			list = append(list, inetaddr(ip6))
+			ipv6 = true
 		}
-		return addr, err
-	} else {
-		return firstSupportedAddr(filter, addrs, inetaddr)
+		if ipv4 && ipv6 {
+			if swap {
+				list[0], list[1] = list[1], list[0]
+			}
+			break
+		}
+	}
+	switch len(list) {
+	case 0:
+		return nil, errNoSuitableAddress
+	case 1:
+		return list[0], nil
+	default:
+		return list, nil
 	}
 }
 
-func firstSupportedAddr(filter func(IP) IP, addrs []string, inetaddr func(IP) netaddr) (netaddr, error) {
-	for _, s := range addrs {
-		if ip := filter(ParseIP(s)); ip != nil {
+func firstSupportedAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
+	for _, ip := range ips {
+		if ip := filter(ip); ip != nil {
 			return inetaddr(ip), nil
 		}
 	}
 	return nil, errNoSuitableAddress
-}
-
-// anyaddr returns IP addresses that we can use with the current
-// kernel configuration.  It returns nil when ip is not suitable for
-// the configuration and an IP address.
-func anyaddr(ip IP) IP {
-	if ip4 := ipv4only(ip); ip4 != nil {
-		return ip4
-	}
-	return ipv6only(ip)
 }
 
 // ipv4only returns IPv4 addresses that we can use with the kernel's
@@ -212,8 +229,11 @@ func JoinHostPort(host, port string) string {
 }
 
 // resolveInternetAddr resolves addr that is either a literal IP
-// address or a DNS registered name and returns an internet protocol
-// family address.
+// address or a DNS name and returns an internet protocol family
+// address. It returns a list that contains a pair of different
+// address family addresses when addr is a DNS name and the name has
+// mutiple address family records. The result contains at least one
+// address when error is nil.
 func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
 	var (
 		err              error
@@ -260,9 +280,9 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 	if ip, zone = parseIPv6(host, true); ip != nil {
 		return inetaddr(ip), nil
 	}
-	// Try as a DNS registered name.
+	// Try as a DNS name.
 	host, zone = splitHostZone(host)
-	addrs, err := lookupHostDeadline(host, deadline)
+	ips, err := lookupIPDeadline(host, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +293,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 	if net != "" && net[len(net)-1] == '6' || zone != "" {
 		filter = ipv6only
 	}
-	return firstFavoriteAddr(filter, addrs, inetaddr)
+	return firstFavoriteAddr(filter, ips, inetaddr)
 }
 
 func zoneToString(zone int) string {

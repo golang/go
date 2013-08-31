@@ -16,6 +16,31 @@ import (
 // If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
 var testIPv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
+func TestResolveGoogle(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
+		addr, err := ResolveTCPAddr(network, "www.google.com:http")
+		if err != nil {
+			if (network == "tcp" || network == "tcp4") && !supportsIPv4 {
+				t.Logf("ipv4 is not supported: %v", err)
+			} else if network == "tcp6" && !supportsIPv6 {
+				t.Logf("ipv6 is not supported: %v", err)
+			} else {
+				t.Errorf("ResolveTCPAddr failed: %v", err)
+			}
+			continue
+		}
+		if (network == "tcp" || network == "tcp4") && addr.IP.To4() == nil {
+			t.Errorf("got %v; expected an IPv4 address on %v", addr, network)
+		} else if network == "tcp6" && (addr.IP.To16() == nil || addr.IP.To4() != nil) {
+			t.Errorf("got %v; expected an IPv6 address on %v", addr, network)
+		}
+	}
+}
+
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
