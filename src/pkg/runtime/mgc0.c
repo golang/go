@@ -12,7 +12,6 @@
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
-#include "hashmap.h"
 #include "funcdata.h"
 #include "../../cmd/ld/textflag.h"
 
