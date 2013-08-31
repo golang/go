@@ -70,6 +70,8 @@ struct MapType
 	Type;
 	Type *key;
 	Type *elem;
+	Type *bucket; // internal type representing a hash bucket
+	Type *hmap;   // internal type representing a Hmap
 };
 
 struct ChanType

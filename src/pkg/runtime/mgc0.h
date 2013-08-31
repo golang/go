@@ -26,7 +26,6 @@ enum {
 	GC_ARRAY_START, // Start an array with a fixed length. Args: (off, len, elemsize)
 	GC_ARRAY_NEXT,  // The next element of an array. Args: none
 	GC_CALL,        // Call a subroutine. Args: (off, objgcrel)
-	GC_MAP_PTR,     // Go map. Args: (off, MapType*)
 	GC_CHAN_PTR,    // Go channel. Args: (off, ChanType*)
 	GC_STRING,      // Go string. Args: (off)
 	GC_EFACE,       // interface{}. Args: (off)
