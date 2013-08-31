@@ -176,7 +176,6 @@ static struct {
 
 enum {
 	GC_DEFAULT_PTR = GC_NUM_INSTR,
-	GC_MAP_NEXT,
 	GC_CHAN,
 
 	GC_NUM_INSTR2
@@ -580,9 +579,6 @@ flushobjbuf(Obj *objbuf, Obj **objbufpos, Obj **_wp, Workbuf **_wbuf, uintptr *_
 // Program that scans the whole block and treats every block element as a potential pointer
 static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
 
-// Hashmap iterator program
-static uintptr mapProg[2] = {0, GC_MAP_NEXT};
-
 // Hchan program
 static uintptr chanProg[2] = {0, GC_CHAN};
 
@@ -622,8 +618,11 @@ checkptr(void *obj, uintptr objti)
 	}
 	tisize = *(uintptr*)objti;
 	// Sanity check for object size: it should fit into the memory block.
-	if((byte*)obj + tisize > objstart + s->elemsize)
+	if((byte*)obj + tisize > objstart + s->elemsize) {
+		runtime·printf("object of type '%S' at %p/%p does not fit in block %p/%p\n",
+			       *t->string, obj, tisize, objstart, s->elemsize);
 		runtime·throw("invalid gc type info");
+	}
 	if(obj != objstart)
 		return;
 	// If obj points to the beginning of the memory block,
@@ -639,7 +638,7 @@ checkptr(void *obj, uintptr objti)
 		for(j = 1; pc1[j] != GC_END && pc2[j] != GC_END; j++) {
 			if(pc1[j] != pc2[j]) {
 				runtime·printf("invalid gc type info for '%s' at %p, type info %p, block info %p\n",
-					t->string ? (int8*)t->string->str : (int8*)"?", j, pc1[j], pc2[j]);
+					       t->string ? (int8*)t->string->str : (int8*)"?", j, pc1[j], pc2[j]);
 				runtime·throw("invalid gc type info");
 			}
 		}
@@ -662,7 +661,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	byte *b, *arena_start, *arena_used;
 	uintptr n, i, end_b, elemsize, size, ti, objti, count, type;
 	uintptr *pc, precise_type, nominal_size;
-	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti, *chan_ret, chancap;
+	uintptr *chan_ret, chancap;
 	void *obj;
 	Type *t;
 	Slice *sliceptr;
@@ -672,11 +671,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	Obj *objbuf, *objbuf_end, *objbufpos;
 	Eface *eface;
 	Iface *iface;
-	Hmap *hmap;
-	MapType *maptype;
-	bool mapkey_kind, mapval_kind;
-	struct hash_gciter map_iter;
-	struct hash_gciter_data d;
 	Hchan *chan;
 	ChanType *chantype;
 
@@ -705,10 +699,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	objbufpos = objbuf;
 
 	// (Silence the compiler)
-	map_ret = nil;
-	mapkey_size = mapval_size = 0;
-	mapkey_kind = mapval_kind = false;
-	mapkey_ti = mapval_ti = 0;
 	chan = nil;
 	chantype = nil;
 	chan_ret = nil;
@@ -776,23 +766,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					stack_top.count = 0;  // 0 means an infinite number of iterations
 					stack_top.elemsize = pc[0];
 					stack_top.loop_or_ret = pc+1;
-					break;
-				case TypeInfo_Map:
-					hmap = (Hmap*)b;
-					maptype = (MapType*)t;
-					if(hash_gciter_init(hmap, &map_iter)) {
-						mapkey_size = maptype->key->size;
-						mapkey_kind = maptype->key->kind;
-						mapkey_ti   = (uintptr)maptype->key->gc | PRECISE;
-						mapval_size = maptype->elem->size;
-						mapval_kind = maptype->elem->kind;
-						mapval_ti   = (uintptr)maptype->elem->gc | PRECISE;
-
-						map_ret = nil;
-						pc = mapProg;
-					} else {
-						goto next_block;
-					}
 					break;
 				case TypeInfo_Chan:
 					chan = (Hchan*)b;
@@ -994,77 +967,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			pc = (uintptr*)((byte*)pc + *(int32*)(pc+2));  // target of the CALL instruction
 			continue;
 
-		case GC_MAP_PTR:
-			hmap = *(Hmap**)(stack_top.b + pc[1]);
-			if(hmap == nil) {
-				pc += 3;
-				continue;
-			}
-			if(markonly(hmap)) {
-				maptype = (MapType*)pc[2];
-				if(hash_gciter_init(hmap, &map_iter)) {
-					mapkey_size = maptype->key->size;
-					mapkey_kind = maptype->key->kind;
-					mapkey_ti   = (uintptr)maptype->key->gc | PRECISE;
-					mapval_size = maptype->elem->size;
-					mapval_kind = maptype->elem->kind;
-					mapval_ti   = (uintptr)maptype->elem->gc | PRECISE;
-
-					// Start mapProg.
-					map_ret = pc+3;
-					pc = mapProg+1;
-				} else {
-					pc += 3;
-				}
-			} else {
-				pc += 3;
-			}
-			continue;
-
-		case GC_MAP_NEXT:
-			// Add all keys and values to buffers, mark all subtables.
-			while(hash_gciter_next(&map_iter, &d)) {
-				// buffers: reserve space for 2 objects.
-				if(ptrbufpos+2 >= ptrbuf_end)
-					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
-				if(objbufpos+2 >= objbuf_end)
-					flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
-
-				if(d.st != nil)
-					markonly(d.st);
-
-				if(d.key_data != nil) {
-					if(!(mapkey_kind & KindNoPointers) || d.indirectkey) {
-						if(!d.indirectkey)
-							*objbufpos++ = (Obj){d.key_data, mapkey_size, mapkey_ti};
-						else {
-							if(Debug) {
-								obj = *(void**)d.key_data;
-								if(!(arena_start <= obj && obj < arena_used))
-									runtime·throw("scanblock: inconsistent hashmap");
-							}
-							*ptrbufpos++ = (PtrTarget){*(void**)d.key_data, mapkey_ti};
-						}
-					}
-					if(!(mapval_kind & KindNoPointers) || d.indirectval) {
-						if(!d.indirectval)
-							*objbufpos++ = (Obj){d.val_data, mapval_size, mapval_ti};
-						else {
-							if(Debug) {
-								obj = *(void**)d.val_data;
-								if(!(arena_start <= obj && obj < arena_used))
-									runtime·throw("scanblock: inconsistent hashmap");
-							}
-							*ptrbufpos++ = (PtrTarget){*(void**)d.val_data, mapval_ti};
-						}
-					}
-				}
-			}
-			if(map_ret == nil)
-				goto next_block;
-			pc = map_ret;
-			continue;
-
 		case GC_REGION:
 			obj = (void*)(stack_top.b + pc[1]);
 			size = pc[2];
@@ -1077,7 +979,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			continue;
 
 		case GC_CHAN_PTR:
-			// Similar to GC_MAP_PTR
 			chan = *(Hchan**)(stack_top.b + pc[1]);
 			if(chan == nil) {
 				pc += 3;

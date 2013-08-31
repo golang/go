@@ -75,6 +75,8 @@
 typedef struct Bucket Bucket;
 struct Bucket
 {
+	// Note: the format of the Bucket is encoded in ../../cmd/gc/reflect.c and
+	// ../reflect/type.go.  Don't change this structure without also changing that code!
 	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (0 = empty)
 	Bucket *overflow;           // overflow bucket, if any
 	byte   data[1];             // BUCKETSIZE keys followed by BUCKETSIZE values
@@ -90,14 +92,13 @@ struct Bucket
 #define evacuated(b) (((uintptr)(b)->overflow & 1) != 0)
 #define overflowptr(b) ((Bucket*)((uintptr)(b)->overflow & ~(uintptr)1))
 
-// Initialize bucket to the empty state.  This only works if BUCKETSIZE==8!
-#define clearbucket(b) { *(uint64*)((b)->tophash) = 0; (b)->overflow = nil; }
-
 struct Hmap
 {
+	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
+	// ../reflect/type.go.  Don't change this structure without also changing that code!
 	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
 	uint32  flags;
-	uint32 hash0;        // hash seed
+	uint32  hash0;        // hash seed
 	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
 	uint8   keysize;      // key size in bytes
 	uint8   valuesize;    // value size in bytes
@@ -115,8 +116,6 @@ enum
 	IndirectValue = 2,  // storing pointers to values
 	Iterator = 4,       // there may be an iterator using buckets
 	OldIterator = 8,    // there may be an iterator using oldbuckets
-	CanFreeBucket = 16, // ok to free buckets
-	CanFreeKey = 32,    // keys are indirect and ok to free keys
 };
 
 // Macros for dereferencing indirect keys
@@ -209,17 +208,15 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 {
 	uint8 B;
 	byte *buckets;
-	uintptr i;
 	uintptr keysize, valuesize, bucketsize;
 	uint8 flags;
-	Bucket *b;
 
-	flags = CanFreeBucket;
+	flags = 0;
 
 	// figure out how big we have to make everything
 	keysize = t->key->size;
 	if(keysize > MAXKEYSIZE) {
-		flags |= IndirectKey | CanFreeKey;
+		flags |= IndirectKey;
 		keysize = sizeof(byte*);
 	}
 	valuesize = t->elem->size;
@@ -241,8 +238,6 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 		runtime·throw("value size not a multiple of value align");
 	if(BUCKETSIZE < 8)
 		runtime·throw("bucketsize too small for proper alignment");
-	if(BUCKETSIZE != 8)
-		runtime·throw("must redo clearbucket");
 	if(sizeof(void*) == 4 && t->key->align > 4)
 		runtime·throw("need padding in bucket (key)");
 	if(sizeof(void*) == 4 && t->elem->align > 4)
@@ -260,16 +255,10 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 		// done lazily later.
 		buckets = nil;
 	} else {
-		buckets = runtime·mallocgc(bucketsize << B, 0, FlagNoZero);
-		for(i = 0; i < (uintptr)1 << B; i++) {
-			b = (Bucket*)(buckets + i * bucketsize);
-			clearbucket(b);
-		}
+		buckets = runtime·mallocgc(bucketsize << B, (uintptr)t->bucket | TypeInfo_Array, 0);
 	}
 
 	// initialize Hmap
-	// Note: we save all these stores to the end so gciter doesn't see
-	// a partially initialized map.
 	h->count = 0;
 	h->B = B;
 	h->flags = flags;
@@ -300,19 +289,16 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 	uintptr i;
 	byte *k, *v;
 	byte *xk, *yk, *xv, *yv;
-	byte *ob;
 
 	b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
 	newbit = (uintptr)1 << (h->B - 1);
 
 	if(!evacuated(b)) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
-		// is no iterator using the old buckets.  (If CanFreeBuckets and !OldIterator.)
+		// is no iterator using the old buckets.  (If !OldIterator.)
 
 		x = (Bucket*)(h->buckets + oldbucket * h->bucketsize);
 		y = (Bucket*)(h->buckets + (oldbucket + newbit) * h->bucketsize);
-		clearbucket(x);
-		clearbucket(y);
 		xi = 0;
 		yi = 0;
 		xk = x->data;
@@ -331,8 +317,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				if((hash & newbit) == 0) {
 					if(xi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
-						newx = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
-						clearbucket(newx);
+						newx = runtime·mallocgc(h->bucketsize, (uintptr)t->bucket, 0);
 						x->overflow = newx;
 						x = newx;
 						xi = 0;
@@ -356,8 +341,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				} else {
 					if(yi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
-						newy = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
-						clearbucket(newy);
+						newy = runtime·mallocgc(h->bucketsize, (uintptr)t->bucket, 0);
 						y->overflow = newy;
 						y = newy;
 						yi = 0;
@@ -389,35 +373,18 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 			b = nextb;
 		} while(b != nil);
 
-		// Free old overflow buckets as much as we can.
-		if((h->flags & OldIterator) == 0) {
-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
-			if((h->flags & CanFreeBucket) != 0) {
-				while((nextb = overflowptr(b)) != nil) {
-					b->overflow = nextb->overflow;
-					runtime·free(nextb);
-				}
-			} else {
-				// can't explicitly free overflow buckets, but at least
-				// we can unlink them.
-				b->overflow = (Bucket*)1;
-			}
-		}
+		// Unlink the overflow buckets to help GC.
+		b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+		if((h->flags & OldIterator) == 0)
+			b->overflow = (Bucket*)1;
 	}
 
 	// advance evacuation mark
 	if(oldbucket == h->nevacuate) {
 		h->nevacuate = oldbucket + 1;
-		if(oldbucket + 1 == newbit) { // newbit == # of oldbuckets
+		if(oldbucket + 1 == newbit) // newbit == # of oldbuckets
 			// free main bucket array
-			if((h->flags & (OldIterator | CanFreeBucket)) == CanFreeBucket) {
-				ob = h->oldbuckets;
-				h->oldbuckets = nil;
-				runtime·free(ob);
-			} else {
-				h->oldbuckets = nil;
-			}
-		}
+			h->oldbuckets = nil;
 	}
 	if(docheck)
 		check(t, h);
@@ -452,14 +419,10 @@ hash_grow(MapType *t, Hmap *h)
 	old_buckets = h->buckets;
 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
-	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, FlagNoZero);
+	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), (uintptr)t->bucket | TypeInfo_Array, 0);
 	flags = (h->flags & ~(Iterator | OldIterator));
-	if((h->flags & Iterator) != 0) {
+	if((h->flags & Iterator) != 0)
 		flags |= OldIterator;
-		// We can't free indirect keys any more, as
-		// they are potentially aliased across buckets.
-		flags &= ~CanFreeKey;
-	}
 
 	// commit the grow (atomic wrt gc)
 	h->B++;
@@ -614,11 +577,8 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 		check(t, h);
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
-	if(h->buckets == nil) {
-		h->buckets = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
-		b = (Bucket*)(h->buckets);
-		clearbucket(b);
-	}
+	if(h->buckets == nil)
+		h->buckets = runtime·mallocgc(h->bucketsize, (uintptr)t->bucket | TypeInfo_Array, 0);
 
  again:
 	bucket = hash & (((uintptr)1 << h->B) - 1);
@@ -665,8 +625,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	if(inserti == nil) {
 		// all current buckets are full, allocate a new one.
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		newb = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
-		clearbucket(newb);
+		newb = runtime·mallocgc(h->bucketsize, (uintptr)t->bucket, 0);
 		b->overflow = newb;
 		inserti = newb->tophash;
 		insertk = newb->data;
@@ -676,13 +635,13 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 	// store new key/value at insert position
 	if((h->flags & IndirectKey) != 0) {
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		kmem = runtime·mallocgc(t->key->size, 0, FlagNoZero);
+		kmem = runtime·mallocgc(t->key->size, (uintptr)t->key, 0);
 		*(byte**)insertk = kmem;
 		insertk = kmem;
 	}
 	if((h->flags & IndirectValue) != 0) {
 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
-		vmem = runtime·mallocgc(t->elem->size, 0, FlagNoZero);
+		vmem = runtime·mallocgc(t->elem->size, (uintptr)t->elem, 0);
 		*(byte**)insertv = vmem;
 		insertv = vmem;
 	}
@@ -726,22 +685,20 @@ hash_remove(MapType *t, Hmap *h, void *key)
 			if(!eq)
 				continue;
 
-			if((h->flags & CanFreeKey) != 0) {
-				k = *(byte**)k;
+			if((h->flags & IndirectKey) != 0) {
+				*(byte**)k = nil;
+			} else {
+				t->key->alg->copy(t->key->size, k, nil);
 			}
 			if((h->flags & IndirectValue) != 0) {
-				v = *(byte**)v;
+				*(byte**)v = nil;
+			} else {
+				t->elem->alg->copy(t->elem->size, v, nil);
 			}
 
 			b->tophash[i] = 0;
 			h->count--;
 			
-			if((h->flags & CanFreeKey) != 0) {
-				runtime·free(k);
-			}
-			if((h->flags & IndirectValue) != 0) {
-				runtime·free(v);
-			}
 			// TODO: consolidate buckets if they are mostly empty
 			// can only consolidate if there are no live iterators at this size.
 			if(docheck)
@@ -804,7 +761,7 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 	it->bptr = nil;
 
 	// Remember we have an iterator.
-	// Can run concurrently with another hash_iter_init() and with reflect·mapiterinit().
+	// Can run concurrently with another hash_iter_init().
 	for(;;) {
 		old = h->flags;
 		if((old&(Iterator|OldIterator)) == (Iterator|OldIterator))
@@ -944,157 +901,6 @@ next:
 	goto next;
 }
 
-
-#define PHASE_BUCKETS      0
-#define PHASE_OLD_BUCKETS  1
-#define PHASE_TABLE        2
-#define PHASE_OLD_TABLE    3
-#define PHASE_DONE         4
-
-// Initialize the iterator.
-// Returns false if Hmap contains no pointers (in which case the iterator is not initialized).
-bool
-hash_gciter_init (Hmap *h, struct hash_gciter *it)
-{
-	// GC during map initialization or on an empty map.
-	if(h->buckets == nil)
-		return false;
-
-	it->h = h;
-	it->phase = PHASE_BUCKETS;
-	it->bucket = 0;
-	it->b = nil;
-
-	// TODO: finish evacuating oldbuckets so that we can collect
-	// oldbuckets?  We don't want to keep a partially evacuated
-	// table around forever, so each gc could make at least some
-	// evacuation progress.  Need to be careful about concurrent
-	// access if we do concurrent gc.  Even if not, we don't want
-	// to make the gc pause any longer than it has to be.
-
-	return true;
-}
-
-// Returns true and fills *data with internal structure/key/value data,
-// or returns false if the iterator has terminated.
-// Ugh, this interface is really annoying.  I want a callback fn!
-bool
-hash_gciter_next(struct hash_gciter *it, struct hash_gciter_data *data)
-{
-	Hmap *h;
-	uintptr bucket, oldbucket;
-	Bucket *b, *oldb;
-	uintptr i;
-	byte *k, *v;
-
-	h = it->h;
-	bucket = it->bucket;
-	b = it->b;
-	i = it->i;
-
-	data->st = nil;
-	data->key_data = nil;
-	data->val_data = nil;
-	data->indirectkey = (h->flags & IndirectKey) != 0;
-	data->indirectval = (h->flags & IndirectValue) != 0;
-
-next:
-	switch (it->phase) {
-	case PHASE_BUCKETS:
-		if(b != nil) {
-			k = b->data + h->keysize * i;
-			v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
-			for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-				if(b->tophash[i] != 0) {
-					data->key_data = k;
-					data->val_data = v;
-					it->bucket = bucket;
-					it->b = b;
-					it->i = i + 1;
-					return true;
-				}
-			}
-			b = b->overflow;
-			if(b != nil) {
-				data->st = (byte*)b;
-				it->bucket = bucket;
-				it->b = b;
-				it->i = 0;
-				return true;
-			}
-		}
-		while(bucket < ((uintptr)1 << h->B)) {
-			if(h->oldbuckets != nil) {
-				oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
-				oldb = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
-				if(!evacuated(oldb)) {
-					// new bucket isn't valid yet
-					bucket++;
-					continue;
-				}
-			}
-			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
-			i = 0;
-			bucket++;
-			goto next;
-		}
-		it->phase = PHASE_OLD_BUCKETS;
-		bucket = 0;
-		b = nil;
-		goto next;
-	case PHASE_OLD_BUCKETS:
-		if(h->oldbuckets == nil) {
-			it->phase = PHASE_TABLE;
-			goto next;
-		}
-		if(b != nil) {
-			k = b->data + h->keysize * i;
-			v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
-			for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-				if(b->tophash[i] != 0) {
-					data->key_data = k;
-					data->val_data = v;
-					it->bucket = bucket;
-					it->b = b;
-					it->i = i + 1;
-					return true;
-				}
-			}
-			b = overflowptr(b);
-			if(b != nil) {
-				data->st = (byte*)b;
-				it->bucket = bucket;
-				it->b = b;
-				it->i = 0;
-				return true;
-			}
-		}
-		if(bucket < ((uintptr)1 << (h->B - 1))) {
-			b = (Bucket*)(h->oldbuckets + bucket * h->bucketsize);
-			bucket++;
-			i = 0;
-			goto next;
-		}
-		it->phase = PHASE_TABLE;
-		goto next;
-	case PHASE_TABLE:
-		it->phase = PHASE_OLD_TABLE;
-		data->st = h->buckets;
-		return true;
-	case PHASE_OLD_TABLE:
-		it->phase = PHASE_DONE;
-		if(h->oldbuckets != nil) {
-			data->st = h->oldbuckets;
-			return true;
-		} else {
-			goto next;
-		}
-	}
-	if(it->phase != PHASE_DONE)
-		runtime·throw("bad phase at done");
-	return false;
-}
-
 //
 /// interfaces to go runtime
 //
@@ -1123,7 +929,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
 	if(key->alg->hash == runtime·nohash)
 		runtime·throw("runtime.makemap: unsupported map key type");
 
-	h = runtime·mallocgc(sizeof(*h), (uintptr)typ | TypeInfo_Map, 0);
+	h = runtime·mallocgc(sizeof(*h), (uintptr)typ->hmap, 0);
 	hash_init(typ, h, hint);
 
 	// these calculations are compiler dependent.
@@ -1387,26 +1193,6 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 void
 reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 {
-	uint32 old, new;
-
-	if(h != nil && t->key->size > sizeof(void*)) {
-		// reflect·mapiterkey returns pointers to key data,
-		// and reflect holds them, so we cannot free key data
-		// eagerly anymore.
-		// Can run concurrently with another reflect·mapiterinit() and with hash_iter_init().
-		for(;;) {
-			old = h->flags;
-			if(old & IndirectKey)
-				new = old & ~CanFreeKey;
-			else
-				new = old & ~CanFreeBucket;
-			if(new == old)
-				break;
-			if(runtime·cas(&h->flags, old, new))
-				break;
-		}
-	}
-
 	it = runtime·mal(sizeof *it);
 	FLUSH(&it);
 	runtime·mapiterinit(t, h, it);

@@ -313,9 +313,11 @@ type interfaceType struct {
 
 // mapType represents a map type.
 type mapType struct {
-	rtype `reflect:"map"`
-	key   *rtype // map key type
-	elem  *rtype // map element (value) type
+	rtype  `reflect:"map"`
+	key    *rtype // map key type
+	elem   *rtype // map element (value) type
+	bucket *rtype // internal bucket structure
+	hmap   *rtype // internal map header
 }
 
 // ptrType represents a pointer type.
@@ -354,7 +356,6 @@ const (
 	_GC_ARRAY_START
 	_GC_ARRAY_NEXT
 	_GC_CALL
-	_GC_MAP_PTR
 	_GC_CHAN_PTR
 	_GC_STRING
 	_GC_EFACE
@@ -1400,11 +1401,11 @@ func cachePut(k cacheKey, t *rtype) Type {
 	return t
 }
 
-// garbage collection bytecode program for chan or map.
+// garbage collection bytecode program for chan.
 // See ../../cmd/gc/reflect.c:/^dgcsym1 and :/^dgcsym.
-type chanMapGC struct {
+type chanGC struct {
 	width uintptr // sizeof(map)
-	op    uintptr // _GC_MAP_PTR or _GC_CHAN_PTR
+	op    uintptr // _GC_CHAN_PTR
 	off   uintptr // 0
 	typ   *rtype  // map type
 	end   uintptr // _GC_END
@@ -1467,7 +1468,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	ch.uncommonType = nil
 	ch.ptrToThis = nil
 
-	ch.gc = unsafe.Pointer(&chanMapGC{
+	ch.gc = unsafe.Pointer(&chanGC{
 		width: ch.size,
 		op:    _GC_CHAN_PTR,
 		off:   0,
@@ -1521,22 +1522,127 @@ func MapOf(key, elem Type) Type {
 	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
 	mt.key = ktyp
 	mt.elem = etyp
+	mt.bucket = bucketOf(ktyp, etyp)
+	mt.hmap = hMapOf(mt.bucket)
 	mt.uncommonType = nil
 	mt.ptrToThis = nil
-
-	mt.gc = unsafe.Pointer(&chanMapGC{
-		width: mt.size,
-		op:    _GC_MAP_PTR,
-		off:   0,
-		typ:   &mt.rtype,
-		end:   _GC_END,
-	})
 
 	// INCORRECT. Uncomment to check that TestMapOfGC and TestMapOfGCValues
 	// fail when mt.gc is wrong.
 	//mt.gc = unsafe.Pointer(&badGC{width: mt.size, end: _GC_END})
 
 	return cachePut(ckey, &mt.rtype)
+}
+
+// Make sure these routines stay in sync with ../../pkg/runtime/hashmap.c!
+// These types exist only for GC, so we only fill out GC relevant info.
+// Currently, that's just size and the GC program.  We also fill in string
+// for possible debugging use.
+const (
+	BUCKETSIZE = 8
+	MAXKEYSIZE = 128
+	MAXVALSIZE = 128
+)
+
+func bucketOf(ktyp, etyp *rtype) *rtype {
+	if ktyp.size > MAXKEYSIZE {
+		ktyp = PtrTo(ktyp).(*rtype)
+	}
+	if etyp.size > MAXVALSIZE {
+		etyp = PtrTo(etyp).(*rtype)
+	}
+	ptrsize := unsafe.Sizeof(uintptr(0))
+
+	gc := make([]uintptr, 1)                                       // first entry is size, filled in at the end
+	offset := BUCKETSIZE * unsafe.Sizeof(uint8(0))                 // topbits
+	gc = append(gc, _GC_PTR, offset, 0 /*self pointer set below*/) // overflow
+	offset += ptrsize
+
+	// keys
+	if ktyp.kind&kindNoPointers == 0 {
+		gc = append(gc, _GC_ARRAY_START, offset, BUCKETSIZE, ktyp.size)
+		gc = appendGCProgram(gc, ktyp)
+		gc = append(gc, _GC_ARRAY_NEXT)
+	}
+	offset += BUCKETSIZE * ktyp.size
+
+	// values
+	if etyp.kind&kindNoPointers == 0 {
+		gc = append(gc, _GC_ARRAY_START, offset, BUCKETSIZE, etyp.size)
+		gc = appendGCProgram(gc, etyp)
+		gc = append(gc, _GC_ARRAY_NEXT)
+	}
+	offset += BUCKETSIZE * etyp.size
+
+	gc = append(gc, _GC_END)
+	gc[0] = offset
+	gc[3] = uintptr(unsafe.Pointer(&gc[0])) // set self pointer
+
+	b := new(rtype)
+	b.size = offset
+	b.gc = unsafe.Pointer(&gc[0])
+	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
+	b.string = &s
+	return b
+}
+
+// Take the GC program for "t" and append it to the GC program "gc".
+func appendGCProgram(gc []uintptr, t *rtype) []uintptr {
+	p := t.gc
+	p = unsafe.Pointer(uintptr(p) + unsafe.Sizeof(uintptr(0))) // skip size
+loop:
+	for {
+		var argcnt int
+		switch *(*uintptr)(p) {
+		case _GC_END:
+			// Note: _GC_END not included in append
+			break loop
+		case _GC_ARRAY_NEXT:
+			argcnt = 0
+		case _GC_APTR, _GC_STRING, _GC_EFACE, _GC_IFACE:
+			argcnt = 1
+		case _GC_PTR, _GC_CALL, _GC_CHAN_PTR, _GC_SLICE:
+			argcnt = 2
+		case _GC_ARRAY_START, _GC_REGION:
+			argcnt = 3
+		default:
+			panic("unknown GC program op for " + *t.string + ": " + strconv.FormatUint(*(*uint64)(p), 10))
+		}
+		for i := 0; i < argcnt+1; i++ {
+			gc = append(gc, *(*uintptr)(p))
+			p = unsafe.Pointer(uintptr(p) + unsafe.Sizeof(uintptr(0)))
+		}
+	}
+	return gc
+}
+func hMapOf(bucket *rtype) *rtype {
+	ptrsize := unsafe.Sizeof(uintptr(0))
+
+	// make gc program & compute hmap size
+	gc := make([]uintptr, 1)           // first entry is size, filled in at the end
+	offset := unsafe.Sizeof(uint(0))   // count
+	offset += unsafe.Sizeof(uint32(0)) // flags
+	offset += unsafe.Sizeof(uint32(0)) // hash0
+	offset += unsafe.Sizeof(uint8(0))  // B
+	offset += unsafe.Sizeof(uint8(0))  // keysize
+	offset += unsafe.Sizeof(uint8(0))  // valuesize
+	offset = (offset + 1) / 2 * 2
+	offset += unsafe.Sizeof(uint16(0)) // bucketsize
+	offset = (offset + ptrsize - 1) / ptrsize * ptrsize
+	gc = append(gc, _GC_PTR, offset, uintptr(bucket.gc)) // buckets
+	offset += ptrsize
+	gc = append(gc, _GC_PTR, offset, uintptr(bucket.gc)) // oldbuckets
+	offset += ptrsize
+	offset += ptrsize // nevacuate
+	gc = append(gc, _GC_END)
+	gc[0] = offset
+
+	h := new(rtype)
+	h.size = offset
+	h.gc = unsafe.Pointer(&gc[0])
+	s := "hmap(" + *bucket.string + ")"
+	h.string = &s
+	return h
 }
 
 // garbage collection bytecode program for slice of non-zero-length values.
