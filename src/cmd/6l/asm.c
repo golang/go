@@ -43,7 +43,7 @@ char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
 char freebsddynld[] = "/libexec/ld-elf.so.1";
 char openbsddynld[] = "/usr/libexec/ld.so";
 char netbsddynld[] = "/libexec/ld.elf_so";
-char dragonflydynld[] = "/libexec/ld-elf.so.2";
+char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
 
 char	zeroes[32];
 
