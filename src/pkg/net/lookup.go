@@ -4,9 +4,7 @@
 
 package net
 
-import (
-	"time"
-)
+import "time"
 
 // protocols contains minimal mappings between internet protocol
 // names and numbers for platforms that don't have a complete list of
@@ -19,6 +17,18 @@ var protocols = map[string]int{
 	"tcp": 6, "TCP": 6,
 	"udp": 17, "UDP": 17,
 	"ipv6-icmp": 58, "IPV6-ICMP": 58, "IPv6-ICMP": 58,
+}
+
+// LookupHost looks up the given host using the local resolver.
+// It returns an array of that host's addresses.
+func LookupHost(host string) (addrs []string, err error) {
+	return lookupHost(host)
+}
+
+// LookupIP looks up host using the local resolver.
+// It returns an array of that host's IPv4 and IPv6 addresses.
+func LookupIP(host string) (addrs []IP, err error) {
+	return lookupIPMerge(host)
 }
 
 var lookupGroup singleflight
@@ -40,12 +50,6 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
 		addrs = clone
 	}
 	return addrs, nil
-}
-
-// LookupHost looks up the given host using the local resolver.
-// It returns an array of that host's addresses.
-func LookupHost(host string) (addrs []string, err error) {
-	return lookupHost(host)
 }
 
 func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
@@ -83,12 +87,6 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
 		addrs, err = r.addrs, r.err
 	}
 	return
-}
-
-// LookupIP looks up host using the local resolver.
-// It returns an array of that host's IPv4 and IPv6 addresses.
-func LookupIP(host string) (addrs []IP, err error) {
-	return lookupIPMerge(host)
 }
 
 // LookupPort looks up the port for the given network and service.
