@@ -31,7 +31,8 @@ cmd/go: delete 'go doc' (CL 12974043).
 archive/zip: add File.DataOffset accessor (CL 12784045).
 bufio: add Reset methods to Reader and Writer (CL 12603049).
 compress/bzip2: support concatenated files (CL 12387044).
-compress/flate: implement Reset method on Writer (CL 12265043).
+compress/flate: add Reset method on Writer (CL 12265043).
+compress/gzip: add Reset method on Writer (CL 13435043).
 container/heap: added Fix (CL 12265043).
 container/list: added MoveBefore and MoveAfter (CL 12021044).
 crypto/cipher: AES-GCM mode (CL 12375043).
@@ -40,6 +41,7 @@ crypto/sha1: Sum function to simplify hashing (CL 10571043).
 crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
 crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
 crypto/tls: add support for TLS 1.1. (CL 7872043).
+database/sql: add SetMaxOpenConns method on DB (CL 10726044).
 encoding: new package defining generic encoding interfaces (CL 12541051).
 encoding/csv: always allow trailing commas (CL 12294043).
 encoding/gob: support generic encoding interfaces (CL 12681044).
