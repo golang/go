@@ -23,19 +23,19 @@ var protocols = map[string]int{
 
 var lookupGroup singleflight
 
-// lookupHostMerge wraps lookupHost, but makes sure that for any given
+// lookupIPMerge wraps lookupIP, but makes sure that for any given
 // host, only one lookup is in-flight at a time. The returned memory
 // is always owned by the caller.
-func lookupHostMerge(host string) (addrs []string, err error) {
+func lookupIPMerge(host string) (addrs []IP, err error) {
 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
-		return lookupHost(host)
+		return lookupIP(host)
 	})
 	if err != nil {
 		return nil, err
 	}
-	addrs = addrsi.([]string)
+	addrs = addrsi.([]IP)
 	if shared {
-		clone := make([]string, len(addrs))
+		clone := make([]IP, len(addrs))
 		copy(clone, addrs)
 		addrs = clone
 	}
@@ -45,12 +45,12 @@ func lookupHostMerge(host string) (addrs []string, err error) {
 // LookupHost looks up the given host using the local resolver.
 // It returns an array of that host's addresses.
 func LookupHost(host string) (addrs []string, err error) {
-	return lookupHostMerge(host)
+	return lookupHost(host)
 }
 
-func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err error) {
+func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
 	if deadline.IsZero() {
-		return lookupHostMerge(host)
+		return lookupIPMerge(host)
 	}
 
 	// TODO(bradfitz): consider pushing the deadline down into the
@@ -68,12 +68,12 @@ func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err er
 	t := time.NewTimer(timeout)
 	defer t.Stop()
 	type res struct {
-		addrs []string
+		addrs []IP
 		err   error
 	}
 	resc := make(chan res, 1)
 	go func() {
-		a, err := lookupHostMerge(host)
+		a, err := lookupIPMerge(host)
 		resc <- res{a, err}
 	}()
 	select {
@@ -88,7 +88,7 @@ func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err er
 // LookupIP looks up host using the local resolver.
 // It returns an array of that host's IPv4 and IPv6 addresses.
 func LookupIP(host string) (addrs []IP, err error) {
-	return lookupIP(host)
+	return lookupIPMerge(host)
 }
 
 // LookupPort looks up the port for the given network and service.

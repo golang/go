@@ -16,10 +16,10 @@ import (
 )
 
 type resolveIPAddrTest struct {
-	net     string
-	litAddr string
-	addr    *IPAddr
-	err     error
+	net           string
+	litAddrOrName string
+	addr          *IPAddr
+	err           error
 }
 
 var resolveIPAddrTests = []resolveIPAddrTest{
@@ -51,13 +51,20 @@ func init() {
 			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
 		}...)
 	}
+	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}, nil},
+			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}, nil},
+			{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil},
+		}...)
+	}
 }
 
 func TestResolveIPAddr(t *testing.T) {
 	for _, tt := range resolveIPAddrTests {
-		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
+		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddrOrName, err)
 		} else if !reflect.DeepEqual(addr, tt.addr) {
 			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
 		}
