@@ -177,6 +177,10 @@ var firstFavoriteAddrTests = []struct {
 }
 
 func TestFirstFavoriteAddr(t *testing.T) {
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("ipv4 or ipv6 is not supported")
+	}
+
 	for i, tt := range firstFavoriteAddrTests {
 		addr, err := firstFavoriteAddr(tt.filter, tt.ips, tt.inetaddr)
 		if err != tt.err {
