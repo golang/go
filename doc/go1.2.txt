@@ -40,7 +40,8 @@ crypto/md5: Sum function to simplify hashing (CL10624044).
 crypto/sha1: Sum function to simplify hashing (CL 10571043).
 crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
 crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
-crypto/tls: add support for TLS 1.1. (CL 7872043).
+crypto/x509: add support for reading and writing arbitrary extensions (CL 12056043).
+crypto/tls: add support for TLS 1.1, 1.2 and AES-GCM. (CL 7872043, 10762044 and 13249044).
 database/sql: add SetMaxOpenConns method on DB (CL 10726044).
 encoding: new package defining generic encoding interfaces (CL 12541051).
 encoding/csv: always allow trailing commas (CL 12294043).
