@@ -5,7 +5,10 @@
 package oracle
 
 import (
+	"go/token"
+
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/ssa"
 )
 
@@ -15,7 +18,7 @@ import (
 //
 // TODO(adonovan): more features:
 // - should we include pairs of types belonging to
-//   different packages in the 'implements' relation?//
+//   different packages in the 'implements' relation?
 // - should we restrict the query to the type declaration identified
 //   by the query position, if any, and use all types in the package
 //   otherwise?
@@ -62,8 +65,9 @@ func implements(o *oracle) (queryResult, error) {
 			facts = append(facts, fact)
 		}
 	}
+	// TODO(adonovan): sort facts to ensure test nondeterminism.
 
-	return &implementsResult{facts}, nil
+	return &implementsResult{o.prog.Fset, facts}, nil
 }
 
 type implementsFact struct {
@@ -72,17 +76,30 @@ type implementsFact struct {
 }
 
 type implementsResult struct {
+	fset  *token.FileSet
 	facts []implementsFact // facts are grouped by interface
 }
 
-func (r *implementsResult) display(o *oracle) {
-	// TODO(adonovan): sort to ensure test nondeterminism.
+func (r *implementsResult) display(printf printfFunc) {
 	var prevIface *types.Named
 	for _, fact := range r.facts {
 		if fact.iface != prevIface {
-			o.printf(fact.iface.Obj(), "\tInterface %s:", fact.iface)
+			printf(fact.iface.Obj(), "\tInterface %s:", fact.iface)
 			prevIface = fact.iface
 		}
-		o.printf(deref(fact.conc).(*types.Named).Obj(), "\t\t%s", fact.conc)
+		printf(deref(fact.conc).(*types.Named).Obj(), "\t\t%s", fact.conc)
 	}
+}
+
+func (r *implementsResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var facts []*json.Implements
+	for _, fact := range r.facts {
+		facts = append(facts, &json.Implements{
+			I:    fact.iface.String(),
+			IPos: fset.Position(fact.iface.Obj().Pos()).String(),
+			C:    fact.conc.String(),
+			CPos: fset.Position(deref(fact.conc).(*types.Named).Obj().Pos()).String(),
+		})
+	}
+	res.Implements = facts
 }

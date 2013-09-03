@@ -7,8 +7,10 @@ package oracle
 import (
 	"go/ast"
 	"go/token"
+	"sort"
 
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -52,7 +54,10 @@ func peers(o *oracle) (queryResult, error) {
 
 	// Discard operations of wrong channel element type.
 	// Build set of channel ssa.Values as query to pointer analysis.
-	queryElemType := queryOp.ch.Type().Underlying().(*types.Chan).Elem()
+	// We compare channels by element types, not channel types, to
+	// ignore both directionality and type names.
+	queryType := queryOp.ch.Type()
+	queryElemType := queryType.Underlying().(*types.Chan).Elem()
 	channels := map[ssa.Value][]pointer.Pointer{queryOp.ch: nil}
 	i := 0
 	for _, op := range ops {
@@ -71,10 +76,35 @@ func peers(o *oracle) (queryResult, error) {
 	// Combine the PT sets from all contexts.
 	queryChanPts := pointer.PointsToCombined(channels[queryOp.ch])
 
+	// Ascertain which make(chan) labels the query's channel can alias.
+	var makes []token.Pos
+	for _, label := range queryChanPts.Labels() {
+		makes = append(makes, label.Pos())
+	}
+	sort.Sort(byPos(makes))
+
+	// Ascertain which send/receive operations can alias the same make(chan) labels.
+	var sends, receives []token.Pos
+	for _, op := range ops {
+		for _, ptr := range o.config.QueryValues[op.ch] {
+			if ptr != nil && ptr.PointsTo().Intersects(queryChanPts) {
+				if op.dir == ast.SEND {
+					sends = append(sends, op.pos)
+				} else {
+					receives = append(receives, op.pos)
+				}
+			}
+		}
+	}
+	sort.Sort(byPos(sends))
+	sort.Sort(byPos(receives))
+
 	return &peersResult{
-		queryOp:      queryOp,
-		ops:          ops,
-		queryChanPts: queryChanPts,
+		queryPos:  arrowPos,
+		queryType: queryType,
+		makes:     makes,
+		sends:     sends,
+		receives:  receives,
 	}, nil
 }
 
@@ -122,35 +152,49 @@ func chanOps(instr ssa.Instruction) []chanOp {
 }
 
 type peersResult struct {
-	queryOp      chanOp
-	ops          []chanOp
-	queryChanPts pointer.PointsToSet
+	queryPos               token.Pos   // of queried '<-' token
+	queryType              types.Type  // type of queried channel
+	makes, sends, receives []token.Pos // positions of alisaed makechan/send/receive instrs
 }
 
-func (r *peersResult) display(o *oracle) {
-	// Report which make(chan) labels the query's channel can alias.
-	labels := r.queryChanPts.Labels()
-	if len(labels) == 0 {
-		o.printf(r.queryOp.pos, "This channel can't point to anything.")
+func (r *peersResult) display(printf printfFunc) {
+	if len(r.makes) == 0 {
+		printf(r.queryPos, "This channel can't point to anything.")
 		return
 	}
-	o.printf(r.queryOp.pos, "This channel of type %s may be:", r.queryOp.ch.Type())
-	// TODO(adonovan): sort, to ensure test determinism.
-	for _, label := range labels {
-		o.printf(label, "\tallocated here")
+	printf(r.queryPos, "This channel of type %s may be:", r.queryType)
+	for _, alloc := range r.makes {
+		printf(alloc, "\tallocated here")
 	}
-
-	// Report which send/receive operations can alias the same make(chan) labels.
-	for _, op := range r.ops {
-		// TODO(adonovan): sort, to ensure test determinism.
-		for _, ptr := range o.config.QueryValues[op.ch] {
-			if ptr != nil && ptr.PointsTo().Intersects(r.queryChanPts) {
-				verb := "received from"
-				if op.dir == ast.SEND {
-					verb = "sent to"
-				}
-				o.printf(op.pos, "\t%s, here", verb)
-			}
-		}
+	for _, send := range r.sends {
+		printf(send, "\tsent to, here")
+	}
+	for _, receive := range r.receives {
+		printf(receive, "\treceived from, here")
 	}
 }
+
+func (r *peersResult) toJSON(res *json.Result, fset *token.FileSet) {
+	peers := &json.Peers{
+		Pos:  fset.Position(r.queryPos).String(),
+		Type: r.queryType.String(),
+	}
+	for _, alloc := range r.makes {
+		peers.Allocs = append(peers.Allocs, fset.Position(alloc).String())
+	}
+	for _, send := range r.sends {
+		peers.Sends = append(peers.Sends, fset.Position(send).String())
+	}
+	for _, receive := range r.receives {
+		peers.Receives = append(peers.Receives, fset.Position(receive).String())
+	}
+	res.Peers = peers
+}
+
+// -------- utils --------
+
+type byPos []token.Pos
+
+func (p byPos) Len() int           { return len(p) }
+func (p byPos) Less(i, j int) bool { return p[i] < p[j] }
+func (p byPos) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

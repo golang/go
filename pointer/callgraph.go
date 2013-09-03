@@ -108,7 +108,8 @@ func (c *callsite) String() string {
 //
 type CallGraph map[CallGraphNode]map[CallGraphNode]CallSite
 
-func (cg CallGraph) AddEdge(site CallSite, caller, callee CallGraphNode) {
+func (cg CallGraph) AddEdge(site CallSite, callee CallGraphNode) {
+	caller := site.Caller()
 	callees := cg[caller]
 	if callees == nil {
 		callees = make(map[CallGraphNode]CallSite)

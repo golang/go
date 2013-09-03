@@ -26,12 +26,9 @@ package oracle_test
 // 	% go test code.google.com/p/go.tools/oracle -update
 // to update the golden files.
 
-// TODO(adonovan): improve coverage:
-// - output of @callgraph is nondeterministic.
-// - as are lists of labels.
-
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/build"
@@ -159,23 +156,40 @@ func stripLocation(line string) string {
 
 // doQuery poses query q to the oracle and writes its response and
 // error (if any) to out.
-func doQuery(out io.Writer, q *query) {
+func doQuery(out io.Writer, q *query, useJson bool) {
 	fmt.Fprintf(out, "-------- @%s %s --------\n", q.verb, q.id)
 
-	capture := new(bytes.Buffer) // capture standard output
 	var buildContext = build.Default
 	buildContext.GOPATH = "testdata"
-	err := oracle.Main([]string{q.filename},
+	res, err := oracle.Query([]string{q.filename},
 		q.verb,
 		fmt.Sprintf("%s:%d-%d", q.filename, q.start, q.end),
-		/*PTA-log=*/ nil, capture, &buildContext)
-
-	for _, line := range strings.Split(capture.String(), "\n") {
-		fmt.Fprintf(out, "%s\n", stripLocation(line))
+		/*PTA-log=*/ nil, &buildContext)
+	if err != nil {
+		fmt.Fprintf(out, "\nError: %s\n", stripLocation(err.Error()))
+		return
 	}
 
-	if err != nil {
-		fmt.Fprintf(out, "Error: %s\n", stripLocation(err.Error()))
+	if useJson {
+		// JSON output
+		b, err := json.Marshal(res)
+		if err != nil {
+			fmt.Fprintf(out, "JSON error: %s\n", err.Error())
+			return
+		}
+		var buf bytes.Buffer
+		if err := json.Indent(&buf, b, "", "\t"); err != nil {
+			fmt.Fprintf(out, "json.Indent failed: %s", err)
+			return
+		}
+		out.Write(buf.Bytes())
+	} else {
+		// "plain" (compiler diagnostic format) output
+		capture := new(bytes.Buffer) // capture standard output
+		res.WriteTo(capture)
+		for _, line := range strings.Split(capture.String(), "\n") {
+			fmt.Fprintf(out, "%s\n", stripLocation(line))
+		}
 	}
 }
 
@@ -187,12 +201,19 @@ func TestOracle(t *testing.T) {
 
 	for _, filename := range []string{
 		"testdata/src/main/calls.go",
+		"testdata/src/main/callgraph.go",
 		"testdata/src/main/describe.go",
 		"testdata/src/main/freevars.go",
 		"testdata/src/main/implements.go",
 		"testdata/src/main/imports.go",
 		"testdata/src/main/peers.go",
+		// JSON:
+		"testdata/src/main/callgraph-json.go",
+		"testdata/src/main/calls-json.go",
+		"testdata/src/main/peers-json.go",
+		"testdata/src/main/describe-json.go",
 	} {
+		useJson := strings.HasSuffix(filename, "-json.go")
 		queries := parseQueries(t, filename)
 		golden := filename + "lden"
 		got := filename + "t"
@@ -206,7 +227,7 @@ func TestOracle(t *testing.T) {
 		// Run the oracle on each query, redirecting its output
 		// and error (if any) to the foo.got file.
 		for _, q := range queries {
-			doQuery(gotfh, q)
+			doQuery(gotfh, q, useJson)
 		}
 
 		// Compare foo.got with foo.golden.

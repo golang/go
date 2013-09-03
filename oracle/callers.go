@@ -5,6 +5,9 @@
 package oracle
 
 import (
+	"go/token"
+
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -32,12 +35,14 @@ func callers(o *oracle) (queryResult, error) {
 
 	// Run the pointer analysis, recording each
 	// call found to originate from target.
-	var calls []callersCall
-	o.config.Call = func(site pointer.CallSite, caller, callee pointer.CallGraphNode) {
+	var calls []pointer.CallSite
+	o.config.Call = func(site pointer.CallSite, callee pointer.CallGraphNode) {
 		if callee.Func() == target {
-			calls = append(calls, callersCall{site, caller})
+			calls = append(calls, site)
 		}
 	}
+	// TODO(adonovan): sort calls, to ensure test determinism.
+
 	root := ptrAnalysis(o)
 
 	return &callersResult{
@@ -50,28 +55,36 @@ func callers(o *oracle) (queryResult, error) {
 type callersResult struct {
 	target *ssa.Function
 	root   pointer.CallGraphNode
-	calls  []callersCall
+	calls  []pointer.CallSite
 }
 
-type callersCall struct {
-	site   pointer.CallSite
-	caller pointer.CallGraphNode
-}
-
-func (r *callersResult) display(o *oracle) {
+func (r *callersResult) display(printf printfFunc) {
 	if r.calls == nil {
-		o.printf(r.target, "%s is not reachable in this program.", r.target)
+		printf(r.target, "%s is not reachable in this program.", r.target)
 	} else {
-		o.printf(r.target, "%s is called from these %d sites:", r.target, len(r.calls))
-		// TODO(adonovan): sort, to ensure test determinism.
-		for _, call := range r.calls {
-			if call.caller == r.root {
-				o.printf(r.target, "the root of the call graph")
+		printf(r.target, "%s is called from these %d sites:", r.target, len(r.calls))
+		for _, site := range r.calls {
+			if site.Caller() == r.root {
+				printf(r.target, "the root of the call graph")
 			} else {
-				o.printf(call.site, "\t%s from %s",
-					call.site.Description(), call.caller.Func())
+				printf(site, "\t%s from %s", site.Description(), site.Caller().Func())
 			}
 		}
 	}
+}
 
+func (r *callersResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var callers []json.Caller
+	for _, site := range r.calls {
+		var c json.Caller
+		c.Caller = site.Caller().Func().String()
+		if site.Caller() == r.root {
+			c.Desc = "synthetic call"
+		} else {
+			c.Pos = site.Caller().Func().Prog.Fset.Position(site.Pos()).String()
+			c.Desc = site.Description()
+		}
+		callers = append(callers, c)
+	}
+	res.Callers = callers
 }

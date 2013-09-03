@@ -126,7 +126,7 @@ binary - operation of constant value -2
 
 -------- @describe map-lookup,ok --------
 index expression of type (*int, bool)
-no pointer analysis: can't locate SSA Value for expression in main.main
+no points-to information: can't locate SSA Value for expression in main.main
 
 -------- @describe mapval --------
 reference to var mapval *int
@@ -151,7 +151,7 @@ definition of var a int
 
 -------- @describe b --------
 definition of var b *int
-pointer analysis did not analyze this expression (dead code?)
+no points-to information: PTA did not encounter this expression (dead code?)
 
 -------- @describe def-iface-I --------
 definition of type describe.I

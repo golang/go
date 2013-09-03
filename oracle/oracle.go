@@ -4,7 +4,7 @@
 
 package oracle
 
-// This file defines oracle.Main, the entry point for the oracle tool.
+// This file defines oracle.Query, the entry point for the oracle tool.
 // The actual executable is defined in cmd/oracle.
 
 // TODO(adonovan): new query: show all statements that may update the
@@ -12,6 +12,7 @@ package oracle
 
 import (
 	"bytes"
+	encjson "encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -27,6 +28,7 @@ import (
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -71,25 +73,59 @@ var modes = map[string]modeInfo{
 	"peers":      modeInfo{WholeSource | SSA | Pos, peers},
 }
 
+type printfFunc func(pos interface{}, format string, args ...interface{})
+
+// queryResult is the interface of each query-specific result type.
 type queryResult interface {
-	display(o *oracle)
+	toJSON(res *json.Result, fset *token.FileSet)
+	display(printf printfFunc)
 }
 
-// Main runs the oracle.
+type warning struct {
+	pos    token.Pos
+	format string
+	args   []interface{}
+}
+
+// A Result encapsulates the result of an oracle.Query.
+//
+// Result instances implement the json.Marshaler interface, i.e. they
+// can be JSON-serialized.
+type Result struct {
+	fset *token.FileSet
+	// fprintf is a closure over the oracle's fileset and start/end position.
+	fprintf  func(w io.Writer, pos interface{}, format string, args ...interface{})
+	q        queryResult // the query-specific result
+	mode     string      // query mode
+	warnings []warning   // pointer analysis warnings
+}
+
+func (res *Result) MarshalJSON() ([]byte, error) {
+	resj := &json.Result{Mode: res.mode}
+	res.q.toJSON(resj, res.fset)
+	for _, w := range res.warnings {
+		resj.Warnings = append(resj.Warnings, json.PTAWarning{
+			Pos:     res.fset.Position(w.pos).String(),
+			Message: fmt.Sprintf(w.format, w.args...),
+		})
+	}
+	return encjson.Marshal(resj)
+}
+
+// Query runs the oracle.
 // args specify the main package in importer.CreatePackageFromArgs syntax.
 // mode is the query mode ("callers", etc).
 // pos is the selection in parseQueryPos() syntax.
 // ptalog is the (optional) pointer-analysis log file.
-// out is the standard output stream.
 // buildContext is the optional configuration for locating packages.
 //
-func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *build.Context) error {
+func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *build.Context) (*Result, error) {
 	minfo, ok := modes[mode]
 	if !ok {
 		if mode == "" {
-			return errors.New("You must specify a -mode to perform.")
+			return nil, errors.New("you must specify a -mode to perform")
 		}
-		return fmt.Errorf("Invalid mode type: %q.", mode)
+		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
 	var loader importer.SourceLoader
@@ -98,20 +134,14 @@ func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *
 	}
 	imp := importer.New(&importer.Config{Loader: loader})
 	o := &oracle{
-		out:    out,
 		prog:   ssa.NewProgram(imp.Fset, 0),
 		timers: make(map[string]time.Duration),
 	}
 	o.config.Log = ptalog
 
-	type warning struct {
-		pos    token.Pos
-		format string
-		args   []interface{}
-	}
-	var warnings []warning
+	var res Result
 	o.config.Warn = func(pos token.Pos, format string, args ...interface{}) {
-		warnings = append(warnings, warning{pos, format, args})
+		res.warnings = append(res.warnings, warning{pos, format, args})
 	}
 
 	// Phase timing diagnostics.
@@ -128,7 +158,7 @@ func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *
 	start := time.Now()
 	initialPkgInfo, _, err := importer.CreatePackageFromArgs(imp, args)
 	if err != nil {
-		return err // I/O, parser or type error
+		return nil, err // I/O, parser or type error
 	}
 	o.timers["load/parse/type"] = time.Since(start)
 
@@ -137,16 +167,16 @@ func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *
 		var err error
 		o.startPos, o.endPos, err = parseQueryPos(o.prog.Fset, pos)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var exact bool
 		o.queryPkgInfo, o.queryPath, exact = imp.PathEnclosingInterval(o.startPos, o.endPos)
 		if o.queryPath == nil {
-			return o.errorf(o, "no syntax here")
+			return nil, o.errorf(false, "no syntax here")
 		}
 		if minfo.needs&ExactPos != 0 && !exact {
-			return o.errorf(o.queryPath[0], "ambiguous selection within %s",
+			return nil, o.errorf(o.queryPath[0], "ambiguous selection within %s",
 				importer.NodeDescription(o.queryPath[0]))
 		}
 	}
@@ -166,7 +196,7 @@ func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *
 		// Add package to the pointer analysis scope.
 		if initialPkg.Func("main") == nil {
 			if initialPkg.CreateTestMainFunction() == nil {
-				return o.errorf(o, "analysis scope has no main() entry points")
+				return nil, o.errorf(false, "analysis scope has no main() entry points")
 			}
 		}
 		o.config.Mains = append(o.config.Mains, initialPkg)
@@ -185,22 +215,30 @@ func Main(args []string, mode, pos string, ptalog, out io.Writer, buildContext *
 	// Release the other ASTs and type info to the GC.
 	imp = nil
 
-	result, err := minfo.impl(o)
+	res.q, err = minfo.impl(o)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// TODO(adonovan): use this as a seam for testing.
-	result.display(o)
+	res.mode = mode
+	res.fset = o.prog.Fset
+	res.fprintf = o.fprintf // captures o.prog, o.{start,end}Pos for later printing
+	return &res, nil
+}
+
+// WriteTo writes the oracle query result res to out in a compiler diagnostic format.
+func (res *Result) WriteTo(out io.Writer) {
+	printf := func(pos interface{}, format string, args ...interface{}) {
+		res.fprintf(out, pos, format, args...)
+	}
+	res.q.display(printf)
 
 	// Print warnings after the main output.
-	if warnings != nil {
-		fmt.Fprintln(o.out, "\nPointer analysis warnings:")
-		for _, w := range warnings {
-			o.fprintf(o.out, w.pos, "warning: "+w.format, w.args...)
+	if res.warnings != nil {
+		fmt.Fprintln(out, "\nPointer analysis warnings:")
+		for _, w := range res.warnings {
+			printf(w.pos, "warning: "+w.format, w.args...)
 		}
 	}
-
-	return nil
 }
 
 // ---------- Utilities ----------
@@ -338,7 +376,8 @@ func deref(typ types.Type) types.Type {
 //    - an ast.Node, denoting an interval
 //    - anything with a Pos() method:
 //         ssa.Member, ssa.Value, ssa.Instruction, types.Object, pointer.Label, etc.
-//    - o *oracle, meaning the extent [o.startPos, o.endPos) of the user's query.
+//    - a bool, meaning the extent [o.startPos, o.endPos) of the user's query.
+//      (the value is ignored)
 //    - nil, meaning no position at all.
 //
 // The output format is is compatible with the 'gnu'
@@ -359,7 +398,7 @@ func (o *oracle) fprintf(w io.Writer, pos interface{}, format string, args ...in
 	}:
 		start = pos.Pos()
 		end = start
-	case *oracle:
+	case bool:
 		start = o.startPos
 		end = o.endPos
 	case nil:
@@ -383,11 +422,6 @@ func (o *oracle) fprintf(w io.Writer, pos interface{}, format string, args ...in
 	}
 	fmt.Fprintf(w, format, args...)
 	io.WriteString(w, "\n")
-}
-
-// printf is like fprintf, but writes to to o.out.
-func (o *oracle) printf(pos interface{}, format string, args ...interface{}) {
-	o.fprintf(o.out, pos, format, args...)
 }
 
 // errorf is like fprintf, but returns a formatted error string.

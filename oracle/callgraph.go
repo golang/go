@@ -5,8 +5,10 @@
 package oracle
 
 import (
+	"go/token"
 	"strings"
 
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/pointer"
 )
 
@@ -16,7 +18,12 @@ import (
 // context sensitivity.
 //
 // TODO(adonovan): add options for restricting the display to a region
-// of interest: function, package, subgraph, dirtree, etc.
+// of interest: function, package, subgraph, dirtree, goroutine, etc.
+//
+// TODO(adonovan): add an option to project away context sensitivity.
+// The callgraph API should provide this feature.
+//
+// TODO(adonovan): elide nodes for synthetic functions?
 //
 func callgraph(o *oracle) (queryResult, error) {
 	buildSSA(o)
@@ -26,34 +33,35 @@ func callgraph(o *oracle) (queryResult, error) {
 	o.config.Call = callgraph.AddEdge
 	root := ptrAnalysis(o)
 
+	// Assign (preorder) numbers to all the callgraph nodes.
+	// TODO(adonovan): the callgraph API should do this for us.
+	numbering := make(map[pointer.CallGraphNode]int)
+	var number func(cgn pointer.CallGraphNode)
+	number = func(cgn pointer.CallGraphNode) {
+		if _, ok := numbering[cgn]; !ok {
+			numbering[cgn] = len(numbering)
+			for callee := range callgraph[cgn] {
+				number(callee)
+			}
+		}
+	}
+	number(root)
+
 	return &callgraphResult{
 		root:      root,
 		callgraph: callgraph,
+		numbering: numbering,
 	}, nil
 }
 
 type callgraphResult struct {
 	root      pointer.CallGraphNode
 	callgraph pointer.CallGraph
-
-	numbering map[pointer.CallGraphNode]int // used by display
+	numbering map[pointer.CallGraphNode]int
 }
 
-func (r *callgraphResult) print(o *oracle, cgn pointer.CallGraphNode, indent int) {
-	if n := r.numbering[cgn]; n == 0 {
-		n = 1 + len(r.numbering)
-		r.numbering[cgn] = n
-		o.printf(cgn.Func(), "%d\t%s%s", n, strings.Repeat("    ", indent), cgn.Func())
-		for callee := range r.callgraph[cgn] {
-			r.print(o, callee, indent+1)
-		}
-	} else {
-		o.printf(cgn.Func(), "\t%s%s (%d)", strings.Repeat("    ", indent), cgn.Func(), n)
-	}
-}
-
-func (r *callgraphResult) display(o *oracle) {
-	o.printf(nil, `
+func (r *callgraphResult) display(printf printfFunc) {
+	printf(nil, `
 Below is a call graph of the entire program.
 The numbered nodes form a spanning tree.
 Non-numbered nodes indicate back- or cross-edges to the node whose
@@ -62,6 +70,33 @@ Some nodes may appear multiple times due to context-sensitive
  treatment of some calls.
 `)
 
-	r.numbering = make(map[pointer.CallGraphNode]int)
-	r.print(o, r.root, 0)
+	seen := make(map[pointer.CallGraphNode]bool)
+	var print func(cgn pointer.CallGraphNode, indent int)
+	print = func(cgn pointer.CallGraphNode, indent int) {
+		n := r.numbering[cgn]
+		if !seen[cgn] {
+			seen[cgn] = true
+			printf(cgn.Func(), "%d\t%s%s", n, strings.Repeat("    ", indent), cgn.Func())
+			for callee := range r.callgraph[cgn] {
+				print(callee, indent+1)
+			}
+		} else {
+			printf(cgn.Func(), "\t%s%s (%d)", strings.Repeat("    ", indent), cgn.Func(), n)
+		}
+	}
+	print(r.root, 0)
+}
+
+func (r *callgraphResult) toJSON(res *json.Result, fset *token.FileSet) {
+	cg := make([]json.CallGraph, len(r.numbering))
+	for n, i := range r.numbering {
+		j := &cg[i]
+		fn := n.Func()
+		j.Name = fn.String()
+		j.Pos = fn.Prog.Fset.Position(fn.Pos()).String()
+		for callee := range r.callgraph[n] {
+			j.Children = append(j.Children, r.numbering[callee])
+		}
+	}
+	res.Callgraph = cg
 }

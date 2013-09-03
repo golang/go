@@ -1,0 +1,63 @@
+-------- @callgraph callgraph --------
+{
+	"mode": "callgraph",
+	"callgraph": [
+		{
+			"name": "\u003croot\u003e",
+			"pos": "-",
+			"children": [
+				1,
+				2
+			]
+		},
+		{
+			"name": "main.init",
+			"pos": "-"
+		},
+		{
+			"name": "main.main",
+			"pos": "testdata/src/main/callgraph-json.go:24:6",
+			"children": [
+				3,
+				6,
+				7,
+				8
+			]
+		},
+		{
+			"name": "main.call",
+			"pos": "testdata/src/main/callgraph-json.go:12:6",
+			"children": [
+				4,
+				5
+			]
+		},
+		{
+			"name": "main.A",
+			"pos": "testdata/src/main/callgraph-json.go:7:6"
+		},
+		{
+			"name": "main.B",
+			"pos": "testdata/src/main/callgraph-json.go:9:6"
+		},
+		{
+			"name": "main.nop",
+			"pos": "testdata/src/main/callgraph-json.go:17:6"
+		},
+		{
+			"name": "main.nop",
+			"pos": "testdata/src/main/callgraph-json.go:17:6"
+		},
+		{
+			"name": "main.call2",
+			"pos": "testdata/src/main/callgraph-json.go:19:6",
+			"children": [
+				9
+			]
+		},
+		{
+			"name": "func@31.8",
+			"pos": "testdata/src/main/callgraph-json.go:31:8"
+		}
+	]
+}

@@ -25,6 +25,8 @@ type Config struct {
 	// Call is invoked for each discovered call-graph edge.  The
 	// call-graph is a multigraph over CallGraphNodes with edges
 	// labelled by the CallSite that gives rise to the edge.
+	// (The caller node is available as site.Caller())
+	//
 	// Clients that wish to construct a call graph may provide
 	// CallGraph.AddEdge here.
 	//
@@ -32,7 +34,7 @@ type Config struct {
 	// distinguish separate calls to the same function depending
 	// on the context.
 	//
-	Call func(site CallSite, caller, callee CallGraphNode)
+	Call func(site CallSite, callee CallGraphNode)
 
 	// CallSite is invoked for each call-site encountered in the
 	// program.

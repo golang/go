@@ -243,7 +243,7 @@ func Analyze(config *Config) CallGraphNode {
 			// Notify the client of the call graph, if
 			// they're interested.
 			if Call != nil {
-				Call(site, site.caller, cgn)
+				Call(site, cgn)
 			}
 
 			// Warn about calls to non-intrinsic external functions.

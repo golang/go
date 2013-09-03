@@ -16,6 +16,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -36,6 +38,8 @@ var modeFlag = flag.String("mode", "",
 
 var ptalogFlag = flag.String("ptalog", "",
 	"Location of the points-to analysis log file, or empty to disable logging.")
+
+var formatFlag = flag.String("format", "plain", "Output format: 'plain' or 'json'.")
 
 const usage = `Go source code oracle.
 Usage: oracle [<flag> ...] [<file.go> ...] [<arg> ...]
@@ -62,6 +66,16 @@ func init() {
 			n = 4
 		}
 		runtime.GOMAXPROCS(n)
+	}
+
+	// For now, caller must---before go/build.init runs---specify
+	// CGO_ENABLED=0, which entails the "!cgo" go/build tag,
+	// preferring (dummy) Go to native C implementations of
+	// cgoLookupHost et al.
+	// TODO(adonovan): make the importer do this.
+	if os.Getenv("CGO_ENABLED") != "0" {
+		fmt.Fprint(os.Stderr, "Warning: CGO_ENABLED=0 not specified; "+
+			"analysis of cgo code may be less precise.\n")
 	}
 }
 
@@ -99,8 +113,35 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	if err := oracle.Main(args, *modeFlag, *posFlag, ptalog, os.Stdout, nil); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+	// -format flag
+	if *formatFlag != "json" && *formatFlag != "plain" {
+		fmt.Fprintf(os.Stderr, "illegal -format value: %q", *formatFlag)
 		os.Exit(1)
+	}
+
+	// Ask the oracle.
+	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	// Print the result.
+	switch *formatFlag {
+	case "json":
+		b, err := json.Marshal(res)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err.Error())
+			os.Exit(1)
+		}
+		var buf bytes.Buffer
+		if err := json.Indent(&buf, b, "", "\t"); err != nil {
+			fmt.Fprintf(os.Stderr, "json.Indent failed: %s", err)
+			os.Exit(1)
+		}
+		os.Stdout.Write(buf.Bytes())
+
+	case "plain":
+		res.WriteTo(os.Stdout)
 	}
 }

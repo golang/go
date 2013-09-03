@@ -82,7 +82,8 @@ Error: this is a type conversion, not a function call
 Error: ambiguous selection within function call (or conversion)
 
 -------- @callees callees-err-deadcode1 --------
-this call site is unreachable in this analysis
+
+Error: this call site is unreachable in this analysis
 
 -------- @callees callees-err-nil-func --------
 dynamic function call on nil value
@@ -91,7 +92,8 @@ dynamic function call on nil value
 dynamic method call on nil value
 
 -------- @callees callees-err-deadcode2 --------
-this call site is unreachable in this analysis
+
+Error: this call site is unreachable in this analysis
 
 -------- @callstack callstack-err-deadcode --------
 main.deadcode is unreachable in this analysis scope

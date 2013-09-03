@@ -9,17 +9,18 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 
+	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
-
-// TODO(adonovan): all printed sets must be sorted to ensure test determinism.
 
 // describe describes the syntax node denoted by the query position,
 // including:
@@ -29,9 +30,11 @@ import (
 // - its points-to set (for a pointer-like expression)
 // - its concrete types (for an interface expression) and their points-to sets.
 //
+// All printed sets are sorted to ensure determinism.
+//
 func describe(o *oracle) (queryResult, error) {
 	if false { // debugging
-		o.printf(o.queryPath[0], "you selected: %s %s",
+		o.fprintf(os.Stderr, o.queryPath[0], "you selected: %s %s",
 			importer.NodeDescription(o.queryPath[0]), pathToString2(o.queryPath))
 	}
 
@@ -61,9 +64,16 @@ type describeUnknownResult struct {
 	node ast.Node
 }
 
-func (r *describeUnknownResult) display(o *oracle) {
+func (r *describeUnknownResult) display(printf printfFunc) {
 	// Nothing much to say about misc syntax.
-	o.printf(r.node, "%s", importer.NodeDescription(r.node))
+	printf(r.node, "%s", importer.NodeDescription(r.node))
+}
+
+func (r *describeUnknownResult) toJSON(res *json.Result, fset *token.FileSet) {
+	res.Describe = &json.Describe{
+		Desc: importer.NodeDescription(r.node),
+		Pos:  fset.Position(r.node.Pos()).String(),
+	}
 }
 
 type action int
@@ -99,7 +109,8 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 	// we won't even reach here.  Can we do better?
 
 	// TODO(adonovan): describing a field within 'type T struct {...}'
-	// describes the (anonymous) struct type and concludes "no methods".  Fix.
+	// describes the (anonymous) struct type and concludes "no methods".
+	// We should ascend to the enclosing type decl, if any.
 
 	for len(path) > 0 {
 		switch n := path[0].(type) {
@@ -344,6 +355,15 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 
 	// From this point on, we cannot fail with an error.
 	// Failure to run the pointer analysis will be reported later.
+	//
+	// Our disposition to pointer analysis may be one of the following:
+	// - ok:    ssa.Value was const or func.
+	// - error: no ssa.Value for expr (e.g. trivially dead code)
+	// - ok:    ssa.Value is non-pointerlike
+	// - error: no Pointer for ssa.Value (e.g. analytically unreachable)
+	// - ok:    Pointer has empty points-to set
+	// - ok:    Pointer has non-empty points-to set
+	// ptaErr is non-nil only in the "error:" cases.
 
 	var value ssa.Value
 	var ptaErr error
@@ -367,112 +387,187 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 	}
 
 	// Run pointer analysis of the selected SSA value.
-	var ptrs []pointer.Pointer
+	var ptrs []pointerResult
 	if value != nil {
 		buildSSA(o)
 
 		o.config.QueryValues = map[ssa.Value][]pointer.Pointer{value: nil}
 		ptrAnalysis(o)
-		ptrs = o.config.QueryValues[value]
+
+		// Combine the PT sets from all contexts.
+		pointers := o.config.QueryValues[value]
+		if pointers == nil {
+			ptaErr = fmt.Errorf("PTA did not encounter this expression (dead code?)")
+		}
+		pts := pointer.PointsToCombined(pointers)
+
+		if _, ok := value.Type().Underlying().(*types.Interface); ok {
+			// Show concrete types for interface expression.
+			if concs := pts.ConcreteTypes(); concs.Len() > 0 {
+				concs.Iterate(func(conc types.Type, pta interface{}) {
+					combined := pointer.PointsToCombined(pta.([]pointer.Pointer))
+					labels := combined.Labels()
+					sort.Sort(byPosAndString(labels)) // to ensure determinism
+					ptrs = append(ptrs, pointerResult{conc, labels})
+				})
+			}
+		} else {
+			// Show labels for other expressions.
+			labels := pts.Labels()
+			sort.Sort(byPosAndString(labels)) // to ensure determinism
+			ptrs = append(ptrs, pointerResult{value.Type(), labels})
+		}
 	}
+	sort.Sort(byTypeString(ptrs)) // to ensure determinism
+
+	typ := o.queryPkgInfo.TypeOf(expr)
+	constVal := o.queryPkgInfo.ValueOf(expr)
 
 	return &describeValueResult{
-		expr:   expr,
-		obj:    obj,
-		value:  value,
-		ptaErr: ptaErr,
-		ptrs:   ptrs,
+		expr:     expr,
+		typ:      typ,
+		constVal: constVal,
+		obj:      obj,
+		ptaErr:   ptaErr,
+		ptrs:     ptrs,
 	}, nil
 }
 
-type describeValueResult struct {
-	expr   ast.Expr          // query node
-	obj    types.Object      // var/func/const object, if expr was Ident
-	value  ssa.Value         // ssa.Value for pointer analysis query
-	ptaErr error             // explanation of why we couldn't run pointer analysis
-	ptrs   []pointer.Pointer // result of pointer analysis query
+type pointerResult struct {
+	typ    types.Type // type of the pointer (always concrete)
+	labels []*pointer.Label
 }
 
-func (r *describeValueResult) display(o *oracle) {
+type describeValueResult struct {
+	expr     ast.Expr        // query node
+	typ      types.Type      // type of expression
+	constVal exact.Value     // value of expression, if constant
+	obj      types.Object    // var/func/const object, if expr was Ident
+	ptaErr   error           // reason why pointer analysis couldn't be run, or failed
+	ptrs     []pointerResult // pointer info (typ is concrete => len==1)
+}
+
+func (r *describeValueResult) display(printf printfFunc) {
 	suffix := ""
-	if val := o.queryPkgInfo.ValueOf(r.expr); val != nil {
-		suffix = fmt.Sprintf(" of constant value %s", val)
+	if r.constVal != nil {
+		suffix = fmt.Sprintf(" of constant value %s", r.constVal)
 	}
 
 	// Describe the expression.
 	if r.obj != nil {
 		if r.obj.Pos() == r.expr.Pos() {
 			// defining ident
-			o.printf(r.expr, "definition of %s%s", r.obj, suffix)
+			printf(r.expr, "definition of %s%s", r.obj, suffix)
 		} else {
 			// referring ident
-			o.printf(r.expr, "reference to %s%s", r.obj, suffix)
+			printf(r.expr, "reference to %s%s", r.obj, suffix)
 			if def := r.obj.Pos(); def != token.NoPos {
-				o.printf(def, "defined here")
+				printf(def, "defined here")
 			}
 		}
 	} else {
 		desc := importer.NodeDescription(r.expr)
 		if suffix != "" {
 			// constant expression
-			o.printf(r.expr, "%s%s", desc, suffix)
+			printf(r.expr, "%s%s", desc, suffix)
 		} else {
 			// non-constant expression
-			o.printf(r.expr, "%s of type %s", desc, o.queryPkgInfo.TypeOf(r.expr))
+			printf(r.expr, "%s of type %s", desc, r.typ)
 		}
 	}
 
-	if r.value == nil {
-		// pointer analysis was not run
-		if r.ptaErr != nil {
-			o.printf(r.expr, "no pointer analysis: %s", r.ptaErr)
-		}
+	// pointer analysis could not be run
+	if r.ptaErr != nil {
+		printf(r.expr, "no points-to information: %s", r.ptaErr)
 		return
 	}
 
 	if r.ptrs == nil {
-		o.printf(r.expr, "pointer analysis did not analyze this expression (dead code?)")
-		return
+		return // PTA was not invoked (not an error)
 	}
 
 	// Display the results of pointer analysis.
-
-	// Combine the PT sets from all contexts.
-	pts := pointer.PointsToCombined(r.ptrs)
-
-	// Report which make(chan) labels the query's channel can alias.
-	if _, ok := r.value.Type().Underlying().(*types.Interface); ok {
+	if _, ok := r.typ.Underlying().(*types.Interface); ok {
 		// Show concrete types for interface expression.
-		if concs := pts.ConcreteTypes(); concs.Len() > 0 {
-			o.printf(o, "interface may contain these concrete types:")
-			// TODO(adonovan): must sort to ensure deterministic test behaviour.
-			concs.Iterate(func(conc types.Type, ptrs interface{}) {
+		if len(r.ptrs) > 0 {
+			printf(false, "interface may contain these concrete types:")
+			for _, ptr := range r.ptrs {
 				var obj types.Object
-				if nt, ok := deref(conc).(*types.Named); ok {
+				if nt, ok := deref(ptr.typ).(*types.Named); ok {
 					obj = nt.Obj()
 				}
-
-				pts := pointer.PointsToCombined(ptrs.([]pointer.Pointer))
-				if labels := pts.Labels(); len(labels) > 0 {
-					o.printf(obj, "\t%s, may point to:", conc)
-					printLabels(o, labels, "\t\t")
+				if len(ptr.labels) > 0 {
+					printf(obj, "\t%s, may point to:", ptr.typ)
+					printLabels(printf, ptr.labels, "\t\t")
 				} else {
-					o.printf(obj, "\t%s", conc)
+					printf(obj, "\t%s", ptr.typ)
 				}
-			})
+			}
 		} else {
-			o.printf(o, "interface cannot contain any concrete values.")
+			printf(false, "interface cannot contain any concrete values.")
 		}
 	} else {
 		// Show labels for other expressions.
-		if labels := pts.Labels(); len(labels) > 0 {
-			o.printf(o, "value may point to these labels:")
-			printLabels(o, labels, "\t")
+		if ptr := r.ptrs[0]; len(ptr.labels) > 0 {
+			printf(false, "value may point to these labels:")
+			printLabels(printf, ptr.labels, "\t")
 		} else {
-			o.printf(o, "value cannot point to anything.")
+			printf(false, "value cannot point to anything.")
 		}
 	}
 }
+
+func (r *describeValueResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var value, objpos, ptaerr string
+	if r.constVal != nil {
+		value = r.constVal.String()
+	}
+	if r.obj != nil {
+		objpos = fset.Position(r.obj.Pos()).String()
+	}
+	if r.ptaErr != nil {
+		ptaerr = r.ptaErr.Error()
+	}
+
+	var pts []*json.DescribePointer
+	for _, ptr := range r.ptrs {
+		var namePos string
+		if nt, ok := deref(ptr.typ).(*types.Named); ok {
+			namePos = fset.Position(nt.Obj().Pos()).String()
+		}
+		var labels []json.DescribePTALabel
+		for _, l := range ptr.labels {
+			labels = append(labels, json.DescribePTALabel{
+				Pos:  fset.Position(l.Pos()).String(),
+				Desc: l.String(),
+			})
+		}
+		pts = append(pts, &json.DescribePointer{
+			Type:    ptr.typ.String(),
+			NamePos: namePos,
+			Labels:  labels,
+		})
+	}
+
+	res.Describe = &json.Describe{
+		Desc:   importer.NodeDescription(r.expr),
+		Pos:    fset.Position(r.expr.Pos()).String(),
+		Detail: "value",
+		Value: &json.DescribeValue{
+			Type:   r.typ.String(),
+			Value:  value,
+			ObjPos: objpos,
+			PTAErr: ptaerr,
+			PTS:    pts,
+		},
+	}
+}
+
+type byTypeString []pointerResult
+
+func (a byTypeString) Len() int           { return len(a) }
+func (a byTypeString) Less(i, j int) bool { return a[i].typ.String() < a[j].typ.String() }
+func (a byTypeString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type byPosAndString []*pointer.Label
 
@@ -483,13 +578,11 @@ func (a byPosAndString) Less(i, j int) bool {
 }
 func (a byPosAndString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
-func printLabels(o *oracle, labels []*pointer.Label, prefix string) {
-	// Sort, to ensure deterministic test behaviour.
-	sort.Sort(byPosAndString(labels))
+func printLabels(printf printfFunc, labels []*pointer.Label, prefix string) {
 	// TODO(adonovan): due to context-sensitivity, many of these
 	// labels may differ only by context, which isn't apparent.
 	for _, label := range labels {
-		o.printf(label, "%s%s", prefix, label)
+		printf(label, "%s%s", prefix, label)
 	}
 }
 
@@ -523,37 +616,59 @@ func describeType(o *oracle, path []ast.Node) (*describeTypeResult, error) {
 		return nil, o.errorf(n, "unexpected AST for type: %T", n)
 	}
 
-	return &describeTypeResult{path[0], description, t}, nil
+	return &describeTypeResult{
+		node:        path[0],
+		description: description,
+		typ:         t,
+		methods:     accessibleMethods(t, o.queryPkgInfo.Pkg),
+	}, nil
 }
 
 type describeTypeResult struct {
 	node        ast.Node
 	description string
 	typ         types.Type
+	methods     []*types.Selection
 }
 
-func (r *describeTypeResult) display(o *oracle) {
-	o.printf(r.node, "%s", r.description)
+func (r *describeTypeResult) display(printf printfFunc) {
+	printf(r.node, "%s", r.description)
 
 	// Show the underlying type for a reference to a named type.
 	if nt, ok := r.typ.(*types.Named); ok && r.node.Pos() != nt.Obj().Pos() {
-		o.printf(nt.Obj(), "defined as %s", nt.Underlying())
+		printf(nt.Obj(), "defined as %s", nt.Underlying())
 	}
 
 	// Print the method set, if the type kind is capable of bearing methods.
 	switch r.typ.(type) {
 	case *types.Interface, *types.Struct, *types.Named:
-		// TODO(adonovan): don't show unexported methods if
-		// r.typ belongs to a package other than the query
-		// package.
-		if m := ssa.IntuitiveMethodSet(r.typ); m != nil {
-			o.printf(r.node, "Method set:")
-			for _, meth := range m {
-				o.printf(meth.Obj(), "\t%s", meth)
+		if len(r.methods) > 0 {
+			printf(r.node, "Method set:")
+			for _, meth := range r.methods {
+				printf(meth.Obj(), "\t%s", meth)
 			}
 		} else {
-			o.printf(r.node, "No methods.")
+			printf(r.node, "No methods.")
 		}
+	}
+}
+
+func (r *describeTypeResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var namePos, nameDef string
+	if nt, ok := r.typ.(*types.Named); ok {
+		namePos = fset.Position(nt.Obj().Pos()).String()
+		nameDef = nt.Underlying().String()
+	}
+	res.Describe = &json.Describe{
+		Desc:   r.description,
+		Pos:    fset.Position(r.node.Pos()).String(),
+		Detail: "type",
+		Type: &json.DescribeType{
+			Type:    r.typ.String(),
+			NamePos: namePos,
+			NameDef: nameDef,
+			Methods: methodsToJSON(r.methods, fset),
+		},
 	}
 }
 
@@ -589,58 +704,70 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 		return nil, o.errorf(n, "unexpected AST for package: %T", n)
 	}
 
-	pkg := o.prog.PackagesByPath[importPath]
-
-	return &describePackageResult{path[0], description, pkg}, nil
-}
-
-type describePackageResult struct {
-	node        ast.Node
-	description string
-	pkg         *ssa.Package
-}
-
-func (r *describePackageResult) display(o *oracle) {
-	o.printf(r.node, "%s", r.description)
-	// TODO(adonovan): factor this into a testable utility function.
-	if p := r.pkg; p != nil {
-		samePkg := p.Object == o.queryPkgInfo.Pkg
-
-		// Describe exported package members, in lexicographic order.
-
-		// Compute max width of name "column".
+	var members []*describeMember
+	// NB: package "unsafe" has no object.
+	if pkg := o.prog.PackagesByPath[importPath]; pkg != nil {
+		// Compute set of exported package members in lexicographic order.
 		var names []string
-		maxname := 0
-		for name := range p.Members {
-			if samePkg || ast.IsExported(name) {
-				if l := len(name); l > maxname {
-					maxname = l
-				}
+		for name := range pkg.Members {
+			if pkg.Object == o.queryPkgInfo.Pkg || ast.IsExported(name) {
 				names = append(names, name)
 			}
 		}
-
 		sort.Strings(names)
 
-		// Print the members.
+		// Enumerate the package members.
 		for _, name := range names {
-			mem := p.Members[name]
-			o.printf(mem, "%s", formatMember(mem, maxname))
-			// Print method set.
+			mem := pkg.Members[name]
+			var methods []*types.Selection
 			if mem, ok := mem.(*ssa.Type); ok {
-				for _, meth := range ssa.IntuitiveMethodSet(mem.Type()) {
-					if samePkg || ast.IsExported(meth.Obj().Name()) {
-						o.printf(meth.Obj(), "\t\t%s", meth)
-					}
-				}
+				methods = accessibleMethods(mem.Type(), o.queryPkgInfo.Pkg)
 			}
+			members = append(members, &describeMember{
+				mem,
+				methods,
+			})
+		}
+	}
+
+	return &describePackageResult{o.prog.Fset, path[0], description, importPath, members}, nil
+}
+
+type describePackageResult struct {
+	fset        *token.FileSet
+	node        ast.Node
+	description string
+	path        string
+	members     []*describeMember // in lexicographic name order
+}
+
+type describeMember struct {
+	mem     ssa.Member
+	methods []*types.Selection // in types.MethodSet order
+}
+
+func (r *describePackageResult) display(printf printfFunc) {
+	printf(r.node, "%s", r.description)
+
+	// Compute max width of name "column".
+	maxname := 0
+	for _, mem := range r.members {
+		if l := len(mem.mem.Name()); l > maxname {
+			maxname = l
+		}
+	}
+
+	for _, mem := range r.members {
+		printf(mem.mem, "\t%s", formatMember(mem.mem, maxname))
+		for _, meth := range mem.methods {
+			printf(meth.Obj(), "\t\t%s", meth)
 		}
 	}
 }
 
 func formatMember(mem ssa.Member, maxname int) string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "\t%-5s %-*s", mem.Token(), maxname, mem.Name())
+	fmt.Fprintf(&buf, "%-5s %-*s", mem.Token(), maxname, mem.Name())
 	switch mem := mem.(type) {
 	case *ssa.NamedConst:
 		fmt.Fprintf(&buf, " %s = %s", mem.Type(), mem.Value.Name())
@@ -673,6 +800,39 @@ func formatMember(mem ssa.Member, maxname int) string {
 	return buf.String()
 }
 
+func (r *describePackageResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var members []*json.DescribeMember
+	for _, mem := range r.members {
+		typ := mem.mem.Type()
+		var val string
+		switch mem := mem.mem.(type) {
+		case *ssa.NamedConst:
+			val = mem.Value.Value.String()
+		case *ssa.Type:
+			typ = typ.Underlying()
+		case *ssa.Global:
+			typ = deref(typ)
+		}
+		members = append(members, &json.DescribeMember{
+			Name:    mem.mem.Name(),
+			Type:    typ.String(),
+			Value:   val,
+			Pos:     fset.Position(mem.mem.Pos()).String(),
+			Kind:    mem.mem.Token().String(),
+			Methods: methodsToJSON(mem.methods, fset),
+		})
+	}
+	res.Describe = &json.Describe{
+		Desc:   r.description,
+		Pos:    fset.Position(r.node.Pos()).String(),
+		Detail: "package",
+		Package: &json.DescribePackage{
+			Path:    r.path,
+			Members: members,
+		},
+	}
+}
+
 // ---- STATEMENT ------------------------------------------------------------
 
 func describeStmt(o *oracle, path []ast.Node) (*describeStmtResult, error) {
@@ -689,16 +849,25 @@ func describeStmt(o *oracle, path []ast.Node) (*describeStmtResult, error) {
 		// Nothing much to say about statements.
 		description = importer.NodeDescription(n)
 	}
-	return &describeStmtResult{path[0], description}, nil
+	return &describeStmtResult{o.prog.Fset, path[0], description}, nil
 }
 
 type describeStmtResult struct {
+	fset        *token.FileSet
 	node        ast.Node
 	description string
 }
 
-func (r *describeStmtResult) display(o *oracle) {
-	o.printf(r.node, "%s", r.description)
+func (r *describeStmtResult) display(printf printfFunc) {
+	printf(r.node, "%s", r.description)
+}
+
+func (r *describeStmtResult) toJSON(res *json.Result, fset *token.FileSet) {
+	res.Describe = &json.Describe{
+		Desc:   r.description,
+		Pos:    fset.Position(r.node.Pos()).String(),
+		Detail: "unknown",
+	}
 }
 
 // ------------------- Utilities -------------------
@@ -716,4 +885,29 @@ func pathToString2(path []ast.Node) string {
 	}
 	fmt.Fprint(&buf, "]")
 	return buf.String()
+}
+
+func accessibleMethods(t types.Type, from *types.Package) []*types.Selection {
+	var methods []*types.Selection
+	for _, meth := range ssa.IntuitiveMethodSet(t) {
+		if isAccessibleFrom(meth.Obj(), from) {
+			methods = append(methods, meth)
+		}
+	}
+	return methods
+}
+
+func isAccessibleFrom(obj types.Object, pkg *types.Package) bool {
+	return ast.IsExported(obj.Name()) || obj.Pkg() == pkg
+}
+
+func methodsToJSON(methods []*types.Selection, fset *token.FileSet) []json.DescribeMethod {
+	var jmethods []json.DescribeMethod
+	for _, meth := range methods {
+		jmethods = append(jmethods, json.DescribeMethod{
+			Name: meth.String(),
+			Pos:  fset.Position(meth.Obj().Pos()).String(),
+		})
+	}
+	return jmethods
 }

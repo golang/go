@@ -1,0 +1,164 @@
+-------- @describe pkgdecl --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "definition of package \"main\"",
+		"pos": "testdata/src/main/describe-json.go:1:9",
+		"detail": "package",
+		"package": {
+			"path": "main",
+			"members": [
+				{
+					"name": "C",
+					"type": "int",
+					"pos": "testdata/src/main/describe-json.go:26:6",
+					"kind": "type",
+					"methods": [
+						{
+							"name": "method (describe.C) f()",
+							"pos": "testdata/src/main/describe-json.go:29:12"
+						}
+					]
+				},
+				{
+					"name": "D",
+					"type": "struct{}",
+					"pos": "testdata/src/main/describe-json.go:27:6",
+					"kind": "type",
+					"methods": [
+						{
+							"name": "method (*describe.D) f()",
+							"pos": "testdata/src/main/describe-json.go:30:13"
+						}
+					]
+				},
+				{
+					"name": "I",
+					"type": "interface{f()}",
+					"pos": "testdata/src/main/describe-json.go:22:6",
+					"kind": "type",
+					"methods": [
+						{
+							"name": "method (describe.I) f()",
+							"pos": "testdata/src/main/describe-json.go:23:2"
+						}
+					]
+				},
+				{
+					"name": "init",
+					"type": "func()",
+					"pos": "-",
+					"kind": "func"
+				},
+				{
+					"name": "init$guard",
+					"type": "bool",
+					"pos": "-",
+					"kind": "var"
+				},
+				{
+					"name": "main",
+					"type": "func()",
+					"pos": "testdata/src/main/describe-json.go:9:6",
+					"kind": "func"
+				}
+			]
+		}
+	}
+}-------- @implements implements --------
+{
+	"mode": "implements",
+	"implements": [
+		{
+			"i": "describe.I",
+			"ipos": "testdata/src/main/describe-json.go:22:6",
+			"c": "describe.C",
+			"cpos": "testdata/src/main/describe-json.go:26:6"
+		},
+		{
+			"i": "describe.I",
+			"ipos": "testdata/src/main/describe-json.go:22:6",
+			"c": "*describe.D",
+			"cpos": "testdata/src/main/describe-json.go:27:6"
+		}
+	]
+}-------- @describe desc-val-p --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "identifier",
+		"pos": "testdata/src/main/describe-json.go:11:2",
+		"detail": "value",
+		"value": {
+			"type": "*int",
+			"objpos": "testdata/src/main/describe-json.go:11:2",
+			"pts": [
+				{
+					"type": "*int",
+					"namepos": "",
+					"labels": [
+						{
+							"pos": "testdata/src/main/describe-json.go:10:6",
+							"desc": "s.x[*]"
+						}
+					]
+				}
+			]
+		}
+	}
+}-------- @describe desc-val-i --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "identifier",
+		"pos": "testdata/src/main/describe-json.go:17:6",
+		"detail": "value",
+		"value": {
+			"type": "describe.I",
+			"objpos": "testdata/src/main/describe-json.go:13:6",
+			"pts": [
+				{
+					"type": "*describe.D",
+					"namepos": "testdata/src/main/describe-json.go:27:6",
+					"labels": [
+						{
+							"pos": "testdata/src/main/describe-json.go:15:10",
+							"desc": "new"
+						}
+					]
+				},
+				{
+					"type": "describe.C",
+					"namepos": "testdata/src/main/describe-json.go:26:6"
+				}
+			]
+		}
+	}
+}-------- @describe desc-stmt --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "go statement",
+		"pos": "testdata/src/main/describe-json.go:19:2",
+		"detail": "unknown"
+	}
+}-------- @describe desc-type-C --------
+{
+	"mode": "describe",
+	"describe": {
+		"desc": "definition of type describe.C",
+		"pos": "testdata/src/main/describe-json.go:26:6",
+		"detail": "type",
+		"type": {
+			"type": "describe.C",
+			"namepos": "testdata/src/main/describe-json.go:26:6",
+			"namedef": "int",
+			"methods": [
+				{
+					"name": "method (describe.C) f()",
+					"pos": "testdata/src/main/describe-json.go:29:12"
+				}
+			]
+		}
+	}
+}

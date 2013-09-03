@@ -5,6 +5,9 @@
 package oracle
 
 import (
+	"go/token"
+
+	"code.google.com/p/go.tools/oracle/json"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -42,49 +45,69 @@ func callstack(o *oracle) (queryResult, error) {
 	o.config.Call = callgraph.AddEdge
 	root := ptrAnalysis(o)
 
+	seen := make(map[pointer.CallGraphNode]bool)
+	var callstack []pointer.CallSite
+
+	// Use depth-first search to find an arbitrary path from a
+	// root to the target function.
+	var search func(cgn pointer.CallGraphNode) bool
+	search = func(cgn pointer.CallGraphNode) bool {
+		if !seen[cgn] {
+			seen[cgn] = true
+			if cgn.Func() == target {
+				return true
+			}
+			for callee, site := range callgraph[cgn] {
+				if search(callee) {
+					callstack = append(callstack, site)
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	for toplevel := range callgraph[root] {
+		if search(toplevel) {
+			break
+		}
+	}
+
 	return &callstackResult{
 		target:    target,
-		root:      root,
-		callgraph: callgraph,
+		callstack: callstack,
 	}, nil
 }
 
 type callstackResult struct {
 	target    *ssa.Function
-	root      pointer.CallGraphNode
-	callgraph pointer.CallGraph
-
-	seen map[pointer.CallGraphNode]bool // used by display
+	callstack []pointer.CallSite
 }
 
-func (r *callstackResult) search(o *oracle, cgn pointer.CallGraphNode) bool {
-	if !r.seen[cgn] {
-		r.seen[cgn] = true
-		if cgn.Func() == r.target {
-			o.printf(o, "Found a call path from root to %s", r.target)
-			o.printf(r.target, "%s", r.target)
-			return true
+func (r *callstackResult) display(printf printfFunc) {
+	if r.callstack != nil {
+		printf(false, "Found a call path from root to %s", r.target)
+		printf(r.target, "%s", r.target)
+		for _, site := range r.callstack {
+			printf(site, "%s from %s", site.Description(), site.Caller().Func())
 		}
-		for callee, site := range r.callgraph[cgn] {
-			if r.search(o, callee) {
-				o.printf(site, "%s from %s", site.Description(), cgn.Func())
-				return true
-			}
-		}
+	} else {
+		printf(r.target, "%s is unreachable in this analysis scope", r.target)
 	}
-	return false
 }
 
-func (r *callstackResult) display(o *oracle) {
-	// Show only an arbitrary path from a root to the current function.
-	// We use depth-first search.
-
-	r.seen = make(map[pointer.CallGraphNode]bool)
-
-	for toplevel := range r.callgraph[r.root] {
-		if r.search(o, toplevel) {
-			return
-		}
+func (r *callstackResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var callers []json.Caller
+	for _, site := range r.callstack {
+		callers = append(callers, json.Caller{
+			Pos:    site.Caller().Func().Prog.Fset.Position(site.Pos()).String(),
+			Caller: site.Caller().Func().String(),
+			Desc:   site.Description(),
+		})
 	}
-	o.printf(r.target, "%s is unreachable in this analysis scope", r.target)
+	res.Callstack = &json.CallStack{
+		Pos:     r.target.Prog.Fset.Position(r.target.Pos()).String(),
+		Target:  r.target.String(),
+		Callers: callers,
+	}
 }

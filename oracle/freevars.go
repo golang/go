@@ -6,8 +6,11 @@ package oracle
 
 import (
 	"go/ast"
+	"go/token"
+	"sort"
 
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/oracle/json"
 )
 
 // freevars displays the lexical (not package-level) free variables of
@@ -72,7 +75,8 @@ func freevars(o *oracle) (queryResult, error) {
 
 	// Maps each reference that is free in the selection
 	// to the object it refers to.
-	freeRefs := make(map[string]freevarsRef)
+	// The map de-duplicates repeated references.
+	refsMap := make(map[string]freevarsRef)
 
 	// Visit all the identifiers in the selected ASTs.
 	ast.Inspect(o.queryPath[0], func(n ast.Node) bool {
@@ -84,15 +88,39 @@ func freevars(o *oracle) (queryResult, error) {
 		// (freevars permits inexact selections,
 		// like two stmts in a block.)
 		if o.startPos <= n.Pos() && n.End() <= o.endPos {
+			var obj types.Object
+			var prune bool
 			switch n := n.(type) {
 			case *ast.Ident:
-				if obj := id(n); obj != nil {
-					freeRefs[o.printNode(n)] = freevarsRef{n, obj}
-				}
+				obj = id(n)
 
 			case *ast.SelectorExpr:
-				if obj := sel(n); obj != nil {
-					freeRefs[o.printNode(n)] = freevarsRef{n, obj}
+				obj = sel(n)
+				prune = true
+			}
+
+			if obj != nil {
+				var kind string
+				switch obj.(type) {
+				case *types.Var:
+					kind = "var"
+				case *types.Func:
+					kind = "func"
+				case *types.TypeName:
+					kind = "type"
+				case *types.Const:
+					kind = "const"
+				case *types.Label:
+					kind = "label"
+				default:
+					panic(obj)
+				}
+
+				typ := o.queryPkgInfo.TypeOf(n.(ast.Expr))
+				ref := freevarsRef{kind, o.printNode(n), typ, obj}
+				refsMap[ref.ref] = ref
+
+				if prune {
 					return false // don't descend
 				}
 			}
@@ -101,47 +129,59 @@ func freevars(o *oracle) (queryResult, error) {
 		return true // descend
 	})
 
+	refs := make([]freevarsRef, 0, len(refsMap))
+	for _, ref := range refsMap {
+		refs = append(refs, ref)
+	}
+	sort.Sort(byRef(refs))
+
 	return &freevarsResult{
-		refs: freeRefs,
+		fset: o.prog.Fset,
+		refs: refs,
 	}, nil
 }
 
 type freevarsResult struct {
-	refs map[string]freevarsRef
+	fset *token.FileSet
+	refs []freevarsRef
 }
 
 type freevarsRef struct {
-	expr ast.Expr
+	kind string
+	ref  string
+	typ  types.Type
 	obj  types.Object
 }
 
-func (r *freevarsResult) display(o *oracle) {
+func (r *freevarsResult) display(printf printfFunc) {
 	if len(r.refs) == 0 {
-		o.printf(o, "No free identifers.")
-		return
-	}
-
-	o.printf(o, "Free identifers:")
-	for s, ref := range r.refs {
-		typ := ref.obj.Type()
-		if _, ok := ref.expr.(*ast.SelectorExpr); ok {
-			typ = o.queryPkgInfo.TypeOf(ref.expr)
+		printf(false, "No free identifers.")
+	} else {
+		printf(false, "Free identifers:")
+		for _, ref := range r.refs {
+			printf(ref.obj, "%s %s %s", ref.kind, ref.ref, ref.typ)
 		}
-		var kind string
-		switch ref.obj.(type) {
-		case *types.Var:
-			kind = "var"
-		case *types.Func:
-			kind = "func"
-		case *types.TypeName:
-			kind = "type"
-		case *types.Const:
-			kind = "const"
-		case *types.Label:
-			kind = "label"
-		default:
-			panic(ref.obj)
-		}
-		o.printf(ref.obj, "%s %s %s", kind, s, typ)
 	}
 }
+
+func (r *freevarsResult) toJSON(res *json.Result, fset *token.FileSet) {
+	var refs []*json.FreeVar
+	for _, ref := range r.refs {
+		refs = append(refs,
+			&json.FreeVar{
+				Pos:  fset.Position(ref.obj.Pos()).String(),
+				Kind: ref.kind,
+				Ref:  ref.ref,
+				Type: ref.typ.String(),
+			})
+	}
+	res.Freevars = refs
+}
+
+// -------- utils --------
+
+type byRef []freevarsRef
+
+func (p byRef) Len() int           { return len(p) }
+func (p byRef) Less(i, j int) bool { return p[i].ref < p[j].ref }
+func (p byRef) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

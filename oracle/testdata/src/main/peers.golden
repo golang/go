@@ -22,11 +22,11 @@ This channel of type chan *int may be:
 	allocated here
 	allocated here
 	sent to, here
-	received from, here
-	received from, here
-	received from, here
-	received from, here
 	sent to, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
 	received from, here
 
 -------- @describe describe-rA --------
@@ -54,20 +54,20 @@ This channel of type chan *int may be:
 	allocated here
 	allocated here
 	sent to, here
-	received from, here
-	received from, here
-	received from, here
-	received from, here
 	sent to, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
 	received from, here
 
 -------- @peers peer-send-chA' --------
 This channel of type chan *int may be:
 	allocated here
-	received from, here
-	received from, here
-	received from, here
-	received from, here
 	sent to, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
 	received from, here
 
