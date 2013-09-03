@@ -146,10 +146,9 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		ctype = mime.TypeByExtension(filepath.Ext(name))
 		if ctype == "" {
 			// read a chunk to decide between utf-8 text and binary
-			var buf [1024]byte
+			var buf [sniffLen]byte
 			n, _ := io.ReadFull(content, buf[:])
-			b := buf[:n]
-			ctype = DetectContentType(b)
+			ctype = DetectContentType(buf[:n])
 			_, err := content.Seek(0, os.SEEK_SET) // rewind to output whole file
 			if err != nil {
 				Error(w, "seeker can't seek", StatusInternalServerError)
