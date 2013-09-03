@@ -106,10 +106,6 @@ result."
       (insert "\n")
       (compilation-mode)
       (setq compilation-error-screen-columns nil)
-      (let ((w (display-buffer (current-buffer))))
-        (balance-windows)
-        (shrink-window-if-larger-than-buffer w)
-        (set-window-point w (point-min)))
 
       ;; Hide the file/line info to save space.
       ;; Replace each with a little widget.
@@ -121,7 +117,7 @@ result."
         (while (not (null p))
           (let ((np (compilation-next-single-property-change p 'compilation-message)))
             ;; TODO(adonovan): this can be verbose in the *Messages* buffer.
-            (message "Post-processing link (%d%%)" (/ (* p 100) (point-max)))
+            ;; (message "Post-processing link (%d%%)" (/ (* p 100) (point-max)))
             (if np
                 (when (equal (line-number-at-pos p) (line-number-at-pos np))
                   ;; np is (typically) the space following ":"; consume it too.
@@ -129,7 +125,12 @@ result."
                   (goto-char np)
                   (insert " ")))
             (setq p np)))
-        (message nil)))))
+        (message nil))
+
+      (let ((w (display-buffer (current-buffer))))
+        (balance-windows)
+        (shrink-window-if-larger-than-buffer w)
+        (set-window-point w (point-min))))))
 
 (defun go-oracle-callees ()
   "Show possible callees of the function call at the current point."
@@ -168,7 +169,7 @@ containing the current point."
   (interactive)
   (go-oracle--run "freevars"))
 
-(defun go-oracle-channel-peers ()
+(defun go-oracle-peers ()
   "Enumerate the set of possible corresponding sends/receives for
 this channel receive/send operation."
   (interactive)
