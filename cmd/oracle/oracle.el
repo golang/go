@@ -75,11 +75,14 @@ result."
   (if (string-equal "" go-oracle-scope)
       (go-oracle-set-scope))
   (let* ((filename (file-truename buffer-file-name))
-         (pos (if (use-region-p)
-                  (format "%s-%s"
-                          (1- (go--position-bytes (region-beginning)))
-                          (1- (go--position-bytes (region-end))))
-                (format "%s" (1- (position-bytes (point))))))
+         (posflag (if (use-region-p)
+                      (format "-pos=%s:%s-%s"
+                              filename
+                              (1- (go--position-bytes (region-beginning)))
+                              (1- (go--position-bytes (region-end))))
+                    (format "-pos=%s:%s"
+                            filename
+                            (1- (position-bytes (point))))))
          ;; This would be simpler if we could just run 'go tool oracle'.
          (env-vars (go-root-and-paths))
          (goroot-env (concat "GOROOT=" (car env-vars)))
@@ -89,7 +92,7 @@ result."
       (erase-buffer)
       (insert "Go Oracle\n")
       (let ((args (append (list go-oracle-command nil t nil
-                                (format "-pos=%s %s" filename pos)
+                                posflag
                                 (format "-mode=%s" mode))
                           (split-string go-oracle-scope " " t))))
         ;; Log the command to *Messages*, for debugging.

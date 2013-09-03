@@ -21,6 +21,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"code.google.com/p/go.tools/go/types"
@@ -222,25 +224,43 @@ func ptrAnalysis(o *oracle) pointer.CallGraphNode {
 	return root
 }
 
-// parseQueryPos parses a string of the form "file pos" or file
-// start-end" where pos, start, end are decimal integers, and returns
-// the extent to which it refers.
+func parseDecimal(s string) int {
+	if s, err := strconv.ParseInt(s, 10, 32); err == nil {
+		return int(s)
+	}
+	return -1
+}
+
+// parseQueryPos parses a string of the form "file:pos" or
+// file:start-end" where pos, start, end are decimal integers, and
+// returns the extent to which it refers.
 //
 func parseQueryPos(fset *token.FileSet, queryPos string) (start, end token.Pos, err error) {
 	if queryPos == "" {
 		err = fmt.Errorf("no source position specified (-pos flag)")
 		return
 	}
-	var filename string
-	var startOffset, endOffset int
-	n, err := fmt.Sscanf(queryPos, "%s %d-%d", &filename, &startOffset, &endOffset)
-	if n != 3 {
-		n, err = fmt.Sscanf(queryPos, "%s %d", &filename, &startOffset)
-		if n != 2 {
-			err = fmt.Errorf("invalid source position -pos=%q", queryPos)
-			return
-		}
+
+	colon := strings.LastIndex(queryPos, ":")
+	if colon < 0 {
+		err = fmt.Errorf("invalid source position -pos=%q", queryPos)
+		return
+	}
+	filename, offset := queryPos[:colon], queryPos[colon+1:]
+	startOffset := -1
+	endOffset := -1
+	if hyphen := strings.Index(offset, "-"); hyphen < 0 {
+		// e.g. "foo.go:123"
+		startOffset = parseDecimal(offset)
 		endOffset = startOffset
+	} else {
+		// e.g. "foo.go:123-456"
+		startOffset = parseDecimal(offset[:hyphen])
+		endOffset = parseDecimal(offset[hyphen+1:])
+	}
+	if startOffset < 0 || endOffset < 0 {
+		err = fmt.Errorf("invalid -pos offset %q", offset)
+		return
 	}
 
 	var file *token.File

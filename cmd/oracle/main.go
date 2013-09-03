@@ -27,11 +27,9 @@ import (
 	"code.google.com/p/go.tools/oracle"
 )
 
-// TODO(adonovan): use a format that permits spaces in filenames, and
-// doesn't require shell quoting.
 var posFlag = flag.String("pos", "",
 	"Filename and offset or extent of a syntax element about which to query, "+
-		"e.g. 'foo.go 123-456', 'bar.go 123'.")
+		"e.g. foo.go:123-456, bar.go:123.")
 
 var modeFlag = flag.String("mode", "",
 	"Mode of query to perform: callers, callees, callstack, callgraph, describe.")

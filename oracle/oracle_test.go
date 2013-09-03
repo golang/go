@@ -167,7 +167,7 @@ func doQuery(out io.Writer, q *query) {
 	buildContext.GOPATH = "testdata"
 	err := oracle.Main([]string{q.filename},
 		q.verb,
-		fmt.Sprintf("%s %d-%d", q.filename, q.start, q.end),
+		fmt.Sprintf("%s:%d-%d", q.filename, q.start, q.end),
 		/*PTA-log=*/ nil, capture, &buildContext)
 
 	for _, line := range strings.Split(capture.String(), "\n") {
