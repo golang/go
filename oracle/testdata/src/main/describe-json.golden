@@ -95,7 +95,6 @@
 			"pts": [
 				{
 					"type": "*int",
-					"namepos": "",
 					"labels": [
 						{
 							"pos": "testdata/src/main/describe-json.go:10:6",

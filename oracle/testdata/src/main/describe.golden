@@ -35,15 +35,15 @@ reference to func describe.main()
 defined here
 
 -------- @describe func-ref-*C.f --------
-reference to func (*describe.C).f()
+reference to method func (*describe.C).f()
 defined here
 
 -------- @describe func-ref-D.f --------
-reference to func (describe.D).f()
+reference to method func (describe.D).f()
 defined here
 
 -------- @describe func-ref-I.f --------
-reference to func (describe.I).f()
+reference to interface method func (describe.I).f()
 defined here
 
 -------- @describe type-D --------
@@ -59,11 +59,11 @@ Method set:
 	method (describe.I) f()
 
 -------- @describe func-ref-d.f --------
-reference to func (describe.D).f()
+reference to method func (describe.D).f()
 defined here
 
 -------- @describe func-ref-i.f --------
-reference to func (describe.I).f()
+reference to interface method func (describe.I).f()
 defined here
 
 -------- @describe ref-lexical-d --------

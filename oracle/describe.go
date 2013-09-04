@@ -448,19 +448,36 @@ type describeValueResult struct {
 }
 
 func (r *describeValueResult) display(printf printfFunc) {
-	suffix := ""
+	var prefix, suffix string
 	if r.constVal != nil {
 		suffix = fmt.Sprintf(" of constant value %s", r.constVal)
+	}
+	switch obj := r.obj.(type) {
+	case *types.Func:
+		if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
+			if _, ok := recv.Type().Underlying().(*types.Interface); ok {
+				prefix = "interface method "
+			} else {
+				prefix = "method "
+			}
+		}
+
+	case *types.Var:
+		// TODO(adonovan): go/types should make it simple to
+		// ask: IsStructField(*Var)?
+		if false {
+			prefix = "struct field "
+		}
 	}
 
 	// Describe the expression.
 	if r.obj != nil {
 		if r.obj.Pos() == r.expr.Pos() {
 			// defining ident
-			printf(r.expr, "definition of %s%s", r.obj, suffix)
+			printf(r.expr, "definition of %s%s%s", prefix, r.obj, suffix)
 		} else {
 			// referring ident
-			printf(r.expr, "reference to %s%s", r.obj, suffix)
+			printf(r.expr, "reference to %s%s%s", prefix, r.obj, suffix)
 			if def := r.obj.Pos(); def != token.NoPos {
 				printf(def, "defined here")
 			}

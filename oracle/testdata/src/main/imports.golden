@@ -27,7 +27,7 @@ Method set:
 	method (lib.Type) Method(x *int) *int
 
 -------- @describe ref-method --------
-reference to func (lib.Type).Method(x *int) *int
+reference to method func (lib.Type).Method(x *int) *int
 defined here
 
 -------- @describe p --------

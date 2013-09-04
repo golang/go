@@ -116,9 +116,9 @@ type DescribePTALabel struct {
 // set of "labels" it points to.
 //
 type DescribePointer struct {
-	Type    string             `json:"type"`             // (concrete) type of the pointer
-	NamePos string             `json:"namepos"`          // location of type defn, if Named
-	Labels  []DescribePTALabel `json:"labels,omitempty"` // pointed-to objects
+	Type    string             `json:"type"`              // (concrete) type of the pointer
+	NamePos string             `json:"namepos,omitempty"` // location of type defn, if Named
+	Labels  []DescribePTALabel `json:"labels,omitempty"`  // pointed-to objects
 }
 
 // A DescribeValue is the additional result of a 'describe' query
