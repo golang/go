@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // CreatePackageFromArgs builds an initial Package from a list of
@@ -30,7 +31,7 @@ import (
 func CreatePackageFromArgs(imp *Importer, args []string) (info *PackageInfo, rest []string, err error) {
 	switch {
 	case len(args) == 0:
-		return nil, nil, errors.New("No *.go source files nor package name was specified.")
+		return nil, nil, errors.New("no *.go source files nor package name was specified.")
 
 	case strings.HasSuffix(args[0], ".go"):
 		// % tool a.go b.go ...
@@ -42,8 +43,7 @@ func CreatePackageFromArgs(imp *Importer, args []string) (info *PackageInfo, res
 		files, err = ParseFiles(imp.Fset, ".", args[:i]...)
 		rest = args[i:]
 		if err == nil {
-			info = imp.CreateSourcePackage("main", files)
-			err = info.Err
+			info, err = imp.CreateSourcePackage("main", files)
 		}
 
 	default:
@@ -57,59 +57,57 @@ func CreatePackageFromArgs(imp *Importer, args []string) (info *PackageInfo, res
 	return
 }
 
-// MakeGoBuildLoader returns an implementation of the SourceLoader
-// function prototype that locates packages using the go/build
-// libraries.  It may return nil upon gross misconfiguration
-// (e.g. os.Getwd() failed).
-//
-// ctxt specifies the go/build.Context to use; if nil, the default
-// Context is used.
-//
-func MakeGoBuildLoader(ctxt *build.Context) SourceLoader {
-	srcDir, err := os.Getwd()
+var cwd string
+
+func init() {
+	var err error
+	cwd, err = os.Getwd()
 	if err != nil {
-		return nil // serious misconfiguration
+		panic("getcwd failed: " + err.Error())
 	}
-	if ctxt == nil {
-		ctxt = &build.Default
+}
+
+// loadPackage ascertains which files belong to package path, then
+// loads, parses and returns them.
+func loadPackage(ctxt *build.Context, fset *token.FileSet, path string) (files []*ast.File, err error) {
+	// TODO(adonovan): fix: Do we need cwd? Shouldn't
+	// ImportDir(path) / $GOROOT suffice?
+	bp, err := ctxt.Import(path, cwd, 0)
+	if _, ok := err.(*build.NoGoError); ok {
+		return nil, nil // empty directory
 	}
-	return func(fset *token.FileSet, path string) (files []*ast.File, err error) {
-		// TODO(adonovan): fix: Do we need cwd? Shouldn't
-		// ImportDir(path) / $GOROOT suffice?
-		bp, err := ctxt.Import(path, srcDir, 0)
-		if _, ok := err.(*build.NoGoError); ok {
-			return nil, nil // empty directory
-		}
-		if err != nil {
-			return // import failed
-		}
-		files, err = ParseFiles(fset, bp.Dir, bp.GoFiles...)
-		if err != nil {
-			return nil, err
-		}
-		return
+	if err != nil {
+		return // import failed
 	}
+	return ParseFiles(fset, bp.Dir, bp.GoFiles...)
 }
 
 // ParseFiles parses the Go source files files within directory dir
 // and returns their ASTs, or the first parse error if any.
 //
-// This utility function is provided to facilitate implementing a
-// SourceLoader.
-//
-func ParseFiles(fset *token.FileSet, dir string, files ...string) (parsed []*ast.File, err error) {
-	for _, file := range files {
-		var f *ast.File
+func ParseFiles(fset *token.FileSet, dir string, files ...string) ([]*ast.File, error) {
+	var wg sync.WaitGroup
+	n := len(files)
+	parsed := make([]*ast.File, n, n)
+	errors := make([]error, n, n)
+	for i, file := range files {
 		if !filepath.IsAbs(file) {
 			file = filepath.Join(dir, file)
 		}
-		f, err = parser.ParseFile(fset, file, nil, parser.DeclarationErrors)
-		if err != nil {
-			return // parsing failed
-		}
-		parsed = append(parsed, f)
+		wg.Add(1)
+		go func(i int, file string) {
+			parsed[i], errors[i] = parser.ParseFile(fset, file, nil, parser.DeclarationErrors)
+			wg.Done()
+		}(i, file)
 	}
-	return
+	wg.Wait()
+
+	for _, err := range errors {
+		if err != nil {
+			return nil, err
+		}
+	}
+	return parsed, nil
 }
 
 // ---------- Internal helpers ----------

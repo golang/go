@@ -53,8 +53,8 @@ func allPackages() []string {
 
 func TestStdlib(t *testing.T) {
 	ctxt := build.Default
-	ctxt.CgoEnabled = false
-	impctx := importer.Config{Loader: importer.MakeGoBuildLoader(&ctxt)}
+	ctxt.CgoEnabled = false // mutating a global!
+	impctx := importer.Config{Build: &ctxt}
 
 	// Load, parse and type-check the program.
 	t0 := time.Now()

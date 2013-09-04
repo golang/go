@@ -239,7 +239,7 @@ func TestEnclosingFunction(t *testing.T) {
 			"900", "func@2.27"},
 	}
 	for _, test := range tests {
-		imp := importer.New(new(importer.Config)) // (NB: no Loader)
+		imp := importer.New(new(importer.Config)) // (NB: no go/build.Config)
 		f, start, end := findInterval(t, imp.Fset, test.input, test.substr)
 		if f == nil {
 			continue
@@ -249,9 +249,9 @@ func TestEnclosingFunction(t *testing.T) {
 			t.Errorf("EnclosingFunction(%q) not exact", test.substr)
 			continue
 		}
-		info := imp.CreateSourcePackage("main", []*ast.File{f})
-		if info.Err != nil {
-			t.Error(info.Err.Error())
+		info, err := imp.CreateSourcePackage("main", []*ast.File{f})
+		if err != nil {
+			t.Error(err.Error())
 			continue
 		}
 

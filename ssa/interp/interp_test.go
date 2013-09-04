@@ -165,9 +165,7 @@ func run(t *testing.T, dir, input string) bool {
 		inputs = append(inputs, dir+i)
 	}
 
-	imp := importer.New(&importer.Config{
-		Loader: importer.MakeGoBuildLoader(nil),
-	})
+	imp := importer.New(&importer.Config{Build: &build.Default})
 	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
 	if err != nil {
 		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
@@ -186,9 +184,9 @@ func run(t *testing.T, dir, input string) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump; ./ssadump -build=CFP %s\n", input)
-	info := imp.CreateSourcePackage("main", files)
-	if info.Err != nil {
-		t.Errorf("importer.CreateSourcePackage(%s) failed: %s", inputs, info.Err.Error())
+	info, err := imp.CreateSourcePackage("main", files)
+	if err != nil {
+		t.Errorf("importer.CreateSourcePackage(%s) failed: %s", inputs, err)
 		return false
 	}
 

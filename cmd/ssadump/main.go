@@ -8,6 +8,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"log"
 	"os"
 	"runtime"
@@ -66,7 +67,7 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Config{Loader: importer.MakeGoBuildLoader(nil)}
+	impctx := importer.Config{Build: &build.Default}
 
 	var debugMode bool
 	var mode ssa.BuilderMode
@@ -85,7 +86,7 @@ func main() {
 		case 'N':
 			mode |= ssa.NaiveForm
 		case 'G':
-			impctx.Loader = nil
+			impctx.Build = nil
 		case 'L':
 			mode |= ssa.BuildSerially
 		default:

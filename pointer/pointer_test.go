@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -162,7 +163,7 @@ func findProbe(prog *ssa.Program, probes []probe, e *expectation) *probe {
 }
 
 func doOneInput(input, filename string) bool {
-	impctx := &importer.Config{Loader: importer.MakeGoBuildLoader(nil)}
+	impctx := &importer.Config{Build: &build.Default}
 	imp := importer.New(impctx)
 
 	// Parsing.
@@ -175,9 +176,9 @@ func doOneInput(input, filename string) bool {
 	}
 
 	// Type checking.
-	info := imp.CreateSourcePackage("main", []*ast.File{f})
-	if info.Err != nil {
-		fmt.Println(info.Err.Error())
+	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
+	if err != nil {
+		fmt.Println(err.Error())
 		return false
 	}
 

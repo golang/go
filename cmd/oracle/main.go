@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"log"
 	"os"
@@ -120,7 +121,7 @@ func main() {
 	}
 
 	// Ask the oracle.
-	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, nil)
+	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

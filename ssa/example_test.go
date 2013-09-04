@@ -5,12 +5,14 @@
 package ssa_test
 
 import (
-	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/ssa"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"os"
+
+	"code.google.com/p/go.tools/importer"
+	"code.google.com/p/go.tools/ssa"
 )
 
 // This program demonstrates how to run the SSA builder on a "Hello,
@@ -41,7 +43,7 @@ func main() {
 }
 `
 	// Construct an importer.  Imports will be loaded as if by 'go build'.
-	imp := importer.New(&importer.Config{Loader: importer.MakeGoBuildLoader(nil)})
+	imp := importer.New(&importer.Config{Build: &build.Default})
 
 	// Parse the input file.
 	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, parser.DeclarationErrors)
@@ -51,9 +53,9 @@ func main() {
 	}
 
 	// Create a "main" package containing one file.
-	info := imp.CreateSourcePackage("main", []*ast.File{file})
-	if info.Err != nil {
-		fmt.Print(info.Err.Error()) // type error
+	info, err := imp.CreateSourcePackage("main", []*ast.File{file})
+	if err != nil {
+		fmt.Print(err.Error()) // type error
 		return
 	}
 

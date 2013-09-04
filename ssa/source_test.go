@@ -46,9 +46,9 @@ func TestObjValueLookup(t *testing.T) {
 		}
 	}
 
-	info := imp.CreateSourcePackage("main", []*ast.File{f})
-	if info.Err != nil {
-		t.Error(info.Err.Error())
+	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
+	if err != nil {
+		t.Error(err.Error())
 		return
 	}
 
@@ -197,9 +197,9 @@ func TestValueForExpr(t *testing.T) {
 		return
 	}
 
-	info := imp.CreateSourcePackage("main", []*ast.File{f})
-	if info.Err != nil {
-		t.Error(info.Err.Error())
+	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
+	if err != nil {
+		t.Error(err.Error())
 		return
 	}
 

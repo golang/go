@@ -46,9 +46,9 @@ func main() {
 		return
 	}
 
-	info := imp.CreateSourcePackage("main", []*ast.File{f})
-	if info.Err != nil {
-		t.Error(info.Err.Error())
+	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
+	if err != nil {
+		t.Error(err.Error())
 		return
 	}
 

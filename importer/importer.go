@@ -14,19 +14,32 @@ package importer
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/token"
 	"os"
+	"strconv"
+	"sync"
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 )
 
-// An Importer's methods are not thread-safe.
+// An Importer's methods are not thread-safe unless specified.
 type Importer struct {
 	config   *Config                 // the client configuration
 	Fset     *token.FileSet          // position info for all files seen
-	Packages map[string]*PackageInfo // keys are import paths
+	Packages map[string]*PackageInfo // successfully imported packages keyed by import path
 	errors   map[string]error        // cache of errors by import path
+
+	mu       sync.Mutex          // guards 'packages' map
+	packages map[string]*pkgInfo // all attempted imported packages, keyed by import path
+}
+
+// pkgInfo holds internal per-package information.
+type pkgInfo struct {
+	info  *PackageInfo  // success info
+	err   error         // failure info
+	ready chan struct{} // channel close is notification of ready state
 }
 
 // Config specifies the configuration for the importer.
@@ -38,7 +51,7 @@ type Config struct {
 	// through to the type checker.
 	TypeChecker types.Config
 
-	// If Loader is non-nil, it is used to satisfy imports.
+	// If Build is non-nil, it is used to satisfy imports.
 	//
 	// If it is nil, binary object files produced by the gc
 	// compiler will be loaded instead of source code for all
@@ -47,22 +60,8 @@ type Config struct {
 	// code, so this mode will not yield a whole program.  It is
 	// intended for analyses that perform intraprocedural analysis
 	// of a single package.
-	Loader SourceLoader
+	Build *build.Context
 }
-
-// SourceLoader is the signature of a function that locates, reads and
-// parses a set of source files given an import path.
-//
-// fset is the fileset to which the ASTs should be added.
-// path is the imported path, e.g. "sync/atomic".
-//
-// On success, the function returns files, the set of ASTs produced,
-// or the first error encountered.
-//
-// The MakeGoBuildLoader utility can be used to construct a
-// SourceLoader based on go/build.
-//
-type SourceLoader func(fset *token.FileSet, path string) (files []*ast.File, err error)
 
 // New returns a new, empty Importer using configuration options
 // specified by config.
@@ -71,6 +70,7 @@ func New(config *Config) *Importer {
 	imp := &Importer{
 		config:   config,
 		Fset:     token.NewFileSet(),
+		packages: make(map[string]*pkgInfo),
 		Packages: make(map[string]*PackageInfo),
 		errors:   make(map[string]error),
 	}
@@ -91,8 +91,10 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (p
 	// Load the source/binary for 'path', type-check it, construct
 	// a PackageInfo and update our map (imp.Packages) and the
 	// type-checker's map (imports).
+	// TODO(adonovan): make it the type-checker's job to
+	// consult/update the 'imports' map.  Then we won't need it.
 	var info *PackageInfo
-	if imp.config.Loader != nil {
+	if imp.config.Build != nil {
 		info, err = imp.LoadPackage(path)
 	} else {
 		if info, ok := imp.Packages[path]; ok {
@@ -123,37 +125,80 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (p
 	return nil, err
 }
 
-// LoadPackage loads the package of the specified import-path,
+// imports returns the set of paths imported by the specified files.
+func imports(p string, files []*ast.File) map[string]bool {
+	imports := make(map[string]bool)
+outer:
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.GenDecl); ok {
+				if decl.Tok != token.IMPORT {
+					break outer // stop at the first non-import
+				}
+				for _, spec := range decl.Specs {
+					spec := spec.(*ast.ImportSpec)
+					if path, _ := strconv.Unquote(spec.Path.Value); path != "C" {
+						imports[path] = true
+					}
+				}
+			} else {
+				break outer // stop at the first non-import
+			}
+		}
+	}
+	return imports
+}
+
+// LoadPackage loads the package of the specified import path,
 // performs type-checking, and returns the corresponding
 // PackageInfo.
 //
-// Not idempotent!
-// Precondition: Importer.config.Loader != nil.
+// Precondition: Importer.config.Build != nil.
+// Idempotent and thread-safe.
+//
 // TODO(adonovan): fix: violated in call from CreatePackageFromArgs!
-// Not thread-safe!
 // TODO(adonovan): rethink this API.
 //
 func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
-	if info, ok := imp.Packages[importPath]; ok {
-		return info, nil // positive cache hit
+	if imp.config.Build == nil {
+		panic("Importer.LoadPackage without a go/build.Config")
 	}
 
-	if err := imp.errors[importPath]; err != nil {
-		return nil, err // negative cache hit
+	imp.mu.Lock()
+	pi, ok := imp.packages[importPath]
+	if !ok {
+		// First request for this pkgInfo:
+		// create a new one in !ready state.
+		pi = &pkgInfo{ready: make(chan struct{})}
+		imp.packages[importPath] = pi
+		imp.mu.Unlock()
+
+		// Load/parse the package.
+		if files, err := loadPackage(imp.config.Build, imp.Fset, importPath); err == nil {
+			// Kick off asynchronous I/O and parsing for the imports.
+			for path := range imports(importPath, files) {
+				go func() { imp.LoadPackage(path) }()
+			}
+
+			// Type-check the package.
+			pi.info, pi.err = imp.CreateSourcePackage(importPath, files)
+		} else {
+			pi.err = err
+		}
+
+		close(pi.ready) // enter ready state and wake up waiters
+	} else {
+		imp.mu.Unlock()
+
+		<-pi.ready // wait for ready condition.
 	}
 
-	if imp.config.Loader == nil {
-		panic("Importer.LoadPackage without a SourceLoader")
+	// Invariant: pi is ready.
+
+	if pi.err != nil {
+		return nil, pi.err
 	}
-	files, err := imp.config.Loader(imp.Fset, importPath)
-	if err != nil {
-		return nil, err
-	}
-	info := imp.CreateSourcePackage(importPath, files)
-	if info.Err != nil {
-		return nil, info.Err
-	}
-	return info, nil
+	return pi.info, nil
 }
 
 // CreateSourcePackage invokes the type-checker on files and returns a
@@ -165,14 +210,10 @@ func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
 // importPath is the full name under which this package is known, such
 // as appears in an import declaration. e.g. "sync/atomic".
 //
-// The ParseFiles utility may be helpful for parsing a set of Go
-// source files.
+// Postcondition: for result (info, err), info.Err == err.
 //
-// The result is always non-nil; the presence of errors is indicated
-// by the PackageInfo.Err field.
-//
-func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) *PackageInfo {
-	pkgInfo := &PackageInfo{
+func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) (*PackageInfo, error) {
+	info := &PackageInfo{
 		Files: files,
 		Info: types.Info{
 			Types:      make(map[ast.Expr]types.Type),
@@ -183,7 +224,7 @@ func (imp *Importer) CreateSourcePackage(importPath string, files []*ast.File) *
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		},
 	}
-	pkgInfo.Pkg, pkgInfo.Err = imp.config.TypeChecker.Check(importPath, imp.Fset, files, &pkgInfo.Info)
-	imp.Packages[importPath] = pkgInfo
-	return pkgInfo
+	info.Pkg, info.Err = imp.config.TypeChecker.Check(importPath, imp.Fset, files, &info.Info)
+	imp.Packages[importPath] = info
+	return info, info.Err
 }

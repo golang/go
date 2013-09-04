@@ -128,11 +128,10 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	var loader importer.SourceLoader
-	if minfo.needs&WholeSource != 0 {
-		loader = importer.MakeGoBuildLoader(buildContext)
+	if minfo.needs&WholeSource == 0 {
+		buildContext = nil
 	}
-	imp := importer.New(&importer.Config{Loader: loader})
+	imp := importer.New(&importer.Config{Build: buildContext})
 	o := &oracle{
 		prog:   ssa.NewProgram(imp.Fset, 0),
 		timers: make(map[string]time.Duration),
