@@ -891,6 +891,8 @@ var cmpTests = []cmpTest{
 	{"eq `xy` `xyz`", "false", true},
 	{"eq .Xuint .Xuint", "true", true},
 	{"eq .Xuint .Yuint", "false", true},
+	{"eq 3 4 5 6 3", "true", true},
+	{"eq 3 4 5 6 7", "false", true},
 	{"ne true true", "false", true},
 	{"ne true false", "true", true},
 	{"ne 1+2i 1+2i", "false", true},
@@ -946,7 +948,6 @@ var cmpTests = []cmpTest{
 	{"ge .Xuint .Yuint", "false", true},
 	{"ge .Yuint .Xuint", "true", true},
 	// Errors
-	{"eq 3 4 5", "", false},     // Too many arguments.
 	{"eq `xy` 1", "", false},    // Different types.
 	{"lt true true", "", false}, // Unordered types.
 	{"lt 1+0i 1+0i", "", false}, // Unordered types.
@@ -970,7 +971,7 @@ func TestComparison(t *testing.T) {
 			continue
 		}
 		if !test.ok && err == nil {
-			t.Errorf("%s did not error")
+			t.Errorf("%s did not error", test.expr)
 			continue
 		}
 		if b.String() != test.truth {
