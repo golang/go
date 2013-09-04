@@ -7,9 +7,7 @@ package ssa_test
 // This file runs the SSA builder in sanity-checking mode on all
 // packages beneath $GOROOT and prints some summary information.
 //
-// Run test with GOMAXPROCS=8 and CGO_ENABLED=0.  The latter cannot be
-// set from the test because it's too late to stop go/build.init()
-// from picking up the value from the parent's environment.
+// Run test with GOMAXPROCS=8.
 
 import (
 	"go/build"
@@ -52,9 +50,7 @@ func allPackages() []string {
 }
 
 func TestStdlib(t *testing.T) {
-	ctxt := build.Default
-	ctxt.CgoEnabled = false // mutating a global!
-	impctx := importer.Config{Build: &ctxt}
+	impctx := importer.Config{Build: &build.Default}
 
 	// Load, parse and type-check the program.
 	t0 := time.Now()

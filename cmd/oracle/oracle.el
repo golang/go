@@ -101,7 +101,7 @@ result."
 
         (message "Running oracle...")
         ;; Use dynamic binding to modify/restore the environment
-        (let ((process-environment (list* goroot-env gopath-env "CGO_ENABLED=0" process-environment)))
+        (let ((process-environment (list* goroot-env gopath-env process-environment)))
             (apply #'call-process args)))
       (insert "\n")
       (compilation-mode)

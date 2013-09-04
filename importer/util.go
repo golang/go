@@ -70,9 +70,14 @@ func init() {
 // loadPackage ascertains which files belong to package path, then
 // loads, parses and returns them.
 func loadPackage(ctxt *build.Context, fset *token.FileSet, path string) (files []*ast.File, err error) {
+	// Set the "!cgo" go/build tag, preferring (dummy) Go to
+	// native C implementations of net.cgoLookupHost et al.
+	ctxt2 := *ctxt
+	ctxt2.CgoEnabled = false
+
 	// TODO(adonovan): fix: Do we need cwd? Shouldn't
 	// ImportDir(path) / $GOROOT suffice?
-	bp, err := ctxt.Import(path, cwd, 0)
+	bp, err := ctxt2.Import(path, cwd, 0)
 	if _, ok := err.(*build.NoGoError); ok {
 		return nil, nil // empty directory
 	}

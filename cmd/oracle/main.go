@@ -51,11 +51,6 @@ Examples:
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
-// TODO(adonovan): the caller must---before go/build.init
-// runs---specify CGO_ENABLED=0, which entails the "!cgo" go/build
-// tag, preferring (dummy) Go to native C implementations of
-// cgoLookupHost et al.
-
 func init() {
 	// If $GOMAXPROCS isn't set, use the full capacity of the machine.
 	// For small machines, use at least 4 threads.
@@ -65,16 +60,6 @@ func init() {
 			n = 4
 		}
 		runtime.GOMAXPROCS(n)
-	}
-
-	// For now, caller must---before go/build.init runs---specify
-	// CGO_ENABLED=0, which entails the "!cgo" go/build tag,
-	// preferring (dummy) Go to native C implementations of
-	// cgoLookupHost et al.
-	// TODO(adonovan): make the importer do this.
-	if os.Getenv("CGO_ENABLED") != "0" {
-		fmt.Fprint(os.Stderr, "Warning: CGO_ENABLED=0 not specified; "+
-			"analysis of cgo code may be less precise.\n")
 	}
 }
 
@@ -114,14 +99,14 @@ func main() {
 
 	// -format flag
 	if *formatFlag != "json" && *formatFlag != "plain" {
-		fmt.Fprintf(os.Stderr, "illegal -format value: %q", *formatFlag)
+		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q", *formatFlag)
 		os.Exit(1)
 	}
 
 	// Ask the oracle.
 	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 
