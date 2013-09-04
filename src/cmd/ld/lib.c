@@ -2348,7 +2348,6 @@ ftabaddstring(Sym *ftab, char *s)
 	start = ftab->np;
 	symgrow(ftab, start+n+1);
 	strcpy((char*)ftab->p + start, s);
-	ftab->np += n+1;
 	return start;
 }
 
