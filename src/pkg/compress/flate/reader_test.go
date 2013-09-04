@@ -37,6 +37,7 @@ var testfiles = []string{
 }
 
 func benchmarkDecode(b *testing.B, testfile, level, n int) {
+	b.ReportAllocs()
 	b.StopTimer()
 	b.SetBytes(int64(n))
 	buf0, err := ioutil.ReadFile(testfiles[testfile])
@@ -55,7 +56,7 @@ func benchmarkDecode(b *testing.B, testfile, level, n int) {
 		if len(buf0) > n-i {
 			buf0 = buf0[:n-i]
 		}
-		io.Copy(w, bytes.NewBuffer(buf0))
+		io.Copy(w, bytes.NewReader(buf0))
 	}
 	w.Close()
 	buf1 := compressed.Bytes()
@@ -63,7 +64,7 @@ func benchmarkDecode(b *testing.B, testfile, level, n int) {
 	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		io.Copy(ioutil.Discard, NewReader(bytes.NewBuffer(buf1)))
+		io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1)))
 	}
 }
 
