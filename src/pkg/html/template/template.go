@@ -21,7 +21,9 @@ type Template struct {
 	// We could embed the text/template field, but it's safer not to because
 	// we need to keep our version of the name space and the underlying
 	// template's in sync.
-	text       *template.Template
+	text *template.Template
+	// The underlying template's parse tree, updated to be HTML-safe.
+	Tree       *parse.Tree
 	*nameSpace // common to all associated templates
 }
 
@@ -149,6 +151,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 	ret := &Template{
 		false,
 		text,
+		text.Tree,
 		t.nameSpace,
 	}
 	t.set[name] = ret
@@ -176,6 +179,7 @@ func (t *Template) Clone() (*Template, error) {
 	ret := &Template{
 		false,
 		textClone,
+		textClone.Tree,
 		&nameSpace{
 			set: make(map[string]*Template),
 		},
@@ -195,6 +199,7 @@ func (t *Template) Clone() (*Template, error) {
 		ret.set[name] = &Template{
 			false,
 			x,
+			x.Tree,
 			ret.nameSpace,
 		}
 	}
@@ -206,6 +211,7 @@ func New(name string) *Template {
 	tmpl := &Template{
 		false,
 		template.New(name),
+		nil,
 		&nameSpace{
 			set: make(map[string]*Template),
 		},
@@ -228,6 +234,7 @@ func (t *Template) new(name string) *Template {
 	tmpl := &Template{
 		false,
 		t.text.New(name),
+		nil,
 		t.nameSpace,
 	}
 	tmpl.set[name] = tmpl

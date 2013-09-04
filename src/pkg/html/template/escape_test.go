@@ -673,6 +673,10 @@ func TestEscape(t *testing.T) {
 			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
 			continue
 		}
+		if tmpl.Tree != tmpl.text.Tree {
+			t.Errorf("%s: tree mismatch", test.name)
+			continue
+		}
 	}
 }
 
