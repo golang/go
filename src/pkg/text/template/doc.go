@@ -326,13 +326,22 @@ functions:
 	ge
 		Returns the boolean truth of arg1 >= arg2
 
-These functions work on basic types only (or named basic types,
-such as "type Celsius float32"). They implement the Go rules for
-comparison of values, except that size and exact type are ignored,
-so any integer value may be compared with any other integer value,
-any unsigned integer value may be compared with any other unsigned
-integer value, and so on. However, as usual, one may not compare
-an int with a float32 and so on.
+For simpler multi-way equality tests, eq (only) accepts two or more
+arguments and compares the second and subsequent to the first,
+returning in effect
+
+	arg1==arg2 || arg1==arg3 || arg1==arg4 ...
+
+(Unlike with || in Go, however, eq is a function call and all the
+arguments will be evaluated.)
+
+The comparison functions work on basic types only (or named basic
+types, such as "type Celsius float32"). They implement the Go rules
+for comparison of values, except that size and exact type are
+ignored, so any integer value may be compared with any other integer
+value, any unsigned integer value may be compared with any other
+unsigned integer value, and so on. However, as usual, one may not
+compare an int with a float32 and so on.
 
 Associated templates
 
