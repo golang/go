@@ -29,7 +29,7 @@ set errorformat+=%f:%l.%c-%*[0-9].%*[0-9]:\ %m
 func! s:RunOracle(mode) abort
   let s:pos = line2byte(line("."))+col(".")
   let s:errfile = tempname()
-  let s:cmd = printf("!%s -mode=%s -pos=%s:%d %s >%s",
+  let s:cmd = printf("!%s -mode=%s -pos=%s:#%d %s >%s",
     \ s:go_oracle, a:mode, bufname(""), s:pos, s:scope, s:errfile)
   execute s:cmd
   execute "cfile " . s:errfile

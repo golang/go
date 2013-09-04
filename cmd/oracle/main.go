@@ -4,13 +4,11 @@
 
 // oracle: a tool for answering questions about Go source code.
 //
-// Each query prints its results to the standard output in an
-// editor-friendly format.  Currently this is just text in a generic
-// compiler diagnostic format, but in future we could provide
-// sexpr/json/python formats for the raw data so that editors can
-// provide more sophisticated UIs.
+// With -format=plain, the oracle prints query results to the standard
+// output in an editor-friendly format in which every line of output
+// is of the form "pos: text", where pos = "-" if unknown.
 //
-// Every line of output is of the form "pos: text", where pos = "-" if unknown.
+// With -format=json, the oracle prints structured data in JSON syntax.
 //
 package main
 
@@ -31,11 +29,11 @@ import (
 )
 
 var posFlag = flag.String("pos", "",
-	"Filename and offset or extent of a syntax element about which to query, "+
-		"e.g. foo.go:123-456, bar.go:123.")
+	"Filename and byte offset or extent of a syntax element about which to query, "+
+		"e.g. foo.go:#123-#456, bar.go:#123.")
 
 var modeFlag = flag.String("mode", "",
-	"Mode of query to perform: callers, callees, callstack, callgraph, describe.")
+	"Mode of query to perform: e.g. callers, describe, etc.")
 
 var ptalogFlag = flag.String("ptalog", "",
 	"Location of the points-to analysis log file, or empty to disable logging.")
@@ -47,8 +45,8 @@ Usage: oracle [<flag> ...] [<file.go> ...] [<arg> ...]
 Use -help flag to display options.
 
 Examples:
-% oracle -pos 'hello.go 123' hello.go
-% oracle -pos 'hello.go 123 456' hello.go
+% oracle -pos=hello.go:#123      hello.go
+% oracle -pos=hello.go:#123-#456 hello.go
 `
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")

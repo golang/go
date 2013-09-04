@@ -261,16 +261,23 @@ func ptrAnalysis(o *oracle) pointer.CallGraphNode {
 	return root
 }
 
-func parseDecimal(s string) int {
-	if s, err := strconv.ParseInt(s, 10, 32); err == nil {
-		return int(s)
+// parseOctothorpDecimal returns the numeric value if s matches "#%d",
+// otherwise -1.
+func parseOctothorpDecimal(s string) int {
+	if s != "" && s[0] == '#' {
+		if s, err := strconv.ParseInt(s[1:], 10, 32); err == nil {
+			return int(s)
+		}
 	}
 	return -1
 }
 
 // parseQueryPos parses a string of the form "file:pos" or
-// file:start-end" where pos, start, end are decimal integers, and
-// returns the extent to which it refers.
+// file:start-end" where pos, start, end match #%d and represent byte
+// offsets, and returns the extent to which it refers.
+//
+// (Numbers without a '#' prefix are reserved for future use,
+// e.g. to indicate line/column positions.)
 //
 func parseQueryPos(fset *token.FileSet, queryPos string) (start, end token.Pos, err error) {
 	if queryPos == "" {
@@ -287,13 +294,13 @@ func parseQueryPos(fset *token.FileSet, queryPos string) (start, end token.Pos, 
 	startOffset := -1
 	endOffset := -1
 	if hyphen := strings.Index(offset, "-"); hyphen < 0 {
-		// e.g. "foo.go:123"
-		startOffset = parseDecimal(offset)
+		// e.g. "foo.go:#123"
+		startOffset = parseOctothorpDecimal(offset)
 		endOffset = startOffset
 	} else {
-		// e.g. "foo.go:123-456"
-		startOffset = parseDecimal(offset[:hyphen])
-		endOffset = parseDecimal(offset[hyphen+1:])
+		// e.g. "foo.go:#123-#456"
+		startOffset = parseOctothorpDecimal(offset[:hyphen])
+		endOffset = parseOctothorpDecimal(offset[hyphen+1:])
 	}
 	if startOffset < 0 || endOffset < 0 {
 		err = fmt.Errorf("invalid -pos offset %q", offset)

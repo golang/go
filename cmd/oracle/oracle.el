@@ -76,11 +76,11 @@ result."
       (go-oracle-set-scope))
   (let* ((filename (file-truename buffer-file-name))
          (posflag (if (use-region-p)
-                      (format "-pos=%s:%s-%s"
+                      (format "-pos=%s:#%d-#%d"
                               filename
                               (1- (go--position-bytes (region-beginning)))
                               (1- (go--position-bytes (region-end))))
-                    (format "-pos=%s:%s"
+                    (format "-pos=%s:#%d"
                             filename
                             (1- (position-bytes (point))))))
          ;; This would be simpler if we could just run 'go tool oracle'.
