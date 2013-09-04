@@ -145,6 +145,12 @@ esac
 go run main.go || exit 1
 ) || exit $?
 
+[ "$CGO_ENABLED" != 1 ] ||
+[ "$GOHOSTOS" == windows ] ||
+(xcd ../misc/cgo/errors
+./test.bash || exit 1
+) || exit $?
+
 (xcd ../doc/progs
 time ./run || exit 1
 ) || exit $?
