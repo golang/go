@@ -35,11 +35,13 @@ func escapeTemplates(tmpl *Template, names ...string) error {
 			for _, name := range names {
 				if t := tmpl.set[name]; t != nil {
 					t.text.Tree = nil
+					t.Tree = nil
 				}
 			}
 			return err
 		}
 		tmpl.escaped = true
+		tmpl.Tree = tmpl.text.Tree
 	}
 	e.commit()
 	return nil
