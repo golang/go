@@ -177,7 +177,7 @@ func (imp *Importer) LoadPackage(importPath string) (*PackageInfo, error) {
 		if files, err := loadPackage(imp.config.Build, imp.Fset, importPath); err == nil {
 			// Kick off asynchronous I/O and parsing for the imports.
 			for path := range imports(importPath, files) {
-				go func() { imp.LoadPackage(path) }()
+				go func(path string) { imp.LoadPackage(path) }(path)
 			}
 
 			// Type-check the package.
