@@ -7,7 +7,7 @@
 Cgo enables the creation of Go packages that call C code.
 
 Usage:
-	go tool cgo [compiler options] file.go
+	go tool cgo [cgo options] [-- compiler options] file.go
 
 The compiler options are passed through uninterpreted when
 invoking gcc to compile the C parts of the package.
@@ -158,7 +158,44 @@ The standard package construction rules of the go command
 automate the process of using cgo.  See $GOROOT/misc/cgo/stdio
 and $GOROOT/misc/cgo/gmp for examples.
 
-Cgo does not yet work with gccgo.
+Cgo options are passed automatically by go build.
+The following options are available when running cgo directly:
+
+	-dynimport file
+		Write list of symbols imported by file. Write to
+		-dynout argument or to standard output. Used by go
+		build when building a cgo package.
+	-dynout file
+		Write -dynimport output to file.
+	-dynlinker
+		Write dynamic linker as part of -dynimport output.
+	-godefs
+		Write out input file in Go syntax replacing C package
+		names with real values. Used to generate files in the
+		syscall package when bootstrapping a new target.
+	-cdefs
+		Like -godefs, but write file in C syntax.
+		Used to generate files in the runtime package when
+		bootstrapping a new target.
+	-objdir directory
+		Put all generated files in directory.
+	-gccgo
+		Generate output for the gccgo compiler rather than the
+		gc compiler.
+	-gccgoprefix prefix
+		The -fgo-prefix option to be used with gccgo.
+	-gccgopkgpath path
+		The -fgo-pkgpath option to be used with gccgo.
+	-import_runtime_cgo
+		If set (which it is by default) import runtime/cgo in
+		generated output.
+	-import_syscall
+		If set (which it is by default) import syscall in
+		generated output.
+	-debug-define
+		Debugging option. Print #defines.
+	-debug-gcc
+		Debugging option. Trace C compiler execution and output.
 
 See "C? Go? Cgo!" for an introduction to using cgo:
 http://golang.org/doc/articles/c_go_cgo.html
