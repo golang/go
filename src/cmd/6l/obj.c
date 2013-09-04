@@ -152,6 +152,7 @@ main(int argc, char *argv[])
 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
 		break;
 	case Hdarwin:
+	case Hdragonfly:
 	case Hfreebsd:
 	case Hlinux:
 	case Hnetbsd:

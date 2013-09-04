@@ -8,6 +8,7 @@ package cgosotest
 // intentionally write the same LDFLAGS differently
 // to test correct handling of LDFLAGS.
 #cgo linux LDFLAGS: -L. -lcgosotest
+#cgo dragonfly LDFLAGS: -L. -l cgosotest
 #cgo freebsd LDFLAGS: -L. -l cgosotest
 #cgo openbsd LDFLAGS: -L. -l cgosotest
 #cgo netbsd LDFLAGS: -L. libcgosotest.so

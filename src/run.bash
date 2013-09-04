@@ -104,7 +104,8 @@ go run $GOROOT/test/run.go - . || exit 1
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
 go test -ldflags '-linkmode=auto' || exit 1
-go test -ldflags '-linkmode=internal' || exit 1
+# linkmode=internal fails on dragonfly since errno is a TLS relocation.
+[ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
 case "$GOHOSTOS-$GOARCH" in
 openbsd-386 | openbsd-amd64)
 	# test linkmode=external, but __thread not supported, so skip testtls.
@@ -118,7 +119,7 @@ darwin-386 | darwin-amd64)
 	*) go test -ldflags '-linkmode=external'  || exit 1;;
 	esac
 	;;
-freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
+dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
 	go test -ldflags '-linkmode=external' || exit 1
 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
 	go test -ldflags '-linkmode=external' ../testtls || exit 1
