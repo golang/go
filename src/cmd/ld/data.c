@@ -376,6 +376,12 @@ symgrow(Sym *s, int32 siz)
 	if(s->np >= siz)
 		return;
 
+	if(s->np > s->maxp) {
+		cursym = s;
+		diag("corrupt symbol data: np=%lld > maxp=%lld", (vlong)s->np, (vlong)s->maxp);
+		errorexit();
+	}
+
 	if(s->maxp < siz) {
 		if(s->maxp == 0)
 			s->maxp = 8;
