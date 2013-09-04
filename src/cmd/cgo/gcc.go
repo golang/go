@@ -76,6 +76,8 @@ func (f *File) DiscardCgoDirectives() {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
+		} else {
+			linesOut = append(linesOut, "")
 		}
 	}
 	f.Preamble = strings.Join(linesOut, "\n")
