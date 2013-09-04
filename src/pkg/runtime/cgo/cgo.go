@@ -12,6 +12,7 @@ package cgo
 /*
 
 #cgo darwin LDFLAGS: -lpthread
+#cgo dragonfly LDFLAGS: -lpthread
 #cgo freebsd LDFLAGS: -lpthread
 #cgo linux LDFLAGS: -lpthread
 #cgo netbsd LDFLAGS: -lpthread

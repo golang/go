@@ -582,6 +582,16 @@ ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 
 		}
 	}
 
+	// DragonFly declares errno with __thread, which results in a symbol
+	// type of R_386_TLS_GD or R_X86_64_TLSGD. The Go linker does not
+	// currently know how to handle TLS relocations, hence we have to
+	// force external linking for any libraries that link in code that
+	// uses errno. This can be removed if the Go linker ever supports
+	// these relocation types.
+	if(HEADTYPE == Hdragonfly)
+	if(strcmp(pkg, "net") == 0 || strcmp(pkg, "os/user") == 0)
+		isinternal = 0;
+
 	if(!isinternal)
 		externalobj = 1;
 
