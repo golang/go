@@ -70,6 +70,23 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	}, nil
 }
 
+// Reset clears the state of the Writer z such that it is equivalent to its
+// initial state from NewWriterLevel or NewWriterLevelDict, but instead writing
+// to w.
+func (z *Writer) Reset(w io.Writer) {
+	z.w = w
+	// z.level and z.dict left unchanged.
+	if z.compressor != nil {
+		z.compressor.Reset(w)
+	}
+	if z.digest != nil {
+		z.digest.Reset()
+	}
+	z.err = nil
+	z.scratch = [4]byte{}
+	z.wroteHeader = false
+}
+
 // writeHeader writes the ZLIB header.
 func (z *Writer) writeHeader() (err error) {
 	z.wroteHeader = true
@@ -111,11 +128,15 @@ func (z *Writer) writeHeader() (err error) {
 			return err
 		}
 	}
-	z.compressor, err = flate.NewWriterDict(z.w, z.level, z.dict)
-	if err != nil {
-		return err
+	if z.compressor == nil {
+		// Initialize deflater unless the Writer is being reused
+		// after a Reset call.
+		z.compressor, err = flate.NewWriterDict(z.w, z.level, z.dict)
+		if err != nil {
+			return err
+		}
+		z.digest = adler32.New()
 	}
-	z.digest = adler32.New()
 	return nil
 }
 
