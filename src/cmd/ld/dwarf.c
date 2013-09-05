@@ -39,6 +39,8 @@ static Sym*  infosym;
 static vlong infosympos;
 static vlong frameo;
 static vlong framesize;
+static Sym*  framesym;
+static vlong framesympos;
 static vlong pubnameso;
 static vlong pubnamessize;
 static vlong pubtypeso;
@@ -59,6 +61,10 @@ static vlong arangesrelocsize;
 static Sym *linesec;
 static vlong linereloco;
 static vlong linerelocsize;
+
+static Sym *framesec;
+static vlong framereloco;
+static vlong framerelocsize;
 
 static char  gdbscript[1024];
 
@@ -1968,6 +1974,9 @@ writeframes(void)
 	Sym *s;
 	vlong fdeo, fdesize, pad, cfa, pc;
 
+	if(framesec == S)
+		framesec = lookup(".dwarfframe", 0);
+	framesec->nr = 0;
 	frameo = cpos();
 
 	// Emit the CIE, Section 6.4.1
@@ -2026,8 +2035,14 @@ writeframes(void)
 		// Emit the FDE header for real, Section 6.4.1.
 		cseek(fdeo);
 		LPUT(fdesize);
-		LPUT(0);
-		addrput(p->pc);
+		if(linkmode == LinkExternal) {
+			adddwarfrel(framesec, framesym, frameo, 4, 0);
+			adddwarfrel(framesec, s, frameo, PtrSize, 0);
+		}
+		else {
+			LPUT(0);
+			addrput(p->pc);
+		}
 		addrput(s->size);
 		cseek(fdeo + 4 + fdesize);
 	}
@@ -2360,6 +2375,10 @@ dwarfemitdebugsections(void)
 	linereloco = writedwarfreloc(linesec);
 	linerelocsize = cpos() - linereloco;
 	align(linerelocsize);
+
+	framereloco = writedwarfreloc(framesec);
+	framerelocsize = cpos() - framereloco;
+	align(framerelocsize);
 }
 
 /*
@@ -2382,6 +2401,7 @@ enum
 	ElfStrRelDebugInfo,
 	ElfStrRelDebugAranges,
 	ElfStrRelDebugLine,
+	ElfStrRelDebugFrame,
 	NElfStrDbg
 };
 
@@ -2410,10 +2430,12 @@ dwarfaddshstrings(Sym *shstrtab)
 			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rela.debug_info");
 			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rela.debug_aranges");
 			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rela.debug_line");
+			elfstrdbg[ElfStrRelDebugFrame] = addstring(shstrtab, ".rela.debug_frame");
 		} else {
 			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rel.debug_info");
 			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rel.debug_aranges");
 			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rel.debug_line");
+			elfstrdbg[ElfStrRelDebugFrame] = addstring(shstrtab, ".rel.debug_frame");
 		}
 
 		infosym = lookup(".debug_info", 0);
@@ -2424,6 +2446,9 @@ dwarfaddshstrings(Sym *shstrtab)
 
 		linesym = lookup(".debug_line", 0);
 		linesym->hide = 1;
+
+		framesym = lookup(".debug_frame", 0);
+		framesym->hide = 1;
 	}
 }
 
@@ -2443,6 +2468,10 @@ dwarfaddelfsectionsyms()
 	if(linesym != nil) {
 		linesympos = cpos();
 		putelfsectionsym(linesym, 0);
+	}
+	if(framesym != nil) {
+		framesympos = cpos();
+		putelfsectionsym(framesym, 0);
 	}
 }
 
@@ -2469,7 +2498,7 @@ dwarfaddelfrelocheader(int elfstr, ElfShdr *shdata, vlong off, vlong size)
 void
 dwarfaddelfheaders(void)
 {
-	ElfShdr *sh, *shinfo, *sharanges, *shline;
+	ElfShdr *sh, *shinfo, *sharanges, *shline, *shframe;
 
 	if(debug['w'])  // disable dwarf
 		return;
@@ -2496,6 +2525,9 @@ dwarfaddelfheaders(void)
 	sh->off = frameo;
 	sh->size = framesize;
 	sh->addralign = 1;
+	if(framesympos > 0)
+		putelfsymshndx(framesympos, sh->shnum);
+	shframe = sh;
 
 	sh = newElfShdr(elfstrdbg[ElfStrDebugInfo]);
 	sh->type = SHT_PROGBITS;
@@ -2548,6 +2580,9 @@ dwarfaddelfheaders(void)
 
 	if(linerelocsize)
 		dwarfaddelfrelocheader(ElfStrRelDebugLine, shline, linereloco, linerelocsize);
+
+	if(framerelocsize)
+		dwarfaddelfrelocheader(ElfStrRelDebugFrame, shframe, framereloco, framerelocsize);
 }
 
 /*
