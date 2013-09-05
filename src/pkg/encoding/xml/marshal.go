@@ -196,6 +196,7 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString("<!--")
 		p.Write(t)
 		p.WriteString("-->")
+		return p.cachedWriteError()
 	case ProcInst:
 		if t.Target == "xml" || !isNameString(t.Target) {
 			return fmt.Errorf("xml: EncodeToken of ProcInst with invalid Target")
@@ -218,7 +219,7 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.Write(t)
 		p.WriteString(">")
 	}
-	return p.Flush()
+	return p.cachedWriteError()
 }
 
 type printer struct {
