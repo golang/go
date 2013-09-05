@@ -89,6 +89,56 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
 	}
 }
 
+func testFileLevelDictReset(t *testing.T, fn string, level int, dict []byte) {
+	var b0 []byte
+	var err error
+	if fn != "" {
+		b0, err = ioutil.ReadFile(fn)
+		if err != nil {
+			t.Errorf("%s (level=%d): %v", fn, level, err)
+			return
+		}
+	}
+
+	// Compress once.
+	buf := new(bytes.Buffer)
+	var zlibw *Writer
+	if dict == nil {
+		zlibw, err = NewWriterLevel(buf, level)
+	} else {
+		zlibw, err = NewWriterLevelDict(buf, level, dict)
+	}
+	if err == nil {
+		_, err = zlibw.Write(b0)
+	}
+	if err == nil {
+		err = zlibw.Close()
+	}
+	if err != nil {
+		t.Errorf("%s (level=%d): %v", fn, level, err)
+		return
+	}
+	out := buf.String()
+
+	// Reset and comprses again.
+	buf2 := new(bytes.Buffer)
+	zlibw.Reset(buf2)
+	_, err = zlibw.Write(b0)
+	if err == nil {
+		err = zlibw.Close()
+	}
+	if err != nil {
+		t.Errorf("%s (level=%d): %v", fn, level, err)
+		return
+	}
+	out2 := buf2.String()
+
+	if out2 != out {
+		t.Errorf("%s (level=%d): different output after reset (got %d bytes, expected %d",
+			fn, level, len(out2), len(out))
+	}
+}
+
 func TestWriter(t *testing.T) {
 	for i, s := range data {
 		b := []byte(s)
@@ -118,6 +168,21 @@ func TestWriterDict(t *testing.T) {
 		testFileLevelDict(t, fn, NoCompression, dictionary)
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, dictionary)
+		}
+	}
+}
+
+func TestWriterReset(t *testing.T) {
+	const dictionary = "0123456789."
+	for _, fn := range filenames {
+		testFileLevelDictReset(t, fn, NoCompression, nil)
+		testFileLevelDictReset(t, fn, DefaultCompression, nil)
+		testFileLevelDictReset(t, fn, NoCompression, []byte(dictionary))
+		testFileLevelDictReset(t, fn, DefaultCompression, []byte(dictionary))
+		if !testing.Short() {
+			for level := BestSpeed; level <= BestCompression; level++ {
+				testFileLevelDictReset(t, fn, level, nil)
+			}
 		}
 	}
 }
