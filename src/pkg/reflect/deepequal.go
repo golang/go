@@ -28,8 +28,15 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	}
 
 	// if depth > 10 { panic("deepValueEqual") }	// for debugging
+	hard := func(k Kind) bool {
+		switch k {
+		case Array, Map, Slice, Struct:
+			return true
+		}
+		return false
+	}
 
-	if v1.CanAddr() && v2.CanAddr() {
+	if v1.CanAddr() && v2.CanAddr() && hard(v1.Kind()) {
 		addr1 := v1.UnsafeAddr()
 		addr2 := v2.UnsafeAddr()
 		if addr1 > addr2 {
@@ -71,6 +78,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 		if v1.Len() != v2.Len() {
 			return false
 		}
+		if v1.Pointer() == v2.Pointer() {
+			return true
+		}
 		for i := 0; i < v1.Len(); i++ {
 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited, depth+1) {
 				return false
@@ -97,6 +107,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 		}
 		if v1.Len() != v2.Len() {
 			return false
+		}
+		if v1.Pointer() == v2.Pointer() {
+			return true
 		}
 		for _, k := range v1.MapKeys() {
 			if !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
