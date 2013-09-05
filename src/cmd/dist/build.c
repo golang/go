@@ -1660,7 +1660,10 @@ cmdbanner(int argc, char **argv)
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot);
 	xprintf("Installed commands in %s\n", gobin);
 
-	if(streq(gohostos, "plan9")) {
+	if(!xsamefile(goroot_final, goroot)) {
+		// If the files are to be moved, don't check that gobin
+		// is on PATH; assume they know what they are doing.
+	} else if(streq(gohostos, "plan9")) {
 		// Check that gobin is bound before /bin.
 		readfile(&b, "#c/pid");
 		bsubst(&b, " ", "");
