@@ -213,8 +213,8 @@ will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 
-The test flags that generate profiles also leave the test binary in pkg.test
-for use when analyzing the profiles.
+The test flags that generate profiles (other than for coverage) also
+leave the test binary in pkg.test for use when analyzing the profiles.
 
 Flags not recognized by 'go test' must be placed after any specified packages.
 `,
@@ -272,6 +272,7 @@ var (
 	testCoverPaths   []string   // -coverpkg flag
 	testCoverPkgs    []*Package // -coverpkg flag
 	testProfile      bool       // some profiling flag
+	testNeedBinary   bool       // profile needs to keep binary around
 	testI            bool       // -i flag
 	testV            bool       // -v flag
 	testFiles        []string   // -file flag(s)  TODO: not respected
@@ -728,7 +729,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a.target = filepath.Join(testDir, testBinary) + exeSuffix
 	pmainAction := a
 
-	if testC || testProfile {
+	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
 		runAction = &action{
 			f:      (*builder).install,
