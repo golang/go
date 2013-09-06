@@ -1539,40 +1539,40 @@ func MapOf(key, elem Type) Type {
 // Currently, that's just size and the GC program.  We also fill in string
 // for possible debugging use.
 const (
-	BUCKETSIZE = 8
-	MAXKEYSIZE = 128
-	MAXVALSIZE = 128
+	_BUCKETSIZE = 8
+	_MAXKEYSIZE = 128
+	_MAXVALSIZE = 128
 )
 
 func bucketOf(ktyp, etyp *rtype) *rtype {
-	if ktyp.size > MAXKEYSIZE {
+	if ktyp.size > _MAXKEYSIZE {
 		ktyp = PtrTo(ktyp).(*rtype)
 	}
-	if etyp.size > MAXVALSIZE {
+	if etyp.size > _MAXVALSIZE {
 		etyp = PtrTo(etyp).(*rtype)
 	}
 	ptrsize := unsafe.Sizeof(uintptr(0))
 
 	gc := make([]uintptr, 1)                                       // first entry is size, filled in at the end
-	offset := BUCKETSIZE * unsafe.Sizeof(uint8(0))                 // topbits
+	offset := _BUCKETSIZE * unsafe.Sizeof(uint8(0))                // topbits
 	gc = append(gc, _GC_PTR, offset, 0 /*self pointer set below*/) // overflow
 	offset += ptrsize
 
 	// keys
 	if ktyp.kind&kindNoPointers == 0 {
-		gc = append(gc, _GC_ARRAY_START, offset, BUCKETSIZE, ktyp.size)
+		gc = append(gc, _GC_ARRAY_START, offset, _BUCKETSIZE, ktyp.size)
 		gc = appendGCProgram(gc, ktyp)
 		gc = append(gc, _GC_ARRAY_NEXT)
 	}
-	offset += BUCKETSIZE * ktyp.size
+	offset += _BUCKETSIZE * ktyp.size
 
 	// values
 	if etyp.kind&kindNoPointers == 0 {
-		gc = append(gc, _GC_ARRAY_START, offset, BUCKETSIZE, etyp.size)
+		gc = append(gc, _GC_ARRAY_START, offset, _BUCKETSIZE, etyp.size)
 		gc = appendGCProgram(gc, etyp)
 		gc = append(gc, _GC_ARRAY_NEXT)
 	}
-	offset += BUCKETSIZE * etyp.size
+	offset += _BUCKETSIZE * etyp.size
 
 	gc = append(gc, _GC_END)
 	gc[0] = offset
