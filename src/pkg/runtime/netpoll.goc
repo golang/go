@@ -379,7 +379,7 @@ allocPollDesc(void)
 			n = 1;
 		// Must be in non-GC memory because can be referenced
 		// only from epoll/kqueue internals.
-		pd = runtime·persistentalloc(n*sizeof(*pd), 0);
+		pd = runtime·persistentalloc(n*sizeof(*pd), 0, &mstats.other_sys);
 		for(i = 0; i < n; i++) {
 			pd[i].link = pollcache.first;
 			pollcache.first = &pd[i];

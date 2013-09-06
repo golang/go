@@ -14,7 +14,7 @@ type MemStats struct {
 	// General statistics.
 	Alloc      uint64 // bytes allocated and still in use
 	TotalAlloc uint64 // bytes allocated (even if freed)
-	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
+	Sys        uint64 // bytes obtained from system (sum of XxxSys below)
 	Lookups    uint64 // number of pointer lookups
 	Mallocs    uint64 // number of mallocs
 	Frees      uint64 // number of frees
@@ -37,6 +37,8 @@ type MemStats struct {
 	MCacheInuse uint64 // mcache structures
 	MCacheSys   uint64
 	BuckHashSys uint64 // profiling bucket hash table
+	GCSys       uint64 // GC metadata
+	OtherSys    uint64 // other system allocations
 
 	// Garbage collector statistics.
 	NextGC       uint64 // next run in HeapAlloc time (bytes)

@@ -13,7 +13,7 @@
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
 void
-runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg)
+runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg, uint64 *stat)
 {
 	f->size = size;
 	f->first = first;
@@ -22,7 +22,7 @@ runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), v
 	f->chunk = nil;
 	f->nchunk = 0;
 	f->inuse = 0;
-	f->sys = 0;
+	f->stat = stat;
 }
 
 void*
@@ -42,8 +42,7 @@ runtime·FixAlloc_Alloc(FixAlloc *f)
 		return v;
 	}
 	if(f->nchunk < f->size) {
-		f->sys += FixAllocChunk;
-		f->chunk = runtime·persistentalloc(FixAllocChunk, 0);
+		f->chunk = runtime·persistentalloc(FixAllocChunk, 0, f->stat);
 		f->nchunk = FixAllocChunk;
 	}
 	v = f->chunk;

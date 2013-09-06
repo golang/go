@@ -23,9 +23,9 @@ extern void *runtime·VirtualAlloc;
 extern void *runtime·VirtualFree;
 
 void*
-runtime·SysAlloc(uintptr n)
+runtime·SysAlloc(uintptr n, uint64 *stat)
 {
-	mstats.sys += n;
+	runtime·xadd64(stat, n);
 	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)(MEM_COMMIT|MEM_RESERVE), (uintptr)PAGE_READWRITE);
 }
 
@@ -50,11 +50,11 @@ runtime·SysUsed(void *v, uintptr n)
 }
 
 void
-runtime·SysFree(void *v, uintptr n)
+runtime·SysFree(void *v, uintptr n, uint64 *stat)
 {
 	uintptr r;
 
-	mstats.sys -= n;
+	runtime·xadd64(stat, -(uint64)n);
 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, (uintptr)0, (uintptr)MEM_RELEASE);
 	if(r == 0)
 		runtime·throw("runtime: failed to release pages");
@@ -74,11 +74,11 @@ runtime·SysReserve(void *v, uintptr n)
 }
 
 void
-runtime·SysMap(void *v, uintptr n)
+runtime·SysMap(void *v, uintptr n, uint64 *stat)
 {
 	void *p;
 	
-	mstats.sys += n;
+	runtime·xadd64(stat, n);
 	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
 	if(p != v)
 		runtime·throw("runtime: cannot map pages in arena address space");

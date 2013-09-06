@@ -70,10 +70,9 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 	Bucket *b;
 
 	if(buckhash == nil) {
-		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0]);
+		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0], &mstats.buckhash_sys);
 		if(buckhash == nil)
 			runtime·throw("runtime: cannot allocate memory");
-		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
 	}
 
 	// Hash stack.
@@ -95,7 +94,7 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 	if(!alloc)
 		return nil;
 
-	b = runtime·persistentalloc(sizeof *b + nstk*sizeof stk[0], 0);
+	b = runtime·persistentalloc(sizeof *b + nstk*sizeof stk[0], 0, &mstats.buckhash_sys);
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
 	b->typ = typ;
@@ -197,7 +196,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 		if(ah->addr == (addr>>AddrHashShift))
 			goto found;
 
-	ah = runtime·persistentalloc(sizeof *ah, 0);
+	ah = runtime·persistentalloc(sizeof *ah, 0, &mstats.buckhash_sys);
 	addrmem += sizeof *ah;
 	ah->next = addrhash[h];
 	ah->addr = addr>>AddrHashShift;
@@ -205,7 +204,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 
 found:
 	if((e = addrfree) == nil) {
-		e = runtime·persistentalloc(64*sizeof *e, 0);
+		e = runtime·persistentalloc(64*sizeof *e, 0, &mstats.buckhash_sys);
 		addrmem += 64*sizeof *e;
 		for(i=0; i+1<64; i++)
 			e[i].next = &e[i+1];
@@ -529,5 +528,5 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 void
 runtime·mprofinit(void)
 {
-	addrhash = runtime·persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0);
+	addrhash = runtime·persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0, &mstats.buckhash_sys);
 }

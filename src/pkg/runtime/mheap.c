@@ -36,12 +36,12 @@ RecordSpan(void *vh, byte *p)
 		cap = 64*1024/sizeof(all[0]);
 		if(cap < h->nspancap*3/2)
 			cap = h->nspancap*3/2;
-		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
+		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]), &mstats.other_sys);
 		if(all == nil)
 			runtime·throw("runtime: cannot allocate memory");
 		if(h->allspans) {
 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
-			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
+			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]), &mstats.other_sys);
 		}
 		h->allspans = all;
 		h->nspancap = cap;
@@ -55,8 +55,8 @@ runtime·MHeap_Init(MHeap *h)
 {
 	uint32 i;
 
-	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h);
-	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil);
+	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h, &mstats.mspan_sys);
+	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil, &mstats.mcache_sys);
 	// h->mapcache needs no init
 	for(i=0; i<nelem(h->free); i++)
 		runtime·MSpanList_Init(&h->free[i]);
@@ -78,7 +78,7 @@ runtime·MHeap_MapSpans(MHeap *h)
 	n = ROUND(n, PageSize);
 	if(h->spans_mapped >= n)
 		return;
-	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped);
+	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped, &mstats.other_sys);
 	h->spans_mapped = n;
 }
 
@@ -164,8 +164,6 @@ HaveSpan:
 	if(s->npages > npage) {
 		// Trim extra and put it back in the heap.
 		t = runtime·FixAlloc_Alloc(&h->spanalloc);
-		mstats.mspan_inuse = h->spanalloc.inuse;
-		mstats.mspan_sys = h->spanalloc.sys;
 		runtime·MSpan_Init(t, s->start + npage, s->npages - npage);
 		s->npages = npage;
 		p = t->start;
@@ -251,13 +249,10 @@ MHeap_Grow(MHeap *h, uintptr npage)
 			return false;
 		}
 	}
-	mstats.heap_sys += ask;
 
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
 	s = runtime·FixAlloc_Alloc(&h->spanalloc);
-	mstats.mspan_inuse = h->spanalloc.inuse;
-	mstats.mspan_sys = h->spanalloc.sys;
 	runtime·MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
 	p = s->start;
 	if(sizeof(void*) == 8)
@@ -363,8 +358,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		runtime·MSpanList_Remove(t);
 		t->state = MSpanDead;
 		runtime·FixAlloc_Free(&h->spanalloc, t);
-		mstats.mspan_inuse = h->spanalloc.inuse;
-		mstats.mspan_sys = h->spanalloc.sys;
 	}
 	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
 		if(t->npreleased == 0) {  // cant't touch this otherwise
@@ -377,8 +370,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		runtime·MSpanList_Remove(t);
 		t->state = MSpanDead;
 		runtime·FixAlloc_Free(&h->spanalloc, t);
-		mstats.mspan_inuse = h->spanalloc.inuse;
-		mstats.mspan_sys = h->spanalloc.sys;
 	}
 
 	// Insert s into appropriate list.

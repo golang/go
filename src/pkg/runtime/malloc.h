@@ -172,11 +172,11 @@ struct MLink
 //
 // SysMap maps previously reserved address space for use.
 
-void*	runtime·SysAlloc(uintptr nbytes);
-void	runtime·SysFree(void *v, uintptr nbytes);
+void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
+void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
 void	runtime·SysUnused(void *v, uintptr nbytes);
 void	runtime·SysUsed(void *v, uintptr nbytes);
-void	runtime·SysMap(void *v, uintptr nbytes);
+void	runtime·SysMap(void *v, uintptr nbytes, uint64 *stat);
 void*	runtime·SysReserve(void *v, uintptr nbytes);
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
@@ -189,17 +189,17 @@ void*	runtime·SysReserve(void *v, uintptr nbytes);
 // smashed by freeing and reallocating.
 struct FixAlloc
 {
-	uintptr size;
-	void (*first)(void *arg, byte *p);	// called first time p is returned
-	void *arg;
-	MLink *list;
-	byte *chunk;
-	uint32 nchunk;
-	uintptr inuse;	// in-use bytes now
-	uintptr sys;	// bytes obtained from system
+	uintptr	size;
+	void	(*first)(void *arg, byte *p);	// called first time p is returned
+	void*	arg;
+	MLink*	list;
+	byte*	chunk;
+	uint32	nchunk;
+	uintptr	inuse;	// in-use bytes now
+	uint64*	stat;
 };
 
-void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg);
+void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg, uint64 *stat);
 void*	runtime·FixAlloc_Alloc(FixAlloc *f);
 void	runtime·FixAlloc_Free(FixAlloc *f, void *p);
 
@@ -234,6 +234,8 @@ struct MStats
 	uint64	mcache_inuse;	// MCache structures
 	uint64	mcache_sys;
 	uint64	buckhash_sys;	// profiling bucket hash table
+	uint64	gc_sys;
+	uint64	other_sys;
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
@@ -444,7 +446,7 @@ void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
 
 void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
-void*	runtime·persistentalloc(uintptr size, uintptr align);
+void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
 void	runtime·markallocated(void *v, uintptr n, bool noptr);

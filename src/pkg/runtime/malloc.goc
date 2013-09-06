@@ -269,8 +269,6 @@ runtime·allocmcache(void)
 
 	runtime·lock(&runtime·mheap);
 	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
-	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
-	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
 	runtime·unlock(&runtime·mheap);
 	runtime·memclr((byte*)c, sizeof(*c));
 
@@ -472,7 +470,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	if(n <= h->arena_end - h->arena_used) {
 		// Keep taking from our reservation.
 		p = h->arena_used;
-		runtime·SysMap(p, n);
+		runtime·SysMap(p, n, &mstats.heap_sys);
 		h->arena_used += n;
 		runtime·MHeap_MapBits(h);
 		runtime·MHeap_MapSpans(h);
@@ -488,14 +486,14 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	// On 32-bit, once the reservation is gone we can
 	// try to get memory at a location chosen by the OS
 	// and hope that it is in the range we allocated bitmap for.
-	p = runtime·SysAlloc(n);
+	p = runtime·SysAlloc(n, &mstats.heap_sys);
 	if(p == nil)
 		return nil;
 
 	if(p < h->arena_start || p+n - h->arena_start >= MaxArena32) {
 		runtime·printf("runtime: memory allocated by OS (%p) not in usable range [%p,%p)\n",
 			p, h->arena_start, h->arena_start+MaxArena32);
-		runtime·SysFree(p, n);
+		runtime·SysFree(p, n, &mstats.heap_sys);
 		return nil;
 	}
 
@@ -530,7 +528,7 @@ enum
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
 void*
-runtime·persistentalloc(uintptr size, uintptr align)
+runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
 {
 	byte *p;
 
@@ -542,11 +540,11 @@ runtime·persistentalloc(uintptr size, uintptr align)
 	} else
 		align = 8;
 	if(size >= PersistentAllocMaxBlock)
-		return runtime·SysAlloc(size);
+		return runtime·SysAlloc(size, stat);
 	runtime·lock(&persistent);
 	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
 	if(persistent.pos + size > persistent.end) {
-		persistent.pos = runtime·SysAlloc(PersistentAllocChunk);
+		persistent.pos = runtime·SysAlloc(PersistentAllocChunk, &mstats.other_sys);
 		if(persistent.pos == nil) {
 			runtime·unlock(&persistent);
 			runtime·throw("runtime: cannot allocate memory");
@@ -556,7 +554,12 @@ runtime·persistentalloc(uintptr size, uintptr align)
 	p = persistent.pos;
 	persistent.pos += size;
 	runtime·unlock(&persistent);
-	return p; 
+	if(stat != &mstats.other_sys) {
+		// reaccount the allocation against provided stat
+		runtime·xadd64(stat, size);
+		runtime·xadd64(&mstats.other_sys, -(uint64)size);
+	}
+	return p;
 }
 
 static Lock settype_lock;
