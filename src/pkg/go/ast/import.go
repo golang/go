@@ -11,6 +11,7 @@ import (
 )
 
 // SortImports sorts runs of consecutive import lines in import blocks in f.
+// It also removes duplicate imports when it is possible to do so without data loss.
 func SortImports(fset *token.FileSet, f *File) {
 	for _, d := range f.Decls {
 		d, ok := d.(*GenDecl)
@@ -27,14 +28,25 @@ func SortImports(fset *token.FileSet, f *File) {
 
 		// Identify and sort runs of specs on successive lines.
 		i := 0
+		specs := d.Specs[:0]
 		for j, s := range d.Specs {
 			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
 				// j begins a new run.  End this one.
-				sortSpecs(fset, f, d.Specs[i:j])
+				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
 				i = j
 			}
 		}
-		sortSpecs(fset, f, d.Specs[i:])
+		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
+		d.Specs = specs
+
+		// Deduping can leave a blank line before the rparen; clean that up.
+		if len(d.Specs) > 0 {
+			lastSpec := d.Specs[len(d.Specs)-1]
+			lastLine := fset.Position(lastSpec.Pos()).Line
+			if rParenLine := fset.Position(d.Rparen).Line; rParenLine > lastLine+1 {
+				fset.File(d.Rparen).RemoveLine(rParenLine - 1)
+			}
+		}
 	}
 }
 
@@ -46,22 +58,41 @@ func importPath(s Spec) string {
 	return ""
 }
 
+func importName(s Spec) string {
+	n := s.(*ImportSpec).Name
+	if n == nil {
+		return ""
+	}
+	return n.Name
+}
+
+func importComment(s Spec) string {
+	c := s.(*ImportSpec).Comment
+	if c == nil {
+		return ""
+	}
+	return c.Text()
+}
+
+// collapse indicates whether prev may be removed, leaving only next.
+func collapse(prev, next Spec) bool {
+	if importPath(next) != importPath(prev) || importName(next) != importName(prev) {
+		return false
+	}
+	return prev.(*ImportSpec).Comment == nil
+}
+
 type posSpan struct {
 	Start token.Pos
 	End   token.Pos
 }
 
-func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
-	// Avoid work if already sorted (also catches < 2 entries).
-	sorted := true
-	for i, s := range specs {
-		if i > 0 && importPath(specs[i-1]) > importPath(s) {
-			sorted = false
-			break
-		}
-	}
-	if sorted {
-		return
+func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+	// Can't short-circuit here even if specs are already sorted,
+	// since they might yet need deduplication.
+	// A lone import, however, may be safely ignored.
+	if len(specs) <= 1 {
+		return specs
 	}
 
 	// Record positions for specs.
@@ -101,10 +132,26 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
 	}
 
 	// Sort the import specs by import path.
+	// Remove duplicates, when possible without data loss.
 	// Reassign the import paths to have the same position sequence.
 	// Reassign each comment to abut the end of its spec.
 	// Sort the comments by new position.
-	sort.Sort(byImportPath(specs))
+	sort.Sort(byImportSpec(specs))
+
+	// Dedup. Thanks to our sorting, we can just consider
+	// adjacent pairs of imports.
+	deduped := specs[:0]
+	for i, s := range specs {
+		if i == len(specs)-1 || !collapse(s, specs[i+1]) {
+			deduped = append(deduped, s)
+		} else {
+			p := s.Pos()
+			fset.File(p).RemoveLine(fset.Position(p).Line)
+		}
+	}
+	specs = deduped
+
+	// Fix up comment positions
 	for i, s := range specs {
 		s := s.(*ImportSpec)
 		if s.Name != nil {
@@ -118,14 +165,29 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
 			}
 		}
 	}
+
 	sort.Sort(byCommentPos(comments))
+
+	return specs
 }
 
-type byImportPath []Spec // slice of *ImportSpec
+type byImportSpec []Spec // slice of *ImportSpec
 
-func (x byImportPath) Len() int           { return len(x) }
-func (x byImportPath) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byImportPath) Less(i, j int) bool { return importPath(x[i]) < importPath(x[j]) }
+func (x byImportSpec) Len() int      { return len(x) }
+func (x byImportSpec) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x byImportSpec) Less(i, j int) bool {
+	ipath := importPath(x[i])
+	jpath := importPath(x[j])
+	if ipath != jpath {
+		return ipath < jpath
+	}
+	iname := importName(x[i])
+	jname := importName(x[j])
+	if iname != jname {
+		return iname < jname
+	}
+	return importComment(x[i]) < importComment(x[j])
+}
 
 type byCommentPos []*CommentGroup
 

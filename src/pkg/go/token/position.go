@@ -136,6 +136,15 @@ func (f *File) AddLine(offset int) {
 	f.set.mutex.Unlock()
 }
 
+// RemoveLine removes a line by line number as reported by Position.Line.
+//
+func (f *File) RemoveLine(line int) {
+	f.set.mutex.Lock()
+	copy(f.lines[line:], f.lines[line+1:])
+	f.lines = f.lines[:len(f.lines)-1]
+	f.set.mutex.Unlock()
+}
+
 // SetLines sets the line offsets for a file and returns true if successful.
 // The line offsets are the offsets of the first character of each line;
 // for instance for the content "ab\nc\n" the line offsets are {0, 3}.

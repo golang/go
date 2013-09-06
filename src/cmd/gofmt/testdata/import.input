@@ -106,3 +106,26 @@ import (
 	"errors"
 	"io" // for Reader
 )
+
+// Test deduping and extended sorting
+import (
+	"B" // B
+	a "A" // aA
+	b "A" // bA2
+	b "A" // bA1
+	. "B" // .B
+	. "B"
+	"C"
+	"C"
+	"C"
+	a "D" // aD
+	"B"
+	_ "B" // _b
+)
+
+import (
+	"dedup_by_group"
+	"dedup_by_group"
+
+	"dedup_by_group"
+)
