@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"io"
 )
 
 // This example reads 10 cryptographically secure pseudorandom numbers from
@@ -16,7 +15,7 @@ import (
 func ExampleRead() {
 	c := 10
 	b := make([]byte, c)
-	_, err := io.ReadFull(rand.Reader, b)
+	_, err := rand.Read(b)
 	if err != nil {
 		fmt.Println("error:", err)
 		return
