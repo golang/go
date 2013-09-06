@@ -181,6 +181,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testTimeout = value
 		case "blockprofile", "cpuprofile", "memprofile":
 			testProfile = true
+			testNeedBinary = true
 		case "coverpkg":
 			testCover = true
 			if value == "" {

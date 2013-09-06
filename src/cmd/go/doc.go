@@ -269,7 +269,7 @@ List packages
 
 Usage:
 
-	go list [-e] [-f format] [-json] [-tags 'tag list'] [packages]
+	go list [-e] [-race] [-f format] [-json] [-tags 'tag list'] [packages]
 
 List lists the packages named by the import paths, one per line.
 
@@ -344,6 +344,9 @@ a non-nil Error field; other information may or may not be missing
 
 The -tags flag specifies a list of build tags, like in the 'go build'
 command.
+
+The -race flag causes the package data to include the dependencies
+required by the race detector.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -809,8 +812,8 @@ will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 
-The test flags that generate profiles also leave the test binary in pkg.test
-for use when analyzing the profiles.
+The test flags that generate profiles (other than for coverage) also
+leave the test binary in pkg.test for use when analyzing the profiles.
 
 Flags not recognized by 'go test' must be placed after any specified packages.
 
