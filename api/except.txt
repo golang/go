@@ -8,3 +8,9 @@ pkg syscall (freebsd-amd64), func Fchflags(string, int) error
 pkg testing, func RegisterCover(Cover)
 pkg text/template/parse, type DotNode bool
 pkg text/template/parse, type Node interface { Copy, String, Type }
+pkg os (linux-arm), const O_SYNC = 4096
+pkg os (linux-arm-cgo), const O_SYNC = 4096
+pkg syscall (darwin-386), const ImplementsGetwd = false
+pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
+pkg syscall (darwin-amd64), const ImplementsGetwd = false
+pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false

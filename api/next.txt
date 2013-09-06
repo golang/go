@@ -5,6 +5,9 @@ pkg archive/zip, type Compressor func(io.Writer) (io.WriteCloser, error)
 pkg archive/zip, type Decompressor func(io.Reader) io.ReadCloser
 pkg bufio, method (*Reader) Reset(io.Reader)
 pkg bufio, method (*Writer) Reset(io.Writer)
+pkg compress/flate, method (*Writer) Reset(io.Writer)
+pkg compress/gzip, method (*Writer) Reset(io.Writer)
+pkg compress/zlib, method (*Writer) Reset(io.Writer)
 pkg container/heap, func Fix(Interface, int)
 pkg container/list, method (*List) MoveAfter(*Element, *Element)
 pkg container/list, method (*List) MoveBefore(*Element, *Element)
@@ -16,7 +19,9 @@ pkg crypto/cipher, type AEAD interface, Open([]uint8, []uint8, []uint8, []uint8)
 pkg crypto/cipher, type AEAD interface, Overhead() int
 pkg crypto/cipher, type AEAD interface, Seal([]uint8, []uint8, []uint8, []uint8) []uint8
 pkg crypto/md5, func Sum([]uint8) [16]uint8
+pkg crypto/rsa, const PSSSaltLengthAuto = 0
 pkg crypto/rsa, const PSSSaltLengthAuto ideal-int
+pkg crypto/rsa, const PSSSaltLengthEqualsHash = -1
 pkg crypto/rsa, const PSSSaltLengthEqualsHash ideal-int
 pkg crypto/rsa, func SignPSS(io.Reader, *PrivateKey, crypto.Hash, []uint8, *PSSOptions) ([]uint8, error)
 pkg crypto/rsa, func VerifyPSS(*PublicKey, crypto.Hash, []uint8, []uint8, *PSSOptions) error
@@ -28,19 +33,33 @@ pkg crypto/sha256, func Sum256([]uint8) [32]uint8
 pkg crypto/sha512, func Sum384([]uint8) [48]uint8
 pkg crypto/sha512, func Sum512([]uint8) [64]uint8
 pkg crypto/subtle, func ConstantTimeLessOrEq(int, int) int
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA = 49161
 pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA uint16
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 = 49195
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 uint16
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA = 49162
 pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA uint16
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_RC4_128_SHA = 49159
 pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_RC4_128_SHA uint16
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 = 49199
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 uint16
+pkg crypto/tls, const VersionSSL30 = 768
 pkg crypto/tls, const VersionSSL30 ideal-int
+pkg crypto/tls, const VersionTLS10 = 769
 pkg crypto/tls, const VersionTLS10 ideal-int
+pkg crypto/tls, const VersionTLS11 = 770
 pkg crypto/tls, const VersionTLS11 ideal-int
+pkg crypto/tls, const VersionTLS12 = 771
 pkg crypto/tls, const VersionTLS12 ideal-int
 pkg crypto/tls, type Config struct, MaxVersion uint16
 pkg crypto/tls, type Config struct, MinVersion uint16
 pkg crypto/x509, func MarshalECPrivateKey(*ecdsa.PrivateKey) ([]uint8, error)
 pkg crypto/x509, type Certificate struct, CRLDistributionPoints []string
+pkg crypto/x509, type Certificate struct, Extensions []pkix.Extension
+pkg crypto/x509, type Certificate struct, ExtraExtensions []pkix.Extension
 pkg crypto/x509, type Certificate struct, IssuingCertificateURL []string
 pkg crypto/x509, type Certificate struct, OCSPServer []string
+pkg database/sql, method (*DB) SetMaxOpenConns(int)
 pkg encoding, type BinaryMarshaler interface { MarshalBinary }
 pkg encoding, type BinaryMarshaler interface, MarshalBinary() ([]uint8, error)
 pkg encoding, type BinaryUnmarshaler interface { UnmarshalBinary }
@@ -72,8 +91,9 @@ pkg go/build, type Package struct, AllTags []string
 pkg go/build, type Package struct, CXXFiles []string
 pkg go/build, type Package struct, CgoCPPFLAGS []string
 pkg go/build, type Package struct, CgoCXXFLAGS []string
-pkg image/color, var Plan9Palette []Color
-pkg image/color, var WebSafePalette []Color
+pkg html/template, type Template struct, Tree *parse.Tree
+pkg image/color/palette, var Plan9 []color.Color
+pkg image/color/palette, var WebSafe []color.Color
 pkg image/draw, method (Op) Draw(Image, image.Rectangle, image.Image, image.Point)
 pkg image/draw, type Drawer interface { Draw }
 pkg image/draw, type Drawer interface, Draw(Image, image.Rectangle, image.Image, image.Point)
@@ -735,6 +755,8 @@ pkg net, method (*IP) UnmarshalText([]uint8) error
 pkg net, method (*TCPConn) SetKeepAlivePeriod(time.Duration) error
 pkg net, method (IP) MarshalText() ([]uint8, error)
 pkg net/smtp, method (*Client) Close() error
+pkg os (linux-arm), const O_SYNC = 1052672
+pkg os (linux-arm-cgo), const O_SYNC = 1052672
 pkg reflect, method (Value) SetCap(int)
 pkg reflect, method (Value) Slice3(int, int, int) Value
 pkg runtime/debug, func SetMaxStack(int) int
@@ -747,11 +769,18 @@ pkg sync/atomic, func SwapPointer(*unsafe.Pointer, unsafe.Pointer) unsafe.Pointe
 pkg sync/atomic, func SwapUint32(*uint32, uint32) uint32
 pkg sync/atomic, func SwapUint64(*uint64, uint64) uint64
 pkg sync/atomic, func SwapUintptr(*uintptr, uintptr) uintptr
+pkg syscall (darwin-386), const ICMP6_FILTER = 18
 pkg syscall (darwin-386), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-386), const ImplementsGetwd = true
+pkg syscall (darwin-386), const PRIO_PGRP = 1
 pkg syscall (darwin-386), const PRIO_PGRP ideal-int
+pkg syscall (darwin-386), const PRIO_PROCESS = 0
 pkg syscall (darwin-386), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-386), const PRIO_USER = 2
 pkg syscall (darwin-386), const PRIO_USER ideal-int
+pkg syscall (darwin-386), const SizeofICMPv6Filter = 32
 pkg syscall (darwin-386), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-386), const SizeofIPv6MTUInfo = 32
 pkg syscall (darwin-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (darwin-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
@@ -761,11 +790,18 @@ pkg syscall (darwin-386), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (darwin-386), type IPv6MTUInfo struct
 pkg syscall (darwin-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-386), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (darwin-386-cgo), const ICMP6_FILTER = 18
 pkg syscall (darwin-386-cgo), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-386-cgo), const ImplementsGetwd = true
+pkg syscall (darwin-386-cgo), const PRIO_PGRP = 1
 pkg syscall (darwin-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (darwin-386-cgo), const PRIO_PROCESS = 0
 pkg syscall (darwin-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-386-cgo), const PRIO_USER = 2
 pkg syscall (darwin-386-cgo), const PRIO_USER ideal-int
+pkg syscall (darwin-386-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (darwin-386-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-386-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (darwin-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (darwin-386-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
@@ -775,11 +811,18 @@ pkg syscall (darwin-386-cgo), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct
 pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-386-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (darwin-amd64), const ICMP6_FILTER = 18
 pkg syscall (darwin-amd64), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-amd64), const ImplementsGetwd = true
+pkg syscall (darwin-amd64), const PRIO_PGRP = 1
 pkg syscall (darwin-amd64), const PRIO_PGRP ideal-int
+pkg syscall (darwin-amd64), const PRIO_PROCESS = 0
 pkg syscall (darwin-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-amd64), const PRIO_USER = 2
 pkg syscall (darwin-amd64), const PRIO_USER ideal-int
+pkg syscall (darwin-amd64), const SizeofICMPv6Filter = 32
 pkg syscall (darwin-amd64), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-amd64), const SizeofIPv6MTUInfo = 32
 pkg syscall (darwin-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (darwin-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
@@ -790,11 +833,18 @@ pkg syscall (darwin-amd64), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (darwin-amd64), type IPv6MTUInfo struct
 pkg syscall (darwin-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-amd64), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (darwin-amd64-cgo), const ICMP6_FILTER = 18
 pkg syscall (darwin-amd64-cgo), const ICMP6_FILTER ideal-int
+pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = true
+pkg syscall (darwin-amd64-cgo), const PRIO_PGRP = 1
 pkg syscall (darwin-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (darwin-amd64-cgo), const PRIO_PROCESS = 0
 pkg syscall (darwin-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (darwin-amd64-cgo), const PRIO_USER = 2
 pkg syscall (darwin-amd64-cgo), const PRIO_USER ideal-int
+pkg syscall (darwin-amd64-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (darwin-amd64-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (darwin-amd64-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (darwin-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (darwin-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (darwin-amd64-cgo), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
@@ -805,13 +855,21 @@ pkg syscall (darwin-amd64-cgo), type ICMPv6Filter struct, Filt [8]uint32
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (darwin-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (freebsd-386), const F_DUP2FD_CLOEXEC = 18
 pkg syscall (freebsd-386), const F_DUP2FD_CLOEXEC ideal-int
+pkg syscall (freebsd-386), const F_DUPFD_CLOEXEC = 17
 pkg syscall (freebsd-386), const F_DUPFD_CLOEXEC ideal-int
+pkg syscall (freebsd-386), const ICMP6_FILTER = 18
 pkg syscall (freebsd-386), const ICMP6_FILTER ideal-int
+pkg syscall (freebsd-386), const PRIO_PGRP = 1
 pkg syscall (freebsd-386), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-386), const PRIO_PROCESS = 0
 pkg syscall (freebsd-386), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-386), const PRIO_USER = 2
 pkg syscall (freebsd-386), const PRIO_USER ideal-int
+pkg syscall (freebsd-386), const SizeofICMPv6Filter = 32
 pkg syscall (freebsd-386), const SizeofICMPv6Filter ideal-int
+pkg syscall (freebsd-386), const SizeofIPv6MTUInfo = 32
 pkg syscall (freebsd-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (freebsd-386), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
@@ -1266,8 +1324,10 @@ pkg syscall (freebsd-386-cgo), const FD_SETSIZE ideal-int
 pkg syscall (freebsd-386-cgo), const FLUSHO ideal-int
 pkg syscall (freebsd-386-cgo), const F_CANCEL ideal-int
 pkg syscall (freebsd-386-cgo), const F_DUP2FD ideal-int
+pkg syscall (freebsd-386-cgo), const F_DUP2FD_CLOEXEC = 18
 pkg syscall (freebsd-386-cgo), const F_DUP2FD_CLOEXEC ideal-int
 pkg syscall (freebsd-386-cgo), const F_DUPFD ideal-int
+pkg syscall (freebsd-386-cgo), const F_DUPFD_CLOEXEC = 17
 pkg syscall (freebsd-386-cgo), const F_DUPFD_CLOEXEC ideal-int
 pkg syscall (freebsd-386-cgo), const F_GETFD ideal-int
 pkg syscall (freebsd-386-cgo), const F_GETFL ideal-int
@@ -1291,6 +1351,7 @@ pkg syscall (freebsd-386-cgo), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-386-cgo), const F_WRLCK ideal-int
 pkg syscall (freebsd-386-cgo), const HUPCL ideal-int
 pkg syscall (freebsd-386-cgo), const ICANON ideal-int
+pkg syscall (freebsd-386-cgo), const ICMP6_FILTER = 18
 pkg syscall (freebsd-386-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-386-cgo), const ICRNL ideal-int
 pkg syscall (freebsd-386-cgo), const IEXTEN ideal-int
@@ -1886,8 +1947,11 @@ pkg syscall (freebsd-386-cgo), const PARENB ideal-int
 pkg syscall (freebsd-386-cgo), const PARMRK ideal-int
 pkg syscall (freebsd-386-cgo), const PARODD ideal-int
 pkg syscall (freebsd-386-cgo), const PENDIN ideal-int
+pkg syscall (freebsd-386-cgo), const PRIO_PGRP = 1
 pkg syscall (freebsd-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-386-cgo), const PRIO_PROCESS = 0
 pkg syscall (freebsd-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-386-cgo), const PRIO_USER = 2
 pkg syscall (freebsd-386-cgo), const PRIO_USER ideal-int
 pkg syscall (freebsd-386-cgo), const PROT_EXEC ideal-int
 pkg syscall (freebsd-386-cgo), const PROT_NONE ideal-int
@@ -2444,9 +2508,11 @@ pkg syscall (freebsd-386-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-386-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (freebsd-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-386-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (freebsd-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-386-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -3016,13 +3082,21 @@ pkg syscall (freebsd-386-cgo), type WaitStatus uint32
 pkg syscall (freebsd-386-cgo), var Stderr int
 pkg syscall (freebsd-386-cgo), var Stdin int
 pkg syscall (freebsd-386-cgo), var Stdout int
+pkg syscall (freebsd-amd64), const F_DUP2FD_CLOEXEC = 18
 pkg syscall (freebsd-amd64), const F_DUP2FD_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64), const F_DUPFD_CLOEXEC = 17
 pkg syscall (freebsd-amd64), const F_DUPFD_CLOEXEC ideal-int
+pkg syscall (freebsd-amd64), const ICMP6_FILTER = 18
 pkg syscall (freebsd-amd64), const ICMP6_FILTER ideal-int
+pkg syscall (freebsd-amd64), const PRIO_PGRP = 1
 pkg syscall (freebsd-amd64), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-amd64), const PRIO_PROCESS = 0
 pkg syscall (freebsd-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-amd64), const PRIO_USER = 2
 pkg syscall (freebsd-amd64), const PRIO_USER ideal-int
+pkg syscall (freebsd-amd64), const SizeofICMPv6Filter = 32
 pkg syscall (freebsd-amd64), const SizeofICMPv6Filter ideal-int
+pkg syscall (freebsd-amd64), const SizeofIPv6MTUInfo = 32
 pkg syscall (freebsd-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
 pkg syscall (freebsd-amd64), func GetsockoptIPv6MTUInfo(int, int, int) (*IPv6MTUInfo, error)
@@ -3477,8 +3551,10 @@ pkg syscall (freebsd-amd64-cgo), const FD_SETSIZE ideal-int
 pkg syscall (freebsd-amd64-cgo), const FLUSHO ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_CANCEL ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_DUP2FD ideal-int
+pkg syscall (freebsd-amd64-cgo), const F_DUP2FD_CLOEXEC = 18
 pkg syscall (freebsd-amd64-cgo), const F_DUP2FD_CLOEXEC ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_DUPFD ideal-int
+pkg syscall (freebsd-amd64-cgo), const F_DUPFD_CLOEXEC = 17
 pkg syscall (freebsd-amd64-cgo), const F_DUPFD_CLOEXEC ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_GETFD ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_GETFL ideal-int
@@ -3502,6 +3578,7 @@ pkg syscall (freebsd-amd64-cgo), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-amd64-cgo), const F_WRLCK ideal-int
 pkg syscall (freebsd-amd64-cgo), const HUPCL ideal-int
 pkg syscall (freebsd-amd64-cgo), const ICANON ideal-int
+pkg syscall (freebsd-amd64-cgo), const ICMP6_FILTER = 18
 pkg syscall (freebsd-amd64-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-amd64-cgo), const ICRNL ideal-int
 pkg syscall (freebsd-amd64-cgo), const IEXTEN ideal-int
@@ -4097,8 +4174,11 @@ pkg syscall (freebsd-amd64-cgo), const PARENB ideal-int
 pkg syscall (freebsd-amd64-cgo), const PARMRK ideal-int
 pkg syscall (freebsd-amd64-cgo), const PARODD ideal-int
 pkg syscall (freebsd-amd64-cgo), const PENDIN ideal-int
+pkg syscall (freebsd-amd64-cgo), const PRIO_PGRP = 1
 pkg syscall (freebsd-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-amd64-cgo), const PRIO_PROCESS = 0
 pkg syscall (freebsd-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-amd64-cgo), const PRIO_USER = 2
 pkg syscall (freebsd-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (freebsd-amd64-cgo), const PROT_EXEC ideal-int
 pkg syscall (freebsd-amd64-cgo), const PROT_NONE ideal-int
@@ -4655,9 +4735,11 @@ pkg syscall (freebsd-amd64-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-amd64-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (freebsd-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-amd64-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (freebsd-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-amd64-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -5703,6 +5785,7 @@ pkg syscall (freebsd-arm), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-arm), const F_WRLCK ideal-int
 pkg syscall (freebsd-arm), const HUPCL ideal-int
 pkg syscall (freebsd-arm), const ICANON ideal-int
+pkg syscall (freebsd-arm), const ICMP6_FILTER = 18
 pkg syscall (freebsd-arm), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-arm), const ICRNL ideal-int
 pkg syscall (freebsd-arm), const IEXTEN ideal-int
@@ -6298,8 +6381,11 @@ pkg syscall (freebsd-arm), const PARENB ideal-int
 pkg syscall (freebsd-arm), const PARMRK ideal-int
 pkg syscall (freebsd-arm), const PARODD ideal-int
 pkg syscall (freebsd-arm), const PENDIN ideal-int
+pkg syscall (freebsd-arm), const PRIO_PGRP = 1
 pkg syscall (freebsd-arm), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-arm), const PRIO_PROCESS = 0
 pkg syscall (freebsd-arm), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-arm), const PRIO_USER = 2
 pkg syscall (freebsd-arm), const PRIO_USER ideal-int
 pkg syscall (freebsd-arm), const PROT_EXEC ideal-int
 pkg syscall (freebsd-arm), const PROT_NONE ideal-int
@@ -6863,9 +6949,11 @@ pkg syscall (freebsd-arm), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-arm), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-arm), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-arm), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-arm), const SizeofICMPv6Filter = 32
 pkg syscall (freebsd-arm), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-arm), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-arm), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-arm), const SizeofIPv6MTUInfo = 32
 pkg syscall (freebsd-arm), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-arm), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-arm), const SizeofIfAnnounceMsghdr ideal-int
@@ -7912,6 +8000,7 @@ pkg syscall (freebsd-arm-cgo), const F_UNLCKSYS ideal-int
 pkg syscall (freebsd-arm-cgo), const F_WRLCK ideal-int
 pkg syscall (freebsd-arm-cgo), const HUPCL ideal-int
 pkg syscall (freebsd-arm-cgo), const ICANON ideal-int
+pkg syscall (freebsd-arm-cgo), const ICMP6_FILTER = 18
 pkg syscall (freebsd-arm-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (freebsd-arm-cgo), const ICRNL ideal-int
 pkg syscall (freebsd-arm-cgo), const IEXTEN ideal-int
@@ -8507,8 +8596,11 @@ pkg syscall (freebsd-arm-cgo), const PARENB ideal-int
 pkg syscall (freebsd-arm-cgo), const PARMRK ideal-int
 pkg syscall (freebsd-arm-cgo), const PARODD ideal-int
 pkg syscall (freebsd-arm-cgo), const PENDIN ideal-int
+pkg syscall (freebsd-arm-cgo), const PRIO_PGRP = 1
 pkg syscall (freebsd-arm-cgo), const PRIO_PGRP ideal-int
+pkg syscall (freebsd-arm-cgo), const PRIO_PROCESS = 0
 pkg syscall (freebsd-arm-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (freebsd-arm-cgo), const PRIO_USER = 2
 pkg syscall (freebsd-arm-cgo), const PRIO_USER ideal-int
 pkg syscall (freebsd-arm-cgo), const PROT_EXEC ideal-int
 pkg syscall (freebsd-arm-cgo), const PROT_NONE ideal-int
@@ -9072,9 +9164,11 @@ pkg syscall (freebsd-arm-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofBpfZbuf ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofBpfZbufHeader ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (freebsd-arm-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIPMreq ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (freebsd-arm-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (freebsd-arm-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -9648,11 +9742,61 @@ pkg syscall (freebsd-arm-cgo), type WaitStatus uint32
 pkg syscall (freebsd-arm-cgo), var Stderr int
 pkg syscall (freebsd-arm-cgo), var Stdin int
 pkg syscall (freebsd-arm-cgo), var Stdout int
+pkg syscall (linux-386), const CLONE_CHILD_CLEARTID = 2097152
+pkg syscall (linux-386), const CLONE_CHILD_CLEARTID ideal-int
+pkg syscall (linux-386), const CLONE_CHILD_SETTID = 16777216
+pkg syscall (linux-386), const CLONE_CHILD_SETTID ideal-int
+pkg syscall (linux-386), const CLONE_DETACHED = 4194304
+pkg syscall (linux-386), const CLONE_DETACHED ideal-int
+pkg syscall (linux-386), const CLONE_FILES = 1024
+pkg syscall (linux-386), const CLONE_FILES ideal-int
+pkg syscall (linux-386), const CLONE_FS = 512
+pkg syscall (linux-386), const CLONE_FS ideal-int
+pkg syscall (linux-386), const CLONE_IO = 2147483648
+pkg syscall (linux-386), const CLONE_IO ideal-int
+pkg syscall (linux-386), const CLONE_NEWIPC = 134217728
+pkg syscall (linux-386), const CLONE_NEWIPC ideal-int
+pkg syscall (linux-386), const CLONE_NEWNET = 1073741824
+pkg syscall (linux-386), const CLONE_NEWNET ideal-int
+pkg syscall (linux-386), const CLONE_NEWNS = 131072
+pkg syscall (linux-386), const CLONE_NEWNS ideal-int
+pkg syscall (linux-386), const CLONE_NEWPID = 536870912
+pkg syscall (linux-386), const CLONE_NEWPID ideal-int
+pkg syscall (linux-386), const CLONE_NEWUSER = 268435456
+pkg syscall (linux-386), const CLONE_NEWUSER ideal-int
+pkg syscall (linux-386), const CLONE_NEWUTS = 67108864
+pkg syscall (linux-386), const CLONE_NEWUTS ideal-int
+pkg syscall (linux-386), const CLONE_PARENT = 32768
+pkg syscall (linux-386), const CLONE_PARENT ideal-int
+pkg syscall (linux-386), const CLONE_PARENT_SETTID = 1048576
+pkg syscall (linux-386), const CLONE_PARENT_SETTID ideal-int
+pkg syscall (linux-386), const CLONE_PTRACE = 8192
+pkg syscall (linux-386), const CLONE_PTRACE ideal-int
+pkg syscall (linux-386), const CLONE_SETTLS = 524288
+pkg syscall (linux-386), const CLONE_SETTLS ideal-int
+pkg syscall (linux-386), const CLONE_SIGHAND = 2048
+pkg syscall (linux-386), const CLONE_SIGHAND ideal-int
+pkg syscall (linux-386), const CLONE_SYSVSEM = 262144
+pkg syscall (linux-386), const CLONE_SYSVSEM ideal-int
+pkg syscall (linux-386), const CLONE_THREAD = 65536
+pkg syscall (linux-386), const CLONE_THREAD ideal-int
+pkg syscall (linux-386), const CLONE_UNTRACED = 8388608
+pkg syscall (linux-386), const CLONE_UNTRACED ideal-int
+pkg syscall (linux-386), const CLONE_VFORK = 16384
+pkg syscall (linux-386), const CLONE_VFORK ideal-int
+pkg syscall (linux-386), const CLONE_VM = 256
+pkg syscall (linux-386), const CLONE_VM ideal-int
+pkg syscall (linux-386), const ICMPV6_FILTER = 1
 pkg syscall (linux-386), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-386), const PRIO_PGRP = 1
 pkg syscall (linux-386), const PRIO_PGRP ideal-int
+pkg syscall (linux-386), const PRIO_PROCESS = 0
 pkg syscall (linux-386), const PRIO_PROCESS ideal-int
+pkg syscall (linux-386), const PRIO_USER = 2
 pkg syscall (linux-386), const PRIO_USER ideal-int
+pkg syscall (linux-386), const SizeofICMPv6Filter = 32
 pkg syscall (linux-386), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-386), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-386), func Dup3(int, int, int) error
 pkg syscall (linux-386), func Getpriority(int, int) (int, error)
@@ -9666,11 +9810,62 @@ pkg syscall (linux-386), type ICMPv6Filter struct, Data [8]uint32
 pkg syscall (linux-386), type IPv6MTUInfo struct
 pkg syscall (linux-386), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-386), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-386), type SysProcAttr struct, Cloneflags uintptr
+pkg syscall (linux-386-cgo), const CLONE_CHILD_CLEARTID = 2097152
+pkg syscall (linux-386-cgo), const CLONE_CHILD_CLEARTID ideal-int
+pkg syscall (linux-386-cgo), const CLONE_CHILD_SETTID = 16777216
+pkg syscall (linux-386-cgo), const CLONE_CHILD_SETTID ideal-int
+pkg syscall (linux-386-cgo), const CLONE_DETACHED = 4194304
+pkg syscall (linux-386-cgo), const CLONE_DETACHED ideal-int
+pkg syscall (linux-386-cgo), const CLONE_FILES = 1024
+pkg syscall (linux-386-cgo), const CLONE_FILES ideal-int
+pkg syscall (linux-386-cgo), const CLONE_FS = 512
+pkg syscall (linux-386-cgo), const CLONE_FS ideal-int
+pkg syscall (linux-386-cgo), const CLONE_IO = 2147483648
+pkg syscall (linux-386-cgo), const CLONE_IO ideal-int
+pkg syscall (linux-386-cgo), const CLONE_NEWIPC = 134217728
+pkg syscall (linux-386-cgo), const CLONE_NEWIPC ideal-int
+pkg syscall (linux-386-cgo), const CLONE_NEWNET = 1073741824
+pkg syscall (linux-386-cgo), const CLONE_NEWNET ideal-int
+pkg syscall (linux-386-cgo), const CLONE_NEWNS = 131072
+pkg syscall (linux-386-cgo), const CLONE_NEWNS ideal-int
+pkg syscall (linux-386-cgo), const CLONE_NEWPID = 536870912
+pkg syscall (linux-386-cgo), const CLONE_NEWPID ideal-int
+pkg syscall (linux-386-cgo), const CLONE_NEWUSER = 268435456
+pkg syscall (linux-386-cgo), const CLONE_NEWUSER ideal-int
+pkg syscall (linux-386-cgo), const CLONE_NEWUTS = 67108864
+pkg syscall (linux-386-cgo), const CLONE_NEWUTS ideal-int
+pkg syscall (linux-386-cgo), const CLONE_PARENT = 32768
+pkg syscall (linux-386-cgo), const CLONE_PARENT ideal-int
+pkg syscall (linux-386-cgo), const CLONE_PARENT_SETTID = 1048576
+pkg syscall (linux-386-cgo), const CLONE_PARENT_SETTID ideal-int
+pkg syscall (linux-386-cgo), const CLONE_PTRACE = 8192
+pkg syscall (linux-386-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (linux-386-cgo), const CLONE_SETTLS = 524288
+pkg syscall (linux-386-cgo), const CLONE_SETTLS ideal-int
+pkg syscall (linux-386-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (linux-386-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (linux-386-cgo), const CLONE_SYSVSEM = 262144
+pkg syscall (linux-386-cgo), const CLONE_SYSVSEM ideal-int
+pkg syscall (linux-386-cgo), const CLONE_THREAD = 65536
+pkg syscall (linux-386-cgo), const CLONE_THREAD ideal-int
+pkg syscall (linux-386-cgo), const CLONE_UNTRACED = 8388608
+pkg syscall (linux-386-cgo), const CLONE_UNTRACED ideal-int
+pkg syscall (linux-386-cgo), const CLONE_VFORK = 16384
+pkg syscall (linux-386-cgo), const CLONE_VFORK ideal-int
+pkg syscall (linux-386-cgo), const CLONE_VM = 256
+pkg syscall (linux-386-cgo), const CLONE_VM ideal-int
+pkg syscall (linux-386-cgo), const ICMPV6_FILTER = 1
 pkg syscall (linux-386-cgo), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-386-cgo), const PRIO_PGRP = 1
 pkg syscall (linux-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (linux-386-cgo), const PRIO_PROCESS = 0
 pkg syscall (linux-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (linux-386-cgo), const PRIO_USER = 2
 pkg syscall (linux-386-cgo), const PRIO_USER ideal-int
+pkg syscall (linux-386-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (linux-386-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-386-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-386-cgo), func Dup3(int, int, int) error
 pkg syscall (linux-386-cgo), func Getpriority(int, int) (int, error)
@@ -9684,11 +9879,62 @@ pkg syscall (linux-386-cgo), type ICMPv6Filter struct, Data [8]uint32
 pkg syscall (linux-386-cgo), type IPv6MTUInfo struct
 pkg syscall (linux-386-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-386-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-386-cgo), type SysProcAttr struct, Cloneflags uintptr
+pkg syscall (linux-amd64), const CLONE_CHILD_CLEARTID = 2097152
+pkg syscall (linux-amd64), const CLONE_CHILD_CLEARTID ideal-int
+pkg syscall (linux-amd64), const CLONE_CHILD_SETTID = 16777216
+pkg syscall (linux-amd64), const CLONE_CHILD_SETTID ideal-int
+pkg syscall (linux-amd64), const CLONE_DETACHED = 4194304
+pkg syscall (linux-amd64), const CLONE_DETACHED ideal-int
+pkg syscall (linux-amd64), const CLONE_FILES = 1024
+pkg syscall (linux-amd64), const CLONE_FILES ideal-int
+pkg syscall (linux-amd64), const CLONE_FS = 512
+pkg syscall (linux-amd64), const CLONE_FS ideal-int
+pkg syscall (linux-amd64), const CLONE_IO = 2147483648
+pkg syscall (linux-amd64), const CLONE_IO ideal-int
+pkg syscall (linux-amd64), const CLONE_NEWIPC = 134217728
+pkg syscall (linux-amd64), const CLONE_NEWIPC ideal-int
+pkg syscall (linux-amd64), const CLONE_NEWNET = 1073741824
+pkg syscall (linux-amd64), const CLONE_NEWNET ideal-int
+pkg syscall (linux-amd64), const CLONE_NEWNS = 131072
+pkg syscall (linux-amd64), const CLONE_NEWNS ideal-int
+pkg syscall (linux-amd64), const CLONE_NEWPID = 536870912
+pkg syscall (linux-amd64), const CLONE_NEWPID ideal-int
+pkg syscall (linux-amd64), const CLONE_NEWUSER = 268435456
+pkg syscall (linux-amd64), const CLONE_NEWUSER ideal-int
+pkg syscall (linux-amd64), const CLONE_NEWUTS = 67108864
+pkg syscall (linux-amd64), const CLONE_NEWUTS ideal-int
+pkg syscall (linux-amd64), const CLONE_PARENT = 32768
+pkg syscall (linux-amd64), const CLONE_PARENT ideal-int
+pkg syscall (linux-amd64), const CLONE_PARENT_SETTID = 1048576
+pkg syscall (linux-amd64), const CLONE_PARENT_SETTID ideal-int
+pkg syscall (linux-amd64), const CLONE_PTRACE = 8192
+pkg syscall (linux-amd64), const CLONE_PTRACE ideal-int
+pkg syscall (linux-amd64), const CLONE_SETTLS = 524288
+pkg syscall (linux-amd64), const CLONE_SETTLS ideal-int
+pkg syscall (linux-amd64), const CLONE_SIGHAND = 2048
+pkg syscall (linux-amd64), const CLONE_SIGHAND ideal-int
+pkg syscall (linux-amd64), const CLONE_SYSVSEM = 262144
+pkg syscall (linux-amd64), const CLONE_SYSVSEM ideal-int
+pkg syscall (linux-amd64), const CLONE_THREAD = 65536
+pkg syscall (linux-amd64), const CLONE_THREAD ideal-int
+pkg syscall (linux-amd64), const CLONE_UNTRACED = 8388608
+pkg syscall (linux-amd64), const CLONE_UNTRACED ideal-int
+pkg syscall (linux-amd64), const CLONE_VFORK = 16384
+pkg syscall (linux-amd64), const CLONE_VFORK ideal-int
+pkg syscall (linux-amd64), const CLONE_VM = 256
+pkg syscall (linux-amd64), const CLONE_VM ideal-int
+pkg syscall (linux-amd64), const ICMPV6_FILTER = 1
 pkg syscall (linux-amd64), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-amd64), const PRIO_PGRP = 1
 pkg syscall (linux-amd64), const PRIO_PGRP ideal-int
+pkg syscall (linux-amd64), const PRIO_PROCESS = 0
 pkg syscall (linux-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (linux-amd64), const PRIO_USER = 2
 pkg syscall (linux-amd64), const PRIO_USER ideal-int
+pkg syscall (linux-amd64), const SizeofICMPv6Filter = 32
 pkg syscall (linux-amd64), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-amd64), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-amd64), func Dup3(int, int, int) error
 pkg syscall (linux-amd64), func Getpriority(int, int) (int, error)
@@ -9702,11 +9948,62 @@ pkg syscall (linux-amd64), type ICMPv6Filter struct, Data [8]uint32
 pkg syscall (linux-amd64), type IPv6MTUInfo struct
 pkg syscall (linux-amd64), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-amd64), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-amd64), type SysProcAttr struct, Cloneflags uintptr
+pkg syscall (linux-amd64-cgo), const CLONE_CHILD_CLEARTID = 2097152
+pkg syscall (linux-amd64-cgo), const CLONE_CHILD_CLEARTID ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_CHILD_SETTID = 16777216
+pkg syscall (linux-amd64-cgo), const CLONE_CHILD_SETTID ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_DETACHED = 4194304
+pkg syscall (linux-amd64-cgo), const CLONE_DETACHED ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_FILES = 1024
+pkg syscall (linux-amd64-cgo), const CLONE_FILES ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_FS = 512
+pkg syscall (linux-amd64-cgo), const CLONE_FS ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_IO = 2147483648
+pkg syscall (linux-amd64-cgo), const CLONE_IO ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_NEWIPC = 134217728
+pkg syscall (linux-amd64-cgo), const CLONE_NEWIPC ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_NEWNET = 1073741824
+pkg syscall (linux-amd64-cgo), const CLONE_NEWNET ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_NEWNS = 131072
+pkg syscall (linux-amd64-cgo), const CLONE_NEWNS ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_NEWPID = 536870912
+pkg syscall (linux-amd64-cgo), const CLONE_NEWPID ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_NEWUSER = 268435456
+pkg syscall (linux-amd64-cgo), const CLONE_NEWUSER ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_NEWUTS = 67108864
+pkg syscall (linux-amd64-cgo), const CLONE_NEWUTS ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_PARENT = 32768
+pkg syscall (linux-amd64-cgo), const CLONE_PARENT ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_PARENT_SETTID = 1048576
+pkg syscall (linux-amd64-cgo), const CLONE_PARENT_SETTID ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_PTRACE = 8192
+pkg syscall (linux-amd64-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_SETTLS = 524288
+pkg syscall (linux-amd64-cgo), const CLONE_SETTLS ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (linux-amd64-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_SYSVSEM = 262144
+pkg syscall (linux-amd64-cgo), const CLONE_SYSVSEM ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_THREAD = 65536
+pkg syscall (linux-amd64-cgo), const CLONE_THREAD ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_UNTRACED = 8388608
+pkg syscall (linux-amd64-cgo), const CLONE_UNTRACED ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_VFORK = 16384
+pkg syscall (linux-amd64-cgo), const CLONE_VFORK ideal-int
+pkg syscall (linux-amd64-cgo), const CLONE_VM = 256
+pkg syscall (linux-amd64-cgo), const CLONE_VM ideal-int
+pkg syscall (linux-amd64-cgo), const ICMPV6_FILTER = 1
 pkg syscall (linux-amd64-cgo), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-amd64-cgo), const PRIO_PGRP = 1
 pkg syscall (linux-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (linux-amd64-cgo), const PRIO_PROCESS = 0
 pkg syscall (linux-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (linux-amd64-cgo), const PRIO_USER = 2
 pkg syscall (linux-amd64-cgo), const PRIO_USER ideal-int
+pkg syscall (linux-amd64-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (linux-amd64-cgo), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-amd64-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-amd64-cgo), func Dup3(int, int, int) error
 pkg syscall (linux-amd64-cgo), func Getpriority(int, int) (int, error)
@@ -9720,11 +10017,62 @@ pkg syscall (linux-amd64-cgo), type ICMPv6Filter struct, Data [8]uint32
 pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct
 pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-amd64-cgo), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Cloneflags uintptr
+pkg syscall (linux-arm), const CLONE_CHILD_CLEARTID = 2097152
+pkg syscall (linux-arm), const CLONE_CHILD_CLEARTID ideal-int
+pkg syscall (linux-arm), const CLONE_CHILD_SETTID = 16777216
+pkg syscall (linux-arm), const CLONE_CHILD_SETTID ideal-int
+pkg syscall (linux-arm), const CLONE_DETACHED = 4194304
+pkg syscall (linux-arm), const CLONE_DETACHED ideal-int
+pkg syscall (linux-arm), const CLONE_FILES = 1024
+pkg syscall (linux-arm), const CLONE_FILES ideal-int
+pkg syscall (linux-arm), const CLONE_FS = 512
+pkg syscall (linux-arm), const CLONE_FS ideal-int
+pkg syscall (linux-arm), const CLONE_IO = 2147483648
+pkg syscall (linux-arm), const CLONE_IO ideal-int
+pkg syscall (linux-arm), const CLONE_NEWIPC = 134217728
+pkg syscall (linux-arm), const CLONE_NEWIPC ideal-int
+pkg syscall (linux-arm), const CLONE_NEWNET = 1073741824
+pkg syscall (linux-arm), const CLONE_NEWNET ideal-int
+pkg syscall (linux-arm), const CLONE_NEWNS = 131072
+pkg syscall (linux-arm), const CLONE_NEWNS ideal-int
+pkg syscall (linux-arm), const CLONE_NEWPID = 536870912
+pkg syscall (linux-arm), const CLONE_NEWPID ideal-int
+pkg syscall (linux-arm), const CLONE_NEWUSER = 268435456
+pkg syscall (linux-arm), const CLONE_NEWUSER ideal-int
+pkg syscall (linux-arm), const CLONE_NEWUTS = 67108864
+pkg syscall (linux-arm), const CLONE_NEWUTS ideal-int
+pkg syscall (linux-arm), const CLONE_PARENT = 32768
+pkg syscall (linux-arm), const CLONE_PARENT ideal-int
+pkg syscall (linux-arm), const CLONE_PARENT_SETTID = 1048576
+pkg syscall (linux-arm), const CLONE_PARENT_SETTID ideal-int
+pkg syscall (linux-arm), const CLONE_PTRACE = 8192
+pkg syscall (linux-arm), const CLONE_PTRACE ideal-int
+pkg syscall (linux-arm), const CLONE_SETTLS = 524288
+pkg syscall (linux-arm), const CLONE_SETTLS ideal-int
+pkg syscall (linux-arm), const CLONE_SIGHAND = 2048
+pkg syscall (linux-arm), const CLONE_SIGHAND ideal-int
+pkg syscall (linux-arm), const CLONE_SYSVSEM = 262144
+pkg syscall (linux-arm), const CLONE_SYSVSEM ideal-int
+pkg syscall (linux-arm), const CLONE_THREAD = 65536
+pkg syscall (linux-arm), const CLONE_THREAD ideal-int
+pkg syscall (linux-arm), const CLONE_UNTRACED = 8388608
+pkg syscall (linux-arm), const CLONE_UNTRACED ideal-int
+pkg syscall (linux-arm), const CLONE_VFORK = 16384
+pkg syscall (linux-arm), const CLONE_VFORK ideal-int
+pkg syscall (linux-arm), const CLONE_VM = 256
+pkg syscall (linux-arm), const CLONE_VM ideal-int
+pkg syscall (linux-arm), const ICMPV6_FILTER = 1
 pkg syscall (linux-arm), const ICMPV6_FILTER ideal-int
+pkg syscall (linux-arm), const PRIO_PGRP = 1
 pkg syscall (linux-arm), const PRIO_PGRP ideal-int
+pkg syscall (linux-arm), const PRIO_PROCESS = 0
 pkg syscall (linux-arm), const PRIO_PROCESS ideal-int
+pkg syscall (linux-arm), const PRIO_USER = 2
 pkg syscall (linux-arm), const PRIO_USER ideal-int
+pkg syscall (linux-arm), const SizeofICMPv6Filter = 32
 pkg syscall (linux-arm), const SizeofICMPv6Filter ideal-int
+pkg syscall (linux-arm), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-arm), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-arm), func Dup3(int, int, int) error
 pkg syscall (linux-arm), func Getpriority(int, int) (int, error)
@@ -9738,6 +10086,7 @@ pkg syscall (linux-arm), type ICMPv6Filter struct, Data [8]uint32
 pkg syscall (linux-arm), type IPv6MTUInfo struct
 pkg syscall (linux-arm), type IPv6MTUInfo struct, Addr RawSockaddrInet6
 pkg syscall (linux-arm), type IPv6MTUInfo struct, Mtu uint32
+pkg syscall (linux-arm), type SysProcAttr struct, Cloneflags uintptr
 pkg syscall (linux-arm-cgo), const AF_ALG ideal-int
 pkg syscall (linux-arm-cgo), const AF_APPLETALK ideal-int
 pkg syscall (linux-arm-cgo), const AF_ASH ideal-int
@@ -9906,6 +10255,50 @@ pkg syscall (linux-arm-cgo), const BPF_W ideal-int
 pkg syscall (linux-arm-cgo), const BPF_X ideal-int
 pkg syscall (linux-arm-cgo), const BRKINT ideal-int
 pkg syscall (linux-arm-cgo), const CLOCAL ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_CHILD_CLEARTID = 2097152
+pkg syscall (linux-arm-cgo), const CLONE_CHILD_CLEARTID ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_CHILD_SETTID = 16777216
+pkg syscall (linux-arm-cgo), const CLONE_CHILD_SETTID ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_DETACHED = 4194304
+pkg syscall (linux-arm-cgo), const CLONE_DETACHED ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_FILES = 1024
+pkg syscall (linux-arm-cgo), const CLONE_FILES ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_FS = 512
+pkg syscall (linux-arm-cgo), const CLONE_FS ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_IO = 2147483648
+pkg syscall (linux-arm-cgo), const CLONE_IO ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_NEWIPC = 134217728
+pkg syscall (linux-arm-cgo), const CLONE_NEWIPC ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_NEWNET = 1073741824
+pkg syscall (linux-arm-cgo), const CLONE_NEWNET ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_NEWNS = 131072
+pkg syscall (linux-arm-cgo), const CLONE_NEWNS ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_NEWPID = 536870912
+pkg syscall (linux-arm-cgo), const CLONE_NEWPID ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_NEWUSER = 268435456
+pkg syscall (linux-arm-cgo), const CLONE_NEWUSER ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_NEWUTS = 67108864
+pkg syscall (linux-arm-cgo), const CLONE_NEWUTS ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_PARENT = 32768
+pkg syscall (linux-arm-cgo), const CLONE_PARENT ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_PARENT_SETTID = 1048576
+pkg syscall (linux-arm-cgo), const CLONE_PARENT_SETTID ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_PTRACE = 8192
+pkg syscall (linux-arm-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_SETTLS = 524288
+pkg syscall (linux-arm-cgo), const CLONE_SETTLS ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (linux-arm-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_SYSVSEM = 262144
+pkg syscall (linux-arm-cgo), const CLONE_SYSVSEM ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_THREAD = 65536
+pkg syscall (linux-arm-cgo), const CLONE_THREAD ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_UNTRACED = 8388608
+pkg syscall (linux-arm-cgo), const CLONE_UNTRACED ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_VFORK = 16384
+pkg syscall (linux-arm-cgo), const CLONE_VFORK ideal-int
+pkg syscall (linux-arm-cgo), const CLONE_VM = 256
+pkg syscall (linux-arm-cgo), const CLONE_VM ideal-int
 pkg syscall (linux-arm-cgo), const CREAD ideal-int
 pkg syscall (linux-arm-cgo), const CS5 ideal-int
 pkg syscall (linux-arm-cgo), const CS6 ideal-int
@@ -10106,6 +10499,7 @@ pkg syscall (linux-arm-cgo), const F_UNLCK ideal-int
 pkg syscall (linux-arm-cgo), const F_WRLCK ideal-int
 pkg syscall (linux-arm-cgo), const HUPCL ideal-int
 pkg syscall (linux-arm-cgo), const ICANON ideal-int
+pkg syscall (linux-arm-cgo), const ICMPV6_FILTER = 1
 pkg syscall (linux-arm-cgo), const ICMPV6_FILTER ideal-int
 pkg syscall (linux-arm-cgo), const ICRNL ideal-int
 pkg syscall (linux-arm-cgo), const IEXTEN ideal-int
@@ -10510,8 +10904,11 @@ pkg syscall (linux-arm-cgo), const PARENB ideal-int
 pkg syscall (linux-arm-cgo), const PARMRK ideal-int
 pkg syscall (linux-arm-cgo), const PARODD ideal-int
 pkg syscall (linux-arm-cgo), const PENDIN ideal-int
+pkg syscall (linux-arm-cgo), const PRIO_PGRP = 1
 pkg syscall (linux-arm-cgo), const PRIO_PGRP ideal-int
+pkg syscall (linux-arm-cgo), const PRIO_PROCESS = 0
 pkg syscall (linux-arm-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (linux-arm-cgo), const PRIO_USER = 2
 pkg syscall (linux-arm-cgo), const PRIO_USER ideal-int
 pkg syscall (linux-arm-cgo), const PROT_EXEC ideal-int
 pkg syscall (linux-arm-cgo), const PROT_GROWSDOWN ideal-int
@@ -11322,9 +11719,11 @@ pkg syscall (linux-arm-cgo), const S_IWRITE ideal-int
 pkg syscall (linux-arm-cgo), const S_IXGRP ideal-int
 pkg syscall (linux-arm-cgo), const S_IXOTH ideal-int
 pkg syscall (linux-arm-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (linux-arm-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (linux-arm-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIPMreq ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIPMreqn ideal-int
+pkg syscall (linux-arm-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-arm-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (linux-arm-cgo), const SizeofIfAddrmsg ideal-int
@@ -11883,6 +12282,7 @@ pkg syscall (linux-arm-cgo), type Statfs_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (linux-arm-cgo), type Statfs_t struct, Spare [4]int32
 pkg syscall (linux-arm-cgo), type Statfs_t struct, Type int32
 pkg syscall (linux-arm-cgo), type SysProcAttr struct, Chroot string
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, Cloneflags uintptr
 pkg syscall (linux-arm-cgo), type SysProcAttr struct, Credential *Credential
 pkg syscall (linux-arm-cgo), type SysProcAttr struct, Ctty int
 pkg syscall (linux-arm-cgo), type SysProcAttr struct, Noctty bool
@@ -12581,6 +12981,7 @@ pkg syscall (netbsd-386), const F_UNLCK ideal-int
 pkg syscall (netbsd-386), const F_WRLCK ideal-int
 pkg syscall (netbsd-386), const HUPCL ideal-int
 pkg syscall (netbsd-386), const ICANON ideal-int
+pkg syscall (netbsd-386), const ICMP6_FILTER = 18
 pkg syscall (netbsd-386), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-386), const ICRNL ideal-int
 pkg syscall (netbsd-386), const IEXTEN ideal-int
@@ -13016,8 +13417,11 @@ pkg syscall (netbsd-386), const PARENB ideal-int
 pkg syscall (netbsd-386), const PARMRK ideal-int
 pkg syscall (netbsd-386), const PARODD ideal-int
 pkg syscall (netbsd-386), const PENDIN ideal-int
+pkg syscall (netbsd-386), const PRIO_PGRP = 1
 pkg syscall (netbsd-386), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-386), const PRIO_PROCESS = 0
 pkg syscall (netbsd-386), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-386), const PRIO_USER = 2
 pkg syscall (netbsd-386), const PRIO_USER ideal-int
 pkg syscall (netbsd-386), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-386), const PTRACE_CONT ideal-int
@@ -13500,8 +13904,10 @@ pkg syscall (netbsd-386), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-386), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-386), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-386), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-386), const SizeofICMPv6Filter = 32
 pkg syscall (netbsd-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-386), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-386), const SizeofIPv6MTUInfo = 32
 pkg syscall (netbsd-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-386), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-386), const SizeofIfAnnounceMsghdr ideal-int
@@ -14613,6 +15019,7 @@ pkg syscall (netbsd-386-cgo), const F_UNLCK ideal-int
 pkg syscall (netbsd-386-cgo), const F_WRLCK ideal-int
 pkg syscall (netbsd-386-cgo), const HUPCL ideal-int
 pkg syscall (netbsd-386-cgo), const ICANON ideal-int
+pkg syscall (netbsd-386-cgo), const ICMP6_FILTER = 18
 pkg syscall (netbsd-386-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-386-cgo), const ICRNL ideal-int
 pkg syscall (netbsd-386-cgo), const IEXTEN ideal-int
@@ -15048,8 +15455,11 @@ pkg syscall (netbsd-386-cgo), const PARENB ideal-int
 pkg syscall (netbsd-386-cgo), const PARMRK ideal-int
 pkg syscall (netbsd-386-cgo), const PARODD ideal-int
 pkg syscall (netbsd-386-cgo), const PENDIN ideal-int
+pkg syscall (netbsd-386-cgo), const PRIO_PGRP = 1
 pkg syscall (netbsd-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-386-cgo), const PRIO_PROCESS = 0
 pkg syscall (netbsd-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-386-cgo), const PRIO_USER = 2
 pkg syscall (netbsd-386-cgo), const PRIO_USER ideal-int
 pkg syscall (netbsd-386-cgo), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-386-cgo), const PTRACE_CONT ideal-int
@@ -15532,8 +15942,10 @@ pkg syscall (netbsd-386-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-386-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (netbsd-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-386-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (netbsd-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-386-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -16635,6 +17047,7 @@ pkg syscall (netbsd-amd64), const F_UNLCK ideal-int
 pkg syscall (netbsd-amd64), const F_WRLCK ideal-int
 pkg syscall (netbsd-amd64), const HUPCL ideal-int
 pkg syscall (netbsd-amd64), const ICANON ideal-int
+pkg syscall (netbsd-amd64), const ICMP6_FILTER = 18
 pkg syscall (netbsd-amd64), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-amd64), const ICRNL ideal-int
 pkg syscall (netbsd-amd64), const IEXTEN ideal-int
@@ -17070,8 +17483,11 @@ pkg syscall (netbsd-amd64), const PARENB ideal-int
 pkg syscall (netbsd-amd64), const PARMRK ideal-int
 pkg syscall (netbsd-amd64), const PARODD ideal-int
 pkg syscall (netbsd-amd64), const PENDIN ideal-int
+pkg syscall (netbsd-amd64), const PRIO_PGRP = 1
 pkg syscall (netbsd-amd64), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-amd64), const PRIO_PROCESS = 0
 pkg syscall (netbsd-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-amd64), const PRIO_USER = 2
 pkg syscall (netbsd-amd64), const PRIO_USER ideal-int
 pkg syscall (netbsd-amd64), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-amd64), const PTRACE_CONT ideal-int
@@ -17554,8 +17970,10 @@ pkg syscall (netbsd-amd64), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-amd64), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-amd64), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-amd64), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-amd64), const SizeofICMPv6Filter = 32
 pkg syscall (netbsd-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-amd64), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-amd64), const SizeofIPv6MTUInfo = 32
 pkg syscall (netbsd-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-amd64), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-amd64), const SizeofIfAnnounceMsghdr ideal-int
@@ -18664,6 +19082,7 @@ pkg syscall (netbsd-amd64-cgo), const F_UNLCK ideal-int
 pkg syscall (netbsd-amd64-cgo), const F_WRLCK ideal-int
 pkg syscall (netbsd-amd64-cgo), const HUPCL ideal-int
 pkg syscall (netbsd-amd64-cgo), const ICANON ideal-int
+pkg syscall (netbsd-amd64-cgo), const ICMP6_FILTER = 18
 pkg syscall (netbsd-amd64-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-amd64-cgo), const ICRNL ideal-int
 pkg syscall (netbsd-amd64-cgo), const IEXTEN ideal-int
@@ -19099,8 +19518,11 @@ pkg syscall (netbsd-amd64-cgo), const PARENB ideal-int
 pkg syscall (netbsd-amd64-cgo), const PARMRK ideal-int
 pkg syscall (netbsd-amd64-cgo), const PARODD ideal-int
 pkg syscall (netbsd-amd64-cgo), const PENDIN ideal-int
+pkg syscall (netbsd-amd64-cgo), const PRIO_PGRP = 1
 pkg syscall (netbsd-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-amd64-cgo), const PRIO_PROCESS = 0
 pkg syscall (netbsd-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-amd64-cgo), const PRIO_USER = 2
 pkg syscall (netbsd-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (netbsd-amd64-cgo), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-amd64-cgo), const PTRACE_CONT ideal-int
@@ -19583,8 +20005,10 @@ pkg syscall (netbsd-amd64-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-amd64-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (netbsd-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-amd64-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (netbsd-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-amd64-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -20693,6 +21117,7 @@ pkg syscall (netbsd-arm), const F_UNLCK ideal-int
 pkg syscall (netbsd-arm), const F_WRLCK ideal-int
 pkg syscall (netbsd-arm), const HUPCL ideal-int
 pkg syscall (netbsd-arm), const ICANON ideal-int
+pkg syscall (netbsd-arm), const ICMP6_FILTER = 18
 pkg syscall (netbsd-arm), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-arm), const ICRNL ideal-int
 pkg syscall (netbsd-arm), const IEXTEN ideal-int
@@ -21128,8 +21553,11 @@ pkg syscall (netbsd-arm), const PARENB ideal-int
 pkg syscall (netbsd-arm), const PARMRK ideal-int
 pkg syscall (netbsd-arm), const PARODD ideal-int
 pkg syscall (netbsd-arm), const PENDIN ideal-int
+pkg syscall (netbsd-arm), const PRIO_PGRP = 1
 pkg syscall (netbsd-arm), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-arm), const PRIO_PROCESS = 0
 pkg syscall (netbsd-arm), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-arm), const PRIO_USER = 2
 pkg syscall (netbsd-arm), const PRIO_USER ideal-int
 pkg syscall (netbsd-arm), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-arm), const PTRACE_CONT ideal-int
@@ -21611,8 +22039,10 @@ pkg syscall (netbsd-arm), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-arm), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-arm), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-arm), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-arm), const SizeofICMPv6Filter = 32
 pkg syscall (netbsd-arm), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-arm), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-arm), const SizeofIPv6MTUInfo = 32
 pkg syscall (netbsd-arm), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-arm), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-arm), const SizeofIfAnnounceMsghdr ideal-int
@@ -22714,6 +23144,7 @@ pkg syscall (netbsd-arm-cgo), const F_UNLCK ideal-int
 pkg syscall (netbsd-arm-cgo), const F_WRLCK ideal-int
 pkg syscall (netbsd-arm-cgo), const HUPCL ideal-int
 pkg syscall (netbsd-arm-cgo), const ICANON ideal-int
+pkg syscall (netbsd-arm-cgo), const ICMP6_FILTER = 18
 pkg syscall (netbsd-arm-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (netbsd-arm-cgo), const ICRNL ideal-int
 pkg syscall (netbsd-arm-cgo), const IEXTEN ideal-int
@@ -23149,8 +23580,11 @@ pkg syscall (netbsd-arm-cgo), const PARENB ideal-int
 pkg syscall (netbsd-arm-cgo), const PARMRK ideal-int
 pkg syscall (netbsd-arm-cgo), const PARODD ideal-int
 pkg syscall (netbsd-arm-cgo), const PENDIN ideal-int
+pkg syscall (netbsd-arm-cgo), const PRIO_PGRP = 1
 pkg syscall (netbsd-arm-cgo), const PRIO_PGRP ideal-int
+pkg syscall (netbsd-arm-cgo), const PRIO_PROCESS = 0
 pkg syscall (netbsd-arm-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (netbsd-arm-cgo), const PRIO_USER = 2
 pkg syscall (netbsd-arm-cgo), const PRIO_USER ideal-int
 pkg syscall (netbsd-arm-cgo), const PRI_IOFLUSH ideal-int
 pkg syscall (netbsd-arm-cgo), const PTRACE_CONT ideal-int
@@ -23632,8 +24066,10 @@ pkg syscall (netbsd-arm-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofBpfStat ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (netbsd-arm-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (netbsd-arm-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIPMreq ideal-int
+pkg syscall (netbsd-arm-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (netbsd-arm-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -24609,6 +25045,7 @@ pkg syscall (openbsd-386), const F_UNLCK ideal-int
 pkg syscall (openbsd-386), const F_WRLCK ideal-int
 pkg syscall (openbsd-386), const HUPCL ideal-int
 pkg syscall (openbsd-386), const ICANON ideal-int
+pkg syscall (openbsd-386), const ICMP6_FILTER = 18
 pkg syscall (openbsd-386), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-386), const ICRNL ideal-int
 pkg syscall (openbsd-386), const IEXTEN ideal-int
@@ -25062,8 +25499,11 @@ pkg syscall (openbsd-386), const PARMRK ideal-int
 pkg syscall (openbsd-386), const PARODD ideal-int
 pkg syscall (openbsd-386), const PENDIN ideal-int
 pkg syscall (openbsd-386), const PF_FLUSH ideal-int
+pkg syscall (openbsd-386), const PRIO_PGRP = 1
 pkg syscall (openbsd-386), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-386), const PRIO_PROCESS = 0
 pkg syscall (openbsd-386), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-386), const PRIO_USER = 2
 pkg syscall (openbsd-386), const PRIO_USER ideal-int
 pkg syscall (openbsd-386), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-386), const PTRACE_KILL ideal-int
@@ -25504,8 +25944,10 @@ pkg syscall (openbsd-386), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-386), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-386), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-386), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-386), const SizeofICMPv6Filter = 32
 pkg syscall (openbsd-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-386), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-386), const SizeofIPv6MTUInfo = 32
 pkg syscall (openbsd-386), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-386), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-386), const SizeofIfAnnounceMsghdr ideal-int
@@ -26495,6 +26937,7 @@ pkg syscall (openbsd-386-cgo), const F_UNLCK ideal-int
 pkg syscall (openbsd-386-cgo), const F_WRLCK ideal-int
 pkg syscall (openbsd-386-cgo), const HUPCL ideal-int
 pkg syscall (openbsd-386-cgo), const ICANON ideal-int
+pkg syscall (openbsd-386-cgo), const ICMP6_FILTER = 18
 pkg syscall (openbsd-386-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-386-cgo), const ICRNL ideal-int
 pkg syscall (openbsd-386-cgo), const IEXTEN ideal-int
@@ -26948,8 +27391,11 @@ pkg syscall (openbsd-386-cgo), const PARMRK ideal-int
 pkg syscall (openbsd-386-cgo), const PARODD ideal-int
 pkg syscall (openbsd-386-cgo), const PENDIN ideal-int
 pkg syscall (openbsd-386-cgo), const PF_FLUSH ideal-int
+pkg syscall (openbsd-386-cgo), const PRIO_PGRP = 1
 pkg syscall (openbsd-386-cgo), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-386-cgo), const PRIO_PROCESS = 0
 pkg syscall (openbsd-386-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-386-cgo), const PRIO_USER = 2
 pkg syscall (openbsd-386-cgo), const PRIO_USER ideal-int
 pkg syscall (openbsd-386-cgo), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-386-cgo), const PTRACE_KILL ideal-int
@@ -27390,8 +27836,10 @@ pkg syscall (openbsd-386-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-386-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (openbsd-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-386-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (openbsd-386-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-386-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -28387,6 +28835,7 @@ pkg syscall (openbsd-amd64), const F_UNLCK ideal-int
 pkg syscall (openbsd-amd64), const F_WRLCK ideal-int
 pkg syscall (openbsd-amd64), const HUPCL ideal-int
 pkg syscall (openbsd-amd64), const ICANON ideal-int
+pkg syscall (openbsd-amd64), const ICMP6_FILTER = 18
 pkg syscall (openbsd-amd64), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-amd64), const ICRNL ideal-int
 pkg syscall (openbsd-amd64), const IEXTEN ideal-int
@@ -28841,8 +29290,11 @@ pkg syscall (openbsd-amd64), const PARODD ideal-int
 pkg syscall (openbsd-amd64), const PENDIN ideal-int
 pkg syscall (openbsd-amd64), const PF_FLUSH ideal-int
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH ideal-int
+pkg syscall (openbsd-amd64), const PRIO_PGRP = 1
 pkg syscall (openbsd-amd64), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-amd64), const PRIO_PROCESS = 0
 pkg syscall (openbsd-amd64), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-amd64), const PRIO_USER = 2
 pkg syscall (openbsd-amd64), const PRIO_USER ideal-int
 pkg syscall (openbsd-amd64), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-amd64), const PTRACE_KILL ideal-int
@@ -29282,8 +29734,10 @@ pkg syscall (openbsd-amd64), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-amd64), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-amd64), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-amd64), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-amd64), const SizeofICMPv6Filter = 32
 pkg syscall (openbsd-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-amd64), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-amd64), const SizeofIPv6MTUInfo = 32
 pkg syscall (openbsd-amd64), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-amd64), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-amd64), const SizeofIfAnnounceMsghdr ideal-int
@@ -30287,6 +30741,7 @@ pkg syscall (openbsd-amd64-cgo), const F_UNLCK ideal-int
 pkg syscall (openbsd-amd64-cgo), const F_WRLCK ideal-int
 pkg syscall (openbsd-amd64-cgo), const HUPCL ideal-int
 pkg syscall (openbsd-amd64-cgo), const ICANON ideal-int
+pkg syscall (openbsd-amd64-cgo), const ICMP6_FILTER = 18
 pkg syscall (openbsd-amd64-cgo), const ICMP6_FILTER ideal-int
 pkg syscall (openbsd-amd64-cgo), const ICRNL ideal-int
 pkg syscall (openbsd-amd64-cgo), const IEXTEN ideal-int
@@ -30741,8 +31196,11 @@ pkg syscall (openbsd-amd64-cgo), const PARODD ideal-int
 pkg syscall (openbsd-amd64-cgo), const PENDIN ideal-int
 pkg syscall (openbsd-amd64-cgo), const PF_FLUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH ideal-int
+pkg syscall (openbsd-amd64-cgo), const PRIO_PGRP = 1
 pkg syscall (openbsd-amd64-cgo), const PRIO_PGRP ideal-int
+pkg syscall (openbsd-amd64-cgo), const PRIO_PROCESS = 0
 pkg syscall (openbsd-amd64-cgo), const PRIO_PROCESS ideal-int
+pkg syscall (openbsd-amd64-cgo), const PRIO_USER = 2
 pkg syscall (openbsd-amd64-cgo), const PRIO_USER ideal-int
 pkg syscall (openbsd-amd64-cgo), const PTRACE_CONT ideal-int
 pkg syscall (openbsd-amd64-cgo), const PTRACE_KILL ideal-int
@@ -31182,8 +31640,10 @@ pkg syscall (openbsd-amd64-cgo), const SizeofBpfProgram ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofBpfStat ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofBpfVersion ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofCmsghdr ideal-int
+pkg syscall (openbsd-amd64-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (openbsd-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIPMreq ideal-int
+pkg syscall (openbsd-amd64-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (openbsd-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIPv6Mreq ideal-int
 pkg syscall (openbsd-amd64-cgo), const SizeofIfAnnounceMsghdr ideal-int
@@ -31739,41 +32199,77 @@ pkg syscall (openbsd-amd64-cgo), type WaitStatus uint32
 pkg syscall (openbsd-amd64-cgo), var Stderr int
 pkg syscall (openbsd-amd64-cgo), var Stdin int
 pkg syscall (openbsd-amd64-cgo), var Stdout int
+pkg syscall (windows-386), const BASE_PROTOCOL = 1
 pkg syscall (windows-386), const BASE_PROTOCOL ideal-int
+pkg syscall (windows-386), const ERROR_HANDLE_EOF = 38
 pkg syscall (windows-386), const ERROR_HANDLE_EOF Errno
+pkg syscall (windows-386), const FILE_SKIP_COMPLETION_PORT_ON_SUCCESS = 1
 pkg syscall (windows-386), const FILE_SKIP_COMPLETION_PORT_ON_SUCCESS ideal-int
+pkg syscall (windows-386), const FILE_SKIP_SET_EVENT_ON_HANDLE = 2
 pkg syscall (windows-386), const FILE_SKIP_SET_EVENT_ON_HANDLE ideal-int
+pkg syscall (windows-386), const LAYERED_PROTOCOL = 0
 pkg syscall (windows-386), const LAYERED_PROTOCOL ideal-int
+pkg syscall (windows-386), const MAX_PROTOCOL_CHAIN = 7
 pkg syscall (windows-386), const MAX_PROTOCOL_CHAIN ideal-int
+pkg syscall (windows-386), const NetSetupDomainName = 3
 pkg syscall (windows-386), const NetSetupDomainName ideal-int
+pkg syscall (windows-386), const NetSetupUnjoined = 1
 pkg syscall (windows-386), const NetSetupUnjoined ideal-int
+pkg syscall (windows-386), const NetSetupUnknownStatus = 0
 pkg syscall (windows-386), const NetSetupUnknownStatus ideal-int
+pkg syscall (windows-386), const NetSetupWorkgroupName = 2
 pkg syscall (windows-386), const NetSetupWorkgroupName ideal-int
+pkg syscall (windows-386), const PFL_HIDDEN = 4
 pkg syscall (windows-386), const PFL_HIDDEN ideal-int
+pkg syscall (windows-386), const PFL_MATCHES_PROTOCOL_ZERO = 8
 pkg syscall (windows-386), const PFL_MATCHES_PROTOCOL_ZERO ideal-int
+pkg syscall (windows-386), const PFL_MULTIPLE_PROTO_ENTRIES = 1
 pkg syscall (windows-386), const PFL_MULTIPLE_PROTO_ENTRIES ideal-int
+pkg syscall (windows-386), const PFL_NETWORKDIRECT_PROVIDER = 16
 pkg syscall (windows-386), const PFL_NETWORKDIRECT_PROVIDER ideal-int
+pkg syscall (windows-386), const PFL_RECOMMENDED_PROTO_ENTRY = 2
 pkg syscall (windows-386), const PFL_RECOMMENDED_PROTO_ENTRY ideal-int
+pkg syscall (windows-386), const PROCESS_TERMINATE = 1
 pkg syscall (windows-386), const PROCESS_TERMINATE ideal-int
+pkg syscall (windows-386), const WSAPROTOCOL_LEN = 255
 pkg syscall (windows-386), const WSAPROTOCOL_LEN ideal-int
+pkg syscall (windows-386), const XP1_CONNECTIONLESS = 1
 pkg syscall (windows-386), const XP1_CONNECTIONLESS ideal-int
+pkg syscall (windows-386), const XP1_CONNECT_DATA = 128
 pkg syscall (windows-386), const XP1_CONNECT_DATA ideal-int
+pkg syscall (windows-386), const XP1_DISCONNECT_DATA = 256
 pkg syscall (windows-386), const XP1_DISCONNECT_DATA ideal-int
+pkg syscall (windows-386), const XP1_EXPEDITED_DATA = 64
 pkg syscall (windows-386), const XP1_EXPEDITED_DATA ideal-int
+pkg syscall (windows-386), const XP1_GRACEFUL_CLOSE = 32
 pkg syscall (windows-386), const XP1_GRACEFUL_CLOSE ideal-int
+pkg syscall (windows-386), const XP1_GUARANTEED_DELIVERY = 2
 pkg syscall (windows-386), const XP1_GUARANTEED_DELIVERY ideal-int
+pkg syscall (windows-386), const XP1_GUARANTEED_ORDER = 4
 pkg syscall (windows-386), const XP1_GUARANTEED_ORDER ideal-int
+pkg syscall (windows-386), const XP1_IFS_HANDLES = 131072
 pkg syscall (windows-386), const XP1_IFS_HANDLES ideal-int
+pkg syscall (windows-386), const XP1_MESSAGE_ORIENTED = 8
 pkg syscall (windows-386), const XP1_MESSAGE_ORIENTED ideal-int
+pkg syscall (windows-386), const XP1_MULTIPOINT_CONTROL_PLANE = 2048
 pkg syscall (windows-386), const XP1_MULTIPOINT_CONTROL_PLANE ideal-int
+pkg syscall (windows-386), const XP1_MULTIPOINT_DATA_PLANE = 4096
 pkg syscall (windows-386), const XP1_MULTIPOINT_DATA_PLANE ideal-int
+pkg syscall (windows-386), const XP1_PARTIAL_MESSAGE = 262144
 pkg syscall (windows-386), const XP1_PARTIAL_MESSAGE ideal-int
+pkg syscall (windows-386), const XP1_PSEUDO_STREAM = 16
 pkg syscall (windows-386), const XP1_PSEUDO_STREAM ideal-int
+pkg syscall (windows-386), const XP1_QOS_SUPPORTED = 8192
 pkg syscall (windows-386), const XP1_QOS_SUPPORTED ideal-int
+pkg syscall (windows-386), const XP1_SAN_SUPPORT_SDP = 524288
 pkg syscall (windows-386), const XP1_SAN_SUPPORT_SDP ideal-int
+pkg syscall (windows-386), const XP1_SUPPORT_BROADCAST = 512
 pkg syscall (windows-386), const XP1_SUPPORT_BROADCAST ideal-int
+pkg syscall (windows-386), const XP1_SUPPORT_MULTIPOINT = 1024
 pkg syscall (windows-386), const XP1_SUPPORT_MULTIPOINT ideal-int
+pkg syscall (windows-386), const XP1_UNI_RECV = 65536
 pkg syscall (windows-386), const XP1_UNI_RECV ideal-int
+pkg syscall (windows-386), const XP1_UNI_SEND = 32768
 pkg syscall (windows-386), const XP1_UNI_SEND ideal-int
 pkg syscall (windows-386), func LoadSetFileCompletionNotificationModes() error
 pkg syscall (windows-386), func NetGetJoinInformation(*uint16, **uint16, *uint32) error
@@ -31804,41 +32300,77 @@ pkg syscall (windows-386), type WSAProtocolInfo struct, ServiceFlags3 uint32
 pkg syscall (windows-386), type WSAProtocolInfo struct, ServiceFlags4 uint32
 pkg syscall (windows-386), type WSAProtocolInfo struct, SocketType int32
 pkg syscall (windows-386), type WSAProtocolInfo struct, Version int32
+pkg syscall (windows-amd64), const BASE_PROTOCOL = 1
 pkg syscall (windows-amd64), const BASE_PROTOCOL ideal-int
+pkg syscall (windows-amd64), const ERROR_HANDLE_EOF = 38
 pkg syscall (windows-amd64), const ERROR_HANDLE_EOF Errno
+pkg syscall (windows-amd64), const FILE_SKIP_COMPLETION_PORT_ON_SUCCESS = 1
 pkg syscall (windows-amd64), const FILE_SKIP_COMPLETION_PORT_ON_SUCCESS ideal-int
+pkg syscall (windows-amd64), const FILE_SKIP_SET_EVENT_ON_HANDLE = 2
 pkg syscall (windows-amd64), const FILE_SKIP_SET_EVENT_ON_HANDLE ideal-int
+pkg syscall (windows-amd64), const LAYERED_PROTOCOL = 0
 pkg syscall (windows-amd64), const LAYERED_PROTOCOL ideal-int
+pkg syscall (windows-amd64), const MAX_PROTOCOL_CHAIN = 7
 pkg syscall (windows-amd64), const MAX_PROTOCOL_CHAIN ideal-int
+pkg syscall (windows-amd64), const NetSetupDomainName = 3
 pkg syscall (windows-amd64), const NetSetupDomainName ideal-int
+pkg syscall (windows-amd64), const NetSetupUnjoined = 1
 pkg syscall (windows-amd64), const NetSetupUnjoined ideal-int
+pkg syscall (windows-amd64), const NetSetupUnknownStatus = 0
 pkg syscall (windows-amd64), const NetSetupUnknownStatus ideal-int
+pkg syscall (windows-amd64), const NetSetupWorkgroupName = 2
 pkg syscall (windows-amd64), const NetSetupWorkgroupName ideal-int
+pkg syscall (windows-amd64), const PFL_HIDDEN = 4
 pkg syscall (windows-amd64), const PFL_HIDDEN ideal-int
+pkg syscall (windows-amd64), const PFL_MATCHES_PROTOCOL_ZERO = 8
 pkg syscall (windows-amd64), const PFL_MATCHES_PROTOCOL_ZERO ideal-int
+pkg syscall (windows-amd64), const PFL_MULTIPLE_PROTO_ENTRIES = 1
 pkg syscall (windows-amd64), const PFL_MULTIPLE_PROTO_ENTRIES ideal-int
+pkg syscall (windows-amd64), const PFL_NETWORKDIRECT_PROVIDER = 16
 pkg syscall (windows-amd64), const PFL_NETWORKDIRECT_PROVIDER ideal-int
+pkg syscall (windows-amd64), const PFL_RECOMMENDED_PROTO_ENTRY = 2
 pkg syscall (windows-amd64), const PFL_RECOMMENDED_PROTO_ENTRY ideal-int
+pkg syscall (windows-amd64), const PROCESS_TERMINATE = 1
 pkg syscall (windows-amd64), const PROCESS_TERMINATE ideal-int
+pkg syscall (windows-amd64), const WSAPROTOCOL_LEN = 255
 pkg syscall (windows-amd64), const WSAPROTOCOL_LEN ideal-int
+pkg syscall (windows-amd64), const XP1_CONNECTIONLESS = 1
 pkg syscall (windows-amd64), const XP1_CONNECTIONLESS ideal-int
+pkg syscall (windows-amd64), const XP1_CONNECT_DATA = 128
 pkg syscall (windows-amd64), const XP1_CONNECT_DATA ideal-int
+pkg syscall (windows-amd64), const XP1_DISCONNECT_DATA = 256
 pkg syscall (windows-amd64), const XP1_DISCONNECT_DATA ideal-int
+pkg syscall (windows-amd64), const XP1_EXPEDITED_DATA = 64
 pkg syscall (windows-amd64), const XP1_EXPEDITED_DATA ideal-int
+pkg syscall (windows-amd64), const XP1_GRACEFUL_CLOSE = 32
 pkg syscall (windows-amd64), const XP1_GRACEFUL_CLOSE ideal-int
+pkg syscall (windows-amd64), const XP1_GUARANTEED_DELIVERY = 2
 pkg syscall (windows-amd64), const XP1_GUARANTEED_DELIVERY ideal-int
+pkg syscall (windows-amd64), const XP1_GUARANTEED_ORDER = 4
 pkg syscall (windows-amd64), const XP1_GUARANTEED_ORDER ideal-int
+pkg syscall (windows-amd64), const XP1_IFS_HANDLES = 131072
 pkg syscall (windows-amd64), const XP1_IFS_HANDLES ideal-int
+pkg syscall (windows-amd64), const XP1_MESSAGE_ORIENTED = 8
 pkg syscall (windows-amd64), const XP1_MESSAGE_ORIENTED ideal-int
+pkg syscall (windows-amd64), const XP1_MULTIPOINT_CONTROL_PLANE = 2048
 pkg syscall (windows-amd64), const XP1_MULTIPOINT_CONTROL_PLANE ideal-int
+pkg syscall (windows-amd64), const XP1_MULTIPOINT_DATA_PLANE = 4096
 pkg syscall (windows-amd64), const XP1_MULTIPOINT_DATA_PLANE ideal-int
+pkg syscall (windows-amd64), const XP1_PARTIAL_MESSAGE = 262144
 pkg syscall (windows-amd64), const XP1_PARTIAL_MESSAGE ideal-int
+pkg syscall (windows-amd64), const XP1_PSEUDO_STREAM = 16
 pkg syscall (windows-amd64), const XP1_PSEUDO_STREAM ideal-int
+pkg syscall (windows-amd64), const XP1_QOS_SUPPORTED = 8192
 pkg syscall (windows-amd64), const XP1_QOS_SUPPORTED ideal-int
+pkg syscall (windows-amd64), const XP1_SAN_SUPPORT_SDP = 524288
 pkg syscall (windows-amd64), const XP1_SAN_SUPPORT_SDP ideal-int
+pkg syscall (windows-amd64), const XP1_SUPPORT_BROADCAST = 512
 pkg syscall (windows-amd64), const XP1_SUPPORT_BROADCAST ideal-int
+pkg syscall (windows-amd64), const XP1_SUPPORT_MULTIPOINT = 1024
 pkg syscall (windows-amd64), const XP1_SUPPORT_MULTIPOINT ideal-int
+pkg syscall (windows-amd64), const XP1_UNI_RECV = 65536
 pkg syscall (windows-amd64), const XP1_UNI_RECV ideal-int
+pkg syscall (windows-amd64), const XP1_UNI_SEND = 32768
 pkg syscall (windows-amd64), const XP1_UNI_SEND ideal-int
 pkg syscall (windows-amd64), func LoadSetFileCompletionNotificationModes() error
 pkg syscall (windows-amd64), func NetGetJoinInformation(*uint16, **uint16, *uint32) error
