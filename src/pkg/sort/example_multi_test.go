@@ -26,6 +26,7 @@ type multiSorter struct {
 
 // Sort sorts the argument slice according to the less functions passed to OrderedBy.
 func (ms *multiSorter) Sort(changes []Change) {
+	ms.changes = changes
 	sort.Sort(ms)
 }
 
@@ -33,8 +34,7 @@ func (ms *multiSorter) Sort(changes []Change) {
 // Call its Sort method to sort the data.
 func OrderedBy(less ...lessFunc) *multiSorter {
 	return &multiSorter{
-		changes: changes,
-		less:    less,
+		less: less,
 	}
 }
 
@@ -108,11 +108,10 @@ func Example_sortMultiKeys() {
 	OrderedBy(user).Sort(changes)
 	fmt.Println("By user:", changes)
 
-	// multiSorter implements the Sort interface, so we can also do this.
-	sort.Sort(OrderedBy(user, increasingLines))
+	// More examples.
+	OrderedBy(user, increasingLines).Sort(changes)
 	fmt.Println("By user,<lines:", changes)
 
-	// More examples.
 	OrderedBy(user, decreasingLines).Sort(changes)
 	fmt.Println("By user,>lines:", changes)
 
