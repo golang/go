@@ -22,11 +22,11 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Fset           *token.FileSet              // position information for the files of this Program
-	PackagesByPath map[string]*Package         // all loaded Packages, keyed by import path
-	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins       map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
-	mode           BuilderMode                 // set of mode bits for SSA construction
+	Fset     *token.FileSet              // position information for the files of this Program
+	imported map[string]*Package         // all importable Packages, keyed by import path
+	packages map[*types.Package]*Package // all loaded Packages, keyed by object
+	builtins map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	mode     BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
 	methodSets          typemap.M                 // maps type to its concrete methodSet

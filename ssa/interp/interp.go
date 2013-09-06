@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package ssa/interp defines an interpreter for the SSA
 // representation of Go programs.
 //
@@ -390,10 +394,11 @@ func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
 		if recv.t == nil {
 			panic("method invoked on nil interface")
 		}
-		fn = lookupMethod(fr.i, recv.t, call.Method)
-		if fn == nil {
+		if f := lookupMethod(fr.i, recv.t, call.Method); f == nil {
 			// Unreachable in well-typed programs.
 			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, call.Method))
+		} else {
+			fn = f
 		}
 		args = append(args, copyVal(recv.v))
 	}
@@ -545,7 +550,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 	}
 	initReflect(i)
 
-	for importPath, pkg := range i.prog.PackagesByPath {
+	for _, pkg := range i.prog.AllPackages() {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
@@ -556,7 +561,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 		}
 
 		// Ad-hoc initialization for magic system variables.
-		switch importPath {
+		switch pkg.Object.Path() {
 		case "syscall":
 			var envs []value
 			for _, s := range os.Environ() {

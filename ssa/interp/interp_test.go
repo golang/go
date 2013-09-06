@@ -166,6 +166,7 @@ func run(t *testing.T, dir, input string) bool {
 	}
 
 	imp := importer.New(&importer.Config{Build: &build.Default})
+	// TODO(adonovan): use LoadInitialPackages, then un-export ParseFiles.
 	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
 	if err != nil {
 		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
@@ -184,19 +185,16 @@ func run(t *testing.T, dir, input string) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump; ./ssadump -build=CFP %s\n", input)
-	info, err := imp.CreateSourcePackage("main", files)
-	if err != nil {
-		t.Errorf("importer.CreateSourcePackage(%s) failed: %s", inputs, err)
-		return false
-	}
+	mainInfo := imp.LoadMainPackage(files...)
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		t.Errorf("CreatePackages failed: %s", err)
+		return false
 	}
 	prog.BuildAll()
 
-	mainPkg := prog.Package(info.Pkg)
+	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.CreateTestMainFunction() // (no-op if main already exists)
 
 	hint = fmt.Sprintf("To trace execution, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump; ./ssadump -build=C -run --interp=T %s\n", input)

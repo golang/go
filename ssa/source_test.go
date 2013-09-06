@@ -46,17 +46,14 @@ func TestObjValueLookup(t *testing.T) {
 		}
 	}
 
-	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
+	mainInfo := imp.LoadMainPackage(f)
 
 	prog := ssa.NewProgram(imp.Fset, 0 /*|ssa.LogFunctions*/)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		t.Error(err)
+		return
 	}
-	mainPkg := prog.Package(info.Pkg)
+	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
 
@@ -66,7 +63,7 @@ func TestObjValueLookup(t *testing.T) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		if id, ok := n.(*ast.Ident); ok {
 			ids = append(ids, id)
-			if obj := info.ObjectOf(id); obj != nil {
+			if obj := mainInfo.ObjectOf(id); obj != nil {
 				objs[obj] = true
 			}
 		}
@@ -87,7 +84,7 @@ func TestObjValueLookup(t *testing.T) {
 	// Check invariants for var objects.
 	// The result varies based on the specific Ident.
 	for _, id := range ids {
-		if obj, ok := info.ObjectOf(id).(*types.Var); ok {
+		if obj, ok := mainInfo.ObjectOf(id).(*types.Var); ok {
 			ref, _ := importer.PathEnclosingInterval(f, id.Pos(), id.Pos())
 			pos := imp.Fset.Position(id.Pos())
 			exp := expectations[fmt.Sprintf("%s:%d", id.Name, pos.Line)]
@@ -197,17 +194,14 @@ func TestValueForExpr(t *testing.T) {
 		return
 	}
 
-	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
+	mainInfo := imp.LoadMainPackage(f)
 
 	prog := ssa.NewProgram(imp.Fset, 0)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		t.Error(err)
+		return
 	}
-	mainPkg := prog.Package(info.Pkg)
+	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
 
@@ -251,8 +245,8 @@ func TestValueForExpr(t *testing.T) {
 			t.Errorf("%s: got value %q, want %q", position, got, want)
 		}
 		if v != nil {
-			if !types.IsIdentical(v.Type(), info.TypeOf(e)) {
-				t.Errorf("%s: got type %s, want %s", position, info.TypeOf(e), v.Type())
+			if !types.IsIdentical(v.Type(), mainInfo.TypeOf(e)) {
+				t.Errorf("%s: got type %s, want %s", position, mainInfo.TypeOf(e), v.Type())
 			}
 		}
 	}

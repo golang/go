@@ -11,7 +11,6 @@ package pointer_test
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/build"
 	"go/parser"
 	"go/token"
@@ -171,21 +170,18 @@ func doOneInput(input, filename string) bool {
 	if err != nil {
 		// TODO(adonovan): err is a scanner error list;
 		// display all errors not just first?
-		fmt.Println(err.Error())
+		fmt.Println(err)
 		return false
 	}
 
-	// Type checking.
-	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
-	if err != nil {
-		fmt.Println(err.Error())
-		return false
-	}
+	// Load main package and its dependencies.
+	info := imp.LoadMainPackage(f)
 
 	// SSA creation + building.
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		fmt.Println(err)
+		return false
 	}
 	prog.BuildAll()
 
@@ -522,7 +518,7 @@ func TestInput(t *testing.T) {
 
 	wd, err := os.Getwd()
 	if err != nil {
-		t.Errorf("os.Getwd: %s", err.Error())
+		t.Errorf("os.Getwd: %s", err)
 		return
 	}
 
@@ -535,7 +531,7 @@ func TestInput(t *testing.T) {
 	for _, filename := range inputs {
 		content, err := ioutil.ReadFile(filename)
 		if err != nil {
-			t.Errorf("couldn't read file '%s': %s", filename, err.Error())
+			t.Errorf("couldn't read file '%s': %s", filename, err)
 			continue
 		}
 

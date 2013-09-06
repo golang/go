@@ -1,5 +1,5 @@
 -------- @describe pkgdecl --------
-definition of package "main"
+definition of package "describe"
 	type  C          int
 		method (*describe.C) f()
 	type  D          struct{}
@@ -126,7 +126,7 @@ binary - operation of constant value -2
 
 -------- @describe map-lookup,ok --------
 index expression of type (*int, bool)
-no points-to information: can't locate SSA Value for expression in main.main
+no points-to information: can't locate SSA Value for expression in describe.main
 
 -------- @describe mapval --------
 reference to var mapval *int

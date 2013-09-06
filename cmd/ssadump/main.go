@@ -123,22 +123,36 @@ func main() {
 
 	// Load, parse and type-check the program.
 	imp := importer.New(&impctx)
-	info, args, err := importer.CreatePackageFromArgs(imp, args)
+	infos, args, err := imp.LoadInitialPackages(args)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 
 	// Create and build SSA-form program representation.
 	prog := ssa.NewProgram(imp.Fset, mode)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info).SetDebugMode(debugMode)
+	if err := prog.CreatePackages(imp); err != nil {
+		log.Fatal(err)
+	}
+	if debugMode {
+		for _, pkg := range prog.AllPackages() {
+			pkg.SetDebugMode(true)
+		}
 	}
 	prog.BuildAll()
 
-	prog.Package(info.Pkg).CreateTestMainFunction() // TODO(adonovan): remove hack
-
-	// Run the interpreter.
+	// Run the interpreter on the first package with a main function.
 	if *runFlag {
-		interp.Interpret(prog.Package(info.Pkg), interpMode, info.Pkg.Path(), args)
+		var main *ssa.Package
+		for _, info := range infos {
+			pkg := prog.Package(info.Pkg)
+			if pkg.Func("main") != nil || pkg.CreateTestMainFunction() != nil {
+				main = pkg
+				break
+			}
+		}
+		if main == nil {
+			log.Fatal("No main function")
+		}
+		interp.Interpret(main, interpMode, main.Object.Path(), args)
 	}
 }

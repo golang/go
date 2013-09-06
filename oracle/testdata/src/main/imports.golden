@@ -34,7 +34,7 @@ defined here
 reference to var p *int
 defined here
 value may point to these labels:
-	main.a
+	imports.a
 
 -------- @describe ref-pkg --------
 reference to package "lib"

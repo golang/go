@@ -640,7 +640,7 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 // The result is (nil, nil, false) if not found.
 //
 func (imp *Importer) PathEnclosingInterval(start, end token.Pos) (pkg *PackageInfo, path []ast.Node, exact bool) {
-	for _, info := range imp.Packages {
+	for _, info := range imp.allPackages {
 		for _, f := range info.Files {
 			if !tokenFileContainsPos(imp.Fset.File(f.Package), start) {
 				continue

@@ -35,7 +35,7 @@ type visitor struct {
 }
 
 func (visit *visitor) program() {
-	for _, pkg := range visit.prog.PackagesByPath {
+	for _, pkg := range visit.prog.AllPackages() {
 		for _, mem := range pkg.Members {
 			switch mem := mem.(type) {
 			case *Function:

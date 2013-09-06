@@ -33,7 +33,7 @@ This channel of type chan *int may be:
 reference to var rA *int
 defined here
 value may point to these labels:
-	main.a2
+	peers.a2
 	a1
 
 -------- @peers peer-recv-chB --------

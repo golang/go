@@ -5,13 +5,13 @@
 package ssa_test
 
 import (
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/ssa"
-	"go/ast"
 	"go/parser"
 	"strings"
 	"testing"
+
+	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/importer"
+	"code.google.com/p/go.tools/ssa"
 )
 
 func isEmpty(f *ssa.Function) bool { return f.Blocks == nil }
@@ -38,7 +38,7 @@ func main() {
         w.Write(nil)    // interface invoke of external declared method
 }
 `
-	imp := importer.New(new(importer.Config)) // no Loader; uses GC importer
+	imp := importer.New(new(importer.Config)) // no go/build.Context; uses GC importer
 
 	f, err := parser.ParseFile(imp.Fset, "<input>", test, parser.DeclarationErrors)
 	if err != nil {
@@ -46,26 +46,24 @@ func main() {
 		return
 	}
 
-	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
+	mainInfo := imp.LoadMainPackage(f)
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		t.Error(err)
+		return
 	}
-	mainPkg := prog.Package(info.Pkg)
+	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.Build()
 
 	// Only the main package and its immediate dependencies are loaded.
 	deps := []string{"bytes", "io", "testing"}
-	if len(prog.PackagesByPath) != 1+len(deps) {
-		t.Errorf("unexpected set of loaded packages: %q", prog.PackagesByPath)
+	all := prog.AllPackages()
+	if len(all) != 1+len(deps) {
+		t.Errorf("unexpected set of loaded packages: %q", all)
 	}
 	for _, path := range deps {
-		pkg, _ := prog.PackagesByPath[path]
+		pkg := prog.ImportedPackage(path)
 		if pkg == nil {
 			t.Errorf("package not loaded: %q", path)
 			continue
@@ -96,11 +94,6 @@ func main() {
 				// (In this test, all exported methods belong to *T not T.)
 				if !isExt {
 					t.Fatalf("unexpected name type in main package: %s", mem)
-				}
-				if _, ok := mem.Type().Underlying().(*types.Interface); ok {
-					// TODO(adonovan): workaround bug in types.MethodSet
-					// whereby mset(*I) is nonempty if I is an interface.
-					continue
 				}
 				mset := types.NewPointer(mem.Type()).MethodSet()
 				for i, n := 0, mset.Len(); i < n; i++ {

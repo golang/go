@@ -2305,7 +2305,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 //
 func (prog *Program) BuildAll() {
 	var wg sync.WaitGroup
-	for _, p := range prog.PackagesByPath {
+	for _, p := range prog.packages {
 		if prog.mode&BuildSerially != 0 {
 			p.Build()
 		} else {

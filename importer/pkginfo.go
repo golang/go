@@ -23,6 +23,7 @@ import (
 //
 type PackageInfo struct {
 	Pkg        *types.Package
+	Importable bool        // true if 'import "Pkg.Path()"' would resolve to this
 	Err        error       // non-nil if the package had static errors
 	Files      []*ast.File // abstract syntax for the package's files
 	types.Info             // type-checker deductions.

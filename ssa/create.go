@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
@@ -40,7 +41,7 @@ const (
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
 		Fset:                fset,
-		PackagesByPath:      make(map[string]*Package),
+		imported:            make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
 		boundMethodWrappers: make(map[*types.Func]*Function),
@@ -246,7 +247,9 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		p.DumpTo(os.Stderr)
 	}
 
-	prog.PackagesByPath[info.Pkg.Path()] = p
+	if info.Importable {
+		prog.imported[info.Pkg.Path()] = p
+	}
 	prog.packages[p.Object] = p
 
 	if prog.mode&SanityCheckFunctions != 0 {
@@ -254,4 +257,49 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	}
 
 	return p
+}
+
+// CreatePackages creates SSA Packages for all error-free packages
+// loaded by the specified Importer.
+//
+// If all packages were error-free, it is safe to call
+// prog.BuildAll(), and nil is returned.  Otherwise an error is
+// returned.
+//
+func (prog *Program) CreatePackages(imp *importer.Importer) error {
+	var errpkgs []string
+	for _, info := range imp.AllPackages() {
+		if info.Err != nil {
+			errpkgs = append(errpkgs, info.Pkg.Path())
+		} else {
+			prog.CreatePackage(info)
+		}
+	}
+	if errpkgs != nil {
+		return fmt.Errorf("couldn't create these SSA packages due to type errors: %s",
+			strings.Join(errpkgs, ", "))
+	}
+	return nil
+}
+
+// AllPackages returns a new slice containing all packages in the
+// program prog in unspecified order.
+//
+func (prog *Program) AllPackages() []*Package {
+	pkgs := make([]*Package, 0, len(prog.packages))
+	for _, pkg := range prog.packages {
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs
+}
+
+// ImportedPackage returns the importable SSA Package whose import
+// path is path, or nil if no such SSA package has been created.
+//
+// Not all packages are importable.  For example, no import
+// declaration can resolve to the x_test package created by 'go test'
+// or the ad-hoc main package created 'go build foo.go'.
+//
+func (prog *Program) ImportedPackage(path string) *Package {
+	return prog.imported[path]
 }

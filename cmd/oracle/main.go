@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle"
 )
 
@@ -41,13 +42,13 @@ var ptalogFlag = flag.String("ptalog", "",
 var formatFlag = flag.String("format", "plain", "Output format: 'plain' or 'json'.")
 
 const usage = `Go source code oracle.
-Usage: oracle [<flag> ...] [<file.go> ...] [<arg> ...]
+Usage: oracle [<flag> ...] <args> ...
 Use -help flag to display options.
 
 Examples:
 % oracle -pos=hello.go:#123      hello.go
 % oracle -pos=hello.go:#123-#456 hello.go
-`
+` + importer.InitialPackagesUsage
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
@@ -76,7 +77,7 @@ func main() {
 	var ptalog io.Writer
 	if *ptalogFlag != "" {
 		if f, err := os.Create(*ptalogFlag); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatal(err.Error())
 		} else {
 			buf := bufio.NewWriter(f)
 			ptalog = buf
@@ -106,7 +107,7 @@ func main() {
 	// Ask the oracle.
 	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 
@@ -115,7 +116,7 @@ func main() {
 	case "json":
 		b, err := json.Marshal(res)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err)
 			os.Exit(1)
 		}
 		var buf bytes.Buffer

@@ -195,7 +195,7 @@ func Analyze(config *Config) CallGraphNode {
 		work:        makeMapWorklist(),
 	}
 
-	if reflect := a.prog.PackagesByPath["reflect"]; reflect != nil {
+	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
 		a.reflectValueObj = reflect.Object.Scope().Lookup("Value")
 		a.reflectRtypeObj = reflect.Object.Scope().Lookup("rtype")
 		a.reflectRtype = types.NewPointer(a.reflectRtypeObj.Type())

@@ -693,22 +693,41 @@ func (r *describeTypeResult) toJSON(res *json.Result, fset *token.FileSet) {
 
 func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error) {
 	var description string
+	var pkg *ssa.Package
 	var importPath string
 	switch n := path[0].(type) {
 	case *ast.ImportSpec:
-		// importPath = o.queryPkgInfo.ObjectOf(n.Name).(*types.Package).Path()
-		// description = "import of package " + importPath
-		// TODO(gri): o.queryPkgInfo.ObjectOf(n.Name) may be nil.
-		// e.g. "fmt" import in cmd/oracle/main.go.    Why?
-		// Workaround:
+		// Most ImportSpecs have no .Name Ident so we can't
+		// use ObjectOf.
+		// We could use the types.Info.Implicits mechanism,
+		// but it's easier just to look it up by name.
 		description = "import of package " + n.Path.Value
 		importPath, _ = strconv.Unquote(n.Path.Value)
+		pkg = o.prog.ImportedPackage(importPath)
 
 	case *ast.Ident:
-		importPath = o.queryPkgInfo.ObjectOf(n).(*types.Package).Path()
+		obj := o.queryPkgInfo.ObjectOf(n).(*types.Package)
+		importPath = obj.Path()
+
 		if _, isDef := path[1].(*ast.File); isDef {
+			// e.g. package id
+			pkg = o.prog.Package(obj)
 			description = fmt.Sprintf("definition of package %q", importPath)
 		} else {
+			// e.g. import id
+			//  or  id.F()
+
+			// TODO(gri): go/types internally creates a new
+			// Package object for each import, so the packages
+			// for 'package x' and 'import "x"' differ!
+			//
+			// Here, this should be an invariant, but is not:
+			// o.prog.ImportedPackage(obj.Path()).Pkg == obj
+			//
+			// So we must use the name of the non-canonical package
+			// to do another lookup.
+			pkg = o.prog.ImportedPackage(importPath)
+
 			description = fmt.Sprintf("reference to package %q", importPath)
 		}
 		if importPath == "" {
@@ -722,8 +741,9 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 	}
 
 	var members []*describeMember
-	// NB: package "unsafe" has no object.
-	if pkg := o.prog.PackagesByPath[importPath]; pkg != nil {
+	// NB: "unsafe" has no ssa.Package
+	// TODO(adonovan): simplify by using types.Packages not ssa.Packages.
+	if pkg != nil {
 		// Compute set of exported package members in lexicographic order.
 		var names []string
 		for name := range pkg.Members {

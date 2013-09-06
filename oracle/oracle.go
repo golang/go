@@ -123,7 +123,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 	minfo, ok := modes[mode]
 	if !ok {
 		if mode == "" {
-			return nil, errors.New("you must specify a -mode to perform")
+			return nil, errors.New("you must specify a -mode of query to perform")
 		}
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
@@ -155,9 +155,12 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 
 	// Load/parse/type-check program from args.
 	start := time.Now()
-	initialPkgInfo, _, err := importer.CreatePackageFromArgs(imp, args)
+	initialPkgInfos, args, err := imp.LoadInitialPackages(args)
 	if err != nil {
-		return nil, err // I/O, parser or type error
+		return nil, err // I/O or parser error
+	}
+	if len(args) > 0 {
+		return nil, fmt.Errorf("surplus arguments: %q", args)
 	}
 	o.timers["load/parse/type"] = time.Since(start)
 
@@ -184,21 +187,26 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 	if minfo.needs&SSA != 0 {
 		start = time.Now()
 
-		// All packages.
-		for _, info := range imp.Packages {
-			o.prog.CreatePackage(info) // create ssa.Package
+		// Create SSA packages.
+		if err := o.prog.CreatePackages(imp); err != nil {
+			return nil, o.errorf(false, "%s", err)
 		}
 
-		// Initial package (specified on command line)
-		initialPkg := o.prog.Package(initialPkgInfo.Pkg)
+		// Initial packages (specified on command line)
+		for _, info := range initialPkgInfos {
+			initialPkg := o.prog.Package(info.Pkg)
 
-		// Add package to the pointer analysis scope.
-		if initialPkg.Func("main") == nil {
-			if initialPkg.CreateTestMainFunction() == nil {
-				return nil, o.errorf(false, "analysis scope has no main() entry points")
+			// Add package to the pointer analysis scope.
+			if initialPkg.Func("main") == nil {
+				// TODO(adonovan): to simulate 'go test' more faithfully, we
+				// should build a single synthetic testmain package,
+				// not synthetic main functions to many packages.
+				if initialPkg.CreateTestMainFunction() == nil {
+					return nil, o.errorf(false, "analysis scope has no main() entry points")
+				}
 			}
+			o.config.Mains = append(o.config.Mains, initialPkg)
 		}
-		o.config.Mains = append(o.config.Mains, initialPkg)
 
 		// Query package.
 		if o.queryPkgInfo != nil {

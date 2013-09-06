@@ -55,13 +55,11 @@ func TestStdlib(t *testing.T) {
 	// Load, parse and type-check the program.
 	t0 := time.Now()
 
-	var hasErrors bool
 	imp := importer.New(&impctx)
-	for _, importPath := range allPackages() {
-		if _, err := imp.LoadPackage(importPath); err != nil {
-			t.Errorf("LoadPackage(%s): %s", importPath, err)
-			hasErrors = true
-		}
+
+	if _, _, err := imp.LoadInitialPackages(allPackages()); err != nil {
+		t.Errorf("LoadInitialPackages failed: %s", err)
+		return
 	}
 
 	t1 := time.Now()
@@ -73,25 +71,26 @@ func TestStdlib(t *testing.T) {
 
 	// Create SSA packages.
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	for _, info := range imp.Packages {
-		if info.Err == nil {
-			prog.CreatePackage(info).SetDebugMode(debugMode)
-		}
+	if err := prog.CreatePackages(imp); err != nil {
+		t.Errorf("CreatePackages failed: %s", err)
+		return
+	}
+	// Enable debug mode globally.
+	for _, info := range imp.AllPackages() {
+		prog.Package(info.Pkg).SetDebugMode(debugMode)
 	}
 
 	t2 := time.Now()
 
 	// Build SSA IR... if it's safe.
-	if !hasErrors {
-		prog.BuildAll()
-	}
+	prog.BuildAll()
 
 	t3 := time.Now()
 
 	runtime.GC()
 	runtime.ReadMemStats(&memstats)
 
-	numPkgs := len(prog.PackagesByPath)
+	numPkgs := len(prog.AllPackages())
 	if want := 140; numPkgs < want {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
 	}
@@ -108,9 +107,7 @@ func TestStdlib(t *testing.T) {
 	t.Log("GOMAXPROCS:           ", runtime.GOMAXPROCS(0))
 	t.Log("Load/parse/typecheck: ", t1.Sub(t0))
 	t.Log("SSA create:           ", t2.Sub(t1))
-	if !hasErrors {
-		t.Log("SSA build:            ", t3.Sub(t2))
-	}
+	t.Log("SSA build:            ", t3.Sub(t2))
 
 	// SSA stats:
 	t.Log("#Packages:            ", numPkgs)

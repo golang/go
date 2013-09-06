@@ -2,11 +2,11 @@
 {
 	"mode": "describe",
 	"describe": {
-		"desc": "definition of package \"main\"",
+		"desc": "definition of package \"describe\"",
 		"pos": "testdata/src/main/describe-json.go:1:9",
 		"detail": "package",
 		"package": {
-			"path": "main",
+			"path": "describe",
 			"members": [
 				{
 					"name": "C",

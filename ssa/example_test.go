@@ -6,7 +6,6 @@ package ssa_test
 
 import (
 	"fmt"
-	"go/ast"
 	"go/build"
 	"go/parser"
 	"os"
@@ -48,24 +47,21 @@ func main() {
 	// Parse the input file.
 	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, parser.DeclarationErrors)
 	if err != nil {
-		fmt.Print(err.Error()) // parse error
+		fmt.Print(err) // parse error
 		return
 	}
 
 	// Create a "main" package containing one file.
-	info, err := imp.CreateSourcePackage("main", []*ast.File{file})
-	if err != nil {
-		fmt.Print(err.Error()) // type error
-		return
-	}
+	mainInfo := imp.LoadMainPackage(file)
 
 	// Create SSA-form program representation.
 	var mode ssa.BuilderMode
 	prog := ssa.NewProgram(imp.Fset, mode)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		fmt.Print(err) // type error in some package
+		return
 	}
-	mainPkg := prog.Package(info.Pkg)
+	mainPkg := prog.Package(mainInfo.Pkg)
 
 	// Print out the package.
 	mainPkg.DumpTo(os.Stdout)

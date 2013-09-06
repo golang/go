@@ -38,7 +38,7 @@ func (pkg *Package) CreateTestMainFunction() *Function {
 		Pkg:       pkg,
 	}
 
-	testingPkg := pkg.Prog.PackagesByPath["testing"]
+	testingPkg := pkg.Prog.ImportedPackage("testing")
 	if testingPkg == nil {
 		// If it doesn't import "testing", it can't be a test.
 		// TODO(adonovan): but it might contain Examples.

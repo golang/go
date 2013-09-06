@@ -8,54 +8,15 @@ package importer
 // and used by it.
 
 import (
-	"errors"
 	"go/ast"
 	"go/build"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
-	"strings"
+	"strconv"
 	"sync"
 )
-
-// CreatePackageFromArgs builds an initial Package from a list of
-// command-line arguments.
-// If args is a list of *.go files, they are parsed and type-checked.
-// If args is a Go package import path, that package is imported.
-// The rest result contains the suffix of args that were not consumed.
-//
-// This utility is provided to facilitate construction of command-line
-// tools with a consistent user interface.
-//
-func CreatePackageFromArgs(imp *Importer, args []string) (info *PackageInfo, rest []string, err error) {
-	switch {
-	case len(args) == 0:
-		return nil, nil, errors.New("no *.go source files nor package name was specified.")
-
-	case strings.HasSuffix(args[0], ".go"):
-		// % tool a.go b.go ...
-		// Leading consecutive *.go arguments constitute main package.
-		i := 1
-		for ; i < len(args) && strings.HasSuffix(args[i], ".go"); i++ {
-		}
-		var files []*ast.File
-		files, err = ParseFiles(imp.Fset, ".", args[:i]...)
-		rest = args[i:]
-		if err == nil {
-			info, err = imp.CreateSourcePackage("main", files)
-		}
-
-	default:
-		// % tool my/package ...
-		// First argument is import path of main package.
-		pkgname := args[0]
-		info, err = imp.LoadPackage(pkgname)
-		rest = args[1:]
-	}
-
-	return
-}
 
 var cwd string
 
@@ -67,9 +28,15 @@ func init() {
 	}
 }
 
-// loadPackage ascertains which files belong to package path, then
-// loads, parses and returns them.
-func loadPackage(ctxt *build.Context, fset *token.FileSet, path string) (files []*ast.File, err error) {
+// parsePackageFiles enumerates the files belonging to package path,
+// then loads, parses and returns them.
+//
+// 'which' is a list of flags indicating which files to include:
+//    'g': include non-test *.go source files (GoFiles)
+//    't': include in-package *_test.go source files (TestGoFiles)
+//    'x': include external *_test.go source files. (XTestGoFiles)
+//
+func parsePackageFiles(ctxt *build.Context, fset *token.FileSet, path string, which string) ([]*ast.File, error) {
 	// Set the "!cgo" go/build tag, preferring (dummy) Go to
 	// native C implementations of net.cgoLookupHost et al.
 	ctxt2 := *ctxt
@@ -82,9 +49,25 @@ func loadPackage(ctxt *build.Context, fset *token.FileSet, path string) (files [
 		return nil, nil // empty directory
 	}
 	if err != nil {
-		return // import failed
+		return nil, err // import failed
 	}
-	return ParseFiles(fset, bp.Dir, bp.GoFiles...)
+
+	var filenames []string
+	for _, c := range which {
+		var s []string
+		switch c {
+		case 'g':
+			s = bp.GoFiles
+		case 't':
+			s = bp.TestGoFiles
+		case 'x':
+			s = bp.XTestGoFiles
+		default:
+			panic(c)
+		}
+		filenames = append(filenames, s...)
+	}
+	return ParseFiles(fset, bp.Dir, filenames...)
 }
 
 // ParseFiles parses the Go source files files within directory dir
@@ -131,4 +114,28 @@ func unparen(e ast.Expr) ast.Expr {
 
 func unreachable() {
 	panic("unreachable")
+}
+
+// importsOf returns the set of paths imported by the specified files.
+func importsOf(p string, files []*ast.File) map[string]bool {
+	imports := make(map[string]bool)
+outer:
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.GenDecl); ok {
+				if decl.Tok != token.IMPORT {
+					break outer // stop at the first non-import
+				}
+				for _, spec := range decl.Specs {
+					spec := spec.(*ast.ImportSpec)
+					if path, _ := strconv.Unquote(spec.Path.Value); path != "C" {
+						imports[path] = true
+					}
+				}
+			} else {
+				break outer // stop at the first non-import
+			}
+		}
+	}
+	return imports
 }
