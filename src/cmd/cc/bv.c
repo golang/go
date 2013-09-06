@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 #include <u.h>
-#include <libc.h>
 #include "cc.h"
 
 enum {
