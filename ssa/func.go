@@ -430,7 +430,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	}
 	outer := f.Enclosing.lookup(obj, true) // escaping
 	v := &Capture{
-		name:   outer.Name(),
+		name:   obj.Name(),
 		typ:    outer.Type(),
 		pos:    outer.Pos(),
 		outer:  outer,
