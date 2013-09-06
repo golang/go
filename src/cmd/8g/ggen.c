@@ -39,9 +39,12 @@ defframe(Prog *ptxt, Bvec *bv)
 		p = appendp(p, AREP, D_NONE, 0, D_NONE, 0);
 		appendp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
 	} else {
-		for(i=0, j=(stkptrsize-stkzerosize)/widthptr*2; i<stkzerosize; i+=widthptr, j+=2)
+		j = (stkptrsize - stkzerosize)/widthptr * 2;
+		for(i=0; i<stkzerosize; i+=widthptr) {
 			if(bvget(bv, j) || bvget(bv, j+1))
 				p = appendp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
+			j += 2;
+		}
 	}
 }
 
