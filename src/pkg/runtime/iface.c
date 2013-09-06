@@ -86,7 +86,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	}
 
 	ni = inter->mhdr.len;
-	m = runtime·persistentalloc(sizeof(*m) + ni*sizeof m->fun[0], 0);
+	m = runtime·persistentalloc(sizeof(*m) + ni*sizeof m->fun[0], 0, &mstats.other_sys);
 	m->inter = inter;
 	m->type = type;
 

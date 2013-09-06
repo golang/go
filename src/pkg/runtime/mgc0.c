@@ -1223,7 +1223,7 @@ getempty(Workbuf *b)
 		runtime·lock(&work);
 		if(work.nchunk < sizeof *b) {
 			work.nchunk = 1<<20;
-			work.chunk = runtime·SysAlloc(work.nchunk);
+			work.chunk = runtime·SysAlloc(work.nchunk, &mstats.gc_sys);
 			if(work.chunk == nil)
 				runtime·throw("runtime: cannot allocate memory");
 		}
@@ -1314,12 +1314,12 @@ addroot(Obj obj)
 		cap = PageSize/sizeof(Obj);
 		if(cap < 2*work.rootcap)
 			cap = 2*work.rootcap;
-		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj));
+		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj), &mstats.gc_sys);
 		if(new == nil)
 			runtime·throw("runtime: cannot allocate memory");
 		if(work.roots != nil) {
 			runtime·memmove(new, work.roots, work.rootcap*sizeof(Obj));
-			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj));
+			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj), &mstats.gc_sys);
 		}
 		work.roots = new;
 		work.rootcap = cap;
@@ -1583,7 +1583,7 @@ handlespecial(byte *p, uintptr size)
 	runtime·lock(&finlock);
 	if(finq == nil || finq->cnt == finq->cap) {
 		if(finc == nil) {
-			finc = runtime·persistentalloc(PageSize, 0);
+			finc = runtime·persistentalloc(PageSize, 0, &mstats.gc_sys);
 			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
 			finc->alllink = allfin;
 			allfin = finc;
@@ -1869,7 +1869,11 @@ updatememstats(GCStats *stats)
 		}
 	}
 	mstats.stacks_inuse = stacks_inuse;
-
+	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
+	mstats.mspan_inuse = runtime·mheap.spanalloc.inuse;
+	mstats.sys = mstats.heap_sys + mstats.stacks_sys + mstats.mspan_sys +
+		mstats.mcache_sys + mstats.buckhash_sys + mstats.gc_sys + mstats.other_sys;
+	
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.
 	// Current number of alive object in the heap and amount of alive heap memory
@@ -2517,6 +2521,6 @@ runtime·MHeap_MapBits(MHeap *h)
 	if(h->bitmap_mapped >= n)
 		return;
 
-	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped);
+	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, &mstats.gc_sys);
 	h->bitmap_mapped = n;
 }

@@ -36,10 +36,9 @@ stackcacherefill(void)
 		stackcache = n->next;
 	runtime·unlock(&stackcachemu);
 	if(n == nil) {
-		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch);
+		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch, &mstats.stacks_sys);
 		if(n == nil)
 			runtime·throw("out of memory (stackcacherefill)");
-		runtime·xadd64(&mstats.stacks_sys, FixedStack*StackCacheBatch);
 		for(i = 0; i < StackCacheBatch-1; i++)
 			n->batch[i] = (byte*)n + (i+1)*FixedStack;
 	}
