@@ -32,11 +32,32 @@ func TestParseIP(t *testing.T) {
 		if out := ParseIP(tt.in); !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("ParseIP(%q) = %v, want %v", tt.in, out, tt.out)
 		}
+		if tt.in == "" {
+			// Tested in TestMarshalEmptyIP below.
+			continue
+		}
 		var out IP
-
 		if err := out.UnmarshalText([]byte(tt.in)); !reflect.DeepEqual(out, tt.out) || (tt.out == nil) != (err != nil) {
 			t.Errorf("IP.UnmarshalText(%q) = %v, %v, want %v", tt.in, out, err, tt.out)
 		}
+	}
+}
+
+// Issue 6339
+func TestMarshalEmptyIP(t *testing.T) {
+	for _, in := range [][]byte{nil, []byte("")} {
+		var out = IP{1, 2, 3, 4}
+		if err := out.UnmarshalText(in); err != nil || out != nil {
+			t.Errorf("UnmarshalText(%v) = %v, %v; want nil, nil", in, out, err)
+		}
+	}
+	var ip IP
+	got, err := ip.MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, []byte("")) {
+		t.Errorf(`got %#v, want []byte("")`, got)
 	}
 }
 
@@ -53,22 +74,18 @@ var ipStringTests = []struct {
 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1:0:0:1"},
 	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0, 0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD}, "2001:db8::a:b:c:d"},
 	{IPv4(192, 168, 0, 1), "192.168.0.1"},
-	{nil, "<nil>"},
+	{nil, ""},
 }
 
 func TestIPString(t *testing.T) {
 	for _, tt := range ipStringTests {
-		if out := tt.in.String(); out != tt.out {
-			t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.out)
-		}
 		if tt.in != nil {
-			if out, err := tt.in.MarshalText(); string(out) != tt.out || err != nil {
-				t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", out, err, tt.out)
+			if out := tt.in.String(); out != tt.out {
+				t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.out)
 			}
-		} else {
-			if _, err := tt.in.MarshalText(); err == nil {
-				t.Errorf("IP.MarshalText(nil) succeeded, want failure")
-			}
+		}
+		if out, err := tt.in.MarshalText(); string(out) != tt.out || err != nil {
+			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", out, err, tt.out)
 		}
 	}
 }
