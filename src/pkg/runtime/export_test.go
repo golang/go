@@ -67,3 +67,15 @@ func testSchedLocalQueueSteal()
 
 var TestSchedLocalQueue1 = testSchedLocalQueue
 var TestSchedLocalQueueSteal1 = testSchedLocalQueueSteal
+
+func haveGoodHash() bool
+func stringHash(s string, seed uintptr) uintptr
+func bytesHash(b []byte, seed uintptr) uintptr
+func int32Hash(i uint32, seed uintptr) uintptr
+func int64Hash(i uint64, seed uintptr) uintptr
+
+var HaveGoodHash = haveGoodHash
+var StringHash = stringHash
+var BytesHash = bytesHash
+var Int32Hash = int32Hash
+var Int64Hash = int64Hash
