@@ -106,3 +106,21 @@ import (
 	"log" // for Fatal
 	"math"
 )
+
+// Test deduping and extended sorting
+import (
+	a "A" // aA
+	b "A" // bA1
+	b "A" // bA2
+	"B"   // B
+	. "B" // .B
+	_ "B" // _b
+	"C"
+	a "D" // aD
+)
+
+import (
+	"dedup_by_group"
+
+	"dedup_by_group"
+)
