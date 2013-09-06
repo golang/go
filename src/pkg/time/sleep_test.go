@@ -396,3 +396,9 @@ func TestIssue5745(t *testing.T) {
 	timer.Stop()
 	t.Error("Should be unreachable.")
 }
+
+func TestOverflowRuntimeTimer(t *testing.T) {
+	if err := CheckRuntimeTimerOverflow(); err != nil {
+		t.Fatalf(err.Error())
+	}
+}

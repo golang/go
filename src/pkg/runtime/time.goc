@@ -13,8 +13,13 @@ package time
 #include "malloc.h"
 #include "race.h"
 
+enum {
+	debug = 0,
+};
+
 static Timers timers;
 static void addtimer(Timer*);
+static void dumptimers(int8*);
 
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
@@ -92,6 +97,11 @@ addtimer(Timer *t)
 	int32 n;
 	Timer **nt;
 
+	// when must never be negative; otherwise timerproc will overflow
+	// during its delta calculation and never expire other timers.
+	if(t->when < 0)
+		t->when = (1LL<<63)-1;
+
 	if(timers.len >= timers.cap) {
 		// Grow slice.
 		n = 16;
@@ -121,6 +131,8 @@ addtimer(Timer *t)
 		timers.timerproc = runtime·newproc1(&timerprocv, nil, 0, 0, addtimer);
 		timers.timerproc->issystem = true;
 	}
+	if(debug)
+		dumptimers("addtimer");
 }
 
 // Delete timer t from the heap.
@@ -157,6 +169,8 @@ runtime·deltimer(Timer *t)
 		siftup(i);
 		siftdown(i);
 	}
+	if(debug)
+		dumptimers("deltimer");
 	runtime·unlock(&timers);
 	return true;
 }
@@ -284,4 +298,19 @@ siftdown(int32 i)
 		tmp->i = c;
 		i = c;
 	}
+}
+
+static void
+dumptimers(int8 *msg)
+{
+	Timer *t;
+	int32 i;
+
+	runtime·printf("timers: %s\n", msg);
+	for(i = 0; i < timers.len; i++) {
+		t = timers.t[i];
+		runtime·printf("\t%d\t%p:\ti %d when %D period %D fn %p\n",
+				i, t, t->i, t->when, t->period, t->fv->fn);
+	}
+	runtime·printf("\n");
 }
