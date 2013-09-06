@@ -1387,6 +1387,8 @@ ret:
 	// walk of y%1 may have replaced it by 0.
 	// Check whether n with its updated args is itself now a constant.
 	evconst(n);
+	if(n->op == OLITERAL)
+		typecheck(&n, Erv);
 
 	ullmancalc(n);
 
