@@ -97,7 +97,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 }
 
 // AcceptUnix accepts the next incoming call and returns the new
-// connection and the remote address.
+// connection.
 func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }
