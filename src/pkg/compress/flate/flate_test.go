@@ -47,3 +47,16 @@ func TestIssue5962(t *testing.T) {
 		t.Fatalf("Given sequence of bits is bad, and should not succeed.")
 	}
 }
+
+// The following test should not panic.
+func TestIssue6255(t *testing.T) {
+	bits1 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11}
+	bits2 := []int{11, 13}
+	h := new(huffmanDecoder)
+	if !h.init(bits1) {
+		t.Fatalf("Given sequence of bits is good and should succeed.")
+	}
+	if h.init(bits2) {
+		t.Fatalf("Given sequence of bits is bad and should not succeed.")
+	}
+}

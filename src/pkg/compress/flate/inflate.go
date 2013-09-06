@@ -91,6 +91,10 @@ type huffmanDecoder struct {
 
 // Initialize Huffman decoding tables from array of code lengths.
 func (h *huffmanDecoder) init(bits []int) bool {
+	if h.min != 0 {
+		*h = huffmanDecoder{}
+	}
+
 	// Count number of codes of each length,
 	// compute min and max length.
 	var count [maxCodeLen]int
