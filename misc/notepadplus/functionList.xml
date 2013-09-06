@@ -6,6 +6,23 @@
 		<!-- </associationMap> -->
 		<!-- <parsers> -->
 			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">
+				<classRange
+					mainExpr="^type\s+\w+\s+interface\s*\{"
+					openSymbole = "\{"
+					closeSymbole = "\}"
+					displayMode="node">
+					<className>
+						<nameExpr expr="type\s+\w+"/>
+						<nameExpr expr="\s+\w+"/>
+						<nameExpr expr="\w+"/>
+					</className>
+					<function
+						mainExpr="^\s+\w+\s*\(">
+						<functionName>
+							<funcNameExpr expr="\w+"/>
+						</functionName>
+					</function>
+				</classRange>
 				<function
 					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w*\s*\*?\s*\w+\s*\)\s*\w+)"
 					displayMode="$className->$functionName">
