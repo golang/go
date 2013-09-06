@@ -40,6 +40,10 @@ func main() {
 	shouldPanic(p10)
 	shouldPanic(p11)
 	shouldPanic(p12)
+	shouldPanic(p13)
+	shouldPanic(p14)
+	shouldPanic(p15)
+	shouldPanic(p16)
 }
 
 func shouldPanic(f func()) {
@@ -151,4 +155,28 @@ func p11() {
 func p12() {
 	var p *T = nil
 	println(*(&((*p).i)))
+}
+
+// Tests suggested in golang.org/issue/6080.
+
+func p13() {
+	var x *[10]int
+	y := x[:]
+	_ = y
+}
+
+func p14() {
+	println((*[1]int)(nil)[:])
+}
+
+func p15() {
+	for i := range (*[1]int)(nil)[:] {
+		_ = i
+	}
+}
+
+func p16() {
+	for i, v := range (*[1]int)(nil)[:] {
+		_ = i + v
+	}
 }
