@@ -690,16 +690,13 @@ func (w *Walker) emitObj(obj types.Object) {
 	switch obj := obj.(type) {
 	case *types.Const:
 		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
-
+		w.emitf("const %s = %s", obj.Name(), obj.Val())
 	case *types.Var:
 		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
-
 	case *types.TypeName:
 		w.emitType(obj)
-
 	case *types.Func:
 		w.emitFunc(obj)
-
 	default:
 		panic("unknown object: " + obj.String())
 	}
