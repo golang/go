@@ -932,6 +932,8 @@ install(char *dir)
 					vadd(&compile, "-Bp+");
 				vadd(&compile, bpathf(&b, "-I%s/include/plan9", goroot));
 				vadd(&compile, bpathf(&b, "-I%s/include/plan9/%s", goroot, gohostarch));
+				// Work around Plan 9 C compiler's handling of #include with .. path.
+				vadd(&compile, bpathf(&b, "-I%s/src/cmd/ld", goroot));
 			} else {
 				vcopy(&compile, gccargs.p, gccargs.len);
 				vadd(&compile, "-c");
