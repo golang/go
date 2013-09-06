@@ -129,7 +129,6 @@
 
 (defvar go-dangling-cache)
 (defvar go-godoc-history nil)
-(defvar go--coverage-origin-buffer)
 (defvar go--coverage-current-file-name)
 
 (defgroup go nil
@@ -1033,9 +1032,7 @@ current coverage buffer or by prompting for it."
 
 (defun go--coverage-origin-buffer ()
   "Return the buffer to base the coverage on."
-  (if (boundp 'go--coverage-origin-buffer)
-      go--coverage-origin-buffer
-    (current-buffer)))
+  (or (buffer-base-buffer) (current-buffer)))
 
 (defun go--coverage-face (count divisor)
   "Return the intensity face for COUNT when using DIVISOR
@@ -1129,7 +1126,6 @@ for."
 
     (with-current-buffer (or (get-buffer gocov-buffer-name)
                              (make-indirect-buffer origin-buffer gocov-buffer-name t))
-      (set (make-local-variable 'go--coverage-origin-buffer) origin-buffer)
       (set (make-local-variable 'go--coverage-current-file-name) coverage-file)
 
       (save-excursion
