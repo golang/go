@@ -49,7 +49,8 @@ defframe(Prog *ptxt, Bvec *bv)
 		patch(p, p1);
 	} else {
 		first = 1;
-		for(i=0, j=(stkptrsize-stkzerosize)/widthptr*2; i<stkzerosize; i+=widthptr, j+=2) {
+		j = (stkptrsize - stkzerosize)/widthptr * 2;
+		for(i=0; i<stkzerosize; i+=widthptr) {
 			if(bvget(bv, j) || bvget(bv, j+1)) {
 				if(first) {
 					p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
@@ -57,6 +58,7 @@ defframe(Prog *ptxt, Bvec *bv)
 				}
 				p = appendp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame-stkzerosize+i);
 			}
+			j += 2;
 		}
 	}
 }
