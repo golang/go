@@ -237,7 +237,23 @@ func clean(p *Package) {
 // removeFile tries to remove file f, if error other than file doesn't exist
 // occurs, it will report the error.
 func removeFile(f string) {
-	if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
-		errorf("go clean: %v", err)
+	err := os.Remove(f)
+	if err == nil || os.IsNotExist(err) {
+		return
 	}
+	// Windows does not allow deletion of a binary file while it is executing.
+	if toolIsWindows {
+		// Remove lingering ~ file from last attempt.
+		if _, err2 := os.Stat(f + "~"); err2 == nil {
+			os.Remove(f + "~")
+		}
+		// Try to move it out of the way. If the move fails,
+		// which is likely, we'll try again the
+		// next time we do an install of this binary.
+		if err2 := os.Rename(f, f+"~"); err2 == nil {
+			os.Remove(f + "~")
+			return
+		}
+	}
+	errorf("go clean: %v", err)
 }

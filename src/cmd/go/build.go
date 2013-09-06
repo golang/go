@@ -1093,7 +1093,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 	if err != nil && toolIsWindows {
 		// Windows does not allow deletion of a binary file
 		// while it is executing.  Try to move it out of the way.
-		// If the remove fails, which is likely, we'll try again the
+		// If the move fails, which is likely, we'll try again the
 		// next time we do an install of this binary.
 		if err := os.Rename(dst, dst+"~"); err == nil {
 			os.Remove(dst + "~")
