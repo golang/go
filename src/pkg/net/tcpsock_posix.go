@@ -225,7 +225,7 @@ type TCPListener struct {
 }
 
 // AcceptTCP accepts the next incoming call and returns the new
-// connection and the remote address.
+// connection.
 func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
 	if l == nil || l.fd == nil {
 		return nil, syscall.EINVAL
