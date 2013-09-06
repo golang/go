@@ -263,8 +263,11 @@ func (tw *Writer) splitUSTARLongName(name string) (prefix, suffix string, err er
 		length--
 	}
 	i := strings.LastIndex(name[:length], "/")
-	nlen := length - i - 1
-	if i <= 0 || nlen > fileNameSize || nlen == 0 {
+	// nlen contains the resulting length in the name field.
+	// plen contains the resulting length in the prefix field.
+	nlen := len(name) - i - 1
+	plen := i
+	if i <= 0 || nlen > fileNameSize || nlen == 0 || plen > fileNamePrefixSize {
 		err = errNameTooLong
 		return
 	}
