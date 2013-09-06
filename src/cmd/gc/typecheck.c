@@ -928,11 +928,7 @@ reswitch:
 		goto ret;
 
 	case OSEND:
-		if(top & Erv) {
-			yyerror("send statement %N used as value; use select for non-blocking send", n);
-			goto error;
-		}
-		ok |= Etop | Erv;
+		ok |= Etop;
 		l = typecheck(&n->left, Erv);
 		typecheck(&n->right, Erv);
 		defaultlit(&n->left, T);
