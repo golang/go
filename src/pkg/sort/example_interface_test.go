@@ -9,69 +9,35 @@ import (
 	"sort"
 )
 
-type Grams int
-
-func (g Grams) String() string { return fmt.Sprintf("%dg", int(g)) }
-
-type Organ struct {
-	Name   string
-	Weight Grams
+type Person struct {
+	Name string
+	Age  int
 }
 
-type Organs []*Organ
+func (p Person) String() string {
+	return fmt.Sprintf("%s: %d", p.Name, p.Age)
+}
 
-func (s Organs) Len() int      { return len(s) }
-func (s Organs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+// ByAge implements sort.Interface for []Person based on
+// the Age field.
+type ByAge []*Person
 
-// ByName implements sort.Interface by providing Less and using the Len and
-// Swap methods of the embedded Organs value.
-type ByName struct{ Organs }
-
-func (s ByName) Less(i, j int) bool { return s.Organs[i].Name < s.Organs[j].Name }
-
-// ByWeight implements sort.Interface by providing Less and using the Len and
-// Swap methods of the embedded Organs value.
-type ByWeight struct{ Organs }
-
-func (s ByWeight) Less(i, j int) bool { return s.Organs[i].Weight < s.Organs[j].Weight }
+func (a ByAge) Len() int           { return len(a) }
+func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
 
 func ExampleInterface() {
-	s := []*Organ{
-		{"brain", 1340},
-		{"heart", 290},
-		{"liver", 1494},
-		{"pancreas", 131},
-		{"prostate", 62},
-		{"spleen", 162},
+	people := []*Person{
+		&Person{Name: "Bob", Age: 31},
+		&Person{Name: "John", Age: 42},
+		&Person{Name: "Michael", Age: 17},
+		&Person{Name: "Jenny", Age: 26},
 	}
 
-	sort.Sort(ByWeight{s})
-	fmt.Println("Organs by weight:")
-	printOrgans(s)
+	fmt.Println(people)
+	sort.Sort(ByAge(people))
+	fmt.Println(people)
 
-	sort.Sort(ByName{s})
-	fmt.Println("Organs by name:")
-	printOrgans(s)
-
-	// Output:
-	// Organs by weight:
-	// prostate (62g)
-	// pancreas (131g)
-	// spleen   (162g)
-	// heart    (290g)
-	// brain    (1340g)
-	// liver    (1494g)
-	// Organs by name:
-	// brain    (1340g)
-	// heart    (290g)
-	// liver    (1494g)
-	// pancreas (131g)
-	// prostate (62g)
-	// spleen   (162g)
-}
-
-func printOrgans(s []*Organ) {
-	for _, o := range s {
-		fmt.Printf("%-8s (%v)\n", o.Name, o.Weight)
-	}
+	// Output: [Bob: 31 John: 42 Michael: 17 Jenny: 26]
+	// [Michael: 17 Jenny: 26 Bob: 31 John: 42]
 }
