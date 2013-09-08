@@ -327,7 +327,7 @@ func (b *Build) Do() error {
 		dist := filepath.Join(runtime.GOROOT(), "misc/dist")
 		_, err = b.run("", "pkgbuild",
 			"--identifier", "com.googlecode.go",
-			"--version", "1.0",
+			"--version", version,
 			"--scripts", filepath.Join(dist, "darwin/scripts"),
 			"--root", work,
 			filepath.Join(pkgdest, "com.googlecode.go.pkg"))
