@@ -553,7 +553,7 @@ func (w *Writer) Close() error {
 }
 
 // Reset discards the writer's state and makes it equivalent to
-// the result of NewWriter or NewWriterDict called with w
+// the result of NewWriter or NewWriterDict called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
 	if dw, ok := w.d.w.w.(*dictWriter); ok {
