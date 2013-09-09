@@ -132,6 +132,7 @@ void	afunclit(Addr*, Node*);
 void	nodfconst(Node*, Type*, Mpflt*);
 void	gtrack(Sym*);
 void	gargsize(vlong);
+void	fixlargeoffset(Node *n);
 
 /*
  * cplx.c
