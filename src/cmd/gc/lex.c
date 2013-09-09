@@ -2279,6 +2279,28 @@ yytinit(void)
 	}		
 }
 
+static void
+pkgnotused(int lineno, Strlit *path, char *name)
+{
+	char *elem;
+	
+	// If the package was imported with a name other than the final
+	// import path element, show it explicitly in the error message.
+	// Note that this handles both renamed imports and imports of
+	// packages containing unconventional package declarations.
+	// Note that this uses / always, even on Windows, because Go import
+	// paths always use forward slashes.
+	elem = strrchr(path->s, '/');
+	if(elem != nil)
+		elem++;
+	else
+		elem = path->s;
+	if(strcmp(elem, name) == 0)
+		yyerrorl(lineno, "imported and not used: \"%Z\"", path);
+	else
+		yyerrorl(lineno, "imported and not used: \"%Z\" as %s", path, name);
+}
+
 void
 mkpackage(char* pkgname)
 {
@@ -2304,7 +2326,7 @@ mkpackage(char* pkgname)
 					// errors if a conflicting top-level name is
 					// introduced by a different file.
 					if(!s->def->used && !nsyntaxerrors)
-						yyerrorl(s->def->lineno, "imported and not used: \"%Z\"", s->def->pkg->path);
+						pkgnotused(s->def->lineno, s->def->pkg->path, s->name);
 					s->def = N;
 					continue;
 				}
@@ -2312,7 +2334,7 @@ mkpackage(char* pkgname)
 					// throw away top-level name left over
 					// from previous import . "x"
 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
-						yyerrorl(s->def->pack->lineno, "imported and not used: \"%Z\"", s->def->pack->pkg->path);
+						pkgnotused(s->def->pack->lineno, s->def->pack->pkg->path, s->name);
 						s->def->pack->used = 1;
 					}
 					s->def = N;
