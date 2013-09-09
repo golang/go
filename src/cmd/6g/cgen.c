@@ -937,6 +937,7 @@ igen(Node *n, Node *a, Node *res)
 		igen(n->left, a, res);
 		a->xoffset += n->xoffset;
 		a->type = n->type;
+		fixlargeoffset(a);
 		return;
 
 	case ODOTPTR:
@@ -945,6 +946,7 @@ igen(Node *n, Node *a, Node *res)
 		a->op = OINDREG;
 		a->xoffset += n->xoffset;
 		a->type = n->type;
+		fixlargeoffset(a);
 		return;
 
 	case OCALLFUNC:
@@ -993,6 +995,7 @@ igen(Node *n, Node *a, Node *res)
 			// Compute &a[i] as &a + i*width.
 			a->type = n->type;
 			a->xoffset += mpgetfix(n->right->val.u.xval)*n->type->width;
+			fixlargeoffset(a);
 			return;
 		}
 	}
