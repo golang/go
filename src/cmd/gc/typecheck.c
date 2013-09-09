@@ -3046,7 +3046,7 @@ queuemethod(Node *n)
 Node*
 typecheckdef(Node *n)
 {
-	int lno;
+	int lno, nerrors0;
 	Node *e;
 	Type *t;
 	NodeList *l;
@@ -3174,7 +3174,13 @@ typecheckdef(Node *n)
 		n->walkdef = 1;
 		n->type = typ(TFORW);
 		n->type->sym = n->sym;
+		nerrors0 = nerrors;
 		typecheckdeftype(n);
+		if(n->type->etype == TFORW && nerrors > nerrors0) {
+			// Something went wrong during type-checking,
+			// but it was reported. Silence future errors.
+			n->type->broke = 1;
+		}
 		if(curfn)
 			resumecheckwidth();
 		break;
