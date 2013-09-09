@@ -210,6 +210,12 @@ type Ambig struct {
 	Second int `json:"Hello"`
 }
 
+type XYZ struct {
+	X interface{}
+	Y interface{}
+	Z interface{}
+}
+
 var unmarshalTests = []unmarshalTest{
 	// basic types
 	{in: `true`, ptr: new(bool), out: true},
@@ -1273,5 +1279,40 @@ func TestSkipArrayObjects(t *testing.T) {
 	err := Unmarshal([]byte(json), &dest)
 	if err != nil {
 		t.Errorf("got error %q, want nil", err)
+	}
+}
+
+// Test semantics of pre-filled struct fields and pre-filled map fields.
+// Issue 4900.
+func TestPrefilled(t *testing.T) {
+	ptrToMap := func(m map[string]interface{}) *map[string]interface{} { return &m }
+
+	// Values here change, cannot reuse table across runs.
+	var prefillTests = []struct {
+		in  string
+		ptr interface{}
+		out interface{}
+	}{
+		{
+			in:  `{"X": 1, "Y": 2}`,
+			ptr: &XYZ{X: float32(3), Y: int16(4), Z: 1.5},
+			out: &XYZ{X: float64(1), Y: float64(2), Z: 1.5},
+		},
+		{
+			in:  `{"X": 1, "Y": 2}`,
+			ptr: ptrToMap(map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5}),
+			out: ptrToMap(map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5}),
+		},
+	}
+
+	for _, tt := range prefillTests {
+		ptrstr := fmt.Sprintf("%v", tt.ptr)
+		err := Unmarshal([]byte(tt.in), tt.ptr) // tt.ptr edited here
+		if err != nil {
+			t.Errorf("Unmarshal: %v", err)
+		}
+		if !reflect.DeepEqual(tt.ptr, tt.out) {
+			t.Errorf("Unmarshal(%#q, %s): have %v, want %v", tt.in, ptrstr, tt.ptr, tt.out)
+		}
 	}
 }
