@@ -904,6 +904,10 @@ type AttrParent struct {
 	X string `xml:"X>Y,attr"`
 }
 
+type BadAttr struct {
+	Name []string `xml:"name,attr"`
+}
+
 var marshalErrorTests = []struct {
 	Value interface{}
 	Err   string
@@ -935,6 +939,10 @@ var marshalErrorTests = []struct {
 	{
 		Value: &AttrParent{},
 		Err:   `xml: X>Y chain not valid with attr flag`,
+	},
+	{
+		Value: BadAttr{[]string{"X", "Y"}},
+		Err:   `xml: unsupported type: []string`,
 	},
 }
 
