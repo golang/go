@@ -6,6 +6,8 @@
 
 package conversions
 
+import "unsafe"
+
 // argument count
 var (
 	_ = int() /* ERROR "missing argument" */
@@ -77,4 +79,10 @@ func interface_conversions() {
 	_ = I3(i3)
 
 	// TODO(gri) add more tests, improve error message
+}
+
+func issue6326() {
+	type T unsafe.Pointer
+	var x T
+	_ = uintptr(x) // see issue 6326
 }

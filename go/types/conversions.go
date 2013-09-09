@@ -11,12 +11,13 @@ import "code.google.com/p/go.tools/go/exact"
 // Conversion type-checks the conversion T(x).
 // The result is in x.
 func (check *checker) conversion(x *operand, T Type) {
+	var ok bool
 	switch {
 	case x.mode == constant && isConstType(T):
 		// constant conversion
 		switch t := T.Underlying().(*Basic); {
 		case isRepresentableConst(x.val, check.conf, t.kind, &x.val):
-			// nothing to do
+			ok = true
 		case x.isInteger() && isString(t):
 			codepoint := int64(-1)
 			if i, ok := exact.Int64Val(x.val); ok {
@@ -26,18 +27,17 @@ func (check *checker) conversion(x *operand, T Type) {
 			// conversion. This is the same as converting any other out-of-range
 			// value - let string(codepoint) do the work.
 			x.val = exact.MakeString(string(codepoint))
-		default:
-			x.mode = invalid
+			ok = true
 		}
 	case x.isConvertible(check.conf, T):
 		// non-constant conversion
 		x.mode = value
-	default:
-		x.mode = invalid
+		ok = true
 	}
 
-	if x.mode == invalid {
+	if !ok {
 		check.errorf(x.pos(), "cannot convert %s to %s", x, T)
+		x.mode = invalid
 		return
 	}
 
@@ -116,17 +116,20 @@ func (x *operand) isConvertible(conf *Config, T Type) bool {
 }
 
 func isUintptr(typ Type) bool {
-	t, ok := typ.(*Basic)
+	t, ok := typ.Underlying().(*Basic)
 	return ok && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	t, ok := typ.(*Basic)
+	// TODO(gri): Is this (typ.Underlying() instead of just typ) correct?
+	//            The spec does't say so, but gc claims it is. See also
+	//            issue 6326.
+	t, ok := typ.Underlying().(*Basic)
 	return ok && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	_, ok := typ.(*Pointer)
+	_, ok := typ.Underlying().(*Pointer)
 	return ok
 }
 
