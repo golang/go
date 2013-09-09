@@ -103,7 +103,8 @@ type serverConn interface {
 }
 
 type netConn struct {
-	conn net.Conn
+	local bool
+	conn  net.Conn
 }
 
 // New establishes a new connection to the system log daemon.  Each
@@ -163,7 +164,7 @@ func (w *Writer) connect() (err error) {
 		var c net.Conn
 		c, err = net.Dial(w.network, w.raddr)
 		if err == nil {
-			w.conn = netConn{c}
+			w.conn = &netConn{conn: c}
 			if w.hostname == "" {
 				w.hostname = c.LocalAddr().String()
 			}
@@ -282,7 +283,17 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 	return len(msg), nil
 }
 
-func (n netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
+func (n *netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
+	if n.local {
+		// Compared to the network form below, the changes are:
+		//	1. Use time.Stamp instead of time.RFC3339.
+		//	2. Drop the hostname field from the Fprintf.
+		timestamp := time.Now().Format(time.Stamp)
+		_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s%s",
+			p, timestamp,
+			tag, os.Getpid(), msg, nl)
+		return err
+	}
 	timestamp := time.Now().Format(time.RFC3339)
 	_, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s",
 		p, timestamp, hostname,
@@ -290,7 +301,7 @@ func (n netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
 	return err
 }
 
-func (n netConn) close() error {
+func (n *netConn) close() error {
 	return n.conn.Close()
 }
 

@@ -23,7 +23,7 @@ func unixSyslog() (conn serverConn, err error) {
 			if err != nil {
 				continue
 			} else {
-				return netConn{conn}, nil
+				return &netConn{conn: conn, local: true}, nil
 			}
 		}
 	}
