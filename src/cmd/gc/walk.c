@@ -1386,7 +1386,9 @@ ret:
 	// constants until walk. For example, if n is y%1 == 0, the
 	// walk of y%1 may have replaced it by 0.
 	// Check whether n with its updated args is itself now a constant.
+	t = n->type;
 	evconst(n);
+	n->type = t;
 	if(n->op == OLITERAL)
 		typecheck(&n, Erv);
 
