@@ -492,7 +492,11 @@ func RepoRootForImportDynamic(importPath string, verbose bool) (*RepoRoot, error
 		return nil, fmt.Errorf("http/https fetch: %v", err)
 	}
 	defer body.Close()
-	metaImport, err := matchGoImport(parseMetaGoImports(body), importPath)
+	imports, err := parseMetaGoImports(body)
+	if err != nil {
+		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
+	}
+	metaImport, err := matchGoImport(imports, importPath)
 	if err != nil {
 		if err != errNoMatch {
 			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
@@ -517,7 +521,10 @@ func RepoRootForImportDynamic(importPath string, verbose bool) (*RepoRoot, error
 		if err != nil {
 			return nil, fmt.Errorf("fetch %s: %v", urlStr, err)
 		}
-		imports := parseMetaGoImports(body)
+		imports, err := parseMetaGoImports(body)
+		if err != nil {
+			return nil, fmt.Errorf("parsing %s: %v", importPath, err)
+		}
 		if len(imports) == 0 {
 			return nil, fmt.Errorf("fetch %s: no go-import meta tag", urlStr)
 		}
