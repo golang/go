@@ -163,7 +163,7 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 	buildContext.GOPATH = "testdata"
 	res, err := oracle.Query([]string{q.filename},
 		q.verb,
-		fmt.Sprintf("%s:#%d-#%d", q.filename, q.start, q.end),
+		fmt.Sprintf("%s:#%d,#%d", q.filename, q.start, q.end),
 		/*PTA-log=*/ nil, &buildContext)
 	if err != nil {
 		fmt.Fprintf(out, "\nError: %s\n", stripLocation(err.Error()))

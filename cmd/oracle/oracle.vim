@@ -27,6 +27,7 @@ let s:go_oracle = "$GOROOT/bin/oracle"
 set errorformat+=%f:%l.%c-%*[0-9].%*[0-9]:\ %m
 
 func! s:RunOracle(mode) abort
+  " TODO(adonovan): support selections, not just positions.
   let s:pos = line2byte(line("."))+col(".")
   let s:errfile = tempname()
   let s:cmd = printf("!%s -mode=%s -pos=%s:#%d %s >%s",

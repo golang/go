@@ -76,7 +76,7 @@ result."
       (go-oracle-set-scope))
   (let* ((filename (file-truename buffer-file-name))
          (posflag (if (use-region-p)
-                      (format "-pos=%s:#%d-#%d"
+                      (format "-pos=%s:#%d,#%d"
                               filename
                               (1- (go--position-bytes (region-beginning)))
                               (1- (go--position-bytes (region-end))))

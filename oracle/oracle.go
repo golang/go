@@ -281,7 +281,7 @@ func parseOctothorpDecimal(s string) int {
 }
 
 // parseQueryPos parses a string of the form "file:pos" or
-// file:start-end" where pos, start, end match #%d and represent byte
+// file:start,end" where pos, start, end match #%d and represent byte
 // offsets, and returns the extent to which it refers.
 //
 // (Numbers without a '#' prefix are reserved for future use,
@@ -301,12 +301,12 @@ func parseQueryPos(fset *token.FileSet, queryPos string) (start, end token.Pos, 
 	filename, offset := queryPos[:colon], queryPos[colon+1:]
 	startOffset := -1
 	endOffset := -1
-	if hyphen := strings.Index(offset, "-"); hyphen < 0 {
+	if hyphen := strings.Index(offset, ","); hyphen < 0 {
 		// e.g. "foo.go:#123"
 		startOffset = parseOctothorpDecimal(offset)
 		endOffset = startOffset
 	} else {
-		// e.g. "foo.go:#123-#456"
+		// e.g. "foo.go:#123,#456"
 		startOffset = parseOctothorpDecimal(offset[:hyphen])
 		endOffset = parseOctothorpDecimal(offset[hyphen+1:])
 	}

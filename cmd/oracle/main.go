@@ -25,13 +25,12 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle"
 )
 
 var posFlag = flag.String("pos", "",
 	"Filename and byte offset or extent of a syntax element about which to query, "+
-		"e.g. foo.go:#123-#456, bar.go:#123.")
+		"e.g. foo.go:#123,#456, bar.go:#123.")
 
 var modeFlag = flag.String("mode", "",
 	"Mode of query to perform: e.g. callers, describe, etc.")
@@ -42,13 +41,21 @@ var ptalogFlag = flag.String("ptalog", "",
 var formatFlag = flag.String("format", "plain", "Output format: 'plain' or 'json'.")
 
 const usage = `Go source code oracle.
-Usage: oracle [<flag> ...] <args> ...
+Usage: oracle [<flag> ...] [<arg> ...]
 Use -help flag to display options.
 
+The -mode flag is required; the -pos flag is required in most modes.
+
 Examples:
-% oracle -pos=hello.go:#123      hello.go
-% oracle -pos=hello.go:#123-#456 hello.go
-` + importer.InitialPackagesUsage
+
+Describe the syntax at offset 532 in this file (an import spec):
+% oracle -mode=describe -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#532 \
+   code.google.com/p/go.tools/cmd/oracle
+
+Print the callgraph of the trivial web-server in JSON format:
+% oracle -mode=callgraph -format=json src/pkg/net/http/triv.go
+
+`
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
@@ -77,7 +84,7 @@ func main() {
 	var ptalog io.Writer
 	if *ptalogFlag != "" {
 		if f, err := os.Create(*ptalogFlag); err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf(err.Error())
 		} else {
 			buf := bufio.NewWriter(f)
 			ptalog = buf
@@ -107,7 +114,7 @@ func main() {
 	// Ask the oracle.
 	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -116,7 +123,7 @@ func main() {
 	case "json":
 		b, err := json.Marshal(res)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err)
+			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err.Error())
 			os.Exit(1)
 		}
 		var buf bytes.Buffer
