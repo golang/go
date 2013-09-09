@@ -1411,6 +1411,9 @@ assignconv(Node *n, Type *t, char *context)
 	if(n == N || n->type == T || n->type->broke)
 		return n;
 
+	if(t->etype == TBLANK && n->type->etype == TNIL)
+		yyerror("use of untyped nil");
+
 	old = n;
 	old->diag++;  // silence errors about n; we'll issue one below
 	defaultlit(&n, t);
