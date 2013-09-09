@@ -143,7 +143,7 @@ func (check *checker) argument(sig *Signature, i int, x *operand, passSlice bool
 		typ = sig.params.vars[n-1].typ
 		if debug {
 			if _, ok := typ.(*Slice); !ok {
-				check.dump("%s: expected slice type, got %s", sig.params.vars[n-1].Pos(), typ)
+				check.dump("%s: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
 			}
 		}
 	default:
@@ -157,7 +157,7 @@ func (check *checker) argument(sig *Signature, i int, x *operand, passSlice bool
 			check.errorf(x.pos(), "can only use ... with matching parameter")
 			return
 		}
-		if _, ok := x.typ.(*Slice); !ok {
+		if _, ok := x.typ.Underlying().(*Slice); !ok {
 			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
 			return
 		}

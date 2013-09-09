@@ -121,6 +121,7 @@ func TestStdfixed(t *testing.T) {
 		"bug373.go",    // TODO(gri) implement use checks
 		"bug376.go",    // TODO(gri) built-ins must be called (no built-in function expressions)
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
+		"issue4847.go", // TODO(gri) initialization cycle error not found
 	)
 }
 
