@@ -119,7 +119,8 @@ dowidth(Type *t)
 	if(t->width == -2) {
 		lno = lineno;
 		lineno = t->lineno;
-		yyerror("invalid recursive type %T", t);
+		if(!t->broke)
+			yyerror("invalid recursive type %T", t);
 		t->width = 0;
 		lineno = lno;
 		return;
@@ -219,7 +220,8 @@ dowidth(Type *t)
 		checkwidth(t->down);
 		break;
 	case TFORW:		// should have been filled in
-		yyerror("invalid recursive type %T", t);
+		if(!t->broke)
+			yyerror("invalid recursive type %T", t);
 		w = 1;	// anything will do
 		break;
 	case TANY:
