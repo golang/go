@@ -1019,7 +1019,7 @@ hex:
 			c += 10-'A';
 		else
 			goto bad;
-		nn = n*16 + c;
+		nn = (uvlong)n*16 + c;
 		if(n < 0 && nn >= 0)
 			goto bad;
 		n = nn;

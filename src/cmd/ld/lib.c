@@ -951,7 +951,7 @@ _lookup(char *symb, int v, int creat)
 {
 	Sym *s;
 	char *p;
-	int32 h;
+	uint32 h;
 	int c;
 
 	h = v;
@@ -1613,7 +1613,7 @@ le16(uchar *b)
 uint32
 le32(uchar *b)
 {
-	return b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24;
+	return b[0] | b[1]<<8 | b[2]<<16 | (uint32)b[3]<<24;
 }
 
 uint64
@@ -1631,7 +1631,7 @@ be16(uchar *b)
 uint32
 be32(uchar *b)
 {
-	return b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
+	return (uint32)b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
 }
 
 uint64

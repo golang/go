@@ -565,11 +565,11 @@ mpgetfix(Mpint *a)
 		return 0;
 	}
 
-	v = (vlong)a->a[0];
-	v |= (vlong)a->a[1] << Mpscale;
-	v |= (vlong)a->a[2] << (Mpscale+Mpscale);
+	v = (uvlong)a->a[0];
+	v |= (uvlong)a->a[1] << Mpscale;
+	v |= (uvlong)a->a[2] << (Mpscale+Mpscale);
 	if(a->neg)
-		v = -v;
+		v = -(uvlong)v;
 	return v;
 }
 
@@ -586,7 +586,7 @@ mpmovecfix(Mpint *a, vlong c)
 	x = c;
 	if(x < 0) {
 		a->neg = 1;
-		x = -x;
+		x = -(uvlong)x;
 	}
 
 	a1 = &a->a[0];

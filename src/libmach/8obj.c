@@ -131,7 +131,7 @@ addr(Biobuf *bp)
 			off = -off;
 	}
 	if(a.flags & T_OFFSET2){
-		BGETLE4(bp);
+		Bgetle4(bp);
 	}
 	if(a.flags & T_SYM)
 		a.sym = BGETC(bp);
