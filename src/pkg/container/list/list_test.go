@@ -234,6 +234,24 @@ func TestIssue4103(t *testing.T) {
 	}
 }
 
+func TestIssue6349(t *testing.T) {
+	l := New()
+	l.PushBack(1)
+	l.PushBack(2)
+
+	e := l.Front()
+	l.Remove(e)
+	if e.Value != 1 {
+		t.Errorf("e.value = %d, want 1", e.Value)
+	}
+	if e.Next() != nil {
+		t.Errorf("e.Next() != nil")
+	}
+	if e.Prev() != nil {
+		t.Errorf("e.Prev() != nil")
+	}
+}
+
 func TestMove(t *testing.T) {
 	l := New()
 	e1 := l.PushBack(1)

@@ -29,7 +29,7 @@ type Element struct {
 
 // Next returns the next list element or nil.
 func (e *Element) Next() *Element {
-	if p := e.next; p != &e.list.root {
+	if p := e.next; e.list != nil && p != &e.list.root {
 		return p
 	}
 	return nil
@@ -37,7 +37,7 @@ func (e *Element) Next() *Element {
 
 // Prev returns the previous list element or nil.
 func (e *Element) Prev() *Element {
-	if p := e.prev; p != &e.list.root {
+	if p := e.prev; e.list != nil && p != &e.list.root {
 		return p
 	}
 	return nil
