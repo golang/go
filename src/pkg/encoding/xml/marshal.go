@@ -655,7 +655,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 	case reflect.Bool:
 		return strconv.FormatBool(val.Bool()), nil, nil
 	case reflect.Array:
-		// will be [...]byte
+		if typ.Elem().Kind() != reflect.Uint8 {
+			break
+		}
+		// [...]byte
 		var bytes []byte
 		if val.CanAddr() {
 			bytes = val.Slice(0, val.Len()).Bytes()
@@ -665,7 +668,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 		}
 		return "", bytes, nil
 	case reflect.Slice:
-		// will be []byte
+		if typ.Elem().Kind() != reflect.Uint8 {
+			break
+		}
+		// []byte
 		return "", val.Bytes(), nil
 	}
 	return "", nil, &UnsupportedTypeError{typ}
