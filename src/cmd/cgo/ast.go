@@ -13,6 +13,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -44,6 +45,13 @@ func sourceLine(n ast.Node) int {
 // a list of exported functions, and the actual AST, to be rewritten and
 // printed.
 func (f *File) ReadGo(name string) {
+	// Create absolute path for file, so that it will be used in error
+	// messages and recorded in debug line number information.
+	// This matches the rest of the toolchain. See golang.org/issue/5122.
+	if aname, err := filepath.Abs(name); err == nil {
+		name = aname
+	}
+
 	// Two different parses: once with comments, once without.
 	// The printer is not good enough at printing comments in the
 	// right place when we start editing the AST behind its back,

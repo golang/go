@@ -463,6 +463,26 @@ import "C"
 rm -rf $d
 unset GOPATH
 
+TEST cgo shows full path names
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/x/y/dirname
+echo '
+package foo
+import "C"
+func f() {
+' >$d/src/x/y/dirname/foo.go
+if ./testgo build x/y/dirname >$d/err 2>&1; then
+	echo build succeeded unexpectedly.
+	ok=false
+elif ! grep x/y/dirname $d/err >/dev/null; then
+	echo error did not use full path.
+	cat $d/err
+	ok=false
+fi
+rm -rf $d
+unset GOPATH
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
