@@ -244,7 +244,7 @@ processprog(Prog *p, int doautos)
 static void
 objlookup(int id, char *name, int type, uint sig)
 {
-	int32 h;
+	uint32 h;
 	char *cp;
 	Sym *s;
 	Symtab *sp;

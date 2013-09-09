@@ -196,7 +196,7 @@ md5block(MD5 *dig, uchar *p, int nn)
 
 		for(i=0; i<16; i++) {
 			j = i*4;
-			X[i] = p[j] | (p[j+1]<<8) | (p[j+2]<<16) | (p[j+3]<<24);
+			X[i] = p[j] | (p[j+1]<<8) | (p[j+2]<<16) | ((uint32)p[j+3]<<24);
 		}
 
 		// Round 1.

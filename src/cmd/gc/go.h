@@ -78,7 +78,7 @@ typedef	struct	Strlit	Strlit;
 struct	Strlit
 {
 	int32	len;
-	char	s[3];	// variable
+	char	s[1]; // variable
 };
 
 enum

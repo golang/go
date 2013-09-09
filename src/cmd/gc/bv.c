@@ -41,7 +41,7 @@ bvset(Bvec *bv, int32 i)
 
 	if(i < 0 || i >= bv->n)
 		fatal("bvset: index %d is out of bounds with length %d\n", i, bv->n);
-	mask = 1 << (i % WORDBITS);
+	mask = 1U << (i % WORDBITS);
 	bv->b[i / WORDBITS] |= mask;
 }
 

@@ -130,7 +130,7 @@ addr(Biobuf *bp)
 		BGETC(bp);
 		break;
 	case D_CONST2:
-		BGETLE4(bp);	// fall through
+		Bgetle4(bp); // fall through
 	case D_OREG:
 	case D_CONST:
 	case D_BRANCH:

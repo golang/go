@@ -937,21 +937,12 @@ objsym(Sym *s, void *p)
 int
 hashstr(char *name)
 {
-	int h;
+	uint32 h;
 	char *cp;
 
 	h = 0;
 	for(cp = name; *cp; h += *cp++)
 		h *= 1119;
-	
-	// the code used to say
-	//	if(h < 0)
-	//		h = ~h;
-	// but on gcc 4.3 with -O2 on some systems,
-	// the if(h < 0) gets compiled away as not possible.
-	// use a mask instead, leaving plenty of bits but
-	// definitely not the sign bit.
-
 	return h & 0xfffffff;
 }
 

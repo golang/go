@@ -79,7 +79,7 @@ struct	Biobuf
 #define	BGETLE2(bp)\
 	((bp)->icount<=-2?((bp)->icount+=2,((bp)->ebuf[(bp)->icount-2])|((bp)->ebuf[(bp)->icount-1]<<8)):Bgetle2((bp)))
 #define	BGETLE4(bp)\
-	((bp)->icount<=-4?((bp)->icount+=4,((bp)->ebuf[(bp)->icount-4])|((bp)->ebuf[(bp)->icount-3]<<8)|((bp)->ebuf[(bp)->icount-2]<<16)|((bp)->ebuf[(bp)->icount-1]<<24)):Bgetle4((bp)))
+	(int)((bp)->icount<=-4?((bp)->icount+=4,((bp)->ebuf[(bp)->icount-4])|((bp)->ebuf[(bp)->icount-3]<<8)|((bp)->ebuf[(bp)->icount-2]<<16)|((uint32)(bp)->ebuf[(bp)->icount-1]<<24)):Bgetle4((bp)))
 
 /*
  * These macros put 1-, 2-, and 4-byte integer values by writing the

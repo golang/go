@@ -1325,10 +1325,10 @@ compar(Node *n, int reverse)
 		if(lt->width == 8)
 			hi = big(0, ~0ULL);
 		else
-			hi = big(0, (1LL<<(l->type->width*8))-1);
+			hi = big(0, (1ULL<<(l->type->width*8))-1);
 	}else{
-		lo = big(~0ULL, -(1LL<<(l->type->width*8-1)));
-		hi = big(0, (1LL<<(l->type->width*8-1))-1);
+		lo = big(~0ULL, -(1ULL<<(l->type->width*8-1)));
+		hi = big(0, (1ULL<<(l->type->width*8-1))-1);
 	}
 
 	switch(op){
