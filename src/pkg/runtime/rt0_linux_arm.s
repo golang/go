@@ -22,31 +22,36 @@ TEXT _rt0_arm_linux1(SB),NOSPLIT,$-4
 
 	// Save argc and argv
 	MOVM.DB.W [R0-R1], (R13)
-	// set up sa_handler
-	MOVW	$bad_abi<>(SB), R0 // sa_handler
-	MOVW	$0, R1 // sa_flags
-	MOVW	$0, R2 // sa_restorer
-	MOVW	$0, R3 // sa_mask
-	MOVM.DB.W [R0-R3], (R13)
-	MOVW	$4, R0 // SIGILL
-	MOVW	R13, R1 // sa
-	SUB	$16, R13
-	MOVW	R13, R2 // old_sa
-	MOVW	$8, R3 // c
-	MOVW	$174, R7 // sys_sigaction
-	BL	oabi_syscall<>(SB)
+
+	// Thumb mode OABI check disabled because there are some
+	// EABI systems that do not support Thumb execution.
+	// We can run on them except for this check!
+
+	// // set up sa_handler
+	// MOVW	$bad_abi<>(SB), R0 // sa_handler
+	// MOVW	$0, R1 // sa_flags
+	// MOVW	$0, R2 // sa_restorer
+	// MOVW	$0, R3 // sa_mask
+	// MOVM.DB.W [R0-R3], (R13)
+	// MOVW	$4, R0 // SIGILL
+	// MOVW	R13, R1 // sa
+	// SUB	$16, R13
+	// MOVW	R13, R2 // old_sa
+	// MOVW	$8, R3 // c
+	// MOVW	$174, R7 // sys_sigaction
+	// BL	oabi_syscall<>(SB)
 
 	// do an EABI syscall
 	MOVW	$20, R7 // sys_getpid
 	SWI	$0 // this will trigger SIGILL on OABI systems
 	
-	MOVW	$4, R0  // SIGILL
-	MOVW	R13, R1 // sa
-	MOVW	$0, R2 // old_sa
-	MOVW	$8, R3 // c
-	MOVW	$174, R7 // sys_sigaction
-	SWI	$0 // restore signal handler
-	ADD	$32, R13
+	// MOVW	$4, R0  // SIGILL
+	// MOVW	R13, R1 // sa
+	// MOVW	$0, R2 // old_sa
+	// MOVW	$8, R3 // c
+	// MOVW	$174, R7 // sys_sigaction
+	// SWI	$0 // restore signal handler
+	// ADD	$32, R13
 
 	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
 	BL	runtime·setup_auxv(SB)
