@@ -122,7 +122,9 @@ func TestWithSimulated(t *testing.T) {
 
 	for _, tr := range transport {
 		done := make(chan string)
-		addr, _, _ := startServer(tr, "", done)
+		addr, sock, srvWG := startServer(tr, "", done)
+		defer srvWG.Wait()
+		defer sock.Close()
 		if tr == "unix" || tr == "unixgram" {
 			defer os.Remove(addr)
 		}
@@ -142,7 +144,8 @@ func TestWithSimulated(t *testing.T) {
 func TestFlap(t *testing.T) {
 	net := "unix"
 	done := make(chan string)
-	addr, sock, _ := startServer(net, "", done)
+	addr, sock, srvWG := startServer(net, "", done)
+	defer srvWG.Wait()
 	defer os.Remove(addr)
 	defer sock.Close()
 
@@ -158,7 +161,8 @@ func TestFlap(t *testing.T) {
 	check(t, msg, <-done)
 
 	// restart the server
-	_, sock2, _ := startServer(net, addr, done)
+	_, sock2, srvWG2 := startServer(net, addr, done)
+	defer srvWG2.Wait()
 	defer sock2.Close()
 
 	// and try retransmitting
@@ -249,7 +253,8 @@ func TestWrite(t *testing.T) {
 	} else {
 		for _, test := range tests {
 			done := make(chan string)
-			addr, sock, _ := startServer("udp", "", done)
+			addr, sock, srvWG := startServer("udp", "", done)
+			defer srvWG.Wait()
 			defer sock.Close()
 			l, err := Dial("udp", addr, test.pri, test.pre)
 			if err != nil {
@@ -272,7 +277,8 @@ func TestWrite(t *testing.T) {
 }
 
 func TestConcurrentWrite(t *testing.T) {
-	addr, sock, _ := startServer("udp", "", make(chan string))
+	addr, sock, srvWG := startServer("udp", "", make(chan string, 1))
+	defer srvWG.Wait()
 	defer sock.Close()
 	w, err := Dial("udp", addr, LOG_USER|LOG_ERR, "how's it going?")
 	if err != nil {
