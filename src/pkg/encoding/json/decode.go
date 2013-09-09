@@ -38,9 +38,7 @@ import (
 // keys to the keys used by Marshal (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match.
 //
-// To unmarshal JSON into an interface value, Unmarshal unmarshals
-// the JSON into the concrete value contained in the interface value.
-// If the interface value is nil, that is, has no concrete value stored in it,
+// To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
 //
 //	bool, for JSON booleans
