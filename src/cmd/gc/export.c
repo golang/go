@@ -481,9 +481,10 @@ importvar(Sym *s, Type *t)
 	if(s->def != N && s->def->op == ONAME) {
 		if(eqtype(t, s->def->type))
 			return;
-		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T", s, s->def->type, t);
+		yyerror("inconsistent definition for var %S during import\n\t%T (in \"%Z\")\n\t%T (in \"%Z\")", s, s->def->type, s->importdef->path, t, importpkg->path);
 	}
 	n = newname(s);
+	s->importdef = importpkg;
 	n->type = t;
 	declare(n, PEXTERN);
 
@@ -509,11 +510,12 @@ importtype(Type *pt, Type *t)
 		n = pt->nod;
 		copytype(pt->nod, t);
 		pt->nod = n;		// unzero nod
+		pt->sym->importdef = importpkg;
 		pt->sym->lastlineno = parserline();
 		declare(n, PEXTERN);
 		checkwidth(pt);
 	} else if(!eqtype(pt->orig, t))
-		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
+		yyerror("inconsistent definition for type %S during import\n\t%lT (in \"%Z\")\n\t%lT (in \"%Z\")", pt->sym, pt, pt->sym->importdef->path, t, importpkg->path);
 
 	if(debug['E'])
 		print("import type %T %lT\n", pt, t);
