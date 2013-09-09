@@ -1553,6 +1553,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 	importArgs := b.includeArgs("-L", allactions)
 	swigDirs := make(map[string]bool)
 	swigArg := []string{}
+	cxx := false
 	for _, a := range allactions {
 		if a.p != nil && a.p.usesSwig() {
 			sd := a.p.swigDir(&buildContext)
@@ -1564,8 +1565,50 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 			}
 			swigDirs[sd] = true
 		}
+		if a.p != nil && len(a.p.CXXFiles) > 0 {
+			cxx = true
+		}
 	}
-	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, swigArg, buildLdflags, mainpkg)
+	ldflags := buildLdflags
+	if cxx {
+		// The program includes C++ code.  If the user has not
+		// specified the -extld option, then default to
+		// linking with the compiler named by the CXX
+		// environment variable, or g++ if CXX is not set.
+		extld := false
+		for _, f := range ldflags {
+			if f == "-extld" || strings.HasPrefix(f, "-extld=") {
+				extld = true
+				break
+			}
+		}
+		if !extld {
+			compiler := strings.Fields(os.Getenv("CXX"))
+			if len(compiler) == 0 {
+				compiler = []string{"g++"}
+			}
+			ldflags = append(ldflags, "-extld="+compiler[0])
+			if len(compiler) > 1 {
+				extldflags := false
+				add := strings.Join(compiler[1:], " ")
+				for i, f := range ldflags {
+					if f == "-extldflags" && i+1 < len(ldflags) {
+						ldflags[i+1] = add + " " + ldflags[i+1]
+						extldflags = true
+						break
+					} else if strings.HasPrefix(f, "-extldflags=") {
+						ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
+						extldflags = true
+						break
+					}
+				}
+				if !extldflags {
+					ldflags = append(ldflags, "-extldflags="+add)
+				}
+			}
+		}
+	}
+	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, swigArg, ldflags, mainpkg)
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
@@ -1641,6 +1684,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	ldflags := b.gccArchArgs()
 	cgoldflags := []string{}
 	usesCgo := false
+	cxx := false
 	for _, a := range allactions {
 		if a.p != nil {
 			if !a.p.Standard {
@@ -1660,6 +1704,9 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 				}
 				usesCgo = true
 			}
+			if len(a.p.CXXFiles) > 0 {
+				cxx = true
+			}
 		}
 	}
 	for _, afile := range afiles {
@@ -1671,6 +1718,9 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	ldflags = append(ldflags, cgoldflags...)
 	if usesCgo && goos == "linux" {
 		ldflags = append(ldflags, "-Wl,-E")
+	}
+	if cxx {
+		ldflags = append(ldflags, "-lstdc++")
 	}
 	return b.run(".", p.ImportPath, nil, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
 }
