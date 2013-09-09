@@ -927,27 +927,32 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 }
 
 func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
-	root, err := filepath.EvalSymlinks(runtime.GOROOT())
+	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	lib := filepath.Join(root, "lib")
-	src := filepath.Join(root, "src")
-	seenSrc := false
+	bugs := filepath.Join(root, "bugs")
+	ken := filepath.Join(root, "ken")
+	seenBugs := false
+	seenKen := false
 	filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		switch pth {
-		case lib:
+		case bugs:
+			seenBugs = true
 			return filepath.SkipDir
-		case src:
-			seenSrc = true
+		case ken:
+			if !seenBugs {
+				t.Fatal("filepath.Walk out of order - ken before bugs")
+			}
+			seenKen = true
 		}
 		return nil
 	})
-	if !seenSrc {
-		t.Fatalf("%q not seen", src)
+	if !seenKen {
+		t.Fatalf("%q not seen", ken)
 	}
 }
