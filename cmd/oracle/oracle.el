@@ -175,6 +175,12 @@ this channel receive/send operation."
   (interactive)
   (go-oracle--run "peers"))
 
+(defun go-oracle-referrers ()
+  "Enumerate all references to the object denoted by the selected
+identifier."
+  (interactive)
+  (go-oracle--run "referrers"))
+
 ;; TODO(adonovan): don't mutate the keymap; just document how users
 ;; can do this themselves.  But that means freezing the API, so don't
 ;; do that yet; wait till v1.0.

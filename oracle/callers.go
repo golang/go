@@ -81,7 +81,7 @@ func (r *callersResult) toJSON(res *json.Result, fset *token.FileSet) {
 		if site.Caller() == r.root {
 			c.Desc = "synthetic call"
 		} else {
-			c.Pos = site.Caller().Func().Prog.Fset.Position(site.Pos()).String()
+			c.Pos = fset.Position(site.Pos()).String()
 			c.Desc = site.Description()
 		}
 		callers = append(callers, c)

@@ -9,7 +9,6 @@ import (
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/oracle/json"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // Implements displays the 'implements" relation among all
@@ -32,15 +31,14 @@ import (
 //   answer due to ChangeInterface, i.e. subtyping among interfaces.)
 //
 func implements(o *oracle) (queryResult, error) {
-	pkg := o.prog.Package(o.queryPkgInfo.Pkg)
-	if pkg == nil {
-		return nil, o.errorf(o.queryPath[0], "no SSA package")
-	}
+	pkg := o.queryPkgInfo.Pkg
 
 	// Compute set of named interface/concrete types at package level.
 	var interfaces, concretes []*types.Named
-	for _, mem := range pkg.Members {
-		if t, ok := mem.(*ssa.Type); ok {
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		mem := scope.Lookup(name)
+		if t, ok := mem.(*types.TypeName); ok {
 			nt := t.Type().(*types.Named)
 			if _, ok := nt.Underlying().(*types.Interface); ok {
 				interfaces = append(interfaces, nt)

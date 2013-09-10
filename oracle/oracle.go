@@ -35,7 +35,7 @@ import (
 
 type oracle struct {
 	out    io.Writer      // standard output
-	prog   *ssa.Program   // the SSA program [need&SSA]
+	prog   *ssa.Program   // the SSA program [only populated if need&SSA]
 	config pointer.Config // pointer analysis configuration
 
 	// need&(Pos|ExactPos):
@@ -43,18 +43,21 @@ type oracle struct {
 	queryPkgInfo     *importer.PackageInfo // type info for the queried package
 	queryPath        []ast.Node            // AST path from query node to root of ast.File
 
+	// need&AllTypeInfo
+	typeInfo map[*types.Package]*importer.PackageInfo // type info for all ASTs in the program
+
 	timers map[string]time.Duration // phase timing information
 }
 
 // A set of bits indicating the analytical requirements of each mode.
+// Typed ASTs for the queried package are always available.
 const (
-	Pos         = 1 << iota // needs a position
-	ExactPos                // needs an exact AST selection; implies Pos
-	SSA                     // needs SSA intermediate form
-	WholeSource             // needs ASTs/SSA (not just types) for whole program
-
-	// TODO(adonovan): implement more efficiently than WholeSource|SSA.
-	TypedAST = WholeSource | SSA // needs typed AST for the queried package; implies Pos
+	Pos         = 1 << iota     // needs a position
+	ExactPos                    // needs an exact AST selection; implies Pos
+	AllASTs                     // needs ASTs (not just object types) for whole program
+	AllTypeInfo                 // needs to retain type info for all ASTs in the program
+	SSA                         // needs ssa.Packages for whole program
+	PTA         = AllASTs | SSA // needs pointer analysis
 )
 
 type modeInfo struct {
@@ -63,14 +66,15 @@ type modeInfo struct {
 }
 
 var modes = map[string]modeInfo{
-	"callees":    modeInfo{WholeSource | SSA | ExactPos, callees},
-	"callers":    modeInfo{WholeSource | SSA | Pos, callers},
-	"callgraph":  modeInfo{WholeSource | SSA, callgraph},
-	"callstack":  modeInfo{WholeSource | SSA | Pos, callstack},
-	"describe":   modeInfo{WholeSource | SSA | ExactPos, describe},
-	"freevars":   modeInfo{TypedAST | Pos, freevars},
-	"implements": modeInfo{TypedAST | Pos, implements},
-	"peers":      modeInfo{WholeSource | SSA | Pos, peers},
+	"callees":    modeInfo{PTA | ExactPos, callees},
+	"callers":    modeInfo{PTA | Pos, callers},
+	"callgraph":  modeInfo{PTA, callgraph},
+	"callstack":  modeInfo{PTA | Pos, callstack},
+	"describe":   modeInfo{PTA | ExactPos, describe},
+	"freevars":   modeInfo{AllASTs | Pos, freevars},
+	"implements": modeInfo{Pos, implements},
+	"peers":      modeInfo{PTA | Pos, peers},
+	"referrers":  modeInfo{AllTypeInfo | AllASTs | Pos, referrers},
 }
 
 type printfFunc func(pos interface{}, format string, args ...interface{})
@@ -128,7 +132,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	if minfo.needs&WholeSource == 0 {
+	if minfo.needs&AllASTs == 0 {
 		buildContext = nil
 	}
 	imp := importer.New(&importer.Config{Build: buildContext})
@@ -163,6 +167,15 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("surplus arguments: %q", args)
 	}
 	o.timers["load/parse/type"] = time.Since(start)
+
+	// Retain type info for all ASTs in the program.
+	if minfo.needs&AllTypeInfo != 0 {
+		m := make(map[*types.Package]*importer.PackageInfo)
+		for _, p := range imp.AllPackages() {
+			m[p.Pkg] = p
+		}
+		o.typeInfo = m
+	}
 
 	// Parse the source query position.
 	if minfo.needs&(Pos|ExactPos) != 0 {

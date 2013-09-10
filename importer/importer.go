@@ -40,8 +40,6 @@
 // Importer will only augment (and create an external test package
 // for) the first import path specified on the command-line.
 //
-// TODO(adonovan): more tests.
-//
 package importer
 
 import (
@@ -428,12 +426,13 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 
 	// Pass 2: type-check each set of files to make a package.
 	var infos []*PackageInfo
+	imports := make(map[string]*types.Package) // keep importBinary happy
 	for _, pkg := range pkgs {
 		var info *PackageInfo
 		if pkg.importable {
 			// import package
 			var err error
-			info, err = imp.doImport0(nil, pkg.path)
+			info, err = imp.doImport0(imports, pkg.path)
 			if err != nil {
 				return nil, nil, err // e.g. parse error (but not type error)
 			}

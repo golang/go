@@ -100,13 +100,13 @@ func (r *callstackResult) toJSON(res *json.Result, fset *token.FileSet) {
 	var callers []json.Caller
 	for _, site := range r.callstack {
 		callers = append(callers, json.Caller{
-			Pos:    site.Caller().Func().Prog.Fset.Position(site.Pos()).String(),
+			Pos:    fset.Position(site.Pos()).String(),
 			Caller: site.Caller().Func().String(),
 			Desc:   site.Description(),
 		})
 	}
 	res.Callstack = &json.CallStack{
-		Pos:     r.target.Prog.Fset.Position(r.target.Pos()).String(),
+		Pos:     fset.Position(r.target.Pos()).String(),
 		Target:  r.target.String(),
 		Callers: callers,
 	}

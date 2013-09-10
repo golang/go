@@ -113,13 +113,13 @@ func (r *calleesResult) display(printf printfFunc) {
 
 func (r *calleesResult) toJSON(res *json.Result, fset *token.FileSet) {
 	j := &json.Callees{
-		Pos:  r.site.Caller().Func().Prog.Fset.Position(r.site.Pos()).String(),
+		Pos:  fset.Position(r.site.Pos()).String(),
 		Desc: r.site.Description(),
 	}
 	for _, callee := range r.funcs {
 		j.Callees = append(j.Callees, &json.CalleesItem{
 			Name: callee.String(),
-			Pos:  callee.Prog.Fset.Position(callee.Pos()).String(),
+			Pos:  fset.Position(callee.Pos()).String(),
 		})
 	}
 	res.Callees = j

@@ -93,7 +93,7 @@ func (r *callgraphResult) toJSON(res *json.Result, fset *token.FileSet) {
 		j := &cg[i]
 		fn := n.Func()
 		j.Name = fn.String()
-		j.Pos = fn.Prog.Fset.Position(fn.Pos()).String()
+		j.Pos = fset.Position(fn.Pos()).String()
 		for callee := range r.callgraph[n] {
 			j.Children = append(j.Children, r.numbering[callee])
 		}
