@@ -87,6 +87,7 @@ enum {
 	MACH_CPU_TYPE_X86_64 = (1<<24)|7,
 	MACH_CPU_TYPE_X86 = 7,
 	MACH_CPU_SUBTYPE_X86 = 3,
+	MACH_CPU_SUBTYPE_X86_64 = (1<<31)|3,
 	MACH_EXECUTABLE_TYPE = 2,
 	MACH_SEGMENT_32 = 1,	/* 32-bit mapped segment */
 	MACH_SEGMENT_64 = 0x19,	/* 64-bit mapped segment */
