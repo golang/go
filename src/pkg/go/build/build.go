@@ -920,7 +920,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
 		for _, arg := range args {
-			if !safeName(arg) {
+			if !safeCgoName(arg) {
 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
 			}
 		}
@@ -943,9 +943,12 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 	return nil
 }
 
-var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:")
+// NOTE: $ is not safe for the shell, but it is allowed here because of linker options like -Wl,$ORIGIN.
+// We never pass these arguments to a shell (just to programs we construct argv for), so this should be okay.
+// See golang.org/issue/6038.
+var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$")
 
-func safeName(s string) bool {
+func safeCgoName(s string) bool {
 	if s == "" {
 		return false
 	}

@@ -483,6 +483,25 @@ fi
 rm -rf $d
 unset GOPATH
 
+TEST 'cgo handles -Wl,$ORIGIN'
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/origin
+echo '
+package origin
+// #cgo LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
+// void f(void) {}
+import "C"
+
+func f() { C.f() }
+' >$d/src/origin/origin.go
+if ! ./testgo build origin; then
+	echo build failed
+	ok=false
+fi
+rm -rf $d
+unset GOPATH
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
