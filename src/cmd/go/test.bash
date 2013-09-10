@@ -139,6 +139,18 @@ if ! ./testgo test ./testdata/testimport/*.go; then
 	ok=false
 fi
 
+TEST version control error message includes correct directory
+export GOPATH=$(pwd)/testdata/shadow/root1
+if ./testgo get -u foo 2>testdata/err; then
+	echo "go get -u foo succeeded unexpectedly"
+	ok=false
+elif ! grep testdata/shadow/root1/src/foo testdata/err >/dev/null; then
+	echo "go get -u error does not mention shadow/root1/src/foo:"
+	cat testdata/err
+	ok=false
+fi
+unset GOPATH
+
 # Test that without $GOBIN set, binaries get installed
 # into the GOPATH bin directory.
 TEST install into GOPATH
