@@ -680,24 +680,9 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
+	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
-			return true
-		}
-	}
-
-	for _, src := range stringList(p.SwigFiles, p.SwigCXXFiles) {
-		if olderThan(filepath.Join(p.Dir, src)) {
-			return true
-		}
-		soname := p.swigSoname(src)
-		fi, err := os.Stat(soname)
-		if err != nil {
-			return true
-		}
-		fiSrc, err := os.Stat(src)
-		if err != nil || fiSrc.ModTime().After(fi.ModTime()) {
 			return true
 		}
 	}
