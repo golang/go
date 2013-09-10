@@ -52,9 +52,11 @@ type Config struct {
 	IgnoreFuncBodies bool
 
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
-	// and expressions with qualified identifiers referring to package
-	// C are silently ignored.
-	// Caution: Effects may be unpredictable - do not use casually!
+	// declares an empty "C" package and errors are omitted for qualified
+	// identifiers referring to package C (which won't find an object).
+	// Caution: Effects may be unpredictable due to unpredictable follow-
+	// up errors - do not use casually! This feature is mainly intended
+	// for the standard library cmd/api tool.
 	FakeImportC bool
 
 	// If Error != nil, it is called with each error found
