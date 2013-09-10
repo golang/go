@@ -339,17 +339,18 @@ const (
 
 // A Package describes the Go package found in a directory.
 type Package struct {
-	Dir        string   // directory containing package sources
-	Name       string   // package name
-	Doc        string   // documentation synopsis
-	ImportPath string   // import path of package ("" if unknown)
-	Root       string   // root of Go tree where this package lives
-	SrcRoot    string   // package source root directory ("" if unknown)
-	PkgRoot    string   // package install root directory ("" if unknown)
-	BinDir     string   // command install directory ("" if unknown)
-	Goroot     bool     // package found in Go root
-	PkgObj     string   // installed .a file
-	AllTags    []string // tags that can influence file selection in this directory
+	Dir         string   // directory containing package sources
+	Name        string   // package name
+	Doc         string   // documentation synopsis
+	ImportPath  string   // import path of package ("" if unknown)
+	Root        string   // root of Go tree where this package lives
+	SrcRoot     string   // package source root directory ("" if unknown)
+	PkgRoot     string   // package install root directory ("" if unknown)
+	BinDir      string   // command install directory ("" if unknown)
+	Goroot      bool     // package found in Go root
+	PkgObj      string   // installed .a file
+	AllTags     []string // tags that can influence file selection in this directory
+	ConflictDir string   // this directory shadows Dir in $GOPATH
 
 	// Source files
 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -476,11 +477,13 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				// else first.
 				if ctxt.GOROOT != "" {
 					if dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", sub); ctxt.isDir(dir) {
+						p.ConflictDir = dir
 						goto Found
 					}
 				}
 				for _, earlyRoot := range all[:i] {
 					if dir := ctxt.joinPath(earlyRoot, "src", sub); ctxt.isDir(dir) {
+						p.ConflictDir = dir
 						goto Found
 					}
 				}

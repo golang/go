@@ -25,15 +25,16 @@ type Package struct {
 	// Note: These fields are part of the go command's public API.
 	// See list.go.  It is okay to add fields, but not to change or
 	// remove existing ones.  Keep in sync with list.go
-	Dir        string `json:",omitempty"` // directory containing package sources
-	ImportPath string `json:",omitempty"` // import path of package in dir
-	Name       string `json:",omitempty"` // package name
-	Doc        string `json:",omitempty"` // package documentation string
-	Target     string `json:",omitempty"` // install path
-	Goroot     bool   `json:",omitempty"` // is this package found in the Go root?
-	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
-	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
-	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
+	Dir         string `json:",omitempty"` // directory containing package sources
+	ImportPath  string `json:",omitempty"` // import path of package in dir
+	Name        string `json:",omitempty"` // package name
+	Doc         string `json:",omitempty"` // package documentation string
+	Target      string `json:",omitempty"` // install path
+	Goroot      bool   `json:",omitempty"` // is this package found in the Go root?
+	Standard    bool   `json:",omitempty"` // is this package part of the standard Go library?
+	Stale       bool   `json:",omitempty"` // would 'go install' do anything for this package?
+	Root        string `json:",omitempty"` // Go root or Go path dir containing this package
+	ConflictDir string `json:",omitempty"` // Dir is hidden by this other directory
 
 	// Source files
 	GoFiles        []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -102,6 +103,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.Name = pp.Name
 	p.Doc = pp.Doc
 	p.Root = pp.Root
+	p.ConflictDir = pp.ConflictDir
 	// TODO? Target
 	p.Goroot = pp.Goroot
 	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
