@@ -311,7 +311,9 @@ func runInstall(cmd *Command, args []string) {
 
 	for _, p := range pkgs {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
-			if p.ConflictDir != "" {
+			if p.cmdline {
+				errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
+			} else if p.ConflictDir != "" {
 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
 			} else {
 				errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
@@ -486,6 +488,7 @@ func goFilesPackage(gofiles []string) *Package {
 	bp, err := ctxt.ImportDir(dir, 0)
 	pkg := new(Package)
 	pkg.local = true
+	pkg.cmdline = true
 	pkg.load(&stk, bp, err)
 	pkg.localPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"

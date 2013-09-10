@@ -82,6 +82,7 @@ type Package struct {
 	fake         bool                 // synthesized package
 	forceBuild   bool                 // this package must be rebuilt
 	forceLibrary bool                 // this package is a library (even if named "main")
+	cmdline      bool                 // defined by files listed on command line
 	local        bool                 // imported via local path (./ or ../)
 	localPrefix  string               // interpret ./ and ../ imports relative to this prefix
 	exeName      string               // desired name for temporary executable
