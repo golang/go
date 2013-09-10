@@ -360,7 +360,7 @@ func exitIfErrors() {
 
 func run(cmdargs ...interface{}) {
 	cmdline := stringList(cmdargs...)
-	if buildN || buildV {
+	if buildN || buildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
 		if buildN {
 			return
