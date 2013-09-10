@@ -1076,7 +1076,7 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 			return 0;
 		}
 
-		if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
+		if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86 && mp->cpusubtype != MACH_CPU_SUBTYPE_X86_64) {
 			werrstr("bad MACH cpu subtype - not amd64");
 			return 0;
 		}
