@@ -1005,8 +1005,9 @@ func (b *builder) install(a *action) (err error) {
 				return err
 			}
 			soname := a.p.swigSoname(f)
+			source := filepath.Join(a.objdir, soname)
 			target := filepath.Join(dir, soname)
-			if err = b.copyFile(a, target, soname, perm); err != nil {
+			if err = b.copyFile(a, target, source, perm); err != nil {
 				return err
 			}
 		}
@@ -2255,7 +2256,8 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 		cxxlib = []string{"-lstdc++"}
 	}
 	ldflags := stringList(osldflags[goos], cxxlib)
-	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", soname, gccObj, ldflags)
+	target := filepath.Join(obj, soname)
+	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, ldflags)
 
 	return obj + goFile, cObj, nil
 }
