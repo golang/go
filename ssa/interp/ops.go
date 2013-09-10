@@ -797,6 +797,10 @@ func unop(instr *ssa.UnOp, x value) value {
 			return -x
 		case float64:
 			return -x
+		case complex64:
+			return -x
+		case complex128:
+			return -x
 		}
 	case token.MUL:
 		return copyVal(*x.(*value)) // load

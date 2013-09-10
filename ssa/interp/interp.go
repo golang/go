@@ -571,12 +571,9 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 			setGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
-			// TODO(gri): expose go/types.sizeof so we can
-			// avoid this fragile magic number;
-			// unsafe.Sizeof(memStats) won't work since gc
-			// and go/types have different sizeof
-			// functions.
-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
+			// (Assumes no custom Sizeof used during SSA construction.)
+			sz := types.DefaultSizeof(pkg.Object.Scope().Lookup("MemStats").Type())
+			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
 
 		case "os":
 			Args := []value{filename}
