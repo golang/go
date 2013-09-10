@@ -311,7 +311,11 @@ func runInstall(cmd *Command, args []string) {
 
 	for _, p := range pkgs {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
-			errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
+			if p.ConflictDir != "" {
+				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+			} else {
+				errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
+			}
 		}
 	}
 	exitIfErrors()

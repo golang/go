@@ -439,6 +439,37 @@ TEST go get cover
 unset GOPATH
 rm -rf $d
 
+TEST shadowing logic
+export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
+
+# The math in root1 is not "math" because the standard math is.
+cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/math)
+if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/pkg/math)" ]; then
+	echo shadowed math is not shadowed: "$cdir"
+	ok=false
+fi
+
+# The foo in root1 is "foo".
+cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/foo)
+if [ "$cdir" != "(foo) ()" ]; then
+	echo unshadowed foo is shadowed: "$cdir"
+	ok=false
+fi
+
+# The foo in root2 is not "foo" because the foo in root1 got there first.
+cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root2/src/foo)
+if [ "$cdir" != "(_$(pwd)/testdata/shadow/root2/src/foo) ($(pwd)/testdata/shadow/root1/src/foo)" ]; then
+	echo shadowed foo is not shadowed: "$cdir"
+	ok=false
+fi
+
+# The error for go install should mention the conflicting directory.
+err=$(! ./testgo install ./testdata/shadow/root2/src/foo 2>&1)
+if [ "$err" != "go install: no install location for directory $(pwd)/testdata/shadow/root2/src/foo hidden by $(pwd)/testdata/shadow/root1/src/foo" ]; then
+	echo wrong shadowed install error: "$err"
+	ok=false
+fi
+
 # Only succeeds if source order is preserved.
 TEST source file name order preserved
 ./testgo test testdata/example[12]_test.go || ok=false
