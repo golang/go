@@ -446,16 +446,15 @@ func runTest(cmd *Command, args []string) {
 		}
 	}
 
-	// If we are benchmarking, force everything to
-	// happen in serial.  Could instead allow all the
-	// builds to run before any benchmarks start,
-	// but try this for now.
+	// Force benchmarks to run in serial.
 	if testBench {
-		for i, a := range builds {
-			if i > 0 {
-				// Make build of test i depend on
-				// completing the run of test i-1.
-				a.deps = append(a.deps, runs[i-1])
+		// The first run must wait for all builds.
+		// Later runs must wait for the previous run's print.
+		for i, run := range runs {
+			if i == 0 {
+				run.deps = append(run.deps, builds...)
+			} else {
+				run.deps = append(run.deps, prints[i-1])
 			}
 		}
 	}
@@ -516,8 +515,8 @@ func contains(x []string, s string) bool {
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := &action{p: p}
-		run := &action{p: p}
-		print := &action{f: (*builder).notest, p: p, deps: []*action{build}}
+		run := &action{p: p, deps: []*action{build}}
+		print := &action{f: (*builder).notest, p: p, deps: []*action{run}}
 		return build, run, print, nil
 	}
 
