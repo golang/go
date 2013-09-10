@@ -138,6 +138,27 @@ elif ! test -x testdata/bin/go-cmd-test; then
 	ok=false
 fi
 
+TEST package main_test imports archive not binary
+export GOBIN=$(pwd)/testdata/bin
+mkdir -p $GOBIN
+export GOPATH=$(pwd)/testdata
+touch ./testdata/src/main_test/m.go
+if ! ./testgo test main_test; then
+	echo "go test main_test failed without install"
+	ok=false
+elif ! ./testgo install main_test; then
+	echo "go test main_test failed"
+	ok=false
+elif [ "$(./testgo list -f '{{.Stale}}' main_test)" != false ]; then
+	echo "after go install, main listed as stale"
+	ok=false
+elif ! ./testgo test main_test; then
+	echo "go test main_test failed after install"
+	ok=false
+fi
+rm -rf $GOBIN
+unset GOBIN
+
 # And with $GOBIN set, binaries get installed to $GOBIN.
 TEST install into GOBIN
 if ! GOBIN=$(pwd)/testdata/bin1 GOPATH=$(pwd)/testdata ./testgo install go-cmd-test; then

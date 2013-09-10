@@ -590,7 +590,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	localCover := testCover && testCoverPaths == nil
 
 	// Test package.
-	if len(p.TestGoFiles) > 0 || localCover {
+	if len(p.TestGoFiles) > 0 || localCover || p.Name == "main" {
 		ptest = new(Package)
 		*ptest = *p
 		ptest.GoFiles = nil
