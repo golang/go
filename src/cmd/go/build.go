@@ -2162,6 +2162,9 @@ const i int = 1 << 32
 // Determine the size of int on the target system for the -intgosize option
 // of swig >= 2.0.9
 func (b *builder) swigIntSize(obj string) (intsize string, err error) {
+	if buildN {
+		return "$INTBITS", nil
+	}
 	src := filepath.Join(b.work, "swig_intsize.go")
 	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0644); err != nil {
 		return
