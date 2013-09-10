@@ -189,7 +189,9 @@ func (imp *Importer) doImport0(imports map[string]*types.Package, path string) (
 		} else {
 			imp.importBinary(imports, ii)
 		}
-		ii.info.Importable = true
+		if ii.info != nil {
+			ii.info.Importable = true
+		}
 
 		close(ii.ready) // enter ready state and wake up waiters
 	} else {
