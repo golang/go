@@ -150,11 +150,16 @@ fi
 
 # Without $GOBIN set, installing a program outside $GOPATH should fail
 # (there is nowhere to install it).
-TEST install without destination
-if ./testgo install testdata/src/go-cmd-test/helloworld.go; then
+TEST install without destination fails
+if ./testgo install testdata/src/go-cmd-test/helloworld.go 2>testdata/err; then
 	echo "go install testdata/src/go-cmd-test/helloworld.go should have failed, did not"
 	ok=false
+elif ! grep 'no install location for .go files listed on command line' testdata/err; then
+	echo "wrong error:"
+	cat testdata/err
+	ok=false
 fi
+rm -f testdata/err
 
 # With $GOBIN set, should install there.
 TEST install to GOBIN '(command-line package)'
