@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// implicit constant conversions
+// constant conversions
 
 package const1
 
@@ -248,6 +248,11 @@ const (
 	_ = float32(-maxFloat32)
 	_ = float32(maxFloat32)
 	_ = float32(maxFloat32 /* ERROR "cannot convert" */ + delta32)
+
+	_ = assert(float32(smallestFloat32) == smallestFloat32)
+	_ = assert(float32(smallestFloat32/2) == 0)
+	_ = assert(float32(smallestFloat64) == 0)
+	_ = assert(float32(smallestFloat64/2) == 0)
 )
 
 const delta64 = maxFloat64/(1 << 52)
@@ -262,6 +267,11 @@ const (
 	_ = float64(-maxFloat64)
 	_ = float64(maxFloat64)
 	_ = float64(maxFloat64 /* ERROR "cannot convert" */ + delta64)
+
+	_ = assert(float64(smallestFloat32) == smallestFloat32)
+	_ = assert(float64(smallestFloat32/2) == smallestFloat32/2)
+	_ = assert(float64(smallestFloat64) == smallestFloat64)
+	_ = assert(float64(smallestFloat64/2) == 0)
 )
 
 const (

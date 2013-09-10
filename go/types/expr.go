@@ -163,8 +163,9 @@ func fitsFloat32(x exact.Value) bool {
 	// the conversion succeeds but the result value is implementation-
 	// dependent."
 	//
-	// We assume that float32(f) returns an Inf if f cannot be represented
-	// as a float32, or if f is an Inf.
+	// We assume that float32(f) returns an Inf if f is too large for
+	// a float32, or if f is an Inf; and that it returns 0 for values
+	// with too small a magnitude.
 	return !math.IsInf(float64(float32(f)), 0)
 }
 
