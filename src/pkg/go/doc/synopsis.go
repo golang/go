@@ -27,14 +27,20 @@ func firstSentenceLen(s string) int {
 	return len(s)
 }
 
+const (
+	keepNL = 1 << iota
+)
+
 // clean replaces each sequence of space, \n, \r, or \t characters
 // with a single space and removes any trailing and leading spaces.
-func clean(s string) string {
+// If the keepNL flag is set, newline characters are passed through
+// instead of being change to spaces.
+func clean(s string, flags int) string {
 	var b []byte
 	p := byte(' ')
 	for i := 0; i < len(s); i++ {
 		q := s[i]
-		if q == '\n' || q == '\r' || q == '\t' {
+		if (flags&keepNL) == 0 && q == '\n' || q == '\r' || q == '\t' {
 			q = ' '
 		}
 		if q != ' ' || p != ' ' {
@@ -57,7 +63,7 @@ func clean(s string) string {
 // is the empty string.
 //
 func Synopsis(s string) string {
-	s = clean(s[0:firstSentenceLen(s)])
+	s = clean(s[0:firstSentenceLen(s)], 0)
 	for _, prefix := range IllegalPrefixes {
 		if strings.HasPrefix(strings.ToLower(s), prefix) {
 			return ""

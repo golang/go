@@ -32,6 +32,7 @@ func readTemplate(filename string) *template.Template {
 	t.Funcs(template.FuncMap{
 		"node":     nodeFmt,
 		"synopsis": synopsisFmt,
+		"indent":   indentFmt,
 	})
 	return template.Must(t.ParseFiles(filepath.Join(dataDir, filename)))
 }
@@ -53,6 +54,15 @@ func synopsisFmt(s string) string {
 		s = strings.TrimSpace(s) + " ..."
 	}
 	return "// " + strings.Replace(s, "\n", " ", -1)
+}
+
+func indentFmt(indent, s string) string {
+	end := ""
+	if strings.HasSuffix(s, "\n") {
+		end = "\n"
+		s = s[:len(s)-1]
+	}
+	return indent + strings.Replace(s, "\n", "\n"+indent, -1) + end
 }
 
 func isGoFile(fi os.FileInfo) bool {
