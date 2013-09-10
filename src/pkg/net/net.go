@@ -46,7 +46,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -399,39 +398,6 @@ type writerOnly struct {
 func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
 	return io.Copy(writerOnly{w}, r)
-}
-
-// deadline is an atomically-accessed number of nanoseconds since 1970
-// or 0, if no deadline is set.
-type deadline struct {
-	sync.Mutex
-	val int64
-}
-
-func (d *deadline) expired() bool {
-	t := d.value()
-	return t > 0 && time.Now().UnixNano() >= t
-}
-
-func (d *deadline) value() (v int64) {
-	d.Lock()
-	v = d.val
-	d.Unlock()
-	return
-}
-
-func (d *deadline) set(v int64) {
-	d.Lock()
-	d.val = v
-	d.Unlock()
-}
-
-func (d *deadline) setTime(t time.Time) {
-	if t.IsZero() {
-		d.set(0)
-	} else {
-		d.set(t.UnixNano())
-	}
 }
 
 // Limit the number of concurrent cgo-using goroutines, because
