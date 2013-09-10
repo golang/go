@@ -61,8 +61,8 @@ TYPES
 
 */}}{{with .Bugs}}
 BUGS .Bugs is now deprecated, please use .Notes instead
-{{range .}}	{{synopsis .}}
+{{range .}}{{indent "\t" .}}
 {{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
 {{$marker}}S
-{{range $content}}	{{synopsis .Body}} (uid: {{.UID}})
+{{range $content}}{{$marker}}({{.UID}}){{indent "\t" .Body}}
 {{end}}{{end}}{{end}}

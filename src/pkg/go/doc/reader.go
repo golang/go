@@ -414,7 +414,7 @@ func (r *reader) readNote(list []*ast.Comment) {
 		// We remove any formatting so that we don't
 		// get spurious line breaks/indentation when
 		// showing the TODO body.
-		body := clean(text[m[1]:])
+		body := clean(text[m[1]:], keepNL)
 		if body != "" {
 			marker := text[m[2]:m[3]]
 			r.notes[marker] = append(r.notes[marker], &Note{
