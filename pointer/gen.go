@@ -72,9 +72,18 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid) {
 	}
 
 	// Record the (v, id) relation if the client has queried v.
-	qv := a.config.QueryValues
-	if ptrs, ok := qv[v]; ok {
-		qv[v] = append(ptrs, ptr{a, id})
+	if indirect, ok := a.config.QueryValues[v]; ok {
+		if indirect {
+			tmp := a.addNodes(v.Type(), "query.indirect")
+			a.load(tmp, id, a.sizeof(v.Type()))
+			id = tmp
+		}
+		ptrs := a.config.QueryResults
+		if ptrs == nil {
+			ptrs = make(map[ssa.Value][]Pointer)
+			a.config.QueryResults = ptrs
+		}
+		ptrs[v] = append(ptrs[v], ptr{a, id})
 	}
 }
 

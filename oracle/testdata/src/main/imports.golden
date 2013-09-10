@@ -17,8 +17,6 @@ defined here
 -------- @describe ref-var --------
 reference to var Var int
 defined here
-value may point to these labels:
-	lib.Var
 
 -------- @describe ref-type --------
 reference to type lib.Type

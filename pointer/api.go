@@ -64,22 +64,29 @@ type Config struct {
 	//
 	Print func(site *ssa.CallCommon, p Pointer)
 
-	// The client populates QueryValues with {v, nil} for each
-	// ssa.Value v of interest.  The pointer analysis will
-	// populate the corresponding map value when it creates the
-	// pointer variable for v.  Upon completion the client can
-	// inspect the map for the results.
+	// The client populates QueryValues[v] for each ssa.Value v
+	// of interest.
+	//
+	// The boolean (Indirect) indicates whether to compute the
+	// points-to set for v (false) or *v (true): the latter is
+	// typically wanted for Values corresponding to source-level
+	// lvalues, e.g. an *ssa.Global.
+	//
+	// The pointer analysis will populate the corresponding
+	// QueryResults value when it creates the pointer variable
+	// for v or *v.  Upon completion the client can inspect the
+	// map for the results.
 	//
 	// If a Value belongs to a function that the analysis treats
-	// context-sensitively, the corresponding slice may have
-	// multiple Pointers, one per distinct context.
-	// Use PointsToCombined to merge them.
+	// context-sensitively, the corresponding QueryResults slice
+	// may have multiple Pointers, one per distinct context.  Use
+	// PointsToCombined to merge them.
 	//
-	// TODO(adonovan): separate the keys set (input) from the
-	// key/value associations (result) and perhaps return the
-	// latter from Analyze().
+	// TODO(adonovan): refactor the API: separate all results of
+	// Analyze() into a dedicated Result struct.
 	//
-	QueryValues map[ssa.Value][]Pointer
+	QueryValues  map[ssa.Value]Indirect
+	QueryResults map[ssa.Value][]Pointer
 
 	// -------- Other configuration options --------
 
@@ -87,6 +94,8 @@ type Config struct {
 	// Logging is extremely verbose.
 	Log io.Writer
 }
+
+type Indirect bool // map[ssa.Value]Indirect is not a set
 
 func (c *Config) prog() *ssa.Program {
 	for _, main := range c.Mains {

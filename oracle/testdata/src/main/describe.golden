@@ -8,6 +8,7 @@ definition of package "describe"
 		method (describe.I) f()
 	type  cake       float64
 	func  deadcode   func()
+	var   global     *string
 	func  init       func()
 	var   init$guard bool
 	func  main       func()
@@ -74,7 +75,13 @@ defined here
 reference to var anon func()
 defined here
 value may point to these labels:
-	func@27.10
+	func@29.10
+
+-------- @describe ref-global --------
+reference to var global *string
+defined here
+value may point to these labels:
+	new
 
 -------- @describe var-def-x-1 --------
 definition of var x *int
@@ -126,7 +133,6 @@ binary - operation of constant value -2
 
 -------- @describe map-lookup,ok --------
 index expression of type (*int, bool)
-no points-to information: can't locate SSA Value for expression in describe.main
 
 -------- @describe mapval --------
 reference to var mapval *int

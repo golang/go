@@ -12,6 +12,8 @@ const pi = 3.141     // @describe const-def-pi "pi"
 const pie = cake(pi) // @describe const-def-pie "pie"
 const _ = pi         // @describe const-ref-pi "pi"
 
+var global = new(string) // NB: ssa.Global is indirect, i.e. **string
+
 func main() { // @describe func-def-main "main"
 	// func objects
 	_ = main   // @describe func-ref-main "main"
@@ -27,7 +29,8 @@ func main() { // @describe func-def-main "main"
 	anon := func() {
 		_ = d // @describe ref-lexical-d "d"
 	}
-	_ = anon // @describe ref-anon "anon"
+	_ = anon   // @describe ref-anon "anon"
+	_ = global // @describe ref-global "global"
 
 	// SSA affords some local flow sensitivity.
 	var a, b int
@@ -49,7 +52,6 @@ func main() { // @describe func-def-main "main"
 	print(real(1+2i) - 3) // @describe const-expr2 "real.*3"
 
 	m := map[string]*int{"a": &a}
-	// TODO(adonovan): fix spurious error in map-lookup,ok result.
 	mapval, _ := m["a"] // @describe map-lookup,ok "m..a.."
 	_ = mapval          // @describe mapval "mapval"
 	_ = m               // @describe m "m"

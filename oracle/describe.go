@@ -342,16 +342,23 @@ func ssaValueForExpr(o *oracle, path []ast.Node) (ssa.Value, error) {
 
 func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 	var expr ast.Expr
+	var obj types.Object
 	switch n := path[0].(type) {
 	case *ast.ValueSpec:
 		// ambiguous ValueSpec containing multiple names
 		return nil, o.errorf(n, "multiple value specification")
+	case *ast.Ident:
+		obj = o.queryPkgInfo.ObjectOf(n)
+		expr = n
 	case ast.Expr:
 		expr = n
 	default:
 		// Is this reachable?
 		return nil, o.errorf(n, "unexpected AST for expr: %T", n)
 	}
+
+	typ := o.queryPkgInfo.TypeOf(expr)
+	constVal := o.queryPkgInfo.ValueOf(expr)
 
 	// From this point on, we cannot fail with an error.
 	// Failure to run the pointer analysis will be reported later.
@@ -365,63 +372,31 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 	// - ok:    Pointer has non-empty points-to set
 	// ptaErr is non-nil only in the "error:" cases.
 
-	var value ssa.Value
 	var ptaErr error
-	var obj types.Object
-
-	// Determine the ssa.Value for the expression.
-	if id, ok := expr.(*ast.Ident); ok {
-		// def/ref of func/var/const object
-		obj = o.queryPkgInfo.ObjectOf(id)
-		value, ptaErr = ssaValueForIdent(o, obj, path)
-	} else {
-		// any other expression
-		if o.queryPkgInfo.ValueOf(expr) == nil { // non-constant?
-			value, ptaErr = ssaValueForExpr(o, path)
-		}
-	}
-
-	// Don't run pointer analysis on non-pointerlike types.
-	if value != nil && !pointer.CanPoint(value.Type()) {
-		value = nil
-	}
-
-	// Run pointer analysis of the selected SSA value.
 	var ptrs []pointerResult
-	if value != nil {
-		buildSSA(o)
 
-		o.config.QueryValues = map[ssa.Value][]pointer.Pointer{value: nil}
-		ptrAnalysis(o)
-
-		// Combine the PT sets from all contexts.
-		pointers := o.config.QueryValues[value]
-		if pointers == nil {
-			ptaErr = fmt.Errorf("PTA did not encounter this expression (dead code?)")
-		}
-		pts := pointer.PointsToCombined(pointers)
-
-		if _, ok := value.Type().Underlying().(*types.Interface); ok {
-			// Show concrete types for interface expression.
-			if concs := pts.ConcreteTypes(); concs.Len() > 0 {
-				concs.Iterate(func(conc types.Type, pta interface{}) {
-					combined := pointer.PointsToCombined(pta.([]pointer.Pointer))
-					labels := combined.Labels()
-					sort.Sort(byPosAndString(labels)) // to ensure determinism
-					ptrs = append(ptrs, pointerResult{conc, labels})
-				})
-			}
+	// Only run pointer analysis on pointerlike expression types.
+	if pointer.CanPoint(typ) {
+		// Determine the ssa.Value for the expression.
+		var value ssa.Value
+		if obj != nil {
+			// def/ref of func/var/const object
+			value, ptaErr = ssaValueForIdent(o, obj, path)
 		} else {
-			// Show labels for other expressions.
-			labels := pts.Labels()
-			sort.Sort(byPosAndString(labels)) // to ensure determinism
-			ptrs = append(ptrs, pointerResult{value.Type(), labels})
+			// any other expression
+			if o.queryPkgInfo.ValueOf(path[0].(ast.Expr)) == nil { // non-constant?
+				value, ptaErr = ssaValueForExpr(o, path)
+			}
+		}
+		if value != nil {
+			// TODO(adonovan): IsIdentical may be too strict;
+			// perhaps we need is-assignable or even
+			// has-same-underlying-representation?
+			indirect := types.IsIdentical(types.NewPointer(typ), value.Type())
+
+			ptrs, ptaErr = describePointer(o, value, indirect)
 		}
 	}
-	sort.Sort(byTypeString(ptrs)) // to ensure determinism
-
-	typ := o.queryPkgInfo.TypeOf(expr)
-	constVal := o.queryPkgInfo.ValueOf(expr)
 
 	return &describeValueResult{
 		expr:     expr,
@@ -431,6 +406,41 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 		ptaErr:   ptaErr,
 		ptrs:     ptrs,
 	}, nil
+}
+
+// describePointer runs the pointer analysis of the selected SSA value.
+func describePointer(o *oracle, v ssa.Value, indirect bool) (ptrs []pointerResult, err error) {
+	buildSSA(o)
+
+	// TODO(adonovan): don't run indirect pointer analysis on non-ptr-ptrlike types.
+	o.config.QueryValues = map[ssa.Value]pointer.Indirect{v: pointer.Indirect(indirect)}
+	ptrAnalysis(o)
+
+	// Combine the PT sets from all contexts.
+	pointers := o.config.QueryResults[v]
+	if pointers == nil {
+		return nil, fmt.Errorf("PTA did not encounter this expression (dead code?)")
+	}
+	pts := pointer.PointsToCombined(pointers)
+
+	if _, ok := v.Type().Underlying().(*types.Interface); ok {
+		// Show concrete types for interface expression.
+		if concs := pts.ConcreteTypes(); concs.Len() > 0 {
+			concs.Iterate(func(conc types.Type, pta interface{}) {
+				combined := pointer.PointsToCombined(pta.([]pointer.Pointer))
+				labels := combined.Labels()
+				sort.Sort(byPosAndString(labels)) // to ensure determinism
+				ptrs = append(ptrs, pointerResult{conc, labels})
+			})
+		}
+	} else {
+		// Show labels for other expressions.
+		labels := pts.Labels()
+		sort.Sort(byPosAndString(labels)) // to ensure determinism
+		ptrs = append(ptrs, pointerResult{v.Type(), labels})
+	}
+	sort.Sort(byTypeString(ptrs)) // to ensure determinism
+	return ptrs, nil
 }
 
 type pointerResult struct {

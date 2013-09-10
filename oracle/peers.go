@@ -58,11 +58,11 @@ func peers(o *oracle) (queryResult, error) {
 	// ignore both directionality and type names.
 	queryType := queryOp.ch.Type()
 	queryElemType := queryType.Underlying().(*types.Chan).Elem()
-	channels := map[ssa.Value][]pointer.Pointer{queryOp.ch: nil}
+	channels := map[ssa.Value]pointer.Indirect{queryOp.ch: false}
 	i := 0
 	for _, op := range ops {
 		if types.IsIdentical(op.ch.Type().Underlying().(*types.Chan).Elem(), queryElemType) {
-			channels[op.ch] = nil
+			channels[op.ch] = false
 			ops[i] = op
 			i++
 		}
@@ -74,7 +74,7 @@ func peers(o *oracle) (queryResult, error) {
 	ptrAnalysis(o)
 
 	// Combine the PT sets from all contexts.
-	queryChanPts := pointer.PointsToCombined(channels[queryOp.ch])
+	queryChanPts := pointer.PointsToCombined(o.config.QueryResults[queryOp.ch])
 
 	// Ascertain which make(chan) labels the query's channel can alias.
 	var makes []token.Pos
@@ -86,7 +86,7 @@ func peers(o *oracle) (queryResult, error) {
 	// Ascertain which send/receive operations can alias the same make(chan) labels.
 	var sends, receives []token.Pos
 	for _, op := range ops {
-		for _, ptr := range o.config.QueryValues[op.ch] {
+		for _, ptr := range o.config.QueryResults[op.ch] {
 			if ptr != nil && ptr.PointsTo().Intersects(queryChanPts) {
 				if op.dir == ast.SEND {
 					sends = append(sends, op.pos)
