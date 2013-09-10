@@ -157,6 +157,7 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 
 	pkgs := []*Package{p}
 	wildcardOkay := len(*stk) == 0
+	isWildcard := false
 
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
@@ -179,6 +180,7 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 			} else {
 				args = matchPackages(arg)
 			}
+			isWildcard = true
 		}
 
 		// Clear all relevant package cache entries before
@@ -218,6 +220,12 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 			}
 		}
 
+		if isWildcard {
+			// Report both the real package and the
+			// wildcard in any error message.
+			stk.push(p.ImportPath)
+		}
+
 		// Process dependencies, now that we know what they are.
 		for _, dep := range p.deps {
 			// Don't get test dependencies recursively.
@@ -232,6 +240,10 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 			for _, path := range p.XTestImports {
 				download(path, stk, false)
 			}
+		}
+
+		if isWildcard {
+			stk.pop()
 		}
 	}
 }
