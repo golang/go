@@ -175,7 +175,7 @@ struct	Optab
 	short	as;
 	uchar*	ytab;
 	uchar	prefix;
-	uchar	op[12];
+	uchar	op[13];
 };
 
 enum

@@ -152,6 +152,17 @@ uchar	ymovb[] =
 	Yi32,	Ymb,	Zibo_m,	2,
 	0
 };
+uchar	ymovw[] =
+{
+	Yrl,	Yml,	Zr_m,	1,
+	Yml,	Yrl,	Zm_r,	1,
+	Yi0,	Yrl,	Zclr,	1+2,
+//	Yi0,	Yml,	Zibo_m,	2,	// shorter but slower AND $0,dst
+	Yi32,	Yrl,	Zil_rp,	1,
+	Yi32,	Yml,	Zilo_m,	2,
+	Yiauto,	Yrl,	Zaut_r,	1,
+	0
+};
 uchar	ymovl[] =
 {
 	Yrl,	Yml,	Zr_m,	1,
@@ -162,7 +173,7 @@ uchar	ymovl[] =
 	Yi32,	Yml,	Zilo_m,	2,
 	Yml,	Yxr,	Zm_r_xm,	2,	// XMM MOVD (32 bit)
 	Yxr,	Yml,	Zr_m_xm,	2,	// XMM MOVD (32 bit)
-	Yiauto,	Yrl,	Zaut_r,	2,
+	Yiauto,	Yrl,	Zaut_r,	1,
 	0
 };
 uchar	ymovq[] =
@@ -592,8 +603,8 @@ Optab optab[] =
 	{ ALSLL,	yml_rl,	Pm, 0x03  },
 	{ ALSLW,	yml_rl,	Pq, 0x03  },
 	{ AMOVB,	ymovb,	Pb, 0x88,0x8a,0xb0,0xc6,(00) },
-	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e },
-	{ AMOVW,	ymovl,	Pe, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00) },
+	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e,0 },
+	{ AMOVW,	ymovw,	Pe, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),0 },
 	{ AMOVQ,	ymovq,	Pf3, 0x7e },
 	{ AMOVBLSX,	ymb_rl,	Pm, 0xbe },
 	{ AMOVBLZX,	ymb_rl,	Pm, 0xb6 },
