@@ -253,10 +253,10 @@ struct	G
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
-	uintptr	syscallstack;		// if status==Gsyscall, syscallstack = stackbase to use during gc
-	uintptr	syscallsp;		// if status==Gsyscall, syscallsp = sched.sp to use during gc
-	uintptr	syscallpc;		// if status==Gsyscall, syscallpc = sched.pc to use during gc
-	uintptr	syscallguard;		// if status==Gsyscall, syscallguard = stackguard to use during gc
+	uintptr	syscallstack;	// if status==Gsyscall, syscallstack = stackbase to use during gc
+	uintptr	syscallsp;	// if status==Gsyscall, syscallsp = sched.sp to use during gc
+	uintptr	syscallpc;	// if status==Gsyscall, syscallpc = sched.pc to use during gc
+	uintptr	syscallguard;	// if status==Gsyscall, syscallguard = stackguard to use during gc
 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
 	uintptr	stacksize;
@@ -282,7 +282,7 @@ struct	G
 	uintptr	sigcode0;
 	uintptr	sigcode1;
 	uintptr	sigpc;
-	uintptr	gopc;	// pc of go statement that created this goroutine
+	uintptr	gopc;		// pc of go statement that created this goroutine
 	uintptr	racectx;
 	uintptr	end[];
 };
@@ -328,11 +328,11 @@ struct	M
 	uint32	stackcachecnt;
 	void*	stackcache[StackCacheSize];
 	G*	lockedg;
-	uintptr	createstack[32];	// Stack that created this thread.
+	uintptr	createstack[32];// Stack that created this thread.
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
-	uint32	locked;	// tracking for LockOSThread
+	uint32	locked;		// tracking for LockOSThread
 	M*	nextwaitm;	// next M waiting for lock
 	uintptr	waitsema;	// semaphore for parking on locks
 	uint32	waitsemacount;
@@ -363,11 +363,11 @@ struct P
 	Lock;
 
 	int32	id;
-	uint32	status;	// one of Pidle/Prunning/...
+	uint32	status;		// one of Pidle/Prunning/...
 	P*	link;
 	uint32	schedtick;	// incremented on every scheduler call
 	uint32	syscalltick;	// incremented on every system call
-	M*	m;	// back-link to associated M (nil if idle)
+	M*	m;		// back-link to associated M (nil if idle)
 	MCache*	mcache;
 
 	// Queue of runnable goroutines.
@@ -431,7 +431,7 @@ enum
 struct	Func
 {
 	uintptr	entry;	// start pc
-	int32	nameoff;	// function name
+	int32	nameoff;// function name
 	
 	// TODO: Perhaps remove these fields.
 	int32	args;	// in/out args size
@@ -482,7 +482,7 @@ struct	Timers
 // If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
 struct	Timer
 {
-	int32	i;		// heap index
+	int32	i;	// heap index
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(now, arg) in the timer goroutine, so f must be
@@ -645,9 +645,9 @@ void	runtime·nilintercopy(uintptr, void*, void*);
 struct Defer
 {
 	int32	siz;
-	bool	special; // not part of defer frame
-	bool	free; // if special, free when done
-	byte*	argp;  // where args were copied from
+	bool	special;	// not part of defer frame
+	bool	free;		// if special, free when done
+	byte*	argp;		// where args were copied from
 	byte*	pc;
 	FuncVal*	fn;
 	Defer*	link;
@@ -682,7 +682,7 @@ struct Stkframe
 	uintptr	lr;	// program counter at caller aka link register
 	uintptr	sp;	// stack pointer at pc
 	uintptr	fp;	// stack pointer at caller aka frame pointer
-	byte*	varp;		// top of local variables
+	byte*	varp;	// top of local variables
 	byte*	argp;	// pointer to function arguments
 	uintptr	arglen;	// number of bytes at argp
 };
