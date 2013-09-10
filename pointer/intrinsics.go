@@ -142,6 +142,15 @@ func init() {
 		// Other packages.
 		"bytes.Equal":                           ext۰NoEffect,
 		"bytes.IndexByte":                       ext۰NoEffect,
+		"crypto/aes.decryptBlockAsm":            ext۰NoEffect,
+		"crypto/aes.encryptBlockAsm":            ext۰NoEffect,
+		"crypto/aes.expandKeyAsm":               ext۰NoEffect,
+		"crypto/aes.hasAsm":                     ext۰NoEffect,
+		"crypto/md5.block":                      ext۰NoEffect,
+		"crypto/rc4.xorKeyStream":               ext۰NoEffect,
+		"crypto/sha1.block":                     ext۰NoEffect,
+		"hash/crc32.castagnoliSSE42":            ext۰NoEffect,
+		"hash/crc32.haveSSE42":                  ext۰NoEffect,
 		"math.Abs":                              ext۰NoEffect,
 		"math.Acos":                             ext۰NoEffect,
 		"math.Asin":                             ext۰NoEffect,
@@ -187,6 +196,15 @@ func init() {
 		"math/big.shrVU":                        ext۰NoEffect,
 		"math/big.subVV":                        ext۰NoEffect,
 		"math/big.subVW":                        ext۰NoEffect,
+		"net.runtime_Semacquire":                ext۰NoEffect,
+		"net.runtime_Semrelease":                ext۰NoEffect,
+		"net.runtime_pollClose":                 ext۰NoEffect,
+		"net.runtime_pollOpen":                  ext۰NoEffect,
+		"net.runtime_pollReset":                 ext۰NoEffect,
+		"net.runtime_pollServerInit":            ext۰NoEffect,
+		"net.runtime_pollSetDeadline":           ext۰NoEffect,
+		"net.runtime_pollUnblock":               ext۰NoEffect,
+		"net.runtime_pollWait":                  ext۰NoEffect,
 		"os.epipecheck":                         ext۰NoEffect,
 		"runtime.BlockProfile":                  ext۰NoEffect,
 		"runtime.Breakpoint":                    ext۰NoEffect,
@@ -215,11 +233,18 @@ func init() {
 		"strings.IndexByte":                     ext۰NoEffect,
 		"sync.runtime_Semacquire":               ext۰NoEffect,
 		"sync.runtime_Semrelease":               ext۰NoEffect,
+		"sync.runtime_Syncsemacquire":           ext۰NoEffect,
 		"sync.runtime_Syncsemcheck":             ext۰NoEffect,
+		"sync.runtime_Syncsemrelease":           ext۰NoEffect,
 		"sync/atomic.AddInt32":                  ext۰NoEffect,
+		"sync/atomic.AddUint32":                 ext۰NoEffect,
 		"sync/atomic.CompareAndSwapInt32":       ext۰NoEffect,
+		"sync/atomic.CompareAndSwapUint32":      ext۰NoEffect,
+		"sync/atomic.CompareAndSwapUint64":      ext۰NoEffect,
+		"sync/atomic.CompareAndSwapUintptr":     ext۰NoEffect,
 		"sync/atomic.LoadInt32":                 ext۰NoEffect,
 		"sync/atomic.LoadUint32":                ext۰NoEffect,
+		"sync/atomic.LoadUint64":                ext۰NoEffect,
 		"sync/atomic.StoreInt32":                ext۰NoEffect,
 		"sync/atomic.StoreUint32":               ext۰NoEffect,
 		"syscall.Close":                         ext۰NoEffect,
@@ -228,8 +253,11 @@ func init() {
 		"syscall.Getwd":                         ext۰NoEffect,
 		"syscall.Kill":                          ext۰NoEffect,
 		"syscall.RawSyscall":                    ext۰NoEffect,
+		"syscall.RawSyscall6":                   ext۰NoEffect,
 		"syscall.Syscall":                       ext۰NoEffect,
 		"syscall.Syscall6":                      ext۰NoEffect,
+		"syscall.runtime_AfterFork":             ext۰NoEffect,
+		"syscall.runtime_BeforeFork":            ext۰NoEffect,
 		"time.Sleep":                            ext۰NoEffect,
 		"time.now":                              ext۰NoEffect,
 		"time.startTimer":                       ext۰NoEffect,
@@ -261,6 +289,11 @@ func (a *analysis) findIntrinsic(fn *ssa.Function) intrinsic {
 // 1) induce aliases between its arguments or any global variables;
 // 2) call any functions; or
 // 3) create any labels.
+//
+// Many intrinsics (such as CompareAndSwapInt32) have a fourth kind of
+// effect: loading or storing through a pointer.  Though these could
+// be significant, we deliberately ignore them because they are
+// generally not worth the effort.
 //
 // We sometimes violate condition #3 if the function creates only
 // non-function labels, as the control-flow graph is still sound.
