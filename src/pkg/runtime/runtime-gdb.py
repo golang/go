@@ -436,6 +436,9 @@ class GoIfaceCmd(gdb.Command):
 #
 # Register all convenience functions and CLI commands
 #
-for k in vars().values():
-	if hasattr(k, 'invoke'):
-		k()
+GoLenFunc()
+GoCapFunc()
+DTypeFunc()
+GoroutinesCmd()
+GoroutineCmd()
+GoIfaceCmd()
