@@ -192,6 +192,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						}
 
 						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil)
+						imp2.primary = imp
 						imp2.complete = imp.complete
 						imp2.fake = imp.fake
 						if s.Name != nil {

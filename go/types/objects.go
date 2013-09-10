@@ -129,6 +129,20 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 // re-exported packages; or as a result of type-checking a package
 // that contains errors.
 //
+// There are two kinds of Package objects, primary and secondary.
+// A primary Package has no declaring identifier, and is referenced by
+// each ast.File.Name within that package.
+// A secondary Package object is created for each ast.ImportSpec that
+// imports it; its declaring identifier is the ImportSpec.Name (if
+// any), and each qualified reference (e.g. fmt.Println) is a
+// reference to a secondary Package.
+// The Primary() method of a secondary package returns its primary
+// package; called on a primary package, it returns nil.
+// The Path(), Name() and Scope() attributes of primary and secondary
+// Packages are equal.
+// TODO(gri): consider whether this distinction carries its weight;
+// adonovan thinks not.
+//
 type Package struct {
 	object
 	path     string              // import path, "" for current (non-imported) package
@@ -136,10 +150,11 @@ type Package struct {
 	imports  map[string]*Package // map of import paths to imported packages
 	complete bool                // if set, this package is complete
 	fake     bool                // if set, this package is fake (internal use only)
+	primary  *Package            // associated primary package (nil => self)
 }
 
 func NewPackage(pos token.Pos, path, name string, scope *Scope, imports map[string]*Package) *Package {
-	obj := &Package{object{nil, pos, nil, name, Typ[Invalid]}, path, scope, imports, false, false}
+	obj := &Package{object{nil, pos, nil, name, Typ[Invalid]}, path, scope, imports, false, false, nil}
 	obj.pkg = obj
 	return obj
 }
@@ -149,6 +164,12 @@ func (obj *Package) Path() string                 { return obj.path }
 func (obj *Package) Scope() *Scope                { return obj.scope }
 func (obj *Package) Imports() map[string]*Package { return obj.imports }
 func (obj *Package) Complete() bool               { return obj.complete }
+func (obj *Package) Primary() *Package {
+	if obj.primary != nil {
+		return obj.primary
+	}
+	return obj
+}
 
 // MarkComplete marks a package as complete.
 func (obj *Package) MarkComplete() { obj.complete = true }
