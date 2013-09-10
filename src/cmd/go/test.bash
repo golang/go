@@ -104,6 +104,19 @@ cp -R testdata/local "testdata/$bad"
 testlocal "$bad" 'with bad characters in path'
 rm -rf "testdata/$bad"
 
+TEST error message for syntax error in test go file says FAIL
+export GOPATH=$(pwd)/testdata
+if ./testgo test syntaxerror 2>testdata/err; then
+	echo 'go test syntaxerror succeeded'
+	ok=false
+elif ! grep FAIL testdata/err >/dev/null; then
+	echo 'go test did not say FAIL:'
+	cat testdata/err
+	ok=false
+fi
+rm -f ./testdata/err
+unset GOPATH
+
 # Test tests with relative imports.
 TEST relative imports '(go test)'
 if ! ./testgo test ./testdata/testimport; then

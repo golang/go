@@ -423,10 +423,12 @@ func runTest(cmd *Command, args []string) {
 			if strings.HasPrefix(str, "\n") {
 				str = str[1:]
 			}
+			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
+
 			if p.ImportPath != "" {
-				errorf("# %s\n%s", p.ImportPath, str)
+				errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
 			} else {
-				errorf("%s", str)
+				errorf("%s\n%s", str, failed)
 			}
 			continue
 		}
