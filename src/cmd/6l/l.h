@@ -193,7 +193,7 @@ struct	Optab
 	short	as;
 	uchar*	ytab;
 	uchar	prefix;
-	uchar	op[22];
+	uchar	op[23];
 };
 struct	Movtab
 {
