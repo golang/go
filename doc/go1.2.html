@@ -7,67 +7,128 @@
 <h2 id="introduction">Introduction to Go 1.2</h2>
 
 <p>
+<font color=red>
 RED TEXT IS FROM THE 1.1 DOC AND NEEDS TO BE UPDATED. (It is here for
 formatting and style reference.)
-<p>
-<font color=red>
-The release of <a href="/doc/go1.html">Go version 1</a> (Go 1 or Go 1.0 for short)
-in March of 2012 introduced a new period
-of stability in the Go language and libraries.
-That stability has helped nourish a growing community of Go users
-and systems around the world.
-Several "point" releases since
-then—1.0.1, 1.0.2, and 1.0.3—have been issued.
-These point releases fixed known bugs but made
-no non-critical changes to the implementation.
 </font>
 </p>
 
 <p>
-<font color=red>
-This new release, Go 1.1, keeps the <a href="/doc/go1compat.html">promise
-of compatibility</a> but adds a couple of significant
-(backwards-compatible, of course) language changes, has a long list
-of (again, compatible) library changes, and
-includes major work on the implementation of the compilers,
-libraries, and run-time.
-The focus is on performance.
-Benchmarking is an inexact science at best, but we see significant,
-sometimes dramatic speedups for many of our test programs.
-We trust that many of our users' programs will also see improvements
-just by updating their Go installation and recompiling.
-</font>
-</p>
-
-<p>
-<font color=red>
-This document summarizes the changes between Go 1 and Go 1.2.
-Very little if any code will need modification to run with Go 1.1,
-although a couple of rare error cases surface with this release
-and need to be addressed if they arise.
-Details appear below; see the discussion of XXX.
-</font>
+Since the release of <a href="/doc/go1.1.html">Go version 1.1</a> in April, 2013,
+the release schedule has been shortened to make the release process more efficient.
+This release, Go version 1.2 or Go 1.2 for short, arrives roughly six months after 1.1,
+while 1.1 took over a year to appear after 1.0.
+Because of the shorter time scale, 1.2 is a smaller delta than the step from 1.0 to 1.1,
+but it still has some significant developments, including
+a better scheduler and one new language feature.
+Of course, Go 1.2 keeps the <a href="/doc/go1compat.html">promise
+of compatibility</a>.
+The overwhelming majority of programs built with Go 1.1 (or 1.0 for that matter)
+will run without any changes whatsoever when moved to 1.2,
+although the introduction of one restriction
+to a corner of the language may expose already-incorrect code
+(see the discussion of the <a href="#use_of_nil">use of nil</a>).
 </p>
 
 <h2 id="language">Changes to the language</h2>
 
 <p>
-<font color=red>
-<a href="/doc/go1compat.html">The Go compatibility document</a> promises
-that programs written to the Go 1 language specification will continue to operate,
-and those promises are maintained.
-In the interest of firming up the specification, though, there are
-details about some error cases that have been clarified.
-There are also some new language features.
-</font>
+In the interest of firming up the specification, one corner case has been clarified,
+with consequences for programs.
+There is also one new language feature.
 </p>
 
-<h3 id="threeindex">Three-index slices</h3>
+<h3 id="use_of_nil">Use of nil</h3>
 
 <p>
-cmd/gc: three-index slicing to set cap as well as length (CL 10743046).
+The language now specifies that, for safety reasons,
+certain uses of nil pointers are guaranteed to trigger a run-time panic.
+For instance, in Go 1.0, given code like
 </p>
 
+<pre>
+type T struct {
+    X [1<<24]byte
+    Field int32
+}
+
+func main() {
+    var x *T
+    ...
+}
+</pre>
+
+<p>
+the <code>nil</code> pointer <code>x</code> could be used to access memory incorrectly:
+the expression <code>x.Field</code> could access memory at address <code>1<<24</code>.
+To prevent such unsafe behavior, in Go 1.2 the compilers now guarantee that any indirection through
+a nil pointer, such as illustrated here but also in nil pointers to arrays, nil interface values,
+nil slices, and so on, will either panic or return a correct, safe non-nil value.
+In short, any expression that explicitly or implicitly requires evaluation of a nil address is an error.
+The implementation may inject extra tests into the compiled program to enforce this behavior.
+</p>
+
+<p>
+Further details are in the
+<a href="http://golang.org/s/go12nil">design document</a>.
+</p>
+
+<p>
+<em>Updating</em>:
+Most code that depended on the old behavior is erroneous and will fail when run.
+Such programs will need to be updated by hand.
+</p>
+
+<h3 id="three_index">Three-index slices</h3>
+
+<p>
+Go 1.2 adds the ability to specify the capacity as well as the length when using a slicing operation
+on an existing array or slice.
+A slicing operation creates a new slice by describing a contiguous section of an already-created array or slice:
+</p>
+
+<pre>
+var array [10]int
+slice := array[2:4]
+</pre>
+
+<p>
+The capacity of the slice is the maximum number of elements that the slice may hold, even after reslicing;
+it reflects the size of the underlying array.
+In this example, the capacity of the <code>slice</code> variable is 8.
+</p>
+
+<p>
+Go 1.2 adds new syntax to allow a slicing operation to specify the capacity as well as the length.
+A second
+colon introduces the capacity value, which must be less than or equal to the capacity of the
+source slice or array, adjusted for the origin. For instance,
+</p>
+
+<pre>
+slice = array[2:4:6]
+</pre>
+
+<p>
+sets the slice to have the same length as in the earlier example but its capacity is now only 4 elements (6-2).
+It is impossible to use this new slice value to access the last two elements of the original array.
+</p>
+
+<p>
+In this three-index notation, a missing first index (<code>[:i:j]</code>) defaults to zero but the other
+two indices must always be specified explicitly.
+It is possible that future releases of Go may introduce default values for these indices.
+</p>
+
+<p>
+Further details are in the
+<a href="http://golang.org/s/go12slice">design document</a>.
+</p>
+
+<p>
+<em>Updating</em>:
+This is a backwards-compatible change that affects no existing programs.
+</p>
 
 <h2 id="impl">Changes to the implementations and tools</h2>
 
@@ -81,6 +142,45 @@ go/build: support including C++ code with cgo (CL 8248043).
 </li>
 </ul>
 
+<h3 id="go_tools_godoc">Godoc moved to the go.tools subrepository</h3>
+
+<p>
+A binary is still included with the distribution, but the source code for the
+<code>godoc</code> command has moved to the
+<a href="http://code.google.com/p/go.tools">go.tools</a> subrepository.
+The core of the program has been split into a
+<a href="https://code.google.com/p/go/source/browse/?repo=tools#hg%2Fgodoc">library</a>,
+while the command itself is in a separate
+<a href="https://code.google.com/p/go/source/browse/?repo=tools#hg%2Fcmd%2Fgodoc">directory</a>.
+The move allows the code to be updated easily and the separation into a library and command
+makes it easier to construct custom binaries for local sites and different deployment methods.
+</p>
+
+<p>
+<em>Updating</em>:
+Since godoc was not part of the library,
+no client code depends on the godoc sources and no updating is required.
+</p>
+
+<p>
+The binary distributions available from <a href="http://golang.org>golang.org</a>
+include a godoc binary, so users of these distributions are unaffected.
+</p>
+
+<p>
+When building from source, users must use "go get" to install godoc.
+</p>
+
+<pre>
+$ go get code.google.com/p/go.tools/cmd/godoc
+</pre>
+
+<h3 id="go_tools_vet">The vet tool moved to the go.tools subrepository</h3>
+
+<p>
+TODO
+</p>
+
 <h3 id="gccgo">Status of gccgo</h3>
 
 <p>
@@ -90,7 +190,7 @@ The GCC release schedule does not coincide with the Go release schedule, so some
 The 4.8.0 version of GCC shipped in March, 2013 and includes a nearly-Go 1.1 version of <code>gccgo</code>.
 Its library is a little behind the release, but the biggest difference is that method values are not implemented.
 Sometime around July 2013, we expect 4.8.2 of GCC to ship with a <code>gccgo</code>
-providing a complete Go 1.1 implementaiton.
+providing a complete Go 1.1 implementation.
 </font>
 </p>
 
@@ -228,11 +328,11 @@ archive/tar,archive/zip: fix os.FileInfo implementation to provide base name onl
 </li>
 
 <li>
-fmt: indexed access to arguments in Printf etc. (CL 9680043).
+encoding: new package defining generic encoding interfaces (CL 12541051).
 </li>
 
 <li>
-encoding: new package defining generic encoding interfaces (CL 12541051).
+fmt: indexed access to arguments in Printf etc. (CL 9680043).
 </li>
 
 <li>
@@ -244,43 +344,6 @@ text/template: add comparison functions (CL 13091045).
 
 <li>
 text/template: allow {{"{{"}}else if ... {{"}}"}} to simplify if chains (CL 13327043).
-</li>
-</ul>
-
-<h3 id="exp_old">Exp and old subtrees moved to go.exp and go.text subrepositories</h3>
-
-<p>
-<font color=red>
-To make it easier for binary distributions to access them if desired, the <code>exp</code>
-and <code>old</code> source subtrees, which are not included in binary distributions,
-have been moved to the new <code>go.exp</code> subrepository at
-<code>code.google.com/p/go.exp</code>. To access the <code>ssa</code> package,
-for example, run
-</font>
-</p>
-
-<h3 id="new_packages">New packages</h3>
-
-<p>
-<font color=red>
-There are three new packages.
-</font>
-</p>
-
-<ul>
-<li>
-<font color=red>
-The <a href="/pkg/go/format/"><code>go/format</code></a> package provides
-a convenient way for a program to access the formatting capabilities of the
-<a href="/cmd/go/#hdr-Run_gofmt_on_package_sources"><code>go fmt</code></a> command.
-It has two functions,
-<a href="/pkg/go/format/#Node"><code>Node</code></a> to format a Go parser
-<a href="/pkg/go/ast/#Node"><code>Node</code></a>,
-and
-<a href="/pkg/go/format/#Source"><code>Source</code></a>
-to reformat arbitrary Go source code into the standard format as provided by the
-<a href="/cmd/go/#hdr-Run_gofmt_on_package_sources"><code>go fmt</code></a> command.
-</font>
 </li>
 </ul>
 
@@ -404,7 +467,7 @@ described above.
 
 <li>
 The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package
-now will alway escape ampersands as "\u0026" when printing strings.
+now will always escape ampersands as "\u0026" when printing strings.
 It will now accept but correct invalid UTF-8 in
 <a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a>
 (such input was previously rejected).
@@ -420,7 +483,7 @@ It also supports the generic encoding interfaces of the
 <a href="/pkg/encoding/"><code>encoding</code></a> package
 described above through the new
 <a href="/pkg/encoding/xml/#Marshaler"><code>Marshaler</code></a>,
-<a href="/pkg/encoding/xml/#UnMarshaler"><code>UnMarshaler</code></a>,
+<a href="/pkg/encoding/xml/#Unmarshaler"><code>Unmarshaler</code></a>,
 and related
 <a href="/pkg/encoding/xml/#MarshalerAttr"><code>MarshalerAttr</code></a> and
 <a href="/pkg/encoding/xml/#UnmarshalerAttr"><code>UnmarshalerAttr</code></a>
