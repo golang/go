@@ -540,7 +540,7 @@ ginscon(int as, vlong c, Node *n2)
 
 	nodconst(&n1, types[TINT64], c);
 
-	if(as != AMOVQ && (c < -1LL<<31 || c >= 1LL<<31)) {
+	if(as != AMOVQ && (c < -(1LL<<31) || c >= 1LL<<31)) {
 		// cannot have 64-bit immediokate in ADD, etc.
 		// instead, MOV into register first.
 		regalloc(&ntmp, types[TINT64], N);

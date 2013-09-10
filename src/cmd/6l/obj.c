@@ -346,7 +346,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 		a->offset = BGETLE4(f);
 		if(t & T_64) {
 			a->offset &= 0xFFFFFFFFULL;
-			a->offset |= (vlong)BGETLE4(f) << 32;
+			a->offset |= (uvlong)BGETLE4(f) << 32;
 		}
 	}
 	a->sym = S;

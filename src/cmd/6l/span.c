@@ -1237,6 +1237,8 @@ found:
 		break;
 	}
 
+	if(z >= nelem(o->op))
+		sysfatal("asmins bad table %P", p);
 	op = o->op[z];
 	if(op == 0x0f) {
 		*andptr++ = op;
