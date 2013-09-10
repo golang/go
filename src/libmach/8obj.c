@@ -166,5 +166,5 @@ static void
 skip(Biobuf *bp, int n)
 {
 	while (n-- > 0)
-		BGETC(bp);
+		Bgetc(bp);
 }
