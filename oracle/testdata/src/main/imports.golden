@@ -1,6 +1,6 @@
 -------- @describe ref-pkg-import --------
 import of package "lib"
-	const Const untyped integer = 3:untyped integer
+	const Const untyped integer = 3
 	func  Func  func()
 	type  Type  int
 		method (lib.Type) Method(x *int) *int
@@ -36,7 +36,7 @@ value may point to these labels:
 
 -------- @describe ref-pkg --------
 reference to package "lib"
-	const Const untyped integer = 3:untyped integer
+	const Const untyped integer = 3
 	func  Func  func()
 	type  Type  int
 		method (lib.Type) Method(x *int) *int

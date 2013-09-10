@@ -703,8 +703,7 @@ func (r *describeTypeResult) toJSON(res *json.Result, fset *token.FileSet) {
 
 func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error) {
 	var description string
-	var pkg *ssa.Package
-	var importPath string
+	var pkg *types.Package
 	switch n := path[0].(type) {
 	case *ast.ImportSpec:
 		// Most ImportSpecs have no .Name Ident so we can't
@@ -712,37 +711,26 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 		// We could use the types.Info.Implicits mechanism,
 		// but it's easier just to look it up by name.
 		description = "import of package " + n.Path.Value
-		importPath, _ = strconv.Unquote(n.Path.Value)
-		pkg = o.prog.ImportedPackage(importPath)
+		importPath, _ := strconv.Unquote(n.Path.Value)
+		pkg = o.prog.ImportedPackage(importPath).Object
 
 	case *ast.Ident:
-		obj := o.queryPkgInfo.ObjectOf(n).(*types.Package)
-		importPath = obj.Path()
+		pkg = o.queryPkgInfo.ObjectOf(n).(*types.Package)
 
 		if _, isDef := path[1].(*ast.File); isDef {
 			// e.g. package id
-			pkg = o.prog.Package(obj)
-			description = fmt.Sprintf("definition of package %q", importPath)
+			description = fmt.Sprintf("definition of package %q", pkg.Path())
 		} else {
 			// e.g. import id
 			//  or  id.F()
 
-			// TODO(gri): go/types internally creates a new
-			// Package object for each import, so the packages
-			// for 'package x' and 'import "x"' differ!
-			//
-			// Here, this should be an invariant, but is not:
-			// o.prog.ImportedPackage(obj.Path()).Pkg == obj
-			//
-			// So we must use the name of the non-canonical package
-			// to do another lookup.
-			pkg = o.prog.ImportedPackage(importPath)
+			// go/types internally creates a new Package
+			// object for each import, so the packages for
+			// 'package x' and 'import "x"' differ.
+			// Call Primary() to get the real thing.
+			pkg = pkg.Primary()
 
-			description = fmt.Sprintf("reference to package %q", importPath)
-		}
-		if importPath == "" {
-			// TODO(gri): fix.
-			return nil, o.errorf(n, "types.Package.Path() returned \"\"\n")
+			description = fmt.Sprintf("reference to package %q", pkg.Path())
 		}
 
 	default:
@@ -751,45 +739,39 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 	}
 
 	var members []*describeMember
-	// NB: "unsafe" has no ssa.Package
-	// TODO(adonovan): simplify by using types.Packages not ssa.Packages.
+	// NB: "unsafe" has no types.Package
 	if pkg != nil {
-		// Compute set of exported package members in lexicographic order.
-		var names []string
-		for name := range pkg.Members {
-			if pkg.Object == o.queryPkgInfo.Pkg || ast.IsExported(name) {
-				names = append(names, name)
-			}
-		}
-		sort.Strings(names)
+		// Enumerate the accessible package members
+		// in lexicographic order.
+		for _, name := range pkg.Scope().Names() {
+			if pkg == o.queryPkgInfo.Pkg || ast.IsExported(name) {
+				mem := pkg.Scope().Lookup(name)
+				var methods []*types.Selection
+				if mem, ok := mem.(*types.TypeName); ok {
+					methods = accessibleMethods(mem.Type(), o.queryPkgInfo.Pkg)
+				}
+				members = append(members, &describeMember{
+					mem,
+					methods,
+				})
 
-		// Enumerate the package members.
-		for _, name := range names {
-			mem := pkg.Members[name]
-			var methods []*types.Selection
-			if mem, ok := mem.(*ssa.Type); ok {
-				methods = accessibleMethods(mem.Type(), o.queryPkgInfo.Pkg)
 			}
-			members = append(members, &describeMember{
-				mem,
-				methods,
-			})
 		}
 	}
 
-	return &describePackageResult{o.prog.Fset, path[0], description, importPath, members}, nil
+	return &describePackageResult{o.prog.Fset, path[0], description, pkg, members}, nil
 }
 
 type describePackageResult struct {
 	fset        *token.FileSet
 	node        ast.Node
 	description string
-	path        string
+	pkg         *types.Package
 	members     []*describeMember // in lexicographic name order
 }
 
 type describeMember struct {
-	mem     ssa.Member
+	obj     types.Object
 	methods []*types.Selection // in types.MethodSet order
 }
 
@@ -799,33 +781,33 @@ func (r *describePackageResult) display(printf printfFunc) {
 	// Compute max width of name "column".
 	maxname := 0
 	for _, mem := range r.members {
-		if l := len(mem.mem.Name()); l > maxname {
+		if l := len(mem.obj.Name()); l > maxname {
 			maxname = l
 		}
 	}
 
 	for _, mem := range r.members {
-		printf(mem.mem, "\t%s", formatMember(mem.mem, maxname))
+		printf(mem.obj, "\t%s", formatMember(mem.obj, maxname))
 		for _, meth := range mem.methods {
 			printf(meth.Obj(), "\t\t%s", meth)
 		}
 	}
 }
 
-func formatMember(mem ssa.Member, maxname int) string {
+func formatMember(obj types.Object, maxname int) string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%-5s %-*s", mem.Token(), maxname, mem.Name())
-	switch mem := mem.(type) {
-	case *ssa.NamedConst:
-		fmt.Fprintf(&buf, " %s = %s", mem.Type(), mem.Value.Name())
+	fmt.Fprintf(&buf, "%-5s %-*s", tokenOf(obj), maxname, obj.Name())
+	switch obj := obj.(type) {
+	case *types.Const:
+		fmt.Fprintf(&buf, " %s = %s", obj.Type(), obj.Val().String())
 
-	case *ssa.Function:
-		fmt.Fprintf(&buf, " %s", mem.Type())
+	case *types.Func:
+		fmt.Fprintf(&buf, " %s", obj.Type())
 
-	case *ssa.Type:
+	case *types.TypeName:
 		// Abbreviate long aggregate type names.
 		var abbrev string
-		switch t := mem.Type().Underlying().(type) {
+		switch t := obj.Type().Underlying().(type) {
 		case *types.Interface:
 			if t.NumMethods() > 1 {
 				abbrev = "interface{...}"
@@ -836,13 +818,13 @@ func formatMember(mem ssa.Member, maxname int) string {
 			}
 		}
 		if abbrev == "" {
-			fmt.Fprintf(&buf, " %s", mem.Type().Underlying())
+			fmt.Fprintf(&buf, " %s", obj.Type().Underlying())
 		} else {
 			fmt.Fprintf(&buf, " %s", abbrev)
 		}
 
-	case *ssa.Global:
-		fmt.Fprintf(&buf, " %s", deref(mem.Type()))
+	case *types.Var:
+		fmt.Fprintf(&buf, " %s", obj.Type())
 	}
 	return buf.String()
 }
@@ -850,22 +832,20 @@ func formatMember(mem ssa.Member, maxname int) string {
 func (r *describePackageResult) toJSON(res *json.Result, fset *token.FileSet) {
 	var members []*json.DescribeMember
 	for _, mem := range r.members {
-		typ := mem.mem.Type()
+		typ := mem.obj.Type()
 		var val string
-		switch mem := mem.mem.(type) {
-		case *ssa.NamedConst:
-			val = mem.Value.Value.String()
-		case *ssa.Type:
+		switch mem := mem.obj.(type) {
+		case *types.Const:
+			val = mem.Val().String()
+		case *types.TypeName:
 			typ = typ.Underlying()
-		case *ssa.Global:
-			typ = deref(typ)
 		}
 		members = append(members, &json.DescribeMember{
-			Name:    mem.mem.Name(),
+			Name:    mem.obj.Name(),
 			Type:    typ.String(),
 			Value:   val,
-			Pos:     fset.Position(mem.mem.Pos()).String(),
-			Kind:    mem.mem.Token().String(),
+			Pos:     fset.Position(mem.obj.Pos()).String(),
+			Kind:    tokenOf(mem.obj),
 			Methods: methodsToJSON(mem.methods, fset),
 		})
 	}
@@ -874,10 +854,26 @@ func (r *describePackageResult) toJSON(res *json.Result, fset *token.FileSet) {
 		Pos:    fset.Position(r.node.Pos()).String(),
 		Detail: "package",
 		Package: &json.DescribePackage{
-			Path:    r.path,
+			Path:    r.pkg.Path(),
 			Members: members,
 		},
 	}
+}
+
+func tokenOf(o types.Object) string {
+	switch o.(type) {
+	case *types.Func:
+		return "func"
+	case *types.Var:
+		return "var"
+	case *types.TypeName:
+		return "type"
+	case *types.Const:
+		return "const"
+	case *types.Package:
+		return "package"
+	}
+	panic(o)
 }
 
 // ---- STATEMENT ------------------------------------------------------------

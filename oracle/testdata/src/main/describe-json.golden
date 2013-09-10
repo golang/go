@@ -45,18 +45,6 @@
 					]
 				},
 				{
-					"name": "init",
-					"type": "func()",
-					"pos": "-",
-					"kind": "func"
-				},
-				{
-					"name": "init$guard",
-					"type": "bool",
-					"pos": "-",
-					"kind": "var"
-				},
-				{
 					"name": "main",
 					"type": "func()",
 					"pos": "testdata/src/main/describe-json.go:9:6",

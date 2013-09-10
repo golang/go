@@ -1,19 +1,17 @@
 -------- @describe pkgdecl --------
 definition of package "describe"
-	type  C          int
+	type  C        int
 		method (*describe.C) f()
-	type  D          struct{}
+	type  D        struct{}
 		method (describe.D) f()
-	type  I          interface{f()}
+	type  I        interface{f()}
 		method (describe.I) f()
-	type  cake       float64
-	func  deadcode   func()
-	var   global     *string
-	func  init       func()
-	var   init$guard bool
-	func  main       func()
-	const pi         untyped float = 3141/1000:untyped float
-	const pie        describe.cake = 1768225803696341/562949953421312:describe.cake
+	type  cake     float64
+	func  deadcode func()
+	var   global   *string
+	func  main     func()
+	const pi       untyped float = 3141/1000
+	const pie      describe.cake = 1768225803696341/562949953421312
 
 -------- @describe type-ref-builtin --------
 reference to built-in type float64
