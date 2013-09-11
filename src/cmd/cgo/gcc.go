@@ -311,7 +311,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	b.WriteString("}\n")
 	stderr := p.gccErrors(b.Bytes())
 	if stderr == "" {
-		fatalf("gcc produced no output\non input:\n%s", b.Bytes())
+		fatalf("%s produced no output\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
 	}
 
 	names := make([]*Name, len(toSniff))
@@ -383,7 +383,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		if n.Kind != "" {
 			continue
 		}
-		error_(token.NoPos, "could not determine kind of name for C.%s", n.Go)
+		error_(token.NoPos, "could not determine kind of name for C.%s", fixGo(n.Go))
 	}
 	if nerrors > 0 {
 		fatalf("unresolved names")
@@ -593,7 +593,7 @@ func (p *Package) rewriteRef(f *File) {
 	// functions are only used in calls.
 	for _, r := range f.Ref {
 		if r.Name.Kind == "const" && r.Name.Const == "" {
-			error_(r.Pos(), "unable to find value of constant C.%s", r.Name.Go)
+			error_(r.Pos(), "unable to find value of constant C.%s", fixGo(r.Name.Go))
 		}
 		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
 		switch r.Context {
@@ -604,11 +604,15 @@ func (p *Package) rewriteRef(f *File) {
 					expr = r.Name.Type.Go
 					break
 				}
-				error_(r.Pos(), "call of non-function C.%s", r.Name.Go)
+				error_(r.Pos(), "call of non-function C.%s", fixGo(r.Name.Go))
 				break
 			}
 			functions[r.Name.Go] = true
 			if r.Context == "call2" {
+				if r.Name.Go == "_CMalloc" {
+					error_(r.Pos(), "no two-result form for C.malloc")
+					break
+				}
 				// Invent new Name for the two-result function.
 				n := f.Name["2"+r.Name.Go]
 				if n == nil {
@@ -649,17 +653,17 @@ func (p *Package) rewriteRef(f *File) {
 
 		case "type":
 			if r.Name.Kind != "type" {
-				error_(r.Pos(), "expression C.%s used as type", r.Name.Go)
+				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
 			} else if r.Name.Type == nil {
 				// Use of C.enum_x, C.struct_x or C.union_x without C definition.
 				// GCC won't raise an error when using pointers to such unknown types.
-				error_(r.Pos(), "type C.%s: undefined C type '%s'", r.Name.Go, r.Name.C)
+				error_(r.Pos(), "type C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
 			} else {
 				expr = r.Name.Type.Go
 			}
 		default:
 			if r.Name.Kind == "func" {
-				error_(r.Pos(), "must call C.%s", r.Name.Go)
+				error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
 			}
 		}
 		if *godefs || *cdefs {
