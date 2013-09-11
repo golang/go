@@ -113,6 +113,41 @@ func TestReaderWriteTo(t *testing.T) {
 	}
 }
 
+func TestReaderLen(t *testing.T) {
+	const data = "hello world"
+	r := NewReader([]byte(data))
+	if got, want := r.Len(), 11; got != want {
+		t.Errorf("r.Len(): got %d, want %d", got, want)
+	}
+	if n, err := r.Read(make([]byte, 10)); err != nil || n != 10 {
+		t.Errorf("Read failed: read %d %v", n, err)
+	}
+	if got, want := r.Len(), 1; got != want {
+		t.Errorf("r.Len(): got %d, want %d", got, want)
+	}
+	if n, err := r.Read(make([]byte, 1)); err != nil || n != 1 {
+		t.Errorf("Read failed: read %d %v", n, err)
+	}
+	if got, want := r.Len(), 0; got != want {
+		t.Errorf("r.Len(): got %d, want %d", got, want)
+	}
+}
+
+func TestReaderDoubleUnreadRune(t *testing.T) {
+	buf := NewBuffer([]byte("groucho"))
+	if _, _, err := buf.ReadRune(); err != nil {
+		// should not happen
+		t.Fatal(err)
+	}
+	if err := buf.UnreadByte(); err != nil {
+		// should not happen
+		t.Fatal(err)
+	}
+	if err := buf.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte: expected error, got nil")
+	}
+}
+
 // verify that copying from an empty reader always has the same results,
 // regardless of the presence of a WriteTo method.
 func TestReaderCopyNothing(t *testing.T) {
