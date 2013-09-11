@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -99,8 +100,13 @@ func forceAPICheck() bool {
 func prepGoPath() string {
 	const tempBase = "go.tools.TMP"
 
+	u, err := user.Current()
+	if err != nil {
+		log.Fatalf("Error getting current user: %v", err)
+	}
+
 	// The GOPATH we'll return
-	gopath := filepath.Join(os.TempDir(), "gopath-api", goToolsVersion)
+	gopath := filepath.Join(os.TempDir(), "gopath-api-"+cleanUsername(u.Username), goToolsVersion)
 
 	// cloneDir is where we run "hg clone".
 	cloneDir := filepath.Join(gopath, "src", "code.google.com", "p")
@@ -138,6 +144,18 @@ func prepGoPath() string {
 		log.Fatal(err)
 	}
 	return gopath
+}
+
+func cleanUsername(n string) string {
+	b := make([]rune, len(n))
+	for i, r := range n {
+		if r == '\\' || r == '/' || r == ':' {
+			b[i] = '_'
+		} else {
+			b[i] = r
+		}
+	}
+	return string(b)
 }
 
 func goToolsCheckoutGood(dir string) bool {
