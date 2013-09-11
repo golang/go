@@ -117,6 +117,22 @@ fi
 rm -f ./testdata/err
 unset GOPATH
 
+TEST wildcards do not look in useless directories
+export GOPATH=$(pwd)/testdata
+if ./testgo list ... >testdata/err 2>&1; then
+	echo "go list ... succeeded"
+	ok=false
+elif ! grep badpkg testdata/err >/dev/null; then
+	echo "go list ... failure does not mention badpkg"
+	cat testdata/err
+	ok=false
+elif ! ./testgo list m... >testdata/err 2>&1; then
+	echo "go list m... failed"
+	ok=false
+fi
+rm -rf ./testdata/err
+unset GOPATH
+
 # Test tests with relative imports.
 TEST relative imports '(go test)'
 if ! ./testgo test ./testdata/testimport; then

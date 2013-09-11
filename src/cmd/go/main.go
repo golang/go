@@ -434,6 +434,37 @@ func matchPattern(pattern string) func(name string) bool {
 	}
 }
 
+// hasPathPrefix reports whether the path s begins with the
+// elements in prefix.
+func hasPathPrefix(s, prefix string) bool {
+	switch {
+	default:
+		return false
+	case len(s) == len(prefix):
+		return s == prefix
+	case len(s) > len(prefix):
+		if prefix != "" && prefix[len(prefix)-1] == '/' {
+			return strings.HasPrefix(s, prefix)
+		}
+		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
+	}
+}
+
+// treeCanMatchPattern(pattern)(name) reports whether
+// name or children of name can possibly match pattern.
+// Pattern is the same limited glob accepted by matchPattern.
+func treeCanMatchPattern(pattern string) func(name string) bool {
+	wildCard := false
+	if i := strings.Index(pattern, "..."); i >= 0 {
+		wildCard = true
+		pattern = pattern[:i]
+	}
+	return func(name string) bool {
+		return len(name) <= len(pattern) && hasPathPrefix(pattern, name) ||
+			wildCard && strings.HasPrefix(name, pattern)
+	}
+}
+
 // allPackages returns all the packages that can be found
 // under the $GOPATH directories and $GOROOT matching pattern.
 // The pattern is either "all" (all packages), "std" (standard packages)
@@ -448,8 +479,10 @@ func allPackages(pattern string) []string {
 
 func matchPackages(pattern string) []string {
 	match := func(string) bool { return true }
+	treeCanMatch := func(string) bool { return true }
 	if pattern != "all" && pattern != "std" {
 		match = matchPattern(pattern)
+		treeCanMatch = treeCanMatchPattern(pattern)
 	}
 
 	have := map[string]bool{
@@ -467,6 +500,9 @@ func matchPackages(pattern string) []string {
 			return nil
 		}
 		name := path[len(cmd):]
+		if !treeCanMatch(name) {
+			return filepath.SkipDir
+		}
 		// Commands are all in cmd/, not in subdirectories.
 		if strings.Contains(name, string(filepath.Separator)) {
 			return filepath.SkipDir
@@ -510,6 +546,9 @@ func matchPackages(pattern string) []string {
 
 			name := filepath.ToSlash(path[len(src):])
 			if pattern == "std" && strings.Contains(name, ".") {
+				return filepath.SkipDir
+			}
+			if !treeCanMatch(name) {
 				return filepath.SkipDir
 			}
 			if have[name] {
