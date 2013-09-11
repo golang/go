@@ -22,36 +22,21 @@ import (
 )
 
 const (
-	codeProject      = "go"
-	codePyScript     = "misc/dashboard/googlecode_upload.py"
-	hgUrl            = "code.google.com/p/go"
-	mkdirPerm        = 0750
-	waitInterval     = 30 * time.Second // time to wait before checking for new revs
-	pkgBuildInterval = 24 * time.Hour   // rebuild packages every 24 hours
+	codeProject          = "go"
+	codePyScript         = "misc/dashboard/googlecode_upload.py"
+	goImportPath         = "code.google.com/p/go"
+	gofrontendImportPath = "code.google.com/p/gofrontend"
+	mkdirPerm            = 0750
+	waitInterval         = 30 * time.Second // time to wait before checking for new revs
+	pkgBuildInterval     = 24 * time.Hour   // rebuild packages every 24 hours
 )
-
-// These variables are copied from the gobuilder's environment
-// to the envv of its subprocesses.
-var extraEnv = []string{
-	"GOARM",
-
-	// For Unix derivatives.
-	"CC",
-	"PATH",
-	"TMPDIR",
-	"USER",
-
-	// For Plan 9.
-	"objtype",
-	"cputype",
-	"path",
-}
 
 type Builder struct {
 	goroot       *Repo
 	name         string
 	goos, goarch string
 	key          string
+	env          builderEnv
 }
 
 var (
@@ -60,6 +45,8 @@ var (
 	buildRelease   = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision  = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
+	buildTool      = flag.String("tool", "go", "Tool to build.")
+	gccPath        = flag.String("gccpath", "svn://gcc.gnu.org/svn/gcc/trunk", "Path to download gcc from")
 	failAll        = flag.Bool("fail", false, "fail all builds")
 	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
@@ -91,7 +78,7 @@ func main() {
 	vcs.ShowCmd = *verbose
 	vcs.Verbose = *verbose
 
-	rr, err := vcs.RepoRootForImportPath(hgUrl, *verbose)
+	rr, err := repoForTool()
 	if err != nil {
 		log.Fatal("Error finding repository:", err)
 	}
@@ -112,9 +99,9 @@ func main() {
 			log.Fatalf("Error making build root (%s): %s", *buildroot, err)
 		}
 		var err error
-		goroot, err = RemoteRepo(hgUrl, rootPath)
+		goroot, err = RemoteRepo(goroot.Master.Root, rootPath)
 		if err != nil {
-			log.Fatalf("Error creating repository with url (%s): %s", hgUrl, err)
+			log.Fatalf("Error creating repository with url (%s): %s", goroot.Master.Root, err)
 		}
 
 		goroot, err = goroot.Clone(goroot.Path, "tip")
@@ -208,12 +195,10 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 		name:   name,
 	}
 
-	// get goos/goarch from builder string
-	s := strings.SplitN(b.name, "-", 3)
-	if len(s) >= 2 {
-		b.goos, b.goarch = s[0], s[1]
-	} else {
-		return nil, fmt.Errorf("unsupported builder form: %s", name)
+	// get builderEnv for this tool
+	var err error
+	if b.env, err = b.builderEnv(name); err != nil {
+		return nil, err
 	}
 
 	// read keys from keyfile
@@ -233,6 +218,29 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 	}
 	b.key = string(bytes.TrimSpace(bytes.SplitN(c, []byte("\n"), 2)[0]))
 	return b, nil
+}
+
+// builderEnv returns the builderEnv for this buildTool.
+func (b *Builder) builderEnv(name string) (builderEnv, error) {
+	// get goos/goarch from builder string
+	s := strings.SplitN(b.name, "-", 3)
+	if len(s) < 2 {
+		return nil, fmt.Errorf("unsupported builder form: %s", name)
+	}
+	b.goos = s[0]
+	b.goarch = s[1]
+
+	switch *buildTool {
+	case "go":
+		return &goEnv{
+			goos:   s[0],
+			goarch: s[1],
+		}, nil
+	case "gccgo":
+		return &gccgoEnv{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported build tool: %s", *buildTool)
+	}
 }
 
 // buildCmd returns the build command to invoke.
@@ -270,21 +278,20 @@ func (b *Builder) buildHash(hash string) error {
 	// create place in which to do work
 	workpath := filepath.Join(*buildroot, b.name+"-"+hash[:12])
 	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
-		//return err
+		return err
 	}
 	defer os.RemoveAll(workpath)
 
 	// pull before cloning to ensure we have the revision
 	if err := b.goroot.Pull(); err != nil {
-		// return err
-	}
-
-	// clone repo at specified revision
-	if _, err := b.goroot.Clone(filepath.Join(workpath, "go"), hash); err != nil {
 		return err
 	}
 
-	srcDir := filepath.Join(workpath, "go", "src")
+	// set up builder's environment.
+	srcDir, err := b.env.setup(b.goroot, workpath, hash, b.envv())
+	if err != nil {
+		return err
+	}
 
 	// build
 	var buildlog bytes.Buffer
@@ -297,11 +304,19 @@ func (b *Builder) buildHash(hash string) error {
 	w := io.MultiWriter(f, &buildlog)
 
 	cmd := b.buildCmd()
-	if !filepath.IsAbs(cmd) {
-		cmd = filepath.Join(srcDir, cmd)
+
+	// go's build command is a script relative to the srcDir, whereas
+	// gccgo's build command is usually "make check-go" in the srcDir.
+	if *buildTool == "go" {
+		if !filepath.IsAbs(cmd) {
+			cmd = filepath.Join(srcDir, cmd)
+		}
 	}
+
+	// make sure commands with extra arguments are handled properly
+	splitCmd := strings.Split(cmd, " ")
 	startTime := time.Now()
-	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, cmd)
+	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, splitCmd...)
 	runTime := time.Now().Sub(startTime)
 	errf := func() string {
 		if err != nil {
@@ -324,8 +339,8 @@ func (b *Builder) buildHash(hash string) error {
 		return fmt.Errorf("recordResult: %s", err)
 	}
 
-	// build Go sub-repositories
-	goRoot := filepath.Join(workpath, "go")
+	// build sub-repositories
+	goRoot := filepath.Join(workpath, *buildTool)
 	goPath := workpath
 	b.buildSubrepos(goRoot, goPath, hash)
 
@@ -424,65 +439,17 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 	return log, err
 }
 
-// envv returns an environment for build/bench execution
-func (b *Builder) envv() []string {
-	if runtime.GOOS == "windows" {
-		return b.envvWindows()
+// repoForTool returns the correct RepoRoot for the buildTool, or an error if
+// the tool is unknown.
+func repoForTool() (*vcs.RepoRoot, error) {
+	switch *buildTool {
+	case "go":
+		return vcs.RepoRootForImportPath(goImportPath, *verbose)
+	case "gccgo":
+		return vcs.RepoRootForImportPath(gofrontendImportPath, *verbose)
+	default:
+		return nil, fmt.Errorf("unknown build tool: %s", *buildTool)
 	}
-	e := []string{
-		"GOOS=" + b.goos,
-		"GOHOSTOS=" + b.goos,
-		"GOARCH=" + b.goarch,
-		"GOHOSTARCH=" + b.goarch,
-		"GOROOT_FINAL=/usr/local/go",
-	}
-	for _, k := range extraEnv {
-		if s, ok := getenvOk(k); ok {
-			e = append(e, k+"="+s)
-		}
-	}
-	return e
-}
-
-// windows version of envv
-func (b *Builder) envvWindows() []string {
-	start := map[string]string{
-		"GOOS":         b.goos,
-		"GOHOSTOS":     b.goos,
-		"GOARCH":       b.goarch,
-		"GOHOSTARCH":   b.goarch,
-		"GOROOT_FINAL": `c:\go`,
-		"GOBUILDEXIT":  "1", // exit all.bat with completion status.
-	}
-	for _, name := range extraEnv {
-		if s, ok := getenvOk(name); ok {
-			start[name] = s
-		}
-	}
-	skip := map[string]bool{
-		"GOBIN":   true,
-		"GOROOT":  true,
-		"INCLUDE": true,
-		"LIB":     true,
-	}
-	var e []string
-	for name, v := range start {
-		e = append(e, name+"="+v)
-		skip[name] = true
-	}
-	for _, kv := range os.Environ() {
-		s := strings.SplitN(kv, "=", 2)
-		name := strings.ToUpper(s[0])
-		switch {
-		case name == "":
-			// variables, like "=C:=C:\", just copy them
-			e = append(e, kv)
-		case !skip[name]:
-			e = append(e, kv)
-			skip[name] = true
-		}
-	}
-	return e
 }
 
 func isDirectory(name string) bool {
@@ -652,18 +619,4 @@ func defaultBuildRoot() string {
 		d = os.TempDir()
 	}
 	return filepath.Join(d, "gobuilder")
-}
-
-func getenvOk(k string) (v string, ok bool) {
-	v = os.Getenv(k)
-	if v != "" {
-		return v, true
-	}
-	keq := k + "="
-	for _, kv := range os.Environ() {
-		if kv == keq {
-			return "", true
-		}
-	}
-	return "", false
 }
