@@ -317,10 +317,17 @@ runtime·showframe(Func *f, G *gp)
 	static int32 traceback = -1;
 	String name;
 
-	if(m->throwing && gp != nil && (gp == m->curg || gp == m->caughtsig))
+	if(m->throwing > 0 && gp != nil && (gp == m->curg || gp == m->caughtsig))
 		return 1;
 	if(traceback < 0)
 		traceback = runtime·gotraceback(nil);
 	name = runtime·gostringnocopy((uint8*)runtime·funcname(f));
+
+	// Special case: always show runtime.panic frame, so that we can
+	// see where a panic started in the middle of a stack trace.
+	// See golang.org/issue/5832.
+	if(name.len == 7+1+5 && hasprefix(name, "runtime.panic"))
+		return 1;
+
 	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.");
 }
