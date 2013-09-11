@@ -109,6 +109,7 @@ cgen(Node *n, Node *res)
 	// can't do in walk because n->left->addable
 	// changes if n->left is an escaping local variable.
 	switch(n->op) {
+	case OSPTR:
 	case OLEN:
 		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
 			n->addable = n->left->addable;
@@ -284,6 +285,22 @@ cgen(Node *n, Node *res)
 	case OITAB:
 		igen(nl, &n1, res);
 		n1.type = ptrto(types[TUINTPTR]);
+		gmove(&n1, res);
+		regfree(&n1);
+		break;
+
+	case OSPTR:
+		// pointer is the first word of string or slice.
+		if(isconst(nl, CTSTR)) {
+			regalloc(&n1, types[tptr], res);
+			p1 = gins(ALEAL, N, &n1);
+			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
+		igen(nl, &n1, res);
+		n1.type = n->type;
 		gmove(&n1, res);
 		regfree(&n1);
 		break;

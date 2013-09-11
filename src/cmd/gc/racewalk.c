@@ -238,6 +238,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		callinstr(&n, init, wr, skip);
 		goto ret;
 
+	case OSPTR:
 	case OLEN:
 	case OCAP:
 		racewalknode(&n->left, init, 0, 0);

@@ -129,3 +129,43 @@ func TestAppendOverlap(t *testing.T) {
 		t.Errorf("overlap failed: got %q want %q", got, want)
 	}
 }
+
+func benchmarkCopySlice(b *testing.B, l int) {
+	s := make([]byte, l)
+	buf := make([]byte, 4096)
+	var n int
+	for i := 0; i < b.N; i++ {
+		n = copy(buf, s)
+	}
+	b.SetBytes(int64(n))
+}
+
+func benchmarkCopyStr(b *testing.B, l int) {
+	s := string(make([]byte, l))
+	buf := make([]byte, 4096)
+	var n int
+	for i := 0; i < b.N; i++ {
+		n = copy(buf, s)
+	}
+	b.SetBytes(int64(n))
+}
+
+func BenchmarkCopy1Byte(b *testing.B)    { benchmarkCopySlice(b, 1) }
+func BenchmarkCopy2Byte(b *testing.B)    { benchmarkCopySlice(b, 2) }
+func BenchmarkCopy4Byte(b *testing.B)    { benchmarkCopySlice(b, 4) }
+func BenchmarkCopy8Byte(b *testing.B)    { benchmarkCopySlice(b, 8) }
+func BenchmarkCopy12Byte(b *testing.B)   { benchmarkCopySlice(b, 12) }
+func BenchmarkCopy16Byte(b *testing.B)   { benchmarkCopySlice(b, 16) }
+func BenchmarkCopy32Byte(b *testing.B)   { benchmarkCopySlice(b, 32) }
+func BenchmarkCopy128Byte(b *testing.B)  { benchmarkCopySlice(b, 128) }
+func BenchmarkCopy1024Byte(b *testing.B) { benchmarkCopySlice(b, 1024) }
+
+func BenchmarkCopy1String(b *testing.B)    { benchmarkCopyStr(b, 1) }
+func BenchmarkCopy2String(b *testing.B)    { benchmarkCopyStr(b, 2) }
+func BenchmarkCopy4String(b *testing.B)    { benchmarkCopyStr(b, 4) }
+func BenchmarkCopy8String(b *testing.B)    { benchmarkCopyStr(b, 8) }
+func BenchmarkCopy12String(b *testing.B)   { benchmarkCopyStr(b, 12) }
+func BenchmarkCopy16String(b *testing.B)   { benchmarkCopyStr(b, 16) }
+func BenchmarkCopy32String(b *testing.B)   { benchmarkCopyStr(b, 32) }
+func BenchmarkCopy128String(b *testing.B)  { benchmarkCopyStr(b, 128) }
+func BenchmarkCopy1024String(b *testing.B) { benchmarkCopyStr(b, 1024) }

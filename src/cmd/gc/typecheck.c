@@ -1572,7 +1572,20 @@ reswitch:
 			fatal("OITAB of %T", t);
 		n->type = ptrto(types[TUINTPTR]);
 		goto ret;
-	
+
+	case OSPTR:
+		ok |= Erv;
+		typecheck(&n->left, Erv);
+		if((t = n->left->type) == T)
+			goto error;
+		if(!isslice(t) && t->etype != TSTRING)
+			fatal("OSPTR of %T", t);
+		if(t->etype == TSTRING)
+			n->type = ptrto(types[TUINT8]);
+		else
+			n->type = ptrto(t->type);
+		goto ret;
+
 	case OCLOSUREVAR:
 		ok |= Erv;
 		goto ret;
