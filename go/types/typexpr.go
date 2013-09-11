@@ -140,24 +140,29 @@ func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Nam
 		// spec: "The receiver type must be of the form T or *T where T is a type name."
 		// (ignore invalid types - error was reported before)
 		if t, _ := deref(recv.typ); t != Typ[Invalid] {
-			ok := true
+			var err string
 			if T, _ := t.(*Named); T != nil {
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
-				switch T.underlying.(type) {
-				case *Pointer, *Interface:
-					ok = false
-				}
 				if T.obj.pkg != check.pkg {
-					ok = false
+					err = "type not defined in this package"
+				} else {
+					switch u := T.underlying.(type) {
+					case *Basic:
+						// unsafe.Pointer is treated like a regular pointer
+						if u.kind == UnsafePointer {
+							err = "unsafe.Pointer"
+						}
+					case *Pointer, *Interface:
+						err = "pointer or interface type"
+					}
 				}
 			} else {
-				ok = false
+				err = "basic or unnamed type"
 			}
-			if !ok {
-				// TODO(gri) provide better error message depending on error
-				check.errorf(recv.pos, "invalid receiver %s", recv)
+			if err != "" {
+				check.errorf(recv.pos, "invalid receiver %s (%s)", recv.typ, err)
 				// ok to continue
 			}
 		}
@@ -489,24 +494,38 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			switch t := t.(type) {
 			case *Basic:
 				if t == Typ[Invalid] {
-					continue // ignore this field - error was reported before
+					// error was reported before
+					continue
+				}
+				// unsafe.Pointer is treated like a regular pointer
+				if t.kind == UnsafePointer {
+					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
+					continue
 				}
 				add(f, nil, t.name, true, pos)
+
 			case *Named:
 				// spec: "An embedded type must be specified as a type name
 				// T or as a pointer to a non-interface type name *T, and T
 				// itself may not be a pointer type."
-				switch t.Underlying().(type) {
+				switch u := t.Underlying().(type) {
+				case *Basic:
+					// unsafe.Pointer is treated like a regular pointer
+					if u.kind == UnsafePointer {
+						check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
+						continue
+					}
 				case *Pointer:
 					check.errorf(pos, "anonymous field type cannot be a pointer")
-					continue // ignore this field
+					continue
 				case *Interface:
 					if isPtr {
 						check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
-						continue // ignore this field
+						continue
 					}
 				}
 				add(f, nil, t.obj.name, true, pos)
+
 			default:
 				check.invalidAST(pos, "anonymous field type %s must be named", typ)
 			}

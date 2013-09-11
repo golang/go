@@ -27,10 +27,10 @@ type T1b struct {
 func (T1b) int /* ERROR "field and method" */ () {}
 
 type T1c struct {
-	unsafe.Pointer
+	time.Time
 }
 
-func (T1c) Pointer /* ERROR "field and method" */ () int { return 0 }
+func (T1c) Time /* ERROR "field and method" */ () int { return 0 }
 
 // Disabled for now: LookupFieldOrMethod will find Pointer even though
 // it's double-declared (it would cost extra in the common case to verify
@@ -84,7 +84,13 @@ func (T5 /* ERROR "invalid receiver" */ ) m2() {}
 func (int /* ERROR "invalid receiver" */ ) m() {}
 func ([ /* ERROR "identifier" */ ]int) m() {}
 func (time /* ERROR "identifier" */ .Time) m() {}
+func (*time /* ERROR "identifier" */ .Time) m() {}
 func (x interface /* ERROR "identifier" */ {}) m() {}
+
+// Unsafe.Pointer is treated like a pointer when used as receiver type.
+type UP unsafe.Pointer
+func (UP /* ERROR "invalid" */ ) m1() {}
+func (* /* ERROR "invalid" */ UP) m2() {}
 
 // Double declarations across package files
 const c_double = 0

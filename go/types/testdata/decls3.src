@@ -7,6 +7,7 @@
 package decls3
 
 import "unsafe"
+import "fmt"
 
 // fields with the same name at the same level cancel each other out
 
@@ -47,13 +48,13 @@ func issue4355() {
 }
 
 func _() {
-	type Pointer int
-	type A struct{ Pointer }
-	type B struct{ unsafe.Pointer }
+	type State int
+	type A struct{ State }
+	type B struct{ fmt.State }
 	type T struct{ A; B }
 
 	var t T
-_ = t /* ERROR "ambiguous selector" */ .Pointer
+	_ = t /* ERROR "ambiguous selector" */ .State
 }
 
 // Embedded fields can be predeclared types.
@@ -85,6 +86,7 @@ func _() {
 	type I2 interface{}
 	type P1 *int
 	type P2 *int
+	type UP unsafe.Pointer
 
 	type T1 struct {
 		I1
@@ -94,13 +96,12 @@ func _() {
 		* /* ERROR "cannot be a pointer" */ P2
 	}
 
-	// unsafe.Pointers are not regular pointers
+	// unsafe.Pointers are treated like regular pointers when embedded
 	type T2 struct {
-		unsafe.Pointer
-	}
-
-	type T3 struct {
-		*unsafe.Pointer
+		unsafe /* ERROR "cannot be unsafe.Pointer" */ .Pointer
+		*/* ERROR "cannot be unsafe.Pointer" */ unsafe.Pointer
+		UP /* ERROR "cannot be unsafe.Pointer" */
+		* /* ERROR "cannot be unsafe.Pointer" */ UP
 	}
 }
 
