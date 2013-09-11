@@ -331,7 +331,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	}
 
 	// Builtins defined in the C prolog.
-	inProlog := name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes"
+	inProlog := name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" || name == "_CMalloc"
 
 	if *gccgo {
 		// Gccgo style hooks.
@@ -476,9 +476,27 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	fgcc.Close()
 }
 
+// fixGo convers the internal Name.Go field into the name we should show
+// to users in error messages. There's only one for now: on input we rewrite
+// C.malloc into C._CMalloc, so change it back here.
+func fixGo(name string) string {
+	if name == "_CMalloc" {
+		return "malloc"
+	}
+	return name
+}
+
+var isBuiltin = map[string]bool{
+	"_Cfunc_CString":   true,
+	"_Cfunc_GoString":  true,
+	"_Cfunc_GoStringN": true,
+	"_Cfunc_GoBytes":   true,
+	"_Cfunc__CMalloc":  true,
+}
+
 func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	name := n.Mangle
-	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || name == "_Cfunc_GoStringN" || name == "_Cfunc_GoBytes" || p.Written[name] {
+	if isBuiltin[name] || p.Written[name] {
 		// The builtins are already defined in the C prolog, and we don't
 		// want to duplicate function definitions we've already done.
 		return
@@ -1101,6 +1119,8 @@ __cgo_size_assert(double, 8)
 `
 
 const builtinProlog = `
+#include <sys/types.h> /* for size_t below */
+
 /* Define intgo when compiling with GCC.  */
 #ifdef __PTRDIFF_TYPE__
 typedef __PTRDIFF_TYPE__ intgo;
@@ -1116,6 +1136,7 @@ _GoString_ GoString(char *p);
 _GoString_ GoStringN(char *p, int l);
 _GoBytes_ GoBytes(void *p, int n);
 char *CString(_GoString_);
+void *_CMalloc(size_t);
 `
 
 const cProlog = `
@@ -1151,6 +1172,13 @@ void
 	p = runtime·cmalloc(s.len+1);
 	runtime·memmove((byte*)p, s.str, s.len);
 	p[s.len] = 0;
+	FLUSH(&p);
+}
+
+void
+·_Cfunc__CMalloc(uintptr n, int8 *p)
+{
+	p = runtime·cmalloc(n);
 	FLUSH(&p);
 }
 `
@@ -1192,6 +1220,14 @@ struct __go_string GoStringN(char *p, int32_t n) {
 Slice GoBytes(char *p, int32_t n) {
 	struct __go_string s = { (const unsigned char *)p, n };
 	return __go_string_to_byte_array(s);
+}
+
+extern void runtime_throw(const char *):
+void *Cmalloc(size_t n) {
+        void *p = malloc(n);
+        if(p == NULL)
+                runtime_throw("runtime: C malloc failed");
+        return p;
 }
 `
 
