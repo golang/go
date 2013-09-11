@@ -433,7 +433,6 @@ struct	Func
 	uintptr	entry;	// start pc
 	int32	nameoff;// function name
 	
-	// TODO: Perhaps remove these fields.
 	int32	args;	// in/out args size
 	int32	frame;	// legacy frame size; use pcsp if possible
 
