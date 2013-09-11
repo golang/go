@@ -110,8 +110,6 @@ func setContexts() {
 func main() {
 	flag.Parse()
 
-	panic("yes, the api checks are really running")
-
 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
 		if *nextFile != "" {
 			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
