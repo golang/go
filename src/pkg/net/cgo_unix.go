@@ -99,6 +99,16 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
 		if gerrno == C.EAI_NONAME {
 			str = noSuchHost
 		} else if gerrno == C.EAI_SYSTEM {
+			if err == nil {
+				// err should not be nil, but sometimes getaddrinfo returns
+				// gerrno == C.EAI_SYSTEM with err == nil on Linux.
+				// The report claims that it happens when we have too many
+				// open files, so use syscall.EMFILE (too many open files in system).
+				// Most system calls would return ENFILE (too many open files),
+				// so at the least EMFILE should be easy to recognize if this
+				// comes up again. golang.org/issue/6232.
+				err = syscall.EMFILE
+			}
 			str = err.Error()
 		} else {
 			str = C.GoString(C.gai_strerror(gerrno))
