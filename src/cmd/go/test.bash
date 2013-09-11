@@ -167,6 +167,19 @@ elif ! grep testdata/shadow/root1/src/foo testdata/err >/dev/null; then
 fi
 unset GOPATH
 
+TEST go install fails with no buildable files
+export GOPATH=$(pwd)/testdata
+export CGO_ENABLED=0
+if ./testgo install cgotest 2>testdata/err; then
+	echo "go install cgotest succeeded unexpectedly"
+elif ! grep 'no buildable Go source files' testdata/err >/dev/null; then
+	echo "go install cgotest did not report 'no buildable Go source files'"
+	cat testdata/err
+	ok=false
+fi
+unset CGO_ENABLED
+unset GOPATH
+
 # Test that without $GOBIN set, binaries get installed
 # into the GOPATH bin directory.
 TEST install into GOPATH

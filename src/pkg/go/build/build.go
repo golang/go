@@ -747,6 +747,8 @@ Found:
 			allTags["cgo"] = true
 			if ctxt.CgoEnabled {
 				p.CgoFiles = append(p.CgoFiles, name)
+			} else {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			}
 		} else if isXTest {
 			p.XTestGoFiles = append(p.XTestGoFiles, name)
@@ -756,7 +758,7 @@ Found:
 			p.GoFiles = append(p.GoFiles, name)
 		}
 	}
-	if p.Name == "" {
+	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		return p, &NoGoError{p.Dir}
 	}
 
