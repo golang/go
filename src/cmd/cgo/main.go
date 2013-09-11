@@ -341,7 +341,7 @@ func (p *Package) Record(f *File) {
 			if p.Name[k] == nil {
 				p.Name[k] = v
 			} else if !reflect.DeepEqual(p.Name[k], v) {
-				error_(token.NoPos, "inconsistent definitions for C.%s", k)
+				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
 			}
 		}
 	}

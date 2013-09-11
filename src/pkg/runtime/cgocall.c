@@ -198,6 +198,8 @@ runtime·cmalloc(uintptr n)
 	a.n = n;
 	a.ret = nil;
 	runtime·cgocall(_cgo_malloc, &a);
+	if(a.ret == nil)
+		runtime·throw("runtime: C malloc failed");
 	return a.ret;
 }
 

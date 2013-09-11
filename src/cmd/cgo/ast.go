@@ -187,6 +187,13 @@ func (f *File) saveRef(x interface{}, context string) {
 				error_(sel.Pos(), "cannot refer to errno directly; see documentation")
 				return
 			}
+			if goname == "_CMalloc" {
+				error_(sel.Pos(), "cannot refer to C._CMalloc; use C.malloc")
+				return
+			}
+			if goname == "malloc" {
+				goname = "_CMalloc"
+			}
 			name := f.Name[goname]
 			if name == nil {
 				name = &Name{
