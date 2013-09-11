@@ -145,6 +145,10 @@ func main() {
 			//   going to change w/o a language change.
 			// - We don't care about the API of commands.
 			if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
+				if name == "runtime/cgo" && !context.CgoEnabled {
+					// w.Import(name) will return nil
+					continue
+				}
 				w.export(w.Import(name))
 			}
 		}
