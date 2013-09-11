@@ -45,6 +45,8 @@ static int	copyas(Adr*, Adr*);
 static int	copyau(Adr*, Adr*);
 static int	copysub(Adr*, Adr*, Adr*, int);
 
+static uint32	gactive;
+
 // do we need the carry bit
 static int
 needc(Prog *p)
@@ -92,6 +94,7 @@ peep(Prog *firstp)
 	g = flowstart(firstp, sizeof(Flow));
 	if(g == nil)
 		return;
+	gactive = 0;
 
 	// byte, word arithmetic elimination.
 	elimshortmov(g);
@@ -643,8 +646,8 @@ copyprop(Graph *g, Flow *r0)
 {
 	Prog *p;
 	Adr *v1, *v2;
-	Flow *r;
 
+	USED(g);
 	if(debug['P'] && debug['v'])
 		print("copyprop %P\n", r0->prog);
 	p = r0->prog;
@@ -652,8 +655,7 @@ copyprop(Graph *g, Flow *r0)
 	v2 = &p->to;
 	if(copyas(v1, v2))
 		return 1;
-	for(r=g->start; r!=nil; r=r->link)
-		r->active = 0;
+	gactive++;
 	return copy1(v1, v2, r0->s1, 0);
 }
 
@@ -663,12 +665,12 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
 	int t;
 	Prog *p;
 
-	if(r->active) {
+	if(r->active == gactive) {
 		if(debug['P'])
 			print("act set; return 1\n");
 		return 1;
 	}
-	r->active = 1;
+	r->active = gactive;
 	if(debug['P'])
 		print("copy %D->%D f=%d\n", v1, v2, f);
 	for(; r != nil; r = r->s1) {

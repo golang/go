@@ -47,6 +47,8 @@ static Flow*	findpre(Flow *r, Adr *v);
 static int	copyau1(Prog *p, Adr *v);
 static int	isdconst(Addr *a);
 
+static uint32	gactive;
+
 // UNUSED
 int	shiftprop(Flow *r);
 void	constprop(Adr *c1, Adr *v1, Flow *r);
@@ -63,6 +65,7 @@ peep(Prog *firstp)
 	g = flowstart(firstp, sizeof(Flow));
 	if(g == nil)
 		return;
+	gactive = 0;
 
 loop1:
 	if(debug['P'] && debug['v'])
@@ -360,15 +363,14 @@ copyprop(Graph *g, Flow *r0)
 {
 	Prog *p;
 	Adr *v1, *v2;
-	Flow *r;
 
+	USED(g);
 	p = r0->prog;
 	v1 = &p->from;
 	v2 = &p->to;
 	if(copyas(v1, v2))
 		return 1;
-	for(r=g->start; r!=nil; r=r->link)
-		r->active = 0;
+	gactive++;
 	return copy1(v1, v2, r0->s1, 0);
 }
 
@@ -378,12 +380,12 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
 	int t;
 	Prog *p;
 
-	if(r->active) {
+	if(r->active == gactive) {
 		if(debug['P'])
 			print("act set; return 1\n");
 		return 1;
 	}
-	r->active = 1;
+	r->active = gactive;
 	if(debug['P'])
 		print("copy %D->%D f=%d\n", v1, v2, f);
 	for(; r != nil; r = r->s1) {
