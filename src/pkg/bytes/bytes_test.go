@@ -143,6 +143,7 @@ var indexTests = []BinOpTest{
 	{"", "a", -1},
 	{"", "foo", -1},
 	{"fo", "foo", -1},
+	{"foo", "baz", -1},
 	{"foo", "foo", 0},
 	{"oofofoofooo", "f", 2},
 	{"oofofoofooo", "foo", 4},
@@ -1082,6 +1083,24 @@ func TestTitle(t *testing.T) {
 	}
 }
 
+var ToTitleTests = []TitleTest{
+	{"", ""},
+	{"a", "A"},
+	{" aaa aaa aaa ", " AAA AAA AAA "},
+	{" Aaa Aaa Aaa ", " AAA AAA AAA "},
+	{"123a456", "123A456"},
+	{"double-blind", "DOUBLE-BLIND"},
+	{"ÿøû", "ŸØÛ"},
+}
+
+func TestToTitle(t *testing.T) {
+	for _, tt := range ToTitleTests {
+		if s := string(ToTitle([]byte(tt.in))); s != tt.out {
+			t.Errorf("ToTitle(%q) = %q, want %q", tt.in, s, tt.out)
+		}
+	}
+}
+
 var EqualFoldTests = []struct {
 	s, t string
 	out  bool
@@ -1108,6 +1127,37 @@ func TestEqualFold(t *testing.T) {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
 		}
 	}
+}
+
+func TestBufferGrowNegative(t *testing.T) {
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("Grow(-1) should have paniced")
+		}
+	}()
+	var b Buffer
+	b.Grow(-1)
+}
+
+func TestBufferTruncateNegative(t *testing.T) {
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("Truncate(-1) should have paniced")
+		}
+	}()
+	var b Buffer
+	b.Truncate(-1)
+}
+
+func TestBufferTruncateOutOfRange(t *testing.T) {
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("Truncate(20) should have paniced")
+		}
+	}()
+	var b Buffer
+	b.Write(make([]byte, 10))
+	b.Truncate(20)
 }
 
 var makeFieldsInput = func() []byte {
