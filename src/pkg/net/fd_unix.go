@@ -36,12 +36,8 @@ type netFD struct {
 func sysInit() {
 }
 
-func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
-	ra, err := resolveAddr("dial", net, addr, deadline)
-	if err != nil {
-		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
-	}
-	return dial(net, addr, localAddr, ra.toAddr(), deadline)
+func dial(network string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
+	return dialer(deadline)
 }
 
 func newFD(sysfd, family, sotype int, net string) (*netFD, error) {

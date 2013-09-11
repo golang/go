@@ -41,6 +41,34 @@ func TestResolveGoogle(t *testing.T) {
 	}
 }
 
+func TestDialGoogle(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	d := &Dialer{DualStack: true}
+	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
+		if network == "tcp" && !supportsIPv4 && !supportsIPv6 {
+			t.Logf("skipping test; both ipv4 and ipv6 are not supported")
+			continue
+		} else if network == "tcp4" && !supportsIPv4 {
+			t.Logf("skipping test; ipv4 is not supported")
+			continue
+		} else if network == "tcp6" && !supportsIPv6 {
+			t.Logf("skipping test; ipv6 is not supported")
+			continue
+		} else if network == "tcp6" && !*testIPv6 {
+			t.Logf("test disabled; use -ipv6 to enable")
+			continue
+		}
+		if c, err := d.Dial(network, "www.google.com:http"); err != nil {
+			t.Errorf("Dial failed: %v", err)
+		} else {
+			c.Close()
+		}
+	}
+}
+
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd Conn, network, addr string) {

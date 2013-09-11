@@ -5,13 +5,17 @@
 package net
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -314,6 +318,96 @@ func TestDialTimeoutFDLeak(t *testing.T) {
 	}
 }
 
+func numTCP() (ntcp, nopen, nclose int, err error) {
+	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	ntcp += bytes.Count(lsof, []byte("TCP"))
+	for _, state := range []string{"LISTEN", "SYN_SENT", "SYN_RECEIVED", "ESTABLISHED"} {
+		nopen += bytes.Count(lsof, []byte(state))
+	}
+	for _, state := range []string{"CLOSED", "CLOSE_WAIT", "LAST_ACK", "FIN_WAIT_1", "FIN_WAIT_2", "CLOSING", "TIME_WAIT"} {
+		nclose += bytes.Count(lsof, []byte(state))
+	}
+	return ntcp, nopen, nclose, nil
+}
+
+func TestDialMultiFDLeak(t *testing.T) {
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("neither ipv4 nor ipv6 is supported")
+	}
+
+	halfDeadServer := func(dss *dualStackServer, ln Listener) {
+		for {
+			if c, err := ln.Accept(); err != nil {
+				return
+			} else {
+				// It just keeps established
+				// connections like a half-dead server
+				// does.
+				dss.putConn(c)
+			}
+		}
+	}
+	dss, err := newDualStackServer([]streamListener{
+		{net: "tcp4", addr: "127.0.0.1"},
+		{net: "tcp6", addr: "[::1]"},
+	})
+	if err != nil {
+		t.Fatalf("newDualStackServer failed: %v", err)
+	}
+	defer dss.teardown()
+	if err := dss.buildup(halfDeadServer); err != nil {
+		t.Fatalf("dualStackServer.buildup failed: %v", err)
+	}
+
+	_, before, _, err := numTCP()
+	if err != nil {
+		t.Skipf("skipping test; error finding or running lsof: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	portnum, _, _ := dtoi(dss.port, 0)
+	ras := addrList{
+		// Losers that will fail to connect, see RFC 6890.
+		&TCPAddr{IP: IPv4(198, 18, 0, 254), Port: portnum},
+		&TCPAddr{IP: ParseIP("2001:2::254"), Port: portnum},
+
+		// Winner candidates of this race.
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
+		&TCPAddr{IP: IPv6loopback, Port: portnum},
+
+		// Losers that will have established connections.
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
+		&TCPAddr{IP: IPv6loopback, Port: portnum},
+	}
+	const T1 = 10 * time.Millisecond
+	const T2 = 2 * T1
+	const N = 10
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if c, err := dialMulti("tcp", "fast failover test", nil, ras, time.Now().Add(T1)); err == nil {
+				c.Close()
+			}
+		}()
+	}
+	wg.Wait()
+	time.Sleep(T2)
+
+	ntcp, after, nclose, err := numTCP()
+	if err != nil {
+		t.Skipf("skipping test; error finding or running lsof: %v", err)
+	}
+	t.Logf("tcp sessions: %v, open sessions: %v, closing sessions: %v", ntcp, after, nclose)
+
+	if after != before {
+		t.Fatalf("got %v open sessions; expected %v", after, before)
+	}
+}
+
 func numFD() int {
 	if runtime.GOOS == "linux" {
 		f, err := os.Open("/proc/self/fd")
@@ -402,5 +496,48 @@ func TestDialer(t *testing.T) {
 	err = <-ch
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestDialDualStackLocalhost(t *testing.T) {
+	if ips, err := LookupIP("localhost"); err != nil {
+		t.Fatalf("LookupIP failed: %v", err)
+	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {
+		t.Skip("localhost doesn't have a pair of different address family IP addresses")
+	}
+
+	touchAndByeServer := func(dss *dualStackServer, ln Listener) {
+		for {
+			if c, err := ln.Accept(); err != nil {
+				return
+			} else {
+				c.Close()
+			}
+		}
+	}
+	dss, err := newDualStackServer([]streamListener{
+		{net: "tcp4", addr: "127.0.0.1"},
+		{net: "tcp6", addr: "[::1]"},
+	})
+	if err != nil {
+		t.Fatalf("newDualStackServer failed: %v", err)
+	}
+	defer dss.teardown()
+	if err := dss.buildup(touchAndByeServer); err != nil {
+		t.Fatalf("dualStackServer.buildup failed: %v", err)
+	}
+
+	d := &Dialer{DualStack: true}
+	for _ = range dss.lns {
+		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
+			t.Errorf("Dial failed: %v", err)
+		} else {
+			if addr := c.LocalAddr().(*TCPAddr); addr.IP.To4() != nil {
+				dss.teardownNetwork("tcp4")
+			} else if addr.IP.To16() != nil && addr.IP.To4() == nil {
+				dss.teardownNetwork("tcp6")
+			}
+			c.Close()
+		}
 	}
 }
