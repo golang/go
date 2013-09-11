@@ -443,7 +443,7 @@ runtime·dopanic(int32 unused)
 			runtime·printf("\n");
 			runtime·goroutineheader(g);
 			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
-		} else if(t >= 2) {
+		} else if(t >= 2 || m->throwing > 0) {
 			runtime·printf("\nruntime stack:\n");
 			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
 		}

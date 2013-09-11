@@ -153,7 +153,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				runtime·printf("\t%S:%d", file, line);
 				if(frame.pc > f->entry)
 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
-				if(m->throwing && gp == m->curg)
+				if(m->throwing > 0 && gp == m->curg)
 					runtime·printf(" fp=%p", frame.fp);
 				runtime·printf("\n");
 				nprint++;
