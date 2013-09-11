@@ -23,8 +23,6 @@
 #include <libc.h>
 #include "go.h"
 
-static int isrelease = -1;
-
 static void fixlbrace(int);
 %}
 %union	{
@@ -957,13 +955,6 @@ pexpr_no_paren:
 	}
 |	pexpr '[' oexpr ':' oexpr ':' oexpr ']'
 	{
-		// Make sure we don't accidentally release this experimental feature.
-		// http://golang.org/s/go12slice.
-		if(isrelease < 0)
-			isrelease = strstr(getgoversion(), "release") != nil;
-		if(isrelease)
-			yyerror("3-index slice not available in release");
-
 		if($5 == N)
 			yyerror("middle index required in 3-index slice");
 		if($7 == N)
