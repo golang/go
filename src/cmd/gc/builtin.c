@@ -94,6 +94,7 @@ char *runtimeimport =
 	"func @\"\".block ()\n"
 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n"
 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int64) (@\"\".ary·1 []any)\n"
+	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr)\n"
 	"func @\"\".memequal (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
 	"func @\"\".memequal8 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
 	"func @\"\".memequal16 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"

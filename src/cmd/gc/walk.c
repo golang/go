@@ -21,6 +21,7 @@ static	NodeList*	reorder3(NodeList*);
 static	Node*	addstr(Node*, NodeList**);
 static	Node*	appendslice(Node*, NodeList**);
 static	Node*	append(Node*, NodeList**);
+static	Node*	copyany(Node*, NodeList**);
 static	Node*	sliceany(Node*, NodeList**);
 static	void	walkcompare(Node**, NodeList**);
 static	void	walkrotate(Node**);
@@ -174,6 +175,8 @@ walkstmt(Node **np)
 		n->ninit = nil;
 		walkexpr(&n, &init);
 		addinit(&n, init);
+		if((*np)->op == OCOPY && n->op == OCONVNOP)
+			n->op = OEMPTY; // don't leave plain values as statements.
 		break;
 
 	case OBREAK:
@@ -432,6 +435,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->right, init);
 		goto ret;
 
+	case OSPTR:
 	case OITAB:
 		walkexpr(&n->left, init);
 		goto ret;
@@ -1243,15 +1247,19 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCOPY:
-		if(n->right->type->etype == TSTRING)
-			fn = syslook("slicestringcopy", 1);
-		else
-			fn = syslook("copy", 1);
-		argtype(fn, n->left->type);
-		argtype(fn, n->right->type);
-		n = mkcall1(fn, n->type, init,
-			n->left, n->right,
-			nodintconst(n->left->type->type->width));
+		if(flag_race) {
+			if(n->right->type->etype == TSTRING)
+				fn = syslook("slicestringcopy", 1);
+			else
+				fn = syslook("copy", 1);
+			argtype(fn, n->left->type);
+			argtype(fn, n->right->type);
+			n = mkcall1(fn, n->type, init,
+					n->left, n->right,
+					nodintconst(n->left->type->type->width));
+			goto ret;
+		}
+		n = copyany(n, init);
 		goto ret;
 
 	case OCLOSE:
@@ -2618,6 +2626,58 @@ append(Node *n, NodeList **init)
 	return ns;
 }
 
+// Lower copy(a, b) to a memmove call.
+//
+// init {
+//   n := len(a)
+//   if n > len(b) { n = len(b) }
+//   memmove(a.ptr, b.ptr, n*sizeof(elem(a)))
+// }
+// n;
+//
+// Also works if b is a string.
+//
+static Node*
+copyany(Node *n, NodeList **init)
+{
+	Node *nl, *nr, *nfrm, *nto, *nif, *nlen, *nwid, *fn;
+	NodeList *l;
+
+	walkexpr(&n->left, init);
+	walkexpr(&n->right, init);
+	nl = temp(n->left->type);
+	nr = temp(n->right->type);
+	l = nil;
+	l = list(l, nod(OAS, nl, n->left));
+	l = list(l, nod(OAS, nr, n->right));
+
+	nfrm = nod(OSPTR, nr, N);
+	nto = nod(OSPTR, nl, N);
+
+	nlen = temp(types[TINT]);
+	// n = len(to)
+	l = list(l, nod(OAS, nlen, nod(OLEN, nl, N)));
+	// if n > len(frm) { n = len(frm) }
+	nif = nod(OIF, N, N);
+	nif->ntest = nod(OGT, nlen, nod(OLEN, nr, N));
+	nif->nbody = list(nif->nbody,
+		nod(OAS, nlen, nod(OLEN, nr, N)));
+	l = list(l, nif);
+
+	// Call memmove.
+	fn = syslook("memmove", 1);
+	argtype(fn, nl->type->type);
+	argtype(fn, nl->type->type);
+	nwid = temp(types[TUINTPTR]);
+	l = list(l, nod(OAS, nwid, conv(nlen, types[TUINTPTR])));
+	nwid = nod(OMUL, nwid, nodintconst(nl->type->type->width));
+	l = list(l, mkcall1(fn, T, init, nto, nfrm, nwid));
+
+	typechecklist(l, Etop);
+	walkstmtlist(l);
+	*init = concat(*init, l);
+	return nlen;
+}
 
 // Generate frontend part for OSLICE[3][ARR|STR]
 // 

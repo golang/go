@@ -577,6 +577,7 @@ enum
 	OINLCALL,	// intermediary representation of an inlined call.
 	OEFACE,	// itable and data words of an empty-interface value.
 	OITAB,	// itable word of an interface value.
+	OSPTR,  // base pointer of a slice or string.
 	OCLOSUREVAR, // variable reference at beginning of closure function
 	OCFUNC,	// reference to c function pointer (not go func value)
 	OCHECKNIL, // emit code to ensure pointer/interface not nil

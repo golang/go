@@ -1361,6 +1361,16 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;	// len(nil)
 		break;
 
+	case OSPTR:
+		// pointer in a string or slice
+		naddr(n->left, a, canemitcode);
+		if(a->type == D_CONST && a->offset == 0)
+			break;	// ptr(nil)
+		a->etype = simtype[TUINTPTR];
+		a->offset += Array_array;
+		a->width = widthptr;
+		break;
+
 	case OLEN:
 		// len of string or slice
 		naddr(n->left, a, canemitcode);

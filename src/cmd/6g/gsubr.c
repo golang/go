@@ -562,6 +562,7 @@ ismem(Node *n)
 {
 	switch(n->op) {
 	case OITAB:
+	case OSPTR:
 	case OLEN:
 	case OCAP:
 	case OINDREG:
@@ -1264,6 +1265,16 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(a->type == D_CONST && a->offset == 0)
 			break;  // itab(nil)
 		a->etype = tptr;
+		a->width = widthptr;
+		break;
+
+	case OSPTR:
+		// pointer in a string or slice
+		naddr(n->left, a, canemitcode);
+		if(a->type == D_CONST && a->offset == 0)
+			break;	// ptr(nil)
+		a->etype = simtype[TUINTPTR];
+		a->offset += Array_array;
 		a->width = widthptr;
 		break;
 
