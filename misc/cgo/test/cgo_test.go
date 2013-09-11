@@ -45,5 +45,6 @@ func Test5603(t *testing.T)                { test5603(t) }
 func Test3250(t *testing.T)                { test3250(t) }
 func TestCallbackStack(t *testing.T)       { testCallbackStack(t) }
 func TestFpVar(t *testing.T)               { testFpVar(t) }
+func Test4339(t *testing.T)                { test4339(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
