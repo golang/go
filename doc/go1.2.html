@@ -163,7 +163,7 @@ no client code depends on the godoc sources and no updating is required.
 </p>
 
 <p>
-The binary distributions available from <a href="http://golang.org>golang.org</a>
+The binary distributions available from <a href="http://golang.org">golang.org</a>
 include a godoc binary, so users of these distributions are unaffected.
 </p>
 
@@ -269,83 +269,176 @@ to list them all here, but the following major changes are worth noting:
 </p>
 
 <ul>
-<li>compress/bzip2: faster decompression by 30% (CL 9915043).
+<li>compress/bzip2: TODO faster decompression by 30% (CL 9915043).
 </li>
 
-<li>crypto/des: 5x faster encoding/decoding (CL 11874043, 12072045).
+<li>crypto/des: TODO 5x faster encoding/decoding (CL 11874043, 12072045).
 </li>
 
-<li>encoding/json: faster encoding (CL 9129044).
+<li>encoding/json: TODO faster encoding (CL 9129044).
 </li>
 
-<li>net: improve windows performance by up to 30% (CL 8670044).
+<li>net: TODO improve windows performance by up to 30% (CL 8670044).
 </li>
 
-<li>net: improve performance on BSD by up to 30% (CL 8264043, 12927048, 13080043).
+<li>net: TODO improve performance on BSD by up to 30% (CL 8264043, 12927048, 13080043).
 </li>
 </ul>
 
 <h2 id="library">Changes to the standard library</h2>
 
-<h3 id="foo_bar">foo.Bar</h3>
+
+<h3 id="archive_tar_zip">The archive/tar and archive/zip packages</h3>
 
 <p>
-TODO: choose which to call out
-<font color=red>
-The various routines to scan textual input in the
-<a href="/pkg/bufio/"><code>bufio</code></a>
-package,
-<a href="/pkg/bufio/#Reader.ReadBytes"><code>ReadBytes</code></a>,
-<a href="/pkg/bufio/#Reader.ReadString"><code>ReadString</code></a>
-and particularly
-<a href="/pkg/bufio/#Reader.ReadLine"><code>ReadLine</code></a>,
-are needlessly complex to use for simple purposes.
-In Go 1.1, a new type,
-<a href="/pkg/bufio/#Scanner"><code>Scanner</code></a>,
-has been added to make it easier to do simple tasks such as
-read the input as a sequence of lines or space-delimited words.
-It simplifies the problem by terminating the scan on problematic
-input such as pathologically long lines, and having a simple
-default: line-oriented input, with each line stripped of its terminator.
-Here is code to reproduce the input a line at a time:
-</font>
-
-<p>
-<font color=red>
-<em>Updating</em>:
-To correct breakage caused by the new struct field,
-<code>go fix</code> will rewrite code to add tags for these types.
-More generally, <code>go vet</code> will identify composite literals that
-should be revised to use field tags.
-</font>
+Breaking change: TODO 
+archive/tar,archive/zip: fix os.FileInfo implementation to provide base name only (CL 13118043).
 </p>
 
-<ul>
+<h3 id="encoding">The new encoding package</h3>
 
-<li>
-Breaking change:
-archive/tar,archive/zip: fix os.FileInfo implementation to provide base name only (CL 13118043).
-</li>
+<p>
+encoding: TODO new package defining generic encoding interfaces (CL 12541051).
+</p>
 
-<li>
-encoding: new package defining generic encoding interfaces (CL 12541051).
-</li>
+<h3 id="fmt_indexed_arguments">The fmt package</h3>
 
-<li>
-fmt: indexed access to arguments in Printf etc. (CL 9680043).
-</li>
+<p>
+The <a href="/pkg/fmt/"><code>fmt</code></a> package's formatted print
+routines such as <a href="/pkg/fmt/#Printf"><code>Printf</code></a>
+now allow the data items to be printed to be accessed in arbitrary order
+by using an indexing operation in the formatting specifications.
+Wherever an argument is to be fetched from the argument list for formatting,
+either as the value to be formatted or as a width or specification integer,
+a new optional indexing notation <code>[</code><em>n</em><code>]</code>
+fetches argument <em>n</em> instead.
+The value of <em>n</em> is 1-indexed.
+After such an indexing operating, the next argument to be fetched by normal
+processing will be <em>n</em>+1.
+</p>
 
-<li>
-sync/atomic: add Swap functions (CL 12670045).
-</li>
-<li>
-text/template: add comparison functions (CL 13091045).
-</li>
+<p>
+For example, the normal <code>Printf</code> call
+</p>
 
-<li>
-text/template: allow {{"{{"}}else if ... {{"}}"}} to simplify if chains (CL 13327043).
-</li>
-</ul>
+<pre>
+fmt.Sprintf("%c %c %c\n", 'a', 'b', 'c')
+</pre>
+
+<p>
+would create the string <code>"a b c"</code>, but with indexing operations like this,
+</p>
+
+<pre>
+fmt.Sprintf("%[3]c %[1]c %c\n", 'a', 'b', 'c')
+</pre>
+
+<p>
+the result is "<code>"c a b"</code>. The <code>[3]</code> index accesses the third formatting
+argument, whch is <code>'c'</code>, <code>[1]</code> accesses the first, <code>'a'</code>,
+and then the next fetch accesses the argument following that one, <code>'b'</code>.
+</p>
+
+<p>
+The motivation for this feature is programmable format statements to access
+the arguments in different order for localization, but it has other uses:
+</p>
+
+<pre>
+log.Printf("trace: value %v of type %[1]T\n", expensiveFunction(a.b[c]))
+</pre>
+
+<p>
+<em>Updating</em>: The change to the syntax of format specifications
+is strictly backwards compatible, so it affects no working programs.
+</p>
+
+<h3 id="text_template">The text/template and html/template packages</h3>
+
+<p>
+The
+<a href="/pkg/text/template/"><code>text/template</code></a> package
+has a couple of changes in Go 1.2, both of which are also mirrored in the
+<a href="/pkg/html/template/"><code>html/template</code></a> package.
+</p>
+
+<p>
+First, there are new default functions for comparing basic types.
+The functions are listed in this table, which shows their names and
+the associated familiar comparison operator.
+</p>
+
+<table cellpadding="0" summary="Template comparison functions">
+<tr>
+<th width="50"></th><th width="100">Name</th> <th width="50">Operator</th>
+</tr>
+<tr>
+<td></td><td><code>eq</code></td> <td><code>==</code></td>
+</tr>
+<tr>
+<td></td><td><code>ne</code></td> <td><code>!=</code></td>
+</tr>
+<tr>
+<td></td><td><code>lt</code></td> <td><code>&lt;</code></td>
+</tr>
+<tr>
+<td></td><td><code>le</code></td> <td><code>&lt;=</code></td>
+</tr>
+<tr>
+<td></td><td><code>gt</code></td> <td><code>&gt;</code></td>
+</tr>
+<tr>
+<td></td><td><code>ge</code></td> <td><code>&gt;=</code></td>
+</tr>
+</table>
+
+<p>
+These functions behave slightly differently from the corresponding Go operators.
+First, they operate only on basic types (<code>bool</code>, <code>int</code>,
+<code>float64</code>, <code>string</code>, etc.).
+(Go allows comparison of arrays and structs as well, under some circumstances.)
+Second, values can be compared as long as they are the same sort of value:
+any signed integer value can be compared to any other signed integer value for example. (Go
+does not permit comparing an <code>int8</code> and an <code>int16</code>).
+Finally, the <code>eq</code> function (only) allows comparison of the first
+argument with one or more following arguments. The template in this example,
+</p>
+
+<pre>
+{{"{{"}}if eq .A 1 2 3 {{"}}"}} equal {{"{{"}}else{{"}}"}} not equal {{"{{"}}end{{"}}"}}
+</pre>
+
+<p>
+reports "equal" if <code>.A</code> is equal to <em>any</em> of 1, 2, or 3.
+</p>
+
+<p>
+The second change is that a small addition to the grammar makes "if else if" chains easier to write.
+Instead of writing,
+</p>
+
+<pre>
+{{"{{"}}if eq .A 1{{"}}"}} X {{"{{"}}else{{"}}"}} {{"{{"}}if eq .A 2{{"}}"}} Y {{"{{"}}end{{"}}"}} {{"{{"}}end{{"}}"}} 
+</pre>
+
+<p>
+one can fold the second "if" into the "else" and have only one "end", like this:
+</p>
+
+<pre>
+{{"{{"}}if eq .A 1{{"}}"}} X {{"{{"}}else if eq .A 2{{"}}"}} Y {{"{{"}}end{{"}}"}}
+</pre>
+
+<p>
+The two forms are identical in effect; the difference is just in the syntax.
+</p>
+
+<p>
+<em>Updating</em>: Neither change affects existing programs. Those that
+already define functions called <code>eq</code> and so on through a function
+map are unaffected because the associated function map will override the new
+default function definitions.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -556,19 +649,19 @@ so that less intermediate buffering is required in general.
 </li>
 
 <li>
-net: new build tag netgo for building a pure Go net package (CL 7100050).
+net: TODO new build tag netgo for building a pure Go net package (CL 7100050).
 </li>
 
 <li>
-net/http: don't allow sending invalid cookie lines (CL 12204043).
+net/http: TODO don't allow sending invalid cookie lines (CL 12204043).
 </li>
 
 <li>
-net/http: allow ReadResponse with nil *Request parameter (CL 9821043).
+net/http: TODO allow ReadResponse with nil *Request parameter (CL 9821043).
 </li>
 
 <li>
-net/http: allow responses to HEAD requests, detect type and length (CL 12583043).
+net/http: TODO allow responses to HEAD requests, detect type and length (CL 12583043).
 </li>
 
 <li>
@@ -589,6 +682,21 @@ stable sorting. It is less efficient than the normal sort algorithm, however.
 The <a href="/pkg/strings/"><code>strings</code></a> package adds
 an <a href="/pkg/strings/#IndexByte"><code>IndexByte</code></a>
 function for consistency with the <a href="/pkg/bytes/"><code>bytes</code></a> package.
+</li>
+
+<li>
+The <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> package
+adds a new set of swap functions that atomically exchange the argument with the
+value stored in the pointer, returning the old value.
+The functions are
+<a href="/pkg/sync/atomic/#SwapInt32"><code>SwapInt32</code></a>,
+<a href="/pkg/sync/atomic/#SwapInt64"><code>SwapInt64</code></a>,
+<a href="/pkg/sync/atomic/#SwapUint32"><code>SwapUint32</code></a>,
+<a href="/pkg/sync/atomic/#SwapUint64"><code>SwapUint64</code></a>,
+<a href="/pkg/sync/atomic/#SwapUintptr"><code>SwapUintptr</code></a>,
+and
+<a href="/pkg/sync/atomic/#SwapPointer"><code>SwapPointer</code></a>,
+which swaps an <code>unsafe.Pointer</code>.
 </li>
 
 <li>
