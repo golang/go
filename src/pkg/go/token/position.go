@@ -97,7 +97,7 @@ type File struct {
 	size int    // file size as provided to AddFile
 
 	// lines and infos are protected by set.mutex
-	lines []int
+	lines []int // lines contains the offset of the first character for each line (the first entry is always 0)
 	infos []lineInfo
 }
 
@@ -136,13 +136,27 @@ func (f *File) AddLine(offset int) {
 	f.set.mutex.Unlock()
 }
 
-// RemoveLine removes a line by line number as reported by Position.Line.
+// MergeLine merges a line with the following line. It is akin to replacing
+// the newline character at the end of the line with a space (to not change the
+// remaining offsets). To obtain the line number, consult e.g. Position.Line.
+// MergeLine will panic if given an invalid line number.
 //
-func (f *File) RemoveLine(line int) {
+func (f *File) MergeLine(line int) {
+	if line <= 0 {
+		panic("illegal line number (line numbering starts at 1)")
+	}
 	f.set.mutex.Lock()
+	defer f.set.mutex.Unlock()
+	if line >= len(f.lines) {
+		panic("illegal line number")
+	}
+	// To merge the line numbered <line> with the line numbered <line+1>,
+	// we need to remove the entry in lines corresponding to the line
+	// numbered <line+1>. The entry in lines corresponding to the line
+	// numbered <line+1> is located at index <line>, since indices in lines
+	// are 0-based and line numbers are 1-based.
 	copy(f.lines[line:], f.lines[line+1:])
 	f.lines = f.lines[:len(f.lines)-1]
-	f.set.mutex.Unlock()
 }
 
 // SetLines sets the line offsets for a file and returns true if successful.
