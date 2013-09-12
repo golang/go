@@ -217,6 +217,10 @@ func lexText(l *lexer) stateFn {
 			}
 			return lexLeftDelim
 		}
+		// Check for right after left in case they're the same.
+		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+			return l.errorf("unmatched right delimiter")
+		}
 		if l.next() == eof {
 			break
 		}

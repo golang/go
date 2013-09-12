@@ -312,7 +312,7 @@ var isEmptyTests = []isEmptyTest{
 	{"spaces only", " \t\n \t\n", true},
 	{"definition", `{{define "x"}}something{{end}}`, true},
 	{"definitions and space", "{{define `x`}}something{{end}}\n\n{{define `y`}}something{{end}}\n\n", true},
-	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n}}", false},
+	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n", false},
 	{"definition and action", "{{define `x`}}something{{end}}{{if 3}}foo{{end}}", false},
 }
 
