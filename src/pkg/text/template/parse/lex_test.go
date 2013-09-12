@@ -340,6 +340,9 @@ var lexTests = []lexTest{
 		{itemText, 0, "hello-"},
 		{itemError, 0, `comment ends before closing delimiter`},
 	}},
+	{"unmatched right delimiter", "hello-{.}}-world", []item{
+		{itemError, 0, `unmatched right delimiter`},
+	}},
 }
 
 // collect gathers the emitted items into a slice.
