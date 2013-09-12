@@ -1358,6 +1358,10 @@ func RedirectHandler(url string, code int) Handler {
 // former will receive requests for any other paths in the
 // "/images/" subtree.
 //
+// Note that since a pattern ending in a slash names a rooted subtree,
+// the pattern "/" matches all paths not matched by other registered
+// patterns, not just the URL with Path == "/".
+//
 // Patterns may optionally begin with a host name, restricting matches to
 // URLs on that host only.  Host-specific patterns take precedence over
 // general patterns, so that a handler might register for the two patterns
