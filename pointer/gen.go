@@ -450,9 +450,14 @@ func (a *analysis) genConv(conv *ssa.Convert) {
 		case *types.Pointer:
 			// unsafe.Pointer -> *T?  (currently unsound)
 			if utSrc == tUnsafePtr {
-				a.warnf(conv.Pos(),
-					"unsound: %s contains an unsafe.Pointer conversion (to %s)",
-					conv.Parent(), tDst)
+				// For now, suppress unsafe.Pointer conversion
+				// warnings on "syscall" package.
+				// TODO(adonovan): audit for soundness.
+				if conv.Parent().Pkg.Object.Path() != "syscall" {
+					a.warnf(conv.Pos(),
+						"unsound: %s contains an unsafe.Pointer conversion (to %s)",
+						conv.Parent(), tDst)
+				}
 
 				// For now, we treat unsafe.Pointer->*T
 				// conversion like new(T) and create an
