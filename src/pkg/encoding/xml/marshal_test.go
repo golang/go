@@ -1084,6 +1084,23 @@ func TestMarshalWriteIOErrors(t *testing.T) {
 	}
 }
 
+func TestMarshalFlush(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.EncodeToken(CharData("hello world")); err != nil {
+		t.Fatalf("enc.EncodeToken: %v", err)
+	}
+	if buf.Len() > 0 {
+		t.Fatalf("enc.EncodeToken caused actual write: %q", buf.Bytes())
+	}
+	if err := enc.Flush(); err != nil {
+		t.Fatalf("enc.Flush: %v", err)
+	}
+	if buf.String() != "hello world" {
+		t.Fatalf("after enc.Flush, buf.String() = %q, want %q", buf.String(), "hello world")
+	}
+}
+
 func BenchmarkMarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Marshal(atomValue)
