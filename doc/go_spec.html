@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Aug 15, 2013",
+	"Subtitle": "Version of Sep 12, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -869,7 +869,7 @@ The array underlying a slice may extend past the end of the slice.
 The <i>capacity</i> is a measure of that extent: it is the sum of
 the length of the slice and the length of the array beyond the slice;
 a slice of length up to that capacity can be created by
-<a href="#Slices"><i>slicing</i></a> a new one from the original slice.
+<a href="#Slice_expressions"><i>slicing</i></a> a new one from the original slice.
 The capacity of a slice <code>a</code> can be discovered using the
 built-in function <a href="#Length_and_capacity"><code>cap(a)</code></a>.
 </p>
@@ -2359,7 +2359,9 @@ PrimaryExpr =
 
 Selector       = "." identifier .
 Index          = "[" Expression "]" .
-Slice          = "[" [ Expression ] ":" [ Expression ] "]" .
+Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
+                     ( [ Expression ] ":" Expression ":" Expression )
+                 "]" .
 TypeAssertion  = "." "(" Type ")" .
 Call           = "(" [ ArgumentList [ "," ] ] ")" .
 ArgumentList   = ExpressionList [ "..." ] .
@@ -2621,7 +2623,15 @@ Assigning to an element of a <code>nil</code> map causes a
 </p>
 
 
-<h3 id="Slices">Slices</h3>
+<h3 id="Slice_expressions">Slice expressions</h3>
+
+<p>
+Slice expressions construct a substring or slice from a string, array, pointer
+to array, or slice. There are two variants: a simple form that specifies a low
+and high bound, and a full form that also specifies a bound on the capacity.
+</p>
+
+<h4>Simple slice expressions</h4>
 
 <p>
 For a string, array, pointer to array, or slice <code>a</code>, the primary expression
@@ -2693,6 +2703,53 @@ and the result of the slice operation is a slice with the same element type as t
 <p>
 If the sliced operand of a valid slice expression is a <code>nil</code> slice, the result
 is a <code>nil</code> slice.
+</p>
+
+<h4>Full slice expressions</h4>
+
+<p>
+For an array, pointer to array, or slice <code>a</code> (but not a string), the primary expression
+</p>
+
+<pre>
+a[low : high : max]
+</pre>
+
+<p>
+constructs a slice of the same type, and with the same length and elements as the simple slice
+expression <code>a[low : high]</code>. Additionally, it controls the resulting slice's capacity
+by setting it to <code>max - low</code>. Only the first index may be omitted; it defaults to 0.
+After slicing the array <code>a</code>
+</p>
+
+<pre>
+a := [5]int{1, 2, 3, 4, 5}
+t := a[1:3:5]
+</pre>
+
+<p>
+the slice <code>t</code> has type <code>[]int</code>, length 2, capacity 4, and elements
+</p>
+
+<pre>
+t[0] == 2
+t[1] == 3
+</pre>
+
+<p>
+As for simple slice expressions, if <code>a</code> is a pointer to an array,
+<code>a[low : high : max]</code> is shorthand for <code>(*a)[low : high : max]</code>.
+If the sliced operand is an array, it must be <a href="#Address_operators">addressable</a>.
+</p>
+
+<p>
+The indices are <i>in range</i> if <code>0 &lt;= low &lt;= high &lt;= max &lt;= cap(a)</code>,
+otherwise they are <i>out of range</i>.
+A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
+<code>int</code>.
+If multiple indices are constant, the constants that are present must be in range relative to each
+other.
+If the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <h3 id="Type_assertions">Type assertions</h3>
