@@ -44,7 +44,7 @@ func SortImports(fset *token.FileSet, f *File) {
 			lastSpec := d.Specs[len(d.Specs)-1]
 			lastLine := fset.Position(lastSpec.Pos()).Line
 			if rParenLine := fset.Position(d.Rparen).Line; rParenLine > lastLine+1 {
-				fset.File(d.Rparen).RemoveLine(rParenLine - 1)
+				fset.File(d.Rparen).MergeLine(rParenLine - 1)
 			}
 		}
 	}
@@ -146,7 +146,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 			deduped = append(deduped, s)
 		} else {
 			p := s.Pos()
-			fset.File(p).RemoveLine(fset.Position(p).Line)
+			fset.File(p).MergeLine(fset.Position(p).Line)
 		}
 	}
 	specs = deduped
