@@ -408,16 +408,14 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 
 var threadLimit = make(chan struct{}, 500)
 
-func init() {
-	for i := 0; i < cap(threadLimit); i++ {
-		threadLimit <- struct{}{}
-	}
-}
+// Using send for acquire is fine here because we are not using this
+// to protect any memory. All we care about is the number of goroutines
+// making calls at a time.
 
 func acquireThread() {
-	<-threadLimit
+	threadLimit <- struct{}{}
 }
 
 func releaseThread() {
-	threadLimit <- struct{}{}
+	<-threadLimit
 }
