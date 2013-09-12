@@ -174,6 +174,7 @@ runtime·oldstack(void)
 	gp->stackbase = top->stackbase;
 	gp->stackguard = top->stackguard;
 	gp->stackguard0 = gp->stackguard;
+	gp->panicwrap = top->panicwrap;
 
 	if(top->free != 0) {
 		gp->stacksize -= top->free;
@@ -195,7 +196,7 @@ void
 runtime·newstack(void)
 {
 	int32 framesize, argsize, oldstatus;
-	Stktop *top;
+	Stktop *top, *oldtop;
 	byte *stk;
 	uintptr sp;
 	uintptr *src, *dst, *dstend;
@@ -316,6 +317,16 @@ runtime·newstack(void)
 	// copy flag from panic
 	top->panic = gp->ispanic;
 	gp->ispanic = false;
+	
+	// if this isn't a panic, maybe we're splitting the stack for a panic.
+	// if we're splitting in the top frame, propagate the panic flag
+	// forward so that recover will know we're in a panic.
+	oldtop = (Stktop*)top->stackbase;
+	if(oldtop != nil && oldtop->panic && top->argp == (byte*)oldtop - oldtop->argsize - gp->panicwrap)
+		top->panic = true;
+
+	top->panicwrap = gp->panicwrap;
+	gp->panicwrap = 0;
 
 	gp->stackbase = (uintptr)top;
 	gp->stackguard = (uintptr)stk + StackGuard;

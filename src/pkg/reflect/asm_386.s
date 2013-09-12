@@ -8,7 +8,7 @@
 // See the comment on the declaration of makeFuncStub in makefunc.go
 // for more details.
 // No argsize here, gc generates argsize info at call site.
-TEXT ·makeFuncStub(SB),NOSPLIT,$8
+TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
 	MOVL	DX, 0(SP)
 	LEAL	argframe+0(FP), CX
 	MOVL	CX, 4(SP)
@@ -19,7 +19,7 @@ TEXT ·makeFuncStub(SB),NOSPLIT,$8
 // See the comment on the declaration of methodValueCall in makefunc.go
 // for more details.
 // No argsize here, gc generates argsize info at call site.
-TEXT ·methodValueCall(SB),NOSPLIT,$8
+TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
 	MOVL	DX, 0(SP)
 	LEAL	argframe+0(FP), CX
 	MOVL	CX, 4(SP)

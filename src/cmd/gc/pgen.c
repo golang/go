@@ -95,7 +95,18 @@ compile(Node *fn)
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	if(fn->dupok)
-		ptxt->TEXTFLAG = DUPOK;
+		ptxt->TEXTFLAG |= DUPOK;
+	if(fn->wrapper)
+		ptxt->TEXTFLAG |= WRAPPER;
+
+	// Clumsy but important.
+	// See test/recover.go for test cases and src/pkg/reflect/value.go
+	// for the actual functions being considered.
+	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
+		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)
+			ptxt->TEXTFLAG |= WRAPPER;
+	}	
+	
 	afunclit(&ptxt->from, curfn->nname);
 
 	ginit();

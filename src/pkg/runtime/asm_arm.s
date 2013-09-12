@@ -300,7 +300,7 @@ TEXT reflect·call(SB), NOSPLIT, $-4-12
 	B	(R1)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT runtime·NAME(SB), 0, $MAXSIZE-12;		\
+TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
 	/* copy arguments to stack */		\
 	MOVW	argptr+4(FP), R0;		\
 	MOVW	argsize+8(FP), R2;		\

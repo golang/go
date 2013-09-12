@@ -1773,6 +1773,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	newg->gopc = (uintptr)callerpc;
 	newg->status = Grunnable;
 	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
+	newg->panicwrap = 0;
 	if(raceenabled)
 		newg->racectx = runtime·racegostart((void*)callerpc);
 	runqput(m->p, newg);

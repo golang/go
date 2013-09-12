@@ -10,6 +10,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"runtime"
 )
 
@@ -26,15 +27,39 @@ func main() {
 	test6()
 	test6WithClosures()
 	test7()
+	test8()
+	test9()
+	test9reflect1()
+	test9reflect2()
+	test10()
+	test10reflect1()
+	test10reflect2()
+	test11()
+	test11reflect1()
+	test11reflect2()
+	test12()
+	test12reflect1()
+	test12reflect2()
+	test13()
+	test13reflect1()
+	test13reflect2()
+	test14()
+	test14reflect1()
+	test14reflect2()
+	test15()
 }
 
 func die() {
 	runtime.Breakpoint() // can't depend on panic
 }
 
-func mustRecover(x interface{}) {
-	mustNotRecover() // because it's not a defer call
-	v := recover()
+func mustRecoverBody(v1, v2, v3, x interface{}) {
+	v := v1
+	if v != nil {
+		println("spurious recover", v)
+		die()
+	}
+	v = v2
 	if v == nil {
 		println("missing recover")
 		die() // panic is useless here
@@ -45,11 +70,19 @@ func mustRecover(x interface{}) {
 	}
 
 	// the value should be gone now regardless
-	v = recover()
+	v = v3
 	if v != nil {
 		println("recover didn't recover")
 		die()
 	}
+}
+
+func doubleRecover() interface{} {
+	return recover()
+}
+
+func mustRecover(x interface{}) {
+	mustRecoverBody(doubleRecover(), recover(), recover(), x)
 }
 
 func mustNotRecover() {
@@ -276,4 +309,179 @@ func test8() {
 		println("wrong value")
 		die()
 	}
+}
+
+type I interface{ M() }
+
+// pointer receiver, so no wrapper in i.M()
+type T1 struct {}
+
+func (*T1) M() {
+	mustRecoverBody(doubleRecover(), recover(), recover(), 9)
+}
+
+func test9() {
+	var i I = &T1{}
+	defer i.M()
+	panic(9)
+}
+
+func test9reflect1() {
+	f := reflect.ValueOf(&T1{}).Method(0).Interface().(func())
+	defer f()
+	panic(9)
+}
+
+func test9reflect2() {
+	f := reflect.TypeOf(&T1{}).Method(0).Func.Interface().(func(*T1))
+	defer f(&T1{})
+	panic(9)
+}
+
+// word-sized value receiver, so no wrapper in i.M()
+type T2 uintptr
+
+func (T2) M() {
+	mustRecoverBody(doubleRecover(), recover(), recover(), 10)
+}
+
+func test10() {
+	var i I = T2(0)
+	defer i.M()
+	panic(10)
+}
+
+func test10reflect1() {
+	f := reflect.ValueOf(T2(0)).Method(0).Interface().(func())
+	defer f()
+	panic(10)
+}
+
+func test10reflect2() {
+	f := reflect.TypeOf(T2(0)).Method(0).Func.Interface().(func(T2))
+	defer f(T2(0))
+	panic(10)
+}
+
+// tiny receiver, so basic wrapper in i.M()
+type T3 struct {}
+
+func (T3) M() {
+	mustRecoverBody(doubleRecover(), recover(), recover(), 11)
+}
+
+func test11() {
+	var i I = T3{}
+	defer i.M()
+	panic(11)
+}
+
+func test11reflect1() {
+	f := reflect.ValueOf(T3{}).Method(0).Interface().(func())
+	defer f()
+	panic(11)
+}
+
+func test11reflect2() {
+	f := reflect.TypeOf(T3{}).Method(0).Func.Interface().(func(T3))
+	defer f(T3{})
+	panic(11)
+}
+
+// large receiver, so basic wrapper in i.M()
+type T4 [2]string
+
+func (T4) M() {
+	mustRecoverBody(doubleRecover(), recover(), recover(), 12)
+}
+
+func test12() {
+	var i I = T4{}
+	defer i.M()
+	panic(12)
+}
+
+func test12reflect1() {
+	f := reflect.ValueOf(T4{}).Method(0).Interface().(func())
+	defer f()
+	panic(12)
+}
+
+func test12reflect2() {
+	f := reflect.TypeOf(T4{}).Method(0).Func.Interface().(func(T4))
+	defer f(T4{})
+	panic(12)
+}
+
+// enormous receiver, so wrapper splits stack to call M
+type T5 [8192]byte
+
+func (T5) M() {
+	mustRecoverBody(doubleRecover(), recover(), recover(), 13)
+}
+
+func test13() {
+	var i I = T5{}
+	defer i.M()
+	panic(13)
+}
+
+func test13reflect1() {
+	f := reflect.ValueOf(T5{}).Method(0).Interface().(func())
+	defer f()
+	panic(13)
+}
+
+func test13reflect2() {
+	f := reflect.TypeOf(T5{}).Method(0).Func.Interface().(func(T5))
+	defer f(T5{})
+	panic(13)
+}
+
+// enormous receiver + enormous method frame, so wrapper splits stack to call M,
+// and then M splits stack to allocate its frame.
+// recover must look back two frames to find the panic.
+type T6 [8192]byte
+
+var global byte
+
+func (T6) M() {
+	var x [8192]byte
+	x[0] = 1
+	x[1] = 2
+	for i := range x {
+		global += x[i]
+	}
+	mustRecoverBody(doubleRecover(), recover(), recover(), 14)
+}
+
+func test14() {
+	var i I = T6{}
+	defer i.M()
+	panic(14)
+}
+
+func test14reflect1() {
+	f := reflect.ValueOf(T6{}).Method(0).Interface().(func())
+	defer f()
+	panic(14)
+}
+
+func test14reflect2() {
+	f := reflect.TypeOf(T6{}).Method(0).Func.Interface().(func(T6))
+	defer f(T6{})
+	panic(14)
+}
+
+// function created by reflect.MakeFunc
+
+func reflectFunc(args []reflect.Value) (results []reflect.Value) {
+	mustRecoverBody(doubleRecover(), recover(), recover(), 15)
+	return nil
+}
+
+func test15() {
+	f := reflect.MakeFunc(reflect.TypeOf((func())(nil)), reflectFunc).Interface().(func())
+	defer f()
+	panic(15)
 }

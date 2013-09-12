@@ -340,7 +340,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-12
 	JMP	AX
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT runtime·NAME(SB), 0, $MAXSIZE-12;		\
+TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
 	/* copy arguments to stack */		\
 	MOVL	argptr+4(FP), SI;		\
 	MOVL	argsize+8(FP), CX;		\

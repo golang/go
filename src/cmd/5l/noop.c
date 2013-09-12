@@ -271,6 +271,35 @@ noops(void)
 				p->to.offset = -autosize;
 				p->to.reg = REGSP;
 				p->spadj = autosize;
+				
+				if(cursym->text->reg & WRAPPER) {
+					// g->panicwrap += autosize;
+					// MOVW panicwrap_offset(g), R3
+					// ADD $autosize, R3
+					// MOVW R3 panicwrap_offset(g)
+					p = appendp(p);
+					p->as = AMOVW;
+					p->from.type = D_OREG;
+					p->from.reg = REGG;
+					p->from.offset = 2*PtrSize;
+					p->to.type = D_REG;
+					p->to.reg = 3;
+				
+					p = appendp(p);
+					p->as = AADD;
+					p->from.type = D_CONST;
+					p->from.offset = autosize;
+					p->to.type = D_REG;
+					p->to.reg = 3;
+					
+					p = appendp(p);
+					p->as = AMOVW;
+					p->from.type = D_REG;
+					p->from.reg = 3;
+					p->to.type = D_OREG;
+					p->to.reg = REGG;
+					p->to.offset = 2*PtrSize;
+				}
 				break;
 	
 			case ARET:
@@ -290,6 +319,36 @@ noops(void)
 						break;
 					}
 				}
+
+				if(cursym->text->reg & WRAPPER) {
+					// g->panicwrap -= autosize;
+					// MOVW panicwrap_offset(g), R3
+					// SUB $autosize, R3
+					// MOVW R3 panicwrap_offset(g)
+					p->as = AMOVW;
+					p->from.type = D_OREG;
+					p->from.reg = REGG;
+					p->from.offset = 2*PtrSize;
+					p->to.type = D_REG;
+					p->to.reg = 3;
+					p = appendp(p);
+				
+					p->as = ASUB;
+					p->from.type = D_CONST;
+					p->from.offset = autosize;
+					p->to.type = D_REG;
+					p->to.reg = 3;
+					p = appendp(p);
+
+					p->as = AMOVW;
+					p->from.type = D_REG;
+					p->from.reg = 3;
+					p->to.type = D_OREG;
+					p->to.reg = REGG;
+					p->to.offset = 2*PtrSize;
+					p = appendp(p);
+				}
+
 				p->as = AMOVW;
 				p->scond |= C_PBIT;
 				p->from.type = D_OREG;
