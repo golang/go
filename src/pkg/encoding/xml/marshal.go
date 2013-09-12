@@ -147,6 +147,8 @@ func (enc *Encoder) Indent(prefix, indent string) {
 //
 // See the documentation for Marshal for details about the conversion
 // of Go values to XML.
+//
+// Encode calls Flush before returning.
 func (enc *Encoder) Encode(v interface{}) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
 	if err != nil {
@@ -160,6 +162,8 @@ func (enc *Encoder) Encode(v interface{}) error {
 //
 // See the documentation for Marshal for details about the conversion
 // of Go values to XML.
+//
+// EncodeElement calls Flush before returning.
 func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
 	if err != nil {
@@ -176,6 +180,14 @@ var (
 
 // EncodeToken writes the given XML token to the stream.
 // It returns an error if StartElement and EndElement tokens are not properly matched.
+//
+// EncodeToken does not call Flush, because usually it is part of a larger operation
+// such as Encode or EncodeElement (or a custom Marshaler's MarshalXML invoked
+// during those), and those will call Flush when finished.
+//
+// Callers that create an Encoder and then invoke EncodeToken directly, without
+// using Encode or EncodeElement, need to call Flush when finished to ensure
+// that the XML is written to the underlying writer.
 func (enc *Encoder) EncodeToken(t Token) error {
 	p := &enc.p
 	switch t := t.(type) {
@@ -220,6 +232,12 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString(">")
 	}
 	return p.cachedWriteError()
+}
+
+// Flush flushes any buffered XML to the underlying writer.
+// See the EncodeToken documentation for details about when it is necessary.
+func (enc *Encoder) Flush() error {
+	return enc.p.Flush()
 }
 
 type printer struct {
