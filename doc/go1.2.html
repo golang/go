@@ -633,11 +633,11 @@ if it is <code>nil</code>, Floyd-Steinberg error diffusion is used.
 </li>
 
 <li>
-The<a href="/pkg/io/#Copy"><code>Copy</code></a> method of the
+The <a href="/pkg/io/#Copy"><code>Copy</code></a> method of the
 <a href="/pkg/io/"><code>io</code></a> package now prioritizes its
 arguments differently.
 If one argument implements <a href="/pkg/io/#WriterTo"><code>WriterTo</code></a>
-and the other implements i<a href="/pkg/o/#ReaderFrom"><code>ReaderFrom</code></a>,
+and the other implements <a href="/pkg/io/#ReaderFrom"><code>ReaderFrom</code></a>,
 <a href="/pkg/io/#Copy"><code>Copy</code></a> will now invoke
 <a href="/pkg/io/#WriterTo"><code>WriterTo</code></a> to do the work,
 so that less intermediate buffering is required in general.
@@ -645,6 +645,13 @@ so that less intermediate buffering is required in general.
 
 <li>
 net: TODO new build tag netgo for building a pure Go net package (CL 7100050).
+</li>
+
+<li>
+The <a href="/pkg/net/"><code>net</code></a> package adds a new field
+<code>DualStack</code> to the <a href="/pkg/net/#Dialer"><code>Dialer</code></a>
+struct for TCP connection setup using a dual IP stack as described in
+<a href="http://tools.ietf.org/html/rfc6555">RFC 6555</a>.
 </li>
 
 <li>
