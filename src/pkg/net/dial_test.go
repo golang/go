@@ -431,9 +431,15 @@ func TestDialFailPDLeak(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+	if runtime.GOOS == "windows" && runtime.GOARCH == "386" {
+		// Just skip the test because it takes too long.
+		t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
+	}
 
 	const loops = 10
-	const count = 20000
+	// 500 is enough to turn over the chunk of pollcache.
+	// See allocPollDesc in runtime/netpoll.goc.
+	const count = 500
 	var old runtime.MemStats // used by sysdelta
 	runtime.ReadMemStats(&old)
 	sysdelta := func() uint64 {
@@ -446,13 +452,20 @@ func TestDialFailPDLeak(t *testing.T) {
 	d := &Dialer{Timeout: time.Nanosecond} // don't bother TCP with handshaking
 	failcount := 0
 	for i := 0; i < loops; i++ {
+		var wg sync.WaitGroup
 		for i := 0; i < count; i++ {
-			conn, err := d.Dial("tcp", "127.0.0.1:1")
-			if err == nil {
-				t.Error("dial should not succeed")
-				conn.Close()
-				t.FailNow()
-			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if c, err := d.Dial("tcp", "127.0.0.1:1"); err == nil {
+					t.Error("dial should not succeed")
+					c.Close()
+				}
+			}()
+		}
+		wg.Wait()
+		if t.Failed() {
+			t.FailNow()
 		}
 		if delta := sysdelta(); delta > 0 {
 			failcount++
