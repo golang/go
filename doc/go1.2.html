@@ -142,13 +142,16 @@ go/build: support including C++ code with cgo (CL 8248043).
 </li>
 </ul>
 
-<h3 id="go_tools_godoc">Godoc moved to the go.tools subrepository</h3>
+<h3 id="go_tools_godoc">Godoc and vet moved to the go.tools subrepository</h3>
 
 <p>
-A binary is still included with the distribution, but the source code for the
-<code>godoc</code> command has moved to the
+Both binaries are still included with the distribution, but the source code for the
+godoc and vet commands has moved to the
 <a href="http://code.google.com/p/go.tools">go.tools</a> subrepository.
-The core of the program has been split into a
+</p>
+
+<p>
+Also, the core of the godoc program has been split into a
 <a href="https://code.google.com/p/go/source/browse/?repo=tools#hg%2Fgodoc">library</a>,
 while the command itself is in a separate
 <a href="https://code.google.com/p/go/source/browse/?repo=tools#hg%2Fcmd%2Fgodoc">directory</a>.
@@ -158,28 +161,23 @@ makes it easier to construct custom binaries for local sites and different deplo
 
 <p>
 <em>Updating</em>:
-Since godoc was not part of the library,
-no client code depends on the godoc sources and no updating is required.
+Since godoc and vet are not part of the library,
+no client Go code depends on the their source and no updating is required.
 </p>
 
 <p>
 The binary distributions available from <a href="http://golang.org">golang.org</a>
-include a godoc binary, so users of these distributions are unaffected.
+include these binaries, so users of these distributions are unaffected.
 </p>
 
 <p>
-When building from source, users must use "go get" to install godoc.
+When building from source, users must use "go get" to install godoc and vet.
 </p>
 
 <pre>
 $ go get code.google.com/p/go.tools/cmd/godoc
+$ go get code.google.com/p/go.tools/cmd/vet
 </pre>
-
-<h3 id="go_tools_vet">The vet tool moved to the go.tools subrepository</h3>
-
-<p>
-TODO
-</p>
 
 <h3 id="gccgo">Status of gccgo</h3>
 
@@ -212,19 +210,88 @@ TODO: write prose
 </li>
 </ul>
 
+<h3 id="cover">Test coverage</h3>
+
+<p>
+One major new feature of <a href="/pkg/go/"><code>go test</code></a> is
+that it can now compute and, with help from a new, separately installed
+"go tool cover" program, display test coverage results.
+</p>
+
+<p>
+The cover tool is part of the
+<a href="https://code.google.com/p/go/source/checkout?repo=tools"><code>go.tools</code></a>
+subrepository.
+It can be installed by running
+</p>
+
+<pre>
+$ go get code.google.com/p/go.tools/cmd/cover
+</pre>
+
+<p>
+The cover tool does two things.
+First, when "go test" is given the <code>-cover</code> flag, it is run automatically 
+to rewrite the source for the package and insert instrumentation statements.
+The test is then compiled and run as usual, and basic coverage statistics are reported:
+</p>
+
+<pre>
+$ go test -cover fmt
+ok  	fmt	0.060s	coverage: 91.4% of statements
+$
+</pre>
+
+<p>
+Second, for more detailed reports, different flags to "go test" can create a coverage profile file,
+which the cover program, invoked with "go tool cover", can then analyze.
+</p>
+
+<p>
+Details on how to generate and analyze coverage statistics can be found by running the commands
+</p>
+
+<pre>
+$ go help testflag
+$ go tool cover -help
+</pre>
+
+<h3 id="go_doc">The go doc command is deleted</h3>
+
+<p>
+The "go doc" command is deleted.
+Note that the <a href="/cmd/godoc/"><code>godoc</code></a> tool itself is not deleted,
+just the wrapping of it by the <a href="/cmd/go/"><code>go</code></a> command.
+All it did was show the documents for a package by package path,
+which godoc itself already does with more flexibility.
+It has therefore been deleted to reduce the number of documentation tools and,
+as part of the restructuring of godoc, encourage better options in future.
+</p>
+
+<p>
+<em>Updating</em>: For those who still need the precise functionality of running
+</p>
+
+<pre>
+$ go doc
+</pre>
+
+<p>
+in a directory, the behavior is identical to running
+</p>
+
+<pre>
+$ godoc .
+</pre>
+
 <h3 id="gocmd">Changes to the go command</h3>
 
-<ul>
-<li>cmd/go: test coverage (CL 10413044).
-</li>
-
-<li>cmd/go: add -t flag to 'go get' to download test dependencies (CL 12566046).
-</li>
-
-<li>cmd/go: delete 'go doc' (CL 12974043).
-</li>
-
-</ul>
+<p>
+The <a href="/cmd/go/"><code>go get</code></a> command
+now has a <code>-t</code> flag that causes it to download the dependencies
+of the tests run by the package, not just those of the package itself.
+By default, as before, dependencies of the tests are not downloaded.
+</p>
 
 
 <h3 id="platforms">Additional platforms</h3>
@@ -429,10 +496,20 @@ The two forms are identical in effect; the difference is just in the syntax.
 </p>
 
 <p>
-<em>Updating</em>: Neither change affects existing programs. Those that
+Finally, the package 
+now correctly diagnoses unmatched right delimiters.
+They were accepted without complaint before, and templates that had them
+will now fail to parse.
+</p>
+
+<p>
+<em>Updating</em>: Neither the "else if" change nor the comparison functions
+affect existing programs. Those that
 already define functions called <code>eq</code> and so on through a function
 map are unaffected because the associated function map will override the new
 default function definitions.
+Templates with unmatched right delimiters will now fail to parse and will need
+to be fixed by hand.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -471,11 +548,22 @@ can now decompress concatenated archives.
 The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>
 package adds a <a href="/pkg/compress/flate/#Reset"><code>Reset</code></a> 
 method on the <a href="/pkg/compress/flate/#Writer"><code>Writer</code></a>,
-allowing compression of one file to start with another's dictionary.
+to make it possible to reduce allocation when, for instance, constructing an
+archive to hold multiple compressed files.
 </li>
 
 <li>
-compress/gzip: add Reset method on Writer (CL 13435043).
+The <a href="/pkg/compress/gzip/"><code>compress/gzip</code></a> package's
+<a href="/pkg/compress/gzip/#Writer"><code>Writer</code></a> type adds a
+<a href="/pkg/compress/gzip/#Writer.Reset"><code>Reset</code></a>
+so it may be reused.
+</li>
+
+<li>
+The <a href="/pkg/compress/zlib/"><code>compress/zlib</code></a> package's
+<a href="/pkg/compress/zlib/#Writer"><code>Writer</code></a> type adds a
+<a href="/pkg/compress/zlib/#Writer.Reset"><code>Reset</code></a>
+so it may be reused.
 </li>
 
 <li>
@@ -644,7 +732,12 @@ so that less intermediate buffering is required in general.
 </li>
 
 <li>
-net: TODO new build tag netgo for building a pure Go net package (CL 7100050).
+The <a href="/pkg/net/"><code>net</code></a> package requires cgo by default
+because the host operating system must in general mediate network call setup.
+On some systems, though, it is possible to use the network without cgo, and useful
+to do so, for instance to avoid dynamic linking.
+The new build tag <code>netgo</code> (off by default) allows the construction of a
+<code>net</code> package in pure Go on those systems where it is possible.
 </li>
 
 <li>
