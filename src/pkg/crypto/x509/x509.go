@@ -45,33 +45,55 @@ func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 	return parsePublicKey(algo, &pki)
 }
 
-// MarshalPKIXPublicKey serialises a public key to DER-encoded PKIX format.
-func MarshalPKIXPublicKey(pub interface{}) ([]byte, error) {
-	var pubBytes []byte
-
+func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
 	switch pub := pub.(type) {
 	case *rsa.PublicKey:
-		pubBytes, _ = asn1.Marshal(rsaPublicKey{
+		publicKeyBytes, err = asn1.Marshal(rsaPublicKey{
 			N: pub.N,
 			E: pub.E,
 		})
+		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
+		// This is a NULL parameters value which is technically
+		// superfluous, but most other code includes it and, by
+		// doing this, we match their public key hashes.
+		publicKeyAlgorithm.Parameters = asn1.RawValue{
+			Tag: 5,
+		}
+	case *ecdsa.PublicKey:
+		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
+		oid, ok := oidFromNamedCurve(pub.Curve)
+		if !ok {
+			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported elliptic curve")
+		}
+		publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
+		var paramBytes []byte
+		paramBytes, err = asn1.Marshal(oid)
+		if err != nil {
+			return
+		}
+		publicKeyAlgorithm.Parameters.FullBytes = paramBytes
 	default:
-		return nil, errors.New("x509: unknown public key type")
+		return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: only RSA and ECDSA public keys supported")
+	}
+
+	return publicKeyBytes, publicKeyAlgorithm, nil
+}
+
+// MarshalPKIXPublicKey serialises a public key to DER-encoded PKIX format.
+func MarshalPKIXPublicKey(pub interface{}) ([]byte, error) {
+	var publicKeyBytes []byte
+	var publicKeyAlgorithm pkix.AlgorithmIdentifier
+	var err error
+
+	if publicKeyBytes, publicKeyAlgorithm, err = marshalPublicKey(pub); err != nil {
+		return nil, err
 	}
 
 	pkix := pkixPublicKey{
-		Algo: pkix.AlgorithmIdentifier{
-			Algorithm: []int{1, 2, 840, 113549, 1, 1, 1},
-			// This is a NULL parameters value which is technically
-			// superfluous, but most other code includes it and, by
-			// doing this, we match their public key hashes.
-			Parameters: asn1.RawValue{
-				Tag: 5,
-			},
-		},
+		Algo: publicKeyAlgorithm,
 		BitString: asn1.BitString{
-			Bytes:     pubBytes,
-			BitLength: 8 * len(pubBytes),
+			Bytes:     publicKeyBytes,
+			BitLength: 8 * len(publicKeyBytes),
 		},
 	}
 
@@ -1338,28 +1360,8 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interf
 	var publicKeyBytes []byte
 	var publicKeyAlgorithm pkix.AlgorithmIdentifier
 
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		publicKeyBytes, err = asn1.Marshal(rsaPublicKey{
-			N: pub.N,
-			E: pub.E,
-		})
-		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
-	case *ecdsa.PublicKey:
-		oid, ok := oidFromNamedCurve(pub.Curve)
-		if !ok {
-			return nil, errors.New("x509: unknown elliptic curve")
-		}
-		publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
-		var paramBytes []byte
-		paramBytes, err = asn1.Marshal(oid)
-		if err != nil {
-			return
-		}
-		publicKeyAlgorithm.Parameters.FullBytes = paramBytes
-		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
-	default:
-		return nil, errors.New("x509: only RSA and ECDSA public keys supported")
+	if publicKeyBytes, publicKeyAlgorithm, err = marshalPublicKey(pub); err != nil {
+		return nil, err
 	}
 
 	var signatureAlgorithm pkix.AlgorithmIdentifier
