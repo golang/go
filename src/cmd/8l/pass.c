@@ -415,7 +415,7 @@ static Sym *symmorestack;
 void
 dostkoff(void)
 {
-	Prog *p, *q, *q1;
+	Prog *p, *q;
 	int32 autoffset, deltasp;
 	int a;
 
@@ -443,7 +443,6 @@ dostkoff(void)
 			autoffset = 0;
 
 		q = P;
-		q1 = P;
 
 		if(!(p->from.scale & NOSPLIT)) {
 			p = appendp(p);
