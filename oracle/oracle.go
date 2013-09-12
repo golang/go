@@ -50,14 +50,16 @@ type oracle struct {
 }
 
 // A set of bits indicating the analytical requirements of each mode.
-// Typed ASTs for the queried package are always available.
+//
+// Typed ASTs for the whole program are always constructed
+// transiently; they are retained only for the queried package unless
+// AllTypeInfo is set.
 const (
-	Pos         = 1 << iota     // needs a position
-	ExactPos                    // needs an exact AST selection; implies Pos
-	AllASTs                     // needs ASTs (not just object types) for whole program
-	AllTypeInfo                 // needs to retain type info for all ASTs in the program
-	SSA                         // needs ssa.Packages for whole program
-	PTA         = AllASTs | SSA // needs pointer analysis
+	Pos         = 1 << iota // needs a position
+	ExactPos                // needs an exact AST selection; implies Pos
+	AllTypeInfo             // needs to retain type info for all ASTs in the program
+	SSA                     // needs ssa.Packages for whole program
+	PTA         = SSA       // needs pointer analysis
 )
 
 type modeInfo struct {
@@ -71,10 +73,10 @@ var modes = map[string]modeInfo{
 	"callgraph":  modeInfo{PTA, callgraph},
 	"callstack":  modeInfo{PTA | Pos, callstack},
 	"describe":   modeInfo{PTA | ExactPos, describe},
-	"freevars":   modeInfo{AllASTs | Pos, freevars},
+	"freevars":   modeInfo{Pos, freevars},
 	"implements": modeInfo{Pos, implements},
 	"peers":      modeInfo{PTA | Pos, peers},
-	"referrers":  modeInfo{AllTypeInfo | AllASTs | Pos, referrers},
+	"referrers":  modeInfo{AllTypeInfo | Pos, referrers},
 }
 
 type printfFunc func(pos interface{}, format string, args ...interface{})
@@ -132,9 +134,6 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	if minfo.needs&AllASTs == 0 {
-		buildContext = nil
-	}
 	imp := importer.New(&importer.Config{Build: buildContext})
 	o := &oracle{
 		prog:   ssa.NewProgram(imp.Fset, 0),
