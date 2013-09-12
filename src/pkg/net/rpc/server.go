@@ -616,6 +616,7 @@ func RegisterName(name string, rcvr interface{}) error {
 type ServerCodec interface {
 	ReadRequestHeader(*Request) error
 	ReadRequestBody(interface{}) error
+	// WriteResponse must be safe for concurrent use by multiple goroutines.
 	WriteResponse(*Response, interface{}) error
 
 	Close() error
