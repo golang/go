@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 import (
@@ -1205,7 +1209,8 @@ func conv(t_dst, t_src types.Type, x value) value {
 			// TODO(adonovan): this is wrong and cannot
 			// really be fixed with the current design.
 			//
-			// It creates a new pointer of a different
+			// return (*value)(x.(unsafe.Pointer))
+			// creates a new pointer of a different
 			// type but the underlying interface value
 			// knows its "true" type and so cannot be
 			// meaningfully used through the new pointer.
@@ -1213,7 +1218,11 @@ func conv(t_dst, t_src types.Type, x value) value {
 			// To make this work, the interpreter needs to
 			// simulate the memory layout of a real
 			// compiled implementation.
-			return (*value)(x.(unsafe.Pointer))
+			//
+			// To at least preserve type-safety, we'll
+			// just return the zero value of the
+			// destination type.
+			return zero(t_dst)
 		}
 
 		// Conversions between complex numeric types?

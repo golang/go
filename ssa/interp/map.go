@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 // Custom hashtable atop map.
@@ -42,22 +46,24 @@ func makeMap(kt types.Type, reserve int) value {
 
 // delete removes the association for key k, if any.
 func (m *hashmap) delete(k hashable) {
-	hash := k.hash()
-	head := m.table[hash]
-	if head != nil {
-		if k.eq(head.key) {
-			m.table[hash] = head.next
-			m.length--
-			return
-		}
-		prev := head
-		for e := head.next; e != nil; e = e.next {
-			if k.eq(e.key) {
-				prev.next = e.next
+	if m != nil {
+		hash := k.hash()
+		head := m.table[hash]
+		if head != nil {
+			if k.eq(head.key) {
+				m.table[hash] = head.next
 				m.length--
 				return
 			}
-			prev = e
+			prev := head
+			for e := head.next; e != nil; e = e.next {
+				if k.eq(e.key) {
+					prev.next = e.next
+					m.length--
+					return
+				}
+				prev = e
+			}
 		}
 	}
 }
@@ -65,10 +71,12 @@ func (m *hashmap) delete(k hashable) {
 // lookup returns the value associated with key k, if present, or
 // value(nil) otherwise.
 func (m *hashmap) lookup(k hashable) value {
-	hash := k.hash()
-	for e := m.table[hash]; e != nil; e = e.next {
-		if k.eq(e.key) {
-			return e.value
+	if m != nil {
+		hash := k.hash()
+		for e := m.table[hash]; e != nil; e = e.next {
+			if k.eq(e.key) {
+				return e.value
+			}
 		}
 	}
 	return nil
@@ -97,5 +105,8 @@ func (m *hashmap) insert(k hashable, v value) {
 
 // len returns the number of key/value associations in the map.
 func (m *hashmap) len() int {
-	return m.length
+	if m != nil {
+		return m.length
+	}
+	return 0
 }
