@@ -12,3 +12,7 @@ var s.x int
 var x int
 var y int32
 
+-------- @freevars fv3 --------
+Free identifers:
+var x int
+

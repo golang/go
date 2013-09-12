@@ -28,6 +28,8 @@ import (
 //
 func freevars(o *oracle) (queryResult, error) {
 	file := o.queryPath[len(o.queryPath)-1] // the enclosing file
+	fileScope := o.queryPkgInfo.Scopes[file]
+	pkgScope := fileScope.Parent()
 
 	// The id and sel functions return non-nil if they denote an
 	// object o or selection o.x.y that is referenced by the
@@ -61,11 +63,12 @@ func freevars(o *oracle) (queryResult, error) {
 		if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
 			return nil // not defined in this file
 		}
-		if obj.Parent() == nil {
-			return nil // e.g. interface method  TODO(adonovan): what else?
+		scope := obj.Parent()
+		if scope == nil {
+			return nil // e.g. interface method, struct field
 		}
-		if obj.Parent() == o.queryPkgInfo.Scopes[file] {
-			return nil // defined at file scope
+		if scope == fileScope || scope == pkgScope {
+			return nil // defined at file or package scope
 		}
 		if o.startPos <= obj.Pos() && obj.Pos() <= o.endPos {
 			return nil // defined within selection => not free

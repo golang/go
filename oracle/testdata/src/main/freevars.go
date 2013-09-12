@@ -15,6 +15,8 @@ type S struct {
 	t T
 }
 
+func f(int) {}
+
 func main() {
 	type C int
 	x := 1
@@ -28,6 +30,8 @@ func main() {
 	for x, y := range "foo" {
 		println(s.x + s.t.a + s.t.b + x + int(y)) // @freevars fv2 "print.*y."
 	}
+
+	f(x) // @freevars fv3 "f.x."
 
 	// TODO(adonovan): enable when go/types supports labels.
 loop: // #@freevars fv-def-label "loop:"
