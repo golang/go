@@ -271,8 +271,9 @@ patch(void)
 {
 	int32 c;
 	Prog *p, *q;
-	Sym *s, *gmsym;
+	Sym *s;
 	int32 vexit;
+	Sym *gmsym;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f mkfwd\n", cputime());
@@ -467,6 +468,10 @@ morename[] =
 };
 Prog*	pmorestack[nelem(morename)];
 Sym*	symmorestack[nelem(morename)];
+Sym*	gmsym;
+
+static Prog*	load_g_cx(Prog*);
+static Prog*	stacksplit(Prog*, int32, Prog**);
 
 void
 dostkoff(void)
@@ -474,9 +479,7 @@ dostkoff(void)
 	Prog *p, *q, *q1;
 	int32 autoffset, deltasp;
 	int a, pcsize;
-	uint32 moreconst1, moreconst2, i;
-	Sym *gmsym;
-
+	uint32 i;
 
 	gmsym = lookup("runtime.tlsgm", 0);
 	for(i=0; i<nelem(morename); i++) {
@@ -504,239 +507,15 @@ dostkoff(void)
 		noleaf:;
 		}
 
-		q = P;
-		q1 = P;
 		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
 			diag("nosplit func likely to overflow stack");
 
+		q = P;
 		if(!(p->from.scale & NOSPLIT)) {
-			if(flag_shared) {
-				// Load TLS offset with MOVQ $runtime.tlsgm(SB), CX
-				p = appendp(p);
-				p->as = AMOVQ;
-				p->from.type = D_EXTERN;
-				p->from.sym = gmsym;
-				p->to.type = D_CX;
-			}
-			p = appendp(p);	// load g into CX
-			p->as = AMOVQ;
-			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
-			|| HEADTYPE == Hopenbsd || HEADTYPE == Hnetbsd
-			|| HEADTYPE == Hplan9x64 || HEADTYPE == Hdragonfly)
-				// ELF uses FS
-				p->from.type = D_INDIR+D_FS;
-			else
-				p->from.type = D_INDIR+D_GS;
-			if(flag_shared) {
-				// Add TLS offset stored in CX
-				p->from.index = p->from.type - D_INDIR;
-				p->from.type = D_INDIR + D_CX;
-			}
-			p->from.offset = tlsoffset+0;
-			p->to.type = D_CX;
-			if(HEADTYPE == Hwindows) {
-				// movq %gs:0x28, %rcx
-				// movq (%rcx), %rcx
-				p->as = AMOVQ;
-				p->from.type = D_INDIR+D_GS;
-				p->from.offset = 0x28;
-				p->to.type = D_CX;
-
-			
-				p = appendp(p);
-				p->as = AMOVQ;
-				p->from.type = D_INDIR+D_CX;
-				p->from.offset = 0;
-				p->to.type = D_CX;
-			}
-
-			if(debug['K']) {
-				// 6l -K means check not only for stack
-				// overflow but stack underflow.
-				// On underflow, INT 3 (breakpoint).
-				// Underflow itself is rare but this also
-				// catches out-of-sync stack guard info
-
-				p = appendp(p);
-				p->as = ACMPQ;
-				p->from.type = D_INDIR+D_CX;
-				p->from.offset = 8;
-				p->to.type = D_SP;
-
-				p = appendp(p);
-				p->as = AJHI;
-				p->to.type = D_BRANCH;
-				p->to.offset = 4;
-				q1 = p;
-
-				p = appendp(p);
-				p->as = AINT;
-				p->from.type = D_CONST;
-				p->from.offset = 3;
-
-				p = appendp(p);
-				p->as = ANOP;
-				q1->pcond = p;
-			}
-
-			q1 = P;
-			if(autoffset <= StackSmall) {
-				// small stack: SP <= stackguard
-				//	CMPQ SP, stackguard
-				p = appendp(p);
-				p->as = ACMPQ;
-				p->from.type = D_SP;
-				p->to.type = D_INDIR+D_CX;
-			} else if(autoffset <= StackBig) {
-				// large stack: SP-framesize <= stackguard-StackSmall
-				//	LEAQ -xxx(SP), AX
-				//	CMPQ AX, stackguard
-				p = appendp(p);
-				p->as = ALEAQ;
-				p->from.type = D_INDIR+D_SP;
-				p->from.offset = -(autoffset-StackSmall);
-				p->to.type = D_AX;
-
-				p = appendp(p);
-				p->as = ACMPQ;
-				p->from.type = D_AX;
-				p->to.type = D_INDIR+D_CX;
-			} else {
-				// Such a large stack we need to protect against wraparound.
-				// If SP is close to zero:
-				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-				// The +StackGuard on both sides is required to keep the left side positive:
-				// SP is allowed to be slightly below stackguard. See stack.h.
-				//
-				// Preemption sets stackguard to StackPreempt, a very large value.
-				// That breaks the math above, so we have to check for that explicitly.
-				//	MOVQ	stackguard, CX
-				//	CMPQ	CX, $StackPreempt
-				//	JEQ	label-of-call-to-morestack
-				//	LEAQ	StackGuard(SP), AX
-				//	SUBQ	CX, AX
-				//	CMPQ	AX, $(autoffset+(StackGuard-StackSmall))
-
-				p = appendp(p);
-				p->as = AMOVQ;
-				p->from.type = D_INDIR+D_CX;
-				p->from.offset = 0;
-				p->to.type = D_SI;
-
-				p = appendp(p);
-				p->as = ACMPQ;
-				p->from.type = D_SI;
-				p->to.type = D_CONST;
-				p->to.offset = StackPreempt;
-
-				p = appendp(p);
-				p->as = AJEQ;
-				p->to.type = D_BRANCH;
-				q1 = p;
-
-				p = appendp(p);
-				p->as = ALEAQ;
-				p->from.type = D_INDIR+D_SP;
-				p->from.offset = StackGuard;
-				p->to.type = D_AX;
-				
-				p = appendp(p);
-				p->as = ASUBQ;
-				p->from.type = D_SI;
-				p->to.type = D_AX;
-				
-				p = appendp(p);
-				p->as = ACMPQ;
-				p->from.type = D_AX;
-				p->to.type = D_CONST;
-				p->to.offset = autoffset+(StackGuard-StackSmall);
-			}					
-
-			// common
 			p = appendp(p);
-			p->as = AJHI;
-			p->to.type = D_BRANCH;
-			q = p;
-
-			// If we ask for more stack, we'll get a minimum of StackMin bytes.
-			// We need a stack frame large enough to hold the top-of-stack data,
-			// the function arguments+results, our caller's PC, our frame,
-			// a word for the return PC of the next call, and then the StackLimit bytes
-			// that must be available on entry to any function called from a function
-			// that did a stack check.  If StackMin is enough, don't ask for a specific
-			// amount: then we can use the custom functions and save a few
-			// instructions.
-			moreconst1 = 0;
-			if(StackTop + textarg + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
-				moreconst1 = autoffset;
-			moreconst2 = textarg;
-			if(moreconst2 == 1) // special marker
-				moreconst2 = 0;
-			if((moreconst2&7) != 0)
-				diag("misaligned argument size in stack split");
-			// 4 varieties varieties (const1==0 cross const2==0)
-			// and 6 subvarieties of (const1==0 and const2!=0)
-			p = appendp(p);
-			if(moreconst1 == 0 && moreconst2 == 0) {
-				p->as = ACALL;
-				p->to.type = D_BRANCH;
-				p->pcond = pmorestack[0];
-				p->to.sym = symmorestack[0];
-			} else
-			if(moreconst1 != 0 && moreconst2 == 0) {
-				p->as = AMOVL;
-				p->from.type = D_CONST;
-				p->from.offset = moreconst1;
-				p->to.type = D_AX;
-
-				p = appendp(p);
-				p->as = ACALL;
-				p->to.type = D_BRANCH;
-				p->pcond = pmorestack[1];
-				p->to.sym = symmorestack[1];
-			} else
-			if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
-				i = moreconst2/8 + 3;
-				p->as = ACALL;
-				p->to.type = D_BRANCH;
-				p->pcond = pmorestack[i];
-				p->to.sym = symmorestack[i];
-			} else
-			if(moreconst1 == 0 && moreconst2 != 0) {
-				p->as = AMOVL;
-				p->from.type = D_CONST;
-				p->from.offset = moreconst2;
-				p->to.type = D_AX;
-
-				p = appendp(p);
-				p->as = ACALL;
-				p->to.type = D_BRANCH;
-				p->pcond = pmorestack[2];
-				p->to.sym = symmorestack[2];
-			} else {
-				p->as = AMOVQ;
-				p->from.type = D_CONST;
-				p->from.offset = (uint64)moreconst2 << 32;
-				p->from.offset |= moreconst1;
-				p->to.type = D_AX;
-
-				p = appendp(p);
-				p->as = ACALL;
-				p->to.type = D_BRANCH;
-				p->pcond = pmorestack[3];
-				p->to.sym = symmorestack[3];
-			}
-			
-			p = appendp(p);
-			p->as = AJMP;
-			p->to.type = D_BRANCH;
-			p->pcond = cursym->text->link;
+			p = load_g_cx(p); // load g into CX
+			p = stacksplit(p, autoffset, &q); // emit split check
 		}
-
-		if(q != P)
-			q->pcond = p->link;
-		if(q1 != P)
-			q1->pcond = q->link;
 
 		if(autoffset) {
 			p = appendp(p);
@@ -893,6 +672,258 @@ dostkoff(void)
 				p->as = AJMP;
 		}
 	}
+}
+
+// Append code to p to load g into cx.
+// Overwrites p with the first instruction (no first appendp).
+// Overwriting p is unusual but it lets use this in both the
+// prologue (caller must call appendp first) and in the epilogue.
+// Returns last new instruction.
+static Prog*
+load_g_cx(Prog *p)
+{
+	if(flag_shared) {
+		// Load TLS offset with MOVQ $runtime.tlsgm(SB), CX
+		p->as = AMOVQ;
+		p->from.type = D_EXTERN;
+		p->from.sym = gmsym;
+		p->to.type = D_CX;
+		p = appendp(p);
+	}
+	p->as = AMOVQ;
+	if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
+	|| HEADTYPE == Hopenbsd || HEADTYPE == Hnetbsd
+	|| HEADTYPE == Hplan9x64 || HEADTYPE == Hdragonfly)
+		// ELF uses FS
+		p->from.type = D_INDIR+D_FS;
+	else
+		p->from.type = D_INDIR+D_GS;
+	if(flag_shared) {
+		// Add TLS offset stored in CX
+		p->from.index = p->from.type - D_INDIR;
+		p->from.type = D_INDIR + D_CX;
+	}
+	p->from.offset = tlsoffset+0;
+	p->to.type = D_CX;
+	if(HEADTYPE == Hwindows) {
+		// movq %gs:0x28, %rcx
+		// movq (%rcx), %rcx
+		p->as = AMOVQ;
+		p->from.type = D_INDIR+D_GS;
+		p->from.offset = 0x28;
+		p->to.type = D_CX;
+
+		p = appendp(p);
+		p->as = AMOVQ;
+		p->from.type = D_INDIR+D_CX;
+		p->from.offset = 0;
+		p->to.type = D_CX;
+	}
+	return p;
+}
+
+// Append code to p to check for stack split.
+// Appends to (does not overwrite) p.
+// Assumes g is in CX.
+// Returns last new instruction.
+// On return, *jmpok is the instruction that should jump
+// to the stack frame allocation if no split is needed.
+static Prog*
+stacksplit(Prog *p, int32 framesize, Prog **jmpok)
+{
+	Prog *q, *q1;
+	uint32 moreconst1, moreconst2, i;
+
+	if(debug['K']) {
+		// 6l -K means check not only for stack
+		// overflow but stack underflow.
+		// On underflow, INT 3 (breakpoint).
+		// Underflow itself is rare but this also
+		// catches out-of-sync stack guard info
+
+		p = appendp(p);
+		p->as = ACMPQ;
+		p->from.type = D_INDIR+D_CX;
+		p->from.offset = 8;
+		p->to.type = D_SP;
+
+		p = appendp(p);
+		p->as = AJHI;
+		p->to.type = D_BRANCH;
+		p->to.offset = 4;
+		q1 = p;
+
+		p = appendp(p);
+		p->as = AINT;
+		p->from.type = D_CONST;
+		p->from.offset = 3;
+
+		p = appendp(p);
+		p->as = ANOP;
+		q1->pcond = p;
+	}
+
+	q = P;
+	q1 = P;
+	if(framesize <= StackSmall) {
+		// small stack: SP <= stackguard
+		//	CMPQ SP, stackguard
+		p = appendp(p);
+		p->as = ACMPQ;
+		p->from.type = D_SP;
+		p->to.type = D_INDIR+D_CX;
+	} else if(framesize <= StackBig) {
+		// large stack: SP-framesize <= stackguard-StackSmall
+		//	LEAQ -xxx(SP), AX
+		//	CMPQ AX, stackguard
+		p = appendp(p);
+		p->as = ALEAQ;
+		p->from.type = D_INDIR+D_SP;
+		p->from.offset = -(framesize-StackSmall);
+		p->to.type = D_AX;
+
+		p = appendp(p);
+		p->as = ACMPQ;
+		p->from.type = D_AX;
+		p->to.type = D_INDIR+D_CX;
+	} else {
+		// Such a large stack we need to protect against wraparound.
+		// If SP is close to zero:
+		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+		// The +StackGuard on both sides is required to keep the left side positive:
+		// SP is allowed to be slightly below stackguard. See stack.h.
+		//
+		// Preemption sets stackguard to StackPreempt, a very large value.
+		// That breaks the math above, so we have to check for that explicitly.
+		//	MOVQ	stackguard, CX
+		//	CMPQ	CX, $StackPreempt
+		//	JEQ	label-of-call-to-morestack
+		//	LEAQ	StackGuard(SP), AX
+		//	SUBQ	CX, AX
+		//	CMPQ	AX, $(framesize+(StackGuard-StackSmall))
+
+		p = appendp(p);
+		p->as = AMOVQ;
+		p->from.type = D_INDIR+D_CX;
+		p->from.offset = 0;
+		p->to.type = D_SI;
+
+		p = appendp(p);
+		p->as = ACMPQ;
+		p->from.type = D_SI;
+		p->to.type = D_CONST;
+		p->to.offset = StackPreempt;
+
+		p = appendp(p);
+		p->as = AJEQ;
+		p->to.type = D_BRANCH;
+		q1 = p;
+
+		p = appendp(p);
+		p->as = ALEAQ;
+		p->from.type = D_INDIR+D_SP;
+		p->from.offset = StackGuard;
+		p->to.type = D_AX;
+		
+		p = appendp(p);
+		p->as = ASUBQ;
+		p->from.type = D_SI;
+		p->to.type = D_AX;
+		
+		p = appendp(p);
+		p->as = ACMPQ;
+		p->from.type = D_AX;
+		p->to.type = D_CONST;
+		p->to.offset = framesize+(StackGuard-StackSmall);
+	}					
+
+	// common
+	p = appendp(p);
+	p->as = AJHI;
+	p->to.type = D_BRANCH;
+	q = p;
+
+	// If we ask for more stack, we'll get a minimum of StackMin bytes.
+	// We need a stack frame large enough to hold the top-of-stack data,
+	// the function arguments+results, our caller's PC, our frame,
+	// a word for the return PC of the next call, and then the StackLimit bytes
+	// that must be available on entry to any function called from a function
+	// that did a stack check.  If StackMin is enough, don't ask for a specific
+	// amount: then we can use the custom functions and save a few
+	// instructions.
+	moreconst1 = 0;
+	if(StackTop + textarg + PtrSize + framesize + PtrSize + StackLimit >= StackMin)
+		moreconst1 = framesize;
+	moreconst2 = textarg;
+	if(moreconst2 == 1) // special marker
+		moreconst2 = 0;
+	if((moreconst2&7) != 0)
+		diag("misaligned argument size in stack split");
+	// 4 varieties varieties (const1==0 cross const2==0)
+	// and 6 subvarieties of (const1==0 and const2!=0)
+	p = appendp(p);
+	if(moreconst1 == 0 && moreconst2 == 0) {
+		p->as = ACALL;
+		p->to.type = D_BRANCH;
+		p->pcond = pmorestack[0];
+		p->to.sym = symmorestack[0];
+	} else
+	if(moreconst1 != 0 && moreconst2 == 0) {
+		p->as = AMOVL;
+		p->from.type = D_CONST;
+		p->from.offset = moreconst1;
+		p->to.type = D_AX;
+
+		p = appendp(p);
+		p->as = ACALL;
+		p->to.type = D_BRANCH;
+		p->pcond = pmorestack[1];
+		p->to.sym = symmorestack[1];
+	} else
+	if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
+		i = moreconst2/8 + 3;
+		p->as = ACALL;
+		p->to.type = D_BRANCH;
+		p->pcond = pmorestack[i];
+		p->to.sym = symmorestack[i];
+	} else
+	if(moreconst1 == 0 && moreconst2 != 0) {
+		p->as = AMOVL;
+		p->from.type = D_CONST;
+		p->from.offset = moreconst2;
+		p->to.type = D_AX;
+
+		p = appendp(p);
+		p->as = ACALL;
+		p->to.type = D_BRANCH;
+		p->pcond = pmorestack[2];
+		p->to.sym = symmorestack[2];
+	} else {
+		p->as = AMOVQ;
+		p->from.type = D_CONST;
+		p->from.offset = (uint64)moreconst2 << 32;
+		p->from.offset |= moreconst1;
+		p->to.type = D_AX;
+
+		p = appendp(p);
+		p->as = ACALL;
+		p->to.type = D_BRANCH;
+		p->pcond = pmorestack[3];
+		p->to.sym = symmorestack[3];
+	}
+	
+	p = appendp(p);
+	p->as = AJMP;
+	p->to.type = D_BRANCH;
+	p->pcond = cursym->text->link;
+	
+	if(q != P)
+		q->pcond = p->link;
+	if(q1 != P)
+		q1->pcond = q->link;
+
+	*jmpok = q;
+	return p;
 }
 
 vlong

@@ -38,6 +38,10 @@ static	Sym*	sym_div;
 static	Sym*	sym_divu;
 static	Sym*	sym_mod;
 static	Sym*	sym_modu;
+static	Sym*	symmorestack;
+static	Prog*	pmorestack;
+
+static	Prog*	stacksplit(Prog*, int32);
 
 static void
 linkcase(Prog *casep)
@@ -58,9 +62,7 @@ noops(void)
 {
 	Prog *p, *q, *q1, *q2;
 	int o;
-	int32 arg;
-	Prog *pmorestack;
-	Sym *symmorestack, *tlsfallback, *gmsym;
+	Sym *tlsfallback, *gmsym;
 
 	/*
 	 * find leaf subroutines
@@ -256,136 +258,8 @@ noops(void)
 						break;
 				}
 	
-				if(!(p->reg & NOSPLIT)) {
-					// MOVW			g_stackguard(g), R1
-					p = appendp(p);
-					p->as = AMOVW;
-					p->from.type = D_OREG;
-					p->from.reg = REGG;
-					p->to.type = D_REG;
-					p->to.reg = 1;
-					
-					if(autosize <= StackSmall) {
-						// small stack: SP < stackguard
-						//	CMP	stackguard, SP
-						p = appendp(p);
-						p->as = ACMP;
-						p->from.type = D_REG;
-						p->from.reg = 1;
-						p->reg = REGSP;
-					} else if(autosize <= StackBig) {
-						// large stack: SP-framesize < stackguard-StackSmall
-						//	MOVW $-autosize(SP), R2
-						//	CMP stackguard, R2
-						p = appendp(p);
-						p->as = AMOVW;
-						p->from.type = D_CONST;
-						p->from.reg = REGSP;
-						p->from.offset = -autosize;
-						p->to.type = D_REG;
-						p->to.reg = 2;
-						
-						p = appendp(p);
-						p->as = ACMP;
-						p->from.type = D_REG;
-						p->from.reg = 1;
-						p->reg = 2;
-					} else {
-						// Such a large stack we need to protect against wraparound
-						// if SP is close to zero.
-						//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
-						// The +StackGuard on both sides is required to keep the left side positive:
-						// SP is allowed to be slightly below stackguard. See stack.h.
-						//	CMP $StackPreempt, R1
-						//	MOVW.NE $StackGuard(SP), R2
-						//	SUB.NE R1, R2
-						//	MOVW.NE $(autosize+(StackGuard-StackSmall)), R3
-						//	CMP.NE R3, R2
-						p = appendp(p);
-						p->as = ACMP;
-						p->from.type = D_CONST;
-						p->from.offset = (uint32)StackPreempt;
-						p->reg = 1;
-
-						p = appendp(p);
-						p->as = AMOVW;
-						p->from.type = D_CONST;
-						p->from.reg = REGSP;
-						p->from.offset = StackGuard;
-						p->to.type = D_REG;
-						p->to.reg = 2;
-						p->scond = C_SCOND_NE;
-						
-						p = appendp(p);
-						p->as = ASUB;
-						p->from.type = D_REG;
-						p->from.reg = 1;
-						p->to.type = D_REG;
-						p->to.reg = 2;
-						p->scond = C_SCOND_NE;
-						
-						p = appendp(p);
-						p->as = AMOVW;
-						p->from.type = D_CONST;
-						p->from.offset = autosize + (StackGuard - StackSmall);
-						p->to.type = D_REG;
-						p->to.reg = 3;
-						p->scond = C_SCOND_NE;
-						
-						p = appendp(p);
-						p->as = ACMP;
-						p->from.type = D_REG;
-						p->from.reg = 3;
-						p->reg = 2;
-						p->scond = C_SCOND_NE;
-					}
-					
-					// MOVW.LS		$autosize, R1
-					p = appendp(p);
-					p->as = AMOVW;
-					p->scond = C_SCOND_LS;
-					p->from.type = D_CONST;
-					p->from.offset = autosize;
-					p->to.type = D_REG;
-					p->to.reg = 1;
-	
-					// MOVW.LS		$args, R2
-					p = appendp(p);
-					p->as = AMOVW;
-					p->scond = C_SCOND_LS;
-					p->from.type = D_CONST;
-					arg = cursym->text->to.offset2;
-					if(arg == 1) // special marker for known 0
-						arg = 0;
-					if(arg&3)
-						diag("misaligned argument size in stack split");
-					p->from.offset = arg;
-					p->to.type = D_REG;
-					p->to.reg = 2;
-	
-					// MOVW.LS	R14, R3
-					p = appendp(p);
-					p->as = AMOVW;
-					p->scond = C_SCOND_LS;
-					p->from.type = D_REG;
-					p->from.reg = REGLINK;
-					p->to.type = D_REG;
-					p->to.reg = 3;
-	
-					// BL.LS		runtime.morestack(SB) // modifies LR, returns with LO still asserted
-					p = appendp(p);
-					p->as = ABL;
-					p->scond = C_SCOND_LS;
-					p->to.type = D_BRANCH;
-					p->to.sym = symmorestack;
-					p->cond = pmorestack;
-					
-					// BLS	start
-					p = appendp(p);
-					p->as = ABLS;
-					p->to.type = D_BRANCH;
-					p->cond = cursym->text->link;
-				}
+				if(!(p->reg & NOSPLIT))
+					p = stacksplit(p, autosize); // emit split check
 				
 				// MOVW.W		R14,$-autosize(SP)
 				p = appendp(p);
@@ -552,6 +426,143 @@ noops(void)
 			}
 		}
 	}
+}
+
+static Prog*
+stacksplit(Prog *p, int32 framesize)
+{
+	int32 arg;
+
+	// MOVW			g_stackguard(g), R1
+	p = appendp(p);
+	p->as = AMOVW;
+	p->from.type = D_OREG;
+	p->from.reg = REGG;
+	p->to.type = D_REG;
+	p->to.reg = 1;
+	
+	if(framesize <= StackSmall) {
+		// small stack: SP < stackguard
+		//	CMP	stackguard, SP
+		p = appendp(p);
+		p->as = ACMP;
+		p->from.type = D_REG;
+		p->from.reg = 1;
+		p->reg = REGSP;
+	} else if(framesize <= StackBig) {
+		// large stack: SP-framesize < stackguard-StackSmall
+		//	MOVW $-framesize(SP), R2
+		//	CMP stackguard, R2
+		p = appendp(p);
+		p->as = AMOVW;
+		p->from.type = D_CONST;
+		p->from.reg = REGSP;
+		p->from.offset = -framesize;
+		p->to.type = D_REG;
+		p->to.reg = 2;
+		
+		p = appendp(p);
+		p->as = ACMP;
+		p->from.type = D_REG;
+		p->from.reg = 1;
+		p->reg = 2;
+	} else {
+		// Such a large stack we need to protect against wraparound
+		// if SP is close to zero.
+		//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
+		// The +StackGuard on both sides is required to keep the left side positive:
+		// SP is allowed to be slightly below stackguard. See stack.h.
+		//	CMP $StackPreempt, R1
+		//	MOVW.NE $StackGuard(SP), R2
+		//	SUB.NE R1, R2
+		//	MOVW.NE $(framesize+(StackGuard-StackSmall)), R3
+		//	CMP.NE R3, R2
+		p = appendp(p);
+		p->as = ACMP;
+		p->from.type = D_CONST;
+		p->from.offset = (uint32)StackPreempt;
+		p->reg = 1;
+
+		p = appendp(p);
+		p->as = AMOVW;
+		p->from.type = D_CONST;
+		p->from.reg = REGSP;
+		p->from.offset = StackGuard;
+		p->to.type = D_REG;
+		p->to.reg = 2;
+		p->scond = C_SCOND_NE;
+		
+		p = appendp(p);
+		p->as = ASUB;
+		p->from.type = D_REG;
+		p->from.reg = 1;
+		p->to.type = D_REG;
+		p->to.reg = 2;
+		p->scond = C_SCOND_NE;
+		
+		p = appendp(p);
+		p->as = AMOVW;
+		p->from.type = D_CONST;
+		p->from.offset = framesize + (StackGuard - StackSmall);
+		p->to.type = D_REG;
+		p->to.reg = 3;
+		p->scond = C_SCOND_NE;
+		
+		p = appendp(p);
+		p->as = ACMP;
+		p->from.type = D_REG;
+		p->from.reg = 3;
+		p->reg = 2;
+		p->scond = C_SCOND_NE;
+	}
+	
+	// MOVW.LS		$framesize, R1
+	p = appendp(p);
+	p->as = AMOVW;
+	p->scond = C_SCOND_LS;
+	p->from.type = D_CONST;
+	p->from.offset = framesize;
+	p->to.type = D_REG;
+	p->to.reg = 1;
+
+	// MOVW.LS		$args, R2
+	p = appendp(p);
+	p->as = AMOVW;
+	p->scond = C_SCOND_LS;
+	p->from.type = D_CONST;
+	arg = cursym->text->to.offset2;
+	if(arg == 1) // special marker for known 0
+		arg = 0;
+	if(arg&3)
+		diag("misaligned argument size in stack split");
+	p->from.offset = arg;
+	p->to.type = D_REG;
+	p->to.reg = 2;
+
+	// MOVW.LS	R14, R3
+	p = appendp(p);
+	p->as = AMOVW;
+	p->scond = C_SCOND_LS;
+	p->from.type = D_REG;
+	p->from.reg = REGLINK;
+	p->to.type = D_REG;
+	p->to.reg = 3;
+
+	// BL.LS		runtime.morestack(SB) // modifies LR, returns with LO still asserted
+	p = appendp(p);
+	p->as = ABL;
+	p->scond = C_SCOND_LS;
+	p->to.type = D_BRANCH;
+	p->to.sym = symmorestack;
+	p->cond = pmorestack;
+	
+	// BLS	start
+	p = appendp(p);
+	p->as = ABLS;
+	p->to.type = D_BRANCH;
+	p->cond = cursym->text->link;
+	
+	return p;
 }
 
 static void
