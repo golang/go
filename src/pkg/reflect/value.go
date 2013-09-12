@@ -497,6 +497,10 @@ func (v Value) call(op string, in []Value) []Value {
 // frame into a call using Values.
 // It is in this file so that it can be next to the call method above.
 // The remainder of the MakeFunc implementation is in makefunc.go.
+//
+// NOTE: This function must be marked as a "wrapper" in the generated code,
+// so that the linker can make it work correctly for panic and recover.
+// The gc compilers know to do that for the name "reflect.callReflect".
 func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 	ftyp := ctxt.typ
 	f := ctxt.fn
@@ -650,6 +654,10 @@ func frameSize(t *rtype, rcvr bool) (total, in, outOffset, out uintptr) {
 // to deal with individual Values for each argument.
 // It is in this file so that it can be next to the two similar functions above.
 // The remainder of the makeMethodValue implementation is in makefunc.go.
+//
+// NOTE: This function must be marked as a "wrapper" in the generated code,
+// so that the linker can make it work correctly for panic and recover.
+// The gc compilers know to do that for the name "reflect.callMethod".
 func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	t, fn, rcvr := methodReceiver("call", ctxt.rcvr, ctxt.method)
 	total, in, outOffset, out := frameSize(t, true)

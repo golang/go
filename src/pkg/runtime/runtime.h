@@ -250,6 +250,8 @@ struct	G
 	// stackguard0 can be set to StackPreempt as opposed to stackguard
 	uintptr	stackguard0;	// cannot move - also known to linker, libmach, runtime/cgo
 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
+	uint32	panicwrap;	// cannot move - also known to linker
+	uint32	selgen;		// valid sudog pointer
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
@@ -264,7 +266,6 @@ struct	G
 	void*	param;		// passed parameter on wakeup
 	int16	status;
 	int64	goid;
-	uint32	selgen;		// valid sudog pointer
 	int8*	waitreason;	// if status==Gwaiting
 	G*	schedlink;
 	bool	ispanic;
@@ -403,6 +404,7 @@ struct	Stktop
 	uintptr	stackbase;
 	Gobuf	gobuf;
 	uint32	argsize;
+	uint32	panicwrap;
 
 	uint8*	argp;	// pointer to arguments in old frame
 	uintptr	free;	// if free>0, call stackfree using free as size

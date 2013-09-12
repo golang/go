@@ -2588,6 +2588,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		n->left = newname(methodsym(method->sym, methodrcvr, 0));
 		fn->nbody = list(fn->nbody, n);
 	} else {
+		fn->wrapper = 1; // ignore frame for panic+recover matching
 		call = nod(OCALL, dot, N);
 		call->list = args;
 		call->isddd = isddd;

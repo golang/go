@@ -444,11 +444,12 @@ dostkoff(void)
 
 		q = P;
 
-		if(!(p->from.scale & NOSPLIT)) {
+		if(!(p->from.scale & NOSPLIT) || (p->from.scale & WRAPPER)) {
 			p = appendp(p);
 			p = load_g_cx(p); // load g into CX
-			p = stacksplit(p, autoffset, &q); // emit split check
 		}
+		if(!(cursym->text->from.scale & NOSPLIT))
+			p = stacksplit(p, autoffset, &q); // emit split check
 
 		if(autoffset) {
 			p = appendp(p);
@@ -456,8 +457,6 @@ dostkoff(void)
 			p->from.type = D_CONST;
 			p->from.offset = autoffset;
 			p->spadj = autoffset;
-			if(q != P)
-				q->pcond = p;
 		} else {
 			// zero-byte stack adjustment.
 			// Insert a fake non-zero adjustment so that stkcheck can
@@ -469,7 +468,19 @@ dostkoff(void)
 			p->as = ANOP;
 			p->spadj = PtrSize;
 		}
+		if(q != P)
+			q->pcond = p;
 		deltasp = autoffset;
+		
+		if(cursym->text->from.scale & WRAPPER) {
+			// g->panicwrap += autoffset + PtrSize;
+			p = appendp(p);
+			p->as = AADDL;
+			p->from.type = D_CONST;
+			p->from.offset = autoffset + PtrSize;
+			p->to.type = D_INDIR+D_CX;
+			p->to.offset = 2*PtrSize;
+		}
 		
 		if(debug['Z'] && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
 			// 8l -Z means zero the stack frame on entry.
@@ -540,6 +551,19 @@ dostkoff(void)
 	
 			if(autoffset != deltasp)
 				diag("unbalanced PUSH/POP");
+
+			if(cursym->text->from.scale & WRAPPER) {
+				p = load_g_cx(p);
+				p = appendp(p);
+				// g->panicwrap -= autoffset + PtrSize;
+				p->as = ASUBL;
+				p->from.type = D_CONST;
+				p->from.offset = autoffset + PtrSize;
+				p->to.type = D_INDIR+D_CX;
+				p->to.offset = 2*PtrSize;
+				p = appendp(p);
+				p->as = ARET;
+			}
 	
 			if(autoffset) {
 				p->as = AADJSP;

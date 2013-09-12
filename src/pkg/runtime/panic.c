@@ -339,69 +339,27 @@ runtime·unwindstack(G *gp, byte *sp)
 void
 runtime·recover(byte *argp, Eface ret)
 {
-	Stktop *top, *oldtop;
 	Panic *p;
+	Stktop *top;
 
-	// Must be a panic going on.
-	if((p = g->panic) == nil || p->recovered)
-		goto nomatch;
-
-	// Frame must be at the top of the stack segment,
-	// because each deferred call starts a new stack
-	// segment as a side effect of using reflect.call.
-	// (There has to be some way to remember the
-	// variable argument frame size, and the segment
-	// code already takes care of that for us, so we
-	// reuse it.)
-	//
-	// As usual closures complicate things: the fp that
-	// the closure implementation function claims to have
-	// is where the explicit arguments start, after the
-	// implicit pointer arguments and PC slot.
-	// If we're on the first new segment for a closure,
-	// then fp == top - top->args is correct, but if
-	// the closure has its own big argument frame and
-	// allocated a second segment (see below),
-	// the fp is slightly above top - top->args.
-	// That condition can't happen normally though
-	// (stack pointers go down, not up), so we can accept
-	// any fp between top and top - top->args as
-	// indicating the top of the segment.
+	// Must be an unrecovered panic in progress.
+	// Must be on a stack segment created for a deferred call during a panic.
+	// Must be at the top of that segment, meaning the deferred call itself
+	// and not something it called. The top frame in the segment will have
+	// argument pointer argp == top - top->argsize.
+	// The subtraction of g->panicwrap allows wrapper functions that
+	// do not count as official calls to adjust what we consider the top frame
+	// while they are active on the stack. The linker emits adjustments of
+	// g->panicwrap in the prologue and epilogue of functions marked as wrappers.
 	top = (Stktop*)g->stackbase;
-	if(argp < (byte*)top - top->argsize || (byte*)top < argp)
-		goto nomatch;
-
-	// The deferred call makes a new segment big enough
-	// for the argument frame but not necessarily big
-	// enough for the function's local frame (size unknown
-	// at the time of the call), so the function might have
-	// made its own segment immediately.  If that's the
-	// case, back top up to the older one, the one that
-	// reflect.call would have made for the panic.
-	//
-	// The fp comparison here checks that the argument
-	// frame that was copied during the split (the top->args
-	// bytes above top->fp) abuts the old top of stack.
-	// This is a correct test for both closure and non-closure code.
-	oldtop = (Stktop*)top->stackbase;
-	if(oldtop != nil && top->argp == (byte*)oldtop - top->argsize)
-		top = oldtop;
-
-	// Now we have the segment that was created to
-	// run this call.  It must have been marked as a panic segment.
-	if(!top->panic)
-		goto nomatch;
-
-	// Okay, this is the top frame of a deferred call
-	// in response to a panic.  It can see the panic argument.
-	p->recovered = 1;
-	ret = p->arg;
-	FLUSH(&ret);
-	return;
-
-nomatch:
-	ret.type = nil;
-	ret.data = nil;
+	p = g->panic;
+	if(p != nil && !p->recovered && top->panic && argp == (byte*)top - top->argsize - g->panicwrap) {
+		p->recovered = 1;
+		ret = p->arg;
+	} else {
+		ret.type = nil;
+		ret.data = nil;
+	}
 	FLUSH(&ret);
 }
 

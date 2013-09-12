@@ -17,3 +17,5 @@
 #define RODATA	8
 // This data contains no pointers.
 #define NOPTR	16
+// This is a wrapper function and should not count as disabling 'recover'.
+#define WRAPPER 32
