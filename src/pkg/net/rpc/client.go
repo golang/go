@@ -58,6 +58,7 @@ type Client struct {
 // argument to force the body of the response to be read and then
 // discarded.
 type ClientCodec interface {
+	// WriteRequest must be safe for concurrent use by multiple goroutines.
 	WriteRequest(*Request, interface{}) error
 	ReadResponseHeader(*Response) error
 	ReadResponseBody(interface{}) error
