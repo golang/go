@@ -30,6 +30,7 @@ import (
 
 var (
 	tag             = flag.String("tag", "release", "mercurial tag to check out")
+	toolTag         = flag.String("tool", defaultToolTag, "go.tools tag to check out")
 	repo            = flag.String("repo", "https://code.google.com/p/go", "repo URL")
 	verbose         = flag.Bool("v", false, "verbose output")
 	upload          = flag.Bool("upload", true, "upload resulting files to Google Code")
@@ -42,10 +43,20 @@ var (
 )
 
 const (
-	uploadURL = "https://go.googlecode.com/files"
-	godocPath = "code.google.com/p/go.tools/cmd/godoc"
-	tourPath  = "code.google.com/p/go-tour"
+	uploadURL      = "https://go.googlecode.com/files"
+	tourPath       = "code.google.com/p/go-tour"
+	toolPath       = "code.google.com/p/go.tools"
+	defaultToolTag = "tip" // TOOD(adg): set this once Go 1.2 settles
 )
+
+// Import paths for tool commands.
+// These must be the command that cmd/go knows to install to $GOROOT/bin
+// or $GOROOT/pkg/tool.
+var toolPaths = []string{
+	"code.google.com/p/go.tools/cmd/cover",
+	"code.google.com/p/go.tools/cmd/godoc",
+	"code.google.com/p/go.tools/cmd/vet",
+}
 
 var preBuildCleanFiles = []string{
 	"lib/codereview",
@@ -75,12 +86,11 @@ var tourPackages = []string{
 }
 
 var tourContent = []string{
+	"content",
 	"js",
-	"prog",
 	"solutions",
 	"static",
 	"template",
-	"tour.article",
 }
 
 // The os-arches that support the race toolchain.
@@ -227,7 +237,7 @@ func (b *Build) Do() error {
 		if err != nil {
 			return err
 		}
-		err = b.godoc()
+		err = b.tools()
 		if err != nil {
 			return err
 		}
@@ -413,7 +423,7 @@ func (b *Build) Do() error {
 	return err
 }
 
-func (b *Build) godoc() error {
+func (b *Build) tools() error {
 	defer func() {
 		// Clean work files from GOPATH directory.
 		for _, d := range []string{"bin", "pkg", "src"} {
@@ -421,9 +431,23 @@ func (b *Build) godoc() error {
 		}
 	}()
 
-	// go get the godoc package.
-	// The go tool knows to install to $GOROOT/bin.
-	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", godocPath)
+	// Fetch the tool packages (without building/installing).
+	args := append([]string{"get", "-d"}, toolPaths...)
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), args...)
+	if err != nil {
+		return err
+	}
+
+	// Update the repo to the revision specified by -tool.
+	repoPath := filepath.Join(b.gopath, "src", filepath.FromSlash(toolPath))
+	_, err = b.run(repoPath, "hg", "update", *toolTag)
+	if err != nil {
+		return err
+	}
+
+	// Install tools.
+	args = append([]string{"install"}, toolPaths...)
+	_, err = b.run(b.gopath, filepath.Join(b.root, "bin", "go"), args...)
 	return err
 }
 
