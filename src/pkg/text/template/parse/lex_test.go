@@ -340,8 +340,11 @@ var lexTests = []lexTest{
 		{itemText, 0, "hello-"},
 		{itemError, 0, `comment ends before closing delimiter`},
 	}},
+	// This one is an error that we can't catch because it breaks templates with
+	// minimized JavaScript. Should have fixed it before Go 1.1.
 	{"unmatched right delimiter", "hello-{.}}-world", []item{
-		{itemError, 0, `unmatched right delimiter`},
+		{itemText, 0, "hello-{.}}-world"},
+		tEOF,
 	}},
 }
 
