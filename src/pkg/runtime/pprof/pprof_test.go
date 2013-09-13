@@ -6,6 +6,7 @@ package pprof_test
 
 import (
 	"bytes"
+	"fmt"
 	"hash/crc32"
 	"os/exec"
 	"regexp"
@@ -51,29 +52,8 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
-func testCPUProfile(t *testing.T, need []string, f func()) {
-	switch runtime.GOOS {
-	case "darwin":
-		out, err := exec.Command("uname", "-a").CombinedOutput()
-		if err != nil {
-			t.Fatal(err)
-		}
-		vers := string(out)
-		t.Logf("uname -a: %v", vers)
-	case "plan9":
-		// unimplemented
-		return
-	}
-
-	var prof bytes.Buffer
-	if err := StartCPUProfile(&prof); err != nil {
-		t.Fatal(err)
-	}
-	f()
-	StopCPUProfile()
-
+func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
 	// Convert []byte to []uintptr.
-	bytes := prof.Bytes()
 	l := len(bytes) / int(unsafe.Sizeof(uintptr(0)))
 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
 	val = val[:l]
@@ -96,25 +76,51 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 		t.Fatalf("malformed end-of-data marker %#x", tl)
 	}
 
-	// Check that profile is well formed and contains ChecksumIEEE.
-	have := make([]uintptr, len(need))
 	for len(val) > 0 {
 		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
 			t.Fatalf("malformed profile.  leftover: %#x", val)
 		}
-		for _, pc := range val[2 : 2+val[1]] {
+		f(val[0], val[2:2+val[1]])
+		val = val[2+val[1]:]
+	}
+}
+
+func testCPUProfile(t *testing.T, need []string, f func()) {
+	switch runtime.GOOS {
+	case "darwin":
+		out, err := exec.Command("uname", "-a").CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+		vers := string(out)
+		t.Logf("uname -a: %v", vers)
+	case "plan9":
+		// unimplemented
+		return
+	}
+
+	var prof bytes.Buffer
+	if err := StartCPUProfile(&prof); err != nil {
+		t.Fatal(err)
+	}
+	f()
+	StopCPUProfile()
+
+	// Check that profile is well formed and contains ChecksumIEEE.
+	have := make([]uintptr, len(need))
+	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+		for _, pc := range stk {
 			f := runtime.FuncForPC(pc)
 			if f == nil {
 				continue
 			}
 			for i, name := range need {
 				if strings.Contains(f.Name(), name) {
-					have[i] += val[0]
+					have[i] += count
 				}
 			}
 		}
-		val = val[2+val[1]:]
-	}
+	})
 
 	var total uintptr
 	for i, name := range need {
@@ -170,6 +176,60 @@ func TestCPUProfileWithFork(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		exec.Command("go").CombinedOutput()
+	}
+}
+
+// Test that profiler does not observe runtime.gogo as "user" goroutine execution.
+// If it did, it would see inconsistent state and would either record an incorrect stack
+// or crash because the stack was malformed.
+func TestGoroutineSwitch(t *testing.T) {
+	// How much to try. These defaults take about 1 seconds
+	// on a 2012 MacBook Pro. The ones in short mode take
+	// about 0.1 seconds.
+	tries := 10
+	count := 1000000
+	if testing.Short() {
+		tries = 1
+	}
+	for try := 0; try < tries; try++ {
+		var prof bytes.Buffer
+		if err := StartCPUProfile(&prof); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < count; i++ {
+			runtime.Gosched()
+		}
+		StopCPUProfile()
+
+		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
+		// The special entry
+		parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+			// An entry with two frames with 'System' in its top frame
+			// exists to record a PC without a traceback. Those are okay.
+			if len(stk) == 2 {
+				f := runtime.FuncForPC(stk[1])
+				if f != nil && f.Name() == "System" {
+					return
+				}
+			}
+
+			// Otherwise, should not see runtime.gogo.
+			// The place we'd see it would be the inner most frame.
+			f := runtime.FuncForPC(stk[0])
+			if f != nil && f.Name() == "runtime.gogo" {
+				var buf bytes.Buffer
+				for _, pc := range stk {
+					f := runtime.FuncForPC(pc)
+					if f == nil {
+						fmt.Fprintf(&buf, "%#x ?:0\n", pc)
+					} else {
+						file, line := f.FileLine(pc)
+						fmt.Fprintf(&buf, "%#x %s:%d\n", pc, file, line)
+					}
+				}
+				t.Fatalf("found profile entry for runtime.gogo:\n%s", buf.String())
+			}
+		})
 	}
 }
 

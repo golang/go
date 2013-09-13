@@ -79,3 +79,5 @@ var StringHash = stringHash
 var BytesHash = bytesHash
 var Int32Hash = int32Hash
 var Int64Hash = int64Hash
+
+func GogoBytes() int32

@@ -6,6 +6,12 @@ package runtime_test
 
 import (
 	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	. "runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -78,4 +84,41 @@ func BenchmarkDeferMany(b *testing.B) {
 			}
 		}(1, 2, 3)
 	}
+}
+
+// The profiling signal handler needs to know whether it is executing runtime.gogo.
+// The constant RuntimeGogoBytes in arch_*.h gives the size of the function;
+// we don't have a way to obtain it from the linker (perhaps someday).
+// Test that the constant matches the size determined by 'go tool nm -S'.
+// The value reported will include the padding between runtime.gogo and the
+// next function in memory. That's fine.
+func TestRuntimeGogoBytes(t *testing.T) {
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../../test/helloworld.go").CombinedOutput()
+	if err != nil {
+		t.Fatalf("building hello world: %v\n%s", err, out)
+	}
+
+	out, err = exec.Command("go", "tool", "nm", "-S", dir+"/hello").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool nm: %v\n%s", err, out)
+	}
+
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) == 4 && f[3] == "runtime.gogo" {
+			size, _ := strconv.Atoi(f[1])
+			if GogoBytes() != int32(size) {
+				t.Fatalf("RuntimeGogoBytes = %d, should be %d", GogoBytes(), size)
+			}
+			return
+		}
+	}
+
+	t.Fatalf("go tool nm did not report size for runtime.gogo")
 }
