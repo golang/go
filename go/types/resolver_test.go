@@ -75,14 +75,14 @@ func TestResolveIdents(t *testing.T) {
 	// resolve and type-check package AST
 	var conf Config
 	idents := make(map[*ast.Ident]Object)
-	pkg, err := conf.Check("testResolveIdents", fset, files, &Info{Objects: idents})
+	_, err := conf.Check("testResolveIdents", fset, files, &Info{Objects: idents})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check that all packages were imported
 	for _, name := range pkgnames {
-		if pkg.imports[name] == nil {
+		if conf.Packages[name] == nil {
 			t.Errorf("package %s not imported", name)
 		}
 	}
@@ -97,7 +97,7 @@ func TestResolveIdents(t *testing.T) {
 						t.Errorf("%s: unresolved qualified identifier %s", fset.Position(x.Pos()), x.Name)
 						return false
 					}
-					if _, ok := obj.(*Package); ok && idents[s.Sel] == nil {
+					if _, ok := obj.(*PkgName); ok && idents[s.Sel] == nil {
 						t.Errorf("%s: unresolved selector %s", fset.Position(s.Sel.Pos()), s.Sel.Name)
 						return false
 					}

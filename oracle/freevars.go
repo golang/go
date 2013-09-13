@@ -54,7 +54,7 @@ func freevars(o *oracle) (queryResult, error) {
 			return nil // TODO(adonovan): fix: this fails for *types.Label.
 			panic(o.errorf(n, "no types.Object for ast.Ident"))
 		}
-		if _, ok := obj.(*types.Package); ok {
+		if _, ok := obj.(*types.PkgName); ok {
 			return nil // imported package
 		}
 		if n.Pos() == obj.Pos() {

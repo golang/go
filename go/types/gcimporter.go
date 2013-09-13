@@ -370,7 +370,7 @@ func (p *gcParser) getPkg(id, name string) *Package {
 	}
 	pkg := p.imports[id]
 	if pkg == nil && name != "" {
-		pkg = NewPackage(token.NoPos, id, name, NewScope(nil), nil)
+		pkg = NewPackage(id, name, NewScope(nil))
 		p.imports[id] = pkg
 	}
 	return pkg
@@ -985,7 +985,7 @@ func (p *gcParser) parseExport() *Package {
 	}
 
 	// package was imported completely and without errors
-	pkg.MarkComplete()
+	pkg.complete = true
 
 	return pkg
 }

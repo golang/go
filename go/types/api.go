@@ -54,10 +54,16 @@ type Config struct {
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
 	// declares an empty "C" package and errors are omitted for qualified
 	// identifiers referring to package C (which won't find an object).
-	// Caution: Effects may be unpredictable due to unpredictable follow-
-	// up errors - do not use casually! This feature is mainly intended
-	// for the standard library cmd/api tool.
+	// This feature is intended for the standard library cmd/api tool.
+	//
+	// Caution: Effects may be unpredictable due to follow-up errors.
+	//          Do not use casually!
 	FakeImportC bool
+
+	// Packages is used to look up (and thus canonicalize) packages by
+	// package path. If Packages is nil, it is set to a new empty map.
+	// During type-checking, imported packages are added to the map.
+	Packages map[string]*Package
 
 	// If Error != nil, it is called with each error found
 	// during type checking. The error strings of errors with
@@ -67,15 +73,16 @@ type Config struct {
 
 	// If Import != nil, it is called for each imported package.
 	// Otherwise, GcImporter is called.
-	// An importer resolves import paths to Package objects.
-	// The imports map records the packages already imported,
-	// indexed by package id (canonical import path).
-	// An importer must determine the canonical import path and
-	// check the map to see if it is already present in the imports map.
-	// If so, the Importer can return the map entry.  Otherwise, the
-	// importer should load the package data for the given path into
-	// a new *Package, record pkg in the imports map, and then
-	// return pkg.
+	// An importer resolves import paths to Packages.
+	// The imports map records packages already known,
+	// indexed by canonical package path. The type-checker will
+	// invoke Import with Config.Packages.
+	// An importer must determine the canonical package path and
+	// check imports to see if it is already present in the map.
+	// If so, the Importer can return the map entry.  Otherwise,
+	// the importer must load the package data for the given path
+	// into a new *Package, record it in imports map, and return
+	// the package.
 	Import func(imports map[string]*Package, path string) (pkg *Package, err error)
 
 	// If Alignof != nil, it is called to determine the alignment
@@ -110,9 +117,10 @@ type Info struct {
 
 	// Objects maps identifiers to their corresponding objects (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
-	// For identifiers that do not denote objects (e.g., blank identifiers
-	// on the lhs of assignments, or symbolic variables t in t := x.(type)
-	// of type switch headers), the corresponding objects are nil.
+	// For identifiers that do not denote objects (e.g., the package name
+	// in package clauses, blank identifiers on the lhs of assignments, or
+	// symbolic variables t in t := x.(type) of type switch headers), the
+	// corresponding objects are nil.
 	// BUG(gri) Label identifiers in break, continue, or goto statements
 	// are not yet mapped.
 	Objects map[*ast.Ident]Object
@@ -122,7 +130,7 @@ type Info struct {
 	//
 	//	node               declared object
 	//
-	//	*ast.ImportSpec    *Package (imports w/o renames), or imported objects (dot-imports)
+	//	*ast.ImportSpec    *PkgName (imports w/o renames), or imported objects (dot-imports)
 	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
 	//      *ast.Field         anonymous struct field or parameter *Var
 	//
@@ -157,9 +165,9 @@ type Info struct {
 // The package is marked as complete if no errors occurred, otherwise it is
 // incomplete.
 //
-// The package is specified by a list of *ast.Files and corresponding file
-// set, and the import path the package is identified with. The clean path
-// must not be empty or dot (".").
+// The package is specified by a list of *ast.Files and corresponding
+// file set, and the package path the package is identified with.
+// The clean path must not be empty or dot (".").
 func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
 	pkg, err := conf.check(path, fset, files, info)
 	if err == nil {

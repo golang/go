@@ -196,7 +196,7 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 
 		case *ast.Ident:
 			switch obj := pkginfo.ObjectOf(n).(type) {
-			case *types.Package:
+			case *types.PkgName:
 				return path, actionPackage
 
 			case *types.Const:
@@ -263,6 +263,10 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 				// Interface.Methods         -- field
 				// FuncType.{Params.Results} -- actionExpr
 				// FuncDecl.Recv             -- actionExpr
+
+			case *ast.File:
+				// 'package foo'
+				return path, actionPackage
 
 			case *ast.ImportSpec:
 				// TODO(adonovan): fix: why no package object? go/types bug?
@@ -715,21 +719,14 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 		pkg = o.prog.ImportedPackage(importPath).Object
 
 	case *ast.Ident:
-		pkg = o.queryPkgInfo.ObjectOf(n).(*types.Package)
-
 		if _, isDef := path[1].(*ast.File); isDef {
 			// e.g. package id
+			pkg = o.queryPkgInfo.Pkg
 			description = fmt.Sprintf("definition of package %q", pkg.Path())
 		} else {
 			// e.g. import id
 			//  or  id.F()
-
-			// go/types internally creates a new Package
-			// object for each import, so the packages for
-			// 'package x' and 'import "x"' differ.
-			// Call Primary() to get the real thing.
-			pkg = pkg.Primary()
-
+			pkg = o.queryPkgInfo.ObjectOf(n).Pkg()
 			description = fmt.Sprintf("reference to package %q", pkg.Path())
 		}
 
@@ -870,7 +867,7 @@ func tokenOf(o types.Object) string {
 		return "type"
 	case *types.Const:
 		return "const"
-	case *types.Package:
+	case *types.PkgName:
 		return "package"
 	}
 	panic(o)

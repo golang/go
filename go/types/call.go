@@ -185,11 +185,11 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		if pkg, _ := check.topScope.LookupParent(ident.Name).(*Package); pkg != nil {
+		if pkg, _ := check.topScope.LookupParent(ident.Name).(*PkgName); pkg != nil {
 			check.recordObject(ident, pkg)
-			exp := pkg.scope.Lookup(sel)
+			exp := pkg.pkg.scope.Lookup(sel)
 			if exp == nil {
-				if !pkg.fake {
+				if !pkg.pkg.fake {
 					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
 				}
 				goto Error

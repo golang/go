@@ -46,7 +46,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	assert(typ != nil)
 
 	switch obj := obj.(type) {
-	case *Package:
+	case *PkgName:
 		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
 		return
 

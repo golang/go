@@ -3,11 +3,11 @@
 	"mode": "referrers",
 	"referrers": {
 		"pos": "testdata/src/main/referrers-json.go:14:8",
+		"objpos": "testdata/src/main/referrers-json.go:7:8",
 		"desc": "package lib",
 		"refs": [
 			"testdata/src/main/referrers-json.go:14:8",
-			"testdata/src/main/referrers-json.go:14:19",
-			"testdata/src/lib/lib.go:1:9"
+			"testdata/src/main/referrers-json.go:14:19"
 		]
 	}
 }-------- @referrers ref-method --------

@@ -145,9 +145,13 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		importer = GcImport
 	}
 
+	// only add packages to pkg.imports that have not been seen already
+	seen := make(map[*Package]bool)
+
 	for _, file := range files {
-		// the package identifier denotes the current package, but it is in no scope
-		check.recordObject(file.Name, pkg)
+		// The package identifier denotes the current package,
+		// but there is no corresponding package object.
+		check.recordObject(file.Name, nil)
 
 		scope = NewScope(pkg.scope)
 		check.recordScope(file, scope)
@@ -163,21 +167,32 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				for iota, spec := range d.Specs {
 					switch s := spec.(type) {
 					case *ast.ImportSpec:
+						// import package
 						var imp *Package
 						path, _ := strconv.Unquote(s.Path.Value)
 						if path == "C" && check.conf.FakeImportC {
 							// TODO(gri) shouldn't create a new one each time
-							imp = NewPackage(token.NoPos, "C", "C", NewScope(nil), nil)
+							imp = NewPackage("C", "C", NewScope(nil))
 							imp.fake = true
 						} else {
 							var err error
-							imp, err = importer(pkg.imports, path)
+							imp, err = importer(check.conf.Packages, path)
 							if imp == nil && err == nil {
 								err = errors.New("Config.Import returned nil but no error")
 							}
 							if err != nil {
 								check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
 								continue
+							}
+						}
+
+						// add package to list of explicit imports
+						// (this functionality is provided as a convenience
+						// for clients; it is not needed for type-checking)
+						if !seen[imp] {
+							seen[imp] = true
+							if imp != Unsafe {
+								pkg.imports = append(pkg.imports, imp)
 							}
 						}
 
@@ -191,33 +206,30 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							}
 						}
 
-						imp2 := NewPackage(s.Pos(), path, name, imp.scope, nil)
-						imp2.primary = imp
-						imp2.complete = imp.complete
-						imp2.fake = imp.fake
+						obj := NewPkgName(s.Pos(), imp, name)
 						if s.Name != nil {
-							check.recordObject(s.Name, imp2)
+							// in a dot-import, the dot represents the package
+							check.recordObject(s.Name, obj)
 						} else {
-							check.recordImplicit(s, imp2)
+							check.recordImplicit(s, obj)
 						}
 
 						// add import to file scope
 						if name == "." {
 							// merge imported scope with file scope
 							for _, obj := range imp.scope.elems {
-								// gcimported package scopes contain non-exported
-								// objects such as types used in partially exported
-								// objects - do not accept them
+								// A package scope may contain non-exported objects,
+								// do not import them!
 								if obj.IsExported() {
 									// Note: This will change each imported object's scope!
-									//       May be an issue for types aliases.
+									//       May be an issue for type aliases.
 									check.declareObj(scope, nil, obj)
 									check.recordImplicit(s, obj)
 								}
 							}
 						} else {
 							// declare imported package object in file scope
-							check.declareObj(scope, nil, imp2)
+							check.declareObj(scope, nil, obj)
 						}
 
 					case *ast.ValueSpec:

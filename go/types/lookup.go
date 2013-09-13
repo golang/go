@@ -73,7 +73,7 @@ func LookupFieldOrMethod(T Type, pkg *Package, name string) (obj Object, index [
 
 func lookupFieldOrMethod(T Type, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
-	//          This function and NewMethodSet should kept in sync.
+	//          This function and NewMethodSet should be kept in sync.
 
 	if name == "_" {
 		return // blank fields/methods are never found

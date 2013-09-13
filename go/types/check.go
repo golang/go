@@ -138,16 +138,16 @@ func (check *checker) handleBailout(err *error) {
 }
 
 func (conf *Config) check(pkgPath string, fset *token.FileSet, files []*ast.File, info *Info) (pkg *Package, err error) {
-	pkg = &Package{
-		path:    pkgPath,
-		scope:   NewScope(Universe),
-		imports: make(map[string]*Package),
+	// make sure we have a package canonicalization map
+	if conf.Packages == nil {
+		conf.Packages = make(map[string]*Package)
 	}
 
+	pkg = NewPackage(pkgPath, "", NewScope(Universe)) // package name is set below
 	check := newChecker(conf, fset, pkg)
 	defer check.handleBailout(&err)
 
-	// we need a reasonable path to continue
+	// we need a reasonable package path to continue
 	if path.Clean(pkgPath) == "." {
 		check.errorf(token.NoPos, "invalid package path provided: %q", pkgPath)
 		return

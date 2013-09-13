@@ -2350,10 +2350,10 @@ func (p *Package) Build() {
 	emitStore(init, initguard, vTrue)
 
 	// Call the init() function of each package we import.
-	for _, obj := range p.info.Imports() {
-		prereq := p.Prog.packages[obj]
+	for _, pkg := range p.info.Pkg.Imports() {
+		prereq := p.Prog.packages[pkg]
 		if prereq == nil {
-			panic(fmt.Sprintf("Package(%q).Build(): unsatisified import: Program.CreatePackage(%q) was not called", p.Object.Path(), obj.Path()))
+			panic(fmt.Sprintf("Package(%q).Build(): unsatisfied import: Program.CreatePackage(%q) was not called", p.Object.Path(), pkg.Path()))
 		}
 		var v Call
 		v.Call.Value = prereq.init

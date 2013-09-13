@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strconv"
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
@@ -31,33 +30,6 @@ type PackageInfo struct {
 
 func (info *PackageInfo) String() string {
 	return fmt.Sprintf("PackageInfo(%s)", info.Pkg.Path())
-}
-
-// Imports returns the set of packages imported by this one, in source
-// order.  Callers should not mutate the result.
-//
-func (info *PackageInfo) Imports() []*types.Package {
-	var imports []*types.Package
-
-	// We iterate over the syntax (info.Files) not the types
-	// (info.Pkg.Imports()) because the latter may contain the
-	// transitive closure of dependencies, e.g. when using GcImporter.
-	seen := make(map[*types.Package]bool)
-	for _, file := range info.Files {
-		for _, imp := range file.Imports {
-			path, _ := strconv.Unquote(imp.Path.Value)
-			if path == "unsafe" {
-				continue // not a true package
-			}
-			typkg := info.Pkg.Imports()[path]
-			if seen[typkg] {
-				continue // already seen
-			}
-			seen[typkg] = true
-			imports = append(imports, typkg)
-		}
-	}
-	return imports
 }
 
 // TypeOf returns the type of expression e.

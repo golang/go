@@ -28,14 +28,11 @@ func referrers(o *oracle) (queryResult, error) {
 		return nil, o.errorf(false, "no object for identifier")
 	}
 
-	obj = primaryPkg(obj)
-
 	// Iterate over all go/types' resolver facts for the entire program.
 	var refs []token.Pos
 	for _, info := range o.typeInfo {
 		for id2, obj2 := range info.Objects {
-			obj2 = primaryPkg(obj2)
-			if obj2 == obj {
+			if sameObj(obj, obj2) {
 				if id2.NamePos == obj.Pos() {
 					continue // skip defining ident
 				}
@@ -52,20 +49,19 @@ func referrers(o *oracle) (queryResult, error) {
 	}, nil
 }
 
-// primaryPkg returns obj unchanged unless it is a (secondary) package
-// object created by an ImportSpec, in which case the canonical
-// (primary) object is returned.
+// same reports whether x and y are identical, or both are PkgNames
+// referring to the same Package.
 //
-// TODO(adonovan): The need for this function argues against the
-// wisdom of the primary/secondary distinction.  Discuss with gri.
-//
-func primaryPkg(obj types.Object) types.Object {
-	if pkg, ok := obj.(*types.Package); ok {
-		if prim := pkg.Primary(); prim != nil {
-			return prim
+func sameObj(x, y types.Object) bool {
+	if x == y {
+		return true
+	}
+	if _, ok := x.(*types.PkgName); ok {
+		if _, ok := y.(*types.PkgName); ok {
+			return x.Pkg() == y.Pkg()
 		}
 	}
-	return obj
+	return false
 }
 
 type referrersResult struct {
@@ -93,7 +89,7 @@ func (r *referrersResult) toJSON(res *json.Result, fset *token.FileSet) {
 		Pos:  fset.Position(r.query).String(),
 		Desc: r.obj.String(),
 	}
-	if pos := r.obj.Pos(); pos != token.NoPos { // primary package objects have no Pos()
+	if pos := r.obj.Pos(); pos != token.NoPos { // Package objects have no Pos()
 		referrers.ObjPos = fset.Position(pos).String()
 	}
 	for _, ref := range r.refs {
