@@ -7,5 +7,6 @@ enum {
 	BigEndian = 0,
 	CacheLineSize = 32,
 	appendCrossover = 8,
+	RuntimeGogoBytes = 80,
 	PCQuantum = 4
 };
