@@ -23,3 +23,12 @@ func _() {
 		_ int = syscall.PRIO_PGRP
 	)
 }
+
+// termios functions and constants
+func _() {
+	const (
+		_ int = syscall.TCIFLUSH
+		_ int = syscall.TCIOFLUSH
+		_ int = syscall.TCOFLUSH
+	)
+}
