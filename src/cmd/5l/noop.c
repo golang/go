@@ -321,6 +321,13 @@ noops(void)
 				}
 
 				if(cursym->text->reg & WRAPPER) {
+					int cond;
+					
+					// Preserve original RET's cond, to allow RET.EQ
+					// in the implementation of reflect.call.
+					cond = p->scond;
+					p->scond = C_SCOND_NONE;
+
 					// g->panicwrap -= autosize;
 					// MOVW panicwrap_offset(g), R3
 					// SUB $autosize, R3
@@ -347,6 +354,8 @@ noops(void)
 					p->to.reg = REGG;
 					p->to.offset = 2*PtrSize;
 					p = appendp(p);
+
+					p->scond = cond;
 				}
 
 				p->as = AMOVW;
