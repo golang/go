@@ -188,6 +188,14 @@ type Type interface {
 	uncommon() *uncommonType
 }
 
+// BUG(rsc): FieldByName and related functions consider struct field names to be equal
+// if the names are equal, even if they are unexported names originating
+// in different packages. The practical effect of this is that the result of
+// t.FieldByName("x") is not well defined if the struct type t contains
+// multiple fields named x (embedded from different packages).
+// FieldByName may return one of the fields named x or may report that there are none.
+// See golang.org/issue/4876 for more details.
+
 /*
  * These data structures are known to the compiler (../../cmd/gc/reflect.c).
  * A few are known to ../runtime/type.go to convey to debuggers.
