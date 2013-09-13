@@ -1084,6 +1084,9 @@ const (
 	S_IXGRP                          = 0x8
 	S_IXOTH                          = 0x1
 	S_IXUSR                          = 0x40
+	TCIFLUSH                         = 0x0
+	TCIOFLUSH                        = 0x2
+	TCOFLUSH                         = 0x1
 	TCP_CONGESTION                   = 0xd
 	TCP_CORK                         = 0x3
 	TCP_DEFER_ACCEPT                 = 0x9
