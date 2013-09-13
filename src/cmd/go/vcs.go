@@ -570,7 +570,7 @@ var vcsPaths = []*vcsPath{
 	// Google Code - new syntax
 	{
 		prefix: "code.google.com/",
-		re:     `^(?P<root>code\.google\.com/[pr]/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
+		re:     `^(?P<root>code\.google\.com/p/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
 		repo:   "https://{root}",
 		check:  googleCodeVCS,
 	},
