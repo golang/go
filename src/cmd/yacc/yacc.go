@@ -3281,7 +3281,7 @@ out:
 		c = $$Tok2[1] /* unknown char */
 	}
 	if $$Debug >= 3 {
-		__yyfmt__.Printf("lex %U %s\n", uint(char), $$Tokname(c))
+		__yyfmt__.Printf("lex %s(%d)\n", $$Tokname(c), uint(char))
 	}
 	return c
 }
@@ -3378,7 +3378,7 @@ $$default:
 			Nerrs++
 			if $$Debug >= 1 {
 				__yyfmt__.Printf("%s", $$Statname($$state))
-				__yyfmt__.Printf("saw %s\n", $$Tokname($$char))
+				__yyfmt__.Printf(" saw %s\n", $$Tokname($$char))
 			}
 			fallthrough
 
