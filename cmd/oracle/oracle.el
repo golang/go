@@ -7,9 +7,9 @@
 ;;; % mv $GOPATH/bin/oracle $GOROOT/bin/
 ;;;
 ;;; Load this file into Emacs and set go-oracle-scope to your
-;;; configuration.  Then, find a file of Go source code, select an
-;;; expression of interest, and press F4 (for "describe") or run one
-;;; of the other go-oracle-xxx commands.
+;;; configuration. Then, find a file of Go source code, enable
+;;; go-oracle-mode, select an expression of interest, and press `C-c C-o d'
+;;; (for "describe") or run one of the other go-oracle-xxx commands.
 ;;;
 ;;; TODO(adonovan): simplify installation and configuration by making
 ;;; oracle a subcommand of 'go tool'.
@@ -36,8 +36,28 @@
   nil
   "History of values supplied to `go-oracle-set-scope'.")
 
+(defvar go-oracle-mode-map
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "C-c C-o d") #'go-oracle-describe)
+    (define-key m (kbd "C-c C-o f") #'go-oracle-freevars)
+    (define-key m (kbd "C-c C-o g") #'go-oracle-callgraph)
+    (define-key m (kbd "C-c C-o i") #'go-oracle-implements)
+    (define-key m (kbd "C-c C-o p") #'go-oracle-peers)
+    (define-key m (kbd "C-c C-o r") #'go-oracle-referrers)
+    (define-key m (kbd "C-c C-o s") #'go-oracle-callstack)
+    (define-key m (kbd "C-c C-o <") #'go-oracle-callers)
+    (define-key m (kbd "C-c C-o >") #'go-oracle-callees)
+    m))
+
+;; TODO(dominikh): Rethink set-scope some. Setting it to a file is
+;; painful because it doesn't use find-file, and variables/~ aren't
+;; expanded. Setting it to an import path is somewhat painful because
+;; it doesn't make use of go-mode's import path completion. One option
+;; would be having two different functions, but then we can't
+;; automatically call it when no scope has been set. Also it wouldn't
+;; easily allow specifying more than one file/package.
 (defun go-oracle-set-scope ()
-  "Sets the scope for the Go oracle, prompting the user to edit the
+  "Set the scope for the Go oracle, prompting the user to edit the
 previous scope.
 
 The scope specifies a set of arguments, separated by spaces.
@@ -181,10 +201,11 @@ identifier."
   (interactive)
   (go-oracle--run "referrers"))
 
-;; TODO(adonovan): don't mutate the keymap; just document how users
-;; can do this themselves.  But that means freezing the API, so don't
-;; do that yet; wait till v1.0.
-(add-hook 'go-mode-hook
-          #'(lambda () (local-set-key (kbd "<f4>") #'go-oracle-describe)))
+;; TODO(dominikh): better docstring
+(define-minor-mode go-oracle-mode "Oracle minor mode for go-mode
+
+Keys specific to go-oracle-mode:
+\\{go-oracle-mode-map}"
+  nil " oracle" go-oracle-mode-map)
 
 (provide 'go-oracle)
