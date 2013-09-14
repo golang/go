@@ -547,6 +547,9 @@ algtype1(Type *t, Type **bad)
 	if(bad)
 		*bad = T;
 
+	if(t->noalg)
+		return ANOEQ;
+
 	switch(t->etype) {
 	case TANY:
 	case TFORW:
