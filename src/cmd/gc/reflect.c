@@ -131,6 +131,7 @@ mapbucket(Type *t)
 		valtype = ptrto(valtype);
 
 	bucket = typ(TSTRUCT);
+	bucket->noalg = 1;
 
 	// The first field is: uint8 topbits[BUCKETSIZE].
 	// We don't need to encode it as GC doesn't care about it.
@@ -192,6 +193,7 @@ hmap(Type *t)
 
 	bucket = mapbucket(t);
 	h = typ(TSTRUCT);
+	h->noalg = 1;
 
 	offset = widthint; // count
 	offset += 4;       // flags

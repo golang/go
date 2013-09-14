@@ -141,6 +141,7 @@ struct	Type
 {
 	uchar	etype;
 	uchar	nointerface;
+	uchar	noalg;
 	uchar	chan;
 	uchar	trecur;		// to detect loops
 	uchar	printed;
