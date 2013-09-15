@@ -511,7 +511,7 @@ func (p *pp) fmtFloat64(v float64, verb rune) {
 
 func (p *pp) fmtComplex64(v complex64, verb rune) {
 	switch verb {
-	case 'e', 'E', 'f', 'F', 'g', 'G':
+	case 'b', 'e', 'E', 'f', 'F', 'g', 'G':
 		p.fmt.fmt_c64(v, verb)
 	case 'v':
 		p.fmt.fmt_c64(v, 'g')
@@ -522,7 +522,7 @@ func (p *pp) fmtComplex64(v complex64, verb rune) {
 
 func (p *pp) fmtComplex128(v complex128, verb rune) {
 	switch verb {
-	case 'e', 'E', 'f', 'F', 'g', 'G':
+	case 'b', 'e', 'E', 'f', 'F', 'g', 'G':
 		p.fmt.fmt_c128(v, verb)
 	case 'v':
 		p.fmt.fmt_c128(v, 'g')
