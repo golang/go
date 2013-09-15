@@ -2115,7 +2115,13 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 	// To recap, there are no constraints on the assembly being used for the
 	// transition. We simply require that g and SP match and that the PC is not
 	// in runtime.gogo.
-	if(gp == nil || gp != m->curg || (uintptr)sp < gp->stackguard - StackGuard || gp->stackbase < (uintptr)sp ||
+	//
+	// On Windows, one m is sending reports about all the g's, so gp == m->curg
+	// is not a useful comparison. The profilem function in os_windows.c has
+	// already checked that gp is a user g.
+	if(gp == nil ||
+	   (!Windows && gp != m->curg) ||
+	   (uintptr)sp < gp->stackguard - StackGuard || gp->stackbase < (uintptr)sp ||
 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
 		traceback = false;
 
