@@ -429,6 +429,8 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
 	oldPlus := f.plus
 	for i := 0; ; i++ {
 		switch verb {
+		case 'b':
+			f.fmt_fb32(r)
 		case 'e':
 			f.fmt_e32(r)
 		case 'E':
@@ -457,6 +459,8 @@ func (f *fmt) fmt_c128(v complex128, verb rune) {
 	oldPlus := f.plus
 	for i := 0; ; i++ {
 		switch verb {
+		case 'b':
+			f.fmt_fb64(r)
 		case 'e':
 			f.fmt_e64(r)
 		case 'E':
