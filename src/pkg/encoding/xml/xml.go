@@ -150,6 +150,10 @@ type Decoder struct {
 	//	d.Entity = HTMLEntity
 	//
 	// creates a parser that can handle typical HTML.
+	//
+	// Strict mode does not enforce the requirements of the XML name spaces TR.
+	// In particular it does not reject name space tags using undefined prefixes.
+	// Such tags are recorded with the unknown prefix as the name space URL.
 	Strict bool
 
 	// When Strict == false, AutoClose indicates a set of elements to
