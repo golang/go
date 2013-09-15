@@ -308,7 +308,7 @@ var printVerbs = []printVerb{
 	// '#' is alternate format for several verbs.
 	// ' ' is spacer for numbers
 	{'%', noFlag, 0},
-	{'b', numFlag, argInt | argFloat},
+	{'b', numFlag, argInt | argFloat | argComplex},
 	{'c', "-", argRune | argInt},
 	{'d', numFlag, argInt},
 	{'e', numFlag, argFloat | argComplex},

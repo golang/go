@@ -67,6 +67,7 @@ func PrintfTests() {
 	fmt.Printf("%F %F %F %F", 3e9, x, fslice, c)
 	fmt.Printf("%g %g %g %g", 3e9, x, fslice, c)
 	fmt.Printf("%G %G %G %G", 3e9, x, fslice, c)
+	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
 	fmt.Printf("%p %p", p, nil)
 	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
@@ -95,8 +96,8 @@ func PrintfTests() {
 	fmt.Printf("%g", 1+2i)
 	// Some bad format/argTypes
 	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"
-	fmt.Printf("%b", c)                        // ERROR "arg c for printf verb %b of wrong type"
-	fmt.Printf("%b", 1+2i)                     // ERROR "arg 1 \+ 2i for printf verb %b of wrong type"
+	fmt.Printf("%t", c)                        // ERROR "arg c for printf verb %t of wrong type"
+	fmt.Printf("%t", 1+2i)                     // ERROR "arg 1 \+ 2i for printf verb %t of wrong type"
 	fmt.Printf("%c", 2.3)                      // ERROR "arg 2.3 for printf verb %c of wrong type"
 	fmt.Printf("%d", 2.3)                      // ERROR "arg 2.3 for printf verb %d of wrong type"
 	fmt.Printf("%e", "hi")                     // ERROR "arg .hi. for printf verb %e of wrong type"
