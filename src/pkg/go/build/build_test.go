@@ -5,10 +5,12 @@
 package build
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -140,5 +142,45 @@ func TestShouldBuild(t *testing.T) {
 	}
 	if !reflect.DeepEqual(m, want3) {
 		t.Errorf("shoudBuild(file3) tags = %v, want %v", m, want3)
+	}
+}
+
+type readNopCloser struct {
+	io.Reader
+}
+
+func (r readNopCloser) Close() error {
+	return nil
+}
+
+var matchFileTests = []struct {
+	name  string
+	data  string
+	match bool
+}{
+	{"foo_arm.go", "", true},
+	{"foo1_arm.go", "// +build linux\n\npackage main\n", false},
+	{"foo_darwin.go", "", false},
+	{"foo.go", "", true},
+	{"foo1.go", "// +build linux\n\npackage main\n", false},
+	{"foo.badsuffix", "", false},
+}
+
+func TestMatchFile(t *testing.T) {
+	for _, tt := range matchFileTests {
+		ctxt := Context{GOARCH: "arm", GOOS: "plan9"}
+		ctxt.OpenFile = func(path string) (r io.ReadCloser, err error) {
+			if path != "x+"+tt.name {
+				t.Fatalf("OpenFile asked for %q, expected %q", path, "x+"+tt.name)
+			}
+			return &readNopCloser{strings.NewReader(tt.data)}, nil
+		}
+		ctxt.JoinPath = func(elem ...string) string {
+			return strings.Join(elem, "+")
+		}
+		match, err := ctxt.MatchFile("x", tt.name)
+		if match != tt.match || err != nil {
+			t.Fatalf("MatchFile(%q) = %v, %v, want %v, nil", tt.name, match, err, tt.match)
+		}
 	}
 }
