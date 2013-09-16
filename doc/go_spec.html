@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Sep 12, 2013",
+	"Subtitle": "Version of Sep 16, 2013",
 	"Path": "/doc/spec"
 }-->
 
@@ -3345,7 +3345,7 @@ As an exception to the addressability requirement, <code>x</code> may also be a
 (possibly parenthesized)
 <a href="#Composite_literals">composite literal</a>.
 If the evaluation of <code>x</code> would cause a <a href="#Run_time_panics">run-time panic</a>, 
-then the evaluation of <code>&x</code> does too.
+then the evaluation of <code>&amp;x</code> does too.
 </p>
 
 <p>
@@ -3365,7 +3365,7 @@ will cause a <a href="#Run_time_panics">run-time panic</a>.
 
 var x *int = nil
 *x   // causes a run-time panic
-&*x  // causes a run-time panic
+&amp;*x  // causes a run-time panic
 </pre>
 
 
@@ -4997,11 +4997,17 @@ and that is the one whose execution terminates.
 </p>
 
 <pre>
-L:
-	for i &lt; n {
-		switch i {
-		case 5:
-			break L
+OuterLoop:
+	for i = 0; i &lt; n; i++ {
+		for j = 0; j &lt; m; j++ {
+			switch a[i][j] {
+			case nil:
+				state = Error
+				break OuterLoop
+			case item:
+				state = Found
+				break OuterLoop
+			}
 		}
 	}
 </pre>
@@ -5022,6 +5028,18 @@ If there is a label, it must be that of an enclosing
 "for" statement, and that is the one whose execution
 advances.
 </p>
+
+<pre>
+RowLoop:
+	for y, row := range rows {
+		for x, data := range row {
+			if data == endOfRow {
+				continue RowLoop
+			}
+			row[x] = data + bias(x, y)
+		}
+	}
+</pre>
 
 <h3 id="Goto_statements">Goto statements</h3>
 
