@@ -463,8 +463,6 @@ and libcgo_thread_start to a gcc-compiled function that can be used to
 create a new thread, in place of the runtime's usual direct system
 calls.
 
-[NOTE: From here down is planned but not yet implemented.]
-
 Internal and External Linking
 
 The text above describes "internal" linking, in which 6l parses and
