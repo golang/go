@@ -165,7 +165,7 @@ func makeRedirectHandler(target string) http.HandlerFunc {
 	}
 }
 
-var validId = regexp.MustCompile(`^[a-z0-9]*$`)
+var validId = regexp.MustCompile(`^[A-Za-z0-9-]*$`)
 
 func makePrefixRedirectHandler(prefix, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
