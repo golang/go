@@ -1009,24 +1009,6 @@ func TestBadRecursiveType(t *testing.T) {
 	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.
 }
 
-type Bad0 struct {
-	CH chan int
-	C  float64
-}
-
-func TestInvalidField(t *testing.T) {
-	var bad0 Bad0
-	bad0.CH = make(chan int)
-	b := new(bytes.Buffer)
-	dummyEncoder := new(Encoder) // sufficient for this purpose.
-	dummyEncoder.encode(b, reflect.ValueOf(&bad0), userType(reflect.TypeOf(&bad0)))
-	if err := dummyEncoder.err; err == nil {
-		t.Error("expected error; got none")
-	} else if strings.Index(err.Error(), "type") < 0 {
-		t.Error("expected type error; got", err)
-	}
-}
-
 type Indirect struct {
 	A ***[3]int
 	S ***[]int

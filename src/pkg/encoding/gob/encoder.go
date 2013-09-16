@@ -6,7 +6,6 @@ package gob
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -52,10 +51,6 @@ func (enc *Encoder) pushWriter(w io.Writer) {
 // popWriter pops the innermost writer.
 func (enc *Encoder) popWriter() {
 	enc.w = enc.w[0 : len(enc.w)-1]
-}
-
-func (enc *Encoder) badType(rt reflect.Type) {
-	enc.setError(errors.New("gob: can't encode type " + rt.String()))
 }
 
 func (enc *Encoder) setError(err error) {
@@ -163,8 +158,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
 		// structs must be sent so we know their fields.
 		break
 	case reflect.Chan, reflect.Func:
-		// Probably a bad field in a struct.
-		enc.badType(rt)
+		// If we get here, it's a field of a struct; ignore it.
 		return
 	}
 
