@@ -12,7 +12,6 @@
 // than binary-rewriting coverage tools, but also a little less capable.
 // For instance, it does not probe inside && and || expressions, and can
 // be mildly confused by single statements with multiple function literals.
-
 package main
 
 import (
