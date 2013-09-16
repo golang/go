@@ -2183,7 +2183,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
 	c = 0;
 	if(u->etype == TSTRUCT || u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down)
-			if(f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0)) {
+			if(f->sym == s || (ignorecase && f->type->etype == TFUNC && f->type->thistuple > 0 && ucistrcmp(f->sym->name, s->name) == 0)) {
 				if(save)
 					*save = f;
 				c++;
