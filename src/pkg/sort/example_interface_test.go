@@ -20,18 +20,18 @@ func (p Person) String() string {
 
 // ByAge implements sort.Interface for []Person based on
 // the Age field.
-type ByAge []*Person
+type ByAge []Person
 
 func (a ByAge) Len() int           { return len(a) }
 func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
 
-func ExampleInterface() {
-	people := []*Person{
-		&Person{Name: "Bob", Age: 31},
-		&Person{Name: "John", Age: 42},
-		&Person{Name: "Michael", Age: 17},
-		&Person{Name: "Jenny", Age: 26},
+func Example() {
+	people := []Person{
+		{"Bob", 31},
+		{"John", 42},
+		{"Michael", 17},
+		{"Jenny", 26},
 	}
 
 	fmt.Println(people)
