@@ -1295,7 +1295,7 @@ walkexpr(Node **np, NodeList **init)
 		t = n->type;
 		if(n->esc == EscNone
 			&& smallintconst(l) && smallintconst(r)
-			&& mpgetfix(r->val.u.xval) < (1ULL<<16) / t->type->width) {
+			&& (t->type->width == 0 || mpgetfix(r->val.u.xval) < (1ULL<<16) / t->type->width)) {
 			// var arr [r]T
 			// n = arr[:l]
 			t = aindex(r, t->type); // [r]T
