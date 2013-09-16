@@ -15,6 +15,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"regexp"
 	"text/template"
 
 	"code.google.com/p/go.tools/godoc"
@@ -36,6 +37,15 @@ func registerHandlers(pres *godoc.Presentation) {
 	http.Handle("/", pres)
 	handlePathRedirects(pkgRedirects, "/pkg/")
 	handlePathRedirects(cmdRedirects, "/cmd/")
+	for prefix, redirect := range prefixHelpers {
+		p := "/" + prefix + "/"
+		h := makePrefixRedirectHandler(p, redirect)
+		http.HandleFunc(p, h)
+	}
+	for path, redirect := range redirects {
+		h := makeRedirectHandler(redirect)
+		http.HandleFunc(path, h)
+	}
 }
 
 func readTemplate(name string) *template.Template {
@@ -114,6 +124,32 @@ var cmdRedirects = map[string]string{
 	"goyacc":    "yacc",
 }
 
+var redirects = map[string]string{
+	"/blog":   "http://blog.golang.org",
+	"/build":  "http://build.golang.org",
+	"/change": "https://code.google.com/p/go/source/list",
+	"/cl":     "https://gocodereview.appspot.com/",
+	"/doc/go_for_cpp_programmers.html": "https://code.google.com/p/go-wiki/wiki/GoForCPPProgrammers",
+	"/doc/go_tutorial.html":            "http://tour.golang.org/",
+	"/issue":                           "https://code.google.com/p/go/issues",
+	"/issue/new":                       "https://code.google.com/p/go/issues/entry",
+	"/issues":                          "https://code.google.com/p/go/issues",
+	"/play":                            "http://play.golang.org",
+	"/talks":                           "http://talks.golang.org",
+	"/tour":                            "http://tour.golang.org",
+	"/wiki":                            "https://code.google.com/p/go-wiki/w/list",
+}
+
+var prefixHelpers = map[string]string{
+	"blog":   "http://blog.golang.org/",
+	"change": "https://code.google.com/p/go/source/detail?r=",
+	"cl":     "https://codereview.appspot.com/",
+	"issue":  "https://code.google.com/p/go/issues/detail?id=",
+	"play":   "http://play.golang.org/",
+	"talks":  "http://talks.golang.org/",
+	"wiki":   "https://code.google.com/p/go-wiki/wiki/",
+}
+
 func handlePathRedirects(redirects map[string]string, prefix string) {
 	for source, target := range pkgRedirects {
 		h := makeRedirectHandler(prefix + target + "/")
@@ -126,5 +162,24 @@ func handlePathRedirects(redirects map[string]string, prefix string) {
 func makeRedirectHandler(target string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}
+}
+
+var validId = regexp.MustCompile(`^[a-z0-9]*$`)
+
+func makePrefixRedirectHandler(prefix, baseURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if p := r.URL.Path; p == prefix {
+			// redirect /prefix/ to /prefix
+			http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
+			return
+		}
+		id := r.URL.Path[len(prefix):]
+		if !validId.MatchString(id) {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		target := baseURL + id
+		http.Redirect(w, r, target, http.StatusFound)
 	}
 }
