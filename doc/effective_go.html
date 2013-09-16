@@ -506,6 +506,8 @@ slightly generalized
 <code>switch</code> is more flexible;
 <code>if</code> and <code>switch</code> accept an optional
 initialization statement like that of <code>for</code>;
+<code>break</code> and <code>continue</code> statements
+take an optional label to identify what to break or continue;
 and there are new control structures including a type switch and a
 multiway communications multiplexer, <code>select</code>.
 The syntax is also slightly different:
@@ -781,7 +783,46 @@ func shouldEscape(c byte) bool {
 </pre>
 
 <p>
-Here's a comparison routine for byte slices that uses two
+Although they are not nearly as common in Go as some other C-like
+languages, <code>break</code> statements can be used to terminate
+a <code>switch</code> early.
+Sometimes, though, it's necessary to break out of a surrounding loop,
+not the switch, and in Go that can be accomplished by putting a label
+on the loop and "breaking" to that label.
+This example shows both uses.
+</p>
+
+<pre>
+Loop:
+	for n := 0; n &lt; len(src); n += size {
+		case src[n] &lt; sizeOne:
+			if validateOnly {
+				break
+			}
+			size = 1
+			update(src[n])
+
+		case src[n] &lt; sizeTwo:
+			if n+1 &gt;= len(src) {
+				err = errShortInput
+				break Loop
+			}
+			if validateOnly {
+				break
+			}
+			size = 2
+			update(src[n] + src[n+1]&lt;&lt;shift)
+		}
+	}
+</pre>
+
+<p>
+Of course, the <code>continue</code> statement also accepts an optional label
+but it applies only to loops.
+</p>
+
+<p>
+To close this section, here's a comparison routine for byte slices that uses two
 <code>switch</code> statements:
 </p>
 <pre>
