@@ -402,13 +402,13 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 				err = errors.New("ECDSA signature contained zero or negative values")
 				break
 			}
-			digest, _ := hs.finishedHash.hashForClientCertificate(signatureECDSA)
+			digest, _, _ := hs.finishedHash.hashForClientCertificate(signatureECDSA)
 			if !ecdsa.Verify(key, digest, ecdsaSig.R, ecdsaSig.S) {
 				err = errors.New("ECDSA verification failure")
 				break
 			}
 		case *rsa.PublicKey:
-			digest, hashFunc := hs.finishedHash.hashForClientCertificate(signatureRSA)
+			digest, hashFunc, _ := hs.finishedHash.hashForClientCertificate(signatureRSA)
 			err = rsa.VerifyPKCS1v15(key, hashFunc, digest, certVerify.signature)
 		}
 		if err != nil {

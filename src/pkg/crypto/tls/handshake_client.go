@@ -281,17 +281,24 @@ func (c *Conn) clientHandshake() error {
 
 	if chainToSend != nil {
 		var signed []byte
-		certVerify := new(certificateVerifyMsg)
+		certVerify := &certificateVerifyMsg{
+			hasSignatureAndHash: c.vers >= VersionTLS12,
+		}
+
 		switch key := c.config.Certificates[0].PrivateKey.(type) {
 		case *ecdsa.PrivateKey:
-			digest, _ := finishedHash.hashForClientCertificate(signatureECDSA)
+			digest, _, hashId := finishedHash.hashForClientCertificate(signatureECDSA)
 			r, s, err := ecdsa.Sign(c.config.rand(), key, digest)
 			if err == nil {
 				signed, err = asn1.Marshal(ecdsaSignature{r, s})
 			}
+			certVerify.signatureAndHash.signature = signatureECDSA
+			certVerify.signatureAndHash.hash = hashId
 		case *rsa.PrivateKey:
-			digest, hashFunc := finishedHash.hashForClientCertificate(signatureRSA)
+			digest, hashFunc, hashId := finishedHash.hashForClientCertificate(signatureRSA)
 			signed, err = rsa.SignPKCS1v15(c.config.rand(), key, hashFunc, digest)
+			certVerify.signatureAndHash.signature = signatureRSA
+			certVerify.signatureAndHash.hash = hashId
 		default:
 			err = errors.New("unknown private key type")
 		}
