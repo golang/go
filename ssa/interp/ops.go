@@ -301,7 +301,7 @@ func lookup(instr *ssa.Lookup, x, idx value) value {
 // numeric datatypes and strings.  Both operands must have identical
 // dynamic type.
 //
-func binop(op token.Token, x, y value) value {
+func binop(op token.Token, t types.Type, x, y value) value {
 	switch op {
 	case token.ADD:
 		switch x.(type) {
@@ -690,10 +690,10 @@ func binop(op token.Token, x, y value) value {
 		}
 
 	case token.EQL:
-		return equals(x, y)
+		return eqnil(t, x, y)
 
 	case token.NEQ:
-		return !equals(x, y)
+		return !eqnil(t, x, y)
 
 	case token.GTR:
 		switch x.(type) {
@@ -760,6 +760,39 @@ func binop(op token.Token, x, y value) value {
 		}
 	}
 	panic(fmt.Sprintf("invalid binary op: %T %s %T", x, op, y))
+}
+
+// eqnil returns the comparison x == y using the equivalence relation
+// appropriate for type t.
+// If t is a reference type, at most one of x or y may be a nil value
+// of that type.
+//
+func eqnil(t types.Type, x, y value) bool {
+	switch t.Underlying().(type) {
+	case *types.Map, *types.Signature, *types.Slice:
+		// Since these types don't support comparison,
+		// one of the operands must be a literal nil.
+		switch x := x.(type) {
+		case *hashmap:
+			return (x != nil) == (y.(*hashmap) != nil)
+		case map[value]value:
+			return (x != nil) == (y.(map[value]value) != nil)
+		case *ssa.Function:
+			switch y := y.(type) {
+			case *ssa.Function:
+				return (x != nil) == (y != nil)
+			case *closure:
+				return true
+			}
+		case *closure:
+			return (x != nil) == (y.(*ssa.Function) != nil)
+		case []value:
+			return (x != nil) == (y.([]value) != nil)
+		}
+		panic(fmt.Sprintf("eqnil(%s): illegal dynamic type: %T", t, x))
+	}
+
+	return equals(t, x, y)
 }
 
 func unop(instr *ssa.UnOp, x value) value {

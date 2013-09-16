@@ -32,9 +32,6 @@
 //
 // * map iteration is asymptotically inefficient.
 //
-// * the equivalence relation for structs doesn't skip over blank
-// fields.
-//
 // * the sizes of the int, uint and uintptr types in the target
 // program are assumed to be the same as those of the interpreter
 // itself.
@@ -163,7 +160,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 
 	case *ssa.BinOp:
-		fr.env[instr] = binop(instr.Op, fr.get(instr.X), fr.get(instr.Y))
+		fr.env[instr] = binop(instr.Op, instr.X.Type(), fr.get(instr.X), fr.get(instr.Y))
 
 	case *ssa.Call:
 		fn, args := prepareCall(fr, &instr.Call)

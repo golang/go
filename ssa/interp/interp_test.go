@@ -184,7 +184,7 @@ func run(t *testing.T, dir, input string) bool {
 		}
 	}()
 
-	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump; ./ssadump -build=CFP %s\n", input)
+	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
 	mainInfo := imp.LoadMainPackage(files...)
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
@@ -197,7 +197,7 @@ func run(t *testing.T, dir, input string) bool {
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.CreateTestMainFunction() // (no-op if main already exists)
 
-	hint = fmt.Sprintf("To trace execution, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump; ./ssadump -build=C -run --interp=T %s\n", input)
+	hint = fmt.Sprintf("To trace execution, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=C -run --interp=T %s\n", input)
 	if exitCode := interp.Interpret(mainPkg, 0, inputs[0], []string{}); exitCode != 0 {
 		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
 		return false

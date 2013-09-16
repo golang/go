@@ -377,14 +377,15 @@ func init() {
 
 // An I->I type-assert fails iff the value is nil.
 func init() {
-	defer func() {
-		r := fmt.Sprint(recover())
-		if r != "interface conversion: interface is nil, not main.I" {
-			panic("I->I type assertion succeeed for nil value")
-		}
-	}()
-	var x I
-	_ = x.(I)
+	// TODO(adonovan): temporarily disabled; see comment at bottom of file.
+	// defer func() {
+	// 	r := fmt.Sprint(recover())
+	// 	if r != "interface conversion: interface is nil, not main.I" {
+	// 		panic("I->I type assertion succeeed for nil value")
+	// 	}
+	// }()
+	// var x I
+	// _ = x.(I)
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -503,3 +504,39 @@ func init() {
 		panic(deferCount) // defer call has not run!
 	}
 }
+
+func init() {
+	// Struct equivalence ignores blank fields.
+	type s struct{ x, _, z int }
+	s1 := s{x: 1, z: 3}
+	s2 := s{x: 1, z: 3}
+	if s1 != s2 {
+		panic("not equal")
+	}
+}
+
+func init() {
+	// A slice var can be compared to const []T nil.
+	var i interface{} = []string{"foo"}
+	var j interface{} = []string(nil)
+	if i.([]string) == nil {
+		panic("expected i non-nil")
+	}
+	if j.([]string) != nil {
+		panic("expected j nil")
+	}
+	// But two slices cannot be compared, even if one is nil.
+	defer func() {
+		r := fmt.Sprint(recover())
+		if r != "runtime error: comparing uncomparable type []string" {
+			panic("want panic from slice comparison, got " + r)
+		}
+	}()
+	_ = i == j // interface comparison recurses on types
+}
+
+// TODO(adonovan): fix: the interpreter doesn't correctly implement
+// defer/recover in an init function concatenated from many parts: the
+// first recover causes the entire init() to return, not jump to the
+// next part.  This will be fixed in a follow-up CL.  Until then,
+// beware: adding new init() functions here will have no effect!

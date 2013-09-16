@@ -16,8 +16,8 @@ import (
 )
 
 type hashable interface {
-	hash() int
-	eq(x interface{}) bool
+	hash(t types.Type) int
+	eq(t types.Type, x interface{}) bool
 }
 
 type entry struct {
@@ -31,8 +31,9 @@ type entry struct {
 // tests when walking the linked list.  Rehashing is done by the
 // underlying map.
 type hashmap struct {
-	table  map[int]*entry
-	length int // number of entries in map
+	keyType types.Type
+	table   map[int]*entry
+	length  int // number of entries in map
 }
 
 // makeMap returns an empty initialized map of key type kt,
@@ -41,23 +42,23 @@ func makeMap(kt types.Type, reserve int) value {
 	if usesBuiltinMap(kt) {
 		return make(map[value]value, reserve)
 	}
-	return &hashmap{table: make(map[int]*entry, reserve)}
+	return &hashmap{keyType: kt, table: make(map[int]*entry, reserve)}
 }
 
 // delete removes the association for key k, if any.
 func (m *hashmap) delete(k hashable) {
 	if m != nil {
-		hash := k.hash()
+		hash := k.hash(m.keyType)
 		head := m.table[hash]
 		if head != nil {
-			if k.eq(head.key) {
+			if k.eq(m.keyType, head.key) {
 				m.table[hash] = head.next
 				m.length--
 				return
 			}
 			prev := head
 			for e := head.next; e != nil; e = e.next {
-				if k.eq(e.key) {
+				if k.eq(m.keyType, e.key) {
 					prev.next = e.next
 					m.length--
 					return
@@ -72,9 +73,9 @@ func (m *hashmap) delete(k hashable) {
 // value(nil) otherwise.
 func (m *hashmap) lookup(k hashable) value {
 	if m != nil {
-		hash := k.hash()
+		hash := k.hash(m.keyType)
 		for e := m.table[hash]; e != nil; e = e.next {
-			if k.eq(e.key) {
+			if k.eq(m.keyType, e.key) {
 				return e.value
 			}
 		}
@@ -87,10 +88,10 @@ func (m *hashmap) lookup(k hashable) value {
 // k, the previous key remains in the map and its associated value is
 // updated.
 func (m *hashmap) insert(k hashable, v value) {
-	hash := k.hash()
+	hash := k.hash(m.keyType)
 	head := m.table[hash]
 	for e := head; e != nil; e = e.next {
-		if k.eq(e.key) {
+		if k.eq(m.keyType, e.key) {
 			e.value = v
 			return
 		}
