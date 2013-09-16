@@ -14,6 +14,8 @@ x_cgo_malloc(void *p)
 	} *a = p;
 
 	a->ret = malloc(a->n);
+	if(a->ret == NULL && a->n == 0)
+		a->ret = malloc(1);
 }
 
 /* Stub for calling free from Go */
