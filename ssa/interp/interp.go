@@ -568,6 +568,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
+			envs = append(envs, "GOARCH="+runtime.GOARCH)
 			setGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
