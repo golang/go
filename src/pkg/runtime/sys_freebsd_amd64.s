@@ -28,7 +28,7 @@
 // but it expects the third argument in R10. Instead of rewriting
 // all the assembly in this file, #define SYSCALL to a safe simulation
 // using INT $0x80.
-/
+//
 // INT $0x80 is a little slower than SYSCALL, but correctness wins.
 //
 // See golang.org/issue/6372.
