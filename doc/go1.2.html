@@ -7,13 +7,6 @@
 <h2 id="introduction">Introduction to Go 1.2</h2>
 
 <p>
-<font color=red>
-RED TEXT IS FROM THE 1.1 DOC AND NEEDS TO BE UPDATED. (It is here for
-formatting and style reference.)
-</font>
-</p>
-
-<p>
 Since the release of <a href="/doc/go1.1.html">Go version 1.1</a> in April, 2013,
 the release schedule has been shortened to make the release process more efficient.
 This release, Go version 1.2 or Go 1.2 for short, arrives roughly six months after 1.1,
@@ -293,58 +286,35 @@ of the tests run by the package, not just those of the package itself.
 By default, as before, dependencies of the tests are not downloaded.
 </p>
 
-
-<h3 id="platforms">Additional platforms</h3>
-
-<p>
-<font color=red>
-The Go 1.1 tool chain adds experimental support for <code>freebsd/arm</code>,
-<code>netbsd/386</code>, <code>netbsd/amd64</code>, <code>netbsd/arm</code>,
-<code>openbsd/386</code> and <code>openbsd/amd64</code> platforms.
-</font>
-</p>
-
-<p>
-<font color=red>
-An ARMv6 or later processor is required for <code>freebsd/arm</code> or
-<code>netbsd/arm</code>.
-</font>
-</p>
-
-<p>
-<font color=red>
-Go 1.1 adds experimental support for <code>cgo</code> on <code>linux/arm</code>.
-</font>
-</p>
-
 <h2 id="performance">Performance</h2>
 
 <p>
-<font color=red>
-The performance of code compiled with the Go 1.1 gc tool suite should be noticeably
-better for most Go programs.
-Typical improvements relative to Go 1.0 seem to be about 30%-40%, sometimes
-much more, but occasionally less or even non-existent.
-There are too many small performance-driven tweaks through the tools and libraries
-to list them all here, but the following major changes are worth noting:
-</font>
+There are a number of significant performance improvements in the standard library; here are a few of them.
 </p>
 
-<ul>
-<li>compress/bzip2: TODO faster decompression by 30% (CL 9915043).
+<ul> 
+
+<li>
+The <a href="/pkg/compress/bzip2/"><code>compress/bzip2</code></a>
+decompresses about 30% faster.
 </li>
 
-<li>crypto/des: TODO 5x faster encoding/decoding (CL 11874043, 12072045).
+<li>
+The <a href="/pkg/crypto/des/"><code>crypto/des</code></a> package
+is about five times faster.
 </li>
 
-<li>encoding/json: TODO faster encoding (CL 9129044).
+<li>
+The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package
+encodes about 30% faster.
 </li>
 
-<li>net: TODO improve windows performance by up to 30% (CL 8670044).
+<li>
+Networking performance on Windows and BSD systems is about 30% faster through the use
+of an integrated network poller in the runtime, similar to what was done for Linux and OS X
+in Go 1.1.
 </li>
 
-<li>net: TODO improve performance on BSD by up to 30% (CL 8264043, 12927048, 13080043).
-</li>
 </ul>
 
 <h2 id="library">Changes to the standard library</h2>
@@ -353,14 +323,49 @@ to list them all here, but the following major changes are worth noting:
 <h3 id="archive_tar_zip">The archive/tar and archive/zip packages</h3>
 
 <p>
-Breaking change: TODO 
-archive/tar,archive/zip: fix os.FileInfo implementation to provide base name only (CL 13118043).
+The
+<a href="/pkg/archive/tar/"><code>archive/tar</code></a>
+and
+<a href="/pkg/archive/zip/"><code>archive/zip</code></a>
+packages have had a change to their semantics that may break existing programs.
+The issue is that they both provided an implementation of the
+<a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a>
+interface that was not compliant with the specification for that interface.
+In particular, their <code>Name</code> method returned the full
+path name of the entry, but the interface specification requires that
+the method return only the base name (final path element).
+</p>
+
+<p>
+<em>Updating</em>: Since this behavior was newly implemented and
+a bit obscure, it is possible that no code depends on the broken behavior.
+If there are programs that do depend on it, they will need to be identified
+and fixed manually.
 </p>
 
 <h3 id="encoding">The new encoding package</h3>
 
 <p>
-encoding: TODO new package defining generic encoding interfaces (CL 12541051).
+There is a new package, <a href="/pkg/encoding/"><code>encoding</code></a>,
+that defines a set of standard encoding interfaces that may be used to
+build custom marshalers and unmarshalers for packages such as
+<a href="/pkg/encoding/xml/"><code>encoding/xml</code></a>,
+<a href="/pkg/encoding/json/"><code>encoding/json</code></a>,
+and
+<a href="/pkg/encoding/binary/"><code>encoding/binary</code></a>.
+These new interfaces have been used to tidy up some implementations in
+the standard library.
+</p>
+
+<p>
+The new interfaces are called
+<a href="/pkg/encoding/#BinaryMarshaler"><code>BinaryMarshaler</code></a>,
+<a href="/pkg/encoding/#BinaryUnmarshaler"><code>BinaryUnmarshaler</code></a>,
+<a href="/pkg/encoding/#TextMarshaler"><code>TextMarshaler</code></a>,
+and
+<a href="/pkg/encoding/#TextUnmarshaler"><code>TextUnmarshaler</code></a>.
+Full details are in the <a href="/pkg/encoding/">documentation</a> for the package
+and a separate <a href="http://golang.org/s/go12encoding">design document</a>.
 </p>
 
 <h3 id="fmt_indexed_arguments">The fmt package</h3>
@@ -397,7 +402,7 @@ fmt.Sprintf("%[3]c %[1]c %c\n", 'a', 'b', 'c')
 
 <p>
 the result is "<code>"c a b"</code>. The <code>[3]</code> index accesses the third formatting
-argument, whch is <code>'c'</code>, <code>[1]</code> accesses the first, <code>'a'</code>,
+argument, which is <code>'c'</code>, <code>[1]</code> accesses the first, <code>'a'</code>,
 and then the next fetch accesses the argument following that one, <code>'b'</code>.
 </p>
 
@@ -636,7 +641,11 @@ now always allows trailing commas on fields.
 
 <li>
 The <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a> package
-now supports the generic encoding interfaces of the
+now treats channel and function fields of structures as if they were unexported,
+even if they are not. That is, it ignores them completely. Previously they would
+trigger an error, which could cause unexpected compatibility problems if an
+embedded structure added such a field.
+The package also now supports the generic encoding interfaces of the
 <a href="/pkg/encoding/"><code>encoding</code></a> package
 described above.
 </li>
@@ -664,6 +673,13 @@ and related
 <a href="/pkg/encoding/xml/#MarshalerAttr"><code>MarshalerAttr</code></a> and
 <a href="/pkg/encoding/xml/#UnmarshalerAttr"><code>UnmarshalerAttr</code></a>
 interfaces.
+The package also adds a
+<a href="/pkg/encoding/xml/#Encoder.Flush"><code>Flush</code></a> method
+to the
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
+type for use by custom encoders. See the documentation for
+<a href="/pkg/encoding/xml/#Encoder.EncodeToken"><code>EncodeToken</code></a>
+to see how to use it.
 </li>
 
 <li>
@@ -748,15 +764,23 @@ struct for TCP connection setup using a dual IP stack as described in
 </li>
 
 <li>
-net/http: TODO don't allow sending invalid cookie lines (CL 12204043).
-</li>
-
-<li>
-net/http: TODO allow ReadResponse with nil *Request parameter (CL 9821043).
-</li>
-
-<li>
-net/http: TODO allow responses to HEAD requests, detect type and length (CL 12583043).
+The <a href="/pkg/net/http/"><code>net/http</code></a> package will no longer
+transmit cookies that are incorrect according to
+<a href="http://tools.ietf.org/html/rfc6265">RFC 6265</a>.
+It just logs an error and sends nothing.
+Also,
+the <a href="/pkg/net/http/"><code>net/http</code></a> package's
+<a href="/pkg/net/http/#ReadResponse"><code>ReadResponse</code></a>
+function now permits the <code>*Request</code> parameter to be <code>nil</code>,
+whereupon it assumes a GET request.
+Finally, an HTTP server will now serve HEAD
+requests transparently, without the need for special casing in handler code.
+While serving a HEAD request, writes to a 
+<a href="/pkg/net/http/#Handler"><code>Handler</code></a>'s
+<a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>
+are absorbed by the
+<a href="/pkg/net/http/#Server"><code>Server</code></a>
+and the client receives an empty body as required by the HTTP specification.
 </li>
 
 <li>
@@ -800,7 +824,7 @@ syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10
 
 <li>
 The <a href="/pkg/testing/"><code>testing</code></a> package
-now exports the<a href="/pkg/testing/#TB"><code>TB</code></a> interface.
+now exports the <a href="/pkg/testing/#TB"><code>TB</code></a> interface.
 It records the methods in common with the
 <a href="/pkg/testing/#T"><code>T</code></a>
 and
