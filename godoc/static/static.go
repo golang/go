@@ -170,7 +170,6 @@ var Files = map[string]string{
 <form method="GET" action="/search">
 <div id="menu">
 <a href="/doc/">Documents</a>
-<a href="/ref/">References</a>
 <a href="/pkg/">Packages</a>
 <a href="/project/">The Project</a>
 <a href="/help/">Help</a>
@@ -747,7 +746,7 @@ $(document).ready(function() {
 	{{end}}
 	</table>
 	{{if $.PDoc}}{{else}}
-	<p>Need more packages? Take a look at the <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Projects wiki page</a>.</p>
+	<p>Need more packages? Check out the <a href="/wiki/SubRepositories">sub-repositories</a> and <a href="/wiki/Projects">other Go projects</a>.</p>
 	{{end}}
 {{end}}
 `,
@@ -1704,9 +1703,14 @@ a#start .desc {
 	margin-top: 5px;
 }
 
-div#learn .icon {
+div#learn .popout {
 	float: right;
+	display: block;
 	cursor: pointer;
+	font-size: 12px;
+	background: url(/doc/share.png) no-repeat;
+	background-position: right top;
+	padding: 5px 27px;
 }
 div#learn pre,
 div#learn textarea {

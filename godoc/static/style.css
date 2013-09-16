@@ -283,9 +283,14 @@ a#start .desc {
 	margin-top: 5px;
 }
 
-div#learn .icon {
+div#learn .popout {
 	float: right;
+	display: block;
 	cursor: pointer;
+	font-size: 12px;
+	background: url(/doc/share.png) no-repeat;
+	background-position: right top;
+	padding: 5px 27px;
 }
 div#learn pre,
 div#learn textarea {
