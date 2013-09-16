@@ -526,7 +526,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		idToType[st.id()] = st
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if !isExported(f.Name) {
+			if !isSent(&f) {
 				continue
 			}
 			typ := userType(f.Type).base
@@ -559,6 +559,25 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
+}
+
+// isSent reports whether this struct field is to be transmitted.
+// It will be transmitted only if it is exported and not a chan or func field
+// or pointer to chan or func.
+func isSent(field *reflect.StructField) bool {
+	if !isExported(field.Name) {
+		return false
+	}
+	// If the field is a chan or func or pointer thereto, don't send it.
+	// That is, treat it like an unexported field.
+	typ := field.Type
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
+		return false
+	}
+	return true
 }
 
 // getBaseType returns the Gob type describing the given reflect.Type's base type.

@@ -131,7 +131,7 @@ func TestBadData(t *testing.T) {
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
 }
 
-// Types not supported by the Encoder.
+// Types not supported at top level by the Encoder.
 var unsupportedValues = []interface{}{
 	make(chan int),
 	func(a int) bool { return true },
@@ -662,19 +662,35 @@ func TestSequentialDecoder(t *testing.T) {
 	}
 }
 
-// Should be able to have unrepresentable fields (chan, func) as long as they
-// are unexported.
+// Should be able to have unrepresentable fields (chan, func, *chan etc.); we just ignore them.
 type Bug2 struct {
-	A int
-	b chan int
+	A   int
+	C   chan int
+	CP  *chan int
+	F   func()
+	FPP **func()
 }
 
-func TestUnexportedChan(t *testing.T) {
-	b := Bug2{23, make(chan int)}
-	var stream bytes.Buffer
-	enc := NewEncoder(&stream)
-	if err := enc.Encode(b); err != nil {
-		t.Fatalf("error encoding unexported channel: %s", err)
+func TestChanFuncIgnored(t *testing.T) {
+	c := make(chan int)
+	f := func() {}
+	fp := &f
+	b0 := Bug2{23, c, &c, f, &fp}
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(b0); err != nil {
+		t.Fatal("error encoding:", err)
+	}
+	var b1 Bug2
+	err := NewDecoder(&buf).Decode(&b1)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if b1.A != b0.A {
+		t.Fatal("got %d want %d", b1.A, b0.A)
+	}
+	if b1.C != nil || b1.CP != nil || b1.F != nil || b1.FPP != nil {
+		t.Fatal("unexpected value for chan or func")
 	}
 }
 

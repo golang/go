@@ -686,11 +686,10 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 	if ut.externalEnc != 0 {
 		rt = ut.user
 	}
-	if ut.externalEnc == 0 &&
-		srt.Kind() == reflect.Struct {
+	if ut.externalEnc == 0 && srt.Kind() == reflect.Struct {
 		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
 			f := srt.Field(fieldNum)
-			if !isExported(f.Name) {
+			if !isSent(&f) {
 				continue
 			}
 			op, indir := enc.encOpFor(f.Type, seen)

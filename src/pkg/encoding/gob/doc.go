@@ -74,8 +74,9 @@ slice has capacity the slice will be extended in place; if not, a new array is
 allocated. Regardless, the length of the resulting slice reports the number of
 elements decoded.
 
-Functions and channels cannot be sent in a gob. Attempting to encode a value
-that contains one will fail.
+Functions and channels will not be sent in a gob. Attempting to encode such a value
+at top the level will fail. A struct field of chan or func type is treated exactly
+like an unexported field and is ignored.
 
 Gob can encode a value of any type implementing the GobEncoder,
 encoding.BinaryMarshaler, or encoding.TextMarshaler interfaces by calling the
