@@ -17,7 +17,7 @@ This implementation adds the flag -S, which prints each symbol's size
 in decimal after its address.
 
 Usage:
-	go tool nm [-aghnsTu] file
+	go tool nm [-aghnsSTu] file
 
 */
 package main

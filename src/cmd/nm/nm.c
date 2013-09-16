@@ -72,7 +72,7 @@ void	zenter(Sym*);
 void
 usage(void)
 {
-	fprint(2, "usage: nm [-aghnsTu] file ...\n");
+	fprint(2, "usage: nm [-aghnsSTu] file ...\n");
 	exits("usage");
 }
 
