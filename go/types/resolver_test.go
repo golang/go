@@ -53,6 +53,12 @@ var sources = []string{
 		}
 	}
 	`,
+	`
+	package p
+	type S struct{}
+	func (T) _() {}
+	func (T) _() {}
+	`,
 }
 
 var pkgnames = []string{
