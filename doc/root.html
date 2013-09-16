@@ -5,7 +5,7 @@
 <div class="left">
 
 <div id="learn">
-<img class="icon share" src="/doc/share.png" alt="View full screen" title="View full screen">
+<a class="popout share">Pop-out</a>
 <div class="rootHeading">Try Go</div>
 <div class="input">
 <textarea spellcheck="false" class="code">// You can edit this code!
@@ -69,7 +69,7 @@ Linux, Mac OS X, Windows, and more.
 
 <div id="video">
 <div class="rootHeading">Featured video</div>
-<iframe width="415" height="241" src="http://www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
+<iframe width="415" height="241" src="//www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
 </div>
 
 </div>
@@ -135,6 +135,16 @@ window.initFuncs.push(function() {
 	$('<script/>').attr('text', 'text/javascript')
 		.attr('src', 'http://blog.golang.org/.json?jsonp=feedLoaded')
 		.appendTo('body');
+
+	// Set the video at random.
+	var videos = [
+		{h: 241, s: "//www.youtube.com/embed/ytEkHepK08c"}, // Tour of Go
+		{h: 241, s: "//www.youtube.com/embed/f6kdp27TYZs"}, // Concurrency Patterns
+		{h: 233, s: "//player.vimeo.com/video/53221560"},   // Grows with grace
+		{h: 233, s: "//player.vimeo.com/video/69237265"}    // Simple environment
+	];
+	var v = videos[Math.floor(Math.random()*videos.length)];
+	$('#video iframe').attr('height', v.h).attr('src', v.s);
 });
 
 </script>
