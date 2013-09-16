@@ -1225,6 +1225,8 @@ Slice GoBytes(char *p, int32_t n) {
 extern void runtime_throw(const char *):
 void *Cmalloc(size_t n) {
         void *p = malloc(n);
+        if(p == NULL && n == 0)
+                p = malloc(1);
         if(p == NULL)
                 runtime_throw("runtime: C malloc failed");
         return p;
