@@ -30,7 +30,7 @@ func main() {
 		panic(g)
 	}
 	ex := recover()
-	print(ex)                 // @concrete myPanic | string | func(int) | func() string
+	print(ex)                 // @types myPanic | string | func(int) | func() string
 	print(ex.(func(int)))     // @pointsto main.f
 	print(ex.(func() string)) // @pointsto main.g
 }

@@ -30,9 +30,9 @@ func interface1() {
 		k = i
 	}
 
-	print(i) // @concrete *int
-	print(j) // @concrete D
-	print(k) // @concrete *int | D
+	print(i) // @types *int
+	print(j) // @types D
+	print(k) // @types *int | D
 
 	print(i.(*int)) // @pointsto main.a
 	print(j.(*int)) // @pointsto
@@ -51,9 +51,9 @@ func interface2() {
 		k = i
 	}
 
-	print(i) // @concrete *C
-	print(j) // @concrete D
-	print(k) // @concrete *C | D
+	print(i) // @types *C
+	print(j) // @types D
+	print(k) // @types *C | D
 	print(k) // @pointsto makeinterface:main.D | makeinterface:*main.C
 
 	k.f()
@@ -77,7 +77,7 @@ func interface2() {
 func interface3() {
 	// There should be no backflow of concrete types from the type-switch to x.
 	var x interface{} = 0
-	print(x) // @concrete int
+	print(x) // @types int
 	switch y := x.(type) {
 	case int:
 	case string:
@@ -90,18 +90,18 @@ func interface4() {
 		i = 123
 	}
 
-	print(i) // @concrete int | D
+	print(i) // @types int | D
 
 	j := i.(I)       // interface narrowing type-assertion
-	print(j)         // @concrete D
+	print(j)         // @types D
 	print(j.(D).ptr) // @pointsto main.a
 
 	var l interface{} = j // interface widening assignment.
-	print(l)              // @concrete D
+	print(l)              // @types D
 	print(l.(D).ptr)      // @pointsto main.a
 
 	m := j.(interface{}) // interface widening type-assertion.
-	print(m)             // @concrete D
+	print(m)             // @types D
 	print(m.(D).ptr)     // @pointsto main.a
 }
 

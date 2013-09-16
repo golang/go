@@ -9,32 +9,99 @@ import (
 	"go/token"
 	"strings"
 
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/ssa"
 )
 
-// A Label is an abstract location or an instruction that allocates memory.
-// A points-to set is (conceptually) a set of labels.
+// A Label is an entity that may be pointed to by a pointer, map,
+// channel, 'func', slice or interface.  Labels include:
 //
-// (This is basically a pair of a Value that allocates an object and a
-// subelement indicator within that object.)
+// Labels include:
+// 	- functions
+//      - globals
+//      - tagged objects, representing interfaces and reflect.Values
+//      - arrays created by literals (e.g. []byte("foo")) and conversions ([]byte(s))
+// 	- stack- and heap-allocated variables (including composite literals)
+// 	- channels, maps and arrays created by make()
+//	- instrinsic or reflective operations that allocate (e.g. append, reflect.New)
+// 	- and their subelements, e.g. "alloc.y[*].z"
 //
-// TODO(adonovan): local labels should include their context (CallGraphNode).
+// Labels are so varied that they defy good generalizations;
+// some have no value, no callgraph node, or no position.
+// Many objects have types that are inexpressible in Go:
+// maps, channels, functions, tagged objects.
 //
 type Label struct {
-	Value      ssa.Value
-	subelement *fieldInfo // e.g. ".a.b[*].c"
+	obj        *object    // the addressable memory location containing this label
+	subelement *fieldInfo // subelement path within obj, e.g. ".a.b[*].c"
 }
 
-func (l *Label) Pos() token.Pos {
-	if l.Value != nil {
-		return l.Value.Pos()
+// Value returns the ssa.Value that allocated this label's object,
+// or nil if it was allocated by an intrinsic.
+//
+func (l Label) Value() ssa.Value {
+	return l.obj.val
+}
+
+// Context returns the analytic context in which this label's object was allocated,
+// or nil for global objects: global, const, and shared contours for functions.
+//
+func (l Label) Context() CallGraphNode {
+	return l.obj.cgn
+}
+
+// Path returns the path to the subelement of the object containing
+// this label.  For example, ".x[*].y".
+//
+func (l Label) Path() string {
+	return l.subelement.path()
+}
+
+// Pos returns the position of this label, if known, zero otherwise.
+func (l Label) Pos() token.Pos {
+	if v := l.Value(); v != nil {
+		return v.Pos()
+	}
+	if l.obj.rtype != nil {
+		if nt, ok := deref(l.obj.rtype).(*types.Named); ok {
+			return nt.Obj().Pos()
+		}
+	}
+	if cgn := l.obj.cgn; cgn != nil {
+		return cgn.Func().Pos()
 	}
 	return token.NoPos
 }
 
-func (l *Label) String() string {
+// String returns the printed form of this label.
+//
+// Examples:					Object type:
+// 	(sync.Mutex).Lock			(a function)
+// 	"foo":[]byte				(a slice constant)
+//	makemap					(map allocated via make)
+//	makechan				(channel allocated via make)
+//	makeinterface				(tagged object allocated by makeinterface)
+//      <alloc in reflect.Zero>			(allocation in instrinsic)
+//      sync.Mutex				(a reflect.rtype instance)
+//
+// Labels within compound objects have subelement paths:
+//	x.y[*].z				(a struct variable, x)
+//	append.y[*].z				(array allocated by append)
+//	makeslice.y[*].z			(array allocated via make)
+//
+func (l Label) String() string {
 	var s string
-	switch v := l.Value.(type) {
+	switch v := l.obj.val.(type) {
+	case nil:
+		if l.obj.rtype != nil {
+			return l.obj.rtype.String()
+		}
+		if l.obj.cgn != nil {
+			// allocation by intrinsic or reflective operation
+			return fmt.Sprintf("<alloc in %s>", l.obj.cgn.Func())
+		}
+		return "<unknown>" // should be unreachable
+
 	case *ssa.Function, *ssa.Global:
 		s = v.String()
 
@@ -59,12 +126,12 @@ func (l *Label) String() string {
 
 	case *ssa.MakeInterface:
 		// MakeInterface is usually implicit in Go source (so
-		// Pos()==0), and interfaces objects may be allocated
+		// Pos()==0), and tagged objects may be allocated
 		// synthetically (so no *MakeInterface data).
 		s = "makeinterface:" + v.X.Type().String()
 
 	default:
-		panic(fmt.Sprintf("unhandled Label.Value type: %T", v))
+		panic(fmt.Sprintf("unhandled Label.val type: %T", v))
 	}
 
 	return s + l.subelement.path()

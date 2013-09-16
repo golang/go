@@ -16,7 +16,7 @@ func structReflect1() {
 	var a A
 	fld, _ := reflect.TypeOf(a).FieldByName("f") // "f" is ignored
 	// TODO(adonovan): what does interface{} even mean here?
-	print(reflect.Zero(fld.Type).Interface()) // @concrete *int | bool | interface{}
+	print(reflect.Zero(fld.Type).Interface()) // @types *int | bool | interface{}
 	// TODO(adonovan): test promotion/embedding.
 }
 

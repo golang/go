@@ -39,6 +39,12 @@ func main() { // @describe func-def-main "main"
 	x = &b     // @describe var-def-x-2 "x"
 	_ = x      // @describe var-ref-x-2 "x"
 
+	i = new(C) // @describe var-ref-i-C "i"
+	if i != nil {
+		i = D{} // @describe var-ref-i-D "i"
+	}
+	_ = i // @describe var-ref-i "i"
+
 	// const objects
 	const localpi = 3.141     // @describe const-local-pi "localpi"
 	const localpie = cake(pi) // @describe const-local-pie "localpie"

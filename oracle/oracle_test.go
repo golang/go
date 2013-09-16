@@ -207,6 +207,7 @@ func TestOracle(t *testing.T) {
 		"testdata/src/main/implements.go",
 		"testdata/src/main/imports.go",
 		"testdata/src/main/peers.go",
+		"testdata/src/main/reflection.go",
 		// JSON:
 		"testdata/src/main/callgraph-json.go",
 		"testdata/src/main/calls-json.go",

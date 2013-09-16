@@ -34,7 +34,7 @@ func structs1() {
 
 	print(b.h) // @pointsto main.q
 	print(b.f) // @pointsto main.p
-	print(b.g) // @concrete *B
+	print(b.g) // @types *B
 
 	ptr := &b.f
 	print(*ptr) // @pointsto main.p

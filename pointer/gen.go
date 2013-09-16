@@ -47,7 +47,7 @@ func (a *analysis) addNodes(typ types.Type, comment string) nodeid {
 
 // addOneNode creates a single node with type typ, and returns its id.
 //
-// typ should generally be scalar (except for interface.conctype nodes
+// typ should generally be scalar (except for tagged.T nodes
 // and struct/array identity nodes).  Use addNodes for non-scalar types.
 //
 // comment explains the origin of the nodes, as a debugging aid.
@@ -93,7 +93,7 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid) {
 // obj is the start node of the object, from a prior call to nextNode.
 // Its size, flags and (optionally) data will be updated.
 //
-func (a *analysis) endObject(obj nodeid, data ssa.Value) {
+func (a *analysis) endObject(obj nodeid, cgn *cgnode, val ssa.Value) *object {
 	// Ensure object is non-empty by padding;
 	// the pad will be the object node.
 	size := uint32(a.nextNode() - obj)
@@ -101,15 +101,17 @@ func (a *analysis) endObject(obj nodeid, data ssa.Value) {
 		a.addOneNode(tInvalid, "padding", nil)
 	}
 	objNode := a.nodes[obj]
-	objNode.size = size // excludes padding
-	objNode.flags = ntObject
-
-	if data != nil {
-		objNode.data = data
-		if a.log != nil {
-			fmt.Fprintf(a.log, "\tobj[%s] = n%d\n", data, obj)
-		}
+	o := &object{
+		size: size, // excludes padding
+		cgn:  cgn,
+		val:  val,
 	}
+	objNode.obj = o
+	if val != nil && a.log != nil {
+		fmt.Fprintf(a.log, "\tobj[%s] = n%d\n", val, obj)
+	}
+
+	return o
 }
 
 // makeFunctionObject creates and returns a new function object for
@@ -123,6 +125,7 @@ func (a *analysis) makeFunctionObject(fn *ssa.Function) nodeid {
 
 	// obj is the function object (identity, params, results).
 	obj := a.nextNode()
+	cgn := &cgnode{fn: fn, obj: obj}
 	sig := fn.Signature
 	a.addOneNode(sig, "func.cgnode", nil) // (scalar with Signature type)
 	if recv := sig.Recv(); recv != nil {
@@ -130,15 +133,11 @@ func (a *analysis) makeFunctionObject(fn *ssa.Function) nodeid {
 	}
 	a.addNodes(sig.Params(), "func.params")
 	a.addNodes(sig.Results(), "func.results")
-	a.endObject(obj, fn)
+	a.endObject(obj, cgn, fn).flags |= otFunction
 
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\t----\n")
 	}
-
-	cgn := &cgnode{fn: fn, obj: obj}
-	a.nodes[obj].flags |= ntFunction
-	a.nodes[obj].data = cgn
 
 	// Queue it up for constraint processing.
 	a.genq = append(a.genq, cgn)
@@ -181,7 +180,7 @@ func (a *analysis) makeGlobal(g *ssa.Global) nodeid {
 	// The nodes representing the object itself.
 	obj := a.nextNode()
 	a.addNodes(mustDeref(g.Type()), "global")
-	a.endObject(obj, g)
+	a.endObject(obj, nil, g)
 
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\t----\n")
@@ -207,11 +206,41 @@ func (a *analysis) makeConstant(l *ssa.Const) nodeid {
 			// Treat []T like *[1]T, 'make []T' like new([1]T).
 			obj := a.nextNode()
 			a.addNodes(sliceToArray(t), "array in slice constant")
-			a.endObject(obj, l)
+			a.endObject(obj, nil, l)
 
 			a.addressOf(id, obj)
 		}
 	}
+	return id
+}
+
+// makeTagged creates a tagged object of type typ.
+func (a *analysis) makeTagged(typ types.Type, cgn *cgnode, val ssa.Value) nodeid {
+	obj := a.addOneNode(typ, "tagged.T", nil) // NB: type may be non-scalar!
+	a.addNodes(typ, "tagged.v")
+	a.endObject(obj, cgn, val).flags |= otTagged
+	return obj
+}
+
+// makeRtype returns the canonical tagged object of type *rtype whose
+// payload points to the sole rtype object for T.
+func (a *analysis) makeRtype(T types.Type) nodeid {
+	if v := a.rtypes.At(T); v != nil {
+		return v.(nodeid)
+	}
+
+	// Create the object for the reflect.rtype itself, which is
+	// ordinarily a large struct but here a single node will do.
+	obj := a.nextNode()
+	a.addOneNode(T, "reflect.rtype", nil)
+	a.endObject(obj, nil, nil).rtype = T
+
+	id := a.makeTagged(a.reflectRtype, nil, nil)
+	a.nodes[id].obj.rtype = T
+	a.nodes[id+1].typ = T // trick (each *rtype tagged object is a singleton)
+	a.addressOf(id+1, obj)
+
+	a.rtypes.Set(T, id)
 	return id
 }
 
@@ -262,34 +291,36 @@ func (a *analysis) valueOffsetNode(v ssa.Value, index int) nodeid {
 	return id + nodeid(a.offsetOf(v.Type(), index))
 }
 
-// interfaceValue returns the (first node of) the value, and the
-// concrete type, of the interface object (flags&ntInterface) starting
-// at id.
+// taggedValue returns the dynamic type tag, the (first node of the)
+// payload, and the indirect flag of the tagged object starting at id.
+// It returns tDyn==nil if obj is not a tagged object.
 //
-func (a *analysis) interfaceValue(id nodeid) (nodeid, types.Type) {
+func (a *analysis) taggedValue(id nodeid) (tDyn types.Type, v nodeid, indirect bool) {
 	n := a.nodes[id]
-	if n.flags&ntInterface == 0 {
-		panic(fmt.Sprintf("interfaceValue(n%d): not an interface object; typ=%s", id, n.typ))
+	flags := n.obj.flags
+	if flags&otTagged != 0 {
+		return n.typ, id + 1, flags&otIndirect != 0
 	}
-	return id + 1, n.typ
+	return
 }
 
 // funcParams returns the first node of the params block of the
-// function whose object node (flags&ntFunction) is id.
+// function whose object node (obj.flags&otFunction) is id.
 //
 func (a *analysis) funcParams(id nodeid) nodeid {
-	if a.nodes[id].flags&ntFunction == 0 {
+	n := a.nodes[id]
+	if n.obj == nil || n.obj.flags&otFunction == 0 {
 		panic(fmt.Sprintf("funcParams(n%d): not a function object block", id))
 	}
 	return id + 1
 }
 
 // funcResults returns the first node of the results block of the
-// function whose object node (flags&ntFunction) is id.
+// function whose object node (obj.flags&otFunction) is id.
 //
 func (a *analysis) funcResults(id nodeid) nodeid {
 	n := a.nodes[id]
-	if n.flags&ntFunction == 0 {
+	if n.obj == nil || n.obj.flags&otFunction == 0 {
 		panic(fmt.Sprintf("funcResults(n%d): not a function object block", id))
 	}
 	sig := n.typ.(*types.Signature)
@@ -423,7 +454,7 @@ func (a *analysis) copyElems(typ types.Type, dst, src nodeid) {
 // ---------- Constraint generation ----------
 
 // genConv generates constraints for the conversion operation conv.
-func (a *analysis) genConv(conv *ssa.Convert) {
+func (a *analysis) genConv(conv *ssa.Convert, cgn *cgnode) {
 	res := a.valueNode(conv)
 	if res == 0 {
 		return // result is non-pointerlike
@@ -464,7 +495,7 @@ func (a *analysis) genConv(conv *ssa.Convert) {
 				// unaliased object.  In future we may handle
 				// unsafe conversions soundly; see TODO file.
 				obj := a.addNodes(mustDeref(tDst), "unsafe.Pointer conversion")
-				a.endObject(obj, conv)
+				a.endObject(obj, cgn, conv)
 				a.addressOf(res, obj)
 				return
 			}
@@ -473,7 +504,7 @@ func (a *analysis) genConv(conv *ssa.Convert) {
 			// string -> []byte/[]rune (or named aliases)?
 			if utSrc.Info()&types.IsString != 0 {
 				obj := a.addNodes(sliceToArray(tDst), "convert")
-				a.endObject(obj, conv)
+				a.endObject(obj, cgn, conv)
 				a.addressOf(res, obj)
 				return
 			}
@@ -505,7 +536,7 @@ func (a *analysis) genConv(conv *ssa.Convert) {
 }
 
 // genAppend generates constraints for a call to append.
-func (a *analysis) genAppend(instr *ssa.Call) {
+func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 	// Consider z = append(x, y).   y is optional.
 	// This may allocate a new [1]T array; call its object w.
 	// We get the following constraints:
@@ -530,19 +561,19 @@ func (a *analysis) genAppend(instr *ssa.Call) {
 	var w nodeid
 	w = a.nextNode()
 	a.addNodes(tArray, "append")
-	a.endObject(w, instr)
+	a.endObject(w, cgn, instr)
 
 	a.copyElems(tArray.Elem(), z, y) // *z = *y
 	a.addressOf(z, w)                //  z = &w
 }
 
 // genBuiltinCall generates contraints for a call to a built-in.
-func (a *analysis) genBuiltinCall(instr ssa.CallInstruction) {
+func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 	call := instr.Common()
 	switch call.Value.(*ssa.Builtin).Object().Name() {
 	case "append":
 		// Safe cast: append cannot appear in a go or defer statement.
-		a.genAppend(instr.(*ssa.Call))
+		a.genAppend(instr.(*ssa.Call), cgn)
 
 	case "copy":
 		tElem := call.Args[0].Type().Underlying().(*types.Slice).Elem()
@@ -691,6 +722,12 @@ func (a *analysis) genDynamicCall(call *ssa.CallCommon, result nodeid) nodeid {
 func (a *analysis) genInvoke(call *ssa.CallCommon, result nodeid) nodeid {
 	sig := call.Signature()
 
+	// TODO(adonovan): optimise this into a static call when there
+	// can be at most one type that implements the interface (due
+	// to unexported methods).  This is particularly important for
+	// methods of interface reflect.Type (sole impl:
+	// *reflect.rtype), so we can realize context sensitivity.
+
 	// Allocate a contiguous targets/params/results block for this call.
 	block := a.nextNode()
 	targets := a.addOneNode(sig, "invoke.targets", nil)
@@ -722,7 +759,7 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 
 	// Intrinsic implementations of built-in functions.
 	if _, ok := call.Value.(*ssa.Builtin); ok {
-		a.genBuiltinCall(instr)
+		a.genBuiltinCall(instr, caller)
 		return
 	}
 
@@ -793,7 +830,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
 
 	case *ssa.Convert:
-		a.genConv(instr)
+		a.genConv(instr, cgn)
 
 	case *ssa.Extract:
 		a.copy(a.valueNode(instr),
@@ -846,19 +883,19 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 	case *ssa.Alloc:
 		obj := a.nextNode()
 		a.addNodes(mustDeref(instr.Type()), "alloc")
-		a.endObject(obj, instr)
+		a.endObject(obj, cgn, instr)
 		a.addressOf(a.valueNode(instr), obj)
 
 	case *ssa.MakeSlice:
 		obj := a.nextNode()
 		a.addNodes(sliceToArray(instr.Type()), "makeslice")
-		a.endObject(obj, instr)
+		a.endObject(obj, cgn, instr)
 		a.addressOf(a.valueNode(instr), obj)
 
 	case *ssa.MakeChan:
 		obj := a.nextNode()
 		a.addNodes(instr.Type().Underlying().(*types.Chan).Elem(), "makechan")
-		a.endObject(obj, instr)
+		a.endObject(obj, cgn, instr)
 		a.addressOf(a.valueNode(instr), obj)
 
 	case *ssa.MakeMap:
@@ -866,7 +903,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		tmap := instr.Type().Underlying().(*types.Map)
 		a.addNodes(tmap.Key(), "makemap.key")
 		a.addNodes(tmap.Elem(), "makemap.value")
-		a.endObject(obj, instr)
+		a.endObject(obj, cgn, instr)
 		a.addressOf(a.valueNode(instr), obj)
 
 	case *ssa.MakeInterface:
@@ -877,13 +914,12 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		for i, n := 0, mset.Len(); i < n; i++ {
 			a.valueNode(a.prog.Method(mset.At(i)))
 		}
-		obj := a.addOneNode(tConc, "iface.conctype", nil) // NB: type may be non-scalar!
-		vnode := a.addNodes(tConc, "iface.value")
-		a.endObject(obj, instr)
-		a.nodes[obj].flags |= ntInterface
+
+		obj := a.makeTagged(tConc, cgn, instr)
+
 		// Copy the value into it, if nontrivial.
 		if x := a.valueNode(instr.X); x != 0 {
-			a.copy(vnode, x, a.sizeof(tConc))
+			a.copy(obj+1, x, a.sizeof(tConc))
 		}
 		a.addressOf(a.valueNode(instr), obj)
 
@@ -995,13 +1031,25 @@ func (a *analysis) genRootCalls() *cgnode {
 // genFunc generates constraints for function fn.
 func (a *analysis) genFunc(cgn *cgnode) {
 	fn := cgn.fn
+
+	impl := a.findIntrinsic(fn)
+
 	if a.log != nil {
 		fmt.Fprintln(a.log)
 		fmt.Fprintln(a.log)
-		cgn.fn.DumpTo(a.log)
+
+		// Hack: don't display body if intrinsic.
+		if impl != nil {
+			fn2 := *cgn.fn // copy
+			fn2.Locals = nil
+			fn2.Blocks = nil
+			fn2.DumpTo(a.log)
+		} else {
+			cgn.fn.DumpTo(a.log)
+		}
 	}
 
-	if impl := a.findIntrinsic(fn); impl != nil {
+	if impl != nil {
 		impl(a, cgn)
 		return
 	}
@@ -1067,6 +1115,14 @@ func (a *analysis) generate() *cgnode {
 
 	// Create the global node for panic values.
 	a.panicNode = a.addNodes(tEface, "panic")
+
+	// Create nodes and constraints for all methods of reflect.rtype.
+	if rtype := a.reflectRtype; rtype != nil {
+		mset := rtype.MethodSet()
+		for i, n := 0, mset.Len(); i < n; i++ {
+			a.valueNode(a.prog.Method(mset.At(i)))
+		}
+	}
 
 	root := a.genRootCalls()
 

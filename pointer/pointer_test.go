@@ -48,6 +48,7 @@ var inputs = []string{
 	"testdata/recur.go",
 	"testdata/structs.go",
 	"testdata/a_test.go",
+	"testdata/mapreflect.go",
 
 	// TODO(adonovan): get these tests (of reflection) passing.
 	// (The tests are mostly sound since they were used for a
@@ -57,7 +58,6 @@ var inputs = []string{
 	// "testdata/chanreflect.go",
 	// "testdata/finalizer.go",
 	// "testdata/reflect.go",
-	// "testdata/mapreflect.go",
 	// "testdata/structreflect.go",
 }
 
@@ -86,21 +86,22 @@ var inputs = []string{
 //
 //   From a theoretical perspective, concrete types in interfaces are
 //   labels too, but they are represented differently and so have a
-//   different expectation, @concrete, below.
+//   different expectation, @types, below.
 //
-// @concrete t | u | v
+// @types t | u | v
 //
-//   A 'concrete' expectation asserts that the set of possible dynamic
+//   A 'types' expectation asserts that the set of possible dynamic
 //   types of its interface operand is exactly {t,u,v}, notated per
 //   go/types.Type.String(). In other words, it asserts that the type
 //   component of the interface may point to that set of concrete type
-//   literals.
+//   literals.  It also works for reflect.Value, though the types
+//   needn't be concrete in that case.
 //
-//   A 'concrete' expectation must appear on the same line as a
+//   A 'types' expectation must appear on the same line as a
 //   print(x) statement; the expectation's operand is x.
 //
 //   If one of the strings is "...", the expectation asserts that the
-//   interface's type may point to at least the  other concrete types.
+//   interface's type may point to at least the other types.
 //
 //   We use '|' because type names may contain spaces.
 //
@@ -119,11 +120,11 @@ var inputs = []string{
 //   (NB, anon functions still include line numbers.)
 //
 type expectation struct {
-	kind     string // "pointsto" | "concrete" | "calls" | "warning"
+	kind     string // "pointsto" | "types" | "calls" | "warning"
 	filename string
 	linenum  int // source line number, 1-based
 	args     []string
-	types    []types.Type // for concrete
+	types    []types.Type // for types
 }
 
 func (e *expectation) String() string {
@@ -137,7 +138,7 @@ func (e *expectation) errorf(format string, args ...interface{}) {
 }
 
 func (e *expectation) needsProbe() bool {
-	return e.kind == "pointsto" || e.kind == "concrete"
+	return e.kind == "pointsto" || e.kind == "types"
 }
 
 // A record of a call to the built-in print() function.  Used for testing.
@@ -228,7 +229,7 @@ func doOneInput(input, filename string) bool {
 			case "pointsto":
 				e.args = split(rest, "|")
 
-			case "concrete":
+			case "types":
 				for _, typstr := range split(rest, "|") {
 					var t types.Type = types.Typ[types.Invalid] // means "..."
 					if typstr != "..." {
@@ -239,10 +240,11 @@ func doOneInput(input, filename string) bool {
 							e.errorf("'%s' is not a valid type", typstr)
 							continue
 						}
-						t, _, err = types.EvalNode(imp.Fset, texpr, mainpkg.Object, mainpkg.Object.Scope())
+						mainFileScope := mainpkg.Object.Scope().Child(0)
+						t, _, err = types.EvalNode(imp.Fset, texpr, mainpkg.Object, mainFileScope)
 						if err != nil {
 							ok = false
-							// TODO Don't print err since its location is bad.
+							// Don't print err since its location is bad.
 							e.errorf("'%s' is not a valid type: %s", typstr, err)
 							continue
 						}
@@ -332,8 +334,8 @@ func doOneInput(input, filename string) bool {
 				ok = false
 			}
 
-		case "concrete":
-			if !checkConcreteExpectation(e, pr) {
+		case "types":
+			if !checkTypesExpectation(e, pr) {
 				ok = false
 			}
 
@@ -357,16 +359,18 @@ func doOneInput(input, filename string) bool {
 }
 
 func labelString(l *pointer.Label, lineMapping map[string]string, prog *ssa.Program) string {
-	// Functions and Globals need no pos suffix.
-	switch l.Value.(type) {
-	case *ssa.Function, *ssa.Global:
+	// Functions and Globals need no pos suffix,
+	// nor do allocations in intrinsic operations
+	// (for which we'll print the function name).
+	switch l.Value().(type) {
+	case nil, *ssa.Function, *ssa.Global:
 		return l.String()
 	}
 
 	str := l.String()
-	if pos := l.Value.Pos(); pos != 0 {
+	if pos := l.Pos(); pos != token.NoPos {
 		// Append the position, using a @line tag instead of a line number, if defined.
-		posn := prog.Fset.Position(l.Value.Pos())
+		posn := prog.Fset.Position(pos)
 		s := fmt.Sprintf("%s:%d", posn.Filename, posn.Line)
 		if tag, ok := lineMapping[s]; ok {
 			return fmt.Sprintf("%s@%s:%d", str, tag, posn.Column)
@@ -421,7 +425,7 @@ func underlyingType(typ types.Type) types.Type {
 	return typ
 }
 
-func checkConcreteExpectation(e *expectation, pr *probe) bool {
+func checkTypesExpectation(e *expectation, pr *probe) bool {
 	var expected typemap.M
 	var surplus typemap.M
 	exact := true
@@ -433,32 +437,29 @@ func checkConcreteExpectation(e *expectation, pr *probe) bool {
 		expected.Set(g, struct{}{})
 	}
 
-	switch t := underlyingType(pr.instr.Args[0].Type()).(type) {
-	case *types.Interface:
-		// ok
-	default:
-		e.errorf("@concrete expectation requires an interface-typed operand, got %s", t)
+	if t := pr.instr.Args[0].Type(); !pointer.CanHaveDynamicTypes(t) {
+		e.errorf("@types expectation requires an interface- or reflect.Value-typed operand, got %s", t)
 		return false
 	}
 
-	// Find the set of concrete types that the probe's
+	// Find the set of types that the probe's
 	// argument (x in print(x)) may contain.
-	for _, conc := range pr.arg0.PointsTo().ConcreteTypes().Keys() {
-		if expected.At(conc) != nil {
-			expected.Delete(conc)
+	for _, T := range pr.arg0.PointsTo().DynamicTypes().Keys() {
+		if expected.At(T) != nil {
+			expected.Delete(T)
 		} else if exact {
-			surplus.Set(conc, struct{}{})
+			surplus.Set(T, struct{}{})
 		}
 	}
 	// Report set difference:
 	ok := true
 	if expected.Len() > 0 {
 		ok = false
-		e.errorf("interface cannot contain these concrete types: %s", expected.KeysString())
+		e.errorf("interface cannot contain these types: %s", expected.KeysString())
 	}
 	if surplus.Len() > 0 {
 		ok = false
-		e.errorf("interface may additionally contain these concrete types: %s", surplus.KeysString())
+		e.errorf("interface may additionally contain these types: %s", surplus.KeysString())
 	}
 	return ok
 	return false

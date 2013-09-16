@@ -14,46 +14,32 @@ import (
 )
 
 func (a *analysis) solve() {
-	// Initialize points-to sets and complex constraint sets.
-	for _, c := range a.constraints {
-		c.init(a)
-	}
-	a.constraints = nil // aid GC
-
-	work := a.work
-
-	// Now we've initialized all constraints, we populate the
-	// worklist with nodes that point to something initially (due
-	// to addrConstraints) and have other constraints attached.
-	for id, n := range a.nodes {
-		if len(n.pts) > 0 && (n.copyTo != nil || n.complex != nil) {
-			if a.log != nil {
-				fmt.Fprintf(a.log, "Adding to worklist n%d\n", id)
-			}
-			a.addWork(nodeid(id))
-		}
-	}
-	work.swap()
+	a.work.swap()
 
 	// Solver main loop.
 	for round := 1; ; round++ {
-		if work.swap() {
+		// Add new constraints to the graph:
+		// static constraints from SSA on round 1,
+		// dynamic constraints from reflection thereafter.
+		a.processNewConstraints()
+
+		if a.work.swap() {
 			if a.log != nil {
 				fmt.Fprintf(a.log, "Solving, round %d\n", round)
 			}
 
 			// Next iteration.
-			if work.empty() {
+			if a.work.empty() {
 				break // done
 			}
 		}
 
-		id := work.take()
-		n := a.nodes[id]
-
+		id := a.work.take()
 		if a.log != nil {
 			fmt.Fprintf(a.log, "\tnode n%d\n", id)
 		}
+
+		n := a.nodes[id]
 
 		// Difference propagation.
 		delta := n.pts.diff(n.prevPts)
@@ -62,23 +48,8 @@ func (a *analysis) solve() {
 		}
 		n.prevPts = n.pts.clone()
 
-		// Process complex constraints dependent on n.
-		for c := range n.complex {
-			if a.log != nil {
-				fmt.Fprintf(a.log, "\t\tconstraint %s\n", c)
-			}
-			c.solve(a, n, delta)
-		}
-
-		// Process copy constraints.
-		var copySeen nodeset
-		for mid := range n.copyTo {
-			if copySeen.add(mid) {
-				if a.nodes[mid].pts.addAll(delta) {
-					a.addWork(mid)
-				}
-			}
-		}
+		// Apply all resolution rules attached to n.
+		a.solveConstraints(n, delta)
 
 		if a.log != nil {
 			fmt.Fprintf(a.log, "\t\tpts(n%d) = %s\n", id, n.pts)
@@ -90,6 +61,97 @@ func (a *analysis) solve() {
 	}
 }
 
+// processNewConstraints takes the new constraints from a.constraints
+// and adds them to the graph, ensuring
+// that new constraints are applied to pre-existing labels and
+// that pre-existing constraints are applied to new labels.
+//
+func (a *analysis) processNewConstraints() {
+	// Take the slice of new constraints.
+	// (May grow during call to solveConstraints.)
+	constraints := a.constraints
+	a.constraints = nil
+
+	// Initialize points-to sets from addr-of (base) constraints.
+	for _, c := range constraints {
+		if c, ok := c.(*addrConstraint); ok {
+			dst := a.nodes[c.dst]
+			dst.pts.add(c.src)
+
+			// Populate the worklist with nodes that point to
+			// something initially (due to addrConstraints) and
+			// have other constraints attached.
+			// (A no-op in round 1.)
+			if dst.copyTo != nil || dst.complex != nil {
+				a.addWork(c.dst)
+			}
+		}
+	}
+
+	// Attach simple (copy) and complex constraints to nodes.
+	var stale nodeset
+	for _, c := range constraints {
+		var id nodeid
+		switch c := c.(type) {
+		case *addrConstraint:
+			// base constraints handled in previous loop
+			continue
+		case *copyConstraint:
+			// simple (copy) constraint
+			id = c.src
+			a.nodes[id].copyTo.add(c.dst)
+		default:
+			// complex constraint
+			id = c.ptr()
+			a.nodes[id].complex.add(c)
+		}
+
+		if n := a.nodes[id]; len(n.pts) > 0 {
+			if len(n.prevPts) > 0 {
+				stale.add(id)
+			}
+			if a.log != nil {
+				fmt.Fprintf(a.log, "Adding to worklist n%d\n", id)
+			}
+			a.addWork(id)
+		}
+	}
+	// Apply new constraints to pre-existing PTS labels.
+	for id := range stale {
+		n := a.nodes[id]
+		a.solveConstraints(n, n.prevPts)
+	}
+}
+
+// solveConstraints applies each resolution rule attached to node n to
+// the set of labels delta.  It may generate new constraints in
+// a.constraints.
+//
+func (a *analysis) solveConstraints(n *node, delta nodeset) {
+	if delta == nil {
+		return
+	}
+
+	// Process complex constraints dependent on n.
+	for c := range n.complex {
+		if a.log != nil {
+			fmt.Fprintf(a.log, "\t\tconstraint %s\n", c)
+		}
+		// TODO(adonovan): parameter n is never used.  Remove?
+		c.solve(a, n, delta)
+	}
+
+	// Process copy constraints.
+	var copySeen nodeset
+	for mid := range n.copyTo {
+		if copySeen.add(mid) {
+			if a.nodes[mid].pts.addAll(delta) {
+				a.addWork(mid)
+			}
+		}
+	}
+}
+
 func (a *analysis) addWork(id nodeid) {
 	a.work.add(id)
 	if a.log != nil {
@@ -97,29 +159,29 @@ func (a *analysis) addWork(id nodeid) {
 	}
 }
 
-func (c *addrConstraint) init(a *analysis) {
-	a.nodes[c.dst].pts.add(c.src)
+func (c *addrConstraint) ptr() nodeid {
+	panic("addrConstraint: not a complex constraint")
 }
-func (c *copyConstraint) init(a *analysis) {
-	a.nodes[c.src].copyTo.add(c.dst)
+func (c *copyConstraint) ptr() nodeid {
+	panic("addrConstraint: not a complex constraint")
 }
 
 // Complex constraints attach themselves to the relevant pointer node.
 
-func (c *storeConstraint) init(a *analysis) {
-	a.nodes[c.dst].complex.add(c)
+func (c *storeConstraint) ptr() nodeid {
+	return c.dst
 }
-func (c *loadConstraint) init(a *analysis) {
-	a.nodes[c.src].complex.add(c)
+func (c *loadConstraint) ptr() nodeid {
+	return c.src
 }
-func (c *offsetAddrConstraint) init(a *analysis) {
-	a.nodes[c.src].complex.add(c)
+func (c *offsetAddrConstraint) ptr() nodeid {
+	return c.src
 }
-func (c *typeAssertConstraint) init(a *analysis) {
-	a.nodes[c.src].complex.add(c)
+func (c *typeAssertConstraint) ptr() nodeid {
+	return c.src
 }
-func (c *invokeConstraint) init(a *analysis) {
-	a.nodes[c.iface].complex.add(c)
+func (c *invokeConstraint) ptr() nodeid {
+	return c.iface
 }
 
 // onlineCopy adds a copy edge.  It is called online, i.e. during
@@ -189,16 +251,24 @@ func (c *typeAssertConstraint) solve(a *analysis, n *node, delta nodeset) {
 	tIface, _ := c.typ.Underlying().(*types.Interface)
 
 	for ifaceObj := range delta {
-		ifaceValue, tConc := a.interfaceValue(ifaceObj)
+		tDyn, v, indirect := a.taggedValue(ifaceObj)
+		if tDyn == nil {
+			panic("not a tagged value")
+		}
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
 
 		if tIface != nil {
-			if types.IsAssignableTo(tConc, tIface) {
+			if types.IsAssignableTo(tDyn, tIface) {
 				if a.nodes[c.dst].pts.add(ifaceObj) {
 					a.addWork(c.dst)
 				}
 			}
 		} else {
-			if types.IsIdentical(tConc, c.typ) {
+			if types.IsIdentical(tDyn, c.typ) {
 				// Copy entire payload to dst.
 				//
 				// TODO(adonovan): opt: if tConc is
@@ -206,7 +276,7 @@ func (c *typeAssertConstraint) solve(a *analysis, n *node, delta nodeset) {
 				// entire constraint, perhaps.  We
 				// only care about pointers among the
 				// fields.
-				a.onlineCopyN(c.dst, ifaceValue, a.sizeof(tConc))
+				a.onlineCopyN(c.dst, v, a.sizeof(tDyn))
 			}
 		}
 	}
@@ -214,13 +284,22 @@ func (c *typeAssertConstraint) solve(a *analysis, n *node, delta nodeset) {
 
 func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 	for ifaceObj := range delta {
-		ifaceValue, tConc := a.interfaceValue(ifaceObj)
+		tDyn, v, indirect := a.taggedValue(ifaceObj)
+		if tDyn == nil {
+			panic("not a tagged value")
+		}
+		if indirect {
+			// TODO(adonovan): we may need to implement this if
+			// we ever apply invokeConstraints to reflect.Value PTSs,
+			// e.g. for (reflect.Value).Call.
+			panic("indirect tagged object")
+		}
 
 		// Look up the concrete method.
-		meth := tConc.MethodSet().Lookup(c.method.Pkg(), c.method.Name())
+		meth := tDyn.MethodSet().Lookup(c.method.Pkg(), c.method.Name())
 		if meth == nil {
 			panic(fmt.Sprintf("n%d: type %s has no method %s (iface=n%d)",
-				c.iface, tConc, c.method, ifaceObj))
+				c.iface, tDyn, c.method, ifaceObj))
 		}
 		fn := a.prog.Method(meth)
 		if fn == nil {
@@ -228,7 +307,11 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		}
 		sig := fn.Signature
 
-		fnObj := a.funcObj[fn]
+		fnObj := a.funcObj[fn] // dynamic calls use shared contour
+		if fnObj == 0 {
+			// a.valueNode(fn) was not called during gen phase.
+			panic(fmt.Sprintf("a.funcObj(%s)==nil", fn))
+		}
 
 		// Make callsite's fn variable point to identity of
 		// concrete method.  (There's no need to add it to
@@ -239,7 +322,7 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		// Copy payload to method's receiver param (arg0).
 		arg0 := a.funcParams(fnObj)
 		recvSize := a.sizeof(sig.Recv().Type())
-		a.onlineCopyN(arg0, ifaceValue, recvSize)
+		a.onlineCopyN(arg0, v, recvSize)
 
 		// Copy iface object payload to method receiver.
 		src := c.params + 1 // skip past identity

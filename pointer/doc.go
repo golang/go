@@ -61,10 +61,10 @@ during the solving phase.
 
 OBJECTS
 
-An "object" is a contiguous sequence of nodes denoting an addressable
-location: something that a pointer can point to.  The first node of an
-object has the ntObject flag, and its size indicates the extent of the
-object.
+Conceptually, an "object" is a contiguous sequence of nodes denoting
+an addressable location: something that a pointer can point to.  The
+first node of an object has a non-nil obj field containing information
+about the allocation: its size, context, and ssa.Value.
 
 Objects include:
    - functions and globals;
@@ -78,7 +78,7 @@ Objects include:
 Many objects have no Go types.  For example, the func, map and chan
 type kinds in Go are all varieties of pointers, but the respective
 objects are actual functions, maps, and channels.  Given the way we
-model interfaces, they too are pointers to interface objects with no
+model interfaces, they too are pointers to tagged objects with no
 Go type.  And an *ssa.Global denotes the address of a global variable,
 but the object for a Global is the actual data.  So, types of objects
 are usually "off by one indirection".
@@ -91,6 +91,27 @@ values but never objects in Go) are padded with an invalid-type node
 to have at least one node so that there is something to point to.
 (TODO(adonovan): I think this is unnecessary now that we have identity
 nodes; check.)
+
+
+TAGGED OBJECTS
+
+An tagged object has the following layout:
+
+    T          -- obj.flags ⊇ {otTagged}
+    v
+    ...
+
+The T node's typ field is the dynamic type of the "payload", the value
+v which follows, flattened out.  The T node's obj has the otTagged
+flag.
+
+Tagged objects are needed when generalizing across types: interfaces,
+reflect.Values, reflect.Types.  Each of these three types is modelled
+as a pointer that exclusively points to tagged objects.
+
+Tagged objects may be indirect (obj.flags ⊇ {otIndirect}) meaning that
+the value v is not of type T but *T; this is used only for
+reflect.Values that represent lvalues.
 
 
 ANALYSIS ABSTRACTION OF EACH TYPE
@@ -161,7 +182,7 @@ Functions
 
   A function object has the following layout:
 
-     identity         -- typ:*types.Signature; flags ⊇ {ntFunction}; data:*cgnode
+     identity         -- typ:*types.Signature; obj.flags ⊇ {otFunction}
      params_0         -- (the receiver, if a method)
      ...
      params_n-1
@@ -172,8 +193,7 @@ Functions
   There may be multiple function objects for the same *ssa.Function
   due to context-sensitive treatment of some functions.
 
-  The first node is the function's identity node; its .data is the
-  callgraph node (*cgnode) this object represents.
+  The first node is the function's identity node.
   Associated with every callsite is a special "targets" variable,
   whose pts(·) contains the identity node of each function to which
   the call may dispatch.  Identity words are not otherwise used.
@@ -191,45 +211,85 @@ Functions
   for an *ssa.Function returns a singleton for that function.
 
 Interfaces
- An expression of type 'interface{...}' is a kind of pointer that
- points exclusively to interface objects.
+  An expression of type 'interface{...}' is a kind of pointer that
+  points exclusively to tagged objects.  All tagged objects pointed to
+  by an interface are direct (the otIndirect flag is clear) and
+  concrete (the tag type T is not itself an interface type).  The
+  associated ssa.Value for an interface's tagged objects may be an
+  *ssa.MakeInterface instruction, or nil if the tagged object was
+  created by an instrinsic (e.g. reflection).
 
- An interface object has the following layout:
+  Constructing an interface value causes generation of constraints for
+  all of the concrete type's methods; we can't tell a priori which
+  ones may be called.
 
-    conctype          -- flags ⊇ {ntInterface}; data:*ssa.MakeInterface?
-    value
-    ...
+  TypeAssert y = x.(T) is implemented by a dynamic filter triggered by
+  each tagged object E added to pts(x).  If T is an interface that E.T
+  implements, E is added to pts(y).  If T is a concrete type then edge
+  E.v -> pts(y) is added.
 
- The conctype node's typ field is the concrete type of the interface
- value which follows, flattened out.  It has the ntInterface flag.
- Its associated data is the originating MakeInterface instruction, if
- any.
+  ChangeInterface is a simple copy because the representation of
+  tagged objects is independent of the interface type (in contrast
+  to the "method tables" approach used by the gc runtime).
 
- Constructing an interface value causes generation of constraints for
- all of the concrete type's methods; we can't tell a priori which ones
- may be called.
+  y := Invoke x.m(...) is implemented by allocating a contiguous P/R
+  block for the callsite and adding a dynamic rule triggered by each
+  tagged object E added to pts(x).  The rule adds param/results copy
+  edges to/from each discovered concrete method.
 
- TypeAssert y = x.(T) is implemented by a dynamic filter triggered by
- each interface object E added to pts(x).  If T is an interface that
- E.conctype implements, pts(y) gets E.  If T is a concrete type then
- edge pts(y) <- E.value is added.
-
- ChangeInterface is a simple copy because the representation of
- interface objects is independent of the interface type (in contrast
- to the "method tables" approach used by the gc runtime).
-
- y := Invoke x.m(...) is implemented by allocating a contiguous P/R
- block for the callsite and adding a dynamic rule triggered by each
- interface object E added to pts(x).  The rule adds param/results copy
- edges to/from each discovered concrete method.
-
- (Q. Why do we model an interface as a pointer to a pair of type and
+  (Q. Why do we model an interface as a pointer to a pair of type and
   value, rather than as a pair of a pointer to type and a pointer to
   value?
   A. Control-flow joins would merge interfaces ({T1}, {V1}) and ({T2},
   {V2}) to make ({T1,T2}, {V1,V2}), leading to the infeasible and
   type-unsafe combination (T1,V2).  Treating the value and its concrete
   type as inseparable makes the analysis type-safe.)
+
+reflect.Value
+  A reflect.Value is modelled very similar to an interface{}, i.e. as
+  a pointer exclusively to tagged objects, but with two
+  generalizations.
+
+  1) a reflect.Value that represents an lvalue points to an indirect
+     (obj.flags ⊇ {otIndirect}) tagged object, which has a similar
+     layout to an tagged object except that the value is a pointer to
+     the dynamic type.  Indirect tagged objects preserve the correct
+     aliasing so that mutations made by (reflect.Value).Set can be
+     observed.
+
+     Indirect objects only arise when an lvalue is derived from an
+     rvalue by indirection, e.g. the following code:
+
+        type S struct { X T }
+        var s S
+        var i interface{} = &s    // i points to a *S-tagged object (from MakeInterface)
+        v1 := reflect.ValueOf(i)  // v1 points to same *S-tagged object as i
+        v2 := v1.Elem()           // v2 points to an indirect S-tagged object, pointing to s
+        v3 := v2.FieldByName("X") // v3 points to an indirect int-tagged object, pointing to s.X
+        v3.Set(y)                 // pts(s.X) ⊇ pts(y)
+
+     Whether indirect or not, the concrete type of the tagged value
+     corresponds to the user-visible dynamic type, and the existence
+     of a pointer is an implementation detail.
+
+  2) The dynamic type tag of a tagged object pointed to by a
+     reflect.Value may be an interface type; it need not be concrete.
+
+reflect.Type
+  Just as in the real "reflect" library, we represent a reflect.Type
+  as an interface whose sole implementation is the concrete type,
+  *reflect.rtype.  (This choice is forced on us by go/types: clients
+  cannot fabricate types with arbitrary method sets.)
+
+  rtype instances are canonical: there is at most one per dynamic
+  type.  (rtypes are in fact large structs but since identity is all
+  that matters, we represent them by a single node.)
+
+  The payload of each *rtype-tagged object is an *rtype pointer that
+  points to exactly one such canonical rtype object.  We exploit this
+  by setting the node.typ of the payload to the dynamic type, not
+  '*rtype'.  This saves us an indirection in each resolution rule.  As
+  an optimisation, *rtype-tagged objects are canonicalized too.
 
 
 Aggregate types:
@@ -333,7 +393,7 @@ FUNCTION CALLS
 
     For invoke-mode calls, we create a params/results block for the
     callsite and attach a dynamic closure rule to the interface.  For
-    each new interface object that flows to the interface, we look up
+    each new tagged object that flows to the interface, we look up
     the concrete method, find its function object, and connect its P/R
     block to the callsite's P/R block.
 

@@ -22,13 +22,13 @@ func Println(a ...interface{}) {
 }
 
 func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
-	print(a[0]) // @concrete S | string
+	print(a[0]) // @types S | string
 	stringer := a[0].(interface {
 		String() string
 	})
 
 	stringer.String()
-	print(stringer) // @concrete S
+	print(stringer) // @types S
 }
 
 type S int

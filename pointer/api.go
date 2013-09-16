@@ -132,16 +132,20 @@ type PointsToSet interface {
 	// argument points-to set contain common members.
 	Intersects(PointsToSet) bool
 
-	// If this PointsToSet came from a Pointer of interface kind,
-	// ConcreteTypes returns the set of concrete types the
-	// interface may contain.
+	// If this PointsToSet came from a Pointer of interface kind
+	// or a reflect.Value, DynamicTypes returns the set of dynamic
+	// types that it may contain.  (For an interface, they will
+	// always be concrete types.)
 	//
-	// The result is a mapping whose keys are the concrete types
-	// to which this interface may point.  For each pointer-like
-	// key type, the corresponding map value is a set of pointer
-	// abstractions of that concrete type, represented as a
-	// []Pointer slice.  Use PointsToCombined to merge them.
-	ConcreteTypes() *typemap.M
+	// The result is a mapping whose keys are the dynamic types to
+	// which it may point.  For each pointer-like key type, the
+	// corresponding map value is a set of pointer abstractions of
+	// that dynamic type, represented as a []Pointer slice.  Use
+	// PointsToCombined to merge them.
+	//
+	// The result is empty unless CanHaveDynamicTypes(T).
+	//
+	DynamicTypes() *typemap.M
 }
 
 // Union returns the set containing all the elements of each set in sets.
@@ -175,39 +179,24 @@ type ptset struct {
 func (s ptset) Labels() []*Label {
 	var labels []*Label
 	for l := range s.pts {
-		// Scan back to the previous object start.
-		for i := l; i >= 0; i-- {
-			n := s.a.nodes[i]
-			if n.flags&ntObject != 0 {
-				// TODO(adonovan): do bounds-check against n.size.
-				var v ssa.Value
-				if n.flags&ntFunction != 0 {
-					v = n.data.(*cgnode).fn
-				} else {
-					v = n.data.(ssa.Value)
-					// TODO(adonovan): what if v is nil?
-				}
-				labels = append(labels, &Label{
-					Value:      v,
-					subelement: s.a.nodes[l].subelement,
-				})
-				break
-			}
-		}
+		labels = append(labels, s.a.labelFor(l))
 	}
 	return labels
 }
 
-func (s ptset) ConcreteTypes() *typemap.M {
-	var tmap typemap.M // default hasher // TODO(adonovan): opt: memoize per analysis
+func (s ptset) DynamicTypes() *typemap.M {
+	var tmap typemap.M
+	tmap.SetHasher(s.a.hasher)
 	for ifaceObjId := range s.pts {
-		if s.a.nodes[ifaceObjId].flags&ntInterface == 0 {
-			// ConcreteTypes called on non-interface PT set.
-			continue // shouldn't happen
+		tDyn, v, indirect := s.a.taggedValue(ifaceObjId)
+		if tDyn == nil {
+			continue // !CanHaveDynamicTypes(tDyn)
 		}
-		v, tconc := s.a.interfaceValue(ifaceObjId)
-		prev, _ := tmap.At(tconc).([]Pointer)
-		tmap.Set(tconc, append(prev, ptr{s.a, v}))
+		if indirect {
+			panic("indirect tagged object") // implement later
+		}
+		prev, _ := tmap.At(tDyn).([]Pointer)
+		tmap.Set(tDyn, append(prev, ptr{s.a, v}))
 	}
 	return &tmap
 }
@@ -242,6 +231,6 @@ func (p ptr) MayAlias(q Pointer) bool {
 	return p.PointsTo().Intersects(q.PointsTo())
 }
 
-func (p ptr) ConcreteTypes() *typemap.M {
-	return p.PointsTo().ConcreteTypes()
+func (p ptr) DynamicTypes() *typemap.M {
+	return p.PointsTo().DynamicTypes()
 }

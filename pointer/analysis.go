@@ -4,7 +4,7 @@
 
 package pointer
 
-// This file defines the entry points into the pointer analysis.
+// This file defines the main datatypes and Analyze function of the pointer analysis.
 
 import (
 	"fmt"
@@ -13,8 +13,43 @@ import (
 	"os"
 
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/types/typemap"
 	"code.google.com/p/go.tools/ssa"
 )
+
+// object.flags bitmask values.
+const (
+	otTagged   = 1 << iota // type-tagged object
+	otIndirect             // type-tagged object with indirect payload
+	otFunction             // function object
+)
+
+// An object represents a contiguous block of memory to which some
+// (generalized) pointer may point.
+//
+// (Note: most variables called 'obj' are not *objects but nodeids
+// such that a.nodes[obj].obj != nil.)
+//
+type object struct {
+	// flags is a bitset of the node type (ot*) flags defined above.
+	flags uint32
+
+	// Number of following nodes belonging to the same "object"
+	// allocation.  Zero for all other nodes.
+	size uint32
+
+	// The SSA operation that caused this object to be allocated.
+	// May be nil for (e.g.) intrinsic allocations.
+	val ssa.Value
+
+	// The call-graph node (=context) in which this object was allocated.
+	// May be nil for global objects: Global, Const, some Functions.
+	cgn *cgnode
+
+	// If this is an rtype instance object, or a *rtype-tagged
+	// object, this is its type.
+	rtype types.Type
+}
 
 // nodeid denotes a node.
 // It is an index within analysis.nodes.
@@ -24,41 +59,23 @@ import (
 // - order matters; a field offset can be computed by simple addition.
 type nodeid uint32
 
-// node.flags bitmask values.
-const (
-	ntObject    = 1 << iota // start of an object (addressable memory location)
-	ntInterface             // conctype node of interface object (=> ntObject)
-	ntFunction              // identity node of function object (=> ntObject)
-)
-
 // A node is an equivalence class of memory locations.
 // Nodes may be pointers, pointed-to locations, neither, or both.
+//
+// Nodes that are pointed-to locations ("labels") have an enclosing
+// object (see analysis.enclosingObject).
+//
 type node struct {
-	// flags is a bitset of the node type (nt*) flags defined above.
-	flags uint32
-
-	// Number of following words belonging to the same "object" allocation.
-	// (Set by endObject.)  Zero for all other nodes.
-	size uint32
+	// If non-nil, this node is the start of an object
+	// (addressable memory location).
+	// The following obj.size words implicitly belong to the object;
+	// they locate their object by scanning back.
+	obj *object
 
 	// The type of the field denoted by this node.  Non-aggregate,
-	// unless this is an iface.conctype node (i.e. the thing
+	// unless this is an tagged.T node (i.e. the thing
 	// pointed to by an interface) in which case typ is that type.
 	typ types.Type
-
-	// data holds additional attributes of this node, depending on
-	// its flags.
-	//
-	// If ntObject is set, data is the ssa.Value of the
-	// instruction that allocated this memory, or nil if it was
-	// implicit.
-	//
-	// Special cases:
-	// - If ntInterface is also set, data will be a *ssa.MakeInterface.
-	// - If ntFunction is also set, this node is the first word of a
-	//   function block, and data is a *cgnode (not an ssa.Value)
-	//   representing this function.
-	data interface{}
 
 	// subelement indicates which directly embedded subelement of
 	// an object of aggregate type (struct, tuple, array) this is.
@@ -83,10 +100,9 @@ type node struct {
 type constraint interface {
 	String() string
 
-	// Called by solver to prepare a constraint, e.g. to
-	// - initialize a points-to set (addrConstraint).
-	// - attach it to a pointer node (complex constraints).
-	init(a *analysis)
+	// For a complex constraint, returns the nodeid of the pointer
+	// to which it is attached.
+	ptr() nodeid
 
 	// solve is called for complex constraints when the pts for
 	// the node to which they are attached has changed.
@@ -97,7 +113,7 @@ type constraint interface {
 // pts(dst) ⊇ {src}
 // A base constraint used to initialize the solver's pt sets
 type addrConstraint struct {
-	dst nodeid
+	dst nodeid // (ptr)
 	src nodeid
 }
 
@@ -105,7 +121,7 @@ type addrConstraint struct {
 // A simple constraint represented directly as a copyTo graph edge.
 type copyConstraint struct {
 	dst nodeid
-	src nodeid
+	src nodeid // (ptr)
 }
 
 // dst = src[offset]
@@ -113,14 +129,14 @@ type copyConstraint struct {
 type loadConstraint struct {
 	offset uint32
 	dst    nodeid
-	src    nodeid
+	src    nodeid // (ptr)
 }
 
 // dst[offset] = src
 // A complex constraint attached to dst (the pointer)
 type storeConstraint struct {
 	offset uint32
-	dst    nodeid
+	dst    nodeid // (ptr)
 	src    nodeid
 }
 
@@ -129,7 +145,7 @@ type storeConstraint struct {
 type offsetAddrConstraint struct {
 	offset uint32
 	dst    nodeid
-	src    nodeid
+	src    nodeid // (ptr)
 }
 
 // dst = src.(typ)
@@ -137,36 +153,66 @@ type offsetAddrConstraint struct {
 type typeAssertConstraint struct {
 	typ types.Type
 	dst nodeid
-	src nodeid
+	src nodeid // (ptr)
 }
 
 // src.method(params...)
 // A complex constraint attached to iface.
 type invokeConstraint struct {
 	method *types.Func // the abstract method
-	iface  nodeid      // the interface
+	iface  nodeid      // (ptr) the interface
 	params nodeid      // the first parameter in the params/results block
 }
 
 // An analysis instance holds the state of a single pointer analysis problem.
 type analysis struct {
-	config          *Config                     // the client's control/observer interface
-	prog            *ssa.Program                // the program being analyzed
-	log             io.Writer                   // log stream; nil to disable
-	panicNode       nodeid                      // sink for panic, source for recover
-	nodes           []*node                     // indexed by nodeid
-	flattenMemo     map[types.Type][]*fieldInfo // memoization of flatten()
-	constraints     []constraint                // set of constraints
-	callsites       []*callsite                 // all callsites
-	genq            []*cgnode                   // queue of functions to generate constraints for
-	intrinsics      map[*ssa.Function]intrinsic // non-nil values are summaries for intrinsic fns
-	reflectValueObj types.Object                // type symbol for reflect.Value (if present)
-	reflectRtypeObj types.Object                // type symbol for reflect.rtype (if present)
-	reflectRtype    *types.Pointer              // *reflect.rtype
-	funcObj         map[*ssa.Function]nodeid    // default function object for each func
-	probes          map[*ssa.CallCommon]nodeid  // maps call to print() to argument variable
-	valNode         map[ssa.Value]nodeid        // node for each ssa.Value
-	work            worklist                    // solver's worklist
+	config      *Config                     // the client's control/observer interface
+	prog        *ssa.Program                // the program being analyzed
+	log         io.Writer                   // log stream; nil to disable
+	panicNode   nodeid                      // sink for panic, source for recover
+	nodes       []*node                     // indexed by nodeid
+	flattenMemo map[types.Type][]*fieldInfo // memoization of flatten()
+	constraints []constraint                // set of constraints
+	callsites   []*callsite                 // all callsites
+	genq        []*cgnode                   // queue of functions to generate constraints for
+	intrinsics  map[*ssa.Function]intrinsic // non-nil values are summaries for intrinsic fns
+	funcObj     map[*ssa.Function]nodeid    // default function object for each func
+	probes      map[*ssa.CallCommon]nodeid  // maps call to print() to argument variable
+	valNode     map[ssa.Value]nodeid        // node for each ssa.Value
+	work        worklist                    // solver's worklist
+
+	// Reflection:
+	hasher          typemap.Hasher // cache of type hashes
+	reflectValueObj types.Object   // type symbol for reflect.Value (if present)
+	reflectRtypeObj types.Object   // *types.TypeName for reflect.rtype (if present)
+	reflectRtype    *types.Pointer // *reflect.rtype
+	rtypes          typemap.M      // nodeid of canonical *rtype-tagged object for type T
+	reflectZeros    typemap.M      // nodeid of canonical T-tagged object for zero value
+}
+
+// enclosingObj returns the object (addressible memory object) that encloses node id.
+// Panic ensues if that node does not belong to any object.
+func (a *analysis) enclosingObj(id nodeid) *object {
+	// Find previous node with obj != nil.
+	for i := id; i >= 0; i-- {
+		n := a.nodes[i]
+		if obj := n.obj; obj != nil {
+			if i+nodeid(obj.size) <= id {
+				break // out of bounds
+			}
+			return obj
+		}
+	}
+	panic("node has no enclosing object")
+}
+
+// labelFor returns the Label for node id.
+// Panic ensues if that node is not addressable.
+func (a *analysis) labelFor(id nodeid) *Label {
+	return &Label{
+		obj:        a.enclosingObj(id),
+		subelement: a.nodes[id].subelement,
+	}
 }
 
 func (a *analysis) warnf(pos token.Pos, format string, args ...interface{}) {
@@ -189,6 +235,7 @@ func Analyze(config *Config) CallGraphNode {
 		prog:        config.prog(),
 		valNode:     make(map[ssa.Value]nodeid),
 		flattenMemo: make(map[types.Type][]*fieldInfo),
+		hasher:      typemap.MakeHasher(),
 		intrinsics:  make(map[*ssa.Function]intrinsic),
 		funcObj:     make(map[*ssa.Function]nodeid),
 		probes:      make(map[*ssa.CallCommon]nodeid),
@@ -199,6 +246,13 @@ func Analyze(config *Config) CallGraphNode {
 		a.reflectValueObj = reflect.Object.Scope().Lookup("Value")
 		a.reflectRtypeObj = reflect.Object.Scope().Lookup("rtype")
 		a.reflectRtype = types.NewPointer(a.reflectRtypeObj.Type())
+
+		// Override flattening of reflect.Value, treating it like a basic type.
+		tReflectValue := a.reflectValueObj.Type()
+		a.flattenMemo[tReflectValue] = []*fieldInfo{{typ: tReflectValue}}
+
+		a.rtypes.SetHasher(a.hasher)
+		a.reflectZeros.SetHasher(a.hasher)
 	}
 
 	if false {
@@ -238,7 +292,7 @@ func Analyze(config *Config) CallGraphNode {
 	Call := a.config.Call
 	for _, site := range a.callsites {
 		for nid := range a.nodes[site.targets].pts {
-			cgn := a.nodes[nid].data.(*cgnode)
+			cgn := a.nodes[nid].obj.cgn
 
 			// Notify the client of the call graph, if
 			// they're interested.

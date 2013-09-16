@@ -36,8 +36,8 @@ func array2() {
 func array3() {
 	a := []interface{}{"", 1}
 	b := []interface{}{true, func() {}}
-	print(a[0]) // @concrete string | int
-	print(b[0]) // @concrete bool | func()
+	print(a[0]) // @types string | int
+	print(b[0]) // @types bool | func()
 }
 
 // Test of append, copy, slice.

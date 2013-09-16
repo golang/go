@@ -19,7 +19,7 @@ func g(p *bool) {
 func funcreflect1() {
 	rvf := reflect.ValueOf(f)
 	res := rvf.Call([]reflect.Value{reflect.ValueOf(&a)})
-	print(res[0].Interface())        // @concrete
+	print(res[0].Interface())        // @types
 	print(res[0].Interface().(*int)) // @pointsto
 }
 

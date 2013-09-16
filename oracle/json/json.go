@@ -135,7 +135,8 @@ type DescribePointer struct {
 // If the described value is an interface, it will have one PTS entry
 // describing each concrete type that it may contain.  For each
 // concrete type that is a pointer, the PTS entry describes the labels
-// it may point to.
+// it may point to.  The same is true for reflect.Values, except the
+// dynamic types needn't be concrete.
 //
 type DescribeValue struct {
 	Type   string             `json:"type"`             // type of the expression

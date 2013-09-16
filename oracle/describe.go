@@ -28,7 +28,8 @@ import (
 // - the location of the definition of its referent (for identifiers)
 // - its type and method set (for an expression or type expression)
 // - its points-to set (for a pointer-like expression)
-// - its concrete types (for an interface expression) and their points-to sets.
+// - its dynamic types (for an interface, reflect.Value, or
+//   reflect.Type expression) and their points-to sets.
 //
 // All printed sets are sorted to ensure determinism.
 //
@@ -427,9 +428,9 @@ func describePointer(o *oracle, v ssa.Value, indirect bool) (ptrs []pointerResul
 	}
 	pts := pointer.PointsToCombined(pointers)
 
-	if _, ok := v.Type().Underlying().(*types.Interface); ok {
-		// Show concrete types for interface expression.
-		if concs := pts.ConcreteTypes(); concs.Len() > 0 {
+	if pointer.CanHaveDynamicTypes(v.Type()) {
+		// Show concrete types for interface/reflect.Value expression.
+		if concs := pts.DynamicTypes(); concs.Len() > 0 {
 			concs.Iterate(func(conc types.Type, pta interface{}) {
 				combined := pointer.PointsToCombined(pta.([]pointer.Pointer))
 				labels := combined.Labels()
@@ -518,10 +519,12 @@ func (r *describeValueResult) display(printf printfFunc) {
 	}
 
 	// Display the results of pointer analysis.
-	if _, ok := r.typ.Underlying().(*types.Interface); ok {
-		// Show concrete types for interface expression.
+	if pointer.CanHaveDynamicTypes(r.typ) {
+		// Show concrete types for interface, reflect.Type or
+		// reflect.Value expression.
+
 		if len(r.ptrs) > 0 {
-			printf(false, "interface may contain these concrete types:")
+			printf(false, "this %s may contain these dynamic types:", r.typ)
 			for _, ptr := range r.ptrs {
 				var obj types.Object
 				if nt, ok := deref(ptr.typ).(*types.Named); ok {
@@ -535,7 +538,7 @@ func (r *describeValueResult) display(printf printfFunc) {
 				}
 			}
 		} else {
-			printf(false, "interface cannot contain any concrete values.")
+			printf(false, "this %s cannot contain any dynamic types.", r.typ)
 		}
 	} else {
 		// Show labels for other expressions.

@@ -25,7 +25,7 @@ func main() {
 	if unknown {
 		i = incr
 	}
-	print(i) // @concrete int | S | func(int, int) | func(int) int
+	print(i) // @types int | S | func(int, int) | func(int) int
 
 	// NB, an interface may never directly alias any global
 	// labels, even though it may contain pointers that do.

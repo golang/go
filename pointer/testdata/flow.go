@@ -33,10 +33,10 @@ func flow2() {
 	if somepred {
 		r = s
 	}
-	print(s) // @concrete int
-	print(p) // @concrete string
-	print(q) // @concrete string
-	print(r) // @concrete int | string
+	print(s) // @types int
+	print(p) // @types string
+	print(q) // @types string
+	print(r) // @types int | string
 }
 
 var g1, g2 int

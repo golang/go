@@ -104,6 +104,27 @@ defined here
 value may point to these labels:
 	b
 
+-------- @describe var-ref-i-C --------
+reference to var i describe.I
+defined here
+this describe.I may contain these dynamic types:
+	*describe.C, may point to:
+		new
+
+-------- @describe var-ref-i-D --------
+reference to var i describe.I
+defined here
+this describe.I may contain these dynamic types:
+	describe.D
+
+-------- @describe var-ref-i --------
+reference to var i describe.I
+defined here
+this describe.I may contain these dynamic types:
+	*describe.C, may point to:
+		new
+	describe.D
+
 -------- @describe const-local-pi --------
 definition of const localpi untyped float
 

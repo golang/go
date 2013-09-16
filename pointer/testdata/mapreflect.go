@@ -2,30 +2,33 @@
 
 package main
 
-import "reflect"
-
-//
-// This test is very sensitive to line-number perturbations!
-
 // Test of maps with reflection.
+
+import "reflect"
 
 var a int
 var b bool
 
 func mapreflect1() {
-	m := make(map[*int]*bool)
+	m := make(map[*int]*bool) // @line mr1make
 	m[&a] = &b
 
 	mrv := reflect.ValueOf(m)
-	print(mrv.Interface())                  // @concrete map[*int]*bool
-	print(mrv.Interface().(map[*int]*bool)) // @pointsto makemap@testdata/mapreflect.go:16:11
+	print(mrv.Interface())                  // @types map[*int]*bool
+	print(mrv.Interface().(map[*int]*bool)) // @pointsto makemap@mr1make:11
+	print(mrv)                              // @pointsto makeinterface:map[*int]*bool
+	print(mrv)                              // @types map[*int]*bool
 
-	for _, k := range mrv.MapKeys() {
-		print(k.Interface())        // @concrete *int
+	keys := mrv.MapKeys()
+	print(keys) // @pointsto <alloc in (reflect.Value).MapKeys>
+	for _, k := range keys {
+		print(k)                    // @pointsto <alloc in (reflect.Value).MapKeys>
+		print(k)                    // @types *int
+		print(k.Interface())        // @types *int
 		print(k.Interface().(*int)) // @pointsto main.a
 
 		v := mrv.MapIndex(k)
-		print(v.Interface())         // @concrete *bool
+		print(v.Interface())         // @types *bool
 		print(v.Interface().(*bool)) // @pointsto main.b
 	}
 }
@@ -38,12 +41,27 @@ func mapreflect2() {
 	print(m[nil]) // @pointsto main.b
 
 	for _, k := range mrv.MapKeys() {
-		print(k.Interface())        // @concrete *int
+		print(k.Interface())        // @types *int
 		print(k.Interface().(*int)) // @pointsto main.a
 	}
 
-	print(reflect.Zero(reflect.TypeOf(m).Key()).Interface())  // @concrete *int
-	print(reflect.Zero(reflect.TypeOf(m).Elem()).Interface()) // @concrete *bool
+	tmap := reflect.TypeOf(m)
+	// types.EvalNode won't let us refer to non-exported types:
+	// print(tmap) // #@types *reflect.rtype
+	print(tmap) // @pointsto map[*int]*bool
+
+	zmap := reflect.Zero(tmap)
+	print(zmap)             // @pointsto <alloc in reflect.Zero>
+	print(zmap.Interface()) // @pointsto <alloc in reflect.Zero>
+
+	print(tmap.Key())                            // @pointsto *int
+	print(tmap.Elem())                           // @pointsto *bool
+	print(reflect.Zero(tmap.Key()))              // @pointsto <alloc in reflect.Zero>
+	print(reflect.Zero(tmap.Key()).Interface())  // @pointsto <alloc in reflect.Zero>
+	print(reflect.Zero(tmap.Key()).Interface())  // @types *int
+	print(reflect.Zero(tmap.Elem()))             // @pointsto <alloc in reflect.Zero>
+	print(reflect.Zero(tmap.Elem()).Interface()) // @pointsto <alloc in reflect.Zero>
+	print(reflect.Zero(tmap.Elem()).Interface()) // @types *bool
 }
 
 func main() {

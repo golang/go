@@ -15,7 +15,7 @@ func chanreflect1() {
 	ch := make(chan *int, 0)
 	crv := reflect.ValueOf(ch)
 	crv.Send(reflect.ValueOf(&a))
-	print(crv.Interface())             // @concrete chan *int
+	print(crv.Interface())             // @types chan *int
 	print(crv.Interface().(chan *int)) // @pointsto makechan@testdata/chanreflect.go:15:12
 	print(<-ch)                        // @pointsto main.a
 }
@@ -25,7 +25,7 @@ func chanreflect2() {
 	ch <- &b
 	crv := reflect.ValueOf(ch)
 	r, _ := crv.Recv()
-	print(r.Interface())        // @concrete *int
+	print(r.Interface())        // @types *int
 	print(r.Interface().(*int)) // @pointsto main.b
 }
 

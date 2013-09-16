@@ -16,6 +16,9 @@ import (
 func CanPoint(T types.Type) bool {
 	switch T := T.(type) {
 	case *types.Named:
+		if obj := T.Obj(); obj.Name() == "Value" && obj.Pkg().Path() == "reflect" {
+			return true // treat reflect.Value like interface{}
+		}
 		return CanPoint(T.Underlying())
 
 	case *types.Pointer, *types.Interface, *types.Map, *types.Chan, *types.Signature, *types.Slice:
@@ -25,10 +28,34 @@ func CanPoint(T types.Type) bool {
 	return false // array struct tuple builtin basic
 }
 
+// CanHaveDynamicTypes reports whether the type T can "hold" dynamic types,
+// i.e. is an interface (incl. reflect.Type) or a reflect.Value.
+//
+func CanHaveDynamicTypes(T types.Type) bool {
+	switch T := T.(type) {
+	case *types.Named:
+		if obj := T.Obj(); obj.Name() == "Value" && obj.Pkg().Path() == "reflect" {
+			return true // reflect.Value
+		}
+		return CanHaveDynamicTypes(T.Underlying())
+	case *types.Interface:
+		return true
+	}
+	return false
+}
+
 // mustDeref returns the element type of its argument, which must be a
 // pointer; panic ensues otherwise.
 func mustDeref(typ types.Type) types.Type {
 	return typ.Underlying().(*types.Pointer).Elem()
+}
+
+// deref returns a pointer's element type; otherwise it returns typ.
+func deref(typ types.Type) types.Type {
+	if p, ok := typ.Underlying().(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return typ
 }
 
 // A fieldInfo describes one subelement (node) of the flattening-out
@@ -75,6 +102,8 @@ func (fi *fieldInfo) path() string {
 // traversal of the type tree of t.  The resulting elements are all
 // scalars (basic types or pointerlike types), except for struct/array
 // "identity" nodes, whose type is that of the aggregate.
+//
+// reflect.Value is considered pointerlike, similar to interface{}.
 //
 // Callers must not mutate the result.
 //
@@ -172,6 +201,8 @@ func sliceToArray(slice types.Type) *types.Array {
 
 // Node set -------------------------------------------------------------------
 
+// NB, mutator methods are attached to *nodeset.
+// nodeset may be a reference, but its address matters!
 type nodeset map[nodeid]struct{}
 
 // ---- Accessors ----
