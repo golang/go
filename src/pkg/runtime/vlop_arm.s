@@ -104,16 +104,13 @@ r = 1 // input n, output r
 s = 2 // three temporary variables
 M = 3
 a = 11
-// Please be careful when changing this, it is pretty fragile:
-// 1, don't use unconditional branch as the linker is free to reorder the blocks;
-// 2. if a == 11, beware that the linker will use R11 if you use certain instructions.
+// Be careful: R(a) == R11 will be used by the linker for synthesized instructions.
 TEXT udiv<>(SB),NOSPLIT,$-4
 	CLZ 	R(q), R(s) // find normalizing shift
 	MOVW.S	R(q)<<R(s), R(a)
-	ADD 	R(a)>>25, PC, R(a) // most significant 7 bits of divisor
-	MOVBU.NE	(4*36-64)(R(a)), R(a) // 36 == number of inst. between fast_udiv_tab and begin
+	MOVW	$fast_udiv_tab<>-64(SB), R(M)
+	MOVBU.NE	R(a)>>25(R(M)), R(a) // index by most significant 7 bits of divisor
 
-begin:
 	SUB.S	$7, R(s)
 	RSB 	$0, R(q), R(M) // M = -q
 	MOVW.PL	R(a)<<R(s), R(q)
@@ -141,9 +138,7 @@ begin:
 	ADD.CC	$1, R(q)
 	ADD.PL	R(M)<<1, R(r)
 	ADD.PL	$2, R(q)
-
-	// return, can't use RET here or fast_udiv_tab will be dropped during linking
-	MOVW	R14, R15
+	RET
 
 udiv_by_large_d:
 	// at this point we know d>=2^(31-6)=2^25
@@ -160,20 +155,34 @@ udiv_by_large_d:
 	CMN 	R(r), R(M)
 	ADD.CS	R(M), R(r)
 	ADD.CS	$1, R(q)
-
-	// return, can't use RET here or fast_udiv_tab will be dropped during linking
-	MOVW	R14, R15
+	RET
 
 udiv_by_0_or_1:
 	// carry set if d==1, carry clear if d==0
-	MOVW.CS	R(r), R(q)
-	MOVW.CS	$0, R(r)
-	BL.CC 	runtime·panicdivide(SB) // no way back
+	BCC udiv_by_0
+	MOVW	R(r), R(q)
+	MOVW	$0, R(r)
+	RET
 
-	// return, can't use RET here or fast_udiv_tab will be dropped during linking
-	MOVW	R14, R15
+udiv_by_0:
+	// The ARM toolchain expects it can emit references to DIV and MOD
+	// instructions. The linker rewrites each pseudo-instruction into
+	// a sequence that pushes two values onto the stack and then calls
+	// _divu, _modu, _div, or _mod (below), all of which have a 16-byte
+	// frame plus the saved LR. The traceback routine knows the expanded
+	// stack frame size at the pseudo-instruction call site, but it
+	// doesn't know that the frame has a non-standard layout. In particular,
+	// it expects to find a saved LR in the bottom word of the frame.
+	// Unwind the stack back to the pseudo-instruction call site, copy the
+	// saved LR where the traceback routine will look for it, and make it
+	// appear that panicdivide was called from that PC.
+	MOVW	0(R13), LR
+	ADD	$20, R13
+	MOVW	8(R13), R1 // actual saved LR
+	MOVW	R1, 0(R13) // expected here for traceback
+	B 	runtime·panicdivide(SB)
 
-fast_udiv_tab:
+TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
 	// var tab [64]byte
 	// tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
 	// laid out here as little-endian uint32s
