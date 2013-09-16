@@ -94,12 +94,7 @@ environment variables under Windows</a>.
 
 <p>
 If you are upgrading from an older version of Go you must
-first remove the existing version from <code>/usr/local/go</code>:
-</p>
-
-<pre>
-rm -r /usr/local/go
-</pre>
+first <a href="#uninstall">remove the existing version</a>.
 
 <p>
 Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+OR+OpSys-NetBSD+Type-Archive">the archive</a>
@@ -150,7 +145,7 @@ Terminal sessions for the change to take effect.
 The Go project provides two installation options for Windows users
 (besides <a href="/doc/install/source">installing from source</a>):
 a zip archive that requires you to set some environment variables and an
-experimental MSI installer that configures your installation automatically.
+MSI installer that configures your installation automatically.
 </p>
 
 <h4 id="windows_zip">Zip archive</h4>
@@ -169,7 +164,7 @@ the <code>GOROOT</code> environment variable to your chosen path.
 Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
 </p>
 
-<h4 id="windows_msi">MSI installer (experimental)</h4>
+<h4 id="windows_msi">MSI installer</h4>
 
 <p>
 Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DInstaller">MSI file</a>
@@ -275,3 +270,26 @@ The official mailing list for discussion of the Go language is
 Bugs should be reported using the
 <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
 </p>
+
+
+<h2 id="uninstall">Uninstalling Go</h2>
+
+<p>
+To remove an existing Go installation from your system delete the
+<code>go</code> directory. This is usually <code>/usr/local/go</code>
+under Linux, Mac OS X, and FreeBSD or <code>c:\Go</code>
+under Windows.
+</p>
+
+<p>
+You should also remove the Go <code>bin</code> directory from your
+<code>PATH</code> environment variable.
+Under Linux and FreeBSD you should edit <code>/etc/profile</code> or
+<code>$HOME/.profile</code>.
+If you installed Go with the <a href="#osx">Mac OS X package</a> then you
+should remove the <code>/etc/paths.d/go</code> file.
+Windows users should read the section about <a href="#windows_env">setting
+environment variables under Windows</a>.
+</p>
+
+
