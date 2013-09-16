@@ -180,28 +180,50 @@ support for Go 1.2.
 In the current (4.8.2) release of GCC, gccgo implements Go 1.1.2.
 </p>
 
-<h3 id="gc_changes">TODO</h3>
+<h3 id="gc_changes">Changes to the gc compiler and linker</h3>
 
 <p>
-TODO: write prose
+Go 1.2 has several semantic changes to the workings of the gc compiler suite.
+Most users will be unaffected by them.
 </p>
 
-<ul>
-<li>cmd/5a: removed support for R9/R10 (use m/g instead) (CL 9840043).
-</li>
+<p>
+The <a href="/cmd/cgo/"><code>cgo</code></a> command now
+works when C++ is included in the library being linked against.
+See the <a href="/cmd/cgo/"><code>cgo</code></a> documentation
+for details.
+</p>
 
-<li>cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
-</li>
+<p>
+The gc compiler displayed a vestigial detail of its origins when
+a program had no <code>package</code> clause: it assumed
+the file was in package <code>main</code>.
+The past has been erased, and a missing <code>package</code> clause
+is now an error.
+</p>
 
-<li>cmd/5l: support for external linking for linux/arm (CL 12871044).
-</li>
+<p>
+On the ARM, the toolchain supports "external linking", which
+is a step towards being able to build shared libraries with the gc
+tool chain and to provide dynamic linking support for environments
+in which that is necessary.
+</p>
 
-<li>cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
-</li>
+<p>
+In the runtime for the ARM, with <code>5a</code>, it used to be possible to refer
+to the runtime-internal <code>m</code> (machine) and <code>g</code>
+(goroutine) variables using <code>R9</code> and <code>R10</code> directly.
+It is now necessary to refer to them by their proper names.
+</p>
 
-<li>cmd/gc: make missing package error fatal (CL 12677043).
-</li>
-</ul>
+<p>
+Also on the ARM, the <code>5l</code> linker (sic) now defines the
+<code>MOVBS</code> and <code>MOVHS</code> instructions
+as synonyms of <code>MOVB</code> and <code>MOVH</code>,
+to make clearer the separation between signed and unsigned
+sub-word moves; the unsigned versions already existed with a
+<code>U</code> suffix.
+</p>
 
 <h3 id="cover">Test coverage</h3>
 
@@ -501,20 +523,11 @@ The two forms are identical in effect; the difference is just in the syntax.
 </p>
 
 <p>
-Finally, the package 
-now correctly diagnoses unmatched right delimiters.
-They were accepted without complaint before, and templates that had them
-will now fail to parse.
-</p>
-
-<p>
 <em>Updating</em>: Neither the "else if" change nor the comparison functions
 affect existing programs. Those that
 already define functions called <code>eq</code> and so on through a function
 map are unaffected because the associated function map will override the new
 default function definitions.
-Templates with unmatched right delimiters will now fail to parse and will need
-to be fixed by hand.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
