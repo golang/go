@@ -32,6 +32,9 @@ func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
 				t.Logf("skipping %q test on %q", net, runtime.GOOS)
 			}
 		case "windows":
+			if testing.Short() || !*testExternal {
+				t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
+			}
 		default:
 			if os.Getuid() != 0 {
 				return nil, func() {
