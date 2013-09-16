@@ -542,12 +542,17 @@ environment variable (see 'go help gopath').
 If no import paths are given, the action applies to the
 package in the current directory.
 
-The special import path "all" expands to all package directories
-found in all the GOPATH trees.  For example, 'go list all'
-lists all the packages on the local system.
+There are three reserved names for paths that should not be used
+for packages to be built with the go tool:
 
-The special import path "std" is like all but expands to just the
-packages in the standard Go library.
+- "main" denotes the top-level package in a stand-alone executable.
+
+- "all" expands to all package directories found in all the GOPATH
+trees. For example, 'go list all' lists all the packages on the local
+system.
+
+- "std" is like all but expands to just the packages in the standard
+Go library.
 
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
