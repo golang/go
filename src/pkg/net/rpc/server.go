@@ -266,6 +266,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 
 	if len(s.method) == 0 {
 		str := ""
+
 		// To help the user, see if a pointer receiver would work.
 		method := suitableMethods(reflect.PtrTo(s.typ), false)
 		if len(method) != 0 {
@@ -357,7 +358,7 @@ func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply inte
 	resp.Seq = req.Seq
 	sending.Lock()
 	err := codec.WriteResponse(resp, reply)
-	if err != nil {
+	if debugLog && err != nil {
 		log.Println("rpc: writing response:", err)
 	}
 	sending.Unlock()
@@ -435,7 +436,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	for {
 		service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
 		if err != nil {
-			if err != io.EOF {
+			if debugLog && err != io.EOF {
 				log.Println("rpc:", err)
 			}
 			if !keepReading {
