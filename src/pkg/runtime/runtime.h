@@ -539,6 +539,8 @@ struct DebugVars
 	int32	scheddetail;
 };
 
+extern bool runtime·precisestack;
+
 /*
  * defined macros
  *    you need super-gopher-guru privilege

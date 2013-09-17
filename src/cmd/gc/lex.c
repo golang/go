@@ -41,6 +41,7 @@ static struct {
 } exper[] = {
 //	{"rune32", &rune32},
 	{"fieldtrack", &fieldtrack_enabled},
+	{"precisestack", &precisestack_enabled},
 	{nil, nil},
 };
 
