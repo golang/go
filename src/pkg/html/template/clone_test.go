@@ -6,6 +6,8 @@ package template
 
 import (
 	"bytes"
+	"errors"
+	"io/ioutil"
 	"testing"
 	"text/template/parse"
 )
@@ -145,4 +147,42 @@ func TestCloneCrash(t *testing.T) {
 	t1 := New("all")
 	Must(t1.New("t1").Parse(`{{define "foo"}}foo{{end}}`))
 	t1.Clone()
+}
+
+// Ensure that this guarantee from the docs is upheld:
+// "Further calls to Parse in the copy will add templates
+// to the copy but not to the original."
+func TestCloneThenParse(t *testing.T) {
+	t0 := Must(New("t0").Parse(`{{define "a"}}{{template "embedded"}}{{end}}`))
+	t1 := Must(t0.Clone())
+	Must(t1.Parse(`{{define "embedded"}}t1{{end}}`))
+	if len(t0.Templates())+1 != len(t1.Templates()) {
+		t.Error("adding a template to a clone added it to the original")
+	}
+	// double check that the embedded template isn't available in the original
+	err := t0.ExecuteTemplate(ioutil.Discard, "a", nil)
+	if err == nil {
+		t.Error("expected 'no such template' error")
+	}
+}
+
+// https://code.google.com/p/go/issues/detail?id=5980
+func TestFuncMapWorksAfterClone(t *testing.T) {
+	funcs := FuncMap{"customFunc": func() (string, error) {
+		return "", errors.New("issue5980")
+	}}
+
+	// get the expected error output (no clone)
+	uncloned := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
+	wantErr := uncloned.Execute(ioutil.Discard, nil)
+
+	// toClone must be the same as uncloned. It has to be recreated from scratch,
+	// since cloning cannot occur after execution.
+	toClone := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
+	cloned := Must(toClone.Clone())
+	gotErr := cloned.Execute(ioutil.Discard, nil)
+
+	if wantErr.Error() != gotErr.Error() {
+		t.Errorf("clone error message mismatch want %q got %q", wantErr, gotErr)
+	}
 }

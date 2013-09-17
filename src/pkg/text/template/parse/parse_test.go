@@ -332,6 +332,22 @@ func TestIsEmpty(t *testing.T) {
 	}
 }
 
+func TestErrorContextWithTreeCopy(t *testing.T) {
+	tree, err := New("root").Parse("{{if true}}{{end}}", "", "", make(map[string]*Tree), nil)
+	if err != nil {
+		t.Fatalf("unexpected tree parse failure: %v", err)
+	}
+	treeCopy := tree.Copy()
+	wantLocation, wantContext := tree.ErrorContext(tree.Root.Nodes[0])
+	gotLocation, gotContext := treeCopy.ErrorContext(treeCopy.Root.Nodes[0])
+	if wantLocation != gotLocation {
+		t.Errorf("wrong error location want %q got %q", wantLocation, gotLocation)
+	}
+	if wantContext != gotContext {
+		t.Errorf("wrong error location want %q got %q", wantContext, gotContext)
+	}
+}
+
 // All failures, and the result is a string that must appear in the error message.
 var errorTests = []parseTest{
 	// Check line numbers are accurate.
