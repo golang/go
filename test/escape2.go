@@ -1136,6 +1136,7 @@ func foo126() {
 			px = &i // ERROR "&i escapes"
 		}()
 	}
+	_ = px
 }
 
 var px *int
