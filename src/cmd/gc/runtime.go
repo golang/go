@@ -39,11 +39,6 @@ func goprintf()
 // filled in by compiler: int n, string, string, ...
 func concatstring()
 
-// filled in by compiler: Type*, int n, Slice, ...
-func append()
-func appendslice(typ *byte, x any, y []any) any
-func appendstr(typ *byte, x []byte, y string) []byte
-
 func cmpstring(string, string) int
 func eqstring(string, string) bool
 func intstring(int64) string

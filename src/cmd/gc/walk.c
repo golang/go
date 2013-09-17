@@ -1236,12 +1236,8 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 	
 	case OAPPEND:
-		if(n->isddd) {
-			if(istype(n->type->type, TUINT8) && istype(n->list->next->n->type, TSTRING))
-				n = mkcall("appendstr", n->type, init, typename(n->type), n->list->n, n->list->next->n);
-			else
-				n = appendslice(n, init);
-		}
+		if(n->isddd)
+			n = appendslice(n, init); // also works for append(slice, string).
 		else
 			n = append(n, init);
 		goto ret;
@@ -2538,16 +2534,104 @@ addstr(Node *n, NodeList **init)
 	return r;
 }
 
+// expand append(l1, l2...) to
+//   init {
+//     s := l1
+//     if n := len(l1) + len(l2) - cap(s); n > 0 {
+//       s = growslice(s, n)
+//     }
+//     s = s[:len(l1)+len(l2)]
+//     memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+//   }
+//   s
+//
+// l2 is allowed to be a string.
 static Node*
 appendslice(Node *n, NodeList **init)
 {
-	Node *f;
+	NodeList *l;
+	Node *l1, *l2, *nt, *nif, *fn;
+	Node *nptr1, *nptr2, *nwid;
+	Node *s;
 
-	f = syslook("appendslice", 1);
-	argtype(f, n->type);
-	argtype(f, n->type->type);
-	argtype(f, n->type);
-	return mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
+	walkexprlistsafe(n->list, init);
+
+	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+	// and n are name or literal, but those may index the slice we're
+	// modifying here.  Fix explicitly.
+	for(l=n->list; l; l=l->next)
+		l->n = cheapexpr(l->n, init);
+
+	l1 = n->list->n;
+	l2 = n->list->next->n;
+
+	s = temp(l1->type); // var s []T
+	l = nil;
+	l = list(l, nod(OAS, s, l1)); // s = l1
+
+	nt = temp(types[TINT]);
+	nif = nod(OIF, N, N);
+	// n := len(s) + len(l2) - cap(s)
+	nif->ninit = list1(nod(OAS, nt,
+		nod(OSUB, nod(OADD, nod(OLEN, s, N), nod(OLEN, l2, N)), nod(OCAP, s, N))));
+	nif->ntest = nod(OGT, nt, nodintconst(0));
+	// instantiate growslice(Type*, []any, int64) []any
+	fn = syslook("growslice", 1);
+	argtype(fn, s->type->type);
+	argtype(fn, s->type->type);
+
+	// s = growslice(T, s, n)
+	nif->nbody = list1(nod(OAS, s, mkcall1(fn, s->type, &nif->ninit,
+					       typename(s->type),
+					       s,
+					       conv(nt, types[TINT64]))));
+
+	l = list(l, nif);
+
+	if(flag_race) {
+		// rely on runtime to instrument copy.
+		// copy(s[len(l1):len(l1)+len(l2)], l2)
+		nptr1 = nod(OSLICE, s, nod(OKEY,
+			nod(OLEN, l1, N),
+			nod(OADD, nod(OLEN, l1, N), nod(OLEN, l2, N))));
+		nptr1->etype = 1;
+		nptr2 = l2;
+		if(l2->type->etype == TSTRING)
+			fn = syslook("slicestringcopy", 1);
+		else
+			fn = syslook("copy", 1);
+		argtype(fn, l1->type);
+		argtype(fn, l2->type);
+		l = list(l, mkcall1(fn, types[TINT], init,
+				nptr1, nptr2,
+				nodintconst(s->type->type->width)));
+	} else {
+		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+		nptr1 = nod(OINDEX, s, nod(OLEN, l1, N));
+		nptr1->bounded = 1;
+		nptr1 = nod(OADDR, nptr1, N);
+
+		nptr2 = nod(OSPTR, l2, N);
+
+		fn = syslook("memmove", 1);
+		argtype(fn, s->type->type);	// 1 old []any
+		argtype(fn, s->type->type);	// 2 ret []any
+
+		nwid = cheapexpr(conv(nod(OLEN, l2, N), types[TUINTPTR]), &l);
+		nwid = nod(OMUL, nwid, nodintconst(s->type->type->width));
+		l = list(l, mkcall1(fn, T, init, nptr1, nptr2, nwid));
+	}
+
+	// s = s[:len(l1)+len(l2)]
+	nt = nod(OADD, nod(OLEN, l1, N), nod(OLEN, l2, N));
+	nt = nod(OSLICE, s, nod(OKEY, N, nt));
+	nt->etype = 1;
+	l = list(l, nod(OAS, s, nt));
+
+	typechecklist(l, Etop);
+	walkstmtlist(l);
+	*init = concat(*init, l);
+	return s;
 }
 
 // expand append(src, a [, b]* ) to
