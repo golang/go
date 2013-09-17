@@ -802,6 +802,7 @@ int32	runtime·funcline(Func*, uintptr, String*);
 int32	runtime·funcarglen(Func*, uintptr);
 int32	runtime·funcspdelta(Func*, uintptr);
 int8*	runtime·funcname(Func*);
+int32	runtime·pcdatavalue(Func*, int32, uintptr);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);

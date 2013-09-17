@@ -208,8 +208,8 @@ runtime·funcspdelta(Func *f, uintptr targetpc)
 	return x;
 }
 
-static int32
-pcdatavalue(Func *f, int32 table, uintptr targetpc)
+int32
+runtime·pcdatavalue(Func *f, int32 table, uintptr targetpc)
 {
 	if(table < 0 || table >= f->npcdata)
 		return -1;
@@ -221,7 +221,7 @@ runtime·funcarglen(Func *f, uintptr targetpc)
 {
 	if(targetpc == f->entry)
 		return 0;
-	return pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
+	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
 }
 
 void
