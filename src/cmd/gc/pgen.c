@@ -181,6 +181,7 @@ compile(Node *fn)
 
 	if(!debug['N'] || debug['R'] || debug['P']) {
 		regopt(ptxt);
+		nilopt(ptxt);
 	}
 	expandchecks(ptxt);
 
@@ -537,8 +538,11 @@ cgen_checknil(Node *n)
 
 	if(disable_checknil)
 		return;
-	while(n->op == ODOT || (n->op == OINDEX && isfixedarray(n->left->type->type))) // NOTE: not ODOTPTR
-		n = n->left;
+	// Ideally we wouldn't see any TUINTPTR here, but we do.
+	if(n->type == T || (!isptr[n->type->etype] && n->type->etype != TUINTPTR && n->type->etype != TUNSAFEPTR)) {
+		dump("checknil", n);
+		fatal("bad checknil");
+	}
 	if((thechar == '5' && n->op != OREGISTER) || !n->addable) {
 		regalloc(&reg, types[tptr], n);
 		cgen(n, &reg);

@@ -764,3 +764,187 @@ mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
 		for(r2 = (TempFlow*)r->f.p2; r2 != nil; r2 = (TempFlow*)r2->f.p2link)
 			mergewalk(v, r2, gen);
 }
+
+// Eliminate redundant nil pointer checks.
+//
+// The code generation pass emits a CHECKNIL for every possibly nil pointer.
+// This pass removes a CHECKNIL if every predecessor path has already
+// checked this value for nil.
+//
+// Simple backwards flood from check to definition.
+// Run prog loop backward from end of program to beginning to avoid quadratic
+// behavior removing a run of checks.
+//
+// Assume that stack variables with address not taken can be loaded multiple times
+// from memory without being rechecked. Other variables need to be checked on
+// each load.
+	
+typedef struct NilVar NilVar;
+typedef struct NilFlow NilFlow;
+
+struct NilFlow {
+	Flow f;
+	int kill;
+};
+
+static void nilwalkback(NilFlow *rcheck);
+static void nilwalkfwd(NilFlow *rcheck);
+
+void
+nilopt(Prog *firstp)
+{
+	NilFlow *r;
+	Prog *p;
+	uint32 gen;
+	Graph *g;
+	int ncheck, nkill;
+
+	g = flowstart(firstp, sizeof(NilFlow));
+	if(g == nil)
+		return;
+
+	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
+		dumpit("nilopt", g->start, 0);
+
+	gen = 0;
+	ncheck = 0;
+	nkill = 0;
+	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
+		p = r->f.prog;
+		if(p->as != ACHECKNIL || !regtyp(&p->from))
+			continue;
+		ncheck++;
+		if(stackaddr(&p->from)) {
+			if(debug_checknil && p->lineno > 1)
+				warnl(p->lineno, "removed nil check of SP address");
+			r->kill = 1;
+			continue;
+		}
+		nilwalkfwd(r);
+		if(r->kill) {
+			if(debug_checknil && p->lineno > 1)
+				warnl(p->lineno, "removed nil check before indirect");
+			continue;
+		}
+		nilwalkback(r);
+		if(r->kill) {
+			if(debug_checknil && p->lineno > 1)
+				warnl(p->lineno, "removed repeated nil check");
+			continue;
+		}
+	}
+	
+	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
+		if(r->kill) {
+			nkill++;
+			excise(&r->f);
+		}
+	}
+
+	flowend(g);
+	
+	if(debug_checknil > 1)
+		print("%S: removed %d of %d nil checks\n", curfn->nname->sym, nkill, ncheck);
+}
+
+static void
+nilwalkback(NilFlow *rcheck)
+{
+	Prog *p;
+	ProgInfo info;
+	NilFlow *r;
+	
+	for(r = rcheck; r != nil; r = (NilFlow*)uniqp(&r->f)) {
+		p = r->f.prog;
+		proginfo(&info, p);
+		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
+			// Found initialization of value we're checking for nil.
+			// without first finding the check, so this one is unchecked.
+			return;
+		}
+		if(r != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from)) {
+			rcheck->kill = 1;
+			return;
+		}
+	}
+
+	// Here is a more complex version that scans backward across branches.
+	// It assumes rcheck->kill = 1 has been set on entry, and its job is to find a reason
+	// to keep the check (setting rcheck->kill = 0).
+	// It doesn't handle copying of aggregates as well as I would like,
+	// nor variables with their address taken,
+	// and it's too subtle to turn on this late in Go 1.2. Perhaps for Go 1.3.
+	/*
+	for(r1 = r0; r1 != nil; r1 = (NilFlow*)r1->f.p1) {
+		if(r1->f.active == gen)
+			break;
+		r1->f.active = gen;
+		p = r1->f.prog;
+		
+		// If same check, stop this loop but still check
+		// alternate predecessors up to this point.
+		if(r1 != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from))
+			break;
+
+		proginfo(&info, p);
+		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
+			// Found initialization of value we're checking for nil.
+			// without first finding the check, so this one is unchecked.
+			rcheck->kill = 0;
+			return;
+		}
+		
+		if(r1->f.p1 == nil && r1->f.p2 == nil) {
+			print("lost pred for %P\n", rcheck->f.prog);
+			for(r1=r0; r1!=nil; r1=(NilFlow*)r1->f.p1) {
+				proginfo(&info, r1->f.prog);
+				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
+			}
+			fatal("lost pred trail");
+		}
+	}
+
+	for(r = r0; r != r1; r = (NilFlow*)r->f.p1)
+		for(r2 = (NilFlow*)r->f.p2; r2 != nil; r2 = (NilFlow*)r2->f.p2link)
+			nilwalkback(rcheck, r2, gen);
+	*/
+}
+
+static void
+nilwalkfwd(NilFlow *rcheck)
+{
+	NilFlow *r;
+	Prog *p;
+	ProgInfo info;
+	
+	// If the path down from rcheck dereferences the address
+	// (possibly with a small offset) before writing to memory
+	// and before any subsequent checks, it's okay to wait for
+	// that implicit check. Only consider this basic block to
+	// avoid problems like:
+	//	_ = *x // should panic
+	//	for {} // no writes but infinite loop may be considered visible
+	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
+		p = r->f.prog;
+		proginfo(&info, p);
+		
+		if((info.flags & LeftRead) && smallindir(&p->from, &rcheck->f.prog->from)) {
+			rcheck->kill = 1;
+			return;
+		}
+		if((info.flags & (RightRead|RightWrite)) && smallindir(&p->to, &rcheck->f.prog->from)) {
+			rcheck->kill = 1;
+			return;
+		}
+		
+		// Stop if another nil check happens.
+		if(p->as == ACHECKNIL)
+			return;
+		// Stop if value is lost.
+		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from))
+			return;
+		// Stop if memory write.
+		if((info.flags & RightWrite) && !regtyp(&p->to))
+			return;
+	}
+}

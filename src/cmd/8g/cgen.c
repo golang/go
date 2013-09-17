@@ -857,7 +857,35 @@ igen(Node *n, Node *a, Node *res)
 		a->xoffset = fp->width;
 		a->type = n->type;
 		return;
+
+	case OINDEX:
+		// Index of fixed-size array by constant can
+		// put the offset in the addressing.
+		// Could do the same for slice except that we need
+		// to use the real index for the bounds checking.
+		if(isfixedarray(n->left->type) ||
+		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
+		if(isconst(n->right, CTINT)) {
+			// Compute &a.
+			if(!isptr[n->left->type->etype])
+				igen(n->left, a, res);
+			else {
+				igen(n->left, &n1, res);
+				cgen_checknil(&n1);
+				regalloc(a, types[tptr], res);
+				gmove(&n1, a);
+				regfree(&n1);
+				a->op = OINDREG;
+			}
+
+			// Compute &a[i] as &a + i*width.
+			a->type = n->type;
+			a->xoffset += mpgetfix(n->right->val.u.xval)*n->type->width;
+			return;
+		}
+		break;
 	}
+
 	// release register for now, to avoid
 	// confusing tempname.
 	if(res != N && res->op == OREGISTER)

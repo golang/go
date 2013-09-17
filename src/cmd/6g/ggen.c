@@ -1081,7 +1081,7 @@ expandchecks(Prog *firstp)
 		if(p->as != ACHECKNIL)
 			continue;
 		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
-			warnl(p->lineno, "nil check %D", &p->from);
+			warnl(p->lineno, "generated nil check");
 		// check is
 		//	CMP arg, $0
 		//	JNE 2(PC) (likely)

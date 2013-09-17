@@ -640,6 +640,19 @@ copyas(Adr *a, Adr *v)
 	return 0;
 }
 
+int
+sameaddr(Addr *a, Addr *v)
+{
+	if(a->type != v->type)
+		return 0;
+	if(regtyp(v))
+		return 1;
+	if(v->type == D_AUTO || v->type == D_PARAM)
+		if(v->offset == a->offset)
+			return 1;
+	return 0;
+}
+
 /*
  * either direct or indirect
  */
@@ -737,4 +750,19 @@ loop:
 		}
 		break;
 	}
+}
+
+int
+smallindir(Addr *a, Addr *reg)
+{
+	return regtyp(reg) &&
+		a->type == D_INDIR + reg->type &&
+		a->index == D_NONE &&
+		0 <= a->offset && a->offset < 4096;
+}
+
+int
+stackaddr(Addr *a)
+{
+	return regtyp(a) && a->type == D_SP;
 }

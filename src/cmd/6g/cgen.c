@@ -1015,6 +1015,7 @@ igen(Node *n, Node *a, Node *res)
 			fixlargeoffset(a);
 			return;
 		}
+		break;
 	}
 
 	agenr(n, a, res);
