@@ -299,6 +299,37 @@ psym(Sym *s, void* p)
 	symptr[nsym++] = s;
 }
 
+const char *skipnames[] = {
+	"bss",
+	"data",
+	"ebss",
+	"edata",
+	"egcbss",
+	"egcdata",
+	"enoptrbss",
+	"enoptrdata",
+	"epclntab",
+	"erodata",
+	"esymtab",
+	"etext",
+	"etypelink",
+	"noptrbss",
+	"noptrdata",
+	"rodata",
+	"text",
+};
+
+int
+skipsize(char *name)
+{
+	int i;
+	
+	for(i=0; i<nelem(skipnames); i++)
+		if(strcmp(skipnames[i], name) == 0)
+			return 1;
+	return 0;
+}
+
 void
 printsyms(Sym **symptr, long nsym)
 {
@@ -332,12 +363,12 @@ printsyms(Sym **symptr, long nsym)
 			Bprint(&bout, "%*llux ", wid, s->value);
 		else
 			Bprint(&bout, "%*s ", wid, "");
-		if(Sflag) {
+		if(Sflag && !skipsize(cp)) {
 			vlong siz;
 
 			siz = 0;
 			for(j=i+1; j<nsym; j++) {
-				if(symptr[j]->type != 'a' && symptr[j]->type != 'p') {
+				if(!skipsize(symptr[j]->name) && symptr[j]->type != 'a' && symptr[j]->type != 'p') {
 					siz = symptr[j]->value - s->value;
 					break;
 				}
