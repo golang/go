@@ -186,7 +186,7 @@ evconst(Node *n)
 		break;
 
 	case OASHL:
-		v = l->vconst << r->vconst;
+		v = (uvlong)l->vconst << r->vconst;
 		break;
 
 	case OLO:

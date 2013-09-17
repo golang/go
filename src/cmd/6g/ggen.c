@@ -596,7 +596,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 	check = 0;
 	if(issigned[t->etype]) {
 		check = 1;
-		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -1LL<<(t->width*8-1))
+		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -(1ULL<<(t->width*8-1)))
 			check = 0;
 		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
 			check = 0;
