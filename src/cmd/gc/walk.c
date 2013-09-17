@@ -407,11 +407,6 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OIND:
-		if(n->left->type->type->width == 0) {
-			// No actual copy will be generated, so emit an explicit nil check.
-			n->left = cheapexpr(n->left, init);
-			checknil(n->left, init);
-		}
 		walkexpr(&n->left, init);
 		goto ret;
 

@@ -1293,6 +1293,10 @@ dumpit(char *str, Flow *r0, int isreg)
 			print("	pred:");
 			for(; r1 != nil; r1 = r1->p2link)
 				print(" %.4ud", r1->prog->loc);
+			if(r->p1 != nil)
+				print(" (and %.4ud)", r->p1->prog->loc);
+			else
+				print(" (only)");
 			print("\n");
 		}
 //		r1 = r->s1;

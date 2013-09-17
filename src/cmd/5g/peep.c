@@ -1193,6 +1193,20 @@ copyas(Adr *a, Adr *v)
 	return 0;
 }
 
+int
+sameaddr(Adr *a, Adr *v)
+{
+	if(a->type != v->type)
+		return 0;
+	if(regtyp(v) && a->reg == v->reg)
+		return 1;
+	if(v->type == D_AUTO || v->type == D_PARAM) {
+		if(v->offset == a->offset)
+			return 1;
+	}
+	return 0;
+}
+
 /*
  * either direct or indirect
  */
@@ -1524,4 +1538,18 @@ isdconst(Addr *a)
 	if(a->type == D_CONST && a->reg == NREG)
 		return 1;
 	return 0;
+}
+
+int
+stackaddr(Addr *a)
+{
+	return regtyp(a) && a->reg == REGSP;
+}
+
+int
+smallindir(Addr *a, Addr *reg)
+{
+	return reg->type == D_REG && a->type == D_OREG &&
+		a->reg == reg->reg &&
+		0 <= a->offset && a->offset < 4096;
 }

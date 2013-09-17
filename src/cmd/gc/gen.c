@@ -629,6 +629,10 @@ cgen_discard(Node *nr)
 	case OPLUS:
 		cgen_discard(nr->left);
 		break;
+	
+	case OIND:
+		cgen_checknil(nr->left);
+		break;
 
 	// special enough to just evaluate
 	default:

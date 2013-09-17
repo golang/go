@@ -889,7 +889,7 @@ expandchecks(Prog *firstp)
 		if(p->as != ACHECKNIL)
 			continue;
 		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
-			warnl(p->lineno, "nil check %D", &p->from);
+			warnl(p->lineno, "generated nil check");
 		if(p->from.type != D_REG)
 			fatal("invalid nil check %P", p);
 		reg = p->from.reg;

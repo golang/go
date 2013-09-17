@@ -100,7 +100,7 @@ static ProgInfo progtable[ALAST] = {
 	[AMOVHU]=		{SizeW | LeftRead | RightWrite | Conv},
 	
 	// Jumps.
-	[AB]=		{Jump},
+	[AB]=		{Jump | Break},
 	[ABL]=		{Call},
 	[ABEQ]=		{Cjmp},
 	[ABNE]=		{Cjmp},
