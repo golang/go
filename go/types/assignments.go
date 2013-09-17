@@ -8,6 +8,7 @@ package types
 
 import (
 	"go/ast"
+	"go/token"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -154,7 +155,9 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 	return z.typ
 }
 
-func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
+// If returnPos is valid, initVars is called to type-check the assignment of
+// return expressions, and returnPos is the position of the return statement.
+func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
 	l := len(lhs)
 	r := len(rhs)
 	assert(l > 0)
@@ -199,8 +202,8 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 			}
 		}
 
-		if allowCommaOk && x.mode == valueok && l == 2 {
-			// comma-ok expression
+		if !returnPos.IsValid() && x.mode == valueok && l == 2 {
+			// comma-ok expression (not permitted with return statements)
 			x.mode = value
 			t1 := check.initVar(lhs[0], &x)
 
@@ -216,10 +219,15 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, allowCommaOk bool) {
 		}
 	}
 
+	invalidateVars(lhs)
+
 	// lhs variables may be function result parameters (return statement);
 	// use rhs position for properly located error messages
+	if returnPos.IsValid() {
+		check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
+		return
+	}
 	check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
-	invalidateVars(lhs)
 }
 
 func (check *checker) assignVars(lhs, rhs []ast.Expr) {
@@ -318,7 +326,7 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 		vars[i] = obj
 	}
 
-	check.initVars(vars, rhs, true)
+	check.initVars(vars, rhs, token.NoPos)
 
 	// declare variables
 	n := scope.Len()

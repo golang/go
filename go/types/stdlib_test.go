@@ -112,12 +112,10 @@ func TestStdfixed(t *testing.T) {
 		"bug136.go", "bug179.go", "bug344.go", // TODO(gri) implement missing label checks
 		"bug251.go",                           // TODO(gri) incorrect cycle checks for interface types
 		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
-		"bug176.go",                           // TODO(gri) composite literal array index must be non-negative constant
 		"bug200.go",                           // TODO(gri) complete duplicate checking in expr switches
 		"bug223.go", "bug413.go", "bug459.go", // TODO(gri) complete initialization checks
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"bug250.go",    // TODO(gri) fix recursive interfaces
-		"bug326.go",    // TODO(gri) assignment doesn't guard against len(rhs) == 0
 		"bug373.go",    // TODO(gri) implement use checks
 		"bug376.go",    // TODO(gri) built-ins must be called (no built-in function expressions)
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)

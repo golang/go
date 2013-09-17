@@ -473,7 +473,7 @@ func (check *checker) varDecl(obj *Var, typ, init ast.Expr) {
 	}
 
 	if m, _ := init.(*multiExpr); m != nil {
-		check.initVars(m.lhs, m.rhs, true)
+		check.initVars(m.lhs, m.rhs, token.NoPos)
 		return
 	}
 

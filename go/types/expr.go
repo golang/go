@@ -768,14 +768,14 @@ func (check *checker) index(arg ast.Expr, length int64) (i int64, ok bool) {
 
 	// the index/size must be of integer type
 	if !isInteger(x.typ) {
-		check.invalidArg(x.pos(), "%s must be integer", &x)
+		check.invalidArg(x.pos(), "index %s must be integer", &x)
 		return
 	}
 
 	// a constant index/size i must be 0 <= i < length
 	if x.mode == constant {
 		if exact.Sign(x.val) < 0 {
-			check.invalidArg(x.pos(), "%s must not be negative", &x)
+			check.invalidArg(x.pos(), "index %s must not be negative", &x)
 			return
 		}
 		i, ok = exact.Int64Val(x.val)
@@ -806,8 +806,10 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 			if i, ok := check.index(kv.Key, length); ok {
 				if i >= 0 {
 					index = i
+					validIndex = true
+				} else {
+					check.errorf(e.Pos(), "index %s must be integer constant", kv.Key)
 				}
-				validIndex = true
 			}
 			eval = kv.Value
 		} else if length >= 0 && index >= length {

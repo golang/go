@@ -6,7 +6,35 @@
 
 package stmt0
 
-func assignments() {
+func assignments0() (int, int) {
+	var a, b, c int
+	var ch chan int
+	f0 := func() {}
+	f1 := func() int { return 1 }
+	f2 := func() (int, int) { return 1, 2 }
+	f3 := func() (int, int, int) { return 1, 2, 3 }
+
+	a, b, c = 1, 2, 3
+	a, b, c = 1 /* ERROR "assignment count mismatch" */ , 2
+	a, b, c = 1 /* ERROR "assignment count mismatch" */ , 2, 3, 4
+
+	a = f0 /* ERROR "used as value" */ ()
+	a = f1()
+	a = f2 /* ERROR "used as single value" */ ()
+	a, b = f2()
+	a, b, c = f2 /* ERROR "assignment count mismatch" */ ()
+	a, b, c = f3()
+	a, b = f3 /* ERROR "assignment count mismatch" */ ()
+
+	a, b, c = <- /* ERROR "assignment count mismatch" */ ch
+
+	return /* ERROR "wrong number of return values" */
+	return /* ERROR "wrong number of return values" */ 1
+	return 1, 2
+	return /* ERROR "wrong number of return values" */ 1, 2, 3
+}
+
+func assignments1() {
 	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
 	b = i /* ERROR "cannot assign" */
 	i = f /* ERROR "cannot assign" */
@@ -49,7 +77,7 @@ func assignments() {
 	// test cases for issue 5500
 	_ = func() (int, bool) {
 		var m map[int]int
-		return m /* ERROR "assignment count mismatch" */ [0]
+		return /* ERROR "wrong number of return values" */ m[0]
 	}
 
 	g := func(int, bool){}

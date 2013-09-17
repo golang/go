@@ -230,7 +230,7 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 				lhs[i] = res
 			}
 			if len(s.Results) > 0 || !named {
-				check.initVars(lhs, s.Results, false)
+				check.initVars(lhs, s.Results, s.Return)
 				return
 			}
 		} else if len(s.Results) > 0 {

@@ -178,6 +178,14 @@ func array_literals() {
 	_ = A1{2.1 /* ERROR "overflows" */ }
 	_ = A1{"foo" /* ERROR "cannot convert" */ }
 
+	// indices must be integer constants
+	i := 1
+	const f = 2.1
+	const s = "foo"
+	_ = A1{i /* ERROR "index i must be integer constant" */ : 0}
+	_ = A1{f /* ERROR "cannot be .* represented" */ : 0}
+	_ = A1{s /* ERROR "cannot convert" */ : 0}
+
 	a0 := [...]int{}
 	assert(len(a0) == 0)
 	
@@ -226,14 +234,22 @@ func slice_literals() {
 	_ = S0{"foo" /* ERROR "cannot convert" */ }
 
 	// indices must be resolved correctly
-	// (for details, see comment in go/parser/parser.go, method parseElement)
-	index1 := 1
+	const index1 = 1
 	_ = S0{index1: 1}
 	_ = S0{index2: 2}
 	_ = S0{index3 /* ERROR "undeclared name" */ : 3}
+
+	// indices must be integer constants
+	i := 1
+	const f = 2.1
+	const s = "foo"
+	_ = S0{i /* ERROR "index i must be integer constant" */ : 0}
+	_ = S0{f /* ERROR "cannot be .* represented" */ : 0}
+	_ = S0{s /* ERROR "cannot convert" */ : 0}
+
 }
 
-var index2 int = 2
+const index2 int = 2
 
 func map_literals() {
 	type M0 map[string]int
@@ -247,14 +263,14 @@ func map_literals() {
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
 
 	// map keys must be resolved correctly
-	// (for details, see comment in go/parser/parser.go, method parseElement)
 	key1 := "foo"
 	_ = M0{key1: 1}
 	_ = M0{key2: 2}
 	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
 
+	var value int
 	_ = M1{true: 1, false: 0}
-	_ = M2{nil: 0, &index2: 1}
+	_ = M2{nil: 0, &value: 1}
 }
 
 var key2 string = "bar"
