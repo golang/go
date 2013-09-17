@@ -1345,7 +1345,7 @@ scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue)
 	Itab *tab;
 	Type *type;
 
-	if(afterprologue) {
+	if(runtime·precisestack && afterprologue) {
 		if(bits == BitsIface) {
 			tab = *(Itab**)scanp;
 			if(tab->type->size <= sizeof(void*) && (tab->type->kind & KindNoPointers))

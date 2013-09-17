@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
+#include "zaexperiment.h"
 #include "malloc.h"
 #include "stack.h"
 #include "race.h"
@@ -112,6 +113,7 @@ static void injectglist(G*);
 static bool preemptall(void);
 static bool preemptone(P*);
 static bool exitsyscallfast(void);
+static bool haveexperiment(int8*);
 
 // The bootstrap sequence is:
 //
@@ -128,6 +130,7 @@ runtime·schedinit(void)
 	byte *p;
 
 	runtime·sched.maxmcount = 10000;
+	runtime·precisestack = haveexperiment("precisestack");
 
 	m->nomemprof++;
 	runtime·mprofinit();
@@ -2928,4 +2931,25 @@ runtime∕debug·setMaxThreads(intgo in, intgo out)
 	checkmcount();
 	runtime·unlock(&runtime·sched);
 	FLUSH(&out);
+}
+
+static int8 experiment[] = GOEXPERIMENT; // defined in zaexperiment.h
+
+static bool
+haveexperiment(int8 *name)
+{
+	int32 i, j;
+	
+	for(i=0; i<sizeof(experiment); i++) {
+		if((i == 0 || experiment[i-1] == ',') && experiment[i] == name[0]) {
+			for(j=0; name[j]; j++)
+				if(experiment[i+j] != name[j])
+					goto nomatch;
+			if(experiment[i+j] != '\0' && experiment[i+j] != ',')
+				goto nomatch;
+			return 1;
+		}
+	nomatch:;
+	}
+	return 0;
 }

@@ -557,6 +557,7 @@ static struct {
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
 	}},
 	{"pkg/runtime", {
+		"zaexperiment.h", // must sort above zasm
 		"zasm_$GOOS_$GOARCH.h",
 		"zsys_$GOOS_$GOARCH.s",
 		"zgoarch_$GOARCH.go",
@@ -589,6 +590,7 @@ static struct {
 	{"zgoos_", mkzgoos},
 	{"zruntime_defs_", mkzruntimedefs},
 	{"zversion.go", mkzversion},
+	{"zaexperiment.h", mkzexperiment},
 };
 
 // install installs the library, package, or binary associated with dir,

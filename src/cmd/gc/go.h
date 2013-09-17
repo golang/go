@@ -982,6 +982,7 @@ EXTERN	int	noescape;
 
 EXTERN	int	nointerface;
 EXTERN	int	fieldtrack_enabled;
+EXTERN	int	precisestack_enabled;
 
 /*
  *	y.tab.c

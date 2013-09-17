@@ -2331,9 +2331,9 @@ paramstoheap(Type **argin, int out)
 		v = t->nname;
 		if(v && v->sym && v->sym->name[0] == '~')
 			v = N;
-		// The garbage collector assumes results are always live,
-		// so zero them always (1 ||).
-		if(out && (1 || (v == N && hasdefer))) {
+		// In precisestack mode, the garbage collector assumes results
+		// are always live, so zero them always.
+		if(out && (precisestack_enabled || (v == N && hasdefer))) {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
