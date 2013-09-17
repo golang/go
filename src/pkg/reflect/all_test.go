@@ -1602,6 +1602,25 @@ func TestMethodValue(t *testing.T) {
 		t.Errorf("Pointer Value MethodByName returned %d; want 325", i)
 	}
 
+	// Curried method of pointer to pointer.
+	pp := &p
+	v = ValueOf(&pp).Elem().Method(1)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Pointer Pointer Value Method Type is %s; want %s", tt, tfunc)
+	}
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(14)})[0].Int()
+	if i != 350 {
+		t.Errorf("Pointer Pointer Value Method returned %d; want 350", i)
+	}
+	v = ValueOf(&pp).Elem().MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Pointer Pointer Value MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(15)})[0].Int()
+	if i != 375 {
+		t.Errorf("Pointer Pointer Value MethodByName returned %d; want 375", i)
+	}
+
 	// Curried method of interface value.
 	// Have to wrap interface value in a struct to get at it.
 	// Passing it to ValueOf directly would
@@ -1616,17 +1635,17 @@ func TestMethodValue(t *testing.T) {
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Interface Method Type is %s; want %s", tt, tfunc)
 	}
-	i = ValueOf(v.Interface()).Call([]Value{ValueOf(14)})[0].Int()
-	if i != 350 {
-		t.Errorf("Interface Method returned %d; want 350", i)
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(16)})[0].Int()
+	if i != 400 {
+		t.Errorf("Interface Method returned %d; want 400", i)
 	}
 	v = pv.MethodByName("Dist")
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Interface MethodByName Type is %s; want %s", tt, tfunc)
 	}
-	i = ValueOf(v.Interface()).Call([]Value{ValueOf(15)})[0].Int()
-	if i != 375 {
-		t.Errorf("Interface MethodByName returned %d; want 375", i)
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(17)})[0].Int()
+	if i != 425 {
+		t.Errorf("Interface MethodByName returned %d; want 425", i)
 	}
 }
 
