@@ -302,6 +302,28 @@ func TestClientAuthECDSA(t *testing.T) {
 	}
 }
 
+// TestCipherSuiteCertPreferance ensures that we select an RSA ciphersuite with
+// an RSA certificate and an ECDSA ciphersuite with an ECDSA certificate.
+func TestCipherSuiteCertPreferance(t *testing.T) {
+	var config = *testConfig
+	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA}
+	config.MaxVersion = VersionTLS11
+	config.PreferServerCipherSuites = true
+	testServerScript(t, "CipherSuiteCertPreference", tls11ECDHEAESServerScript, &config, nil)
+
+	config = *testConfig
+	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}
+	config.Certificates = []Certificate{
+		Certificate{
+			Certificate: [][]byte{testECDSACertificate},
+			PrivateKey:  testECDSAPrivateKey,
+		},
+	}
+	config.BuildNameToCertificate()
+	config.PreferServerCipherSuites = true
+	testServerScript(t, "CipherSuiteCertPreference2", ecdheECDSAAESServerScript, &config, nil)
+}
+
 func TestTLS11Server(t *testing.T) {
 	var config = *testConfig
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA}
