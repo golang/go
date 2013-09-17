@@ -190,12 +190,7 @@ func (t *Template) Clone() (*Template, error) {
 		if src == nil || src.escaped {
 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
 		}
-		if x.Tree != nil {
-			x.Tree = &parse.Tree{
-				Name: x.Tree.Name,
-				Root: x.Tree.Root.CopyList(),
-			}
-		}
+		x.Tree = x.Tree.Copy()
 		ret.set[name] = &Template{
 			false,
 			x,
