@@ -34,6 +34,19 @@ type keyAgreement interface {
 	generateClientKeyExchange(*Config, *clientHelloMsg, *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error)
 }
 
+const (
+	// suiteECDH indicates that the cipher suite involves elliptic curve
+	// Diffie-Hellman. This means that it should only be selected when the
+	// client indicates that it supports ECC with a curve and point format
+	// that we're happy with.
+	suiteECDHE = 1 << iota
+	// suiteECDSA indicates that the cipher suite involves an ECDSA
+	// signature and therefore may only be selected when the server's
+	// certificate is ECDSA. If this is not set then the cipher suite is
+	// RSA based.
+	suiteECDSA
+)
+
 // A cipherSuite is a specific combination of key agreement, cipher and MAC
 // function. All cipher suites currently assume RSA key agreement.
 type cipherSuite struct {
@@ -43,31 +56,29 @@ type cipherSuite struct {
 	macLen int
 	ivLen  int
 	ka     func(version uint16) keyAgreement
-	// If elliptic is set, a server will only consider this ciphersuite if
-	// the ClientHello indicated that the client supports an elliptic curve
-	// and point format that we can handle.
-	elliptic bool
-	cipher   func(key, iv []byte, isRead bool) interface{}
-	mac      func(version uint16, macKey []byte) macFunction
-	aead     func(key, fixedNonce []byte) cipher.AEAD
+	// flags is a bitmask of the suite* values, above.
+	flags  int
+	cipher func(key, iv []byte, isRead bool) interface{}
+	mac    func(version uint16, macKey []byte) macFunction
+	aead   func(key, fixedNonce []byte) cipher.AEAD
 }
 
 var cipherSuites = []*cipherSuite{
 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
 	// and RC4 comes before AES (because of the Lucky13 attack).
-	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, true, nil, nil, aeadAESGCM},
-	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, true, nil, nil, aeadAESGCM},
-	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1, nil},
-	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, true, cipherRC4, macSHA1, nil},
-	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1, nil},
-	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, true, cipherAES, macSHA1, nil},
-	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1, nil},
-	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, true, cipherAES, macSHA1, nil},
-	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1, nil},
-	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1, nil},
-	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, false, cipherAES, macSHA1, nil},
-	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1, nil},
-	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, false, cipher3DES, macSHA1, nil},
+	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE, nil, nil, aeadAESGCM},
+	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA, nil, nil, aeadAESGCM},
+	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE, cipherRC4, macSHA1, nil},
+	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherRC4, macSHA1, nil},
+	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
+	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, 0, cipherRC4, macSHA1, nil},
+	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
+	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil},
+	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, 0, cipher3DES, macSHA1, nil},
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {

@@ -23,10 +23,12 @@ type serverHandshakeState struct {
 	hello           *serverHelloMsg
 	suite           *cipherSuite
 	ellipticOk      bool
+	ecdsaOk         bool
 	sessionState    *sessionState
 	finishedHash    finishedHash
 	masterSecret    []byte
 	certsFromClient [][]byte
+	cert            *Certificate
 }
 
 // serverHandshake performs a TLS handshake as a server.
@@ -167,6 +169,16 @@ Curves:
 		hs.hello.nextProtos = config.NextProtos
 	}
 
+	if len(config.Certificates) == 0 {
+		return false, c.sendAlert(alertInternalError)
+	}
+	hs.cert = &config.Certificates[0]
+	if len(hs.clientHello.serverName) > 0 {
+		hs.cert = config.getCertificateForName(hs.clientHello.serverName)
+	}
+
+	_, hs.ecdsaOk = hs.cert.PrivateKey.(*ecdsa.PrivateKey)
+
 	if hs.checkForResumption() {
 		return true, nil
 	}
@@ -181,7 +193,7 @@ Curves:
 	}
 
 	for _, id := range preferenceList {
-		if hs.suite = c.tryCipherSuite(id, supportedList, hs.ellipticOk); hs.suite != nil {
+		if hs.suite = c.tryCipherSuite(id, supportedList, hs.ellipticOk, hs.ecdsaOk); hs.suite != nil {
 			break
 		}
 	}
@@ -222,7 +234,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	}
 
 	// Check that we also support the ciphersuite from the session.
-	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.ellipticOk)
+	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.ellipticOk, hs.ecdsaOk)
 	if hs.suite == nil {
 		return false
 	}
@@ -264,15 +276,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	config := hs.c.config
 	c := hs.c
 
-	if len(config.Certificates) == 0 {
-		return c.sendAlert(alertInternalError)
-	}
-	cert := &config.Certificates[0]
-	if len(hs.clientHello.serverName) > 0 {
-		cert = config.getCertificateForName(hs.clientHello.serverName)
-	}
-
-	if hs.clientHello.ocspStapling && len(cert.OCSPStaple) > 0 {
+	if hs.clientHello.ocspStapling && len(hs.cert.OCSPStaple) > 0 {
 		hs.hello.ocspStapling = true
 	}
 
@@ -282,20 +286,20 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
 
 	certMsg := new(certificateMsg)
-	certMsg.certificates = cert.Certificate
+	certMsg.certificates = hs.cert.Certificate
 	hs.finishedHash.Write(certMsg.marshal())
 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
 
 	if hs.hello.ocspStapling {
 		certStatus := new(certificateStatusMsg)
 		certStatus.statusType = statusTypeOCSP
-		certStatus.response = cert.OCSPStaple
+		certStatus.response = hs.cert.OCSPStaple
 		hs.finishedHash.Write(certStatus.marshal())
 		c.writeRecord(recordTypeHandshake, certStatus.marshal())
 	}
 
 	keyAgreement := hs.suite.ka(c.vers)
-	skx, err := keyAgreement.generateServerKeyExchange(config, cert, hs.clientHello, hs.hello)
+	skx, err := keyAgreement.generateServerKeyExchange(config, hs.cert, hs.clientHello, hs.hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
@@ -419,7 +423,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		hs.finishedHash.Write(certVerify.marshal())
 	}
 
-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, cert, ckx, c.vers)
+	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, hs.cert, ckx, c.vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
@@ -601,7 +605,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 
 // tryCipherSuite returns a cipherSuite with the given id if that cipher suite
 // is acceptable to use.
-func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipticOk bool) *cipherSuite {
+func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipticOk, ecdsaOk bool) *cipherSuite {
 	for _, supported := range supportedCipherSuites {
 		if id == supported {
 			var candidate *cipherSuite
@@ -617,7 +621,10 @@ func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipti
 			}
 			// Don't select a ciphersuite which we can't
 			// support for this client.
-			if candidate.elliptic && !ellipticOk {
+			if (candidate.flags&suiteECDHE != 0) && !ellipticOk {
+				continue
+			}
+			if (candidate.flags&suiteECDSA != 0) != ecdsaOk {
 				continue
 			}
 			return candidate
