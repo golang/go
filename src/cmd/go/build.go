@@ -94,7 +94,8 @@ in an element in the list, surround it with either single or double quotes.
 
 For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
-see 'go help gopath'.
+run 'go help gopath'.  For more about calling between Go and C/C++,
+run 'go help c'.
 
 See also: go install, go get, go clean.
 	`,
