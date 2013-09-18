@@ -795,7 +795,6 @@ nilopt(Prog *firstp)
 {
 	NilFlow *r;
 	Prog *p;
-	uint32 gen;
 	Graph *g;
 	int ncheck, nkill;
 
@@ -806,7 +805,6 @@ nilopt(Prog *firstp)
 	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
 		dumpit("nilopt", g->start, 0);
 
-	gen = 0;
 	ncheck = 0;
 	nkill = 0;
 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
