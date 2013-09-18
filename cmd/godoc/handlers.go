@@ -126,7 +126,7 @@ var cmdRedirects = map[string]string{
 }
 
 var redirects = map[string]string{
-	"/blog":       "http://blog.golang.org",
+	"/blog":       "/blog/",
 	"/build":      "http://build.golang.org",
 	"/change":     "https://code.google.com/p/go/source/list",
 	"/cl":         "https://gocodereview.appspot.com/",
@@ -163,7 +163,6 @@ var redirects = map[string]string{
 }
 
 var prefixHelpers = map[string]string{
-	"blog":   "http://blog.golang.org/",
 	"change": "https://code.google.com/p/go/source/detail?r=",
 	"cl":     "https://codereview.appspot.com/",
 	"issue":  "https://code.google.com/p/go/issues/detail?id=",
