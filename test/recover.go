@@ -15,38 +15,54 @@ import (
 )
 
 func main() {
+	// go.tools/ssa/interp still has:
+	// - some lesser bugs in recover()
+	// - incomplete support for reflection
+	interp := os.Getenv("GOSSAINTERP") != ""
+
 	test1()
 	test1WithClosures()
 	test2()
 	test3()
-	// exp/ssa/interp still has some bugs in recover().
-	if os.Getenv("GOSSAINTERP") == "" {
+	if !interp {
 		test4()
-		test5()
 	}
+	test5()
 	test6()
 	test6WithClosures()
 	test7()
 	test8()
 	test9()
-	test9reflect1()
-	test9reflect2()
+	if !interp {
+		test9reflect1()
+		test9reflect2()
+	}
 	test10()
-	test10reflect1()
-	test10reflect2()
+	if !interp {
+		test10reflect1()
+		test10reflect2()
+	}
 	test11()
-	test11reflect1()
-	test11reflect2()
+	if !interp {
+		test11reflect1()
+		test11reflect2()
+	}
 	test12()
-	test12reflect1()
-	test12reflect2()
+	if !interp {
+		test12reflect1()
+		test12reflect2()
+	}
 	test13()
-	test13reflect1()
-	test13reflect2()
+	if !interp {
+		test13reflect1()
+		test13reflect2()
+	}
 	test14()
-	test14reflect1()
-	test14reflect2()
-	test15()
+	if !interp {
+		test14reflect1()
+		test14reflect2()
+		test15()
+	}
 }
 
 func die() {
@@ -311,10 +327,12 @@ func test8() {
 	}
 }
 
-type I interface{ M() }
+type I interface {
+	M()
+}
 
 // pointer receiver, so no wrapper in i.M()
-type T1 struct {}
+type T1 struct{}
 
 func (*T1) M() {
 	mustRecoverBody(doubleRecover(), recover(), recover(), 9)
@@ -364,7 +382,7 @@ func test10reflect2() {
 }
 
 // tiny receiver, so basic wrapper in i.M()
-type T3 struct {}
+type T3 struct{}
 
 func (T3) M() {
 	mustRecoverBody(doubleRecover(), recover(), recover(), 11)
