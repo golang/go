@@ -90,6 +90,7 @@ func main() {
 	v9 := S{} // &v9::Alloc
 
 	v10 := &v9 // v10::Alloc &v9::Alloc
+	_ = v10    // v10::Alloc
 
 	var v11 *J = nil // v11::Const
 	v11.method()     // v11::Const
@@ -115,7 +116,8 @@ func main() {
 	}
 
 	for k, v := range m { // k::Extract v::Extract m::MakeMap
-		v++ // v::BinOp
+		_ = k // k::Extract
+		v++   // v::BinOp
 	}
 
 	if y := 0; y > 1 { // y::Const y::Const
@@ -131,6 +133,7 @@ func main() {
 	ch := make(chan int) // ch::MakeChan
 	select {
 	case x := <-ch: // x::UnOp (receive) ch::MakeChan
+		_ = x // x::UnOp
 	}
 
 	// .Op is an inter-package FieldVal-selection.

@@ -2,7 +2,7 @@
 
 package main
 
-// This file is the input to TestCanonicalPos in source_test.go, which
+// This file is the input to TestValueForExpr in source_test.go, which
 // ensures that each expression e immediately following a /*@kind*/(x)
 // annotation, when passed to Function.ValueForExpr(e), returns a
 // non-nil Value of the same type as e and of kind 'kind'.
@@ -14,9 +14,11 @@ func f(param int) {
 	ch := /*@MakeChan*/ (make(chan int))
 	/*@UnOp*/ (<-ch)
 	x := /*@UnOp*/ (<-ch)
+	_ = x
 	select {
 	case /*@Extract*/ (<-ch):
 	case x := /*@Extract*/ (<-ch):
+		_ = x
 	}
 	defer /*@Function*/ (func() {
 	})()
@@ -28,6 +30,7 @@ func f(param int) {
 	}
 	_ = /*@Phi*/ (y)
 	map1 := /*@MakeMap*/ (make(map[string]string))
+	_ = map1
 	_ = /*@MakeMap*/ (map[string]string{"": ""})
 	_ = /*@MakeSlice*/ (make([]int, 0))
 	_ = /*@MakeClosure*/ (func() { print(param) })
