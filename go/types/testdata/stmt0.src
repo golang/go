@@ -17,6 +17,7 @@ func assignments0() (int, int) {
 	a, b, c = 1, 2, 3
 	a, b, c = 1 /* ERROR "assignment count mismatch" */ , 2
 	a, b, c = 1 /* ERROR "assignment count mismatch" */ , 2, 3, 4
+	_, _, _ = a, b, c
 
 	a = f0 /* ERROR "used as value" */ ()
 	a = f1()
@@ -43,6 +44,7 @@ func assignments1() {
 	s = b /* ERROR "cannot assign" */
 
 	v0, v1, v2 := 1 /* ERROR "mismatch" */ , 2, 3, 4
+	_, _, _ = v0, v1, v2
 
 	b = true
 
@@ -136,6 +138,7 @@ func selects() {
 		ch <- x
 	case t, ok := <-ch:
 		x = t
+		_ = ok
 	case <-sc /* ERROR "cannot receive from send-only channel" */ :
 	}
 	select {
@@ -277,6 +280,7 @@ func typeswitches() {
 	switch x := x.(type) {
 	case int:
 		var y int = x
+		_ = y
 	}
 
 	switch x := i /* ERROR "not an interface" */ .(type) {}
@@ -284,12 +288,16 @@ func typeswitches() {
 	switch t := x.(type) {
 	case nil:
 		var v bool = t /* ERROR "cannot initialize" */
+		_ = v
 	case int:
 		var v int = t
+		_ = v
 	case float32, complex64:
 		var v float32 = t /* ERROR "cannot initialize" */
+		_ = v
 	default:
 		var v float32 = t /* ERROR "cannot initialize" */
+		_ = v
 	}
 
 	var t I
@@ -359,42 +367,53 @@ func rangeloops() {
 	for i := range a {
 		var ii int
 		ii = i
+		_ = ii
 	}
 	for i, x := range a {
 		var ii int
 		ii = i
+		_ = ii
 		var xx float64
 		xx = x /* ERROR "cannot assign" */
+		_ = xx
 	}
 	var ii int
 	var xx float32
-	for ii, xx := range a {}
+	for ii, xx = range a {}
+	_, _ = ii, xx
 
 	for i := range b {
 		var ii int
 		ii = i
+		_ = ii
 	}
 	for i, x := range b {
 		var ii int
 		ii = i
+		_ = ii
 		var xx string
 		xx = x
+		_ = xx
 	}
 
 	for i := range s {
 		var ii int
 		ii = i
+		_ = ii
 	}
 	for i, x := range s {
 		var ii int
 		ii = i
+		_ = ii
 		var xx rune
 		xx = x
+		_ = xx
 	}
 
 	for _, x := range p {
 		var xx complex128
 		xx = x
+		_ = xx
 	}
 
 	for _, x := range pp /* ERROR "cannot range over" */ {}
@@ -402,10 +421,12 @@ func rangeloops() {
 	for k := range m {
 		var kk int32
 		kk = k /* ERROR "cannot assign" */
+		_ = kk
 	}
 	for k, v := range m {
 		var kk int
 		kk = k
+		_ = kk
 		if v {}
 	}
 
@@ -413,18 +434,21 @@ func rangeloops() {
 	for e := range c {
 		var ee int
 		ee = e
+		_ = ee
 	}
 	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
 	for _ = range rc {}
 
 	// constant strings
 	const cs = "foo"
-	for i, x := range cs {}
+	for i, x := range cs { _, _ = i, x }
 	for i, x := range "" {
 		var ii int
 		ii = i
+		_ = ii
 		var xx rune
 		xx = x
+		_ = xx
 	}
 }
 

@@ -270,4 +270,5 @@ func _() {
 	iota := 123
 	const x = iota /* ERROR "is not constant" */
 	var y = iota
+	_ = y
 }

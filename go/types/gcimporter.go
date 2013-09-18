@@ -490,7 +490,7 @@ func (p *gcParser) parseField() (*Var, string) {
 	if p.tok == scanner.String {
 		tag = p.expect(scanner.String)
 	}
-	return NewFieldVar(token.NoPos, pkg, name, typ, anonymous), tag
+	return NewField(token.NoPos, pkg, name, typ, anonymous), tag
 }
 
 // StructType = "struct" "{" [ FieldList ] "}" .

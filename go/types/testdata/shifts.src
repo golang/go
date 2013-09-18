@@ -65,6 +65,7 @@ func shifts2() {
 		v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
 		w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
 	)
+	_, _, _, _, _, _, _, _, _, _, _, _ = i, j, k, m, n, o, p, u, u1, u2, v, w
 }
 
 func shifts3(a int16, b float32) {
@@ -76,6 +77,7 @@ func shifts3(a int16, b float32) {
 	)
 	x := 1.0 /* ERROR "must be integer" */ <<s + 1
 	shifts3(1.0 << s, 1 /* ERROR "must be integer" */ >> s)
+	_, _, _ = u, v, x
 }
 
 func shifts4() {
@@ -176,7 +178,6 @@ func shifts6() {
 	_ = append(b, 1.0<<s)
 	_ = append(b, 1.1 /* ERROR "must be integer" */ <<s)
 
-	var c []float32
 	_ = append(b, 1<<s)
 	_ = append(b, 1.0<<s) // should fail - see TODO in append code
 	_ = append(b, 1.1 /* ERROR "must be integer" */ <<s)
@@ -195,6 +196,8 @@ func shifts7() {
 	// shifts of shifts
 	var s uint
 	var x int
+	_ = x
+
 	_ = 1<<(1<<s)
 	_ = 1<<(1.<<s)
 	_ = 1. /* ERROR "integer" */ <<(1<<s)

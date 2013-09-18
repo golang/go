@@ -111,8 +111,11 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	// Don't evaluate lhs if it is the (possibly parenthesized) blank identifier.
-	if ident, _ := unparen(lhs).(*ast.Ident); ident != nil && ident.Name == "_" {
+	// Determine if the lhs is a (possibly parenthesized) identifier.
+	ident, _ := unparen(lhs).(*ast.Ident)
+
+	// Don't evaluate lhs if it is the blank identifier.
+	if ident != nil && ident.Name == "_" {
 		check.recordObject(ident, nil)
 		// If the lhs is untyped, determine the default type.
 		// The spec is unclear about this, but gc appears to
@@ -131,8 +134,26 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return typ
 	}
 
+	// If the lhs is an identifier denoting a variable v, this assignment
+	// is not a 'use' of v. Remember current value of v.used and restore
+	// after evaluating the lhs via check.expr.
+	var v *Var
+	var v_used bool
+	if ident != nil {
+		if obj := check.topScope.LookupParent(ident.Name); obj != nil {
+			v, _ = obj.(*Var)
+			if v != nil {
+				v_used = v.used
+			}
+		}
+	}
+
 	var z operand
 	check.expr(&z, lhs)
+	if v != nil {
+		v.used = v_used // restore v.used
+	}
+
 	if z.mode == invalid || z.typ == Typ[Invalid] {
 		return nil
 	}

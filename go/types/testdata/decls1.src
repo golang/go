@@ -110,6 +110,10 @@ func _() {
 		m2a, m2b, m2c /* ERROR "missing init expr for m2c" */ = 1, 2
 		m3a, m3b = 1, 2, 3 /* ERROR "extra init expr 3" */
 	)
+
+	_, _ = m1a, m1b
+	_, _, _ = m2a, m2b, m2c
+	_, _ = m3a, m3b
 }
 
 // Declaration of parameters and results

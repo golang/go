@@ -13,8 +13,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// TODO(gri) All objects looks very similar now. Maybe just have single Object struct with an object kind?
-// TODO(gri) Document factory, accessor methods, and fields.
+// TODO(gri) Document factory, accessor methods, and fields. General clean-up.
 
 // An Object describes a named language entity such as a package,
 // constant, type, variable, function (incl. methods), or label.
@@ -162,19 +161,25 @@ func (obj *TypeName) String() string { return obj.toString("type", obj.typ.Under
 type Var struct {
 	object
 
-	anonymous bool // if set, this variable is an anonymous struct field, and name is the type name
+	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
 	visited   bool // for initialization cycle detection
+	used      bool // if set, the variable was 'used'
 }
 
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object{nil, pos, pkg, name, typ}, false, false}
+	return &Var{object: object{nil, pos, pkg, name, typ}}
 }
 
-func NewFieldVar(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object{nil, pos, pkg, name, typ}, anonymous, false}
+func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+	return &Var{object: object{nil, pos, pkg, name, typ}, used: true} // parameters are always 'used'
+}
+
+func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
+	return &Var{object: object{nil, pos, pkg, name, typ}, anonymous: anonymous}
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
+func (obj *Var) Used() bool      { return obj.used }
 func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
 
 // A Func represents a declared function, concrete method, or abstract

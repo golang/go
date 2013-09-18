@@ -60,4 +60,64 @@ var (
 	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
 )
 
+// Variables declared in function bodies must be 'used'.
+type T struct{}
+func (r T) _(a, b, c int) (u, v, w int) {
+	var x1 /* ERROR "declared but not used" */ int
+	var x2 /* ERROR "declared but not used" */ int
+	x1 = 1
+	(x2) = 2
+
+	y1 /* ERROR "declared but not used" */ := 1
+	y2 /* ERROR "declared but not used" */ := 2
+	y1 = 1
+	(y1) = 2
+
+	{
+		var x1 /* ERROR "declared but not used" */ int
+		var x2 /* ERROR "declared but not used" */ int
+		x1 = 1
+		(x2) = 2
+
+		y1 /* ERROR "declared but not used" */ := 1
+		y2 /* ERROR "declared but not used" */ := 2
+		y1 = 1
+		(y1) = 2
+	}
+
+	if x /* ERROR "declared but not used" */ := 0; a < b {}
+
+	switch x /* ERROR "declared but not used" */, y := 0, 1; a {
+	case 0:
+		_ = y
+	case 1:
+		x /* ERROR "declared but not used" */ := 0
+	}
+
+	// TODO(gri) Add test cases for type switches once they work
+	//           correctly with implicitly declared variables.
+
+	var z1 /* ERROR "declared but not used" */ int
+	var z2 int
+	_ = func(a, b, c int) (u, v, w int) {
+		z1 = a
+		(z1) = b
+		a = z2
+		return
+	}
+
+	var s []int
+	var i /* ERROR "declared but not used" */ , j int
+	for i, j = range s {
+		_ = j
+	}
+
+	for i, j /* ERROR "declared but not used" */ := range s {
+		_ = func() int {
+			return i
+		}
+	}
+	return
+}
+
 // TODO(gri) consolidate other var decl checks in this file

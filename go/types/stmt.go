@@ -423,6 +423,14 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 					T = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
+				// For now we mark all implicitly declared variables as used. If we don't,
+				// we will get an error for each implicitly declared but unused variable,
+				// even if there are others belonging to the same type switch which are used.
+				// The right solution will count any use of an implicit variable in this
+				// switch as a use for all of them, but we cannot make that decision until
+				// we have seen all code, including possibly nested closures.
+				// TODO(gri) Fix this!
+				obj.used = true
 				check.declareObj(check.topScope, nil, obj)
 				check.recordImplicit(clause, obj)
 			}

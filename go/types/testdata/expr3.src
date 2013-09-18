@@ -17,10 +17,14 @@ func indexes() {
 	_ = a[- /* ERROR "negative" */ 1]
 	_ = a[- /* ERROR "negative" */ 1 :]
 	_ = a[: - /* ERROR "negative" */ 1]
+
 	var a0 int
 	a0 = a[0]
+	_ = a0
 	var a1 int32
 	a1 = a /* ERROR "cannot assign" */ [1] 
+	_ = a1
+
 	_ = a[9]
 	_ = a[10 /* ERROR "index .* out of bounds" */ ]
 	_ = a[1 /* ERROR "overflows" */ <<100]
@@ -67,8 +71,10 @@ func indexes() {
 	_ = t[: - /* ERROR "negative" */ 1]
 	var t0 byte
 	t0 = t[0]
+	_ = t0
 	var t1 rune
 	t1 = t /* ERROR "cannot assign" */ [2]
+	_ = t1
 	_ = ("foo" + "bar")[5]
 	_ = ("foo" + "bar")[6 /* ERROR "index .* out of bounds" */ ]
 
@@ -78,10 +84,12 @@ func indexes() {
 	_ = c[: - /* ERROR "negative" */ 1]
 	var c0 byte
 	c0 = c[0]
+	_ = c0
 	var c2 float32
 	c2 = c /* ERROR "cannot assign" */ [2]
 	_ = c[3 /* ERROR "index .* out of bounds" */ ]
 	_ = ""[0 /* ERROR "index .* out of bounds" */ ]
+	_ = c2
 
 	_ = s[1<<30] // no compile-time error here
 
@@ -94,6 +102,7 @@ func indexes() {
 	ss = "foo"[i:j]
 	ms = "foo" /* ERROR "cannot assign" */ [1:2]
 	ms = "foo" /* ERROR "cannot assign" */ [i:j]
+	_, _ = ss, ms
 }
 
 type T struct {
@@ -111,6 +120,7 @@ func method_expressions() {
 
 	var f func(*T) = T /* ERROR "not in method set" */ .m
 	var g func(*T) = (*T).m
+	_, _ = f, g
 
 	_ = T /* ERROR "has no method" */ .y
 	_ = ( /* ERROR "has no method" */ *T).y
@@ -195,8 +205,10 @@ func array_literals() {
 	var a14 [4]int
 	a13 = a1
 	a14 = a1 /* ERROR "cannot assign" */
+	_, _ = a13, a14
 	
 	a2 := [...]int{- /* ERROR "negative" */ 1: 0}
+	_ = a2
 
 	a3 := [...]int{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
 	assert(len(a3) == 5) // somewhat arbitrary
@@ -295,6 +307,7 @@ func type_asserts() {
 	var e interface{}
 	var ok bool
 	x, ok = e.(int)
+	_ = ok
 
 	var t I
 	_ = t /* ERROR "use of .* outside type switch" */ .(type)

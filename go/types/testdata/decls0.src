@@ -61,7 +61,7 @@ func init /* ERROR "missing function body" */ ()
 
 func _() { const init = 0 }
 func _() { type init int }
-func _() { var init int }
+func _() { var init int; _ = init }
 
 // invalid array types
 type (
@@ -231,4 +231,5 @@ func _() {
 	var i BlankI
 	var x BlankT
 	i = x /* ERROR "cannot assign" */
+	_ = i
 }

@@ -11,27 +11,26 @@ import "unsafe"
 func _append() {
 	var x int
 	var s []byte
-	_0 := append /* ERROR "argument" */ ()
-	_1 := append("foo" /* ERROR "not a typed slice" */)
-	_2 := append(nil /* ERROR "not a typed slice" */, s)
-	_3 := append(x /* ERROR "not a typed slice" */, s)
-	_4 := append(s)
+	_ = append /* ERROR "argument" */ ()
+	_ = append("foo" /* ERROR "not a typed slice" */)
+	_ = append(nil /* ERROR "not a typed slice" */, s)
+	_ = append(x /* ERROR "not a typed slice" */, s)
+	_ = append(s)
 	append /* ERROR "not used" */ (s)
 }
 
 func _cap() {
 	var a [10]bool
 	var p *[20]int
-	var s []int
 	var c chan string
-	_0 := cap /* ERROR "argument" */ ()
-	_1 := cap /* ERROR "argument" */ (1, 2)
-	_2 := cap(42 /* ERROR "invalid" */)
+	_ = cap /* ERROR "argument" */ ()
+	_ = cap /* ERROR "argument" */ (1, 2)
+	_ = cap(42 /* ERROR "invalid" */)
 	const _3 = cap(a)
 	assert(_3 == 10)
 	const _4 = cap(p)
 	assert(_4 == 20)
-	_5 := cap(c)
+	_ = cap(c)
 	cap /* ERROR "not used" */ (c)
 
 	// issue 4744
@@ -54,7 +53,6 @@ func _complex() {
 	var f32 float32
 	var f64 float64
 	var c64 complex64
-	var c128 complex128
 	_ = complex /* ERROR "argument" */ ()
 	_ = complex /* ERROR "argument" */ (1)
 	_ = complex(true /* ERROR "invalid argument" */ , 0)
@@ -116,6 +114,7 @@ func _copy() {
 	n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
 	n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
 	n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
+	_, _, _ = n1, n2, n3
 }
 
 func _delete() {
@@ -149,13 +148,13 @@ func _imag() {
 	f32 = imag /* ERROR "cannot assign" */ (c128)
 	f64 = imag /* ERROR "cannot assign" */ (c64)
 	imag /* ERROR "not used" */ (c64)
+	_, _ = f32, f64
 }
 
 func _len() {
 	const c = "foobar"
 	var a [10]bool
 	var p *[20]int
-	var s []int
 	var m map[string]complex128
 	_ = len /* ERROR "argument" */ ()
 	_ = len /* ERROR "argument" */ (1, 2)
@@ -292,6 +291,7 @@ func _real() {
 	f32 = real /* ERROR "cannot assign" */ (c128)
 	f64 = real /* ERROR "cannot assign" */ (c64)
 	real /* ERROR "not used" */ (c64)
+	_, _ = f32, f64
 }
 
 func _recover() {

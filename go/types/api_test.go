@@ -132,7 +132,7 @@ func TestScopesInfo(t *testing.T) {
 		{`package p; func _(t interface{}) { switch t := t; t.(type) {} }`, []string{
 			"file:", "func:t", "type switch:t",
 		}},
-		{`package p; func _(t interface{}) { switch x := t.(type) { case int: } }`, []string{
+		{`package p; func _(t interface{}) { switch x := t.(type) { case int: _ = x } }`, []string{
 			"file:", "func:t", "type switch:", "case:x", // x implicitly declared
 		}},
 		{`package p; func _() { select{} }`, []string{

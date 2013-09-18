@@ -14,6 +14,7 @@ func _bool() {
 	var b bool
 	var x, y float32
 	b = x < y
+	_ = b
 	_ = struct{b bool}{x < y}
 }
 

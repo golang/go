@@ -78,6 +78,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		}
 
 	case *Var:
+		obj.used = true
 		x.mode = variable
 
 	case *Func:
@@ -372,13 +373,13 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
-				par := NewVar(name.Pos(), check.pkg, name.Name, typ)
+				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
 				check.declareObj(scope, name, par)
 				params = append(params, par)
 			}
 		} else {
 			// anonymous parameter
-			par := NewVar(ftype.Pos(), check.pkg, "", typ)
+			par := NewParam(ftype.Pos(), check.pkg, "", typ)
 			check.recordImplicit(field, par)
 			params = append(params, par)
 		}
@@ -474,7 +475,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			tags = append(tags, tag)
 		}
 
-		fld := NewFieldVar(pos, check.pkg, name, typ, anonymous)
+		fld := NewField(pos, check.pkg, name, typ, anonymous)
 		check.declareFld(&fset, ident, fld)
 		fields = append(fields, fld)
 	}

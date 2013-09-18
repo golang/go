@@ -381,12 +381,33 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			}
 			fmt.Println("---", s)
 		}
-		check.topScope = f.sig.scope // open the function scope
+
+		check.topScope = f.sig.scope // open function scope
 		check.funcSig = f.sig
 		check.stmtList(f.body.List, false)
 		if f.sig.results.Len() > 0 && !check.isTerminating(f.body, "") {
 			check.errorf(f.body.Rbrace, "missing return")
 		}
+	}
+
+	// Phase 5: Check for declared but not used packages and variables.
+
+	// Note: must happen after checking all functions because closures may affect outer scopes
+	for _, f := range check.funcList {
+		// spec: "Implementation restriction: A compiler may make it illegal to
+		// declare a variable inside a function body if the variable is never used."
+		check.usage(f.sig.scope)
+	}
+}
+
+func (check *checker) usage(scope *Scope) {
+	for _, obj := range scope.elems {
+		if v, _ := obj.(*Var); v != nil && !v.used {
+			check.errorf(v.pos, "%s declared but not used", v.name)
+		}
+	}
+	for _, scope := range scope.children {
+		check.usage(scope)
 	}
 }
 
