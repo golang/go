@@ -77,6 +77,13 @@ var (
 // may be printed with %d etc. if that is appropriate for their element
 // types.)
 func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool {
+	return f.matchArgTypeInternal(t, typ, arg, make(map[types.Type]bool))
+}
+
+// matchArgTypeInternal is the internal version of matchArgType. It carries a map
+// remembering what types are in progress so we don't recur when faced with recursive
+// types or mutually recursive types.
+func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Expr, inProgress map[types.Type]bool) bool {
 	// %v, %T accept any argument type.
 	if t == anyType {
 		return true
@@ -103,14 +110,21 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		}
 	}
 
-	switch typ := typ.Underlying().(type) {
+	typ = typ.Underlying()
+	if inProgress[typ] {
+		// We're already looking at this type. The call that started it will take care of it.
+		return true
+	}
+	inProgress[typ] = true
+
+	switch typ := typ.(type) {
 	case *types.Signature:
 		return t&argPointer != 0
 
 	case *types.Map:
 		// Recur: map[int]int matches %d.
 		return t&argPointer != 0 ||
-			(f.matchArgType(t, typ.Key(), arg) && f.matchArgType(t, typ.Elem(), arg))
+			(f.matchArgTypeInternal(t, typ.Key(), arg, inProgress) && f.matchArgTypeInternal(t, typ.Elem(), arg, inProgress))
 
 	case *types.Chan:
 		return t&argPointer != 0
@@ -121,15 +135,17 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d.
-		return t&argPointer != 0 || f.matchArgType(t, typ.Elem().Underlying(), arg)
+		return t&argPointer != 0 || f.matchArgTypeInternal(t, typ.Elem().Underlying(), arg, inProgress)
 
 	case *types.Slice:
 		// Same as array.
 		if types.IsIdentical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
 			return true // %s matches []byte
 		}
-		// Recur: []int matches %d.
-		return t&argPointer != 0 || f.matchArgType(t, typ.Elem().Underlying(), arg)
+		// Recur: []int matches %d. But watch out for
+		//	type T []T
+		// If the element is a pointer type (type T[]*T), it's handled fine by the Pointer case below.
+		return t&argPointer != 0 || f.matchArgTypeInternal(t, typ.Elem(), arg, inProgress)
 
 	case *types.Pointer:
 		// Ugly, but dealing with an edge case: a known pointer to an invalid type,
@@ -146,13 +162,13 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 		}
 		// If it's pointer to struct, that's equivalent in our analysis to whether we can print the struct.
 		if str, ok := typ.Elem().Underlying().(*types.Struct); ok {
-			return f.matchStructArgType(t, str, arg)
+			return f.matchStructArgType(t, str, arg, inProgress)
 		}
 		// The rest can print with %p as pointers, or as integers with %x etc.
 		return t&(argInt|argPointer) != 0
 
 	case *types.Struct:
-		return f.matchStructArgType(t, typ, arg)
+		return f.matchStructArgType(t, typ, arg, inProgress)
 
 	case *types.Interface:
 		// If the static type of the argument is empty interface, there's little we can do.
@@ -220,9 +236,9 @@ func (f *File) matchArgType(t printfArgType, typ types.Type, arg ast.Expr) bool 
 
 // matchStructArgType reports whether all the elements of the struct match the expected
 // type. For instance, with "%d" all the elements must be printable with the "%d" format.
-func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Expr) bool {
+func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Expr, inProgress map[types.Type]bool) bool {
 	for i := 0; i < typ.NumFields(); i++ {
-		if !f.matchArgType(t, typ.Field(i).Type(), arg) {
+		if !f.matchArgTypeInternal(t, typ.Field(i).Type(), arg, inProgress) {
 			return false
 		}
 	}

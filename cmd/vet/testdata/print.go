@@ -191,6 +191,11 @@ func PrintfTests() {
 	et4.Error() // ok, not an error method.
 	var et5 errorTest5
 	et5.error() // ok, not an error method.
+	// Bug: used to recur forever.
+	Printf("%p %x", recursiveStructV, recursiveStructV.next)
+	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)
+	Printf("%p %x", recursiveSliceV, recursiveSliceV)
+	Printf("%p %x", recursiveMapV, recursiveMapV)
 }
 
 // Printf is used by the test so we must declare it.
@@ -294,3 +299,27 @@ type Formatter bool
 
 func (*Formatter) Format(fmt.State, rune) {
 }
+
+type RecursiveSlice []RecursiveSlice
+
+var recursiveSliceV = &RecursiveSlice{}
+
+type RecursiveMap map[int]RecursiveMap
+
+var recursiveMapV = make(RecursiveMap)
+
+type RecursiveStruct struct {
+	next *RecursiveStruct
+}
+
+var recursiveStructV = &RecursiveStruct{}
+
+type RecursiveStruct1 struct {
+	next *Recursive2Struct
+}
+
+type RecursiveStruct2 struct {
+	next *Recursive1Struct
+}
+
+var recursiveStruct1V = &RecursiveStruct1{}
