@@ -53,6 +53,7 @@ func main() { // @describe func-def-main "main"
 	// type objects
 	type T int      // @describe type-def-T "T"
 	var three T = 3 // @describe type-ref-T "T"
+	_ = three
 
 	print(1 + 2*3)        // @describe const-expr " 2.3"
 	print(real(1+2i) - 3) // @describe const-expr2 "real.*3"
@@ -70,6 +71,7 @@ func deadcode() {
 	var a int // @describe var-decl-stmt "var a int"
 	// Pointer analysis can't run on dead code.
 	var b = &a // @describe b "b"
+	_ = b
 }
 
 type I interface { // @describe def-iface-I "I"

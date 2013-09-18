@@ -9,6 +9,7 @@ package describe // @describe pkgdecl "describe"
 func main() { //
 	var s struct{ x [3]int }
 	p := &s.x[0] // @describe desc-val-p "p"
+	_ = p
 
 	var i I = C(0)
 	if i == nil {

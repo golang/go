@@ -11,36 +11,36 @@
 				{
 					"name": "C",
 					"type": "int",
-					"pos": "testdata/src/main/describe-json.go:26:6",
+					"pos": "testdata/src/main/describe-json.go:27:6",
 					"kind": "type",
 					"methods": [
 						{
 							"name": "method (describe.C) f()",
-							"pos": "testdata/src/main/describe-json.go:29:12"
+							"pos": "testdata/src/main/describe-json.go:30:12"
 						}
 					]
 				},
 				{
 					"name": "D",
 					"type": "struct{}",
-					"pos": "testdata/src/main/describe-json.go:27:6",
+					"pos": "testdata/src/main/describe-json.go:28:6",
 					"kind": "type",
 					"methods": [
 						{
 							"name": "method (*describe.D) f()",
-							"pos": "testdata/src/main/describe-json.go:30:13"
+							"pos": "testdata/src/main/describe-json.go:31:13"
 						}
 					]
 				},
 				{
 					"name": "I",
 					"type": "interface{f()}",
-					"pos": "testdata/src/main/describe-json.go:22:6",
+					"pos": "testdata/src/main/describe-json.go:23:6",
 					"kind": "type",
 					"methods": [
 						{
 							"name": "method (describe.I) f()",
-							"pos": "testdata/src/main/describe-json.go:23:2"
+							"pos": "testdata/src/main/describe-json.go:24:2"
 						}
 					]
 				},
@@ -59,15 +59,15 @@
 	"implements": [
 		{
 			"i": "describe.I",
-			"ipos": "testdata/src/main/describe-json.go:22:6",
+			"ipos": "testdata/src/main/describe-json.go:23:6",
 			"c": "describe.C",
-			"cpos": "testdata/src/main/describe-json.go:26:6"
+			"cpos": "testdata/src/main/describe-json.go:27:6"
 		},
 		{
 			"i": "describe.I",
-			"ipos": "testdata/src/main/describe-json.go:22:6",
+			"ipos": "testdata/src/main/describe-json.go:23:6",
 			"c": "*describe.D",
-			"cpos": "testdata/src/main/describe-json.go:27:6"
+			"cpos": "testdata/src/main/describe-json.go:28:6"
 		}
 	]
 }-------- @describe desc-val-p --------
@@ -98,25 +98,25 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "identifier",
-		"pos": "testdata/src/main/describe-json.go:17:6",
+		"pos": "testdata/src/main/describe-json.go:18:6",
 		"detail": "value",
 		"value": {
 			"type": "describe.I",
-			"objpos": "testdata/src/main/describe-json.go:13:6",
+			"objpos": "testdata/src/main/describe-json.go:14:6",
 			"pts": [
 				{
 					"type": "*describe.D",
-					"namepos": "testdata/src/main/describe-json.go:27:6",
+					"namepos": "testdata/src/main/describe-json.go:28:6",
 					"labels": [
 						{
-							"pos": "testdata/src/main/describe-json.go:15:10",
+							"pos": "testdata/src/main/describe-json.go:16:10",
 							"desc": "new"
 						}
 					]
 				},
 				{
 					"type": "describe.C",
-					"namepos": "testdata/src/main/describe-json.go:26:6"
+					"namepos": "testdata/src/main/describe-json.go:27:6"
 				}
 			]
 		}
@@ -126,7 +126,7 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "go statement",
-		"pos": "testdata/src/main/describe-json.go:19:2",
+		"pos": "testdata/src/main/describe-json.go:20:2",
 		"detail": "unknown"
 	}
 }-------- @describe desc-type-C --------
@@ -134,16 +134,16 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "definition of type describe.C",
-		"pos": "testdata/src/main/describe-json.go:26:6",
+		"pos": "testdata/src/main/describe-json.go:27:6",
 		"detail": "type",
 		"type": {
 			"type": "describe.C",
-			"namepos": "testdata/src/main/describe-json.go:26:6",
+			"namepos": "testdata/src/main/describe-json.go:27:6",
 			"namedef": "int",
 			"methods": [
 				{
 					"name": "method (describe.C) f()",
-					"pos": "testdata/src/main/describe-json.go:29:12"
+					"pos": "testdata/src/main/describe-json.go:30:12"
 				}
 			]
 		}
