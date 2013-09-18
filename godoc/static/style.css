@@ -541,3 +541,53 @@ div#playground .code {
 div#playground .output {
 	height: 100px;
 }
+
+/* Inline runnable snippets (play.js/initPlayground) */
+#content .code pre, #content .playground pre, #content .output pre {
+        margin: 0;
+        padding: 0;
+        background: none;
+        border: none;
+        overflow: auto;
+}
+#content .playground .number {
+        color: #999;
+}
+#content .code, #content .playground, #content .output {
+	width: auto;
+        margin: 20px;
+        padding: 10px;
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+        border-radius: 5px;
+}
+#content .code, #content .playground {
+        background: #e9e9e9;
+}
+#content .output {
+        background: #202020;
+}
+#content .output .stdout, #content .output pre {
+        color: #e6e6e6;
+}
+#content .output .stderr, #content .output .error {
+        color: rgb(244, 74, 63);
+}
+#content .output .system, #content .output .exit {
+        color: rgb(255, 209, 77)
+}
+#content .buttons {
+        position: relative;
+        float: right;
+        top: -50px;
+        right: 30px;
+}
+#content .output .buttons {
+        top: -60px;
+        right: 0;
+        height: 0;
+}
+#content .buttons .kill {
+        display: none;
+        visibility: hidden;
+}

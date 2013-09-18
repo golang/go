@@ -173,6 +173,7 @@ var Files = map[string]string{
 <a href="/pkg/">Packages</a>
 <a href="/project/">The Project</a>
 <a href="/help/">Help</a>
+<a href="/blog/">Blog</a>
 {{if .Playground}}
 <a id="playgroundButton" href="http://play.golang.org/" title="Show Go Playground">Play</a>
 {{end}}
@@ -830,6 +831,110 @@ SUBDIRECTORIES
 {{else}}{{range .List}}
 	{{repeat ` + "`" + `. ` + "`" + ` .Depth}}{{.Name}}{{end}}
 {{end}}{{end}}
+`,
+	"play.js": `// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This is a copy of present/js/play.js from the repository at
+// https://code.google.com/p/go.talks
+// Please make changes to that repository.
+
+function initPlayground(transport) {
+	"use strict";
+
+	function text(node) {
+		var s = "";
+		for (var i = 0; i < node.childNodes.length; i++) {
+			var n = node.childNodes[i];
+			if (n.nodeType === 1 && n.tagName === "SPAN" && n.className != "number") {
+				var innerText = n.innerText === undefined ? "textContent" : "innerText";
+				s += n[innerText] + "\n";
+				continue;
+			}
+			if (n.nodeType === 1 && n.tagName !== "BUTTON") {
+				s += text(n);
+			}
+		}
+		return s;
+	}
+
+	function init(code) {
+		var output = document.createElement('div');
+		var outpre = document.createElement('pre');
+		var running;
+
+		if ($ && $(output).resizable) {
+			$(output).resizable({
+				handles: "n,w,nw",
+				minHeight:	27,
+				minWidth:	135,
+				maxHeight: 608,
+				maxWidth:	990
+			});
+		}
+
+		function onKill() {
+			if (running) running.Kill();
+		}
+
+		function onRun(e) {
+			onKill();
+			output.style.display = "block";
+			outpre.innerHTML = "";
+			run1.style.display = "none";
+			var options = {Race: e.shiftKey};
+			running = transport.Run(text(code), PlaygroundOutput(outpre), options);
+		}
+
+		function onClose() {
+			onKill();
+			output.style.display = "none";
+			run1.style.display = "inline-block";
+		}
+
+		var run1 = document.createElement('button');
+		run1.innerHTML = 'Run';
+		run1.className = 'run';
+		run1.addEventListener("click", onRun, false);
+		var run2 = document.createElement('button');
+		run2.className = 'run';
+		run2.innerHTML = 'Run';
+		run2.addEventListener("click", onRun, false);
+		var kill = document.createElement('button');
+		kill.className = 'kill';
+		kill.innerHTML = 'Kill';
+		kill.addEventListener("click", onKill, false);
+		var close = document.createElement('button');
+		close.className = 'close';
+		close.innerHTML = 'Close';
+		close.addEventListener("click", onClose, false);
+
+		var button = document.createElement('div');
+		button.classList.add('buttons');
+		button.appendChild(run1);
+		// Hack to simulate insertAfter
+		code.parentNode.insertBefore(button, code.nextSibling);
+
+		var buttons = document.createElement('div');
+		buttons.classList.add('buttons');
+		buttons.appendChild(run2);
+		buttons.appendChild(kill);
+		buttons.appendChild(close);
+
+		output.classList.add('output');
+		output.appendChild(buttons);
+		output.appendChild(outpre);
+		output.style.display = "none";
+		code.parentNode.insertBefore(output, button.nextSibling);
+	}
+
+	var play = document.querySelectorAll('div.playground');
+	for (var i = 0; i < play.length; i++) {
+		init(play[i]);
+	}
+}
+
 `,
 	"playground.js": `// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -1960,6 +2065,56 @@ div#playground .code {
 }
 div#playground .output {
 	height: 100px;
+}
+
+/* Inline runnable snippets (play.js/initPlayground) */
+#content .code pre, #content .playground pre, #content .output pre {
+        margin: 0;
+        padding: 0;
+        background: none;
+        border: none;
+        overflow: auto;
+}
+#content .playground .number {
+        color: #999;
+}
+#content .code, #content .playground, #content .output {
+	width: auto;
+        margin: 20px;
+        padding: 10px;
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+        border-radius: 5px;
+}
+#content .code, #content .playground {
+        background: #e9e9e9;
+}
+#content .output {
+        background: #202020;
+}
+#content .output .stdout, #content .output pre {
+        color: #e6e6e6;
+}
+#content .output .stderr, #content .output .error {
+        color: rgb(244, 74, 63);
+}
+#content .output .system, #content .output .exit {
+        color: rgb(255, 209, 77)
+}
+#content .buttons {
+        position: relative;
+        float: right;
+        top: -50px;
+        right: 30px;
+}
+#content .output .buttons {
+        top: -60px;
+        right: 0;
+        height: 0;
+}
+#content .buttons .kill {
+        display: none;
+        visibility: hidden;
 }
 `,
 }

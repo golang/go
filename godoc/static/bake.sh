@@ -17,6 +17,7 @@ STATIC="
 	opensearch.xml
 	package.html
 	package.txt
+	play.js
 	playground.js
 	search.html
 	search.txt
