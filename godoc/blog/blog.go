@@ -33,12 +33,15 @@ type Config struct {
 	ContentPath  string // Relative or absolute location of article files and related content.
 	TemplatePath string // Relative or absolute location of template files.
 
-	BaseURL      string // Absolute base URL (for permalinks; no trailing slash).
-	BasePath     string // Base URL path relative to server root (no trailing slash).
-	HomeArticles int    // Articles to display on the home page.
+	BaseURL  string // Absolute base URL (for permalinks; no trailing slash).
+	BasePath string // Base URL path relative to server root (no trailing slash).
+	GodocURL string // The base URL of godoc (for menu bar; no trailing slash).
+	Hostname string // Server host name, used for rendering ATOM feeds.
 
-	Hostname     string // Server host name, used for rendering ATOM feeds.
-	FeedArticles int    // Articles to include in Atom and JSON feeds.
+	HomeArticles int // Articles to display on the home page.
+	FeedArticles int // Articles to include in Atom and JSON feeds.
+
+	PlayEnabled bool
 }
 
 // Doc represents an article adorned with presentation data.
@@ -54,7 +57,7 @@ type Doc struct {
 
 // Server implements an http.Handler that serves blog articles.
 type Server struct {
-	cfg      *Config
+	cfg      Config
 	docs     []*Doc
 	tags     []string
 	docPaths map[string]*Doc // key is path without BasePath.
@@ -68,8 +71,8 @@ type Server struct {
 }
 
 // NewServer constructs a new Server using the specified config.
-func NewServer(cfg *Config) (*Server, error) {
-	present.PlayEnabled = true
+func NewServer(cfg Config) (*Server, error) {
+	present.PlayEnabled = cfg.PlayEnabled
 
 	root := filepath.Join(cfg.TemplatePath, "root.tmpl")
 	parse := func(name string) (*template.Template, error) {
@@ -363,6 +366,7 @@ func summary(d *Doc) string {
 type rootData struct {
 	Doc      *Doc
 	BasePath string
+	GodocURL string
 	Data     interface{}
 }
 
@@ -370,7 +374,7 @@ type rootData struct {
 // as well as the ATOM and JSON feeds.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		d = rootData{BasePath: s.cfg.BasePath}
+		d = rootData{BasePath: s.cfg.BasePath, GodocURL: s.cfg.GodocURL}
 		t *template.Template
 	)
 	switch p := strings.TrimPrefix(r.URL.Path, s.cfg.BasePath); p {
