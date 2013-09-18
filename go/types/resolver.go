@@ -391,8 +391,26 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	}
 
 	// Phase 5: Check for declared but not used packages and variables.
-
 	// Note: must happen after checking all functions because closures may affect outer scopes
+
+	// Each set of implicitly declared lhs variables of a type switch acts collectively
+	// as a single lhs variable. If any one was 'used', all of them are 'used'. Handle
+	// them before the general analysis.
+	for _, vars := range check.lhsVarsList {
+		// len(vars) > 0
+		var used bool
+		for _, v := range vars {
+			if v.used {
+				used = true
+			}
+			v.used = true // avoid later error
+		}
+		if !used {
+			v := vars[0]
+			check.errorf(v.pos, "%s declared but not used", v.name)
+		}
+	}
+
 	for _, f := range check.funcList {
 		// spec: "Implementation restriction: A compiler may make it illegal to
 		// declare a variable inside a function body if the variable is never used."

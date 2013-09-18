@@ -275,7 +275,7 @@ func typeswitches() {
 	default /* ERROR "multiple defaults" */ :
 	}
 
-	switch x := x.(type) {}
+	switch x /* ERROR "declared but not used" */ := x.(type) {}
 
 	switch x := x.(type) {
 	case int:

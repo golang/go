@@ -355,7 +355,7 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 		scope.Insert(obj)
 	}
 	if n == scope.Len() {
-		check.errorf(vars[0].Pos(), "no new variables on left side of :=")
+		check.errorf(lhs[0].Pos(), "no new variables on left side of :=")
 	}
 }
 

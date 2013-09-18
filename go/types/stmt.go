@@ -209,12 +209,12 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 	case *ast.GoStmt:
 		var x operand
 		check.call(&x, s.Call)
-		// TODO(gri) If a builtin is called, the builtin must be valid this context.
+		// TODO(gri) If a builtin is called, the builtin must be valid in this context.
 
 	case *ast.DeferStmt:
 		var x operand
 		check.call(&x, s.Call)
-		// TODO(gri) If a builtin is called, the builtin must be valid this context.
+		// TODO(gri) If a builtin is called, the builtin must be valid in this context.
 
 	case *ast.ReturnStmt:
 		sig := check.funcSig
@@ -371,7 +371,7 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
-			check.recordObject(lhs, nil) // lhs is implicitly declared in each cause clause
+			check.recordObject(lhs, nil) // lhs variable is implicitly declared in each cause clause
 
 			rhs = guard.Rhs[0]
 
@@ -398,6 +398,7 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 		}
 
 		check.multipleDefaults(s.Body.List)
+		var lhsVars []*Var // set of implicitly declared lhs variables
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
 			if clause == nil {
@@ -423,19 +424,24 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 					T = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
-				// For now we mark all implicitly declared variables as used. If we don't,
-				// we will get an error for each implicitly declared but unused variable,
-				// even if there are others belonging to the same type switch which are used.
-				// The right solution will count any use of an implicit variable in this
-				// switch as a use for all of them, but we cannot make that decision until
-				// we have seen all code, including possibly nested closures.
-				// TODO(gri) Fix this!
-				obj.used = true
+				// For the "declared but not used" error, all lhs variables act as
+				// one; i.e., if any one of them is 'used', all of them are 'used'.
+				// Collect them for later analysis.
+				lhsVars = append(lhsVars, obj)
 				check.declareObj(check.topScope, nil, obj)
 				check.recordImplicit(clause, obj)
 			}
 			check.stmtList(clause.Body, false)
 			check.closeScope()
+		}
+		// If a lhs variable was declared but there were no case clauses, make sure
+		// we have at least one (dummy) 'unused' variable to force an error message.
+		if len(lhsVars) == 0 && lhs != nil {
+			lhsVars = []*Var{NewVar(lhs.Pos(), check.pkg, lhs.Name, x.typ)}
+		}
+		// Record lhs variables for this type switch, if any.
+		if len(lhsVars) > 0 {
+			check.lhsVarsList = append(check.lhsVarsList, lhsVars)
 		}
 
 	case *ast.SelectStmt:

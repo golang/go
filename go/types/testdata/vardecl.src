@@ -94,8 +94,35 @@ func (r T) _(a, b, c int) (u, v, w int) {
 		x /* ERROR "declared but not used" */ := 0
 	}
 
-	// TODO(gri) Add test cases for type switches once they work
-	//           correctly with implicitly declared variables.
+	var t interface{}
+	switch t /* ERROR "declared but not used" */ := t.(type) {}
+
+	switch t /* ERROR "declared but not used" */ := t.(type) {
+	case int:
+	}
+
+	switch t /* ERROR "declared but not used" */ := t.(type) {
+	case int:
+	case float32, complex64:
+		t = nil
+	}
+
+	switch t := t.(type) {
+	case int:
+	case float32, complex64:
+		_ = t
+	}
+
+	switch t := t.(type) {
+	case int:
+	case float32:
+	case string:
+		_ = func() string {
+			return t
+		}
+	}
+
+	switch t := t; t /* ERROR "declared but not used" */ := t.(type) {}
 
 	var z1 /* ERROR "declared but not used" */ int
 	var z2 int

@@ -179,7 +179,6 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
-func (obj *Var) Used() bool      { return obj.used }
 func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
 
 // A Func represents a declared function, concrete method, or abstract
