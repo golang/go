@@ -68,6 +68,7 @@ func swap(x, y *int) (*int, *int) { // @line swap
 func func4() {
 	a := make([]int, 10) // @line func4make
 	i, j := 123, 456     // @line f4j
+	_ = i
 	p, q := swap(&a[3], &j)
 	print(p) // @pointsto j@f4j:5
 	print(q) // @pointsto makeslice[*]@func4make:11
@@ -123,7 +124,7 @@ func func6() {
 	print(f()) // @pointsto main.a
 }
 
-// @calls main.func6 -> func@120.7
+// @calls main.func6 -> func@121.7
 
 type I interface {
 	f()

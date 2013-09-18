@@ -78,7 +78,7 @@ func interface3() {
 	// There should be no backflow of concrete types from the type-switch to x.
 	var x interface{} = 0
 	print(x) // @types int
-	switch y := x.(type) {
+	switch x.(type) {
 	case int:
 	case string:
 	}

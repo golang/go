@@ -31,7 +31,7 @@ func maps1() {
 
 	// Lookup doesn't create any aliases.
 	print(m2[&c]) // @pointsto main.a
-	if m2v, ok := m2[&a]; ok {
+	if _, ok := m2[&a]; ok {
 		print(m2[&c]) // @pointsto main.a
 	}
 }
@@ -39,7 +39,7 @@ func maps1() {
 func maps2() {
 	m1 := map[*int]*int{&a: &b}
 	m2 := map[*int]*int{&b: &c}
-	m3 := []map[*int]*int{m1, m2} // (no spurious merging of m1, m2)
+	_ = []map[*int]*int{m1, m2} // (no spurious merging of m1, m2)
 
 	print(m1[nil]) // @pointsto main.b
 	print(m2[nil]) // @pointsto main.c
