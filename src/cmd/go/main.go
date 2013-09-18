@@ -88,6 +88,7 @@ var commands = []*Command{
 	cmdVersion,
 	cmdVet,
 
+	helpC,
 	helpGopath,
 	helpPackages,
 	helpRemote,
