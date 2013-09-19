@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"sync"
 
-	"code.google.com/p/go.tools/godoc/blog"
+	"code.google.com/p/go.tools/blog"
 )
 
 const (
