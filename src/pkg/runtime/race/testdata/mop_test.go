@@ -231,6 +231,22 @@ func TestRaceCaseFallthrough(t *testing.T) {
 	<-ch
 }
 
+func TestRaceCaseIssue6418(t *testing.T) {
+	m := map[string]map[string]string{
+		"a": map[string]string{
+			"b": "c",
+		},
+	}
+	ch := make(chan int)
+	go func() {
+		m["a"]["x"] = "y"
+		ch <- 1
+	}()
+	switch m["a"]["b"] {
+	}
+	<-ch
+}
+
 func TestRaceCaseType(t *testing.T) {
 	var x, y int
 	var i interface{} = x
