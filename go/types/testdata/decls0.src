@@ -6,23 +6,7 @@
 
 package decls0
 
-import (
-	"unsafe"
-	// we can have multiple blank imports (was bug)
-	_ "math"
-	_ "net/rpc"
-	// reflect defines a type "flag" which shows up in the gc export data
-	"reflect"
-	. "reflect"
-	init /* ERROR "cannot declare init" */ "fmt"
-)
-
-// reflect.flag must not be visible in this package
-type flag int
-type _ reflect /* ERROR "not exported" */ .flag
-
-// dot-imported exported objects may conflict with local objects
-type Value /* ERROR "already declared in this file" */ struct{}
+import "unsafe"
 
 const pi = 3.1415
 

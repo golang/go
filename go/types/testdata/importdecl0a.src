@@ -1,0 +1,43 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package importdecl0
+
+import ()
+
+import (
+	// we can have multiple blank imports (was bug)
+	_ "math"
+	_ "net/rpc"
+	init /* ERROR "cannot declare init" */ "fmt"
+	// reflect defines a type "flag" which shows up in the gc export data
+	"reflect"
+	. "reflect"
+)
+
+import "math" /* ERROR "imported but not used" */
+import m /* ERROR "imported but not used" */ "math"
+import _ "math"
+
+import (
+	"math/big" /* ERROR "imported but not used" */
+	b /* ERROR "imported but not used" */ "math/big"
+	_ "math/big"
+)
+
+import "fmt"
+import f "fmt"
+
+// reflect.flag must not be visible in this package
+type flag int
+type _ reflect /* ERROR "not exported" */ .flag
+
+// dot-imported exported objects may conflict with local objects
+type Value /* ERROR "already declared in this file" */ struct{}
+
+var _ = fmt.Println // use "fmt"
+
+func _() {
+	f.Println() // use "fmt"
+}

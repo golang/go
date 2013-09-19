@@ -96,7 +96,7 @@ func TestScopesInfo(t *testing.T) {
 		{`package p`, []string{
 			"file:",
 		}},
-		{`package p; import ( "fmt"; m "math"; _ "os" )`, []string{
+		{`package p; import ( "fmt"; m "math"; _ "os" ); var ( _ = fmt.Println; _ = m.Pi )`, []string{
 			"file:fmt m",
 		}},
 		{`package p; func _() {}`, []string{

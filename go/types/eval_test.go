@@ -87,6 +87,8 @@ import m "math"
 const c = 3.0
 type T []int
 func f(a int, s string) float64 {
+	fmt.Println("calling f")
+	_ = m.Pi // use package math
 	const d int = c + 1
 	var x int
 	x = a + len(s)

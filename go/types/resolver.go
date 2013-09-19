@@ -114,13 +114,13 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	pkg := check.pkg
 
 	// Phase 1: Pre-declare all package-level objects so that they can be found
-	//          independent of source order. Collect methods for a later phase.
+	//          independent of source order. Associate methods with receiver
+	//          base type names.
 
 	var (
-		scopes  []*Scope                    // corresponding file scope per file
-		scope   *Scope                      // current file scope
-		objList []Object                    // list of package-level objects to type-check
-		objMap  = make(map[Object]declInfo) // declaration info for each package-level object
+		fileScope *Scope                      // current file scope
+		objList   []Object                    // list of package-level objects to type-check
+		objMap    = make(map[Object]declInfo) // declaration info for each package-level object
 	)
 
 	// declare declares obj in the package scope, records its ident -> obj mapping,
@@ -137,7 +137,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 		check.declareObj(pkg.scope, ident, obj)
 		objList = append(objList, obj)
-		objMap[obj] = declInfo{scope, typ, init, nil}
+		objMap[obj] = declInfo{fileScope, typ, init, nil}
 	}
 
 	importer := check.conf.Import
@@ -148,14 +148,15 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// only add packages to pkg.imports that have not been seen already
 	seen := make(map[*Package]bool)
 
+	var fileScopes []*Scope // list of file scopes
 	for _, file := range files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
 		check.recordObject(file.Name, nil)
 
-		scope = NewScope(pkg.scope)
-		check.recordScope(file, scope)
-		scopes = append(scopes, scope)
+		fileScope = NewScope(pkg.scope)
+		check.recordScope(file, fileScope)
+		fileScopes = append(fileScopes, fileScope)
 
 		for _, decl := range file.Decls {
 			switch d := decl.(type) {
@@ -223,13 +224,13 @@ func (check *checker) resolveFiles(files []*ast.File) {
 								if obj.IsExported() {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for type aliases.
-									check.declareObj(scope, nil, obj)
+									check.declareObj(fileScope, nil, obj)
 									check.recordImplicit(s, obj)
 								}
 							}
 						} else {
 							// declare imported package object in file scope
-							check.declareObj(scope, nil, obj)
+							check.declareObj(fileScope, nil, obj)
 						}
 
 					case *ast.ValueSpec:
@@ -332,7 +333,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 					}
 				}
 				objList = append(objList, obj)
-				objMap[obj] = declInfo{scope, nil, nil, d}
+				objMap[obj] = declInfo{fileScope, nil, nil, d}
 
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
@@ -342,7 +343,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// Phase 2: Verify that objects in package and file scopes have different names.
 
-	for _, scope := range scopes {
+	for _, scope := range fileScopes {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				check.errorf(alt.Pos(), "%s already declared in this file through import of package %s", obj.Name(), obj.Pkg().Name())
@@ -384,16 +385,43 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 		check.topScope = f.sig.scope // open function scope
 		check.funcSig = f.sig
+		check.labels = nil // lazily allocated
 		check.stmtList(f.body.List, false)
+
 		if f.sig.results.Len() > 0 && !check.isTerminating(f.body, "") {
 			check.errorf(f.body.Rbrace, "missing return")
+		}
+
+		// spec: "It is illegal to define a label that is never used."
+		if check.labels != nil {
+			for _, obj := range check.labels.elems {
+				if l := obj.(*Label); !l.used {
+					check.errorf(l.pos, "%s defined but not used", l.name)
+				}
+			}
 		}
 	}
 
 	// Phase 5: Check for declared but not used packages and variables.
 	// Note: must happen after checking all functions because closures may affect outer scopes
 
-	// Each set of implicitly declared lhs variables of a type switch acts collectively
+	// spec: "It is illegal (...) to directly import a package without referring to
+	// any of its exported identifiers. To import a package solely for its side-effects
+	// (initialization), use the blank identifier as explicit package name."
+	for _, scope := range fileScopes {
+		// Unused "blank imports" are automatically ignored
+		// since _ identifiers are not entered into scopes.
+		for _, obj := range scope.elems {
+			if p, _ := obj.(*PkgName); p != nil && !p.used {
+				check.errorf(p.pos, "%q imported but not used", p.pkg.path)
+			}
+			// TODO(gri) dot-imports are not handled for now since we don't
+			// have mapping from Object to corresponding PkgName through
+			// which the object was imported.
+		}
+	}
+
+	// Each set of implicitly declared lhs variables in a type switch acts collectively
 	// as a single lhs variable. If any one was 'used', all of them are 'used'. Handle
 	// them before the general analysis.
 	for _, vars := range check.lhsVarsList {
@@ -411,9 +439,9 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 	}
 
+	// spec: "Implementation restriction: A compiler may make it illegal to
+	// declare a variable inside a function body if the variable is never used."
 	for _, f := range check.funcList {
-		// spec: "Implementation restriction: A compiler may make it illegal to
-		// declare a variable inside a function body if the variable is never used."
 		check.usage(f.sig.scope)
 	}
 }

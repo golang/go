@@ -194,7 +194,6 @@ func (t *Tuple) At(i int) *Var { return t.vars[i] }
 // A Signature represents a (non-builtin) function or method type.
 type Signature struct {
 	scope      *Scope // function scope, always present
-	labels     *Scope // label scope, or nil (lazily allocated)
 	recv       *Var   // nil if not a method
 	params     *Tuple // (incoming) parameters from left to right; or nil
 	results    *Tuple // (outgoing) results from left to right; or nil
@@ -217,7 +216,7 @@ func NewSignature(scope *Scope, recv *Var, params, results *Tuple, isVariadic bo
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{scope, nil, recv, params, results, isVariadic}
+	return &Signature{scope, recv, params, results, isVariadic}
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a

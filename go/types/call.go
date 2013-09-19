@@ -187,6 +187,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	if ident, ok := e.X.(*ast.Ident); ok {
 		if pkg, _ := check.topScope.LookupParent(ident.Name).(*PkgName); pkg != nil {
 			check.recordObject(ident, pkg)
+			pkg.used = true
 			exp := pkg.pkg.scope.Lookup(sel)
 			if exp == nil {
 				if !pkg.pkg.fake {
@@ -196,7 +197,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			}
 			if !exp.IsExported() {
 				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
-				goto Error
+				// ok to continue
 			}
 			check.recordSelection(e, PackageObj, nil, exp, nil, false)
 			// Simplified version of the code for *ast.Idents:

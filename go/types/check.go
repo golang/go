@@ -49,6 +49,7 @@ type checker struct {
 	// functions
 	funcList []funcInfo // list of functions/methods with correct signatures and non-empty bodies
 	funcSig  *Signature // signature of currently type-checked function
+	labels   *Scope     // label scope of currently type-checked function; lazily allocated
 
 	// debugging
 	indent int // indentation for tracing

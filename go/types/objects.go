@@ -123,10 +123,12 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 // A PkgName represents an imported Go package.
 type PkgName struct {
 	object
+
+	used bool
 }
 
 func NewPkgName(pos token.Pos, pkg *Package, name string) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid]}}
+	return &PkgName{object: object{nil, pos, pkg, name, Typ[Invalid]}}
 }
 
 func (obj *PkgName) String() string { return obj.toString("package", nil) }
@@ -236,10 +238,12 @@ func (obj *Func) String() string {
 // A Label represents a declared label.
 type Label struct {
 	object
+
+	used bool
 }
 
 func NewLabel(pos token.Pos, name string) *Label {
-	return &Label{object{nil, pos, nil, name, nil}}
+	return &Label{object: object{nil, pos, nil, name, nil}}
 }
 
 func (obj *Label) String() string { return fmt.Sprintf("label %s", obj.Name()) }

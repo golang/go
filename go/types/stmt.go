@@ -63,6 +63,14 @@ func (check *checker) closeScope() {
 	check.topScope = check.topScope.Parent()
 }
 
+func assignOp(op token.Token) token.Token {
+	// token_test.go verifies the token ordering this function relies on
+	if token.ADD_ASSIGN <= op && op <= token.AND_NOT_ASSIGN {
+		return op + (token.ADD - token.ADD_ASSIGN)
+	}
+	return token.ILLEGAL
+}
+
 // stmt typechecks statement s.
 func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 	// statements cannot use iota in general
@@ -77,13 +85,17 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 		check.declStmt(s.Decl)
 
 	case *ast.LabeledStmt:
-		scope := check.funcSig.labels
+		scope := check.labels
 		if scope == nil {
 			scope = NewScope(nil) // no label scope chain
-			check.funcSig.labels = scope
+			check.labels = scope
 		}
 		label := s.Label
-		check.declareObj(scope, label, NewLabel(label.Pos(), label.Name))
+		l := NewLabel(label.Pos(), label.Name)
+		// Labels are not resolved yet - mark them as used to avoid errors.
+		// TODO(gri) fix this
+		l.used = true
+		check.declareObj(scope, label, l)
 		check.stmt(s.Stmt, fallthroughOk)
 
 	case *ast.ExprStmt:
@@ -169,32 +181,8 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 				check.errorf(s.TokPos, "assignment operation %s requires single-valued expressions", s.Tok)
 				return
 			}
-			// TODO(gri) make this conversion more efficient
-			var op token.Token
-			switch s.Tok {
-			case token.ADD_ASSIGN:
-				op = token.ADD
-			case token.SUB_ASSIGN:
-				op = token.SUB
-			case token.MUL_ASSIGN:
-				op = token.MUL
-			case token.QUO_ASSIGN:
-				op = token.QUO
-			case token.REM_ASSIGN:
-				op = token.REM
-			case token.AND_ASSIGN:
-				op = token.AND
-			case token.OR_ASSIGN:
-				op = token.OR
-			case token.XOR_ASSIGN:
-				op = token.XOR
-			case token.SHL_ASSIGN:
-				op = token.SHL
-			case token.SHR_ASSIGN:
-				op = token.SHR
-			case token.AND_NOT_ASSIGN:
-				op = token.AND_NOT
-			default:
+			op := assignOp(s.Tok)
+			if op == token.ILLEGAL {
 				check.invalidAST(s.TokPos, "unknown assignment operation %s", s.Tok)
 				return
 			}
