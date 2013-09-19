@@ -2034,8 +2034,9 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfile
 
 	var staticLibs []string
 	if goos == "windows" {
-		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
-		staticLibs = []string{"-lmingwex", "-lmingw32"}
+		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last,
+		// and they also have some inter-dependencies, so must use linker groups.
+		staticLibs = []string{"-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group"}
 	}
 	if cgoLibGccFile != "" {
 		staticLibs = append(staticLibs, cgoLibGccFile)
