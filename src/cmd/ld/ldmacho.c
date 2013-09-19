@@ -611,6 +611,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(!(sym->type&N_EXT))
 			v = version;
 		s = lookup(name, v);
+		if(!(sym->type&N_EXT))
+			s->dupok = 1;
 		sym->sym = s;
 		if(sym->sectnum == 0)	// undefined
 			continue;
