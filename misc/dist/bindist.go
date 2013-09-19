@@ -44,8 +44,9 @@ var (
 
 const (
 	uploadURL      = "https://go.googlecode.com/files"
-	tourPath       = "code.google.com/p/go-tour"
+	blogPath       = "code.google.com/p/go.blog"
 	toolPath       = "code.google.com/p/go.tools"
+	tourPath       = "code.google.com/p/go-tour"
 	defaultToolTag = "tip" // TOOD(adg): set this once Go 1.2 settles
 )
 
@@ -93,6 +94,11 @@ var tourContent = []string{
 	"template",
 }
 
+var blogContent = []string{
+	"content",
+	"template",
+}
+
 // The os-arches that support the race toolchain.
 var raceAvailable = []string{
 	"darwin-amd64",
@@ -100,7 +106,8 @@ var raceAvailable = []string{
 	"windows-amd64",
 }
 
-var fileRe = regexp.MustCompile(`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+))\.`)
+var fileRe = regexp.MustCompile(
+	`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+)(?:-([a-z0-9.]))?)\.`)
 
 func main() {
 	flag.Usage = func() {
@@ -131,6 +138,7 @@ func main() {
 			} else {
 				b.OS = m[3]
 				b.Arch = m[4]
+				b.Label = m[5]
 			}
 			if !*upload {
 				log.Printf("%s: -upload=false, skipping", targ)
@@ -144,13 +152,16 @@ func main() {
 		if targ == "source" {
 			b.Source = true
 		} else {
-			p := strings.SplitN(targ, "-", 2)
-			if len(p) != 2 {
+			p := strings.SplitN(targ, "-", 3)
+			if len(p) < 2 {
 				log.Println("Ignoring unrecognized target:", targ)
 				continue
 			}
 			b.OS = p[0]
 			b.Arch = p[1]
+			if len(p) >= 3 {
+				b.Label = p[2]
+			}
 			if *includeRace {
 				for _, t := range raceAvailable {
 					if t == targ {
@@ -170,6 +181,7 @@ type Build struct {
 	Race   bool // build race toolchain
 	OS     string
 	Arch   string
+	Label  string
 	root   string
 	gopath string
 }
@@ -241,6 +253,10 @@ func (b *Build) Do() error {
 		if err != nil {
 			return err
 		}
+		err = b.blog()
+		if err != nil {
+			return err
+		}
 		err = b.tour()
 	}
 	if err != nil {
@@ -289,6 +305,9 @@ func (b *Build) Do() error {
 
 	// Create packages.
 	base := fmt.Sprintf("%s.%s-%s", version, b.OS, b.Arch)
+	if b.Label != "" {
+		base += "-" + b.Label
+	}
 	if !strings.HasPrefix(base, "go") {
 		base = "go." + base
 	}
@@ -424,12 +443,7 @@ func (b *Build) Do() error {
 }
 
 func (b *Build) tools() error {
-	defer func() {
-		// Clean work files from GOPATH directory.
-		for _, d := range []string{"bin", "pkg", "src"} {
-			os.RemoveAll(filepath.Join(b.gopath, d))
-		}
-	}()
+	defer b.cleanGopath()
 
 	// Fetch the tool packages (without building/installing).
 	args := append([]string{"get", "-d"}, toolPaths...)
@@ -451,13 +465,23 @@ func (b *Build) tools() error {
 	return err
 }
 
+func (b *Build) blog() error {
+	defer b.cleanGopath()
+
+	// Fetch the blog repository.
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", "-d", blogPath+"/blog")
+	if err != nil {
+		return err
+	}
+
+	// Copy blog content to $GOROOT/blog.
+	blogSrc := filepath.Join(b.gopath, "src", filepath.FromSlash(blogPath))
+	contentDir := filepath.Join(b.root, "blog")
+	return cpAllDir(contentDir, blogSrc, blogContent...)
+}
+
 func (b *Build) tour() error {
-	defer func() {
-		// Clean work files from GOPATH directory.
-		for _, d := range []string{"bin", "pkg", "src"} {
-			os.RemoveAll(filepath.Join(b.gopath, d))
-		}
-	}()
+	defer b.cleanGopath()
 
 	// go get the gotour package.
 	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", tourPath+"/gotour")
@@ -483,6 +507,12 @@ func (b *Build) tour() error {
 		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"+ext()),
 		filepath.Join(b.gopath, "bin", "gotour"+ext()),
 	)
+}
+
+func (b *Build) cleanGopath() {
+	for _, d := range []string{"bin", "pkg", "src"} {
+		os.RemoveAll(filepath.Join(b.gopath, d))
+	}
 }
 
 func ext() string {
@@ -610,6 +640,9 @@ func (b *Build) Upload(version string, filename string) error {
 	}
 	if ftype != "" {
 		labels = append(labels, "Type-"+ftype)
+	}
+	if b.Label != "" {
+		labels = append(labels, b.Label)
 	}
 	if *addLabel != "" {
 		labels = append(labels, *addLabel)
