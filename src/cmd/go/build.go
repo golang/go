@@ -435,7 +435,7 @@ func (b *builder) init() {
 			fatalf("%s", err)
 		}
 		if buildX || buildWork {
-			fmt.Printf("WORK=%s\n", b.work)
+			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.work)
 		}
 		if !buildWork {
 			atexit(func() { os.RemoveAll(b.work) })
