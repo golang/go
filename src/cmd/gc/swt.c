@@ -820,6 +820,9 @@ walkswitch(Node *sw)
 		return;
 	}
 	exprswitch(sw);
+	// Discard old AST elements after a walk. They can confuse racewealk.
+	sw->ntest = nil;
+	sw->list = nil;
 }
 
 /*
