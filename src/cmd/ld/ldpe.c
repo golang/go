@@ -469,6 +469,7 @@ readsym(PeObj *obj, int i, PeSym **y)
 		case IMAGE_SYM_CLASS_NULL:
 		case IMAGE_SYM_CLASS_STATIC:
 			s = lookup(name, version);
+			s->dupok = 1;
 			break;
 		default:
 			werrstr("%s: invalid symbol binding %d", sym->name, sym->sclass);
