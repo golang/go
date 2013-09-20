@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // oracle: a tool for answering questions about Go source code.
+// http://golang.org/s/oracle-design
+// http://golang.org/s/oracle-user-manual
 //
-// With -format=plain, the oracle prints query results to the standard
-// output in an editor-friendly format in which every line of output
-// is of the form "pos: text", where pos = "-" if unknown.
+// Run with -help for usage information.
 //
-// With -format=json, the oracle prints structured data in JSON syntax.
+// TODO(adonovan): perhaps -mode should be an args[1] verb, e.g. 'oracle callgraph ...'
 //
 package main
 
@@ -41,21 +41,39 @@ var ptalogFlag = flag.String("ptalog", "",
 
 var formatFlag = flag.String("format", "plain", "Output format: 'plain' or 'json'.")
 
-const usage = `Go source code oracle.
-Usage: oracle [<flag> ...] <args> ...
-Use -help flag to display options.
+const useHelp = "Run 'oracle -help' for more information.\n"
 
-The -mode flag is required; the -pos flag is required in most modes.
+const helpMessage = `Go source code oracle.
+Usage: oracle [<flag> ...] <args> ...
+
+The -format flag controls the output format:
+	plain	an editor-friendly format in which every line of output
+		is of the form "pos: text", where pos is "-" if unknown.
+	json	structured data in JSON syntax.
+
+The -pos flag is required in all modes except 'callgraph'.
+
+The -mode flag determines the query to perform:
+	callees	  	show possible targets of selected function call
+	callers	  	show possible callers of selected function
+	callgraph 	show complete callgraph of program
+	callstack 	show path from callgraph root to selected function
+	describe  	describe selected syntax: definition, methods, etc
+	freevars  	show free variables of selection
+	implements	show 'implements' relation for selected package
+	peers     	show send/receive corresponding to selected channel op
+	referrers 	show all refs to entity denoted by selected identifier
+
+The user manual is available here:  http://golang.org/s/oracle-user-manual
 
 Examples:
 
-Describe the syntax at offset 532 in this file (an import spec):
-% oracle -mode=describe -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#532 \
+Describe the syntax at offset 670 in this file (an import spec):
+% oracle -mode=describe -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#670 \
    code.google.com/p/go.tools/cmd/oracle
 
 Print the callgraph of the trivial web-server in JSON format:
 % oracle -mode=callgraph -format=json src/pkg/net/http/triv.go
-
 ` + importer.InitialPackagesUsage
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -73,19 +91,31 @@ func init() {
 }
 
 func main() {
-	flag.Parse()
+	// Don't print full help unless -help was requested.
+	// Just gently remind users that it's there.
+	flag.Usage = func() { fmt.Fprint(os.Stderr, useHelp) }
+	flag.CommandLine.Init(os.Args[0], flag.ContinueOnError) // hack
+	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
+		// (err has already been printed)
+		if err == flag.ErrHelp {
+			fmt.Println(helpMessage)
+			fmt.Println("Flags:")
+			flag.PrintDefaults()
+		}
+		os.Exit(2)
+	}
 	args := flag.Args()
 
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, usage)
-		os.Exit(1)
+		fmt.Fprint(os.Stderr, "Error: no package arguments.\n"+useHelp)
+		os.Exit(2)
 	}
 
 	// Set up points-to analysis log file.
 	var ptalog io.Writer
 	if *ptalogFlag != "" {
 		if f, err := os.Create(*ptalogFlag); err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to create PTA log file: %s", err)
 		} else {
 			buf := bufio.NewWriter(f)
 			ptalog = buf
@@ -108,14 +138,20 @@ func main() {
 
 	// -format flag
 	if *formatFlag != "json" && *formatFlag != "plain" {
-		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q", *formatFlag)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q\n"+useHelp, *formatFlag)
+		os.Exit(2)
+	}
+
+	// -mode flag
+	if *modeFlag == "" {
+		fmt.Fprintf(os.Stderr, "Error: a query -mode is required.\n"+useHelp)
+		os.Exit(2)
 	}
 
 	// Ask the oracle.
 	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		fmt.Fprintf(os.Stderr, "%s\n"+useHelp, err)
 		os.Exit(1)
 	}
 

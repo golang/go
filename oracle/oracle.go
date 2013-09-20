@@ -128,9 +128,6 @@ func (res *Result) MarshalJSON() ([]byte, error) {
 func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *build.Context) (*Result, error) {
 	minfo, ok := modes[mode]
 	if !ok {
-		if mode == "" {
-			return nil, errors.New("you must specify a -mode of query to perform")
-		}
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
