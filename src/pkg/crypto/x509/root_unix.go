@@ -10,7 +10,7 @@ import "io/ioutil"
 
 // Possible certificate files; stop after finding one.
 var certFiles = []string{
-	"/etc/ssl/certs/ca-certificates.crt",     // Linux etc
+	"/etc/ssl/certs/ca-certificates.crt",     // Debian/Ubuntu/Gentoo etc.
 	"/etc/pki/tls/certs/ca-bundle.crt",       // Fedora/RHEL
 	"/etc/ssl/ca-bundle.pem",                 // OpenSUSE
 	"/etc/ssl/cert.pem",                      // OpenBSD
