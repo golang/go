@@ -135,7 +135,7 @@ func main() {
 		if !*verbose && test.err == nil {
 			continue
 		}
-		fmt.Printf("%-20s %-20s: %s\n", test.action, test.goFileName(), errStr)
+		fmt.Printf("# go run run.go -- %s\n%-20s %-20s: %s\n", path.Join(test.dir, test.gofile), test.action, test.goFileName(), errStr)
 	}
 
 	if *summary {
