@@ -2378,9 +2378,6 @@ pclntab(void)
 	ftab->type = SPCLNTAB;
 	ftab->reachable = 1;
 
-	if(debug['s'])
-		return;
-
 	// See golang.org/s/go12symtab for the format. Briefly:
 	//	8-byte header
 	//	nfunc [PtrSize bytes]
