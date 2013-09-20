@@ -555,17 +555,18 @@ outer:
 
 		// process a rule
 		rlines[nprod] = lineno
+		ruleline := lineno
 		if t == '|' {
 			curprod[mem] = prdptr[nprod-1][0]
 			mem++
 		} else if t == IDENTCOLON {
 			curprod[mem] = chfind(1, tokname)
 			if curprod[mem] < NTBASE {
-				errorf("token illegal on LHS of grammar rule")
+				lerrorf(ruleline, "token illegal on LHS of grammar rule")
 			}
 			mem++
 		} else {
-			errorf("illegal rule: missing semicolon or | ?")
+			lerrorf(ruleline, "illegal rule: missing semicolon or | ?")
 		}
 
 		// read rule body
@@ -586,11 +587,11 @@ outer:
 			}
 			if t == PREC {
 				if gettok() != IDENTIFIER {
-					errorf("illegal %%prec syntax")
+					lerrorf(ruleline, "illegal %%prec syntax")
 				}
 				j = chfind(2, tokname)
 				if j >= NTBASE {
-					errorf("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec")
+					lerrorf(ruleline, "nonterminal "+nontrst[j-NTBASE].name+" illegal after %%prec")
 				}
 				levprd[nprod] = toklev[j]
 				t = gettok()
@@ -646,7 +647,7 @@ outer:
 			// no explicit action, LHS has value
 			tempty := curprod[1]
 			if tempty < 0 {
-				errorf("must return a value, since LHS has a type")
+				lerrorf(ruleline, "must return a value, since LHS has a type")
 			}
 			if tempty >= NTBASE {
 				tempty = nontrst[tempty-NTBASE].value
@@ -654,7 +655,7 @@ outer:
 				tempty = TYPE(toklev[tempty])
 			}
 			if tempty != nontrst[curprod[0]-NTBASE].value {
-				errorf("default action causes potential type clash")
+				lerrorf(ruleline, "default action causes potential type clash")
 			}
 			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
 			fmt.Fprintf(fcode, "\n\t\t%sVAL.%v = %sS[%spt-0].%v",
@@ -3193,7 +3194,7 @@ func create(s string) *bufio.Writer {
 //
 // write out error comment
 //
-func errorf(s string, v ...interface{}) {
+func lerrorf(lineno int, s string, v ...interface{}) {
 	nerrors++
 	fmt.Fprintf(stderr, s, v...)
 	fmt.Fprintf(stderr, ": %v:%v\n", infile, lineno)
@@ -3201,6 +3202,10 @@ func errorf(s string, v ...interface{}) {
 		summary()
 		exit(1)
 	}
+}
+
+func errorf(s string, v ...interface{}) {
+	lerrorf(lineno, s, v...)
 }
 
 func exit(status int) {
