@@ -102,6 +102,13 @@ runtime·gostringnocopy(byte *str)
 	return s;
 }
 
+void
+runtime·cstringToGo(byte *str, String s)
+{
+	s = runtime·gostringnocopy(str);
+	FLUSH(&s);
+}
+
 String
 runtime·gostringw(uint16 *str)
 {

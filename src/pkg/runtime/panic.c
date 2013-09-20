@@ -470,11 +470,15 @@ runtime·panicstring(int8 *s)
 {
 	Eface err;
 
+	if(m->mallocing) {
+		runtime·printf("panic: %s\n", s);
+		runtime·throw("panic during malloc");
+	}
 	if(m->gcing) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic during gc");
 	}
-	runtime·newErrorString(runtime·gostringnocopy((byte*)s), &err);
+	runtime·newErrorCString(s, &err);
 	runtime·panic(err);
 }
 
