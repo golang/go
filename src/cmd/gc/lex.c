@@ -2296,7 +2296,7 @@ pkgnotused(int lineno, Strlit *path, char *name)
 		elem++;
 	else
 		elem = path->s;
-	if(strcmp(elem, name) == 0)
+	if(name == nil || strcmp(elem, name) == 0)
 		yyerrorl(lineno, "imported and not used: \"%Z\"", path);
 	else
 		yyerrorl(lineno, "imported and not used: \"%Z\" as %s", path, name);
@@ -2335,7 +2335,7 @@ mkpackage(char* pkgname)
 					// throw away top-level name left over
 					// from previous import . "x"
 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
-						pkgnotused(s->def->pack->lineno, s->def->pack->pkg->path, s->name);
+						pkgnotused(s->def->pack->lineno, s->def->pack->pkg->path, nil);
 						s->def->pack->used = 1;
 					}
 					s->def = N;

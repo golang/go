@@ -14,5 +14,6 @@ import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and 
 
 import (
 	"fmt"	// GCCGO_ERROR "previous|not used"
-	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used"
+	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt"
+	. "math"	// ERROR "imported and not used: \x22math\x22$"
 )
