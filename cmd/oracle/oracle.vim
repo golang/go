@@ -12,52 +12,96 @@
 " Voluntary contributions welcomed!
 "
 " TODO(adonovan):
-" - prompt/save the buffer if modified.
 " - reject buffers with no filename.
 " - hide all filenames in quickfix buffer.
 
+" Get the path to the Go oracle executable.
+func! s:go_oracle_bin()
+  let [ext, sep] = (has('win32') || has('win64') ? ['.exe', ';'] : ['', ':'])
+  let go_oracle = globpath(join(split($GOPATH, sep), ','), '/bin/oracle' . ext)
+  if go_oracle == ''
+    let go_oracle = globpath($GOROOT, '/bin/oracle' . ext)
+  endif
+  return go_oracle
+endfunction
 
-" Users should customize this to their analysis scope, e.g. main package(s).
-let s:scope = "/home/adonovan/go3/got/d.go"
+let s:go_oracle = s:go_oracle_bin()
 
-" The path to the Go oracle executable.
-let s:go_oracle = "$GOROOT/bin/oracle"
+func! s:qflist(output)
+  let qflist = []
+  " Parse GNU-style 'file:line.col-line.col: message' format.
+  let mx = '^\(\a:[\\/][^:]\+\|[^:]\+\):\(\d\+\):\(\d\+\):\(.*\)$'
+  for line in split(a:output, "\n")
+    let ml = matchlist(line, mx)
+    " Ignore non-match lines or warnings
+    if ml == [] || ml[4] =~ '^ warning:'
+      continue
+    endif
+    let item = {
+    \  'filename': ml[1],
+    \  'text': ml[4],
+    \  'lnum': ml[2],
+    \  'col': ml[3],
+    \}
+    let bnr = bufnr(fnameescape(ml[1]))
+    if bnr != -1
+      let item['bufnr'] = bnr
+    endif
+    call add(qflist, item)
+  endfor
+  call setqflist(qflist)
+  cwindow
+endfun
 
-" Enable Vim to recognize GNU-style 'file:line.col-line.col: message' format.
-set errorformat+=%f:%l.%c-%*[0-9].%*[0-9]:\ %m
+func! s:getpos(l, c)
+  if &encoding != 'utf-8'
+    let buf = a:l == 1 ? '' : (join(getline(1, a:l-1), "\n") . "\n")
+    let buf .= a:c == 1 ? '' : getline('.')[:a:c-2]
+    return len(iconv(buf, &encoding, 'utf-8'))
+  endif
+  return line2byte(a:l) + (a:c-2)
+endfun
 
-func! s:RunOracle(mode) abort
-  " TODO(adonovan): support selections, not just positions.
-  let s:pos = line2byte(line("."))+col(".")
-  let s:errfile = tempname()
-  let s:cmd = printf("!%s -mode=%s -pos=%s:#%d %s >%s",
-    \ s:go_oracle, a:mode, bufname(""), s:pos, s:scope, s:errfile)
-  execute s:cmd
-  execute "cfile " . s:errfile
+func! s:RunOracle(mode, selected) range abort
+  let fname = expand('%:p')
+  let sname = get(g:, 'go_oracle_scope_file', fname)
+  if a:selected != -1
+    let pos1 = s:getpos(line("'<"), col("'<"))
+    let pos2 = s:getpos(line("'>"), col("'>"))
+    let cmd = printf('%s -mode=%s -pos=%s:#%d,#%d %s',
+      \  s:go_oracle, a:mode,
+      \  shellescape(fname), pos1, pos2, shellescape(sname))
+  else
+    let pos = s:getpos(line('.'), col('.'))
+    let cmd = printf('%s -mode=%s -pos=%s:#%d %s',
+      \  s:go_oracle, a:mode,
+      \  shellescape(fname), pos, shellescape(sname))
+  endif
+  call s:qflist(system(cmd))
 endfun
 
 " Describe the expression at the current point.
-command! GoOracleDescribe
-  \ call s:RunOracle("describe")
+command! -range=% GoOracleDescribe
+  \ call s:RunOracle('describe', <count>)
 
 " Show possible callees of the function call at the current point.
-command! GoOracleCallees
-  \ call s:RunOracle("callees")
+command! -range=% GoOracleCallees
+  \ call s:RunOracle('callees', <count>)
 
 " Show the set of callers of the function containing the current point.
-command! GoOracleCallers
-  \ call s:RunOracle("callers")
+command! -range=% GoOracleCallers
+  \ call s:RunOracle('callers', <count>)
 
 " Show the callgraph of the current program.
-command! GoOracleCallgraph
-  \ call s:RunOracle("callgraph")
+command! -range=% GoOracleCallgraph
+  \ call s:RunOracle('callgraph', <count>)
 
 " Describe the 'implements' relation for types in the
 " package containing the current point.
-command! GoOracleImplements
-  \ call s:RunOracle("implements")
+command! -range=% GoOracleImplements
+  \ call s:RunOracle('implements', <count>)
 
 " Enumerate the set of possible corresponding sends/receives for
 " this channel receive/send operation.
-command! GoOracleChannelPeers
-  \ call s:RunOracle("peers")
+command! -range=% GoOracleChannelPeers
+  \ call s:RunOracle('peers', <count>)
