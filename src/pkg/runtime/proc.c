@@ -128,6 +128,7 @@ runtime·schedinit(void)
 {
 	int32 n, procs;
 	byte *p;
+	Eface i;
 
 	runtime·sched.maxmcount = 10000;
 	runtime·precisestack = haveexperiment("precisestack");
@@ -136,6 +137,12 @@ runtime·schedinit(void)
 	runtime·mprofinit();
 	runtime·mallocinit();
 	mcommoninit(m);
+	
+	// Initialize the itable value for newErrorCString,
+	// so that the next time it gets called, possibly
+	// in a fault during a garbage collection, it will not
+	// need to allocated memory.
+	runtime·newErrorCString(0, &i);
 
 	runtime·goargs();
 	runtime·goenvs();

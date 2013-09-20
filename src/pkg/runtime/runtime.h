@@ -1004,6 +1004,7 @@ void	runtime·panicslice(void);
 void	runtime·printany(Eface);
 void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
 void	runtime·newErrorString(String, Eface*);
+void	runtime·newErrorCString(int8*, Eface*);
 void	runtime·fadd64c(uint64, uint64, uint64*);
 void	runtime·fsub64c(uint64, uint64, uint64*);
 void	runtime·fmul64c(uint64, uint64, uint64*);
