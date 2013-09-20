@@ -13,7 +13,7 @@ import (
 	init /* ERROR "cannot declare init" */ "fmt"
 	// reflect defines a type "flag" which shows up in the gc export data
 	"reflect"
-	. "reflect"
+	. /* ERROR "imported but not used" */ "reflect"
 )
 
 import "math" /* ERROR "imported but not used" */

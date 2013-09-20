@@ -31,6 +31,9 @@ type Object interface {
 	// String returns a human-readable string of the object.
 	String() string
 
+	// isUsed reports whether the object was marked as 'used'.
+	isUsed() bool
+
 	// setParent sets the parent scope of the object.
 	setParent(*Scope)
 
@@ -66,6 +69,7 @@ type object struct {
 	pkg    *Package
 	name   string
 	typ    Type
+	used   bool
 }
 
 func (obj *object) Parent() *Scope   { return obj.parent }
@@ -76,6 +80,8 @@ func (obj *object) Type() Type       { return obj.typ }
 func (obj *object) IsExported() bool { return ast.IsExported(obj.name) }
 func (obj *object) Id() string       { return Id(obj.pkg, obj.name) }
 func (obj *object) String() string   { panic("abstract") }
+
+func (obj *object) isUsed() bool { return obj.used }
 
 func (obj *object) toString(kind string, typ Type) string {
 	var buf bytes.Buffer
@@ -123,12 +129,10 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 // A PkgName represents an imported Go package.
 type PkgName struct {
 	object
-
-	used bool
 }
 
 func NewPkgName(pos token.Pos, pkg *Package, name string) *PkgName {
-	return &PkgName{object: object{nil, pos, pkg, name, Typ[Invalid]}}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], false}}
 }
 
 func (obj *PkgName) String() string { return obj.toString("package", nil) }
@@ -142,7 +146,7 @@ type Const struct {
 }
 
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Value) *Const {
-	return &Const{object{nil, pos, pkg, name, typ}, val, false}
+	return &Const{object: object{nil, pos, pkg, name, typ, false}, val: val}
 }
 
 func (obj *Const) String() string   { return obj.toString("const", obj.typ) }
@@ -154,7 +158,7 @@ type TypeName struct {
 }
 
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ}}
+	return &TypeName{object{nil, pos, pkg, name, typ, false}}
 }
 
 func (obj *TypeName) String() string { return obj.toString("type", obj.typ.Underlying()) }
@@ -165,19 +169,18 @@ type Var struct {
 
 	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
 	visited   bool // for initialization cycle detection
-	used      bool // if set, the variable was 'used'
 }
 
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ}}
+	return &Var{object: object{nil, pos, pkg, name, typ, false}}
 }
 
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ}, used: true} // parameters are always 'used'
+	return &Var{object: object{nil, pos, pkg, name, typ, true}} // parameters are always 'used'
 }
 
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ}, anonymous: anonymous}
+	return &Var{object: object{nil, pos, pkg, name, typ, false}, anonymous: anonymous}
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
@@ -191,7 +194,7 @@ type Func struct {
 }
 
 func NewFunc(pos token.Pos, pkg *Package, name string, typ Type) *Func {
-	return &Func{object{nil, pos, pkg, name, typ}}
+	return &Func{object{nil, pos, pkg, name, typ, false}}
 }
 
 // FullName returns the package- or receiver-type-qualified name of
@@ -238,12 +241,10 @@ func (obj *Func) String() string {
 // A Label represents a declared label.
 type Label struct {
 	object
-
-	used bool
 }
 
 func NewLabel(pos token.Pos, name string) *Label {
-	return &Label{object: object{nil, pos, nil, name, nil}}
+	return &Label{object{nil, pos, nil, name, nil, false}}
 }
 
 func (obj *Label) String() string { return fmt.Sprintf("label %s", obj.Name()) }

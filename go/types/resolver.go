@@ -145,10 +145,12 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		importer = GcImport
 	}
 
-	// only add packages to pkg.imports that have not been seen already
-	seen := make(map[*Package]bool)
+	var (
+		seenPkgs   = make(map[*Package]bool) // imported packages that have been seen already
+		fileScopes []*Scope                  // file scope for each file
+		dotImports []map[*Package]token.Pos  // positions of dot-imports for each file
+	)
 
-	var fileScopes []*Scope // list of file scopes
 	for _, file := range files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
@@ -157,6 +159,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		fileScope = NewScope(pkg.scope)
 		check.recordScope(file, fileScope)
 		fileScopes = append(fileScopes, fileScope)
+		dotImports = append(dotImports, nil) // element (map) is lazily allocated
 
 		for _, decl := range file.Decls {
 			switch d := decl.(type) {
@@ -190,8 +193,8 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						// add package to list of explicit imports
 						// (this functionality is provided as a convenience
 						// for clients; it is not needed for type-checking)
-						if !seen[imp] {
-							seen[imp] = true
+						if !seenPkgs[imp] {
+							seenPkgs[imp] = true
 							if imp != Unsafe {
 								pkg.imports = append(pkg.imports, imp)
 							}
@@ -228,6 +231,14 @@ func (check *checker) resolveFiles(files []*ast.File) {
 									check.recordImplicit(s, obj)
 								}
 							}
+							// add position to set of dot-import positions for this file
+							// (this is only needed for "imported but not used" errors)
+							posSet := dotImports[len(dotImports)-1]
+							if posSet == nil {
+								posSet = make(map[*Package]token.Pos)
+								dotImports[len(dotImports)-1] = posSet
+							}
+							posSet[imp] = s.Pos()
 						} else {
 							// declare imported package object in file scope
 							check.declareObj(fileScope, nil, obj)
@@ -408,16 +419,35 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// spec: "It is illegal (...) to directly import a package without referring to
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
-	for _, scope := range fileScopes {
-		// Unused "blank imports" are automatically ignored
-		// since _ identifiers are not entered into scopes.
+
+	for i, scope := range fileScopes {
+		var usedDotImports map[*Package]bool // lazily allocated
 		for _, obj := range scope.elems {
-			if p, _ := obj.(*PkgName); p != nil && !p.used {
-				check.errorf(p.pos, "%q imported but not used", p.pkg.path)
+			switch obj := obj.(type) {
+			case *PkgName:
+				// Unused "blank imports" are automatically ignored
+				// since _ identifiers are not entered into scopes.
+				if !obj.used {
+					check.errorf(obj.pos, "%q imported but not used", obj.pkg.path)
+				}
+			default:
+				// All other objects in the file scope must be dot-
+				// imported. If an object was used, mark its package
+				// as used.
+				if obj.isUsed() {
+					if usedDotImports == nil {
+						usedDotImports = make(map[*Package]bool)
+					}
+					usedDotImports[obj.Pkg()] = true
+				}
 			}
-			// TODO(gri) dot-imports are not handled for now since we don't
-			// have mapping from Object to corresponding PkgName through
-			// which the object was imported.
+		}
+		// Iterate through all dot-imports for this file and
+		// check if the corresponding package was used.
+		for pkg, pos := range dotImports[i] {
+			if !usedDotImports[pkg] {
+				check.errorf(pos, "%q imported but not used", pkg.path)
+			}
 		}
 	}
 

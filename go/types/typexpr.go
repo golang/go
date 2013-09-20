@@ -51,6 +51,12 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		return
 
 	case *Const:
+		// The constant may be dot-imported. Mark it as used so that
+		// later we can determine if the corresponding dot-imported
+		// packages was used. Same applies for other objects, below.
+		// (This code is only used for dot-imports. Without them, we
+		// would only have to mark Vars.)
+		obj.used = true
 		if typ == Typ[Invalid] {
 			return
 		}
@@ -66,6 +72,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		x.mode = constant
 
 	case *TypeName:
+		obj.used = true
 		x.mode = typexpr
 		named, _ := typ.(*Named)
 		if !cycleOk && named != nil && !named.complete {
@@ -82,6 +89,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		x.mode = variable
 
 	case *Func:
+		obj.used = true // use dot-imported function
 		x.mode = value
 
 	default:
