@@ -415,7 +415,7 @@ mkcaselist(Node *sw, int arg)
 					break;
 				if(!eqtype(c1->node->left->type, c2->node->left->type))
 					continue;
-				yyerrorl(c2->node->lineno, "duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
+				yyerrorl(c2->node->lineno, "duplicate case %T in type switch\n\tprevious case at %L", c2->node->left->type, c1->node->lineno);
 			}
 		}
 		break;
@@ -427,7 +427,7 @@ mkcaselist(Node *sw, int arg)
 			if(exprcmp(c1, c1->link) != 0)
 				continue;
 			setlineno(c1->link->node);
-			yyerror("duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
+			yyerror("duplicate case %N in switch\n\tprevious case at %L", c1->node->left, c1->node->lineno);
 		}
 		break;
 	}
