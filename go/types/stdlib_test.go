@@ -16,6 +16,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -37,6 +38,35 @@ func TestStdlib(t *testing.T) {
 	}
 }
 
+// firstComment returns the contents of the first comment in
+// the given file, assuming there's one within the first KB.
+func firstComment(filename string) string {
+	f, err := os.Open(filename)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	var src [1 << 10]byte // read at most 1KB
+	n, _ := f.Read(src[:])
+
+	var s scanner.Scanner
+	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil, scanner.ScanComments)
+	for {
+		_, tok, lit := s.Scan()
+		switch tok {
+		case token.COMMENT:
+			// remove trailing */ of multi-line comment
+			if lit[1] == '*' {
+				lit = lit[:len(lit)-2]
+			}
+			return strings.TrimSpace(lit[2:])
+		case token.EOF:
+			return ""
+		}
+	}
+}
+
 func testTestDir(t *testing.T, path string, ignore ...string) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -55,29 +85,20 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 			continue
 		}
 
-		// parse file
-		filename := filepath.Join(path, f.Name())
-		// TODO(gri) The parser loses comments when bailing out early,
-		//           and then we don't see the errorcheck command for
-		//           some files. Use parser.AllErrors for now. Fix this.
-		file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments|parser.AllErrors)
-
-		// check per-file instructions
-		// For now we only check some cases.
+		// get per-file instructions
 		expectErrors := false
-		if len(file.Comments) > 0 {
-			if group := file.Comments[0]; len(group.List) > 0 {
-				cmd := strings.TrimSpace(group.List[0].Text[2:]) // 2: ignore // or /* of comment
-				switch cmd {
-				case "skip", "compiledir":
-					continue
-				case "errorcheck":
-					expectErrors = true
-				}
+		filename := filepath.Join(path, f.Name())
+		if cmd := firstComment(filename); cmd != "" {
+			switch cmd {
+			case "skip", "compiledir":
+				continue // ignore this file
+			case "errorcheck":
+				expectErrors = true
 			}
 		}
 
-		// type-check file if it parsed cleanly
+		// parse and type-check file
+		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
 			_, err = Check(filename, fset, []*ast.File{file})
 		}
@@ -106,9 +127,6 @@ func TestStdtest(t *testing.T) {
 
 func TestStdfixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
-		"bug050.go", "bug088.go", "bug106.go", // TODO(gri) parser loses comments when bailing out early
-		"bug222.go", "bug282.go", "bug306.go", // TODO(gri) parser loses comments when bailing out early
-		"issue4776.go",                        // TODO(gri) parser loses comments when bailing out early
 		"bug136.go", "bug179.go", "bug344.go", // TODO(gri) implement missing label checks
 		"bug251.go",                           // TODO(gri) incorrect cycle checks for interface types
 		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
