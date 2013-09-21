@@ -47,7 +47,8 @@ func main() {
 	runtime.GC()
 	runtime.ReadMemStats(memstats)
 
-	if memstats.Alloc-alloc > 1.1e5 {
+	// Be careful to avoid wraparound.
+	if memstats.Alloc > alloc && memstats.Alloc-alloc > 1.1e5 {
 		println("BUG: too much memory for 100,000 selects:", memstats.Alloc-alloc)
 	}
 }
