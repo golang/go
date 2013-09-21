@@ -125,15 +125,25 @@ This is a backwards-compatible change that affects no existing programs.
 
 <h2 id="impl">Changes to the implementations and tools</h2>
 
-<ul>
-<li>
-runtime: preemption of goroutines at function entry (CL 12371043).
-</li>
+<h3 id="preemption">Pre-emption in the scheduler</h3>
 
-<li>
-go/build: support including C++ code with cgo (CL 8248043).
-</li>
-</ul>
+<p>
+In prior releases, a goroutine that was looping forever could starve out other
+goroutines on the same thread, a serious problem when GOMAXPROCS
+provided only one user thread.
+In Go1.2, this is partially addressed: The scheduler is invoked occasionally
+upon entry to a function.
+This means that any loop that includes a (non-inlined) function call can
+be pre-empted, allowing other goroutines to run on the same thread.
+</p>
+
+<h3 id="cgo_and_cpp">Cgo and C++</h3>
+
+<p>
+The <a href="/cmd/cgo/"><code>cgo</code></a> command will now invoke the C++
+compiler to build any pieces of the linked-to library that are written in C++; the
+documentation has more detail.
+</p>
 
 <h3 id="go_tools_godoc">Godoc and vet moved to the go.tools subrepository</h3>
 
