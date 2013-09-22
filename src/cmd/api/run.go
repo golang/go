@@ -21,7 +21,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -38,9 +37,9 @@ func main() {
 	if goroot == "" {
 		log.Fatal("No $GOROOT set.")
 	}
-	isGoDeveloper := exec.Command("hg", "pq").Run() == nil
-	if !isGoDeveloper && !forceAPICheck() {
-		fmt.Println("Skipping cmd/api checks; hg codereview extension not available and GO_FORCE_API_CHECK not set")
+	_, err := exec.LookPath("hg")
+	if err != nil {
+		fmt.Println("Skipping cmd/api checks; hg not available")
 		return
 	}
 
@@ -86,12 +85,6 @@ func file(s ...string) string {
 		return file(s[0]) + "," + file(s[1:]...)
 	}
 	return filepath.Join(goroot, "api", s[0]+".txt")
-}
-
-// GO_FORCE_API_CHECK is set by builders.
-func forceAPICheck() bool {
-	v, _ := strconv.ParseBool(os.Getenv("GO_FORCE_API_CHECK"))
-	return v
 }
 
 // prepGoPath returns a GOPATH for the "go" tool to compile the API tool with.
