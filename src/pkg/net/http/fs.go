@@ -173,7 +173,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
-		if sumRangesSize(ranges) >= size {
+		if sumRangesSize(ranges) > size {
 			// The total number of bytes in all the ranges
 			// is larger than the size of the file by
 			// itself, so this is probably an attack, or a
