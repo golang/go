@@ -118,7 +118,7 @@ type pp struct {
 	value reflect.Value
 	// reordered records whether the format string used argument reordering.
 	reordered bool
-	// goodArgNum records whether all reordering directives were valid.
+	// goodArgNum records whether the most recent reordering directive was valid.
 	goodArgNum bool
 	runeBuf    [utf8.UTFMax]byte
 	fmt        fmt
@@ -1036,7 +1036,7 @@ func intFromArg(a []interface{}, argNum int) (num int, isInt bool, newArgNum int
 // up to the closing paren, if present, and whether the number parsed
 // ok. The bytes to consume will be 1 if no closing paren is present.
 func parseArgNumber(format string) (index int, wid int, ok bool) {
-	// Find closing parenthesis
+	// Find closing bracket.
 	for i := 1; i < len(format); i++ {
 		if format[i] == ']' {
 			width, ok, newi := parsenum(format, 1, i)
@@ -1070,8 +1070,8 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 	argNum := 0         // we process one argument per non-trivial format
 	afterIndex := false // previous item in format was an index like [3].
 	p.reordered = false
-	p.goodArgNum = true
 	for i := 0; i < end; {
+		p.goodArgNum = true
 		lasti := i
 		for i < end && format[i] != '%' {
 			i++
