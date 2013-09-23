@@ -278,47 +278,30 @@ func (cs *constraintset) add(c constraint) bool {
 
 // Worklist -------------------------------------------------------------------
 
-// TODO(adonovan): interface may not be general enough for certain
-// implementations, e.g. priority queue
-//
-// Uses double-buffering so nodes can be added during iteration.
+const empty nodeid = 1<<32 - 1
+
 type worklist interface {
-	empty() bool  // Reports whether active buffer is empty.
-	swap() bool   // Switches to the shadow buffer if empty().
-	add(nodeid)   // Adds a node to the shadow buffer.
-	take() nodeid // Takes a node from the active buffer.  Precondition: !empty().
+	add(nodeid)   // Adds a node to the set
+	take() nodeid // Takes a node from the set and returns it, or empty
 }
 
-// Horribly naive (and nondeterministic) worklist
-// based on two hash-sets.
+// Simple nondeterministic worklist based on a built-in map.
 type mapWorklist struct {
-	active, shadow nodeset
-}
-
-func (w *mapWorklist) empty() bool {
-	return len(w.active) == 0
-}
-
-func (w *mapWorklist) swap() bool {
-	if w.empty() {
-		w.shadow, w.active = w.active, w.shadow
-		return true
-	}
-	return false
+	set nodeset
 }
 
 func (w *mapWorklist) add(n nodeid) {
-	w.shadow[n] = struct{}{}
+	w.set[n] = struct{}{}
 }
 
 func (w *mapWorklist) take() nodeid {
-	for k := range w.active {
-		delete(w.active, k)
+	for k := range w.set {
+		delete(w.set, k)
 		return k
 	}
-	panic("worklist.take(): empty active buffer")
+	return empty
 }
 
 func makeMapWorklist() worklist {
-	return &mapWorklist{make(nodeset), make(nodeset)}
+	return &mapWorklist{make(nodeset)}
 }

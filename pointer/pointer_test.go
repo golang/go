@@ -33,9 +33,11 @@ var inputs = []string{
 	// "testdata/tmp.go",
 
 	// Working:
+	"testdata/a_test.go",
 	"testdata/another.go",
 	"testdata/arrays.go",
 	"testdata/channels.go",
+	"testdata/chanreflect.go",
 	"testdata/context.go",
 	"testdata/conv.go",
 	"testdata/flow.go",
@@ -43,21 +45,19 @@ var inputs = []string{
 	"testdata/func.go",
 	"testdata/hello.go",
 	"testdata/interfaces.go",
+	"testdata/funcreflect.go",
+	"testdata/mapreflect.go",
 	"testdata/maps.go",
 	"testdata/panic.go",
 	"testdata/recur.go",
+	"testdata/reflect.go",
 	"testdata/structs.go",
-	"testdata/a_test.go",
-	"testdata/mapreflect.go",
 
 	// TODO(adonovan): get these tests (of reflection) passing.
 	// (The tests are mostly sound since they were used for a
 	// previous implementation.)
-	// "testdata/funcreflect.go",
 	// "testdata/arrayreflect.go",
-	// "testdata/chanreflect.go",
 	// "testdata/finalizer.go",
-	// "testdata/reflect.go",
 	// "testdata/structreflect.go",
 }
 
@@ -290,8 +290,9 @@ func doOneInput(input, filename string) bool {
 
 	// Run the analysis.
 	config := &pointer.Config{
-		Mains: []*ssa.Package{ptrmain},
-		Log:   &log,
+		Reflection: true,
+		Mains:      []*ssa.Package{ptrmain},
+		Log:        &log,
 		Print: func(site *ssa.CallCommon, p pointer.Pointer) {
 			probes = append(probes, probe{site, p})
 		},

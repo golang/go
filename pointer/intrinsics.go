@@ -70,6 +70,8 @@ func init() {
 		"(reflect.Value).OverflowInt":     ext۰NoEffect,
 		"(reflect.Value).OverflowUint":    ext۰NoEffect,
 		"(reflect.Value).Pointer":         ext۰NoEffect,
+		"(reflect.Value).Recv":            ext۰reflect۰Value۰Recv,
+		"(reflect.Value).Send":            ext۰reflect۰Value۰Send,
 		"(reflect.Value).Set":             ext۰reflect۰Value۰Set,
 		"(reflect.Value).SetBool":         ext۰NoEffect,
 		"(reflect.Value).SetBytes":        ext۰reflect۰Value۰SetBytes,
@@ -83,6 +85,8 @@ func init() {
 		"(reflect.Value).SetUint":         ext۰NoEffect,
 		"(reflect.Value).Slice":           ext۰reflect۰Value۰Slice,
 		"(reflect.Value).String":          ext۰NoEffect,
+		"(reflect.Value).TryRecv":         ext۰reflect۰Value۰Recv,
+		"(reflect.Value).TrySend":         ext۰reflect۰Value۰Send,
 		"(reflect.Value).Type":            ext۰NoEffect,
 		"(reflect.Value).Uint":            ext۰NoEffect,
 		"(reflect.Value).UnsafeAddr":      ext۰NoEffect,
@@ -275,9 +279,13 @@ func (a *analysis) findIntrinsic(fn *ssa.Function) intrinsic {
 	if !ok {
 		impl = intrinsicsByName[fn.String()] // may be nil
 
-		// Ensure all "reflect" code is treated intrinsically.
-		if impl == nil && fn.Pkg != nil && a.reflectValueObj != nil && a.reflectValueObj.Pkg() == fn.Pkg.Object {
-			impl = ext۰NotYetImplemented
+		if fn.Pkg != nil && a.reflectValueObj != nil && a.reflectValueObj.Pkg() == fn.Pkg.Object {
+			if !a.config.Reflection {
+				impl = ext۰NoEffect // reflection disabled
+			} else if impl == nil {
+				// Ensure all "reflect" code is treated intrinsically.
+				impl = ext۰NotYetImplemented
+			}
 		}
 
 		a.intrinsics[fn] = impl

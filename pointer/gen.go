@@ -235,13 +235,22 @@ func (a *analysis) makeRtype(T types.Type) nodeid {
 	a.addOneNode(T, "reflect.rtype", nil)
 	a.endObject(obj, nil, nil).rtype = T
 
-	id := a.makeTagged(a.reflectRtype, nil, nil)
+	id := a.makeTagged(a.reflectRtypePtr, nil, nil)
 	a.nodes[id].obj.rtype = T
 	a.nodes[id+1].typ = T // trick (each *rtype tagged object is a singleton)
 	a.addressOf(id+1, obj)
 
 	a.rtypes.Set(T, id)
 	return id
+}
+
+// rtypeValue returns the type of the *reflect.rtype-tagged object obj.
+func (a *analysis) rtypeTaggedValue(obj nodeid) types.Type {
+	tDyn, t, _ := a.taggedValue(obj)
+	if tDyn != a.reflectRtypePtr {
+		panic(fmt.Sprintf("not a *reflect.rtype-tagged value: obj=n%d tag=%v payload=n%d", obj, tDyn, t))
+	}
+	return a.nodes[t].typ
 }
 
 // valueNode returns the id of the value node for v, creating it (and
@@ -430,6 +439,11 @@ func (a *analysis) offsetAddr(dst, src nodeid, offset uint32) {
 	} else {
 		a.addConstraint(&offsetAddrConstraint{offset, dst, src})
 	}
+}
+
+// typeAssert creates a typeAssert constraint of the form dst = src.(T).
+func (a *analysis) typeAssert(T types.Type, dst, src nodeid) {
+	a.addConstraint(&typeAssertConstraint{T, dst, src})
 }
 
 // addConstraint adds c to the constraint set.
@@ -720,13 +734,11 @@ func (a *analysis) genDynamicCall(call *ssa.CallCommon, result nodeid) nodeid {
 // It returns a node whose pts() will be the set of possible call targets.
 //
 func (a *analysis) genInvoke(call *ssa.CallCommon, result nodeid) nodeid {
-	sig := call.Signature()
+	if call.Value.Type() == a.reflectType {
+		return a.genInvokeReflectType(call, result)
+	}
 
-	// TODO(adonovan): optimise this into a static call when there
-	// can be at most one type that implements the interface (due
-	// to unexported methods).  This is particularly important for
-	// methods of interface reflect.Type (sole impl:
-	// *reflect.rtype), so we can realize context sensitivity.
+	sig := call.Signature()
 
 	// Allocate a contiguous targets/params/results block for this call.
 	block := a.nextNode()
@@ -751,6 +763,63 @@ func (a *analysis) genInvoke(call *ssa.CallCommon, result nodeid) nodeid {
 	a.addConstraint(&invokeConstraint{call.Method, a.valueNode(call.Value), block})
 
 	return targets
+}
+
+// genInvokeReflectType is a specialization of genInvoke where the
+// receiver type is a reflect.Type, under the assumption that there
+// can be at most one implementation of this interface, *reflect.rtype.
+//
+// (Though this may appear to be an instance of a pattern---method
+// calls on interfaces known to have exactly one implementation---in
+// practice it occurs rarely, so we special case for reflect.Type.)
+//
+// In effect we treat this:
+//    var rt reflect.Type = ...
+//    rt.F()
+// as this:
+//    rt.(*reflect.rtype).F()
+//
+// It returns a node whose pts() will be the (singleton) set of
+// possible call targets.
+//
+func (a *analysis) genInvokeReflectType(call *ssa.CallCommon, result nodeid) nodeid {
+	// Unpack receiver into rtype
+	rtype := a.addOneNode(a.reflectRtypePtr, "rtype.recv", nil)
+	recv := a.valueNode(call.Value)
+	a.typeAssert(a.reflectRtypePtr, rtype, recv)
+
+	// Look up the concrete method.
+	meth := a.reflectRtypePtr.MethodSet().Lookup(call.Method.Pkg(), call.Method.Name())
+	fn := a.prog.Method(meth)
+
+	obj := a.makeFunctionObject(fn) // new contour for this call
+
+	// From now on, it's essentially a static call, but little is
+	// gained by factoring together the code for both cases.
+
+	sig := fn.Signature // concrete method
+	targets := a.addOneNode(sig, "call.targets", nil)
+	a.addressOf(targets, obj) // (a singleton)
+
+	// Copy receiver.
+	params := a.funcParams(obj)
+	a.copy(params, rtype, 1)
+	params++
+
+	// Copy actual parameters into formal params block.
+	// Must loop, since the actuals aren't contiguous.
+	for i, arg := range call.Args {
+		sz := a.sizeof(sig.Params().At(i).Type())
+		a.copy(params, a.valueNode(arg), sz)
+		params += nodeid(sz)
+	}
+
+	// Copy formal results block to actual result.
+	if result != 0 {
+		a.copy(result, a.funcResults(obj), a.sizeof(sig.Results()))
+	}
+
+	return obj
 }
 
 // genCall generates contraints for call instruction instr.
@@ -927,8 +996,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
 
 	case *ssa.TypeAssert:
-		dst, src := a.valueNode(instr), a.valueNode(instr.X)
-		a.addConstraint(&typeAssertConstraint{instr.AssertedType, dst, src})
+		a.typeAssert(instr.AssertedType, a.valueNode(instr), a.valueNode(instr.X))
 
 	case *ssa.Slice:
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
@@ -1117,7 +1185,9 @@ func (a *analysis) generate() *cgnode {
 	a.panicNode = a.addNodes(tEface, "panic")
 
 	// Create nodes and constraints for all methods of reflect.rtype.
-	if rtype := a.reflectRtype; rtype != nil {
+	// (Shared contours are used by dynamic calls to reflect.Type
+	// methods---typically just String().)
+	if rtype := a.reflectRtypePtr; rtype != nil {
 		mset := rtype.MethodSet()
 		for i, n := 0, mset.Len(); i < n; i++ {
 			a.valueNode(a.prog.Method(mset.At(i)))
@@ -1134,10 +1204,6 @@ func (a *analysis) generate() *cgnode {
 		a.genq = a.genq[1:]
 		a.genFunc(cgn)
 	}
-
-	// Create a dummy node to avoid out-of-range indexing in case
-	// the last allocated type was of zero length.
-	a.addNodes(tInvalid, "(max)")
 
 	return root
 }

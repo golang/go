@@ -165,7 +165,9 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 	res, err := oracle.Query([]string{q.filename},
 		q.verb,
 		fmt.Sprintf("%s:#%d,#%d", q.filename, q.start, q.end),
-		/*PTA-log=*/ nil, &buildContext)
+		nil, // ptalog,
+		&buildContext,
+		true) // reflection
 	if err != nil {
 		fmt.Fprintf(out, "\nError: %s\n", stripLocation(err.Error()))
 		return
@@ -259,7 +261,7 @@ func TestMultipleQueries(t *testing.T) {
 
 	// Oracle
 	filename := "testdata/src/main/multi.go"
-	o, err := oracle.New(imp, []string{filename}, nil)
+	o, err := oracle.New(imp, []string{filename}, nil, true)
 	if err != nil {
 		t.Fatalf("oracle.New failed: %s", err)
 	}

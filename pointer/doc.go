@@ -10,11 +10,13 @@ pointer analysis algorithm first described in (Andersen, 1994).
 The implementation is similar to that described in (Pearce et al,
 PASTE'04).  Unlike many algorithms which interleave constraint
 generation and solving, constructing the callgraph as they go, this
-implementation has a strict phase ordering: generation before solving.
-Only simple (copy) constraints may be generated during solving.  This
-improves the traction of presolver optimisations, but imposes certain
-restrictions, e.g. potential context sensitivity is limited since all
-variants must be created a priori.
+implementation for the most part observes a phase ordering (generation
+before solving), with only simple (copy) constraints being generated
+during solving.  (The exception is reflection, which creates various
+constraints during solving as new types flow to reflect.Value
+operations.)  This improves the traction of presolver optimisations,
+but imposes certain restrictions, e.g. potential context sensitivity
+is limited since all variants must be created a priori.
 
 We intend to add various presolving optimisations such as Pointer and
 Location Equivalence from (Hardekopf & Lin, SAS '07) and solver

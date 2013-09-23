@@ -9,7 +9,7 @@ import "reflect"
 var a int
 var b bool
 
-func mapreflect1() {
+func reflectMapKeysIndex() {
 	m := make(map[*int]*bool) // @line mr1make
 	m[&a] = &b
 
@@ -33,7 +33,7 @@ func mapreflect1() {
 	}
 }
 
-func mapreflect2() {
+func reflectSetMapIndex() {
 	m := make(map[*int]*bool)
 	mrv := reflect.ValueOf(m)
 	mrv.SetMapIndex(reflect.ValueOf(&a), reflect.ValueOf(&b))
@@ -64,7 +64,16 @@ func mapreflect2() {
 	print(reflect.Zero(tmap.Elem()).Interface()) // @types *bool
 }
 
+func reflectMakeMap() {
+	t := reflect.TypeOf(map[*int]*bool(nil))
+	v := reflect.MakeMap(t)
+	print(v) // @types map[*int]*bool
+	print(v) // @pointsto <alloc in reflect.MakeMap>
+}
+
 func main() {
-	mapreflect1()
-	mapreflect2()
+	reflectMapKeysIndex()
+	reflectSetMapIndex()
+	reflectMakeMap()
+	// TODO(adonovan): reflect.MapOf(Type)
 }

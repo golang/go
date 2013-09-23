@@ -20,6 +20,13 @@ type Config struct {
 	Mains []*ssa.Package // set of 'main' packages to analyze
 	root  *ssa.Function  // synthetic analysis root
 
+	// Reflection determines whether to handle reflection
+	// operators soundly, which is currently rather slow since it
+	// causes constraint to be generated during solving
+	// proportional to the number of constraint variables, which
+	// has not yet been reduced by presolver optimisation.
+	Reflection bool
+
 	// -------- Optional callbacks invoked by the analysis --------
 
 	// Call is invoked for each discovered call-graph edge.  The

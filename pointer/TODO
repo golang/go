@@ -18,7 +18,6 @@ CONSTRAINT GENERATION:
 
 PRESOLVER OPTIMISATIONS
 - use HVN, HRU, LE, PE, HCD, LCD.
-  But: LE would lose the precise detail we currently enjoy in each label.
 
 SOLVER:
 - use BDDs and/or sparse bitvectors for ptsets

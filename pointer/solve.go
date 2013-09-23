@@ -14,27 +14,21 @@ import (
 )
 
 func (a *analysis) solve() {
-	a.work.swap()
-
 	// Solver main loop.
 	for round := 1; ; round++ {
+		if a.log != nil {
+			fmt.Fprintf(a.log, "Solving, round %d\n", round)
+		}
+
 		// Add new constraints to the graph:
 		// static constraints from SSA on round 1,
 		// dynamic constraints from reflection thereafter.
 		a.processNewConstraints()
 
-		if a.work.swap() {
-			if a.log != nil {
-				fmt.Fprintf(a.log, "Solving, round %d\n", round)
-			}
-
-			// Next iteration.
-			if a.work.empty() {
-				break // done
-			}
-		}
-
 		id := a.work.take()
+		if id == empty {
+			break
+		}
 		if a.log != nil {
 			fmt.Fprintf(a.log, "\tnode n%d\n", id)
 		}
@@ -110,9 +104,6 @@ func (a *analysis) processNewConstraints() {
 			if len(n.prevPts) > 0 {
 				stale.add(id)
 			}
-			if a.log != nil {
-				fmt.Fprintf(a.log, "Adding to worklist n%d\n", id)
-			}
 			a.addWork(id)
 		}
 	}
@@ -150,6 +141,11 @@ func (a *analysis) solveConstraints(n *node, delta nodeset) {
 			}
 		}
 	}
+}
+
+// addLabel adds label to the points-to set of ptr and reports whether the set grew.
+func (a *analysis) addLabel(ptr, label nodeid) bool {
+	return a.nodes[ptr].pts.add(label)
 }
 
 func (a *analysis) addWork(id nodeid) {
@@ -205,6 +201,10 @@ func (a *analysis) onlineCopy(dst, src nodeid) bool {
 
 // Returns sizeof.
 // Implicitly adds nodes to worklist.
+//
+// TODO(adonovan): now that we support a.copy() during solving, we
+// could eliminate onlineCopyN, but it's much slower.  Investigate.
+//
 func (a *analysis) onlineCopyN(dst, src nodeid, sizeof uint32) uint32 {
 	for i := uint32(0); i < sizeof; i++ {
 		if a.onlineCopy(dst, src) {
@@ -263,7 +263,7 @@ func (c *typeAssertConstraint) solve(a *analysis, n *node, delta nodeset) {
 
 		if tIface != nil {
 			if types.IsAssignableTo(tDyn, tIface) {
-				if a.nodes[c.dst].pts.add(ifaceObj) {
+				if a.addLabel(c.dst, ifaceObj) {
 					a.addWork(c.dst)
 				}
 			}
@@ -316,7 +316,7 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		// Make callsite's fn variable point to identity of
 		// concrete method.  (There's no need to add it to
 		// worklist since it never has attached constraints.)
-		a.nodes[c.params].pts.add(fnObj)
+		a.addLabel(c.params, fnObj)
 
 		// Extract value and connect to method's receiver.
 		// Copy payload to method's receiver param (arg0).
@@ -324,7 +324,6 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		recvSize := a.sizeof(sig.Recv().Type())
 		a.onlineCopyN(arg0, v, recvSize)
 
-		// Copy iface object payload to method receiver.
 		src := c.params + 1 // skip past identity
 		dst := arg0 + nodeid(recvSize)
 

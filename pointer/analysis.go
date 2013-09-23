@@ -185,7 +185,8 @@ type analysis struct {
 	hasher          typemap.Hasher // cache of type hashes
 	reflectValueObj types.Object   // type symbol for reflect.Value (if present)
 	reflectRtypeObj types.Object   // *types.TypeName for reflect.rtype (if present)
-	reflectRtype    *types.Pointer // *reflect.rtype
+	reflectRtypePtr *types.Pointer // *reflect.rtype
+	reflectType     *types.Named   // reflect.Type
 	rtypes          typemap.M      // nodeid of canonical *rtype-tagged object for type T
 	reflectZeros    typemap.M      // nodeid of canonical T-tagged object for zero value
 }
@@ -244,8 +245,9 @@ func Analyze(config *Config) CallGraphNode {
 
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
 		a.reflectValueObj = reflect.Object.Scope().Lookup("Value")
+		a.reflectType = reflect.Object.Scope().Lookup("Type").Type().(*types.Named)
 		a.reflectRtypeObj = reflect.Object.Scope().Lookup("rtype")
-		a.reflectRtype = types.NewPointer(a.reflectRtypeObj.Type())
+		a.reflectRtypePtr = types.NewPointer(a.reflectRtypeObj.Type())
 
 		// Override flattening of reflect.Value, treating it like a basic type.
 		tReflectValue := a.reflectValueObj.Type()
@@ -265,11 +267,7 @@ func Analyze(config *Config) CallGraphNode {
 
 	root := a.generate()
 
-	// ---------- Presolver ----------
-
-	// TODO(adonovan): opt: presolver optimisations.
-
-	// ---------- Solver ----------
+	//a.optimize()
 
 	a.solve()
 

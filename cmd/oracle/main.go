@@ -41,6 +41,9 @@ var ptalogFlag = flag.String("ptalog", "",
 
 var formatFlag = flag.String("format", "plain", "Output format: 'plain' or 'json'.")
 
+// TODO(adonovan): eliminate or flip this flag after PTA presolver is implemented.
+var reflectFlag = flag.Bool("reflect", true, "Analyze reflection soundly (slow).")
+
 const useHelp = "Run 'oracle -help' for more information.\n"
 
 const helpMessage = `Go source code oracle.
@@ -68,8 +71,8 @@ The user manual is available here:  http://golang.org/s/oracle-user-manual
 
 Examples:
 
-Describe the syntax at offset 670 in this file (an import spec):
-% oracle -mode=describe -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#670 \
+Describe the syntax at offset 530 in this file (an import spec):
+% oracle -mode=describe -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#530 \
    code.google.com/p/go.tools/cmd/oracle
 
 Print the callgraph of the trivial web-server in JSON format:
@@ -149,7 +152,7 @@ func main() {
 	}
 
 	// Ask the oracle.
-	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default)
+	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default, *reflectFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n"+useHelp, err)
 		os.Exit(1)

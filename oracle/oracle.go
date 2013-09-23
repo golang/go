@@ -43,7 +43,7 @@ import (
 type Oracle struct {
 	out    io.Writer      // standard output
 	prog   *ssa.Program   // the SSA program [only populated if need&SSA]
-	config pointer.Config // pointer analysis configuration
+	config pointer.Config // pointer analysis configuration [TODO rename ptaConfig]
 
 	// need&AllTypeInfo
 	typeInfo map[*types.Package]*importer.PackageInfo // type info for all ASTs in the program
@@ -149,6 +149,7 @@ func (res *Result) MarshalJSON() ([]byte, error) {
 // mode is the query mode ("callers", etc).
 // ptalog is the (optional) pointer-analysis log file.
 // buildContext is the go/build configuration for locating packages.
+// reflection determines whether to model reflection soundly (currently slow).
 //
 // Clients that intend to perform multiple queries against the same
 // analysis scope should use this pattern instead:
@@ -169,14 +170,14 @@ func (res *Result) MarshalJSON() ([]byte, error) {
 // TODO(adonovan): the ideal 'needsExact' parameter for ParseQueryPos
 // depends on the query mode; how should we expose this?
 //
-func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *build.Context) (*Result, error) {
+func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *build.Context, reflection bool) (*Result, error) {
 	minfo := findMode(mode)
 	if minfo == nil {
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
 	imp := importer.New(&importer.Config{Build: buildContext})
-	o, err := New(imp, args, ptalog)
+	o, err := New(imp, args, ptalog, reflection)
 	if err != nil {
 		return nil, err
 	}
@@ -216,17 +217,19 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 // args specify the main package in importer.CreatePackageFromArgs syntax.
 //
 // ptalog is the (optional) pointer-analysis log file.
+// reflection determines whether to model reflection soundly (currently slow).
 //
-func New(imp *importer.Importer, args []string, ptalog io.Writer) (*Oracle, error) {
-	return newOracle(imp, args, ptalog, needAll)
+func New(imp *importer.Importer, args []string, ptalog io.Writer, reflection bool) (*Oracle, error) {
+	return newOracle(imp, args, ptalog, needAll, reflection)
 }
 
-func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs int) (*Oracle, error) {
+func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs int, reflection bool) (*Oracle, error) {
 	o := &Oracle{
 		prog:   ssa.NewProgram(imp.Fset, 0),
 		timers: make(map[string]time.Duration),
 	}
 	o.config.Log = ptalog
+	o.config.Reflection = reflection
 
 	// Load/parse/type-check program from args.
 	start := time.Now()
