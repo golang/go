@@ -58,7 +58,8 @@ func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
 	val = val[:l]
 
-	if l < 13 {
+	// 5 for the header, 2 for the per-sample header on at least one sample, 3 for the trailer.
+	if l < 5+2+3 {
 		t.Logf("profile too short: %#x", val)
 		if badOS[runtime.GOOS] {
 			t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)
