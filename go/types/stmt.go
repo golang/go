@@ -119,10 +119,20 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		if check.rawExpr(&x, s.X, nil) != statement {
-			check.errorf(s.X.Pos(), "%s is not used", s.X)
+		kind := check.rawExpr(&x, s.X, nil)
+		var msg string
+		switch x.mode {
+		default:
+			if kind == statement {
+				return
+			}
+			msg = "is not used"
+		case builtin:
+			msg = "must be called"
+		case typexpr:
+			msg = "is not an expression"
 		}
-		return
+		check.errorf(x.pos(), "%s %s", &x, msg)
 
 	case *ast.SendStmt:
 		var ch, x operand

@@ -1280,7 +1280,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 		if e.Op == token.ARROW {
 			x.expr = e
-			return statement // receive operators may appear in statement context
+			return statement // receive operations may appear in statement context
 		}
 
 	case *ast.BinaryExpr:
@@ -1329,11 +1329,11 @@ func (check *checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, 
 	}
 	var msg string
 	if wrongType {
-		msg = "%s cannot have dynamic type %s (wrong type for method %s)"
+		msg = "wrong type for method"
 	} else {
-		msg = "%s cannot have dynamic type %s (missing method %s)"
+		msg = "missing method"
 	}
-	check.errorf(pos, msg, x, T, method.name)
+	check.errorf(pos, "%s cannot have dynamic type %s (%s %s)", x, T, msg, method.name)
 }
 
 // expr typechecks expression e and initializes x with the expression value.
@@ -1346,13 +1346,13 @@ func (check *checker) expr(x *operand, e ast.Expr) {
 	default:
 		return
 	case novalue:
-		msg = "%s used as value"
+		msg = "used as value"
 	case builtin:
-		msg = "%s must be called"
+		msg = "must be called"
 	case typexpr:
-		msg = "%s is not an expression"
+		msg = "is not an expression"
 	}
-	check.errorf(x.pos(), msg, x)
+	check.errorf(x.pos(), "%s %s", x, msg)
 	x.mode = invalid
 }
 
@@ -1368,13 +1368,13 @@ func (check *checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	default:
 		return
 	case novalue:
-		msg = "%s used as value"
+		msg = "used as value"
 	case builtin:
-		msg = "%s must be called"
+		msg = "must be called"
 	case typexpr:
-		msg = "%s is not an expression"
+		msg = "is not an expression"
 	}
-	check.errorf(x.pos(), msg, x)
+	check.errorf(x.pos(), "%s %s", x, msg)
 	x.mode = invalid
 }
 

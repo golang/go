@@ -468,3 +468,14 @@ func labels0() {
 		L2:
 	}
 }
+
+func expression_statements(ch chan int) {
+	expression_statements(ch)
+	<-ch
+	println()
+
+	0 /* ERROR "not used" */
+	1 /* ERROR "not used" */ +2
+	cap /* ERROR "not used" */ (ch)
+	println /* ERROR "must be called" */
+}
