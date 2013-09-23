@@ -27,11 +27,13 @@ http://golang.org/doc/articles/c_go_cgo.html.
 CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo
 directives within these comments to tweak the behavior of the C or C++
 compiler.  Values defined in multiple directives are concatenated
-together.  Options prefixed by $GOOS, $GOARCH, or $GOOS/$GOARCH are
-only defined in matching systems.  For example:
+together.  The directive can include a list of build constraints limiting its
+effect to systems satisfying one of the constraints
+(see http://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
+For example:
 
 	// #cgo CFLAGS: -DPNG_DEBUG=1
-	// #cgo linux CFLAGS: -DLINUX=1
+	// #cgo amd64 386 CFLAGS: -DX86=1
 	// #cgo LDFLAGS: -lpng
 	// #include <png.h>
 	import "C"
