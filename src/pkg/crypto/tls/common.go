@@ -248,7 +248,7 @@ type Config struct {
 
 	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
 	// If zero, then the maximum version supported by this package is used,
-	// which is currently TLS 1.1.
+	// which is currently TLS 1.2.
 	MaxVersion uint16
 
 	serverInitOnce sync.Once // guards calling (*Config).serverInit
