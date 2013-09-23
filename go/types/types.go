@@ -236,50 +236,6 @@ func (s *Signature) Results() *Tuple { return s.results }
 // IsVariadic reports whether the signature s is variadic.
 func (s *Signature) IsVariadic() bool { return s.isVariadic }
 
-// builtinId is an id of a builtin function.
-type builtinId int
-
-// Predeclared builtin functions.
-const (
-	// Universe scope
-	_Append builtinId = iota
-	_Cap
-	_Close
-	_Complex
-	_Copy
-	_Delete
-	_Imag
-	_Len
-	_Make
-	_New
-	_Panic
-	_Print
-	_Println
-	_Real
-	_Recover
-
-	// Unsafe package
-	_Alignof
-	_Offsetof
-	_Sizeof
-
-	// Testing support
-	_Assert
-	_Trace
-)
-
-// A Builtin represents the type of a built-in function.
-type Builtin struct {
-	id          builtinId
-	name        string
-	nargs       int // number of arguments (minimum if variadic)
-	isVariadic  bool
-	isStatement bool // true if the built-in is valid as an expression statement
-}
-
-// Name returns the name of the built-in function b.
-func (b *Builtin) Name() string { return b.name }
-
 // An Interface represents an interface type.
 type Interface struct {
 	methods []*Func         // methods declared with or embedded in this interface

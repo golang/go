@@ -844,13 +844,13 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 // value or type. If an error occurred, x.mode is set to invalid.
 // If hint != nil, it is the type of a composite literal element.
 //
-func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
+func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
 	}
 
-	check.expr0(x, e, hint)
+	kind := check.expr0(x, e, hint)
 
 	// convert x into a user-friendly set of values
 	record := true
@@ -885,12 +885,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) {
 		check.indent--
 		check.trace(e.Pos(), "=> %s", x)
 	}
+
+	return kind
 }
 
 // expr0 contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 //
-func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
+func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was issue 5770)
 	x.mode = invalid
@@ -1070,7 +1072,9 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 		x.typ = typ
 
 	case *ast.ParenExpr:
-		check.rawExpr(x, e.X, nil)
+		kind := check.rawExpr(x, e.X, nil)
+		x.expr = e
+		return kind
 
 	case *ast.SelectorExpr:
 		check.selector(x, e)
@@ -1130,7 +1134,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 			x.mode = valueok
 			x.typ = typ.elt
 			x.expr = e
-			return
+			return expression
 		}
 
 		if !valid {
@@ -1246,7 +1250,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 		x.typ = T
 
 	case *ast.CallExpr:
-		check.call(x, e)
+		return check.call(x, e)
 
 	case *ast.StarExpr:
 		check.exprOrType(x, e.X)
@@ -1273,6 +1277,10 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 		check.unary(x, e.Op)
 		if x.mode == invalid {
 			goto Error
+		}
+		if e.Op == token.ARROW {
+			x.expr = e
+			return statement // receive operators may appear in statement context
 		}
 
 	case *ast.BinaryExpr:
@@ -1305,11 +1313,12 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) {
 
 	// everything went well
 	x.expr = e
-	return
+	return expression
 
 Error:
 	x.mode = invalid
 	x.expr = e
+	return statement // avoid follow-up errors
 }
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
@@ -1332,14 +1341,19 @@ func (check *checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, 
 //
 func (check *checker) expr(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil)
+	var msg string
 	switch x.mode {
+	default:
+		return
 	case novalue:
-		check.errorf(x.pos(), "%s used as value", x)
-		x.mode = invalid
+		msg = "%s used as value"
+	case builtin:
+		msg = "%s must be called"
 	case typexpr:
-		check.errorf(x.pos(), "%s is not an expression", x)
-		x.mode = invalid
+		msg = "%s is not an expression"
 	}
+	check.errorf(x.pos(), msg, x)
+	x.mode = invalid
 }
 
 // exprWithHint typechecks expression e and initializes x with the expression value.
@@ -1349,14 +1363,19 @@ func (check *checker) expr(x *operand, e ast.Expr) {
 func (check *checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
 	check.rawExpr(x, e, hint)
+	var msg string
 	switch x.mode {
+	default:
+		return
 	case novalue:
-		check.errorf(x.pos(), "%s used as value", x)
-		x.mode = invalid
+		msg = "%s used as value"
+	case builtin:
+		msg = "%s must be called"
 	case typexpr:
-		check.errorf(x.pos(), "%s is not an expression", x)
-		x.mode = invalid
+		msg = "%s is not an expression"
 	}
+	check.errorf(x.pos(), msg, x)
+	x.mode = invalid
 }
 
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.

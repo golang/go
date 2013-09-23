@@ -161,11 +161,9 @@ func _() {
 }
 
 // Method calls with value receivers
-// TODO(gri) For internal reasons, these expressions are evaluated twice,
-//           hence the double (equal) error messages for now. Fix this.
 func _() {
 	T0{}.v0()
-	T0 /* ERROR "not in method set" */ /* ERROR "not in method set" */ {}.p0()
+	T0 /* ERROR "not in method set" */ {}.p0()
 
 	(&T0{}).v0()
 	(&T0{}).p0()
@@ -175,7 +173,7 @@ func _() {
 	// no values for T2
 
 	T3{}.v0()
-	T3 /* ERROR "not in method set" */ /* ERROR "not in method set" */ {}.p0()
+	T3 /* ERROR "not in method set" */ {}.p0()
 	T3{}.v1()
 	T3{}.p1()
 	T3{}.v2()

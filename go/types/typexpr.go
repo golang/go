@@ -89,8 +89,13 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		x.mode = variable
 
 	case *Func:
-		obj.used = true // use dot-imported function
+		obj.used = true
 		x.mode = value
+
+	case *Builtin:
+		obj.used = true // for built-ins defined by package unsafe
+		x.mode = builtin
+		x.val = exact.MakeInt64(int64(obj.id))
 
 	default:
 		unreachable()

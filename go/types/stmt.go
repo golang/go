@@ -71,6 +71,22 @@ func assignOp(op token.Token) token.Token {
 	return token.ILLEGAL
 }
 
+func (check *checker) suspendedCall(keyword string, call *ast.CallExpr) {
+	var x operand
+	var msg string
+	switch check.rawExpr(&x, call, nil) {
+	case conversion:
+		msg = "requires function call, not conversion"
+	case expression:
+		msg = "discards result of"
+	case statement:
+		return
+	default:
+		panic("unreachable")
+	}
+	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
+}
+
 // stmt typechecks statement s.
 func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 	// statements cannot use iota in general
@@ -99,35 +115,14 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 		check.stmt(s.Stmt, fallthroughOk)
 
 	case *ast.ExprStmt:
+		// spec: "With the exception of specific built-in functions,
+		// function and method calls and receive operations can appear
+		// in statement context. Such statements may be parenthesized."
 		var x operand
-		used := false
-		switch e := unparen(s.X).(type) {
-		case *ast.CallExpr:
-			// function calls are permitted
-			used = true
-			// but some builtins are excluded
-			// (Caution: This evaluates e.Fun twice, once here and once
-			//           below as part of s.X. Perhaps this can be avoided.)
-			check.expr(&x, e.Fun)
-			if x.mode != invalid {
-				if b, ok := x.typ.(*Builtin); ok && !b.isStatement {
-					used = false
-				}
-			}
-		case *ast.UnaryExpr:
-			// receive operations are permitted
-			if e.Op == token.ARROW {
-				used = true
-			}
+		if check.rawExpr(&x, s.X, nil) != statement {
+			check.errorf(s.X.Pos(), "%s is not used", s.X)
 		}
-		if !used {
-			check.errorf(s.Pos(), "%s not used", s.X)
-			// ok to continue
-		}
-		check.rawExpr(&x, s.X, nil)
-		if x.mode == typexpr {
-			check.errorf(x.pos(), "%s is not an expression", &x)
-		}
+		return
 
 	case *ast.SendStmt:
 		var ch, x operand
@@ -195,14 +190,10 @@ func (check *checker) stmt(s ast.Stmt, fallthroughOk bool) {
 		}
 
 	case *ast.GoStmt:
-		var x operand
-		check.call(&x, s.Call)
-		// TODO(gri) If a builtin is called, the builtin must be valid in this context.
+		check.suspendedCall("go", s.Call)
 
 	case *ast.DeferStmt:
-		var x operand
-		check.call(&x, s.Call)
-		// TODO(gri) If a builtin is called, the builtin must be valid in this context.
+		check.suspendedCall("defer", s.Call)
 
 	case *ast.ReturnStmt:
 		sig := check.funcSig

@@ -248,9 +248,7 @@ func TestCheck(t *testing.T) {
 	// the construction of the Universe var.
 	if !testBuiltinsDeclared {
 		testBuiltinsDeclared = true
-		// Pkg == nil for Universe objects
-		def(NewFunc(token.NoPos, nil, "assert", &Builtin{_Assert, "assert", 1, false, true}))
-		def(NewFunc(token.NoPos, nil, "trace", &Builtin{_Trace, "trace", 0, true, true}))
+		defPredeclaredTestFuncs()
 	}
 
 	// If explicit test files are specified, only check those.

@@ -187,13 +187,18 @@ func (obj *Var) Anonymous() bool { return obj.anonymous }
 func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
 
 // A Func represents a declared function, concrete method, or abstract
-// (interface) method.  Its Type() is a *Signature.
+// (interface) method.  Its Type() is always a *Signature.
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
 }
 
-func NewFunc(pos token.Pos, pkg *Package, name string, typ Type) *Func {
+func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+	// don't store a nil signature
+	var typ Type
+	if sig != nil {
+		typ = sig
+	}
 	return &Func{object{nil, pos, pkg, name, typ, false}}
 }
 
@@ -206,7 +211,8 @@ func (obj *Func) FullName() string {
 }
 
 func (obj *Func) fullname(buf *bytes.Buffer) {
-	if sig, _ := obj.typ.(*Signature); sig != nil { // may be a *Builtin
+	if obj.typ != nil {
+		sig := obj.typ.(*Signature)
 		if recv := sig.Recv(); recv != nil {
 			buf.WriteByte('(')
 			if _, ok := recv.Type().(*Interface); ok {
@@ -232,8 +238,8 @@ func (obj *Func) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("func ")
 	obj.fullname(&buf)
-	if sig, _ := obj.typ.(*Signature); sig != nil {
-		writeSignature(&buf, sig)
+	if obj.typ != nil {
+		writeSignature(&buf, obj.typ.(*Signature))
 	}
 	return buf.String()
 }
@@ -244,7 +250,19 @@ type Label struct {
 }
 
 func NewLabel(pos token.Pos, name string) *Label {
-	return &Label{object{nil, pos, nil, name, nil, false}}
+	return &Label{object{pos: pos, name: name}}
 }
 
 func (obj *Label) String() string { return fmt.Sprintf("label %s", obj.Name()) }
+
+// A Builtin represents a built-in function.
+// Builtins don't have a valid type.
+type Builtin struct {
+	object
+
+	id builtinId
+}
+
+func newBuiltin(id builtinId) *Builtin {
+	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid]}, id}
+}

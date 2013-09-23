@@ -21,6 +21,7 @@ type operandMode int
 const (
 	invalid  operandMode = iota // operand is invalid
 	novalue                     // operand represents no value (result of a function call w/o result)
+	builtin                     // operand is a built-in function
 	typexpr                     // operand is a type
 	constant                    // operand is a constant; the operand's typ is a Basic type
 	variable                    // operand is an addressable variable
@@ -31,6 +32,7 @@ const (
 var operandModeString = [...]string{
 	invalid:  "invalid",
 	novalue:  "no value",
+	builtin:  "builtin",
 	typexpr:  "type",
 	constant: "constant",
 	variable: "variable",
@@ -40,7 +42,8 @@ var operandModeString = [...]string{
 
 // An operand represents an intermediate value during type checking.
 // Operands have an (addressing) mode, the expression evaluating to
-// the operand, the operand's type, and a value if mode == constant.
+// the operand, the operand's type, and a value if mode == constant
+// or builtin. The built-in id is encoded as an exact Int64 in val.
 // The zero value of operand is a ready to use invalid operand.
 //
 type operand struct {

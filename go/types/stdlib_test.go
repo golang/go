@@ -134,7 +134,6 @@ func TestStdfixed(t *testing.T) {
 		"bug223.go", "bug413.go", "bug459.go", // TODO(gri) complete initialization checks
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"bug250.go",    // TODO(gri) fix recursive interfaces
-		"bug376.go",    // TODO(gri) built-ins must be called (no built-in function expressions)
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
 		"issue4847.go", // TODO(gri) initialization cycle error not found
 	)

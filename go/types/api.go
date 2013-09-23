@@ -185,7 +185,5 @@ func IsAssignableTo(V, T Type) bool {
 
 // BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).
 // BUG(gri): Use of labels is only partially checked.
-// BUG(gri): Unused variables and imports are not reported.
 // BUG(gri): Interface vs non-interface comparisons are not correctly implemented.
 // BUG(gri): Switch statements don't check duplicate cases for all types for which it is required.
-// BUG(gri): Some built-ins may not be callable if in statement-context.

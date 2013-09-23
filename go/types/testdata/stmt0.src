@@ -149,18 +149,20 @@ func selects() {
 
 func gos() {
 	go 1 /* ERROR "expected function/method call" */
+	go int /* ERROR "go requires function call, not conversion" */ (0)
 	go gos()
 	var c chan int
 	go close(c)
-	go len(c) // TODO(gri) this should not be legal
+	go len /* ERROR "go discards result" */ (c)
 }
 
 func defers() {
 	defer 1 /* ERROR "expected function/method call" */
+	defer int /* ERROR "defer requires function call, not conversion" */ (0)
 	defer defers()
 	var c chan int
 	defer close(c)
-	defer len(c) // TODO(gri) this should not be legal
+	defer len /* ERROR "defer discards result" */ (c)
 }
 
 func switches0() {

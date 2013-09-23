@@ -16,13 +16,11 @@ import (
 // TODO(gri): Several built-ins are missing assignment checks. As a result,
 //            non-constant shift arguments may not be properly type-checked.
 
-// builtin typechecks a built-in call. The built-in type is bin, and the result
-// of the call is returned via x. If the call has type errors, the returned x is
-// marked as invalid (x.mode == invalid).
+// builtin typechecks a call to a built-in and returns the result via x.
+// If the call has type errors, the returned x is marked as invalid.
 //
-func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
+func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) {
 	args := call.Args
-	id := bin.id
 
 	// declare before goto's
 	var arg0 ast.Expr // first argument, if present
@@ -30,9 +28,10 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *Builtin) {
 	// check argument count
 	n := len(args)
 	msg := ""
+	bin := predeclaredFuncs[id]
 	if n < bin.nargs {
 		msg = "not enough"
-	} else if !bin.isVariadic && n > bin.nargs {
+	} else if !bin.variadic && n > bin.nargs {
 		msg = "too many"
 	}
 	if msg != "" {

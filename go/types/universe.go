@@ -19,7 +19,6 @@ var (
 	universeIota *Const
 )
 
-// Predeclared types, indexed by BasicKind.
 var Typ = [...]*Basic{
 	Invalid: {Invalid, 0, 0, "invalid type"},
 
@@ -56,41 +55,7 @@ var aliases = [...]*Basic{
 	{Rune, IsInteger, 4, "rune"},
 }
 
-var predeclaredConstants = [...]*Const{
-	NewConst(token.NoPos, nil, "true", Typ[UntypedBool], exact.MakeBool(true)),
-	NewConst(token.NoPos, nil, "false", Typ[UntypedBool], exact.MakeBool(false)),
-	NewConst(token.NoPos, nil, "iota", Typ[UntypedInt], exact.MakeInt64(0)),
-	NewConst(token.NoPos, nil, "nil", Typ[UntypedNil], exact.MakeNil()),
-}
-
-var predeclaredFunctions = [...]*Builtin{
-	{_Append, "append", 1, true, false},
-	{_Cap, "cap", 1, false, false},
-	{_Close, "close", 1, false, true},
-	{_Complex, "complex", 2, false, false},
-	{_Copy, "copy", 2, false, true},
-	{_Delete, "delete", 2, false, true},
-	{_Imag, "imag", 1, false, false},
-	{_Len, "len", 1, false, false},
-	{_Make, "make", 1, true, false},
-	{_New, "new", 1, false, false},
-	{_Panic, "panic", 1, false, true},
-	{_Print, "print", 0, true, true},
-	{_Println, "println", 0, true, true},
-	{_Real, "real", 1, false, false},
-	{_Recover, "recover", 0, false, true},
-
-	{_Alignof, "Alignof", 1, false, false},
-	{_Offsetof, "Offsetof", 1, false, false},
-	{_Sizeof, "Sizeof", 1, false, false},
-}
-
-func init() {
-	Universe = NewScope(nil)
-	Unsafe = NewPackage("unsafe", "unsafe", NewScope(Universe))
-	Unsafe.complete = true
-
-	// predeclared types
+func defPredeclaredTypes() {
 	for _, t := range Typ {
 		def(NewTypeName(token.NoPos, nil, t.name, t))
 	}
@@ -98,24 +63,116 @@ func init() {
 		def(NewTypeName(token.NoPos, nil, t.name, t))
 	}
 
-	// error type
-	{
-		// Error has a nil package in its qualified name since it is in no package
-		res := NewVar(token.NoPos, nil, "", Typ[String])
-		sig := &Signature{results: NewTuple(res)}
-		err := NewFunc(token.NoPos, nil, "Error", sig)
-		typ := &Named{underlying: &Interface{methods: []*Func{err}}, complete: true}
-		sig.recv = NewVar(token.NoPos, nil, "", typ)
-		def(NewTypeName(token.NoPos, nil, "error", typ))
-	}
+	// Error has a nil package in its qualified name since it is in no package
+	res := NewVar(token.NoPos, nil, "", Typ[String])
+	sig := &Signature{results: NewTuple(res)}
+	err := NewFunc(token.NoPos, nil, "Error", sig)
+	typ := &Named{underlying: &Interface{methods: []*Func{err}}, complete: true}
+	sig.recv = NewVar(token.NoPos, nil, "", typ)
+	def(NewTypeName(token.NoPos, nil, "error", typ))
+}
 
-	for _, c := range predeclaredConstants {
-		def(c)
-	}
+var predeclaredConsts = [...]struct {
+	name string
+	kind BasicKind
+	val  exact.Value
+}{
+	{"true", UntypedBool, exact.MakeBool(true)},
+	{"false", UntypedBool, exact.MakeBool(false)},
+	{"iota", UntypedInt, exact.MakeInt64(0)},
+	{"nil", UntypedNil, exact.MakeNil()},
+}
 
-	for _, f := range predeclaredFunctions {
-		def(NewFunc(token.NoPos, nil, f.name, f))
+func defPredeclaredConsts() {
+	for _, c := range predeclaredConsts {
+		def(NewConst(token.NoPos, nil, c.name, Typ[c.kind], c.val))
 	}
+}
+
+// A builtinId is the id of a builtin function.
+type builtinId int
+
+const (
+	// universe scope
+	_Append builtinId = iota
+	_Cap
+	_Close
+	_Complex
+	_Copy
+	_Delete
+	_Imag
+	_Len
+	_Make
+	_New
+	_Panic
+	_Print
+	_Println
+	_Real
+	_Recover
+
+	// package unsafe
+	_Alignof
+	_Offsetof
+	_Sizeof
+
+	// testing support
+	_Assert
+	_Trace
+)
+
+var predeclaredFuncs = [...]struct {
+	name     string
+	nargs    int
+	variadic bool
+	kind     exprKind
+}{
+	_Append:  {"append", 1, true, expression},
+	_Cap:     {"cap", 1, false, expression},
+	_Close:   {"close", 1, false, statement},
+	_Complex: {"complex", 2, false, expression},
+	_Copy:    {"copy", 2, false, statement},
+	_Delete:  {"delete", 2, false, statement},
+	_Imag:    {"imag", 1, false, expression},
+	_Len:     {"len", 1, false, expression},
+	_Make:    {"make", 1, true, expression},
+	_New:     {"new", 1, false, expression},
+	_Panic:   {"panic", 1, false, statement},
+	_Print:   {"print", 0, true, statement},
+	_Println: {"println", 0, true, statement},
+	_Real:    {"real", 1, false, expression},
+	_Recover: {"recover", 0, false, statement},
+
+	_Alignof:  {"Alignof", 1, false, expression},
+	_Offsetof: {"Offsetof", 1, false, expression},
+	_Sizeof:   {"Sizeof", 1, false, expression},
+
+	_Assert: {"assert", 1, false, statement},
+	_Trace:  {"trace", 0, true, statement},
+}
+
+func defPredeclaredFuncs() {
+	for i := range predeclaredFuncs {
+		id := builtinId(i)
+		if id == _Assert || id == _Trace {
+			continue // only define these in testing environment
+		}
+		def(newBuiltin(id))
+	}
+}
+
+func defPredeclaredTestFuncs() {
+	def(newBuiltin(_Assert))
+	def(newBuiltin(_Trace))
+}
+
+func init() {
+	Universe = NewScope(nil)
+	Unsafe = NewPackage("unsafe", "unsafe", NewScope(Universe))
+	Unsafe.complete = true
+
+	defPredeclaredTypes()
+	defPredeclaredConsts()
+	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota").(*Const)
 }
@@ -141,7 +198,7 @@ func def(obj Object) {
 		switch obj := obj.(type) {
 		case *TypeName:
 			obj.pkg = Unsafe
-		case *Func:
+		case *Builtin:
 			obj.pkg = Unsafe
 		default:
 			unreachable()

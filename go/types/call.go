@@ -9,11 +9,26 @@ package types
 import (
 	"go/ast"
 	"go/token"
+
+	"code.google.com/p/go.tools/go/exact"
 )
 
-func (check *checker) call(x *operand, e *ast.CallExpr) {
+// exprKind describes the kind of an expression;
+// the kind determines if an expression is valid
+// in 'statement context'.
+type exprKind int
+
+const (
+	conversion exprKind = iota
+	expression
+	statement
+)
+
+func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 	check.exprOrType(x, e.Fun)
-	if x.mode == invalid {
+
+	switch x.mode {
+	case invalid:
 		// We don't have a valid call or conversion but we have a list of arguments.
 		// Typecheck them independently for better partial type information in
 		// the presence of type errors.
@@ -22,10 +37,9 @@ func (check *checker) call(x *operand, e *ast.CallExpr) {
 		}
 		x.mode = invalid
 		x.expr = e
-		return
-	}
+		return statement
 
-	if x.mode == typexpr {
+	case typexpr:
 		// conversion
 		T := x.typ
 		x.mode = invalid
@@ -44,11 +58,23 @@ func (check *checker) call(x *operand, e *ast.CallExpr) {
 			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
 		x.expr = e
-		return
-	}
+		return conversion
 
-	if sig, ok := x.typ.Underlying().(*Signature); ok {
+	case builtin:
+		id, _ := exact.Int64Val(x.val)
+		check.builtin(x, e, builtinId(id))
+		return predeclaredFuncs[id].kind
+
+	default:
 		// function/method call
+		sig, _ := x.typ.Underlying().(*Signature)
+		if sig == nil {
+			check.invalidOp(x.pos(), "cannot call non-function %s", x)
+			x.mode = invalid
+			x.expr = e
+			return statement
+		}
+
 		passSlice := false
 		if e.Ellipsis.IsValid() {
 			// last argument is of the form x...
@@ -116,17 +142,9 @@ func (check *checker) call(x *operand, e *ast.CallExpr) {
 			x.typ = sig.results
 		}
 		x.expr = e
-		return
-	}
 
-	if bin, ok := x.typ.(*Builtin); ok {
-		check.builtin(x, e, bin)
-		return
+		return statement
 	}
-
-	check.invalidOp(x.pos(), "cannot call non-function %s", x)
-	x.mode = invalid
-	x.expr = e
 }
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
@@ -218,6 +236,10 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			case *Func:
 				x.mode = value
 				x.typ = exp.typ
+			case *Builtin:
+				x.mode = builtin
+				x.typ = exp.typ
+				x.val = exact.MakeInt64(int64(exp.id))
 			default:
 				unreachable()
 			}

@@ -32,11 +32,7 @@ func (check *checker) isTerminating(s ast.Stmt, label string) bool {
 		if call, _ := s.X.(*ast.CallExpr); call != nil {
 			if id, _ := call.Fun.(*ast.Ident); id != nil {
 				if obj := check.topScope.LookupParent(id.Name); obj != nil {
-					// TODO(gri) Predeclared functions should be modelled as objects
-					//           rather then ordinary functions that have a predeclared
-					//           function type. This would simplify code here and else-
-					//           where.
-					if f, _ := obj.(*Func); f != nil && f.typ == predeclaredFunctions[_Panic] {
+					if b, _ := obj.(*Builtin); b != nil && b.id == _Panic {
 						return true
 					}
 				}
