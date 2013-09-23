@@ -110,6 +110,7 @@ my $PS2PDF = "ps2pdf";
 my $HEAP_PAGE = "/pprof/heap";
 my $THREAD_PAGE = "/pprof/thread";
 my $PROFILE_PAGE = "/pprof/profile";   # must support cgi-param "?seconds=#"
+my $BLOCK_PAGE = "/pprof/block";
 my $PMUPROFILE_PAGE = "/pprof/pmuprofile(?:\\?.*)?"; # must support cgi-param
                                                 # ?seconds=#&event=x&period=n
 my $GROWTH_PAGE = "/pprof/growth";
@@ -162,7 +163,7 @@ pprof [options] <profile>
 
    The /<service> can be $HEAP_PAGE, $PROFILE_PAGE, /pprof/pmuprofile,
                          $GROWTH_PAGE, $CONTENTION_PAGE, /pprof/wall,
-                         $THREAD_PAGE, or /pprof/filteredprofile.
+                         $THREAD_PAGE, $BLOCK_PAGE or /pprof/filteredprofile.
    For instance:
      pprof http://myserver.com:80$HEAP_PAGE
    If /<service> is omitted, the service defaults to $PROFILE_PAGE (cpu profiling).
@@ -3002,7 +3003,7 @@ sub IsProfileURL {
 sub ParseProfileURL {
   my $profile_name = shift;
   if (defined($profile_name) &&
-      $profile_name =~ m,^(?:(https?)://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$THREAD_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
+      $profile_name =~ m,^(?:(https?)://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$THREAD_PAGE|$BLOCK_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
     # $7 is $PROFILE_PAGE/$HEAP_PAGE/etc.  $5 is *everything* after
     # the hostname, as long as that everything is the empty string,
     # a slash, or something ending in $PROFILE_PAGE/$HEAP_PAGE/etc.
