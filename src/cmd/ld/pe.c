@@ -151,6 +151,7 @@ peinit(void)
 
 	// some mingw libs depend on this symbol, for example, FindPESectionByName
 	xdefine("__image_base__", SDATA, PEBASE);
+	xdefine("_image_base__", SDATA, PEBASE);
 }
 
 static void
