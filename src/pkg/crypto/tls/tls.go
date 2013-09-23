@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tls partially implements TLS 1.1, as specified in RFC 4346.
+// Package tls partially implements TLS 1.2, as specified in RFC 4346.
 package tls
 
 import (
