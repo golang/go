@@ -70,6 +70,7 @@ pkg encoding, type TextUnmarshaler interface { UnmarshalText }
 pkg encoding, type TextUnmarshaler interface, UnmarshalText([]uint8) error
 pkg encoding/xml, method (*Encoder) EncodeElement(interface{}, StartElement) error
 pkg encoding/xml, method (*Encoder) EncodeToken(Token) error
+pkg encoding/xml, method (*Encoder) Flush() error
 pkg encoding/xml, method (StartElement) End() EndElement
 pkg encoding/xml, type Marshaler interface { MarshalXML }
 pkg encoding/xml, type Marshaler interface, MarshalXML(*Encoder, StartElement) error
@@ -87,10 +88,13 @@ pkg flag, var CommandLine *FlagSet
 pkg go/ast, type SliceExpr struct, Max Expr
 pkg go/ast, type TypeAssertExpr struct, Lparen token.Pos
 pkg go/ast, type TypeAssertExpr struct, Rparen token.Pos
+pkg go/build, method (*Context) MatchFile(string, string) (bool, error)
 pkg go/build, type Package struct, AllTags []string
 pkg go/build, type Package struct, CXXFiles []string
 pkg go/build, type Package struct, CgoCPPFLAGS []string
 pkg go/build, type Package struct, CgoCXXFLAGS []string
+pkg go/build, type Package struct, ConflictDir string
+pkg go/token, method (*File) MergeLine(int)
 pkg html/template, type Template struct, Tree *parse.Tree
 pkg image/color/palette, var Plan9 []color.Color
 pkg image/color/palette, var WebSafe []color.Color
@@ -754,11 +758,14 @@ pkg log/syslog (openbsd-amd64-cgo), type Writer struct
 pkg net, method (*IP) UnmarshalText([]uint8) error
 pkg net, method (*TCPConn) SetKeepAlivePeriod(time.Duration) error
 pkg net, method (IP) MarshalText() ([]uint8, error)
+pkg net, type Dialer struct, DualStack bool
 pkg net/smtp, method (*Client) Close() error
 pkg os (linux-arm), const O_SYNC = 1052672
 pkg os (linux-arm-cgo), const O_SYNC = 1052672
 pkg reflect, method (Value) SetCap(int)
 pkg reflect, method (Value) Slice3(int, int, int) Value
+pkg runtime, type MemStats struct, GCSys uint64
+pkg runtime, type MemStats struct, OtherSys uint64
 pkg runtime/debug, func SetMaxStack(int) int
 pkg runtime/debug, func SetMaxThreads(int) int
 pkg sort, func Stable(Interface)
@@ -9798,6 +9805,12 @@ pkg syscall (linux-386), const SizeofICMPv6Filter = 32
 pkg syscall (linux-386), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-386), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-386), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-386), const TCIFLUSH = 0
+pkg syscall (linux-386), const TCIFLUSH ideal-int
+pkg syscall (linux-386), const TCIOFLUSH = 2
+pkg syscall (linux-386), const TCIOFLUSH ideal-int
+pkg syscall (linux-386), const TCOFLUSH = 1
+pkg syscall (linux-386), const TCOFLUSH ideal-int
 pkg syscall (linux-386), func Dup3(int, int, int) error
 pkg syscall (linux-386), func Getpriority(int, int) (int, error)
 pkg syscall (linux-386), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -9867,6 +9880,12 @@ pkg syscall (linux-386-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (linux-386-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-386-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-386-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-386-cgo), const TCIFLUSH = 0
+pkg syscall (linux-386-cgo), const TCIFLUSH ideal-int
+pkg syscall (linux-386-cgo), const TCIOFLUSH = 2
+pkg syscall (linux-386-cgo), const TCIOFLUSH ideal-int
+pkg syscall (linux-386-cgo), const TCOFLUSH = 1
+pkg syscall (linux-386-cgo), const TCOFLUSH ideal-int
 pkg syscall (linux-386-cgo), func Dup3(int, int, int) error
 pkg syscall (linux-386-cgo), func Getpriority(int, int) (int, error)
 pkg syscall (linux-386-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -9936,6 +9955,12 @@ pkg syscall (linux-amd64), const SizeofICMPv6Filter = 32
 pkg syscall (linux-amd64), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-amd64), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-amd64), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-amd64), const TCIFLUSH = 0
+pkg syscall (linux-amd64), const TCIFLUSH ideal-int
+pkg syscall (linux-amd64), const TCIOFLUSH = 2
+pkg syscall (linux-amd64), const TCIOFLUSH ideal-int
+pkg syscall (linux-amd64), const TCOFLUSH = 1
+pkg syscall (linux-amd64), const TCOFLUSH ideal-int
 pkg syscall (linux-amd64), func Dup3(int, int, int) error
 pkg syscall (linux-amd64), func Getpriority(int, int) (int, error)
 pkg syscall (linux-amd64), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -10005,6 +10030,12 @@ pkg syscall (linux-amd64-cgo), const SizeofICMPv6Filter = 32
 pkg syscall (linux-amd64-cgo), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-amd64-cgo), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-amd64-cgo), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-amd64-cgo), const TCIFLUSH = 0
+pkg syscall (linux-amd64-cgo), const TCIFLUSH ideal-int
+pkg syscall (linux-amd64-cgo), const TCIOFLUSH = 2
+pkg syscall (linux-amd64-cgo), const TCIOFLUSH ideal-int
+pkg syscall (linux-amd64-cgo), const TCOFLUSH = 1
+pkg syscall (linux-amd64-cgo), const TCOFLUSH ideal-int
 pkg syscall (linux-amd64-cgo), func Dup3(int, int, int) error
 pkg syscall (linux-amd64-cgo), func Getpriority(int, int) (int, error)
 pkg syscall (linux-amd64-cgo), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -10074,6 +10105,12 @@ pkg syscall (linux-arm), const SizeofICMPv6Filter = 32
 pkg syscall (linux-arm), const SizeofICMPv6Filter ideal-int
 pkg syscall (linux-arm), const SizeofIPv6MTUInfo = 32
 pkg syscall (linux-arm), const SizeofIPv6MTUInfo ideal-int
+pkg syscall (linux-arm), const TCIFLUSH = 0
+pkg syscall (linux-arm), const TCIFLUSH ideal-int
+pkg syscall (linux-arm), const TCIOFLUSH = 2
+pkg syscall (linux-arm), const TCIOFLUSH ideal-int
+pkg syscall (linux-arm), const TCOFLUSH = 1
+pkg syscall (linux-arm), const TCOFLUSH ideal-int
 pkg syscall (linux-arm), func Dup3(int, int, int) error
 pkg syscall (linux-arm), func Getpriority(int, int) (int, error)
 pkg syscall (linux-arm), func GetsockoptICMPv6Filter(int, int, int) (*ICMPv6Filter, error)
@@ -11751,6 +11788,12 @@ pkg syscall (linux-arm-cgo), const SizeofSockaddrUnix ideal-int
 pkg syscall (linux-arm-cgo), const SizeofTCPInfo ideal-int
 pkg syscall (linux-arm-cgo), const SizeofUcred ideal-int
 pkg syscall (linux-arm-cgo), const TCGETS ideal-int
+pkg syscall (linux-arm-cgo), const TCIFLUSH = 0
+pkg syscall (linux-arm-cgo), const TCIFLUSH ideal-int
+pkg syscall (linux-arm-cgo), const TCIOFLUSH = 2
+pkg syscall (linux-arm-cgo), const TCIOFLUSH ideal-int
+pkg syscall (linux-arm-cgo), const TCOFLUSH = 1
+pkg syscall (linux-arm-cgo), const TCOFLUSH ideal-int
 pkg syscall (linux-arm-cgo), const TCP_CONGESTION ideal-int
 pkg syscall (linux-arm-cgo), const TCP_CORK ideal-int
 pkg syscall (linux-arm-cgo), const TCP_DEFER_ACCEPT ideal-int
@@ -32427,6 +32470,8 @@ pkg testing, type TB interface, SkipNow()
 pkg testing, type TB interface, Skipf(string, ...interface{})
 pkg testing, type TB interface, Skipped() bool
 pkg testing, type TB interface, unexported methods
+pkg text/template, method (Template) Copy() *parse.Tree
+pkg text/template/parse, method (*Tree) Copy() *Tree
 pkg time, method (*Time) UnmarshalBinary([]uint8) error
 pkg time, method (*Time) UnmarshalText([]uint8) error
 pkg time, method (Time) MarshalBinary() ([]uint8, error)
