@@ -295,7 +295,7 @@ func defaultContext() Context {
 	// When we reach Go 1.3 the line will read
 	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3"}
 	// and so on.
-	c.ReleaseTags = []string{"go1.1"}
+	c.ReleaseTags = []string{"go1.1", "go1.2"}
 
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
