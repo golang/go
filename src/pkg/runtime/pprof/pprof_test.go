@@ -183,11 +183,11 @@ func TestCPUProfileWithFork(t *testing.T) {
 // If it did, it would see inconsistent state and would either record an incorrect stack
 // or crash because the stack was malformed.
 func TestGoroutineSwitch(t *testing.T) {
-	// How much to try. These defaults take about 6 seconds
-	// on a 2011 Windows 7 64 bit notebook. The ones in short mode take
-	// about 0.6 seconds.
+	// How much to try. These defaults take about 1 seconds
+	// on a 2012 MacBook Pro. The ones in short mode take
+	// about 0.1 seconds.
 	tries := 10
-	count := 4000000
+	count := 1000000
 	if testing.Short() {
 		tries = 1
 	}
