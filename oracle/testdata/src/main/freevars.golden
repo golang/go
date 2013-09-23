@@ -1,11 +1,11 @@
 -------- @freevars fv1 --------
-Free identifers:
+Free identifiers:
 type C main.C
 const exp int
 var x int
 
 -------- @freevars fv2 --------
-Free identifers:
+Free identifiers:
 var s.t.a int
 var s.t.b int
 var s.x int
@@ -13,6 +13,6 @@ var x int
 var y int32
 
 -------- @freevars fv3 --------
-Free identifers:
+Free identifiers:
 var x int
 

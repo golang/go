@@ -33,25 +33,25 @@ import (
 //
 // All printed sets are sorted to ensure determinism.
 //
-func describe(o *oracle) (queryResult, error) {
+func describe(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	if false { // debugging
-		o.fprintf(os.Stderr, o.queryPath[0], "you selected: %s %s",
-			importer.NodeDescription(o.queryPath[0]), pathToString2(o.queryPath))
+		o.fprintf(os.Stderr, qpos.path[0], "you selected: %s %s",
+			importer.NodeDescription(qpos.path[0]), pathToString2(qpos.path))
 	}
 
-	path, action := findInterestingNode(o.queryPkgInfo, o.queryPath)
+	path, action := findInterestingNode(qpos.info, qpos.path)
 	switch action {
 	case actionExpr:
-		return describeValue(o, path)
+		return describeValue(o, qpos, path)
 
 	case actionType:
-		return describeType(o, path)
+		return describeType(o, qpos, path)
 
 	case actionPackage:
-		return describePackage(o, path)
+		return describePackage(o, qpos, path)
 
 	case actionStmt:
-		return describeStmt(o, path)
+		return describeStmt(o, qpos, path)
 
 	case actionUnknown:
 		return &describeUnknownResult{path[0]}, nil
@@ -305,11 +305,11 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 // to the root of the AST is path.  It may return a nil Value without
 // an error to indicate the pointer analysis is not appropriate.
 //
-func ssaValueForIdent(o *oracle, obj types.Object, path []ast.Node) (ssa.Value, error) {
+func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.Object, path []ast.Node) (ssa.Value, error) {
 	if obj, ok := obj.(*types.Var); ok {
-		pkg := o.prog.Package(o.queryPkgInfo.Pkg)
+		pkg := prog.Package(qinfo.Pkg)
 		pkg.Build()
-		if v := o.prog.VarValue(obj, pkg, path); v != nil {
+		if v := prog.VarValue(obj, pkg, path); v != nil {
 			// Don't run pointer analysis on a ref to a const expression.
 			if _, ok := v.(*ssa.Const); ok {
 				v = nil
@@ -328,8 +328,8 @@ func ssaValueForIdent(o *oracle, obj types.Object, path []ast.Node) (ssa.Value, 
 // return a nil Value without an error to indicate the pointer
 // analysis is not appropriate.
 //
-func ssaValueForExpr(o *oracle, path []ast.Node) (ssa.Value, error) {
-	pkg := o.prog.Package(o.queryPkgInfo.Pkg)
+func ssaValueForExpr(prog *ssa.Program, qinfo *importer.PackageInfo, path []ast.Node) (ssa.Value, error) {
+	pkg := prog.Package(qinfo.Pkg)
 	pkg.SetDebugMode(true)
 	pkg.Build()
 
@@ -345,7 +345,7 @@ func ssaValueForExpr(o *oracle, path []ast.Node) (ssa.Value, error) {
 	return nil, fmt.Errorf("can't locate SSA Value for expression in %s", fn)
 }
 
-func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
+func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueResult, error) {
 	var expr ast.Expr
 	var obj types.Object
 	switch n := path[0].(type) {
@@ -353,7 +353,7 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 		// ambiguous ValueSpec containing multiple names
 		return nil, o.errorf(n, "multiple value specification")
 	case *ast.Ident:
-		obj = o.queryPkgInfo.ObjectOf(n)
+		obj = qpos.info.ObjectOf(n)
 		expr = n
 	case ast.Expr:
 		expr = n
@@ -362,8 +362,8 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 		return nil, o.errorf(n, "unexpected AST for expr: %T", n)
 	}
 
-	typ := o.queryPkgInfo.TypeOf(expr)
-	constVal := o.queryPkgInfo.ValueOf(expr)
+	typ := qpos.info.TypeOf(expr)
+	constVal := qpos.info.ValueOf(expr)
 
 	// From this point on, we cannot fail with an error.
 	// Failure to run the pointer analysis will be reported later.
@@ -386,11 +386,11 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 		var value ssa.Value
 		if obj != nil {
 			// def/ref of func/var/const object
-			value, ptaErr = ssaValueForIdent(o, obj, path)
+			value, ptaErr = ssaValueForIdent(o.prog, qpos.info, obj, path)
 		} else {
 			// any other expression
-			if o.queryPkgInfo.ValueOf(path[0].(ast.Expr)) == nil { // non-constant?
-				value, ptaErr = ssaValueForExpr(o, path)
+			if qpos.info.ValueOf(path[0].(ast.Expr)) == nil { // non-constant?
+				value, ptaErr = ssaValueForExpr(o.prog, qpos.info, path)
 			}
 		}
 		if value != nil {
@@ -404,6 +404,7 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 	}
 
 	return &describeValueResult{
+		qpos:     qpos,
 		expr:     expr,
 		typ:      typ,
 		constVal: constVal,
@@ -414,7 +415,7 @@ func describeValue(o *oracle, path []ast.Node) (*describeValueResult, error) {
 }
 
 // describePointer runs the pointer analysis of the selected SSA value.
-func describePointer(o *oracle, v ssa.Value, indirect bool) (ptrs []pointerResult, err error) {
+func describePointer(o *Oracle, v ssa.Value, indirect bool) (ptrs []pointerResult, err error) {
 	buildSSA(o)
 
 	// TODO(adonovan): don't run indirect pointer analysis on non-ptr-ptrlike types.
@@ -454,6 +455,7 @@ type pointerResult struct {
 }
 
 type describeValueResult struct {
+	qpos     *QueryPos
 	expr     ast.Expr        // query node
 	typ      types.Type      // type of expression
 	constVal exact.Value     // value of expression, if constant
@@ -524,7 +526,7 @@ func (r *describeValueResult) display(printf printfFunc) {
 		// reflect.Value expression.
 
 		if len(r.ptrs) > 0 {
-			printf(false, "this %s may contain these dynamic types:", r.typ)
+			printf(r.qpos, "this %s may contain these dynamic types:", r.typ)
 			for _, ptr := range r.ptrs {
 				var obj types.Object
 				if nt, ok := deref(ptr.typ).(*types.Named); ok {
@@ -538,15 +540,15 @@ func (r *describeValueResult) display(printf printfFunc) {
 				}
 			}
 		} else {
-			printf(false, "this %s cannot contain any dynamic types.", r.typ)
+			printf(r.qpos, "this %s cannot contain any dynamic types.", r.typ)
 		}
 	} else {
 		// Show labels for other expressions.
 		if ptr := r.ptrs[0]; len(ptr.labels) > 0 {
-			printf(false, "value may point to these labels:")
+			printf(r.qpos, "value may point to these labels:")
 			printLabels(printf, ptr.labels, "\t")
 		} else {
-			printf(false, "value cannot point to anything.")
+			printf(r.qpos, "value cannot point to anything.")
 		}
 	}
 }
@@ -622,12 +624,12 @@ func printLabels(printf printfFunc, labels []*pointer.Label, prefix string) {
 
 // ---- TYPE ------------------------------------------------------------
 
-func describeType(o *oracle, path []ast.Node) (*describeTypeResult, error) {
+func describeType(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeTypeResult, error) {
 	var description string
 	var t types.Type
 	switch n := path[0].(type) {
 	case *ast.Ident:
-		t = o.queryPkgInfo.TypeOf(n)
+		t = qpos.info.TypeOf(n)
 		switch t := t.(type) {
 		case *types.Basic:
 			description = "reference to built-in type " + t.String()
@@ -642,7 +644,7 @@ func describeType(o *oracle, path []ast.Node) (*describeTypeResult, error) {
 		}
 
 	case ast.Expr:
-		t = o.queryPkgInfo.TypeOf(n)
+		t = qpos.info.TypeOf(n)
 		description = "type " + t.String()
 
 	default:
@@ -654,7 +656,7 @@ func describeType(o *oracle, path []ast.Node) (*describeTypeResult, error) {
 		node:        path[0],
 		description: description,
 		typ:         t,
-		methods:     accessibleMethods(t, o.queryPkgInfo.Pkg),
+		methods:     accessibleMethods(t, qpos.info.Pkg),
 	}, nil
 }
 
@@ -708,7 +710,7 @@ func (r *describeTypeResult) toJSON(res *json.Result, fset *token.FileSet) {
 
 // ---- PACKAGE ------------------------------------------------------------
 
-func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error) {
+func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePackageResult, error) {
 	var description string
 	var pkg *types.Package
 	switch n := path[0].(type) {
@@ -724,12 +726,12 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 	case *ast.Ident:
 		if _, isDef := path[1].(*ast.File); isDef {
 			// e.g. package id
-			pkg = o.queryPkgInfo.Pkg
+			pkg = qpos.info.Pkg
 			description = fmt.Sprintf("definition of package %q", pkg.Path())
 		} else {
 			// e.g. import id
 			//  or  id.F()
-			pkg = o.queryPkgInfo.ObjectOf(n).Pkg()
+			pkg = qpos.info.ObjectOf(n).Pkg()
 			description = fmt.Sprintf("reference to package %q", pkg.Path())
 		}
 
@@ -744,11 +746,11 @@ func describePackage(o *oracle, path []ast.Node) (*describePackageResult, error)
 		// Enumerate the accessible package members
 		// in lexicographic order.
 		for _, name := range pkg.Scope().Names() {
-			if pkg == o.queryPkgInfo.Pkg || ast.IsExported(name) {
+			if pkg == qpos.info.Pkg || ast.IsExported(name) {
 				mem := pkg.Scope().Lookup(name)
 				var methods []*types.Selection
 				if mem, ok := mem.(*types.TypeName); ok {
-					methods = accessibleMethods(mem.Type(), o.queryPkgInfo.Pkg)
+					methods = accessibleMethods(mem.Type(), qpos.info.Pkg)
 				}
 				members = append(members, &describeMember{
 					mem,
@@ -878,11 +880,11 @@ func tokenOf(o types.Object) string {
 
 // ---- STATEMENT ------------------------------------------------------------
 
-func describeStmt(o *oracle, path []ast.Node) (*describeStmtResult, error) {
+func describeStmt(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeStmtResult, error) {
 	var description string
 	switch n := path[0].(type) {
 	case *ast.Ident:
-		if o.queryPkgInfo.ObjectOf(n).Pos() == n.Pos() {
+		if qpos.info.ObjectOf(n).Pos() == n.Pos() {
 			description = "labelled statement"
 		} else {
 			description = "reference to labelled statement"

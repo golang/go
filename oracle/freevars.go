@@ -26,9 +26,9 @@ import (
 // these might be interesting.  Perhaps group the results into three
 // bands.
 //
-func freevars(o *oracle) (queryResult, error) {
-	file := o.queryPath[len(o.queryPath)-1] // the enclosing file
-	fileScope := o.queryPkgInfo.Scopes[file]
+func freevars(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	file := qpos.path[len(qpos.path)-1] // the enclosing file
+	fileScope := qpos.info.Scopes[file]
 	pkgScope := fileScope.Parent()
 
 	// The id and sel functions return non-nil if they denote an
@@ -49,7 +49,7 @@ func freevars(o *oracle) (queryResult, error) {
 	}
 
 	id = func(n *ast.Ident) types.Object {
-		obj := o.queryPkgInfo.ObjectOf(n)
+		obj := qpos.info.ObjectOf(n)
 		if obj == nil {
 			return nil // TODO(adonovan): fix: this fails for *types.Label.
 			panic(o.errorf(n, "no types.Object for ast.Ident"))
@@ -70,7 +70,7 @@ func freevars(o *oracle) (queryResult, error) {
 		if scope == fileScope || scope == pkgScope {
 			return nil // defined at file or package scope
 		}
-		if o.startPos <= obj.Pos() && obj.Pos() <= o.endPos {
+		if qpos.start <= obj.Pos() && obj.Pos() <= qpos.end {
 			return nil // defined within selection => not free
 		}
 		return obj
@@ -82,7 +82,7 @@ func freevars(o *oracle) (queryResult, error) {
 	refsMap := make(map[string]freevarsRef)
 
 	// Visit all the identifiers in the selected ASTs.
-	ast.Inspect(o.queryPath[0], func(n ast.Node) bool {
+	ast.Inspect(qpos.path[0], func(n ast.Node) bool {
 		if n == nil {
 			return true // popping DFS stack
 		}
@@ -90,7 +90,7 @@ func freevars(o *oracle) (queryResult, error) {
 		// Is this node contained within the selection?
 		// (freevars permits inexact selections,
 		// like two stmts in a block.)
-		if o.startPos <= n.Pos() && n.End() <= o.endPos {
+		if qpos.start <= n.Pos() && n.End() <= qpos.end {
 			var obj types.Object
 			var prune bool
 			switch n := n.(type) {
@@ -119,7 +119,7 @@ func freevars(o *oracle) (queryResult, error) {
 					panic(obj)
 				}
 
-				typ := o.queryPkgInfo.TypeOf(n.(ast.Expr))
+				typ := qpos.info.TypeOf(n.(ast.Expr))
 				ref := freevarsRef{kind, o.printNode(n), typ, obj}
 				refsMap[ref.ref] = ref
 
@@ -139,12 +139,14 @@ func freevars(o *oracle) (queryResult, error) {
 	sort.Sort(byRef(refs))
 
 	return &freevarsResult{
+		qpos: qpos,
 		fset: o.prog.Fset,
 		refs: refs,
 	}, nil
 }
 
 type freevarsResult struct {
+	qpos *QueryPos
 	fset *token.FileSet
 	refs []freevarsRef
 }
@@ -158,9 +160,9 @@ type freevarsRef struct {
 
 func (r *freevarsResult) display(printf printfFunc) {
 	if len(r.refs) == 0 {
-		printf(false, "No free identifers.")
+		printf(r.qpos, "No free identifiers.")
 	} else {
-		printf(false, "Free identifers:")
+		printf(r.qpos, "Free identifiers:")
 		for _, ref := range r.refs {
 			printf(ref.obj, "%s %s %s", ref.kind, ref.ref, ref.typ)
 		}

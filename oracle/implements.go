@@ -30,8 +30,8 @@ import (
 //   actually occur, with examples?  (NB: this is not a conservative
 //   answer due to ChangeInterface, i.e. subtyping among interfaces.)
 //
-func implements(o *oracle) (queryResult, error) {
-	pkg := o.queryPkgInfo.Pkg
+func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	pkg := qpos.info.Pkg
 
 	// Compute set of named interface/concrete types at package level.
 	var interfaces, concretes []*types.Named

@@ -20,28 +20,28 @@ import (
 //
 // TODO(adonovan): if a callee is a wrapper, show the callee's callee.
 //
-func callees(o *oracle) (queryResult, error) {
+func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// Determine the enclosing call for the specified position.
 	var call *ast.CallExpr
-	for _, n := range o.queryPath {
+	for _, n := range qpos.path {
 		if call, _ = n.(*ast.CallExpr); call != nil {
 			break
 		}
 	}
 	if call == nil {
-		return nil, o.errorf(o.queryPath[0], "there is no function call here")
+		return nil, o.errorf(qpos.path[0], "there is no function call here")
 	}
 	// TODO(adonovan): issue an error if the call is "too far
 	// away" from the current selection, as this most likely is
 	// not what the user intended.
 
 	// Reject type conversions.
-	if o.queryPkgInfo.IsType(call.Fun) {
+	if qpos.info.IsType(call.Fun) {
 		return nil, o.errorf(call, "this is a type conversion, not a function call")
 	}
 
 	// Reject calls to built-ins.
-	if b, ok := o.queryPkgInfo.TypeOf(call.Fun).(*types.Builtin); ok {
+	if b, ok := qpos.info.TypeOf(call.Fun).(*types.Builtin); ok {
 		return nil, o.errorf(call, "this is a call to the built-in '%s' operator", b.Name())
 	}
 

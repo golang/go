@@ -22,10 +22,10 @@ import (
 // TODO(adonovan): permit the user to query based on a MakeChan (not send/recv),
 // or the implicit receive in "for v := range ch".
 //
-func peers(o *oracle) (queryResult, error) {
-	arrowPos := findArrow(o)
+func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	arrowPos := findArrow(qpos)
 	if arrowPos == token.NoPos {
-		return nil, o.errorf(o.queryPath[0], "there is no send/receive here")
+		return nil, o.errorf(qpos.path[0], "there is no send/receive here")
 	}
 
 	buildSSA(o)
@@ -111,8 +111,8 @@ func peers(o *oracle) (queryResult, error) {
 // findArrow returns the position of the enclosing send/receive op
 // (<-) for the query position, or token.NoPos if not found.
 //
-func findArrow(o *oracle) token.Pos {
-	for _, n := range o.queryPath {
+func findArrow(qpos *QueryPos) token.Pos {
+	for _, n := range qpos.path {
 		switch n := n.(type) {
 		case *ast.UnaryExpr:
 			if n.Op == token.ARROW {

@@ -17,20 +17,20 @@ import (
 //
 // TODO(adonovan): if a caller is a wrapper, show the caller's caller.
 //
-func callers(o *oracle) (queryResult, error) {
-	pkg := o.prog.Package(o.queryPkgInfo.Pkg)
+func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	pkg := o.prog.Package(qpos.info.Pkg)
 	if pkg == nil {
-		return nil, o.errorf(o.queryPath[0], "no SSA package")
+		return nil, o.errorf(qpos.path[0], "no SSA package")
 	}
-	if !ssa.HasEnclosingFunction(pkg, o.queryPath) {
-		return nil, o.errorf(o.queryPath[0], "this position is not inside a function")
+	if !ssa.HasEnclosingFunction(pkg, qpos.path) {
+		return nil, o.errorf(qpos.path[0], "this position is not inside a function")
 	}
 
 	buildSSA(o)
 
-	target := ssa.EnclosingFunction(pkg, o.queryPath)
+	target := ssa.EnclosingFunction(pkg, qpos.path)
 	if target == nil {
-		return nil, o.errorf(o.queryPath[0], "no SSA function built for this location (dead code?)")
+		return nil, o.errorf(qpos.path[0], "no SSA function built for this location (dead code?)")
 	}
 
 	// Run the pointer analysis, recording each

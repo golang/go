@@ -25,7 +25,7 @@ import (
 //
 // TODO(adonovan): elide nodes for synthetic functions?
 //
-func callgraph(o *oracle) (queryResult, error) {
+func callgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
 	buildSSA(o)
 
 	// Run the pointer analysis and build the complete callgraph.
@@ -35,6 +35,7 @@ func callgraph(o *oracle) (queryResult, error) {
 
 	// Assign (preorder) numbers to all the callgraph nodes.
 	// TODO(adonovan): the callgraph API should do this for us.
+	// (Actually, it does have unique numbers under the hood.)
 	numbering := make(map[pointer.CallGraphNode]int)
 	var number func(cgn pointer.CallGraphNode)
 	number = func(cgn pointer.CallGraphNode) {
@@ -70,6 +71,8 @@ Some nodes may appear multiple times due to context-sensitive
  treatment of some calls.
 `)
 
+	// TODO(adonovan): compute the numbers as we print; right now
+	// it depends on map iteration so it's arbitrary,which is ugly.
 	seen := make(map[pointer.CallGraphNode]bool)
 	var print func(cgn pointer.CallGraphNode, indent int)
 	print = func(cgn pointer.CallGraphNode, indent int) {

@@ -16,16 +16,16 @@ import (
 // Referrers reports all identifiers that resolve to the same object
 // as the queried identifier, within any package in the analysis scope.
 //
-func referrers(o *oracle) (queryResult, error) {
-	id, _ := o.queryPath[0].(*ast.Ident)
+func referrers(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	id, _ := qpos.path[0].(*ast.Ident)
 	if id == nil {
-		return nil, o.errorf(false, "no identifier here")
+		return nil, o.errorf(qpos, "no identifier here")
 	}
 
-	obj := o.queryPkgInfo.ObjectOf(id)
+	obj := qpos.info.ObjectOf(id)
 	if obj == nil {
 		// Happens for y in "switch y := x.(type)", but I think that's all.
-		return nil, o.errorf(false, "no object for identifier")
+		return nil, o.errorf(qpos, "no object for identifier")
 	}
 
 	// Iterate over all go/types' resolver facts for the entire program.

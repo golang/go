@@ -22,21 +22,21 @@ import (
 // TODO(adonovan): permit user to specify a starting point other than
 // the analysis root.
 //
-func callstack(o *oracle) (queryResult, error) {
-	pkg := o.prog.Package(o.queryPkgInfo.Pkg)
+func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	pkg := o.prog.Package(qpos.info.Pkg)
 	if pkg == nil {
-		return nil, o.errorf(o.queryPath[0], "no SSA package")
+		return nil, o.errorf(qpos.path[0], "no SSA package")
 	}
 
-	if !ssa.HasEnclosingFunction(pkg, o.queryPath) {
-		return nil, o.errorf(o.queryPath[0], "this position is not inside a function")
+	if !ssa.HasEnclosingFunction(pkg, qpos.path) {
+		return nil, o.errorf(qpos.path[0], "this position is not inside a function")
 	}
 
 	buildSSA(o)
 
-	target := ssa.EnclosingFunction(pkg, o.queryPath)
+	target := ssa.EnclosingFunction(pkg, qpos.path)
 	if target == nil {
-		return nil, o.errorf(o.queryPath[0],
+		return nil, o.errorf(qpos.path[0],
 			"no SSA function built for this location (dead code?)")
 	}
 
@@ -74,19 +74,21 @@ func callstack(o *oracle) (queryResult, error) {
 	}
 
 	return &callstackResult{
+		qpos:      qpos,
 		target:    target,
 		callstack: callstack,
 	}, nil
 }
 
 type callstackResult struct {
+	qpos      *QueryPos
 	target    *ssa.Function
 	callstack []pointer.CallSite
 }
 
 func (r *callstackResult) display(printf printfFunc) {
 	if r.callstack != nil {
-		printf(false, "Found a call path from root to %s", r.target)
+		printf(r.qpos, "Found a call path from root to %s", r.target)
 		printf(r.target, "%s", r.target)
 		for _, site := range r.callstack {
 			printf(site, "%s from %s", site.Description(), site.Caller().Func())

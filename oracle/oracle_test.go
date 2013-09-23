@@ -44,6 +44,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle"
 )
 
@@ -247,5 +248,55 @@ func TestOracle(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestMultipleQueries(t *testing.T) {
+	// Importer
+	var buildContext = build.Default
+	buildContext.GOPATH = "testdata"
+	imp := importer.New(&importer.Config{Build: &buildContext})
+
+	// Oracle
+	filename := "testdata/src/main/multi.go"
+	o, err := oracle.New(imp, []string{filename}, nil)
+	if err != nil {
+		t.Fatalf("oracle.New failed: %s", err)
+	}
+
+	// QueryPos
+	pos := filename + ":#54,#58"
+	qpos, err := oracle.ParseQueryPos(imp, pos, true)
+	if err != nil {
+		t.Fatalf("oracle.ParseQueryPos(%q) failed: %s", pos, err)
+	}
+	// SSA is built and we have the QueryPos.
+	// Release the other ASTs and type info to the GC.
+	imp = nil
+
+	// Run different query moes on same scope and selection.
+	out := new(bytes.Buffer)
+	for _, mode := range [...]string{"callers", "describe", "freevars"} {
+		res, err := o.Query(mode, qpos)
+		if err != nil {
+			t.Errorf("(*oracle.Oracle).Query(%q) failed: %s", pos, err)
+		}
+		capture := new(bytes.Buffer) // capture standard output
+		res.WriteTo(capture)
+		for _, line := range strings.Split(capture.String(), "\n") {
+			fmt.Fprintf(out, "%s\n", stripLocation(line))
+		}
+	}
+	want := `multi.f is called from these 1 sites:
+	static function call from multi.main
+
+function call (or conversion) of type ()
+
+Free identifiers:
+var x int
+
+`
+	if got := out.String(); got != want {
+		t.Errorf("Query output differs; want <<%s>>, got <<%s>>\n", want, got)
 	}
 }

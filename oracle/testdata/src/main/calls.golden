@@ -80,7 +80,6 @@ Error: this is a type conversion, not a function call
 -------- @callees callees-err-bad-selection --------
 
 Error: ambiguous selection within function call (or conversion)
-
 -------- @callees callees-err-deadcode1 --------
 
 Error: this call site is unreachable in this analysis
