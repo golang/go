@@ -530,11 +530,12 @@ func (ecr *expectContinueReader) Close() error {
 // It is like time.RFC1123 but hard codes GMT as the time zone.
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
-// appendTime is a non-allocating version of []byte(time.Now().UTC().Format(TimeFormat))
+// appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
 func appendTime(b []byte, t time.Time) []byte {
 	const days = "SunMonTueWedThuFriSat"
 	const months = "JanFebMarAprMayJunJulAugSepOctNovDec"
 
+	t = t.UTC()
 	yy, mm, dd := t.Date()
 	hh, mn, ss := t.Clock()
 	day := days[3*t.Weekday():]

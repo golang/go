@@ -16,6 +16,8 @@ func NewLoggingConn(baseName string, c net.Conn) net.Conn {
 	return newLoggingConn(baseName, c)
 }
 
+var ExportAppendTime = appendTime
+
 func (t *Transport) NumPendingRequestsForTesting() int {
 	t.reqMu.Lock()
 	defer t.reqMu.Unlock()
