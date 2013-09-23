@@ -103,28 +103,19 @@ func TestObjValueLookup(t *testing.T) {
 }
 
 func checkFuncValue(t *testing.T, prog *ssa.Program, obj *types.Func) {
-	v := prog.FuncValue(obj)
-	// fmt.Printf("FuncValue(%s) = %s\n", obj, v) // debugging
-	if v == nil {
+	fn := prog.FuncValue(obj)
+	// fmt.Printf("FuncValue(%s) = %s\n", obj, fn) // debugging
+	if fn == nil {
 		t.Errorf("FuncValue(%s) == nil", obj)
 		return
 	}
-	// v must be an *ssa.Function or *ssa.Builtin.
-	v2, _ := v.(interface {
-		Object() types.Object
-	})
-	if v2 == nil {
-		t.Errorf("FuncValue(%s) = %s %T; has no Object() method",
-			obj, v.Name(), v)
-		return
-	}
-	if vobj := v2.Object(); vobj != obj {
+	if fnobj := fn.Object(); fnobj != obj {
 		t.Errorf("FuncValue(%s).Object() == %s; value was %s",
-			obj, vobj, v.Name())
+			obj, fnobj, fn.Name())
 		return
 	}
-	if !types.IsIdentical(v.Type(), obj.Type()) {
-		t.Errorf("FuncValue(%s).Type() == %s", obj, v.Type())
+	if !types.IsIdentical(fn.Type(), obj.Type()) {
+		t.Errorf("FuncValue(%s).Type() == %s", obj, fn.Type())
 		return
 	}
 }

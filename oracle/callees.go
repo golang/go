@@ -41,8 +41,10 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 
 	// Reject calls to built-ins.
-	if b, ok := qpos.info.TypeOf(call.Fun).(*types.Builtin); ok {
-		return nil, o.errorf(call, "this is a call to the built-in '%s' operator", b.Name())
+	if id, ok := unparen(call.Fun).(*ast.Ident); ok {
+		if b, ok := qpos.info.ObjectOf(id).(*types.Builtin); ok {
+			return nil, o.errorf(call, "this is a call to the built-in '%s' operator", b.Name())
+		}
 	}
 
 	buildSSA(o)

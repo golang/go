@@ -25,7 +25,7 @@ type Program struct {
 	Fset     *token.FileSet              // position information for the files of this Program
 	imported map[string]*Package         // all importable Packages, keyed by import path
 	packages map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	builtins map[*types.Builtin]*Builtin // all built-in functions, keyed by typechecker objects.
 	mode     BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
@@ -401,12 +401,14 @@ type Global struct {
 // Builtins are immutable values.  Builtins do not have addresses.
 // Builtins can only appear in CallCommon.Func.
 //
-// Type() returns a *types.Builtin.
-// Built-in functions may have polymorphic or variadic types that are
-// not expressible in Go's type system.
+// Object() returns a *types.Builtin.
+//
+// Type() returns types.Typ[types.Invalid], since built-in functions
+// may have polymorphic or variadic types that are not expressible in
+// Go's type system.
 //
 type Builtin struct {
-	object *types.Func // canonical types.Universe object for this built-in
+	object *types.Builtin // canonical types.Universe object for this built-in
 }
 
 // Value-defining instructions  ----------------------------------------

@@ -43,7 +43,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		Fset:                fset,
 		imported:            make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
-		builtins:            make(map[types.Object]*Builtin),
+		builtins:            make(map[*types.Builtin]*Builtin),
 		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
@@ -51,7 +51,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 
 	// Create Values for built-in functions.
 	for _, name := range types.Universe.Names() {
-		if obj, ok := types.Universe.Lookup(name).(*types.Func); ok {
+		if obj, ok := types.Universe.Lookup(name).(*types.Builtin); ok {
 			prog.builtins[obj] = &Builtin{obj}
 		}
 	}

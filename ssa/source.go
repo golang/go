@@ -178,18 +178,13 @@ func (prog *Program) packageLevelValue(obj types.Object) Value {
 	return nil
 }
 
-// FuncValue returns the SSA Value denoted by the source-level named
-// function obj.  The result may be a *Function or a *Builtin, or nil
-// if not found.
+// FuncValue returns the Function denoted by the source-level named
+// function obj.
 //
-func (prog *Program) FuncValue(obj *types.Func) Value {
-	// Universal built-in?
-	if v, ok := prog.builtins[obj]; ok {
-		return v
-	}
+func (prog *Program) FuncValue(obj *types.Func) *Function {
 	// Package-level function or declared method?
 	if v := prog.packageLevelValue(obj); v != nil {
-		return v
+		return v.(*Function)
 	}
 	// Interface method wrapper?
 	meth := recvType(obj).MethodSet().Lookup(obj.Pkg(), obj.Name())

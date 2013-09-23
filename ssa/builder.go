@@ -265,15 +265,15 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 }
 
 // builtin emits to fn SSA instructions to implement a call to the
-// built-in function called name with the specified arguments
+// built-in function obj with the specified arguments
 // and return type.  It returns the value defined by the result.
 //
 // The result is nil if no special handling was required; in this case
 // the caller should treat this like an ordinary library function
 // call.
 //
-func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.Type, pos token.Pos) Value {
-	switch name {
+func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ types.Type, pos token.Pos) Value {
+	switch obj.Name() {
 	case "make":
 		switch typ.Underlying().(type) {
 		case *types.Slice:
@@ -554,9 +554,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		}
 		// Call to "intrinsic" built-ins, e.g. new, make, panic.
 		if id, ok := e.Fun.(*ast.Ident); ok {
-			obj := fn.Pkg.objectOf(id)
-			if _, ok := fn.Prog.builtins[obj]; ok {
-				if v := b.builtin(fn, id.Name, e.Args, typ, e.Lparen); v != nil {
+			if obj, ok := fn.Pkg.objectOf(id).(*types.Builtin); ok {
+				if v := b.builtin(fn, obj, e.Args, typ, e.Lparen); v != nil {
 					return v
 				}
 			}
@@ -639,7 +638,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 	case *ast.Ident:
 		obj := fn.Pkg.objectOf(e)
 		// Universal built-in?
-		if obj.Pkg() == nil {
+		if obj, ok := obj.(*types.Builtin); ok {
 			return fn.Prog.builtins[obj]
 		}
 		// Package-level func or var?
@@ -1750,7 +1749,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Value = fn.Prog.builtins[types.Universe.Lookup("len")]
+		c.Call.Value = fn.Prog.builtins[types.Universe.Lookup("len").(*types.Builtin)]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
