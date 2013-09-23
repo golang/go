@@ -948,7 +948,7 @@ func TestMap(t *testing.T) {
 
 	newm := newmap.Interface().(map[string]int)
 	if len(newm) != len(m) {
-		t.Errorf("length after copy: newm=%d, m=%d", newm, m)
+		t.Errorf("length after copy: newm=%d, m=%d", len(newm), len(m))
 	}
 
 	for k, v := range newm {
@@ -3478,7 +3478,7 @@ func TestAllocsInterfaceBig(t *testing.T) {
 	}
 	v := ValueOf(S{})
 	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
-		t.Errorf("allocs:", allocs)
+		t.Error("allocs:", allocs)
 	}
 }
 
@@ -3495,7 +3495,7 @@ func TestAllocsInterfaceSmall(t *testing.T) {
 	}
 	v := ValueOf(int64(0))
 	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
-		t.Errorf("allocs:", allocs)
+		t.Error("allocs:", allocs)
 	}
 }
 
