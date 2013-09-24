@@ -8,7 +8,7 @@ import (
 	"go/token"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 )
 
 // Implements displays the 'implements" relation among all
@@ -89,10 +89,10 @@ func (r *implementsResult) display(printf printfFunc) {
 	}
 }
 
-func (r *implementsResult) toJSON(res *json.Result, fset *token.FileSet) {
-	var facts []*json.Implements
+func (r *implementsResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	var facts []*serial.Implements
 	for _, fact := range r.facts {
-		facts = append(facts, &json.Implements{
+		facts = append(facts, &serial.Implements{
 			I:    fact.iface.String(),
 			IPos: fset.Position(fact.iface.Obj().Pos()).String(),
 			C:    fact.conc.String(),

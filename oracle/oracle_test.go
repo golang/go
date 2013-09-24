@@ -175,17 +175,12 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 
 	if useJson {
 		// JSON output
-		b, err := json.Marshal(res)
+		b, err := json.MarshalIndent(res.Serial(), "", "\t")
 		if err != nil {
 			fmt.Fprintf(out, "JSON error: %s\n", err.Error())
 			return
 		}
-		var buf bytes.Buffer
-		if err := json.Indent(&buf, b, "", "\t"); err != nil {
-			fmt.Fprintf(out, "json.Indent failed: %s", err)
-			return
-		}
-		out.Write(buf.Bytes())
+		out.Write(b)
 	} else {
 		// "plain" (compiler diagnostic format) output
 		capture := new(bytes.Buffer) // capture standard output

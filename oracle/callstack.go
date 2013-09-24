@@ -7,7 +7,7 @@ package oracle
 import (
 	"go/token"
 
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -98,16 +98,16 @@ func (r *callstackResult) display(printf printfFunc) {
 	}
 }
 
-func (r *callstackResult) toJSON(res *json.Result, fset *token.FileSet) {
-	var callers []json.Caller
+func (r *callstackResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	var callers []serial.Caller
 	for _, site := range r.callstack {
-		callers = append(callers, json.Caller{
+		callers = append(callers, serial.Caller{
 			Pos:    fset.Position(site.Pos()).String(),
 			Caller: site.Caller().Func().String(),
 			Desc:   site.Description(),
 		})
 	}
-	res.Callstack = &json.CallStack{
+	res.Callstack = &serial.CallStack{
 		Pos:     fset.Position(r.target.Pos()).String(),
 		Target:  r.target.String(),
 		Callers: callers,

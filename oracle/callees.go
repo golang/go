@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -113,13 +113,13 @@ func (r *calleesResult) display(printf printfFunc) {
 	}
 }
 
-func (r *calleesResult) toJSON(res *json.Result, fset *token.FileSet) {
-	j := &json.Callees{
+func (r *calleesResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	j := &serial.Callees{
 		Pos:  fset.Position(r.site.Pos()).String(),
 		Desc: r.site.Description(),
 	}
 	for _, callee := range r.funcs {
-		j.Callees = append(j.Callees, &json.CalleesItem{
+		j.Callees = append(j.Callees, &serial.CalleesItem{
 			Name: callee.String(),
 			Pos:  fset.Position(callee.Pos()).String(),
 		})

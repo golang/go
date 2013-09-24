@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 )
 
 // Referrers reports all identifiers that resolve to the same object
@@ -84,8 +84,8 @@ func (r *referrersResult) display(printf printfFunc) {
 	}
 }
 
-func (r *referrersResult) toJSON(res *json.Result, fset *token.FileSet) {
-	referrers := &json.Referrers{
+func (r *referrersResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	referrers := &serial.Referrers{
 		Pos:  fset.Position(r.query).String(),
 		Desc: r.obj.String(),
 	}

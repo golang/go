@@ -7,7 +7,7 @@ package oracle
 import (
 	"go/token"
 
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -73,10 +73,10 @@ func (r *callersResult) display(printf printfFunc) {
 	}
 }
 
-func (r *callersResult) toJSON(res *json.Result, fset *token.FileSet) {
-	var callers []json.Caller
+func (r *callersResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	var callers []serial.Caller
 	for _, site := range r.calls {
-		var c json.Caller
+		var c serial.Caller
 		c.Caller = site.Caller().Func().String()
 		if site.Caller() == r.root {
 			c.Desc = "synthetic call"

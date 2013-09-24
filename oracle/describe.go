@@ -17,7 +17,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -70,8 +70,8 @@ func (r *describeUnknownResult) display(printf printfFunc) {
 	printf(r.node, "%s", importer.NodeDescription(r.node))
 }
 
-func (r *describeUnknownResult) toJSON(res *json.Result, fset *token.FileSet) {
-	res.Describe = &json.Describe{
+func (r *describeUnknownResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	res.Describe = &serial.Describe{
 		Desc: importer.NodeDescription(r.node),
 		Pos:  fset.Position(r.node.Pos()).String(),
 	}
@@ -553,7 +553,7 @@ func (r *describeValueResult) display(printf printfFunc) {
 	}
 }
 
-func (r *describeValueResult) toJSON(res *json.Result, fset *token.FileSet) {
+func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	var value, objpos, ptaerr string
 	if r.constVal != nil {
 		value = r.constVal.String()
@@ -565,31 +565,31 @@ func (r *describeValueResult) toJSON(res *json.Result, fset *token.FileSet) {
 		ptaerr = r.ptaErr.Error()
 	}
 
-	var pts []*json.DescribePointer
+	var pts []*serial.DescribePointer
 	for _, ptr := range r.ptrs {
 		var namePos string
 		if nt, ok := deref(ptr.typ).(*types.Named); ok {
 			namePos = fset.Position(nt.Obj().Pos()).String()
 		}
-		var labels []json.DescribePTALabel
+		var labels []serial.DescribePTALabel
 		for _, l := range ptr.labels {
-			labels = append(labels, json.DescribePTALabel{
+			labels = append(labels, serial.DescribePTALabel{
 				Pos:  fset.Position(l.Pos()).String(),
 				Desc: l.String(),
 			})
 		}
-		pts = append(pts, &json.DescribePointer{
+		pts = append(pts, &serial.DescribePointer{
 			Type:    ptr.typ.String(),
 			NamePos: namePos,
 			Labels:  labels,
 		})
 	}
 
-	res.Describe = &json.Describe{
+	res.Describe = &serial.Describe{
 		Desc:   importer.NodeDescription(r.expr),
 		Pos:    fset.Position(r.expr.Pos()).String(),
 		Detail: "value",
-		Value: &json.DescribeValue{
+		Value: &serial.DescribeValue{
 			Type:   r.typ.String(),
 			Value:  value,
 			ObjPos: objpos,
@@ -689,21 +689,21 @@ func (r *describeTypeResult) display(printf printfFunc) {
 	}
 }
 
-func (r *describeTypeResult) toJSON(res *json.Result, fset *token.FileSet) {
+func (r *describeTypeResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	var namePos, nameDef string
 	if nt, ok := r.typ.(*types.Named); ok {
 		namePos = fset.Position(nt.Obj().Pos()).String()
 		nameDef = nt.Underlying().String()
 	}
-	res.Describe = &json.Describe{
+	res.Describe = &serial.Describe{
 		Desc:   r.description,
 		Pos:    fset.Position(r.node.Pos()).String(),
 		Detail: "type",
-		Type: &json.DescribeType{
+		Type: &serial.DescribeType{
 			Type:    r.typ.String(),
 			NamePos: namePos,
 			NameDef: nameDef,
-			Methods: methodsToJSON(r.methods, fset),
+			Methods: methodsToSerial(r.methods, fset),
 		},
 	}
 }
@@ -831,8 +831,8 @@ func formatMember(obj types.Object, maxname int) string {
 	return buf.String()
 }
 
-func (r *describePackageResult) toJSON(res *json.Result, fset *token.FileSet) {
-	var members []*json.DescribeMember
+func (r *describePackageResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	var members []*serial.DescribeMember
 	for _, mem := range r.members {
 		typ := mem.obj.Type()
 		var val string
@@ -842,20 +842,20 @@ func (r *describePackageResult) toJSON(res *json.Result, fset *token.FileSet) {
 		case *types.TypeName:
 			typ = typ.Underlying()
 		}
-		members = append(members, &json.DescribeMember{
+		members = append(members, &serial.DescribeMember{
 			Name:    mem.obj.Name(),
 			Type:    typ.String(),
 			Value:   val,
 			Pos:     fset.Position(mem.obj.Pos()).String(),
 			Kind:    tokenOf(mem.obj),
-			Methods: methodsToJSON(mem.methods, fset),
+			Methods: methodsToSerial(mem.methods, fset),
 		})
 	}
-	res.Describe = &json.Describe{
+	res.Describe = &serial.Describe{
 		Desc:   r.description,
 		Pos:    fset.Position(r.node.Pos()).String(),
 		Detail: "package",
-		Package: &json.DescribePackage{
+		Package: &serial.DescribePackage{
 			Path:    r.pkg.Path(),
 			Members: members,
 		},
@@ -907,8 +907,8 @@ func (r *describeStmtResult) display(printf printfFunc) {
 	printf(r.node, "%s", r.description)
 }
 
-func (r *describeStmtResult) toJSON(res *json.Result, fset *token.FileSet) {
-	res.Describe = &json.Describe{
+func (r *describeStmtResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	res.Describe = &serial.Describe{
 		Desc:   r.description,
 		Pos:    fset.Position(r.node.Pos()).String(),
 		Detail: "unknown",
@@ -946,10 +946,10 @@ func isAccessibleFrom(obj types.Object, pkg *types.Package) bool {
 	return ast.IsExported(obj.Name()) || obj.Pkg() == pkg
 }
 
-func methodsToJSON(methods []*types.Selection, fset *token.FileSet) []json.DescribeMethod {
-	var jmethods []json.DescribeMethod
+func methodsToSerial(methods []*types.Selection, fset *token.FileSet) []serial.DescribeMethod {
+	var jmethods []serial.DescribeMethod
 	for _, meth := range methods {
-		jmethods = append(jmethods, json.DescribeMethod{
+		jmethods = append(jmethods, serial.DescribeMethod{
 			Name: meth.String(),
 			Pos:  fset.Position(meth.Obj().Pos()).String(),
 		})

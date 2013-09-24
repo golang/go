@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package json defines the oracle's JSON schema.
-package json
+// Package serial defines the oracle's schema for structured data
+// serialization using JSON, XML, etc.
+package serial
 
 // All 'pos' strings are of the form "file:line:col".
 // TODO(adonovan): improve performance by sharing filename strings.

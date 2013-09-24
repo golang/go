@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 )
 
 // freevars displays the lexical (not package-level) free variables of
@@ -169,11 +169,11 @@ func (r *freevarsResult) display(printf printfFunc) {
 	}
 }
 
-func (r *freevarsResult) toJSON(res *json.Result, fset *token.FileSet) {
-	var refs []*json.FreeVar
+func (r *freevarsResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	var refs []*serial.FreeVar
 	for _, ref := range r.refs {
 		refs = append(refs,
-			&json.FreeVar{
+			&serial.FreeVar{
 				Pos:  fset.Position(ref.obj.Pos()).String(),
 				Kind: ref.kind,
 				Ref:  ref.ref,

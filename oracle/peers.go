@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -174,8 +174,8 @@ func (r *peersResult) display(printf printfFunc) {
 	}
 }
 
-func (r *peersResult) toJSON(res *json.Result, fset *token.FileSet) {
-	peers := &json.Peers{
+func (r *peersResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	peers := &serial.Peers{
 		Pos:  fset.Position(r.queryPos).String(),
 		Type: r.queryType.String(),
 	}

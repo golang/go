@@ -8,7 +8,7 @@ import (
 	"go/token"
 	"strings"
 
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 )
 
@@ -90,8 +90,8 @@ Some nodes may appear multiple times due to context-sensitive
 	print(r.root, 0)
 }
 
-func (r *callgraphResult) toJSON(res *json.Result, fset *token.FileSet) {
-	cg := make([]json.CallGraph, len(r.numbering))
+func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	cg := make([]serial.CallGraph, len(r.numbering))
 	for n, i := range r.numbering {
 		j := &cg[i]
 		fn := n.Func()

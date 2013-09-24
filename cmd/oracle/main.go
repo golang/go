@@ -14,8 +14,8 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"go/build"
@@ -39,7 +39,7 @@ var modeFlag = flag.String("mode", "",
 var ptalogFlag = flag.String("ptalog", "",
 	"Location of the points-to analysis log file, or empty to disable logging.")
 
-var formatFlag = flag.String("format", "plain", "Output format: 'plain' or 'json'.")
+var formatFlag = flag.String("format", "plain", "Output format.  One of {plain,json,xml}.")
 
 // TODO(adonovan): eliminate or flip this flag after PTA presolver is implemented.
 var reflectFlag = flag.Bool("reflect", true, "Analyze reflection soundly (slow).")
@@ -53,6 +53,7 @@ The -format flag controls the output format:
 	plain	an editor-friendly format in which every line of output
 		is of the form "pos: text", where pos is "-" if unknown.
 	json	structured data in JSON syntax.
+	xml	structured data in XML syntax.
 
 The -pos flag is required in all modes except 'callgraph'.
 
@@ -140,7 +141,10 @@ func main() {
 	}
 
 	// -format flag
-	if *formatFlag != "json" && *formatFlag != "plain" {
+	switch *formatFlag {
+	case "json", "plain", "xml":
+		// ok
+	default:
 		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q\n"+useHelp, *formatFlag)
 		os.Exit(2)
 	}
@@ -161,17 +165,20 @@ func main() {
 	// Print the result.
 	switch *formatFlag {
 	case "json":
-		b, err := json.Marshal(res)
+		b, err := json.MarshalIndent(res.Serial(), "", "\t")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err)
 			os.Exit(1)
 		}
-		var buf bytes.Buffer
-		if err := json.Indent(&buf, b, "", "\t"); err != nil {
-			fmt.Fprintf(os.Stderr, "json.Indent failed: %s", err)
+		os.Stdout.Write(b)
+
+	case "xml":
+		b, err := xml.MarshalIndent(res.Serial(), "", "\t")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "XML error: %s\n", err)
 			os.Exit(1)
 		}
-		os.Stdout.Write(buf.Bytes())
+		os.Stdout.Write(b)
 
 	case "plain":
 		res.WriteTo(os.Stdout)

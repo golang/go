@@ -18,7 +18,6 @@ package oracle
 
 import (
 	"bytes"
-	encjson "encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -34,7 +33,7 @@ import (
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/oracle/json"
+	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -97,7 +96,7 @@ type printfFunc func(pos interface{}, format string, args ...interface{})
 
 // queryResult is the interface of each query-specific result type.
 type queryResult interface {
-	toJSON(res *json.Result, fset *token.FileSet)
+	toSerial(res *serial.Result, fset *token.FileSet)
 	display(printf printfFunc)
 }
 
@@ -119,9 +118,6 @@ type QueryPos struct {
 }
 
 // A Result encapsulates the result of an oracle.Query.
-//
-// Result instances implement the json.Marshaler interface, i.e. they
-// can be JSON-serialized.
 type Result struct {
 	fset *token.FileSet
 	// fprintf is a closure over the oracle's fileset and start/end position.
@@ -131,16 +127,20 @@ type Result struct {
 	warnings []warning   // pointer analysis warnings
 }
 
-func (res *Result) MarshalJSON() ([]byte, error) {
-	resj := &json.Result{Mode: res.mode}
-	res.q.toJSON(resj, res.fset)
+// Serial returns an instance of serial.Result, which implements the
+// {xml,json}.Marshaler interfaces so that query results can be
+// serialized as JSON or XML.
+//
+func (res *Result) Serial() *serial.Result {
+	resj := &serial.Result{Mode: res.mode}
+	res.q.toSerial(resj, res.fset)
 	for _, w := range res.warnings {
-		resj.Warnings = append(resj.Warnings, json.PTAWarning{
+		resj.Warnings = append(resj.Warnings, serial.PTAWarning{
 			Pos:     res.fset.Position(w.pos).String(),
 			Message: fmt.Sprintf(w.format, w.args...),
 		})
 	}
-	return encjson.Marshal(resj)
+	return resj
 }
 
 // Query runs a single oracle query.
