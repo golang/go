@@ -651,9 +651,10 @@ bcomplex(Node *n, Node *c)
 // Updates the bitvector with a set bit for each pointer containing
 // value in the type description starting at offset.
 static void
-walktype1(Type *t, int32 offset, Bvec *bv)
+walktype1(Type *t, int32 offset, Bvec *bv, int param)
 {
 	Type *t1;
+	int32 o;
 
 	switch(t->etype) {
 	case TCHAR:
@@ -672,21 +673,29 @@ walktype1(Type *t, int32 offset, Bvec *bv)
 		break;
 
 	case TIND:
-	case TARRAY: // unlike Go, C passes arrays by reference
+	pointer:
 		// pointer types
 		if((offset + t->offset) % ewidth[TIND] != 0)
 			yyerror("unaligned pointer");
 		bvset(bv, ((offset + t->offset) / ewidth[TIND])*BitsPerPointer);
 		break;
 
+	case TARRAY:
+		if(param)	// unlike Go, C passes arrays by reference
+			goto pointer;
+		// array in struct or union is an actual array
+		for(o = 0; o < t->width; o += t->link->width)
+			walktype1(t->link, offset+o, bv, 0);
+		break;
+
 	case TSTRUCT:
 		// build map recursively
 		for(t1 = t->link; t1 != T; t1 = t1->down)
-			walktype1(t1, offset, bv);
+			walktype1(t1, offset, bv, 0);
 		break;
 
 	case TUNION:
-		walktype1(t->link, offset, bv);
+		walktype1(t->link, offset, bv, 0);
 		break;
 
 	default:
@@ -728,7 +737,7 @@ dumpgcargs(Type *fn, Sym *sym)
 			if(t->etype == TVOID)
 				continue;
 			argoffset = align(argoffset, t, Aarg1, nil);
-			walktype1(t, argoffset, bv);
+			walktype1(t, argoffset, bv, 1);
 			argoffset = align(argoffset, t, Aarg2, nil);
 		}
 		gextern(sym, nodconst(bv->n), 0, 4);

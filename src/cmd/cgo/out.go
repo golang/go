@@ -413,7 +413,17 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	if argSize == 0 {
 		argSize++
 	}
-	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
+	// TODO(rsc): The struct here should declare pointers only where
+	// there are pointers in the actual argument frame.
+	// This is a workaround for golang.org/issue/6397.
+	fmt.Fprintf(fc, "·%s(struct{", n.Mangle)
+	if n := argSize / p.PtrSize; n > 0 {
+		fmt.Fprintf(fc, "void *y[%d];", n)
+	}
+	if n := argSize % p.PtrSize; n > 0 {
+		fmt.Fprintf(fc, "uint8 x[%d];", n)
+	}
+	fmt.Fprintf(fc, "}p)\n")
 	fmt.Fprintf(fc, "{\n")
 	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s%s, &p);\n", cPrefix, n.Mangle)
 	if n.AddError {
