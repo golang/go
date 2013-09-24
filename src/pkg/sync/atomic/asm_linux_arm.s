@@ -121,27 +121,32 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	MOVW	R0, 20(FP)
 	RET
 
-TEXT generalCAS64<>(SB),NOSPLIT,$20-21
-	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+TEXT ·generalCAS64(SB),NOSPLIT,$20-21
+	// bool runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
 	MOVW	addr+0(FP), R0
+	// trigger potential paging fault here,
+	// because a fault in runtime.cas64 will hang.
+	MOVW	(R0), R2
 	// make unaligned atomic access panic
 	AND.S	$7, R0, R1
 	BEQ 	2(PC)
 	MOVW	R1, (R1)
 	MOVW	R0, 4(R13)
-	MOVW	$4(FP), R1 // oldval
+	MOVW	oldlo+4(FP), R1
 	MOVW	R1, 8(R13)
+	MOVW	oldhi+8(FP), R1
+	MOVW	R1, 12(R13)
 	MOVW	newlo+12(FP), R2
-	MOVW	R2, 12(R13)
+	MOVW	R2, 16(R13)
 	MOVW	newhi+16(FP), R3
-	MOVW	R3, 16(R13)
+	MOVW	R3, 20(R13)
 	BL  	runtime·cas64(SB)
-	MOVW	R0, 20(FP)
+	MOVB	R0, ret+20(FP)
 	RET
 
 GLOBL armCAS64(SB), $4
 
-TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-21
+TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
 	MOVW	$0xffff0ffc, R0 // __kuser_helper_version
 	MOVW	(R0), R0
 	// __kuser_cmpxchg64 only present if helper version >= 5
@@ -156,14 +161,14 @@ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-21
 	MOVW.CS	R1, armCAS64(SB)
 	MOVW.CS	R1, PC
 	// we are out of luck, can only use runtime's emulated 64-bit cas
-	MOVW	$generalCAS64<>(SB), R1
+	MOVW	$·generalCAS64(SB), R1
 	MOVW	R1, armCAS64(SB)
 	MOVW	R1, PC
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
 	B   	·CompareAndSwapUint64(SB)
 
-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-21
+TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4-21
 	MOVW	armCAS64(SB), R0
 	CMP 	$0, R0
 	MOVW.NE	R0, PC
