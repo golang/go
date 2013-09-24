@@ -25,10 +25,6 @@ var ipv4MulticastListenerTests = []struct {
 // port.
 func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
-		if testing.Short() || !*testExternal {
-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
-		}
 	case "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
