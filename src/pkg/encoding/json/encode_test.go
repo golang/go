@@ -401,3 +401,27 @@ func TestStringBytes(t *testing.T) {
 		t.Errorf("encodings differ at %#q vs %#q", enc, encBytes)
 	}
 }
+
+func TestIssue6458(t *testing.T) {
+	type Foo struct {
+		M RawMessage
+	}
+	x := Foo{RawMessage(`"foo"`)}
+
+	b, err := Marshal(&x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"M":"foo"}`; string(b) != want {
+		t.Errorf("Marshal(&x) = %#q; want %#q", b, want)
+	}
+
+	b, err = Marshal(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := `{"M":"ImZvbyI="}`; string(b) != want {
+		t.Errorf("Marshal(x) = %#q; want %#q", b, want)
+	}
+}
