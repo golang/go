@@ -473,3 +473,10 @@ func (fd *netFD) dup() (f *os.File, err error) {
 func closesocket(s int) error {
 	return syscall.Close(s)
 }
+
+func skipRawSocketTests() (skip bool, skipmsg string, err error) {
+	if os.Getuid() != 0 {
+		return true, "skipping test; must be root", nil
+	}
+	return false, "", nil
+}

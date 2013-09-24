@@ -22,6 +22,7 @@ const (
 	ERROR_OPERATION_ABORTED   Errno = 995
 	ERROR_IO_PENDING          Errno = 997
 	ERROR_NOT_FOUND           Errno = 1168
+	WSAEACCES                 Errno = 10013
 )
 
 const (

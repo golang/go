@@ -59,6 +59,14 @@ func init() {
 	}
 }
 
+func skipRawSocketTest(t *testing.T) (skip bool, skipmsg string) {
+	skip, skipmsg, err := skipRawSocketTests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return skip, skipmsg
+}
+
 func TestResolveIPAddr(t *testing.T) {
 	for _, tt := range resolveIPAddrTests {
 		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
@@ -80,17 +88,8 @@ var icmpEchoTests = []struct {
 }
 
 func TestConnICMPEcho(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	case "windows":
-		if testing.Short() || !*testExternal {
-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
-		}
-	default:
-		if os.Getuid() != 0 {
-			t.Skip("skipping test; must be root")
-		}
+	if skip, skipmsg := skipRawSocketTest(t); skip {
+		t.Skip(skipmsg)
 	}
 
 	for i, tt := range icmpEchoTests {
@@ -157,17 +156,8 @@ func TestConnICMPEcho(t *testing.T) {
 }
 
 func TestPacketConnICMPEcho(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	case "windows":
-		if testing.Short() || !*testExternal {
-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
-		}
-	default:
-		if os.Getuid() != 0 {
-			t.Skip("skipping test; must be root")
-		}
+	if skip, skipmsg := skipRawSocketTest(t); skip {
+		t.Skip(skipmsg)
 	}
 
 	for i, tt := range icmpEchoTests {

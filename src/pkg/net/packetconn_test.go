@@ -26,20 +26,9 @@ func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
 	case "udp":
 		return []byte("UDP PACKETCONN TEST"), nil
 	case "ip":
-		switch runtime.GOOS {
-		case "plan9":
+		if skip, skipmsg := skipRawSocketTest(t); skip {
 			return nil, func() {
-				t.Logf("skipping %q test on %q", net, runtime.GOOS)
-			}
-		case "windows":
-			if testing.Short() || !*testExternal {
-				t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
-			}
-		default:
-			if os.Getuid() != 0 {
-				return nil, func() {
-					t.Logf("skipping %q test; must be root", net)
-				}
+				t.Logf(skipmsg)
 			}
 		}
 		b, err := (&icmpMessage{
