@@ -126,21 +126,27 @@ func (env *goEnv) setup(repo *Repo, workpath, hash string, envv []string) (strin
 type gccgoEnv struct{}
 
 // setup for a gccgoEnv clones the gofrontend repo to workpath/go at the hash
-// and clones the latest GCC branch to workpath/gcc. The gccgo sources are
+// and clones the latest GCC branch to repo.Path/gcc. The gccgo sources are
 // replaced with the updated sources in the gofrontend repo and gcc gets
 // gets configured and built in workpath/gcc-objdir. The path to
 // workpath/gcc-objdir is returned.
 func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (string, error) {
 	gofrontendpath := filepath.Join(workpath, "gofrontend")
-	gccpath := filepath.Join(workpath, "gcc")
+	gccpath := filepath.Join(repo.Path, "gcc")
 
 	// get a handle to SVN vcs.Cmd for pulling down GCC.
 	svn := vcs.ByCmd("svn")
 
-	if err := timeout(*cmdTimeout, func() error {
-		// pull down a working copy of GCC.
-		return svn.Create(gccpath, *gccPath)
-	}); err != nil {
+	// only pull down gcc if we don't have a local copy.
+	if _, err := os.Stat(gccpath); err != nil {
+		if err := timeout(*cmdTimeout, func() error {
+			// pull down a working copy of GCC.
+			return svn.Create(gccpath, *gccPath)
+		}); err != nil {
+			return "", err
+		}
+	}
+	if err := svn.Download(gccpath); err != nil {
 		return "", err
 	}
 
