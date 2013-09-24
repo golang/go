@@ -1837,8 +1837,9 @@ func (b *builder) gccCmd(objdir string) []string {
 }
 
 // gxxCmd returns a g++ command line prefix
+// defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
 func (b *builder) gxxCmd(objdir string) []string {
-	return b.ccompilerCmd("CXX", "g++", objdir)
+	return b.ccompilerCmd("CXX", defaultCXX, objdir)
 }
 
 // ccompilerCmd returns a command line prefix for the given environment

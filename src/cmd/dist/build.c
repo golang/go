@@ -27,6 +27,7 @@ char *gochar;
 char *goversion;
 char *slash;	// / for unix, \ for windows
 char *defaultcc;
+char *defaultcxx;
 bool	rebuildall;
 bool defaultclang;
 
@@ -162,6 +163,15 @@ init(void)
 			bprintf(&b, "gcc");
 	}
 	defaultcc = btake(&b);
+
+	xgetenv(&b, "CXX");
+	if(b.len == 0) {
+		if(defaultclang)
+			bprintf(&b, "clang++");
+		else
+			bprintf(&b, "g++");
+	}
+	defaultcxx = btake(&b);
 
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
