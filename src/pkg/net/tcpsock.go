@@ -18,10 +18,11 @@ func (a *TCPAddr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
+	ip := ipEmptyString(a.IP)
 	if a.Zone != "" {
-		return JoinHostPort(a.IP.String()+"%"+a.Zone, itoa(a.Port))
+		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
 	}
-	return JoinHostPort(a.IP.String(), itoa(a.Port))
+	return JoinHostPort(ip, itoa(a.Port))
 }
 
 func (a *TCPAddr) toAddr() Addr {

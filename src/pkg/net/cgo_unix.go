@@ -155,6 +155,9 @@ func cgoLookupCNAME(name string) (cname string, err error, completed bool) {
 }
 
 func copyIP(x IP) IP {
+	if len(x) < 16 {
+		return x.To16()
+	}
 	y := make(IP, len(x))
 	copy(y, x)
 	return y

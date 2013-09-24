@@ -292,6 +292,8 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
 	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
 	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
 
+	{"tcp", ":12345", &TCPAddr{Port: 12345}, nil},
+
 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
 }
 
@@ -305,8 +307,8 @@ func init() {
 	}
 	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
-			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5}, nil},
-			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 6}, nil},
+			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5}, nil},
+			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 6}, nil},
 			{"tcp6", "localhost:7", &TCPAddr{IP: IPv6loopback, Port: 7}, nil},
 		}...)
 	}
@@ -319,7 +321,17 @@ func TestResolveTCPAddr(t *testing.T) {
 			t.Fatalf("ResolveTCPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
 		}
 		if !reflect.DeepEqual(addr, tt.addr) {
-			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
+			t.Fatalf("ResolveTCPAddr(%q, %q) = %#v, want %#v", tt.net, tt.litAddrOrName, addr, tt.addr)
+		}
+		if err == nil {
+			str := addr.String()
+			addr1, err := ResolveTCPAddr(tt.net, str)
+			if err != nil {
+				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q]: %v", tt.net, str, tt.litAddrOrName, err)
+			}
+			if !reflect.DeepEqual(addr1, addr) {
+				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q] = %#v, want %#v", tt.net, str, tt.litAddrOrName, addr1, addr)
+			}
 		}
 	}
 }

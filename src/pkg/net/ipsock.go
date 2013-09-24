@@ -116,11 +116,11 @@ func firstSupportedAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr)
 }
 
 // ipv4only returns IPv4 addresses that we can use with the kernel's
-// IPv4 addressing modes.  It returns IPv4-mapped IPv6 addresses as
-// IPv4 addresses and returns other IPv6 address types as nils.
+// IPv4 addressing modes. If ip is an IPv4 address, ipv4only returns ip.
+// Otherwise it returns nil.
 func ipv4only(ip IP) IP {
-	if supportsIPv4 {
-		return ip.To4()
+	if supportsIPv4 && ip.To4() != nil {
+		return ip
 	}
 	return nil
 }
