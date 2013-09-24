@@ -379,7 +379,7 @@ func TestCompareAndSwapInt64(t *testing.T) {
 	}
 }
 
-func TestCompareAndSwapUint64(t *testing.T) {
+func testCompareAndSwapUint64(t *testing.T, cas func(*uint64, uint64, uint64) bool) {
 	if test64err != nil {
 		t.Skipf("Skipping 64-bit tests: %v", test64err)
 	}
@@ -392,14 +392,14 @@ func TestCompareAndSwapUint64(t *testing.T) {
 	x.after = magic64
 	for val := uint64(1); val+val > val; val += val {
 		x.i = val
-		if !CompareAndSwapUint64(&x.i, val, val+1) {
+		if !cas(&x.i, val, val+1) {
 			t.Fatalf("should have swapped %#x %#x", val, val+1)
 		}
 		if x.i != val+1 {
 			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
 		}
 		x.i = val + 1
-		if CompareAndSwapUint64(&x.i, val, val+2) {
+		if cas(&x.i, val, val+2) {
 			t.Fatalf("should not have swapped %#x %#x", val, val+2)
 		}
 		if x.i != val+1 {
@@ -409,6 +409,10 @@ func TestCompareAndSwapUint64(t *testing.T) {
 	if x.before != magic64 || x.after != magic64 {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
 	}
+}
+
+func TestCompareAndSwapUint64(t *testing.T) {
+	testCompareAndSwapUint64(t, CompareAndSwapUint64)
 }
 
 func TestCompareAndSwapUintptr(t *testing.T) {
