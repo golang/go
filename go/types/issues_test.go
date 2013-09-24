@@ -17,8 +17,7 @@ func TestIssue5770(t *testing.T) {
 	src := `package p; type S struct{T}`
 	f, err := parser.ParseFile(fset, "", src, 0)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	_, err = Check(f.Name.Name, fset, []*ast.File{f}) // do not crash
@@ -42,15 +41,14 @@ var (
 )`
 	f, err := parser.ParseFile(fset, "", src, 0)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	var conf Config
 	types := make(map[ast.Expr]Type)
 	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	for x, typ := range types {
@@ -99,5 +97,42 @@ func TestIssue5815(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestIssue6413(t *testing.T) {
+	src := `
+package p
+func f() int {
+	defer f()
+	go f()
+	return 0
+}
+`
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var conf Config
+	types := make(map[ast.Expr]Type)
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := Typ[Int]
+	n := 0
+	for x, got := range types {
+		if _, ok := x.(*ast.CallExpr); ok {
+			if got != want {
+				t.Errorf("%s: got %s; want %s", fset.Position(x.Pos()), got, want)
+			}
+			n++
+		}
+	}
+
+	if n != 2 {
+		t.Errorf("got %d call CallExprs; want 2", n)
 	}
 }
