@@ -298,6 +298,7 @@ type (
 		Low    Expr      // begin of slice range; or nil
 		High   Expr      // end of slice range; or nil
 		Max    Expr      // maximum capacity of slice; or nil
+		Slice3 bool      // true if 3-index slice (2 colons present)
 		Rbrack token.Pos // position of "]"
 	}
 
