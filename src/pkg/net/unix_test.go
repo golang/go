@@ -107,7 +107,7 @@ func TestReadUnixgramWithZeroBytesBuffer(t *testing.T) {
 	}
 }
 
-func TestUnixAutobind(t *testing.T) {
+func TestUnixgramAutobind(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("skipping: autobind is linux only")
 	}
@@ -137,6 +137,18 @@ func TestUnixAutobind(t *testing.T) {
 	if !reflect.DeepEqual(c1.LocalAddr(), c2.RemoteAddr()) {
 		t.Fatalf("expected autobind address %v, got %v", c1.LocalAddr(), c2.RemoteAddr())
 	}
+}
+
+func TestUnixAutobindClose(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("skipping: autobind is linux only")
+	}
+	laddr := &UnixAddr{Name: "", Net: "unix"}
+	ln, err := ListenUnix("unix", laddr)
+	if err != nil {
+		t.Fatalf("ListenUnix failed: %v", err)
+	}
+	ln.Close()
 }
 
 func TestUnixConnLocalAndRemoteNames(t *testing.T) {
