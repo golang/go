@@ -971,10 +971,7 @@ func (v Value) CanInterface() bool {
 // Interface returns v's current value as an interface{}.
 // It is equivalent to:
 //	var i interface{} = (v's underlying value)
-// If v is a method obtained by invoking Value.Method
-// (as opposed to Type.Method), Interface cannot return an
-// interface value, so it panics.
-// It also panics if the Value was obtained by accessing
+// It panics if the Value was obtained by accessing
 // unexported struct fields.
 func (v Value) Interface() (i interface{}) {
 	return valueInterface(v, true)
