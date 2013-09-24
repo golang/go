@@ -12,6 +12,7 @@
 //
 //	package main
 //	const defaultCC = <defaultcc>
+//	const defaultCXX = <defaultcxx>
 //
 // It is invoked to write cmd/go/zdefaultcc.go
 // but we also write cmd/cgo/zdefaultcc.go.
@@ -28,8 +29,9 @@ mkzdefaultcc(char *dir, char *file)
 		"\n"
 		"package main\n"
 		"\n"
-		"const defaultCC = `%s`\n",
-		defaultcc);
+		"const defaultCC = `%s`\n"
+		"const defaultCXX = `%s`\n",
+		defaultcc, defaultcxx);
 
 	writefile(&out, file, 0);
 

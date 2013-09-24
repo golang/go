@@ -75,6 +75,7 @@ extern char *goroot_final;
 extern char *goextlinkenabled;
 extern char *goversion;
 extern char *defaultcc;
+extern char *defaultcxx;
 extern char *workdir;
 extern char *tooldir;
 extern char *slash;

@@ -54,6 +54,8 @@ func mkEnv() []envVar {
 		cmd := b.gccCmd(".")
 		env = append(env, envVar{"CC", cmd[0]})
 		env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
+		cmd = b.gxxCmd(".")
+		env = append(env, envVar{"CXX", cmd[0]})
 	}
 
 	if buildContext.CgoEnabled {
