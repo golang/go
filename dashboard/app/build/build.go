@@ -84,7 +84,7 @@ func GetPackage(c appengine.Context, path string) (*Package, error) {
 // In other words, all Commits with the same PackagePath belong to the same
 // datastore entity group.
 type Commit struct {
-	PackagePath string // (empty for Go commits)
+	PackagePath string // (empty for main repo commits)
 	Hash        string
 	ParentHash  string
 	Num         int // Internal monotonic counter unique to this package.

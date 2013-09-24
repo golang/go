@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <title>Go Build Dashboard</title>
+    <title>{{$.Dashboard.Name}} Build Dashboard</title>
     <style>
       body {
         font-family: sans-serif;
@@ -53,10 +53,10 @@
       .build .desc, .build .time, .build .user {
         white-space: nowrap;
       }
-      .paginate {
+      .dashboards, .paginate {
         padding: 0.5em;
       }
-      .paginate a {
+      .dashboards a, .paginate a {
         padding: 0.5em;
         background: #eee;
         color: blue;
@@ -70,8 +70,12 @@
     </style>
   </head>
   <body>
-
-    <h1>Go Build Status</h1>
+    <h1>{{$.Dashboard.Name}} Build Status</h1>
+    <nav class="dashboards">
+      {{range buildDashboards}}
+        <a href="{{.RelPath}}">{{.Name}}</a>
+      {{end}}
+    </nav>
 
   {{if $.Commits}}
 
@@ -138,12 +142,13 @@
 
   {{with $.TipState}}
     {{$goHash := .Tag.Hash}}
-    <h2>
-      Sub-repositories at tip
-      <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
-    </h2>
+    {{if .Packages}}
+      <h2>
+        Sub-repositories at tip
+        <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
+      </h2>
 
-    <table class="build">
+      <table class="build">
       <colgroup class="col-package"></colgroup>
       <colgroup class="col-hash"></colgroup>
       {{range $.Builders | builderSpans}}
@@ -203,6 +208,7 @@
       </tr>
     {{end}}
     </table>
+   {{end}}
   {{end}}
 
   </body>

@@ -25,12 +25,15 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/", uiHandler)
+	for _, d := range dashboards {
+		http.HandleFunc(d.RelPath, uiHandler)
+	}
 }
 
 // uiHandler draws the build status page.
 func uiHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	d := dashboardForRequest(r)
+	c := d.Context(appengine.NewContext(r))
 	now := cache.Now(c)
 	const key = "build-ui"
 
@@ -48,7 +51,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	commits, err := goCommits(c, page)
+	commits, err := dashCommits(c, page)
 	if err != nil {
 		logErr(w, r, err)
 		return
@@ -73,7 +76,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		p.Prev = page - 1
 		p.HasPrev = true
 	}
-	data := &uiTemplateData{commits, builders, tipState, p}
+	data := &uiTemplateData{d, commits, builders, tipState, p}
 
 	var buf bytes.Buffer
 	if err := uiTemplate.Execute(&buf, data); err != nil {
@@ -94,9 +97,9 @@ type Pagination struct {
 	HasPrev    bool
 }
 
-// goCommits gets a slice of the latest Commits to the Go repository.
+// dashCommits gets a slice of the latest Commits to the current dashboard.
 // If page > 0 it paginates by commitsPerPage.
-func goCommits(c appengine.Context, page int) ([]*Commit, error) {
+func dashCommits(c appengine.Context, page int) ([]*Commit, error) {
 	q := datastore.NewQuery("Commit").
 		Ancestor((&Package{}).Key(c)).
 		Order("-Num").
@@ -166,6 +169,7 @@ func TagStateByName(c appengine.Context, name string) (*TagState, error) {
 }
 
 type uiTemplateData struct {
+	Dashboard  *Dashboard
 	Commits    []*Commit
 	Builders   []string
 	TipState   *TagState
@@ -183,6 +187,7 @@ var tmplFuncs = template.FuncMap{
 	"builderArchChar":  builderArchChar,
 	"builderTitle":     builderTitle,
 	"builderSpans":     builderSpans,
+	"buildDashboards":  buildDashboards,
 	"repoURL":          repoURL,
 	"shortDesc":        shortDesc,
 	"shortHash":        shortHash,
@@ -263,6 +268,11 @@ func builderSpans(s []string) []builderSpan {
 // builderTitle formats "linux-amd64-foo" as "linux amd64 foo".
 func builderTitle(s string) string {
 	return strings.Replace(s, "-", " ", -1)
+}
+
+// buildDashboards returns the known public dashboards.
+func buildDashboards() []*Dashboard {
+	return dashboards
 }
 
 // shortDesc returns the first line of a description.

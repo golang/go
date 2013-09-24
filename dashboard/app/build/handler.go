@@ -33,7 +33,7 @@ const commitsPerPage = 30
 //
 // This handler is used by a gobuilder process in -commit mode.
 func commitHandler(r *http.Request) (interface{}, error) {
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	com := new(Commit)
 
 	if r.Method == "GET" {
@@ -132,7 +132,7 @@ func tagHandler(r *http.Request) (interface{}, error) {
 	if err := t.Valid(); err != nil {
 		return nil, err
 	}
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	defer cache.Tick(c)
 	_, err := datastore.Put(c, t.Key(c), t)
 	return nil, err
@@ -148,7 +148,7 @@ type Todo struct {
 // It expects "builder" and "kind" query parameters and returns a *Todo value.
 // Multiple "kind" parameters may be specified.
 func todoHandler(r *http.Request) (interface{}, error) {
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	now := cache.Now(c)
 	key := "build-todo-" + r.Form.Encode()
 	var todo *Todo
@@ -257,7 +257,7 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 // by the dashboard.
 func packagesHandler(r *http.Request) (interface{}, error) {
 	kind := r.FormValue("kind")
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	now := cache.Now(c)
 	key := "build-packages-" + kind
 	var p []*Package
@@ -282,7 +282,7 @@ func resultHandler(r *http.Request) (interface{}, error) {
 		return nil, errBadMethod(r.Method)
 	}
 
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	res := new(Result)
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(res); err != nil {
@@ -326,7 +326,7 @@ func resultHandler(r *http.Request) (interface{}, error) {
 // It handles paths like "/log/hash".
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "text/plain; charset=utf-8")
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	hash := r.URL.Path[len("/log/"):]
 	key := datastore.NewKey(c, "Log", hash, 0, nil)
 	l := new(Log)
@@ -361,7 +361,7 @@ func (e errBadMethod) Error() string {
 // supplied key and builder query parameters.
 func AuthHandler(h dashHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c := appengine.NewContext(r)
+		c := contextForRequest(r)
 
 		// Put the URL Query values into r.Form to avoid parsing the
 		// request body when calling r.FormValue.
@@ -401,24 +401,26 @@ func keyHandler(w http.ResponseWriter, r *http.Request) {
 		logErr(w, r, errors.New("must supply builder in query string"))
 		return
 	}
-	c := appengine.NewContext(r)
+	c := contextForRequest(r)
 	fmt.Fprint(w, builderKey(c, builder))
 }
 
 func init() {
-	// admin handlers
-	http.HandleFunc("/init", initHandler)
-	http.HandleFunc("/key", keyHandler)
+	for _, d := range dashboards {
+		// admin handlers
+		http.HandleFunc(d.RelPath+"init", initHandler)
+		http.HandleFunc(d.RelPath+"key", keyHandler)
 
-	// authenticated handlers
-	http.HandleFunc("/commit", AuthHandler(commitHandler))
-	http.HandleFunc("/packages", AuthHandler(packagesHandler))
-	http.HandleFunc("/result", AuthHandler(resultHandler))
-	http.HandleFunc("/tag", AuthHandler(tagHandler))
-	http.HandleFunc("/todo", AuthHandler(todoHandler))
+		// authenticated handlers
+		http.HandleFunc(d.RelPath+"commit", AuthHandler(commitHandler))
+		http.HandleFunc(d.RelPath+"packages", AuthHandler(packagesHandler))
+		http.HandleFunc(d.RelPath+"result", AuthHandler(resultHandler))
+		http.HandleFunc(d.RelPath+"tag", AuthHandler(tagHandler))
+		http.HandleFunc(d.RelPath+"todo", AuthHandler(todoHandler))
 
-	// public handlers
-	http.HandleFunc("/log/", logHandler)
+		// public handlers
+		http.HandleFunc(d.RelPath+"log/", logHandler)
+	}
 }
 
 func validHash(hash string) bool {
@@ -443,7 +445,11 @@ func builderKey(c appengine.Context, builder string) string {
 }
 
 func logErr(w http.ResponseWriter, r *http.Request, err error) {
-	appengine.NewContext(r).Errorf("Error: %v", err)
+	contextForRequest(r).Errorf("Error: %v", err)
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprint(w, "Error: ", err)
+}
+
+func contextForRequest(r *http.Request) appengine.Context {
+	return dashboardForRequest(r).Context(appengine.NewContext(r))
 }
