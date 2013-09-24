@@ -95,7 +95,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	case *Builtin:
 		obj.used = true // for built-ins defined by package unsafe
 		x.mode = builtin
-		x.val = exact.MakeInt64(int64(obj.id))
+		x.id = obj.id
 
 	default:
 		unreachable()

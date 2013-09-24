@@ -14,15 +14,6 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// TODO(gri) Internal cleanups
-// - don't print error messages referring to invalid types (they are likely spurious errors)
-// - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
-// - rethink error handling: should all callers check if x.mode == valid after making a call?
-// - consider storing error messages in invalid operands for better error messages/debugging output
-
-// TODO(gri) Test issues
-// - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
-
 /*
 Basic algorithm:
 
@@ -839,6 +830,16 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 	}
 	return max
 }
+
+// exprKind describes the kind of an expression; the kind
+// determines if an expression is valid in 'statement context'.
+type exprKind int
+
+const (
+	conversion exprKind = iota
+	expression
+	statement
+)
 
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.

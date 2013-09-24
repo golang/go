@@ -1,0 +1,38 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// testing precise operand formatting in error messages
+// (matching messages are regular expressions, hence the \'s)
+
+package errors
+
+func f(x int, m map[string]int) {
+	// no values
+	_ = f /* ERROR "f\(0, m\) \(no value\) used as value" */ (0, m)
+
+	// built-ins
+	_ = println /* ERROR "println \(built-in\) must be called" */
+
+	// types
+	_ = complex128 /* ERROR "complex128 \(type\) is not an expression" */
+
+	// constants
+	const c1 = 991
+	const c2 float32 = 0.5
+	0 /* ERROR "0 \(untyped integer constant\) is not used" */
+	c1 /* ERROR "c1 \(untyped integer constant 991\) is not used" */
+	c2 /* ERROR "c2 \(constant 1/2 of type float32\) is not used" */
+	c1 /* ERROR "c1 \+ c2 \(constant 1983/2 of type float32\) is not used" */ + c2
+
+	// variables
+	x /* ERROR "x \(variable of type int\) is not used" */
+
+	// values
+	x /* ERROR "x != x \(untyped boolean value\) is not used" */ != x
+	x /* ERROR "x \+ x \(value of type int\) is not used" */ + x
+
+	// value, ok's
+	const s = "foo"
+	m /* ERROR "m\[s\] \(value, ok of type int\) is not used" */ [s]
+}

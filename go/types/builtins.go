@@ -405,8 +405,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) {
 		}
 
 	default:
-		check.invalidAST(call.Pos(), "unknown builtin id %d", id)
-		goto Error
+		panic("unreachable")
 	}
 
 	x.expr = call

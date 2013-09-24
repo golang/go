@@ -45,6 +45,7 @@ var (
 
 // Each tests entry is list of files belonging to the same package.
 var tests = [][]string{
+	{"testdata/errors.src"},
 	{"testdata/importdecl0a.src", "testdata/importdecl0b.src"},
 	{"testdata/cycles.src"},
 	{"testdata/decls0.src"},

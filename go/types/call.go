@@ -9,19 +9,6 @@ package types
 import (
 	"go/ast"
 	"go/token"
-
-	"code.google.com/p/go.tools/go/exact"
-)
-
-// exprKind describes the kind of an expression;
-// the kind determines if an expression is valid
-// in 'statement context'.
-type exprKind int
-
-const (
-	conversion exprKind = iota
-	expression
-	statement
 )
 
 func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
@@ -61,8 +48,8 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 		return conversion
 
 	case builtin:
-		id, _ := exact.Int64Val(x.val)
-		check.builtin(x, e, builtinId(id))
+		id := x.id
+		check.builtin(x, e, id)
 		return predeclaredFuncs[id].kind
 
 	default:
@@ -239,7 +226,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			case *Builtin:
 				x.mode = builtin
 				x.typ = exp.typ
-				x.val = exact.MakeInt64(int64(exp.id))
+				x.id = exp.id
 			default:
 				unreachable()
 			}
