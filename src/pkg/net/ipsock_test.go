@@ -26,7 +26,7 @@ var firstFavoriteAddrTests = []struct {
 		},
 		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
 		},
 		nil,
@@ -39,7 +39,7 @@ var firstFavoriteAddrTests = []struct {
 		},
 		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
 		},
 		nil,
@@ -51,7 +51,7 @@ var firstFavoriteAddrTests = []struct {
 			IPv4(192, 168, 0, 1),
 		},
 		testInetaddr,
-		&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 		nil,
 	},
 	{
@@ -74,7 +74,7 @@ var firstFavoriteAddrTests = []struct {
 		},
 		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
 		},
 		nil,
@@ -89,7 +89,7 @@ var firstFavoriteAddrTests = []struct {
 		},
 		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
 		},
 		nil,
@@ -104,7 +104,7 @@ var firstFavoriteAddrTests = []struct {
 		},
 		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
 		},
 		nil,
@@ -119,7 +119,7 @@ var firstFavoriteAddrTests = []struct {
 		},
 		testInetaddr,
 		addrList{
-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 			&TCPAddr{IP: IPv6loopback, Port: 5682},
 		},
 		nil,
@@ -132,7 +132,7 @@ var firstFavoriteAddrTests = []struct {
 			IPv6loopback,
 		},
 		testInetaddr,
-		&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 		nil,
 	},
 	{
@@ -142,7 +142,7 @@ var firstFavoriteAddrTests = []struct {
 			IPv4(127, 0, 0, 1),
 		},
 		testInetaddr,
-		&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
+		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
 		nil,
 	},
 

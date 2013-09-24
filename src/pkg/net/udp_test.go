@@ -5,60 +5,31 @@
 package net
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
-type resolveUDPAddrTest struct {
-	net           string
-	litAddrOrName string
-	addr          *UDPAddr
-	err           error
-}
-
-var resolveUDPAddrTests = []resolveUDPAddrTest{
-	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
-	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
-
-	{"udp", "[::1]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1}, nil},
-	{"udp6", "[::1]:65534", &UDPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
-
-	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
-	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
-
-	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
-	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
-
-	{"sip", "127.0.0.1:0", nil, UnknownNetworkError("sip")},
-}
-
-func init() {
-	if ifi := loopbackInterface(); ifi != nil {
-		index := fmt.Sprintf("%v", ifi.Index)
-		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
-			{"udp6", "[fe80::1%" + ifi.Name + "]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
-			{"udp6", "[fe80::1%" + index + "]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
-		}...)
-	}
-	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
-		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
-			{"udp", "localhost:5", &UDPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5}, nil},
-			{"udp4", "localhost:6", &UDPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 6}, nil},
-			{"udp6", "localhost:7", &UDPAddr{IP: IPv6loopback, Port: 7}, nil},
-		}...)
-	}
-}
-
 func TestResolveUDPAddr(t *testing.T) {
-	for _, tt := range resolveUDPAddrTests {
-		addr, err := ResolveUDPAddr(tt.net, tt.litAddrOrName)
+	for _, tt := range resolveTCPAddrTests {
+		net := strings.Replace(tt.net, "tcp", "udp", -1)
+		addr, err := ResolveUDPAddr(net, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
+			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", net, tt.litAddrOrName, err)
 		}
-		if !reflect.DeepEqual(addr, tt.addr) {
-			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
+		if !reflect.DeepEqual(addr, (*UDPAddr)(tt.addr)) {
+			t.Fatalf("ResolveUDPAddr(%q, %q) = %#v, want %#v", net, tt.litAddrOrName, addr, tt.addr)
+		}
+		if err == nil {
+			str := addr.String()
+			addr1, err := ResolveUDPAddr(net, str)
+			if err != nil {
+				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q]: %v", net, str, tt.litAddrOrName, err)
+			}
+			if !reflect.DeepEqual(addr1, addr) {
+				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q] = %#v, want %#v", net, str, tt.litAddrOrName, addr1, addr)
+			}
 		}
 	}
 }

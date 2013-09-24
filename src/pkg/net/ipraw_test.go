@@ -52,8 +52,8 @@ func init() {
 	}
 	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
 		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
-			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}, nil},
-			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}, nil},
+			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
 			{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil},
 		}...)
 	}

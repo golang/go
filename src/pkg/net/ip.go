@@ -312,6 +312,15 @@ func (ip IP) String() string {
 	return s
 }
 
+// ipEmptyString is like ip.String except that it returns
+// an empty string when ip is unset.
+func ipEmptyString(ip IP) string {
+	if len(ip) == 0 {
+		return ""
+	}
+	return ip.String()
+}
+
 // MarshalText implements the encoding.TextMarshaler interface.
 // The encoding is the same as returned by String.
 func (ip IP) MarshalText() ([]byte, error) {
