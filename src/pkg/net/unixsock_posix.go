@@ -271,7 +271,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
 	}
-	return &UnixListener{fd, laddr.Name}, nil
+	return &UnixListener{fd, fd.laddr.String()}, nil
 }
 
 // AcceptUnix accepts the next incoming call and returns the new
