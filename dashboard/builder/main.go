@@ -426,7 +426,14 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 	}
 
 	// hg update to the specified hash
-	repo := Repo{Path: filepath.Join(goPath, "src", pkg)}
+	pkgmaster, err := vcs.RepoRootForImportPath(pkg, *verbose)
+	if err != nil {
+		return "", fmt.Errorf("Error finding subrepo (%s): %s", pkg, err)
+	}
+	repo := &Repo{
+		Path:   filepath.Join(goPath, "src", pkg),
+		Master: pkgmaster,
+	}
 	if err := repo.UpdateTo(hash); err != nil {
 		return "", err
 	}
