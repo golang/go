@@ -11,6 +11,7 @@ func _() {}
 func _() int {} /* ERROR "missing return" */
 
 func _() int { panic(0) }
+func _() int { (panic(0)) }
 
 // block statements
 func _(x, y int) (z int) {
