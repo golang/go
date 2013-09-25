@@ -655,6 +655,11 @@ func TestEscape(t *testing.T) {
 	for _, test := range tests {
 		tmpl := New(test.name)
 		tmpl = Must(tmpl.Parse(test.input))
+		// Check for bug 6459: Tree field was not set in Parse.
+		if tmpl.Tree != tmpl.text.Tree {
+			t.Errorf("%s: tree not set properly", test.name)
+			continue
+		}
 		b := new(bytes.Buffer)
 		if err := tmpl.Execute(b, data); err != nil {
 			t.Errorf("%s: template execution failed: %s", test.name, err)
