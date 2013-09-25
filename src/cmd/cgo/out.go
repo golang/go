@@ -87,7 +87,7 @@ func (p *Package) writeDefs() {
 	}
 
 	if *gccgo {
-		fmt.Fprintf(fc, cPrologGccgo)
+		fmt.Fprintf(fc, p.cPrologGccgo())
 	} else {
 		fmt.Fprintf(fc, cProlog)
 	}
@@ -120,6 +120,9 @@ func (p *Package) writeDefs() {
 			node = &ast.StarExpr{X: n.Type.Go}
 		} else if n.Kind == "fpvar" {
 			node = n.Type.Go
+			if *gccgo {
+				amp = "&"
+			}
 		} else {
 			panic(fmt.Errorf("invalid var kind %q", n.Kind))
 		}
@@ -380,11 +383,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		fmt.Fprint(fgo2, "}\n")
 
 		// declare the C function.
-		if inProlog {
-			fmt.Fprintf(fgo2, "//extern %s\n", n.C)
-		} else {
-			fmt.Fprintf(fgo2, "//extern _cgo%s%s\n", cPrefix, n.Mangle)
-		}
+		fmt.Fprintf(fgo2, "//extern _cgo%s%s\n", cPrefix, n.Mangle)
 		d.Name = ast.NewIdent(cname)
 		if n.AddError {
 			l := d.Type.Results.List
@@ -1193,8 +1192,13 @@ void
 }
 `
 
+func (p *Package) cPrologGccgo() string {
+	return strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1)
+}
+
 const cPrologGccgo = `
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef unsigned char byte;
@@ -1214,26 +1218,26 @@ typedef struct __go_open_array {
 struct __go_string __go_byte_array_to_string(const void* p, intgo len);
 struct __go_open_array __go_string_to_byte_array (struct __go_string str);
 
-const char *CString(struct __go_string s) {
+const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
 	return strndup((const char*)s.__data, s.__length);
 }
 
-struct __go_string GoString(char *p) {
+struct __go_string _cgoPREFIX_Cfunc_GoString(char *p) {
 	intgo len = (p != NULL) ? strlen(p) : 0;
 	return __go_byte_array_to_string(p, len);
 }
 
-struct __go_string GoStringN(char *p, int32_t n) {
+struct __go_string _cgoPREFIX_Cfunc_GoStringN(char *p, int32_t n) {
 	return __go_byte_array_to_string(p, n);
 }
 
-Slice GoBytes(char *p, int32_t n) {
+Slice _cgoPREFIX_Cfunc_GoBytes(char *p, int32_t n) {
 	struct __go_string s = { (const unsigned char *)p, n };
 	return __go_string_to_byte_array(s);
 }
 
-extern void runtime_throw(const char *):
-void *Cmalloc(size_t n) {
+extern void runtime_throw(const char *);
+void *_cgoPREFIX_Cfunc__CMalloc(size_t n) {
         void *p = malloc(n);
         if(p == NULL && n == 0)
                 p = malloc(1);
