@@ -17,6 +17,10 @@ func indexes() {
 	_ = a[- /* ERROR "negative" */ 1]
 	_ = a[- /* ERROR "negative" */ 1 :]
 	_ = a[: - /* ERROR "negative" */ 1]
+	_ = a[::] /* ERROR "3-index slice" */
+	_ = a[0::] /* ERROR "3-index slice" */
+	_ = a[0::10] /* ERROR "3-index slice" */
+	_ = a[:10:10]
 
 	var a0 int
 	a0 = a[0]
@@ -34,6 +38,12 @@ func indexes() {
 	_ = a[11 /* ERROR "index .* out of bounds" */ :]
 	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
 	_ = a[: 1 /* ERROR "overflows" */ <<100]
+	_ = a[:10:10]
+	_ = a[:11 /* ERROR "index .* out of bounds" */ :10]
+	_ = a[:10:11 /* ERROR "index .* out of bounds" */ ]
+	_ = a[10:0:10] /* ERROR "invalid slice indices" */
+	_ = a[0:10:0] /* ERROR "invalid slice indices" */
+	_ = a[10:0:0] /* ERROR "invalid slice indices" */
 
 	pa := &a
 	_ = pa[9]
@@ -45,6 +55,12 @@ func indexes() {
 	_ = pa[11 /* ERROR "index .* out of bounds" */ :]
 	_ = pa[: 11 /* ERROR "index .* out of bounds" */ ]
 	_ = pa[: 1 /* ERROR "overflows" */ <<100]
+	_ = pa[:10:10]
+	_ = pa[:11 /* ERROR "index .* out of bounds" */ :10]
+	_ = pa[:10:11 /* ERROR "index .* out of bounds" */ ]
+	_ = pa[10:0:10] /* ERROR "invalid slice indices" */
+	_ = pa[0:10:0] /* ERROR "invalid slice indices" */
+	_ = pa[10:0:0] /* ERROR "invalid slice indices" */
 
 	var b [0]int
 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
@@ -52,23 +68,32 @@ func indexes() {
 	_ = b[0:]
 	_ = b[:0]
 	_ = b[0:0]
+	_ = b[0:0:0]
+	_ = b[1 /* ERROR "index .* out of bounds" */ :0:0]
 
 	var s []int
 	_ = s[- /* ERROR "negative" */ 1]
 	_ = s[- /* ERROR "negative" */ 1 :]
 	_ = s[: - /* ERROR "negative" */ 1]
 	_ = s[0]
-	_ = s[1 : 2]
-	_ = s[2 /* ERROR "inverted slice range" */ : 1]
-	_ = s[2 :]
+	_ = s[1:2]
+	_ = s[2:1] /* ERROR "invalid slice indices" */
+	_ = s[2:]
 	_ = s[: 1 /* ERROR "overflows" */ <<100]
 	_ = s[1 /* ERROR "overflows" */ <<100 :]
 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
+	_ = s[::] /* ERROR "3-index slice" */
+	_ = s[:10:10]
+	_ = s[10:0:10] /* ERROR "invalid slice indices" */
+	_ = s[0:10:0] /* ERROR "invalid slice indices" */
+	_ = s[10:0:0] /* ERROR "invalid slice indices" */
 
 	var t string
 	_ = t[- /* ERROR "negative" */ 1]
 	_ = t[- /* ERROR "negative" */ 1 :]
 	_ = t[: - /* ERROR "negative" */ 1]
+	_ = t /* ERROR "3-index slice of string" */ [1:2:3]
+	_ = "foo" /* ERROR "3-index slice of string" */ [1:2:3]
 	var t0 byte
 	t0 = t[0]
 	_ = t0

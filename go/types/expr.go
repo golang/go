@@ -745,11 +745,15 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 	// x.typ is unchanged
 }
 
-// index checks an index/size expression arg for validity.
-// If length >= 0, it is the upper bound for arg.
-func (check *checker) index(arg ast.Expr, length int64) (i int64, ok bool) {
+// index checks an index expression for validity.
+// If max >= 0, it is the upper bound for index.
+// If index is valid and the result i >= 0, then i is the constant value of index.
+func (check *checker) index(index ast.Expr, max int64) (i int64, valid bool) {
 	var x operand
-	check.expr(&x, arg)
+	check.expr(&x, index)
+	if x.mode == invalid {
+		return
+	}
 
 	// an untyped constant must be representable as Int
 	check.convertUntyped(&x, Typ[Int])
@@ -757,24 +761,24 @@ func (check *checker) index(arg ast.Expr, length int64) (i int64, ok bool) {
 		return
 	}
 
-	// the index/size must be of integer type
+	// the index must be of integer type
 	if !isInteger(x.typ) {
 		check.invalidArg(x.pos(), "index %s must be integer", &x)
 		return
 	}
 
-	// a constant index/size i must be 0 <= i < length
+	// a constant index i must be in bounds
 	if x.mode == constant {
 		if exact.Sign(x.val) < 0 {
 			check.invalidArg(x.pos(), "index %s must not be negative", &x)
 			return
 		}
-		i, ok = exact.Int64Val(x.val)
-		if !ok || length >= 0 && i >= length {
+		i, valid = exact.Int64Val(x.val)
+		if !valid || max >= 0 && i >= max {
 			check.errorf(x.pos(), "index %s is out of bounds", &x)
 			return i, false
 		}
-		// 0 <= i [ && i < length ]
+		// 0 <= i [ && i < max ]
 		return i, true
 	}
 
@@ -1144,7 +1148,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 		if e.Index == nil {
-			check.invalidAST(e.Pos(), "missing index expression for %s", x)
+			check.invalidAST(e.Pos(), "missing index for %s", x)
 			goto Error
 		}
 
@@ -1162,17 +1166,17 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		switch typ := x.typ.Underlying().(type) {
 		case *Basic:
 			if isString(typ) {
+				if e.Slice3 {
+					check.invalidOp(x.pos(), "3-index slice of string")
+					goto Error
+				}
 				valid = true
 				if x.mode == constant {
-					length = int64(len(exact.StringVal(x.val))) + 1 // +1 for slice
+					length = int64(len(exact.StringVal(x.val)))
 				}
-				// a sliced string always yields a string value
-				// of the same type as the original string (not
-				// a constant) even if the string and the indices
-				// are constant
+				// spec: "For untyped string operands the result
+				// is a non-constant value of type string."
 				x.mode = value
-				// x.typ doesn't change, but if it is an untyped
-				// string it becomes string (see also issue 4913).
 				if typ.kind == UntypedString {
 					x.typ = Typ[String]
 				}
@@ -1180,7 +1184,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 
 		case *Array:
 			valid = true
-			length = typ.len + 1 // +1 for slice
+			length = typ.len
 			if x.mode != variable {
 				check.invalidOp(x.pos(), "cannot slice %s (value not addressable)", x)
 				goto Error
@@ -1190,7 +1194,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		case *Pointer:
 			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				valid = true
-				length = typ.len + 1 // +1 for slice
+				length = typ.len
 				x.mode = variable
 				x.typ = &Slice{elt: typ.elt}
 			}
@@ -1206,25 +1210,50 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 
-		lo := int64(0)
-		if e.Low != nil {
-			if i, ok := check.index(e.Low, length); ok && i >= 0 {
-				lo = i
-			}
+		// spec: "Only the first index may be omitted; it defaults to 0."
+		if e.Slice3 && (e.High == nil || e.Max == nil) {
+			check.errorf(e.Rbrack, "2nd and 3rd index required in 3-index slice")
+			goto Error
 		}
 
-		hi := int64(-1)
-		if e.High != nil {
-			if i, ok := check.index(e.High, length); ok && i >= 0 {
-				hi = i
+		// check indices
+		var ind [3]int64
+		for i, expr := range []ast.Expr{e.Low, e.High, e.Max} {
+			x := int64(-1)
+			switch {
+			case expr != nil:
+				// The "capacity" is only known statically for strings, arrays,
+				// and pointers to arrays, and it is the same as the length for
+				// those types.
+				max := int64(-1)
+				if length >= 0 {
+					max = length + 1
+				}
+				if t, ok := check.index(expr, max); ok && t >= 0 {
+					x = t
+				}
+			case i == 0:
+				// default is 0 for the first index
+				x = 0
+			case length >= 0:
+				// default is length (== capacity) otherwise
+				x = length
 			}
-		} else if length >= 0 {
-			hi = length
+			ind[i] = x
 		}
 
-		if lo >= 0 && hi >= 0 && lo > hi {
-			check.errorf(e.Low.Pos(), "inverted slice range: %d > %d", lo, hi)
-			// ok to continue
+		// constant indices must be in range
+		// (check.index already checks that existing indices >= 0)
+	L:
+		for i, x := range ind[:len(ind)-1] {
+			if x > 0 {
+				for _, y := range ind[i+1:] {
+					if y >= 0 && x > y {
+						check.errorf(e.Rbrack, "invalid slice indices: %d > %d", x, y)
+						break L // only report one error, ok to continue
+					}
+				}
+			}
 		}
 
 	case *ast.TypeAssertExpr:

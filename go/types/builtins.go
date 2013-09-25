@@ -405,7 +405,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) {
 		}
 
 	default:
-		panic("unreachable")
+		unreachable()
 	}
 
 	x.expr = call
