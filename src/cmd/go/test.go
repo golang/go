@@ -449,7 +449,7 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	// Force benchmarks to run in serial.
-	if testBench {
+	if !testC && testBench {
 		// The first run must wait for all builds.
 		// Later runs must wait for the previous run's print.
 		for i, run := range runs {
