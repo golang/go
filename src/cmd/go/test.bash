@@ -408,7 +408,7 @@ if ! grep -q '^hello world' hello.out; then
 	cat hello.out
 	ok=false
 fi
-rm -rf $d
+rm -rf $d hello.out
 
 TEST go test -cpuprofile leaves binary behind
 ./testgo test -cpuprofile strings.prof strings || ok=false
@@ -612,6 +612,13 @@ if ! ./testgo build origin; then
 fi
 rm -rf $d
 unset GOPATH
+
+TEST 'Issue 6480: "go test -c -test.bench=XXX fmt" should not hang'
+if ! ./testgo test -c -test.bench=XXX fmt; then
+	echo build test failed
+	ok=false
+fi
+rm -f fmt.test
 
 # clean up
 if $started; then stop; fi
