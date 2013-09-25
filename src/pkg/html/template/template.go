@@ -128,8 +128,10 @@ func (t *Template) Parse(src string) (*Template, error) {
 		if tmpl == nil {
 			tmpl = t.new(name)
 		}
+		// Restore our record of this text/template to its unescaped original state.
 		tmpl.escaped = false
 		tmpl.text = v
+		tmpl.Tree = v.Tree
 	}
 	return t, nil
 }
