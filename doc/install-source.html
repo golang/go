@@ -220,6 +220,36 @@ The document <a href="/doc/code.html">How to Write Go Code</a> explains how to
 set up a work environment in which to build and test Go code.
 </p>
 
+<h2 id="tools">Install additional tools</h2>
+
+<p>
+The source code for seeral Go tools (including <a href="/cmd/godoc/">godoc</a>)
+is kept in <a href="https://code.google.com/p/go.tools">the go.tools repository</a>.
+To install all of them, run the <code>go</code> <code>get</code> command:
+</p>
+
+<pre>
+$ go get code.google.com/p/go.tools/cmd/...
+</pre>
+
+<p>
+Or if you just want to install a specific command (<code>godoc</code> in this case):
+</p>
+
+<pre>
+$ go get code.google.com/p/go.tools/cmd/godoc
+</pre>
+
+<p>
+To install these tools, the <code>go</code> <code>get</code> command requires 
+that <a href="#mercurial">Mercurial</a> be installed locally.
+</p>
+
+<p>
+You must also have a workspace (<code>GOPATH</code>) set up;
+see <a href="/doc/code.html">How to Write Go Code</a> for the details.
+</p>
+
 <h2 id="community">Community resources</h2>
 
 <p>
