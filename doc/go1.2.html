@@ -736,6 +736,14 @@ flag set, which holds the flags from the command line.
 </li>
 
 <li>
+The <a href="/pkg/go/ast/"><code>go/ast</code></a> package's
+<a href="/pkg/go/ast/#SliceExpr"><code>SliceExpr</code></a> struct
+has a new boolean field, <code>Slice3</code>, which is set to true
+when representing a slice expression with three indices (two colons).
+The default is false, representing the usual two-index form.
+</li>
+
+<li>
 The <a href="/pkg/go/build/"><code>go/build</code></a> package adds
 the <a href="/pkg/go/build/#Package.AllTags"><code>AllTags</code></a> field
 to the <a href="/pkg/go/build/#Package"><code>Package</code></a> type,
