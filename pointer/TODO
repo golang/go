@@ -32,12 +32,6 @@ SOLVER:
   dannyb recommends sparse bitmap.
 
 API:
-- Rely less on callbacks and more on a 'result' type
-  returned by Analyze().
-- Abstract the callgraph into a pure interface so that 
-  we can provide other implementations in future (e.g. RTA-based).
-  Also provide the option to eliminate context-sensitivity
-  in a callgraph to yield a smaller (less precise) callgraph.
 - Some optimisations (e.g. LE, PE) may change the API.
   Think about them sooner rather than later.
 - Eliminate Print probe now that we can query specific ssa.Values.

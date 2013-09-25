@@ -419,11 +419,11 @@ func describePointer(o *Oracle, v ssa.Value, indirect bool) (ptrs []pointerResul
 	buildSSA(o)
 
 	// TODO(adonovan): don't run indirect pointer analysis on non-ptr-ptrlike types.
-	o.config.QueryValues = map[ssa.Value]pointer.Indirect{v: pointer.Indirect(indirect)}
-	ptrAnalysis(o)
+	o.config.Queries = map[ssa.Value]pointer.Indirect{v: pointer.Indirect(indirect)}
+	ptares := ptrAnalysis(o)
 
 	// Combine the PT sets from all contexts.
-	pointers := o.config.QueryResults[v]
+	pointers := ptares.Queries[v]
 	if pointers == nil {
 		return nil, fmt.Errorf("PTA did not encounter this expression (dead code?)")
 	}

@@ -358,14 +358,12 @@ func buildSSA(o *Oracle) {
 	o.timers["SSA-build"] = time.Since(start)
 }
 
-// ptrAnalysis runs the pointer analysis and returns the synthetic
-// root of the callgraph.
-//
-func ptrAnalysis(o *Oracle) pointer.CallGraphNode {
+// ptrAnalysis runs the pointer analysis and returns its result.
+func ptrAnalysis(o *Oracle) *pointer.Result {
 	start := time.Now()
-	root := pointer.Analyze(&o.config)
+	result := pointer.Analyze(&o.config)
 	o.timers["pointer analysis"] = time.Since(start)
-	return root
+	return result
 }
 
 // parseOctothorpDecimal returns the numeric value if s matches "#%d",

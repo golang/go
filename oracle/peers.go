@@ -71,11 +71,11 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	ops = ops[:i]
 
 	// Run the pointer analysis.
-	o.config.QueryValues = channels
-	ptrAnalysis(o)
+	o.config.Queries = channels
+	ptares := ptrAnalysis(o)
 
 	// Combine the PT sets from all contexts.
-	queryChanPts := pointer.PointsToCombined(o.config.QueryResults[queryOp.ch])
+	queryChanPts := pointer.PointsToCombined(ptares.Queries[queryOp.ch])
 
 	// Ascertain which make(chan) labels the query's channel can alias.
 	var makes []token.Pos
@@ -87,7 +87,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// Ascertain which send/receive operations can alias the same make(chan) labels.
 	var sends, receives []token.Pos
 	for _, op := range ops {
-		for _, ptr := range o.config.QueryResults[op.ch] {
+		for _, ptr := range ptares.Queries[op.ch] {
 			if ptr != nil && ptr.PointsTo().Intersects(queryChanPts) {
 				if op.dir == ast.SEND {
 					sends = append(sends, op.pos)

@@ -8,8 +8,8 @@ import (
 	"go/token"
 	"strings"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
 )
 
 // callgraph displays the entire callgraph of the current program.
@@ -23,42 +23,24 @@ import (
 // TODO(adonovan): add an option to project away context sensitivity.
 // The callgraph API should provide this feature.
 //
+// TODO(adonovan): add an option to partition edges by call site.
+//
 // TODO(adonovan): elide nodes for synthetic functions?
 //
 func callgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
 	buildSSA(o)
 
 	// Run the pointer analysis and build the complete callgraph.
-	callgraph := make(pointer.CallGraph)
-	o.config.Call = callgraph.AddEdge
-	root := ptrAnalysis(o)
-
-	// Assign (preorder) numbers to all the callgraph nodes.
-	// TODO(adonovan): the callgraph API should do this for us.
-	// (Actually, it does have unique numbers under the hood.)
-	numbering := make(map[pointer.CallGraphNode]int)
-	var number func(cgn pointer.CallGraphNode)
-	number = func(cgn pointer.CallGraphNode) {
-		if _, ok := numbering[cgn]; !ok {
-			numbering[cgn] = len(numbering)
-			for callee := range callgraph[cgn] {
-				number(callee)
-			}
-		}
-	}
-	number(root)
+	o.config.BuildCallGraph = true
+	ptares := ptrAnalysis(o)
 
 	return &callgraphResult{
-		root:      root,
-		callgraph: callgraph,
-		numbering: numbering,
+		callgraph: ptares.CallGraph,
 	}, nil
 }
 
 type callgraphResult struct {
-	root      pointer.CallGraphNode
-	callgraph pointer.CallGraph
-	numbering map[pointer.CallGraphNode]int
+	callgraph call.Graph
 }
 
 func (r *callgraphResult) display(printf printfFunc) {
@@ -71,34 +53,41 @@ Some nodes may appear multiple times due to context-sensitive
  treatment of some calls.
 `)
 
-	// TODO(adonovan): compute the numbers as we print; right now
-	// it depends on map iteration so it's arbitrary,which is ugly.
-	seen := make(map[pointer.CallGraphNode]bool)
-	var print func(cgn pointer.CallGraphNode, indent int)
-	print = func(cgn pointer.CallGraphNode, indent int) {
-		n := r.numbering[cgn]
-		if !seen[cgn] {
-			seen[cgn] = true
-			printf(cgn.Func(), "%d\t%s%s", n, strings.Repeat("    ", indent), cgn.Func())
-			for callee := range r.callgraph[cgn] {
+	seen := make(map[call.GraphNode]int)
+	var print func(cgn call.GraphNode, indent int)
+	print = func(cgn call.GraphNode, indent int) {
+		fn := cgn.Func()
+		if num, ok := seen[cgn]; !ok {
+			num = len(seen)
+			seen[cgn] = num
+			printf(fn, "%d\t%s%s", num, strings.Repeat("    ", indent), fn)
+			// Don't use Edges(), which distinguishes callees by call site.
+			for callee := range call.CalleesOf(cgn) {
 				print(callee, indent+1)
 			}
 		} else {
-			printf(cgn.Func(), "\t%s%s (%d)", strings.Repeat("    ", indent), cgn.Func(), n)
+			printf(fn, "\t%s%s (%d)", strings.Repeat("    ", indent), fn, num)
 		}
 	}
-	print(r.root, 0)
+	print(r.callgraph.Root(), 0)
 }
 
 func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	cg := make([]serial.CallGraph, len(r.numbering))
-	for n, i := range r.numbering {
+	nodes := r.callgraph.Nodes()
+
+	numbering := make(map[call.GraphNode]int)
+	for i, n := range nodes {
+		numbering[n] = i
+	}
+
+	cg := make([]serial.CallGraph, len(nodes))
+	for i, n := range nodes {
 		j := &cg[i]
 		fn := n.Func()
 		j.Name = fn.String()
 		j.Pos = fset.Position(fn.Pos()).String()
-		for callee := range r.callgraph[n] {
-			j.Children = append(j.Children, r.numbering[callee])
+		for callee := range call.CalleesOf(n) {
+			j.Children = append(j.Children, numbering[callee])
 		}
 	}
 	res.Callgraph = cg

@@ -20,7 +20,7 @@ package call
 // Add a utility function to eliminate all context from a call graph.
 
 // CalleesOf returns a new set containing all direct callees of the
-// caller node in call graph g.
+// caller node.
 //
 func CalleesOf(caller GraphNode) map[GraphNode]bool {
 	callees := make(map[GraphNode]bool)
@@ -31,23 +31,33 @@ func CalleesOf(caller GraphNode) map[GraphNode]bool {
 }
 
 // GraphVisitEdges visits all the edges in graph g in depth-first order.
-// The edge function is called for each edge in postorder.
+// The edge function is called for each edge in postorder.  If it
+// returns non-nil, visitation stops and GraphVisitEdges returns that
+// value.
 //
-func GraphVisitEdges(g Graph, edge func(Edge)) {
+func GraphVisitEdges(g Graph, edge func(Edge) error) error {
 	seen := make(map[GraphNode]bool)
-	var visit func(n GraphNode)
-	visit = func(n GraphNode) {
+	var visit func(n GraphNode) error
+	visit = func(n GraphNode) error {
 		if !seen[n] {
 			seen[n] = true
 			for _, e := range n.Edges() {
-				visit(e.Callee)
-				edge(e)
+				if err := visit(e.Callee); err != nil {
+					return err
+				}
+				if err := edge(e); err != nil {
+					return err
+				}
 			}
 		}
+		return nil
 	}
 	for _, n := range g.Nodes() {
-		visit(n)
+		if err := visit(n); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // PathSearch finds an arbitrary path starting at node start and

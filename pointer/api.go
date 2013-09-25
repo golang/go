@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"io"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/go/types/typemap"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -27,30 +28,11 @@ type Config struct {
 	// has not yet been reduced by presolver optimisation.
 	Reflection bool
 
+	// BuildCallGraph determines whether to construct a callgraph.
+	// If enabled, the graph will be available in Result.CallGraph.
+	BuildCallGraph bool
+
 	// -------- Optional callbacks invoked by the analysis --------
-
-	// Call is invoked for each discovered call-graph edge.  The
-	// call-graph is a multigraph over CallGraphNodes with edges
-	// labelled by the CallSite that gives rise to the edge.
-	// (The caller node is available as site.Caller())
-	//
-	// Clients that wish to construct a call graph may provide
-	// CallGraph.AddEdge here.
-	//
-	// The callgraph may be context-sensitive, i.e. it may
-	// distinguish separate calls to the same function depending
-	// on the context.
-	//
-	Call func(site CallSite, callee CallGraphNode)
-
-	// CallSite is invoked for each call-site encountered in the
-	// program.
-	//
-	// The callgraph may be context-sensitive, i.e. it may
-	// distinguish separate calls to the same function depending
-	// on the context.
-	//
-	CallSite func(site CallSite)
 
 	// Warn is invoked for each warning encountered by the analysis,
 	// e.g. unknown external function, unsound use of unsafe.Pointer.
@@ -71,8 +53,8 @@ type Config struct {
 	//
 	Print func(site *ssa.CallCommon, p Pointer)
 
-	// The client populates QueryValues[v] for each ssa.Value v
-	// of interest.
+	// The client populates Queries[v] for each ssa.Value v of
+	// interest.
 	//
 	// The boolean (Indirect) indicates whether to compute the
 	// points-to set for v (false) or *v (true): the latter is
@@ -80,20 +62,16 @@ type Config struct {
 	// lvalues, e.g. an *ssa.Global.
 	//
 	// The pointer analysis will populate the corresponding
-	// QueryResults value when it creates the pointer variable
-	// for v or *v.  Upon completion the client can inspect the
+	// Results.Queries value when it creates the pointer variable
+	// for v or *v.  Upon completion the client can inspect that
 	// map for the results.
 	//
 	// If a Value belongs to a function that the analysis treats
-	// context-sensitively, the corresponding QueryResults slice
+	// context-sensitively, the corresponding Results.Queries slice
 	// may have multiple Pointers, one per distinct context.  Use
 	// PointsToCombined to merge them.
 	//
-	// TODO(adonovan): refactor the API: separate all results of
-	// Analyze() into a dedicated Result struct.
-	//
-	QueryValues  map[ssa.Value]Indirect
-	QueryResults map[ssa.Value][]Pointer
+	Queries map[ssa.Value]Indirect
 
 	// -------- Other configuration options --------
 
@@ -111,10 +89,19 @@ func (c *Config) prog() *ssa.Program {
 	panic("empty scope")
 }
 
+// A Result contains the results of a pointer analysis.
+//
+// See Config for how to request the various Result components.
+//
+type Result struct {
+	CallGraph call.Graph              // discovered call graph
+	Queries   map[ssa.Value][]Pointer // points-to sets for queried ssa.Values
+}
+
 // A Pointer is an equivalence class of pointerlike values.
 //
 // TODO(adonovan): add a method
-//    Context() CallGraphNode
+//    Context() call.GraphNode
 // for pointers corresponding to local variables,
 //
 type Pointer interface {

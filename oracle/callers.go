@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"go/token"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
 
@@ -36,54 +36,57 @@ func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	// Run the pointer analysis, recording each
 	// call found to originate from target.
-	var calls []pointer.CallSite
-	o.config.Call = func(site pointer.CallSite, callee pointer.CallGraphNode) {
-		if callee.Func() == target {
-			calls = append(calls, site)
+	o.config.BuildCallGraph = true
+	callgraph := ptrAnalysis(o).CallGraph
+	var edges []call.Edge
+	call.GraphVisitEdges(callgraph, func(edge call.Edge) error {
+		if edge.Callee.Func() == target {
+			edges = append(edges, edge)
 		}
-	}
-	// TODO(adonovan): sort calls, to ensure test determinism.
-
-	root := ptrAnalysis(o)
+		return nil
+	})
+	// TODO(adonovan): sort + dedup calls to ensure test determinism.
 
 	return &callersResult{
-		target: target,
-		root:   root,
-		calls:  calls,
+		target:    target,
+		callgraph: callgraph,
+		edges:     edges,
 	}, nil
 }
 
 type callersResult struct {
-	target *ssa.Function
-	root   pointer.CallGraphNode
-	calls  []pointer.CallSite
+	target    *ssa.Function
+	callgraph call.Graph
+	edges     []call.Edge
 }
 
 func (r *callersResult) display(printf printfFunc) {
-	if r.calls == nil {
+	root := r.callgraph.Root()
+	if r.edges == nil {
 		printf(r.target, "%s is not reachable in this program.", r.target)
 	} else {
-		printf(r.target, "%s is called from these %d sites:", r.target, len(r.calls))
-		for _, site := range r.calls {
-			if site.Caller() == r.root {
+		printf(r.target, "%s is called from these %d sites:", r.target, len(r.edges))
+		for _, edge := range r.edges {
+			if edge.Caller == root {
 				printf(r.target, "the root of the call graph")
 			} else {
-				printf(site, "\t%s from %s", site.Description(), site.Caller().Func())
+				printf(edge.Site, "\t%s from %s", edge.Site.Common().Description(), edge.Caller.Func())
 			}
 		}
 	}
 }
 
 func (r *callersResult) toSerial(res *serial.Result, fset *token.FileSet) {
+	root := r.callgraph.Root()
 	var callers []serial.Caller
-	for _, site := range r.calls {
+	for _, edge := range r.edges {
 		var c serial.Caller
-		c.Caller = site.Caller().Func().String()
-		if site.Caller() == r.root {
+		c.Caller = edge.Caller.Func().String()
+		if edge.Caller == root {
 			c.Desc = "synthetic call"
 		} else {
-			c.Pos = fset.Position(site.Pos()).String()
-			c.Desc = site.Description()
+			c.Pos = fset.Position(edge.Site.Pos()).String()
+			c.Desc = edge.Site.Common().Description()
 		}
 		callers = append(callers, c)
 	}

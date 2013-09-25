@@ -10,6 +10,7 @@ import (
 	"go/parser"
 	"sort"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
@@ -66,34 +67,23 @@ func main() {
 	prog.BuildAll()
 
 	// Run the pointer analysis and build the complete callgraph.
-	callgraph := make(pointer.CallGraph)
 	config := &pointer.Config{
-		Mains: []*ssa.Package{mainPkg},
-		Call:  callgraph.AddEdge,
+		Mains:          []*ssa.Package{mainPkg},
+		BuildCallGraph: true,
 	}
-	root := pointer.Analyze(config)
+	result := pointer.Analyze(config)
 
-	// Visit callgraph in depth-first order.
-	//
-	// There may be multiple nodes for the
-	// same function due to context sensitivity.
-	var edges []string // call edges originating from the main package.
-	seen := make(map[pointer.CallGraphNode]bool)
-	var visit func(cgn pointer.CallGraphNode)
-	visit = func(cgn pointer.CallGraphNode) {
-		if seen[cgn] {
-			return // already seen
+	// Find edges originating from the main package.
+	// By converting to strings, we de-duplicate nodes
+	// representing the same function due to context sensitivity.
+	var edges []string
+	call.GraphVisitEdges(result.CallGraph, func(edge call.Edge) error {
+		caller := edge.Caller.Func()
+		if caller.Pkg == mainPkg {
+			edges = append(edges, fmt.Sprint(caller, " --> ", edge.Callee.Func()))
 		}
-		seen[cgn] = true
-		caller := cgn.Func()
-		for callee := range callgraph[cgn] {
-			if caller.Pkg == mainPkg {
-				edges = append(edges, fmt.Sprint(caller, " --> ", callee.Func()))
-			}
-			visit(callee)
-		}
-	}
-	visit(root)
+		return nil
+	})
 
 	// Print the edges in sorted order.
 	sort.Strings(edges)

@@ -72,18 +72,13 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid) {
 	}
 
 	// Record the (v, id) relation if the client has queried v.
-	if indirect, ok := a.config.QueryValues[v]; ok {
+	if indirect, ok := a.config.Queries[v]; ok {
 		if indirect {
 			tmp := a.addNodes(v.Type(), "query.indirect")
 			a.load(tmp, id, a.sizeof(v.Type()))
 			id = tmp
 		}
-		ptrs := a.config.QueryResults
-		if ptrs == nil {
-			ptrs = make(map[ssa.Value][]Pointer)
-			a.config.QueryResults = ptrs
-		}
-		ptrs[v] = append(ptrs[v], ptr{a, id})
+		a.queries[v] = append(a.queries[v], ptr{a, id})
 	}
 }
 
@@ -125,7 +120,7 @@ func (a *analysis) makeFunctionObject(fn *ssa.Function) nodeid {
 
 	// obj is the function object (identity, params, results).
 	obj := a.nextNode()
-	cgn := &cgnode{fn: fn, obj: obj}
+	cgn := a.makeCGNode(fn, obj)
 	sig := fn.Signature
 	a.addOneNode(sig, "func.cgnode", nil) // (scalar with Signature type)
 	if recv := sig.Recv(); recv != nil {
@@ -849,15 +844,12 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 	}
 
 	site := &callsite{
-		caller:  caller,
 		targets: targets,
 		instr:   instr,
-		pos:     instr.Pos(),
 	}
-	a.callsites = append(a.callsites, site)
+	caller.sites = append(caller.sites, site)
 	if a.log != nil {
-		fmt.Fprintf(a.log, "\t%s to targets %s from %s\n",
-			site.Description(), site.targets, site.caller)
+		fmt.Fprintf(a.log, "\t%s to targets %s from %s\n", site, site.targets, caller)
 	}
 }
 
@@ -1061,6 +1053,12 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 	}
 }
 
+func (a *analysis) makeCGNode(fn *ssa.Function, obj nodeid) *cgnode {
+	cgn := &cgnode{fn: fn, obj: obj}
+	a.cgnodes = append(a.cgnodes, cgn)
+	return cgn
+}
+
 // genRootCalls generates the synthetic root of the callgraph and the
 // initial calls from it to the analysis scope, such as main, a test
 // or a library.
@@ -1070,7 +1068,7 @@ func (a *analysis) genRootCalls() *cgnode {
 	r.Prog = a.prog // hack.
 	r.Enclosing = r // hack, so Function.String() doesn't crash
 	r.String()      // (asserts that it doesn't crash)
-	root := &cgnode{fn: r}
+	root := a.makeCGNode(r, 0)
 
 	// For each main package, call main.init(), main.main().
 	for _, mainPkg := range a.config.Mains {
@@ -1080,11 +1078,8 @@ func (a *analysis) genRootCalls() *cgnode {
 		}
 
 		targets := a.addOneNode(main.Signature, "root.targets", nil)
-		site := &callsite{
-			caller:  root,
-			targets: targets,
-		}
-		a.callsites = append(a.callsites, site)
+		site := &callsite{targets: targets}
+		root.sites = append(root.sites, site)
 		for _, fn := range [2]*ssa.Function{mainPkg.Func("init"), main} {
 			if a.log != nil {
 				fmt.Fprintf(a.log, "\troot call to %s:\n", fn)

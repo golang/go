@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"go/token"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
 
@@ -41,57 +41,36 @@ func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 
 	// Run the pointer analysis and build the complete call graph.
-	callgraph := make(pointer.CallGraph)
-	o.config.Call = callgraph.AddEdge
-	root := ptrAnalysis(o)
+	o.config.BuildCallGraph = true
+	callgraph := ptrAnalysis(o).CallGraph
 
-	seen := make(map[pointer.CallGraphNode]bool)
-	var callstack []pointer.CallSite
-
-	// Use depth-first search to find an arbitrary path from a
-	// root to the target function.
-	var search func(cgn pointer.CallGraphNode) bool
-	search = func(cgn pointer.CallGraphNode) bool {
-		if !seen[cgn] {
-			seen[cgn] = true
-			if cgn.Func() == target {
-				return true
-			}
-			for callee, site := range callgraph[cgn] {
-				if search(callee) {
-					callstack = append(callstack, site)
-					return true
-				}
-			}
-		}
-		return false
-	}
-
-	for toplevel := range callgraph[root] {
-		if search(toplevel) {
-			break
-		}
+	// Search for an arbitrary path from a root to the target function.
+	isEnd := func(n call.GraphNode) bool { return n.Func() == target }
+	callpath := call.PathSearch(callgraph.Root(), isEnd)
+	if callpath != nil {
+		callpath = callpath[1:] // remove synthetic edge from <root>
 	}
 
 	return &callstackResult{
-		qpos:      qpos,
-		target:    target,
-		callstack: callstack,
+		qpos:     qpos,
+		target:   target,
+		callpath: callpath,
 	}, nil
 }
 
 type callstackResult struct {
-	qpos      *QueryPos
-	target    *ssa.Function
-	callstack []pointer.CallSite
+	qpos     *QueryPos
+	target   *ssa.Function
+	callpath []call.Edge
 }
 
 func (r *callstackResult) display(printf printfFunc) {
-	if r.callstack != nil {
+	if r.callpath != nil {
 		printf(r.qpos, "Found a call path from root to %s", r.target)
 		printf(r.target, "%s", r.target)
-		for _, site := range r.callstack {
-			printf(site, "%s from %s", site.Description(), site.Caller().Func())
+		for i := len(r.callpath) - 1; i >= 0; i-- {
+			edge := r.callpath[i]
+			printf(edge.Site, "%s from %s", edge.Site.Common().Description(), edge.Caller.Func())
 		}
 	} else {
 		printf(r.target, "%s is unreachable in this analysis scope", r.target)
@@ -100,11 +79,12 @@ func (r *callstackResult) display(printf printfFunc) {
 
 func (r *callstackResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	var callers []serial.Caller
-	for _, site := range r.callstack {
+	for i := len(r.callpath) - 1; i >= 0; i-- { // (innermost first)
+		edge := r.callpath[i]
 		callers = append(callers, serial.Caller{
-			Pos:    fset.Position(site.Pos()).String(),
-			Caller: site.Caller().Func().String(),
-			Desc:   site.Description(),
+			Pos:    fset.Position(edge.Site.Pos()).String(),
+			Caller: edge.Caller.Func().String(),
+			Desc:   edge.Site.Common().Description(),
 		})
 	}
 	res.Callstack = &serial.CallStack{

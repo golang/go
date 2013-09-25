@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"strings"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/ssa"
 )
@@ -46,7 +47,7 @@ func (l Label) Value() ssa.Value {
 // Context returns the analytic context in which this label's object was allocated,
 // or nil for global objects: global, const, and shared contours for functions.
 //
-func (l Label) Context() CallGraphNode {
+func (l Label) Context() call.GraphNode {
 	return l.obj.cgn
 }
 

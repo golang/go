@@ -10,6 +10,7 @@ package pointer_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/build"
 	"go/parser"
@@ -21,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/go/types/typemap"
 	"code.google.com/p/go.tools/importer"
@@ -286,24 +288,22 @@ func doOneInput(input, filename string) bool {
 	var warnings []string
 	var log bytes.Buffer
 
-	callgraph := make(pointer.CallGraph)
-
 	// Run the analysis.
 	config := &pointer.Config{
-		Reflection: true,
-		Mains:      []*ssa.Package{ptrmain},
-		Log:        &log,
+		Reflection:     true,
+		BuildCallGraph: true,
+		Mains:          []*ssa.Package{ptrmain},
+		Log:            &log,
 		Print: func(site *ssa.CallCommon, p pointer.Pointer) {
 			probes = append(probes, probe{site, p})
 		},
-		Call: callgraph.AddEdge,
 		Warn: func(pos token.Pos, format string, args ...interface{}) {
 			msg := fmt.Sprintf(format, args...)
 			fmt.Printf("%s: warning: %s\n", prog.Fset.Position(pos), msg)
 			warnings = append(warnings, msg)
 		},
 	}
-	pointer.Analyze(config)
+	result := pointer.Analyze(config)
 
 	// Print the log is there was an error or a panic.
 	complete := false
@@ -341,7 +341,7 @@ func doOneInput(input, filename string) bool {
 			}
 
 		case "calls":
-			if !checkCallsExpectation(prog, e, callgraph) {
+			if !checkCallsExpectation(prog, e, result.CallGraph) {
 				ok = false
 			}
 
@@ -463,29 +463,33 @@ func checkTypesExpectation(e *expectation, pr *probe) bool {
 		e.errorf("interface may additionally contain these types: %s", surplus.KeysString())
 	}
 	return ok
-	return false
 }
 
-func checkCallsExpectation(prog *ssa.Program, e *expectation, callgraph pointer.CallGraph) bool {
-	// TODO(adonovan): this is inefficient and not robust against
-	// typos.  Better to convert strings to *Functions during
-	// expectation parsing (somehow).
-	for caller, callees := range callgraph {
-		if caller.Func().String() == e.args[0] {
-			found := make(map[string]struct{})
-			for callee := range callees {
-				s := callee.Func().String()
-				found[s] = struct{}{}
-				if s == e.args[1] {
-					return true // expectation satisfied
-				}
+var errOK = errors.New("OK")
+
+func checkCallsExpectation(prog *ssa.Program, e *expectation, callgraph call.Graph) bool {
+	found := make(map[string]struct{})
+	err := call.GraphVisitEdges(callgraph, func(edge call.Edge) error {
+		// Name-based matching is inefficient but it allows us to
+		// match functions whose names that would not appear in an
+		// index ("<root>") or which are not unique ("func@1.2").
+		if edge.Caller.Func().String() == e.args[0] {
+			calleeStr := edge.Callee.Func().String()
+			if calleeStr == e.args[1] {
+				return errOK // expectation satisified; stop the search
 			}
-			e.errorf("found no call from %s to %s, but only to %s",
-				e.args[0], e.args[1], join(found))
-			return false
+			found[calleeStr] = struct{}{}
 		}
+		return nil
+	})
+	if err == errOK {
+		return true
 	}
-	e.errorf("didn't find any calls from %s", e.args[0])
+	if len(found) == 0 {
+		e.errorf("didn't find any calls from %s", e.args[0])
+	}
+	e.errorf("found no call from %s to %s, but only to %s",
+		e.args[0], e.args[1], join(found))
 	return false
 }
 

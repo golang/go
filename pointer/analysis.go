@@ -173,13 +173,14 @@ type analysis struct {
 	nodes       []*node                     // indexed by nodeid
 	flattenMemo map[types.Type][]*fieldInfo // memoization of flatten()
 	constraints []constraint                // set of constraints
-	callsites   []*callsite                 // all callsites
+	cgnodes     []*cgnode                   // all cgnodes
 	genq        []*cgnode                   // queue of functions to generate constraints for
 	intrinsics  map[*ssa.Function]intrinsic // non-nil values are summaries for intrinsic fns
 	funcObj     map[*ssa.Function]nodeid    // default function object for each func
 	probes      map[*ssa.CallCommon]nodeid  // maps call to print() to argument variable
 	valNode     map[ssa.Value]nodeid        // node for each ssa.Value
 	work        worklist                    // solver's worklist
+	queries     map[ssa.Value][]Pointer     // same as Results.Queries
 
 	// Reflection:
 	hasher          typemap.Hasher // cache of type hashes
@@ -229,7 +230,7 @@ func (a *analysis) warnf(pos token.Pos, format string, args ...interface{}) {
 // Analyze runs the pointer analysis with the scope and options
 // specified by config, and returns the (synthetic) root of the callgraph.
 //
-func Analyze(config *Config) CallGraphNode {
+func Analyze(config *Config) *Result {
 	a := &analysis{
 		config:      config,
 		log:         config.Log,
@@ -241,6 +242,7 @@ func Analyze(config *Config) CallGraphNode {
 		funcObj:     make(map[*ssa.Function]nodeid),
 		probes:      make(map[*ssa.CallCommon]nodeid),
 		work:        makeMapWorklist(),
+		queries:     make(map[ssa.Value][]Pointer),
 	}
 
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
@@ -265,7 +267,7 @@ func Analyze(config *Config) CallGraphNode {
 		fmt.Fprintln(a.log, "======== NEW ANALYSIS ========")
 	}
 
-	root := a.generate()
+	a.generate()
 
 	//a.optimize()
 
@@ -280,32 +282,33 @@ func Analyze(config *Config) CallGraphNode {
 		}
 	}
 
-	// Notify the client of the callsites if they're interested.
-	if CallSite := a.config.CallSite; CallSite != nil {
-		for _, site := range a.callsites {
-			CallSite(site)
-		}
-	}
+	// Visit discovered call graph.
+	for _, caller := range a.cgnodes {
+		for _, site := range caller.sites {
+			for nid := range a.nodes[site.targets].pts {
+				callee := a.nodes[nid].obj.cgn
 
-	Call := a.config.Call
-	for _, site := range a.callsites {
-		for nid := range a.nodes[site.targets].pts {
-			cgn := a.nodes[nid].obj.cgn
+				if a.config.BuildCallGraph {
+					site.callees = append(site.callees, callee)
+				}
 
-			// Notify the client of the call graph, if
-			// they're interested.
-			if Call != nil {
-				Call(site, cgn)
-			}
-
-			// Warn about calls to non-intrinsic external functions.
-
-			if fn := cgn.fn; fn.Blocks == nil && a.findIntrinsic(fn) == nil {
-				a.warnf(site.Pos(), "unsound call to unknown intrinsic: %s", fn)
-				a.warnf(fn.Pos(), " (declared here)")
+				// TODO(adonovan): de-dup these messages.
+				// Warn about calls to non-intrinsic external functions.
+				if fn := callee.fn; fn.Blocks == nil && a.findIntrinsic(fn) == nil {
+					a.warnf(site.pos(), "unsound call to unknown intrinsic: %s", fn)
+					a.warnf(fn.Pos(), " (declared here)")
+				}
 			}
 		}
 	}
 
-	return root
+	var callgraph *cgraph
+	if a.config.BuildCallGraph {
+		callgraph = &cgraph{a.cgnodes}
+	}
+
+	return &Result{
+		CallGraph: callgraph,
+		Queries:   a.queries,
+	}
 }

@@ -12,7 +12,6 @@ import (
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
 
@@ -22,14 +21,19 @@ import (
 // TODO(adonovan): if a callee is a wrapper, show the callee's callee.
 //
 func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
+	pkg := o.prog.Package(qpos.info.Pkg)
+	if pkg == nil {
+		return nil, fmt.Errorf("no SSA package")
+	}
+
 	// Determine the enclosing call for the specified position.
-	var call *ast.CallExpr
+	var e *ast.CallExpr
 	for _, n := range qpos.path {
-		if call, _ = n.(*ast.CallExpr); call != nil {
+		if e, _ = n.(*ast.CallExpr); e != nil {
 			break
 		}
 	}
-	if call == nil {
+	if e == nil {
 		return nil, fmt.Errorf("there is no function call here")
 	}
 	// TODO(adonovan): issue an error if the call is "too far
@@ -37,12 +41,12 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// not what the user intended.
 
 	// Reject type conversions.
-	if qpos.info.IsType(call.Fun) {
+	if qpos.info.IsType(e.Fun) {
 		return nil, fmt.Errorf("this is a type conversion, not a function call")
 	}
 
 	// Reject calls to built-ins.
-	if id, ok := unparen(call.Fun).(*ast.Ident); ok {
+	if id, ok := unparen(e.Fun).(*ast.Ident); ok {
 		if b, ok := qpos.info.ObjectOf(id).(*types.Builtin); ok {
 			return nil, fmt.Errorf("this is a call to the built-in '%s' operator", b.Name())
 		}
@@ -50,64 +54,68 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	buildSSA(o)
 
-	// Compute the subgraph of the callgraph for callsite(s)
-	// arising from 'call'.  There may be more than one if its
-	// enclosing function was treated context-sensitively.
-	// (Or zero if it was in dead code.)
-	//
-	// The presence of a key indicates this call site is
-	// interesting even if the value is nil.
-	querySites := make(map[pointer.CallSite][]pointer.CallGraphNode)
-	var arbitrarySite pointer.CallSite
-	o.config.CallSite = func(site pointer.CallSite) {
-		if site.Pos() == call.Lparen {
-			// Not a no-op!  Ensures key is
-			// present even if value is nil:
-			querySites[site] = querySites[site]
-			arbitrarySite = site
-		}
-	}
-	o.config.Call = func(site pointer.CallSite, callee pointer.CallGraphNode) {
-		if targets, ok := querySites[site]; ok {
-			querySites[site] = append(targets, callee)
-		}
-	}
-	ptrAnalysis(o)
-
-	if arbitrarySite == nil {
-		return nil, fmt.Errorf("this call site is unreachable in this analysis")
+	// Ascertain calling function and call site.
+	callerFn := ssa.EnclosingFunction(pkg, qpos.path)
+	if callerFn == nil {
+		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
-	// Compute union of callees across all contexts.
-	funcsMap := make(map[*ssa.Function]bool)
-	for _, callees := range querySites {
-		for _, callee := range callees {
-			funcsMap[callee.Func()] = true
+	o.config.BuildCallGraph = true
+	callgraph := ptrAnalysis(o).CallGraph
+
+	// Find the call site and all edges from it.
+	var site ssa.CallInstruction
+	calleesMap := make(map[*ssa.Function]bool)
+	for _, n := range callgraph.Nodes() {
+		if n.Func() == callerFn {
+			if site == nil {
+				// First node for callerFn: identify the site.
+				for _, s := range n.Sites() {
+					if s.Pos() == e.Lparen {
+						site = s
+						break
+					}
+				}
+				if site == nil {
+					return nil, fmt.Errorf("this call site is unreachable in this analysis")
+				}
+			}
+
+			for _, edge := range n.Edges() {
+				if edge.Site == site {
+					calleesMap[edge.Callee.Func()] = true
+				}
+			}
 		}
 	}
-	funcs := make([]*ssa.Function, 0, len(funcsMap))
-	for f := range funcsMap {
+	if site == nil {
+		return nil, fmt.Errorf("this function is unreachable in this analysis")
+	}
+
+	// Discard context, de-duplicate and sort.
+	funcs := make([]*ssa.Function, 0, len(calleesMap))
+	for f := range calleesMap {
 		funcs = append(funcs, f)
 	}
 	sort.Sort(byFuncPos(funcs))
 
 	return &calleesResult{
-		site:  arbitrarySite,
+		site:  site,
 		funcs: funcs,
 	}, nil
 }
 
 type calleesResult struct {
-	site  pointer.CallSite
+	site  ssa.CallInstruction
 	funcs []*ssa.Function
 }
 
 func (r *calleesResult) display(printf printfFunc) {
 	if len(r.funcs) == 0 {
 		// dynamic call on a provably nil func/interface
-		printf(r.site, "%s on nil value", r.site.Description())
+		printf(r.site, "%s on nil value", r.site.Common().Description())
 	} else {
-		printf(r.site, "this %s dispatches to:", r.site.Description())
+		printf(r.site, "this %s dispatches to:", r.site.Common().Description())
 		for _, callee := range r.funcs {
 			printf(callee, "\t%s", callee)
 		}
@@ -117,7 +125,7 @@ func (r *calleesResult) display(printf printfFunc) {
 func (r *calleesResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	j := &serial.Callees{
 		Pos:  fset.Position(r.site.Pos()).String(),
-		Desc: r.site.Description(),
+		Desc: r.site.Common().Description(),
 	}
 	for _, callee := range r.funcs {
 		j.Callees = append(j.Callees, &serial.CalleesItem{
