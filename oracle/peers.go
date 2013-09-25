@@ -5,6 +5,7 @@
 package oracle
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"sort"
@@ -25,7 +26,7 @@ import (
 func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	arrowPos := findArrow(qpos)
 	if arrowPos == token.NoPos {
-		return nil, o.errorf(qpos.path[0], "there is no send/receive here")
+		return nil, fmt.Errorf("there is no send/receive here")
 	}
 
 	buildSSA(o)
@@ -49,7 +50,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		}
 	}
 	if queryOp.ch == nil {
-		return nil, o.errorf(arrowPos, "ssa.Instruction for send/receive not found")
+		return nil, fmt.Errorf("ssa.Instruction for send/receive not found")
 	}
 
 	// Discard operations of wrong channel element type.

@@ -111,9 +111,7 @@ result."
       (setq buffer-read-only nil)
       (erase-buffer)
       (insert "Go Oracle\n")
-      (let ((args (append (list go-oracle-command nil t nil
-                                posflag
-                                (format "-mode=%s" mode))
+      (let ((args (append (list go-oracle-command nil t nil posflag mode)
                           (split-string go-oracle-scope " " t))))
         ;; Log the command to *Messages*, for debugging.
         (message "Command: %s:" args)

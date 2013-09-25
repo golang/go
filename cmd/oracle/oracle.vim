@@ -68,14 +68,14 @@ func! s:RunOracle(mode, selected) range abort
   if a:selected != -1
     let pos1 = s:getpos(line("'<"), col("'<"))
     let pos2 = s:getpos(line("'>"), col("'>"))
-    let cmd = printf('%s -mode=%s -pos=%s:#%d,#%d %s',
-      \  s:go_oracle, a:mode,
-      \  shellescape(fname), pos1, pos2, shellescape(sname))
+    let cmd = printf('%s -pos=%s:#%d,#%d %s %s',
+      \  s:go_oracle,
+      \  shellescape(fname), pos1, pos2, a:mode, shellescape(sname))
   else
     let pos = s:getpos(line('.'), col('.'))
-    let cmd = printf('%s -mode=%s -pos=%s:#%d %s',
-      \  s:go_oracle, a:mode,
-      \  shellescape(fname), pos, shellescape(sname))
+    let cmd = printf('%s -pos=%s:#%d %s %s',
+      \  s:go_oracle,
+      \  shellescape(fname), pos, a:mode, shellescape(sname))
   endif
   call s:qflist(system(cmd))
 endfun

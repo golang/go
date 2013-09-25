@@ -24,7 +24,7 @@ trap "rm -f $log" EXIT
 go get code.google.com/p/go.tools/cmd/oracle || die "'go get' failed"
 mv -f $GOPATH/bin/oracle $GOROOT/bin/
 $GOROOT/bin/oracle >$log 2>&1 || true # (prints usage and exits 1)
-grep -q "Usage: oracle" $log || die "$GOROOT/bin/oracle not installed"
+grep -q "Run.*help" $log || die "$GOROOT/bin/oracle not installed"
 
 
 # Run Emacs, set the scope to the oracle tool itself,

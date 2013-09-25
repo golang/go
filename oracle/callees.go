@@ -5,6 +5,7 @@
 package oracle
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"sort"
@@ -29,7 +30,7 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		}
 	}
 	if call == nil {
-		return nil, o.errorf(qpos.path[0], "there is no function call here")
+		return nil, fmt.Errorf("there is no function call here")
 	}
 	// TODO(adonovan): issue an error if the call is "too far
 	// away" from the current selection, as this most likely is
@@ -37,13 +38,13 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	// Reject type conversions.
 	if qpos.info.IsType(call.Fun) {
-		return nil, o.errorf(call, "this is a type conversion, not a function call")
+		return nil, fmt.Errorf("this is a type conversion, not a function call")
 	}
 
 	// Reject calls to built-ins.
 	if id, ok := unparen(call.Fun).(*ast.Ident); ok {
 		if b, ok := qpos.info.ObjectOf(id).(*types.Builtin); ok {
-			return nil, o.errorf(call, "this is a call to the built-in '%s' operator", b.Name())
+			return nil, fmt.Errorf("this is a call to the built-in '%s' operator", b.Name())
 		}
 	}
 
@@ -74,7 +75,7 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	ptrAnalysis(o)
 
 	if arbitrarySite == nil {
-		return nil, o.errorf(call.Lparen, "this call site is unreachable in this analysis")
+		return nil, fmt.Errorf("this call site is unreachable in this analysis")
 	}
 
 	// Compute union of callees across all contexts.

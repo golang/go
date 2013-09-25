@@ -52,7 +52,7 @@ func freevars(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		obj := qpos.info.ObjectOf(n)
 		if obj == nil {
 			return nil // TODO(adonovan): fix: this fails for *types.Label.
-			panic(o.errorf(n, "no types.Object for ast.Ident"))
+			panic("no types.Object for ast.Ident")
 		}
 		if _, ok := obj.(*types.PkgName); ok {
 			return nil // imported package

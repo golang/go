@@ -6,9 +6,7 @@
 // http://golang.org/s/oracle-design
 // http://golang.org/s/oracle-user-manual
 //
-// Run with -help for usage information.
-//
-// TODO(adonovan): perhaps -mode should be an args[1] verb, e.g. 'oracle callgraph ...'
+// Run with -help flag or help subcommand for usage information.
 //
 package main
 
@@ -33,9 +31,6 @@ var posFlag = flag.String("pos", "",
 	"Filename and byte offset or extent of a syntax element about which to query, "+
 		"e.g. foo.go:#123,#456, bar.go:#123.")
 
-var modeFlag = flag.String("mode", "",
-	"Mode of query to perform: e.g. callers, describe, etc.")
-
 var ptalogFlag = flag.String("ptalog", "",
 	"Location of the points-to analysis log file, or empty to disable logging.")
 
@@ -47,7 +42,7 @@ var reflectFlag = flag.Bool("reflect", true, "Analyze reflection soundly (slow).
 const useHelp = "Run 'oracle -help' for more information.\n"
 
 const helpMessage = `Go source code oracle.
-Usage: oracle [<flag> ...] <args> ...
+Usage: oracle [<flag> ...] <mode> <args> ...
 
 The -format flag controls the output format:
 	plain	an editor-friendly format in which every line of output
@@ -57,7 +52,8 @@ The -format flag controls the output format:
 
 The -pos flag is required in all modes except 'callgraph'.
 
-The -mode flag determines the query to perform:
+The mode argument determines the query to perform:
+
 	callees	  	show possible targets of selected function call
 	callers	  	show possible callers of selected function
 	callgraph 	show complete callgraph of program
@@ -73,11 +69,11 @@ The user manual is available here:  http://golang.org/s/oracle-user-manual
 Examples:
 
 Describe the syntax at offset 530 in this file (an import spec):
-% oracle -mode=describe -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#530 \
+% oracle -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#530 describe \
    code.google.com/p/go.tools/cmd/oracle
 
 Print the callgraph of the trivial web-server in JSON format:
-% oracle -mode=callgraph -format=json src/pkg/net/http/triv.go
+% oracle -format=json src/pkg/net/http/triv.go callgraph
 ` + importer.InitialPackagesUsage
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -94,6 +90,12 @@ func init() {
 	}
 }
 
+func printHelp() {
+	fmt.Println(helpMessage)
+	fmt.Println("Flags:")
+	flag.PrintDefaults()
+}
+
 func main() {
 	// Don't print full help unless -help was requested.
 	// Just gently remind users that it's there.
@@ -102,13 +104,23 @@ func main() {
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		// (err has already been printed)
 		if err == flag.ErrHelp {
-			fmt.Println(helpMessage)
-			fmt.Println("Flags:")
-			flag.PrintDefaults()
+			printHelp()
 		}
 		os.Exit(2)
 	}
+
 	args := flag.Args()
+	if len(args) == 0 || args[0] == "" {
+		fmt.Fprint(os.Stderr, "Error: a mode argument is required.\n"+useHelp)
+		os.Exit(2)
+	}
+
+	mode := args[0]
+	args = args[1:]
+	if mode == "help" {
+		printHelp()
+		os.Exit(2)
+	}
 
 	if len(args) == 0 {
 		fmt.Fprint(os.Stderr, "Error: no package arguments.\n"+useHelp)
@@ -145,20 +157,14 @@ func main() {
 	case "json", "plain", "xml":
 		// ok
 	default:
-		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q\n"+useHelp, *formatFlag)
-		os.Exit(2)
-	}
-
-	// -mode flag
-	if *modeFlag == "" {
-		fmt.Fprintf(os.Stderr, "Error: a query -mode is required.\n"+useHelp)
+		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q.\n"+useHelp, *formatFlag)
 		os.Exit(2)
 	}
 
 	// Ask the oracle.
-	res, err := oracle.Query(args, *modeFlag, *posFlag, ptalog, &build.Default, *reflectFlag)
+	res, err := oracle.Query(args, mode, *posFlag, ptalog, &build.Default, *reflectFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n"+useHelp, err)
+		fmt.Fprintf(os.Stderr, "Error: %s.\n", err)
 		os.Exit(1)
 	}
 
@@ -167,7 +173,7 @@ func main() {
 	case "json":
 		b, err := json.MarshalIndent(res.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "JSON error: %s\n", err)
+			fmt.Fprintf(os.Stderr, "JSON error: %s.\n", err)
 			os.Exit(1)
 		}
 		os.Stdout.Write(b)
@@ -175,7 +181,7 @@ func main() {
 	case "xml":
 		b, err := xml.MarshalIndent(res.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "XML error: %s\n", err)
+			fmt.Fprintf(os.Stderr, "XML error: %s.\n", err)
 			os.Exit(1)
 		}
 		os.Stdout.Write(b)

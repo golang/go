@@ -5,6 +5,7 @@
 package oracle
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"sort"
@@ -19,13 +20,13 @@ import (
 func referrers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	id, _ := qpos.path[0].(*ast.Ident)
 	if id == nil {
-		return nil, o.errorf(qpos, "no identifier here")
+		return nil, fmt.Errorf("no identifier here")
 	}
 
 	obj := qpos.info.ObjectOf(id)
 	if obj == nil {
 		// Happens for y in "switch y := x.(type)", but I think that's all.
-		return nil, o.errorf(qpos, "no object for identifier")
+		return nil, fmt.Errorf("no object for identifier")
 	}
 
 	// Iterate over all go/types' resolver facts for the entire program.

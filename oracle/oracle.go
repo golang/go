@@ -18,7 +18,6 @@ package oracle
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -257,7 +256,7 @@ func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs in
 
 		// Create SSA packages.
 		if err := o.prog.CreatePackages(imp); err != nil {
-			return nil, o.errorf(nil, "%s", err)
+			return nil, err
 		}
 
 		// Initial packages (specified on command line)
@@ -270,7 +269,7 @@ func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs in
 				// should build a single synthetic testmain package,
 				// not synthetic main functions to many packages.
 				if initialPkg.CreateTestMainFunction() == nil {
-					return nil, o.errorf(nil, "analysis scope has no main() entry points")
+					return nil, fmt.Errorf("analysis scope has no main() entry points")
 				}
 			}
 			o.config.Mains = append(o.config.Mains, initialPkg)
@@ -324,7 +323,7 @@ func ParseQueryPos(imp *importer.Importer, pos string, needExact bool) (*QueryPo
 	}
 	info, path, exact := imp.PathEnclosingInterval(start, end)
 	if path == nil {
-		return nil, errors.New("no syntax here")
+		return nil, fmt.Errorf("no syntax here")
 	}
 	if needExact && !exact {
 		return nil, fmt.Errorf("ambiguous selection within %s", importer.NodeDescription(path[0]))
@@ -535,13 +534,6 @@ func (o *Oracle) fprintf(w io.Writer, pos interface{}, format string, args ...in
 	}
 	fmt.Fprintf(w, format, args...)
 	io.WriteString(w, "\n")
-}
-
-// errorf is like fprintf, but returns a formatted error string.
-func (o *Oracle) errorf(pos interface{}, format string, args ...interface{}) error {
-	var buf bytes.Buffer
-	o.fprintf(&buf, pos, format, args...)
-	return errors.New(buf.String())
 }
 
 // printNode returns the pretty-printed syntax of n.

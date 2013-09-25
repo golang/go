@@ -351,7 +351,7 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 	switch n := path[0].(type) {
 	case *ast.ValueSpec:
 		// ambiguous ValueSpec containing multiple names
-		return nil, o.errorf(n, "multiple value specification")
+		return nil, fmt.Errorf("multiple value specification")
 	case *ast.Ident:
 		obj = qpos.info.ObjectOf(n)
 		expr = n
@@ -359,7 +359,7 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 		expr = n
 	default:
 		// Is this reachable?
-		return nil, o.errorf(n, "unexpected AST for expr: %T", n)
+		return nil, fmt.Errorf("unexpected AST for expr: %T", n)
 	}
 
 	typ := qpos.info.TypeOf(expr)
@@ -649,7 +649,7 @@ func describeType(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeTypeResu
 
 	default:
 		// Unreachable?
-		return nil, o.errorf(n, "unexpected AST for type: %T", n)
+		return nil, fmt.Errorf("unexpected AST for type: %T", n)
 	}
 
 	return &describeTypeResult{
@@ -737,7 +737,7 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 
 	default:
 		// Unreachable?
-		return nil, o.errorf(n, "unexpected AST for package: %T", n)
+		return nil, fmt.Errorf("unexpected AST for package: %T", n)
 	}
 
 	var members []*describeMember

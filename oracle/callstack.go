@@ -5,6 +5,7 @@
 package oracle
 
 import (
+	"fmt"
 	"go/token"
 
 	"code.google.com/p/go.tools/oracle/serial"
@@ -25,19 +26,18 @@ import (
 func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	pkg := o.prog.Package(qpos.info.Pkg)
 	if pkg == nil {
-		return nil, o.errorf(qpos.path[0], "no SSA package")
+		return nil, fmt.Errorf("no SSA package")
 	}
 
 	if !ssa.HasEnclosingFunction(pkg, qpos.path) {
-		return nil, o.errorf(qpos.path[0], "this position is not inside a function")
+		return nil, fmt.Errorf("this position is not inside a function")
 	}
 
 	buildSSA(o)
 
 	target := ssa.EnclosingFunction(pkg, qpos.path)
 	if target == nil {
-		return nil, o.errorf(qpos.path[0],
-			"no SSA function built for this location (dead code?)")
+		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
 	// Run the pointer analysis and build the complete call graph.

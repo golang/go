@@ -68,22 +68,18 @@ value may point to these labels:
 -------- @callees callees-err-no-call --------
 
 Error: there is no function call here
-
 -------- @callees callees-err-builtin --------
 
 Error: this is a call to the built-in 'print' operator
-
 -------- @callees callees-err-conversion --------
 
 Error: this is a type conversion, not a function call
-
 -------- @callees callees-err-bad-selection --------
 
 Error: ambiguous selection within function call (or conversion)
 -------- @callees callees-err-deadcode1 --------
 
 Error: this call site is unreachable in this analysis
-
 -------- @callees callees-err-nil-func --------
 dynamic function call on nil value
 
@@ -93,7 +89,6 @@ dynamic method call on nil value
 -------- @callees callees-err-deadcode2 --------
 
 Error: this call site is unreachable in this analysis
-
 -------- @callstack callstack-err-deadcode --------
 main.deadcode is unreachable in this analysis scope
 
