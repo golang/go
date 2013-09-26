@@ -193,7 +193,7 @@ Curves:
 	}
 
 	for _, id := range preferenceList {
-		if hs.suite = c.tryCipherSuite(id, supportedList, hs.ellipticOk, hs.ecdsaOk); hs.suite != nil {
+		if hs.suite = c.tryCipherSuite(id, supportedList, c.vers, hs.ellipticOk, hs.ecdsaOk); hs.suite != nil {
 			break
 		}
 	}
@@ -234,7 +234,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	}
 
 	// Check that we also support the ciphersuite from the session.
-	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.ellipticOk, hs.ecdsaOk)
+	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.sessionState.vers, hs.ellipticOk, hs.ecdsaOk)
 	if hs.suite == nil {
 		return false
 	}
@@ -605,7 +605,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 
 // tryCipherSuite returns a cipherSuite with the given id if that cipher suite
 // is acceptable to use.
-func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipticOk, ecdsaOk bool) *cipherSuite {
+func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16, ellipticOk, ecdsaOk bool) *cipherSuite {
 	for _, supported := range supportedCipherSuites {
 		if id == supported {
 			var candidate *cipherSuite
@@ -625,6 +625,9 @@ func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipti
 				continue
 			}
 			if (candidate.flags&suiteECDSA != 0) != ecdsaOk {
+				continue
+			}
+			if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
 				continue
 			}
 			return candidate

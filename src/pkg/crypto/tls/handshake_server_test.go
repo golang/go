@@ -104,6 +104,53 @@ func TestNoCompressionOverlap(t *testing.T) {
 	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
 }
 
+func TestTLS12OnlyCipherSuites(t *testing.T) {
+	// Test that a Server doesn't select a TLS 1.2-only cipher suite when
+	// the client negotiates TLS 1.1.
+	var zeros [32]byte
+
+	clientHello := &clientHelloMsg{
+		vers:   VersionTLS11,
+		random: zeros[:],
+		cipherSuites: []uint16{
+			// The Server, by default, will use the client's
+			// preference order. So the GCM cipher suite
+			// will be selected unless it's excluded because
+			// of the version in this ClientHello.
+			TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			TLS_RSA_WITH_RC4_128_SHA,
+		},
+		compressionMethods: []uint8{compressionNone},
+		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
+		supportedPoints:    []uint8{pointFormatUncompressed},
+	}
+
+	c, s := net.Pipe()
+	var reply interface{}
+	var clientErr error
+	go func() {
+		cli := Client(c, testConfig)
+		cli.vers = clientHello.vers
+		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+		reply, clientErr = cli.readHandshake()
+		c.Close()
+	}()
+	config := *testConfig
+	config.CipherSuites = clientHello.cipherSuites
+	Server(s, &config).Handshake()
+	s.Close()
+	if clientErr != nil {
+		t.Fatal(clientErr)
+	}
+	serverHello, ok := reply.(*serverHelloMsg)
+	if !ok {
+		t.Fatalf("didn't get ServerHello message in reply. Got %v\n", reply)
+	}
+	if s := serverHello.cipherSuite; s != TLS_RSA_WITH_RC4_128_SHA {
+		t.Fatalf("bad cipher suite from server: %x", s)
+	}
+}
+
 func TestAlertForwarding(t *testing.T) {
 	c, s := net.Pipe()
 	go func() {
