@@ -41,9 +41,12 @@ func (c Code) TemplateName() string { return "code" }
 var (
 	highlightRE = regexp.MustCompile(`\s+HL([a-zA-Z0-9_]+)?$`)
 	hlCommentRE = regexp.MustCompile(`(.+) // HL(.*)$`)
-	codeRE      = regexp.MustCompile(`\.(code|play)\s+([^\s]+)(\s+)?(.*)?$`)
+	codeRE      = regexp.MustCompile(`\.(code|play)\s+((?:(?:-edit|-numbers)\s+)*)([^\s]+)(?:\s+(.*))?$`)
 )
 
+// parseCode parses a code present directive. Its syntax:
+//   .code [-numbers] [-edit] <filename> [address] [highlight]
+// The directive may also be ".play" if the snippet is executable.
 func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Elem, error) {
 	cmd = strings.TrimSpace(cmd)
 
@@ -58,14 +61,14 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 	// Arguments:
 	// args[0]: whole match
 	// args[1]:  .code/.play
-	// args[2]: file name
-	// args[3]: space, if any, before optional address
+	// args[2]: flags ("-edit -numbers")
+	// args[3]: file name
 	// args[4]: optional address
 	args := codeRE.FindStringSubmatch(cmd)
 	if len(args) != 5 {
 		return nil, fmt.Errorf("%s:%d: syntax error for .code/.play invocation", sourceFile, sourceLine)
 	}
-	command, file, addr := args[1], args[2], strings.TrimSpace(args[4])
+	command, flags, file, addr := args[1], args[2], args[3], strings.TrimSpace(args[4])
 	play := command == "play" && PlayEnabled
 
 	// Read in code file and (optionally) match address.
@@ -106,7 +109,11 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 		lines[i] = line
 	}
 
-	data := &codeTemplateData{Lines: lines}
+	data := &codeTemplateData{
+		Lines:   lines,
+		Edit:    strings.Contains(flags, "-edit"),
+		Numbers: strings.Contains(flags, "-numbers"),
+	}
 
 	// Include before and after in a hidden span for playground code.
 	if play {
@@ -124,6 +131,7 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 type codeTemplateData struct {
 	Lines          []codeLine
 	Prefix, Suffix []byte
+	Edit, Numbers  bool
 }
 
 var leadingSpaceRE = regexp.MustCompile(`^[ \t]*`)
@@ -136,7 +144,8 @@ var codeTemplate = template.Must(template.New("code").Funcs(template.FuncMap{
 const codeTemplateHTML = `
 {{with .Prefix}}<pre style="display: none"><span>{{printf "%s" .}}</span></pre>{{end}}
 
-<pre>{{range .Lines}}<span num="{{.N}}">{{/*
+<pre{{if .Edit}} contenteditable="true" spellcheck="false"{{end}}{{if .Numbers}} class="numbers"{{end}}>{{/*
+	*/}}{{range .Lines}}<span num="{{.N}}">{{/*
 	*/}}{{if .HL}}{{leadingSpace .L}}<b>{{trimSpace .L}}</b>{{/*
 	*/}}{{else}}{{.L}}{{end}}{{/*
 */}}</span>

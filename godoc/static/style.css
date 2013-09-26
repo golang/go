@@ -548,9 +548,10 @@ div#playground .output {
         padding: 0;
         background: none;
         border: none;
+	outline: 0px solid transparent;
         overflow: auto;
 }
-#content .playground .number {
+#content .playground .number, #content .code .number {
         color: #999;
 }
 #content .code, #content .playground, #content .output {

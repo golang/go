@@ -140,6 +140,12 @@ Such highlights are enabled only if the code invocation ends with
 "HL" followed by the word:
 	.code test.go /^type Foo/,/^}/ HLxxx
 
+The .code function may take one or more flags immediately preceding
+the filename. This command shows test.go in an editable text area:
+	.code -edit test.go
+This command shows test.go with line numbers:
+	.code -numbers test.go
+
 play:
 
 The function "play" is the same as "code" but puts a button
