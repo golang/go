@@ -14,10 +14,10 @@
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	BL runtime·entersyscall(SB)
-	MOVW 0(FP), R0 // sigcall num
-	MOVW 4(FP), R1 // a1
-	MOVW 8(FP), R2 // a2
-	MOVW 12(FP), R3 // a3
+	MOVW 0(FP), R7 // sigcall num
+	MOVW 4(FP), R0 // a1
+	MOVW 8(FP), R1 // a2
+	MOVW 12(FP), R2 // a3
 	SWI $0 // syscall
 	MOVW $0, R2
 	BCS error
@@ -36,14 +36,14 @@ error:
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	BL runtime·entersyscall(SB)
-	MOVW 0(FP), R0 // sigcall num
-	MOVW 4(FP), R1 // a1
-	MOVW 8(FP), R2 // a2
-	MOVW 12(FP), R3 // a3
-	MOVW R13, R4
-	MOVW $16(FP), R13 // a4 to a6 are passed on stack
+	MOVW 0(FP), R7 // sigcall num
+	MOVW 4(FP), R0 // a1
+	MOVW 8(FP), R1 // a2
+	MOVW 12(FP), R2 // a3
+	MOVW 16(FP), R3 // a4
+	ADD $24, R13 // a5 to a6 are passed on stack
 	SWI $0 // syscall
-	MOVW R4, R13
+	SUB $24, R13
 	MOVW $0, R2
 	BCS error6
 	MOVW R0, 28(FP) // r1
@@ -61,14 +61,14 @@ error6:
 
 TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	BL runtime·entersyscall(SB)
-	MOVW 0(FP), R0 // sigcall num
-	MOVW 4(FP), R1 // a1
-	MOVW 8(FP), R2 // a2
-	MOVW 12(FP), R3 // a3
-	MOVW R13, R4
-	MOVW $16(FP), R13 // a4 to a9 are passed on stack
+	MOVW 0(FP), R7 // sigcall num
+	MOVW 4(FP), R0 // a1
+	MOVW 8(FP), R1 // a2
+	MOVW 12(FP), R2 // a3
+	MOVW 16(FP), R3 // a4
+	ADD $24, R13 // a5 to a9 are passed on stack
 	SWI $0 // syscall
-	MOVW R4, R13
+	SUB $24, R13
 	MOVW $0, R2
 	BCS error9
 	MOVW R0, 40(FP) // r1
@@ -85,10 +85,10 @@ error9:
 	RET
 
 TEXT	·RawSyscall(SB),NOSPLIT,$0-28
-	MOVW 0(FP), R0 // sigcall num
-	MOVW 4(FP), R1 // a1
-	MOVW 8(FP), R2 // a2
-	MOVW 12(FP), R3 // a3
+	MOVW 0(FP), R7 // sigcall num
+	MOVW 4(FP), R0 // a1
+	MOVW 8(FP), R1 // a2
+	MOVW 12(FP), R2 // a3
 	SWI $0 // syscall
 	MOVW $0, R2
 	BCS errorr
@@ -104,14 +104,14 @@ errorr:
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
-	MOVW 0(FP), R0 // sigcall num
-	MOVW 4(FP), R1 // a1
-	MOVW 8(FP), R2 // a2
-	MOVW 12(FP), R3 // a3
-	MOVW R13, R4
-	MOVW $16(FP), R13 // a4 to a9 are passed on stack
+	MOVW 0(FP), R7 // sigcall num
+	MOVW 4(FP), R0 // a1
+	MOVW 8(FP), R1 // a2
+	MOVW 12(FP), R2 // a3
+	MOVW 16(FP), R3 // a4
+	ADD $24, R13 // a5 to a6 are passed on stack
 	SWI $0 // syscall
-	MOVW R4, R13
+	SUB $24, R13
 	MOVW $0, R2
 	BCS errorr6
 	MOVW R0, 28(FP) // r1

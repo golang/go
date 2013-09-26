@@ -8,6 +8,35 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "../../cmd/ld/textflag.h"
+
+// for EABI, as we don't support OABI
+#define SYS_BASE 0x0
+
+#define SYS_exit (SYS_BASE + 1)
+#define SYS_read (SYS_BASE + 3)
+#define SYS_write (SYS_BASE + 4)
+#define SYS_open (SYS_BASE + 5)
+#define SYS_close (SYS_BASE + 6)
+#define SYS_sigaltstack (SYS_BASE + 53)
+#define SYS_munmap (SYS_BASE + 73)
+#define SYS_madvise (SYS_BASE + 75)
+#define SYS_setitimer (SYS_BASE + 83)
+#define SYS_fcntl (SYS_BASE + 92)
+#define SYS_getrlimit (SYS_BASE + 194)
+#define SYS___sysctl (SYS_BASE + 202)
+#define SYS_nanosleep (SYS_BASE + 240)
+#define SYS_clock_gettime (SYS_BASE + 232)
+#define SYS_sched_yield (SYS_BASE + 331)
+#define SYS_sigprocmask (SYS_BASE + 340)
+#define SYS_kqueue (SYS_BASE + 362)
+#define SYS_kevent (SYS_BASE + 363)
+#define SYS_sigaction (SYS_BASE + 416)
+#define SYS_thr_exit (SYS_BASE + 431)
+#define SYS_thr_self (SYS_BASE + 432)
+#define SYS_thr_kill (SYS_BASE + 433)
+#define SYS__umtx_op (SYS_BASE + 454)
+#define SYS_thr_new (SYS_BASE + 455)
+#define SYS_mmap (SYS_BASE + 477) 
 	
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW 0(FP), R0
@@ -15,7 +44,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW 8(FP), R2
 	MOVW 12(FP), R3
 	ADD $20, R13 // arg 5 is passed on stack
-	SWI $454
+	MOVW $SYS__umtx_op, R7
+	SWI $0
 	SUB $20, R13
 	// BCS error
 	RET
@@ -23,7 +53,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVW 0(FP), R0
 	MOVW 4(FP), R1
-	SWI $455
+	MOVW $SYS_thr_new, R7
+	SWI $0
 	RET
 
 TEXT runtime·thr_start(SB),NOSPLIT,$0
@@ -41,14 +72,16 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 exit status
-	SWI $1
+	MOVW $SYS_exit, R7
+	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 exit status
-	SWI $431
+	MOVW $SYS_thr_exit, R7	
+	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
@@ -57,57 +90,65 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 name
 	MOVW 4(FP), R1	// arg 2 mode
 	MOVW 8(FP), R2	// arg 3 perm
-	SWI $5
+	MOVW $SYS_open, R7
+	SWI $0
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 fd
 	MOVW 4(FP), R1	// arg 2 buf
 	MOVW 8(FP), R2	// arg 3 count
-	SWI $3
+	MOVW $SYS_read, R7
+	SWI $0
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 fd
 	MOVW 4(FP), R1	// arg 2 buf
 	MOVW 8(FP), R2	// arg 3 count
-	SWI $4
+	MOVW $SYS_write, R7
+	SWI $0
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 fd
-	SWI $6
+	MOVW $SYS_close, R7
+	SWI $0
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0
 	MOVW 4(FP), R1
-	MOVW 8(FP), R2
-	SWI $194
+	MOVW $SYS_getrlimit, R7
+	SWI $0
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$8
 	// thr_self(&4(R13))
 	MOVW $4(R13), R0 // arg 1 &4(R13)
-	SWI $432
+	MOVW $SYS_thr_self, R7
+	SWI $0
 	// thr_kill(self, SIGPIPE)
 	MOVW 4(R13), R0	// arg 1 id
 	MOVW sig+0(FP), R1	// arg 2 - signal
-	SWI $433
+	MOVW $SYS_thr_kill, R7
+	SWI $0
 	RET
 
 TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	MOVW 0(FP), R0
 	MOVW 4(FP), R1
 	MOVW 8(FP), R2
-	SWI $83
+	MOVW $SYS_setitimer, R7
+	SWI $0
 	RET
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
 	MOVW $0, R0 // CLOCK_REALTIME
 	MOVW $8(R13), R1
-	SWI $232 // clock_gettime
+	MOVW $SYS_clock_gettime, R7
+	SWI $0
 
 	MOVW 8(R13), R0 // sec.low
 	MOVW 12(R13), R1 // sec.high
@@ -123,7 +164,8 @@ TEXT time·now(SB), NOSPLIT, $32
 TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVW $0, R0 // CLOCK_REALTIME
 	MOVW $8(R13), R1
-	SWI $232 // clock_gettime
+	MOVW $SYS_clock_gettime, R7
+	SWI $0
 
 	MOVW 8(R13), R0 // sec.low
 	MOVW 12(R13), R4 // sec.high
@@ -144,7 +186,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0		// arg 1 sig
 	MOVW 4(FP), R1		// arg 2 act
 	MOVW 8(FP), R2		// arg 3 oact
-	SWI $416
+	MOVW $SYS_sigaction, R7
+	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
@@ -183,7 +226,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	MOVW 20(R13), g
 	RET
 
-TEXT runtime·mmap(SB),NOSPLIT,$12
+TEXT runtime·mmap(SB),NOSPLIT,$16
 	MOVW 0(FP), R0		// arg 1 addr
 	MOVW 4(FP), R1		// arg 2 len
 	MOVW 8(FP), R2		// arg 3 prot
@@ -193,18 +236,22 @@ TEXT runtime·mmap(SB),NOSPLIT,$12
 	MOVW 16(FP), R4		// arg 5
 	MOVW R4, 4(R13)
 	MOVW 20(FP), R5		// arg 6 lower 32-bit
-	MOVW R5, 8(R13)
-	MOVW $0, R6 // higher 32-bit for arg 6
-	MOVW R6, 12(R13)
-	ADD $4, R13 // pass arg 5 and arg 6 on stack
-	SWI $477
+	// the word at 8(R13) is skipped due to 64-bit argument alignment.
+	MOVW R5, 12(R13)
+	MOVW $0, R6 		// higher 32-bit for arg 6
+	MOVW R6, 16(R13)
+	ADD $4, R13
+	MOVW $SYS_mmap, R7
+	SWI $0
 	SUB $4, R13
+	// TODO(dfc) error checking ?
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVW 0(FP), R0		// arg 1 addr
 	MOVW 4(FP), R1		// arg 2 len
-	SWI $73
+	MOVW $SYS_munmap, R7
+	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
@@ -213,14 +260,16 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW 0(FP), R0		// arg 1 addr
 	MOVW 4(FP), R1		// arg 2 len
 	MOVW 8(FP), R2		// arg 3 flags
-	SWI $75
+	MOVW $SYS_madvise, R7
+	SWI $0
 	// ignore failure - maybe pages are locked
 	RET
 	
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVW new+0(FP), R0
 	MOVW old+4(FP), R1
-	SWI $53
+	MOVW $SYS_sigaltstack, R7
+	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
@@ -241,54 +290,56 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 
 	MOVW $4(R13), R0 // arg 1 - rqtp
 	MOVW $0, R1      // arg 2 - rmtp
-	SWI $240 // sys_nanosleep
+	MOVW $SYS_nanosleep, R7
+	SWI $0
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVW 0(FP), R0	// arg 1 - name
 	MOVW 4(FP), R1	// arg 2 - namelen
-	MOVW 8(FP), R2	// arg 3 - oldp
+	MOVW 8(FP), R2	// arg 3 - old
 	MOVW 12(FP), R3	// arg 4 - oldlenp
 	// arg 5 (newp) and arg 6 (newlen) are passed on stack
 	ADD $20, R13
-	SWI $202 // sys___sysctl
+	MOVW $SYS___sysctl, R7
+	SWI $0
 	SUB.CS $0, R0, R0
 	SUB $20, R13
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$-4
-	SWI $331	// sys_sched_yield
+	MOVW $SYS_sched_yield, R7
+	SWI $0
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVW $3, R0	// arg 1 - how (SIG_SETMASK)
 	MOVW 0(FP), R1	// arg 2 - set
 	MOVW 4(FP), R2	// arg 3 - oset
-	SWI $340	// sys_sigprocmask
+	MOVW $SYS_sigprocmask, R7
+	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
 	MOVW.CS R8, (R8)
 	RET
 
 // int32 runtime·kqueue(void)
 TEXT runtime·kqueue(SB),NOSPLIT,$0
-	SWI $362	// sys_kqueue
+	MOVW $SYS_kqueue, R7
+	SWI $0
 	RSB.CS $0, R0
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
-TEXT runtime·kevent(SB),NOSPLIT,$8
+TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW 0(FP), R0	// kq
 	MOVW 4(FP), R1	// changelist
 	MOVW 8(FP), R2	// nchanges
 	MOVW 12(FP), R3	// eventlist
-	MOVW 16(FP), R4	// nevents
-	MOVW R4, 4(R13)
-	MOVW 20(FP), R4	// timeout
-	MOVW R4, 8(R13)
-	ADD $4, R13	// pass arg 5 and 6 on stack
-	SWI $363	// sys_kevent
+	ADD $20, R13	// pass arg 5 and 6 on stack
+	MOVW $SYS_kevent, R7
+	SWI $0
 	RSB.CS $0, R0
-	SUB $4, R13
+	SUB $20, R13
 	RET
 
 // void runtime·closeonexec(int32 fd)
@@ -296,7 +347,8 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW 0(FP), R0	// fd
 	MOVW $2, R1	// F_SETFD
 	MOVW $1, R2	// FD_CLOEXEC
-	SWI $92		// sys_fcntl
+	MOVW $SYS_fcntl, R7
+	SWI $0
 	RET
 
 TEXT runtime·casp(SB),NOSPLIT,$0
