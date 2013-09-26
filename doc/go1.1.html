@@ -81,7 +81,7 @@ See the <a href="#unicode">Unicode</a> section for more information.
 
 <p>
 Go 1.1 now implements
-<a href="/ref/spec#Method_values">method values</a>,
+<a href="/doc/spec#Method_values">method values</a>,
 which are functions that have been bound to a specific receiver value.
 For instance, given a
 <a href="/pkg/bufio/#Writer"><code>Writer</code></a>
@@ -129,7 +129,7 @@ only an infinite "for" loop.
 <p>
 In Go 1.1, the rule about final "return" statements is more permissive.
 It introduces the concept of a
-<a href="/ref/spec/#Terminating_statements"><em>terminating statement</em></a>,
+<a href="/doc/spec/#Terminating_statements"><em>terminating statement</em></a>,
 a statement that is guaranteed to be the last one a function executes.
 Examples include
 "for" loops with no condition and "if-else"
@@ -191,7 +191,7 @@ more than 2 billion elements on 64-bit platforms.
 <em>Updating</em>:
 Most programs will be unaffected by this change.
 Because Go does not allow implicit conversions between distinct
-<a href="/ref/spec/#Numeric_types">numeric types</a>,
+<a href="/doc/spec/#Numeric_types">numeric types</a>,
 no programs will stop compiling due to this change.
 However, programs that contain implicit assumptions
 that <code>int</code> is only 32 bits may change behavior.
