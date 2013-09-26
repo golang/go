@@ -27,7 +27,7 @@ will be easy for other Go programmers to understand.
 
 <p>
 This document gives tips for writing clear, idiomatic Go code.
-It augments the <a href="/ref/spec">language specification</a>,
+It augments the <a href="/doc/spec">language specification</a>,
 the <a href="http://tour.golang.org/">Tour of Go</a>,
 and <a href="/doc/code.html">How to Write Go Code</a>,
 all of which you
@@ -709,7 +709,7 @@ Erroneous encodings consume one byte and produce the
 replacement rune U+FFFD.
 (The name (with associated builtin type) <code>rune</code> is Go terminology for a
 single Unicode code point.
-See <a href="http://golang.org/ref/spec#Rune_literals">the language specification</a>
+See <a href="http://golang.org/doc/spec#Rune_literals">the language specification</a>
 for details.)
 The loop
 </p>
@@ -2969,7 +2969,7 @@ func Serve(queue chan *Request) {
 <p>
 Because data synchronization occurs on a receive from a channel
 (that is, the send "happens before" the receive; see
-<a href="/ref/mem">The Go Memory Model</a>),
+<a href="/doc/mem">The Go Memory Model</a>),
 acquisition of the semaphore must be on a channel receive, not a send.
 </p>
 
