@@ -23,7 +23,6 @@ func (c *Conn) clientHandshake() error {
 
 	hello := &clientHelloMsg{
 		vers:               c.config.maxVersion(),
-		cipherSuites:       c.config.cipherSuites(),
 		compressionMethods: []uint8{compressionNone},
 		random:             make([]byte, 32),
 		ocspStapling:       true,
@@ -31,6 +30,25 @@ func (c *Conn) clientHandshake() error {
 		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 		nextProtoNeg:       len(c.config.NextProtos) > 0,
+	}
+
+	possibleCipherSuites := c.config.cipherSuites()
+	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
+
+NextCipherSuite:
+	for _, suiteId := range possibleCipherSuites {
+		for _, suite := range cipherSuites {
+			if suite.id != suiteId {
+				continue
+			}
+			// Don't advertise TLS 1.2-only cipher suites unless
+			// we're attempting TLS 1.2.
+			if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+				continue
+			}
+			hello.cipherSuites = append(hello.cipherSuites, suiteId)
+			continue NextCipherSuite
+		}
 	}
 
 	t := uint32(c.config.time().Unix())
