@@ -16,6 +16,7 @@ import (
 
 // cgraph implements call.Graph.
 type cgraph struct {
+	root  *cgnode
 	nodes []*cgnode
 }
 
@@ -28,7 +29,7 @@ func (g *cgraph) Nodes() []call.GraphNode {
 }
 
 func (g *cgraph) Root() call.GraphNode {
-	return g.nodes[0]
+	return g.root
 }
 
 // cgnode implements call.GraphNode.

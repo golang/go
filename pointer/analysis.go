@@ -267,7 +267,7 @@ func Analyze(config *Config) *Result {
 		fmt.Fprintln(a.log, "======== NEW ANALYSIS ========")
 	}
 
-	a.generate()
+	root := a.generate()
 
 	//a.optimize()
 
@@ -304,7 +304,7 @@ func Analyze(config *Config) *Result {
 
 	var callgraph *cgraph
 	if a.config.BuildCallGraph {
-		callgraph = &cgraph{a.cgnodes}
+		callgraph = &cgraph{root, a.cgnodes}
 	}
 
 	return &Result{
