@@ -1166,7 +1166,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		switch typ := x.typ.Underlying().(type) {
 		case *Basic:
 			if isString(typ) {
-				if e.Slice3 {
+				if slice3(e) {
 					check.invalidOp(x.pos(), "3-index slice of string")
 					goto Error
 				}
@@ -1211,14 +1211,14 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 		// spec: "Only the first index may be omitted; it defaults to 0."
-		if e.Slice3 && (e.High == nil || e.Max == nil) {
+		if slice3(e) && (e.High == nil || sliceMax(e) == nil) {
 			check.errorf(e.Rbrack, "2nd and 3rd index required in 3-index slice")
 			goto Error
 		}
 
 		// check indices
 		var ind [3]int64
-		for i, expr := range []ast.Expr{e.Low, e.High, e.Max} {
+		for i, expr := range []ast.Expr{e.Low, e.High, sliceMax(e)} {
 			x := int64(-1)
 			switch {
 			case expr != nil:
