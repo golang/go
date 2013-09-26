@@ -67,7 +67,7 @@ var (
 	funcOut = flag.String("func", "", "output coverage profile information for each function")
 )
 
-var profile string // The profile to read; the value of -html but stored separately for future flexibility.
+var profile string // The profile to read; the value of -html or -func
 
 var counterStmt func(*File, ast.Expr) ast.Stmt
 
@@ -80,52 +80,73 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	// Usage information when no arguments.
+	if flag.NFlag() == 0 && flag.NArg() == 0 {
+		flag.Usage()
+	}
+
+	err := parseFlags()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, `For usage information, run "go tool cover -help"`)
+		os.Exit(2)
+	}
+
+	// Generate coverage-annotated source.
+	if *mode != "" {
+		cover(flag.Arg(0))
+		return
+	}
+
+	// Output HTML or function coverage information.
+	if *htmlOut != "" {
+		err = htmlOutput(profile, *output)
+	} else {
+		err = funcOutput(profile, *output)
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cover: %v\n", err)
+		os.Exit(2)
+	}
+}
+
+// parseFlags sets the profile and counterStmt globals and performs validations.
+func parseFlags() error {
 	profile = *htmlOut
 	if *funcOut != "" {
 		if profile != "" {
-			flag.Usage()
+			return fmt.Errorf("too many options")
 		}
 		profile = *funcOut
 	}
 
 	// Must either display a profile or rewrite Go source.
 	if (profile == "") == (*mode == "") {
-		flag.Usage()
+		return fmt.Errorf("too many options")
 	}
 
-	// Generate HTML or function coverage information.
-	if profile != "" {
-		if flag.NArg() != 0 {
-			flag.Usage()
+	if *mode != "" {
+		switch *mode {
+		case "set":
+			counterStmt = setCounterStmt
+		case "count":
+			counterStmt = incCounterStmt
+		case "atomic":
+			counterStmt = atomicCounterStmt
+		default:
+			return fmt.Errorf("unknown -mode %v", *mode)
 		}
-		var err error
-		if *htmlOut != "" {
-			err = htmlOutput(profile, *output)
-		} else {
-			err = funcOutput(profile, *output)
-		}
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "cover: %v\n", err)
-			os.Exit(2)
-		}
-		return
-	}
 
-	// Generate coverage-annotated source.
-	switch *mode {
-	case "set":
-		counterStmt = setCounterStmt
-	case "count":
-		counterStmt = incCounterStmt
-	case "atomic":
-		counterStmt = atomicCounterStmt
-	default:
-		flag.Usage()
+		if flag.NArg() == 0 {
+			return fmt.Errorf("missing source file")
+		} else if flag.NArg() == 1 {
+			return nil
+		}
+	} else if flag.NArg() == 0 {
+		return nil
 	}
-	if flag.NArg() != 1 {
-		flag.Usage()
-	}
-	cover(flag.Arg(0))
+	return fmt.Errorf("too many arguments")
 }
 
 // Block represents the information about a basic block to be recorded in the analysis.
