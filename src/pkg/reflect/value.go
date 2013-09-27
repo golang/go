@@ -446,11 +446,11 @@ func (v Value) call(op string, in []Value) []Value {
 	// For now make everything look like a pointer by allocating
 	// a []unsafe.Pointer.
 	args := make([]unsafe.Pointer, size/ptrSize)
-	ptr := uintptr(unsafe.Pointer(&args[0]))
+	ptr := unsafe.Pointer(&args[0])
 	off := uintptr(0)
 	if v.flag&flagMethod != 0 {
 		// Hard-wired first argument.
-		*(*iword)(unsafe.Pointer(ptr)) = rcvr
+		*(*iword)(ptr) = rcvr
 		off = ptrSize
 	}
 	for i, v := range in {
@@ -459,7 +459,7 @@ func (v Value) call(op string, in []Value) []Value {
 		a := uintptr(targ.align)
 		off = (off + a - 1) &^ (a - 1)
 		n := targ.size
-		addr := unsafe.Pointer(ptr + off)
+		addr := unsafe.Pointer(uintptr(ptr) + off)
 		v = v.assignTo("reflect.Value.Call", targ, (*interface{})(addr))
 		if v.flag&flagIndir == 0 {
 			storeIword(addr, iword(v.val), n)
@@ -471,7 +471,7 @@ func (v Value) call(op string, in []Value) []Value {
 	off = (off + ptrSize - 1) &^ (ptrSize - 1)
 
 	// Call.
-	call(fn, unsafe.Pointer(ptr), uint32(size))
+	call(fn, ptr, uint32(size))
 
 	// Copy return values out of args.
 	//
@@ -482,7 +482,7 @@ func (v Value) call(op string, in []Value) []Value {
 		a := uintptr(tv.Align())
 		off = (off + a - 1) &^ (a - 1)
 		fl := flagIndir | flag(tv.Kind())<<flagKindShift
-		ret[i] = Value{tv.common(), unsafe.Pointer(ptr + off), fl}
+		ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(ptr) + off), fl}
 		off += tv.Size()
 	}
 
