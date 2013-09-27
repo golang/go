@@ -80,7 +80,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 				t.Errorf("Expected *bigValue from interface{} in finalizer, got %v", *i)
 			}
 			if i.fill != 0xDEADBEEFDEADBEEF && i.it != true && i.up != "It matters not how strait the gate" {
-				t.Errorf("*bigValue from interface{} has the wrong value: %d\n", *i)
+				t.Errorf("*bigValue from interface{} has the wrong value: %v\n", *i)
 			}
 			close(ch)
 		})

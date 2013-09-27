@@ -542,7 +542,7 @@ func TestToStringEquivalentParse(t *testing.T) {
 			// but "{" is a shorter equivalent in some contexts.
 			nre, err := Parse(s, testFlags)
 			if err != nil {
-				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, t, err)
+				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, s, err)
 				continue
 			}
 			nd := dump(nre)

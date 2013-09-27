@@ -204,6 +204,6 @@ func TestHeaderWriteSubsetMallocs(t *testing.T) {
 		testHeader.WriteSubset(&buf, nil)
 	})
 	if n > 0 {
-		t.Errorf("mallocs = %d; want 0", n)
+		t.Errorf("mallocs = %g; want 0", n)
 	}
 }

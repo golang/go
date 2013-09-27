@@ -1987,7 +1987,7 @@ func TestHTTP10ConnectionHeader(t *testing.T) {
 
 		got := resp.Header["Connection"]
 		if !reflect.DeepEqual(got, tt.expect) {
-			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", got, tt.expect)
+			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", tt.req, got, tt.expect)
 		}
 	}
 }
