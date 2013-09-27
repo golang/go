@@ -180,6 +180,133 @@ func defers() {
 	defer len /* ERROR "defer discards result" */ (c)
 }
 
+func breaks() {
+	var x, y int
+
+	break /* ERROR "break" */
+	{
+		break /* ERROR "break" */
+	}
+	if x < y {
+		break /* ERROR "break" */
+	}
+
+	switch x {
+	case 0:
+		break
+	case 1:
+		if x == y {
+			break
+		}
+	default:
+		break
+		break
+	}
+
+	var z interface{}
+	switch z.(type) {
+	case int:
+		break
+	}
+
+	for {
+		break
+	}
+
+	var a []int
+	for _ = range a {
+		break
+	}
+
+	for {
+		if x == y {
+			break
+		}
+	}
+
+	var ch chan int
+	select {
+	case <-ch:
+		break
+	}
+
+	select {
+	case <-ch:
+		if x == y {
+			break
+		}
+	default:
+		break
+	}
+}
+
+func continues() {
+	var x, y int
+
+	continue /* ERROR "continue" */
+	{
+		continue /* ERROR "continue" */
+	}
+
+	if x < y {
+		continue /* ERROR "continue" */
+	}
+
+	switch x {
+	case 0:
+		continue /* ERROR "continue" */
+	}
+
+	var z interface{}
+	switch z.(type) {
+	case int:
+		continue /* ERROR "continue" */
+	}
+
+	var ch chan int
+	select {
+	case <-ch:
+		continue /* ERROR "continue" */
+	}
+
+	for i := 0; i < 10; i++ {
+		continue
+		if x < y {
+			continue
+			break
+		}
+		switch x {
+		case y:
+			continue
+		default:
+			break
+		}
+		select {
+		case <-ch:
+			continue
+		}
+	}
+
+	var a []int
+	for _ = range a {
+		continue
+		if x < y {
+			continue
+			break
+		}
+		switch x {
+		case y:
+			continue
+		default:
+			break
+		}
+		select {
+		case <-ch:
+			continue
+		}
+	}
+}
+
 func switches0() {
 	var x int
 
@@ -262,6 +389,14 @@ func switches1() {
 		L5: fallthrough
 	default:
 		L6: L7: L8: fallthrough /* ERROR "fallthrough statement out of place" */
+	}
+
+	switch x {
+	case 0:
+		{
+			fallthrough /* ERROR "fallthrough statement out of place" */
+		}
+	default:
 	}
 }
 
@@ -472,10 +607,10 @@ func rangeloops() {
 func labels0() {
 	L0:
 	L1:
-	L1 /* ERROR "redeclared" */:
+	L1:
 	if true {
 		L2:
-		L0 /* ERROR "redeclared" */:
+		L0:
 	}
 	_ = func() {
 		L0:

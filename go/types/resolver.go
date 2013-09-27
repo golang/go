@@ -396,20 +396,15 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 		check.topScope = f.sig.scope // open function scope
 		check.funcSig = f.sig
-		check.labels = nil // lazily allocated
-		check.stmtList(f.body.List, false)
+		check.hasLabel = false
+		check.stmtList(0, f.body.List)
+
+		if check.hasLabel {
+			// TODO(gri) check label use
+		}
 
 		if f.sig.results.Len() > 0 && !check.isTerminating(f.body, "") {
 			check.errorf(f.body.Rbrace, "missing return")
-		}
-
-		// spec: "It is illegal to define a label that is never used."
-		if check.labels != nil {
-			for _, obj := range check.labels.elems {
-				if l := obj.(*Label); !l.used {
-					check.errorf(l.pos, "%s defined but not used", l.name)
-				}
-			}
 		}
 	}
 
