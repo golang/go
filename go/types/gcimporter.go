@@ -188,7 +188,7 @@ func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*
 		// check consistency of imports map
 		for _, pkg := range imports {
 			if pkg.name == "" {
-				fmt.Printf("no package name for %s\n", pkg.Path)
+				fmt.Printf("no package name for %s\n", pkg.path)
 			}
 		}
 	}
