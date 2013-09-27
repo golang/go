@@ -92,6 +92,21 @@ func assignments1() {
 	(_) = 0
 }
 
+func issue6487() {
+	type S struct{x int}
+	_ = &S /* ERROR "cannot take address" */ {}.x
+	_ = &( /* ERROR "cannot take address" */ S{}.x)
+	_ = (&S{}).x
+	S /* ERROR "cannot assign" */ {}.x = 0
+	(&S{}).x = 0
+
+	type M map[string]S
+	var m M
+	m /* ERROR "cannot assign" */ ["foo"].x = 0
+	_ = &( /* ERROR "cannot take address" */ m["foo"].x)
+	_ = &m /* ERROR "cannot take address" */ ["foo"].x
+}
+
 func shortVarDecls() {
 	const c = 0
 	type d int

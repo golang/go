@@ -286,7 +286,11 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch obj := obj.(type) {
 		case *Var:
 			check.recordSelection(e, FieldVal, x.typ, obj, index, indirect)
-			x.mode = variable
+			if x.mode == variable || indirect {
+				x.mode = variable
+			} else {
+				x.mode = value
+			}
 			x.typ = obj.typ
 
 		case *Func:
