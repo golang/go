@@ -332,7 +332,7 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
-		t.Errorf("FormFile file = %q, want nil", f)
+		t.Errorf("FormFile file = %v, want nil", f)
 	}
 	if fh != nil {
 		t.Errorf("FormFile file header = %q, want nil", fh)

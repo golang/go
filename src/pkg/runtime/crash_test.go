@@ -111,9 +111,8 @@ func TestLockedDeadlock2(t *testing.T) {
 
 func TestGoexitDeadlock(t *testing.T) {
 	output := executeTest(t, goexitDeadlockSource, nil)
-	want := ""
 	if output != "" {
-		t.Fatalf("expected no output:\n%s", want, output)
+		t.Fatalf("expected no output, got:\n%s", output)
 	}
 }
 

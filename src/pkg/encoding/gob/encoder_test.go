@@ -687,7 +687,7 @@ func TestChanFuncIgnored(t *testing.T) {
 		t.Fatal("decode:", err)
 	}
 	if b1.A != b0.A {
-		t.Fatal("got %d want %d", b1.A, b0.A)
+		t.Fatalf("got %d want %d", b1.A, b0.A)
 	}
 	if b1.C != nil || b1.CP != nil || b1.F != nil || b1.FPP != nil {
 		t.Fatal("unexpected value for chan or func")

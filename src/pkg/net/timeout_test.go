@@ -549,7 +549,7 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 	}
 	defer c.Close()
 	if res := <-servec; res.err != nil || res.n != int64(len(msg)) {
-		t.Fatalf("unexpected server Write: n=%d, err=%d; want n=%d, err=nil", res.n, res.err, len(msg))
+		t.Fatalf("unexpected server Write: n=%d, err=%v; want n=%d, err=nil", res.n, res.err, len(msg))
 	}
 	c.SetReadDeadline(time.Now().Add(-5 * time.Second)) // in the psat.
 	buf := make([]byte, len(msg)/2)

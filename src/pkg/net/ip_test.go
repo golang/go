@@ -85,7 +85,7 @@ func TestIPString(t *testing.T) {
 			}
 		}
 		if out, err := tt.in.MarshalText(); string(out) != tt.out || err != nil {
-			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", out, err, tt.out)
+			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", tt.in, out, err, tt.out)
 		}
 	}
 }

@@ -428,7 +428,7 @@ func TestGobEncoderValueEncoder(t *testing.T) {
 		t.Fatal("decode error:", err)
 	}
 	if *x.V != "hello" || *x.BV != "Καλημέρα" || *x.TV != "こんにちは" {
-		t.Errorf("expected `hello` got %s", x.V)
+		t.Errorf("expected `hello` got %s", *x.V)
 	}
 }
 
