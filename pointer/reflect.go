@@ -118,7 +118,7 @@ func (c *rVMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		}
 
 		obj := a.makeTagged(tMap.Elem(), c.cgn, nil)
-		a.loadOffset(obj+1, m, a.sizeof(tMap.Key()), a.sizeof(tMap.Elem()))
+		a.load(obj+1, m, a.sizeof(tMap.Key()), a.sizeof(tMap.Elem()))
 		if a.addLabel(c.result, obj) {
 			changed = true
 		}
@@ -168,7 +168,7 @@ func (c *rVMapKeysConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		}
 
 		kObj := a.makeTagged(tMap.Key(), c.cgn, nil)
-		a.load(kObj+1, m, a.sizeof(tMap.Key()))
+		a.load(kObj+1, m, 0, a.sizeof(tMap.Key()))
 		if a.addLabel(c.result, kObj) {
 			changed = true
 		}
@@ -228,7 +228,7 @@ func (c *rVRecvConstraint) solve(a *analysis, _ *node, delta nodeset) {
 
 		tElem := tChan.Elem()
 		elemObj := a.makeTagged(tElem, c.cgn, nil)
-		a.load(elemObj+1, ch, a.sizeof(tElem))
+		a.load(elemObj+1, ch, 0, a.sizeof(tElem))
 		if a.addLabel(c.result, elemObj) {
 			changed = true
 		}
@@ -280,7 +280,7 @@ func (c *rVSendConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		tElem := tChan.Elem()
 		xtmp := a.addNodes(tElem, "Send.xtmp")
 		a.typeAssert(tElem, xtmp, c.x)
-		a.store(ch, xtmp, a.sizeof(tElem))
+		a.store(ch, xtmp, 0, a.sizeof(tElem))
 	}
 }
 
@@ -332,12 +332,12 @@ func (c *rVSetMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		// Extract key's payload to keytmp, then store to map key.
 		keytmp := a.addNodes(tMap.Key(), "SetMapIndex.keytmp")
 		a.typeAssert(tMap.Key(), keytmp, c.key)
-		a.store(m, keytmp, keysize)
+		a.store(m, keytmp, 0, keysize)
 
 		// Extract val's payload to vtmp, then store to map value.
 		valtmp := a.addNodes(tMap.Elem(), "SetMapIndex.valtmp")
 		a.typeAssert(tMap.Elem(), valtmp, c.val)
-		a.storeOffset(m, valtmp, keysize, a.sizeof(tMap.Elem()))
+		a.store(m, valtmp, keysize, a.sizeof(tMap.Elem()))
 	}
 }
 
@@ -433,7 +433,7 @@ func (c *reflectIndirectConstraint) solve(a *analysis, _ *node, delta nodeset) {
 			// load the payload of the pointer's tagged object
 			// into a new tagged object
 			res = a.makeTagged(tPtr.Elem(), c.cgn, nil)
-			a.load(res+1, vObj+1, a.sizeof(tPtr.Elem()))
+			a.load(res+1, vObj+1, 0, a.sizeof(tPtr.Elem()))
 		} else {
 			res = vObj
 		}

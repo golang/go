@@ -6,6 +6,10 @@ package pointer
 
 // This file defines the constraint generation phase.
 
+// TODO(adonovan): move the constraint definitions and the store() etc
+// functions which add them (and are also used by the solver) into a
+// new file, constraints.go.
+
 import (
 	"fmt"
 	"go/ast"
@@ -64,9 +68,14 @@ func (a *analysis) addOneNode(typ types.Type, comment string, subelement *fieldI
 }
 
 // setValueNode associates node id with the value v.
-// TODO(adonovan): disambiguate v by its CallGraphNode, if it's a local.
-func (a *analysis) setValueNode(v ssa.Value, id nodeid) {
-	a.valNode[v] = id
+// cgn identifies the context iff v is a local variable.
+//
+func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
+	if cgn != nil {
+		a.localval[v] = id
+	} else {
+		a.globalval[v] = id
+	}
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\tval[%s] = n%d  (%T)\n", v.Name(), id, v)
 	}
@@ -75,10 +84,10 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid) {
 	if indirect, ok := a.config.Queries[v]; ok {
 		if indirect {
 			tmp := a.addNodes(v.Type(), "query.indirect")
-			a.load(tmp, id, a.sizeof(v.Type()))
+			a.genLoad(cgn, tmp, v, 0, a.sizeof(v.Type()))
 			id = tmp
 		}
-		a.queries[v] = append(a.queries[v], ptr{a, id})
+		a.queries[v] = append(a.queries[v], ptr{a, cgn, id})
 	}
 }
 
@@ -140,75 +149,6 @@ func (a *analysis) makeFunctionObject(fn *ssa.Function) nodeid {
 	return obj
 }
 
-// makeFunction creates the shared function object (aka contour) for
-// function fn and returns a 'func' value node that points to it.
-//
-func (a *analysis) makeFunction(fn *ssa.Function) nodeid {
-	obj := a.makeFunctionObject(fn)
-	a.funcObj[fn] = obj
-
-	var comment string
-	if a.log != nil {
-		comment = fn.String()
-	}
-	id := a.addOneNode(fn.Type(), comment, nil)
-	a.addressOf(id, obj)
-	return id
-}
-
-// makeGlobal creates the value node and object node for global g,
-// and returns the value node.
-//
-// The value node represents the address of the global variable, and
-// points to the object (and nothing else).
-//
-// The object consists of the global variable itself (conceptually,
-// the BSS address).
-//
-func (a *analysis) makeGlobal(g *ssa.Global) nodeid {
-	var comment string
-	if a.log != nil {
-		fmt.Fprintf(a.log, "\t---- makeGlobal %s\n", g)
-		comment = g.FullName()
-	}
-
-	// The nodes representing the object itself.
-	obj := a.nextNode()
-	a.addNodes(mustDeref(g.Type()), "global")
-	a.endObject(obj, nil, g)
-
-	if a.log != nil {
-		fmt.Fprintf(a.log, "\t----\n")
-	}
-
-	// The node representing the address of the global.
-	id := a.addOneNode(g.Type(), comment, nil)
-	a.addressOf(id, obj)
-
-	return id
-}
-
-// makeConstant creates the value node and object node (if needed) for
-// constant c, and returns the value node.
-// An object node is created only for []byte or []rune constants.
-// The value node points to the object node, iff present.
-//
-func (a *analysis) makeConstant(l *ssa.Const) nodeid {
-	id := a.addNodes(l.Type(), "const")
-	if !l.IsNil() {
-		// []byte or []rune?
-		if t, ok := l.Type().Underlying().(*types.Slice); ok {
-			// Treat []T like *[1]T, 'make []T' like new([1]T).
-			obj := a.nextNode()
-			a.addNodes(sliceToArray(t), "array in slice constant")
-			a.endObject(obj, nil, l)
-
-			a.addressOf(id, obj)
-		}
-	}
-	return id
-}
-
 // makeTagged creates a tagged object of type typ.
 func (a *analysis) makeTagged(typ types.Type, cgn *cgnode, val ssa.Value) nodeid {
 	obj := a.addOneNode(typ, "tagged.T", nil) // NB: type may be non-scalar!
@@ -252,34 +192,24 @@ func (a *analysis) rtypeTaggedValue(obj nodeid) types.Type {
 // the association) as needed.  It may return zero for uninteresting
 // values containing no pointers.
 //
-// Nodes for locals are created en masse during genFunc and are
-// implicitly contextualized by the function currently being analyzed
-// (i.e. parameter to genFunc).
-//
 func (a *analysis) valueNode(v ssa.Value) nodeid {
-	id, ok := a.valNode[v]
+	// Value nodes for locals are created en masse by genFunc.
+	if id, ok := a.localval[v]; ok {
+		return id
+	}
+
+	// Value nodes for globals are created on demand.
+	id, ok := a.globalval[v]
 	if !ok {
-		switch v := v.(type) {
-		case *ssa.Function:
-			id = a.makeFunction(v)
-
-		case *ssa.Global:
-			id = a.makeGlobal(v)
-
-		case *ssa.Const:
-			id = a.makeConstant(v)
-
-		case *ssa.Capture:
-			// TODO(adonovan): treat captures context-sensitively.
-			id = a.addNodes(v.Type(), "capture")
-
-		default:
-			// *ssa.Parameters and ssa.Instruction values
-			// are created by genFunc.
-			// *Builtins are not true values.
-			panic(v)
+		var comment string
+		if a.log != nil {
+			comment = v.String()
 		}
-		a.setValueNode(v, id)
+		id = a.addOneNode(v.Type(), comment, nil)
+		if obj := a.objectNode(nil, v); obj != 0 {
+			a.addressOf(id, obj)
+		}
+		a.setValueNode(v, id, nil)
 	}
 	return id
 }
@@ -365,18 +295,11 @@ func (a *analysis) addressOf(id, obj nodeid) {
 	a.addConstraint(&addrConstraint{id, obj})
 }
 
-// load creates a load constraint of the form dst = *src.
-// sizeof is the width (in logical fields) of the loaded type.
-//
-func (a *analysis) load(dst, src nodeid, sizeof uint32) {
-	a.loadOffset(dst, src, 0, sizeof)
-}
-
-// loadOffset creates a load constraint of the form dst = src[offset].
+// load creates a load constraint of the form dst = src[offset].
 // offset is the pointer offset in logical fields.
 // sizeof is the width (in logical fields) of the loaded type.
 //
-func (a *analysis) loadOffset(dst, src nodeid, offset uint32, sizeof uint32) {
+func (a *analysis) load(dst, src nodeid, offset, sizeof uint32) {
 	if dst == 0 {
 		return // load of non-pointerlike value
 	}
@@ -393,18 +316,11 @@ func (a *analysis) loadOffset(dst, src nodeid, offset uint32, sizeof uint32) {
 	}
 }
 
-// store creates a store constraint of the form *dst = src.
-// sizeof is the width (in logical fields) of the stored type.
-//
-func (a *analysis) store(dst, src nodeid, sizeof uint32) {
-	a.storeOffset(dst, src, 0, sizeof)
-}
-
-// storeOffset creates a store constraint of the form dst[offset] = src.
+// store creates a store constraint of the form dst[offset] = src.
 // offset is the pointer offset in logical fields.
 // sizeof is the width (in logical fields) of the stored type.
 //
-func (a *analysis) storeOffset(dst, src nodeid, offset uint32, sizeof uint32) {
+func (a *analysis) store(dst, src nodeid, offset uint32, sizeof uint32) {
 	if src == 0 {
 		return // store of non-pointerlike value
 	}
@@ -451,13 +367,12 @@ func (a *analysis) addConstraint(c constraint) {
 
 // copyElems generates load/store constraints for *dst = *src,
 // where src and dst are slices or *arrays.
-// (If pts(·) of either is a known singleton, this is suboptimal.)
 //
-func (a *analysis) copyElems(typ types.Type, dst, src nodeid) {
+func (a *analysis) copyElems(cgn *cgnode, typ types.Type, dst, src ssa.Value) {
 	tmp := a.addNodes(typ, "copy")
 	sz := a.sizeof(typ)
-	a.loadOffset(tmp, src, 1, sz)
-	a.storeOffset(dst, tmp, 1, sz)
+	a.genLoad(cgn, tmp, src, 1, sz)
+	a.genStore(cgn, dst, tmp, 1, sz)
 }
 
 // ---------- Constraint generation ----------
@@ -553,10 +468,10 @@ func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 	// 	z = &w
 	//     *z = *y
 
-	x := a.valueNode(instr.Call.Args[0])
+	x := instr.Call.Args[0]
 
-	z := a.valueNode(instr)
-	a.copy(z, x, 1) // z = x
+	z := instr
+	a.copy(a.valueNode(z), a.valueNode(x), 1) // z = x
 
 	if len(instr.Call.Args) == 1 {
 		return // no allocation for z = append(x) or _ = append(x).
@@ -564,7 +479,7 @@ func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 
 	// TODO(adonovan): test append([]byte, ...string) []byte.
 
-	y := a.valueNode(instr.Call.Args[1])
+	y := instr.Call.Args[1]
 	tArray := sliceToArray(instr.Call.Args[0].Type())
 
 	var w nodeid
@@ -572,8 +487,8 @@ func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 	a.addNodes(tArray, "append")
 	a.endObject(w, cgn, instr)
 
-	a.copyElems(tArray.Elem(), z, y) // *z = *y
-	a.addressOf(z, w)                //  z = &w
+	a.copyElems(cgn, tArray.Elem(), z, y) // *z = *y
+	a.addressOf(a.valueNode(z), w)        //  z = &w
 }
 
 // genBuiltinCall generates contraints for a call to a built-in.
@@ -586,7 +501,7 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 
 	case "copy":
 		tElem := call.Args[0].Type().Underlying().(*types.Slice).Elem()
-		a.copyElems(tElem, a.valueNode(call.Args[0]), a.valueNode(call.Args[1]))
+		a.copyElems(cgn, tElem, call.Args[0], call.Args[1])
 
 	case "panic":
 		a.copy(a.panicNode, a.valueNode(call.Args[0]), 1)
@@ -611,7 +526,7 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 			if probe == 0 {
 				probe = a.addNodes(t, "print")
 				a.probes[call] = probe
-				Print(call, ptr{a, probe}) // notify client
+				Print(call, ptr{a, nil, probe}) // notify client
 			}
 
 			a.copy(probe, a.valueNode(call.Args[0]), a.sizeof(t))
@@ -668,8 +583,7 @@ func (a *analysis) genStaticCall(call *ssa.CallCommon, result nodeid) nodeid {
 	if a.shouldUseContext(fn) {
 		obj = a.makeFunctionObject(fn) // new contour for this call
 	} else {
-		a.valueNode(fn)     // ensure shared contour was created
-		obj = a.funcObj[fn] // ordinary (shared) contour.
+		obj = a.objectNode(nil, fn) // ordinary (shared) contour
 	}
 
 	sig := call.Signature()
@@ -705,7 +619,7 @@ func (a *analysis) genStaticCall(call *ssa.CallCommon, result nodeid) nodeid {
 // genDynamicCall generates constraints for a dynamic function call.
 // It returns a node whose pts() will be the set of possible call targets.
 //
-func (a *analysis) genDynamicCall(call *ssa.CallCommon, result nodeid) nodeid {
+func (a *analysis) genDynamicCall(caller *cgnode, call *ssa.CallCommon, result nodeid) nodeid {
 	fn := a.valueNode(call.Value)
 	sig := call.Signature()
 
@@ -716,11 +630,11 @@ func (a *analysis) genDynamicCall(call *ssa.CallCommon, result nodeid) nodeid {
 	var offset uint32 = 1 // P/R block starts at offset 1
 	for i, arg := range call.Args {
 		sz := a.sizeof(sig.Params().At(i).Type())
-		a.storeOffset(fn, a.valueNode(arg), offset, sz)
+		a.genStore(caller, call.Value, a.valueNode(arg), offset, sz)
 		offset += sz
 	}
 	if result != 0 {
-		a.loadOffset(result, fn, offset, a.sizeof(sig.Results()))
+		a.genLoad(caller, result, call.Value, offset, a.sizeof(sig.Results()))
 	}
 	return fn
 }
@@ -840,7 +754,7 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 	case call.IsInvoke():
 		targets = a.genInvoke(call, result)
 	default:
-		targets = a.genDynamicCall(call, result)
+		targets = a.genDynamicCall(caller, call, result)
 	}
 
 	site := &callsite{
@@ -850,6 +764,150 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 	caller.sites = append(caller.sites, site)
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\t%s to targets %s from %s\n", site, site.targets, caller)
+	}
+}
+
+// objectNode returns the object to which v points, if known.
+// In other words, if the points-to set of v is a singleton, it
+// returns the sole label, zero otherwise.
+//
+// We exploit this information to make the generated constraints less
+// dynamic.  For example, a complex load constraint can be replaced by
+// a simple copy constraint when the sole destination is known a priori.
+//
+// Some SSA instructions always have singletons points-to sets:
+// 	Alloc, Function, Global, MakeChan, MakeClosure,  MakeInterface,  MakeMap,  MakeSlice.
+// Others may be singletons depending on their operands:
+// 	Capture, Const, Convert, FieldAddr, IndexAddr, Slice.
+//
+// Idempotent.  Objects are created as needed, possibly via recursion
+// down the SSA value graph, e.g IndexAddr(FieldAddr(Alloc))).
+//
+func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
+	if cgn == nil {
+		// Global object.
+		obj, ok := a.globalobj[v]
+		if !ok {
+			switch v := v.(type) {
+			case *ssa.Global:
+				obj = a.nextNode()
+				a.addNodes(mustDeref(v.Type()), "global")
+				a.endObject(obj, nil, v)
+
+			case *ssa.Function:
+				obj = a.makeFunctionObject(v)
+
+			case *ssa.Const:
+				if t, ok := v.Type().Underlying().(*types.Slice); ok && !v.IsNil() {
+					// Non-nil []byte or []rune constant.
+					obj = a.nextNode()
+					a.addNodes(sliceToArray(t), "array in slice constant")
+					a.endObject(obj, nil, v)
+				}
+
+			case *ssa.Capture:
+				// For now, Captures have the same cardinality as globals.
+				// TODO(adonovan): treat captures context-sensitively.
+			}
+			a.globalobj[v] = obj
+		}
+		return obj
+	}
+
+	// Local object.
+	obj, ok := a.localobj[v]
+	if !ok {
+		switch v := v.(type) {
+		case *ssa.Alloc:
+			obj = a.nextNode()
+			a.addNodes(mustDeref(v.Type()), "alloc")
+			a.endObject(obj, cgn, v)
+
+		case *ssa.MakeSlice:
+			obj = a.nextNode()
+			a.addNodes(sliceToArray(v.Type()), "makeslice")
+			a.endObject(obj, cgn, v)
+
+		case *ssa.MakeChan:
+			obj = a.nextNode()
+			a.addNodes(v.Type().Underlying().(*types.Chan).Elem(), "makechan")
+			a.endObject(obj, cgn, v)
+
+		case *ssa.MakeMap:
+			obj = a.nextNode()
+			tmap := v.Type().Underlying().(*types.Map)
+			a.addNodes(tmap.Key(), "makemap.key")
+			a.addNodes(tmap.Elem(), "makemap.value")
+			a.endObject(obj, cgn, v)
+
+		case *ssa.MakeInterface:
+			tConc := v.X.Type()
+			// Create nodes and constraints for all methods of the type.
+			// Ascertaining which will be needed is undecidable in general.
+			mset := tConc.MethodSet()
+			for i, n := 0, mset.Len(); i < n; i++ {
+				a.valueNode(a.prog.Method(mset.At(i)))
+			}
+
+			obj = a.makeTagged(tConc, cgn, v)
+
+			// Copy the value into it, if nontrivial.
+			if x := a.valueNode(v.X); x != 0 {
+				a.copy(obj+1, x, a.sizeof(tConc))
+			}
+
+		case *ssa.FieldAddr:
+			if xobj := a.objectNode(cgn, v.X); xobj != 0 {
+				obj = xobj + nodeid(a.offsetOf(mustDeref(v.X.Type()), v.Field))
+			}
+
+		case *ssa.IndexAddr:
+			if xobj := a.objectNode(cgn, v.X); xobj != 0 {
+				obj = xobj + 1
+			}
+
+		case *ssa.Slice:
+			obj = a.objectNode(cgn, v.X)
+
+		case *ssa.Convert:
+			// TODO(adonovan): opt: handle these cases too:
+			// - unsafe.Pointer->*T conversion acts like Alloc
+			// - string->[]byte/[]rune conversion acts like MakeSlice
+		}
+		a.localobj[v] = obj
+	}
+	return obj
+}
+
+// genLoad generates constraints for result = *(ptr + val).
+func (a *analysis) genLoad(cgn *cgnode, result nodeid, ptr ssa.Value, offset, sizeof uint32) {
+	if obj := a.objectNode(cgn, ptr); obj != 0 {
+		// Pre-apply loadConstraint.solve().
+		a.copy(result, obj+nodeid(offset), sizeof)
+	} else {
+		a.load(result, a.valueNode(ptr), offset, sizeof)
+	}
+}
+
+// genOffsetAddr generates constraints for a 'v=ptr.field' (FieldAddr)
+// or 'v=ptr[*]' (IndexAddr) instruction v.
+func (a *analysis) genOffsetAddr(cgn *cgnode, v ssa.Value, ptr nodeid, offset uint32) {
+	dst := a.valueNode(v)
+	if obj := a.objectNode(cgn, v); obj != 0 {
+		// Pre-apply offsetAddrConstraint.solve().
+		a.addressOf(dst, obj)
+	} else {
+		a.offsetAddr(dst, ptr, offset)
+	}
+}
+
+// genStore generates constraints for *(ptr + offset) = val.
+func (a *analysis) genStore(cgn *cgnode, ptr ssa.Value, val nodeid, offset, sizeof uint32) {
+	if obj := a.objectNode(cgn, ptr); obj != 0 {
+		// Pre-apply storeConstraint.solve().
+		a.copy(obj+nodeid(offset), val, sizeof)
+	} else {
+		a.store(a.valueNode(ptr), val, offset, sizeof)
 	}
 }
 
@@ -871,11 +929,11 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		switch instr.Op {
 		case token.ARROW: // <-x
 			// We can ignore instr.CommaOk because the node we're
-			// altering is always at zero offset relative to instr.
-			a.load(a.valueNode(instr), a.valueNode(instr.X), a.sizeof(instr.Type()))
+			// altering is always at zero offset relative to instr
+			a.genLoad(cgn, a.valueNode(instr), instr.X, 0, a.sizeof(instr.Type()))
 
 		case token.MUL: // *x
-			a.load(a.valueNode(instr), a.valueNode(instr.X), a.sizeof(instr.Type()))
+			a.genLoad(cgn, a.valueNode(instr), instr.X, 0, a.sizeof(instr.Type()))
 
 		default:
 			// NOT, SUB, XOR: no-op.
@@ -899,11 +957,11 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			a.sizeof(instr.Type()))
 
 	case *ssa.FieldAddr:
-		a.offsetAddr(a.valueNode(instr), a.valueNode(instr.X),
+		a.genOffsetAddr(cgn, instr, a.valueNode(instr.X),
 			a.offsetOf(mustDeref(instr.X.Type()), instr.Field))
 
 	case *ssa.IndexAddr:
-		a.offsetAddr(a.valueNode(instr), a.valueNode(instr.X), 1)
+		a.genOffsetAddr(cgn, instr, a.valueNode(instr.X), 1)
 
 	case *ssa.Field:
 		a.copy(a.valueNode(instr),
@@ -919,11 +977,11 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			elemSize := a.sizeof(st.Chan.Type().Underlying().(*types.Chan).Elem())
 			switch st.Dir {
 			case ast.RECV:
-				a.load(recv, a.valueNode(st.Chan), elemSize)
+				a.genLoad(cgn, recv, st.Chan, 0, elemSize)
 				recv++
 
 			case ast.SEND:
-				a.store(a.valueNode(st.Chan), a.valueNode(st.Send), elemSize)
+				a.genStore(cgn, st.Chan, a.valueNode(st.Send), 0, elemSize)
 			}
 		}
 
@@ -936,53 +994,14 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		}
 
 	case *ssa.Send:
-		a.store(a.valueNode(instr.Chan), a.valueNode(instr.X), a.sizeof(instr.X.Type()))
+		a.genStore(cgn, instr.Chan, a.valueNode(instr.X), 0, a.sizeof(instr.X.Type()))
 
 	case *ssa.Store:
-		a.store(a.valueNode(instr.Addr), a.valueNode(instr.Val), a.sizeof(instr.Val.Type()))
+		a.genStore(cgn, instr.Addr, a.valueNode(instr.Val), 0, a.sizeof(instr.Val.Type()))
 
-	case *ssa.Alloc:
-		obj := a.nextNode()
-		a.addNodes(mustDeref(instr.Type()), "alloc")
-		a.endObject(obj, cgn, instr)
-		a.addressOf(a.valueNode(instr), obj)
-
-	case *ssa.MakeSlice:
-		obj := a.nextNode()
-		a.addNodes(sliceToArray(instr.Type()), "makeslice")
-		a.endObject(obj, cgn, instr)
-		a.addressOf(a.valueNode(instr), obj)
-
-	case *ssa.MakeChan:
-		obj := a.nextNode()
-		a.addNodes(instr.Type().Underlying().(*types.Chan).Elem(), "makechan")
-		a.endObject(obj, cgn, instr)
-		a.addressOf(a.valueNode(instr), obj)
-
-	case *ssa.MakeMap:
-		obj := a.nextNode()
-		tmap := instr.Type().Underlying().(*types.Map)
-		a.addNodes(tmap.Key(), "makemap.key")
-		a.addNodes(tmap.Elem(), "makemap.value")
-		a.endObject(obj, cgn, instr)
-		a.addressOf(a.valueNode(instr), obj)
-
-	case *ssa.MakeInterface:
-		tConc := instr.X.Type()
-		// Create nodes and constraints for all methods of the type.
-		// Ascertaining which will be needed is undecidable in general.
-		mset := tConc.MethodSet()
-		for i, n := 0, mset.Len(); i < n; i++ {
-			a.valueNode(a.prog.Method(mset.At(i)))
-		}
-
-		obj := a.makeTagged(tConc, cgn, instr)
-
-		// Copy the value into it, if nontrivial.
-		if x := a.valueNode(instr.X); x != 0 {
-			a.copy(obj+1, x, a.sizeof(tConc))
-		}
-		a.addressOf(a.valueNode(instr), obj)
+	case *ssa.Alloc, *ssa.MakeSlice, *ssa.MakeChan, *ssa.MakeMap, *ssa.MakeInterface:
+		v := instr.(ssa.Value)
+		a.addressOf(a.valueNode(v), a.objectNode(cgn, v))
 
 	case *ssa.ChangeInterface:
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
@@ -1026,7 +1045,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			vsize := a.sizeof(tMap.Elem())
 
 			// Load from the map's (k,v) into the tuple's (ok, k, v).
-			a.load(a.valueNode(instr)+1, a.valueNode(theMap), ksize+vsize)
+			a.genLoad(cgn, a.valueNode(instr)+1, theMap, 0, ksize+vsize)
 		}
 
 	case *ssa.Lookup:
@@ -1034,16 +1053,15 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			// CommaOk can be ignored: field 0 is a no-op.
 			ksize := a.sizeof(tMap.Key())
 			vsize := a.sizeof(tMap.Elem())
-			a.loadOffset(a.valueNode(instr), a.valueNode(instr.X), ksize, vsize)
+			a.genLoad(cgn, a.valueNode(instr), instr.X, ksize, vsize)
 		}
 
 	case *ssa.MapUpdate:
 		tmap := instr.Map.Type().Underlying().(*types.Map)
 		ksize := a.sizeof(tmap.Key())
 		vsize := a.sizeof(tmap.Elem())
-		m := a.valueNode(instr.Map)
-		a.store(m, a.valueNode(instr.Key), ksize)
-		a.storeOffset(m, a.valueNode(instr.Value), ksize, vsize)
+		a.genStore(cgn, instr.Map, a.valueNode(instr.Key), 0, ksize)
+		a.genStore(cgn, instr.Map, a.valueNode(instr.Value), ksize, vsize)
 
 	case *ssa.Panic:
 		a.copy(a.panicNode, a.valueNode(instr.X), 1)
@@ -1123,11 +1141,17 @@ func (a *analysis) genFunc(cgn *cgnode) {
 		return
 	}
 
+	if a.log != nil {
+		fmt.Fprintln(a.log, "; Creating nodes for local values")
+	}
+
+	a.localval = make(map[ssa.Value]nodeid)
+	a.localobj = make(map[ssa.Value]nodeid)
+
 	// The value nodes for the params are in the func object block.
 	params := a.funcParams(cgn.obj)
 	for _, p := range fn.Params {
-		// TODO(adonovan): record the context (cgn) too.
-		a.setValueNode(p, params)
+		a.setValueNode(p, params, cgn)
 		params += nodeid(a.sizeof(p.Type()))
 	}
 
@@ -1135,16 +1159,14 @@ func (a *analysis) genFunc(cgn *cgnode) {
 	// the outer function sets them with MakeClosure;
 	// the inner function accesses them with Capture.
 
-	// Create value nodes for all value instructions.
-	// (Clobbers any previous nodes from same fn in different context.)
-	if a.log != nil {
-		fmt.Fprintln(a.log, "; Creating instruction values")
-	}
+	// Create value nodes for all value instructions
+	// since SSA may contain forward references.
 	for _, b := range fn.Blocks {
 		for _, instr := range b.Instrs {
 			switch instr := instr.(type) {
 			case *ssa.Range:
-				// do nothing: it has a funky type.
+				// do nothing: it has a funky type,
+				// and *ssa.Next does all the work.
 
 			case ssa.Value:
 				var comment string
@@ -1152,8 +1174,7 @@ func (a *analysis) genFunc(cgn *cgnode) {
 					comment = instr.Name()
 				}
 				id := a.addNodes(instr.Type(), comment)
-				// TODO(adonovan): record the context (cgn) too.
-				a.setValueNode(instr, id)
+				a.setValueNode(instr, id, cgn)
 			}
 		}
 	}
@@ -1165,7 +1186,8 @@ func (a *analysis) genFunc(cgn *cgnode) {
 		}
 	}
 
-	// (Instruction Values will hang around in the environment.)
+	a.localval = nil
+	a.localobj = nil
 }
 
 // generate generates offline constraints for the entire program.

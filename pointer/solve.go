@@ -307,10 +307,10 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		}
 		sig := fn.Signature
 
-		fnObj := a.funcObj[fn] // dynamic calls use shared contour
+		fnObj := a.globalobj[fn] // dynamic calls use shared contour
 		if fnObj == 0 {
-			// a.valueNode(fn) was not called during gen phase.
-			panic(fmt.Sprintf("a.funcObj(%s)==nil", fn))
+			// a.objectNode(fn) was not called during gen phase.
+			panic(fmt.Sprintf("a.globalobj[%s]==nil", fn))
 		}
 
 		// Make callsite's fn variable point to identity of

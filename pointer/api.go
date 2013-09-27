@@ -99,11 +99,6 @@ type Result struct {
 }
 
 // A Pointer is an equivalence class of pointerlike values.
-//
-// TODO(adonovan): add a method
-//    Context() call.GraphNode
-// for pointers corresponding to local variables,
-//
 type Pointer interface {
 	// PointsTo returns the points-to set of this pointer.
 	PointsTo() PointsToSet
@@ -111,6 +106,10 @@ type Pointer interface {
 	// MayAlias reports whether the receiver pointer may alias
 	// the argument pointer.
 	MayAlias(Pointer) bool
+
+	// Context returns the context of this pointer,
+	// if it corresponds to a local variable.
+	Context() call.GraphNode
 
 	String() string
 }
@@ -190,7 +189,7 @@ func (s ptset) DynamicTypes() *typemap.M {
 			panic("indirect tagged object") // implement later
 		}
 		prev, _ := tmap.At(tDyn).([]Pointer)
-		tmap.Set(tDyn, append(prev, ptr{s.a, v}))
+		tmap.Set(tDyn, append(prev, ptr{s.a, nil, v}))
 	}
 	return &tmap
 }
@@ -209,12 +208,17 @@ func (x ptset) Intersects(y_ PointsToSet) bool {
 
 // ptr adapts a node to the Pointer interface.
 type ptr struct {
-	a *analysis
-	n nodeid // non-zero
+	a   *analysis
+	cgn *cgnode
+	n   nodeid // non-zero
 }
 
 func (p ptr) String() string {
 	return fmt.Sprintf("n%d", p.n)
+}
+
+func (p ptr) Context() call.GraphNode {
+	return p.cgn
 }
 
 func (p ptr) PointsTo() PointsToSet {

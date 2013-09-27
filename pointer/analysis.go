@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"reflect"
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/go/types/typemap"
@@ -176,9 +177,11 @@ type analysis struct {
 	cgnodes     []*cgnode                   // all cgnodes
 	genq        []*cgnode                   // queue of functions to generate constraints for
 	intrinsics  map[*ssa.Function]intrinsic // non-nil values are summaries for intrinsic fns
-	funcObj     map[*ssa.Function]nodeid    // default function object for each func
 	probes      map[*ssa.CallCommon]nodeid  // maps call to print() to argument variable
-	valNode     map[ssa.Value]nodeid        // node for each ssa.Value
+	globalval   map[ssa.Value]nodeid        // node for each global ssa.Value
+	globalobj   map[ssa.Value]nodeid        // maps v to sole member of pts(v), if singleton
+	localval    map[ssa.Value]nodeid        // node for each local ssa.Value
+	localobj    map[ssa.Value]nodeid        // maps v to sole member of pts(v), if singleton
 	work        worklist                    // solver's worklist
 	queries     map[ssa.Value][]Pointer     // same as Results.Queries
 
@@ -235,14 +238,22 @@ func Analyze(config *Config) *Result {
 		config:      config,
 		log:         config.Log,
 		prog:        config.prog(),
-		valNode:     make(map[ssa.Value]nodeid),
+		globalval:   make(map[ssa.Value]nodeid),
+		globalobj:   make(map[ssa.Value]nodeid),
 		flattenMemo: make(map[types.Type][]*fieldInfo),
 		hasher:      typemap.MakeHasher(),
 		intrinsics:  make(map[*ssa.Function]intrinsic),
-		funcObj:     make(map[*ssa.Function]nodeid),
 		probes:      make(map[*ssa.CallCommon]nodeid),
 		work:        makeMapWorklist(),
 		queries:     make(map[ssa.Value][]Pointer),
+	}
+
+	if false {
+		a.log = os.Stderr // for debugging crashes; extremely verbose
+	}
+
+	if a.log != nil {
+		fmt.Fprintln(a.log, "======== NEW ANALYSIS ========")
 	}
 
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
@@ -259,15 +270,20 @@ func Analyze(config *Config) *Result {
 		a.reflectZeros.SetHasher(a.hasher)
 	}
 
-	if false {
-		a.log = os.Stderr // for debugging crashes; extremely verbose
-	}
+	root := a.generate()
 
 	if a.log != nil {
-		fmt.Fprintln(a.log, "======== NEW ANALYSIS ========")
+		// Show size of constraint system.
+		counts := make(map[reflect.Type]int)
+		for _, c := range a.constraints {
+			counts[reflect.TypeOf(c)]++
+		}
+		fmt.Fprintf(a.log, "# constraints:\t%d\n", len(a.constraints))
+		for t, n := range counts {
+			fmt.Fprintf(a.log, "\t%s:\t%d\n", t, n)
+		}
+		fmt.Fprintf(a.log, "# nodes:\t%d\n", len(a.nodes))
 	}
-
-	root := a.generate()
 
 	//a.optimize()
 
