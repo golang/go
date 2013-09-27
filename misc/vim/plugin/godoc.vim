@@ -66,6 +66,13 @@ function! s:GodocView()
 endfunction
 
 function! s:GodocWord(word)
+  if !executable('godoc')
+    echohl WarningMsg
+    echo "godoc command not found."
+    echo "  install with: go get code.google.com/p/go.tools/cmd/godoc"
+    echohl None
+    return
+  endif
   let word = a:word
   silent! let content = system('godoc ' . word)
   if v:shell_error || !len(content)
