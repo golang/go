@@ -164,7 +164,7 @@ func testExpr(b *bufio.Writer, expr string) {
 	if pass == 0 {
 		fmt.Fprintf(b, "\ttest(func(){use(%s)}, %q)\n", expr, expr)
 	} else {
-		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow|truncated\"\n", expr)
+		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow|truncated|must be integer\"\n", expr)
 	}
 }
 
