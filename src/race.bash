@@ -35,6 +35,8 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 . ./make.bash --no-banner
+# golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
+go install -race cmd/cgo
 go install -race std
 go test -race -short std
 go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
