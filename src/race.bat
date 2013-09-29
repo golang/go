@@ -29,6 +29,9 @@ goto fail
 :continue
 call make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
+:: golang.org/issue/5537 - we must build a race enabled cmd/cgo before trying to use it.
+echo # go install -race cmd/cgo
+go install -race cmd/cgo
 echo # go install -race std
 go install -race std
 if errorlevel 1 goto fail
