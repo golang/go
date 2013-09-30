@@ -74,7 +74,7 @@ func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
 	}
 
 	// parse entire file
-	mode := parser.DeclarationErrors
+	var mode parser.Mode
 	if *allErrors {
 		mode |= parser.AllErrors
 	}
