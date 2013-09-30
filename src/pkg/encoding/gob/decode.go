@@ -654,21 +654,19 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 
 // decodeSlice decodes a slice and stores the slice header through p.
 // Slices are encoded as an unsigned length followed by the elements.
-func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl error) {
+func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p unsafe.Pointer, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl error) {
 	nr := state.decodeUint()
 	n := int(nr)
 	if indir > 0 {
-		up := unsafe.Pointer(p)
-		if *(*unsafe.Pointer)(up) == nil {
+		if *(*unsafe.Pointer)(p) == nil {
 			// Allocate the slice header.
-			*(*unsafe.Pointer)(up) = unsafe.Pointer(new([]unsafe.Pointer))
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]unsafe.Pointer))
 		}
-		p = *(*uintptr)(up)
 	}
 	// Allocate storage for the slice elements, that is, the underlying array,
 	// if the existing slice does not have the capacity.
 	// Always write a header at p.
-	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p))
+	hdrp := (*reflect.SliceHeader)(p)
 	if hdrp.Cap < n {
 		hdrp.Data = reflect.MakeSlice(atyp, n, n).Pointer()
 		hdrp.Cap = n
@@ -887,7 +885,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
-				state.dec.decodeSlice(t, state, uintptr(p), *elemOp, t.Elem().Size(), i.indir, elemIndir, ovfl)
+				state.dec.decodeSlice(t, state, p, *elemOp, t.Elem().Size(), i.indir, elemIndir, ovfl)
 			}
 
 		case reflect.Struct:
