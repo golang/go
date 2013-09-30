@@ -66,6 +66,8 @@ var tests = [][]string{
 	{"testdata/conversions.src"},
 	{"testdata/stmt0.src"},
 	{"testdata/stmt1.src"},
+	{"testdata/gotos.src"},
+	{"testdata/labels.src"},
 }
 
 var fset = token.NewFileSet()

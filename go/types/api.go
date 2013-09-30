@@ -121,8 +121,6 @@ type Info struct {
 	// in package clauses, blank identifiers on the lhs of assignments, or
 	// symbolic variables t in t := x.(type) of type switch headers), the
 	// corresponding objects are nil.
-	// BUG(gri) Label identifiers in break, continue, or goto statements
-	// are not yet mapped.
 	Objects map[*ast.Ident]Object
 
 	// Implicits maps nodes to their implicitly declared objects, if any.
@@ -184,6 +182,5 @@ func IsAssignableTo(V, T Type) bool {
 }
 
 // BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).
-// BUG(gri): Use of labels is only partially checked.
 // BUG(gri): Interface vs non-interface comparisons are not correctly implemented.
 // BUG(gri): Switch statements don't check duplicate cases for all types for which it is required.

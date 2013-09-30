@@ -243,7 +243,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	case *ast.BranchStmt:
 		if s.Label != nil {
 			check.hasLabel = true
-			return // checks handled in separate pass
+			return // checked in 2nd pass (check.labels)
 		}
 		switch s.Tok {
 		case token.BREAK:
@@ -254,14 +254,12 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			if ctxt&inContinuable == 0 {
 				check.errorf(s.Pos(), "continue not in for statement")
 			}
-		case token.GOTO:
-			check.invalidAST(s.Pos(), "goto without label")
 		case token.FALLTHROUGH:
 			if ctxt&fallthroughOk == 0 {
 				check.errorf(s.Pos(), "fallthrough statement out of place")
 			}
 		default:
-			check.invalidAST(s.Pos(), "unknown branch statement (%s)", s.Tok)
+			check.invalidAST(s.Pos(), "branch statement: %s", s.Tok)
 		}
 
 	case *ast.BlockStmt:

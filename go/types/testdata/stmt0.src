@@ -378,16 +378,24 @@ func switches1() {
 
 	switch x {
 	case 0:
+		goto L1
 		L1: fallthrough
 	case 1:
+		goto L2
+		goto L3
+		goto L4
 		L2: L3: L4: fallthrough
 	default:
 	}
 
 	switch x {
 	case 0:
+		goto L5
 		L5: fallthrough
 	default:
+		goto L6
+		goto L7
+		goto L8
 		L6: L7: L8: fallthrough /* ERROR "fallthrough statement out of place" */
 	}
 
@@ -605,14 +613,20 @@ func rangeloops() {
 }
 
 func labels0() {
+	goto L0
+	goto L1
 	L0:
 	L1:
-	L1:
+	L1 /* ERROR "already declared" */ :
 	if true {
+		goto L2		
 		L2:
-		L0:
+		L0 /* ERROR "already declared" */ :
 	}
 	_ = func() {
+		goto L0
+		goto L1
+		goto L2
 		L0:
 		L1:
 		L2:

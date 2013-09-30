@@ -60,6 +60,21 @@ var sources = []string{
 	func (T) _() {}
 	func (T) _() {}
 	`,
+	`
+	package p
+	func _() {
+	L0:
+	L1:
+		goto L0
+		for {
+			goto L1
+		}
+		if true {
+			goto L2
+		}
+	L2:
+	}
+	`,
 }
 
 var pkgnames = []string{
