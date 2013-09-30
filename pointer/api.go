@@ -14,12 +14,12 @@ import (
 	"code.google.com/p/go.tools/ssa"
 )
 
+// A Config formulates a pointer analysis problem for Analyze().
 type Config struct {
-	// -------- Scope of the analysis --------
-
-	// Clients must provide the analysis with at least one package defining a main() function.
-	Mains []*ssa.Package // set of 'main' packages to analyze
-	root  *ssa.Function  // synthetic analysis root
+	// Mains contains the set of 'main' packages to analyze
+	// Clients must provide the analysis with at least one
+	// package defining a main() function.
+	Mains []*ssa.Package
 
 	// Reflection determines whether to handle reflection
 	// operators soundly, which is currently rather slow since it
@@ -32,24 +32,14 @@ type Config struct {
 	// If enabled, the graph will be available in Result.CallGraph.
 	BuildCallGraph bool
 
-	// -------- Optional callbacks invoked by the analysis --------
-
-	// Warn is invoked for each warning encountered by the analysis,
-	// e.g. unknown external function, unsound use of unsafe.Pointer.
-	// pos may be zero if the position is not known.
-	Warn func(pos token.Pos, format string, args ...interface{})
-
 	// Print is invoked during the analysis for each discovered
-	// call to the built-in print(x).
+	// call to the built-in print(x), providing a convenient way
+	// to identify arbitrary expressions of interest in the tests.
 	//
 	// Pointer p may be saved until the analysis is complete, at
 	// which point its methods provide access to the analysis
 	// (The result of callings its methods within the Print
 	// callback is undefined.)  p is nil if x is non-pointerlike.
-	//
-	// TODO(adonovan): this was a stop-gap measure for identifing
-	// arbitrary expressions of interest in the tests.  Now that
-	// ssa.ValueForExpr exists, we should use that instead.
 	//
 	Print func(site *ssa.CallCommon, p Pointer)
 
@@ -73,9 +63,7 @@ type Config struct {
 	//
 	Queries map[ssa.Value]Indirect
 
-	// -------- Other configuration options --------
-
-	// If Log is non-nil, a log messages are written to it.
+	// If Log is non-nil, log messages are written to it.
 	// Logging is extremely verbose.
 	Log io.Writer
 }
@@ -89,6 +77,11 @@ func (c *Config) prog() *ssa.Program {
 	panic("empty scope")
 }
 
+type Warning struct {
+	Pos     token.Pos
+	Message string
+}
+
 // A Result contains the results of a pointer analysis.
 //
 // See Config for how to request the various Result components.
@@ -96,6 +89,7 @@ func (c *Config) prog() *ssa.Program {
 type Result struct {
 	CallGraph call.Graph              // discovered call graph
 	Queries   map[ssa.Value][]Pointer // points-to sets for queried ssa.Values
+	Warnings  []Warning               // warnings of unsoundness
 }
 
 // A Pointer is an equivalence class of pointerlike values.

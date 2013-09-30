@@ -285,7 +285,6 @@ func doOneInput(input, filename string) bool {
 	}
 
 	var probes []probe
-	var warnings []string
 	var log bytes.Buffer
 
 	// Run the analysis.
@@ -296,11 +295,6 @@ func doOneInput(input, filename string) bool {
 		Log:            &log,
 		Print: func(site *ssa.CallCommon, p pointer.Pointer) {
 			probes = append(probes, probe{site, p})
-		},
-		Warn: func(pos token.Pos, format string, args ...interface{}) {
-			msg := fmt.Sprintf(format, args...)
-			fmt.Printf("%s: warning: %s\n", prog.Fset.Position(pos), msg)
-			warnings = append(warnings, msg)
 		},
 	}
 	result := pointer.Analyze(config)
@@ -346,7 +340,7 @@ func doOneInput(input, filename string) bool {
 			}
 
 		case "warning":
-			if !checkWarningExpectation(prog, e, warnings) {
+			if !checkWarningExpectation(prog, e, result.Warnings) {
 				ok = false
 			}
 		}
@@ -493,7 +487,7 @@ func checkCallsExpectation(prog *ssa.Program, e *expectation, callgraph call.Gra
 	return false
 }
 
-func checkWarningExpectation(prog *ssa.Program, e *expectation, warnings []string) bool {
+func checkWarningExpectation(prog *ssa.Program, e *expectation, warnings []pointer.Warning) bool {
 	// TODO(adonovan): check the position part of the warning too?
 	re, err := regexp.Compile(e.args[0])
 	if err != nil {
@@ -506,15 +500,15 @@ func checkWarningExpectation(prog *ssa.Program, e *expectation, warnings []strin
 		return false
 	}
 
-	for _, warning := range warnings {
-		if re.MatchString(warning) {
+	for _, w := range warnings {
+		if re.MatchString(w.Message) {
 			return true
 		}
 	}
 
 	e.errorf("@warning %s expectation not satised; found these warnings though:", strconv.Quote(e.args[0]))
-	for _, warning := range warnings {
-		fmt.Println("\t", warning)
+	for _, w := range warnings {
+		fmt.Printf("%s: warning: %s\n", prog.Fset.Position(w.Pos), w.Message)
 	}
 	return false
 }

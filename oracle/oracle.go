@@ -99,12 +99,6 @@ type queryResult interface {
 	display(printf printfFunc)
 }
 
-type warning struct {
-	pos    token.Pos
-	format string
-	args   []interface{}
-}
-
 // A QueryPos represents the position provided as input to a query:
 // a textual extent in the program's source code, the AST node it
 // corresponds to, and the package to which it belongs.
@@ -121,9 +115,9 @@ type Result struct {
 	fset *token.FileSet
 	// fprintf is a closure over the oracle's fileset and start/end position.
 	fprintf  func(w io.Writer, pos interface{}, format string, args ...interface{})
-	q        queryResult // the query-specific result
-	mode     string      // query mode
-	warnings []warning   // pointer analysis warnings
+	q        queryResult       // the query-specific result
+	mode     string            // query mode
+	warnings []pointer.Warning // pointer analysis warnings
 }
 
 // Serial returns an instance of serial.Result, which implements the
@@ -135,8 +129,8 @@ func (res *Result) Serial() *serial.Result {
 	res.q.toSerial(resj, res.fset)
 	for _, w := range res.warnings {
 		resj.Warnings = append(resj.Warnings, serial.PTAWarning{
-			Pos:     res.fset.Position(w.pos).String(),
-			Message: fmt.Sprintf(w.format, w.args...),
+			Pos:     res.fset.Position(w.Pos).String(),
+			Message: w.Message,
 		})
 	}
 	return resj
@@ -302,9 +296,6 @@ func (o *Oracle) query(minfo *modeInfo, qpos *QueryPos) (*Result, error) {
 		fset:    o.prog.Fset,
 		fprintf: o.fprintf, // captures o.prog, o.{start,end}Pos for later printing
 	}
-	o.config.Warn = func(pos token.Pos, format string, args ...interface{}) {
-		res.warnings = append(res.warnings, warning{pos, format, args})
-	}
 	var err error
 	res.q, err = minfo.impl(o, qpos)
 	if err != nil {
@@ -342,7 +333,7 @@ func (res *Result) WriteTo(out io.Writer) {
 	if res.warnings != nil {
 		fmt.Fprintln(out, "\nPointer analysis warnings:")
 		for _, w := range res.warnings {
-			printf(w.pos, "warning: "+w.format, w.args...)
+			printf(w.Pos, "warning: "+w.Message)
 		}
 	}
 }

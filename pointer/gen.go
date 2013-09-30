@@ -87,7 +87,7 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 			a.genLoad(cgn, tmp, v, 0, a.sizeof(v.Type()))
 			id = tmp
 		}
-		a.queries[v] = append(a.queries[v], ptr{a, cgn, id})
+		a.result.Queries[v] = append(a.result.Queries[v], ptr{a, cgn, id})
 	}
 }
 

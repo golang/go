@@ -16,13 +16,11 @@ CONSTRAINT GENERATION:
      A downside is that we can't keep the identity field of struct
      allocations that identifies the object.    
 
-PRESOLVER OPTIMISATIONS
-- use HVN, HRU, LE, PE, HCD, LCD.
-
-SOLVER:
-- use BDDs and/or sparse bitvectors for ptsets
+OPTIMISATIONS
+- pre-solver: PE and LE via HVN/HRU.
+- solver: HCD, LCD.
+- use sparse bitvectors for ptsets
 - use sparse bitvectors for graph edges
-- use BDD-based relational composition for e.g. offset computations.
 - experiment with different worklist algorithms:
    priority queue (solver visit-time order)
    red-black tree (node id order)
@@ -34,9 +32,8 @@ SOLVER:
 API:
 - Some optimisations (e.g. LE, PE) may change the API.
   Think about them sooner rather than later.
-- Eliminate Print probe now that we can query specific ssa.Values.
 
-Misc:
+MISC:
 - os.Args should point to something; currently they don't.
 - Test on all platforms.  
   Currently we assume these go/build tags: linux, amd64, !cgo.

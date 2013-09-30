@@ -183,7 +183,7 @@ type analysis struct {
 	localval    map[ssa.Value]nodeid        // node for each local ssa.Value
 	localobj    map[ssa.Value]nodeid        // maps v to sole member of pts(v), if singleton
 	work        worklist                    // solver's worklist
-	queries     map[ssa.Value][]Pointer     // same as Results.Queries
+	result      *Result                     // results of the analysis
 
 	// Reflection:
 	hasher          typemap.Hasher // cache of type hashes
@@ -221,13 +221,7 @@ func (a *analysis) labelFor(id nodeid) *Label {
 }
 
 func (a *analysis) warnf(pos token.Pos, format string, args ...interface{}) {
-	if Warn := a.config.Warn; Warn != nil {
-		Warn(pos, format, args...)
-	} else {
-		fmt.Fprintf(os.Stderr, "%s: warning: ", a.prog.Fset.Position(pos))
-		fmt.Fprintf(os.Stderr, format, args...)
-		fmt.Fprintln(os.Stderr)
-	}
+	a.result.Warnings = append(a.result.Warnings, Warning{pos, fmt.Sprintf(format, args...)})
 }
 
 // Analyze runs the pointer analysis with the scope and options
@@ -245,7 +239,9 @@ func Analyze(config *Config) *Result {
 		intrinsics:  make(map[*ssa.Function]intrinsic),
 		probes:      make(map[*ssa.CallCommon]nodeid),
 		work:        makeMapWorklist(),
-		queries:     make(map[ssa.Value][]Pointer),
+		result: &Result{
+			Queries: make(map[ssa.Value][]Pointer),
+		},
 	}
 
 	if false {
@@ -318,13 +314,9 @@ func Analyze(config *Config) *Result {
 		}
 	}
 
-	var callgraph *cgraph
 	if a.config.BuildCallGraph {
-		callgraph = &cgraph{root, a.cgnodes}
+		a.result.CallGraph = &cgraph{root, a.cgnodes}
 	}
 
-	return &Result{
-		CallGraph: callgraph,
-		Queries:   a.queries,
-	}
+	return a.result
 }
