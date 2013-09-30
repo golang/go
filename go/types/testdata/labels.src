@@ -35,12 +35,24 @@ L6 /* ERROR "label L6 already declared" */ :
 L7:
 	for {
 		break L7
+		break L8 /* ERROR "invalid break label L8" */
+	}
+
+// A label must be directly associated with a switch, select, or
+// for statement; it cannot be the label of a labeled statement.
+
+L7a /* ERROR "declared but not used" */ : L7b:
+	for {
+		break L7a /* ERROR "invalid break label L7a" */
+		continue L7a /* ERROR "invalid continue label L7a" */
+		continue L7b
 	}
 
 L8:
 	for {
 		if x == 21 {
 			continue L8
+			continue L7 /* ERROR "invalid continue label L7" */
 		}
 	}
 
@@ -55,6 +67,16 @@ L10:
 	select {
 	default:
 		break L10
+		break L9 /* ERROR "invalid break label L9" */
+	}
+
+	goto L10a
+L10a: L10b:
+	select {
+	default:
+		break L10a /* ERROR "invalid break label L10a" */
+		break L10b
+		continue L10b /* ERROR "invalid continue label L10b" */
 	}
 }
 
@@ -121,10 +143,10 @@ L5:
 
 	for {
 		if x == 19 {
-			break L1 /* ERROR "break label not declared: L1" */
+			break L1 /* ERROR "invalid break label L1" */
 		}
 		if x == 20 {
-			continue L1 /* ERROR "continue label not declared: L1" */
+			continue L1 /* ERROR "invalid continue label L1" */
 		}
 		if x == 21 {
 			goto L1
@@ -135,10 +157,27 @@ L5:
 // Additional tests not in the original files.
 
 func f2() {
-L1:
+L1 /* ERROR "label L1 declared but not used" */ :
 	if x == 0 {
 		for {
 			continue L1 /* ERROR "invalid continue label L1" */
 		}
+	}
+}
+
+func f3() {
+L1:
+L2:
+L3:
+	for {
+		break L1 /* ERROR "invalid break label L1" */
+		break L2 /* ERROR "invalid break label L2" */
+		break L3
+		continue L1 /* ERROR "invalid continue label L1" */
+		continue L2 /* ERROR "invalid continue label L2" */
+		continue L3
+		goto L1
+		goto L2
+		goto L3
 	}
 }

@@ -114,6 +114,12 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 		return false
 	}
 
+	blockBranches := func(lstmt *ast.LabeledStmt, list []ast.Stmt) {
+		// Unresolved forward jumps inside the nested block
+		// become forward jumps in the current block.
+		fwdJumps = append(fwdJumps, check.blockBranches(all, b, lstmt, list)...)
+	}
+
 	var stmtBranches func(ast.Stmt)
 	stmtBranches = func(s ast.Stmt) {
 		switch s := s.(type) {
@@ -172,38 +178,36 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 				// spec: "If there is a label, it must be that of an enclosing
 				// "for", "switch", or "select" statement, and that is the one
 				// whose execution terminates."
-				t := b.enclosingTarget(name)
-				if t == nil {
-					check.errorf(s.Label.Pos(), "break label not declared: %s", name)
-					return
+				valid := false
+				if t := b.enclosingTarget(name); t != nil {
+					switch t.Stmt.(type) {
+					case *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt, *ast.ForStmt, *ast.RangeStmt:
+						valid = true
+					}
 				}
-				switch t.Stmt.(type) {
-				case *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt, *ast.ForStmt, *ast.RangeStmt:
-					// ok
-				default:
+				if !valid {
 					check.errorf(s.Label.Pos(), "invalid break label %s", name)
-					// continue and mark label as used to avoid another error
+					return
 				}
 
 			case token.CONTINUE:
 				// spec: "If there is a label, it must be that of an enclosing
 				// "for" statement, and that is the one whose execution advances."
-				t := b.enclosingTarget(name)
-				if t == nil {
-					check.errorf(s.Label.Pos(), "continue label not declared: %s", name)
-					return
+				valid := false
+				if t := b.enclosingTarget(name); t != nil {
+					switch t.Stmt.(type) {
+					case *ast.ForStmt, *ast.RangeStmt:
+						valid = true
+					}
 				}
-				switch t.Stmt.(type) {
-				case *ast.ForStmt, *ast.RangeStmt:
-					// ok
-				default:
+				if !valid {
 					check.errorf(s.Label.Pos(), "invalid continue label %s", name)
-					// continue and mark label as used to avoid another error
+					return
 				}
 
 			case token.GOTO:
 				if b.gotoTarget(name) == nil {
-					// label may be declared later - add to forward jumps
+					// label may be declared later - add branch to forward jumps
 					fwdJumps = append(fwdJumps, s)
 					return
 				}
@@ -224,9 +228,7 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			}
 
 		case *ast.BlockStmt:
-			// Unresolved forward jumps inside the nested block
-			// become forward jumps in the current block.
-			fwdJumps = append(fwdJumps, check.blockBranches(all, b, lstmt, s.List)...)
+			blockBranches(lstmt, s.List)
 
 		case *ast.IfStmt:
 			stmtBranches(s.Body)
@@ -235,7 +237,7 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			}
 
 		case *ast.CaseClause:
-			fwdJumps = append(fwdJumps, check.blockBranches(all, b, nil, s.Body)...)
+			blockBranches(nil, s.Body)
 
 		case *ast.SwitchStmt:
 			stmtBranches(s.Body)
@@ -244,7 +246,7 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			stmtBranches(s.Body)
 
 		case *ast.CommClause:
-			fwdJumps = append(fwdJumps, check.blockBranches(all, b, nil, s.Body)...)
+			blockBranches(nil, s.Body)
 
 		case *ast.SelectStmt:
 			stmtBranches(s.Body)
