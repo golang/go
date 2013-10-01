@@ -34,6 +34,5 @@ API:
   Think about them sooner rather than later.
 
 MISC:
-- os.Args should point to something; currently they don't.
 - Test on all platforms.  
   Currently we assume these go/build tags: linux, amd64, !cgo.

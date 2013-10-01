@@ -751,7 +751,7 @@ func (c *rtypeElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	}
 	changed := false
 	for tObj := range delta {
-		T := a.nodes[tObj].obj.rtype
+		T := a.nodes[tObj].obj.data.(types.Type)
 		if tHasElem, ok := T.Underlying().(hasElem); ok {
 			if a.addLabel(c.result, a.makeRtype(tHasElem.Elem())) {
 				changed = true
@@ -797,7 +797,7 @@ func (c *rtypeInOutConstraint) ptr() nodeid {
 func (c *rtypeInOutConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for tObj := range delta {
-		T := a.nodes[tObj].obj.rtype
+		T := a.nodes[tObj].obj.data.(types.Type)
 		sig, ok := T.Underlying().(*types.Signature)
 		if !ok {
 			continue // not a func type
@@ -861,7 +861,7 @@ func (c *rtypeKeyConstraint) ptr() nodeid {
 func (c *rtypeKeyConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for tObj := range delta {
-		T := a.nodes[tObj].obj.rtype
+		T := a.nodes[tObj].obj.data.(types.Type)
 		if tMap, ok := T.Underlying().(*types.Map); ok {
 			if a.addLabel(c.result, a.makeRtype(tMap.Key())) {
 				changed = true

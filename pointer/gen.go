@@ -95,9 +95,9 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 // a single object allocation.
 //
 // obj is the start node of the object, from a prior call to nextNode.
-// Its size, flags and (optionally) data will be updated.
+// Its size, flags and optional data will be updated.
 //
-func (a *analysis) endObject(obj nodeid, cgn *cgnode, val ssa.Value) *object {
+func (a *analysis) endObject(obj nodeid, cgn *cgnode, data interface{}) *object {
 	// Ensure object is non-empty by padding;
 	// the pad will be the object node.
 	size := uint32(a.nextNode() - obj)
@@ -108,12 +108,9 @@ func (a *analysis) endObject(obj nodeid, cgn *cgnode, val ssa.Value) *object {
 	o := &object{
 		size: size, // excludes padding
 		cgn:  cgn,
-		val:  val,
+		data: data,
 	}
 	objNode.obj = o
-	if val != nil && a.log != nil {
-		fmt.Fprintf(a.log, "\tobj[%s] = n%d\n", val, obj)
-	}
 
 	return o
 }
@@ -150,10 +147,10 @@ func (a *analysis) makeFunctionObject(fn *ssa.Function) nodeid {
 }
 
 // makeTagged creates a tagged object of type typ.
-func (a *analysis) makeTagged(typ types.Type, cgn *cgnode, val ssa.Value) nodeid {
+func (a *analysis) makeTagged(typ types.Type, cgn *cgnode, data interface{}) nodeid {
 	obj := a.addOneNode(typ, "tagged.T", nil) // NB: type may be non-scalar!
 	a.addNodes(typ, "tagged.v")
-	a.endObject(obj, cgn, val).flags |= otTagged
+	a.endObject(obj, cgn, data).flags |= otTagged
 	return obj
 }
 
@@ -168,10 +165,9 @@ func (a *analysis) makeRtype(T types.Type) nodeid {
 	// ordinarily a large struct but here a single node will do.
 	obj := a.nextNode()
 	a.addOneNode(T, "reflect.rtype", nil)
-	a.endObject(obj, nil, nil).rtype = T
+	a.endObject(obj, nil, T)
 
-	id := a.makeTagged(a.reflectRtypePtr, nil, nil)
-	a.nodes[id].obj.rtype = T
+	id := a.makeTagged(a.reflectRtypePtr, nil, T)
 	a.nodes[id+1].typ = T // trick (each *rtype tagged object is a singleton)
 	a.addressOf(id+1, obj)
 
@@ -809,6 +805,10 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 				// For now, Captures have the same cardinality as globals.
 				// TODO(adonovan): treat captures context-sensitively.
 			}
+
+			if a.log != nil {
+				fmt.Fprintf(a.log, "\tglobalobj[%s] = n%d\n", a.nodes[obj].obj, obj)
+			}
 			a.globalobj[v] = obj
 		}
 		return obj
@@ -873,6 +873,10 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 			// TODO(adonovan): opt: handle these cases too:
 			// - unsafe.Pointer->*T conversion acts like Alloc
 			// - string->[]byte/[]rune conversion acts like MakeSlice
+		}
+
+		if a.log != nil {
+			fmt.Fprintf(a.log, "\tlocalobj[%s] = n%d\n", a.nodes[obj].obj, obj)
 		}
 		a.localobj[v] = obj
 	}
@@ -1220,6 +1224,14 @@ func (a *analysis) generate() *cgnode {
 		cgn := a.genq[0]
 		a.genq = a.genq[1:]
 		a.genFunc(cgn)
+	}
+
+	// The runtime magically allocates os.Args; so should we.
+	if os := a.prog.ImportedPackage("os"); os != nil {
+		// In effect:  os.Args = new([1]string)[:]
+		obj := a.addNodes(types.NewArray(types.Typ[types.String], 1), "<command-line args>")
+		a.endObject(obj, nil, "<command-line args>")
+		a.addressOf(a.objectNode(nil, os.Var("Args")), obj)
 	}
 
 	return root

@@ -24,6 +24,36 @@ optimisatisions such as Hybrid- and Lazy- Cycle Detection from
 (Hardekopf & Lin, PLDI'07),
 
 
+CLASSIFICATION
+
+Our algorithm is INCLUSION-BASED: the points-to sets for x and y will
+be related by pts(y) ⊇ pts(x) if the program contains the statement
+y = x.
+
+It is FLOW-INSENSITIVE: it ignores all control flow constructs and the
+order of statements in a program.  It is therefore a "MAY ALIAS"
+analysis: its facts are of the form "P may/may not point to L",
+not "P must point to L".
+
+It is FIELD-SENSITIVE: it builds separate points-to sets for distinct
+fields, such as x and y in struct { x, y *int }.
+
+It is mostly CONTEXT-INSENSITIVE: most functions are analyzed once,
+so values can flow in at one call to the function and return out at
+another.  Only some smaller functions are analyzed with consideration
+to their calling context.
+
+It has a CONTEXT-SENSITIVE HEAP: objects are named by both allocation
+site and context, so the objects returned by two distinct calls to f:
+   func f() *T { return new(T) }
+are distinguished up to the limits of the calling context.
+
+It is a WHOLE PROGRAM analysis: it requires SSA-form IR for the
+complete Go program and summaries for native code.
+
+See the (Hind, PASTE'01) survey paper for an explanation of these terms.
+
+
 TERMINOLOGY
 
 We occasionally use C's x->f notation to distinguish the case where x

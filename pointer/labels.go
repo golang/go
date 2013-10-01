@@ -25,6 +25,7 @@ import (
 // 	- stack- and heap-allocated variables (including composite literals)
 // 	- channels, maps and arrays created by make()
 //	- instrinsic or reflective operations that allocate (e.g. append, reflect.New)
+//	- instrinsic objects, e.g. the initial array behind os.Args.
 // 	- and their subelements, e.g. "alloc.y[*].z"
 //
 // Labels are so varied that they defy good generalizations;
@@ -32,16 +33,25 @@ import (
 // Many objects have types that are inexpressible in Go:
 // maps, channels, functions, tagged objects.
 //
+// At most one of Value() or ReflectType() may return non-nil.
+//
 type Label struct {
 	obj        *object    // the addressable memory location containing this label
 	subelement *fieldInfo // subelement path within obj, e.g. ".a.b[*].c"
 }
 
-// Value returns the ssa.Value that allocated this label's object,
-// or nil if it was allocated by an intrinsic.
-//
+// Value returns the ssa.Value that allocated this label's object, if any.
 func (l Label) Value() ssa.Value {
-	return l.obj.val
+	val, _ := l.obj.data.(ssa.Value)
+	return val
+}
+
+// ReflectType returns the type represented by this label if it is an
+// reflect.rtype instance object or *reflect.rtype-tagged object.
+//
+func (l Label) ReflectType() types.Type {
+	rtype, _ := l.obj.data.(types.Type)
+	return rtype
 }
 
 // Context returns the analytic context in which this label's object was allocated,
@@ -60,11 +70,11 @@ func (l Label) Path() string {
 
 // Pos returns the position of this label, if known, zero otherwise.
 func (l Label) Pos() token.Pos {
-	if v := l.Value(); v != nil {
-		return v.Pos()
-	}
-	if l.obj.rtype != nil {
-		if nt, ok := deref(l.obj.rtype).(*types.Named); ok {
+	switch data := l.obj.data.(type) {
+	case ssa.Value:
+		return data.Pos()
+	case types.Type:
+		if nt, ok := deref(data).(*types.Named); ok {
 			return nt.Obj().Pos()
 		}
 	}
@@ -84,6 +94,7 @@ func (l Label) Pos() token.Pos {
 //	makeinterface				(tagged object allocated by makeinterface)
 //      <alloc in reflect.Zero>			(allocation in instrinsic)
 //      sync.Mutex				(a reflect.rtype instance)
+//	<command-line arguments>		(an instrinsic object)
 //
 // Labels within compound objects have subelement paths:
 //	x.y[*].z				(a struct variable, x)
@@ -92,18 +103,25 @@ func (l Label) Pos() token.Pos {
 //
 func (l Label) String() string {
 	var s string
-	switch v := l.obj.val.(type) {
+	switch v := l.obj.data.(type) {
+	case types.Type:
+		return v.String()
+
+	case string:
+		s = v // an intrinsic object (e.g. os.Args[*])
+
 	case nil:
-		if l.obj.rtype != nil {
-			return l.obj.rtype.String()
-		}
 		if l.obj.cgn != nil {
 			// allocation by intrinsic or reflective operation
-			return fmt.Sprintf("<alloc in %s>", l.obj.cgn.Func())
+			s = fmt.Sprintf("<alloc in %s>", l.obj.cgn.Func())
+		} else {
+			s = "<unknown>" // should be unreachable
 		}
-		return "<unknown>" // should be unreachable
 
-	case *ssa.Function, *ssa.Global:
+	case *ssa.Function:
+		s = v.String()
+
+	case *ssa.Global:
 		s = v.String()
 
 	case *ssa.Const:
@@ -132,7 +150,7 @@ func (l Label) String() string {
 		s = "makeinterface:" + v.X.Type().String()
 
 	default:
-		panic(fmt.Sprintf("unhandled Label.val type: %T", v))
+		panic(fmt.Sprintf("unhandled object data type: %T", v))
 	}
 
 	return s + l.subelement.path()

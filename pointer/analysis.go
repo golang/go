@@ -39,17 +39,18 @@ type object struct {
 	// allocation.  Zero for all other nodes.
 	size uint32
 
-	// The SSA operation that caused this object to be allocated.
-	// May be nil for (e.g.) intrinsic allocations.
-	val ssa.Value
+	// data describes this object; it has one of these types:
+	//
+	// ssa.Value	for an object allocated by an SSA operation.
+	// types.Type	for an rtype instance object or *rtype-tagged object.
+	// string	for an instrinsic object, e.g. the array behind os.Args.
+	// nil		for an object allocated by an instrinsic.
+	//		(cgn provides the identity of the intrinsic.)
+	data interface{}
 
 	// The call-graph node (=context) in which this object was allocated.
 	// May be nil for global objects: Global, Const, some Functions.
 	cgn *cgnode
-
-	// If this is an rtype instance object, or a *rtype-tagged
-	// object, this is its type.
-	rtype types.Type
 }
 
 // nodeid denotes a node.

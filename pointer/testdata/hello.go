@@ -2,7 +2,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 type S int
 
@@ -14,6 +17,7 @@ func (s *S) String() string {
 }
 
 func main() {
+	print(os.Args) // @pointsto <command-line args>
 	fmt.Println("Hello, World!", &theS)
 }
 
