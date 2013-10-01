@@ -36,3 +36,11 @@ func f(x int, m map[string]int) {
 	const s = "foo"
 	m /* ERROR "m\[s\] \(value, ok of type int\) is not used" */ [s]
 }
+
+// Valid ERROR comments can have a variety of forms.
+func _() {
+	0 /* ERROR "0 .* is not used" */
+	0 /* ERROR 0 .* is not used */
+	0 // ERROR "0 .* is not used"
+	0 // ERROR 0 .* is not used
+}

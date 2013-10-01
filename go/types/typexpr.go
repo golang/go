@@ -415,7 +415,6 @@ func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk boo
 	var mset objset
 
 	for _, f := range list.List {
-		// TODO(gri) Consider calling funcType here.
 		typ := check.typ(f.Type, nil, cycleOk)
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag

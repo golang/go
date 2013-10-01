@@ -126,7 +126,6 @@ func TestStdtest(t *testing.T) {
 
 func TestStdfixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
-		"bug136.go", "bug179.go", "bug344.go", // TODO(gri) implement missing label checks
 		"bug251.go",                           // TODO(gri) incorrect cycle checks for interface types
 		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
 		"bug200.go",                           // TODO(gri) complete duplicate checking in expr switches

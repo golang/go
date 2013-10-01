@@ -110,10 +110,11 @@ func parseFiles(t *testing.T, filenames []string) ([]*ast.File, []error) {
 	return files, errlist
 }
 
-// ERROR comments must be of the form /* ERROR "rx" */ and rx is
-// a regular expression that matches the expected error message.
+// ERROR comments must start with text `ERROR "rx"` or `ERROR rx` where
+// rx is a regular expression that matches the expected error message.
+// Space around "rx" or rx is ignored.
 //
-var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
+var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
 
 // errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
@@ -140,8 +141,11 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 			case token.EOF:
 				break scanFile
 			case token.COMMENT:
-				if s := errRx.FindStringSubmatch(lit); len(s) == 2 {
-					errmap[prev] = append(errmap[prev], s[1])
+				if lit[1] == '*' {
+					lit = lit[:len(lit)-2] // strip trailing */
+				}
+				if s := errRx.FindStringSubmatch(lit[2:]); len(s) == 2 {
+					errmap[prev] = append(errmap[prev], strings.TrimSpace(s[1]))
 				}
 			case token.SEMICOLON:
 				// ignore automatically inserted semicolon
