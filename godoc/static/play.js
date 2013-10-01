@@ -13,14 +13,15 @@ function initPlayground(transport) {
 		var s = "";
 		for (var i = 0; i < node.childNodes.length; i++) {
 			var n = node.childNodes[i];
-			if (n.nodeType === 1 && n.tagName === "SPAN" && n.className != "number") {
-				var innerText = n.innerText === undefined ? "textContent" : "innerText";
-				s += n[innerText] + "\n";
+			if (n.nodeType !== 1) continue;
+			if (n.tagName === "BUTTON") continue;
+			if (n.tagName === "SPAN" && n.className === "number") continue;
+			if (n.tagName === "PRE"){
+				s += text(n);
 				continue;
 			}
-			if (n.nodeType === 1 && n.tagName !== "BUTTON") {
-				s += text(n);
-			}
+			var innerText = n.innerText === undefined ? "textContent" : "innerText";
+			s += n[innerText] + "\n";
 		}
 		return s;
 	}
