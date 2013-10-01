@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a copy of present/js/playground.js from the repository at
-// https://code.google.com/p/go.talks
-// Please make changes to that repository.
-
 /*
 In the absence of any formal way to specify interfaces in JavaScript,
 here's a skeleton implementation of a playground transport.

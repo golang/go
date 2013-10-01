@@ -836,10 +836,6 @@ SUBDIRECTORIES
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a copy of present/js/play.js from the repository at
-// https://code.google.com/p/go.talks
-// Please make changes to that repository.
-
 function initPlayground(transport) {
 	"use strict";
 
@@ -943,10 +939,6 @@ function initPlayground(transport) {
 	"playground.js": `// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
-// This is a copy of present/js/playground.js from the repository at
-// https://code.google.com/p/go.talks
-// Please make changes to that repository.
 
 /*
 In the absence of any formal way to specify interfaces in JavaScript,
