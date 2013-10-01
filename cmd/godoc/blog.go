@@ -15,12 +15,12 @@ import (
 	"sync"
 
 	"code.google.com/p/go.tools/blog"
+	"code.google.com/p/go.tools/godoc/redirect"
 )
 
 const (
-	blogRedirect = false
-	blogRepo     = "code.google.com/p/go.blog"
-	blogURL      = "http://blog.golang.org/"
+	blogRepo = "code.google.com/p/go.blog"
+	blogURL  = "http://blog.golang.org/"
 )
 
 var (
@@ -49,7 +49,7 @@ func blogInit() {
 	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "Blog content not available locally. "+
 			"To install, run \n\tgo get %v\n", blogRepo)
-		blogServer = makePrefixRedirectHandler("/blog/", blogURL)
+		blogServer = redirect.PrefixHandler("/blog/", blogURL)
 		return
 	}
 

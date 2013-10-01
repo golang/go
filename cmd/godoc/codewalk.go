@@ -71,7 +71,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Canonicalize the path and redirect if changed
-	if redirect(w, r) {
+	if redir(w, r) {
 		return
 	}
 
@@ -82,7 +82,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
+func redir(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	canonical := pathpkg.Clean(r.URL.Path)
 	if !strings.HasSuffix(canonical, "/") {
 		canonical += "/"
