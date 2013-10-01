@@ -31,6 +31,12 @@ endif
 function! go#complete#Package(ArgLead, CmdLine, CursorPos)
   let dirs = []
 
+  let words = split(a:CmdLine, '\s\+', 1)
+  if len(words) > 2
+    " TODO Complete package members
+    return []
+  endif
+
   if executable('go')
     let goroot = substitute(system('go env GOROOT'), '\n', '', 'g')
     if v:shell_error
