@@ -147,12 +147,17 @@ func parseQueries(t *testing.T, filename string) []*query {
 	return queries
 }
 
-// stripLocation removes a "file:line: " prefix.
-func stripLocation(line string) string {
-	if i := strings.Index(line, ": "); i >= 0 {
-		line = line[i+2:]
+// WriteResult writes res (-format=plain) to w, stripping file locations.
+func WriteResult(w io.Writer, res *oracle.Result) {
+	capture := new(bytes.Buffer) // capture standard output
+	res.WriteTo(capture)
+	for _, line := range strings.Split(capture.String(), "\n") {
+		// Remove a "file:line: " prefix.
+		if i := strings.Index(line, ": "); i >= 0 {
+			line = line[i+2:]
+		}
+		fmt.Fprintf(w, "%s\n", line)
 	}
-	return line
 }
 
 // doQuery poses query q to the oracle and writes its response and
@@ -169,7 +174,7 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 		&buildContext,
 		true) // reflection
 	if err != nil {
-		fmt.Fprintf(out, "\nError: %s\n", stripLocation(err.Error()))
+		fmt.Fprintf(out, "\nError: %s\n", err)
 		return
 	}
 
@@ -183,11 +188,7 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 		out.Write(b)
 	} else {
 		// "plain" (compiler diagnostic format) output
-		capture := new(bytes.Buffer) // capture standard output
-		res.WriteTo(capture)
-		for _, line := range strings.Split(capture.String(), "\n") {
-			fmt.Fprintf(out, "%s\n", stripLocation(line))
-		}
+		WriteResult(out, res)
 	}
 }
 
@@ -272,18 +273,14 @@ func TestMultipleQueries(t *testing.T) {
 	// Release the other ASTs and type info to the GC.
 	imp = nil
 
-	// Run different query moes on same scope and selection.
+	// Run different query modes on same scope and selection.
 	out := new(bytes.Buffer)
 	for _, mode := range [...]string{"callers", "describe", "freevars"} {
 		res, err := o.Query(mode, qpos)
 		if err != nil {
 			t.Errorf("(*oracle.Oracle).Query(%q) failed: %s", pos, err)
 		}
-		capture := new(bytes.Buffer) // capture standard output
-		res.WriteTo(capture)
-		for _, line := range strings.Split(capture.String(), "\n") {
-			fmt.Fprintf(out, "%s\n", stripLocation(line))
-		}
+		WriteResult(out, res)
 	}
 	want := `multi.f is called from these 1 sites:
 	static function call from multi.main
