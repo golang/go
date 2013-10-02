@@ -107,14 +107,14 @@
       </tr>
     {{range $c := $.Commits}}
       <tr class="commit">
-        <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
+        <td class="hash"><a href="{{repoURL $.Dashboard.Name .Hash ""}}">{{shortHash .Hash}}</a></td>
         {{range $.Builders}}
           <td class="result">
             {{with $c.Result . ""}}
               {{if .OK}}
                 <span class="ok">ok</span>
               {{else}}
-                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+                <a href="{{$.Dashboard.RelPath}}log/{{.LogHash}}" class="fail">fail</a>
               {{end}}
             {{else}}
               &nbsp;
@@ -145,7 +145,7 @@
     {{if .Packages}}
       <h2>
         Sub-repositories at tip
-        <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
+        <small>(<a href="{{repoURL $.Dashboard.Name .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
       </h2>
 
       <table class="build">
@@ -185,7 +185,7 @@
         <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
         <td class="hash">
           {{$h := $pkg.Commit.Hash}}
-          <a href="{{repoURL $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
+          <a href="{{repoURL $.Dashboard.Name $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
         </td>
         {{range $.Builders}}
           <td class="result">
@@ -193,7 +193,7 @@
               {{if .OK}}
                 <span class="ok">ok</span>
               {{else}}
-                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+                <a href="{{$.Dashboard.RelPath}}log/{{.LogHash}}" class="fail">fail</a>
               {{end}}
             {{else}}
               &nbsp;

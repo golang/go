@@ -11,7 +11,7 @@ api_version: go1
 handlers:
 - url: /static
   static_dir: static
-- url: /log/.+
+- url: /(|gccgo/)log/.+
   script: _go_app
 - url: /(|gccgo/)(|commit|packages|result|tag|todo)
   script: _go_app

@@ -306,8 +306,11 @@ func shortUser(user string) string {
 var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+)(\.[a-z0-9\-]+)?$`)
 
 // repoURL returns the URL of a change at a Google Code repository or subrepo.
-func repoURL(hash, packagePath string) (string, error) {
+func repoURL(dashboard, hash, packagePath string) (string, error) {
 	if packagePath == "" {
+		if dashboard == "Gccgo" {
+			return "https://code.google.com/p/gofrontend/source/detail?r=" + hash, nil
+		}
 		return "https://code.google.com/p/go/source/detail?r=" + hash, nil
 	}
 	m := repoRe.FindStringSubmatch(packagePath)
