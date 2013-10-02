@@ -46,17 +46,18 @@ func TestFinalizerType(t *testing.T) {
 	}
 
 	for _, tt := range finalizerTests {
-		func() {
+		go func() {
 			v := new(int)
 			*v = 97531
 			runtime.SetFinalizer(tt.convert(v), tt.finalizer)
 			v = nil
 		}()
+		time.Sleep(1 * time.Second)
 		runtime.GC()
 		select {
 		case <-ch:
 		case <-time.After(time.Second * 4):
-			t.Errorf("Finalizer of type %T didn't run", tt.finalizer)
+			t.Errorf("finalizer for type %T didn't run", tt.finalizer)
 		}
 	}
 }
@@ -72,25 +73,27 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 		t.Skipf("Skipping on non-amd64 machine")
 	}
 	ch := make(chan bool)
-	func() {
+	go func() {
 		v := &bigValue{0xDEADBEEFDEADBEEF, true, "It matters not how strait the gate"}
+		old := *v
 		runtime.SetFinalizer(v, func(v interface{}) {
 			i, ok := v.(*bigValue)
 			if !ok {
-				t.Errorf("Expected *bigValue from interface{} in finalizer, got %v", *i)
+				t.Errorf("finalizer called with type %T, want *bigValue", v)
 			}
-			if i.fill != 0xDEADBEEFDEADBEEF && i.it != true && i.up != "It matters not how strait the gate" {
-				t.Errorf("*bigValue from interface{} has the wrong value: %v\n", *i)
+			if *i != old {
+				t.Errorf("finalizer called with %+v, want %+v", *i, old)
 			}
 			close(ch)
 		})
 		v = nil
 	}()
+	time.Sleep(1 * time.Second)
 	runtime.GC()
 	select {
 	case <-ch:
-	case <-time.After(time.Second * 4):
-		t.Errorf("Finalizer set by SetFinalizer(*bigValue, func(interface{})) didn't run")
+	case <-time.After(4 * time.Second):
+		t.Errorf("finalizer for type *bigValue didn't run")
 	}
 }
 
