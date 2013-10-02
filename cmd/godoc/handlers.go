@@ -18,7 +18,7 @@ import (
 	"text/template"
 
 	"code.google.com/p/go.tools/godoc"
-	_ "code.google.com/p/go.tools/godoc/redirect"
+	"code.google.com/p/go.tools/godoc/redirect"
 	"code.google.com/p/go.tools/godoc/vfs"
 )
 
@@ -35,6 +35,7 @@ func registerHandlers(pres *godoc.Presentation) {
 	http.Handle("/doc/play/", pres.FileServer())
 	http.Handle("/robots.txt", pres.FileServer())
 	http.Handle("/", pres)
+	redirect.Register(nil)
 }
 
 func readTemplate(name string) *template.Template {

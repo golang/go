@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package redirect registers HTTP handlers that redirect old godoc paths to
-// their new equivalents and assist in accessing the issue tracker, wiki, code
-// review system, etc.
+// Package redirect provides hooks to register HTTP handlers that redirect old
+// godoc paths to their new equivalents and assist in accessing the issue
+// tracker, wiki, code review system, etc.
 package redirect
 
 import (
@@ -12,17 +12,30 @@ import (
 	"regexp"
 )
 
-func init() {
-	handlePathRedirects(pkgRedirects, "/pkg/")
-	handlePathRedirects(cmdRedirects, "/cmd/")
+// Register registers HTTP handlers that redirect old godoc paths to their new
+// equivalents and assist in accessing the issue tracker, wiki, code review
+// system, etc. If mux is nil it uses http.DefaultServeMux.
+func Register(mux *http.ServeMux) {
+	if mux == nil {
+		mux = http.DefaultServeMux
+	}
+	handlePathRedirects(mux, pkgRedirects, "/pkg/")
+	handlePathRedirects(mux, cmdRedirects, "/cmd/")
 	for prefix, redirect := range prefixHelpers {
 		p := "/" + prefix + "/"
-		h := PrefixHandler(p, redirect)
-		http.HandleFunc(p, h)
+		mux.Handle(p, PrefixHandler(p, redirect))
 	}
 	for path, redirect := range redirects {
-		h := Handler(redirect)
-		http.HandleFunc(path, h)
+		mux.Handle(path, Handler(redirect))
+	}
+}
+
+func handlePathRedirects(mux *http.ServeMux, redirects map[string]string, prefix string) {
+	for source, target := range redirects {
+		h := Handler(prefix + target + "/")
+		p := prefix + source
+		mux.Handle(p, h)
+		mux.Handle(p+"/", h)
 	}
 }
 
@@ -112,25 +125,16 @@ var prefixHelpers = map[string]string{
 	"wiki":   "https://code.google.com/p/go-wiki/wiki/",
 }
 
-func handlePathRedirects(redirects map[string]string, prefix string) {
-	for source, target := range pkgRedirects {
-		h := Handler(prefix + target + "/")
-		p := prefix + source
-		http.HandleFunc(p, h)
-		http.HandleFunc(p+"/", h)
-	}
-}
-
-func Handler(target string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func Handler(target string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target, http.StatusMovedPermanently)
-	}
+	})
 }
 
 var validId = regexp.MustCompile(`^[A-Za-z0-9-]*$`)
 
-func PrefixHandler(prefix, baseURL string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func PrefixHandler(prefix, baseURL string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if p := r.URL.Path; p == prefix {
 			// redirect /prefix/ to /prefix
 			http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
@@ -143,5 +147,5 @@ func PrefixHandler(prefix, baseURL string) http.HandlerFunc {
 		}
 		target := baseURL + id
 		http.Redirect(w, r, target, http.StatusFound)
-	}
+	})
 }
