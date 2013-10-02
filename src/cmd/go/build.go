@@ -1052,8 +1052,8 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
 			} else {
 				dir = filepath.Join(dir, goos+"_"+goarch)
-				if buildRace {
-					dir += "_race"
+				if buildContext.InstallSuffix != "" {
+					dir += "_" + buildContext.InstallSuffix
 				}
 			}
 			inc = append(inc, flag, dir)
