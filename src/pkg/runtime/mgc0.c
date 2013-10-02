@@ -19,7 +19,7 @@ enum {
 	Debug = 0,
 	DebugMark = 0,  // run second pass to check mark
 	CollectStats = 0,
-	ScanStackByFrames = 1,
+	ScanStackByFrames = 0,
 	IgnorePreciseGC = 0,
 
 	// Four bits per word (see #defines below).
@@ -1474,6 +1474,7 @@ addstackroots(G *gp)
 		USED(guard);
 		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil, false);
 	} else {
+		USED(lr);
 		USED(pc);
 		n = 0;
 		while(stk) {
