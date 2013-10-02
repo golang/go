@@ -112,6 +112,7 @@ void	goc2c(char*, char*);
 
 // main.c
 extern int vflag;
+extern int sflag;
 void	usage(void);
 void	xmain(int argc, char **argv);
 

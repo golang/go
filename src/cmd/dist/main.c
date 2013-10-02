@@ -5,6 +5,7 @@
 #include "a.h"
 
 int vflag;
+int sflag;
 char *argv0;
 
 // cmdtab records the available commands.

@@ -37,6 +37,11 @@
 #
 # CC: Command line to run to get at host C compiler.
 # Default is "gcc". Also supported: "clang".
+# CXX: Command line to run to get at host C++ compiler, only recorded
+# for cgo use. Default is "g++". Also supported: "clang++".
+#
+# GO_DISTFLAGS: extra flags to provide to "dist bootstrap". Use "-s"
+# to build a statically linked toolchain.
 
 set -e
 if [ ! -f run.bash ]; then
@@ -140,7 +145,7 @@ buildall="-a"
 if [ "$1" = "--no-clean" ]; then
 	buildall=""
 fi
-./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
+./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
 mv cmd/dist/dist "$GOTOOLDIR"/dist
 "$GOTOOLDIR"/go_bootstrap clean -i std
