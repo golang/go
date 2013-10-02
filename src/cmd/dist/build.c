@@ -720,6 +720,8 @@ install(char *dir)
 			vadd(&link, bpathf(&b, "%s/%s", tooldir, name));
 		} else {
 			vcopy(&link, gccargs.p, gccargs.len);
+			if(sflag)
+				vadd(&link, "-static");
 			vadd(&link, "-o");
 			targ = link.len;
 			vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
@@ -1527,6 +1529,9 @@ cmdbootstrap(int argc, char **argv)
 	case 'a':
 		rebuildall = 1;
 		break;
+	case 's':
+		sflag++;
+		break;
 	case 'v':
 		vflag++;
 		break;
@@ -1613,6 +1618,9 @@ cmdinstall(int argc, char **argv)
 	int i;
 
 	ARGBEGIN{
+	case 's':
+		sflag++;
+		break;
 	case 'v':
 		vflag++;
 		break;
