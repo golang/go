@@ -62,60 +62,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			return statement
 		}
 
-		passSlice := false
-		if e.Ellipsis.IsValid() {
-			// last argument is of the form x...
-			if sig.isVariadic {
-				passSlice = true
-			} else {
-				check.errorf(e.Ellipsis, "cannot use ... in call to non-variadic %s", e.Fun)
-				// ok to continue
-			}
-		}
-
-		// evaluate arguments
-		n := len(e.Args) // argument count
-		if n == 1 {
-			// single argument but possibly a multi-valued function call
-			arg := e.Args[0]
-			check.expr(x, arg)
-			if x.mode != invalid {
-				if t, ok := x.typ.(*Tuple); ok {
-					// argument is multi-valued function call
-					n = t.Len()
-					for i := 0; i < n; i++ {
-						x.mode = value
-						x.expr = arg
-						x.typ = t.At(i).typ
-						check.argument(sig, i, x, passSlice && i == n-1)
-					}
-				} else {
-					// single value
-					check.argument(sig, 0, x, passSlice)
-				}
-			} else {
-				n = sig.params.Len() // avoid additional argument length errors below
-			}
-		} else {
-			// zero or multiple arguments
-			for i, arg := range e.Args {
-				check.expr(x, arg)
-				if x.mode != invalid {
-					check.argument(sig, i, x, passSlice && i == n-1)
-				}
-			}
-		}
-
-		// check argument count
-		if sig.isVariadic {
-			// a variadic function accepts an "empty"
-			// last argument: count one extra
-			n++
-		}
-		if n < sig.params.Len() {
-			check.errorf(e.Rparen, "too few arguments in call to %s", e.Fun)
-			// ok to continue
-		}
+		check.arguments(x, e, sig, func(x *operand, i int) { check.expr(x, e.Args[i]) })
 
 		// determine result
 		switch sig.results.Len() {
@@ -131,6 +78,65 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 		x.expr = e
 
 		return statement
+	}
+}
+
+// arguments checks argument passing for the call with the given signature.
+// The arg function provides the operand for the i'th argument.
+func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg func(*operand, int)) {
+	passSlice := false
+	if call.Ellipsis.IsValid() {
+		// last argument is of the form x...
+		if sig.isVariadic {
+			passSlice = true
+		} else {
+			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+			// ok to continue
+		}
+	}
+
+	// evaluate arguments
+	n := len(call.Args) // argument count
+	if n == 1 {
+		// single argument but possibly a multi-valued function call
+		arg(x, 0)
+		if x.mode != invalid {
+			if t, ok := x.typ.(*Tuple); ok {
+				// argument is multi-valued function call
+				n = t.Len()
+				expr := call.Args[0]
+				for i := 0; i < n; i++ {
+					x.mode = value
+					x.expr = expr
+					x.typ = t.At(i).typ
+					check.argument(sig, i, x, passSlice && i == n-1)
+				}
+			} else {
+				// single value
+				check.argument(sig, 0, x, passSlice)
+			}
+		} else {
+			n = sig.params.Len() // avoid additional argument length errors below
+		}
+	} else {
+		// zero or multiple arguments
+		for i := range call.Args {
+			arg(x, i)
+			if x.mode != invalid {
+				check.argument(sig, i, x, passSlice && i == n-1)
+			}
+		}
+	}
+
+	// check argument count
+	if sig.isVariadic {
+		// a variadic function accepts an "empty"
+		// last argument: count one extra
+		n++
+	}
+	if n < sig.params.Len() {
+		check.errorf(call.Rparen, "too few arguments in call to %s", call.Fun)
+		// ok to continue
 	}
 }
 

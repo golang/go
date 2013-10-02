@@ -181,6 +181,5 @@ func IsAssignableTo(V, T Type) bool {
 	return x.isAssignableTo(nil, T) // config not needed for non-constant x
 }
 
-// BUG(gri): Some built-ins don't check parameters fully, yet (e.g. append).
 // BUG(gri): Interface vs non-interface comparisons are not correctly implemented.
 // BUG(gri): Switch statements don't check duplicate cases for all types for which it is required.

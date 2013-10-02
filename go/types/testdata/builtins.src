@@ -8,15 +8,59 @@ package builtins
 
 import "unsafe"
 
-func _append() {
+func _append1() {
+	var b byte
 	var x int
 	var s []byte
 	_ = append /* ERROR "argument" */ ()
-	_ = append("foo" /* ERROR "not a typed slice" */)
-	_ = append(nil /* ERROR "not a typed slice" */, s)
-	_ = append(x /* ERROR "not a typed slice" */, s)
+	_ = append("foo" /* ERROR "not a slice" */ )
+	_ = append(nil /* ERROR "not a slice" */ , s)
+	_ = append(x /* ERROR "not a slice" */ , s)
 	_ = append(s)
 	append /* ERROR "not used" */ (s)
+
+	_ = append(s, b)
+	_ = append(s, x /* ERROR cannot pass argument x */ )
+	_ = append(s, s /* ERROR cannot pass argument s */ )
+	_ = append(s /* ERROR can only use ... with matching parameter */ ...)
+	_ = append(s, b, s /* ERROR can only use ... with matching parameter */ ...)
+	_ = append(s, 1, 2, 3)
+	_ = append(s, 1, 2, 3, x /* ERROR cannot pass argument x */ , 5, 6, 6)
+	_ = append(s, 1, 2, s /* ERROR can only use ... with matching parameter */ ...)
+	_ = append([]interface{}(nil), 1, 2, "foo", x, 3.1425, false)
+
+	type S []byte
+	type T string
+	var t T
+	_ = append(s, "foo" /* ERROR cannot convert */ )
+	_ = append(s, "foo"...)
+	_ = append(S(s), "foo" /* ERROR cannot convert */ )
+	_ = append(S(s), "foo"...)
+	_ = append(s, t /* ERROR cannot pass argument t */ )
+	_ = append(s, t...)
+	_ = append(s, T("foo")...)
+	_ = append(S(s), t /* ERROR cannot pass argument t */ )
+	_ = append(S(s), t...)
+	_ = append(S(s), T("foo")...)
+	_ = append([]string{}, t /* ERROR cannot pass argument t */ , "foo")
+	_ = append([]T{}, t, "foo")
+}
+
+// from the spec
+func _append2() {
+	s0 := []int{0, 0}
+	s1 := append(s0, 2)                // append a single element     s1 == []int{0, 0, 2}
+	s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
+	s3 := append(s2, s0...)            // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
+	s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 == []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
+
+	var t []interface{}
+	t = append(t, 42, 3.1415, "foo")   //                             t == []interface{}{42, 3.1415, "foo"}
+
+	var b []byte
+	b = append(b, "bar"...)            // append string contents      b == []byte{'b', 'a', 'r' }
+
+	_ = s4
 }
 
 func _cap() {

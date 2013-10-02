@@ -13,9 +13,6 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// TODO(gri): Several built-ins are missing assignment checks. As a result,
-//            non-constant shift arguments may not be properly type-checked.
-
 // builtin typechecks a call to a built-in and returns the result via x.
 // If the call has type errors, the returned x is marked as invalid.
 //
@@ -35,7 +32,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) {
 		msg = "too many"
 	}
 	if msg != "" {
-		check.invalidOp(call.Pos(), msg+" arguments for %s (expected %d, found %d)", call, bin.nargs, n)
+		check.invalidOp(call.Pos(), "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, n)
 		goto Error
 	}
 
@@ -57,20 +54,55 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) {
 
 	switch id {
 	case _Append:
-		if _, ok := x.typ.Underlying().(*Slice); !ok {
-			check.invalidArg(x.pos(), "%s is not a typed slice", x)
+		// append(s S, x ...T) S where T is the element type of S
+		// spec: "The variadic function append appends zero or more values x to s of type
+		// S, which must be a slice type, and returns the resulting slice, also of type S.
+		// The values x are passed to a parameter of type ...T where T is the element type
+		// of S and the respective parameter passing rules apply."
+		S := x.typ
+		var T Type
+		if s, _ := S.Underlying().(*Slice); s != nil {
+			T = s.elt
+		} else {
+			check.invalidArg(x.pos(), "%s is not a slice", x)
 			goto Error
 		}
-		resultTyp := x.typ
-		for _, arg := range args[1:] {
-			check.expr(x, arg)
+
+		// remember arguments that have been evaluated already
+		alist := []operand{*x}
+
+		// spec: "As a special case, append also accepts a first argument assignable
+		// to type []byte with a second argument of string type followed by ... .
+		// This form appends the bytes of the string.
+		if n == 2 && call.Ellipsis.IsValid() && x.isAssignableTo(check.conf, NewSlice(Typ[Byte])) {
+			check.expr(x, args[1])
 			if x.mode == invalid {
 				goto Error
 			}
-			// TODO(gri) check assignability
+			if isString(x.typ) {
+				x.mode = value
+				x.typ = S
+				x.expr = call
+				return
+			}
+			alist = append(alist, *x)
+			// fallthrough
 		}
+
+		// check general case by creating custom signature
+		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
+		sig.isVariadic = true
+		check.arguments(x, call, sig, func(x *operand, i int) {
+			// only evaluate arguments that have not been evaluated before
+			if i < len(alist) {
+				*x = alist[i]
+				return
+			}
+			check.expr(x, args[i])
+		})
+
 		x.mode = value
-		x.typ = resultTyp
+		x.typ = S
 
 	case _Cap, _Len:
 		mode := invalid
@@ -414,6 +446,18 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) {
 Error:
 	x.mode = invalid
 	x.expr = call
+}
+
+// makeSig returns the signature for the given parameter and result types.
+func makeSig(result Type, params ...Type) *Signature {
+	list := make([]*Var, len(params))
+	for i, param := range params {
+		list[i] = NewVar(token.NoPos, nil, "", param)
+	}
+	return &Signature{
+		params:  NewTuple(list...),
+		results: NewTuple(NewVar(token.NoPos, nil, "", result)),
+	}
 }
 
 // implicitArrayDeref returns A if typ is of the form *A and A is an array;
