@@ -5,7 +5,7 @@
 /*
 Package http provides HTTP client and server implementations.
 
-Get, Head, Post, and PostForm make HTTP requests:
+Get, Head, Post, and PostForm make HTTP (or HTTPS) requests:
 
 	resp, err := http.Get("http://example.com/")
 	...
