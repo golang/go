@@ -133,6 +133,8 @@ type gccgoEnv struct{}
 func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (string, error) {
 	gofrontendpath := filepath.Join(workpath, "gofrontend")
 	gccpath := filepath.Join(repo.Path, "gcc")
+	gccgopath := filepath.Join(gccpath, "gcc", "go", "gofrontend")
+	gcclibgopath := filepath.Join(gccpath, "libgo")
 
 	// get a handle to SVN vcs.Cmd for pulling down GCC.
 	svn := vcs.ByCmd("svn")
@@ -145,6 +147,15 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 		}); err != nil {
 			return "", err
 		}
+	} else {
+		// make sure to remove gccgopath and gcclibgopath before
+		// updating the repo to avoid file clobbering.
+		if err := os.RemoveAll(gccgopath); err != nil {
+			return "", err
+		}
+		if err := os.RemoveAll(gcclibgopath); err != nil {
+			return "", err
+		}
 	}
 	if err := svn.Download(gccpath); err != nil {
 		return "", err
@@ -155,9 +166,7 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 		return "", err
 	}
 
-	// remove gccpath/gcc/go/gofrontend and gcc/libgo
-	gccgopath := filepath.Join(gccpath, "gcc", "go", "gofrontend")
-	gcclibgopath := filepath.Join(gccpath, "libgo")
+	// remove gccgopath and gcclibgopath before copying over gofrontend.
 	if err := os.RemoveAll(gccgopath); err != nil {
 		return "", err
 	}
@@ -191,7 +200,6 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	return gccobjdir, nil
-
 }
 
 // copyDir copies the src directory into the dst
