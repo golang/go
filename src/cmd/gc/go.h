@@ -1080,7 +1080,7 @@ NodeList*	constiter(NodeList *vl, Node *t, NodeList *cl);
 Node*	dclname(Sym *s);
 void	declare(Node *n, int ctxt);
 void	dumpdcl(char *st);
-Node*	embedded(Sym *s);
+Node*	embedded(Sym *s, Pkg *pkg);
 Node*	fakethis(void);
 void	funcbody(Node *n);
 void	funccompile(Node *n, int isclosure);

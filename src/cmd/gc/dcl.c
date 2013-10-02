@@ -1021,7 +1021,7 @@ tointerface(NodeList *l)
 }
 
 Node*
-embedded(Sym *s)
+embedded(Sym *s, Pkg *pkg)
 {
 	Node *n;
 	char *name;
@@ -1038,9 +1038,9 @@ embedded(Sym *s)
 
 	if(exportname(name))
 		n = newname(lookup(name));
-	else if(s->pkg == builtinpkg && importpkg != nil)
-		// The name of embedded builtins during imports belongs to importpkg.
-		n = newname(pkglookup(name, importpkg));
+	else if(s->pkg == builtinpkg)
+		// The name of embedded builtins belongs to pkg.
+		n = newname(pkglookup(name, pkg));
 	else
 		n = newname(pkglookup(name, s->pkg));
 	n = nod(ODCLFIELD, n, oldname(s));

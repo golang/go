@@ -754,6 +754,9 @@ typefmt(Fmt *fp, Type *t)
 				//if(t->funarg)
 				//	fmtstrcpy(fp, "_ ");
 				//else
+				if(t->embedded && s->pkg != nil && s->pkg->path->len > 0)
+					fmtprint(fp, "@\"%Z\".? ", s->pkg->path);
+				else
 					fmtstrcpy(fp, "? ");
 			}
 		}
