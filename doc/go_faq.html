@@ -1029,6 +1029,42 @@ these two lines to <code>~/.gitconfig</code>:
 </li>
 </ul>
 
+<h3 id="get_version">
+How should I manage package versions using "go get"?</h3>
+
+<p>
+"Go get" does not have any explicit concept of package versions.
+Versioning is a source of significant complexity, especially in large code bases,
+and we are unaware of any approach that works well at scale in a large enough
+variety of situations to be appropriate to force on all Go users.
+What "go get" and the larger Go toolchain do provide is isolation of
+packages with different import paths.
+For example, the standard library's <code>html/template</code> and <code>text/template</code>
+coexist even though both are "package template".
+This observation leads to some advice for package authors and package users.
+</p>
+
+<p>
+Packages intended for public use should try to maintain backwards compatibility as they evolve.
+The <a href="/doc/go1compat.html">Go 1 compatibility guidelines</a> are a good reference here:
+don't remove exported names, encourage tagged composite literals, and so on.
+If different functionality is required, add a new name instead of changing an old one.
+If a complete break is required, create a new package with a new import path.</p>
+
+<p>
+If you're using an externally supplied package and worry that it might change in
+unexpected ways, the simplest solution is to copy it to your local repository.
+(This is the approach Google takes internally.)
+Store the copy under a new import path that identifies it as a local copy.
+For example, you might copy "original.com/pkg" to "you.com/external/original.com/pkg".
+Keith Rarick's <a href="https://github.com/kr/goven">goven</a> is one tool to help automate this process.
+</p>
+
+<p>
+The <a href="/wiki/PackageVersioning">PackageVersioning</a> wiki page collects 
+additional tools and approaches.
+</p>
+
 <h2 id="Pointers">Pointers and Allocation</h2>
 
 <h3 id="pass_by_value">
