@@ -82,6 +82,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "tags"},
 	{name: "compiler"},
 	{name: "race", boolVar: &buildRace},
+	{name: "installsuffix"},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},

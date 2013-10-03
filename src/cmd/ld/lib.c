@@ -91,7 +91,7 @@ Lflag(char *arg)
 void
 libinit(void)
 {
-	char *race;
+	char *suffix, *suffixsep;
 
 	fmtinstall('i', iconv);
 	fmtinstall('Y', Yconv);
@@ -101,10 +101,16 @@ libinit(void)
 		print("goarch is not known: %s\n", goarch);
 
 	// add goroot to the end of the libdir list.
-	race = "";
-	if(flag_race)
-		race = "_race";
-	Lflag(smprint("%s/pkg/%s_%s%s", goroot, goos, goarch, race));
+	suffix = "";
+	suffixsep = "";
+	if(flag_installsuffix != nil) {
+		suffixsep = "_";
+		suffix = flag_installsuffix;
+	} else if(flag_race) {
+		suffixsep = "_";
+		suffix = "race";
+	}
+	Lflag(smprint("%s/pkg/%s_%s%s%s", goroot, goos, goarch, suffixsep, suffix));
 
 	// Unix doesn't like it when we write to a running (or, sometimes,
 	// recently run) binary, so remove the output file before writing it.
