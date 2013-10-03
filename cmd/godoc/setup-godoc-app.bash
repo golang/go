@@ -21,7 +21,8 @@
 ZIPFILE=godoc.zip
 INDEXFILE=godoc.index
 SPLITFILES=index.split.
-CONFIGFILE=godoc/appconfig.go
+GODOC=code.google.com/p/go.tools/cmd/godoc
+CONFIGFILE=$GODOC/appconfig.go
 
 error() {
 	echo "error: $1"
@@ -29,9 +30,15 @@ error() {
 }
 
 getArgs() {
+	if [ -z $APPENGINE_SDK ]; then
+		error "APPENGINE_SDK environment variable not set"
+	fi
+	if [ ! -x $APPENGINE_SDK/go ]; then
+		error "couldn't find go comment in $APPENGINE_SDK"
+	fi
 	if [ -z $GOROOT ]; then
 		GOROOT=$(go env GOROOT)
-		echo "GOROOT not set explicitly, using $GOROOT instead"
+		echo "GOROOT not set explicitly, using go env value instead"
 	fi
 	if [ -z $APPDIR ]; then
 		if [ $# == 0 ]; then
@@ -45,9 +52,6 @@ getArgs() {
 	if [ ! -d $GOROOT ]; then
 		error "$GOROOT is not a directory"
 	fi
-	if [ ! -x $GOROOT/bin/godoc ]; then
-		error "$GOROOT/bin/godoc does not exist or is not executable"
-	fi
 	if [ -e $APPDIR ]; then
 		error "$APPDIR exists; check and remove it before trying again"
 	fi
@@ -57,18 +61,13 @@ getArgs() {
 	echo "APPDIR = $APPDIR"
 }
 
-copyGodoc() {
-	echo "*** copy $GOROOT/src/cmd/godoc to $APPDIR/godoc"
-	cp -r $GOROOT/src/cmd/godoc $APPDIR/godoc
-}
-
-copyGoPackages() {
-	echo "*** copy $GOROOT/src/pkg/go to $APPDIR/newgo and rewrite imports"
-	cp -r $GOROOT/src/pkg/go $APPDIR/newgo
-	find $APPDIR/newgo -type d -name testdata | xargs rm -r
-	gofiles=$(find $APPDIR -name '*.go')
-	sed -i '' 's_^\(."\)\(go/[a-z]*\)"$_\1new\2"_' $gofiles
-	sed -i '' 's_^\(import "\)\(go/[a-z]*\)"$_\1new\2"_' $gofiles
+fetchGodoc() {
+	echo "*** Fetching godoc (if not already in GOPATH)"
+	unset GOBIN
+	go=$APPENGINE_SDK/go
+	$go get -d -tags appengine $GODOC
+	mkdir -p $APPDIR/$GODOC
+	cp $(find $($go list -f '{{.Dir}}' $GODOC) -type f -depth 1) $APPDIR/$GODOC/
 }
 
 makeAppYaml() {
@@ -87,16 +86,12 @@ EOF
 
 makeZipfile() {
 	echo "*** make $APPDIR/$ZIPFILE"
-	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.xml -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i \*.ico
+	zip -q -r $APPDIR/$ZIPFILE $GOROOT/*
 }
 
 makeIndexfile() {
 	echo "*** make $APPDIR/$INDEXFILE"
-	OUT=/tmp/godoc.out
-	$GOROOT/bin/godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE 2> $OUT
-	if [ $? != 0 ]; then
-		error "$GOROOT/bin/godoc failed - see $OUT for details"
-	fi
+	GOPATH= godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE
 }
 
 splitIndexfile() {
@@ -129,8 +124,7 @@ EOF
 getArgs "$@"
 set -e
 mkdir $APPDIR
-copyGodoc
-copyGoPackages
+fetchGodoc
 makeAppYaml
 makeZipfile
 makeIndexfile

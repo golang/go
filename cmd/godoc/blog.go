@@ -26,6 +26,7 @@ const (
 var (
 	blogServer   http.Handler // set by blogInit
 	blogInitOnce sync.Once
+	playEnabled  bool
 )
 
 func init() {
@@ -59,7 +60,7 @@ func blogInit() {
 		ContentPath:  filepath.Join(root, "content"),
 		TemplatePath: filepath.Join(root, "template"),
 		HomeArticles: 5,
-		PlayEnabled:  *showPlayground,
+		PlayEnabled:  playEnabled,
 	})
 	if err != nil {
 		log.Fatal(err)

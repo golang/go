@@ -15,11 +15,15 @@ import (
 	"path"
 
 	"code.google.com/p/go.tools/godoc"
+	"code.google.com/p/go.tools/godoc/static"
 	"code.google.com/p/go.tools/godoc/vfs"
+	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"code.google.com/p/go.tools/godoc/vfs/zipfs"
 )
 
 func init() {
+	playEnabled = true
+
 	log.Println("initializing godoc ...")
 	log.Printf(".zip file   = %s", zipFilename)
 	log.Printf(".zip GOROOT = %s", zipGoroot)
@@ -35,6 +39,7 @@ func init() {
 	}
 	// rc is never closed (app running forever)
 	fs.Bind("/", zipfs.New(rc, zipFilename), goroot, vfs.BindReplace)
+	fs.Bind("/lib/godoc", mapfs.New(static.Files), "/", vfs.BindReplace)
 
 	corpus := godoc.NewCorpus(fs)
 	corpus.Verbose = false

@@ -186,6 +186,8 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	playEnabled = *showPlayground
+
 	// Check usage: either server and no args, command line and args, or index creation mode
 	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
 		usage()
@@ -195,11 +197,6 @@ func main() {
 	if *zipfile == "" {
 		// use file system of underlying OS
 		fs.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
-		if *templateDir != "" {
-			fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
-		} else {
-			fs.Bind("/lib/godoc", mapfs.New(static.Files), "/", vfs.BindReplace)
-		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
 		rc, err := zip.OpenReader(*zipfile)
@@ -208,6 +205,11 @@ func main() {
 		}
 		defer rc.Close() // be nice (e.g., -writeIndex mode)
 		fs.Bind("/", zipfs.New(rc, *zipfile), *goroot, vfs.BindReplace)
+	}
+	if *templateDir != "" {
+		fs.Bind("/lib/godoc", vfs.OS(*templateDir), "/", vfs.BindBefore)
+	} else {
+		fs.Bind("/lib/godoc", mapfs.New(static.Files), "/", vfs.BindReplace)
 	}
 
 	// Bind $GOPATH trees into Go root.
