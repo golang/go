@@ -28,13 +28,31 @@ if len(s:goarch) == 0
   endif
 endif
 
+function! go#complete#PackageMembers(package, member)
+  silent! let content = system('godoc ' . a:package)
+  if v:shell_error || !len(content)
+    return []
+  endif
+  let lines = filter(split(content, "\n"),"v:val !~ '^\\s\\+$'")
+  try
+    let mx1 = '^\s\+\(\S+\)\s\+=\s\+.*'
+    let mx2 = '^\%(const\|var\|type\|func\) \([A-Z][^ (]\+\).*'
+    let candidates =
+    \   map(filter(copy(lines), 'v:val =~ mx1'), 'substitute(v:val, mx1, "\\1", "")')
+    \ + map(filter(copy(lines), 'v:val =~ mx2'), 'substitute(v:val, mx2, "\\1", "")')
+    return filter(candidates, '!stridx(v:val, a:member)')
+  catch
+    return []
+  endtry
+endfunction
+
 function! go#complete#Package(ArgLead, CmdLine, CursorPos)
   let dirs = []
 
   let words = split(a:CmdLine, '\s\+', 1)
   if len(words) > 2
-    " TODO Complete package members
-    return []
+    " Complete package members
+    return go#complete#PackageMembers(words[1], words[2])
   endif
 
   if executable('go')
