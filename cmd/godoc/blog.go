@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"code.google.com/p/go.tools/blog"
@@ -21,6 +22,7 @@ import (
 const (
 	blogRepo = "code.google.com/p/go.blog"
 	blogURL  = "http://blog.golang.org/"
+	blogPath = "/blog/"
 )
 
 var (
@@ -31,7 +33,7 @@ var (
 
 func init() {
 	// Initialize blog only when first accessed.
-	http.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(blogPath, func(w http.ResponseWriter, r *http.Request) {
 		blogInitOnce.Do(blogInit)
 		blogServer.ServeHTTP(w, r)
 	})
@@ -50,13 +52,13 @@ func blogInit() {
 	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "Blog content not available locally. "+
 			"To install, run \n\tgo get %v\n", blogRepo)
-		blogServer = redirect.PrefixHandler("/blog/", blogURL)
+		blogServer = http.HandlerFunc(blogRedirectHandler)
 		return
 	}
 
 	s, err := blog.NewServer(blog.Config{
-		BaseURL:      "/blog/",
-		BasePath:     "/blog",
+		BaseURL:      blogPath,
+		BasePath:     strings.TrimSuffix(blogPath, "/"),
 		ContentPath:  filepath.Join(root, "content"),
 		TemplatePath: filepath.Join(root, "template"),
 		HomeArticles: 5,
@@ -67,3 +69,13 @@ func blogInit() {
 	}
 	blogServer = s
 }
+
+func blogRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == blogPath {
+		http.Redirect(w, r, blogURL, http.StatusFound)
+		return
+	}
+	blogPrefixHandler.ServeHTTP(w, r)
+}
+
+var blogPrefixHandler = redirect.PrefixHandler(blogPath, blogURL)
