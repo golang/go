@@ -112,6 +112,7 @@ main(int argc, char *argv[])
 	flagstr("extldflags", "flags for external linker", &extldflags);
 	flagcount("f", "ignore version mismatch", &debug['f']);
 	flagcount("g", "disable go package data checks", &debug['g']);
+	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
 	flagstr("k", "sym: set field tracking symbol", &tracksym);
 	flagcount("n", "dump symbol table", &debug['n']);

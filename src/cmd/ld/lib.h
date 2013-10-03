@@ -160,6 +160,7 @@ EXTERN	char**	ldflag;
 EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
 EXTERN	int	elfglobalsymndx;
+EXTERN	char*	flag_installsuffix;
 EXTERN	int	flag_race;
 EXTERN	int flag_shared;
 EXTERN	char*	tracksym;

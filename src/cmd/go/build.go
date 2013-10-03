@@ -1530,6 +1530,9 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 	if extFiles == 0 {
 		gcargs = append(gcargs, "-complete")
 	}
+	if buildContext.InstallSuffix != "" {
+		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
+	}
 
 	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
 	for _, f := range gofiles {
@@ -1579,6 +1582,9 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 		}
 	}
 	ldflags := buildLdflags
+	if buildContext.InstallSuffix != "" {
+		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
+	}
 	if cxx {
 		// The program includes C++ code.  If the user has not
 		// specified the -extld option, then default to
