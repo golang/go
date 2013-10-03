@@ -90,8 +90,8 @@ var commands = []*Command{
 
 	helpC,
 	helpGopath,
+	helpImportPath,
 	helpPackages,
-	helpRemote,
 	helpTestflag,
 	helpTestfunc,
 }

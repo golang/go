@@ -6,7 +6,7 @@ package main
 
 var helpC = &Command{
 	UsageLine: "c",
-	Short:     "calling between Go and C/C++",
+	Short:     "calling between Go and C",
 	Long: `
 There are two different ways to call between Go and C/C++ code.
 
@@ -67,7 +67,7 @@ patterns.  As a special case, x/... matches x as well as x's subdirectories.
 For example, net/... expands to net and packages in its subdirectories.
 
 An import path can also name a package to be downloaded from
-a remote repository.  Run 'go help remote' for details.
+a remote repository.  Run 'go help importpath' for details.
 
 Every package in a program must have a unique import path.
 By convention, this is arranged by starting each path with a
@@ -85,13 +85,43 @@ File names that begin with "." or "_" are ignored by the go tool.
 	`,
 }
 
-var helpRemote = &Command{
-	UsageLine: "remote",
-	Short:     "remote import path syntax",
+var helpImportPath = &Command{
+	UsageLine: "importpath",
+	Short:     "import path syntax",
 	Long: `
 
 An import path (see 'go help packages') denotes a package
-stored in the local file system.  Certain import paths also
+stored in the local file system.  In general, an import path denotes
+either a standard package (such as "unicode/utf8") or a package
+found in one of the work spaces (see 'go help gopath').
+
+Relative import paths
+
+An import path beginning with ./ or ../ is called a relative path.
+The toolchain supports relative import paths as a shortcut in two ways.
+
+First, a relative path can be used as a shorthand on the command line.
+If you are working in the directory containing the code imported as
+"unicode" and want to run the tests for "unicode/utf8", you can type
+"go test ./utf8" instead of needing to specify the full path.
+Similarly, in the reverse situation, "go test .." will test "unicode" from
+the "unicode/utf8" directory. Relative patterns are also allowed, like
+"go test ./..." to test all subdirectories. See 'go help packages' for details
+on the pattern syntax.
+
+Second, if you are compiling a Go program not in a work space,
+you can use a relative path in an import statement in that program
+to refer to nearby code also not in a work space.
+This makes it easy to experiment with small multipackage programs
+outside of the usual work spaces, but such programs cannot be
+installed with "go install" (there is no work space in which to install them),
+so they are rebuilt from scratch each time they are built.
+To avoid ambiguity, Go programs cannot use relative import paths
+within a work space.
+
+Remote import paths
+
+Certain import paths also
 describe how to obtain the source code for the package using
 a revision control system.
 

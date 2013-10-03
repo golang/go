@@ -49,7 +49,7 @@ retrieves the most recent version of the package.
 For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to
-download, see 'go help remote'.
+download, see 'go help importpath'.
 
 See also: go build, go install, go clean.
 	`,
