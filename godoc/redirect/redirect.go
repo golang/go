@@ -90,13 +90,15 @@ var redirects = map[string]string{
 	"/issue/new":  "https://code.google.com/p/go/issues/entry",
 	"/issues":     "https://code.google.com/p/go/issues",
 	"/play":       "http://play.golang.org",
-	"/ref":        "/doc/#references",
-	"/ref/":       "/doc/#references",
-	"/ref/mem":    "/doc/mem",
-	"/ref/spec":   "/doc/spec",
-	"/talks":      "http://talks.golang.org",
-	"/tour":       "http://tour.golang.org",
-	"/wiki":       "https://code.google.com/p/go-wiki/w/list",
+	// THESE DO NOT WORK FOR GO 1.1 SITES SUCH AS golang.org.
+	// DO NOT RE-ENABLE.
+	// "/ref":        "/doc/#references",
+	// "/ref/":       "/doc/#references",
+	// "/ref/mem":    "/doc/mem",
+	// "/ref/spec":   "/doc/spec",
+	"/talks": "http://talks.golang.org",
+	"/tour":  "http://tour.golang.org",
+	"/wiki":  "https://code.google.com/p/go-wiki/w/list",
 
 	"/doc/articles/c_go_cgo.html":                    "/blog/c-go-cgo",
 	"/doc/articles/concurrency_patterns.html":        "/blog/go-concurrency-patterns-timing-out-and",
