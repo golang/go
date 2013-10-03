@@ -211,6 +211,12 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 	if err == nil {
 		return
 	}
+	if e, ok := err.(*DNSError); ok {
+		// Show original name passed to lookup, not suffixed one.
+		// In general we might have tried many suffixes; showing
+		// just one is misleading. See also golang.org/issue/6324.
+		e.Name = name
+	}
 	return
 }
 
