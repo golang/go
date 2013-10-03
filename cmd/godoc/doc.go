@@ -128,6 +128,8 @@ one may run godoc as follows:
 
 	godoc -http=:6060 -zip=go.zip -goroot=$HOME/go
 
+Godoc documentation is converted to HTML or to text using the go/doc package;
+see http://golang.org/pkg/go/doc/#ToHTML for the exact rules.
 See "Godoc: documenting Go code" for how to write good comments for godoc:
 http://golang.org/doc/articles/godoc_documenting_go_code.html
 
