@@ -71,12 +71,12 @@ enum {
 
 	// The amount of extra stack to allocate beyond the size
 	// needed for the single frame that triggered the split.
-	StackExtra = 1024,
+	StackExtra = 2048,
 
 	// The minimum stack segment size to allocate.
 	// If the amount needed for the splitting frame + StackExtra
 	// is less than this number, the stack will have this size instead.
-	StackMin = 4096,
+	StackMin = 8192,
 	FixedStack = StackMin + StackSystem,
 
 	// Functions that need frames bigger than this use an extra
