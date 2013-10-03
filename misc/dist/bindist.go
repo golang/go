@@ -38,6 +38,7 @@ var (
 	addLabel        = flag.String("label", "", "additional label to apply to file when uploading")
 	includeRace     = flag.Bool("race", true, "build race detector packages")
 	versionOverride = flag.String("version", "", "override version name")
+	staticToolchain = flag.Bool("static", true, "try to build statically linked toolchain (only supported on ELF targets)")
 
 	username, password string // for Google Code upload
 )
@@ -106,6 +107,15 @@ var raceAvailable = []string{
 	"windows-amd64",
 }
 
+// The OSes that support building statically linked toolchain
+// Only ELF platforms are supported.
+var staticLinkAvailable = []string{
+	"linux",
+	"freebsd",
+	"openbsd",
+	"netbsd",
+}
+
 var fileRe = regexp.MustCompile(
 	`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+)(?:-([a-z0-9.]))?)\.`)
 
@@ -169,6 +179,13 @@ func main() {
 					}
 				}
 			}
+			if *staticToolchain {
+				for _, os := range staticLinkAvailable {
+					if b.OS == os {
+						b.static = true
+					}
+				}
+			}
 		}
 		if err := b.Do(); err != nil {
 			log.Printf("%s: %v", targ, err)
@@ -184,6 +201,7 @@ type Build struct {
 	Label  string
 	root   string
 	gopath string
+	static bool // if true, build statically linked toolchain
 }
 
 func (b *Build) Do() error {
@@ -582,6 +600,9 @@ func (b *Build) env() []string {
 		"GOROOT_FINAL="+final,
 		"GOPATH="+b.gopath,
 	)
+	if b.static {
+		env = append(env, "GO_DISTFLAGS=-s")
+	}
 	return env
 }
 
