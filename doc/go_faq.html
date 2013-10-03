@@ -68,7 +68,7 @@ Go became a public open source project on November 10, 2009.
 After a couple of years of very active design and development, stability was called for and
 Go 1 was <a href="http://blog.golang.org/2012/03/go-version-1-is-released.html">released</a>
 on March 28, 2012.
-Go 1, which includes a <a href="/doc/spec">language specification</a>,
+Go 1, which includes a <a href="/ref/spec">language specification</a>,
 <a href="/pkg/">standard libraries</a>,
 and <a href="/cmd/go/">custom tools</a>,
 provides a stable foundation for creating reliable products, projects, and publications.
@@ -1278,7 +1278,7 @@ What operations are atomic? What about mutexes?</h3>
 
 <p>
 We haven't fully defined it all yet, but some details about atomicity are
-available in the <a href="/doc/mem">Go Memory Model specification</a>.
+available in the <a href="/ref/mem">Go Memory Model specification</a>.
 </p>
 
 <p>
@@ -1334,7 +1334,7 @@ will experience performance degradation when using
 multiple OS threads.
 This is because sending data between threads involves switching
 contexts, which has significant cost.
-For instance, the <a href="/doc/spec#An_example_package">prime sieve example</a>
+For instance, the <a href="/ref/spec#An_example_package">prime sieve example</a>
 from the Go specification has no significant parallelism although it launches many
 goroutines; increasing <code>GOMAXPROCS</code> is more likely to slow it down than
 to speed it up.
@@ -1357,7 +1357,7 @@ is not Parallelism</a>.
 Why do T and *T have different method sets?</h3>
 
 <p>
-From the <a href="/doc/spec#Types">Go Spec</a>:
+From the <a href="/ref/spec#Types">Go Spec</a>:
 </p>
 
 <blockquote>
