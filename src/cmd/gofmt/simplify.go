@@ -90,6 +90,10 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 		// Note: We could also simplify slice expressions of the form s[0:b] to s[:b]
 		//       but we leave them as is since sometimes we want to be very explicit
 		//       about the lower bound.
+		// An example where the 0 helps:
+		//       x, y, z := b[0:2], b[2:4], b[4:6]
+		// An example where it does not:
+		//       x, y := b[:n], b[n:]
 
 	case *ast.RangeStmt:
 		// a range of the form: for x, _ = range v {...}
