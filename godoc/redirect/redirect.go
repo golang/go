@@ -98,11 +98,11 @@ var redirects = map[string]string{
 	// "/ref/mem":    "/doc/mem",
 	// "/ref/spec":   "/doc/spec",
 
-	// In fact, because golang.org pulls some pages from tip, there
+	// In fact, becuase golang.org pulls some pages from tip, there
 	// are already links on the main golang.org page pointing at
-	// the non-existent /ref/spec etc URLs. So redirect the other way.
-	"/ref/mem":  "/doc/mem",
-	"/ref/spec": "/doc/spec",
+	// the non-existent /doc/spec etc URLs. So redirect the other way.
+	"/doc/mem":  "/ref/mem",
+	"/doc/spec": "/ref/spec",
 
 	"/talks": "http://talks.golang.org",
 	"/tour":  "http://tour.golang.org",
