@@ -1512,8 +1512,13 @@ Blocks nest and influence <a href="#Declarations_and_scope">scoping</a>.
 <h2 id="Declarations_and_scope">Declarations and scope</h2>
 
 <p>
-A declaration binds a non-<a href="#Blank_identifier">blank</a>
-identifier to a constant, type, variable, function, or package.
+A <i>declaration</i> binds a non-<a href="#Blank_identifier">blank</a> identifier to a
+<a href="#Constant_declarations">constant</a>,
+<a href="#Type_declarations">type</a>,
+<a href="#Variable_declarations">variable</a>,
+<a href="#Function_declarations">function</a>,
+<a href="#Labeled_statements">label</a>, or
+<a href="#Import_declarations">package</a>.
 Every identifier in a program must be declared.
 No identifier may be declared twice in the same block, and
 no identifier may be declared in both the file and package block.
@@ -1526,15 +1531,15 @@ TopLevelDecl  = Declaration | FunctionDecl | MethodDecl .
 
 <p>
 The <i>scope</i> of a declared identifier is the extent of source text in which
-the identifier denotes the specified constant, type, variable, function, or package.
+the identifier denotes the specified constant, type, variable, function, label, or package.
 </p>
 
 <p>
-Go is lexically scoped using blocks:
+Go is lexically scoped using <a href="#Blocks">blocks</a>:
 </p>
 
 <ol>
-	<li>The scope of a predeclared identifier is the universe block.</li>
+	<li>The scope of a <a href="#Predeclared_identifiers">predeclared identifier</a> is the universe block.</li>
 
 	<li>The scope of an identifier denoting a constant, type, variable,
 	    or function (but not method) declared at top level (outside any
@@ -1589,7 +1594,7 @@ the body of any nested function.
 
 <p>
 The <i>blank identifier</i>, represented by the underscore character <code>_</code>, may be used in a declaration like
-any other identifier but the declaration does not introduce a new binding.
+any other identifier but the declaration does not introduce a new <a href="#Declarations_and_scope">binding</a>.
 </p>
 
 
