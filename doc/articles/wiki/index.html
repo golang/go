@@ -154,7 +154,7 @@ function to return <code>*Page</code> and <code>error</code>.
 Callers of this function can now check the second parameter; if it is
 <code>nil</code> then it has successfully loaded a Page. If not, it will be an
 <code>error</code> that can be handled by the caller (see the
-<a href="/doc/spec#Errors">language specification</a> for details).
+<a href="/ref/spec#Errors">language specification</a> for details).
 </p>
 
 <p>
@@ -616,7 +616,7 @@ Let's put a call to <code>getTitle</code> in each of the handlers:
 Catching the error condition in each handler introduces a lot of repeated code.
 What if we could wrap each of the handlers in a function that does this
 validation and error checking? Go's
-<a href="/doc/spec#Function_literals">function
+<a href="/ref/spec#Function_literals">function
 literals</a> provide a powerful means of abstracting functionality
 that can help us here.
 </p>
