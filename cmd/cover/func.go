@@ -29,13 +29,7 @@ import (
 //	total:		(statements)		91.4%
 
 func funcOutput(profile, outputFile string) error {
-	pf, err := os.Open(profile)
-	if err != nil {
-		return err
-	}
-	defer pf.Close()
-
-	profiles, err := ParseProfiles(pf)
+	profiles, err := ParseProfiles(profile)
 	if err != nil {
 		return err
 	}
@@ -57,7 +51,8 @@ func funcOutput(profile, outputFile string) error {
 	defer tabber.Flush()
 
 	var total, covered int64
-	for fn, profile := range profiles {
+	for _, profile := range profiles {
+		fn := profile.FileName
 		file, err := findFile(fn)
 		if err != nil {
 			return err

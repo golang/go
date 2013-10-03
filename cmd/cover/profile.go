@@ -8,8 +8,8 @@ import (
 	"bufio"
 	"fmt"
 	"go/build"
-	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -19,8 +19,9 @@ import (
 
 // Profile represents the profiling data for a specific file.
 type Profile struct {
-	Mode   string
-	Blocks []ProfileBlock
+	FileName string
+	Mode     string
+	Blocks   []ProfileBlock
 }
 
 // ProfileBlock represents a single block of profiling data.
@@ -30,11 +31,23 @@ type ProfileBlock struct {
 	NumStmt, Count      int
 }
 
+type byFileName []*Profile
+
+func (p byFileName) Len() int           { return len(p) }
+func (p byFileName) Less(i, j int) bool { return p[i].FileName < p[j].FileName }
+func (p byFileName) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 // ParseProfiles parses profile data from the given Reader and returns a
 // Profile for each file.
-func ParseProfiles(r io.Reader) (map[string]*Profile, error) {
+func ParseProfiles(fileName string) ([]*Profile, error) {
+	pf, err := os.Open(profile)
+	if err != nil {
+		return nil, err
+	}
+	defer pf.Close()
+
 	files := make(map[string]*Profile)
-	buf := bufio.NewReader(r)
+	buf := bufio.NewReader(pf)
 	// First line is "mode: foo", where foo is "set", "count", or "atomic".
 	// Rest of file is in the format
 	//	encoding/base64/base64.go:34.44,37.40 3 1
@@ -58,7 +71,10 @@ func ParseProfiles(r io.Reader) (map[string]*Profile, error) {
 		fn := m[1]
 		p := files[fn]
 		if p == nil {
-			p = &Profile{Mode: mode}
+			p = &Profile{
+				FileName: fn,
+				Mode:     mode,
+			}
 			files[fn] = p
 		}
 		p.Blocks = append(p.Blocks, ProfileBlock{
@@ -76,7 +92,13 @@ func ParseProfiles(r io.Reader) (map[string]*Profile, error) {
 	for _, p := range files {
 		sort.Sort(blocksByStart(p.Blocks))
 	}
-	return files, nil
+	// Generate a sorted slice.
+	profiles := make([]*Profile, 0, len(files))
+	for _, profile := range files {
+		profiles = append(profiles, profile)
+	}
+	sort.Sort(byFileName(profiles))
+	return profiles, nil
 }
 
 type blocksByStart []ProfileBlock
