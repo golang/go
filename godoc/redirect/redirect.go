@@ -91,16 +91,13 @@ var redirects = map[string]string{
 	"/issues":     "https://code.google.com/p/go/issues",
 	"/play":       "http://play.golang.org",
 
-	// THESE DO NOT WORK FOR GO 1.1 SITES SUCH AS golang.org.
-	// DO NOT RE-ENABLE.
-	// "/ref":        "/doc/#references",
-	// "/ref/":       "/doc/#references",
-	// "/ref/mem":    "/doc/mem",
-	// "/ref/spec":   "/doc/spec",
+	// In Go 1.2 the references page is part of /doc/.
+	"/ref": "/doc/#references",
+	// This next rule clobbers /ref/spec and /ref/mem.
+	// TODO(adg): figure out what to do here, if anything.
+	// "/ref/": "/doc/#references",
 
-	// In fact, becuase golang.org pulls some pages from tip, there
-	// are already links on the main golang.org page pointing at
-	// the non-existent /doc/spec etc URLs. So redirect the other way.
+	// Be nice to people who are looking in the wrong place.
 	"/doc/mem":  "/ref/mem",
 	"/doc/spec": "/ref/spec",
 
