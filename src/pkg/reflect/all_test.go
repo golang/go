@@ -2479,6 +2479,15 @@ func TestVariadic(t *testing.T) {
 	}
 }
 
+func TestFuncArg(t *testing.T) {
+	f1 := func(i int, f func(int) int) int { return f(i) }
+	f2 := func(i int) int { return i + 1 }
+	r := ValueOf(f1).Call([]Value{ValueOf(100), ValueOf(f2)})
+	if r[0].Int() != 101 {
+		t.Errorf("function returned %d, want 101", r[0].Int())
+	}
+}
+
 var tagGetTests = []struct {
 	Tag   StructTag
 	Key   string
