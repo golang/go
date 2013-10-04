@@ -402,7 +402,7 @@ profilem(M *mp)
 		tls = runtime·tls0;
 	gp = *(G**)tls;
 
-	if(gp != nil && gp != mp->g0 && gp->status != Gsyscall) {
+	if(gp != nil) {
 		// align Context to 16 bytes
 		r = (Context*)((uintptr)(&rbuf[15]) & ~15);
 		r->ContextFlags = CONTEXT_CONTROL;
