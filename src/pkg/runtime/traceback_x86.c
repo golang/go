@@ -9,9 +9,6 @@
 #include "malloc.h"
 #include "funcdata.h"
 
-void runtime·deferproc(void);
-void runtime·newproc(void);
-void runtime·morestack(void);
 void runtime·sigpanic(void);
 
 // This code is also used for the 386 tracebacks.
