@@ -51,14 +51,12 @@ func main() {
 	f1v(g())
 	f2(g())
 	f2v(g())
-	// TODO(gri): the typechecker still doesn't support these cases correctly.
-	// if c := complex(complexArgs()); c != 5+7i {
-	// 	panic(c)
-	// }
-	// if s := append(appendArgs()); len(s) != 2 || s[0] != "foo" || s[1] != "bar" {
-	// 	panic(s)
-	// }
-
+	if c := complex(complexArgs()); c != 5+7i {
+		panic(c)
+	}
+	if s := append(appendArgs()); len(s) != 2 || s[0] != "foo" || s[1] != "bar" {
+		panic(s)
+	}
 	i, ok := h()
 	if !ok || i.(string) != "hi" {
 		panic(i)
