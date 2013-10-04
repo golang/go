@@ -22,7 +22,7 @@ type makeFuncImpl struct {
 // that wraps the function fn. When called, that new function
 // does the following:
 //
-//	- converts its arguments to a list of Values args.
+//	- converts its arguments to a slice of Values.
 //	- runs results := fn(args).
 //	- returns the results as a slice of Values, one per formal result.
 //
