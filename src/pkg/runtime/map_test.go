@@ -371,3 +371,41 @@ func testMapLookups(t *testing.T, m map[string]string) {
 		}
 	}
 }
+
+// Tests whether the iterator returns the right elements when
+// started in the middle of a grow, when the keys are NaNs.
+func TestMapNanGrowIterator(t *testing.T) {
+	m := make(map[float64]int)
+	nan := math.NaN()
+	const nBuckets = 16
+	// To fill nBuckets buckets takes LOAD * nBuckets keys.
+	nKeys := int(nBuckets * *runtime.HashLoad)
+
+	// Get map to full point with nan keys.
+	for i := 0; i < nKeys; i++ {
+		m[nan] = i
+	}
+	// Trigger grow
+	m[1.0] = 1
+	delete(m, 1.0)
+
+	// Run iterator
+	found := make(map[int]struct{})
+	for _, v := range m {
+		if v != -1 {
+			if _, repeat := found[v]; repeat {
+				t.Fatalf("repeat of value %d", v)
+			}
+			found[v] = struct{}{}
+		}
+		if len(found) == nKeys/2 {
+			// Halfway through iteration, finish grow.
+			for i := 0; i < nBuckets; i++ {
+				delete(m, 1.0)
+			}
+		}
+	}
+	if len(found) != nKeys {
+		t.Fatalf("missing value")
+	}
+}

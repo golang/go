@@ -288,6 +288,8 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 	uintptr i;
 	byte *k, *v;
 	byte *xk, *yk, *xv, *yv;
+	uint8 top;
+	bool eq;
 
 	b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
 	newbit = (uintptr)1 << (h->B - 1);
@@ -306,13 +308,38 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 		yv = yk + h->keysize * BUCKETSIZE;
 		do {
 			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-				if(b->tophash[i] == 0)
+				top = b->tophash[i];
+				if(top == 0)
 					continue;
+
+				// Compute hash to make our evacuation decision (whether we need
+				// to send this key/value to bucket x or bucket y).
 				hash = h->hash0;
 				t->key->alg->hash(&hash, t->key->size, IK(h, k));
-				// NOTE: if key != key, then this hash could be (and probably will be)
-				// entirely different from the old hash.  We effectively only update
-				// the B'th bit of the hash in this case.
+				if((h->flags & Iterator) != 0) {
+					t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+					if(!eq) {
+						// If key != key (NaNs), then the hash could be (and probably
+						// will be) entirely different from the old hash.  Moreover,
+						// it isn't reproducible.  Reproducibility is required in the
+						// presence of iterators, as our evacuation decision must
+						// match whatever decision the iterator made.
+						// Fortunately, we have the freedom to send these keys either
+						// way.  Also, tophash is meaningless for these kinds of keys.
+						// We let the low bit of tophash drive the evacuation decision.
+						// We recompute a new random tophash for the next level so
+						// these keys will get evenly distributed across all buckets
+						// after multiple grows.
+						if((top & 1) != 0)
+							hash |= newbit;
+						else
+							hash &= ~newbit;
+						top = hash >> (8*sizeof(uintptr)-8);
+						if(top == 0)
+							top = 1;
+					}
+				}
+
 				if((hash & newbit) == 0) {
 					if(xi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
@@ -323,7 +350,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 						xk = x->data;
 						xv = xk + h->keysize * BUCKETSIZE;
 					}
-					x->tophash[xi] = b->tophash[i];
+					x->tophash[xi] = top;
 					if((h->flags & IndirectKey) != 0) {
 						*(byte**)xk = *(byte**)k;               // copy pointer
 					} else {
@@ -347,7 +374,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 						yk = y->data;
 						yv = yk + h->keysize * BUCKETSIZE;
 					}
-					y->tophash[yi] = b->tophash[i];
+					y->tophash[yi] = top;
 					if((h->flags & IndirectKey) != 0) {
 						*(byte**)yk = *(byte**)k;
 					} else {
@@ -838,23 +865,25 @@ next:
 			if(check_bucket >= 0) {
 				// Special case: iterator was started during a grow and the
 				// grow is not done yet.  We're working on a bucket whose
-				// oldbucket has not been evacuated yet.  So we iterate
+				// oldbucket has not been evacuated yet.  So we're iterating
 				// through the oldbucket, skipping any keys that will go
 				// to the other new bucket (each oldbucket expands to two
 				// buckets during a grow).
 				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
-				if(!eq) {
-					// Hash is meaningless if k != k (NaNs).  Return all
-					// NaNs during the first of the two new buckets.
-					if(bucket >= ((uintptr)1 << (it->B - 1))) {
-						continue;
-					}
-				} else {
+				if(eq) {
 					// If the item in the oldbucket is not destined for
 					// the current new bucket in the iteration, skip it.
 					hash = h->hash0;
 					t->key->alg->hash(&hash, t->key->size, IK(h, k));
 					if((hash & (((uintptr)1 << it->B) - 1)) != check_bucket) {
+						continue;
+					}
+				} else {
+					// Hash isn't repeatable if k != k (NaNs).  We need a
+					// repeatable and randomish choice of which direction
+					// to send NaNs during evacuation.  We'll use the low
+					// bit of tophash to decide which way NaNs go.
+					if(check_bucket >> (it->B - 1) != (b->tophash[i] & 1)) {
 						continue;
 					}
 				}
@@ -1091,7 +1120,10 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
 		runtime·prints("; key=");
 		t->key->alg->print(t->key->size, ak);
 		runtime·prints("; val=");
-		t->elem->alg->print(t->elem->size, av);
+		if(av)
+			t->elem->alg->print(t->elem->size, av);
+		else
+			runtime·prints("nil");
 		runtime·prints("\n");
 	}
 }
@@ -1330,3 +1362,6 @@ runtime·mapiter2(struct hash_iter *it, ...)
 		runtime·prints("\n");
 	}
 }
+
+// exported value for testing
+float64 runtime·hashLoad = LOAD;
