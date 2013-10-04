@@ -1452,6 +1452,24 @@ func TestMakeFunc(t *testing.T) {
 	}
 }
 
+func TestMakeFuncInterface(t *testing.T) {
+	fn := func(i int) int { return i }
+	incr := func(in []Value) []Value {
+		return []Value{ValueOf(int(in[0].Int() + 1))}
+	}
+	fv := MakeFunc(TypeOf(fn), incr)
+	ValueOf(&fn).Elem().Set(fv)
+	if r := fn(2); r != 3 {
+		t.Errorf("Call returned %d, want 3", r)
+	}
+	if r := fv.Call([]Value{ValueOf(14)})[0].Int(); r != 15 {
+		t.Errorf("Call returned %d, want 15", r)
+	}
+	if r := fv.Interface().(func(int) int)(26); r != 27 {
+		t.Errorf("Call returned %d, want 27", r)
+	}
+}
+
 type Point struct {
 	x, y int
 }
