@@ -49,7 +49,10 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 	case builtin:
 		id := x.id
-		check.builtin(x, e, id)
+		if !check.builtin(x, e, id) {
+			x.mode = invalid
+		}
+		x.expr = e
 		return predeclaredFuncs[id].kind
 
 	default:
@@ -62,7 +65,8 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			return statement
 		}
 
-		check.arguments(x, e, sig, func(x *operand, i int) { check.expr(x, e.Args[i]) })
+		arg, n := unpack(func(x *operand, i int) { check.expr(x, e.Args[i]) }, len(e.Args), false)
+		check.arguments(x, e, sig, arg, n)
 
 		// determine result
 		switch sig.results.Len() {
@@ -81,9 +85,88 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 	}
 }
 
+// TODO(gri) use unpack for assignment checking as well.
+
+// A getter sets x as the i'th operand, where 0 <= i < n and n is the total
+// number of operands (context-specific, and maintained elsewhere). A getter
+// type-checks the i'th operand; the details of the actual check are getter-
+// specific.
+type getter func(x *operand, i int)
+
+// unpack takes a getter get and a number of operands n. If n == 1 and the
+// first operand is a function call, or a comma,ok expression and allowCommaOk
+// is set, the result is a new getter and operand count providing access to the
+// function results, or comma,ok values, respectively. In all other cases, the
+// incoming getter and operand count are returned unchanged. In other words,
+// if there's exactly one operand that - after type-checking by calling get -
+// stands for multiple operands, the resulting getter provides access to those
+// operands instead.
+//
+// Note that unpack may call get(..., 0); but if the result getter is called
+// at most once for a given operand index i (including i == 0), that operand
+// is guaranteed to cause only one call of the incoming getter with that i.
+//
+func unpack(get getter, n int, allowCommaOk bool) (getter, int) {
+	if n == 1 {
+		// possibly result of an n-valued function call or comma,ok value
+		var x0 operand
+		get(&x0, 0)
+		if x0.mode == invalid {
+			return func(x *operand, i int) {
+				if i != 0 {
+					unreachable()
+				}
+				// i == 0
+				x.mode = invalid
+			}, 1
+		}
+
+		if t, ok := x0.typ.(*Tuple); ok {
+			// result of an n-valued function call
+			return func(x *operand, i int) {
+				x.mode = value
+				x.expr = x0.expr
+				x.typ = t.At(i).typ
+			}, t.Len()
+		}
+
+		if x0.mode == valueok {
+			// comma-ok value
+			if allowCommaOk {
+				return func(x *operand, i int) {
+					switch i {
+					case 0:
+						x.mode = value
+						x.expr = x0.expr
+						x.typ = x0.typ
+					case 1:
+						x.mode = value
+						x.expr = x0.expr
+						x.typ = Typ[UntypedBool]
+					default:
+						unreachable()
+					}
+				}, 2
+			}
+			x0.mode = value
+		}
+
+		// single value
+		return func(x *operand, i int) {
+			if i != 0 {
+				unreachable()
+			}
+			*x = x0
+		}, 1
+	}
+
+	// zero or multiple values
+	return get, n
+}
+
 // arguments checks argument passing for the call with the given signature.
 // The arg function provides the operand for the i'th argument.
-func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg func(*operand, int)) {
+func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg func(*operand, int), n int) {
 	passSlice := false
 	if call.Ellipsis.IsValid() {
 		// last argument is of the form x...
@@ -96,35 +179,10 @@ func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	}
 
 	// evaluate arguments
-	n := len(call.Args) // argument count
-	if n == 1 {
-		// single argument but possibly a multi-valued function call
-		arg(x, 0)
+	for i := 0; i < n; i++ {
+		arg(x, i)
 		if x.mode != invalid {
-			if t, ok := x.typ.(*Tuple); ok {
-				// argument is multi-valued function call
-				n = t.Len()
-				expr := call.Args[0]
-				for i := 0; i < n; i++ {
-					x.mode = value
-					x.expr = expr
-					x.typ = t.At(i).typ
-					check.argument(sig, i, x, passSlice && i == n-1)
-				}
-			} else {
-				// single value
-				check.argument(sig, 0, x, passSlice)
-			}
-		} else {
-			n = sig.params.Len() // avoid additional argument length errors below
-		}
-	} else {
-		// zero or multiple arguments
-		for i := range call.Args {
-			arg(x, i)
-			if x.mode != invalid {
-				check.argument(sig, i, x, passSlice && i == n-1)
-			}
+			check.argument(sig, i, x, passSlice && i == n-1)
 		}
 	}
 

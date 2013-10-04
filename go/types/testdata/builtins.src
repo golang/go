@@ -8,16 +8,18 @@ package builtins
 
 import "unsafe"
 
-func _append1() {
+func f0() {}
+
+func append1() {
 	var b byte
 	var x int
 	var s []byte
-	_ = append /* ERROR "argument" */ ()
-	_ = append("foo" /* ERROR "not a slice" */ )
-	_ = append(nil /* ERROR "not a slice" */ , s)
-	_ = append(x /* ERROR "not a slice" */ , s)
+	_ = append() // ERROR not enough arguments
+	_ = append("foo" /* ERROR not a slice */ )
+	_ = append(nil /* ERROR not a slice */ , s)
+	_ = append(x /* ERROR not a slice */ , s)
 	_ = append(s)
-	append /* ERROR "not used" */ (s)
+	append /* ERROR not used */ (s)
 
 	_ = append(s, b)
 	_ = append(s, x /* ERROR cannot pass argument x */ )
@@ -47,7 +49,7 @@ func _append1() {
 }
 
 // from the spec
-func _append2() {
+func append2() {
 	s0 := []int{0, 0}
 	s1 := append(s0, 2)                // append a single element     s1 == []int{0, 0, 2}
 	s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
@@ -63,50 +65,83 @@ func _append2() {
 	_ = s4
 }
 
-func _cap() {
+func append3() {
+	f1 := func() (s []int) { return }
+	f2 := func() (s []int, x int) { return }
+	f3 := func() (s []int, x, y int) { return }
+	f5 := func() (s []interface{}, x int, y float32, z string, b bool) { return }
+	ff := func() (int, float32) { return 0, 0 }
+	_ = append(f0 /* ERROR used as value */ ())
+	_ = append(f1())
+	_ = append(f2())
+	_ = append(f3())
+	_ = append(f5())
+	_ = append(ff /* ERROR not a slice */ ()) // TODO(gri) better error message
+}
+
+func cap1() {
 	var a [10]bool
 	var p *[20]int
 	var c chan string
-	_ = cap /* ERROR "argument" */ ()
-	_ = cap /* ERROR "argument" */ (1, 2)
-	_ = cap(42 /* ERROR "invalid" */)
+	_ = cap() // ERROR not enough arguments
+	_ = cap(1, 2) // ERROR too many arguments
+	_ = cap(42 /* ERROR invalid */)
 	const _3 = cap(a)
 	assert(_3 == 10)
 	const _4 = cap(p)
 	assert(_4 == 20)
 	_ = cap(c)
-	cap /* ERROR "not used" */ (c)
+	cap /* ERROR not used */ (c)
 
 	// issue 4744
 	type T struct{ a [10]int }
 	const _ = cap(((*T)(nil)).a)
 }
 
-func _close() {
-	var c chan int
-	var r <-chan int
-	close /* ERROR "argument" */ ()
-	close /* ERROR "argument" */ (1, 2)
-	close(42 /* ERROR "not a channel" */)
-	close(r /* ERROR "receive-only channel" */)
-	close(c)
+func cap2() {
+	f1a := func() (a [10]int) { return }
+	f1s := func() (s []int) { return }
+	f2 := func() (s []int, x int) { return }
+	_ = cap(f0 /* ERROR used as value */ ())
+	_ = cap(f1a())
+	_ = cap(f1s())
+	_ = cap(f2()) // ERROR too many arguments
 }
 
-func _complex() {
+func close1() {
+	var c chan int
+	var r <-chan int
+	close() // ERROR not enough arguments
+	close(1, 2) // ERROR too many arguments
+	close(42 /* ERROR not a channel */)
+	close(r /* ERROR receive-only channel */)
+	close(c)
+	_ = close /* ERROR used as value */ (c)
+}
+
+func close2() {
+	f1 := func() (ch chan int) { return }
+	f2 := func() (ch chan int, x int) { return }
+	close(f0 /* ERROR used as value */ ())
+	close(f1())
+	close(f2()) // ERROR too many arguments
+}
+
+func complex1() {
 	var i32 int32
 	var f32 float32
 	var f64 float64
 	var c64 complex64
-	_ = complex /* ERROR "argument" */ ()
-	_ = complex /* ERROR "argument" */ (1)
-	_ = complex(true /* ERROR "invalid argument" */ , 0)
-	_ = complex(i32 /* ERROR "invalid argument" */ , 0)
-	_ = complex("foo" /* ERROR "invalid argument" */ , 0)
-	_ = complex(c64 /* ERROR "invalid argument" */ , 0)
-	_ = complex(0, true /* ERROR "invalid argument" */ )
-	_ = complex(0, i32 /* ERROR "invalid argument" */ )
-	_ = complex(0, "foo" /* ERROR "invalid argument" */ )
-	_ = complex(0, c64 /* ERROR "invalid argument" */ )
+	_ = complex() // ERROR not enough arguments
+	_ = complex(1) // ERROR not enough arguments
+	_ = complex(true /* ERROR invalid argument */ , 0)
+	_ = complex(i32 /* ERROR invalid argument */ , 0)
+	_ = complex("foo" /* ERROR invalid argument */ , 0)
+	_ = complex(c64 /* ERROR invalid argument */ , 0)
+	_ = complex(0, true /* ERROR invalid argument */ )
+	_ = complex(0, i32 /* ERROR invalid argument */ )
+	_ = complex(0, "foo" /* ERROR invalid argument */ )
+	_ = complex(0, c64 /* ERROR invalid argument */ )
 	_ = complex(f32, f32)
 	_ = complex(f32, 1)
 	_ = complex(f32, 1.0)
@@ -115,17 +150,17 @@ func _complex() {
 	_ = complex(f64, 1)
 	_ = complex(f64, 1.0)
 	_ = complex(f64, 'a')
-	_ = complex(f32 /* ERROR "mismatched types" */, f64)
-	_ = complex(f64 /* ERROR "mismatched types" */, f32)
+	_ = complex(f32 /* ERROR mismatched types */, f64)
+	_ = complex(f64 /* ERROR mismatched types */, f32)
 	_ = complex(1, 1)
 	_ = complex(1, 1.1)
 	_ = complex(1, 'a')
-	complex /* ERROR "not used" */ (1, 2)
+	complex /* ERROR not used */ (1, 2)
 
 	var _ complex64 = complex(f32, f32)
-	var _ complex64 = complex /* ERROR "cannot initialize" */ (f64, f64)
+	var _ complex64 = complex /* ERROR cannot initialize */ (f64, f64)
 
-	var _ complex128 = complex /* ERROR "cannot initialize" */ (f32, f32)
+	var _ complex128 = complex /* ERROR cannot initialize */ (f32, f32)
 	var _ complex128 = complex(f64, f64)
 
 	// untyped constants
@@ -134,22 +169,32 @@ func _complex() {
 	const _ complex64 = complex(1, 0)
 	const _ complex128 = complex(1, 0)
 
-	const _ int = complex /* ERROR "int" */ (1.1, 0)
-	const _ float32 = complex /* ERROR "float32" */ (1, 2)
+	const _ int = complex /* ERROR int */ (1.1, 0)
+	const _ float32 = complex /* ERROR float32 */ (1, 2)
 
 	// untyped values
 	var s uint
-	_ = complex(1 /* ERROR "integer" */ <<s, 0)
-	const _ = complex /* ERROR "not constant" */ (1 /* ERROR "integer" */ <<s, 0)
-	var _ int = complex /* ERROR "cannot initialize" */ (1 /* ERROR "integer" */ <<s, 0)
+	_ = complex(1 /* ERROR integer */ <<s, 0)
+	const _ = complex /* ERROR not constant */ (1 /* ERROR integer */ <<s, 0)
+	var _ int = complex /* ERROR cannot initialize */ (1 /* ERROR integer */ <<s, 0)
 }
 
-func _copy() {
-	copy /* ERROR "not enough arguments" */ ()
-	copy /* ERROR "not enough arguments" */ ("foo")
-	copy([ /* ERROR "copy expects slice arguments" */ ...]int{}, []int{})
-	copy([ /* ERROR "copy expects slice arguments" */ ]int{}, [...]int{})
-	copy([ /* ERROR "different element types" */ ]int8{}, "foo")
+func complex2() {
+	f1 := func() (x float32) { return }
+	f2 := func() (x, y float32) { return }
+	f3 := func() (x, y, z float32) { return }
+	_ = complex(f0 /* ERROR used as value */ ())
+	_ = complex(f1()) // ERROR not enough arguments
+	_ = complex(f2())
+	_ = complex(f3()) // ERROR too many arguments
+}
+
+func copy1() {
+	copy() // ERROR not enough arguments
+	copy("foo") // ERROR not enough arguments
+	copy([ /* ERROR copy expects slice arguments */ ...]int{}, []int{})
+	copy([ /* ERROR copy expects slice arguments */ ]int{}, [...]int{})
+	copy([ /* ERROR different element types */ ]int8{}, "foo")
 
 	// spec examples
 	var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
@@ -161,26 +206,47 @@ func _copy() {
 	_, _, _ = n1, n2, n3
 }
 
-func _delete() {
-	var m map[string]int
-	var s string
-	delete /* ERROR "argument" */ ()
-	delete /* ERROR "argument" */ (1)
-	delete /* ERROR "argument" */ (1, 2, 3)
-	delete(m, 0 /* ERROR "not assignable" */)
-	delete(m, s)
+func copy2() {
+	f1 := func() (a []int) { return }
+	f2 := func() (a, b []int) { return }
+	f3 := func() (a, b, c []int) { return }
+	copy(f0 /* ERROR used as value */ ())
+	copy(f1()) // ERROR not enough arguments
+	copy(f2())
+	copy(f3()) // ERROR too many arguments
 }
 
-func _imag() {
+func delete1() {
+	var m map[string]int
+	var s string
+	delete() // ERROR not enough arguments
+	delete(1) // ERROR not enough arguments
+	delete(1, 2, 3) // ERROR too many arguments
+	delete(m, 0 /* ERROR not assignable */)
+	delete(m, s)
+	_ = delete /* ERROR used as value */ (m, s)
+}
+
+func delete2() {
+	f1 := func() (m map[string]int) { return }
+	f2 := func() (m map[string]int, k string) { return }
+	f3 := func() (m map[string]int, k string, x float32) { return }
+	delete(f0 /* ERROR used as value */ ())
+	delete(f1()) // ERROR not enough arguments
+	delete(f2())
+	delete(f3()) // ERROR too many arguments
+}
+
+func imag1() {
 	var f32 float32
 	var f64 float64
 	var c64 complex64
 	var c128 complex128
-	_ = imag /* ERROR "argument" */ ()
-	_ = imag /* ERROR "argument" */ (1, 2)
-	_ = imag(10 /* ERROR "must be a complex number" */)
-	_ = imag(2.7182818 /* ERROR "must be a complex number" */)
-	_ = imag("foo" /* ERROR "must be a complex number" */)
+	_ = imag() // ERROR not enough arguments
+	_ = imag(1, 2) // ERROR too many arguments
+	_ = imag(10 /* ERROR must be a complex number */)
+	_ = imag(2.7182818 /* ERROR must be a complex number */)
+	_ = imag("foo" /* ERROR must be a complex number */)
 	const _5 = imag(1 + 2i)
 	assert(_5 == 2)
 	f32 = _5
@@ -189,20 +255,28 @@ func _imag() {
 	assert(_6 == 0)
 	f32 = imag(c64)
 	f64 = imag(c128)
-	f32 = imag /* ERROR "cannot assign" */ (c128)
-	f64 = imag /* ERROR "cannot assign" */ (c64)
-	imag /* ERROR "not used" */ (c64)
+	f32 = imag /* ERROR cannot assign */ (c128)
+	f64 = imag /* ERROR cannot assign */ (c64)
+	imag /* ERROR not used */ (c64)
 	_, _ = f32, f64
 }
 
-func _len() {
+func imag2() {
+	f1 := func() (x complex128) { return }
+	f2 := func() (x, y complex128) { return }
+	_ = imag(f0 /* ERROR used as value */ ())
+	_ = imag(f1())
+	_ = imag(f2()) // ERROR too many arguments
+}
+
+func len1() {
 	const c = "foobar"
 	var a [10]bool
 	var p *[20]int
 	var m map[string]complex128
-	_ = len /* ERROR "argument" */ ()
-	_ = len /* ERROR "argument" */ (1, 2)
-	_ = len(42 /* ERROR "invalid" */)
+	_ = len() // ERROR not enough arguments
+	_ = len(1, 2) // ERROR too many arguments
+	_ = len(42 /* ERROR invalid */)
 	const _3 = len(c)
 	assert(_3 == 6)
 	const _4 = len(a)
@@ -210,54 +284,62 @@ func _len() {
 	const _5 = len(p)
 	assert(_5 == 20)
 	_ = len(m)
-	len /* ERROR "not used" */ (c)
+	len /* ERROR not used */ (c)
 
 	// esoteric case
 	var t string
 	var hash map[interface{}][]*[10]int
-	const n = len /* ERROR "not constant" */ (hash[recover()][len(t)])
+	const n = len /* ERROR not constant */ (hash[recover()][len(t)])
 	assert(n == 10) // ok because n has unknown value and no error is reported
 	var ch <-chan int
-	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
+	const nn = len /* ERROR not constant */ (hash[<-ch][len(t)])
 
 	// issue 4744
 	type T struct{ a [10]int }
 	const _ = len(((*T)(nil)).a)
 }
 
-func _make() {
+func len2() {
+	f1 := func() (x []int) { return }
+	f2 := func() (x, y []int) { return }
+	_ = len(f0 /* ERROR used as value */ ())
+	_ = len(f1())
+	_ = len(f2()) // ERROR too many arguments
+}
+
+func make1() {
 	var n int
 	var m float32
 	var s uint
 
-	_ = make /* ERROR "argument" */ ()
-	_ = make(1 /* ERROR "not a type" */)
-	_ = make(int /* ERROR "cannot make" */)
+	_ = make() // ERROR not enough arguments
+	_ = make(1 /* ERROR not a type */)
+	_ = make(int /* ERROR cannot make */)
 
 	// slices
-	_ = make/* ERROR "arguments" */ ([]int)
-	_ = make/* ERROR "arguments" */ ([]int, 2, 3, 4)
-	_ = make([]int, int /* ERROR "not an expression" */)
-	_ = make([]int, 10, float32 /* ERROR "not an expression" */)
-	_ = make([]int, "foo" /* ERROR "cannot convert" */)
-	_ = make([]int, 10, 2.3 /* ERROR "overflows" */)
+	_ = make/* ERROR arguments */ ([]int)
+	_ = make/* ERROR arguments */ ([]int, 2, 3, 4)
+	_ = make([]int, int /* ERROR not an expression */)
+	_ = make([]int, 10, float32 /* ERROR not an expression */)
+	_ = make([]int, "foo" /* ERROR cannot convert */)
+	_ = make([]int, 10, 2.3 /* ERROR overflows */)
 	_ = make([]int, 5, 10.0)
 	_ = make([]int, 0i)
 	_ = make([]int, 1.0)
 	_ = make([]int, 1.0<<s)
-	_ = make([]int, 1.1 /* ERROR "int" */ <<s)
-	_ = make([]int, - /* ERROR "must not be negative" */ 1, 10)
-	_ = make([]int, 0, - /* ERROR "must not be negative" */ 1)
-	_ = make([]int, - /* ERROR "must not be negative" */ 1, - /* ERROR "must not be negative" */ 1)
-	_ = make([]int, 1 /* ERROR "overflows" */ <<100, 1 /* ERROR "overflows" */ <<100)
-	_ = make([]int, 10 /* ERROR "length and capacity swapped" */ , 9)
-	_ = make([]int, 1 /* ERROR "overflows" */ <<100, 12345)
-	_ = make([]int, m /* ERROR "must be integer" */ )
+	_ = make([]int, 1.1 /* ERROR int */ <<s)
+	_ = make([]int, - /* ERROR must not be negative */ 1, 10)
+	_ = make([]int, 0, - /* ERROR must not be negative */ 1)
+	_ = make([]int, - /* ERROR must not be negative */ 1, - /* ERROR must not be negative */ 1)
+	_ = make([]int, 1 /* ERROR overflows */ <<100, 1 /* ERROR overflows */ <<100)
+	_ = make([]int, 10 /* ERROR length and capacity swapped */ , 9)
+	_ = make([]int, 1 /* ERROR overflows */ <<100, 12345)
+	_ = make([]int, m /* ERROR must be integer */ )
 
 	// maps
-	_ = make /* ERROR "arguments" */ (map[int]string, 10, 20)
-	_ = make(map[int]float32, int /* ERROR "not an expression" */)
-	_ = make(map[int]float32, "foo" /* ERROR "cannot convert" */)
+	_ = make /* ERROR arguments */ (map[int]string, 10, 20)
+	_ = make(map[int]float32, int /* ERROR not an expression */)
+	_ = make(map[int]float32, "foo" /* ERROR cannot convert */)
 	_ = make(map[int]float32, 10)
 	_ = make(map[int]float32, n)
 	_ = make(map[int]float32, int64(n))
@@ -265,65 +347,111 @@ func _make() {
 	_ = make(map[string]bool, 10.0<<s)
 
 	// channels
-	_ = make /* ERROR "arguments" */ (chan int, 10, 20)
-	_ = make(chan int, int /* ERROR "not an expression" */)
-	_ = make(chan<- int, "foo" /* ERROR "cannot convert" */)
+	_ = make /* ERROR arguments */ (chan int, 10, 20)
+	_ = make(chan int, int /* ERROR not an expression */)
+	_ = make(chan<- int, "foo" /* ERROR cannot convert */)
 	_ = make(<-chan float64, 10)
 	_ = make(chan chan int, n)
 	_ = make(chan string, int64(n))
 	_ = make(chan bool, 10.0)
 	_ = make(chan bool, 10.0<<s)
 
-	make /* ERROR "not used" */ ([]int, 10)
+	make /* ERROR not used */ ([]int, 10)
 }
 
-func _new() {
-	_ = new /* ERROR "argument" */ ()
-	_ = new /* ERROR "argument" */ (1, 2)
-	_ = new("foo" /* ERROR "not a type" */)
+func make2() {
+	f1 /* ERROR not used */ := func() (x []int) { return }
+	_ = make(f0 /* ERROR not a type */ ())
+	_ = make(f1 /* ERROR not a type */ ())
+}
+
+func new1() {
+	_ = new() // ERROR not enough arguments
+	_ = new(1, 2) // ERROR too many arguments
+	_ = new("foo" /* ERROR not a type */)
 	p := new(float64)
 	_ = new(struct{ x, y int })
 	q := new(*float64)
 	_ = *p == **q
-	new /* ERROR "not used" */ (int)
+	new /* ERROR not used */ (int)
 }
 
-func _panic() {
-	panic /* ERROR "arguments" */ ()
-	panic /* ERROR "arguments" */ (1, 2)
+func new2() {
+	f1 /* ERROR not used */ := func() (x []int) { return }
+	_ = new(f0 /* ERROR not a type */ ())
+	_ = new(f1 /* ERROR not a type */ ())
+}
+
+func panic1() {
+	panic() // ERROR not enough arguments
+	panic(1, 2) // ERROR too many arguments
 	panic(0)
 	panic("foo")
 	panic(false)
+	panic(1<<1000) // TODO(gri) argument should be assignable to _
+	_ = panic /* ERROR used as value */ (0)
 }
 
-func _print() {
+func panic2() {
+	f1 := func() (x int) { return }
+	f2 := func() (x, y int) { return }
+	panic(f0 /* ERROR used as value */ ())
+	panic(f1())
+	panic(f2()) // ERROR too many arguments
+}
+
+func print1() {
 	print()
 	print(1)
 	print(1, 2)
 	print("foo")
 	print(2.718281828)
 	print(false)
+	print(1<<1000, 1<<1000) // TODO(gri) arguments should be assignable to _
+	_ = print /* ERROR used as value */ ()
 }
 
-func _println() {
+func print2() {
+	f1 := func() (x int) { return }
+	f2 := func() (x, y int) { return }
+	f3 := func() (x int, y float32, z string) { return }
+	print(f0 /* ERROR used as value */ ())
+	print(f1())
+	print(f2())
+	print(f3())
+}
+
+func println1() {
 	println()
 	println(1)
 	println(1, 2)
 	println("foo")
 	println(2.718281828)
 	println(false)
+	println(1<<1000, 1<<1000) // TODO(gri) arguments should be assignable to _
+	_ = println /* ERROR used as value */ ()
 }
 
-func _real() {
+func println2() {
+	f1 := func() (x int) { return }
+	f2 := func() (x, y int) { return }
+	f3 := func() (x int, y float32, z string) { return }
+	println(f0 /* ERROR used as value */ ())
+	println(f1())
+	println(f2())
+	println(f3())
+}
+
+func real1() {
 	var f32 float32
 	var f64 float64
 	var c64 complex64
 	var c128 complex128
-	_ = real /* ERROR "argument" */ ()
-	_ = real /* ERROR "argument" */ (1, 2)
-	_ = real(10 /* ERROR "must be a complex number" */)
-	_ = real(2.7182818 /* ERROR "must be a complex number" */)
-	_ = real("foo" /* ERROR "must be a complex number" */)
+	_ = real() // ERROR not enough arguments
+	_ = real(1, 2) // ERROR too many arguments
+	_ = real(10 /* ERROR must be a complex number */)
+	_ = real(2.7182818 /* ERROR must be a complex number */)
+	_ = real("foo" /* ERROR must be a complex number */)
 	const _5 = real(1 + 2i)
 	assert(_5 == 1)
 	f32 = _5
@@ -332,16 +460,32 @@ func _real() {
 	assert(_6 == 0)
 	f32 = real(c64)
 	f64 = real(c128)
-	f32 = real /* ERROR "cannot assign" */ (c128)
-	f64 = real /* ERROR "cannot assign" */ (c64)
-	real /* ERROR "not used" */ (c64)
+	f32 = real /* ERROR cannot assign */ (c128)
+	f64 = real /* ERROR cannot assign */ (c64)
+	real /* ERROR not used */ (c64)
 	_, _ = f32, f64
 }
 
-func _recover() {
+func real2() {
+	f1 := func() (x complex128) { return }
+	f2 := func() (x, y complex128) { return }
+	_ = real(f0 /* ERROR used as value */ ())
+	_ = real(f1())
+	_ = real(f2()) // ERROR too many arguments
+}
+
+func recover1() {
 	_ = recover()
-	_ = recover /* ERROR "argument" */ (10)
+	_ = recover(10) // ERROR too many arguments
 	recover()
+}
+
+func recover2() {
+	f1 := func() (x int) { return }
+	f2 := func() (x, y int) { return }
+	_ = recover(f0 /* ERROR used as value */ ())
+	_ = recover(f1()) // ERROR too many arguments
+	_ = recover(f2()) // ERROR too many arguments
 }
 
 // assuming types.DefaultPtrSize == 8
@@ -366,14 +510,14 @@ type S2 struct{ // offset
 
 func (S2) m() {}
 
-func _Alignof() {
+func Alignof1() {
 	var x int
-	_ = unsafe /* ERROR "argument" */ .Alignof()
-	_ = unsafe /* ERROR "argument" */ .Alignof(1, 2)
-	_ = unsafe.Alignof(int /* ERROR "not an expression" */)
+	_ = unsafe.Alignof() // ERROR not enough arguments
+	_ = unsafe.Alignof(1, 2) // ERROR too many arguments
+	_ = unsafe.Alignof(int /* ERROR not an expression */)
 	_ = unsafe.Alignof(42)
 	_ = unsafe.Alignof(new(struct{}))
-	unsafe /* ERROR "not used" */ .Alignof(x)
+	unsafe /* ERROR not used */ .Alignof(x)
 
 	var y S0
 	assert(unsafe.Alignof(y.a) == 1)
@@ -383,16 +527,24 @@ func _Alignof() {
 	assert(unsafe.Alignof(y.e) == 8)
 }
 
-func _Offsetof() {
+func Alignof2() {
+	f1 := func() (x int32) { return }
+	f2 := func() (x, y int32) { return }
+	_ = unsafe.Alignof(f0 /* ERROR used as value */ ())
+	assert(unsafe.Alignof(f1()) == 4)
+	_ = unsafe.Alignof(f2()) // ERROR too many arguments
+}
+
+func Offsetof1() {
 	var x struct{ f int }
-	_ = unsafe /* ERROR "argument" */ .Offsetof()
-	_ = unsafe /* ERROR "argument" */ .Offsetof(1, 2)
-	_ = unsafe.Offsetof(int /* ERROR "not a selector expression" */)
-	_ = unsafe.Offsetof(x /* ERROR "not a selector expression" */)
+	_ = unsafe.Offsetof() // ERROR not enough arguments
+	_ = unsafe.Offsetof(1, 2) // ERROR too many arguments
+	_ = unsafe.Offsetof(int /* ERROR not a selector expression */)
+	_ = unsafe.Offsetof(x /* ERROR not a selector expression */)
 	_ = unsafe.Offsetof(x.f)
 	_ = unsafe.Offsetof((x.f))
 	_ = unsafe.Offsetof((((((((x))).f)))))
-	unsafe /* ERROR "not used" */ .Offsetof(x.f)
+	unsafe /* ERROR not used */ .Offsetof(x.f)
 
 	var y0 S0
 	assert(unsafe.Offsetof(y0.a) == 0)
@@ -423,18 +575,26 @@ func _Offsetof() {
 
 	var y2 S2
 	assert(unsafe.Offsetof(y2.S1) == 0)
-	_ = unsafe.Offsetof(y2 /* ERROR "embedded via a pointer" */ .x)
-	_ = unsafe.Offsetof(y2 /* ERROR "method value" */ .m)
+	_ = unsafe.Offsetof(y2 /* ERROR embedded via a pointer */ .x)
+	_ = unsafe.Offsetof(y2 /* ERROR method value */ .m)
 }
 
-func _Sizeof() {
+func Offsetof2() {
+	f1 := func() (x int32) { return }
+	f2 := func() (x, y int32) { return }
+	_ = unsafe.Offsetof(f0 /* ERROR not a selector expression */ ())
+	_ = unsafe.Offsetof(f1 /* ERROR not a selector expression */ ())
+	_ = unsafe.Offsetof(f2 /* ERROR not a selector expression */ ())
+}
+
+func Sizeof1() {
 	var x int
-	_ = unsafe /* ERROR "argument" */ .Sizeof()
-	_ = unsafe /* ERROR "argument" */ .Sizeof(1, 2)
-	_ = unsafe.Sizeof(int /* ERROR "not an expression" */)
+	_ = unsafe.Sizeof() // ERROR not enough arguments
+	_ = unsafe.Sizeof(1, 2) // ERROR too many arguments
+	_ = unsafe.Sizeof(int /* ERROR not an expression */)
 	_ = unsafe.Sizeof(42)
 	_ = unsafe.Sizeof(new(complex128))
-	unsafe /* ERROR "not used" */ .Sizeof(x)
+	unsafe /* ERROR not used */ .Sizeof(x)
 
 	// basic types have size guarantees
 	assert(unsafe.Sizeof(byte(0)) == 1)
@@ -474,21 +634,56 @@ func _Sizeof() {
 	assert(unsafe.Sizeof(T{}) == 12)
 }
 
-// self-testing only
-func _assert() {
-	var x int
-	assert /* ERROR "argument" */ ()
-	assert /* ERROR "argument" */ (1, 2)
-	assert("foo" /* ERROR "boolean constant" */ )
-	assert(x /* ERROR "boolean constant" */)
-	assert(true)
-	assert /* ERROR "failed" */ (false) 
+func Sizeof2() {
+	f1 := func() (x int64) { return }
+	f2 := func() (x, y int64) { return }
+	_ = unsafe.Sizeof(f0 /* ERROR used as value */ ())
+	assert(unsafe.Sizeof(f1()) == 8)
+	_ = unsafe.Sizeof(f2()) // ERROR too many arguments
 }
 
 // self-testing only
-func _trace() {
+func assert1() {
+	var x int
+	assert() /* ERROR not enough arguments */
+	assert(1, 2) /* ERROR too many arguments */
+	assert("foo" /* ERROR boolean constant */ )
+	assert(x /* ERROR boolean constant */)
+	assert(true)
+	assert /* ERROR failed */ (false)
+	_ = assert(true)
+}
+
+func assert2() {
+	f1 := func() (x bool) { return }
+	f2 := func() (x bool) { return }
+	assert(f0 /* ERROR used as value */ ())
+	assert(f1 /* ERROR boolean constant */ ())
+	assert(f2 /* ERROR boolean constant */ ())
+}
+
+// self-testing only
+func trace1() {
 	// Uncomment the code below to test trace - will produce console output
-	// _ = trace /* ERROR "no value" */ ()
+	// _ = trace /* ERROR no value */ ()
 	// _ = trace(1)
 	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
+}
+
+func trace2() {
+	f1 := func() (x int) { return }
+	f2 := func() (x int, y string) { return }
+	f3 := func() (x int, y string, z []int) { return }
+	_ = f1
+	_ = f2
+	_ = f3
+	// Uncomment the code below to test trace - will produce console output
+	// trace(f0())
+	// trace(f1())
+	// trace(f2())
+	// trace(f3())
+	// trace(f0(), 1)
+	// trace(f1(), 1, 2)
+	// trace(f2(), 1, 2, 3)
+	// trace(f3(), 1, 2, 3, 4)
 }
