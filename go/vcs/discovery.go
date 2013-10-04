@@ -59,6 +59,7 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			})
 		}
 	}
+	return
 }
 
 // attrValue returns the attribute value for the case-insensitive key
