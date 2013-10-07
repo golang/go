@@ -50,10 +50,10 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 	var result *C.struct_passwd
 
 	var bufSize C.long
-	if runtime.GOOS == "freebsd" {
-		// FreeBSD doesn't have _SC_GETPW_R_SIZE_MAX
-		// and just returns -1.  So just use the same
-		// size that Linux returns
+	if runtime.GOOS == "dragonfly" || runtime.GOOS == "freebsd" {
+		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX
+		// and just return -1.  So just use the same
+		// size that Linux returns.
 		bufSize = 1024
 	} else {
 		bufSize = C.sysconf(C._SC_GETPW_R_SIZE_MAX)
