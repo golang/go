@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 3, 2013",
+	"Subtitle": "Version of Oct 7, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -5954,6 +5954,8 @@ func Sizeof(variable ArbitraryType) uintptr
 <p>
 Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted to
 a <code>Pointer</code> type and vice versa.
+A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
+value may not be <a href="#Address_operators">dereferenced</a>.
 </p>
 
 <pre>
@@ -5962,6 +5964,8 @@ bits = *(*uint64)(unsafe.Pointer(&amp;f))
 
 type ptr unsafe.Pointer
 bits = *(*uint64)(ptr(&amp;f))
+
+var p ptr = nil
 </pre>
 
 <p>
