@@ -41,7 +41,12 @@ func (r *Repo) Clone(path, rev string) (*Repo, error) {
 	defer r.Unlock()
 
 	err := timeout(*cmdTimeout, func() error {
-		err := r.Master.VCS.CreateAtRev(path, r.Master.Repo, rev)
+		downloadPath := r.Path
+		if !r.Exists() {
+			downloadPath = r.Master.Repo
+		}
+
+		err := r.Master.VCS.CreateAtRev(path, downloadPath, rev)
 		if err != nil {
 			return err
 		}
