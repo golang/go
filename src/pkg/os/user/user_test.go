@@ -13,12 +13,6 @@ func check(t *testing.T) {
 	if !implemented {
 		t.Skip("user: not implemented; skipping tests")
 	}
-	switch runtime.GOOS {
-	case "linux", "freebsd", "darwin", "windows", "plan9":
-		// test supported
-	default:
-		t.Skipf("user: Lookup not implemented on %q; skipping test", runtime.GOOS)
-	}
 }
 
 func TestCurrent(t *testing.T) {
