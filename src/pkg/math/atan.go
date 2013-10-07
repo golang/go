@@ -87,7 +87,7 @@ func satan(x float64) float64 {
 	return Pi/4 + xatan((x-1)/(x+1)) + 0.5*Morebits
 }
 
-// Atan returns the arctangent of x.
+// Atan returns the arctangent, in radians, of x.
 //
 // Special cases are:
 //      Atan(±0) = ±0
