@@ -36,18 +36,19 @@ type MethodSig struct {
 // rest has to match.
 var canonicalMethods = map[string]MethodSig{
 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
-	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},            // fmt.Formatter
-	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                 // gob.GobDecoder
-	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},               // gob.GobEncoder
-	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},               // json.Marshaler
-	"MarshalXML":    {[]string{}, []string{"[]byte", "error"}},               // xml.Marshaler
-	"Peek":          {[]string{"=int"}, []string{"[]byte", "error"}},         // image.reader (matching bufio.Reader)
-	"ReadByte":      {[]string{}, []string{"byte", "error"}},                 // io.ByteReader
-	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "error"}},    // io.ReaderFrom
-	"ReadRune":      {[]string{}, []string{"rune", "int", "error"}},          // io.RuneReader
-	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"error"}}, // fmt.Scanner
-	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "error"}}, // io.Seeker
-	"UnmarshalJSON": {[]string{"[]byte"}, []string{"error"}},                 // json.Unmarshaler
+	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
+	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
+	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},                         // gob.GobEncoder
+	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},                         // json.Marshaler
+	"MarshalXML":    {[]string{"*xml.Encoder", "xml.StartElement"}, []string{"error"}}, // xml.Marshaler
+	"Peek":          {[]string{"=int"}, []string{"[]byte", "error"}},                   // image.reader (matching bufio.Reader)
+	"ReadByte":      {[]string{}, []string{"byte", "error"}},                           // io.ByteReader
+	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "error"}},              // io.ReaderFrom
+	"ReadRune":      {[]string{}, []string{"rune", "int", "error"}},                    // io.RuneReader
+	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"error"}},           // fmt.Scanner
+	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "error"}},           // io.Seeker
+	"UnmarshalJSON": {[]string{"[]byte"}, []string{"error"}},                           // json.Unmarshaler
+	"UnmarshalXML":  {[]string{"*xml.Decoder", "xml.StartElement"}, []string{"error"}}, // xml.Unmarshaler
 	"UnreadByte":    {[]string{}, []string{"error"}},
 	"UnreadRune":    {[]string{}, []string{"error"}},
 	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
