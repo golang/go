@@ -83,17 +83,15 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	}
 }
 
-const lenPath = len("/view/")
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
-var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
-
-func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) {
-	title = r.URL.Path[lenPath:]
-	if !titleValidator.MatchString(title) {
+func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+	m := validPath.FindStringSubmatch(r.URL.Path)
+	if m == nil {
 		http.NotFound(w, r)
-		err = errors.New("Invalid Page Title")
+		return "", errors.New("Invalid Page Title")
 	}
-	return
+	return m[2], nil // The title is the second subexpression.
 }
 
 func main() {

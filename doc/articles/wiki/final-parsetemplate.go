@@ -70,18 +70,16 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	}
 }
 
-const lenPath = len("/view/")
-
-var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		title := r.URL.Path[lenPath:]
-		if !titleValidator.MatchString(title) {
+		m := validPath.FindStringSubmatch(r.URL.Path)
+		if m == nil {
 			http.NotFound(w, r)
 			return
 		}
-		fn(w, r, title)
+		fn(w, r, m[2])
 	}
 }
 

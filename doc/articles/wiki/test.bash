@@ -7,9 +7,16 @@ set -e
 wiki_pid=
 cleanup() {
 	kill $wiki_pid
-	rm -f test_*.out Test.txt final-test.bin final-test.go
+	rm -f test_*.out Test.txt final-test.bin final-test.go a.out get.bin
 }
 trap cleanup 0 INT
+
+# If called with -all, check that all code snippets compile.
+if [ "$1" == "-all" ]; then
+	for fn in *.go; do
+		go build -o a.out $fn
+	done
+fi
 
 go build -o get.bin get.go
 addr=$(./get.bin -addr)

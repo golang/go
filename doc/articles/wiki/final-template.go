@@ -29,10 +29,8 @@ func loadPage(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
-const lenPath = len("/view/")
-
 func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
+	title := r.URL.Path[len("/edit/"):]
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
@@ -41,13 +39,13 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
+	title := r.URL.Path[len("/view/"):]
 	p, _ := loadPage(title)
 	renderTemplate(w, "view", p)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
+	title := r.URL.Path[len("/save/"):]
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 	p.save()
