@@ -8,6 +8,12 @@ Encoder (transmitter) and a Decoder (receiver).  A typical use is transporting
 arguments and results of remote procedure calls (RPCs) such as those provided by
 package "rpc".
 
+The implementation compiles a custom codec for each data type in the stream and
+is most efficient when a single Encoder is used to transmit a stream of values,
+amortizing the cost of compilation.
+
+Basics
+
 A stream of gobs is self-describing.  Each data item in the stream is preceded by
 a specification of its type, expressed in terms of a small set of predefined
 types.  Pointers are not transmitted, but the things they point to are
@@ -19,6 +25,8 @@ values or addresses that can be dereferenced to values.  The Encoder makes sure
 all type information is sent before it is needed.  At the receive side, a
 Decoder retrieves values from the encoded stream and unpacks them into local
 variables.
+
+Types and Values
 
 The source and destination values/types need not correspond exactly.  For structs,
 fields (identified by name) that are in the source but absent from the receiving
