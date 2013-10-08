@@ -12,6 +12,13 @@
 #endif
 
 /*
+ * Because the assembler might target an earlier revision of the ISA
+ * by default, we must explicitly specify the ISA revision to ensure
+ * BLX is recognized as a valid instruction.
+ */	
+.arch armv5t
+
+/*
  * void crosscall_arm2(void (*fn)(void), void (*setmg_gcc)(void *m, void *g), void *m, void *g)
  *
  * Calling into the 5c tool chain, where all registers are caller save.

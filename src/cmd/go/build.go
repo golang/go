@@ -1903,7 +1903,7 @@ func (b *builder) gccArchArgs() []string {
 	case "6":
 		return []string{"-m64"}
 	case "5":
-		return []string{"-marm", "-march=armv5t"} // not thumb
+		return []string{"-marm"} // not thumb
 	}
 	return nil
 }
