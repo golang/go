@@ -111,8 +111,7 @@ func main() {
 		panic(sum)
 	}
 
-	// exp/ssa/interp doesn't yet skip blank fields in struct
-	// equivalence.  It also cannot support unsafe.Pointer.
+	// go.tools/ssa/interp cannot support unsafe.Pointer.
 	if os.Getenv("GOSSAINTERP") == "" {
 		type T1 struct{ x, y, z int }
 		t1 := *(*T)(unsafe.Pointer(&T1{1, 2, 3}))
