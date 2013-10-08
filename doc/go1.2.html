@@ -580,8 +580,8 @@ The <a href="/pkg/bufio/"><code>bufio</code></a> package
 adds <a href="/pkg/bufio/#Reader.Reset"><code>Reset</code></a>
 methods to <a href="/pkg/bufio/#Reader"><code>Reader</code></a> and
 <a href="/pkg/bufio/#Writer"><code>Writer</code></a>.
-These methods allow the <a href="/pkg/Reader/"><code>Readers</code></a>
-and <a href="/pkg/Writer/"><code>Writers</code></a>
+These methods allow the <a href="/pkg/io/#Reader"><code>Readers</code></a>
+and <a href="/pkg/io/#Writer"><code>Writers</code></a>
 to be re-used on new input and output readers and writers, saving
 allocation overhead. 
 </li>
@@ -593,7 +593,7 @@ can now decompress concatenated archives.
 
 <li>
 The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>
-package adds a <a href="/pkg/compress/flate/#Reset"><code>Reset</code></a> 
+package adds a <a href="/pkg/compress/flate/#Writer.Reset"><code>Reset</code></a> 
 method on the <a href="/pkg/compress/flate/#Writer"><code>Writer</code></a>,
 to make it possible to reduce allocation when, for instance, constructing an
 archive to hold multiple compressed files.
@@ -621,9 +621,9 @@ method to provide a more efficient way to update an item's position in the heap.
 
 <li>
 The <a href="/pkg/container/list/"><code>container/list</code></a> package
-adds the <a href="/pkg/container/list/#MoveBefore"><code>MoveBefore</code></a>
+adds the <a href="/pkg/container/list/#List.MoveBefore"><code>MoveBefore</code></a>
 and
-<a href="/pkg/container/list/#MoveAfter"><code>MoveAfter</code></a>
+<a href="/pkg/container/list/#List.MoveAfter"><code>MoveAfter</code></a>
 methods, which implement the obvious rearrangement.
 </li>
 
@@ -745,7 +745,7 @@ The default is false, representing the usual two-index form.
 
 <li>
 The <a href="/pkg/go/build/"><code>go/build</code></a> package adds
-the <a href="/pkg/go/build/#Package.AllTags"><code>AllTags</code></a> field
+the <code>AllTags</code> field
 to the <a href="/pkg/go/build/#Package"><code>Package</code></a> type,
 to make it easier to process build tags.
 </li>
@@ -910,7 +910,7 @@ in agreement with that of other printing functions such as "printf".
 In the <a href="/pkg/time/"><code>time</code></a> package, the
 <a href="/pkg/time/#Parse"><code>Parse</code></a> function
 and
-<a href="/pkg/time/#Format"><code>Format</code></a>
+<a href="/pkg/time/#Time.Format"><code>Format</code></a>
 method
 now handle time zone offsets with seconds, such as in the historical
 date "1871-01-01T05:33:02+00:34:08".
