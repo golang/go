@@ -6,9 +6,11 @@
 # This script rebuilds the time zone files using files
 # downloaded from the ICANN/IANA distribution.
 
+# NOTE: As of Oct, 2013, the C files will not build on Macs but will build on Linux.
+
 # Versions to use.
-CODE=2013c
-DATA=2013c
+CODE=2013g
+DATA=2013g
 
 set -e
 rm -rf work
