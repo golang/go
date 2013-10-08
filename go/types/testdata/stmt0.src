@@ -507,7 +507,7 @@ func typeswitch2() {
    }
 }
 
-func rangeloops() {
+func rangeloops1() {
 	var (
 		x int
 		a [10]float32
@@ -610,6 +610,26 @@ func rangeloops() {
 		xx = x
 		_ = xx
 	}
+}
+
+func rangeloops2() {
+	type I int
+	type R rune
+
+	var a [10]int
+	var i I
+	_ = i
+	for i /* ERROR cannot assign */ = range a {}
+	for i /* ERROR cannot assign */ = range &a {}
+	for i /* ERROR cannot assign */ = range a[:] {}
+
+	var s string
+	var r R
+	_ = r
+	for i /* ERROR cannot assign */ = range s {}
+	for i /* ERROR cannot assign */ = range "foo" {}
+	for _, r /* ERROR cannot assign */ = range s {}
+	for _, r /* ERROR cannot assign */ = range "foo" {}
 }
 
 func labels0() {

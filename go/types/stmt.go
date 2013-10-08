@@ -511,18 +511,18 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		switch typ := x.typ.Underlying().(type) {
 		case *Basic:
 			if isString(typ) {
-				key = Typ[UntypedInt]
-				val = Typ[UntypedRune]
+				key = Typ[Int]
+				val = Typ[Rune]
 			}
 		case *Array:
-			key = Typ[UntypedInt]
+			key = Typ[Int]
 			val = typ.elt
 		case *Slice:
-			key = Typ[UntypedInt]
+			key = Typ[Int]
 			val = typ.elt
 		case *Pointer:
 			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
-				key = Typ[UntypedInt]
+				key = Typ[Int]
 				val = typ.elt
 			}
 		case *Map:
