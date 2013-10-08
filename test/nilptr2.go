@@ -6,8 +6,6 @@
 
 package main
 
-import "os"
-
 func main() {
 	ok := true
 	for _, tt := range tests {
@@ -23,7 +21,6 @@ func main() {
 	}
 	if !ok {
 		println("BUG")
-		os.Exit(1)
 	}
 }
 
