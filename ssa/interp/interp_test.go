@@ -7,6 +7,7 @@
 package interp_test
 
 import (
+	"bytes"
 	"fmt"
 	"go/build"
 	"os"
@@ -64,7 +65,7 @@ var gorootTestTests = []string{
 	"simassign.go",
 	"iota.go",
 	"nilptr2.go",
-	"goprint.go", // doesn't actually assert anything
+	"goprint.go", // doesn't actually assert anything (cmpout)
 	"utf.go",
 	"method.go",
 	"char_lit.go",
@@ -77,13 +78,13 @@ var gorootTestTests = []string{
 	"reorder.go",
 	"method3.go",
 	"literal.go",
-	"nul1.go",
+	"nul1.go", // doesn't actually assert anything (errorcheckoutput)
 	"zerodivide.go",
 	"convert.go",
 	"convT2X.go",
 	"initialize.go",
 	"ddd.go",
-	"blank.go", // partly disabled; TODO(adonovan): skip blank fields in struct{_} equivalence.
+	"blank.go", // partly disabled
 	"map.go",
 	"closedchan.go",
 	"divide.go",
@@ -93,7 +94,7 @@ var gorootTestTests = []string{
 	"recover.go", // partly disabled; TODO(adonovan): fix.
 	"typeswitch1.go",
 	"floatcmp.go",
-	"crlf.go", // doesn't actually assert anything
+	"crlf.go", // doesn't actually assert anything (runoutput)
 	// Slow tests follow.
 	"bom.go", // ~1.7s
 	"gc1.go", // ~1.7s
@@ -182,6 +183,8 @@ func run(t *testing.T, dir, input string) bool {
 		} else {
 			fmt.Println("PASS")
 		}
+
+		interp.CapturedOutput = nil
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
@@ -197,9 +200,18 @@ func run(t *testing.T, dir, input string) bool {
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.CreateTestMainFunction() // (no-op if main already exists)
 
+	var out bytes.Buffer
+	interp.CapturedOutput = &out
+
 	hint = fmt.Sprintf("To trace execution, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=C -run --interp=T %s\n", input)
 	if exitCode := interp.Interpret(mainPkg, 0, inputs[0], []string{}); exitCode != 0 {
 		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
+		return false
+	}
+
+	// $GOROOT/tests are considered a failure if they print "BUG".
+	if strings.Contains(out.String(), "BUG") {
+		t.Errorf("interp.Interpret(%s) exited zero but output contained 'BUG'", inputs)
 		return false
 	}
 

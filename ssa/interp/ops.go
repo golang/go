@@ -5,10 +5,13 @@
 package interp
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
 	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 	"unsafe"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -906,6 +909,29 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 	return v
 }
 
+// If CapturedOutput is non-nil, all writes by the interpreted program
+// to file descriptors 1 and 2 will also be written to CapturedOutput.
+//
+// (The $GOROOT/test system requires that the test be considered a
+// failure if "BUG" appears in the combined stdout/stderr output, even
+// if it exits zero.  This is a global variable shared by all
+// interpreters in the same process.)
+//
+var CapturedOutput *bytes.Buffer
+var capturedOutputMu sync.Mutex
+
+// write writes bytes b to the target program's file descriptor fd.
+// The print/println built-ins and the write() system call funnel
+// through here so they can be captured by the test driver.
+func write(fd int, b []byte) (int, error) {
+	if CapturedOutput != nil && (fd == 1 || fd == 2) {
+		capturedOutputMu.Lock()
+		CapturedOutput.Write(b) // ignore errors
+		capturedOutputMu.Unlock()
+	}
+	return syscall.Write(fd, b)
+}
+
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
 func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value) value {
@@ -948,18 +974,20 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 
 	case "print", "println": // print(anytype, ...interface{})
 		ln := fn.Name() == "println"
-		fmt.Print(toString(args[0]))
+		var buf bytes.Buffer
+		buf.WriteString(toString(args[0]))
 		if len(args) == 2 {
 			for _, arg := range args[1].([]value) {
 				if ln {
-					fmt.Print(" ")
+					buf.WriteRune(' ')
 				}
-				fmt.Print(toString(arg))
+				buf.WriteString(toString(arg))
 			}
 		}
 		if ln {
-			fmt.Println()
+			buf.WriteRune('\n')
 		}
+		write(1, buf.Bytes())
 		return nil
 
 	case "len":

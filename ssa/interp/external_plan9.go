@@ -37,13 +37,8 @@ func ext۰syscall۰ReadDirent(fn *ssa.Function, args []value) value {
 func ext۰syscall۰Stat(fn *ssa.Function, args []value) value {
 	panic("syscall.Stat not yet implemented")
 }
-
 func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
-	p := args[1].([]value)
-	b := make([]byte, 0, len(p))
-	for i := range p {
-		b = append(b, p[i].(byte))
-	}
-	n, err := syscall.Write(args[0].(int), b)
+	// func Write(fd int, p []byte) (n int, err error)
+	n, err := write(args[0].(int), valueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }

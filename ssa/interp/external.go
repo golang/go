@@ -330,6 +330,15 @@ func ext۰syscall۰RawSyscall(fn *ssa.Function, args []value) value {
 	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
 }
 
+func valueToBytes(v value) []byte {
+	in := v.([]value)
+	b := make([]byte, len(in))
+	for i := range in {
+		b[i] = in[i].(byte)
+	}
+	return b
+}
+
 // The set of remaining native functions we need to implement (as needed):
 
 // crypto/aes/cipher_asm.go:10:func hasAsm() bool

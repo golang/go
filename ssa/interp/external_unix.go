@@ -12,15 +12,6 @@ import (
 	"code.google.com/p/go.tools/ssa"
 )
 
-func valueToBytes(v value) []byte {
-	in := v.([]value)
-	b := make([]byte, len(in))
-	for i := range in {
-		b[i] = in[i].(byte)
-	}
-	return b
-}
-
 func fillStat(st *syscall.Stat_t, stat structure) {
 	stat[0] = st.Dev
 	stat[1] = st.Ino
@@ -132,6 +123,6 @@ func ext۰syscall۰Stat(fn *ssa.Function, args []value) value {
 
 func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
 	// func Write(fd int, p []byte) (n int, err error)
-	n, err := syscall.Write(args[0].(int), valueToBytes(args[1]))
+	n, err := write(args[0].(int), valueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }
