@@ -184,7 +184,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 	case *ssa.Slice:
 		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High))
 
-	case *ssa.Ret:
+	case *ssa.Return:
 		switch len(instr.Results) {
 		case 0:
 		case 1:

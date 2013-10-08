@@ -989,7 +989,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			}
 		}
 
-	case *ssa.Ret:
+	case *ssa.Return:
 		results := a.funcResults(cgn.obj)
 		for _, r := range instr.Results {
 			sz := a.sizeof(r.Type())

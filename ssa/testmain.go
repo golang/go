@@ -68,7 +68,7 @@ func (pkg *Package) CreateTestMainFunction() *Function {
 	}
 	fn.AnonFuncs = append(fn.AnonFuncs, matcher)
 	matcher.startBody()
-	matcher.emit(&Ret{Results: []Value{vTrue, nilConst(types.Universe.Lookup("error").Type())}})
+	matcher.emit(&Return{Results: []Value{vTrue, nilConst(types.Universe.Lookup("error").Type())}})
 	matcher.finishBody()
 
 	fn.startBody()

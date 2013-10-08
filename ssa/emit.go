@@ -317,7 +317,7 @@ func emitTailCall(f *Function, call *Call) {
 		call.typ = tresults
 	}
 	tuple := f.emit(call)
-	var ret Ret
+	var ret Return
 	switch nr {
 	case 0:
 		// no-op

@@ -92,7 +92,7 @@ func main() {
 	// 	t1 = fmt.init()                                                      ()
 	// 	jump 2.init.done
 	// .2.init.done:                                                           P:2 S:0
-	// 	ret
+	// 	return
 	//
 	// # Name: main.main
 	// # Location: hello.go:8:6
@@ -104,5 +104,5 @@ func main() {
 	// 	*t1 = t2
 	// 	t3 = slice t0[:]                                          []interface{}
 	// 	t4 = fmt.Println(t3)                                 (n int, err error)
-	// 	ret
+	// 	return
 }

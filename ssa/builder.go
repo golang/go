@@ -2114,7 +2114,7 @@ start:
 				results = append(results, emitLoad(fn, r))
 			}
 		}
-		fn.emit(&Ret{Results: results, pos: s.Return})
+		fn.emit(&Return{Results: results, pos: s.Return})
 		fn.currentBlock = fn.newBasicBlock("unreachable")
 
 	case *ast.BranchStmt:
@@ -2235,7 +2235,7 @@ func (b *builder) buildFunction(fn *Function) {
 		// Run function calls deferred in this function when
 		// falling off the end of the body block.
 		fn.emit(new(RunDefers))
-		fn.emit(new(Ret))
+		fn.emit(new(Return))
 	}
 	fn.finishBody()
 }
@@ -2380,7 +2380,7 @@ func (p *Package) Build() {
 	emitJump(init, done)
 	init.currentBlock = done
 	init.emit(new(RunDefers))
-	init.emit(new(Ret))
+	init.emit(new(Return))
 	init.finishBody()
 
 	// Pass 2: build all remaining package-level functions and

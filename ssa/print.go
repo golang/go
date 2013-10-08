@@ -330,9 +330,9 @@ func (s *Panic) String() string {
 	return "panic " + relName(s.X, s)
 }
 
-func (s *Ret) String() string {
+func (s *Return) String() string {
 	var b bytes.Buffer
-	b.WriteString("ret")
+	b.WriteString("return")
 	for i, r := range s.Results {
 		if i == 0 {
 			b.WriteString(" ")

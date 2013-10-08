@@ -23,7 +23,7 @@ package interp
 // - *ssa.Function \
 //   *ssa.Builtin   } --- functions.  A nil 'func' is always of type *ssa.Function.
 //   *closure      /
-// - tuple --- as returned by Ret, Next, "value,ok" modes, etc.
+// - tuple --- as returned by Return, Next, "value,ok" modes, etc.
 // - iter --- iterators from 'range' over map or string.
 // - bad --- a poison pill for locals that have gone out of scope.
 // - rtype -- the interpreter's concrete implementation of reflect.Type

@@ -457,7 +457,7 @@ func (f *Function) emit(instr Instruction) Value {
 //      "math.IsNaN"                // a package-level function
 //      "IsNaN"                     // intra-package reference to same
 //      "(*sync.WaitGroup).Add"     // a declared method
-//      "(*exp/ssa.Ret).Block"      // a promotion wrapper method
+//      "(*exp/ssa.Return).Block"      // a promotion wrapper method
 //      "(ssa.Instruction).Block"   // an interface method wrapper
 //      "func@5.32"                 // an anonymous function
 //      "bound$(*T).f"              // a bound method wrapper

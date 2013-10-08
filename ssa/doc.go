@@ -88,7 +88,7 @@
 //   *Parameter         ✔
 //   *Phi               ✔               ✔
 //   *Range             ✔               ✔
-//   *Ret                               ✔
+//   *Return                            ✔
 //   *RunDefers                         ✔
 //   *Select            ✔               ✔
 //   *Send                              ✔

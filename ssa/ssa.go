@@ -164,7 +164,7 @@ type Instruction interface {
 	// Note that the name of the Value is not printed.
 	//
 	// Examples of Instructions that do define (are) Values:
-	// e.g.  "ret x"     (Ret)
+	// e.g.  "return x"  (Return)
 	//       "*y = x"    (Store)
 	//
 	// (This separation is useful for some analyses which
@@ -282,7 +282,7 @@ type Function struct {
 // An SSA basic block.
 //
 // The final element of Instrs is always an explicit transfer of
-// control (If, Jump, Ret or Panic).
+// control (If, Jump, Return or Panic).
 //
 // A block may contain no Instructions only if it is unreachable,
 // i.e. Preds is nil.  Empty blocks are typically pruned.
@@ -997,29 +997,29 @@ type If struct {
 	Cond Value
 }
 
-// The Ret instruction returns values and control back to the calling
+// The Return instruction returns values and control back to the calling
 // function.
 //
 // len(Results) is always equal to the number of results in the
 // function's signature.
 //
-// If len(Results) > 1, Ret returns a tuple value with the specified
+// If len(Results) > 1, Return returns a tuple value with the specified
 // components which the caller must access using Extract instructions.
 //
 // There is no instruction to return a ready-made tuple like those
 // returned by a "value,ok"-mode TypeAssert, Lookup or UnOp(ARROW) or
 // a tail-call to a function with multiple result parameters.
 //
-// Ret must be the last instruction of its containing BasicBlock.
+// Return must be the last instruction of its containing BasicBlock.
 // Such a block has no successors.
 //
 // Pos() returns the ast.ReturnStmt.Return, if explicit in the source.
 //
 // Example printed form:
-// 	ret
-// 	ret nil:I, 2:int
+// 	return
+// 	return nil:I, 2:int
 //
-type Ret struct {
+type Return struct {
 	anInstruction
 	Results []Value
 	pos     token.Pos
@@ -1431,7 +1431,7 @@ func (s *Defer) Pos() token.Pos     { return s.pos }
 func (s *Go) Pos() token.Pos        { return s.pos }
 func (s *MapUpdate) Pos() token.Pos { return s.pos }
 func (s *Panic) Pos() token.Pos     { return s.pos }
-func (s *Ret) Pos() token.Pos       { return s.pos }
+func (s *Return) Pos() token.Pos    { return s.pos }
 func (s *Send) Pos() token.Pos      { return s.pos }
 func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
@@ -1564,7 +1564,7 @@ func (v *Range) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 
-func (s *Ret) Operands(rands []*Value) []*Value {
+func (s *Return) Operands(rands []*Value) []*Value {
 	for i := range s.Results {
 		rands = append(rands, &s.Results[i])
 	}
