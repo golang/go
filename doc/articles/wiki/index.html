@@ -260,18 +260,15 @@ Let's create a handler, <code>viewHandler</code> that will allow users to
 view a wiki page. It will handle URLs prefixed with "/view/".
 </p>
 
-{{code "doc/articles/wiki/part2.go" `/^const lenPath/`}}
-
 {{code "doc/articles/wiki/part2.go" `/^func viewHandler/` `/^}/`}}
 
 <p>
 First, this function extracts the page title from <code>r.URL.Path</code>,
-the path component of the request URL. The global constant
-<code>lenPath</code> is the length of the leading <code>"/view/"</code>
-component of the request path.
-The <code>Path</code> is re-sliced with <code>[lenPath:]</code> to drop the
-first 6 characters of the string. This is because the path will invariably
-begin with <code>"/view/"</code>, which is not part of the page's title.
+the path component of the request URL.
+The <code>Path</code> is re-sliced with <code>[len("/view/"):]</code> to drop
+the leading <code>"/view/"</code> component of the request path.
+This is because the path will invariably begin with <code>"/view/"</code>,
+which is not part of the page's title.
 </p>
 
 <p>
@@ -431,6 +428,11 @@ to its own function:
 </p>
 
 {{code "doc/articles/wiki/final-template.go" `/^func renderTemplate/` `/^}/`}}
+
+<p>
+And modify the handlers to use that function:
+</p>
+
 {{code "doc/articles/wiki/final-template.go" `/^func viewHandler/` `/^}/`}}
 {{code "doc/articles/wiki/final-template.go" `/^func editHandler/` `/^}/`}}
 
@@ -573,10 +575,11 @@ this, we can write a function to validate the title with a regular expression.
 
 <p>
 First, add <code>"regexp"</code> to the <code>import</code> list.
-Then we can create a global variable to store our validation regexp:
+Then we can create a global variable to store our validation 
+expression:
 </p>
 
-{{code "doc/articles/wiki/final-noclosure.go" `/^var titleValidator/`}}
+{{code "doc/articles/wiki/final-noclosure.go" `/^var validPath/`}}
 
 <p>
 The function <code>regexp.MustCompile</code> will parse and compile the
@@ -587,9 +590,8 @@ an <code>error</code> as a second parameter.
 </p>
 
 <p>
-Now, let's write a function, <code>getTitle</code>, that extracts the title
-string from the request URL, and tests it against our
-<code>TitleValidator</code> expression:
+Now, let's write a function that uses the <code>validPath</code>
+expression to validate path and extract the page title:
 </p>
 
 {{code "doc/articles/wiki/final-noclosure.go" `/func getTitle/` `/^}/`}}
