@@ -189,6 +189,7 @@ func (s *Server) loadDocs(root string) error {
 			return err
 		}
 		p = p[len(root) : len(p)-len(ext)] // trim root and extension
+		p = filepath.ToSlash(p)
 		s.docs = append(s.docs, &Doc{
 			Doc:       d,
 			Path:      s.cfg.BasePath + p,
