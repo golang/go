@@ -24,7 +24,7 @@ import (
 
 func TestObjValueLookup(t *testing.T) {
 	imp := importer.New(new(importer.Config)) // (uses GCImporter)
-	f, err := parser.ParseFile(imp.Fset, "testdata/objlookup.go", nil, parser.DeclarationErrors|parser.ParseComments)
+	f, err := parser.ParseFile(imp.Fset, "testdata/objlookup.go", nil, parser.ParseComments)
 	if err != nil {
 		t.Error(err)
 		return
@@ -178,8 +178,7 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 // corresponding to every ast.Expr.
 func TestValueForExpr(t *testing.T) {
 	imp := importer.New(new(importer.Config)) // (uses GCImporter)
-	f, err := parser.ParseFile(imp.Fset, "testdata/valueforexpr.go", nil,
-		parser.DeclarationErrors|parser.ParseComments)
+	f, err := parser.ParseFile(imp.Fset, "testdata/valueforexpr.go", nil, parser.ParseComments)
 	if err != nil {
 		t.Error(err)
 		return

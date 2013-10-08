@@ -84,7 +84,7 @@ func ParseFiles(fset *token.FileSet, dir string, files ...string) ([]*ast.File, 
 		}
 		wg.Add(1)
 		go func(i int, file string) {
-			parsed[i], errors[i] = parser.ParseFile(fset, file, nil, parser.DeclarationErrors)
+			parsed[i], errors[i] = parser.ParseFile(fset, file, nil, 0)
 			wg.Done()
 		}(i, file)
 	}

@@ -169,7 +169,7 @@ func doOneInput(input, filename string) bool {
 	imp := importer.New(impctx)
 
 	// Parsing.
-	f, err := parser.ParseFile(imp.Fset, filename, input, parser.DeclarationErrors)
+	f, err := parser.ParseFile(imp.Fset, filename, input, 0)
 	if err != nil {
 		// TODO(adonovan): err is a scanner error list;
 		// display all errors not just first?

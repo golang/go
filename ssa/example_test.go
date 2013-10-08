@@ -45,7 +45,7 @@ func main() {
 	imp := importer.New(&importer.Config{Build: &build.Default})
 
 	// Parse the input file.
-	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, parser.DeclarationErrors)
+	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, 0)
 	if err != nil {
 		fmt.Print(err) // parse error
 		return

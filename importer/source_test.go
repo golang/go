@@ -42,7 +42,7 @@ func pathToString(path []ast.Node) string {
 // an error has already been reported in that case.
 //
 func findInterval(t *testing.T, fset *token.FileSet, input, substr string) (f *ast.File, start, end token.Pos) {
-	f, err := parser.ParseFile(fset, "<input>", input, parser.DeclarationErrors)
+	f, err := parser.ParseFile(fset, "<input>", input, 0)
 	if err != nil {
 		t.Errorf("parse error: %s", err)
 		return

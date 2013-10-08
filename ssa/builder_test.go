@@ -40,7 +40,7 @@ func main() {
 `
 	imp := importer.New(new(importer.Config)) // no go/build.Context; uses GC importer
 
-	f, err := parser.ParseFile(imp.Fset, "<input>", test, parser.DeclarationErrors)
+	f, err := parser.ParseFile(imp.Fset, "<input>", test, 0)
 	if err != nil {
 		t.Error(err)
 		return
