@@ -906,5 +906,100 @@ func ext۰reflect۰rtype۰Key(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰rtype۰Method(a *analysis, cgn *cgnode)       {}
-func ext۰reflect۰rtype۰MethodByName(a *analysis, cgn *cgnode) {}
+// ---------- func (*rtype) Method(int) (Method, bool) ----------
+// ---------- func (*rtype) MethodByName(string) (Method, bool) ----------
+
+// result = MethodByName(t, name)
+// result = Method(t, _)
+type rtypeMethodByNameConstraint struct {
+	cgn    *cgnode
+	name   string // name of method; "" for unknown
+	t      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *rtypeMethodByNameConstraint) String() string {
+	return fmt.Sprintf("n%d = (*reflect.rtype).MethodByName(n%d, %q)", c.result, c.t, c.name)
+}
+
+func (c *rtypeMethodByNameConstraint) ptr() nodeid {
+	return c.t
+}
+
+func (c *rtypeMethodByNameConstraint) addMethod(a *analysis, meth *types.Selection) {
+	// type Method struct {
+	// 0     __identity__
+	// 1	Name    string
+	// 2	PkgPath string
+	// 3	Type    Type
+	// 4	Func    Value
+	// 5	Index   int
+	// }
+	fn := a.prog.Method(meth)
+
+	// a.offsetOf(Type) is 3.
+	if id := c.result + 3; a.addLabel(id, a.makeRtype(changeRecv(fn.Signature))) {
+		a.addWork(id)
+	}
+	// a.offsetOf(Func) is 4.
+	if id := c.result + 4; a.addLabel(id, a.objectNode(nil, fn)) {
+		a.addWork(id)
+	}
+}
+
+// changeRecv returns sig with Recv prepended to Params().
+func changeRecv(sig *types.Signature) *types.Signature {
+	params := sig.Params()
+	n := params.Len()
+	p2 := make([]*types.Var, n+1)
+	p2[0] = sig.Recv()
+	for i := 0; i < n; i++ {
+		p2[i+1] = params.At(i)
+	}
+	return types.NewSignature(nil, nil, types.NewTuple(p2...), sig.Results(), sig.IsVariadic())
+}
+
+func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	for tObj := range delta {
+		T := a.nodes[tObj].obj.data.(types.Type)
+
+		// We don't use Lookup(c.name) when c.name != "" to avoid
+		// ambiguity: >1 unexported methods could match.
+		mset := T.MethodSet()
+		for i, n := 0, mset.Len(); i < n; i++ {
+			sel := mset.At(i)
+			if c.name == "" || c.name == sel.Obj().Name() {
+				c.addMethod(a, sel)
+			}
+		}
+	}
+}
+
+func ext۰reflect۰rtype۰MethodByName(a *analysis, cgn *cgnode) {
+	// If we have access to the callsite,
+	// and the argument is a string constant,
+	// return only that method.
+	var name string
+	if site := cgn.callersite; site != nil {
+		if c, ok := site.instr.Common().Args[0].(*ssa.Const); ok {
+			name = exact.StringVal(c.Value)
+		}
+	}
+
+	a.addConstraint(&rtypeMethodByNameConstraint{
+		cgn:    cgn,
+		name:   name,
+		t:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
+func ext۰reflect۰rtype۰Method(a *analysis, cgn *cgnode) {
+	// No-one ever calls Method with a constant argument,
+	// so we don't specialize that case.
+	a.addConstraint(&rtypeMethodByNameConstraint{
+		cgn:    cgn,
+		t:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
