@@ -2363,10 +2363,10 @@ runtime·markfreed(void *v, uintptr n)
 	uintptr *b, obits, bits, off, shift;
 
 	if(0)
-		runtime·printf("markallocated %p+%p\n", v, n);
+		runtime·printf("markfreed %p+%p\n", v, n);
 
 	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
-		runtime·throw("markallocated: bad pointer");
+		runtime·throw("markfreed: bad pointer");
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
