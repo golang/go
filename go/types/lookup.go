@@ -233,17 +233,17 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 	return list[:n]
 }
 
-// MissingMethod returns (nil, false) if typ implements T, otherwise it
+// MissingMethod returns (nil, false) if V implements T, otherwise it
 // returns a missing method required by T and whether it is missing or
 // just has the wrong type.
 //
-// For typ of interface type, if static is set, implements checks that all
-// methods of T are present in typ (e.g., for a conversion T(x) where x is
-// of type typ). Otherwise, implements only checks that methods of T which
-// are also present in typ have matching types (e.g., for a type assertion
-// x.(T) where x is of interface type typ).
+// For non-interface types V, or if static is set, V implements T if all
+// methods of T are present in V. Otherwise (V is an interface and static
+// is not set), MissingMethod only checks that methods of T which are also
+// present in V have matching types (e.g., for a type assertion x.(T) where
+// x is of interface type typ).
 //
-func MissingMethod(typ Type, T *Interface, static bool) (method *Func, wrongType bool) {
+func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	// fast path for common case
 	if T.NumMethods() == 0 {
 		return
@@ -251,7 +251,7 @@ func MissingMethod(typ Type, T *Interface, static bool) (method *Func, wrongType
 
 	// TODO(gri) Consider using method sets here. Might be more efficient.
 
-	if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
+	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
 		for _, m := range T.methods {
 			_, obj := lookupMethod(ityp.methods, m.pkg, m.name)
 			switch {
@@ -268,7 +268,7 @@ func MissingMethod(typ Type, T *Interface, static bool) (method *Func, wrongType
 
 	// A concrete type implements T if it implements all methods of T.
 	for _, m := range T.methods {
-		obj, _, indirect := lookupFieldOrMethod(typ, m.pkg, m.name)
+		obj, _, indirect := lookupFieldOrMethod(V, m.pkg, m.name)
 		if obj == nil {
 			return m, false
 		}

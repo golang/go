@@ -62,8 +62,8 @@ func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
 
 var (
 	stringerMethodType = types.New("func() string")
-	errorType          = types.New("interface{ Error() string }")
-	stringerType       = types.New("interface{ String() string }")
+	errorType          = types.New("interface{ Error() string }").(*types.Interface)
+	stringerType       = types.New("interface{ String() string }").(*types.Interface)
 	// One day this might work. See issue 6259.
 	// formatterType   = types.New("interface{Format(f fmt.State, c rune)}")
 )
@@ -103,9 +103,9 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 	if hasMethod(typ, "Format") {
 		return true
 	}
-	// If we can use a string, does arg implement the Stringer or Error interface?
+	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
 	if t&argString != 0 {
-		if types.IsAssignableTo(typ, errorType) || types.IsAssignableTo(typ, stringerType) {
+		if types.Implements(typ, errorType, false) || types.Implements(typ, stringerType, false) {
 			return true
 		}
 	}

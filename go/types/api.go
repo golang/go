@@ -174,11 +174,27 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 	return pkg, err
 }
 
-// IsAssignableTo reports whether a value of type V
-// is assignable to a variable of type T.
+// IsAssignableTo reports whether a value of type V is assignable to a variable of type T.
 func IsAssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	return x.isAssignableTo(nil, T) // config not needed for non-constant x
+}
+
+// Implements reports whether a value of type V implements T, as follows:
+//
+// 1) For non-interface types V, or if static is set, V implements T if all
+// methods of T are present in V. Informally, this reports whether V is a
+// subtype of T.
+//
+// 2) For interface types V, and if static is not set, V implements T if all
+// methods of T which are also present in V have matching types. Informally,
+// this indicates whether a type assertion x.(T) where x is of type V would
+// be legal (the concrete dynamic type of x may implement T even if V does
+// not statically implement it).
+//
+func Implements(V Type, T *Interface, static bool) bool {
+	f, _ := MissingMethod(V, T, static)
+	return f == nil
 }
 
 // BUG(gri): Interface vs non-interface comparisons are not correctly implemented.

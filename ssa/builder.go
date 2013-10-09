@@ -637,9 +637,12 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 
 	case *ast.Ident:
 		obj := fn.Pkg.objectOf(e)
-		// Universal built-in?
-		if obj, ok := obj.(*types.Builtin); ok {
+		// Universal built-in or nil?
+		switch obj := obj.(type) {
+		case *types.Builtin:
 			return fn.Prog.builtins[obj]
+		case *types.Nil:
+			return nilConst(fn.Pkg.typeOf(e))
 		}
 		// Package-level func or var?
 		if v := b.lookup(fn.Pkg, obj); v != nil {

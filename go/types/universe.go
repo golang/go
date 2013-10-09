@@ -80,13 +80,16 @@ var predeclaredConsts = [...]struct {
 	{"true", UntypedBool, exact.MakeBool(true)},
 	{"false", UntypedBool, exact.MakeBool(false)},
 	{"iota", UntypedInt, exact.MakeInt64(0)},
-	{"nil", UntypedNil, exact.MakeNil()},
 }
 
 func defPredeclaredConsts() {
 	for _, c := range predeclaredConsts {
 		def(NewConst(token.NoPos, nil, c.name, Typ[c.kind], c.val))
 	}
+}
+
+func defPredeclaredNil() {
+	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
 }
 
 // A builtinId is the id of a builtin function.
@@ -172,6 +175,7 @@ func init() {
 
 	defPredeclaredTypes()
 	defPredeclaredConsts()
+	defPredeclaredNil()
 	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota").(*Const)

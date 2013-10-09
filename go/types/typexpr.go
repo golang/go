@@ -97,6 +97,10 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 		x.mode = builtin
 		x.id = obj.id
 
+	case *Nil:
+		// no need to "use" the nil object
+		x.mode = value
+
 	default:
 		unreachable()
 	}
@@ -118,7 +122,7 @@ func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) Type {
 	}
 
 	t := check.typ0(e, def, cycleOk)
-	assert(e != nil && t != nil && !isUntyped(t))
+	assert(e != nil && t != nil && isTyped(t))
 
 	check.recordTypeAndValue(e, t, nil)
 
@@ -353,7 +357,7 @@ func (check *checker) typOrNil(e ast.Expr) Type {
 		check.errorf(x.pos(), "%s used as type", &x)
 	case typexpr:
 		return x.typ
-	case constant:
+	case value:
 		if x.isNil() {
 			return nil
 		}

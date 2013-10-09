@@ -253,7 +253,7 @@ var _ = assert(_x == 3)
 
 // special cases
 const (
-	_n0 = nil /* ERROR "invalid constant type" */
+	_n0 = nil /* ERROR "not constant" */
 	_n1 = [ /* ERROR "not constant" */ ]int{}
 )
 

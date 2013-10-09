@@ -13,27 +13,62 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// assignment reports whether x can be assigned to a variable of type 'to',
+// assignment reports whether x can be assigned to a variable of type 'T',
 // if necessary by attempting to convert untyped values to the appropriate
 // type. If x.mode == invalid upon return, then assignment has already
 // issued an error message and the caller doesn't have to report another.
-// TODO(gri) This latter behavior is for historic reasons and complicates
-// callers. Needs to be cleaned up.
-func (check *checker) assignment(x *operand, to Type) bool {
-	if x.mode == invalid {
-		return false
+// Use T == nil to indicate assignment to an untyped blank identifier.
+//
+// TODO(gri) Should find a better way to handle in-band errors.
+// TODO(gri) The T == nil mechanism is not yet used - should simplify callers eventually.
+//
+func (check *checker) assignment(x *operand, T Type) bool {
+	switch x.mode {
+	case invalid:
+		return true // error reported before
+	case constant, variable, value, valueok:
+		// ok
+	default:
+		unreachable()
 	}
 
-	if t, ok := x.typ.(*Tuple); ok {
+	// x must be a single value
+	// (tuple types are never named - no need for underlying type)
+	if t, _ := x.typ.(*Tuple); t != nil {
 		assert(t.Len() > 1)
 		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
 		x.mode = invalid
 		return false
 	}
 
-	check.convertUntyped(x, to)
+	// spec: "If an untyped constant is assigned to a variable of interface
+	// type or the blank identifier, the constant is first converted to type
+	// bool, rune, int, float64, complex128 or string respectively, depending
+	// on whether the value is a boolean, rune, integer, floating-point, complex,
+	// or string constant."
+	if x.mode == constant && isUntyped(x.typ) && (T == nil || isInterface(T)) {
+		check.convertUntyped(x, defaultType(x.typ))
+		if x.mode == invalid {
+			return false
+		}
+	}
 
-	return x.mode != invalid && x.isAssignableTo(check.conf, to)
+	// spec: "If a left-hand side is the blank identifier, any typed or
+	// non-constant value except for the predeclared identifier nil may
+	// be assigned to it."
+	if T == nil && (x.mode != constant || isTyped(x.typ)) && !x.isNil() {
+		return true
+	}
+
+	// If we still have an untyped x, try to convert it to T.
+	if isUntyped(x.typ) {
+		check.convertUntyped(x, T)
+		if x.mode == invalid {
+			return false
+		}
+	}
+
+	return x.isAssignableTo(check.conf, T)
 }
 
 func (check *checker) initConst(lhs *Const, x *operand) {
@@ -120,7 +155,7 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		// If the lhs is untyped, determine the default type.
 		// The spec is unclear about this, but gc appears to
 		// do this.
-		// TODO(gri) This is still not correct (try: _ = nil; _ = 1<<1e3)
+		// TODO(gri) This is still not correct (_ = 1<<1e3)
 		typ := x.typ
 		if isUntyped(typ) {
 			// convert untyped types to default types

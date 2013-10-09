@@ -363,7 +363,7 @@ type Parameter struct {
 //
 // Value holds the exact value of the constant, independent of its
 // Type(), using the same representation as package go/exact uses for
-// constants.
+// constants, or nil for a typed nil value.
 //
 // Pos() returns token.NoPos.
 //

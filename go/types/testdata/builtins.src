@@ -322,7 +322,7 @@ func make1() {
 	_ = make([]int, int /* ERROR not an expression */)
 	_ = make([]int, 10, float32 /* ERROR not an expression */)
 	_ = make([]int, "foo" /* ERROR cannot convert */)
-	_ = make([]int, 10, 2.3 /* ERROR overflows */)
+	_ = make([]int, 10, 2.3 /* ERROR truncated */)
 	_ = make([]int, 5, 10.0)
 	_ = make([]int, 0i)
 	_ = make([]int, 1.0)

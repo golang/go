@@ -184,13 +184,13 @@ func (x *operand) setConst(tok token.Token, lit string) {
 	x.val = val
 }
 
-// isNil reports whether x is the predeclared nil constant.
+// isNil reports whether x is the nil value.
 func (x *operand) isNil() bool {
-	return x.mode == constant && x.val.Kind() == exact.Nil
+	return x.mode == value && x.typ == Typ[UntypedNil]
 }
 
 // TODO(gri) The functions operand.isAssignableTo, checker.convertUntyped,
-//           checker.isRepresentable, and checker.assignOperand are
+//           checker.isRepresentable, and checker.assignment are
 //           overlapping in functionality. Need to simplify and clean up.
 
 // isAssignableTo reports whether x is assignable to a variable of type T.

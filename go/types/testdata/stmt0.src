@@ -67,10 +67,10 @@ func assignments1() {
 
 	// test cases for issue 5800
 	var (
-		_ int = nil /* ERROR "cannot convert nil" */
-		_ [10]int = nil /* ERROR "cannot convert nil" */
+		_ int = nil /* ERROR "untyped nil value" */
+		_ [10]int = nil /* ERROR "untyped nil value" */
 		_ []byte = nil
-		_ struct{} = nil /* ERROR "cannot convert nil" */
+		_ struct{} = nil /* ERROR "untyped nil value" */
 		_ func() = nil
 		_ map[int]string = nil
 		_ chan int = nil

@@ -89,7 +89,8 @@ func (check *checker) unary(x *operand, op token.Token) {
 		}
 		if x.mode != variable {
 			check.invalidOp(x.pos(), "cannot take address of %s", x)
-			goto Error
+			x.mode = invalid
+			return
 		}
 		x.typ = &Pointer{base: x.typ}
 		return
@@ -98,11 +99,13 @@ func (check *checker) unary(x *operand, op token.Token) {
 		typ, ok := x.typ.Underlying().(*Chan)
 		if !ok {
 			check.invalidOp(x.pos(), "cannot receive from non-channel %s", x)
-			goto Error
+			x.mode = invalid
+			return
 		}
 		if typ.dir&ast.RECV == 0 {
 			check.invalidOp(x.pos(), "cannot receive from send-only channel %s", x)
-			goto Error
+			x.mode = invalid
+			return
 		}
 		x.mode = valueok
 		x.typ = typ.elt
@@ -110,7 +113,8 @@ func (check *checker) unary(x *operand, op token.Token) {
 	}
 
 	if !check.op(unaryOpPredicates, x, op) {
-		goto Error
+		x.mode = invalid
+		return
 	}
 
 	if x.mode == constant {
@@ -122,16 +126,14 @@ func (check *checker) unary(x *operand, op token.Token) {
 		x.val = exact.UnaryOp(op, x.val, size)
 		// Typed constants must be representable in
 		// their type after each constant operation.
-		check.isRepresentable(x, typ)
+		if isTyped(typ) {
+			check.isRepresentableAs(x, typ)
+		}
 		return
 	}
 
 	x.mode = value
 	// x.typ remains unchanged
-	return
-
-Error:
-	x.mode = invalid
 }
 
 func isShift(op token.Token) bool {
@@ -318,9 +320,6 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind, rounded *ex
 	case exact.String:
 		return as == String || as == UntypedString
 
-	case exact.Nil:
-		return as == UntypedNil || as == UnsafePointer
-
 	default:
 		unreachable()
 	}
@@ -328,16 +327,24 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind, rounded *ex
 	return false
 }
 
-// isRepresentable checks that a constant operand is representable in the given type.
-func (check *checker) isRepresentable(x *operand, typ *Basic) {
-	if x.mode != constant || isUntyped(typ) {
-		return
-	}
-
+// isRepresentableAs checks that a constant operand is representable in the given basic type.
+func (check *checker) isRepresentableAs(x *operand, typ *Basic) {
+	assert(x.mode == constant)
 	if !isRepresentableConst(x.val, check.conf, typ.kind, &x.val) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
-			msg = "%s overflows (or cannot be accurately represented as) %s"
+			// numeric conversion : error msg
+			//
+			// integer -> integer : overflows
+			// integer -> float   : overflows (actually not possible)
+			// float   -> integer : truncated
+			// float   -> float   : overflows
+			//
+			if !isInteger(x.typ) && isInteger(typ) {
+				msg = "%s truncated to %s"
+			} else {
+				msg = "%s overflows %s"
+			}
 		} else {
 			msg = "cannot convert %s to %s"
 		}
@@ -457,7 +464,7 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
 
 // convertUntyped attempts to set the type of an untyped value to the target type.
 func (check *checker) convertUntyped(x *operand, target Type) {
-	if x.mode == invalid || !isUntyped(x.typ) {
+	if x.mode == invalid || isTyped(x.typ) {
 		return
 	}
 
@@ -481,15 +488,38 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 
 	// typed target
 	switch t := target.Underlying().(type) {
-	case nil:
-		// We may reach here due to previous type errors.
-		// Be conservative and don't crash.
-		x.mode = invalid
-		return
 	case *Basic:
-		check.isRepresentable(x, t)
-		if x.mode == invalid {
-			return // error already reported
+		if x.mode == constant {
+			check.isRepresentableAs(x, t)
+			if x.mode == invalid {
+				return
+			}
+		} else {
+			// Non-constant untyped values may appear as the
+			// result of comparisons (untyped bool), intermediate
+			// (delayed-checked) rhs operands of shifts, and as
+			// the value nil.
+			switch x.typ.(*Basic).kind {
+			case UntypedBool:
+				if !isBoolean(target) {
+					goto Error
+				}
+			case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
+				if !isNumeric(target) {
+					goto Error
+				}
+			case UntypedString:
+				// Non-constant untyped string values are not
+				// permitted by the spec and should not occur.
+				unreachable()
+			case UntypedNil:
+				// Unsafe.Pointer is a basic type that includes nil.
+				if !hasNil(target) {
+					goto Error
+				}
+			default:
+				goto Error
+			}
 		}
 	case *Interface:
 		if !x.isNil() && t.NumMethods() > 0 /* empty interfaces are ok */ {
@@ -737,7 +767,9 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 		x.val = exact.BinaryOp(x.val, op, y.val)
 		// Typed constants must be representable in
 		// their type after each constant operation.
-		check.isRepresentable(x, typ)
+		if isTyped(typ) {
+			check.isRepresentableAs(x, typ)
+		}
 		return
 	}
 

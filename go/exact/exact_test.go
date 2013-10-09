@@ -112,8 +112,6 @@ func val(lit string) Value {
 	switch lit {
 	case "?":
 		return MakeUnknown()
-	case "nil":
-		return MakeNil()
 	case "true":
 		return MakeBool(true)
 	case "false":

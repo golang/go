@@ -31,7 +31,7 @@ func intConst(i int64) *Const {
 // be any reference type, including interfaces.
 //
 func nilConst(typ types.Type) *Const {
-	return NewConst(exact.MakeNil(), typ)
+	return NewConst(nil, typ)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,
@@ -67,7 +67,9 @@ func zeroConst(t types.Type) *Const {
 
 func (c *Const) Name() string {
 	var s string
-	if c.Value.Kind() == exact.String {
+	if c.Value == nil {
+		s = "nil"
+	} else if c.Value.Kind() == exact.String {
 		s = exact.StringVal(c.Value)
 		const max = 20
 		if len(s) > max {
@@ -94,7 +96,7 @@ func (c *Const) Pos() token.Pos {
 
 // IsNil returns true if this constant represents a typed or untyped nil value.
 func (c *Const) IsNil() bool {
-	return c.Value.Kind() == exact.Nil
+	return c.Value == nil
 }
 
 // Int64 returns the numeric value of this constant truncated to fit

@@ -50,7 +50,7 @@ func (check *checker) conversion(x *operand, T Type) {
 		// For conversions to interfaces, use the argument type's
 		// default type instead. Keep untyped nil for untyped nil
 		// arguments.
-		if _, ok := T.Underlying().(*Interface); ok {
+		if isInterface(T) {
 			final = defaultType(x.typ)
 		}
 	}

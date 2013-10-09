@@ -266,3 +266,10 @@ type Builtin struct {
 func newBuiltin(id builtinId) *Builtin {
 	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid]}, id}
 }
+
+// Nil represents the predeclared value nil.
+type Nil struct {
+	object
+}
+
+func (*Nil) String() string { return "nil" }

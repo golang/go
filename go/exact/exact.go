@@ -25,7 +25,6 @@ const (
 	Unknown Kind = iota
 
 	// non-numeric values
-	Nil
 	Bool
 	String
 
@@ -53,7 +52,6 @@ type Value interface {
 
 type (
 	unknownVal struct{}
-	nilVal     struct{}
 	boolVal    bool
 	stringVal  string
 	int64Val   int64
@@ -63,7 +61,6 @@ type (
 )
 
 func (unknownVal) Kind() Kind { return Unknown }
-func (nilVal) Kind() Kind     { return Nil }
 func (boolVal) Kind() Kind    { return Bool }
 func (stringVal) Kind() Kind  { return String }
 func (int64Val) Kind() Kind   { return Int }
@@ -72,7 +69,6 @@ func (floatVal) Kind() Kind   { return Float }
 func (complexVal) Kind() Kind { return Complex }
 
 func (unknownVal) String() string   { return "unknown" }
-func (nilVal) String() string       { return "nil" }
 func (x boolVal) String() string    { return fmt.Sprintf("%v", bool(x)) }
 func (x stringVal) String() string  { return strconv.Quote(string(x)) }
 func (x int64Val) String() string   { return strconv.FormatInt(int64(x), 10) }
@@ -81,7 +77,6 @@ func (x floatVal) String() string   { return x.val.String() }
 func (x complexVal) String() string { return fmt.Sprintf("(%s + %si)", x.re, x.im) }
 
 func (unknownVal) implementsValue() {}
-func (nilVal) implementsValue()     {}
 func (boolVal) implementsValue()    {}
 func (stringVal) implementsValue()  {}
 func (int64Val) implementsValue()   {}
@@ -121,9 +116,6 @@ func normComplex(re, im *big.Rat) Value {
 
 // MakeUnknown returns the Unknown value.
 func MakeUnknown() Value { return unknownVal{} }
-
-// MakeNil returns the Nil value.
-func MakeNil() Value { return nilVal{} }
 
 // MakeBool returns the Bool value for x.
 func MakeBool(b bool) Value { return boolVal(b) }
@@ -447,7 +439,7 @@ func match(x, y Value) (_, _ Value) {
 	// ord(x) <= ord(y)
 
 	switch x := x.(type) {
-	case unknownVal, nilVal, boolVal, stringVal, complexVal:
+	case unknownVal, boolVal, stringVal, complexVal:
 		return x, y
 
 	case int64Val:
