@@ -866,8 +866,7 @@ func (b *builder) build(a *action) (err error) {
 		gccfiles := append(cfiles, sfiles...)
 		cfiles = nil
 		sfiles = nil
-		// TODO(hierro): Handle C++ files with SWIG
-		outGo, outObj, err := b.swig(a.p, obj, gccfiles)
+		outGo, outObj, err := b.swig(a.p, obj, gccfiles, a.p.CXXFiles)
 		if err != nil {
 			return err
 		}
@@ -1576,6 +1575,11 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 				swigArg[1] += sd
 			}
 			swigDirs[sd] = true
+			if a.objdir != "" && !swigDirs[a.objdir] {
+				swigArg[1] += ":"
+				swigArg[1] += a.objdir
+				swigDirs[a.objdir] = true
+			}
 		}
 		if a.p != nil && len(a.p.CXXFiles) > 0 {
 			cxx = true
@@ -1713,6 +1717,9 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 			}
 			if a.p.usesSwig() {
 				sd := a.p.swigDir(&buildContext)
+				if a.objdir != "" {
+					sd = a.objdir
+				}
 				for _, f := range stringList(a.p.SwigFiles, a.p.SwigCXXFiles) {
 					soname := a.p.swigSoname(f)
 					sfiles[a.p] = append(sfiles[a.p], filepath.Join(sd, soname))
@@ -2136,7 +2143,27 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfile
 }
 
 // Run SWIG on all SWIG input files.
-func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+// TODO: Don't build a shared library, once SWIG emits the necessary
+// pragmas for external linking.
+func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles []string) (outGo, outObj []string, err error) {
+
+	var extraObj []string
+	for _, file := range gccfiles {
+		ofile := obj + cgoRe.ReplaceAllString(file[:len(file)-1], "_") + "o"
+		if err := b.gcc(p, ofile, nil, file); err != nil {
+			return nil, nil, err
+		}
+		extraObj = append(extraObj, ofile)
+	}
+
+	for _, file := range gxxfiles {
+		// Append .o to the file, just in case the pkg has file.c and file.cpp
+		ofile := obj + cgoRe.ReplaceAllString(file, "_") + ".o"
+		if err := b.gxx(p, ofile, nil, file); err != nil {
+			return nil, nil, err
+		}
+		extraObj = append(extraObj, ofile)
+	}
 
 	intgosize, err := b.swigIntSize(obj)
 	if err != nil {
@@ -2144,7 +2171,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj
 	}
 
 	for _, f := range p.SwigFiles {
-		goFile, objFile, err := b.swigOne(p, f, obj, false, intgosize)
+		goFile, objFile, err := b.swigOne(p, f, obj, false, intgosize, extraObj)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2156,7 +2183,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj
 		}
 	}
 	for _, f := range p.SwigCXXFiles {
-		goFile, objFile, err := b.swigOne(p, f, obj, true, intgosize)
+		goFile, objFile, err := b.swigOne(p, f, obj, true, intgosize, extraObj)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2197,7 +2224,7 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
 }
 
 // Run SWIG on one SWIG input file.
-func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize string) (outGo, outObj string, err error) {
+func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize string, extraObj []string) (outGo, outObj string, err error) {
 	n := 5 // length of ".swig"
 	if cxx {
 		n = 8 // length of ".swigcxx"
@@ -2269,7 +2296,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 	}
 	ldflags := stringList(osldflags[goos], cxxlib)
 	target := filepath.Join(obj, soname)
-	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, ldflags)
+	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, extraObj, ldflags)
 
 	return obj + goFile, cObj, nil
 }
