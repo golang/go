@@ -16,9 +16,5 @@ public:
 	~Caller() { delCallback(); }
 	void delCallback() { delete callback_; callback_ = 0; }
 	void setCallback(Callback *cb) { delCallback(); callback_ = cb; }
-	std::string call() {
-		if (callback_ != 0)
-			return callback_->run();
-		return "";
-	}
+	std::string call();
 };
