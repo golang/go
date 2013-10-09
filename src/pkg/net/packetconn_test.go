@@ -172,7 +172,7 @@ func TestConnAndPacketConn(t *testing.T) {
 		}
 		rb1 := make([]byte, 128)
 		if _, _, err := c1.ReadFrom(rb1); err != nil {
-			t.Fatalf("PacetConn.ReadFrom failed: %v", err)
+			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
 		}
 		var dst Addr
 		switch netstr[0] {
