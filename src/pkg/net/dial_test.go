@@ -436,7 +436,8 @@ func TestDialFailPDLeak(t *testing.T) {
 		t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
 	}
 
-	const loops = 10
+	maxprocs := runtime.GOMAXPROCS(0)
+	loops := 10 + maxprocs
 	// 500 is enough to turn over the chunk of pollcache.
 	// See allocPollDesc in runtime/netpoll.goc.
 	const count = 500
@@ -471,7 +472,7 @@ func TestDialFailPDLeak(t *testing.T) {
 			failcount++
 		}
 		// there are always some allocations on the first loop
-		if failcount > 3 {
+		if failcount > maxprocs+2 {
 			t.Error("detected possible memory leak in runtime")
 			t.FailNow()
 		}
