@@ -115,18 +115,21 @@ func (a *analysis) endObject(obj nodeid, cgn *cgnode, data interface{}) *object 
 	return o
 }
 
-// makeFunctionObject creates and returns a new function object for
-// fn, and returns the id of its first node.  It also enqueues fn for
-// subsequent constraint generation.
+// makeFunctionObject creates and returns a new function object
+// (contour) for fn, and returns the id of its first node.  It also
+// enqueues fn for subsequent constraint generation.
 //
-func (a *analysis) makeFunctionObject(fn *ssa.Function) nodeid {
+// For a context-sensitive contour, callersite identifies the sole
+// callsite; for shared contours, caller is nil.
+//
+func (a *analysis) makeFunctionObject(fn *ssa.Function, callersite *callsite) nodeid {
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\t---- makeFunctionObject %s\n", fn)
 	}
 
 	// obj is the function object (identity, params, results).
 	obj := a.nextNode()
-	cgn := a.makeCGNode(fn, obj)
+	cgn := a.makeCGNode(fn, obj, callersite)
 	sig := fn.Signature
 	a.addOneNode(sig, "func.cgnode", nil) // (scalar with Signature type)
 	if recv := sig.Recv(); recv != nil {
@@ -568,18 +571,15 @@ func (a *analysis) shouldUseContext(fn *ssa.Function) bool {
 	return true
 }
 
-// genStaticCall generates constraints for a statically dispatched
-// function call.  It returns a node whose pts() will be the set of
-// possible call targets (in this case, a singleton).
-//
-func (a *analysis) genStaticCall(call *ssa.CallCommon, result nodeid) nodeid {
+// genStaticCall generates constraints for a statically dispatched function call.
+func (a *analysis) genStaticCall(caller *cgnode, site *callsite, call *ssa.CallCommon, result nodeid) {
 	// Ascertain the context (contour/CGNode) for a particular call.
 	var obj nodeid
 	fn := call.StaticCallee()
 	if a.shouldUseContext(fn) {
-		obj = a.makeFunctionObject(fn) // new contour for this call
+		obj = a.makeFunctionObject(fn, site) // new contour
 	} else {
-		obj = a.objectNode(nil, fn) // ordinary (shared) contour
+		obj = a.objectNode(nil, fn) // shared contour
 	}
 
 	sig := call.Signature()
@@ -609,13 +609,12 @@ func (a *analysis) genStaticCall(call *ssa.CallCommon, result nodeid) nodeid {
 		a.copy(result, a.funcResults(obj), a.sizeof(sig.Results()))
 	}
 
-	return targets
+	// pts(targets) will be the (singleton) set of possible call targets.
+	site.targets = targets
 }
 
 // genDynamicCall generates constraints for a dynamic function call.
-// It returns a node whose pts() will be the set of possible call targets.
-//
-func (a *analysis) genDynamicCall(caller *cgnode, call *ssa.CallCommon, result nodeid) nodeid {
+func (a *analysis) genDynamicCall(caller *cgnode, site *callsite, call *ssa.CallCommon, result nodeid) {
 	fn := a.valueNode(call.Value)
 	sig := call.Signature()
 
@@ -632,22 +631,24 @@ func (a *analysis) genDynamicCall(caller *cgnode, call *ssa.CallCommon, result n
 	if result != 0 {
 		a.genLoad(caller, result, call.Value, offset, a.sizeof(sig.Results()))
 	}
-	return fn
+
+	// pts(targets) will be the (singleton) set of possible call targets.
+	site.targets = fn
 }
 
 // genInvoke generates constraints for a dynamic method invocation.
-// It returns a node whose pts() will be the set of possible call targets.
-//
-func (a *analysis) genInvoke(call *ssa.CallCommon, result nodeid) nodeid {
+func (a *analysis) genInvoke(caller *cgnode, site *callsite, call *ssa.CallCommon, result nodeid) {
 	if call.Value.Type() == a.reflectType {
-		return a.genInvokeReflectType(call, result)
+		a.genInvokeReflectType(caller, site, call, result)
+		return
 	}
 
 	sig := call.Signature()
 
 	// Allocate a contiguous targets/params/results block for this call.
 	block := a.nextNode()
-	targets := a.addOneNode(sig, "invoke.targets", nil)
+	// pts(targets) will be the set of possible call targets
+	site.targets = a.addOneNode(sig, "invoke.targets", nil)
 	p := a.addNodes(sig.Params(), "invoke.params")
 	r := a.addNodes(sig.Results(), "invoke.results")
 
@@ -666,8 +667,6 @@ func (a *analysis) genInvoke(call *ssa.CallCommon, result nodeid) nodeid {
 	// edges from the caller's P/R block to the callee's
 	// P/R block for each discovered call target.
 	a.addConstraint(&invokeConstraint{call.Method, a.valueNode(call.Value), block})
-
-	return targets
 }
 
 // genInvokeReflectType is a specialization of genInvoke where the
@@ -684,10 +683,7 @@ func (a *analysis) genInvoke(call *ssa.CallCommon, result nodeid) nodeid {
 // as this:
 //    rt.(*reflect.rtype).F()
 //
-// It returns a node whose pts() will be the (singleton) set of
-// possible call targets.
-//
-func (a *analysis) genInvokeReflectType(call *ssa.CallCommon, result nodeid) nodeid {
+func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ssa.CallCommon, result nodeid) {
 	// Unpack receiver into rtype
 	rtype := a.addOneNode(a.reflectRtypePtr, "rtype.recv", nil)
 	recv := a.valueNode(call.Value)
@@ -697,7 +693,10 @@ func (a *analysis) genInvokeReflectType(call *ssa.CallCommon, result nodeid) nod
 	meth := a.reflectRtypePtr.MethodSet().Lookup(call.Method.Pkg(), call.Method.Name())
 	fn := a.prog.Method(meth)
 
-	obj := a.makeFunctionObject(fn) // new contour for this call
+	obj := a.makeFunctionObject(fn, site) // new contour for this call
+
+	// pts(targets) will be the (singleton) set of possible call targets.
+	site.targets = obj
 
 	// From now on, it's essentially a static call, but little is
 	// gained by factoring together the code for both cases.
@@ -723,8 +722,6 @@ func (a *analysis) genInvokeReflectType(call *ssa.CallCommon, result nodeid) nod
 	if result != 0 {
 		a.copy(result, a.funcResults(obj), a.sizeof(sig.Results()))
 	}
-
-	return obj
 }
 
 // genCall generates contraints for call instruction instr.
@@ -742,22 +739,19 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 		result = a.valueNode(v)
 	}
 
-	// The node whose pts(·) will contain all targets of the call.
-	var targets nodeid
+	site := &callsite{instr: instr}
+
 	switch {
 	case call.StaticCallee() != nil:
-		targets = a.genStaticCall(call, result)
+		a.genStaticCall(caller, site, call, result)
 	case call.IsInvoke():
-		targets = a.genInvoke(call, result)
+		a.genInvoke(caller, site, call, result)
 	default:
-		targets = a.genDynamicCall(caller, call, result)
+		a.genDynamicCall(caller, site, call, result)
 	}
 
-	site := &callsite{
-		targets: targets,
-		instr:   instr,
-	}
 	caller.sites = append(caller.sites, site)
+
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\t%s to targets %s from %s\n", site, site.targets, caller)
 	}
@@ -791,7 +785,7 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 				a.endObject(obj, nil, v)
 
 			case *ssa.Function:
-				obj = a.makeFunctionObject(v)
+				obj = a.makeFunctionObject(v, nil)
 
 			case *ssa.Const:
 				if t, ok := v.Type().Underlying().(*types.Slice); ok && !v.IsNil() {
@@ -1075,8 +1069,8 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 	}
 }
 
-func (a *analysis) makeCGNode(fn *ssa.Function, obj nodeid) *cgnode {
-	cgn := &cgnode{fn: fn, obj: obj}
+func (a *analysis) makeCGNode(fn *ssa.Function, obj nodeid, callersite *callsite) *cgnode {
+	cgn := &cgnode{fn: fn, obj: obj, callersite: callersite}
 	a.cgnodes = append(a.cgnodes, cgn)
 	return cgn
 }
@@ -1090,7 +1084,7 @@ func (a *analysis) genRootCalls() *cgnode {
 	r.Prog = a.prog // hack.
 	r.Enclosing = r // hack, so Function.String() doesn't crash
 	r.String()      // (asserts that it doesn't crash)
-	root := a.makeCGNode(r, 0)
+	root := a.makeCGNode(r, 0, nil)
 
 	// For each main package, call main.init(), main.main().
 	for _, mainPkg := range a.config.Mains {

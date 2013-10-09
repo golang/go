@@ -21,6 +21,8 @@ import (
 
 // Instances of 'intrinsic' generate analysis constraints for calls to
 // intrinsic functions.
+// Implementations may exploit information from the calling site
+// via cgn.callersite; for shared contours this is nil.
 type intrinsic func(a *analysis, cgn *cgnode)
 
 // Initialized in explicit init() to defeat (spurious) initialization

@@ -21,9 +21,7 @@ func reflectNewAt() {
 	print(reflect.NewAt(reflect.TypeOf(3), unsafe.Pointer(&x)).Interface()) // @types *int
 }
 
-// TODO(adonovan): report the location of the caller, not NewAt.
-// #warning "unsound: main.reflectNewAt contains a reflect.NewAt.. call"
-// @warning "unsound: reflect.NewAt.. call"
+// @warning "unsound: main.reflectNewAt contains a reflect.NewAt.. call"
 
 func reflectTypeOf() {
 	t := reflect.TypeOf(3)

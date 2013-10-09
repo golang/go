@@ -26,29 +26,25 @@ func chanreflect2() {
 	print(r.Interface().(*int)) // @pointsto main.b
 }
 
-// TODO(adonovan): the analysis can't yet take advantage of the
-// ChanOf(dir) parameter so the results are less precise than they
-// should be: all three directions are returned.
-
 func chanOfRecv() {
 	// MakeChan(<-chan) is a no-op.
 	t := reflect.ChanOf(reflect.RecvDir, reflect.TypeOf(&a))
-	print(reflect.Zero(t).Interface())                      // @types <-chan *int | chan<- *int | chan *int
+	print(reflect.Zero(t).Interface())                      // @types <-chan *int
 	print(reflect.MakeChan(t, 0).Interface().(<-chan *int)) // @pointsto
-	print(reflect.MakeChan(t, 0).Interface().(chan *int))   // @pointsto <alloc in reflect.MakeChan>
+	print(reflect.MakeChan(t, 0).Interface().(chan *int))   // @pointsto
 }
 
 func chanOfSend() {
 	// MakeChan(chan<-) is a no-op.
 	t := reflect.ChanOf(reflect.SendDir, reflect.TypeOf(&a))
-	print(reflect.Zero(t).Interface())                      // @types <-chan *int | chan<- *int | chan *int
+	print(reflect.Zero(t).Interface())                      // @types chan<- *int
 	print(reflect.MakeChan(t, 0).Interface().(chan<- *int)) // @pointsto
-	print(reflect.MakeChan(t, 0).Interface().(chan *int))   // @pointsto <alloc in reflect.MakeChan>
+	print(reflect.MakeChan(t, 0).Interface().(chan *int))   // @pointsto
 }
 
 func chanOfBoth() {
 	t := reflect.ChanOf(reflect.BothDir, reflect.TypeOf(&a))
-	print(reflect.Zero(t).Interface()) // @types <-chan *int | chan<- *int | chan *int
+	print(reflect.Zero(t).Interface()) // @types chan *int
 	ch := reflect.MakeChan(t, 0)
 	print(ch.Interface().(chan *int)) // @pointsto <alloc in reflect.MakeChan>
 	ch.Send(reflect.ValueOf(&b))

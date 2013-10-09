@@ -34,9 +34,10 @@ func (g *cgraph) Root() call.GraphNode {
 
 // cgnode implements call.GraphNode.
 type cgnode struct {
-	fn    *ssa.Function
-	obj   nodeid      // start of this contour's object block
-	sites []*callsite // ordered list of callsites within this function
+	fn         *ssa.Function
+	obj        nodeid      // start of this contour's object block
+	sites      []*callsite // ordered list of callsites within this function
+	callersite *callsite   // where called from, if known; nil for shared contours
 }
 
 func (n *cgnode) Func() *ssa.Function {
