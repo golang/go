@@ -16,7 +16,7 @@
 //
 // The level of abstraction of the SSA form is intentionally close to
 // the source language to facilitate construction of source analysis
-// tools.  It is not primarily intended for machine code generation.
+// tools.  It is not intended for machine code generation.
 //
 // All looping, branching and switching constructs are replaced with
 // unstructured control flow.  We may add higher-level control flow

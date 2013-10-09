@@ -1147,8 +1147,10 @@ type MapUpdate struct {
 //
 // DebugRef is a pseudo-instruction: it has no dynamic effect.
 //
-// Pos() returns Expr.Pos(), the position of the source-level
-// expression.
+// Pos() returns Expr.Pos(), the start position of the source-level
+// expression.  This is not the same as the "designated" token as
+// documented at Value.Pos(). e.g. CallExpr.Pos() does not return the
+// position of the ("designated") Lparen token.
 //
 // Object() returns the source-level (var/const/func) object denoted
 // by Expr if it is an *ast.Ident; otherwise it is nil.

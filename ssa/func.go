@@ -368,8 +368,9 @@ func (f *Function) removeNilBlocks() {
 }
 
 // SetDebugMode sets the debug mode for package pkg.  If true, all its
-// functions will include full debug info.  This greatly increases
-// the size of the instruction stream.
+// functions will include full debug info.  This greatly increases the
+// size of the instruction stream, and causes Functions to depend upon
+// the ASTs, potentially keeping them live in memory for longer.
 //
 func (pkg *Package) SetDebugMode(debug bool) {
 	// TODO(adonovan): do we want ast.File granularity?

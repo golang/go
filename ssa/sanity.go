@@ -368,6 +368,11 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		s.checkBlock(b, i)
 	}
 	s.block = nil
+	for i, anon := range fn.AnonFuncs {
+		if anon.Enclosing != fn {
+			s.errorf("AnonFuncs[%d]=%s but %s.Enclosing=%s", i, anon, anon, anon.Enclosing)
+		}
+	}
 	s.fn = nil
 	return !s.insane
 }
