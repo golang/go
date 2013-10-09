@@ -22,6 +22,7 @@ func TestCallbackGC(t *testing.T)          { testCallbackGC(t) }
 func TestCallbackPanic(t *testing.T)       { testCallbackPanic(t) }
 func TestCallbackPanicLoop(t *testing.T)   { testCallbackPanicLoop(t) }
 func TestCallbackPanicLocked(t *testing.T) { testCallbackPanicLocked(t) }
+func TestPanicFromC(t *testing.T)          { testPanicFromC(t) }
 func TestZeroArgCallback(t *testing.T)     { testZeroArgCallback(t) }
 func TestBlocking(t *testing.T)            { testBlocking(t) }
 func Test1328(t *testing.T)                { test1328(t) }

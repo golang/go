@@ -8,6 +8,7 @@ package cgotest
 void callback(void *f);
 void callGoFoo(void);
 void callGoStackCheck(void);
+void callPanic(void);
 */
 import "C"
 
@@ -184,6 +185,19 @@ func testCallbackCallers(t *testing.T) {
 			t.Errorf("expected function name %s, got %s", name[i], fname)
 		}
 	}
+}
+
+func testPanicFromC(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("did not panic")
+		}
+		if r.(string) != "panic from C" {
+			t.Fatal("wrong panic:", r)
+		}
+	}()
+	C.callPanic()
 }
 
 func testCallbackStack(t *testing.T) {
