@@ -4,6 +4,7 @@
 
 #include "../runtime.h"
 #include "../cgocall.h"
+#include "../../../cmd/ld/textflag.h"
 
 // These utility functions are available to be called from code
 // compiled with gcc via crosscall2.
@@ -47,6 +48,7 @@ _cgo_allocate_internal(uintptr len, byte *ret)
 
 #pragma cgo_export_static _cgo_allocate
 #pragma cgo_export_dynamic _cgo_allocate
+#pragma textflag NOSPLIT
 void
 _cgo_allocate(void *a, int32 n)
 {
@@ -76,6 +78,7 @@ _cgo_panic_internal(byte *p)
 
 #pragma cgo_export_static _cgo_panic
 #pragma cgo_export_dynamic _cgo_panic
+#pragma textflag NOSPLIT
 void
 _cgo_panic(void *a, int32 n)
 {

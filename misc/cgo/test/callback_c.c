@@ -64,3 +64,17 @@ callGoStackCheck(void)
 	extern void goStackCheck(void);
 	goStackCheck();
 }
+
+/* Test calling panic from C.  This is what SWIG does.  */
+
+extern void crosscall2(void (*fn)(void *, int), void *, int);
+extern void _cgo_panic(void *, int);
+
+void
+callPanic(void)
+{
+	struct { const char *p; } a;
+	a.p = "panic from C";
+	crosscall2(_cgo_panic, &a, sizeof a);
+	*(int*)1 = 1;
+}
