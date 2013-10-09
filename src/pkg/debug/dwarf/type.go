@@ -271,24 +271,43 @@ func (d *Data) Type(off Offset) (Type, error) {
 	// d.Type recursively, to handle circular types correctly.
 	var typ Type
 
+	nextDepth := 0
+
 	// Get next child; set err if error happens.
 	next := func() *Entry {
 		if !e.Children {
 			return nil
 		}
-		kid, err1 := r.Next()
-		if err1 != nil {
-			err = err1
-			return nil
+		// Only return direct children.
+		// Skip over composite entries that happen to be nested
+		// inside this one. Most DWARF generators wouldn't generate
+		// such a thing, but clang does.
+		// See golang.org/issue/6472.
+		for {
+			kid, err1 := r.Next()
+			if err1 != nil {
+				err = err1
+				return nil
+			}
+			if kid == nil {
+				err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"}
+				return nil
+			}
+			if kid.Tag == 0 {
+				if nextDepth > 0 {
+					nextDepth--
+					continue
+				}
+				return nil
+			}
+			if kid.Children {
+				nextDepth++
+			}
+			if nextDepth > 0 {
+				continue
+			}
+			return kid
 		}
-		if kid == nil {
-			err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"}
-			return nil
-		}
-		if kid.Tag == 0 {
-			return nil
-		}
-		return kid
 	}
 
 	// Get Type referred to by Entry's AttrType field.
