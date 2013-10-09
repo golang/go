@@ -7,7 +7,10 @@ package gzip
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
+	"os"
 	"testing"
+	"time"
 )
 
 type gunzipTest struct {
@@ -300,5 +303,33 @@ func TestDecompressor(t *testing.T) {
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
 		}
+	}
+}
+
+func TestIssue6550(t *testing.T) {
+	f, err := os.Open("testdata/issue6550.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gzip, err := NewReader(f)
+	if err != nil {
+		t.Fatalf("NewReader(testdata/issue6550.gz): %v", err)
+	}
+	defer gzip.Close()
+	done := make(chan bool, 1)
+	go func() {
+		_, err := io.Copy(ioutil.Discard, gzip)
+		if err == nil {
+			t.Errorf("Copy succeeded")
+		} else {
+			t.Logf("Copy failed (correctly): %v", err)
+		}
+		done <- true
+	}()
+	select {
+	case <-time.After(1 * time.Second):
+		t.Errorf("Copy hung")
+	case <-done:
+		// ok
 	}
 }

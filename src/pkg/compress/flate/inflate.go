@@ -644,6 +644,10 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 		if n > huffmanChunkBits {
 			chunk = h.links[chunk>>huffmanValueShift][(f.b>>huffmanChunkBits)&h.linkMask]
 			n = uint(chunk & huffmanCountMask)
+			if n == 0 {
+				f.err = CorruptInputError(f.roffset)
+				return 0, f.err
+			}
 		}
 		if n <= f.nb {
 			f.b >>= n
