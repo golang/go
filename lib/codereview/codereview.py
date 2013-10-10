@@ -2402,7 +2402,7 @@ def IsRietveldSubmitted(ui, clname, hex):
 		return False
 	for msg in dict.get("messages", []):
 		text = msg.get("text", "")
-		m = re.match('\*\*\* Submitted as [^*]*?([0-9a-f]+) \*\*\*', text)
+		m = re.match('\*\*\* Submitted as [^*]*?r=([0-9a-f]+)[^ ]* \*\*\*', text)
 		if m is not None and len(m.group(1)) >= 8 and hex.startswith(m.group(1)):
 			return True
 	return False
