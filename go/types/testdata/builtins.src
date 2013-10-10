@@ -629,7 +629,6 @@ func Offsetof1() {
 	_ = unsafe.Offsetof(y2 /* ERROR method value */ .m)
 
 	var s []byte
-	_ = s
 	_ = unsafe.Offsetof(s... /* ERROR invalid use of \.\.\. */ )
 }
 
@@ -731,7 +730,6 @@ func trace1() {
 	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
 
 	var s []byte
-	_ = s
 	trace(s... /* ERROR invalid use of \.\.\. */ )
 }
 

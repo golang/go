@@ -19,6 +19,14 @@ import (
 // false, and *x is undefined.
 //
 func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ bool) {
+	// append is the only built-in that permits the use of ... for the last argument
+	bin := predeclaredFuncs[id]
+	if call.Ellipsis.IsValid() && id != _Append {
+		check.invalidOp(call.Ellipsis, "invalid use of ... with built-in %s", bin.name)
+		check.use(call.Args)
+		return
+	}
+
 	// determine actual arguments
 	var arg getter
 	nargs := len(call.Args)
@@ -34,14 +42,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 	case _Make, _New, _Offsetof, _Trace:
-		// arguments requires special handling
-	}
-
-	// append is the only built-in that permits the use of ... for the last argument
-	bin := predeclaredFuncs[id]
-	if call.Ellipsis.IsValid() && id != _Append {
-		check.invalidOp(call.Ellipsis, "invalid use of ... with built-in %s", bin.name)
-		return
+		// arguments require special handling
 	}
 
 	// check argument count

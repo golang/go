@@ -16,12 +16,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 	switch x.mode {
 	case invalid:
-		// We don't have a valid call or conversion but we have a list of arguments.
-		// Typecheck them independently for better partial type information in
-		// the presence of type errors.
-		for _, arg := range e.Args {
-			check.expr(x, arg)
-		}
+		check.use(e.Args)
 		x.mode = invalid
 		x.expr = e
 		return statement
@@ -82,6 +77,16 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 		x.expr = e
 
 		return statement
+	}
+}
+
+// use type-checks each list element.
+// Useful to make sure a list of expressions is evaluated
+// (and variables are "used") in the presence of other errors.
+func (check *checker) use(list []ast.Expr) {
+	var x operand
+	for _, e := range list {
+		check.rawExpr(&x, e, nil)
 	}
 }
 
