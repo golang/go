@@ -774,7 +774,10 @@ link in the kill ring."
   (let* ((url-request-method "POST")
          (url-request-extra-headers
           '(("Content-Type" . "application/x-www-form-urlencoded")))
-         (url-request-data (buffer-substring-no-properties start end))
+         (url-request-data
+          (encode-coding-string
+           (buffer-substring-no-properties start end)
+           'utf-8))
          (content-buf (url-retrieve
                        "http://play.golang.org/share"
                        (lambda (arg)
