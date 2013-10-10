@@ -56,10 +56,14 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+// Alias for type of types.Config.Import function.
+type importfn func(map[string]*types.Package, string) (*types.Package, error)
+
 // An Importer's exported methods are not thread-safe.
 type Importer struct {
 	Fset          *token.FileSet         // position info for all files seen
-	config        *Config                // the client configuration
+	config        Config                 // the client configuration, modified by us
+	importfn      importfn               // client's type import function
 	augment       map[string]bool        // packages to be augmented by TestFiles when imported
 	allPackagesMu sync.Mutex             // guards 'allPackages' during internal concurrency
 	allPackages   []*PackageInfo         // all packages, including non-importable ones
@@ -78,9 +82,7 @@ type importInfo struct {
 // Config specifies the configuration for the importer.
 type Config struct {
 	// TypeChecker contains options relating to the type checker.
-	// The Importer will override any user-supplied values for its
-	// Error and Import fields; other fields will be passed
-	// through to the type checker.  All callbacks must be thread-safe.
+	// All callbacks must be thread-safe.
 	TypeChecker types.Config
 
 	// If Build is non-nil, it is used to satisfy imports.
@@ -99,17 +101,25 @@ type Config struct {
 // specified by config.
 //
 func New(config *Config) *Importer {
+	importfn := config.TypeChecker.Import
+	if importfn == nil {
+		importfn = types.GcImport
+	}
+
 	imp := &Importer{
 		Fset:     token.NewFileSet(),
-		config:   config,
+		config:   *config, // copy (don't clobber client input)
+		importfn: importfn,
 		augment:  make(map[string]bool),
 		imported: make(map[string]*importInfo),
 	}
 	// TODO(adonovan): get typechecker to supply us with a source
 	// position, then pass errors back to the application
 	// (e.g. oracle).
-	imp.config.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
-	imp.config.TypeChecker.Import = imp.doImport
+	if imp.config.TypeChecker.Error == nil {
+		imp.config.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
+	}
+	imp.config.TypeChecker.Import = imp.doImport // wraps importfn, effectively
 	return imp
 }
 
@@ -201,11 +211,11 @@ func (imp *Importer) doImport0(imports map[string]*types.Package, path string) (
 	return ii.info, ii.err
 }
 
-// importBinary implements package loading from object files from the
-// gc compiler.
+// importBinary implements package loading from the client-supplied
+// external source, e.g. object files from the gc compiler.
 //
 func (imp *Importer) importBinary(imports map[string]*types.Package, ii *importInfo) {
-	pkg, err := types.GcImport(imports, ii.path)
+	pkg, err := imp.importfn(imports, ii.path)
 	if pkg != nil {
 		ii.info = &PackageInfo{Pkg: pkg}
 		imp.addPackage(ii.info)
