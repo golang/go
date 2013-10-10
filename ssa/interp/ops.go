@@ -972,17 +972,14 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 		}
 		return nil
 
-	case "print", "println": // print(anytype, ...interface{})
+	case "print", "println": // print(any, ...)
 		ln := fn.Name() == "println"
 		var buf bytes.Buffer
-		buf.WriteString(toString(args[0]))
-		if len(args) == 2 {
-			for _, arg := range args[1].([]value) {
-				if ln {
-					buf.WriteRune(' ')
-				}
-				buf.WriteString(toString(arg))
+		for i, arg := range args {
+			if i > 0 && ln {
+				buf.WriteRune(' ')
 			}
+			buf.WriteString(toString(arg))
 		}
 		if ln {
 			buf.WriteRune('\n')

@@ -135,12 +135,12 @@ func (info *PackageInfo) BuiltinCallSignature(e *ast.CallExpr) *types.Signature 
 			types.NewVar(token.NoPos, nil, "", t0),
 			types.NewVar(token.NoPos, nil, "", t1))
 
-	case "print", "println": // print{,ln}(any, ...interface{})
-		isVariadic = true
-		// Note, arg0 may have any type, not necessarily tEface.
-		params = append(params,
-			types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])),
-			types.NewVar(token.NoPos, nil, "", types.NewSlice(tEface)))
+	case "print", "println": // print{,ln}(any, ...)
+		// Note, args may have any type, not necessarily tEface.
+		var params []*types.Var
+		for _, arg := range e.Args {
+			params = append(params, types.NewVar(token.NoPos, nil, "", info.TypeOf(arg)))
+		}
 
 	case "close":
 		params = append(params, types.NewVar(token.NoPos, nil, "", info.TypeOf(e.Args[0])))

@@ -151,6 +151,8 @@ func init() {
 }
 
 func main() {
+	print() // legal
+
 	if counter != 2*3*5 {
 		panic(counter)
 	}
