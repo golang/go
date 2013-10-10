@@ -46,7 +46,7 @@ func main() {
 		return
 	}
 
-	mainInfo := imp.LoadMainPackage(f)
+	mainInfo := imp.CreatePackage("main", f)
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
 	if err := prog.CreatePackages(imp); err != nil {

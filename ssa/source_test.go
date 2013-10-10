@@ -46,7 +46,7 @@ func TestObjValueLookup(t *testing.T) {
 		}
 	}
 
-	mainInfo := imp.LoadMainPackage(f)
+	mainInfo := imp.CreatePackage("main", f)
 
 	prog := ssa.NewProgram(imp.Fset, 0 /*|ssa.LogFunctions*/)
 	if err := prog.CreatePackages(imp); err != nil {
@@ -184,7 +184,7 @@ func TestValueForExpr(t *testing.T) {
 		return
 	}
 
-	mainInfo := imp.LoadMainPackage(f)
+	mainInfo := imp.CreatePackage("main", f)
 
 	prog := ssa.NewProgram(imp.Fset, 0)
 	if err := prog.CreatePackages(imp); err != nil {

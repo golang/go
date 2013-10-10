@@ -51,8 +51,8 @@ func main() {
 		return
 	}
 
-	// Create a "main" package containing one file.
-	mainInfo := imp.LoadMainPackage(file)
+	// Create single-file main package and import its dependencies.
+	mainInfo := imp.CreatePackage("main", file)
 
 	// Create SSA-form program representation.
 	var mode ssa.BuilderMode

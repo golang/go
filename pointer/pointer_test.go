@@ -177,8 +177,8 @@ func doOneInput(input, filename string) bool {
 		return false
 	}
 
-	// Load main package and its dependencies.
-	info := imp.LoadMainPackage(f)
+	// Create single-file main package and import its dependencies.
+	info := imp.CreatePackage("main", f)
 
 	// SSA creation + building.
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)

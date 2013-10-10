@@ -249,7 +249,7 @@ func TestEnclosingFunction(t *testing.T) {
 			t.Errorf("EnclosingFunction(%q) not exact", test.substr)
 			continue
 		}
-		mainInfo := imp.LoadMainPackage(f)
+		mainInfo := imp.CreatePackage("main", f)
 		prog := ssa.NewProgram(imp.Fset, 0)
 		if err := prog.CreatePackages(imp); err != nil {
 			t.Error(err)

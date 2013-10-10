@@ -188,7 +188,7 @@ func run(t *testing.T, dir, input string) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
-	mainInfo := imp.LoadMainPackage(files...)
+	mainInfo := imp.CreatePackage("main", files...)
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
 	if err := prog.CreatePackages(imp); err != nil {

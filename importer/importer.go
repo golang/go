@@ -229,7 +229,7 @@ func (imp *Importer) importSource(path string, ii *importInfo) {
 		}
 
 		// Type-check the package.
-		ii.info = imp.typeCheck(path, files)
+		ii.info = imp.CreatePackage(path, files...)
 
 		// We needn't wait for the prefetching goroutines to
 		// finish.  Each one either runs quickly and populates
@@ -243,7 +243,8 @@ func (imp *Importer) importSource(path string, ii *importInfo) {
 	}
 }
 
-// typeCheck invokes the type-checker on files and returns a
+// CreatePackage creates and type-checks a package from the specified
+// list of parsed files, importing their dependencies.  It returns a
 // PackageInfo containing the resulting types.Package, the ASTs, and
 // other type information.
 //
@@ -254,13 +255,13 @@ func (imp *Importer) importSource(path string, ii *importInfo) {
 // be unique; for example, it is possible to construct two distinct
 // packages both named "main".
 //
-// The resulting package is added to imp.allPackages, but is not
-// importable unless it is inserted in the imp.imported map.
+// The resulting package is accessible via AllPackages() but is not
+// importable, i.e. no 'import' spec can resolve to it.
 //
-// This function always succeeds, but the package may contain type
+// CreatePackage never fails, but the resulting package may contain type
 // errors; the first of these is recorded in PackageInfo.Err.
 //
-func (imp *Importer) typeCheck(path string, files []*ast.File) *PackageInfo {
+func (imp *Importer) CreatePackage(path string, files ...*ast.File) *PackageInfo {
 	info := &PackageInfo{
 		Files: files,
 		Info: types.Info{
@@ -277,23 +278,10 @@ func (imp *Importer) typeCheck(path string, files []*ast.File) *PackageInfo {
 	return info
 }
 
-// LoadMainPackage creates and type-checks a package called "main" from
-// the specified list of parsed files, importing its dependencies.
-//
-// The resulting package is not importable, i.e. no 'import' spec can
-// resolve to it.  LoadMainPackage is provided as an aid to testing.
-//
-// LoadMainPackage never fails, but the resulting package may contain
-// type errors.
-//
-func (imp *Importer) LoadMainPackage(files ...*ast.File) *PackageInfo {
-	return imp.typeCheck("main", files)
-}
-
 // InitialPackagesUsage is a partial usage message that client
 // applications may wish to include in their -help output.
 const InitialPackagesUsage = `
-<args> is a list of arguments denoting a set of initial pacakges.
+<args> is a list of arguments denoting a set of initial packages.
 Each argument may take one of two forms:
 
 1. A comma-separated list of *.go source files.
@@ -307,7 +295,7 @@ Each argument may take one of two forms:
 
    The package's directory is found relative to the $GOROOT and
    $GOPATH using similar logic to 'go build', and the *.go files in
-   that directory are loaded and parsed, and type-checked as a single
+   that directory are loaded, parsed and type-checked as a single
    package.
 
    In addition, all *_test.go files in the directory are then loaded
@@ -438,7 +426,7 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 			}
 		} else {
 			// create package
-			info = imp.typeCheck(pkg.path, pkg.files)
+			info = imp.CreatePackage(pkg.path, pkg.files...)
 		}
 		infos = append(infos, info)
 	}
