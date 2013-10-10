@@ -96,6 +96,10 @@ func cap1() {
 	// issue 4744
 	type T struct{ a [10]int }
 	const _ = cap(((*T)(nil)).a)
+
+	var s [][]byte
+	_ = cap(s)
+	_ = cap(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func cap2() {
@@ -117,6 +121,9 @@ func close1() {
 	close(r /* ERROR receive-only channel */)
 	close(c)
 	_ = close /* ERROR used as value */ (c)
+
+	var s []chan int
+	close(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func close2() {
@@ -177,6 +184,9 @@ func complex1() {
 	_ = complex(1 /* ERROR integer */ <<s, 0)
 	const _ = complex /* ERROR not constant */ (1 /* ERROR integer */ <<s, 0)
 	var _ int = complex /* ERROR cannot initialize */ (1 /* ERROR integer */ <<s, 0)
+
+	var t []float32
+	_ = complex(t... /* ERROR invalid use of \.\.\. */ )
 }
 
 func complex2() {
@@ -204,6 +214,10 @@ func copy1() {
 	n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
 	n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
 	_, _, _ = n1, n2, n3
+
+	var t [][]int
+	copy(t, t)
+	copy(t... /* ERROR invalid use of \.\.\. */ )
 }
 
 func copy2() {
@@ -225,6 +239,9 @@ func delete1() {
 	delete(m, 0 /* ERROR not assignable */)
 	delete(m, s)
 	_ = delete /* ERROR used as value */ (m, s)
+
+	var t []map[string]string
+	delete(t... /* ERROR invalid use of \.\.\. */ )
 }
 
 func delete2() {
@@ -259,6 +276,9 @@ func imag1() {
 	f64 = imag /* ERROR cannot assign */ (c64)
 	imag /* ERROR not used */ (c64)
 	_, _ = f32, f64
+
+	var s []complex64
+	_ = imag(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func imag2() {
@@ -297,6 +317,10 @@ func len1() {
 	// issue 4744
 	type T struct{ a [10]int }
 	const _ = len(((*T)(nil)).a)
+
+	var s [][]byte
+	_ = len(s)
+	_ = len(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func len2() {
@@ -357,6 +381,10 @@ func make1() {
 	_ = make(chan bool, 10.0<<s)
 
 	make /* ERROR not used */ ([]int, 10)
+
+	var t []int
+	_ = make([]int, t[0], t[1])
+	_ = make([]int, t... /* ERROR invalid use of \.\.\. */ )
 }
 
 func make2() {
@@ -374,6 +402,8 @@ func new1() {
 	q := new(*float64)
 	_ = *p == **q
 	new /* ERROR not used */ (int)
+
+	_ = new(int... /* ERROR invalid use of \.\.\. */ )
 }
 
 func new2() {
@@ -390,6 +420,10 @@ func panic1() {
 	panic(false)
 	panic(1<<1000) // TODO(gri) argument should be assignable to _
 	_ = panic /* ERROR used as value */ (0)
+
+	var s []byte
+	panic(s)
+	panic(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func panic2() {
@@ -408,6 +442,9 @@ func print1() {
 	print(2.718281828)
 	print(false)
 	print(1<<1000, 1<<1000) // TODO(gri) arguments should be assignable to _
+
+	var s []int
+	print(s... /* ERROR invalid use of \.\.\. */ )
 	_ = print /* ERROR used as value */ ()
 }
 
@@ -429,6 +466,9 @@ func println1() {
 	println(2.718281828)
 	println(false)
 	println(1<<1000, 1<<1000) // TODO(gri) arguments should be assignable to _
+
+	var s []int
+	println(s... /* ERROR invalid use of \.\.\. */ )
 	_ = println /* ERROR used as value */ ()
 }
 
@@ -463,6 +503,9 @@ func real1() {
 	f32 = real /* ERROR cannot assign */ (c128)
 	f64 = real /* ERROR cannot assign */ (c64)
 	real /* ERROR not used */ (c64)
+
+	var s []complex64
+	_ = real(s... /* ERROR invalid use of \.\.\. */ )
 	_, _ = f32, f64
 }
 
@@ -478,6 +521,9 @@ func recover1() {
 	_ = recover()
 	_ = recover(10) // ERROR too many arguments
 	recover()
+
+	var s []int
+	recover(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func recover2() {
@@ -525,6 +571,10 @@ func Alignof1() {
 	assert(unsafe.Alignof(y.c) == 8)
 	assert(unsafe.Alignof(y.d) == 1)
 	assert(unsafe.Alignof(y.e) == 8)
+
+	var s []byte
+	_ = unsafe.Alignof(s)
+	_ = unsafe.Alignof(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func Alignof2() {
@@ -577,6 +627,10 @@ func Offsetof1() {
 	assert(unsafe.Offsetof(y2.S1) == 0)
 	_ = unsafe.Offsetof(y2 /* ERROR embedded via a pointer */ .x)
 	_ = unsafe.Offsetof(y2 /* ERROR method value */ .m)
+
+	var s []byte
+	_ = s
+	_ = unsafe.Offsetof(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func Offsetof2() {
@@ -632,6 +686,10 @@ func Sizeof1() {
 		c int32
 	}
 	assert(unsafe.Sizeof(T{}) == 12)
+
+	var s []byte
+	_ = unsafe.Sizeof(s)
+	_ = unsafe.Sizeof(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func Sizeof2() {
@@ -652,6 +710,9 @@ func assert1() {
 	assert(true)
 	assert /* ERROR failed */ (false)
 	_ = assert(true)
+
+	var s []byte
+	assert(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func assert2() {
@@ -668,6 +729,10 @@ func trace1() {
 	// _ = trace /* ERROR no value */ ()
 	// _ = trace(1)
 	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
+
+	var s []byte
+	_ = s
+	trace(s... /* ERROR invalid use of \.\.\. */ )
 }
 
 func trace2() {

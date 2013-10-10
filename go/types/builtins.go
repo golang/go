@@ -37,8 +37,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// arguments requires special handling
 	}
 
-	// check argument count
+	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
+	if call.Ellipsis.IsValid() && id != _Append {
+		check.invalidOp(call.Ellipsis, "invalid use of ... with built-in %s", bin.name)
+		return
+	}
+
+	// check argument count
 	{
 		msg := ""
 		if nargs < bin.nargs {
