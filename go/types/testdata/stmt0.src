@@ -92,6 +92,34 @@ func assignments1() {
 	(_) = 0
 }
 
+func assignments2() {
+	var m map[string][]bool
+	var s []bool
+	var b bool
+	_ = s
+	_ = b
+
+	// assignments to map index expressions are ok
+	s, b = m["foo"]
+	m["foo"] = nil
+	m["foo"] = nil /* ERROR assignment count mismatch */ , false
+	_ = append(m["foo"])
+	_ = append(m["foo"], true)
+
+	var c chan int
+	_, b = <-c
+	<- /* ERROR cannot assign */ c = 0
+	<-c = 0 /* ERROR assignment count mismatch */ , false
+
+	var x interface{}
+	_, b = x.(int)
+	x /* ERROR cannot assign */ .(int) = 0
+	x.(int) = 0 /* ERROR assignment count mismatch */ , false
+
+	assignments2 /* ERROR used as value */ () = nil
+	int /* ERROR not an expression */ = 0
+}
+
 func issue6487() {
 	type S struct{x int}
 	_ = &S /* ERROR "cannot take address" */ {}.x

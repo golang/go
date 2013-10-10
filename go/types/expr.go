@@ -107,7 +107,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 			x.mode = invalid
 			return
 		}
-		x.mode = valueok
+		x.mode = commaok
 		x.typ = typ.elt
 		return
 	}
@@ -1168,7 +1168,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 				}
 				goto Error
 			}
-			x.mode = valueok
+			x.mode = mapindex
 			x.typ = typ.elt
 			x.expr = e
 			return expression
@@ -1308,7 +1308,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 		check.typeAssertion(x.pos(), x, xtyp, T)
-		x.mode = valueok
+		x.mode = commaok
 		x.typ = T
 
 	case *ast.CallExpr:

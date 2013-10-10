@@ -34,7 +34,7 @@ func f(x int, m map[string]int) {
 
 	// value, ok's
 	const s = "foo"
-	m /* ERROR "m\[s\] \(value, ok of type int\) is not used" */ [s]
+	m /* ERROR "m\[s\] \(map index expression of type int\) is not used" */ [s]
 }
 
 // Valid ERROR comments can have a variety of forms.

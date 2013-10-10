@@ -24,8 +24,9 @@ const (
 	typexpr                     // operand is a type
 	constant                    // operand is a constant; the operand's typ is a Basic type
 	variable                    // operand is an addressable variable
+	mapindex                    // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                       // operand is a computed value
-	valueok                     // like value, but operand may be used in a comma,ok expression
+	commaok                     // like value, but operand may be used in a comma,ok expression
 )
 
 var operandModeString = [...]string{
@@ -35,8 +36,9 @@ var operandModeString = [...]string{
 	typexpr:  "type",
 	constant: "constant",
 	variable: "variable",
+	mapindex: "map index expression",
 	value:    "value",
-	valueok:  "value, ok",
+	commaok:  "comma, ok expression",
 }
 
 // An operand represents an intermediate value during type checking.
@@ -83,11 +85,14 @@ func (x *operand) pos() token.Pos {
 // variable   <expr> (<untyped kind> <mode>                    )
 // variable   <expr> (               <mode>       of type <typ>)
 //
+// mapindex   <expr> (<untyped kind> <mode>                    )
+// mapindex   <expr> (               <mode>       of type <typ>)
+//
 // value      <expr> (<untyped kind> <mode>                    )
 // value      <expr> (               <mode>       of type <typ>)
 //
-// valueok    <expr> (<untyped kind> <mode>                    )
-// valueok    <expr> (               <mode>       of type <typ>)
+// commaok    <expr> (<untyped kind> <mode>                    )
+// commaok    <expr> (               <mode>       of type <typ>)
 //
 func (x *operand) String() string {
 	var buf bytes.Buffer

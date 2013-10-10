@@ -130,7 +130,7 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int) {
 			}, t.Len()
 		}
 
-		if x0.mode == valueok {
+		if x0.mode == mapindex || x0.mode == commaok {
 			// comma-ok value
 			if allowCommaOk {
 				return func(x *operand, i int) {

@@ -102,7 +102,7 @@ func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (t
 	case constant:
 		val = x.val
 		fallthrough
-	case typexpr, variable, value, valueok:
+	case typexpr, variable, mapindex, value, commaok:
 		typ = x.typ
 	}
 

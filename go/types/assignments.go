@@ -26,7 +26,7 @@ func (check *checker) assignment(x *operand, T Type) bool {
 	switch x.mode {
 	case invalid:
 		return true // error reported before
-	case constant, variable, value, valueok:
+	case constant, variable, mapindex, value, commaok:
 		// ok
 	default:
 		unreachable()
@@ -99,12 +99,7 @@ func (check *checker) initConst(lhs *Const, x *operand) {
 		return
 	}
 
-	// rhs type must be a valid constant type
-	if !isConstType(x.typ) {
-		check.errorf(x.pos(), "%s has invalid constant type", x)
-		return
-	}
-
+	assert(isConstType(x.typ))
 	lhs.val = x.val
 }
 
@@ -193,13 +188,17 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	if z.mode == constant || z.mode == value {
-		check.errorf(z.pos(), "cannot assign to non-variable %s", &z)
+	// spec: Each left-hand side operand must be addressable, a map index
+	// expression, or the blank identifier. Operands may be parenthesized.
+	switch z.mode {
+	case invalid:
+		return nil
+	case variable, mapindex:
+		// ok
+	default:
+		check.errorf(z.pos(), "cannot assign to %s", &z)
 		return nil
 	}
-
-	// TODO(gri) z.mode can also be valueok which in some cases is ok (maps)
-	// but in others isn't (channels). Complete the checks here.
 
 	if !check.assignment(x, z.typ) {
 		if x.mode != invalid {
@@ -258,7 +257,7 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 			}
 		}
 
-		if !returnPos.IsValid() && x.mode == valueok && l == 2 {
+		if !returnPos.IsValid() && (x.mode == mapindex || x.mode == commaok) && l == 2 {
 			// comma-ok expression (not permitted with return statements)
 			x.mode = value
 			t1 := check.initVar(lhs[0], &x)
@@ -328,7 +327,7 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 			}
 		}
 
-		if x.mode == valueok && l == 2 {
+		if (x.mode == mapindex || x.mode == commaok) && l == 2 {
 			// comma-ok expression
 			x.mode = value
 			t1 := check.assignVar(lhs[0], &x)
