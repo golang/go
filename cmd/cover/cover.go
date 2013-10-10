@@ -19,6 +19,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -26,8 +27,10 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 )
@@ -251,7 +254,10 @@ func (f *File) addImport(path string) string {
 	// Does the package already import it?
 	for _, s := range f.astFile.Imports {
 		if unquote(s.Path.Value) == path {
-			return s.Name.Name
+			if s.Name != nil {
+				return s.Name.Name
+			}
+			return filepath.Base(path)
 		}
 	}
 	newImport := &ast.ImportSpec{
@@ -297,12 +303,47 @@ func (f *File) addImport(path string) string {
 	return atomicPackageName
 }
 
+var slashslash = []byte("//")
+
+// initialComments returns the prefix of content containing only
+// whitepace and line comments.  Any +build directives must appear
+// within this region.  This approach is more reliable than using
+// go/printer to print a modified AST containing comments.
+//
+func initialComments(content []byte) []byte {
+	// Derived from go/build.Context.shouldBuild.
+	end := 0
+	p := content
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 { // Blank line.
+			end = len(content) - len(p)
+			continue
+		}
+		if !bytes.HasPrefix(line, slashslash) { // Not comment line.
+			break
+		}
+	}
+	return content[:end]
+}
+
 func cover(name string) {
 	fset := token.NewFileSet()
-	parsedFile, err := parser.ParseFile(fset, name, nil, 0)
+	content, err := ioutil.ReadFile(name)
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
+	parsedFile, err := parser.ParseFile(fset, name, content, 0)
+	if err != nil {
+		log.Fatalf("cover: %s: %s", name, err)
+	}
+
 	file := &File{
 		fset:    fset,
 		name:    name,
@@ -320,6 +361,7 @@ func cover(name string) {
 			log.Fatalf("cover: %s", err)
 		}
 	}
+	fd.Write(initialComments(content)) // Retain '// +build' directives.
 	file.print(fd)
 	// After printing the source tree, add some declarations for the counters etc.
 	// We could do this by adding to the tree, but it's easier just to print the text.
