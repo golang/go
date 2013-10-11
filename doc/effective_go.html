@@ -2953,7 +2953,7 @@ func handle(r *Request) {
 }
 
 func init() {
-    for i := 0; i < MaxOutstanding; i++ {
+    for i := 0; i &lt; MaxOutstanding; i++ {
         sem &lt;- 1
     }
 }
