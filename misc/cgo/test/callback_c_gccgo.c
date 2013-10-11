@@ -1,0 +1,17 @@
+// Copyright 2013 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build gccgo
+
+#include "_cgo_export.h"
+
+/* Test calling panic from C.  This is what SWIG does.  */
+
+extern void _cgo_panic(const char *);
+
+void
+callPanic(void)
+{
+	_cgo_panic("panic from C");
+}
