@@ -86,6 +86,7 @@ function! go#complete#Package(ArgLead, CmdLine, CursorPos)
   for dir in dirs
     " this may expand to multiple lines
     let root = split(expand(dir . '/pkg/' . s:goos . '_' . s:goarch), "\n")
+    call add(root, expand(dir . '/src'))
     for r in root
       for i in split(globpath(r, a:ArgLead.'*'), "\n")
         if isdirectory(i)
