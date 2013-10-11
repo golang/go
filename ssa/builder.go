@@ -936,7 +936,7 @@ func (b *builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// Then append the other actual parameters.
 	sig, _ := fn.Pkg.typeOf(e.Fun).Underlying().(*types.Signature)
 	if sig == nil {
-		sig = fn.Pkg.info.BuiltinCallSignature(e)
+		panic(fmt.Sprintf("no signature for call of %s", e.Fun))
 	}
 	c.Args = b.emitCallArgs(fn, sig, e, c.Args)
 }
