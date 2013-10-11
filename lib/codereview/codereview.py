@@ -984,7 +984,7 @@ def ReadContributors(ui, repo):
 			f = open(repo.root + '/CONTRIBUTORS', 'r')
 	except:
 		ui.write("warning: cannot open %s: %s\n" % (opening, ExceptionDetail()))
-		return
+		return {}
 
 	contributors = {}
 	for line in f:
