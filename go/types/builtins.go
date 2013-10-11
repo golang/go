@@ -88,13 +88,9 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			if isString(x.typ) {
 				if check.Types != nil {
-					// TODO(gri, adonovan) change this to:
-					//
-					//	sig := makeSig(S, S, NewSlice(Typ[Byte]))
-					//	sig.isVariadic = true
-					//
-					// once ssa has been adjusted
-					check.recordBuiltinType(call.Fun, makeSig(S, S, x.typ))
+					sig := makeSig(S, S, NewSlice(Typ[Byte]))
+					sig.isVariadic = true
+					check.recordBuiltinType(call.Fun, sig)
 				}
 				x.mode = value
 				x.typ = S
@@ -420,7 +416,6 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		x.mode = novalue
 		if check.Types != nil {
-			// TODO(gri) we need a global empty interface somewhere
 			check.recordBuiltinType(call.Fun, makeSig(nil, new(Interface)))
 		}
 
@@ -449,7 +444,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Recover:
 		// recover() interface{}
 		x.mode = value
-		x.typ = new(Interface) // TODO(gri) we need a global empty interface somewhere
+		x.typ = new(Interface)
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
 		}

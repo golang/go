@@ -20,8 +20,11 @@ var builtinCalls = []struct {
 	{_Append, `var s []int; _ = append(s, 0)`, `func([]int, ...int) []int`},
 	{_Append, `var s []int; _ = (append)(s, 0)`, `func([]int, ...int) []int`},
 	{_Append, `var s []byte; _ = ((append))(s, 0)`, `func([]byte, ...byte) []byte`},
-	{_Append, `var s []byte; _ = append(s, "foo"...)`, `func([]byte, string) []byte`},
-	{_Append, `type T []byte; var s T; _ = append(s, "foo"...)`, `func(p.T, string) p.T`},
+	// Note that ...uint8 (instead of ..byte) appears below because that is the type
+	// that corresponds to Typ[byte] (an alias) - in the other cases, the type name
+	// is chosen by the source. Either way, byte and uint8 denote identical types.
+	{_Append, `var s []byte; _ = append(s, "foo"...)`, `func([]byte, ...uint8) []byte`},
+	{_Append, `type T []byte; var s T; _ = append(s, "foo"...)`, `func(p.T, ...uint8) p.T`},
 
 	{_Cap, `var s [10]int; _ = cap(s)`, `invalid type`},  // constant
 	{_Cap, `var s [10]int; _ = cap(&s)`, `invalid type`}, // constant
