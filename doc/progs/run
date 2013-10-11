@@ -50,6 +50,9 @@ fi
 if [ "$goos" == "openbsd" ]; then
 	c_go_cgo="cgo1 cgo2"
 fi
+if [ "$CGO_ENABLED" != 1 ]; then
+	c_go_cgo=""
+fi
 
 timeout="
 	timeout1
