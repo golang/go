@@ -392,6 +392,9 @@ func TestDependencies(t *testing.T) {
 				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
 					continue
 				}
+				if !ctxt.CgoEnabled && pkg == "runtime/cgo" {
+					continue
+				}
 				// Some of the combinations we try might not
 				// be reasonable (like arm,plan9,cgo), so ignore
 				// errors for the auto-generated combinations.
