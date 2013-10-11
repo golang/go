@@ -471,6 +471,17 @@ func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClo
 	return newList
 }
 
+// hasFuncLiteral reports the existence and position of the first func literal
+// in the node, if any. If a func literal appears, it usually marks the termination
+// of a basic block because the function body is itself a block.
+// Therefore we draw a line at the start of the body of the first function literal we find.
+// TODO: what if there's more than one? Probably doesn't matter much.
+func hasFuncLiteral(n ast.Node) (bool, token.Pos) {
+	var literal funcLitFinder
+	ast.Walk(&literal, n)
+	return literal.found(), token.Pos(literal)
+}
+
 // statementBoundary finds the location in s that terminates the current basic
 // block in the source.
 func (f *File) statementBoundary(s ast.Stmt) token.Pos {
@@ -486,6 +497,12 @@ func (f *File) statementBoundary(s ast.Stmt) token.Pos {
 	case *ast.LabeledStmt:
 		return f.statementBoundary(s.Stmt)
 	case *ast.RangeStmt:
+		// Ranges might loop over things with function literals.: for _ = range []func(){ ... } {.
+		// TODO: There are a few other such possibilities, but they're extremely unlikely.
+		found, pos := hasFuncLiteral(s.X)
+		if found {
+			return pos
+		}
 		return s.Body.Lbrace
 	case *ast.SwitchStmt:
 		return s.Body.Lbrace
@@ -498,10 +515,9 @@ func (f *File) statementBoundary(s ast.Stmt) token.Pos {
 	// If it does, that's tricky because we want to exclude the body of the function from this block.
 	// Draw a line at the start of the body of the first function literal we find.
 	// TODO: what if there's more than one? Probably doesn't matter much.
-	var literal funcLitFinder
-	ast.Walk(&literal, s)
-	if literal.found() {
-		return token.Pos(literal)
+	found, pos := hasFuncLiteral(s)
+	if found {
+		return pos
 	}
 	return s.End()
 }
@@ -531,9 +547,8 @@ func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
 	case *ast.TypeSwitchStmt:
 		return true
 	}
-	var literal funcLitFinder
-	ast.Walk(&literal, s)
-	return literal.found()
+	found, _ := hasFuncLiteral(s)
+	return found
 }
 
 // funcLitFinder implements the ast.Visitor pattern to find the location of any

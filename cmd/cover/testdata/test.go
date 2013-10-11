@@ -17,6 +17,7 @@ func testAll() {
 	testBlockRun()
 	testIf()
 	testFor()
+	testRange()
 	testSwitch()
 	testTypeSwitch()
 	testSelect1()
@@ -72,6 +73,15 @@ func testIf() {
 func testFor() {
 	for i := 0; i < 10; i++ {
 		check(LINE, 10)
+	}
+}
+
+func testRange() {
+	for _, f := range []func(){
+		func() { check(LINE, 1) },
+	} {
+		f()
+		check(LINE, 1)
 	}
 }
 
