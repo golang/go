@@ -149,8 +149,40 @@ func (imp *Importer) addPackage(info *PackageInfo) {
 // the types.Config.Error callback (the first of which is also saved
 // in the package's PackageInfo).
 //
-// Idempotent and thread-safe, but assumes that no two concurrent
-// calls will provide the same 'imports' map.
+// Idempotent and thread-safe.
+//
+//
+// TODO(gri): The imports map (an alias for TypeChecker.Packages) must
+// not be concurrently accessed.  Today, the only (non-test) accesses
+// of this map are in the client-supplied implementation of the
+// importer function, i.e. the function below.  But this is a fragile
+// API because if go/types ever starts to access this map, it and its
+// clients will have to agree to use the same mutex.
+// Two better ideas:
+//
+// (1) require that the importer functions be stateful and have this
+//     map be part of that internal state.
+//     Pro: good encapsulation.
+//     Con: we can't have different importers collaborate, e.g.
+//          we can't use a source importer for some packages and
+//          GcImport for others since they'd each have a distinct map.
+//
+// (2) have there be a single map in go/types.Config, but expose
+//     lookup and update behind an interface and pass that interface
+//     to the importer implementations.
+//     Pro: sharing of the map among importers.
+//
+//  This is idempotent but still doesn't address the issue of
+//  atomicity: when loading packages concurrently, we want to avoid
+//  the benign but suboptimal situation of two goroutines both
+//  importing "fmt", finding it not present, doing all the work, and
+//  double-updating the map.
+//  The interface to the map needs to express the idea that when a
+//  caller requests an import from the map and finds it not present,
+//  then it (and no other goroutine) becomes responsible for loading
+//  the package and updating the map; other goroutines should block
+//  until then.  That's exactly what doImport0 below does; I think
+//  some of that logic should migrate into go/types.check.resolveFiles.
 //
 func (imp *Importer) doImport(imports map[string]*types.Package, path string) (*types.Package, error) {
 	// Package unsafe is handled specially, and has no PackageInfo.
@@ -173,11 +205,15 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (*
 		// contains direct or transitive dependencies, it probably
 		// shouldn't be exposed.  This package can make its own
 		// arrangements to implement PackageInfo.Imports().
+		importsMu.Lock()
 		imports[path] = info.Pkg
+		importsMu.Unlock()
 	}
 
 	return info.Pkg, nil
 }
+
+var importsMu sync.Mutex // hack; see comment at doImport
 
 // Like doImport, but returns a PackageInfo.
 // Precondition: path != "unsafe".
