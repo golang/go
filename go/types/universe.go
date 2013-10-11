@@ -164,6 +164,9 @@ func defPredeclaredFuncs() {
 }
 
 func defPredeclaredTestFuncs() {
+	if Universe.Lookup("assert") != nil {
+		return // already defined
+	}
 	def(newBuiltin(_Assert))
 	def(newBuiltin(_Trace))
 }

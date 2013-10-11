@@ -78,6 +78,24 @@ func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) 
 	}
 }
 
+func (check *checker) recordBuiltinType(f ast.Expr, sig *Signature) {
+	// f must be a (possibly parenthesized) identifier denoting a built-in
+	// (built-ins in package unsafe always produce a constant result and
+	// we don't record their signatures, so we don't see qualified idents
+	// here): record the signature for f and possible children.
+	for {
+		check.recordTypeAndValue(f, sig, nil)
+		switch p := f.(type) {
+		case *ast.Ident:
+			return // we're done
+		case *ast.ParenExpr:
+			f = p.X
+		default:
+			unreachable()
+		}
+	}
+}
+
 func (check *checker) recordCommaOkTypes(x ast.Expr, t1, t2 Type) {
 	assert(x != nil && isTyped(t1) && isTyped(t2) && isBoolean(t2))
 	if m := check.Types; m != nil {

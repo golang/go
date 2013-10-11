@@ -247,16 +247,9 @@ func checkFiles(t *testing.T, testfiles []string) {
 	}
 }
 
-var testBuiltinsDeclared = false
-
 func TestCheck(t *testing.T) {
 	// Declare builtins for testing.
-	// Not done in an init func to avoid an init race with
-	// the construction of the Universe var.
-	if !testBuiltinsDeclared {
-		testBuiltinsDeclared = true
-		defPredeclaredTestFuncs()
-	}
+	defPredeclaredTestFuncs()
 
 	// If explicit test files are specified, only check those.
 	if files := *testFiles; files != "" {

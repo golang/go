@@ -110,6 +110,11 @@ type Config struct {
 type Info struct {
 	// Types maps expressions to their types. Identifiers on the
 	// lhs of declarations are collected in Objects, not Types.
+	//
+	// For an expression denoting a predeclared built-in function
+	// the recorded signature is call-site specific. If the call
+	// result is not a constant, the recorded type is an argument-
+	// specific signature. Otherwise, the recorded type is invalid.
 	Types map[ast.Expr]Type
 
 	// Values maps constant expressions to their values.

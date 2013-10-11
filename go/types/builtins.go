@@ -87,6 +87,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				return
 			}
 			if isString(x.typ) {
+				if check.Types != nil {
+					// TODO(gri, adonovan) change this to:
+					//
+					//	sig := makeSig(S, S, NewSlice(Typ[Byte]))
+					//	sig.isVariadic = true
+					//
+					// once ssa has been adjusted
+					check.recordBuiltinType(call.Fun, makeSig(S, S, x.typ))
+				}
 				x.mode = value
 				x.typ = S
 				break
@@ -106,18 +115,23 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			arg(x, i)
 		}, nargs)
+		// ok to continue even if check.arguments reported errors
 
 		x.mode = value
 		x.typ = S
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, sig)
+		}
 
 	case _Cap, _Len:
 		// cap(x)
 		// len(x)
 		mode := invalid
+		var typ Type
 		var val exact.Value
-		switch typ := implicitArrayDeref(x.typ.Underlying()).(type) {
+		switch typ = implicitArrayDeref(x.typ.Underlying()); t := typ.(type) {
 		case *Basic:
-			if isString(typ) && id == _Len {
+			if isString(t) && id == _Len {
 				if x.mode == constant {
 					mode = constant
 					val = exact.MakeInt64(int64(len(exact.StringVal(x.val))))
@@ -134,7 +148,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			// function calls; in this case s is not evaluated."
 			if !check.containsCallsOrReceives(x.expr) {
 				mode = constant
-				val = exact.MakeInt64(typ.len)
+				val = exact.MakeInt64(t.len)
 			}
 
 		case *Slice, *Chan:
@@ -150,9 +164,13 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.invalidArg(x.pos(), "%s for %s", x, bin.name)
 			return
 		}
+
 		x.mode = mode
 		x.typ = Typ[Int]
 		x.val = val
+		if check.Types != nil && mode != constant {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+		}
 
 	case _Close:
 		// close(c)
@@ -165,7 +183,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.invalidArg(x.pos(), "%s must not be a receive-only channel", x)
 			return
 		}
+
 		x.mode = novalue
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(nil, c))
+		}
 
 	case _Complex:
 		// complex(x, y realT) complexT
@@ -202,9 +224,9 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			x.mode = value
 		}
 
-		realT := x.typ.Underlying().(*Basic)
+		realT := x.typ
 		complexT := Typ[Invalid]
-		switch realT.kind {
+		switch realT.Underlying().(*Basic).kind {
 		case Float32:
 			complexT = Typ[Complex64]
 		case Float64:
@@ -223,7 +245,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.invalidArg(x.pos(), "float32 or float64 arguments expected")
 			return
 		}
+
 		x.typ = complexT
+		if check.Types != nil && x.mode != constant {
+			check.recordBuiltinType(call.Fun, makeSig(complexT, realT, realT))
+		}
 
 		if x.mode != constant {
 			// The arguments have now their final types, which at run-
@@ -270,6 +296,10 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		x.mode = value
 		x.typ = Typ[Int]
+		if check.Types != nil {
+			S := NewSlice(dst)
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, S, S))
+		}
 
 	case _Delete:
 		// delete(m, k)
@@ -282,11 +312,16 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if x.mode == invalid {
 			return
 		}
+
 		if !x.isAssignableTo(check.conf, m.key) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			return
 		}
+
 		x.mode = novalue
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(nil, m, m.key))
+		}
 
 	case _Imag, _Real:
 		// imag(complexT) realT
@@ -304,7 +339,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		} else {
 			x.mode = value
 		}
-		k := Invalid
+		var k BasicKind
 		switch x.typ.Underlying().(*Basic).kind {
 		case Complex64:
 			k = Float32
@@ -314,6 +349,10 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			k = UntypedFloat
 		default:
 			unreachable()
+		}
+
+		if check.Types != nil && x.mode != constant {
+			check.recordBuiltinType(call.Fun, makeSig(Typ[k], x.typ))
 		}
 		x.typ = Typ[k]
 
@@ -352,6 +391,10 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		x.mode = variable
 		x.typ = T
+		if check.Types != nil {
+			params := [...]Type{T, Typ[Int], Typ[Int]}
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, params[:1+len(sizes)]...))
+		}
 
 	case _New:
 		// new(T)
@@ -360,32 +403,64 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if T == Typ[Invalid] {
 			return
 		}
+
 		x.mode = variable
 		x.typ = &Pointer{base: T}
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
+		}
 
-	case _Panic, _Print, _Println:
-		// panic(x interface{})
+	case _Panic:
+		// panic(x)
+		arg(x, 0)
+		if x.mode == invalid {
+			return
+		}
+		// TODO(gri) arguments must be assignable to _
+
+		x.mode = novalue
+		if check.Types != nil {
+			// TODO(gri) we need a global empty interface somewhere
+			check.recordBuiltinType(call.Fun, makeSig(nil, new(Interface)))
+		}
+
+	case _Print, _Println:
 		// print(x, y, ...)
 		// println(x, y, ...)
-		for i := 1; i < nargs; i++ {
-			arg(x, i)
-			if x.mode == invalid {
-				return
+		var params []Type
+		if nargs > 0 {
+			params = make([]Type, nargs)
+			params[0] = x.typ // first argument already evaluated
+			for i := 1; i < nargs; i++ {
+				arg(x, i)
+				if x.mode == invalid {
+					return
+				}
+				params[i] = x.typ
+				// TODO(gri) arguments must be assignable to _
 			}
-			// TODO(gri) arguments must be assignable to _
 		}
+
 		x.mode = novalue
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(nil, params...))
+		}
 
 	case _Recover:
 		// recover() interface{}
 		x.mode = value
-		x.typ = new(Interface)
+		x.typ = new(Interface) // TODO(gri) we need a global empty interface somewhere
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ))
+		}
 
 	case _Alignof:
-		// unsafe.Alignof(x T) uintptr, where x must be a variable
+		// unsafe.Alignof(x T) uintptr
+		// TODO(gri) argument must be assignable to _
 		x.mode = constant
 		x.val = exact.MakeInt64(check.conf.alignof(x.typ))
 		x.typ = Typ[Uintptr]
+		// result is constant - no need to record signature
 
 	case _Offsetof:
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
@@ -424,12 +499,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x.mode = constant
 		x.val = exact.MakeInt64(offs)
 		x.typ = Typ[Uintptr]
+		// result is constant - no need to record signature
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
+		// TODO(gri) argument must be assignable to _
 		x.mode = constant
 		x.val = exact.MakeInt64(check.conf.sizeof(x.typ))
 		x.typ = Typ[Uintptr]
+		// result is constant - no need to record signature
 
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
@@ -447,6 +525,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.errorf(call.Pos(), "%s failed", call)
 			// compile-time assertion failure - safe to continue
 		}
+		// result is constant - no need to record signature
 
 	case _Trace:
 		// trace(x, y, z, ...) dumps the positions, expressions, and
@@ -466,6 +545,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.dump("%s: %s", x1.pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}
+		// trace is only available in test mode - no need to record signature
 
 	default:
 		unreachable()
@@ -475,15 +555,16 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 }
 
 // makeSig makes a signature for the given argument and result types.
-// res may be nil.
+// Default types are used for untyped arguments, and res may be nil.
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(token.NoPos, nil, "", param)
+		list[i] = NewVar(token.NoPos, nil, "", defaultType(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
 	if res != nil {
+		assert(!isUntyped(res))
 		result = NewTuple(NewVar(token.NoPos, nil, "", res))
 	}
 	return &Signature{params: params, results: result}

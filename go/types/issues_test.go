@@ -133,6 +133,6 @@ func f() int {
 	}
 
 	if n != 2 {
-		t.Errorf("got %d call CallExprs; want 2", n)
+		t.Errorf("got %d CallExprs; want 2", n)
 	}
 }

@@ -139,6 +139,7 @@ func complex1() {
 	var f32 float32
 	var f64 float64
 	var c64 complex64
+	var c128 complex128
 	_ = complex() // ERROR not enough arguments
 	_ = complex(1) // ERROR not enough arguments
 	_ = complex(true /* ERROR invalid argument */ , 0)
@@ -157,8 +158,8 @@ func complex1() {
 	_ = complex(f64, 1)
 	_ = complex(f64, 1.0)
 	_ = complex(f64, 'a')
-	_ = complex(f32 /* ERROR mismatched types */, f64)
-	_ = complex(f64 /* ERROR mismatched types */, f32)
+	_ = complex(f32 /* ERROR mismatched types */ , f64)
+	_ = complex(f64 /* ERROR mismatched types */ , f32)
 	_ = complex(1, 1)
 	_ = complex(1, 1.1)
 	_ = complex(1, 'a')
@@ -184,6 +185,19 @@ func complex1() {
 	_ = complex(1 /* ERROR integer */ <<s, 0)
 	const _ = complex /* ERROR not constant */ (1 /* ERROR integer */ <<s, 0)
 	var _ int = complex /* ERROR cannot initialize */ (1 /* ERROR integer */ <<s, 0)
+
+	// floating-point argument types must be identical
+	type F32 float32
+	type F64 float64
+	var x32 F32
+	var x64 F64
+	c64 = complex(x32, x32)
+	_ = complex(x32 /* ERROR mismatched types */ , f32)
+	_ = complex(f32 /* ERROR mismatched types */ , x32)
+	c128 = complex(x64, x64)
+	_ = c128
+	_ = complex(x64 /* ERROR mismatched types */ , f64)
+	_ = complex(f64 /* ERROR mismatched types */ , x64)
 
 	var t []float32
 	_ = complex(t... /* ERROR invalid use of \.\.\. */ )
@@ -217,6 +231,9 @@ func copy1() {
 
 	var t [][]int
 	copy(t, t)
+	copy(t /* ERROR copy expects slice arguments */ , nil)
+	copy(nil /* ERROR copy expects slice arguments */ , t)
+	copy(nil /* ERROR copy expects slice arguments */ , nil)
 	copy(t... /* ERROR invalid use of \.\.\. */ )
 }
 
@@ -276,6 +293,14 @@ func imag1() {
 	f64 = imag /* ERROR cannot assign */ (c64)
 	imag /* ERROR not used */ (c64)
 	_, _ = f32, f64
+
+	// complex type may not be predeclared
+	type C64 complex64
+	type C128 complex128
+	var x64 C64
+	var x128 C128
+	f32 = imag(x64)
+	f64 = imag(x128)
 
 	var s []complex64
 	_ = imag(s... /* ERROR invalid use of \.\.\. */ )
@@ -503,6 +528,14 @@ func real1() {
 	f32 = real /* ERROR cannot assign */ (c128)
 	f64 = real /* ERROR cannot assign */ (c64)
 	real /* ERROR not used */ (c64)
+
+	// complex type may not be predeclared
+	type C64 complex64
+	type C128 complex128
+	var x64 C64
+	var x128 C128
+	f32 = imag(x64)
+	f64 = imag(x128)
 
 	var s []complex64
 	_ = real(s... /* ERROR invalid use of \.\.\. */ )
