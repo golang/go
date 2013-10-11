@@ -445,7 +445,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 	switch ctxt.Compiler {
 	case "gccgo":
 		dir, elem := pathpkg.Split(p.ImportPath)
-		pkga = "pkg/gccgo/" + dir + "lib" + elem + ".a"
+		pkga = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + "/" + dir + "lib" + elem + ".a"
 	case "gc":
 		suffix := ""
 		if ctxt.InstallSuffix != "" {
