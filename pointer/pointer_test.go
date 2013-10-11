@@ -37,6 +37,7 @@ var inputs = []string{
 	// Working:
 	"testdata/a_test.go",
 	"testdata/another.go",
+	"testdata/arrayreflect.go",
 	"testdata/arrays.go",
 	"testdata/channels.go",
 	"testdata/chanreflect.go",
@@ -45,9 +46,9 @@ var inputs = []string{
 	"testdata/flow.go",
 	"testdata/fmtexcerpt.go",
 	"testdata/func.go",
+	"testdata/funcreflect.go",
 	"testdata/hello.go",
 	"testdata/interfaces.go",
-	"testdata/funcreflect.go",
 	"testdata/mapreflect.go",
 	"testdata/maps.go",
 	"testdata/panic.go",
@@ -58,7 +59,6 @@ var inputs = []string{
 	// TODO(adonovan): get these tests (of reflection) passing.
 	// (The tests are mostly sound since they were used for a
 	// previous implementation.)
-	// "testdata/arrayreflect.go",
 	// "testdata/finalizer.go",
 	// "testdata/structreflect.go",
 }
@@ -193,7 +193,7 @@ func doOneInput(input, filename string) bool {
 	if mainpkg.Func("main") == nil {
 		// No main function; assume it's a test.
 		mainpkg.CreateTestMainFunction()
-		fmt.Printf("%s: synthesized testmain package for test.\n", imp.Fset.Position(f.Package))
+		// fmt.Printf("%s: synthesized testmain package for test.\n", imp.Fset.Position(f.Package))
 	}
 
 	ok := true

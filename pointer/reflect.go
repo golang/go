@@ -31,17 +31,175 @@ import (
 
 // -------------------- (reflect.Value) --------------------
 
-func ext۰reflect۰Value۰Addr(a *analysis, cgn *cgnode)            {}
-func ext۰reflect۰Value۰Bytes(a *analysis, cgn *cgnode)           {}
-func ext۰reflect۰Value۰Call(a *analysis, cgn *cgnode)            {}
-func ext۰reflect۰Value۰CallSlice(a *analysis, cgn *cgnode)       {}
-func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode)         {}
-func ext۰reflect۰Value۰Elem(a *analysis, cgn *cgnode)            {}
+func ext۰reflect۰Value۰Addr(a *analysis, cgn *cgnode) {}
+
+// ---------- func (Value).Bytes() Value ----------
+
+// result = v.Bytes()
+type rVBytesConstraint struct {
+	v      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *rVBytesConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect n%d.Bytes()", c.result, c.v)
+}
+
+func (c *rVBytesConstraint) ptr() nodeid {
+	return c.v
+}
+
+func (c *rVBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for vObj := range delta {
+		tDyn, slice, indirect := a.taggedValue(vObj)
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		tSlice, ok := tDyn.Underlying().(*types.Slice)
+		if ok && types.IsIdentical(tSlice.Elem(), types.Typ[types.Uint8]) {
+			if a.onlineCopy(c.result, slice) {
+				changed = true
+			}
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰Value۰Bytes(a *analysis, cgn *cgnode) {
+	a.addConstraint(&rVBytesConstraint{
+		v:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
+func ext۰reflect۰Value۰Call(a *analysis, cgn *cgnode)      {}
+func ext۰reflect۰Value۰CallSlice(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode)   {}
+
+// ---------- func (Value).Elem() Value ----------
+
+// result = v.Elem()
+type rVElemConstraint struct {
+	cgn    *cgnode
+	v      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *rVElemConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect n%d.Elem()", c.result, c.v)
+}
+
+func (c *rVElemConstraint) ptr() nodeid {
+	return c.v
+}
+
+func (c *rVElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for vObj := range delta {
+		tDyn, payload, indirect := a.taggedValue(vObj)
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		switch t := tDyn.Underlying().(type) {
+		case *types.Interface:
+			// A direct tagged object can't hold an
+			// interface type.  Implement when we support
+			// indirect tagged objects.
+			panic("unreachable")
+
+		case *types.Pointer:
+			obj := a.makeTagged(t.Elem(), c.cgn, nil)
+			a.load(obj+1, payload, 0, a.sizeof(t.Elem()))
+			if a.addLabel(c.result, obj) {
+				changed = true
+			}
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰Value۰Elem(a *analysis, cgn *cgnode) {
+	a.addConstraint(&rVElemConstraint{
+		cgn:    cgn,
+		v:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
 func ext۰reflect۰Value۰Field(a *analysis, cgn *cgnode)           {}
 func ext۰reflect۰Value۰FieldByIndex(a *analysis, cgn *cgnode)    {}
 func ext۰reflect۰Value۰FieldByName(a *analysis, cgn *cgnode)     {}
 func ext۰reflect۰Value۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
-func ext۰reflect۰Value۰Index(a *analysis, cgn *cgnode)           {}
+
+// ---------- func (Value).Index() Value ----------
+
+// result = v.Index()
+type rVIndexConstraint struct {
+	cgn    *cgnode
+	v      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *rVIndexConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect n%d.Index()", c.result, c.v)
+}
+
+func (c *rVIndexConstraint) ptr() nodeid {
+	return c.v
+}
+
+func (c *rVIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for vObj := range delta {
+		tDyn, payload, indirect := a.taggedValue(vObj)
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		var res nodeid
+		switch t := tDyn.Underlying().(type) {
+		case *types.Array:
+			res = a.makeTagged(t.Elem(), c.cgn, nil)
+			a.onlineCopyN(res+1, payload+1, a.sizeof(t.Elem()))
+
+		case *types.Slice:
+			res = a.makeTagged(t.Elem(), c.cgn, nil)
+			a.load(res+1, payload, 1, a.sizeof(t.Elem()))
+
+		case *types.Basic:
+			if t.Kind() == types.String {
+				res = a.makeTagged(types.Typ[types.Rune], c.cgn, nil)
+			}
+		}
+		if res != 0 && a.addLabel(c.result, res) {
+			changed = true
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰Value۰Index(a *analysis, cgn *cgnode) {
+	a.addConstraint(&rVIndexConstraint{
+		cgn:    cgn,
+		v:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
 
 // ---------- func (Value).Interface() Value ----------
 
@@ -296,8 +454,51 @@ func ext۰reflect۰Value۰Send(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Value۰Set(a *analysis, cgn *cgnode)      {}
-func ext۰reflect۰Value۰SetBytes(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Set(a *analysis, cgn *cgnode) {}
+
+// ---------- func (Value).SetBytes(x []byte) ----------
+
+// v.SetBytes(x)
+type rVSetBytesConstraint struct {
+	cgn *cgnode
+	v   nodeid // (ptr)
+	x   nodeid
+}
+
+func (c *rVSetBytesConstraint) String() string {
+	return fmt.Sprintf("reflect n%d.SetBytes(n%d)", c.v, c.x)
+}
+
+func (c *rVSetBytesConstraint) ptr() nodeid {
+	return c.v
+}
+
+func (c *rVSetBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	for vObj := range delta {
+		tDyn, slice, indirect := a.taggedValue(vObj)
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		tSlice, ok := tDyn.Underlying().(*types.Slice)
+		if ok && types.IsIdentical(tSlice.Elem(), types.Typ[types.Uint8]) {
+			if a.onlineCopy(slice, c.x) {
+				a.addWork(slice)
+			}
+		}
+	}
+}
+
+func ext۰reflect۰Value۰SetBytes(a *analysis, cgn *cgnode) {
+	params := a.funcParams(cgn.obj)
+	a.addConstraint(&rVSetBytesConstraint{
+		cgn: cgn,
+		v:   params,
+		x:   params + 1,
+	})
+}
 
 // ---------- func (Value).SetMapIndex(k Value, v Value) ----------
 
@@ -355,7 +556,74 @@ func ext۰reflect۰Value۰SetMapIndex(a *analysis, cgn *cgnode) {
 }
 
 func ext۰reflect۰Value۰SetPointer(a *analysis, cgn *cgnode) {}
-func ext۰reflect۰Value۰Slice(a *analysis, cgn *cgnode)      {}
+
+// ---------- func (Value).Slice(v Value, i, j int) ----------
+
+// result = v.Slice(_, _)
+type rVSliceConstraint struct {
+	cgn    *cgnode
+	v      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *rVSliceConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect n%d.Slice(_, _)", c.result, c.v)
+}
+
+func (c *rVSliceConstraint) ptr() nodeid {
+	return c.v
+}
+
+func (c *rVSliceConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for vObj := range delta {
+		tDyn, payload, indirect := a.taggedValue(vObj)
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		var res nodeid
+		switch t := tDyn.Underlying().(type) {
+		case *types.Pointer:
+			if tArr, ok := t.Elem().Underlying().(*types.Array); ok {
+				// pointer to array
+				res = a.makeTagged(types.NewSlice(tArr.Elem()), c.cgn, nil)
+				if a.onlineCopy(res+1, payload) {
+					a.addWork(res + 1)
+				}
+			}
+
+		case *types.Array:
+			// TODO(adonovan): implement addressable
+			// arrays when we do indirect tagged objects.
+
+		case *types.Slice:
+			res = vObj
+
+		case *types.Basic:
+			if t == types.Typ[types.String] {
+				res = vObj
+			}
+		}
+
+		if res != 0 && a.addLabel(c.result, res) {
+			changed = true
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰Value۰Slice(a *analysis, cgn *cgnode) {
+	a.addConstraint(&rVSliceConstraint{
+		cgn:    cgn,
+		v:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
 
 // -------------------- Standalone reflect functions --------------------
 
@@ -648,9 +916,85 @@ func ext۰reflect۰NewAt(a *analysis, cgn *cgnode) {
 	}
 }
 
-func ext۰reflect۰PtrTo(a *analysis, cgn *cgnode)   {}
-func ext۰reflect۰Select(a *analysis, cgn *cgnode)  {}
-func ext۰reflect۰SliceOf(a *analysis, cgn *cgnode) {}
+// ---------- func PtrTo(Type) Type ----------
+
+// result = PtrTo(t)
+type reflectPtrToConstraint struct {
+	cgn    *cgnode
+	t      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *reflectPtrToConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect.PtrTo(n%d)", c.result, c.t)
+}
+
+func (c *reflectPtrToConstraint) ptr() nodeid {
+	return c.t
+}
+
+func (c *reflectPtrToConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for tObj := range delta {
+		T := a.rtypeTaggedValue(tObj)
+
+		if a.addLabel(c.result, a.makeRtype(types.NewPointer(T))) {
+			changed = true
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰PtrTo(a *analysis, cgn *cgnode) {
+	a.addConstraint(&reflectPtrToConstraint{
+		cgn:    cgn,
+		t:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
+func ext۰reflect۰Select(a *analysis, cgn *cgnode) {}
+
+// ---------- func SliceOf(Type) Type ----------
+
+// result = SliceOf(t)
+type reflectSliceOfConstraint struct {
+	cgn    *cgnode
+	t      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *reflectSliceOfConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect.SliceOf(n%d)", c.result, c.t)
+}
+
+func (c *reflectSliceOfConstraint) ptr() nodeid {
+	return c.t
+}
+
+func (c *reflectSliceOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for tObj := range delta {
+		T := a.rtypeTaggedValue(tObj)
+
+		if a.addLabel(c.result, a.makeRtype(types.NewSlice(T))) {
+			changed = true
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰SliceOf(a *analysis, cgn *cgnode) {
+	a.addConstraint(&reflectSliceOfConstraint{
+		cgn:    cgn,
+		t:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
 
 // ---------- func TypeOf(v Value) Type ----------
 

@@ -2,107 +2,170 @@
 
 package main
 
-import "reflect"
-
 // Test of arrays & slices with reflection.
 
-var a int
+import "reflect"
 
-func arrayreflect1() {
-	sl := make([]*int, 10) // @line ar1make
-	sl[0] = &a
+var a, b int
 
-	srv := reflect.ValueOf(sl).Slice(0, 0)
-	print(srv.Interface())              // @types []*int
-	print(srv.Interface().([]*int))     // @pointsto makeslice@ar1make:12
-	print(srv.Interface().([]*int)[42]) // @pointsto main.a
+type S string
+
+func reflectValueSlice() {
+	// reflect.Value contains a slice.
+	slice := make([]*int, 10) // @line slice
+	slice[0] = &a
+	rvsl := reflect.ValueOf(slice).Slice(0, 0)
+	print(rvsl.Interface())              // @types []*int
+	print(rvsl.Interface().([]*int))     // @pointsto makeslice@slice:15
+	print(rvsl.Interface().([]*int)[42]) // @pointsto main.a
+
+	// reflect.Value contains an arrayay (non-addressable).
+	array := [10]*int{&a} // @line array
+	rvarray := reflect.ValueOf(array).Slice(0, 0)
+	print(rvarray.Interface())              // @types
+	print(rvarray.Interface().([]*int))     // @pointsto
+	print(rvarray.Interface().([]*int)[42]) // @pointsto
+
+	// reflect.Value contains a pointer-to-array
+	rvparray := reflect.ValueOf(&array).Slice(0, 0)
+	print(rvparray.Interface())              // @types []*int
+	print(rvparray.Interface().([]*int))     // @pointsto array@array:2
+	print(rvparray.Interface().([]*int)[42]) // @pointsto main.a
+
+	// reflect.Value contains a string.
+	rvstring := reflect.ValueOf("hi").Slice(0, 0)
+	print(rvstring.Interface()) // @types string
+
+	// reflect.Value contains a (named) string type.
+	rvS := reflect.ValueOf(S("hi")).Slice(0, 0)
+	print(rvS.Interface()) // @types S
+
+	// reflect.Value contains a non-array pointer.
+	rvptr := reflect.ValueOf(new(int)).Slice(0, 0)
+	print(rvptr.Interface()) // @types
+
+	// reflect.Value contains a non-string basic type.
+	rvint := reflect.ValueOf(3).Slice(0, 0)
+	print(rvint.Interface()) // @types
 }
 
-func arrayreflect2() {
-	var arr [10]*int
-	sl := arr[:]
-	sl[0] = &a
+func reflectValueBytes() {
+	sl1 := make([]byte, 0) // @line ar5sl1
+	sl2 := make([]byte, 0) // @line ar5sl2
 
-	srv := reflect.ValueOf(sl).Slice(0, 0)
-	print(srv.Interface())              // @types []*int
-	print(srv.Interface().([]*int))     // pointsto TODO
-	print(srv.Interface().([]*int)[42]) // @pointsto main.a
+	rvsl1 := reflect.ValueOf(sl1)
+	print(rvsl1.Interface())          // @types []byte
+	print(rvsl1.Interface().([]byte)) // @pointsto makeslice@ar5sl1:13
+	print(rvsl1.Bytes())              // @pointsto makeslice@ar5sl1:13
+
+	rvsl2 := reflect.ValueOf(123)
+	rvsl2.SetBytes(sl2)
+	print(rvsl2.Interface())          // @types int
+	print(rvsl2.Interface().([]byte)) // @pointsto
+	print(rvsl2.Bytes())              // @pointsto
+
+	rvsl3 := reflect.ValueOf([]byte(nil))
+	rvsl3.SetBytes(sl2)
+	print(rvsl3.Interface())          // @types []byte
+	print(rvsl3.Interface().([]byte)) // @pointsto makeslice@ar5sl2:13
+	print(rvsl3.Bytes())              // @pointsto makeslice@ar5sl2:13
 }
 
-func arrayreflect3() {
-	srv := reflect.ValueOf("hi").Slice(0, 0)
-	print(srv.Interface()) // @types string
+func reflectValueIndex() {
+	slice := []*int{&a} // @line ar6slice
+	rv1 := reflect.ValueOf(slice)
+	print(rv1.Index(42).Interface())        // @types *int
+	print(rv1.Index(42).Interface().(*int)) // @pointsto main.a
 
-	type S string
-	srv2 := reflect.ValueOf(S("hi")).Slice(0, 0)
-	print(srv2.Interface()) // @types main.S
+	array := [10]*int{&a}
+	rv2 := reflect.ValueOf(array)
+	print(rv2.Index(42).Interface())        // @types *int
+	print(rv2.Index(42).Interface().(*int)) // @pointsto main.a
+
+	rv3 := reflect.ValueOf("string")
+	print(rv3.Index(42).Interface()) // @types rune
+
+	rv4 := reflect.ValueOf(&array)
+	print(rv4.Index(42).Interface()) // @types
+
+	rv5 := reflect.ValueOf(3)
+	print(rv5.Index(42).Interface()) // @types
 }
 
-func arrayreflect4() {
-	rv1 := reflect.ValueOf("hi")
-	rv2 := rv1 // backflow!
-	if unknown {
-		rv2 = reflect.ValueOf(123)
-	}
-	// We see backflow through the assignment above causing an
-	// imprecise result for rv1.  This is because the SSA builder
-	// doesn't yet lift structs (like reflect.Value) into
-	// registers so these are all loads/stores to the stack.
-	// Under Das's algorithm, the extra indirection results in
-	// (undirected) unification not (directed) flow edges.
-	// TODO(adonovan): precision: lift aggregates.
-	print(rv1.Interface()) // @types string | int
-	print(rv2.Interface()) // @types string | int
+func reflectValueElem() {
+	// TODO(adonovan): tests 'interface'.  Needs indirect tagged objects.
+	// rv1 := reflect.ValueOf(...)
+	// print(rv1.Elem().Interface())        // #@types *int
+	// print(rv1.Elem().Interface().(*int)) // #@pointsto main.a
+
+	// Pointer.
+	ptr := &a
+	rv2 := reflect.ValueOf(&ptr)
+	print(rv2.Elem().Interface())        // @types *int
+	print(rv2.Elem().Interface().(*int)) // @pointsto main.a
+
+	// No other type works with (rV).Elem, not even those that
+	// work with (rT).Elem: slice, array, map, chan.
+
+	rv3 := reflect.ValueOf([]*int{&a})
+	print(rv3.Elem().Interface()) // @types
+
+	rv4 := reflect.ValueOf([10]*int{&a})
+	print(rv4.Elem().Interface()) // @types
+
+	rv5 := reflect.ValueOf(map[*int]*int{&a: &b})
+	print(rv5.Elem().Interface()) // @types
+
+	ch := make(chan *int)
+	ch <- &a
+	rv6 := reflect.ValueOf(ch)
+	print(rv6.Elem().Interface()) // @types
+
+	rv7 := reflect.ValueOf(3)
+	print(rv7.Elem().Interface()) // @types
 }
 
-func arrayreflect5() {
-	sl1 := make([]byte, 0)
-	sl2 := make([]byte, 0)
+func reflectTypeElem() {
+	rt1 := reflect.TypeOf(make([]*int, 0))
+	print(reflect.Zero(rt1.Elem())) // @types *int
 
-	srv := reflect.ValueOf(sl1)
+	rt2 := reflect.TypeOf([10]*int{})
+	print(reflect.Zero(rt2.Elem())) // @types *int
 
-	print(srv.Interface())          // @types []byte
-	print(srv.Interface().([]byte)) // @pointsto makeslice@testdata/arrayreflect.go:62:13
-	print(srv.Bytes())              // @pointsto makeslice@testdata/arrayreflect.go:62:13
+	rt3 := reflect.TypeOf(map[*int]*int{})
+	print(reflect.Zero(rt3.Elem())) // @types *int
 
-	srv2 := reflect.ValueOf(123)
-	srv2.SetBytes(sl2)
-	print(srv2.Interface())          // @types []byte | int
-	print(srv2.Interface().([]byte)) // @pointsto makeslice@testdata/arrayreflect.go:63:13
-	print(srv2.Bytes())              // @pointsto makeslice@testdata/arrayreflect.go:63:13
+	rt4 := reflect.TypeOf(make(chan *int))
+	print(reflect.Zero(rt4.Elem())) // @types *int
+
+	ptr := &a
+	rt5 := reflect.TypeOf(&ptr)
+	print(reflect.Zero(rt5.Elem())) // @types *int
+
+	rt6 := reflect.TypeOf(3)
+	print(reflect.Zero(rt6.Elem())) // @types
 }
 
-func arrayreflect6() {
-	sl1 := []*bool{new(bool)}
-	sl2 := []*int{&a}
+func reflectPtrTo() {
+	tInt := reflect.TypeOf(3)
+	tPtrInt := reflect.PtrTo(tInt)
+	print(reflect.Zero(tPtrInt)) // @types *int
+	tPtrPtrInt := reflect.PtrTo(tPtrInt)
+	print(reflect.Zero(tPtrPtrInt)) // @types **int
+}
 
-	srv1 := reflect.ValueOf(sl1)
-	print(srv1.Index(42).Interface())         // @types *bool
-	print(srv1.Index(42).Interface().(*bool)) // @pointsto alloc@testdata/arrayreflect.go:79:20
-
-	srv2 := reflect.ValueOf(sl2)
-	print(srv2.Index(42).Interface())        // @types *int
-	print(srv2.Index(42).Interface().(*int)) // @pointsto main.a
-
-	p1 := &sl1[0]
-	p2 := &sl2[0]
-
-	prv1 := reflect.ValueOf(p1)
-	print(prv1.Elem().Interface())         // @types *bool
-	print(prv1.Elem().Interface().(*bool)) // @pointsto alloc@testdata/arrayreflect.go:79:20
-
-	prv2 := reflect.ValueOf(p2)
-	print(prv2.Elem().Interface())        // @types *int
-	print(prv2.Elem().Interface().(*int)) // @pointsto main.a
+func reflectSliceOf() {
+	tInt := reflect.TypeOf(3)
+	tSliceInt := reflect.SliceOf(tInt)
+	print(reflect.Zero(tSliceInt)) // @types []int
 }
 
 func main() {
-	arrayreflect1()
-	arrayreflect2()
-	arrayreflect3()
-	arrayreflect4()
-	arrayreflect5()
-	arrayreflect6()
+	reflectValueSlice()
+	reflectValueBytes()
+	reflectValueIndex()
+	reflectValueElem()
+	reflectTypeElem()
+	reflectPtrTo()
+	reflectSliceOf()
 }
-
-var unknown bool

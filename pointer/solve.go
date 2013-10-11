@@ -193,6 +193,10 @@ func (a *analysis) onlineCopy(dst, src nodeid) bool {
 			if a.log != nil {
 				fmt.Fprintf(a.log, "\t\t\tdynamic copy n%d <- n%d\n", dst, src)
 			}
+			// TODO(adonovan): most calls to onlineCopy
+			// are followed by addWork, possibly batched
+			// via a 'changed' flag; see if there's a
+			// noticeable penalty to calling addWork here.
 			return a.nodes[dst].pts.addAll(nsrc.pts)
 		}
 	}
