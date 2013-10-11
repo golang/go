@@ -289,7 +289,7 @@ variter(NodeList *vl, Node *t, NodeList *el)
 	for(; vl; vl=vl->next) {
 		if(doexpr) {
 			if(el == nil) {
-				yyerror("missing expr in var dcl");
+				yyerror("missing expression in var declaration");
 				break;
 			}
 			e = el->n;
@@ -312,7 +312,7 @@ variter(NodeList *vl, Node *t, NodeList *el)
 		}
 	}
 	if(el != nil)
-		yyerror("extra expr in var dcl");
+		yyerror("extra expression in var declaration");
 	return init;
 }
 
@@ -329,7 +329,7 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 	vv = nil;
 	if(cl == nil) {
 		if(t != N)
-			yyerror("constdcl cannot have type without expr");
+			yyerror("const declaration cannot have type without expression");
 		cl = lastconst;
 		t = lasttype;
 	} else {
@@ -340,7 +340,7 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 
 	for(; vl; vl=vl->next) {
 		if(cl == nil) {
-			yyerror("missing expr in const dcl");
+			yyerror("missing value in const declaration");
 			break;
 		}
 		c = cl->n;
@@ -356,7 +356,7 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 		vv = list(vv, nod(ODCLCONST, v, N));
 	}
 	if(cl != nil)
-		yyerror("extra expr in const dcl");
+		yyerror("extra expression in const declaration");
 	iota += 1;
 	return vv;
 }
