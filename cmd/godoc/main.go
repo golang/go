@@ -56,8 +56,8 @@ import (
 )
 
 const (
-	defaultAddr  = ":6060" // default webserver address
-	templatePath = "code.google.com/p/go.tools/cmd/godoc/template"
+	defaultAddr = ":6060" // default webserver address
+	toolsPath   = "code.google.com/p/go.tools/cmd/"
 )
 
 var (
@@ -383,6 +383,11 @@ func main() {
 	if !filepath.IsAbs(path) {
 		abspath = pathpkg.Join(pres.CmdFSRoot(), path)
 		cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
+		if cinfo.IsEmpty() {
+			// Try go.tools/cmd if not found in $GOROOT/cmd.
+			abspath = pathpkg.Join(pres.PkgFSRoot(), toolsPath+path)
+			cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
+		}
 	}
 
 	// determine what to use
