@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This is a tool for packaging binary releases.
-// It supports FreeBSD, Linux, NetBSD, OS X, and Windows.
+// It supports FreeBSD, Linux, NetBSD, OpenBSD, OS X, and Windows.
 package main
 
 import (
@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -480,7 +481,31 @@ func (b *Build) tools() error {
 	// Install tools.
 	args = append([]string{"install"}, toolPaths...)
 	_, err = b.run(b.gopath, filepath.Join(b.root, "bin", "go"), args...)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Copy doc.go from go.tools/cmd/$CMD to $GOROOT/src/cmd/$CMD
+	// while rewriting "package main" to "package documentation".
+	for _, p := range toolPaths {
+		d, err := ioutil.ReadFile(filepath.Join(b.gopath, "src",
+			filepath.FromSlash(p), "doc.go"))
+		if err != nil {
+			return err
+		}
+		d = bytes.Replace(d, []byte("\npackage main\n"),
+			[]byte("\npackage documentation\n"), 1)
+		cmdDir := filepath.Join(b.root, "src", "cmd", path.Base(p))
+		if err := os.MkdirAll(cmdDir, 0755); err != nil {
+			return err
+		}
+		docGo := filepath.Join(cmdDir, "doc.go")
+		if err := ioutil.WriteFile(docGo, d, 0644); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (b *Build) blog() error {
