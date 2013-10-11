@@ -44,8 +44,8 @@ use the language.
 Moreover, many of the packages contain working, self-contained
 executable examples you can run directly from the
 <a href="http://golang.org">golang.org</a> web site, such as
-<a href="http://golang.org/pkg/strings/#example_Map">this one</a> (click
-on the word "Example" to open it up).
+<a href="http://golang.org/pkg/strings/#example_Map">this one</a> (if
+necessary, click on the word "Example" to open it up).
 If you have a question about how to approach a problem or how something
 might be implemented, the documentation, code and examples in the
 library can provide answers, ideas and
@@ -839,10 +839,10 @@ func Compare(a, b []byte) int {
         }
     }
     switch {
-    case len(a) &lt; len(b):
-        return -1
     case len(a) &gt; len(b):
         return 1
+    case len(a) &lt; len(b):
+        return -1
     }
     return 0
 }
