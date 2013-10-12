@@ -42,7 +42,7 @@
 	its <code>src</code> is just a file name.
 </step>
 
-<step title="Specifiying a source line" src='doc/codewalk/codewalk.xml:/title="Title"/'>
+<step title="Specifying a source line" src='doc/codewalk/codewalk.xml:/title="Title"/'>
 	The most complex part of the codewalk specification is
 	saying what lines to highlight.
 	Instead of ordinary line numbers,
