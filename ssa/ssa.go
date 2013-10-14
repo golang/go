@@ -443,7 +443,7 @@ type Builtin struct {
 // 	t1 = new int
 //
 type Alloc struct {
-	Register
+	register
 	Comment string
 	Heap    bool
 	index   int // dense numbering; for lifting
@@ -462,7 +462,7 @@ type Alloc struct {
 // 	t2 = phi [0.start: t0, 1.if.then: t1, ...]
 //
 type Phi struct {
-	Register
+	register
 	Comment string  // a hint as to its purpose
 	Edges   []Value // Edges[i] is value for Block().Preds[i]
 }
@@ -483,7 +483,7 @@ type Phi struct {
 // 	t7 = invoke t5.Println(...t6)
 //
 type Call struct {
-	Register
+	register
 	Call CallCommon
 }
 
@@ -495,7 +495,7 @@ type Call struct {
 // 	t1 = t0 + 1:int
 //
 type BinOp struct {
-	Register
+	register
 	// One of:
 	// ADD SUB MUL QUO REM          + - * / %
 	// AND OR XOR SHL SHR AND_NOT   & | ^ << >> &~
@@ -522,7 +522,7 @@ type BinOp struct {
 // 	t2 = <-t1,ok
 //
 type UnOp struct {
-	Register
+	register
 	Op      token.Token // One of: NOT SUB ARROW MUL XOR ! - <- * ^
 	X       Value
 	CommaOk bool
@@ -548,7 +548,7 @@ type UnOp struct {
 // 	t1 = changetype *int <- IntPtr (t0)
 //
 type ChangeType struct {
-	Register
+	register
 	X Value
 }
 
@@ -577,7 +577,7 @@ type ChangeType struct {
 // 	t1 = convert []byte <- string (t0)
 //
 type Convert struct {
-	Register
+	register
 	X Value
 }
 
@@ -594,7 +594,7 @@ type Convert struct {
 // 	t1 = change interface interface{} <- I (t0)
 //
 type ChangeInterface struct {
-	Register
+	register
 	X Value
 }
 
@@ -615,7 +615,7 @@ type ChangeInterface struct {
 // 	t2 = make Stringer <- t0
 //
 type MakeInterface struct {
-	Register
+	register
 	X Value
 }
 
@@ -632,7 +632,7 @@ type MakeInterface struct {
 // 	t1 = make closure bound$(main.I).add [i]
 //
 type MakeClosure struct {
-	Register
+	register
 	Fn       Value   // always a *Function
 	Bindings []Value // values for each free variable in Fn.FreeVars
 }
@@ -650,7 +650,7 @@ type MakeClosure struct {
 // 	t1 = make StringIntMap t0
 //
 type MakeMap struct {
-	Register
+	register
 	Reserve Value // initial space reservation; nil => default
 }
 
@@ -667,7 +667,7 @@ type MakeMap struct {
 // 	t0 = make IntChan 0
 //
 type MakeChan struct {
-	Register
+	register
 	Size Value // int; size of buffer; zero => synchronous.
 }
 
@@ -689,7 +689,7 @@ type MakeChan struct {
 // 	t1 = make StringSlice 1:int t0
 //
 type MakeSlice struct {
-	Register
+	register
 	Len Value
 	Cap Value
 }
@@ -711,7 +711,7 @@ type MakeSlice struct {
 // 	t1 = slice t0[1:]
 //
 type Slice struct {
-	Register
+	register
 	X         Value // slice, string, or *array
 	Low, High Value // either may be nil
 }
@@ -733,7 +733,7 @@ type Slice struct {
 // 	t1 = &t0.name [#1]
 //
 type FieldAddr struct {
-	Register
+	register
 	X     Value // *struct
 	Field int   // index into X.Type().Deref().(*types.Struct).Fields
 }
@@ -751,7 +751,7 @@ type FieldAddr struct {
 // 	t1 = t0.name [#1]
 //
 type Field struct {
-	Register
+	register
 	X     Value // struct
 	Field int   // index into X.Type().(*types.Struct).Fields
 }
@@ -774,7 +774,7 @@ type Field struct {
 // 	t2 = &t0[t1]
 //
 type IndexAddr struct {
-	Register
+	register
 	X     Value // slice or *array,
 	Index Value // numeric index
 }
@@ -788,7 +788,7 @@ type IndexAddr struct {
 // 	t2 = t0[t1]
 //
 type Index struct {
-	Register
+	register
 	X     Value // array
 	Index Value // integer index
 }
@@ -808,7 +808,7 @@ type Index struct {
 // 	t5 = t3[t4],ok
 //
 type Lookup struct {
-	Register
+	register
 	X       Value // string or map
 	Index   Value // numeric or key-typed index
 	CommaOk bool  // return a value,ok pair
@@ -861,7 +861,7 @@ type SelectState struct {
 // 	t4 = select blocking []
 //
 type Select struct {
-	Register
+	register
 	States   []*SelectState
 	Blocking bool
 }
@@ -879,7 +879,7 @@ type Select struct {
 // 	t0 = range "hello":string
 //
 type Range struct {
-	Register
+	register
 	X Value // string or map
 }
 
@@ -902,7 +902,7 @@ type Range struct {
 // 	t1 = next t0
 //
 type Next struct {
-	Register
+	register
 	Iter     Value
 	IsString bool // true => string iterator; false => map iterator.
 }
@@ -943,7 +943,7 @@ type Next struct {
 // 	t3 = typeassert,ok t2.(T)
 //
 type TypeAssert struct {
-	Register
+	register
 	X            Value
 	AssertedType types.Type
 	CommaOk      bool
@@ -959,7 +959,7 @@ type TypeAssert struct {
 // 	t1 = extract t0 #1
 //
 type Extract struct {
-	Register
+	register
 	Tuple Value
 	Index int
 }
@@ -1168,13 +1168,12 @@ type DebugRef struct {
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
-// Register is a mix-in embedded by all SSA values that are also
-// instructions, i.e. virtual registers, and provides implementations
-// of the Value interface's Name() and Type() methods: the name is
-// simply a numbered register (e.g. "t0") and the type is the typ
-// field.
+// register is a mix-in embedded by all SSA values that are also
+// instructions, i.e. virtual registers, and provides a uniform
+// implementation of most of the Value interface: Value.Name() is a
+// numbered register (e.g. "t0"); the other methods are field accessors.
 //
-// Temporary names are automatically assigned to each Register on
+// Temporary names are automatically assigned to each register on
 // completion of building a function in SSA form.
 //
 // Clients must not assume that the 'id' value (and the Name() derived
@@ -1182,7 +1181,7 @@ type DebugRef struct {
 // semantics are determined only by identity; names exist only to
 // facilitate debugging.
 //
-type Register struct {
+type register struct {
 	anInstruction
 	num       int        // "name" of virtual register, e.g. "t0".  Not guaranteed unique.
 	typ       types.Type // type of virtual register
@@ -1365,14 +1364,13 @@ func (v *Alloc) Type() types.Type          { return v.typ }
 func (v *Alloc) Referrers() *[]Instruction { return &v.referrers }
 func (v *Alloc) Pos() token.Pos            { return v.pos }
 
-func (v *Register) Type() types.Type          { return v.typ }
-func (v *Register) setType(typ types.Type)    { v.typ = typ }
-func (v *Register) Name() string              { return fmt.Sprintf("t%d", v.num) }
-func (v *Register) setNum(num int)            { v.num = num }
-func (v *Register) Referrers() *[]Instruction { return &v.referrers }
-func (v *Register) asRegister() *Register     { return v }
-func (v *Register) Pos() token.Pos            { return v.pos }
-func (v *Register) setPos(pos token.Pos)      { v.pos = pos }
+func (v *register) Type() types.Type          { return v.typ }
+func (v *register) setType(typ types.Type)    { v.typ = typ }
+func (v *register) Name() string              { return fmt.Sprintf("t%d", v.num) }
+func (v *register) setNum(num int)            { v.num = num }
+func (v *register) Referrers() *[]Instruction { return &v.referrers }
+func (v *register) Pos() token.Pos            { return v.pos }
+func (v *register) setPos(pos token.Pos)      { v.pos = pos }
 
 func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
