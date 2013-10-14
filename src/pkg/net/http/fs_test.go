@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -319,24 +320,29 @@ func TestServeFileContentType(t *testing.T) {
 	defer afterTest(t)
 	const ctype = "icecream/chocolate"
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		if r.FormValue("override") == "1" {
+		switch r.FormValue("override") {
+		case "1":
 			w.Header().Set("Content-Type", ctype)
+		case "2":
+			// Explicitly inhibit sniffing.
+			w.Header()["Content-Type"] = []string{}
 		}
 		ServeFile(w, r, "testdata/file")
 	}))
 	defer ts.Close()
-	get := func(override, want string) {
+	get := func(override string, want []string) {
 		resp, err := Get(ts.URL + "?override=" + override)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if h := resp.Header.Get("Content-Type"); h != want {
-			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
+		if h := resp.Header["Content-Type"]; !reflect.DeepEqual(h, want) {
+			t.Errorf("Content-Type mismatch: got %v, want %v", h, want)
 		}
 		resp.Body.Close()
 	}
-	get("0", "text/plain; charset=utf-8")
-	get("1", ctype)
+	get("0", []string{"text/plain; charset=utf-8"})
+	get("1", []string{ctype})
+	get("2", nil)
 }
 
 func TestServeFileMimeType(t *testing.T) {

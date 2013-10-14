@@ -341,7 +341,8 @@ func (w *response) requestTooLarge() {
 
 // needsSniff reports whether a Content-Type still needs to be sniffed.
 func (w *response) needsSniff() bool {
-	return !w.cw.wroteHeader && w.handlerHeader.Get("Content-Type") == "" && w.written < sniffLen
+	_, haveType := w.handlerHeader["Content-Type"]
+	return !w.cw.wroteHeader && !haveType && w.written < sniffLen
 }
 
 // writerOnly hides an io.Writer value's optional ReadFrom method
