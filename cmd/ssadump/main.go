@@ -128,6 +128,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// The interpreter needs the runtime package.
+	if *runFlag {
+		if _, err := imp.LoadPackage("runtime"); err != nil {
+			log.Fatalf("LoadPackage(runtime) failed: %s", err)
+		}
+	}
+
 	// Create and build SSA-form program representation.
 	prog := ssa.NewProgram(imp.Fset, mode)
 	if err := prog.CreatePackages(imp); err != nil {

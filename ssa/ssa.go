@@ -237,6 +237,11 @@ type Instruction interface {
 // semantically significant, though it may affect the readability of
 // the disassembly.
 //
+// Recover is an optional second entry point to which control resumes
+// after a recovered panic.  The Recover block may contain only a load
+// of the function's named return parameters followed by a return of
+// the loaded values.
+//
 // A nested function that refers to one or more lexically enclosing
 // local variables ("free variables") has Capture parameters.  Such
 // functions cannot be called directly but require a value created by
@@ -268,6 +273,7 @@ type Function struct {
 	FreeVars  []*Capture   // free variables whose values must be supplied by closure
 	Locals    []*Alloc
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
+	Recover   *BasicBlock   // optional; control transfers here after recovered panic
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
 
 	// The following fields are set transiently during building,

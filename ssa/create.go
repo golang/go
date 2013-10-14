@@ -174,7 +174,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 // error-free package described by info, and populates its Members
 // mapping.
 //
-// Repeated calls with the same info returns the same Package.
+// Repeated calls with the same info return the same Package.
 //
 // The real work of building SSA form for each function is not done
 // until a subsequent call to Package.Build().

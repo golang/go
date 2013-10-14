@@ -56,14 +56,6 @@ import (
 	"code.google.com/p/go.tools/ssa"
 )
 
-type status int
-
-const (
-	stRunning status = iota
-	stComplete
-	stPanic
-)
-
 type continuation int
 
 const (
@@ -84,12 +76,20 @@ type methodSet map[string]*ssa.Function
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	prog           *ssa.Program         // the SSA program
-	globals        map[ssa.Value]*value // addresses of global variables (immutable)
-	mode           Mode                 // interpreter options
-	reflectPackage *ssa.Package         // the fake reflect package
-	errorMethods   methodSet            // the method set of reflect.error, which implements the error interface.
-	rtypeMethods   methodSet            // the method set of rtype, which implements the reflect.Type interface.
+	prog               *ssa.Program         // the SSA program
+	globals            map[ssa.Value]*value // addresses of global variables (immutable)
+	mode               Mode                 // interpreter options
+	reflectPackage     *ssa.Package         // the fake reflect package
+	errorMethods       methodSet            // the method set of reflect.error, which implements the error interface.
+	rtypeMethods       methodSet            // the method set of rtype, which implements the reflect.Type interface.
+	runtimeErrorString types.Type           // the runtime.errorString type
+}
+
+type deferred struct {
+	fn    value
+	args  []value
+	instr *ssa.Defer
+	tail  *deferred
 }
 
 type frame struct {
@@ -99,9 +99,9 @@ type frame struct {
 	block, prevBlock *ssa.BasicBlock
 	env              map[ssa.Value]value // dynamic values of SSA variables
 	locals           []value
-	defers           []func()
+	defers           *deferred
 	result           value
-	status           status
+	panicking        bool
 	panic            interface{}
 }
 
@@ -126,14 +126,46 @@ func (fr *frame) get(key ssa.Value) value {
 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
 }
 
-func (fr *frame) rundefers() {
-	for i := range fr.defers {
-		if fr.i.mode&EnableTracing != 0 {
-			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
-		}
-		fr.defers[len(fr.defers)-1-i]()
+// runDefer runs a deferred call d.
+// It always returns normally, but may set or clear fr.panic.
+//
+func (fr *frame) runDefer(d *deferred) {
+	if fr.i.mode&EnableTracing != 0 {
+		fmt.Fprintf(os.Stderr, "%s: invoking deferred function call\n",
+			fr.i.prog.Fset.Position(d.instr.Pos()))
 	}
-	fr.defers = fr.defers[:0]
+	var ok bool
+	defer func() {
+		if !ok {
+			// Deferred call created a new state of panic.
+			fr.panicking = true
+			fr.panic = recover()
+		}
+	}()
+	call(fr.i, fr, d.instr.Pos(), d.fn, d.args)
+	ok = true
+}
+
+// runDefers executes fr's deferred function calls in LIFO order.
+//
+// On entry, fr.panicking indicates a state of panic; if
+// true, fr.panic contains the panic value.
+//
+// On completion, if a deferred call started a panic, or if no
+// deferred call recovered from a previous state of panic, then
+// runDefers itself panics after the last deferred call has run.
+//
+// If there was no initial state of panic, or it was recovered from,
+// runDefers returns normally.
+//
+func (fr *frame) runDefers() {
+	for d := fr.defers; d != nil; d = d.tail {
+		fr.runDefer(d)
+	}
+	fr.defers = nil
+	if fr.panicking {
+		panic(fr.panic) // new panic, or still panicking
+	}
 }
 
 // lookupMethod returns the method set for type typ, which may be one
@@ -196,10 +228,11 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 			}
 			fr.result = tuple(res)
 		}
+		fr.block = nil
 		return kReturn
 
 	case *ssa.RunDefers:
-		fr.rundefers()
+		fr.runDefers()
 
 	case *ssa.Panic:
 		panic(targetPanic{fr.get(instr.X)})
@@ -224,7 +257,12 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 
 	case *ssa.Defer:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.defers = append(fr.defers, func() { call(fr.i, fr, instr.Pos(), fn, args) })
+		fr.defers = &deferred{
+			fn:    fn,
+			args:  args,
+			instr: instr,
+			tail:  fr.defers,
+		}
 
 	case *ssa.Go:
 		fn, args := prepareCall(fr, &instr.Call)
@@ -476,33 +514,49 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 	for i, fv := range fn.FreeVars {
 		fr.env[fv] = env[i]
 	}
-	var instr ssa.Instruction
+	for fr.block != nil {
+		runFrame(fr)
+	}
+	// Destroy the locals to avoid accidental use after return.
+	for i := range fn.Locals {
+		fr.locals[i] = bad{}
+	}
+	return fr.result
+}
 
+// runFrame executes SSA instructions starting at fr.block and
+// continuing until a return, a panic, or a recovered panic.
+//
+// After a panic, runFrame panics.
+//
+// After a normal return, fr.result contains the result of the call
+// and fr.block is nil.
+//
+// After a recovered panic, fr.result is undefined and fr.block
+// contains the block at which to resume control, which may be
+// nil for a normal return.
+//
+func runFrame(fr *frame) {
 	defer func() {
-		if fr.status != stComplete {
-			if fr.i.mode&DisableRecover != 0 {
-				return // let interpreter crash
-			}
-			fr.status = stPanic
-			fr.panic = recover()
+		if fr.block == nil {
+			return // normal return
 		}
-		fr.rundefers()
-		// Destroy the locals to avoid accidental use after return.
-		for i := range fn.Locals {
-			fr.locals[i] = bad{}
+		if fr.i.mode&DisableRecover != 0 {
+			return // let interpreter crash
 		}
-		if fr.status == stPanic {
-			panic(fr.panic) // panic stack is not entirely clean
-		}
+		fr.panicking = true
+		fr.panic = recover()
+		fr.runDefers()
+		fr.block = fr.fn.Recover // recovered panic
 	}()
 
 	for {
-		if i.mode&EnableTracing != 0 {
+		if fr.i.mode&EnableTracing != 0 {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
 		}
 	block:
-		for _, instr = range fr.block.Instrs {
-			if i.mode&EnableTracing != 0 {
+		for _, instr := range fr.block.Instrs {
+			if fr.i.mode&EnableTracing != 0 {
 				if v, ok := instr.(ssa.Value); ok {
 					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {
@@ -511,8 +565,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
-				fr.status = stComplete
-				return fr.result
+				return
 			case kNext:
 				// no-op
 			case kJump:
@@ -520,7 +573,35 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			}
 		}
 	}
-	panic("unreachable")
+}
+
+// doRecover implements the recover() built-in.
+func doRecover(caller *frame) value {
+	// recover() must be exactly one level beneath the deferred
+	// function (two levels beneath the panicking function) to
+	// have any effect.  Thus we ignore both "defer recover()" and
+	// "defer f() -> g() -> recover()".
+	if caller.i.mode&DisableRecover == 0 &&
+		caller != nil && !caller.panicking &&
+		caller.caller != nil && caller.caller.panicking {
+		caller.caller.panicking = false
+		p := caller.caller.panic
+		caller.caller.panic = nil
+		switch p := p.(type) {
+		case targetPanic:
+			// The target program explicitly called panic().
+			return p.v
+		case runtime.Error:
+			// The interpreter encountered a runtime error.
+			return iface{caller.i.runtimeErrorString, p.Error()}
+		case string:
+			// The interpreter explicitly called panic().
+			return iface{caller.i.runtimeErrorString, p}
+		default:
+			panic(fmt.Sprintf("unexpected panic type %T in target call to recover()", p))
+		}
+	}
+	return iface{}
 }
 
 // setGlobal sets the value of a system-initialized global variable.
@@ -539,12 +620,20 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 // Interpret returns the exit code of the program: 2 for panic (like
 // gc does), or the argument to os.Exit for normal termination.
 //
+// The SSA program must include the "runtime" package.
+//
 func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) (exitCode int) {
 	i := &interpreter{
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa.Value]*value),
 		mode:    mode,
 	}
+	runtimePkg := i.prog.ImportedPackage("runtime")
+	if runtimePkg == nil {
+		panic("ssa.Program doesn't include runtime package")
+	}
+	i.runtimeErrorString = runtimePkg.Type("errorString").Object().Type()
+
 	initReflect(i)
 
 	for _, pkg := range i.prog.AllPackages() {

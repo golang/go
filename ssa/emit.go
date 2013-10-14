@@ -403,3 +403,48 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos toke
 	}
 	return v
 }
+
+// createRecoverBlock emits to f a block of code to return after a
+// recovered panic, and sets f.Recover to it.
+//
+// If f's result parameters are named, the code loads and returns
+// their current values, otherwise it returns the zero values of their
+// type.
+//
+// Idempotent.
+//
+func createRecoverBlock(f *Function) {
+	if f.Recover != nil {
+		return // already created
+	}
+	saved := f.currentBlock
+
+	f.Recover = f.newBasicBlock("recover")
+	f.currentBlock = f.Recover
+
+	var results []Value
+	if f.namedResults != nil {
+		// Reload NRPs to form value tuple.
+		for _, r := range f.namedResults {
+			results = append(results, emitLoad(f, r))
+		}
+	} else {
+		R := f.Signature.Results()
+		for i, n := 0, R.Len(); i < n; i++ {
+			T := R.At(i).Type()
+			var v Value
+
+			// Return zero value of each result type.
+			switch T.Underlying().(type) {
+			case *types.Struct, *types.Array:
+				v = emitLoad(f, f.addLocal(T, token.NoPos))
+			default:
+				v = zeroConst(T)
+			}
+			results = append(results, v)
+		}
+	}
+	f.emit(&Return{Results: results})
+
+	f.currentBlock = saved
+}

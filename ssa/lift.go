@@ -102,6 +102,9 @@ func (df domFrontier) build(u *domNode) {
 func buildDomFrontier(fn *Function) domFrontier {
 	df := make(domFrontier, len(fn.Blocks))
 	df.build(fn.Blocks[0].dom)
+	if fn.Recover != nil {
+		df.build(fn.Recover.dom)
+	}
 	return df
 }
 
@@ -309,14 +312,19 @@ type newPhiMap map[*BasicBlock][]newPhi
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	// Don't lift aggregates into registers, because we don't have
 	// a way to express their zero-constants.
-	// TODO(adonovan): define zero-constants for aggregates, or
-	// add a separate SRA pass.  Lifting aggregates is an
-	// important optimisation for pointer analysis because the
-	// extra indirection really hurts precision under Das's
-	// algorithm.
 	switch deref(alloc.Type()).Underlying().(type) {
 	case *types.Array, *types.Struct:
 		return false
+	}
+
+	// Don't lift named return values in functions that defer
+	// calls that may recover from panic.
+	if fn := alloc.Parent(); fn.Recover != nil {
+		for _, nr := range fn.namedResults {
+			if nr == alloc {
+				return false
+			}
+		}
 	}
 
 	// Compute defblocks, the set of blocks containing a

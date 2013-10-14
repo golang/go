@@ -243,7 +243,7 @@ func equals(t types.Type, x, y value) bool {
 	// Since map, func and slice don't support comparison, this
 	// case is only reachable if one of x or y is literally nil
 	// (handled in eqnil) or via interface{} values.
-	panic(fmt.Sprintf("runtime error: comparing uncomparable type %s", t))
+	panic(fmt.Sprintf("comparing uncomparable type %s", t))
 }
 
 // Returns an integer hash of x such that equals(x, y) => hash(x) == hash(y).

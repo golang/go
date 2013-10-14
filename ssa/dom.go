@@ -97,7 +97,12 @@ func buildDomTree(f *Function) {
 	n := len(f.Blocks)
 	preorder := make([]*domNode, n)
 	root := f.Blocks[0].dom
-	ltDfs(root, 0, preorder)
+	prenum := ltDfs(root, 0, preorder)
+	var recover *domNode
+	if f.Recover != nil {
+		recover = f.Recover.dom
+		ltDfs(recover, prenum, preorder)
+	}
 
 	buckets := make([]*domNode, n)
 	copy(buckets, preorder)
@@ -144,7 +149,7 @@ func buildDomTree(f *Function) {
 	// Step 4. Explicitly define the immediate dominator of each
 	// node, in preorder.
 	for _, w := range preorder[1:] {
-		if w == root {
+		if w == root || w == recover {
 			w.Idom = nil
 		} else {
 			if w.Idom != w.semi {
@@ -216,8 +221,8 @@ func sanityCheckDomTree(f *Function) {
 	all.Set(one).Lsh(&all, uint(n)).Sub(&all, one)
 
 	// Initialization.
-	for i := range f.Blocks {
-		if i == 0 {
+	for i, b := range f.Blocks {
+		if i == 0 || b == f.Recover {
 			// The root is dominated only by itself.
 			D[i].SetBit(&D[0], 0, 1)
 		} else {
@@ -231,7 +236,7 @@ func sanityCheckDomTree(f *Function) {
 	for changed := true; changed; {
 		changed = false
 		for i, b := range f.Blocks {
-			if i == 0 {
+			if i == 0 || b == f.Recover {
 				continue
 			}
 			// Compute intersection across predecessors.
@@ -249,10 +254,14 @@ func sanityCheckDomTree(f *Function) {
 	}
 
 	// Check the entire relation.  O(n^2).
+	// The Recover block (if any) must be treated specially so we skip it.
 	ok := true
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {
 			b, c := f.Blocks[i], f.Blocks[j]
+			if c == f.Recover {
+				continue
+			}
 			actual := dominates(b, c)
 			expected := D[j].Bit(i) == 1
 			if actual != expected {

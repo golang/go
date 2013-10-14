@@ -484,6 +484,14 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 	return infos, args, nil
 }
 
+// LoadPackage loads and type-checks the package whose import path is
+// path, plus its necessary dependencies.
+//
+func (imp *Importer) LoadPackage(path string) (*PackageInfo, error) {
+	imports := make(map[string]*types.Package) // keep importBinary happy
+	return imp.doImport0(imports, path)
+}
+
 type initialPkg struct {
 	path       string      // the package's import path
 	importable bool        // add package to import map false for main and xtests)

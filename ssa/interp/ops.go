@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -894,7 +893,7 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 		v = copyVal(itf.v) // extract value
 
 	} else {
-		err = fmt.Sprintf("type assert failed: expected %s, got %s", instr.AssertedType, itf.t)
+		err = fmt.Sprintf("interface conversion: interface is %s, not %s", itf.t, instr.AssertedType)
 	}
 
 	if err != "" {
@@ -1057,31 +1056,7 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 		panic(targetPanic{args[0]})
 
 	case "recover":
-		// recover() must be exactly one level beneath the
-		// deferred function (two levels beneath the panicking
-		// function) to have any effect.  Thus we ignore both
-		// "defer recover()" and "defer f() -> g() ->
-		// recover()".
-		if caller.i.mode&DisableRecover == 0 &&
-			caller != nil && caller.status == stRunning &&
-			caller.caller != nil && caller.caller.status == stPanic {
-			caller.caller.status = stComplete
-			p := caller.caller.panic
-			caller.caller.panic = nil
-			switch p := p.(type) {
-			case targetPanic:
-				return p.v
-			case runtime.Error:
-				// TODO(adonovan): must box this up
-				// inside instance of interface 'error'.
-				return iface{types.Typ[types.String], p.Error()}
-			case string:
-				return iface{types.Typ[types.String], p}
-			default:
-				panic(fmt.Sprintf("unexpected panic type %T in target call to recover()", p))
-			}
-		}
-		return iface{}
+		return doRecover(caller)
 	}
 
 	panic("unknown built-in: " + fn.Name())
@@ -1399,13 +1374,9 @@ func conv(t_dst, t_src types.Type, x value) value {
 // On success it returns "", on failure, an error message.
 //
 func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
-	if meth, wrongType := types.MissingMethod(x.t, itype, true); meth != nil {
-		reason := "is missing"
-		if wrongType {
-			reason = "has wrong type"
-		}
-		return fmt.Sprintf("interface conversion: %v is not %v: method %s %s",
-			x.t, itype, meth.Name(), reason)
+	if meth, _ := types.MissingMethod(x.t, itype, true); meth != nil {
+		return fmt.Sprintf("interface conversion: %v is not %v: missing method %s",
+			x.t, itype, meth.Name())
 	}
 	return "" // ok
 }

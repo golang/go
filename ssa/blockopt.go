@@ -39,6 +39,9 @@ func deleteUnreachableBlocks(f *Function) {
 		b.Index = white
 	}
 	markReachable(f.Blocks[0])
+	if f.Recover != nil {
+		markReachable(f.Recover)
+	}
 	for i, b := range f.Blocks {
 		if b.Index == white {
 			for _, c := range b.Succs {

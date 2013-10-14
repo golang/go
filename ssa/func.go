@@ -306,7 +306,6 @@ func buildReferrers(f *Function) {
 // finishBody() finalizes the function after SSA code generation of its body.
 func (f *Function) finishBody() {
 	f.objects = nil
-	f.namedResults = nil
 	f.currentBlock = nil
 	f.lblocks = nil
 	f.syntax = nil
@@ -336,6 +335,8 @@ func (f *Function) finishBody() {
 
 		lift(f)
 	}
+
+	f.namedResults = nil // (used by lifting)
 
 	numberRegisters(f)
 
@@ -557,6 +558,10 @@ func (f *Function) DumpTo(w io.Writer) {
 
 	if f.Enclosing != nil {
 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
+	}
+
+	if f.Recover != nil {
+		fmt.Fprintf(w, "# Recover: %s\n", f.Recover)
 	}
 
 	if f.FreeVars != nil {

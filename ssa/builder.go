@@ -152,6 +152,7 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 
 	// T(e) = T(e.X) = T(e.Y) after untyped constants have been
 	// eliminated.
+	// TODO(adonovan): not true; MyBool==MyBool yields UntypedBool.
 	t := fn.Pkg.typeOf(e)
 
 	var short Value // value of the short-circuit path
@@ -2064,6 +2065,32 @@ start:
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
+		// A deferred call can cause recovery from panic.
+		// If the panicking function has named results,
+		// control resumes at the Recover block to load those
+		// locals (which may be mutated by the deferred call)
+		// and return them.
+		if fn.namedResults != nil {
+			// Optimization: if we can prove the deferred call
+			// won't cause recovery from panic, we can avoid a
+			// Recover block.
+			// We scan the callee for calls to recover() iff:
+			// - it's a static call
+			// - to a function in the same package
+			//   (other packages' SSA building happens concurrently)
+			// - whose SSA building has started (Blocks != nil)
+			// - and finished (i.e. not this function)
+			// NB, this is always true for: defer func() { ... } ()
+			//
+			// TODO(adonovan): optimize interpackage cases, e.g.
+			//   (sync.Mutex).Unlock(), (io.Closer).Close
+			if callee, ok := v.Call.Value.(*Function); ok && callee.Pkg == fn.Pkg && callee != fn && callee.Blocks != nil && !callsRecover(callee) {
+				// Deferred call cannot cause recovery from panic.
+			} else {
+				createRecoverBlock(fn)
+			}
+		}
+
 	case *ast.ReturnStmt:
 		var results []Value
 		if len(s.Results) == 1 && fn.Signature.Results().Len() > 1 {
@@ -2216,7 +2243,7 @@ func (b *builder) buildFunction(fn *Function) {
 	fn.startBody()
 	fn.createSyntacticParams()
 	b.stmt(fn, fn.syntax.body)
-	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb.Preds != nil) {
+	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb == fn.Recover || cb.Preds != nil) {
 		// Run function calls deferred in this function when
 		// falling off the end of the body block.
 		fn.emit(new(RunDefers))

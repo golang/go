@@ -91,7 +91,10 @@ var gorootTestTests = []string{
 	"rename.go",
 	"const3.go",
 	"nil.go",
-	"recover.go", // partly disabled; TODO(adonovan): fix.
+	"recover.go", // reflection parts disabled
+	"recover1.go",
+	"recover2.go",
+	"recover3.go",
 	"typeswitch1.go",
 	"floatcmp.go",
 	"crlf.go", // doesn't actually assert anything (runoutput)
@@ -122,9 +125,6 @@ var gorootTestTests = []string{
 	// Broken.  TODO(adonovan): fix.
 	// copy.go         // very slow; but with N=4 quickly crashes, slice index out of range.
 	// nilptr.go       // interp: V > uintptr not implemented. Slow test, lots of mem
-	// recover1.go     // error: "spurious recover"
-	// recover2.go     // panic: interface conversion: string is not error: missing method Error
-	// recover3.go     // logic errors: panicked with wrong Error.
 	// args.go         // works, but requires specific os.Args from the driver.
 	// index.go        // a template, not a real test.
 	// mallocfin.go    // SetFinalizer not implemented.
@@ -143,6 +143,7 @@ var testdataTests = []string{
 	"initorder.go",
 	"methprom.go",
 	"mrvchain.go",
+	"recover.go",
 }
 
 // These are files in $GOROOT/src/pkg/.
@@ -189,6 +190,10 @@ func run(t *testing.T, dir, input string) bool {
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
 	mainInfo := imp.CreatePackage("main", files...)
+
+	if _, err := imp.LoadPackage("runtime"); err != nil {
+		t.Errorf("LoadPackage(runtime) failed: %s", err)
+	}
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
 	if err := prog.CreatePackages(imp); err != nil {

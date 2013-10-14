@@ -101,3 +101,19 @@ func logStack(format string, args ...interface{}) func() {
 		io.WriteString(os.Stderr, " end\n")
 	}
 }
+
+// callsRecover reports whether f contains a direct call to recover().
+func callsRecover(f *Function) bool {
+	for _, b := range f.Blocks {
+		for _, instr := range b.Instrs {
+			if call, ok := instr.(*Call); ok {
+				if blt, ok := call.Call.Value.(*Builtin); ok {
+					if blt.Name() == "recover" {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
