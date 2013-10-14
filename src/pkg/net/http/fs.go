@@ -140,9 +140,11 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 
 	code := StatusOK
 
-	// If Content-Type isn't set, use the file's extension to find it.
-	ctype := w.Header().Get("Content-Type")
-	if ctype == "" {
+	// If Content-Type isn't set, use the file's extension to find it, but
+	// if the Content-Type is unset explicitly, do not sniff the type.
+	ctypes, haveType := w.Header()["Content-Type"]
+	var ctype string
+	if !haveType {
 		ctype = mime.TypeByExtension(filepath.Ext(name))
 		if ctype == "" {
 			// read a chunk to decide between utf-8 text and binary
@@ -156,6 +158,8 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			}
 		}
 		w.Header().Set("Content-Type", ctype)
+	} else if len(ctypes) > 0 {
+		ctype = ctypes[0]
 	}
 
 	size, err := sizeFunc()

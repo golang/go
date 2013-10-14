@@ -614,3 +614,16 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 		t.Errorf("io.Copy error = %#v; want io.ErrUnexpectedEOF", err)
 	}
 }
+
+func TestNeedsSniff(t *testing.T) {
+	// needsSniff returns true with an empty response.
+	r := &response{}
+	if got, want := r.needsSniff(), true; got != want {
+		t.Errorf("needsSniff = %t; want %t", got, want)
+	}
+	// needsSniff returns false when Content-Type = nil.
+	r.handlerHeader = Header{"Content-Type": nil}
+	if got, want := r.needsSniff(), false; got != want {
+		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
+	}
+}
