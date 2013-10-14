@@ -40,7 +40,7 @@ var Files = map[string]string{
     <div id="comment-area">
       {{range .Step}}
       <div class="comment first last">
-        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{urlquery .File}}&lo={{urlquery .Lo}}&hi={{urlquery .Hi}}#mark" target="code-display"></a>
+        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{urlquery .File}}&amp;lo={{urlquery .Lo}}&amp;hi={{urlquery .Hi}}#mark" target="code-display"></a>
         <div class="comment-title">{{html .Title}}</div>
         <div class="comment-text">
 	{{with .Err}}
