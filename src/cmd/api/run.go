@@ -93,13 +93,21 @@ func file(s ...string) string {
 func prepGoPath() string {
 	const tempBase = "go.tools.TMP"
 
+	username := ""
 	u, err := user.Current()
-	if err != nil {
-		log.Fatalf("Error getting current user: %v", err)
+	if err == nil {
+		username = u.Username
+	} else {
+		// Only need to handle Unix here, as Windows's os/user uses
+		// native syscall and should work fine without cgo.
+		username = os.Getenv("USER")
+		if username == "" {
+			log.Fatalf("Error getting current user: %v", err)
+		}
 	}
 
 	// The GOPATH we'll return
-	gopath := filepath.Join(os.TempDir(), "gopath-api-"+cleanUsername(u.Username), goToolsVersion)
+	gopath := filepath.Join(os.TempDir(), "gopath-api-"+cleanUsername(username), goToolsVersion)
 
 	// cloneDir is where we run "hg clone".
 	cloneDir := filepath.Join(gopath, "src", "code.google.com", "p")
