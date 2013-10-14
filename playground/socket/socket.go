@@ -140,7 +140,13 @@ func startProcess(id, body string, out chan<- *Message, opt *Options) *process {
 		out:  out,
 		done: make(chan struct{}),
 	}
-	if err := p.start(body, opt); err != nil {
+	var err error
+	if path, args := shebang(body); path != "" {
+		err = p.startProcess(path, args, body)
+	} else {
+		err = p.start(body, opt)
+	}
+	if err != nil {
 		p.end(err)
 		return nil
 	}
@@ -155,6 +161,37 @@ func (p *process) Kill() {
 	}
 	p.run.Process.Kill()
 	<-p.done // block until process exits
+}
+
+// shebang looks for a shebang ('#!') at the beginning of the passed string.
+// If found, it returns the path and args after the shebang.
+func shebang(body string) (path string, args []string) {
+	body = strings.TrimSpace(body)
+	if !strings.HasPrefix(body, "#!") {
+		return "", nil
+	}
+	if i := strings.Index(body, "\n"); i >= 0 {
+		body = body[:i]
+	}
+	fs := strings.Fields(body[2:])
+	return fs[0], fs[1:]
+}
+
+// startProcess starts a given program given its path and passing the given body
+// to the command standard input.
+func (p *process) startProcess(path string, args []string, body string) error {
+	cmd := &exec.Cmd{
+		Path:   path,
+		Args:   args,
+		Stdin:  strings.NewReader(body),
+		Stdout: &messageWriter{id: p.id, kind: "stdout", out: p.out},
+		Stderr: &messageWriter{id: p.id, kind: "stderr", out: p.out},
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	p.run = cmd
+	return nil
 }
 
 // start builds and starts the given program, sending its output to p.out,
