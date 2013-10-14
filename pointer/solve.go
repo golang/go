@@ -173,7 +173,10 @@ func (c *loadConstraint) ptr() nodeid {
 func (c *offsetAddrConstraint) ptr() nodeid {
 	return c.src
 }
-func (c *typeAssertConstraint) ptr() nodeid {
+func (c *typeFilterConstraint) ptr() nodeid {
+	return c.src
+}
+func (c *untagConstraint) ptr() nodeid {
 	return c.src
 }
 func (c *invokeConstraint) ptr() nodeid {
@@ -251,9 +254,31 @@ func (c *offsetAddrConstraint) solve(a *analysis, n *node, delta nodeset) {
 	}
 }
 
-func (c *typeAssertConstraint) solve(a *analysis, n *node, delta nodeset) {
-	tIface, _ := c.typ.Underlying().(*types.Interface)
+func (c *typeFilterConstraint) solve(a *analysis, n *node, delta nodeset) {
+	for ifaceObj := range delta {
+		tDyn, _, indirect := a.taggedValue(ifaceObj)
+		if tDyn == nil {
+			panic("not a tagged value")
+		}
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
 
+		if types.IsAssignableTo(tDyn, c.typ) {
+			if a.addLabel(c.dst, ifaceObj) {
+				a.addWork(c.dst)
+			}
+		}
+	}
+}
+
+func (c *untagConstraint) solve(a *analysis, n *node, delta nodeset) {
+	predicate := types.IsAssignableTo
+	if c.exact {
+		predicate = types.IsIdentical
+	}
 	for ifaceObj := range delta {
 		tDyn, v, indirect := a.taggedValue(ifaceObj)
 		if tDyn == nil {
@@ -265,23 +290,14 @@ func (c *typeAssertConstraint) solve(a *analysis, n *node, delta nodeset) {
 			panic("indirect tagged object")
 		}
 
-		if tIface != nil {
-			if types.IsAssignableTo(tDyn, tIface) {
-				if a.addLabel(c.dst, ifaceObj) {
-					a.addWork(c.dst)
-				}
-			}
-		} else {
-			if types.IsIdentical(tDyn, c.typ) {
-				// Copy entire payload to dst.
-				//
-				// TODO(adonovan): opt: if tConc is
-				// nonpointerlike we can skip this
-				// entire constraint, perhaps.  We
-				// only care about pointers among the
-				// fields.
-				a.onlineCopyN(c.dst, v, a.sizeof(tDyn))
-			}
+		if predicate(tDyn, c.typ) {
+			// Copy payload sans tag to dst.
+			//
+			// TODO(adonovan): opt: if tConc is
+			// nonpointerlike we can skip this entire
+			// constraint, perhaps.  We only care about
+			// pointers among the fields.
+			a.onlineCopyN(c.dst, v, a.sizeof(tDyn))
 		}
 	}
 }

@@ -94,7 +94,8 @@ type node struct {
 	// - *loadConstraint       y=*x
 	// - *offsetAddrConstraint y=&x.f or y=&x[0]
 	// - *storeConstraint      *x=z
-	// - *typeAssertConstraint y=x.(T)
+	// - *typeFilterConstraint y=x.(I)
+	// - *untagConstraint      y=x.(C)
 	// - *invokeConstraint     y=x.f(params...)
 	complex constraintset
 }
@@ -150,12 +151,30 @@ type offsetAddrConstraint struct {
 	src    nodeid // (ptr)
 }
 
-// dst = src.(typ)
+// dst = src.(typ)  where typ is an interface
 // A complex constraint attached to src (the interface).
-type typeAssertConstraint struct {
-	typ types.Type
+// No representation change: pts(dst) and pts(src) contains tagged objects.
+type typeFilterConstraint struct {
+	typ types.Type // an interface type
 	dst nodeid
 	src nodeid // (ptr)
+}
+
+// dst = src.(typ)  where typ is a concrete type
+// A complex constraint attached to src (the interface).
+//
+// If exact, only tagged objects identical to typ are untagged.
+// If !exact, tagged objects assignable to typ are untagged too.
+// The latter is needed for various reflect operators, e.g. Send.
+//
+// This entails a representation change:
+// pts(src) contains tagged objects,
+// pts(dst) contains their payloads.
+type untagConstraint struct {
+	typ   types.Type // a concrete type
+	dst   nodeid
+	src   nodeid // (ptr)
+	exact bool
 }
 
 // src.method(params...)

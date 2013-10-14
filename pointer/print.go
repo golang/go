@@ -26,8 +26,12 @@ func (c *offsetAddrConstraint) String() string {
 	return fmt.Sprintf("offsetAddr n%d <- n%d.#%d", c.dst, c.src, c.offset)
 }
 
-func (c *typeAssertConstraint) String() string {
-	return fmt.Sprintf("typeAssert n%d <- n%d.(%s)", c.dst, c.src, c.typ)
+func (c *typeFilterConstraint) String() string {
+	return fmt.Sprintf("typeFilter n%d <- n%d.(%s)", c.dst, c.src, c.typ)
+}
+
+func (c *untagConstraint) String() string {
+	return fmt.Sprintf("untag n%d <- n%d.(%s)", c.dst, c.src, c.typ)
 }
 
 func (c *invokeConstraint) String() string {

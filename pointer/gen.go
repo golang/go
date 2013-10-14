@@ -351,9 +351,14 @@ func (a *analysis) offsetAddr(dst, src nodeid, offset uint32) {
 	}
 }
 
-// typeAssert creates a typeAssert constraint of the form dst = src.(T).
-func (a *analysis) typeAssert(T types.Type, dst, src nodeid) {
-	a.addConstraint(&typeAssertConstraint{T, dst, src})
+// typeFilter creates a typeFilter constraint of the form dst = src.(I).
+func (a *analysis) typeFilter(I types.Type, dst, src nodeid) {
+	a.addConstraint(&typeFilterConstraint{I, dst, src})
+}
+
+// untag creates an untag constraint of the form dst = src.(C).
+func (a *analysis) untag(C types.Type, dst, src nodeid, exact bool) {
+	a.addConstraint(&untagConstraint{C, dst, src, exact})
 }
 
 // addConstraint adds c to the constraint set.
@@ -687,7 +692,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	// Unpack receiver into rtype
 	rtype := a.addOneNode(a.reflectRtypePtr, "rtype.recv", nil)
 	recv := a.valueNode(call.Value)
-	a.typeAssert(a.reflectRtypePtr, rtype, recv)
+	a.untag(a.reflectRtypePtr, rtype, recv, true)
 
 	// Look up the concrete method.
 	meth := a.reflectRtypePtr.MethodSet().Lookup(call.Method.Pkg(), call.Method.Name())
@@ -801,7 +806,7 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 			}
 
 			if a.log != nil {
-				fmt.Fprintf(a.log, "\tglobalobj[%s] = n%d\n", a.nodes[obj].obj, obj)
+				fmt.Fprintf(a.log, "\tglobalobj[%s] = n%d\n", v, obj)
 			}
 			a.globalobj[v] = obj
 		}
@@ -870,7 +875,7 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 		}
 
 		if a.log != nil {
-			fmt.Fprintf(a.log, "\tlocalobj[%s] = n%d\n", a.nodes[obj].obj, obj)
+			fmt.Fprintf(a.log, "\tlocalobj[%s] = n%d\n", v.Name(), obj)
 		}
 		a.localobj[v] = obj
 	}
@@ -1005,7 +1010,12 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
 
 	case *ssa.TypeAssert:
-		a.typeAssert(instr.AssertedType, a.valueNode(instr), a.valueNode(instr.X))
+		T := instr.AssertedType
+		if _, ok := T.Underlying().(*types.Interface); ok {
+			a.typeFilter(T, a.valueNode(instr), a.valueNode(instr.X))
+		} else {
+			a.untag(T, a.valueNode(instr), a.valueNode(instr.X), true)
+		}
 
 	case *ssa.Slice:
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)

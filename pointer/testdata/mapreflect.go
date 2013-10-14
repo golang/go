@@ -64,6 +64,29 @@ func reflectSetMapIndex() {
 	print(reflect.Zero(tmap.Elem()).Interface()) // @types *bool
 }
 
+func reflectSetMapIndexAssignable() {
+	// SetMapIndex performs implicit assignability conversions.
+	type I *int
+	type J *int
+
+	str := reflect.ValueOf("")
+
+	// *int is assignable to I.
+	m1 := make(map[string]I)
+	reflect.ValueOf(m1).SetMapIndex(str, reflect.ValueOf(new(int))) // @line int
+	print(m1[""])                                                   // @pointsto new@int:58
+
+	// I is assignable to I.
+	m2 := make(map[string]I)
+	reflect.ValueOf(m2).SetMapIndex(str, reflect.ValueOf(I(new(int)))) // @line I
+	print(m2[""])                                                      // @pointsto new@I:60
+
+	// J is not assignable to I.
+	m3 := make(map[string]I)
+	reflect.ValueOf(m3).SetMapIndex(str, reflect.ValueOf(J(new(int))))
+	print(m3[""]) // @pointsto
+}
+
 func reflectMakeMap() {
 	t := reflect.TypeOf(map[*int]*bool(nil))
 	v := reflect.MakeMap(t)
@@ -74,6 +97,7 @@ func reflectMakeMap() {
 func main() {
 	reflectMapKeysIndex()
 	reflectSetMapIndex()
+	reflectSetMapIndexAssignable()
 	reflectMakeMap()
 	// TODO(adonovan): reflect.MapOf(Type)
 }

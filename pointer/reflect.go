@@ -7,12 +7,6 @@ package pointer
 // For consistency, the names of all parameters match those of the
 // actual functions in the "reflect" package.
 //
-// TODO(adonovan): fix: most of the reflect API permits implicit
-// conversions due to assignability, e.g. m.MapIndex(k) is ok if T(k)
-// is assignable to T(M).key.  It's not yet clear how best to model
-// that; perhaps a more lenient version of typeAssertConstraint is
-// needed.
-//
 // To avoid proliferation of equivalent labels, instrinsics should
 // memoize as much as possible, like TypeOf and Zero do for their
 // tagged objects.
@@ -440,7 +434,7 @@ func (c *rVSendConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		// Extract x's payload to xtmp, then store to channel.
 		tElem := tChan.Elem()
 		xtmp := a.addNodes(tElem, "Send.xtmp")
-		a.typeAssert(tElem, xtmp, c.x)
+		a.untag(tElem, xtmp, c.x, false)
 		a.store(ch, xtmp, 0, a.sizeof(tElem))
 	}
 }
@@ -535,12 +529,12 @@ func (c *rVSetMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
 
 		// Extract key's payload to keytmp, then store to map key.
 		keytmp := a.addNodes(tMap.Key(), "SetMapIndex.keytmp")
-		a.typeAssert(tMap.Key(), keytmp, c.key)
+		a.untag(tMap.Key(), keytmp, c.key, false)
 		a.store(m, keytmp, 0, keysize)
 
 		// Extract val's payload to vtmp, then store to map value.
 		valtmp := a.addNodes(tMap.Elem(), "SetMapIndex.valtmp")
-		a.typeAssert(tMap.Elem(), valtmp, c.val)
+		a.untag(tMap.Elem(), valtmp, c.val, false)
 		a.store(m, valtmp, keysize, a.sizeof(tMap.Elem()))
 	}
 }
