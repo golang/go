@@ -86,6 +86,17 @@ func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function 
 		case *ast.FuncDecl:
 			if decl.Recv == nil && decl.Name.Name == "init" {
 				// Explicit init() function.
+				for _, b := range pkg.init.Blocks {
+					for _, instr := range b.Instrs {
+						if instr, ok := instr.(*Call); ok {
+							if callee, ok := instr.Call.Value.(*Function); ok && callee.Pkg == pkg && callee.Pos() == decl.Name.NamePos {
+								return callee
+							}
+						}
+					}
+				}
+				// Hack: return non-nil when SSA is not yet
+				// built so that HasEnclosingFunction works.
 				return pkg.init
 			}
 			// Declared function/method.

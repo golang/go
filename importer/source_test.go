@@ -197,6 +197,7 @@ func TestPathEnclosingInterval_Paths(t *testing.T) {
 
 // -------- Tests of source.go -----------------------------------------
 
+// TODO(adonovan): move this test into ssa.
 func TestEnclosingFunction(t *testing.T) {
 	tests := []struct {
 		input  string // the input file
@@ -227,12 +228,12 @@ func TestEnclosingFunction(t *testing.T) {
 		// No code for constants:
 		{"package main; const a = 500", "500", "(none)"},
 		// Explicit init()
-		{"package main; func init() { println(600) }", "600", "main.init"},
+		{"package main; func init() { println(600) }", "600", "main.init$1"},
 		// Multiple explicit init functions:
 		{`package main
 		  func init() { println("foo") }
 		  func init() { println(800) }`,
-			"800", "main.init"},
+			"800", "main.init$2"},
 		// init() containing FuncLit.
 		{`package main
 		  func init() { println(func(){print(900)}) }`,

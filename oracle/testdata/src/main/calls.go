@@ -78,9 +78,10 @@ func deadcode() {
 // This code belongs to init.
 var global = 123 // @callers callers-global "global"
 
-// init may be called by other packages' inits, or in this case, the
-// root of the callgraph.
+// The package initializer may be called by other packages' inits, or
+// in this case, the root of the callgraph.  The source-level init functions
+// are in turn called by it.
 func init() {
-	// @callers callers-init "^"
+	// @callstack callstack-init "^"
 
 }

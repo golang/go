@@ -2065,24 +2065,6 @@ start:
 		fn.emit(&v)
 
 	case *ast.ReturnStmt:
-		if fn == fn.Pkg.init {
-			// A "return" within an init block is treated
-			// like a "goto" to the next init block.  We
-			// use the outermost BREAK target for this purpose.
-			var block *BasicBlock
-			for t := fn.targets; t != nil; t = t.tail {
-				if t._break != nil {
-					block = t._break
-				}
-			}
-			// Run function calls deferred in this init
-			// block when explicitly returning from it.
-			fn.emit(new(RunDefers))
-			emitJump(fn, block)
-			fn.currentBlock = fn.newBasicBlock("unreachable")
-			return
-		}
-
 		var results []Value
 		if len(s.Results) == 1 && fn.Signature.Results().Len() > 1 {
 			// Return of one expression in a multi-valued function.
@@ -2243,61 +2225,43 @@ func (b *builder) buildFunction(fn *Function) {
 	fn.finishBody()
 }
 
-// buildInit emits to init any initialization code needed for
-// declaration decl, causing SSA-building of any functions or methods
-// it references transitively.
-//
-func (b *builder) buildInit(init *Function, decl ast.Decl) {
-	switch decl := decl.(type) {
-	case *ast.GenDecl:
-		if decl.Tok == token.VAR {
-			for _, spec := range decl.Specs {
-				b.globalValueSpec(init, spec.(*ast.ValueSpec), nil, nil)
-			}
-		}
-
-	case *ast.FuncDecl:
-		if decl.Recv == nil && decl.Name.Name == "init" {
-			// init() block
-			if init.Prog.mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build init block @",
-					init.Prog.Fset.Position(decl.Pos()))
-			}
-
-			// A return statement within an init block is
-			// treated like a "goto" to the the next init
-			// block, which we stuff in the outermost
-			// break label.
-			next := init.newBasicBlock("init.next")
-			init.targets = &targets{
-				tail:   init.targets,
-				_break: next,
-			}
-			b.stmt(init, decl.Body)
-			// Run function calls deferred in this init
-			// block when falling off the end of the block.
-			init.emit(new(RunDefers))
-			emitJump(init, next)
-			init.targets = init.targets.tail
-			init.currentBlock = next
-		}
-	}
-}
-
 // buildFuncDecl builds SSA code for the function or method declared
 // by decl in package pkg.
 //
 func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	id := decl.Name
 	if isBlankIdent(id) {
-		// TODO(gri): workaround for missing object,
-		// see e.g. $GOROOT/test/blank.go:27.
-		return
+		return // discard
 	}
+	var fn *Function
 	if decl.Recv == nil && id.Name == "init" {
-		return // init() block: already done in pass 1
+		if pkg.Prog.mode&LogSource != 0 {
+			fmt.Fprintln(os.Stderr, "build init func @",
+				pkg.Prog.Fset.Position(decl.Pos()))
+		}
+
+		pkg.ninit++
+		fn = &Function{
+			name:      fmt.Sprintf("init$%d", pkg.ninit),
+			Signature: new(types.Signature),
+			pos:       decl.Name.NamePos,
+			Pkg:       pkg,
+			Prog:      pkg.Prog,
+			syntax: &funcSyntax{
+				functype:  decl.Type,
+				recvField: decl.Recv,
+				body:      decl.Body,
+			},
+		}
+
+		var v Call
+		v.Call.Value = fn
+		v.setType(types.NewTuple())
+		pkg.init.emit(&v)
+	} else {
+		fn = pkg.values[pkg.objectOf(id)].(*Function)
 	}
-	b.buildFunction(pkg.values[pkg.objectOf(id)].(*Function))
+	b.buildFunction(fn)
 }
 
 // BuildAll calls Package.Build() for each package in prog.
@@ -2368,14 +2332,27 @@ func (p *Package) Build() {
 		nTo1Vars: make(map[*ast.ValueSpec]bool),
 	}
 
-	// Pass 1: visit the package's var decls and init funcs in
-	// source order, causing init() code to be generated in
-	// topological order.  We visit package-level vars
-	// transitively through functions and methods, building them
-	// as we go.
+	// Pass 1: visit the package's var decls and in source order,
+	// causing init() code to be generated in topological order.
+	// We visit package-level vars transitively through functions
+	// and methods, building them as we go.
 	for _, file := range p.info.Files {
 		for _, decl := range file.Decls {
-			b.buildInit(init, decl)
+			if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.VAR {
+				for _, spec := range decl.Specs {
+					b.globalValueSpec(init, spec.(*ast.ValueSpec), nil, nil)
+				}
+			}
+		}
+	}
+
+	// Pass 2: build all package-level functions, init functions
+	// and methods in source order, including unreachable/blank ones.
+	for _, file := range p.info.Files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok {
+				b.buildFuncDecl(p, decl)
+			}
 		}
 	}
 
@@ -2385,16 +2362,6 @@ func (p *Package) Build() {
 	init.emit(new(RunDefers))
 	init.emit(new(Return))
 	init.finishBody()
-
-	// Pass 2: build all remaining package-level functions and
-	// methods in source order, including unreachable/blank ones.
-	for _, file := range p.info.Files {
-		for _, decl := range file.Decls {
-			if decl, ok := decl.(*ast.FuncDecl); ok {
-				b.buildFuncDecl(p, decl)
-			}
-		}
-	}
 
 	p.info = nil // We no longer need ASTs or go/types deductions.
 }

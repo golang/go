@@ -162,11 +162,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	case *ast.FuncDecl:
 		id := decl.Name
 		if decl.Recv == nil && id.Name == "init" {
-			if !pkg.init.pos.IsValid() {
-				pkg.init.pos = decl.Name.Pos()
-				pkg.init.Synthetic = ""
-			}
-			return // init blocks aren't functions
+			return // no object
 		}
 		if !isBlankIdent(id) {
 			memberFromObject(pkg, pkg.objectOf(id), decl)

@@ -379,15 +379,14 @@ func init() {
 
 // An I->I type-assert fails iff the value is nil.
 func init() {
-	// TODO(adonovan): temporarily disabled; see comment at bottom of file.
-	// defer func() {
-	// 	r := fmt.Sprint(recover())
-	// 	if r != "interface conversion: interface is nil, not main.I" {
-	// 		panic("I->I type assertion succeeed for nil value")
-	// 	}
-	// }()
-	// var x I
-	// _ = x.(I)
+	defer func() {
+		r := fmt.Sprint(recover())
+		if r != "interface conversion: interface is nil, not main.I" {
+			panic("I->I type assertion succeeed for nil value")
+		}
+	}()
+	var x I
+	_ = x.(I)
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -536,9 +535,3 @@ func init() {
 	}()
 	_ = i == j // interface comparison recurses on types
 }
-
-// TODO(adonovan): fix: the interpreter doesn't correctly implement
-// defer/recover in an init function concatenated from many parts: the
-// first recover causes the entire init() to return, not jump to the
-// next part.  This will be fixed in a follow-up CL.  Until then,
-// beware: adding new init() functions here will have no effect!

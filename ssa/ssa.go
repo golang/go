@@ -44,12 +44,13 @@ type Package struct {
 	Object  *types.Package         // the type checker's package object for this package
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package-level vars & funcs (incl. methods), keyed by object
-	init    *Function              // Func("init"); the package's (concatenated) init function
+	init    *Function              // Func("init"); the package's init function
 	debug   bool                   // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
 	started int32                 // atomically tested and set at start of build phase
+	ninit   int32                 // number of init functions
 	info    *importer.PackageInfo // package ASTs and type information
 }
 
