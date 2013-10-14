@@ -1044,8 +1044,8 @@ walkexpr(Node **np, NodeList **init)
 				if(!n->bounded)
 					yyerror("index out of bounds");
 				else {
-					// replace "abc"[2] with 'b'.
-					// delayed until now because "abc"[2] is not
+					// replace "abc"[1] with 'b'.
+					// delayed until now because "abc"[1] is not
 					// an ideal constant.
 					v = mpgetfix(n->right->val.u.xval);
 					nodconst(n, n->type, n->left->val.u.sval->s[v]);
