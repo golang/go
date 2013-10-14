@@ -10,7 +10,10 @@
 
 package dwarf
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 // a single entry's description: a sequence of attributes
 type abbrev struct {
@@ -152,7 +155,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		var val interface{}
 		switch fmt {
 		default:
-			b.error("unknown entry attr format")
+			b.error("unknown entry attr format 0x" + strconv.FormatInt(int64(fmt), 16))
 
 		// address
 		case formAddr:
