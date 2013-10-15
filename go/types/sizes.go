@@ -2,39 +2,151 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements support for (unsafe) Alignof, Offsetof, and Sizeof.
+// This file implements Sizes.
 
 package types
 
-func (conf *Config) alignof(typ Type) int64 {
-	if f := conf.Alignof; f != nil {
-		if a := f(typ); a >= 1 {
-			return a
-		}
-		panic("Config.Alignof returned an alignment < 1")
-	}
-	return DefaultAlignof(typ)
+// Sizes defines the sizing functions for package unsafe.
+type Sizes interface {
+	// Alignof returns the alignment of a variable of type T.
+	// Alignof must implement the alignment guarantees required by the spec.
+	Alignof(T Type) int64
+
+	// Offsetsof returns the offsets of the given struct fields, in bytes.
+	// Offsetsof must implement the offset guarantees required by the spec.
+	Offsetsof(fields []*Var) []int64
+
+	// Sizeof returns the size of a variable of type T.
+	// Sizeof must implement the size guarantees required by the spec.
+	Sizeof(T Type) int64
 }
 
-func (conf *Config) offsetsof(s *Struct) []int64 {
-	offsets := s.offsets
-	if offsets == nil && s.NumFields() > 0 {
+// StdSizes is a convenience type for creating commonly used Sizes.
+// It makes the following simplifying assumptions:
+//
+// - The size of explicitly sized basic types (int16, etc.) is the
+//   specified size.
+// - The size of strings, functions, and interfaces is 2*WordSize.
+// - The size of slices is 3*WordSize.
+// - All other types have size WordSize.
+// - Arrays and structs are aligned per spec definition; all other
+//   types are naturally aligned with a maximum alignment MaxAlign.
+//
+// *StdSizes implements Sizes.
+//
+type StdSizes struct {
+	WordSize int64 // word size in bytes - must be >= 4 (32bits)
+	MaxAlign int64 // maximum alignment in bytes - must be >= 1
+}
+
+func (s *StdSizes) Alignof(T Type) int64 {
+	// For arrays and structs, alignment is defined in terms
+	// of alignment of the elements and fields, respectively.
+	switch t := T.Underlying().(type) {
+	case *Array:
+		// spec: "For a variable x of array type: unsafe.Alignof(x)
+		// is the same as unsafe.Alignof(x[0]), but at least 1."
+		return s.Alignof(t.elt)
+	case *Struct:
+		// spec: "For a variable x of struct type: unsafe.Alignof(x)
+		// is the largest of the values unsafe.Alignof(x.f) for each
+		// field f of x, but at least 1."
+		max := int64(1)
+		for _, f := range t.fields {
+			if a := s.Alignof(f.typ); a > max {
+				max = a
+			}
+		}
+		return max
+	}
+	a := s.Sizeof(T) // may be 0
+	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+	if a < 1 {
+		return 1
+	}
+	if a > s.MaxAlign {
+		return s.MaxAlign
+	}
+	return a
+}
+
+func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
+	offsets := make([]int64, len(fields))
+	var o int64
+	for i, f := range fields {
+		a := s.Alignof(f.typ)
+		o = align(o, a)
+		offsets[i] = o
+		o += s.Sizeof(f.typ)
+	}
+	return offsets
+}
+
+func (s *StdSizes) Sizeof(T Type) int64 {
+	switch t := T.Underlying().(type) {
+	case *Basic:
+		if z := t.size; z > 0 {
+			return z
+		}
+		if t.kind == String {
+			return s.WordSize * 2
+		}
+	case *Array:
+		a := s.Alignof(t.elt)
+		z := s.Sizeof(t.elt)
+		return align(z, a) * t.len // may be 0
+	case *Slice:
+		return s.WordSize * 3
+	case *Struct:
+		n := t.NumFields()
+		if n == 0 {
+			return 0
+		}
+		offsets := t.offsets
+		if t.offsets == nil {
+			// compute offsets on demand
+			offsets = stdSizes.Offsetsof(t.fields)
+			t.offsets = offsets
+		}
+		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+	case *Signature, *Interface:
+		return s.WordSize * 2
+	}
+	return s.WordSize // catch-all
+}
+
+// stdSizes is used if Config.Sizes == nil.
+var stdSizes = StdSizes{8, 8}
+
+func (conf *Config) alignof(T Type) int64 {
+	if s := conf.Sizes; s != nil {
+		if a := s.Alignof(T); a >= 1 {
+			return a
+		}
+		panic("Config.Sizes.Alignof returned an alignment < 1")
+	}
+	return stdSizes.Alignof(T)
+}
+
+func (conf *Config) offsetsof(T *Struct) []int64 {
+	offsets := T.offsets
+	if offsets == nil && T.NumFields() > 0 {
 		// compute offsets on demand
-		if f := conf.Offsetsof; f != nil {
-			offsets = f(s.fields)
+		if s := conf.Sizes; s != nil {
+			offsets = s.Offsetsof(T.fields)
 			// sanity checks
-			if len(offsets) != s.NumFields() {
-				panic("Config.Offsetsof returned the wrong number of offsets")
+			if len(offsets) != T.NumFields() {
+				panic("Config.Sizes.Offsetsof returned the wrong number of offsets")
 			}
 			for _, o := range offsets {
 				if o < 0 {
-					panic("Config.Offsetsof returned an offset < 0")
+					panic("Config.Sizes.Offsetsof returned an offset < 0")
 				}
 			}
 		} else {
-			offsets = DefaultOffsetsof(s.fields)
+			offsets = stdSizes.Offsetsof(T.fields)
 		}
-		s.offsets = offsets
+		T.offsets = offsets
 	}
 	return offsets
 }
@@ -52,108 +164,18 @@ func (conf *Config) offsetof(typ Type, index []int) int64 {
 	return o
 }
 
-func (conf *Config) sizeof(typ Type) int64 {
-	if f := conf.Sizeof; f != nil {
-		if s := f(typ); s >= 0 {
-			return s
+func (conf *Config) sizeof(T Type) int64 {
+	if s := conf.Sizes; s != nil {
+		if z := s.Sizeof(T); z >= 0 {
+			return z
 		}
-		panic("Config.Sizeof returned a size < 0")
+		panic("Config.Sizes.Sizeof returned a size < 0")
 	}
-	return DefaultSizeof(typ)
-}
-
-// DefaultMaxAlign is the default maximum alignment, in bytes,
-// used by DefaultAlignof.
-const DefaultMaxAlign = 8
-
-// DefaultAlignof implements the default alignment computation
-// for unsafe.Alignof. It is used if Config.Alignof == nil.
-func DefaultAlignof(typ Type) int64 {
-	// For arrays and structs, alignment is defined in terms
-	// of alignment of the elements and fields, respectively.
-	switch t := typ.Underlying().(type) {
-	case *Array:
-		// spec: "For a variable x of array type: unsafe.Alignof(x)
-		// is the same as unsafe.Alignof(x[0]), but at least 1."
-		return DefaultAlignof(t.elt)
-	case *Struct:
-		// spec: "For a variable x of struct type: unsafe.Alignof(x)
-		// is the largest of the values unsafe.Alignof(x.f) for each
-		// field f of x, but at least 1."
-		max := int64(1)
-		for _, f := range t.fields {
-			if a := DefaultAlignof(f.typ); a > max {
-				max = a
-			}
-		}
-		return max
-	}
-	a := DefaultSizeof(typ) // may be 0
-	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
-	if a < 1 {
-		return 1
-	}
-	if a > DefaultMaxAlign {
-		return DefaultMaxAlign
-	}
-	return a
+	return stdSizes.Sizeof(T)
 }
 
 // align returns the smallest y >= x such that y % a == 0.
 func align(x, a int64) int64 {
 	y := x + a - 1
 	return y - y%a
-}
-
-// DefaultOffsetsof implements the default field offset computation
-// for unsafe.Offsetof. It is used if Config.Offsetsof == nil.
-func DefaultOffsetsof(fields []*Var) []int64 {
-	offsets := make([]int64, len(fields))
-	var o int64
-	for i, f := range fields {
-		a := DefaultAlignof(f.typ)
-		o = align(o, a)
-		offsets[i] = o
-		o += DefaultSizeof(f.typ)
-	}
-	return offsets
-}
-
-// DefaultPtrSize is the default size of ints, uint, and pointers, in bytes,
-// used by DefaultSizeof.
-const DefaultPtrSize = 8
-
-// DefaultSizeof implements the default size computation
-// for unsafe.Sizeof. It is used if Config.Sizeof == nil.
-func DefaultSizeof(typ Type) int64 {
-	switch t := typ.Underlying().(type) {
-	case *Basic:
-		if s := t.size; s > 0 {
-			return s
-		}
-		if t.kind == String {
-			return DefaultPtrSize * 2
-		}
-	case *Array:
-		a := DefaultAlignof(t.elt)
-		s := DefaultSizeof(t.elt)
-		return align(s, a) * t.len // may be 0
-	case *Slice:
-		return DefaultPtrSize * 3
-	case *Struct:
-		n := t.NumFields()
-		if n == 0 {
-			return 0
-		}
-		offsets := t.offsets
-		if t.offsets == nil {
-			// compute offsets on demand
-			offsets = DefaultOffsetsof(t.fields)
-			t.offsets = offsets
-		}
-		return offsets[n-1] + DefaultSizeof(t.fields[n-1].typ)
-	case *Signature:
-		return DefaultPtrSize * 2
-	}
-	return DefaultPtrSize // catch-all
 }

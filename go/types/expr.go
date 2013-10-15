@@ -887,7 +887,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 		check.indent++
 	}
 
-	kind := check.expr0(x, e, hint)
+	kind := check.exprInternal(x, e, hint)
 
 	// convert x into a user-friendly set of values
 	record := true
@@ -926,10 +926,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	return kind
 }
 
-// expr0 contains the core of type checking of expressions.
+// exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 //
-func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
+func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was issue 5770)
 	x.mode = invalid
@@ -1360,7 +1360,7 @@ func (check *checker) expr0(x *operand, e ast.Expr, hint Type) exprKind {
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		x.mode = typexpr
 		x.typ = check.typ(e, nil, false)
-		// Note: rawExpr (caller of expr0) will call check.recordTypeAndValue
+		// Note: rawExpr (caller of exprInternal) will call check.recordTypeAndValue
 		// even though check.typ has already called it. This is fine as both
 		// times the same expression and type are recorded. It is also not a
 		// performance issue because we only reach here for composite literal

@@ -182,7 +182,7 @@ func IsIdentical(x, y Type) bool {
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			return identicalMethods(x.methods, y.methods) // methods are sorted
+			return identicalMethods(x.methods, y.methods)
 		}
 
 	case *Map:

@@ -85,22 +85,9 @@ type Config struct {
 	// the package.
 	Import func(imports map[string]*Package, path string) (pkg *Package, err error)
 
-	// If Alignof != nil, it is called to determine the alignment
-	// of the given type. Otherwise DefaultAlignmentof is called.
-	// Alignof must implement the alignment guarantees required by
-	// the spec.
-	Alignof func(Type) int64
-
-	// If Offsetsof != nil, it is called to determine the offsets
-	// of the given struct fields, in bytes. Otherwise DefaultOffsetsof
-	// is called. Offsetsof must implement the offset guarantees
-	// required by the spec.
-	Offsetsof func(fields []*Var) []int64
-
-	// If Sizeof != nil, it is called to determine the size of the
-	// given type. Otherwise, DefaultSizeof is called. Sizeof must
-	// implement the size guarantees required by the spec.
-	Sizeof func(Type) int64
+	// If Sizes != nil, it provides the sizing functions for package unsafe.
+	// Otherwise &StdSize{WordSize: 8, MaxAlign: 8} is used instead.
+	Sizes Sizes
 }
 
 // Info holds result type information for a type-checked package.

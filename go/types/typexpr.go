@@ -121,7 +121,7 @@ func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) Type {
 		check.indent++
 	}
 
-	t := check.typ0(e, def, cycleOk)
+	t := check.typInternal(e, def, cycleOk)
 	assert(e != nil && t != nil && isTyped(t))
 
 	check.recordTypeAndValue(e, t, nil)
@@ -195,10 +195,10 @@ func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Nam
 	return sig
 }
 
-// typ0 contains the core of type checking of types.
+// typInternal contains the core of type checking of types.
 // Must only be called by typ.
 //
-func (check *checker) typ0(e ast.Expr, def *Named, cycleOk bool) Type {
+func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 	switch e := e.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
