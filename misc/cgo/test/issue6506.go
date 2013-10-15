@@ -10,18 +10,6 @@ package cgotest
 /*
 #include <stdlib.h>
 #include <string.h>
-
-// These functions are clang builtins but not standard on other systems.
-// Give them prototypes so that this test can be compiled on other systems.
-// One of the great things about this bug is that even with these prototypes
-// clang still generates the wrong debug information.
-
-void *alloca(size_t);
-void bzero(void*, size_t);
-int bcmp(const void*, const void*, size_t);
-int strncasecmp(const char*, const char*, size_t n);
-size_t strlcpy(char*, const char*, size_t);
-size_t strlcat(char*, const char*, size_t);
 */
 import "C"
 
@@ -44,10 +32,5 @@ func test6506() {
 	x = C.strspn(nil, nil)
 	C.memset(nil, 0, x)
 	x = C.strlen(nil)
-	C.alloca(x)
-	C.bzero(nil, x)
-	C.strncasecmp(nil, nil, x)
-	x = C.strlcpy(nil, nil, x)
-	x = C.strlcat(nil, nil, x)
 	_ = x
 }
