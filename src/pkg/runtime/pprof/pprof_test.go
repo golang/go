@@ -184,6 +184,9 @@ func TestCPUProfileWithFork(t *testing.T) {
 // If it did, it would see inconsistent state and would either record an incorrect stack
 // or crash because the stack was malformed.
 func TestGoroutineSwitch(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("flaky test; see http://golang.org/issue/6417")
+	}
 	// How much to try. These defaults take about 1 seconds
 	// on a 2012 MacBook Pro. The ones in short mode take
 	// about 0.1 seconds.
