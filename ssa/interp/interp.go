@@ -613,6 +613,8 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
+var stdSizes = types.StdSizes{WordSize: 8, MaxAlign: 8}
+
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.
@@ -659,7 +661,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 
 		case "runtime":
 			// (Assumes no custom Sizeof used during SSA construction.)
-			sz := types.DefaultSizeof(pkg.Object.Scope().Lookup("MemStats").Type())
+			sz := stdSizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
 			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
 
 		case "os":

@@ -162,7 +162,7 @@ func ext۰reflect۰rtype۰Out(fn *ssa.Function, args []value) value {
 func ext۰reflect۰rtype۰Size(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) uintptr
 	// (Assumes no custom Sizeof used during SSA construction.)
-	return uintptr(types.DefaultSizeof(args[0].(rtype).t))
+	return uintptr(stdSizes.Sizeof(args[0].(rtype).t))
 }
 
 func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {
