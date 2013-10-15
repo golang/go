@@ -304,6 +304,19 @@ func (p *Package) guessKinds(f *File) []*Name {
 	b.WriteString(builtinProlog)
 	b.WriteString(f.Preamble)
 	b.WriteString("void __cgo__f__(void) {\n")
+
+	// For a #defined expression, clang silences the warning about "unused expression".
+	// http://llvm.org/viewvc/llvm-project?view=revision&revision=172696
+	// Silencing the warning is not a big deal, because our default assumption is that
+	// (in the absence of other evidence) names are expressions.
+	// However, if all the C names we are investigating are #defined expressions,
+	// clang will print no warnings at all and then exit successfully.
+	// We want clang to print warnings, so seed the code with a function
+	// that is guaranteed to provoke a warning (that we will ignore).
+	// This way, if clang becomes even more broken, we'll find out.
+	// See golang.org/issue/6128.
+	fmt.Fprintf(&b, "1;\n")
+
 	b.WriteString("#line 1 \"cgo-test\"\n")
 	for i, n := range toSniff {
 		fmt.Fprintf(&b, "%s; /* #%d */\nenum { _cgo_enum_%d = %s }; /* #%d */\n", n.C, i, i, n.C, i)
