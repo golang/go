@@ -188,8 +188,8 @@ func (p *Package) Translate(f *File) {
 // in the file f and saves relevant renamings in f.Name[name].Define.
 func (p *Package) loadDefines(f *File) {
 	var b bytes.Buffer
-	b.WriteString(builtinProlog)
 	b.WriteString(f.Preamble)
+	b.WriteString(builtinProlog)
 	stdout := p.gccDefines(b.Bytes())
 
 	for _, line := range strings.Split(stdout, "\n") {
@@ -301,8 +301,8 @@ func (p *Package) guessKinds(f *File) []*Name {
 	}
 
 	var b bytes.Buffer
-	b.WriteString(builtinProlog)
 	b.WriteString(f.Preamble)
+	b.WriteString(builtinProlog)
 	b.WriteString("void __cgo__f__(void) {\n")
 
 	// For a #defined expression, clang silences the warning about "unused expression".
@@ -417,8 +417,8 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	// for each entry in names and then dereference the type we
 	// learn for __cgo__i.
 	var b bytes.Buffer
-	b.WriteString(builtinProlog)
 	b.WriteString(f.Preamble)
+	b.WriteString(builtinProlog)
 	for i, n := range names {
 		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n.C, i)
 		if n.Kind == "const" {
