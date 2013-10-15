@@ -530,7 +530,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		f, fok := types[i].(*dwarf.FuncType)
 		if n.Kind != "type" && fok {
 			n.Kind = "func"
-			n.FuncType = conv.FuncType(f, pos)
+			n.FuncType = conv.FuncType(n, f, pos)
 		} else {
 			n.Type = conv.Type(types[i], pos)
 			if enums[i] != 0 && n.Type.EnumValues != nil {
@@ -1314,6 +1314,41 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 	return t
 }
 
+// Clang contains built-in prototypes for many functions in the standard library.
+// If you use the function without a header, clang uses these definitions to print
+// an error telling which header to #include and then to continue on with the correct
+// prototype. Unfortunately, the DWARF debug information generated for one
+// of these functions, even after the header has been #included, records each of
+// the size_t arguments as an unsigned long instead. Go treats C.ulong and C.size_t
+// as different types, so we must correct the prototype for code that works on other
+// systems to work with clang and vice versa. See golang.org/issue/6506#c21.
+var usesSizeT = map[string]bool{
+	"alloca":      true,
+	"bzero":       true,
+	"calloc":      true,
+	"malloc":      true,
+	"memchr":      true,
+	"memcmp":      true,
+	"memcpy":      true,
+	"memmove":     true,
+	"memset":      true,
+	"realloc":     true,
+	"snprintf":    true,
+	"stpncpy":     true,
+	"strcspn":     true,
+	"strlcat":     true,
+	"strlcpy":     true,
+	"strlen":      true,
+	"strncasecmp": true,
+	"strncat":     true,
+	"strncmp":     true,
+	"strncpy":     true,
+	"strndup":     true,
+	"strspn":      true,
+	"strxfrm":     true,
+	"vsnprintf":   true,
+}
+
 // FuncArg returns a Go type with the same memory layout as
 // dtype when used as the type of a C function argument.
 func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
@@ -1330,6 +1365,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 			Go:    &ast.StarExpr{X: t.Go},
 			C:     tr,
 		}
+
 	case *dwarf.TypedefType:
 		// C has much more relaxed rules than Go for
 		// implicit type conversions.  When the parameter
@@ -1357,7 +1393,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 
 // FuncType returns the Go type analogous to dtype.
 // There is no guarantee about matching memory layout.
-func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+func (c *typeConv) FuncType(name *Name, dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 	p := make([]*Type, len(dtype.ParamType))
 	gp := make([]*ast.Field, len(dtype.ParamType))
 	for i, f := range dtype.ParamType {
@@ -1371,6 +1407,10 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 			break
 		}
 		p[i] = c.FuncArg(f, pos)
+		// See comment on usesSizeT.
+		if id, ok := p[i].Go.(*ast.Ident); ok && id.Name == "_Ctype_ulong" && usesSizeT[name.C] {
+			p[i].Go = c.Ident("_Ctype_size_t")
+		}
 		gp[i] = &ast.Field{Type: p[i].Go}
 	}
 	var r *Type
@@ -1379,6 +1419,10 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 		gr = []*ast.Field{{Type: c.goVoid}}
 	} else if dtype.ReturnType != nil {
 		r = c.Type(dtype.ReturnType, pos)
+		// See comment on usesSizeT.
+		if id, ok := r.Go.(*ast.Ident); ok && id.Name == "_Ctype_ulong" && usesSizeT[name.C] {
+			r.Go = c.Ident("_Ctype_size_t")
+		}
 		gr = []*ast.Field{{Type: r.Go}}
 	}
 	return &FuncType{
