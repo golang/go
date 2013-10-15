@@ -16,6 +16,7 @@ package cgotest
 // One of the great things about this bug is that even with these prototypes
 // clang still generates the wrong debug information.
 
+void *alloca(size_t);
 void bzero(void*, size_t);
 int bcmp(const void*, const void*, size_t);
 int strncasecmp(const char*, const char*, size_t n);
