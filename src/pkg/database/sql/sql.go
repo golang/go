@@ -593,9 +593,12 @@ func (db *DB) openNewConnection() {
 		db: db,
 		ci: ci,
 	}
-	db.addDepLocked(dc, dc)
-	db.numOpen++
-	db.putConnDBLocked(dc, err)
+	if db.putConnDBLocked(dc, err) {
+		db.addDepLocked(dc, dc)
+		db.numOpen++
+	} else {
+		ci.Close()
+	}
 }
 
 // connRequest represents one request for a new connection

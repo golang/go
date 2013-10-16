@@ -38,6 +38,8 @@ type fakeDriver struct {
 	mu         sync.Mutex // guards 3 following fields
 	openCount  int        // conn opens
 	closeCount int        // conn closes
+	waitCh     chan struct{}
+	waitingCh  chan struct{}
 	dbs        map[string]*fakeDB
 }
 
@@ -145,6 +147,10 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 
 	if len(parts) >= 2 && parts[1] == "badConn" {
 		conn.bad = true
+	}
+	if d.waitCh != nil {
+		d.waitingCh <- struct{}{}
+		<-d.waitCh
 	}
 	return conn, nil
 }
