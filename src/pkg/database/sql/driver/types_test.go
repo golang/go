@@ -51,14 +51,14 @@ func TestValueConverters(t *testing.T) {
 			goterr = err.Error()
 		}
 		if goterr != tt.err {
-			t.Errorf("test %d: %s(%T(%v)) error = %q; want error = %q",
+			t.Errorf("test %d: %T(%T(%v)) error = %q; want error = %q",
 				i, tt.c, tt.in, tt.in, goterr, tt.err)
 		}
 		if tt.err != "" {
 			continue
 		}
 		if !reflect.DeepEqual(out, tt.out) {
-			t.Errorf("test %d: %s(%T(%v)) = %v (%T); want %v (%T)",
+			t.Errorf("test %d: %T(%T(%v)) = %v (%T); want %v (%T)",
 				i, tt.c, tt.in, tt.in, out, out, tt.out, tt.out)
 		}
 	}
