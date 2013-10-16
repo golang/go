@@ -105,7 +105,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		offsets := t.offsets
 		if t.offsets == nil {
 			// compute offsets on demand
-			offsets = stdSizes.Offsetsof(t.fields)
+			offsets = s.Offsetsof(t.fields)
 			t.offsets = offsets
 		}
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
