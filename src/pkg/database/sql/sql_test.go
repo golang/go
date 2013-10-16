@@ -94,6 +94,12 @@ func closeDB(t testing.TB, db *DB) {
 	if err != nil {
 		t.Fatalf("error closing DB: %v", err)
 	}
+	db.mu.Lock()
+	count := db.numOpen
+	db.mu.Unlock()
+	if count != 0 {
+		t.Fatalf("%d connections still open after closing DB", db.numOpen)
+	}
 }
 
 // numPrepares assumes that db has exactly 1 idle conn and returns
@@ -245,6 +251,9 @@ func TestRowsColumns(t *testing.T) {
 	want := []string{"age", "name"}
 	if !reflect.DeepEqual(cols, want) {
 		t.Errorf("got %#v; want %#v", cols, want)
+	}
+	if err := rows.Close(); err != nil {
+		t.Errorf("error closing rows: %s", err)
 	}
 }
 
