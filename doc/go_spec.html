@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 7, 2013",
+	"Subtitle": "Version of Oct 16, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -839,7 +839,7 @@ multi-dimensional types.
 <h3 id="Slice_types">Slice types</h3>
 
 <p>
-A slice is a descriptor for a contiguous segment of an array and
+A slice is a descriptor for a contiguous segment of an <i>underlying array</i> and
 provides access to a numbered sequence of elements from that array.
 A slice type denotes the set of all slices of arrays of its element type.
 The value of an uninitialized slice is <code>nil</code>.
@@ -879,17 +879,9 @@ A new, initialized slice value for a given element type <code>T</code> is
 made using the built-in function
 <a href="#Making_slices_maps_and_channels"><code>make</code></a>,
 which takes a slice type
-and parameters specifying the length and optionally the capacity:
-</p>
-
-<pre>
-make([]T, length)
-make([]T, length, capacity)
-</pre>
-
-<p>
-A call to <code>make</code> allocates a new, hidden array to which the returned
-slice value refers. That is, executing
+and parameters specifying the length and optionally the capacity.
+A slice created with <code>make</code> always allocates a new, hidden array
+to which the returned slice value refers. That is, executing
 </p>
 
 <pre>
@@ -897,8 +889,8 @@ make([]T, length, capacity)
 </pre>
 
 <p>
-produces the same slice as allocating an array and slicing it, so these two examples
-result in the same slice:
+produces the same slice as allocating an array and <a href="#Slice_expressions">slicing</a>
+it, so these two expressions are equivalent:
 </p>
 
 <pre>
@@ -910,8 +902,8 @@ new([100]int)[0:50]
 Like arrays, slices are always one-dimensional but may be composed to construct
 higher-dimensional objects.
 With arrays of arrays, the inner arrays are, by construction, always the same length;
-however with slices of slices (or arrays of slices), the lengths may vary dynamically.
-Moreover, the inner slices must be allocated individually (with <code>make</code>).
+however with slices of slices (or arrays of slices), the inner lengths may vary dynamically.
+Moreover, the inner slices must be initialized individually.
 </p>
 
 <h3 id="Struct_types">Struct types</h3>
@@ -2707,7 +2699,8 @@ and the result of the slice operation is a slice with the same element type as t
 
 <p>
 If the sliced operand of a valid slice expression is a <code>nil</code> slice, the result
-is a <code>nil</code> slice.
+is a <code>nil</code> slice. Otherwise, the result shares its underlying array with the
+operand.
 </p>
 
 <h4>Full slice expressions</h4>
@@ -5361,9 +5354,9 @@ append(s S, x ...T) S  // T is the element type of S
 
 <p>
 If the capacity of <code>s</code> is not large enough to fit the additional
-values, <code>append</code> allocates a new, sufficiently large slice that fits
-both the existing slice elements and the additional values. Thus, the returned
-slice may refer to a different underlying array.
+values, <code>append</code> allocates a new, sufficiently large underlying
+array that fits both the existing slice elements and the additional values.
+Otherwise, <code>append</code> re-uses the underlying array.
 </p>
 
 <pre>
