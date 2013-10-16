@@ -795,6 +795,7 @@ This example shows both uses.
 <pre>
 Loop:
 	for n := 0; n &lt; len(src); n += size {
+		switch {
 		case src[n] &lt; sizeOne:
 			if validateOnly {
 				break
