@@ -504,7 +504,6 @@ func (db *DB) maxIdleConnsLocked() int {
 // If n <= 0, no idle connections are retained.
 func (db *DB) SetMaxIdleConns(n int) {
 	db.mu.Lock()
-	defer db.mu.Unlock()
 	if n > 0 {
 		db.maxIdle = n
 	} else {
@@ -515,11 +514,16 @@ func (db *DB) SetMaxIdleConns(n int) {
 	if db.maxOpen > 0 && db.maxIdleConnsLocked() > db.maxOpen {
 		db.maxIdle = db.maxOpen
 	}
+	var closing []*driverConn
 	for db.freeConn.Len() > db.maxIdleConnsLocked() {
 		dc := db.freeConn.Back().Value.(*driverConn)
 		dc.listElem = nil
 		db.freeConn.Remove(db.freeConn.Back())
-		go dc.Close()
+		closing = append(closing, dc)
+	}
+	db.mu.Unlock()
+	for _, c := range closing {
+		c.Close()
 	}
 }
 
@@ -743,8 +747,8 @@ func (db *DB) putConn(dc *driverConn, err error) {
 	if err == driver.ErrBadConn {
 		// Don't reuse bad connections.
 		// Since the conn is considered bad and is being discarded, treat it
-		// as closed. Decrement the open count.
-		db.numOpen--
+		// as closed. Don't decrement the open count here, finalClose will
+		// take care of that.
 		db.maybeOpenNewConnections()
 		db.mu.Unlock()
 		dc.Close()
@@ -1607,13 +1611,13 @@ func (r *Row) Scan(dest ...interface{}) error {
 	// from Next will not be modified again." (for instance, if
 	// they were obtained from the network anyway) But for now we
 	// don't care.
+	defer r.rows.Close()
 	for _, dp := range dest {
 		if _, ok := dp.(*RawBytes); ok {
 			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
 		}
 	}
 
-	defer r.rows.Close()
 	if !r.rows.Next() {
 		return ErrNoRows
 	}
