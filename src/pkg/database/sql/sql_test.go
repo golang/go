@@ -1677,6 +1677,57 @@ func TestConcurrency(t *testing.T) {
 	doConcurrentTest(t, new(concurrentRandomTest))
 }
 
+func TestConnectionLeak(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	// Start by opening defaultMaxIdleConns
+	rows := make([]*Rows, defaultMaxIdleConns)
+	// We need to SetMaxOpenConns > MaxIdleConns, so the DB can open
+	// a new connection and we can fill the idle queue with the released
+	// connections.
+	db.SetMaxOpenConns(len(rows) + 1)
+	for ii := range rows {
+		r, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Next()
+		if err := r.Err(); err != nil {
+			t.Fatal(err)
+		}
+		rows[ii] = r
+	}
+	// Now we have defaultMaxIdleConns busy connections. Open
+	// a new one, but wait until the busy connections are released
+	// before returning control to DB.
+	drv := db.driver.(*fakeDriver)
+	drv.waitCh = make(chan struct{}, 1)
+	drv.waitingCh = make(chan struct{}, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		r, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Close()
+		wg.Done()
+	}()
+	// Wait until the goroutine we've just created has started waiting.
+	<-drv.waitingCh
+	// Now close the busy connections. This provides a connection for
+	// the blocked goroutine and then fills up the idle queue.
+	for _, v := range rows {
+		v.Close()
+	}
+	// At this point we give the new connection to DB. This connection is
+	// now useless, since the idle queue is full and there are no pending
+	// requests. DB should deal with this situation without leaking the
+	// connection.
+	drv.waitCh <- struct{}{}
+	wg.Wait()
+}
+
 func BenchmarkConcurrentDBExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentDBExecTest)
