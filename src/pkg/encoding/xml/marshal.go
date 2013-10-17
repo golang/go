@@ -354,17 +354,18 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		return nil
 	}
 
-	kind := val.Kind()
-	typ := val.Type()
-
-	// Drill into pointers/interfaces
-	if kind == reflect.Ptr || kind == reflect.Interface {
+	// Drill into interfaces and pointers.
+	// This can turn into an infinite loop given a cyclic chain,
+	// but it matches the Go 1 behavior.
+	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
 		if val.IsNil() {
 			return nil
 		}
 		val = val.Elem()
-		typ = val.Type()
 	}
+
+	kind := val.Kind()
+	typ := val.Type()
 
 	// Check for marshaler.
 	if val.CanInterface() && typ.Implements(marshalerType) {
