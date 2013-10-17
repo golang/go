@@ -459,7 +459,7 @@ func (u *URL) String() string {
 				buf.WriteString(h)
 			}
 		}
-		if u.Path != "" && u.Path[0] != '/' {
+		if u.Path != "" && u.Path[0] != '/' && u.Host != "" {
 			buf.WriteByte('/')
 		}
 		buf.WriteString(escape(u.Path, encodePath))
