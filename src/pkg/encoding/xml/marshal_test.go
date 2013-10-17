@@ -314,6 +314,10 @@ type MarshalerStruct struct {
 	Foo MyMarshalerAttrTest `xml:",attr"`
 }
 
+func ifaceptr(x interface{}) interface{} {
+	return &x
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -356,6 +360,7 @@ var marshalTests = []struct {
 	{Value: &Plain{NamedType("potato")}, ExpectXML: `<Plain><V>potato</V></Plain>`},
 	{Value: &Plain{[]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
 	{Value: &Plain{[3]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+	{Value: ifaceptr(true), MarshalOnly: true, ExpectXML: `<bool>true</bool>`},
 
 	// Test time.
 	{
@@ -1111,5 +1116,36 @@ func BenchmarkUnmarshal(b *testing.B) {
 	xml := []byte(atomXml)
 	for i := 0; i < b.N; i++ {
 		Unmarshal(xml, &Feed{})
+	}
+}
+
+// golang.org/issue/6556
+func TestStructPointerMarshal(t *testing.T) {
+	type A struct {
+		XMLName string `xml:"a"`
+		B       []interface{}
+	}
+	type C struct {
+		XMLName Name
+		Value   string `xml:"value"`
+	}
+
+	a := new(A)
+	a.B = append(a.B, &C{
+		XMLName: Name{Local: "c"},
+		Value:   "x",
+	})
+
+	b, err := Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if x := string(b); x != "<a><c><value>x</value></c></a>" {
+		t.Fatal(x)
+	}
+	var v A
+	err = Unmarshal(b, &v)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
