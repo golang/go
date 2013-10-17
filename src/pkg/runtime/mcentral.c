@@ -33,7 +33,7 @@ runtime·MCentral_Init(MCentral *c, int32 sizeclass)
 // Allocate a list of objects from the central free list.
 // Return the number of objects allocated.
 // The objects are linked together by their first words.
-// On return, *pstart points at the first object.
+// On return, *pfirst points at the first object.
 int32
 runtime·MCentral_AllocList(MCentral *c, MLink **pfirst)
 {
