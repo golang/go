@@ -260,6 +260,14 @@ var urltests = []URLTest{
 		},
 		"mailto:webmaster@golang.org",
 	},
+	// Relative path
+	{
+		"a/b/c",
+		&URL{
+			Path: "a/b/c",
+		},
+		"a/b/c",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
