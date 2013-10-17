@@ -2382,7 +2382,7 @@ sysmon(void)
 		// poll network if not polled for more than 10ms
 		lastpoll = runtime·atomicload64(&runtime·sched.lastpoll);
 		now = runtime·nanotime();
-		if(lastpoll != 0 && lastpoll + 10*1000*1000 > now) {
+		if(lastpoll != 0 && lastpoll + 10*1000*1000 < now) {
 			runtime·cas64(&runtime·sched.lastpoll, lastpoll, now);
 			gp = runtime·netpoll(false);  // non-blocking
 			if(gp) {
