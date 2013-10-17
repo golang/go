@@ -151,6 +151,8 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	if d.waitCh != nil {
 		d.waitingCh <- struct{}{}
 		<-d.waitCh
+		d.waitCh = nil
+		d.waitingCh = nil
 	}
 	return conn, nil
 }
