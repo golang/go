@@ -31,10 +31,6 @@ import (
 )
 
 var inputs = []string{
-	// Currently debugging:
-	// "testdata/tmp.go",
-
-	// Working:
 	"testdata/a_test.go",
 	"testdata/another.go",
 	"testdata/arrayreflect.go",
@@ -43,6 +39,7 @@ var inputs = []string{
 	"testdata/chanreflect.go",
 	"testdata/context.go",
 	"testdata/conv.go",
+	"testdata/finalizer.go",
 	"testdata/flow.go",
 	"testdata/fmtexcerpt.go",
 	"testdata/func.go",
@@ -54,13 +51,8 @@ var inputs = []string{
 	"testdata/panic.go",
 	"testdata/recur.go",
 	"testdata/reflect.go",
+	"testdata/structreflect.go",
 	"testdata/structs.go",
-
-	// TODO(adonovan): get these tests (of reflection) passing.
-	// (The tests are mostly sound since they were used for a
-	// previous implementation.)
-	// "testdata/finalizer.go",
-	// "testdata/structreflect.go",
 }
 
 // Expectation grammar:
@@ -376,35 +368,41 @@ func labelString(l *pointer.Label, lineMapping map[string]string, prog *ssa.Prog
 }
 
 func checkPointsToExpectation(e *expectation, pr *probe, lineMapping map[string]string, prog *ssa.Program) bool {
-	expected := make(map[string]struct{})
-	surplus := make(map[string]struct{})
+	expected := make(map[string]int)
+	surplus := make(map[string]int)
 	exact := true
 	for _, g := range e.args {
 		if g == "..." {
 			exact = false
 			continue
 		}
-		expected[g] = struct{}{}
+		expected[g]++
 	}
 	// Find the set of labels that the probe's
 	// argument (x in print(x)) may point to.
 	for _, label := range pr.arg0.PointsTo().Labels() {
 		name := labelString(label, lineMapping, prog)
-		if _, ok := expected[name]; ok {
-			delete(expected, name)
+		if expected[name] > 0 {
+			expected[name]--
 		} else if exact {
-			surplus[name] = struct{}{}
+			surplus[name]++
 		}
 	}
-	// Report set difference:
+	// Report multiset difference:
 	ok := true
-	if len(expected) > 0 {
-		ok = false
-		e.errorf("value does not alias these expected labels: %s", join(expected))
+	for _, count := range expected {
+		if count > 0 {
+			ok = false
+			e.errorf("value does not alias these expected labels: %s", join(expected))
+			break
+		}
 	}
-	if len(surplus) > 0 {
-		ok = false
-		e.errorf("value may additionally alias these labels: %s", join(surplus))
+	for _, count := range surplus {
+		if count > 0 {
+			ok = false
+			e.errorf("value may additionally alias these labels: %s", join(surplus))
+			break
+		}
 	}
 	return ok
 }
@@ -462,7 +460,7 @@ func checkTypesExpectation(e *expectation, pr *probe) bool {
 var errOK = errors.New("OK")
 
 func checkCallsExpectation(prog *ssa.Program, e *expectation, callgraph call.Graph) bool {
-	found := make(map[string]struct{})
+	found := make(map[string]int)
 	err := call.GraphVisitEdges(callgraph, func(edge call.Edge) error {
 		// Name-based matching is inefficient but it allows us to
 		// match functions whose names that would not appear in an
@@ -472,7 +470,7 @@ func checkCallsExpectation(prog *ssa.Program, e *expectation, callgraph call.Gra
 			if calleeStr == e.args[1] {
 				return errOK // expectation satisified; stop the search
 			}
-			found[calleeStr] = struct{}{}
+			found[calleeStr]++
 		}
 		return nil
 	})
@@ -544,14 +542,16 @@ func TestInput(t *testing.T) {
 	}
 }
 
-// join joins the elements of set with " | "s.
-func join(set map[string]struct{}) string {
+// join joins the elements of multiset with " | "s.
+func join(set map[string]int) string {
 	var buf bytes.Buffer
 	sep := ""
-	for name := range set {
-		buf.WriteString(sep)
-		sep = " | "
-		buf.WriteString(name)
+	for name, count := range set {
+		for i := 0; i < count; i++ {
+			buf.WriteString(sep)
+			sep = " | "
+			buf.WriteString(name)
+		}
 	}
 	return buf.String()
 }

@@ -3,7 +3,7 @@ package main
 import "runtime"
 
 func final1a(x *int) int {
-	print(x) // @pointsto alloc@newint:10
+	print(x) // @pointsto new@newint:10
 	return *x
 }
 
@@ -11,24 +11,24 @@ func final1b(x *bool) {
 	print(x) // @pointsto
 }
 
-func setfinalizer1() {
+func runtimeSetFinalizer1() {
 	x := new(int)                    // @line newint
 	runtime.SetFinalizer(x, final1a) // ok: final1a's result is ignored
 	runtime.SetFinalizer(x, final1b) // param type mismatch: no effect
 }
 
-// @calls runtime.SetFinalizer -> main.final1a
-// @calls main.setfinalizer1 -> runtime.SetFinalizer
+// @calls main.runtimeSetFinalizer1 -> main.final1a
+// @calls main.runtimeSetFinalizer1 -> main.final1b
 
 func final2a(x *bool) {
-	print(x) // @pointsto alloc@newbool1:10 | alloc@newbool2:10
+	print(x) // @pointsto new@newbool1:10 | new@newbool2:10
 }
 
 func final2b(x *bool) {
-	print(x) // @pointsto alloc@newbool1:10 | alloc@newbool2:10
+	print(x) // @pointsto new@newbool1:10 | new@newbool2:10
 }
 
-func setfinalizer2() {
+func runtimeSetFinalizer2() {
 	x := new(bool) // @line newbool1
 	f := final2a
 	if unknown {
@@ -38,33 +38,44 @@ func setfinalizer2() {
 	runtime.SetFinalizer(x, f)
 }
 
-// @calls runtime.SetFinalizer -> main.final2a
-// @calls runtime.SetFinalizer -> main.final2b
-// @calls main.setfinalizer2 -> runtime.SetFinalizer
+// @calls main.runtimeSetFinalizer2 -> main.final2a
+// @calls main.runtimeSetFinalizer2 -> main.final2b
 
-// type T int
+type T int
 
-// func (t *T) finalize() {
-// 	print(t) // #@pointsto x
-// }
-
-// func setfinalizer3() {
-// 	x := new(T)
-// 	runtime.SetFinalizer(x, (*T).finalize) // go/types gives wrong type to f.
-// }
-
-// #@calls runtime.SetFinalizer -> (*T) finalize
-
-func funcForPC() {
-	f := runtime.FuncForPC(0) // @line funcforpc
-	print(f)                  // @pointsto reflectAlloc@funcforpc:25
+func (t *T) finalize() {
+	print(t) // @pointsto new@final3:10
 }
 
+func runtimeSetFinalizer3() {
+	x := new(T) // @line final3
+	runtime.SetFinalizer(x, (*T).finalize)
+}
+
+// @calls main.runtimeSetFinalizer3 -> (*main.T).finalize
+
+// I hope I never live to see this code in the wild.
+var setFinalizer = runtime.SetFinalizer
+
+func final4(x *int) {
+	print(x) // @pointsto new@finalIndirect:10
+}
+
+func runtimeSetFinalizerIndirect() {
+	// In an indirect call, the shared contour for SetFinalizer is
+	// used, i.e. the call is not inlined and appears in the call graph.
+	x := new(int) // @line finalIndirect
+	setFinalizer(x, final4)
+}
+
+// @calls main.runtimeSetFinalizerIndirect -> runtime.SetFinalizer
+// @calls runtime.SetFinalizer -> main.final4
+
 func main() {
-	setfinalizer1()
-	setfinalizer2()
-	// setfinalizer3()
-	funcForPC()
+	runtimeSetFinalizer1()
+	runtimeSetFinalizer2()
+	runtimeSetFinalizer3()
+	runtimeSetFinalizerIndirect()
 }
 
 var unknown bool // defeat dead-code elimination

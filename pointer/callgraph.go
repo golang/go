@@ -77,7 +77,7 @@ func (n *cgnode) String() string {
 // they are handled as intrinsics.
 //
 type callsite struct {
-	targets nodeid              // pts(targets) contains identities of all called functions.
+	targets nodeid              // pts(·) contains objects for dynamically called functions
 	instr   ssa.CallInstruction // the call instruction; nil for synthetic/intrinsic
 	callees []*cgnode           // unordered set of callees of this site
 }

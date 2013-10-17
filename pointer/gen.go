@@ -578,18 +578,31 @@ func (a *analysis) shouldUseContext(fn *ssa.Function) bool {
 
 // genStaticCall generates constraints for a statically dispatched function call.
 func (a *analysis) genStaticCall(caller *cgnode, site *callsite, call *ssa.CallCommon, result nodeid) {
-	// Ascertain the context (contour/CGNode) for a particular call.
-	var obj nodeid
 	fn := call.StaticCallee()
+
+	// Special cases for inlined intrinsics.
+	switch fn {
+	case a.runtimeSetFinalizer:
+		// Inline SetFinalizer so the call appears direct.
+		site.targets = a.addOneNode(tInvalid, "SetFinalizer.targets", nil)
+		a.addConstraint(&runtimeSetFinalizerConstraint{
+			targets: site.targets,
+			x:       a.valueNode(call.Args[0]),
+			f:       a.valueNode(call.Args[1]),
+		})
+		return
+	}
+
+	// Ascertain the context (contour/cgnode) for a particular call.
+	var obj nodeid
 	if a.shouldUseContext(fn) {
 		obj = a.makeFunctionObject(fn, site) // new contour
 	} else {
 		obj = a.objectNode(nil, fn) // shared contour
 	}
+	a.callEdge(site, obj)
 
 	sig := call.Signature()
-	targets := a.addOneNode(sig, "call.targets", nil)
-	a.addressOf(targets, obj) // (a singleton)
 
 	// Copy receiver, if any.
 	params := a.funcParams(obj)
@@ -613,20 +626,18 @@ func (a *analysis) genStaticCall(caller *cgnode, site *callsite, call *ssa.CallC
 	if result != 0 {
 		a.copy(result, a.funcResults(obj), a.sizeof(sig.Results()))
 	}
-
-	// pts(targets) will be the (singleton) set of possible call targets.
-	site.targets = targets
 }
 
 // genDynamicCall generates constraints for a dynamic function call.
 func (a *analysis) genDynamicCall(caller *cgnode, site *callsite, call *ssa.CallCommon, result nodeid) {
-	fn := a.valueNode(call.Value)
-	sig := call.Signature()
+	// pts(targets) will be the set of possible call targets.
+	site.targets = a.valueNode(call.Value)
 
 	// We add dynamic closure rules that store the arguments into,
 	// and load the results from, the P/R block of each function
-	// discovered in pts(fn).
+	// discovered in pts(targets).
 
+	sig := call.Signature()
 	var offset uint32 = 1 // P/R block starts at offset 1
 	for i, arg := range call.Args {
 		sz := a.sizeof(sig.Params().At(i).Type())
@@ -636,9 +647,6 @@ func (a *analysis) genDynamicCall(caller *cgnode, site *callsite, call *ssa.Call
 	if result != 0 {
 		a.genLoad(caller, result, call.Value, offset, a.sizeof(sig.Results()))
 	}
-
-	// pts(targets) will be the (singleton) set of possible call targets.
-	site.targets = fn
 }
 
 // genInvoke generates constraints for a dynamic method invocation.
@@ -699,9 +707,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	fn := a.prog.Method(meth)
 
 	obj := a.makeFunctionObject(fn, site) // new contour for this call
-
-	// pts(targets) will be the (singleton) set of possible call targets.
-	site.targets = obj
+	a.callEdge(site, obj)
 
 	// From now on, it's essentially a static call, but little is
 	// gained by factoring together the code for both cases.
@@ -745,13 +751,11 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 	}
 
 	site := &callsite{instr: instr}
-
-	switch {
-	case call.StaticCallee() != nil:
+	if call.StaticCallee() != nil {
 		a.genStaticCall(caller, site, call, result)
-	case call.IsInvoke():
+	} else if call.IsInvoke() {
 		a.genInvoke(caller, site, call, result)
-	default:
+	} else {
 		a.genDynamicCall(caller, site, call, result)
 	}
 

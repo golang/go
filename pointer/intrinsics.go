@@ -16,6 +16,9 @@ package pointer
 // own C functions using a snippet of Go.
 
 import (
+	"fmt"
+
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/ssa"
 )
 
@@ -216,7 +219,7 @@ func init() {
 		"runtime.Breakpoint":                    ext۰NoEffect,
 		"runtime.CPUProfile":                    ext۰NotYetImplemented,
 		"runtime.Caller":                        ext۰NoEffect,
-		"runtime.FuncForPC":                     ext۰NotYetImplemented,
+		"runtime.FuncForPC":                     ext۰NoEffect,
 		"runtime.GC":                            ext۰NoEffect,
 		"runtime.GOMAXPROCS":                    ext۰NoEffect,
 		"runtime.Goexit":                        ext۰NoEffect,
@@ -228,7 +231,7 @@ func init() {
 		"runtime.ReadMemStats":                  ext۰NoEffect,
 		"runtime.SetBlockProfileRate":           ext۰NoEffect,
 		"runtime.SetCPUProfileRate":             ext۰NoEffect,
-		"runtime.SetFinalizer":                  ext۰NotYetImplemented,
+		"runtime.SetFinalizer":                  ext۰runtime۰SetFinalizer,
 		"runtime.Stack":                         ext۰NoEffect,
 		"runtime.ThreadCreateProfile":           ext۰NoEffect,
 		"runtime.funcentry_go":                  ext۰NoEffect,
@@ -314,4 +317,71 @@ func ext۰NotYetImplemented(a *analysis, cgn *cgnode) {
 	// TODO(adonovan): enable this warning when we've implemented
 	// enough that it's not unbearably annoying.
 	// a.warnf(fn.Pos(), "unsound: intrinsic treatment of %s not yet implemented", fn)
+}
+
+// ---------- func runtime.SetFinalizer(x, f interface{}) ----------
+
+// runtime.SetFinalizer(x, f)
+type runtimeSetFinalizerConstraint struct {
+	targets nodeid
+	f       nodeid // (ptr)
+	x       nodeid
+}
+
+func (c *runtimeSetFinalizerConstraint) String() string {
+	return fmt.Sprintf("runtime.SetFinalizer(n%d, n%d)", c.x, c.f)
+}
+
+func (c *runtimeSetFinalizerConstraint) ptr() nodeid {
+	return c.f
+}
+
+func (c *runtimeSetFinalizerConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	for fObj := range delta {
+		tDyn, f, indirect := a.taggedValue(fObj)
+		if tDyn == nil {
+			panic("not a tagged object")
+		}
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		tSig, ok := tDyn.Underlying().(*types.Signature)
+		if !ok {
+			continue // not a function
+		}
+		if tSig.Recv() != nil {
+			panic(tSig)
+		}
+		if tSig.Params().Len() != 1 {
+			continue //  not a unary function
+		}
+
+		// Extract x to tmp.
+		tx := tSig.Params().At(0).Type()
+		tmp := a.addNodes(tx, "SetFinalizer.tmp")
+		a.untag(tx, tmp, c.x, false)
+
+		// Call f(tmp).
+		a.store(f, tmp, 1, a.sizeof(tx))
+
+		// Add dynamic call target.
+		if a.onlineCopy(c.targets, f) {
+			a.addWork(c.targets)
+		}
+	}
+}
+
+func ext۰runtime۰SetFinalizer(a *analysis, cgn *cgnode) {
+	// This is the shared contour, used for dynamic calls.
+	targets := a.addOneNode(tInvalid, "SetFinalizer.targets", nil)
+	cgn.sites = append(cgn.sites, &callsite{targets: targets})
+	params := a.funcParams(cgn.obj)
+	a.addConstraint(&runtimeSetFinalizerConstraint{
+		targets: targets,
+		x:       params,
+		f:       params + 1,
+	})
 }

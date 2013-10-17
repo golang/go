@@ -160,6 +160,20 @@ func reflectSliceOf() {
 	print(reflect.Zero(tSliceInt)) // @types []int
 }
 
+type T struct{ x int }
+
+func reflectMakeSlice() {
+	rt := []reflect.Type{
+		reflect.TypeOf(3),
+		reflect.TypeOf([]int{}),
+		reflect.TypeOf([]T{}),
+	}[0]
+	sl := reflect.MakeSlice(rt, 0, 0)
+	print(sl)                         // @types []int | []T
+	print(sl)                         // @pointsto <alloc in reflect.MakeSlice> | <alloc in reflect.MakeSlice>
+	print(&sl.Interface().([]T)[0].x) // @pointsto <alloc in reflect.MakeSlice>[*].x
+}
+
 func main() {
 	reflectValueSlice()
 	reflectValueBytes()
@@ -168,4 +182,5 @@ func main() {
 	reflectTypeElem()
 	reflectPtrTo()
 	reflectSliceOf()
+	reflectMakeSlice()
 }

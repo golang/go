@@ -849,8 +849,58 @@ func ext۰reflect۰MakeMap(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰MakeSlice(a *analysis, cgn *cgnode) {}
-func ext۰reflect۰MapOf(a *analysis, cgn *cgnode)     {}
+// ---------- func MakeSlice(Type) Value ----------
+
+// result = MakeSlice(typ)
+type reflectMakeSliceConstraint struct {
+	cgn    *cgnode
+	typ    nodeid // (ptr)
+	result nodeid
+}
+
+func (c *reflectMakeSliceConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect.MakeSlice(n%d)", c.result, c.typ)
+}
+
+func (c *reflectMakeSliceConstraint) ptr() nodeid {
+	return c.typ
+}
+
+func (c *reflectMakeSliceConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	changed := false
+	for typObj := range delta {
+		T := a.rtypeTaggedValue(typObj)
+		if _, ok := T.Underlying().(*types.Slice); !ok {
+			continue // not a slice type
+		}
+
+		obj := a.nextNode()
+		a.addNodes(sliceToArray(T), "reflect.MakeSlice")
+		a.endObject(obj, c.cgn, nil)
+
+		// put its address in a new T-tagged object
+		id := a.makeTagged(T, c.cgn, nil)
+		a.addLabel(id+1, obj)
+
+		// flow the T-tagged object to the result
+		if a.addLabel(c.result, id) {
+			changed = true
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+func ext۰reflect۰MakeSlice(a *analysis, cgn *cgnode) {
+	a.addConstraint(&reflectMakeSliceConstraint{
+		cgn:    cgn,
+		typ:    a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
+func ext۰reflect۰MapOf(a *analysis, cgn *cgnode) {}
 
 // ---------- func New(Type) Value ----------
 
@@ -1063,6 +1113,13 @@ func (c *reflectZeroConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	for typObj := range delta {
 		T := a.rtypeTaggedValue(typObj)
 
+		// TODO(adonovan): if T is an interface type, we need
+		// to create an indirect tagged object containing
+		// new(T).  To avoid updates of such shared values,
+		// we'll need another flag on indirect tagged values
+		// that marks whether they are addressable or
+		// readonly, just like the reflect package does.
+
 		// memoize using a.reflectZeros[T]
 		var id nodeid
 		if z := a.reflectZeros.At(T); false && z != nil {
@@ -1134,9 +1191,90 @@ func ext۰reflect۰rtype۰Elem(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰rtype۰Field(a *analysis, cgn *cgnode)           {}
+// ---------- func (*rtype) Field(int) StructField ----------
+// ---------- func (*rtype) FieldByName(string) (StructField, bool) ----------
+
+// result = FieldByName(t, name)
+// result = Field(t, _)
+type rtypeFieldByNameConstraint struct {
+	cgn    *cgnode
+	name   string // name of field; "" for unknown
+	t      nodeid // (ptr)
+	result nodeid
+}
+
+func (c *rtypeFieldByNameConstraint) String() string {
+	return fmt.Sprintf("n%d = (*reflect.rtype).FieldByName(n%d, %q)", c.result, c.t, c.name)
+}
+
+func (c *rtypeFieldByNameConstraint) ptr() nodeid {
+	return c.t
+}
+
+func (c *rtypeFieldByNameConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	// type StructField struct {
+	// 0	__identity__
+	// 1	Name      string
+	// 2	PkgPath   string
+	// 3	Type      Type
+	// 4	Tag       StructTag
+	// 5	Offset    uintptr
+	// 6	Index     []int
+	// 7	Anonymous bool
+	// }
+
+	for tObj := range delta {
+		T := a.nodes[tObj].obj.data.(types.Type)
+		tStruct, ok := T.Underlying().(*types.Struct)
+		if !ok {
+			continue // not a struct type
+		}
+
+		n := tStruct.NumFields()
+		for i := 0; i < n; i++ {
+			f := tStruct.Field(i)
+			if c.name == "" || c.name == f.Name() {
+
+				// a.offsetOf(Type) is 3.
+				if id := c.result + 3; a.addLabel(id, a.makeRtype(f.Type())) {
+					a.addWork(id)
+				}
+				// TODO(adonovan): StructField.Index should be non-nil.
+			}
+		}
+	}
+}
+
+func ext۰reflect۰rtype۰FieldByName(a *analysis, cgn *cgnode) {
+	// If we have access to the callsite,
+	// and the argument is a string constant,
+	// return only that field.
+	var name string
+	if site := cgn.callersite; site != nil {
+		if c, ok := site.instr.Common().Args[0].(*ssa.Const); ok {
+			name = exact.StringVal(c.Value)
+		}
+	}
+
+	a.addConstraint(&rtypeFieldByNameConstraint{
+		cgn:    cgn,
+		name:   name,
+		t:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
+func ext۰reflect۰rtype۰Field(a *analysis, cgn *cgnode) {
+	// No-one ever calls Field with a constant argument,
+	// so we don't specialize that case.
+	a.addConstraint(&rtypeFieldByNameConstraint{
+		cgn:    cgn,
+		t:      a.funcParams(cgn.obj),
+		result: a.funcResults(cgn.obj),
+	})
+}
+
 func ext۰reflect۰rtype۰FieldByIndex(a *analysis, cgn *cgnode)    {}
-func ext۰reflect۰rtype۰FieldByName(a *analysis, cgn *cgnode)     {}
 func ext۰reflect۰rtype۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
 
 // ---------- func (*rtype) In/Out() Type ----------
@@ -1264,27 +1402,6 @@ func (c *rtypeMethodByNameConstraint) ptr() nodeid {
 	return c.t
 }
 
-func (c *rtypeMethodByNameConstraint) addMethod(a *analysis, meth *types.Selection) {
-	// type Method struct {
-	// 0     __identity__
-	// 1	Name    string
-	// 2	PkgPath string
-	// 3	Type    Type
-	// 4	Func    Value
-	// 5	Index   int
-	// }
-	fn := a.prog.Method(meth)
-
-	// a.offsetOf(Type) is 3.
-	if id := c.result + 3; a.addLabel(id, a.makeRtype(changeRecv(fn.Signature))) {
-		a.addWork(id)
-	}
-	// a.offsetOf(Func) is 4.
-	if id := c.result + 4; a.addLabel(id, a.objectNode(nil, fn)) {
-		a.addWork(id)
-	}
-}
-
 // changeRecv returns sig with Recv prepended to Params().
 func changeRecv(sig *types.Signature) *types.Signature {
 	params := sig.Params()
@@ -1307,7 +1424,24 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset)
 		for i, n := 0, mset.Len(); i < n; i++ {
 			sel := mset.At(i)
 			if c.name == "" || c.name == sel.Obj().Name() {
-				c.addMethod(a, sel)
+				// type Method struct {
+				// 0     __identity__
+				// 1	Name    string
+				// 2	PkgPath string
+				// 3	Type    Type
+				// 4	Func    Value
+				// 5	Index   int
+				// }
+				fn := a.prog.Method(sel)
+
+				// a.offsetOf(Type) is 3.
+				if id := c.result + 3; a.addLabel(id, a.makeRtype(changeRecv(fn.Signature))) {
+					a.addWork(id)
+				}
+				// a.offsetOf(Func) is 4.
+				if id := c.result + 4; a.addLabel(id, a.objectNode(nil, fn)) {
+					a.addWork(id)
+				}
 			}
 		}
 	}

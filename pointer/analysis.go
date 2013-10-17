@@ -205,14 +205,16 @@ type analysis struct {
 	work        worklist                    // solver's worklist
 	result      *Result                     // results of the analysis
 
-	// Reflection:
-	hasher          typemap.Hasher // cache of type hashes
-	reflectValueObj types.Object   // type symbol for reflect.Value (if present)
-	reflectRtypeObj types.Object   // *types.TypeName for reflect.rtype (if present)
-	reflectRtypePtr *types.Pointer // *reflect.rtype
-	reflectType     *types.Named   // reflect.Type
-	rtypes          typemap.M      // nodeid of canonical *rtype-tagged object for type T
-	reflectZeros    typemap.M      // nodeid of canonical T-tagged object for zero value
+	// Reflection & intrinsics:
+	hasher              typemap.Hasher // cache of type hashes
+	reflectValueObj     types.Object   // type symbol for reflect.Value (if present)
+	reflectValueCall    *ssa.Function  // (reflect.Value).Call
+	reflectRtypeObj     types.Object   // *types.TypeName for reflect.rtype (if present)
+	reflectRtypePtr     *types.Pointer // *reflect.rtype
+	reflectType         *types.Named   // reflect.Type
+	rtypes              typemap.M      // nodeid of canonical *rtype-tagged object for type T
+	reflectZeros        typemap.M      // nodeid of canonical T-tagged object for zero value
+	runtimeSetFinalizer *ssa.Function  // runtime.SetFinalizer
 }
 
 // enclosingObj returns the object (addressible memory object) that encloses node id.
@@ -273,7 +275,9 @@ func Analyze(config *Config) *Result {
 	}
 
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
-		a.reflectValueObj = reflect.Object.Scope().Lookup("Value")
+		rV := reflect.Object.Scope().Lookup("Value")
+		a.reflectValueObj = rV
+		a.reflectValueCall = a.prog.Method(rV.Type().MethodSet().Lookup(nil, "Call"))
 		a.reflectType = reflect.Object.Scope().Lookup("Type").Type().(*types.Named)
 		a.reflectRtypeObj = reflect.Object.Scope().Lookup("rtype")
 		a.reflectRtypePtr = types.NewPointer(a.reflectRtypeObj.Type())
@@ -284,6 +288,9 @@ func Analyze(config *Config) *Result {
 
 		a.rtypes.SetHasher(a.hasher)
 		a.reflectZeros.SetHasher(a.hasher)
+	}
+	if runtime := a.prog.ImportedPackage("runtime"); runtime != nil {
+		a.runtimeSetFinalizer = runtime.Func("SetFinalizer")
 	}
 
 	root := a.generate()
@@ -314,22 +321,11 @@ func Analyze(config *Config) *Result {
 		}
 	}
 
-	// Visit discovered call graph.
+	// Add dynamic edges to call graph.
 	for _, caller := range a.cgnodes {
 		for _, site := range caller.sites {
-			for nid := range a.nodes[site.targets].pts {
-				callee := a.nodes[nid].obj.cgn
-
-				if a.config.BuildCallGraph {
-					site.callees = append(site.callees, callee)
-				}
-
-				// TODO(adonovan): de-dup these messages.
-				// Warn about calls to non-intrinsic external functions.
-				if fn := callee.fn; fn.Blocks == nil && a.findIntrinsic(fn) == nil {
-					a.warnf(site.pos(), "unsound call to unknown intrinsic: %s", fn)
-					a.warnf(fn.Pos(), " (declared here)")
-				}
+			for callee := range a.nodes[site.targets].pts {
+				a.callEdge(site, callee)
 			}
 		}
 	}
@@ -339,4 +335,30 @@ func Analyze(config *Config) *Result {
 	}
 
 	return a.result
+}
+
+// callEdge is called for each edge in the callgraph.
+// calleeid is the callee's object node (has otFunction flag).
+//
+func (a *analysis) callEdge(site *callsite, calleeid nodeid) {
+	obj := a.nodes[calleeid].obj
+	if obj.flags&otFunction == 0 {
+		panic(fmt.Sprintf("callEdge %s -> n%d: not a function object", site, calleeid))
+	}
+	callee := obj.cgn
+
+	if a.config.BuildCallGraph {
+		site.callees = append(site.callees, callee)
+	}
+
+	if a.log != nil {
+		fmt.Fprintf(a.log, "\tcall edge %s -> %s\n", site, callee)
+	}
+
+	// Warn about calls to non-intrinsic external functions.
+	// TODO(adonovan): de-dup these messages.
+	if fn := callee.fn; fn.Blocks == nil && a.findIntrinsic(fn) == nil {
+		a.warnf(site.pos(), "unsound call to unknown intrinsic: %s", fn)
+		a.warnf(fn.Pos(), " (declared here)")
+	}
 }
