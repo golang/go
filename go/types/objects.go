@@ -250,7 +250,7 @@ type Label struct {
 }
 
 func NewLabel(pos token.Pos, name string) *Label {
-	return &Label{object{pos: pos, name: name}}
+	return &Label{object{pos: pos, name: name, typ: Typ[Invalid]}}
 }
 
 func (obj *Label) String() string { return fmt.Sprintf("label %s", obj.Name()) }
