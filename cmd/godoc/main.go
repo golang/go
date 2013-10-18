@@ -371,21 +371,21 @@ func main() {
 		mode |= godoc.ShowSource
 	}
 
-	// first, try as package unless forced as command
+	// First, try as package unless forced as command.
 	var info *godoc.PageInfo
 	if !forceCmd {
 		info = pres.GetPkgPageInfo(abspath, relpath, mode)
 	}
 
-	// second, try as command unless the path is absolute
-	// (the go command invokes godoc w/ absolute paths; don't override)
+	// Second, try as command (if the path is not absolute).
 	var cinfo *godoc.PageInfo
 	if !filepath.IsAbs(path) {
-		abspath = pathpkg.Join(pres.CmdFSRoot(), path)
+		// First try go.tools/cmd.
+		abspath = pathpkg.Join(pres.PkgFSRoot(), toolsPath+path)
 		cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
 		if cinfo.IsEmpty() {
-			// Try go.tools/cmd if not found in $GOROOT/cmd.
-			abspath = pathpkg.Join(pres.PkgFSRoot(), toolsPath+path)
+			// Then try $GOROOT/cmd.
+			abspath = pathpkg.Join(pres.CmdFSRoot(), path)
 			cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
 		}
 	}
