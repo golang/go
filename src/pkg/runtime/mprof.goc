@@ -255,10 +255,6 @@ runtime·MProf_Malloc(void *p, uintptr size)
 	uintptr stk[32];
 	Bucket *b;
 
-	if(m->nomemprof > 0)
-		return;
-
-	m->nomemprof++;
 	nstk = runtime·callers(1, stk, 32);
 	runtime·lock(&proflock);
 	b = stkbucket(MProf, stk, nstk, true);
@@ -266,7 +262,6 @@ runtime·MProf_Malloc(void *p, uintptr size)
 	b->recent_alloc_bytes += size;
 	setaddrbucket((uintptr)p, b);
 	runtime·unlock(&proflock);
-	m->nomemprof--;
 }
 
 // Called when freeing a profiled block.
@@ -275,10 +270,6 @@ runtime·MProf_Free(void *p, uintptr size)
 {
 	Bucket *b;
 
-	if(m->nomemprof > 0)
-		return;
-
-	m->nomemprof++;
 	runtime·lock(&proflock);
 	b = getaddrbucket((uintptr)p);
 	if(b != nil) {
@@ -286,7 +277,6 @@ runtime·MProf_Free(void *p, uintptr size)
 		b->recent_free_bytes += size;
 	}
 	runtime·unlock(&proflock);
-	m->nomemprof--;
 }
 
 int64 runtime·blockprofilerate;  // in CPU ticks
