@@ -654,7 +654,7 @@ func (p *Package) rewriteRef(f *File) {
 				// Okay - might be new(T)
 				expr = r.Name.Type.Go
 			} else if r.Name.Kind == "var" {
-				expr = &ast.StarExpr{X: expr}
+				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
 			}
 
 		case "type":
@@ -683,6 +683,16 @@ func (p *Package) rewriteRef(f *File) {
 				}
 			}
 		}
+
+		// Copy position information from old expr into new expr,
+		// in case expression being replaced is first on line.
+		// See golang.org/issue/6563.
+		pos := (*r.Expr).Pos()
+		switch x := expr.(type) {
+		case *ast.Ident:
+			expr = &ast.Ident{NamePos: pos, Name: x.Name}
+		}
+
 		*r.Expr = expr
 	}
 
