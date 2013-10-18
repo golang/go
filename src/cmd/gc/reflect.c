@@ -229,6 +229,7 @@ hmap(Type *t)
 	h->width = offset;
 	h->local = t->local;
 	t->hmap = h;
+	h->hmap = t;
 	return h;
 }
 
