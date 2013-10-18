@@ -218,3 +218,41 @@ func TestTCPClose(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestErrorNil(t *testing.T) {
+	c, err := Dial("tcp", "127.0.0.1:65535")
+	if err == nil {
+		t.Fatal("Dial 127.0.0.1:65535 succeeded")
+	}
+	if c != nil {
+		t.Fatalf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
+	}
+
+	// Make Listen fail by relistening on the same address.
+	l, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("Listen 127.0.0.1:0: %v", err)
+	}
+	defer l.Close()
+	l1, err := Listen("tcp", l.Addr().String())
+	if err == nil {
+		t.Fatal("second Listen %v: %v", l.Addr(), err)
+	}
+	if l1 != nil {
+		t.Fatalf("Listen returned non-nil interface %T(%v) with err != nil", l1, l1)
+	}
+
+	// Make ListenPacket fail by relistening on the same address.
+	lp, err := ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("Listen 127.0.0.1:0: %v", err)
+	}
+	defer lp.Close()
+	lp1, err := ListenPacket("udp", lp.LocalAddr().String())
+	if err == nil {
+		t.Fatal("second Listen %v: %v", lp.LocalAddr(), err)
+	}
+	if lp1 != nil {
+		t.Fatalf("ListenPacket returned non-nil interface %T(%v) with err != nil", lp1, lp1)
+	}
+}
