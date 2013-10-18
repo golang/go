@@ -215,26 +215,30 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
 
 // dialSingle attempts to establish and returns a single connection to
 // the destination address.
-func dialSingle(net, addr string, la, ra Addr, deadline time.Time) (Conn, error) {
+func dialSingle(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
 	if la != nil && la.Network() != ra.Network() {
 		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
 	}
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		return dialTCP(net, la, ra, deadline)
+		c, err = dialTCP(net, la, ra, deadline)
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
-		return dialUDP(net, la, ra, deadline)
+		c, err = dialUDP(net, la, ra, deadline)
 	case *IPAddr:
 		la, _ := la.(*IPAddr)
-		return dialIP(net, la, ra, deadline)
+		c, err = dialIP(net, la, ra, deadline)
 	case *UnixAddr:
 		la, _ := la.(*UnixAddr)
-		return dialUnix(net, la, ra, deadline)
+		c, err = dialUnix(net, la, ra, deadline)
 	default:
 		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: addr}}
 	}
+	if err != nil {
+		return nil, err // c is non-nil interface containing nil pointer
+	}
+	return c, nil
 }
 
 // Listen announces on the local network address laddr.
@@ -246,14 +250,19 @@ func Listen(net, laddr string) (Listener, error) {
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
+	var l Listener
 	switch la := la.toAddr().(type) {
 	case *TCPAddr:
-		return ListenTCP(net, la)
+		l, err = ListenTCP(net, la)
 	case *UnixAddr:
-		return ListenUnix(net, la)
+		l, err = ListenUnix(net, la)
 	default:
 		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
 	}
+	if err != nil {
+		return nil, err // l is non-nil interface containing nil pointer
+	}
+	return l, nil
 }
 
 // ListenPacket announces on the local network address laddr.
@@ -265,14 +274,19 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
 	}
+	var l PacketConn
 	switch la := la.toAddr().(type) {
 	case *UDPAddr:
-		return ListenUDP(net, la)
+		l, err = ListenUDP(net, la)
 	case *IPAddr:
-		return ListenIP(net, la)
+		l, err = ListenIP(net, la)
 	case *UnixAddr:
-		return ListenUnixgram(net, la)
+		l, err = ListenUnixgram(net, la)
 	default:
 		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
 	}
+	if err != nil {
+		return nil, err // l is non-nil interface containing nil pointer
+	}
+	return l, nil
 }
