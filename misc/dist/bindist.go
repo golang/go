@@ -49,7 +49,7 @@ const (
 	blogPath       = "code.google.com/p/go.blog"
 	toolPath       = "code.google.com/p/go.tools"
 	tourPath       = "code.google.com/p/go-tour"
-	defaultToolTag = "tip" // TOOD(adg): set this once Go 1.2 settles
+	defaultToolTag = "9e246fa49449" // go.tools as of 2013-10-18, for go1.2
 )
 
 // Import paths for tool commands.
