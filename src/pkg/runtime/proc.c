@@ -133,7 +133,6 @@ runtime·schedinit(void)
 	runtime·sched.maxmcount = 10000;
 	runtime·precisestack = haveexperiment("precisestack");
 
-	m->nomemprof++;
 	runtime·mprofinit();
 	runtime·mallocinit();
 	mcommoninit(m);
@@ -163,7 +162,6 @@ runtime·schedinit(void)
 	procresize(procs);
 
 	mstats.enablegc = 1;
-	m->nomemprof--;
 
 	if(raceenabled)
 		g->racectx = runtime·raceinit();
