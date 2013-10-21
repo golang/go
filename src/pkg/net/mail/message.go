@@ -521,7 +521,7 @@ func isAtext(c byte, dot bool) bool {
 	return bytes.IndexByte(atextChars, c) >= 0
 }
 
-// isQtext returns true if c is an RFC 5322 qtest character.
+// isQtext returns true if c is an RFC 5322 qtext character.
 func isQtext(c byte) bool {
 	// Printable US-ASCII, excluding backslash or quote.
 	if c == '\\' || c == '"' {
