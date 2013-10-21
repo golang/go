@@ -126,10 +126,19 @@ type signatureAndHash struct {
 	hash, signature uint8
 }
 
-// supportedSignatureAlgorithms contains the signature and hash algorithms that
-// the code can advertise as supported both in a TLS 1.2 ClientHello and
+// supportedSKXSignatureAlgorithms contains the signature and hash algorithms
+// that the code advertises as supported in a TLS 1.2 ClientHello.
+var supportedSKXSignatureAlgorithms = []signatureAndHash{
+	{hashSHA256, signatureRSA},
+	{hashSHA256, signatureECDSA},
+	{hashSHA1, signatureRSA},
+	{hashSHA1, signatureECDSA},
+}
+
+// supportedClientCertSignatureAlgorithms contains the signature and hash
+// algorithms that the code advertises as supported in a TLS 1.2
 // CertificateRequest.
-var supportedSignatureAlgorithms = []signatureAndHash{
+var supportedClientCertSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
 	{hashSHA256, signatureECDSA},
 }
