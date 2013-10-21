@@ -117,15 +117,47 @@ func sha256Hash(slices [][]byte) []byte {
 }
 
 // hashForServerKeyExchange hashes the given slices and returns their digest
-// and the identifier of the hash function used.
-func hashForServerKeyExchange(sigType uint8, version uint16, slices ...[]byte) ([]byte, crypto.Hash) {
+// and the identifier of the hash function used. The hashFunc argument is only
+// used for >= TLS 1.2 and precisely identifies the hash function to use.
+func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
 	if version >= VersionTLS12 {
-		return sha256Hash(slices), crypto.SHA256
+		switch hashFunc {
+		case hashSHA256:
+			return sha256Hash(slices), crypto.SHA256, nil
+		case hashSHA1:
+			return sha1Hash(slices), crypto.SHA1, nil
+		default:
+			return nil, crypto.Hash(0), errors.New("tls: unknown hash function used by peer")
+		}
 	}
 	if sigType == signatureECDSA {
-		return sha1Hash(slices), crypto.SHA1
+		return sha1Hash(slices), crypto.SHA1, nil
 	}
-	return md5SHA1Hash(slices), crypto.MD5SHA1
+	return md5SHA1Hash(slices), crypto.MD5SHA1, nil
+}
+
+// pickTLS12HashForSignature returns a TLS 1.2 hash identifier for signing a
+// ServerKeyExchange given the signature type being used and the client's
+// advertized list of supported signature and hash combinations.
+func pickTLS12HashForSignature(sigType uint8, clientSignatureAndHashes []signatureAndHash) (uint8, error) {
+	if len(clientSignatureAndHashes) == 0 {
+		// If the client didn't specify any signature_algorithms
+		// extension then we can assume that it supports SHA1. See
+		// http://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+		return hashSHA1, nil
+	}
+
+	for _, sigAndHash := range clientSignatureAndHashes {
+		if sigAndHash.signature != sigType {
+			continue
+		}
+		switch sigAndHash.hash {
+		case hashSHA1, hashSHA256:
+			return sigAndHash.hash, nil
+		}
+	}
+
+	return 0, errors.New("tls: client doesn't support any common hash functions")
 }
 
 // ecdheRSAKeyAgreement implements a TLS key agreement where the server
@@ -181,7 +213,17 @@ Curve:
 	serverECDHParams[3] = byte(len(ecdhePublic))
 	copy(serverECDHParams[4:], ecdhePublic)
 
-	digest, hashFunc := hashForServerKeyExchange(ka.sigType, ka.version, clientHello.random, hello.random, serverECDHParams)
+	var tls12HashId uint8
+	if ka.version >= VersionTLS12 {
+		if tls12HashId, err = pickTLS12HashForSignature(ka.sigType, clientHello.signatureAndHashes); err != nil {
+			return nil, err
+		}
+	}
+
+	digest, hashFunc, err := hashForServerKeyExchange(ka.sigType, tls12HashId, ka.version, clientHello.random, hello.random, serverECDHParams)
+	if err != nil {
+		return nil, err
+	}
 	var sig []byte
 	switch ka.sigType {
 	case signatureECDSA:
@@ -216,7 +258,7 @@ Curve:
 	copy(skx.key, serverECDHParams)
 	k := skx.key[len(serverECDHParams):]
 	if ka.version >= VersionTLS12 {
-		k[0] = hashSHA256
+		k[0] = tls12HashId
 		k[1] = ka.sigType
 		k = k[2:]
 	}
@@ -279,9 +321,16 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	if len(sig) < 2 {
 		return errServerKeyExchange
 	}
+
+	var tls12HashId uint8
 	if ka.version >= VersionTLS12 {
-		// ignore SignatureAndHashAlgorithm
-		sig = sig[2:]
+		// handle SignatureAndHashAlgorithm
+		var sigAndHash []uint8
+		sigAndHash, sig = sig[:2], sig[2:]
+		if sigAndHash[1] != ka.sigType {
+			return errServerKeyExchange
+		}
+		tls12HashId = sigAndHash[0]
 		if len(sig) < 2 {
 			return errServerKeyExchange
 		}
@@ -292,7 +341,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	}
 	sig = sig[2:]
 
-	digest, hashFunc := hashForServerKeyExchange(ka.sigType, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+	digest, hashFunc, err := hashForServerKeyExchange(ka.sigType, tls12HashId, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+	if err != nil {
+		return err
+	}
 	switch ka.sigType {
 	case signatureECDSA:
 		pubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
