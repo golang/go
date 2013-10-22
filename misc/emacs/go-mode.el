@@ -749,6 +749,9 @@ declaration."
   (let ((old-point (point)))
     (goto-char (point-min))
     (cond
+     ((re-search-forward "^import ()" nil t)
+      (backward-char 1)
+      'block-empty)
      ((re-search-forward "^import ([^)]+)" nil t)
       (backward-char 2)
       'block)
@@ -843,6 +846,8 @@ uncommented, otherwise a new import will be added."
           (uncomment-region (line-beginning-position) (line-end-position))
         (case (go-goto-imports)
           ('fail (message "Could not find a place to add import."))
+          ('block-empty
+           (insert "\n\t" line "\n"))
           ('block
               (save-excursion
                 (re-search-backward "^import (")
