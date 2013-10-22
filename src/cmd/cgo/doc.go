@@ -270,13 +270,13 @@ identifiers C.foo and C.bar, cgo generates this C program:
 
 	<preamble>
 	#line 1 "not-declared"
-	void __cgo_f_xxx_1(void) { typeof(foo) *__cgo_undefined__; }
+	void __cgo_f_xxx_1(void) { __typeof__(foo) *__cgo_undefined__; }
 	#line 1 "not-type"
 	void __cgo_f_xxx_2(void) { foo *__cgo_undefined__; }
 	#line 1 "not-const"
 	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__ = (foo)*1 }; }
 	#line 2 "not-declared"
-	void __cgo_f_xxx_1(void) { typeof(bar) *__cgo_undefined__; }
+	void __cgo_f_xxx_1(void) { __typeof__(bar) *__cgo_undefined__; }
 	#line 2 "not-type"
 	void __cgo_f_xxx_2(void) { bar *__cgo_undefined__; }
 	#line 2 "not-const"
@@ -300,14 +300,14 @@ that t1 is a type, v2 and v3 are variables or functions, and c4, c5,
 and c6 are constants, it generates:
 
 	<preamble>
-	typeof(t1) *__cgo__1;
-	typeof(v2) *__cgo__2;
-	typeof(v3) *__cgo__3;
-	typeof(c4) *__cgo__4;
+	__typeof__(t1) *__cgo__1;
+	__typeof__(v2) *__cgo__2;
+	__typeof__(v3) *__cgo__3;
+	__typeof__(c4) *__cgo__4;
 	enum { __cgo_enum__4 = c4 };
-	typeof(c5) *__cgo__5;
+	__typeof__(c5) *__cgo__5;
 	enum { __cgo_enum__5 = c5 };
-	typeof(c6) *__cgo__6;
+	__typeof__(c6) *__cgo__6;
 	enum { __cgo_enum__6 = c6 };
 
 	long long __cgo_debug_data[] = {
