@@ -1318,6 +1318,8 @@ var parseDurationTests = []struct {
 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
 	// large value
 	{"52763797000ns", true, 52763797000 * Nanosecond},
+	// more than 9 digits after decimal point, see http://golang.org/issue/6617
+	{"0.3333333333333333333h", true, 20 * Minute},
 
 	// errors
 	{"", false, 0},
