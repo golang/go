@@ -1204,11 +1204,11 @@ func ParseDuration(s string) (Duration, error) {
 			if err != nil {
 				return 0, errors.New("time: invalid duration " + orig)
 			}
-			scale := 1
+			scale := 1.0
 			for n := pl - len(s); n > 0; n-- {
 				scale *= 10
 			}
-			g += float64(x) / float64(scale)
+			g += float64(x) / scale
 			post = pl != len(s)
 		}
 		if !pre && !post {
