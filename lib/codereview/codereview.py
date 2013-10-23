@@ -65,7 +65,7 @@ from mercurial import util as hg_util
 if os.sys.platform == 'plan9':
 	try:
 		import plan9
-		n = plan9.bind(os.path.expanduser("~/lib"), os.path.expanduser("~"), plan9.MBEFORE)
+		n = plan9.bind(os.path.expanduser("~/lib"), os.path.expanduser("~"), plan9.MBEFORE|plan9.MCREATE)
 	except ImportError:
 		pass
 
