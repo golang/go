@@ -177,7 +177,8 @@ func lookupFieldOrMethod(T Type, pkg *Package, name string) (obj Object, index [
 
 			case *Interface:
 				// look for a matching method
-				if i, m := lookupMethod(t.methods, pkg, name); m != nil {
+				// TODO(gri) t.allMethods is sorted - use binary search
+				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
@@ -252,8 +253,9 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 	// TODO(gri) Consider using method sets here. Might be more efficient.
 
 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
-		for _, m := range T.methods {
-			_, obj := lookupMethod(ityp.methods, m.pkg, m.name)
+		// TODO(gri) allMethods is sorted - can do this more efficiently
+		for _, m := range T.allMethods {
+			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
 			switch {
 			case obj == nil:
 				if static {
@@ -267,7 +269,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	for _, m := range T.methods {
+	for _, m := range T.allMethods {
 		obj, _, indirect := lookupFieldOrMethod(V, m.pkg, m.name)
 		if obj == nil {
 			return m, false

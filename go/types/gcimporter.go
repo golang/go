@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -633,7 +634,9 @@ func (p *gcParser) parseInterfaceType() Type {
 	}
 	p.expect('}')
 
+	sort.Sort(byUniqueMethodName(methods))
 	typ.methods = methods
+	typ.allMethods = methods // ok to share underlying array since we are not changing methods
 	return typ
 }
 

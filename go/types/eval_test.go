@@ -58,7 +58,7 @@ func TestEvalBasic(t *testing.T) {
 }
 
 func TestEvalComposite(t *testing.T) {
-	for _, test := range testTypes {
+	for _, test := range independentTestTypes {
 		testEval(t, nil, nil, test.src, nil, test.str, "")
 	}
 }

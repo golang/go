@@ -168,7 +168,7 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 
 			case *Interface:
-				mset = mset.add(t.methods, e.index, true, e.multiples)
+				mset = mset.add(t.allMethods, e.index, true, e.multiples)
 			}
 		}
 

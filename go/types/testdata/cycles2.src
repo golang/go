@@ -1,0 +1,66 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// Test case for issue 5090
+
+type t interface {
+	f(u)
+}
+
+type u interface {
+	t
+}
+
+func _() {
+	var t t
+	var u u
+
+	t.f(t)
+	t.f(u)
+	
+	u.f(t)
+	u.f(u)
+}
+
+
+// Test case for issue 6589.
+
+type A interface {
+	a() interface {
+		AB
+	}
+}
+
+type B interface {
+	a() interface {
+		AB
+	}
+}
+
+type AB interface {
+	a() interface {
+		A
+		B /* ERROR a redeclared */
+	}
+	b() interface {
+		A
+		B /* ERROR a redeclared */
+	}
+}
+
+var x AB
+var y interface {
+	A
+	B /* ERROR a redeclared */
+}
+var _ = x /* ERROR cannot compare */ == y
+
+
+// Test case for issue 6638.
+
+type T /* ERROR cycle */ interface {
+	m() [T /* ERROR no field or method */ (nil).m()[0]]int
+}

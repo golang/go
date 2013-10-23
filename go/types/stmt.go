@@ -441,7 +441,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				// one; i.e., if any one of them is 'used', all of them are 'used'.
 				// Collect them for later analysis.
 				lhsVars = append(lhsVars, obj)
-				check.declareObj(check.topScope, nil, obj)
+				check.declare(check.topScope, nil, obj)
 				check.recordImplicit(clause, obj)
 			}
 			check.stmtList(inner, clause.Body)
@@ -592,7 +592,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 			// declare variables
 			for i, ident := range idents {
-				check.declareObj(check.topScope, ident, vars[i])
+				check.declare(check.topScope, ident, vars[i])
 			}
 		} else {
 			// ordinary assignment

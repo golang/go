@@ -14,7 +14,6 @@ import (
 	"strings"
 )
 
-// TODO(gri) eventually assert should disappear.
 func assert(p bool) {
 	if !p {
 		panic("assertion failed")
@@ -33,7 +32,7 @@ func (check *checker) formatMsg(format string, args []interface{}) string {
 		case operand:
 			panic("internal error: should always pass *operand")
 		case token.Pos:
-			args[i] = check.fset.Position(a)
+			args[i] = check.fset.Position(a).String()
 		case ast.Expr:
 			args[i] = exprString(a)
 		}
@@ -270,6 +269,17 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		fmt.Fprintf(buf, "<type of %s>", t.name)
 
 	case *Interface:
+		// We write the source-level methods and embedded types rather
+		// than the actual method set since resolved method signatures
+		// may have non-printable cycles if parameters have anonymous
+		// interface types that (directly or indirectly) embed the
+		// current interface. For instance, consider the result type
+		// of m:
+		//
+		//     type T interface{
+		//         m() interface{ T }
+		//     }
+		//
 		buf.WriteString("interface{")
 		for i, m := range t.methods {
 			if i > 0 {
@@ -277,6 +287,12 @@ func writeType(buf *bytes.Buffer, typ Type) {
 			}
 			buf.WriteString(m.name)
 			writeSignature(buf, m.typ.(*Signature))
+		}
+		for i, typ := range t.types {
+			if i > 0 || len(t.methods) > 0 {
+				buf.WriteString("; ")
+			}
+			writeType(buf, typ)
 		}
 		buf.WriteByte('}')
 

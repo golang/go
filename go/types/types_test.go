@@ -33,7 +33,8 @@ func dup(s string) testEntry {
 	return testEntry{s, s}
 }
 
-var testTypes = []testEntry{
+// types that don't depend on any other type declarations
+var independentTestTypes = []testEntry{
 	// basic types
 	dup("int"),
 	dup("float32"),
@@ -89,8 +90,7 @@ var testTypes = []testEntry{
 	// interfaces
 	dup("interface{}"),
 	dup("interface{m()}"),
-	dup(`interface{m(int) float32; String() string}`),
-	// TODO(gri) add test for interface w/ anonymous field
+	dup(`interface{String() string; m(int) float32}`),
 
 	// maps
 	dup("map[string]int"),
@@ -102,9 +102,21 @@ var testTypes = []testEntry{
 	dup("<-chan []func() int"),
 }
 
+// types that depend on other type declarations (src in TestTypes)
+var dependentTestTypes = []testEntry{
+	// interfaces
+	dup(`interface{io.Reader; io.Writer}`),
+	dup(`interface{m() int; io.Writer}`),
+	{`interface{m() interface{T}}`, `interface{m() interface{p.T}}`},
+}
+
 func TestTypes(t *testing.T) {
-	for _, test := range testTypes {
-		src := "package p; type T " + test.src
+	var tests []testEntry
+	tests = append(tests, independentTestTypes...)
+	tests = append(tests, dependentTestTypes...)
+
+	for _, test := range tests {
+		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
 		pkg, err := makePkg(t, src)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)

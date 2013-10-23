@@ -131,7 +131,6 @@ func TestStdfixed(t *testing.T) {
 		"bug200.go",                           // TODO(gri) complete duplicate checking in expr switches
 		"bug223.go", "bug413.go", "bug459.go", // TODO(gri) complete initialization checks
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
-		"bug250.go",    // TODO(gri) fix recursive interfaces
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
 		"issue4847.go", // TODO(gri) initialization cycle error not found
 	)

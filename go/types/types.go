@@ -4,7 +4,10 @@
 
 package types
 
-import "go/ast"
+import (
+	"go/ast"
+	"sort"
+)
 
 // TODO(gri) Revisit factory functions - make sure they have all relevant parameters.
 
@@ -238,20 +241,25 @@ func (s *Signature) IsVariadic() bool { return s.isVariadic }
 
 // An Interface represents an interface type.
 type Interface struct {
-	methods []*Func         // methods declared with or embedded in this interface
-	mset    cachedMethodSet // method set for interface, lazily initialized
+	methods []*Func  // explicitly declared methods
+	types   []*Named // explicitly embedded types
+
+	allMethods []*Func         // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
+	mset       cachedMethodSet // method set for interface, lazily initialized
 }
 
 // NewInterface returns a new interface for the given methods.
 func NewInterface(methods []*Func) *Interface {
-	return &Interface{methods: methods}
+	// TODO(gri) should provide receiver to all methods
+	sort.Sort(byUniqueMethodName(methods))
+	return &Interface{methods: methods, allMethods: methods}
 }
 
 // NumMethods returns the number of methods of interface t.
-func (t *Interface) NumMethods() int { return len(t.methods) }
+func (t *Interface) NumMethods() int { return len(t.allMethods) }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
-func (t *Interface) Method(i int) *Func { return t.methods[i] }
+func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 
 // A Map represents a map type.
 type Map struct {

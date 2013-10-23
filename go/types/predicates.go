@@ -6,6 +6,8 @@
 
 package types
 
+import "sort"
+
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -105,8 +107,22 @@ func hasNil(typ Type) bool {
 	return false
 }
 
-// IsIdentical returns true if x and y are identical.
+// IsIdentical reports whether x and y are identical.
 func IsIdentical(x, y Type) bool {
+	return isIdenticalInternal(x, y, nil)
+}
+
+// An ifacePair is a node in a stack of interface type pairs compared for identity.
+type ifacePair struct {
+	x, y *Interface
+	prev *ifacePair
+}
+
+func (p *ifacePair) identical(q *ifacePair) bool {
+	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
+}
+
+func isIdenticalInternal(x, y Type, p *ifacePair) bool {
 	if x == y {
 		return true
 	}
@@ -124,13 +140,13 @@ func IsIdentical(x, y Type) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.len == y.len && IsIdentical(x.elt, y.elt)
+			return x.len == y.len && isIdenticalInternal(x.elt, y.elt, p)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return IsIdentical(x.elt, y.elt)
+			return isIdenticalInternal(x.elt, y.elt, p)
 		}
 
 	case *Struct:
@@ -145,7 +161,7 @@ func IsIdentical(x, y Type) bool {
 					if f.anonymous != g.anonymous ||
 						x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
-						!IsIdentical(f.typ, g.typ) {
+						!isIdenticalInternal(f.typ, g.typ, p) {
 						return false
 					}
 				}
@@ -156,14 +172,24 @@ func IsIdentical(x, y Type) bool {
 	case *Pointer:
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
-			return IsIdentical(x.base, y.base)
+			return isIdenticalInternal(x.base, y.base, p)
 		}
 
 	case *Tuple:
 		// Two tuples types are identical if they have the same number of elements
 		// and corresponding elements have identical types.
 		if y, ok := y.(*Tuple); ok {
-			return identicalTuples(x, y)
+			if x.Len() == y.Len() {
+				if x != nil {
+					for i, v := range x.vars {
+						w := y.vars[i]
+						if !isIdenticalInternal(v.typ, w.typ, p) {
+							return false
+						}
+					}
+				}
+				return true
+			}
 		}
 
 	case *Signature:
@@ -173,8 +199,8 @@ func IsIdentical(x, y Type) bool {
 		// names are not required to match.
 		if y, ok := y.(*Signature); ok {
 			return x.isVariadic == y.isVariadic &&
-				identicalTuples(x.params, y.params) &&
-				identicalTuples(x.results, y.results)
+				isIdenticalInternal(x.params, y.params, p) &&
+				isIdenticalInternal(x.results, y.results, p)
 		}
 
 	case *Interface:
@@ -182,20 +208,63 @@ func IsIdentical(x, y Type) bool {
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			return identicalMethods(x.methods, y.methods)
+			a := x.allMethods
+			b := y.allMethods
+			if len(a) == len(b) {
+				// Interface types are the only types where cycles can occur
+				// that are not "terminated" via named types; and such cycles
+				// can only be created via method parameter types that are
+				// anonymous interfaces (directly or indirectly) embedding
+				// the current interface. Example:
+				//
+				//    type T interface {
+				//        m() interface{T}
+				//    }
+				//
+				// If two such (differently named) interfaces are compared,
+				// endless recursion occurs if the cycle is not detected.
+				//
+				// If x and y were compared before, they must be equal
+				// (if they were not, the recursion would have stopped);
+				// search the ifacePair stack for the same pair.
+				//
+				// This is a quadratic algorithm, but in practice these stacks
+				// are extremely short (bounded by the nesting depth of interface
+				// type declarations that recur via parameter types, an extremely
+				// rare occurrence). An alternative implementation might use a
+				// "visited" map, but that is probably less efficient overall.
+				q := &ifacePair{x, y, p}
+				for p != nil {
+					if p.identical(q) {
+						return true // same pair was compared before
+					}
+					p = p.prev
+				}
+				if debug {
+					assert(sort.IsSorted(byUniqueMethodName(a)))
+					assert(sort.IsSorted(byUniqueMethodName(b)))
+				}
+				for i, f := range a {
+					g := b[i]
+					if f.Id() != g.Id() || !isIdenticalInternal(f.typ, g.typ, q) {
+						return false
+					}
+				}
+				return true
+			}
 		}
 
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return IsIdentical(x.key, y.key) && IsIdentical(x.elt, y.elt)
+			return isIdenticalInternal(x.key, y.key, p) && isIdenticalInternal(x.elt, y.elt, p)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
 		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return x.dir == y.dir && IsIdentical(x.elt, y.elt)
+			return x.dir == y.dir && isIdenticalInternal(x.elt, y.elt, p)
 		}
 
 	case *Named:
@@ -204,51 +273,12 @@ func IsIdentical(x, y Type) bool {
 		if y, ok := y.(*Named); ok {
 			return x.obj == y.obj
 		}
+
+	default:
+		unreachable()
 	}
 
 	return false
-}
-
-// identicalTuples returns true if both tuples a and b have the
-// same length and corresponding elements have identical types.
-func identicalTuples(a, b *Tuple) bool {
-	if a.Len() != b.Len() {
-		return false
-	}
-	if a != nil {
-		for i, x := range a.vars {
-			y := b.vars[i]
-			if !IsIdentical(x.typ, y.typ) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// identicalMethods returns true if both slices a and b have the
-// same length and corresponding entries have identical types.
-// TODO(gri) make this more efficient (e.g., sort them on completion)
-func identicalMethods(a, b []*Func) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	m := make(map[string]*Func)
-	for _, x := range a {
-		key := x.Id()
-		assert(m[key] == nil) // method list must not have duplicate entries
-		m[key] = x
-	}
-
-	for _, y := range b {
-		key := y.Id()
-		if x := m[key]; x == nil || !IsIdentical(x.typ, y.typ) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // defaultType returns the default "typed" type for an "untyped" type;

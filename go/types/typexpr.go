@@ -9,6 +9,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	"sort"
 	"strconv"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -67,8 +68,9 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 			}
 			x.val = check.iota
 		} else {
-			x.val = obj.val // may be nil if we don't know the constant value
+			x.val = obj.val
 		}
+		assert(x.val != nil)
 		x.mode = constant
 
 	case *TypeName:
@@ -166,6 +168,7 @@ func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Nam
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
 				} else {
+					// TODO(gri) This is not correct if the underlying type is unknown yet.
 					switch u := T.underlying.(type) {
 					case *Basic:
 						// unsafe.Pointer is treated like a regular pointer
@@ -297,15 +300,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 		return check.funcType(nil, e, def)
 
 	case *ast.InterfaceType:
-		typ := new(Interface)
-		var recv Type = typ
-		if def != nil {
-			def.underlying = typ
-			recv = def // use named receiver type if available
-		}
-
-		typ.methods = check.collectMethods(recv, e.Methods, cycleOk)
-		return typ
+		return check.interfaceType(e, def, cycleOk)
 
 	case *ast.MapType:
 		typ := new(Map)
@@ -319,6 +314,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
 		// function, map, or slice."
+		// TODO(gri) if the key type is not fully defined yet, this test will be incorrect
 		if !isComparable(typ.key) {
 			check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
 			// ok to continue
@@ -385,13 +381,13 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			}
 		}
 		typ := check.typ(ftype, nil, true)
-		// the parser ensures that f.Tag is nil and we don't
-		// care if a constructed AST contains a non-nil tag
+		// The parser ensures that f.Tag is nil and we don't
+		// care if a constructed AST contains a non-nil tag.
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
-				check.declareObj(scope, name, par)
+				check.declare(scope, name, par)
 				params = append(params, par)
 			}
 		} else {
@@ -411,56 +407,151 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) collectMethods(recv Type, list *ast.FieldList, cycleOk bool) (methods []*Func) {
-	if list == nil {
-		return nil
+func (check *checker) declareInSet(oset *objset, pos token.Pos, id *ast.Ident, obj Object) bool {
+	if alt := oset.insert(obj); alt != nil {
+		check.errorf(pos, "%s redeclared", obj.Name())
+		check.reportAltDecl(alt)
+		return false
+	}
+	if id != nil {
+		check.recordObject(id, obj)
+	}
+	return true
+}
+
+func (check *checker) interfaceType(ityp *ast.InterfaceType, def *Named, cycleOk bool) *Interface {
+	iface := new(Interface)
+	if def != nil {
+		def.underlying = iface
 	}
 
-	var mset objset
+	// empty interface: common case
+	if ityp.Methods == nil {
+		return iface
+	}
 
-	for _, f := range list.List {
-		typ := check.typ(f.Type, nil, cycleOk)
-		// the parser ensures that f.Tag is nil and we don't
-		// care if a constructed AST contains a non-nil tag
+	// The parser ensures that field tags are nil and we don't
+	// care if a constructed AST contains non-nil tags.
+
+	// Phase 1: Collect explicitly declared methods, the corresponding
+	//          signature (AST) expressions, and the list of embedded
+	//          type (AST) expressions. Do not resolve signatures or
+	//          embedded types yet to avoid cycles referring to this
+	//          interface.
+
+	var (
+		mset       objset
+		signatures []ast.Expr // list of corresponding method signatures
+		embedded   []ast.Expr // list of embedded types
+	)
+	for _, f := range ityp.Methods.List {
 		if len(f.Names) > 0 {
-			// methods (the parser ensures that there's only one
-			// and we don't care if a constructed AST has more)
-			sig, _ := typ.(*Signature)
-			if sig == nil {
-				check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
-				continue
-			}
-			sig.recv = NewVar(token.NoPos, check.pkg, "", recv)
-			for _, name := range f.Names {
-				m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
-				check.declareFld(&mset, name, m)
-				methods = append(methods, m)
+			// The parser ensures that there's only one method
+			// and we don't care if a constructed AST has more.
+			name := f.Names[0]
+			pos := name.Pos()
+			// Don't type-check signature yet - use an
+			// empty signature now and update it later.
+			m := NewFunc(pos, check.pkg, name.Name, new(Signature))
+			if check.declareInSet(&mset, pos, name, m) {
+				iface.methods = append(iface.methods, m)
+				iface.allMethods = append(iface.allMethods, m)
+				signatures = append(signatures, f.Type)
 			}
 		} else {
-			// embedded interface
-			switch t := typ.Underlying().(type) {
-			case nil:
-				// The underlying type is in the process of being defined
-				// but we need it in order to complete this type. For now
-				// complain with an "unimplemented" error. This requires
-				// a bit more work.
-				// TODO(gri) finish this.
-				check.errorf(f.Type.Pos(), "reference to incomplete type %s - unimplemented", f.Type)
-			case *Interface:
-				for _, m := range t.methods {
-					check.declareFld(&mset, nil, m)
-					methods = append(methods, m)
-				}
-			default:
-				if t != Typ[Invalid] {
-					check.errorf(f.Type.Pos(), "%s is not an interface type", typ)
-				}
+			// embedded type
+			embedded = append(embedded, f.Type)
+		}
+	}
+
+	// Phase 2: Resolve embedded interfaces. Because an interface must not
+	//          embed itself (directly or indirectly), each embedded interface
+	//          can be fully resolved without depending on any method of this
+	//          interface (if there is a cycle or another error, the embedded
+	//          type resolves to an invalid type and is ignored).
+	//          In particular, the list of methods for each embedded interface
+	//          must be complete (it cannot depend on this interface), and so
+	//          those methods can be added to the list of all methods of this
+	//          interface.
+
+	for _, e := range embedded {
+		pos := e.Pos()
+		typ := check.typ(e, nil, cycleOk)
+		if typ == Typ[Invalid] {
+			continue
+		}
+		named, _ := typ.(*Named)
+		if named == nil {
+			check.invalidAST(pos, "%s is not named type", typ)
+			continue
+		}
+		// determine underlying (possibly incomplete) type
+		// by following its forward chain
+		// TODO(gri) should this be part of Underlying()?
+		u := named.underlying
+		for {
+			n, _ := u.(*Named)
+			if n == nil {
+				break
+			}
+			u = n.underlying
+		}
+		if u == Typ[Invalid] {
+			continue
+		}
+		embed, _ := u.(*Interface)
+		if embed == nil {
+			check.errorf(pos, "%s is not an interface", named)
+			continue
+		}
+		iface.types = append(iface.types, named)
+		// collect embedded methods
+		for _, m := range embed.allMethods {
+			if check.declareInSet(&mset, pos, nil, m) {
+				iface.allMethods = append(iface.allMethods, m)
 			}
 		}
 	}
 
-	return
+	// Phase 3: At this point all methods have been collected for this interface.
+	//          It is now safe to type-check the signatures of all explicitly
+	//          declared methods, even if they refer to this interface via a cycle
+	//          and embed the methods of this interface in a parameter of interface
+	//          type.
+
+	// determine receiver type
+	var recv Type = iface
+	if def != nil {
+		def.underlying = iface
+		recv = def // use named receiver type if available
+	}
+
+	for i, m := range iface.methods {
+		expr := signatures[i]
+		typ := check.typ(expr, nil, true)
+		if typ == Typ[Invalid] {
+			continue // keep method with empty method signature
+		}
+		sig, _ := typ.(*Signature)
+		if sig == nil {
+			check.invalidAST(expr.Pos(), "%s is not a method signature", typ)
+			continue // keep method with empty method signature
+		}
+		sig.recv = NewVar(m.pos, check.pkg, "", recv)
+		*m.typ.(*Signature) = *sig // update signature (don't replace it!)
+	}
+
+	sort.Sort(byUniqueMethodName(iface.allMethods))
+
+	return iface
 }
+
+// byUniqueMethodName method lists can be sorted by their unique method names.
+type byUniqueMethodName []*Func
+
+func (a byUniqueMethodName) Len() int           { return len(a) }
+func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
+func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (check *checker) tag(t *ast.BasicLit) string {
 	if t != nil {
@@ -492,8 +583,9 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		}
 
 		fld := NewField(pos, check.pkg, name, typ, anonymous)
-		check.declareFld(&fset, ident, fld)
-		fields = append(fields, fld)
+		if check.declareInSet(&fset, pos, ident, fld) {
+			fields = append(fields, fld)
+		}
 	}
 
 	for _, f := range list.List {

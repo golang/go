@@ -23,20 +23,9 @@ func (check *checker) reportAltDecl(obj Object) {
 	}
 }
 
-func (check *checker) declareObj(scope *Scope, id *ast.Ident, obj Object) {
+func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 	if alt := scope.Insert(obj); alt != nil {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
-		check.reportAltDecl(alt)
-		return
-	}
-	if id != nil {
-		check.recordObject(id, obj)
-	}
-}
-
-func (check *checker) declareFld(oset *objset, id *ast.Ident, obj Object) {
-	if alt := oset.insert(obj); alt != nil {
-		check.errorf(obj.Pos(), "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
 		return
 	}
@@ -135,7 +124,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			return
 		}
 
-		check.declareObj(pkg.scope, ident, obj)
+		check.declare(pkg.scope, ident, obj)
 		objList = append(objList, obj)
 		objMap[obj] = declInfo{fileScope, typ, init, nil}
 	}
@@ -227,7 +216,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 								if obj.IsExported() {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for type aliases.
-									check.declareObj(fileScope, nil, obj)
+									check.declare(fileScope, nil, obj)
 									check.recordImplicit(s, obj)
 								}
 							}
@@ -241,7 +230,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							posSet[imp] = s.Pos()
 						} else {
 							// declare imported package object in file scope
-							check.declareObj(fileScope, nil, obj)
+							check.declare(fileScope, nil, obj)
 						}
 
 					case *ast.ValueSpec:
@@ -326,7 +315,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							// ok to continue
 						}
 					} else {
-						check.declareObj(pkg.scope, d.Name, obj)
+						check.declare(pkg.scope, d.Name, obj)
 					}
 				} else {
 					// Associate method with receiver base type name, if possible.
@@ -603,7 +592,7 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 	//		C A
 	//	)
 	//
-	// When we declare obj = C, typ is the identifier A which is incomplete.
+	// When we declare object C, typ is the identifier A which is incomplete.
 	u := check.typ(typ, named, cycleOk)
 
 	// Determine the unnamed underlying type.
@@ -723,7 +712,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					check.arityMatch(s, last)
 
 					for i, name := range s.Names {
-						check.declareObj(check.topScope, name, lhs[i])
+						check.declare(check.topScope, name, lhs[i])
 					}
 
 				case token.VAR:
@@ -756,7 +745,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					check.arityMatch(s, nil)
 
 					for i, name := range s.Names {
-						check.declareObj(check.topScope, name, lhs[i])
+						check.declare(check.topScope, name, lhs[i])
 					}
 
 				default:
@@ -765,7 +754,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				check.declareObj(check.topScope, s.Name, obj)
+				check.declare(check.topScope, s.Name, obj)
 				check.typeDecl(obj, s.Type, nil, false)
 
 			default:
