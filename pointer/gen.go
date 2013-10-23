@@ -845,13 +845,6 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 
 		case *ssa.MakeInterface:
 			tConc := v.X.Type()
-			// Create nodes and constraints for all methods of the type.
-			// Ascertaining which will be needed is undecidable in general.
-			mset := tConc.MethodSet()
-			for i, n := 0, mset.Len(); i < n; i++ {
-				a.valueNode(a.prog.Method(mset.At(i)))
-			}
-
 			obj = a.makeTagged(tConc, cgn, v)
 
 			// Copy the value into it, if nontrivial.
@@ -1202,6 +1195,14 @@ func (a *analysis) genFunc(cgn *cgnode) {
 	a.localobj = nil
 }
 
+// genMethodsOf generates nodes and constraints for all methods of type T.
+func (a *analysis) genMethodsOf(T types.Type) {
+	mset := T.MethodSet()
+	for i, n := 0, mset.Len(); i < n; i++ {
+		a.valueNode(a.prog.Method(mset.At(i)))
+	}
+}
+
 // generate generates offline constraints for the entire program.
 // It returns the synthetic root of the callgraph.
 //
@@ -1217,17 +1218,18 @@ func (a *analysis) generate() *cgnode {
 	// (Shared contours are used by dynamic calls to reflect.Type
 	// methods---typically just String().)
 	if rtype := a.reflectRtypePtr; rtype != nil {
-		mset := rtype.MethodSet()
-		for i, n := 0, mset.Len(); i < n; i++ {
-			a.valueNode(a.prog.Method(mset.At(i)))
-		}
+		a.genMethodsOf(rtype)
 	}
 
 	root := a.genRootCalls()
 
+	// Create nodes and constraints for all methods of all types
+	// that are dynamically accessible via reflection or interfaces.
+	for _, T := range a.prog.TypesWithMethodSets() {
+		a.genMethodsOf(T)
+	}
+
 	// Generate constraints for entire program.
-	// (Actually just the RTA-reachable portion of the program.
-	// See Bacon & Sweeney, OOPSLA'96).
 	for len(a.genq) > 0 {
 		cgn := a.genq[0]
 		a.genq = a.genq[1:]

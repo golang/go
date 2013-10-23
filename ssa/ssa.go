@@ -40,18 +40,20 @@ type Program struct {
 // type-specific accessor methods Func, Type, Var and Const.
 //
 type Package struct {
-	Prog    *Program               // the owning program
-	Object  *types.Package         // the type checker's package object for this package
-	Members map[string]Member      // all package members keyed by name
-	values  map[types.Object]Value // package-level vars & funcs (incl. methods), keyed by object
-	init    *Function              // Func("init"); the package's init function
-	debug   bool                   // include full debug info in this package.
+	Prog       *Program               // the owning program
+	Object     *types.Package         // the type checker's package object for this package
+	Members    map[string]Member      // all package members keyed by name
+	methodSets []types.Type           // types whose method sets are included in this package
+	values     map[types.Object]Value // package members (incl. types and methods), keyed by object
+	init       *Function              // Func("init"); the package's init function
+	debug      bool                   // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started int32                 // atomically tested and set at start of build phase
-	ninit   int32                 // number of init functions
-	info    *importer.PackageInfo // package ASTs and type information
+	started  int32                 // atomically tested and set at start of build phase
+	ninit    int32                 // number of init functions
+	info     *importer.PackageInfo // package ASTs and type information
+	needRTTI typemap.M             // types for which runtime type info is needed
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
@@ -267,7 +269,7 @@ type Function struct {
 
 	Synthetic string       // provenance of synthetic function; "" for true source functions
 	Enclosing *Function    // enclosing function if anon; nil if global
-	Pkg       *Package     // enclosing package; nil for error.Error() and its wrappers
+	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
 	Prog      *Program     // enclosing program
 	Params    []*Parameter // function parameters; for methods, includes receiver
 	FreeVars  []*Capture   // free variables whose values must be supplied by closure

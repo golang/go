@@ -4,7 +4,7 @@
 
 package ssa
 
-// This file defines utilities for method-set computation including
+// This file defines utilities for population of method sets and
 // synthesis of wrapper methods.
 //
 // Wrappers include:
@@ -12,7 +12,7 @@ package ssa
 // - interface method wrappers for expressions I.f.
 // - bound method wrappers, for uncalled obj.Method closures.
 
-// TODO(adonovan): rename to wrappers.go.
+// TODO(adonovan): split and rename to {methodset,wrappers}.go.
 
 import (
 	"fmt"
@@ -20,11 +20,6 @@ import (
 
 	"code.google.com/p/go.tools/go/types"
 )
-
-// recvType returns the receiver type of method obj.
-func recvType(obj *types.Func) types.Type {
-	return obj.Type().(*types.Signature).Recv().Type()
-}
 
 // Method returns the Function implementing method meth, building
 // wrapper methods on demand.
@@ -37,29 +32,129 @@ func (prog *Program) Method(meth *types.Selection) *Function {
 	if meth == nil {
 		panic("Method(nil)")
 	}
-	typ := meth.Recv()
+	T := meth.Recv()
 	if prog.mode&LogSource != 0 {
-		defer logStack("Method %s %v", typ, meth)()
+		defer logStack("Method %s %v", T, meth)()
 	}
 
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
 
-	type methodSet map[string]*Function
-	mset, _ := prog.methodSets.At(typ).(methodSet)
-	if mset == nil {
-		mset = make(methodSet)
-		prog.methodSets.Set(typ, mset)
+	return prog.addMethod(prog.createMethodSet(T), meth)
+}
+
+// makeMethods ensures that all wrappers in the complete method set of
+// T are generated.  It is equivalent to calling prog.Method() on all
+// members of T.methodSet(), but acquires fewer locks.
+//
+// It reports whether the type's method set is non-empty.
+//
+// Thread-safe.
+//
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (prog *Program) makeMethods(T types.Type) bool {
+	tmset := T.MethodSet()
+	n := tmset.Len()
+	if n == 0 {
+		return false // empty (common case)
 	}
 
+	if prog.mode&LogSource != 0 {
+		defer logStack("makeMethods %s", T)()
+	}
+
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
+
+	mset := prog.createMethodSet(T)
+	if !mset.complete {
+		mset.complete = true
+		for i := 0; i < n; i++ {
+			prog.addMethod(mset, tmset.At(i))
+		}
+	}
+
+	return true
+}
+
+type methodSet struct {
+	mapping  map[string]*Function // populated lazily
+	complete bool                 // mapping contains all methods
+}
+
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
+func (prog *Program) createMethodSet(T types.Type) *methodSet {
+	mset, ok := prog.methodSets.At(T).(*methodSet)
+	if !ok {
+		mset = &methodSet{mapping: make(map[string]*Function)}
+		prog.methodSets.Set(T, mset)
+	}
+	return mset
+}
+
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
+func (prog *Program) addMethod(mset *methodSet, meth *types.Selection) *Function {
 	id := meth.Obj().Id()
-	fn := mset[id]
+	fn := mset.mapping[id]
 	if fn == nil {
 		fn = findMethod(prog, meth)
-		mset[id] = fn
+		mset.mapping[id] = fn
 	}
 	return fn
 }
+
+// TypesWithMethodSets returns a new unordered slice containing all
+// types in the program for which a complete (non-empty) method set is
+// required at run-time.
+//
+// It is the union of pkg.TypesWithMethodSets() for all pkg in
+// prog.AllPackages().
+//
+// Thread-safe.
+//
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (prog *Program) TypesWithMethodSets() []types.Type {
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
+
+	var res []types.Type
+	prog.methodSets.Iterate(func(T types.Type, v interface{}) {
+		if v.(*methodSet).complete {
+			res = append(res, T)
+		}
+	})
+	return res
+}
+
+// TypesWithMethodSets returns a new unordered slice containing the
+// set of all types referenced within package pkg and not belonging to
+// some other package, for which a complete (non-empty) method set is
+// required at run-time.
+//
+// A type belongs to a package if it is a named type or a pointer to a
+// named type, and the name was defined in that package.  All other
+// types belong to no package.
+//
+// A type may appear in the TypesWithMethodSets() set of multiple
+// distinct packages if that type belongs to no package.  Typical
+// compilers emit method sets for such types multiple times (using
+// weak symbols) into each package that references them, with the
+// linker performing duplicate elimination.
+//
+// This set includes the types of all operands of some MakeInterface
+// instruction, the types of all exported members of some package, and
+// all types that are subcomponents, since even types that aren't used
+// directly may be derived via reflection.
+//
+// Callers must not mutate the result.
+//
+func (pkg *Package) TypesWithMethodSets() []types.Type {
+	return pkg.methodSets
+}
+
+// ------------------------------------------------------------------------
 
 // declaredFunc returns the concrete function/method denoted by obj.
 // Panic ensues if there is none.
@@ -69,6 +164,11 @@ func (prog *Program) declaredFunc(obj *types.Func) *Function {
 		return v.(*Function)
 	}
 	panic("no concrete method: " + obj.String())
+}
+
+// recvType returns the receiver type of method obj.
+func recvType(obj *types.Func) types.Type {
+	return obj.Type().(*types.Signature).Recv().Type()
 }
 
 // findMethod returns the concrete Function for the method meth,
@@ -128,7 +228,6 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 		Signature: changeRecv(oldsig, recv),
 		Synthetic: description,
 		Prog:      prog,
-		Pkg:       prog.packages[obj.Pkg()],
 		pos:       obj.Pos(),
 	}
 	fn.startBody()
@@ -235,7 +334,6 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Fun
 			Synthetic: description,
 			pos:       obj.Pos(),
 			Prog:      prog,
-			Pkg:       prog.packages[obj.Pkg()],
 		}
 		fn.startBody()
 		fn.addParam("recv", typ, token.NoPos)
@@ -289,7 +387,6 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 			Signature: changeRecv(obj.Type().(*types.Signature), nil), // drop receiver
 			Synthetic: description,
 			Prog:      prog,
-			Pkg:       prog.packages[obj.Pkg()],
 			pos:       obj.Pos(),
 		}
 

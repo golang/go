@@ -70,6 +70,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.TypeName:
+		pkg.values[obj] = nil // for needMethods
 		pkg.Members[name] = &Type{object: obj}
 
 	case *types.Const:

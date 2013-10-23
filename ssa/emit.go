@@ -209,6 +209,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			val = emitConv(f, val, DefaultType(ut_src))
 		}
 
+		f.Pkg.needMethodsOf(val.Type())
 		mi := &MakeInterface{X: val}
 		mi.setType(typ)
 		return f.emit(mi)

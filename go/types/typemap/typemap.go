@@ -295,8 +295,11 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 	case *types.Named:
 		// Not safe with a copying GC; objects may move.
 		return uint32(uintptr(unsafe.Pointer(t.Obj())))
+
+	case *types.Tuple:
+		return h.hashTuple(t)
 	}
-	panic("unexpected type")
+	panic(t)
 }
 
 func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {

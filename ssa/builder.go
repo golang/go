@@ -10,8 +10,8 @@ package ssa
 // (create.go), all packages are constructed and type-checked and
 // definitions of all package members are created, method-sets are
 // computed, and wrapper methods are synthesized.  The create phase
-// proceeds in topological order over the import dependency graph,
-// initiated by client calls to Program.CreatePackage.
+// occurs sequentially (order is unimportant) as the client calls
+// Program.CreatePackage.
 //
 // In the BUILD phase (builder.go), the builder traverses the AST of
 // each Go source function and generates SSA instructions for the
@@ -2262,11 +2262,6 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	}
 	var fn *Function
 	if decl.Recv == nil && id.Name == "init" {
-		if pkg.Prog.mode&LogSource != 0 {
-			fmt.Fprintln(os.Stderr, "build init func @",
-				pkg.Prog.Fset.Position(decl.Pos()))
-		}
-
 		pkg.ninit++
 		fn = &Function{
 			name:      fmt.Sprintf("init$%d", pkg.ninit),
@@ -2324,6 +2319,16 @@ func (p *Package) Build() {
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
 		return // already started
 	}
+
+	// Ensure we have runtime type info for all exported members.
+	// TODO(adonovan): ideally belongs in memberFromObject, but
+	// that would require package creation in topological order.
+	for obj := range p.values {
+		if obj.IsExported() {
+			p.needMethodsOf(obj.Type())
+		}
+	}
+
 	if p.info.Files == nil {
 		p.info = nil
 		return // nothing to do
@@ -2405,4 +2410,109 @@ func (p *Package) objectOf(id *ast.Ident) types.Object {
 // Only valid during p's create and build phases.
 func (p *Package) typeOf(e ast.Expr) types.Type {
 	return p.info.TypeOf(e)
+}
+
+// needMethodsOf ensures that runtime type information (including the
+// complete method set) is available for the specified type T and all
+// its subcomponents.
+//
+// needMethodsOf must be called for at least every type that is an
+// operand of some MakeInterface instruction, and for the type of
+// every exported package member.
+//
+func (p *Package) needMethodsOf(T types.Type) {
+	p.needMethods(T, false)
+}
+
+// Recursive case: skip => don't call makeMethods(T).
+func (p *Package) needMethods(T types.Type, skip bool) {
+	// Each package maintains its own set of types it has visited.
+	if p.needRTTI.Set(T, true) != nil {
+		return // already seen
+	}
+
+	// Prune the recursion if we find a named or *named type
+	// belonging to another package.
+	var n *types.Named
+	switch T := T.(type) {
+	case *types.Named:
+		n = T
+	case *types.Pointer:
+		n, _ = T.Elem().(*types.Named)
+	}
+	if n != nil {
+		owner := n.Obj().Pkg()
+		if owner == nil {
+			return // built-in error type
+		}
+		if owner != p.Object {
+			return // belongs to another package
+		}
+	}
+
+	// All the actual method sets live in the Program so that
+	// multiple packages can share a single copy in memory of the
+	// symbols that would be compiled into multiple packages (as
+	// weak symbols).
+	if !skip && p.Prog.makeMethods(T) {
+		p.methodSets = append(p.methodSets, T)
+	}
+
+	switch t := T.(type) {
+	case *types.Basic:
+		// nop
+
+	case *types.Interface:
+		for i, n := 0, t.NumMethods(); i < n; i++ {
+			p.needMethodsOf(t.Method(i).Type())
+		}
+
+	case *types.Pointer:
+		p.needMethodsOf(t.Elem())
+
+	case *types.Slice:
+		p.needMethodsOf(t.Elem())
+
+	case *types.Chan:
+		p.needMethodsOf(t.Elem())
+
+	case *types.Map:
+		p.needMethodsOf(t.Key())
+		p.needMethodsOf(t.Elem())
+
+	case *types.Signature:
+		if t.Recv() != nil {
+			p.needMethodsOf(t.Recv().Type())
+		}
+		p.needMethodsOf(t.Params())
+		p.needMethodsOf(t.Results())
+
+	case *types.Named:
+		// A pointer-to-named type can be derived from a named
+		// type via reflection.  It may have methods too.
+		p.needMethodsOf(types.NewPointer(T))
+
+		// Consider 'type T struct{S}' where S has methods.
+		// Reflection provides no way to get from T to struct{S},
+		// only to S, so the method set of struct{S} is unwanted,
+		// so set 'skip' flag during recursion.
+		p.needMethods(t.Underlying(), true)
+
+	case *types.Array:
+		p.needMethodsOf(t.Elem())
+
+	case *types.Struct:
+		// TODO(adonovan): must we recur over the types of promoted methods?
+		for i, n := 0, t.NumFields(); i < n; i++ {
+			p.needMethodsOf(t.Field(i).Type())
+		}
+
+	case *types.Tuple:
+		for i, n := 0, t.Len(); i < n; i++ {
+			p.needMethodsOf(t.At(i).Type())
+		}
+
+	default:
+		panic(T)
+	}
 }

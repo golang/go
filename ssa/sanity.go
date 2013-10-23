@@ -328,12 +328,13 @@ func (s *sanity) checkFunction(fn *Function) bool {
 	if fn.Prog == nil {
 		s.errorf("nil Prog")
 	}
-	// All functions have a package, except wrappers for error.Error()
-	// (and embedding of that method in other interfaces).
+	// All functions have a package, except wrappers (which are
+	// shared across packages, or duplicated as weak symbols in a
+	// separate-compilation model), and error.Error.
 	if fn.Pkg == nil {
-		if strings.Contains(fn.Synthetic, "wrapper") &&
+		if strings.Contains(fn.Synthetic, "wrapper") ||
 			strings.HasSuffix(fn.name, "Error") {
-			// wrapper for error.Error() has no package.
+			// ok
 		} else {
 			s.errorf("nil Pkg")
 		}

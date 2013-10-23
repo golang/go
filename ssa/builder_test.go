@@ -6,6 +6,8 @@ package ssa_test
 
 import (
 	"go/parser"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -137,5 +139,90 @@ func main() {
 	}
 	if callNum != 4 {
 		t.Errorf("in main.main: got %d calls, want %d", callNum, 4)
+	}
+}
+
+// TestMethodSets tests that Package.TypesWithMethodSets includes all necessary types.
+func TestTypesWithMethodSets(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		// An exported package-level type is needed.
+		{`package p; type T struct{}; func (T) f() {}`,
+			[]string{"*p.T", "p.T"},
+		},
+		// An unexported package-level type is not needed.
+		{`package p; type t struct{}; func (t) f() {}`,
+			nil,
+		},
+		// Subcomponents of type of exported package-level var are needed.
+		{`package p; import "bytes"; var V struct {*bytes.Buffer}`,
+			[]string{"struct{*bytes.Buffer}"},
+		},
+		// Subcomponents of type of unexported package-level var are not needed.
+		{`package p; import "bytes"; var v struct {*bytes.Buffer}`,
+			nil,
+		},
+		// Subcomponents of type of exported package-level function are needed.
+		{`package p; import "bytes"; func F(struct {*bytes.Buffer}) {}`,
+			[]string{"struct{*bytes.Buffer}"},
+		},
+		// Subcomponents of type of unexported package-level function are not needed.
+		{`package p; import "bytes"; func f(struct {*bytes.Buffer}) {}`,
+			nil,
+		},
+		// Subcomponents of type of exported method are needed.
+		{`package p; import "bytes"; type x struct{}; func (x) G(struct {*bytes.Buffer}) {}`,
+			[]string{"*p.x", "p.x", "struct{*bytes.Buffer}"},
+		},
+		// Subcomponents of type of unexported method are not needed.
+		{`package p; import "bytes"; type X struct{}; func (X) G(struct {*bytes.Buffer}) {}`,
+			[]string{"*p.X", "p.X", "struct{*bytes.Buffer}"},
+		},
+		// Local types aren't needed.
+		{`package p; import "bytes"; func f() { type T struct {*bytes.Buffer}; var t T; _ = t }`,
+			nil,
+		},
+		// ...unless used by MakeInterface.
+		{`package p; import "bytes"; func f() { type T struct {*bytes.Buffer}; _ = interface{}(T{}) }`,
+			[]string{"*p.T", "p.T"},
+		},
+		// Types used as operand of MakeInterface are needed.
+		{`package p; import "bytes"; func f() { _ = interface{}(struct{*bytes.Buffer}{}) }`,
+			[]string{"struct{*bytes.Buffer}"},
+		},
+		// MakeInterface is optimized away when storing to a blank.
+		{`package p; import "bytes"; var _ interface{} = struct{*bytes.Buffer}{}`,
+			nil,
+		},
+	}
+	for i, test := range tests {
+		imp := importer.New(new(importer.Config)) // no go/build.Context; uses GC importer
+
+		f, err := parser.ParseFile(imp.Fset, "<input>", test.input, 0)
+		if err != nil {
+			t.Errorf("test %d: %s", i, err)
+			continue
+		}
+
+		mainInfo := imp.CreatePackage("p", f)
+		prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
+		if err := prog.CreatePackages(imp); err != nil {
+			t.Errorf("test %d: %s", i, err)
+			continue
+		}
+		mainPkg := prog.Package(mainInfo.Pkg)
+		prog.BuildAll()
+
+		var typstrs []string
+		for _, T := range mainPkg.TypesWithMethodSets() {
+			typstrs = append(typstrs, T.String())
+		}
+		sort.Strings(typstrs)
+
+		if !reflect.DeepEqual(typstrs, test.want) {
+			t.Errorf("test %d: got %q, want %q", i, typstrs, test.want)
+		}
 	}
 }

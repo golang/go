@@ -51,6 +51,7 @@ var inputs = []string{
 	"testdata/panic.go",
 	"testdata/recur.go",
 	"testdata/reflect.go",
+	"testdata/rtti.go",
 	"testdata/structreflect.go",
 	"testdata/structs.go",
 }
