@@ -169,9 +169,17 @@ func (x structure) hash(t types.Type) int {
 	return h
 }
 
+// nil-tolerant variant of types.IsIdentical.
+func sameType(x, y types.Type) bool {
+	if x == nil {
+		return y == nil
+	}
+	return y != nil && types.IsIdentical(x, y)
+}
+
 func (x iface) eq(t types.Type, _y interface{}) bool {
 	y := _y.(iface)
-	return types.IsIdentical(x.t, y.t) && (x.t == nil || equals(x.t, x.v, y.v))
+	return sameType(x.t, y.t) && (x.t == nil || equals(x.t, x.v, y.v))
 }
 
 func (x iface) hash(_ types.Type) int {
