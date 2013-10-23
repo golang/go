@@ -253,20 +253,27 @@ func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs in
 			return nil, err
 		}
 
-		// Initial packages (specified on command line)
+		// For each initial package (specified on the command line),
+		// if it has a main function, analyze that,
+		// otherwise analyze its tests, if any.
+		var testPkgs []*ssa.Package
 		for _, info := range initialPkgInfos {
 			initialPkg := o.prog.Package(info.Pkg)
 
 			// Add package to the pointer analysis scope.
-			if initialPkg.Func("main") == nil {
-				// TODO(adonovan): to simulate 'go test' more faithfully, we
-				// should build a single synthetic testmain package,
-				// not synthetic main functions to many packages.
-				if initialPkg.CreateTestMainFunction() == nil {
-					return nil, fmt.Errorf("analysis scope has no main() entry points")
-				}
+			if initialPkg.Func("main") != nil {
+				o.config.Mains = append(o.config.Mains, initialPkg)
+			} else {
+				testPkgs = append(testPkgs, initialPkg)
 			}
-			o.config.Mains = append(o.config.Mains, initialPkg)
+		}
+		if testPkgs != nil {
+			if p := o.prog.CreateTestMainPackage(testPkgs...); p != nil {
+				o.config.Mains = append(o.config.Mains, p)
+			}
+		}
+		if o.config.Mains == nil {
+			return nil, fmt.Errorf("analysis scope has no main and no tests")
 		}
 
 		if needs&needSSADebug != 0 {

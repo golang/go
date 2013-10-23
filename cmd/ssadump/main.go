@@ -40,13 +40,18 @@ T	[T]race execution of the program.  Best for single-threaded programs!
 `)
 
 const usage = `SSA builder and interpreter.
-Usage: ssadump [<flag> ...] [<file.go> ...] [<arg> ...]
-       ssadump [<flag> ...] <import/path>   [<arg> ...]
+Usage: ssadump [<flag> ...] <args> ...
 Use -help flag to display options.
 
 Examples:
-% ssadump -run -interp=T hello.go     # interpret a program, with tracing
 % ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
+% ssadump -run -interp=T hello.go     # interpret a program, with tracing
+% ssadump -run unicode -- -test.v     # interpret the unicode package's tests, verbosely
+` + importer.InitialPackagesUsage +
+	`
+When -run is specified, ssadump will find the first package that
+defines a main function and run it in the interpreter.
+If none is found, the tests of each package will be run instead.
 `
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -140,6 +145,7 @@ func main() {
 	if err := prog.CreatePackages(imp); err != nil {
 		log.Fatal(err)
 	}
+
 	if debugMode {
 		for _, pkg := range prog.AllPackages() {
 			pkg.SetDebugMode(true)
@@ -147,18 +153,25 @@ func main() {
 	}
 	prog.BuildAll()
 
-	// Run the interpreter on the first package with a main function.
+	// Run the interpreter.
 	if *runFlag {
+		// If some package defines main, run that.
+		// Otherwise run all package's tests.
 		var main *ssa.Package
+		var pkgs []*ssa.Package
 		for _, info := range infos {
 			pkg := prog.Package(info.Pkg)
-			if pkg.Func("main") != nil || pkg.CreateTestMainFunction() != nil {
+			if pkg.Func("main") != nil {
 				main = pkg
 				break
 			}
+			pkgs = append(pkgs, pkg)
+		}
+		if main == nil && pkgs != nil {
+			main = prog.CreateTestMainPackage(pkgs...)
 		}
 		if main == nil {
-			log.Fatal("No main function")
+			log.Fatal("No main package and no tests")
 		}
 		interp.Interpret(main, interpMode, main.Object.Path(), args)
 	}

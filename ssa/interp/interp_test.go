@@ -169,6 +169,8 @@ func run(t *testing.T, dir, input string) bool {
 
 	imp := importer.New(&importer.Config{Build: &build.Default})
 	// TODO(adonovan): use LoadInitialPackages, then un-export ParseFiles.
+	// Then add the following packages' tests, which pass:
+	// "flag", "unicode", "unicode/utf8", "testing", "log", "path".
 	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
 	if err != nil {
 		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
@@ -203,7 +205,9 @@ func run(t *testing.T, dir, input string) bool {
 	prog.BuildAll()
 
 	mainPkg := prog.Package(mainInfo.Pkg)
-	mainPkg.CreateTestMainFunction() // (no-op if main already exists)
+	if mainPkg.Func("main") == nil {
+		mainPkg = prog.CreateTestMainPackage(mainPkg)
+	}
 
 	var out bytes.Buffer
 	interp.CapturedOutput = &out

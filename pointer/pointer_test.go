@@ -185,8 +185,7 @@ func doOneInput(input, filename string) bool {
 	ptrmain := mainpkg // main package for the pointer analysis
 	if mainpkg.Func("main") == nil {
 		// No main function; assume it's a test.
-		mainpkg.CreateTestMainFunction()
-		// fmt.Printf("%s: synthesized testmain package for test.\n", imp.Fset.Position(f.Package))
+		ptrmain = prog.CreateTestMainPackage(mainpkg)
 	}
 
 	ok := true

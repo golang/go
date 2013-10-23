@@ -10,8 +10,8 @@ package ssa
 // (create.go), all packages are constructed and type-checked and
 // definitions of all package members are created, method-sets are
 // computed, and wrapper methods are synthesized.  The create phase
-// occurs sequentially (order is unimportant) as the client calls
-// Program.CreatePackage.
+// proceeds in topological order over the import dependency graph,
+// initiated by client calls to Program.CreatePackage.
 //
 // In the BUILD phase (builder.go), the builder traverses the AST of
 // each Go source function and generates SSA instructions for the
@@ -2319,7 +2319,9 @@ func (p *Package) Build() {
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
 		return // already started
 	}
-
+	if p.info == nil {
+		return // synthetic package, e.g. "testmain"
+	}
 	// Ensure we have runtime type info for all exported members.
 	// TODO(adonovan): ideally belongs in memberFromObject, but
 	// that would require package creation in topological order.
@@ -2327,11 +2329,6 @@ func (p *Package) Build() {
 		if obj.IsExported() {
 			p.needMethodsOf(obj.Type())
 		}
-	}
-
-	if p.info.Files == nil {
-		p.info = nil
-		return // nothing to do
 	}
 	if p.Prog.mode&LogSource != 0 {
 		defer logStack("build %s", p)()
@@ -2391,7 +2388,6 @@ func (p *Package) Build() {
 	// Finish up init().
 	emitJump(init, done)
 	init.currentBlock = done
-	init.emit(new(RunDefers))
 	init.emit(new(Return))
 	init.finishBody()
 

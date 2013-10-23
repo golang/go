@@ -4,43 +4,68 @@
 
 package ssa
 
-// CreateTestMainFunction synthesizes main functions for tests.
+// CreateTestMainPackage synthesizes a main package that runs all the
+// tests of the supplied packages.
 // It is closely coupled to src/cmd/go/test.go and src/pkg/testing.
 
 import (
+	"go/ast"
 	"go/token"
+	"os"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 )
 
-// CreateTestMainFunction adds to pkg (a test package) a synthetic
-// main function similar to the one that would be created by the 'go
-// test' tool.  The synthetic function is returned.
+// CreateTestMainPackage creates and returns a synthetic "main"
+// package that runs all the tests of the supplied packages, similar
+// to the one that would be created by the 'go test' tool.
 //
-// If the package already has a member named "main", the package
-// remains unchanged; the result is that member if it's a function,
-// nil if not.
+// It returns nil if the program contains no tests.
 //
-func (pkg *Package) CreateTestMainFunction() *Function {
-	if main := pkg.Members["main"]; main != nil {
-		main, _ := main.(*Function)
-		return main
+func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
+	testmain := &Package{
+		Prog:    prog,
+		Members: make(map[string]Member),
+		values:  make(map[types.Object]Value),
+		Object:  types.NewPackage("testmain", "testmain", nil),
 	}
-	fn := &Function{
-		name:      "main",
-		Signature: new(types.Signature),
-		Synthetic: "test main function",
-		Prog:      pkg.Prog,
-		Pkg:       pkg,
-	}
+	prog.packages[testmain.Object] = testmain
 
-	testingPkg := pkg.Prog.ImportedPackage("testing")
+	// Build package's init function.
+	init := &Function{
+		name:      "init",
+		Signature: new(types.Signature),
+		Synthetic: "package initializer",
+		Pkg:       testmain,
+		Prog:      prog,
+	}
+	init.startBody()
+	var expfuncs []*Function // all exported functions of pkgs, unordered
+	for _, pkg := range pkgs {
+		// Initialize package to test.
+		var v Call
+		v.Call.Value = pkg.init
+		v.setType(types.NewTuple())
+		init.emit(&v)
+
+		// Enumerate its possible tests/benchmarks.
+		for _, mem := range pkg.Members {
+			if f, ok := mem.(*Function); ok && ast.IsExported(f.Name()) {
+				expfuncs = append(expfuncs, f)
+			}
+		}
+	}
+	init.emit(new(Return))
+	init.finishBody()
+	testmain.init = init
+	testmain.Members[init.name] = init
+
+	testingPkg := prog.ImportedPackage("testing")
 	if testingPkg == nil {
-		// If it doesn't import "testing", it can't be a test.
+		// If the program doesn't import "testing", it can't
+		// contain any tests.
 		// TODO(adonovan): but it might contain Examples.
 		// Support them (by just calling them directly).
 		return nil
@@ -58,50 +83,67 @@ func (pkg *Package) CreateTestMainFunction() *Function {
 	// 	testing.Main(match, tests, benchmarks, examples)
 	// }
 
+	main := &Function{
+		name:      "main",
+		Signature: new(types.Signature),
+		Synthetic: "test main function",
+		Prog:      prog,
+		Pkg:       testmain,
+	}
+
 	matcher := &Function{
 		name:      "matcher",
 		Signature: testingMainParams.At(0).Type().(*types.Signature),
 		Synthetic: "test matcher predicate",
-		Enclosing: fn,
-		Pkg:       fn.Pkg,
-		Prog:      fn.Prog,
+		Enclosing: main,
+		Pkg:       testmain,
+		Prog:      prog,
 	}
-	fn.AnonFuncs = append(fn.AnonFuncs, matcher)
+	main.AnonFuncs = append(main.AnonFuncs, matcher)
 	matcher.startBody()
 	matcher.emit(&Return{Results: []Value{vTrue, nilConst(types.Universe.Lookup("error").Type())}})
 	matcher.finishBody()
 
-	fn.startBody()
+	main.startBody()
 	var c Call
 	c.Call.Value = testingMain
 	c.Call.Args = []Value{
 		matcher,
-		testMainSlice(fn, "Test", testingMainParams.At(1).Type()),
-		testMainSlice(fn, "Benchmark", testingMainParams.At(2).Type()),
-		testMainSlice(fn, "Example", testingMainParams.At(3).Type()),
+		testMainSlice(main, expfuncs, "Test", testingMainParams.At(1).Type()),
+		testMainSlice(main, expfuncs, "Benchmark", testingMainParams.At(2).Type()),
+		testMainSlice(main, expfuncs, "Example", testingMainParams.At(3).Type()),
 	}
 	// Emit: testing.Main(nil, tests, benchmarks, examples)
-	emitTailCall(fn, &c)
-	fn.finishBody()
+	emitTailCall(main, &c)
+	main.finishBody()
 
-	pkg.Members["main"] = fn
-	return fn
+	testmain.Members["main"] = main
+
+	if prog.mode&LogPackages != 0 {
+		testmain.DumpTo(os.Stderr)
+	}
+	if prog.mode&SanityCheckFunctions != 0 {
+		sanityCheckPackage(testmain)
+	}
+
+	return testmain
 }
 
 // testMainSlice emits to fn code to construct a slice of type slice
 // (one of []testing.Internal{Test,Benchmark,Example}) for all
-// functions in this package whose name starts with prefix (one of
+// functions in expfuncs whose name starts with prefix (one of
 // "Test", "Benchmark" or "Example") and whose type is appropriate.
 // It returns the slice value.
 //
-func testMainSlice(fn *Function, prefix string, slice types.Type) Value {
+func testMainSlice(fn *Function, expfuncs []*Function, prefix string, slice types.Type) Value {
 	tElem := slice.(*types.Slice).Elem()
 	tFunc := tElem.Underlying().(*types.Struct).Field(1).Type()
 
 	var testfuncs []*Function
-	for name, mem := range fn.Pkg.Members {
-		if fn, ok := mem.(*Function); ok && isTest(name, prefix) && types.IsIdentical(fn.Signature, tFunc) {
-			testfuncs = append(testfuncs, fn)
+	for _, f := range expfuncs {
+		// TODO(adonovan): only look at members defined in *_test.go files.
+		if isTest(f.Name(), prefix) && types.IsIdentical(f.Signature, tFunc) {
+			testfuncs = append(testfuncs, f)
 		}
 	}
 	if testfuncs == nil {
@@ -158,6 +200,5 @@ func isTest(name, prefix string) bool {
 	if len(name) == len(prefix) { // "Test" is ok
 		return true
 	}
-	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
-	return !unicode.IsLower(rune)
+	return ast.IsExported(name[len(prefix):])
 }
