@@ -169,6 +169,7 @@ type Var struct {
 
 	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
 	visited   bool // for initialization cycle detection
+	isField   bool // var is struct field
 }
 
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
@@ -180,11 +181,18 @@ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
 }
 
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, false}, anonymous: anonymous}
+	return &Var{object: object{nil, pos, pkg, name, typ, false}, anonymous: anonymous, isField: true}
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
-func (obj *Var) String() string  { return obj.toString("var", obj.typ) }
+func (obj *Var) String() string {
+	kind := "var"
+	if obj.isField {
+		kind = "field"
+	}
+	return obj.toString(kind, obj.typ)
+}
+func (obj *Var) IsField() bool { return obj.isField }
 
 // A Func represents a declared function, concrete method, or abstract
 // (interface) method.  Its Type() is always a *Signature.
