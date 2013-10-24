@@ -628,23 +628,27 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 	// TODO(gri) consider keeping the objset with the struct instead
 	if t, _ := named.underlying.(*Struct); t != nil {
 		for _, fld := range t.fields {
-			assert(mset.insert(fld) == nil)
+			if fld.name != "_" {
+				assert(mset.insert(fld) == nil)
+			}
 		}
 	}
 
 	// check each method
 	for _, m := range methods {
-		if alt := mset.insert(m); alt != nil {
-			switch alt.(type) {
-			case *Var:
-				check.errorf(m.pos, "field and method with the same name %s", m.name)
-			case *Func:
-				check.errorf(m.pos, "method %s already declared for %s", m.name, named)
-			default:
-				unreachable()
+		if m.name != "_" {
+			if alt := mset.insert(m); alt != nil {
+				switch alt.(type) {
+				case *Var:
+					check.errorf(m.pos, "field and method with the same name %s", m.name)
+				case *Func:
+					check.errorf(m.pos, "method %s already declared for %s", m.name, named)
+				default:
+					unreachable()
+				}
+				check.reportAltDecl(alt)
+				continue
 			}
-			check.reportAltDecl(alt)
-			continue
 		}
 		check.recordObject(check.objMap[m].fdecl.Name, m)
 		check.objDecl(m, nil, true)

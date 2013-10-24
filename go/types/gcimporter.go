@@ -520,13 +520,15 @@ func (p *gcParser) parseStructType() Type {
 		if tags != nil {
 			tags = append(tags, tag)
 		}
-		if alt := fset.insert(fld); alt != nil {
-			pname := "<no pkg name>"
-			if pkg := alt.Pkg(); pkg != nil {
-				pname = pkg.name
+		if fld.name != "_" {
+			if alt := fset.insert(fld); alt != nil {
+				pname := "<no pkg name>"
+				if pkg := alt.Pkg(); pkg != nil {
+					pname = pkg.name
+				}
+				p.errorf("multiple fields named %s.%s", pname, alt.Name())
+				continue
 			}
-			p.errorf("multiple fields named %s.%s", pname, alt.Name())
-			continue
 		}
 		fields = append(fields, fld)
 	}

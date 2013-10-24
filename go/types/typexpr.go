@@ -54,7 +54,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	case *Const:
 		// The constant may be dot-imported. Mark it as used so that
 		// later we can determine if the corresponding dot-imported
-		// packages was used. Same applies for other objects, below.
+		// package was used. Same applies for other objects, below.
 		// (This code is only used for dot-imports. Without them, we
 		// would only have to mark Vars.)
 		obj.used = true
@@ -407,14 +407,11 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) declareInSet(oset *objset, pos token.Pos, id *ast.Ident, obj Object) bool {
+func (check *checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
 		check.errorf(pos, "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
 		return false
-	}
-	if id != nil {
-		check.recordObject(id, obj)
 	}
 	return true
 }
@@ -453,10 +450,15 @@ func (check *checker) interfaceType(ityp *ast.InterfaceType, def *Named, cycleOk
 			// Don't type-check signature yet - use an
 			// empty signature now and update it later.
 			m := NewFunc(pos, check.pkg, name.Name, new(Signature))
-			if check.declareInSet(&mset, pos, name, m) {
+			// spec: "As with all method sets, in an interface type,
+			// each method must have a unique name."
+			// (The spec does not exclude blank _ identifiers for
+			// interface methods.)
+			if check.declareInSet(&mset, pos, m) {
 				iface.methods = append(iface.methods, m)
 				iface.allMethods = append(iface.allMethods, m)
 				signatures = append(signatures, f.Type)
+				check.recordObject(name, m)
 			}
 		} else {
 			// embedded type
@@ -507,7 +509,7 @@ func (check *checker) interfaceType(ityp *ast.InterfaceType, def *Named, cycleOk
 		iface.types = append(iface.types, named)
 		// collect embedded methods
 		for _, m := range embed.allMethods {
-			if check.declareInSet(&mset, pos, nil, m) {
+			if check.declareInSet(&mset, pos, m) {
 				iface.allMethods = append(iface.allMethods, m)
 			}
 		}
@@ -583,8 +585,12 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		}
 
 		fld := NewField(pos, check.pkg, name, typ, anonymous)
-		if check.declareInSet(&fset, pos, ident, fld) {
+		// spec: "Within a struct, non-blank field names must be unique."
+		if name == "_" || check.declareInSet(&fset, pos, fld) {
 			fields = append(fields, fld)
+			if ident != nil {
+				check.recordObject(ident, fld)
+			}
 		}
 	}
 
