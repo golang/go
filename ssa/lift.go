@@ -257,7 +257,7 @@ func lift(fn *Function) {
 	// Remove any fn.Locals that were lifted.
 	j := 0
 	for _, l := range fn.Locals {
-		if l.index == -1 {
+		if l.index < 0 {
 			fn.Locals[j] = l
 			j++
 		}
@@ -333,7 +333,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	for _, instr := range *alloc.Referrers() {
 		// Bail out if we discover the alloc is not liftable;
 		// the only operations permitted to use the alloc are
-		// loads/stores into the cell.
+		// loads/stores into the cell, and DebugRef.
 		switch instr := instr.(type) {
 		case *Store:
 			if instr.Val == alloc {
@@ -350,6 +350,8 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 			if instr.X != alloc {
 				panic("Alloc.Referrers is inconsistent")
 			}
+		case *DebugRef:
+			// ok
 		default:
 			return false // some other instruction
 		}
@@ -464,10 +466,9 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 
 	// Rename loads and stores of allocs.
 	for i, instr := range u.Instrs {
-		_ = i
 		switch instr := instr.(type) {
 		case *Store:
-			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index != -1 { // store to Alloc cell
+			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index >= 0 { // store to Alloc cell
 				// Delete the Store.
 				u.Instrs[i] = nil
 				u.gaps++
@@ -480,7 +481,7 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 			}
 		case *UnOp:
 			if instr.Op == token.MUL {
-				if alloc, ok := instr.X.(*Alloc); ok && alloc.index != -1 { // load of Alloc cell
+				if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // load of Alloc cell
 					newval := renamed(renaming, alloc)
 					if debugLifting {
 						fmt.Fprintln(os.Stderr, "Replace refs to load", instr.Name(), "=", instr, "with", newval.Name())
@@ -490,6 +491,21 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 					// dominating stored value.
 					replaceAll(instr, newval)
 					// Delete the Load.
+					u.Instrs[i] = nil
+					u.gaps++
+				}
+			}
+		case *DebugRef:
+			if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // ref of Alloc cell
+				if instr.IsAddr {
+					instr.X = renamed(renaming, alloc)
+					instr.IsAddr = false
+				} else {
+					// A source expression denotes the address
+					// of an Alloc that was optimized away.
+					instr.X = nil
+
+					// Delete the DebugRef.
 					u.Instrs[i] = nil
 					u.gaps++
 				}

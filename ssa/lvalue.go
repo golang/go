@@ -42,15 +42,14 @@ func (a *address) store(fn *Function, v Value) {
 	store := emitStore(fn, a.addr, v)
 	store.pos = a.starPos
 	if a.expr != nil {
-		// store.Val is v converted for assignability.
-		emitDebugRef(fn, a.expr, store.Val)
+		// store.Val is v, converted for assignability.
+		emitDebugRef(fn, a.expr, store.Val, false)
 	}
 }
 
 func (a *address) address(fn *Function) Value {
 	if a.expr != nil {
-		// NB: this kind of DebugRef yields the object's address.
-		emitDebugRef(fn, a.expr, a.addr)
+		emitDebugRef(fn, a.expr, a.addr, true)
 	}
 	return a.addr
 }

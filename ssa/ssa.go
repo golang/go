@@ -1171,8 +1171,9 @@ type MapUpdate struct {
 type DebugRef struct {
 	anInstruction
 	X      Value        // the value whose position we're declaring
-	Expr   ast.Expr     // the referring expression
+	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
 	object types.Object // the identity of the source var/const/func
+	IsAddr bool         // Expr is addressable and X is the address it denotes
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------

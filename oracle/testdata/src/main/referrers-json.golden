@@ -42,7 +42,7 @@
 	"referrers": {
 		"pos": "testdata/src/main/referrers-json.go:20:10",
 		"objpos": "testdata/src/main/referrers-json.go:10:2",
-		"desc": "var f int",
+		"desc": "field f int",
 		"refs": [
 			"testdata/src/main/referrers-json.go:20:10",
 			"testdata/src/main/referrers-json.go:23:5"

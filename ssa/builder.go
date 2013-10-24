@@ -495,7 +495,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	e = unparen(e)
 	v := b.expr0(fn, e)
 	if fn.debugInfo() {
-		emitDebugRef(fn, e, v)
+		emitDebugRef(fn, e, v, false)
 	}
 	return v
 }
@@ -686,7 +686,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			v := b.expr(fn, e.X)
 			v = emitImplicitSelections(fn, v, indices[:last])
 			v = emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
-			emitDebugRef(fn, e.Sel, v)
+			emitDebugRef(fn, e.Sel, v, false)
 			return v
 		}
 
@@ -1091,7 +1091,7 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 			if !isBlankIdent(id) {
 				lhs := fn.addLocalForIdent(id)
 				if fn.debugInfo() {
-					emitDebugRef(fn, id, emitLoad(fn, lhs))
+					emitDebugRef(fn, id, lhs, true)
 				}
 			}
 		}
@@ -1626,7 +1626,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		case *ast.ExprStmt: // <-ch
 			if debugInfo {
 				v := emitExtract(fn, sel, r, vars[r].Type())
-				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v)
+				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v, false)
 			}
 			r++
 
@@ -1637,7 +1637,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 			x := b.addr(fn, comm.Lhs[0], false) // non-escaping
 			v := emitExtract(fn, sel, r, vars[r].Type())
 			if debugInfo {
-				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v)
+				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v, false)
 			}
 			x.store(fn, v)
 

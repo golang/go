@@ -394,7 +394,11 @@ func (s *DebugRef) String() string {
 	} else {
 		descr = reflect.TypeOf(s.Expr) // e.g. "*ast.CallExpr"
 	}
-	return fmt.Sprintf("; %s is %s @ %d:%d", s.X.Name(), descr, p.Line, p.Column)
+	var addr string
+	if s.IsAddr {
+		addr = "address of "
+	}
+	return fmt.Sprintf("; %s is %s%s @ %d:%d", s.X.Name(), addr, descr, p.Line, p.Column)
 }
 
 func (p *Package) String() string {

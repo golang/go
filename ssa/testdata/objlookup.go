@@ -37,6 +37,9 @@ type S struct {
 }
 
 func main() {
+	print(globalVar) // globalVar::UnOp
+	globalVar = 1    // globalVar::Const
+
 	var v0 int = 1 // v0::Const (simple local value spec)
 	if v0 > 0 {    // v0::Const
 		v0 = 2 // v0::Const
@@ -74,11 +77,11 @@ func main() {
 	print(v5)           // v5::Const
 	print(v6)           // v6::Const
 
-	var v7 S    // v7::UnOp (load from Alloc)
+	var v7 S    // &v7::Alloc
 	v7.x = 1    // &v7::Alloc x::Const
 	print(v7.x) // v7::UnOp x::Field
 
-	var v8 [1]int // v8::UnOp (load from Alloc)
+	var v8 [1]int // &v8::Alloc
 	v8[0] = 0     // &v8::Alloc
 	print(v8[:])  // &v8::Alloc
 	_ = v8[0]     // v8::UnOp (load from Alloc)
@@ -86,6 +89,10 @@ func main() {
 	v8ptr := &v8  // v8ptr::Alloc &v8::Alloc
 	_ = v8ptr[0]  // v8ptr::Alloc
 	_ = *v8ptr    // v8ptr::Alloc
+
+	v8a := make([]int, 1) // v8a::MakeSlice
+	v8a[0] = 0            // v8a::MakeSlice
+	print(v8a[:])         // v8a::MakeSlice
 
 	v9 := S{} // &v9::Alloc
 
@@ -95,7 +102,7 @@ func main() {
 	var v11 *J = nil // v11::Const
 	v11.method()     // v11::Const
 
-	var v12 J    // v12::UnOp (load from Alloc)
+	var v12 J    // &v12::Alloc
 	v12.method() // &v12::Alloc (implicitly address-taken)
 
 	// NB, in the following, 'method' resolves to the *types.Func
@@ -137,7 +144,17 @@ func main() {
 	}
 
 	// .Op is an inter-package FieldVal-selection.
-	var err os.PathError // err::UnOp
+	var err os.PathError // &err::Alloc
 	_ = err.Op           // err::UnOp Op::Field
 	_ = &err.Op          // &err::Alloc &Op::FieldAddr
+
+	// Exercise corner-cases of lvalues vs rvalues.
+	// (Guessing IsAddr from the 'pointerness' won't cut it here.)
+	type N *N
+	var n N    // n::Const
+	n1 := n    // n1::Const n::Const
+	n2 := &n1  // n2::Alloc &n1::Alloc
+	n3 := *n2  // n3::UnOp n2::Alloc
+	n4 := **n3 // n4::UnOp n3::UnOp
+	_ = n4     // n4::UnOp
 }

@@ -84,6 +84,9 @@ func TestObjValueLookup(t *testing.T) {
 	// Check invariants for var objects.
 	// The result varies based on the specific Ident.
 	for _, id := range ids {
+		if id.Name == "_" {
+			continue
+		}
 		if obj, ok := mainInfo.ObjectOf(id).(*types.Var); ok {
 			ref, _ := importer.PathEnclosingInterval(f, id.Pos(), id.Pos())
 			pos := imp.Fset.Position(id.Pos())
@@ -145,7 +148,7 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 	prefix := fmt.Sprintf("VarValue(%s @ L%d)",
 		obj, prog.Fset.Position(ref[0].Pos()).Line)
 
-	v := prog.VarValue(obj, pkg, ref)
+	v, gotAddr := prog.VarValue(obj, pkg, ref)
 
 	// Kind is the concrete type of the ssa Value.
 	gotKind := "nil"
@@ -153,7 +156,7 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 		gotKind = fmt.Sprintf("%T", v)[len("*ssa."):]
 	}
 
-	// fmt.Printf("%s = %v (kind %q; expect %q) addr=%t\n", prefix, v, gotKind, expKind, wantAddr) // debugging
+	// fmt.Printf("%s = %v (kind %q; expect %q) wantAddr=%t gotAddr=%t\n", prefix, v, gotKind, expKind, wantAddr, gotAddr) // debugging
 
 	// Check the kinds match.
 	// "nil" indicates expected failure (e.g. optimized away).
@@ -167,6 +170,11 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 		expType := obj.Type()
 		if wantAddr {
 			expType = types.NewPointer(expType)
+			if !gotAddr {
+				t.Errorf("%s: got value, want address", prefix)
+			}
+		} else if gotAddr {
+			t.Errorf("%s: got address, want value", prefix)
 		}
 		if !types.IsIdentical(v.Type(), expType) {
 			t.Errorf("%s.Type() == %s, want %s", prefix, v.Type(), expType)
@@ -195,10 +203,13 @@ func TestValueForExpr(t *testing.T) {
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
 
-	fn := mainPkg.Func("f")
-
 	if false {
-		fn.DumpTo(os.Stderr) // debugging
+		// debugging
+		for _, mem := range mainPkg.Members {
+			if fn, ok := mem.(*ssa.Function); ok {
+				fn.DumpTo(os.Stderr)
+			}
+		}
 	}
 
 	// Find the actual AST node for each canonical position.
@@ -229,14 +240,30 @@ func TestValueForExpr(t *testing.T) {
 			e = target.X
 		}
 
-		v := fn.ValueForExpr(e) // (may be nil)
+		path, _ := importer.PathEnclosingInterval(f, pos, pos)
+		if path == nil {
+			t.Errorf("%s: can't find AST path from root to comment: %s", position, text)
+			continue
+		}
+
+		fn := ssa.EnclosingFunction(mainPkg, path)
+		if fn == nil {
+			t.Errorf("%s: can't find enclosing function", position)
+			continue
+		}
+
+		v, gotAddr := fn.ValueForExpr(e) // (may be nil)
 		got := strings.TrimPrefix(fmt.Sprintf("%T", v), "*ssa.")
 		if want := text; got != want {
 			t.Errorf("%s: got value %q, want %q", position, got, want)
 		}
 		if v != nil {
-			if !types.IsIdentical(v.Type(), mainInfo.TypeOf(e)) {
-				t.Errorf("%s: got type %s, want %s", position, mainInfo.TypeOf(e), v.Type())
+			T := v.Type()
+			if gotAddr {
+				T = T.Underlying().(*types.Pointer).Elem() // deref
+			}
+			if !types.IsIdentical(T, mainInfo.TypeOf(e)) {
+				t.Errorf("%s: got type %s, want %s", position, mainInfo.TypeOf(e), T)
 			}
 		}
 	}

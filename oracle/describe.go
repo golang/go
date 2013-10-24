@@ -302,25 +302,27 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 // ---- VALUE ------------------------------------------------------------
 
 // ssaValueForIdent returns the ssa.Value for the ast.Ident whose path
-// to the root of the AST is path.  It may return a nil Value without
-// an error to indicate the pointer analysis is not appropriate.
+// to the root of the AST is path.  isAddr reports whether the
+// ssa.Value is the address denoted by the ast.Ident, not its value.
+// ssaValueForIdent may return a nil Value without an error to
+// indicate the pointer analysis is not appropriate.
 //
-func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.Object, path []ast.Node) (ssa.Value, error) {
+func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.Object, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
 	if obj, ok := obj.(*types.Var); ok {
 		pkg := prog.Package(qinfo.Pkg)
 		pkg.Build()
-		if v := prog.VarValue(obj, pkg, path); v != nil {
+		if v, addr := prog.VarValue(obj, pkg, path); v != nil {
 			// Don't run pointer analysis on a ref to a const expression.
 			if _, ok := v.(*ssa.Const); ok {
-				v = nil
+				return
 			}
-			return v, nil
+			return v, addr, nil
 		}
-		return nil, fmt.Errorf("can't locate SSA Value for var %s", obj.Name())
+		return nil, false, fmt.Errorf("can't locate SSA Value for var %s", obj.Name())
 	}
 
 	// Don't run pointer analysis on const/func objects.
-	return nil, nil
+	return
 }
 
 // ssaValueForExpr returns the ssa.Value of the non-ast.Ident
@@ -328,21 +330,21 @@ func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.
 // return a nil Value without an error to indicate the pointer
 // analysis is not appropriate.
 //
-func ssaValueForExpr(prog *ssa.Program, qinfo *importer.PackageInfo, path []ast.Node) (ssa.Value, error) {
+func ssaValueForExpr(prog *ssa.Program, qinfo *importer.PackageInfo, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
 	pkg := prog.Package(qinfo.Pkg)
 	pkg.SetDebugMode(true)
 	pkg.Build()
 
 	fn := ssa.EnclosingFunction(pkg, path)
 	if fn == nil {
-		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
+		return nil, false, fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
-	if v := fn.ValueForExpr(path[0].(ast.Expr)); v != nil {
-		return v, nil
+	if v, addr := fn.ValueForExpr(path[0].(ast.Expr)); v != nil {
+		return v, addr, nil
 	}
 
-	return nil, fmt.Errorf("can't locate SSA Value for expression in %s", fn)
+	return nil, false, fmt.Errorf("can't locate SSA Value for expression in %s", fn)
 }
 
 func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueResult, error) {
@@ -384,22 +386,18 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 	if pointer.CanPoint(typ) {
 		// Determine the ssa.Value for the expression.
 		var value ssa.Value
+		var isAddr bool
 		if obj != nil {
 			// def/ref of func/var/const object
-			value, ptaErr = ssaValueForIdent(o.prog, qpos.info, obj, path)
+			value, isAddr, ptaErr = ssaValueForIdent(o.prog, qpos.info, obj, path)
 		} else {
 			// any other expression
 			if qpos.info.ValueOf(path[0].(ast.Expr)) == nil { // non-constant?
-				value, ptaErr = ssaValueForExpr(o.prog, qpos.info, path)
+				value, isAddr, ptaErr = ssaValueForExpr(o.prog, qpos.info, path)
 			}
 		}
 		if value != nil {
-			// TODO(adonovan): IsIdentical may be too strict;
-			// perhaps we need is-assignable or even
-			// has-same-underlying-representation?
-			indirect := types.IsIdentical(types.NewPointer(typ), value.Type())
-
-			ptrs, ptaErr = describePointer(o, value, indirect)
+			ptrs, ptaErr = describePointer(o, value, isAddr)
 		}
 	}
 
@@ -477,13 +475,6 @@ func (r *describeValueResult) display(printf printfFunc) {
 			} else {
 				prefix = "method "
 			}
-		}
-
-	case *types.Var:
-		// TODO(adonovan): go/types should make it simple to
-		// ask: IsStructField(*Var)?
-		if false {
-			prefix = "struct field "
 		}
 	}
 

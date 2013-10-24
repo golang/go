@@ -37,7 +37,7 @@ func emitLoad(f *Function, addr Value) *UnOp {
 // emitDebugRef emits to f a DebugRef pseudo-instruction associating
 // expression e with value v.
 //
-func emitDebugRef(f *Function, e ast.Expr, v Value) {
+func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 	if !f.debugInfo() {
 		return // debugging not enabled
 	}
@@ -50,13 +50,15 @@ func emitDebugRef(f *Function, e ast.Expr, v Value) {
 			return
 		}
 		obj = f.Pkg.objectOf(id)
-		if _, ok := obj.(*types.Const); ok {
+		switch obj.(type) {
+		case *types.Nil, *types.Const, *types.Builtin:
 			return
 		}
 	}
 	f.emit(&DebugRef{
 		X:      v,
 		Expr:   unparen(e),
+		IsAddr: isAddr,
 		object: obj,
 	})
 }
