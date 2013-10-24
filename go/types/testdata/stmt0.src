@@ -361,9 +361,9 @@ func switches0() {
 
 	switch x {
 	case 1:
-	case 1 /* ERROR "duplicate case" */ :
+	case 1 /* DISABLED "duplicate case" */ :
 	case 2, 3, 4:
-	case 1 /* ERROR "duplicate case" */ :
+	case 1 /* DISABLED "duplicate case" */ :
 	}
 
 	// TODO(gri) duplicate 64bit values that don't fit into an int64 are not yet detected

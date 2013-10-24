@@ -190,4 +190,3 @@ func Implements(V Type, T *Interface, static bool) bool {
 }
 
 // BUG(gri): Interface vs non-interface comparisons are not correctly implemented.
-// BUG(gri): Switch statements don't check duplicate cases for all types for which it is required.

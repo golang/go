@@ -99,6 +99,28 @@ func (check *checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
 }
 
+func (check *checker) caseValues(x operand /* copy argument (not *operand!) */, values []ast.Expr) {
+	// No duplicate checking for now. See issue 4524.
+	for _, e := range values {
+		var y operand
+		check.expr(&y, e)
+		if y.mode == invalid {
+			return
+		}
+		// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
+		// Order matters: By comparing y against x, error positions are at the case values.
+		check.convertUntyped(&y, x.typ)
+		if y.mode == invalid {
+			return
+		}
+		check.convertUntyped(&x, y.typ)
+		if x.mode == invalid {
+			return
+		}
+		check.comparison(&y, &x, token.EQL)
+	}
+}
+
 // stmt typechecks statement s.
 func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	// statements cannot use iota in general
@@ -296,53 +318,15 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.expr(&x, tag)
 
 		check.multipleDefaults(s.Body.List)
-		// TODO(gri) check also correct use of fallthrough
-		seen := make(map[interface{}]token.Pos)
+
 		for i, c := range s.Body.List {
 			clause, _ := c.(*ast.CaseClause)
 			if clause == nil {
-				continue // error reported before
+				check.invalidAST(c.Pos(), "incorrect expression switch case")
+				continue
 			}
 			if x.mode != invalid {
-				for _, expr := range clause.List {
-					x := x // copy of x (don't modify original)
-					var y operand
-					check.expr(&y, expr)
-					if y.mode == invalid {
-						continue // error reported before
-					}
-					// If we have a constant case value, it must appear only
-					// once in the switch statement. Determine if there is a
-					// duplicate entry, but only report an error if there are
-					// no other errors.
-					var dupl token.Pos
-					var yy operand
-					if y.mode == constant {
-						// TODO(gri) This code doesn't work correctly for
-						//           large integer, floating point, or
-						//           complex values - the respective struct
-						//           comparisons are shallow. Need to use a
-						//           hash function to index the map.
-						dupl = seen[y.val]
-						seen[y.val] = y.pos()
-						yy = y // remember y
-					}
-					// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
-					// Order matters: By comparing y against x, error positions are at the case values.
-					check.convertUntyped(&y, x.typ)
-					if y.mode == invalid {
-						continue // error reported before
-					}
-					check.convertUntyped(&x, y.typ)
-					if x.mode == invalid {
-						continue // error reported before
-					}
-					check.comparison(&y, &x, token.EQL)
-					if y.mode != invalid && dupl.IsValid() {
-						check.errorf(yy.pos(), "%s is duplicate case (previous at %s)",
-							&yy, check.fset.Position(dupl))
-					}
-				}
+				check.caseValues(x, clause.List)
 			}
 			check.openScope(clause)
 			inner := inner
@@ -411,6 +395,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 		check.multipleDefaults(s.Body.List)
+
 		var lhsVars []*Var // set of implicitly declared lhs variables
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
@@ -459,7 +444,9 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.SelectStmt:
 		inner |= inBreakable
+
 		check.multipleDefaults(s.Body.List)
+
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CommClause)
 			if clause == nil {
