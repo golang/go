@@ -364,17 +364,18 @@ func makeSingleStringReplacer(pattern string, value string) *singleStringReplace
 
 func (r *singleStringReplacer) Replace(s string) string {
 	var buf []byte
-	i := 0
+	i, matched := 0, false
 	for {
 		match := r.finder.next(s[i:])
 		if match == -1 {
 			break
 		}
+		matched = true
 		buf = append(buf, s[i:i+match]...)
 		buf = append(buf, r.value...)
 		i += match + len(r.finder.pattern)
 	}
-	if buf == nil {
+	if !matched {
 		return s
 	}
 	buf = append(buf, s[i:]...)

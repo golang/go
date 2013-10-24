@@ -261,8 +261,19 @@ func TestReplacer(t *testing.T) {
 	testCases = append(testCases,
 		testCase{abcMatcher, "", ""},
 		testCase{abcMatcher, "ab", "ab"},
+		testCase{abcMatcher, "abc", "[match]"},
 		testCase{abcMatcher, "abcd", "[match]d"},
 		testCase{abcMatcher, "cabcabcdabca", "c[match][match]d[match]a"},
+	)
+
+	// Issue 6659 cases (more single string replacer)
+
+	noHello := NewReplacer("Hello", "")
+	testCases = append(testCases,
+		testCase{noHello, "Hello", ""},
+		testCase{noHello, "Hellox", "x"},
+		testCase{noHello, "xHello", "x"},
+		testCase{noHello, "xHellox", "xx"},
 	)
 
 	// No-arg test cases.
