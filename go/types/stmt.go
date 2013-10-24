@@ -121,6 +121,31 @@ func (check *checker) caseValues(x operand /* copy argument (not *operand!) */, 
 	}
 }
 
+func (check *checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]token.Pos) (T Type) {
+L:
+	for _, e := range types {
+		T = check.typOrNil(e)
+		if T == Typ[Invalid] {
+			continue
+		}
+		// complain about duplicate types
+		// TODO(gri) use a type hash to avoid quadratic algorithm
+		for t, pos := range seen {
+			if T == nil && t == nil || T != nil && t != nil && IsIdentical(T, t) {
+				// talk about "case" rather than "type" because of nil case
+				check.errorf(e.Pos(), "duplicate case in type switch")
+				check.errorf(pos, "previous case %s", T)
+				continue L
+			}
+		}
+		seen[T] = e.Pos()
+		if T != nil {
+			check.typeAssertion(e.Pos(), x, xtyp, T)
+		}
+	}
+	return
+}
+
 // stmt typechecks statement s.
 func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	// statements cannot use iota in general
@@ -396,20 +421,16 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		check.multipleDefaults(s.Body.List)
 
-		var lhsVars []*Var // set of implicitly declared lhs variables
+		var lhsVars []*Var               // set of implicitly declared lhs variables
+		seen := make(map[Type]token.Pos) // map of seen types to positions
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
 			if clause == nil {
-				continue // error reported before
+				check.invalidAST(s.Pos(), "incorrect type switch case")
+				continue
 			}
 			// Check each type in this type switch case.
-			var T Type
-			for _, expr := range clause.List {
-				T = check.typOrNil(expr)
-				if T != nil && T != Typ[Invalid] {
-					check.typeAssertion(expr.Pos(), &x, xtyp, T)
-				}
-			}
+			T := check.caseTypes(&x, xtyp, clause.List, seen)
 			check.openScope(clause)
 			// If lhs exists, declare a corresponding variable in the case-local scope if necessary.
 			if lhs != nil {

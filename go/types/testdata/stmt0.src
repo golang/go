@@ -528,11 +528,33 @@ type B interface { b() }
 type C interface { a(int) }
 
 func typeswitch2() {
-   switch A(nil).(type) {
-   case A:
-   case B:
-   case C /* ERROR "cannot have dynamic type" */:
-   }
+	switch A(nil).(type) {
+	case A:
+	case B:
+	case C /* ERROR "cannot have dynamic type" */:
+	}
+}
+
+func typeswitch3(x interface{}) {
+	switch x.(type) {
+	case int /* ERROR previous case int */ :
+	case float64:
+	case int /* ERROR duplicate case */ :
+	}
+
+	switch x.(type) {
+	case nil /* ERROR previous case <nil> */ /* ERROR previous case <nil> */ :
+	case int:
+	case nil /* ERROR duplicate case */ , nil /* ERROR duplicate case */ :
+	}
+
+	type F func(int)
+	switch x.(type) {
+	case nil:
+	case int, func /* ERROR previous case */ (int):
+	case float32, func /* ERROR duplicate case */ (x int):
+	case F:
+	}
 }
 
 func rangeloops1() {

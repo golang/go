@@ -119,14 +119,12 @@ func TestStdtest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go",          // also needs file cmplxdivide1.go - ignore
 		"mapnan.go", "sigchld.go", // don't work on Windows; testTestDir should consult build tags
-		"typeswitch2.go", // TODO(gri) implement duplicate checking in type switches
 	)
 }
 
 func TestStdfixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
-		"bug200.go",                           // TODO(gri) complete duplicate checking in type switches
 		"bug223.go", "bug413.go", "bug459.go", // TODO(gri) complete initialization checks
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
