@@ -7,6 +7,9 @@
 //
 // The sql package must be used in conjunction with a database driver.
 // See http://golang.org/s/sqldrivers for a list of drivers.
+//
+// For more usage examples, see the wiki page at
+// http://golang.org/s/sqlwiki.
 package sql
 
 import (
