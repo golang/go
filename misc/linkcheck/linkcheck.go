@@ -8,11 +8,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -101,49 +103,71 @@ func crawl(url string, sourceURL string) {
 
 func addProblem(url, errmsg string) {
 	msg := fmt.Sprintf("Error on %s: %s (from %s)", url, errmsg, linkSources[url])
-	log.Print(msg)
+	if *verbose {
+		log.Print(msg)
+	}
 	problems = append(problems, msg)
 }
 
 func crawlLoop() {
 	for url := range urlq {
-		res, err := http.Get(url)
-		if err != nil {
-			addProblem(url, fmt.Sprintf("Error fetching: %v", err))
-			wg.Done()
-			continue
+		if err := doCrawl(url); err != nil {
+			addProblem(url, err.Error())
 		}
-		if res.StatusCode != 200 {
-			addProblem(url, fmt.Sprintf("Status code = %d", res.StatusCode))
-			wg.Done()
-			continue
-		}
-		slurp, err := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			log.Fatalf("Error reading %s body: %v", url, err)
-		}
-		if *verbose {
-			log.Printf("Len of %s: %d", url, len(slurp))
-		}
-		body := string(slurp)
-		for _, ref := range localLinks(body) {
-			if *verbose {
-				log.Printf("  links to %s", ref)
-			}
-			dest := *root + ref
-			linkSources[dest] = append(linkSources[dest], url)
-			crawl(dest, url)
-		}
-		for _, id := range pageIDs(body) {
-			if *verbose {
-				log.Printf(" url %s has #%s", url, id)
-			}
-			fragExists[urlFrag{url, id}] = true
-		}
-
-		wg.Done()
 	}
+}
+
+func doCrawl(url string) error {
+	defer wg.Done()
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	res, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		return err
+	}
+	// Handle redirects.
+	if res.StatusCode/100 == 3 {
+		newURL, err := res.Location()
+		if err != nil {
+			return fmt.Errorf("resolving redirect: %v", err)
+		}
+		if !strings.HasPrefix(newURL.String(), *root) {
+			// Skip off-site redirects.
+			return nil
+		}
+		crawl(newURL.String(), url)
+		return nil
+	}
+	if res.StatusCode != 200 {
+		return errors.New(res.Status)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		log.Fatalf("Error reading %s body: %v", url, err)
+	}
+	if *verbose {
+		log.Printf("Len of %s: %d", url, len(slurp))
+	}
+	body := string(slurp)
+	for _, ref := range localLinks(body) {
+		if *verbose {
+			log.Printf("  links to %s", ref)
+		}
+		dest := *root + ref
+		linkSources[dest] = append(linkSources[dest], url)
+		crawl(dest, url)
+	}
+	for _, id := range pageIDs(body) {
+		if *verbose {
+			log.Printf(" url %s has #%s", url, id)
+		}
+		fragExists[urlFrag{url, id}] = true
+	}
+	return nil
 }
 
 func main() {
@@ -151,7 +175,6 @@ func main() {
 
 	go crawlLoop()
 	crawl(*root, "")
-	crawl(*root+"/doc/go1.1.html", "")
 
 	wg.Wait()
 	close(urlq)
@@ -163,5 +186,8 @@ func main() {
 
 	for _, s := range problems {
 		fmt.Println(s)
+	}
+	if len(problems) > 0 {
+		os.Exit(1)
 	}
 }
