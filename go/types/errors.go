@@ -193,7 +193,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, isVariadic bool) {
 			typ := v.typ
 			if isVariadic && i == len(tup.vars)-1 {
 				buf.WriteString("...")
-				typ = typ.(*Slice).elt
+				typ = typ.(*Slice).elem
 			}
 			writeType(buf, typ)
 		}
@@ -231,11 +231,11 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Array:
 		fmt.Fprintf(buf, "[%d]", t.len)
-		writeType(buf, t.elt)
+		writeType(buf, t.elem)
 
 	case *Slice:
 		buf.WriteString("[]")
-		writeType(buf, t.elt)
+		writeType(buf, t.elem)
 
 	case *Struct:
 		buf.WriteString("struct{")
@@ -300,7 +300,7 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		buf.WriteString("map[")
 		writeType(buf, t.key)
 		buf.WriteByte(']')
-		writeType(buf, t.elt)
+		writeType(buf, t.elem)
 
 	case *Chan:
 		var s string
@@ -313,7 +313,7 @@ func writeType(buf *bytes.Buffer, typ Type) {
 			s = "chan "
 		}
 		buf.WriteString(s)
-		writeType(buf, t.elt)
+		writeType(buf, t.elem)
 
 	case *Named:
 		s := "<Named w/o object>"

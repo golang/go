@@ -108,7 +108,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 			return
 		}
 		x.mode = commaok
-		x.typ = typ.elt
+		x.typ = typ.elem
 		return
 	}
 
@@ -987,7 +987,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{len: -1, elt: check.typ(atyp.Elt, nil, false)}
+					typ = &Array{len: -1, elem: check.typ(atyp.Elt, nil, false)}
 					openArray = true
 				}
 			}
@@ -1070,14 +1070,14 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 
 		case *Array:
-			n := check.indexedElts(e.Elts, utyp.elt, utyp.len)
+			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
 			// if we have an "open" [...]T array, set the length now that we know it
 			if openArray {
 				utyp.len = n
 			}
 
 		case *Slice:
-			check.indexedElts(e.Elts, utyp.elt, -1)
+			check.indexedElts(e.Elts, utyp.elem, -1)
 
 		case *Map:
 			visited := make(map[interface{}]bool, len(e.Elts))
@@ -1101,10 +1101,10 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 					visited[x.val] = true
 				}
-				check.exprWithHint(x, kv.Value, utyp.elt)
-				if !check.assignment(x, utyp.elt) {
+				check.exprWithHint(x, kv.Value, utyp.elem)
+				if !check.assignment(x, utyp.elem) {
 					if x.mode != invalid {
-						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.elt)
+						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.elem)
 					}
 					continue
 				}
@@ -1154,20 +1154,20 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			if x.mode != variable {
 				x.mode = value
 			}
-			x.typ = typ.elt
+			x.typ = typ.elem
 
 		case *Pointer:
 			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				valid = true
 				length = typ.len
 				x.mode = variable
-				x.typ = typ.elt
+				x.typ = typ.elem
 			}
 
 		case *Slice:
 			valid = true
 			x.mode = variable
-			x.typ = typ.elt
+			x.typ = typ.elem
 
 		case *Map:
 			var key operand
@@ -1179,7 +1179,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				goto Error
 			}
 			x.mode = mapindex
-			x.typ = typ.elt
+			x.typ = typ.elem
 			x.expr = e
 			return expression
 		}
@@ -1231,14 +1231,14 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				check.invalidOp(x.pos(), "cannot slice %s (value not addressable)", x)
 				goto Error
 			}
-			x.typ = &Slice{elt: typ.elt}
+			x.typ = &Slice{elem: typ.elem}
 
 		case *Pointer:
 			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				valid = true
 				length = typ.len
 				x.mode = variable
-				x.typ = &Slice{elt: typ.elt}
+				x.typ = &Slice{elem: typ.elem}
 			}
 
 		case *Slice:

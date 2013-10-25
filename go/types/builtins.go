@@ -69,7 +69,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		S := x.typ
 		var T Type
 		if s, _ := S.Underlying().(*Slice); s != nil {
-			T = s.elt
+			T = s.elem
 		} else {
 			check.invalidArg(x.pos(), "%s is not a slice", x)
 			return
@@ -262,7 +262,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// copy(x, y []T) int
 		var dst Type
 		if t, _ := x.typ.Underlying().(*Slice); t != nil {
-			dst = t.elt
+			dst = t.elem
 		}
 
 		var y operand
@@ -277,7 +277,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				src = Typ[Byte]
 			}
 		case *Slice:
-			src = t.elt
+			src = t.elem
 		}
 
 		if dst == nil || src == nil {

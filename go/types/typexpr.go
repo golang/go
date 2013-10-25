@@ -265,7 +265,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 			}
 
 			typ.len = n
-			typ.elt = check.typ(e.Elt, nil, cycleOk)
+			typ.elem = check.typ(e.Elt, nil, cycleOk)
 			return typ
 
 		} else {
@@ -274,7 +274,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 				def.underlying = typ
 			}
 
-			typ.elt = check.typ(e.Elt, nil, true)
+			typ.elem = check.typ(e.Elt, nil, true)
 			return typ
 		}
 
@@ -309,7 +309,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 		}
 
 		typ.key = check.typ(e.Key, nil, true)
-		typ.elt = check.typ(e.Value, nil, true)
+		typ.elem = check.typ(e.Value, nil, true)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -329,7 +329,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 		}
 
 		typ.dir = e.Dir
-		typ.elt = check.typ(e.Value, nil, true)
+		typ.elem = check.typ(e.Value, nil, true)
 		return typ
 
 	default:
@@ -401,7 +401,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	// For a variadic function, change the last parameter's type from T to []T.
 	if isVariadic && len(params) > 0 {
 		last := params[len(params)-1]
-		last.typ = &Slice{elt: last.typ}
+		last.typ = &Slice{elem: last.typ}
 	}
 
 	return

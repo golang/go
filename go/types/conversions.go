@@ -135,7 +135,7 @@ func isPointer(typ Type) bool {
 
 func isBytesOrRunes(typ Type) bool {
 	if s, ok := typ.(*Slice); ok {
-		t, ok := s.elt.Underlying().(*Basic)
+		t, ok := s.elem.Underlying().(*Basic)
 		return ok && (t.kind == Byte || t.kind == Rune)
 	}
 	return false

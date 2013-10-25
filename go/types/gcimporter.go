@@ -415,12 +415,12 @@ func (p *gcParser) parseArrayType() Type {
 	// "[" already consumed and lookahead known not to be "]"
 	lit := p.expect(scanner.Int)
 	p.expect(']')
-	elt := p.parseType()
+	elem := p.parseType()
 	n, err := strconv.ParseInt(lit, 10, 64)
 	if err != nil {
 		p.error(err)
 	}
-	return &Array{len: n, elt: elt}
+	return &Array{len: n, elem: elem}
 }
 
 // MapType = "map" "[" Type "]" Type .
@@ -430,8 +430,8 @@ func (p *gcParser) parseMapType() Type {
 	p.expect('[')
 	key := p.parseType()
 	p.expect(']')
-	elt := p.parseType()
-	return &Map{key: key, elt: elt}
+	elem := p.parseType()
+	return &Map{key: key, elem: elem}
 }
 
 // Name = identifier | "?" | QualifiedName .
@@ -550,7 +550,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 	}
 	typ := p.parseType()
 	if isVariadic {
-		typ = &Slice{elt: typ}
+		typ = &Slice{elem: typ}
 	}
 	// ignore argument tag (e.g. "noescape")
 	if p.tok == scanner.String {
@@ -657,8 +657,8 @@ func (p *gcParser) parseChanType() Type {
 		p.expectKeyword("chan")
 		dir = ast.RECV
 	}
-	elt := p.parseType()
-	return &Chan{dir: dir, elt: elt}
+	elem := p.parseType()
+	return &Chan{dir: dir, elem: elem}
 }
 
 // Type =
@@ -700,7 +700,7 @@ func (p *gcParser) parseType() Type {
 		if p.tok == ']' {
 			// SliceType
 			p.next()
-			return &Slice{elt: p.parseType()}
+			return &Slice{elem: p.parseType()}
 		}
 		return p.parseArrayType()
 	case '*':

@@ -90,7 +90,7 @@ func isComparable(typ Type) bool {
 		}
 		return true
 	case *Array:
-		return isComparable(t.elt)
+		return isComparable(t.elem)
 	}
 	return false
 }
@@ -139,13 +139,13 @@ func isIdenticalInternal(x, y Type, p *ifacePair) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.len == y.len && isIdenticalInternal(x.elt, y.elt, p)
+			return x.len == y.len && isIdenticalInternal(x.elem, y.elem, p)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return isIdenticalInternal(x.elt, y.elt, p)
+			return isIdenticalInternal(x.elem, y.elem, p)
 		}
 
 	case *Struct:
@@ -256,14 +256,14 @@ func isIdenticalInternal(x, y Type, p *ifacePair) bool {
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return isIdenticalInternal(x.key, y.key, p) && isIdenticalInternal(x.elt, y.elt, p)
+			return isIdenticalInternal(x.key, y.key, p) && isIdenticalInternal(x.elem, y.elem, p)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
 		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return x.dir == y.dir && isIdenticalInternal(x.elt, y.elt, p)
+			return x.dir == y.dir && isIdenticalInternal(x.elem, y.elem, p)
 		}
 
 	case *Named:

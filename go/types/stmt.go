@@ -202,7 +202,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir&ast.SEND == 0 || !check.assignment(&x, tch.elt) {
+		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir&ast.SEND == 0 || !check.assignment(&x, tch.elem) {
 			if x.mode != invalid {
 				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
 			}
@@ -524,20 +524,20 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 		case *Array:
 			key = Typ[Int]
-			val = typ.elt
+			val = typ.elem
 		case *Slice:
 			key = Typ[Int]
-			val = typ.elt
+			val = typ.elem
 		case *Pointer:
 			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				key = Typ[Int]
-				val = typ.elt
+				val = typ.elem
 			}
 		case *Map:
 			key = typ.key
-			val = typ.elt
+			val = typ.elem
 		case *Chan:
-			key = typ.elt
+			key = typ.elem
 			val = Typ[Invalid]
 			if typ.dir&ast.RECV == 0 {
 				check.errorf(x.pos(), "cannot range over send-only channel %s", &x)

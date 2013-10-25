@@ -101,8 +101,8 @@ func (b *Basic) Name() string { return b.name }
 
 // An Array represents an array type.
 type Array struct {
-	len int64
-	elt Type
+	len  int64
+	elem Type
 }
 
 // NewArray returns a new array type for the given element type and length.
@@ -112,18 +112,18 @@ func NewArray(elem Type, len int64) *Array { return &Array{len, elem} }
 func (a *Array) Len() int64 { return a.len }
 
 // Elem returns element type of array a.
-func (a *Array) Elem() Type { return a.elt }
+func (a *Array) Elem() Type { return a.elem }
 
 // A Slice represents a slice type.
 type Slice struct {
-	elt Type
+	elem Type
 }
 
 // NewSlice returns a new slice type for the given element type.
 func NewSlice(elem Type) *Slice { return &Slice{elem} }
 
 // Elem returns the element type of slice s.
-func (s *Slice) Elem() Type { return s.elt }
+func (s *Slice) Elem() Type { return s.elem }
 
 // A Struct represents a struct type.
 type Struct struct {
@@ -263,7 +263,7 @@ func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 
 // A Map represents a map type.
 type Map struct {
-	key, elt Type
+	key, elem Type
 }
 
 // NewMap returns a new map for the given key and element types.
@@ -275,12 +275,12 @@ func NewMap(key, elem Type) *Map {
 func (m *Map) Key() Type { return m.key }
 
 // Elem returns the element type of map m.
-func (m *Map) Elem() Type { return m.elt }
+func (m *Map) Elem() Type { return m.elem }
 
 // A Chan represents a channel type.
 type Chan struct {
-	dir ast.ChanDir
-	elt Type
+	dir  ast.ChanDir
+	elem Type
 }
 
 // NewChan returns a new channel type for the given direction and element type.
@@ -292,7 +292,7 @@ func NewChan(dir ast.ChanDir, elem Type) *Chan {
 func (c *Chan) Dir() ast.ChanDir { return c.dir }
 
 // Elem returns the element type of channel c.
-func (c *Chan) Elem() Type { return c.elt }
+func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {

@@ -237,7 +237,7 @@ func (check *checker) argument(sig *Signature, i int, x *operand, passSlice bool
 		}
 	} else if sig.isVariadic && i >= n-1 {
 		// use the variadic parameter slice's element type
-		typ = typ.(*Slice).elt
+		typ = typ.(*Slice).elem
 	}
 
 	if !check.assignment(x, typ) && x.mode != invalid {
