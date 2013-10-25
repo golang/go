@@ -314,11 +314,14 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
 		// function, map, or slice."
-		// TODO(gri) if the key type is not fully defined yet, this test will be incorrect
-		if !isComparable(typ.key) {
-			check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
-			// ok to continue
-		}
+		//
+		// Delay this check because it requires fully setup types;
+		// it is safe to continue in any case (was issue 6667).
+		check.delay(func() {
+			if !isComparable(typ.key) {
+				check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
+			}
+		})
 
 		return typ
 

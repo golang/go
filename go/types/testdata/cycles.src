@@ -109,3 +109,11 @@ func _() {
 		c0 chan c0
 	)
 }
+
+// test cases for issue 6667
+
+type A [10]map[A /* ERROR invalid map key */ ]bool
+
+type S struct {
+	m map[S /* ERROR invalid map key */ ]bool
+}

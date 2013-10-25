@@ -38,6 +38,7 @@ type checker struct {
 	conversions map[*ast.CallExpr]bool // set of type-checked conversions (to distinguish from calls)
 	untyped     map[ast.Expr]exprInfo  // map of expressions without final type
 	lhsVarsList [][]*Var               // type switch lhs variable sets, for 'declared but not used' errors
+	delayed     []func()               // delayed checks that require fully setup types
 
 	firstErr error // first error encountered
 	Info           // collected type info
@@ -64,6 +65,10 @@ func newChecker(conf *Config, fset *token.FileSet, pkg *Package) *checker {
 		conversions: make(map[*ast.CallExpr]bool),
 		untyped:     make(map[ast.Expr]exprInfo),
 	}
+}
+
+func (check *checker) delay(f func()) {
+	check.delayed = append(check.delayed, f)
 }
 
 func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) {
@@ -195,6 +200,12 @@ func (conf *Config) check(pkgPath string, fset *token.FileSet, files []*ast.File
 	}
 
 	check.resolveFiles(files[:i])
+
+	// perform delayed checks
+	for _, f := range check.delayed {
+		f()
+	}
+	check.delayed = nil // not needed anymore
 
 	// remaining untyped expressions must indeed be untyped
 	if debug {

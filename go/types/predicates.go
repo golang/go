@@ -79,7 +79,9 @@ func isInterface(typ Type) bool {
 func isComparable(typ Type) bool {
 	switch t := typ.Underlying().(type) {
 	case *Basic:
-		return t.kind != Invalid && t.kind != UntypedNil
+		// assume invalid types to be comparable
+		// to avoid follow-up errors
+		return t.kind != UntypedNil
 	case *Pointer, *Interface, *Chan:
 		return true
 	case *Struct:
