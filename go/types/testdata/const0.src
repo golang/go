@@ -100,7 +100,7 @@ const (
 	tb0 bool = false
 	tb1 bool = true
 	tb2 mybool = 2 < 1
-	tb3 mybool = ti1 /* ERROR "cannot compare" */ == tf1
+	tb3 mybool = ti1 /* ERROR "mismatched types" */ == tf1
 
 	// integer values
 	ti0 int8 = ui0

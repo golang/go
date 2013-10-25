@@ -81,7 +81,6 @@ func isComparable(typ Type) bool {
 	case *Basic:
 		return t.kind != Invalid && t.kind != UntypedNil
 	case *Pointer, *Interface, *Chan:
-		// assumes types are equal for pointers and channels
 		return true
 	case *Struct:
 		for _, f := range t.fields {

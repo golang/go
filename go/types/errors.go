@@ -24,7 +24,7 @@ func unreachable() {
 	panic("unreachable")
 }
 
-func (check *checker) formatMsg(format string, args []interface{}) string {
+func (check *checker) sprintf(format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -44,13 +44,13 @@ func (check *checker) trace(pos token.Pos, format string, args ...interface{}) {
 	fmt.Printf("%s:\t%s%s\n",
 		check.fset.Position(pos),
 		strings.Repeat(".  ", check.indent),
-		check.formatMsg(format, args),
+		check.sprintf(format, args...),
 	)
 }
 
 // dump is only needed for debugging
 func (check *checker) dump(format string, args ...interface{}) {
-	fmt.Println(check.formatMsg(format, args))
+	fmt.Println(check.sprintf(format, args...))
 }
 
 func (check *checker) err(err error) {
@@ -65,7 +65,7 @@ func (check *checker) err(err error) {
 }
 
 func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	check.err(fmt.Errorf("%s: %s", check.fset.Position(pos), check.formatMsg(format, args)))
+	check.err(fmt.Errorf("%s: %s", check.fset.Position(pos), check.sprintf(format, args...)))
 }
 
 func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {

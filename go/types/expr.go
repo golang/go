@@ -560,24 +560,34 @@ Error:
 }
 
 func (check *checker) comparison(x, y *operand, op token.Token) {
-	// TODO(gri) deal with interface vs non-interface comparison
-
-	valid := false
+	// spec: "In any comparison, the first operand must be assignable
+	// to the type of the second operand, or vice versa."
+	err := ""
 	if x.isAssignableTo(check.conf, y.typ) || y.isAssignableTo(check.conf, x.typ) {
+		defined := false
 		switch op {
 		case token.EQL, token.NEQ:
-			valid = isComparable(x.typ) ||
-				x.isNil() && hasNil(y.typ) ||
-				y.isNil() && hasNil(x.typ)
+			// spec: "The equality operators == and != apply to operands that are comparable."
+			defined = isComparable(x.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
 		case token.LSS, token.LEQ, token.GTR, token.GEQ:
-			valid = isOrdered(x.typ)
+			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
+			defined = isOrdered(x.typ)
 		default:
 			unreachable()
 		}
+		if !defined {
+			typ := x.typ
+			if x.isNil() {
+				typ = y.typ
+			}
+			err = check.sprintf("operator %s not defined for %s", op, typ)
+		}
+	} else {
+		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
 	}
 
-	if !valid {
-		check.invalidOp(x.pos(), "cannot compare %s %s %s", x, op, y)
+	if err != "" {
+		check.errorf(x.pos(), "cannot compare %s %s %s (%s)", x.expr, op, y.expr, err)
 		x.mode = invalid
 		return
 	}

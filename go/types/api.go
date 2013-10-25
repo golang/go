@@ -188,5 +188,3 @@ func Implements(V Type, T *Interface, static bool) bool {
 	f, _ := MissingMethod(V, T, static)
 	return f == nil
 }
-
-// BUG(gri): Interface vs non-interface comparisons are not correctly implemented.
