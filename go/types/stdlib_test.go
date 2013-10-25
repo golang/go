@@ -124,7 +124,6 @@ func TestStdtest(t *testing.T) {
 
 func TestStdfixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
-		"bug165.go",                           // TODO(gri) isComparable not working for incomplete struct type
 		"bug223.go", "bug413.go", "bug459.go", // TODO(gri) complete initialization checks
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue3924.go", // TODO(gri) && and || produce bool result (not untyped bool)
