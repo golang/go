@@ -82,6 +82,7 @@ var gorootTestTests = []string{
 	"zerodivide.go",
 	"convert.go",
 	"convT2X.go",
+	"switch.go",
 	"initialize.go",
 	"ddd.go",
 	"blank.go", // partly disabled
@@ -118,9 +119,6 @@ var gorootTestTests = []string{
 	// "rotate.go rotate3.go", // emits source for a test
 	// "64bit.go",             // emits source for a test
 	// "run.go",               // test driver, not a test.
-
-	// Typechecker failures:
-	// "switch.go",            // https://code.google.com/p/go/issues/detail?id=5505
 
 	// Broken.  TODO(adonovan): fix.
 	// copy.go         // very slow; but with N=4 quickly crashes, slice index out of range.
