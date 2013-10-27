@@ -26,8 +26,8 @@ import (
 // Returns nil if not found; reasons might include:
 //    - the node is not enclosed by any function.
 //    - the node is within an anonymous function (FuncLit) and
-//      its SSA function has not been created yet (pkg.BuildPackage()
-//      has not yet been called).
+//      its SSA function has not been created yet
+//      (pkg.Build() has not yet been called).
 //
 func EnclosingFunction(pkg *Package, path []ast.Node) *Function {
 	// Start with package-level function...

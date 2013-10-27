@@ -95,26 +95,19 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pkg.Members[name] = g
 
 	case *types.Func:
-		var fs *funcSyntax
-		synthetic := "loaded from gc object file"
-		if decl, ok := syntax.(*ast.FuncDecl); ok {
-			synthetic = ""
-			fs = &funcSyntax{
-				functype:  decl.Type,
-				recvField: decl.Recv,
-				body:      decl.Body,
-			}
-		}
 		fn := &Function{
 			name:      name,
 			object:    obj,
 			Signature: obj.Type().(*types.Signature),
-			Synthetic: synthetic,
+			syntax:    syntax,
 			pos:       obj.Pos(), // (iff syntax)
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
-			syntax:    fs,
 		}
+		if syntax == nil {
+			fn.Synthetic = "loaded from gc object file"
+		}
+
 		pkg.values[obj] = fn
 		if fn.Signature.Recv() == nil {
 			pkg.Members[name] = fn // package-level function

@@ -339,6 +339,9 @@ func (s *sanity) checkFunction(fn *Function) bool {
 			s.errorf("nil Pkg")
 		}
 	}
+	if src, syn := fn.Synthetic == "", fn.Syntax() != nil; src != syn {
+		s.errorf("got fromSource=%t, hasSyntax=%t; want same values", src, syn)
+	}
 	for i, l := range fn.Locals {
 		if l.Parent() != fn {
 			s.errorf("Local %s at index %d has wrong parent", l.Name(), i)

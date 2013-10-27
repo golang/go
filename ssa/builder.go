@@ -514,10 +514,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			Enclosing: fn,
 			Pkg:       fn.Pkg,
 			Prog:      fn.Prog,
-			syntax: &funcSyntax{
-				functype: e.Type,
-				body:     e.Body,
-			},
+			syntax:    e,
 		}
 		fn.AnonFuncs = append(fn.AnonFuncs, fn2)
 		b.buildFunction(fn2)
@@ -2214,10 +2211,25 @@ func (b *builder) buildFunction(fn *Function) {
 	if fn.Blocks != nil {
 		return // building already started
 	}
-	if fn.syntax == nil {
+
+	var recvField *ast.FieldList
+	var body *ast.BlockStmt
+	var functype *ast.FuncType
+	switch n := fn.syntax.(type) {
+	case nil:
 		return // not a Go source function.  (Synthetic, or from object file.)
+	case *ast.FuncDecl:
+		functype = n.Type
+		recvField = n.Recv
+		body = n.Body
+	case *ast.FuncLit:
+		functype = n.Type
+		body = n.Body
+	default:
+		panic(n)
 	}
-	if fn.syntax.body == nil {
+
+	if body == nil {
 		// External function.
 		if fn.Params == nil {
 			// This condition ensures we add a non-empty
@@ -2241,8 +2253,8 @@ func (b *builder) buildFunction(fn *Function) {
 		defer logStack("build function %s @ %s", fn, fn.Prog.Fset.Position(fn.pos))()
 	}
 	fn.startBody()
-	fn.createSyntacticParams()
-	b.stmt(fn, fn.syntax.body)
+	fn.createSyntacticParams(recvField, functype)
+	b.stmt(fn, body)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb == fn.Recover || cb.Preds != nil) {
 		// Run function calls deferred in this function when
 		// falling off the end of the body block.
@@ -2269,11 +2281,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 			pos:       decl.Name.NamePos,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
-			syntax: &funcSyntax{
-				functype:  decl.Type,
-				recvField: decl.Recv,
-				body:      decl.Body,
-			},
+			syntax:    decl,
 		}
 
 		var v Call

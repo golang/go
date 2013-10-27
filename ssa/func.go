@@ -147,13 +147,6 @@ type lblock struct {
 	_continue *BasicBlock
 }
 
-// funcSyntax holds the syntax tree for the function declaration and body.
-type funcSyntax struct {
-	recvField *ast.FieldList
-	body      *ast.BlockStmt
-	functype  *ast.FuncType
-}
-
 // labelledBlock returns the branch target associated with the
 // specified label, creating it if needed.
 //
@@ -221,15 +214,14 @@ func (f *Function) startBody() {
 // syntax.  In addition it populates the f.objects mapping.
 //
 // Preconditions:
-// f.syntax != nil, i.e. this is a Go source function.
 // f.startBody() was called.
 // Postcondition:
 // len(f.Params) == len(f.Signature.Params) + (f.Signature.Recv() ? 1 : 0)
 //
-func (f *Function) createSyntacticParams() {
+func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.FuncType) {
 	// Receiver (at most one inner iteration).
-	if f.syntax.recvField != nil {
-		for _, field := range f.syntax.recvField.List {
+	if recv != nil {
+		for _, field := range recv.List {
 			for _, n := range field.Names {
 				f.addSpilledParam(f.Pkg.objectOf(n))
 			}
@@ -241,9 +233,9 @@ func (f *Function) createSyntacticParams() {
 	}
 
 	// Parameters.
-	if f.syntax.functype.Params != nil {
+	if functype.Params != nil {
 		n := len(f.Params) // 1 if has recv, 0 otherwise
-		for _, field := range f.syntax.functype.Params.List {
+		for _, field := range functype.Params.List {
 			for _, n := range field.Names {
 				f.addSpilledParam(f.Pkg.objectOf(n))
 			}
@@ -255,8 +247,8 @@ func (f *Function) createSyntacticParams() {
 	}
 
 	// Named results.
-	if f.syntax.functype.Results != nil {
-		for _, field := range f.syntax.functype.Results.List {
+	if functype.Results != nil {
+		for _, field := range functype.Results.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
 				f.namedResults = append(f.namedResults, f.addLocalForIdent(n))
@@ -308,7 +300,11 @@ func (f *Function) finishBody() {
 	f.objects = nil
 	f.currentBlock = nil
 	f.lblocks = nil
-	f.syntax = nil
+
+	// Don't pin the AST in memory (except in debug mode).
+	if n := f.syntax; n != nil && !f.debugInfo() {
+		f.syntax = extentNode{n.Pos(), n.End()}
+	}
 
 	// Remove any f.Locals that are now heap-allocated.
 	j := 0
@@ -380,14 +376,12 @@ func (pkg *Package) SetDebugMode(debug bool) {
 
 // debugInfo reports whether debug info is wanted for this function.
 func (f *Function) debugInfo() bool {
-	return f.Pkg.debug
+	return f.Pkg != nil && f.Pkg.debug
 }
 
 // addNamedLocal creates a local variable, adds it to function f and
 // returns it.  Its name and type are taken from obj.  Subsequent
 // calls to f.lookup(obj) will return the same local.
-//
-// Precondition: f.syntax != nil (i.e. a Go source function).
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos())
@@ -660,3 +654,19 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 func NewFunction(name string, sig *types.Signature, provenance string) *Function {
 	return &Function{name: name, Signature: sig, Synthetic: provenance}
 }
+
+type extentNode [2]token.Pos
+
+func (n extentNode) Pos() token.Pos { return n[0] }
+func (n extentNode) End() token.Pos { return n[1] }
+
+// Syntax returns an ast.Node whose Pos/End methods provide the
+// lexical extent of the function if it was defined by Go source code
+// (f.Synthetic==""), or nil otherwise.
+//
+// If f was built with debug information (see Package.SetDebugRef),
+// the result is the *ast.FuncDecl or *ast.FuncLit that declared the
+// function.  Otherwise, it is an opaque Node providing only position
+// information; this avoids pinning the AST in memory.
+//
+func (f *Function) Syntax() ast.Node { return f.syntax }

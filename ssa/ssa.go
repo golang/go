@@ -268,6 +268,7 @@ type Function struct {
 	pos       token.Pos
 
 	Synthetic string       // provenance of synthetic function; "" for true source functions
+	syntax    ast.Node     // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
 	Enclosing *Function    // enclosing function if anon; nil if global
 	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
 	Prog      *Program     // enclosing program
@@ -283,7 +284,6 @@ type Function struct {
 	currentBlock *BasicBlock             // where to emit code
 	objects      map[types.Object]Value  // addresses of local variables
 	namedResults []*Alloc                // tuple of named results
-	syntax       *funcSyntax             // abstract syntax trees for Go source functions
 	targets      *targets                // linked stack of branch targets
 	lblocks      map[*ast.Object]*lblock // labelled blocks
 }
@@ -1167,6 +1167,9 @@ type MapUpdate struct {
 // (By representing these as instructions, rather than out-of-band,
 // consistency is maintained during transformation passes by the
 // ordinary SSA renaming machinery.)
+//
+// DebugRefs are generated only for functions built with debugging
+// enabled; see Package.SetDebugMode().
 //
 type DebugRef struct {
 	anInstruction
