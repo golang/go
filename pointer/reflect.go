@@ -12,6 +12,16 @@ package pointer
 // tagged objects.
 //
 // TODO(adonovan): all {} functions are TODO.
+//
+// TODO(adonovan): this file is rather subtle.  Explain how we derive
+// the implementation of each reflect operator from its spec,
+// including the subtleties of reflect.flag{Addr,RO,Indir}.
+// [Hint: our implementation is as if reflect.flagIndir was always
+// true, i.e. reflect.Values are pointers to tagged objects, there is
+// no inline allocation optimization; and indirect tagged objects (not
+// yet implemented) correspond to reflect.Values with
+// reflect.flagAddr.]
+// A picture would help too.
 
 import (
 	"fmt"
@@ -105,10 +115,9 @@ func (c *rVElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
 
 		switch t := tDyn.Underlying().(type) {
 		case *types.Interface:
-			// A direct tagged object can't hold an
-			// interface type.  Implement when we support
-			// indirect tagged objects.
-			panic("unreachable")
+			if a.onlineCopy(c.result, payload) {
+				changed = true
+			}
 
 		case *types.Pointer:
 			obj := a.makeTagged(t.Elem(), c.cgn, nil)
@@ -215,18 +224,25 @@ func (c *rVInterfaceConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	resultPts := &a.nodes[c.result].pts
 	changed := false
 	for vObj := range delta {
-		tDyn, _, indirect := a.taggedValue(vObj)
+		tDyn, payload, indirect := a.taggedValue(vObj)
 		if tDyn == nil {
 			panic("not a tagged object")
 		}
+
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
 			// when we start creating indirect tagged objects.
 			panic("indirect tagged object")
 		}
 
-		if resultPts.add(vObj) {
-			changed = true
+		if _, ok := tDyn.Underlying().(*types.Interface); ok {
+			if a.onlineCopy(c.result, payload) {
+				a.addWork(c.result)
+			}
+		} else {
+			if resultPts.add(vObj) {
+				changed = true
+			}
 		}
 	}
 	if changed {

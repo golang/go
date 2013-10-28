@@ -21,12 +21,8 @@ func reflectTypeFieldByName() {
 	print(reflect.Zero(g.Type)) // @pointsto <alloc in reflect.Zero>
 	print(reflect.Zero(g.Type)) // @types interface{}
 
-	// TODO(adonovan): fix: the following should return a zero
-	// value of the empty interface (i.e. pts is empty), but that
-	// requires fixing the TODO comment in
-	// reflectZeroConstraint.solve, which in turn requires that we
-	// add a "settable" flag to tagged objects.
-	print(reflect.Zero(g.Type).Interface()) // @types interface{}
+	print(reflect.Zero(g.Type).Interface()) // @pointsto
+	print(reflect.Zero(g.Type).Interface()) // @types
 
 	h, _ := reflect.TypeOf(A{}).FieldByName("h")
 	print(h.Type) // @pointsto bool

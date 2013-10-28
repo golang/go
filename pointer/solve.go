@@ -128,7 +128,8 @@ func (a *analysis) solveConstraints(n *node, delta nodeset) {
 		if a.log != nil {
 			fmt.Fprintf(a.log, "\t\tconstraint %s\n", c)
 		}
-		// TODO(adonovan): parameter n is never used.  Remove?
+		// TODO(adonovan): parameter n is never needed, since
+		// it's equal to c.ptr().  Remove.
 		c.solve(a, n, delta)
 	}
 

@@ -44,7 +44,8 @@ func reflectTypeElem() {
 	print(reflect.Zero(reflect.TypeOf(make(map[string]float64)).Elem()).Interface()) // @types float64
 	print(reflect.Zero(reflect.TypeOf([3]complex64{}).Elem()).Interface())           // @types complex64
 	print(reflect.Zero(reflect.TypeOf(3).Elem()).Interface())                        // @types
-	print(reflect.Zero(reflect.TypeOf(new(interface{})).Elem()).Interface())         // @types interface{}
+	print(reflect.Zero(reflect.TypeOf(new(interface{})).Elem()))                     // @types interface{}
+	print(reflect.Zero(reflect.TypeOf(new(interface{})).Elem()).Interface())         // @types
 }
 
 func main() {

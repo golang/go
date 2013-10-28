@@ -93,10 +93,15 @@ func reflectValueIndex() {
 }
 
 func reflectValueElem() {
-	// TODO(adonovan): tests 'interface'.  Needs indirect tagged objects.
-	// rv1 := reflect.ValueOf(...)
-	// print(rv1.Elem().Interface())        // #@types *int
-	// print(rv1.Elem().Interface().(*int)) // #@pointsto main.a
+	// Interface.
+	var iface interface{} = &a
+	rv1 := reflect.ValueOf(&iface).Elem()
+	print(rv1.Interface())               // @types *int
+	print(rv1.Interface().(*int))        // @pointsto main.a
+	print(rv1.Elem().Interface())        // @types *int
+	print(rv1.Elem().Interface().(*int)) // @pointsto main.a
+
+	print(reflect.ValueOf(new(interface{})).Elem().Elem()) // @types
 
 	// Pointer.
 	ptr := &a

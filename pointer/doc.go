@@ -307,6 +307,15 @@ reflect.Value
   2) The dynamic type tag of a tagged object pointed to by a
      reflect.Value may be an interface type; it need not be concrete.
 
+     This arises in code such as this:
+        tEface := reflect.TypeOf(new(interface{}).Elem() // interface{}
+        eface := reflect.Zero(tEface)
+     pts(eface) is a singleton containing an interface{}-tagged
+     object.  That tagged object's payload is an interface{} value,
+     i.e. the pts of the payload contains only concrete-tagged
+     objects, although in this example it's the zero interface{} value,
+     so its pts is empty.
+
 reflect.Type
   Just as in the real "reflect" library, we represent a reflect.Type
   as an interface whose sole implementation is the concrete type,

@@ -86,20 +86,20 @@ func (l Label) Pos() token.Pos {
 
 // String returns the printed form of this label.
 //
-// Examples:					Object type:
-// 	(sync.Mutex).Lock			(a function)
-// 	"foo":[]byte				(a slice constant)
-//	makemap					(map allocated via make)
-//	makechan				(channel allocated via make)
-//	makeinterface				(tagged object allocated by makeinterface)
-//      <alloc in reflect.Zero>			(allocation in instrinsic)
-//      sync.Mutex				(a reflect.rtype instance)
-//	<command-line arguments>		(an instrinsic object)
+// Examples:                                    Object type:
+//      (sync.Mutex).Lock                       (a function)
+//      "foo":[]byte                            (a slice constant)
+//      makemap                                 (map allocated via make)
+//      makechan                                (channel allocated via make)
+//      makeinterface                           (tagged object allocated by makeinterface)
+//      <alloc in reflect.Zero>                 (allocation in instrinsic)
+//      sync.Mutex                              (a reflect.rtype instance)
+//      <command-line arguments>                (an instrinsic object)
 //
 // Labels within compound objects have subelement paths:
-//	x.y[*].z				(a struct variable, x)
-//	append.y[*].z				(array allocated by append)
-//	makeslice.y[*].z			(array allocated via make)
+//      x.y[*].z                                (a struct variable, x)
+//      append.y[*].z                           (array allocated by append)
+//      makeslice.y[*].z                        (array allocated via make)
 //
 func (l Label) String() string {
 	var s string
