@@ -36,8 +36,9 @@ type Config struct {
 	GodocURL string // The base URL of godoc (for menu bar; no trailing slash).
 	Hostname string // Server host name, used for rendering ATOM feeds.
 
-	HomeArticles int // Articles to display on the home page.
-	FeedArticles int // Articles to include in Atom and JSON feeds.
+	HomeArticles int    // Articles to display on the home page.
+	FeedArticles int    // Articles to include in Atom and JSON feeds.
+	FeedTitle    string // The title of the Atom XML feed
 
 	PlayEnabled bool
 }
@@ -262,7 +263,7 @@ func (s *Server) renderAtomFeed() error {
 		updated = s.docs[0].Time
 	}
 	feed := atom.Feed{
-		Title:   "The Go Programming Language Blog",
+		Title:   s.cfg.FeedTitle,
 		ID:      "tag:" + s.cfg.Hostname + ",2013:" + s.cfg.Hostname,
 		Updated: atom.Time(updated),
 		Link: []atom.Link{{
