@@ -255,7 +255,7 @@ runtime·newstack(void)
 	if(gp->stackguard0 == (uintptr)StackPreempt) {
 		if(gp == m->g0)
 			runtime·throw("runtime: preempt g0");
-		if(oldstatus == Grunning && m->p == nil)
+		if(oldstatus == Grunning && m->p == nil && m->locks == 0)
 			runtime·throw("runtime: g is running but p is not");
 		if(oldstatus == Gsyscall && m->locks == 0)
 			runtime·throw("runtime: stack split during syscall");
