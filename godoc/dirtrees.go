@@ -73,13 +73,19 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	list, _ := b.c.fs.ReadDir(path)
 
 	// determine number of subdirectories and if there are package files
-	ndirs := 0
 	hasPkgFiles := false
+	var dirchs []chan *Directory
+
 	var synopses [3]string // prioritized package documentation (0 == highest priority)
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
-			ndirs++
+			ch := make(chan *Directory, 1)
+			dirchs = append(dirchs, ch)
+			go func(d os.FileInfo) {
+				name := d.Name()
+				ch <- b.newDirTree(fset, pathpkg.Join(path, name), name, depth+1)
+			}(d)
 		case isPkgFile(d):
 			// looks like a package file, but may just be a file ending in ".go";
 			// don't just count it yet (otherwise we may end up with hasPkgFiles even
@@ -112,20 +118,10 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 
 	// create subdirectory tree
 	var dirs []*Directory
-	if ndirs > 0 {
-		dirs = make([]*Directory, ndirs)
-		i := 0
-		for _, d := range list {
-			if isPkgDir(d) {
-				name := d.Name()
-				dd := b.newDirTree(fset, pathpkg.Join(path, name), name, depth+1)
-				if dd != nil {
-					dirs[i] = dd
-					i++
-				}
-			}
+	for _, ch := range dirchs {
+		if d := <-ch; d != nil {
+			dirs = append(dirs, d)
 		}
-		dirs = dirs[0:i]
 	}
 
 	// if there are no package files and no subdirectories
