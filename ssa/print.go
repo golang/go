@@ -398,7 +398,7 @@ func (s *DebugRef) String() string {
 	if s.IsAddr {
 		addr = "address of "
 	}
-	return fmt.Sprintf("; %s is %s%s @ %d:%d", s.X.Name(), addr, descr, p.Line, p.Column)
+	return fmt.Sprintf("; %s%s @ %d:%d is %s", addr, descr, p.Line, p.Column, s.X.Name())
 }
 
 func (p *Package) String() string {

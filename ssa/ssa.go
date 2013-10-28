@@ -1151,8 +1151,9 @@ type MapUpdate struct {
 	pos   token.Pos
 }
 
-// A DebugRef instruction provides the position information for a
-// specific source-level expression that compiles to the SSA value X.
+// A DebugRef instruction maps a source-level expression Expr to the
+// SSA value that represents the value (!IsAddr) or address (IsAddr)
+// of that expression.
 //
 // DebugRef is a pseudo-instruction: it has no dynamic effect.
 //
@@ -1161,22 +1162,33 @@ type MapUpdate struct {
 // documented at Value.Pos(). e.g. CallExpr.Pos() does not return the
 // position of the ("designated") Lparen token.
 //
-// Object() returns the source-level (var/const/func) object denoted
-// by Expr if it is an *ast.Ident; otherwise it is nil.
+// If Expr is an *ast.Ident denoting a var or func, Object() returns
+// the object; though this information can be obtained from the type
+// checker, including it here greatly facilitates debugging.
+// For non-Ident expressions, Object() returns nil.
+//
+// DebugRefs are generated only for functions built with debugging
+// enabled; see Package.SetDebugMode().
+//
+// DebugRefs are not emitted for ast.Idents referring to constants or
+// predeclared identifiers, since they are trivial and numerous.
+// Nor are they emitted for ast.ParenExprs.
 //
 // (By representing these as instructions, rather than out-of-band,
 // consistency is maintained during transformation passes by the
 // ordinary SSA renaming machinery.)
 //
-// DebugRefs are generated only for functions built with debugging
-// enabled; see Package.SetDebugMode().
+// Example printed form:
+//      ; *ast.CallExpr @ 102:9 is t5
+//      ; var x float64 @ 109:72 is x
+//      ; address of *ast.CompositeLit @ 216:10 is t0
 //
 type DebugRef struct {
 	anInstruction
-	X      Value        // the value whose position we're declaring
 	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
-	object types.Object // the identity of the source var/const/func
+	object types.Object // the identity of the source var/func
 	IsAddr bool         // Expr is addressable and X is the address it denotes
+	X      Value        // the value or address of Expr
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
