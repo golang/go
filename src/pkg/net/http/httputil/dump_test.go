@@ -20,6 +20,7 @@ type dumpTest struct {
 
 	WantDump    string
 	WantDumpOut string
+	NoBody      bool // if true, set DumpRequest{,Out} body to false
 }
 
 var dumpTests = []dumpTest{
@@ -83,6 +84,31 @@ var dumpTests = []dumpTest{
 			"User-Agent: Go 1.1 package http\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
+
+	// Request with Body, but Dump requested without it.
+	{
+		Req: http.Request{
+			Method: "POST",
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   "post.tld",
+				Path:   "/",
+			},
+			ContentLength: 6,
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+		},
+
+		Body: []byte("abcdef"),
+
+		WantDumpOut: "POST / HTTP/1.1\r\n" +
+			"Host: post.tld\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
+			"Content-Length: 6\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n",
+
+		NoBody: true,
+	},
 }
 
 func TestDumpRequest(t *testing.T) {
@@ -105,7 +131,7 @@ func TestDumpRequest(t *testing.T) {
 
 		if tt.WantDump != "" {
 			setBody()
-			dump, err := DumpRequest(&tt.Req, true)
+			dump, err := DumpRequest(&tt.Req, !tt.NoBody)
 			if err != nil {
 				t.Errorf("DumpRequest #%d: %s", i, err)
 				continue
@@ -118,7 +144,7 @@ func TestDumpRequest(t *testing.T) {
 
 		if tt.WantDumpOut != "" {
 			setBody()
-			dump, err := DumpRequestOut(&tt.Req, true)
+			dump, err := DumpRequestOut(&tt.Req, !tt.NoBody)
 			if err != nil {
 				t.Errorf("DumpRequestOut #%d: %s", i, err)
 				continue
