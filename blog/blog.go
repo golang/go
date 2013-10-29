@@ -259,7 +259,7 @@ func (s *Server) loadDocs(root string) error {
 // atomFeed field.
 func (s *Server) renderAtomFeed() error {
 	var updated time.Time
-	if len(s.docs) > 1 {
+	if len(s.docs) > 0 {
 		updated = s.docs[0].Time
 	}
 	feed := atom.Feed{
