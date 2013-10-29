@@ -140,8 +140,8 @@ type Stmt interface {
 }
 
 // ColumnConverter may be optionally implemented by Stmt if the
-// the statement is aware of its own columns' types and can
-// convert from any type to a driver Value.
+// statement is aware of its own columns' types and can convert from
+// any type to a driver Value.
 type ColumnConverter interface {
 	// ColumnConverter returns a ValueConverter for the provided
 	// column index.  If the type of a specific column isn't known

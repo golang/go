@@ -201,7 +201,7 @@ type DB struct {
 	connRequests *list.List // of connRequest
 	numOpen      int
 	pendingOpens int
-	// Used to sygnal the need for new connections
+	// Used to signal the need for new connections
 	// a goroutine running connectionOpener() reads on this chan and
 	// maybeOpenNewConnections sends on the chan (one send per needed connection)
 	// It is closed during db.Close(). The close tells the connectionOpener
