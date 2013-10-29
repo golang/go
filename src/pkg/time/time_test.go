@@ -578,6 +578,16 @@ func TestParseInSydney(t *testing.T) {
 	}
 }
 
+func TestLoadLocationZipFile(t *testing.T) {
+	ForceZipFileForTesting(true)
+	defer ForceZipFileForTesting(false)
+
+	_, err := LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 var rubyTests = []ParseTest{
 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
 	// Ignore the time zone in the test. If it parses, it'll be OK.
