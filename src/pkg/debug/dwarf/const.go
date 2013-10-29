@@ -207,7 +207,10 @@ const (
 	formRef8        format = 0x14
 	formRefUdata    format = 0x15
 	formIndirect    format = 0x16
+	formSecOffset   format = 0x17
+	formExprloc     format = 0x18
 	formFlagPresent format = 0x19
+	formRefSig8     format = 0x20
 )
 
 // A Tag is the classification (the type) of an Entry.
