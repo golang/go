@@ -279,6 +279,13 @@ func main() {
 	_ = map[int]*struct{}{0: {}}
 }
 
+// Parens should not prevent intrinsic treatment of built-ins.
+// (Regression test for a crash.)
+func init() {
+	_ = (new)(int)
+	_ = (make)([]int, 0)
+}
+
 type mybool bool
 
 func (mybool) f() {}

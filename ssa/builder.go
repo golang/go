@@ -457,7 +457,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 // in an addressable location.
 //
 func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
-	if e, ok := e.(*ast.CompositeLit); ok {
+	if e, ok := unparen(e).(*ast.CompositeLit); ok {
 		// A CompositeLit never evaluates to a pointer,
 		// so if the type of the location is a pointer,
 		// an &-operation is implied.
@@ -476,7 +476,9 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 				// Can't in-place initialize an interface value.
 				// Fall back to copying.
 			} else {
-				b.compLit(fn, loc.address(fn), e, typ) // in place
+				addr := loc.address(fn)
+				b.compLit(fn, addr, e, typ) // in place
+				emitDebugRef(fn, e, addr, true)
 				return
 			}
 		}
@@ -551,7 +553,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			return y
 		}
 		// Call to "intrinsic" built-ins, e.g. new, make, panic.
-		if id, ok := e.Fun.(*ast.Ident); ok {
+		if id, ok := unparen(e.Fun).(*ast.Ident); ok {
 			if obj, ok := fn.Pkg.objectOf(id).(*types.Builtin); ok {
 				if v := b.builtin(fn, obj, e.Args, typ, e.Lparen); v != nil {
 					return v

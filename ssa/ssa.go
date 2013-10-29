@@ -99,7 +99,7 @@ type Value interface {
 	// Instruction.
 	//
 	// This is the same as the source name for Parameters,
-	// Builtins, Functions, Captures, Globals and some Allocs.
+	// Builtins, Functions, Captures, Globals.
 	// For constants, it is a representation of the constant's value
 	// and type.  For all other Values this is the name of the
 	// virtual register defined by the instruction.
@@ -115,7 +115,7 @@ type Value interface {
 	String() string
 
 	// Type returns the type of this value.  Many instructions
-	// (e.g. IndexAddr) change the behaviour depending on the
+	// (e.g. IndexAddr) change their behaviour depending on the
 	// types of their operands.
 	Type() types.Type
 
@@ -186,6 +186,7 @@ type Instruction interface {
 
 	// SetBlock sets the basic block to which this instruction
 	// belongs.
+	// TODO(adonovan): unexport this.
 	SetBlock(*BasicBlock)
 
 	// Operands returns the operands of this instruction: the

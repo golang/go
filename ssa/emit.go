@@ -45,6 +45,7 @@ func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 		panic("nil")
 	}
 	var obj types.Object
+	e = unparen(e)
 	if id, ok := e.(*ast.Ident); ok {
 		if isBlankIdent(id) {
 			return
@@ -57,7 +58,7 @@ func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 	}
 	f.emit(&DebugRef{
 		X:      v,
-		Expr:   unparen(e),
+		Expr:   e,
 		IsAddr: isAddr,
 		object: obj,
 	})
