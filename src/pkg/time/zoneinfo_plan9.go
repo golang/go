@@ -154,3 +154,7 @@ func loadLocation(name string) (*Location, error) {
 	}
 	return nil, errors.New("unknown time zone " + name)
 }
+
+func forceZipFileForTesting(zipOnly bool) {
+	// We only use the zip file anyway.
+}
