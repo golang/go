@@ -92,8 +92,8 @@ func TestReaddirWithBadLstat(t *testing.T) {
 	defer func() { *LstatP = Lstat }()
 
 	dirs, err := handle.Readdir(-1)
-	if err != ErrInvalid {
-		t.Fatalf("Expected Readdir to return ErrInvalid, got %v", err)
+	if err != nil {
+		t.Fatalf("Expected Readdir to return no error, got %v", err)
 	}
 	foundfail := false
 	for _, dir := range dirs {
