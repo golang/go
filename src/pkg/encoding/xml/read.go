@@ -53,7 +53,7 @@ import (
 //      Unmarshal records the attribute value in that field.
 //
 //   * If the XML element contains character data, that data is
-//      accumulated in the first struct field that has tag "chardata".
+//      accumulated in the first struct field that has tag ",chardata".
 //      The struct field may have type []byte or string.
 //      If there is no such field, the character data is discarded.
 //
