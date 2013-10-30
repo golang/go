@@ -82,9 +82,146 @@ func ext۰reflect۰Value۰Bytes(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Value۰Call(a *analysis, cgn *cgnode)      {}
-func ext۰reflect۰Value۰CallSlice(a *analysis, cgn *cgnode) {}
-func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode)   {}
+// ---------- func (Value).Call(in []Value) []Value ----------
+
+// result = v.Call(in)
+type rVCallConstraint struct {
+	cgn       *cgnode
+	targets   nodeid
+	v         nodeid // (ptr)
+	arg       nodeid // = in[*]
+	result    nodeid
+	dotdotdot bool // interpret last arg as a "..." slice
+}
+
+func (c *rVCallConstraint) String() string {
+	return fmt.Sprintf("n%d = reflect n%d.Call(n%d)", c.result, c.v, c.arg)
+}
+
+func (c *rVCallConstraint) ptr() nodeid {
+	return c.v
+}
+
+func (c *rVCallConstraint) solve(a *analysis, _ *node, delta nodeset) {
+	if c.targets == 0 {
+		panic("no targets")
+	}
+
+	changed := false
+	for vObj := range delta {
+		tDyn, fn, indirect := a.taggedValue(vObj)
+		if indirect {
+			// TODO(adonovan): we'll need to implement this
+			// when we start creating indirect tagged objects.
+			panic("indirect tagged object")
+		}
+
+		tSig, ok := tDyn.Underlying().(*types.Signature)
+		if !ok {
+			continue // not a function
+		}
+		if tSig.Recv() != nil {
+			panic(tSig) // TODO(adonovan): rethink when we implement Method()
+		}
+
+		// Add dynamic call target.
+		if a.onlineCopy(c.targets, fn) {
+			a.addWork(c.targets)
+			// TODO(adonovan): is 'else continue' a sound optimisation here?
+		}
+
+		// Allocate a P/R block.
+		tParams := tSig.Params()
+		tResults := tSig.Results()
+		params := a.addNodes(tParams, "rVCall.params")
+		results := a.addNodes(tResults, "rVCall.results")
+
+		// Make a dynamic call to 'fn'.
+		a.store(fn, params, 1, a.sizeof(tParams))
+		a.load(results, fn, 1+a.sizeof(tParams), a.sizeof(tResults))
+
+		// Populate P by type-asserting each actual arg (all merged in c.arg).
+		for i, n := 0, tParams.Len(); i < n; i++ {
+			T := tParams.At(i).Type()
+			a.typeAssert(T, params, c.arg, false)
+			params += nodeid(a.sizeof(T))
+		}
+
+		// Use R by tagging and copying each actual result to c.result.
+		for i, n := 0, tResults.Len(); i < n; i++ {
+			T := tResults.At(i).Type()
+			// Convert from an arbitrary type to a reflect.Value
+			// (like MakeInterface followed by reflect.ValueOf).
+			if isInterface(T) {
+				// (don't tag)
+				if a.onlineCopy(c.result, results) {
+					changed = true
+				}
+			} else {
+				obj := a.makeTagged(T, c.cgn, nil)
+				a.onlineCopyN(obj+1, results, a.sizeof(T))
+				if a.addLabel(c.result, obj) { // (true)
+					changed = true
+				}
+			}
+			results += nodeid(a.sizeof(T))
+		}
+	}
+	if changed {
+		a.addWork(c.result)
+	}
+}
+
+// Common code for direct (inlined) and indirect calls to (reflect.Value).Call.
+func reflectCallImpl(a *analysis, cgn *cgnode, site *callsite, recv, arg nodeid, dotdotdot bool) nodeid {
+	// Allocate []reflect.Value array for the result.
+	ret := a.nextNode()
+	a.addNodes(types.NewArray(a.reflectValueObj.Type(), 1), "rVCall.ret")
+	a.endObject(ret, cgn, nil)
+
+	// pts(targets) will be the set of possible call targets.
+	site.targets = a.addOneNode(tInvalid, "rvCall.targets", nil)
+
+	// All arguments are merged since they arrive in a slice.
+	argelts := a.addOneNode(a.reflectValueObj.Type(), "rVCall.args", nil)
+	a.load(argelts, arg, 1, 1) // slice elements
+
+	a.addConstraint(&rVCallConstraint{
+		cgn:       cgn,
+		targets:   site.targets,
+		v:         recv,
+		arg:       argelts,
+		result:    ret + 1, // results go into elements of ret
+		dotdotdot: dotdotdot,
+	})
+	return ret
+}
+
+func reflectCall(a *analysis, cgn *cgnode, dotdotdot bool) {
+	// This is the shared contour implementation of (reflect.Value).Call
+	// and CallSlice, as used by indirect calls (rare).
+	// Direct calls are inlined in gen.go, eliding the
+	// intermediate cgnode for Call.
+	site := new(callsite)
+	cgn.sites = append(cgn.sites, site)
+	recv := a.funcParams(cgn.obj)
+	arg := recv + 1
+	ret := reflectCallImpl(a, cgn, site, recv, arg, dotdotdot)
+	a.addressOf(a.funcResults(cgn.obj), ret)
+}
+
+func ext۰reflect۰Value۰Call(a *analysis, cgn *cgnode) {
+	reflectCall(a, cgn, false)
+}
+
+func ext۰reflect۰Value۰CallSlice(a *analysis, cgn *cgnode) {
+	// TODO(adonovan): implement.  Also, inline direct calls in gen.go too.
+	if false {
+		reflectCall(a, cgn, true)
+	}
+}
+
+func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode) {}
 
 // ---------- func (Value).Elem() Value ----------
 
@@ -225,17 +362,13 @@ func (c *rVInterfaceConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for vObj := range delta {
 		tDyn, payload, indirect := a.taggedValue(vObj)
-		if tDyn == nil {
-			panic("not a tagged object")
-		}
-
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
 			// when we start creating indirect tagged objects.
 			panic("indirect tagged object")
 		}
 
-		if _, ok := tDyn.Underlying().(*types.Interface); ok {
+		if isInterface(tDyn) {
 			if a.onlineCopy(c.result, payload) {
 				a.addWork(c.result)
 			}
@@ -450,7 +583,7 @@ func (c *rVSendConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		// Extract x's payload to xtmp, then store to channel.
 		tElem := tChan.Elem()
 		xtmp := a.addNodes(tElem, "Send.xtmp")
-		a.untag(tElem, xtmp, c.x, false)
+		a.typeAssert(tElem, xtmp, c.x, false)
 		a.store(ch, xtmp, 0, a.sizeof(tElem))
 	}
 }
@@ -545,12 +678,12 @@ func (c *rVSetMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
 
 		// Extract key's payload to keytmp, then store to map key.
 		keytmp := a.addNodes(tMap.Key(), "SetMapIndex.keytmp")
-		a.untag(tMap.Key(), keytmp, c.key, false)
+		a.typeAssert(tMap.Key(), keytmp, c.key, false)
 		a.store(m, keytmp, 0, keysize)
 
 		// Extract val's payload to vtmp, then store to map value.
 		valtmp := a.addNodes(tMap.Elem(), "SetMapIndex.valtmp")
-		a.untag(tMap.Elem(), valtmp, c.val, false)
+		a.typeAssert(tMap.Elem(), valtmp, c.val, false)
 		a.store(m, valtmp, keysize, a.sizeof(tMap.Elem()))
 	}
 }
@@ -727,10 +860,6 @@ func (c *reflectIndirectConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for vObj := range delta {
 		tDyn, _, _ := a.taggedValue(vObj)
-		if tDyn == nil {
-			panic("not a tagged value")
-		}
-
 		var res nodeid
 		if tPtr, ok := tDyn.Underlying().(*types.Pointer); ok {
 			// load the payload of the pointer's tagged object
@@ -1077,10 +1206,6 @@ func (c *reflectTypeOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for iObj := range delta {
 		tDyn, _, _ := a.taggedValue(iObj)
-		if tDyn == nil {
-			panic("not a tagged value")
-		}
-
 		if a.addLabel(c.result, a.makeRtype(tDyn)) {
 			changed = true
 		}
@@ -1132,7 +1257,7 @@ func (c *reflectZeroConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		// TODO(adonovan): if T is an interface type, we need
 		// to create an indirect tagged object containing
 		// new(T).  To avoid updates of such shared values,
-		// we'll need another flag on indirect tagged values
+		// we'll need another flag on indirect tagged objects
 		// that marks whether they are addressable or
 		// readonly, just like the reflect package does.
 
@@ -1293,18 +1418,19 @@ func ext۰reflect۰rtype۰Field(a *analysis, cgn *cgnode) {
 func ext۰reflect۰rtype۰FieldByIndex(a *analysis, cgn *cgnode)    {}
 func ext۰reflect۰rtype۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
 
-// ---------- func (*rtype) In/Out() Type ----------
+// ---------- func (*rtype) In/Out(i int) Type ----------
 
-// result = In/Out(t)
+// result = In/Out(t, i)
 type rtypeInOutConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
 	result nodeid
 	out    bool
+	i      int // -ve if not a constant
 }
 
 func (c *rtypeInOutConstraint) String() string {
-	return fmt.Sprintf("n%d = (*reflect.rtype).InOut(n%d)", c.result, c.t)
+	return fmt.Sprintf("n%d = (*reflect.rtype).InOut(n%d, %d)", c.result, c.t, c.i)
 }
 
 func (c *rtypeInOutConstraint) ptr() nodeid {
@@ -1324,15 +1450,11 @@ func (c *rtypeInOutConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		if c.out {
 			tuple = sig.Results()
 		}
-		// TODO(adonovan): when a function is analyzed
-		// context-sensitively, we should be able to see its
-		// caller's actual parameter's ssa.Values.  Refactor
-		// the intrinsic mechanism to allow this.  Then if the
-		// value is an int const K, skip the loop and use
-		// tuple.At(K).
 		for i, n := 0, tuple.Len(); i < n; i++ {
-			if a.addLabel(c.result, a.makeRtype(tuple.At(i).Type())) {
-				changed = true
+			if c.i < 0 || c.i == i {
+				if a.addLabel(c.result, a.makeRtype(tuple.At(i).Type())) {
+					changed = true
+				}
 			}
 		}
 	}
@@ -1342,11 +1464,22 @@ func (c *rtypeInOutConstraint) solve(a *analysis, _ *node, delta nodeset) {
 }
 
 func ext۰reflect۰rtype۰InOut(a *analysis, cgn *cgnode, out bool) {
+	// If we have access to the callsite,
+	// and the argument is an int constant,
+	// return only that parameter.
+	index := -1
+	if site := cgn.callersite; site != nil {
+		if c, ok := site.instr.Common().Args[0].(*ssa.Const); ok {
+			v, _ := exact.Int64Val(c.Value)
+			index = int(v)
+		}
+	}
 	a.addConstraint(&rtypeInOutConstraint{
 		cgn:    cgn,
 		t:      a.funcParams(cgn.obj),
 		result: a.funcResults(cgn.obj),
 		out:    out,
+		i:      index,
 	})
 }
 

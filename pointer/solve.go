@@ -50,6 +50,10 @@ func (a *analysis) solve() {
 		}
 	}
 
+	if len(a.nodes[0].pts) > 0 {
+		panic(fmt.Sprintf("pts(0) is nonempty: %s", a.nodes[0].pts))
+	}
+
 	if a.log != nil {
 		fmt.Fprintf(a.log, "Solver done\n")
 	}
@@ -258,9 +262,6 @@ func (c *offsetAddrConstraint) solve(a *analysis, n *node, delta nodeset) {
 func (c *typeFilterConstraint) solve(a *analysis, n *node, delta nodeset) {
 	for ifaceObj := range delta {
 		tDyn, _, indirect := a.taggedValue(ifaceObj)
-		if tDyn == nil {
-			panic("not a tagged value")
-		}
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
 			// when we start creating indirect tagged objects.
@@ -282,9 +283,6 @@ func (c *untagConstraint) solve(a *analysis, n *node, delta nodeset) {
 	}
 	for ifaceObj := range delta {
 		tDyn, v, indirect := a.taggedValue(ifaceObj)
-		if tDyn == nil {
-			panic("not a tagged value")
-		}
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
 			// when we start creating indirect tagged objects.
@@ -306,9 +304,6 @@ func (c *untagConstraint) solve(a *analysis, n *node, delta nodeset) {
 func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 	for ifaceObj := range delta {
 		tDyn, v, indirect := a.taggedValue(ifaceObj)
-		if tDyn == nil {
-			panic("not a tagged value")
-		}
 		if indirect {
 			// TODO(adonovan): we may need to implement this if
 			// we ever apply invokeConstraints to reflect.Value PTSs,

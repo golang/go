@@ -64,6 +64,19 @@ func reflectSetMapIndex() {
 	print(reflect.Zero(tmap.Elem()).Interface()) // @types *bool
 }
 
+func reflectSetMapIndexInterface() {
+	// Exercises reflect.Value conversions to/from interfaces:
+	// a different code path than for concrete types.
+	m := make(map[interface{}]interface{})
+	reflect.ValueOf(m).SetMapIndex(reflect.ValueOf(&a), reflect.ValueOf(&b))
+	for k, v := range m {
+		print(k)         // @types *int
+		print(k.(*int))  // @pointsto main.a
+		print(v)         // @types *bool
+		print(v.(*bool)) // @pointsto main.b
+	}
+}
+
 func reflectSetMapIndexAssignable() {
 	// SetMapIndex performs implicit assignability conversions.
 	type I *int
@@ -97,6 +110,7 @@ func reflectMakeMap() {
 func main() {
 	reflectMapKeysIndex()
 	reflectSetMapIndex()
+	reflectSetMapIndexInterface()
 	reflectSetMapIndexAssignable()
 	reflectMakeMap()
 	// TODO(adonovan): reflect.MapOf(Type)

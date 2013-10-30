@@ -339,9 +339,6 @@ func (c *runtimeSetFinalizerConstraint) ptr() nodeid {
 func (c *runtimeSetFinalizerConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	for fObj := range delta {
 		tDyn, f, indirect := a.taggedValue(fObj)
-		if tDyn == nil {
-			panic("not a tagged object")
-		}
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
 			// when we start creating indirect tagged objects.
@@ -362,7 +359,7 @@ func (c *runtimeSetFinalizerConstraint) solve(a *analysis, _ *node, delta nodese
 		// Extract x to tmp.
 		tx := tSig.Params().At(0).Type()
 		tmp := a.addNodes(tx, "SetFinalizer.tmp")
-		a.untag(tx, tmp, c.x, false)
+		a.typeAssert(tx, tmp, c.x, false)
 
 		// Call f(tmp).
 		a.store(f, tmp, 1, a.sizeof(tx))

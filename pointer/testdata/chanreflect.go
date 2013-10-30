@@ -17,6 +17,16 @@ func chanreflect1() {
 	print(<-ch)                        // @pointsto main.a
 }
 
+func chanreflect1i() {
+	// Exercises reflect.Value conversions to/from interfaces:
+	// a different code path than for concrete types.
+	ch := make(chan interface{}, 0)
+	reflect.ValueOf(ch).Send(reflect.ValueOf(&a))
+	v := <-ch
+	print(v)        // @types *int
+	print(v.(*int)) // @pointsto main.a
+}
+
 func chanreflect2() {
 	ch := make(chan *int, 0)
 	ch <- &b
@@ -66,6 +76,7 @@ func chanOfUnknown() {
 
 func main() {
 	chanreflect1()
+	chanreflect1i()
 	chanreflect2()
 	chanOfRecv()
 	chanOfSend()

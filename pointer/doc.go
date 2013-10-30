@@ -300,7 +300,7 @@ reflect.Value
         v3 := v2.FieldByName("X") // v3 points to an indirect int-tagged object, pointing to s.X
         v3.Set(y)                 // pts(s.X) ⊇ pts(y)
 
-     Whether indirect or not, the concrete type of the tagged value
+     Whether indirect or not, the concrete type of the tagged object
      corresponds to the user-visible dynamic type, and the existence
      of a pointer is an implementation detail.
 

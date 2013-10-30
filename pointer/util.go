@@ -44,6 +44,12 @@ func CanHaveDynamicTypes(T types.Type) bool {
 	return false
 }
 
+// isInterface reports whether T is an interface type.
+func isInterface(T types.Type) bool {
+	_, ok := T.Underlying().(*types.Interface)
+	return ok
+}
+
 // mustDeref returns the element type of its argument, which must be a
 // pointer; panic ensues otherwise.
 func mustDeref(typ types.Type) types.Type {
@@ -113,7 +119,7 @@ func (a *analysis) flatten(t types.Type) []*fieldInfo {
 		switch t := t.(type) {
 		case *types.Named:
 			u := t.Underlying()
-			if _, ok := u.(*types.Interface); ok {
+			if isInterface(u) {
 				// Debuggability hack: don't remove
 				// the named type from interfaces as
 				// they're very verbose.

@@ -175,10 +175,10 @@ func (s ptset) DynamicTypes() *typemap.M {
 	var tmap typemap.M
 	tmap.SetHasher(s.a.hasher)
 	for ifaceObjId := range s.pts {
-		tDyn, v, indirect := s.a.taggedValue(ifaceObjId)
-		if tDyn == nil {
+		if !s.a.isTaggedObject(ifaceObjId) {
 			continue // !CanHaveDynamicTypes(tDyn)
 		}
+		tDyn, v, indirect := s.a.taggedValue(ifaceObjId)
 		if indirect {
 			panic("indirect tagged object") // implement later
 		}

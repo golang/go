@@ -48,9 +48,40 @@ func reflectTypeElem() {
 	print(reflect.Zero(reflect.TypeOf(new(interface{})).Elem()).Interface())         // @types
 }
 
+// reflect.Values within reflect.Values.
+func metareflection() {
+	// "box" a *int twice, unbox it twice.
+	v0 := reflect.ValueOf(&a)
+	print(v0)                              // @types *int
+	v1 := reflect.ValueOf(v0)              // box
+	print(v1)                              // @types reflect.Value
+	v2 := reflect.ValueOf(v1)              // box
+	print(v2)                              // @types reflect.Value
+	v1a := v2.Interface().(reflect.Value)  // unbox
+	print(v1a)                             // @types reflect.Value
+	v0a := v1a.Interface().(reflect.Value) // unbox
+	print(v0a)                             // @types *int
+	print(v0a.Interface().(*int))          // @pointsto main.a
+
+	// "box" an interface{} lvalue twice, unbox it twice.
+	var iface interface{} = 3
+	x0 := reflect.ValueOf(&iface).Elem()
+	print(x0)                              // @types interface{}
+	x1 := reflect.ValueOf(x0)              // box
+	print(x1)                              // @types reflect.Value
+	x2 := reflect.ValueOf(x1)              // box
+	print(x2)                              // @types reflect.Value
+	x1a := x2.Interface().(reflect.Value)  // unbox
+	print(x1a)                             // @types reflect.Value
+	x0a := x1a.Interface().(reflect.Value) // unbox
+	print(x0a)                             // @types interface{}
+	print(x0a.Interface())                 // @types int
+}
+
 func main() {
 	reflectIndirect()
 	reflectNewAt()
 	reflectTypeOf()
 	reflectTypeElem()
+	metareflection()
 }

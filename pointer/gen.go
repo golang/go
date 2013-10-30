@@ -182,7 +182,7 @@ func (a *analysis) makeRtype(T types.Type) nodeid {
 func (a *analysis) rtypeTaggedValue(obj nodeid) types.Type {
 	tDyn, t, _ := a.taggedValue(obj)
 	if tDyn != a.reflectRtypePtr {
-		panic(fmt.Sprintf("not a *reflect.rtype-tagged value: obj=n%d tag=%v payload=n%d", obj, tDyn, t))
+		panic(fmt.Sprintf("not a *reflect.rtype-tagged object: obj=n%d tag=%v payload=n%d", obj, tDyn, t))
 	}
 	return a.nodes[t].typ
 }
@@ -224,17 +224,22 @@ func (a *analysis) valueOffsetNode(v ssa.Value, index int) nodeid {
 	return id + nodeid(a.offsetOf(v.Type(), index))
 }
 
+// isTaggedObject reports whether object obj is a tagged object.
+func (a *analysis) isTaggedObject(obj nodeid) bool {
+	return a.nodes[obj].obj.flags&otTagged != 0
+}
+
 // taggedValue returns the dynamic type tag, the (first node of the)
 // payload, and the indirect flag of the tagged object starting at id.
-// It returns tDyn==nil if obj is not a tagged object.
+// Panic ensues if !isTaggedObject(id).
 //
-func (a *analysis) taggedValue(id nodeid) (tDyn types.Type, v nodeid, indirect bool) {
-	n := a.nodes[id]
+func (a *analysis) taggedValue(obj nodeid) (tDyn types.Type, v nodeid, indirect bool) {
+	n := a.nodes[obj]
 	flags := n.obj.flags
-	if flags&otTagged != 0 {
-		return n.typ, id + 1, flags&otIndirect != 0
+	if flags&otTagged == 0 {
+		panic(fmt.Sprintf("not a tagged object: n%d", obj))
 	}
-	return
+	return n.typ, obj + 1, flags&otIndirect != 0
 }
 
 // funcParams returns the first node of the params block of the
@@ -351,14 +356,16 @@ func (a *analysis) offsetAddr(dst, src nodeid, offset uint32) {
 	}
 }
 
-// typeFilter creates a typeFilter constraint of the form dst = src.(I).
-func (a *analysis) typeFilter(I types.Type, dst, src nodeid) {
-	a.addConstraint(&typeFilterConstraint{I, dst, src})
-}
-
-// untag creates an untag constraint of the form dst = src.(C).
-func (a *analysis) untag(C types.Type, dst, src nodeid, exact bool) {
-	a.addConstraint(&untagConstraint{C, dst, src, exact})
+// typeAssert creates a typeFilter or untag constraint of the form dst = src.(T):
+// typeFilter for an interface, untag for a concrete type.
+// The exact flag is specified as for untagConstraint.
+//
+func (a *analysis) typeAssert(T types.Type, dst, src nodeid, exact bool) {
+	if isInterface(T) {
+		a.addConstraint(&typeFilterConstraint{T, dst, src})
+	} else {
+		a.addConstraint(&untagConstraint{T, dst, src, exact})
+	}
 }
 
 // addConstraint adds c to the constraint set.
@@ -591,6 +598,15 @@ func (a *analysis) genStaticCall(caller *cgnode, site *callsite, call *ssa.CallC
 			f:       a.valueNode(call.Args[1]),
 		})
 		return
+
+	case a.reflectValueCall:
+		// Inline (reflect.Value).Call so the call appears direct.
+		dotdotdot := false
+		ret := reflectCallImpl(a, caller, site, a.valueNode(call.Args[0]), a.valueNode(call.Args[1]), dotdotdot)
+		if result != 0 {
+			a.addressOf(result, ret)
+		}
+		return
 	}
 
 	// Ascertain the context (contour/cgnode) for a particular call.
@@ -700,7 +716,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	// Unpack receiver into rtype
 	rtype := a.addOneNode(a.reflectRtypePtr, "rtype.recv", nil)
 	recv := a.valueNode(call.Value)
-	a.untag(a.reflectRtypePtr, rtype, recv, true)
+	a.typeAssert(a.reflectRtypePtr, rtype, recv, true)
 
 	// Look up the concrete method.
 	meth := a.reflectRtypePtr.MethodSet().Lookup(call.Method.Pkg(), call.Method.Name())
@@ -1007,12 +1023,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
 
 	case *ssa.TypeAssert:
-		T := instr.AssertedType
-		if _, ok := T.Underlying().(*types.Interface); ok {
-			a.typeFilter(T, a.valueNode(instr), a.valueNode(instr.X))
-		} else {
-			a.untag(T, a.valueNode(instr), a.valueNode(instr.X), true)
-		}
+		a.typeAssert(instr.AssertedType, a.valueNode(instr), a.valueNode(instr.X), true)
 
 	case *ssa.Slice:
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)

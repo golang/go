@@ -289,7 +289,6 @@ func doOneInput(input, filename string) bool {
 			probes = append(probes, probe{site, p})
 		},
 	}
-	result := pointer.Analyze(config)
 
 	// Print the log is there was an error or a panic.
 	complete := false
@@ -298,6 +297,8 @@ func doOneInput(input, filename string) bool {
 			log.WriteTo(os.Stderr)
 		}
 	}()
+
+	result := pointer.Analyze(config)
 
 	// Check the expectations.
 	for _, e := range exps {
