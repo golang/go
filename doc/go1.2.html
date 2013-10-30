@@ -137,6 +137,55 @@ This means that any loop that includes a (non-inlined) function call can
 be pre-empted, allowing other goroutines to run on the same thread.
 </p>
 
+<h3 id="thread_limit">Limit on the number of threads</h3>
+
+<p>
+Go 1.2 introduces a configurable limit (default 10,000) to the total number of threads
+a single program may have in its address space, to avoid resource starvation
+issues in some environments.
+Note that goroutines are multiplexed onto threads so this limit does not directly
+limit the number of goroutines, only the number that may be simultaneously blocked
+in a system call.
+In practice, the limit is hard to reach.
+</p>
+
+<p>
+The new <a href="/pkg/runtime/debug/#SetMaxThreads"><code>SetMaxThreads</code></a> function in the
+<a href="/pkg/runtime/debug/"><code>runtime/debug</code></a> package controls the thread count limit.
+</p>
+
+<p>
+<em>Updating</em>:
+Few functions will be affected by the limit, but if a program dies because it hits the
+limit, it could be modified to call <code>SetMaxThreads</code> to set a higher count.
+Even better would be to refactor the program to need fewer threads, reducing consumption
+of kernel resources.
+</p>
+
+<h3 id="stack_size">Stack size</h3>
+
+<p>
+In Go 1.2, the minimum size of the stack when a goroutine is created has been lifted from 4KB to 8KB.
+Many programs were suffering performance problems with the old size, which had a tendency
+to introduce expensive stack-segment switching in performance-critical sections.
+The new number was determined by empirical testing.
+</p>
+
+<p>
+At the other end, the new function <a href="/pkg/runtime/debug/#SetMaxStack"><code>SetMaxStack</code></a>
+in the <a href="/pkg/runtime/debug"><code>runtime/debug</code></a> package controls
+the <em>maximum</em> size of a single goroutine's stack.
+The default is 1GB on 64-bit systems and 250MB on 32-bit systems.
+Before Go 1.2, it was too easy for a runaway recursion to consume all the memory on a machine.
+</p>
+
+<p>
+<em>Updating</em>:
+The increased minimum stack size may cause programs with many goroutines to use
+more memory. There is no workaround, but future plans for future releases
+include new stack management technology that should address the problem better.
+</p>
+
 <h3 id="cgo_and_cpp">Cgo and C++</h3>
 
 <p>
