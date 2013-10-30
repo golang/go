@@ -105,7 +105,7 @@ s = 2 // three temporary variables
 M = 3
 a = 11
 // Be careful: R(a) == R11 will be used by the linker for synthesized instructions.
-TEXT udiv<>(SB),NOSPLIT,$-4
+TEXT udiv<>(SB),NOSPLIT,$-4-0
 	CLZ 	R(q), R(s) // find normalizing shift
 	MOVW.S	R(q)<<R(s), R(a)
 	MOVW	$fast_udiv_tab<>-64(SB), R(M)
@@ -165,22 +165,8 @@ udiv_by_0_or_1:
 	RET
 
 udiv_by_0:
-	// The ARM toolchain expects it can emit references to DIV and MOD
-	// instructions. The linker rewrites each pseudo-instruction into
-	// a sequence that pushes two values onto the stack and then calls
-	// _divu, _modu, _div, or _mod (below), all of which have a 16-byte
-	// frame plus the saved LR. The traceback routine knows the expanded
-	// stack frame size at the pseudo-instruction call site, but it
-	// doesn't know that the frame has a non-standard layout. In particular,
-	// it expects to find a saved LR in the bottom word of the frame.
-	// Unwind the stack back to the pseudo-instruction call site, copy the
-	// saved LR where the traceback routine will look for it, and make it
-	// appear that panicdivide was called from that PC.
-	MOVW	0(R13), LR
-	ADD	$20, R13
-	MOVW	8(R13), R1 // actual saved LR
-	MOVW	R1, 0(R13) // expected here for traceback
-	B 	runtime·panicdivide(SB)
+	MOVW 	$runtime·panicdivide(SB),R11
+	B	(R11)
 
 TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
 	// var tab [64]byte
@@ -207,14 +193,16 @@ TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
 // expects the result in R(TMP)
 TMP = 11
 
-TEXT _divu(SB), NOSPLIT, $16
+TEXT _divu(SB), NOSPLIT, $16-0
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
 	MOVW	R(M), 16(R13)
 
 	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
+	MOVW	m_divmod(m), R(q) 	/* denominator */
+	MOVW	$0, R(s)
+	MOVW	R(s), m_divmod(m)
 	BL  	udiv<>(SB)
 	MOVW	R(q), R(TMP)
 	MOVW	4(R13), R(q)
@@ -223,14 +211,16 @@ TEXT _divu(SB), NOSPLIT, $16
 	MOVW	16(R13), R(M)
 	RET
 
-TEXT _modu(SB), NOSPLIT, $16
+TEXT _modu(SB), NOSPLIT, $16-0
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
 	MOVW	R(M), 16(R13)
 
 	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
+	MOVW	m_divmod(m), R(q) 	/* denominator */
+	MOVW	$0, R(s)
+	MOVW	R(s), m_divmod(m)
 	BL  	udiv<>(SB)
 	MOVW	R(r), R(TMP)
 	MOVW	4(R13), R(q)
@@ -239,13 +229,15 @@ TEXT _modu(SB), NOSPLIT, $16
 	MOVW	16(R13), R(M)
 	RET
 
-TEXT _div(SB),NOSPLIT,$16
+TEXT _div(SB),NOSPLIT,$16-0
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
 	MOVW	R(M), 16(R13)
 	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
+	MOVW	m_divmod(m), R(q) 		/* denominator */
+	MOVW	$0, R(s)
+	MOVW	R(s), m_divmod(m)
 	CMP 	$0, R(r)
 	BGE 	d1
 	RSB 	$0, R(r), R(r)
@@ -265,13 +257,15 @@ d2:
 	RSB		$0, R(q), R(TMP)
 	B   	out
 
-TEXT _mod(SB),NOSPLIT,$16
+TEXT _mod(SB),NOSPLIT,$16-0
 	MOVW	R(q), 4(R13)
 	MOVW	R(r), 8(R13)
 	MOVW	R(s), 12(R13)
 	MOVW	R(M), 16(R13)
 	MOVW	R(TMP), R(r)		/* numerator */
-	MOVW	0(FP), R(q) 		/* denominator */
+	MOVW	m_divmod(m), R(q) 		/* denominator */
+	MOVW	$0, R(s)
+	MOVW	R(s), m_divmod(m)
 	CMP 	$0, R(q)
 	RSB.LT	$0, R(q), R(q)
 	CMP 	$0, R(r)
