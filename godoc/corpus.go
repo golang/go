@@ -38,6 +38,18 @@ type Corpus struct {
 	// The default is 1000.
 	MaxResults int
 
+	// SummarizePackage optionally specifies a function to
+	// summarize a package. It exists as an optimization to
+	// avoid reading files to parse package comments.
+	//
+	// If SummarizePackage returns false for ok, the caller
+	// ignores all return values and parses the files in the package
+	// as if SummarizePackage were nil.
+	//
+	// If showList is false, the package is hidden from the
+	// package listing.
+	SummarizePackage func(pkg string) (summary string, showList, ok bool)
+
 	testDir string // TODO(bradfitz,adg): migrate old godoc flag? looks unused.
 
 	// Send a value on this channel to trigger a metadata refresh.

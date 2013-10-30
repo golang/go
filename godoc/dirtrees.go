@@ -70,13 +70,26 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
+	var synopses [3]string // prioritized package documentation (0 == highest priority)
+
+	show := true // show in package listing
+	hasPkgFiles := false
+	haveSummary := false
+
+	if hook := b.c.SummarizePackage; hook != nil {
+		if summary, show0, ok := hook(strings.TrimPrefix(path, "/src/pkg/")); ok {
+			hasPkgFiles = true
+			show = show0
+			synopses[0] = summary
+			haveSummary = true
+		}
+	}
+
 	list, _ := b.c.fs.ReadDir(path)
 
 	// determine number of subdirectories and if there are package files
-	hasPkgFiles := false
 	var dirchs []chan *Directory
 
-	var synopses [3]string // prioritized package documentation (0 == highest priority)
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
@@ -86,32 +99,31 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 				name := d.Name()
 				ch <- b.newDirTree(fset, pathpkg.Join(path, name), name, depth+1)
 			}(d)
-		case isPkgFile(d):
+		case !haveSummary && isPkgFile(d):
 			// looks like a package file, but may just be a file ending in ".go";
 			// don't just count it yet (otherwise we may end up with hasPkgFiles even
 			// though the directory doesn't contain any real package files - was bug)
-			if synopses[0] == "" {
-				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := b.c.parseFile(fset, pathpkg.Join(path, d.Name()),
-					parser.ParseComments|parser.PackageClauseOnly)
-				if err == nil {
-					hasPkgFiles = true
-					if file.Doc != nil {
-						// prioritize documentation
-						i := -1
-						switch file.Name.Name {
-						case name:
-							i = 0 // normal case: directory name matches package name
-						case "main":
-							i = 1 // directory contains a main package
-						default:
-							i = 2 // none of the above
-						}
-						if 0 <= i && i < len(synopses) && synopses[i] == "" {
-							synopses[i] = doc.Synopsis(file.Doc.Text())
-						}
+			// no "optimal" package synopsis yet; continue to collect synopses
+			file, err := b.c.parseFile(fset, pathpkg.Join(path, d.Name()),
+				parser.ParseComments|parser.PackageClauseOnly)
+			if err == nil {
+				hasPkgFiles = true
+				if file.Doc != nil {
+					// prioritize documentation
+					i := -1
+					switch file.Name.Name {
+					case name:
+						i = 0 // normal case: directory name matches package name
+					case "main":
+						i = 1 // directory contains a main package
+					default:
+						i = 2 // none of the above
+					}
+					if 0 <= i && i < len(synopses) && synopses[i] == "" {
+						synopses[i] = doc.Synopsis(file.Doc.Text())
 					}
 				}
+				haveSummary = synopses[0] != ""
 			}
 		}
 	}
@@ -142,7 +154,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		Depth:    depth,
 		Path:     path,
 		Name:     name,
-		HasPkg:   hasPkgFiles,
+		HasPkg:   hasPkgFiles && show, // TODO(bradfitz): add proper Hide field?
 		Synopsis: synopsis,
 		Dirs:     dirs,
 	}
