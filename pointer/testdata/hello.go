@@ -17,7 +17,9 @@ func (s *S) String() string {
 }
 
 func main() {
-	print(os.Args) // @pointsto <command-line args>
+	// os.Args is considered instrincally allocated,
+	// but may also be set explicitly (e.g. on Windows), hence '...'.
+	print(os.Args) // @pointsto <command-line args> | ...
 	fmt.Println("Hello, World!", &theS)
 }
 
