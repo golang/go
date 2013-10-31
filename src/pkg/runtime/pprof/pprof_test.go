@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash/crc32"
+	"math/big"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -123,6 +124,10 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 		}
 	})
 
+	if len(need) == 0 {
+		return
+	}
+
 	var total uintptr
 	for i, name := range need {
 		total += have[i]
@@ -235,6 +240,26 @@ func TestGoroutineSwitch(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test that profiling of division operations is okay, especially on ARM. See issue 6681.
+func TestMathBigDivide(t *testing.T) {
+	testCPUProfile(t, nil, func() {
+		t := time.After(5 * time.Second)
+		pi := new(big.Int)
+		for {
+			for i := 0; i < 100; i++ {
+				n := big.NewInt(2646693125139304345)
+				d := big.NewInt(842468587426513207)
+				pi.Div(n, d)
+			}
+			select {
+			case <-t:
+				return
+			default:
+			}
+		}
+	})
 }
 
 // Operating systems that are expected to fail the tests. See issue 6047.
