@@ -306,6 +306,50 @@ func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value) value {
 	return nil // unreachable
 }
 
+func ext۰reflect۰Value۰MapIndex(fn *ssa.Function, args []value) value {
+	// Signature: func (reflect.Value) Value
+	tValue := rV2T(args[0]).t.Underlying().(*types.Map).Key()
+	k := rV2V(args[1])
+	switch m := rV2V(args[0]).(type) {
+	case map[value]value:
+		if v, ok := m[k]; ok {
+			return makeReflectValue(tValue, v)
+		}
+
+	case *hashmap:
+		if v := m.lookup(k.(hashable)); v != nil {
+			return makeReflectValue(tValue, v)
+		}
+
+	default:
+		panic(fmt.Sprintf("(reflect.Value).MapIndex(%T, %T)", m, k))
+	}
+	return makeReflectValue(nil, nil)
+}
+
+func ext۰reflect۰Value۰MapKeys(fn *ssa.Function, args []value) value {
+	// Signature: func (reflect.Value) []Value
+	var keys []value
+	tKey := rV2T(args[0]).t.Underlying().(*types.Map).Key()
+	switch v := rV2V(args[0]).(type) {
+	case map[value]value:
+		for k := range v {
+			keys = append(keys, makeReflectValue(tKey, k))
+		}
+
+	case *hashmap:
+		for _, e := range v.table {
+			for ; e != nil; e = e.next {
+				keys = append(keys, makeReflectValue(tKey, e.key))
+			}
+		}
+
+	default:
+		panic(fmt.Sprintf("(reflect.Value).MapKeys(%T)", v))
+	}
+	return keys
+}
+
 func ext۰reflect۰Value۰NumField(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) int
 	return len(rV2V(args[0]).(structure))

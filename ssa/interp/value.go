@@ -359,7 +359,7 @@ func toWriter(w io.Writer, v value) {
 
 	case map[value]value:
 		io.WriteString(w, "map[")
-		sep := " "
+		sep := ""
 		for k, e := range v {
 			io.WriteString(w, sep)
 			sep = " "

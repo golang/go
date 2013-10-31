@@ -386,7 +386,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			v = fn.addLocal(t, e.Lbrace)
 		}
 		v.Comment = "complit"
-		b.compLit(fn, v, e, t) // initialize in place
+		b.compLit(fn, v, e) // initialize in place
 		return &address{addr: v, expr: e}
 
 	case *ast.ParenExpr:
@@ -470,14 +470,13 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 		}
 
 		if _, ok := loc.(*address); ok {
-			typ := loc.typ()
-			if _, ok := typ.Underlying().(*types.Interface); ok {
+			if _, ok := loc.typ().Underlying().(*types.Interface); ok {
 				// e.g. var x interface{} = T{...}
 				// Can't in-place initialize an interface value.
 				// Fall back to copying.
 			} else {
 				addr := loc.address(fn)
-				b.compLit(fn, addr, e, typ) // in place
+				b.compLit(fn, addr, e) // in place
 				emitDebugRef(fn, e, addr, true)
 				return
 			}
@@ -1184,10 +1183,13 @@ func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 // Nested composite literals are recursively initialized in place
 // where possible.
 //
-func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ types.Type) {
-	// TODO(adonovan): document how and why typ ever differs from
-	// fn.Pkg.typeOf(e).
-
+// A CompositeLit may have pointer type only in the recursive (nested)
+// case when the type name is implicit.  e.g. in []*T{{}}, the inner
+// literal has type *T behaves like &T{}.
+// In that case, addr must hold a T, not a *T.
+//
+func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
+	typ := deref(fn.Pkg.typeOf(e))
 	switch t := typ.Underlying().(type) {
 	case *types.Struct:
 		for i, e := range e.Elts {
@@ -1250,7 +1252,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 		if t != at { // slice
 			s := &Slice{X: array}
 			s.setPos(e.Lbrace)
-			s.setType(t)
+			s.setType(typ)
 			emitStore(fn, addr, fn.emit(s))
 		}
 
@@ -1269,12 +1271,6 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			b.exprInPlace(fn, loc, e.Value)
 		}
-
-	case *types.Pointer:
-		// Pointers can only occur in the recursive case; we
-		// strip them off in addr() before calling compLit
-		// again, so that we allocate space for a T not a *T.
-		panic("compLit(fn, addr, e, *types.Pointer")
 
 	default:
 		panic("unexpected CompositeLit type: " + t.String())

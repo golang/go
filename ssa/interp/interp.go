@@ -546,6 +546,9 @@ func runFrame(fr *frame) {
 		}
 		fr.panicking = true
 		fr.panic = recover()
+		if fr.i.mode&EnableTracing != 0 {
+			fmt.Fprintf(os.Stderr, "Panicking: %s.\n", fr.panic)
+		}
 		fr.runDefers()
 		fr.block = fr.fn.Recover // recovered panic
 	}()

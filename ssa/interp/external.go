@@ -42,6 +42,8 @@ var externals = map[string]externalFn{
 	"(reflect.Value).IsValid":         ext۰reflect۰Value۰IsValid,
 	"(reflect.Value).Kind":            ext۰reflect۰Value۰Kind,
 	"(reflect.Value).Len":             ext۰reflect۰Value۰Len,
+	"(reflect.Value).MapIndex":        ext۰reflect۰Value۰MapIndex,
+	"(reflect.Value).MapKeys":         ext۰reflect۰Value۰MapKeys,
 	"(reflect.Value).NumField":        ext۰reflect۰Value۰NumField,
 	"(reflect.Value).NumMethod":       ext۰reflect۰Value۰NumMethod,
 	"(reflect.Value).Pointer":         ext۰reflect۰Value۰Pointer,
