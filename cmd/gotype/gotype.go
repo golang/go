@@ -8,34 +8,63 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/scanner"
 	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"code.google.com/p/go.tools/go/types"
 )
 
 var (
 	// main operation modes
-	pkgName   = flag.String("p", "", "process only those files in package pkgName")
-	recursive = flag.Bool("r", false, "recursively process subdirectories")
+	allFiles  = flag.Bool("a", false, "use all (incl. _test.go) files when processing a directory")
+	allErrors = flag.Bool("e", false, "report all errors (not just the first 10)")
 	verbose   = flag.Bool("v", false, "verbose mode")
-	allErrors = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
 
 	// debugging support
-	parseComments = flag.Bool("comments", false, "parse comments (ignored if -ast not set)")
-	printTrace    = flag.Bool("trace", false, "print parse trace")
 	printAST      = flag.Bool("ast", false, "print AST")
+	printTrace    = flag.Bool("trace", false, "print parse trace")
+	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
 )
 
-var errorCount int
+var (
+	fset       = token.NewFileSet()
+	errorCount = 0
+	parserMode parser.Mode
+	sizes      types.Sizes
+)
+
+func initParserMode() {
+	if *allErrors {
+		parserMode |= parser.AllErrors
+	}
+	if *printTrace {
+		parserMode |= parser.Trace
+	}
+	if *parseComments && (*printAST || *printTrace) {
+		parserMode |= parser.ParseComments
+	}
+}
+
+func initSizes() {
+	wordSize := 8
+	maxAlign := 8
+	switch build.Default.GOARCH {
+	case "386", "arm":
+		wordSize = 4
+		maxAlign = 4
+		// add more cases as needed
+	}
+	sizes = &types.StdSizes{WordSize: int64(wordSize), MaxAlign: int64(maxAlign)}
+}
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: gotype [flags] [path ...]\n")
+	fmt.Fprintln(os.Stderr, "usage: gotype [flags] [path ...]")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -49,133 +78,94 @@ func report(err error) {
 	errorCount++
 }
 
-// parse returns the AST for the Go source src.
-// The filename is for error reporting only.
-// The result is nil if there were errors or if
-// the file does not belong to the -p package.
-func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
+func parse(filename string, src interface{}) (*ast.File, error) {
 	if *verbose {
 		fmt.Println(filename)
 	}
-
-	// ignore files with different package name
-	if *pkgName != "" {
-		file, err := parser.ParseFile(fset, filename, src, parser.PackageClauseOnly)
-		if err != nil {
-			report(err)
-			return nil
-		}
-		if file.Name.Name != *pkgName {
-			if *verbose {
-				fmt.Printf("\tignored (package %s)\n", file.Name.Name)
-			}
-			return nil
-		}
-	}
-
-	// parse entire file
-	var mode parser.Mode
-	if *allErrors {
-		mode |= parser.AllErrors
-	}
-	if *parseComments && *printAST {
-		mode |= parser.ParseComments
-	}
-	if *printTrace {
-		mode |= parser.Trace
-	}
-	file, err := parser.ParseFile(fset, filename, src, mode)
-	if err != nil {
-		report(err)
-		return nil
-	}
+	file, err := parser.ParseFile(fset, filename, src, parserMode)
 	if *printAST {
 		ast.Print(fset, file)
 	}
-
-	return file
+	return file, err
 }
 
-func parseStdin(fset *token.FileSet) (files []*ast.File) {
+func parseStdin() (*ast.File, error) {
 	src, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		report(err)
-		return
+		return nil, err
 	}
-	const filename = "<standard input>"
-	if file := parse(fset, filename, src); file != nil {
-		files = []*ast.File{file}
-	}
-	return
+	return parse("<standard input>", src)
 }
 
-func parseFiles(fset *token.FileSet, filenames []string) (files []*ast.File) {
+func parseFiles(filenames []string) ([]*ast.File, error) {
+	var files []*ast.File
 	for _, filename := range filenames {
-		src, err := ioutil.ReadFile(filename)
+		file, err := parse(filename, nil)
 		if err != nil {
-			report(err)
-			continue
+			return nil, err
 		}
-		if file := parse(fset, filename, src); file != nil {
-			files = append(files, file)
-		}
+		files = append(files, file)
 	}
-	return
+	return files, nil
 }
 
-func isGoFilename(filename string) bool {
-	// ignore non-Go files
-	return !strings.HasPrefix(filename, ".") && strings.HasSuffix(filename, ".go")
-}
+func parseDir(dirname string) ([]*ast.File, error) {
+	ctxt := build.Default
+	pkginfo, err := ctxt.ImportDir(dirname, 0)
+	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
+		return nil, err
+	}
+	filenames := append(pkginfo.GoFiles, pkginfo.CgoFiles...)
+	if *allFiles {
+		filenames = append(filenames, pkginfo.TestGoFiles...)
+	}
 
-func processDirectory(dirname string) {
-	f, err := os.Open(dirname)
-	if err != nil {
-		report(err)
-		return
-	}
-	filenames, err := f.Readdirnames(-1)
-	f.Close()
-	if err != nil {
-		report(err)
-		// continue since filenames may not be empty
-	}
+	// complete file names
 	for i, filename := range filenames {
 		filenames[i] = filepath.Join(dirname, filename)
 	}
-	processFiles(dirname, filenames, false)
+
+	return parseFiles(filenames)
 }
 
-func processFiles(path string, filenames []string, allFiles bool) {
-	i := 0
-	for _, filename := range filenames {
-		switch info, err := os.Stat(filename); {
-		case err != nil:
-			report(err)
-		case info.IsDir():
-			if allFiles || *recursive {
-				processDirectory(filename)
-			}
-		default:
-			if allFiles || isGoFilename(info.Name()) {
-				filenames[i] = filename
-				i++
-			}
+func getPkgFiles(args []string) ([]*ast.File, error) {
+	if len(args) == 0 {
+		// stdin
+		var file *ast.File
+		file, err := parseStdin()
+		if err != nil {
+			return nil, err
+		}
+		return []*ast.File{file}, nil
+	}
+
+	if len(args) == 1 {
+		// possibly a directory
+		path := args[0]
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, err
+		}
+		if info.IsDir() {
+			return parseDir(path)
 		}
 	}
-	fset := token.NewFileSet()
-	processPackage(path, fset, parseFiles(fset, filenames[0:i]))
+
+	// list of files
+	return parseFiles(args)
 }
 
-func processPackage(path string, fset *token.FileSet, files []*ast.File) {
+func checkPkgFiles(files []*ast.File) {
 	type bailout struct{}
 	conf := types.Config{
+		FakeImportC: true,
 		Error: func(err error) {
 			if !*allErrors && errorCount >= 10 {
 				panic(bailout{})
 			}
 			report(err)
 		},
+		Sizes: sizes,
 	}
 
 	defer func() {
@@ -186,21 +176,44 @@ func processPackage(path string, fset *token.FileSet, files []*ast.File) {
 		}
 	}()
 
+	const path = "pkg" // any non-empty string will do for now
 	conf.Check(path, fset, files, nil)
+}
+
+func printStats(d time.Duration) {
+	fileCount := 0
+	lineCount := 0
+	fset.Iterate(func(f *token.File) bool {
+		fileCount++
+		lineCount += f.LineCount()
+		return true
+	})
+
+	fmt.Printf(
+		"%s (%d files, %d lines, %d lines/s)\n",
+		d, fileCount, lineCount, int64(float64(lineCount)/d.Seconds()),
+	)
 }
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+	initParserMode()
+	initSizes()
+	start := time.Now()
 
-	if flag.NArg() == 0 {
-		fset := token.NewFileSet()
-		processPackage("<stdin>", fset, parseStdin(fset))
-	} else {
-		processFiles("<files>", flag.Args(), true)
+	files, err := getPkgFiles(flag.Args())
+	if err != nil {
+		report(err)
+		os.Exit(2)
 	}
 
+	checkPkgFiles(files)
 	if errorCount > 0 {
 		os.Exit(2)
+	}
+
+	if *verbose {
+		printStats(time.Since(start))
 	}
 }

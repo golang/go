@@ -4,54 +4,51 @@
 
 /*
 The gotype command does syntactic and semantic analysis of Go files
-and packages similar to the analysis performed by the front-end of
-a Go compiler. Errors are reported if the analysis fails; otherwise
-gotype is quiet (unless -v is set).
+and packages like the front-end of a Go compiler. Errors are reported
+if the analysis fails; otherwise gotype is quiet (unless -v is set).
 
-Without a list of paths, gotype processes the standard input, which must
-be the source of a single package file.
+Without a list of paths, gotype reads from standard input, which
+must provide a single Go source file defining a complete package.
 
-Given a list of file names, each file must be a source file belonging to
-the same package unless the package name is explicitly specified with the
--p flag.
+If a single path is specified that is a directory, gotype checks
+the Go files in that directory; they must all belong to the same
+package.
 
-Given a directory name, gotype collects all .go files in the directory
-and processes them as if they were provided as an explicit list of file
-names. Each directory is processed independently. Files starting with .
-or not ending in .go are ignored.
+Otherwise, each path must be the filename of Go file belonging to
+the same package.
 
 Usage:
-	gotype [flags] [path ...]
+	gotype [flags] [path...]
 
 The flags are:
+	-a
+		use all (incl. _test.go) files when processing a directory
 	-e
-		Print all (including spurious) errors.
-	-p pkgName
-		Process only those files in package pkgName.
-	-r
-		Recursively process subdirectories.
+		report all errors (not just the first 10)
 	-v
-		Verbose mode.
+		verbose mode
 
 Debugging flags:
-	-comments
-		Parse comments (ignored if -ast not set).
 	-ast
-		Print AST (disables concurrent parsing).
+		print AST
 	-trace
-		Print parse trace (disables concurrent parsing).
+		print parse trace
+	-comments
+		parse comments (ignored unless -ast or -trace is provided)
 
+Examples:
 
-Examples
+To check the files a.go, b.go, and c.go:
 
-To check the files file.go, old.saved, and .ignored:
+	gotype a.go b.go c.go
 
-	gotype file.go old.saved .ignored
+To check an entire package in the directory dir and print the processed files:
 
-To check all .go files belonging to package main in the current directory
-and recursively in all subdirectories:
+	gotype -v dir
 
-	gotype -p main -r .
+To check an entire package including tests in the local directory:
+
+	gotype -a .
 
 To verify the output of a pipe:
 
