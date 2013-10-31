@@ -60,7 +60,7 @@ linkcase(Prog *casep)
 void
 noops(void)
 {
-	Prog *p, *q, *q1, *q2, orig;
+	Prog *p, *q, *q1, *q2;
 	int o;
 	Sym *tlsfallback, *gmsym;
 
@@ -401,27 +401,26 @@ noops(void)
 					break;
 				if(p->to.type != D_REG)
 					break;
-
-				orig = *p;
+				q1 = p;
 	
-				/* MOV a,4(M) */
+				/* MOV a,4(SP) */
+				p = appendp(p);
 				p->as = AMOVW;
-				p->line = orig.line;
+				p->line = q1->line;
 				p->from.type = D_REG;
-				p->from.reg = orig.from.reg;
-				p->reg = NREG;
+				p->from.reg = q1->from.reg;
 				p->to.type = D_OREG;
-				p->to.reg = REGM;
+				p->to.reg = REGSP;
 				p->to.offset = 4;
 	
 				/* MOV b,REGTMP */
 				p = appendp(p);
 				p->as = AMOVW;
-				p->line = orig.line;
+				p->line = q1->line;
 				p->from.type = D_REG;
-				p->from.reg = orig.reg;
-				if(orig.reg == NREG)
-					p->from.reg = orig.to.reg;
+				p->from.reg = q1->reg;
+				if(q1->reg == NREG)
+					p->from.reg = q1->to.reg;
 				p->to.type = D_REG;
 				p->to.reg = REGTMP;
 				p->to.offset = 0;
@@ -429,7 +428,7 @@ noops(void)
 				/* CALL appropriate */
 				p = appendp(p);
 				p->as = ABL;
-				p->line = orig.line;
+				p->line = q1->line;
 				p->to.type = D_BRANCH;
 				p->cond = p;
 				switch(o) {
@@ -454,12 +453,34 @@ noops(void)
 				/* MOV REGTMP, b */
 				p = appendp(p);
 				p->as = AMOVW;
-				p->line = orig.line;
+				p->line = q1->line;
 				p->from.type = D_REG;
 				p->from.reg = REGTMP;
 				p->from.offset = 0;
 				p->to.type = D_REG;
-				p->to.reg = orig.to.reg;
+				p->to.reg = q1->to.reg;
+	
+				/* ADD $8,SP */
+				p = appendp(p);
+				p->as = AADD;
+				p->line = q1->line;
+				p->from.type = D_CONST;
+				p->from.reg = NREG;
+				p->from.offset = 8;
+				p->reg = NREG;
+				p->to.type = D_REG;
+				p->to.reg = REGSP;
+				p->spadj = -8;
+	
+				/* SUB $8,SP */
+				q1->as = ASUB;
+				q1->from.type = D_CONST;
+				q1->from.offset = 8;
+				q1->from.reg = NREG;
+				q1->reg = NREG;
+				q1->to.type = D_REG;
+				q1->to.reg = REGSP;
+				q1->spadj = 8;
 	
 				break;
 			case AMOVW:
