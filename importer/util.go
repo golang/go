@@ -12,21 +12,10 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 )
-
-var cwd string
-
-func init() {
-	var err error
-	cwd, err = os.Getwd()
-	if err != nil {
-		panic("getcwd failed: " + err.Error())
-	}
-}
 
 // parsePackageFiles enumerates the files belonging to package path,
 // then loads, parses and returns them.
@@ -42,9 +31,8 @@ func parsePackageFiles(ctxt *build.Context, fset *token.FileSet, path string, wh
 	ctxt2 := *ctxt
 	ctxt2.CgoEnabled = false
 
-	// TODO(adonovan): fix: Do we need cwd? Shouldn't
-	// ImportDir(path) / $GOROOT suffice?
-	bp, err := ctxt2.Import(path, cwd, 0)
+	// Import(srcDir="") disables local imports, e.g. import "./foo".
+	bp, err := ctxt2.Import(path, "", 0)
 	if _, ok := err.(*build.NoGoError); ok {
 		return nil, nil // empty directory
 	}
