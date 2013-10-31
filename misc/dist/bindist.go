@@ -175,7 +175,7 @@ func main() {
 			}
 			if *includeRace {
 				for _, t := range raceAvailable {
-					if t == targ {
+					if t == targ || strings.HasPrefix(targ, t+"-") {
 						b.Race = true
 					}
 				}
