@@ -290,7 +290,6 @@ struct	G
 struct	M
 {
 	G*	g0;		// goroutine with scheduling stack
-	uint32	divmod;		// div/mod denominator on arm
 	void*	moreargp;	// argument pointer for more stack
 	Gobuf	morebuf;	// gobuf arg to morestack
 
