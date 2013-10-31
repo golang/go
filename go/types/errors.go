@@ -53,7 +53,8 @@ func (check *checker) dump(format string, args ...interface{}) {
 	fmt.Println(check.sprintf(format, args...))
 }
 
-func (check *checker) err(err error) {
+func (check *checker) err(pos token.Pos, msg string) {
+	err := Error{check.fset, pos, msg}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -65,7 +66,7 @@ func (check *checker) err(err error) {
 }
 
 func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	check.err(fmt.Errorf("%s: %s", check.fset.Position(pos), check.sprintf(format, args...)))
+	check.err(pos, check.sprintf(format, args...))
 }
 
 func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {

@@ -23,6 +23,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -42,6 +43,20 @@ func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error
 		return nil, err
 	}
 	return pkg, nil
+}
+
+// An Error describes a type-checking error;
+// it implements the error interface.
+type Error struct {
+	Fset *token.FileSet // file set for interpretation of Pos
+	Pos  token.Pos      // error position
+	Msg  string         // error message
+}
+
+// Error returns an error string formatted as follows:
+// filename:line:column: message
+func (err Error) Error() string {
+	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Msg)
 }
 
 // A Config specifies the configuration for type checking.
@@ -66,9 +81,7 @@ type Config struct {
 	Packages map[string]*Package
 
 	// If Error != nil, it is called with each error found
-	// during type checking. The error strings of errors with
-	// detailed position information are formatted as follows:
-	// filename:line:column: message
+	// during type checking; err has dynamic type Error.
 	Error func(err error)
 
 	// If Import != nil, it is called for each imported package.
