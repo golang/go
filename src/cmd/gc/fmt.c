@@ -700,6 +700,13 @@ typefmt(Fmt *fp, Type *t)
 		return 0;
 
 	case TSTRUCT:
+		// Format the bucket struct for map[x]y as map.bucket[x]y.
+		// This avoids a recursive print that generates very long names.
+		if(t->hmap != T) {
+			t = t->hmap;
+			return fmtprint(fp, "map.bucket[%T]%T", t->down, t->type);
+		}
+
 		if(t->funarg) {
 			fmtstrcpy(fp, "(");
 			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape" tags
