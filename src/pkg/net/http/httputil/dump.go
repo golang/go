@@ -45,13 +45,27 @@ func (c *dumpConn) SetDeadline(t time.Time) error      { return nil }
 func (c *dumpConn) SetReadDeadline(t time.Time) error  { return nil }
 func (c *dumpConn) SetWriteDeadline(t time.Time) error { return nil }
 
+type neverEnding byte
+
+func (b neverEnding) Read(p []byte) (n int, err error) {
+	for i := range p {
+		p[i] = byte(b)
+	}
+	return len(p), nil
+}
+
 // DumpRequestOut is like DumpRequest but includes
 // headers that the standard http.Transport adds,
 // such as User-Agent.
 func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	save := req.Body
+	dummyBody := false
 	if !body || req.Body == nil {
 		req.Body = nil
+		if req.ContentLength != 0 {
+			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), req.ContentLength))
+			dummyBody = true
+		}
 	} else {
 		var err error
 		save, req.Body, err = drainBody(req.Body)
@@ -99,7 +113,19 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	dump := buf.Bytes()
+
+	// If we used a dummy body above, remove it now.
+	// TODO: if the req.ContentLength is large, we allocate memory
+	// unnecessarily just to slice it off here.  But this is just
+	// a debug function, so this is acceptable for now. We could
+	// discard the body earlier if this matters.
+	if dummyBody {
+		if i := bytes.Index(dump, []byte("\r\n\r\n")); i >= 0 {
+			dump = dump[:i+4]
+		}
+	}
+	return dump, nil
 }
 
 // delegateReader is a reader that delegates to another reader,
