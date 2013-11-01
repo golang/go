@@ -288,7 +288,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	// For each name, we generate these lines, where xxx is the index in toSniff plus one.
 	//
 	//	#line xxx "not-declared"
-	//	void __cgo_f_xxx_1(void) { typeof(name) *__cgo_undefined__; }
+	//	void __cgo_f_xxx_1(void) { __typeof__(name) *__cgo_undefined__; }
 	//	#line xxx "not-type"
 	//	void __cgo_f_xxx_2(void) { name *__cgo_undefined__; }
 	//	#line xxx "not-const"
@@ -309,7 +309,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 
 	for i, n := range names {
 		fmt.Fprintf(&b, "#line %d \"not-declared\"\n"+
-			"void __cgo_f_%d_1(void) { typeof(%s) *__cgo_undefined__; }\n"+
+			"void __cgo_f_%d_1(void) { __typeof__(%s) *__cgo_undefined__; }\n"+
 			"#line %d \"not-type\"\n"+
 			"void __cgo_f_%d_2(void) { %s *__cgo_undefined__; }\n"+
 			"#line %d \"not-const\"\n"+
@@ -406,14 +406,14 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	// for symbols in the object file, so it is not enough to print the
 	// preamble and hope the symbols we care about will be there.
 	// Instead, emit
-	//	typeof(names[i]) *__cgo__i;
+	//	__typeof__(names[i]) *__cgo__i;
 	// for each entry in names and then dereference the type we
 	// learn for __cgo__i.
 	var b bytes.Buffer
 	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
 	for i, n := range names {
-		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n.C, i)
+		fmt.Fprintf(&b, "__typeof__(%s) *__cgo__%d;\n", n.C, i)
 		if n.Kind == "const" {
 			fmt.Fprintf(&b, "enum { __cgo_enum__%d = %s };\n", i, n.C)
 		}
@@ -742,7 +742,7 @@ func gccTmp() string {
 // the input.
 func (p *Package) gccCmd() []string {
 	c := append(p.gccBaseCmd(),
-		"-Wno-all",                          // no warnings
+		"-w",                                // no warnings
 		"-Wno-error",                        // warnings are not errors
 		"-o"+gccTmp(),                       // write object to tmp
 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
@@ -1082,7 +1082,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		sub := c.Type(dt.Type, pos)
 		t.Align = sub.Align
 		gt.Elt = sub.Go
-		t.C.Set("typeof(%s[%d])", sub.C, dt.Count)
+		t.C.Set("__typeof__(%s[%d])", sub.C, dt.Count)
 
 	case *dwarf.BoolType:
 		t.Go = c.bool
@@ -1220,7 +1220,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		case "class", "union":
 			t.Go = c.Opaque(t.Size)
 			if t.C.Empty() {
-				t.C.Set("typeof(unsigned char[%d])", t.Size)
+				t.C.Set("__typeof__(unsigned char[%d])", t.Size)
 			}
 			t.Align = 1 // TODO: should probably base this on field alignment.
 			typedef[name.Name] = t
