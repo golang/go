@@ -62,7 +62,7 @@ begin:
 		// sys.go claims to be in package PACKAGE to avoid
 		// conflicts during "6g sys.go".  rename PACKAGE to $2.
 		printf("\t\"");
-		while(q = strstr(p, "PACKAGE")) {
+		while((q = strstr(p, "PACKAGE")) != NULL) {
 			*q = 0;
 			esc(p);	// up to the substitution
 			printf("%s", name);	// the sub name
