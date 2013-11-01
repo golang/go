@@ -63,7 +63,7 @@ NextCipherSuite:
 	}
 
 	if hello.vers >= VersionTLS12 {
-		hello.signatureAndHashes = supportedSignatureAlgorithms
+		hello.signatureAndHashes = supportedSKXSignatureAlgorithms
 	}
 
 	c.writeRecord(recordTypeHandshake, hello.marshal())

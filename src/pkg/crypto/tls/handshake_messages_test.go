@@ -136,7 +136,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.signatureAndHashes = supportedSignatureAlgorithms
+		m.signatureAndHashes = supportedSKXSignatureAlgorithms
 	}
 
 	return reflect.ValueOf(m)
