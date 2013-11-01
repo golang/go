@@ -780,6 +780,11 @@ func (p *Package) gccCmd() []string {
 func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte) {
 	runGcc(stdin, p.gccCmd())
 
+	isDebugData := func(s string) bool {
+		// Some systems use leading _ to denote non-assembly symbols.
+		return s == "__cgodebug_data" || s == "___cgodebug_data"
+	}
+
 	if f, err := macho.Open(gccTmp()); err == nil {
 		defer f.Close()
 		d, err := f.DWARF()
@@ -790,8 +795,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 		if f.Symtab != nil {
 			for i := range f.Symtab.Syms {
 				s := &f.Symtab.Syms[i]
-				// Mach-O still uses a leading _ to denote non-assembly symbols.
-				if s.Name == "_"+"__cgodebug_data" {
+				if isDebugData(s.Name) {
 					// Found it.  Now find data section.
 					if i := int(s.Sect) - 1; 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
@@ -818,7 +822,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 		if err == nil {
 			for i := range symtab {
 				s := &symtab[i]
-				if s.Name == "__cgodebug_data" {
+				if isDebugData(s.Name) {
 					// Found it.  Now find data section.
 					if i := int(s.Section); 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
@@ -842,7 +846,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 		}
 		var data []byte
 		for _, s := range f.Symbols {
-			if s.Name == "_"+"__cgodebug_data" {
+			if isDebugData(s.Name) {
 				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
 					sect := f.Sections[i]
 					if s.Value < sect.Size {
