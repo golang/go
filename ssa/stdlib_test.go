@@ -11,6 +11,7 @@ package ssa_test
 
 import (
 	"go/build"
+	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -104,7 +105,18 @@ func TestStdlib(t *testing.T) {
 		}
 	}
 
+	// determine line count
+	var lineCount int
+	imp.Fset.Iterate(func(f *token.File) bool {
+		lineCount += f.LineCount()
+		return true
+	})
+
+	// NB: when benchmarking, don't forget to clear the debug +
+	// sanity builder flags for better performance.
+
 	t.Log("GOMAXPROCS:           ", runtime.GOMAXPROCS(0))
+	t.Log("#Source lines:        ", lineCount)
 	t.Log("Load/parse/typecheck: ", t1.Sub(t0))
 	t.Log("SSA create:           ", t2.Sub(t1))
 	t.Log("SSA build:            ", t3.Sub(t2))
