@@ -165,14 +165,11 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	fi = make([]FileInfo, len(names))
 	for i, filename := range names {
 		fip, lerr := lstat(dirname + filename)
-		if lerr == nil {
-			fi[i] = fip
-		} else {
+		if lerr != nil {
 			fi[i] = &fileStat{name: filename}
-			if err == nil {
-				err = lerr
-			}
+			continue
 		}
+		fi[i] = fip
 	}
 	return fi, err
 }
