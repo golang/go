@@ -357,7 +357,7 @@ func main() {
 func setup() {
 	var j, ty int
 
-	stderr = bufio.NewWriter(os.NewFile(2, "stderr"))
+	stderr = bufio.NewWriter(os.Stderr)
 	foutput = nil
 
 	flag.Parse()
