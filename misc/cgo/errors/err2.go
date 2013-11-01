@@ -4,15 +4,10 @@
 
 package main
 
-/*
-#cgo LDFLAGS: -c
-
-void test() {
-	xxx;		// ERROR HERE
-}
-*/
 import "C"
 
 func main() {
-	C.test()
+	s := ""
+	_ = s
+	C.malloc(s) // ERROR HERE
 }
