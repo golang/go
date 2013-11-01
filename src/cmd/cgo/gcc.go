@@ -742,13 +742,12 @@ func gccTmp() string {
 // the input.
 func (p *Package) gccCmd() []string {
 	c := append(p.gccBaseCmd(),
-		"-w",                                // no warnings
-		"-Wno-error",                        // warnings are not errors
-		"-o"+gccTmp(),                       // write object to tmp
-		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
-		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
-		"-c",  // do not link
-		"-xc", // input language is C
+		"-w",          // no warnings
+		"-Wno-error",  // warnings are not errors
+		"-o"+gccTmp(), // write object to tmp
+		"-gdwarf-2",   // generate DWARF v2 debugging symbols
+		"-c",          // do not link
+		"-xc",         // input language is C
 	)
 	if strings.Contains(c[0], "clang") {
 		c = append(c,
