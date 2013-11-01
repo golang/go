@@ -269,29 +269,30 @@ Next, cgo needs to identify the kinds for each identifier. For the
 identifiers C.foo and C.bar, cgo generates this C program:
 
 	<preamble>
-	void __cgo__f__(void) {
-	#line 1 "cgo-test"
-		foo;
-		enum { _cgo_enum_0 = foo };
-		bar;
-		enum { _cgo_enum_1 = bar };
-	}
+	#line 1 "not-declared"
+	void __cgo_f_xxx_1(void) { typeof(foo) *__cgo_undefined__; }
+	#line 1 "not-type"
+	void __cgo_f_xxx_2(void) { foo *__cgo_undefined__; }
+	#line 1 "not-const"
+	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__ = (foo)*1 }; }
+	#line 2 "not-declared"
+	void __cgo_f_xxx_1(void) { typeof(bar) *__cgo_undefined__; }
+	#line 2 "not-type"
+	void __cgo_f_xxx_2(void) { bar *__cgo_undefined__; }
+	#line 2 "not-const"
+	void __cgo_f_xxx_3(void) { enum { __cgo_undefined__ = (bar)*1 }; }
 
-This program will not compile, but cgo can look at the error messages
-to infer the kind of each identifier. The line number given in the
-error tells cgo which identifier is involved.
+This program will not compile, but cgo can use the presence or absence
+of an error message on a given line to deduce the information it
+needs. The program is syntactically valid regardless of whether each
+name is a type or an ordinary identifier, so there will be no syntax
+errors that might stop parsing early.
 
-An error like "unexpected type name" or "useless type name in empty
-declaration" or "declaration does not declare anything" tells cgo that
-the identifier is a type.
+An error on not-declared:1 indicates that foo is undeclared.
+An error on not-type:1 indicates that foo is not a type (if declared at all, it is an identifier).
+An error on not-const:1 indicates that foo is not an integer constant.
 
-An error like "statement with no effect" or "expression result unused"
-tells cgo that the identifier is not a type, but not whether it is a
-constant, function, or global variable.
-
-An error like "not an integer constant" tells cgo that the identifier
-is not a constant. If it is also not a type, it must be a function or
-global variable. For now, those can be treated the same.
+The line number specifies the name involved. In the example, 1 is foo and 2 is bar.
 
 Next, cgo must learn the details of each type, variable, function, or
 constant. It can do this by reading object files. If cgo has decided
