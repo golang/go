@@ -88,6 +88,7 @@ func (b *Builder) envvWindows() []string {
 	}
 	skip := map[string]bool{
 		"GOBIN":   true,
+		"GOPATH":  true,
 		"GOROOT":  true,
 		"INCLUDE": true,
 		"LIB":     true,
