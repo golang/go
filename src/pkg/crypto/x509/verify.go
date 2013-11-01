@@ -154,14 +154,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	}
 
 	if len(c.PermittedDNSDomains) > 0 {
+		ok := false
 		for _, domain := range c.PermittedDNSDomains {
 			if opts.DNSName == domain ||
 				(strings.HasSuffix(opts.DNSName, domain) &&
 					len(opts.DNSName) >= 1+len(domain) &&
 					opts.DNSName[len(opts.DNSName)-len(domain)-1] == '.') {
-				continue
+				ok = true
+				break
 			}
+		}
 
+		if !ok {
 			return CertificateInvalidError{c, CANotAuthorizedForThisName}
 		}
 	}
