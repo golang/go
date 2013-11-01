@@ -472,14 +472,27 @@ noops(void)
 				p->to.reg = REGSP;
 				p->spadj = -8;
 	
-				/* SUB $8,SP */
-				q1->as = ASUB;
-				q1->from.type = D_CONST;
-				q1->from.offset = 8;
-				q1->from.reg = NREG;
+				/* Keep saved LR at 0(SP) after SP change. */
+				/* MOVW 0(SP), REGTMP; MOVW REGTMP, -8!(SP) */
+				/* TODO: Remove SP adjustments; see issue 6699. */
+				q1->as = AMOVW;
+				q1->from.type = D_OREG;
+				q1->from.reg = REGSP;
+				q1->from.offset = 0;
 				q1->reg = NREG;
 				q1->to.type = D_REG;
+				q1->to.reg = REGTMP;
+
+				/* SUB $8,SP */
+				q1 = appendp(q1);
+				q1->as = AMOVW;
+				q1->from.type = D_REG;
+				q1->from.reg = REGTMP;
+				q1->reg = NREG;
+				q1->to.type = D_OREG;
 				q1->to.reg = REGSP;
+				q1->to.offset = -8;
+				q1->scond |= C_WBIT;
 				q1->spadj = 8;
 	
 				break;

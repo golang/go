@@ -84,7 +84,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.lr = 0;
 			flr = nil;
 		} else {
-			if(frame.lr == 0)
+			if((n == 0 && frame.sp < frame.fp) || frame.lr == 0)
 				frame.lr = *(uintptr*)frame.sp;
 			flr = runtime·findfunc(frame.lr);
 			if(flr == nil) {
