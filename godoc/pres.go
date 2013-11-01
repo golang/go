@@ -49,6 +49,19 @@ type Presentation struct {
 	// value is provided.
 	AdjustPageInfoMode func(req *http.Request, mode PageInfoMode) PageInfoMode
 
+	// URLForSrc optionally specifies a function that takes a source file and
+	// returns a URL for it.
+	// The source file argument has the form /src/pkg/<path>/<filename>.
+	URLForSrc func(src string) string
+
+	// URLForSrcPos optionally specifies a function to create a URL given a
+	// source file, a line from the source file (1-based), and low & high offset
+	// positions (0-based, bytes from beginning of file). Ideally, the returned
+	// URL will be for the specified line of the file, while the high & low
+	// positions will be used to highlight a section of the file.
+	// The source file argument has the form /src/pkg/<path>/<filename>.
+	URLForSrcPos func(src string, line, low, high int) string
+
 	initFuncMapOnce sync.Once
 	funcMap         template.FuncMap
 	templateFuncs   template.FuncMap

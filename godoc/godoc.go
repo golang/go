@@ -78,7 +78,7 @@ func (p *Presentation) initFuncMap() {
 		// support for URL attributes
 		"pkgLink":     pkgLinkFunc,
 		"srcLink":     srcLinkFunc,
-		"posLink_url": posLink_urlFunc,
+		"posLink_url": newPosLink_urlFunc(srcPosLinkFunc),
 
 		// formatting of Examples
 		"example_html":   p.example_htmlFunc,
@@ -88,6 +88,12 @@ func (p *Presentation) initFuncMap() {
 
 		// formatting of Notes
 		"noteTitle": noteTitle,
+	}
+	if p.URLForSrc != nil {
+		p.funcMap["srcLink"] = p.URLForSrc
+	}
+	if p.URLForSrcPos != nil {
+		p.funcMap["posLink_url"] = newPosLink_urlFunc(p.URLForSrcPos)
 	}
 }
 
@@ -232,37 +238,43 @@ func pkgLinkFunc(path string) string {
 	return "pkg/" + relpath // remove trailing '/' for relative URL
 }
 
-// n must be an ast.Node or a *doc.Note
-func posLink_urlFunc(info *PageInfo, n interface{}) string {
-	var pos, end token.Pos
+func newPosLink_urlFunc(srcPosLinkFunc func(s string, line, low, high int) string) func(info *PageInfo, n interface{}) string {
+	// n must be an ast.Node or a *doc.Note
+	return func(info *PageInfo, n interface{}) string {
+		var pos, end token.Pos
 
-	switch n := n.(type) {
-	case ast.Node:
-		pos = n.Pos()
-		end = n.End()
-	case *doc.Note:
-		pos = n.Pos
-		end = n.End
-	default:
-		panic(fmt.Sprintf("wrong type for posLink_url template formatter: %T", n))
+		switch n := n.(type) {
+		case ast.Node:
+			pos = n.Pos()
+			end = n.End()
+		case *doc.Note:
+			pos = n.Pos
+			end = n.End
+		default:
+			panic(fmt.Sprintf("wrong type for posLink_url template formatter: %T", n))
+		}
+
+		var relpath string
+		var line int
+		var low, high int // selection offset range
+
+		if pos.IsValid() {
+			p := info.FSet.Position(pos)
+			relpath = p.Filename
+			line = p.Line
+			low = p.Offset
+		}
+		if end.IsValid() {
+			high = info.FSet.Position(end).Offset
+		}
+
+		return srcPosLinkFunc(relpath, line, low, high)
 	}
+}
 
-	var relpath string
-	var line int
-	var low, high int // selection offset range
-
-	if pos.IsValid() {
-		p := info.FSet.Position(pos)
-		relpath = p.Filename
-		line = p.Line
-		low = p.Offset
-	}
-	if end.IsValid() {
-		high = info.FSet.Position(end).Offset
-	}
-
+func srcPosLinkFunc(s string, line, low, high int) string {
 	var buf bytes.Buffer
-	template.HTMLEscape(&buf, []byte(relpath))
+	template.HTMLEscape(&buf, []byte(s))
 	// selection ranges are of form "s=low:high"
 	if low < high {
 		fmt.Fprintf(&buf, "?s=%d:%d", low, high) // no need for URL escaping
@@ -278,7 +290,6 @@ func posLink_urlFunc(info *PageInfo, n interface{}) string {
 	if line > 0 {
 		fmt.Fprintf(&buf, "#L%d", line) // no need for URL escaping
 	}
-
 	return buf.String()
 }
 
