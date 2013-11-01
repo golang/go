@@ -53,6 +53,19 @@ func TestLookupStaticHost(t *testing.T) {
 	hostsPath = p
 }
 
+// https://code.google.com/p/go/issues/detail?id=6646
+func TestSingleLineHostsFile(t *testing.T) {
+	p := hostsPath
+	hostsPath = "testdata/hosts_singleline"
+
+	ips := lookupStaticHost("odin")
+	if len(ips) != 1 || ips[0] != "127.0.0.2" {
+		t.Errorf("lookupStaticHost = %v, want %v", ips, []string{"127.0.0.2"})
+	}
+
+	hostsPath = p
+}
+
 func TestLookupHost(t *testing.T) {
 	// Can't depend on this to return anything in particular,
 	// but if it does return something, make sure it doesn't
