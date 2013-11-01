@@ -1,0 +1,42 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// initialization cycles
+
+package init0
+
+// type-checking, not initialization cycles (we don't know the types)
+// (avoid duplicate errors)
+var (
+	x1 /* ERROR cycle */ = y1
+	y1 = x1
+
+	a1 = b1
+	b1 /* ERROR cycle */ = c1
+	c1 = d1
+	d1 = b1
+)
+
+// initialization cycles (we know the types)
+var (
+	x2 /* ERROR initialization cycle */ int = y2
+	y2 = x2
+
+	a2 = b2
+	b2 /* ERROR initialization cycle */ int = c2
+	c2 = d2
+	d2 = b2
+)
+
+// cycles via struct fields
+type S1 struct {
+	f int
+}
+var x3 /* ERROR initialization cycle */ S1 = S1{x3.f}
+
+// cycles via functions
+var x4 = f1() // TODO(gri) recognize cycle
+func f1() int {
+	return x4
+}

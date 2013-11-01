@@ -161,6 +161,12 @@ type Info struct {
 	//	*ast.RangeStmt
 	//
 	Scopes map[ast.Node]*Scope
+
+	// InitOrder is the list of package-level variables in the order in which
+	// they must be initialized. Variables related by an initialization dependency
+	// appear in topological order, and unrelated variables appear in source order.
+	// TODO(gri) find a better name
+	InitOrder []*Var
 }
 
 // Check type-checks a package and returns the resulting package object,

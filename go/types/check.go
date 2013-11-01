@@ -34,18 +34,20 @@ type checker struct {
 	fset *token.FileSet
 	pkg  *Package
 
-	methods     map[string][]*Func     // maps type names to associated methods
-	conversions map[*ast.CallExpr]bool // set of type-checked conversions (to distinguish from calls)
-	untyped     map[ast.Expr]exprInfo  // map of expressions without final type
-	lhsVarsList [][]*Var               // type switch lhs variable sets, for 'declared but not used' errors
-	delayed     []func()               // delayed checks that require fully setup types
+	methods      map[string][]*Func         // maps type names to associated methods
+	conversions  map[*ast.CallExpr]bool     // set of type-checked conversions (to distinguish from calls)
+	dependencies map[Object]map[Object]bool // set of object initialization dependencies (obj depends on {obj1, obj2, ...})
+	untyped      map[ast.Expr]exprInfo      // map of expressions without final type
+	lhsVarsList  [][]*Var                   // type switch lhs variable sets, for 'declared but not used' errors
+	delayed      []func()                   // delayed checks that require fully setup types
 
 	firstErr error // first error encountered
 	Info           // collected type info
 
 	objMap   map[Object]declInfo // if set we are in the package-level declaration phase (otherwise all objects seen must be declared)
 	topScope *Scope              // current topScope for lookups
-	iota     exact.Value         // value of iota in a constant declaration; nil otherwise
+	iota     exact.Value         // current value of iota in a constant declaration; nil otherwise
+	init     Object              // current variable or function for which init expression or body is type-checked
 
 	// functions
 	funcList []funcInfo // list of functions/methods with correct signatures and non-empty bodies
@@ -58,13 +60,43 @@ type checker struct {
 
 func newChecker(conf *Config, fset *token.FileSet, pkg *Package) *checker {
 	return &checker{
-		conf:        conf,
-		fset:        fset,
-		pkg:         pkg,
-		methods:     make(map[string][]*Func),
-		conversions: make(map[*ast.CallExpr]bool),
-		untyped:     make(map[ast.Expr]exprInfo),
+		conf:         conf,
+		fset:         fset,
+		pkg:          pkg,
+		methods:      make(map[string][]*Func),
+		conversions:  make(map[*ast.CallExpr]bool),
+		dependencies: make(map[Object]map[Object]bool),
+		untyped:      make(map[ast.Expr]exprInfo),
 	}
+}
+
+func isVarOrFunc(obj Object) bool {
+	switch obj.(type) {
+	case *Var, *Func:
+		return true
+	}
+	return false
+}
+
+// addInitDep adds the dependency edge (to -> check.init)
+// if check.init is a package-level variable or function.
+func (check *checker) addInitDep(to Object) {
+	from := check.init
+	if from == nil || from.Parent() == nil {
+		return // not a package-level variable or function
+	}
+
+	if debug {
+		assert(isVarOrFunc(from))
+		assert(isVarOrFunc(to))
+	}
+
+	m := check.dependencies[from] // lazily allocated
+	if m == nil {
+		m = make(map[Object]bool)
+		check.dependencies[from] = m
+	}
+	m[to] = true
 }
 
 func (check *checker) delay(f func()) {
@@ -225,6 +257,12 @@ func (conf *Config) check(pkgPath string, fset *token.FileSet, files []*ast.File
 		for x, info := range check.untyped {
 			check.recordTypeAndValue(x, info.typ, info.val)
 		}
+	}
+
+	// copy check.InitOrder back to incoming *info if necessary
+	// (In case of early (error) bailout, this is not done, but we don't care in that case.)
+	if info != nil {
+		info.InitOrder = check.InitOrder
 	}
 
 	return

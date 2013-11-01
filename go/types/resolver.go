@@ -353,16 +353,13 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// Phase 3: Typecheck all objects in objList, but not function bodies.
 
-	check.objMap = objMap // indicate that we are checking global declarations (objects may not have a type yet)
+	check.objMap = objMap // indicate that we are checking package-level declarations (objects may not have a type yet)
 	for _, obj := range objList {
 		if obj.Type() == nil {
 			check.objDecl(obj, nil, false)
 		}
 	}
-
-	// done with package-level declarations
-	check.objMap = nil
-	objList = nil
+	check.objMap = nil // done with package-level declarations
 
 	// At this point we may have a non-empty check.methods map; this means that not all
 	// entries were deleted at the end of typeDecl because the respective receiver base
@@ -401,7 +398,19 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 	}
 
-	// Phase 5: Check for declared but not used packages and variables.
+	// Phase 5: Check initialization dependencies.
+	// Note: must happen after checking all functions because function bodies
+	// may introduce dependencies
+
+	state := make(map[Object]uint8)
+	for _, obj := range objList {
+		if isVarOrFunc(obj) && state[obj] == 0 {
+			check.objDependencies(obj, state)
+		}
+	}
+	objList = nil // not needed anymore
+
+	// Phase 6: Check for declared but not used packages and variables.
 	// Note: must happen after checking all functions because closures may affect outer scopes
 
 	// spec: "It is illegal (...) to directly import a package without referring to
@@ -461,6 +470,26 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// declare a variable inside a function body if the variable is never used."
 	for _, f := range check.funcList {
 		check.usage(f.sig.scope)
+	}
+}
+
+func (check *checker) objDependencies(obj Object, state map[Object]uint8) {
+	const inProgress, done = 1, 2
+	if state[obj] == inProgress {
+		check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
+		// TODO(gri) print the cycle
+		state[obj] = done // avoid further errors
+		return
+	}
+
+	state[obj] = inProgress
+	for dep := range check.dependencies[obj] {
+		check.objDependencies(dep, state)
+	}
+	state[obj] = done
+
+	if v, _ := obj.(*Var); v != nil {
+		check.Info.InitOrder = append(check.Info.InitOrder, v)
 	}
 }
 
@@ -557,14 +586,19 @@ func (check *checker) varDecl(obj *Var, typ, init ast.Expr) {
 		return
 	}
 
+	// save current init object
+	oldInit := check.init
+	check.init = obj
+
 	if m, _ := init.(*multiExpr); m != nil {
 		check.initVars(m.lhs, m.rhs, token.NoPos)
-		return
+	} else {
+		var x operand
+		check.expr(&x, init)
+		check.initVar(obj, &x)
 	}
 
-	var x operand
-	check.expr(&x, init)
-	check.initVar(obj, &x)
+	check.init = oldInit
 }
 
 func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk bool) {
