@@ -32,7 +32,19 @@ var zoneDirs = []string{
 	"/usr/share/zoneinfo/",
 	"/usr/share/lib/zoneinfo/",
 	"/usr/lib/locale/TZ/",
-	runtime.GOROOT() + "/lib/time/zoneinfo/",
+	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+}
+
+var origZoneDirs = zoneDirs
+
+func forceZipFileForTesting(zipOnly bool) {
+	zoneDirs = make([]string, len(origZoneDirs))
+	copy(zoneDirs, origZoneDirs)
+	if zipOnly {
+		for i := 0; i < len(zoneDirs)-1; i++ {
+			zoneDirs[i] = "/XXXNOEXIST"
+		}
+	}
 }
 
 func initLocal() {
