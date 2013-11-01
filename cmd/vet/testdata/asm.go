@@ -22,3 +22,10 @@ func argiface(x interface{}, y interface {
 func returnint() int
 func returnbyte(x int) byte
 func returnnamed(x byte) (r1 int, r2 int16, r3 string, r4 byte)
+
+func noprof(x int)
+func dupok(x int)
+func nosplit(x int)
+func rodata(x int)
+func noptr(x int)
+func wrapper(x int)

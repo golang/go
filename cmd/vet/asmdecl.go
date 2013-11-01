@@ -69,7 +69,7 @@ var (
 var (
 	re           = regexp.MustCompile
 	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
-	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9]+))?(?:\s*,\s*\$([0-9]+)(?:-([0-9]+))?)?`)
+	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$([0-9]+)(?:-([0-9]+))?)?`)
 	asmDATA      = re(`\b(DATA|GLOBL)\b`)
 	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
 	asmUnnamedFP = re(`[^+\-0-9]](([0-9]+)\(FP\))`)
@@ -146,7 +146,7 @@ func asmCheck(pkg *Package) {
 				fn = knownFunc[m[1]][arch]
 				if fn != nil {
 					size, _ := strconv.Atoi(m[4])
-					if size != fn.size && (m[2] != "7" || size != 0) {
+					if size != fn.size && (m[2] != "7" && !strings.Contains(m[2], "NOSPLIT") || size != 0) {
 						warnf("wrong argument size %d; expected $...-%d", size, fn.size)
 					}
 				}
