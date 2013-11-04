@@ -574,13 +574,10 @@ func canonicalMIMEHeaderKey(a []byte) string {
 		// and upper case after each dash.
 		// (Host, User-Agent, If-Modified-Since).
 		// MIME headers are ASCII only, so no Unicode issues.
-		if a[i] == ' ' {
-			a[i] = '-'
-			upper = true
-			continue
-		}
 		c := a[i]
-		if upper && 'a' <= c && c <= 'z' {
+		if c == ' ' {
+			c = '-'
+		} else if upper && 'a' <= c && c <= 'z' {
 			c -= toLower
 		} else if !upper && 'A' <= c && c <= 'Z' {
 			c += toLower
