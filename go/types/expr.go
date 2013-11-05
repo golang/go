@@ -969,8 +969,11 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if sig, ok := check.typ(e.Type, nil, false).(*Signature); ok {
 			x.mode = value
 			x.typ = sig
-			// TODO(gri) provide correct *declInfo here
-			check.later(nil, nil, sig, e.Body)
+			// Anonymous functions are considered part of the
+			// init expression/func declaration which contains
+			// them: use the current package-level declaration
+			// info.
+			check.later(nil, check.decl, sig, e.Body)
 		} else {
 			check.invalidAST(e.Pos(), "invalid function literal %s", e)
 			goto Error
