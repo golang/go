@@ -7,7 +7,7 @@
 package types
 
 import (
-	"fmt"
+	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -31,12 +31,12 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 	return pkg, nil
 }
 
-func mustTypecheck(t *testing.T, path, source string, info *Info) *Package {
+func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	pkg, err := pkgFor(path, source, info)
 	if err != nil {
 		t.Fatalf("%s: didn't type-check (%s)", path, err)
 	}
-	return pkg
+	return pkg.Name()
 }
 
 func TestCommaOkTypes(t *testing.T) {
@@ -45,28 +45,27 @@ func TestCommaOkTypes(t *testing.T) {
 		expr string // comma-ok expression string
 		typ  string // typestring of comma-ok value
 	}{
-		{`package p; var x interface{}; var _, _ = x.(int)`,
+		{`package p0; var x interface{}; var _, _ = x.(int)`,
 			`x.(int)`,
 			`(int, bool)`,
 		},
-		{`package p; var x interface{}; func _() { _, _ = x.(int) }`,
+		{`package p1; var x interface{}; func _() { _, _ = x.(int) }`,
 			`x.(int)`,
 			`(int, bool)`,
 		},
-		{`package p; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
+		{`package p2; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
 			`m["foo"]`,
-			`(complex128, p.mybool)`,
+			`(complex128, p2.mybool)`,
 		},
-		{`package p; var c chan string; var _, _ = <-c`,
+		{`package p3; var c chan string; var _, _ = <-c`,
 			`<-c`,
 			`(string, bool)`,
 		},
 	}
 
-	for i, test := range tests {
-		path := fmt.Sprintf("CommaOkTypes%d", i)
+	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]Type)}
-		mustTypecheck(t, path, test.src, &info)
+		name := mustTypecheck(t, "CommaOkTypes", test.src, &info)
 
 		// look for comma-ok expression type
 		var typ Type
@@ -77,13 +76,13 @@ func TestCommaOkTypes(t *testing.T) {
 			}
 		}
 		if typ == nil {
-			t.Errorf("%s: no type found for %s", path, test.expr)
+			t.Errorf("package %s: no type found for %s", name, test.expr)
 			continue
 		}
 
 		// check that type is correct
 		if got := typ.String(); got != test.typ {
-			t.Errorf("%s: got %s; want %s", path, got, test.typ)
+			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
 		}
 	}
 }
@@ -93,79 +92,78 @@ func TestScopesInfo(t *testing.T) {
 		src    string
 		scopes []string // list of scope descriptors of the form kind:varlist
 	}{
-		{`package p`, []string{
+		{`package p0`, []string{
 			"file:",
 		}},
-		{`package p; import ( "fmt"; m "math"; _ "os" ); var ( _ = fmt.Println; _ = m.Pi )`, []string{
+		{`package p1; import ( "fmt"; m "math"; _ "os" ); var ( _ = fmt.Println; _ = m.Pi )`, []string{
 			"file:fmt m",
 		}},
-		{`package p; func _() {}`, []string{
+		{`package p2; func _() {}`, []string{
 			"file:", "func:",
 		}},
-		{`package p; func _(x, y int) {}`, []string{
+		{`package p3; func _(x, y int) {}`, []string{
 			"file:", "func:x y",
 		}},
-		{`package p; func _(x, y int) { x, z := 1, 2; _ = z }`, []string{
+		{`package p4; func _(x, y int) { x, z := 1, 2; _ = z }`, []string{
 			"file:", "func:x y z", // redeclaration of x
 		}},
-		{`package p; func _(x, y int) (u, _ int) { return }`, []string{
+		{`package p5; func _(x, y int) (u, _ int) { return }`, []string{
 			"file:", "func:u x y",
 		}},
-		{`package p; func _() { { var x int; _ = x } }`, []string{
+		{`package p6; func _() { { var x int; _ = x } }`, []string{
 			"file:", "func:", "block:x",
 		}},
-		{`package p; func _() { if true {} }`, []string{
+		{`package p7; func _() { if true {} }`, []string{
 			"file:", "func:", "if:", "block:",
 		}},
-		{`package p; func _() { if x := 0; x < 0 { y := x; _ = y } }`, []string{
+		{`package p8; func _() { if x := 0; x < 0 { y := x; _ = y } }`, []string{
 			"file:", "func:", "if:x", "block:y",
 		}},
-		{`package p; func _() { switch x := 0; x {} }`, []string{
+		{`package p9; func _() { switch x := 0; x {} }`, []string{
 			"file:", "func:", "switch:x",
 		}},
-		{`package p; func _() { switch x := 0; x { case 1: y := x; _ = y; default: }}`, []string{
+		{`package p10; func _() { switch x := 0; x { case 1: y := x; _ = y; default: }}`, []string{
 			"file:", "func:", "switch:x", "case:y", "case:",
 		}},
-		{`package p; func _(t interface{}) { switch t.(type) {} }`, []string{
+		{`package p11; func _(t interface{}) { switch t.(type) {} }`, []string{
 			"file:", "func:t", "type switch:",
 		}},
-		{`package p; func _(t interface{}) { switch t := t; t.(type) {} }`, []string{
+		{`package p12; func _(t interface{}) { switch t := t; t.(type) {} }`, []string{
 			"file:", "func:t", "type switch:t",
 		}},
-		{`package p; func _(t interface{}) { switch x := t.(type) { case int: _ = x } }`, []string{
+		{`package p13; func _(t interface{}) { switch x := t.(type) { case int: _ = x } }`, []string{
 			"file:", "func:t", "type switch:", "case:x", // x implicitly declared
 		}},
-		{`package p; func _() { select{} }`, []string{
+		{`package p14; func _() { select{} }`, []string{
 			"file:", "func:",
 		}},
-		{`package p; func _(c chan int) { select{ case <-c: } }`, []string{
+		{`package p15; func _(c chan int) { select{ case <-c: } }`, []string{
 			"file:", "func:c", "comm:",
 		}},
-		{`package p; func _(c chan int) { select{ case i := <-c: x := i; _ = x} }`, []string{
+		{`package p16; func _(c chan int) { select{ case i := <-c: x := i; _ = x} }`, []string{
 			"file:", "func:c", "comm:i x",
 		}},
-		{`package p; func _() { for{} }`, []string{
+		{`package p17; func _() { for{} }`, []string{
 			"file:", "func:", "for:", "block:",
 		}},
-		{`package p; func _(n int) { for i := 0; i < n; i++ { _ = i } }`, []string{
+		{`package p18; func _(n int) { for i := 0; i < n; i++ { _ = i } }`, []string{
 			"file:", "func:n", "for:i", "block:",
 		}},
-		{`package p; func _(a []int) { for i := range a { _ = i} }`, []string{
+		{`package p19; func _(a []int) { for i := range a { _ = i} }`, []string{
 			"file:", "func:a", "range:i", "block:",
 		}},
-		{`package p; var s int; func _(a []int) { for i, x := range a { s += x; _ = i } }`, []string{
+		{`package p20; var s int; func _(a []int) { for i, x := range a { s += x; _ = i } }`, []string{
 			"file:", "func:a", "range:i x", "block:",
 		}},
 	}
 
-	for i, test := range tests {
-		path := fmt.Sprintf("ScopesInfo%d", i)
+	for _, test := range tests {
 		info := Info{Scopes: make(map[ast.Node]*Scope)}
-		mustTypecheck(t, path, test.src, &info)
+		name := mustTypecheck(t, "ScopesInfo", test.src, &info)
 
 		// number of scopes must match
 		if len(info.Scopes) != len(test.scopes) {
-			t.Errorf("%s: got %d scopes; want %d", path, len(info.Scopes), len(test.scopes))
+			t.Errorf("package %s: got %d scopes; want %d", name, len(info.Scopes), len(test.scopes))
 		}
 
 		// scope descriptions must match
@@ -204,57 +202,79 @@ func TestScopesInfo(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Errorf("%s: no matching scope found for %s", path, desc)
+				t.Errorf("package %s: no matching scope found for %s", name, desc)
 			}
 		}
 	}
 }
 
+func initString(init *Initializer) string {
+	var buf bytes.Buffer
+	for i, lhs := range init.Lhs {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(lhs.name)
+	}
+	buf.WriteString(" = ")
+	writeExpr(&buf, init.Rhs)
+	return buf.String()
+}
+
 func TestInitOrder(t *testing.T) {
 	var tests = []struct {
-		src  string
-		vars []string
-		// TODO(gri) check also init expression
+		src   string
+		inits []string
 	}{
-		{`package p; var (x = 1; y = x)`, []string{"x", "y"}},
-		{`package p; var (a = 1; b = 2; c = 3)`, []string{"a", "b", "c"}},
-		{`package p; var (a, b, c = 1, 2, 3)`, []string{"a", "b", "c"}},
-		{`package p; var _ = f(); func f() int { return 1 }`, []string{"_"}}, // blank var
-		{`package p; var (a = 0; x = y; y = z; z = 0)`, []string{"a", "z", "y", "x"}},
-		{`package p; var (a, _ = m[0]; m map[int]string)`, []string{"a _"}}, // blank var
-		{`package p; var a, b = f(); func f() (_, _ int) { return z, z }; var z = 0`, []string{"z", "a b"}},
-		{`package p; var (a = func() int { return b }(); b = 1)`, []string{"b", "a"}},
-		{`package p; var (a, b = func() (_, _ int) { return c, c }(); c = 1)`, []string{"c", "a b"}},
-		{`package p; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{"y", "x"}},
+		{`package p0; var (x = 1; y = x)`, []string{
+			"x = 1", "y = x",
+		}},
+		{`package p1; var (a = 1; b = 2; c = 3)`, []string{
+			"a = 1", "b = 2", "c = 3",
+		}},
+		{`package p2; var (a, b, c = 1, 2, 3)`, []string{
+			"a = 1", "b = 2", "c = 3",
+		}},
+		{`package p3; var _ = f(); func f() int { return 1 }`, []string{
+			"_ = f()", // blank var
+		}},
+		{`package p4; var (a = 0; x = y; y = z; z = 0)`, []string{
+			"a = 0", "z = 0", "y = z", "x = y",
+		}},
+		{`package p5; var (a, _ = m[0]; m map[int]string)`, []string{
+			"a, _ = m[0]", // blank var
+		}},
+		{`package p6; var a, b = f(); func f() (_, _ int) { return z, z }; var z = 0`, []string{
+			"z = 0", "a, b = f()",
+		}},
+		{`package p7; var (a = func() int { return b }(); b = 1)`, []string{
+			"b = 1", "a = (func literal)()",
+		}},
+		{`package p8; var (a, b = func() (_, _ int) { return c, c }(); c = 1)`, []string{
+			"c = 1", "a, b = (func literal)()",
+		}},
+		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
+			"y = 1", "x = T.m",
+		}},
 		// TODO(gri) add more tests
 	}
 
-	for i, test := range tests {
-		path := fmt.Sprintf("InitOrder%d", i)
+	for _, test := range tests {
 		info := Info{}
-		mustTypecheck(t, path, test.src, &info)
+		name := mustTypecheck(t, "InitOrder", test.src, &info)
 
 		// number of initializers must match
-		if len(info.InitOrder) != len(test.vars) {
-			t.Errorf("%s: got %d initializers; want %d", path, len(info.InitOrder), len(test.vars))
+		if len(info.InitOrder) != len(test.inits) {
+			t.Errorf("package %s: got %d initializers; want %d", name, len(info.InitOrder), len(test.inits))
 			continue
 		}
 
-		// initializer order and initialized variables must match
-		for i, got := range info.InitOrder {
-			want := strings.Split(test.vars[i], " ")
-			// number of variables must match
-			if len(got.Lhs) != len(want) {
-				t.Errorf("%s, %d.th initializer: got %d variables; want %d", path, i, len(got.Lhs), len(want))
+		// initializers must match
+		for i, want := range test.inits {
+			got := initString(info.InitOrder[i])
+			if got != want {
+				t.Errorf("package %s, init %d: got %s; want %s", name, i, got, want)
 				continue
-			}
-
-			// variable names must match
-			for j, got := range got.Lhs {
-				want := want[j]
-				if got.name != want {
-					t.Errorf("%s, %d.th initializer: got name %s; want %s", path, i, got.name, want)
-				}
 			}
 		}
 	}
