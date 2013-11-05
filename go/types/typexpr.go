@@ -89,6 +89,9 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	case *Var:
 		obj.used = true
 		x.mode = variable
+		// TODO(gri) move this into exprInternal's call of check.ident
+		// since that's the only place where we need to record a dependency
+		// (requires that operands know variable objects)
 		if typ != Typ[Invalid] {
 			check.addDeclDep(obj)
 		}
@@ -96,6 +99,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	case *Func:
 		obj.used = true
 		x.mode = value
+		// TODO(gri) see comment above for addDeclDep
 		if typ != Typ[Invalid] {
 			check.addDeclDep(obj)
 		}

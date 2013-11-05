@@ -213,17 +213,20 @@ func TestScopesInfo(t *testing.T) {
 func TestInitOrder(t *testing.T) {
 	var tests = []struct {
 		src  string
-		vars [][]string
+		vars []string
 		// TODO(gri) check also init expression
 	}{
-		{`package p; var (x = 1; y = x)`, [][]string{{"x"}, {"y"}}},
-		{`package p; var (a = 1; b = 2; c = 3)`, [][]string{{"a"}, {"b"}, {"c"}}},
-		{`package p; var (a, b, c = 1, 2, 3)`, [][]string{{"a"}, {"b"}, {"c"}}},
-		{`package p; var _ = f(); func f() int { return 1 }`, [][]string{{"_"}}}, // blank var
-		{`package p; var (a = 0; x = y; y = z; z = 0)`, [][]string{{"a"}, {"z"}, {"y"}, {"x"}}},
-		{`package p; var (a, _ = m[0]; m map[int]string)`, [][]string{{"a", "_"}}}, // blank var
-		{`package p; var a, b = f(); func f() (_, _ int) { return z, z }; var z = 0`, [][]string{{"z"}, {"a", "b"}}},
-		// TODO(gri) add more tests (incl. methods, closures, init functions)
+		{`package p; var (x = 1; y = x)`, []string{"x", "y"}},
+		{`package p; var (a = 1; b = 2; c = 3)`, []string{"a", "b", "c"}},
+		{`package p; var (a, b, c = 1, 2, 3)`, []string{"a", "b", "c"}},
+		{`package p; var _ = f(); func f() int { return 1 }`, []string{"_"}}, // blank var
+		{`package p; var (a = 0; x = y; y = z; z = 0)`, []string{"a", "z", "y", "x"}},
+		{`package p; var (a, _ = m[0]; m map[int]string)`, []string{"a _"}}, // blank var
+		{`package p; var a, b = f(); func f() (_, _ int) { return z, z }; var z = 0`, []string{"z", "a b"}},
+		{`package p; var (a = func() int { return b }(); b = 1)`, []string{"b", "a"}},
+		{`package p; var (a, b = func() (_, _ int) { return c, c }(); c = 1)`, []string{"c", "a b"}},
+		{`package p; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{"y", "x"}},
+		// TODO(gri) add more tests
 	}
 
 	for i, test := range tests {
@@ -239,7 +242,7 @@ func TestInitOrder(t *testing.T) {
 
 		// initializer order and initialized variables must match
 		for i, got := range info.InitOrder {
-			want := test.vars[i]
+			want := strings.Split(test.vars[i], " ")
 			// number of variables must match
 			if len(got.Lhs) != len(want) {
 				t.Errorf("%s, %d.th initializer: got %d variables; want %d", path, i, len(got.Lhs), len(want))
