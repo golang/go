@@ -395,7 +395,9 @@ func toWriter(w io.Writer, v value) {
 		}
 
 	case iface:
+		fmt.Fprintf(w, "(%s, ", v.t)
 		toWriter(w, v.v)
+		io.WriteString(w, ")")
 
 	case structure:
 		io.WriteString(w, "{")

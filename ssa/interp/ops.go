@@ -23,6 +23,10 @@ type targetPanic struct {
 	v value
 }
 
+func (p targetPanic) String() string {
+	return toString(p.v)
+}
+
 // If the target program calls exit, the interpreter panics with this type.
 type exitPanic int
 
