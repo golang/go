@@ -9,17 +9,20 @@ package ssa
 // SSA construction has two phases, CREATE and BUILD.  In the CREATE phase
 // (create.go), all packages are constructed and type-checked and
 // definitions of all package members are created, method-sets are
-// computed, and wrapper methods are synthesized.  The create phase
-// proceeds in topological order over the import dependency graph,
-// initiated by client calls to Program.CreatePackage.
+// computed, and wrapper methods are synthesized.
+// ssa.Packages are created in arbitrary order.
 //
 // In the BUILD phase (builder.go), the builder traverses the AST of
 // each Go source function and generates SSA instructions for the
-// function body.
-// Within each package, building proceeds in a topological order over
-// the intra-package symbol reference graph, whose roots are the set
-// of package-level declarations in lexical order.  The BUILD phases
-// for distinct packages are independent and are executed in parallel.
+// function body.  Initializer expressions for package-level variables
+// are emitted to the package's init() function in the order specified
+// by go/types.Info.InitOrder, then code for each function in the
+// package is generated in lexical order.
+// The BUILD phases for distinct packages are independent and are
+// executed in parallel.
+//
+// TODO(adonovan): indeed, building functions is now embarrassingly parallel.
+// Audit for concurrency then benchmark using more goroutines.
 //
 // The builder's and Program's indices (maps) are populated and
 // mutated during the CREATE phase, but during the BUILD phase they
@@ -67,32 +70,7 @@ var (
 
 // builder holds state associated with the package currently being built.
 // Its methods contain all the logic for AST-to-SSA conversion.
-type builder struct {
-	nTo1Vars map[*ast.ValueSpec]bool // set of n:1 ValueSpecs already built
-}
-
-// lookup returns the package-level *Function or *Global for the named
-// object obj, building it if necessary.
-//
-// Intra-package references are edges in the initialization dependency
-// graph.  If the result v is a Function or Global belonging to
-// 'from', the package on whose behalf this lookup occurs, then lookup
-// emits initialization code into from.init if not already done.
-//
-func (b *builder) lookup(from *Package, obj types.Object) Value {
-	v := from.Prog.packages[obj.Pkg()].values[obj]
-	switch v := v.(type) {
-	case *Function:
-		if from == v.Pkg {
-			b.buildFunction(v)
-		}
-	case *Global:
-		if from == v.Pkg {
-			b.buildGlobal(v, obj)
-		}
-	}
-	return v
-}
+type builder struct{}
 
 // cond emits to fn code to evaluate boolean condition e and jump
 // to t or f depending on its value, performing various simplifications.
@@ -371,7 +349,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			return blank{}
 		}
 		obj := fn.Pkg.objectOf(e)
-		v := b.lookup(fn.Pkg, obj) // var (address)
+		v := fn.Prog.packageLevelValue(obj) // var (address)
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
@@ -396,7 +374,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
 		case types.PackageObj:
 			obj := sel.Obj()
-			if v := b.lookup(fn.Pkg, obj); v != nil {
+			if v := fn.Prog.packageLevelValue(obj); v != nil {
 				return &address{addr: v, expr: e}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
@@ -644,7 +622,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			return nilConst(fn.Pkg.typeOf(e))
 		}
 		// Package-level func or var?
-		if v := b.lookup(fn.Pkg, obj); v != nil {
+		if v := fn.Prog.packageLevelValue(obj); v != nil {
 			if _, ok := obj.(*types.Var); ok {
 				return emitLoad(fn, v) // var (address)
 			}
@@ -946,128 +924,8 @@ func (b *builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token)
 	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ(), token.NoPos))
 }
 
-// buildGlobal emits code to the g.Pkg.init function for the variable
-// definition(s) of g.  Effects occur out of lexical order; see
-// explanation at globalValueSpec.
-// Precondition: g == g.Prog.value(obj)
-//
-func (b *builder) buildGlobal(g *Global, obj types.Object) {
-	spec := g.spec
-	if spec == nil {
-		return // already built (or in progress)
-	}
-	b.globalValueSpec(g.Pkg.init, spec, g, obj)
-}
-
-// globalValueSpec emits to init code to define one or all of the vars
-// in the package-level ValueSpec spec.
-//
-// It implements the build phase for a ValueSpec, ensuring that all
-// vars are initialized if not already visited by buildGlobal during
-// the reference graph traversal.
-//
-// This function may be called in two modes:
-// A) with g and obj non-nil, to initialize just a single global.
-//    This occurs during the reference graph traversal.
-// B) with g and obj nil, to initialize all globals in the same ValueSpec.
-//    This occurs during the left-to-right traversal over the ast.File.
-//
-// Precondition: g == g.Prog.value(obj)
-//
-// Package-level var initialization order is quite subtle.
-// The side effects of:
-//   var a, b = f(), g()
-// are not observed left-to-right if b is referenced before a in the
-// reference graph traversal.  So, we track which Globals have been
-// initialized by setting Global.spec=nil.
-//
-// Blank identifiers make things more complex since they don't have
-// associated types.Objects or ssa.Globals yet we must still ensure
-// that their corresponding side effects are observed at the right
-// moment.  Consider:
-//   var a, _, b = f(), g(), h()
-// Here, the relative ordering of the call to g() is unspecified but
-// it must occur exactly once, during mode B.  So globalValueSpec for
-// blanks must special-case n:n assigments and just evaluate the RHS
-// g() for effect.
-//
-// In a n:1 assignment:
-//   var a, _, b = f()
-// a reference to either a or b causes both globals to be initialized
-// at the same time.  Furthermore, no further work is required to
-// ensure that the effects of the blank assignment occur.  We must
-// keep track of which n:1 specs have been evaluated, independent of
-// which Globals are on the LHS (possibly none, if all are blank).
-//
-// See also localValueSpec.
-//
-func (b *builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global, obj types.Object) {
-	switch {
-	case len(spec.Values) == len(spec.Names):
-		// e.g. var x, y = 0, 1
-		// 1:1 assignment.
-		// Only the first time for a given GLOBAL has any effect.
-		for i, id := range spec.Names {
-			var lval lvalue = blank{}
-			if g != nil {
-				// Mode A: initialize only a single global, g
-				if isBlankIdent(id) || init.Pkg.objectOf(id) != obj {
-					continue
-				}
-				g.spec = nil
-				lval = &address{addr: g}
-			} else {
-				// Mode B: initialize all globals.
-				if !isBlankIdent(id) {
-					g2 := init.Pkg.values[init.Pkg.objectOf(id)].(*Global)
-					if g2.spec == nil {
-						continue // already done
-					}
-					g2.spec = nil
-					lval = &address{addr: g2}
-				}
-			}
-			if init.Prog.mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build global", id.Name)
-			}
-			b.exprInPlace(init, lval, spec.Values[i])
-			if g != nil {
-				break
-			}
-		}
-
-	case len(spec.Values) == 0:
-		// e.g. var x, y int
-		// Globals are implicitly zero-initialized.
-
-	default:
-		// e.g. var x, _, y = f()
-		// n:1 assignment.
-		// Only the first time for a given SPEC has any effect.
-		if !b.nTo1Vars[spec] {
-			b.nTo1Vars[spec] = true
-			if init.Prog.mode&LogSource != 0 {
-				defer logStack("build globals %s", spec.Names)()
-			}
-			tuple := b.exprN(init, spec.Values[0])
-			result := tuple.Type().(*types.Tuple)
-			for i, id := range spec.Names {
-				if !isBlankIdent(id) {
-					g := init.Pkg.values[init.Pkg.objectOf(id)].(*Global)
-					g.spec = nil // just an optimization
-					emitStore(init, g, emitExtract(init, tuple, i, result.At(i).Type()))
-				}
-			}
-		}
-	}
-}
-
 // localValueSpec emits to fn code to define all of the vars in the
 // function-local ValueSpec, spec.
-//
-// See also globalValueSpec: the two routines are similar but local
-// ValueSpecs are much simpler since they are encountered once only,
-// in their entirety, in lexical order.
 //
 func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 	switch {
@@ -2363,26 +2221,40 @@ func (p *Package) Build() {
 		init.emit(&v)
 	}
 
-	b := &builder{
-		nTo1Vars: make(map[*ast.ValueSpec]bool),
-	}
+	b := new(builder)
 
-	// Pass 1: visit the package's var decls and in source order,
-	// causing init() code to be generated in topological order.
-	// We visit package-level vars transitively through functions
-	// and methods, building them as we go.
-	for _, file := range p.info.Files {
-		for _, decl := range file.Decls {
-			if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.VAR {
-				for _, spec := range decl.Specs {
-					b.globalValueSpec(init, spec.(*ast.ValueSpec), nil, nil)
+	// Initialize package-level vars in correct order.
+	for _, varinit := range p.info.InitOrder {
+		if init.Prog.mode&LogSource != 0 {
+			fmt.Fprintf(os.Stderr, "build global initializer %v @ %s\n",
+				varinit.Lhs, p.Prog.Fset.Position(varinit.Rhs.Pos()))
+		}
+		if len(varinit.Lhs) == 1 {
+			// 1:1 initialization: var x, y = a(), b()
+			var lval lvalue
+			if v := varinit.Lhs[0]; v.Name() != "_" {
+				lval = &address{addr: p.values[v].(*Global)}
+			} else {
+				lval = blank{}
+			}
+			b.exprInPlace(init, lval, varinit.Rhs)
+		} else {
+			// n:1 initialization: var x, y :=  f()
+			tuple := b.exprN(init, varinit.Rhs)
+			result := tuple.Type().(*types.Tuple)
+			for i, v := range varinit.Lhs {
+				if v.Name() == "_" {
+					continue
 				}
+				emitStore(init, p.values[v].(*Global),
+					emitExtract(init, tuple, i, result.At(i).Type()))
 			}
 		}
 	}
 
-	// Pass 2: build all package-level functions, init functions
-	// and methods in source order, including unreachable/blank ones.
+	// Build all package-level functions, init functions
+	// and methods, including unreachable/blank ones.
+	// We build them in source order, but it's not significant.
 	for _, file := range p.info.Files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {

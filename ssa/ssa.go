@@ -400,10 +400,6 @@ type Global struct {
 	pos    token.Pos
 
 	Pkg *Package
-
-	// The following fields are set transiently during building,
-	// then cleared.
-	spec *ast.ValueSpec // explained at buildGlobal
 }
 
 // A Builtin represents a built-in function, e.g. len.

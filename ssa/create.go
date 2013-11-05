@@ -82,14 +82,12 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pkg.Members[name] = c
 
 	case *types.Var:
-		spec, _ := syntax.(*ast.ValueSpec)
 		g := &Global{
 			Pkg:    pkg,
 			name:   name,
 			object: obj,
 			typ:    types.NewPointer(obj.Type()), // address
 			pos:    obj.Pos(),
-			spec:   spec,
 		}
 		pkg.values[obj] = g
 		pkg.Members[name] = g
