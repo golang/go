@@ -22,6 +22,9 @@ func firstSentenceLen(s string) int {
 		if q == ' ' && p == '.' && (!unicode.IsUpper(pp) || unicode.IsUpper(ppp)) {
 			return i
 		}
+		if p == '。' || p == '．' {
+			return i
+		}
 		ppp, pp, p = pp, p, q
 	}
 	return len(s)
