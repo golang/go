@@ -32,6 +32,11 @@ type Corpus struct {
 	// order.
 	IndexFiles string
 
+	// IndexThrottle specifies the indexing throttle value
+	// between 0.0 and 1.0. At 0.0, the indexer always sleeps.
+	// At 1.0, the indexer never sleeps. Because 0.0 is useless
+	// and redundant with setting IndexEnabled to false, the
+	// zero value for IndexThrottle means 0.9.
 	IndexThrottle float64
 
 	// MaxResults optionally specifies the maximum results for indexing.
@@ -49,6 +54,13 @@ type Corpus struct {
 	// If showList is false, the package is hidden from the
 	// package listing.
 	SummarizePackage func(pkg string) (summary string, showList, ok bool)
+
+	// IndexDirectory optionally specifies a function to determine
+	// whether the provided directory should be indexed.  The dir
+	// will be of the form "/src/cmd/6a", "/doc/play",
+	// "/src/pkg/io", etc.
+	// If nil, all directories are indexed if indexing is enabled.
+	IndexDirectory func(dir string) bool
 
 	testDir string // TODO(bradfitz,adg): migrate old godoc flag? looks unused.
 

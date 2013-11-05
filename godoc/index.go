@@ -56,10 +56,12 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
 	"code.google.com/p/go.tools/godoc/util"
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 // ----------------------------------------------------------------------------
@@ -371,8 +373,11 @@ type Statistics struct {
 // interface for walking file trees, and the ast.Visitor interface for
 // walking Go ASTs.
 type Indexer struct {
-	c        *Corpus
-	fset     *token.FileSet          // file set for all indexed files
+	c          *Corpus
+	fset       *token.FileSet // file set for all indexed files
+	fsOpenGate chan bool      // send pre fs.Open; receive on close
+
+	mu       sync.Mutex              // guards all the following
 	sources  bytes.Buffer            // concatenated sources
 	packages map[string]*Pak         // map of canonicalized *Paks
 	words    map[string]*IndexResult // RunLists of Spots
@@ -381,6 +386,7 @@ type Indexer struct {
 	file     *File                   // AST for current file
 	decl     ast.Decl                // AST for current decl
 	stats    Statistics
+	throttle *util.Throttle
 }
 
 func (x *Indexer) lookupPackage(path, name string) *Pak {
@@ -535,12 +541,7 @@ func pkgName(filename string) string {
 // addFile adds a file to the index if possible and returns the file set file
 // and the file's AST if it was successfully parsed as a Go file. If addFile
 // failed (that is, if the file was not added), it returns file == nil.
-func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
-	// open file
-	f, err := x.c.fs.Open(filename)
-	if err != nil {
-		return
-	}
+func (x *Indexer) addFile(f vfs.ReadSeekCloser, filename string, goFile bool) (file *token.File, ast *ast.File) {
 	defer f.Close()
 
 	// The file set's base offset and x.sources size must be in lock-step;
@@ -641,17 +642,17 @@ func isWhitelisted(filename string) bool {
 	return whitelisted[key]
 }
 
-func (x *Indexer) visitFile(dirname string, f os.FileInfo, fulltextIndex bool) {
-	if f.IsDir() {
+func (x *Indexer) visitFile(dirname string, fi os.FileInfo, fulltextIndex bool) {
+	if fi.IsDir() {
 		return
 	}
 
-	filename := pathpkg.Join(dirname, f.Name())
+	filename := pathpkg.Join(dirname, fi.Name())
 	goFile := false
 
 	switch {
-	case isGoFile(f):
-		if !includeTestFiles && (!isPkgFile(f) || strings.HasPrefix(filename, "test/")) {
+	case isGoFile(fi):
+		if !includeTestFiles && (!isPkgFile(fi) || strings.HasPrefix(filename, "test/")) {
 			return
 		}
 		if !includeMainPackages && pkgName(filename) == "main" {
@@ -659,11 +660,25 @@ func (x *Indexer) visitFile(dirname string, f os.FileInfo, fulltextIndex bool) {
 		}
 		goFile = true
 
-	case !fulltextIndex || !isWhitelisted(f.Name()):
+	case !fulltextIndex || !isWhitelisted(fi.Name()):
 		return
 	}
 
-	file, fast := x.addFile(filename, goFile)
+	x.fsOpenGate <- true
+	defer func() { <-x.fsOpenGate }()
+
+	// open file
+	f, err := x.c.fs.Open(filename)
+	if err != nil {
+		return
+	}
+
+	x.mu.Lock()
+	defer x.mu.Unlock()
+
+	x.throttle.Throttle()
+
+	file, fast := x.addFile(f, filename, goFile)
 	if file == nil {
 		return // addFile failed
 	}
@@ -672,7 +687,7 @@ func (x *Indexer) visitFile(dirname string, f os.FileInfo, fulltextIndex bool) {
 		// we've got a Go file to index
 		x.current = file
 		pak := x.lookupPackage(dirname, fast.Name.Name)
-		x.file = &File{f.Name(), pak}
+		x.file = &File{fi.Name(), pak}
 		ast.Walk(x, fast)
 	}
 
@@ -701,33 +716,59 @@ type Index struct {
 
 func canonical(w string) string { return strings.ToLower(w) }
 
+// Somewhat arbitrary, but I figure low enough to not hurt disk-based filesystems
+// consuming file descriptors, where some systems have low 256 or 512 limits.
+// Go should have a built-in way to cap fd usage under the ulimit.
+const (
+	maxOpenFiles = 200
+	maxOpenDirs  = 50
+)
+
 // NewIndex creates a new index for the .go files
 // in the directories given by dirnames.
-//
+// The throttle parameter specifies a value between 0.0 and 1.0 that controls
+// artificial sleeping. If 0.0, the indexer always sleeps. If 1.0, the indexer
+// never sleeps.
 func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
-	var x Indexer
-	th := util.NewThrottle(throttle, 100*time.Millisecond) // run at least 0.1s at a time
-
 	// initialize Indexer
 	// (use some reasonably sized maps to start)
-	x.c = c
-	x.fset = token.NewFileSet()
-	x.packages = make(map[string]*Pak, 256)
-	x.words = make(map[string]*IndexResult, 8192)
+	x := &Indexer{
+		c:          c,
+		fset:       token.NewFileSet(),
+		fsOpenGate: make(chan bool, maxOpenFiles),
+		packages:   make(map[string]*Pak, 256),
+		words:      make(map[string]*IndexResult, 8192),
+		throttle:   util.NewThrottle(throttle, 100*time.Millisecond), // run at least 0.1s at a time
+	}
 
 	// index all files in the directories given by dirnames
+	var wg sync.WaitGroup // outstanding ReadDir + visitFile
+	dirGate := make(chan bool, maxOpenDirs)
 	for dirname := range dirnames {
-		list, err := c.fs.ReadDir(dirname)
-		if err != nil {
-			continue // ignore this directory
+		if c.IndexDirectory != nil && !c.IndexDirectory(dirname) {
+			continue
 		}
-		for _, f := range list {
-			if !f.IsDir() {
-				x.visitFile(dirname, f, fulltextIndex)
+		dirGate <- true
+		wg.Add(1)
+		go func(dirname string) {
+			defer func() { <-dirGate }()
+			defer wg.Done()
+
+			list, err := c.fs.ReadDir(dirname)
+			if err != nil {
+				log.Printf("ReadDir(%q): %v; skipping directory", dirname, err)
+				return // ignore this directory
 			}
-			th.Throttle()
-		}
+			for _, fi := range list {
+				wg.Add(1)
+				go func(fi os.FileInfo) {
+					defer wg.Done()
+					x.visitFile(dirname, fi, fulltextIndex)
+				}(fi)
+			}
+		}(dirname)
 	}
+	wg.Wait()
 
 	if !fulltextIndex {
 		// the file set, the current file, and the sources are
@@ -751,7 +792,7 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 			Others: others,
 		}
 		wlist = append(wlist, &wordPair{canonical(w), w})
-		th.Throttle()
+		x.throttle.Throttle()
 	}
 	x.stats.Words = len(words)
 
@@ -1094,7 +1135,13 @@ func (c *Corpus) UpdateIndex() {
 		log.Printf("updating index...")
 	}
 	start := time.Now()
-	index := NewIndex(c, c.fsDirnames(), c.MaxResults > 0, c.IndexThrottle)
+	throttle := c.IndexThrottle
+	if throttle <= 0 {
+		throttle = 0.9
+	} else if throttle > 1.0 {
+		throttle = 1.0
+	}
+	index := NewIndex(c, c.fsDirnames(), c.MaxResults > 0, throttle)
 	stop := time.Now()
 	c.searchIndex.Set(index)
 	if c.Verbose {
@@ -1105,10 +1152,14 @@ func (c *Corpus) UpdateIndex() {
 	}
 	memstats := new(runtime.MemStats)
 	runtime.ReadMemStats(memstats)
-	log.Printf("before GC: bytes = %d footprint = %d", memstats.HeapAlloc, memstats.Sys)
+	if c.Verbose {
+		log.Printf("before GC: bytes = %d footprint = %d", memstats.HeapAlloc, memstats.Sys)
+	}
 	runtime.GC()
 	runtime.ReadMemStats(memstats)
-	log.Printf("after  GC: bytes = %d footprint = %d", memstats.HeapAlloc, memstats.Sys)
+	if c.Verbose {
+		log.Printf("after  GC: bytes = %d footprint = %d", memstats.HeapAlloc, memstats.Sys)
+	}
 }
 
 // RunIndexer runs forever, indexing.
