@@ -48,13 +48,6 @@ func relName(v Value, i Instruction) string {
 // TODO(gri): provide this functionality in go/types (using a
 // *types.Package, obviously).
 //
-// TODO(adonovan): use this more widely, e.g.
-// ChangeType, Literal, Convert, MakeInterface;
-// when displaying receiver, params, locals, captures of a Function;
-// and in the RHS type column for Value-defining Instructions.
-//
-// TODO(adonovan): fix: unsafe.Pointer has no ssa.Package.
-//
 func relType(t types.Type, from *Package) string {
 	if from != nil {
 		t2 := t
@@ -177,7 +170,7 @@ func (v *Call) String() string {
 }
 
 func (v *ChangeType) String() string {
-	return fmt.Sprintf("changetype %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("changetype %s <- %s (%s)", relType(v.Type(), v.Parent().Pkg), v.X.Type(), relName(v.X, v))
 }
 
 func (v *BinOp) String() string {
@@ -189,7 +182,7 @@ func (v *UnOp) String() string {
 }
 
 func (v *Convert) String() string {
-	return fmt.Sprintf("convert %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("convert %s <- %s (%s)", relType(v.Type(), v.Parent().Pkg), v.X.Type(), relName(v.X, v))
 }
 
 func (v *ChangeInterface) String() string {
@@ -197,7 +190,7 @@ func (v *ChangeInterface) String() string {
 }
 
 func (v *MakeInterface) String() string {
-	return fmt.Sprintf("make %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("make %s <- %s (%s)", relType(v.Type(), v.Parent().Pkg), relType(v.X.Type(), v.Parent().Pkg), relName(v.X, v))
 }
 
 func (v *MakeClosure) String() string {

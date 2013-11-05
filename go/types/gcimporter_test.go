@@ -119,7 +119,7 @@ var importedObjectTests = []struct {
 	kind ast.ObjKind
 	typ  string
 }{
-	{"unsafe.Pointer", ast.Typ, "Pointer"},
+	{"unsafe.Pointer", ast.Typ, "unsafe.Pointer"},
 	{"math.Pi", ast.Con, "untyped float"},
 	{"io.Reader", ast.Typ, "interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", ast.Typ, "interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},

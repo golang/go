@@ -578,8 +578,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), fn.Pkg.typeOf(e), e.OpPos)
 
 		case token.EQL, token.NEQ, token.GTR, token.LSS, token.LEQ, token.GEQ:
-			// TODO(gri): we shouldn't need DefaultType here.
 			cmp := emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
+			// The type of x==y may be UntypedBool.
 			return emitConv(fn, cmp, DefaultType(fn.Pkg.typeOf(e)))
 		default:
 			panic("illegal op in BinaryExpr: " + e.Op.String())
@@ -2221,7 +2221,7 @@ func (p *Package) Build() {
 		init.emit(&v)
 	}
 
-	b := new(builder)
+	var b builder
 
 	// Initialize package-level vars in correct order.
 	for _, varinit := range p.info.InitOrder {

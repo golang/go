@@ -228,6 +228,9 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		buf.WriteString("<nil>")
 
 	case *Basic:
+		if t.Kind() == UnsafePointer {
+			buf.WriteString("unsafe.")
+		}
 		buf.WriteString(t.name)
 
 	case *Array:

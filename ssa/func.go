@@ -499,7 +499,7 @@ func (f *Function) fullName(from *Package) string {
 // writeSignature writes to w the signature sig in declaration syntax.
 // Derived from types.Signature.String().
 //
-func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Parameter) {
+func writeSignature(w io.Writer, pkg *Package, name string, sig *types.Signature, params []*Parameter) {
 	io.WriteString(w, "func ")
 	if recv := sig.Recv(); recv != nil {
 		io.WriteString(w, "(")
@@ -507,7 +507,7 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 			io.WriteString(w, n)
 			io.WriteString(w, " ")
 		}
-		io.WriteString(w, params[0].Type().String())
+		io.WriteString(w, relType(params[0].Type(), pkg))
 		io.WriteString(w, ") ")
 		params = params[1:]
 	}
@@ -521,9 +521,9 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 		io.WriteString(w, " ")
 		if sig.IsVariadic() && i == len(params)-1 {
 			io.WriteString(w, "...")
-			io.WriteString(w, v.Type().Underlying().(*types.Slice).Elem().String())
+			io.WriteString(w, relType(v.Type().Underlying().(*types.Slice).Elem(), pkg))
 		} else {
-			io.WriteString(w, v.Type().String())
+			io.WriteString(w, relType(v.Type(), pkg))
 		}
 	}
 	io.WriteString(w, ")")
@@ -531,9 +531,9 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 		io.WriteString(w, " ")
 		r := sig.Results()
 		if n == 1 && r.At(0).Name() == "" {
-			io.WriteString(w, r.At(0).Type().String())
+			io.WriteString(w, relType(r.At(0).Type(), pkg))
 		} else {
-			io.WriteString(w, r.String())
+			io.WriteString(w, r.String()) // TODO(adonovan): use relType
 		}
 	}
 }
@@ -561,18 +561,18 @@ func (f *Function) DumpTo(w io.Writer) {
 	if f.FreeVars != nil {
 		io.WriteString(w, "# Free variables:\n")
 		for i, fv := range f.FreeVars {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), fv.Type())
+			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), f.Pkg))
 		}
 	}
 
 	if len(f.Locals) > 0 {
 		io.WriteString(w, "# Locals:\n")
 		for i, l := range f.Locals {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), deref(l.Type()))
+			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), f.Pkg))
 		}
 	}
 
-	writeSignature(w, f.Name(), f.Signature, f.Params)
+	writeSignature(w, f.Pkg, f.Name(), f.Signature, f.Params)
 	io.WriteString(w, ":\n")
 
 	if f.Blocks == nil {
@@ -603,11 +603,12 @@ func (f *Function) DumpTo(w io.Writer) {
 					n, _ := fmt.Fprintf(w, "%s = ", name)
 					l -= n
 				}
+				// TODO(adonovan): append instructions directly to w.
 				n, _ := io.WriteString(w, instr.String())
 				l -= n
 				// Right-align the type.
 				if t := v.Type(); t != nil {
-					fmt.Fprintf(w, " %*s", l-10, t)
+					fmt.Fprintf(w, " %*s", l-10, relType(t, f.Pkg))
 				}
 			case nil:
 				// Be robust against bad transforms.
