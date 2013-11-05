@@ -969,7 +969,8 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if sig, ok := check.typ(e.Type, nil, false).(*Signature); ok {
 			x.mode = value
 			x.typ = sig
-			check.later(nil, sig, e.Body)
+			// TODO(gri) provide correct *declInfo here
+			check.later(nil, nil, sig, e.Body)
 		} else {
 			check.invalidAST(e.Pos(), "invalid function literal %s", e)
 			goto Error

@@ -162,11 +162,20 @@ type Info struct {
 	//
 	Scopes map[ast.Node]*Scope
 
-	// InitOrder is the list of package-level variables in the order in which
-	// they must be initialized. Variables related by an initialization dependency
-	// appear in topological order, and unrelated variables appear in source order.
-	// TODO(gri) find a better name
-	InitOrder []*Var
+	// InitOrder is the list of package-level initializers in the order in which
+	// they must be executed. Initializers referring to variables related by an
+	// initialization dependency appear in topological order, the others appear
+	// in source order. Variables without an initialization expression do not
+	// appear in this list.
+	InitOrder []*Initializer
+}
+
+// An Initializer describes a package-level variable, or a list of variables in case
+// of a multi-valued initialization expression, and the corresponding initialization
+// expression.
+type Initializer struct {
+	Lhs []*Var // var Lhs = Rhs
+	Rhs ast.Expr
 }
 
 // Check type-checks a package and returns the resulting package object,

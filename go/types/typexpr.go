@@ -89,15 +89,16 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 	case *Var:
 		obj.used = true
 		x.mode = variable
-		if obj.parent.parent == Universe && typ != Typ[Invalid] {
-			// obj is a package-level variable, and there are no other errors
-			// (such as a type-checking cycle)
-			check.addInitDep(obj)
+		if typ != Typ[Invalid] {
+			check.addDeclDep(obj)
 		}
 
 	case *Func:
 		obj.used = true
 		x.mode = value
+		if typ != Typ[Invalid] {
+			check.addDeclDep(obj)
+		}
 
 	case *Builtin:
 		obj.used = true // for built-ins defined by package unsafe

@@ -209,3 +209,50 @@ func TestScopesInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestInitOrder(t *testing.T) {
+	var tests = []struct {
+		src  string
+		vars [][]string
+		// TODO(gri) check also init expression
+	}{
+		{`package p; var (x = 1; y = x)`, [][]string{{"x"}, {"y"}}},
+		{`package p; var (a = 1; b = 2; c = 3)`, [][]string{{"a"}, {"b"}, {"c"}}},
+		{`package p; var (a, b, c = 1, 2, 3)`, [][]string{{"a"}, {"b"}, {"c"}}},
+		{`package p; var _ = f(); func f() int { return 1 }`, [][]string{{"_"}}}, // blank var
+		{`package p; var (a = 0; x = y; y = z; z = 0)`, [][]string{{"a"}, {"z"}, {"y"}, {"x"}}},
+		{`package p; var (a, _ = m[0]; m map[int]string)`, [][]string{{"a", "_"}}}, // blank var
+		{`package p; var a, b = f(); func f() (_, _ int) { return z, z }; var z = 0`, [][]string{{"z"}, {"a", "b"}}},
+		// TODO(gri) add more tests (incl. methods, closures, init functions)
+	}
+
+	for i, test := range tests {
+		path := fmt.Sprintf("InitOrder%d", i)
+		info := Info{}
+		mustTypecheck(t, path, test.src, &info)
+
+		// number of initializers must match
+		if len(info.InitOrder) != len(test.vars) {
+			t.Errorf("%s: got %d initializers; want %d", path, len(info.InitOrder), len(test.vars))
+			continue
+		}
+
+		// initializer order and initialized variables must match
+		for i, got := range info.InitOrder {
+			want := test.vars[i]
+			// number of variables must match
+			if len(got.Lhs) != len(want) {
+				t.Errorf("%s, %d.th initializer: got %d variables; want %d", path, i, len(got.Lhs), len(want))
+				continue
+			}
+
+			// variable names must match
+			for j, got := range got.Lhs {
+				want := want[j]
+				if got.name != want {
+					t.Errorf("%s, %d.th initializer: got name %s; want %s", path, i, got.name, want)
+				}
+			}
+		}
+	}
+}
