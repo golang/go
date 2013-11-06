@@ -350,9 +350,6 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			isVariadic: sig.isVariadic,
 		}
 
-		// TODO(gri) move this into exprInternal's call of check.selector
-		// since that's the only place where we need to record a dependency
-		// (requires that operands know method objects)
 		check.addDeclDep(m)
 
 	} else {
@@ -417,9 +414,6 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			sig := *obj.typ.(*Signature)
 			sig.recv = nil
 			x.typ = &sig
-
-			// TODO(gri) see comment above for addDeclDep
-			check.addDeclDep(obj)
 
 		default:
 			unreachable()
