@@ -135,6 +135,22 @@ import (
 )
 `,
 	},
+	{
+		name: "import into singular block",
+		pkg:  "bytes",
+		in: `package main
+
+import "os"
+
+`,
+		out: `package main
+
+import (
+	"bytes"
+	"os"
+)
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
@@ -144,6 +160,22 @@ func TestAddImport(t *testing.T) {
 		if got := print(t, test.name, file); got != test.out {
 			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
 		}
+	}
+}
+
+func TestDoubleAddImport(t *testing.T) {
+	file := parse(t, "doubleimport", "package main\n")
+	AddImport(file, "os")
+	AddImport(file, "bytes")
+	want := `package main
+
+import (
+	"bytes"
+	"os"
+)
+`
+	if got := print(t, "doubleimport", file); got != want {
+		t.Errorf("got: %s\nwant: %s", got, want)
 	}
 }
 
@@ -317,6 +349,13 @@ import (
 )
 `,
 	},
+	{
+		name: "handle.raw.quote.imports",
+		pkg:  "os",
+		in:   "package main\n\nimport `os`",
+		out: `package main
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
@@ -452,6 +491,38 @@ func TestRewriteImport(t *testing.T) {
 	for _, test := range rewriteTests {
 		file := parse(t, test.name, test.in)
 		RewriteImport(file, test.srcPkg, test.dstPkg)
+		if got := print(t, test.name, file); got != test.out {
+			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
+		}
+	}
+}
+
+var renameTests = []rewriteTest{
+	{
+		name:   "rename pkg use",
+		srcPkg: "bytes",
+		dstPkg: "bytes_",
+		in: `package main
+
+func f() []byte {
+	buf := new(bytes.Buffer)
+	return buf.Bytes()
+}
+`,
+		out: `package main
+
+func f() []byte {
+	buf := new(bytes_.Buffer)
+	return buf.Bytes()
+}
+`,
+	},
+}
+
+func TestRenameTop(t *testing.T) {
+	for _, test := range renameTests {
+		file := parse(t, test.name, test.in)
+		RenameTop(file, test.srcPkg, test.dstPkg)
 		if got := print(t, test.name, file); got != test.out {
 			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
 		}

@@ -15,13 +15,6 @@ func AddImport(f *ast.File, ipath string) (added bool) {
 		return false
 	}
 
-	// Determine name of import.
-	// Assume added imports follow convention of using last element.
-	_, name := path.Split(ipath)
-
-	// Rename any conflicting top-level references from name to name_.
-	renameTop(f, name, name+"_")
-
 	newImport := &ast.ImportSpec{
 		Path: &ast.BasicLit{
 			Kind:  token.STRING,
@@ -87,6 +80,11 @@ func AddImport(f *ast.File, ipath string) (added bool) {
 		prev := impDecl.Specs[insertAt-1]
 		newImport.Path.ValuePos = prev.Pos()
 		newImport.EndPos = prev.Pos()
+	}
+	if len(impDecl.Specs) > 1 && impDecl.Lparen == 0 {
+		// set Lparen to something not zero, so the printer prints
+		// the full block rather just the first ImportSpec.
+		impDecl.Lparen = 1
 	}
 
 	f.Imports = append(f.Imports, newImport)
@@ -240,9 +238,9 @@ func declImports(gen *ast.GenDecl, path string) bool {
 	return false
 }
 
-// renameTop renames all references to the top-level name old.
+// RenameTop renames all references to the top-level name old.
 // It returns true if it makes any changes.
-func renameTop(f *ast.File, old, new string) bool {
+func RenameTop(f *ast.File, old, new string) bool {
 	var fixed bool
 
 	// Rename any conflicting imports
