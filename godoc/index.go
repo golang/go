@@ -55,6 +55,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -377,16 +378,29 @@ type Indexer struct {
 	fset       *token.FileSet // file set for all indexed files
 	fsOpenGate chan bool      // send pre fs.Open; receive on close
 
-	mu       sync.Mutex              // guards all the following
-	sources  bytes.Buffer            // concatenated sources
-	packages map[string]*Pak         // map of canonicalized *Paks
-	words    map[string]*IndexResult // RunLists of Spots
-	snippets []*Snippet              // indices are stored in SpotInfos
-	current  *token.File             // last file added to file set
-	file     *File                   // AST for current file
-	decl     ast.Decl                // AST for current decl
-	stats    Statistics
-	throttle *util.Throttle
+	mu            sync.Mutex              // guards all the following
+	sources       bytes.Buffer            // concatenated sources
+	strings       map[string]string       // interned string
+	packages      map[Pak]*Pak            // interned *Paks
+	words         map[string]*IndexResult // RunLists of Spots
+	snippets      []*Snippet              // indices are stored in SpotInfos
+	current       *token.File             // last file added to file set
+	file          *File                   // AST for current file
+	decl          ast.Decl                // AST for current decl
+	stats         Statistics
+	throttle      *util.Throttle
+	importCount   map[string]int                 // package path ("net/http") => count
+	packagePath   map[string]map[string]bool     // "template" => "text/template" => true
+	exports       map[string]map[string]SpotKind // "net/http" => "ListenAndServe" => FuncDecl
+	curPkgExports map[string]SpotKind
+}
+
+func (x *Indexer) intern(s string) string {
+	if s, ok := x.strings[s]; ok {
+		return s
+	}
+	x.strings[s] = s
+	return s
 }
 
 func (x *Indexer) lookupPackage(path, name string) *Pak {
@@ -394,10 +408,10 @@ func (x *Indexer) lookupPackage(path, name string) *Pak {
 	// live in the same directory. For the packages map, construct
 	// a key that includes both the directory path and the package
 	// name.
-	key := path + ":" + name
+	key := Pak{Path: x.intern(path), Name: x.intern(name)}
 	pak := x.packages[key]
 	if pak == nil {
-		pak = &Pak{path, name}
+		pak = &key
 		x.packages[key] = pak
 	}
 	return pak
@@ -410,26 +424,34 @@ func (x *Indexer) addSnippet(s *Snippet) int {
 }
 
 func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
-	if id != nil {
-		lists, found := x.words[id.Name]
-		if !found {
-			lists = new(IndexResult)
-			x.words[id.Name] = lists
-		}
-
-		if kind == Use || x.decl == nil {
-			// not a declaration or no snippet required
-			info := makeSpotInfo(kind, x.current.Line(id.Pos()), false)
-			lists.Others = append(lists.Others, Spot{x.file, info})
-		} else {
-			// a declaration with snippet
-			index := x.addSnippet(NewSnippet(x.fset, x.decl, id))
-			info := makeSpotInfo(kind, index, true)
-			lists.Decls = append(lists.Decls, Spot{x.file, info})
-		}
-
-		x.stats.Spots++
+	if id == nil {
+		return
 	}
+	name := x.intern(id.Name)
+
+	switch kind {
+	case TypeDecl, FuncDecl:
+		x.curPkgExports[name] = kind
+	}
+
+	lists, found := x.words[name]
+	if !found {
+		lists = new(IndexResult)
+		x.words[name] = lists
+	}
+
+	if kind == Use || x.decl == nil {
+		// not a declaration or no snippet required
+		info := makeSpotInfo(kind, x.current.Line(id.Pos()), false)
+		lists.Others = append(lists.Others, Spot{x.file, info})
+	} else {
+		// a declaration with snippet
+		index := x.addSnippet(NewSnippet(x.fset, x.decl, id))
+		info := makeSpotInfo(kind, index, true)
+		lists.Decls = append(lists.Decls, Spot{x.file, info})
+	}
+
+	x.stats.Spots++
 }
 
 func (x *Indexer) visitFieldList(kind SpotKind, flist *ast.FieldList) {
@@ -447,7 +469,11 @@ func (x *Indexer) visitSpec(kind SpotKind, spec ast.Spec) {
 	switch n := spec.(type) {
 	case *ast.ImportSpec:
 		x.visitIdent(ImportDecl, n.Name)
-		// ignore path - not indexed at the moment
+		if n.Path != nil {
+			if imp, err := strconv.Unquote(n.Path.Value); err == nil {
+				x.importCount[x.intern(imp)]++
+			}
+		}
 
 	case *ast.ValueSpec:
 		for _, n := range n.Names {
@@ -678,6 +704,7 @@ func (x *Indexer) visitFile(dirname string, fi os.FileInfo, fulltextIndex bool) 
 
 	x.throttle.Throttle()
 
+	x.curPkgExports = make(map[string]SpotKind)
 	file, fast := x.addFile(f, filename, goFile)
 	if file == nil {
 		return // addFile failed
@@ -689,6 +716,26 @@ func (x *Indexer) visitFile(dirname string, fi os.FileInfo, fulltextIndex bool) 
 		pak := x.lookupPackage(dirname, fast.Name.Name)
 		x.file = &File{fi.Name(), pak}
 		ast.Walk(x, fast)
+
+		ppKey := x.intern(fast.Name.Name)
+		if _, ok := x.packagePath[ppKey]; !ok {
+			x.packagePath[ppKey] = make(map[string]bool)
+		}
+		pkgPath := x.intern(strings.TrimPrefix(dirname, "/src/pkg/"))
+		x.packagePath[ppKey][pkgPath] = true
+
+		// Merge in exported symbols found walking this file into
+		// the map for that package.
+		if len(x.curPkgExports) > 0 {
+			dest, ok := x.exports[pkgPath]
+			if !ok {
+				dest = make(map[string]SpotKind)
+				x.exports[pkgPath] = dest
+			}
+			for k, v := range x.curPkgExports {
+				dest[k] = v
+			}
+		}
 	}
 
 	// update statistics
@@ -706,12 +753,15 @@ type LookupResult struct {
 }
 
 type Index struct {
-	fset     *token.FileSet           // file set used during indexing; nil if no textindex
-	suffixes *suffixarray.Index       // suffixes for concatenated sources; nil if no textindex
-	words    map[string]*LookupResult // maps words to hit lists
-	alts     map[string]*AltWords     // maps canonical(words) to lists of alternative spellings
-	snippets []*Snippet               // all snippets, indexed by snippet index
-	stats    Statistics
+	fset        *token.FileSet           // file set used during indexing; nil if no textindex
+	suffixes    *suffixarray.Index       // suffixes for concatenated sources; nil if no textindex
+	words       map[string]*LookupResult // maps words to hit lists
+	alts        map[string]*AltWords     // maps canonical(words) to lists of alternative spellings
+	snippets    []*Snippet               // all snippets, indexed by snippet index
+	stats       Statistics
+	importCount map[string]int                 // package path ("net/http") => count
+	packagePath map[string]map[string]bool     // "template" => "text/template" => true
+	exports     map[string]map[string]SpotKind // "net/http" => "ListenAndServe" => FuncDecl
 }
 
 func canonical(w string) string { return strings.ToLower(w) }
@@ -733,12 +783,16 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 	// initialize Indexer
 	// (use some reasonably sized maps to start)
 	x := &Indexer{
-		c:          c,
-		fset:       token.NewFileSet(),
-		fsOpenGate: make(chan bool, maxOpenFiles),
-		packages:   make(map[string]*Pak, 256),
-		words:      make(map[string]*IndexResult, 8192),
-		throttle:   util.NewThrottle(throttle, 100*time.Millisecond), // run at least 0.1s at a time
+		c:           c,
+		fset:        token.NewFileSet(),
+		fsOpenGate:  make(chan bool, maxOpenFiles),
+		strings:     make(map[string]string),
+		packages:    make(map[Pak]*Pak, 256),
+		words:       make(map[string]*IndexResult, 8192),
+		throttle:    util.NewThrottle(throttle, 100*time.Millisecond), // run at least 0.1s at a time
+		importCount: make(map[string]int),
+		packagePath: make(map[string]map[string]bool),
+		exports:     make(map[string]map[string]SpotKind),
 	}
 
 	// index all files in the directories given by dirnames
@@ -813,7 +867,17 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 		suffixes = suffixarray.New(x.sources.Bytes())
 	}
 
-	return &Index{x.fset, suffixes, words, alts, x.snippets, x.stats}
+	return &Index{
+		fset:        x.fset,
+		suffixes:    suffixes,
+		words:       words,
+		alts:        alts,
+		snippets:    x.snippets,
+		stats:       x.stats,
+		importCount: x.importCount,
+		packagePath: x.packagePath,
+		exports:     x.exports,
+	}
 }
 
 type fileIndex struct {
@@ -890,9 +954,26 @@ func (x *Index) Read(r io.Reader) error {
 	return nil
 }
 
-// Stats() returns index statistics.
+// Stats returns index statistics.
 func (x *Index) Stats() Statistics {
 	return x.stats
+}
+
+// ImportCount returns a map from import paths to how many times they were seen.
+func (x *Index) ImportCount() map[string]int {
+	return x.importCount
+}
+
+// PackagePath returns a map from short package name to a set
+// of full package path names that use that short package name.
+func (x *Index) PackagePath() map[string]map[string]bool {
+	return x.packagePath
+}
+
+// Exports returns a map from full package path to exported
+// symbol name to its type.
+func (x *Index) Exports() map[string]map[string]SpotKind {
+	return x.exports
 }
 
 func (x *Index) lookupWord(w string) (match *LookupResult, alt *AltWords) {
