@@ -1167,7 +1167,8 @@ func (c *Corpus) RunIndexer() {
 	// initialize the index from disk if possible
 	if c.IndexFiles != "" {
 		if err := c.readIndex(c.IndexFiles); err != nil {
-			log.Printf("error reading index: %s", err)
+			log.Printf("error reading index from file %s: %v", c.IndexFiles, err)
+			return
 		}
 	}
 
@@ -1177,10 +1178,12 @@ func (c *Corpus) RunIndexer() {
 			// index possibly out of date - make a new one
 			c.UpdateIndex()
 		}
-		delay := 60 * time.Second // by default, try every 60s
-		if false {                // TODO(bradfitz): was: *testDir != "" {
-			// in test mode, try once a second for fast startup
-			delay = 1 * time.Second
+		if c.IndexInterval < 0 {
+			return
+		}
+		delay := 5 * time.Minute // by default, reindex every 5 minutes
+		if c.IndexInterval > 0 {
+			delay = c.IndexInterval
 		}
 		time.Sleep(delay)
 	}

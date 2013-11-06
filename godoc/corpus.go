@@ -39,6 +39,12 @@ type Corpus struct {
 	// zero value for IndexThrottle means 0.9.
 	IndexThrottle float64
 
+	// IndexInterval specifies the time to sleep between reindexing
+	// all the sources.
+	// If zero, a default is used. If negative, the index is only
+	// built once.
+	IndexInterval time.Duration
+
 	// MaxResults optionally specifies the maximum results for indexing.
 	// The default is 1000.
 	MaxResults int
