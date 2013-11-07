@@ -29,10 +29,12 @@ The flags are:
 		verbose mode
 
 Debugging flags:
+	-seq
+		parse sequentially, rather than in parallel
 	-ast
-		print AST
+		print AST (forces -seq)
 	-trace
-		print parse trace
+		print parse trace (forces -seq)
 	-comments
 		parse comments (ignored unless -ast or -trace is provided)
 

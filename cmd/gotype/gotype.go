@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"code.google.com/p/go.tools/go/types"
@@ -27,8 +28,9 @@ var (
 	verbose   = flag.Bool("v", false, "verbose mode")
 
 	// debugging support
-	printAST      = flag.Bool("ast", false, "print AST")
-	printTrace    = flag.Bool("trace", false, "print parse trace")
+	sequential    = flag.Bool("seq", false, "parse sequentially, rather than in parallel")
+	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
+	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
 )
 
@@ -78,11 +80,12 @@ func report(err error) {
 	errorCount++
 }
 
+// parse may be called concurrently
 func parse(filename string, src interface{}) (*ast.File, error) {
 	if *verbose {
 		fmt.Println(filename)
 	}
-	file, err := parser.ParseFile(fset, filename, src, parserMode)
+	file, err := parser.ParseFile(fset, filename, src, parserMode) // ok to access fset concurrently
 	if *printAST {
 		ast.Print(fset, file)
 	}
@@ -98,14 +101,39 @@ func parseStdin() (*ast.File, error) {
 }
 
 func parseFiles(filenames []string) ([]*ast.File, error) {
-	var files []*ast.File
-	for _, filename := range filenames {
-		file, err := parse(filename, nil)
-		if err != nil {
-			return nil, err
+	files := make([]*ast.File, len(filenames))
+
+	if *sequential {
+		for i, filename := range filenames {
+			var err error
+			files[i], err = parse(filename, nil)
+			if err != nil {
+				return nil, err // leave unfinished goroutines hanging
+			}
 		}
-		files = append(files, file)
+	} else {
+		type parseResult struct {
+			file *ast.File
+			err  error
+		}
+
+		out := make(chan parseResult)
+		for _, filename := range filenames {
+			go func(filename string) {
+				file, err := parse(filename, nil)
+				out <- parseResult{file, err}
+			}(filename)
+		}
+
+		for i := range filenames {
+			res := <-out
+			if res.err != nil {
+				return nil, res.err // leave unfinished goroutines hanging
+			}
+			files[i] = res.file
+		}
 	}
+
 	return files, nil
 }
 
@@ -131,7 +159,6 @@ func parseDir(dirname string) ([]*ast.File, error) {
 func getPkgFiles(args []string) ([]*ast.File, error) {
 	if len(args) == 0 {
 		// stdin
-		var file *ast.File
 		file, err := parseStdin()
 		if err != nil {
 			return nil, err
@@ -196,10 +223,16 @@ func printStats(d time.Duration) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU()) // remove this once runtime is smarter
+
 	flag.Usage = usage
 	flag.Parse()
+	if *printAST || *printTrace {
+		*sequential = true
+	}
 	initParserMode()
 	initSizes()
+
 	start := time.Now()
 
 	files, err := getPkgFiles(flag.Args())
