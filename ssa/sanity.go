@@ -291,14 +291,11 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 	}
 
 	// Check each instruction is sane.
-	// TODO(adonovan): check Instruction invariants:
-	// - check Operands is dual to Value.Referrers.
-	// - check all Operands that are also Instructions belong to s.fn too
-	//   (and for bonus marks, that their block dominates block b).
 	n := len(b.Instrs)
 	if n == 0 {
 		s.errorf("basic block contains no instructions")
 	}
+	var rands [10]*Value // reuse storage
 	for j, instr := range b.Instrs {
 		if instr == nil {
 			s.errorf("nil instruction at index %d", j)
@@ -315,6 +312,48 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 			s.checkInstr(j, instr)
 		} else {
 			s.checkFinalInstr(j, instr)
+		}
+
+		// Check Instruction.Operands.
+	operands:
+		for i, op := range instr.Operands(rands[:0]) {
+			if op == nil {
+				s.errorf("nil operand pointer %d of %s", i, instr)
+				continue
+			}
+			val := *op
+			if val == nil {
+				continue // a nil operand is ok
+			}
+			// Check that Operands that are also Instructions belong to same function.
+			// TODO(adonovan): also check their block dominates block b.
+			if val, ok := val.(Instruction); ok {
+				if val.Parent() != s.fn {
+					s.errorf("operand %d of %s is an instruction (%s) from function %s", i, instr, val, val.Parent())
+				}
+			}
+
+			// Check that each function-local operand of
+			// instr refers back to instr.  (NB: quadratic)
+			switch val := val.(type) {
+			case *Const, *Global, *Builtin:
+				continue // not local
+			case *Function:
+				if val.Enclosing == nil {
+					continue // only anon functions are local
+				}
+			}
+
+			if refs := val.Referrers(); refs != nil {
+				for _, ref := range *refs {
+					if ref == instr {
+						continue operands
+					}
+				}
+				s.errorf("operand %d of %s (%s) does not refer to us", i, instr, val)
+			} else {
+				s.errorf("operand %d of %s (%s) has no referrers", i, instr, val)
+			}
 		}
 	}
 }

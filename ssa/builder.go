@@ -2040,8 +2040,6 @@ start:
 
 		fn.currentBlock = done
 
-		// TODO statement debug info.
-
 	case *ast.SwitchStmt:
 		b.switchStmt(fn, s, label)
 

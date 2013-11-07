@@ -127,8 +127,9 @@ type Value interface {
 	// caller may perform mutations to the object's state.
 	//
 	// Referrers is currently only defined for the function-local
-	// values Capture, Parameter and all value-defining instructions.
-	// It returns nil for Function, Builtin, Const and Global.
+	// values Capture, Parameter, Functions (iff anonymous) and
+	// all value-defining instructions.
+	// It returns nil for named Functions, Builtin, Const and Global.
 	//
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
@@ -184,10 +185,8 @@ type Instruction interface {
 	// belongs.
 	Block() *BasicBlock
 
-	// SetBlock sets the basic block to which this instruction
-	// belongs.
-	// TODO(adonovan): unexport this.
-	SetBlock(*BasicBlock)
+	// setBlock sets the basic block to which this instruction belongs.
+	setBlock(*BasicBlock)
 
 	// Operands returns the operands of this instruction: the
 	// set of Values it references.
@@ -279,6 +278,7 @@ type Function struct {
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Recover   *BasicBlock   // optional; control transfers here after recovered panic
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
+	referrers []Instruction // referring instructions (iff Enclosing != nil)
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -1212,7 +1212,7 @@ type register struct {
 }
 
 // anInstruction is a mix-in embedded by all Instructions.
-// It provides the implementations of the Block and SetBlock methods.
+// It provides the implementations of the Block and setBlock methods.
 type anInstruction struct {
 	block *BasicBlock // the basic block of this instruction
 }
@@ -1368,12 +1368,17 @@ func (*Global) Referrers() *[]Instruction { return nil }
 func (v *Global) Token() token.Token      { return token.VAR }
 func (v *Global) Object() types.Object    { return v.object }
 
-func (v *Function) Name() string            { return v.name }
-func (v *Function) Type() types.Type        { return v.Signature }
-func (v *Function) Pos() token.Pos          { return v.pos }
-func (*Function) Referrers() *[]Instruction { return nil }
-func (v *Function) Token() token.Token      { return token.FUNC }
-func (v *Function) Object() types.Object    { return v.object }
+func (v *Function) Name() string         { return v.name }
+func (v *Function) Type() types.Type     { return v.Signature }
+func (v *Function) Pos() token.Pos       { return v.pos }
+func (v *Function) Token() token.Token   { return token.FUNC }
+func (v *Function) Object() types.Object { return v.object }
+func (v *Function) Referrers() *[]Instruction {
+	if v.Enclosing != nil {
+		return &v.referrers
+	}
+	return nil
+}
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
@@ -1396,7 +1401,7 @@ func (v *register) setPos(pos token.Pos)      { v.pos = pos }
 
 func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
-func (v *anInstruction) SetBlock(block *BasicBlock) { v.block = block }
+func (v *anInstruction) setBlock(block *BasicBlock) { v.block = block }
 
 func (t *Type) Name() string         { return t.object.Name() }
 func (t *Type) Pos() token.Pos       { return t.object.Pos() }

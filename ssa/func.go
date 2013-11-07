@@ -37,7 +37,7 @@ func (b *BasicBlock) String() string {
 // If the instruction defines a Value, it is returned.
 //
 func (b *BasicBlock) emit(i Instruction) Value {
-	i.SetBlock(b)
+	i.setBlock(b)
 	b.Instrs = append(b.Instrs, i)
 	v, _ := i.(Value)
 	return v

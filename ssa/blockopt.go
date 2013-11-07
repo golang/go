@@ -85,7 +85,7 @@ func jumpThreading(f *Function, b *BasicBlock) bool {
 		// If a now has two edges to c, replace its degenerate If by Jump.
 		if len(a.Succs) == 2 && a.Succs[0] == c && a.Succs[1] == c {
 			jump := new(Jump)
-			jump.SetBlock(a)
+			jump.setBlock(a)
 			a.Instrs[len(a.Instrs)-1] = jump
 			a.Succs = a.Succs[:1]
 			c.removePred(b)
@@ -120,7 +120,7 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
 	// Eliminate jump at end of A, then copy all of B across.
 	a.Instrs = append(a.Instrs[:len(a.Instrs)-1], b.Instrs...)
 	for _, instr := range b.Instrs {
-		instr.SetBlock(a)
+		instr.setBlock(a)
 	}
 
 	// A inherits B's successors
