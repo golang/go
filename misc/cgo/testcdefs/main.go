@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cgotest
+package main
 
-// This file only exists so we can run 'go build' and build our .c files
-func test() {}
+import "os"
+
+func test() int32 // in main.c
+
+func main() {
+	os.Exit(int(test()))
+}
