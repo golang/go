@@ -43,7 +43,7 @@ type declInfo struct {
 	fdecl *ast.FuncDecl // func declaration, or nil
 
 	deps map[Object]*declInfo // init dependencies; lazily allocated
-	mark byte                 // see check.dependencies
+	mark int                  // see check.dependencies
 }
 
 type funcInfo struct {
@@ -420,7 +420,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	for _, obj := range objList {
 		if obj, _ := obj.(*Var); obj != nil {
 			if init := initMap[obj]; init != nil {
-				check.dependencies(obj, init)
+				check.dependencies(obj, init, nil, 0)
 			}
 		}
 	}
@@ -490,34 +490,61 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	}
 }
 
-func (check *checker) dependencies(obj Object, init *declInfo) {
-	const inProgress, done = 1, 2
-
-	if init.mark == done {
-		return
+// dependencies recursively traverses the initialization dependency graph in a depth-first
+// manner and appends the encountered variables in postorder to the Info.InitOrder list.
+// As a result, that list ends up being sorted topologically in the order of dependencies.
+//
+// The current node is represented by the pair (obj, init); last is the last variable seen
+// on the path to the current node; and n is the number of variables seen on the path before
+// reaching the current node.
+//
+// To detect cyles, the nodes are marked as follows: Initially, all nodes are unmarked
+// (declInfo.mark == 0). On the way down, a node is marked with a value > 0 ("in progress"),
+// and on the way up, a node is marked with a value < 0 ("finished"). A cycle is detected
+// if traversal reaches a node that is marked "in progress".
+//
+// A cycle must contain at least one variable to be invalid (cycles containing only functions
+// are permitted). To detect such cycles, the "in progress" value is the number of variables
+// seen on the path to a specific node (including that node). That value is always > 0 because
+// the root nodes are variables. If the mark values are different when a cycle is detected,
+// the difference is the number of variables in the cycle, and the last variable seen on the
+// path must be a variable in the cycle.
+//
+func (check *checker) dependencies(obj Object, init *declInfo, last *Var, n int) {
+	if init.mark < 0 {
+		return // finished
 	}
 
-	if init.mark == inProgress {
-		// cycle detected: end recursion and report error for variables
-		if obj, _ := obj.(*Var); obj != nil {
-			check.errorf(obj.pos, "initialization cycle for %s", obj.name)
+	this, _ := obj.(*Var)
+	if this != nil {
+		last = this // this is the last variable seen on the path
+		n++         // count the variable
+	}
+
+	if init.mark > 0 {
+		// cycle detected
+		if init.mark != n {
+			// cycle contains variables - use the last one seen for error
+			check.errorf(last.pos, "initialization cycle for %s", last.name)
 			// TODO(gri) print the cycle
-			init.mark = done // avoid further errors
+			init.mark = -1 // avoid further errors
 		}
 		return
 	}
 
-	init.mark = inProgress
+	// init.mark == 0
+
+	init.mark = n // init.mark > 0
 	for obj, dep := range init.deps {
-		check.dependencies(obj, dep)
+		check.dependencies(obj, dep, last, n)
 	}
-	init.mark = done
+	init.mark = -1 // init.mark < 0
 
 	// record the init order for variables
-	if lhs, _ := obj.(*Var); lhs != nil {
+	if this != nil {
 		initLhs := init.lhs // possibly nil (see declInfo.lhs field comment)
 		if initLhs == nil {
-			initLhs = []*Var{lhs}
+			initLhs = []*Var{this}
 		}
 		check.Info.InitOrder = append(check.Info.InitOrder, &Initializer{initLhs, init.init})
 	}

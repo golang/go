@@ -71,3 +71,27 @@ func (T5) m() int {
 	_ = y5
 	return 0
 }
+
+// issue 4847
+// simplified test case
+
+var x6 = f6
+var y6 /* ERROR initialization cycle */ = f6
+func f6() { _ = y6 }
+
+// full test case
+
+type (
+      E int
+      S int
+)
+
+type matcher func(s *S) E
+
+func matchList(s *S) E { return matcher(matchAnyFn)(s) }
+
+var foo = matcher(matchList)
+
+var matchAny /* ERROR initialization cycle */ = matcher(matchList)
+
+func matchAnyFn(s *S) (err E) { return matchAny(s) }

@@ -115,23 +115,22 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 	}
 }
 
-func TestStdtest(t *testing.T) {
+func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go",          // also needs file cmplxdivide1.go - ignore
 		"mapnan.go", "sigchld.go", // don't work on Windows; testTestDir should consult build tags
 	)
 }
 
-func TestStdfixed(t *testing.T) {
+func TestStdFixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
-		"bug459.go",    // incorrect test - see issue 6793 (pending spec clarification)
-		"issue3924.go", // incorrect test - see issue 6671
-		"issue4847.go", // TODO(gri) initialization cycle error not found
+		"bug459.go",    // likely incorrect test - see issue 6793 (pending spec clarification)
+		"issue3924.go", // likely incorrect test - see issue 6671 (pending spec clarification)
 	)
 }
 
-func TestStdken(t *testing.T) {
+func TestStdKen(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
 }
 
