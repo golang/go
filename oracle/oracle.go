@@ -138,7 +138,7 @@ func (res *Result) Serial() *serial.Result {
 
 // Query runs a single oracle query.
 //
-// args specify the main package in importer.CreatePackageFromArgs syntax.
+// args specify the main package in importer.LoadInitialPackages syntax.
 // mode is the query mode ("callers", etc).
 // ptalog is the (optional) pointer-analysis log file.
 // buildContext is the go/build configuration for locating packages.
@@ -207,7 +207,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 // imp will be used to load source code for imported packages.
 // It must not yet have loaded any packages.
 //
-// args specify the main package in importer.CreatePackageFromArgs syntax.
+// args specify the main package in importer.LoadInitialPackages syntax.
 //
 // ptalog is the (optional) pointer-analysis log file.
 // reflection determines whether to model reflection soundly (currently slow).
