@@ -5,7 +5,6 @@
 package types
 
 import (
-	"go/ast"
 	"go/build"
 	"io/ioutil"
 	"os"
@@ -116,14 +115,13 @@ func TestGcImport(t *testing.T) {
 
 var importedObjectTests = []struct {
 	name string
-	kind ast.ObjKind
-	typ  string
+	want string
 }{
-	{"unsafe.Pointer", ast.Typ, "unsafe.Pointer"},
-	{"math.Pi", ast.Con, "untyped float"},
-	{"io.Reader", ast.Typ, "interface{Read(p []byte) (n int, err error)}"},
-	{"io.ReadWriter", ast.Typ, "interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
-	{"math.Sin", ast.Fun, "func(x·2 float64) (_ float64)"},
+	{"unsafe.Pointer", "type Pointer unsafe.Pointer"},
+	{"math.Pi", "const Pi untyped float"},
+	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
+	{"io.ReadWriter", "type ReadWriter interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
+	{"math.Sin", "func math.Sin(x·2 float64) (_ float64)"},
 	// TODO(gri) add more tests
 }
 
@@ -147,34 +145,14 @@ func TestGcImportedTypes(t *testing.T) {
 		}
 
 		obj := pkg.scope.Lookup(objName)
-
-		// TODO(gri) should define an accessor on Object
-		var kind ast.ObjKind
-		var typ Type
-		switch obj := obj.(type) {
-		case *Const:
-			kind = ast.Con
-			typ = obj.typ
-		case *TypeName:
-			kind = ast.Typ
-			typ = obj.typ
-		case *Var:
-			kind = ast.Var
-			typ = obj.typ
-		case *Func:
-			kind = ast.Fun
-			typ = obj.typ
-		default:
-			unreachable()
+		if obj == nil {
+			t.Errorf("%s: object not found", test.name)
+			continue
 		}
 
-		if kind != test.kind {
-			t.Errorf("%s: got kind = %q; want %q", test.name, kind, test.kind)
-		}
-
-		str := typeString(typ.Underlying())
-		if str != test.typ {
-			t.Errorf("%s: got type = %q; want %q", test.name, typ, test.typ)
+		got := obj.String()
+		if got != test.want {
+			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}
 	}
 }
