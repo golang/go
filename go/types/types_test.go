@@ -171,11 +171,7 @@ func TestExprs(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		// TODO(gri) writing the code below w/o the decl variable will
-		//           cause a 386 compiler error (out of fixed registers)
-		decl := file.Decls[0].(*ast.GenDecl)
-		expr := decl.Specs[0].(*ast.ValueSpec).Values[0]
-		str := exprString(expr)
+		str := exprString(file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0])
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)
 		}
