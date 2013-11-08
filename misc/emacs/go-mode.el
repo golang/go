@@ -157,6 +157,12 @@ customize this variable to point to the wrapper script."
   :type 'string
   :group 'go)
 
+(defcustom gofmt-command "gofmt"
+  "The 'gofmt' command.  Some users may replace this with 'goimports'
+from https://github.com/bradfitz/goimports."
+  :type 'string
+  :group 'go)
+
 (defface go-coverage-untracked
   '((t (:foreground "#505050")))
   "Coverage color of untracked code."
@@ -638,7 +644,7 @@ buffer."
     ;; We're using errbuf for the mixed stdout and stderr output. This
     ;; is not an issue because gofmt -w does not produce any stdout
     ;; output in case of success.
-    (if (zerop (call-process "gofmt" nil errbuf nil "-w" tmpfile))
+    (if (zerop (call-process gofmt-command nil errbuf nil "-w" tmpfile))
         (if (zerop (call-process-region (point-min) (point-max) "diff" nil patchbuf nil "-n" "-" tmpfile))
             (progn
               (kill-buffer errbuf)
