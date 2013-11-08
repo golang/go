@@ -323,3 +323,33 @@ func isTopName(n ast.Expr, name string) bool {
 	id, ok := n.(*ast.Ident)
 	return ok && id.Name == name && id.Obj == nil
 }
+
+// Imports returns the file imports grouped by paragraph.
+func Imports(fset *token.FileSet, f *ast.File) [][]*ast.ImportSpec {
+	var groups [][]*ast.ImportSpec
+
+	for _, decl := range f.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT {
+			break
+		}
+
+		group := []*ast.ImportSpec{}
+
+		var lastLine int
+		for _, spec := range genDecl.Specs {
+			importSpec := spec.(*ast.ImportSpec)
+			pos := importSpec.Path.ValuePos
+			line := fset.Position(pos).Line
+			if lastLine > 0 && pos > 0 && line-lastLine > 1 {
+				groups = append(groups, group)
+				group = []*ast.ImportSpec{}
+			}
+			group = append(group, importSpec)
+			lastLine = line
+		}
+		groups = append(groups, group)
+	}
+
+	return groups
+}

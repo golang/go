@@ -6,7 +6,8 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-
+	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -525,6 +526,105 @@ func TestRenameTop(t *testing.T) {
 		RenameTop(file, test.srcPkg, test.dstPkg)
 		if got := print(t, test.name, file); got != test.out {
 			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
+		}
+	}
+}
+
+var importsTests = []struct {
+	name string
+	in   string
+	want [][]string
+}{
+	{
+		name: "no packages",
+		in: `package foo
+`,
+		want: nil,
+	},
+	{
+		name: "one group",
+		in: `package foo
+
+import (
+	"fmt"
+	"testing"
+)
+`,
+		want: [][]string{{"fmt", "testing"}},
+	},
+	{
+		name: "four groups",
+		in: `package foo
+
+import "C"
+import (
+	"fmt"
+	"testing"
+
+	"appengine"
+
+	"myproject/mylib1"
+	"myproject/mylib2"
+)
+`,
+		want: [][]string{
+			{"C"},
+			{"fmt", "testing"},
+			{"appengine"},
+			{"myproject/mylib1", "myproject/mylib2"},
+		},
+	},
+	{
+		name: "multiple factored groups",
+		in: `package foo
+
+import (
+	"fmt"
+	"testing"
+
+	"appengine"
+)
+import (
+	"reflect"
+
+	"bytes"
+)
+`,
+		want: [][]string{
+			{"fmt", "testing"},
+			{"appengine"},
+			{"reflect"},
+			{"bytes"},
+		},
+	},
+}
+
+func unquote(s string) string {
+	res, err := strconv.Unquote(s)
+	if err != nil {
+		return "could_not_unquote"
+	}
+	return res
+}
+
+func TestImports(t *testing.T) {
+	fset := token.NewFileSet()
+	for _, test := range importsTests {
+		f, err := parser.ParseFile(fset, "test.go", test.in, 0)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+			continue
+		}
+		var got [][]string
+		for _, block := range Imports(fset, f) {
+			var b []string
+			for _, spec := range block {
+				b = append(b, unquote(spec.Path.Value))
+			}
+			got = append(got, b)
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("Imports(%s)=%v, want %v", test.name, got, test.want)
 		}
 	}
 }
