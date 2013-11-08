@@ -118,7 +118,7 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	// Set up content file server.
-	s.content = http.FileServer(http.Dir(cfg.ContentPath))
+	s.content = http.StripPrefix(s.cfg.BasePath, http.FileServer(http.Dir(cfg.ContentPath)))
 
 	return s, nil
 }
