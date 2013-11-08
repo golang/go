@@ -10,6 +10,8 @@ import (
 	"go/ast"
 	"go/token"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -93,6 +95,23 @@ func (check *checker) arityMatch(s, init *ast.ValueSpec) {
 	}
 }
 
+func (check *checker) validatedImportPath(path string) (string, error) {
+	s, err := strconv.Unquote(path)
+	if err != nil {
+		return "", err
+	}
+	if s == "" {
+		return "", fmt.Errorf("empty string")
+	}
+	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
+	for _, r := range s {
+		if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
+			return s, fmt.Errorf("invalid character %#U", r)
+		}
+	}
+	return s, nil
+}
+
 // TODO(gri) Split resolveFiles into smaller components.
 
 func (check *checker) resolveFiles(files []*ast.File) {
@@ -158,7 +177,11 @@ func (check *checker) resolveFiles(files []*ast.File) {
 					case *ast.ImportSpec:
 						// import package
 						var imp *Package
-						path, _ := strconv.Unquote(s.Path.Value)
+						path, err := check.validatedImportPath(s.Path.Value)
+						if err != nil {
+							check.errorf(s.Path.Pos(), "invalid import path (%s)", err)
+							continue
+						}
 						if path == "C" && check.conf.FakeImportC {
 							// TODO(gri) shouldn't create a new one each time
 							imp = NewPackage("C", "C", NewScope(nil))
