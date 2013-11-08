@@ -19,7 +19,7 @@ func (check *checker) reportAltDecl(obj Object) {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
-		check.errorf(pos, "other declaration of %s", obj.Name())
+		check.errorf(pos, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
 	}
 }
 
@@ -420,7 +420,8 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	for _, obj := range objList {
 		if obj, _ := obj.(*Var); obj != nil {
 			if init := initMap[obj]; init != nil {
-				check.dependencies(obj, init, nil, 0)
+				// provide non-nil path for re-use of underlying array
+				check.dependencies(obj, init, make([]Object, 0, 8))
 			}
 		}
 	}
@@ -494,54 +495,72 @@ func (check *checker) resolveFiles(files []*ast.File) {
 // manner and appends the encountered variables in postorder to the Info.InitOrder list.
 // As a result, that list ends up being sorted topologically in the order of dependencies.
 //
-// The current node is represented by the pair (obj, init); last is the last variable seen
-// on the path to the current node; and n is the number of variables seen on the path before
-// reaching the current node.
+// The current node is represented by the pair (obj, init); and path contains all nodes
+// on the path to the current node (excluding the current node).
 //
 // To detect cyles, the nodes are marked as follows: Initially, all nodes are unmarked
-// (declInfo.mark == 0). On the way down, a node is marked with a value > 0 ("in progress"),
-// and on the way up, a node is marked with a value < 0 ("finished"). A cycle is detected
-// if traversal reaches a node that is marked "in progress".
+// (declInfo.mark == 0). On the way down, a node is appended to the path, and the node
+// is marked with a value > 0 ("in progress"). On the way up, a node is marked with a
+// value < 0 ("finished"). A cycle is detected if a node is reached that is marked as
+// "in progress".
 //
-// A cycle must contain at least one variable to be invalid (cycles containing only functions
-// are permitted). To detect such cycles, the "in progress" value is the number of variables
-// seen on the path to a specific node (including that node). That value is always > 0 because
-// the root nodes are variables. If the mark values are different when a cycle is detected,
-// the difference is the number of variables in the cycle, and the last variable seen on the
-// path must be a variable in the cycle.
+// A cycle must contain at least one variable to be invalid (cycles containing only
+// functions are permitted). To detect such a cycle, and in order to print it, the
+// mark value indicating "in progress" is the path length up to (and including) the
+// current node; i.e. the length of the path after appending the node. Naturally,
+// that value is > 0 as required for "in progress" marks. In other words, each node's
+// "in progress" mark value corresponds to the node's path index plus 1. Accordingly,
+// when the first node of a cycle is reached, that node's mark value indicates the
+// start of the cycle in the path. The tail of the path (path[mark-1:]) contains all
+// nodes of the cycle.
 //
-func (check *checker) dependencies(obj Object, init *declInfo, last *Var, n int) {
+func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 	if init.mark < 0 {
 		return // finished
 	}
 
-	this, _ := obj.(*Var)
-	if this != nil {
-		last = this // this is the last variable seen on the path
-		n++         // count the variable
-	}
-
 	if init.mark > 0 {
-		// cycle detected
-		if init.mark != n {
-			// cycle contains variables - use the last one seen for error
-			check.errorf(last.pos, "initialization cycle for %s", last.name)
-			// TODO(gri) print the cycle
-			init.mark = -1 // avoid further errors
+		// cycle detected - find index of first variable in cycle, if any
+		first := -1
+		cycle := path[init.mark-1:]
+		for i, obj := range cycle {
+			if _, ok := obj.(*Var); ok {
+				first = i
+				break
+			}
 		}
+		// only report an error if there's at least one variable
+		if first >= 0 {
+			obj := cycle[first]
+			check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
+			// print cycle
+			i := first
+			for _ = range cycle {
+				check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+				i++
+				if i >= len(cycle) {
+					i = 0
+				}
+				obj = cycle[i]
+			}
+			check.errorf(obj.Pos(), "\t%s (cycle start)", obj.Name())
+
+		}
+		init.mark = -1 // avoid further errors
 		return
 	}
 
 	// init.mark == 0
 
-	init.mark = n // init.mark > 0
+	path = append(path, obj) // len(path) > 0
+	init.mark = len(path)    // init.mark > 0
 	for obj, dep := range init.deps {
-		check.dependencies(obj, dep, last, n)
+		check.dependencies(obj, dep, path)
 	}
 	init.mark = -1 // init.mark < 0
 
 	// record the init order for variables
-	if this != nil {
+	if this, _ := obj.(*Var); this != nil {
 		initLhs := init.lhs // possibly nil (see declInfo.lhs field comment)
 		if initLhs == nil {
 			initLhs = []*Var{this}

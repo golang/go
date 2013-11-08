@@ -224,10 +224,9 @@ func checkFiles(t *testing.T, testfiles []string) {
 			t.Error(err)
 			return
 		}
-		// Ignore error messages containing "other declaration":
-		// They are follow-up error messages after a redeclaration
-		// error.
-		if !strings.Contains(err.Error(), "other declaration") {
+		// Ignore secondary error messages starting with "\t";
+		// they are clarifying messages for a primary error.
+		if !strings.Contains(err.Error(), ": \t") {
 			errlist = append(errlist, err)
 		}
 	}
