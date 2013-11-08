@@ -7,7 +7,6 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"path"
@@ -173,13 +172,8 @@ func (check *checker) handleBailout(err *error) {
 		// normal return or early exit
 		*err = check.firstErr
 	default:
-		// unexpected panic: don't crash clients
-		// TODO(gri) add a test case for this scenario
-		*err = fmt.Errorf("types internal error: %v", p)
-		if debug {
-			check.dump("INTERNAL PANIC: %v", p)
-			panic(p)
-		}
+		// re-panic
+		panic(p)
 	}
 }
 

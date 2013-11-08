@@ -196,10 +196,12 @@ func checkPkgFiles(files []*ast.File) {
 	}
 
 	defer func() {
-		switch err := recover().(type) {
+		switch p := recover().(type) {
 		case nil, bailout:
+			// normal return or early exit
 		default:
-			panic(err)
+			// re-panic
+			panic(p)
 		}
 	}()
 
