@@ -296,11 +296,11 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {
-	obj        *TypeName       // corresponding declared object
-	underlying Type            // possibly a *Named if !complete; never a *Named if complete
-	complete   bool            // if set, the underlying type has been determined
-	methods    []*Func         // methods declared for this type (not the method set of this type)
-	mset       cachedMethodSet // method set for this type, lazily initialized
+	obj         *TypeName       // corresponding declared object
+	underlying  Type            // possibly a *Named if !complete; never a *Named if complete
+	complete    bool            // if set, the underlying type has been determined
+	methods     []*Func         // methods declared for this type (not the method set of this type)
+	mset, pmset cachedMethodSet // method set for T, *T, lazily initialized
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -341,11 +341,18 @@ func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
 
-func (t *Basic) MethodSet() *MethodSet     { return &emptyMethodSet }
-func (t *Array) MethodSet() *MethodSet     { return &emptyMethodSet }
-func (t *Slice) MethodSet() *MethodSet     { return &emptyMethodSet }
-func (t *Struct) MethodSet() *MethodSet    { return t.mset.of(t) }
-func (t *Pointer) MethodSet() *MethodSet   { return t.mset.of(t) }
+func (t *Basic) MethodSet() *MethodSet  { return &emptyMethodSet }
+func (t *Array) MethodSet() *MethodSet  { return &emptyMethodSet }
+func (t *Slice) MethodSet() *MethodSet  { return &emptyMethodSet }
+func (t *Struct) MethodSet() *MethodSet { return t.mset.of(t) }
+func (t *Pointer) MethodSet() *MethodSet {
+	if named, _ := t.base.(*Named); named != nil {
+		// Avoid recomputing mset(*T) for each distinct Pointer
+		// instance whose underlying type is a named type.
+		return named.pmset.of(t)
+	}
+	return t.mset.of(t)
+}
 func (t *Tuple) MethodSet() *MethodSet     { return &emptyMethodSet }
 func (t *Signature) MethodSet() *MethodSet { return &emptyMethodSet }
 func (t *Builtin) MethodSet() *MethodSet   { return &emptyMethodSet }
