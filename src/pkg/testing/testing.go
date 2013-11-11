@@ -73,17 +73,19 @@
 //
 // Example functions without output comments are compiled but not executed.
 //
-// The naming convention to declare examples for a function F, a type T and
+// The naming convention to declare examples for the package, a function F, a type T and
 // method M on type T are:
 //
+//     func Example() { ... }
 //     func ExampleF() { ... }
 //     func ExampleT() { ... }
 //     func ExampleT_M() { ... }
 //
-// Multiple example functions for a type/function/method may be provided by
+// Multiple example functions for a package/type/function/method may be provided by
 // appending a distinct suffix to the name. The suffix must start with a
 // lower-case letter.
 //
+//     func Example_suffix() { ... }
 //     func ExampleF_suffix() { ... }
 //     func ExampleT_suffix() { ... }
 //     func ExampleT_M_suffix() { ... }
