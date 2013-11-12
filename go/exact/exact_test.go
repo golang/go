@@ -16,6 +16,7 @@ var tests = []string{
 	// unary operations
 	`+ 0 = 0`,
 	`- 1 = -1`,
+	`^ 0 = -1`,
 
 	`! true = false`,
 	`! false = true`,
@@ -50,11 +51,28 @@ var tests = []string{
 
 	`0 % 0 = "runtime_error:_integer_divide_by_zero"`, // TODO(gri) should be the same as for /
 	`10 % 3 = 1`,
+
+	`0 & 0 = 0`,
+	`12345 & 0 = 0`,
+	`0xff & 0xf = 0xf`,
+
+	`0 | 0 = 0`,
+	`12345 | 0 = 12345`,
+	`0xb | 0xa0 = 0xab`,
+
+	`0 ^ 0 = 0`,
+	`1 ^ -1 = -2`,
+
+	`0 &^ 0 = 0`,
+	`0xf &^ 1 = 0xe`,
+	`1 &^ 0xf = 0`,
 	// etc.
 
 	// shifts
 	`0 << 0 = 0`,
 	`1 << 10 = 1024`,
+	`0 >> 0 = 0`,
+	`1024 >> 10 == 1`,
 	// etc.
 
 	// comparisons
@@ -75,41 +93,57 @@ var tests = []string{
 	`"foo" > "bar" = true`,
 	`"foo" >= "bar" = true`,
 
+	`0 == 0 = true`,
 	`0 != 0 = false`,
+	`0 < 10 = true`,
+	`10 <= 10 = true`,
+	`0 > 10 = false`,
+	`10 >= 10 = true`,
 
+	`1/123456789 == 1/123456789 == true`,
+	`1/123456789 != 1/123456789 == false`,
+	`1/123456789 < 1/123456788 == true`,
+	`1/123456788 <= 1/123456789 == false`,
+	`0.11 > 0.11 = false`,
+	`0.11 >= 0.11 = true`,
 	// etc.
 }
 
 func TestOps(t *testing.T) {
 	for _, test := range tests {
-		var got, want Value
+		a := strings.Split(test, " ")
+		i := 0 // operator index
 
-		switch a := strings.Split(test, " "); len(a) {
+		var x, x0 Value
+		switch len(a) {
 		case 4:
-			x := val(a[1])
-			got = doOp(nil, op[a[0]], x)
-			want = val(a[3])
-			if !Compare(x, token.EQL, val(a[1])) {
-				t.Errorf("%s failed: x changed to %s", test, x)
-			}
+			// unary operation
 		case 5:
-			x := val(a[0])
-			y := val(a[2])
-			got = doOp(x, op[a[1]], y)
-			want = val(a[4])
-			if !Compare(x, token.EQL, val(a[0])) {
-				t.Errorf("%s failed: x changed to %s", test, x)
-			}
-			if !Compare(y, token.EQL, val(a[2])) {
-				t.Errorf("%s failed: y changed to %s", test, y)
-			}
+			// binary operation
+			x, x0 = val(a[0]), val(a[0])
+			i = 1
 		default:
 			t.Errorf("invalid test case: %s", test)
 			continue
 		}
 
+		op, ok := optab[a[i]]
+		if !ok {
+			panic("missing optab entry for " + a[i])
+		}
+
+		y, y0 := val(a[i+1]), val(a[i+1])
+
+		got := doOp(x, op, y)
+		want := val(a[i+3])
 		if !Compare(got, token.EQL, want) {
-			t.Errorf("%s failed: got %s; want %s", test, got, want)
+			t.Errorf("%s: got %s; want %s", test, got, want)
+		}
+		if x0 != nil && !Compare(x, token.EQL, x0) {
+			t.Errorf("%s: x changed to %s", test, x)
+		}
+		if !Compare(y, token.EQL, y0) {
+			t.Errorf("%s: y changed to %s", test, y)
 		}
 	}
 }
@@ -131,7 +165,7 @@ func val(lit string) Value {
 		return MakeBool(false)
 	}
 
-	tok := token.FLOAT
+	tok := token.INT
 	switch first, last := lit[0], lit[len(lit)-1]; {
 	case first == '"' || first == '`':
 		tok = token.STRING
@@ -140,12 +174,16 @@ func val(lit string) Value {
 		tok = token.CHAR
 	case last == 'i':
 		tok = token.IMAG
+	default:
+		if !strings.HasPrefix(lit, "0x") && strings.ContainsAny(lit, "./Ee") {
+			tok = token.FLOAT
+		}
 	}
 
 	return MakeFromLiteral(lit, tok)
 }
 
-var op = map[string]token.Token{
+var optab = map[string]token.Token{
 	"!": token.NOT,
 
 	"+": token.ADD,
@@ -156,6 +194,11 @@ var op = map[string]token.Token{
 
 	"<<": token.SHL,
 	">>": token.SHR,
+
+	"&":  token.AND,
+	"|":  token.OR,
+	"^":  token.XOR,
+	"&^": token.AND_NOT,
 
 	"==": token.EQL,
 	"!=": token.NEQ,
