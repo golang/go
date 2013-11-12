@@ -46,6 +46,7 @@ var tests = []string{
 	`0 / 0 = "division_by_zero"`,
 	`10 / 2 = 5`,
 	`5 / 3 = 5/3`,
+	`5i / 3i = 5/3`,
 
 	`0 % 0 = "runtime_error:_integer_divide_by_zero"`, // TODO(gri) should be the same as for /
 	`10 % 3 = 1`,
@@ -85,11 +86,23 @@ func TestOps(t *testing.T) {
 
 		switch a := strings.Split(test, " "); len(a) {
 		case 4:
-			got = doOp(nil, op[a[0]], val(a[1]))
+			x := val(a[1])
+			got = doOp(nil, op[a[0]], x)
 			want = val(a[3])
+			if !Compare(x, token.EQL, val(a[1])) {
+				t.Errorf("%s failed: x changed to %s", test, x)
+			}
 		case 5:
-			got = doOp(val(a[0]), op[a[1]], val(a[2]))
+			x := val(a[0])
+			y := val(a[2])
+			got = doOp(x, op[a[1]], y)
 			want = val(a[4])
+			if !Compare(x, token.EQL, val(a[0])) {
+				t.Errorf("%s failed: x changed to %s", test, x)
+			}
+			if !Compare(y, token.EQL, val(a[2])) {
+				t.Errorf("%s failed: y changed to %s", test, y)
+			}
 		default:
 			t.Errorf("invalid test case: %s", test)
 			continue

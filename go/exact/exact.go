@@ -610,12 +610,12 @@ func BinaryOp(x Value, op token.Token, y Value) Value {
 			im.Add(&bc, &ad)
 		case token.QUO:
 			// (ac+bd)/s + i(bc-ad)/s, with s = cc + dd
-			var ac, bd, bc, ad, s big.Rat
+			var ac, bd, bc, ad, s, cc, dd big.Rat
 			ac.Mul(a, c)
 			bd.Mul(b, d)
 			bc.Mul(b, c)
 			ad.Mul(a, d)
-			s.Add(c.Mul(c, c), d.Mul(d, d))
+			s.Add(cc.Mul(c, c), dd.Mul(d, d))
 			re.Add(&ac, &bd)
 			re.Quo(&re, &s)
 			im.Sub(&bc, &ad)
