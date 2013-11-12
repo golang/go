@@ -11,6 +11,17 @@ import (
 
 // AddImport adds the import path to the file f, if absent.
 func AddImport(f *ast.File, ipath string) (added bool) {
+	return AddNamedImport(f, "", ipath)
+}
+
+// AddNamedImport adds the import path to the file f, if absent.
+// If name is not empty, it is used to rename the import.
+//
+// For example, calling
+//	AddNamedImport(f, "pathpkg", "path")
+// adds
+//	import pathpkg "path"
+func AddNamedImport(f *ast.File, name, ipath string) (added bool) {
 	if imports(f, ipath) {
 		return false
 	}
@@ -20,6 +31,9 @@ func AddImport(f *ast.File, ipath string) (added bool) {
 			Kind:  token.STRING,
 			Value: strconv.Quote(ipath),
 		},
+	}
+	if name != "" {
+		newImport.Name = &ast.Ident{Name: name}
 	}
 
 	// Find an import decl to add to.

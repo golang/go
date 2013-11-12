@@ -30,10 +30,11 @@ func print(t *testing.T, name string, f *ast.File) string {
 }
 
 type test struct {
-	name string
-	pkg  string
-	in   string
-	out  string
+	name       string
+	renamedPkg string
+	pkg        string
+	in         string
+	out        string
 }
 
 var addTests = []test{
@@ -152,12 +153,29 @@ import (
 )
 `,
 	},
+	{
+		name:       "",
+		renamedPkg: "fmtpkg",
+		pkg:        "fmt",
+		in: `package main
+
+import "os"
+
+`,
+		out: `package main
+
+import (
+	fmtpkg "fmt"
+	"os"
+)
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
 	for _, test := range addTests {
 		file := parse(t, test.name, test.in)
-		AddImport(file, test.pkg)
+		AddNamedImport(file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
 			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
 		}
