@@ -263,7 +263,7 @@ func main() {
 			log.Fatal(err)
 		}
 		index, _ := corpus.CurrentIndex()
-		err = index.Write(f)
+		_, err = index.WriteTo(f)
 		if err != nil {
 			log.Fatal(err)
 		}
