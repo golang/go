@@ -5,6 +5,7 @@
 package godoc
 
 import (
+	"bytes"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,7 +13,7 @@ import (
 	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 )
 
-func TestIndex(t *testing.T) {
+func newCorpus(t *testing.T) *Corpus {
 	c := NewCorpus(mapfs.New(map[string]string{
 		"src/pkg/foo/foo.go": `// Package foo is an example.
 package foo
@@ -46,13 +47,46 @@ func Skip() {}
 	if err := c.Init(); err != nil {
 		t.Fatal(err)
 	}
+	return c
+}
+
+func TestIndex(t *testing.T) {
+	c := newCorpus(t)
 	c.UpdateIndex()
 	ix, _ := c.CurrentIndex()
 	if ix == nil {
 		t.Fatal("no index")
 	}
 	t.Logf("Got: %#v", ix)
+	testIndex(t, ix)
+}
 
+func TestIndexWriteRead(t *testing.T) {
+	c := newCorpus(t)
+	c.UpdateIndex()
+	ix, _ := c.CurrentIndex()
+	if ix == nil {
+		t.Fatal("no index")
+	}
+
+	var buf bytes.Buffer
+	nw, err := ix.WriteTo(&buf)
+	if err != nil {
+		t.Fatalf("Index.WriteTo: %v", err)
+	}
+
+	ix2 := new(Index)
+	nr, err := ix2.ReadFrom(&buf)
+	if err != nil {
+		t.Fatalf("Index.ReadFrom: %v", err)
+	}
+	if nr != nw {
+		t.Errorf("Wrote %d bytes to index but read %d", nw, nr)
+	}
+	testIndex(t, ix2)
+}
+
+func testIndex(t *testing.T, ix *Index) {
 	wantStats := Statistics{Bytes: 256, Files: 3, Lines: 16, Words: 6, Spots: 9}
 	if !reflect.DeepEqual(ix.Stats(), wantStats) {
 		t.Errorf("Stats = %#v; want %#v", ix.Stats(), wantStats)

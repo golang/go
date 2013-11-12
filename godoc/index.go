@@ -880,11 +880,22 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 	}
 }
 
+var ErrFileIndexVersion = errors.New("file index version out of date")
+
+const fileIndexVersion = 2
+
+// fileIndex is the subset of Index that's gob-encoded for use by
+// Index.Write and Index.Read.
 type fileIndex struct {
-	Words    map[string]*LookupResult
-	Alts     map[string]*AltWords
-	Snippets []*Snippet
-	Fulltext bool
+	Version     int
+	Words       map[string]*LookupResult
+	Alts        map[string]*AltWords
+	Snippets    []*Snippet
+	Fulltext    bool
+	Stats       Statistics
+	ImportCount map[string]int
+	PackagePath map[string]map[string]bool
+	Exports     map[string]map[string]SpotKind
 }
 
 func (x *fileIndex) Write(w io.Writer) error {
@@ -895,63 +906,79 @@ func (x *fileIndex) Read(r io.Reader) error {
 	return gob.NewDecoder(r).Decode(x)
 }
 
-// Write writes the index x to w.
-func (x *Index) Write(w io.Writer) error {
+// WriteTo writes the index x to w.
+func (x *Index) WriteTo(w io.Writer) (n int64, err error) {
+	w = countingWriter{&n, w}
 	fulltext := false
 	if x.suffixes != nil {
 		fulltext = true
 	}
 	fx := fileIndex{
-		x.words,
-		x.alts,
-		x.snippets,
-		fulltext,
+		Version:     fileIndexVersion,
+		Words:       x.words,
+		Alts:        x.alts,
+		Snippets:    x.snippets,
+		Fulltext:    fulltext,
+		Stats:       x.stats,
+		ImportCount: x.importCount,
+		PackagePath: x.packagePath,
+		Exports:     x.exports,
 	}
 	if err := fx.Write(w); err != nil {
-		return err
+		return 0, err
 	}
 	if fulltext {
 		encode := func(x interface{}) error {
 			return gob.NewEncoder(w).Encode(x)
 		}
 		if err := x.fset.Write(encode); err != nil {
-			return err
+			return 0, err
 		}
 		if err := x.suffixes.Write(w); err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return n, nil
 }
 
 // Read reads the index from r into x; x must not be nil.
 // If r does not also implement io.ByteReader, it will be wrapped in a bufio.Reader.
-func (x *Index) Read(r io.Reader) error {
+// If the index is from an old version, the error is ErrFileIndexVersion.
+func (x *Index) ReadFrom(r io.Reader) (n int64, err error) {
 	// We use the ability to read bytes as a plausible surrogate for buffering.
 	if _, ok := r.(io.ByteReader); !ok {
 		r = bufio.NewReader(r)
 	}
+	r = countingReader{&n, r.(byteReader)}
 	var fx fileIndex
 	if err := fx.Read(r); err != nil {
-		return err
+		return n, err
+	}
+	if fx.Version != fileIndexVersion {
+		return 0, ErrFileIndexVersion
 	}
 	x.words = fx.Words
 	x.alts = fx.Alts
 	x.snippets = fx.Snippets
+	x.stats = fx.Stats
+	x.importCount = fx.ImportCount
+	x.packagePath = fx.PackagePath
+	x.exports = fx.Exports
+
 	if fx.Fulltext {
 		x.fset = token.NewFileSet()
 		decode := func(x interface{}) error {
 			return gob.NewDecoder(r).Decode(x)
 		}
 		if err := x.fset.Read(decode); err != nil {
-			return err
+			return n, err
 		}
 		x.suffixes = new(suffixarray.Index)
 		if err := x.suffixes.Read(r); err != nil {
-			return err
+			return n, err
 		}
 	}
-	return nil
+	return n, nil
 }
 
 // Stats returns index statistics.
@@ -1204,7 +1231,7 @@ func (c *Corpus) readIndex(filenames string) error {
 		files = append(files, f)
 	}
 	x := new(Index)
-	if err := x.Read(io.MultiReader(files...)); err != nil {
+	if _, err := x.ReadFrom(io.MultiReader(files...)); err != nil {
 		return err
 	}
 	c.searchIndex.Set(x)
@@ -1268,4 +1295,37 @@ func (c *Corpus) RunIndexer() {
 		}
 		time.Sleep(delay)
 	}
+}
+
+type countingWriter struct {
+	n *int64
+	w io.Writer
+}
+
+func (c countingWriter) Write(p []byte) (n int, err error) {
+	n, err = c.w.Write(p)
+	*c.n += int64(n)
+	return
+}
+
+type byteReader interface {
+	io.Reader
+	io.ByteReader
+}
+
+type countingReader struct {
+	n *int64
+	r byteReader
+}
+
+func (c countingReader) Read(p []byte) (n int, err error) {
+	n, err = c.r.Read(p)
+	*c.n += int64(n)
+	return
+}
+
+func (c countingReader) ReadByte() (b byte, err error) {
+	b, err = c.r.ReadByte()
+	*c.n += 1
+	return
 }
