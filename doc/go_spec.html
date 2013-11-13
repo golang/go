@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 16, 2013",
+	"Subtitle": "Version of Nov 13, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -1456,10 +1456,6 @@ by a value of type <code>T</code>.
 </li>
 </ul>
 
-<p>
-Any value may be assigned to the <a href="#Blank_identifier">blank identifier</a>.
-</p>
-
 
 <h2 id="Blocks">Blocks</h2>
 
@@ -1514,6 +1510,11 @@ A <i>declaration</i> binds a non-<a href="#Blank_identifier">blank</a> identifie
 Every identifier in a program must be declared.
 No identifier may be declared twice in the same block, and
 no identifier may be declared in both the file and package block.
+</p>
+
+<p>
+The <a href="#Blank_identifier">blank identifier</a> may be used like any other identifier
+in a declaration, but it does not introduce a binding and thus is not declared.
 </p>
 
 <pre class="ebnf">
@@ -1585,8 +1586,10 @@ the body of any nested function.
 <h3 id="Blank_identifier">Blank identifier</h3>
 
 <p>
-The <i>blank identifier</i>, represented by the underscore character <code>_</code>, may be used in a declaration like
-any other identifier but the declaration does not introduce a new <a href="#Declarations_and_scope">binding</a>.
+The <i>blank identifier</i> is represented by the underscore character <code>_</code>.
+It serves as an anonymous placeholder instead of a regular (non-blank)
+identifier and has special meaning in <a href="#Declarations_and_scope">declarations</a>,
+as an <a href="#Operands">operand</a>, and in <a href="#Assignments">assignments</a>.
 </p>
 
 
@@ -2077,13 +2080,18 @@ operators and functions to operands.
 
 <p>
 Operands denote the elementary values in an expression. An operand may be a
-literal, a (possibly <a href="#Qualified_identifiers">qualified</a>) identifier
-denoting a
+literal, a (possibly <a href="#Qualified_identifiers">qualified</a>)
+non-<a href="#Blank_identifier">blank</a> identifier denoting a
 <a href="#Constant_declarations">constant</a>,
 <a href="#Variable_declarations">variable</a>, or
 <a href="#Function_declarations">function</a>,
 a <a href="#Method_expressions">method expression</a> yielding a function,
 or a parenthesized expression.
+</p>
+
+<p>
+The <a href="#Blank_identifier">blank identifier</a> may appear as an
+operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 </p>
 
 <pre class="ebnf">
@@ -4255,7 +4263,8 @@ assign_op = [ add_op | mul_op ] "=" .
 
 <p>
 Each left-hand side operand must be <a href="#Address_operators">addressable</a>,
-a map index expression, or the <a href="#Blank_identifier">blank identifier</a>.
+a map index expression, or (for <code>=</code> assignments only) the
+<a href="#Blank_identifier">blank identifier</a>.
 Operands may be parenthesized.
 </p>
 
@@ -4268,12 +4277,13 @@ a[i] = 23
 
 <p>
 An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
-<code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
+<code>y</code> where <i>op</i> is a binary arithmetic operation equivalent
 to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
 <code>y</code> but evaluates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
 In assignment operations, both the left- and right-hand expression lists
-must contain exactly one single-valued expression.
+must contain exactly one single-valued expression, and the left-hand
+expression must not be the blank identifier.
 </p>
 
 <pre>
@@ -4298,20 +4308,25 @@ x, y = f()
 
 <p>
 assigns the first value to <code>x</code> and the second to <code>y</code>.
-The <a href="#Blank_identifier">blank identifier</a> provides a
-way to ignore values returned by a multi-valued expression:
-</p>
-
-<pre>
-x, _ = f()  // ignore second value returned by f()
-</pre>
-
-<p>
 In the second form, the number of operands on the left must equal the number
 of expressions on the right, each of which must be single-valued, and the
 <i>n</i>th expression on the right is assigned to the <i>n</i>th
-operand on the left.
+operand on the left:
 </p>
+
+<pre>
+one, two, three = '一', '二', '三'
+</pre>
+
+<p>
+The <a href="#Blank_identifier">blank identifier</a> provides a way to
+ignore right-hand side values in an assignment:
+</p>
+
+<pre>
+_ = x       // evaluate x but ignore it
+x, _ = f()  // evaluate f() but ignore second result value
+</pre>
 
 <p>
 The assignment proceeds in two phases.
@@ -4350,16 +4365,29 @@ for i, x[i] = range x {  // set i, x[2] = 0, x[0]
 </pre>
 
 <p>
-In assignments, each value must be
-<a href="#Assignability">assignable</a> to the type of the
-operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
-is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
-to type <code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
-<code>complex128</code> or <code>string</code>
-respectively, depending on whether the value is a
-boolean, rune, integer, floating-point, complex, or string constant.
+In assignments, each value must be <a href="#Assignability">assignable</a>
+to the type of the operand to which it is assigned, with the following special cases:
 </p>
 
+<ol>
+<li><p>
+	If an untyped <a href="#Constants">constant</a>
+	is assigned to a variable of interface type or the blank identifier,
+	the constant is first <a href="#Conversions">converted</a> to type
+	<code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
+	<code>complex128</code> or <code>string</code> respectively, depending on
+	whether the value is a boolean, rune, integer, floating-point, complex, or
+	string constant.
+</p></li>
+
+<li><p>
+	<!-- Note that the result of a comparison is an untyped bool that may not be constant. -->
+	If a left-hand side is the blank identifier, any typed or non-constant
+	value except for the predeclared identifier
+	<a href="#Predeclared_identifiers"><code>nil</code></a>
+	may be assigned to it.
+</p></li>
+</ol>
 
 <h3 id="If_statements">If statements</h3>
 
