@@ -762,7 +762,7 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 		return
 	}
 
-	if (op == token.QUO || op == token.REM) && y.mode == constant && exact.Sign(y.val) == 0 {
+	if (op == token.QUO || op == token.REM) && (x.mode == constant || !isFloat(x.typ)) && y.mode == constant && exact.Sign(y.val) == 0 {
 		check.invalidOp(y.pos(), "division by zero")
 		x.mode = invalid
 		return

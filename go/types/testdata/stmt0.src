@@ -52,6 +52,8 @@ func assignments1() {
 	i += "foo" /* ERROR "cannot convert.*int" */
 
 	f -= 1
+	f /= 0
+	f = float32(1.0)/0
 	f -= "foo" /* ERROR "cannot convert.*float64" */
 
 	c *= 1
