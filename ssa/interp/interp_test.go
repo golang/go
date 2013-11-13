@@ -320,7 +320,7 @@ func TestTestmainPackage(t *testing.T) {
 
 // CreateTestMainPackage should return nil if there were no tests.
 func TestNullTestmainPackage(t *testing.T) {
-	imp := importer.New(&importer.Config{Build: build.Default})
+	imp := importer.New(&importer.Config{Build: &build.Default})
 	files, err := importer.ParseFiles(imp.Fset, ".", "testdata/b_test.go")
 	if err != nil {
 		t.Fatalf("ParseFiles failed: %s", err)
