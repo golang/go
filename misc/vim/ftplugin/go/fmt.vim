@@ -18,15 +18,21 @@
 "
 "       Flag to indicate whether to enable the commands listed above.
 "
+"   g:gofmt_command [default="gofmt"]
+"
+"       Flag naming the gofmt executable to use.
+"
 if exists("b:did_ftplugin_go_fmt")
     finish
 endif
-
 
 if !exists("g:go_fmt_commands")
     let g:go_fmt_commands = 1
 endif
 
+if !exists("g:gofmt_command")
+    let g:gofmt_command = "gofmt"
+endif
 
 if g:go_fmt_commands
     command! -buffer Fmt call s:GoFormat()
@@ -34,7 +40,7 @@ endif
 
 function! s:GoFormat()
     let view = winsaveview()
-    silent %!gofmt
+    silent execute "%!" . g:gofmt_command
     if v:shell_error
         let errors = []
         for line in getline(1, line('$'))
