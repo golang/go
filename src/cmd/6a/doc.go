@@ -10,7 +10,11 @@
 
 	http://plan9.bell-labs.com/magic/man2html/1/8a
 
-Its target architecture is the x86-64, referred to by these tools as amd64.
+Go-specific considerations are documented at
+
+	http://golang.org/doc/asm.html
+
+IIts target architecture is the x86-64, referred to by these tools as amd64.
 
 */
 package main
