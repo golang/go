@@ -53,7 +53,7 @@ func assignments1() {
 
 	f -= 1
 	f /= 0
-	f = float32(1.0)/0
+	f = float32(0)/0 /* ERROR "division by zero" */
 	f -= "foo" /* ERROR "cannot convert.*float64" */
 
 	c *= 1
