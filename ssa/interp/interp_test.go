@@ -155,7 +155,9 @@ var gorootSrcPkgTests = []string{
 	// "strings.go strings/search.go strings/search_test.go",
 }
 
-func run(t *testing.T, dir, input string) bool {
+type successPredicate func(exitcode int, output string) error
+
+func run(t *testing.T, dir, input string, success successPredicate) bool {
 	fmt.Printf("Input: %s\n", input)
 
 	start := time.Now()
@@ -189,7 +191,7 @@ func run(t *testing.T, dir, input string) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
-	mainInfo := imp.CreatePackage("main", files...)
+	mainInfo := imp.CreatePackage(files[0].Name.Name, files...)
 
 	if _, err := imp.LoadPackage("runtime"); err != nil {
 		t.Errorf("LoadPackage(runtime) failed: %s", err)
@@ -204,21 +206,27 @@ func run(t *testing.T, dir, input string) bool {
 
 	mainPkg := prog.Package(mainInfo.Pkg)
 	if mainPkg.Func("main") == nil {
-		mainPkg = prog.CreateTestMainPackage(mainPkg)
+		testmainPkg := prog.CreateTestMainPackage(mainPkg)
+		if testmainPkg == nil {
+			t.Errorf("CreateTestMainPackage(%s) returned nil", mainPkg)
+			return false
+		}
+		if testmainPkg.Func("main") == nil {
+			t.Errorf("synthetic testmain package has no main")
+			return false
+		}
+		mainPkg = testmainPkg
 	}
 
 	var out bytes.Buffer
 	interp.CapturedOutput = &out
 
 	hint = fmt.Sprintf("To trace execution, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=C -run --interp=T %s\n", input)
-	if exitCode := interp.Interpret(mainPkg, 0, inputs[0], []string{}); exitCode != 0 {
-		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
-		return false
-	}
+	exitCode := interp.Interpret(mainPkg, 0, inputs[0], []string{})
 
-	// $GOROOT/tests are considered a failure if they print "BUG".
-	if strings.Contains(out.String(), "BUG") {
-		t.Errorf("interp.Interpret(%s) exited zero but output contained 'BUG'", inputs)
+	// The definition of success varies with each file.
+	if err := success(exitCode, out.String()); err != nil {
+		t.Errorf("interp.Interpret(%s) failed: %s", inputs, err)
 		return false
 	}
 
@@ -233,34 +241,100 @@ func run(t *testing.T, dir, input string) bool {
 
 const slash = string(os.PathSeparator)
 
-// TestInterp runs the interpreter on a selection of small Go programs.
-func TestInterp(t *testing.T) {
-	var failures []string
-
-	for _, input := range testdataTests {
-		if !run(t, "testdata"+slash, input) {
-			failures = append(failures, input)
-		}
-	}
-
-	if !testing.Short() {
-		for _, input := range gorootTestTests {
-			if !run(t, filepath.Join(build.Default.GOROOT, "test")+slash, input) {
-				failures = append(failures, input)
-			}
-		}
-
-		for _, input := range gorootSrcPkgTests {
-			if !run(t, filepath.Join(build.Default.GOROOT, "src/pkg")+slash, input) {
-				failures = append(failures, input)
-			}
-		}
-	}
-
+func printFailures(failures []string) {
 	if failures != nil {
 		fmt.Println("The following tests failed:")
 		for _, f := range failures {
 			fmt.Printf("\t%s\n", f)
 		}
+	}
+}
+
+// The "normal" success predicate.
+func exitsZero(exitcode int, _ string) error {
+	if exitcode != 0 {
+		return fmt.Errorf("exit code was %d", exitcode)
+	}
+	return nil
+}
+
+// TestTestdataFiles runs the interpreter on testdata/*.go.
+func TestTestdataFiles(t *testing.T) {
+	var failures []string
+	for _, input := range testdataTests {
+		if !run(t, "testdata"+slash, input, exitsZero) {
+			failures = append(failures, input)
+		}
+	}
+	printFailures(failures)
+}
+
+// TestGorootTest runs the interpreter on $GOROOT/test/*.go.
+func TestGorootTest(t *testing.T) {
+	if testing.Short() {
+		return // too slow (~30s)
+	}
+
+	var failures []string
+
+	// $GOROOT/tests are also considered a failure if they print "BUG".
+	success := func(exitcode int, output string) error {
+		if exitcode != 0 {
+			return fmt.Errorf("exit code was %d", exitcode)
+		}
+		if strings.Contains(output, "BUG") {
+			return fmt.Errorf("exited zero but output contained 'BUG'")
+		}
+		return nil
+	}
+	for _, input := range gorootTestTests {
+		if !run(t, filepath.Join(build.Default.GOROOT, "test")+slash, input, success) {
+			failures = append(failures, input)
+		}
+	}
+	for _, input := range gorootSrcPkgTests {
+		if !run(t, filepath.Join(build.Default.GOROOT, "src/pkg")+slash, input, success) {
+			failures = append(failures, input)
+		}
+	}
+	printFailures(failures)
+}
+
+// TestTestmainPackage runs the interpreter on a synthetic "testmain" package.
+func TestTestmainPackage(t *testing.T) {
+	success := func(exitcode int, output string) error {
+		if exitcode == 0 {
+			return fmt.Errorf("unexpected success")
+		}
+		if !strings.Contains(output, "FAIL: TestFoo") {
+			return fmt.Errorf("missing failure log for TestFoo")
+		}
+		if !strings.Contains(output, "FAIL: TestBar") {
+			return fmt.Errorf("missing failure log for TestBar")
+		}
+		// TODO(adonovan): test benchmarks too
+		return nil
+	}
+	run(t, "testdata"+slash, "a_test.go", success)
+}
+
+// CreateTestMainPackage should return nil if there were no tests.
+func TestNullTestmainPackage(t *testing.T) {
+	imp := importer.New(&importer.Config{Build: build.Default})
+	files, err := importer.ParseFiles(imp.Fset, ".", "testdata/b_test.go")
+	if err != nil {
+		t.Fatalf("ParseFiles failed: %s", err)
+	}
+	mainInfo := imp.CreatePackage("b", files...)
+	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
+	if err := prog.CreatePackages(imp); err != nil {
+		t.Fatalf("CreatePackages failed: %s", err)
+	}
+	mainPkg := prog.Package(mainInfo.Pkg)
+	if mainPkg.Func("main") != nil {
+		t.Fatalf("unexpected main function")
+	}
+	if prog.CreateTestMainPackage(mainPkg) != nil {
+		t.Fatalf("CreateTestMainPackage returned non-nil")
 	}
 }

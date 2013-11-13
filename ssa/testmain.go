@@ -42,7 +42,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:      prog,
 	}
 	init.startBody()
-	var expfuncs []*Function // all exported functions of pkgs, unordered
+	var expfuncs []*Function // all exported functions of *_test.go in pkgs, unordered
 	for _, pkg := range pkgs {
 		// Initialize package to test.
 		var v Call
@@ -52,7 +52,9 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 
 		// Enumerate its possible tests/benchmarks.
 		for _, mem := range pkg.Members {
-			if f, ok := mem.(*Function); ok && ast.IsExported(f.Name()) {
+			if f, ok := mem.(*Function); ok &&
+				ast.IsExported(f.Name()) &&
+				strings.HasSuffix(prog.Fset.Position(f.Pos()).Filename, "_test.go") {
 				expfuncs = append(expfuncs, f)
 			}
 		}
@@ -107,12 +109,18 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	main.startBody()
 	var c Call
 	c.Call.Value = testingMain
-	c.Call.Args = []Value{
-		matcher,
-		testMainSlice(main, expfuncs, "Test", testingMainParams.At(1).Type()),
-		testMainSlice(main, expfuncs, "Benchmark", testingMainParams.At(2).Type()),
-		testMainSlice(main, expfuncs, "Example", testingMainParams.At(3).Type()),
+
+	tests := testMainSlice(main, expfuncs, "Test", testingMainParams.At(1).Type())
+	benchmarks := testMainSlice(main, expfuncs, "Benchmark", testingMainParams.At(2).Type())
+	examples := testMainSlice(main, expfuncs, "Example", testingMainParams.At(3).Type())
+	_, noTests := tests.(*Const) // i.e. nil slice
+	_, noBenchmarks := benchmarks.(*Const)
+	_, noExamples := examples.(*Const)
+	if noTests && noBenchmarks && noExamples {
+		return nil
 	}
+
+	c.Call.Args = []Value{matcher, tests, benchmarks, examples}
 	// Emit: testing.Main(nil, tests, benchmarks, examples)
 	emitTailCall(main, &c)
 	main.finishBody()
@@ -122,6 +130,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	if prog.mode&LogPackages != 0 {
 		testmain.DumpTo(os.Stderr)
 	}
+
 	if prog.mode&SanityCheckFunctions != 0 {
 		sanityCheckPackage(testmain)
 	}
@@ -141,7 +150,6 @@ func testMainSlice(fn *Function, expfuncs []*Function, prefix string, slice type
 
 	var testfuncs []*Function
 	for _, f := range expfuncs {
-		// TODO(adonovan): only look at members defined in *_test.go files.
 		if isTest(f.Name(), prefix) && types.IsIdentical(f.Signature, tFunc) {
 			testfuncs = append(testfuncs, f)
 		}
