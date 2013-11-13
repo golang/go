@@ -10,6 +10,10 @@
 
 	http://plan9.bell-labs.com/magic/man2html/1/8a
 
+Go-specific considerations are documented at
+
+	http://golang.org/doc/asm.html
+
 Its target architecture is the ARM, referred to by these tools as arm.
 
 */
