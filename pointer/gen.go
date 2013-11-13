@@ -994,7 +994,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			switch st.Dir {
 			case ast.RECV:
 				a.genLoad(cgn, recv, st.Chan, 0, elemSize)
-				recv++
+				recv += nodeid(elemSize)
 
 			case ast.SEND:
 				a.genStore(cgn, st.Chan, a.valueNode(st.Send), 0, elemSize)

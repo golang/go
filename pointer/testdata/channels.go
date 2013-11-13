@@ -90,9 +90,29 @@ func chan4() {
 	}
 }
 
+// Multi-word channel value in select with multiple receive cases.
+// (Regtest for a crash.)
+func chan5() {
+	type T struct {
+		x *int
+		y interface{}
+	}
+	ch := make(chan T)
+	ch <- T{new(int), incr} // @line ch5new
+	select {
+	case a := <-ch:
+		print(a.x) // @pointsto new@ch5new:13
+		print(a.y) // @types func(x int) int
+	case b := <-ch:
+		print(b.x) // @pointsto new@ch5new:13
+		print(b.y) // @types func(x int) int
+	}
+}
+
 func main() {
 	chan1()
 	chan2()
 	chan3()
 	chan4()
+	chan5()
 }
