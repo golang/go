@@ -390,7 +390,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 				// It will be prepended to v.Instrs later, if needed.
 				phi := &Phi{
 					Edges:   make([]Value, len(v.Preds)),
-					Comment: alloc.Name(),
+					Comment: alloc.Comment,
 				}
 				phi.pos = alloc.Pos()
 				phi.setType(deref(alloc.Type()))
