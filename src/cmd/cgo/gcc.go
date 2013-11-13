@@ -1046,20 +1046,10 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 	}
 
 	t := new(Type)
-	t.Size = dtype.Size()
+	t.Size = dtype.Size() // note: wrong for array of pointers, corrected below
 	t.Align = -1
 	t.C = &TypeRepr{Repr: dtype.Common().Name}
 	c.m[dtype] = t
-
-	if t.Size < 0 {
-		// Unsized types are [0]byte
-		t.Size = 0
-		t.Go = c.Opaque(0)
-		if t.C.Empty() {
-			t.C.Set("void")
-		}
-		return t
-	}
 
 	switch dt := dtype.(type) {
 	default:
@@ -1207,6 +1197,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		return t
 
 	case *dwarf.StructType:
+		if dt.ByteSize < 0 { // opaque struct
+			break
+		}
 		// Convert to Go struct, being careful about alignment.
 		// Have to give it a name to simulate C "struct foo" references.
 		tag := dt.StructName
@@ -1322,6 +1315,25 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			if !*godefs && !*cdefs {
 				t.Go = name
 			}
+		}
+	}
+
+	if t.Size <= 0 {
+		// Clang does not record the size of a pointer in its DWARF entry,
+		// so if dtype is an array, the call to dtype.Size at the top of the function
+		// computed the size as the array length * 0 = 0.
+		// The type switch called Type (this function) recursively on the pointer
+		// entry, and the code near the top of the function updated the size to
+		// be correct, so calling dtype.Size again will produce the correct value.
+		t.Size = dtype.Size()
+		if t.Size < 0 {
+			// Unsized types are [0]byte
+			t.Size = 0
+			t.Go = c.Opaque(0)
+			if t.C.Empty() {
+				t.C.Set("void")
+			}
+			return t
 		}
 	}
 

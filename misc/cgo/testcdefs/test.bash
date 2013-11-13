@@ -10,7 +10,7 @@ do
   go tool cgo -cdefs ${FP}.go > ${FP}.h
 done
 
-go build .
+go build . && ./testcdefs
 EXIT=$?
 rm -rf _obj main *.h
 exit $EXIT
