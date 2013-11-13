@@ -327,7 +327,17 @@ func writeType(buf *bytes.Buffer, typ Type) {
 				// if we are referring to a type that was imported;
 				// but not when we are at the "top". We don't have
 				// this information easily available here.
-				buf.WriteString(obj.pkg.name)
+				//
+				// TODO(gri): define variants of Type.String()
+				// and Object.String() that accept the referring *Package
+				// as a parameter and omit the package qualification for
+				// intra-package references to named types.
+				//
+				// Some applications may want another variant that accepts a
+				// file Scope and prints packages using that file's local
+				// import names.  (Printing just pkg.name may be ambiguous
+				// or incorrect in other scopes.)
+				buf.WriteString(obj.pkg.path)
 				buf.WriteByte('.')
 			}
 			s = t.obj.name

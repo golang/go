@@ -23,7 +23,7 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 	}
 
 	var conf Config
-	pkg, err := conf.Check(path, fset, []*ast.File{f}, info)
+	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 	if err != nil {
 		return nil, err
 	}
