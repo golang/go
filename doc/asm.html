@@ -1,0 +1,402 @@
+<!--{
+	"Title": "A Quick Guide to Go's Assembler",
+	"Path":  "/doc/asm.html"
+}-->
+
+<h2 id="introduction">A Quick Guide to Go's Assembler</h2>
+
+<p>
+This document is a quick outline of the unusual form of assembly language used by the <code>gc</code>
+suite of Go compilers (<code>6g</code>, <code>8g</code>, etc.).
+It is based on the input to the Plan 9 assemblers, which is documented in detail
+<a href="http://plan9.bell-labs.com/sys/doc/asm.html">on the Plan 9 site</a>.
+If you plan to write assembly language, you should read that document although much of it is Plan 9-specific.
+This document provides a summary of the syntax and
+describes the peculiarities that apply when writing assembly code to interact with Go.
+</p>
+
+<p>
+The most important thing to know about Go's assembler is that it is not a direct representation of the underlying machine.
+Some of the details map precisely to the machine, but some do not.
+This is because the compiler suite (see
+<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">this description</a>)
+needs no assembler pass in the usual pipeline.
+Instead, the compiler emits a kind of incompletely defined instruction set, in binary form, which the linker
+then completes.
+In particular, the linker does instruction selection, so when you see an instruction like <code>MOV</code>
+what the linker actually generates for that operation might not be a move instruction at all, perhaps a clear or load.
+Or it might correspond exactly to the machine instruction with that name.
+In general, machine-specific operations tend to appear as themselves, while more general concepts like
+memory move and subroutine call and return are more abstract.
+The details vary with architecture, and we apologize for the imprecision; the situation is not well-defined.
+</p>
+
+<p>
+The assembler program is a way to generate that intermediate, incompletely defined instruction sequence
+as input for the linker.
+If you want to see what the instructions look like in assembly for a given architecture, say amd64, there
+are many examples in the sources of the standard library, in packages such as
+<a href="/pkg/runtime/"><code>runtime</code></a> and
+<a href="/pkg/math/big/"><code>math/big</code></a>.
+You can also examine what the compiler emits as assembly code:
+</p>
+
+<pre>
+$ cat x.go
+package main
+
+func main() {
+	println(3)
+}
+$ go tool 6g -S x.go        # or: go build -gcflags -S x.go
+
+--- prog list "main" ---
+0000 (x.go:3) TEXT    main+0(SB),$8-0
+0001 (x.go:3) FUNCDATA $0,gcargs·0+0(SB)
+0002 (x.go:3) FUNCDATA $1,gclocals·0+0(SB)
+0003 (x.go:4) MOVQ    $3,(SP)
+0004 (x.go:4) PCDATA  $0,$8
+0005 (x.go:4) CALL    ,runtime.printint+0(SB)
+0006 (x.go:4) PCDATA  $0,$-1
+0007 (x.go:4) PCDATA  $0,$0
+0008 (x.go:4) CALL    ,runtime.printnl+0(SB)
+0009 (x.go:4) PCDATA  $0,$-1
+0010 (x.go:5) RET     ,
+...
+</pre>
+
+<p>
+The <code>FUNCDATA</code> and <code>PCDATA</code> directives contain information
+for use by the garbage collector; they are introduced by the compiler.
+</p> 
+
+<p>
+To see what gets put in the binary after linking, add the <code>-a</code> flag to the linker:
+</p>
+
+<pre>
+$ go tool 6l -a x.6        # or: go build -ldflags -a x.go
+codeblk [0x2000,0x1d059) at offset 0x1000
+002000	main.main            | (3)	TEXT	main.main+0(SB),$8
+002000	65488b0c25a0080000   | (3)	MOVQ	2208(GS),CX
+002009	483b21               | (3)	CMPQ	SP,(CX)
+00200c	7707                 | (3)	JHI	,2015
+00200e	e83da20100           | (3)	CALL	,1c250+runtime.morestack00
+002013	ebeb                 | (3)	JMP	,2000
+002015	4883ec08             | (3)	SUBQ	$8,SP
+002019	                     | (3)	FUNCDATA	$0,main.gcargs·0+0(SB)
+002019	                     | (3)	FUNCDATA	$1,main.gclocals·0+0(SB)
+002019	48c7042403000000     | (4)	MOVQ	$3,(SP)
+002021	                     | (4)	PCDATA	$0,$8
+002021	e8aad20000           | (4)	CALL	,f2d0+runtime.printint
+002026	                     | (4)	PCDATA	$0,$-1
+002026	                     | (4)	PCDATA	$0,$0
+002026	e865d40000           | (4)	CALL	,f490+runtime.printnl
+00202b	                     | (4)	PCDATA	$0,$-1
+00202b	4883c408             | (5)	ADDQ	$8,SP
+00202f	c3                   | (5)	RET	,
+...
+</pre>
+
+
+<h3 id="symbols">Symbols</h3>
+
+<p>
+Some symbols, such as <code>PC</code>, <code>R0</code> and <code>SP</code>, are predeclared and refer to registers.
+There are two other predeclared symbols, <code>SB</code> (static base) and <code>FP</code> (frame pointer).
+All user-defined symbols other than jump labels are written as offsets to these pseudo-registers.
+</p>
+
+<p>
+The <code>SB</code> pseudo-register can be thought of as the origin of memory, so the symbol <code>foo(SB)</code>
+is the name <code>foo</code> as an address in memory.
+</p>
+
+<p>
+The <code>FP</code> is a virtual frame pointer.
+The compilers maintain a virtual frame pointer and refer to the arguments on the stack as offsets from that pseudo-register.
+Thus <code>0(FP)</code> is the first argument to the function,
+<code>8(FP)</code> is the second (on a 64-bit machine), and so on.
+To refer to an argument by name, add the name to the numerical offset, like this: <code>first_arg+0(FP)</code>.
+The name in this syntax has no semantic value; think of it as a comment to the reader.
+</p>
+
+<p>
+Instructions, registers, and assembler directives are always in UPPER CASE to remind you
+that assembly programming is a fraught endeavor.
+(Exceptions: the <code>m</code> and <code>g</code> register renamings on ARM.)
+</p>
+
+<p>
+In Go object files and binaries, the full name of a symbol is the 
+package path followed by a period and the symbol name:
+<code>fmt.Printf</code> or <code>math/rand.Int</code>.
+Because the assembler's parser treats period and slash as punctuation,
+those strings cannot be used directly as identifier names.
+Instead, the assembler allows the middle dot character U+00B7
+and the division slash U+2215 in identifiers and rewrites them to
+plain period and slash.
+Within an assembler source file, the symbols above are written as
+<code>fmt·Printf</code> and <code>math∕rand·Int</code>.
+The assembly listings generated by the compilers when using the <code>-S</code> flag
+show the period and slash directly instead of the Unicode replacements
+required by the assemblers.
+</p>
+
+<p>
+Most hand-written assembly files do not include the full package path
+in symbol names, because the linker inserts the package path of the current
+object file at the beginning of any name starting with a period:
+in an assembly source file within the math/rand package implementation,
+the package's Int function can be referred to as <code>·Int</code>.
+This convention avoids the need to hard-code a package's import path in its
+own source code, making it easier to move the code from one location to another.
+</p>
+
+<h3 id="directives">Directives</h3>
+
+<p>
+The assembler uses various directives to bind text and data to symbol names.
+For example, here is a simple complete function definition. The <code>TEXT</code>
+directive declares the symbol <code>runtime·profileloop</code> and the instructions
+that follow form the body of the function.
+The last instruction in a <code>TEXT</code> block must be some sort of jump, usually a <code>RET</code> (pseudo-)instruction.
+(If it's not, the linker will append a jump-to-itself instruction; there is no fallthrough in <code>TEXTs</code>.)
+After the symbol, the arguments are flags (see below)
+and the frame size, a constant (but see below):
+</p>
+
+<pre>
+TEXT runtime·profileloop(SB),NOSPLIT,$8
+	MOVQ	$runtime·profileloop1(SB), CX
+	MOVQ	CX, 0(SP)
+	CALL	runtime·externalthreadhandler(SB)
+	RET
+</pre>
+
+<p>
+In the general case, the frame size is followed by an argument size, separated by a minus sign.
+(It's not an subtraction, just idiosyncratic syntax.)
+The frame size <code>$24-8</code> states that the function has a 24-byte frame
+and is called with 8 bytes of argument, which live on the caller's frame.
+If <code>NOSPLIT</code> is not specified for the <code>TEXT</code>,
+the argument size must be provided.
+</p>
+
+<p>
+Note that the symbol name uses a middle dot to separate the components and is specified as an offset from the
+static base pseudo-register <code>SB</code>.
+This function would be called from Go source for package <code>runtime</code> using the
+simple name <code>profileloop</code>.
+</p>
+
+<p>
+For <code>DATA</code> directives, the symbol is followed by a slash and the number
+of bytes the memory associated with the symbol occupies.
+The arguments are optional flags and the data itself.
+For instance,
+</p>
+
+<pre>
+DATA  runtime·isplan9(SB)/4, $1
+</pre>
+
+<p>
+declares the local symbol <code>runtime·isplan9</code> of size 4 and value 1.
+Again the symbol has the middle dot and is offset from <code>SB</code>.
+</p>
+
+<p>
+The <code>GLOBL</code> directive declares a symbol to be global.
+The arguments are optional flags and the size of the data being declared as a global,
+which will have initial value all zeros unless a <code>DATA</code> directive
+has initialized it.
+The <code>GLOBL</code> directive must follow any corresponding <code>DATA</code> directives.
+This example
+</p>
+
+<pre>
+GLOBL runtime·tlsoffset(SB),$4
+</pre>
+
+<p>
+declares <code>runtime·tlsoffset</code> to have size 4.
+</p>
+
+<p>
+There may be one or two arguments to the directives.
+If there are two, the first is a bit mask of flags,
+which can be written as numeric expressions, added or or-ed together,
+or can be set symbolically for easier absorption by a human.
+Their values, defined in the file <code>src/cmd/ld/textflag.h</code>, are:
+</p>
+
+<ul>
+<li>
+<code>NOPROF</code> = 1
+<br>
+(For <code>TEXT</code> items.)
+Don't profile the marked function.  This flag is deprecated.
+</li>
+<li>
+<code>DUPOK</code> = 2
+<br>
+It is legal to have multiple instances of this symbol in a single binary.
+The linker will choose one of the duplicates to use.
+</li>
+<li>
+<code>NOSPLIT</code> = 4
+<br>
+(For <code>TEXT</code> items.)
+Don't insert the preamble to check if the stack must be split.
+The frame for the routine, plus anything it calls, must fit in the
+spare space at the top of the stack segment.
+Used to protect routines such as the stack splitting code itself.
+</li>
+<li>
+<code>RODATA</code> = 8
+<br>
+(For <code>DATA</code> and <code>GLOBL</code> items.)
+Put this data in a read-only section.
+</li>
+<li>
+<code>NOPTR</code> = 16
+<br>
+(For <code>DATA</code> and <code>GLOBL</code> items.)
+This data contains no pointers and therefore does not need to be
+scanned by the garbage collector.
+</li>
+<li>
+<code>WRAPPER</code>  = 32
+<br>
+(For <code>TEXT</code> items.)
+This is a wrapper function and should not count as disabling <code>recover</code>.
+</li>
+</ul>
+
+<h2 id="architectures">Architecture-specific details</h2>
+
+<p>
+It is impractical to list all the instructions and other details for each machine.
+To see what instructions are defined for a given machine, say 32-bit Intel x86,
+look in the top-level header file for the corresponding linker, in this case <code>8l</code>.
+That is, the file <code>$GOROOT/src/cmd/8l/8.out.h</code> contains a C enumeration, called <code>as</code>,
+of the instructions and their spellings as known to the assembler and linker for that architecture.
+In that file you'll find a declaration that begins
+</p>
+
+<pre>
+enum	as
+{
+	AXXX,
+	AAAA,
+	AAAD,
+	AAAM,
+	AAAS,
+	AADCB,
+	...
+</pre>
+
+<p>
+Each instruction begins with a  initial capital <code>A</code> in this list, so <code>AADCB</code>
+represents the <code>ADCB</code> (add carry byte) instruction.
+The enumeration is in alphabetical order, plus some late additions (<code>AXXX</code> occupies
+the zero slot as an invalid instruction).
+The sequence has nothing to do with the actual encoding of the machine instructions.
+Again, the linker takes care of that detail.
+</p>
+
+<p>
+One detail evident in the examples from the previous sections is that data in the instructions flows from left to right:
+<code>MOVQ</code> <code>$0,</code> <code>CX</code> clears <code>CX</code>.
+This convention applies even on architectures where the usual mode is the opposite direction.
+</p>
+
+<p>
+Here follows some descriptions of key Go-specific details for the supported architectures.
+</p>
+
+<h3 id="x86">32-bit Intel 386</h3>
+
+<p>
+The runtime pointers to the <code>m</code> and <code>g</code> structures are maintained
+through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
+A OS-dependent macro <code>get_tls</code> is defined for the assembler if the source includes
+an architecture-dependent header file, like this:
+</p>
+
+<pre>
+#include "zasm_GOOS_GOARCH.h"
+</pre>
+
+<p>
+Within the runtime, the <code>get_tls</code> macro loads its argument register
+with a pointer to a pair of words representing the <code>g</code> and <code>m</code> pointers.
+The sequence to load <code>g</code> and <code>m</code> using <code>CX</code> looks like this:
+</p>
+
+<pre>
+get_tls(CX)
+MOVL	g(CX), AX	// Move g into AX.
+MOVL	m(CX), BX	// Move m into BX.
+</pre>
+
+<h3 id="amd64">64-bit Intel 386 (a.k.a. amd64)</h3>
+
+<p>
+The assembly code to access the <code>m</code> and <code>g</code>
+pointers is the same as on the 386, except it uses <code>MOVQ</code> rather than
+<code>MOVL</code>:
+</p>
+
+<pre>
+get_tls(CX)
+MOVQ	g(CX), AX	// Move g into AX.
+MOVQ	m(CX), BX	// Move m into BX.
+</pre>
+
+<h3 id="arm">ARM</h3>
+
+<p>
+The registers <code>R9</code> and <code>R10</code> are reserved by the
+compiler and linker to point to the <code>m</code> (machine) and <code>g</code>
+(goroutine) structures, respectively.
+Within assembler source code, these pointers
+can be referred to as simply <code>m</code> and <code>g</code>. 
+</p>
+
+<p>
+When defining a <code>TEXT</code>, specifying frame size <code>$-4</code>
+tells the linker that this is a leaf function that does not need to save <code>LR</code> on entry.
+</p>
+
+
+<h3 id="unsupported_opcodes">Unsupported opcodes</h3>
+
+<p>
+The assemblers are designed to support the compiler so not all hardware instructions
+are defined for all architectures: if the compiler doesn't generate it, it might not be there.
+If you need to use a missing instruction, there are two ways to proceed.
+One is to update the assembler to support that instruction, which is straightforward
+but only worthwhile if it's likely the instruction will be used again.
+Instead, for simple one-off cases, it's possible to use the <code>BYTE</code>
+and <code>WORD</code> directives
+to lay down explicit data into the instruction stream within a <code>TEXT</code>.
+Here's how the 386 runtime defines the 64-bit atomic load function.
+</p>
+
+<pre>
+// uint64 atomicload64(uint64 volatile* addr);
+// so actually
+// void atomicload64(uint64 *res, uint64 volatile *addr);
+TEXT runtime·atomicload64(SB), NOSPLIT, $0-8
+	MOVL	4(SP), BX
+	MOVL	8(SP), AX
+	// MOVQ (%EAX), %MM0
+	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+	// MOVQ %MM0, 0(%EBX)
+	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
+	// EMMS
+	BYTE $0x0F; BYTE $0x77
+	RET
+</pre>
