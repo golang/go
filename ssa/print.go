@@ -426,7 +426,7 @@ func (p *Package) DumpTo(w io.Writer) {
 			}
 
 		case *Global:
-			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type())
+			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type().(*types.Pointer).Elem())
 		}
 	}
 
