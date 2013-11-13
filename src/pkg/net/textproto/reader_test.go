@@ -25,6 +25,10 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"user-agent", "User-Agent"},
 	{"USER-AGENT", "User-Agent"},
 	{"üser-agenT", "üser-Agent"}, // non-ASCII unchanged
+
+	// This caused a panic due to mishandling of a space:
+	{"C Ontent-Transfer-Encoding", "C-Ontent-Transfer-Encoding"},
+	{"foo bar", "Foo-Bar"},
 }
 
 func TestCanonicalMIMEHeaderKey(t *testing.T) {
