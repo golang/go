@@ -6,10 +6,11 @@ package oracle
 
 import (
 	"go/token"
-	"strings"
+	"sort"
 
 	"code.google.com/p/go.tools/call"
 	"code.google.com/p/go.tools/oracle/serial"
+	"code.google.com/p/go.tools/ssa"
 )
 
 // callgraph displays the entire callgraph of the current program.
@@ -49,28 +50,65 @@ Below is a call graph of the entire program.
 The numbered nodes form a spanning tree.
 Non-numbered nodes indicate back- or cross-edges to the node whose
  number follows in parentheses.
-Some nodes may appear multiple times due to context-sensitive
- treatment of some calls.
 `)
+	root := r.callgraph.Root()
 
-	seen := make(map[call.GraphNode]int)
-	var print func(cgn call.GraphNode, indent int)
-	print = func(cgn call.GraphNode, indent int) {
-		fn := cgn.Func()
-		if num, ok := seen[cgn]; !ok {
-			num = len(seen)
-			seen[cgn] = num
-			printf(fn, "%d\t%s%s", num, strings.Repeat("    ", indent), fn)
-			// Don't use Edges(), which distinguishes callees by call site.
-			for callee := range call.CalleesOf(cgn) {
+	// context-insensitive (CI) call graph.
+	ci := make(map[*ssa.Function]map[*ssa.Function]bool)
+
+	// 1. Visit the CS call graph and build the CI call graph.
+	visited := make(map[call.GraphNode]bool)
+	var visit func(caller call.GraphNode)
+	visit = func(caller call.GraphNode) {
+		if !visited[caller] {
+			visited[caller] = true
+
+			cicallees := ci[caller.Func()]
+			if cicallees == nil {
+				cicallees = make(map[*ssa.Function]bool)
+				ci[caller.Func()] = cicallees
+			}
+
+			for _, e := range caller.Edges() {
+				cicallees[e.Callee.Func()] = true
+				visit(e.Callee)
+			}
+		}
+	}
+	visit(root)
+
+	// 2. Print the CI callgraph.
+	printed := make(map[*ssa.Function]int)
+	var print func(caller *ssa.Function, indent int)
+	print = func(caller *ssa.Function, indent int) {
+		if num, ok := printed[caller]; !ok {
+			num = len(printed)
+			printed[caller] = num
+
+			// Sort the children into name order for deterministic* output.
+			// (*mostly: anon funcs' names are not globally unique.)
+			var funcs funcsByName
+			for callee := range ci[caller] {
+				funcs = append(funcs, callee)
+			}
+			sort.Sort(funcs)
+
+			printf(caller, "%d\t%*s%s", num, 4*indent, "", caller)
+			for _, callee := range funcs {
 				print(callee, indent+1)
 			}
 		} else {
-			printf(fn, "\t%s%s (%d)", strings.Repeat("    ", indent), fn, num)
+			printf(caller, "\t%*s%s (%d)", 4*indent, "", caller, num)
 		}
 	}
-	print(r.callgraph.Root(), 0)
+	print(root.Func(), 0)
 }
+
+type funcsByName []*ssa.Function
+
+func (s funcsByName) Len() int           { return len(s) }
+func (s funcsByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s funcsByName) Less(i, j int) bool { return s[i].String() < s[j].String() }
 
 func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	nodes := r.callgraph.Nodes()
