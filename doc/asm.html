@@ -1,6 +1,6 @@
 <!--{
 	"Title": "A Quick Guide to Go's Assembler",
-	"Path":  "/doc/asm.html"
+	"Path":  "/doc/asm"
 }-->
 
 <h2 id="introduction">A Quick Guide to Go's Assembler</h2>
@@ -113,12 +113,30 @@ is the name <code>foo</code> as an address in memory.
 </p>
 
 <p>
-The <code>FP</code> is a virtual frame pointer.
+The <code>FP</code> pseudo-register is a virtual frame pointer
+used to refer to function arguments.
 The compilers maintain a virtual frame pointer and refer to the arguments on the stack as offsets from that pseudo-register.
 Thus <code>0(FP)</code> is the first argument to the function,
 <code>8(FP)</code> is the second (on a 64-bit machine), and so on.
-To refer to an argument by name, add the name to the numerical offset, like this: <code>first_arg+0(FP)</code>.
-The name in this syntax has no semantic value; think of it as a comment to the reader.
+When referring to a function argument this way, it is conventional to place the name
+at the beginning, as in <code>first_arg+0(FP)</code> and <code>second_arg+8(FP)</code>.
+Some of the assemblers enforce this convention, rejecting plain <code>0(FP)</code> and <code>8(FP)</code>.
+For assembly functions with Go prototypes, <code>go vet</code> will check that the argument names
+and offsets match.
+</p>
+
+<p>
+The <code>SP</code> pseudo-register is a virtual stack pointer
+used to refer to frame-local variables and the arguments being
+prepared for function calls.
+It points to the top of the local stack frame, so references should use negative offsets
+in the range [−framesize, 0):
+<code>x-8(SP)</code>, <code>y-4(SP)</code>, and so on.
+On architectures with a real register named <code>SP</code>, the name prefix distinguishes
+references to the virtual stack pointer from references to the architectural <code>SP</code> register.
+That is, <code>x-8(SP)</code> and <code>-8(SP)</code> are different memory locations:
+the first refers to the virtual stack pointer pseudo-register, while the second refers to the
+hardware's <code>SP</code> register.
 </p>
 
 <p>
@@ -358,11 +376,26 @@ MOVQ	m(CX), BX	// Move m into BX.
 <h3 id="arm">ARM</h3>
 
 <p>
-The registers <code>R9</code> and <code>R10</code> are reserved by the
-compiler and linker to point to the <code>m</code> (machine) and <code>g</code>
+The registers <code>R9</code>, <code>R10</code>, and <code>R11</code>
+are reserved by the compiler and linker.
+</p>
+
+<p>
+<code>R9</code> and <code>R10</code> point to the <code>m</code> (machine) and <code>g</code>
 (goroutine) structures, respectively.
-Within assembler source code, these pointers
-can be referred to as simply <code>m</code> and <code>g</code>. 
+Within assembler source code, these pointers must be referred to as <code>m</code> and <code>g</code>;
+the names <code>R9</code> and <code>R10</code> are not recognized.
+</p>
+
+<p>
+To make it easier for people and compilers to write assembly, the ARM linker
+allows general addressing forms and pseudo-operations like <code>DIV</code> or <code>MOD</code>
+that may not be expressible using a single hardware instruction.
+It implements these forms as multiple instructions, often using the <code>R11</code> register
+to hold temporary values.
+Hand-written assembly can use <code>R11</code>, but doing so requires
+being sure that the linker is not also using it to implement any of the other
+instructions in the function.
 </p>
 
 <p>
@@ -370,6 +403,10 @@ When defining a <code>TEXT</code>, specifying frame size <code>$-4</code>
 tells the linker that this is a leaf function that does not need to save <code>LR</code> on entry.
 </p>
 
+<p>
+The name <code>SP</code> always refers to the virtual stack pointer described earlier.
+For the hardware register, use <code>R13</code>.
+</p>
 
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
 
