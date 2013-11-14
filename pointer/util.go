@@ -161,9 +161,6 @@ func (a *analysis) flatten(t types.Type) []*fieldInfo {
 				}
 			}
 
-		case *types.Builtin:
-			panic("flatten(*types.Builtin)") // not the type of any value
-
 		default:
 			panic(t)
 		}

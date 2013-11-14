@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements FindGcExportData.
+// This file implements FindExportData.
 
-package types
+package gcimporter
 
 import (
 	"bufio"
@@ -36,12 +36,12 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 	return
 }
 
-// FindGcExportData positions the reader r at the beginning of the
+// FindExportData positions the reader r at the beginning of the
 // export data section of an underlying GC-created object/archive
 // file by reading from it. The reader must be positioned at the
 // start of the file before calling this function.
 //
-func FindGcExportData(r *bufio.Reader) (err error) {
+func FindExportData(r *bufio.Reader) (err error) {
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
 	if err != nil {

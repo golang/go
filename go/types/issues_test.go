@@ -4,13 +4,16 @@
 
 // This file implements tests for various issues.
 
-package types
+package types_test
 
 import (
 	"go/ast"
 	"go/parser"
 	"strings"
 	"testing"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 func TestIssue5770(t *testing.T) {
@@ -74,28 +77,6 @@ var (
 		}
 		if want != nil && !IsIdentical(typ, want) {
 			t.Errorf("got %s; want %s", typ, want)
-		}
-	}
-}
-
-func TestIssue5815(t *testing.T) {
-	pkg, err := GcImport(make(map[string]*Package), "strings")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, obj := range pkg.scope.elems {
-		if obj.Pkg() == nil {
-			t.Errorf("no pkg for %s", obj)
-		}
-		if tname, _ := obj.(*TypeName); tname != nil {
-			if named, _ := tname.typ.(*Named); named != nil {
-				for _, m := range named.methods {
-					if m.pkg == nil {
-						t.Errorf("no pkg for %s", m)
-					}
-				}
-			}
 		}
 	}
 }

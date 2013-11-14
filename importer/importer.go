@@ -53,17 +53,15 @@ import (
 	"sync"
 
 	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
-
-// Alias for type of types.Config.Import function.
-type importfn func(map[string]*types.Package, string) (*types.Package, error)
 
 // An Importer's exported methods are not thread-safe.
 type Importer struct {
 	Fset          *token.FileSet         // position info for all files seen
 	config        Config                 // the client configuration, modified by us
-	importfn      importfn               // client's type import function
+	importfn      types.Importer         // client's type import function
 	augment       map[string]bool        // packages to be augmented by TestFiles when imported
 	allPackagesMu sync.Mutex             // guards 'allPackages' during internal concurrency
 	allPackages   []*PackageInfo         // all packages, including non-importable ones
@@ -103,7 +101,7 @@ type Config struct {
 func New(config *Config) *Importer {
 	importfn := config.TypeChecker.Import
 	if importfn == nil {
-		importfn = types.GcImport
+		importfn = gcimporter.Import
 	}
 
 	imp := &Importer{

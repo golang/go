@@ -4,7 +4,7 @@
 
 // This file contains tests for Eval.
 
-package types
+package types_test
 
 import (
 	"go/ast"
@@ -12,6 +12,9 @@ import (
 	"go/token"
 	"strings"
 	"testing"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, typStr, valStr string) {
@@ -53,7 +56,7 @@ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, ty
 
 func TestEvalBasic(t *testing.T) {
 	for _, typ := range Typ[Bool : String+1] {
-		testEval(t, nil, nil, typ.name, typ, "", "")
+		testEval(t, nil, nil, typ.Name(), typ, "", "")
 	}
 }
 
@@ -106,7 +109,7 @@ func f(a int, s string) float64 {
 		t.Fatal(err)
 	}
 
-	pkgScope := pkg.scope
+	pkgScope := pkg.Scope()
 	if n := pkgScope.NumChildren(); n != 1 {
 		t.Fatalf("got %d file scopes, want 1", n)
 	}

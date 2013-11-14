@@ -99,7 +99,7 @@ func (x *operand) String() string {
 
 	var expr string
 	if x.expr != nil {
-		expr = exprString(x.expr)
+		expr = ExprString(x.expr)
 	} else {
 		switch x.mode {
 		case builtin:

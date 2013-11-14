@@ -20,7 +20,7 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-package types
+package types_test
 
 import (
 	"flag"
@@ -32,6 +32,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 var (
@@ -254,7 +257,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 
 func TestCheck(t *testing.T) {
 	// Declare builtins for testing.
-	defPredeclaredTestFuncs()
+	DefPredeclaredTestFuncs()
 
 	// If explicit test files are specified, only check those.
 	if files := *testFiles; files != "" {

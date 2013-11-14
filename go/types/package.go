@@ -4,6 +4,8 @@
 
 package types
 
+import "fmt"
+
 // A Package describes a Go package.
 type Package struct {
 	path     string
@@ -39,3 +41,10 @@ func (pkg *Package) Complete() bool { return pkg.complete }
 // Imports returns the list of packages explicitly imported by
 // pkg; the list is in source order. Package unsafe is excluded.
 func (pkg *Package) Imports() []*Package { return pkg.imports }
+
+// MarkComplete marks a package as complete.
+func (pkg *Package) MarkComplete() { pkg.complete = true }
+
+func (pkg *Package) String() string {
+	return fmt.Sprintf("package %s (%s)", pkg.name, pkg.path)
+}

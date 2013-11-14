@@ -139,6 +139,15 @@ type Struct struct {
 // only as long as required to hold the tag with the largest index i. Consequently,
 // if no field has a tag, tags may be nil.
 func NewStruct(fields []*Var, tags []string) *Struct {
+	var fset objset
+	for _, f := range fields {
+		if f.name != "_" && fset.insert(f) != nil {
+			panic("multiple fields with the same name")
+		}
+	}
+	if len(tags) > len(fields) {
+		panic("more tags than fields")
+	}
 	return &Struct{fields: fields, tags: tags}
 }
 
@@ -249,9 +258,25 @@ type Interface struct {
 }
 
 // NewInterface returns a new interface for the given methods.
-func NewInterface(methods []*Func) *Interface {
-	// TODO(gri) should provide receiver to all methods
+func NewInterface(methods []*Func, types []*Named) *Interface {
+	typ := new(Interface)
+
+	var mset objset
+	for _, m := range methods {
+		if mset.insert(m) != nil {
+			panic("multiple methods with the same name")
+		}
+		// set receiver
+		// TODO(gri) Ideally, we should use a named type here instead of
+		// typ, for less verbose printing of interface method signatures.
+		m.typ.(*Signature).recv = NewVar(m.pos, m.pkg, "", typ)
+	}
 	sort.Sort(byUniqueMethodName(methods))
+
+	if types != nil {
+		panic("unimplemented")
+	}
+
 	return &Interface{methods: methods, allMethods: methods}
 }
 
@@ -304,13 +329,12 @@ type Named struct {
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
-// The underlying type must exist and not be a *Named, and the methods scope entries must be *Func
-// objects if the scope is not empty.
+// The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, underlying: underlying, complete: true, methods: methods}
+	typ := &Named{obj: obj, underlying: underlying, complete: underlying != nil, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -326,6 +350,27 @@ func (t *Named) NumMethods() int { return len(t.methods) }
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
 func (t *Named) Method(i int) *Func { return t.methods[i] }
 
+// SetUnderlying sets the underlying type and marks t as complete.
+// TODO(gri) determine if there's a better solution rather than providing this function
+func (t *Named) SetUnderlying(underlying Type) {
+	if underlying == nil {
+		panic("types.Named.SetUnderlying: underlying type must not be nil")
+	}
+	if _, ok := underlying.(*Named); ok {
+		panic("types.Named.SetUnderlying: underlying type must not be *Named")
+	}
+	t.underlying = underlying
+	t.complete = true
+}
+
+// AddMethod adds method m unless it is already in the method list.
+// TODO(gri) find a better solution instead of providing this function
+func (t *Named) AddMethod(m *Func) {
+	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
+		t.methods = append(t.methods, m)
+	}
+}
+
 // Implementations for Type methods.
 
 func (t *Basic) Underlying() Type     { return t }
@@ -335,7 +380,6 @@ func (t *Struct) Underlying() Type    { return t }
 func (t *Pointer) Underlying() Type   { return t }
 func (t *Tuple) Underlying() Type     { return t }
 func (t *Signature) Underlying() Type { return t }
-func (t *Builtin) Underlying() Type   { return t }
 func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
@@ -355,7 +399,6 @@ func (t *Pointer) MethodSet() *MethodSet {
 }
 func (t *Tuple) MethodSet() *MethodSet     { return &emptyMethodSet }
 func (t *Signature) MethodSet() *MethodSet { return &emptyMethodSet }
-func (t *Builtin) MethodSet() *MethodSet   { return &emptyMethodSet }
 func (t *Interface) MethodSet() *MethodSet { return t.mset.of(t) }
 func (t *Map) MethodSet() *MethodSet       { return &emptyMethodSet }
 func (t *Chan) MethodSet() *MethodSet      { return &emptyMethodSet }
@@ -368,7 +411,6 @@ func (t *Struct) String() string    { return typeString(t) }
 func (t *Pointer) String() string   { return typeString(t) }
 func (t *Tuple) String() string     { return typeString(t) }
 func (t *Signature) String() string { return typeString(t) }
-func (t *Builtin) String() string   { return typeString(t) }
 func (t *Interface) String() string { return typeString(t) }
 func (t *Map) String() string       { return typeString(t) }
 func (t *Chan) String() string      { return typeString(t) }

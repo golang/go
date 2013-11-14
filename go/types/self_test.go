@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package types_test
 
 import (
 	"fmt"
@@ -11,6 +11,9 @@ import (
 	"go/token"
 	"testing"
 	"time"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 func TestSelf(t *testing.T) {

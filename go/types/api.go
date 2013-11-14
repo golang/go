@@ -59,6 +59,19 @@ func (err Error) Error() string {
 	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Msg)
 }
 
+// An importer resolves import paths to Packages.
+// The imports map records packages already known,
+// indexed by package path. The type-checker
+// will invoke Import with Config.Packages.
+// An importer must determine the canonical package path and
+// check imports to see if it is already present in the map.
+// If so, the Importer can return the map entry.  Otherwise,
+// the importer must load the package data for the given path
+// into a new *Package, record it in imports map, and return
+// the package.
+// TODO(gri) Need to be clearer about requirements of completeness.
+type Importer func(map[string]*Package, string) (*Package, error)
+
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
@@ -85,23 +98,21 @@ type Config struct {
 	Error func(err error)
 
 	// If Import != nil, it is called for each imported package.
-	// Otherwise, GcImporter is called.
-	// An importer resolves import paths to Packages.
-	// The imports map records packages already known,
-	// indexed by canonical package path. The type-checker will
-	// invoke Import with Config.Packages.
-	// An importer must determine the canonical package path and
-	// check imports to see if it is already present in the map.
-	// If so, the Importer can return the map entry.  Otherwise,
-	// the importer must load the package data for the given path
-	// into a new *Package, record it in imports map, and return
-	// the package.
-	Import func(imports map[string]*Package, path string) (pkg *Package, err error)
+	// Otherwise, DefaultImport is called.
+	Import Importer
 
 	// If Sizes != nil, it provides the sizing functions for package unsafe.
 	// Otherwise &StdSize{WordSize: 8, MaxAlign: 8} is used instead.
 	Sizes Sizes
 }
+
+// DefaultImport is the default importer invoked if Config.Import == nil.
+// The declaration:
+//
+//	import _ "code.google.com/p/go.tools/go/gcimporter"
+//
+// in a client of go/types will initialize DefaultImport to gcimporter.Import.
+var DefaultImport Importer
 
 // Info holds result type information for a type-checked package.
 // Only the information for which a map is provided is collected.

@@ -2,123 +2,129 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package types_test
 
 import (
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"testing"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 var builtinCalls = []struct {
-	id  builtinId
-	src string
-	sig string
+	name, src, sig string
 }{
-	{_Append, `var s []int; _ = append(s)`, `func([]int, ...int) []int`},
-	{_Append, `var s []int; _ = append(s, 0)`, `func([]int, ...int) []int`},
-	{_Append, `var s []int; _ = (append)(s, 0)`, `func([]int, ...int) []int`},
-	{_Append, `var s []byte; _ = ((append))(s, 0)`, `func([]byte, ...byte) []byte`},
+	{"append", `var s []int; _ = append(s)`, `func([]int, ...int) []int`},
+	{"append", `var s []int; _ = append(s, 0)`, `func([]int, ...int) []int`},
+	{"append", `var s []int; _ = (append)(s, 0)`, `func([]int, ...int) []int`},
+	{"append", `var s []byte; _ = ((append))(s, 0)`, `func([]byte, ...byte) []byte`},
 	// Note that ...uint8 (instead of ..byte) appears below because that is the type
 	// that corresponds to Typ[byte] (an alias) - in the other cases, the type name
 	// is chosen by the source. Either way, byte and uint8 denote identical types.
-	{_Append, `var s []byte; _ = append(s, "foo"...)`, `func([]byte, ...uint8) []byte`},
-	{_Append, `type T []byte; var s T; _ = append(s, "foo"...)`, `func(p.T, ...uint8) p.T`},
+	{"append", `var s []byte; _ = append(s, "foo"...)`, `func([]byte, ...uint8) []byte`},
+	{"append", `type T []byte; var s T; _ = append(s, "foo"...)`, `func(p.T, ...uint8) p.T`},
 
-	{_Cap, `var s [10]int; _ = cap(s)`, `invalid type`},  // constant
-	{_Cap, `var s [10]int; _ = cap(&s)`, `invalid type`}, // constant
-	{_Cap, `var s []int64; _ = cap(s)`, `func([]int64) int`},
-	{_Cap, `var c chan<-bool; _ = cap(c)`, `func(chan<- bool) int`},
+	{"cap", `var s [10]int; _ = cap(s)`, `invalid type`},  // constant
+	{"cap", `var s [10]int; _ = cap(&s)`, `invalid type`}, // constant
+	{"cap", `var s []int64; _ = cap(s)`, `func([]int64) int`},
+	{"cap", `var c chan<-bool; _ = cap(c)`, `func(chan<- bool) int`},
 
-	{_Len, `_ = len("foo")`, `invalid type`}, // constant
-	{_Len, `var s string; _ = len(s)`, `func(string) int`},
-	{_Len, `var s [10]int; _ = len(s)`, `invalid type`},  // constant
-	{_Len, `var s [10]int; _ = len(&s)`, `invalid type`}, // constant
-	{_Len, `var s []int64; _ = len(s)`, `func([]int64) int`},
-	{_Len, `var c chan<-bool; _ = len(c)`, `func(chan<- bool) int`},
-	{_Len, `var m map[string]float32; _ = len(m)`, `func(map[string]float32) int`},
+	{"len", `_ = len("foo")`, `invalid type`}, // constant
+	{"len", `var s string; _ = len(s)`, `func(string) int`},
+	{"len", `var s [10]int; _ = len(s)`, `invalid type`},  // constant
+	{"len", `var s [10]int; _ = len(&s)`, `invalid type`}, // constant
+	{"len", `var s []int64; _ = len(s)`, `func([]int64) int`},
+	{"len", `var c chan<-bool; _ = len(c)`, `func(chan<- bool) int`},
+	{"len", `var m map[string]float32; _ = len(m)`, `func(map[string]float32) int`},
 
-	{_Close, `var c chan int; close(c)`, `func(chan int)`},
-	{_Close, `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+	{"close", `var c chan int; close(c)`, `func(chan int)`},
+	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
 
-	{_Complex, `_ = complex(1, 0)`, `invalid type`}, // constant
-	{_Complex, `var re float32; _ = complex(re, 1.0)`, `func(float32, float32) complex64`},
-	{_Complex, `var im float64; _ = complex(1, im)`, `func(float64, float64) complex128`},
-	{_Complex, `type F32 float32; var re, im F32; _ = complex(re, im)`, `func(p.F32, p.F32) complex64`},
-	{_Complex, `type F64 float64; var re, im F64; _ = complex(re, im)`, `func(p.F64, p.F64) complex128`},
+	{"complex", `_ = complex(1, 0)`, `invalid type`}, // constant
+	{"complex", `var re float32; _ = complex(re, 1.0)`, `func(float32, float32) complex64`},
+	{"complex", `var im float64; _ = complex(1, im)`, `func(float64, float64) complex128`},
+	{"complex", `type F32 float32; var re, im F32; _ = complex(re, im)`, `func(p.F32, p.F32) complex64`},
+	{"complex", `type F64 float64; var re, im F64; _ = complex(re, im)`, `func(p.F64, p.F64) complex128`},
 
-	{_Copy, `var src, dst []byte; copy(dst, src)`, `func([]byte, []byte) int`},
-	{_Copy, `type T [][]int; var src, dst T; _ = copy(dst, src)`, `func([][]int, [][]int) int`},
+	{"copy", `var src, dst []byte; copy(dst, src)`, `func([]byte, []byte) int`},
+	{"copy", `type T [][]int; var src, dst T; _ = copy(dst, src)`, `func([][]int, [][]int) int`},
 
-	{_Delete, `var m map[string]bool; delete(m, "foo")`, `func(map[string]bool, string)`},
-	{_Delete, `type (K string; V int); var m map[K]V; delete(m, "foo")`, `func(map[p.K]p.V, p.K)`},
+	{"delete", `var m map[string]bool; delete(m, "foo")`, `func(map[string]bool, string)`},
+	{"delete", `type (K string; V int); var m map[K]V; delete(m, "foo")`, `func(map[p.K]p.V, p.K)`},
 
-	{_Imag, `_ = imag(1i)`, `invalid type`}, // constant
-	{_Imag, `var c complex64; _ = imag(c)`, `func(complex64) float32`},
-	{_Imag, `var c complex128; _ = imag(c)`, `func(complex128) float64`},
-	{_Imag, `type C64 complex64; var c C64; _ = imag(c)`, `func(p.C64) float32`},
-	{_Imag, `type C128 complex128; var c C128; _ = imag(c)`, `func(p.C128) float64`},
+	{"imag", `_ = imag(1i)`, `invalid type`}, // constant
+	{"imag", `var c complex64; _ = imag(c)`, `func(complex64) float32`},
+	{"imag", `var c complex128; _ = imag(c)`, `func(complex128) float64`},
+	{"imag", `type C64 complex64; var c C64; _ = imag(c)`, `func(p.C64) float32`},
+	{"imag", `type C128 complex128; var c C128; _ = imag(c)`, `func(p.C128) float64`},
 
-	{_Real, `_ = real(1i)`, `invalid type`}, // constant
-	{_Real, `var c complex64; _ = real(c)`, `func(complex64) float32`},
-	{_Real, `var c complex128; _ = real(c)`, `func(complex128) float64`},
-	{_Real, `type C64 complex64; var c C64; _ = real(c)`, `func(p.C64) float32`},
-	{_Real, `type C128 complex128; var c C128; _ = real(c)`, `func(p.C128) float64`},
+	{"real", `_ = real(1i)`, `invalid type`}, // constant
+	{"real", `var c complex64; _ = real(c)`, `func(complex64) float32`},
+	{"real", `var c complex128; _ = real(c)`, `func(complex128) float64`},
+	{"real", `type C64 complex64; var c C64; _ = real(c)`, `func(p.C64) float32`},
+	{"real", `type C128 complex128; var c C128; _ = real(c)`, `func(p.C128) float64`},
 
-	{_Make, `_ = make([]int, 10)`, `func([]int, int) []int`},
-	{_Make, `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
+	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
+	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
 
-	{_New, `_ = new(int)`, `func(int) *int`},
-	{_New, `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
+	{"new", `_ = new(int)`, `func(int) *int`},
+	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
 
-	{_Panic, `panic(0)`, `func(interface{})`},
-	{_Panic, `panic("foo")`, `func(interface{})`},
+	{"panic", `panic(0)`, `func(interface{})`},
+	{"panic", `panic("foo")`, `func(interface{})`},
 
-	{_Print, `print()`, `func()`},
-	{_Print, `print(0)`, `func(int)`},
-	{_Print, `print(1, 2.0, "foo", true)`, `func(int, float64, string, bool)`},
+	{"print", `print()`, `func()`},
+	{"print", `print(0)`, `func(int)`},
+	{"print", `print(1, 2.0, "foo", true)`, `func(int, float64, string, bool)`},
 
-	{_Println, `println()`, `func()`},
-	{_Println, `println(0)`, `func(int)`},
-	{_Println, `println(1, 2.0, "foo", true)`, `func(int, float64, string, bool)`},
+	{"println", `println()`, `func()`},
+	{"println", `println(0)`, `func(int)`},
+	{"println", `println(1, 2.0, "foo", true)`, `func(int, float64, string, bool)`},
 
-	{_Recover, `recover()`, `func() interface{}`},
-	{_Recover, `_ = recover()`, `func() interface{}`},
+	{"recover", `recover()`, `func() interface{}`},
+	{"recover", `_ = recover()`, `func() interface{}`},
 
-	{_Alignof, `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
-	{_Alignof, `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
+	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
+	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
 
-	{_Offsetof, `var x struct{f bool}; _ = unsafe.Offsetof(x.f)`, `invalid type`},           // constant
-	{_Offsetof, `var x struct{_ int; f bool}; _ = unsafe.Offsetof((&x).f)`, `invalid type`}, // constant
+	{"Offsetof", `var x struct{f bool}; _ = unsafe.Offsetof(x.f)`, `invalid type`},           // constant
+	{"Offsetof", `var x struct{_ int; f bool}; _ = unsafe.Offsetof((&x).f)`, `invalid type`}, // constant
 
-	{_Sizeof, `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
-	{_Sizeof, `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
+	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
+	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
 
-	{_Assert, `assert(true)`, `invalid type`},                                    // constant
-	{_Assert, `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
+	{"assert", `assert(true)`, `invalid type`},                                    // constant
+	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
 
 	// no tests for trace since it produces output as a side-effect
 }
 
 func TestBuiltinSignatures(t *testing.T) {
-	defPredeclaredTestFuncs()
+	DefPredeclaredTestFuncs()
 
-	seen := map[builtinId]bool{_Trace: true} // no test for _Trace; add it manually
+	seen := map[string]bool{"trace": true} // no test for trace built-in; add it manually
 	for _, call := range builtinCalls {
-		testBuiltinSignature(t, call.id, call.src, call.sig)
-		seen[call.id] = true
+		testBuiltinSignature(t, call.name, call.src, call.sig)
+		seen[call.name] = true
 	}
 
 	// make sure we didn't miss one
-	for i := range predeclaredFuncs {
-		if id := builtinId(i); !seen[id] {
-			t.Errorf("missing test for %s", predeclaredFuncs[id].name)
+	for _, name := range Universe.Names() {
+		if _, ok := Universe.Lookup(name).(*Builtin); ok && !seen[name] {
+			t.Errorf("missing test for %s", name)
+		}
+	}
+	for _, name := range Unsafe.Scope().Names() {
+		if _, ok := Unsafe.Scope().Lookup(name).(*Builtin); ok && !seen[name] {
+			t.Errorf("missing test for unsafe.%s", name)
 		}
 	}
 }
 
-func testBuiltinSignature(t *testing.T, id builtinId, src0, want string) {
+func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _() { %s }`, src0)
 	f, err := parser.ParseFile(fset, "", src, 0)
 	if err != nil {
@@ -154,7 +160,7 @@ func testBuiltinSignature(t *testing.T, id builtinId, src0, want string) {
 		// the recorded type for the built-in must match the wanted signature
 		typ := types[fun]
 		if typ == nil {
-			t.Errorf("%s: no type recorded for %s", src0, exprString(fun))
+			t.Errorf("%s: no type recorded for %s", src0, ExprString(fun))
 			return
 		}
 		if got := typ.String(); got != want {
@@ -176,8 +182,8 @@ func testBuiltinSignature(t *testing.T, id builtinId, src0, want string) {
 				t.Errorf("%s: %s does not denote a built-in", src0, p)
 				return
 			}
-			if bin.id != id {
-				t.Errorf("%s: got built-in %s; want %s", src0, bin.name, predeclaredFuncs[id].name)
+			if bin.Name() != name {
+				t.Errorf("%s: got built-in %s; want %s", src0, bin.Name(), name)
 				return
 			}
 			return // we're done

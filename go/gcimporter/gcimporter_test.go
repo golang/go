@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package gcimporter
 
 import (
 	"go/build"
@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"code.google.com/p/go.tools/go/types"
 )
 
 var gcPath string // Go compiler path
@@ -50,11 +52,11 @@ func compile(t *testing.T, dirname, filename string) string {
 
 // Use the same global imports map for all tests. The effect is
 // as if all tested packages were imported into a single package.
-var imports = make(map[string]*Package)
+var imports = make(map[string]*types.Package)
 
 func testPath(t *testing.T, path string) bool {
 	t0 := time.Now()
-	_, err := GcImport(imports, path)
+	_, err := Import(imports, path)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return false
@@ -94,7 +96,12 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 	return
 }
 
-func TestGcImport(t *testing.T) {
+func TestImport(t *testing.T) {
+	// This package does not handle gccgo export data.
+	if runtime.Compiler == "gccgo" {
+		return
+	}
+
 	// On cross-compile builds, the path will not exist.
 	// Need to use GOHOSTOS, which is not available.
 	if _, err := os.Stat(gcPath); err != nil {
@@ -125,8 +132,8 @@ var importedObjectTests = []struct {
 	// TODO(gri) add more tests
 }
 
-func TestGcImportedTypes(t *testing.T) {
-	// This package does not yet know how to read gccgo export data.
+func TestImportedTypes(t *testing.T) {
+	// This package does not handle gccgo export data.
 	if runtime.Compiler == "gccgo" {
 		return
 	}
@@ -138,13 +145,13 @@ func TestGcImportedTypes(t *testing.T) {
 		importPath := s[0]
 		objName := s[1]
 
-		pkg, err := GcImport(imports, importPath)
+		pkg, err := Import(imports, importPath)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 
-		obj := pkg.scope.Lookup(objName)
+		obj := pkg.Scope().Lookup(objName)
 		if obj == nil {
 			t.Errorf("%s: object not found", test.name)
 			continue
@@ -153,6 +160,35 @@ func TestGcImportedTypes(t *testing.T) {
 		got := obj.String()
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
+		}
+	}
+}
+
+func TestIssue5815(t *testing.T) {
+	// This package does not handle gccgo export data.
+	if runtime.Compiler == "gccgo" {
+		return
+	}
+
+	pkg, err := Import(make(map[string]*types.Package), "strings")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
+		if obj.Pkg() == nil {
+			t.Errorf("no pkg for %s", obj)
+		}
+		if tname, _ := obj.(*types.TypeName); tname != nil {
+			named := tname.Type().(*types.Named)
+			for i := 0; i < named.NumMethods(); i++ {
+				m := named.Method(i)
+				if m.Pkg() == nil {
+					t.Errorf("no pkg for %s", m)
+				}
+			}
 		}
 	}
 }

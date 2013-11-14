@@ -146,7 +146,10 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	importer := check.conf.Import
 	if importer == nil {
-		importer = GcImport
+		if DefaultImport == nil {
+			panic("no Config.Import and no DefaultImport")
+		}
+		importer = DefaultImport
 	}
 
 	var (

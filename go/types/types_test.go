@@ -5,12 +5,15 @@
 // This file contains tests verifying the types associated with an AST after
 // type checking.
 
-package types
+package types_test
 
 import (
 	"go/ast"
 	"go/parser"
 	"testing"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 const filename = "<src>"
@@ -122,8 +125,8 @@ func TestTypes(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := pkg.scope.Lookup("T").Type().Underlying()
-		str := typeString(typ)
+		typ := pkg.Scope().Lookup("T").Type().Underlying()
+		str := typ.String()
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)
 		}
@@ -171,7 +174,7 @@ func TestExprs(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		str := exprString(file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0])
+		str := ExprString(file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0])
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)
 		}

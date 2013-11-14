@@ -196,7 +196,7 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 			continue
 
 		case *ast.Ident:
-			switch obj := pkginfo.ObjectOf(n).(type) {
+			switch pkginfo.ObjectOf(n).(type) {
 			case *types.PkgName:
 				return path, actionPackage
 
@@ -227,15 +227,12 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 						return path[3:], actionType
 					}
 				}
-
-				// For reference to built-in function, return enclosing call.
-				if _, ok := obj.Type().(*types.Builtin); ok {
-					// Ascend to enclosing function call.
-					path = path[1:]
-					continue
-				}
-
 				return path, actionExpr
+
+			case *types.Builtin:
+				// For reference to built-in function, return enclosing call.
+				path = path[1:] // ascend to enclosing function call
+				continue
 			}
 
 			// No object.

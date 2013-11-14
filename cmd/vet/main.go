@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"code.google.com/p/go.tools/go/exact"
+	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
 

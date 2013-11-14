@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	tEface     = types.NewInterface(nil)
+	tEface     = types.NewInterface(nil, nil)
 	tInvalid   = types.Typ[types.Invalid]
 	tUnsafePtr = types.Typ[types.UnsafePointer]
 )

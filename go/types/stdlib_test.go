@@ -5,7 +5,7 @@
 // This file tests types.Check by using it to
 // typecheck the standard library and tests.
 
-package types
+package types_test
 
 import (
 	"flag"
@@ -22,6 +22,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 var verbose = flag.Bool("types.v", false, "verbose mode")

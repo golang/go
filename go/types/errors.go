@@ -34,7 +34,7 @@ func (check *checker) sprintf(format string, args ...interface{}) string {
 		case token.Pos:
 			args[i] = check.fset.Position(a).String()
 		case ast.Expr:
-			args[i] = exprString(a)
+			args[i] = ExprString(a)
 		}
 	}
 	return fmt.Sprintf(format, args...)
@@ -82,14 +82,14 @@ func (check *checker) invalidOp(pos token.Pos, format string, args ...interface{
 }
 
 // exprString returns a (simplified) string representation for an expression.
-func exprString(expr ast.Expr) string {
+func ExprString(expr ast.Expr) string {
 	var buf bytes.Buffer
-	writeExpr(&buf, expr)
+	WriteExpr(&buf, expr)
 	return buf.String()
 }
 
 // TODO(gri) Need to merge with typeString since some expressions are types (try: ([]int)(a))
-func writeExpr(buf *bytes.Buffer, expr ast.Expr) {
+func WriteExpr(buf *bytes.Buffer, expr ast.Expr) {
 	switch x := expr.(type) {
 	case *ast.Ident:
 		buf.WriteString(x.Name)
@@ -105,66 +105,66 @@ func writeExpr(buf *bytes.Buffer, expr ast.Expr) {
 
 	case *ast.ParenExpr:
 		buf.WriteByte('(')
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 		buf.WriteByte(')')
 
 	case *ast.SelectorExpr:
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 		buf.WriteByte('.')
 		buf.WriteString(x.Sel.Name)
 
 	case *ast.IndexExpr:
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 		buf.WriteByte('[')
-		writeExpr(buf, x.Index)
+		WriteExpr(buf, x.Index)
 		buf.WriteByte(']')
 
 	case *ast.SliceExpr:
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 		buf.WriteByte('[')
 		if x.Low != nil {
-			writeExpr(buf, x.Low)
+			WriteExpr(buf, x.Low)
 		}
 		buf.WriteByte(':')
 		if x.High != nil {
-			writeExpr(buf, x.High)
+			WriteExpr(buf, x.High)
 		}
 		buf.WriteByte(']')
 
 	case *ast.TypeAssertExpr:
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 		buf.WriteString(".(")
-		// TODO(gri) expand writeExpr so that types are not handled by default case
-		writeExpr(buf, x.Type)
+		// TODO(gri) expand WriteExpr so that types are not handled by default case
+		WriteExpr(buf, x.Type)
 		buf.WriteByte(')')
 
 	case *ast.CallExpr:
-		writeExpr(buf, x.Fun)
+		WriteExpr(buf, x.Fun)
 		buf.WriteByte('(')
 		for i, arg := range x.Args {
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			writeExpr(buf, arg)
+			WriteExpr(buf, arg)
 		}
 		buf.WriteByte(')')
 
 	case *ast.StarExpr:
 		buf.WriteByte('*')
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 
 	case *ast.UnaryExpr:
 		buf.WriteString(x.Op.String())
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 
 	case *ast.BinaryExpr:
 		// The AST preserves source-level parentheses so there is
 		// no need to introduce parentheses here for correctness.
-		writeExpr(buf, x.X)
+		WriteExpr(buf, x.X)
 		buf.WriteByte(' ')
 		buf.WriteString(x.Op.String())
 		buf.WriteByte(' ')
-		writeExpr(buf, x.Y)
+		WriteExpr(buf, x.Y)
 
 	default:
 		// TODO(gri) Consider just calling x.String(). May cause
@@ -228,7 +228,7 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		buf.WriteString("<nil>")
 
 	case *Basic:
-		if t.Kind() == UnsafePointer {
+		if t.kind == UnsafePointer {
 			buf.WriteString("unsafe.")
 		}
 		buf.WriteString(t.name)
@@ -268,9 +268,6 @@ func writeType(buf *bytes.Buffer, typ Type) {
 	case *Signature:
 		buf.WriteString("func")
 		writeSignature(buf, t)
-
-	case *Builtin:
-		fmt.Fprintf(buf, "<type of %s>", t.name)
 
 	case *Interface:
 		// We write the source-level methods and embedded types rather

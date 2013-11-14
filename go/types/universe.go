@@ -67,7 +67,7 @@ func defPredeclaredTypes() {
 	res := NewVar(token.NoPos, nil, "", Typ[String])
 	sig := &Signature{results: NewTuple(res)}
 	err := NewFunc(token.NoPos, nil, "Error", sig)
-	typ := &Named{underlying: NewInterface([]*Func{err}), complete: true}
+	typ := &Named{underlying: NewInterface([]*Func{err}, nil), complete: true}
 	sig.recv = NewVar(token.NoPos, nil, "", typ)
 	def(NewTypeName(token.NoPos, nil, "error", typ))
 }
@@ -163,7 +163,10 @@ func defPredeclaredFuncs() {
 	}
 }
 
-func defPredeclaredTestFuncs() {
+// DefPredeclaredTestFuncs defines the assert and trace built-ins.
+// These built-ins are intended for debugging and testing of this
+// package only.
+func DefPredeclaredTestFuncs() {
 	if Universe.Lookup("assert") != nil {
 		return // already defined
 	}

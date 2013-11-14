@@ -4,7 +4,7 @@
 
 // TODO(gri) This file needs to be expanded significantly.
 
-package types
+package types_test
 
 import (
 	"bytes"
@@ -13,6 +13,9 @@ import (
 	"go/token"
 	"strings"
 	"testing"
+
+	_ "code.google.com/p/go.tools/go/gcimporter"
+	. "code.google.com/p/go.tools/go/types"
 )
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
@@ -70,7 +73,7 @@ func TestCommaOkTypes(t *testing.T) {
 		// look for comma-ok expression type
 		var typ Type
 		for e, t := range info.Types {
-			if exprString(e) == test.expr {
+			if ExprString(e) == test.expr {
 				typ = t
 				break
 			}
@@ -214,10 +217,10 @@ func initString(init *Initializer) string {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		buf.WriteString(lhs.name)
+		buf.WriteString(lhs.Name())
 	}
 	buf.WriteString(" = ")
-	writeExpr(&buf, init.Rhs)
+	WriteExpr(&buf, init.Rhs)
 	return buf.String()
 }
 
