@@ -12,7 +12,7 @@
 
 Go-specific considerations are documented at
 
-	http://golang.org/doc/asm.html
+	http://golang.org/doc/asm
 
 I
 Its target architecture is the x86, referred to by these tools for historical reasons as 386.

@@ -12,9 +12,9 @@
 
 Go-specific considerations are documented at
 
-	http://golang.org/doc/asm.html
+	http://golang.org/doc/asm
 
-IIts target architecture is the x86-64, referred to by these tools as amd64.
+Its target architecture is the x86-64, referred to by these tools as amd64.
 
 */
 package main
