@@ -88,17 +88,24 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 		ut.externalEnc, ut.encIndir = xGob, indir
 	} else if ok, indir := implementsInterface(ut.user, binaryMarshalerInterfaceType); ok {
 		ut.externalEnc, ut.encIndir = xBinary, indir
-	} else if ok, indir := implementsInterface(ut.user, textMarshalerInterfaceType); ok {
-		ut.externalEnc, ut.encIndir = xText, indir
 	}
+
+	// NOTE(rsc): Would like to allow MarshalText here, but results in incompatibility
+	// with older encodings for net.IP. See golang.org/issue/6760.
+	// } else if ok, indir := implementsInterface(ut.user, textMarshalerInterfaceType); ok {
+	// 	ut.externalEnc, ut.encIndir = xText, indir
+	// }
 
 	if ok, indir := implementsInterface(ut.user, gobDecoderInterfaceType); ok {
 		ut.externalDec, ut.decIndir = xGob, indir
 	} else if ok, indir := implementsInterface(ut.user, binaryUnmarshalerInterfaceType); ok {
 		ut.externalDec, ut.decIndir = xBinary, indir
-	} else if ok, indir := implementsInterface(ut.user, textUnmarshalerInterfaceType); ok {
-		ut.externalDec, ut.decIndir = xText, indir
 	}
+
+	// See note above.
+	// } else if ok, indir := implementsInterface(ut.user, textUnmarshalerInterfaceType); ok {
+	// 	ut.externalDec, ut.decIndir = xText, indir
+	// }
 
 	userTypeCache[rt] = ut
 	return
