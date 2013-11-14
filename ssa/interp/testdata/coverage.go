@@ -558,3 +558,16 @@ func init() {
 		panic(got)
 	}
 }
+
+func init() {
+	// Regression test for SSA renaming bug.
+	var ints []int
+	for _ = range "foo" {
+		var x int
+		x++
+		ints = append(ints, x)
+	}
+	if fmt.Sprint(ints) != "[1 1 1]" {
+		panic(ints)
+	}
+}

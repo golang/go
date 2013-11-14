@@ -145,7 +145,7 @@ func lift(fn *Function) {
 		for i, blocks := range df {
 			if blocks != nil {
 				if !title {
-					fmt.Fprintln(os.Stderr, "Dominance frontier:")
+					fmt.Fprintf(os.Stderr, "Dominance frontier of %s:\n", fn)
 					title = true
 				}
 				fmt.Fprintf(os.Stderr, "\t%s: %s\n", fn.Blocks[i], blocks)
@@ -172,18 +172,15 @@ func lift(fn *Function) {
 	for _, b := range fn.Blocks {
 		b.gaps = 0
 		b.rundefers = 0
-		for i, instr := range b.Instrs {
+		for _, instr := range b.Instrs {
 			switch instr := instr.(type) {
 			case *Alloc:
+				index := -1
 				if liftAlloc(df, instr, newPhis) {
-					instr.index = numAllocs
+					index = numAllocs
 					numAllocs++
-					// Delete the alloc.
-					b.Instrs[i] = nil
-					b.gaps++
-				} else {
-					instr.index = -1
 				}
+				instr.index = index
 			case *Defer:
 				usesDefer = true
 			case *RunDefers:
@@ -360,7 +357,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	defblocks.add(alloc.Block())
 
 	if debugLifting {
-		fmt.Fprintln(os.Stderr, "liftAlloc: lifting ", alloc, alloc.Name())
+		fmt.Fprintln(os.Stderr, "\tlifting ", alloc, alloc.Name())
 	}
 
 	fn := alloc.Parent()
@@ -396,7 +393,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 				phi.setType(deref(alloc.Type()))
 				phi.block = v
 				if debugLifting {
-					fmt.Fprintf(os.Stderr, "place %s = %s at block %s\n", phi.Name(), phi, v)
+					fmt.Fprintf(os.Stderr, "\tplace %s = %s at block %s\n", phi.Name(), phi, v)
 				}
 				newPhis[v] = append(newPhis[v], newPhi{phi, alloc})
 
@@ -467,24 +464,38 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 	// Rename loads and stores of allocs.
 	for i, instr := range u.Instrs {
 		switch instr := instr.(type) {
+		case *Alloc:
+			if instr.index >= 0 { // store of zero to Alloc cell
+				// Replace dominated loads by the zero value.
+				renaming[instr.index] = nil
+				if debugLifting {
+					fmt.Fprintf(os.Stderr, "\tkill alloc %s\n", instr)
+				}
+				// Delete the Alloc.
+				u.Instrs[i] = nil
+				u.gaps++
+			}
+
 		case *Store:
 			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index >= 0 { // store to Alloc cell
+				// Replace dominated loads by the stored value.
+				renaming[alloc.index] = instr.Val
+				if debugLifting {
+					fmt.Fprintf(os.Stderr, "\tkill store %s; new value: %s\n",
+						instr, instr.Val.Name())
+				}
 				// Delete the Store.
 				u.Instrs[i] = nil
 				u.gaps++
-				// Replace dominated loads by the
-				// stored value.
-				renaming[alloc.index] = instr.Val
-				if debugLifting {
-					fmt.Fprintln(os.Stderr, "Kill store ", instr, "; current value is now ", instr.Val.Name())
-				}
 			}
+
 		case *UnOp:
 			if instr.Op == token.MUL {
 				if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // load of Alloc cell
 					newval := renamed(renaming, alloc)
 					if debugLifting {
-						fmt.Fprintln(os.Stderr, "Replace refs to load", instr.Name(), "=", instr, "with", newval.Name())
+						fmt.Fprintf(os.Stderr, "\tupdate load %s = %s with %s\n",
+							instr.Name(), instr, newval.Name())
 					}
 					// Replace all references to
 					// the loaded value by the
@@ -495,6 +506,7 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 					u.gaps++
 				}
 			}
+
 		case *DebugRef:
 			if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // ref of Alloc cell
 				if instr.IsAddr {
@@ -525,7 +537,7 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 			alloc := np.alloc
 			newval := renamed(renaming, alloc)
 			if debugLifting {
-				fmt.Fprintf(os.Stderr, "setphi %s edge %s -> %s (#%d) (alloc=%s) := %s\n \n",
+				fmt.Fprintf(os.Stderr, "\tsetphi %s edge %s -> %s (#%d) (alloc=%s) := %s\n",
 					phi.Name(), u, v, i, alloc.Name(), newval.Name())
 			}
 			phi.Edges[i] = newval
