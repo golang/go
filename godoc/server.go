@@ -131,7 +131,7 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 			if err != nil {
 				log.Println("parsing examples:", err)
 			}
-			info.Examples = collectExamples(pkg, files)
+			info.Examples = collectExamples(h.c, pkg, files)
 
 			// collect any notes that we want to show
 			if info.PDoc.Notes != nil {
@@ -320,7 +320,7 @@ func globalNames(pkg *ast.Package) map[string]bool {
 }
 
 // collectExamples collects examples for pkg from testfiles.
-func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Example {
+func collectExamples(c *Corpus, pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Example {
 	var files []*ast.File
 	for _, f := range testfiles {
 		files = append(files, f)
@@ -332,7 +332,7 @@ func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Ex
 		name := stripExampleSuffix(e.Name)
 		if name == "" || globals[name] {
 			examples = append(examples, e)
-		} else {
+		} else if c.Verbose {
 			log.Printf("skipping example 'Example%s' because '%s' is not a known function or type", e.Name, e.Name)
 		}
 	}
