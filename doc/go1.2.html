@@ -736,7 +736,8 @@ now treats channel and function fields of structures as if they were unexported,
 even if they are not. That is, it ignores them completely. Previously they would
 trigger an error, which could cause unexpected compatibility problems if an
 embedded structure added such a field.
-The package also now supports the generic encoding interfaces of the
+The package also now supports the generic <code>BinaryMarshaler</code> and
+<code>BinaryUnmarshaler</code> interfaces of the
 <a href="/pkg/encoding/"><code>encoding</code></a> package
 described above.
 </li>
