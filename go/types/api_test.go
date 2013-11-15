@@ -280,3 +280,26 @@ func TestInitOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestTypeString(t *testing.T) {
+	p, _ := pkgFor("p.go", "package p; type T int", nil)
+	q, _ := pkgFor("q.go", "package q", nil)
+
+	pT := p.Scope().Lookup("T").Type()
+	for _, test := range []struct {
+		typ  Type
+		this *Package
+		want string
+	}{
+		{pT, nil, "p.T"},
+		{pT, p, "T"},
+		{pT, q, "p.T"},
+		{NewPointer(pT), p, "*T"},
+		{NewPointer(pT), q, "*p.T"},
+	} {
+		if got := TypeString(test.this, test.typ); got != test.want {
+			t.Errorf("TypeString(%s, %s) = %s, want %s",
+				test.this, test.typ, got, test.want)
+		}
+	}
+}

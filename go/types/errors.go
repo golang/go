@@ -88,7 +88,7 @@ func ExprString(expr ast.Expr) string {
 	return buf.String()
 }
 
-// TODO(gri) Need to merge with typeString since some expressions are types (try: ([]int)(a))
+// TODO(gri) Need to merge with TypeString since some expressions are types (try: ([]int)(a))
 func WriteExpr(buf *bytes.Buffer, expr ast.Expr) {
 	switch x := expr.(type) {
 	case *ast.Ident:
@@ -173,14 +173,17 @@ func WriteExpr(buf *bytes.Buffer, expr ast.Expr) {
 	}
 }
 
-// typeString returns a string representation for typ.
-func typeString(typ Type) string {
+// TypeString returns the string form of typ.
+// Named types are printed package-qualified only
+// if they do not belong to this package.
+//
+func TypeString(this *Package, typ Type) string {
 	var buf bytes.Buffer
-	writeType(&buf, typ)
+	writeType(&buf, this, typ)
 	return buf.String()
 }
 
-func writeTuple(buf *bytes.Buffer, tup *Tuple, isVariadic bool) {
+func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, isVariadic bool) {
 	buf.WriteByte('(')
 	if tup != nil {
 		for i, v := range tup.vars {
@@ -196,14 +199,14 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, isVariadic bool) {
 				buf.WriteString("...")
 				typ = typ.(*Slice).elem
 			}
-			writeType(buf, typ)
+			writeType(buf, this, typ)
 		}
 	}
 	buf.WriteByte(')')
 }
 
-func writeSignature(buf *bytes.Buffer, sig *Signature) {
-	writeTuple(buf, sig.params, sig.isVariadic)
+func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
+	writeTuple(buf, this, sig.params, sig.isVariadic)
 
 	n := sig.results.Len()
 	if n == 0 {
@@ -214,15 +217,15 @@ func writeSignature(buf *bytes.Buffer, sig *Signature) {
 	buf.WriteByte(' ')
 	if n == 1 && sig.results.vars[0].name == "" {
 		// single unnamed result
-		writeType(buf, sig.results.vars[0].typ)
+		writeType(buf, this, sig.results.vars[0].typ)
 		return
 	}
 
 	// multiple or named result(s)
-	writeTuple(buf, sig.results, false)
+	writeTuple(buf, this, sig.results, false)
 }
 
-func writeType(buf *bytes.Buffer, typ Type) {
+func writeType(buf *bytes.Buffer, this *Package, typ Type) {
 	switch t := typ.(type) {
 	case nil:
 		buf.WriteString("<nil>")
@@ -235,11 +238,11 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Array:
 		fmt.Fprintf(buf, "[%d]", t.len)
-		writeType(buf, t.elem)
+		writeType(buf, this, t.elem)
 
 	case *Slice:
 		buf.WriteString("[]")
-		writeType(buf, t.elem)
+		writeType(buf, this, t.elem)
 
 	case *Struct:
 		buf.WriteString("struct{")
@@ -251,7 +254,7 @@ func writeType(buf *bytes.Buffer, typ Type) {
 				buf.WriteString(f.name)
 				buf.WriteByte(' ')
 			}
-			writeType(buf, f.typ)
+			writeType(buf, this, f.typ)
 			if tag := t.Tag(i); tag != "" {
 				fmt.Fprintf(buf, " %q", tag)
 			}
@@ -260,14 +263,14 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *Pointer:
 		buf.WriteByte('*')
-		writeType(buf, t.base)
+		writeType(buf, this, t.base)
 
 	case *Tuple:
-		writeTuple(buf, t, false)
+		writeTuple(buf, this, t, false)
 
 	case *Signature:
 		buf.WriteString("func")
-		writeSignature(buf, t)
+		writeSignature(buf, this, t)
 
 	case *Interface:
 		// We write the source-level methods and embedded types rather
@@ -287,21 +290,21 @@ func writeType(buf *bytes.Buffer, typ Type) {
 				buf.WriteString("; ")
 			}
 			buf.WriteString(m.name)
-			writeSignature(buf, m.typ.(*Signature))
+			writeSignature(buf, this, m.typ.(*Signature))
 		}
 		for i, typ := range t.types {
 			if i > 0 || len(t.methods) > 0 {
 				buf.WriteString("; ")
 			}
-			writeType(buf, typ)
+			writeType(buf, this, typ)
 		}
 		buf.WriteByte('}')
 
 	case *Map:
 		buf.WriteString("map[")
-		writeType(buf, t.key)
+		writeType(buf, this, t.key)
 		buf.WriteByte(']')
-		writeType(buf, t.elem)
+		writeType(buf, this, t.elem)
 
 	case *Chan:
 		var s string
@@ -314,28 +317,29 @@ func writeType(buf *bytes.Buffer, typ Type) {
 			s = "chan "
 		}
 		buf.WriteString(s)
-		writeType(buf, t.elem)
+		writeType(buf, this, t.elem)
 
 	case *Named:
 		s := "<Named w/o object>"
 		if obj := t.obj; obj != nil {
 			if obj.pkg != nil {
+				if obj.pkg != this {
+					buf.WriteString(obj.pkg.path)
+					buf.WriteByte('.')
+				}
 				// TODO(gri) Ideally we only want the qualification
 				// if we are referring to a type that was imported;
 				// but not when we are at the "top". We don't have
 				// this information easily available here.
-				//
-				// TODO(gri): define variants of Type.String()
-				// and Object.String() that accept the referring *Package
-				// as a parameter and omit the package qualification for
-				// intra-package references to named types.
-				//
+
 				// Some applications may want another variant that accepts a
 				// file Scope and prints packages using that file's local
 				// import names.  (Printing just pkg.name may be ambiguous
 				// or incorrect in other scopes.)
-				buf.WriteString(obj.pkg.path)
-				buf.WriteByte('.')
+
+				// TODO(gri): function-local named types should be displayed
+				// differently from named types at package level to avoid
+				// ambiguity.
 			}
 			s = t.obj.name
 		}

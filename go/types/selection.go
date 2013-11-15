@@ -132,6 +132,6 @@ func (s *Selection) String() string {
 	}
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%s (%s) %s", k, s.Recv(), s.obj.Name())
-	writeSignature(&buf, s.Type().(*Signature))
+	writeSignature(&buf, nil, s.Type().(*Signature))
 	return buf.String()
 }

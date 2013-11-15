@@ -404,14 +404,14 @@ func (t *Map) MethodSet() *MethodSet       { return &emptyMethodSet }
 func (t *Chan) MethodSet() *MethodSet      { return &emptyMethodSet }
 func (t *Named) MethodSet() *MethodSet     { return t.mset.of(t) }
 
-func (t *Basic) String() string     { return typeString(t) }
-func (t *Array) String() string     { return typeString(t) }
-func (t *Slice) String() string     { return typeString(t) }
-func (t *Struct) String() string    { return typeString(t) }
-func (t *Pointer) String() string   { return typeString(t) }
-func (t *Tuple) String() string     { return typeString(t) }
-func (t *Signature) String() string { return typeString(t) }
-func (t *Interface) String() string { return typeString(t) }
-func (t *Map) String() string       { return typeString(t) }
-func (t *Chan) String() string      { return typeString(t) }
-func (t *Named) String() string     { return typeString(t) }
+func (t *Basic) String() string     { return TypeString(nil, t) }
+func (t *Array) String() string     { return TypeString(nil, t) }
+func (t *Slice) String() string     { return TypeString(nil, t) }
+func (t *Struct) String() string    { return TypeString(nil, t) }
+func (t *Pointer) String() string   { return TypeString(nil, t) }
+func (t *Tuple) String() string     { return TypeString(nil, t) }
+func (t *Signature) String() string { return TypeString(nil, t) }
+func (t *Interface) String() string { return TypeString(nil, t) }
+func (t *Map) String() string       { return TypeString(nil, t) }
+func (t *Chan) String() string      { return TypeString(nil, t) }
+func (t *Named) String() string     { return TypeString(nil, t) }

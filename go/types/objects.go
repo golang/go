@@ -83,25 +83,6 @@ func (obj *object) String() string   { panic("abstract") }
 
 func (obj *object) isUsed() bool { return obj.used }
 
-func (obj *object) toString(kind string, typ Type) string {
-	var buf bytes.Buffer
-
-	buf.WriteString(kind)
-	buf.WriteByte(' ')
-	// For package-level objects, package-qualify the name.
-	if obj.pkg != nil && obj.pkg.scope.Lookup(obj.name) == obj {
-		buf.WriteString(obj.pkg.name)
-		buf.WriteByte('.')
-	}
-	buf.WriteString(obj.name)
-	if typ != nil {
-		buf.WriteByte(' ')
-		writeType(&buf, typ)
-	}
-
-	return buf.String()
-}
-
 func (obj *object) setParent(parent *Scope) { obj.parent = parent }
 
 func (obj *object) sameId(pkg *Package, name string) bool {
@@ -135,8 +116,6 @@ func NewPkgName(pos token.Pos, pkg *Package, name string) *PkgName {
 	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], false}}
 }
 
-func (obj *PkgName) String() string { return obj.toString("package", nil) }
-
 // A Const represents a declared constant.
 type Const struct {
 	object
@@ -149,7 +128,6 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Valu
 	return &Const{object: object{nil, pos, pkg, name, typ, false}, val: val}
 }
 
-func (obj *Const) String() string   { return obj.toString("const", obj.typ) }
 func (obj *Const) Val() exact.Value { return obj.val }
 
 // A TypeName represents a declared type.
@@ -160,8 +138,6 @@ type TypeName struct {
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, false}}
 }
-
-func (obj *TypeName) String() string { return obj.toString("type", obj.typ.Underlying()) }
 
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
@@ -185,13 +161,7 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
-func (obj *Var) String() string {
-	kind := "var"
-	if obj.isField {
-		kind = "field"
-	}
-	return obj.toString(kind, obj.typ)
-}
+
 func (obj *Var) IsField() bool { return obj.isField }
 
 // A Func represents a declared function, concrete method, or abstract
@@ -214,41 +184,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 // function or method obj.
 func (obj *Func) FullName() string {
 	var buf bytes.Buffer
-	obj.fullname(&buf)
-	return buf.String()
-}
-
-func (obj *Func) fullname(buf *bytes.Buffer) {
-	if obj.typ != nil {
-		sig := obj.typ.(*Signature)
-		if recv := sig.Recv(); recv != nil {
-			buf.WriteByte('(')
-			if _, ok := recv.Type().(*Interface); ok {
-				// gcimporter creates abstract methods of
-				// named interfaces using the interface type
-				// (not the named type) as the receiver.
-				// Don't print it in full.
-				buf.WriteString("interface")
-			} else {
-				writeType(buf, recv.Type())
-			}
-			buf.WriteByte(')')
-			buf.WriteByte('.')
-		} else if obj.pkg != nil {
-			buf.WriteString(obj.pkg.name)
-			buf.WriteByte('.')
-		}
-	}
-	buf.WriteString(obj.name)
-}
-
-func (obj *Func) String() string {
-	var buf bytes.Buffer
-	buf.WriteString("func ")
-	obj.fullname(&buf)
-	if obj.typ != nil {
-		writeSignature(&buf, obj.typ.(*Signature))
-	}
+	writeFuncName(&buf, nil, obj)
 	return buf.String()
 }
 
@@ -260,8 +196,6 @@ type Label struct {
 func NewLabel(pos token.Pos, name string) *Label {
 	return &Label{object{pos: pos, name: name, typ: Typ[Invalid]}}
 }
-
-func (obj *Label) String() string { return fmt.Sprintf("label %s", obj.Name()) }
 
 // A Builtin represents a built-in function.
 // Builtins don't have a valid type.
@@ -280,4 +214,105 @@ type Nil struct {
 	object
 }
 
-func (*Nil) String() string { return "nil" }
+func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
+	typ := obj.Type()
+	switch obj := obj.(type) {
+	case *PkgName:
+		buf.WriteString("package")
+		typ = nil
+
+	case *Const:
+		buf.WriteString("const")
+
+	case *TypeName:
+		buf.WriteString("type")
+		typ = typ.Underlying()
+
+	case *Var:
+		if obj.isField {
+			buf.WriteString("field")
+		} else {
+			buf.WriteString("var")
+		}
+
+	case *Func:
+		buf.WriteString("func ")
+		writeFuncName(buf, this, obj)
+		if typ != nil {
+			writeSignature(buf, this, typ.(*Signature))
+		}
+		return
+
+	case *Label:
+		buf.WriteString("label")
+		typ = nil
+
+	case *Builtin:
+		buf.WriteString("builtin")
+		typ = nil
+
+	case *Nil:
+		buf.WriteString("nil")
+		return
+
+	default:
+		panic(fmt.Sprintf("writeObject(%T)", obj))
+	}
+
+	buf.WriteByte(' ')
+
+	// For package-level objects, package-qualify the name,
+	// except for intra-package references (this != nil).
+	if pkg := obj.Pkg(); pkg != nil && this != pkg && pkg.scope.Lookup(obj.Name()) == obj {
+		buf.WriteString(pkg.path)
+		buf.WriteByte('.')
+	}
+	buf.WriteString(obj.Name())
+	if typ != nil {
+		buf.WriteByte(' ')
+		writeType(buf, this, typ)
+	}
+}
+
+// ObjectString returns the string form of obj.
+// Object and type names are printed package-qualified
+// only if they do not belong to this package.
+//
+func ObjectString(this *Package, obj Object) string {
+	var buf bytes.Buffer
+	writeObject(&buf, this, obj)
+	return buf.String()
+}
+
+func (obj *PkgName) String() string  { return ObjectString(nil, obj) }
+func (obj *Const) String() string    { return ObjectString(nil, obj) }
+func (obj *TypeName) String() string { return ObjectString(nil, obj) }
+func (obj *Var) String() string      { return ObjectString(nil, obj) }
+func (obj *Func) String() string     { return ObjectString(nil, obj) }
+func (obj *Label) String() string    { return ObjectString(nil, obj) }
+func (obj *Builtin) String() string  { return ObjectString(nil, obj) }
+func (obj *Nil) String() string      { return ObjectString(nil, obj) }
+
+func writeFuncName(buf *bytes.Buffer, this *Package, f *Func) {
+	if f.typ != nil {
+		sig := f.typ.(*Signature)
+		if recv := sig.Recv(); recv != nil {
+			buf.WriteByte('(')
+			if _, ok := recv.Type().(*Interface); ok {
+				// gcimporter creates abstract methods of
+				// named interfaces using the interface type
+				// (not the named type) as the receiver.
+				// Don't print it in full.
+				buf.WriteString("interface")
+			} else {
+				writeType(buf, this, recv.Type())
+			}
+			buf.WriteByte(')')
+			buf.WriteByte('.')
+		} else if f.pkg != nil && f.pkg != this {
+			buf.WriteString(f.pkg.path)
+			buf.WriteByte('.')
+		}
+	}
+	buf.WriteString(f.name)
+}

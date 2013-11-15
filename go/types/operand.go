@@ -105,7 +105,7 @@ func (x *operand) String() string {
 		case builtin:
 			expr = predeclaredFuncs[x.id].name
 		case typexpr:
-			expr = typeString(x.typ)
+			expr = TypeString(nil, x.typ)
 		case constant:
 			expr = x.val.String()
 		}
@@ -147,7 +147,7 @@ func (x *operand) String() string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			buf.WriteString(" of type ")
-			writeType(&buf, x.typ)
+			writeType(&buf, nil, x.typ)
 		} else {
 			buf.WriteString(" with invalid type")
 		}
