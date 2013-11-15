@@ -430,7 +430,7 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	name := x.intern(id.Name)
 
 	switch kind {
-	case TypeDecl, FuncDecl:
+	case TypeDecl, FuncDecl, ConstDecl, VarDecl:
 		x.curPkgExports[name] = kind
 	}
 

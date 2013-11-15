@@ -20,6 +20,10 @@ package foo
 
 import "bar"
 
+const Pi = 3.1415
+
+var Foos []Foo
+
 // Foo is stuff.
 type Foo struct{}
 
@@ -87,7 +91,7 @@ func TestIndexWriteRead(t *testing.T) {
 }
 
 func testIndex(t *testing.T, ix *Index) {
-	wantStats := Statistics{Bytes: 256, Files: 3, Lines: 16, Words: 6, Spots: 9}
+	wantStats := Statistics{Bytes: 291, Files: 3, Lines: 20, Words: 8, Spots: 12}
 	if !reflect.DeepEqual(ix.Stats(), wantStats) {
 		t.Errorf("Stats = %#v; want %#v", ix.Stats(), wantStats)
 	}
@@ -116,8 +120,10 @@ func testIndex(t *testing.T, ix *Index) {
 
 	if got, want := ix.Exports(), map[string]map[string]SpotKind{
 		"foo": map[string]SpotKind{
-			"Foo": TypeDecl,
-			"New": FuncDecl,
+			"Pi":   ConstDecl,
+			"Foos": VarDecl,
+			"Foo":  TypeDecl,
+			"New":  FuncDecl,
 		},
 		"other/bar": map[string]SpotKind{
 			"X": FuncDecl,
