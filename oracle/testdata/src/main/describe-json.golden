@@ -15,7 +15,7 @@
 					"kind": "type",
 					"methods": [
 						{
-							"name": "method (describe.C) f()",
+							"name": "method (C) f()",
 							"pos": "testdata/src/main/describe-json.go:30:12"
 						}
 					]
@@ -27,7 +27,7 @@
 					"kind": "type",
 					"methods": [
 						{
-							"name": "method (*describe.D) f()",
+							"name": "method (*D) f()",
 							"pos": "testdata/src/main/describe-json.go:31:13"
 						}
 					]
@@ -39,7 +39,7 @@
 					"kind": "type",
 					"methods": [
 						{
-							"name": "method (describe.I) f()",
+							"name": "method (I) f()",
 							"pos": "testdata/src/main/describe-json.go:24:2"
 						}
 					]
@@ -142,7 +142,7 @@
 			"namedef": "int",
 			"methods": [
 				{
-					"name": "method (describe.C) f()",
+					"name": "method (C) f()",
 					"pos": "testdata/src/main/describe-json.go:30:12"
 				}
 			]

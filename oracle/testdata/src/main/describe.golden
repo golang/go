@@ -12,7 +12,7 @@ definition of package "describe"
 	var   global   *string
 	func  main     func()
 	const pi       untyped float = 3141/1000
-	const pie      describe.cake = 1768225803696341/562949953421312
+	const pie      cake = 1768225803696341/562949953421312
 
 -------- @describe type-ref-builtin --------
 reference to built-in type float64
@@ -53,13 +53,13 @@ defined here
 reference to type D
 defined as struct{}
 Method set:
-	method (describe.D) f()
+	method (D) f()
 
 -------- @describe type-I --------
 reference to type I
 defined as interface{f()}
 Method set:
-	method (describe.I) f()
+	method (I) f()
 
 -------- @describe func-ref-d.f --------
 reference to method func (D).f()
@@ -188,7 +188,7 @@ no points-to information: PTA did not encounter this expression (dead code?)
 -------- @describe def-iface-I --------
 definition of type I
 Method set:
-	method (describe.I) f()
+	method (I) f()
 
 -------- @describe def-imethod-I.f --------
 type interface{f()}

@@ -670,7 +670,7 @@ func (r *describeTypeResult) display(printf printfFunc) {
 		if len(r.methods) > 0 {
 			printf(r.node, "Method set:")
 			for _, meth := range r.methods {
-				printf(meth.Obj(), "\t%s", meth)
+				printf(meth.Obj(), "\t%s", r.qpos.SelectionString(meth))
 			}
 		} else {
 			printf(r.node, "No methods.")
@@ -692,7 +692,7 @@ func (r *describeTypeResult) toSerial(res *serial.Result, fset *token.FileSet) {
 			Type:    r.qpos.TypeString(r.typ),
 			NamePos: namePos,
 			NameDef: nameDef,
-			Methods: methodsToSerial(r.methods, fset),
+			Methods: methodsToSerial(r.qpos.info.Pkg, r.methods, fset),
 		},
 	}
 }
@@ -790,10 +790,10 @@ func formatMember(obj types.Object, maxname int) string {
 	fmt.Fprintf(&buf, "%-5s %-*s", tokenOf(obj), maxname, obj.Name())
 	switch obj := obj.(type) {
 	case *types.Const:
-		fmt.Fprintf(&buf, " %s = %s", obj.Type(), obj.Val().String())
+		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Pkg(), obj.Type()), obj.Val().String())
 
 	case *types.Func:
-		fmt.Fprintf(&buf, " %s", obj.Type())
+		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Pkg(), obj.Type()))
 
 	case *types.TypeName:
 		// Abbreviate long aggregate type names.
@@ -809,13 +809,13 @@ func formatMember(obj types.Object, maxname int) string {
 			}
 		}
 		if abbrev == "" {
-			fmt.Fprintf(&buf, " %s", obj.Type().Underlying())
+			fmt.Fprintf(&buf, " %s", types.TypeString(obj.Pkg(), obj.Type().Underlying()))
 		} else {
 			fmt.Fprintf(&buf, " %s", abbrev)
 		}
 
 	case *types.Var:
-		fmt.Fprintf(&buf, " %s", obj.Type())
+		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Pkg(), obj.Type()))
 	}
 	return buf.String()
 }
@@ -837,7 +837,7 @@ func (r *describePackageResult) toSerial(res *serial.Result, fset *token.FileSet
 			Value:   val,
 			Pos:     fset.Position(mem.obj.Pos()).String(),
 			Kind:    tokenOf(mem.obj),
-			Methods: methodsToSerial(mem.methods, fset),
+			Methods: methodsToSerial(r.pkg, mem.methods, fset),
 		})
 	}
 	res.Describe = &serial.Describe{
@@ -935,11 +935,11 @@ func isAccessibleFrom(obj types.Object, pkg *types.Package) bool {
 	return ast.IsExported(obj.Name()) || obj.Pkg() == pkg
 }
 
-func methodsToSerial(methods []*types.Selection, fset *token.FileSet) []serial.DescribeMethod {
+func methodsToSerial(this *types.Package, methods []*types.Selection, fset *token.FileSet) []serial.DescribeMethod {
 	var jmethods []serial.DescribeMethod
 	for _, meth := range methods {
 		jmethods = append(jmethods, serial.DescribeMethod{
-			Name: meth.String(),
+			Name: types.SelectionString(this, meth),
 			Pos:  fset.Position(meth.Obj().Pos()).String(),
 		})
 	}

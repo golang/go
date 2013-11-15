@@ -120,6 +120,11 @@ func (qpos *QueryPos) ObjectString(obj types.Object) string {
 	return types.ObjectString(qpos.info.Pkg, obj)
 }
 
+// SelectionString prints selection sel relative to the query position.
+func (qpos *QueryPos) SelectionString(sel *types.Selection) string {
+	return types.SelectionString(qpos.info.Pkg, sel)
+}
+
 // A Result encapsulates the result of an oracle.Query.
 type Result struct {
 	fset *token.FileSet
