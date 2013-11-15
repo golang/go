@@ -116,22 +116,31 @@ func (s *Selection) Index() []int { return s.index }
 // The result is false if x.f is a qualified identifier (PackageObj).
 func (s *Selection) Indirect() bool { return s.indirect }
 
-func (s *Selection) String() string {
+func (s *Selection) String() string { return SelectionString(nil, s) }
+
+// SelectionString returns the string form of s.
+// Type names are printed package-qualified
+// only if they do not belong to this package.
+//
+func SelectionString(this *Package, s *Selection) string {
 	var k string
 	switch s.kind {
 	case FieldVal:
-		k = "field"
+		k = "field "
 	case MethodVal:
-		k = "method"
+		k = "method "
 	case MethodExpr:
-		k = "method expr"
+		k = "method expr "
 	case PackageObj:
 		return fmt.Sprintf("qualified ident %s", s.obj)
 	default:
 		unreachable()
 	}
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s (%s) %s", k, s.Recv(), s.obj.Name())
-	writeSignature(&buf, nil, s.Type().(*Signature))
+	buf.WriteString(k)
+	buf.WriteByte('(')
+	writeType(&buf, this, s.Recv())
+	fmt.Fprintf(&buf, ") %s", s.obj.Name())
+	writeSignature(&buf, this, s.Type().(*Signature))
 	return buf.String()
 }
