@@ -82,6 +82,7 @@ func main() {
 	//   const message    message = "Hello, World!":untyped string
 	//
 	// # Name: main.init
+	// # Package: main
 	// # Synthetic: package initializer
 	// func init():
 	// .0.entry:                                                               P:0 S:2
@@ -95,6 +96,7 @@ func main() {
 	// 	return
 	//
 	// # Name: main.main
+	// # Package: main
 	// # Location: hello.go:8:6
 	// func main():
 	// .0.entry:                                                               P:0 S:0

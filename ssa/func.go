@@ -444,7 +444,7 @@ func (f *Function) emit(instr Instruction) Value {
 	return f.currentBlock.emit(instr)
 }
 
-// FullName returns the full name of this function, qualified by
+// RelString returns the full name of this function, qualified by
 // package name, receiver type, etc.
 //
 // The specific formatting rules are not guaranteed and may change.
@@ -453,13 +453,13 @@ func (f *Function) emit(instr Instruction) Value {
 //      "math.IsNaN"                // a package-level function
 //      "IsNaN"                     // intra-package reference to same
 //      "(*sync.WaitGroup).Add"     // a declared method
-//      "(*exp/ssa.Return).Block"      // a promotion wrapper method
-//      "(ssa.Instruction).Block"   // an interface method wrapper
+//      "(*Return).Block"           // a promotion wrapper method (intra-package ref)
+//      "(Instruction).Block"       // an interface method wrapper (intra-package ref)
 //      "func@5.32"                 // an anonymous function
 //      "bound$(*T).f"              // a bound method wrapper
 //
 // If from==f.Pkg, suppress package qualification.
-func (f *Function) fullName(from *Package) string {
+func (f *Function) RelString(from *types.Package) string {
 	// TODO(adonovan): expose less fragile case discrimination
 	// using f.method.
 
@@ -490,8 +490,8 @@ func (f *Function) fullName(from *Package) string {
 
 	// Package-level function.
 	// Prefix with package name for cross-package references only.
-	if from != f.Pkg {
-		return fmt.Sprintf("%s.%s", f.Pkg.Object.Path(), f.name)
+	if p := f.pkgobj(); p != from {
+		return fmt.Sprintf("%s.%s", p.Path(), f.name)
 	}
 	return f.name
 }
@@ -499,7 +499,7 @@ func (f *Function) fullName(from *Package) string {
 // writeSignature writes to w the signature sig in declaration syntax.
 // Derived from types.Signature.String().
 //
-func writeSignature(w io.Writer, pkg *Package, name string, sig *types.Signature, params []*Parameter) {
+func writeSignature(w io.Writer, pkg *types.Package, name string, sig *types.Signature, params []*Parameter) {
 	io.WriteString(w, "func ")
 	if recv := sig.Recv(); recv != nil {
 		io.WriteString(w, "(")
@@ -533,9 +533,16 @@ func writeSignature(w io.Writer, pkg *Package, name string, sig *types.Signature
 		if n == 1 && r.At(0).Name() == "" {
 			io.WriteString(w, relType(r.At(0).Type(), pkg))
 		} else {
-			io.WriteString(w, r.String()) // TODO(adonovan): use relType
+			io.WriteString(w, relType(r, pkg))
 		}
 	}
+}
+
+func (f *Function) pkgobj() *types.Package {
+	if f.Pkg != nil {
+		return f.Pkg.Object
+	}
+	return nil
 }
 
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
@@ -543,6 +550,9 @@ func writeSignature(w io.Writer, pkg *Package, name string, sig *types.Signature
 //
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.String())
+	if f.Pkg != nil {
+		fmt.Fprintf(w, "# Package: %s\n", f.Pkg.Object.Path())
+	}
 	if syn := f.Synthetic; syn != "" {
 		fmt.Fprintln(w, "# Synthetic:", syn)
 	}
@@ -558,21 +568,22 @@ func (f *Function) DumpTo(w io.Writer) {
 		fmt.Fprintf(w, "# Recover: %s\n", f.Recover)
 	}
 
+	pkgobj := f.pkgobj()
+
 	if f.FreeVars != nil {
 		io.WriteString(w, "# Free variables:\n")
 		for i, fv := range f.FreeVars {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), f.Pkg))
+			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), pkgobj))
 		}
 	}
 
 	if len(f.Locals) > 0 {
 		io.WriteString(w, "# Locals:\n")
 		for i, l := range f.Locals {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), f.Pkg))
+			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), pkgobj))
 		}
 	}
-
-	writeSignature(w, f.Pkg, f.Name(), f.Signature, f.Params)
+	writeSignature(w, pkgobj, f.Name(), f.Signature, f.Params)
 	io.WriteString(w, ":\n")
 
 	if f.Blocks == nil {
@@ -608,7 +619,7 @@ func (f *Function) DumpTo(w io.Writer) {
 				l -= n
 				// Right-align the type.
 				if t := v.Type(); t != nil {
-					fmt.Fprintf(w, " %*s", l-10, relType(t, f.Pkg))
+					fmt.Fprintf(w, " %*s", l-10, relType(t, pkgobj))
 				}
 			case nil:
 				// Be robust against bad transforms.

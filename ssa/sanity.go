@@ -367,6 +367,10 @@ func (s *sanity) checkFunction(fn *Function) bool {
 	if fn.Prog == nil {
 		s.errorf("nil Prog")
 	}
+
+	fn.String()               // must not crash
+	fn.RelString(fn.pkgobj()) // must not crash
+
 	// All functions have a package, except wrappers (which are
 	// shared across packages, or duplicated as weak symbols in a
 	// separate-compilation model), and error.Error.
@@ -430,6 +434,11 @@ func (s *sanity) checkFunction(fn *Function) bool {
 // It does not require that the package is built.
 // Unlike sanityCheck (for functions), it just panics at the first error.
 func sanityCheckPackage(pkg *Package) {
+	if pkg.Object == nil {
+		panic(fmt.Sprintf("Package %s has no Object", pkg))
+	}
+	pkg.String() // must not crash
+
 	for name, mem := range pkg.Members {
 		if name != mem.Name() {
 			panic(fmt.Sprintf("%s: %T.Name() = %s, want %s",

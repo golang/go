@@ -61,12 +61,14 @@ type Package struct {
 // const, var, func and type declarations respectively.
 //
 type Member interface {
-	Name() string         // declared name of the package member
-	String() string       // package-qualified name of the package member
-	Object() types.Object // typechecker's object for this member, if any
-	Pos() token.Pos       // position of member's declaration, if known
-	Type() types.Type     // type of the package member
-	Token() token.Token   // token.{VAR,FUNC,CONST,TYPE}
+	Name() string                    // declared name of the package member
+	String() string                  // package-qualified name of the package member
+	RelString(*types.Package) string // like String, but relative refs are unqualified
+	Object() types.Object            // typechecker's object for this member, if any
+	Pos() token.Pos                  // position of member's declaration, if known
+	Type() types.Type                // type of the package member
+	Token() token.Token              // token.{VAR,FUNC,CONST,TYPE}
+	Package() *Package               // returns the containing package. (TODO: rename Pkg)
 }
 
 // A Type is a Member of a Package representing a package-level named type.
@@ -75,6 +77,7 @@ type Member interface {
 //
 type Type struct {
 	object *types.TypeName
+	pkg    *Package
 }
 
 // A NamedConst is a Member of Package representing a package-level
@@ -90,6 +93,7 @@ type NamedConst struct {
 	object *types.Const
 	Value  *Const
 	pos    token.Pos
+	pkg    *Package
 }
 
 // An SSA value that can be referenced by an instruction.
@@ -1149,7 +1153,7 @@ type MapUpdate struct {
 }
 
 // A DebugRef instruction maps a source-level expression Expr to the
-// SSA value that represents the value (!IsAddr) or address (IsAddr)
+// SSA value X that represents the value (!IsAddr) or address (IsAddr)
 // of that expression.
 //
 // DebugRef is a pseudo-instruction: it has no dynamic effect.
@@ -1361,18 +1365,23 @@ func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
 func (v *Capture) Pos() token.Pos            { return v.pos }
 func (v *Capture) Parent() *Function         { return v.parent }
 
-func (v *Global) Type() types.Type        { return v.typ }
-func (v *Global) Name() string            { return v.name }
-func (v *Global) Pos() token.Pos          { return v.pos }
-func (*Global) Referrers() *[]Instruction { return nil }
-func (v *Global) Token() token.Token      { return token.VAR }
-func (v *Global) Object() types.Object    { return v.object }
+func (v *Global) Type() types.Type                     { return v.typ }
+func (v *Global) Name() string                         { return v.name }
+func (v *Global) Pos() token.Pos                       { return v.pos }
+func (v *Global) Referrers() *[]Instruction            { return nil }
+func (v *Global) Token() token.Token                   { return token.VAR }
+func (v *Global) Object() types.Object                 { return v.object }
+func (v *Global) String() string                       { return v.RelString(nil) }
+func (v *Global) Package() *Package                    { return v.Pkg }
+func (v *Global) RelString(from *types.Package) string { return relString(v, from) }
 
 func (v *Function) Name() string         { return v.name }
 func (v *Function) Type() types.Type     { return v.Signature }
 func (v *Function) Pos() token.Pos       { return v.pos }
 func (v *Function) Token() token.Token   { return token.FUNC }
 func (v *Function) Object() types.Object { return v.object }
+func (v *Function) String() string       { return v.RelString(nil) }
+func (v *Function) Package() *Package    { return v.Pkg }
 func (v *Function) Referrers() *[]Instruction {
 	if v.Enclosing != nil {
 		return &v.referrers
@@ -1403,23 +1412,23 @@ func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
 func (v *anInstruction) setBlock(block *BasicBlock) { v.block = block }
 
-func (t *Type) Name() string         { return t.object.Name() }
-func (t *Type) Pos() token.Pos       { return t.object.Pos() }
-func (t *Type) Type() types.Type     { return t.object.Type() }
-func (t *Type) Token() token.Token   { return token.TYPE }
-func (t *Type) Object() types.Object { return t.object }
-func (t *Type) String() string {
-	return fmt.Sprintf("%s.%s", t.object.Pkg().Path(), t.object.Name())
-}
+func (t *Type) Name() string                         { return t.object.Name() }
+func (t *Type) Pos() token.Pos                       { return t.object.Pos() }
+func (t *Type) Type() types.Type                     { return t.object.Type() }
+func (t *Type) Token() token.Token                   { return token.TYPE }
+func (t *Type) Object() types.Object                 { return t.object }
+func (t *Type) String() string                       { return t.RelString(nil) }
+func (t *Type) Package() *Package                    { return t.pkg }
+func (t *Type) RelString(from *types.Package) string { return relString(t, from) }
 
-func (c *NamedConst) Name() string   { return c.object.Name() }
-func (c *NamedConst) Pos() token.Pos { return c.object.Pos() }
-func (c *NamedConst) String() string {
-	return fmt.Sprintf("%s.%s", c.object.Pkg().Path(), c.object.Name())
-}
-func (c *NamedConst) Type() types.Type     { return c.object.Type() }
-func (c *NamedConst) Token() token.Token   { return token.CONST }
-func (c *NamedConst) Object() types.Object { return c.object }
+func (c *NamedConst) Name() string                         { return c.object.Name() }
+func (c *NamedConst) Pos() token.Pos                       { return c.object.Pos() }
+func (c *NamedConst) String() string                       { return c.RelString(nil) }
+func (c *NamedConst) Type() types.Type                     { return c.object.Type() }
+func (c *NamedConst) Token() token.Token                   { return token.CONST }
+func (c *NamedConst) Object() types.Object                 { return c.object }
+func (c *NamedConst) Package() *Package                    { return c.pkg }
+func (c *NamedConst) RelString(from *types.Package) string { return relString(c, from) }
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.

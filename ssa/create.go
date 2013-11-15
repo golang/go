@@ -71,12 +71,16 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	switch obj := obj.(type) {
 	case *types.TypeName:
 		pkg.values[obj] = nil // for needMethods
-		pkg.Members[name] = &Type{object: obj}
+		pkg.Members[name] = &Type{
+			object: obj,
+			pkg:    pkg,
+		}
 
 	case *types.Const:
 		c := &NamedConst{
 			object: obj,
 			Value:  NewConst(obj.Val(), obj.Type()),
+			pkg:    pkg,
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c

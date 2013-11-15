@@ -65,21 +65,27 @@ func zeroConst(t types.Type) *Const {
 	panic(fmt.Sprint("zeroConst: unexpected ", t))
 }
 
-func (c *Const) Name() string {
-	var s string
+func (c *Const) valstring() string {
 	if c.Value == nil {
-		s = "nil"
+		return "nil"
 	} else if c.Value.Kind() == exact.String {
-		s = exact.StringVal(c.Value)
+		s := exact.StringVal(c.Value)
 		const max = 20
 		if len(s) > max {
 			s = s[:max-3] + "..." // abbreviate
 		}
-		s = strconv.Quote(s)
+		return strconv.Quote(s)
 	} else {
-		s = c.Value.String()
+		return c.Value.String()
 	}
-	return s + ":" + c.typ.String()
+}
+
+func (c *Const) Name() string {
+	return fmt.Sprintf("%s:%s", c.valstring(), c.typ)
+}
+
+func (v *Const) String() string {
+	return v.Name()
 }
 
 func (c *Const) Type() types.Type {

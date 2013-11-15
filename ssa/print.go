@@ -14,67 +14,47 @@ import (
 	"io"
 	"reflect"
 	"sort"
-	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 )
 
 // relName returns the name of v relative to i.
-// In most cases, this is identical to v.Name(), but for references to
-// Functions (including methods) and Globals, the FullName is used
-// instead, explicitly package-qualified for cross-package references.
+// In most cases, this is identical to v.Name(), but references to
+// Functions (including methods) and Globals use RelString and
+// all types are displayed with relType, so that only cross-package
+// references are package-qualified.
 //
 func relName(v Value, i Instruction) string {
+	var from *types.Package
+	if i != nil {
+		from = i.Parent().pkgobj()
+	}
 	switch v := v.(type) {
-	case *Global:
-		if i != nil && v.Pkg == i.Parent().Pkg {
-			return v.Name()
-		}
-		return v.FullName()
-	case *Function:
-		var pkg *Package
-		if i != nil {
-			pkg = i.Parent().Pkg
-		}
-		return v.fullName(pkg)
+	case Member: // *Function or *Global
+		return v.RelString(from)
+	case *Const:
+		return v.valstring() + ":" + relType(v.Type(), from)
 	}
 	return v.Name()
 }
 
-// relType is like t.String(), but if t is a Named type belonging to
-// package from, optionally wrapped by one or more Pointer
-// constructors, package qualification is suppressed.
-//
-// TODO(gri): provide this functionality in go/types (using a
-// *types.Package, obviously).
-//
-func relType(t types.Type, from *Package) string {
-	if from != nil {
-		t2 := t
-		var nptr int // number of Pointers stripped off
-		for {
-			ptr, ok := t2.(*types.Pointer)
-			if !ok {
-				break
-			}
-			t2 = ptr.Elem()
-			nptr++
-		}
-		if n, ok := t2.(*types.Named); ok && n.Obj().Pkg() == from.Object {
-			return strings.Repeat("*", nptr) + n.Obj().Name()
-		}
+func relType(t types.Type, from *types.Package) string {
+	return types.TypeString(from, t)
+}
+
+func relString(m Member, from *types.Package) string {
+	// NB: not all globals have an Object (e.g. init$guard),
+	// so use Package().Object not Object.Package().
+	if obj := m.Package().Object; obj != nil && obj != from {
+		return fmt.Sprintf("%s.%s", obj.Path(), m.Name())
 	}
-	return t.String()
+	return m.Name()
 }
 
 // Value.String()
 //
 // This method is provided only for debugging.
 // It never appears in disassembly, which uses Value.Name().
-
-func (v *Const) String() string {
-	return v.Name()
-}
 
 func (v *Parameter) String() string {
 	return fmt.Sprintf("parameter %s : %s", v.Name(), v.Type())
@@ -84,21 +64,8 @@ func (v *Capture) String() string {
 	return fmt.Sprintf("capture %s : %s", v.Name(), v.Type())
 }
 
-func (v *Global) String() string {
-	return v.FullName()
-}
-
 func (v *Builtin) String() string {
 	return fmt.Sprintf("builtin %s", v.Name())
-}
-
-func (v *Function) String() string {
-	return v.fullName(nil)
-}
-
-// FullName returns g's package-qualified name.
-func (g *Global) FullName() string {
-	return fmt.Sprintf("%s.%s", g.Pkg.Object.Path(), g.name)
 }
 
 // Instruction.String()
@@ -108,7 +75,7 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), v.Parent().Pkg), v.Comment)
+	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), v.Parent().pkgobj()), v.Comment)
 }
 
 func (v *Phi) String() string {
@@ -170,7 +137,7 @@ func (v *Call) String() string {
 }
 
 func (v *ChangeType) String() string {
-	return fmt.Sprintf("changetype %s <- %s (%s)", relType(v.Type(), v.Parent().Pkg), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("changetype %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
 }
 
 func (v *BinOp) String() string {
@@ -182,7 +149,7 @@ func (v *UnOp) String() string {
 }
 
 func (v *Convert) String() string {
-	return fmt.Sprintf("convert %s <- %s (%s)", relType(v.Type(), v.Parent().Pkg), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("convert %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
 }
 
 func (v *ChangeInterface) String() string {
@@ -190,7 +157,7 @@ func (v *ChangeInterface) String() string {
 }
 
 func (v *MakeInterface) String() string {
-	return fmt.Sprintf("make %s <- %s (%s)", relType(v.Type(), v.Parent().Pkg), relType(v.X.Type(), v.Parent().Pkg), relName(v.X, v))
+	return fmt.Sprintf("make %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), relType(v.X.Type(), v.Parent().pkgobj()), relName(v.X, v))
 }
 
 func (v *MakeClosure) String() string {
@@ -289,7 +256,7 @@ func (v *Next) String() string {
 }
 
 func (v *TypeAssert) String() string {
-	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), v.AssertedType)
+	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), relType(v.AssertedType, v.Parent().pkgobj()))
 }
 
 func (v *Extract) String() string {
