@@ -347,11 +347,12 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 	check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
 }
 
-func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
+func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 	scope := check.topScope
 
 	// collect lhs variables
-	vars := make([]*Var, len(lhs))
+	var newVars []*Var
+	var lhsVars = make([]*Var, len(lhs))
 	for i, lhs := range lhs {
 		var obj *Var
 		if ident, _ := lhs.(*ast.Ident); ident != nil {
@@ -368,6 +369,7 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 			} else {
 				// declare new variable
 				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
+				newVars = append(newVars, obj)
 			}
 			if obj != nil {
 				check.recordObject(ident, obj)
@@ -378,18 +380,18 @@ func (check *checker) shortVarDecl(lhs, rhs []ast.Expr) {
 		if obj == nil {
 			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 		}
-		vars[i] = obj
+		lhsVars[i] = obj
 	}
 
-	check.initVars(vars, rhs, token.NoPos)
+	check.initVars(lhsVars, rhs, token.NoPos)
 
-	// declare variables
-	n := scope.Len()
-	for _, obj := range vars {
-		scope.Insert(obj)
-	}
-	if n == scope.Len() {
-		check.errorf(lhs[0].Pos(), "no new variables on left side of :=")
+	// declare new variables
+	if len(newVars) > 0 {
+		for _, obj := range newVars {
+			check.declare(scope, nil, obj) // recordObject already called
+		}
+	} else {
+		check.errorf(pos, "no new variables on left side of :=")
 	}
 }
 

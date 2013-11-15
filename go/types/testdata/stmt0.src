@@ -137,7 +137,17 @@ func issue6487() {
 	_ = &m /* ERROR "cannot take address" */ ["foo"].x
 }
 
-func shortVarDecls() {
+func issue6766a() {
+	a, a /* ERROR redeclared */ := 1, 2
+	_ = a
+	a, b, b /* ERROR redeclared */ := 1, 2, 3
+	_ = b
+	c, c /* ERROR redeclared */, b := 1, 2, 3
+	_ = c
+	a, b := /* ERROR no new variables */ 1, 2
+}
+
+func shortVarDecls1() {
 	const c = 0
 	type d int
 	a, b, c /* ERROR "cannot assign" */ , d /* ERROR "cannot assign" */  := 1, "zwei", 3.0, 4
@@ -682,6 +692,14 @@ func rangeloops2() {
 	for i /* ERROR cannot assign */ = range "foo" {}
 	for _, r /* ERROR cannot assign */ = range s {}
 	for _, r /* ERROR cannot assign */ = range "foo" {}
+}
+
+func issue6766b() {
+	for _ := /* ERROR no new variables */ range "" {}
+	for a, a /* ERROR redeclared */ := range "" { _ = a }
+	var a int
+	_ = a
+	for a, a /* ERROR redeclared */ := range []int{1, 2, 3} { _ = a }
 }
 
 func labels0() {

@@ -235,7 +235,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				return
 			}
 			if s.Tok == token.DEFINE {
-				check.shortVarDecl(s.Lhs, s.Rhs)
+				check.shortVarDecl(s.TokPos, s.Lhs, s.Rhs)
 			} else {
 				// regular assignment
 				check.assignVars(s.Lhs, s.Rhs)
@@ -570,8 +570,9 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		rhs := [2]Type{key, val}
 
 		if decl {
-			// declaration; variable scope starts after the range clause
-			var idents []*ast.Ident
+			// short variable declaration; variable scope starts after the range clause
+			// (the for loop opens a new scope, so variables on the lhs never redeclare
+			// previously declared variables)
 			var vars []*Var
 			for i, lhs := range lhs {
 				if lhs == nil {
@@ -579,17 +580,20 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				}
 
 				// determine lhs variable
-				name := "_" // dummy, in case lhs is not an identifier
-				ident, _ := lhs.(*ast.Ident)
-				if ident != nil {
-					name = ident.Name
+				var obj *Var
+				if ident, _ := lhs.(*ast.Ident); ident != nil {
+					// declare new variable
+					name := ident.Name
+					obj = NewVar(ident.Pos(), check.pkg, name, nil)
+					check.recordObject(ident, obj)
+					// _ variables don't count as new variables
+					if name != "_" {
+						vars = append(vars, obj)
+					}
 				} else {
 					check.errorf(lhs.Pos(), "cannot declare %s", lhs)
+					obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 				}
-				idents = append(idents, ident)
-
-				obj := NewVar(lhs.Pos(), check.pkg, name, nil)
-				vars = append(vars, obj)
 
 				// initialize lhs variable
 				x.mode = value
@@ -599,8 +603,12 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 
 			// declare variables
-			for i, ident := range idents {
-				check.declare(check.topScope, ident, vars[i])
+			if len(vars) > 0 {
+				for _, obj := range vars {
+					check.declare(check.topScope, nil, obj) // recordObject already called
+				}
+			} else {
+				check.errorf(s.TokPos, "no new variables on left side of :=")
 			}
 		} else {
 			// ordinary assignment
