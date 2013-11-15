@@ -128,7 +128,7 @@ var importedObjectTests = []struct {
 	{"math.Pi", "const Pi untyped float"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", "type ReadWriter interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
-	{"math.Sin", "func math.Sin(x·2 float64) (_ float64)"},
+	{"math.Sin", "func Sin(x·2 float64) (_ float64)"},
 	// TODO(gri) add more tests
 }
 
@@ -157,7 +157,7 @@ func TestImportedTypes(t *testing.T) {
 			continue
 		}
 
-		got := obj.String()
+		got := types.ObjectString(pkg, obj)
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}
