@@ -479,10 +479,10 @@ func (r *describeValueResult) display(printf printfFunc) {
 	if r.obj != nil {
 		if r.obj.Pos() == r.expr.Pos() {
 			// defining ident
-			printf(r.expr, "definition of %s%s%s", prefix, r.obj, suffix)
+			printf(r.expr, "definition of %s%s%s", prefix, r.qpos.ObjectString(r.obj), suffix)
 		} else {
 			// referring ident
-			printf(r.expr, "reference to %s%s%s", prefix, r.obj, suffix)
+			printf(r.expr, "reference to %s%s%s", prefix, r.qpos.ObjectString(r.obj), suffix)
 			if def := r.obj.Pos(); def != token.NoPos {
 				printf(def, "defined here")
 			}
@@ -494,7 +494,7 @@ func (r *describeValueResult) display(printf printfFunc) {
 			printf(r.expr, "%s%s", desc, suffix)
 		} else {
 			// non-constant expression
-			printf(r.expr, "%s of type %s", desc, r.typ)
+			printf(r.expr, "%s of type %s", desc, r.qpos.TypeString(r.typ))
 		}
 	}
 
@@ -514,17 +514,17 @@ func (r *describeValueResult) display(printf printfFunc) {
 		// reflect.Value expression.
 
 		if len(r.ptrs) > 0 {
-			printf(r.qpos, "this %s may contain these dynamic types:", r.typ)
+			printf(r.qpos, "this %s may contain these dynamic types:", r.qpos.TypeString(r.typ))
 			for _, ptr := range r.ptrs {
 				var obj types.Object
 				if nt, ok := deref(ptr.typ).(*types.Named); ok {
 					obj = nt.Obj()
 				}
 				if len(ptr.labels) > 0 {
-					printf(obj, "\t%s, may point to:", ptr.typ)
+					printf(obj, "\t%s, may point to:", r.qpos.TypeString(ptr.typ))
 					printLabels(printf, ptr.labels, "\t\t")
 				} else {
-					printf(obj, "\t%s", ptr.typ)
+					printf(obj, "\t%s", r.qpos.TypeString(ptr.typ))
 				}
 			}
 		} else {
@@ -567,7 +567,7 @@ func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) 
 			})
 		}
 		pts = append(pts, &serial.DescribePointer{
-			Type:    ptr.typ.String(),
+			Type:    r.qpos.TypeString(ptr.typ),
 			NamePos: namePos,
 			Labels:  labels,
 		})
@@ -578,7 +578,7 @@ func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) 
 		Pos:    fset.Position(r.expr.Pos()).String(),
 		Detail: "value",
 		Value: &serial.DescribeValue{
-			Type:   r.typ.String(),
+			Type:   r.qpos.TypeString(r.typ),
 			Value:  value,
 			ObjPos: objpos,
 			PTAErr: ptaerr,
@@ -620,20 +620,19 @@ func describeType(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeTypeResu
 		t = qpos.info.TypeOf(n)
 		switch t := t.(type) {
 		case *types.Basic:
-			description = "reference to built-in type " + t.String()
+			description = "reference to built-in "
 
 		case *types.Named:
 			isDef := t.Obj().Pos() == n.Pos() // see caveats at isDef above
 			if isDef {
-				description = "definition of type " + t.String()
+				description = "definition of "
 			} else {
-				description = "reference to type " + t.String()
+				description = "reference to "
 			}
 		}
 
 	case ast.Expr:
 		t = qpos.info.TypeOf(n)
-		description = "type " + t.String()
 
 	default:
 		// Unreachable?
@@ -641,14 +640,16 @@ func describeType(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeTypeResu
 	}
 
 	return &describeTypeResult{
+		qpos:        qpos,
 		node:        path[0],
-		description: description,
+		description: description + "type " + qpos.TypeString(t),
 		typ:         t,
 		methods:     accessibleMethods(t, qpos.info.Pkg),
 	}, nil
 }
 
 type describeTypeResult struct {
+	qpos        *QueryPos
 	node        ast.Node
 	description string
 	typ         types.Type
@@ -660,7 +661,7 @@ func (r *describeTypeResult) display(printf printfFunc) {
 
 	// Show the underlying type for a reference to a named type.
 	if nt, ok := r.typ.(*types.Named); ok && r.node.Pos() != nt.Obj().Pos() {
-		printf(nt.Obj(), "defined as %s", nt.Underlying())
+		printf(nt.Obj(), "defined as %s", r.qpos.TypeString(nt.Underlying()))
 	}
 
 	// Print the method set, if the type kind is capable of bearing methods.
@@ -688,7 +689,7 @@ func (r *describeTypeResult) toSerial(res *serial.Result, fset *token.FileSet) {
 		Pos:    fset.Position(r.node.Pos()).String(),
 		Detail: "type",
 		Type: &serial.DescribeType{
-			Type:    r.typ.String(),
+			Type:    r.qpos.TypeString(r.typ),
 			NamePos: namePos,
 			NameDef: nameDef,
 			Methods: methodsToSerial(r.methods, fset),

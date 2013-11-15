@@ -7,7 +7,7 @@ import of package "lib"
 	var   Var   int
 
 -------- @describe ref-const --------
-reference to const Const untyped integer
+reference to const lib.Const untyped integer
 defined here
 
 -------- @describe ref-func --------
@@ -15,7 +15,7 @@ reference to func lib.Func()
 defined here
 
 -------- @describe ref-var --------
-reference to var Var int
+reference to var lib.Var int
 defined here
 
 -------- @describe ref-type --------

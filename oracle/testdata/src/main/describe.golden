@@ -6,6 +6,7 @@ definition of package "describe"
 		method (describe.D) f()
 	type  I        interface{f()}
 		method (describe.I) f()
+	const c        untyped integer = 0
 	type  cake     float64
 	func  deadcode func()
 	var   global   *string
@@ -16,64 +17,67 @@ definition of package "describe"
 -------- @describe type-ref-builtin --------
 reference to built-in type float64
 
+-------- @describe const-ref-iota --------
+reference to const iota untyped integer of constant value 0
+
 -------- @describe const-def-pi --------
 definition of const pi untyped float
 
 -------- @describe const-def-pie --------
-definition of const pie describe.cake
+definition of const pie cake
 
 -------- @describe const-ref-pi --------
 reference to const pi untyped float of constant value 3141/1000
 defined here
 
 -------- @describe func-def-main --------
-definition of func describe.main()
+definition of func main()
 
 -------- @describe func-ref-main --------
-reference to func describe.main()
+reference to func main()
 defined here
 
 -------- @describe func-ref-*C.f --------
-reference to method func (*describe.C).f()
+reference to method func (*C).f()
 defined here
 
 -------- @describe func-ref-D.f --------
-reference to method func (describe.D).f()
+reference to method func (D).f()
 defined here
 
 -------- @describe func-ref-I.f --------
-reference to interface method func (describe.I).f()
+reference to interface method func (I).f()
 defined here
 
 -------- @describe type-D --------
-reference to type describe.D
+reference to type D
 defined as struct{}
 Method set:
 	method (describe.D) f()
 
 -------- @describe type-I --------
-reference to type describe.I
+reference to type I
 defined as interface{f()}
 Method set:
 	method (describe.I) f()
 
 -------- @describe func-ref-d.f --------
-reference to method func (describe.D).f()
+reference to method func (D).f()
 defined here
 
 -------- @describe func-ref-i.f --------
-reference to interface method func (describe.I).f()
+reference to interface method func (I).f()
 defined here
 
 -------- @describe ref-lexical-d --------
-reference to var d describe.D
+reference to var d D
 defined here
 
 -------- @describe ref-anon --------
 reference to var anon func()
 defined here
 value may point to these labels:
-	func@29.10
+	func@31.10
 
 -------- @describe ref-global --------
 reference to var global *string
@@ -105,42 +109,42 @@ value may point to these labels:
 	b
 
 -------- @describe var-ref-i-C --------
-reference to var i describe.I
+reference to var i I
 defined here
-this describe.I may contain these dynamic types:
-	*describe.C, may point to:
+this I may contain these dynamic types:
+	*C, may point to:
 		new
 
 -------- @describe var-ref-i-D --------
-reference to var i describe.I
+reference to var i I
 defined here
-this describe.I may contain these dynamic types:
-	describe.D
+this I may contain these dynamic types:
+	D
 
 -------- @describe var-ref-i --------
-reference to var i describe.I
+reference to var i I
 defined here
-this describe.I may contain these dynamic types:
-	*describe.C, may point to:
+this I may contain these dynamic types:
+	*C, may point to:
 		new
-	describe.D
+	D
 
 -------- @describe const-local-pi --------
 definition of const localpi untyped float
 
 -------- @describe const-local-pie --------
-definition of const localpie describe.cake
+definition of const localpie cake
 
 -------- @describe const-ref-localpi --------
 reference to const localpi untyped float of constant value 3141/1000
 defined here
 
 -------- @describe type-def-T --------
-definition of type describe.T
+definition of type T
 No methods.
 
 -------- @describe type-ref-T --------
-reference to type describe.T
+reference to type T
 defined as int
 No methods.
 
@@ -171,6 +175,9 @@ defer statement
 -------- @describe go-stmt --------
 go statement
 
+-------- @describe builtin-ref-panic --------
+function call (or conversion) of type ()
+
 -------- @describe var-decl-stmt --------
 definition of var a int
 
@@ -179,7 +186,7 @@ definition of var b *int
 no points-to information: PTA did not encounter this expression (dead code?)
 
 -------- @describe def-iface-I --------
-definition of type describe.I
+definition of type I
 Method set:
 	method (describe.I) f()
 

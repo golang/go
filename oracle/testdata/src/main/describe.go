@@ -8,6 +8,8 @@ package describe // @describe pkgdecl "describe"
 
 type cake float64 // @describe type-ref-builtin "float64"
 
+const c = iota // @describe const-ref-iota "iota"
+
 const pi = 3.141     // @describe const-def-pi "pi"
 const pie = cake(pi) // @describe const-def-pie "pie"
 const _ = pi         // @describe const-ref-pi "pi"
@@ -65,6 +67,8 @@ func main() { // @describe func-def-main "main"
 
 	defer main() // @describe defer-stmt "defer"
 	go main()    // @describe go-stmt "go"
+
+	panic(3) // @describe builtin-ref-panic "panic"
 }
 
 func deadcode() {

@@ -110,6 +110,16 @@ type QueryPos struct {
 	path       []ast.Node            // AST path from query node to root of ast.File
 }
 
+// TypeString prints type T relative to the query position.
+func (qpos *QueryPos) TypeString(T types.Type) string {
+	return types.TypeString(qpos.info.Pkg, T)
+}
+
+// ObjectString prints object obj relative to the query position.
+func (qpos *QueryPos) ObjectString(obj types.Object) string {
+	return types.ObjectString(qpos.info.Pkg, obj)
+}
+
 // A Result encapsulates the result of an oracle.Query.
 type Result struct {
 	fset *token.FileSet
@@ -244,7 +254,7 @@ func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs in
 		o.typeInfo = m
 	}
 
-	// Create SSA package for the initial package and its dependencies.
+	// Create SSA package for the initial packages and their dependencies.
 	if needs&needSSA != 0 {
 		start = time.Now()
 
