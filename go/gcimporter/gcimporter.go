@@ -131,7 +131,7 @@ func Import(imports map[string]*types.Package, path string) (pkg *types.Package,
 
 	filename, id := FindPkg(path, srcDir)
 	if filename == "" {
-		err = errors.New("can't find import: " + id)
+		err = fmt.Errorf("can't find import: %s", id)
 		return
 	}
 
@@ -893,21 +893,23 @@ func (p *parser) parseFuncDecl() {
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
 //
 func (p *parser) parseDecl() {
-	switch p.lit {
-	case "import":
-		p.parseImportDecl()
-	case "const":
-		p.parseConstDecl()
-	case "type":
-		p.parseTypeDecl()
-	case "var":
-		p.parseVarDecl()
-	case "func":
-		p.next() // look ahead
-		if p.tok == '(' {
-			p.parseMethodDecl()
-		} else {
-			p.parseFuncDecl()
+	if p.tok == scanner.Ident {
+		switch p.lit {
+		case "import":
+			p.parseImportDecl()
+		case "const":
+			p.parseConstDecl()
+		case "type":
+			p.parseTypeDecl()
+		case "var":
+			p.parseVarDecl()
+		case "func":
+			p.next() // look ahead
+			if p.tok == '(' {
+				p.parseMethodDecl()
+			} else {
+				p.parseFuncDecl()
+			}
 		}
 	}
 	p.expect('\n')
@@ -922,11 +924,9 @@ func (p *parser) parseDecl() {
 func (p *parser) parseExport() *types.Package {
 	p.expectKeyword("package")
 	name := p.parsePackageName()
-	if p.tok != '\n' {
-		// A package is safe if it was compiled with the -u flag,
-		// which disables the unsafe package.
-		// TODO(gri) remember "safe" package
-		p.expectKeyword("safe")
+	if p.tok == scanner.Ident && p.lit == "safe" {
+		// package was compiled with -u option - ignore
+		p.next()
 	}
 	p.expect('\n')
 

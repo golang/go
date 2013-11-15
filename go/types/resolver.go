@@ -377,6 +377,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			}
 		}
 	}
+	seenPkgs = nil // not needed anymore
 
 	// Phase 2: Verify that objects in package and file scopes have different names.
 

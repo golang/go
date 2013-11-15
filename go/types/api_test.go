@@ -26,18 +26,17 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 	}
 
 	var conf Config
-	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
-	if err != nil {
-		return nil, err
-	}
-
-	return pkg, nil
+	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 }
 
 func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	pkg, err := pkgFor(path, source, info)
 	if err != nil {
-		t.Fatalf("%s: didn't type-check (%s)", path, err)
+		name := path
+		if pkg != nil {
+			name = "package " + pkg.Name()
+		}
+		t.Fatalf("%s: didn't type-check (%s)", name, err)
 	}
 	return pkg.Name()
 }
@@ -259,7 +258,6 @@ func TestInitOrder(t *testing.T) {
 		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
 			"y = 1", "x = T.m",
 		}},
-		// TODO(gri) add more tests
 	}
 
 	for _, test := range tests {
