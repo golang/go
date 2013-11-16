@@ -35,6 +35,7 @@ type test struct {
 	pkg        string
 	in         string
 	out        string
+	broken     bool // known broken
 }
 
 var addTests = []test{
@@ -170,6 +171,27 @@ import (
 )
 `,
 	},
+	{
+		broken: true,
+		name:   "struct comment",
+		pkg:    "time",
+		in: `package main
+
+// This is a comment before a struct.
+type T struct {
+	t  time.Time
+}
+`,
+		out: `package main
+
+import "time"
+
+// This is a comment before a struct.
+type T struct {
+	t time.Time
+}
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
@@ -177,7 +199,11 @@ func TestAddImport(t *testing.T) {
 		file := parse(t, test.name, test.in)
 		AddNamedImport(file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
-			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
+			if test.broken {
+				t.Logf("%s is known broken:\ngot: %s\nwant: %s", test.name, got, test.out)
+			} else {
+				t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
+			}
 		}
 	}
 }
