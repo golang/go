@@ -117,8 +117,7 @@ var staticLinkAvailable = []string{
 	"netbsd",
 }
 
-var fileRe = regexp.MustCompile(
-	`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+)(?:-([a-z0-9.]))?)\.`)
+var fileRe = regexp.MustCompile(`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+)(?:-([a-z0-9.]+))?)\.(tar\.gz|zip|pkg|msi)$`)
 
 func main() {
 	flag.Usage = func() {
