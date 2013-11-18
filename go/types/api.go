@@ -23,6 +23,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -187,6 +188,19 @@ type Info struct {
 type Initializer struct {
 	Lhs []*Var // var Lhs = Rhs
 	Rhs ast.Expr
+}
+
+func (init *Initializer) String() string {
+	var buf bytes.Buffer
+	for i, lhs := range init.Lhs {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(lhs.Name())
+	}
+	buf.WriteString(" = ")
+	WriteExpr(&buf, init.Rhs)
+	return buf.String()
 }
 
 // Check type-checks a package and returns the resulting package object,

@@ -7,7 +7,6 @@
 package types_test
 
 import (
-	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -19,7 +18,7 @@ import (
 )
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
-	fset = token.NewFileSet()
+	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, source, 0)
 	if err != nil {
 		return nil, err
@@ -210,19 +209,6 @@ func TestScopesInfo(t *testing.T) {
 	}
 }
 
-func initString(init *Initializer) string {
-	var buf bytes.Buffer
-	for i, lhs := range init.Lhs {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-		buf.WriteString(lhs.Name())
-	}
-	buf.WriteString(" = ")
-	WriteExpr(&buf, init.Rhs)
-	return buf.String()
-}
-
 func TestInitOrder(t *testing.T) {
 	var tests = []struct {
 		src   string
@@ -272,7 +258,7 @@ func TestInitOrder(t *testing.T) {
 
 		// initializers must match
 		for i, want := range test.inits {
-			got := initString(info.InitOrder[i])
+			got := info.InitOrder[i].String()
 			if got != want {
 				t.Errorf("package %s, init %d: got %s; want %s", name, i, got, want)
 				continue
