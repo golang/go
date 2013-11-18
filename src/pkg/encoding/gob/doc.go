@@ -86,13 +86,13 @@ Functions and channels will not be sent in a gob. Attempting to encode such a va
 at top the level will fail. A struct field of chan or func type is treated exactly
 like an unexported field and is ignored.
 
-Gob can encode a value of any type implementing the GobEncoder,
-encoding.BinaryMarshaler, or encoding.TextMarshaler interfaces by calling the
-corresponding method, in that order of preference.
+Gob can encode a value of any type implementing the GobEncoder or
+encoding.BinaryMarshaler interfaces by calling the corresponding method,
+in that order of preference.
 
-Gob can decode a value of any type implementing the GobDecoder,
-encoding.BinaryUnmarshaler, or encoding.TextUnmarshaler interfaces by calling
-the corresponding method, again in that order of preference.
+Gob can decode a value of any type implementing the GobDecoder or
+encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
+again in that order of preference.
 
 Encoding Details
 

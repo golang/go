@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -765,5 +766,19 @@ func TestGobEncodePtrError(t *testing.T) {
 	}
 	if err2 != nil {
 		t.Fatalf("expected nil, got %v", err2)
+	}
+}
+
+func TestNetIP(t *testing.T) {
+	// Encoding of net.IP{1,2,3,4} in Go 1.1.
+	enc := []byte{0x07, 0x0a, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04}
+
+	var ip net.IP
+	err := NewDecoder(bytes.NewReader(enc)).Decode(&ip)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if ip.String() != "1.2.3.4" {
+		t.Errorf("decoded to %v, want 1.2.3.4", ip.String())
 	}
 }
