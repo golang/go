@@ -12,7 +12,7 @@
 
 Go-specific considerations are documented at
 
-	http://golang.org/doc/asm.html
+	http://golang.org/doc/asm
 
 Its target architecture is the ARM, referred to by these tools as arm.
 
