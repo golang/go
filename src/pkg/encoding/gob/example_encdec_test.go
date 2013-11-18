@@ -37,7 +37,7 @@ func (v *Vector) UnmarshalBinary(data []byte) error {
 }
 
 // This example transmits a value that implements the custom encoding and decoding methods.
-func Example_gob_encode_decode() {
+func Example_encodeDecode() {
 	var network bytes.Buffer // Stand-in for the network.
 
 	// Create an encoder and send a value.
