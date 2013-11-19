@@ -4,8 +4,12 @@ import (
 	"time"
 )
 
-func Benchmark(N int64) error {
-	// 13+
+func main() {
+	PerfBenchmark(SleepBenchmark)
+}
+
+func SleepBenchmark(N int64) (metrics []PerfMetric, err error) {
 	time.Sleep(time.Duration(N) * time.Millisecond)
-	return nil
+	metrics = append(metrics, PerfMetric{"foo", 42})
+	return
 }

@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
+	"log"
 	"time"
+	"runtime"
 )
 
 var (
@@ -13,45 +14,68 @@ var (
 	benchMem  = flag.Int("benchmem", 64, "approx RSS value to aim at in benchmarks, in MB")
 )
 
-type Result struct {
+type PerfResult struct {
 	N       int64
 	RunTime time.Duration
+	Metrics []PerfMetric
 }
 
-func main() {
-	flag.Parse()
-	var res Result
+type PerfMetric struct {
+	Type  string
+	Val   int64
+}
+
+type BenchFunc func(N int64) ([]PerfMetric, error)
+
+func PerfBenchmark(f BenchFunc) {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	var res PerfResult
 	for i := 0; i < *benchNum; i++ {
-		res1 := RunBenchmark()
+		res1 := RunBenchmark(f)
 		if res.RunTime == 0 || res.RunTime > res1.RunTime {
 			res = res1
 		}
 	}
 	fmt.Printf("GOPERF-METRIC:runtime=%v\n", int64(res.RunTime)/res.N)
+	for _, m := range res.Metrics {
+		fmt.Printf("GOPERF-METRIC:%v=%v\n", m.Type, m.Val)
+	}
 }
 
-func RunBenchmark() Result {
-	var res Result
+func RunBenchmark(f BenchFunc) PerfResult {
+	var res PerfResult
 	for ChooseN(&res) {
-		res = RunOnce(res.N)
+		log.Printf("Benchmarking %v iterations\n", res.N)
+		res = RunOnce(f, res.N)
+		log.Printf("Done: %+v\n", res)
 	}
 	return res
 }
 
-func RunOnce(N int64) Result {
-	fmt.Printf("Benchmarking %v iterations\n", N)
+func RunOnce(f BenchFunc, N int64) PerfResult {
+	runtime.GC()
+	mstats0 := new(runtime.MemStats)
+	runtime.ReadMemStats(mstats0)
+	res := PerfResult{N: N}
+
 	t0 := time.Now()
-	err := Benchmark(N)
-	if err != nil {
-		fmt.Printf("Benchmark function failed: %v\n", err)
-		os.Exit(1)
-	}
-	res := Result{N: N}
+	var err error
+	res.Metrics, err = f(N)
 	res.RunTime = time.Since(t0)
+
+	if err != nil {
+		log.Fatalf("Benchmark function failed: %v\n", err)
+	}
+
+	mstats1 := new(runtime.MemStats)
+	runtime.ReadMemStats(mstats1)
+	fmt.Printf("%+v\n", *mstats1)
 	return res
 }
 
-func ChooseN(res *Result) bool {
+func ChooseN(res *PerfResult) bool {
 	const MaxN = 1e12
 	last := res.N
 	if last == 0 {
