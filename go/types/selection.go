@@ -139,7 +139,7 @@ func SelectionString(this *Package, s *Selection) string {
 	var buf bytes.Buffer
 	buf.WriteString(k)
 	buf.WriteByte('(')
-	writeType(&buf, this, s.Recv())
+	WriteType(&buf, this, s.Recv())
 	fmt.Fprintf(&buf, ") %s", s.obj.Name())
 	writeSignature(&buf, this, s.Type().(*Signature))
 	return buf.String()

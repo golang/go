@@ -236,10 +236,10 @@ func TestInitOrder(t *testing.T) {
 			"z = 0", "a, b = f()",
 		}},
 		{`package p7; var (a = func() int { return b }(); b = 1)`, []string{
-			"b = 1", "a = (func literal)()",
+			"b = 1", "a = (func() int literal)()",
 		}},
 		{`package p8; var (a, b = func() (_, _ int) { return c, c }(); c = 1)`, []string{
-			"c = 1", "a, b = (func literal)()",
+			"c = 1", "a, b = (func() (_, _ int) literal)()",
 		}},
 		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
 			"y = 1", "x = T.m",
@@ -263,29 +263,6 @@ func TestInitOrder(t *testing.T) {
 				t.Errorf("package %s, init %d: got %s; want %s", name, i, got, want)
 				continue
 			}
-		}
-	}
-}
-
-func TestTypeString(t *testing.T) {
-	p, _ := pkgFor("p.go", "package p; type T int", nil)
-	q, _ := pkgFor("q.go", "package q", nil)
-
-	pT := p.Scope().Lookup("T").Type()
-	for _, test := range []struct {
-		typ  Type
-		this *Package
-		want string
-	}{
-		{pT, nil, "p.T"},
-		{pT, p, "T"},
-		{pT, q, "p.T"},
-		{NewPointer(pT), p, "*T"},
-		{NewPointer(pT), q, "*p.T"},
-	} {
-		if got := TypeString(test.this, test.typ); got != test.want {
-			t.Errorf("TypeString(%s, %s) = %s, want %s",
-				test.this, test.typ, got, test.want)
 		}
 	}
 }

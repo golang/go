@@ -328,7 +328,7 @@ func (p *parser) parseQualifiedName() (id, name string) {
 	p.expect('@')
 	id = p.parsePackageId()
 	p.expect('.')
-	// Per rev f280b8a485fd (10/2/2013), qualified names may be used for anoymous fields.
+	// Per rev f280b8a485fd (10/2/2013), qualified names may be used for anonymous fields.
 	if p.tok == '?' {
 		p.next()
 	} else {

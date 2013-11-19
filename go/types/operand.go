@@ -147,7 +147,7 @@ func (x *operand) String() string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			buf.WriteString(" of type ")
-			writeType(&buf, nil, x.typ)
+			WriteType(&buf, nil, x.typ)
 		} else {
 			buf.WriteString(" with invalid type")
 		}

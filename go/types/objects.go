@@ -270,7 +270,7 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
 	buf.WriteString(obj.Name())
 	if typ != nil {
 		buf.WriteByte(' ')
-		writeType(buf, this, typ)
+		WriteType(buf, this, typ)
 	}
 }
 
@@ -305,7 +305,7 @@ func writeFuncName(buf *bytes.Buffer, this *Package, f *Func) {
 				// Don't print it in full.
 				buf.WriteString("interface")
 			} else {
-				writeType(buf, this, recv.Type())
+				WriteType(buf, this, recv.Type())
 			}
 			buf.WriteByte(')')
 			buf.WriteByte('.')
