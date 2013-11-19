@@ -186,19 +186,29 @@ func selects() {
 	var (
 		ch chan int
 		sc chan <- bool
-		x int
 	)
 	select {
 	case <-ch:
-		ch <- x
+	case (<-ch):
+	case t := <-ch:
+		_ = t
+	case t := (<-ch):
+		_ = t
 	case t, ok := <-ch:
-		x = t
-		_ = ok
+		_, _ = t, ok
+	case t, ok := (<-ch):
+		_, _ = t, ok
 	case <-sc /* ERROR "cannot receive from send-only channel" */ :
 	}
 	select {
 	default:
 	default /* ERROR "multiple defaults" */ :
+	}
+	select {
+	case a, b := <-ch:
+		_, b = a, b
+	case x /* ERROR send or receive */ :
+	case a /* ERROR send or receive */ := ch:
 	}
 }
 
