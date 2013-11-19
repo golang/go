@@ -115,8 +115,9 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 			s = "<-chan "
 		default:
 			s = "chan "
-			if c, _ := t.elem.(*Chan); c != nil {
-				parens = c.dir == ast.RECV
+			// chan (<-chan T) requires parentheses
+			if c, _ := t.elem.(*Chan); c != nil && c.dir == ast.RECV {
+				parens = true
 			}
 		}
 		buf.WriteString(s)
