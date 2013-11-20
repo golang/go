@@ -19,7 +19,7 @@ reference to var lib.Var int
 defined here
 
 -------- @describe ref-type --------
-reference to type lib.Type
+reference to type lib.Type (size 8, align 8)
 defined as int
 Method set:
 	method (lib.Type) Method(x *int) *int

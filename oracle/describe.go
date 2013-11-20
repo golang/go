@@ -639,10 +639,22 @@ func describeType(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeTypeResu
 		return nil, fmt.Errorf("unexpected AST for type: %T", n)
 	}
 
+	description = description + "type " + qpos.TypeString(t)
+
+	// Show sizes for structs and named types (it's fairly obvious for others).
+	switch t.(type) {
+	case *types.Named, *types.Struct:
+		// TODO(adonovan): use o.imp.Config().TypeChecker.Sizes when
+		// we add the Config() method (needs some thought).
+		szs := types.StdSizes{8, 8}
+		description = fmt.Sprintf("%s (size %d, align %d)", description,
+			szs.Sizeof(t), szs.Alignof(t))
+	}
+
 	return &describeTypeResult{
 		qpos:        qpos,
 		node:        path[0],
-		description: description + "type " + qpos.TypeString(t),
+		description: description,
 		typ:         t,
 		methods:     accessibleMethods(t, qpos.info.Pkg),
 	}, nil

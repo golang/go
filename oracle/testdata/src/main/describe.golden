@@ -50,13 +50,13 @@ reference to interface method func (I).f()
 defined here
 
 -------- @describe type-D --------
-reference to type D
+reference to type D (size 0, align 1)
 defined as struct{}
 Method set:
 	method (D) f()
 
 -------- @describe type-I --------
-reference to type I
+reference to type I (size 16, align 8)
 defined as interface{f()}
 Method set:
 	method (I) f()
@@ -140,11 +140,11 @@ reference to const localpi untyped float of constant value 3141/1000
 defined here
 
 -------- @describe type-def-T --------
-definition of type T
+definition of type T (size 8, align 8)
 No methods.
 
 -------- @describe type-ref-T --------
-reference to type T
+reference to type T (size 8, align 8)
 defined as int
 No methods.
 
@@ -186,7 +186,7 @@ definition of var b *int
 no points-to information: PTA did not encounter this expression (dead code?)
 
 -------- @describe def-iface-I --------
-definition of type I
+definition of type I (size 16, align 8)
 Method set:
 	method (I) f()
 

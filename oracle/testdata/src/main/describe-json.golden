@@ -133,7 +133,7 @@
 {
 	"mode": "describe",
 	"describe": {
-		"desc": "definition of type C",
+		"desc": "definition of type C (size 8, align 8)",
 		"pos": "testdata/src/main/describe-json.go:27:6",
 		"detail": "type",
 		"type": {
