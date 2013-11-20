@@ -57,7 +57,7 @@ func assignments1() {
 	f -= "foo" /* ERROR "cannot convert.*float64" */
 
 	c *= 1
-	c /= 0 /* ERROR "division by zero" */
+	c /= 0
 
 	s += "bar"
 	s += 1 /* ERROR "cannot convert.*string" */
