@@ -29,24 +29,19 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
-	"go/ast"
 	"go/build"
-	"go/printer"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	_ "net/http/pprof" // to serve /debug/pprof/*
 	"net/url"
 	"os"
-	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 
 	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/static"
@@ -118,32 +113,6 @@ func loggingHandler(h http.Handler) http.Handler {
 		log.Printf("%s\t%s", req.RemoteAddr, req.URL)
 		h.ServeHTTP(w, req)
 	})
-}
-
-// Does s look like a regular expression?
-func isRegexp(s string) bool {
-	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
-}
-
-// Make a regular expression of the form
-// names[0]|names[1]|...names[len(names)-1].
-// Returns nil if the regular expression is illegal.
-func makeRx(names []string) (rx *regexp.Regexp) {
-	if len(names) > 0 {
-		s := ""
-		for i, name := range names {
-			if i > 0 {
-				s += "|"
-			}
-			if isRegexp(name) {
-				s += name
-			} else {
-				s += "^" + name + "$" // must match exactly
-			}
-		}
-		rx, _ = regexp.Compile(s) // rx is nil if there's a compilation error
-	}
-	return
 }
 
 func handleURLFlag() {
@@ -239,11 +208,13 @@ func main() {
 	pres.ShowPlayground = *showPlayground
 	pres.ShowExamples = *showExamples
 	pres.DeclLinks = *declLinks
+	pres.SrcMode = *srcMode
+	pres.HTMLMode = *html
 	if *notesRx != "" {
 		pres.NotesRx = regexp.MustCompile(*notesRx)
 	}
 
-	readTemplates(pres, httpMode || *urlFlag != "" || *html)
+	readTemplates(pres, httpMode || *urlFlag != "")
 	registerHandlers(pres)
 
 	if *writeIndex {
@@ -312,152 +283,12 @@ func main() {
 		return
 	}
 
-	packageText := pres.PackageText
-
-	// Command line mode.
-	if *html {
-		packageText = pres.PackageHTML
-	}
-
 	if *query {
 		handleRemoteSearch()
 		return
 	}
 
-	// Determine paths.
-	//
-	// If we are passed an operating system path like . or ./foo or /foo/bar or c:\mysrc,
-	// we need to map that path somewhere in the fs name space so that routines
-	// like getPageInfo will see it.  We use the arbitrarily-chosen virtual path "/target"
-	// for this.  That is, if we get passed a directory like the above, we map that
-	// directory so that getPageInfo sees it as /target.
-	const target = "/target"
-	const cmdPrefix = "cmd/"
-	path := flag.Arg(0)
-	var forceCmd bool
-	var abspath, relpath string
-	if filepath.IsAbs(path) {
-		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
-		abspath = target
-	} else if build.IsLocalImport(path) {
-		cwd, _ := os.Getwd() // ignore errors
-		path = filepath.Join(cwd, path)
-		fs.Bind(target, vfs.OS(path), "/", vfs.BindReplace)
-		abspath = target
-	} else if strings.HasPrefix(path, cmdPrefix) {
-		path = strings.TrimPrefix(path, cmdPrefix)
-		forceCmd = true
-	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
-		fs.Bind(target, vfs.OS(bp.Dir), "/", vfs.BindReplace)
-		abspath = target
-		relpath = bp.ImportPath
-	} else {
-		abspath = pathpkg.Join(pres.PkgFSRoot(), path)
-	}
-	if relpath == "" {
-		relpath = abspath
-	}
-
-	var mode godoc.PageInfoMode
-	if relpath == "builtin" {
-		// the fake built-in package contains unexported identifiers
-		mode = godoc.NoFiltering | godoc.NoFactoryFuncs
-	}
-	if *srcMode {
-		// only filter exports if we don't have explicit command-line filter arguments
-		if flag.NArg() > 1 {
-			mode |= godoc.NoFiltering
-		}
-		mode |= godoc.ShowSource
-	}
-
-	// First, try as package unless forced as command.
-	var info *godoc.PageInfo
-	if !forceCmd {
-		info = pres.GetPkgPageInfo(abspath, relpath, mode)
-	}
-
-	// Second, try as command (if the path is not absolute).
-	var cinfo *godoc.PageInfo
-	if !filepath.IsAbs(path) {
-		// First try go.tools/cmd.
-		abspath = pathpkg.Join(pres.PkgFSRoot(), toolsPath+path)
-		cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
-		if cinfo.IsEmpty() {
-			// Then try $GOROOT/cmd.
-			abspath = pathpkg.Join(pres.CmdFSRoot(), path)
-			cinfo = pres.GetCmdPageInfo(abspath, relpath, mode)
-		}
-	}
-
-	// determine what to use
-	if info == nil || info.IsEmpty() {
-		if cinfo != nil && !cinfo.IsEmpty() {
-			// only cinfo exists - switch to cinfo
-			info = cinfo
-		}
-	} else if cinfo != nil && !cinfo.IsEmpty() {
-		// both info and cinfo exist - use cinfo if info
-		// contains only subdirectory information
-		if info.PAst == nil && info.PDoc == nil {
-			info = cinfo
-		} else {
-			fmt.Printf("use 'godoc %s%s' for documentation on the %s command \n\n", cmdPrefix, relpath, relpath)
-		}
-	}
-
-	if info == nil {
-		log.Fatalf("%s: no such directory or package", flag.Arg(0))
-	}
-	if info.Err != nil {
-		log.Fatalf("%v", info.Err)
-	}
-
-	if info.PDoc != nil && info.PDoc.ImportPath == target {
-		// Replace virtual /target with actual argument from command line.
-		info.PDoc.ImportPath = flag.Arg(0)
-	}
-
-	// If we have more than one argument, use the remaining arguments for filtering.
-	if flag.NArg() > 1 {
-		args := flag.Args()[1:]
-		rx := makeRx(args)
-		if rx == nil {
-			log.Fatalf("illegal regular expression from %v", args)
-		}
-
-		filter := func(s string) bool { return rx.MatchString(s) }
-		switch {
-		case info.PAst != nil:
-			cmap := ast.NewCommentMap(info.FSet, info.PAst, info.PAst.Comments)
-			ast.FilterFile(info.PAst, filter)
-			// Special case: Don't use templates for printing
-			// so we only get the filtered declarations without
-			// package clause or extra whitespace.
-			for i, d := range info.PAst.Decls {
-				// determine the comments associated with d only
-				comments := cmap.Filter(d).Comments()
-				cn := &printer.CommentedNode{Node: d, Comments: comments}
-				if i > 0 {
-					fmt.Println()
-				}
-				if *html {
-					var buf bytes.Buffer
-					pres.WriteNode(&buf, info.FSet, cn)
-					godoc.FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
-				} else {
-					pres.WriteNode(os.Stdout, info.FSet, cn)
-				}
-				fmt.Println()
-			}
-			return
-
-		case info.PDoc != nil:
-			info.PDoc.Filter(filter)
-		}
-	}
-
-	if err := packageText.Execute(os.Stdout, info); err != nil {
-		log.Printf("packageText.Execute: %s", err)
+	if err := godoc.CommandLine(os.Stdout, fs, pres, flag.Args()); err != nil {
+		log.Print(err)
 	}
 }
