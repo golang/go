@@ -268,14 +268,11 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 }
 
 // emitExtract emits to f an instruction to extract the index'th
-// component of tuple, ascribing it type typ.  It returns the
-// extracted value.
+// component of tuple.  It returns the extracted value.
 //
-func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
+func emitExtract(f *Function, tuple Value, index int) Value {
 	e := &Extract{Tuple: tuple, Index: index}
-	// In all cases but one (tSelect's recv), typ is redundant w.r.t.
-	// tuple.Type().(*types.Tuple).Values[index].Type.
-	e.setType(typ)
+	e.setType(tuple.Type().(*types.Tuple).At(index).Type())
 	return f.emit(e)
 }
 
@@ -329,7 +326,7 @@ func emitTailCall(f *Function, call *Call) {
 		ret.Results = []Value{tuple}
 	default:
 		for i := 0; i < nr; i++ {
-			v := emitExtract(f, tuple, i, tresults.At(i).Type())
+			v := emitExtract(f, tuple, i)
 			// TODO(adonovan): in principle, this is required:
 			//   v = emitConv(f, o.Type, f.Signature.Results[i].Type)
 			// but in practice emitTailCall is only used when

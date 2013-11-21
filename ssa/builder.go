@@ -855,7 +855,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 		v := b.expr(fn, arg)
 		if ttuple, ok := v.Type().(*types.Tuple); ok { // MRV chain
 			for i, n := 0, ttuple.Len(); i < n; i++ {
-				args = append(args, emitExtract(fn, v, i, ttuple.At(i).Type()))
+				args = append(args, emitExtract(fn, v, i))
 			}
 		} else {
 			args = append(args, v)
@@ -955,12 +955,11 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 	default:
 		// e.g. var x, y = pos()
 		tuple := b.exprN(fn, spec.Values[0])
-		result := tuple.Type().(*types.Tuple)
 		for i, id := range spec.Names {
 			if !isBlankIdent(id) {
 				fn.addLocalForIdent(id)
 				lhs := b.addr(fn, id, false) // non-escaping
-				lhs.store(fn, emitExtract(fn, tuple, i, result.At(i).Type()))
+				lhs.store(fn, emitExtract(fn, tuple, i))
 			}
 		}
 	}
@@ -1012,9 +1011,8 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 	} else {
 		// e.g. x, y = pos()
 		tuple := b.exprN(fn, rhss[0])
-		result := tuple.Type().(*types.Tuple)
 		for i, lval := range lvals {
-			lval.store(fn, emitExtract(fn, tuple, i, result.At(i).Type()))
+			lval.store(fn, emitExtract(fn, tuple, i))
 		}
 	}
 }
@@ -1307,8 +1305,8 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 				ti = x
 			} else {
 				yok := emitTypeTest(fn, x, casetype, cc.Case)
-				ti = emitExtract(fn, yok, 0, casetype)
-				condv = emitExtract(fn, yok, 1, tBool)
+				ti = emitExtract(fn, yok, 0)
+				condv = emitExtract(fn, yok, 1)
 			}
 			emitIf(fn, condv, body, next)
 			fn.currentBlock = next
@@ -1451,7 +1449,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	sel.setType(types.NewTuple(vars...))
 
 	fn.emit(sel)
-	idx := emitExtract(fn, sel, 0, tInt)
+	idx := emitExtract(fn, sel, 0)
 
 	done := fn.newBasicBlock("select.done")
 	if label != nil {
@@ -1478,7 +1476,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		switch comm := clause.Comm.(type) {
 		case *ast.ExprStmt: // <-ch
 			if debugInfo {
-				v := emitExtract(fn, sel, r, vars[r].Type())
+				v := emitExtract(fn, sel, r)
 				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v, false)
 			}
 			r++
@@ -1488,7 +1486,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 				fn.addLocalForIdent(comm.Lhs[0].(*ast.Ident))
 			}
 			x := b.addr(fn, comm.Lhs[0], false) // non-escaping
-			v := emitExtract(fn, sel, r, vars[r].Type())
+			v := emitExtract(fn, sel, r)
 			if debugInfo {
 				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v, false)
 			}
@@ -1499,7 +1497,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 					fn.addLocalForIdent(comm.Lhs[1].(*ast.Ident))
 				}
 				ok := b.addr(fn, comm.Lhs[1], false) // non-escaping
-				ok.store(fn, emitExtract(fn, sel, 1, deref(ok.typ())))
+				ok.store(fn, emitExtract(fn, sel, 1))
 			}
 			r++
 		}
@@ -1717,14 +1715,14 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 
 	body := fn.newBasicBlock("rangeiter.body")
 	done = fn.newBasicBlock("rangeiter.done")
-	emitIf(fn, emitExtract(fn, okv, 0, tBool), body, done)
+	emitIf(fn, emitExtract(fn, okv, 0), body, done)
 	fn.currentBlock = body
 
 	if tk != tInvalid {
-		k = emitExtract(fn, okv, 1, tk)
+		k = emitExtract(fn, okv, 1)
 	}
 	if tv != tInvalid {
-		v = emitExtract(fn, okv, 2, tv)
+		v = emitExtract(fn, okv, 2)
 	}
 	return
 }
@@ -1763,10 +1761,10 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type, pos token.Pos)
 	ko := fn.emit(recv)
 	body := fn.newBasicBlock("rangechan.body")
 	done = fn.newBasicBlock("rangechan.done")
-	emitIf(fn, emitExtract(fn, ko, 1, tBool), body, done)
+	emitIf(fn, emitExtract(fn, ko, 1), body, done)
 	fn.currentBlock = body
 	if tk != nil {
-		k = emitExtract(fn, ko, 0, tk)
+		k = emitExtract(fn, ko, 0)
 	}
 	return
 }
@@ -1952,7 +1950,7 @@ start:
 			ttuple := tuple.Type().(*types.Tuple)
 			for i, n := 0, ttuple.Len(); i < n; i++ {
 				results = append(results,
-					emitConv(fn, emitExtract(fn, tuple, i, ttuple.At(i).Type()),
+					emitConv(fn, emitExtract(fn, tuple, i),
 						fn.Signature.Results().At(i).Type()))
 			}
 		} else {
@@ -2239,13 +2237,11 @@ func (p *Package) Build() {
 		} else {
 			// n:1 initialization: var x, y :=  f()
 			tuple := b.exprN(init, varinit.Rhs)
-			result := tuple.Type().(*types.Tuple)
 			for i, v := range varinit.Lhs {
 				if v.Name() == "_" {
 					continue
 				}
-				emitStore(init, p.values[v].(*Global),
-					emitExtract(init, tuple, i, result.At(i).Type()))
+				emitStore(init, p.values[v].(*Global), emitExtract(init, tuple, i))
 			}
 		}
 	}

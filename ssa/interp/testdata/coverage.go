@@ -571,3 +571,28 @@ func init() {
 		panic(ints)
 	}
 }
+
+func init() {
+	// Regression test for issue 6806.
+	ch := make(chan int)
+	select {
+	case n, _ := <-ch:
+		_ = n
+	default:
+		// The default case disables the simplification of
+		// select to a simple receive statement.
+	}
+
+	// value,ok-form receive where TypeOf(ok) is a named boolean.
+	type mybool bool
+	var x int
+	var y mybool
+	select {
+	case x, y = <-ch:
+	default:
+		// The default case disables the simplification of
+		// select to a simple receive statement.
+	}
+	_ = x
+	_ = y
+}
