@@ -7,6 +7,7 @@ package godoc
 import (
 	"bytes"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -130,5 +131,71 @@ func testIndex(t *testing.T, ix *Index) {
 		},
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Exports = %v; want %v", got, want)
+	}
+
+	if got, want := ix.Idents(), map[SpotKind]map[string][]Ident{
+		ConstDecl: map[string][]Ident{
+			"Pi": []Ident{{"/src/pkg/foo", "foo", "Pi", ""}},
+		},
+		VarDecl: map[string][]Ident{
+			"Foos": []Ident{{"/src/pkg/foo", "foo", "Foos", ""}},
+		},
+		TypeDecl: map[string][]Ident{
+			"Foo": []Ident{{"/src/pkg/foo", "foo", "Foo", "Foo is stuff."}},
+		},
+		FuncDecl: map[string][]Ident{
+			"New": []Ident{{"/src/pkg/foo", "foo", "New", ""}},
+			"X":   []Ident{{"/src/pkg/other/bar", "bar", "X", ""}},
+		},
+	}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Idents = %v; want %v", got, want)
+	}
+}
+
+func TestIdentResultSort(t *testing.T) {
+	for _, tc := range []struct {
+		ir  []Ident
+		exp []Ident
+	}{
+		{
+			ir: []Ident{
+				{"/a/b/pkg2", "pkg2", "MyFunc2", ""},
+				{"/b/d/pkg3", "pkg3", "MyFunc3", ""},
+				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
+			},
+			exp: []Ident{
+				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
+				{"/a/b/pkg2", "pkg2", "MyFunc2", ""},
+				{"/b/d/pkg3", "pkg3", "MyFunc3", ""},
+			},
+		},
+	} {
+		if sort.Sort(byPackage(tc.ir)); !reflect.DeepEqual(tc.ir, tc.exp) {
+			t.Errorf("got: %v, want %v", tc.ir, tc.exp)
+		}
+	}
+}
+
+func TestIdentPackageFilter(t *testing.T) {
+	for _, tc := range []struct {
+		ir  []Ident
+		pak string
+		exp []Ident
+	}{
+		{
+			ir: []Ident{
+				{"/a/b/pkg2", "pkg2", "MyFunc2", ""},
+				{"/b/d/pkg3", "pkg3", "MyFunc3", ""},
+				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
+			},
+			pak: "pkg2",
+			exp: []Ident{
+				{"/a/b/pkg2", "pkg2", "MyFunc2", ""},
+			},
+		},
+	} {
+		if res := byPackage(tc.ir).filter(tc.pak); !reflect.DeepEqual(res, tc.exp) {
+			t.Errorf("got: %v, want %v", res, tc.exp)
+		}
 	}
 }

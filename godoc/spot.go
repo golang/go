@@ -34,6 +34,23 @@ const (
 	nKinds
 )
 
+var (
+	// These must match the SpotKind values above.
+	name = []string{
+		"Packages",
+		"Imports",
+		"Constants",
+		"Types",
+		"Variables",
+		"Functions",
+		"Methods",
+		"Uses",
+		"Unknown",
+	}
+)
+
+func (x SpotKind) Name() string { return name[x] }
+
 func init() {
 	// sanity check: if nKinds is too large, the SpotInfo
 	// accessor functions may need to be updated

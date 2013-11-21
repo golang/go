@@ -45,8 +45,25 @@ type Corpus struct {
 	// built once.
 	IndexInterval time.Duration
 
+	// IndexDocs enables indexing of Go documentation.
+	// This will produce search results for exported types, functions,
+	// methods, variables, and constants, and will link to the godoc
+	// documentation for those identifiers.
+	IndexDocs bool
+
+	// IndexGoCode enables indexing of Go source code.
+	// This will produce search results for internal and external identifiers
+	// and will link to both declarations and uses of those identifiers in
+	// source code.
+	IndexGoCode bool
+
+	// IndexFullText enables full-text indexing.
+	// This will provide search results for any matching text in any file that
+	// is indexed, including non-Go files (see whitelisted in index.go).
+	// Regexp searching is supported via full-text indexing.
+	IndexFullText bool
+
 	// MaxResults optionally specifies the maximum results for indexing.
-	// The default is 1000.
 	MaxResults int
 
 	// SummarizePackage optionally specifies a function to
@@ -85,14 +102,18 @@ type Corpus struct {
 }
 
 // NewCorpus returns a new Corpus from a filesystem.
-// Set any options on Corpus before calling the Corpus.Init method.
+// The returned corpus has all indexing enabled and MaxResults set to 1000.
+// Change or set any options on Corpus before calling the Corpus.Init method.
 func NewCorpus(fs vfs.FileSystem) *Corpus {
 	c := &Corpus{
 		fs: fs,
 		refreshMetadataSignal: make(chan bool, 1),
 
-		MaxResults:   1000,
-		IndexEnabled: true,
+		MaxResults:    1000,
+		IndexEnabled:  true,
+		IndexDocs:     true,
+		IndexGoCode:   true,
+		IndexFullText: true,
 	}
 	return c
 }

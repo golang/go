@@ -79,6 +79,7 @@ func (p *Presentation) initFuncMap() {
 		"pkgLink":     pkgLinkFunc,
 		"srcLink":     srcLinkFunc,
 		"posLink_url": newPosLink_urlFunc(srcPosLinkFunc),
+		"docLink":     docLinkFunc,
 
 		// formatting of Examples
 		"example_html":   p.example_htmlFunc,
@@ -295,6 +296,11 @@ func srcPosLinkFunc(s string, line, low, high int) string {
 
 func srcLinkFunc(s string) string {
 	return pathpkg.Clean("/" + s)
+}
+
+func docLinkFunc(s string, ident string) string {
+	s = strings.TrimPrefix(s, "/src")
+	return pathpkg.Clean("/"+s) + "/#" + ident
 }
 
 func (p *Presentation) example_textFunc(info *PageInfo, funcName, indent string) string {

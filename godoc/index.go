@@ -44,6 +44,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/parser"
 	"go/token"
 	"index/suffixarray"
@@ -348,12 +349,43 @@ func (a *AltWords) filter(s string) *AltWords {
 	return nil
 }
 
+// Ident stores information about external identifiers in order to create
+// links to package documentation.
+type Ident struct {
+	Path    string // e.g. "net/http"
+	Package string // e.g. "http"
+	Name    string // e.g. "NewRequest"
+	Doc     string // e.g. "NewRequest returns a new Request..."
+}
+
+type byPackage []Ident
+
+func (s byPackage) Len() int { return len(s) }
+func (s byPackage) Less(i, j int) bool {
+	if s[i].Package == s[j].Package {
+		return s[i].Path < s[j].Path
+	}
+	return s[i].Package < s[j].Package
+}
+func (s byPackage) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// Filter creates a new Ident list where the results match the given
+// package name.
+func (s byPackage) filter(pakname string) []Ident {
+	if s == nil {
+		return nil
+	}
+	var res []Ident
+	for _, i := range s {
+		if i.Package == pakname {
+			res = append(res, i)
+		}
+	}
+	return res
+}
+
 // ----------------------------------------------------------------------------
 // Indexer
-
-// Adjust these flags as seems best.
-const includeMainPackages = true
-const includeTestFiles = true
 
 type IndexResult struct {
 	Decls  RunList // package-level declarations (with snippets)
@@ -393,6 +425,7 @@ type Indexer struct {
 	packagePath   map[string]map[string]bool     // "template" => "text/template" => true
 	exports       map[string]map[string]SpotKind // "net/http" => "ListenAndServe" => FuncDecl
 	curPkgExports map[string]SpotKind
+	idents        map[SpotKind]map[string][]Ident // kind => name => list of Idents
 }
 
 func (x *Indexer) intern(s string) string {
@@ -441,9 +474,11 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	}
 
 	if kind == Use || x.decl == nil {
-		// not a declaration or no snippet required
-		info := makeSpotInfo(kind, x.current.Line(id.Pos()), false)
-		lists.Others = append(lists.Others, Spot{x.file, info})
+		if x.c.IndexGoCode {
+			// not a declaration or no snippet required
+			info := makeSpotInfo(kind, x.current.Line(id.Pos()), false)
+			lists.Others = append(lists.Others, Spot{x.file, info})
+		}
 	} else {
 		// a declaration with snippet
 		index := x.addSnippet(NewSnippet(x.fset, x.decl, id))
@@ -554,16 +589,6 @@ func (x *Indexer) Visit(node ast.Node) ast.Visitor {
 	return nil
 }
 
-func pkgName(filename string) string {
-	// use a new file set each time in order to not pollute the indexer's
-	// file set (which must stay in sync with the concatenated source code)
-	file, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.PackageClauseOnly)
-	if err != nil || file == nil {
-		return ""
-	}
-	return file.Name.Name
-}
-
 // addFile adds a file to the index if possible and returns the file set file
 // and the file's AST if it was successfully parsed as a Go file. If addFile
 // failed (that is, if the file was not added), it returns file == nil.
@@ -668,26 +693,132 @@ func isWhitelisted(filename string) bool {
 	return whitelisted[key]
 }
 
-func (x *Indexer) visitFile(dirname string, fi os.FileInfo, fulltextIndex bool) {
-	if fi.IsDir() {
+func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) {
+	pkgName := astFile.Name.Name
+	if pkgName == "main" {
+		return
+	}
+	astPkg := ast.Package{
+		Name: pkgName,
+		Files: map[string]*ast.File{
+			filename: astFile,
+		},
+	}
+	var m doc.Mode
+	docPkg := doc.New(&astPkg, pathpkg.Clean(dirname), m)
+	addIdent := func(sk SpotKind, name string, docstr string) {
+		if x.idents[sk] == nil {
+			x.idents[sk] = make(map[string][]Ident)
+		}
+		x.idents[sk][name] = append(x.idents[sk][name], Ident{
+			Path:    pathpkg.Clean(dirname),
+			Package: pkgName,
+			Name:    name,
+			Doc:     doc.Synopsis(docstr),
+		})
+	}
+	for _, c := range docPkg.Consts {
+		for _, name := range c.Names {
+			addIdent(ConstDecl, name, c.Doc)
+		}
+	}
+	for _, t := range docPkg.Types {
+		addIdent(TypeDecl, t.Name, t.Doc)
+		for _, c := range t.Consts {
+			for _, name := range c.Names {
+				addIdent(ConstDecl, name, c.Doc)
+			}
+		}
+		for _, v := range t.Vars {
+			for _, name := range v.Names {
+				addIdent(VarDecl, name, v.Doc)
+			}
+		}
+		for _, f := range t.Funcs {
+			addIdent(FuncDecl, f.Name, f.Doc)
+		}
+		for _, f := range t.Methods {
+			addIdent(MethodDecl, f.Name, f.Doc)
+			// Change the name of methods to be "<typename>.<methodname>".
+			// They will still be indexed as <methodname>.
+			idents := x.idents[MethodDecl][f.Name]
+			idents[len(idents)-1].Name = t.Name + "." + f.Name
+		}
+	}
+	for _, v := range docPkg.Vars {
+		for _, name := range v.Names {
+			addIdent(VarDecl, name, v.Doc)
+		}
+	}
+	for _, f := range docPkg.Funcs {
+		addIdent(FuncDecl, f.Name, f.Doc)
+	}
+}
+
+func (x *Indexer) indexGoFile(dirname string, filename string, file *token.File, astFile *ast.File) {
+	pkgName := astFile.Name.Name
+
+	if x.c.IndexGoCode {
+		x.current = file
+		pak := x.lookupPackage(dirname, pkgName)
+		x.file = &File{filename, pak}
+		ast.Walk(x, astFile)
+	}
+
+	if x.c.IndexDocs {
+		// Test files are already filtered out in visitFile if IndexGoCode and
+		// IndexFullText are false.  Otherwise, check here.
+		isTestFile := (x.c.IndexGoCode || x.c.IndexFullText) &&
+			(strings.HasSuffix(filename, "_test.go") || strings.HasPrefix(dirname, "test/"))
+		if !isTestFile {
+			x.indexDocs(dirname, filename, astFile)
+		}
+	}
+
+	ppKey := x.intern(pkgName)
+	if _, ok := x.packagePath[ppKey]; !ok {
+		x.packagePath[ppKey] = make(map[string]bool)
+	}
+	pkgPath := x.intern(strings.TrimPrefix(dirname, "/src/pkg/"))
+	x.packagePath[ppKey][pkgPath] = true
+
+	// Merge in exported symbols found walking this file into
+	// the map for that package.
+	if len(x.curPkgExports) > 0 {
+		dest, ok := x.exports[pkgPath]
+		if !ok {
+			dest = make(map[string]SpotKind)
+			x.exports[pkgPath] = dest
+		}
+		for k, v := range x.curPkgExports {
+			dest[k] = v
+		}
+	}
+}
+
+func (x *Indexer) visitFile(dirname string, fi os.FileInfo) {
+	if fi.IsDir() || !x.c.IndexEnabled {
 		return
 	}
 
 	filename := pathpkg.Join(dirname, fi.Name())
-	goFile := false
+	goFile := isGoFile(fi)
 
 	switch {
-	case isGoFile(fi):
-		if !includeTestFiles && (!isPkgFile(fi) || strings.HasPrefix(filename, "test/")) {
+	case x.c.IndexFullText:
+		if !isWhitelisted(fi.Name()) {
 			return
 		}
-		if !includeMainPackages && pkgName(filename) == "main" {
+	case x.c.IndexGoCode:
+		if !goFile {
 			return
 		}
-		goFile = true
-
-	case !fulltextIndex || !isWhitelisted(fi.Name()):
-		return
+	case x.c.IndexDocs:
+		if !goFile ||
+			strings.HasSuffix(fi.Name(), "_test.go") ||
+			strings.HasPrefix(dirname, "test/") {
+			return
+		}
 	}
 
 	x.fsOpenGate <- true
@@ -711,37 +842,35 @@ func (x *Indexer) visitFile(dirname string, fi os.FileInfo, fulltextIndex bool) 
 	}
 
 	if fast != nil {
-		// we've got a Go file to index
-		x.current = file
-		pak := x.lookupPackage(dirname, fast.Name.Name)
-		x.file = &File{fi.Name(), pak}
-		ast.Walk(x, fast)
-
-		ppKey := x.intern(fast.Name.Name)
-		if _, ok := x.packagePath[ppKey]; !ok {
-			x.packagePath[ppKey] = make(map[string]bool)
-		}
-		pkgPath := x.intern(strings.TrimPrefix(dirname, "/src/pkg/"))
-		x.packagePath[ppKey][pkgPath] = true
-
-		// Merge in exported symbols found walking this file into
-		// the map for that package.
-		if len(x.curPkgExports) > 0 {
-			dest, ok := x.exports[pkgPath]
-			if !ok {
-				dest = make(map[string]SpotKind)
-				x.exports[pkgPath] = dest
-			}
-			for k, v := range x.curPkgExports {
-				dest[k] = v
-			}
-		}
+		x.indexGoFile(dirname, fi.Name(), file, fast)
 	}
 
 	// update statistics
 	x.stats.Bytes += file.Size()
 	x.stats.Files++
 	x.stats.Lines += file.LineCount()
+}
+
+// indexOptions contains information that affects the contents of an index.
+type indexOptions struct {
+	// Docs provides documentation search results.
+	// It is only consulted if IndexEnabled is true.
+	// The default values is true.
+	Docs bool
+
+	// GoCode provides Go source code search results.
+	// It is only consulted if IndexEnabled is true.
+	// The default values is true.
+	GoCode bool
+
+	// FullText provides search results from all files.
+	// It is only consulted if IndexEnabled is true.
+	// The default values is true.
+	FullText bool
+
+	// MaxResults optionally specifies the maximum results for indexing.
+	// The default is 1000.
+	MaxResults int
 }
 
 // ----------------------------------------------------------------------------
@@ -762,6 +891,8 @@ type Index struct {
 	importCount map[string]int                 // package path ("net/http") => count
 	packagePath map[string]map[string]bool     // "template" => "text/template" => true
 	exports     map[string]map[string]SpotKind // "net/http" => "ListenAndServe" => FuncDecl
+	idents      map[SpotKind]map[string][]Ident
+	opts        indexOptions
 }
 
 func canonical(w string) string { return strings.ToLower(w) }
@@ -774,12 +905,18 @@ const (
 	maxOpenDirs  = 50
 )
 
-// NewIndex creates a new index for the .go files
-// in the directories given by dirnames.
-// The throttle parameter specifies a value between 0.0 and 1.0 that controls
-// artificial sleeping. If 0.0, the indexer always sleeps. If 1.0, the indexer
-// never sleeps.
-func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
+func (c *Corpus) throttle() float64 {
+	if c.IndexThrottle <= 0 {
+		return 0.9
+	}
+	if c.IndexThrottle > 1.0 {
+		return 1.0
+	}
+	return c.IndexThrottle
+}
+
+// NewIndex creates a new index for the .go files provided by the corpus.
+func (c *Corpus) NewIndex() *Index {
 	// initialize Indexer
 	// (use some reasonably sized maps to start)
 	x := &Indexer{
@@ -789,16 +926,17 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 		strings:     make(map[string]string),
 		packages:    make(map[Pak]*Pak, 256),
 		words:       make(map[string]*IndexResult, 8192),
-		throttle:    util.NewThrottle(throttle, 100*time.Millisecond), // run at least 0.1s at a time
+		throttle:    util.NewThrottle(c.throttle(), 100*time.Millisecond), // run at least 0.1s at a time
 		importCount: make(map[string]int),
 		packagePath: make(map[string]map[string]bool),
 		exports:     make(map[string]map[string]SpotKind),
+		idents:      make(map[SpotKind]map[string][]Ident, 4),
 	}
 
 	// index all files in the directories given by dirnames
 	var wg sync.WaitGroup // outstanding ReadDir + visitFile
 	dirGate := make(chan bool, maxOpenDirs)
-	for dirname := range dirnames {
+	for dirname := range c.fsDirnames() {
 		if c.IndexDirectory != nil && !c.IndexDirectory(dirname) {
 			continue
 		}
@@ -817,14 +955,14 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 				wg.Add(1)
 				go func(fi os.FileInfo) {
 					defer wg.Done()
-					x.visitFile(dirname, fi, fulltextIndex)
+					x.visitFile(dirname, fi)
 				}(fi)
 			}
 		}(dirname)
 	}
 	wg.Wait()
 
-	if !fulltextIndex {
+	if !c.IndexFullText {
 		// the file set, the current file, and the sources are
 		// not needed after indexing if no text index is built -
 		// help GC and clear them
@@ -863,8 +1001,14 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 
 	// create text index
 	var suffixes *suffixarray.Index
-	if fulltextIndex {
+	if c.IndexFullText {
 		suffixes = suffixarray.New(x.sources.Bytes())
+	}
+
+	for _, idMap := range x.idents {
+		for _, ir := range idMap {
+			sort.Sort(byPackage(ir))
+		}
 	}
 
 	return &Index{
@@ -877,12 +1021,19 @@ func NewIndex(c *Corpus, dirnames <-chan string, fulltextIndex bool, throttle fl
 		importCount: x.importCount,
 		packagePath: x.packagePath,
 		exports:     x.exports,
+		idents:      x.idents,
+		opts: indexOptions{
+			Docs:       x.c.IndexDocs,
+			GoCode:     x.c.IndexGoCode,
+			FullText:   x.c.IndexFullText,
+			MaxResults: x.c.MaxResults,
+		},
 	}
 }
 
 var ErrFileIndexVersion = errors.New("file index version out of date")
 
-const fileIndexVersion = 2
+const fileIndexVersion = 3
 
 // fileIndex is the subset of Index that's gob-encoded for use by
 // Index.Write and Index.Read.
@@ -896,6 +1047,8 @@ type fileIndex struct {
 	ImportCount map[string]int
 	PackagePath map[string]map[string]bool
 	Exports     map[string]map[string]SpotKind
+	Idents      map[SpotKind]map[string][]Ident
+	Opts        indexOptions
 }
 
 func (x *fileIndex) Write(w io.Writer) error {
@@ -923,6 +1076,8 @@ func (x *Index) WriteTo(w io.Writer) (n int64, err error) {
 		ImportCount: x.importCount,
 		PackagePath: x.packagePath,
 		Exports:     x.exports,
+		Idents:      x.idents,
+		Opts:        x.opts,
 	}
 	if err := fx.Write(w); err != nil {
 		return 0, err
@@ -941,7 +1096,7 @@ func (x *Index) WriteTo(w io.Writer) (n int64, err error) {
 	return n, nil
 }
 
-// Read reads the index from r into x; x must not be nil.
+// ReadFrom reads the index from r into x; x must not be nil.
 // If r does not also implement io.ByteReader, it will be wrapped in a bufio.Reader.
 // If the index is from an old version, the error is ErrFileIndexVersion.
 func (x *Index) ReadFrom(r io.Reader) (n int64, err error) {
@@ -964,7 +1119,8 @@ func (x *Index) ReadFrom(r io.Reader) (n int64, err error) {
 	x.importCount = fx.ImportCount
 	x.packagePath = fx.PackagePath
 	x.exports = fx.Exports
-
+	x.idents = fx.Idents
+	x.opts = fx.Opts
 	if fx.Fulltext {
 		x.fset = token.NewFileSet()
 		decode := func(x interface{}) error {
@@ -1003,6 +1159,12 @@ func (x *Index) Exports() map[string]map[string]SpotKind {
 	return x.exports
 }
 
+// Idents returns a map from identifier type to exported
+// symbol name to the list of identifiers matching that name.
+func (x *Index) Idents() map[SpotKind]map[string][]Ident {
+	return x.idents
+}
+
 func (x *Index) lookupWord(w string) (match *LookupResult, alt *AltWords) {
 	match = x.words[w]
 	alt = x.alts[canonical(w)]
@@ -1027,47 +1189,55 @@ func isIdentifier(s string) bool {
 }
 
 // For a given query, which is either a single identifier or a qualified
-// identifier, Lookup returns a list of packages, a LookupResult, and a
-// list of alternative spellings, if any. Any and all results may be nil.
-// If the query syntax is wrong, an error is reported.
-func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err error) {
+// identifier, Lookup returns a SearchResult containing packages, a LookupResult, a
+// list of alternative spellings, and identifiers, if any. Any and all results
+// may be nil.  If the query syntax is wrong, an error is reported.
+func (x *Index) Lookup(query string) (*SearchResult, error) {
 	ss := strings.Split(query, ".")
 
 	// check query syntax
 	for _, s := range ss {
 		if !isIdentifier(s) {
-			err = errors.New("all query parts must be identifiers")
-			return
+			return nil, errors.New("all query parts must be identifiers")
 		}
 	}
-
+	rslt := &SearchResult{
+		Query:  query,
+		Idents: make(map[SpotKind][]Ident, 5),
+	}
 	// handle simple and qualified identifiers
 	switch len(ss) {
 	case 1:
 		ident := ss[0]
-		match, alt = x.lookupWord(ident)
-		if match != nil {
+		rslt.Hit, rslt.Alt = x.lookupWord(ident)
+		if rslt.Hit != nil {
 			// found a match - filter packages with same name
 			// for the list of packages called ident, if any
-			paks = match.Others.filter(ident)
+			rslt.Pak = rslt.Hit.Others.filter(ident)
+		}
+		for k, v := range x.idents {
+			rslt.Idents[k] = v[ident]
 		}
 
 	case 2:
 		pakname, ident := ss[0], ss[1]
-		match, alt = x.lookupWord(ident)
-		if match != nil {
+		rslt.Hit, rslt.Alt = x.lookupWord(ident)
+		if rslt.Hit != nil {
 			// found a match - filter by package name
 			// (no paks - package names are not qualified)
-			decls := match.Decls.filter(pakname)
-			others := match.Others.filter(pakname)
-			match = &LookupResult{decls, others}
+			decls := rslt.Hit.Decls.filter(pakname)
+			others := rslt.Hit.Others.filter(pakname)
+			rslt.Hit = &LookupResult{decls, others}
+		}
+		for k, v := range x.idents {
+			rslt.Idents[k] = byPackage(v[ident]).filter(pakname)
 		}
 
 	default:
-		err = errors.New("query is not a (qualified) identifier")
+		return nil, errors.New("query is not a (qualified) identifier")
 	}
 
-	return
+	return rslt, nil
 }
 
 func (x *Index) Snippet(i int) *Snippet {
@@ -1213,6 +1383,15 @@ func (c *Corpus) fsDirnames() <-chan string {
 	return ch
 }
 
+// CompatibleWith reports whether the Index x is compatible with the corpus
+// indexing options set in c.
+func (x *Index) CompatibleWith(c *Corpus) bool {
+	return x.opts.Docs == c.IndexDocs &&
+		x.opts.GoCode == c.IndexGoCode &&
+		x.opts.FullText == c.IndexFullText &&
+		x.opts.MaxResults == c.MaxResults
+}
+
 func (c *Corpus) readIndex(filenames string) error {
 	matches, err := filepath.Glob(filenames)
 	if err != nil {
@@ -1234,6 +1413,9 @@ func (c *Corpus) readIndex(filenames string) error {
 	if _, err := x.ReadFrom(io.MultiReader(files...)); err != nil {
 		return err
 	}
+	if !x.CompatibleWith(c) {
+		return fmt.Errorf("index file options are incompatible: %v", x.opts)
+	}
 	c.searchIndex.Set(x)
 	return nil
 }
@@ -1249,7 +1431,7 @@ func (c *Corpus) UpdateIndex() {
 	} else if throttle > 1.0 {
 		throttle = 1.0
 	}
-	index := NewIndex(c, c.fsDirnames(), c.MaxResults > 0, throttle)
+	index := c.NewIndex()
 	stop := time.Now()
 	c.searchIndex.Set(index)
 	if c.Verbose {

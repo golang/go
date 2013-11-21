@@ -190,7 +190,11 @@ func main() {
 
 	corpus := godoc.NewCorpus(fs)
 	corpus.Verbose = *verbose
+	corpus.MaxResults = *maxResults
 	corpus.IndexEnabled = *indexEnabled && httpMode
+	if *maxResults == 0 {
+		corpus.IndexFullText = false
+	}
 	corpus.IndexFiles = *indexFiles
 	corpus.IndexThrottle = *indexThrottle
 	if *writeIndex {

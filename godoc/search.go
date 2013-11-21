@@ -25,30 +25,30 @@ type SearchResult struct {
 	Found    int         // number of textual occurrences found
 	Textual  []FileLines // textual matches of Query
 	Complete bool        // true if all textual occurrences of Query are reported
+	Idents   map[SpotKind][]Ident
 }
 
 func (c *Corpus) Lookup(query string) SearchResult {
-	var result SearchResult
-	result.Query = query
+	result := &SearchResult{Query: query}
 
 	index, timestamp := c.CurrentIndex()
 	if index != nil {
 		// identifier search
 		var err error
-		result.Pak, result.Hit, result.Alt, err = index.Lookup(query)
-		if err != nil && c.MaxResults <= 0 {
+		result, err = index.Lookup(query)
+		if err != nil && !c.IndexFullText {
 			// ignore the error if full text search is enabled
 			// since the query may be a valid regular expression
 			result.Alert = "Error in query string: " + err.Error()
-			return result
+			return *result
 		}
 
 		// full text search
-		if c.MaxResults > 0 && query != "" {
+		if c.IndexFullText && query != "" {
 			rx, err := regexp.Compile(query)
 			if err != nil {
 				result.Alert = "Error in query regular expression: " + err.Error()
-				return result
+				return *result
 			}
 			// If we get maxResults+1 results we know that there are more than
 			// maxResults results and thus the result may be incomplete (to be
@@ -72,7 +72,7 @@ func (c *Corpus) Lookup(query string) SearchResult {
 		result.Alert = "Search index disabled: no results available"
 	}
 
-	return result
+	return *result
 }
 
 func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
@@ -84,8 +84,17 @@ func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	haveResults := result.Hit != nil || len(result.Textual) > 0
+	if !haveResults {
+		for _, ir := range result.Idents {
+			if ir != nil {
+				haveResults = true
+				break
+			}
+		}
+	}
 	var title string
-	if result.Hit != nil || len(result.Textual) > 0 {
+	if haveResults {
 		title = fmt.Sprintf(`Results for query %q`, query)
 	} else {
 		title = fmt.Sprintf(`No results found for query %q`, query)

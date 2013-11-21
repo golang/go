@@ -22,6 +22,13 @@ QUERY
 
 ---------------------------------------
 
+*/}}{{range $key, $val := .Idents}}{{if $val}}{{$key.Name}}
+{{range $val.Idents}}    {{.Path}}.{{.Name}}
+{{end}}
+{{end}}{{end}}{{/* .Idents */}}{{/*
+
+---------------------------------------
+
 */}}{{with .Hit}}{{with .Decls}}PACKAGE-LEVEL DECLARATIONS
 
 {{range .}}package {{.Pak.Name}}
