@@ -15,7 +15,7 @@ func main() { //
 	if i == nil {
 		i = new(D)
 	}
-	_ = i // @describe desc-val-i "i"
+	print(i) // @describe desc-val-i "\\bi\\b"
 
 	go main() // @describe desc-stmt "go"
 }

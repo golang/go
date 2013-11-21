@@ -45,7 +45,7 @@ func main() { // @describe func-def-main "main"
 	if i != nil {
 		i = D{} // @describe var-ref-i-D "i"
 	}
-	_ = i // @describe var-ref-i "i"
+	print(i) // @describe var-ref-i "\\bi\\b"
 
 	// const objects
 	const localpi = 3.141     // @describe const-local-pi "localpi"

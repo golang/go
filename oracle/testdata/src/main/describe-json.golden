@@ -98,7 +98,7 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "identifier",
-		"pos": "testdata/src/main/describe-json.go:18:6",
+		"pos": "testdata/src/main/describe-json.go:18:8",
 		"detail": "value",
 		"value": {
 			"type": "I",

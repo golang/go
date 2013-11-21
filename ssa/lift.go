@@ -209,8 +209,8 @@ func lift(fn *Function) {
 		nps := newPhis[b]
 		j := 0
 		for _, np := range nps {
-			if len(*np.phi.Referrers()) == 0 {
-				continue // unreferenced phi
+			if !phiIsLive(np.phi) {
+				continue // discard it
 			}
 			nps[j] = np
 			j++
@@ -264,6 +264,19 @@ func lift(fn *Function) {
 		fn.Locals[i] = nil
 	}
 	fn.Locals = fn.Locals[:j]
+}
+
+func phiIsLive(phi *Phi) bool {
+	for _, instr := range *phi.Referrers() {
+		if instr == phi {
+			continue // self-refs don't count
+		}
+		if _, ok := instr.(*DebugRef); ok {
+			continue // debug refs don't count
+		}
+		return true
+	}
+	return false
 }
 
 type blockSet struct{ big.Int } // (inherit methods from Int)
