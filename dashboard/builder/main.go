@@ -24,7 +24,6 @@ import (
 const (
 	codeProject          = "go"
 	codePyScript         = "misc/dashboard/googlecode_upload.py"
-	goImportPath         = "code.google.com/p/go"
 	gofrontendImportPath = "code.google.com/p/gofrontend"
 	mkdirPerm            = 0750
 	waitInterval         = 30 * time.Second // time to wait before checking for new revs
@@ -46,6 +45,7 @@ var (
 	buildRevision  = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
 	buildTool      = flag.String("tool", "go", "Tool to build.")
+	gcPath         = flag.String("gcpath", "code.google.com/p/go", "Path to download gc from")
 	gccPath        = flag.String("gccpath", "svn://gcc.gnu.org/svn/gcc/trunk", "Path to download gcc from")
 	failAll        = flag.Bool("fail", false, "fail all builds")
 	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
@@ -451,7 +451,7 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 func repoForTool() (*vcs.RepoRoot, error) {
 	switch *buildTool {
 	case "go":
-		return vcs.RepoRootForImportPath(goImportPath, *verbose)
+		return vcs.RepoRootForImportPath(*gcPath, *verbose)
 	case "gccgo":
 		return vcs.RepoRootForImportPath(gofrontendImportPath, *verbose)
 	default:
@@ -538,7 +538,7 @@ func commitPoll(repo *Repo, pkg, key string) {
 		return
 	}
 
-	// Pass 1.  Fill in parents and add new log entries to logsByHash.
+	// Pass 1.  Fill in parents and add new log entries to logByHash.
 	// Empty parent means take parent from next log entry.
 	// Non-empty parent has form 1234:hashhashhash; we want full hash.
 	for i := range logs {
@@ -596,7 +596,7 @@ func addCommit(pkg, hash, key string) bool {
 
 	// Create commit.
 	if err := postCommit(key, pkg, l); err != nil {
-		log.Printf("failed to add %s to dashboard: %v", key, err)
+		log.Printf("failed to add %s to dashboard: %v", hash, err)
 		return false
 	}
 	return true

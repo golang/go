@@ -27,7 +27,7 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 	var r *http.Response
 	var err error
 	if *verbose {
-		log.Println("dash", meth, cmd, args, req)
+		log.Println("dash <-", meth, cmd, args, req)
 	}
 	cmd = "http://" + *dashboard + "/" + cmd
 	if len(args) > 0 {
@@ -78,6 +78,9 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 	if err = json.Unmarshal(body.Bytes(), &result); err != nil {
 		log.Printf("json unmarshal %#q: %s\n", body.Bytes(), err)
 		return err
+	}
+	if *verbose {
+		log.Println("dash ->", result)
 	}
 	if result.Error != "" {
 		return errors.New(result.Error)
