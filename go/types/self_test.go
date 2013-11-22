@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,20 +18,13 @@ import (
 )
 
 func TestSelf(t *testing.T) {
-	filenames := pkgfiles(t, ".") // from stdlib_test.go
-
-	// parse package files
 	fset := token.NewFileSet()
-	var files []*ast.File
-	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		files = append(files, file)
+	files, err := pkgFiles(fset, ".")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	_, err := Check("go/types", fset, files)
+	_, err = Check("go/types", fset, files)
 	if err != nil {
 		// Importing go.tools/go/exact doensn't work in the
 		// build dashboard environment at the moment. Don't
@@ -40,36 +34,66 @@ func TestSelf(t *testing.T) {
 		t.Log(err) // replace w/ t.Fatal eventually
 		return
 	}
+}
 
+func TestBenchmark(t *testing.T) {
 	if testing.Short() {
 		return // skip benchmark in short mode
 	}
 
-	benchmark(fset, files, false)
-	benchmark(fset, files, true)
+	// We're not using testing's benchmarking mechanism directly
+	// because we want custom output.
+
+	for _, p := range []string{"types", "exact", "gcimporter"} {
+		path := filepath.Join("..", p)
+		benchmark(t, path, false)
+		benchmark(t, path, true)
+		fmt.Println()
+	}
 }
 
-func benchmark(fset *token.FileSet, files []*ast.File, full bool) {
+func benchmark(t *testing.T, path string, ignoreFuncBodies bool) {
+	fset := token.NewFileSet()
+	files, err := pkgFiles(fset, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			conf := Config{IgnoreFuncBodies: !full}
-			conf.Check("go/types", fset, files, nil)
+			conf := Config{IgnoreFuncBodies: ignoreFuncBodies}
+			conf.Check(path, fset, files, nil)
 		}
 	})
 
 	// determine line count
-	lineCount := 0
+	lines := 0
 	fset.Iterate(func(f *token.File) bool {
-		lineCount += f.LineCount()
+		lines += f.LineCount()
 		return true
 	})
 
 	d := time.Duration(b.NsPerOp())
 	fmt.Printf(
-		"%s/op, %d lines/s, %d KB/op (%d iterations)\n",
-		d,
-		int64(float64(lineCount)/d.Seconds()),
-		b.AllocedBytesPerOp()>>10,
-		b.N,
+		"%s: %s for %d lines (%d lines/s), ignoreFuncBodies = %v\n",
+		filepath.Base(path), d, lines, int64(float64(lines)/d.Seconds()), ignoreFuncBodies,
 	)
+}
+
+func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
+	filenames, err := pkgFilenames(path) // from stdlib_test.go
+	if err != nil {
+		return nil, err
+	}
+
+	var files []*ast.File
+	for _, filename := range filenames {
+		file, err := parser.ParseFile(fset, filename, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+
+	return files, nil
 }

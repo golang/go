@@ -179,19 +179,19 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	pkgCount++
 }
 
-// pkgfiles returns the list of package files for the given directory.
-func pkgfiles(t *testing.T, dir string) []string {
+// pkgFilenames returns the list of package filenames for the given directory.
+func pkgFilenames(dir string) ([]string, error) {
 	ctxt := build.Default
 	ctxt.CgoEnabled = false
 	pkg, err := ctxt.ImportDir(dir, 0)
 	if err != nil {
-		if _, nogo := err.(*build.NoGoError); !nogo {
-			t.Error(err)
+		if _, nogo := err.(*build.NoGoError); nogo {
+			return nil, nil // no *.go files, not an error
 		}
-		return nil
+		return nil, err
 	}
 	if excluded[pkg.ImportPath] {
-		return nil
+		return nil, nil
 	}
 	var filenames []string
 	for _, name := range pkg.GoFiles {
@@ -200,7 +200,7 @@ func pkgfiles(t *testing.T, dir string) []string {
 	for _, name := range pkg.TestGoFiles {
 		filenames = append(filenames, filepath.Join(pkg.Dir, name))
 	}
-	return filenames
+	return filenames, nil
 }
 
 // Note: Could use filepath.Walk instead of walkDirs but that wouldn't
@@ -220,7 +220,12 @@ func walkDirs(t *testing.T, dir string) {
 	}
 
 	// typecheck package in directory
-	if files := pkgfiles(t, dir); files != nil {
+	files, err := pkgFilenames(dir)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if files != nil {
 		typecheck(t, dir, files)
 	}
 
