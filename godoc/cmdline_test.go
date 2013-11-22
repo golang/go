@@ -2,6 +2,10 @@ package godoc
 
 import (
 	"bytes"
+	"go/build"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"testing"
@@ -11,7 +15,52 @@ import (
 	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 )
 
+// setupGoroot creates temporary directory to act as GOROOT when running tests
+// that depend upon the build package.  It updates build.Default to point to the
+// new GOROOT.
+// It returns a function that can be called to reset build.Default and remove
+// the temporary directory.
+func setupGoroot(t *testing.T) (cleanup func()) {
+	var stdLib = map[string]string{
+		"src/pkg/fmt/fmt.go": `// Package fmt implements formatted I/O.
+package fmt
+
+type Stringer interface {
+	String() string
+}
+`,
+	}
+	goroot, err := ioutil.TempDir("", "cmdline_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	origContext := build.Default
+	build.Default = build.Context{
+		GOROOT:   goroot,
+		Compiler: "gc",
+	}
+	for relname, contents := range stdLib {
+		name := filepath.Join(goroot, relname)
+		if err := os.MkdirAll(filepath.Dir(name), 0770); err != nil {
+			t.Fatal(err)
+		}
+		if err := ioutil.WriteFile(name, []byte(contents), 0770); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	return func() {
+		if err := os.RemoveAll(goroot); err != nil {
+			t.Log(err)
+		}
+		build.Default = origContext
+	}
+}
+
 func TestPaths(t *testing.T) {
+	cleanup := setupGoroot(t)
+	defer cleanup()
+
 	pres := &Presentation{
 		pkgHandler: handlerServer{
 			fsRoot: "/fsroot",
@@ -97,6 +146,8 @@ func TestMakeRx(t *testing.T) {
 }
 
 func TestCommandLine(t *testing.T) {
+	cleanup := setupGoroot(t)
+	defer cleanup()
 	mfs := mapfs.New(map[string]string{
 		"src/pkg/bar/bar.go": `// Package bar is an example.
 package bar
@@ -125,12 +176,8 @@ package main
 	}{
 		{
 			desc: "standard package",
-			args: []string{"runtime/race"},
-			exp: `PACKAGE Package race implements data race detection logic.
-No public interface is provided.
-For details about the race detector see
-http://golang.org/doc/articles/race_detector.html
-`,
+			args: []string{"fmt"},
+			exp:  "PACKAGE Package fmt implements formatted I/O.\n",
 		},
 		{
 			desc: "package",
