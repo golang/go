@@ -13,7 +13,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-// assignment reports whether x can be assigned to a variable of type 'T',
+// assignment reports whether x can be assigned to a variable of type T,
 // if necessary by attempting to convert untyped values to the appropriate
 // type. If x.mode == invalid upon return, then assignment has already
 // issued an error message and the caller doesn't have to report another.
@@ -148,8 +148,6 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 	if ident != nil && ident.Name == "_" {
 		check.recordObject(ident, nil)
 		// If the lhs is untyped, determine the default type.
-		// The spec is unclear about this, but gc appears to
-		// do this.
 		// TODO(gri) This is still not correct (_ = 1<<1e3)
 		typ := x.typ
 		if isUntyped(typ) {
@@ -188,8 +186,8 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	// spec: Each left-hand side operand must be addressable, a map index
-	// expression, or the blank identifier. Operands may be parenthesized.
+	// spec: "Each left-hand side operand must be addressable, a map index
+	// expression, or the blank identifier. Operands may be parenthesized."
 	switch z.mode {
 	case invalid:
 		return nil
@@ -214,137 +212,57 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 // return expressions, and returnPos is the position of the return statement.
 func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
 	l := len(lhs)
-	r := len(rhs)
-	assert(l > 0)
-
-	// If the lhs and rhs have corresponding expressions,
-	// treat each matching pair as an individual pair.
-	if l == r {
-		var x operand
-		for i, e := range rhs {
-			check.expr(&x, e)
-			check.initVar(lhs[i], &x)
+	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
+	if l != r {
+		invalidateVars(lhs)
+		if returnPos.IsValid() {
+			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
+			return
 		}
+		check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
 		return
 	}
 
-	// Otherwise, the rhs must be a single expression (possibly
-	// a function call returning multiple values, or a comma-ok
-	// expression).
-	if r == 1 {
-		// l > 1
-		// Start with rhs so we have expression types
-		// for declarations with implicit types.
-		var x operand
-		rhs := rhs[0]
-		check.expr(&x, rhs)
-		if x.mode == invalid {
-			invalidateVars(lhs)
-			return
+	var x operand
+	if commaOk {
+		var a [2]Type
+		for i := range a {
+			get(&x, i)
+			a[i] = check.initVar(lhs[i], &x)
 		}
-
-		if t, ok := x.typ.(*Tuple); ok {
-			// function result
-			r = t.Len()
-			if l == r {
-				for i, lhs := range lhs {
-					x.mode = value
-					x.expr = rhs
-					x.typ = t.At(i).typ
-					check.initVar(lhs, &x)
-				}
-				return
-			}
-		}
-
-		if !returnPos.IsValid() && (x.mode == mapindex || x.mode == commaok) && l == 2 {
-			// comma-ok expression (not permitted with return statements)
-			x.mode = value
-			t1 := check.initVar(lhs[0], &x)
-
-			x.mode = value
-			x.expr = rhs
-			x.typ = Typ[UntypedBool]
-			t2 := check.initVar(lhs[1], &x)
-
-			if t1 != nil && t2 != nil {
-				check.recordCommaOkTypes(rhs, t1, t2)
-			}
-			return
-		}
-	}
-
-	invalidateVars(lhs)
-
-	// lhs variables may be function result parameters (return statement);
-	// use rhs position for properly located error messages
-	if returnPos.IsValid() {
-		check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
+		check.recordCommaOkTypes(rhs[0], a)
 		return
 	}
-	check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
+
+	for i, lhs := range lhs {
+		get(&x, i)
+		check.initVar(lhs, &x)
+	}
 }
 
 func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 	l := len(lhs)
-	r := len(rhs)
-	assert(l > 0)
-
-	// If the lhs and rhs have corresponding expressions,
-	// treat each matching pair as an individual pair.
-	if l == r {
-		var x operand
-		for i, e := range rhs {
-			check.expr(&x, e)
-			check.assignVar(lhs[i], &x)
-		}
+	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2)
+	if l != r {
+		check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
 		return
 	}
 
-	// Otherwise, the rhs must be a single expression (possibly
-	// a function call returning multiple values, or a comma-ok
-	// expression).
-	if r == 1 {
-		// l > 1
-		var x operand
-		rhs := rhs[0]
-		check.expr(&x, rhs)
-		if x.mode == invalid {
-			return
+	var x operand
+	if commaOk {
+		var a [2]Type
+		for i := range a {
+			get(&x, i)
+			a[i] = check.assignVar(lhs[i], &x)
 		}
-
-		if t, ok := x.typ.(*Tuple); ok {
-			// function result
-			r = t.Len()
-			if l == r {
-				for i, lhs := range lhs {
-					x.mode = value
-					x.expr = rhs
-					x.typ = t.At(i).typ
-					check.assignVar(lhs, &x)
-				}
-				return
-			}
-		}
-
-		if (x.mode == mapindex || x.mode == commaok) && l == 2 {
-			// comma-ok expression
-			x.mode = value
-			t1 := check.assignVar(lhs[0], &x)
-
-			x.mode = value
-			x.expr = rhs
-			x.typ = Typ[UntypedBool]
-			t2 := check.assignVar(lhs[1], &x)
-
-			if t1 != nil && t2 != nil {
-				check.recordCommaOkTypes(rhs, t1, t2)
-			}
-			return
-		}
+		check.recordCommaOkTypes(rhs[0], a)
+		return
 	}
 
-	check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
+	for i, lhs := range lhs {
+		get(&x, i)
+		check.assignVar(lhs, &x)
+	}
 }
 
 func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {

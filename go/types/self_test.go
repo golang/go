@@ -5,6 +5,7 @@
 package types_test
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -17,6 +18,8 @@ import (
 	. "code.google.com/p/go.tools/go/types"
 )
 
+var benchmark = flag.Bool("b", false, "run benchmarks")
+
 func TestSelf(t *testing.T) {
 	fset := token.NewFileSet()
 	files, err := pkgFiles(fset, ".")
@@ -27,9 +30,8 @@ func TestSelf(t *testing.T) {
 	_, err = Check("go/types", fset, files)
 	if err != nil {
 		// Importing go.tools/go/exact doensn't work in the
-		// build dashboard environment at the moment. Don't
-		// report an error for now so that the build remains
-		// green.
+		// build dashboard environment. Don't report an error
+		// for now so that the build remains green.
 		// TODO(gri) fix this
 		t.Log(err) // replace w/ t.Fatal eventually
 		return
@@ -37,8 +39,8 @@ func TestSelf(t *testing.T) {
 }
 
 func TestBenchmark(t *testing.T) {
-	if testing.Short() {
-		return // skip benchmark in short mode
+	if !*benchmark {
+		return
 	}
 
 	// We're not using testing's benchmarking mechanism directly
@@ -46,13 +48,13 @@ func TestBenchmark(t *testing.T) {
 
 	for _, p := range []string{"types", "exact", "gcimporter"} {
 		path := filepath.Join("..", p)
-		benchmark(t, path, false)
-		benchmark(t, path, true)
+		runbench(t, path, false)
+		runbench(t, path, true)
 		fmt.Println()
 	}
 }
 
-func benchmark(t *testing.T, path string, ignoreFuncBodies bool) {
+func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 	fset := token.NewFileSet()
 	files, err := pkgFiles(fset, path)
 	if err != nil {

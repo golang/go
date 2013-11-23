@@ -60,7 +60,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			return statement
 		}
 
-		arg, n := unpack(func(x *operand, i int) { check.expr(x, e.Args[i]) }, len(e.Args), false)
+		arg, n, _ := unpack(func(x *operand, i int) { check.expr(x, e.Args[i]) }, len(e.Args), false)
 		check.arguments(x, e, sig, arg, n)
 
 		// determine result
@@ -90,8 +90,6 @@ func (check *checker) use(list []ast.Expr) {
 	}
 }
 
-// TODO(gri) use unpack for assignment checking as well.
-
 // A getter sets x as the i'th operand, where 0 <= i < n and n is the total
 // number of operands (context-specific, and maintained elsewhere). A getter
 // type-checks the i'th operand; the details of the actual check are getter-
@@ -101,17 +99,20 @@ type getter func(x *operand, i int)
 // unpack takes a getter get and a number of operands n. If n == 1 and the
 // first operand is a function call, or a comma,ok expression and allowCommaOk
 // is set, the result is a new getter and operand count providing access to the
-// function results, or comma,ok values, respectively. In all other cases, the
-// incoming getter and operand count are returned unchanged. In other words,
-// if there's exactly one operand that - after type-checking by calling get -
-// stands for multiple operands, the resulting getter provides access to those
-// operands instead.
+// function results, or comma,ok values, respectively. The third result value
+// reports if it is indeed the comma,ok case. In all other cases, the incoming
+// getter and operand count are returned unchanged, and the third result value
+// is false.
+//
+// In other words, if there's exactly one operand that - after type-checking by
+// calling get - stands for multiple operands, the resulting getter provides access
+// to those operands instead.
 //
 // Note that unpack may call get(..., 0); but if the result getter is called
 // at most once for a given operand index i (including i == 0), that operand
 // is guaranteed to cause only one call of the incoming getter with that i.
 //
-func unpack(get getter, n int, allowCommaOk bool) (getter, int) {
+func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 	if n == 1 {
 		// possibly result of an n-valued function call or comma,ok value
 		var x0 operand
@@ -121,9 +122,8 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int) {
 				if i != 0 {
 					unreachable()
 				}
-				// i == 0
 				x.mode = invalid
-			}, 1
+			}, 1, false
 		}
 
 		if t, ok := x0.typ.(*Tuple); ok {
@@ -132,26 +132,18 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int) {
 				x.mode = value
 				x.expr = x0.expr
 				x.typ = t.At(i).typ
-			}, t.Len()
+			}, t.Len(), false
 		}
 
 		if x0.mode == mapindex || x0.mode == commaok {
 			// comma-ok value
 			if allowCommaOk {
+				a := [2]Type{x0.typ, Typ[UntypedBool]}
 				return func(x *operand, i int) {
-					switch i {
-					case 0:
-						x.mode = value
-						x.expr = x0.expr
-						x.typ = x0.typ
-					case 1:
-						x.mode = value
-						x.expr = x0.expr
-						x.typ = Typ[UntypedBool]
-					default:
-						unreachable()
-					}
-				}, 2
+					x.mode = value
+					x.expr = x0.expr
+					x.typ = a[i]
+				}, 2, true
 			}
 			x0.mode = value
 		}
@@ -162,16 +154,16 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int) {
 				unreachable()
 			}
 			*x = x0
-		}, 1
+		}, 1, false
 	}
 
 	// zero or multiple values
-	return get, n
+	return get, n, false
 }
 
 // arguments checks argument passing for the call with the given signature.
 // The arg function provides the operand for the i'th argument.
-func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg func(*operand, int), n int) {
+func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg getter, n int) {
 	passSlice := false
 	if call.Ellipsis.IsValid() {
 		// last argument is of the form x...

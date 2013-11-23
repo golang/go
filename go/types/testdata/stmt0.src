@@ -21,7 +21,7 @@ func assignments0() (int, int) {
 
 	a = f0 /* ERROR "used as value" */ ()
 	a = f1()
-	a = f2 /* ERROR "used as single value" */ ()
+	a = f2 /* ERROR "assignment count mismatch" */ ()
 	a, b = f2()
 	a, b, c = f2 /* ERROR "assignment count mismatch" */ ()
 	a, b, c = f3()

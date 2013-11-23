@@ -121,15 +121,19 @@ func (check *checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 	}
 }
 
-func (check *checker) recordCommaOkTypes(x ast.Expr, t1, t2 Type) {
-	assert(x != nil && isTyped(t1) && isTyped(t2) && isBoolean(t2))
+func (check *checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+	assert(x != nil)
+	if a[0] == nil || a[1] == nil {
+		return
+	}
+	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
 	if m := check.Types; m != nil {
 		for {
 			assert(m[x] != nil) // should have been recorded already
 			pos := x.Pos()
 			m[x] = NewTuple(
-				NewVar(pos, check.pkg, "", t1),
-				NewVar(pos, check.pkg, "", t2),
+				NewVar(pos, check.pkg, "", a[0]),
+				NewVar(pos, check.pkg, "", a[1]),
 			)
 			// if x is a parenthesized expression (p.X), update p.X
 			p, _ := x.(*ast.ParenExpr)

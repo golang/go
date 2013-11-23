@@ -33,7 +33,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	switch id {
 	default:
 		// make argument getter
-		arg, nargs = unpack(func(x *operand, i int) { check.expr(x, call.Args[i]) }, nargs, false)
+		arg, nargs, _ = unpack(func(x *operand, i int) { check.expr(x, call.Args[i]) }, nargs, false)
 		// evaluate first argument, if present
 		if nargs > 0 {
 			arg(x, 0)
