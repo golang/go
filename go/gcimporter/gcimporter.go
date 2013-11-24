@@ -91,7 +91,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // can be used directly, and there is no need to call this function (but
 // there is also no harm but for extra time used).
 //
-func ImportData(imports map[string]*types.Package, filename, id string, data *bufio.Reader) (pkg *types.Package, err error) {
+func ImportData(imports map[string]*types.Package, filename, id string, data io.Reader) (pkg *types.Package, err error) {
 	// support for parser error handling
 	defer func() {
 		switch r := recover().(type) {
