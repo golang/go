@@ -14,6 +14,11 @@ To use all the Vim plugins, add these lines to your $HOME/.vimrc.
 If you want to select fewer plugins, use the instructions in the rest of
 this file.
 
+A popular configuration is to gofmt Go source files when they are saved.
+To do that, add this line to the end of your $HOME/.vimrc.
+
+  autocmd FileType go autocmd BufWritePre <buffer> Fmt
+
 
 Vim syntax highlighting
 -----------------------
