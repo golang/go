@@ -158,17 +158,21 @@ func todoHandler(r *http.Request) (interface{}, error) {
 	var err error
 	builder := r.FormValue("builder")
 	for _, kind := range r.Form["kind"] {
-		var data interface{}
+		var com *Commit
 		switch kind {
 		case "build-go-commit":
-			data, err = buildTodo(c, builder, "", "")
+			com, err = buildTodo(c, builder, "", "")
 		case "build-package":
 			packagePath := r.FormValue("packagePath")
 			goHash := r.FormValue("goHash")
-			data, err = buildTodo(c, builder, packagePath, goHash)
+			com, err = buildTodo(c, builder, packagePath, goHash)
 		}
-		if data != nil || err != nil {
-			todo = &Todo{Kind: kind, Data: data}
+		if com != nil || err != nil {
+			if com != nil {
+				// ResultData can be large and not needed on builder.
+				com.ResultData = []string{}
+			}
+			todo = &Todo{Kind: kind, Data: com}
 			break
 		}
 	}
@@ -187,7 +191,7 @@ func todoHandler(r *http.Request) (interface{}, error) {
 // If provided with non-empty packagePath and goHash args, it scans the first
 // 20 Commits in Num-descending order for the specified packagePath and
 // returns the first that doesn't have a Result for this builder and goHash.
-func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, error) {
+func buildTodo(c appengine.Context, builder, packagePath, goHash string) (*Commit, error) {
 	p, err := GetPackage(c, packagePath)
 	if err != nil {
 		return nil, err

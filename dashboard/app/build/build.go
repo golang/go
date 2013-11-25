@@ -188,7 +188,7 @@ func partsToHash(c *Commit, p []string) *Result {
 
 // A Result describes a build result for a Commit on an OS/architecture.
 //
-// Each Result entity is a descendant of its associated Commit entity.
+// Each Result entity is a descendant of its associated Package entity.
 type Result struct {
 	Builder     string // "os-arch[-note]"
 	Hash        string
