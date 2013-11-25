@@ -819,6 +819,9 @@ func (x *Indexer) visitFile(dirname string, fi os.FileInfo) {
 			strings.HasPrefix(dirname, "test/") {
 			return
 		}
+	default:
+		// No indexing turned on.
+		return
 	}
 
 	x.fsOpenGate <- true
