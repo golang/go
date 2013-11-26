@@ -41,6 +41,16 @@ func (d *Doc) Render(w io.Writer, t *template.Template) error {
 	return t.ExecuteTemplate(w, "root", data)
 }
 
+// Render renders the section to the given writer using the provided template.
+func (s *Section) Render(w io.Writer, t *template.Template) error {
+	data := struct {
+		*Section
+		Template    *template.Template
+		PlayEnabled bool
+	}{s, t, PlayEnabled}
+	return t.ExecuteTemplate(w, "section", data)
+}
+
 type ParseFunc func(ctx *Context, fileName string, lineNumber int, inputLine string) (Elem, error)
 
 // Register binds the named action, which does not begin with a period, to the

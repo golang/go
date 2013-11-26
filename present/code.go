@@ -32,6 +32,7 @@ type Code struct {
 	Text template.HTML
 	Play bool   // runnable code
 	Ext  string // file extension
+	Raw  []byte // content of the file
 }
 
 func (c Code) TemplateName() string { return "code" }
@@ -130,6 +131,7 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 		Text: template.HTML(buf.String()),
 		Play: play,
 		Ext:  filepath.Ext(filename),
+		Raw:  textBytes,
 	}, nil
 }
 
