@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"testing"
 	"text/template"
 
@@ -68,6 +69,11 @@ func TestPaths(t *testing.T) {
 	}
 	fs := make(vfs.NameSpace)
 
+	absPath := "/foo/fmt"
+	if runtime.GOOS == "windows" {
+		absPath = `c:\foo\fmt`
+	}
+
 	for _, tc := range []struct {
 		desc   string
 		path   string
@@ -76,7 +82,7 @@ func TestPaths(t *testing.T) {
 	}{
 		{
 			"Absolute path",
-			"/foo/fmt",
+			absPath,
 			"/target",
 			"/target",
 		},
