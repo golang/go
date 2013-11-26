@@ -38,12 +38,16 @@ func (pkg *Package) Scope() *Scope { return pkg.scope }
 // exported objects; otherwise it is incomplete.
 func (pkg *Package) Complete() bool { return pkg.complete }
 
+// MarkComplete marks a package as complete.
+func (pkg *Package) MarkComplete() { pkg.complete = true }
+
 // Imports returns the list of packages explicitly imported by
 // pkg; the list is in source order. Package unsafe is excluded.
 func (pkg *Package) Imports() []*Package { return pkg.imports }
 
-// MarkComplete marks a package as complete.
-func (pkg *Package) MarkComplete() { pkg.complete = true }
+// SetImports sets the list of explicitly imported packages to list.
+// It is the caller's responsibility to make sure list elements are unique.
+func (pkg *Package) SetImports(list []*Package) { pkg.imports = list }
 
 func (pkg *Package) String() string {
 	return fmt.Sprintf("package %s (%s)", pkg.name, pkg.path)
