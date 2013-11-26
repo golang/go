@@ -68,14 +68,22 @@ func (check *checker) assignment(x *operand, T Type) bool {
 }
 
 func (check *checker) initConst(lhs *Const, x *operand) {
-	lhs.val = exact.MakeUnknown()
-
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		return // nothing else to check
+		return
 	}
+
+	// rhs must be a constant
+	if x.mode != constant {
+		check.errorf(x.pos(), "%s is not constant", x)
+		if lhs.typ == nil {
+			lhs.typ = Typ[Invalid]
+		}
+		return
+	}
+	assert(isConstType(x.typ))
 
 	// If the lhs doesn't have a type yet, use the type of x.
 	if lhs.typ == nil {
@@ -86,16 +94,10 @@ func (check *checker) initConst(lhs *Const, x *operand) {
 		if x.mode != invalid {
 			check.errorf(x.pos(), "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
 		}
+		lhs.val = exact.MakeUnknown()
 		return
 	}
 
-	// rhs must be a constant
-	if x.mode != constant {
-		check.errorf(x.pos(), "%s is not constant", x)
-		return
-	}
-
-	assert(isConstType(x.typ))
 	lhs.val = x.val
 }
 
@@ -104,7 +106,7 @@ func (check *checker) initVar(lhs *Var, x *operand) Type {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		return nil // nothing else to check
+		return nil
 	}
 
 	// If the lhs doesn't have a type yet, use the type of x.
@@ -115,7 +117,7 @@ func (check *checker) initVar(lhs *Var, x *operand) Type {
 			if typ == Typ[UntypedNil] {
 				check.errorf(x.pos(), "use of untyped nil")
 				lhs.typ = Typ[Invalid]
-				return nil // nothing else to check
+				return nil
 			}
 			typ = defaultType(typ)
 		}
@@ -202,7 +204,12 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 	l := len(lhs)
 	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
 	if l != r {
-		invalidateVars(lhs)
+		// invalidate lhs
+		for _, obj := range lhs {
+			if obj.typ == nil {
+				obj.typ = Typ[Invalid]
+			}
+		}
 		if returnPos.IsValid() {
 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
 			return
@@ -298,13 +305,5 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 		}
 	} else {
 		check.errorf(pos, "no new variables on left side of :=")
-	}
-}
-
-func invalidateVars(list []*Var) {
-	for _, obj := range list {
-		if obj.typ == nil {
-			obj.typ = Typ[Invalid]
-		}
 	}
 }

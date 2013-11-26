@@ -657,7 +657,13 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, nil, false)
+		t := check.typ(typ, nil, false)
+		if !isConstType(t) {
+			check.errorf(typ.Pos(), "invalid constant type %s", t)
+			obj.typ = Typ[Invalid]
+			return
+		}
+		obj.typ = t
 	}
 
 	// check initialization

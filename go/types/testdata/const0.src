@@ -10,6 +10,9 @@ package const0
 var x = 0
 const c0 = x /* ERROR "not constant" */
 
+// typed constants must have constant types
+const _ interface /* ERROR invalid constant type */ {} = 0
+
 // untyped constants
 const (
 	// boolean values
