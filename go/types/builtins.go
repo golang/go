@@ -408,15 +408,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Panic:
 		// panic(x)
-		arg(x, 0)
-		if x.mode == invalid {
+		T := new(Interface)
+		if !check.assignment(x, T) {
+			assert(x.mode == invalid)
 			return
 		}
-		// TODO(gri) arguments must be assignable to _
 
 		x.mode = novalue
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(nil, new(Interface)))
+			check.recordBuiltinType(call.Fun, makeSig(nil, T))
 		}
 
 	case _Print, _Println:
@@ -425,14 +425,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var params []Type
 		if nargs > 0 {
 			params = make([]Type, nargs)
-			params[0] = x.typ // first argument already evaluated
-			for i := 1; i < nargs; i++ {
-				arg(x, i)
-				if x.mode == invalid {
+			for i := 0; i < nargs; i++ {
+				if i > 0 {
+					arg(x, i) // first argument already evaluated
+				}
+				if !check.assignment(x, nil) {
+					assert(x.mode == invalid)
 					return
 				}
 				params[i] = x.typ
-				// TODO(gri) arguments must be assignable to _
 			}
 		}
 
@@ -451,7 +452,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
-		// TODO(gri) argument must be assignable to _
+		if !check.assignment(x, nil) {
+			assert(x.mode == invalid)
+			return
+		}
+
 		x.mode = constant
 		x.val = exact.MakeInt64(check.conf.alignof(x.typ))
 		x.typ = Typ[Uintptr]
@@ -498,7 +503,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
-		// TODO(gri) argument must be assignable to _
+		if !check.assignment(x, nil) {
+			assert(x.mode == invalid)
+			return
+		}
+
 		x.mode = constant
 		x.val = exact.MakeInt64(check.conf.sizeof(x.typ))
 		x.typ = Typ[Uintptr]

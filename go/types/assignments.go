@@ -20,7 +20,6 @@ import (
 // Use T == nil to indicate assignment to an untyped blank identifier.
 //
 // TODO(gri) Should find a better way to handle in-band errors.
-// TODO(gri) The T == nil mechanism is not yet used - should simplify callers eventually.
 //
 func (check *checker) assignment(x *operand, T Type) bool {
 	switch x.mode {
@@ -41,13 +40,22 @@ func (check *checker) assignment(x *operand, T Type) bool {
 		return false
 	}
 
-	// spec: "If an untyped constant is assigned to a variable of interface
-	// type or the blank identifier, the constant is first converted to type
-	// bool, rune, int, float64, complex128 or string respectively, depending
-	// on whether the value is a boolean, rune, integer, floating-point, complex,
-	// or string constant."
-	if x.mode == constant && isUntyped(x.typ) && (T == nil || isInterface(T)) {
-		check.convertUntyped(x, defaultType(x.typ))
+	if isUntyped(x.typ) {
+		target := T
+		// spec: "If an untyped constant is assigned to a variable of interface
+		// type or the blank identifier, the constant is first converted to type
+		// bool, rune, int, float64, complex128 or string respectively, depending
+		// on whether the value is a boolean, rune, integer, floating-point, complex,
+		// or string constant."
+		if T == nil || isInterface(T) {
+			if T == nil && x.typ == Typ[UntypedNil] {
+				check.errorf(x.pos(), "use of untyped nil")
+				x.mode = invalid
+				return false
+			}
+			target = defaultType(x.typ)
+		}
+		check.convertUntyped(x, target)
 		if x.mode == invalid {
 			return false
 		}
@@ -56,19 +64,7 @@ func (check *checker) assignment(x *operand, T Type) bool {
 	// spec: "If a left-hand side is the blank identifier, any typed or
 	// non-constant value except for the predeclared identifier nil may
 	// be assigned to it."
-	if T == nil && (x.mode != constant || isTyped(x.typ)) && !x.isNil() {
-		return true
-	}
-
-	// If we still have an untyped x, try to convert it to T.
-	if isUntyped(x.typ) {
-		check.convertUntyped(x, T)
-		if x.mode == invalid {
-			return false
-		}
-	}
-
-	return x.isAssignableTo(check.conf, T)
+	return T == nil || x.isAssignableTo(check.conf, T)
 }
 
 func (check *checker) initConst(lhs *Const, x *operand) {
@@ -147,19 +143,11 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Name == "_" {
 		check.recordObject(ident, nil)
-		// If the lhs is untyped, determine the default type.
-		// TODO(gri) This is still not correct (_ = 1<<1e3)
-		typ := x.typ
-		if isUntyped(typ) {
-			// convert untyped types to default types
-			if typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil")
-				return nil // nothing else to check
-			}
-			typ = defaultType(typ)
+		if !check.assignment(x, nil) {
+			assert(x.mode == invalid)
+			x.typ = nil
 		}
-		check.updateExprType(x.expr, typ, true) // rhs has its final type
-		return typ
+		return x.typ
 	}
 
 	// If the lhs is an identifier denoting a variable v, this assignment

@@ -443,7 +443,8 @@ func panic1() {
 	panic(0)
 	panic("foo")
 	panic(false)
-	panic(1<<1000) // TODO(gri) argument should be assignable to _
+	panic(1<<10)
+	panic(1 /* ERROR overflows */ <<1000)
 	_ = panic /* ERROR used as value */ (0)
 
 	var s []byte
@@ -466,7 +467,9 @@ func print1() {
 	print("foo")
 	print(2.718281828)
 	print(false)
-	print(1<<1000, 1<<1000) // TODO(gri) arguments should be assignable to _
+	print(1<<10)
+	print(1 /* ERROR overflows */ <<1000)
+	println(nil /* ERROR untyped nil */ )
 
 	var s []int
 	print(s... /* ERROR invalid use of \.\.\. */ )
@@ -490,7 +493,9 @@ func println1() {
 	println("foo")
 	println(2.718281828)
 	println(false)
-	println(1<<1000, 1<<1000) // TODO(gri) arguments should be assignable to _
+	println(1<<10)
+	println(1 /* ERROR overflows */ <<1000)
+	println(nil /* ERROR untyped nil */ )
 
 	var s []int
 	println(s... /* ERROR invalid use of \.\.\. */ )
@@ -596,6 +601,9 @@ func Alignof1() {
 	_ = unsafe.Alignof(int /* ERROR not an expression */)
 	_ = unsafe.Alignof(42)
 	_ = unsafe.Alignof(new(struct{}))
+	_ = unsafe.Alignof(1<<10)
+	_ = unsafe.Alignof(1 /* ERROR overflows */ <<1000)
+	_ = unsafe.Alignof(nil /* ERROR "untyped nil */ )
 	unsafe /* ERROR not used */ .Alignof(x)
 
 	var y S0
@@ -622,8 +630,9 @@ func Offsetof1() {
 	var x struct{ f int }
 	_ = unsafe.Offsetof() // ERROR not enough arguments
 	_ = unsafe.Offsetof(1, 2) // ERROR too many arguments
-	_ = unsafe.Offsetof(int /* ERROR not a selector expression */)
-	_ = unsafe.Offsetof(x /* ERROR not a selector expression */)
+	_ = unsafe.Offsetof(int /* ERROR not a selector expression */ )
+	_ = unsafe.Offsetof(x /* ERROR not a selector expression */ )
+	_ = unsafe.Offsetof(nil /* ERROR not a selector expression */ )
 	_ = unsafe.Offsetof(x.f)
 	_ = unsafe.Offsetof((x.f))
 	_ = unsafe.Offsetof((((((((x))).f)))))
@@ -680,6 +689,9 @@ func Sizeof1() {
 	_ = unsafe.Sizeof(int /* ERROR not an expression */)
 	_ = unsafe.Sizeof(42)
 	_ = unsafe.Sizeof(new(complex128))
+	_ = unsafe.Sizeof(1<<10)
+	_ = unsafe.Sizeof(1 /* ERROR overflows */ <<1000)
+	_ = unsafe.Sizeof(nil /* ERROR untyped nil */ )
 	unsafe /* ERROR not used */ .Sizeof(x)
 
 	// basic types have size guarantees
