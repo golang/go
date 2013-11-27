@@ -13,6 +13,11 @@ const c0 = x /* ERROR "not constant" */
 // typed constants must have constant types
 const _ interface /* ERROR invalid constant type */ {} = 0
 
+func _ () {
+	const _ interface /* ERROR invalid constant type */ {} = 0
+	for i := 0; i < 10; i++ {} // don't crash with non-nil iota here
+}
+
 // untyped constants
 const (
 	// boolean values
