@@ -13,27 +13,22 @@
 </p>
 
 <p>
-Click the link above to visit the
-<a href="http://code.google.com/p/go/downloads">Go project's downloads page</a>
-and select the binary distribution that matches your operating system and
-processor architecture.
-</p>
-
-<p>
-Official binary distributions are available for the FreeBSD, Linux, Mac OS X
-(Snow Leopard, Lion, and Mountain Lion), NetBSD, and Windows operating systems
-and the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
-architectures.
+<a href="http://code.google.com/p/go/downloads" target="_blank">Official binary
+distributions</a> are available for the FreeBSD, Linux, Mac OS X (Snow Leopard
+and above), and Windows operating systems and the 32-bit (<code>386</code>) and
+64-bit (<code>amd64</code>) x86 processor architectures.
 </p>
 
 <p>
 If a binary distribution is not available for your combination of operating
-system and architecture you may want to try
+system and architecture, try
 <a href="/doc/install/source">installing from source</a> or
 <a href="/doc/install/gccgo">installing gccgo instead of gc</a>.
 </p>
 
+
 <h2 id="requirements">System requirements</h2>
+
 <p>
 The <code>gc</code> compiler supports the following operating systems and
 architectures. Please ensure your system meets these requirements before
@@ -53,7 +48,6 @@ proceeding. If your OS or architecture is not on the list, it's possible that
 <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
 <tr><td>Mac OS X 10.6 or later</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
 <tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
-<tr><td>NetBSD 6 or later</td> <td>amd64, 386</td> <td></td></tr>
 </table>
 
 <p>
@@ -65,41 +59,20 @@ installed Xcode 4.3+, you can install it from the Components tab of the
 Downloads preferences panel.
 </p>
 
+
 <h2 id="install">Install the Go tools</h2>
-
-<p>
-The Go binary distributions assume they will be installed in
-<code>/usr/local/go</code> (or <code>c:\Go</code> under Windows),
-but it is possible to install them in a different
-location. If you do this, you will need to set the <code>GOROOT</code>
-environment variable to that directory when using the Go tools.
-</p>
-
-<p>
-For example, if you installed Go to your home directory you should add the
-following commands to <code>$HOME/.profile</code>:
-</p>
-
-<pre>
-export GOROOT=$HOME/go
-export PATH=$PATH:$GOROOT/bin
-</pre>
-
-<p>
-Windows users should read the section about <a href="#windows_env">setting
-environment variables under Windows</a>.
-</p>
-
-<h3 id="bsd_linux">FreeBSD, Linux, Mac OS X and NetBSD tarballs</h3>
 
 <p>
 If you are upgrading from an older version of Go you must
 first <a href="#uninstall">remove the existing version</a>.
+</p>
+
+<h3 id="tarball">Linux, Mac OS X, and FreeBSD tarballs</h3>
 
 <p>
-Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+OR+OpSys-NetBSD+Type-Archive">the archive</a>
-into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>.
-For example:
+<a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+Type-Archive">Download the archive</a>
+and extract it into <code>/usr/local</code>, creating a Go tree in
+<code>/usr/local/go</code>. For example:
 </p>
 
 <pre>
@@ -125,11 +98,36 @@ variable. You can do this by adding this line to your <code>/etc/profile</code>
 export PATH=$PATH:/usr/local/go/bin
 </pre>
 
+<h4 id="tarball_non_standard">Installing to a custom location</h3>
+
+<p>
+The Go binary distributions assume they will be installed in
+<code>/usr/local/go</code> (or <code>c:\Go</code> under Windows),
+but it is possible to install the Go tools to a different location. 
+In this case you must set the <code>GOROOT</code> environment variable
+to point to the directory in which it was installed.
+</p>
+
+<p>
+For example, if you installed Go to your home directory you should add the
+following commands to <code>$HOME/.profile</code>:
+</p>
+
+<pre>
+export GOROOT=$HOME/go
+export PATH=$PATH:$GOROOT/bin
+</pre>
+
+<p>
+<b>Note</b>: <code>GOROOT</code> must be set only when installing to a custom
+location.
+</p>
+
 <h3 id="osx">Mac OS X package installer</h3>
 
 <p>
-Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-OSX+Type-Installer">package file</a>
-and follow the prompts to install the Go tools.
+<a href="http://code.google.com/p/go/downloads/list?q=OpSys-OSX+Type-Installer">Download the package file</a>,
+open it, and follow the prompts to install the Go tools.
 The package installs the Go distribution to <code>/usr/local/go</code>.
 </p>
 
@@ -148,22 +146,6 @@ a zip archive that requires you to set some environment variables and an
 MSI installer that configures your installation automatically.
 </p>
 
-<h4 id="windows_zip">Zip archive</h4>
-
-<p>
-Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">zip file</a>
-to the directory of your choice (we suggest <code>c:\Go</code>).
-</p>
-
-<p>
-If you chose a directory other than <code>c:\Go</code>, you must set
-the <code>GOROOT</code> environment variable to your chosen path.
-</p>
-
-<p>
-Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
-</p>
-
 <h4 id="windows_msi">MSI installer</h4>
 
 <p>
@@ -178,6 +160,21 @@ The installer should put the <code>c:\Go\bin</code> directory in your
 command prompts for the change to take effect.
 </p>
 
+<h4 id="windows_zip">Zip archive</h4>
+
+<p>
+<a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">Download the zip file</a> and extract it into the directory of your choice (we suggest <code>c:\Go</code>).
+</p>
+
+<p>
+If you chose a directory other than <code>c:\Go</code>,
+you must set the <code>GOROOT</code> environment variable to your chosen path.
+</p>
+
+<p>
+Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
+</p>
+
 <h4 id="windows_env">Setting environment variables under Windows</h4>
 
 <p>
@@ -186,6 +183,7 @@ Variables" button on the "Advanced" tab of the "System" control panel. Some
 versions of Windows provide this control panel through the "Advanced System
 Settings" option inside the "System" control panel.
 </p>
+
 
 <h2 id="testing">Test your installation</h2>
 
@@ -220,55 +218,24 @@ hello, world
 If you see the "hello, world" message then your Go installation is working.
 </p>
 
+
 <h2 id="gopath">Set up your work environment</h2>
 
 <p>
-The document <a href="/doc/code.html">How to Write Go Code</a> explains how to
-set up a work environment in which to build and test Go code.
-</p>
-
-<h2 id="next">What's next</h2>
-
-<p>
-Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>.
+You're almost done.
+You just need to do a little more setup.
 </p>
 
 <p>
-Build a web application by following the <a href="/doc/articles/wiki/">Wiki
-Tutorial</a>.
+<a href="/doc/code.html" class="download" id="start">
+<span class="big">How to Write Go Code</span>
+<span class="desc">Learn how to set up and use the Go tools</span>
+</a>
 </p>
 
 <p>
-Read <a href="/doc/effective_go.html">Effective Go</a> to learn about writing
-idiomatic Go code.
-</p>
-
-<p>
-For the full story, consult Go's extensive <a href="/doc/">documentation</a>.
-</p>
-
-<p>
-Subscribe to the
-<a href="http://groups.google.com/group/golang-announce">golang-announce</a>
-mailing list to be notified when a new stable version of Go is released.
-</p>
-
-
-<h2 id="community">Community resources</h2>
-
-<p>
-For real-time help, there may be users or developers on
-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
-</p>
-
-<p>
-The official mailing list for discussion of the Go language is
-<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
-</p>
-
-<p>
-Bugs should be reported using the
-<a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
+The <a href="/doc/code.html">How to Write Go Code</a> document 
+provides <b>essential setup instructions</b> for using the Go tools.
 </p>
 
 
@@ -290,6 +257,24 @@ If you installed Go with the <a href="#osx">Mac OS X package</a> then you
 should remove the <code>/etc/paths.d/go</code> file.
 Windows users should read the section about <a href="#windows_env">setting
 environment variables under Windows</a>.
+</p>
+
+
+<h2 id="help">Getting help</h2>
+
+<p>
+For real-time help, ask the helpful gophers in <code>#go-nuts</code> on the
+<a href="http://freenode.net/">Freenode</a> IRC server.
+</p>
+
+<p>
+The official mailing list for discussion of the Go language is
+<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
+</p>
+
+<p>
+Report bugs using the
+<a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
 </p>
 
 
