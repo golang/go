@@ -168,8 +168,13 @@ compile(Node *fn)
 	if(retpc)
 		patch(retpc, pc);
 	ginit();
-	if(hasdefer)
+	if(hasdefer) {
 		ginscall(deferreturn, 0);
+		// deferreturn pretends to have one uintptr argument.
+		// Reserve space for it so stack scanner is happy.
+		if(maxarg < widthptr)
+			maxarg = widthptr;
+	}
 	if(curfn->exit)
 		genlist(curfn->exit);
 	gclean();
