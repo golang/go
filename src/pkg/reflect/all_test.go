@@ -3616,3 +3616,27 @@ func (x *exhaustive) Choose(max int) int {
 func (x *exhaustive) Maybe() bool {
 	return x.Choose(2) == 1
 }
+
+func GCFunc(args []Value) []Value {
+	runtime.GC()
+	return []Value{}
+}
+
+func TestReflectFuncTraceback(t *testing.T) {
+	f := MakeFunc(TypeOf(func() {}), GCFunc)
+	f.Call([]Value{})
+}
+
+func (p Point) GCMethod(k int) int {
+	runtime.GC()
+	return k + p.x
+}
+
+func TestReflectMethodTraceback(t *testing.T) {
+	p := Point{3, 4}
+	m := ValueOf(p).MethodByName("GCMethod")
+	i := ValueOf(m.Interface()).Call([]Value{ValueOf(5)})[0].Int()
+	if i != 8 {
+		t.Errorf("Call returned %d; want 8", i)
+	}
+}
