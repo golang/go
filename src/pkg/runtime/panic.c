@@ -157,14 +157,12 @@ runtime·deferproc(int32 siz, FuncVal *fn, ...)
 // is called again and again until there are no more deferred functions.
 // Cannot split the stack because we reuse the caller's frame to
 // call the deferred function.
-//
-// The ... in the prototype keeps the compiler from declaring
-// an argument frame size. deferreturn is a very special function,
-// and if the runtime ever asks for its frame size, that means
-// the traceback routines are probably broken.
+
+// The single argument isn't actually used - it just has its address
+// taken so it can be matched against pending defers.
 #pragma textflag NOSPLIT
 void
-runtime·deferreturn(uintptr arg0, ...)
+runtime·deferreturn(uintptr arg0)
 {
 	Defer *d;
 	byte *argp;
