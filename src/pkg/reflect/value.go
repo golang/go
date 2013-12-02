@@ -358,6 +358,11 @@ func (v Value) CallSlice(in []Value) []Value {
 	return v.call("CallSlice", in)
 }
 
+var makeFuncStubFn = makeFuncStub
+var makeFuncStubCode = **(**uintptr)(unsafe.Pointer(&makeFuncStubFn))
+var methodValueCallFn = methodValueCall
+var methodValueCallCode = **(**uintptr)(unsafe.Pointer(&methodValueCallFn))
+
 func (v Value) call(op string, in []Value) []Value {
 	// Get function pointer, type.
 	t := v.typ
@@ -375,6 +380,17 @@ func (v Value) call(op string, in []Value) []Value {
 
 	if fn == nil {
 		panic("reflect.Value.Call: call of nil function")
+	}
+
+	// If target is makeFuncStub, short circuit the unpack onto stack /
+	// pack back into []Value for the args and return values.  Just do the
+	// call directly.
+	// We need to do this here because otherwise we have a situation where
+	// reflect.callXX calls makeFuncStub, neither of which knows the
+	// layout of the args.  That's bad for precise gc & stack copying.
+	x := (*makeFuncImpl)(fn)
+	if x.code == makeFuncStubCode {
+		return x.fn(in)
 	}
 
 	isSlice := op == "CallSlice"
@@ -469,6 +485,22 @@ func (v Value) call(op string, in []Value) []Value {
 		off += n
 	}
 	off = (off + ptrSize - 1) &^ (ptrSize - 1)
+
+	// If the target is methodValueCall, do its work here: add the receiver
+	// argument and call the real target directly.
+	// We need to do this here because otherwise we have a situation where
+	// reflect.callXX calls methodValueCall, neither of which knows the
+	// layout of the args.  That's bad for precise gc & stack copying.
+	y := (*methodValue)(fn)
+	if y.fn == methodValueCallCode {
+		_, fn, rcvr = methodReceiver("call", y.rcvr, y.method)
+		args = append(args, unsafe.Pointer(nil))
+		copy(args[1:], args)
+		args[0] = unsafe.Pointer(rcvr)
+		ptr = unsafe.Pointer(&args[0])
+		off += ptrSize
+		size += ptrSize
+	}
 
 	// Call.
 	call(fn, ptr, uint32(size))
