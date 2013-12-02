@@ -111,6 +111,8 @@ walkrange(Node *n)
 	Node *hb;  // hidden bool
 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
 	Node *fn, *tmp;
+	Node *keyname, *valname;
+	Node *key, *val;
 	NodeList *body, *init;
 	Type *th, *t;
 	int lno;
@@ -182,37 +184,33 @@ walkrange(Node *n)
 		break;
 
 	case TMAP:
-		th = typ(TARRAY);
-		th->type = ptrto(types[TUINT8]);
-		// see ../../pkg/runtime/hashmap.c:/hash_iter
-		// Size of hash_iter in # of pointers.
-		th->bound = 11;
+		// allocate an iterator state structure on the stack
+		th = hiter(t);
 		hit = temp(th);
+		keyname = newname(th->type->sym);  // depends on layout of iterator struct.  See reflect.c:hiter
+		valname = newname(th->type->down->sym); // ditto
 
 		fn = syslook("mapiterinit", 1);
 		argtype(fn, t->down);
 		argtype(fn, t->type);
 		argtype(fn, th);
 		init = list(init, mkcall1(fn, T, nil, typename(t), ha, nod(OADDR, hit, N)));
-		n->ntest = nod(ONE, nod(OINDEX, hit, nodintconst(0)), nodnil());
+		n->ntest = nod(ONE, nod(ODOT, hit, keyname), nodnil());
 
 		fn = syslook("mapiternext", 1);
 		argtype(fn, th);
 		n->nincr = mkcall1(fn, T, nil, nod(OADDR, hit, N));
 
+		key = nod(ODOT, hit, keyname);
+		key = nod(OIND, key, N);
 		if(v2 == N) {
-			fn = syslook("mapiter1", 1);
-			argtype(fn, th);
-			argtype(fn, t->down);
-			a = nod(OAS, v1, mkcall1(fn, t->down, nil, nod(OADDR, hit, N)));
+			a = nod(OAS, v1, key);
 		} else {
-			fn = syslook("mapiter2", 1);
-			argtype(fn, th);
-			argtype(fn, t->down);
-			argtype(fn, t->type);
+			val = nod(ODOT, hit, valname);
+			val = nod(OIND, val, N);
 			a = nod(OAS2, N, N);
 			a->list = list(list1(v1), v2);
-			a->rlist = list1(mkcall1(fn, getoutargx(fn->type), nil, nod(OADDR, hit, N)));
+			a->rlist = list(list1(key), val);
 		}
 		body = list1(a);
 		break;

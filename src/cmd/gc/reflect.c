@@ -233,6 +233,85 @@ hmap(Type *t)
 	return h;
 }
 
+Type*
+hiter(Type *t)
+{
+	int32 n, off;
+	Type *field[7];
+	Type *i;
+
+	if(t->hiter != T)
+		return t->hiter;
+
+	// build a struct:
+	// hash_iter {
+	//    key *Key
+	//    val *Value
+	//    t *MapType
+	//    h *Hmap
+	//    buckets *Bucket
+	//    bptr *Bucket
+	//    other [5]uintptr
+	// }
+	// must match ../../pkg/runtime/hashmap.c:hash_iter.
+	field[0] = typ(TFIELD);
+	field[0]->type = ptrto(t->down);
+	field[0]->sym = mal(sizeof(Sym));
+	field[0]->sym->name = "key";
+	
+	field[1] = typ(TFIELD);
+	field[1]->type = ptrto(t->type);
+	field[1]->sym = mal(sizeof(Sym));
+	field[1]->sym->name = "val";
+	
+	field[2] = typ(TFIELD);
+	field[2]->type = ptrto(types[TUINT8]); // TODO: is there a Type type?
+	field[2]->sym = mal(sizeof(Sym));
+	field[2]->sym->name = "t";
+	
+	field[3] = typ(TFIELD);
+	field[3]->type = ptrto(hmap(t));
+	field[3]->sym = mal(sizeof(Sym));
+	field[3]->sym->name = "h";
+	
+	field[4] = typ(TFIELD);
+	field[4]->type = ptrto(mapbucket(t));
+	field[4]->sym = mal(sizeof(Sym));
+	field[4]->sym->name = "buckets";
+	
+	field[5] = typ(TFIELD);
+	field[5]->type = ptrto(mapbucket(t));
+	field[5]->sym = mal(sizeof(Sym));
+	field[5]->sym->name = "bptr";
+	
+	// all other non-pointer fields
+	field[6] = typ(TFIELD);
+	field[6]->type = typ(TARRAY);
+	field[6]->type->type = types[TUINTPTR];
+	field[6]->type->bound = 5;
+	field[6]->type->width = 5 * widthptr;
+	field[6]->sym = mal(sizeof(Sym));
+	field[6]->sym->name = "other";
+	
+	// build iterator struct holding the above fields
+	i = typ(TSTRUCT);
+	i->noalg = 1;
+	i->type = field[0];
+	off = 0;
+	for(n = 0; n < 6; n++) {
+		field[n]->down = field[n+1];
+		field[n]->width = off;
+		off += field[n]->type->width;
+	}
+	field[6]->down = T;
+	off += field[6]->type->width;
+	if(off != 11 * widthptr)
+		yyerror("hash_iter size not correct %d %d", off, 11 * widthptr);
+	t->hiter = i;
+	i->hiter = t;
+	return i;
+}
+
 /*
  * f is method type, with receiver.
  * return function type, receiver as first argument (or not).
@@ -656,7 +735,7 @@ static int
 dcommontype(Sym *s, int ot, Type *t)
 {
 	int i, alg, sizeofAlg;
-	Sym *sptr, *algsym;
+	Sym *sptr, *algsym, *zero;
 	static Sym *algarray;
 	char *p;
 	
@@ -677,6 +756,18 @@ dcommontype(Sym *s, int ot, Type *t)
 	else
 		sptr = weaktypesym(ptrto(t));
 
+	// All (non-reflect-allocated) Types share the same zero object.
+	// Each place in the compiler where a pointer to the zero object
+	// might be returned by a runtime call (map access return value,
+	// 2-arg type cast) declares the size of the zerovalue it needs.
+	// The linker magically takes the max of all the sizes.
+	zero = pkglookup("zerovalue", runtimepkg);
+	ggloblsym(zero, 0, 1, 1);
+	// We use size 0 here so we get the pointer to the zero value,
+	// but don't allocate space for the zero value unless we need it.
+	// TODO: how do we get this symbol into bss?  We really want
+	// a read-only bss, but I don't think such a thing exists.
+
 	// ../../pkg/reflect/type.go:/^type.commonType
 	// actual type structure
 	//	type commonType struct {
@@ -691,6 +782,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	//		string        *string
 	//		*extraType
 	//		ptrToThis     *Type
+	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, t->width);
 	ot = duint32(s, ot, typehash(t));
@@ -728,6 +820,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	ot += widthptr;
 
 	ot = dsymptr(s, ot, sptr, 0);  // ptrto type
+	ot = dsymptr(s, ot, zero, 0);  // ptr to zero value
 	return ot;
 }
 
@@ -893,7 +986,7 @@ ok:
 	switch(t->etype) {
 	default:
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		break;
 
 	case TARRAY:
@@ -905,7 +998,7 @@ ok:
 			t2->bound = -1;  // slice
 			s2 = dtypesym(t2);
 			ot = dcommontype(s, ot, t);
-			xt = ot - 2*widthptr;
+			xt = ot - 3*widthptr;
 			ot = dsymptr(s, ot, s1, 0);
 			ot = dsymptr(s, ot, s2, 0);
 			ot = duintptr(s, ot, t->bound);
@@ -913,7 +1006,7 @@ ok:
 			// ../../pkg/runtime/type.go:/SliceType
 			s1 = dtypesym(t->type);
 			ot = dcommontype(s, ot, t);
-			xt = ot - 2*widthptr;
+			xt = ot - 3*widthptr;
 			ot = dsymptr(s, ot, s1, 0);
 		}
 		break;
@@ -922,7 +1015,7 @@ ok:
 		// ../../pkg/runtime/type.go:/ChanType
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		ot = dsymptr(s, ot, s1, 0);
 		ot = duintptr(s, ot, t->chan);
 		break;
@@ -939,7 +1032,7 @@ ok:
 			dtypesym(t1->type);
 
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		ot = duint8(s, ot, isddd);
 
 		// two slice headers: in and out.
@@ -971,7 +1064,7 @@ ok:
 
 		// ../../pkg/runtime/type.go:/InterfaceType
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
@@ -990,7 +1083,7 @@ ok:
 		s3 = dtypesym(mapbucket(t));
 		s4 = dtypesym(hmap(t));
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		ot = dsymptr(s, ot, s1, 0);
 		ot = dsymptr(s, ot, s2, 0);
 		ot = dsymptr(s, ot, s3, 0);
@@ -1007,7 +1100,7 @@ ok:
 		// ../../pkg/runtime/type.go:/PtrType
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		ot = dsymptr(s, ot, s1, 0);
 		break;
 
@@ -1020,7 +1113,7 @@ ok:
 			n++;
 		}
 		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
+		xt = ot - 3*widthptr;
 		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);

@@ -513,10 +513,6 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 	return nil;
 }
 
-// When an item is not found, fast versions return a pointer to this zeroed memory.
-#pragma dataflag RODATA
-static uint8 empty_value[MAXVALUESIZE];
-
 // Specialized versions of mapaccess1 for specific types.
 // See ./hashmap_fast.c and ../../cmd/gc/walk.c.
 #define HASH_LOOKUP1 runtime·mapaccess1_fast32
@@ -737,15 +733,17 @@ hash_remove(MapType *t, Hmap *h, void *key)
 
 // TODO: shrink the map, the same way we grow it.
 
-// If you modify hash_iter, also change cmd/gc/range.c to indicate
-// the size of this structure.
+// If you modify hash_iter, also change cmd/gc/reflect.c to indicate
+// the layout of this structure.
 struct hash_iter
 {
 	uint8* key; // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
-	uint8* value;
+	uint8* value; // Must be in second position (see cmd/gc/range.c).
 
 	MapType *t;
 	Hmap *h;
+	byte *buckets; // bucket ptr at hash_iter initialization time
+	struct Bucket *bptr; // current bucket
 
 	// end point for iteration
 	uintptr endbucket;
@@ -753,11 +751,9 @@ struct hash_iter
 
 	// state of table at time iterator is initialized
 	uint8 B;
-	byte *buckets;
 
 	// iter state
 	uintptr bucket;
-	struct Bucket *bptr;
 	uintptr i;
 	intptr check_bucket;
 };
@@ -940,8 +936,8 @@ reflect·ismapkey(Type *typ, bool ret)
 	FLUSH(&ret);
 }
 
-Hmap*
-runtime·makemap_c(MapType *typ, int64 hint)
+static Hmap*
+makemap_c(MapType *typ, int64 hint)
 {
 	Hmap *h;
 	Type *key;
@@ -975,7 +971,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
 void
 runtime·makemap(MapType *typ, int64 hint, Hmap *ret)
 {
-	ret = runtime·makemap_c(typ, hint);
+	ret = makemap_c(typ, hint);
 	FLUSH(&ret);
 }
 
@@ -984,53 +980,26 @@ runtime·makemap(MapType *typ, int64 hint, Hmap *ret)
 void
 reflect·makemap(MapType *t, Hmap *ret)
 {
-	ret = runtime·makemap_c(t, 0);
+	ret = makemap_c(t, 0);
 	FLUSH(&ret);
 }
 
-void
-runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
-{
-	byte *res;
-	Type *elem;
-
-	elem = t->elem;
-	if(h == nil || h->count == 0) {
-		elem->alg->copy(elem->size, av, nil);
-		*pres = false;
-		return;
-	}
-
-	res = hash_lookup(t, h, &ak);
-
-	if(res != nil) {
-		*pres = true;
-		elem->alg->copy(elem->size, av, res);
-	} else {
-		*pres = false;
-		elem->alg->copy(elem->size, av, nil);
-	}
-}
-
-// mapaccess1(hmap *map[any]any, key any) (val any);
+// mapaccess1(hmap *map[any]any, key *any) (val *any);
+// NOTE: The returned pointer may keep the whole map live, so don't
+// hold onto it for very long.
 #pragma textflag NOSPLIT
 void
-runtime·mapaccess1(MapType *t, Hmap *h, ...)
+runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
 {
-	byte *ak, *av;
-	byte *res;
-
 	if(raceenabled && h != nil)
 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
 
-	ak = (byte*)(&h + 1);
-	av = ak + ROUND(t->key->size, Structrnd);
-
 	if(h == nil || h->count == 0) {
-		t->elem->alg->copy(t->elem->size, av, nil);
+		av = t->elem->zero;
 	} else {
-		res = hash_lookup(t, h, &ak);
-		t->elem->alg->copy(t->elem->size, av, res);
+		av = hash_lookup(t, h, &ak);
+		if(av == nil)
+			av = t->elem->zero;
 	}
 
 	if(debug) {
@@ -1042,23 +1011,31 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 		t->elem->alg->print(t->elem->size, av);
 		runtime·prints("\n");
 	}
+	FLUSH(&av);
 }
 
-// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+// mapaccess2(hmap *map[any]any, key *any) (val *any, pres bool);
+// NOTE: The returned pointer keeps the whole map live, so don't
+// hold onto it for very long.
 #pragma textflag NOSPLIT
 void
-runtime·mapaccess2(MapType *t, Hmap *h, ...)
+runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
 {
-	byte *ak, *av, *ap;
-
 	if(raceenabled && h != nil)
 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
 
-	ak = (byte*)(&h + 1);
-	av = ak + ROUND(t->key->size, Structrnd);
-	ap = av + t->elem->size;
-
-	runtime·mapaccess(t, h, ak, av, ap);
+	if(h == nil || h->count == 0) {
+		av = t->elem->zero;
+		pres = false;
+	} else {
+		av = hash_lookup(t, h, &ak);
+		if(av == nil) {
+			av = t->elem->zero;
+			pres = false;
+		} else {
+			pres = true;
+		}
+	}
 
 	if(debug) {
 		runtime·prints("runtime.mapaccess2: map=");
@@ -1068,9 +1045,11 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
 		runtime·prints("; val=");
 		t->elem->alg->print(t->elem->size, av);
 		runtime·prints("; pres=");
-		runtime·printbool(*ap);
+		runtime·printbool(pres);
 		runtime·prints("\n");
 	}
+	FLUSH(&av);
+	FLUSH(&pres);
 }
 
 // For reflect:
@@ -1080,7 +1059,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
 void
 reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 {
-	byte *ak, *av;
+	byte *ak, *av, *r;
 
 	if(raceenabled && h != nil)
 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
@@ -1089,77 +1068,63 @@ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 		ak = (byte*)&key;
 	else
 		ak = (byte*)key;
-	val = 0;
-	pres = false;
-	if(t->elem->size <= sizeof(val))
-		av = (byte*)&val;
-	else {
-		av = runtime·mal(t->elem->size);
-		val = (uintptr)av;
+
+	av = hash_lookup(t, h, &ak);
+	if(av == nil) {
+		val = 0;
+		pres = false;
+	} else {
+		if(t->elem->size <= sizeof(val)) {
+			val = 0; // clear high-order bits if value is smaller than a word
+			t->elem->alg->copy(t->elem->size, &val, av);
+		} else {
+			// make a copy because reflect can hang on to result indefinitely
+			r = runtime·cnew(t->elem);
+			t->elem->alg->copy(t->elem->size, r, av);
+			val = (uintptr)r;
+		}
+		pres = true;
 	}
-	runtime·mapaccess(t, h, ak, av, &pres);
 	FLUSH(&val);
 	FLUSH(&pres);
 }
 
-void
-runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
-{
-	if(h == nil)
-		runtime·panicstring("assignment to entry in nil map");
-
-	if(av == nil) {
-		hash_remove(t, h, ak);
-	} else {
-		hash_insert(t, h, ak, av);
-	}
-
-	if(debug) {
-		runtime·prints("mapassign: map=");
-		runtime·printpointer(h);
-		runtime·prints("; key=");
-		t->key->alg->print(t->key->size, ak);
-		runtime·prints("; val=");
-		if(av)
-			t->elem->alg->print(t->elem->size, av);
-		else
-			runtime·prints("nil");
-		runtime·prints("\n");
-	}
-}
-
-// mapassign1(mapType *type, hmap *map[any]any, key any, val any);
+// mapassign1(mapType *type, hmap *map[any]any, key *any, val *any);
 #pragma textflag NOSPLIT
 void
-runtime·mapassign1(MapType *t, Hmap *h, ...)
+runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
 {
-	byte *ak, *av;
-
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
 
 	if(raceenabled)
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
-	ak = (byte*)(&h + 1);
-	av = ak + ROUND(t->key->size, t->elem->align);
 
-	runtime·mapassign(t, h, ak, av);
+	hash_insert(t, h, ak, av);
+
+	if(debug) {
+		runtime·prints("mapassign1: map=");
+		runtime·printpointer(h);
+		runtime·prints("; key=");
+		t->key->alg->print(t->key->size, ak);
+		runtime·prints("; val=");
+		t->elem->alg->print(t->elem->size, av);
+		runtime·prints("\n");
+	}
 }
 
-// mapdelete(mapType *type, hmap *map[any]any, key any)
+// mapdelete(mapType *type, hmap *map[any]any, key *any)
 #pragma textflag NOSPLIT
 void
-runtime·mapdelete(MapType *t, Hmap *h, ...)
+runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
 {
-	byte *ak;
-
 	if(h == nil)
 		return;
 
 	if(raceenabled)
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
-	ak = (byte*)(&h + 1);
-	runtime·mapassign(t, h, ak, nil);
+
+	hash_remove(t, h, ak);
 
 	if(debug) {
 		runtime·prints("mapdelete: map=");
@@ -1187,13 +1152,35 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 		ak = (byte*)&key;
 	else
 		ak = (byte*)key;
-	if(t->elem->size <= sizeof(val))
-		av = (byte*)&val;
-	else
-		av = (byte*)val;
-	if(!pres)
-		av = nil;
-	runtime·mapassign(t, h, ak, av);
+	if(!pres) {
+		hash_remove(t, h, ak);
+
+		if(debug) {
+			runtime·prints("mapassign: map=");
+			runtime·printpointer(h);
+			runtime·prints("; key=");
+			t->key->alg->print(t->key->size, ak);
+			runtime·prints("; val=nil");
+			runtime·prints("\n");
+		}
+	} else {
+		if(t->elem->size <= sizeof(val))
+			av = (byte*)&val;
+		else
+			av = (byte*)val;
+
+		hash_insert(t, h, ak, av);
+
+		if(debug) {
+			runtime·prints("mapassign: map=");
+			runtime·printpointer(h);
+			runtime·prints("; key=");
+			t->key->alg->print(t->key->size, ak);
+			runtime·prints("; val=");
+			t->elem->alg->print(t->elem->size, av);
+			runtime·prints("\n");
+		}
+	}
 }
 
 // mapiterinit(mapType *type, hmap *map[any]any, hiter *any);
@@ -1254,46 +1241,6 @@ reflect·mapiternext(struct hash_iter *it)
 	runtime·mapiternext(it);
 }
 
-// mapiter1(hiter *any) (key any);
-#pragma textflag NOSPLIT
-void
-runtime·mapiter1(struct hash_iter *it, ...)
-{
-	byte *ak, *res;
-	Type *key;
-
-	ak = (byte*)(&it + 1);
-
-	res = it->key;
-	if(res == nil)
-		runtime·throw("runtime.mapiter1: key:val nil pointer");
-
-	key = it->t->key;
-	key->alg->copy(key->size, ak, res);
-
-	if(debug) {
-		runtime·prints("mapiter1: iter=");
-		runtime·printpointer(it);
-		runtime·prints("; map=");
-		runtime·printpointer(it->h);
-		runtime·prints("\n");
-	}
-}
-
-bool
-runtime·mapiterkey(struct hash_iter *it, void *ak)
-{
-	byte *res;
-	Type *key;
-
-	res = it->key;
-	if(res == nil)
-		return false;
-	key = it->t->key;
-	key->alg->copy(key->size, ak, res);
-	return true;
-}
-
 // For reflect:
 //	func mapiterkey(h map) (key iword, ok bool)
 // where an iword is the same word an interface value would use:
@@ -1301,18 +1248,24 @@ runtime·mapiterkey(struct hash_iter *it, void *ak)
 void
 reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
 {
-	byte *res;
+	byte *res, *r;
 	Type *tkey;
 
-	key = 0;
-	ok = false;
 	res = it->key;
-	if(res != nil) {
+	if(res == nil) {
+		key = 0;
+		ok = false;
+	} else {
 		tkey = it->t->key;
-		if(tkey->size <= sizeof(key))
+		if(tkey->size <= sizeof(key)) {
+			key = 0; // clear high-order bits if value is smaller than a word
 			tkey->alg->copy(tkey->size, (byte*)&key, res);
-		else
-			key = (uintptr)res;
+		} else {
+			// make a copy because reflect can hang on to result indefinitely
+			r = runtime·cnew(tkey);
+			tkey->alg->copy(tkey->size, r, res);
+			key = (uintptr)r;
+		}
 		ok = true;
 	}
 	FLUSH(&key);
@@ -1333,34 +1286,6 @@ reflect·maplen(Hmap *h, intgo len)
 			runtime·racereadpc(h, runtime·getcallerpc(&h), reflect·maplen);
 	}
 	FLUSH(&len);
-}
-
-// mapiter2(hiter *any) (key any, val any);
-#pragma textflag NOSPLIT
-void
-runtime·mapiter2(struct hash_iter *it, ...)
-{
-	byte *ak, *av, *res;
-	MapType *t;
-
-	t = it->t;
-	ak = (byte*)(&it + 1);
-	av = ak + ROUND(t->key->size, t->elem->align);
-
-	res = it->key;
-	if(res == nil)
-		runtime·throw("runtime.mapiter2: key:val nil pointer");
-
-	t->key->alg->copy(t->key->size, ak, res);
-	t->elem->alg->copy(t->elem->size, av, it->value);
-
-	if(debug) {
-		runtime·prints("mapiter2: iter=");
-		runtime·printpointer(it);
-		runtime·prints("; map=");
-		runtime·printpointer(it->h);
-		runtime·prints("\n");
-	}
 }
 
 // exported value for testing

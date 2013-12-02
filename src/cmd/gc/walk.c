@@ -341,13 +341,14 @@ void
 walkexpr(Node **np, NodeList **init)
 {
 	Node *r, *l, *var, *a;
+	Node *map, *key, *keyvar;
 	NodeList *ll, *lr, *lpost;
 	Type *t;
 	int et, old_safemode;
 	int64 v;
 	int32 lno;
 	Node *n, *fn, *n1, *n2;
-	Sym *sym;
+	Sym *sym, *zero;
 	char buf[100], *p;
 
 	n = *np;
@@ -657,6 +658,7 @@ walkexpr(Node **np, NodeList **init)
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
+		walkexpr(&r->right, init);
 		t = r->left->type;
 		p = nil;
 		if(t->type->width <= 128) { // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
@@ -675,41 +677,65 @@ walkexpr(Node **np, NodeList **init)
 			}
 		}
 		if(p != nil) {
-			// from:
-			//   a,b = m[i]
-			// to:
-			//   var,b = mapaccess2_fast*(t, m, i)
-			//   a = *var
-			a = n->list->n;
-			var = temp(ptrto(t->type));
-			var->typecheck = 1;
-
-			fn = mapfn(p, t);
-			r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
-			n->rlist = list1(r);
-			n->op = OAS2FUNC;
-			n->list->n = var;
-			walkexpr(&n, init);
-			*init = list(*init, n);
-
-			n = nod(OAS, a, nod(OIND, var, N));
-			typecheck(&n, Etop);
-			walkexpr(&n, init);
-			goto ret;
+			// fast versions take key by value
+			key = r->right;
+		} else {
+			// standard version takes key by reference
+			if(islvalue(r->right)) {
+				key = nod(OADDR, r->right, N);
+			} else {
+				keyvar = temp(t->down);
+				n1 = nod(OAS, keyvar, r->right);
+				typecheck(&n1, Etop);
+				*init = list(*init, n1);
+				key = nod(OADDR, keyvar, N);
+			}
+			p = "mapaccess2";
 		}
-		fn = mapfn("mapaccess2", t);
-		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
+
+		// from:
+		//   a,b = m[i]
+		// to:
+		//   var,b = mapaccess2*(t, m, i)
+		//   a = *var
+		a = n->list->n;
+		var = temp(ptrto(t->type));
+		var->typecheck = 1;
+		fn = mapfn(p, t);
+		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, key);
 		n->rlist = list1(r);
 		n->op = OAS2FUNC;
-		goto as2func;
+		n->list->n = var;
+		walkexpr(&n, init);
+		*init = list(*init, n);
+		
+		n = nod(OAS, a, nod(OIND, var, N));
+		typecheck(&n, Etop);
+		walkexpr(&n, init);
+		// mapaccess needs a zero value to be at least this big.
+		zero = pkglookup("zerovalue", runtimepkg);
+		ggloblsym(zero, t->type->width, 1, 1);
+		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
+		goto ret;
 
 	case ODELETE:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
-		l = n->list->n;
-		r = n->list->next->n;
-		t = l->type;
-		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
+		map = n->list->n;
+		key = n->list->next->n;
+		walkexpr(&map, init);
+		walkexpr(&key, init);
+		if(islvalue(key)) {
+			key = nod(OADDR, key, N);
+		} else {
+			keyvar = temp(key->type);
+			n1 = nod(OAS, keyvar, key);
+			typecheck(&n1, Etop);
+			*init = list(*init, n1);
+			key = nod(OADDR, keyvar, N);
+		}
+		t = map->type;
+		n = mkcall1(mapfndel("mapdelete", t), T, init, typename(t), map, key);
 		goto ret;
 
 	case OAS2DOTTYPE:
@@ -1063,6 +1089,8 @@ walkexpr(Node **np, NodeList **init)
 	case OINDEXMAP:
 		if(n->etype == 1)
 			goto ret;
+		walkexpr(&n->left, init);
+		walkexpr(&n->right, init);
 
 		t = n->left->type;
 		p = nil;
@@ -1082,16 +1110,28 @@ walkexpr(Node **np, NodeList **init)
 			}
 		}
 		if(p != nil) {
-			// use fast version.  The fast versions return a pointer to the value - we need
-			// to dereference it to get the result.
-			n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, n->right);
-			n = nod(OIND, n, N);
-			n->type = t->type;
-			n->typecheck = 1;
+			// fast versions take key by value
+			key = n->right;
 		} else {
-			// no fast version for this key
-			n = mkcall1(mapfn("mapaccess1", t), t->type, init, typename(t), n->left, n->right);
+			// standard version takes key by reference
+			if(islvalue(n->right)) {
+				key = nod(OADDR, n->right, N);
+			} else {
+				keyvar = temp(t->down);
+				n1 = nod(OAS, keyvar, n->right);
+				typecheck(&n1, Etop);
+				*init = list(*init, n1);
+				key = nod(OADDR, keyvar, N);
+			}
+			p = "mapaccess1";
 		}
+		n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, key);
+		n = nod(OIND, n, N);
+		n->type = t->type;
+		n->typecheck = 1;
+		// mapaccess needs a zero value to be at least this big.
+		zero = pkglookup("zerovalue", runtimepkg);
+		ggloblsym(zero, t->type->width, 1, 1);
 		goto ret;
 
 	case ORECV:
@@ -1911,6 +1951,8 @@ static Node*
 convas(Node *n, NodeList **init)
 {
 	Type *lt, *rt;
+	Node *map, *key, *keyvar, *val, *valvar;
+	Node *n1;
 
 	if(n->op != OAS)
 		fatal("convas: not OAS %O", n->op);
@@ -1931,9 +1973,32 @@ convas(Node *n, NodeList **init)
 	}
 
 	if(n->left->op == OINDEXMAP) {
-		n = mkcall1(mapfn("mapassign1", n->left->left->type), T, init,
-			typename(n->left->left->type),
-			n->left->left, n->left->right, n->right);
+		map = n->left->left;
+		key = n->left->right;
+		val = n->right;
+		walkexpr(&map, init);
+		walkexpr(&key, init);
+		walkexpr(&val, init);
+		if(islvalue(key)) {
+			key = nod(OADDR, key, N);
+		} else {
+			keyvar = temp(key->type);
+			n1 = nod(OAS, keyvar, key);
+			typecheck(&n1, Etop);
+			*init = list(*init, n1);
+			key = nod(OADDR, keyvar, N);
+		}
+		if(islvalue(val)) {
+			val = nod(OADDR, val, N);
+		} else {
+			valvar = temp(val->type);
+			n1 = nod(OAS, valvar, val);
+			typecheck(&n1, Etop);
+			*init = list(*init, n1);
+			val = nod(OADDR, valvar, N);
+		}
+		n = mkcall1(mapfn("mapassign1", map->type), T, init,
+			typename(map->type), map, key, val);
 		goto out;
 	}
 

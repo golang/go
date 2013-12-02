@@ -36,6 +36,6 @@ enum {
 	KindNoPointers = 1<<7,
 
 	// size of Type structure.
-	CommonSize = 6*PtrSize + 8,
+	CommonSize = 7*PtrSize + 8,
 };
 
