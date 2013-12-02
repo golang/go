@@ -1037,12 +1037,6 @@ void	runtime·osyield(void);
 void	runtime·lockOSThread(void);
 void	runtime·unlockOSThread(void);
 
-void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
-void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);
-void	runtime·mapiternext(struct hash_iter*);
-bool	runtime·mapiterkey(struct hash_iter*, void*);
-Hmap*	runtime·makemap_c(MapType*, int64);
-
 Hchan*	runtime·makechan_c(ChanType*, int64);
 void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);

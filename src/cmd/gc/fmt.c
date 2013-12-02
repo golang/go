@@ -706,6 +706,10 @@ typefmt(Fmt *fp, Type *t)
 			t = t->hmap;
 			return fmtprint(fp, "map.bucket[%T]%T", t->down, t->type);
 		}
+		if(t->hiter != T) {
+			t = t->hiter;
+			return fmtprint(fp, "map.iter[%T]%T", t->down, t->type);
+		}
 
 		if(t->funarg) {
 			fmtstrcpy(fp, "(");

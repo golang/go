@@ -31,6 +31,7 @@ struct Type
 	String *string;
 	UncommonType *x;
 	Type *ptrto;
+	byte *zero;  // ptr to the zero value for this type
 };
 
 struct Method

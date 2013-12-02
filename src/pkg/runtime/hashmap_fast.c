@@ -5,11 +5,6 @@
 // Fast hashmap lookup specialized to a specific key type.
 // Included by hashmap.c once for each specialized type.
 
-// Note that this code differs from hash_lookup in that
-// it returns a pointer to the result, not the result itself.
-// The returned pointer is only valid until the next GC
-// point, so the caller must dereference it before then.
-
 // +build ignore
 
 #pragma textflag NOSPLIT
@@ -31,7 +26,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 		runtime·prints("\n");
 	}
 	if(h == nil || h->count == 0) {
-		value = empty_value;
+		value = t->elem->zero;
 		FLUSH(&value);
 		return;
 	}
@@ -120,7 +115,7 @@ dohash:
 			b = b->overflow;
 		} while(b != nil);
 	}
-	value = empty_value;
+	value = t->elem->zero;
 	FLUSH(&value);
 }
 
@@ -143,7 +138,7 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 		runtime·prints("\n");
 	}
 	if(h == nil || h->count == 0) {
-		value = empty_value;
+		value = t->elem->zero;
 		res = false;
 		FLUSH(&value);
 		FLUSH(&res);
@@ -242,7 +237,7 @@ dohash:
 			b = b->overflow;
 		} while(b != nil);
 	}
-	value = empty_value;
+	value = t->elem->zero;
 	res = false;
 	FLUSH(&value);
 	FLUSH(&res);
