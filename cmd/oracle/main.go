@@ -91,8 +91,8 @@ func init() {
 }
 
 func printHelp() {
-	fmt.Println(helpMessage)
-	fmt.Println("Flags:")
+	fmt.Fprintln(os.Stderr, helpMessage)
+	fmt.Fprintln(os.Stderr, "Flags:")
 	flag.PrintDefaults()
 }
 
