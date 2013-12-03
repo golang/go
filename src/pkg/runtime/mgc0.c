@@ -19,7 +19,7 @@ enum {
 	Debug = 0,
 	DebugMark = 0,  // run second pass to check mark
 	CollectStats = 0,
-	ScanStackByFrames = 0,
+	ScanStackByFrames = 1,
 	IgnorePreciseGC = 0,
 
 	// Four bits per word (see #defines below).
@@ -151,6 +151,7 @@ static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
 static Workbuf* handoff(Workbuf*);
 static void	gchelperstart(void);
+static void	scanstack(G* gp, void *scanbuf);
 
 static struct {
 	uint64	full;  // lock-free list of full blocks
@@ -176,6 +177,7 @@ static struct {
 enum {
 	GC_DEFAULT_PTR = GC_NUM_INSTR,
 	GC_CHAN,
+	GC_G_PTR,
 
 	GC_NUM_INSTR2
 };
@@ -317,6 +319,24 @@ struct PtrTarget
 	uintptr ti;
 };
 
+typedef	struct Scanbuf Scanbuf;
+struct	Scanbuf
+{
+	struct {
+		PtrTarget *begin;
+		PtrTarget *end;
+		PtrTarget *pos;
+	} ptr;
+	struct {
+		Obj *begin;
+		Obj *end;
+		Obj *pos;
+	} obj;
+	Workbuf *wbuf;
+	Obj *wp;
+	uintptr nobj;
+};
+
 typedef struct BufferList BufferList;
 struct BufferList
 {
@@ -350,7 +370,7 @@ static void enqueue(Obj obj, Workbuf **_wbuf, Obj **_wp, uintptr *_nobj);
 //     flushptrbuf
 //  (find block start, mark and enqueue)
 static void
-flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj)
+flushptrbuf(Scanbuf *sbuf)
 {
 	byte *p, *arena_start, *obj;
 	uintptr size, *bitp, bits, shift, j, x, xbits, off, nobj, ti, n;
@@ -358,17 +378,19 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 	PageID k;
 	Obj *wp;
 	Workbuf *wbuf;
+	PtrTarget *ptrbuf;
 	PtrTarget *ptrbuf_end;
 
 	arena_start = runtime·mheap.arena_start;
 
-	wp = *_wp;
-	wbuf = *_wbuf;
-	nobj = *_nobj;
+	wp = sbuf->wp;
+	wbuf = sbuf->wbuf;
+	nobj = sbuf->nobj;
 
-	ptrbuf_end = *ptrbufpos;
-	n = ptrbuf_end - ptrbuf;
-	*ptrbufpos = ptrbuf;
+	ptrbuf = sbuf->ptr.begin;
+	ptrbuf_end = sbuf->ptr.pos;
+	n = ptrbuf_end - sbuf->ptr.begin;
+	sbuf->ptr.pos = sbuf->ptr.begin;
 
 	if(CollectStats) {
 		runtime·xadd64(&gcstats.ptr.sum, n);
@@ -514,25 +536,27 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 		}
 	}
 
-	*_wp = wp;
-	*_wbuf = wbuf;
-	*_nobj = nobj;
+	sbuf->wp = wp;
+	sbuf->wbuf = wbuf;
+	sbuf->nobj = nobj;
 }
 
 static void
-flushobjbuf(Obj *objbuf, Obj **objbufpos, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj)
+flushobjbuf(Scanbuf *sbuf)
 {
 	uintptr nobj, off;
 	Obj *wp, obj;
 	Workbuf *wbuf;
+	Obj *objbuf;
 	Obj *objbuf_end;
 
-	wp = *_wp;
-	wbuf = *_wbuf;
-	nobj = *_nobj;
+	wp = sbuf->wp;
+	wbuf = sbuf->wbuf;
+	nobj = sbuf->nobj;
 
-	objbuf_end = *objbufpos;
-	*objbufpos = objbuf;
+	objbuf = sbuf->obj.begin;
+	objbuf_end = sbuf->obj.pos;
+	sbuf->obj.pos = sbuf->obj.begin;
 
 	while(objbuf < objbuf_end) {
 		obj = *objbuf++;
@@ -570,9 +594,9 @@ flushobjbuf(Obj *objbuf, Obj **objbufpos, Obj **_wp, Workbuf **_wbuf, uintptr *_
 		wp = wbuf->obj + nobj;
 	}
 
-	*_wp = wp;
-	*_wbuf = wbuf;
-	*_nobj = nobj;
+	sbuf->wp = wp;
+	sbuf->wbuf = wbuf;
+	sbuf->nobj = nobj;
 }
 
 // Program that scans the whole block and treats every block element as a potential pointer
@@ -580,6 +604,9 @@ static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
 
 // Hchan program
 static uintptr chanProg[2] = {0, GC_CHAN};
+
+// G* program
+static uintptr gptrProg[2] = {0, GC_G_PTR};
 
 // Local variables of a program fragment or loop
 typedef struct Frame Frame;
@@ -666,8 +693,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	Slice *sliceptr;
 	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
 	BufferList *scanbuffers;
-	PtrTarget *ptrbuf, *ptrbuf_end, *ptrbufpos;
-	Obj *objbuf, *objbuf_end, *objbufpos;
+	Scanbuf sbuf;
 	Eface *eface;
 	Iface *iface;
 	Hchan *chan;
@@ -681,21 +707,22 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	arena_used = runtime·mheap.arena_used;
 
 	stack_ptr = stack+nelem(stack)-1;
-	
+
 	precise_type = false;
 	nominal_size = 0;
 
-	// Allocate ptrbuf
-	{
-		scanbuffers = &bufferList[m->helpgc];
-		ptrbuf = &scanbuffers->ptrtarget[0];
-		ptrbuf_end = &scanbuffers->ptrtarget[0] + nelem(scanbuffers->ptrtarget);
-		objbuf = &scanbuffers->obj[0];
-		objbuf_end = &scanbuffers->obj[0] + nelem(scanbuffers->obj);
-	}
+	// Initialize sbuf
+	scanbuffers = &bufferList[m->helpgc];
 
-	ptrbufpos = ptrbuf;
-	objbufpos = objbuf;
+	sbuf.ptr.begin = sbuf.ptr.pos = &scanbuffers->ptrtarget[0];
+	sbuf.ptr.end = sbuf.ptr.begin + nelem(scanbuffers->ptrtarget);
+
+	sbuf.obj.begin = sbuf.obj.pos = &scanbuffers->obj[0];
+	sbuf.obj.end = sbuf.obj.begin + nelem(scanbuffers->obj);
+
+	sbuf.wbuf = wbuf;
+	sbuf.wp = wp;
+	sbuf.nobj = nobj;
 
 	// (Silence the compiler)
 	chan = nil;
@@ -713,7 +740,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 		if(CollectStats) {
 			runtime·xadd64(&gcstats.nbytes, n);
-			runtime·xadd64(&gcstats.obj.sum, nobj);
+			runtime·xadd64(&gcstats.obj.sum, sbuf.nobj);
 			runtime·xadd64(&gcstats.obj.cnt, 1);
 		}
 
@@ -839,9 +866,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			// eface->type
 			t = eface->type;
 			if((void*)t >= arena_start && (void*)t < arena_used) {
-				*ptrbufpos++ = (PtrTarget){t, 0};
-				if(ptrbufpos == ptrbuf_end)
-					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
+				*sbuf.ptr.pos++ = (PtrTarget){t, 0};
+				if(sbuf.ptr.pos == sbuf.ptr.end)
+					flushptrbuf(&sbuf);
 			}
 
 			// eface->data
@@ -868,9 +895,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			
 			// iface->tab
 			if((void*)iface->tab >= arena_start && (void*)iface->tab < arena_used) {
-				*ptrbufpos++ = (PtrTarget){iface->tab, (uintptr)itabtype->gc};
-				if(ptrbufpos == ptrbuf_end)
-					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
+				*sbuf.ptr.pos++ = (PtrTarget){iface->tab, (uintptr)itabtype->gc};
+				if(sbuf.ptr.pos == sbuf.ptr.end)
+					flushptrbuf(&sbuf);
 			}
 
 			// iface->data
@@ -895,9 +922,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				obj = *(byte**)stack_top.b;
 				stack_top.b += PtrSize;
 				if(obj >= arena_start && obj < arena_used) {
-					*ptrbufpos++ = (PtrTarget){obj, 0};
-					if(ptrbufpos == ptrbuf_end)
-						flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
+					*sbuf.ptr.pos++ = (PtrTarget){obj, 0};
+					if(sbuf.ptr.pos == sbuf.ptr.end)
+						flushptrbuf(&sbuf);
 				}
 			}
 			goto next_block;
@@ -926,7 +953,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					if(*(byte**)i != nil) {
 						// Found a value that may be a pointer.
 						// Do a rescan of the entire block.
-						enqueue((Obj){b, n, 0}, &wbuf, &wp, &nobj);
+						enqueue((Obj){b, n, 0}, &sbuf.wbuf, &sbuf.wp, &sbuf.nobj);
 						if(CollectStats) {
 							runtime·xadd64(&gcstats.rescan, 1);
 							runtime·xadd64(&gcstats.rescanbytes, n);
@@ -972,9 +999,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			objti = pc[3];
 			pc += 4;
 
-			*objbufpos++ = (Obj){obj, size, objti};
-			if(objbufpos == objbuf_end)
-				flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
+			*sbuf.obj.pos++ = (Obj){obj, size, objti};
+			if(sbuf.obj.pos == sbuf.obj.end)
+				flushobjbuf(&sbuf);
 			continue;
 
 		case GC_CHAN_PTR:
@@ -1007,10 +1034,10 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					// in-use part of the circular buffer is scanned.
 					// (Channel routines zero the unused part, so the current
 					// code does not lead to leaks, it's just a little inefficient.)
-					*objbufpos++ = (Obj){(byte*)chan+runtime·Hchansize, chancap*chantype->elem->size,
+					*sbuf.obj.pos++ = (Obj){(byte*)chan+runtime·Hchansize, chancap*chantype->elem->size,
 						(uintptr)chantype->elem->gc | PRECISE | LOOP};
-					if(objbufpos == objbuf_end)
-						flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
+					if(sbuf.obj.pos == sbuf.obj.end)
+						flushobjbuf(&sbuf);
 				}
 			}
 			if(chan_ret == nil)
@@ -1018,15 +1045,20 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			pc = chan_ret;
 			continue;
 
+		case GC_G_PTR:
+			obj = (void*)stack_top.b;
+			scanstack(obj, &sbuf);
+			goto next_block;
+
 		default:
 			runtime·throw("scanblock: invalid GC instruction");
 			return;
 		}
 
 		if(obj >= arena_start && obj < arena_used) {
-			*ptrbufpos++ = (PtrTarget){obj, objti};
-			if(ptrbufpos == ptrbuf_end)
-				flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
+			*sbuf.ptr.pos++ = (PtrTarget){obj, objti};
+			if(sbuf.ptr.pos == sbuf.ptr.end)
+				flushptrbuf(&sbuf);
 		}
 	}
 
@@ -1034,34 +1066,32 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		// Done scanning [b, b+n).  Prepare for the next iteration of
 		// the loop by setting b, n, ti to the parameters for the next block.
 
-		if(nobj == 0) {
-			flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
-			flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
+		if(sbuf.nobj == 0) {
+			flushptrbuf(&sbuf);
+			flushobjbuf(&sbuf);
 
-			if(nobj == 0) {
+			if(sbuf.nobj == 0) {
 				if(!keepworking) {
-					if(wbuf)
-						putempty(wbuf);
-					goto endscan;
+					if(sbuf.wbuf)
+						putempty(sbuf.wbuf);
+					return;
 				}
 				// Emptied our buffer: refill.
-				wbuf = getfull(wbuf);
-				if(wbuf == nil)
-					goto endscan;
-				nobj = wbuf->nobj;
-				wp = wbuf->obj + wbuf->nobj;
+				sbuf.wbuf = getfull(sbuf.wbuf);
+				if(sbuf.wbuf == nil)
+					return;
+				sbuf.nobj = sbuf.wbuf->nobj;
+				sbuf.wp = sbuf.wbuf->obj + sbuf.wbuf->nobj;
 			}
 		}
 
 		// Fetch b from the work buffer.
-		--wp;
-		b = wp->p;
-		n = wp->n;
-		ti = wp->ti;
-		nobj--;
+		--sbuf.wp;
+		b = sbuf.wp->p;
+		n = sbuf.wp->n;
+		ti = sbuf.wp->ti;
+		sbuf.nobj--;
 	}
-
-endscan:;
 }
 
 // debug_scanblock is the debug copy of scanblock.
@@ -1340,7 +1370,7 @@ struct BitVector
 // Scans an interface data value when the interface type indicates
 // that it is a pointer.
 static void
-scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue)
+scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, Scanbuf *sbuf)
 {
 	Itab *tab;
 	Type *type;
@@ -1356,12 +1386,14 @@ scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue)
 				return;
 		}
 	}
-	addroot((Obj){scanp+PtrSize, PtrSize, 0});
+	*sbuf->obj.pos++ = (Obj){scanp+PtrSize, PtrSize, 0};
+	if(sbuf->obj.pos == sbuf->obj.end)
+		flushobjbuf(sbuf);
 }
 
 // Starting from scanp, scans words corresponding to set bits.
 static void
-scanbitvector(byte *scanp, BitVector *bv, bool afterprologue)
+scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, Scanbuf *sbuf)
 {
 	uintptr word, bits;
 	uint32 *wordp;
@@ -1378,56 +1410,16 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue)
 		for(; i > 0; i--) {
 			bits = word & 3;
 			if(bits != BitsNoPointer && *(void**)scanp != nil)
-				if(bits == BitsPointer)
-					addroot((Obj){scanp, PtrSize, 0});
-				else
-					scaninterfacedata(bits, scanp, afterprologue);
+				if(bits == BitsPointer) {
+					*sbuf->obj.pos++ = (Obj){scanp, PtrSize, 0};
+					if(sbuf->obj.pos == sbuf->obj.end)
+						flushobjbuf(sbuf);
+				} else
+					scaninterfacedata(bits, scanp, afterprologue, sbuf);
 			word >>= BitsPerPointer;
 			scanp += PtrSize;
 		}
 	}
-}
-
-// Scan a stack frame: local variables and function arguments/results.
-static void
-addframeroots(Stkframe *frame, void*)
-{
-	Func *f;
-	BitVector *args, *locals;
-	uintptr size;
-	bool afterprologue;
-
-	f = frame->fn;
-
-	// Scan local variables if stack frame has been allocated.
-	// Use pointer information if known.
-	afterprologue = (frame->varp > (byte*)frame->sp);
-	if(afterprologue) {
-		locals = runtime·funcdata(f, FUNCDATA_GCLocals);
-		if(locals == nil) {
-			// No locals information, scan everything.
-			size = frame->varp - (byte*)frame->sp;
-			addroot((Obj){frame->varp - size, size, 0});
-		} else if(locals->n < 0) {
-			// Locals size information, scan just the
-			// locals.
-			size = -locals->n;
-			addroot((Obj){frame->varp - size, size, 0});
-		} else if(locals->n > 0) {
-			// Locals bitmap information, scan just the
-			// pointers in locals.
-			size = (locals->n*PtrSize) / BitsPerPointer;
-			scanbitvector(frame->varp - size, locals, afterprologue);
-		}
-	}
-
-	// Scan arguments.
-	// Use pointer information if known.
-	args = runtime·funcdata(f, FUNCDATA_GCArgs);
-	if(args != nil && args->n > 0)
-		scanbitvector(frame->argp, args, false);
-	else
-		addroot((Obj){frame->argp, frame->arglen, 0});
 }
 
 static void
@@ -1436,12 +1428,9 @@ addstackroots(G *gp)
 	M *mp;
 	int32 n;
 	Stktop *stk;
-	uintptr sp, guard, pc, lr;
+	uintptr sp, guard;
 	void *base;
 	uintptr size;
-
-	stk = (Stktop*)gp->stackbase;
-	guard = gp->stackguard;
 
 	if(gp == g)
 		runtime·throw("can't scan our own stack");
@@ -1454,28 +1443,24 @@ addstackroots(G *gp)
 		// Use the stack segment and stack pointer at the time of
 		// the system call instead, since that won't change underfoot.
 		sp = gp->syscallsp;
-		pc = gp->syscallpc;
-		lr = 0;
 		stk = (Stktop*)gp->syscallstack;
 		guard = gp->syscallguard;
 	} else {
 		// Scanning another goroutine's stack.
 		// The goroutine is usually asleep (the world is stopped).
 		sp = gp->sched.sp;
-		pc = gp->sched.pc;
-		lr = gp->sched.lr;
-
+		stk = (Stktop*)gp->stackbase;
+		guard = gp->stackguard;
 		// For function about to start, context argument is a root too.
 		if(gp->sched.ctxt != 0 && runtime·mlookup(gp->sched.ctxt, &base, &size, nil))
 			addroot((Obj){base, size, 0});
 	}
 	if(ScanStackByFrames) {
+		USED(sp);
 		USED(stk);
 		USED(guard);
-		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil, false);
+		addroot((Obj){(byte*)gp, PtrSize, (uintptr)gptrProg});
 	} else {
-		USED(lr);
-		USED(pc);
 		n = 0;
 		while(stk) {
 			if(sp < guard-StackGuard || (uintptr)stk < sp) {
@@ -1489,6 +1474,79 @@ addstackroots(G *gp)
 			n++;
 		}
 	}
+}
+
+static void
+scanframe(Stkframe *frame, void *arg)
+{
+	BitVector *args, *locals;
+	Scanbuf *sbuf;
+	uintptr size;
+	bool afterprologue;
+
+	sbuf = arg;
+	// Scan local variables if stack frame has been allocated.
+	// Use pointer information if known.
+	afterprologue = (frame->varp > (byte*)frame->sp);
+	if(afterprologue) {
+		locals = runtime·funcdata(frame->fn, FUNCDATA_GCLocals);
+		if(locals == nil) {
+			// No locals information, scan everything.
+			size = frame->varp - (byte*)frame->sp;
+			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
+			if(sbuf->obj.pos == sbuf->obj.end)
+				flushobjbuf(sbuf);
+		} else if(locals->n < 0) {
+			// Locals size information, scan just the
+			// locals.
+			size = -locals->n;
+			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
+			if(sbuf->obj.pos == sbuf->obj.end)
+				flushobjbuf(sbuf);
+		} else if(locals->n > 0) {
+			// Locals bitmap information, scan just the
+			// pointers in locals.
+			size = (locals->n*PtrSize) / BitsPerPointer;
+			scanbitvector(frame->varp - size, locals, afterprologue, sbuf);
+		}
+	}
+
+	// Scan arguments.
+	// Use pointer information if known.
+	args = runtime·funcdata(frame->fn, FUNCDATA_GCArgs);
+	if(args != nil && args->n > 0)
+		scanbitvector(frame->argp, args, false, sbuf);
+	else {
+		*sbuf->obj.pos++ = (Obj){frame->argp, frame->arglen, 0};
+		if(sbuf->obj.pos == sbuf->obj.end)
+			flushobjbuf(sbuf);
+	}
+}
+
+static void
+scanstack(G* gp, void *scanbuf)
+{
+	uintptr pc;
+	uintptr sp;
+	uintptr lr;
+
+	if(gp->syscallstack != (uintptr)nil) {
+		// Scanning another goroutine that is about to enter or might
+		// have just exited a system call. It may be executing code such
+		// as schedlock and may have needed to start a new stack segment.
+		// Use the stack segment and stack pointer at the time of
+		// the system call instead, since that won't change underfoot.
+		sp = gp->syscallsp;
+		pc = gp->syscallpc;
+		lr = 0;
+	} else {
+		// Scanning another goroutine's stack.
+		// The goroutine is usually asleep (the world is stopped).
+		sp = gp->sched.sp;
+		pc = gp->sched.pc;
+		lr = gp->sched.lr;
+	}
+	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
 }
 
 static void
