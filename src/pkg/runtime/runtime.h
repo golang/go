@@ -533,9 +533,10 @@ struct CgoMal
 // Holds variables parsed from GODEBUG env var.
 struct DebugVars
 {
+	int32	allocfreetrace;
 	int32	gctrace;
-	int32	schedtrace;
 	int32	scheddetail;
+	int32	schedtrace;
 };
 
 extern bool runtime·precisestack;

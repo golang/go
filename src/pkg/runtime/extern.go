@@ -36,6 +36,9 @@ a comma-separated list of name=val pairs. Supported names are:
 	detailed multiline info every X milliseconds, describing state of the scheduler,
 	processors, threads and goroutines.
 
+	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
+	profiled and a stack trace printed on each object's allocation and free.
+
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against
