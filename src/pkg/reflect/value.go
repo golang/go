@@ -2175,7 +2175,7 @@ func Zero(typ Type) Value {
 	if t.size <= ptrSize {
 		return Value{t, nil, fl}
 	}
-	return Value{t, t.zero, fl | flagIndir}
+	return Value{t, unsafe_New(typ.(*rtype)), fl | flagIndir}
 }
 
 // New returns a Value representing a pointer to a new zero value
