@@ -36,8 +36,11 @@ func printnl()
 func printsp()
 func goprintf()
 
-// filled in by compiler: int n, string, string, ...
-func concatstring()
+func concatstring2(string, string) string
+func concatstring3(string, string, string) string
+func concatstring4(string, string, string, string) string
+func concatstring5(string, string, string, string, string) string
+func concatstrings([]string) string
 
 func cmpstring(string, string) int
 func eqstring(string, string) bool
