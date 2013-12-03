@@ -702,13 +702,17 @@ typefmt(Fmt *fp, Type *t)
 	case TSTRUCT:
 		// Format the bucket struct for map[x]y as map.bucket[x]y.
 		// This avoids a recursive print that generates very long names.
-		if(t->hmap != T) {
-			t = t->hmap;
-			return fmtprint(fp, "map.bucket[%T]%T", t->down, t->type);
-		}
-		if(t->hiter != T) {
-			t = t->hiter;
-			return fmtprint(fp, "map.iter[%T]%T", t->down, t->type);
+		if(t->map != T) {
+			if(t->map->bucket == t) {
+				return fmtprint(fp, "map.bucket[%T]%T", t->map->down, t->map->type);
+			}
+			if(t->map->hmap == t) {
+				return fmtprint(fp, "map.hdr[%T]%T", t->map->down, t->map->type);
+			}
+			if(t->map->hiter == t) {
+				return fmtprint(fp, "map.iter[%T]%T", t->map->down, t->map->type);
+			}
+			yyerror("unknown internal map type");
 		}
 
 		if(t->funarg) {
