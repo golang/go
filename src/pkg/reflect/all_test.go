@@ -3640,3 +3640,14 @@ func TestReflectMethodTraceback(t *testing.T) {
 		t.Errorf("Call returned %d; want 8", i)
 	}
 }
+
+func TestBigZero(t *testing.T) {
+	const size = 1 << 10
+	var v [size]byte
+	z := Zero(ValueOf(v).Type()).Interface().([size]byte)
+	for i := 0; i < size; i++ {
+		if z[i] != 0 {
+			t.Fatalf("Zero object not all zero, index %d", i)
+		}
+	}
+}
