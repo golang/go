@@ -2558,33 +2558,39 @@ mapfndel(char *name, Type *t)
 static Node*
 addstr(Node *n, NodeList **init)
 {
-	Node *r, *cat, *typstr;
-	NodeList *in, *args;
-	int i, count;
+	Node *r, *cat, *slice;
+	NodeList *args;
+	int count;
+	Type *t;
 
 	count = 0;
 	for(r=n; r->op == OADDSTR; r=r->left)
 		count++;	// r->right
 	count++;	// r
+	if(count < 2)
+		yyerror("addstr count %d too small", count);
 
-	// prepare call of runtime.catstring of type int, string, string, string
-	// with as many strings as we have.
-	cat = syslook("concatstring", 1);
-	cat->type = T;
-	cat->ntype = nod(OTFUNC, N, N);
-	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// count
-	typstr = typenod(types[TSTRING]);
-	for(i=0; i<count; i++)
-		in = list(in, nod(ODCLFIELD, N, typstr));
-	cat->ntype->list = in;
-	cat->ntype->rlist = list1(nod(ODCLFIELD, N, typstr));
-
+	// build list of string arguments
 	args = nil;
 	for(r=n; r->op == OADDSTR; r=r->left)
 		args = concat(list1(conv(r->right, types[TSTRING])), args);
 	args = concat(list1(conv(r, types[TSTRING])), args);
-	args = concat(list1(nodintconst(count)), args);
 
+	if(count <= 5) {
+		// small numbers of strings use direct runtime helpers.
+		snprint(namebuf, sizeof(namebuf), "concatstring%d", count);
+	} else {
+		// large numbers of strings are passed to the runtime as a slice.
+		strcpy(namebuf, "concatstrings");
+		t = typ(TARRAY);
+		t->type = types[TSTRING];
+		t->bound = -1;
+		slice = nod(OCOMPLIT, N, typenod(t));
+		slice->list = args;
+		slice->esc = EscNone;
+		args = list1(slice);
+	}
+	cat = syslook(namebuf, 1);
 	r = nod(OCALL, cat, N);
 	r->list = args;
 	typecheck(&r, Erv);

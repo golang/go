@@ -179,14 +179,35 @@ concatstring(intgo n, String *s)
 	return out;
 }
 
-// NOTE: Cannot use func syntax, because we need the ...,
-// to signal to the garbage collector that this function does
-// not have a fixed size argument count.
 #pragma textflag NOSPLIT
-void
-runtime·concatstring(intgo n, String s1, ...)
-{
-	(&s1)[n] = concatstring(n, &s1);
+func concatstring2(s1 String, s2 String) (res String) {
+	USED(&s2);
+	res = concatstring(2, &s1);
+}
+#pragma textflag NOSPLIT
+func concatstring3(s1 String, s2 String, s3 String) (res String) {
+	USED(&s2);
+	USED(&s3);
+	res = concatstring(3, &s1);
+}
+#pragma textflag NOSPLIT
+func concatstring4(s1 String, s2 String, s3 String, s4 String) (res String) {
+	USED(&s2);
+	USED(&s3);
+	USED(&s4);
+	res = concatstring(4, &s1);
+}
+#pragma textflag NOSPLIT
+func concatstring5(s1 String, s2 String, s3 String, s4 String, s5 String) (res String) {
+	USED(&s2);
+	USED(&s3);
+	USED(&s4);
+	USED(&s5);
+	res = concatstring(5, &s1);
+}
+#pragma textflag NOSPLIT
+func concatstrings(s Slice) (res String) {
+	res = concatstring(s.len, (String*)s.array);
 }
 
 func eqstring(s1 String, s2 String) (v bool) {
