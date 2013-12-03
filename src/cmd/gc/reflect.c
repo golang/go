@@ -173,6 +173,7 @@ mapbucket(Type *t)
 	bucket->width = offset;
 	bucket->local = t->local;
 	t->bucket = bucket;
+	bucket->map = t;
 	return bucket;
 }
 
@@ -229,7 +230,7 @@ hmap(Type *t)
 	h->width = offset;
 	h->local = t->local;
 	t->hmap = h;
-	h->hmap = t;
+	h->map = t;
 	return h;
 }
 
@@ -308,7 +309,7 @@ hiter(Type *t)
 	if(off != 11 * widthptr)
 		yyerror("hash_iter size not correct %d %d", off, 11 * widthptr);
 	t->hiter = i;
-	i->hiter = t;
+	i->map = t;
 	return i;
 }
 
