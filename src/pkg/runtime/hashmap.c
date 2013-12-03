@@ -991,9 +991,10 @@ reflect·makemap(MapType *t, Hmap *ret)
 void
 runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
 {
-	if(raceenabled && h != nil)
+	if(raceenabled && h != nil) {
 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
-
+		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess1);
+	}
 	if(h == nil || h->count == 0) {
 		av = t->elem->zero;
 	} else {
@@ -1021,8 +1022,10 @@ runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
 void
 runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
 {
-	if(raceenabled && h != nil)
+	if(raceenabled && h != nil) {
 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess2);
+	}
 
 	if(h == nil || h->count == 0) {
 		av = t->elem->zero;
@@ -1097,8 +1100,11 @@ runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
 
-	if(raceenabled)
+	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapassign1);
+		runtime·racereadpc(av, runtime·getcallerpc(&t), runtime·mapassign1);
+	}
 
 	hash_insert(t, h, ak, av);
 
@@ -1121,8 +1127,10 @@ runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
 	if(h == nil)
 		return;
 
-	if(raceenabled)
+	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapdelete);
+	}
 
 	hash_remove(t, h, ak);
 
