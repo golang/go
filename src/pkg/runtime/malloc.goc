@@ -122,6 +122,9 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
 
+	if(runtime·debug.allocfreetrace)
+		goto profile;
+
 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
 		if(size >= rate)
 			goto profile;
@@ -135,7 +138,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
 		profile:
 			runtime·setblockspecial(v, true);
-			runtime·MProf_Malloc(v, size);
+			runtime·MProf_Malloc(v, size, typ);
 		}
 	}
 

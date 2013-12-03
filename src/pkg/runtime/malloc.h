@@ -476,7 +476,7 @@ enum
 	FlagNoInvokeGC	= 1<<4, // don't invoke GC
 };
 
-void	runtime·MProf_Malloc(void*, uintptr);
+void	runtime·MProf_Malloc(void*, uintptr, uintptr);
 void	runtime·MProf_Free(void*, uintptr);
 void	runtime·MProf_GC(void);
 int32	runtime·gcprocs(void);
