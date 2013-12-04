@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// testing precise operand formatting in error messages
-// (matching messages are regular expressions, hence the \'s)
-
 package errors
 
+// Testing precise operand formatting in error messages
+// (matching messages are regular expressions, hence the \'s).
 func f(x int, m map[string]int) {
 	// no values
 	_ = f /* ERROR "f\(0, m\) \(no value\) used as value" */ (0, m)
@@ -43,4 +42,10 @@ func _() {
 	0 /* ERROR 0 .* is not used */
 	0 // ERROR "0 .* is not used"
 	0 // ERROR 0 .* is not used
+}
+
+// Don't report spurious errors as a consequence of earlier errors.
+// Add more tests as needed.
+func _() {
+	if err := foo /* ERROR undeclared */ (); err != nil /* no error here */ {}
 }

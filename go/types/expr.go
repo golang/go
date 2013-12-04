@@ -464,7 +464,7 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
 
 // convertUntyped attempts to set the type of an untyped value to the target type.
 func (check *checker) convertUntyped(x *operand, target Type) {
-	if x.mode == invalid || isTyped(x.typ) {
+	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
 		return
 	}
 
