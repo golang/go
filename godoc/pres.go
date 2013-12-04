@@ -67,6 +67,15 @@ type Presentation struct {
 	// The source file argument has the form /src/pkg/<path>/<filename>.
 	URLForSrcPos func(src string, line, low, high int) string
 
+	// URLForSrcQuery optionally specifies a function to create a URL given a
+	// source file, a query string, and a line from the source file (1-based).
+	// The source file argument has the form /src/pkg/<path>/<filename>.
+	// The query argument will be escaped for the purposes of embedding in a URL
+	// query parameter.
+	// Ideally, the returned URL will be for the specified line of the file with
+	// the query string highlighted.
+	URLForSrcQuery func(src, query string, line int) string
+
 	initFuncMapOnce sync.Once
 	funcMap         template.FuncMap
 	templateFuncs   template.FuncMap

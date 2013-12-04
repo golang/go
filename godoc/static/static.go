@@ -1413,10 +1413,11 @@ function PlaygroundOutput(el) {
 			{{$pkg_html := pkgLink .Pak.Path | html}}
 			<h3 id="Global_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
-				{{$src_html := srcLink .File.Path | html}}
+				{{$file := .File.Path}}
 				{{range .Groups}}
 					{{range .}}
-						<a href="{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{$src_html}}:{{infoLine .}}</a>
+						{{$line := infoLine .}}
+						<a href="{{queryLink $file $query_url $line | html}}">{{$file}}:{{$line}}</a>
 						{{infoSnippet_html .}}
 					{{end}}
 				{{end}}
@@ -1429,8 +1430,8 @@ function PlaygroundOutput(el) {
 			{{$pkg_html := pkgLink .Pak.Path | html}}
 			<h3 id="Local_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
-				{{$src_html := srcLink .File.Path | html}}
-				<a href="{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>
+				{{$file := .File.Path}}
+				<a href="{{queryLink $file $query_url 0 | html}}">{{$file}}</a>
 				<table class="layout">
 				{{range .Groups}}
 					<tr>
@@ -1439,7 +1440,8 @@ function PlaygroundOutput(el) {
 					<td align="left" width="4"></td>
 					<td>
 					{{range .}}
-						<a href="{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{infoLine .}}</a>
+						{{$line := infoLine .}}
+						<a href="{{queryLink $file $query_url $line | html}}">{{$line}}</a>
 					{{end}}
 					</td>
 					</tr>
@@ -1461,17 +1463,17 @@ function PlaygroundOutput(el) {
 	<p>
 	<table class="layout">
 	{{range .}}
-		{{$src_html := srcLink .Filename | html}}
+		{{$file := .Filename}}
 		<tr>
 		<td align="left" valign="top">
-		<a href="{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>:
+		<a href="{{queryLink $file $query_url 0}}">{{$file}}</a>:
 		</td>
 		<td align="left" width="4"></td>
 		<th align="left" valign="top">{{len .Lines}}</th>
 		<td align="left" width="4"></td>
 		<td align="left">
 		{{range .Lines}}
-			<a href="{{$src_html}}?h={{$query_url}}#L{{html .}}">{{html .}}</a>
+			<a href="{{queryLink $file $query_url .}}">{{html .}}</a>
 		{{end}}
 		{{if not $.Complete}}
 			...

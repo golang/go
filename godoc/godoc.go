@@ -22,6 +22,7 @@ import (
 	"os"
 	pathpkg "path"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -80,6 +81,7 @@ func (p *Presentation) initFuncMap() {
 		"srcLink":     srcLinkFunc,
 		"posLink_url": newPosLink_urlFunc(srcPosLinkFunc),
 		"docLink":     docLinkFunc,
+		"queryLink":   queryLinkFunc,
 
 		// formatting of Examples
 		"example_html":   p.example_htmlFunc,
@@ -95,6 +97,9 @@ func (p *Presentation) initFuncMap() {
 	}
 	if p.URLForSrcPos != nil {
 		p.funcMap["posLink_url"] = newPosLink_urlFunc(p.URLForSrcPos)
+	}
+	if p.URLForSrcQuery != nil {
+		p.funcMap["queryLink"] = p.URLForSrcQuery
 	}
 }
 
@@ -296,6 +301,19 @@ func srcPosLinkFunc(s string, line, low, high int) string {
 
 func srcLinkFunc(s string) string {
 	return pathpkg.Clean("/" + s)
+}
+
+// queryLinkFunc returns a URL for a line in a source file with a highlighted
+// query term.
+// s is expected to be a path to a source file.
+// query is expected to be a string that has already been appropriately escaped
+// for use in a URL query.
+func queryLinkFunc(s, query string, line int) string {
+	url := pathpkg.Clean("/"+s) + "?h=" + query
+	if line > 0 {
+		url += "#L" + strconv.Itoa(line)
+	}
+	return url
 }
 
 func docLinkFunc(s string, ident string) string {
