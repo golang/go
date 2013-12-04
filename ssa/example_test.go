@@ -101,7 +101,7 @@ func main() {
 	// func main():
 	// .0.entry:                                                               P:0 S:0
 	// 	t0 = new [1]interface{} (varargs)                       *[1]interface{}
-	// 	t1 = &t0[0:untyped integer]                                *interface{}
+	// 	t1 = &t0[0:int]                                            *interface{}
 	// 	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
 	// 	*t1 = t2
 	// 	t3 = slice t0[:]                                          []interface{}

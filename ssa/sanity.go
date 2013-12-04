@@ -325,6 +325,16 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 			if val == nil {
 				continue // a nil operand is ok
 			}
+
+			// Check that "untyped" types only appear on constant operands.
+			if _, ok := (*op).(*Const); !ok {
+				if basic, ok := (*op).Type().(*types.Basic); ok {
+					if basic.Info()&types.IsUntyped != 0 {
+						s.errorf("operand #%d of %s is untyped: %s", i, instr, basic)
+					}
+				}
+			}
+
 			// Check that Operands that are also Instructions belong to same function.
 			// TODO(adonovan): also check their block dominates block b.
 			if val, ok := val.(Instruction); ok {

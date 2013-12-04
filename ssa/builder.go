@@ -62,10 +62,9 @@ var (
 	tEface      = new(types.Interface)
 
 	// SSA Value constants.
-	vZero  = intConst(0)
-	vOne   = intConst(1)
-	vTrue  = NewConst(exact.MakeBool(true), tBool)
-	vFalse = NewConst(exact.MakeBool(false), tBool)
+	vZero = intConst(0)
+	vOne  = intConst(1)
+	vTrue = NewConst(exact.MakeBool(true), tBool)
 )
 
 // builder holds state associated with the package currently being built.
@@ -314,7 +313,7 @@ func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ
 			pos: pos,
 		})
 		fn.currentBlock = fn.newBasicBlock("unreachable")
-		return vFalse // any non-nil Value will do
+		return vTrue // any non-nil Value will do
 	}
 	return nil // treat all others as a regular function call
 }
@@ -1890,7 +1889,8 @@ start:
 		if s.Tok == token.DEC {
 			op = token.SUB
 		}
-		b.assignOp(fn, b.addr(fn, s.X, false), vOne, op)
+		loc := b.addr(fn, s.X, false)
+		b.assignOp(fn, loc, NewConst(exact.MakeInt64(1), loc.typ()), op)
 
 	case *ast.AssignStmt:
 		switch s.Tok {
