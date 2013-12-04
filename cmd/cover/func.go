@@ -10,10 +10,14 @@ import (
 	"bufio"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
+
+	"code.google.com/p/go.tools/cover"
 )
 
 // funcOutput takes two file names as arguments, a coverage profile to read as input and an output
@@ -29,7 +33,7 @@ import (
 //	total:		(statements)		91.4%
 
 func funcOutput(profile, outputFile string) error {
-	profiles, err := ParseProfiles(profile)
+	profiles, err := cover.ParseProfiles(profile)
 	if err != nil {
 		return err
 	}
@@ -126,7 +130,7 @@ func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
 }
 
 // coverage returns the fraction of the statements in the function that were covered, as a numerator and denominator.
-func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
+func (f *FuncExtent) coverage(profile *cover.Profile) (num, den int64) {
 	// We could avoid making this n^2 overall by doing a single scan and annotating the functions,
 	// but the sizes of the data structures is never very large and the scan is almost instantaneous.
 	var covered, total int64
@@ -149,4 +153,14 @@ func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
 		total = 1 // Avoid zero denominator.
 	}
 	return covered, total
+}
+
+// findFile finds the location of the named file in GOROOT, GOPATH etc.
+func findFile(file string) (string, error) {
+	dir, file := filepath.Split(file)
+	pkg, err := build.Import(dir, ".", build.FindOnly)
+	if err != nil {
+		return "", fmt.Errorf("can't find %q: %v", file, err)
+	}
+	return filepath.Join(pkg.Dir, file), nil
 }

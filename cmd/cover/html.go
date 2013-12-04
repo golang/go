@@ -16,13 +16,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	"code.google.com/p/go.tools/cover"
 )
 
 // htmlOutput reads the profile data from profile and generates an HTML
 // coverage report, writing it to outfile. If outfile is empty,
 // it writes the report to a temporary file and opens it in a web browser.
 func htmlOutput(profile, outfile string) error {
-	profiles, err := ParseProfiles(profile)
+	profiles, err := cover.ParseProfiles(profile)
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,7 @@ func htmlOutput(profile, outfile string) error {
 
 // htmlGen generates an HTML coverage report with the provided filename,
 // source code, and tokens, and writes it to the given Writer.
-func htmlGen(w io.Writer, src []byte, boundaries []Boundary) error {
+func htmlGen(w io.Writer, src []byte, boundaries []cover.Boundary) error {
 	dst := bufio.NewWriter(w)
 	for i := range src {
 		for len(boundaries) > 0 && boundaries[0].Offset == i {

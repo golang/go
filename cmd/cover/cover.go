@@ -83,7 +83,7 @@ func main() {
 
 	// Generate coverage-annotated source.
 	if *mode != "" {
-		cover(flag.Arg(0))
+		annotate(flag.Arg(0))
 		return
 	}
 
@@ -319,7 +319,7 @@ func initialComments(content []byte) []byte {
 	return content[:end]
 }
 
-func cover(name string) {
+func annotate(name string) {
 	fset := token.NewFileSet()
 	content, err := ioutil.ReadFile(name)
 	if err != nil {
