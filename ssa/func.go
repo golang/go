@@ -324,11 +324,12 @@ func (f *Function) finishBody() {
 
 	buildReferrers(f)
 
+	buildDomTree(f)
+
 	if f.Prog.mode&NaiveForm == 0 {
 		// For debugging pre-state of lifting pass:
 		// numberRegisters(f)
 		// f.DumpTo(os.Stderr)
-
 		lift(f)
 	}
 

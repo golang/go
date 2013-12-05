@@ -239,9 +239,11 @@ type Instruction interface {
 //
 // Functions are immutable values; they do not have addresses.
 //
+// Blocks contains the function's control-flow graph (CFG).
 // Blocks[0] is the function entry point; block order is not otherwise
 // semantically significant, though it may affect the readability of
 // the disassembly.
+// To iterate over the blocks in dominance order, use DomPreorder().
 //
 // Recover is an optional second entry point to which control resumes
 // after a recovered panic.  The Recover block may contain only a load
@@ -302,8 +304,13 @@ type Function struct {
 // i.e. Preds is nil.  Empty blocks are typically pruned.
 //
 // BasicBlocks and their Preds/Succs relation form a (possibly cyclic)
-// graph independent of the SSA Value graph.  It is illegal for
-// multiple edges to exist between the same pair of blocks.
+// graph independent of the SSA Value graph: the control-flow graph or
+// CFG.  It is illegal for multiple edges to exist between the same
+// pair of blocks.
+//
+// Each BasicBlock is also a node in the dominator tree of the CFG.
+// The tree may be navigated using Idom()/Dominees() and queried using
+// Dominates().
 //
 // The order of Preds and Succs are significant (to Phi and If
 // instructions, respectively).
@@ -315,7 +322,7 @@ type BasicBlock struct {
 	Instrs       []Instruction  // instructions in order
 	Preds, Succs []*BasicBlock  // predecessors and successors
 	succs2       [2]*BasicBlock // initial space for Succs.
-	dom          *domNode       // node in dominator tree; optional.
+	dom          domInfo        // dominator tree info
 	gaps         int            // number of nil Instrs (transient).
 	rundefers    int            // number of rundefers (transient)
 }

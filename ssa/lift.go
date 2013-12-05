@@ -68,9 +68,9 @@ const debugLifting = false
 //
 type domFrontier [][]*BasicBlock
 
-func (df domFrontier) add(u, v *domNode) {
-	p := &df[u.Block.Index]
-	*p = append(*p, v.Block)
+func (df domFrontier) add(u, v *BasicBlock) {
+	p := &df[u.Index]
+	*p = append(*p, v)
 }
 
 // build builds the dominance frontier df for the dominator (sub)tree
@@ -79,21 +79,21 @@ func (df domFrontier) add(u, v *domNode) {
 // TODO(adonovan): opt: consider Berlin approach, computing pruned SSA
 // by pruning the entire IDF computation, rather than merely pruning
 // the DF -> IDF step.
-func (df domFrontier) build(u *domNode) {
+func (df domFrontier) build(u *BasicBlock) {
 	// Encounter each node u in postorder of dom tree.
-	for _, child := range u.Children {
+	for _, child := range u.dom.children {
 		df.build(child)
 	}
-	for _, vb := range u.Block.Succs {
-		if v := vb.dom; v.Idom != u {
-			df.add(u, v)
+	for _, vb := range u.Succs {
+		if v := vb.dom; v.idom != u {
+			df.add(u, vb)
 		}
 	}
-	for _, w := range u.Children {
-		for _, vb := range df[w.Block.Index] {
+	for _, w := range u.dom.children {
+		for _, vb := range df[w.Index] {
 			// TODO(adonovan): opt: use word-parallel bitwise union.
-			if v := vb.dom; v.Idom != u {
-				df.add(u, v)
+			if v := vb.dom; v.idom != u {
+				df.add(u, vb)
 			}
 		}
 	}
@@ -101,9 +101,9 @@ func (df domFrontier) build(u *domNode) {
 
 func buildDomFrontier(fn *Function) domFrontier {
 	df := make(domFrontier, len(fn.Blocks))
-	df.build(fn.Blocks[0].dom)
+	df.build(fn.Blocks[0])
 	if fn.Recover != nil {
-		df.build(fn.Recover.dom)
+		df.build(fn.Recover)
 	}
 	return df
 }
@@ -115,11 +115,12 @@ func buildDomFrontier(fn *Function) domFrontier {
 // Preconditions:
 // - fn has no dead blocks (blockopt has run).
 // - Def/use info (Operands and Referrers) is up-to-date.
+// - The dominator tree is up-to-date.
 //
 func lift(fn *Function) {
 	// TODO(adonovan): opt: lots of little optimizations may be
 	// worthwhile here, especially if they cause us to avoid
-	// buildDomTree.  For example:
+	// buildDomFrontier.  For example:
 	//
 	// - Alloc never loaded?  Eliminate.
 	// - Alloc never stored?  Replace all loads with a zero constant.
@@ -135,9 +136,6 @@ func lift(fn *Function) {
 	//   Unclear.
 	//
 	// But we will start with the simplest correct code.
-
-	buildDomTree(fn)
-
 	df := buildDomFrontier(fn)
 
 	if debugLifting {
@@ -562,10 +560,10 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 
 	// Continue depth-first recursion over domtree, pushing a
 	// fresh copy of the renaming map for each subtree.
-	for _, v := range u.dom.Children {
+	for _, v := range u.dom.children {
 		// TODO(adonovan): opt: avoid copy on final iteration; use destructive update.
 		r := make([]Value, len(renaming))
 		copy(r, renaming)
-		rename(v.Block, r, newPhis)
+		rename(v, r, newPhis)
 	}
 }
