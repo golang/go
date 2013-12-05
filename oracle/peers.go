@@ -14,6 +14,7 @@ import (
 	"code.google.com/p/go.tools/oracle/serial"
 	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
+	"code.google.com/p/go.tools/ssa/ssautil"
 )
 
 // peers enumerates, for a given channel send (or receive) operation,
@@ -36,7 +37,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	// Look at all send/receive instructions in the whole ssa.Program.
 	// Build a list of those of same type to query.
-	allFuncs := ssa.AllFunctions(o.prog)
+	allFuncs := ssautil.AllFunctions(o.prog)
 	for fn := range allFuncs {
 		for _, b := range fn.Blocks {
 			for _, instr := range b.Instrs {

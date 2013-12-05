@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssautil
+
+import "code.google.com/p/go.tools/ssa"
 
 // This file defines utilities for visiting the SSA representation of
 // a Program.
@@ -17,24 +19,24 @@ package ssa
 //
 // Precondition: all packages are built.
 //
-func AllFunctions(prog *Program) map[*Function]bool {
+func AllFunctions(prog *ssa.Program) map[*ssa.Function]bool {
 	visit := visitor{
 		prog: prog,
-		seen: make(map[*Function]bool),
+		seen: make(map[*ssa.Function]bool),
 	}
 	visit.program()
 	return visit.seen
 }
 
 type visitor struct {
-	prog *Program
-	seen map[*Function]bool
+	prog *ssa.Program
+	seen map[*ssa.Function]bool
 }
 
 func (visit *visitor) program() {
 	for _, pkg := range visit.prog.AllPackages() {
 		for _, mem := range pkg.Members {
-			if fn, ok := mem.(*Function); ok {
+			if fn, ok := mem.(*ssa.Function); ok {
 				visit.function(fn)
 			}
 		}
@@ -47,14 +49,14 @@ func (visit *visitor) program() {
 	}
 }
 
-func (visit *visitor) function(fn *Function) {
+func (visit *visitor) function(fn *ssa.Function) {
 	if !visit.seen[fn] {
 		visit.seen[fn] = true
+		var buf [10]*ssa.Value // avoid alloc in common case
 		for _, b := range fn.Blocks {
 			for _, instr := range b.Instrs {
-				var buf [10]*Value // avoid alloc in common case
 				for _, op := range instr.Operands(buf[:0]) {
-					if fn, ok := (*op).(*Function); ok {
+					if fn, ok := (*op).(*ssa.Function); ok {
 						visit.function(fn)
 					}
 				}
