@@ -1025,6 +1025,8 @@ Optab optab[] =
 	{ ATYPE },
 	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
 	{ APCDATA,	ypcdata,	Px, 0,0 },
+	{ ACHECKNIL },
+	{ AFATVARDEF },
 
 	0
 };

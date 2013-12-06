@@ -452,7 +452,7 @@ static char *proto_gccargs[] = {
 	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
 	"-O1",
 #else
-	"-O2",
+	"-O0",
 #endif
 };
 
@@ -500,6 +500,7 @@ static struct {
 	{"cmd/gc", {
 		"-cplx.c",
 		"-pgen.c",
+		"-plive.c",
 		"-popt.c",
 		"-y1.tab.c",  // makefile dreg
 		"opnames.h",
@@ -525,6 +526,7 @@ static struct {
 	{"cmd/5g", {
 		"../gc/cplx.c",
 		"../gc/pgen.c",
+		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
 		"../5l/enam.c",
@@ -533,6 +535,7 @@ static struct {
 	{"cmd/6g", {
 		"../gc/cplx.c",
 		"../gc/pgen.c",
+		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
 		"../6l/enam.c",
@@ -541,6 +544,7 @@ static struct {
 	{"cmd/8g", {
 		"../gc/cplx.c",
 		"../gc/pgen.c",
+		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
 		"../8l/enam.c",

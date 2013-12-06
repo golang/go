@@ -1164,6 +1164,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 
 	case APCDATA:
 	case AFUNCDATA:
+	case AFATVARDEF:
 		return 0;
 	}
 }

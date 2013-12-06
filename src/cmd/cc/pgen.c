@@ -35,6 +35,25 @@ enum { BitsPerPointer = 2 };
 
 static void dumpgcargs(Type *fn, Sym *sym);
 
+static Sym*
+makefuncdatasym(char *namefmt, int64 funcdatakind)
+{
+	Node nod;
+	Sym *sym;
+	static int32 nsym;
+	static char namebuf[40];
+
+	snprint(namebuf, sizeof(namebuf), namefmt, nsym++);
+	sym = slookup(namebuf);
+	sym->class = CSTATIC;
+	memset(&nod, 0, sizeof nod);
+	nod.op = ONAME;
+	nod.sym = sym;
+	nod.class = CSTATIC;
+	gins(AFUNCDATA, nodconst(funcdatakind), &nod);
+	return sym;
+}
+
 int
 hasdotdotdot(void)
 {
@@ -80,10 +99,10 @@ void
 codgen(Node *n, Node *nn)
 {
 	Prog *sp;
-	Node *n1, nod, nod1, nod2;
-	Sym *gcsym, *gclocalssym;
-	static int ngcsym, ngclocalssym;
-	static char namebuf[40];
+	Node *n1, nod, nod1;
+	Sym *gcargs;
+	Sym *gclocals;
+	int isvarargs;
 
 	cursafe = 0;
 	curarg = 0;
@@ -109,25 +128,11 @@ codgen(Node *n, Node *nn)
 	 * generate funcdata symbol for this function.
 	 * data is filled in at the end of codgen().
 	 */
-	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
-	gcsym = slookup(namebuf);
-	gcsym->class = CSTATIC;
-
-	memset(&nod, 0, sizeof nod);
-	nod.op = ONAME;
-	nod.sym = gcsym;
-	nod.class = CSTATIC;
-	gins(AFUNCDATA, nodconst(FUNCDATA_GCArgs), &nod);
-
-	snprint(namebuf, sizeof(namebuf), "gclocalssym·%d", ngclocalssym++);
-	gclocalssym = slookup(namebuf);
-	gclocalssym->class = CSTATIC;
-
-	memset(&nod2, 0, sizeof(nod2));
-	nod2.op = ONAME;
-	nod2.sym = gclocalssym;
-	nod2.class = CSTATIC;
-	gins(AFUNCDATA, nodconst(FUNCDATA_GCLocals), &nod2);
+	isvarargs = hasdotdotdot();
+	gcargs = nil;
+	if(!isvarargs)
+		gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
+	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
 
 	/*
 	 * isolate first argument
@@ -166,7 +171,8 @@ codgen(Node *n, Node *nn)
 		maxargsafe = xround(maxargsafe, 8);
 	sp->to.offset += maxargsafe;
 
-	dumpgcargs(thisfn, gcsym);
+	if(!isvarargs)
+		dumpgcargs(thisfn, gcargs);
 
 	// TODO(rsc): "stkoff" is not right. It does not account for
 	// the possibility of data stored in .safe variables.
@@ -177,9 +183,9 @@ codgen(Node *n, Node *nn)
 	// area its own section.
 	// That said, we've been using stkoff for months
 	// and nothing too terrible has happened.
-	gextern(gclocalssym, nodconst(-stkoff), 0, 4); // locals
-	gclocalssym->type = typ(0, T);
-	gclocalssym->type->width = 4;
+	gextern(gclocals, nodconst(-stkoff), 0, 4); // locals
+	gclocals->type = typ(0, T);
+	gclocals->type->width = 4;
 }
 
 void
@@ -715,39 +721,39 @@ dumpgcargs(Type *fn, Sym *sym)
 	int32 argbytes;
 	int32 symoffset, argoffset;
 
-	if(hasdotdotdot()) {
-		// give up for C vararg functions.
-		// TODO: maybe make a map just for the args we do know?
-		gextern(sym, nodconst(0), 0, 4); // nptrs=0
-		symoffset = 4;
-	} else {
-		argbytes = (argsize() + ewidth[TIND] - 1);
-		bv = bvalloc((argbytes  / ewidth[TIND]) * BitsPerPointer);
-		argoffset = align(0, fn->link, Aarg0, nil);
-		if(argoffset > 0) {
-			// The C calling convention returns structs by
-			// copying them to a location pointed to by a
-			// hidden first argument.  This first argument
-			// is a pointer.
-			if(argoffset != ewidth[TIND])
-				yyerror("passbyptr arg not the right size");
-			bvset(bv, 0);
-		}
-		for(t = fn->down; t != T; t = t->down) {
-			if(t->etype == TVOID)
-				continue;
-			argoffset = align(argoffset, t, Aarg1, nil);
-			walktype1(t, argoffset, bv, 1);
-			argoffset = align(argoffset, t, Aarg2, nil);
-		}
-		gextern(sym, nodconst(bv->n), 0, 4);
-		symoffset = 4;
-		for(i = 0; i < bv->n; i += 32) {
-			gextern(sym, nodconst(bv->b[i/32]), symoffset, 4);
-			symoffset += 4;
-		}
-		free(bv);
+	// Dump the length of the bitmap array.  This value is always one for
+	// functions written in C.
+	symoffset = 0;
+	gextern(sym, nodconst(1), symoffset, 4);
+	symoffset += 4;
+	argbytes = (argsize() + ewidth[TIND] - 1);
+	bv = bvalloc((argbytes  / ewidth[TIND]) * BitsPerPointer);
+	argoffset = align(0, fn->link, Aarg0, nil);
+	if(argoffset > 0) {
+		// The C calling convention returns structs by copying them to a
+		// location pointed to by a hidden first argument.  This first
+		// argument is a pointer.
+		if(argoffset != ewidth[TIND])
+			yyerror("passbyptr arg not the right size");
+		bvset(bv, 0);
 	}
+	for(t = fn->down; t != T; t = t->down) {
+		if(t->etype == TVOID)
+			continue;
+		argoffset = align(argoffset, t, Aarg1, nil);
+		walktype1(t, argoffset, bv, 1);
+		argoffset = align(argoffset, t, Aarg2, nil);
+	}
+	// Dump the length of the bitmap.
+	gextern(sym, nodconst(bv->n), symoffset, 4);
+	symoffset += 4;
+	// Dump the words of the bitmap.
+	for(i = 0; i < bv->n; i += 32) {
+		gextern(sym, nodconst(bv->b[i/32]), symoffset, 4);
+		symoffset += 4;
+	}
+	free(bv);
+	// Finalize the gc symbol.
 	sym->type = typ(0, T);
 	sym->type->width = symoffset;
 }

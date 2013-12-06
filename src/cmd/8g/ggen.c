@@ -9,14 +9,10 @@
 #include "gg.h"
 #include "opt.h"
 
-static Prog* appendp(Prog*, int, int, int32, int, int32);
-
 void
-defframe(Prog *ptxt, Bvec *bv)
+defframe(Prog *ptxt)
 {
 	uint32 frame;
-	Prog *p;
-	int i, j;
 
 	// fill in argument size
 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
@@ -27,43 +23,6 @@ defframe(Prog *ptxt, Bvec *bv)
 	frame = rnd(maxstksize+maxarg, widthptr);
 	ptxt->to.offset = frame;
 	maxstksize = 0;
-
-	// insert code to clear pointered part of the frame,
-	// so that garbage collector only sees initialized values
-	// when it looks for pointers.
-	p = ptxt;
-	if(stkzerosize >= 8*widthptr) {
-		p = appendp(p, AMOVL, D_CONST, 0, D_AX, 0);
-		p = appendp(p, AMOVL, D_CONST, stkzerosize/widthptr, D_CX, 0);
-		p = appendp(p, ALEAL, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);
-		p = appendp(p, AREP, D_NONE, 0, D_NONE, 0);
-		appendp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
-	} else {
-		j = (stkptrsize - stkzerosize)/widthptr * 2;
-		for(i=0; i<stkzerosize; i+=widthptr) {
-			if(bvget(bv, j) || bvget(bv, j+1))
-				p = appendp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
-			j += 2;
-		}
-	}
-}
-
-static Prog*
-appendp(Prog *p, int as, int ftype, int32 foffset, int ttype, int32 toffset)
-{
-	Prog *q;
-	
-	q = mal(sizeof(*q));
-	clearp(q);
-	q->as = as;
-	q->lineno = p->lineno;
-	q->from.type = ftype;
-	q->from.offset = foffset;
-	q->to.type = ttype;
-	q->to.offset = toffset;
-	q->link = p->link;
-	p->link = q;
-	return q;
 }
 
 // Sweep the prog list to mark any used nodes.
@@ -118,6 +77,8 @@ clearfat(Node *nl)
 	// Avoid taking the address for simple enough types.
 	if(componentgen(N, nl))
 		return;
+
+	gfatvardef(nl);
 
 	c = w % 4;	// bytes
 	q = w / 4;	// quads

@@ -155,9 +155,8 @@ regopt(Prog *firstp)
 		first = 0;
 	}
 
-	fixjmp(firstp);
 	mergetemp(firstp);
-	
+
 	/*
 	 * control flow is more complicated in generated go code
 	 * than in generated c code.  define pseudo-variables for

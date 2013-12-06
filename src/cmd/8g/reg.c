@@ -124,8 +124,7 @@ regopt(Prog *firstp)
 		exregoffset = D_DI;	// no externals
 		first = 0;
 	}
-	
-	fixjmp(firstp);
+
 	mergetemp(firstp);
 
 	/*

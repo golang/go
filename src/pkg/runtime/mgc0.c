@@ -1367,6 +1367,33 @@ struct BitVector
 	uint32 data[];
 };
 
+typedef struct StackMap StackMap;
+struct StackMap
+{
+	int32 n;
+	uint32 data[];
+};
+
+static BitVector*
+stackmapdata(StackMap *stackmap, int32 n)
+{
+	BitVector *bv;
+	uint32 *ptr;
+	uint32 words;
+	int32 i;
+
+	if(n < 0 || n >= stackmap->n) {
+		runtime·throw("stackmapdata: index out of range");
+	}
+	ptr = stackmap->data;
+	for(i = 0; i < n; i++) {
+		bv = (BitVector*)ptr;
+		words = ((bv->n + 31) / 32) + 1;
+		ptr += words;
+	}
+	return (BitVector*)ptr;
+}
+
 // Scans an interface data value when the interface type indicates
 // that it is a pointer.
 static void
@@ -1422,6 +1449,101 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, Scanbuf *sbuf)
 	}
 }
 
+// Scan a stack frame: local variables and function arguments/results.
+static void
+scanframe(Stkframe *frame, void *arg)
+{
+	Func *f;
+	Scanbuf *sbuf;
+	StackMap *stackmap;
+	BitVector *bv;
+	uintptr size;
+	uintptr targetpc;
+	int32 pcdata;
+	bool afterprologue;
+
+	f = frame->fn;
+	targetpc = frame->pc;
+	if(targetpc != f->entry)
+		targetpc--;
+	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);
+	if(pcdata == -1) {
+		// We do not have a valid pcdata value but there might be a
+		// stackmap for this function.  It is likely that we are looking
+		// at the function prologue, assume so and hope for the best.
+		pcdata = 0;
+	}
+
+	sbuf = arg;
+	// Scan local variables if stack frame has been allocated.
+	// Use pointer information if known.
+	afterprologue = (frame->varp > (byte*)frame->sp);
+	if(afterprologue) {
+		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+		if(stackmap == nil) {
+			// No locals information, scan everything.
+			size = frame->varp - (byte*)frame->sp;
+			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
+			if(sbuf->obj.pos == sbuf->obj.end)
+				flushobjbuf(sbuf);
+		} else if(stackmap->n < 0) {
+			// Locals size information, scan just the locals.
+			size = -stackmap->n;
+			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
+			if(sbuf->obj.pos == sbuf->obj.end)
+				flushobjbuf(sbuf);		} else if(stackmap->n > 0) {
+			// Locals bitmap information, scan just the pointers in
+			// locals.
+			if(pcdata < 0 || pcdata >= stackmap->n) {
+				// don't know where we are
+				runtime·printf("pcdata is %d and %d stack map entries\n", pcdata, stackmap->n);
+				runtime·throw("addframeroots: bad symbol table");
+			}
+			bv = stackmapdata(stackmap, pcdata);
+			size = (bv->n * PtrSize) / BitsPerPointer;
+			scanbitvector(frame->varp - size, bv, afterprologue, sbuf);
+		}
+	}
+
+	// Scan arguments.
+	// Use pointer information if known.
+	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+	if(stackmap != nil) {
+		bv = stackmapdata(stackmap, pcdata);
+		scanbitvector(frame->argp, bv, false, sbuf);
+	} else {
+		*sbuf->obj.pos++ = (Obj){frame->argp, frame->arglen, 0};
+		if(sbuf->obj.pos == sbuf->obj.end)
+			flushobjbuf(sbuf);
+	}
+}
+
+static void
+scanstack(G* gp, void *scanbuf)
+{
+	uintptr pc;
+	uintptr sp;
+	uintptr lr;
+
+	if(gp->syscallstack != (uintptr)nil) {
+		// Scanning another goroutine that is about to enter or might
+		// have just exited a system call. It may be executing code such
+		// as schedlock and may have needed to start a new stack segment.
+		// Use the stack segment and stack pointer at the time of
+		// the system call instead, since that won't change underfoot.
+		sp = gp->syscallsp;
+		pc = gp->syscallpc;
+		lr = 0;
+	} else {
+		// Scanning another goroutine's stack.
+		// The goroutine is usually asleep (the world is stopped).
+		sp = gp->sched.sp;
+		pc = gp->sched.pc;
+		lr = gp->sched.lr;
+	}
+	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
+}
+
 static void
 addstackroots(G *gp)
 {
@@ -1474,79 +1596,6 @@ addstackroots(G *gp)
 			n++;
 		}
 	}
-}
-
-static void
-scanframe(Stkframe *frame, void *arg)
-{
-	BitVector *args, *locals;
-	Scanbuf *sbuf;
-	uintptr size;
-	bool afterprologue;
-
-	sbuf = arg;
-	// Scan local variables if stack frame has been allocated.
-	// Use pointer information if known.
-	afterprologue = (frame->varp > (byte*)frame->sp);
-	if(afterprologue) {
-		locals = runtime·funcdata(frame->fn, FUNCDATA_GCLocals);
-		if(locals == nil) {
-			// No locals information, scan everything.
-			size = frame->varp - (byte*)frame->sp;
-			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
-			if(sbuf->obj.pos == sbuf->obj.end)
-				flushobjbuf(sbuf);
-		} else if(locals->n < 0) {
-			// Locals size information, scan just the
-			// locals.
-			size = -locals->n;
-			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
-			if(sbuf->obj.pos == sbuf->obj.end)
-				flushobjbuf(sbuf);
-		} else if(locals->n > 0) {
-			// Locals bitmap information, scan just the
-			// pointers in locals.
-			size = (locals->n*PtrSize) / BitsPerPointer;
-			scanbitvector(frame->varp - size, locals, afterprologue, sbuf);
-		}
-	}
-
-	// Scan arguments.
-	// Use pointer information if known.
-	args = runtime·funcdata(frame->fn, FUNCDATA_GCArgs);
-	if(args != nil && args->n > 0)
-		scanbitvector(frame->argp, args, false, sbuf);
-	else {
-		*sbuf->obj.pos++ = (Obj){frame->argp, frame->arglen, 0};
-		if(sbuf->obj.pos == sbuf->obj.end)
-			flushobjbuf(sbuf);
-	}
-}
-
-static void
-scanstack(G* gp, void *scanbuf)
-{
-	uintptr pc;
-	uintptr sp;
-	uintptr lr;
-
-	if(gp->syscallstack != (uintptr)nil) {
-		// Scanning another goroutine that is about to enter or might
-		// have just exited a system call. It may be executing code such
-		// as schedlock and may have needed to start a new stack segment.
-		// Use the stack segment and stack pointer at the time of
-		// the system call instead, since that won't change underfoot.
-		sp = gp->syscallsp;
-		pc = gp->syscallpc;
-		lr = 0;
-	} else {
-		// Scanning another goroutine's stack.
-		// The goroutine is usually asleep (the world is stopped).
-		sp = gp->sched.sp;
-		pc = gp->sched.pc;
-		lr = gp->sched.lr;
-	}
-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
 }
 
 static void

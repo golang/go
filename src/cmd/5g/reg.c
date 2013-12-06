@@ -168,8 +168,7 @@ regopt(Prog *firstp)
 		fmtinstall('Q', Qconv);
 		first = 0;
 	}
-	
-	fixjmp(firstp);
+
 	mergetemp(firstp);
 
 	/*
