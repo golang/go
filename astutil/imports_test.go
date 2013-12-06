@@ -201,6 +201,8 @@ type T struct {
 func TestAddImport(t *testing.T) {
 	for _, test := range addTests {
 		file := parse(t, test.name, test.in)
+		var before bytes.Buffer
+		ast.Fprint(&before, fset, file, nil)
 		AddNamedImport(file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
 			if test.broken {
@@ -208,6 +210,10 @@ func TestAddImport(t *testing.T) {
 			} else {
 				t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
 			}
+			var after bytes.Buffer
+			ast.Fprint(&after, fset, file, nil)
+
+			t.Logf("AST before:\n%s\nAST after:\n%s\n", before.String(), after.String())
 		}
 	}
 }
