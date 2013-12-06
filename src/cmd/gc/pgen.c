@@ -153,7 +153,15 @@ compile(Node *fn)
 
 	gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
-	gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadPointerMaps);
+	// TODO(cshapiro): emit the dead value map when the garbage collector
+	// pre-verification pass is checked in.  It is otherwise harmless to
+	// emit this information if it is not used but it does cost RSS at
+	// compile time.  At present, the amount of additional RSS is
+	// substantial enough to affect our smallest build machines.
+	if(0)
+		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadPointerMaps);
+	else
+		gcdead = nil;
 
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
