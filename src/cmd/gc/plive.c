@@ -224,7 +224,8 @@ blockany(BasicBlock *bb, int (*callback)(Prog*))
 }
 
 // Collects and returns and array of Node*s for functions arguments and local
-// variables.  TODO(cshapiro): only return pointer containing nodes.
+// variables.  TODO(cshapiro): only return pointer containing nodes if we are
+// not also generating a dead value map.
 static Array*
 getvariables(Node *fn)
 {
