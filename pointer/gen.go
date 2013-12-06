@@ -82,14 +82,14 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 
 	// Record the (v, id) relation if the client has queried pts(v).
 	if _, ok := a.config.Queries[v]; ok {
-		a.result.Queries[v] = append(a.result.Queries[v], ptr{a, cgn, id})
+		a.result.Queries[v] = append(a.result.Queries[v], Pointer{a, cgn, id})
 	}
 
 	// Record the (*v, id) relation if the client has queried pts(*v).
 	if _, ok := a.config.IndirectQueries[v]; ok {
 		indirect := a.addNodes(v.Type(), "query.indirect")
 		a.genLoad(cgn, indirect, v, 0, a.sizeof(v.Type()))
-		a.result.IndirectQueries[v] = append(a.result.IndirectQueries[v], ptr{a, cgn, indirect})
+		a.result.IndirectQueries[v] = append(a.result.IndirectQueries[v], Pointer{a, cgn, indirect})
 	}
 }
 
@@ -539,7 +539,7 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 			if probe == 0 {
 				probe = a.addNodes(t, "print")
 				a.probes[call] = probe
-				Print(call, ptr{a, nil, probe}) // notify client
+				Print(call, Pointer{a, nil, probe}) // notify client
 			}
 
 			a.copy(probe, a.valueNode(call.Args[0]), a.sizeof(t))

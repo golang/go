@@ -309,9 +309,9 @@ func doOneInput(input, filename string) bool {
 				e.errorf("unreachable print() statement has expectation %s", e)
 				continue
 			}
-			if pr.arg0 == nil {
+			if tArg := pr.instr.Args[0].Type(); !pointer.CanPoint(tArg) {
 				ok = false
-				e.errorf("expectation on non-pointerlike operand: %s", pr.instr.Args[0].Type())
+				e.errorf("expectation on non-pointerlike operand: %s", tArg)
 				continue
 			}
 		}

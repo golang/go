@@ -88,7 +88,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	var sends, receives []token.Pos
 	for _, op := range ops {
 		for _, ptr := range ptares.Queries[op.ch] {
-			if ptr != nil && ptr.PointsTo().Intersects(queryChanPts) {
+			if ptr.PointsTo().Intersects(queryChanPts) {
 				if op.dir == ast.SEND {
 					sends = append(sends, op.pos)
 				} else {

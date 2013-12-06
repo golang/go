@@ -87,7 +87,6 @@ func structs2() {
 
 	var s3 S          // @line s2s3
 	s3.c[2] = new(T)  // @line s2s3c
-	print(s3.c)       // @pointsto
 	print(&s3.c)      // @pointsto s3.c@s2s3:6
 	print(s3.c[1])    // @pointsto new@s2s3c:15
 	print(&s3.c[1])   // @pointsto s3.c[*]@s2s3:6
