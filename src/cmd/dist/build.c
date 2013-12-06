@@ -452,7 +452,7 @@ static char *proto_gccargs[] = {
 	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
 	"-O1",
 #else
-	"-O0",
+	"-O2",
 #endif
 };
 
