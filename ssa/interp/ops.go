@@ -235,6 +235,15 @@ func zero(t types.Type) value {
 			s[i] = zero(t.Field(i).Type())
 		}
 		return s
+	case *types.Tuple:
+		if t.Len() == 1 {
+			return zero(t.At(0).Type())
+		}
+		s := make(tuple, t.Len())
+		for i := range s {
+			s[i] = zero(t.At(i).Type())
+		}
+		return s
 	case *types.Chan:
 		return chan value(nil)
 	case *types.Map:
