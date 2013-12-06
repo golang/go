@@ -409,16 +409,24 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 	}, nil
 }
 
-// describePointer runs the pointer analysis of the selected SSA value.
-func describePointer(o *Oracle, v ssa.Value, indirect bool) (ptrs []pointerResult, err error) {
+// describePointer runs the pointer analysis of the selected SSA value or address.
+func describePointer(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err error) {
 	buildSSA(o)
 
-	// TODO(adonovan): don't run indirect pointer analysis on non-ptr-ptrlike types.
-	o.config.Queries = map[ssa.Value]pointer.Indirect{v: pointer.Indirect(indirect)}
+	if isAddr {
+		o.config.AddIndirectQuery(v)
+	} else {
+		o.config.AddQuery(v)
+	}
 	ptares := ptrAnalysis(o)
 
 	// Combine the PT sets from all contexts.
-	pointers := ptares.Queries[v]
+	var pointers []pointer.Pointer
+	if isAddr {
+		pointers = ptares.IndirectQueries[v]
+	} else {
+		pointers = ptares.Queries[v]
+	}
 	if pointers == nil {
 		return nil, fmt.Errorf("PTA did not encounter this expression (dead code?)")
 	}

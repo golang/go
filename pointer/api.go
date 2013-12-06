@@ -5,6 +5,7 @@
 package pointer
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
 	"io"
@@ -43,32 +44,54 @@ type Config struct {
 	//
 	Print func(site *ssa.CallCommon, p Pointer)
 
-	// The client populates Queries[v] for each ssa.Value v of
-	// interest.
+	// The client populates Queries[v] or IndirectQueries[v]
+	// for each ssa.Value v of interest, to request that the
+	// points-to sets pts(v) or pts(*v) be computed.  If the
+	// client needs both points-to sets, v may appear in both
+	// maps.
 	//
-	// The boolean (Indirect) indicates whether to compute the
-	// points-to set for v (false) or *v (true): the latter is
-	// typically wanted for Values corresponding to source-level
-	// lvalues, e.g. an *ssa.Global.
+	// (IndirectQueries is typically used for Values corresponding
+	// to source-level lvalues, e.g. an *ssa.Global.)
 	//
-	// The pointer analysis will populate the corresponding
-	// Results.Queries value when it creates the pointer variable
-	// for v or *v.  Upon completion the client can inspect that
-	// map for the results.
+	// The analysis populates the corresponding
+	// Results.{Indirect,}Queries map when it creates the pointer
+	// variable for v or *v.  Upon completion the client can
+	// inspect that map for the results.
 	//
 	// If a Value belongs to a function that the analysis treats
-	// context-sensitively, the corresponding Results.Queries slice
-	// may have multiple Pointers, one per distinct context.  Use
-	// PointsToCombined to merge them.
+	// context-sensitively, the corresponding Results.{Indirect,}Queries
+	// slice may have multiple Pointers, one per distinct context.
+	// Use PointsToCombined to merge them.
 	//
-	Queries map[ssa.Value]Indirect
+	// TODO(adonovan): this API doesn't scale well for batch tools
+	// that want to dump the entire solution.
+	//
+	// TODO(adonovan): need we distinguish contexts?  Current
+	// clients always combine them.
+	//
+	Queries         map[ssa.Value]struct{}
+	IndirectQueries map[ssa.Value]struct{}
 
 	// If Log is non-nil, log messages are written to it.
 	// Logging is extremely verbose.
 	Log io.Writer
 }
 
-type Indirect bool // map[ssa.Value]Indirect is not a set
+// AddQuery adds v to Config.Queries.
+func (c *Config) AddQuery(v ssa.Value) {
+	if c.Queries == nil {
+		c.Queries = make(map[ssa.Value]struct{})
+	}
+	c.Queries[v] = struct{}{}
+}
+
+// AddQuery adds v to Config.IndirectQueries.
+func (c *Config) AddIndirectQuery(v ssa.Value) {
+	if c.IndirectQueries == nil {
+		c.IndirectQueries = make(map[ssa.Value]struct{})
+	}
+	c.IndirectQueries[v] = struct{}{}
+}
 
 func (c *Config) prog() *ssa.Program {
 	for _, main := range c.Mains {
@@ -87,9 +110,10 @@ type Warning struct {
 // See Config for how to request the various Result components.
 //
 type Result struct {
-	CallGraph call.Graph              // discovered call graph
-	Queries   map[ssa.Value][]Pointer // points-to sets for queried ssa.Values
-	Warnings  []Warning               // warnings of unsoundness
+	CallGraph       call.Graph              // discovered call graph
+	Queries         map[ssa.Value][]Pointer // pts(v) for each v in Config.Queries.
+	IndirectQueries map[ssa.Value][]Pointer // pts(*v) for each v in Config.IndirectQueries.
+	Warnings        []Warning               // warnings of unsoundness
 }
 
 // A Pointer is an equivalence class of pointerlike values.
@@ -161,6 +185,18 @@ func PointsToCombined(ptrs []Pointer) PointsToSet {
 type ptset struct {
 	a   *analysis // may be nil if pts is nil
 	pts nodeset
+}
+
+func (s ptset) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "[")
+	sep := ""
+	for l := range s.pts {
+		fmt.Fprintf(&buf, "%s%s", sep, s.a.labelFor(l))
+		sep = ", "
+	}
+	fmt.Fprintf(&buf, "]")
+	return buf.String()
 }
 
 func (s ptset) Labels() []*Label {

@@ -60,11 +60,11 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// ignore both directionality and type names.
 	queryType := queryOp.ch.Type()
 	queryElemType := queryType.Underlying().(*types.Chan).Elem()
-	channels := map[ssa.Value]pointer.Indirect{queryOp.ch: false}
+	o.config.AddQuery(queryOp.ch)
 	i := 0
 	for _, op := range ops {
 		if types.IsIdentical(op.ch.Type().Underlying().(*types.Chan).Elem(), queryElemType) {
-			channels[op.ch] = false
+			o.config.AddQuery(op.ch)
 			ops[i] = op
 			i++
 		}
@@ -72,7 +72,6 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	ops = ops[:i]
 
 	// Run the pointer analysis.
-	o.config.Queries = channels
 	ptares := ptrAnalysis(o)
 
 	// Combine the PT sets from all contexts.

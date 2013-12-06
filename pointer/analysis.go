@@ -262,7 +262,8 @@ func Analyze(config *Config) *Result {
 		probes:      make(map[*ssa.CallCommon]nodeid),
 		work:        makeMapWorklist(),
 		result: &Result{
-			Queries: make(map[ssa.Value][]Pointer),
+			Queries:         make(map[ssa.Value][]Pointer),
+			IndirectQueries: make(map[ssa.Value][]Pointer),
 		},
 	}
 

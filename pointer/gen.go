@@ -80,14 +80,16 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 		fmt.Fprintf(a.log, "\tval[%s] = n%d  (%T)\n", v.Name(), id, v)
 	}
 
-	// Record the (v, id) relation if the client has queried v.
-	if indirect, ok := a.config.Queries[v]; ok {
-		if indirect {
-			tmp := a.addNodes(v.Type(), "query.indirect")
-			a.genLoad(cgn, tmp, v, 0, a.sizeof(v.Type()))
-			id = tmp
-		}
+	// Record the (v, id) relation if the client has queried pts(v).
+	if _, ok := a.config.Queries[v]; ok {
 		a.result.Queries[v] = append(a.result.Queries[v], ptr{a, cgn, id})
+	}
+
+	// Record the (*v, id) relation if the client has queried pts(*v).
+	if _, ok := a.config.IndirectQueries[v]; ok {
+		indirect := a.addNodes(v.Type(), "query.indirect")
+		a.genLoad(cgn, indirect, v, 0, a.sizeof(v.Type()))
+		a.result.IndirectQueries[v] = append(a.result.IndirectQueries[v], ptr{a, cgn, indirect})
 	}
 }
 
