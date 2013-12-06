@@ -129,6 +129,7 @@ struct	Val
 	} u;
 };
 
+typedef	struct	Array	Array;
 typedef	struct	Bvec	Bvec;
 typedef	struct	Pkg Pkg;
 typedef	struct	Sym	Sym;
@@ -1004,6 +1005,18 @@ vlong	rnd(vlong o, vlong r);
 void	typeinit(void);
 
 /*
+ *	array.c
+ */
+Array*	arraynew(int32 capacity, int32 size);
+void	arrayfree(Array *array);
+int32	arraylength(Array *array);
+void*	arrayget(Array *array, int32 index);
+void	arrayset(Array *array, int32 index, void *element);
+void	arrayadd(Array *array, void *element);
+int32	arrayindexof(Array* array, void *element);
+void	arraysort(Array* array, int (*cmp)(const void*, const void*));
+
+/*
  *	bits.c
  */
 int	Qconv(Fmt *fp);
@@ -1021,11 +1034,18 @@ int	bset(Bits a, uint n);
  *	bv.c
  */
 Bvec*	bvalloc(int32 n);
-void	bvset(Bvec *bv, int32 i);
-void	bvres(Bvec *bv, int32 i);
+void	bvandnot(Bvec *dst, Bvec *src1, Bvec *src2);
+int	bvcmp(Bvec *bv1, Bvec *bv2);
+void	bvcopy(Bvec *dst, Bvec *src);
+Bvec*	bvconcat(Bvec *src1, Bvec *src2);
 int	bvget(Bvec *bv, int32 i);
 int	bvisempty(Bvec *bv);
-int	bvcmp(Bvec *bv1, Bvec *bv2);
+void	bvnot(Bvec *bv);
+void	bvor(Bvec *dst, Bvec *src1, Bvec *src2);
+void	bvprint(Bvec *bv);
+void	bvreset(Bvec *bv, int32 i);
+void	bvresetall(Bvec *bv);
+void	bvset(Bvec *bv, int32 i);
 
 /*
  *	closure.c
@@ -1439,7 +1459,7 @@ Node*	conv(Node*, Type*);
 int	candiscard(Node*);
 
 /*
- *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c
+ *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
  */
 #define	P	((Prog*)0)
 
@@ -1477,7 +1497,7 @@ void	cgen_checknil(Node*);
 void	cgen_ret(Node *n);
 void	clearfat(Node *n);
 void	compile(Node*);
-void	defframe(Prog*, Bvec*);
+void	defframe(Prog*);
 int	dgostringptr(Sym*, int off, char *str);
 int	dgostrlitptr(Sym*, int off, Strlit*);
 int	dstringptr(Sym *s, int off, char *str);
@@ -1491,10 +1511,12 @@ void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
 void	ggloblnod(Node *nam);
 void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+void	gfatvardef(Node*);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
 void	movelarge(NodeList*);
 int	isfat(Type*);
+void	liveness(Node*, Prog*, Sym*, Sym*, Sym*);
 void	markautoused(Prog*);
 Plist*	newplist(void);
 Node*	nodarg(Type*, int);

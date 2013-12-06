@@ -1352,8 +1352,11 @@ Optab optab[] =
 	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
 
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+	{ ATYPE },
 	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
 	{ APCDATA,	ypcdata,	Px, 0,0 },
+	{ ACHECKNIL },
+	{ AFATVARDEF },
 
 	{ AEND },
 	0
