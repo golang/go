@@ -388,6 +388,7 @@ static struct {
 	int32*	value;
 } dbgvar[] = {
 	{"allocfreetrace", &runtime·debug.allocfreetrace},
+	{"efence", &runtime·debug.efence},
 	{"gctrace", &runtime·debug.gctrace},
 	{"scheddetail", &runtime·debug.scheddetail},
 	{"schedtrace", &runtime·debug.schedtrace},

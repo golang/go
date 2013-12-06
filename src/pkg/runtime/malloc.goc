@@ -58,7 +58,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		size += sizeof(uintptr);
 
 	c = m->mcache;
-	if(size <= MaxSmallSize) {
+	if(!runtime·debug.efence && size <= MaxSmallSize) {
 		// Allocate from mcache free lists.
 		// Inlined version of SizeToClass().
 		if(size <= 1024-8)
@@ -196,7 +196,10 @@ runtime·free(void *v)
 		// they might coalesce v into other spans and change the bitmap further.
 		runtime·markfreed(v, size);
 		runtime·unmarkspan(v, 1<<PageShift);
-		runtime·MHeap_Free(&runtime·mheap, s, 1);
+		if(runtime·debug.efence)
+			runtime·SysFree((void*)(s->start<<PageShift), size, &mstats.heap_sys);
+		else
+			runtime·MHeap_Free(&runtime·mheap, s, 1);
 		c->local_nlargefree++;
 		c->local_largefree += size;
 	} else {

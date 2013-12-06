@@ -1797,7 +1797,10 @@ sweepspan(ParFor *desc, uint32 idx)
 			// Free large span.
 			runtime·unmarkspan(p, 1<<PageShift);
 			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
-			runtime·MHeap_Free(&runtime·mheap, s, 1);
+			if(runtime·debug.efence)
+				runtime·SysFree(p, size, &mstats.gc_sys);
+			else
+				runtime·MHeap_Free(&runtime·mheap, s, 1);
 			c->local_nlargefree++;
 			c->local_largefree += size;
 		} else {

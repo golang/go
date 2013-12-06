@@ -534,6 +534,7 @@ struct CgoMal
 struct DebugVars
 {
 	int32	allocfreetrace;
+	int32	efence;
 	int32	gctrace;
 	int32	scheddetail;
 	int32	schedtrace;
