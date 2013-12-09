@@ -14,7 +14,6 @@
 #define	ungetc	ccungetc
 
 extern int yychar;
-int windows;
 int yyprev;
 int yylast;
 
@@ -548,7 +547,7 @@ islocalname(Strlit *name)
 {
 	if(name->len >= 1 && name->s[0] == '/')
 		return 1;
-	if(windows && name->len >= 3 &&
+	if(ctxt->windows && name->len >= 3 &&
 	   yy_isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
 	   	return 1;
 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
@@ -2342,7 +2341,7 @@ mkpackage(char* pkgname)
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');
-		if(windows) {
+		if(ctxt->windows) {
 			q = strrchr(infile, '\\');
 			if(q > p)
 				p = q;
