@@ -99,7 +99,7 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 			s->p[off+i] = p->to.u.sval[i];
 	} else if(p->to.type == ctxt->arch->D_CONST) {
 		if(p->to.sym)
-			goto Addr;
+			goto addr;
 		o = p->to.offset;
 		fl = o;
 		cast = (uchar*)&fl;
@@ -125,7 +125,7 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 			break;
 		}
 	} else if(p->to.type == ctxt->arch->D_ADDR || p->to.type == ctxt->arch->D_SIZE) {
-	Addr:
+	addr:
 		r = addrel(s);
 		r->off = off;
 		r->siz = siz;

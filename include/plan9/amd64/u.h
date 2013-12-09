@@ -13,3 +13,5 @@ typedef	uint	uint32;
 typedef	vlong	int64;
 typedef	uvlong	uint64;
 typedef	vlong	intptr;
+typedef	float	float32;
+typedef	double	float64;
