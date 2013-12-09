@@ -488,7 +488,7 @@ func (p *parser) parseStructType() types.Type {
 
 	p.expectKeyword("struct")
 	p.expect('{')
-	for i := 0; p.tok != '}'; i++ {
+	for i := 0; p.tok != '}' && p.tok != scanner.EOF; i++ {
 		if i > 0 {
 			p.expect(';')
 		}
@@ -535,7 +535,7 @@ func (p *parser) parseParameter() (par *types.Var, isVariadic bool) {
 //
 func (p *parser) parseParameters() (list []*types.Var, isVariadic bool) {
 	p.expect('(')
-	for p.tok != ')' {
+	for p.tok != ')' && p.tok != scanner.EOF {
 		if len(list) > 0 {
 			p.expect(',')
 		}
@@ -585,7 +585,7 @@ func (p *parser) parseInterfaceType() types.Type {
 
 	p.expectKeyword("interface")
 	p.expect('{')
-	for i := 0; p.tok != '}'; i++ {
+	for i := 0; p.tok != '}' && p.tok != scanner.EOF; i++ {
 		if i > 0 {
 			p.expect(';')
 		}
