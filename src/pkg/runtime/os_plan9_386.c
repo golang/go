@@ -59,12 +59,18 @@ runtime·sighandler(void *v, int8 *s, G *gp)
 		if(gp == nil || m->notesig == 0)
 			goto Throw;
 
-		// Save error string from sigtramp's stack,
-		// into gsignal->sigcode0, so we can reliably
-		// access it from the panic routines.
-		if(len > ERRMAX)
-			len = ERRMAX;
-		runtime·memmove((void*)m->notesig, (void*)s, len);
+		// Copy the error string from sigtramp's stack into m->notesig so
+		// we can reliably access it from the panic routines. We can't use
+		// runtime·memmove here since it will use SSE instructions for big
+		// copies. The Plan 9 kernel doesn't allow floating point in note
+		// handlers.
+		//
+		// TODO(ality): revert back to memmove when the kernel is fixed.
+		if(len >= ERRMAX)
+			len = ERRMAX-1;
+		for(i = 0; i < len; i++)
+			m->notesig[i] = s[i];
+		m->notesig[i] = '\0';
 
 		gp->sig = i;
 		gp->sigpc = ureg->pc;
