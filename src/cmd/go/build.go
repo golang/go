@@ -1890,6 +1890,8 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 		a = append(a, "-fno-caret-diagnostics")
 		// clang is too smart about command-line arguments
 		a = append(a, "-Qunused-arguments")
+		// disable word wrapping in error messages
+		a = append(a, "-fmessage-length=0")
 	}
 
 	// On OS X, some of the compilers behave as if -fno-common
