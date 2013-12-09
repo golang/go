@@ -33,7 +33,10 @@ misc/goplay/goplay
 misc/osx/*.pkg
 misc/osx/*.dmg
 src/cmd/?a/y.output
+<<<<<<< local
+=======
 src/liblink/anames?.c
+>>>>>>> other
 src/cmd/cc/y.output
 src/cmd/cgo/zdefaultcc.go
 src/cmd/dist/dist.dSYM
@@ -41,6 +44,7 @@ src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
 src/cmd/gc/y.output
 src/cmd/go/zdefaultcc.go
+src/liblink/anames?.c
 src/pkg/go/doc/headscan
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
