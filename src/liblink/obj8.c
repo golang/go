@@ -271,10 +271,11 @@ progedit(Link *ctxt, Prog *p)
 			}
 		}
 	}
-	/* TODO 
 	if(ctxt->headtype == Hplan9) {
 		if(p->from.type == D_INDIR+D_GS
 		&& p->to.type >= D_AX && p->to.type <= D_DI) {
+			if(ctxt->plan9tos == nil)
+				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
 			q = appendp(ctxt, p);
 			q->from = p->from;
 			q->from.type = D_INDIR + p->to.type;
@@ -282,11 +283,10 @@ progedit(Link *ctxt, Prog *p)
 			q->as = p->as;
 			p->as = AMOVL;
 			p->from.type = D_EXTERN;
-			p->from.sym = plan9_tos;
+			p->from.sym = ctxt->plan9tos;
 			p->from.offset = 0;
 		}
 	}
-	*/
 }
 
 static Prog*
