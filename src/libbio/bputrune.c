@@ -26,7 +26,6 @@ THE SOFTWARE.
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
-#include	<utf.h>
 
 int
 Bputrune(Biobuf *bp, long c)

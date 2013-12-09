@@ -33,8 +33,6 @@ extern "C" {
 AUTOLIB(bio)
 #endif
 
-#include <fcntl.h>	/* for O_RDONLY, O_WRONLY */
-
 typedef	struct	Biobuf	Biobuf;
 
 enum
