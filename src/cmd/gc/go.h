@@ -1182,7 +1182,6 @@ char*	expstring(void);
 void	mkpackage(char* pkgname);
 void	unimportfile(void);
 int32	yylex(void);
-extern	int	windows;
 extern	int	yylast;
 extern	int	yyprev;
 
