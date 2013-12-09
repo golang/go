@@ -707,7 +707,7 @@ importfile(Val *f, int line)
 	}
 
 	if(!findpkg(path)) {
-		yyerror("can't find import: \"%Z\"", f->u.sval);
+		yyerror("can't find import: \"%Z\" [path=%Z]", f->u.sval, path);
 		errorexit();
 	}
 	importpkg = mkpkg(path);
