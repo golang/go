@@ -67,7 +67,9 @@ Bvprint(Biobuf *bp, char *fmt, va_list arg)
 	Fmt f;
 	
 	memset(&f, 0, sizeof f);
+#ifndef PLAN9
 	fmtlocaleinit(&f, nil, nil, nil);
+#endif
 	f.stop = bp->ebuf;
 	f.to = (char*)f.stop + bp->ocount;
 	f.flush = bflush;

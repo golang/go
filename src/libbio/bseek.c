@@ -33,7 +33,7 @@ Bseek(Biobuf *bp, vlong offset, int base)
 	vlong n, d;
 	int bufsz;
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(PLAN9)
 	if(sizeof(offset) != sizeof(off_t)) {
 		fprint(2, "Bseek: libbio compiled with %d-byte offset\n", sizeof(off_t));
 		abort();
