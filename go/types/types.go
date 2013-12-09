@@ -273,11 +273,29 @@ func NewInterface(methods []*Func, types []*Named) *Interface {
 	}
 	sort.Sort(byUniqueMethodName(methods))
 
-	if types != nil {
-		panic("unimplemented")
+	var allMethods []*Func
+	if types == nil {
+		allMethods = methods
+	} else {
+		allMethods = append(allMethods, methods...)
+		for _, t := range types {
+			it := t.Underlying().(*Interface)
+			for _, tm := range it.allMethods {
+				// Make a copy of the method and adjust its receiver type.
+				newm := *tm
+				newmtyp := *tm.typ.(*Signature)
+				newm.typ = &newmtyp
+				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", typ)
+				allMethods = append(allMethods, &newm)
+			}
+		}
+		sort.Sort(byUniqueMethodName(allMethods))
 	}
 
-	return &Interface{methods: methods, allMethods: methods}
+	typ.methods = methods
+	typ.types = types
+	typ.allMethods = allMethods
+	return typ
 }
 
 // NumMethods returns the number of methods of interface t.
