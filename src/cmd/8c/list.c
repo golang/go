@@ -121,7 +121,7 @@ Dconv(Fmt *fp)
 
 	if(fp->flags & FmtLong) {
 		if(i == D_CONST2)
-			sprint(str, "$%d-%d", a->offset, a->offset2);
+			sprint(str, "$%lld-%d", a->offset, a->offset2);
 		else {
 			// ATEXT dst is not constant
 			sprint(str, "!!%D", a);
@@ -131,7 +131,7 @@ Dconv(Fmt *fp)
 
 	if(i >= D_INDIR) {
 		if(a->offset)
-			sprint(str, "%d(%R)", a->offset, i-D_INDIR);
+			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
 		else
 			sprint(str, "(%R)", i-D_INDIR);
 		goto brk;
@@ -139,7 +139,7 @@ Dconv(Fmt *fp)
 	switch(i) {
 	default:
 		if(a->offset)
-			sprint(str, "$%d,%R", a->offset, i);
+			sprint(str, "$%lld,%R", a->offset, i);
 		else
 			sprint(str, "%R", i);
 		break;
@@ -149,39 +149,39 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		sprint(str, "%d", a->offset);
+		sprint(str, "%lld", a->offset);
 		break;
 
 	case D_EXTERN:
-		sprint(str, "%s+%d(SB)", a->sym->name, a->offset);
+		sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
 		break;
 
 	case D_STATIC:
-		sprint(str, "%s<>+%d(SB)", a->sym->name, a->offset);
+		sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
 		break;
 
 	case D_AUTO:
 		if(a->sym)
-			sprint(str, "%s+%d(SP)", a->sym->name, a->offset);
+			sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
 		else
-			sprint(str, "%d(SP)", a->offset);
+			sprint(str, "%lld(SP)", a->offset);
 		break;
 
 	case D_PARAM:
 		if(a->sym)
-			sprint(str, "%s+%d(FP)", a->sym->name, a->offset);
+			sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
 		else
-			sprint(str, "%d(FP)", a->offset);
+			sprint(str, "%lld(FP)", a->offset);
 		break;
 
 	case D_CONST:
-		sprint(str, "$%d", a->offset);
+		sprint(str, "$%lld", a->offset);
 		break;
 
 	case D_CONST2:
 		if(!(fp->flags & FmtLong)) {
 			// D_CONST2 outside of ATEXT should not happen
-			sprint(str, "!!$%d-%d", a->offset, a->offset2);
+			sprint(str, "!!$%lld-%d", a->offset, a->offset2);
 		}
 		break;
 

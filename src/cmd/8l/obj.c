@@ -129,6 +129,6 @@ archinit(void)
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
-		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
+		print("warning: -D0x%llux is ignored because of -R0x%ux\n",
 			INITDAT, INITRND);
 }
