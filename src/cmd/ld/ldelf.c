@@ -712,6 +712,9 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 				else
 					diag("invalid rela size %d", rp->siz);
 			}
+			if(rp->siz == 4)
+				rp->add = (int32)rp->add;
+			//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);
 		}
 		qsort(r, n, sizeof r[0], rbyoff);	// just in case
 		
