@@ -677,9 +677,9 @@ install(char *dir)
 			vadd(&gccargs, "-fno-caret-diagnostics");
 			// clang is too smart about unused command-line arguments
 			vadd(&gccargs, "-Qunused-arguments");
-			// disable line wrapping in error messages
-			vadd(&gccargs, "-fmessage-length=0");
 		}
+		// disable word wrapping in error messages
+		vadd(&gccargs, "-fmessage-length=0");
 		if(streq(gohostos, "darwin")) {
 			// golang.org/issue/5261
 			vadd(&gccargs, "-mmacosx-version-min=10.6");
