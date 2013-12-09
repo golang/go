@@ -246,7 +246,7 @@ relocsym(LSym *s)
 			o = r->sym->size + r->add;
 			break;
 		}
-//print("relocate %s %p %s => %p %p %p %p [%p]\n", s->name, s->value+off, r->sym ? r->sym->name : "<nil>", (void*)symaddr(r->sym), (void*)s->value, (void*)r->off, (void*)r->siz, (void*)o);
+//print("relocate %s %#llux (%#llux+%#llux, size %d) => %s %#llux +%#llx [%llx]\n", s->name, (uvlong)(s->value+off), (uvlong)s->value, (uvlong)r->off, r->siz, r->sym ? r->sym->name : "<nil>", (uvlong)symaddr(r->sym), (vlong)r->add, (vlong)o);
 		switch(siz) {
 		default:
 			ctxt->cursym = s;

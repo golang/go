@@ -79,7 +79,8 @@ linkpatch(Link *ctxt, LSym *sym)
 			ctxt->arch->progedit(ctxt, p);
 		if(p->as == ctxt->arch->ACALL || (p->as == ctxt->arch->AJMP && p->to.type != ctxt->arch->D_BRANCH) || (p->as == ctxt->arch->ARET && p->to.sym != nil)) {
 			s = p->to.sym;
-			if(s) {
+			// The STEXT check avoids rewriting indirect call to addr in memory on x86.
+			if(s && s->type == STEXT) {
 				p->to.type = ctxt->arch->D_BRANCH;
 				continue;
 			}
