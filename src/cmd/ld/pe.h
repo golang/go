@@ -176,4 +176,4 @@ typedef struct {
 	IMAGE_DATA_DIRECTORY DataDirectory[16];
 } PE64_IMAGE_OPTIONAL_HEADER;
 
-void setpersrc(Sym *sym);
+void setpersrc(LSym *sym);

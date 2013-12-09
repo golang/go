@@ -58,18 +58,18 @@ Pconv(Fmt *fp)
 	case ATEXT:
 		if(p->from.scale) {
 			fmtprint(fp, "(%d)	%A	%D,%d,%D",
-				p->line, p->as, &p->from, p->from.scale, &p->to);
+				p->lineno, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
 	default:
 		fmtprint(fp, "(%d)	%A	%D,%D",
-			p->line, p->as, &p->from, &p->to);
+			p->lineno, p->as, &p->from, &p->to);
 		break;
 	case ADATA:
 	case AINIT_:
 	case ADYNT_:
 		fmtprint(fp, "(%d)	%A	%D/%d,%D",
-			p->line, p->as, &p->from, p->from.scale, &p->to);
+			p->lineno, p->as, &p->from, p->from.scale, &p->to);
 		break;
 	}
 	bigP = P;
@@ -82,11 +82,11 @@ Aconv(Fmt *fp)
 	int i;
 
 	i = va_arg(fp->args, int);
-	return fmtstrcpy(fp, anames[i]);
+	return fmtstrcpy(fp, anames8[i]);
 }
 
 char*
-xsymname(Sym *s)
+xsymname(LSym *s)
 {
 	if(s == nil)
 		return "!!noname!!";
@@ -97,10 +97,10 @@ int
 Dconv(Fmt *fp)
 {
 	char str[STRINGSZ], s[STRINGSZ];
-	Adr *a;
+	Addr *a;
 	int i;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	i = a->type;
 	if(i >= D_INDIR && i < 2*D_INDIR) {
 		if(a->offset)
@@ -159,11 +159,11 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		snprint(str, sizeof str, "$(%.8ux,%.8ux)", a->ieee.h, a->ieee.l);
+		snprint(str, sizeof str, "$(%.17g)", a->u.dval);
 		break;
 
 	case D_SCONST:
-		snprint(str, sizeof str, "$\"%S\"", a->scon);
+		snprint(str, sizeof str, "$\"%S\"", a->u.sval);
 		break;
 
 	case D_ADDR:
@@ -361,8 +361,8 @@ diag(char *fmt, ...)
 
 	tn = "";
 	sep = "";
-	if(cursym != S) {
-		tn = cursym->name;
+	if(ctxt->cursym != S) {
+		tn = ctxt->cursym->name;
 		sep = ": ";
 	}
 	va_start(arg, fmt);

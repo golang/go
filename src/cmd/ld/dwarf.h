@@ -19,7 +19,7 @@ void dwarfemitdebugsections(void);
  * s[ection]h[eader]str[ing]tab.  Prerequisite for
  * dwarfaddelfheaders().
  */
-void dwarfaddshstrings(Sym *shstrtab);
+void dwarfaddshstrings(LSym *shstrtab);
 
 /*
  * Add section headers pointing to the sections emitted in

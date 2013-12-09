@@ -234,62 +234,53 @@ enum	as
 #define SHIFT_AR		2<<5
 #define SHIFT_RR		3<<5
 
+enum
+{
 /* type/name */
-#define	D_GOK	0
-#define	D_NONE	1
+	D_GOK = 0,
+	D_NONE = 1,
 
 /* type */
-#define	D_BRANCH	(D_NONE+1)
-#define	D_OREG		(D_NONE+2)
-#define	D_CONST		(D_NONE+7)
-#define	D_FCONST	(D_NONE+8)
-#define	D_SCONST	(D_NONE+9)
-#define	D_PSR		(D_NONE+10)
-#define	D_REG		(D_NONE+12)
-#define	D_FREG		(D_NONE+13)
-#define	D_FILE		(D_NONE+16)
-#define	D_OCONST	(D_NONE+17)
-#define	D_FILE1		(D_NONE+18)
+	D_BRANCH = (D_NONE+1),
+	D_OREG = (D_NONE+2),
+	D_CONST = (D_NONE+7),
+	D_FCONST = (D_NONE+8),
+	D_SCONST = (D_NONE+9),
+	D_PSR = (D_NONE+10),
+	D_REG = (D_NONE+12),
+	D_FREG = (D_NONE+13),
+	D_FILE = (D_NONE+16),
+	D_OCONST = (D_NONE+17),
+	D_FILE1 = (D_NONE+18),
 
-#define	D_SHIFT		(D_NONE+19)
-#define	D_FPCR		(D_NONE+20)
-#define	D_REGREG	(D_NONE+21) // (reg, reg)
-#define	D_ADDR		(D_NONE+22)
+	D_SHIFT = (D_NONE+19),
+	D_FPCR = (D_NONE+20),
+	D_REGREG = (D_NONE+21), // (reg, reg)
+	D_ADDR = (D_NONE+22),
 
-#define	D_SBIG		(D_NONE+23)
-#define	D_CONST2	(D_NONE+24)
+	D_SBIG = (D_NONE+23),
+	D_CONST2 = (D_NONE+24),
 
-#define	D_REGREG2	(D_NONE+25) // reg, reg
+	D_REGREG2 = (D_NONE+25), // reg, reg
 
 /* name */
-#define	D_EXTERN	(D_NONE+3)
-#define	D_STATIC	(D_NONE+4)
-#define	D_AUTO		(D_NONE+5)
-#define	D_PARAM		(D_NONE+6)
+	D_EXTERN = (D_NONE+3),
+	D_STATIC = (D_NONE+4),
+	D_AUTO = (D_NONE+5),
+	D_PARAM = (D_NONE+6),
 
 /* internal only */
-#define	D_SIZE		(D_NONE+40)
-#define	D_PCREL		(D_NONE+41)
-#define	D_GOTOFF	(D_NONE+42) // R_ARM_GOTOFF
-#define	D_PLT0		(D_NONE+43) // R_ARM_PLT32, 1st inst: add ip, pc, #0xNN00000
-#define	D_PLT1		(D_NONE+44) // R_ARM_PLT32, 2nd inst: add ip, ip, #0xNN000
-#define	D_PLT2		(D_NONE+45) // R_ARM_PLT32, 3rd inst: ldr pc, [ip, #0xNNN]!
-#define	D_CALL		(D_NONE+46) // R_ARM_PLT32/R_ARM_CALL/R_ARM_JUMP24, bl xxxxx or b yyyyy
-#define	D_TLS		(D_NONE+47) // R_ARM_TLS_LE32
+	D_SIZE = (D_NONE+40),
+	D_PCREL = (D_NONE+41),
+	D_GOTOFF = (D_NONE+42), // R_ARM_GOTOFF
+	D_PLT0 = (D_NONE+43), // R_ARM_PLT32, 1st inst: add ip, pc, #0xNN00000
+	D_PLT1 = (D_NONE+44), // R_ARM_PLT32, 2nd inst: add ip, ip, #0xNN000
+	D_PLT2 = (D_NONE+45), // R_ARM_PLT32, 3rd inst: ldr pc, [ip, #0xNNN]!
+	D_CALL = (D_NONE+46), // R_ARM_PLT32/R_ARM_CALL/R_ARM_JUMP24, bl xxxxx or b yyyyy
+	D_TLS = (D_NONE+47), // R_ARM_TLS_LE32
+};
 
 /*
  * this is the ranlib header
  */
 #define	SYMDEF	"__.GOSYMDEF"
-
-/*
- * this is the simulated IEEE floating point
- */
-typedef	struct	ieee	Ieee;
-struct	ieee
-{
-	int32	l;	/* contains ls-man	0xffffffff */
-	int32	h;	/* contains sign	0x80000000
-				    exp		0x7ff00000
-				    ms-man	0x000fffff */
-};

@@ -47,11 +47,7 @@ listinit(void)
 	fmtinstall('I', Iconv);
 }
 
-void
-prasm(Prog *p)
-{
-	print("%P\n", p);
-}
+static Prog *curp;
 
 int
 Pconv(Fmt *fp)
@@ -64,7 +60,7 @@ Pconv(Fmt *fp)
 	a = p->as;
 	switch(a) {
 	default:
-		fmtprint(fp, "(%d)", p->line);
+		fmtprint(fp, "(%d)", p->lineno);
 		if(p->reg == NREG && p->as != AGLOBL)
 			fmtprint(fp, "	%A%C	%D,%D",
 				a, p->scond, &p->from, &p->to);
@@ -80,22 +76,22 @@ Pconv(Fmt *fp)
 	case ASWPW:
 	case ASWPBU:
 		fmtprint(fp, "(%d)	%A%C	R%d,%D,%D",
-			p->line, a, p->scond, p->reg, &p->from, &p->to);
+			p->lineno, a, p->scond, p->reg, &p->from, &p->to);
 		break;
 
 	case ADATA:
 	case AINIT_:
 	case ADYNT_:
 		fmtprint(fp, "(%d)	%A%C	%D/%d,%D",
-			p->line, a, p->scond, &p->from, p->reg, &p->to);
+			p->lineno, a, p->scond, &p->from, p->reg, &p->to);
 		break;
 
 	case AWORD:
-		fmtprint(fp, "(%d)	WORD	%D", p->line, &p->to);
+		fmtprint(fp, "(%d)	WORD	%D", p->lineno, &p->to);
 		break;
 
 	case ADWORD:
-		fmtprint(fp, "(%d)	DWORD	%D %D", p->line, &p->from, &p->to);
+		fmtprint(fp, "(%d)	DWORD	%D %D", p->lineno, &p->from, &p->to);
 		break;
 	}
 	
@@ -114,7 +110,7 @@ Aconv(Fmt *fp)
 	a = va_arg(fp->args, int);
 	s = "???";
 	if(a >= AXXX && a < ALAST)
-		s = anames[a];
+		s = anames5[a];
 	return fmtstrcpy(fp, s);
 }
 
@@ -162,10 +158,10 @@ Dconv(Fmt *fp)
 {
 	char str[STRINGSZ];
 	const char *op;
-	Adr *a;
+	Addr *a;
 	int32 v;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	switch(a->type) {
 
 	default:
@@ -271,8 +267,8 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:	/* botch */
-		if(curp->cond != P) {
-			v = curp->cond->pc;
+		if(curp->pcond != P) {
+			v = curp->pcond->pc;
 			if(a->sym != S)
 				snprint(str, sizeof str, "%s+%.5ux(BRANCH)", a->sym->name, v);
 			else
@@ -285,11 +281,11 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		snprint(str, sizeof str, "$%e", ieeedtod(&a->ieee));
+		snprint(str, sizeof str, "$%.17g", a->u.dval);
 		break;
 
 	case D_SCONST:
-		snprint(str, sizeof str, "$\"%S\"", a->sval);
+		snprint(str, sizeof str, "$\"%S\"", a->u.sval);
 		break;
 	}
 	return fmtstrcpy(fp, str);
@@ -299,10 +295,10 @@ int
 Nconv(Fmt *fp)
 {
 	char str[STRINGSZ];
-	Adr *a;
-	Sym *s;
+	Addr *a;
+	LSym *s;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	s = a->sym;
 	switch(a->name) {
 	default:
@@ -478,8 +474,8 @@ diag(char *fmt, ...)
 
 	tn = "";
 	sep = "";
-	if(cursym != S) {
-		tn = cursym->name;
+	if(ctxt->cursym != S) {
+		tn = ctxt->cursym->name;
 		sep = ": ";
 	}
 	va_start(arg, fmt);

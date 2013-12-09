@@ -188,6 +188,8 @@ typedef u32int uint32;
 typedef s64int int64;
 typedef u64int uint64;
 
+typedef float float32;
+typedef double float64;
 
 #undef _NEEDUCHAR
 #undef _NEEDUSHORT

@@ -1,5 +1,5 @@
-// Inferno utils/5l/obj.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
+// Inferno utils/6l/pass.c
+// http://code.google.com/p/inferno-os/source/browse/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -28,73 +28,77 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// Reading object files.
+// Code and data passes.
 
 #include	"l.h"
 #include	"../ld/lib.h"
-#include	"../ld/elf.h"
-#include	"../ld/dwarf.h"
-#include	<ar.h>
-
-char *thestring = "arm";
-LinkArch *thelinkarch = &linkarm;
+#include "../../pkg/runtime/stack.h"
 
 void
-archinit(void)
+follow(void)
 {
 	LSym *s;
 
-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
-	// Go was built; see ../../make.bash.
-	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
-		linkmode = LinkInternal;
+	if(debug['v'])
+		Bprint(&bso, "%5.2f follow\n", cputime());
+	Bflush(&bso);
+	
+	for(s = ctxt->textp; s != nil; s = s->next)
+		ctxt->arch->follow(ctxt, s);
+}
 
-	switch(HEADTYPE) {
-	default:
-		if(linkmode == LinkAuto)
-			linkmode = LinkInternal;
-		if(linkmode == LinkExternal && strcmp(getgoextlinkenabled(), "1") != 0)
-			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
-		break;
-	case Hlinux:
-		break;
+void
+patch(void)
+{
+	LSym *s;
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f mkfwd\n", cputime());
+	Bflush(&bso);
+	for(s = ctxt->textp; s != nil; s = s->next)
+		mkfwd(s);
+	if(debug['v'])
+		Bprint(&bso, "%5.2f patch\n", cputime());
+	Bflush(&bso);
+
+	if(flag_shared) {
+		s = linklookup(ctxt, "init_array", 0);
+		s->type = SINITARR;
+		s->reachable = 1;
+		s->hide = 1;
+		addaddr(ctxt, s, linklookup(ctxt, INITENTRY, 0));
 	}
+	
+	for(s = ctxt->textp; s != nil; s = s->next)
+		linkpatch(ctxt, s);
+}
 
-	switch(HEADTYPE) {
-	default:
-		diag("unknown -H option");
-		errorexit();
-	case Hplan9:	/* plan 9 */
-		HEADR = 32L;
-		if(INITTEXT == -1)
-			INITTEXT = 4128;
-		if(INITDAT == -1)
-			INITDAT = 0;
-		if(INITRND == -1)
-			INITRND = 4096;
-		break;
-	case Hlinux:	/* arm elf */
-	case Hfreebsd:
-	case Hnetbsd:
-		debug['d'] = 0;	// with dynamic linking
-		ctxt->tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
-		                // this number is known to ../../pkg/runtime/rt0_*_arm.s
-		elfinit();
-		HEADR = ELFRESERVE;
-		if(INITTEXT == -1)
-			INITTEXT = 0x10000 + HEADR;
-		if(INITDAT == -1)
-			INITDAT = 0;
-		if(INITRND == -1)
-			INITRND = 4096;
-		break;
-	}
-	if(INITDAT != 0 && INITRND != 0)
-		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
-			INITDAT, INITRND);
+void
+dostkoff(void)
+{
+	LSym *s;
 
-	// embed goarm to runtime.goarm
-	s = linklookup(ctxt, "runtime.goarm", 0);
-	s->dupok = 1;
-	adduint8(ctxt, s, goarm);
+	for(s = ctxt->textp; s != nil; s = s->next)
+		ctxt->arch->addstacksplit(ctxt, s);
+}
+
+void
+span(void)
+{
+	LSym *s;
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f span\n", cputime());
+
+	for(s = ctxt->textp; s != nil; s = s->next)
+		ctxt->arch->assemble(ctxt, s);
+}
+
+void
+pcln(void)
+{
+	LSym *s;
+
+	for(s = ctxt->textp; s != nil; s = s->next)
+		linkpcln(ctxt, s);
 }
