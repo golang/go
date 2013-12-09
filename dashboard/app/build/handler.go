@@ -17,6 +17,7 @@ import (
 
 	"appengine"
 	"appengine/datastore"
+
 	"cache"
 )
 
@@ -46,6 +47,9 @@ func commitHandler(r *http.Request) (interface{}, error) {
 	}
 	if r.Method != "POST" {
 		return nil, errBadMethod(r.Method)
+	}
+	if !isMasterKey(c, r.FormValue("key")) {
+		return nil, errors.New("can only POST commits with master key")
 	}
 
 	// POST request
@@ -433,13 +437,11 @@ func validHash(hash string) bool {
 }
 
 func validKey(c appengine.Context, key, builder string) bool {
-	if appengine.IsDevAppServer() {
-		return true
-	}
-	if key == secretKey(c) {
-		return true
-	}
-	return key == builderKey(c, builder)
+	return isMasterKey(c, key) || key == builderKey(c, builder)
+}
+
+func isMasterKey(c appengine.Context, key string) bool {
+	return appengine.IsDevAppServer() || key == secretKey(c)
 }
 
 func builderKey(c appengine.Context, builder string) string {
