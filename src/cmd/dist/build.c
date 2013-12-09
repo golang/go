@@ -493,6 +493,18 @@ static struct {
 		"$GOROOT/include/ureg_arm.h",
 		"$GOROOT/include/ureg_x86.h",
 	}},
+	{"liblink", {
+		"$GOROOT/include/u.h",
+		"$GOROOT/include/utf.h",
+		"$GOROOT/include/fmt.h",
+		"$GOROOT/include/libc.h",
+		"$GOROOT/include/bio.h",
+		"$GOROOT/include/ar.h",
+		"$GOROOT/include/link.h",
+		"anames5.c",
+		"anames6.c",
+		"anames8.c",
+	}},
 	{"cmd/cc", {
 		"-pgen.c",
 		"-pswt.c",
@@ -508,19 +520,16 @@ static struct {
 	{"cmd/5c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
-		"../5l/enam.c",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
 	}},
 	{"cmd/6c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
-		"../6l/enam.c",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
 	}},
 	{"cmd/8c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
-		"../8l/enam.c",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
 	}},
 	{"cmd/5g", {
@@ -529,7 +538,6 @@ static struct {
 		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
-		"../5l/enam.c",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
 	}},
 	{"cmd/6g", {
@@ -538,7 +546,6 @@ static struct {
 		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
-		"../6l/enam.c",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
 	}},
 	{"cmd/8g", {
@@ -547,25 +554,22 @@ static struct {
 		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
-		"../8l/enam.c",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
 	}},
 	{"cmd/5l", {
 		"../ld/*",
-		"enam.c",
 	}},
 	{"cmd/6l", {
 		"../ld/*",
-		"enam.c",
 	}},
 	{"cmd/8l", {
 		"../ld/*",
-		"enam.c",
 	}},
 	{"cmd/go", {
 		"zdefaultcc.go",
 	}},
 	{"cmd/", {
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/liblink.a",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
@@ -596,7 +600,9 @@ static struct {
 	void (*gen)(char*, char*);
 } gentab[] = {
 	{"opnames.h", gcopnames},
-	{"enam.c", mkenam},
+	{"anames5.c", mkanames},
+	{"anames6.c", mkanames},
+	{"anames8.c", mkanames},
 	{"zasm_", mkzasm},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zsys_", mkzsys},
@@ -605,6 +611,9 @@ static struct {
 	{"zruntime_defs_", mkzruntimedefs},
 	{"zversion.go", mkzversion},
 	{"zaexperiment.h", mkzexperiment},
+
+	// not generated anymore, but delete the file if we see it
+	{"enam.c", nil},
 };
 
 // install installs the library, package, or binary associated with dir,
@@ -869,6 +878,8 @@ install(char *dir)
 		p = files.p[i];
 		elem = lastelem(p);
 		for(j=0; j<nelem(gentab); j++) {
+			if(gentab[j].gen == nil)
+				continue;
 			if(hasprefix(elem, gentab[j].nameprefix)) {
 				if(vflag > 1)
 					errprintf("generate %s\n", p);
@@ -1247,6 +1258,7 @@ static char *buildorder[] = {
 	"lib9",
 	"libbio",
 	"libmach",
+	"liblink",
 
 	"misc/pprof",
 
@@ -1338,6 +1350,7 @@ static char *cleantab[] = {
 	"lib9",
 	"libbio",
 	"libmach",
+	"liblink",
 	"pkg/bufio",
 	"pkg/bytes",
 	"pkg/container/heap",

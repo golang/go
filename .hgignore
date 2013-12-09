@@ -33,7 +33,7 @@ misc/goplay/goplay
 misc/osx/*.pkg
 misc/osx/*.dmg
 src/cmd/?a/y.output
-src/cmd/?l/enam.c
+src/liblink/anames?.c
 src/cmd/cc/y.output
 src/cmd/cgo/zdefaultcc.go
 src/cmd/dist/dist.dSYM

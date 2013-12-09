@@ -63,10 +63,10 @@ gcopnames(char *dir, char *file)
 	vfree(&fields);
 }
 
-// mkenam reads [568].out.h and writes enam.c
+// mkanames reads [568].out.h and writes anames[568].c
 // The format is much the same as the Go opcodes above.
 void
-mkenam(char *dir, char *file)
+mkanames(char *dir, char *file)
 {
 	int i, ch;
 	Buf in, b, out;
@@ -78,11 +78,11 @@ mkenam(char *dir, char *file)
 	binit(&out);
 	vinit(&lines);
 
-	ch = dir[xstrlen(dir)-2];
-	bprintf(&b, "%s/../%cl/%c.out.h", dir, ch, ch);
+	ch = file[xstrlen(file)-3];
+	bprintf(&b, "%s/../cmd/%cl/%c.out.h", dir, ch, ch);
 	readfile(&in, bstr(&b));
 	splitlines(&lines, bstr(&in));
-	bwritestr(&out, "char*	anames[] = {\n");
+	bprintf(&out, "char*	anames%c[] = {\n", ch);
 	for(i=0; i<lines.len; i++) {
 		if(hasprefix(lines.p[i], "\tA")) {
 			p = xstrstr(lines.p[i], ",");
