@@ -159,7 +159,7 @@ compile(Node *fn)
 	// compile time.  At present, the amount of additional RSS is
 	// substantial enough to affect our smallest build machines.
 	if(0)
-		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadPointerMaps);
+		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadValueMaps);
 	else
 		gcdead = nil;
 

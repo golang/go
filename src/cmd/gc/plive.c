@@ -1477,9 +1477,11 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
 	if(0) livenessprintcfg(lv);
 	livenessepilogue(lv);
 
-	// Emit the map data structures
+	// Emit the live pointer map data structures
 	twobitwritesymbol(lv->livepointers, livesym, nil);
 	twobitwritesymbol(lv->argslivepointers, argssym, nil);
+
+	// Optionally emit a dead value map data structure for locals.
 	if(deadsym != nil)
 		twobitwritesymbol(lv->deadvalues, deadsym, nil);
 
