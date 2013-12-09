@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include <bio.h>
+#include <link.h>
 #include "../5l/5.out.h"
 
 #ifndef	EXTERN
@@ -43,9 +44,7 @@
 #define	ungetc	ccungetc
 
 typedef	struct	Sym	Sym;
-typedef	struct	Gen	Gen;
 typedef	struct	Io	Io;
-typedef	struct	Hist	Hist;
 
 #define	MAXALIGN	7
 #define	FPCHIP		1
@@ -88,33 +87,6 @@ struct	Io
 };
 #define	I	((Io*)0)
 
-EXTERN	struct
-{
-	Sym*	sym;
-	short	type;
-} h[NSYM];
-
-struct	Gen
-{
-	Sym*	sym;
-	int32	offset;
-	int32	offset2;
-	short	type;
-	short	reg;
-	short	name;
-	double	dval;
-	char	sval[8];
-};
-
-struct	Hist
-{
-	Hist*	link;
-	char*	name;
-	int32	line;
-	int32	offset;
-};
-#define	H	((Hist*)0)
-
 enum
 {
 	CLAST,
@@ -129,9 +101,7 @@ EXTERN	char	debug[256];
 EXTERN	Sym*	hash[NHASH];
 EXTERN	char**	Dlist;
 EXTERN	int	nDlist;
-EXTERN	Hist*	ehist;
 EXTERN	int	newflag;
-EXTERN	Hist*	hist;
 EXTERN	char*	hunk;
 EXTERN	char**	include;
 EXTERN	Io*	iofree;
@@ -142,10 +112,9 @@ EXTERN	int	nerrors;
 EXTERN	int32	nhunk;
 EXTERN	int	ninclude;
 EXTERN	int32	nsymb;
-EXTERN	Gen	nullgen;
+EXTERN	Addr	nullgen;
 EXTERN	char*	outfile;
 EXTERN	int	pass;
-EXTERN	char*	pathname;
 EXTERN	int32	pc;
 EXTERN	int	peekc;
 EXTERN	int32	stmtline;
@@ -155,6 +124,7 @@ EXTERN	int	thechar;
 EXTERN	char*	thestring;
 EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
+EXTERN	Link*	ctxt;
 
 void*	alloc(int32);
 void*	allocn(void*, int32, int32);
@@ -174,11 +144,8 @@ int	escchar(int);
 void	cinit(void);
 void	pinit(char*);
 void	cclean(void);
-int	isreg(Gen*);
-void	outcode(int, int, Gen*, int, Gen*);
-void	zname(char*, int, int);
-void	zaddr(Gen*, int);
-void	ieeedtod(Ieee*, double);
+int	isreg(Addr*);
+void	outcode(int, int, Addr*, int, Addr*);
 int	filbuf(void);
 Sym*	getsym(void);
 void	domacro(void);
@@ -190,7 +157,6 @@ void	maclin(void);
 void	macprag(void);
 void	macif(int);
 void	macend(void);
-void	outhist(void);
 void	dodefine(char*);
 void	prfile(int32);
 void	linehist(char*, int);

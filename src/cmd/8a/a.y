@@ -44,8 +44,8 @@
 	} con2;
 	double	dval;
 	char	sval[8];
-	Gen	gen;
-	Gen2	gen2;
+	LAddr	addr;
+	Addr2	addr2;
 }
 %left	'|'
 %left	'^'
@@ -62,9 +62,9 @@
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr pointer offset
 %type	<con2>	con2
-%type	<gen>	mem imm imm2 reg nam rel rem rim rom omem nmem
-%type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim
-%type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9 spec10 spec11 spec12
+%type	<addr>	mem imm imm2 reg nam rel rem rim rom omem nmem
+%type	<addr2>	nonnon nonrel nonrem rimnon rimrem remrim
+%type	<addr2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9 spec10 spec11 spec12
 %%
 prog:
 |	prog
@@ -366,14 +366,12 @@ rel:
 		if(pass == 2)
 			yyerror("undefined label: %s", $1->name);
 		$$.type = D_BRANCH;
-		$$.sym = $1;
 		$$.offset = $2;
 	}
 |	LLAB offset
 	{
 		$$ = nullgen;
 		$$.type = D_BRANCH;
-		$$.sym = $1;
 		$$.offset = $1->value + $2;
 	}
 
@@ -431,31 +429,31 @@ imm:
 	{
 		$$ = nullgen;
 		$$.type = D_SCONST;
-		memcpy($$.sval, $2, sizeof($$.sval));
+		memcpy($$.u.sval, $2, sizeof($$.u.sval));
 	}
 |	'$' LFCONST
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = $2;
+		$$.u.dval = $2;
 	}
 |	'$' '(' LFCONST ')'
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = $3;
+		$$.u.dval = $3;
 	}
 |	'$' '(' '-' LFCONST ')'
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = -$4;
+		$$.u.dval = -$4;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = -$3;
+		$$.u.dval = -$3;
 	}
 
 imm2:
@@ -590,14 +588,14 @@ nam:
 	{
 		$$ = nullgen;
 		$$.type = $4;
-		$$.sym = $1;
+		$$.sym = linklookup(ctxt, $1->name, 0);
 		$$.offset = $2;
 	}
 |	LNAME '<' '>' offset '(' LSB ')'
 	{
 		$$ = nullgen;
 		$$.type = D_STATIC;
-		$$.sym = $1;
+		$$.sym = linklookup(ctxt, $1->name, 1);
 		$$.offset = $4;
 	}
 

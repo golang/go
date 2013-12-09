@@ -41,7 +41,7 @@
 	int32	lval;
 	double	dval;
 	char	sval[8];
-	Gen	gen;
+	LAddr	addr;
 }
 %left	'|'
 %left	'^'
@@ -62,8 +62,8 @@
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr oexpr pointer offset sreg spreg creg
 %type	<lval>	rcon cond reglist
-%type	<gen>	gen rel reg regreg freg shift fcon frcon
-%type	<gen>	imm ximm name oreg ireg nireg ioreg imsr
+%type	<addr>	gen rel reg regreg freg shift fcon frcon
+%type	<addr>	imm ximm name oreg ireg nireg ioreg imsr
 %%
 prog:
 |	prog
@@ -175,7 +175,7 @@ inst:
  */
 |	LTYPE8 cond ioreg ',' '[' reglist ']'
 	{
-		Gen g;
+		LAddr g;
 
 		g = nullgen;
 		g.type = D_CONST;
@@ -184,7 +184,7 @@ inst:
 	}
 |	LTYPE8 cond '[' reglist ']' ',' ioreg
 	{
-		Gen g;
+		LAddr g;
 
 		g = nullgen;
 		g.type = D_CONST;
@@ -279,7 +279,7 @@ inst:
  */
 |	LTYPEJ cond con ',' expr ',' spreg ',' creg ',' creg oexpr
 	{
-		Gen g;
+		LAddr g;
 
 		g = nullgen;
 		g.type = D_CONST;
@@ -377,14 +377,12 @@ rel:
 		if(pass == 2)
 			yyerror("undefined label: %s", $1->name);
 		$$.type = D_BRANCH;
-		$$.sym = $1;
 		$$.offset = $2;
 	}
 |	LLAB offset
 	{
 		$$ = nullgen;
 		$$.type = D_BRANCH;
-		$$.sym = $1;
 		$$.offset = $1->value + $2;
 	}
 
@@ -408,7 +406,7 @@ ximm:	'$' con
 	{
 		$$ = nullgen;
 		$$.type = D_SCONST;
-		memcpy($$.sval, $2, sizeof($$.sval));
+		memcpy($$.u.sval, $2, sizeof($$.u.sval));
 	}
 |	fcon
 
@@ -417,13 +415,13 @@ fcon:
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = $2;
+		$$.u.dval = $2;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = -$3;
+		$$.u.dval = -$3;
 	}
 
 reglist:
@@ -635,7 +633,7 @@ name:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.name = $3;
-		$$.sym = S;
+		$$.sym = nil;
 		$$.offset = $1;
 	}
 |	LNAME offset '(' pointer ')'
@@ -643,7 +641,7 @@ name:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.name = $4;
-		$$.sym = $1;
+		$$.sym = linklookup(ctxt, $1->name, 0);
 		$$.offset = $2;
 	}
 |	LNAME '<' '>' offset '(' LSB ')'
@@ -651,7 +649,7 @@ name:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.name = D_STATIC;
-		$$.sym = $1;
+		$$.sym = linklookup(ctxt, $1->name, 1);
 		$$.offset = $4;
 	}
 
