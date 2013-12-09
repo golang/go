@@ -9,42 +9,6 @@
 #include "../gc/go.h"
 #include "../8l/8.out.h"
 
-typedef	struct	Addr	Addr;
-
-struct	Addr
-{
-	int32	offset;
-	int32	offset2;
-
-	union {
-		double	dval;
-		vlong	vval;
-		Prog*	branch;
-		char	sval[NSNAME];
-	} u;
-
-	Sym*	gotype;
-	Sym*	sym;
-	Node*	node;
-	int	width;
-	uchar	type;
-	uchar	index;
-	uchar	etype;
-	uchar	scale;	/* doubles as width in DATA op */
-};
-#define	A	((Addr*)0)
-
-struct	Prog
-{
-	short	as;		// opcode
-	uint32	loc;		// pc offset in this func
-	uint32	lineno;		// source line that generated this
-	Addr	from;		// src address
-	Addr	to;		// dst address
-	Prog*	link;		// next instruction in this func
-	void*	opt;		// for optimizer passes
-};
-
 #define TEXTFLAG from.scale
 
 // foptoas flags
@@ -59,7 +23,6 @@ EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
 EXTERN	int32	pcloc;		// instruction counter
 EXTERN	Strlit	emptystring;
-extern	char*	anames[];
 EXTERN	Prog	zprog;
 EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;

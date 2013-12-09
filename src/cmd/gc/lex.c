@@ -189,6 +189,8 @@ main(int argc, char *argv[])
 	signal(SIGSEGV, fault);
 #endif
 
+	ctxt = linknew(thelinkarch);
+
 	localpkg = mkpkg(strlit(""));
 	localpkg->prefix = "\"\"";
 	
@@ -317,20 +319,6 @@ main(int argc, char *argv[])
 			use_sse = 1;
 		else
 			sysfatal("unsupported setting GO386=%s", p);
-	}
-
-	pathname = mal(1000);
-	if(getwd(pathname, 999) == 0)
-		strcpy(pathname, "/???");
-
-	if(yy_isalpha(pathname[0]) && pathname[1] == ':') {
-		// On Windows.
-		windows = 1;
-
-		// Canonicalize path by converting \ to / (Windows accepts both).
-		for(p=pathname; *p; p++)
-			if(*p == '\\')
-				*p = '/';
 	}
 
 	fmtinstallgo();
@@ -702,7 +690,7 @@ importfile(Val *f, int line)
 			fakeimport();
 			return;
 		}
-		prefix = pathname;
+		prefix = ctxt->pathname;
 		if(localimport != nil)
 			prefix = localimport;
 		cleanbuf = mal(strlen(prefix) + strlen(path->s) + 2);
@@ -1528,7 +1516,7 @@ getlinepragma(void)
 		goto out;
 
 	// try to avoid allocating file name over and over
-	for(h=hist; h!=H; h=h->link) {
+	for(h=ctxt->hist; h!=nil; h=h->link) {
 		if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
 			linehist(h->name, n, 0);
 			goto out;

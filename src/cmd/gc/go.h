@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include	<bio.h>
+#include	<link.h>
 
 #undef OAPPEND
 
@@ -31,7 +32,6 @@ enum
 	STRINGSZ	= 200,
 	MAXALIGN	= 7,
 	UINF		= 100,
-	HISTSZ		= 10,
 
 	PRIME1		= 3,
 
@@ -395,6 +395,7 @@ struct	Sym
 	int32	block;		// blocknumber to catch redeclaration
 	int32	lastlineno;	// last declaration for diagnostic
 	Pkg*	origpkg;	// original package for . import
+	LSym*	lsym;
 };
 #define	S	((Sym*)0)
 
@@ -422,16 +423,6 @@ struct	Iter
 	Node**	an;
 	Node*	n;
 };
-
-typedef	struct	Hist	Hist;
-struct	Hist
-{
-	Hist*	link;
-	char*	name;
-	int32	line;
-	int32	offset;
-};
-#define	H	((Hist*)0)
 
 // Node ops.
 enum
@@ -807,9 +798,6 @@ struct	Magic
 	int	ua;	// output - adder
 };
 
-typedef struct	Prog Prog;
-#pragma incomplete Prog
-
 struct	Label
 {
 	uchar	used;
@@ -862,9 +850,6 @@ EXTERN	Io	pushedio;
 EXTERN	int32	lexlineno;
 EXTERN	int32	lineno;
 EXTERN	int32	prevlineno;
-EXTERN	char*	pathname;
-EXTERN	Hist*	hist;
-EXTERN	Hist*	ehist;
 
 EXTERN	char*	infile;
 EXTERN	char*	outfile;
@@ -968,6 +953,7 @@ EXTERN	Node*	nblank;
 
 extern	int	thechar;
 extern	char*	thestring;
+extern	LinkArch*	thelinkarch;
 EXTERN	int  	use_sse;
 
 EXTERN	char*	hunk;
@@ -983,6 +969,7 @@ EXTERN	char*	flag_installsuffix;
 EXTERN	int	flag_race;
 EXTERN	int	flag_largemodel;
 EXTERN	int	noescape;
+EXTERN	Link*	ctxt;
 
 EXTERN	int	nointerface;
 EXTERN	int	fieldtrack_enabled;
@@ -1262,7 +1249,7 @@ int	sigfig(Mpflt *a);
 /*
  *	obj.c
  */
-void	Bputname(Biobuf *b, Sym *s);
+void	Bputname(Biobuf *b, LSym *s);
 int	duint16(Sym *s, int off, uint16 v);
 int	duint32(Sym *s, int off, uint32 v);
 int	duint64(Sym *s, int off, uint64 v);
@@ -1270,8 +1257,8 @@ int	duint8(Sym *s, int off, uint8 v);
 int	duintptr(Sym *s, int off, uint64 v);
 int	dsname(Sym *s, int off, char *dat, int ndat);
 void	dumpobj(void);
-void	ieeedtod(uint64 *ieee, double native);
 Sym*	stringsym(char*, int);
+LSym*	linksym(Sym*);
 
 /*
  *	order.c
@@ -1463,18 +1450,6 @@ int	candiscard(Node*);
  */
 #define	P	((Prog*)0)
 
-typedef	struct	Plist	Plist;
-struct	Plist
-{
-	Node*	name;
-	Prog*	firstpc;
-	int	recur;
-	Plist*	link;
-};
-
-EXTERN	Plist*	plist;
-EXTERN	Plist*	plast;
-
 EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
@@ -1504,7 +1479,6 @@ int	dstringptr(Sym *s, int off, char *str);
 int	dsymptr(Sym *s, int off, Sym *x, int xoff);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	dumpdata(void);
-void	dumpfuncs(void);
 void	fixautoused(Prog*);
 void	gdata(Node*, Node*, int);
 void	gdatacomplex(Node*, Mpcplx*);
@@ -1523,9 +1497,6 @@ Node*	nodarg(Type*, int);
 void	nopout(Prog*);
 void	patch(Prog*, Prog*);
 Prog*	unpatch(Prog*);
-void	zfile(Biobuf *b, char *p, int n);
-void	zhist(Biobuf *b, int line, vlong offset);
-void	zname(Biobuf *b, Sym *s, int t);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Mpint*

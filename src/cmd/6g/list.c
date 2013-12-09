@@ -114,19 +114,19 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_EXTERN:
-		snprint(str, sizeof(str), "%S+%lld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%lld(SB)", a->sym, a->offset);
 		break;
 
 	case D_STATIC:
-		snprint(str, sizeof(str), "%S<>+%lld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS<>+%lld(SB)", a->sym, a->offset);
 		break;
 
 	case D_AUTO:
-		snprint(str, sizeof(str), "%S+%lld(SP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%lld(SP)", a->sym, a->offset);
 		break;
 
 	case D_PARAM:
-		snprint(str, sizeof(str), "%S+%lld(FP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%lld(FP)", a->sym, a->offset);
 		break;
 
 	case D_CONST:
@@ -314,7 +314,7 @@ Aconv(Fmt *fp)
 	int i;
 
 	i = va_arg(fp->args, int);
-	return fmtstrcpy(fp, anames[i]);
+	return fmtstrcpy(fp, anames6[i]);
 }
 
 

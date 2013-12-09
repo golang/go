@@ -102,75 +102,7 @@ setfmode(unsigned long *flags)
 static int
 Lconv(Fmt *fp)
 {
-	struct
-	{
-		Hist*	incl;	/* start of this include file */
-		int32	idel;	/* delta line number to apply to include */
-		Hist*	line;	/* start of this #line directive */
-		int32	ldel;	/* delta line number to apply to #line */
-	} a[HISTSZ];
-	int32 lno, d;
-	int i, n;
-	Hist *h;
-
-	lno = va_arg(fp->args, int32);
-
-	n = 0;
-	for(h=hist; h!=H; h=h->link) {
-		if(h->offset < 0)
-			continue;
-		if(lno < h->line)
-			break;
-		if(h->name) {
-			if(h->offset > 0) {
-				// #line directive
-				if(n > 0 && n < HISTSZ) {
-					a[n-1].line = h;
-					a[n-1].ldel = h->line - h->offset + 1;
-				}
-			} else {
-				// beginning of file
-				if(n < HISTSZ) {
-					a[n].incl = h;
-					a[n].idel = h->line;
-					a[n].line = 0;
-				}
-				n++;
-			}
-			continue;
-		}
-		n--;
-		if(n > 0 && n < HISTSZ) {
-			d = h->line - a[n].incl->line;
-			a[n-1].ldel += d;
-			a[n-1].idel += d;
-		}
-	}
-
-	if(n > HISTSZ)
-		n = HISTSZ;
-
-	for(i=n-1; i>=0; i--) {
-		if(i != n-1) {
-			if(fp->flags & ~(FmtWidth|FmtPrec))
-				break;
-			fmtprint(fp, " ");
-		}
-		if(debug['L'] || (fp->flags&FmtLong))
-			fmtprint(fp, "%s/", pathname);
-		if(a[i].line)
-			fmtprint(fp, "%s:%d[%s:%d]",
-				a[i].line->name, lno-a[i].ldel+1,
-				a[i].incl->name, lno-a[i].idel+1);
-		else
-			fmtprint(fp, "%s:%d",
-				a[i].incl->name, lno-a[i].idel+1);
-		lno = a[i].incl->line - 1;	// now print out start of this file
-	}
-	if(n == 0)
-		fmtprint(fp, "<unknown line number>");
-
-	return 0;
+	return linklinefmt(ctxt, fp);
 }
 
 static char*
@@ -1579,6 +1511,9 @@ Sconv(Fmt *fp)
 	Sym *s;
 	int r, sm;
 	unsigned long sf;
+
+	if(fp->flags&FmtLong)
+		return linksymfmt(fp);
 
 	s = va_arg(fp->args, Sym*);
 	if(s == S)

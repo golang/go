@@ -8,6 +8,7 @@
 
 int	thechar	= '5';
 char*	thestring	= "arm";
+LinkArch*	thelinkarch = &linkarm;
 
 vlong MAXWIDTH = (1LL<<32) - 1;
 

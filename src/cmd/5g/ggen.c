@@ -411,7 +411,7 @@ cgen_ret(Node *n)
 	if(n->op == ORETJMP) {
 		p->to.name = D_EXTERN;
 		p->to.type = D_CONST;
-		p->to.sym = n->left->sym;
+		p->to.sym = linksym(n->left->sym);
 	}
 }
 

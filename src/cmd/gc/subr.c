@@ -258,9 +258,6 @@ fatal(char *fmt, ...)
 void
 linehist(char *file, int32 off, int relative)
 {
-	Hist *h;
-	char *cp;
-
 	if(debug['i']) {
 		if(file != nil) {
 			if(off < 0)
@@ -274,25 +271,10 @@ linehist(char *file, int32 off, int relative)
 			print("end of import");
 		print(" at line %L\n", lexlineno);
 	}
-
-	if(off < 0 && file[0] != '/' && !relative) {
-		cp = mal(strlen(file) + strlen(pathname) + 2);
-		sprint(cp, "%s/%s", pathname, file);
-		file = cp;
-	}
-
-	h = mal(sizeof(Hist));
-	h->name = file;
-	h->line = lexlineno;
-	h->offset = off;
-	h->link = H;
-	if(ehist == H) {
-		hist = h;
-		ehist = h;
-		return;
-	}
-	ehist->link = h;
-	ehist = h;
+	
+	if(off < 0 && file[0] != '/' && !relative)
+		file = smprint("%s/%s", ctxt->pathname, file);
+	linklinehist(ctxt, lexlineno, file, off);
 }
 
 int32
