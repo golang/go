@@ -228,39 +228,6 @@ loadpkgdata(char *file, char *pkg, char *data, int len)
 	free(file);
 }
 
-// replace all "". with pkg.
-char*
-expandpkg(char *t0, char *pkg)
-{
-	int n;
-	char *p;
-	char *w, *w0, *t;
-
-	n = 0;
-	for(p=t0; (p=strstr(p, "\"\".")) != nil; p+=3)
-		n++;
-
-	if(n == 0)
-		return estrdup(t0);
-
-	// use malloc, not mal, so that caller can free
-	w0 = malloc(strlen(t0) + strlen(pkg)*n);
-	if(w0 == nil) {
-		diag("out of memory");
-		errorexit();
-	}
-	w = w0;
-	for(p=t=t0; (p=strstr(p, "\"\".")) != nil; p=t) {
-		memmove(w, t, p - t);
-		w += p-t;
-		strcpy(w, pkg);
-		w += strlen(pkg);
-		t = p+2;
-	}
-	strcpy(w, t);
-	return w0;
-}
-
 static int
 parsepkgdata(char *file, char *pkg, char **pp, char *ep, char **prefixp, char **namep, char **defp)
 {
@@ -413,7 +380,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 	char *pend, *next, *p0, *q;
 	char *f[10], *local, *remote, *lib;
 	int nf;
-	Sym *s;
+	LSym *s;
 
 	USED(file);
 	pend = p + n;
@@ -459,7 +426,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			q = strchr(remote, '#');
 			if(q)
 				*q++ = '\0';
-			s = lookup(local, 0);
+			s = linklookup(ctxt, local, 0);
 			if(local != f[1])
 				free(local);
 			if(s->type == 0 || s->type == SXREF || s->type == SHOSTOBJ) {
@@ -477,7 +444,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			if(nf != 2)
 				goto err;
 			local = f[1];
-			s = lookup(local, 0);
+			s = linklookup(ctxt, local, 0);
 			s->type = SHOSTOBJ;
 			s->size = 0;
 			continue;
@@ -496,9 +463,9 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			else
 				remote = local;
 			local = expandpkg(local, pkg);
-			s = lookup(local, 0);
+			s = linklookup(ctxt, local, 0);
 
-			if(flag_shared && s == lookup("main", 0))
+			if(flag_shared && s == linklookup(ctxt, "main", 0))
 				continue;
 
 			// export overrides import, for openbsd/cgo.
@@ -562,11 +529,11 @@ err:
 	nerrors++;
 }
 
-static Sym *markq;
-static Sym *emarkq;
+static LSym *markq;
+static LSym *emarkq;
 
 static void
-mark1(Sym *s, Sym *parent)
+mark1(LSym *s, LSym *parent)
 {
 	if(s == S || s->reachable)
 		return;
@@ -582,7 +549,7 @@ mark1(Sym *s, Sym *parent)
 }
 
 void
-mark(Sym *s)
+mark(LSym *s)
 {
 	mark1(s, nil);
 }
@@ -592,7 +559,7 @@ markflood(void)
 {
 	Auto *a;
 	Prog *p;
-	Sym *s;
+	LSym *s;
 	int i;
 	
 	for(s=markq; s!=S; s=s->queue) {
@@ -649,7 +616,7 @@ isz(Auto *a)
 }
 
 static void
-addz(Sym *s, Auto *z)
+addz(LSym *s, Auto *z)
 {
 	Auto *a, *last;
 
@@ -674,16 +641,16 @@ void
 deadcode(void)
 {
 	int i;
-	Sym *s, *last, *p;
+	LSym *s, *last, *p;
 	Auto *z;
 	Fmt fmt;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f deadcode\n", cputime());
 
-	mark(lookup(INITENTRY, 0));
+	mark(linklookup(ctxt, INITENTRY, 0));
 	for(i=0; i<nelem(markextra); i++)
-		mark(lookup(markextra[i], 0));
+		mark(linklookup(ctxt, markextra[i], 0));
 
 	for(i=0; i<ndynexp; i++)
 		mark(dynexp[i]);
@@ -691,7 +658,7 @@ deadcode(void)
 	markflood();
 	
 	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-	for(s = allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != S; s = s->allsym) {
 		if(strncmp(s->name, "go.typelink.", 12) == 0)
 			s->reachable = s->nr==1 && s->r[0].sym->reachable;
 	}
@@ -699,14 +666,14 @@ deadcode(void)
 	// remove dead text but keep file information (z symbols).
 	last = nil;
 	z = nil;
-	for(s = textp; s != nil; s = s->next) {
+	for(s = ctxt->textp; s != nil; s = s->next) {
 		if(!s->reachable) {
 			if(isz(s->autom))
 				z = s->autom;
 			continue;
 		}
 		if(last == nil)
-			textp = s;
+			ctxt->textp = s;
 		else
 			last->next = s;
 		last = s;
@@ -717,11 +684,11 @@ deadcode(void)
 		}
 	}
 	if(last == nil)
-		textp = nil;
+		ctxt->textp = nil;
 	else
 		last->next = nil;
 	
-	for(s = allsym; s != S; s = s->allsym)
+	for(s = ctxt->allsym; s != S; s = s->allsym)
 		if(strncmp(s->name, "go.weak.", 8) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->reachable = 1;
@@ -730,7 +697,7 @@ deadcode(void)
 	
 	// record field tracking references
 	fmtstrinit(&fmt);
-	for(s = allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != S; s = s->allsym) {
 		if(strncmp(s->name, "go.track.", 9) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->hide = 1;
@@ -746,7 +713,7 @@ deadcode(void)
 	}
 	if(tracksym == nil)
 		return;
-	s = lookup(tracksym, 0);
+	s = linklookup(ctxt, tracksym, 0);
 	if(!s->reachable)
 		return;
 	addstrdata(tracksym, fmtstrflush(&fmt));
@@ -755,13 +722,13 @@ deadcode(void)
 void
 doweak(void)
 {
-	Sym *s, *t;
+	LSym *s, *t;
 
 	// resolve weak references only if
 	// target symbol will be in binary anyway.
-	for(s = allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != S; s = s->allsym) {
 		if(strncmp(s->name, "go.weak.", 8) == 0) {
-			t = rlookup(s->name+8, s->version);
+			t = linkrlookup(ctxt, s->name+8, s->version);
 			if(t && t->type != 0 && t->reachable) {
 				s->value = t->value;
 				s->type = t->type;
@@ -784,7 +751,7 @@ addexport(void)
 		return;
 
 	for(i=0; i<ndynexp; i++)
-		adddynsym(dynexp[i]);
+		adddynsym(ctxt, dynexp[i]);
 }
 
 /* %Z from gc, for quoting import paths */

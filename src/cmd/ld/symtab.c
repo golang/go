@@ -86,10 +86,10 @@ static int numelfsym = 1; // 0 is reserved
 static int elfbind;
 
 static void
-putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
 {
 	int bind, type, off;
-	Sym *xo;
+	LSym *xo;
 
 	USED(go);
 	switch(t) {
@@ -109,12 +109,12 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 	while(xo->outer != nil)
 		xo = xo->outer;
 	if(xo->sect == nil) {
-		cursym = x;
+		ctxt->cursym = x;
 		diag("missing section in putelfsym");
 		return;
 	}
 	if(xo->sect->elfsect == nil) {
-		cursym = x;
+		ctxt->cursym = x;
 		diag("missing ELF section in putelfsym");
 		return;
 	}
@@ -143,7 +143,7 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 }
 
 void
-putelfsectionsym(Sym* s, int shndx)
+putelfsectionsym(LSym* s, int shndx)
 {
 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_SECTION, shndx, 0);
 	s->elfsym = numelfsym++;
@@ -170,7 +170,7 @@ putelfsymshndx(vlong sympos, int shndx)
 void
 asmelfsym(void)
 {
-	Sym *s;
+	LSym *s;
 
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
@@ -181,9 +181,9 @@ asmelfsym(void)
 	genasmsym(putelfsym);
 	
 	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd) {
-		s = lookup("runtime.tlsgm", 0);
+		s = linklookup(ctxt, "runtime.tlsgm", 0);
 		if(s->sect == nil) {
-			cursym = nil;
+			ctxt->cursym = nil;
 			diag("missing section for %s", s->name);
 			errorexit();
 		}
@@ -195,7 +195,7 @@ asmelfsym(void)
 	elfglobalsymndx = numelfsym;
 	genasmsym(putelfsym);
 	
-	for(s=allsym; s!=S; s=s->allsym) {
+	for(s=ctxt->allsym; s!=S; s=s->allsym) {
 		if(s->type != SHOSTOBJ)
 			continue;
 		putelfsyment(putelfstr(s->name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
@@ -204,7 +204,7 @@ asmelfsym(void)
 }
 
 static void
-putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+putplan9sym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
 {
 	int i, l;
 
@@ -226,7 +226,7 @@ putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 	case 'Z':
 	case 'm':
 		l = 4;
-		if(HEADTYPE == Hplan9x64 && !debug['8']) {
+		if(HEADTYPE == Hplan9 && thechar == '6' && !debug['8']) {
 			lputb(addr>>32);
 			l = 8;
 		}
@@ -263,14 +263,14 @@ asmplan9sym(void)
 	genasmsym(putplan9sym);
 }
 
-static Sym *symt;
+static LSym *symt;
 
 static void
 scput(int b)
 {
 	uchar *p;
 
-	symgrow(symt, symt->size+1);
+	symgrow(ctxt, symt, symt->size+1);
 	p = symt->p + symt->size;
 	*p = b;
 	symt->size++;
@@ -281,7 +281,7 @@ slputb(int32 v)
 {
 	uchar *p;
 
-	symgrow(symt, symt->size+4);
+	symgrow(ctxt, symt, symt->size+4);
 	p = symt->p + symt->size;
 	*p++ = v>>24;
 	*p++ = v>>16;
@@ -295,7 +295,7 @@ slputl(int32 v)
 {
 	uchar *p;
 
-	symgrow(symt, symt->size+4);
+	symgrow(ctxt, symt, symt->size+4);
 	p = symt->p + symt->size;
 	*p++ = v;
 	*p++ = v>>8;
@@ -355,7 +355,7 @@ vputl(uint64 v)
 // Emit symbol table entry.
 // The table format is described at the top of ../../pkg/runtime/symtab.c.
 void
-putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+putsymb(LSym *s, char *name, int t, vlong v, vlong size, int ver, LSym *typ)
 {
 	int i, f, c;
 	vlong v1;
@@ -457,7 +457,7 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 void
 symtab(void)
 {
-	Sym *s, *symtype, *symtypelink, *symgostring, *symgofunc;
+	LSym *s, *symtype, *symtypelink, *symgostring, *symgofunc;
 
 	dosymtype();
 
@@ -482,40 +482,40 @@ symtab(void)
 	xdefine("esymtab", SRODATA, 0);
 
 	// garbage collection symbols
-	s = lookup("gcdata", 0);
+	s = linklookup(ctxt, "gcdata", 0);
 	s->type = SRODATA;
 	s->size = 0;
 	s->reachable = 1;
 	xdefine("egcdata", SRODATA, 0);
 
-	s = lookup("gcbss", 0);
+	s = linklookup(ctxt, "gcbss", 0);
 	s->type = SRODATA;
 	s->size = 0;
 	s->reachable = 1;
 	xdefine("egcbss", SRODATA, 0);
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
-	s = lookup("type.*", 0);
+	s = linklookup(ctxt, "type.*", 0);
 	s->type = STYPE;
 	s->size = 0;
 	s->reachable = 1;
 	symtype = s;
 
-	s = lookup("go.string.*", 0);
+	s = linklookup(ctxt, "go.string.*", 0);
 	s->type = SGOSTRING;
 	s->size = 0;
 	s->reachable = 1;
 	symgostring = s;
 	
-	s = lookup("go.func.*", 0);
+	s = linklookup(ctxt, "go.func.*", 0);
 	s->type = SGOFUNC;
 	s->size = 0;
 	s->reachable = 1;
 	symgofunc = s;
 	
-	symtypelink = lookup("typelink", 0);
+	symtypelink = linklookup(ctxt, "typelink", 0);
 
-	symt = lookup("symtab", 0);
+	symt = linklookup(ctxt, "symtab", 0);
 	symt->type = SSYMTAB;
 	symt->size = 0;
 	symt->reachable = 1;
@@ -524,7 +524,7 @@ symtab(void)
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for(s = allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != S; s = s->allsym) {
 		if(!s->reachable || s->special || s->type != SRODATA)
 			continue;
 		if(strncmp(s->name, "type.", 5) == 0) {

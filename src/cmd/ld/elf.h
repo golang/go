@@ -858,7 +858,7 @@ struct Elf64_Shdr {
 	Elf64_Xword	entsize;	/* Size of each entry in section. */
 	
 	int	shnum;  /* section number, not stored on disk */
-	Sym*	secsym; /* section symbol, if needed; not on disk */
+	LSym*	secsym; /* section symbol, if needed; not on disk */
 };
 
 /*
@@ -968,9 +968,9 @@ ElfPhdr	*newElfPhdr(void);
 uint32	elfwritehdr(void);
 uint32	elfwritephdrs(void);
 uint32	elfwriteshdrs(void);
-void	elfwritedynent(Sym*, int, uint64);
-void	elfwritedynentsym(Sym*, int, Sym*);
-void	elfwritedynentsymsize(Sym*, int, Sym*);
+void	elfwritedynent(LSym*, int, uint64);
+void	elfwritedynentsym(LSym*, int, LSym*);
+void	elfwritedynentsymsize(LSym*, int, LSym*);
 uint32	elfhash(uchar*);
 uint64	startelf(void);
 uint64	endelf(void);
@@ -994,13 +994,13 @@ ElfShdr* elfshalloc(Section*);
 ElfShdr* elfshname(char*);
 ElfShdr* elfshreloc(Section*);
 void	elfsetstring(char*, int);
-void	elfaddverneed(Sym*);
+void	elfaddverneed(LSym*);
 void	elfemitreloc(void);
-void	shsym(ElfShdr*, Sym*);
+void	shsym(ElfShdr*, LSym*);
 void	phsh(ElfPhdr*, ElfShdr*);
 void	doelf(void);
 void	elfsetupplt(void);
-void	dwarfaddshstrings(Sym*);
+void	dwarfaddshstrings(LSym*);
 void	dwarfaddelfsectionsyms(void);
 void	dwarfaddelfheaders(void);
 void	asmbelf(vlong symo);

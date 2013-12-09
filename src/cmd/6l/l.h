@@ -31,6 +31,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
+#include	<link.h>
 #include	"6.out.h"
 
 #ifndef	EXTERN
@@ -64,146 +65,8 @@ enum
 };
 
 #define	P		((Prog*)0)
-#define	S		((Sym*)0)
-#define	TNAME		(cursym?cursym->name:noname)
-
-typedef	struct	Adr	Adr;
-typedef	struct	Prog	Prog;
-typedef	struct	Sym	Sym;
-typedef	struct	Auto	Auto;
-typedef	struct	Optab	Optab;
-typedef	struct	Movtab	Movtab;
-typedef	struct	Reloc	Reloc;
-
-struct	Adr
-{
-	union
-	{
-		vlong	u0offset;
-		char	u0scon[8];
-		Prog	*u0cond;	/* not used, but should be D_BRANCH */
-		Ieee	u0ieee;
-		char	*u0sbig;
-	} u0;
-	Sym*	sym;
-	short	type;
-	char	index;
-	char	scale;
-};
-
-#define	offset	u0.u0offset
-#define	scon	u0.u0scon
-#define	cond	u0.u0cond
-#define	ieee	u0.u0ieee
-#define	sbig	u0.u0sbig
-
-struct	Reloc
-{
-	int32	off;
-	uchar	siz;
-	uchar	done;
-	int32	type;
-	int64	add;
-	int64	xadd;
-	Sym*	sym;
-	Sym*	xsym;
-};
-
-struct	Prog
-{
-	Adr	from;
-	Adr	to;
-	Prog*	forwd;
-	Prog*	comefrom;
-	Prog*	link;
-	Prog*	pcond;	/* work on this */
-	vlong	pc;
-	int32	spadj;
-	int32	line;
-	short	as;
-	char	ft;	/* oclass cache */
-	char	tt;
-	uchar	mark;	/* work on these */
-	uchar	back;
-
-	char	width;	/* fake for DATA */
-	char	mode;	/* 16, 32, or 64 */
-};
-#define	datasize	from.scale
-#define	textflag	from.scale
-#define	iscall(p)	((p)->as == ACALL)
-
-struct	Auto
-{
-	Sym*	asym;
-	Auto*	link;
-	int32	aoffset;
-	short	type;
-	Sym*	gotype;
-};
-struct	Sym
-{
-	char*	name;
-	char*	extname;	// name used in external object files
-	short	type;
-	short	version;
-	uchar	dupok;
-	uchar	reachable;
-	uchar	cgoexport;
-	uchar	special;
-	uchar	stkcheck;
-	uchar	hide;
-	int32	dynid;
-	int32	sig;
-	int32	plt;
-	int32	got;
-	int32	align;	// if non-zero, required alignment in bytes
-	int32	elfsym;
-	int32	args;	// size of stack frame incoming arguments area
-	Sym*	hash;	// in hash table
-	Sym*	allsym;	// in all symbol list
-	Sym*	next;	// in text or data list
-	Sym*	sub;	// in SSUB list
-	Sym*	outer;	// container of sub
-	Sym*	reachparent;
-	Sym*	queue;
-	vlong	value;
-	vlong	size;
-	Sym*	gotype;
-	char*	file;
-	char*	dynimplib;
-	char*	dynimpvers;
-	struct Section*	sect;
-	struct Hist*	hist;	// for ATEXT
-	
-	// STEXT
-	Auto*	autom;
-	Prog*	text;
-	
-	// SDATA, SBSS
-	uchar*	p;
-	int32	np;
-	int32	maxp;
-	Reloc*	r;
-	int32	nr;
-	int32	maxr;
-};
-struct	Optab
-{
-	short	as;
-	uchar*	ytab;
-	uchar	prefix;
-	uchar	op[23];
-};
-struct	Movtab
-{
-	short	as;
-	uchar	ft;
-	uchar	tt;
-	uchar	code;
-	uchar	op[4];
-};
-
+#define	S		((LSym*)0)
+#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
 enum
 {
 	MINSIZ		= 8,
@@ -211,233 +74,55 @@ enum
 	MINLC		= 1,
 	MAXIO		= 8192,
 	MAXHIST		= 40,				/* limit of path elements for history symbols */
-
-	Yxxx		= 0,
-	Ynone,
-	Yi0,
-	Yi1,
-	Yi8,
-	Ys32,
-	Yi32,
-	Yi64,
-	Yiauto,
-	Yal,
-	Ycl,
-	Yax,
-	Ycx,
-	Yrb,
-	Yrl,
-	Yrf,
-	Yf0,
-	Yrx,
-	Ymb,
-	Yml,
-	Ym,
-	Ybr,
-	Ycol,
-
-	Ycs,	Yss,	Yds,	Yes,	Yfs,	Ygs,
-	Ygdtr,	Yidtr,	Yldtr,	Ymsw,	Ytask,
-	Ycr0,	Ycr1,	Ycr2,	Ycr3,	Ycr4,	Ycr5,	Ycr6,	Ycr7,	Ycr8,
-	Ydr0,	Ydr1,	Ydr2,	Ydr3,	Ydr4,	Ydr5,	Ydr6,	Ydr7,
-	Ytr0,	Ytr1,	Ytr2,	Ytr3,	Ytr4,	Ytr5,	Ytr6,	Ytr7,	Yrl32,	Yrl64,
-	Ymr, Ymm,
-	Yxr, Yxm,
-	Ymax,
-
-	Zxxx		= 0,
-
-	Zlit,
-	Zlitm_r,
-	Z_rp,
-	Zbr,
-	Zcall,
-	Zib_,
-	Zib_rp,
-	Zibo_m,
-	Zibo_m_xm,
-	Zil_,
-	Zil_rp,
-	Ziq_rp,
-	Zilo_m,
-	Ziqo_m,
-	Zjmp,
-	Zloop,
-	Zo_iw,
-	Zm_o,
-	Zm_r,
-	Zm2_r,
-	Zm_r_xm,
-	Zm_r_i_xm,
-	Zm_r_3d,
-	Zm_r_xm_nr,
-	Zr_m_xm_nr,
-	Zibm_r,	/* mmx1,mmx2/mem64,imm8 */
-	Zmb_r,
-	Zaut_r,
-	Zo_m,
-	Zo_m64,
-	Zpseudo,
-	Zr_m,
-	Zr_m_xm,
-	Zr_m_i_xm,
-	Zrp_,
-	Z_ib,
-	Z_il,
-	Zm_ibo,
-	Zm_ilo,
-	Zib_rr,
-	Zil_rr,
-	Zclr,
-	Zbyte,
-	Zmax,
-
-	Px		= 0,
-	P32		= 0x32,	/* 32-bit only */
-	Pe		= 0x66,	/* operand escape */
-	Pm		= 0x0f,	/* 2byte opcode escape */
-	Pq		= 0xff,	/* both escapes: 66 0f */
-	Pb		= 0xfe,	/* byte operands */
-	Pf2		= 0xf2,	/* xmm escape 1: f2 0f */
-	Pf3		= 0xf3,	/* xmm escape 2: f3 0f */
-	Pq3		= 0x67, /* xmm escape 3: 66 48 0f */
-	Pw		= 0x48,	/* Rex.w */
-	Py		= 0x80,	/* defaults to 64-bit mode */
-
-	Rxf		= 1<<9,	/* internal flag for Rxr on from */
-	Rxt		= 1<<8,	/* internal flag for Rxr on to */
-	Rxw		= 1<<3,	/* =1, 64-bit operand size */
-	Rxr		= 1<<2,	/* extend modrm reg */
-	Rxx		= 1<<1,	/* extend sib index */
-	Rxb		= 1<<0,	/* extend modrm r/m, sib base, or opcode reg */
-
-	Maxand	= 10,		/* in -a output width of the byte codes */
 };
 
 #pragma	varargck	type	"A"	uint
-#pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"I"	uchar*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
 #pragma	varargck	type	"i"	char*
 
-EXTERN	int32	HEADR;
-EXTERN	int32	HEADTYPE;
-EXTERN	int32	INITRND;
-EXTERN	int64	INITTEXT;
-EXTERN	int64	INITDAT;
-EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	char*	pcstr;
-EXTERN	Auto*	curauto;
-EXTERN	Auto*	curhist;
-EXTERN	Prog*	curp;
-EXTERN	Sym*	cursym;
-EXTERN	Sym*	datap;
+EXTERN	LSym*	datap;
 EXTERN	int	debug[128];
 EXTERN	char	literal[32];
-EXTERN	Sym*	textp;
-EXTERN	Sym*	etextp;
-EXTERN	char	ycover[Ymax*Ymax];
-EXTERN	uchar*	andptr;
-EXTERN	uchar*	rexptr;
-EXTERN	uchar	and[30];
-EXTERN	int	reg[D_NONE];
-EXTERN	int	regrex[D_NONE+1];
 EXTERN	int32	lcsize;
-EXTERN	int	nerrors;
-EXTERN	char*	noname;
-EXTERN	char*	outfile;
-EXTERN	vlong	pc;
-EXTERN	char*	interpreter;
 EXTERN	char*	rpath;
 EXTERN	int32	spsize;
-EXTERN	Sym*	symlist;
+EXTERN	LSym*	symlist;
 EXTERN	int32	symsize;
-EXTERN	int	tlsoffset;
-EXTERN	Prog	zprg;
-EXTERN	int	dtype;
-EXTERN	char*	paramspace;
-EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
-EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
 
-extern	Optab	optab[];
-extern	Optab*	opindex[];
-extern	char*	anames[];
-
-int	Aconv(Fmt*);
-int	Dconv(Fmt*);
-int	Iconv(Fmt*);
-int	Pconv(Fmt*);
-int	Rconv(Fmt*);
-int	Sconv(Fmt*);
-void	addhist(int32, int);
-void	addstackmark(void);
-Prog*	appendp(Prog*);
+int	Aconv(Fmt *fp);
+int	Dconv(Fmt *fp);
+int	Iconv(Fmt *fp);
+int	Pconv(Fmt *fp);
+int	Rconv(Fmt *fp);
+int	Sconv(Fmt *fp);
+void	adddynlib(char *lib);
+void	adddynrel(LSym *s, Reloc *r);
+void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+void	adddynsym(Link *ctxt, LSym *s);
+int	archreloc(Reloc *r, LSym *s, vlong *val);
 void	asmb(void);
-void	asmdyn(void);
-void	asmins(Prog*);
-void	asmsym(void);
-void	asmelfsym(void);
-vlong	atolwhex(char*);
-Prog*	brchain(Prog*);
-Prog*	brloop(Prog*);
-void	buildop(void);
-Prog*	copyp(Prog*);
-double	cputime(void);
-void	datblk(int32, int32);
-void	deadcode(void);
-void	diag(char*, ...);
-void	dodata(void);
-void	doelf(void);
-void	domacho(void);
-void	doprof1(void);
-void	doprof2(void);
-void	dostkoff(void);
-vlong	entryvalue(void);
-void	follow(void);
-void	gethunk(void);
-void	gotypestrings(void);
+void	diag(char *fmt, ...);
+int	elfreloc1(Reloc *r, vlong sectoff);
+void	elfsetupplt(void);
 void	listinit(void);
-Sym*	lookup(char*, int);
-void	lputb(int32);
-void	lputl(int32);
-void	instinit(void);
-void	main(int, char*[]);
-void*	mysbrk(uint32);
-Prog*	newtext(Prog*, Sym*);
-void	nopout(Prog*);
-int	opsize(Prog*);
-void	patch(void);
-Prog*	prg(void);
-void	parsetextconst(vlong);
-int	relinv(int);
-vlong	rnd(vlong, vlong);
-void	span(void);
-void	undef(void);
-vlong	symaddr(Sym*);
-void	vputb(uint64);
-void	vputl(uint64);
-void	wputb(uint16);
-void	wputl(uint16);
-void	xdefine(char*, int, vlong);
-
-void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
-void	machsymseg(uint32, uint32);
-void	machsect(char*, char*, vlong, vlong, uint32, uint32, uint32, uint32, uint32);
-void	machstack(vlong);
-void	machdylink(void);
-uint32	machheadr(void);
+int	machoreloc1(Reloc *r, vlong sectoff);
+void	main(int argc, char *argv[]);
+void	parsetextconst(vlong arg);
+vlong	rnd(vlong v, vlong r);
 
 /* Native is little-endian */
 #define	LPUT(a)	lputl(a)
 #define	WPUT(a)	wputl(a)
 #define	VPUT(a)	vputl(a)
 
-#pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"Z"	char*

@@ -27,19 +27,19 @@
 
 static vlong abbrevo;
 static vlong abbrevsize;
-static Sym*  abbrevsym;
+static LSym*  abbrevsym;
 static vlong abbrevsympos;
 static vlong lineo;
 static vlong linesize;
-static Sym*  linesym;
+static LSym*  linesym;
 static vlong linesympos;
 static vlong infoo;	// also the base for DWDie->offs and reference attributes.
 static vlong infosize;
-static Sym*  infosym;
+static LSym*  infosym;
 static vlong infosympos;
 static vlong frameo;
 static vlong framesize;
-static Sym*  framesym;
+static LSym*  framesym;
 static vlong framesympos;
 static vlong pubnameso;
 static vlong pubnamessize;
@@ -50,19 +50,19 @@ static vlong arangessize;
 static vlong gdbscripto;
 static vlong gdbscriptsize;
 
-static Sym *infosec;
+static LSym *infosec;
 static vlong inforeloco;
 static vlong inforelocsize;
 
-static Sym *arangessec;
+static LSym *arangessec;
 static vlong arangesreloco;
 static vlong arangesrelocsize;
 
-static Sym *linesec;
+static LSym *linesec;
 static vlong linereloco;
 static vlong linerelocsize;
 
-static Sym *framesec;
+static LSym *framesec;
 static vlong framereloco;
 static vlong framerelocsize;
 
@@ -594,7 +594,7 @@ find_or_diag(DWDie *die, char* name)
 }
 
 static void
-adddwarfrel(Sym* sec, Sym* sym, vlong offsetbase, int siz, vlong addend)
+adddwarfrel(LSym* sec, LSym* sym, vlong offsetbase, int siz, vlong addend)
 {
 	Reloc *r;
 
@@ -639,8 +639,8 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 	switch(form) {
 	case DW_FORM_addr:	// address
 		if(linkmode == LinkExternal) {
-			value -= ((Sym*)data)->value;
-			adddwarfrel(infosec, (Sym*)data, infoo, PtrSize, value);
+			value -= ((LSym*)data)->value;
+			adddwarfrel(infosec, (LSym*)data, infoo, PtrSize, value);
 			break;
 		}
 		addrput(value);
@@ -651,8 +651,8 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 			cput(1+PtrSize);
 			cput(DW_OP_addr);
 			if(linkmode == LinkExternal) {
-				value -= ((Sym*)data)->value;
-				adddwarfrel(infosec, (Sym*)data, infoo, PtrSize, value);
+				value -= ((LSym*)data)->value;
+				adddwarfrel(infosec, (LSym*)data, infoo, PtrSize, value);
 				break;
 			}
 			addrput(value);
@@ -847,7 +847,7 @@ newmemberoffsetattr(DWDie *die, int32 offs)
 // GDB doesn't like DW_FORM_addr for DW_AT_location, so emit a
 // location expression that evals to a const.
 static void
-newabslocexprattr(DWDie *die, vlong addr, Sym *sym)
+newabslocexprattr(DWDie *die, vlong addr, LSym *sym)
 {
 	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, (char*)sym);
 }
@@ -864,12 +864,12 @@ enum {
 static DWDie* defptrto(DWDie *dwtype);	// below
 
 // Lookup predefined types
-static Sym*
+static LSym*
 lookup_or_diag(char *n)
 {
-	Sym *s;
+	LSym *s;
 
-	s = rlookup(n, 0);
+	s = linkrlookup(ctxt, n, 0);
 	if (s == nil || s->size == 0) {
 		diag("dwarf: missing type: %s", n);
 		errorexit();
@@ -904,10 +904,10 @@ dotypedef(DWDie *parent, char *name, DWDie *def)
 
 // Define gotype, for composite ones recurse into constituents.
 static DWDie*
-defgotype(Sym *gotype)
+defgotype(LSym *gotype)
 {
 	DWDie *die, *fld;
-	Sym *s;
+	LSym *s;
 	char *name, *f;
 	uint8 kind;
 	vlong bytesize;
@@ -1335,7 +1335,7 @@ synthesizechantypes(DWDie *die)
 
 // For use with pass.c::genasmsym
 static void
-defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
+defdwsymb(LSym* sym, char *s, int t, vlong v, vlong size, int ver, LSym *gotype)
 {
 	DWDie *dv, *dt;
 
@@ -1607,7 +1607,7 @@ inithist(Auto *a)
 			absline = a->aoffset;
 		} else if (a->type == D_FILE1) {  // 'Z'
 			// We could just fixup the current
-			// linehist->line, but there doesn't appear to
+			// linehist->lineno, but there doesn't appear to
 			// be a guarantee that every 'Z' is preceded
 			// by its own 'z', so do the safe thing and
 			// update the stack and push a new Linehist
@@ -1719,7 +1719,7 @@ mkvarname(char* name, int da)
 
 // flush previous compilation unit.
 static void
-flushunit(DWDie *dwinfo, vlong pc, Sym *pcsym, vlong unitstart, int32 header_length)
+flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_length)
 {
 	vlong here;
 
@@ -1745,7 +1745,7 @@ static void
 writelines(void)
 {
 	Prog *q;
-	Sym *s, *epcs;
+	LSym *s, *epcs;
 	Auto *a;
 	vlong unitstart, headerend, offs;
 	vlong pc, epc, lc, llc, lline;
@@ -1757,7 +1757,7 @@ writelines(void)
 	char *n, *nn;
 
 	if(linesec == S)
-		linesec = lookup(".dwarfline", 0);
+		linesec = linklookup(ctxt, ".dwarfline", 0);
 	linesec->nr = 0;
 
 	unitstart = -1;
@@ -1771,8 +1771,8 @@ writelines(void)
 	lineo = cpos();
 	dwinfo = nil;
 
-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		s = cursym;
+	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+		s = ctxt->cursym;
 		if(s->text == P)
 			continue;
 
@@ -1859,7 +1859,7 @@ writelines(void)
 			continue;
 
 		for(q = s->text; q != P; q = q->link) {
-			lh = searchhist(q->line);
+			lh = searchhist(q->lineno);
 			if (lh == nil) {
 				diag("dwarf: corrupt history or bad absolute line: %P", q);
 				continue;
@@ -1870,11 +1870,11 @@ writelines(void)
 				continue;
 			}
 
-			lline = lh->line + q->line - lh->absline;
+			lline = lh->line + q->lineno - lh->absline;
 			if (debug['v'] > 1)
 				print("%6llux %s[%lld] %P\n", (vlong)q->pc, histfile[lh->file], lline, q);
 
-			if (q->line == lc)
+			if (q->lineno == lc)
 				continue;
 			if (currfile != lh->file) {
 				currfile = lh->file;
@@ -1883,7 +1883,7 @@ writelines(void)
 			}
 			putpclcdelta(q->pc - pc, lline - llc);
 			pc  = q->pc;
-			lc  = q->line;
+			lc  = q->lineno;
 			llc = lline;
 		}
 
@@ -1971,11 +1971,11 @@ static void
 writeframes(void)
 {
 	Prog *p, *q;
-	Sym *s;
+	LSym *s;
 	vlong fdeo, fdesize, pad, cfa, pc;
 
 	if(framesec == S)
-		framesec = lookup(".dwarfframe", 0);
+		framesec = linklookup(ctxt, ".dwarfframe", 0);
 	framesec->nr = 0;
 	frameo = cpos();
 
@@ -2003,8 +2003,8 @@ writeframes(void)
 	}
 	strnput("", pad);
 
-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
-		s = cursym;
+	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+		s = ctxt->cursym;
 		if(s->text == nil)
 			continue;
 
@@ -2067,11 +2067,11 @@ writeinfo(void)
 
 	fwdcount = 0;
 	if (infosec == S)
-		infosec = lookup(".dwarfinfo", 0);
+		infosec = linklookup(ctxt, ".dwarfinfo", 0);
 	infosec->nr = 0;
 
 	if(arangessec == S)
-		arangessec = lookup(".dwarfaranges", 0);
+		arangessec = linklookup(ctxt, ".dwarfaranges", 0);
 	arangessec->nr = 0;
 
 	for (compunit = dwroot.child; compunit; compunit = compunit->link) {
@@ -2204,7 +2204,7 @@ writearanges(void)
 		strnput("", headersize - (4+2+4+1+1));	// align to PtrSize
 
 		if(linkmode == LinkExternal)
-			adddwarfrel(arangessec, (Sym*)b->data, sectionstart, PtrSize, b->value-((Sym*)b->data)->value);
+			adddwarfrel(arangessec, (LSym*)b->data, sectionstart, PtrSize, b->value-((LSym*)b->data)->value);
 		else
 			addrput(b->value);
 
@@ -2239,7 +2239,7 @@ align(vlong size)
 }
 
 static vlong
-writedwarfreloc(Sym* s)
+writedwarfreloc(LSym* s)
 {
 	int i;
 	vlong start;
@@ -2408,7 +2408,7 @@ enum
 vlong elfstrdbg[NElfStrDbg];
 
 void
-dwarfaddshstrings(Sym *shstrtab)
+dwarfaddshstrings(LSym *shstrtab)
 {
 	if(debug['w'])  // disable dwarf
 		return;
@@ -2438,16 +2438,16 @@ dwarfaddshstrings(Sym *shstrtab)
 			elfstrdbg[ElfStrRelDebugFrame] = addstring(shstrtab, ".rel.debug_frame");
 		}
 
-		infosym = lookup(".debug_info", 0);
+		infosym = linklookup(ctxt, ".debug_info", 0);
 		infosym->hide = 1;
 
-		abbrevsym = lookup(".debug_abbrev", 0);
+		abbrevsym = linklookup(ctxt, ".debug_abbrev", 0);
 		abbrevsym->hide = 1;
 
-		linesym = lookup(".debug_line", 0);
+		linesym = linklookup(ctxt, ".debug_line", 0);
 		linesym->hide = 1;
 
-		framesym = lookup(".debug_frame", 0);
+		framesym = linklookup(ctxt, ".debug_frame", 0);
 		framesym->hide = 1;
 	}
 }

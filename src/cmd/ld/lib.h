@@ -28,68 +28,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-enum
-{
-	Sxxx,
-
-	/* order here is order in output file */
-	/* readonly, executable */
-	STEXT,
-	SELFRXSECT,
-	
-	/* readonly, non-executable */
-	STYPE,
-	SSTRING,
-	SGOSTRING,
-	SGOFUNC,
-	SRODATA,
-	SFUNCTAB,
-	STYPELINK,
-	SSYMTAB, // TODO: move to unmapped section
-	SPCLNTAB,
-	SELFROSECT,
-	
-	/* writable, non-executable */
-	SMACHOPLT,
-	SELFSECT,
-	SMACHO,	/* Mach-O __nl_symbol_ptr */
-	SMACHOGOT,
-	SNOPTRDATA,
-	SINITARR,
-	SDATA,
-	SWINDOWS,
-	SBSS,
-	SNOPTRBSS,
-	STLSBSS,
-
-	/* not mapped */
-	SXREF,
-	SMACHOSYMSTR,
-	SMACHOSYMTAB,
-	SMACHOINDIRECTPLT,
-	SMACHOINDIRECTGOT,
-	SFILE,
-	SFILEPATH,
-	SCONST,
-	SDYNIMPORT,
-	SHOSTOBJ,
-
-	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
-	SMASK = SSUB - 1,
-	SHIDDEN = 1<<9, // hidden or local symbol
-
-	NHASH = 100003,
-};
-
-typedef struct Library Library;
-struct Library
-{
-	char *objref;	// object where we found the reference
-	char *srcref;	// src file where we found the reference
-	char *file;		// object file
-	char *pkg;	// import path
-};
-
 // Terrible but standard terminology.
 // A segment describes a block of file to load into memory.
 // A section further describes the pieces of that block for
@@ -125,36 +63,14 @@ struct Section
 	uvlong	rellen;
 };
 
-typedef struct Hist Hist;
-
-#pragma incomplete struct Hist
-
 extern	char	symname[];
-extern	char	**libdir;
-extern	int	nlibdir;
-extern	int	version;
 
 EXTERN	char*	INITENTRY;
-EXTERN	char*	thestring;
-EXTERN	Library*	library;
-EXTERN	int	libraryp;
-EXTERN	int	nlibrary;
-EXTERN	Sym*	hash[NHASH];
-EXTERN	Sym*	allsym;
-EXTERN	Sym*	histfrog[MAXHIST];
-EXTERN	uchar	fnuxi8[8];
-EXTERN	uchar	fnuxi4[4];
-EXTERN	int	histfrogp;
-EXTERN	int	histgen;
-EXTERN	uchar	inuxi1[1];
-EXTERN	uchar	inuxi2[2];
-EXTERN	uchar	inuxi4[4];
-EXTERN	uchar	inuxi8[8];
+extern	char*	thestring;
+extern	LinkArch*	thelinkarch;
 EXTERN	char*	outfile;
-EXTERN	int32	nsymbol;
-EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
-EXTERN	Sym**	dynexp;
+EXTERN	LSym**	dynexp;
 EXTERN	int	nldflag;
 EXTERN	char**	ldflag;
 EXTERN	int	havedynamic;
@@ -169,16 +85,20 @@ EXTERN	char*	tmpdir;
 EXTERN	char*	extld;
 EXTERN	char*	extldflags;
 EXTERN	int	debug_s; // backup old value of debug['s']
+EXTERN	Link*	ctxt;
+EXTERN	int32	HEADR;
+EXTERN	int32	HEADTYPE;
+EXTERN	int32	INITRND;
+EXTERN	int64	INITTEXT;
+EXTERN	int64	INITDAT;
+EXTERN	char*	INITENTRY;		/* entry point */
+EXTERN	char*	noname;
+EXTERN	char*	paramspace;
+EXTERN	int	nerrors;
 
-enum
-{
-	LinkAuto = 0,
-	LinkInternal,
-	LinkExternal,
-};
 EXTERN	int	linkmode;
 
-// for dynexport field of Sym
+// for dynexport field of LSym
 enum
 {
 	CgoExportDynamic = 1<<0,
@@ -189,119 +109,6 @@ EXTERN	Segment	segtext;
 EXTERN	Segment	segrodata;
 EXTERN	Segment	segdata;
 EXTERN	Segment	segdwarf;
-
-void	setlinkmode(char*);
-void	addlib(char *src, char *obj);
-void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
-Section*	addsection(Segment*, char*, int);
-void	copyhistfrog(char *buf, int nbuf);
-void	addhist(int32 line, int type);
-void	savehist(int32 line, int32 off);
-Hist*	gethist(void);
-void	getline(Hist*, int32 line, int32 *f, int32 *l);
-void	asmlc(void);
-void	histtoauto(void);
-void	collapsefrog(Sym *s);
-Sym*	newsym(char *symb, int v);
-Sym*	lookup(char *symb, int v);
-Sym*	rlookup(char *symb, int v);
-void	nuxiinit(void);
-int	find1(int32 l, int c);
-int	find2(int32 l, int c);
-int32	ieeedtof(Ieee *e);
-double	ieeedtod(Ieee *e);
-void	undefsym(Sym *s);
-void	zerosig(char *sp);
-void	readundefs(char *f, int t);
-void	loadlib(void);
-void	errorexit(void);
-void	mangle(char*);
-void	objfile(char *file, char *pkg);
-void	libinit(void);
-void	pclntab(void);
-void	symtab(void);
-void	Lflag(char *arg);
-void	usage(void);
-void	adddynrel(Sym*, Reloc*);
-void	adddynrela(Sym*, Sym*, Reloc*);
-void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
-void	ldobj(Biobuf*, char*, int64, char*, char*, int);
-void	ldelf(Biobuf*, char*, int64, char*);
-void	ldmacho(Biobuf*, char*, int64, char*);
-void	ldpe(Biobuf*, char*, int64, char*);
-void	ldpkg(Biobuf*, char*, int64, char*, int);
-void	mark(Sym *s);
-void	mkfwd(void);
-char*	expandpkg(char*, char*);
-void	deadcode(void);
-Reloc*	addrel(Sym*);
-void	codeblk(int32, int32);
-void	datblk(int32, int32);
-void	reloc(void);
-void	relocsym(Sym*);
-void	savedata(Sym*, Prog*, char*);
-void	symgrow(Sym*, int32);
-void	addstrdata(char*, char*);
-vlong	addstring(Sym*, char*);
-vlong	adduint8(Sym*, uint8);
-vlong	adduint16(Sym*, uint16);
-vlong	adduint32(Sym*, uint32);
-vlong	adduint64(Sym*, uint64);
-vlong	adduintxx(Sym*, uint64, int);
-vlong	addaddr(Sym*, Sym*);
-vlong	addaddrplus(Sym*, Sym*, vlong);
-vlong	addpcrelplus(Sym*, Sym*, vlong);
-vlong	addsize(Sym*, Sym*);
-vlong	setaddrplus(Sym*, vlong, Sym*, vlong);
-vlong	setaddr(Sym*, vlong, Sym*);
-vlong	setuint8(Sym*, vlong, uint8);
-vlong	setuint16(Sym*, vlong, uint16);
-vlong	setuint32(Sym*, vlong, uint32);
-vlong	setuint64(Sym*, vlong, uint64);
-vlong	setuintxx(Sym*, vlong, uint64, vlong);
-void	asmsym(void);
-void	asmelfsym(void);
-void	asmplan9sym(void);
-void	putelfsectionsym(Sym*, int);
-void	putelfsymshndx(vlong, int);
-void	strnput(char*, int);
-void	dodata(void);
-void	dosymtype(void);
-void	address(void);
-void	textaddress(void);
-void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));
-vlong	datoff(vlong);
-void	adddynlib(char*);
-int	archreloc(Reloc*, Sym*, vlong*);
-void	adddynsym(Sym*);
-void	addexport(void);
-void	dostkcheck(void);
-void	undef(void);
-void	doweak(void);
-void	setpersrc(Sym*);
-void	doversion(void);
-void	usage(void);
-void	setinterp(char*);
-Sym*	listsort(Sym*, int(*cmp)(Sym*, Sym*), int);
-int	valuecmp(Sym*, Sym*);
-void	hostobjs(void);
-void	hostlink(void);
-char*	estrdup(char*);
-void*	erealloc(void*, long);
-Sym*	defgostring(char*);
-
-int	pathchar(void);
-void*	mal(uint32);
-void	unmal(void*, uint32);
-void	mywhatsys(void);
-int	rbyoff(const void*, const void*);
-
-uint16	le16(uchar*);
-uint32	le32(uchar*);
-uint64	le64(uchar*);
-uint16	be16(uchar*);
-uint32	be32(uchar*);
-uint64	be64(uchar*);
 
 typedef struct Endian Endian;
 struct Endian
@@ -325,28 +132,6 @@ enum {
 	Pkgdef
 };
 
-/* executable header types */
-enum {
-	Hgarbunix = 0,	// garbage unix
-	Hnoheader,	// no header
-	Hunixcoff,	// unix coff
-	Hrisc,		// aif for risc os
-	Hplan9x32,	// plan 9 32-bit format
-	Hplan9x64,	// plan 9 64-bit format
-	Hmsdoscom,	// MS-DOS .COM
-	Hnetbsd,	// NetBSD
-	Hmsdosexe,	// fake MS-DOS .EXE
-	Hixp1200,	// IXP1200 (raw)
-	Helf,		// ELF32
-	Hipaq,		// ipaq
-	Hdarwin,	// Apple Mach-O
-	Hlinux,		// Linux ELF
-	Hfreebsd,	// FreeBSD ELF
-	Hwindows,	// MS Windows PE
-	Hopenbsd,	// OpenBSD ELF
-	Hdragonfly,	// DragonFly ELF
-};
-
 typedef struct Header Header;
 struct Header {
 	char *name;
@@ -356,14 +141,8 @@ struct Header {
 EXTERN	char*	headstring;
 extern	Header	headers[];
 
-int	headtype(char*);
-char*	headstr(int);
-void	setheadtype(char*);
-
-int	Yconv(Fmt*);
-
 #pragma	varargck	type	"O"	int
-#pragma	varargck	type	"Y"	Sym*
+#pragma	varargck	type	"Y"	LSym*
 
 // buffered output
 
@@ -383,29 +162,115 @@ EXTERN	char*	cbpmax;
 	if(--cbc <= 0)\
 		cflush(); }
 
-void	cflush(void);
-vlong	cpos(void);
-void	cseek(vlong);
-void	cwrite(void*, int);
-void	importcycles(void);
-int	Zconv(Fmt*);
+EXTERN	int	goarm;
 
-uint8	decodetype_kind(Sym*);
-vlong	decodetype_size(Sym*);
-Sym*	decodetype_gc(Sym*);
-Sym*	decodetype_arrayelem(Sym*);
-vlong	decodetype_arraylen(Sym*);
-Sym*	decodetype_ptrelem(Sym*);
-Sym*	decodetype_mapkey(Sym*);
-Sym*	decodetype_mapvalue(Sym*);
-Sym*	decodetype_chanelem(Sym*);
-int	decodetype_funcdotdotdot(Sym*);
-int	decodetype_funcincount(Sym*);
-int	decodetype_funcoutcount(Sym*);
-Sym*	decodetype_funcintype(Sym*, int);
-Sym*	decodetype_funcouttype(Sym*, int);
-int	decodetype_structfieldcount(Sym*);
-char*	decodetype_structfieldname(Sym*, int);
-Sym*	decodetype_structfieldtype(Sym*, int);
-vlong	decodetype_structfieldoffs(Sym*, int);
-vlong	decodetype_ifacemethodcount(Sym*);
+void	Lflag(char *arg);
+int	Yconv(Fmt *fp);
+int	Zconv(Fmt *fp);
+void	addexport(void);
+void	address(void);
+Section*addsection(Segment *seg, char *name, int rwx);
+void	addstrdata(char *name, char *value);
+vlong	addstring(LSym *s, char *str);
+void	asmelfsym(void);
+void	asmplan9sym(void);
+uint16	be16(uchar *b);
+uint32	be32(uchar *b);
+uint64	be64(uchar *b);
+void	cflush(void);
+void	codeblk(int32 addr, int32 size);
+vlong	cpos(void);
+void	cseek(vlong p);
+void	cwrite(void *buf, int n);
+void	datblk(int32 addr, int32 size);
+int	datcmp(LSym *s1, LSym *s2);
+vlong	datoff(vlong addr);
+void	deadcode(void);
+LSym*	decodetype_arrayelem(LSym *s);
+vlong	decodetype_arraylen(LSym *s);
+LSym*	decodetype_chanelem(LSym *s);
+int	decodetype_funcdotdotdot(LSym *s);
+int	decodetype_funcincount(LSym *s);
+LSym*	decodetype_funcintype(LSym *s, int i);
+int	decodetype_funcoutcount(LSym *s);
+LSym*	decodetype_funcouttype(LSym *s, int i);
+LSym*	decodetype_gc(LSym *s);
+vlong	decodetype_ifacemethodcount(LSym *s);
+uint8	decodetype_kind(LSym *s);
+LSym*	decodetype_mapkey(LSym *s);
+LSym*	decodetype_mapvalue(LSym *s);
+LSym*	decodetype_ptrelem(LSym *s);
+vlong	decodetype_size(LSym *s);
+int	decodetype_structfieldcount(LSym *s);
+char*	decodetype_structfieldname(LSym *s, int i);
+vlong	decodetype_structfieldoffs(LSym *s, int i);
+LSym*	decodetype_structfieldtype(LSym *s, int i);
+void	dodata(void);
+void	dostkcheck(void);
+void	dostkoff(void);
+void	dosymtype(void);
+void	doversion(void);
+void	doweak(void);
+void	dynreloc(void);
+void	dynrelocsym(LSym *s);
+vlong	entryvalue(void);
+void	errorexit(void);
+void	follow(void);
+void	genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*));
+void	growdatsize(vlong *datsizep, LSym *s);
+char*	headstr(int v);
+int	headtype(char *name);
+void	hostlink(void);
+void	hostobjs(void);
+int	iconv(Fmt *fp);
+void	importcycles(void);
+void	ldelf(Biobuf *f, char *pkg, int64 len, char *pn);
+void	ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file);
+void	ldmacho(Biobuf *f, char *pkg, int64 len, char *pn);
+void	ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence);
+void	ldpe(Biobuf *f, char *pkg, int64 len, char *pn);
+void	ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence);
+uint16	le16(uchar *b);
+uint32	le32(uchar *b);
+uint64	le64(uchar *b);
+void	libinit(void);
+LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off);
+void	loadinternal(char *name);
+void	loadlib(void);
+void	lputb(int32 l);
+void	lputl(int32 l);
+void*	mal(uint32 n);
+void	mark(LSym *s);
+void	mywhatsys(void);
+struct ar_hdr;
+int	nextar(Biobuf *bp, int off, struct ar_hdr *a);
+void	objfile(char *file, char *pkg);
+void	patch(void);
+int	pathchar(void);
+void	pcln(void);
+void	pclntab(void);
+void	putelfsectionsym(LSym* s, int shndx);
+void	putelfsymshndx(vlong sympos, int shndx);
+void	putsymb(LSym *s, char *name, int t, vlong v, vlong size, int ver, LSym *typ);
+int	rbyoff(const void *va, const void *vb);
+void	reloc(void);
+void	relocsym(LSym *s);
+void	setheadtype(char *s);
+void	setinterp(char *s);
+void	setlinkmode(char *arg);
+void	span(void);
+void	strnput(char *s, int n);
+vlong	symaddr(LSym *s);
+void	symtab(void);
+void	textaddress(void);
+void	undef(void);
+void	unmal(void *v, uint32 n);
+void	usage(void);
+void	vputb(uint64 v);
+int	valuecmp(LSym *a, LSym *b);
+void	vputl(uint64 v);
+void	wputb(ushort w);
+void	wputl(ushort w);
+void	xdefine(char *p, int t, vlong v);
+void	zerosig(char *sp);
+void	archinit(void);

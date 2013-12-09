@@ -102,14 +102,14 @@ struct PeSym {
 	uint16 type;
 	uint8 sclass;
 	uint8 aux;
-	Sym* sym;
+	LSym* sym;
 };
 
 struct PeSect {
 	char* name;
 	uchar* base;
 	uint64 size;
-	Sym* sym;
+	LSym* sym;
 	IMAGE_SECTION_HEADER sh;
 };
 
@@ -141,7 +141,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	PeSect *sect, *rsect;
 	IMAGE_SECTION_HEADER sh;
 	uchar symbuf[18];
-	Sym *s;
+	LSym *s;
 	Reloc *r, *rp;
 	PeSym *sym;
 
@@ -150,7 +150,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		Bprint(&bso, "%5.2f ldpe %s\n", cputime(), pn);
 	
 	sect = nil;
-	version++;
+	ctxt->version++;
 	base = Boffset(f);
 	
 	obj = mal(sizeof *obj);
@@ -222,7 +222,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			goto bad;
 		
 		name = smprint("%s(%s)", pkg, sect->name);
-		s = lookup(name, version);
+		s = linklookup(ctxt, name, ctxt->version);
 		free(name);
 		switch(sect->sh.Characteristics&(IMAGE_SCN_CNT_UNINITIALIZED_DATA|IMAGE_SCN_CNT_INITIALIZED_DATA|
 			IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE|IMAGE_SCN_CNT_CODE|IMAGE_SCN_MEM_EXECUTE)) {
@@ -372,14 +372,14 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 				diag("%s: duplicate definition of %s", pn, s->name);
 			// build a TEXT instruction with a unique pc
 			// just to make the rest of the linker happy.
-			p = prg();
+			p = ctxt->arch->prg();
 			p->as = ATEXT;
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
-			p->textflag = 7;
+			ctxt->arch->settextflag(p, 7);
 			p->to.type = D_CONST;
 			p->link = nil;
-			p->pc = pc++;
+			p->pc = ctxt->pc++;
 			s->text = p;
 		}
 	}
@@ -391,16 +391,16 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(s == S)
 			continue;
 		if(s->sub)
-			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
+			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
 		if(s->type == STEXT) {
-			if(etextp)
-				etextp->next = s;
+			if(ctxt->etextp)
+				ctxt->etextp->next = s;
 			else
-				textp = s;
-			etextp = s;
+				ctxt->textp = s;
+			ctxt->etextp = s;
 			for(s = s->sub; s != S; s = s->sub) {
-				etextp->next = s;
-				etextp = s;
+				ctxt->etextp->next = s;
+				ctxt->etextp = s;
 			}
 		}
 	}
@@ -430,7 +430,7 @@ map(PeObj *obj, PeSect *sect)
 static int
 readsym(PeObj *obj, int i, PeSym **y)
 {
-	Sym *s;
+	LSym *s;
 	PeSym *sym;
 	char *name, *p;
 
@@ -464,12 +464,12 @@ readsym(PeObj *obj, int i, PeSym **y)
 	case IMAGE_SYM_DTYPE_NULL:
 		switch(sym->sclass) {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = lookup(name, 0);
+			s = linklookup(ctxt, name, 0);
 			break;
 		case IMAGE_SYM_CLASS_NULL:
 		case IMAGE_SYM_CLASS_STATIC:
 		case IMAGE_SYM_CLASS_LABEL:
-			s = lookup(name, version);
+			s = linklookup(ctxt, name, ctxt->version);
 			s->dupok = 1;
 			break;
 		default:

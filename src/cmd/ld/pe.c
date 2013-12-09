@@ -37,7 +37,7 @@ static char *symlabels[] = {
 	"symtab", "esymtab", "pclntab", "epclntab"
 };
 
-static Sym *rsrcsym;
+static LSym *rsrcsym;
 
 static char symnames[256]; 
 static int  nextsymoff;
@@ -62,7 +62,7 @@ static IMAGE_DATA_DIRECTORY* dd;
 
 typedef struct Imp Imp;
 struct Imp {
-	Sym* s;
+	LSym* s;
 	uvlong off;
 	Imp* next;
 };
@@ -78,7 +78,7 @@ struct Dll {
 
 static Dll* dr;
 
-static Sym *dexport[1024];
+static LSym *dexport[1024];
 static int nexport;
 
 static IMAGE_SECTION_HEADER*
@@ -191,11 +191,11 @@ initdynimport(void)
 {
 	Imp *m;
 	Dll *d;
-	Sym *s, *dynamic;
+	LSym *s, *dynamic;
 
 	dr = nil;
 	m = nil;
-	for(s = allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != S; s = s->allsym) {
 		if(!s->reachable || s->type != SDYNIMPORT)
 			continue;
 		for(d = dr; d != nil; d = d->next) {
@@ -216,7 +216,7 @@ initdynimport(void)
 		d->ms = m;
 	}
 	
-	dynamic = lookup(".windynamic", 0);
+	dynamic = linklookup(ctxt, ".windynamic", 0);
 	dynamic->reachable = 1;
 	dynamic->type = SWINDOWS;
 	for(d = dr; d != nil; d = d->next) {
@@ -241,10 +241,10 @@ addimports(IMAGE_SECTION_HEADER *datsect)
 	vlong startoff, endoff;
 	Imp *m;
 	Dll *d;
-	Sym* dynamic;
+	LSym* dynamic;
 	
 	startoff = cpos();
-	dynamic = lookup(".windynamic", 0);
+	dynamic = linklookup(ctxt, ".windynamic", 0);
 
 	// skip import descriptor table (will write it later)
 	n = 0;
@@ -322,20 +322,20 @@ addimports(IMAGE_SECTION_HEADER *datsect)
 static int
 scmp(const void *p1, const void *p2)
 {
-	Sym *s1, *s2;
+	LSym *s1, *s2;
 
-	s1 = *(Sym**)p1;
-	s2 = *(Sym**)p2;
+	s1 = *(LSym**)p1;
+	s2 = *(LSym**)p2;
 	return strcmp(s1->extname, s2->extname);
 }
 
 static void
 initdynexport(void)
 {
-	Sym *s;
+	LSym *s;
 	
 	nexport = 0;
-	for(s = allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != S; s = s->allsym) {
 		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
 			continue;
 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
@@ -410,10 +410,10 @@ addexports(void)
 void
 dope(void)
 {
-	Sym *rel;
+	LSym *rel;
 
 	/* relocation table */
-	rel = lookup(".rel", 0);
+	rel = linklookup(ctxt, ".rel", 0);
 	rel->reachable = 1;
 	rel->type = SELFROSECT;
 
@@ -459,7 +459,7 @@ addsymtable(void)
 {
 	IMAGE_SECTION_HEADER *h;
 	int i, size;
-	Sym *s;
+	LSym *s;
 	
 	fh.NumberOfSymbols = sizeof(symlabels)/sizeof(symlabels[0]);
 	size = nextsymoff + 4 + 18*fh.NumberOfSymbols;
@@ -471,7 +471,7 @@ addsymtable(void)
 	
 	// put COFF symbol table
 	for (i=0; i<fh.NumberOfSymbols; i++) {
-		s = rlookup(symlabels[i], 0);
+		s = linkrlookup(ctxt, symlabels[i], 0);
 		strnput(s->name, 8);
 		lputl(datoff(s->value));
 		wputl(textsect);
@@ -488,7 +488,7 @@ addsymtable(void)
 }
 
 void
-setpersrc(Sym *sym)
+setpersrc(LSym *sym)
 {
 	if(rsrcsym != nil)
 		diag("too many .rsrc sections");
@@ -535,14 +535,14 @@ addexcept(IMAGE_SECTION_HEADER *text)
 	IMAGE_SECTION_HEADER *pdata, *xdata;
 	vlong startoff;
 	uvlong n;
-	Sym *sym;
+	LSym *sym;
 
 	USED(text);
 	if(thechar != '6')
 		return;
 
 	// write unwind info
-	sym = lookup("runtime.sigtramp", 0);
+	sym = linklookup(ctxt, "runtime.sigtramp", 0);
 	startoff = cpos();
 	lputl(9);	// version=1, flags=UNW_FLAG_EHANDLER, rest 0
 	lputl(sym->value - PEBASE);

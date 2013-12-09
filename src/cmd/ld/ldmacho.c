@@ -102,7 +102,7 @@ struct MachoSect
 	uint32 flags;
 	uint32 res1;
 	uint32 res2;
-	Sym *sym;
+	LSym *sym;
 	
 	MachoRel *rel;
 };
@@ -138,7 +138,7 @@ struct MachoSym
 	uint16 desc;
 	char kind;
 	uint64 value;
-	Sym *sym;
+	LSym *sym;
 };
 
 struct MachoDysymtab
@@ -432,7 +432,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	int64 base;
 	MachoSect *sect;
 	MachoRel *rel;
-	Sym *s, *s1, *outer;
+	LSym *s, *s1, *outer;
 	MachoCmd *c;
 	MachoSymtab *symtab;
 	MachoDysymtab *dsymtab;
@@ -440,7 +440,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	Reloc *r, *rp;
 	char *name;
 
-	version++;
+	ctxt->version++;
 	base = Boffset(f);
 	if(Bread(f, hdr, sizeof hdr) != sizeof hdr)
 		goto bad;
@@ -566,7 +566,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(strcmp(sect->name, "__eh_frame") == 0)
 			continue;
 		name = smprint("%s(%s/%s)", pkg, sect->segname, sect->name);
-		s = lookup(name, version);
+		s = linklookup(ctxt, name, ctxt->version);
 		if(s->type != 0) {
 			werrstr("duplicate %s/%s", sect->segname, sect->name);
 			goto bad;
@@ -609,8 +609,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			name++;
 		v = 0;
 		if(!(sym->type&N_EXT))
-			v = version;
-		s = lookup(name, v);
+			v = ctxt->version;
+		s = linklookup(ctxt, name, v);
 		if(!(sym->type&N_EXT))
 			s->dupok = 1;
 		sym->sym = s;
@@ -647,14 +647,14 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			// build a TEXT instruction with a unique pc
 			// just to make the rest of the linker happy.
 			// TODO: this is too 6l-specific ?
-			p = prg();
+			p = ctxt->arch->prg();
 			p->as = ATEXT;
 			p->from.type = D_EXTERN;
 			p->from.sym = s;
-			p->textflag = 7;
+			ctxt->arch->settextflag(p, 7);
 			p->to.type = D_CONST;
 			p->link = nil;
-			p->pc = pc++;
+			p->pc = ctxt->pc++;
 			s->text = p;
 		}
 		sym->sym = s;
@@ -667,7 +667,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		if((s = sect->sym) == S)
 			continue;
 		if(s->sub) {
-			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
+			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
 			
 			// assign sizes, now that we know symbols in sorted order.
 			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
@@ -678,14 +678,14 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			}
 		}
 		if(s->type == STEXT) {
-			if(etextp)
-				etextp->next = s;
+			if(ctxt->etextp)
+				ctxt->etextp->next = s;
 			else
-				textp = s;
-			etextp = s;
+				ctxt->textp = s;
+			ctxt->etextp = s;
 			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
-				etextp->next = s1;
-				etextp = s1;
+				ctxt->etextp->next = s1;
+				ctxt->etextp = s1;
 			}
 		}
 	}

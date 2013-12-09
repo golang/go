@@ -25,7 +25,7 @@ enum
 };
 
 static	int nkind[NumSymKind];
-static	Sym** sortsym;
+static	LSym** sortsym;
 static	int	nsortsym;
 
 // Amount of space left for adding load commands
@@ -232,37 +232,37 @@ machowrite(void)
 void
 domacho(void)
 {
-	Sym *s;
+	LSym *s;
 
 	if(debug['d'])
 		return;
 
 	// empirically, string table must begin with " \x00".
-	s = lookup(".machosymstr", 0);
+	s = linklookup(ctxt, ".machosymstr", 0);
 	s->type = SMACHOSYMSTR;
 	s->reachable = 1;
-	adduint8(s, ' ');
-	adduint8(s, '\0');
+	adduint8(ctxt, s, ' ');
+	adduint8(ctxt, s, '\0');
 	
-	s = lookup(".machosymtab", 0);
+	s = linklookup(ctxt, ".machosymtab", 0);
 	s->type = SMACHOSYMTAB;
 	s->reachable = 1;
 	
 	if(linkmode != LinkExternal) {
-		s = lookup(".plt", 0);	// will be __symbol_stub
+		s = linklookup(ctxt, ".plt", 0);	// will be __symbol_stub
 		s->type = SMACHOPLT;
 		s->reachable = 1;
 	
-		s = lookup(".got", 0);	// will be __nl_symbol_ptr
+		s = linklookup(ctxt, ".got", 0);	// will be __nl_symbol_ptr
 		s->type = SMACHOGOT;
 		s->reachable = 1;
 		s->align = 4;
 	
-		s = lookup(".linkedit.plt", 0);	// indirect table for .plt
+		s = linklookup(ctxt, ".linkedit.plt", 0);	// indirect table for .plt
 		s->type = SMACHOINDIRECTPLT;
 		s->reachable = 1;
 	
-		s = lookup(".linkedit.got", 0);	// indirect table for .got
+		s = linklookup(ctxt, ".linkedit.got", 0);	// indirect table for .got
 		s->type = SMACHOINDIRECTGOT;
 		s->reachable = 1;
 	}
@@ -334,7 +334,7 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
 	if(strcmp(sect->name, ".got") == 0) {
 		msect->name = "__nl_symbol_ptr";
 		msect->flag = 6;	/* section with nonlazy symbol pointers */
-		msect->res1 = lookup(".linkedit.plt", 0)->size / 4;	/* offset into indirect symbol table */
+		msect->res1 = linklookup(ctxt, ".linkedit.plt", 0)->size / 4;	/* offset into indirect symbol table */
 	}
 }
 
@@ -432,13 +432,13 @@ asmbmacho(void)
 	}
 	
 	if(!debug['d']) {
-		Sym *s1, *s2, *s3, *s4;
+		LSym *s1, *s2, *s3, *s4;
 
 		// must match domacholink below
-		s1 = lookup(".machosymtab", 0);
-		s2 = lookup(".linkedit.plt", 0);
-		s3 = lookup(".linkedit.got", 0);
-		s4 = lookup(".machosymstr", 0);
+		s1 = linklookup(ctxt, ".machosymtab", 0);
+		s2 = linklookup(ctxt, ".linkedit.plt", 0);
+		s3 = linklookup(ctxt, ".linkedit.got", 0);
+		s4 = linklookup(ctxt, ".machosymstr", 0);
 
 		if(linkmode != LinkExternal) {
 			ms = newMachoSeg("__LINKEDIT", 0);
@@ -484,7 +484,7 @@ asmbmacho(void)
 }
 
 static int
-symkind(Sym *s)
+symkind(LSym *s)
 {
 	if(s->type == SDYNIMPORT)
 		return SymKindUndef;
@@ -494,7 +494,7 @@ symkind(Sym *s)
 }
 
 static void
-addsym(Sym *s, char *name, int type, vlong addr, vlong size, int ver, Sym *gotype)
+addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
 {
 	USED(name);
 	USED(addr);
@@ -524,11 +524,11 @@ addsym(Sym *s, char *name, int type, vlong addr, vlong size, int ver, Sym *gotyp
 static int
 scmp(const void *p1, const void *p2)
 {
-	Sym *s1, *s2;
+	LSym *s1, *s2;
 	int k1, k2;
 
-	s1 = *(Sym**)p1;
-	s2 = *(Sym**)p2;
+	s1 = *(LSym**)p1;
+	s2 = *(LSym**)p2;
 	
 	k1 = symkind(s1);
 	k2 = symkind(s2);
@@ -539,12 +539,12 @@ scmp(const void *p1, const void *p2)
 }
 
 static void
-machogenasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+machogenasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 {
-	Sym *s;
+	LSym *s;
 
 	genasmsym(put);
-	for(s=allsym; s; s=s->allsym)
+	for(s=ctxt->allsym; s; s=s->allsym)
 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ)
 		if(s->reachable)
 			put(s, nil, 'D', 0, 0, 0, nil);
@@ -573,39 +573,39 @@ static void
 machosymtab(void)
 {
 	int i;
-	Sym *symtab, *symstr, *s, *o;
+	LSym *symtab, *symstr, *s, *o;
 
-	symtab = lookup(".machosymtab", 0);
-	symstr = lookup(".machosymstr", 0);
+	symtab = linklookup(ctxt, ".machosymtab", 0);
+	symstr = linklookup(ctxt, ".machosymstr", 0);
 
 	for(i=0; i<nsortsym; i++) {
 		s = sortsym[i];
-		adduint32(symtab, symstr->size);
+		adduint32(ctxt, symtab, symstr->size);
 		
 		// Only add _ to C symbols. Go symbols have dot in the name.
 		if(strstr(s->extname, ".") == nil)
-			adduint8(symstr, '_');
+			adduint8(ctxt, symstr, '_');
 		addstring(symstr, s->extname);
 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
-			adduint8(symtab, 0x01); // type N_EXT, external symbol
-			adduint8(symtab, 0); // no section
-			adduint16(symtab, 0); // desc
-			adduintxx(symtab, 0, PtrSize); // no value
+			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
+			adduint8(ctxt, symtab, 0); // no section
+			adduint16(ctxt, symtab, 0); // desc
+			adduintxx(ctxt, symtab, 0, PtrSize); // no value
 		} else {
 			if(s->cgoexport)
-				adduint8(symtab, 0x0f);
+				adduint8(ctxt, symtab, 0x0f);
 			else
-				adduint8(symtab, 0x0e);
+				adduint8(ctxt, symtab, 0x0e);
 			o = s;
 			while(o->outer != nil)
 				o = o->outer;
 			if(o->sect == nil) {
 				diag("missing section for %s", s->name);
-				adduint8(symtab, 0);
+				adduint8(ctxt, symtab, 0);
 			} else
-				adduint8(symtab, o->sect->extnum);
-			adduint16(symtab, 0); // desc
-			adduintxx(symtab, symaddr(s), PtrSize);
+				adduint8(ctxt, symtab, o->sect->extnum);
+			adduint16(ctxt, symtab, 0); // desc
+			adduintxx(ctxt, symtab, symaddr(s), PtrSize);
 		}
 	}
 }
@@ -615,7 +615,7 @@ machodysymtab(void)
 {
 	int n;
 	MachoLoad *ml;
-	Sym *s1, *s2, *s3;
+	LSym *s1, *s2, *s3;
 
 	ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
 
@@ -639,9 +639,9 @@ machodysymtab(void)
 	ml->data[11] = 0;	/* nextrefsyms */
 
 	// must match domacholink below
-	s1 = lookup(".machosymtab", 0);
-	s2 = lookup(".linkedit.plt", 0);
-	s3 = lookup(".linkedit.got", 0);
+	s1 = linklookup(ctxt, ".machosymtab", 0);
+	s2 = linklookup(ctxt, ".linkedit.plt", 0);
+	s3 = linklookup(ctxt, ".linkedit.got", 0);
 	ml->data[12] = linkoff + s1->size;	/* indirectsymoff */
 	ml->data[13] = (s2->size + s3->size) / 4;	/* nindirectsyms */
 
@@ -655,15 +655,15 @@ vlong
 domacholink(void)
 {
 	int size;
-	Sym *s1, *s2, *s3, *s4;
+	LSym *s1, *s2, *s3, *s4;
 
 	machosymtab();
 
 	// write data that will be linkedit section
-	s1 = lookup(".machosymtab", 0);
-	s2 = lookup(".linkedit.plt", 0);
-	s3 = lookup(".linkedit.got", 0);
-	s4 = lookup(".machosymstr", 0);
+	s1 = linklookup(ctxt, ".machosymtab", 0);
+	s2 = linklookup(ctxt, ".linkedit.plt", 0);
+	s3 = linklookup(ctxt, ".linkedit.got", 0);
+	s4 = linklookup(ctxt, ".machosymstr", 0);
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary.  This allows pure (non-cgo) Go binaries
@@ -683,7 +683,7 @@ domacholink(void)
 	// any alignment padding itself, working around the
 	// issue.
 	while(s4->size%16)
-		adduint8(s4, 0);
+		adduint8(ctxt, s4, 0);
 	
 	size = s1->size + s2->size + s3->size + s4->size;
 
@@ -702,9 +702,9 @@ domacholink(void)
 
 
 void
-machorelocsect(Section *sect, Sym *first)
+machorelocsect(Section *sect, LSym *first)
 {
-	Sym *sym;
+	LSym *sym;
 	int32 eaddr;
 	Reloc *r;
 
@@ -726,7 +726,7 @@ machorelocsect(Section *sect, Sym *first)
 			continue;
 		if(sym->value >= eaddr)
 			break;
-		cursym = sym;
+		ctxt->cursym = sym;
 		
 		for(r = sym->r; r < sym->r+sym->nr; r++) {
 			if(r->done)
@@ -747,7 +747,7 @@ machoemitreloc(void)
 	while(cpos()&7)
 		cput(0);
 
-	machorelocsect(segtext.sect, textp);
+	machorelocsect(segtext.sect, ctxt->textp);
 	for(sect=segtext.sect->next; sect!=nil; sect=sect->next)
 		machorelocsect(sect, datap);	
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
