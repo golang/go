@@ -225,9 +225,9 @@ static void
 progedit(Link *ctxt, Prog *p)
 {
 	Prog *q;
-	LSym *gmsym;
-	
-	gmsym = nil; // TODO
+
+	if(ctxt->gmsym == nil)
+		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
 
 	if(ctxt->headtype == Hwindows) { 
 		// Windows
@@ -286,16 +286,14 @@ progedit(Link *ctxt, Prog *p)
 		//   op runtime.tlsgm(SB), reg
 		// to
 		//   NOP
-		if(gmsym != nil && p->from.sym == gmsym) {
+		if(ctxt->gmsym != nil && p->from.sym == ctxt->gmsym) {
 			p->as = ANOP;
 			p->from.type = D_NONE;
 			p->to.type = D_NONE;
 			p->from.sym = nil;
 			p->to.sym = nil;
-			return;
 		}
 	} else {
-		/*
 		// Convert TLS reads of the form
 		//   op n(GS), reg
 		// to
@@ -311,10 +309,9 @@ progedit(Link *ctxt, Prog *p)
 			q->from.offset = p->from.offset;
 			p->as = AMOVQ;
 			p->from.type = D_EXTERN;
-			p->from.sym = gmsym;
+			p->from.sym = ctxt->gmsym;
 			p->from.offset = 0;
 		}
-		*/
 	}
 }
 
@@ -359,8 +356,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	uint32 i;
 	vlong textstksiz, textarg;
 
-	if(ctxt->gmsym == nil) {
+	if(ctxt->gmsym == nil)
 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+	if(ctxt->symmorestack[0] == nil) {
 		if(nelem(morename) > nelem(ctxt->symmorestack))
 			sysfatal("Link.symmorestack needs at least %d elements", nelem(morename));
 		for(i=0; i<nelem(morename); i++)
