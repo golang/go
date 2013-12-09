@@ -369,7 +369,7 @@ cgen_ret(Node *n)
 	p = gins(ARET, N, N);
 	if(n->op == ORETJMP) {
 		p->to.type = D_EXTERN;
-		p->to.sym = n->left->sym;
+		p->to.sym = linksym(n->left->sym);
 	}
 }
 

@@ -128,7 +128,7 @@ compile(Node *fn)
 	breakpc = P;
 
 	pl = newplist();
-	pl->name = curfn->nname;
+	pl->name = linksym(curfn->nname->sym);
 
 	setlineno(curfn);
 
@@ -176,7 +176,7 @@ compile(Node *fn)
 		case PPARAMOUT:
 			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
 			p = gins(ATYPE, l->n, &nod1);
-			p->from.gotype = ngotype(l->n);
+			p->from.gotype = linksym(ngotype(l->n));
 			break;
 		}
 	}

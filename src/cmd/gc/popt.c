@@ -53,7 +53,9 @@ noreturn(Prog *p)
 		symlist[4] = pkglookup("panicwrap", runtimepkg);
 	}
 
-	s = p->to.sym;
+	if(p->to.node == nil)
+		return 0;
+	s = p->to.node->sym;
 	if(s == S)
 		return 0;
 	for(i=0; symlist[i]!=S; i++)

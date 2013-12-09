@@ -10,7 +10,6 @@
  * architecture-independent object file output
  */
 
-static	void	outhist(Biobuf *b);
 static	void	dumpglobls(void);
 
 void
@@ -31,7 +30,7 @@ dumpobj(void)
 	dumpexport();
 	Bprint(bout, "\n!\n");
 
-	outhist(bout);
+	linkouthist(ctxt, bout);
 
 	externs = nil;
 	if(externdcl != nil)
@@ -48,7 +47,7 @@ dumpobj(void)
 	externdcl = tmp;
 
 	dumpdata();
-	dumpfuncs();
+	linkwritefuncs(ctxt, bout);
 
 	Bterm(bout);
 }
@@ -84,175 +83,28 @@ dumpglobls(void)
 }
 
 void
-Bputname(Biobuf *b, Sym *s)
+Bputname(Biobuf *b, LSym *s)
 {
-	Bprint(b, "%s", s->pkg->prefix);
-	BPUTC(b, '.');
 	Bwrite(b, s->name, strlen(s->name)+1);
 }
 
-static void
-outzfile(Biobuf *b, char *p)
+LSym*
+linksym(Sym *s)
 {
-	char *q, *q2;
+	char *p;
 
-	while(p) {
-		q = utfrune(p, '/');
-		if(windows) {
-			q2 = utfrune(p, '\\');
-			if(q2 && (!q || q2 < q))
-				q = q2;
-		}
-		if(!q) {
-			zfile(b, p, strlen(p));
-			return;
-		}
-		if(q > p)
-			zfile(b, p, q-p);
-		p = q + 1;
+	if(s == nil)
+		return nil;
+	if(s->lsym != nil)
+		return s->lsym;
+	if(isblanksym(s))
+		s->lsym = linklookup(ctxt, "_", 0);
+	else {
+		p = smprint("%s.%s", s->pkg->prefix, s->name);
+		s->lsym = linklookup(ctxt, p, 0);
+		free(p);
 	}
-}
-
-#define isdelim(c) (c == '/' || c == '\\')
-
-static void
-outwinname(Biobuf *b, Hist *h, char *ds, char *p)
-{
-	if(isdelim(p[0])) {
-		// full rooted name
-		zfile(b, ds, 3);	// leading "c:/"
-		outzfile(b, p+1);
-	} else {
-		// relative name
-		if(h->offset >= 0 && pathname && pathname[1] == ':') {
-			if(tolowerrune(ds[0]) == tolowerrune(pathname[0])) {
-				// using current drive
-				zfile(b, pathname, 3);	// leading "c:/"
-				outzfile(b, pathname+3);
-			} else {
-				// using drive other then current,
-				// we don't have any simple way to
-				// determine current working directory
-				// there, therefore will output name as is
-				zfile(b, ds, 2);	// leading "c:"
-			}
-		}
-		outzfile(b, p);
-	}
-}
-
-static void
-outhist(Biobuf *b)
-{
-	Hist *h;
-	char *p, ds[] = {'c', ':', '/', 0};
-	char *tofree;
-	int n;
-	static int first = 1;
-	static char *goroot, *goroot_final;
-
-	if(first) {
-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
-		first = 0;
-		goroot = getenv("GOROOT");
-		goroot_final = getenv("GOROOT_FINAL");
-		if(goroot == nil)
-			goroot = "";
-		if(goroot_final == nil)
-			goroot_final = goroot;
-		if(strcmp(goroot, goroot_final) == 0) {
-			goroot = nil;
-			goroot_final = nil;
-		}
-	}
-
-	tofree = nil;
-	for(h = hist; h != H; h = h->link) {
-		p = h->name;
-		if(p) {
-			if(goroot != nil) {
-				n = strlen(goroot);
-				if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
-					tofree = smprint("%s%s", goroot_final, p+n);
-					p = tofree;
-				}
-			}
-			if(windows) {
-				// if windows variable is set, then, we know already,
-				// pathname is started with windows drive specifier
-				// and all '\' were replaced with '/' (see lex.c)
-				if(isdelim(p[0]) && isdelim(p[1])) {
-					// file name has network name in it, 
-					// like \\server\share\dir\file.go
-					zfile(b, "//", 2);	// leading "//"
-					outzfile(b, p+2);
-				} else if(p[1] == ':') {
-					// file name has drive letter in it
-					ds[0] = p[0];
-					outwinname(b, h, ds, p+2);
-				} else {
-					// no drive letter in file name
-					outwinname(b, h, pathname, p);
-				}
-			} else {
-				if(p[0] == '/') {
-					// full rooted name, like /home/rsc/dir/file.go
-					zfile(b, "/", 1);	// leading "/"
-					outzfile(b, p+1);
-				} else {
-					// relative name, like dir/file.go
-					if(h->offset >= 0 && pathname && pathname[0] == '/') {
-						zfile(b, "/", 1);	// leading "/"
-						outzfile(b, pathname+1);
-					}
-					outzfile(b, p);
-				}
-			}
-		}
-		zhist(b, h->line, h->offset);
-		if(tofree) {
-			free(tofree);
-			tofree = nil;
-		}
-	}
-}
-
-void
-ieeedtod(uint64 *ieee, double native)
-{
-	double fr, ho, f;
-	int exp;
-	uint32 h, l;
-	uint64 bits;
-
-	if(native < 0) {
-		ieeedtod(ieee, -native);
-		*ieee |= 1ULL<<63;
-		return;
-	}
-	if(native == 0) {
-		*ieee = 0;
-		return;
-	}
-	fr = frexp(native, &exp);
-	f = 2097152L;		/* shouldn't use fp constants here */
-	fr = modf(fr*f, &ho);
-	h = ho;
-	h &= 0xfffffL;
-	f = 65536L;
-	fr = modf(fr*f, &ho);
-	l = ho;
-	l <<= 16;
-	l |= (int32)(fr*f);
-	bits = ((uint64)h<<32) | l;
-	if(exp < -1021) {
-		// gradual underflow
-		bits |= 1LL<<52;
-		bits >>= -1021 - exp;
-		exp = -1022;
-	}
-	bits |= (uint64)(exp+1022L) << 52;
-	*ieee = bits;
+	return s->lsym;	
 }
 
 int

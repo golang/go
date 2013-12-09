@@ -480,7 +480,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->etype = v->etype;
 	a->type = v->name;
 	a->node = v->node;
-	a->sym = v->node->sym;
+	a->sym = linksym(v->node->sym);
 
 	// need to clean this up with wptr and
 	// some of the defaults
@@ -905,7 +905,7 @@ regset(Reg *r, uint32 bb)
 		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
 		if(v.type == 0)
 			fatal("zero v.type for %#ux", b);
-		c = copyu(r->f.prog, &v, A);
+		c = copyu(r->f.prog, &v, nil);
 		if(c == 3)
 			set |= b;
 		bb &= ~b;
@@ -924,7 +924,7 @@ reguse(Reg *r, uint32 bb)
 	v = zprog.from;
 	while(b = bb & ~(bb-1)) {
 		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		c = copyu(r->f.prog, &v, A);
+		c = copyu(r->f.prog, &v, nil);
 		if(c == 1 || c == 2 || c == 4)
 			set |= b;
 		bb &= ~b;
@@ -1066,8 +1066,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 void
 addreg(Adr *a, int rn)
 {
-
-	a->sym = 0;
+	a->sym = nil;
 	a->offset = 0;
 	a->type = rn;
 

@@ -89,7 +89,7 @@ Dconv(Fmt *fp)
 	int32 v;
 
 	a = va_arg(fp->args, Addr*);
-	if(a == A) {
+	if(a == nil) {
 		sprint(str, "<nil>");
 		goto conv;
 	}
@@ -102,7 +102,7 @@ Dconv(Fmt *fp)
 
 	case D_NONE:
 		str[0] = 0;
-		if(a->name != D_NONE || a->reg != NREG || a->sym != S)
+		if(a->name != D_NONE || a->reg != NREG || a->sym != nil)
 			sprint(str, "%M(R%d)(NONE)", a, a->reg);
 		break;
 
@@ -143,36 +143,36 @@ Dconv(Fmt *fp)
 
 	case D_REG:
 		sprint(str, "R%d", a->reg);
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%M(R%d)(REG)", a, a->reg);
 		break;
 
 	case D_REGREG:
 		sprint(str, "(R%d,R%d)", a->reg, (int)a->offset);
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%M(R%d)(REG)", a, a->reg);
 		break;
 
 	case D_REGREG2:
 		sprint(str, "R%d,R%d", a->reg, (int)a->offset);
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%M(R%d)(REG)", a, a->reg);
 		break;
 
 	case D_FREG:
 		sprint(str, "F%d", a->reg);
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%M(R%d)(REG)", a, a->reg);
 		break;
 
 	case D_BRANCH:
 		if(a->u.branch == P || a->u.branch->loc == 0) {
-			if(a->sym != S)
+			if(a->sym != nil)
 				sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
 			else
 				sprint(str, "%d(APC)", a->offset);
 		} else
-			if(a->sym != S)
+			if(a->sym != nil)
 				sprint(str, "%s+%d(APC)", a->sym->name, a->u.branch->loc);
 			else
 				sprint(str, "%d(APC)", a->u.branch->loc);
@@ -208,7 +208,7 @@ Aconv(Fmt *fp)
 	int i;
 
 	i = va_arg(fp->args, int);
-	return fmtstrcpy(fp, anames[i]);
+	return fmtstrcpy(fp, anames5[i]);
 }
 
 char*	strcond[16] =
@@ -323,19 +323,19 @@ Mconv(Fmt *fp)
 		break;
 
 	case D_EXTERN:
-		snprint(str, sizeof(str), "%S+%d(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%d(SB)", a->sym, a->offset);
 		break;
 
 	case D_STATIC:
-		snprint(str, sizeof(str), "%S<>+%d(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS<>+%d(SB)", a->sym, a->offset);
 		break;
 
 	case D_AUTO:
-		snprint(str, sizeof(str), "%S+%d(SP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%d(SP)", a->sym, a->offset);
 		break;
 
 	case D_PARAM:
-		snprint(str, sizeof(str), "%S+%d(FP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%d(FP)", a->sym, a->offset);
 		break;
 	}
 	return fmtstrcpy(fp, str);

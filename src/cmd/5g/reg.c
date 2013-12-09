@@ -522,12 +522,12 @@ brk:
 		}
 
 		if(p->as == AMOVW && vreg != 0) {
-			if(p->from.sym != S)
+			if(p->from.sym != nil)
 			if(p->from.name == D_AUTO || p->from.name == D_PARAM) {
 				p->from.offset += vreg;
 //				print("%P adjusting from %d %d\n", p, vreg, p->from.type);
 			}
-			if(p->to.sym != S)
+			if(p->to.sym != nil)
 			if(p->to.name == D_AUTO || p->to.name == D_PARAM) {
 				p->to.offset += vreg;
 //				print("%P adjusting to %d %d\n", p, vreg, p->from.type);
@@ -595,11 +595,11 @@ addmove(Reg *r, int bn, int rn, int f)
 	a = &p1->to;
 	a->name = v->name;
 	a->node = v->node;
-	a->sym = v->node->sym;
+	a->sym = linksym(v->node->sym);
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = D_OREG;
-	if(a->etype == TARRAY || a->sym == S)
+	if(a->etype == TARRAY || a->sym == nil)
 		a->type = D_CONST;
 
 	if(v->addr)
@@ -1171,7 +1171,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 void
 addreg(Adr *a, int rn)
 {
-	a->sym = 0;
+	a->sym = nil;
 	a->name = D_NONE;
 	a->type = D_REG;
 	a->reg = rn;

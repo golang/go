@@ -8,6 +8,7 @@
 
 int	thechar	= '8';
 char*	thestring	= "386";
+LinkArch*	thelinkarch = &link386;
 
 vlong MAXWIDTH = (1LL<<32) - 1;
 

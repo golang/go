@@ -32,231 +32,6 @@
 #include <libc.h>
 #include "gg.h"
 
-void
-zname(Biobuf *b, Sym *s, int t)
-{
-	BPUTLE2(b, ANAME);	/* as */
-	BPUTC(b, t);		/* type */
-	BPUTC(b, s->sym);	/* sym */
-
-	Bputname(b, s);
-}
-
-void
-zfile(Biobuf *b, char *p, int n)
-{
-	BPUTLE2(b, ANAME);
-	BPUTC(b, D_FILE);
-	BPUTC(b, 1);
-	BPUTC(b, '<');
-	Bwrite(b, p, n);
-	BPUTC(b, 0);
-}
-
-void
-zhist(Biobuf *b, int line, vlong offset)
-{
-	Addr a;
-
-	BPUTLE2(b, AHISTORY);
-	BPUTLE4(b, line);
-	zaddr(b, &zprog.from, 0, 0);
-	a = zprog.to;
-	if(offset != 0) {
-		a.offset = offset;
-		a.type = D_CONST;
-	}
-	zaddr(b, &a, 0, 0);
-}
-
-void
-zaddr(Biobuf *b, Addr *a, int s, int gotype)
-{
-	int32 l;
-	uint64 e;
-	int i, t;
-	char *n;
-
-	t = 0;
-	if(a->index != D_NONE || a->scale != 0)
-		t |= T_INDEX;
-	if(s != 0)
-		t |= T_SYM;
-	if(gotype != 0)
-		t |= T_GOTYPE;
-
-	switch(a->type) {
-
-	case D_BRANCH:
-		if(a->u.branch == nil)
-			fatal("unpatched branch");
-		a->offset = a->u.branch->loc;
-
-	default:
-		t |= T_TYPE;
-
-	case D_NONE:
-		if(a->offset != 0) {
-			t |= T_OFFSET;
-			l = a->offset;
-			if((vlong)l != a->offset)
-				t |= T_64;
-		}
-		break;
-	case D_FCONST:
-		t |= T_FCONST;
-		break;
-	case D_SCONST:
-		t |= T_SCONST;
-		break;
-	}
-	BPUTC(b, t);
-
-	if(t & T_INDEX) {	/* implies index, scale */
-		BPUTC(b, a->index);
-		BPUTC(b, a->scale);
-	}
-	if(t & T_OFFSET) {	/* implies offset */
-		l = a->offset;
-		BPUTLE4(b, l);
-		if(t & T_64) {
-			l = a->offset>>32;
-			BPUTLE4(b, l);
-		}
-	}
-	if(t & T_SYM)		/* implies sym */
-		BPUTC(b, s);
-	if(t & T_FCONST) {
-		ieeedtod(&e, a->u.dval);
-		BPUTLE4(b, e);
-		BPUTLE4(b, e >> 32);
-		return;
-	}
-	if(t & T_SCONST) {
-		n = a->u.sval;
-		for(i=0; i<NSNAME; i++) {
-			BPUTC(b, *n);
-			n++;
-		}
-		return;
-	}
-	if(t & T_TYPE)
-		BPUTC(b, a->type);
-	if(t & T_GOTYPE)
-		BPUTC(b, gotype);
-}
-
-static struct {
-	struct { Sym *sym; short type; } h[NSYM];
-	int sym;
-} z;
-
-static void
-zsymreset(void)
-{
-	for(z.sym=0; z.sym<NSYM; z.sym++) {
-		z.h[z.sym].sym = S;
-		z.h[z.sym].type = 0;
-	}
-	z.sym = 1;
-}
-
-static int
-zsym(Sym *s, int t, int *new)
-{
-	int i;
-
-	*new = 0;
-	if(s == S)
-		return 0;
-
-	i = s->sym;
-	if(i < 0 || i >= NSYM)
-		i = 0;
-	if(z.h[i].type == t && z.h[i].sym == s)
-		return i;
-	i = z.sym;
-	s->sym = i;
-	zname(bout, s, t);
-	z.h[i].sym = s;
-	z.h[i].type = t;
-	if(++z.sym >= NSYM)
-		z.sym = 1;
-	*new = 1;
-	return i;
-}
-
-static int
-zsymaddr(Addr *a, int *new)
-{
-	int t;
-
-	t = a->type;
-	if(t == D_ADDR)
-		t = a->index;
-	return zsym(a->sym, t, new);
-}
-
-void
-dumpfuncs(void)
-{
-	Plist *pl;
-	int sf, st, gf, gt, new;
-	Sym *s;
-	Prog *p;
-
-	zsymreset();
-
-	// fix up pc
-	pcloc = 0;
-	for(pl=plist; pl!=nil; pl=pl->link) {
-		if(isblank(pl->name))
-			continue;
-		for(p=pl->firstpc; p!=P; p=p->link) {
-			p->loc = pcloc;
-			if(p->as != ADATA && p->as != AGLOBL)
-				pcloc++;
-		}
-	}
-
-	// put out functions
-	for(pl=plist; pl!=nil; pl=pl->link) {
-		if(isblank(pl->name))
-			continue;
-
-		// -S prints code; -SS prints code and data
-		if(debug['S'] && (pl->name || debug['S']>1)) {
-			s = S;
-			if(pl->name != N)
-				s = pl->name->sym;
-			print("\n--- prog list \"%S\" ---\n", s);
-			for(p=pl->firstpc; p!=P; p=p->link)
-				print("%P\n", p);
-		}
-
-		for(p=pl->firstpc; p!=P; p=p->link) {
-			for(;;) {
-				sf = zsymaddr(&p->from, &new);
-				gf = zsym(p->from.gotype, D_EXTERN, &new);
-				if(new && sf == gf)
-					continue;
-				st = zsymaddr(&p->to, &new);
-				if(new && (st == sf || st == gf))
-					continue;
-				gt = zsym(p->to.gotype, D_EXTERN, &new);
-				if(new && (gt == sf || gt == gf || gt == st))
-					continue;
-				break;
-			}
-
-			BPUTLE2(bout, p->as);
-			BPUTLE4(bout, p->lineno);
-			zaddr(bout, &p->from, sf, gf);
-			zaddr(bout, &p->to, st, gt);
-		}
-	}
-}
-
 int
 dsname(Sym *s, int off, char *t, int n)
 {
@@ -267,7 +42,7 @@ dsname(Sym *s, int off, char *t, int n)
 	p->from.index = D_NONE;
 	p->from.offset = off;
 	p->from.scale = n;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 	
 	p->to.type = D_SCONST;
 	p->to.index = D_NONE;
@@ -286,7 +61,7 @@ datastring(char *s, int len, Addr *a)
 	
 	sym = stringsym(s, len);
 	a->type = D_EXTERN;
-	a->sym = sym;
+	a->sym = linksym(sym);
 	a->node = sym->def;
 	a->offset = widthptr+widthint;  // skip header
 	a->etype = simtype[TINT];
@@ -303,7 +78,7 @@ datagostring(Strlit *sval, Addr *a)
 
 	sym = stringsym(sval->s, sval->len);
 	a->type = D_EXTERN;
-	a->sym = sym;
+	a->sym = linksym(sym);
 	a->node = sym->def;
 	a->offset = 0;  // header
 	a->etype = TINT32;
@@ -377,7 +152,7 @@ dstringptr(Sym *s, int off, char *str)
 	p = gins(ADATA, N, N);
 	p->from.type = D_EXTERN;
 	p->from.index = D_NONE;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = widthptr;
 
@@ -402,7 +177,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 	p = gins(ADATA, N, N);
 	p->from.type = D_EXTERN;
 	p->from.index = D_NONE;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = widthptr;
 	datagostring(lit, &p->to);
@@ -440,7 +215,7 @@ duintxx(Sym *s, int off, uint64 v, int wid)
 	p = gins(ADATA, N, N);
 	p->from.type = D_EXTERN;
 	p->from.index = D_NONE;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = wid;
 	p->to.type = D_CONST;
@@ -461,12 +236,12 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 	p = gins(ADATA, N, N);
 	p->from.type = D_EXTERN;
 	p->from.index = D_NONE;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = widthptr;
 	p->to.type = D_ADDR;
 	p->to.index = D_EXTERN;
-	p->to.sym = x;
+	p->to.sym = linksym(x);
 	p->to.offset = xoff;
 	off += widthptr;
 

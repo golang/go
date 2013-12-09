@@ -130,7 +130,7 @@ dumpdcl(char *st)
 		}
 		print(" '%s'", d->name);
 		s = pkglookup(d->name, d->pkg);
-		print(" %lS\n", s);
+		print(" %S\n", s);
 	}
 }
 

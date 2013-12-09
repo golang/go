@@ -8,6 +8,7 @@
 
 int	thechar	= '6';
 char*	thestring	= "amd64";
+LinkArch*	thelinkarch = &linkamd64;
 
 vlong MAXWIDTH = 1LL<<50;
 

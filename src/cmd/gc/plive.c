@@ -297,7 +297,7 @@ blockrpocmp(const void *p1, const void *p2)
 // A pattern matcher for call instructions.  Returns true when the instruction
 // is a call to a specific package qualified function name.
 static int
-iscall(Prog *prog, Sym *name)
+iscall(Prog *prog, LSym *name)
 {
 	if(prog == nil)
 		fatal("iscall: prog is nil");
@@ -313,14 +313,14 @@ iscall(Prog *prog, Sym *name)
 static int
 isselectcommcasecall(Prog *prog)
 {
-	static Sym* names[5];
+	static LSym* names[5];
 	int32 i;
 
 	if(names[0] == nil) {
-		names[0] = pkglookup("selectsend", runtimepkg);
-		names[1] = pkglookup("selectrecv", runtimepkg);
-		names[2] = pkglookup("selectrecv2", runtimepkg);
-		names[3] = pkglookup("selectdefault", runtimepkg);
+		names[0] = linksym(pkglookup("selectsend", runtimepkg));
+		names[1] = linksym(pkglookup("selectrecv", runtimepkg));
+		names[2] = linksym(pkglookup("selectrecv2", runtimepkg));
+		names[3] = linksym(pkglookup("selectdefault", runtimepkg));
 	}
 	for(i = 0; names[i] != nil; i++)
 		if(iscall(prog, names[i]))
@@ -332,10 +332,10 @@ isselectcommcasecall(Prog *prog)
 static int
 isnewselect(Prog *prog)
 {
-	static Sym *sym;
+	static LSym *sym;
 
 	if(sym == nil)
-		sym = pkglookup("newselect", runtimepkg);
+		sym = linksym(pkglookup("newselect", runtimepkg));
 	return iscall(prog, sym);
 }
 
@@ -343,20 +343,20 @@ isnewselect(Prog *prog)
 static int
 isselectgocall(Prog *prog)
 {
-	static Sym *sym;
+	static LSym *sym;
 
 	if(sym == nil)
-		sym = pkglookup("selectgo", runtimepkg);
+		sym = linksym(pkglookup("selectgo", runtimepkg));
 	return iscall(prog, sym);
 }
 
 static int
 isdeferreturn(Prog *prog)
 {
-	static Sym *sym;
+	static LSym *sym;
 
 	if(sym == nil)
-		sym = pkglookup("deferreturn", runtimepkg);
+		sym = linksym(pkglookup("deferreturn", runtimepkg));
 	return iscall(prog, sym);
 }
 
