@@ -46,8 +46,6 @@
 #define	SZ_DOUBLE	8
 #define	FNX		100
 
-typedef	struct	Adr	Adr;
-typedef	struct	Prog	Prog;
 typedef	struct	Case	Case;
 typedef	struct	C1	C1;
 typedef	struct	Multab	Multab;
@@ -59,33 +57,9 @@ typedef	struct	Rgn	Rgn;
 
 #define	R0ISZERO	0
 
-struct	Adr
-{
-	int32	offset;
-	int32	offset2;
-	double	dval;
-	char	sval[NSNAME];
-	Ieee	ieee;
-
-	Sym*	sym;
-	char	type;
-	uchar	reg;
-	char	name;
-	char	etype;
-};
-#define	A	((Adr*)0)
+#define	A	((Addr*)0)
 
 #define	INDEXED	9
-struct	Prog
-{
-	Adr	from;
-	Adr	to;
-	Prog*	link;
-	int32	lineno;
-	char	as;
-	uchar	reg;
-	uchar	scond;
-};
 #define	P	((Prog*)0)
 
 struct	Case
@@ -119,7 +93,7 @@ struct	Hintab
 struct	Var
 {
 	int32	offset;
-	Sym*	sym;
+	LSym*	sym;
 	char	name;
 	char	etype;
 };
@@ -174,7 +148,6 @@ EXTERN	Node	fconstnode;
 EXTERN	int32	continpc;
 EXTERN	int32	curarg;
 EXTERN	int32	cursafe;
-EXTERN	Prog*	firstp;
 EXTERN	int32	isbigendian;
 EXTERN	Prog*	lastp;
 EXTERN	int32	maxargsafe;
@@ -285,7 +258,7 @@ void	regaalloc(Node*, Node*);
 void	regind(Node*, Node*);
 void	gprep(Node*, Node*);
 void	raddr(Node*, Prog*);
-void	naddr(Node*, Adr*);
+void	naddr(Node*, Addr*);
 void	gmovm(Node*, Node*, int);
 void	gmove(Node*, Node*);
 void	gmover(Node*, Node*);
@@ -314,7 +287,6 @@ int	mulcon(Node*, Node*);
 Multab*	mulcon0(int32);
 void	nullwarn(Node*, Node*);
 void	outcode(void);
-void	ieeedtod(Ieee*, double);
 
 /*
  * list
@@ -335,7 +307,7 @@ Reg*	rega(void);
 int	rcmp(const void*, const void*);
 void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
-Bits	mkvar(Adr*, int);
+Bits	mkvar(Addr*, int);
 void	prop(Reg*, Bits, Bits);
 void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
@@ -343,7 +315,7 @@ uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
 void	paint3(Reg*, int, int32, int);
-void	addreg(Adr*, int);
+void	addreg(Addr*, int);
 
 /*
  * peep.c
@@ -352,21 +324,21 @@ void	peep(void);
 void	excise(Reg*);
 Reg*	uniqp(Reg*);
 Reg*	uniqs(Reg*);
-int	regtyp(Adr*);
-int	regzer(Adr*);
-int	anyvar(Adr*);
+int	regtyp(Addr*);
+int	regzer(Addr*);
+int	anyvar(Addr*);
 int	subprop(Reg*);
 int	copyprop(Reg*);
 int	shiftprop(Reg*);
-void	constprop(Adr*, Adr*, Reg*);
-int	copy1(Adr*, Adr*, Reg*, int);
-int	copyu(Prog*, Adr*, Adr*);
+void	constprop(Addr*, Addr*, Reg*);
+int	copy1(Addr*, Addr*, Reg*, int);
+int	copyu(Prog*, Addr*, Addr*);
 
-int	copyas(Adr*, Adr*);
-int	copyau(Adr*, Adr*);
-int	copyau1(Prog*, Adr*);
-int	copysub(Adr*, Adr*, Adr*, int);
-int	copysub1(Prog*, Adr*, Adr*, int);
+int	copyas(Addr*, Addr*);
+int	copyau(Addr*, Addr*);
+int	copyau1(Prog*, Addr*);
+int	copysub(Addr*, Addr*, Addr*, int);
+int	copysub1(Prog*, Addr*, Addr*, int);
 
 int32	RtoB(int);
 int32	FtoB(int);
@@ -380,8 +352,8 @@ int	modifiescpsr(Prog *p);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Bits
-#pragma	varargck	type	"D"	Adr*
-#pragma	varargck	type	"N"	Adr*
-#pragma	varargck	type	"R"	Adr*
+#pragma	varargck	type	"D"	Addr*
+#pragma	varargck	type	"N"	Addr*
+#pragma	varargck	type	"R"	Addr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"S"	char*

@@ -206,7 +206,7 @@ outstring(char *s, int32 n)
 			p->from.offset += nstring - NSNAME;
 			p->reg = NSNAME;
 			p->to.type = D_SCONST;
-			memmove(p->to.sval, string, NSNAME);
+			memmove(p->to.u.sval, string, NSNAME);
 			mnstring = 0;
 		}
 		n--;
@@ -321,7 +321,7 @@ sextern(Sym *s, Node *a, int32 o, int32 w)
 		p->from.offset += o+e;
 		p->reg = lw;
 		p->to.type = D_SCONST;
-		memmove(p->to.sval, a->cstring+e, lw);
+		memmove(p->to.u.sval, a->cstring+e, lw);
 	}
 }
 
@@ -351,47 +351,9 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
 		p->to.type = D_CONST;
 }
 
-void	zname(Biobuf*, Sym*, int);
-char*	zaddr(char*, Adr*, int);
-void	zwrite(Biobuf*, Prog*, int, int);
-void	outhist(Biobuf*);
-
-void
-zwrite(Biobuf *b, Prog *p, int sf, int st)
-{
-	char bf[100], *bp;
-
-	bf[0] = p->as;
-	bf[1] = p->scond;
-	bf[2] = p->reg;
-	bf[3] = p->lineno;
-	bf[4] = p->lineno>>8;
-	bf[5] = p->lineno>>16;
-	bf[6] = p->lineno>>24;
-	bp = zaddr(bf+7, &p->from, sf);
-	bp = zaddr(bp, &p->to, st);
-	Bwrite(b, bf, bp-bf);
-}
-
 void
 outcode(void)
 {
-	struct { Sym *sym; short type; } h[NSYM];
-	Prog *p;
-	Sym *s;
-	int sf, st, t, sym;
-
-	if(debug['S']) {
-		for(p = firstp; p != P; p = p->link)
-			if(p->as != ADATA && p->as != AGLOBL)
-				pc--;
-		for(p = firstp; p != P; p = p->link) {
-			print("%P\n", p);
-			if(p->as != ADATA && p->as != AGLOBL)
-				pc++;
-		}
-	}
-
 	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
 	if(pragcgobuf.to > pragcgobuf.start) {
 		Bprint(&outbuf, "\n");
@@ -403,247 +365,9 @@ outcode(void)
 	}
 	Bprint(&outbuf, "!\n");
 
-	outhist(&outbuf);
-	for(sym=0; sym<NSYM; sym++) {
-		h[sym].sym = S;
-		h[sym].type = 0;
-	}
-	sym = 1;
-	for(p = firstp; p != P; p = p->link) {
-	jackpot:
-		sf = 0;
-		s = p->from.sym;
-		while(s != S) {
-			sf = s->sym;
-			if(sf < 0 || sf >= NSYM)
-				sf = 0;
-			t = p->from.name;
-			if(h[sf].type == t)
-			if(h[sf].sym == s)
-				break;
-			s->sym = sym;
-			zname(&outbuf, s, t);
-			h[sym].sym = s;
-			h[sym].type = t;
-			sf = sym;
-			sym++;
-			if(sym >= NSYM)
-				sym = 1;
-			break;
-		}
-		st = 0;
-		s = p->to.sym;
-		while(s != S) {
-			st = s->sym;
-			if(st < 0 || st >= NSYM)
-				st = 0;
-			t = p->to.name;
-			if(h[st].type == t)
-			if(h[st].sym == s)
-				break;
-			s->sym = sym;
-			zname(&outbuf, s, t);
-			h[sym].sym = s;
-			h[sym].type = t;
-			st = sym;
-			sym++;
-			if(sym >= NSYM)
-				sym = 1;
-			if(st == sf)
-				goto jackpot;
-			break;
-		}
-		zwrite(&outbuf, p, sf, st);
-	}
-	firstp = P;
+	linkouthist(ctxt, &outbuf);
+	linkwritefuncs(ctxt, &outbuf);
 	lastp = P;
-}
-
-void
-outhist(Biobuf *b)
-{
-	Hist *h;
-	char *p, *q, *op, c;
-	Prog pg;
-	int n;
-	char *tofree;
-	static int first = 1;
-	static char *goroot, *goroot_final;
-
-	if(first) {
-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
-		first = 0;
-		goroot = getenv("GOROOT");
-		goroot_final = getenv("GOROOT_FINAL");
-		if(goroot == nil)
-			goroot = "";
-		if(goroot_final == nil)
-			goroot_final = goroot;
-		if(strcmp(goroot, goroot_final) == 0) {
-			goroot = nil;
-			goroot_final = nil;
-		}
-	}
-
-	tofree = nil;
-	pg = zprog;
-	pg.as = AHISTORY;
-	c = pathchar();
-	for(h = hist; h != H; h = h->link) {
-		p = h->name;
-		if(p != nil && goroot != nil) {
-			n = strlen(goroot);
-			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
-				tofree = smprint("%s%s", goroot_final, p+n);
-				p = tofree;
-			}
-		}
-		op = 0;
-		if(systemtype(Windows) && p && p[1] == ':'){
-			c = p[2];
-		} else if(p && p[0] != c && h->offset == 0 && pathname){
-			if(systemtype(Windows) && pathname[1] == ':') {
-				op = p;
-				p = pathname;
-				c = p[2];
-			} else if(pathname[0] == c){
-				op = p;
-				p = pathname;
-			}
-		}
-		while(p) {
-			q = utfrune(p, c);
-			if(q) {
-				n = q-p;
-				if(n == 0){
-					n = 1;	/* leading "/" */
-					*p = '/';	/* don't emit "\" on windows */
-				}
-				q++;
-			} else {
-				n = strlen(p);
-				q = 0;
-			}
-			if(n) {
-				BPUTC(b, ANAME);
-				BPUTC(b, D_FILE);
-				BPUTC(b, 1);
-				BPUTC(b, '<');
-				Bwrite(b, p, n);
-				BPUTC(b, 0);
-			}
-			p = q;
-			if(p == 0 && op) {
-				p = op;
-				op = 0;
-			}
-		}
-		pg.lineno = h->line;
-		pg.to.type = zprog.to.type;
-		pg.to.offset = h->offset;
-		if(h->offset)
-			pg.to.type = D_CONST;
-
-		zwrite(b, &pg, 0, 0);
-
- 		if(tofree) {
- 			free(tofree);
- 			tofree = nil;
- 		}
-	}
-}
-
-void
-zname(Biobuf *b, Sym *s, int t)
-{
-	char *n, bf[7];
-	uint32 sig;
-
-	n = s->name;
-	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
-		sig = sign(s);
-		bf[0] = ASIGNAME;
-		bf[1] = sig;
-		bf[2] = sig>>8;
-		bf[3] = sig>>16;
-		bf[4] = sig>>24;
-		bf[5] = t;
-		bf[6] = s->sym;
-		Bwrite(b, bf, 7);
-		s->sig = SIGDONE;
-	}
-	else{
-		bf[0] = ANAME;
-		bf[1] = t;	/* type */
-		bf[2] = s->sym;	/* sym */
-		Bwrite(b, bf, 3);
-	}
-	Bwrite(b, n, strlen(n)+1);
-}
-
-char*
-zaddr(char *bp, Adr *a, int s)
-{
-	int32 l;
-	Ieee e;
-
-	bp[0] = a->type;
-	bp[1] = a->reg;
-	bp[2] = s;
-	bp[3] = a->name;
-	bp[4] = 0;
-	bp += 5;
-	switch(a->type) {
-	default:
-		diag(Z, "unknown type %d in zaddr", a->type);
-
-	case D_NONE:
-	case D_REG:
-	case D_FREG:
-	case D_PSR:
-		break;
-
-	case D_CONST2:
-		l = a->offset2;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;	// fall through
-	case D_OREG:
-	case D_CONST:
-	case D_BRANCH:
-	case D_SHIFT:
-		l = a->offset;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		break;
-
-	case D_SCONST:
-		memmove(bp, a->sval, NSNAME);
-		bp += NSNAME;
-		break;
-
-	case D_FCONST:
-		ieeedtod(&e, a->dval);
-		l = e.l;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		l = e.h;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		break;
-	}
-	return bp;
 }
 
 int32

@@ -642,7 +642,7 @@ nn:
 	c = strlen(symb) + 1;
 	cp = alloc(c);
 	memcpy(cp, symb, c);
-	linehist(cp, n);
+	linklinehist(ctxt, lineno, cp, n);
 	return;
 
 bad:
@@ -713,7 +713,6 @@ macprag(void)
 	Sym *s;
 	int c0, c;
 	char *hp;
-	Hist *h;
 
 	s = getsym();
 
@@ -779,18 +778,7 @@ praglib:
 	hp = alloc(c);
 	memcpy(hp, symb, c);
 
-	h = alloc(sizeof(Hist));
-	h->name = hp;
-	h->line = lineno;
-	h->offset = -1;
-	h->link = H;
-	if(ehist == H) {
-		hist = h;
-		ehist = h;
-		return;
-	}
-	ehist->link = h;
-	ehist = h;
+	linklinehist(ctxt, lineno, hp, -1);
 	return;
 
 bad:
@@ -809,44 +797,4 @@ macend(void)
 		if(c < 0 || c == '\n')
 			return;
 	}
-}
-
-void
-linehist(char *f, int offset)
-{
-	Hist *h;
-
-	/*
-	 * overwrite the last #line directive if
-	 * no alloc has happened since the last one
-	 */
-	if(newflag == 0 && ehist != H && offset != 0 && ehist->offset != 0)
-		if(f && ehist->name && strcmp(f, ehist->name) == 0) {
-			ehist->line = lineno;
-			ehist->offset = offset;
-			return;
-		}
-
-	if(debug['f'])
-		if(f) {
-			if(offset)
-				print("%4d: %s (#line %d)\n", lineno, f, offset);
-			else
-				print("%4d: %s\n", lineno, f);
-		} else
-			print("%4d: <pop>\n", lineno);
-	newflag = 0;
-
-	h = alloc(sizeof(Hist));
-	h->name = f;
-	h->line = lineno;
-	h->offset = offset;
-	h->link = H;
-	if(ehist == H) {
-		hist = h;
-		ehist = h;
-		return;
-	}
-	ehist->link = h;
-	ehist = h;
 }

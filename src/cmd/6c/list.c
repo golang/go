@@ -56,7 +56,7 @@ Bconv(Fmt *fp)
 		i = bnum(bits);
 		if(str[0])
 			strcat(str, " ");
-		if(var[i].sym == S) {
+		if(var[i].sym == nil) {
 			sprint(ss, "$%lld", var[i].offset);
 			s = ss;
 		} else
@@ -106,17 +106,17 @@ Aconv(Fmt *fp)
 	int i;
 
 	i = va_arg(fp->args, int);
-	return fmtstrcpy(fp, anames[i]);
+	return fmtstrcpy(fp, anames6[i]);
 }
 
 int
 Dconv(Fmt *fp)
 {
 	char str[STRINGSZ], s[STRINGSZ];
-	Adr *a;
+	Addr *a;
 	int i;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	i = a->type;
 
 	if(fp->flags & FmtLong) {
@@ -179,11 +179,11 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		sprint(str, "$(%.17e)", a->dval);
+		sprint(str, "$(%.17g)", a->u.dval);
 		break;
 
 	case D_SCONST:
-		sprint(str, "$\"%S\"", a->sval);
+		sprint(str, "$\"%S\"", a->u.sval);
 		break;
 
 	case D_ADDR:

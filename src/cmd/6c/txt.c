@@ -30,6 +30,8 @@
 
 #include "gc.h"
 
+LinkArch	*thelinkarch = &linkamd64;
+
 void
 ginit(void)
 {
@@ -47,7 +49,6 @@ ginit(void)
 	breakpc = -1;
 	continpc = -1;
 	cases = C;
-	firstp = P;
 	lastp = P;
 	tfield = types[TINT];
 
@@ -168,17 +169,17 @@ gclean(void)
 void
 nextpc(void)
 {
+	Plist *pl;
 
 	p = alloc(sizeof(*p));
 	*p = zprog;
 	p->lineno = nearln;
 	pc++;
-	if(firstp == P) {
-		firstp = p;
-		lastp = p;
-		return;
-	}
-	lastp->link = p;
+	if(lastp == nil) {
+		pl = linknewplist(ctxt);
+		pl->firstpc = p;
+	} else
+		lastp->link = p;
 	lastp = p;
 }
 
@@ -441,7 +442,7 @@ regaalloc1(Node *n, Node *nn)
 		return;
 	}
 	nodreg(n, nn, REGARG);
-	reg[REGARG]++;
+	reg[(uchar)REGARG]++;
 	curarg = align(curarg, nn->type, Aarg1, nil);
 	curarg = align(curarg, nn->type, Aarg2, nil);
 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
@@ -474,7 +475,7 @@ regind(Node *n, Node *nn)
 }
 
 void
-naddr(Node *n, Adr *a)
+naddr(Node *n, Addr *a)
 {
 	int32 v;
 
@@ -489,7 +490,7 @@ naddr(Node *n, Adr *a)
 
 	case OREGISTER:
 		a->type = n->reg;
-		a->sym = S;
+		a->sym = nil;
 		break;
 
 	case OEXREG:
@@ -534,14 +535,14 @@ naddr(Node *n, Adr *a)
 
 	case OINDREG:
 		a->type = n->reg+D_INDIR;
-		a->sym = S;
+		a->sym = nil;
 		a->offset = n->xoffset;
 		break;
 
 	case ONAME:
 		a->etype = n->etype;
 		a->type = D_STATIC;
-		a->sym = n->sym;
+		a->sym = linksym(n->sym);
 		a->offset = n->xoffset;
 		if(n->class == CSTATIC)
 			break;
@@ -562,10 +563,10 @@ naddr(Node *n, Adr *a)
 	case OCONST:
 		if(typefd[n->type->etype]) {
 			a->type = D_FCONST;
-			a->dval = n->fconst;
+			a->u.dval = n->fconst;
 			break;
 		}
-		a->sym = S;
+		a->sym = nil;
 		a->type = D_CONST;
 		if(typev[n->type->etype] || n->type->etype == TIND)
 			a->offset = n->vconst;
@@ -1499,7 +1500,7 @@ gpseudo(int a, Sym *s, Node *n)
 	nextpc();
 	p->as = a;
 	p->from.type = D_EXTERN;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 
 	switch(a) {
 	case ATEXT:

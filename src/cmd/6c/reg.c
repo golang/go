@@ -691,7 +691,7 @@ void
 addmove(Reg *r, int bn, int rn, int f)
 {
 	Prog *p, *p1;
-	Adr *a;
+	Addr *a;
 	Var *v;
 
 	p1 = alloc(sizeof(*p1));
@@ -759,13 +759,13 @@ doregbits(int r)
 }
 
 Bits
-mkvar(Reg *r, Adr *a)
+mkvar(Reg *r, Addr *a)
 {
 	Var *v;
 	int i, t, n, et, z;
 	int32 o;
 	Bits bit;
-	Sym *s;
+	LSym *s;
 
 	/*
 	 * mark registers used
@@ -792,7 +792,7 @@ mkvar(Reg *r, Adr *a)
 		break;
 	}
 	s = a->sym;
-	if(s == S)
+	if(s == nil)
 		goto none;
 	if(s->name[0] == '.')
 		goto none;
@@ -1181,7 +1181,7 @@ uint32
 regset(Reg *r, uint32 bb)
 {
 	uint32 b, set;
-	Adr v;
+	Addr v;
 	int c;
 
 	set = 0;
@@ -1202,7 +1202,7 @@ uint32
 reguse(Reg *r, uint32 bb)
 {
 	uint32 b, set;
-	Adr v;
+	Addr v;
 	int c;
 
 	set = 0;
@@ -1349,7 +1349,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 }
 
 void
-addreg(Adr *a, int rn)
+addreg(Addr *a, int rn)
 {
 
 	a->sym = 0;

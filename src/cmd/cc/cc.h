@@ -30,6 +30,7 @@
 
 #include <libc.h>
 #include <bio.h>
+#include <link.h>
 
 #ifndef	EXTERN
 #define EXTERN	extern
@@ -48,7 +49,6 @@ typedef	struct	Type	Type;
 typedef	struct	Funct	Funct;
 typedef	struct	Decl	Decl;
 typedef	struct	Io	Io;
-typedef	struct	Hist	Hist;
 typedef	struct	Term	Term;
 typedef	struct	Init	Init;
 typedef	struct	Bits	Bits;
@@ -114,6 +114,7 @@ struct	Node
 struct	Sym
 {
 	Sym*	link;
+	LSym*	lsym;
 	Type*	type;
 	Type*	suetag;
 	Type*	tenum;
@@ -199,16 +200,6 @@ struct	Io
 	short	f;
 };
 #define	I	((Io*)0)
-
-struct	Hist
-{
-	Hist*	link;
-	char*	name;
-	int32	line;
-	int32	offset;
-};
-#define	H	((Hist*)0)
-EXTERN Hist*	hist;
 
 struct	Term
 {
@@ -469,7 +460,6 @@ EXTERN	int32	autoffset;
 EXTERN	int	blockno;
 EXTERN	Decl*	dclstack;
 EXTERN	int	debug[256];
-EXTERN	Hist*	ehist;
 EXTERN	int32	firstbit;
 EXTERN	Sym*	firstarg;
 EXTERN	Type*	firstargtype;
@@ -498,7 +488,6 @@ EXTERN	int32	nsymb;
 EXTERN	Biobuf	outbuf;
 EXTERN	Biobuf	diagbuf;
 EXTERN	char*	outfile;
-EXTERN	char*	pathname;
 EXTERN	int	peekc;
 EXTERN	int32	stkoff;
 EXTERN	Type*	strf;
@@ -510,6 +499,7 @@ EXTERN	Type*	tfield;
 EXTERN	Type*	tufield;
 EXTERN	int	thechar;
 EXTERN	char*	thestring;
+extern	LinkArch*	thelinkarch;
 EXTERN	Type*	thisfn;
 EXTERN	int32	thunk;
 EXTERN	Type*	types[NALLTYPES];
@@ -556,6 +546,7 @@ extern	uchar	typechlpfd[];
 
 EXTERN	uchar*	typeword;
 EXTERN	uchar*	typecmplx;
+EXTERN	Link*	ctxt;
 
 extern	uint32	thash1;
 extern	uint32	thash2;
@@ -612,7 +603,6 @@ void	dodefine(char*);
 void	domacro(void);
 Sym*	getsym(void);
 int32	getnsn(void);
-void	linehist(char*, int);
 void	macdef(void);
 void	macprag(void);
 void	macend(void);
@@ -731,6 +721,7 @@ void	diag(Node*, char*, ...);
 void	warn(Node*, char*, ...);
 void	yyerror(char*, ...);
 void	fatal(Node*, char*, ...);
+LSym*	linksym(Sym*);
 
 /*
  * acid.c

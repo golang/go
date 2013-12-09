@@ -217,7 +217,7 @@ uniqs(Reg *r)
 }
 
 int
-regtyp(Adr *a)
+regtyp(Addr *a)
 {
 	int t;
 
@@ -245,7 +245,7 @@ int
 subprop(Reg *r0)
 {
 	Prog *p;
-	Adr *v1, *v2;
+	Addr *v1, *v2;
 	Reg *r;
 	int t;
 
@@ -365,7 +365,7 @@ int
 copyprop(Reg *r0)
 {
 	Prog *p;
-	Adr *v1, *v2;
+	Addr *v1, *v2;
 	Reg *r;
 
 	p = r0->prog;
@@ -379,7 +379,7 @@ copyprop(Reg *r0)
 }
 
 int
-copy1(Adr *v1, Adr *v2, Reg *r, int f)
+copy1(Addr *v1, Addr *v2, Reg *r, int f)
 {
 	int t;
 	Prog *p;
@@ -464,7 +464,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
  * 0 otherwise (not touched)
  */
 int
-copyu(Prog *p, Adr *v, Adr *s)
+copyu(Prog *p, Addr *v, Addr *s)
 {
 
 	switch(p->as) {
@@ -740,7 +740,7 @@ copyu(Prog *p, Adr *v, Adr *s)
  * semantics
  */
 int
-copyas(Adr *a, Adr *v)
+copyas(Addr *a, Addr *v)
 {
 	if(a->type != v->type)
 		return 0;
@@ -756,7 +756,7 @@ copyas(Adr *a, Adr *v)
  * either direct or indirect
  */
 int
-copyau(Adr *a, Adr *v)
+copyau(Addr *a, Addr *v)
 {
 
 	if(copyas(a, v))
@@ -775,7 +775,7 @@ copyau(Adr *a, Adr *v)
  * return failure to substitute
  */
 int
-copysub(Adr *a, Adr *v, Adr *s, int f)
+copysub(Addr *a, Addr *v, Addr *s, int f)
 {
 	int t;
 

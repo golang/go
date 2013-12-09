@@ -46,8 +46,6 @@
 #define	SZ_DOUBLE	8
 #define	FNX		100
 
-typedef	struct	Adr	Adr;
-typedef	struct	Prog	Prog;
 typedef	struct	Case	Case;
 typedef	struct	C1	C1;
 typedef	struct	Var	Var;
@@ -64,29 +62,9 @@ EXTERN	struct
 	short	ptr;
 } idx;
 
-struct	Adr
-{
-	vlong	offset;
-	double	dval;
-	char	sval[NSNAME];
-
-	Sym*	sym;
-	uchar	type;
-	uchar	index;
-	uchar	etype;
-	uchar	scale;	/* doubles as width in DATA op */
-};
-#define	A	((Adr*)0)
-
 #define	INDEXED	9
-struct	Prog
-{
-	Adr	from;
-	Adr	to;
-	Prog*	link;
-	int32	lineno;
-	short	as;
-};
+
+#define	A	((Addr*)0)
 #define	P	((Prog*)0)
 
 struct	Case
@@ -108,7 +86,7 @@ struct	C1
 struct	Var
 {
 	vlong	offset;
-	Sym*	sym;
+	LSym*	sym;
 	char	name;
 	char	etype;
 };
@@ -171,7 +149,6 @@ EXTERN	Node	vconstnode;
 EXTERN	int32	continpc;
 EXTERN	int32	curarg;
 EXTERN	int32	cursafe;
-EXTERN	Prog*	firstp;
 EXTERN	Prog*	lastp;
 EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;
@@ -282,7 +259,7 @@ void	regaalloc1(Node*, Node*);
 void	regaalloc(Node*, Node*);
 void	regind(Node*, Node*);
 void	gprep(Node*, Node*);
-void	naddr(Node*, Adr*);
+void	naddr(Node*, Addr*);
 void	gcmp(int, Node*, vlong);
 void	gmove(Node*, Node*);
 void	gins(int a, Node*, Node*);
@@ -310,7 +287,6 @@ void	nullwarn(Node*, Node*);
 void	sextern(Sym*, Node*, int32, int32);
 void	gextern(Sym*, Node*, int32, int32);
 void	outcode(void);
-void	ieeedtod(Ieee*, double);
 
 /*
  * list
@@ -331,7 +307,7 @@ Reg*	rega(void);
 int	rcmp(const void*, const void*);
 void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
-Bits	mkvar(Reg*, Adr*);
+Bits	mkvar(Reg*, Addr*);
 void	prop(Reg*, Bits, Bits);
 void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
@@ -339,7 +315,7 @@ uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
 void	paint3(Reg*, int, int32, int);
-void	addreg(Adr*, int);
+void	addreg(Addr*, int);
 
 /*
  * peep.c
@@ -348,17 +324,17 @@ void	peep(void);
 void	excise(Reg*);
 Reg*	uniqp(Reg*);
 Reg*	uniqs(Reg*);
-int	regtyp(Adr*);
-int	anyvar(Adr*);
+int	regtyp(Addr*);
+int	anyvar(Addr*);
 int	subprop(Reg*);
 int	copyprop(Reg*);
-int	copy1(Adr*, Adr*, Reg*, int);
-int	copyu(Prog*, Adr*, Adr*);
+int	copy1(Addr*, Addr*, Reg*, int);
+int	copyu(Prog*, Addr*, Addr*);
 
-int	copyas(Adr*, Adr*);
-int	copyau(Adr*, Adr*);
-int	copysub(Adr*, Adr*, Adr*, int);
-int	copysub1(Prog*, Adr*, Adr*, int);
+int	copyas(Addr*, Addr*);
+int	copyau(Addr*, Addr*);
+int	copysub(Addr*, Addr*, Addr*, int);
+int	copysub1(Prog*, Addr*, Addr*, int);
 
 int32	RtoB(int);
 int32	FtoB(int);
@@ -398,8 +374,8 @@ void	shiftit(Type*, Node*, Node*);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Bits
-#pragma	varargck	type	"D"	Adr*
-#pragma	varargck	type	"lD"	Adr*
+#pragma	varargck	type	"D"	Addr*
+#pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
