@@ -31,6 +31,8 @@
 
 #include "gc.h"
 
+LinkArch	*thelinkarch = &linkarm;
+
 void
 ginit(void)
 {
@@ -48,7 +50,6 @@ ginit(void)
 	breakpc = -1;
 	continpc = -1;
 	cases = C;
-	firstp = P;
 	lastp = P;
 	tfield = types[TLONG];
 
@@ -149,17 +150,17 @@ gclean(void)
 void
 nextpc(void)
 {
+	Plist *pl;
 
 	p = alloc(sizeof(*p));
 	*p = zprog;
 	p->lineno = nearln;
 	pc++;
-	if(firstp == P) {
-		firstp = p;
-		lastp = p;
-		return;
-	}
-	lastp->link = p;
+	if(lastp == nil) {
+		pl = linknewplist(ctxt);
+		pl->firstpc = p;
+	} else
+		lastp->link = p;
 	lastp = p;
 }
 
@@ -422,7 +423,7 @@ regind(Node *n, Node *nn)
 void
 raddr(Node *n, Prog *p)
 {
-	Adr a;
+	Addr a;
 
 	naddr(n, &a);
 	if(R0ISZERO && a.type == D_CONST && a.offset == 0) {
@@ -440,7 +441,7 @@ raddr(Node *n, Prog *p)
 }
 
 void
-naddr(Node *n, Adr *a)
+naddr(Node *n, Addr *a)
 {
 	int32 v;
 
@@ -455,7 +456,7 @@ naddr(Node *n, Adr *a)
 
 	case OREGISTER:
 		a->type = D_REG;
-		a->sym = S;
+		a->sym = nil;
 		a->reg = n->reg;
 		if(a->reg >= NREG) {
 			a->type = D_FREG;
@@ -477,7 +478,7 @@ naddr(Node *n, Adr *a)
 
 	case OINDREG:
 		a->type = D_OREG;
-		a->sym = S;
+		a->sym = nil;
 		a->offset = n->xoffset;
 		a->reg = n->reg;
 		break;
@@ -486,7 +487,7 @@ naddr(Node *n, Adr *a)
 		a->etype = n->etype;
 		a->type = D_OREG;
 		a->name = D_STATIC;
-		a->sym = n->sym;
+		a->sym = linksym(n->sym);
 		a->offset = n->xoffset;
 		if(n->class == CSTATIC)
 			break;
@@ -505,11 +506,11 @@ naddr(Node *n, Adr *a)
 		goto bad;
 
 	case OCONST:
-		a->sym = S;
+		a->sym = nil;
 		a->reg = NREG;
 		if(typefd[n->type->etype]) {
 			a->type = D_FCONST;
-			a->dval = n->fconst;
+			a->u.dval = n->fconst;
 		} else {
 			a->type = D_CONST;
 			a->offset = n->vconst;
@@ -930,7 +931,7 @@ void
 gopcode(int o, Node *f1, Node *f2, Node *t)
 {
 	int a, et;
-	Adr ta;
+	Addr ta;
 
 	et = TLONG;
 	if(f1 != Z && f1->type != T)
@@ -1177,7 +1178,7 @@ gpseudo(int a, Sym *s, Node *n)
 	nextpc();
 	p->as = a;
 	p->from.type = D_OREG;
-	p->from.sym = s;
+	p->from.sym = linksym(s);
 	p->from.name = D_EXTERN;
 
 	switch(a) {

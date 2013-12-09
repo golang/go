@@ -58,7 +58,7 @@ Bconv(Fmt *fp)
 		i = bnum(bits);
 		if(str[0])
 			strcat(str, " ");
-		if(var[i].sym == S) {
+		if(var[i].sym == nil) {
 			sprint(ss, "$%d", var[i].offset);
 			s = ss;
 		} else
@@ -131,7 +131,7 @@ Aconv(Fmt *fp)
 	a = va_arg(fp->args, int);
 	s = "???";
 	if(a >= AXXX && a < ALAST)
-		s = anames[a];
+		s = anames5[a];
 	return fmtstrcpy(fp, s);
 }
 
@@ -139,11 +139,11 @@ int
 Dconv(Fmt *fp)
 {
 	char str[STRINGSZ];
-	Adr *a;
+	Addr *a;
 	const char *op;
 	int v;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	switch(a->type) {
 
 	default:
@@ -152,7 +152,7 @@ Dconv(Fmt *fp)
 
 	case D_NONE:
 		str[0] = 0;
-		if(a->name != D_NONE || a->reg != NREG || a->sym != S)
+		if(a->name != D_NONE || a->reg != NREG || a->sym != nil)
 			sprint(str, "%N(R%d)(NONE)", a, a->reg);
 		break;
 
@@ -187,19 +187,19 @@ Dconv(Fmt *fp)
 
 	case D_REG:
 		sprint(str, "R%d", a->reg);
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%N(R%d)(REG)", a, a->reg);
 		break;
 
 	case D_FREG:
 		sprint(str, "F%d", a->reg);
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%N(R%d)(REG)", a, a->reg);
 		break;
 
 	case D_PSR:
 		sprint(str, "PSR");
-		if(a->name != D_NONE || a->sym != S)
+		if(a->name != D_NONE || a->sym != nil)
 			sprint(str, "%N(PSR)(REG)", a);
 		break;
 
@@ -208,11 +208,11 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		sprint(str, "$%.17e", a->dval);
+		sprint(str, "$%.17g", a->u.dval);
 		break;
 
 	case D_SCONST:
-		sprint(str, "$\"%S\"", a->sval);
+		sprint(str, "$\"%S\"", a->u.sval);
 		break;
 	}
 	return fmtstrcpy(fp, str);
@@ -222,17 +222,17 @@ int
 Rconv(Fmt *fp)
 {
 	char str[STRINGSZ];
-	Adr *a;
+	Addr *a;
 	int i, v;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	sprint(str, "GOK-reglist");
 	switch(a->type) {
 	case D_CONST:
 	case D_CONST2:
 		if(a->reg != NREG)
 			break;
-		if(a->sym != S)
+		if(a->sym != nil)
 			break;
 		v = a->offset;
 		strcpy(str, "");
@@ -301,12 +301,12 @@ int
 Nconv(Fmt *fp)
 {
 	char str[STRINGSZ];
-	Adr *a;
-	Sym *s;
+	Addr *a;
+	LSym *s;
 
-	a = va_arg(fp->args, Adr*);
+	a = va_arg(fp->args, Addr*);
 	s = a->sym;
-	if(s == S) {
+	if(s == nil) {
 		sprint(str, "%d", a->offset);
 		goto out;
 	}

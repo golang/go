@@ -169,7 +169,7 @@ outstring(char *s, int32 n)
 			p->from.offset += nstring - NSNAME;
 			p->from.scale = NSNAME;
 			p->to.type = D_SCONST;
-			memmove(p->to.sval, string, NSNAME);
+			memmove(p->to.u.sval, string, NSNAME);
 			mnstring = 0;
 		}
 		n--;
@@ -190,7 +190,7 @@ sextern(Sym *s, Node *a, int32 o, int32 w)
 		p->from.offset += o+e;
 		p->from.scale = lw;
 		p->to.type = D_SCONST;
-		memmove(p->to.sval, a->cstring+e, lw);
+		memmove(p->to.u.sval, a->cstring+e, lw);
 	}
 }
 
@@ -220,29 +220,12 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
 	}
 }
 
-void	zname(Biobuf*, Sym*, int);
-void	zaddr(Biobuf*, Adr*, int);
-void	outhist(Biobuf*);
-
 void
 outcode(void)
 {
-	struct { Sym *sym; short type; } h[NSYM];
-	Prog *p;
-	Sym *s;
-	int f, sf, st, t, sym;
+	int f;
 	Biobuf b;
 
-	if(debug['S']) {
-		for(p = firstp; p != P; p = p->link)
-			if(p->as != ADATA && p->as != AGLOBL)
-				pc--;
-		for(p = firstp; p != P; p = p->link) {
-			print("%P\n", p);
-			if(p->as != ADATA && p->as != AGLOBL)
-				pc++;
-		}
-	}
 	f = open(outfile, OWRITE);
 	if(f < 0) {
 		diag(Z, "cannot open %s", outfile);
@@ -261,256 +244,11 @@ outcode(void)
 	}
 	Bprint(&b, "!\n");
 
-	outhist(&b);
-	for(sym=0; sym<NSYM; sym++) {
-		h[sym].sym = S;
-		h[sym].type = 0;
-	}
-	sym = 1;
-	for(p = firstp; p != P; p = p->link) {
-	jackpot:
-		sf = 0;
-		s = p->from.sym;
-		while(s != S) {
-			sf = s->sym;
-			if(sf < 0 || sf >= NSYM)
-				sf = 0;
-			t = p->from.type;
-			if(t == D_ADDR)
-				t = p->from.index;
-			if(h[sf].type == t)
-			if(h[sf].sym == s)
-				break;
-			s->sym = sym;
-			zname(&b, s, t);
-			h[sym].sym = s;
-			h[sym].type = t;
-			sf = sym;
-			sym++;
-			if(sym >= NSYM)
-				sym = 1;
-			break;
-		}
-		st = 0;
-		s = p->to.sym;
-		while(s != S) {
-			st = s->sym;
-			if(st < 0 || st >= NSYM)
-				st = 0;
-			t = p->to.type;
-			if(t == D_ADDR)
-				t = p->to.index;
-			if(h[st].type == t)
-			if(h[st].sym == s)
-				break;
-			s->sym = sym;
-			zname(&b, s, t);
-			h[sym].sym = s;
-			h[sym].type = t;
-			st = sym;
-			sym++;
-			if(sym >= NSYM)
-				sym = 1;
-			if(st == sf)
-				goto jackpot;
-			break;
-		}
-		BPUTLE2(&b, p->as);
-		BPUTLE4(&b, p->lineno);
-		zaddr(&b, &p->from, sf);
-		zaddr(&b, &p->to, st);
-	}
+	linkouthist(ctxt, &b);
+	linkwritefuncs(ctxt, &b);
 	Bterm(&b);
 	close(f);
-	firstp = P;
 	lastp = P;
-}
-
-void
-outhist(Biobuf *b)
-{
-	Hist *h;
-	char *p, *q, *op, c;
-	Prog pg;
-	int n;
-	char *tofree;
-	static int first = 1;
-	static char *goroot, *goroot_final;
-
-	if(first) {
-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
-		first = 0;
-		goroot = getenv("GOROOT");
-		goroot_final = getenv("GOROOT_FINAL");
-		if(goroot == nil)
-			goroot = "";
-		if(goroot_final == nil)
-			goroot_final = goroot;
-		if(strcmp(goroot, goroot_final) == 0) {
-			goroot = nil;
-			goroot_final = nil;
-		}
-	}
-
-	tofree = nil;
-	pg = zprog;
-	pg.as = AHISTORY;
-	c = pathchar();
-	for(h = hist; h != H; h = h->link) {
-		p = h->name;
-		if(p != nil && goroot != nil) {
-			n = strlen(goroot);
-			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
-				tofree = smprint("%s%s", goroot_final, p+n);
-				p = tofree;
-			}
-		}
-		op = 0;
-		if(systemtype(Windows) && p && p[1] == ':'){
-			c = p[2];
-		} else if(p && p[0] != c && h->offset == 0 && pathname){
-			if(systemtype(Windows) && pathname[1] == ':') {
-				op = p;
-				p = pathname;
-				c = p[2];
-			} else if(pathname[0] == c){
-				op = p;
-				p = pathname;
-			}
-		}
-		while(p) {
-			q = utfrune(p, c);
-			if(q) {
-				n = q-p;
-				if(n == 0){
-					n = 1;	/* leading "/" */
-					*p = '/';	/* don't emit "\" on windows */
-				}
-				q++;
-			} else {
-				n = strlen(p);
-				q = 0;
-			}
-			if(n) {
-				BPUTLE2(b, ANAME);
-				BPUTC(b, D_FILE);
-				BPUTC(b, 1);
-				BPUTC(b, '<');
-				Bwrite(b, p, n);
-				BPUTC(b, 0);
-			}
-			p = q;
-			if(p == 0 && op) {
-				p = op;
-				op = 0;
-			}
-		}
-		pg.lineno = h->line;
-		pg.to.type = zprog.to.type;
-		pg.to.offset = h->offset;
-		if(h->offset)
-			pg.to.type = D_CONST;
-
-		BPUTLE2(b, pg.as);
-		BPUTLE4(b, pg.lineno);
-		zaddr(b, &pg.from, 0);
-		zaddr(b, &pg.to, 0);
-
-		if(tofree) {
-			free(tofree);
-			tofree = nil;
-		}
-	}
-}
-
-void
-zname(Biobuf *b, Sym *s, int t)
-{
-	char *n;
-	uint32 sig;
-
-	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
-		sig = sign(s);
-		BPUTLE2(b, ASIGNAME);
-		BPUTLE4(b, sig);
-		s->sig = SIGDONE;
-	}
-	else{
-		BPUTLE2(b, ANAME);	/* as */
-	}
-	BPUTC(b, t);			/* type */
-	BPUTC(b, s->sym);		/* sym */
-	n = s->name;
-	while(*n) {
-		BPUTC(b, *n);
-		n++;
-	}
-	BPUTC(b, 0);
-}
-
-void
-zaddr(Biobuf *b, Adr *a, int s)
-{
-	int32 l;
-	int i, t;
-	char *n;
-	Ieee e;
-
-	t = 0;
-	if(a->index != D_NONE || a->scale != 0)
-		t |= T_INDEX;
-	if(s != 0)
-		t |= T_SYM;
-
-	switch(a->type) {
-	default:
-		t |= T_TYPE;
-	case D_NONE:
-		if(a->offset != 0)
-			t |= T_OFFSET;
-		break;
-	case D_FCONST:
-		t |= T_FCONST;
-		break;
-	case D_SCONST:
-		t |= T_SCONST;
-		break;
-	case D_CONST2:
-		t |= T_OFFSET|T_OFFSET2;
-		break;
-	}
-	BPUTC(b, t);
-
-	if(t & T_INDEX) {	/* implies index, scale */
-		BPUTC(b, a->index);
-		BPUTC(b, a->scale);
-	}
-	if(t & T_OFFSET) {	/* implies offset */
-		l = a->offset;
-		BPUTLE4(b, l);
-	}
-	if(t & T_OFFSET2) {	/* implies offset2 */
-		l = a->offset2;
-		BPUTLE4(b, l);
-	}
-	if(t & T_SYM)		/* implies sym */
-		BPUTC(b, s);
-	if(t & T_FCONST) {
-		ieeedtod(&e, a->dval);
-		BPUTLE4(b, e.l);
-		BPUTLE4(b, e.h);
-		return;
-	}
-	if(t & T_SCONST) {
-		n = a->sval;
-		for(i=0; i<NSNAME; i++) {
-			BPUTC(b, *n);
-			n++;
-		}
-		return;
-	}
-	if(t & T_TYPE)
-		BPUTC(b, a->type);
 }
 
 int32
