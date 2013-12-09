@@ -12,7 +12,7 @@
 
 #define FUNCDATA_ArgsPointerMaps 2 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 3
-#define FUNCDATA_DeadPointerMaps 4
+#define FUNCDATA_DeadValueMaps 4
 
 // To be used in assembly.
 #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
