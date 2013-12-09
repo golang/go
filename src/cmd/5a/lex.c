@@ -59,6 +59,8 @@ main(int argc, char *argv[])
 
 	thechar = '5';
 	thestring = "arm";
+	ctxt = linknew(&linkarm);
+	ctxt->diag = yyerror;
 
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
@@ -90,9 +92,14 @@ main(int argc, char *argv[])
 		p = ARGF();
 		setinclude(p);
 		break;
+
 	case 't':
 		thechar = 't';
 		thestring = "thumb";
+		break;
+
+	case 'S':
+		ctxt->debugasm++;
 		break;
 	} ARGEND
 	if(*argv == 0) {
@@ -143,30 +150,23 @@ assemble(char *file)
 		errorexit();
 	}
 	Binit(&obuf, of, OWRITE);
-
-	pass = 1;
-	pinit(file);
-
 	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
-
-	for(i=0; i<nDlist; i++)
-		dodefine(Dlist[i]);
-	yyparse();
-	if(nerrors) {
-		cclean();
-		return nerrors;
-	}
-
 	Bprint(&obuf, "\n!\n");
 
-	pass = 2;
-	outhist();
-	pinit(file);
-	for(i=0; i<nDlist; i++)
-		dodefine(Dlist[i]);
-	yyparse();
-	cclean();
-	return nerrors;
+	for(pass = 1; pass <= 2; pass++) {
+		pinit(file);
+		for(i=0; i<nDlist; i++)
+			dodefine(Dlist[i]);
+		yyparse();
+		cclean();
+		if(nerrors)
+			return nerrors;
+	}
+
+	linkouthist(ctxt, &obuf);
+	linkwritefuncs(ctxt, &obuf);
+	Bflush(&obuf);
+	return 0;
 }
 
 struct
@@ -426,15 +426,9 @@ cinit(void)
 	Sym *s;
 	int i;
 
-	nullgen.sym = S;
-	nullgen.offset = 0;
 	nullgen.type = D_NONE;
 	nullgen.name = D_NONE;
 	nullgen.reg = NREG;
-	if(FPCHIP)
-		nullgen.dval = 0;
-	for(i=0; i<sizeof(nullgen.sval); i++)
-		nullgen.sval[i] = 0;
 
 	nerrors = 0;
 	iostack = I;
@@ -448,13 +442,6 @@ cinit(void)
 		s->type = itab[i].type;
 		s->value = itab[i].value;
 	}
-
-	pathname = allocn(pathname, 0, 100);
-	if(getwd(pathname, 99) == 0) {
-		pathname = allocn(pathname, 100, 900);
-		if(getwd(pathname, 999) == 0)
-			strcpy(pathname, "/???");
-	}
 }
 
 void
@@ -466,7 +453,7 @@ syminit(Sym *s)
 }
 
 int
-isreg(Gen *g)
+isreg(Addr *g)
 {
 
 	USED(g);
@@ -476,81 +463,7 @@ isreg(Gen *g)
 void
 cclean(void)
 {
-
 	outcode(AEND, Always, &nullgen, NREG, &nullgen);
-	Bflush(&obuf);
-}
-
-void
-zname(char *n, int t, int s)
-{
-
-	BPUTC(&obuf, ANAME);
-	BPUTC(&obuf, t);	/* type */
-	BPUTC(&obuf, s);	/* sym */
-	while(*n) {
-		BPUTC(&obuf, *n);
-		n++;
-	}
-	BPUTC(&obuf, 0);
-}
-
-void
-zaddr(Gen *a, int s)
-{
-	int32 l;
-	int i;
-	char *n;
-	Ieee e;
-
-	BPUTC(&obuf, a->type);
-	BPUTC(&obuf, a->reg);
-	BPUTC(&obuf, s);
-	BPUTC(&obuf, a->name);
-	BPUTC(&obuf, 0);
-	switch(a->type) {
-	default:
-		print("unknown type %d\n", a->type);
-		exits("arg");
-
-	case D_NONE:
-	case D_REG:
-	case D_FREG:
-	case D_PSR:
-	case D_FPCR:
-		break;
-
-	case D_REGREG:
-	case D_REGREG2:
-		BPUTC(&obuf, a->offset);
-		break;
-
-	case D_CONST2:
-		l = a->offset2;
-		BPUTLE4(&obuf, l);
-		// fall through
-	case D_OREG:
-	case D_CONST:
-	case D_BRANCH:
-	case D_SHIFT:
-		l = a->offset;
-		BPUTLE4(&obuf, l);
-		break;
-
-	case D_SCONST:
-		n = a->sval;
-		for(i=0; i<NSNAME; i++) {
-			BPUTC(&obuf, *n);
-			n++;
-		}
-		break;
-
-	case D_FCONST:
-		ieeedtod(&e, a->dval);
-		BPUTLE4(&obuf, e.l);
-		BPUTLE4(&obuf, e.h);
-		break;
-	}
 }
 
 static int bcode[] =
@@ -573,11 +486,13 @@ static int bcode[] =
 	ANOP,
 };
 
+static Prog *lastpc;
+
 void
-outcode(int a, int scond, Gen *g1, int reg, Gen *g2)
+outcode(int a, int scond, Addr *g1, int reg, Addr *g2)
 {
-	int sf, st, t;
-	Sym *s;
+	Prog *p;
+	Plist *pl;
 
 	/* hack to make B.NE etc. work: turn it into the corresponding conditional */
 	if(a == AB){
@@ -587,153 +502,26 @@ outcode(int a, int scond, Gen *g1, int reg, Gen *g2)
 
 	if(pass == 1)
 		goto out;
-jackpot:
-	sf = 0;
-	s = g1->sym;
-	while(s != S) {
-		sf = s->sym;
-		if(sf < 0 || sf >= NSYM)
-			sf = 0;
-		t = g1->name;
-		if(h[sf].type == t)
-		if(h[sf].sym == s)
-			break;
-		zname(s->name, t, sym);
-		s->sym = sym;
-		h[sym].sym = s;
-		h[sym].type = t;
-		sf = sym;
-		sym++;
-		if(sym >= NSYM)
-			sym = 1;
-		break;
-	}
-	st = 0;
-	s = g2->sym;
-	while(s != S) {
-		st = s->sym;
-		if(st < 0 || st >= NSYM)
-			st = 0;
-		t = g2->name;
-		if(h[st].type == t)
-		if(h[st].sym == s)
-			break;
-		zname(s->name, t, sym);
-		s->sym = sym;
-		h[sym].sym = s;
-		h[sym].type = t;
-		st = sym;
-		sym++;
-		if(sym >= NSYM)
-			sym = 1;
-		if(st == sf)
-			goto jackpot;
-		break;
-	}
-	BPUTC(&obuf, a);
-	BPUTC(&obuf, scond);
-	BPUTC(&obuf, reg);
-	BPUTLE4(&obuf, stmtline);
-	zaddr(g1, sf);
-	zaddr(g2, st);
+	
+	p = malloc(sizeof *p);
+	memset(p, 0, sizeof *p);
+	p->as = a;
+	p->lineno = stmtline;
+	p->scond = scond;
+	p->from = *g1;
+	p->reg = reg;
+	p->to = *g2;
+
+	if(lastpc == nil) {
+		pl = linknewplist(ctxt);
+		pl->firstpc = p;
+	} else
+		lastpc->link = p;
+	lastpc = p;	
 
 out:
 	if(a != AGLOBL && a != ADATA)
 		pc++;
-}
-
-void
-outhist(void)
-{
-	Gen g;
-	Hist *h;
-	char *p, *q, *op, c;
-	int n;
- 	char *tofree;
- 	static int first = 1;
- 	static char *goroot, *goroot_final;
- 
- 	if(first) {
- 		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
- 		first = 0;
- 		goroot = getenv("GOROOT");
- 		goroot_final = getenv("GOROOT_FINAL");
- 		if(goroot == nil)
- 			goroot = "";
- 		if(goroot_final == nil)
- 			goroot_final = goroot;
- 		if(strcmp(goroot, goroot_final) == 0) {
- 			goroot = nil;
- 			goroot_final = nil;
- 		}
- 	}
- 
- 	tofree = nil;
-	g = nullgen;
-	c = '/';
-	for(h = hist; h != H; h = h->link) {
-		p = h->name;
- 		if(p != nil && goroot != nil) {
- 			n = strlen(goroot);
- 			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
- 				tofree = smprint("%s%s", goroot_final, p+n);
- 				p = tofree;
- 			}
- 		}
-		op = 0;
-		if(systemtype(Windows) && p && p[1] == ':'){
-			c = p[2];
-		} else if(p && p[0] != c && h->offset == 0 && pathname){
-			if(systemtype(Windows) && pathname[1] == ':') {
-				op = p;
-				p = pathname;
-				c = p[2];
-			} else if(pathname[0] == c){
-				op = p;
-				p = pathname;
-			}
-		}
-		while(p) {
-			q = strchr(p, c);
-			if(q) {
-				n = q-p;
-				if(n == 0){
-					n = 1;	/* leading "/" */
-					*p = '/';	/* don't emit "\" on windows */
-				}
-				q++;
-			} else {
-				n = strlen(p);
-				q = 0;
-			}
-			if(n) {
-				BPUTC(&obuf, ANAME);
-				BPUTC(&obuf, D_FILE);	/* type */
-				BPUTC(&obuf, 1);	/* sym */
-				BPUTC(&obuf, '<');
-				Bwrite(&obuf, p, n);
-				BPUTC(&obuf, 0);
-			}
-			p = q;
-			if(p == 0 && op) {
-				p = op;
-				op = 0;
-			}
-		}
-		g.offset = h->offset;
-
-		BPUTC(&obuf, AHISTORY);
-		BPUTC(&obuf, Always);
-		BPUTC(&obuf, 0);
-		BPUTLE4(&obuf, h->line);
-		zaddr(&nullgen, 0);
-		zaddr(&g, 0);
-
-		if(tofree) {
-			free(tofree);
-			tofree = nil;
-		}
-	}
 }
 
 #include "../cc/lexbody"

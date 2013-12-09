@@ -209,7 +209,7 @@ newfile(char *s, int f)
 		errorexit();
 	}
 	fi.c = 0;
-	linehist(s, 0);
+	linklinehist(ctxt, lineno, s, 0);
 }
 
 Sym*
@@ -477,7 +477,7 @@ l1:
 		return LCONST;
 
 	case '"':
-		memcpy(yylval.sval, nullgen.sval, sizeof(yylval.sval));
+		memcpy(yylval.sval, nullgen.u.sval, sizeof(yylval.sval));
 		cp = yylval.sval;
 		c1 = 0;
 		for(;;) {
@@ -638,10 +638,6 @@ pinit(char *f)
 	pc = 0;
 	peekc = IGN;
 	sym = 1;
-	for(i=0; i<NSYM; i++) {
-		h[i].type = 0;
-		h[i].sym = S;
-	}
 	for(i=0; i<NHASH; i++)
 		for(s = hash[i]; s != S; s = s->link)
 			s->macro = 0;
@@ -661,7 +657,7 @@ loop:
 	fi.c = read(i->f, i->b, BUFSIZ) - 1;
 	if(fi.c < 0) {
 		close(i->f);
-		linehist(0, 0);
+		linklinehist(ctxt, lineno, 0, 0);
 		goto pop;
 	}
 	fi.p = i->b + 1;
@@ -709,67 +705,5 @@ yyerror(char *a, ...)
 void
 prfile(int32 l)
 {
-	int i, n;
-	Hist a[HISTSZ], *h;
-	int32 d;
-
-	n = 0;
-	for(h = hist; h != H; h = h->link) {
-		if(l < h->line)
-			break;
-		if(h->name) {
-			if(h->offset == 0) {
-				if(n >= 0 && n < HISTSZ)
-					a[n] = *h;
-				n++;
-				continue;
-			}
-			if(n > 0 && n < HISTSZ)
-				if(a[n-1].offset == 0) {
-					a[n] = *h;
-					n++;
-				} else
-					a[n-1] = *h;
-			continue;
-		}
-		n--;
-		if(n >= 0 && n < HISTSZ) {
-			d = h->line - a[n].line;
-			for(i=0; i<n; i++)
-				a[i].line += d;
-		}
-	}
-	if(n > HISTSZ)
-		n = HISTSZ;
-	for(i=0; i<n; i++)
-		print("%s:%ld ", a[i].name, (long)(l-a[i].line+a[i].offset+1));
-}
-
-void
-ieeedtod(Ieee *ieee, double native)
-{
-	double fr, ho, f;
-	int exp;
-
-	if(native < 0) {
-		ieeedtod(ieee, -native);
-		ieee->h |= 0x80000000L;
-		return;
-	}
-	if(native == 0) {
-		ieee->l = 0;
-		ieee->h = 0;
-		return;
-	}
-	fr = frexp(native, &exp);
-	f = 2097152L;		/* shouldn't use fp constants here */
-	fr = modf(fr*f, &ho);
-	ieee->h = ho;
-	ieee->h &= 0xfffffL;
-	ieee->h |= (exp+1022L) << 20;
-	f = 65536L;
-	fr = modf(fr*f, &ho);
-	ieee->l = ho;
-	ieee->l = (uint32)ieee->l << 16;
-	ieee->l |= (int32)(fr*f);
+	linkprfile(ctxt, l);
 }

@@ -29,8 +29,8 @@
 // THE SOFTWARE.
 
 #include <bio.h>
+#include <link.h>
 #include "../6l/6.out.h"
-
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -45,10 +45,8 @@
 
 typedef	struct	Sym	Sym;
 typedef	struct	Ref	Ref;
-typedef	struct	Gen	Gen;
 typedef	struct	Io	Io;
-typedef	struct	Hist	Hist;
-typedef	struct	Gen2	Gen2;
+typedef	struct	Addr2	Addr2;
 
 #define	MAXALIGN	7
 #define	FPCHIP		1
@@ -97,36 +95,11 @@ struct	Io
 };
 #define	I	((Io*)0)
 
-EXTERN struct
+struct	Addr2
 {
-	Sym*	sym;
-	short	type;
-} h[NSYM];
-
-struct	Gen
-{
-	double	dval;
-	char	sval[8];
-	vlong	offset;
-	Sym*	sym;
-	short	type;
-	short	index;
-	short	scale;
+	Addr	from;
+	Addr	to;
 };
-struct	Gen2
-{
-	Gen	from;
-	Gen	to;
-};
-
-struct	Hist
-{
-	Hist*	link;
-	char*	name;
-	int32	line;
-	vlong	offset;
-};
-#define	H	((Hist*)0)
 
 enum
 {
@@ -136,14 +109,11 @@ enum
 	CPREPROC,
 };
 
-
 EXTERN	char	debug[256];
 EXTERN	Sym*	hash[NHASH];
 EXTERN	char**	Dlist;
 EXTERN	int	nDlist;
-EXTERN	Hist*	ehist;
 EXTERN	int	newflag;
-EXTERN	Hist*	hist;
 EXTERN	char*	hunk;
 EXTERN	char**	include;
 EXTERN	Io*	iofree;
@@ -154,10 +124,9 @@ EXTERN	int	nerrors;
 EXTERN	int32	nhunk;
 EXTERN	int	ninclude;
 EXTERN	int32	nsymb;
-EXTERN	Gen	nullgen;
+EXTERN	Addr	nullgen;
 EXTERN	char*	outfile;
 EXTERN	int	pass;
-EXTERN	char*	pathname;
 EXTERN	int32	pc;
 EXTERN	int	peekc;
 EXTERN	int32	stmtline;
@@ -167,6 +136,7 @@ EXTERN	int	thechar;
 EXTERN	char*	thestring;
 EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
+EXTERN	Link*	ctxt;
 
 void*	alloc(int32);
 void*	allocn(void*, int32, int32);
@@ -187,12 +157,11 @@ void	cinit(void);
 void	checkscale(int);
 void	pinit(char*);
 void	cclean(void);
-int	isreg(Gen*);
-void	outcode(int, Gen2*);
+int	isreg(Addr*);
+void	outcode(int, Addr2*);
 void	outhist(void);
-void	zaddr(Gen*, int);
+void	zaddr(Addr*, int);
 void	zname(char*, int, int);
-void	ieeedtod(Ieee*, double);
 int	filbuf(void);
 Sym*	getsym(void);
 void	domacro(void);
