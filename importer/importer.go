@@ -52,6 +52,7 @@ import (
 	"strings"
 	"sync"
 
+	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
@@ -530,4 +531,32 @@ func initialPackageFromFiles(fset *token.FileSet, arg string) (*initialPkg, erro
 		importable: false,
 		files:      files,
 	}, nil
+}
+
+// PathEnclosingInterval returns the PackageInfo and ast.Node that
+// contain source interval [start, end), and all the node's ancestors
+// up to the AST root.  It searches all ast.Files of all packages in the
+// Importer imp.  exact is defined as for astutil.PathEnclosingInterval.
+//
+// The result is (nil, nil, false) if not found.
+//
+func (imp *Importer) PathEnclosingInterval(start, end token.Pos) (pkg *PackageInfo, path []ast.Node, exact bool) {
+	for _, info := range imp.allPackages {
+		for _, f := range info.Files {
+			if !tokenFileContainsPos(imp.Fset.File(f.Package), start) {
+				continue
+			}
+			if path, exact := astutil.PathEnclosingInterval(f, start, end); path != nil {
+				return info, path, exact
+			}
+		}
+	}
+	return nil, nil, false
+}
+
+// TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
+func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
+	p := int(pos)
+	base := f.Base()
+	return base <= p && p < base+f.Size()
 }

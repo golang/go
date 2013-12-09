@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
@@ -36,7 +37,7 @@ import (
 func describe(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	if false { // debugging
 		o.fprintf(os.Stderr, qpos.path[0], "you selected: %s %s",
-			importer.NodeDescription(qpos.path[0]), pathToString2(qpos.path))
+			astutil.NodeDescription(qpos.path[0]), pathToString2(qpos.path))
 	}
 
 	path, action := findInterestingNode(qpos.info, qpos.path)
@@ -67,12 +68,12 @@ type describeUnknownResult struct {
 
 func (r *describeUnknownResult) display(printf printfFunc) {
 	// Nothing much to say about misc syntax.
-	printf(r.node, "%s", importer.NodeDescription(r.node))
+	printf(r.node, "%s", astutil.NodeDescription(r.node))
 }
 
 func (r *describeUnknownResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	res.Describe = &serial.Describe{
-		Desc: importer.NodeDescription(r.node),
+		Desc: astutil.NodeDescription(r.node),
 		Pos:  fset.Position(r.node.Pos()).String(),
 	}
 }
@@ -496,7 +497,7 @@ func (r *describeValueResult) display(printf printfFunc) {
 			}
 		}
 	} else {
-		desc := importer.NodeDescription(r.expr)
+		desc := astutil.NodeDescription(r.expr)
 		if suffix != "" {
 			// constant expression
 			printf(r.expr, "%s%s", desc, suffix)
@@ -582,7 +583,7 @@ func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) 
 	}
 
 	res.Describe = &serial.Describe{
-		Desc:   importer.NodeDescription(r.expr),
+		Desc:   astutil.NodeDescription(r.expr),
 		Pos:    fset.Position(r.expr.Pos()).String(),
 		Detail: "value",
 		Value: &serial.DescribeValue{
@@ -901,7 +902,7 @@ func describeStmt(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeStmtResu
 
 	default:
 		// Nothing much to say about statements.
-		description = importer.NodeDescription(n)
+		description = astutil.NodeDescription(n)
 	}
 	return &describeStmtResult{o.prog.Fset, path[0], description}, nil
 }

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
@@ -88,7 +89,7 @@ func TestObjValueLookup(t *testing.T) {
 			continue
 		}
 		if obj, ok := mainInfo.ObjectOf(id).(*types.Var); ok {
-			ref, _ := importer.PathEnclosingInterval(f, id.Pos(), id.Pos())
+			ref, _ := astutil.PathEnclosingInterval(f, id.Pos(), id.Pos())
 			pos := imp.Fset.Position(id.Pos())
 			exp := expectations[fmt.Sprintf("%s:%d", id.Name, pos.Line)]
 			if exp == "" {
@@ -240,7 +241,7 @@ func TestValueForExpr(t *testing.T) {
 			e = target.X
 		}
 
-		path, _ := importer.PathEnclosingInterval(f, pos, pos)
+		path, _ := astutil.PathEnclosingInterval(f, pos, pos)
 		if path == nil {
 			t.Errorf("%s: can't find AST path from root to comment: %s", position, text)
 			continue

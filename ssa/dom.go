@@ -113,7 +113,7 @@ func (lt *ltState) link(v, w *BasicBlock) {
 //
 func buildDomTree(f *Function) {
 	// The step numbers refer to the original LT paper; the
-	// reodering is due to Georgiadis.
+	// reordering is due to Georgiadis.
 
 	// Clear any previous domInfo.
 	for _, b := range f.Blocks {

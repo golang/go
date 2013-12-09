@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package importer
+package astutil
 
 // This file defines utilities for working with source positions.
 
@@ -54,7 +54,7 @@ import (
 //
 // Precondition: [start, end) both lie within the same file as root.
 // TODO(adonovan): return (nil, false) in this case and remove precond.
-// Requires FileSet; see tokenFileContainsPos.
+// Requires FileSet; see importer.tokenFileContainsPos.
 //
 // Postcondition: path is never nil; it always contains at least 'root'.
 //
@@ -622,33 +622,4 @@ func NodeDescription(n ast.Node) string {
 
 	}
 	panic(fmt.Sprintf("unexpected node type: %T", n))
-}
-
-// TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
-func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
-	p := int(pos)
-	base := f.Base()
-	return base <= p && p < base+f.Size()
-}
-
-// PathEnclosingInterval returns the PackageInfo and ast.Node that
-// contain source interval [start, end), and all the node's ancestors
-// up to the AST root.  It searches all ast.Files of all packages in the
-// Importer imp.  exact is defined as for standalone
-// PathEnclosingInterval.
-//
-// The result is (nil, nil, false) if not found.
-//
-func (imp *Importer) PathEnclosingInterval(start, end token.Pos) (pkg *PackageInfo, path []ast.Node, exact bool) {
-	for _, info := range imp.allPackages {
-		for _, f := range info.Files {
-			if !tokenFileContainsPos(imp.Fset.File(f.Package), start) {
-				continue
-			}
-			if path, exact := PathEnclosingInterval(f, start, end); path != nil {
-				return info, path, exact
-			}
-		}
-	}
-	return nil, nil, false
 }

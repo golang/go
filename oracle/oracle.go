@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle/serial"
@@ -339,7 +340,7 @@ func ParseQueryPos(imp *importer.Importer, pos string, needExact bool) (*QueryPo
 		return nil, fmt.Errorf("no syntax here")
 	}
 	if needExact && !exact {
-		return nil, fmt.Errorf("ambiguous selection within %s", importer.NodeDescription(path[0]))
+		return nil, fmt.Errorf("ambiguous selection within %s", astutil.NodeDescription(path[0]))
 	}
 	return &QueryPos{start, end, info, path}, nil
 }
