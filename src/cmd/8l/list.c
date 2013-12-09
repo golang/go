@@ -104,7 +104,7 @@ Dconv(Fmt *fp)
 	i = a->type;
 	if(i >= D_INDIR && i < 2*D_INDIR) {
 		if(a->offset)
-			snprint(str, sizeof str, "%d(%R)", a->offset, i-D_INDIR);
+			snprint(str, sizeof str, "%lld(%R)", a->offset, i-D_INDIR);
 		else
 			snprint(str, sizeof str, "(%R)", i-D_INDIR);
 		goto brk;
@@ -122,40 +122,40 @@ Dconv(Fmt *fp)
 	case D_BRANCH:
 		if(bigP != P && bigP->pcond != P)
 			if(a->sym != S)
-				snprint(str, sizeof str, "%ux+%s", bigP->pcond->pc,
+				snprint(str, sizeof str, "%llux+%s", bigP->pcond->pc,
 					a->sym->name);
 			else
-				snprint(str, sizeof str, "%ux", bigP->pcond->pc);
+				snprint(str, sizeof str, "%llux", bigP->pcond->pc);
 		else
-			snprint(str, sizeof str, "%d(PC)", a->offset);
+			snprint(str, sizeof str, "%lld(PC)", a->offset);
 		break;
 
 	case D_EXTERN:
-		snprint(str, sizeof str, "%s+%d(SB)", xsymname(a->sym), a->offset);
+		snprint(str, sizeof str, "%s+%lld(SB)", xsymname(a->sym), a->offset);
 		break;
 
 	case D_STATIC:
-		snprint(str, sizeof str, "%s<%d>+%d(SB)", xsymname(a->sym),
+		snprint(str, sizeof str, "%s<%d>+%lld(SB)", xsymname(a->sym),
 			a->sym->version, a->offset);
 		break;
 
 	case D_AUTO:
-		snprint(str, sizeof str, "%s+%d(SP)", xsymname(a->sym), a->offset);
+		snprint(str, sizeof str, "%s+%lld(SP)", xsymname(a->sym), a->offset);
 		break;
 
 	case D_PARAM:
 		if(a->sym)
-			snprint(str, sizeof str, "%s+%d(FP)", a->sym->name, a->offset);
+			snprint(str, sizeof str, "%s+%lld(FP)", a->sym->name, a->offset);
 		else
-			snprint(str, sizeof str, "%d(FP)", a->offset);
+			snprint(str, sizeof str, "%lld(FP)", a->offset);
 		break;
 
 	case D_CONST:
-		snprint(str, sizeof str, "$%d", a->offset);
+		snprint(str, sizeof str, "$%lld", a->offset);
 		break;
 
 	case D_CONST2:
-		snprint(str, sizeof str, "$%d-%d", a->offset, a->offset2);
+		snprint(str, sizeof str, "$%lld-%d", a->offset, a->offset2);
 		break;
 
 	case D_FCONST:

@@ -88,7 +88,7 @@ Dconv(Fmt *fp)
 	i = a->type;
 	if(i >= D_INDIR) {
 		if(a->offset)
-			snprint(str, sizeof(str), "%d(%R)", a->offset, i-D_INDIR);
+			snprint(str, sizeof(str), "%lld(%R)", a->offset, i-D_INDIR);
 		else
 			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
 		goto brk;
@@ -97,7 +97,7 @@ Dconv(Fmt *fp)
 
 	default:
 		if(a->offset)
-			snprint(str, sizeof(str), "$%d,%R", a->offset, i);
+			snprint(str, sizeof(str), "$%lld,%R", a->offset, i);
 		else
 			snprint(str, sizeof(str), "%R", i);
 		break;
@@ -111,19 +111,19 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_EXTERN:
-		snprint(str, sizeof(str), "%lS+%d(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%lld(SB)", a->sym, a->offset);
 		break;
 
 	case D_STATIC:
-		snprint(str, sizeof(str), "%lS<>+%d(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS<>+%lld(SB)", a->sym, a->offset);
 		break;
 
 	case D_AUTO:
-		snprint(str, sizeof(str), "%lS+%d(SP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%lld(SP)", a->sym, a->offset);
 		break;
 
 	case D_PARAM:
-		snprint(str, sizeof(str), "%lS+%d(FP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%lS+%lld(FP)", a->sym, a->offset);
 		break;
 
 	case D_CONST:
@@ -133,7 +133,7 @@ Dconv(Fmt *fp)
 			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
 			break;
 		}
-		snprint(str, sizeof(str), "$%d", a->offset);
+		snprint(str, sizeof(str), "$%lld", a->offset);
 		break;
 
 	case D_FCONST:
