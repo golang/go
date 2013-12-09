@@ -93,7 +93,7 @@ void	cmdversion(int, char**);
 
 // buildgc.c
 void	gcopnames(char*, char*);
-void	mkenam(char*, char*);
+void	mkanames(char*, char*);
 
 // buildruntime.c
 void	mkzasm(char*, char*);
