@@ -255,7 +255,7 @@ TEXT _div(SB),NOSPLIT,$16
 d0:
 	BL  	udiv<>(SB)  		/* none/both neg */
 	MOVW	R(q), R(TMP)
-	B		out
+	B		out1
 d1:
 	CMP 	$0, R(q)
 	BGE 	d0
@@ -263,7 +263,12 @@ d1:
 d2:
 	BL  	udiv<>(SB)  		/* one neg */
 	RSB		$0, R(q), R(TMP)
-	B   	out
+out1:
+	MOVW	4(R13), R(q)
+	MOVW	8(R13), R(r)
+	MOVW	12(R13), R(s)
+	MOVW	16(R13), R(M)
+	RET
 
 TEXT _mod(SB),NOSPLIT,$16
 	MOVW	R(q), 4(R13)
