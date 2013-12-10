@@ -129,6 +129,9 @@ struct	Val
 	} u;
 };
 
+// prevent incompatible type signatures between libgc and 8g on Plan 9
+#pragma incomplete struct Array
+
 typedef	struct	Array	Array;
 typedef	struct	Bvec	Bvec;
 typedef	struct	Pkg Pkg;
