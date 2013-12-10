@@ -529,15 +529,8 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	}
 	// We're trying to write a gcc struct that matches 6c/8c/5c's layout.
 	// Use packed attribute to force no padding in this struct in case
-	// gcc has different packing requirements.  For example,
-	// on 386 Windows, gcc wants to 8-align int64s, but 8c does not.
-	// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
-	// and http://golang.org/issue/5603.
-	extraAttr := ""
-	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
-		extraAttr = ", __gcc_struct__"
-	}
-	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__%v)) *a = v;\n", ctype, extraAttr)
+	// gcc has different packing requirements.
+	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "a->r = ")
@@ -616,6 +609,19 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 	fmt.Fprintf(fgcc, ");\n")
 	fmt.Fprintf(fgcc, "}\n")
 	fmt.Fprintf(fgcc, "\n")
+}
+
+// packedAttribute returns host compiler struct attribute that will be
+// used to match 6c/8c/5c's struct layout. For example, on 386 Windows,
+// gcc wants to 8-align int64s, but 8c does not.
+// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
+// and http://golang.org/issue/5603.
+func (p *Package) packedAttribute() string {
+	s := "__attribute__((__packed__"
+	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
+		s += ", __gcc_struct__"
+	}
+	return s + "))"
 }
 
 // Write out the various stubs we need to support functions exported
@@ -727,7 +733,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
-		fmt.Fprintf(fgcc, "\t%s __attribute__((packed)) a;\n", ctype)
+		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
 		}
