@@ -528,20 +528,20 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 		// Analytically print is a no-op, but it's a convenient hook
 		// for testing the pts of an expression, so we notify the client.
 		// Existing uses in Go core libraries are few and harmless.
-		if Print := a.config.Print; Print != nil {
+		if a.config.QueryPrintCalls {
 			// Due to context-sensitivity, we may encounter
 			// the same print() call in many contexts, so
 			// we merge them to a canonical node.
-			probe := a.probes[call]
+
 			t := call.Args[0].Type()
 
-			// First time?  Create the canonical probe node.
-			if probe == 0 {
-				probe = a.addNodes(t, "print")
-				a.probes[call] = probe
-				Print(call, Pointer{a, nil, probe}) // notify client
+			ptr, ok := a.result.PrintCalls[call]
+			if !ok {
+				// First time?  Create the canonical probe node.
+				ptr = Pointer{a, nil, a.addNodes(t, "print")}
+				a.result.PrintCalls[call] = ptr
 			}
-
+			probe := ptr.n
 			a.copy(probe, a.valueNode(call.Args[0]), a.sizeof(t))
 		}
 

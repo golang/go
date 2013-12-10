@@ -259,11 +259,11 @@ func Analyze(config *Config) *Result {
 		flattenMemo: make(map[types.Type][]*fieldInfo),
 		hasher:      typemap.MakeHasher(),
 		intrinsics:  make(map[*ssa.Function]intrinsic),
-		probes:      make(map[*ssa.CallCommon]nodeid),
 		work:        makeMapWorklist(),
 		result: &Result{
 			Queries:         make(map[ssa.Value][]Pointer),
 			IndirectQueries: make(map[ssa.Value][]Pointer),
+			PrintCalls:      make(map[*ssa.CallCommon]Pointer),
 		},
 	}
 

@@ -136,25 +136,19 @@ func (e *expectation) needsProbe() bool {
 	return e.kind == "pointsto" || e.kind == "types"
 }
 
-// A record of a call to the built-in print() function.  Used for testing.
-type probe struct {
-	instr *ssa.CallCommon
-	arg0  pointer.Pointer // first argument to print
-}
-
 // Find probe (call to print(x)) of same source
 // file/line as expectation.
-func findProbe(prog *ssa.Program, probes []probe, e *expectation) *probe {
-	for _, p := range probes {
-		pos := prog.Fset.Position(p.instr.Pos())
+func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]pointer.Pointer, e *expectation) (site *ssa.CallCommon, ptr pointer.Pointer) {
+	for call, ptr := range probes {
+		pos := prog.Fset.Position(call.Pos())
 		if pos.Line == e.linenum && pos.Filename == e.filename {
 			// TODO(adonovan): send this to test log (display only on failure).
 			// fmt.Printf("%s:%d: info: found probe for %s: %s\n",
 			// 	e.filename, e.linenum, e, p.arg0) // debugging
-			return &p
+			return call, ptr
 		}
 	}
-	return nil // e.g. analysis didn't reach this call
+	return // e.g. analysis didn't reach this call
 }
 
 func doOneInput(input, filename string) bool {
@@ -276,18 +270,15 @@ func doOneInput(input, filename string) bool {
 		}
 	}
 
-	var probes []probe
 	var log bytes.Buffer
 
 	// Run the analysis.
 	config := &pointer.Config{
-		Reflection:     true,
-		BuildCallGraph: true,
-		Mains:          []*ssa.Package{ptrmain},
-		Log:            &log,
-		Print: func(site *ssa.CallCommon, p pointer.Pointer) {
-			probes = append(probes, probe{site, p})
-		},
+		Reflection:      true,
+		BuildCallGraph:  true,
+		QueryPrintCalls: true,
+		Mains:           []*ssa.Package{ptrmain},
+		Log:             &log,
 	}
 
 	// Print the log is there was an error or a panic.
@@ -302,28 +293,31 @@ func doOneInput(input, filename string) bool {
 
 	// Check the expectations.
 	for _, e := range exps {
-		var pr *probe
+		var call *ssa.CallCommon
+		var ptr pointer.Pointer
+		var tProbe types.Type
 		if e.needsProbe() {
-			if pr = findProbe(prog, probes, e); pr == nil {
+			if call, ptr = findProbe(prog, result.PrintCalls, e); call == nil {
 				ok = false
 				e.errorf("unreachable print() statement has expectation %s", e)
 				continue
 			}
-			if tArg := pr.instr.Args[0].Type(); !pointer.CanPoint(tArg) {
+			tProbe = call.Args[0].Type()
+			if !pointer.CanPoint(tProbe) {
 				ok = false
-				e.errorf("expectation on non-pointerlike operand: %s", tArg)
+				e.errorf("expectation on non-pointerlike operand: %s", tProbe)
 				continue
 			}
 		}
 
 		switch e.kind {
 		case "pointsto":
-			if !checkPointsToExpectation(e, pr, lineMapping, prog) {
+			if !checkPointsToExpectation(e, ptr, lineMapping, prog) {
 				ok = false
 			}
 
 		case "types":
-			if !checkTypesExpectation(e, pr) {
+			if !checkTypesExpectation(e, ptr, tProbe) {
 				ok = false
 			}
 
@@ -368,7 +362,7 @@ func labelString(l *pointer.Label, lineMapping map[string]string, prog *ssa.Prog
 	return str
 }
 
-func checkPointsToExpectation(e *expectation, pr *probe, lineMapping map[string]string, prog *ssa.Program) bool {
+func checkPointsToExpectation(e *expectation, ptr pointer.Pointer, lineMapping map[string]string, prog *ssa.Program) bool {
 	expected := make(map[string]int)
 	surplus := make(map[string]int)
 	exact := true
@@ -381,7 +375,7 @@ func checkPointsToExpectation(e *expectation, pr *probe, lineMapping map[string]
 	}
 	// Find the set of labels that the probe's
 	// argument (x in print(x)) may point to.
-	for _, label := range pr.arg0.PointsTo().Labels() {
+	for _, label := range ptr.PointsTo().Labels() {
 		name := labelString(label, lineMapping, prog)
 		if expected[name] > 0 {
 			expected[name]--
@@ -419,7 +413,7 @@ func underlyingType(typ types.Type) types.Type {
 	return typ
 }
 
-func checkTypesExpectation(e *expectation, pr *probe) bool {
+func checkTypesExpectation(e *expectation, ptr pointer.Pointer, typ types.Type) bool {
 	var expected typemap.M
 	var surplus typemap.M
 	exact := true
@@ -431,14 +425,14 @@ func checkTypesExpectation(e *expectation, pr *probe) bool {
 		expected.Set(g, struct{}{})
 	}
 
-	if t := pr.instr.Args[0].Type(); !pointer.CanHaveDynamicTypes(t) {
-		e.errorf("@types expectation requires an interface- or reflect.Value-typed operand, got %s", t)
+	if !pointer.CanHaveDynamicTypes(typ) {
+		e.errorf("@types expectation requires an interface- or reflect.Value-typed operand, got %s", typ)
 		return false
 	}
 
 	// Find the set of types that the probe's
 	// argument (x in print(x)) may contain.
-	for _, T := range pr.arg0.PointsTo().DynamicTypes().Keys() {
+	for _, T := range ptr.PointsTo().DynamicTypes().Keys() {
 		if expected.At(T) != nil {
 			expected.Delete(T)
 		} else if exact {

@@ -33,19 +33,13 @@ type Config struct {
 	// If enabled, the graph will be available in Result.CallGraph.
 	BuildCallGraph bool
 
-	// Print is invoked during the analysis for each discovered
-	// call to the built-in print(x), providing a convenient way
-	// to identify arbitrary expressions of interest in the tests.
+	// QueryPrintCalls causes the analysis to record (in
+	// Result.PrintCalls) the points-to set of the first operand
+	// of each discovered call to the built-in print(x), providing
+	// a convenient way to identify arbitrary expressions of
+	// interest in the tests.
 	//
-	// Pointer p may be saved until the analysis is complete, at
-	// which point its methods provide access to the analysis
-	// (The result of callings its methods within the Print
-	// callback is undefined.)
-	//
-	// CanPoint(site.Args[0].Type()) reports whether p is
-	// pointerlike.
-	//
-	Print func(site *ssa.CallCommon, p Pointer)
+	QueryPrintCalls bool
 
 	// The client populates Queries[v] or IndirectQueries[v]
 	// for each ssa.Value v of interest, to request that the
@@ -57,12 +51,12 @@ type Config struct {
 	// to source-level lvalues, e.g. an *ssa.Global.)
 	//
 	// The analysis populates the corresponding
-	// Results.{Indirect,}Queries map when it creates the pointer
+	// Result.{Indirect,}Queries map when it creates the pointer
 	// variable for v or *v.  Upon completion the client can
 	// inspect that map for the results.
 	//
 	// If a Value belongs to a function that the analysis treats
-	// context-sensitively, the corresponding Results.{Indirect,}Queries
+	// context-sensitively, the corresponding Result.{Indirect,}Queries
 	// slice may have multiple Pointers, one per distinct context.
 	// Use PointsToCombined to merge them.
 	//
@@ -113,10 +107,11 @@ type Warning struct {
 // See Config for how to request the various Result components.
 //
 type Result struct {
-	CallGraph       call.Graph              // discovered call graph
-	Queries         map[ssa.Value][]Pointer // pts(v) for each v in Config.Queries.
-	IndirectQueries map[ssa.Value][]Pointer // pts(*v) for each v in Config.IndirectQueries.
-	Warnings        []Warning               // warnings of unsoundness
+	CallGraph       call.Graph                  // discovered call graph
+	Queries         map[ssa.Value][]Pointer     // pts(v) for each v in Config.Queries.
+	IndirectQueries map[ssa.Value][]Pointer     // pts(*v) for each v in Config.IndirectQueries.
+	Warnings        []Warning                   // warnings of unsoundness
+	PrintCalls      map[*ssa.CallCommon]Pointer // pts(x) for each call to print(x)
 }
 
 // A Pointer is an equivalence class of pointerlike values.
