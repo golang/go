@@ -409,131 +409,125 @@ flushptrbuf(Scanbuf *sbuf)
 			runtime·throw("ptrbuf has to be smaller than WorkBuf");
 	}
 
-	// TODO(atom): This block is a branch of an if-then-else statement.
-	//             The single-threaded branch may be added in a next CL.
-	{
-		// Multi-threaded version.
+	while(ptrbuf < ptrbuf_end) {
+		obj = ptrbuf->p;
+		ti = ptrbuf->ti;
+		ptrbuf++;
 
-		while(ptrbuf < ptrbuf_end) {
-			obj = ptrbuf->p;
-			ti = ptrbuf->ti;
-			ptrbuf++;
+		// obj belongs to interval [mheap.arena_start, mheap.arena_used).
+		if(Debug > 1) {
+			if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
+				runtime·throw("object is outside of mheap");
+		}
 
-			// obj belongs to interval [mheap.arena_start, mheap.arena_used).
-			if(Debug > 1) {
-				if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
-					runtime·throw("object is outside of mheap");
-			}
+		// obj may be a pointer to a live object.
+		// Try to find the beginning of the object.
 
-			// obj may be a pointer to a live object.
-			// Try to find the beginning of the object.
+		// Round down to word boundary.
+		if(((uintptr)obj & ((uintptr)PtrSize-1)) != 0) {
+			obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
+			ti = 0;
+		}
 
-			// Round down to word boundary.
-			if(((uintptr)obj & ((uintptr)PtrSize-1)) != 0) {
-				obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
-				ti = 0;
-			}
+		// Find bits for this word.
+		off = (uintptr*)obj - (uintptr*)arena_start;
+		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = off % wordsPerBitmapWord;
+		xbits = *bitp;
+		bits = xbits >> shift;
 
-			// Find bits for this word.
-			off = (uintptr*)obj - (uintptr*)arena_start;
-			bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-			shift = off % wordsPerBitmapWord;
-			xbits = *bitp;
-			bits = xbits >> shift;
+		// Pointing at the beginning of a block?
+		if((bits & (bitAllocated|bitBlockBoundary)) != 0) {
+			if(CollectStats)
+				runtime·xadd64(&gcstats.flushptrbuf.foundbit, 1);
+			goto found;
+		}
 
-			// Pointing at the beginning of a block?
-			if((bits & (bitAllocated|bitBlockBoundary)) != 0) {
+		ti = 0;
+
+		// Pointing just past the beginning?
+		// Scan backward a little to find a block boundary.
+		for(j=shift; j-->0; ) {
+			if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
+				obj = (byte*)obj - (shift-j)*PtrSize;
+				shift = j;
+				bits = xbits>>shift;
 				if(CollectStats)
-					runtime·xadd64(&gcstats.flushptrbuf.foundbit, 1);
+					runtime·xadd64(&gcstats.flushptrbuf.foundword, 1);
 				goto found;
 			}
-
-			ti = 0;
-
-			// Pointing just past the beginning?
-			// Scan backward a little to find a block boundary.
-			for(j=shift; j-->0; ) {
-				if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
-					obj = (byte*)obj - (shift-j)*PtrSize;
-					shift = j;
-					bits = xbits>>shift;
-					if(CollectStats)
-						runtime·xadd64(&gcstats.flushptrbuf.foundword, 1);
-					goto found;
-				}
-			}
-
-			// Otherwise consult span table to find beginning.
-			// (Manually inlined copy of MHeap_LookupMaybe.)
-			k = (uintptr)obj>>PageShift;
-			x = k;
-			if(sizeof(void*) == 8)
-				x -= (uintptr)arena_start>>PageShift;
-			s = runtime·mheap.spans[x];
-			if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
-				continue;
-			p = (byte*)((uintptr)s->start<<PageShift);
-			if(s->sizeclass == 0) {
-				obj = p;
-			} else {
-				size = s->elemsize;
-				int32 i = ((byte*)obj - p)/size;
-				obj = p+i*size;
-			}
-
-			// Now that we know the object header, reload bits.
-			off = (uintptr*)obj - (uintptr*)arena_start;
-			bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-			shift = off % wordsPerBitmapWord;
-			xbits = *bitp;
-			bits = xbits >> shift;
-			if(CollectStats)
-				runtime·xadd64(&gcstats.flushptrbuf.foundspan, 1);
-
-		found:
-			// Now we have bits, bitp, and shift correct for
-			// obj pointing at the base of the object.
-			// Only care about allocated and not marked.
-			if((bits & (bitAllocated|bitMarked)) != bitAllocated)
-				continue;
-			if(work.nproc == 1)
-				*bitp |= bitMarked<<shift;
-			else {
-				for(;;) {
-					x = *bitp;
-					if(x & (bitMarked<<shift))
-						goto continue_obj;
-					if(runtime·casp((void**)bitp, (void*)x, (void*)(x|(bitMarked<<shift))))
-						break;
-				}
-			}
-
-			// If object has no pointers, don't need to scan further.
-			if((bits & bitNoScan) != 0)
-				continue;
-
-			// Ask span about size class.
-			// (Manually inlined copy of MHeap_Lookup.)
-			x = (uintptr)obj >> PageShift;
-			if(sizeof(void*) == 8)
-				x -= (uintptr)arena_start>>PageShift;
-			s = runtime·mheap.spans[x];
-
-			PREFETCH(obj);
-
-			*wp = (Obj){obj, s->elemsize, ti};
-			wp++;
-			nobj++;
-		continue_obj:;
 		}
 
-		// If another proc wants a pointer, give it some.
-		if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
-			wbuf->nobj = nobj;
-			wbuf = handoff(wbuf);
-			nobj = wbuf->nobj;
-			wp = wbuf->obj + nobj;
+		// Otherwise consult span table to find beginning.
+		// (Manually inlined copy of MHeap_LookupMaybe.)
+		k = (uintptr)obj>>PageShift;
+		x = k;
+		if(sizeof(void*) == 8)
+			x -= (uintptr)arena_start>>PageShift;
+		s = runtime·mheap.spans[x];
+		if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+			continue;
+		p = (byte*)((uintptr)s->start<<PageShift);
+		if(s->sizeclass == 0) {
+			obj = p;
+		} else {
+			size = s->elemsize;
+			int32 i = ((byte*)obj - p)/size;
+			obj = p+i*size;
 		}
+
+		// Now that we know the object header, reload bits.
+		off = (uintptr*)obj - (uintptr*)arena_start;
+		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = off % wordsPerBitmapWord;
+		xbits = *bitp;
+		bits = xbits >> shift;
+		if(CollectStats)
+			runtime·xadd64(&gcstats.flushptrbuf.foundspan, 1);
+
+	found:
+		// Now we have bits, bitp, and shift correct for
+		// obj pointing at the base of the object.
+		// Only care about allocated and not marked.
+		if((bits & (bitAllocated|bitMarked)) != bitAllocated)
+			continue;
+		if(work.nproc == 1)
+			*bitp |= bitMarked<<shift;
+		else {
+			for(;;) {
+				x = *bitp;
+				if(x & (bitMarked<<shift))
+					goto continue_obj;
+				if(runtime·casp((void**)bitp, (void*)x, (void*)(x|(bitMarked<<shift))))
+					break;
+			}
+		}
+
+		// If object has no pointers, don't need to scan further.
+		if((bits & bitNoScan) != 0)
+			continue;
+
+		// Ask span about size class.
+		// (Manually inlined copy of MHeap_Lookup.)
+		x = (uintptr)obj >> PageShift;
+		if(sizeof(void*) == 8)
+			x -= (uintptr)arena_start>>PageShift;
+		s = runtime·mheap.spans[x];
+
+		PREFETCH(obj);
+
+		*wp = (Obj){obj, s->elemsize, ti};
+		wp++;
+		nobj++;
+	continue_obj:;
+	}
+
+	// If another proc wants a pointer, give it some.
+	if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
+		wbuf->nobj = nobj;
+		wbuf = handoff(wbuf);
+		nobj = wbuf->nobj;
+		wp = wbuf->obj + nobj;
 	}
 
 	sbuf->wp = wp;
