@@ -60,27 +60,57 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		return nil, fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
+	// Find the call site.
+	site, err := findCallSite(callerFn, e.Lparen)
+	if err != nil {
+		return nil, err
+	}
+
+	funcs, err := findCallees(o, site)
+	if err != nil {
+		return nil, err
+	}
+
+	return &calleesResult{
+		site:  site,
+		funcs: funcs,
+	}, nil
+}
+
+func findCallSite(fn *ssa.Function, lparen token.Pos) (ssa.CallInstruction, error) {
+	for _, b := range fn.Blocks {
+		for _, instr := range b.Instrs {
+			if site, ok := instr.(ssa.CallInstruction); ok && instr.Pos() == lparen {
+				return site, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("this call site is unreachable in this analysis")
+}
+
+func findCallees(o *Oracle, site ssa.CallInstruction) ([]*ssa.Function, error) {
+	// Avoid running the pointer analysis for static calls.
+	if callee := site.Common().StaticCallee(); callee != nil {
+		switch callee.String() {
+		case "runtime.SetFinalizer", "(reflect.Value).Call":
+			// The PTA treats calls to these intrinsics as dynamic.
+			// TODO(adonovan): avoid reliance on PTA internals.
+
+		default:
+			return []*ssa.Function{callee}, nil // singleton
+		}
+	}
+
+	// Dynamic call: use pointer analysis.
 	o.config.BuildCallGraph = true
 	callgraph := ptrAnalysis(o).CallGraph
 
-	// Find the call site and all edges from it.
-	var site ssa.CallInstruction
+	// Find all call edges from the site.
 	calleesMap := make(map[*ssa.Function]bool)
+	var foundCGNode bool
 	for _, n := range callgraph.Nodes() {
-		if n.Func() == callerFn {
-			if site == nil {
-				// First node for callerFn: identify the site.
-				for _, s := range n.Sites() {
-					if s.Pos() == e.Lparen {
-						site = s
-						break
-					}
-				}
-				if site == nil {
-					return nil, fmt.Errorf("this call site is unreachable in this analysis")
-				}
-			}
-
+		if n.Func() == site.Parent() {
+			foundCGNode = true
 			for _, edge := range n.Edges() {
 				if edge.Site == site {
 					calleesMap[edge.Callee.Func()] = true
@@ -88,8 +118,8 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 			}
 		}
 	}
-	if site == nil {
-		return nil, fmt.Errorf("this function is unreachable in this analysis")
+	if !foundCGNode {
+		return nil, fmt.Errorf("this call site is unreachable in this analysis")
 	}
 
 	// Discard context, de-duplicate and sort.
@@ -98,11 +128,7 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		funcs = append(funcs, f)
 	}
 	sort.Sort(byFuncPos(funcs))
-
-	return &calleesResult{
-		site:  site,
-		funcs: funcs,
-	}, nil
+	return funcs, nil
 }
 
 type calleesResult struct {

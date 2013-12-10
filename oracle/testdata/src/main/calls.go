@@ -69,10 +69,15 @@ func main() {
 	i.f() // @callees callees-err-nil-interface "i.f"
 }
 
+var dynamic = func() {}
+
+// Within dead code, dynamic calls have no callees.
 func deadcode() {
 	main() // @callees callees-err-deadcode2 "main"
 	// @callers callers-err-deadcode "^"
 	// @callstack callstack-err-deadcode "^"
+
+	dynamic() // @callees callees-err-deadcode3 "dynamic"
 }
 
 // This code belongs to init.
