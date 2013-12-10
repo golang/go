@@ -16,7 +16,7 @@
 static uint32 runtime·randomNumber;
 uint8  runtime·armArch = 6;	// we default to ARMv6
 uint32 runtime·hwcap;	// set by setup_auxv
-uint8  runtime·goarm;	// set by 5l
+extern uint8  runtime·goarm;	// set by 5l
 
 void
 runtime·checkgoarm(void)
