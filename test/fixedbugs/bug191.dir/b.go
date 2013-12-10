@@ -4,8 +4,10 @@
 
 package b
 
+var B int
+
 func init() {
-	println("b");
+	B = 2
 }
 
 type V int;
