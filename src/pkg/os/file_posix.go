@@ -48,8 +48,7 @@ func Readlink(name string) (string, error) {
 	}
 }
 
-// Rename renames a file.
-func Rename(oldname, newname string) error {
+func rename(oldname, newname string) error {
 	e := syscall.Rename(oldname, newname)
 	if e != nil {
 		return &LinkError{"rename", oldname, newname, e}

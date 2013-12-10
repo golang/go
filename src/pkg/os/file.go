@@ -140,6 +140,9 @@ func (f *File) Write(b []byte) (n int, err error) {
 	if n < 0 {
 		n = 0
 	}
+	if n != len(b) {
+		err = io.ErrShortWrite
+	}
 
 	epipecheck(f, e)
 

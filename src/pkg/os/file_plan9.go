@@ -313,8 +313,7 @@ func Remove(name string) error {
 	return nil
 }
 
-// Rename renames a file.
-func Rename(oldname, newname string) error {
+func rename(oldname, newname string) error {
 	var d syscall.Dir
 
 	d.Null()
