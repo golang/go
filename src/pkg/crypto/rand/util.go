@@ -27,9 +27,11 @@ var smallPrimesProduct = new(big.Int).SetUint64(16294579238595022365)
 
 // Prime returns a number, p, of the given size, such that p is prime
 // with high probability.
+// Prime will return error for any error returned by rand.Read or if bits < 2.
 func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
-	if bits < 1 {
-		err = errors.New("crypto/rand: prime size must be positive")
+	if bits < 2 {
+		err = errors.New("crypto/rand: prime size must be at least 2-bit")
+		return
 	}
 
 	b := uint(bits % 8)
@@ -79,7 +81,7 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
 		for delta := uint64(0); delta < 1<<20; delta += 2 {
 			m := mod + delta
 			for _, prime := range smallPrimes {
-				if m%uint64(prime) == 0 {
+				if m%uint64(prime) == 0 && (bits > 6 || m != uint64(prime)) {
 					continue NextDelta
 				}
 			}
