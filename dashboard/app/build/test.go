@@ -7,10 +7,9 @@
 package build
 
 // TODO(adg): test authentication
+// TODO(adg): refactor to use appengine/aetest instead
 
 import (
-	"appengine"
-	"appengine/datastore"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -21,6 +20,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"appengine"
+	"appengine/datastore"
 )
 
 func init() {
@@ -141,6 +143,12 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	origReq := *r
+	defer func() {
+		// HACK: We need to clobber the original request (see below)
+		// so make sure we fix it before exiting the handler.
+		*r = origReq
+	}()
 	for i, t := range testRequests {
 		c.Infof("running test %d %s", i, t.path)
 		errorf := func(format string, args ...interface{}) {
@@ -165,11 +173,13 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 		if t.req != nil {
 			req.Method = "POST"
 		}
-		req.Header = r.Header
+		req.Header = origReq.Header
 		rec := httptest.NewRecorder()
 
 		// Make the request
-		http.DefaultServeMux.ServeHTTP(rec, req)
+		*r = *req // HACK: App Engine uses the request pointer
+		// as a map key to resolve Contexts.
+		http.DefaultServeMux.ServeHTTP(rec, r)
 
 		if rec.Code != 0 && rec.Code != 200 {
 			errorf(rec.Body.String())
