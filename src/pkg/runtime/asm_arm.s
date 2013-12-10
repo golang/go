@@ -89,8 +89,6 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	WORD	$0xe1200071	// BKPT 0x0001
 	RET
 
-GLOBL runtime·goarm(SB), $4
-
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
 	MOVW	runtime·goarm(SB), R11

@@ -95,6 +95,6 @@ archinit(void)
 
 	// embed goarm to runtime.goarm
 	s = linklookup(ctxt, "runtime.goarm", 0);
-	s->dupok = 1;
+	s->type = SRODATA;
 	adduint8(ctxt, s, goarm);
 }
