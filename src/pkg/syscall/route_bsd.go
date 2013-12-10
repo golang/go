@@ -199,13 +199,20 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
 // ParseRoutingMessage parses b as routing messages and returns the
 // slice containing the RoutingMessage interfaces.
 func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
+	msgCount := 0
 	for len(b) >= anyMessageLen {
+		msgCount++
 		any := (*anyMessage)(unsafe.Pointer(&b[0]))
 		if any.Version != RTM_VERSION {
-			return nil, EINVAL
+			b = b[any.Msglen:]
+			continue
 		}
 		msgs = append(msgs, any.toRoutingMessage(b))
 		b = b[any.Msglen:]
+	}
+	// We failed to parse any of the messages - version mismatch?
+	if msgCount > 0 && len(msgs) == 0 {
+		return nil, EINVAL
 	}
 	return msgs, nil
 }
