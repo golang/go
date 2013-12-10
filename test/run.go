@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -114,28 +115,39 @@ func main() {
 	failed := false
 	resCount := map[string]int{}
 	for _, test := range tests {
-		<-test.donec
-		_, isSkip := test.err.(skipError)
-		errStr := "pass"
-		if test.err != nil {
-			errStr = test.err.Error()
-			if !isSkip {
-				failed = true
+		<-test.donec		
+		status := "ok  "
+		errStr := ""
+		if _, isSkip := test.err.(skipError); isSkip {
+			status = "skip"
+			test.err = nil
+			if !skipOkay[path.Join(test.dir, test.gofile)] {
+				errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
+				status = "FAIL"
 			}
 		}
-		if isSkip && !skipOkay[path.Join(test.dir, test.gofile)] {
-			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
-			isSkip = false
+		if test.err != nil {
+			status = "FAIL"
+			errStr = test.err.Error()
+		}
+		if status == "FAIL" {
 			failed = true
 		}
-		resCount[errStr]++
-		if isSkip && !*verbose && !*showSkips {
+		resCount[status]++
+		if status == "skip" && !*verbose && !*showSkips {
 			continue
 		}
-		if !*verbose && test.err == nil {
+		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
+		if status == "FAIL" {
+			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",
+				path.Join(test.dir, test.gofile),
+				errStr, test.goFileName(), dt)
 			continue
 		}
-		fmt.Printf("# go run run.go -- %s\n%-20s %-20s: %s\n", path.Join(test.dir, test.gofile), test.action, test.goFileName(), errStr)
+		if !*verbose {
+			continue
+		}
+		fmt.Printf("%s\t%s\t%s\n", status, test.goFileName(), dt)
 	}
 
 	if *summary {
@@ -207,7 +219,8 @@ func check(err error) {
 type test struct {
 	dir, gofile string
 	donec       chan bool // closed when done
-
+	dt time.Duration
+	
 	src    string
 	action string // "compile", "build", etc.
 
@@ -379,7 +392,11 @@ func init() { checkShouldTest() }
 
 // run runs a test.
 func (t *test) run() {
-	defer close(t.donec)
+	start := time.Now()
+	defer func() {
+		t.dt = time.Since(start)
+		close(t.donec)
+	}()
 
 	srcBytes, err := ioutil.ReadFile(t.goFileName())
 	if err != nil {
