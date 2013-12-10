@@ -701,6 +701,7 @@ for _, value := range array {
 
 <p>
 The blank identifier has many uses, as described in <a href="#blank">a later section</a>.
+</p>
 
 <p>
 For strings, the <code>range</code> does more work for you, breaking out individual
@@ -2173,6 +2174,7 @@ A one-case type switch would do, but so would a <em>type assertion</em>.
 A type assertion takes an interface value and extracts from it a value of the specified explicit type.
 The syntax borrows from the clause opening a type switch, but with an explicit
 type rather than the <code>type</code> keyword:
+</p>
 
 <pre>
 value.(typeName)
@@ -2463,6 +2465,8 @@ It has uses beyond those we've seen already.
 <p>
 The use of a blank identifier in a <code>for</code> <code>range</code> loop is a
 special case of a general situation: multiple assignment.
+</p>
+
 <p>
 If an assignment requires multiple values on the left side,
 but one of the values will not be used by the program,
