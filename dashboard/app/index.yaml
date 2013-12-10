@@ -1,0 +1,13 @@
+indexes:
+
+- kind: Commit
+  ancestor: yes
+  properties:
+  - name: Num
+    direction: desc
+
+- kind: Commit
+  ancestor: yes
+  properties:
+  - name: Time
+    direction: desc
