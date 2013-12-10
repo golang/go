@@ -40,6 +40,7 @@ var report = map[string]*bool{
 	"atomic":      flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
 	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
 	"composites":  flag.Bool("composites", false, "check that composite literals used field-keyed elements"),
+	"copylocks":   flag.Bool("copylocks", false, "check that locks are not passed by value"),
 	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
 	"nilfunc":     flag.Bool("nilfunc", false, "check for comparisons between functions and nil"),
 	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
@@ -200,12 +201,13 @@ func doPackageDir(directory string) {
 }
 
 type Package struct {
-	path   string
-	idents map[*ast.Ident]types.Object
-	types  map[ast.Expr]types.Type
-	values map[ast.Expr]exact.Value
-	spans  map[types.Object]Span
-	files  []*File
+	path     string
+	idents   map[*ast.Ident]types.Object
+	types    map[ast.Expr]types.Type
+	values   map[ast.Expr]exact.Value
+	spans    map[types.Object]Span
+	files    []*File
+	typesPkg *types.Package
 }
 
 // doPackage analyzes the single package constructed from the named files.
@@ -435,6 +437,7 @@ func (f *File) walkFuncDecl(d *ast.FuncDecl) {
 		f.walkMethod(d.Name, d.Type)
 	}
 	f.prepStringerReceiver(d)
+	f.checkCopyLocks(d)
 }
 
 // prepStringerReceiver checks whether the given declaration is a fmt.Stringer
