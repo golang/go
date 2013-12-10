@@ -4,8 +4,10 @@
 
 package a
 
+var A int
+
 func init() {
-	println("a");
+	A = 1
 }
 
 type T int;
