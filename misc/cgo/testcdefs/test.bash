@@ -12,5 +12,5 @@ done
 
 go build . && ./testcdefs
 EXIT=$?
-rm -rf _obj main *.h
+rm -rf _obj testcdefs *.h
 exit $EXIT
