@@ -791,7 +791,7 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 			req <- dc
 		}
 		return true
-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > 0 && db.maxIdleConnsLocked() > db.freeConn.Len() {
+	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > db.freeConn.Len() {
 		dc.listElem = db.freeConn.PushFront(dc)
 		return true
 	}
