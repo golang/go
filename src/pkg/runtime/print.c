@@ -236,7 +236,10 @@ runtime·printfloat(float64 v)
 	n = 7;	// digits printed
 	e = 0;	// exp
 	s = 0;	// sign
-	if(v != 0) {
+	if(v == 0) {
+		if(1/v == runtime·neginf)
+			s = 1;
+	} else {
 		// sign
 		if(v < 0) {
 			v = -v;
