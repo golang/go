@@ -649,49 +649,28 @@ matchhdr(char *p, char **lastp)
 void
 scanobj(Biobuf *b, Arfile *ap, long size)
 {
-	int obj, goobject;
-	vlong offset, offset1;
-	Dir *d;
-	static int lastobj = -1;
+	int goobject;
+	vlong offset;
 	uchar buf[4];
 	char *p;
 
 	if (!allobj)			/* non-object file encountered */
 		return;
 	offset = Boffset(b);
-	obj = objtype(b, 0);
-	if (obj < 0) {			/* not an object file */
-		/* maybe a foreign object file */
-		Bseek(b, offset, 0);
-		memset(buf, 0, sizeof buf);
-		Bread(b, buf, 4);
-		
-		/* maybe a foreign object file?  that's okay */
-		if((buf[0] == 0x7F && buf[1] == 'E' && buf[2] == 'L' && buf[3] == 'F') ||   // ELF
-		   (buf[0] == 0x4c && buf[1] == 0x01 || buf[0] == 0x64 && buf[1] == 0x86) || // Windows PE
-		   (buf[0] == 0xFE && buf[1] == 0xED && buf[2] == 0xFA && (buf[3]&~1) == 0xCE) ||  // Mach-O big-endian
-		   (buf[3] == 0xFE && buf[2] == 0xED && buf[1] == 0xFA && (buf[0]&~1) == 0xCE)) {  // Mach-O little-endian
-			Bseek(b, offset, 0);
-			return;
-		}
-		
-		if (!gflag || strcmp(file, pkgdef) != 0) {  /* don't clear allobj if it's pkg defs */
-			fprint(2, "pack: non-object file %s\n", file);
-			errors++;
-			allobj = 0;
-		}
-		d = dirfstat(Bfildes(b));
-		if (d != nil && d->length == 0) {
-			fprint(2, "pack: zero length file %s\n", file);
-			errors++;
-		}
-		free(d);
+
+	memset(buf, 0, sizeof buf);
+	Bread(b, buf, 4);
+	
+	/* maybe a foreign object file?  that's okay */
+	if((buf[0] == 0x7F && buf[1] == 'E' && buf[2] == 'L' && buf[3] == 'F') ||   // ELF
+	   (buf[0] == 0x4c && buf[1] == 0x01 || buf[0] == 0x64 && buf[1] == 0x86) || // Windows PE
+	   (buf[0] == 0xFE && buf[1] == 0xED && buf[2] == 0xFA && (buf[3]&~1) == 0xCE) ||  // Mach-O big-endian
+	   (buf[3] == 0xFE && buf[2] == 0xED && buf[1] == 0xFA && (buf[0]&~1) == 0xCE)) {  // Mach-O little-endian
 		Bseek(b, offset, 0);
 		return;
 	}
-
+	
 	goobject = 1;
-	offset1 = Boffset(b);
 	Bseek(b, offset, 0);
 	p = Brdstr(b, '\n', 1);
 	
@@ -702,12 +681,11 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	// Go metadata is present.
 	if(BGETC(b) == '!')
 		goobject = 0;
+	Bseek(b, offset, 0);
 
-	Bseek(b, offset1, 0);
 	if(p == nil || strncmp(p, "go object ", 10) != 0) {
 		fprint(2, "pack: malformed object file %s\n", file);
 		errors++;
-		Bseek(b, offset, 0);
 		free(p);
 		return;
 	}
@@ -721,24 +699,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	}
 	free(p);
 
-	// Old check.  Should be impossible since objhdrs match, but keep the check anyway.
-	if (lastobj >= 0 && obj != lastobj) {
-		fprint(2, "pack: inconsistent object file %s\n", file);
-		errors++;
-		allobj = 0;
-		return;
-	}
-	lastobj = obj;
-		
-	if (!readar(b, obj, offset+size, 0)) {
-		fprint(2, "pack: invalid symbol reference in file %s\n", file);
-		errors++;
-		allobj = 0;
-		Bseek(b, offset, 0);
-		return;
-	}
-	Bseek(b, offset, 0);
-	objtraverse(objsym, ap);
+	USED(ap);
 	if (gflag && goobject) {
 		scanpkg(b, size);
 		Bseek(b, offset, 0);
