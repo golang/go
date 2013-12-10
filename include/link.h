@@ -43,6 +43,9 @@ typedef	struct	Library	Library;
 typedef	struct	Pcln	Pcln;
 typedef	struct	Pcdata	Pcdata;
 
+// prevent incompatible type signatures between liblink and 8l on Plan 9
+#pragma incomplete struct Node
+
 struct	Addr
 {
 	vlong	offset;
@@ -110,6 +113,9 @@ struct	Prog
 	char	width;	/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 */
 };
+
+// prevent incompatible type signatures between liblink and 8l on Plan 9
+#pragma incomplete struct Section
 
 struct	LSym
 {
