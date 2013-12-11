@@ -1355,7 +1355,7 @@ func subjectBytes(cert *Certificate) ([]byte, error) {
 // The returned slice is the certificate in DER encoding.
 //
 // The only supported key types are RSA and ECDSA (*rsa.PublicKey or
-// *ecdsa.PublicKey for pub, *rsa.PrivateKey or *ecdsa.PublicKey for priv).
+// *ecdsa.PublicKey for pub, *rsa.PrivateKey or *ecdsa.PrivateKey for priv).
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interface{}, priv interface{}) (cert []byte, err error) {
 	var publicKeyBytes []byte
 	var publicKeyAlgorithm pkix.AlgorithmIdentifier
