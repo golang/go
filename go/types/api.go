@@ -145,7 +145,7 @@ type Info struct {
 	//
 	//	node               declared object
 	//
-	//	*ast.ImportSpec    *PkgName (imports w/o renames), or imported objects (dot-imports)
+	//	*ast.ImportSpec    *PkgName for dot-imports and imports without renames
 	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
 	//      *ast.Field         anonymous struct field or parameter *Var
 	//
