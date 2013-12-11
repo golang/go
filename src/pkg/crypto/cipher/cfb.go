@@ -8,18 +8,40 @@ package cipher
 
 type cfb struct {
 	b       Block
+	next    []byte
 	out     []byte
 	outUsed int
+
 	decrypt bool
+}
+
+func (x *cfb) XORKeyStream(dst, src []byte) {
+	for i := 0; i < len(src); i++ {
+		if x.outUsed == len(x.out) {
+			x.b.Encrypt(x.out, x.next)
+			x.outUsed = 0
+		}
+
+		n := xorBytes(dst, src, x.out[x.outUsed:])
+		if x.decrypt {
+			// We can precompute a larger segment of the
+			// keystream on decryption. This will allow
+			// larger batches for xor, and we should be
+			// able to match CTR/OFB performance.
+			copy(x.next[x.outUsed:], src[:n])
+		} else {
+			copy(x.next[x.outUsed:], dst[:n])
+		}
+		dst = dst[n:]
+		src = src[n:]
+		x.outUsed += n
+	}
 }
 
 // NewCFBEncrypter returns a Stream which encrypts with cipher feedback mode,
 // using the given Block. The iv must be the same length as the Block's block
 // size.
 func NewCFBEncrypter(block Block, iv []byte) Stream {
-	if len(iv) != block.BlockSize() {
-		panic("cipher.NewCBFEncrypter: IV length must equal block size")
-	}
 	return newCFB(block, iv, false)
 }
 
@@ -27,44 +49,23 @@ func NewCFBEncrypter(block Block, iv []byte) Stream {
 // using the given Block. The iv must be the same length as the Block's block
 // size.
 func NewCFBDecrypter(block Block, iv []byte) Stream {
-	if len(iv) != block.BlockSize() {
-		panic("cipher.NewCBFEncrypter: IV length must equal block size")
-	}
 	return newCFB(block, iv, true)
 }
 
 func newCFB(block Block, iv []byte, decrypt bool) Stream {
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
-		return nil
+		// stack trace will indicate whether it was de or encryption
+		panic("cipher.newCFB: IV length must equal block size")
 	}
-
 	x := &cfb{
 		b:       block,
 		out:     make([]byte, blockSize),
-		outUsed: 0,
+		next:    make([]byte, blockSize),
+		outUsed: blockSize,
 		decrypt: decrypt,
 	}
-	block.Encrypt(x.out, iv)
+	copy(x.next, iv)
 
 	return x
-}
-
-func (x *cfb) XORKeyStream(dst, src []byte) {
-	for i := 0; i < len(src); i++ {
-		if x.outUsed == len(x.out) {
-			x.b.Encrypt(x.out, x.out)
-			x.outUsed = 0
-		}
-
-		if x.decrypt {
-			t := src[i]
-			dst[i] = src[i] ^ x.out[x.outUsed]
-			x.out[x.outUsed] = t
-		} else {
-			x.out[x.outUsed] ^= src[i]
-			dst[i] = x.out[x.outUsed]
-		}
-		x.outUsed++
-	}
 }
