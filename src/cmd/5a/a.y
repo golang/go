@@ -41,7 +41,7 @@
 	int32	lval;
 	double	dval;
 	char	sval[8];
-	LAddr	addr;
+	Addr	addr;
 }
 %left	'|'
 %left	'^'
@@ -175,7 +175,7 @@ inst:
  */
 |	LTYPE8 cond ioreg ',' '[' reglist ']'
 	{
-		LAddr g;
+		Addr g;
 
 		g = nullgen;
 		g.type = D_CONST;
@@ -184,7 +184,7 @@ inst:
 	}
 |	LTYPE8 cond '[' reglist ']' ',' ioreg
 	{
-		LAddr g;
+		Addr g;
 
 		g = nullgen;
 		g.type = D_CONST;
@@ -279,7 +279,7 @@ inst:
  */
 |	LTYPEJ cond con ',' expr ',' spreg ',' creg ',' creg oexpr
 	{
-		LAddr g;
+		Addr g;
 
 		g = nullgen;
 		g.type = D_CONST;

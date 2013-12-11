@@ -44,7 +44,7 @@
 	} con2;
 	double	dval;
 	char	sval[8];
-	LAddr	addr;
+	Addr	addr;
 	Addr2	addr2;
 }
 %left	'|'
