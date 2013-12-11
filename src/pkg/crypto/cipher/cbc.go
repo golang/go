@@ -49,13 +49,9 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 		panic("crypto/cipher: output smaller than input")
 	}
 	for len(src) > 0 {
-		for i := 0; i < x.blockSize; i++ {
-			x.iv[i] ^= src[i]
-		}
+		xorBytes(x.iv, x.iv, src[:x.blockSize])
 		x.b.Encrypt(x.iv, x.iv)
-		for i := 0; i < x.blockSize; i++ {
-			dst[i] = x.iv[i]
-		}
+		copy(dst, x.iv)
 		src = src[x.blockSize:]
 		dst = dst[x.blockSize:]
 	}
@@ -91,12 +87,9 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	}
 	for len(src) > 0 {
 		x.b.Decrypt(x.tmp, src[:x.blockSize])
-		for i := 0; i < x.blockSize; i++ {
-			x.tmp[i] ^= x.iv[i]
-			x.iv[i] = src[i]
-			dst[i] = x.tmp[i]
-		}
-
+		xorBytes(x.tmp, x.tmp, x.iv)
+		copy(x.iv, src)
+		copy(dst, x.tmp)
 		src = src[x.blockSize:]
 		dst = dst[x.blockSize:]
 	}

@@ -157,19 +157,3 @@ func TestAESGCM(t *testing.T) {
 		ct[0] ^= 0x80
 	}
 }
-
-func BenchmarkAESGCM(b *testing.B) {
-	buf := make([]byte, 1024)
-	b.SetBytes(int64(len(buf)))
-
-	var key [16]byte
-	var nonce [12]byte
-	aes, _ := aes.NewCipher(key[:])
-	aesgcm, _ := cipher.NewGCM(aes)
-	var out []byte
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		out = aesgcm.Seal(out[:0], nonce[:], buf, nonce[:])
-	}
-}
