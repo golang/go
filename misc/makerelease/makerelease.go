@@ -205,7 +205,7 @@ type Build struct {
 }
 
 func (b *Build) Do() error {
-	work, err := ioutil.TempDir("", "bindist")
+	work, err := ioutil.TempDir("", "makerelease")
 	if err != nil {
 		return err
 	}
@@ -286,13 +286,13 @@ func (b *Build) Do() error {
 		version     string // "weekly.2012-03-04"
 		fullVersion []byte // "weekly.2012-03-04 9353aa1efdf3"
 	)
-	pat := filepath.Join(b.root, "pkg/tool/*/dist*") // trailing * for .exe
+	pat := filepath.Join(b.root, "pkg/tool/*/makerelease*") // trailing * for .exe
 	m, err := filepath.Glob(pat)
 	if err != nil {
 		return err
 	}
 	if len(m) == 0 {
-		return fmt.Errorf("couldn't find dist in %q", pat)
+		return fmt.Errorf("couldn't find makerelease in %q", pat)
 	}
 	fullVersion, err = b.run("", m[0], "version")
 	if err != nil {
@@ -351,7 +351,7 @@ func (b *Build) Do() error {
 
 		// build pkg
 		// arrange work so it's laid out as the dest filesystem
-		etc := filepath.Join(b.root, "misc/dist/darwin/etc")
+		etc := filepath.Join(b.root, "misc/makerelease/darwin/etc")
 		_, err = b.run(work, "cp", "-r", etc, ".")
 		if err != nil {
 			return err
@@ -371,11 +371,11 @@ func (b *Build) Do() error {
 			return err
 		}
 		defer os.RemoveAll(pkgdest)
-		dist := filepath.Join(runtime.GOROOT(), "misc/dist")
+		makerelease := filepath.Join(runtime.GOROOT(), "misc/makerelease")
 		_, err = b.run("", "pkgbuild",
 			"--identifier", "com.googlecode.go",
 			"--version", version,
-			"--scripts", filepath.Join(dist, "darwin/scripts"),
+			"--scripts", filepath.Join(makerelease, "darwin/scripts"),
 			"--root", work,
 			filepath.Join(pkgdest, "com.googlecode.go.pkg"))
 		if err != nil {
@@ -383,8 +383,8 @@ func (b *Build) Do() error {
 		}
 		targ = base + ".pkg"
 		_, err = b.run("", "productbuild",
-			"--distribution", filepath.Join(dist, "darwin/Distribution"),
-			"--resources", filepath.Join(dist, "darwin/Resources"),
+			"--distribution", filepath.Join(makerelease, "darwin/Distribution"),
+			"--resources", filepath.Join(makerelease, "darwin/Resources"),
 			"--package-path", pkgdest,
 			targ)
 		if err != nil {
@@ -404,7 +404,7 @@ func (b *Build) Do() error {
 		targs = append(targs, targ)
 
 		// Create MSI installer.
-		win := filepath.Join(b.root, "misc/dist/windows")
+		win := filepath.Join(b.root, "misc/makerelease/windows")
 		installer := filepath.Join(win, "installer.wxs")
 		if *wxsFile != "" {
 			installer = *wxsFile
