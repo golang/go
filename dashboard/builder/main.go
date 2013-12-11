@@ -492,7 +492,8 @@ func commitWatcher(goroot *Repo) {
 		for _, pkg := range dashboardPackages("subrepo") {
 			pkgmaster, err := vcs.RepoRootForImportPath(pkg, *verbose)
 			if err != nil {
-				log.Fatalf("Error finding subrepo (%s): %s", pkg, err)
+				log.Printf("Error finding subrepo (%s): %s", pkg, err)
+				continue
 			}
 			pkgroot := &Repo{
 				Path:   filepath.Join(*buildroot, pkg),
