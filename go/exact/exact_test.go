@@ -12,14 +12,19 @@ import (
 
 // TODO(gri) expand this test framework
 
-var tests = []string{
+var opTests = []string{
 	// unary operations
 	`+ 0 = 0`,
+	`+ ? = ?`,
 	`- 1 = -1`,
+	`- ? = ?`,
 	`^ 0 = -1`,
+	`^ ? = ?`,
 
 	`! true = false`,
 	`! false = true`,
+	`! ? = ?`,
+
 	// etc.
 
 	// binary operations
@@ -33,35 +38,51 @@ var tests = []string{
 	`0 + 0.1i = 0.1i`,
 	`0.1 + 0.9 = 1`,
 	`1e100 + 1e100 = 2e100`,
+	`? + 0 = ?`,
+	`0 + ? = ?`,
 
 	`0 - 0 = 0`,
 	`0 - 0.1 = -0.1`,
 	`0 - 0.1i = -0.1i`,
 	`1e100 - 1e100 = 0`,
+	`? - 0 = ?`,
+	`0 - ? = ?`,
 
 	`0 * 0 = 0`,
 	`1 * 0.1 = 0.1`,
 	`1 * 0.1i = 0.1i`,
 	`1i * 1i = -1`,
+	`? * 0 = ?`,
+	`0 * ? = ?`,
 
 	`0 / 0 = "division_by_zero"`,
 	`10 / 2 = 5`,
 	`5 / 3 = 5/3`,
 	`5i / 3i = 5/3`,
+	`? / 0 = ?`,
+	`0 / ? = ?`,
 
 	`0 % 0 = "runtime_error:_integer_divide_by_zero"`, // TODO(gri) should be the same as for /
 	`10 % 3 = 1`,
+	`? % 0 = ?`,
+	`0 % ? = ?`,
 
 	`0 & 0 = 0`,
 	`12345 & 0 = 0`,
 	`0xff & 0xf = 0xf`,
+	`? & 0 = ?`,
+	`0 & ? = ?`,
 
 	`0 | 0 = 0`,
 	`12345 | 0 = 12345`,
 	`0xb | 0xa0 = 0xab`,
+	`? | 0 = ?`,
+	`0 | ? = ?`,
 
 	`0 ^ 0 = 0`,
 	`1 ^ -1 = -2`,
+	`? ^ 0 = ?`,
+	`0 ^ ? = ?`,
 
 	`0 &^ 0 = 0`,
 	`0xf &^ 1 = 0xe`,
@@ -73,6 +94,8 @@ var tests = []string{
 	`1 << 10 = 1024`,
 	`0 >> 0 = 0`,
 	`1024 >> 10 == 1`,
+	`? << 0 == ?`,
+	`? >> 10 == ?`,
 	// etc.
 
 	// comparisons
@@ -106,11 +129,26 @@ var tests = []string{
 	`1/123456788 <= 1/123456789 == false`,
 	`0.11 > 0.11 = false`,
 	`0.11 >= 0.11 = true`,
+
+	`? == 0 = false`,
+	`? != 0 = false`,
+	`? < 10 = false`,
+	`? <= 10 = false`,
+	`? > 10 = false`,
+	`? >= 10 = false`,
+
+	`0 == ? = false`,
+	`0 != ? = false`,
+	`0 < ? = false`,
+	`10 <= ? = false`,
+	`0 > ? = false`,
+	`10 >= ? = false`,
+
 	// etc.
 }
 
 func TestOps(t *testing.T) {
-	for _, test := range tests {
+	for _, test := range opTests {
 		a := strings.Split(test, " ")
 		i := 0 // operator index
 
@@ -136,16 +174,25 @@ func TestOps(t *testing.T) {
 
 		got := doOp(x, op, y)
 		want := val(a[i+3])
-		if !Compare(got, token.EQL, want) {
+		if !eql(got, want) {
 			t.Errorf("%s: got %s; want %s", test, got, want)
 		}
-		if x0 != nil && !Compare(x, token.EQL, x0) {
+		if x0 != nil && !eql(x, x0) {
 			t.Errorf("%s: x changed to %s", test, x)
 		}
-		if !Compare(y, token.EQL, y0) {
+		if !eql(y, y0) {
 			t.Errorf("%s: y changed to %s", test, y)
 		}
 	}
+}
+
+func eql(x, y Value) bool {
+	_, ux := x.(unknownVal)
+	_, uy := y.(unknownVal)
+	if ux || uy {
+		return ux == uy
+	}
+	return Compare(x, token.EQL, y)
 }
 
 // ----------------------------------------------------------------------------
@@ -236,5 +283,66 @@ func doOp(x Value, op token.Token, y Value) (z Value) {
 		return Shift(x, op, uint(s))
 	default:
 		return BinaryOp(x, op, y)
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Other tests
+
+var fracTests = []string{
+	"0 0 1",
+	"1 1 1",
+	"-1 -1 1",
+	"1.2 6 5",
+	"-0.991 -991 1000",
+	"1e100 1e100 1",
+}
+
+func TestFractions(t *testing.T) {
+	for _, test := range fracTests {
+		a := strings.Split(test, " ")
+		if len(a) != 3 {
+			t.Errorf("invalid test case: %s", test)
+			continue
+		}
+
+		x := val(a[0])
+		n := val(a[1])
+		d := val(a[2])
+
+		if got := Num(x); !eql(got, n) {
+			t.Errorf("%s: got num = %s; want %s", test, got, n)
+		}
+
+		if got := Denom(x); !eql(got, d) {
+			t.Errorf("%s: got denom = %s; want %s", test, got, d)
+		}
+	}
+}
+
+var bytesTests = []string{
+	"0",
+	"1",
+	"123456789",
+	"123456789012345678901234567890123456789012345678901234567890",
+}
+
+func TestBytes(t *testing.T) {
+	for _, test := range bytesTests {
+		x := val(test)
+		bytes := Bytes(x)
+
+		// special case 0
+		if Sign(x) == 0 && len(bytes) != 0 {
+			t.Errorf("%s: got %v; want empty byte slice", test, bytes)
+		}
+
+		if n := len(bytes); n > 0 && bytes[n-1] == 0 {
+			t.Errorf("%s: got %v; want no leading 0 byte", test, bytes)
+		}
+
+		if got := MakeFromBytes(bytes); !eql(got, x) {
+			t.Errorf("%s: got %s; want %s (bytes = %v)", test, got, x, bytes)
+		}
 	}
 }
