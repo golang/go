@@ -430,10 +430,8 @@ func MakeImag(x Value) Value {
 // If x is Unknown, the result is Unknown.
 func Real(x Value) Value {
 	switch x := x.(type) {
-	case unknownVal:
+	case unknownVal, int64Val, intVal, floatVal:
 		return x
-	case int64Val, intVal, floatVal:
-		return int64Val(0)
 	case complexVal:
 		return normFloat(x.re)
 	}
