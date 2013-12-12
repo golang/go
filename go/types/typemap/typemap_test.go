@@ -27,7 +27,7 @@ func checkEqualButNotIdentical(t *testing.T, x, y types.Type, comment string) {
 		t.Errorf("%s: not equal: %s, %s", comment, x, y)
 	}
 	if x == y {
-		t.Errorf("%s: identical: %p, %p", comment, x, y)
+		t.Errorf("%s: identical: %v, %v", comment, x, y)
 	}
 }
 
