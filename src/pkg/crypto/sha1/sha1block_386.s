@@ -46,12 +46,10 @@
 	ADDL	DI, e
 
 #define FUNC1(a, b, c, d, e) \
-	MOVL	b, SI; \
-	ANDL	c, SI; \
-	MOVL	b, DI; \
-	NOTL	DI; \
-	ANDL	d, DI; \
-	ORL	SI, DI
+	MOVL	d, DI; \
+	XORL	c, DI; \
+	ANDL	b, DI; \
+	XORL	d, DI
 
 #define FUNC2(a, b, c, d, e) \
 	MOVL	b, DI; \

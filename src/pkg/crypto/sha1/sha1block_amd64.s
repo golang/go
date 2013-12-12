@@ -34,12 +34,10 @@
 	MOVL	R10, (((index)&0xf)*4)(SP)
 
 #define FUNC1(a, b, c, d, e) \
-	MOVL	b, R8; \
-	ANDL	c, R8; \
-	MOVL	b, R9; \
-	NOTL	R9; \
-	ANDL	d, R9; \
-	ORL	R8, R9
+	MOVL	d, R9; \
+	XORL	c, R9; \
+	ANDL	b, R9; \
+	XORL	d, R9
 
 #define FUNC2(a, b, c, d, e) \
 	MOVL	b, R9; \
