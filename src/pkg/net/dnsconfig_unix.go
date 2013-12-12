@@ -27,7 +27,7 @@ func dnsReadConfig() (*dnsConfig, error) {
 		return nil, &DNSConfigError{err}
 	}
 	conf := new(dnsConfig)
-	conf.servers = make([]string, 3)[0:0] // small, but the standard limit
+	conf.servers = make([]string, 0, 3) // small, but the standard limit
 	conf.search = make([]string, 0)
 	conf.ndots = 1
 	conf.timeout = 5

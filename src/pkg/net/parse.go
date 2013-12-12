@@ -67,7 +67,7 @@ func open(name string) (*file, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &file{fd, make([]byte, os.Getpagesize())[0:0], false}, nil
+	return &file{fd, make([]byte, 0, os.Getpagesize()), false}, nil
 }
 
 func byteIndex(s string, c byte) int {
