@@ -258,11 +258,11 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
 // gcmInc32 treats the final four bytes of counterBlock as a big-endian value
 // and increments it.
 func gcmInc32(counterBlock *[16]byte) {
-	c := 1
 	for i := gcmBlockSize - 1; i >= gcmBlockSize-4; i-- {
-		c += int(counterBlock[i])
-		counterBlock[i] = byte(c)
-		c >>= 8
+		counterBlock[i]++
+		if counterBlock[i] != 0 {
+			break
+		}
 	}
 }
 
