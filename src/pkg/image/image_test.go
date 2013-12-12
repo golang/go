@@ -24,6 +24,8 @@ func cmp(t *testing.T, cm color.Model, c0, c1 color.Color) bool {
 
 func TestImage(t *testing.T) {
 	testImage := []image{
+		NewRGB(Rect(0, 0, 10, 10)),
+		NewRGB48(Rect(0, 0, 10, 10)),
 		NewRGBA(Rect(0, 0, 10, 10)),
 		NewRGBA64(Rect(0, 0, 10, 10)),
 		NewNRGBA(Rect(0, 0, 10, 10)),
@@ -97,6 +99,7 @@ func Test16BitsPerColorChannel(t *testing.T) {
 		}
 	}
 	testImage := []image{
+		NewRGB48(Rect(0, 0, 10, 10)),
 		NewRGBA64(Rect(0, 0, 10, 10)),
 		NewNRGBA64(Rect(0, 0, 10, 10)),
 		NewAlpha16(Rect(0, 0, 10, 10)),

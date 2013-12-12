@@ -15,6 +15,33 @@ type Color interface {
 	RGBA() (r, g, b, a uint32)
 }
 
+// RGB represents a traditional 24-bit fully opaque color,
+// having 8 bits for each of red, green and blue.
+type RGB struct {
+	R, G, B uint8
+}
+
+func (c RGB) RGBA() (r, g, b, a uint32) {
+	r = uint32(c.R)
+	r |= r << 8
+	g = uint32(c.G)
+	g |= g << 8
+	b = uint32(c.B)
+	b |= b << 8
+	a = 0xFFFF
+	return
+}
+
+// RGB48 represents a 48-bit fully opaque color,
+// having 16 bits for each of red, green and blue.
+type RGB48 struct {
+	R, G, B uint16
+}
+
+func (c RGB48) RGBA() (r, g, b, a uint32) {
+	return uint32(c.R), uint32(c.G), uint32(c.B), 0xFFFF
+}
+
 // RGBA represents a traditional 32-bit alpha-premultiplied color,
 // having 8 bits for each of red, green, blue and alpha.
 type RGBA struct {
@@ -154,6 +181,8 @@ func (m *modelFunc) Convert(c Color) Color {
 
 // Models for the standard color types.
 var (
+	RGBModel     Model = ModelFunc(rgbModel)
+	RGB48Model   Model = ModelFunc(rgb48Model)
 	RGBAModel    Model = ModelFunc(rgbaModel)
 	RGBA64Model  Model = ModelFunc(rgba64Model)
 	NRGBAModel   Model = ModelFunc(nrgbaModel)
@@ -163,6 +192,22 @@ var (
 	GrayModel    Model = ModelFunc(grayModel)
 	Gray16Model  Model = ModelFunc(gray16Model)
 )
+
+func rgbModel(c Color) Color {
+	if _, ok := c.(RGB); ok {
+		return c
+	}
+	r, g, b, _ := c.RGBA()
+	return RGB{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)}
+}
+
+func rgb48Model(c Color) Color {
+	if _, ok := c.(RGB48); ok {
+		return c
+	}
+	r, g, b, _ := c.RGBA()
+	return RGB48{uint16(r), uint16(g), uint16(b)}
+}
 
 func rgbaModel(c Color) Color {
 	if _, ok := c.(RGBA); ok {
