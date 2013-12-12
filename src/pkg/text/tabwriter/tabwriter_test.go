@@ -14,7 +14,7 @@ type buffer struct {
 	a []byte
 }
 
-func (b *buffer) init(n int) { b.a = make([]byte, n)[0:0] }
+func (b *buffer) init(n int) { b.a = make([]byte, 0, n) }
 
 func (b *buffer) clear() { b.a = b.a[0:0] }
 
