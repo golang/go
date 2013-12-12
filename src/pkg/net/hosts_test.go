@@ -41,7 +41,7 @@ func TestLookupStaticHost(t *testing.T) {
 		if len(ips) != len(tt.ips) {
 			t.Errorf("# of hosts = %v; want %v",
 				len(ips), len(tt.ips))
-			return
+			continue
 		}
 		for k, v := range ips {
 			if tt.ips[k].String() != v {
