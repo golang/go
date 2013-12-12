@@ -372,7 +372,10 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	default:
 		// There's no sign, but we might need one.
 		if f.plus {
-			slice[0] = '+'
+			f.buf.WriteByte('+')
+			f.wid--
+			f.pad(slice[1:])
+			return
 		} else if f.space {
 			// space is already there
 		} else {
