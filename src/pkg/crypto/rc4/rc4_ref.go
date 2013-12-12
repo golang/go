@@ -12,9 +12,9 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
 	i, j := c.i, c.j
 	for k, v := range src {
 		i += 1
-		j += c.s[i]
+		j += uint8(c.s[i])
 		c.s[i], c.s[j] = c.s[j], c.s[i]
-		dst[k] = v ^ c.s[c.s[i]+c.s[j]]
+		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
 	}
 	c.i, c.j = i, j
 }
