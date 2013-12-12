@@ -1,1 +1,2 @@
-<YOUR CL HERE>
+pull linker i/o into separate liblink C library (CL 35790044)
+misc/dist renamed misc/makerelease (CL 39920043)
