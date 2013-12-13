@@ -12,7 +12,7 @@ package main
 
 var z [10<<20]byte
 
-func main() { // ERROR "stack frame too large"
+func main() { // GC_ERROR "stack frame too large"
 	// seq 1 206 | sed 's/.*/	var x& [10<<20]byte; z = x&/'
 	var x1 [10<<20]byte; z = x1
 	var x2 [10<<20]byte; z = x2
