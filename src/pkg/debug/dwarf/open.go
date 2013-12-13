@@ -24,7 +24,6 @@ type Data struct {
 
 	// parsed data
 	abbrevCache map[uint32]abbrevTable
-	addrsize    int
 	order       binary.ByteOrder
 	typeCache   map[Offset]Type
 	unit        []unit
