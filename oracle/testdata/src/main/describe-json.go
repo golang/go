@@ -1,8 +1,6 @@
 package describe // @describe pkgdecl "describe"
 
-// @implements implements "^"
-
-// Tests of 'describe' and 'implements' queries, -format=json.
+// Tests of 'describe' query, -format=json.
 // See go.tools/oracle/oracle_test.go for explanation.
 // See describe-json.golden for expected query results.
 

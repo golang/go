@@ -99,15 +99,24 @@ type FreeVar struct {
 	Type string `json:"type"` // type of the expression
 }
 
-// An Implements is one element of the result of an 'implements' query.
-// Each one indicates a row in the "implements" relation over
-// package-level named types defined by the package containing the
-// selection.
+// An Implements contains the result of an 'implements' query.
+
+// It describes the queried type, the set of named non-empty interface
+// types to which it is assignable, and the set of named/*named types
+// (concrete or non-empty interface) which may be assigned to it.
+//
 type Implements struct {
-	I    string `json:"i"`    // full name of the interface type
-	IPos string `json:"ipos"` // location of its definition
-	C    string `json:"c"`    // full name of the concrete type
-	CPos string `json:"cpos"` // location of its definition
+	T                 ImplementsType   `json:"type,omitempty"`    // the queried type
+	AssignableTo      []ImplementsType `json:"to,omitempty"`      // types assignable to T
+	AssignableFrom    []ImplementsType `json:"from,omitempty"`    // interface types assignable from T
+	AssignableFromPtr []ImplementsType `json:"fromptr,omitempty"` // interface types assignable only from *T
+}
+
+// An ImplementsType describes a single type as part of an 'implements' query.
+type ImplementsType struct {
+	Name string `json:"name"` // full name of the type
+	Pos  string `json:"pos"`  // location of its definition
+	Kind string `json:"kind"` // "basic", "array", etc
 }
 
 // A SyntaxNode is one element of a stack of enclosing syntax nodes in
@@ -222,23 +231,25 @@ type PTAWarning struct {
 // A Result is the common result of any oracle query.
 // It contains a query-specific result element.
 //
+// TODO(adonovan): perhaps include other info such as: analysis scope,
+// raw query position, stack of ast nodes, query package, etc.
 type Result struct {
 	Mode string `json:"mode"` // mode of the query
 
 	// Exactly one of the following fields is populated:
 	// the one specified by 'mode'.
-	Callees    *Callees      `json:"callees,omitempty"`
-	Callers    []Caller      `json:"callers,omitempty"`
-	Callgraph  []CallGraph   `json:"callgraph,omitempty"`
-	Callstack  *CallStack    `json:"callstack,omitempty"`
-	Definition *Definition   `json:"definition,omitempty"`
-	Describe   *Describe     `json:"describe,omitempty"`
-	Freevars   []*FreeVar    `json:"freevars,omitempty"`
-	Implements []*Implements `json:"implements,omitempty"`
-	Peers      *Peers        `json:"peers,omitempty"`
-	PointsTo   []PointsTo    `json:"pointsto,omitempty"`
-	Referrers  *Referrers    `json:"referrers,omitempty"`
-	What       *What         `json:"what,omitempty"`
+	Callees    *Callees    `json:"callees,omitempty"`
+	Callers    []Caller    `json:"callers,omitempty"`
+	Callgraph  []CallGraph `json:"callgraph,omitempty"`
+	Callstack  *CallStack  `json:"callstack,omitempty"`
+	Definition *Definition `json:"definition,omitempty"`
+	Describe   *Describe   `json:"describe,omitempty"`
+	Freevars   []*FreeVar  `json:"freevars,omitempty"`
+	Implements *Implements `json:"implements,omitempty"`
+	Peers      *Peers      `json:"peers,omitempty"`
+	PointsTo   []PointsTo  `json:"pointsto,omitempty"`
+	Referrers  *Referrers  `json:"referrers,omitempty"`
+	What       *What       `json:"what,omitempty"`
 
 	Warnings []PTAWarning `json:"warnings,omitempty"` // warnings from pointer analysis
 }

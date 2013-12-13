@@ -96,4 +96,9 @@ Emacs: use JSON to get the raw information from the oracle.  Don't
  open an editor buffer for simpler queries, just jump to the result
  and/or display it in the modeline.
 
+Emacs: go-root-and-paths depends on the current buffer, so be sure to
+   call it from within the source file, not the *go-oracle* buffer:
+   the user may have switched workspaces and the oracle should run in
+   the new one.
+
 Support other editors: vim, Eclipse, Sublime, etc.

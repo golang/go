@@ -1,11 +1,8 @@
 package main
 
-// Tests of 'implements' query.
+// Tests of 'implements' query, -output=json.
 // See go.tools/oracle/oracle_test.go for explanation.
 // See implements.golden for expected query results.
-
-import _ "lib"
-import _ "sort"
 
 func main() {
 }
@@ -28,13 +25,3 @@ func (c *C) f() {} // @implements starC ".C"
 func (d D) f()  {} // @implements D "D"
 
 func (d *D) g() []int { return nil } // @implements starD ".D"
-
-type sorter []int // @implements sorter "sorter"
-
-func (sorter) Len() int           { return 0 }
-func (sorter) Less(i, j int) bool { return false }
-func (sorter) Swap(i, j int)      {}
-
-type I interface { // @implements I "I"
-	Method(*int) *int
-}

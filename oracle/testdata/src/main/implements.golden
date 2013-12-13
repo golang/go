@@ -1,10 +1,44 @@
--------- @implements impl --------
-	Interface main.E:
-		main.C
-		main.D
-	Interface main.F:
-		*main.C
-		main.D
-	Interface main.FG:
-		*main.D
+-------- @implements E --------
+empty interface type main.E
+
+-------- @implements F --------
+interface type main.F
+	is implemented by pointer type *main.C
+	is implemented by struct type main.D
+	is implemented by interface type main.FG
+
+-------- @implements FG --------
+interface type main.FG
+	is implemented by pointer type *main.D
+	implements main.F
+
+-------- @implements slice --------
+slice type []int implements only interface{}
+
+-------- @implements C --------
+pointer type *main.C
+	implements main.F
+
+-------- @implements starC --------
+pointer type *main.C
+	implements main.F
+
+-------- @implements D --------
+struct type main.D
+	implements main.F
+pointer type *main.D
+	implements main.FG
+
+-------- @implements starD --------
+pointer type *main.D
+	implements main.F
+	implements main.FG
+
+-------- @implements sorter --------
+slice type main.sorter
+	implements sort.Interface
+
+-------- @implements I --------
+interface type main.I
+	is implemented by basic type lib.Type
 

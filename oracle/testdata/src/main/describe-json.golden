@@ -11,75 +11,58 @@
 				{
 					"name": "C",
 					"type": "int",
-					"pos": "testdata/src/main/describe-json.go:27:6",
+					"pos": "testdata/src/main/describe-json.go:25:6",
 					"kind": "type",
 					"methods": [
 						{
 							"name": "method (C) f()",
-							"pos": "testdata/src/main/describe-json.go:30:12"
+							"pos": "testdata/src/main/describe-json.go:28:12"
 						}
 					]
 				},
 				{
 					"name": "D",
 					"type": "struct{}",
-					"pos": "testdata/src/main/describe-json.go:28:6",
+					"pos": "testdata/src/main/describe-json.go:26:6",
 					"kind": "type",
 					"methods": [
 						{
 							"name": "method (*D) f()",
-							"pos": "testdata/src/main/describe-json.go:31:13"
+							"pos": "testdata/src/main/describe-json.go:29:13"
 						}
 					]
 				},
 				{
 					"name": "I",
 					"type": "interface{f()}",
-					"pos": "testdata/src/main/describe-json.go:23:6",
+					"pos": "testdata/src/main/describe-json.go:21:6",
 					"kind": "type",
 					"methods": [
 						{
 							"name": "method (I) f()",
-							"pos": "testdata/src/main/describe-json.go:24:2"
+							"pos": "testdata/src/main/describe-json.go:22:2"
 						}
 					]
 				},
 				{
 					"name": "main",
 					"type": "func()",
-					"pos": "testdata/src/main/describe-json.go:9:6",
+					"pos": "testdata/src/main/describe-json.go:7:6",
 					"kind": "func"
 				}
 			]
 		}
 	}
-}-------- @implements implements --------
-{
-	"mode": "implements",
-	"implements": [
-		{
-			"i": "describe.I",
-			"ipos": "testdata/src/main/describe-json.go:23:6",
-			"c": "describe.C",
-			"cpos": "testdata/src/main/describe-json.go:27:6"
-		},
-		{
-			"i": "describe.I",
-			"ipos": "testdata/src/main/describe-json.go:23:6",
-			"c": "*describe.D",
-			"cpos": "testdata/src/main/describe-json.go:28:6"
-		}
-	]
 }-------- @describe desc-val-p --------
 {
 	"mode": "describe",
 	"describe": {
 		"desc": "identifier",
-		"pos": "testdata/src/main/describe-json.go:11:2",
+		"pos": "testdata/src/main/describe-json.go:9:2",
 		"detail": "value",
 		"value": {
 			"type": "*int",
-			"objpos": "testdata/src/main/describe-json.go:11:2"
+			"objpos": "testdata/src/main/describe-json.go:9:2"
 		}
 	}
 }-------- @describe desc-val-i --------
@@ -87,11 +70,11 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "identifier",
-		"pos": "testdata/src/main/describe-json.go:18:8",
+		"pos": "testdata/src/main/describe-json.go:16:8",
 		"detail": "value",
 		"value": {
 			"type": "I",
-			"objpos": "testdata/src/main/describe-json.go:14:6"
+			"objpos": "testdata/src/main/describe-json.go:12:6"
 		}
 	}
 }-------- @describe desc-stmt --------
@@ -99,7 +82,7 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "go statement",
-		"pos": "testdata/src/main/describe-json.go:20:2",
+		"pos": "testdata/src/main/describe-json.go:18:2",
 		"detail": "unknown"
 	}
 }-------- @describe desc-type-C --------
@@ -107,16 +90,16 @@
 	"mode": "describe",
 	"describe": {
 		"desc": "definition of type C (size 8, align 8)",
-		"pos": "testdata/src/main/describe-json.go:27:6",
+		"pos": "testdata/src/main/describe-json.go:25:6",
 		"detail": "type",
 		"type": {
 			"type": "C",
-			"namepos": "testdata/src/main/describe-json.go:27:6",
+			"namepos": "testdata/src/main/describe-json.go:25:6",
 			"namedef": "int",
 			"methods": [
 				{
 					"name": "method (C) f()",
-					"pos": "testdata/src/main/describe-json.go:30:12"
+					"pos": "testdata/src/main/describe-json.go:28:12"
 				}
 			]
 		}

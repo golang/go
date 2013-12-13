@@ -36,8 +36,8 @@ var ptalogFlag = flag.String("ptalog", "",
 
 var formatFlag = flag.String("format", "plain", "Output format.  One of {plain,json,xml}.")
 
-// TODO(adonovan): eliminate or flip this flag after PTA presolver is implemented.
-var reflectFlag = flag.Bool("reflect", true, "Analyze reflection soundly (slow).")
+// TODO(adonovan): flip this flag after PTA presolver is implemented.
+var reflectFlag = flag.Bool("reflect", false, "Analyze reflection soundly (slow).")
 
 const useHelp = "Run 'oracle -help' for more information.\n"
 

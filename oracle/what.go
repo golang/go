@@ -34,17 +34,23 @@ func what(posFlag string, buildContext *build.Context) (*Result, error) {
 	srcdir, importPath, _ := guessImportPath(qpos.fset.File(qpos.start).Name(), buildContext)
 
 	// Determine which query modes are applicable to the selection.
+	// TODO(adonovan): refactor: make each minfo have an 'enable'
+	// predicate over qpos.
 	enable := map[string]bool{
-		"callgraph":  true,                  // whole program; always enabled
-		"implements": true,                  // whole package; always enabled
-		"freevars":   qpos.end > qpos.start, // nonempty selection?
-		"describe":   true,                  // any syntax; always enabled
+		"callgraph": true, // whole program; always enabled
+		"describe":  true, // any syntax; always enabled
 	}
+
+	if qpos.end > qpos.start {
+		enable["freevars"] = true // nonempty selection?
+	}
+
 	for _, n := range qpos.path {
 		switch n := n.(type) {
 		case *ast.Ident:
 			enable["definition"] = true
 			enable["referrers"] = true
+			enable["implements"] = true
 		case *ast.CallExpr:
 			enable["callees"] = true
 		case *ast.FuncDecl:
@@ -55,6 +61,19 @@ func what(posFlag string, buildContext *build.Context) (*Result, error) {
 		case *ast.UnaryExpr:
 			if n.Op == token.ARROW {
 				enable["peers"] = true
+			}
+		}
+
+		// For implements, we approximate findInterestingNode.
+		if _, ok := enable["implements"]; !ok {
+			switch n.(type) {
+			case *ast.ArrayType,
+				*ast.StructType,
+				*ast.FuncType,
+				*ast.InterfaceType,
+				*ast.MapType,
+				*ast.ChanType:
+				enable["implements"] = true
 			}
 		}
 

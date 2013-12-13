@@ -210,10 +210,12 @@ func TestOracle(t *testing.T) {
 		"testdata/src/main/reflection.go",
 		"testdata/src/main/what.go",
 		// JSON:
+		// TODO(adonovan): most of these are very similar; combine them.
 		"testdata/src/main/callgraph-json.go",
 		"testdata/src/main/calls-json.go",
 		"testdata/src/main/peers-json.go",
 		"testdata/src/main/describe-json.go",
+		"testdata/src/main/implements-json.go",
 		"testdata/src/main/pointsto-json.go",
 		"testdata/src/main/referrers-json.go",
 		"testdata/src/main/what-json.go",

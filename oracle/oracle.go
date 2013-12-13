@@ -94,7 +94,7 @@ type modeInfo struct {
 }
 
 var modes = []*modeInfo{
-	// Pointer analyses: (whole program)
+	// Pointer analyses, whole program:
 	{"callees", needPTA | needExactPos, callees},
 	{"callers", needPTA | needPos, callers},
 	{"callgraph", needPTA, callgraph},
@@ -102,12 +102,14 @@ var modes = []*modeInfo{
 	{"peers", needPTA | needSSADebug | needPos, peers},
 	{"pointsto", needPTA | needSSADebug | needExactPos, pointsto},
 
-	// Type-based analyses: (modular, mostly)
+	// Type-based, modular analyses:
 	{"definition", needPos, definition},
 	{"describe", needExactPos, describe},
 	{"freevars", needPos, freevars},
-	{"implements", needPos, implements},
-	{"referrers", needRetainTypeInfo | needPos, referrers}, // (whole-program)
+
+	// Type-based, whole-program analyses:
+	{"implements", needRetainTypeInfo | needPos, implements},
+	{"referrers", needRetainTypeInfo | needPos, referrers},
 }
 
 func findMode(mode string) *modeInfo {
