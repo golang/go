@@ -446,7 +446,7 @@ Why are map operations not defined to be atomic?</h3>
 
 <p>
 After long discussion it was decided that the typical use of maps did not require
-safe access from multiple threads, and in those cases where it did, the map was
+safe access from multiple goroutines, and in those cases where it did, the map was
 probably part of some larger data structure or computation that was already
 synchronized.  Therefore requiring that all map operations grab a mutex would slow
 down most programs and add safety to few.  This was not an easy decision,
