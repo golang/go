@@ -12,32 +12,32 @@ package p
 import "unsafe"
 
 func f() {
-	defer int(0) // ERROR "defer requires function call, not conversion"
-	go string([]byte("abc")) // ERROR "go requires function call, not conversion"
+	defer int(0) // ERROR "defer requires function call, not conversion|is not used"
+	go string([]byte("abc")) // ERROR "go requires function call, not conversion|is not used"
 	
 	var c complex128
 	var f float64
 	var t struct {X int}
 
 	var x []int
-	defer append(x, 1) // ERROR "defer discards result of append"
-	defer cap(x) // ERROR "defer discards result of cap"
-	defer complex(1, 2) // ERROR "defer discards result of complex"
-	defer complex(f, 1) // ERROR "defer discards result of complex"
-	defer imag(1i) // ERROR "defer discards result of imag"
-	defer imag(c) // ERROR "defer discards result of imag"
-	defer len(x) // ERROR "defer discards result of len"
-	defer make([]int, 1) // ERROR "defer discards result of make"
-	defer make(chan bool) // ERROR "defer discards result of make"
-	defer make(map[string]int) // ERROR "defer discards result of make"
-	defer new(int) // ERROR "defer discards result of new"
-	defer real(1i) // ERROR "defer discards result of real"
-	defer real(c) // ERROR "defer discards result of real"
-	defer append(x, 1) // ERROR "defer discards result of append"
-	defer append(x, 1) // ERROR "defer discards result of append"
-	defer unsafe.Alignof(t.X) // ERROR "defer discards result of unsafe.Alignof"
-	defer unsafe.Offsetof(t.X) // ERROR "defer discards result of unsafe.Offsetof"
-	defer unsafe.Sizeof(t) // ERROR "defer discards result of unsafe.Sizeof"
+	defer append(x, 1) // ERROR "defer discards result of append|is not used"
+	defer cap(x) // ERROR "defer discards result of cap|is not used"
+	defer complex(1, 2) // ERROR "defer discards result of complex|is not used"
+	defer complex(f, 1) // ERROR "defer discards result of complex|is not used"
+	defer imag(1i) // ERROR "defer discards result of imag|is not used"
+	defer imag(c) // ERROR "defer discards result of imag|is not used"
+	defer len(x) // ERROR "defer discards result of len|is not used"
+	defer make([]int, 1) // ERROR "defer discards result of make|is not used"
+	defer make(chan bool) // ERROR "defer discards result of make|is not used"
+	defer make(map[string]int) // ERROR "defer discards result of make|is not used"
+	defer new(int) // ERROR "defer discards result of new|is not used"
+	defer real(1i) // ERROR "defer discards result of real|is not used"
+	defer real(c) // ERROR "defer discards result of real|is not used"
+	defer append(x, 1) // ERROR "defer discards result of append|is not used"
+	defer append(x, 1) // ERROR "defer discards result of append|is not used"
+	defer unsafe.Alignof(t.X) // ERROR "defer discards result of unsafe.Alignof|is not used"
+	defer unsafe.Offsetof(t.X) // ERROR "defer discards result of unsafe.Offsetof|is not used"
+	defer unsafe.Sizeof(t) // ERROR "defer discards result of unsafe.Sizeof|is not used"
 	
 	defer copy(x, x) // ok
 	m := make(map[int]int)
@@ -47,8 +47,8 @@ func f() {
 	defer println(1) // ok
 	defer recover() // ok
 
-	int(0) // ERROR "int\(0\) evaluated but not used"
-	string([]byte("abc")) // ERROR "string\(.*\) evaluated but not used"
+	int(0) // ERROR "int\(0\) evaluated but not used|is not used"
+	string([]byte("abc")) // ERROR "string\(.*\) evaluated but not used|is not used"
 
 	append(x, 1) // ERROR "not used"
 	cap(x) // ERROR "not used"

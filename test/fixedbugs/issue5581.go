@@ -26,7 +26,7 @@ type Foo struct {
 
 type Bar struct {
 	A *Foo
-	B chan Blah // ERROR "undefined: Blah"
+	B chan Blah // ERROR "undefined.*Blah"
 }
 
 func main() {

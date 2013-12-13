@@ -54,58 +54,58 @@ func f() {
 
 	// check invalid indices
 	_ = array[1:2]
-	_ = array[2:1] // ERROR "invalid slice index"
+	_ = array[2:1] // ERROR "invalid slice index|inverted slice"
 	_ = array[2:2]
 	_ = array[i:1]
 	_ = array[1:j]
 	_ = array[1:2:3]
-	_ = array[1:3:2] // ERROR "invalid slice index"
-	_ = array[2:1:3] // ERROR "invalid slice index"
-	_ = array[2:3:1] // ERROR "invalid slice index"
-	_ = array[3:1:2] // ERROR "invalid slice index"
-	_ = array[3:2:1] // ERROR "invalid slice index"
+	_ = array[1:3:2] // ERROR "invalid slice index|inverted slice"
+	_ = array[2:1:3] // ERROR "invalid slice index|inverted slice"
+	_ = array[2:3:1] // ERROR "invalid slice index|inverted slice"
+	_ = array[3:1:2] // ERROR "invalid slice index|inverted slice"
+	_ = array[3:2:1] // ERROR "invalid slice index|inverted slice"
 	_ = array[i:1:2]
-	_ = array[i:2:1] // ERROR "invalid slice index"
+	_ = array[i:2:1] // ERROR "invalid slice index|inverted slice"
 	_ = array[1:j:2]
 	_ = array[2:j:1] // ERROR "invalid slice index"
 	_ = array[1:2:k]
-	_ = array[2:1:k] // ERROR "invalid slice index"
+	_ = array[2:1:k] // ERROR "invalid slice index|inverted slice"
 	
 	_ = slice[1:2]
-	_ = slice[2:1] // ERROR "invalid slice index"
+	_ = slice[2:1] // ERROR "invalid slice index|inverted slice"
 	_ = slice[2:2]
 	_ = slice[i:1]
 	_ = slice[1:j]
 	_ = slice[1:2:3]
-	_ = slice[1:3:2] // ERROR "invalid slice index"
-	_ = slice[2:1:3] // ERROR "invalid slice index"
-	_ = slice[2:3:1] // ERROR "invalid slice index"
-	_ = slice[3:1:2] // ERROR "invalid slice index"
-	_ = slice[3:2:1] // ERROR "invalid slice index"
+	_ = slice[1:3:2] // ERROR "invalid slice index|inverted slice"
+	_ = slice[2:1:3] // ERROR "invalid slice index|inverted slice"
+	_ = slice[2:3:1] // ERROR "invalid slice index|inverted slice"
+	_ = slice[3:1:2] // ERROR "invalid slice index|inverted slice"
+	_ = slice[3:2:1] // ERROR "invalid slice index|inverted slice"
 	_ = slice[i:1:2]
-	_ = slice[i:2:1] // ERROR "invalid slice index"
+	_ = slice[i:2:1] // ERROR "invalid slice index|inverted slice"
 	_ = slice[1:j:2]
 	_ = slice[2:j:1] // ERROR "invalid slice index"
 	_ = slice[1:2:k]
-	_ = slice[2:1:k] // ERROR "invalid slice index"
+	_ = slice[2:1:k] // ERROR "invalid slice index|inverted slice"
 	
 	_ = str[1:2]
-	_ = str[2:1] // ERROR "invalid slice index"
+	_ = str[2:1] // ERROR "invalid slice index|inverted slice"
 	_ = str[2:2]
 	_ = str[i:1]
 	_ = str[1:j]
 
 	// check out of bounds indices on array
-	_ = array[11:11] // ERROR "out of bounds for 10-element array"
-	_ = array[11:12] // ERROR "out of bounds for 10-element array"
-	_ = array[11:] // ERROR "out of bounds for 10-element array"
-	_ = array[:11] // ERROR "out of bounds for 10-element array"
-	_ = array[1:11] // ERROR "out of bounds for 10-element array"
-	_ = array[1:11:12] // ERROR "out of bounds for 10-element array"
-	_ = array[1:2:11] // ERROR "out of bounds for 10-element array"
-	_ = array[1:11:3] // ERROR "out of bounds for 10-element array"
-	_ = array[11:2:3] // ERROR "out of bounds for 10-element array"
-	_ = array[11:12:13] // ERROR "out of bounds for 10-element array"
+	_ = array[11:11] // ERROR "out of bounds"
+	_ = array[11:12] // ERROR "out of bounds"
+	_ = array[11:] // ERROR "out of bounds"
+	_ = array[:11] // ERROR "out of bounds"
+	_ = array[1:11] // ERROR "out of bounds"
+	_ = array[1:11:12] // ERROR "out of bounds"
+	_ = array[1:2:11] // ERROR "out of bounds"
+	_ = array[1:11:3] // ERROR "out of bounds|invalid slice index"
+	_ = array[11:2:3] // ERROR "out of bounds|inverted slice|invalid slice index"
+	_ = array[11:12:13] // ERROR "out of bounds"
 
 	// slice bounds not checked
 	_ = slice[11:11]
@@ -116,6 +116,6 @@ func f() {
 	_ = slice[1:11:12]
 	_ = slice[1:2:11]
 	_ = slice[1:11:3] // ERROR "invalid slice index"
-	_ = slice[11:2:3] // ERROR "invalid slice index"
+	_ = slice[11:2:3] // ERROR "invalid slice index|inverted slice"
 	_ = slice[11:12:13]
 }

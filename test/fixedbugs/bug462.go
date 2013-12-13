@@ -14,6 +14,6 @@ type T struct {
 
 func main() {
 	_ = T {
-		os.File: 1, // ERROR "unknown T field"
+		os.File: 1, // ERROR "unknown T? ?field"
 	}
 }

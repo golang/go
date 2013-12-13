@@ -7,11 +7,11 @@
 package p
 
 var T interface {
-	F1(i int) (i int) // ERROR "duplicate argument i"
-	F2(i, i int) // ERROR "duplicate argument i"
-	F3() (i, i int) // ERROR "duplicate argument i"
+	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
+	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous"
+	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
 }
 
-var T1 func(i, i int) // ERROR "duplicate argument i"
-var T2 func(i int) (i int) // ERROR "duplicate argument i"
-var T3 func() (i, i int) // ERROR "duplicate argument i"
+var T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous"
+var T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
+var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous"

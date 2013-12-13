@@ -13,5 +13,5 @@ func f(x int, y ...int) {}
 func g() (int, []int)
 
 func main() {
-	f(g()) // ERROR "as type int in"
+	f(g()) // ERROR "as type int in|incompatible type"
 }

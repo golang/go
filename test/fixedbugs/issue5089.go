@@ -8,8 +8,8 @@
 
 package p
 
-import "bufio"
+import "bufio"	// GCCGO_ERROR "previous"
 
-func (b *bufio.Reader) Buffered() int { // ERROR "non-local"
+func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
 	return -1
 }
