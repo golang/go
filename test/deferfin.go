@@ -23,6 +23,10 @@ func main() {
 	if runtime.GOARCH != "amd64" {
 		return
 	}
+	// Likewise for gccgo.
+	if runtime.Compiler == "gccgo" {
+		return
+	}
 	N := 10
 	count := int32(N)
 	var wg sync.WaitGroup

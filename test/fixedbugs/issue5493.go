@@ -31,9 +31,10 @@ func run() error {
 }
 
 func main() {
-	// Does not work on 32-bits due to partially conservative GC.
+	// Does not work on 32-bits, or with gccgo, due to partially
+	// conservative GC.
 	// Try to enable when we have fully precise GC.
-	if runtime.GOARCH != "amd64" {
+	if runtime.GOARCH != "amd64" || runtime.Compiler == "gccgo" {
 		return
 	}
 	count = N
