@@ -81,7 +81,7 @@ type methodValue struct {
 // by code like Convert and Interface and Assign.
 func makeMethodValue(op string, v Value) Value {
 	if v.flag&flagMethod == 0 {
-		panic("reflect: internal error: invalid use of makePartialFunc")
+		panic("reflect: internal error: invalid use of makeMethodValue")
 	}
 
 	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
