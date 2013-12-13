@@ -19,6 +19,6 @@ func matchList(s *S) E { return matcher(matchAnyFn)(s) }
 
 var foo = matcher(matchList)
 
-var matchAny = matcher(matchList) // ERROR "initialization loop"
+var matchAny = matcher(matchList) // ERROR "initialization loop|depends upon itself"
 
 func matchAnyFn(s *S) (err E) { return matchAny(s) }

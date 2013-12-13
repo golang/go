@@ -88,7 +88,7 @@ func main() {
 }
 
 const ptr = nil // ERROR "const.*nil"
-const _ = string([]byte(nil)) // ERROR "is not a constant"
-const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a constant"
-const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil"
-const _ = (*int)(nil) // ERROR "cannot be nil"
+const _ = string([]byte(nil)) // ERROR "is not a? ?constant"
+const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
+const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type"
+const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type"

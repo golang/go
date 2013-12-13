@@ -13,7 +13,7 @@ import "fmt"
 
 func main() {
 	var s uint
-	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation|non-integer type"
+	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation|non-integer type|incompatible type"
 	x := 1.0 + 1<<s         // ERROR "invalid operation|non-integer type"
 	_ = x
 }
