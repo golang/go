@@ -41,7 +41,6 @@ src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
 src/cmd/gc/y.output
 src/cmd/go/zdefaultcc.go
-src/liblink/anames?.c
 src/pkg/go/doc/headscan
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
