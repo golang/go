@@ -1515,27 +1515,7 @@ scanframe(Stkframe *frame, void *arg)
 static void
 scanstack(G* gp, void *scanbuf)
 {
-	uintptr pc;
-	uintptr sp;
-	uintptr lr;
-
-	if(gp->syscallstack != (uintptr)nil) {
-		// Scanning another goroutine that is about to enter or might
-		// have just exited a system call. It may be executing code such
-		// as schedlock and may have needed to start a new stack segment.
-		// Use the stack segment and stack pointer at the time of
-		// the system call instead, since that won't change underfoot.
-		sp = gp->syscallsp;
-		pc = gp->syscallpc;
-		lr = 0;
-	} else {
-		// Scanning another goroutine's stack.
-		// The goroutine is usually asleep (the world is stopped).
-		sp = gp->sched.sp;
-		pc = gp->sched.pc;
-		lr = gp->sched.lr;
-	}
-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
 }
 
 static void

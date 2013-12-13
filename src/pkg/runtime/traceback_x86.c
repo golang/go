@@ -30,6 +30,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	String file;
 
 	USED(lr0);
+	
+	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
+		if(gp->syscallstack != (uintptr)nil) {
+			pc0 = gp->syscallpc;
+			sp0 = gp->syscallsp;
+		} else {
+			pc0 = gp->sched.pc;
+			sp0 = gp->sched.sp;
+		}
+	}
 
 	nprint = 0;
 	runtime·memclr((byte*)&frame, sizeof frame);
