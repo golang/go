@@ -20,15 +20,15 @@ func main() {
 	b := 3
 	chB <- &b
 
-	<-chA  // @describe describe-chA "chA"
-	<-chA2 // @describe describe-chA2 "chA2"
-	<-chB  // @describe describe-chB "chB"
+	<-chA  // @pointsto pointsto-chA "chA"
+	<-chA2 // @pointsto pointsto-chA2 "chA2"
+	<-chB  // @pointsto pointsto-chB "chB"
 
 	select {
 	case rA := <-chA: // @peers peer-recv-chA "<-"
-		_ = rA // @describe describe-rA "rA"
+		_ = rA // @pointsto pointsto-rA "rA"
 	case rB := <-chB: // @peers peer-recv-chB "<-"
-		_ = rB // @describe describe-rB "rB"
+		_ = rB // @pointsto pointsto-rB "rB"
 
 	case <-chA: // @peers peer-recv-chA' "<-"
 

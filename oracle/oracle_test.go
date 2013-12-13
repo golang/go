@@ -206,13 +206,17 @@ func TestOracle(t *testing.T) {
 		"testdata/src/main/implements.go",
 		"testdata/src/main/imports.go",
 		"testdata/src/main/peers.go",
+		"testdata/src/main/pointsto.go",
 		"testdata/src/main/reflection.go",
+		"testdata/src/main/what.go",
 		// JSON:
 		"testdata/src/main/callgraph-json.go",
 		"testdata/src/main/calls-json.go",
 		"testdata/src/main/peers-json.go",
 		"testdata/src/main/describe-json.go",
+		"testdata/src/main/pointsto-json.go",
 		"testdata/src/main/referrers-json.go",
+		"testdata/src/main/what-json.go",
 	} {
 		useJson := strings.HasSuffix(filename, "-json.go")
 		queries := parseQueries(t, filename)

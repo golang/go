@@ -102,7 +102,7 @@ func findCallees(o *Oracle, site ssa.CallInstruction) ([]*ssa.Function, error) {
 	}
 
 	// Dynamic call: use pointer analysis.
-	o.config.BuildCallGraph = true
+	o.ptaConfig.BuildCallGraph = true
 	callgraph := ptrAnalysis(o).CallGraph
 
 	// Find all call edges from the site.

@@ -36,7 +36,7 @@ func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	// Run the pointer analysis, recording each
 	// call found to originate from target.
-	o.config.BuildCallGraph = true
+	o.ptaConfig.BuildCallGraph = true
 	callgraph := ptrAnalysis(o).CallGraph
 	var edges []call.Edge
 	call.GraphVisitEdges(callgraph, func(edge call.Edge) error {

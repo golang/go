@@ -1,0 +1,52 @@
+-------- @what call --------
+{
+	"mode": "what",
+	"what": {
+		"enclosing": [
+			{
+				"desc": "identifier",
+				"start": 179,
+				"end": 180
+			},
+			{
+				"desc": "function call (or conversion)",
+				"start": 179,
+				"end": 182
+			},
+			{
+				"desc": "expression statement",
+				"start": 179,
+				"end": 182
+			},
+			{
+				"desc": "block",
+				"start": 176,
+				"end": 202
+			},
+			{
+				"desc": "function declaration",
+				"start": 164,
+				"end": 202
+			},
+			{
+				"desc": "source file",
+				"start": 0,
+				"end": 202
+			}
+		],
+		"modes": [
+			"callees",
+			"callers",
+			"callgraph",
+			"callstack",
+			"definition",
+			"describe",
+			"freevars",
+			"implements",
+			"pointsto",
+			"referrers"
+		],
+		"srcdir": "testdata/src",
+		"importpath": "main"
+	}
+}

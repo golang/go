@@ -60,11 +60,11 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// ignore both directionality and type names.
 	queryType := queryOp.ch.Type()
 	queryElemType := queryType.Underlying().(*types.Chan).Elem()
-	o.config.AddQuery(queryOp.ch)
+	o.ptaConfig.AddQuery(queryOp.ch)
 	i := 0
 	for _, op := range ops {
 		if types.IsIdentical(op.ch.Type().Underlying().(*types.Chan).Elem(), queryElemType) {
-			o.config.AddQuery(op.ch)
+			o.ptaConfig.AddQuery(op.ch)
 			ops[i] = op
 			i++
 		}

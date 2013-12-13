@@ -576,7 +576,7 @@ func NodeDescription(n ast.Node) string {
 		if n.Tok == token.INC {
 			return "increment statement"
 		}
-		return "derement statement"
+		return "decrement statement"
 	case *ast.IndexExpr:
 		return "index expression"
 	case *ast.InterfaceType:

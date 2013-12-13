@@ -1,6 +1,6 @@
 -------- @freevars fv1 --------
 Free identifiers:
-type C main.C
+type C
 const exp int
 var x int
 

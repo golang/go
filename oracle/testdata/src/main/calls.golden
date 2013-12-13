@@ -1,6 +1,5 @@
--------- @describe describe-A-x --------
-definition of var x *int
-value may point to these labels:
+-------- @pointsto pointsto-A-x --------
+this *int may point to these objects:
 	a
 	b
 
@@ -10,9 +9,8 @@ main.A
 dynamic function call from main.apply
 static function call from main.main
 
--------- @describe describe-B-x --------
-definition of var x *int
-value may point to these labels:
+-------- @pointsto pointsto-B-x --------
+this *int may point to these objects:
 	a
 	b
 
@@ -35,10 +33,8 @@ main.store is called from these 2 sites:
 	static function call from main.main
 	static function call from main.main
 
--------- @describe describe-result-f --------
-reference to var f func() *int
-defined here
-value may point to these labels:
+-------- @pointsto pointsto-result-f --------
+this func() *int may point to these objects:
 	func@50.7
 
 -------- @callees callees-main.call-f --------
@@ -54,15 +50,12 @@ main.call is called from these 2 sites:
 this static function call dispatches to:
 	main.apply
 
--------- @describe describe-pc --------
-definition of var pc *int
-value may point to these labels:
+-------- @pointsto pointsto-pc --------
+this *int may point to these objects:
 	c
 
--------- @describe describe-pd --------
-reference to var pd *int
-defined here
-value may point to these labels:
+-------- @pointsto pointsto-pd --------
+this *int may point to these objects:
 	d
 
 -------- @callees callees-err-no-call --------

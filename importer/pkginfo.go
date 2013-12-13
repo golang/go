@@ -4,8 +4,6 @@
 
 package importer
 
-// TODO(gri): absorb this into go/types.
-
 import (
 	"fmt"
 	"go/ast"
@@ -92,6 +90,20 @@ func (info *PackageInfo) IsType(e ast.Expr) bool {
 func (info *PackageInfo) TypeCaseVar(cc *ast.CaseClause) *types.Var {
 	if v := info.Implicits[cc]; v != nil {
 		return v.(*types.Var)
+	}
+	return nil
+}
+
+// ImportSpecPkg returns the PkgName for a given ImportSpec, possibly
+// an implicit one for a dot-import or an import-without-rename.
+// It returns nil if not found.
+//
+func (info *PackageInfo) ImportSpecPkg(spec *ast.ImportSpec) *types.PkgName {
+	if spec.Name != nil {
+		return info.ObjectOf(spec.Name).(*types.PkgName)
+	}
+	if p := info.Implicits[spec]; p != nil {
+		return p.(*types.PkgName)
 	}
 	return nil
 }

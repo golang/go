@@ -101,6 +101,8 @@ func (l Label) Pos() token.Pos {
 //      append.y[*].z                           (array allocated by append)
 //      makeslice.y[*].z                        (array allocated via make)
 //
+// TODO(adonovan): expose func LabelString(*types.Package, Label).
+//
 func (l Label) String() string {
 	var s string
 	switch v := l.obj.data.(type) {

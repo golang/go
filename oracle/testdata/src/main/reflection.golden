@@ -1,6 +1,4 @@
--------- @describe mrv --------
-reference to var mrv reflect.Value
-defined here
+-------- @pointsto mrv --------
 this reflect.Value may contain these dynamic types:
 	*bool, may point to:
 		reflection.b
@@ -9,8 +7,7 @@ this reflect.Value may contain these dynamic types:
 	map[*int]*bool, may point to:
 		makemap
 
--------- @describe p1 --------
-definition of var p1 interface{}
+-------- @pointsto p1 --------
 this interface{} may contain these dynamic types:
 	*bool, may point to:
 		reflection.b
@@ -19,19 +16,16 @@ this interface{} may contain these dynamic types:
 	map[*int]*bool, may point to:
 		makemap
 
--------- @describe p2 --------
-definition of var p2 []reflect.Value
-value may point to these labels:
+-------- @pointsto p2 --------
+this []reflect.Value may point to these objects:
 	<alloc in (reflect.Value).MapKeys>
 
--------- @describe p3 --------
-definition of var p3 reflect.Value
+-------- @pointsto p3 --------
 this reflect.Value may contain these dynamic types:
 	*int, may point to:
 		reflection.a
 
--------- @describe p4 --------
-definition of var p4 reflect.Type
+-------- @pointsto p4 --------
 this reflect.Type may contain these dynamic types:
 	*reflect.rtype, may point to:
 		*bool

@@ -79,18 +79,7 @@
 		"detail": "value",
 		"value": {
 			"type": "*int",
-			"objpos": "testdata/src/main/describe-json.go:11:2",
-			"pts": [
-				{
-					"type": "*int",
-					"labels": [
-						{
-							"pos": "testdata/src/main/describe-json.go:10:6",
-							"desc": "s.x[*]"
-						}
-					]
-				}
-			]
+			"objpos": "testdata/src/main/describe-json.go:11:2"
 		}
 	}
 }-------- @describe desc-val-i --------
@@ -102,23 +91,7 @@
 		"detail": "value",
 		"value": {
 			"type": "I",
-			"objpos": "testdata/src/main/describe-json.go:14:6",
-			"pts": [
-				{
-					"type": "*D",
-					"namepos": "testdata/src/main/describe-json.go:28:6",
-					"labels": [
-						{
-							"pos": "testdata/src/main/describe-json.go:16:10",
-							"desc": "new"
-						}
-					]
-				},
-				{
-					"type": "C",
-					"namepos": "testdata/src/main/describe-json.go:27:6"
-				}
-			]
+			"objpos": "testdata/src/main/describe-json.go:14:6"
 		}
 	}
 }-------- @describe desc-stmt --------

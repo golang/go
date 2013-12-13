@@ -30,21 +30,21 @@ func referrers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 
 	// Iterate over all go/types' resolver facts for the entire program.
-	var refs []token.Pos
+	var refs []*ast.Ident
 	for _, info := range o.typeInfo {
 		for id2, obj2 := range info.Objects {
 			if sameObj(obj, obj2) {
 				if id2.NamePos == obj.Pos() {
 					continue // skip defining ident
 				}
-				refs = append(refs, id2.NamePos)
+				refs = append(refs, id2)
 			}
 		}
 	}
-	sort.Sort(byPos(refs))
+	sort.Sort(byNamePos(refs))
 
 	return &referrersResult{
-		query: id.NamePos,
+		query: id,
 		obj:   obj,
 		refs:  refs,
 	}, nil
@@ -65,14 +65,22 @@ func sameObj(x, y types.Object) bool {
 	return false
 }
 
+// -------- utils --------
+
+type byNamePos []*ast.Ident
+
+func (p byNamePos) Len() int           { return len(p) }
+func (p byNamePos) Less(i, j int) bool { return p[i].NamePos < p[j].NamePos }
+func (p byNamePos) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 type referrersResult struct {
-	query token.Pos    // identifer of query
+	query *ast.Ident   // identifer of query
 	obj   types.Object // object it denotes
-	refs  []token.Pos  // set of all other references to it
+	refs  []*ast.Ident // set of all other references to it
 }
 
 func (r *referrersResult) display(printf printfFunc) {
-	if r.query != r.obj.Pos() {
+	if r.query.Pos() != r.obj.Pos() {
 		printf(r.query, "reference to %s", r.obj.Name())
 	}
 	// TODO(adonovan): pretty-print object using same logic as
@@ -85,16 +93,18 @@ func (r *referrersResult) display(printf printfFunc) {
 	}
 }
 
+// TODO(adonovan): encode extent, not just Pos info, in Serial form.
+
 func (r *referrersResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	referrers := &serial.Referrers{
-		Pos:  fset.Position(r.query).String(),
+		Pos:  fset.Position(r.query.Pos()).String(),
 		Desc: r.obj.String(),
 	}
 	if pos := r.obj.Pos(); pos != token.NoPos { // Package objects have no Pos()
 		referrers.ObjPos = fset.Position(pos).String()
 	}
 	for _, ref := range r.refs {
-		referrers.Refs = append(referrers.Refs, fset.Position(ref).String())
+		referrers.Refs = append(referrers.Refs, fset.Position(ref.NamePos).String())
 	}
 	res.Referrers = referrers
 }

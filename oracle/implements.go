@@ -11,7 +11,7 @@ import (
 	"code.google.com/p/go.tools/oracle/serial"
 )
 
-// Implements displays the 'implements" relation among all
+// Implements displays the "implements" relation among all
 // package-level named types in the package containing the query
 // position.
 //
@@ -65,7 +65,7 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 	// TODO(adonovan): sort facts to ensure test nondeterminism.
 
-	return &implementsResult{o.prog.Fset, facts}, nil
+	return &implementsResult{o.fset, facts}, nil
 }
 
 type implementsFact struct {

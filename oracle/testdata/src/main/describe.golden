@@ -1,18 +1,17 @@
 -------- @describe pkgdecl --------
 definition of package "describe"
-	type  C        int
-		method (*describe.C) f()
-	type  D        struct{}
-		method (describe.D) f()
-	type  I        interface{f()}
-		method (describe.I) f()
-	const c        untyped integer = 0
-	type  cake     float64
-	func  deadcode func()
-	var   global   *string
-	func  main     func()
-	const pi       untyped float = 3141/1000
-	const pie      cake = 1768225803696341/562949953421312
+	type  C      int
+		method (*C) f()
+	type  D      struct{}
+		method (D) f()
+	type  I      interface{f()}
+		method (I) f()
+	const c      untyped integer = 0
+	type  cake   float64
+	var   global *string
+	func  main   func()
+	const pi     untyped float = 3141/1000
+	const pie    cake = 1768225803696341/562949953421312
 
 -------- @describe type-ref-builtin --------
 reference to built-in type float64
@@ -76,58 +75,37 @@ defined here
 -------- @describe ref-anon --------
 reference to var anon func()
 defined here
-value may point to these labels:
-	func@31.10
 
 -------- @describe ref-global --------
 reference to var global *string
 defined here
-value may point to these labels:
-	new
 
 -------- @describe var-def-x-1 --------
 definition of var x *int
-value may point to these labels:
-	a
 
 -------- @describe var-ref-x-1 --------
 reference to var x *int
 defined here
-value may point to these labels:
-	a
 
 -------- @describe var-def-x-2 --------
 reference to var x *int
 defined here
-value may point to these labels:
-	b
 
 -------- @describe var-ref-x-2 --------
 reference to var x *int
 defined here
-value may point to these labels:
-	b
 
 -------- @describe var-ref-i-C --------
 reference to var i I
 defined here
-this I may contain these dynamic types:
-	*C, may point to:
-		new
 
 -------- @describe var-ref-i-D --------
 reference to var i I
 defined here
-this I may contain these dynamic types:
-	D
 
 -------- @describe var-ref-i --------
 reference to var i I
 defined here
-this I may contain these dynamic types:
-	*C, may point to:
-		new
-	D
 
 -------- @describe const-local-pi --------
 definition of const localpi untyped float
@@ -160,14 +138,10 @@ index expression of type (*int, bool)
 -------- @describe mapval --------
 reference to var mapval *int
 defined here
-value may point to these labels:
-	a
 
 -------- @describe m --------
 reference to var m map[string]*int
 defined here
-value may point to these labels:
-	makemap
 
 -------- @describe defer-stmt --------
 defer statement
@@ -179,11 +153,13 @@ go statement
 function call (or conversion) of type ()
 
 -------- @describe var-decl-stmt --------
-definition of var a int
+definition of var a2 int
 
--------- @describe b --------
-definition of var b *int
-no points-to information: PTA did not encounter this expression (dead code?)
+-------- @describe var-decl-stmt2 --------
+definition of var _ int
+
+-------- @describe var-def-blank --------
+definition of var _ int
 
 -------- @describe def-iface-I --------
 definition of type I (size 16, align 8)

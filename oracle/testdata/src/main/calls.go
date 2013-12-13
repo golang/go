@@ -4,12 +4,12 @@ package main
 // See go.tools/oracle/oracle_test.go for explanation.
 // See calls.golden for expected query results.
 
-func A(x *int) { // @describe describe-A-x "x"
+func A(x *int) { // @pointsto pointsto-A-x "x"
 	// @callers callers-A "^"
 	// @callstack callstack-A "^"
 }
 
-func B(x *int) { // @describe describe-B-x "x"
+func B(x *int) { // @pointsto pointsto-B-x "x"
 	// @callers callers-B "^"
 }
 
@@ -28,7 +28,7 @@ func store(ptr **int, value *int) {
 
 func call(f func() *int) {
 	// Result points to anon function.
-	f() // @describe describe-result-f "f"
+	f() // @pointsto pointsto-result-f "f"
 
 	// Target of call is anon function.
 	f() // @callees callees-main.call-f "f"
@@ -42,10 +42,10 @@ func main() {
 	apply(B, &b)
 
 	var c, d int
-	var pc, pd *int // @describe describe-pc "pc"
+	var pc, pd *int // @pointsto pointsto-pc "pc"
 	store(&pc, &c)
 	store(&pd, &d)
-	_ = pd // @describe describe-pd "pd"
+	_ = pd // @pointsto pointsto-pd "pd"
 
 	call(func() *int {
 		// We are called twice from main.call
@@ -71,12 +71,12 @@ func main() {
 
 var dynamic = func() {}
 
-// Within dead code, dynamic calls have no callees.
 func deadcode() {
 	main() // @callees callees-err-deadcode2 "main"
 	// @callers callers-err-deadcode "^"
 	// @callstack callstack-err-deadcode "^"
 
+	// Within dead code, dynamic calls have no callees.
 	dynamic() // @callees callees-err-deadcode3 "dynamic"
 }
 

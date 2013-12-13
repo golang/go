@@ -3,7 +3,7 @@ import of package "lib"
 	const Const untyped integer = 3
 	func  Func  func()
 	type  Type  int
-		method (lib.Type) Method(x *int) *int
+		method (Type) Method(x *int) *int
 	var   Var   int
 
 -------- @describe ref-const --------
@@ -28,10 +28,8 @@ Method set:
 reference to method func (lib.Type).Method(x *int) *int
 defined here
 
--------- @describe p --------
-reference to var p *int
-defined here
-value may point to these labels:
+-------- @pointsto p --------
+this *int may point to these objects:
 	imports.a
 
 -------- @describe ref-pkg --------
@@ -39,6 +37,6 @@ reference to package "lib"
 	const Const untyped integer = 3
 	func  Func  func()
 	type  Type  int
-		method (lib.Type) Method(x *int) *int
+		method (Type) Method(x *int) *int
 	var   Var   int
 

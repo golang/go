@@ -10,8 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 
 	"code.google.com/p/go.tools/astutil"
@@ -19,25 +17,19 @@ import (
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
 	"code.google.com/p/go.tools/ssa"
 )
 
 // describe describes the syntax node denoted by the query position,
 // including:
 // - its syntactic category
-// - the location of the definition of its referent (for identifiers)
+// - the definition of its referent (for identifiers) [now redundant]
 // - its type and method set (for an expression or type expression)
-// - its points-to set (for a pointer-like expression)
-// - its dynamic types (for an interface, reflect.Value, or
-//   reflect.Type expression) and their points-to sets.
-//
-// All printed sets are sorted to ensure determinism.
 //
 func describe(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	if false { // debugging
-		o.fprintf(os.Stderr, qpos.path[0], "you selected: %s %s",
-			astutil.NodeDescription(qpos.path[0]), pathToString2(qpos.path))
+		fprintf(os.Stderr, o.fset, qpos.path[0], "you selected: %s %s",
+			astutil.NodeDescription(qpos.path[0]), pathToString(qpos.path))
 	}
 
 	path, action := findInterestingNode(qpos.info, qpos.path)
@@ -189,7 +181,7 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 
 		case *ast.SelectorExpr:
 			if pkginfo.ObjectOf(n.Sel) == nil {
-				// Is this reachable?
+				// TODO(adonovan): is this reachable?
 				return path, actionUnknown
 			}
 			// Descend to .Sel child.
@@ -234,6 +226,9 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 				// For reference to built-in function, return enclosing call.
 				path = path[1:] // ascend to enclosing function call
 				continue
+
+			case *types.Nil:
+				return path, actionExpr
 			}
 
 			// No object.
@@ -274,6 +269,7 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 			default:
 				// e.g. blank identifier (go/types bug?)
 				// or y in "switch y := x.(type)" (go/types bug?)
+				// or code in a _test.go file that's not part of the package.
 				fmt.Printf("unknown reference %s in %T\n", n, path[1])
 				return path, actionUnknown
 			}
@@ -297,54 +293,6 @@ func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.
 	return nil, actionUnknown // unreachable
 }
 
-// ---- VALUE ------------------------------------------------------------
-
-// ssaValueForIdent returns the ssa.Value for the ast.Ident whose path
-// to the root of the AST is path.  isAddr reports whether the
-// ssa.Value is the address denoted by the ast.Ident, not its value.
-// ssaValueForIdent may return a nil Value without an error to
-// indicate the pointer analysis is not appropriate.
-//
-func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.Object, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
-	if obj, ok := obj.(*types.Var); ok {
-		pkg := prog.Package(qinfo.Pkg)
-		pkg.Build()
-		if v, addr := prog.VarValue(obj, pkg, path); v != nil {
-			// Don't run pointer analysis on a ref to a const expression.
-			if _, ok := v.(*ssa.Const); ok {
-				return
-			}
-			return v, addr, nil
-		}
-		return nil, false, fmt.Errorf("can't locate SSA Value for var %s", obj.Name())
-	}
-
-	// Don't run pointer analysis on const/func objects.
-	return
-}
-
-// ssaValueForExpr returns the ssa.Value of the non-ast.Ident
-// expression whose path to the root of the AST is path.  It may
-// return a nil Value without an error to indicate the pointer
-// analysis is not appropriate.
-//
-func ssaValueForExpr(prog *ssa.Program, qinfo *importer.PackageInfo, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
-	pkg := prog.Package(qinfo.Pkg)
-	pkg.SetDebugMode(true)
-	pkg.Build()
-
-	fn := ssa.EnclosingFunction(pkg, path)
-	if fn == nil {
-		return nil, false, fmt.Errorf("no SSA function built for this location (dead code?)")
-	}
-
-	if v, addr := fn.ValueForExpr(path[0].(ast.Expr)); v != nil {
-		return v, addr, nil
-	}
-
-	return nil, false, fmt.Errorf("can't locate SSA Value for expression in %s", fn)
-}
-
 func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueResult, error) {
 	var expr ast.Expr
 	var obj types.Object
@@ -358,46 +306,12 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 	case ast.Expr:
 		expr = n
 	default:
-		// Is this reachable?
+		// TODO(adonovan): is this reachable?
 		return nil, fmt.Errorf("unexpected AST for expr: %T", n)
 	}
 
 	typ := qpos.info.TypeOf(expr)
 	constVal := qpos.info.ValueOf(expr)
-
-	// From this point on, we cannot fail with an error.
-	// Failure to run the pointer analysis will be reported later.
-	//
-	// Our disposition to pointer analysis may be one of the following:
-	// - ok:    ssa.Value was const or func.
-	// - error: no ssa.Value for expr (e.g. trivially dead code)
-	// - ok:    ssa.Value is non-pointerlike
-	// - error: no Pointer for ssa.Value (e.g. analytically unreachable)
-	// - ok:    Pointer has empty points-to set
-	// - ok:    Pointer has non-empty points-to set
-	// ptaErr is non-nil only in the "error:" cases.
-
-	var ptaErr error
-	var ptrs []pointerResult
-
-	// Only run pointer analysis on pointerlike expression types.
-	if pointer.CanPoint(typ) {
-		// Determine the ssa.Value for the expression.
-		var value ssa.Value
-		var isAddr bool
-		if obj != nil {
-			// def/ref of func/var/const object
-			value, isAddr, ptaErr = ssaValueForIdent(o.prog, qpos.info, obj, path)
-		} else {
-			// any other expression
-			if qpos.info.ValueOf(path[0].(ast.Expr)) == nil { // non-constant?
-				value, isAddr, ptaErr = ssaValueForExpr(o.prog, qpos.info, path)
-			}
-		}
-		if value != nil {
-			ptrs, ptaErr = describePointer(o, value, isAddr)
-		}
-	}
 
 	return &describeValueResult{
 		qpos:     qpos,
@@ -405,67 +319,15 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 		typ:      typ,
 		constVal: constVal,
 		obj:      obj,
-		ptaErr:   ptaErr,
-		ptrs:     ptrs,
 	}, nil
-}
-
-// describePointer runs the pointer analysis of the selected SSA value or address.
-func describePointer(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err error) {
-	buildSSA(o)
-
-	if isAddr {
-		o.config.AddIndirectQuery(v)
-	} else {
-		o.config.AddQuery(v)
-	}
-	ptares := ptrAnalysis(o)
-
-	// Combine the PT sets from all contexts.
-	var pointers []pointer.Pointer
-	if isAddr {
-		pointers = ptares.IndirectQueries[v]
-	} else {
-		pointers = ptares.Queries[v]
-	}
-	if pointers == nil {
-		return nil, fmt.Errorf("PTA did not encounter this expression (dead code?)")
-	}
-	pts := pointer.PointsToCombined(pointers)
-
-	if pointer.CanHaveDynamicTypes(v.Type()) {
-		// Show concrete types for interface/reflect.Value expression.
-		if concs := pts.DynamicTypes(); concs.Len() > 0 {
-			concs.Iterate(func(conc types.Type, pta interface{}) {
-				combined := pointer.PointsToCombined(pta.([]pointer.Pointer))
-				labels := combined.Labels()
-				sort.Sort(byPosAndString(labels)) // to ensure determinism
-				ptrs = append(ptrs, pointerResult{conc, labels})
-			})
-		}
-	} else {
-		// Show labels for other expressions.
-		labels := pts.Labels()
-		sort.Sort(byPosAndString(labels)) // to ensure determinism
-		ptrs = append(ptrs, pointerResult{v.Type(), labels})
-	}
-	sort.Sort(byTypeString(ptrs)) // to ensure determinism
-	return ptrs, nil
-}
-
-type pointerResult struct {
-	typ    types.Type // type of the pointer (always concrete)
-	labels []*pointer.Label
 }
 
 type describeValueResult struct {
 	qpos     *QueryPos
-	expr     ast.Expr        // query node
-	typ      types.Type      // type of expression
-	constVal exact.Value     // value of expression, if constant
-	obj      types.Object    // var/func/const object, if expr was Ident
-	ptaErr   error           // reason why pointer analysis couldn't be run, or failed
-	ptrs     []pointerResult // pointer info (typ is concrete => len==1)
+	expr     ast.Expr     // query node
+	typ      types.Type   // type of expression
+	constVal exact.Value  // value of expression, if constant
+	obj      types.Object // var/func/const object, if expr was Ident
 }
 
 func (r *describeValueResult) display(printf printfFunc) {
@@ -506,80 +368,15 @@ func (r *describeValueResult) display(printf printfFunc) {
 			printf(r.expr, "%s of type %s", desc, r.qpos.TypeString(r.typ))
 		}
 	}
-
-	// pointer analysis could not be run
-	if r.ptaErr != nil {
-		printf(r.expr, "no points-to information: %s", r.ptaErr)
-		return
-	}
-
-	if r.ptrs == nil {
-		return // PTA was not invoked (not an error)
-	}
-
-	// Display the results of pointer analysis.
-	if pointer.CanHaveDynamicTypes(r.typ) {
-		// Show concrete types for interface, reflect.Type or
-		// reflect.Value expression.
-
-		if len(r.ptrs) > 0 {
-			printf(r.qpos, "this %s may contain these dynamic types:", r.qpos.TypeString(r.typ))
-			for _, ptr := range r.ptrs {
-				var obj types.Object
-				if nt, ok := deref(ptr.typ).(*types.Named); ok {
-					obj = nt.Obj()
-				}
-				if len(ptr.labels) > 0 {
-					printf(obj, "\t%s, may point to:", r.qpos.TypeString(ptr.typ))
-					printLabels(printf, ptr.labels, "\t\t")
-				} else {
-					printf(obj, "\t%s", r.qpos.TypeString(ptr.typ))
-				}
-			}
-		} else {
-			printf(r.qpos, "this %s cannot contain any dynamic types.", r.typ)
-		}
-	} else {
-		// Show labels for other expressions.
-		if ptr := r.ptrs[0]; len(ptr.labels) > 0 {
-			printf(r.qpos, "value may point to these labels:")
-			printLabels(printf, ptr.labels, "\t")
-		} else {
-			printf(r.qpos, "value cannot point to anything.")
-		}
-	}
 }
 
 func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	var value, objpos, ptaerr string
+	var value, objpos string
 	if r.constVal != nil {
 		value = r.constVal.String()
 	}
 	if r.obj != nil {
 		objpos = fset.Position(r.obj.Pos()).String()
-	}
-	if r.ptaErr != nil {
-		ptaerr = r.ptaErr.Error()
-	}
-
-	var pts []*serial.DescribePointer
-	for _, ptr := range r.ptrs {
-		var namePos string
-		if nt, ok := deref(ptr.typ).(*types.Named); ok {
-			namePos = fset.Position(nt.Obj().Pos()).String()
-		}
-		var labels []serial.DescribePTALabel
-		for _, l := range ptr.labels {
-			labels = append(labels, serial.DescribePTALabel{
-				Pos:  fset.Position(l.Pos()).String(),
-				Desc: l.String(),
-			})
-		}
-		pts = append(pts, &serial.DescribePointer{
-			Type:    r.qpos.TypeString(ptr.typ),
-			NamePos: namePos,
-			Labels:  labels,
-		})
 	}
 
 	res.Describe = &serial.Describe{
@@ -590,32 +387,7 @@ func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) 
 			Type:   r.qpos.TypeString(r.typ),
 			Value:  value,
 			ObjPos: objpos,
-			PTAErr: ptaerr,
-			PTS:    pts,
 		},
-	}
-}
-
-type byTypeString []pointerResult
-
-func (a byTypeString) Len() int           { return len(a) }
-func (a byTypeString) Less(i, j int) bool { return a[i].typ.String() < a[j].typ.String() }
-func (a byTypeString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-type byPosAndString []*pointer.Label
-
-func (a byPosAndString) Len() int { return len(a) }
-func (a byPosAndString) Less(i, j int) bool {
-	cmp := a[i].Pos() - a[j].Pos()
-	return cmp < 0 || (cmp == 0 && a[i].String() < a[j].String())
-}
-func (a byPosAndString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-func printLabels(printf printfFunc, labels []*pointer.Label, prefix string) {
-	// TODO(adonovan): due to context-sensitivity, many of these
-	// labels may differ only by context, which isn't apparent.
-	for _, label := range labels {
-		printf(label, "%s%s", prefix, label)
 	}
 }
 
@@ -725,13 +497,9 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 	var pkg *types.Package
 	switch n := path[0].(type) {
 	case *ast.ImportSpec:
-		// Most ImportSpecs have no .Name Ident so we can't
-		// use ObjectOf.
-		// We could use the types.Info.Implicits mechanism,
-		// but it's easier just to look it up by name.
-		description = "import of package " + n.Path.Value
-		importPath, _ := strconv.Unquote(n.Path.Value)
-		pkg = o.prog.ImportedPackage(importPath).Object
+		pkgname := qpos.info.ImportSpecPkg(n)
+		description = fmt.Sprintf("import of package %q", pkgname.Name())
+		pkg = pkgname.Pkg()
 
 	case *ast.Ident:
 		if _, isDef := path[1].(*ast.File); isDef {
@@ -771,7 +539,7 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 		}
 	}
 
-	return &describePackageResult{o.prog.Fset, path[0], description, pkg, members}, nil
+	return &describePackageResult{o.fset, path[0], description, pkg, members}, nil
 }
 
 type describePackageResult struct {
@@ -801,7 +569,7 @@ func (r *describePackageResult) display(printf printfFunc) {
 	for _, mem := range r.members {
 		printf(mem.obj, "\t%s", formatMember(mem.obj, maxname))
 		for _, meth := range mem.methods {
-			printf(meth.Obj(), "\t\t%s", meth)
+			printf(meth.Obj(), "\t\t%s", types.SelectionString(r.pkg, meth))
 		}
 	}
 }
@@ -904,7 +672,7 @@ func describeStmt(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeStmtResu
 		// Nothing much to say about statements.
 		description = astutil.NodeDescription(n)
 	}
-	return &describeStmtResult{o.prog.Fset, path[0], description}, nil
+	return &describeStmtResult{o.fset, path[0], description}, nil
 }
 
 type describeStmtResult struct {
@@ -929,7 +697,7 @@ func (r *describeStmtResult) toSerial(res *serial.Result, fset *token.FileSet) {
 
 // pathToString returns a string containing the concrete types of the
 // nodes in path.
-func pathToString2(path []ast.Node) string {
+func pathToString(path []ast.Node) string {
 	var buf bytes.Buffer
 	fmt.Fprint(&buf, "[")
 	for i, n := range path {

@@ -13,22 +13,48 @@ package oracle
 // This file defines oracle.Query, the entry point for the oracle tool.
 // The actual executable is defined in cmd/oracle.
 
-// TODO(adonovan): new query: show all statements that may update the
-// selected lvalue (local, global, field, etc).
+// TODO(adonovan): new queries
+// - show all statements that may update the selected lvalue
+//   (local, global, field, etc).
+// - show all places where an object of type T is created
+//   (&T{}, var t T, new(T), new(struct{array [3]T}), etc.
+
+// ORACLE CONTROL FLOW
+//
+// The Oracle is somewhat convoluted due to the need to support two
+// very different use-cases, "one-shot" and "long running", and to do
+// so quickly.
+//
+// The cmd/oracle tool issues "one-shot" queries via the exported
+// Query function, which creates an Oracle to answer a single query.
+// newOracle consults the 'needs' flags of the query mode and the
+// package containing the query to avoid doing more work than it needs
+// (loading, parsing, type checking, SSA construction).
+//
+// The Pythia tool (github.com/fzipp/pythia‎) is an example of a "long
+// running" tool.  It calls New() and then loops, calling
+// ParseQueryPos and (*Oracle).Query to handle each incoming HTTP
+// query.  Since New cannot see which queries will follow, it must
+// load, parse, type-check and SSA-build the entire transitive closure
+// of the analysis scope, retaining full debug information and all
+// typed ASTs.
+//
+// TODO(adonovan): experiment with inverting the control flow by
+// making each mode consist of two functions: a "one-shot setup"
+// function and the existing "impl" function.  The one-shot setup
+// function would do all of the work of Query and newOracle,
+// specialized to each mode, calling library utilities for the common
+// things.  This would give it more control over "scope reduction".
+// Long running tools would not call the one-shot setup function but
+// would have their own setup function equivalent to the existing
+// 'needsAll' flow path.
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/printer"
 	"go/token"
 	"io"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/types"
@@ -40,29 +66,25 @@ import (
 
 // An Oracle holds the program state required for one or more queries.
 type Oracle struct {
-	out    io.Writer      // standard output
-	prog   *ssa.Program   // the SSA program [only populated if need&SSA]
-	config pointer.Config // pointer analysis configuration [TODO rename ptaConfig]
-
-	// need&AllTypeInfo
-	typeInfo map[*types.Package]*importer.PackageInfo // type info for all ASTs in the program
-
-	timers map[string]time.Duration // phase timing information
+	fset      *token.FileSet                           // file set [all queries]
+	prog      *ssa.Program                             // the SSA program [needSSA]
+	ptaConfig pointer.Config                           // pointer analysis configuration [needPTA]
+	typeInfo  map[*types.Package]*importer.PackageInfo // type info for all ASTs in the program [needRetainTypeInfo]
 }
 
 // A set of bits indicating the analytical requirements of each mode.
 //
 // Typed ASTs for the whole program are always constructed
 // transiently; they are retained only for the queried package unless
-// needAllTypeInfo is set.
+// needRetainTypeInfo is set.
 const (
-	needPos         = 1 << iota // needs a position
-	needExactPos                // needs an exact AST selection; implies needPos
-	needAllTypeInfo             // needs to retain type info for all ASTs in the program
-	needSSA                     // needs ssa.Packages for whole program
-	needSSADebug                // needs debug info for ssa.Packages
-	needPTA         = needSSA   // needs pointer analysis
-	needAll         = -1        // needs everything (e.g. a sequence of queries)
+	needPos            = 1 << iota // needs a position
+	needExactPos                   // needs an exact AST selection; implies needPos
+	needRetainTypeInfo             // needs to retain type info for all ASTs in the program
+	needSSA                        // needs ssa.Packages for whole program
+	needSSADebug                   // needs debug info for ssa.Packages
+	needPTA            = needSSA   // needs pointer analysis
+	needAll            = -1        // needs everything (e.g. a sequence of queries)
 )
 
 type modeInfo struct {
@@ -72,15 +94,20 @@ type modeInfo struct {
 }
 
 var modes = []*modeInfo{
+	// Pointer analyses: (whole program)
 	{"callees", needPTA | needExactPos, callees},
 	{"callers", needPTA | needPos, callers},
 	{"callgraph", needPTA, callgraph},
 	{"callstack", needPTA | needPos, callstack},
-	{"describe", needPTA | needSSADebug | needExactPos, describe},
+	{"peers", needPTA | needSSADebug | needPos, peers},
+	{"pointsto", needPTA | needSSADebug | needExactPos, pointsto},
+
+	// Type-based analyses: (modular, mostly)
+	{"definition", needPos, definition},
+	{"describe", needExactPos, describe},
 	{"freevars", needPos, freevars},
 	{"implements", needPos, implements},
-	{"peers", needPTA | needSSADebug | needPos, peers},
-	{"referrers", needAllTypeInfo | needPos, referrers},
+	{"referrers", needRetainTypeInfo | needPos, referrers}, // (whole-program)
 }
 
 func findMode(mode string) *modeInfo {
@@ -106,9 +133,11 @@ type queryResult interface {
 // Instances are created by ParseQueryPos.
 //
 type QueryPos struct {
+	fset       *token.FileSet
 	start, end token.Pos             // source extent of query
-	info       *importer.PackageInfo // type info for the queried package
 	path       []ast.Node            // AST path from query node to root of ast.File
+	exact      bool                  // 2nd result of PathEnclosingInterval
+	info       *importer.PackageInfo // type info for the queried package (nil for fastQueryPos)
 }
 
 // TypeString prints type T relative to the query position.
@@ -128,9 +157,7 @@ func (qpos *QueryPos) SelectionString(sel *types.Selection) string {
 
 // A Result encapsulates the result of an oracle.Query.
 type Result struct {
-	fset *token.FileSet
-	// fprintf is a closure over the oracle's fileset and start/end position.
-	fprintf  func(w io.Writer, pos interface{}, format string, args ...interface{})
+	fset     *token.FileSet
 	q        queryResult       // the query-specific result
 	mode     string            // query mode
 	warnings []pointer.Warning // pointer analysis warnings
@@ -180,31 +207,38 @@ func (res *Result) Serial() *serial.Result {
 // depends on the query mode; how should we expose this?
 //
 func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *build.Context, reflection bool) (*Result, error) {
+	if mode == "what" {
+		// Bypass package loading, type checking, SSA construction.
+		return what(pos, buildContext)
+	}
+
 	minfo := findMode(mode)
 	if minfo == nil {
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	imp := importer.New(&importer.Config{Build: buildContext})
-	o, err := New(imp, args, ptalog, reflection)
+	impcfg := importer.Config{Build: buildContext}
+
+	// For queries needing only a single typed package,
+	// reduce the analysis scope to that package.
+	if minfo.needs&(needSSA|needRetainTypeInfo) == 0 {
+		reduceScope(pos, &impcfg, &args)
+	}
+
+	// TODO(adonovan): report type errors to the user via Serial
+	// types, not stderr?
+	// impcfg.TypeChecker.Error = func(err error) {
+	// 	E := err.(types.Error)
+	// 	fmt.Fprintf(os.Stderr, "%s: %s\n", E.Fset.Position(E.Pos), E.Msg)
+	// }
+	imp := importer.New(&impcfg)
+	o, err := newOracle(imp, args, ptalog, minfo.needs, reflection)
 	if err != nil {
 		return nil, err
 	}
 
-	// Phase timing diagnostics.
-	// TODO(adonovan): needs more work.
-	// if false {
-	// 	defer func() {
-	// 		fmt.Println()
-	// 		for name, duration := range o.timers {
-	// 			fmt.Printf("# %-30s %s\n", name, duration)
-	// 		}
-	// 	}()
-	// }
-
 	var qpos *QueryPos
 	if minfo.needs&(needPos|needExactPos) != 0 {
-		var err error
 		qpos, err = ParseQueryPos(imp, pos, minfo.needs&needExactPos != 0)
 		if err != nil {
 			return nil, err
@@ -216,6 +250,58 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 	imp = nil
 
 	return o.query(minfo, qpos)
+}
+
+// reduceScope is called for one-shot queries that need only a single
+// typed package.  It attempts to guess the query package from pos and
+// reduce the analysis scope (set of loaded packages) to just that one
+// plus (the exported parts of) its dependencies.  It leaves its
+// arguments unchanged on failure.
+//
+// TODO(adonovan): this is a real mess... but it's fast.
+//
+func reduceScope(pos string, impcfg *importer.Config, args *[]string) {
+	// TODO(adonovan): make the 'args' argument of
+	// (*Importer).LoadInitialPackages part of the
+	// importer.Config, and inline LoadInitialPackages into
+	// NewImporter.  Then we won't need the 'args' argument.
+
+	fqpos, err := fastQueryPos(pos)
+	if err != nil {
+		return // bad query
+	}
+
+	// TODO(adonovan): fix: this gives the wrong results for files
+	// in non-importable packages such as tests and ad-hoc packages
+	// specified as a list of files (incl. the oracle's tests).
+	_, importPath, err := guessImportPath(fqpos.fset.File(fqpos.start).Name(), impcfg.Build)
+	if err != nil {
+		return // can't find GOPATH dir
+	}
+	if importPath == "" {
+		return
+	}
+
+	// Check that it's possible to load the queried package.
+	// (e.g. oracle tests contain different 'package' decls in same dir.)
+	// Keep consistent with logic in importer/util.go!
+	ctxt2 := *impcfg.Build
+	ctxt2.CgoEnabled = false
+	bp, err := ctxt2.Import(importPath, "", 0)
+	if err != nil {
+		return // no files for package
+	}
+	_ = bp
+
+	// TODO(adonovan): fix: also check that the queried file appears in the package.
+	//  for _, f := range bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles {
+	//  	if sameFile(f, fqpos.filename) { goto found }
+	//  }
+	//  return // not found
+	// found:
+
+	impcfg.TypeCheckFuncBodies = func(p string) bool { return p == importPath }
+	*args = []string{importPath}
 }
 
 // New constructs a new Oracle that can be used for a sequence of queries.
@@ -233,15 +319,9 @@ func New(imp *importer.Importer, args []string, ptalog io.Writer, reflection boo
 }
 
 func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs int, reflection bool) (*Oracle, error) {
-	o := &Oracle{
-		prog:   ssa.NewProgram(imp.Fset, 0),
-		timers: make(map[string]time.Duration),
-	}
-	o.config.Log = ptalog
-	o.config.Reflection = reflection
+	o := &Oracle{fset: imp.Fset}
 
 	// Load/parse/type-check program from args.
-	start := time.Now()
 	initialPkgInfos, args, err := imp.LoadInitialPackages(args)
 	if err != nil {
 		return nil, err // I/O or parser error
@@ -249,10 +329,9 @@ func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs in
 	if len(args) > 0 {
 		return nil, fmt.Errorf("surplus arguments: %q", args)
 	}
-	o.timers["load/parse/type"] = time.Since(start)
 
 	// Retain type info for all ASTs in the program.
-	if needs&needAllTypeInfo != 0 {
+	if needs&needRetainTypeInfo != 0 {
 		m := make(map[*types.Package]*importer.PackageInfo)
 		for _, p := range imp.AllPackages() {
 			m[p.Pkg] = p
@@ -262,49 +341,56 @@ func newOracle(imp *importer.Importer, args []string, ptalog io.Writer, needs in
 
 	// Create SSA package for the initial packages and their dependencies.
 	if needs&needSSA != 0 {
-		start = time.Now()
+		prog := ssa.NewProgram(o.fset, 0)
 
 		// Create SSA packages.
-		if err := o.prog.CreatePackages(imp); err != nil {
+		if err := prog.CreatePackages(imp); err != nil {
 			return nil, err
 		}
 
 		// For each initial package (specified on the command line),
 		// if it has a main function, analyze that,
 		// otherwise analyze its tests, if any.
-		var testPkgs []*ssa.Package
+		var testPkgs, mains []*ssa.Package
 		for _, info := range initialPkgInfos {
-			initialPkg := o.prog.Package(info.Pkg)
+			initialPkg := prog.Package(info.Pkg)
 
 			// Add package to the pointer analysis scope.
 			if initialPkg.Func("main") != nil {
-				o.config.Mains = append(o.config.Mains, initialPkg)
+				mains = append(mains, initialPkg)
 			} else {
 				testPkgs = append(testPkgs, initialPkg)
 			}
 		}
 		if testPkgs != nil {
-			if p := o.prog.CreateTestMainPackage(testPkgs...); p != nil {
-				o.config.Mains = append(o.config.Mains, p)
+			if p := prog.CreateTestMainPackage(testPkgs...); p != nil {
+				mains = append(mains, p)
 			}
 		}
-		if o.config.Mains == nil {
+		if mains == nil {
 			return nil, fmt.Errorf("analysis scope has no main and no tests")
 		}
+		o.ptaConfig.Log = ptalog
+		o.ptaConfig.Reflection = reflection
+		o.ptaConfig.Mains = mains
 
 		if needs&needSSADebug != 0 {
-			for _, pkg := range o.prog.AllPackages() {
+			for _, pkg := range prog.AllPackages() {
 				pkg.SetDebugMode(true)
 			}
 		}
 
-		o.timers["SSA-create"] = time.Since(start)
+		o.prog = prog
 	}
 
 	return o, nil
 }
 
 // Query runs the query of the specified mode and selection.
+//
+// TODO(adonovan): fix: this function does not currently support the
+// "what" query, which needs to access the go/build.Context.
+//
 func (o *Oracle) Query(mode string, qpos *QueryPos) (*Result, error) {
 	minfo := findMode(mode)
 	if minfo == nil {
@@ -314,10 +400,13 @@ func (o *Oracle) Query(mode string, qpos *QueryPos) (*Result, error) {
 }
 
 func (o *Oracle) query(minfo *modeInfo, qpos *QueryPos) (*Result, error) {
+	// Clear out residue of previous query (for long-running clients).
+	o.ptaConfig.Queries = nil
+	o.ptaConfig.IndirectQueries = nil
+
 	res := &Result{
-		mode:    minfo.name,
-		fset:    o.prog.Fset,
-		fprintf: o.fprintf, // captures o.prog, o.{start,end}Pos for later printing
+		mode: minfo.name,
+		fset: o.fset,
 	}
 	var err error
 	res.q, err = minfo.impl(o, qpos)
@@ -328,10 +417,16 @@ func (o *Oracle) query(minfo *modeInfo, qpos *QueryPos) (*Result, error) {
 }
 
 // ParseQueryPos parses the source query position pos.
-// If needExact, it must identify a single AST subtree.
+// If needExact, it must identify a single AST subtree;
+// this is appropriate for queries that allow fairly arbitrary syntax,
+// e.g. "describe".
 //
-func ParseQueryPos(imp *importer.Importer, pos string, needExact bool) (*QueryPos, error) {
-	start, end, err := parseQueryPos(imp.Fset, pos)
+func ParseQueryPos(imp *importer.Importer, posFlag string, needExact bool) (*QueryPos, error) {
+	filename, startOffset, endOffset, err := parsePosFlag(posFlag)
+	if err != nil {
+		return nil, err
+	}
+	start, end, err := findQueryPos(imp.Fset, filename, startOffset, endOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -342,13 +437,13 @@ func ParseQueryPos(imp *importer.Importer, pos string, needExact bool) (*QueryPo
 	if needExact && !exact {
 		return nil, fmt.Errorf("ambiguous selection within %s", astutil.NodeDescription(path[0]))
 	}
-	return &QueryPos{start, end, info, path}, nil
+	return &QueryPos{imp.Fset, start, end, path, exact, info}, nil
 }
 
 // WriteTo writes the oracle query result res to out in a compiler diagnostic format.
 func (res *Result) WriteTo(out io.Writer) {
 	printf := func(pos interface{}, format string, args ...interface{}) {
-		res.fprintf(out, pos, format, args...)
+		fprintf(out, res.fset, pos, format, args...)
 	}
 	res.q.display(printf)
 
@@ -367,110 +462,12 @@ func (res *Result) WriteTo(out io.Writer) {
 // Not needed in simpler modes, e.g. freevars.
 //
 func buildSSA(o *Oracle) {
-	start := time.Now()
 	o.prog.BuildAll()
-	o.timers["SSA-build"] = time.Since(start)
 }
 
 // ptrAnalysis runs the pointer analysis and returns its result.
 func ptrAnalysis(o *Oracle) *pointer.Result {
-	start := time.Now()
-	result := pointer.Analyze(&o.config)
-	o.timers["pointer analysis"] = time.Since(start)
-	return result
-}
-
-// parseOctothorpDecimal returns the numeric value if s matches "#%d",
-// otherwise -1.
-func parseOctothorpDecimal(s string) int {
-	if s != "" && s[0] == '#' {
-		if s, err := strconv.ParseInt(s[1:], 10, 32); err == nil {
-			return int(s)
-		}
-	}
-	return -1
-}
-
-// parseQueryPos parses a string of the form "file:pos" or
-// file:start,end" where pos, start, end match #%d and represent byte
-// offsets, and returns the extent to which it refers.
-//
-// (Numbers without a '#' prefix are reserved for future use,
-// e.g. to indicate line/column positions.)
-//
-func parseQueryPos(fset *token.FileSet, queryPos string) (start, end token.Pos, err error) {
-	if queryPos == "" {
-		err = fmt.Errorf("no source position specified (-pos flag)")
-		return
-	}
-
-	colon := strings.LastIndex(queryPos, ":")
-	if colon < 0 {
-		err = fmt.Errorf("invalid source position -pos=%q", queryPos)
-		return
-	}
-	filename, offset := queryPos[:colon], queryPos[colon+1:]
-	startOffset := -1
-	endOffset := -1
-	if hyphen := strings.Index(offset, ","); hyphen < 0 {
-		// e.g. "foo.go:#123"
-		startOffset = parseOctothorpDecimal(offset)
-		endOffset = startOffset
-	} else {
-		// e.g. "foo.go:#123,#456"
-		startOffset = parseOctothorpDecimal(offset[:hyphen])
-		endOffset = parseOctothorpDecimal(offset[hyphen+1:])
-	}
-	if startOffset < 0 || endOffset < 0 {
-		err = fmt.Errorf("invalid -pos offset %q", offset)
-		return
-	}
-
-	var file *token.File
-	fset.Iterate(func(f *token.File) bool {
-		if sameFile(filename, f.Name()) {
-			// (f.Name() is absolute)
-			file = f
-			return false // done
-		}
-		return true // continue
-	})
-	if file == nil {
-		err = fmt.Errorf("couldn't find file containing position -pos=%q", queryPos)
-		return
-	}
-
-	// Range check [start..end], inclusive of both end-points.
-
-	if 0 <= startOffset && startOffset <= file.Size() {
-		start = file.Pos(int(startOffset))
-	} else {
-		err = fmt.Errorf("start position is beyond end of file -pos=%q", queryPos)
-		return
-	}
-
-	if 0 <= endOffset && endOffset <= file.Size() {
-		end = file.Pos(int(endOffset))
-	} else {
-		err = fmt.Errorf("end position is beyond end of file -pos=%q", queryPos)
-		return
-	}
-
-	return
-}
-
-// sameFile returns true if x and y have the same basename and denote
-// the same file.
-//
-func sameFile(x, y string) bool {
-	if filepath.Base(x) == filepath.Base(y) { // (optimisation)
-		if xi, err := os.Stat(x); err == nil {
-			if yi, err := os.Stat(y); err == nil {
-				return os.SameFile(xi, yi)
-			}
-		}
-	}
-	return false
+	return pointer.Analyze(&o.ptaConfig)
 }
 
 // unparen returns e with any enclosing parentheses stripped.
@@ -508,7 +505,7 @@ func deref(typ types.Type) types.Type {
 // compilation-error-regexp in Emacs' compilation mode.
 // TODO(adonovan): support other editors.
 //
-func (o *Oracle) fprintf(w io.Writer, pos interface{}, format string, args ...interface{}) {
+func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, args ...interface{}) {
 	var start, end token.Pos
 	switch pos := pos.(type) {
 	case ast.Node:
@@ -531,11 +528,11 @@ func (o *Oracle) fprintf(w io.Writer, pos interface{}, format string, args ...in
 		panic(fmt.Sprintf("invalid pos: %T", pos))
 	}
 
-	if sp := o.prog.Fset.Position(start); start == end {
+	if sp := fset.Position(start); start == end {
 		// (prints "-: " for token.NoPos)
 		fmt.Fprintf(w, "%s: ", sp)
 	} else {
-		ep := o.prog.Fset.Position(end)
+		ep := fset.Position(end)
 		// The -1 below is a concession to Emacs's broken use of
 		// inclusive (not half-open) intervals.
 		// Other editors may not want it.
@@ -546,11 +543,4 @@ func (o *Oracle) fprintf(w io.Writer, pos interface{}, format string, args ...in
 	}
 	fmt.Fprintf(w, format, args...)
 	io.WriteString(w, "\n")
-}
-
-// printNode returns the pretty-printed syntax of n.
-func (o *Oracle) printNode(n ast.Node) string {
-	var buf bytes.Buffer
-	printer.Fprint(&buf, o.prog.Fset, n)
-	return buf.String()
 }

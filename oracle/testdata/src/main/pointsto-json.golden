@@ -1,0 +1,34 @@
+-------- @pointsto val-p --------
+{
+	"mode": "pointsto",
+	"pointsto": [
+		{
+			"type": "*int",
+			"labels": [
+				{
+					"pos": "testdata/src/main/pointsto-json.go:8:6",
+					"desc": "s.x[*]"
+				}
+			]
+		}
+	]
+}-------- @pointsto val-i --------
+{
+	"mode": "pointsto",
+	"pointsto": [
+		{
+			"type": "*D",
+			"namepos": "testdata/src/main/pointsto-json.go:24:6",
+			"labels": [
+				{
+					"pos": "testdata/src/main/pointsto-json.go:14:10",
+					"desc": "new"
+				}
+			]
+		},
+		{
+			"type": "C",
+			"namepos": "testdata/src/main/pointsto-json.go:23:6"
+		}
+	]
+}

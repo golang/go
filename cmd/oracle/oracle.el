@@ -36,14 +36,18 @@
   nil
   "History of values supplied to `go-oracle-set-scope'.")
 
+;; TODO(adonovan): I'd like to get rid of this separate mode since it
+;; makes it harder to use the oracle.
 (defvar go-oracle-mode-map
   (let ((m (make-sparse-keymap)))
-    (define-key m (kbd "C-c C-o d") #'go-oracle-describe)
+    (define-key m (kbd "C-c C-o t") #'go-oracle-describe) ; t for type
     (define-key m (kbd "C-c C-o f") #'go-oracle-freevars)
     (define-key m (kbd "C-c C-o g") #'go-oracle-callgraph)
     (define-key m (kbd "C-c C-o i") #'go-oracle-implements)
-    (define-key m (kbd "C-c C-o p") #'go-oracle-peers)
+    (define-key m (kbd "C-c C-o c") #'go-oracle-peers)  ; c for channel
     (define-key m (kbd "C-c C-o r") #'go-oracle-referrers)
+    (define-key m (kbd "C-c C-o d") #'go-oracle-definition)
+    (define-key m (kbd "C-c C-o p") #'go-oracle-pointsto)
     (define-key m (kbd "C-c C-o s") #'go-oracle-callstack)
     (define-key m (kbd "C-c C-o <") #'go-oracle-callers)
     (define-key m (kbd "C-c C-o >") #'go-oracle-callees)
@@ -128,7 +132,7 @@ result."
       ;; Hide the file/line info to save space.
       ;; Replace each with a little widget.
       ;; compilation-mode + this loop = slooow.
-      ;; TODO(adonovan): have oracle give us an S-expression
+      ;; TODO(adonovan): have oracle give us JSON
       ;; and we'll do the markup directly.
       (let ((buffer-read-only nil)
             (p 1))
@@ -171,10 +175,20 @@ function containing the current point."
   (interactive)
   (go-oracle--run "callstack"))
 
+(defun go-oracle-definition ()
+  "Show the definition of the selected identifier."
+  (interactive)
+  (go-oracle--run "definition"))
+
 (defun go-oracle-describe ()
-  "Describe the expression at the current point."
+  "Describe the selected syntax, its kind, type and methods."
   (interactive)
   (go-oracle--run "describe"))
+
+(defun go-oracle-pointsto ()
+  "Show what the selected expression points to."
+  (interactive)
+  (go-oracle--run "pointsto"))
 
 (defun go-oracle-implements ()
   "Describe the 'implements' relation for types in the package

@@ -69,13 +69,11 @@ func main() { // @describe func-def-main "main"
 	go main()    // @describe go-stmt "go"
 
 	panic(3) // @describe builtin-ref-panic "panic"
-}
 
-func deadcode() {
-	var a int // @describe var-decl-stmt "var a int"
-	// Pointer analysis can't run on dead code.
-	var b = &a // @describe b "b"
-	_ = b
+	var a2 int // @describe var-decl-stmt "var a2 int"
+	_ = a2
+	var _ int // @describe var-decl-stmt2 "var _ int"
+	var _ int // @describe var-def-blank "_"
 }
 
 type I interface { // @describe def-iface-I "I"

@@ -122,7 +122,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	if len(args) == 0 {
+	if len(args) == 0 && mode != "what" {
 		fmt.Fprint(os.Stderr, "Error: no package arguments.\n"+useHelp)
 		os.Exit(2)
 	}

@@ -5,7 +5,9 @@
 package oracle
 
 import (
+	"bytes"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"sort"
 
@@ -120,7 +122,7 @@ func freevars(o *Oracle, qpos *QueryPos) (queryResult, error) {
 				}
 
 				typ := qpos.info.TypeOf(n.(ast.Expr))
-				ref := freevarsRef{kind, o.printNode(n), typ, obj}
+				ref := freevarsRef{kind, printNode(o.fset, n), typ, obj}
 				refsMap[ref.ref] = ref
 
 				if prune {
@@ -140,14 +142,12 @@ func freevars(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	return &freevarsResult{
 		qpos: qpos,
-		fset: o.prog.Fset,
 		refs: refs,
 	}, nil
 }
 
 type freevarsResult struct {
 	qpos *QueryPos
-	fset *token.FileSet
 	refs []freevarsRef
 }
 
@@ -164,7 +164,12 @@ func (r *freevarsResult) display(printf printfFunc) {
 	} else {
 		printf(r.qpos, "Free identifiers:")
 		for _, ref := range r.refs {
-			printf(ref.obj, "%s %s %s", ref.kind, ref.ref, ref.typ)
+			// Avoid printing "type T T".
+			var typstr string
+			if ref.kind != "type" {
+				typstr = " " + types.TypeString(r.qpos.info.Pkg, ref.typ)
+			}
+			printf(ref.obj, "%s %s%s", ref.kind, ref.ref, typstr)
 		}
 	}
 }
@@ -190,3 +195,10 @@ type byRef []freevarsRef
 func (p byRef) Len() int           { return len(p) }
 func (p byRef) Less(i, j int) bool { return p[i].ref < p[j].ref }
 func (p byRef) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// printNode returns the pretty-printed syntax of n.
+func printNode(fset *token.FileSet, n ast.Node) string {
+	var buf bytes.Buffer
+	printer.Fprint(&buf, fset, n)
+	return buf.String()
+}

@@ -32,7 +32,7 @@ func callgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
 	buildSSA(o)
 
 	// Run the pointer analysis and build the complete callgraph.
-	o.config.BuildCallGraph = true
+	o.ptaConfig.BuildCallGraph = true
 	ptares := ptrAnalysis(o)
 
 	return &callgraphResult{

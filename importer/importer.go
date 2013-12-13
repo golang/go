@@ -61,7 +61,7 @@ import (
 // An Importer's exported methods are not thread-safe.
 type Importer struct {
 	Fset          *token.FileSet         // position info for all files seen
-	config        Config                 // the client configuration, modified by us
+	config        *Config                // the client configuration, unmodified
 	importfn      types.Importer         // client's type import function
 	augment       map[string]bool        // packages to be augmented by TestFiles when imported
 	allPackagesMu sync.Mutex             // guards 'allPackages' during internal concurrency
@@ -81,8 +81,23 @@ type importInfo struct {
 // Config specifies the configuration for the importer.
 type Config struct {
 	// TypeChecker contains options relating to the type checker.
+	//
+	// The supplied IgnoreFuncBodies is not used; the effective
+	// value comes from the TypeCheckFuncBodies func below.
+	//
 	// All callbacks must be thread-safe.
 	TypeChecker types.Config
+
+	// TypeCheckFuncBodies is a predicate over package import
+	// paths.  A package for which the predicate is false will
+	// have its package-level declarations type checked, but not
+	// its function bodies; this can be used to quickly load
+	// dependencies from source.  If nil, all func bodies are type
+	// checked.
+	//
+	// Must be thread-safe.
+	//
+	TypeCheckFuncBodies func(string) bool
 
 	// If Build is non-nil, it is used to satisfy imports.
 	//
@@ -100,6 +115,13 @@ type Config struct {
 // specified by config.
 //
 func New(config *Config) *Importer {
+	// Initialize by mutating the caller's copy,
+	// so all copies agree on the identity of the map.
+	if config.TypeChecker.Packages == nil {
+		config.TypeChecker.Packages = make(map[string]*types.Package)
+	}
+
+	// Save the caller's effective Import funcion.
 	importfn := config.TypeChecker.Import
 	if importfn == nil {
 		importfn = gcimporter.Import
@@ -107,18 +129,11 @@ func New(config *Config) *Importer {
 
 	imp := &Importer{
 		Fset:     token.NewFileSet(),
-		config:   *config, // copy (don't clobber client input)
+		config:   config,
 		importfn: importfn,
 		augment:  make(map[string]bool),
 		imported: make(map[string]*importInfo),
 	}
-	// TODO(adonovan): get typechecker to supply us with a source
-	// position, then pass errors back to the application
-	// (e.g. oracle).
-	if imp.config.TypeChecker.Error == nil {
-		imp.config.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
-	}
-	imp.config.TypeChecker.Import = imp.doImport // wraps importfn, effectively
 	return imp
 }
 
@@ -318,7 +333,18 @@ func (imp *Importer) CreatePackage(path string, files ...*ast.File) *PackageInfo
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		},
 	}
-	info.Pkg, info.Err = imp.config.TypeChecker.Check(path, imp.Fset, files, &info.Info)
+
+	// Use a copy of the types.Config so we can vary IgnoreFuncBodies.
+	tc := imp.config.TypeChecker
+	tc.IgnoreFuncBodies = false
+	if f := imp.config.TypeCheckFuncBodies; f != nil {
+		tc.IgnoreFuncBodies = !f(path)
+	}
+	if tc.Error == nil {
+		tc.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
+	}
+	tc.Import = imp.doImport // doImport wraps the user's importfn, effectively
+	info.Pkg, info.Err = tc.Check(path, imp.Fset, files, &info.Info)
 	imp.addPackage(info)
 	return info
 }
