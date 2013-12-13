@@ -528,7 +528,7 @@ saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
 {
 	int32 n;
 	
-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil, false);
+	n = runtime·gentraceback(pc, sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil, false);
 	if(n < nelem(r->stk))
 		r->stk[n] = 0;
 }
@@ -556,7 +556,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
 				if(gp == g || gp->status == Gdead)
 					continue;
-				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
+				saveg(~(uintptr)0, ~(uintptr)0, gp, r++);
 			}
 		}
 	
