@@ -125,6 +125,11 @@ func main() {
 	s = string(-1)
 	assert(s, "\xef\xbf\xbd", "negative rune")
 
+	// the large rune tests yet again, with a slice.
+	rs := []rune{0x10ffff, 0x10ffff + 1, 0xD800, 0xDFFF, -1}
+	s = string(rs)
+	assert(s, "\xf4\x8f\xbf\xbf\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd", "large rune slice")
+
 	assert(string(gr1), gx1, "global ->[]rune")
 	assert(string(gr2), gx2fix, "global invalid ->[]rune")
 	assert(string(gb1), gx1, "->[]byte")
