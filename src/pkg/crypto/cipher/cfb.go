@@ -16,21 +16,22 @@ type cfb struct {
 }
 
 func (x *cfb) XORKeyStream(dst, src []byte) {
-	for i := 0; i < len(src); i++ {
+	for len(src) > 0 {
 		if x.outUsed == len(x.out) {
 			x.b.Encrypt(x.out, x.next)
 			x.outUsed = 0
 		}
 
-		n := xorBytes(dst, src, x.out[x.outUsed:])
 		if x.decrypt {
 			// We can precompute a larger segment of the
 			// keystream on decryption. This will allow
 			// larger batches for xor, and we should be
 			// able to match CTR/OFB performance.
-			copy(x.next[x.outUsed:], src[:n])
-		} else {
-			copy(x.next[x.outUsed:], dst[:n])
+			copy(x.next[x.outUsed:], src)
+		}
+		n := xorBytes(dst, src, x.out[x.outUsed:])
+		if !x.decrypt {
+			copy(x.next[x.outUsed:], dst)
 		}
 		dst = dst[n:]
 		src = src[n:]

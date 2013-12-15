@@ -19,16 +19,18 @@ func TestCFB(t *testing.T) {
 		return
 	}
 
-	plaintext := []byte("this is the plaintext")
+	plaintext := []byte("this is the plaintext. this is the plaintext.")
 	iv := make([]byte, block.BlockSize())
 	rand.Reader.Read(iv)
 	cfb := cipher.NewCFBEncrypter(block, iv)
 	ciphertext := make([]byte, len(plaintext))
-	cfb.XORKeyStream(ciphertext, plaintext)
+	copy(ciphertext, plaintext)
+	cfb.XORKeyStream(ciphertext, ciphertext)
 
 	cfbdec := cipher.NewCFBDecrypter(block, iv)
 	plaintextCopy := make([]byte, len(plaintext))
-	cfbdec.XORKeyStream(plaintextCopy, ciphertext)
+	copy(plaintextCopy, ciphertext)
+	cfbdec.XORKeyStream(plaintextCopy, plaintextCopy)
 
 	if !bytes.Equal(plaintextCopy, plaintext) {
 		t.Errorf("got: %x, want: %x", plaintextCopy, plaintext)
