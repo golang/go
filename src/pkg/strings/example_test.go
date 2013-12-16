@@ -150,8 +150,8 @@ func ExampleToTitle() {
 }
 
 func ExampleTrim() {
-	fmt.Printf("[%q]", strings.Trim(" !!! Achtung !!! ", "! "))
-	// Output: ["Achtung"]
+	fmt.Printf("[%q]", strings.Trim(" !!! Achtung! Achtung! !!! ", "! "))
+	// Output: ["Achtung! Achtung"]
 }
 
 func ExampleMap() {
