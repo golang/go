@@ -182,12 +182,17 @@ loadlib(void)
 		// whether to initialize the TLS.  So give it one.  This could
 		// be handled differently but it's an unusual case.
 		loadinternal("runtime/cgo");
+
 		// Pretend that we really imported the package.
 		// This will do no harm if we did in fact import it.
 		s = linklookup(ctxt, "go.importpath.runtime/cgo.", 0);
 		s->type = SDATA;
 		s->dupok = 1;
 		s->reachable = 1;
+
+		// Provided by the code that imports the package.
+		// Since we are simulating the import, we have to provide this string.
+		addstrdata("go.string.\"runtime/cgo\"", "runtime/cgo");
 	}
 
 	for(i=0; i<ctxt->libraryp; i++) {
@@ -765,7 +770,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 	ldpkg(f, pkg, import1 - import0 - 2, pn, whence);	// -2 for !\n
 	Bseek(f, import1, 0);
 
-	ctxt->arch->ldobj(ctxt, f, pkg, eof - Boffset(f), pn);
+	ldobjfile(ctxt, f, pkg, eof - Boffset(f), pn);
 	free(pn);
 	return;
 
@@ -979,6 +984,9 @@ enum
 	CallSize = (!HasLinkRegister)*PtrSize,	// bytes of stack required for a call
 };
 
+// TODO: Record enough information in new object files to
+// allow stack checks here.
+
 void
 dostkcheck(void)
 {
@@ -988,6 +996,7 @@ dostkcheck(void)
 	morestack = linklookup(ctxt, "runtime.morestack", 0);
 	newstack = linklookup(ctxt, "runtime.newstack", 0);
 
+	// TODO
 	// First the nosplits on their own.
 	for(s = ctxt->textp; s != nil; s = s->next) {
 		if(s->text == nil || s->text->link == nil || (ctxt->arch->textflag(s->text) & NOSPLIT) == 0)
@@ -1138,34 +1147,6 @@ stkprint(Chain *ch, int limit)
 }
 
 int
-headtype(char *name)
-{
-	int i;
-
-	for(i=0; headers[i].name; i++)
-		if(strcmp(name, headers[i].name) == 0) {
-			headstring = headers[i].name;
-			return headers[i].val;
-		}
-	fprint(2, "unknown header type -H %s\n", name);
-	errorexit();
-	return -1;  // not reached
-}
-
-char*
-headstr(int v)
-{
-	static char buf[20];
-	int i;
-
-	for(i=0; headers[i].name; i++)
-		if(v == headers[i].val)
-			return headers[i].name;
-	snprint(buf, sizeof buf, "%d", v);
-	return buf;
-}
-
-int
 Yconv(Fmt *fp)
 {
 	LSym *s;
@@ -1267,6 +1248,13 @@ usage(void)
 void
 setheadtype(char *s)
 {
+	int h;
+	
+	h = headtype(s);
+	if(h < 0) {
+		fprint(2, "unknown header type -H %s\n", s);
+		errorexit();
+	}
 	HEADTYPE = headtype(s);
 }
 
@@ -1337,9 +1325,6 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 	}
 
 	for(s = ctxt->textp; s != nil; s = s->next) {
-		if(s->text == nil)
-			continue;
-
 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
 
 		for(a=s->autom; a; a=a->link) {
@@ -1434,10 +1419,8 @@ undefsym(LSym *s)
 		r = &s->r[i];
 		if(r->sym == nil) // happens for some external ARM relocs
 			continue;
-		if(r->sym->type == Sxxx || r->sym->type == SXREF) {
+		if(r->sym->type == Sxxx || r->sym->type == SXREF)
 			diag("undefined: %s", r->sym->name);
-			continue;
-		}
 		if(!r->sym->reachable)
 			diag("use of unreachable symbol: %s", r->sym->name);
 	}

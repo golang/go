@@ -34,7 +34,6 @@ typedef	struct	LSym	LSym;
 typedef	struct	Reloc	Reloc;
 typedef	struct	Auto	Auto;
 typedef	struct	Hist	Hist;
-typedef	struct	Hist2	Hist2;
 typedef	struct	Link	Link;
 typedef	struct	Plist	Plist;
 typedef	struct	LinkArch	LinkArch;
@@ -42,6 +41,7 @@ typedef	struct	Library	Library;
 
 typedef	struct	Pcln	Pcln;
 typedef	struct	Pcdata	Pcdata;
+typedef	struct	Pciter	Pciter;
 
 // prevent incompatible type signatures between liblink and 8l on Plan 9
 #pragma incomplete struct Node
@@ -154,11 +154,11 @@ struct	LSym
 	char*	dynimplib;
 	char*	dynimpvers;
 	struct Section*	sect;
-	Hist2*	hist;	// for ATEXT
 	
 	// STEXT
 	Auto*	autom;
 	Prog*	text;
+	Prog*	etext;
 	Pcln*	pcln;
 
 	// SDATA, SBSS
@@ -286,18 +286,21 @@ struct Pcln
 	int lastindex;
 };
 
-enum
+// Pcdata iterator.
+//	for(pciterinit(&it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+struct Pciter
 {
-	LinkMaxHist = 40,
+	Pcdata d;
+	uchar *p;
+	uint32 pc;
+	uint32 nextpc;
+	int32 value;
+	int start;
+	int done;
 };
 
-// TODO: Replace uses of Hist2 with Hist and delete this.
-struct Hist2
-{
-	int32 line;
-	int32 off;
-	LSym *file;
-};
+void	pciterinit(Pciter*, Pcdata*);
+void	pciternext(Pciter*);
 
 // symbol version, incremented each time a file is loaded.
 // version==1 is reserved for savehist.
@@ -377,20 +380,13 @@ struct	Link
 	int	nlibrary;
 	int	tlsoffset;
 	void	(*diag)(char*, ...);
-	void	(*dwarfaddfrag)(int, char*);
-	LSym*	histfrog[LinkMaxHist];
-	int	histfrogp;
-	int	histgen;
+	int	mode;
 	Auto*	curauto;
 	Auto*	curhist;
 	LSym*	cursym;
 	int	version;
 	LSym*	textp;
 	LSym*	etextp;
-	Hist2*	histcopy;
-	Hist2*	hist2;
-	int32	nhist2;
-	int32	maxhist2;
 	int32	histdepth;
 	int32	nhistfile;
 	LSym*	filesyms;
@@ -400,6 +396,7 @@ struct	Link
 struct LinkArch
 {
 	char*	name; // "arm", "amd64", and so on
+	int	thechar;	// '5', '6', and so on
 
 	void	(*addstacksplit)(Link*, LSym*);
 	void	(*assemble)(Link*, LSym*);
@@ -407,17 +404,11 @@ struct LinkArch
 	void	(*follow)(Link*, LSym*);
 	int	(*iscall)(Prog*);
 	int	(*isdata)(Prog*);
-	void	(*ldobj)(Link*, Biobuf*, char*, int64, char*);
-	void	(*nopout)(Prog*);
 	Prog*	(*prg)(void);
 	void	(*progedit)(Link*, Prog*);
 	void	(*settextflag)(Prog*, int);
 	int	(*symtype)(Addr*);
 	int	(*textflag)(Prog*);
-	void	(*zfile)(Biobuf*, char*, int);
-	void	(*zhist)(Biobuf*, int, vlong);
-	void	(*zprog)(Link*, Biobuf*, Prog*, int, int, int, int);
-	void (*zname)(Biobuf*, LSym*, int);
 
 	int	minlc;
 	int	ptrsize;
@@ -432,14 +423,19 @@ struct LinkArch
 	int	D_PCREL;
 	int	D_SCONST;
 	int	D_SIZE;
+	int	D_STATIC;
 
 	int	ACALL;
+	int	ADATA;
+	int	AEND;
 	int	AFUNCDATA;
+	int	AGLOBL;
 	int	AJMP;
 	int	ANOP;
 	int	APCDATA;
 	int	ARET;
 	int	ATEXT;
+	int	ATYPE;
 	int	AUSEFIELD;
 };
 
@@ -473,6 +469,8 @@ extern	uchar	inuxi8[8];
 
 // asm5.c
 void	span5(Link *ctxt, LSym *s);
+int	chipfloat5(Link *ctxt, float64 e);
+int	chipzero5(Link *ctxt, float64 e);
 
 // asm6.c
 void	span6(Link *ctxt, LSym *s);
@@ -504,23 +502,20 @@ vlong	setuintxx(Link *ctxt, LSym *s, vlong off, uint64 v, vlong wid);
 void	symgrow(Link *ctxt, LSym *s, int32 siz);
 
 // go.c
+void	double2ieee(uint64 *ieee, double native);
 void*	emallocz(long n);
 void*	erealloc(void *p, long n);
 char*	estrdup(char *p);
 char*	expandpkg(char *t0, char *pkg);
 
-// ieee.c
-void	double2ieee(uint64 *ieee, double native);
-
 // ld.c
 void	addhist(Link *ctxt, int32 line, int type);
-void	addlib(Link *ctxt, char *src, char *obj);
+void	addlib(Link *ctxt, char *src, char *obj, char *path);
 void	addlibpath(Link *ctxt, char *srcref, char *objref, char *file, char *pkg);
 void	collapsefrog(Link *ctxt, LSym *s);
 void	copyhistfrog(Link *ctxt, char *buf, int nbuf);
 int	find1(int32 l, int c);
-Hist2*	gethist(Link *ctxt);
-void	linkgetline(Link *ctxt, Hist2 *h, int32 line, LSym **f, int32 *l);
+void	linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l);
 void	histtoauto(Link *ctxt);
 void	mkfwd(LSym*);
 void	nuxiinit(void);
@@ -529,13 +524,20 @@ Prog*	copyp(Link*, Prog*);
 Prog*	appendp(Link*, Prog*);
 vlong	atolwhex(char*);
 
+// list[568].c
+void	listinit5(void);
+void	listinit6(void);
+void	listinit8(void);
+
 // obj.c
 int	linklinefmt(Link *ctxt, Fmt *fp);
 void	linklinehist(Link *ctxt, int lineno, char *f, int offset);
 Plist*	linknewplist(Link *ctxt);
-void	linkouthist(Link *ctxt, Biobuf *b);
 void	linkprfile(Link *ctxt, int32 l);
-void	linkwritefuncs(Link *ctxt, Biobuf *b);
+
+// objfile.c
+void	ldobjfile(Link *ctxt, Biobuf *b, char *pkg, int64 len, char *path);
+void	linkwriteobj(Link *ctxt, Biobuf *b);
 
 // pass.c
 Prog*	brchain(Link *ctxt, Prog *p);
@@ -545,24 +547,14 @@ void	linkpatch(Link *ctxt, LSym *sym);
 // pcln.c
 void	linkpcln(Link*, LSym*);
 
-// rdobj5.c
-void	ldobj5(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn);
-void	nopout5(Prog *p);
-
-// rdobj6.c
-void	ldobj6(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn);
-void	nopout6(Prog *p);
-
-// rdobj8.c
-void	ldobj8(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn);
-void	nopout8(Prog *p);
-
 // sym.c
 LSym*	linklookup(Link *ctxt, char *name, int v);
 Link*	linknew(LinkArch*);
 LSym*	linknewsym(Link *ctxt, char *symb, int v);
 LSym*	linkrlookup(Link *ctxt, char *name, int v);
 int	linksymfmt(Fmt *f);
+int	headtype(char*);
+char*	headstr(int);
 
 extern	char*	anames5[];
 extern	char*	anames6[];

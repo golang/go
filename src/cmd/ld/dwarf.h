@@ -3,12 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
- * Register 'f' symbol file fragments.  Doing this while parsing the
- * .6 input saves a pass over the symbol table later.
- */
-void dwarfaddfrag(int n, char* frag);
-
-/*
  * Emit debug_abbrevs, debug_info and debug_line sections to current
  * offset in cout.
  */

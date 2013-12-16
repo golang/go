@@ -383,8 +383,6 @@ static int32	oshrr(Link*, int, int, int, int);
 static int32	omvl(Link*, Prog*, Addr*, int);
 static int32	immaddr(int32);
 static int	aclass(Link*, Addr*);
-static int	chipzero(Link*, float64);
-static int	chipfloat(Link*, float64);
 static int32	immrot(uint32);
 static int32	immaddr(int32);
 static int32	opbra(Link*, int, int);
@@ -857,9 +855,9 @@ aclass(Link *ctxt, Addr *a)
 		return C_GOK;
 
 	case D_FCONST:
-		if(chipzero(ctxt, a->u.dval) >= 0)
+		if(chipzero5(ctxt, a->u.dval) >= 0)
 			return C_ZFCON;
-		if(chipfloat(ctxt, a->u.dval) >= 0)
+		if(chipfloat5(ctxt, a->u.dval) >= 0)
 			return C_SFCON;
 		return C_LFCON;
 
@@ -950,7 +948,7 @@ oplook(Link *ctxt, Prog *p)
 		o = oprange[r].stop; /* just generate an error */
 	}
 	if(0 /*debug['O']*/) {
-		print("oplook %A %O %O %O\n",
+		print("oplook %A %d %d %d\n",
 			(int)p->as, a1, a2, a3);
 		print("		%d %d\n", p->from.type, p->to.type);
 	}
@@ -964,8 +962,9 @@ oplook(Link *ctxt, Prog *p)
 			p->optab = (o-optab)+1;
 			return o;
 		}
-	ctxt->diag("illegal combination %A %O %O %O, %d %d",
-		p->as, a1, a2, a3, p->from.type, p->to.type);
+	ctxt->diag("illegal combination %P; %d %d %d, %d %d",
+		p, a1, a2, a3, p->from.type, p->to.type);
+	ctxt->diag("from %d %d to %d %d\n", p->from.type, p->from.name, p->to.type, p->to.name);
 	prasm(p);
 	if(o == 0)
 		o = optab;
@@ -1557,7 +1556,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		aclass(ctxt, &p->from);
 	movm:
 		if(ctxt->instoffset != 0)
-			ctxt->diag("offset must be zero in MOVM");
+			ctxt->diag("offset must be zero in MOVM; %P", p);
 		o1 |= (p->scond & C_SCOND) << 28;
 		if(p->scond & C_PBIT)
 			o1 |= 1 << 24;
@@ -1878,7 +1877,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			o1 = 0xeeb00b00;	// VMOV imm 64
 		o1 |= (p->scond & C_SCOND) << 28;
 		o1 |= p->to.reg << 12;
-		v = chipfloat(ctxt, p->from.u.dval);
+		v = chipfloat5(ctxt, p->from.u.dval);
 		o1 |= (v&0xf) << 0;
 		o1 |= (v&0xf0) << 12;
 		break;
@@ -2392,8 +2391,8 @@ omvl(Link *ctxt, Prog *p, Addr *a, int dr)
 	return o1;
 }
 
-static int
-chipzero(Link *ctxt, float64 e)
+int
+chipzero5(Link *ctxt, float64 e)
 {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
 	if(ctxt->goarm < 7 || e != 0)
@@ -2401,8 +2400,8 @@ chipzero(Link *ctxt, float64 e)
 	return 0;
 }
 
-static int
-chipfloat(Link *ctxt, float64 e)
+int
+chipfloat5(Link *ctxt, float64 e)
 {
 	int n;
 	ulong h1;

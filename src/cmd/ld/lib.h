@@ -162,8 +162,6 @@ EXTERN	char*	cbpmax;
 	if(--cbc <= 0)\
 		cflush(); }
 
-EXTERN	int	goarm;
-
 void	Lflag(char *arg);
 int	Yconv(Fmt *fp);
 int	Zconv(Fmt *fp);

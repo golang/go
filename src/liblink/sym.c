@@ -40,6 +40,47 @@ yy_isalpha(int c)
 	return c >= 0 && c <= 0xFF && isalpha(c);
 }
 
+static struct {
+	char *name;
+	int val;
+} headers[] = {
+	"darwin",	Hdarwin,
+	"dragonfly",	Hdragonfly,
+	"elf",		Helf,
+	"freebsd",	Hfreebsd,
+	"linux",	Hlinux,
+	"netbsd",	Hnetbsd,
+	"openbsd",	Hopenbsd,
+	"plan9",	Hplan9,
+	"windows",	Hwindows,
+	"windowsgui",	Hwindows,
+	0, 0
+};
+
+int
+headtype(char *name)
+{
+	int i;
+
+	for(i=0; headers[i].name; i++)
+		if(strcmp(name, headers[i].name) == 0)
+			return headers[i].val;
+	return -1;
+}
+
+char*
+headstr(int v)
+{
+	static char buf[20];
+	int i;
+
+	for(i=0; headers[i].name; i++)
+		if(v == headers[i].val)
+			return headers[i].name;
+	snprint(buf, sizeof buf, "%d", v);
+	return buf;
+}
+
 Link*
 linknew(LinkArch *arch)
 {
@@ -53,8 +94,6 @@ linknew(LinkArch *arch)
 	ctxt->arch = arch;
 	ctxt->version = HistVersion;
 
-	// TODO: Make caller pass in ctxt->arch,
-	// so that for example 6g only has the linkamd64 code.
 	p = getgoarch();
 	if(strncmp(p, arch->name, strlen(arch->name)) != 0)
 		sysfatal("invalid goarch %s (want %s or derivative)", p, arch->name);
@@ -71,6 +110,59 @@ linknew(LinkArch *arch)
 				*p = '/';
 	}
 	ctxt->pathname = strdup(buf);
+	
+	ctxt->headtype = headtype(getgoos());
+	if(ctxt->headtype < 0)
+		sysfatal("unknown goos %s", getgoos());
+	
+	// Record thread-local storage offset.
+	switch(ctxt->headtype) {
+	default:
+		sysfatal("unknown thread-local storage offset for %s", headstr(ctxt->headtype));
+	case Hplan9:
+		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
+		break;
+	case Hwindows:
+		break;
+	case Hlinux:
+	case Hfreebsd:
+	case Hnetbsd:
+	case Hopenbsd:
+	case Hdragonfly:
+		/*
+		 * ELF uses TLS offset negative from FS.
+		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+		 * Known to low-level assembly in package runtime and runtime/cgo.
+		 */
+		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
+		break;
+
+	case Hdarwin:
+		/*
+		 * OS X system constants - offset from 0(GS) to our TLS.
+		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_*.c.
+		 */
+		switch(ctxt->arch->thechar) {
+		default:
+			sysfatal("unknown thread-local storage offset for darwin/%s", ctxt->arch->name);
+		case '6':
+			ctxt->tlsoffset = 0x8a0;
+			break;
+		case '8':
+			ctxt->tlsoffset = 0x468;
+			break;
+		}
+		break;
+	}
+	
+	// On arm, record goarm.
+	if(ctxt->arch->thechar == '5') {
+		p = getgoarm();
+		if(p != nil)
+			ctxt->goarm = atoi(p);
+		else
+			ctxt->goarm = 6;
+	}
 
 	return ctxt;
 }

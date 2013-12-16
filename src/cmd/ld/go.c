@@ -558,23 +558,22 @@ static void
 markflood(void)
 {
 	Auto *a;
-	Prog *p;
 	LSym *s;
 	int i;
 	
 	for(s=markq; s!=S; s=s->queue) {
-		if(s->text) {
+		if(s->type == STEXT) {
 			if(debug['v'] > 1)
 				Bprint(&bso, "marktext %s\n", s->name);
 			for(a=s->autom; a; a=a->link)
 				mark1(a->gotype, s);
-			for(p=s->text; p != P; p=p->link) {
-				mark1(p->from.sym, s);
-				mark1(p->to.sym, s);
-			}
 		}
 		for(i=0; i<s->nr; i++)
 			mark1(s->r[i].sym, s);
+		if(s->pcln) {
+			for(i=0; i<s->pcln->nfuncdata; i++)
+				mark1(s->pcln->funcdata[i], s);
+		}
 		mark1(s->gotype, s);
 		mark1(s->sub, s);
 		mark1(s->outer, s);
@@ -606,43 +605,11 @@ markextra[] =
 	"_modu",
 };
 
-static int
-isz(Auto *a)
-{
-	for(; a; a=a->link)
-		if(a->type == D_FILE || a->type == D_FILE1)
-			return 1;
-	return 0;
-}
-
-static void
-addz(LSym *s, Auto *z)
-{
-	Auto *a, *last;
-
-	// strip out non-z
-	last = nil;
-	for(a = z; a != nil; a = a->link) {
-		if(a->type == D_FILE || a->type == D_FILE1) {
-			if(last == nil)
-				z = a;
-			else
-				last->link = a;
-			last = a;
-		}
-	}
-	if(last) {
-		last->link = s->autom;
-		s->autom = z;
-	}
-}
-
 void
 deadcode(void)
 {
 	int i;
 	LSym *s, *last, *p;
-	Auto *z;
 	Fmt fmt;
 
 	if(debug['v'])
@@ -665,23 +632,14 @@ deadcode(void)
 
 	// remove dead text but keep file information (z symbols).
 	last = nil;
-	z = nil;
 	for(s = ctxt->textp; s != nil; s = s->next) {
-		if(!s->reachable) {
-			if(isz(s->autom))
-				z = s->autom;
+		if(!s->reachable)
 			continue;
-		}
 		if(last == nil)
 			ctxt->textp = s;
 		else
 			last->next = s;
 		last = s;
-		if(z != nil) {
-			if(!isz(s->autom))
-				addz(s, z);
-			z = nil;
-		}
 	}
 	if(last == nil)
 		ctxt->textp = nil;

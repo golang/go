@@ -155,11 +155,15 @@ static uchar	ytext[] =
 };
 static uchar	ynop[] =
 {
-	Ynone,	Ynone,	Zpseudo,1,
-	Ynone,	Yml,	Zpseudo,1,
-	Ynone,	Yrf,	Zpseudo,1,
-	Yml,	Ynone,	Zpseudo,1,
-	Yrf,	Ynone,	Zpseudo,1,
+	Ynone,	Ynone,	Zpseudo,0,
+	Ynone,	Yiauto,	Zpseudo,0,
+	Ynone,	Yml,	Zpseudo,0,
+	Ynone,	Yrf,	Zpseudo,0,
+	Yiauto,	Ynone,	Zpseudo,0,
+	Ynone,	Yxr,	Zpseudo,0,
+	Yml,	Ynone,	Zpseudo,0,
+	Yrf,	Ynone,	Zpseudo,0,
+	Yxr,	Ynone,	Zpseudo,1,
 	0
 };
 static uchar	yfuncdata[] =
@@ -1255,6 +1259,7 @@ span8(Link *ctxt, LSym *s)
 			sysfatal("bad code");
 		}
 	} while(loop);
+	c += -c&(FuncAlign-1);
 	s->size = c;
 
 	if(0 /* debug['a'] > 1 */) {

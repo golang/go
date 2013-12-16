@@ -66,8 +66,10 @@ funcpctab(Link *ctxt, Pcdata *dst, LSym *func, char *desc, int32 (*valfunc)(Link
 
 	val = -1;
 	oldval = val;
-	if(func->text == nil)
+	if(func->text == nil) {
+		ctxt->debugpcln -= dbg;
 		return;
+	}
 
 	pc = func->text->pc;
 	
@@ -156,9 +158,11 @@ pctofileline(Link *ctxt, LSym *sym, int32 oldval, Prog *p, int32 phase, void *ar
 	LSym *f;
 	Pcln *pcln;
 
+	USED(sym);
+
 	if(p->as == ctxt->arch->ATEXT || p->as == ctxt->arch->ANOP || p->as == ctxt->arch->AUSEFIELD || p->lineno == 0 || phase == 1)
 		return oldval;
-	linkgetline(ctxt, sym->hist, p->lineno, &f, &l);
+	linkgetline(ctxt, p->lineno, &f, &l);
 	if(f == nil) {
 	//	print("getline failed for %s %P\n", ctxt->cursym->name, p);
 		return oldval;
@@ -295,4 +299,66 @@ linkpcln(Link *ctxt, LSym *cursym)
 			}
 		}
 	}
+}
+
+// iteration over encoded pcdata tables.
+
+static uint32
+getvarint(uchar **pp)
+{
+	uchar *p;
+	int shift;
+	uint32 v;
+
+	v = 0;
+	p = *pp;
+	for(shift = 0;; shift += 7) {
+		v |= (*p & 0x7F) << shift;
+		if(!(*p++ & 0x80))
+			break;
+	}
+	*pp = p;
+	return v;
+}
+
+void
+pciternext(Pciter *it)
+{
+	uint32 v;
+	int32 dv;
+
+	it->pc = it->nextpc;
+	if(it->done)
+		return;
+	if(it->p >= it->d.p + it->d.n) {
+		it->done = 1;
+		return;
+	}
+
+	// value delta
+	v = getvarint(&it->p);
+	if(v == 0 && !it->start) {
+		it->done = 1;
+		return;
+	}
+	it->start = 0;
+	dv = (int32)(v>>1) ^ ((int32)(v<<31)>>31);
+	it->value += dv;
+	
+	// pc delta
+	v = getvarint(&it->p);
+	it->nextpc = it->pc + v;
+}
+
+void
+pciterinit(Pciter *it, Pcdata *d)
+{
+	it->d = *d;
+	it->p = it->d.p;
+	it->pc = 0;
+	it->nextpc = 0;
+	it->value = -1;
+	it->start = 1;
+	it->done = 0;
+	pciternext(it);
 }

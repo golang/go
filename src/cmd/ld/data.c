@@ -401,8 +401,7 @@ void
 codeblk(int32 addr, int32 size)
 {
 	LSym *sym;
-	int32 eaddr, n, epc;
-	Prog *p;
+	int32 eaddr, n;
 	uchar *q;
 
 	if(debug['a'])
@@ -434,36 +433,20 @@ codeblk(int32 addr, int32 size)
 				Bprint(&bso, " %.2ux", 0);
 			Bprint(&bso, "\n");
 		}
-		p = sym->text;
-		if(p == nil) {
-			Bprint(&bso, "%.6llux\t%-20s | foreign text\n", (vlong)addr, sym->name);
-			n = sym->size;
-			q = sym->p;
 
-			while(n >= 16) {
-				Bprint(&bso, "%.6ux\t%-20.16I\n", addr, q);
-				addr += 16;
-				q += 16;
-				n -= 16;
-			}
-			if(n > 0)
-				Bprint(&bso, "%.6ux\t%-20.*I\n", addr, (int)n, q);
-			addr += n;
-			continue;
-		}
+		Bprint(&bso, "%.6llux\t%-20s\n", (vlong)addr, sym->name);
+		n = sym->size;
+		q = sym->p;
 
-		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)sym->value, sym->name, p);
-		for(p = p->link; p != P; p = p->link) {
-			if(p->link != P)
-				epc = p->link->pc;
-			else
-				epc = sym->value + sym->size;
-			Bprint(&bso, "%.6llux\t", (uvlong)p->pc);
-			q = sym->p + p->pc - sym->value;
-			n = epc - p->pc;
-			Bprint(&bso, "%-20.*I | %P\n", (int)n, q, p);
-			addr += n;
+		while(n >= 16) {
+			Bprint(&bso, "%.6ux\t%-20.16I\n", addr, q);
+			addr += 16;
+			q += 16;
+			n -= 16;
 		}
+		if(n > 0)
+			Bprint(&bso, "%.6ux\t%-20.*I\n", addr, (int)n, q);
+		addr += n;
 	}
 
 	if(addr < eaddr) {
@@ -1031,7 +1014,6 @@ void
 textaddress(void)
 {
 	uvlong va;
-	Prog *p;
 	Section *sect;
 	LSym *sym, *sub;
 
@@ -1052,17 +1034,11 @@ textaddress(void)
 			continue;
 		if(sym->align != 0)
 			va = rnd(va, sym->align);
-		else if(sym->text != P)
-			va = rnd(va, FuncAlign);
 		sym->value = 0;
-		for(sub = sym; sub != S; sub = sub->sub) {
+		for(sub = sym; sub != S; sub = sub->sub)
 			sub->value += va;
-			for(p = sub->text; p != P; p = p->link)
-				p->pc += sub->value;
-		}
-		if(sym->size == 0 && sym->sub != S) {
+		if(sym->size == 0 && sym->sub != S)
 			ctxt->cursym = sym;
-		}
 		va += sym->size;
 	}
 	sect->len = va - sect->vaddr;

@@ -1677,6 +1677,7 @@ span6(Link *ctxt, LSym *s)
 			sysfatal("loop");
 		}
 	} while(loop);
+	c += -c&(FuncAlign-1);
 	s->size = c;
 
 	if(0 /* debug['a'] > 1 */) {

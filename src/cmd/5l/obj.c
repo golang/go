@@ -77,8 +77,6 @@ archinit(void)
 	case Hfreebsd:
 	case Hnetbsd:
 		debug['d'] = 0;	// with dynamic linking
-		ctxt->tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
-		                // this number is known to ../../pkg/runtime/rt0_*_arm.s
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
@@ -96,5 +94,5 @@ archinit(void)
 	// embed goarm to runtime.goarm
 	s = linklookup(ctxt, "runtime.goarm", 0);
 	s->type = SRODATA;
-	adduint8(ctxt, s, goarm);
+	adduint8(ctxt, s, ctxt->goarm);
 }

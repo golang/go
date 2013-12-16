@@ -54,33 +54,15 @@ ftabaddstring(LSym *ftab, char *s)
 	return start;
 }
 
-static uint32
-getvarint(uchar **pp)
-{
-	uchar *p;
-	int shift;
-	uint32 v;
-
-	v = 0;
-	p = *pp;
-	for(shift = 0;; shift += 7) {
-		v |= (*p & 0x7F) << shift;
-		if(!(*p++ & 0x80))
-			break;
-	}
-	*pp = p;
-	return v;
-}
-
 static void
 renumberfiles(LSym **files, int nfiles, Pcdata *d)
 {
 	int i;
 	LSym *f;
 	Pcdata out;
+	Pciter it;
 	uint32 v;
 	int32 oldval, newval, val, dv;
-	uchar *p;
 	
 	// Give files numbers.
 	for(i=0; i<nfiles; i++) {
@@ -93,34 +75,29 @@ renumberfiles(LSym **files, int nfiles, Pcdata *d)
 		}
 	}
 
-	oldval = -1;
 	newval = -1;
 	memset(&out, 0, sizeof out);
-	p = d->p;
-	while(p < d->p + d->n) {
+
+	for(pciterinit(&it, d); !it.done; pciternext(&it)) {
 		// value delta
-		v = getvarint(&p);
-		if(v == 0 && p != d->p) {
-			addvarint(&out, 0);
-			break;
-		}
-		dv = (int32)(v>>1) ^ ((int32)(v<<31)>>31);
-		oldval += dv;
+		oldval = it.value;
 		if(oldval == -1)
 			val = -1;
-		else {
+		else {	
 			if(oldval < 0 || oldval >= nfiles)
 				sysfatal("bad pcdata %d", oldval);
 			val = files[oldval]->value;
 		}
 		dv = val - newval;
-		v = (uint32)(dv<<1) ^ (uint32)(dv>>31);
+		v = (uint32)(dv<<1) ^ (uint32)(int32)(dv>>31);
 		addvarint(&out, v);
 
 		// pc delta
-		v = getvarint(&p);
-		addvarint(&out, v);
+		addvarint(&out, it.nextpc - it.pc);
 	}
+	
+	// terminating value delta
+	addvarint(&out, 0);
 
 	free(d->p);
 	*d = out;	
@@ -186,10 +163,7 @@ pclntab(void)
 		
 		// args int32
 		// TODO: Move into funcinfo.
-		if(ctxt->cursym->text == nil)
-			off = setuint32(ctxt, ftab, off, ArgsSizeUnknown);
-		else
-			off = setuint32(ctxt, ftab, off, ctxt->cursym->args);
+		off = setuint32(ctxt, ftab, off, ctxt->cursym->args);
 	
 		// frame int32
 		// TODO: Remove entirely. The pcsp table is more precise.
@@ -197,10 +171,7 @@ pclntab(void)
 		// when a called function doesn't have argument information.
 		// We need to make sure everything has argument information
 		// and then remove this.
-		if(ctxt->cursym->text == nil)
-			off = setuint32(ctxt, ftab, off, 0);
-		else
-			off = setuint32(ctxt, ftab, off, (uint32)ctxt->cursym->text->to.offset+PtrSize);
+		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + PtrSize);
 		
 		if(pcln != &zpcln)
 			renumberfiles(pcln->file, pcln->nfile, &pcln->pcfile);
