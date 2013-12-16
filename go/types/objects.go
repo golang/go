@@ -48,7 +48,11 @@ func Id(pkg *Package, name string) string {
 		return name
 	}
 	// unexported names need the package path for differentiation
-	path := ""
+	// (if there's no package, make sure we don't start with '.'
+	// as that may change the order of methods between a setup
+	// inside a package and outside a package - which breaks some
+	// tests)
+	path := "_"
 	// TODO(gri): shouldn't !ast.IsExported(name) => pkg != nil be an precondition?
 	// if pkg == nil {
 	// 	panic("nil package in lookup of unexported name")
@@ -56,7 +60,7 @@ func Id(pkg *Package, name string) string {
 	if pkg != nil {
 		path = pkg.path
 		if path == "" {
-			path = "?"
+			path = "_"
 		}
 	}
 	return path + "." + name

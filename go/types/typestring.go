@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"sort"
 )
 
 // TypeString returns the string representation of typ.
@@ -84,7 +85,19 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 		//     }
 		//
 		buf.WriteString("interface{")
-		for i, m := range t.methods {
+		// Sort methods instead of printing them in source order.
+		// This is needed at the moment because interfaces are
+		// created by providing the list of source methods and
+		// embedded interfaces, but only have an accessor to the list
+		// of all methods (which is sorted by name). By sorting here
+		// we guarantee that the list is printed the same independent
+		// of how the Interface was created.
+		// TODO(gri) remove this extra step once we have the complete
+		// set of accessors for Interface.
+		var methods []*Func
+		methods = append(methods, t.methods...) // make a copy
+		sort.Sort(byUniqueMethodName(methods))
+		for i, m := range methods {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
