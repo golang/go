@@ -104,7 +104,7 @@ func TestRuntimeGogoBytes(t *testing.T) {
 		t.Fatalf("building hello world: %v\n%s", err, out)
 	}
 
-	out, err = exec.Command("go", "tool", "nm", "-S", dir+"/hello").CombinedOutput()
+	out, err = exec.Command("go", "tool", "nm", "-size", dir+"/hello").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, out)
 	}
