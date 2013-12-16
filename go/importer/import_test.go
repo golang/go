@@ -98,6 +98,8 @@ var libs = []string{
 }
 
 func TestImportLib(t *testing.T) {
+	// TODO(gri) Enable once we can run these tests on builders.
+	return
 	for _, lib := range libs {
 		pkg, err := pkgFor(lib)
 		if err != nil {
