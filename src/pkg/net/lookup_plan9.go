@@ -7,6 +7,7 @@ package net
 import (
 	"errors"
 	"os"
+	"strings"
 )
 
 func query(filename, query string, bufSize int) (res []string, err error) {
@@ -72,7 +73,7 @@ func queryDNS(addr string, typ string) (res []string, err error) {
 // lookupProtocol looks up IP protocol name and returns
 // the corresponding protocol number.
 func lookupProtocol(name string) (proto int, err error) {
-	lines, err := query("/net/cs", "!protocol="+name, 128)
+	lines, err := query("/net/cs", "!protocol="+strings.ToLower(name), 128)
 	if err != nil {
 		return 0, err
 	}
@@ -94,7 +95,7 @@ func lookupProtocol(name string) (proto int, err error) {
 func lookupHost(host string) (addrs []string, err error) {
 	// Use /net/cs instead of /net/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
-	lines, err := queryCS("tcp", host, "1")
+	lines, err := queryCS("net", host, "1")
 	if err != nil {
 		return
 	}
