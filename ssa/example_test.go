@@ -26,8 +26,9 @@ import (
 // (i.e. implements Value), the type of that value is shown in the
 // right column.
 //
-// Build and run the ssadump.go program in this package if you want a
-// standalone tool with similar functionality.
+// Build and run the ssadump.go program if you want a standalone tool
+// with similar functionality. It is located at
+// code.google.com/p/go.tools/cmd/ssadump.
 //
 func Example() {
 	const hello = `
