@@ -190,7 +190,12 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	// configure GCC with substituted gofrontend and libgo
-	gccConfigCmd := []string{filepath.Join(gccpath, "configure"), "--enable-languages=c,c++,go", "--disable-bootstrap"}
+	gccConfigCmd := []string{
+		filepath.Join(gccpath, "configure"),
+		"--enable-languages=c,c++,go",
+		"--disable-bootstrap",
+		"--disable-multilib",
+	}
 	if _, err := runOutput(*cmdTimeout, envv, ioutil.Discard, gccobjdir, gccConfigCmd...); err != nil {
 		return "", fmt.Errorf("Failed to configure GCC: %s", err)
 	}
