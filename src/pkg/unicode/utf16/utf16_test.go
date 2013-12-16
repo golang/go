@@ -100,6 +100,26 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+var decodeRuneTests = []struct {
+	r1, r2 rune
+	want   rune
+}{
+	{0xd800, 0xdc00, 0x10000},
+	{0xd800, 0xdc01, 0x10001},
+	{0xd808, 0xdf45, 0x12345},
+	{0xdbff, 0xdfff, 0x10ffff},
+	{0xd800, 'a', 0xfffd}, // illegal, replacement rune substituted
+}
+
+func TestDecodeRune(t *testing.T) {
+	for i, tt := range decodeRuneTests {
+		got := DecodeRune(tt.r1, tt.r2)
+		if got != tt.want {
+			t.Errorf("%d: DecodeRune(%q, %q) = %v; want %v", i, tt.r1, tt.r2, got, tt.want)
+		}
+	}
+}
+
 var surrogateTests = []struct {
 	r    rune
 	want bool
