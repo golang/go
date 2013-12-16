@@ -65,7 +65,7 @@ mpcmpfltc(Mpflt *b, double c)
 	Mpflt a;
 
 	mpmovecflt(&a, c);
-	return mpcmpfltflt(&a, b);
+	return mpcmpfltflt(b, &a);
 }
 
 void
