@@ -99,3 +99,31 @@ func TestDecode(t *testing.T) {
 		}
 	}
 }
+
+var surrogateTests = []struct {
+	r    rune
+	want bool
+}{
+	// from http://en.wikipedia.org/wiki/UTF-16
+	{'\u007A', false},     // LATIN SMALL LETTER Z
+	{'\u6C34', false},     // CJK UNIFIED IDEOGRAPH-6C34 (water)
+	{'\uFEFF', false},     // Byte Order Mark
+	{'\U00010000', false}, // LINEAR B SYLLABLE B008 A (first non-BMP code point)
+	{'\U0001D11E', false}, // MUSICAL SYMBOL G CLEF
+	{'\U0010FFFD', false}, // PRIVATE USE CHARACTER-10FFFD (last Unicode code point)
+
+	{rune(0xd7ff), false}, // surr1-1
+	{rune(0xd800), true},  // surr1
+	{rune(0xdc00), true},  // surr2
+	{rune(0xe000), false}, // surr3
+	{rune(0xdfff), true},  // surr3-1
+}
+
+func TestIsSurrogate(t *testing.T) {
+	for i, tt := range surrogateTests {
+		got := IsSurrogate(tt.r)
+		if got != tt.want {
+			t.Errorf("%d: IsSurrogate(%q) = %v; want %v", i, tt.r, got, tt.want)
+		}
+	}
+}
