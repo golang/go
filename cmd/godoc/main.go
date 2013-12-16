@@ -46,6 +46,7 @@ import (
 	"code.google.com/p/go.tools/godoc"
 	"code.google.com/p/go.tools/godoc/static"
 	"code.google.com/p/go.tools/godoc/vfs"
+	"code.google.com/p/go.tools/godoc/vfs/gatefs"
 	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"code.google.com/p/go.tools/godoc/vfs/zipfs"
 )
@@ -162,10 +163,13 @@ func main() {
 		usage()
 	}
 
+	var fsGate chan bool
+	fsGate = make(chan bool, 20)
+
 	// Determine file system to use.
 	if *zipfile == "" {
 		// use file system of underlying OS
-		fs.Bind("/", vfs.OS(*goroot), "/", vfs.BindReplace)
+		fs.Bind("/", gatefs.New(vfs.OS(*goroot), fsGate), "/", vfs.BindReplace)
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
 		rc, err := zip.OpenReader(*zipfile)
@@ -183,7 +187,7 @@ func main() {
 
 	// Bind $GOPATH trees into Go root.
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		fs.Bind("/src/pkg", vfs.OS(p), "/src", vfs.BindAfter)
+		fs.Bind("/src/pkg", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
 	}
 
 	httpMode := *httpAddr != ""
