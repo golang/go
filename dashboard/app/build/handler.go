@@ -335,7 +335,7 @@ func resultHandler(r *http.Request) (interface{}, error) {
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "text/plain; charset=utf-8")
 	c := contextForRequest(r)
-	hash := r.URL.Path[len("/log/"):]
+	hash := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 	key := datastore.NewKey(c, "Log", hash, 0, nil)
 	l := new(Log)
 	if err := datastore.Get(c, key, l); err != nil {
