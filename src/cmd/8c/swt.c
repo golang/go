@@ -244,8 +244,7 @@ outcode(void)
 	}
 	Bprint(&b, "!\n");
 
-	linkouthist(ctxt, &b);
-	linkwritefuncs(ctxt, &b);
+	linkwriteobj(ctxt, &b);
 	Bterm(&b);
 	close(f);
 	lastp = P;

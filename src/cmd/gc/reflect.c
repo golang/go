@@ -763,7 +763,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	// 2-arg type cast) declares the size of the zerovalue it needs.
 	// The linker magically takes the max of all the sizes.
 	zero = pkglookup("zerovalue", runtimepkg);
-	ggloblsym(zero, 0, 1, 1);
+
 	// We use size 0 here so we get the pointer to the zero value,
 	// but don't allocate space for the zero value unless we need it.
 	// TODO: how do we get this symbol into bss?  We really want

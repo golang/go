@@ -88,6 +88,7 @@ flusherrors(void)
 {
 	int i;
 
+	Bflush(&bstdout);
 	if(nerr == 0)
 		return;
 	qsort(err, nerr, sizeof err[0], errcmp);

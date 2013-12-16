@@ -16,6 +16,7 @@ void
 dumpobj(void)
 {
 	NodeList *externs, *tmp;
+	Sym *zero;
 
 	bout = Bopen(outfile, OWRITE);
 	if(bout == nil) {
@@ -29,8 +30,6 @@ dumpobj(void)
 	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
 	dumpexport();
 	Bprint(bout, "\n!\n");
-
-	linkouthist(ctxt, bout);
 
 	externs = nil;
 	if(externdcl != nil)
@@ -46,8 +45,11 @@ dumpobj(void)
 	dumpglobls();
 	externdcl = tmp;
 
+	zero = pkglookup("zerovalue", runtimepkg);
+	ggloblsym(zero, zerosize, 1, 1);
+
 	dumpdata();
-	linkwritefuncs(ctxt, bout);
+	linkwriteobj(ctxt, bout);
 
 	Bterm(bout);
 }
@@ -74,12 +76,15 @@ dumpglobls(void)
 
 		ggloblnod(n);
 	}
-
+	
 	for(l=funcsyms; l; l=l->next) {
 		n = l->n;
 		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
 		ggloblsym(n->sym, widthptr, 1, 1);
 	}
+	
+	// Do not reprocess funcsyms on next dumpglobls call.
+	funcsyms = nil;
 }
 
 void

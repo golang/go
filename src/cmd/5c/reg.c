@@ -480,8 +480,10 @@ brk:
 	r1 = 0; /* set */
 	for(r = firstr; r != R; r = r->link) {
 		p = r->prog;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == D_BRANCH) {
 			p->to.offset = r->s2->pc;
+			p->to.u.branch = r->s2->prog;
+		}
 		r1 = r;
 	}
 

@@ -174,6 +174,7 @@ nextpc(void)
 	p = alloc(sizeof(*p));
 	*p = zprog;
 	p->lineno = nearln;
+	p->pc = pc;
 	pc++;
 	if(lastp == nil) {
 		pl = linknewplist(ctxt);
@@ -1488,9 +1489,10 @@ gbranch(int o)
 void
 patch(Prog *op, int32 pc)
 {
-
 	op->to.offset = pc;
 	op->to.type = D_BRANCH;
+	op->to.u.branch = nil;
+	op->pcond = nil;
 }
 
 void
