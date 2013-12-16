@@ -660,6 +660,35 @@ func TestQueryRowClosingStmt(t *testing.T) {
 	}
 }
 
+// Test issue 6651
+func TestIssue6651(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	var v string
+
+	want := "error in rows.Next"
+	rowsCursorNextHook = func(dest []driver.Value) error {
+		return fmt.Errorf(want)
+	}
+	defer func() { rowsCursorNextHook = nil }()
+	err := db.QueryRow("SELECT|people|name|").Scan(&v)
+	if err == nil || err.Error() != want {
+		t.Errorf("error = %q; want %q", err, want)
+	}
+	rowsCursorNextHook = nil
+
+	want = "error in rows.Close"
+	rowsCloseHook = func(rows *Rows, err *error) {
+		*err = fmt.Errorf(want)
+	}
+	defer func() { rowsCloseHook = nil }()
+	err = db.QueryRow("SELECT|people|name|").Scan(&v)
+	if err == nil || err.Error() != want {
+		t.Errorf("error = %q; want %q", err, want)
+	}
+}
+
 type nullTestRow struct {
 	nullParam    interface{}
 	notNullParam interface{}

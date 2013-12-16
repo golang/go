@@ -1495,10 +1495,12 @@ type Rows struct {
 	closeStmt driver.Stmt // if non-nil, statement to Close on close
 }
 
-// Next prepares the next result row for reading with the Scan method.
-// It returns true on success, false if there is no next result row.
-// Every call to Scan, even the first one, must be preceded by a call
-// to Next.
+// Next prepares the next result row for reading with the Scan method.  It
+// returns true on success, or false if there is no next result row or an error
+// happened while preparing it.  Err should be consulted to distinguish between
+// the two cases.
+//
+// Every call to Scan, even the first one, must be preceded by a call to Next.
 func (rs *Rows) Next() bool {
 	if rs.closed {
 		return false
@@ -1625,10 +1627,17 @@ func (r *Row) Scan(dest ...interface{}) error {
 	}
 
 	if !r.rows.Next() {
+		if err := r.rows.Err(); err != nil {
+			return err
+		}
 		return ErrNoRows
 	}
 	err := r.rows.Scan(dest...)
 	if err != nil {
+		return err
+	}
+	// Make sure the query can be processed to completion with no errors.
+	if err := r.rows.Close(); err != nil {
 		return err
 	}
 
