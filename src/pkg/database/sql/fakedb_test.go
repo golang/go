@@ -686,7 +686,13 @@ func (rc *rowsCursor) Columns() []string {
 	return rc.cols
 }
 
+var rowsCursorNextHook func(dest []driver.Value) error
+
 func (rc *rowsCursor) Next(dest []driver.Value) error {
+	if rowsCursorNextHook != nil {
+		return rowsCursorNextHook(dest)
+	}
+
 	if rc.closed {
 		return errors.New("fakedb: cursor is closed")
 	}
