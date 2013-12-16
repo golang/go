@@ -79,6 +79,14 @@ func ExampleIndexFunc() {
 	// -1
 }
 
+func ExampleIndexAny() {
+	fmt.Println(strings.IndexAny("chicken", "aeiouy"))
+	fmt.Println(strings.IndexAny("crwth", "aeiouy"))
+	// Output:
+	// 2
+	// -1
+}
+
 func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
