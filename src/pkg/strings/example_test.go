@@ -68,6 +68,17 @@ func ExampleIndex() {
 	// -1
 }
 
+func ExampleIndexFunc() {
+	f := func(c rune) bool {
+		return unicode.Is(unicode.Han, c)
+	}
+	fmt.Println(strings.IndexFunc("Hello, 世界", f))
+	fmt.Println(strings.IndexFunc("Hello, world", f))
+	// Output:
+	// 7
+	// -1
+}
+
 func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
