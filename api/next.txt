@@ -1,0 +1,38 @@
+pkg image, func NewRGB(Rectangle) *RGB
+pkg image, func NewRGB48(Rectangle) *RGB48
+pkg image, method (*RGB) At(int, int) color.Color
+pkg image, method (*RGB) Bounds() Rectangle
+pkg image, method (*RGB) ColorModel() color.Model
+pkg image, method (*RGB) Opaque() bool
+pkg image, method (*RGB) PixOffset(int, int) int
+pkg image, method (*RGB) Set(int, int, color.Color)
+pkg image, method (*RGB) SetRGB(int, int, color.RGB)
+pkg image, method (*RGB) SubImage(Rectangle) Image
+pkg image, method (*RGB48) At(int, int) color.Color
+pkg image, method (*RGB48) Bounds() Rectangle
+pkg image, method (*RGB48) ColorModel() color.Model
+pkg image, method (*RGB48) Opaque() bool
+pkg image, method (*RGB48) PixOffset(int, int) int
+pkg image, method (*RGB48) Set(int, int, color.Color)
+pkg image, method (*RGB48) SetRGB48(int, int, color.RGB48)
+pkg image, method (*RGB48) SubImage(Rectangle) Image
+pkg image, type RGB struct
+pkg image, type RGB struct, Pix []uint8
+pkg image, type RGB struct, Rect Rectangle
+pkg image, type RGB struct, Stride int
+pkg image, type RGB48 struct
+pkg image, type RGB48 struct, Pix []uint8
+pkg image, type RGB48 struct, Rect Rectangle
+pkg image, type RGB48 struct, Stride int
+pkg image/color, method (RGB) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (RGB48) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, type RGB struct
+pkg image/color, type RGB struct, B uint8
+pkg image/color, type RGB struct, G uint8
+pkg image/color, type RGB struct, R uint8
+pkg image/color, type RGB48 struct
+pkg image/color, type RGB48 struct, B uint16
+pkg image/color, type RGB48 struct, G uint16
+pkg image/color, type RGB48 struct, R uint16
+pkg image/color, var RGB48Model Model
+pkg image/color, var RGBModel Model
