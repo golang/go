@@ -72,7 +72,6 @@ archinit(void)
 		errorexit();
 
 	case Hplan9:	/* plan 9 */
-		ctxt->tlsoffset = -8;
 		HEADR = 32L;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+32;
@@ -82,11 +81,6 @@ archinit(void)
 			INITRND = 4096;
 		break;
 	case Hdarwin:	/* apple MACH */
-		/*
-		 * OS X system constant - offset from %gs to our TLS.
-		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_386.c.
-		 */
-		ctxt->tlsoffset = 0x468;
 		machoinit();
 		HEADR = INITIAL_MACHO_HEADR;
 		if(INITTEXT == -1)
@@ -101,13 +95,6 @@ archinit(void)
 	case Hnetbsd:
 	case Hopenbsd:
 	case Hdragonfly:
-		/*
-		 * ELF uses TLS offsets negative from %gs.
-		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
-		 * Also known to ../../pkg/runtime/sys_linux_386.s
-		 * and ../../pkg/runtime/cgo/gcc_linux_386.c.
-		 */
-		ctxt->tlsoffset = -8;
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)

@@ -70,22 +70,20 @@ linkpatch(Link *ctxt, LSym *sym)
 {
 	int32 c;
 	Prog *p, *q;
-	LSym *s;
 
 	ctxt->cursym = sym;
 	
 	for(p = sym->text; p != nil; p = p->link) {
 		if(ctxt->arch->progedit)
 			ctxt->arch->progedit(ctxt, p);
-		if(p->as == ctxt->arch->ACALL || (p->as == ctxt->arch->AJMP && p->to.type != ctxt->arch->D_BRANCH) || (p->as == ctxt->arch->ARET && p->to.sym != nil)) {
-			s = p->to.sym;
-			// The STEXT check avoids rewriting indirect call to addr in memory on x86.
-			if(s && s->type == STEXT) {
-				p->to.type = ctxt->arch->D_BRANCH;
-				continue;
-			}
-		}
 		if(p->to.type != ctxt->arch->D_BRANCH)
+			continue;
+		if(p->to.u.branch != nil) {
+			// TODO: Remove to.u.branch in favor of p->pcond.
+			p->pcond = p->to.u.branch;
+			continue;
+		}
+		if(p->to.sym != nil)
 			continue;
 		c = p->to.offset;
 		for(q = sym->text; q != nil;) {
@@ -101,6 +99,7 @@ linkpatch(Link *ctxt, LSym *sym)
 				c, p, p->to.sym ? p->to.sym->name : "<nil>");
 			p->to.type = ctxt->arch->D_NONE;
 		}
+		p->to.u.branch = q;
 		p->pcond = q;
 	}
 	

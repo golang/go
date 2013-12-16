@@ -35,12 +35,6 @@
 #include "../cmd/5l/5.out.h"
 #include "../pkg/runtime/stack.h"
 
-static Addr noaddr = {
-	.type = D_NONE,
-	.name = D_NONE,
-	.reg = NREG,
-};
-
 static Prog zprg = {
 	.as = AGOK,
 	.scond = 14,
@@ -57,140 +51,10 @@ static Prog zprg = {
 	},
 };
 
-static void
-zname(Biobuf *b, LSym *s, int t)
-{
-	BPUTC(b, ANAME);	/* as */
-	BPUTC(b, t);		/* type */
-	BPUTC(b, s->symid);	/* sym */
-	Bwrite(b, s->name, strlen(s->name)+1);
-}
-
-static void
-zfile(Biobuf *b, char *p, int n)
-{
-	BPUTC(b, ANAME);
-	BPUTC(b, D_FILE);
-	BPUTC(b, 1);
-	BPUTC(b, '<');
-	Bwrite(b, p, n);
-	BPUTC(b, 0);
-}
-
-static void
-zaddr(Biobuf *b, Addr *a, int s, int gotype)
-{
-	int32 l;
-	uint64 e;
-	int i;
-	char *n;
-
-	switch(a->type) {
-	case D_STATIC:
-	case D_AUTO:
-	case D_EXTERN:
-	case D_PARAM:
-		// TODO(kaib): remove once everything seems to work
-		sysfatal("We should no longer generate these as types");
-
-	default:
-		BPUTC(b, a->type);
-		BPUTC(b, a->reg);
-		BPUTC(b, s);
-		BPUTC(b, a->name);
-		BPUTC(b, gotype);
-	}
-
-	switch(a->type) {
-	default:
-		print("unknown type %d in zaddr\n", a->type);
-
-	case D_NONE:
-	case D_REG:
-	case D_FREG:
-	case D_PSR:
-		break;
-
-	case D_CONST2:
-		l = a->offset2;
-		BPUTLE4(b, l); // fall through
-	case D_OREG:
-	case D_CONST:
-	case D_SHIFT:
-	case D_STATIC:
-	case D_AUTO:
-	case D_EXTERN:
-	case D_PARAM:
-		l = a->offset;
-		BPUTLE4(b, l);
-		break;
-
-	case D_BRANCH:
-		if(a->offset == 0 || a->u.branch != nil) {
-			if(a->u.branch == nil)
-				sysfatal("unpatched branch %D", a);
-			a->offset = a->u.branch->loc;
-		}
-		l = a->offset;
-		BPUTLE4(b, l);
-		break;
-
-	case D_SCONST:
-		n = a->u.sval;
-		for(i=0; i<NSNAME; i++) {
-			BPUTC(b, *n);
-			n++;
-		}
-		break;
-
-	case D_REGREG:
-	case D_REGREG2:
-		BPUTC(b, a->offset);
-		break;
-
-	case D_FCONST:
-		double2ieee(&e, a->u.dval);
-		BPUTLE4(b, e);
-		BPUTLE4(b, e >> 32);
-		break;
-	}
-}
-
-static void
-zhist(Biobuf *b, int line, vlong offset)
-{
-	Addr a;
-
-	BPUTC(b, AHISTORY);
-	BPUTC(b, C_SCOND_NONE);
-	BPUTC(b, NREG);
-	BPUTLE4(b, line);
-	zaddr(b, &noaddr, 0, 0);
-	a = noaddr;
-	if(offset != 0) {
-		a.offset = offset;
-		a.type = D_CONST;
-	}
-	zaddr(b, &a, 0, 0);
-}
-
 static int
 symtype(Addr *a)
 {
 	return a->name;
-}
-
-static void
-zprog(Link *ctxt, Biobuf *b, Prog *p, int sf, int gf, int st, int gt)
-{
-	USED(ctxt);
-
-	BPUTC(b, p->as);
-	BPUTC(b, p->scond);
- 	BPUTC(b, p->reg);
-	BPUTLE4(b, p->lineno);
-	zaddr(b, &p->from, sf, gf);
-	zaddr(b, &p->to, st, gt);
 }
 
 static int
@@ -221,6 +85,68 @@ static void
 settextflag(Prog *p, int f)
 {
 	p->reg = f;
+}
+
+static void
+progedit(Link *ctxt, Prog *p)
+{
+	char literal[64];
+	LSym *s;
+
+	p->from.class = 0;
+	p->to.class = 0;
+
+	// Rewrite B/BL to symbol as D_BRANCH.
+	switch(p->as) {
+	case AB:
+	case ABL:
+		if(p->to.type == D_OREG && (p->to.name == D_EXTERN || p->to.name == D_STATIC) && p->to.sym != nil)
+			p->to.type = D_BRANCH;
+		break;
+	}
+
+	// Rewrite float constants to values stored in memory.
+	switch(p->as) {
+	case AMOVF:
+		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
+		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
+			int32 i32;
+			float32 f32;
+			f32 = p->from.u.dval;
+			memmove(&i32, &f32, 4);
+			sprint(literal, "$f32.%08ux", (uint32)i32);
+			s = linklookup(ctxt, literal, 0);
+			if(s->type == 0) {
+				s->type = SRODATA;
+				adduint32(ctxt, s, i32);
+				s->reachable = 0;
+			}
+			p->from.type = D_OREG;
+			p->from.sym = s;
+			p->from.name = D_EXTERN;
+			p->from.offset = 0;
+		}
+		break;
+
+	case AMOVD:
+		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
+		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
+			int64 i64;
+			memmove(&i64, &p->from.u.dval, 8);
+			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			s = linklookup(ctxt, literal, 0);
+			if(s->type == 0) {
+				s->type = SRODATA;
+				adduint64(ctxt, s, i64);
+				s->reachable = 0;
+			}
+			p->from.type = D_OREG;
+			p->from.sym = s;
+			p->from.name = D_EXTERN;
+			p->from.offset = 0;
+		}
+		break;
+	}
 }
 
 static Prog*
@@ -293,11 +219,14 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 	softfloat(ctxt, cursym);
 
+	p = cursym->text;
+	autoffset = p->to.offset;
+	if(autoffset < 0)
+		autoffset = 0;
+	cursym->locals = autoffset;
+	cursym->args = p->to.offset2;
+
 	if(ctxt->debugzerostack) {
-		p = cursym->text;
-		autoffset = p->to.offset;
-		if(autoffset < 0)
-			autoffset = 0;
 		if(autoffset && !(p->reg&NOSPLIT)) {
 			// MOVW $4(R13), R1
 			p = appendp(ctxt, p);
@@ -427,15 +356,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				if(ctxt->headtype == Hopenbsd) {
 					p->as = ARET;
 				} else if(ctxt->goarm < 7) {
-					if(tlsfallback->type != STEXT) {
-						ctxt->diag("runtime·read_tls_fallback not defined");
-						sysfatal("tlsfallback");
-					}
 					// BL runtime.read_tls_fallback(SB)
 					p->as = ABL;
 					p->to.type = D_BRANCH;
 					p->to.sym = tlsfallback;
-					p->pcond = tlsfallback->text;
 					p->to.offset = 0;
 					cursym->text->mark &= ~LEAF;
 				}
@@ -578,7 +502,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					p->from = zprg.from;
 					if(p->to.sym) { // retjmp
 						p->to.type = D_BRANCH;
-						p->pcond = p->to.sym->text;
 					} else {
 						p->to.type = D_OREG;
 						p->to.offset = 0;
@@ -643,7 +566,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				q2->as = AB;
 				q2->to.type = D_BRANCH;
 				q2->to.sym = p->to.sym;
-				q2->pcond = p->to.sym->text;
 				p->to.sym = nil;
 				p = q2;
 			}
@@ -698,7 +620,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			p->as = ABL;
 			p->lineno = q1->lineno;
 			p->to.type = D_BRANCH;
-			p->pcond = p;
 			switch(o) {
 			case ADIV:
 				p->to.sym = ctxt->sym_div;
@@ -775,17 +696,14 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static void
 softfloat(Link *ctxt, LSym *cursym)
 {
-	Prog *p, *next, *psfloat;
+	Prog *p, *next;
 	LSym *symsfloat;
 	int wasfloat;
 
-	if(!ctxt->debugfloat)
+	if(ctxt->goarm > 5)
 		return;
 
 	symsfloat = linklookup(ctxt, "_sfloat", 0);
-	psfloat = nil;
-	if(symsfloat->type == STEXT)
-		psfloat = symsfloat->text;
 
 	wasfloat = 0;
 	for(p = cursym->text; p != nil; p = p->link)
@@ -827,8 +745,6 @@ softfloat(Link *ctxt, LSym *cursym)
 			goto notsoft;
 
 		soft:
-			if (psfloat == nil)
-				ctxt->diag("floats used with _sfloat not defined");
 			if (!wasfloat || (p->mark&LABEL)) {
 				next = ctxt->arch->prg();
 				*next = *p;
@@ -839,7 +755,6 @@ softfloat(Link *ctxt, LSym *cursym)
 				p->as = ABL;
  				p->to.type = D_BRANCH;
 				p->to.sym = symsfloat;
-				p->pcond = psfloat;
 				p->lineno = next->lineno;
 
 				p = next;
@@ -1145,6 +1060,7 @@ loop:
 
 LinkArch linkarm = {
 	.name = "arm",
+	.thechar = '5',
 
 	.addstacksplit = addstacksplit,
 	.assemble = span5,
@@ -1152,16 +1068,11 @@ LinkArch linkarm = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.ldobj = ldobj5,
-	.nopout = nopout5,
 	.prg = prg,
+	.progedit = progedit,
 	.settextflag = settextflag,
 	.symtype = symtype,
 	.textflag = textflag,
-	.zfile = zfile,
-	.zhist = zhist,
-	.zname = zname,
-	.zprog = zprog,
 
 	.minlc = 4,
 	.ptrsize = 4,
@@ -1175,13 +1086,18 @@ LinkArch linkarm = {
 	.D_PCREL = D_PCREL,
 	.D_SCONST = D_SCONST,
 	.D_SIZE = D_SIZE,
+	.D_STATIC = D_STATIC,
 
 	.ACALL = ABL,
+	.ADATA = ADATA,
+	.AEND = AEND,
 	.AFUNCDATA = AFUNCDATA,
+	.AGLOBL = AGLOBL,
 	.AJMP = AB,
 	.ANOP = ANOP,
 	.APCDATA = APCDATA,
 	.ARET = ARET,
 	.ATEXT = ATEXT,
+	.ATYPE = ATYPE,
 	.AUSEFIELD = AUSEFIELD,
 };

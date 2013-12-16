@@ -35,12 +35,6 @@
 #include "../cmd/6l/6.out.h"
 #include "../pkg/runtime/stack.h"
 
-static Addr noaddr = {
-	.type = D_NONE,
-	.index = D_NONE,
-	.scale = 0,
-};
-
 static Prog zprg = {
 	.back = 2,
 	.as = AGOK,
@@ -55,118 +49,11 @@ static Prog zprg = {
 };
 
 static void
-zname(Biobuf *b, LSym *s, int t)
+nopout(Prog *p)
 {
-	BPUTLE2(b, ANAME);	/* as */
-	BPUTC(b, t);		/* type */
-	BPUTC(b, s->symid);	/* sym */
-	Bwrite(b, s->name, strlen(s->name)+1);
-}
-
-static void
-zfile(Biobuf *b, char *p, int n)
-{
-	BPUTLE2(b, ANAME);
-	BPUTC(b, D_FILE);
-	BPUTC(b, 1);
-	BPUTC(b, '<');
-	Bwrite(b, p, n);
-	BPUTC(b, 0);
-}
-
-static void
-zaddr(Biobuf *b, Addr *a, int s, int gotype)
-{
-	int32 l;
-	uint64 e;
-	int i, t;
-	char *n;
-
-	t = 0;
-	if(a->index != D_NONE || a->scale != 0)
-		t |= T_INDEX;
-	if(s != 0)
-		t |= T_SYM;
-	if(gotype != 0)
-		t |= T_GOTYPE;
-
-	switch(a->type) {
-
-	case D_BRANCH:
-		if(a->offset == 0 || a->u.branch != nil) {
-			if(a->u.branch == nil)
-				sysfatal("unpatched branch %D", a);
-			a->offset = a->u.branch->loc;
-		}
-
-	default:
-		t |= T_TYPE;
-
-	case D_NONE:
-		if(a->offset != 0) {
-			t |= T_OFFSET;
-			l = a->offset;
-			if((vlong)l != a->offset)
-				t |= T_64;
-		}
-		break;
-	case D_FCONST:
-		t |= T_FCONST;
-		break;
-	case D_SCONST:
-		t |= T_SCONST;
-		break;
-	}
-	BPUTC(b, t);
-
-	if(t & T_INDEX) {	/* implies index, scale */
-		BPUTC(b, a->index);
-		BPUTC(b, a->scale);
-	}
-	if(t & T_OFFSET) {	/* implies offset */
-		l = a->offset;
-		BPUTLE4(b, l);
-		if(t & T_64) {
-			l = a->offset>>32;
-			BPUTLE4(b, l);
-		}
-	}
-	if(t & T_SYM)		/* implies sym */
-		BPUTC(b, s);
-	if(t & T_FCONST) {
-		double2ieee(&e, a->u.dval);
-		BPUTLE4(b, e);
-		BPUTLE4(b, e >> 32);
-		return;
-	}
-	if(t & T_SCONST) {
-		n = a->u.sval;
-		for(i=0; i<NSNAME; i++) {
-			BPUTC(b, *n);
-			n++;
-		}
-		return;
-	}
-	if(t & T_TYPE)
-		BPUTC(b, a->type);
-	if(t & T_GOTYPE)
-		BPUTC(b, gotype);
-}
-
-static void
-zhist(Biobuf *b, int line, vlong offset)
-{
-	Addr a;
-
-	BPUTLE2(b, AHISTORY);
-	BPUTLE4(b, line);
-	zaddr(b, &noaddr, 0, 0);
-	a = noaddr;
-	if(offset != 0) {
-		a.offset = offset;
-		a.type = D_CONST;
-	}
-	zaddr(b, &a, 0, 0);
+	p->as = ANOP;
+	p->from.type = D_NONE;
+	p->to.type = D_NONE;
 }
 
 static int
@@ -178,17 +65,6 @@ symtype(Addr *a)
 	if(t == D_ADDR)
 		t = a->index;
 	return t;
-}
-
-static void
-zprog(Link *ctxt, Biobuf *b, Prog *p, int sf, int gf, int st, int gt)
-{
-	USED(ctxt);
-
-	BPUTLE2(b, p->as);
-	BPUTLE4(b, p->lineno);
-	zaddr(b, &p->from, sf, gf);
-	zaddr(b, &p->to, st, gt);
 }
 
 static int
@@ -224,7 +100,14 @@ settextflag(Prog *p, int f)
 static void
 progedit(Link *ctxt, Prog *p)
 {
+	char literal[64];
+	LSym *s;
 	Prog *q;
+
+	if(p->from.type == D_INDIR+D_GS || p->from.index == D_GS)
+		p->from.offset += ctxt->tlsoffset;
+	if(p->to.type == D_INDIR+D_GS || p->to.index == D_GS)
+		p->to.offset += ctxt->tlsoffset;
 
 	if(ctxt->gmsym == nil)
 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
@@ -313,6 +196,105 @@ progedit(Link *ctxt, Prog *p)
 			p->from.offset = 0;
 		}
 	}
+
+	// Maintain information about code generation mode.
+	if(ctxt->mode == 0)
+		ctxt->mode = 64;
+	p->mode = ctxt->mode;
+	
+	switch(p->as) {
+	case AMODE:
+		if(p->from.type == D_CONST || p->from.type == D_INDIR+D_NONE) {
+			switch((int)p->from.offset) {
+			case 16:
+			case 32:
+			case 64:
+				ctxt->mode = p->from.offset;
+				break;
+			}
+		}
+		nopout(p);
+		break;
+	}
+	
+	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
+	switch(p->as) {
+	case ACALL:
+	case AJMP:
+	case ARET:
+		if((p->to.type == D_EXTERN || p->to.type == D_STATIC) && p->to.sym != nil)
+			p->to.type = D_BRANCH;
+		break;
+	}
+
+	// Rewrite float constants to values stored in memory.
+	switch(p->as) {
+	case AFMOVF:
+	case AFADDF:
+	case AFSUBF:
+	case AFSUBRF:
+	case AFMULF:
+	case AFDIVF:
+	case AFDIVRF:
+	case AFCOMF:
+	case AFCOMFP:
+	case AMOVSS:
+	case AADDSS:
+	case ASUBSS:
+	case AMULSS:
+	case ADIVSS:
+	case ACOMISS:
+	case AUCOMISS:
+		if(p->from.type == D_FCONST) {
+			int32 i32;
+			float32 f32;
+			f32 = p->from.u.dval;
+			memmove(&i32, &f32, 4);
+			sprint(literal, "$f32.%08ux", (uint32)i32);
+			s = linklookup(ctxt, literal, 0);
+			if(s->type == 0) {
+				s->type = SRODATA;
+				adduint32(ctxt, s, i32);
+				s->reachable = 0;
+			}
+			p->from.type = D_EXTERN;
+			p->from.sym = s;
+			p->from.offset = 0;
+		}
+		break;
+	
+	case AFMOVD:
+	case AFADDD:
+	case AFSUBD:
+	case AFSUBRD:
+	case AFMULD:
+	case AFDIVD:
+	case AFDIVRD:
+	case AFCOMD:
+	case AFCOMDP:
+	case AMOVSD:
+	case AADDSD:
+	case ASUBSD:
+	case AMULSD:
+	case ADIVSD:
+	case ACOMISD:
+	case AUCOMISD:
+		if(p->from.type == D_FCONST) {
+			int64 i64;
+			memmove(&i64, &p->from.u.dval, 8);
+			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			s = linklookup(ctxt, literal, 0);
+			if(s->type == 0) {
+				s->type = SRODATA;
+				adduint64(ctxt, s, i64);
+				s->reachable = 0;
+			}
+			p->from.type = D_EXTERN;
+			p->from.sym = s;
+			p->from.offset = 0;
+		}
+		break;
+	}
 }
 
 static char*
@@ -374,6 +356,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	autoffset = textstksiz;
 	if(autoffset < 0)
 		autoffset = 0;
+	
+	cursym->args = p->to.offset>>32;
+	cursym->locals = textstksiz;
 
 	if(autoffset < StackSmall && !(p->from.scale & NOSPLIT)) {
 		for(q = p; q != nil; q = q->link)
@@ -1033,24 +1018,19 @@ prg(void)
 
 LinkArch linkamd64 = {
 	.name = "amd64",
+	.thechar = '6',
 
-	.zprog = zprog,
-	.zhist = zhist,
-	.zfile = zfile,
-	.zname = zname,
-	.isdata = isdata,
-	.ldobj = ldobj6,
-	.nopout = nopout6,
-	.symtype = symtype,
-	.iscall = iscall,
-	.datasize = datasize,
-	.textflag = textflag,
-	.settextflag = settextflag,
-	.progedit = progedit,
-	.prg = prg,
 	.addstacksplit = addstacksplit,
 	.assemble = span6,
+	.datasize = datasize,
 	.follow = follow,
+	.iscall = iscall,
+	.isdata = isdata,
+	.prg = prg,
+	.progedit = progedit,
+	.settextflag = settextflag,
+	.symtype = symtype,
+	.textflag = textflag,
 
 	.minlc = 1,
 	.ptrsize = 8,
@@ -1064,13 +1044,18 @@ LinkArch linkamd64 = {
 	.D_PCREL = D_PCREL,
 	.D_SCONST = D_SCONST,
 	.D_SIZE = D_SIZE,
+	.D_STATIC = D_STATIC,
 
 	.ACALL = ACALL,
+	.ADATA = ADATA,
+	.AEND = AEND,
 	.AFUNCDATA = AFUNCDATA,
+	.AGLOBL = AGLOBL,
 	.AJMP = AJMP,
 	.ANOP = ANOP,
 	.APCDATA = APCDATA,
 	.ARET = ARET,
 	.ATEXT = ATEXT,
+	.ATYPE = ATYPE,
 	.AUSEFIELD = AUSEFIELD,
 };
