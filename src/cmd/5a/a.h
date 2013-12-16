@@ -125,6 +125,7 @@ EXTERN	char*	thestring;
 EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
 EXTERN	Link*	ctxt;
+EXTERN	Biobuf	bstdout;
 
 void*	alloc(int32);
 void*	allocn(void*, int32, int32);
@@ -165,3 +166,4 @@ void	yyerror(char*, ...);
 int	yyparse(void);
 void	setinclude(char*);
 int	assemble(char*);
+void	listinit(void);

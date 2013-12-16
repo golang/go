@@ -152,7 +152,7 @@ setinclude(char *p)
 void
 errorexit(void)
 {
-
+	Bflush(&bstdout);
 	if(outfile)
 		remove(outfile);
 	exits("error");

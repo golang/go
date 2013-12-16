@@ -517,6 +517,7 @@ EXTERN	int	canreach;
 EXTERN	int	warnreach;
 EXTERN	Bits	zbits;
 EXTERN	Fmt	pragcgobuf;
+EXTERN	Biobuf	bstdout;
 
 extern	char	*onames[], *tnames[], *gnames[];
 extern	char	*cnames[], *qnames[], *bnames[];

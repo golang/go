@@ -663,8 +663,10 @@ brk:
 	r1 = 0; /* set */
 	for(r = firstr; r != R; r = r->link) {
 		p = r->prog;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == D_BRANCH) {
 			p->to.offset = r->s2->pc;
+			p->to.u.branch = r->s2->prog;
+		}
 		r1 = r;
 	}
 
@@ -1463,6 +1465,7 @@ fixjmp(Reg *firstr)
 		if(p->as != ACALL && p->to.type == D_BRANCH && r->s2 && r->s2->prog->as == AJMP) {
 			r->s2 = chasejmp(r->s2, &jmploop);
 			p->to.offset = r->s2->pc;
+			p->to.u.branch = r->s2->prog;
 			if(debug['R'] && debug['v'])
 				print("->%P\n", p);
 		}

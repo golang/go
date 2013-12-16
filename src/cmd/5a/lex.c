@@ -59,8 +59,12 @@ main(int argc, char *argv[])
 
 	thechar = '5';
 	thestring = "arm";
+
 	ctxt = linknew(&linkarm);
 	ctxt->diag = yyerror;
+	ctxt->bso = &bstdout;
+	Binit(&bstdout, 1, OWRITE);
+	listinit5();
 
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
@@ -112,6 +116,7 @@ main(int argc, char *argv[])
 	}
 	if(assemble(argv[0]))
 		errorexit();
+	Bflush(&bstdout);
 	exits(0);
 }
 
@@ -151,7 +156,7 @@ assemble(char *file)
 	}
 	Binit(&obuf, of, OWRITE);
 	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
-	Bprint(&obuf, "\n!\n");
+	Bprint(&obuf, "!\n");
 
 	for(pass = 1; pass <= 2; pass++) {
 		pinit(file);
@@ -163,8 +168,7 @@ assemble(char *file)
 			return nerrors;
 	}
 
-	linkouthist(ctxt, &obuf);
-	linkwritefuncs(ctxt, &obuf);
+	linkwriteobj(ctxt, &obuf);
 	Bflush(&obuf);
 	return 0;
 }
@@ -511,6 +515,7 @@ outcode(int a, int scond, Addr *g1, int reg, Addr *g2)
 	p->from = *g1;
 	p->reg = reg;
 	p->to = *g2;
+	p->pc = pc;
 
 	if(lastpc == nil) {
 		pl = linknewplist(ctxt);

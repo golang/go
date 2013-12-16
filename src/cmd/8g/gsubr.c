@@ -194,7 +194,7 @@ ggloblnod(Node *nam)
 
 	p = gins(AGLOBL, nam, N);
 	p->lineno = nam->lineno;
-	p->from.gotype = linksym(ngotype(nam));
+	p->from.sym->gotype = linksym(ngotype(nam));
 	p->to.sym = nil;
 	p->to.type = D_CONST;
 	p->to.offset = nam->type->width;

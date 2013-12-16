@@ -137,6 +137,7 @@ EXTERN	char*	thestring;
 EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
 EXTERN	Link*	ctxt;
+EXTERN	Biobuf	bstdout;
 
 void*	alloc(int32);
 void*	allocn(void*, int32, int32);

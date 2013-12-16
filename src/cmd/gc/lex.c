@@ -189,6 +189,9 @@ main(int argc, char *argv[])
 #endif
 
 	ctxt = linknew(thelinkarch);
+	ctxt->diag = yyerror;
+	ctxt->bso = &bstdout;
+	Binit(&bstdout, 1, OWRITE);
 
 	localpkg = mkpkg(strlit(""));
 	localpkg->prefix = "\"\"";
@@ -276,6 +279,7 @@ main(int argc, char *argv[])
 		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
 
 	flagparse(&argc, &argv, usage);
+	ctxt->debugasm = debug['S'];
 
 	if(argc < 1)
 		usage();
@@ -706,7 +710,7 @@ importfile(Val *f, int line)
 	}
 
 	if(!findpkg(path)) {
-		yyerror("can't find import: \"%Z\" [path=%Z]", f->u.sval, path);
+		yyerror("can't find import: \"%Z\"", f->u.sval);
 		errorexit();
 	}
 	importpkg = mkpkg(path);

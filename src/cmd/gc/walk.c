@@ -348,7 +348,7 @@ walkexpr(Node **np, NodeList **init)
 	int64 v;
 	int32 lno;
 	Node *n, *fn, *n1, *n2;
-	Sym *sym, *zero;
+	Sym *sym;
 	char buf[100], *p;
 
 	n = *np;
@@ -713,8 +713,8 @@ walkexpr(Node **np, NodeList **init)
 		typecheck(&n, Etop);
 		walkexpr(&n, init);
 		// mapaccess needs a zero value to be at least this big.
-		zero = pkglookup("zerovalue", runtimepkg);
-		ggloblsym(zero, t->type->width, 1, 1);
+		if(zerosize < t->type->width)
+			zerosize = t->type->width;
 		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
 		goto ret;
 
@@ -1130,8 +1130,8 @@ walkexpr(Node **np, NodeList **init)
 		n->type = t->type;
 		n->typecheck = 1;
 		// mapaccess needs a zero value to be at least this big.
-		zero = pkglookup("zerovalue", runtimepkg);
-		ggloblsym(zero, t->type->width, 1, 1);
+		if(zerosize < t->type->width)
+			zerosize = t->type->width;
 		goto ret;
 
 	case ORECV:

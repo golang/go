@@ -119,7 +119,12 @@ main(int argc, char *argv[])
 	int c;
 
 	quotefmtinstall(); // before cinit, which overrides %Q
+
 	ctxt = linknew(thelinkarch);
+	ctxt->diag = yyerror;
+	ctxt->bso = &bstdout;
+	Binit(&bstdout, 1, OWRITE);
+
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	tinit();
@@ -182,6 +187,7 @@ main(int argc, char *argv[])
 		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
 	
 	flagparse(&argc, &argv, usage);
+	ctxt->debugasm = debug['S'];
 
 	if(argc < 1 && outfile == 0)
 		usage();
@@ -196,6 +202,7 @@ main(int argc, char *argv[])
 	else
 		c = compile(argv[0], defs, ndef);
 
+	Bflush(&bstdout);
 	if(c)
 		errorexit();
 	exits(0);
@@ -332,6 +339,7 @@ compile(char *file, char **defs, int ndef)
 void
 errorexit(void)
 {
+	Bflush(&bstdout);
 	if(outfile)
 		remove(outfile);
 	exits("error");

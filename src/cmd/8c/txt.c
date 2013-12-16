@@ -162,6 +162,7 @@ nextpc(void)
 	p = alloc(sizeof(*p));
 	*p = zprog;
 	p->lineno = nearln;
+	p->pc = pc;
 	pc++;
 	if(lastp == nil) {
 		pl = linknewplist(ctxt);
@@ -189,7 +190,8 @@ gargs(Node *n, Node *tn1, Node *tn2)
 	cursafe = regs;
 }
 
-int nareg(void)
+int
+nareg(void)
 {
 	int i, n;
 
@@ -1367,9 +1369,10 @@ gbranch(int o)
 void
 patch(Prog *op, int32 pc)
 {
-
 	op->to.offset = pc;
 	op->to.type = D_BRANCH;
+	op->to.u.branch = nil;
+	op->pcond = nil;
 }
 
 void

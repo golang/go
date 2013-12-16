@@ -65,8 +65,12 @@ main(int argc, char *argv[])
 
 	thechar = '6';
 	thestring = "amd64";
+
 	ctxt = linknew(&linkamd64);
 	ctxt->diag = yyerror;
+	ctxt->bso = &bstdout;
+	Binit(&bstdout, 1, OWRITE);
+	listinit6();
 
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
@@ -103,6 +107,7 @@ main(int argc, char *argv[])
 		ctxt->debugasm++;
 		break;
 	} ARGEND
+
 	if(*argv == 0) {
 		print("usage: %ca [-options] file.s\n", thechar);
 		errorexit();
@@ -113,6 +118,7 @@ main(int argc, char *argv[])
 	}
 	if(assemble(argv[0]))
 		errorexit();
+	Bflush(&bstdout);
 	exits(0);
 }
 
@@ -152,7 +158,7 @@ assemble(char *file)
 	}
 	Binit(&obuf, of, OWRITE);
 	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
-	Bprint(&obuf, "\n!\n");
+	Bprint(&obuf, "!\n");
 
 	for(pass = 1; pass <= 2; pass++) {
 		pinit(file);
@@ -164,8 +170,7 @@ assemble(char *file)
 			return nerrors;
 	}
 
-	linkouthist(ctxt, &obuf);
-	linkwritefuncs(ctxt, &obuf);
+	linkwriteobj(ctxt, &obuf);
 	Bflush(&obuf);
 	return 0;
 }
@@ -1098,6 +1103,7 @@ outcode(int a, Addr2 *g2)
 	p->lineno = stmtline;
 	p->from = g2->from;
 	p->to = g2->to;
+	p->pc = pc;
 
 	if(lastpc == nil) {
 		pl = linknewplist(ctxt);
