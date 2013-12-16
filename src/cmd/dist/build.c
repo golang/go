@@ -1246,7 +1246,6 @@ static char *buildorder[] = {
 	"misc/pprof",
 
 	"cmd/addr2line",
-	"cmd/nm",
 	"cmd/objdump",
 	"cmd/pack",
 	"cmd/prof",
@@ -1325,8 +1324,7 @@ static char *cleantab[] = {
 	"cmd/addr2line",
 	"cmd/cc",
 	"cmd/gc",
-	"cmd/go",
-	"cmd/nm",
+	"cmd/go",	
 	"cmd/objdump",
 	"cmd/pack",
 	"cmd/prof",
