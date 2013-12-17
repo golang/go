@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"appengine"
 	"appengine/datastore"
@@ -57,9 +58,7 @@ func commitHandler(r *http.Request) (interface{}, error) {
 	if err := json.NewDecoder(r.Body).Decode(com); err != nil {
 		return nil, fmt.Errorf("decoding Body: %v", err)
 	}
-	if len(com.Desc) > maxDatastoreStringLen {
-		com.Desc = com.Desc[:maxDatastoreStringLen]
-	}
+	com.Desc = limitStringLength(com.Desc, maxDatastoreStringLen)
 	if err := com.Valid(); err != nil {
 		return nil, fmt.Errorf("validating Commit: %v", err)
 	}
@@ -458,4 +457,21 @@ func logErr(w http.ResponseWriter, r *http.Request, err error) {
 
 func contextForRequest(r *http.Request) appengine.Context {
 	return dashboardForRequest(r).Context(appengine.NewContext(r))
+}
+
+// limitStringLength essentially does return s[:max],
+// but it ensures that we dot not split UTF-8 rune in half.
+// Otherwise appengine python scripts will break badly.
+func limitStringLength(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	for {
+		s = s[:max]
+		r, size := utf8.DecodeLastRuneInString(s)
+		if r != utf8.RuneError || size != 1 {
+			return s
+		}
+		max--
+	}
 }
