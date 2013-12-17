@@ -160,6 +160,9 @@ func funcentry_go(*Func) uintptr
 // to depend on a finalizer to flush an in-memory I/O buffer such as a
 // bufio.Writer, because the buffer would not be flushed at program exit.
 //
+// It is not guaranteed that a finalizer will run if the size of *x is
+// zero bytes.
+//
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.

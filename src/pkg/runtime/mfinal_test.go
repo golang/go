@@ -100,6 +100,13 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 func fin(v *int) {
 }
 
+// Verify we don't crash at least. golang.org/issue/6857
+func TestFinalizerZeroSizedStruct(t *testing.T) {
+	type Z struct{}
+	z := new(Z)
+	runtime.SetFinalizer(z, func(*Z) {})
+}
+
 func BenchmarkFinalizer(b *testing.B) {
 	const CallsPerSched = 1000
 	procs := runtime.GOMAXPROCS(-1)
