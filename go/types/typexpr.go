@@ -337,7 +337,19 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 			def.underlying = typ
 		}
 
-		typ.dir = e.Dir
+		dir := SendRecv
+		switch e.Dir {
+		case ast.SEND | ast.RECV:
+			// nothing to do
+		case ast.SEND:
+			dir = SendOnly
+		case ast.RECV:
+			dir = RecvOnly
+		default:
+			check.invalidAST(e.Pos(), "unknown channel direction %d", e.Dir)
+			// ok to continue
+		}
+		typ.dir = dir
 		typ.elem = check.typ(e.Value, nil, true)
 		return typ
 

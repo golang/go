@@ -1385,7 +1385,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		case *ast.SendStmt: // ch<- i
 			ch := b.expr(fn, comm.Chan)
 			st = &SelectState{
-				Dir:  ast.SEND,
+				Dir:  types.SendOnly,
 				Chan: ch,
 				Send: emitConv(fn, b.expr(fn, comm.Value),
 					ch.Type().Underlying().(*types.Chan).Elem()),
@@ -1398,7 +1398,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		case *ast.AssignStmt: // x := <-ch
 			recv := unparen(comm.Rhs[0]).(*ast.UnaryExpr)
 			st = &SelectState{
-				Dir:  ast.RECV,
+				Dir:  types.RecvOnly,
 				Chan: b.expr(fn, recv.X),
 				Pos:  recv.OpPos,
 			}
@@ -1409,7 +1409,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		case *ast.ExprStmt: // <-ch
 			recv := unparen(comm.X).(*ast.UnaryExpr)
 			st = &SelectState{
-				Dir:  ast.RECV,
+				Dir:  types.RecvOnly,
 				Chan: b.expr(fn, recv.X),
 				Pos:  recv.OpPos,
 			}
@@ -1440,7 +1440,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	var vars []*types.Var
 	vars = append(vars, varIndex, varOk)
 	for _, st := range states {
-		if st.Dir == ast.RECV {
+		if st.Dir == types.RecvOnly {
 			tElem := st.Chan.Type().Underlying().(*types.Chan).Elem()
 			vars = append(vars, types.NewVar(token.NoPos, nil, "", tElem))
 		}

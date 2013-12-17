@@ -102,7 +102,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 			x.mode = invalid
 			return
 		}
-		if typ.dir&ast.RECV == 0 {
+		if typ.dir == SendOnly {
 			check.invalidOp(x.pos(), "cannot receive from send-only channel %s", x)
 			x.mode = invalid
 			return

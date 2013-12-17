@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/build"
 	"go/token"
 	"io"
@@ -601,17 +600,17 @@ func (p *parser) parseInterfaceType() types.Type {
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
 //
 func (p *parser) parseChanType() types.Type {
-	dir := ast.SEND | ast.RECV
+	dir := types.SendRecv
 	if p.tok == scanner.Ident {
 		p.expectKeyword("chan")
 		if p.tok == '<' {
 			p.expectSpecial("<-")
-			dir = ast.SEND
+			dir = types.SendOnly
 		}
 	} else {
 		p.expectSpecial("<-")
 		p.expectKeyword("chan")
-		dir = ast.RECV
+		dir = types.RecvOnly
 	}
 	elem := p.parseType()
 	return types.NewChan(dir, elem)

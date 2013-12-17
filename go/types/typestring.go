@@ -9,7 +9,6 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"sort"
 )
 
@@ -122,16 +121,18 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 		var s string
 		var parens bool
 		switch t.dir {
-		case ast.SEND:
-			s = "chan<- "
-		case ast.RECV:
-			s = "<-chan "
-		default:
+		case SendRecv:
 			s = "chan "
 			// chan (<-chan T) requires parentheses
-			if c, _ := t.elem.(*Chan); c != nil && c.dir == ast.RECV {
+			if c, _ := t.elem.(*Chan); c != nil && c.dir == RecvOnly {
 				parens = true
 			}
+		case SendOnly:
+			s = "chan<- "
+		case RecvOnly:
+			s = "<-chan "
+		default:
+			panic("unreachable")
 		}
 		buf.WriteString(s)
 		if parens {

@@ -175,7 +175,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.invalidArg(x.pos(), "%s is not a channel", x)
 			return
 		}
-		if c.dir&ast.SEND == 0 {
+		if c.dir == RecvOnly {
 			check.invalidArg(x.pos(), "%s must not be a receive-only channel", x)
 			return
 		}

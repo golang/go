@@ -12,7 +12,6 @@ package pointer
 
 import (
 	"fmt"
-	"go/ast"
 	"go/token"
 
 	"code.google.com/p/go.tools/go/types"
@@ -994,11 +993,11 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		for _, st := range instr.States {
 			elemSize := a.sizeof(st.Chan.Type().Underlying().(*types.Chan).Elem())
 			switch st.Dir {
-			case ast.RECV:
+			case types.RecvOnly:
 				a.genLoad(cgn, recv, st.Chan, 0, elemSize)
 				recv += nodeid(elemSize)
 
-			case ast.SEND:
+			case types.SendOnly:
 				a.genStore(cgn, st.Chan, a.valueNode(st.Send), 0, elemSize)
 			}
 		}

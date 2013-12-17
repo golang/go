@@ -4,10 +4,7 @@
 
 package types
 
-import (
-	"go/ast"
-	"sort"
-)
+import "sort"
 
 // TODO(gri) Revisit factory functions - make sure they have all relevant parameters.
 
@@ -322,17 +319,27 @@ func (m *Map) Elem() Type { return m.elem }
 
 // A Chan represents a channel type.
 type Chan struct {
-	dir  ast.ChanDir
+	dir  ChanDir
 	elem Type
 }
 
+// A ChanDir value indicates a channel direction.
+type ChanDir int
+
+// The direction of a channel is indicated by one of the following constants.
+const (
+	SendRecv ChanDir = iota
+	SendOnly
+	RecvOnly
+)
+
 // NewChan returns a new channel type for the given direction and element type.
-func NewChan(dir ast.ChanDir, elem Type) *Chan {
+func NewChan(dir ChanDir, elem Type) *Chan {
 	return &Chan{dir, elem}
 }
 
 // Dir returns the direction of channel c.
-func (c *Chan) Dir() ast.ChanDir { return c.dir }
+func (c *Chan) Dir() ChanDir { return c.dir }
 
 // Elem returns the element type of channel c.
 func (c *Chan) Elem() Type { return c.elem }

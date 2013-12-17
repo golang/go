@@ -202,7 +202,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir&ast.SEND == 0 || !check.assignment(&x, tch.elem) {
+		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir == RecvOnly || !check.assignment(&x, tch.elem) {
 			if x.mode != invalid {
 				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
 			}
@@ -571,7 +571,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *Chan:
 			key = typ.elem
 			val = Typ[Invalid]
-			if typ.dir&ast.RECV == 0 {
+			if typ.dir == SendOnly {
 				check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
 				// ok to continue
 			}

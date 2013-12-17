@@ -231,7 +231,7 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 	// x is a bidirectional channel value, T is a channel
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
-	if Vc, ok := Vu.(*Chan); ok && Vc.dir == ast.SEND|ast.RECV {
+	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && IsIdentical(Vc.elem, Tc.elem) {
 			return !isNamed(V) || !isNamed(T)
 		}

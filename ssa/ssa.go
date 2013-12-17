@@ -835,11 +835,11 @@ type Lookup struct {
 // It represents one goal state and its corresponding communication.
 //
 type SelectState struct {
-	Dir       ast.ChanDir // direction of case
-	Chan      Value       // channel to use (for send or receive)
-	Send      Value       // value to send (for send)
-	Pos       token.Pos   // position of token.ARROW
-	DebugNode ast.Node    // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
+	Dir       types.ChanDir // direction of case (SendOnly or RecvOnly)
+	Chan      Value         // channel to use (for send or receive)
+	Send      Value         // value to send (for send)
+	Pos       token.Pos     // position of token.ARROW
+	DebugNode ast.Node      // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
 }
 
 // The Select instruction tests whether (or blocks until) one or more

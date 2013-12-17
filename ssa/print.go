@@ -10,7 +10,6 @@ package ssa
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"io"
 	"reflect"
 	"sort"
@@ -322,7 +321,7 @@ func (s *Select) String() string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		if st.Dir == ast.RECV {
+		if st.Dir == types.RecvOnly {
 			b.WriteString("<-")
 			b.WriteString(relName(st.Chan, s))
 		} else {

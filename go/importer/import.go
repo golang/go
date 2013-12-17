@@ -12,7 +12,6 @@ package importer
 import (
 	"encoding/binary"
 	"fmt"
-	"go/ast"
 	"go/token"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -251,7 +250,7 @@ func (p *importer) typ() types.Type {
 		t := new(types.Chan)
 		p.record(t)
 
-		*t = *types.NewChan(ast.ChanDir(p.int()), p.typ())
+		*t = *types.NewChan(types.ChanDir(p.int()), p.typ())
 		return t
 
 	case _Named:

@@ -89,7 +89,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	for _, op := range ops {
 		for _, ptr := range ptares.Queries[op.ch] {
 			if ptr.PointsTo().Intersects(queryChanPts) {
-				if op.dir == ast.SEND {
+				if op.dir == types.SendOnly {
 					sends = append(sends, op.pos)
 				} else {
 					receives = append(receives, op.pos)
@@ -129,7 +129,7 @@ func findArrow(qpos *QueryPos) token.Pos {
 // chanOp abstracts an ssa.Send, ssa.Unop(ARROW), or a SelectState.
 type chanOp struct {
 	ch  ssa.Value
-	dir ast.ChanDir
+	dir types.ChanDir // SendOnly or RecvOnly
 	pos token.Pos
 }
 
@@ -140,10 +140,10 @@ func chanOps(instr ssa.Instruction) []chanOp {
 	switch instr := instr.(type) {
 	case *ssa.UnOp:
 		if instr.Op == token.ARROW {
-			ops = append(ops, chanOp{instr.X, ast.RECV, instr.Pos()})
+			ops = append(ops, chanOp{instr.X, types.RecvOnly, instr.Pos()})
 		}
 	case *ssa.Send:
-		ops = append(ops, chanOp{instr.Chan, ast.SEND, instr.Pos()})
+		ops = append(ops, chanOp{instr.Chan, types.SendOnly, instr.Pos()})
 	case *ssa.Select:
 		for _, st := range instr.States {
 			ops = append(ops, chanOp{st.Chan, st.Dir, st.Pos})
