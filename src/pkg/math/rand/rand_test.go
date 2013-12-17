@@ -357,3 +357,17 @@ func BenchmarkInt31n1000(b *testing.B) {
 		r.Int31n(1000)
 	}
 }
+
+func BenchmarkPerm3(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Perm(3)
+	}
+}
+
+func BenchmarkPerm30(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Perm(30)
+	}
+}
