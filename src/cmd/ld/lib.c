@@ -1255,6 +1255,7 @@ setheadtype(char *s)
 		fprint(2, "unknown header type -H %s\n", s);
 		errorexit();
 	}
+	headstring = s;
 	HEADTYPE = headtype(s);
 }
 
