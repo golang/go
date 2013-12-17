@@ -5,6 +5,7 @@
 package filepath_test
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -455,6 +456,63 @@ func TestWalk(t *testing.T) {
 	// cleanup
 	if err := os.RemoveAll(tree.name); err != nil {
 		t.Errorf("removeTree: %v", err)
+	}
+}
+
+func touch(t *testing.T, name string) {
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWalkFileError(t *testing.T) {
+	td, err := ioutil.TempDir("", "walktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(td)
+
+	touch(t, filepath.Join(td, "foo"))
+	touch(t, filepath.Join(td, "bar"))
+	dir := filepath.Join(td, "dir")
+	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(dir, "baz"))
+	touch(t, filepath.Join(dir, "stat-error"))
+	defer func() {
+		*filepath.LstatP = os.Lstat
+	}()
+	statErr := errors.New("some stat error")
+	*filepath.LstatP = func(path string) (os.FileInfo, error) {
+		if strings.HasSuffix(path, "stat-error") {
+			return nil, statErr
+		}
+		return os.Lstat(path)
+	}
+	got := map[string]error{}
+	err = filepath.Walk(td, func(path string, fi os.FileInfo, err error) error {
+		rel, _ := filepath.Rel(td, path)
+		got[filepath.ToSlash(rel)] = err
+		return nil
+	})
+	if err != nil {
+		t.Errorf("Walk error: %v", err)
+	}
+	want := map[string]error{
+		".":              nil,
+		"foo":            nil,
+		"bar":            nil,
+		"dir":            nil,
+		"dir/baz":        nil,
+		"dir/stat-error": statErr,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Walked %#v; want %#v", got, want)
 	}
 }
 
