@@ -160,11 +160,10 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	if dirname == "" {
 		dirname = "."
 	}
-	dirname += "/"
 	names, err := f.Readdirnames(n)
 	fi = make([]FileInfo, 0, len(names))
 	for _, filename := range names {
-		fip, lerr := lstat(dirname + filename)
+		fip, lerr := lstat(dirname + "/" + filename)
 		if IsNotExist(lerr) {
 			// File disappeared between readdir + stat.
 			// Just treat it as if it didn't exist.
