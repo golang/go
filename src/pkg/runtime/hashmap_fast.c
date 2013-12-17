@@ -40,7 +40,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 		b = (Bucket*)h->buckets;
 		if(FASTKEY(key)) {
 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
-				if(b->tophash[i] == 0)
+				if(b->tophash[i] == Empty)
 					continue;
 				if(QUICK_NE(key, *k))
 					continue;
@@ -53,7 +53,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 		} else {
 			keymaybe = -1;
 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
-				if(b->tophash[i] == 0)
+				if(b->tophash[i] == Empty)
 					continue;
 				if(QUICK_NE(key, *k))
 					continue;
@@ -88,8 +88,8 @@ dohash:
 		bucket = h->hash0;
 		HASHFUNC(&bucket, sizeof(KEYTYPE), &key);
 		top = bucket >> (sizeof(uintptr)*8 - 8);
-		if(top == 0)
-			top = 1;
+		if(top < MinTopHash)
+			top += MinTopHash;
 		bucket &= (((uintptr)1 << h->B) - 1);
 		if(h->oldbuckets != nil) {
 			i = bucket & (((uintptr)1 << (h->B - 1)) - 1);
@@ -154,7 +154,7 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 		b = (Bucket*)h->buckets;
 		if(FASTKEY(key)) {
 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
-				if(b->tophash[i] == 0)
+				if(b->tophash[i] == Empty)
 					continue;
 				if(QUICK_NE(key, *k))
 					continue;
@@ -169,7 +169,7 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 		} else {
 			keymaybe = -1;
 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
-				if(b->tophash[i] == 0)
+				if(b->tophash[i] == Empty)
 					continue;
 				if(QUICK_NE(key, *k))
 					continue;
@@ -208,8 +208,8 @@ dohash:
 		bucket = h->hash0;
 		HASHFUNC(&bucket, sizeof(KEYTYPE), &key);
 		top = bucket >> (sizeof(uintptr)*8 - 8);
-		if(top == 0)
-			top = 1;
+		if(top < MinTopHash)
+			top += MinTopHash;
 		bucket &= (((uintptr)1 << h->B) - 1);
 		if(h->oldbuckets != nil) {
 			i = bucket & (((uintptr)1 << (h->B - 1)) - 1);

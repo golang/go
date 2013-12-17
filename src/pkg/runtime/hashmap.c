@@ -76,7 +76,7 @@ struct Bucket
 {
 	// Note: the format of the Bucket is encoded in ../../cmd/gc/reflect.c and
 	// ../reflect/type.go.  Don't change this structure without also changing that code!
-	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (0 = empty)
+	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (or special mark below)
 	Bucket *overflow;           // overflow bucket, if any
 	byte   data[1];             // BUCKETSIZE keys followed by BUCKETSIZE values
 };
@@ -84,12 +84,19 @@ struct Bucket
 // code a bit more complicated than alternating key/value/key/value/... but it allows
 // us to eliminate padding which would be needed for, e.g., map[int64]int8.
 
-// Low-order bit of overflow field is used to mark a bucket as already evacuated
-// without destroying the overflow pointer.
-// Only buckets in oldbuckets will be marked as evacuated.
-// Evacuated bit will be set identically on the base bucket and any overflow buckets.
-#define evacuated(b) (((uintptr)(b)->overflow & 1) != 0)
-#define overflowptr(b) ((Bucket*)((uintptr)(b)->overflow & ~(uintptr)1))
+// tophash values.  We reserve a few possibilities for special marks.
+// Each bucket (including its overflow buckets, if any) will have either all or none of its
+// entries in the Evacuated* states (except during the evacuate() method, which only happens
+// during map writes and thus no one else can observe the map during that time).
+enum
+{
+	Empty = 0,		// cell is empty
+	EvacuatedEmpty = 1,	// cell is empty, bucket is evacuated.
+	EvacuatedX = 2,		// key/value is valid.  Entry has been evacuated to first half of larger table.
+	EvacuatedY = 3,		// same as above, but evacuated to second half of larger table.
+	MinTopHash = 4, 	// minimum tophash for a normal filled cell.
+};
+#define evacuated(b) ((b)->tophash[0] > Empty && (b)->tophash[0] < MinTopHash)
 
 struct Hmap
 {
@@ -143,16 +150,12 @@ check(MapType *t, Hmap *h)
 
 	// check buckets
 	for(bucket = 0; bucket < (uintptr)1 << h->B; bucket++) {
-		if(h->oldbuckets != nil) {
-			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
-			if(!evacuated(b))
-				continue; // b is still uninitialized
-		}
 		for(b = (Bucket*)(h->buckets + bucket * h->bucketsize); b != nil; b = b->overflow) {
 			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-				if(b->tophash[i] == 0)
+				if(b->tophash[i] == Empty)
 					continue;
+				if(b->tophash[i] > Empty && b->tophash[i] < MinTopHash)
+					runtime·throw("evacuated cell in buckets");
 				cnt++;
 				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
 				if(!eq)
@@ -160,8 +163,8 @@ check(MapType *t, Hmap *h)
 				hash = h->hash0;
 				t->key->alg->hash(&hash, t->key->size, IK(h, k));
 				top = hash >> (8*sizeof(uintptr) - 8);
-				if(top == 0)
-					top = 1;
+				if(top < MinTopHash)
+					top += MinTopHash;
 				if(top != b->tophash[i])
 					runtime·throw("bad hash");
 			}
@@ -172,14 +175,12 @@ check(MapType *t, Hmap *h)
 	if(h->oldbuckets != nil) {
 		for(oldbucket = 0; oldbucket < (uintptr)1 << (h->B - 1); oldbucket++) {
 			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
-			if(evacuated(b))
-				continue;
-			if(oldbucket < h->nevacuate)
-				runtime·throw("bucket became unevacuated");
-			for(; b != nil; b = overflowptr(b)) {
+			for(; b != nil; b = b->overflow) {
 				for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-					if(b->tophash[i] == 0)
+					if(b->tophash[i] < MinTopHash)
 						continue;
+					if(oldbucket < h->nevacuate)
+						runtime·throw("unevacuated entry in an evacuated bucket");
 					cnt++;
 					t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
 					if(!eq)
@@ -187,8 +188,8 @@ check(MapType *t, Hmap *h)
 					hash = h->hash0;
 					t->key->alg->hash(&hash, t->key->size, IK(h, k));
 					top = hash >> (8*sizeof(uintptr) - 8);
-					if(top == 0)
-						top = 1;
+					if(top < MinTopHash)
+						top += MinTopHash;
 					if(top != b->tophash[i])
 						runtime·throw("bad hash (old)");
 				}
@@ -273,13 +274,12 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 }
 
 // Moves entries in oldbuckets[i] to buckets[i] and buckets[i+2^k].
-// We leave the original bucket intact, except for the evacuated marks, so that
-// iterators can still iterate through the old buckets.
+// We leave the original bucket intact, except for marking the topbits
+// entries as evacuated, so that iterators can still iterate through the old buckets.
 static void
 evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 {
 	Bucket *b;
-	Bucket *nextb;
 	Bucket *x, *y;
 	Bucket *newx, *newy;
 	uintptr xi, yi;
@@ -306,11 +306,15 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 		yk = y->data;
 		xv = xk + h->keysize * BUCKETSIZE;
 		yv = yk + h->keysize * BUCKETSIZE;
-		do {
+		for(; b != nil; b = b->overflow) {
 			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
 				top = b->tophash[i];
-				if(top == 0)
+				if(top == Empty) {
+					b->tophash[i] = EvacuatedEmpty;
 					continue;
+				}
+				if(top < MinTopHash)
+					runtime·throw("bad state");
 
 				// Compute hash to make our evacuation decision (whether we need
 				// to send this key/value to bucket x or bucket y).
@@ -335,12 +339,13 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 						else
 							hash &= ~newbit;
 						top = hash >> (8*sizeof(uintptr)-8);
-						if(top == 0)
-							top = 1;
+						if(top < MinTopHash)
+							top += MinTopHash;
 					}
 				}
 
 				if((hash & newbit) == 0) {
+					b->tophash[i] = EvacuatedX;
 					if(xi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
 						newx = runtime·cnew(t->bucket);
@@ -365,6 +370,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 					xk += h->keysize;
 					xv += h->valuesize;
 				} else {
+					b->tophash[i] = EvacuatedY;
 					if(yi == BUCKETSIZE) {
 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
 						newy = runtime·cnew(t->bucket);
@@ -390,26 +396,21 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 					yv += h->valuesize;
 				}
 			}
+		}
 
-			// mark as evacuated so we don't do it again.
-			// this also tells any iterators that this data isn't golden anymore.
-			nextb = b->overflow;
-			b->overflow = (Bucket*)((uintptr)nextb + 1);
-
-			b = nextb;
-		} while(b != nil);
-
-		// Unlink the overflow buckets to help GC.
-		b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
-		if((h->flags & OldIterator) == 0)
-			b->overflow = (Bucket*)1;
+		// Unlink the overflow buckets & clear key/value to help GC.
+		if((h->flags & OldIterator) == 0) {
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			b->overflow = nil;
+			runtime·memclr(b->data, h->bucketsize - offsetof(Bucket, data[0]));
+		}
 	}
 
-	// advance evacuation mark
+	// Advance evacuation mark
 	if(oldbucket == h->nevacuate) {
 		h->nevacuate = oldbucket + 1;
 		if(oldbucket + 1 == newbit) // newbit == # of oldbuckets
-			// free main bucket array
+			// Growing is all done.  Free old main bucket array.
 			h->oldbuckets = nil;
 	}
 	if(docheck)
@@ -443,7 +444,6 @@ hash_grow(MapType *t, Hmap *h)
 	if(h->oldbuckets != nil)
 		runtime·throw("evacuation not done in time");
 	old_buckets = h->buckets;
-	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
 	new_buckets = runtime·cnewarray(t->bucket, (uintptr)1 << (h->B + 1));
 	flags = (h->flags & ~(Iterator | OldIterator));
@@ -495,8 +495,8 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 		b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 	}
 	top = hash >> (sizeof(uintptr)*8 - 8);
-	if(top == 0)
-		top = 1;
+	if(top < MinTopHash)
+		top += MinTopHash;
 	do {
 		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
 			if(b->tophash[i] == top) {
@@ -608,15 +608,15 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 		grow_work(t, h, bucket);
 	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 	top = hash >> (sizeof(uintptr)*8 - 8);
-	if(top == 0)
-		top = 1;
+	if(top < MinTopHash)
+		top += MinTopHash;
 	inserti = nil;
 	insertk = nil;
 	insertv = nil;
 	while(true) {
 		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
 			if(b->tophash[i] != top) {
-				if(b->tophash[i] == 0 && inserti == nil) {
+				if(b->tophash[i] == Empty && inserti == nil) {
 					inserti = &b->tophash[i];
 					insertk = k;
 					insertv = v;
@@ -697,8 +697,8 @@ hash_remove(MapType *t, Hmap *h, void *key)
 		grow_work(t, h, bucket);
 	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
 	top = hash >> (sizeof(uintptr)*8 - 8);
-	if(top == 0)
-		top = 1;
+	if(top < MinTopHash)
+		top += MinTopHash;
 	do {
 		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
 			if(b->tophash[i] != top)
@@ -718,7 +718,7 @@ hash_remove(MapType *t, Hmap *h, void *key)
 				t->elem->alg->copy(t->elem->size, v, nil);
 			}
 
-			b->tophash[i] = 0;
+			b->tophash[i] = Empty;
 			h->count--;
 			
 			// TODO: consolidate buckets if they are mostly empty
@@ -857,11 +857,12 @@ next:
 	k = b->data + h->keysize * i;
 	v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
 	for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
-		if(b->tophash[i] != 0) {
+		if(b->tophash[i] != Empty && b->tophash[i] != EvacuatedEmpty) {
 			if(check_bucket >= 0) {
 				// Special case: iterator was started during a grow and the
 				// grow is not done yet.  We're working on a bucket whose
-				// oldbucket has not been evacuated yet.  So we're iterating
+				// oldbucket has not been evacuated yet.  Or at least, it wasn't
+				// evacuated when we started the bucket.  So we're iterating
 				// through the oldbucket, skipping any keys that will go
 				// to the other new bucket (each oldbucket expands to two
 				// buckets during a grow).
@@ -879,12 +880,15 @@ next:
 					// repeatable and randomish choice of which direction
 					// to send NaNs during evacuation.  We'll use the low
 					// bit of tophash to decide which way NaNs go.
+					// NOTE: this case is why we need two evacuate tophash
+					// values, evacuatedX and evacuatedY, that differ in
+					// their low bit.
 					if(check_bucket >> (it->B - 1) != (b->tophash[i] & 1)) {
 						continue;
 					}
 				}
 			}
-			if(!evacuated(b)) {
+			if(b->tophash[i] != EvacuatedX && b->tophash[i] != EvacuatedY) {
 				// this is the golden data, we can return it.
 				it->key = IK(h, k);
 				it->value = IV(h, v);
@@ -920,7 +924,7 @@ next:
 			return;
 		}
 	}
-	b = overflowptr(b);
+	b = b->overflow;
 	i = 0;
 	goto next;
 }
