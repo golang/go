@@ -65,7 +65,7 @@ func New() *List { return new(List).Init() }
 // The complexity is O(1).
 func (l *List) Len() int { return l.len }
 
-// Front returns the first element of list l or nil
+// Front returns the first element of list l or nil.
 func (l *List) Front() *Element {
 	if l.len == 0 {
 		return nil
