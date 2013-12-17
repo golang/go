@@ -104,11 +104,9 @@ func (r *Rand) Float32() float32 { return float32(r.Float64()) }
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n)
 	for i := 0; i < n; i++ {
-		m[i] = i
-	}
-	for i := 0; i < n; i++ {
 		j := r.Intn(i + 1)
-		m[i], m[j] = m[j], m[i]
+		m[i] = m[j]
+		m[j] = i
 	}
 	return m
 }
