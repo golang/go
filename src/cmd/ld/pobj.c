@@ -138,6 +138,8 @@ main(int argc, char *argv[])
 	if(HEADTYPE == -1)
 		HEADTYPE = headtype(goos);
 	ctxt->headtype = HEADTYPE;
+	if (headstring == NULL)
+		headstring = headstr(HEADTYPE);
 
 	archinit();
 	ctxt->linkmode = linkmode;
