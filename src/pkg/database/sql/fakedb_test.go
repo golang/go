@@ -23,7 +23,7 @@ var _ = log.Printf
 // interface, just for testing.
 //
 // It speaks a query language that's semantically similar to but
-// syntantically different and simpler than SQL.  The syntax is as
+// syntactically different and simpler than SQL.  The syntax is as
 // follows:
 //
 //   WIPE
