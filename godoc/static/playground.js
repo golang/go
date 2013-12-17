@@ -228,6 +228,7 @@ function PlaygroundOutput(el) {
   //  outputEl - program output element
   //  runEl - run button element
   //  fmtEl - fmt button element (optional)
+  //  fmtImportEl - fmt "imports" checkbox element (optional)
   //  shareEl - share button element (optional)
   //  shareURLEl - share URL text input element (optional)
   //  shareRedirect - base URL to redirect to on share (optional)
@@ -343,10 +344,15 @@ function PlaygroundOutput(el) {
       loading();
       running = transport.Run(body(), highlightOutput(PlaygroundOutput(output[0])));
     }
+
     function fmt() {
       loading();
+      var data = {"body": body()}; 
+      if ($(opts.fmtImportEl).is(":checked")) {
+        data["imports"] = "true";
+      }
       $.ajax("/fmt", {
-        data: {"body": body()},
+        data: data,
         type: "POST",
         dataType: "json",
         success: function(data) {
@@ -362,7 +368,7 @@ function PlaygroundOutput(el) {
 
     $(opts.runEl).click(run);
     $(opts.fmtEl).click(fmt);
-  
+
     if (opts.shareEl !== null && (opts.shareURLEl !== null || opts.shareRedirect !== null)) {
       var shareURL;
       if (opts.shareURLEl) {
