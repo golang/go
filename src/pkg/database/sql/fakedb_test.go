@@ -433,11 +433,19 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 	return stmt, nil
 }
 
+// hook to simulate broken connections
+var hookPrepareBadConn func() bool
+
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 	c.numPrepare++
 	if c.db == nil {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
 	}
+
+	if hookPrepareBadConn != nil && hookPrepareBadConn() {
+		return nil, driver.ErrBadConn
+	}
+
 	parts := strings.Split(query, "|")
 	if len(parts) < 1 {
 		return nil, errf("empty query")
@@ -489,10 +497,18 @@ func (s *fakeStmt) Close() error {
 
 var errClosed = errors.New("fakedb: statement has been closed")
 
+// hook to simulate broken connections
+var hookExecBadConn func() bool
+
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	if s.closed {
 		return nil, errClosed
 	}
+
+	if hookExecBadConn != nil && hookExecBadConn() {
+		return nil, driver.ErrBadConn
+	}
+
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err
@@ -565,10 +581,18 @@ func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result
 	return driver.RowsAffected(1), nil
 }
 
+// hook to simulate broken connections
+var hookQueryBadConn func() bool
+
 func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	if s.closed {
 		return nil, errClosed
 	}
+
+	if hookQueryBadConn != nil && hookQueryBadConn() {
+		return nil, driver.ErrBadConn
+	}
+
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err

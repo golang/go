@@ -348,7 +348,6 @@ func TestStatementQueryRow(t *testing.T) {
 			t.Errorf("%d: age=%d, want %d", n, age, tt.want)
 		}
 	}
-
 }
 
 // golang.org/issue/3734
@@ -1253,6 +1252,111 @@ func TestStmtCloseOrder(t *testing.T) {
 	if err == nil {
 		t.Fatal("Quering non-existent table should fail")
 	}
+}
+
+// golang.org/issue/5781
+func TestErrBadConnReconnect(t *testing.T) {
+	db := newTestDB(t, "foo")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+
+	simulateBadConn := func(name string, hook *func() bool, op func() error) {
+		broken, retried := false, false
+		numOpen := db.numOpen
+
+		// simulate a broken connection on the first try
+		*hook = func() bool {
+			if !broken {
+				broken = true
+				return true
+			}
+			retried = true
+			return false
+		}
+
+		if err := op(); err != nil {
+			t.Errorf(name+": %v", err)
+			return
+		}
+
+		if !broken || !retried {
+			t.Error(name + ": Failed to simulate broken connection")
+		}
+		*hook = nil
+
+		if numOpen != db.numOpen {
+			t.Errorf(name+": leaked %d connection(s)!", db.numOpen-numOpen)
+			numOpen = db.numOpen
+		}
+	}
+
+	// db.Exec
+	dbExec := func() error {
+		_, err := db.Exec("INSERT|t1|name=?,age=?,dead=?", "Gordon", 3, true)
+		return err
+	}
+	simulateBadConn("db.Exec prepare", &hookPrepareBadConn, dbExec)
+	simulateBadConn("db.Exec exec", &hookExecBadConn, dbExec)
+
+	// db.Query
+	dbQuery := func() error {
+		rows, err := db.Query("SELECT|t1|age,name|")
+		if err == nil {
+			err = rows.Close()
+		}
+		return err
+	}
+	simulateBadConn("db.Query prepare", &hookPrepareBadConn, dbQuery)
+	simulateBadConn("db.Query query", &hookQueryBadConn, dbQuery)
+
+	// db.Prepare
+	simulateBadConn("db.Prepare", &hookPrepareBadConn, func() error {
+		stmt, err := db.Prepare("INSERT|t1|name=?,age=?,dead=?")
+		if err != nil {
+			return err
+		}
+		stmt.Close()
+		return nil
+	})
+
+	// stmt.Exec
+	stmt1, err := db.Prepare("INSERT|t1|name=?,age=?,dead=?")
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	defer stmt1.Close()
+	// make sure we must prepare the stmt first
+	for _, cs := range stmt1.css {
+		cs.dc.inUse = true
+	}
+
+	stmtExec := func() error {
+		_, err := stmt1.Exec("Gopher", 3, false)
+		return err
+	}
+	simulateBadConn("stmt.Exec prepare", &hookPrepareBadConn, stmtExec)
+	simulateBadConn("stmt.Exec exec", &hookExecBadConn, stmtExec)
+
+	// stmt.Query
+	stmt2, err := db.Prepare("SELECT|t1|age,name|")
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	defer stmt2.Close()
+	// make sure we must prepare the stmt first
+	for _, cs := range stmt2.css {
+		cs.dc.inUse = true
+	}
+
+	stmtQuery := func() error {
+		rows, err := stmt2.Query()
+		if err == nil {
+			err = rows.Close()
+		}
+		return err
+	}
+	simulateBadConn("stmt.Query prepare", &hookPrepareBadConn, stmtQuery)
+	simulateBadConn("stmt.Query exec", &hookQueryBadConn, stmtQuery)
 }
 
 type concurrentTest interface {
