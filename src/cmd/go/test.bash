@@ -36,8 +36,9 @@ stop() {
 ok=true
 allok=true
 
-unset GOPATH
 unset GOBIN
+unset GOPATH
+unset GOROOT
 
 TEST 'file:line in error messages'
 # Test that error messages have file:line information at beginning of
@@ -258,6 +259,7 @@ if [ ! -x $d/gobin/godoc ]; then
 fi
 
 TEST godoc installs into GOROOT
+GOROOT=$(./testgo env GOROOT)
 rm -f $GOROOT/bin/godoc
 ./testgo install code.google.com/p/go.tools/cmd/godoc
 if [ ! -x $GOROOT/bin/godoc ]; then
