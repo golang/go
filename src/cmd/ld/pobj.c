@@ -138,7 +138,7 @@ main(int argc, char *argv[])
 	if(HEADTYPE == -1)
 		HEADTYPE = headtype(goos);
 	ctxt->headtype = HEADTYPE;
-	if (headstring == NULL)
+	if (headstring == nil)
 		headstring = headstr(HEADTYPE);
 
 	archinit();
