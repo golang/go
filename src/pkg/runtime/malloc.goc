@@ -760,12 +760,15 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
 		goto throw;
 	}
+	ot = (PtrType*)obj.type;
+	if(ot->elem != nil && ot->elem->size == 0) {
+		return;
+	}
 	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
 		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
 		goto throw;
 	}
 	nret = 0;
-	ot = (PtrType*)obj.type;
 	fint = nil;
 	if(finalizer.type != nil) {
 		if(finalizer.type->kind != KindFunc)
