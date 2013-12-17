@@ -7,7 +7,6 @@ package net
 import (
 	"errors"
 	"os"
-	"strings"
 )
 
 func query(filename, query string, bufSize int) (res []string, err error) {
@@ -70,10 +69,33 @@ func queryDNS(addr string, typ string) (res []string, err error) {
 	return query("/net/dns", addr+" "+typ, 1024)
 }
 
+// toLower returns a lower-case version of in. Restricting us to
+// ASCII is sufficient to handle the IP protocol names and allow
+// us to not depend on the strings and unicode packages.
+func toLower(in string) string {
+	isAlreadyLowerCase := true
+	for _, c := range in {
+		if 'A' <= c && c <= 'Z' {
+			isAlreadyLowerCase = false
+			break
+		}
+	}
+	if isAlreadyLowerCase {
+		return in
+	}
+	out := []byte(in)
+	for i, c := range out {
+		if 'A' <= c && c <= 'Z' {
+			out[i] += 'a' - 'A'
+		}
+	}
+	return string(out)
+}
+
 // lookupProtocol looks up IP protocol name and returns
 // the corresponding protocol number.
 func lookupProtocol(name string) (proto int, err error) {
-	lines, err := query("/net/cs", "!protocol="+strings.ToLower(name), 128)
+	lines, err := query("/net/cs", "!protocol="+toLower(name), 128)
 	if err != nil {
 		return 0, err
 	}
