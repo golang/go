@@ -54,7 +54,7 @@ func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (
 	if err != nil {
 		return false, err
 	}
-	if s != dstname {
+	if s != dstname && dstname != stdname {
 		return false, nil
 	}
 	return true, nil
