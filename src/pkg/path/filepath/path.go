@@ -336,6 +336,8 @@ var SkipDir = errors.New("skip this directory")
 // the next file.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
+var lstat = os.Lstat // for testing
+
 // walk recursively descends path, calling w.
 func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 	err := walkFn(path, info, nil)
@@ -350,16 +352,24 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 		return nil
 	}
 
-	list, err := readDir(path)
+	names, err := readDirNames(path)
 	if err != nil {
 		return walkFn(path, info, err)
 	}
 
-	for _, fileInfo := range list {
-		err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn)
+	for _, name := range names {
+		filename := Join(path, name)
+		fileInfo, err := lstat(filename)
 		if err != nil {
-			if !fileInfo.IsDir() || err != SkipDir {
+			if err := walkFn(filename, fileInfo, err); err != nil && err != SkipDir {
 				return err
+			}
+		} else {
+			err = walk(filename, fileInfo, walkFn)
+			if err != nil {
+				if !fileInfo.IsDir() || err != SkipDir {
+					return err
+				}
 			}
 		}
 	}
@@ -380,29 +390,21 @@ func Walk(root string, walkFn WalkFunc) error {
 	return walk(root, info, walkFn)
 }
 
-// readDir reads the directory named by dirname and returns
+// readDirNames reads the directory named by dirname and returns
 // a sorted list of directory entries.
-// Copied from io/ioutil to avoid the circular import.
-func readDir(dirname string) ([]os.FileInfo, error) {
+func readDirNames(dirname string) ([]string, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err
 	}
-	list, err := f.Readdir(-1)
+	names, err := f.Readdirnames(-1)
 	f.Close()
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(byName(list))
-	return list, nil
+	sort.Strings(names)
+	return names, nil
 }
-
-// byName implements sort.Interface.
-type byName []os.FileInfo
-
-func (f byName) Len() int           { return len(f) }
-func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
-func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 
 // Base returns the last element of path.
 // Trailing path separators are removed before extracting the last element.

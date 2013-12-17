@@ -6,6 +6,7 @@ package os_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -13,7 +14,9 @@ import (
 	. "os"
 	osexec "os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -379,6 +382,83 @@ func TestReaddirNValues(t *testing.T) {
 		fn(105, 102, nil) // and tests buffer >100 case
 		fn(3, 0, io.EOF)
 		d.Close()
+	}
+}
+
+func touch(t *testing.T, name string) {
+	f, err := Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReaddirStatFailures(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// Windows already does this correctly, but is
+		// structured with different syscalls such that it
+		// doesn't use Lstat, so the hook below for testing it
+		// wouldn't work.
+		t.Skipf("skipping test on %v", runtime.GOOS)
+	}
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("TempDir: %v", err)
+	}
+	defer RemoveAll(dir)
+	touch(t, filepath.Join(dir, "good1"))
+	touch(t, filepath.Join(dir, "x")) // will disappear or have an error
+	touch(t, filepath.Join(dir, "good2"))
+	defer func() {
+		*LstatP = Lstat
+	}()
+	var xerr error // error to return for x
+	*LstatP = func(path string) (FileInfo, error) {
+		if xerr != nil && strings.HasSuffix(path, "x") {
+			return nil, xerr
+		}
+		return Lstat(path)
+	}
+	readDir := func() ([]FileInfo, error) {
+		d, err := Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer d.Close()
+		return d.Readdir(-1)
+	}
+	mustReadDir := func(testName string) []FileInfo {
+		fis, err := readDir()
+		if err != nil {
+			t.Fatalf("%s: Readdir: %v", testName, err)
+		}
+		return fis
+	}
+	names := func(fis []FileInfo) []string {
+		s := make([]string, len(fis))
+		for i, fi := range fis {
+			s[i] = fi.Name()
+		}
+		sort.Strings(s)
+		return s
+	}
+
+	if got, want := names(mustReadDir("inital readdir")),
+		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("initial readdir got %q; want %q", got, want)
+	}
+
+	xerr = ErrNotExist
+	if got, want := names(mustReadDir("with x disappearing")),
+		[]string{"good1", "good2"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("with x disappearing, got %q; want %q", got, want)
+	}
+
+	xerr = errors.New("some real error")
+	if _, err := readDir(); err != xerr {
+		t.Errorf("with a non-ErrNotExist error, got error %v; want %v", err, xerr)
 	}
 }
 
