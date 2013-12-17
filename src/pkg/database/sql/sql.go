@@ -774,8 +774,8 @@ func (db *DB) putConn(dc *driverConn, err error) {
 // Satisfy a connRequest or put the driverConn in the idle pool and return true
 // or return false.
 // putConnDBLocked will satisfy a connRequest if there is one, or it will
-// return the *driverConn to the freeConn list if err != nil and the idle
-// connection limit would not be reached.
+// return the *driverConn to the freeConn list if err == nil and the idle
+// connection limit will not be exceeded.
 // If err != nil, the value of dc is ignored.
 // If err == nil, then dc must not equal nil.
 // If a connRequest was fullfilled or the *driverConn was placed in the
