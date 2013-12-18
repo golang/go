@@ -17,5 +17,5 @@ func ExampleLogger() {
 
 	fmt.Print(&buf)
 	// Output:
-	// logger: example_test.go:15: Hello, log file!
+	// logger: example_test.go:16: Hello, log file!
 }
