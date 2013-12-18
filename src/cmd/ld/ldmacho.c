@@ -507,6 +507,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	c = nil;
 	symtab = nil;
 	dsymtab = nil;
+	USED(dsymtab);
 	for(i=0; i<ncmd; i++){
 		ty = e->e32(cmdp);
 		sz = e->e32(cmdp+4);
