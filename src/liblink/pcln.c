@@ -313,7 +313,7 @@ getvarint(uchar **pp)
 	v = 0;
 	p = *pp;
 	for(shift = 0;; shift += 7) {
-		v |= (*p & 0x7F) << shift;
+		v |= (uint32)(*p & 0x7F) << shift;
 		if(!(*p++ & 0x80))
 			break;
 	}

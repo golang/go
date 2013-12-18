@@ -98,7 +98,7 @@ bvget(Bvec *bv, int32 i)
 
 	if(i < 0 || i >= bv->n)
 		fatal("bvget: index %d is out of bounds with length %d\n", i, bv->n);
-	mask = 1 << (i % WORDBITS);
+	mask = 1U << (i % WORDBITS);
 	word = bv->b[i / WORDBITS] & mask;
 	return word ? 1 : 0;
 }
