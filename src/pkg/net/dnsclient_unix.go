@@ -159,7 +159,8 @@ func convertRR_AAAA(records []dnsRR) []IP {
 var cfg *dnsConfig
 var dnserr error
 
-func loadConfig() { cfg, dnserr = dnsReadConfig() }
+// Assume dns config file is /etc/resolv.conf here
+func loadConfig() { cfg, dnserr = dnsReadConfig("/etc/resolv.conf") }
 
 var onceLoadConfig sync.Once
 
