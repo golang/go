@@ -1,7 +1,14 @@
 <!-- <NotepadPlus> -->
 	<!-- <functionList> -->
 		<!-- <associationMap> -->
+
+		<!--
+			if npp version == 6.4:
 			<association ext=".go" id="go"/>
+
+			if npp version >= 6.5:
+			<association userDefinedLangName="go" id="go"/>
+		-->
 
 		<!-- </associationMap> -->
 		<!-- <parsers> -->
