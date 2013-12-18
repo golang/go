@@ -42,6 +42,36 @@ enum {
 	BitsEface = 3,
 };
 
+static struct
+{
+	Lock;  
+	void* head;
+} pools;
+
+void
+sync·runtime_registerPool(void **p)
+{
+	runtime·lock(&pools);
+	p[0] = pools.head;
+	pools.head = p;
+	runtime·unlock(&pools);
+}
+
+static void
+clearpools(void)
+{
+	void **p, **next;
+
+	for(p = pools.head; p != nil; p = next) {
+		next = p[0];
+		p[0] = nil; // next
+		p[1] = nil; // slice
+		p[2] = nil;
+		p[3] = nil;
+	}
+	pools.head = nil;
+}
+
 // Bits in per-word bitmap.
 // #defines because enum might not be able to hold the values.
 //
@@ -2089,7 +2119,9 @@ runtime·gc(int32 force)
 	a.start_time = runtime·nanotime();
 	m->gcing = 1;
 	runtime·stoptheworld();
-	
+
+	clearpools();
+
 	// Run gc on the g0 stack.  We do this so that the g stack
 	// we're currently running on will no longer change.  Cuts
 	// the root set down a bit (g0 stacks are not scanned, and
