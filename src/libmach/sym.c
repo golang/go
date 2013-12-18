@@ -1858,7 +1858,8 @@ havefile:
 		fp = pcline + pcswal(*(uint32*)(func+FuncPCFile));
 		lp = pcline + pcswal(*(uint32*)(func+FuncPCLine));
 		fval = lval = -1;
-		fpc = lpc = entry;
+		lpc = entry;
+		fpc = lpc;
 		fstartpc = fpc;
 		while(step(&fp, &fpc, &fval, fpc==entry)) {
 			if(fval == fno && fstartpc < fpc) {
