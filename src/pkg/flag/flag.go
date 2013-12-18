@@ -269,7 +269,6 @@ type FlagSet struct {
 	actual        map[string]*Flag
 	formal        map[string]*Flag
 	args          []string // arguments after flags
-	exitOnError   bool     // does the program exit if there's an error?
 	errorHandling ErrorHandling
 	output        io.Writer // nil means stderr; use out() accessor
 }
