@@ -435,56 +435,52 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	return c, nil
 }
 
-// TODO: use a sync.Cache instead
 var (
-	bufioReaderCache   = make(chan *bufio.Reader, 4)
-	bufioWriterCache2k = make(chan *bufio.Writer, 4)
-	bufioWriterCache4k = make(chan *bufio.Writer, 4)
+	bufioReaderPool   sync.Pool
+	bufioWriter2kPool sync.Pool
+	bufioWriter4kPool sync.Pool
 )
 
-func bufioWriterCache(size int) chan *bufio.Writer {
+func bufioWriterPool(size int) *sync.Pool {
 	switch size {
 	case 2 << 10:
-		return bufioWriterCache2k
+		return &bufioWriter2kPool
 	case 4 << 10:
-		return bufioWriterCache4k
+		return &bufioWriter4kPool
 	}
 	return nil
 }
 
 func newBufioReader(r io.Reader) *bufio.Reader {
-	select {
-	case p := <-bufioReaderCache:
-		p.Reset(r)
-		return p
-	default:
-		return bufio.NewReader(r)
+	if v := bufioReaderPool.Get(); v != nil {
+		br := v.(*bufio.Reader)
+		br.Reset(r)
+		return br
 	}
+	return bufio.NewReader(r)
 }
 
 func putBufioReader(br *bufio.Reader) {
 	br.Reset(nil)
-	select {
-	case bufioReaderCache <- br:
-	default:
-	}
+	bufioReaderPool.Put(br)
 }
 
 func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
-	select {
-	case p := <-bufioWriterCache(size):
-		p.Reset(w)
-		return p
-	default:
-		return bufio.NewWriterSize(w, size)
+	pool := bufioWriterPool(size)
+	if pool != nil {
+		if v := pool.Get(); v != nil {
+			bw := v.(*bufio.Writer)
+			bw.Reset(w)
+			return bw
+		}
 	}
+	return bufio.NewWriterSize(w, size)
 }
 
 func putBufioWriter(bw *bufio.Writer) {
 	bw.Reset(nil)
-	select {
-	case bufioWriterCache(bw.Available()) <- bw:
-	default:
+	if pool := bufioWriterPool(bw.Available()); pool != nil {
+		pool.Put(bw)
 	}
 }
 

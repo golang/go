@@ -9,6 +9,7 @@ import (
 	"net/textproto"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -114,18 +115,15 @@ func (s *headerSorter) Len() int           { return len(s.kvs) }
 func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
 func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
 
-// TODO: convert this to a sync.Cache (issue 4720)
-var headerSorterCache = make(chan *headerSorter, 8)
+var headerSorterPool = sync.Pool{
+	New: func() interface{} { return new(headerSorter) },
+}
 
 // sortedKeyValues returns h's keys sorted in the returned kvs
 // slice. The headerSorter used to sort is also returned, for possible
 // return to headerSorterCache.
 func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *headerSorter) {
-	select {
-	case hs = <-headerSorterCache:
-	default:
-		hs = new(headerSorter)
-	}
+	hs = headerSorterPool.Get().(*headerSorter)
 	if cap(hs.kvs) < len(h) {
 		hs.kvs = make([]keyValues, 0, len(h))
 	}
@@ -159,10 +157,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 			}
 		}
 	}
-	select {
-	case headerSorterCache <- sorter:
-	default:
-	}
+	headerSorterPool.Put(sorter)
 	return nil
 }
 

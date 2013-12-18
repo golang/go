@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -494,25 +495,20 @@ func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
 	return line[:s1], line[s1+1 : s2], line[s2+1:], true
 }
 
-// TODO(bradfitz): use a sync.Cache when available
-var textprotoReaderCache = make(chan *textproto.Reader, 4)
+var textprotoReaderPool sync.Pool
 
 func newTextprotoReader(br *bufio.Reader) *textproto.Reader {
-	select {
-	case r := <-textprotoReaderCache:
-		r.R = br
-		return r
-	default:
-		return textproto.NewReader(br)
+	if v := textprotoReaderPool.Get(); v != nil {
+		tr := v.(*textproto.Reader)
+		tr.R = br
+		return tr
 	}
+	return textproto.NewReader(br)
 }
 
 func putTextprotoReader(r *textproto.Reader) {
 	r.R = nil
-	select {
-	case textprotoReaderCache <- r:
-	default:
-	}
+	textprotoReaderPool.Put(r)
 }
 
 // ReadRequest reads and parses a request from b.
