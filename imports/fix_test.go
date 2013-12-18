@@ -5,13 +5,11 @@
 package imports
 
 import (
-	"bytes"
 	"flag"
 	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -472,13 +470,12 @@ func TestFixImports(t *testing.T) {
 		if *only != "" && tt.name != *only {
 			continue
 		}
-		var buf bytes.Buffer
-		err := processFile("foo.go", strings.NewReader(tt.in), &buf, false)
+		buf, err := Process("foo.go", []byte(tt.in), nil)
 		if err != nil {
 			t.Errorf("error on %q: %v", tt.name, err)
 			continue
 		}
-		if got := buf.String(); got != tt.out {
+		if got := string(buf); got != tt.out {
 			t.Errorf("results diff on %q\nGOT:\n%s\nWANT:\n%s\n", tt.name, got, tt.out)
 		}
 	}
