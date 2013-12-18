@@ -12,10 +12,25 @@
 
 static	void	dumpglobls(void);
 
+enum
+{
+	ArhdrSize = 60
+};
+
+static void
+formathdr(char *arhdr, char *name, vlong size)
+{
+	snprint(arhdr, ArhdrSize, "%-16s%-12d%-6d%-6d%-8o%-10d`",
+		name, 0, 0, 0, 0644, size);
+	arhdr[ArhdrSize-1] = '\n'; // overwrite \0 written by snprint
+}
+
 void
 dumpobj(void)
 {
 	NodeList *externs, *tmp;
+	char arhdr[ArhdrSize];
+	vlong startobj, size;
 	Sym *zero;
 
 	bout = Bopen(outfile, OWRITE);
@@ -25,10 +40,33 @@ dumpobj(void)
 		errorexit();
 	}
 
+	startobj = 0;
+	if(writearchive) {
+		Bwrite(bout, "!<arch>\n", 8);
+		memset(arhdr, 0, sizeof arhdr);
+		Bwrite(bout, arhdr, sizeof arhdr);
+		startobj = Boffset(bout);
+	}
 	Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
-	Bprint(bout, "  exports automatically generated from\n");
-	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
 	dumpexport();
+	
+	if(writearchive) {
+		Bflush(bout);
+		size = Boffset(bout) - startobj;
+		if(size&1)
+			Bputc(bout, 0);
+		Bseek(bout, startobj - ArhdrSize, 0);
+		formathdr(arhdr, "__.PKGDEF", size);
+		Bwrite(bout, arhdr, ArhdrSize);
+		Bflush(bout);
+
+		Bseek(bout, startobj + size + (size&1), 0);
+		memset(arhdr, 0, ArhdrSize);
+		Bwrite(bout, arhdr, ArhdrSize);
+		startobj = Boffset(bout);
+		Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
+	}
+
 	Bprint(bout, "\n!\n");
 
 	externs = nil;
@@ -51,6 +89,16 @@ dumpobj(void)
 	dumpdata();
 	linkwriteobj(ctxt, bout);
 
+	if(writearchive) {
+		Bflush(bout);
+		size = Boffset(bout) - startobj;
+		if(size&1)
+			Bputc(bout, 0);
+		Bseek(bout, startobj - ArhdrSize, 0);
+		snprint(namebuf, sizeof namebuf, "_go_.%c", thechar);
+		formathdr(arhdr, namebuf, size);
+		Bwrite(bout, arhdr, ArhdrSize);
+	}
 	Bterm(bout);
 }
 

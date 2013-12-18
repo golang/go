@@ -151,27 +151,10 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		}
 		loadpkgdata(filename, pkg, p0, p1 - p0);
 	}
-
-	// The __.PKGDEF archive summary has no local types.
+	
+	// __.PKGDEF has no cgo section - those are in the C compiler-generated object files.
 	if(whence == Pkgdef)
 		return;
-
-	// local types begin where exports end.
-	// skip rest of line after $$ we found above
-	p0 = p1 + 3;
-	while(*p0 != '\n' && *p0 != '\0')
-		p0++;
-
-	// local types end at next \n$$.
-	p1 = strstr(p0, "\n$$");
-	if(p1 == nil) {
-		fprint(2, "%s: cannot find end of local types in %s\n", argv0, filename);
-		if(debug['u'])
-			errorexit();
-		return;
-	}
-
-	loadpkgdata(filename, pkg, p0, p1 - p0);
 
 	// look for cgo section
 	p0 = strstr(p1, "\n$$  // cgo");
