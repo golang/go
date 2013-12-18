@@ -173,7 +173,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 	if _, err = enc.w.Write(e.Bytes()); err != nil {
 		enc.err = err
 	}
-	putEncodeState(e)
+	encodeStatePool.Put(e)
 	return err
 }
 

@@ -241,24 +241,15 @@ type encodeState struct {
 	scratch      [64]byte
 }
 
-// TODO(bradfitz): use a sync.Cache here
-var encodeStatePool = make(chan *encodeState, 8)
+var encodeStatePool sync.Pool
 
 func newEncodeState() *encodeState {
-	select {
-	case e := <-encodeStatePool:
+	if v := encodeStatePool.Get(); v != nil {
+		e := v.(*encodeState)
 		e.Reset()
 		return e
-	default:
-		return new(encodeState)
 	}
-}
-
-func putEncodeState(e *encodeState) {
-	select {
-	case encodeStatePool <- e:
-	default:
-	}
+	return new(encodeState)
 }
 
 func (e *encodeState) marshal(v interface{}) (err error) {
