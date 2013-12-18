@@ -647,7 +647,6 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		q1->pcond = p;
 	}
 
-	q = nil;
 	q1 = nil;
 	if(framesize <= StackSmall) {
 		// small stack: SP <= stackguard
