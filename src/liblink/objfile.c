@@ -371,7 +371,7 @@ wrint(Biobuf *b, int64 sval)
 	uint64 uv, v;
 	uchar buf[10], *p;
 
-	uv = (uint64)(sval<<1) ^ (uint64)(int64)(sval>>63);
+	uv = ((uint64)sval<<1) ^ (uint64)(int64)(sval>>63);
 
 	p = buf;
 	for(v = uv; v >= 0x80; v >>= 7)
@@ -634,7 +634,7 @@ rdint(Biobuf *f)
 			break;
 	}
 
-	return (int64)(uv>>1) ^ ((int64)uv<<63>>63);
+	return (int64)(uv>>1) ^ ((int64)((uint64)uv<<63)>>63);
 }
 
 static char*
