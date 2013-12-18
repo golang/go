@@ -16,6 +16,11 @@ type testpair struct {
 }
 
 var pairs = []testpair{
+	// Encode returns 0 when len(src) is 0
+	{
+		"",
+		"",
+	},
 	// Wikipedia example
 	{
 		"Man is distinguished, not only by his reason, but by this singular passion from " +
