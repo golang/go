@@ -61,11 +61,15 @@ addlib(Link *ctxt, char *src, char *obj, char *pathname)
 	if(p != nil)
 		*p = '.';
 
-	// try dot, -L "libdir", and then goroot.
-	for(i=0; i<ctxt->nlibdir; i++) {
-		snprint(pname, sizeof pname, "%s/%s", ctxt->libdir[i], name);
-		if(access(pname, AEXIST) >= 0)
-			break;
+	if((!ctxt->windows && name[0] == '/') || (ctxt->windows && name[1] == ':'))
+		snprint(pname, sizeof pname, "%s", name);
+	else {
+		// try dot, -L "libdir", and then goroot.
+		for(i=0; i<ctxt->nlibdir; i++) {
+			snprint(pname, sizeof pname, "%s/%s", ctxt->libdir[i], name);
+			if(access(pname, AEXIST) >= 0)
+				break;
+		}
 	}
 	cleanname(pname);
 
