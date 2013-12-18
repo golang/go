@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package exec
+// Use an external test to avoid os/exec -> net/http -> crypto/x509 -> os/exec
+// circular dependency on non-cgo darwin.
+
+package exec_test
 
 import (
 	"bufio"
@@ -14,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -22,10 +26,10 @@ import (
 	"time"
 )
 
-func helperCommand(s ...string) *Cmd {
+func helperCommand(s ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
-	cmd := Command(os.Args[0], cs...)
+	cmd := exec.Command(os.Args[0], cs...)
 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 	return cmd
 }
@@ -58,8 +62,8 @@ func TestCatStdin(t *testing.T) {
 func TestCatGoodAndBadFile(t *testing.T) {
 	// Testing combined output and error values.
 	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
-	if _, ok := err.(*ExitError); !ok {
-		t.Errorf("expected *ExitError from cat combined; got %T: %v", err, err)
+	if _, ok := err.(*exec.ExitError); !ok {
+		t.Errorf("expected *exec.ExitError from cat combined; got %T: %v", err, err)
 	}
 	s := string(bs)
 	sp := strings.SplitN(s, "\n", 2)
@@ -77,7 +81,7 @@ func TestCatGoodAndBadFile(t *testing.T) {
 
 func TestNoExistBinary(t *testing.T) {
 	// Can't run a non-existent binary
-	err := Command("/no-exist-binary").Run()
+	err := exec.Command("/no-exist-binary").Run()
 	if err == nil {
 		t.Error("expected error from /no-exist-binary")
 	}
@@ -92,12 +96,12 @@ func TestExitStatus(t *testing.T) {
 	case "plan9":
 		want = fmt.Sprintf("exit status: '%s %d: 42'", filepath.Base(cmd.Path), cmd.ProcessState.Pid())
 	}
-	if werr, ok := err.(*ExitError); ok {
+	if werr, ok := err.(*exec.ExitError); ok {
 		if s := werr.Error(); s != want {
 			t.Errorf("from exit 42 got exit %q, want %q", s, want)
 		}
 	} else {
-		t.Fatalf("expected *ExitError from exit 42; got %T: %v", err, err)
+		t.Fatalf("expected *exec.ExitError from exit 42; got %T: %v", err, err)
 	}
 }
 
@@ -184,7 +188,7 @@ func TestStdinClose(t *testing.T) {
 func TestPipeLookPathLeak(t *testing.T) {
 	fd0 := numOpenFDS(t)
 	for i := 0; i < 4; i++ {
-		cmd := Command("something-that-does-not-exist-binary")
+		cmd := exec.Command("something-that-does-not-exist-binary")
 		cmd.StdoutPipe()
 		cmd.StderrPipe()
 		cmd.StdinPipe()
@@ -199,7 +203,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 }
 
 func numOpenFDS(t *testing.T) int {
-	lsof, err := Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
 	if err != nil {
 		t.Skip("skipping test; error finding or running lsof")
 		return 0
@@ -425,7 +429,7 @@ func TestExtraFilesRace(t *testing.T) {
 		}
 		return f
 	}
-	runCommand := func(c *Cmd, out chan<- string) {
+	runCommand := func(c *exec.Cmd, out chan<- string) {
 		bout, err := c.CombinedOutput()
 		if err != nil {
 			out <- "ERROR:" + err.Error()
@@ -577,7 +581,7 @@ func TestHelperProcess(*testing.T) {
 				}
 				if got := f.Fd(); got != wantfd {
 					fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
-					out, _ := Command(ofcmd, "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
+					out, _ := exec.Command(ofcmd, "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
 					fmt.Print(string(out))
 					os.Exit(1)
 				}
