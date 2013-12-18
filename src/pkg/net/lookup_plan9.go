@@ -73,23 +73,21 @@ func queryDNS(addr string, typ string) (res []string, err error) {
 // ASCII is sufficient to handle the IP protocol names and allow
 // us to not depend on the strings and unicode packages.
 func toLower(in string) string {
-	isAlreadyLowerCase := true
 	for _, c := range in {
 		if 'A' <= c && c <= 'Z' {
-			isAlreadyLowerCase = false
-			break
+			// Has upper case; need to fix.
+			out := []byte(in)
+			for i := 0; i < len(in); i++ {
+				c := in[i]
+				if 'A' <= c && c <= 'Z' {
+					c += 'a' - 'A'
+				}
+				out[i] = c
+			}
+			return string(out)
 		}
 	}
-	if isAlreadyLowerCase {
-		return in
-	}
-	out := []byte(in)
-	for i, c := range out {
-		if 'A' <= c && c <= 'Z' {
-			out[i] += 'a' - 'A'
-		}
-	}
-	return string(out)
+	return in
 }
 
 // lookupProtocol looks up IP protocol name and returns
