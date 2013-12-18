@@ -305,11 +305,12 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		name      string
 		pub, priv interface{}
 		checkSig  bool
+		sigAlgo   SignatureAlgorithm
 	}{
-		{"RSA/RSA", &rsaPriv.PublicKey, rsaPriv, true},
-		{"RSA/ECDSA", &rsaPriv.PublicKey, ecdsaPriv, false},
-		{"ECDSA/RSA", &ecdsaPriv.PublicKey, rsaPriv, false},
-		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true},
+		{"RSA/RSA", &rsaPriv.PublicKey, rsaPriv, true, SHA1WithRSA},
+		{"RSA/ECDSA", &rsaPriv.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
+		{"ECDSA/RSA", &ecdsaPriv.PublicKey, rsaPriv, false, SHA256WithRSA},
+		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true, ECDSAWithSHA1},
 	}
 
 	testExtKeyUsage := []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageServerAuth}
@@ -326,6 +327,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			},
 			NotBefore: time.Unix(1000, 0),
 			NotAfter:  time.Unix(100000, 0),
+
+			SignatureAlgorithm: test.sigAlgo,
 
 			SubjectKeyId: []byte{1, 2, 3, 4},
 			KeyUsage:     KeyUsageCertSign,
@@ -388,6 +391,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if cert.Issuer.CommonName != commonName {
 			t.Errorf("%s: issuer wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Issuer.CommonName, commonName)
+		}
+
+		if cert.SignatureAlgorithm != test.sigAlgo {
+			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %s, want %s", test.name, cert.SignatureAlgorithm, test.sigAlgo)
 		}
 
 		if !reflect.DeepEqual(cert.ExtKeyUsage, testExtKeyUsage) {
