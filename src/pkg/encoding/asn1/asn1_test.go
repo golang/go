@@ -171,6 +171,12 @@ func TestBitStringAt(t *testing.T) {
 	if bs.At(9) != 1 {
 		t.Error("#4: Failed")
 	}
+	if bs.At(-1) != 0 {
+		t.Error("#5: Failed")
+	}
+	if bs.At(17) != 0 {
+		t.Error("#6: Failed")
+	}
 }
 
 type bitStringRightAlignTest struct {
@@ -238,6 +244,7 @@ var utcTestData = []timeTest{
 	{"910506164540+0730", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", 7*60*60+30*60))},
 	{"910506234540Z", true, time.Date(1991, 05, 06, 23, 45, 40, 0, time.UTC)},
 	{"9105062345Z", true, time.Date(1991, 05, 06, 23, 45, 0, 0, time.UTC)},
+	{"5105062345Z", true, time.Date(1951, 05, 06, 23, 45, 0, 0, time.UTC)},
 	{"a10506234540Z", false, time.Time{}},
 	{"91a506234540Z", false, time.Time{}},
 	{"9105a6234540Z", false, time.Time{}},
@@ -506,6 +513,38 @@ func TestRawStructs(t *testing.T) {
 	}
 	if !bytes.Equal([]byte(s.Raw), input) {
 		t.Errorf("bad value for Raw: got %x want %x", s.Raw, input)
+	}
+}
+
+type oiEqualTest struct {
+	first  ObjectIdentifier
+	second ObjectIdentifier
+	same   bool
+}
+
+var oiEqualTests = []oiEqualTest{
+	{
+		ObjectIdentifier{1, 2, 3},
+		ObjectIdentifier{1, 2, 3},
+		true,
+	},
+	{
+		ObjectIdentifier{1},
+		ObjectIdentifier{1, 2, 3},
+		false,
+	},
+	{
+		ObjectIdentifier{1, 2, 3},
+		ObjectIdentifier{10, 11, 12},
+		false,
+	},
+}
+
+func TestObjectIdentifierEqual(t *testing.T) {
+	for _, o := range oiEqualTests {
+		if s := o.first.Equal(o.second); s != o.same {
+			t.Errorf("ObjectIdentifier.Equal: got: %t want: %t", s, o.same)
+		}
 	}
 }
 
