@@ -26,7 +26,7 @@ addvarint(Pcdata *d, uint32 val)
 	p = d->p + d->n;
 	for(v = val; v >= 0x80; v >>= 7)
 		*p++ = v | 0x80;
-	*p++ = v;
+	*p = v;
 	d->n += n;
 }
 
