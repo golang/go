@@ -451,11 +451,13 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 		if err != nil {
 			return
 		}
-		// We pretend that GENERAL STRINGs are PRINTABLE STRINGs so
-		// that a sequence of them can be parsed into a []string.
-		if t.tag == tagGeneralString {
+		// We pretend that various other string types are PRINTABLE STRINGs
+		// so that a sequence of them can be parsed into a []string.
+		switch t.tag {
+		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
 			t.tag = tagPrintableString
 		}
+
 		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
 			err = StructuralError{"sequence tag mismatch"}
 			return

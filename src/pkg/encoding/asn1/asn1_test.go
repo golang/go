@@ -6,6 +6,7 @@ package asn1
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -775,4 +776,30 @@ var derEncodedPaypalNULCertBytes = []byte{
 	0x63, 0x21, 0xab, 0x46, 0x9b, 0x9c, 0x78, 0xd5, 0x54, 0x5b, 0x3d, 0x0c, 0x1e,
 	0xc8, 0x64, 0x8c, 0xb5, 0x50, 0x23, 0x82, 0x6f, 0xdb, 0xb8, 0x22, 0x1c, 0x43,
 	0x96, 0x07, 0xa8, 0xbb,
+}
+
+var stringSliceTestData = [][]string{
+	{"foo", "bar"},
+	{"foo", "\\bar"},
+	{"foo", "\"bar\""},
+	{"foo", "åäö"},
+}
+
+func TestStringSlice(t *testing.T) {
+	for _, test := range stringSliceTestData {
+		bs, err := Marshal(test)
+		if err != nil {
+			t.Error(err)
+		}
+
+		var res []string
+		_, err = Unmarshal(bs, &res)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if fmt.Sprintf("%v", res) != fmt.Sprintf("%v", test) {
+			t.Errorf("incorrect marshal/unmarshal; %v != %v", res, test)
+		}
+	}
 }
