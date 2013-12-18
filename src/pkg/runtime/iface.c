@@ -183,42 +183,31 @@ runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
 	FLUSH(&ret);
 }
 
-// func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
+// func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
 #pragma textflag NOSPLIT
 void
-runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, ...)
+runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, byte *elem, Iface ret)
 {
-	byte *elem;
-	Iface *ret;
 	Itab *tab;
-	int32 wid;
 
-	elem = (byte*)(&cache+1);
-	wid = t->size;
-	ret = (Iface*)(elem + ROUND(wid, Structrnd));
 	tab = runtime·atomicloadp(cache);
 	if(!tab) {
 		tab = itab(inter, t, 0);
 		runtime·atomicstorep(cache, tab);
 	}
-	ret->tab = tab;
-	copyin(t, elem, &ret->data);
+	ret.tab = tab;
+	copyin(t, elem, &ret.data);
+	FLUSH(&ret);
 }
 
-// func convT2E(typ *byte, elem any) (ret any)
+// func convT2E(typ *byte, elem *any) (ret any)
 #pragma textflag NOSPLIT
 void
-runtime·convT2E(Type *t, ...)
+runtime·convT2E(Type *t, byte *elem, Eface ret)
 {
-	byte *elem;
-	Eface *ret;
-	int32 wid;
-
-	elem = (byte*)(&t+1);
-	wid = t->size;
-	ret = (Eface*)(elem + ROUND(wid, Structrnd));
-	ret->type = t;
-	copyin(t, elem, &ret->data);
+	ret.type = t;
+	copyin(t, elem, &ret.data);
+	FLUSH(&ret);
 }
 
 static void assertI2Tret(Type *t, Iface i, byte *ret);

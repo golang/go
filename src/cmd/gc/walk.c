@@ -898,7 +898,20 @@ walkexpr(Node **np, NodeList **init)
 				goto ret;
 			}
 		}
-		ll = list(ll, n->left);
+		if(isinter(n->left->type)) {
+			ll = list(ll, n->left);
+		} else {
+			// regular types are passed by reference to avoid C vararg calls
+			if(islvalue(n->left)) {
+				ll = list(ll, nod(OADDR, n->left, N));
+			} else {
+				var = temp(n->left->type);
+				n1 = nod(OAS, var, n->left);
+				typecheck(&n1, Etop);
+				*init = list(*init, n1);
+				ll = list(ll, nod(OADDR, var, N));
+			}
+		}
 		argtype(fn, n->left->type);
 		argtype(fn, n->type);
 		dowidth(fn->type);
