@@ -104,8 +104,10 @@
 static void writesym(Link*, Biobuf*, LSym*);
 static void wrint(Biobuf*, int64);
 static void wrstring(Biobuf*, char*);
+static void wrpath(Link *, Biobuf*, char*);
 static void wrdata(Biobuf*, void*, int);
 static void wrsym(Biobuf*, LSym*);
+static void wrpathsym(Link *ctxt, Biobuf *b, LSym *s);
 
 static void readsym(Link*, Biobuf*, char*, char*);
 static int64 rdint(Biobuf*);
@@ -165,7 +167,7 @@ linkwriteobj(Link *ctxt, Biobuf *b)
 
 			if(p->as == ctxt->arch->AGLOBL) {
 				s = p->from.sym;
-if(s->size) print("duplicate %P\n", p);
+				if(s->size) print("duplicate %P\n", p);
 				if(data == nil)
 					data = s;
 				else
@@ -359,7 +361,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 			wrint(b, pc->funcdataoff[i]);
 		wrint(b, pc->nfile);
 		for(i=0; i<pc->nfile; i++)
-			wrsym(b, pc->file[i]);
+			wrpathsym(ctxt, b, pc->file[i]);
 	}
 }
 
@@ -385,11 +387,40 @@ wrstring(Biobuf *b, char *s)
 	wrdata(b, s, strlen(s));
 }
 
+// wrpath writes a path just like a string, but on windows, it
+// translates '\\' to '/' in the process.
+static void
+wrpath(Link *ctxt, Biobuf *b, char *p)
+{
+	int i, n;
+	if (!ctxt->windows || strchr(p, '\\') == nil) {
+		wrstring(b, p);
+		return;
+	} else {
+		n = strlen(p);
+		wrint(b, n);
+		for (i = 0; i < n; i++)
+			Bputc(b, p[i] == '\\' ? '/' : p[i]);
+	}
+}
+
 static void
 wrdata(Biobuf *b, void *v, int n)
 {
 	wrint(b, n);
 	Bwrite(b, v, n);
+}
+
+static void
+wrpathsym(Link *ctxt, Biobuf *b, LSym *s)
+{
+	if(s == nil) {
+		wrint(b, 0);
+		wrint(b, 0);
+		return;
+	}
+	wrpath(ctxt, b, s->name);
+	wrint(b, s->version);
 }
 
 static void
