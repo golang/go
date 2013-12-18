@@ -193,12 +193,6 @@ func (r *Reader) readRune() (rune, error) {
 	return r1, err
 }
 
-// unreadRune puts the last rune read from r back.
-func (r *Reader) unreadRune() {
-	r.r.UnreadRune()
-	r.column--
-}
-
 // skip reads runes up to and including the rune delim or until error.
 func (r *Reader) skip(delim rune) error {
 	for {
