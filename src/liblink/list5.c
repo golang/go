@@ -150,7 +150,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_CONST2:
-		sprint(str, "$%d-%d", a->offset, a->offset2);
+		sprint(str, "$%lld-%d", a->offset, a->offset2);
 		break;
 
 	case D_SHIFT:
@@ -307,7 +307,7 @@ Nconv(Fmt *fp)
 		break;
 
 	case D_NONE:
-		sprint(str, "%d", a->offset);
+		sprint(str, "%lld", a->offset);
 		break;
 
 	case D_EXTERN:

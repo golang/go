@@ -1263,7 +1263,7 @@ span8(Link *ctxt, LSym *s)
 	s->size = c;
 
 	if(0 /* debug['a'] > 1 */) {
-		print("span1 %s %d (%d tries)\n %.6ux", s->name, s->size, n, 0);
+		print("span1 %s %lld (%d tries)\n %.6ux", s->name, s->size, n, 0);
 		for(i=0; i<s->np; i++) {
 			print(" %.2ux", s->p[i]);
 			if(i%16 == 15)
@@ -1276,7 +1276,7 @@ span8(Link *ctxt, LSym *s)
 			Reloc *r;
 			
 			r = &s->r[i];
-			print(" rel %#.4ux/%d %s%+d\n", r->off, r->siz, r->sym->name, r->add);
+			print(" rel %#.4ux/%d %s%+lld\n", r->off, r->siz, r->sym->name, r->add);
 		}
 	}
 }
