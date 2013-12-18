@@ -48,38 +48,35 @@ func FindExportData(r *bufio.Reader) (err error) {
 		return
 	}
 	if string(line) == "!<arch>\n" {
-		// Archive file.  Scan to __.PKGDEF, which should
-		// be second archive entry.
+		// Archive file. Scan to __.PKGDEF.
 		var name string
 		var size int
-
-		// First entry should be __.GOSYMDEF.
-		// Older archives used __.SYMDEF, so allow that too.
-		// Read and discard.
 		if name, size, err = readGopackHeader(r); err != nil {
 			return
 		}
-		if name != "__.SYMDEF" && name != "__.GOSYMDEF" {
-			err = errors.New("go archive does not begin with __.SYMDEF or __.GOSYMDEF")
-			return
-		}
-		const block = 4096
-		tmp := make([]byte, block)
-		for size > 0 {
-			n := size
-			if n > block {
-				n = block
+
+		// Optional leading __.GOSYMDEF or __.SYMDEF.
+		// Read and discard.
+		if name == "__.SYMDEF" || name == "__.GOSYMDEF" {
+			const block = 4096
+			tmp := make([]byte, block)
+			for size > 0 {
+				n := size
+				if n > block {
+					n = block
+				}
+				if _, err = io.ReadFull(r, tmp[:n]); err != nil {
+					return
+				}
+				size -= n
 			}
-			if _, err = io.ReadFull(r, tmp[:n]); err != nil {
+
+			if name, size, err = readGopackHeader(r); err != nil {
 				return
 			}
-			size -= n
 		}
 
-		// Second entry should be __.PKGDEF.
-		if name, size, err = readGopackHeader(r); err != nil {
-			return
-		}
+		// First real entry should be __.PKGDEF.
 		if name != "__.PKGDEF" {
 			err = errors.New("go archive is missing __.PKGDEF")
 			return
