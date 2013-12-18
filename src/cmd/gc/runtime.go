@@ -58,8 +58,8 @@ func slicestringcopy(to any, fr any) int
 func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
 func convI2E(elem any) (ret any)
 func convI2I(typ *byte, elem any) (ret any)
-func convT2E(typ *byte, elem any) (ret any)
-func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
+func convT2E(typ *byte, elem *any) (ret any)
+func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
 
 // interface type assertions  x.(T)
 func assertE2E(typ *byte, iface any) (ret any)
