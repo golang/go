@@ -8,6 +8,7 @@
 package json
 
 import (
+	"bytes"
 	"encoding"
 	"encoding/base64"
 	"errors"
@@ -15,7 +16,6 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
-	"strings"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -500,11 +500,11 @@ func (d *decodeState) object(v reflect.Value) {
 			d.error(errPhase)
 		}
 
-		// Read string key.
+		// Read key.
 		start := d.off - 1
 		op = d.scanWhile(scanContinue)
 		item := d.data[start : d.off-1]
-		key, ok := unquote(item)
+		key, ok := unquoteBytes(item)
 		if !ok {
 			d.error(errPhase)
 		}
@@ -526,11 +526,11 @@ func (d *decodeState) object(v reflect.Value) {
 			fields := cachedTypeFields(v.Type())
 			for i := range fields {
 				ff := &fields[i]
-				if ff.name == key {
+				if bytes.Equal(ff.nameBytes, key) {
 					f = ff
 					break
 				}
-				if f == nil && strings.EqualFold(ff.name, key) {
+				if f == nil && ff.equalFold(ff.nameBytes, key) {
 					f = ff
 				}
 			}

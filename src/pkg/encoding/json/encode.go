@@ -936,11 +936,20 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
 // A field represents a single field found in a struct.
 type field struct {
 	name      string
+	nameBytes []byte                 // []byte(name)
+	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
+
 	tag       bool
 	index     []int
 	typ       reflect.Type
 	omitEmpty bool
 	quoted    bool
+}
+
+func fillField(f field) field {
+	f.nameBytes = []byte(f.name)
+	f.equalFold = foldFunc(f.nameBytes)
+	return f
 }
 
 // byName sorts field by name, breaking ties with depth,
@@ -1042,8 +1051,14 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, field{name, tagged, index, ft,
-						opts.Contains("omitempty"), opts.Contains("string")})
+					fields = append(fields, fillField(field{
+						name:      name,
+						tag:       tagged,
+						index:     index,
+						typ:       ft,
+						omitEmpty: opts.Contains("omitempty"),
+						quoted:    opts.Contains("string"),
+					}))
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.
@@ -1057,7 +1072,7 @@ func typeFields(t reflect.Type) []field {
 				// Record new anonymous struct to explore in next round.
 				nextCount[ft]++
 				if nextCount[ft] == 1 {
-					next = append(next, field{name: ft.Name(), index: index, typ: ft})
+					next = append(next, fillField(field{name: ft.Name(), index: index, typ: ft}))
 				}
 			}
 		}
