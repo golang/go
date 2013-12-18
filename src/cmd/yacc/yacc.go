@@ -49,6 +49,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/format"
+	"io/ioutil"
 	"os"
 	"strings"
 	"unicode"
@@ -3212,6 +3214,7 @@ func exit(status int) {
 	if ftable != nil {
 		ftable.Flush()
 		ftable = nil
+		gofmt()
 	}
 	if foutput != nil {
 		foutput.Flush()
@@ -3222,6 +3225,18 @@ func exit(status int) {
 		stderr = nil
 	}
 	os.Exit(status)
+}
+
+func gofmt() {
+	src, err := ioutil.ReadFile(oflag)
+	if err != nil {
+		return
+	}
+	src, err = format.Source(src)
+	if err != nil {
+		return
+	}
+	ioutil.WriteFile(oflag, src, 0666)
 }
 
 var yaccpar string // will be processed version of yaccpartext: s/$$/prefix/g
