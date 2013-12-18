@@ -47,6 +47,9 @@ func elfSymbols(f *os.File) []Sym {
 				sym.Code = 'D'
 			}
 		}
+		if elf.ST_BIND(s.Info) == elf.STB_LOCAL {
+			sym.Code += 'a' - 'A'
+		}
 		syms = append(syms, sym)
 	}
 

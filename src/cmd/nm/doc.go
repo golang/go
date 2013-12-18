@@ -13,6 +13,8 @@
 //
 //	T	text (code) segment symbol
 //	t	static text segment symbol
+//	R	read-only data segment symbol
+//	r	static read-only data segment symbol
 //	D	data segment symbol
 //	d	static data segment symbol
 //	B	bss segment symbol

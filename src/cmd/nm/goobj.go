@@ -42,7 +42,7 @@ func goobjSymbols(f *os.File) []Sym {
 		case goobj.SBSS, goobj.SNOPTRBSS, goobj.STLSBSS:
 			sym.Code = 'B'
 		case goobj.SXREF, goobj.SMACHOSYMSTR, goobj.SMACHOSYMTAB, goobj.SMACHOINDIRECTPLT, goobj.SMACHOINDIRECTGOT, goobj.SFILE, goobj.SFILEPATH, goobj.SCONST, goobj.SDYNIMPORT, goobj.SHOSTOBJ:
-			sym.Code = 'X'
+			sym.Code = 'X' // should not see
 		}
 		if s.Version != 0 {
 			sym.Code += 'a' - 'A'
