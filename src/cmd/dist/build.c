@@ -33,6 +33,7 @@ bool defaultclang;
 
 static bool shouldbuild(char*, char*);
 static void copy(char*, char*, int);
+static void dopack(char*, char*, char**, int);
 static char *findgoversion(void);
 
 // The known architecture letters.
@@ -622,7 +623,7 @@ static void
 install(char *dir)
 {
 	char *name, *p, *elem, *prefix, *exe;
-	bool islib, ispkg, isgo, stale;
+	bool islib, ispkg, isgo, stale, ispackcmd;
 	Buf b, b1, path;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
@@ -696,6 +697,7 @@ install(char *dir)
 
 	// Start final link command line.
 	// Note: code below knows that link.p[targ] is the target.
+	ispackcmd = 0;
 	if(islib) {
 		// C library.
 		vadd(&link, "ar");
@@ -710,8 +712,8 @@ install(char *dir)
 		vadd(&link, bpathf(&b, "%s/pkg/obj/%s_%s/%s%s.a", goroot, gohostos, gohostarch, prefix, name));
 	} else if(ispkg) {
 		// Go library (package).
-		vadd(&link, bpathf(&b, "%s/pack", tooldir));
-		vadd(&link, "grc");
+		ispackcmd = 1;
+		vadd(&link, "pack"); // program name - unused here, but all the other cases record one
 		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
 		*xstrrchr(p, '/') = '\0';
 		xmkdirall(p);
@@ -1048,11 +1050,13 @@ install(char *dir)
 		vreset(&compile);
 		vadd(&compile, bpathf(&b, "%s/%sg", tooldir, gochar));
 
-		bpathf(&b, "%s/_go_.%s", workdir, gochar);
+		bpathf(&b, "%s/_go_.a", workdir);
+		vadd(&compile, "-pack");
 		vadd(&compile, "-o");
 		vadd(&compile, bstr(&b));
 		vadd(&clean, bstr(&b));
-		vadd(&link, bstr(&b));
+		if(!ispackcmd)
+			vadd(&link, bstr(&b));
 
 		vadd(&compile, "-p");
 		if(hasprefix(dir, "pkg/"))
@@ -1066,6 +1070,12 @@ install(char *dir)
 		vcopy(&compile, go.p, go.len);
 
 		runv(nil, bstr(&path), CheckExit, &compile);
+
+		if(ispackcmd) {
+			xremove(link.p[targ]);
+			dopack(link.p[targ], bstr(&b), &link.p[targ+1], link.len - (targ+1));
+			goto nobuild;
+		}
 	}
 
 	if(!islib && !isgo) {
@@ -1234,6 +1244,48 @@ copy(char *dst, char *src, int exec)
 	readfile(&b, src);
 	writefile(&b, dst, exec);
 	bfree(&b);
+}
+
+// dopack copies the package src to dst,
+// appending the files listed in extra.
+// The archive format is the traditional Unix ar format.
+static void
+dopack(char *dst, char *src, char **extra, int nextra)
+{
+	int i;
+	char c, *p, *q;
+	Buf b, bdst;
+	
+	binit(&b);
+	binit(&bdst);
+
+	readfile(&bdst, src);
+	for(i=0; i<nextra; i++) {
+		readfile(&b, extra[i]);
+		// find last path element for archive member name
+		p = xstrrchr(extra[i], '/');
+		if(p)
+			p++;
+		q = xstrrchr(extra[i], '\\');
+		if(q) {
+			q++;
+			if(p == nil || q > p)
+				p = q;
+		}
+		if(p == nil)
+			p = extra[i];
+		bwritef(&bdst, "%-16.16s%-12d%-6d%-6d%-8o%-10d`\n", p, 0, 0, 0, 0644, b.len);
+		bwriteb(&bdst, &b);
+		if(b.len&1) {
+			c = 0;
+			bwrite(&bdst, &c, 1);
+		}
+	}
+
+	writefile(&bdst, dst, 0);
+
+	bfree(&b);
+	bfree(&bdst);
 }
 
 // buildorder records the order of builds for the 'go bootstrap' command.
