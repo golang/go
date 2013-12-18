@@ -327,25 +327,22 @@ objfile(char *file, char *pkg)
 		return;
 	}
 	
-	/* skip over __.GOSYMDEF */
+	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
 	off = Boffset(f);
 	if((l = nextar(f, off, &arhdr)) <= 0) {
 		diag("%s: short read on archive file symbol header", file);
 		goto out;
 	}
-	if(strncmp(arhdr.name, symname, strlen(symname))) {
-		diag("%s: first entry not symbol header", file);
-		goto out;
+	if(strncmp(arhdr.name, symname, strlen(symname)) == 0) {
+		off += l;
+		if((l = nextar(f, off, &arhdr)) <= 0) {
+			diag("%s: short read on archive file symbol header", file);
+			goto out;
+		}
 	}
-	off += l;
-	
-	/* skip over (or process) __.PKGDEF */
-	if((l = nextar(f, off, &arhdr)) <= 0) {
-		diag("%s: short read on archive file symbol header", file);
-		goto out;
-	}
+
 	if(strncmp(arhdr.name, pkgname, strlen(pkgname))) {
-		diag("%s: second entry not package header", file);
+		diag("%s: cannot find package header", file);
 		goto out;
 	}
 	off += l;

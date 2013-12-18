@@ -354,7 +354,7 @@ dumpexport(void)
 
 	lno = lineno;
 
-	Bprint(bout, "\n$$  // exports\n    package %s", localpkg->name);
+	Bprint(bout, "\n$$\npackage %s", localpkg->name);
 	if(safemode)
 		Bprint(bout, " safe");
 	Bprint(bout, "\n");
@@ -369,8 +369,7 @@ dumpexport(void)
 		dumpsym(l->n->sym);
 	}
 
-	Bprint(bout, "\n$$  // local types\n\n$$\n");   // 6l expects this. (see ld/go.c)
-
+	Bprint(bout, "\n$$\n");
 	lineno = lno;
 }
 
