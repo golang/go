@@ -24,6 +24,8 @@ var (
 	sortOrder = flag.String("sort", "name", "")
 	printSize = flag.Bool("size", false, "")
 	printType = flag.Bool("type", false, "")
+
+	filePrefix = false
 )
 
 func init() {
@@ -64,6 +66,7 @@ func main() {
 	}
 
 	args := flag.Args()
+	filePrefix = len(args) > 1
 	if len(args) == 0 {
 		flag.Usage()
 	}
@@ -136,6 +139,9 @@ HaveSyms:
 
 	w := bufio.NewWriter(os.Stdout)
 	for _, sym := range syms {
+		if filePrefix {
+			fmt.Fprintf(w, "%s:\t", file)
+		}
 		if sym.Code == 'U' {
 			fmt.Fprintf(w, "%8s", "")
 		} else {
@@ -151,16 +157,6 @@ HaveSyms:
 		fmt.Fprintf(w, "\n")
 	}
 	w.Flush()
-}
-
-func filter(syms []Sym, ok func(Sym) bool) []Sym {
-	out := syms[:0]
-	for _, sym := range syms {
-		if ok(sym) {
-			out = append(out, sym)
-		}
-	}
-	return out
 }
 
 type byAddr []Sym
