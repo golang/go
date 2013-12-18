@@ -449,6 +449,27 @@ func f() {
 }
 `,
 	},
+
+	// golang.org/issue/6884
+	{
+		name: "issue 6884",
+		in: `package main
+
+// A comment
+func main() {
+	fmt.Println("Hello, world")
+}
+`,
+		out: `package main
+
+import "fmt"
+
+// A comment
+func main() {
+	fmt.Println("Hello, world")
+}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {

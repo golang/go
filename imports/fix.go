@@ -45,7 +45,7 @@ func importGroup(importPath string) int {
 	return 0
 }
 
-func fixImports(f *ast.File) (added []string, err error) {
+func fixImports(fset *token.FileSet, f *ast.File) (added []string, err error) {
 	// refs are a set of possible package references currently unsatisified by imports.
 	// first key: either base package (e.g. "fmt") or renamed package
 	// second key: referenced package symbol (e.g. "Println")
@@ -196,8 +196,6 @@ func loadPkgIndex() {
 	wg.Wait()
 }
 
-var fset = token.NewFileSet()
-
 func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 	importpath := filepath.ToSlash(pkgrelpath)
 	shortName := importPathToName(importpath)
@@ -250,6 +248,7 @@ func loadExportsGoPath(dir string) map[string]bool {
 		fmt.Fprintf(os.Stderr, "could not import %q: %v", dir, err)
 		return nil
 	}
+	fset := token.NewFileSet()
 	for _, file := range buildPkg.GoFiles {
 		f, err := parser.ParseFile(fset, filepath.Join(dir, file), nil, 0)
 		if err != nil {
