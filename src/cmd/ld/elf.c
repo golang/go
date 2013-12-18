@@ -1504,5 +1504,5 @@ elfobj:
 			a += elfwritebuildinfo();
 	}
 	if(a > ELFRESERVE)	
-		diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+		diag("ELFRESERVE too small: %lld > %d", a, ELFRESERVE);
 }

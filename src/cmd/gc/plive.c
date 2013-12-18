@@ -874,7 +874,7 @@ checkauto(Node *fn, Prog *p, Node *n, char *where)
 	print("D_AUTO '%s' not found: name is '%s' function is '%s' class is %d\n", where, nname, fnname, n->class);
 	print("Here '%P'\nlooking for node %p\n", p, n);
 	for(ll = fn->dcl; ll != nil; ll = ll->next)
-		print("node=%lx, node->class=%d\n", (uintptr)ll->n, ll->n->class);
+		print("node=%p, node->class=%d\n", (uintptr)ll->n, ll->n->class);
 	yyerror("checkauto: invariant lost");
 }
 

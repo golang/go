@@ -1514,7 +1514,6 @@ writelines(void)
 
 	unitstart = -1;
 	headerend = -1;
-	pc = 0;
 	epc = 0;
 	epcs = S;
 	lineo = cpos();

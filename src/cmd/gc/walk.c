@@ -2886,17 +2886,13 @@ sliceany(Node* n, NodeList **init)
 
 	if(isconst(cb, CTINT)) {
 		cbv = mpgetfix(cb->val.u.xval);
-		if(cbv < 0 || cbv > bv) {
+		if(cbv < 0 || cbv > bv)
 			yyerror("slice index out of bounds");
-			cbv = -1;
-		}
 	}
 	if(isconst(hb, CTINT)) {
 		hbv = mpgetfix(hb->val.u.xval);
-		if(hbv < 0 || hbv > bv) {
+		if(hbv < 0 || hbv > bv)
 			yyerror("slice index out of bounds");
-			hbv = -1;
-		}
 	}
 	if(isconst(lb, CTINT)) {
 		lbv = mpgetfix(lb->val.u.xval);

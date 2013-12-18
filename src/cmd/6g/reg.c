@@ -668,7 +668,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = node;
 
 	if(debug['R'])
-		print("bit=%2d et=%2E w=%d+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 
 	ostats.nvar++;
 

@@ -232,6 +232,7 @@ compile(Node *fn)
 
 	if(0)
 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
+	USED(oldstksize);
 
 	setlineno(curfn);
 	if((int64)stksize+maxarg > (1ULL<<31)) {

@@ -195,7 +195,7 @@ relocsym(LSym *s)
 					if(rs->type != SHOSTOBJ)
 						o += symaddr(rs);
 				} else {
-					diag("unhandled pcrel relocation for %s", headtype);
+					diag("unhandled pcrel relocation for %s", headstring);
 				}
 				break;
 			}
@@ -227,7 +227,7 @@ relocsym(LSym *s)
 						o += symaddr(rs) - rs->sect->vaddr;
 					o -= r->off; // WTF?
 				} else {
-					diag("unhandled pcrel relocation for %s", headtype);
+					diag("unhandled pcrel relocation for %s", headstring);
 				}
 				break;
 			}
