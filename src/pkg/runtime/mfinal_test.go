@@ -46,13 +46,15 @@ func TestFinalizerType(t *testing.T) {
 	}
 
 	for _, tt := range finalizerTests {
+		done := make(chan bool, 1)
 		go func() {
 			v := new(int)
 			*v = 97531
 			runtime.SetFinalizer(tt.convert(v), tt.finalizer)
 			v = nil
+			done <- true
 		}()
-		time.Sleep(1 * time.Second)
+		<-done
 		runtime.GC()
 		select {
 		case <-ch:
@@ -73,6 +75,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 		t.Skipf("Skipping on non-amd64 machine")
 	}
 	ch := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		v := &bigValue{0xDEADBEEFDEADBEEF, true, "It matters not how strait the gate"}
 		old := *v
@@ -87,8 +90,9 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 			close(ch)
 		})
 		v = nil
+		done <- true
 	}()
-	time.Sleep(1 * time.Second)
+	<-done
 	runtime.GC()
 	select {
 	case <-ch:
