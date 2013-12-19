@@ -87,8 +87,8 @@ The build flags are shared by the build, install, run, and test commands:
 		arguments to pass on each 5l, 6l, or 8l linker invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
-		See the documentation for the go/build package for
-		more information about build tags.
+		For more information about build tags, see the description of
+		build constraints in the documentation for the go/build package.
 
 The list flags accept a space-separated list of strings. To embed spaces
 in an element in the list, surround it with either single or double quotes.
