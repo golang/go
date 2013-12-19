@@ -2,9 +2,11 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-expr: yacc.go expr.y
+TARG=expr$(shell go env GOEXE)
+
+$(TARG): yacc.go expr.y
 	go run yacc.go -p expr expr.y
-	go build -o expr y.go
+	go build -o $(TARG) y.go
 
 clean:
-	rm -f y.go y.output expr
+	rm -f y.go y.output $(TARG)
