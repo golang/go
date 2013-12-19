@@ -97,8 +97,10 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		runtime·markspan(v, 0, 0, true);
 	}
 
-	if(!(flag & FlagNoGC))
-		runtime·markallocated(v, size, (flag&FlagNoScan) != 0);
+	if(flag & FlagNoGC)
+		runtime·marknogc(v);
+	else if(!(flag & FlagNoScan))
+		runtime·markscan(v);
 
 	if(DebugTypeAtBlockEnd)
 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
