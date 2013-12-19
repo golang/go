@@ -1060,40 +1060,16 @@ runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
 }
 
 // For reflect:
-//	func mapaccess(t type, h map, key iword) (val iword, pres bool)
-// where an iword is the same word an interface value would use:
-// the actual data if it fits, or else a pointer to the data.
+//	func mapaccess(t type, h map, key unsafe.Pointer) (val unsafe.Pointer)
 void
-reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+reflect·mapaccess(MapType *t, Hmap *h, byte *key, byte *val)
 {
-	byte *ak, *av, *r;
-
-	if(raceenabled && h != nil)
+	if(raceenabled && h != nil) {
 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
-
-	if(t->key->size <= sizeof(key))
-		ak = (byte*)&key;
-	else
-		ak = (byte*)key;
-
-	av = hash_lookup(t, h, &ak);
-	if(av == nil) {
-		val = 0;
-		pres = false;
-	} else {
-		if(t->elem->size <= sizeof(val)) {
-			val = 0; // clear high-order bits if value is smaller than a word
-			t->elem->alg->copy(t->elem->size, &val, av);
-		} else {
-			// make a copy because reflect can hang on to result indefinitely
-			r = runtime·cnew(t->elem);
-			t->elem->alg->copy(t->elem->size, r, av);
-			val = (uintptr)r;
-		}
-		pres = true;
+		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapaccess);
 	}
+	val = hash_lookup(t, h, &key);
 	FLUSH(&val);
-	FLUSH(&pres);
 }
 
 // mapassign1(mapType *type, hmap *map[any]any, key *any, val *any);
@@ -1148,50 +1124,50 @@ runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
 }
 
 // For reflect:
-//	func mapassign(t type h map, key, val iword, pres bool)
-// where an iword is the same word an interface value would use:
-// the actual data if it fits, or else a pointer to the data.
+//	func mapassign(t type h map, key, val unsafe.Pointer)
 void
-reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+reflect·mapassign(MapType *t, Hmap *h, byte *key, byte *val)
 {
-	byte *ak, *av;
-
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
-	if(raceenabled)
+	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
-	if(t->key->size <= sizeof(key))
-		ak = (byte*)&key;
-	else
-		ak = (byte*)key;
-	if(!pres) {
-		hash_remove(t, h, ak);
+		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
+		runtime·racereadrangepc(val, t->elem->size, runtime·getcallerpc(&t), reflect·mapassign);
+	}
 
-		if(debug) {
-			runtime·prints("mapassign: map=");
-			runtime·printpointer(h);
-			runtime·prints("; key=");
-			t->key->alg->print(t->key->size, ak);
-			runtime·prints("; val=nil");
-			runtime·prints("\n");
-		}
-	} else {
-		if(t->elem->size <= sizeof(val))
-			av = (byte*)&val;
-		else
-			av = (byte*)val;
+	hash_insert(t, h, key, val);
 
-		hash_insert(t, h, ak, av);
+	if(debug) {
+		runtime·prints("mapassign: map=");
+		runtime·printpointer(h);
+		runtime·prints("; key=");
+		t->key->alg->print(t->key->size, key);
+		runtime·prints("; val=");
+		t->elem->alg->print(t->elem->size, val);
+		runtime·prints("\n");
+	}
+}
 
-		if(debug) {
-			runtime·prints("mapassign: map=");
-			runtime·printpointer(h);
-			runtime·prints("; key=");
-			t->key->alg->print(t->key->size, ak);
-			runtime·prints("; val=");
-			t->elem->alg->print(t->elem->size, av);
-			runtime·prints("\n");
-		}
+// For reflect:
+//	func mapdelete(t type h map, key unsafe.Pointer)
+void
+reflect·mapdelete(MapType *t, Hmap *h, byte *key)
+{
+	if(h == nil)
+		runtime·panicstring("delete from nil map");
+	if(raceenabled) {
+		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
+		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
+	}
+	hash_remove(t, h, key);
+
+	if(debug) {
+		runtime·prints("mapdelete: map=");
+		runtime·printpointer(h);
+		runtime·prints("; key=");
+		t->key->alg->print(t->key->size, key);
+		runtime·prints("\n");
 	}
 }
 
@@ -1254,34 +1230,12 @@ reflect·mapiternext(struct hash_iter *it)
 }
 
 // For reflect:
-//	func mapiterkey(h map) (key iword, ok bool)
-// where an iword is the same word an interface value would use:
-// the actual data if it fits, or else a pointer to the data.
+//	func mapiterkey(h map) (key unsafe.Pointer)
 void
-reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
+reflect·mapiterkey(struct hash_iter *it, byte *key)
 {
-	byte *res, *r;
-	Type *tkey;
-
-	res = it->key;
-	if(res == nil) {
-		key = 0;
-		ok = false;
-	} else {
-		tkey = it->t->key;
-		if(tkey->size <= sizeof(key)) {
-			key = 0; // clear high-order bits if value is smaller than a word
-			tkey->alg->copy(tkey->size, (byte*)&key, res);
-		} else {
-			// make a copy because reflect can hang on to result indefinitely
-			r = runtime·cnew(tkey);
-			tkey->alg->copy(tkey->size, r, res);
-			key = (uintptr)r;
-		}
-		ok = true;
-	}
+	key = it->key;
 	FLUSH(&key);
-	FLUSH(&ok);
 }
 
 // For reflect:

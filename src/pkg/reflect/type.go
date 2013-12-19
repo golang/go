@@ -478,6 +478,8 @@ func (t *rtype) FieldAlign() int { return int(t.fieldAlign) }
 
 func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
 
+func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
+
 func (t *rtype) common() *rtype { return t }
 
 func (t *uncommonType) Method(i int) (m Method) {
@@ -496,7 +498,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	mt := p.typ
 	m.Type = mt
 	fn := unsafe.Pointer(&p.tfn)
-	m.Func = Value{mt, fn, fl}
+	m.Func = Value{mt, fn, 0, fl}
 	m.Index = i
 	return
 }
