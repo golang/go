@@ -125,7 +125,7 @@ func (x *exprLex) Lex(yylval *exprSymType) int {
 		case '÷':
 			return '/'
 
-		case ' ', '\t', '\n':
+		case ' ', '\t', '\n', '\r':
 		default:
 			log.Printf("unrecognized character %q", c)
 		}
