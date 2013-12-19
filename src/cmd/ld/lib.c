@@ -574,6 +574,8 @@ hostlink(void)
 	}
 	if(HEADTYPE == Hdarwin)
 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
+	if(HEADTYPE == Hopenbsd)
+		argv[argc++] = "-Wl,-nopie";
 	
 	if(iself && AssumeGoldLinker)
 		argv[argc++] = "-Wl,--rosegment";
