@@ -6,11 +6,9 @@
 
 package net
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestReadConfig(t *testing.T) {
+func TestDNSReadConfig(t *testing.T) {
 	dnsConfig, err := dnsReadConfig("testdata/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
