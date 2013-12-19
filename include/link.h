@@ -131,6 +131,7 @@ struct	LSym
 	uchar	hide;
 	uchar	leaf;	// arm only
 	uchar	fnptr;	// arm only
+	uchar	seenglobl;
 	int16	symid;	// for writing .5/.6/.8 files
 	int32	dynid;
 	int32	sig;
