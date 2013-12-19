@@ -9,6 +9,6 @@
 
 package testdata
 
-// +build toolate // ERROR "build comment appears too late in file"
+// +build toolate // ERROR "build comment must appear before package clause and be followed by a blank line"
 
 var _ = 3

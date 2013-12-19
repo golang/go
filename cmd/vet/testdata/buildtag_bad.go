@@ -7,7 +7,7 @@
 // +build !!bang // ERROR "invalid double negative in build constraint"
 // +build @#$ // ERROR "invalid non-alphanumeric build constraint"
 
-// +build toolate // ERROR "build comment appears too late in file"
+// +build toolate // ERROR "build comment must appear before package clause and be followed by a blank line"
 package bad
 
 // This is package 'bad' rather than 'main' so the erroneous build

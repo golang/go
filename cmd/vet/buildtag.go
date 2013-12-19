@@ -55,7 +55,7 @@ func checkBuildTag(name string, data []byte) {
 				continue
 			}
 			if i >= cutoff {
-				fmt.Fprintf(os.Stderr, "%s:%d: +build comment appears too late in file\n", name, i+1)
+				fmt.Fprintf(os.Stderr, "%s:%d: +build comment must appear before package clause and be followed by a blank line\n", name, i+1)
 				setExit(1)
 				continue
 			}
