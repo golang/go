@@ -81,7 +81,7 @@ clearpools(void)
 // The bits in the word are packed together by type first, then by
 // heap location, so each 64-bit bitmap word consists of, from top to bottom,
 // the 16 bitSpecial bits for the corresponding heap words, then the 16 bitMarked bits,
-// then the 16 bitNoScan/bitBlockBoundary bits, then the 16 bitAllocated bits.
+// then the 16 bitScan/bitBlockBoundary bits, then the 16 bitAllocated bits.
 // This layout makes it easier to iterate over the bits of a given type.
 //
 // The bitmap starts at mheap.arena_start and extends *backward* from
@@ -97,13 +97,13 @@ clearpools(void)
 //	bits = *b >> shift;
 //	/* then test bits & bitAllocated, bits & bitMarked, etc. */
 //
-#define bitAllocated		((uintptr)1<<(bitShift*0))
-#define bitNoScan		((uintptr)1<<(bitShift*1))	/* when bitAllocated is set */
+#define bitAllocated		((uintptr)1<<(bitShift*0))	/* block start; eligible for garbage collection */
+#define bitScan			((uintptr)1<<(bitShift*1))	/* when bitAllocated is set */
 #define bitMarked		((uintptr)1<<(bitShift*2))	/* when bitAllocated is set */
 #define bitSpecial		((uintptr)1<<(bitShift*3))	/* when bitAllocated is set - has finalizer or being profiled */
-#define bitBlockBoundary	((uintptr)1<<(bitShift*1))	/* when bitAllocated is NOT set */
+#define bitBlockBoundary	((uintptr)1<<(bitShift*1))	/* when bitAllocated is NOT set - mark for FlagNoGC objects */
 
-#define bitMask (bitBlockBoundary | bitAllocated | bitMarked | bitSpecial)
+#define bitMask (bitAllocated | bitScan | bitMarked | bitSpecial)
 
 // Holding worldsema grants an M the right to try to stop the world.
 // The procedure is:
@@ -534,7 +534,7 @@ flushptrbuf(Scanbuf *sbuf)
 		}
 
 		// If object has no pointers, don't need to scan further.
-		if((bits & bitNoScan) != 0)
+		if((bits & bitScan) == 0)
 			continue;
 
 		// Ask span about size class.
@@ -1187,7 +1187,7 @@ debug_scanblock(byte *b, uintptr n)
 			runtime·printf("found unmarked block %p in %p\n", obj, vp+i);
 
 		// If object has no pointers, don't need to scan further.
-		if((bits & bitNoScan) != 0)
+		if((bits & bitScan) == 0)
 			continue;
 
 		debug_scanblock(obj, size);
@@ -1676,6 +1676,28 @@ addroots(void)
 		addroot((Obj){(byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), 0});
 }
 
+static void
+addfreelists(void)
+{
+	int32 i;
+	P *p, **pp;
+	MCache *c;
+	MLink *m;
+
+	// Mark objects in the MCache of each P so we don't collect them.
+	for(pp=runtime·allp; p=*pp; pp++) {
+		c = p->mcache;
+		if(c==nil)
+			continue;
+		for(i = 0; i < NumSizeClasses; i++) {
+			for(m = c->list[i].list; m != nil; m = m->next) {
+				markonly(m);
+			}
+		}
+	}
+	// Note: the sweeper will mark objects in each span's freelist.
+}
+
 static bool
 handlespecial(byte *p, uintptr size)
 {
@@ -1722,7 +1744,7 @@ static void
 sweepspan(ParFor *desc, uint32 idx)
 {
 	int32 cl, n, npages;
-	uintptr size;
+	uintptr size, off, *bitp, shift;
 	byte *p;
 	MCache *c;
 	byte *arena_start;
@@ -1732,6 +1754,7 @@ sweepspan(ParFor *desc, uint32 idx)
 	byte compression;
 	uintptr type_data_inc;
 	MSpan *s;
+	MLink *x;
 
 	USED(&desc);
 	s = runtime·mheap.allspans[idx];
@@ -1751,6 +1774,17 @@ sweepspan(ParFor *desc, uint32 idx)
 	nfree = 0;
 	end = &head;
 	c = m->mcache;
+
+	// mark any free objects in this span so we don't collect them
+	for(x = s->freelist; x != nil; x = x->next) {
+		// This is markonly(x) but faster because we don't need
+		// atomic access and we're guaranteed to be pointing at
+		// the head of a valid object.
+		off = (uintptr*)x - (uintptr*)runtime·mheap.arena_start;
+		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+		shift = off % wordsPerBitmapWord;
+		*bitp |= bitMarked<<shift;
+	}
 	
 	type_data = (byte*)s->types.data;
 	type_data_inc = sizeof(uintptr);
@@ -1794,8 +1828,8 @@ sweepspan(ParFor *desc, uint32 idx)
 				continue;
 		}
 
-		// Mark freed; restore block boundary bit.
-		*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+		// Clear mark, scan, and special bits.
+		*bitp &= ~((bitScan|bitMarked|bitSpecial)<<shift);
 
 		if(cl == 0) {
 			// Free large span.
@@ -2213,6 +2247,7 @@ gc(struct gc_args *args)
 	work.debugmarkdone = 0;
 	work.nproc = runtime·gcprocs();
 	addroots();
+	addfreelists();
 	runtime·parforsetup(work.markfor, work.nproc, work.nroot, nil, false, markroot);
 	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap.nspan, nil, true, sweepspan);
 	if(work.nproc > 1) {
@@ -2439,18 +2474,10 @@ runfinq(void)
 	}
 }
 
-// mark the block at v of size n as allocated.
-// If noscan is true, mark it as not needing scanning.
 void
-runtime·markallocated(void *v, uintptr n, bool noscan)
+runtime·marknogc(void *v)
 {
 	uintptr *b, obits, bits, off, shift;
-
-	if(0)
-		runtime·printf("markallocated %p+%p\n", v, n);
-
-	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
-		runtime·throw("markallocated: bad pointer");
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
@@ -2458,9 +2485,34 @@ runtime·markallocated(void *v, uintptr n, bool noscan)
 
 	for(;;) {
 		obits = *b;
-		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
-		if(noscan)
-			bits |= bitNoScan<<shift;
+		if((obits>>shift & bitMask) != bitAllocated)
+			runtime·throw("bad initial state for marknogc");
+		bits = (obits & ~(bitAllocated<<shift)) | bitBlockBoundary<<shift;
+		if(runtime·gomaxprocs == 1) {
+			*b = bits;
+			break;
+		} else {
+			// more than one goroutine is potentially running: use atomic op
+			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+				break;
+		}
+	}
+}
+
+void
+runtime·markscan(void *v)
+{
+	uintptr *b, obits, bits, off, shift;
+
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+	shift = off % wordsPerBitmapWord;
+
+	for(;;) {
+		obits = *b;
+		if((obits>>shift & bitMask) != bitAllocated)
+			runtime·throw("bad initial state for markscan");
+		bits = obits | bitScan<<shift;
 		if(runtime·gomaxprocs == 1) {
 			*b = bits;
 			break;
@@ -2490,7 +2542,10 @@ runtime·markfreed(void *v, uintptr n)
 
 	for(;;) {
 		obits = *b;
-		bits = (obits & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+		// This could be a free of a gc-eligible object (bitAllocated + others) or
+		// a FlagNoGC object (bitBlockBoundary set).  In either case, we revert to
+		// a simple no-scan allocated object because it is going on a free list.
+		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
 		if(runtime·gomaxprocs == 1) {
 			*b = bits;
 			break;
@@ -2531,11 +2586,21 @@ runtime·checkfreed(void *v, uintptr n)
 void
 runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 {
-	uintptr *b, off, shift;
+	uintptr *b, off, shift, i;
 	byte *p;
 
 	if((byte*)v+size*n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markspan: bad pointer");
+
+	if(runtime·checking) {
+		// bits should be all zero at the start
+		off = (byte*)v + size - runtime·mheap.arena_start;
+		b = (uintptr*)(runtime·mheap.arena_start - off/wordsPerBitmapWord);
+		for(i = 0; i < size/PtrSize/wordsPerBitmapWord; i++) {
+			if(b[i] != 0)
+				runtime·throw("markspan: span bits not zero");
+		}
+	}
 
 	p = v;
 	if(leftover)	// mark a boundary just past end of last block too
@@ -2548,7 +2613,7 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 		off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;  // word offset
 		b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
-		*b = (*b & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+		*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
 	}
 }
 
