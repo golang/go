@@ -2390,3 +2390,28 @@ Host: golang.org
 		b.Errorf("b.N=%d but handled %d", b.N, handled)
 	}
 }
+
+func BenchmarkServerHijack(b *testing.B) {
+	b.ReportAllocs()
+	req := reqBytes(`GET / HTTP/1.1
+Host: golang.org
+`)
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			panic(err)
+		}
+		conn.Close()
+	})
+	conn := &rwTestConn{
+		Writer: ioutil.Discard,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	for i := 0; i < b.N; i++ {
+		conn.Reader = bytes.NewReader(req)
+		ln.conn = conn
+		go Serve(ln, h)
+		<-conn.closec
+	}
+}
