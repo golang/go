@@ -6,6 +6,7 @@ package os
 
 import (
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -314,6 +315,15 @@ func Remove(name string) error {
 }
 
 func rename(oldname, newname string) error {
+	dirname := oldname[:strings.LastIndex(oldname, "/")+1]
+	if strings.HasPrefix(newname, dirname) {
+		newname = newname[len(dirname):]
+	}
+
+	// If newname still contains slashes after removing the oldname
+	// prefix, the rename is cross-directory and must be rejected.
+	// This case is caught by d.Marshal below.
+
 	var d syscall.Dir
 
 	d.Null()
@@ -322,10 +332,10 @@ func rename(oldname, newname string) error {
 	buf := make([]byte, syscall.STATFIXLEN+len(d.Name))
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return &PathError{"rename", oldname, err}
+		return &LinkError{"rename", oldname, newname, err}
 	}
 	if err = syscall.Wstat(oldname, buf[:n]); err != nil {
-		return &PathError{"rename", oldname, err}
+		return &LinkError{"rename", oldname, newname, err}
 	}
 	return nil
 }
