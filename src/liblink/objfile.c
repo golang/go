@@ -167,7 +167,8 @@ linkwriteobj(Link *ctxt, Biobuf *b)
 
 			if(p->as == ctxt->arch->AGLOBL) {
 				s = p->from.sym;
-				if(s->size) print("duplicate %P\n", p);
+				if(s->seenglobl++)
+					print("duplicate %P\n", p);
 				if(data == nil)
 					data = s;
 				else
