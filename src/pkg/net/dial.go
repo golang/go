@@ -172,7 +172,6 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Conn, error) {
 	type racer struct {
 		Conn
-		Addr
 		error
 	}
 	// Sig controls the flow of dial results on lane. It passes a
@@ -184,7 +183,7 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
 		go func(ra Addr) {
 			c, err := dialSingle(net, addr, la, ra, deadline)
 			if _, ok := <-sig; ok {
-				lane <- racer{c, ra, err}
+				lane <- racer{c, err}
 			} else if err == nil {
 				// We have to return the resources
 				// that belong to the other
@@ -195,7 +194,6 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
 		}(ra.toAddr())
 	}
 	defer close(sig)
-	var failAddr Addr
 	lastErr := errTimeout
 	nracers := len(ras)
 	for nracers > 0 {
@@ -205,12 +203,11 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
 			if racer.error == nil {
 				return racer.Conn, nil
 			}
-			failAddr = racer.Addr
 			lastErr = racer.error
 			nracers--
 		}
 	}
-	return nil, &OpError{Op: "dial", Net: net, Addr: failAddr, Err: lastErr}
+	return nil, lastErr
 }
 
 // dialSingle attempts to establish and returns a single connection to
