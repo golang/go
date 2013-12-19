@@ -180,7 +180,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 // the NewReader will introduce its own buffering.
 type Reader interface {
 	io.Reader
-	ReadByte() (c byte, err error)
+	io.ByteReader
 }
 
 // Decompress state.
