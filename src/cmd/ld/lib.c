@@ -851,7 +851,8 @@ unmal(void *v, uint32 n)
  * Invalid bytes turn into %xx.	 Right now the only bytes that need
  * escaping are %, ., and ", but we escape all control characters too.
  *
- * Must be same as ../gc/subr.c:/^pathtoprefix.
+ * If you edit this, edit ../gc/subr.c:/^pathtoprefix too.
+ * If you edit this, edit ../../pkg/debug/goobj/read.go:/importPathToPrefix too.
  */
 static char*
 pathtoprefix(char *s)

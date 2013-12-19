@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 )
 
 // A SymKind describes the kind of memory represented by a symbol.
@@ -180,14 +181,54 @@ var (
 
 // An objReader is an object file reader.
 type objReader struct {
-	p      *Package
-	b      *bufio.Reader
-	f      io.ReadSeeker
-	err    error
-	offset int64
-	limit  int64
-	tmp    [256]byte
-	pkg    string
+	p         *Package
+	b         *bufio.Reader
+	f         io.ReadSeeker
+	err       error
+	offset    int64
+	limit     int64
+	tmp       [256]byte
+	pkg       string
+	pkgprefix string
+}
+
+// importPathToPrefix returns the prefix that will be used in the
+// final symbol table for the given import path.
+// We escape '%', '"', all control characters and non-ASCII bytes,
+// and any '.' after the final slash.
+//
+// See ../../../cmd/ld/lib.c:/^pathtoprefix and
+// ../../../cmd/gc/subr.c:/^pathtoprefix.
+func importPathToPrefix(s string) string {
+	// find index of last slash, if any, or else -1.
+	// used for determining whether an index is after the last slash.
+	slash := strings.LastIndex(s, "/")
+
+	// check for chars that need escaping
+	n := 0
+	for r := 0; r < len(s); r++ {
+		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
+			n++
+		}
+	}
+
+	// quick exit
+	if n == 0 {
+		return s
+	}
+
+	// escape
+	const hex = "0123456789abcdef"
+	p := make([]byte, 0, len(s)+2*n)
+	for r := 0; r < len(s); r++ {
+		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
+			p = append(p, '%', hex[c>>4], hex[c&0xF])
+		} else {
+			p = append(p, c)
+		}
+	}
+
+	return string(p)
 }
 
 // init initializes r to read package p from f.
@@ -198,6 +239,7 @@ func (r *objReader) init(f io.ReadSeeker, p *Package) {
 	r.limit, _ = f.Seek(0, 2)
 	f.Seek(r.offset, 0)
 	r.b = bufio.NewReader(f)
+	r.pkgprefix = importPathToPrefix(p.ImportPath) + "."
 }
 
 // error records that an error occurred.
@@ -296,6 +338,11 @@ func (r *objReader) readString() string {
 func (r *objReader) readSymID() SymID {
 	name, vers := r.readString(), r.readInt()
 
+	// In a symbol name in an object file, "". denotes the
+	// prefix for the package in which the object file has been found.
+	// Expand it.
+	name = strings.Replace(name, `"".`, r.pkgprefix, -1)
+
 	// An individual object file only records version 0 (extern) or 1 (static).
 	// To make static symbols unique across all files being read, we
 	// replace version 1 with the version corresponding to the current
@@ -346,6 +393,9 @@ func (r *objReader) skip(n int64) {
 // Parse parses an object file or archive from r,
 // assuming that its import path is pkgpath.
 func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
+	if pkgpath == "" {
+		pkgpath = `""`
+	}
 	p := new(Package)
 	p.ImportPath = pkgpath
 
