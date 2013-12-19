@@ -503,7 +503,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 		v = ctxt->version;
 	s = linklookup(ctxt, name, v);
 	if(s->type != 0 && s->type != SXREF) {
-		if(s->type != SBSS && s->type != SNOPTRBSS && (!dupok || !s->dupok))
+		if(s->type != SBSS && s->type != SNOPTRBSS && !dupok && !s->dupok)
 			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
 		if(s->np > 0)
 			s = linklookup(ctxt, ".dup", ndup++); // scratch
