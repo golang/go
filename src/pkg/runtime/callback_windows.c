@@ -49,7 +49,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 		runtime·cbctxts = &(cbs.ctxt[0]);
 	n = cbs.n;
 	for(i=0; i<n; i++) {
-		if(cbs.ctxt[i]->gobody == fn.data) {
+		if(cbs.ctxt[i]->gobody == fn.data && cbs.ctxt[i]->cleanstack == cleanstack) {
 			runtime·unlock(&cbs);
 			// runtime·callbackasm is just a series of CALL instructions
 			// (each is 5 bytes long), and we want callback to arrive at
@@ -63,6 +63,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 	c = runtime·mal(sizeof *c);
 	c->gobody = fn.data;
 	c->argsize = argsize;
+	c->cleanstack = cleanstack;
 	if(cleanstack && argsize!=0)
 		c->restorestack = argsize;
 	else

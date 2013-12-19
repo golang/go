@@ -106,10 +106,11 @@ func (e Errno) Timeout() bool {
 }
 
 // Converts a Go function to a function pointer conforming
-// to the stdcall calling convention.  This is useful when
+// to the stdcall or cdecl calling convention.  This is useful when
 // interoperating with Windows code requiring callbacks.
 // Implemented in ../runtime/syscall_windows.goc
 func NewCallback(fn interface{}) uintptr
+func NewCallbackCDecl(fn interface{}) uintptr
 
 // windows api calls
 
