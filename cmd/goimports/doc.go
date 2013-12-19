@@ -1,5 +1,7 @@
-This tool updates your Go import lines, adding missing ones and
-removing unreferenced ones.
+/*
+
+Command goimports updates your Go import lines,
+adding missing ones and removing unreferenced ones.
 
      $ go get code.google.com/p/go.tools/cmd/goimports
 
@@ -28,3 +30,6 @@ For GoSublime, follow the steps described here:
 For other editors, you probably know what to do.
 
 Happy hacking!
+
+*/
+package main
