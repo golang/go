@@ -5,7 +5,13 @@
 package runtime_test
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -241,4 +247,205 @@ func TestBlockingCallback(t *testing.T) {
 
 func TestCallbackInAnotherThread(t *testing.T) {
 	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
+}
+
+type cbDLLFunc int // int determines number of callback parameters
+
+func (f cbDLLFunc) stdcallName() string {
+	return fmt.Sprintf("stdcall%d", f)
+}
+
+func (f cbDLLFunc) cdeclName() string {
+	return fmt.Sprintf("cdecl%d", f)
+}
+
+func (f cbDLLFunc) buildOne(stdcall bool) string {
+	var funcname, attr string
+	if stdcall {
+		funcname = f.stdcallName()
+		attr = "__stdcall"
+	} else {
+		funcname = f.cdeclName()
+		attr = "__cdecl"
+	}
+	typename := "t" + funcname
+	p := make([]string, f)
+	for i := range p {
+		p[i] = "void*"
+	}
+	params := strings.Join(p, ",")
+	for i := range p {
+		p[i] = fmt.Sprintf("%d", i+1)
+	}
+	args := strings.Join(p, ",")
+	return fmt.Sprintf(`
+typedef void %s (*%s)(%s);
+void %s(%s f, void *n) {
+	int i;
+	for(i=0;i<(int)n;i++){
+		f(%s);
+	}
+}
+	`, attr, typename, params, funcname, typename, args)
+}
+
+func (f cbDLLFunc) build() string {
+	return f.buildOne(false) + f.buildOne(true)
+}
+
+var cbFuncs = [...]interface{}{
+	2: func(i1, i2 uintptr) uintptr {
+		if i1+i2 != 3 {
+			panic("bad input")
+		}
+		return 0
+	},
+	3: func(i1, i2, i3 uintptr) uintptr {
+		if i1+i2+i3 != 6 {
+			panic("bad input")
+		}
+		return 0
+	},
+	4: func(i1, i2, i3, i4 uintptr) uintptr {
+		if i1+i2+i3+i4 != 10 {
+			panic("bad input")
+		}
+		return 0
+	},
+	5: func(i1, i2, i3, i4, i5 uintptr) uintptr {
+		if i1+i2+i3+i4+i5 != 15 {
+			panic("bad input")
+		}
+		return 0
+	},
+	6: func(i1, i2, i3, i4, i5, i6 uintptr) uintptr {
+		if i1+i2+i3+i4+i5+i6 != 21 {
+			panic("bad input")
+		}
+		return 0
+	},
+	7: func(i1, i2, i3, i4, i5, i6, i7 uintptr) uintptr {
+		if i1+i2+i3+i4+i5+i6+i7 != 28 {
+			panic("bad input")
+		}
+		return 0
+	},
+	8: func(i1, i2, i3, i4, i5, i6, i7, i8 uintptr) uintptr {
+		if i1+i2+i3+i4+i5+i6+i7+i8 != 36 {
+			panic("bad input")
+		}
+		return 0
+	},
+	9: func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
+		if i1+i2+i3+i4+i5+i6+i7+i8+i9 != 45 {
+			panic("bad input")
+		}
+		return 0
+	},
+}
+
+type cbDLL struct {
+	name      string
+	buildArgs func(out, src string) []string
+}
+
+func (d *cbDLL) buildSrc(t *testing.T, path string) {
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+	defer f.Close()
+
+	for i := 2; i < 10; i++ {
+		fmt.Fprint(f, cbDLLFunc(i).build())
+	}
+}
+
+func (d *cbDLL) build(t *testing.T, dir string) string {
+	srcname := d.name + ".c"
+	d.buildSrc(t, filepath.Join(dir, srcname))
+	outname := d.name + ".dll"
+	args := d.buildArgs(outname, srcname)
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	return filepath.Join(dir, outname)
+}
+
+var cbDLLs = []cbDLL{
+	{
+		"test",
+		func(out, src string) []string {
+			return []string{"gcc", "-shared", "-s", "-o", out, src}
+		},
+	},
+	{
+		"testO2",
+		func(out, src string) []string {
+			return []string{"gcc", "-shared", "-s", "-o", out, "-O2", src}
+		},
+	},
+}
+
+type cbTest struct {
+	n     int     // number of callback parameters
+	param uintptr // dll function parameter
+}
+
+func (test *cbTest) run(t *testing.T, dllpath string) {
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+	cb := cbFuncs[test.n]
+	stdcall := syscall.NewCallback(cb)
+	f := cbDLLFunc(test.n)
+	test.runOne(t, dll, f.stdcallName(), stdcall)
+	cdecl := syscall.NewCallbackCDecl(cb)
+	test.runOne(t, dll, f.cdeclName(), cdecl)
+}
+
+func (test *cbTest) runOne(t *testing.T, dll *syscall.DLL, proc string, cb uintptr) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("dll call %v(..., %d) failed: %v", proc, test.param, r)
+		}
+	}()
+	dll.MustFindProc(proc).Call(cb, test.param)
+}
+
+var cbTests = []cbTest{
+	{2, 1},
+	{2, 10000},
+	{3, 3},
+	{4, 5},
+	{4, 6},
+	{5, 2},
+	{6, 7},
+	{6, 8},
+	{7, 6},
+	{8, 1},
+	{9, 8},
+	{9, 10000},
+	{3, 4},
+	{5, 3},
+	{7, 7},
+	{8, 2},
+	{9, 9},
+}
+
+func TestStdcallAndCDeclCallbacks(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "TestCDeclCallback")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	for _, dll := range cbDLLs {
+		dllPath := dll.build(t, tmp)
+		for _, test := range cbTests {
+			test.run(t, dllPath)
+		}
+	}
 }

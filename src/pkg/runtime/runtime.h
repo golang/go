@@ -243,6 +243,7 @@ struct	WinCallbackContext
 	void*	gobody;		// Go function to call
 	uintptr	argsize;	// callback arguments size (in bytes)
 	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
+	bool	cleanstack;
 };
 
 struct	G
