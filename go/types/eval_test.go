@@ -123,7 +123,7 @@ func f(a int, s string) float64 {
 
 	var tests = []string{
 		`true => true, untyped boolean`,
-		`fmt.Println => , func(a·3 ...interface{}) (n·1 int, err·2 error)`,
+		`fmt.Println => , func(a ...interface{}) (n int, err error)`,
 		`c => 3, untyped float`,
 		`T => , p.T`,
 		`a => , int`,
