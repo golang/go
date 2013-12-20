@@ -304,5 +304,5 @@ runtime·signalstack(byte *p, int32 n)
 void
 runtime·unblocksignals(void)
 {
-	runtime·sigprocmask(SIG_SETMASK, &sigset_none);
+	runtime·sigprocmask(SIG_SETMASK, sigset_none);
 }
