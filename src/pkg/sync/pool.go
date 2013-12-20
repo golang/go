@@ -14,7 +14,17 @@ package sync
 //
 // A Pool is safe for use by multiple goroutines simultaneously.
 //
-// This is an experimental package and might not be released.
+// Pool's intended use is for free lists maintained in global variables,
+// typically accessed by multiple goroutines simultaneously. Using a
+// Pool instead of a custom free list allows the runtime to reclaim
+// entries from the pool when it makes sense to do so. An
+// appropriate use of sync.Pool is to create a pool of temporary buffers
+// shared between independent clients of a global resource. On the
+// other hand, if a free list is maintained as part of an object used
+// only by a single client and freed when the client completes,
+// implementing that free list as a Pool is not appropriate.
+//
+// This is an experimental type and might not be released.
 type Pool struct {
 	next *Pool         // for use by runtime. must be first.
 	list []interface{} // offset known to runtime
