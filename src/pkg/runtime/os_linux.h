@@ -28,6 +28,7 @@ struct Sigset
 	uint32 mask[2];
 };
 void	runtime·rtsigprocmask(int32, Sigset*, Sigset*, int32);
+void	runtime·unblocksignals(void);
 #define SIG_SETMASK 2
 
 #define RLIMIT_AS 9

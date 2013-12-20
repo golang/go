@@ -113,6 +113,7 @@ runtime·crash(void)
 		return;
 #endif
 
+	runtime·unblocksignals();
 	runtime·setsig(SIGABRT, SIG_DFL, false);
 	runtime·raise(SIGABRT);
 }

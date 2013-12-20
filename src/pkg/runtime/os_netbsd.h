@@ -18,6 +18,7 @@ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
 void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+void	runtime·unblocksignals(void);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 extern void runtime·lwp_tramp(void);
 
