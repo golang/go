@@ -623,6 +623,9 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 		for k := ellipsis + n - 1; k >= ellipsis; k-- {
 			ip[k] = 0
 		}
+	} else if ellipsis >= 0 {
+		// Ellipsis must represent at least one 0 group.
+		return nil, zone
 	}
 	return ip, zone
 }

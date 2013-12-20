@@ -25,6 +25,7 @@ var parseIPTests = []struct {
 	{"fe80::1%lo0", nil},
 	{"fe80::1%911", nil},
 	{"", nil},
+	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
 }
 
 func TestParseIP(t *testing.T) {
