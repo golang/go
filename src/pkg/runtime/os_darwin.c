@@ -517,3 +517,9 @@ runtime·signalstack(byte *p, int32 n)
 		st.ss_flags = SS_DISABLE;
 	runtime·sigaltstack(&st, nil);
 }
+
+void
+runtime·unblocksignals(void)
+{
+	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+}

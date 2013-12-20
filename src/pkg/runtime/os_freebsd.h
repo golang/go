@@ -12,6 +12,7 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 struct	sigaction;
 void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtime·sigprocmask(Sigset *, Sigset *);
+void	runtime·unblocksignals(void);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
