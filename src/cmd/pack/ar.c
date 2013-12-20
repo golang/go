@@ -1553,20 +1553,6 @@ arstrdup(char *s)
 	return t;
 }
 
-
-/*
- *	Parts of libmach we're not supposed
- *	to look at but need for arread_cutprefix.
- */
-extern int _read5(Biobuf*, Prog*);
-extern int _read6(Biobuf*, Prog*);
-extern int _read8(Biobuf*, Prog*);
-int (*reader[256])(Biobuf*, Prog*) = {
-	[ObjArm] = _read5,
-	[ObjAmd64] = _read6,
-	[Obj386] = _read8,
-};
-
 #define isdelim(c) ((c) == '/' || (c) == '\\')
 
 /*
@@ -1595,94 +1581,9 @@ iswinpathstart(char *p, char *drive)
 int
 arread_cutprefix(Biobuf *b, Armember *bp)
 {
-	vlong offset, o, end;
-	int n, t;
-	int (*rd)(Biobuf*, Prog*);
-	char *w, *inprefix, d1, d2;
-	Prog p;
-	
-	offset = Boffset(b);
-	end = offset + bp->size;
-	t = objtype(b, nil);
-	if(t < 0)
-		return 0;
-	if((rd = reader[t]) == nil)
-		return 0;
-	
-	// copy header
-	w = bp->member;
-	n = Boffset(b) - offset;
-	Bseek(b, -n, 1);
-	if(Bread(b, w, n) != n)
-		return 0;
-	offset += n;
-	w += n;
-	
-	// read object file one pseudo-instruction at a time,
-	// eliding the file name instructions that refer to
-	// the prefix.
-	memset(&p, 0, sizeof p);
-	inprefix = nil;
-	while(Boffset(b) < end && rd(b, &p)) {
-		if(p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
-			// part of a file path.
-			// we'll keep continuing (skipping the copy)
-			// around the loop until either we get to a
-			// name piece that should be kept or we see
-			// the whole prefix.
+	// TODO: reimplement
+	USED(b);
+	USED(bp);
 
-			if(inprefix == nil && prefix[0] == '/' && p.id[1] == '/' && p.id[2] == '\0') {
-				// leading /
-				inprefix = prefix+1;
-			} else if(inprefix == nil && iswinpathstart(prefix, &d1) && iswinpathstart(p.id + 1, &d2) && d1 == d2 && p.id[4] == '\0') {
-				// leading c:\ ...
-				inprefix = prefix+3;
-			} else if(inprefix != nil) {
-				// handle subsequent elements
-				n = strlen(p.id+1);
-				if(strncmp(p.id+1, inprefix, n) == 0 && (isdelim(inprefix[n]) || inprefix[n] == '\0')) {
-					inprefix += n;
-					if(isdelim(inprefix[0]))
-						inprefix++;
-				}
-			}
-			
-			if(inprefix && inprefix[0] == '\0') {
-				// reached end of prefix.
-				// if we another path element follows,
-				// nudge the offset to skip over the prefix we saw.
-				// if not, leave offset alone, to emit the whole name.
-				// additional name elements will not be skipped
-				// because inprefix is now nil and we won't see another
-				// leading / in this name.
-				inprefix = nil;
-				o = Boffset(b);
-				if(o < end && rd(b, &p) && p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
-					// print("skip %lld-%lld\n", offset, o);
-					offset = o;
-				}
-			}
-		} else {
-			// didn't find the whole prefix.
-			// give up and let it emit the entire name.
-			inprefix = nil;
-		}
-
-		// copy instructions
-		if(!inprefix) {
-			n = Boffset(b) - offset;
-			Bseek(b, -n, 1);
-			if(Bread(b, w, n) != n)
-				return 0;
-			offset += n;
-			w += n;
-		}
-	}
-	bp->size = w - (char*)bp->member;
-	sprint(bp->hdr.size, "%-10lld", (vlong)bp->size);
-	strncpy(bp->hdr.fmag, ARFMAG, 2);
-	Bseek(b, end, 0);
-	if(Boffset(b)&1)
-		BGETC(b);
-	return 1;
+	return 0;
 }
