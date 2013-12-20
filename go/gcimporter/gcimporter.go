@@ -473,7 +473,12 @@ func (p *parser) parseField() (*types.Var, string) {
 	}
 	tag := ""
 	if p.tok == scanner.String {
-		tag = p.expect(scanner.String)
+		s := p.expect(scanner.String)
+		var err error
+		tag, err = strconv.Unquote(s)
+		if err != nil {
+			p.errorf("invalid struct tag %s: %s", s, err)
+		}
 	}
 	return types.NewField(token.NoPos, pkg, name, typ, anonymous), tag
 }
@@ -509,8 +514,9 @@ func (p *parser) parseStructType() types.Type {
 //
 func (p *parser) parseParameter() (par *types.Var, isVariadic bool) {
 	_, name := p.parseName(false)
-	if name == "" {
-		name = "_" // cannot access unnamed identifiers
+	// remove gc-specific parameter numbering
+	if i := strings.Index(name, "·"); i >= 0 {
+		name = name[:i]
 	}
 	if p.tok == '.' {
 		p.expectSpecial("...")
