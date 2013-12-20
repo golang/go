@@ -126,3 +126,7 @@ func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
 	n, err := write(args[0].(int), valueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }
+
+func ext۰syscall۰RawSyscall(fn *ssa.Function, args []value) value {
+	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
+}

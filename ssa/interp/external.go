@@ -333,10 +333,6 @@ func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
 	return syscall.Getpid()
 }
 
-func ext۰syscall۰RawSyscall(fn *ssa.Function, args []value) value {
-	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
-}
-
 func valueToBytes(v value) []byte {
 	in := v.([]value)
 	b := make([]byte, len(in))
