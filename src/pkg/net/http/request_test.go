@@ -68,8 +68,9 @@ type parseContentTypeTest struct {
 
 var parseContentTypeTests = []parseContentTypeTest{
 	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Non-existent keys are not placed. The value nil is illegal.
-	{true, stringMap{}},
+	// Empty content type is legal - shoult be treated as
+	// application/octet-stream (RFC 2616, section 7.2.1)
+	{false, stringMap{}},
 	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
 	{false, stringMap{"Content-Type": {"application/unknown"}}},
 }
