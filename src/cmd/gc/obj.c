@@ -161,6 +161,16 @@ linksym(Sym *s)
 }
 
 int
+duintxx(Sym *s, int off, uint64 v, int wid)
+{
+	// Update symbol data directly instead of generating a
+	// DATA instruction that liblink will have to interpret later.
+	// This reduces compilation time and memory usage.
+	off = rnd(off, wid);
+	return setuintxx(ctxt, linksym(s), off, v, wid);
+}
+
+int
 duint8(Sym *s, int off, uint8 v)
 {
 	return duintxx(s, off, v, 1);

@@ -224,27 +224,6 @@ dgostringptr(Sym *s, int off, char *str)
 }
 
 int
-duintxx(Sym *s, int off, uint64 v, int wid)
-{
-	Prog *p;
-
-	off = rnd(off, wid);
-
-	p = gins(ADATA, N, N);
-	p->from.type = D_OREG;
-	p->from.name = D_EXTERN;
-	p->from.sym = linksym(s);
-	p->from.offset = off;
-	p->reg = wid;
-	p->to.type = D_CONST;
-	p->to.name = D_NONE;
-	p->to.offset = v;
-	off += wid;
-
-	return off;
-}
-
-int
 dsymptr(Sym *s, int off, Sym *x, int xoff)
 {
 	Prog *p;
