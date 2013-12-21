@@ -690,7 +690,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 // liveness computation.  The cfg argument is an array of BasicBlock*s and the
 // vars argument is an array of Node*s.
 static Liveness*
-newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars)
+newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars, int computedead)
 {
 	Liveness *result;
 	int32 i;
@@ -719,8 +719,13 @@ newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars)
 
 	result->livepointers = arraynew(0, sizeof(Bvec*));
 	result->argslivepointers = arraynew(0, sizeof(Bvec*));
-	result->deadvalues = arraynew(0, sizeof(Bvec*));
-	result->argsdeadvalues = arraynew(0, sizeof(Bvec*));
+	if(computedead) {
+		result->deadvalues = arraynew(0, sizeof(Bvec*));
+		result->argsdeadvalues = arraynew(0, sizeof(Bvec*));
+	} else {
+		result->deadvalues = nil;
+		result->argsdeadvalues = nil;
+	}
 	return result;
 }
 
@@ -741,13 +746,15 @@ freeliveness(Liveness *lv)
 		free(*(Bvec**)arrayget(lv->argslivepointers, i));
 	arrayfree(lv->argslivepointers);
 
-	for(i = 0; i < arraylength(lv->deadvalues); i++)
-		free(*(Bvec**)arrayget(lv->deadvalues, i));
-	arrayfree(lv->deadvalues);
-
-	for(i = 0; i < arraylength(lv->argsdeadvalues); i++)
-		free(*(Bvec**)arrayget(lv->argsdeadvalues, i));
-	arrayfree(lv->argsdeadvalues);
+	if(lv->deadvalues != nil) {
+		for(i = 0; i < arraylength(lv->deadvalues); i++)
+			free(*(Bvec**)arrayget(lv->deadvalues, i));
+		arrayfree(lv->deadvalues);
+	
+		for(i = 0; i < arraylength(lv->argsdeadvalues); i++)
+			free(*(Bvec**)arrayget(lv->argsdeadvalues, i));
+		arrayfree(lv->argsdeadvalues);
+	}
 
 	for(i = 0; i < arraylength(lv->cfg); i++) {
 		free(lv->uevar[i]);
@@ -1333,10 +1340,12 @@ livenessepilogue(Liveness *lv)
 			arrayadd(lv->livepointers, &locals);
 
 			// Dead stuff second.
-			args = bvalloc(argswords() * BitsPerPointer);
-			arrayadd(lv->argsdeadvalues, &args);
-			locals = bvalloc(localswords() * BitsPerPointer);
-			arrayadd(lv->deadvalues, &locals);
+			if(lv->deadvalues != nil) {
+				args = bvalloc(argswords() * BitsPerPointer);
+				arrayadd(lv->argsdeadvalues, &args);
+				locals = bvalloc(localswords() * BitsPerPointer);
+				arrayadd(lv->deadvalues, &locals);
+			}
 		}
 
 		// walk backward, emit pcdata and populate the maps
@@ -1391,9 +1400,11 @@ livenessepilogue(Liveness *lv)
 				twobitlivepointermap(lv, liveout, lv->vars, args, locals);
 
 				// Record dead values.
-				args = *(Bvec**)arrayget(lv->argsdeadvalues, pos);
-				locals = *(Bvec**)arrayget(lv->deadvalues, pos);
-				twobitdeadvaluemap(lv, liveout, lv->vars, args, locals);
+				if(lv->deadvalues != nil) {
+					args = *(Bvec**)arrayget(lv->argsdeadvalues, pos);
+					locals = *(Bvec**)arrayget(lv->deadvalues, pos);
+					twobitdeadvaluemap(lv, liveout, lv->vars, args, locals);
+				}
 
 				pos--;
 			}
@@ -1487,7 +1498,7 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
 	cfg = newcfg(firstp);
 	if(0) printcfg(cfg);
 	vars = getvariables(fn);
-	lv = newliveness(fn, firstp, cfg, vars);
+	lv = newliveness(fn, firstp, cfg, vars, deadsym != nil);
 
 	// Run the dataflow framework.
 	livenessprologue(lv);
