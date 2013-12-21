@@ -6,7 +6,6 @@ package os
 
 import (
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -314,9 +313,24 @@ func Remove(name string) error {
 	return nil
 }
 
+// HasPrefix from the strings package.
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+}
+
+// Variant of LastIndex from the strings package.
+func lastIndex(s string, sep byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == sep {
+			return i
+		}
+	}
+	return -1
+}
+
 func rename(oldname, newname string) error {
-	dirname := oldname[:strings.LastIndex(oldname, "/")+1]
-	if strings.HasPrefix(newname, dirname) {
+	dirname := oldname[:lastIndex(oldname, '/')+1]
+	if hasPrefix(newname, dirname) {
 		newname = newname[len(dirname):]
 	}
 
