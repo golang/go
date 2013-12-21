@@ -5,18 +5,26 @@
 package importer
 
 import (
+	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"testing"
+	"time"
 
-	_ "code.google.com/p/go.tools/go/gcimporter"
+	"code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
+
+var verbose = flag.Bool("importer.v", false, "verbose mode")
 
 var tests = []string{
 	`package p`,
@@ -84,34 +92,60 @@ func TestImportSrc(t *testing.T) {
 			t.Errorf("typecheck failed: %s", err)
 			continue
 		}
-		testExportImport(t, pkg)
+		testExportImport(t, pkg, "")
 	}
 }
 
-// TODO(gri) expand to std library
-var libs = []string{
-	"../exact",
-	"../gcimporter",
-	"../importer",
-	"../types",
-	"../types/typemap",
-}
+func TestImportStdLib(t *testing.T) {
+	start := time.Now()
 
-func TestImportLib(t *testing.T) {
-	// TODO(gri) Enable once we can run these tests on builders.
-	return
+	libs, err := stdLibs()
+	if err != nil {
+		t.Fatalf("could not compute list of std libraries: %s", err)
+	}
+
+	// make sure printed go/types types and gc-imported types
+	// can be compared reasonably well
+	types.GcCompatibilityMode = true
+
+	var totSize, totGcsize, n int
 	for _, lib := range libs {
-		pkg, err := pkgFor(lib)
-		if err != nil {
+		// limit run time for short tests
+		if testing.Short() && time.Since(start) >= 750*time.Millisecond {
+			return
+		}
+
+		pkg, err := pkgForPath(lib)
+		switch err := err.(type) {
+		case nil:
+			// ok
+		case *build.NoGoError:
+			// no Go files - ignore
+			continue
+		default:
 			t.Errorf("typecheck failed: %s", err)
 			continue
 		}
-		testExportImport(t, pkg)
+
+		size, gcsize := testExportImport(t, pkg, lib)
+		if *verbose {
+			fmt.Printf("%s\t%d\t%d\t%d%%\n", lib, size, gcsize, int(float64(size)*100/float64(gcsize)))
+		}
+		totSize += size
+		totGcsize += gcsize
+		n++
 	}
+
+	if *verbose {
+		fmt.Printf("\n%d\t%d\t%d%%\n", totSize, totGcsize, int(float64(totSize)*100/float64(totGcsize)))
+	}
+
+	types.GcCompatibilityMode = false
 }
 
-func testExportImport(t *testing.T, pkg0 *types.Package) {
+func testExportImport(t *testing.T, pkg0 *types.Package, path string) (size, gcsize int) {
 	data := ExportData(pkg0)
+	size = len(data)
 
 	imports := make(map[string]*types.Package)
 	pkg1, err := ImportData(imports, data)
@@ -123,8 +157,30 @@ func testExportImport(t *testing.T, pkg0 *types.Package) {
 	s0 := pkgString(pkg0)
 	s1 := pkgString(pkg1)
 	if s1 != s0 {
-		t.Errorf("package %s: \ngot:\n%s\nwant:\n%s\n", pkg0.Name(), s1, s0)
+		t.Errorf("package %s: \nimport got:\n%s\nwant:\n%s\n", pkg0.Name(), s1, s0)
 	}
+
+	// If we have a standard library, compare also against the gcimported package.
+	if path == "" {
+		return // not std library
+	}
+
+	gcdata, err := gcExportData(path)
+	gcsize = len(gcdata)
+
+	imports = make(map[string]*types.Package)
+	pkg2, err := gcImportData(imports, gcdata, path)
+	if err != nil {
+		t.Errorf("package %s: gcimport failed: %s", pkg0.Name(), err)
+		return
+	}
+
+	s2 := pkgString(pkg2)
+	if s2 != s0 {
+		t.Errorf("package %s: \ngcimport got:\n%s\nwant:\n%s\n", pkg0.Name(), s2, s0)
+	}
+
+	return
 }
 
 func pkgForSource(src string) (*types.Package, error) {
@@ -139,11 +195,11 @@ func pkgForSource(src string) (*types.Package, error) {
 	return types.Check("import-test", fset, []*ast.File{f})
 }
 
-func pkgFor(path string) (*types.Package, error) {
+func pkgForPath(path string) (*types.Package, error) {
 	// collect filenames
 	ctxt := build.Default
-	pkginfo, err := ctxt.ImportDir(path, 0)
-	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
+	pkginfo, err := ctxt.Import(path, "", 0)
+	if err != nil {
 		return nil, err
 	}
 	filenames := append(pkginfo.GoFiles, pkginfo.CgoFiles...)
@@ -153,16 +209,19 @@ func pkgFor(path string) (*types.Package, error) {
 	files := make([]*ast.File, len(filenames))
 	for i, filename := range filenames {
 		var err error
-		files[i], err = parser.ParseFile(fset, filepath.Join(path, filename), nil, 0)
+		files[i], err = parser.ParseFile(fset, filepath.Join(pkginfo.Dir, filename), nil, 0)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// typecheck files
-	return types.Check(path, fset, files)
+	// (we only care about exports and thus can ignore function bodies)
+	conf := types.Config{IgnoreFuncBodies: true, FakeImportC: true}
+	return conf.Check(path, fset, files, nil)
 }
 
+// pkgString returns a string representation of a package's exported interface.
 func pkgString(pkg *types.Package) string {
 	var buf bytes.Buffer
 
@@ -176,16 +235,35 @@ func pkgString(pkg *types.Package) string {
 
 			switch obj := obj.(type) {
 			case *types.Const:
-				fmt.Fprintf(&buf, " = %s", obj.Val())
+				// For now only print constant values if they are not float
+				// or complex. This permits comparing go/types results with
+				// gc-generated gcimported package interfaces.
+				info := obj.Type().Underlying().(*types.Basic).Info()
+				if info&types.IsFloat == 0 && info&types.IsComplex == 0 {
+					fmt.Fprintf(&buf, " = %s", obj.Val())
+				}
 
 			case *types.TypeName:
+				// Print associated methods.
 				// Basic types (e.g., unsafe.Pointer) have *types.Basic
 				// type rather than *types.Named; so we need to check.
 				if typ, _ := obj.Type().(*types.Named); typ != nil {
 					if n := typ.NumMethods(); n > 0 {
-						buf.WriteString("\nmethods (\n")
+						// Sort methods by name so that we get the
+						// same order independent of whether the
+						// methods got imported or coming directly
+						// for the source.
+						// TODO(gri) This should probably be done
+						// in go/types.
+						list := make([]*types.Func, n)
 						for i := 0; i < n; i++ {
-							fmt.Fprintf(&buf, "\t%s\n", typ.Method(i))
+							list[i] = typ.Method(i)
+						}
+						sort.Sort(byName(list))
+
+						buf.WriteString("\nmethods (\n")
+						for _, m := range list {
+							fmt.Fprintf(&buf, "\t%s\n", m)
 						}
 						buf.WriteString(")")
 					}
@@ -196,4 +274,79 @@ func pkgString(pkg *types.Package) string {
 	}
 
 	return buf.String()
+}
+
+var stdLibRoot = filepath.Join(runtime.GOROOT(), "src", "pkg") + string(filepath.Separator)
+
+// The following std libraries are excluded from the stdLibs list.
+var excluded = map[string]bool{
+	"builtin": true, // contains type declarations with cycles
+	"unsafe":  true, // contains fake declarations
+}
+
+// stdLibs returns the list if standard library package paths.
+func stdLibs() (list []string, err error) {
+	err = filepath.Walk(stdLibRoot, func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.IsDir() {
+			if info.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			pkgPath := path[len(stdLibRoot):] // remove stdLibRoot
+			if len(pkgPath) > 0 && !excluded[pkgPath] {
+				list = append(list, pkgPath)
+			}
+		}
+		return nil
+	})
+	return
+}
+
+type byName []*types.Func
+
+func (a byName) Len() int           { return len(a) }
+func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byName) Less(i, j int) bool { return a[i].Name() < a[j].Name() }
+
+// gcExportData returns the gc-generated export data for the given path.
+// It is based on a trimmed-down version of gcimporter.Import which does
+// not do the actual import, does not handle package unsafe, and assumes
+// that path is a correct standard library package path (no canonicalization,
+// or handling of local import paths).
+func gcExportData(path string) ([]byte, error) {
+	filename, id := gcimporter.FindPkg(path, "")
+	if filename == "" {
+		return nil, fmt.Errorf("can't find import: %s", path)
+	}
+	if id != path {
+		panic("path should be canonicalized")
+	}
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	buf := bufio.NewReader(f)
+	if err = gcimporter.FindExportData(buf); err != nil {
+		return nil, err
+	}
+
+	var data []byte
+	for {
+		line, err := buf.ReadBytes('\n')
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, line...)
+		// export data ends in "$$\n"
+		if len(line) == 3 && line[0] == '$' && line[1] == '$' {
+			return data, nil
+		}
+	}
+}
+
+func gcImportData(imports map[string]*types.Package, data []byte, path string) (*types.Package, error) {
+	filename := fmt.Sprintf("<filename for %s>", path) // so we have a decent error message if necessary
+	return gcimporter.ImportData(imports, filename, path, bufio.NewReader(bytes.NewBuffer(data)))
 }

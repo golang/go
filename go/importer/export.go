@@ -23,30 +23,40 @@ const (
 
 const (
 	magic   = "\n$$ exports $$\n"
-	version = 0
+	version = "v0"
 )
 
 // Object and type tags. Must be < 0.
 const (
+	// Packages
+	packageTag = -(iota + 1)
+
 	// Objects
-	_Package = -(iota + 1)
-	_Const
-	_Type
-	_Var
-	_Func
+	constTag
+	typeTag
+	varTag
+	funcTag
 
 	// Types
-	_Basic
-	_Array
-	_Slice
-	_Struct
-	_Pointer
-	_Tuple
-	_Signature
-	_Interface
-	_Map
-	_Chan
-	_Named
+	basicTag
+	arrayTag
+	sliceTag
+	structTag
+	pointerTag
+	signatureTag
+	interfaceTag
+	mapTag
+	chanTag
+	namedTag
+
+	// Values
+	intTag
+	floatTag
+	fractionTag
+	complexTag
+	stringTag
+	falseTag
+	trueTag
 )
 
 // ExportData serializes the interface (exported package objects)
@@ -72,7 +82,7 @@ func ExportData(pkg *types.Package) []byte {
 		defer p.tracef("\n")
 	}
 
-	p.int(version)
+	p.string(version)
 
 	p.pkg(pkg)
 
@@ -117,7 +127,7 @@ func (p *exporter) pkg(pkg *types.Package) {
 	p.pkgIndex[pkg] = len(p.pkgIndex)
 
 	// otherwise, write the package tag (< 0) and package data
-	p.int(_Package)
+	p.int(packageTag)
 	p.string(pkg.Name())
 	p.string(pkg.Path())
 }
@@ -130,67 +140,98 @@ func (p *exporter) obj(obj types.Object) {
 
 	switch obj := obj.(type) {
 	case *types.Const:
-		p.int(_Const)
+		p.int(constTag)
 		p.string(obj.Name())
 		p.typ(obj.Type())
-		p.val(obj.Val())
+		p.value(obj.Val())
 	case *types.TypeName:
-		p.int(_Type)
+		p.int(typeTag)
 		// name is written by corresponding named type
 		p.typ(obj.Type().(*types.Named))
 	case *types.Var:
-		p.int(_Var)
+		p.int(varTag)
 		p.string(obj.Name())
 		p.typ(obj.Type())
 	case *types.Func:
-		p.int(_Func)
+		p.int(funcTag)
 		p.string(obj.Name())
-		p.signature(obj.Type().(*types.Signature))
+		p.typ(obj.Type())
 	default:
 		panic(fmt.Sprintf("unexpected object type %T", obj))
 	}
 }
 
-func (p *exporter) val(x exact.Value) {
+func (p *exporter) value(x exact.Value) {
 	if trace {
 		p.tracef("value { ")
 		defer p.tracef("} ")
 	}
 
-	kind := x.Kind()
-	p.int(int(kind))
-	switch kind {
+	switch kind := x.Kind(); kind {
 	case exact.Bool:
-		p.bool(exact.BoolVal(x))
+		tag := falseTag
+		if exact.BoolVal(x) {
+			tag = trueTag
+		}
+		p.int(tag)
 	case exact.String:
+		p.int(stringTag)
 		p.string(exact.StringVal(x))
 	case exact.Int:
-		p.intVal(x)
+		if i, ok := exact.Int64Val(x); ok {
+			p.int(intTag)
+			p.int64(i)
+			return
+		}
+		p.int(floatTag)
+		p.float(x)
 	case exact.Float:
-		p.floatVal(x)
+		p.int(fractionTag)
+		p.fraction(x)
 	case exact.Complex:
-		p.floatVal(exact.Real(x))
-		p.floatVal(exact.Imag(x))
+		p.int(complexTag)
+		p.fraction(exact.Real(x))
+		p.fraction(exact.Imag(x))
 	default:
 		panic(fmt.Sprintf("unexpected value kind %d", kind))
 	}
 }
 
-func (p *exporter) intVal(x exact.Value) {
+func (p *exporter) float(x exact.Value) {
 	sign := exact.Sign(x)
 	p.int(sign)
-	if sign != 0 {
-		p.bytes(exact.Bytes(x))
+	if sign == 0 {
+		return
 	}
+
+	p.ufloat(x)
 }
 
-func (p *exporter) floatVal(x exact.Value) {
-	p.intVal(exact.Num(x))
-	if exact.Sign(x) != 0 {
-		// TODO(gri): For gc-generated constants, the denominator is
-		// often a large power of two. Use a more compact representation.
-		p.bytes(exact.Bytes(exact.Denom(x)))
+func (p *exporter) fraction(x exact.Value) {
+	sign := exact.Sign(x)
+	p.int(sign)
+	if sign == 0 {
+		return
 	}
+
+	p.ufloat(exact.Num(x))
+	p.ufloat(exact.Denom(x))
+}
+
+func (p *exporter) ufloat(x exact.Value) {
+	mant := exact.Bytes(x)
+	exp8 := -1
+	for i, b := range mant {
+		if b != 0 {
+			exp8 = i
+			break
+		}
+	}
+	if exp8 < 0 {
+		panic(fmt.Sprintf("%s has no mantissa", x))
+	}
+	p.int(exp8 * 8)
+	p.bytes(mant[exp8:])
 }
 
 func (p *exporter) typ(typ types.Type) {
@@ -215,20 +256,20 @@ func (p *exporter) typ(typ types.Type) {
 		// This permits faithful reconstruction of the alias type (i.e.,
 		// keeping the name). If we decide to eliminate the distinction
 		// between the alias types, this code can go.
-		p.int(_Basic)
+		p.int(basicTag)
 		p.string(t.Name())
 
 	case *types.Array:
-		p.int(_Array)
-		p.typ(t.Elem())
+		p.int(arrayTag)
 		p.int64(t.Len())
+		p.typ(t.Elem())
 
 	case *types.Slice:
-		p.int(_Slice)
+		p.int(sliceTag)
 		p.typ(t.Elem())
 
 	case *types.Struct:
-		p.int(_Struct)
+		p.int(structTag)
 		n := t.NumFields()
 		p.int(n)
 		for i := 0; i < n; i++ {
@@ -237,35 +278,44 @@ func (p *exporter) typ(typ types.Type) {
 		}
 
 	case *types.Pointer:
-		p.int(_Pointer)
+		p.int(pointerTag)
 		p.typ(t.Elem())
 
 	case *types.Signature:
-		p.int(_Signature)
+		p.int(signatureTag)
 		p.signature(t)
 
 	case *types.Interface:
-		p.int(_Interface)
-		n := t.NumMethods()
+		p.int(interfaceTag)
+
+		// write methods
+		n := t.NumExplicitMethods()
 		p.int(n)
 		for i := 0; i < n; i++ {
-			m := t.Method(i)
+			m := t.ExplicitMethod(i)
 			p.qualifiedName(m.Pkg(), m.Name())
-			p.signature(m.Type().(*types.Signature))
+			p.typ(m.Type())
+		}
+
+		// write embedded interfaces
+		m := t.NumEmbeddeds()
+		p.int(m)
+		for i := 0; i < m; i++ {
+			p.typ(t.Embedded(i))
 		}
 
 	case *types.Map:
-		p.int(_Map)
+		p.int(mapTag)
 		p.typ(t.Key())
 		p.typ(t.Elem())
 
 	case *types.Chan:
-		p.int(_Chan)
+		p.int(chanTag)
 		p.int(int(t.Dir()))
 		p.typ(t.Elem())
 
 	case *types.Named:
-		p.int(_Named)
+		p.int(namedTag)
 
 		// write type object
 		obj := t.Obj()
@@ -281,7 +331,7 @@ func (p *exporter) typ(typ types.Type) {
 		for i := 0; i < n; i++ {
 			m := t.Method(i)
 			p.string(m.Name())
-			p.signature(m.Type().(*types.Signature))
+			p.typ(m.Type())
 		}
 
 	default:
@@ -302,7 +352,7 @@ func (p *exporter) field(f *types.Var) {
 
 func (p *exporter) qualifiedName(pkg *types.Package, name string) {
 	p.string(name)
-	// exported names don't write package
+	// exported names don't need package
 	if !exported(name) {
 		if pkg == nil {
 			panic(fmt.Sprintf("nil package for unexported qualified name %s", name))

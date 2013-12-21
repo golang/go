@@ -42,7 +42,7 @@ func ImportData(imports map[string]*types.Package, data []byte) (*types.Package,
 	}
 	p.typList = append(p.typList, types.Universe.Lookup("error").Type())
 
-	if v := p.int(); v != version {
+	if v := p.string(); v != version {
 		return nil, fmt.Errorf("unknown version: got %d; want %d", v, version)
 	}
 
@@ -85,7 +85,7 @@ func (p *importer) pkg() *types.Package {
 	}
 
 	// otherwise, i is the package tag (< 0)
-	if i != _Package {
+	if i != packageTag {
 		panic(fmt.Sprintf("unexpected package tag %d", i))
 	}
 
@@ -107,16 +107,16 @@ func (p *importer) pkg() *types.Package {
 func (p *importer) obj(pkg *types.Package) {
 	var obj types.Object
 	switch tag := p.int(); tag {
-	case _Const:
-		obj = types.NewConst(token.NoPos, pkg, p.string(), p.typ(), p.val())
-	case _Type:
+	case constTag:
+		obj = types.NewConst(token.NoPos, pkg, p.string(), p.typ(), p.value())
+	case typeTag:
 		// type object is added to scope via respective named type
 		_ = p.typ().(*types.Named)
 		return
-	case _Var:
+	case varTag:
 		obj = types.NewVar(token.NoPos, pkg, p.string(), p.typ())
-	case _Func:
-		obj = types.NewFunc(token.NoPos, pkg, p.string(), p.signature())
+	case funcTag:
+		obj = types.NewFunc(token.NoPos, pkg, p.string(), p.typ().(*types.Signature))
 	default:
 		panic(fmt.Sprintf("unexpected object tag %d", tag))
 	}
@@ -126,43 +126,64 @@ func (p *importer) obj(pkg *types.Package) {
 	}
 }
 
-func (p *importer) val() exact.Value {
+func (p *importer) value() exact.Value {
 	switch kind := exact.Kind(p.int()); kind {
-	case exact.Bool:
-		return exact.MakeBool(p.bool())
-	case exact.String:
+	case falseTag:
+		return exact.MakeBool(false)
+	case trueTag:
+		return exact.MakeBool(true)
+	case stringTag:
 		return exact.MakeString(p.string())
-	case exact.Int:
-		return p.intVal()
-	case exact.Float:
-		return p.floatVal()
-	case exact.Complex:
-		re := p.floatVal()
-		im := p.floatVal()
+	case intTag:
+		return exact.MakeInt64(p.int64())
+	case floatTag:
+		return p.float()
+	case fractionTag:
+		return p.fraction()
+	case complexTag:
+		re := p.fraction()
+		im := p.fraction()
 		return exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
 	default:
 		panic(fmt.Sprintf("unexpected value kind %d", kind))
 	}
 }
 
-func (p *importer) intVal() exact.Value {
+func (p *importer) float() exact.Value {
 	sign := p.int()
-	var bytes []byte
-	if sign != 0 {
-		bytes = p.bytes()
+	if sign == 0 {
+		return exact.MakeInt64(0)
 	}
-	x := exact.MakeFromBytes(bytes)
+
+	x := p.ufloat()
 	if sign < 0 {
 		x = exact.UnaryOp(token.SUB, x, 0)
 	}
 	return x
 }
 
-func (p *importer) floatVal() exact.Value {
-	x := p.intVal()
-	if exact.Sign(x) != 0 {
-		y := exact.MakeFromBytes(p.bytes())
-		x = exact.BinaryOp(x, token.QUO, y)
+func (p *importer) fraction() exact.Value {
+	sign := p.int()
+	if sign == 0 {
+		return exact.MakeInt64(0)
+	}
+
+	x := exact.BinaryOp(p.ufloat(), token.QUO, p.ufloat())
+	if sign < 0 {
+		x = exact.UnaryOp(token.SUB, x, 0)
+	}
+	return x
+}
+
+func (p *importer) ufloat() exact.Value {
+	exp := p.int()
+	x := exact.MakeFromBytes(p.bytes())
+	switch {
+	case exp < 0:
+		d := exact.Shift(exact.MakeInt64(1), token.SHL, uint(-exp))
+		x = exact.BinaryOp(x, token.QUO, d)
+	case exp > 0:
+		x = exact.Shift(x, token.SHL, uint(exp))
 	}
 	return x
 }
@@ -180,26 +201,27 @@ func (p *importer) typ() types.Type {
 
 	// otherwise, i is the type tag (< 0)
 	switch i {
-	case _Basic:
+	case basicTag:
 		t := types.Universe.Lookup(p.string()).(*types.TypeName).Type().(*types.Basic)
 		p.record(t)
 		return t
 
-	case _Array:
+	case arrayTag:
 		t := new(types.Array)
 		p.record(t)
 
-		*t = *types.NewArray(p.typ(), p.int64())
+		n := p.int64()
+		*t = *types.NewArray(p.typ(), n)
 		return t
 
-	case _Slice:
+	case sliceTag:
 		t := new(types.Slice)
 		p.record(t)
 
 		*t = *types.NewSlice(p.typ())
 		return t
 
-	case _Struct:
+	case structTag:
 		t := new(types.Struct)
 		p.record(t)
 
@@ -213,47 +235,52 @@ func (p *importer) typ() types.Type {
 		*t = *types.NewStruct(fields, tags)
 		return t
 
-	case _Pointer:
+	case pointerTag:
 		t := new(types.Pointer)
 		p.record(t)
 
 		*t = *types.NewPointer(p.typ())
 		return t
 
-	case _Signature:
+	case signatureTag:
 		t := new(types.Signature)
 		p.record(t)
 
 		*t = *p.signature()
 		return t
 
-	case _Interface:
+	case interfaceTag:
 		t := new(types.Interface)
 		p.record(t)
 
 		methods := make([]*types.Func, p.int())
 		for i := range methods {
 			pkg, name := p.qualifiedName()
-			methods[i] = types.NewFunc(token.NoPos, pkg, name, p.signature())
+			methods[i] = types.NewFunc(token.NoPos, pkg, name, p.typ().(*types.Signature))
 		}
-		*t = *types.NewInterface(methods, nil)
+
+		embeddeds := make([]*types.Named, p.int())
+		for i := range embeddeds {
+			embeddeds[i] = p.typ().(*types.Named)
+		}
+		*t = *types.NewInterface(methods, embeddeds)
 		return t
 
-	case _Map:
+	case mapTag:
 		t := new(types.Map)
 		p.record(t)
 
 		*t = *types.NewMap(p.typ(), p.typ())
 		return t
 
-	case _Chan:
+	case chanTag:
 		t := new(types.Chan)
 		p.record(t)
 
 		*t = *types.NewChan(types.ChanDir(p.int()), p.typ())
 		return t
 
-	case _Named:
+	case namedTag:
 		// import type object
 		name := p.string()
 		pkg := p.pkg()
@@ -277,7 +304,7 @@ func (p *importer) typ() types.Type {
 		// read associated methods
 		n := p.int()
 		for i := 0; i < n; i++ {
-			t.AddMethod(types.NewFunc(token.NoPos, pkg, p.string(), p.signature()))
+			t.AddMethod(types.NewFunc(token.NoPos, pkg, p.string(), p.typ().(*types.Signature)))
 		}
 
 		return t
