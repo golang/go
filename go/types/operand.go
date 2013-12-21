@@ -266,7 +266,7 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 				return Vb.kind == UntypedBool && isBoolean(Tu)
 			}
 		case *Interface:
-			return x.isNil() || t.NumMethods() == 0
+			return x.isNil() || t.Empty()
 		case *Pointer, *Signature, *Slice, *Map, *Chan:
 			return x.isNil()
 		}

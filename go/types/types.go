@@ -247,15 +247,15 @@ func (s *Signature) IsVariadic() bool { return s.isVariadic }
 
 // An Interface represents an interface type.
 type Interface struct {
-	methods []*Func  // explicitly declared methods
-	types   []*Named // explicitly embedded types
+	methods   []*Func  // ordered list of explicitly declared methods
+	embeddeds []*Named // ordered list of explicitly embedded types
 
 	allMethods []*Func         // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 	mset       cachedMethodSet // method set for interface, lazily initialized
 }
 
-// NewInterface returns a new interface for the given methods.
-func NewInterface(methods []*Func, types []*Named) *Interface {
+// NewInterface returns a new interface for the given methods and embedded types.
+func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	typ := new(Interface)
 
 	var mset objset
@@ -271,11 +271,11 @@ func NewInterface(methods []*Func, types []*Named) *Interface {
 	sort.Sort(byUniqueMethodName(methods))
 
 	var allMethods []*Func
-	if types == nil {
+	if embeddeds == nil {
 		allMethods = methods
 	} else {
 		allMethods = append(allMethods, methods...)
-		for _, t := range types {
+		for _, t := range embeddeds {
 			it := t.Underlying().(*Interface)
 			for _, tm := range it.allMethods {
 				// Make a copy of the method and adjust its receiver type.
@@ -286,20 +286,39 @@ func NewInterface(methods []*Func, types []*Named) *Interface {
 				allMethods = append(allMethods, &newm)
 			}
 		}
+		sort.Sort(byUniqueTypeName(embeddeds))
 		sort.Sort(byUniqueMethodName(allMethods))
 	}
 
 	typ.methods = methods
-	typ.types = types
+	typ.embeddeds = embeddeds
 	typ.allMethods = allMethods
 	return typ
 }
 
-// NumMethods returns the number of methods of interface t.
+// NumExplicitMethods returns the number of explicitly declared methods of interface t.
+func (t *Interface) NumExplicitMethods() int { return len(t.methods) }
+
+// ExplicitMethod returns the i'th explicitly declared method of interface t for 0 <= i < t.NumExplicitMethods().
+// The methods are ordered by their unique Id.
+func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
+
+// NumEmbeddeds returns the number of embedded types in interface t.
+func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
+
+// Embedded returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
+// The types are ordered by the corresponding TypeName's unique Id.
+func (t *Interface) Embedded(i int) *Named { return t.embeddeds[i] }
+
+// NumMethods returns the total number of methods of interface t.
 func (t *Interface) NumMethods() int { return len(t.allMethods) }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
+// The methods are ordered by their unique Id.
 func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
+
+// Empty returns true if t is the empty interface.
+func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
 
 // A Map represents a map type.
 type Map struct {

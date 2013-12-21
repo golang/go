@@ -9,8 +9,24 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"sort"
 )
+
+// If GcCompatibilityMode is set, printing of types is modified
+// to match the representation of some types in the gc compiler:
+//
+// - byte and rune lose their alias name and simply stand for
+//   uint8 and int32 respectively
+//
+// - embedded interfaces get flattened (the embedding info is lost,
+//   and certain recursive interface types cannot be printed anymore)
+//
+// This makes it easier to compare packages computed with the type-
+// checker vs packages imported from gc export data.
+//
+// Caution: This flag affects all uses of WriteType, globally.
+//          It is only provided for testing in conjunction with
+//          gc-generated data. It may be removed at any time.
+var GcCompatibilityMode bool
 
 // TypeString returns the string representation of typ.
 // Named types are printed package-qualified if they
@@ -32,6 +48,15 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 	case *Basic:
 		if t.kind == UnsafePointer {
 			buf.WriteString("unsafe.")
+		}
+		if GcCompatibilityMode {
+			// forget the alias names
+			switch t.kind {
+			case Byte:
+				t = Typ[Uint8]
+			case Rune:
+				t = Typ[Int32]
+			}
 		}
 		buf.WriteString(t.name)
 
@@ -84,30 +109,31 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 		//     }
 		//
 		buf.WriteString("interface{")
-		// Sort methods instead of printing them in source order.
-		// This is needed at the moment because interfaces are
-		// created by providing the list of source methods and
-		// embedded interfaces, but only have an accessor to the list
-		// of all methods (which is sorted by name). By sorting here
-		// we guarantee that the list is printed the same independent
-		// of how the Interface was created.
-		// TODO(gri) remove this extra step once we have the complete
-		// set of accessors for Interface.
-		var methods []*Func
-		methods = append(methods, t.methods...) // make a copy
-		sort.Sort(byUniqueMethodName(methods))
-		for i, m := range methods {
-			if i > 0 {
-				buf.WriteString("; ")
+		if GcCompatibilityMode {
+			// print flattened interface
+			// (useful to compare against gc-generated interfaces)
+			for i, m := range t.allMethods {
+				if i > 0 {
+					buf.WriteString("; ")
+				}
+				buf.WriteString(m.name)
+				writeSignature(buf, this, m.typ.(*Signature))
 			}
-			buf.WriteString(m.name)
-			writeSignature(buf, this, m.typ.(*Signature))
-		}
-		for i, typ := range t.types {
-			if i > 0 || len(t.methods) > 0 {
-				buf.WriteString("; ")
+		} else {
+			// print explicit interface methods and embedded types
+			for i, m := range t.methods {
+				if i > 0 {
+					buf.WriteString("; ")
+				}
+				buf.WriteString(m.name)
+				writeSignature(buf, this, m.typ.(*Signature))
 			}
-			WriteType(buf, this, typ)
+			for i, typ := range t.embeddeds {
+				if i > 0 || len(t.methods) > 0 {
+					buf.WriteString("; ")
+				}
+				WriteType(buf, this, typ)
+			}
 		}
 		buf.WriteByte('}')
 

@@ -246,7 +246,7 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	// fast path for common case
-	if T.NumMethods() == 0 {
+	if T.Empty() {
 		return
 	}
 
