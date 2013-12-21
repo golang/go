@@ -903,6 +903,8 @@ var TitleTests = []struct {
 	{"123a456", "123a456"},
 	{"double-blind", "Double-Blind"},
 	{"ÿøû", "Ÿøû"},
+	{"with_underscore", "With_underscore"},
+	{"unicode \xe2\x80\xa8 line separator", "Unicode \xe2\x80\xa8 Line Separator"},
 }
 
 func TestTitle(t *testing.T) {
