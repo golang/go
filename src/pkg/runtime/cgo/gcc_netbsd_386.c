@@ -35,14 +35,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	int err;
 
 	sigfillset(&ign);
-	sigprocmask(SIG_SETMASK, &ign, &oset);
+	pthread_sigmask(SIG_SETMASK, &ign, &oset);
 
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	ts->g->stackguard = size;
 	err = pthread_create(&p, &attr, threadentry, ts);
 
-	sigprocmask(SIG_SETMASK, &oset, nil);
+	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
 	if (err != 0) {
 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
