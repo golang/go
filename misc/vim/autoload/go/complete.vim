@@ -58,7 +58,7 @@ function! go#complete#Package(ArgLead, CmdLine, CursorPos)
   if executable('go')
     let goroot = substitute(system('go env GOROOT'), '\n', '', 'g')
     if v:shell_error
-      echomsg '\'go env GOROOT\' failed'
+      echomsg '''go env GOROOT'' failed'
     endif
   else
     let goroot = $GOROOT
