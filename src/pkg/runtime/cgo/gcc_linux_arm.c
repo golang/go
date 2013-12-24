@@ -28,9 +28,13 @@ void
 _cgo_sys_thread_start(ThreadStart *ts)
 {
 	pthread_attr_t attr;
+	sigset_t ign, oset;
 	pthread_t p;
 	size_t size;
 	int err;
+
+	sigfillset(&ign);
+	pthread_sigmask(SIG_SETMASK, &ign, &oset);
 
 	// Not sure why the memset is necessary here,
 	// but without it, we get a bogus stack size
@@ -41,6 +45,9 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_attr_getstacksize(&attr, &size);
 	ts->g->stackguard = size;
 	err = pthread_create(&p, &attr, threadentry, ts);
+
+	pthread_sigmask(SIG_SETMASK, &oset, nil);
+
 	if (err != 0) {
 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
 		abort();
