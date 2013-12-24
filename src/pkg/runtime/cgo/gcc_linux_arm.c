@@ -4,6 +4,7 @@
 
 #include <pthread.h>
 #include <string.h>
+#include <signal.h>
 #include "libcgo.h"
 
 static void *threadentry(void*);

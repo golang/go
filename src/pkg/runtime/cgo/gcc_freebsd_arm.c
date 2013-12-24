@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <machine/sysarch.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
 #include "libcgo.h"
 
