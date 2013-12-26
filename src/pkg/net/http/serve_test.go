@@ -2436,7 +2436,7 @@ Host: golang.org
 	for i := 0; i < b.N; i++ {
 		conn.Reader = bytes.NewReader(req)
 		ln.conn = conn
-		go Serve(ln, h)
+		Serve(ln, h)
 		<-conn.closec
 	}
 }
