@@ -1198,7 +1198,14 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if w.wroteHeader {
 		w.cw.flush()
 	}
-	return w.conn.hijack()
+	// Release the bufioWriter that writes to the chunk writer, it is not
+	// used after a connection has been hijacked.
+	rwc, buf, err = w.conn.hijack()
+	if err == nil {
+		putBufioWriter(w.w)
+		w.w = nil
+	}
+	return rwc, buf, err
 }
 
 func (w *response) CloseNotify() <-chan bool {
