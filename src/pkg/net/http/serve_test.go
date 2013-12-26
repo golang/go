@@ -1934,6 +1934,31 @@ func TestWriteAfterHijack(t *testing.T) {
 	}
 }
 
+func TestDoubleHijack(t *testing.T) {
+	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
+		conn, _, err := rw.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_, _, err = rw.(Hijacker).Hijack()
+		if err == nil {
+			t.Errorf("got err = nil;  want err != nil")
+		}
+		conn.Close()
+	})
+	ln := &oneConnListener{conn: conn}
+	go Serve(ln, handler)
+	<-conn.closec
+}
+
 // http://code.google.com/p/go/issues/detail?id=5955
 // Note that this does not test the "request too large"
 // exit path from the http server. This is intentional;
