@@ -798,8 +798,8 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	// We expect 0 or 1 extra goroutine, empirically.  Allow up to 5.
 	// Previously we were leaking one per numReq.
-	t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
 	if int(growth) > 5 {
+		t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
 		t.Error("too many new goroutines")
 	}
 }

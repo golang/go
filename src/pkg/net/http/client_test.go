@@ -373,24 +373,6 @@ func (j *TestJar) Cookies(u *url.URL) []*Cookie {
 	return j.perURL[u.Host]
 }
 
-func TestRedirectCookiesOnRequest(t *testing.T) {
-	defer afterTest(t)
-	var ts *httptest.Server
-	ts = httptest.NewServer(echoCookiesRedirectHandler)
-	defer ts.Close()
-	c := &Client{}
-	req, _ := NewRequest("GET", ts.URL, nil)
-	req.AddCookie(expectedCookies[0])
-	// TODO: Uncomment when an implementation of a RFC6265 cookie jar lands.
-	_ = c
-	// resp, _ := c.Do(req)
-	// matchReturnedCookies(t, expectedCookies, resp.Cookies())
-
-	req, _ = NewRequest("GET", ts.URL, nil)
-	// resp, _ = c.Do(req)
-	// matchReturnedCookies(t, expectedCookies[1:], resp.Cookies())
-}
-
 func TestRedirectCookiesJar(t *testing.T) {
 	defer afterTest(t)
 	var ts *httptest.Server
@@ -410,8 +392,8 @@ func TestRedirectCookiesJar(t *testing.T) {
 }
 
 func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
-	t.Logf("Received cookies: %v", given)
 	if len(given) != len(expected) {
+		t.Logf("Received cookies: %v", given)
 		t.Errorf("Expected %d cookies, got %d", len(expected), len(given))
 	}
 	for _, ec := range expected {

@@ -5,9 +5,13 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -51,11 +55,19 @@ var writeSetCookiesTests = []struct {
 }
 
 func TestWriteSetCookies(t *testing.T) {
+	defer log.SetOutput(os.Stderr)
+	var logbuf bytes.Buffer
+	log.SetOutput(&logbuf)
+
 	for i, tt := range writeSetCookiesTests {
 		if g, e := tt.Cookie.String(), tt.Raw; g != e {
 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, e, g)
 			continue
 		}
+	}
+
+	if got, sub := logbuf.String(), "dropping domain attribute"; !strings.Contains(got, sub) {
+		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
 	}
 }
 
@@ -244,6 +256,10 @@ func TestReadCookies(t *testing.T) {
 }
 
 func TestCookieSanitizeValue(t *testing.T) {
+	defer log.SetOutput(os.Stderr)
+	var logbuf bytes.Buffer
+	log.SetOutput(&logbuf)
+
 	tests := []struct {
 		in, want string
 	}{
@@ -257,9 +273,17 @@ func TestCookieSanitizeValue(t *testing.T) {
 			t.Errorf("sanitizeCookieValue(%q) = %q; want %q", tt.in, got, tt.want)
 		}
 	}
+
+	if got, sub := logbuf.String(), "dropping invalid bytes"; !strings.Contains(got, sub) {
+		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
+	}
 }
 
 func TestCookieSanitizePath(t *testing.T) {
+	defer log.SetOutput(os.Stderr)
+	var logbuf bytes.Buffer
+	log.SetOutput(&logbuf)
+
 	tests := []struct {
 		in, want string
 	}{
@@ -271,5 +295,9 @@ func TestCookieSanitizePath(t *testing.T) {
 		if got := sanitizeCookiePath(tt.in); got != tt.want {
 			t.Errorf("sanitizeCookiePath(%q) = %q; want %q", tt.in, got, tt.want)
 		}
+	}
+
+	if got, sub := logbuf.String(), "dropping invalid bytes"; !strings.Contains(got, sub) {
+		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
 	}
 }
