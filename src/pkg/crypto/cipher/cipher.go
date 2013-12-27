@@ -46,16 +46,6 @@ type BlockMode interface {
 
 // Utility routines
 
-func shift1(dst, src []byte) byte {
-	var b byte
-	for i := len(src) - 1; i >= 0; i-- {
-		bb := src[i] >> 7
-		dst[i] = src[i]<<1 | b
-		b = bb
-	}
-	return b
-}
-
 func dup(p []byte) []byte {
 	q := make([]byte, len(p))
 	copy(q, p)
