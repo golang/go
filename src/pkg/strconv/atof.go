@@ -353,17 +353,6 @@ out:
 	return bits, overflow
 }
 
-func (d *decimal) atof32int() float32 {
-	f := float32(0)
-	for i := 0; i < d.nd; i++ {
-		f = f*10 + float32(d.d[i]-'0')
-	}
-	if d.neg {
-		f = -f
-	}
-	return f
-}
-
 // Exact powers of 10.
 var float64pow10 = []float64{
 	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
