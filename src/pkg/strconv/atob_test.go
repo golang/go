@@ -5,6 +5,7 @@
 package strconv_test
 
 import (
+	"bytes"
 	. "strconv"
 	"testing"
 )
@@ -52,6 +53,39 @@ func TestParseBool(t *testing.T) {
 			if b != test.out {
 				t.Errorf("%s: expected %t but got %t", test.in, test.out, b)
 			}
+		}
+	}
+}
+
+var boolString = map[bool]string{
+	true:  "true",
+	false: "false",
+}
+
+func TestFormatBool(t *testing.T) {
+	for b, s := range boolString {
+		if f := FormatBool(b); f != s {
+			t.Errorf(`FormatBool(%v): expected %q but got %q`, b, s, f)
+		}
+	}
+}
+
+type appendBoolTest struct {
+	b   bool
+	in  []byte
+	out []byte
+}
+
+var appendBoolTests = []appendBoolTest{
+	{true, []byte("foo "), []byte("foo true")},
+	{false, []byte("foo "), []byte("foo false")},
+}
+
+func TestAppendBool(t *testing.T) {
+	for _, test := range appendBoolTests {
+		b := AppendBool(test.in, test.b)
+		if !bytes.Equal(b, test.out) {
+			t.Errorf("AppendBool(%q, %v): expected %q but got %q", test.in, test.b, test.out, b)
 		}
 	}
 }
