@@ -28,7 +28,7 @@
 //
 //	-n
 //		an alias for -sort address (numeric),
-//		for compatiblity with other nm commands
+//		for compatibility with other nm commands
 //	-size
 //		print symbol size in decimal between address and type
 //	-sort {address,name,none}

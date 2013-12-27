@@ -1991,7 +1991,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		// This is supposed to be something that stops execution.
 		// It's not supposed to be reached, ever, but if it is, we'd
 		// like to be able to tell how we got there.  Assemble as
-		// 0xf7fabcfd which is guranteed to raise undefined instruction
+		// 0xf7fabcfd which is guaranteed to raise undefined instruction
 		// exception.
 		o1 = 0xf7fabcfd;
 		break;

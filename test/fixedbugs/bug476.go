@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Logical operation on named boolean type returns the same type,
-// supporting an implicit convertion to an interface type.  This used
+// supporting an implicit conversion to an interface type.  This used
 // to crash gccgo.
 
 package p

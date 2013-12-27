@@ -1234,7 +1234,7 @@ assignop(Type *src, Type *dst, char **why)
 		if(implements(src, dst, &missing, &have, &ptr))
 			return OCONVIFACE;
 
-		// we'll have complained about this method anyway, supress spurious messages.
+		// we'll have complained about this method anyway, suppress spurious messages.
 		if(have && have->sym == missing->sym && (have->type->broke || missing->type->broke))
 			return OCONVIFACE;
 

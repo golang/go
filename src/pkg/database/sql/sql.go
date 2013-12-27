@@ -569,7 +569,7 @@ func (db *DB) maybeOpenNewConnections() {
 	}
 }
 
-// Runs in a seperate goroutine, opens new connections when requested.
+// Runs in a separate goroutine, opens new connections when requested.
 func (db *DB) connectionOpener() {
 	for _ = range db.openerCh {
 		db.openNewConnection()

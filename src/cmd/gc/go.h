@@ -503,7 +503,7 @@ enum
 	OKEY,	// The x:3 in t{x:3, y:4}, the 1:2 in a[1:2], the 2:20 in [3]int{2:20}, etc.
 	OPARAM,	// The on-stack copy of a parameter or return value that escapes.
 	OLEN,	// len
-	OMAKE,	// make, typechecking may convert to a more specfic OMAKEXXX.
+	OMAKE,	// make, typechecking may convert to a more specific OMAKEXXX.
 	OMAKECHAN,	// make(chan int)
 	OMAKEMAP,	// make(map[string]int)
 	OMAKESLICE,	// make([]int, 0)
@@ -525,7 +525,7 @@ enum
 	OPRINTN,	// println
 	OPAREN,	// (x)
 	OSEND,	// c <- x
-	OSLICE,	// v[1:2], typechecking may convert to a more specfic OSLICEXXX.
+	OSLICE,	// v[1:2], typechecking may convert to a more specific OSLICEXXX.
 	OSLICEARR,	// a[1:2]
 	OSLICESTR,	// s[1:2]
 	OSLICE3,	// v[1:2:3], typechecking may convert to OSLICE3ARR.

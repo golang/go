@@ -17,7 +17,7 @@
 //		Flags: "%#O": print go syntax. (automatic unless fmtmode == FDbg)
 //
 //	%J Node*	Node details
-//		Flags: "%hJ" supresses things not relevant until walk.
+//		Flags: "%hJ" suppresses things not relevant until walk.
 //
 //	%V Val*		Constant values
 //
