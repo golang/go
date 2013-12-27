@@ -886,7 +886,7 @@ func checkShouldTest() {
 	// Build tags separated by a space are OR-ed together.
 	assertNot(shouldTest("// +build arm 386", "linux", "amd64"))
 
-	// Build tags seperated by a comma are AND-ed together.
+	// Build tags separated by a comma are AND-ed together.
 	assertNot(shouldTest("// +build !windows,!plan9", "windows", "amd64"))
 	assertNot(shouldTest("// +build !windows,!plan9", "plan9", "386"))
 
