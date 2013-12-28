@@ -36,6 +36,10 @@ func TestFileInfoHeader(t *testing.T) {
 	if g, e := h.ModTime, fi.ModTime(); !g.Equal(e) {
 		t.Errorf("ModTime = %v; want %v", g, e)
 	}
+	// FileInfoHeader should error when passing nil FileInfo
+	if _, err := FileInfoHeader(nil, ""); err == nil {
+		t.Fatalf("Expected error when passing nil to FileInfoHeader")
+	}
 }
 
 func TestFileInfoHeaderDir(t *testing.T) {
