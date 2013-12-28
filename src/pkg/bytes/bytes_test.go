@@ -1162,6 +1162,24 @@ func TestBufferTruncateOutOfRange(t *testing.T) {
 	b.Truncate(20)
 }
 
+var containsTests = []struct {
+	b, subslice []byte
+	want        bool
+}{
+	{[]byte("hello"), []byte("hel"), true},
+	{[]byte("日本語"), []byte("日本"), true},
+	{[]byte("hello"), []byte("Hello, world"), false},
+	{[]byte("東京"), []byte("京東"), false},
+}
+
+func TestContains(t *testing.T) {
+	for _, tt := range containsTests {
+		if got := Contains(tt.b, tt.subslice); got != tt.want {
+			t.Errorf("Contains(%q, %q) = %v, want %v", tt.b, tt.subslice, got, tt.want)
+		}
+	}
+}
+
 var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
