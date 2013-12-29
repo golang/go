@@ -281,6 +281,8 @@ func TestSectionReader_ReadAt(t *testing.T) {
 		{data: dat, off: 3, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[5 : 5+len(dat)/2], err: nil},
 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 - 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: nil},
 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: EOF},
+		{data: dat, off: 0, n: 0, bufLen: 0, at: -1, exp: "", err: EOF},
+		{data: dat, off: 0, n: 0, bufLen: 0, at: 1, exp: "", err: EOF},
 	}
 	for i, tt := range tests {
 		r := strings.NewReader(tt.data)
@@ -317,5 +319,23 @@ func TestSectionReader_Seek(t *testing.T) {
 	n, err := sr.Read(make([]byte, 10))
 	if n != 0 || err != EOF {
 		t.Errorf("Read = %v, %v; want 0, EOF", n, err)
+	}
+}
+
+func TestSectionReader_Size(t *testing.T) {
+	tests := []struct {
+		data string
+		want int64
+	}{
+		{"a long sample data, 1234567890", 30},
+		{"", 0},
+	}
+
+	for _, tt := range tests {
+		r := strings.NewReader(tt.data)
+		sr := NewSectionReader(r, 0, int64(len(tt.data)))
+		if got := sr.Size(); got != tt.want {
+			t.Errorf("Size = %v; want %v", got, tt.want)
+		}
 	}
 }
