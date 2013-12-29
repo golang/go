@@ -62,9 +62,6 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 
 	switch v1.Kind() {
 	case Array:
-		if v1.Len() != v2.Len() {
-			return false
-		}
 		for i := 0; i < v1.Len(); i++ {
 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited, depth+1) {
 				return false
