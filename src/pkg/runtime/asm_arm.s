@@ -91,7 +91,7 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
-	MOVW	runtime·goarm(SB), R11
+	MOVB	runtime·goarm(SB), R11
 	CMP	$5, R11
 	BLE	4(PC)
 	WORD	$0xeef1ba10	// vmrs r11, fpscr
