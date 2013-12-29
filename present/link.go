@@ -45,7 +45,13 @@ func renderLink(url, text string) string {
 	if text == "" {
 		text = url
 	}
-	return fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, url, text)
+	// Open links in new window only when their url is absolute.
+	target := "_blank"
+	if url[0] == '/' {
+		target = "_self"
+	}
+
+	return fmt.Sprintf(`<a href="%s" target="%s">%s</a>`, url, target, text)
 }
 
 // parseInlineLink parses an inline link at the start of s, and returns
