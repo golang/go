@@ -1782,7 +1782,7 @@ func (v Value) Slice3(i, j, k int) Value {
 
 	case Array:
 		if v.flag&flagAddr == 0 {
-			panic("reflect.Value.Slice: slice of unaddressable array")
+			panic("reflect.Value.Slice3: slice of unaddressable array")
 		}
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
 		cap = int(tt.len)
