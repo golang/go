@@ -7,6 +7,7 @@
 #include "malloc.h"
 #include "type.h"
 #include "race.h"
+#include "typekind.h"
 #include "../../cmd/ld/textflag.h"
 
 // This file contains the implementation of Go's map type.
@@ -997,7 +998,10 @@ runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
 {
 	if(raceenabled && h != nil) {
 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess1);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapaccess1);
+		else
+			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess1);
 	}
 	if(h == nil || h->count == 0) {
 		av = t->elem->zero;
@@ -1028,7 +1032,10 @@ runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
 {
 	if(raceenabled && h != nil) {
 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess2);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapaccess2);
+		else
+			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess2);
 	}
 
 	if(h == nil || h->count == 0) {
@@ -1066,7 +1073,10 @@ reflect·mapaccess(MapType *t, Hmap *h, byte *key, byte *val)
 {
 	if(raceenabled && h != nil) {
 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
-		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapaccess);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapaccess);
+		else
+			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapaccess);
 	}
 	val = hash_lookup(t, h, &key);
 	FLUSH(&val);
@@ -1082,8 +1092,14 @@ runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
 
 	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapassign1);
-		runtime·racereadpc(av, runtime·getcallerpc(&t), runtime·mapassign1);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapassign1);
+		else
+			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapassign1);
+		if(t->elem->kind == KindArray || t->elem->kind == KindStruct)
+			runtime·racereadrangepc(av, t->elem->size, runtime·getcallerpc(&t), runtime·mapassign1);
+		else
+			runtime·racereadpc(av, runtime·getcallerpc(&t), runtime·mapassign1);
 	}
 
 	hash_insert(t, h, ak, av);
@@ -1109,7 +1125,10 @@ runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
 
 	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapdelete);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapdelete);
+		else
+			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapdelete);
 	}
 
 	hash_remove(t, h, ak);
@@ -1132,8 +1151,14 @@ reflect·mapassign(MapType *t, Hmap *h, byte *key, byte *val)
 		runtime·panicstring("assignment to entry in nil map");
 	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
-		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
-		runtime·racereadrangepc(val, t->elem->size, runtime·getcallerpc(&t), reflect·mapassign);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
+		else
+			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapassign);
+		if(t->elem->kind == KindArray || t->elem->kind == KindStruct)
+			runtime·racereadrangepc(val, t->elem->size, runtime·getcallerpc(&t), reflect·mapassign);
+		else
+			runtime·racereadpc(val, runtime·getcallerpc(&t), reflect·mapassign);
 	}
 
 	hash_insert(t, h, key, val);
@@ -1157,8 +1182,11 @@ reflect·mapdelete(MapType *t, Hmap *h, byte *key)
 	if(h == nil)
 		runtime·panicstring("delete from nil map");
 	if(raceenabled) {
-		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
-		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
+		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapdelete);
+		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapdelete);
+		else
+			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapdelete);
 	}
 	hash_remove(t, h, key);
 
