@@ -159,3 +159,64 @@ func TestRaceMapVariable3(t *testing.T) {
 	m = make(map[int]int)
 	<-ch
 }
+
+type Big struct {
+	x [17]int32
+}
+
+func TestRaceMapLookupPartKey(t *testing.T) {
+	k := &Big{}
+	m := make(map[Big]bool)
+	ch := make(chan bool, 1)
+	go func() {
+		k.x[8] = 1
+		ch <- true
+	}()
+	_ = m[*k]
+	<-ch
+}
+
+func TestRaceMapLookupPartKey2(t *testing.T) {
+	k := &Big{}
+	m := make(map[Big]bool)
+	ch := make(chan bool, 1)
+	go func() {
+		k.x[8] = 1
+		ch <- true
+	}()
+	_, _ = m[*k]
+	<-ch
+}
+func TestRaceMapDeletePartKey(t *testing.T) {
+	k := &Big{}
+	m := make(map[Big]bool)
+	ch := make(chan bool, 1)
+	go func() {
+		k.x[8] = 1
+		ch <- true
+	}()
+	delete(m, *k)
+	<-ch
+}
+func TestRaceMapInsertPartKey(t *testing.T) {
+	k := &Big{}
+	m := make(map[Big]bool)
+	ch := make(chan bool, 1)
+	go func() {
+		k.x[8] = 1
+		ch <- true
+	}()
+	m[*k] = true
+	<-ch
+}
+func TestRaceMapInsertPartVal(t *testing.T) {
+	v := &Big{}
+	m := make(map[int]Big)
+	ch := make(chan bool, 1)
+	go func() {
+		v.x[8] = 1
+		ch <- true
+	}()
+	m[1] = *v
+	<-ch
+}
