@@ -1513,7 +1513,7 @@ componentgen(Node *nr, Node *nl)
 				fatal("componentgen: not a TFIELD: %lT", t);
 			fldcount++;
 		}
-		if(fldcount == 0 || fldcount > 3)
+		if(fldcount == 0 || fldcount > 4)
 			goto no;
 
 		break;
