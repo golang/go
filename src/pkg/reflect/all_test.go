@@ -678,6 +678,7 @@ var deepEqualTests = []DeepEqualTest{
 	{1, nil, false},
 	{fn1, fn3, false},
 	{fn3, fn3, false},
+	{[][]int{[]int{1}}, [][]int{[]int{2}}, false},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},
