@@ -132,6 +132,24 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+func TestSize(t *testing.T) {
+	c := New()
+	if got := c.Size(); got != Size {
+		t.Errorf("Size = %d; want %d", got, Size)
+	}
+	c = New384()
+	if got := c.Size(); got != Size384 {
+		t.Errorf("New384.Size = %d; want %d", got, Size384)
+	}
+}
+
+func TestBlockSize(t *testing.T) {
+	c := New()
+	if got := c.BlockSize(); got != BlockSize {
+		t.Errorf("BlockSize = %d; want %d", got, BlockSize)
+	}
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 
