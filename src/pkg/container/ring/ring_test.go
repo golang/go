@@ -218,3 +218,11 @@ func TestLinkUnlink(t *testing.T) {
 		}
 	}
 }
+
+// Test that calling Move() on an empty Ring initializes it.
+func TestMoveEmptyRing(t *testing.T) {
+	var r Ring
+
+	r.Move(1)
+	verify(t, &r, 1, 0)
+}
