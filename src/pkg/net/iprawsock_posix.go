@@ -19,7 +19,7 @@ import (
 // that you do not uses these methods if it is important to receive a
 // full packet.
 //
-// The Go 1 compatibliity guidelines make it impossible for us to
+// The Go 1 compatibility guidelines make it impossible for us to
 // change the behavior of these methods; use Read or ReadMsgIP
 // instead.
 
