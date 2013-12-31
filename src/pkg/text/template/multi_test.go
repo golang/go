@@ -259,6 +259,18 @@ func TestAddParseTree(t *testing.T) {
 	}
 }
 
+// Issue 7032
+func TestAddParseTreeToUnparsedTemplate(t *testing.T) {
+	master := "{{define \"master\"}}{{end}}"
+	tmpl := New("master")
+	tree, err := parse.Parse("master", master, "", "", nil)
+	if err != nil {
+		t.Fatalf("unexpected parse err: %v", err)
+	}
+	masterTree := tree["master"]
+	tmpl.AddParseTree("master", masterTree) // used to panic
+}
+
 func TestRedefinition(t *testing.T) {
 	var tmpl *Template
 	var err error
