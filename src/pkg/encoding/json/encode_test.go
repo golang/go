@@ -25,13 +25,30 @@ type Optionals struct {
 
 	Mr map[string]interface{} `json:"mr"`
 	Mo map[string]interface{} `json:",omitempty"`
+
+	Fr float64 `json:"fr"`
+	Fo float64 `json:"fo,omitempty"`
+
+	Br bool `json:"br"`
+	Bo bool `json:"bo,omitempty"`
+
+	Ur uint `json:"ur"`
+	Uo uint `json:"uo,omitempty"`
+
+	Str struct{} `json:"str"`
+	Sto struct{} `json:"sto,omitempty"`
 }
 
 var optionalsExpected = `{
  "sr": "",
  "omitempty": 0,
  "slr": null,
- "mr": {}
+ "mr": {},
+ "fr": 0,
+ "br": false,
+ "ur": 0,
+ "str": {},
+ "sto": {}
 }`
 
 func TestOmitEmpty(t *testing.T) {
