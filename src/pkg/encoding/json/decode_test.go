@@ -1316,3 +1316,26 @@ func TestPrefilled(t *testing.T) {
 		}
 	}
 }
+
+var invalidUnmarshalTests = []struct {
+	v    interface{}
+	want string
+}{
+	{nil, "json: Unmarshal(nil)"},
+	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
+	{(*int)(nil), "json: Unmarshal(nil *int)"},
+}
+
+func TestInvalidUnmarshal(t *testing.T) {
+	buf := []byte(`{"a":"1"}`)
+	for _, tt := range invalidUnmarshalTests {
+		err := Unmarshal(buf, tt.v)
+		if err == nil {
+			t.Errorf("Unmarshal expecting error, got nil")
+			continue
+		}
+		if got := err.Error(); got != tt.want {
+			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
+		}
+	}
+}
