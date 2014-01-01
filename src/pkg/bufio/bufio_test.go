@@ -139,7 +139,7 @@ var bufreaders = []bufReader{
 const minReadBufferSize = 16
 
 var bufsizes = []int{
-	minReadBufferSize, 23, 32, 46, 64, 93, 128, 1024, 4096,
+	0, minReadBufferSize, 23, 32, 46, 64, 93, 128, 1024, 4096,
 }
 
 func TestReader(t *testing.T) {
@@ -256,6 +256,38 @@ func TestUnreadRune(t *testing.T) {
 	}
 	if got != data {
 		t.Errorf("want=%q got=%q", data, got)
+	}
+}
+
+func TestUnreadByte(t *testing.T) {
+	want := "Hello, world"
+	got := ""
+	segments := []string{"Hello, ", "world"}
+	r := NewReader(&StringReader{data: segments})
+	// Normal execution.
+	for {
+		b1, err := r.ReadByte()
+		if err != nil {
+			if err != io.EOF {
+				t.Fatal("unexpected EOF")
+			}
+			break
+		}
+		got += string(b1)
+		// Put it back and read it again
+		if err = r.UnreadByte(); err != nil {
+			t.Fatalf("unexpected error on UnreadByte: %v", err)
+		}
+		b2, err := r.ReadByte()
+		if err != nil {
+			t.Fatalf("unexpected error reading after unreading: %v", err)
+		}
+		if b1 != b2 {
+			t.Fatalf("incorrect byte after unread: got %c wanted %c", b1, b2)
+		}
+	}
+	if got != want {
+		t.Errorf("got=%q want=%q", got, want)
 	}
 }
 
@@ -515,6 +547,9 @@ func TestPeek(t *testing.T) {
 	}
 	if s, err := buf.Peek(4); string(s) != "abcd" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "abcd", string(s), err)
+	}
+	if _, err := buf.Peek(-1); err != ErrNegativeCount {
+		t.Fatalf("want ErrNegativeCount got %v", err)
 	}
 	if _, err := buf.Peek(32); err != ErrBufferFull {
 		t.Fatalf("want ErrBufFull got %v", err)
