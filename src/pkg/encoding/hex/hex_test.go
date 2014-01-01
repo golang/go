@@ -38,7 +38,10 @@ func TestEncode(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
-	for i, test := range encDecTests {
+	// Case for decoding uppercase hex characters, since
+	// Encode always uses lowercase.
+	decTests := append(encDecTests, encDecTest{"F8F9FAFBFCFDFEFF", []byte{0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff}})
+	for i, test := range decTests {
 		dst := make([]byte, DecodedLen(len(test.enc)))
 		n, err := Decode(dst, []byte(test.enc))
 		if err != nil {
