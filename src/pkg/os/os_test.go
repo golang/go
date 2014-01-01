@@ -252,9 +252,23 @@ func TestReaddirnames(t *testing.T) {
 	testReaddirnames(sysdir.name, sysdir.files, t)
 }
 
+func TestReaddirnamesNilFile(t *testing.T) {
+	var f *File
+	if fi, err := f.Readdirnames(1); fi != nil || err != ErrInvalid {
+		t.Errorf("Readdirnames should fail when f is nil: %v, %v", fi, err)
+	}
+}
+
 func TestReaddir(t *testing.T) {
 	testReaddir(".", dot, t)
 	testReaddir(sysdir.name, sysdir.files, t)
+}
+
+func TestReaddirNilFile(t *testing.T) {
+	var f *File
+	if fi, err := f.Readdir(1); fi != nil || err != ErrInvalid {
+		t.Errorf("Readdir should fail when f is nil: %v, %v", fi, err)
+	}
 }
 
 // Read the directory one entry at a time.
