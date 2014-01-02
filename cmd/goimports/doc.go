@@ -25,7 +25,7 @@ For vim, set "gofmt_command" to "goimports":
     etc
 
 For GoSublime, follow the steps described here:
-    http://mdwhatcott.wordpress.com/2013/12/15/installing-and-enabling-goimports-with-gosublime/
+    http://michaelwhatcott.com/gosublime-goimports/
 
 For other editors, you probably know what to do.
 
