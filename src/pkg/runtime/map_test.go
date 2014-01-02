@@ -428,7 +428,7 @@ func TestMapIterOrder(t *testing.T) {
 		}
 		first := ord()
 		ok := false
-		for try := 0; try < 5; try++ {
+		for try := 0; try < 100; try++ {
 			if !reflect.DeepEqual(first, ord()) {
 				ok = true
 				break
