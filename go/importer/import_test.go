@@ -7,7 +7,6 @@ package importer
 import (
 	"bufio"
 	"bytes"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -23,8 +22,6 @@ import (
 	"code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
-
-var verbose = flag.Bool("importer.v", false, "verbose mode")
 
 var tests = []string{
 	`package p`,
@@ -108,7 +105,7 @@ func TestImportStdLib(t *testing.T) {
 	// can be compared reasonably well
 	types.GcCompatibilityMode = true
 
-	var totSize, totGcsize, n int
+	var totSize, totGcsize int
 	for _, lib := range libs {
 		// limit run time for short tests
 		if testing.Short() && time.Since(start) >= 750*time.Millisecond {
@@ -128,15 +125,14 @@ func TestImportStdLib(t *testing.T) {
 		}
 
 		size, gcsize := testExportImport(t, pkg, lib)
-		if *verbose {
+		if testing.Verbose() {
 			fmt.Printf("%s\t%d\t%d\t%d%%\n", lib, size, gcsize, int(float64(size)*100/float64(gcsize)))
 		}
 		totSize += size
 		totGcsize += gcsize
-		n++
 	}
 
-	if *verbose {
+	if testing.Verbose() {
 		fmt.Printf("\n%d\t%d\t%d%%\n", totSize, totGcsize, int(float64(totSize)*100/float64(totGcsize)))
 	}
 

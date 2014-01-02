@@ -218,6 +218,8 @@ func (p *exporter) fraction(x exact.Value) {
 	p.ufloat(exact.Denom(x))
 }
 
+// ufloat writes abs(x) in form of a binary exponent
+// followed by its mantissa bytes; x must be != 0.
 func (p *exporter) ufloat(x exact.Value) {
 	mant := exact.Bytes(x)
 	exp8 := -1
@@ -288,6 +290,13 @@ func (p *exporter) typ(typ types.Type) {
 	case *types.Interface:
 		p.int(interfaceTag)
 
+		// write embedded interfaces
+		m := t.NumEmbeddeds()
+		p.int(m)
+		for i := 0; i < m; i++ {
+			p.typ(t.Embedded(i))
+		}
+
 		// write methods
 		n := t.NumExplicitMethods()
 		p.int(n)
@@ -295,13 +304,6 @@ func (p *exporter) typ(typ types.Type) {
 			m := t.ExplicitMethod(i)
 			p.qualifiedName(m.Pkg(), m.Name())
 			p.typ(m.Type())
-		}
-
-		// write embedded interfaces
-		m := t.NumEmbeddeds()
-		p.int(m)
-		for i := 0; i < m; i++ {
-			p.typ(t.Embedded(i))
 		}
 
 	case *types.Map:

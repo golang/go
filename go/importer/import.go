@@ -253,16 +253,19 @@ func (p *importer) typ() types.Type {
 		t := new(types.Interface)
 		p.record(t)
 
+		// read embedded interfaces
+		embeddeds := make([]*types.Named, p.int())
+		for i := range embeddeds {
+			embeddeds[i] = p.typ().(*types.Named)
+		}
+
+		// read methods
 		methods := make([]*types.Func, p.int())
 		for i := range methods {
 			pkg, name := p.qualifiedName()
 			methods[i] = types.NewFunc(token.NoPos, pkg, name, p.typ().(*types.Signature))
 		}
 
-		embeddeds := make([]*types.Named, p.int())
-		for i := range embeddeds {
-			embeddeds[i] = p.typ().(*types.Named)
-		}
 		*t = *types.NewInterface(methods, embeddeds)
 		return t
 
