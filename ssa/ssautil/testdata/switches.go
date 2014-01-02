@@ -282,6 +282,24 @@ func SelectDesugarsToSwitch(ch chan int) {
 	}
 }
 
+// NB, potentially fragile reliance on register number.
+func NonblockingSelectDefaultCasePanics(ch chan int) {
+	// switch t1 {
+	// case 0:int: extract t0 #2
+	// case 1:int: println(0:int)
+	// case 2:int: println(1:int)
+	// default: make interface{} <- string ("blocking select m...":string)
+	// }
+	select {
+	case x := <-ch:
+		println(x)
+	case <-ch:
+		println(0)
+	case ch <- 1:
+		println(1)
+	}
+}
+
 // -------- Type switches --------
 
 // NB, reliance on fragile register numbering.

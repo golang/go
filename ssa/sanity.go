@@ -199,7 +199,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 }
 
 func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
-	switch instr.(type) {
+	switch instr := instr.(type) {
 	case *If:
 		if nsuccs := len(s.block.Succs); nsuccs != 2 {
 			s.errorf("If-terminated block has %d successors; expected 2", nsuccs)
@@ -221,7 +221,9 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
 			s.errorf("Return-terminated block has %d successors; expected none", nsuccs)
 			return
 		}
-		// TODO(adonovan): check number and types of results
+		if na, nf := len(instr.Results), s.fn.Signature.Results().Len(); nf != na {
+			s.errorf("%d-ary return in %d-ary function", na, nf)
+		}
 
 	case *Panic:
 		if nsuccs := len(s.block.Succs); nsuccs != 0 {

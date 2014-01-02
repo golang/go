@@ -4,6 +4,8 @@
 //
 // Validate this file with 'go run' after editing.
 // TODO(adonovan): break this into small files organized by theme.
+// TODO(adonovan): move static tests (sanity checks) of ssa
+// construction into ssa/testdata.
 
 package main
 
@@ -277,6 +279,18 @@ func main() {
 	// Regression test: implicit address-taken struct literal
 	// inside literal map element.
 	_ = map[int]*struct{}{0: {}}
+}
+
+// A blocking select (sans "default:") cannot fall through.
+// Regression test for issue 7022.
+func bug7022() int {
+	var c1, c2 chan int
+	select {
+	case <-c1:
+		return 123
+	case <-c2:
+		return 456
+	}
 }
 
 // Parens should not prevent intrinsic treatment of built-ins.
