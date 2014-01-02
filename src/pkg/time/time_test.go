@@ -1461,6 +1461,60 @@ func TestSub(t *testing.T) {
 	}
 }
 
+var nsDurationTests = []struct {
+	d    Duration
+	want int64
+}{
+	{Duration(-1000), -1000},
+	{Duration(-1), -1},
+	{Duration(1), 1},
+	{Duration(1000), 1000},
+}
+
+func TestDurationNanoseconds(t *testing.T) {
+	for _, tt := range nsDurationTests {
+		if got := tt.d.Nanoseconds(); got != tt.want {
+			t.Errorf("d.Nanoseconds() = %d; want: %d", got, tt.want)
+		}
+	}
+}
+
+var minDurationTests = []struct {
+	d    Duration
+	want float64
+}{
+	{Duration(-60000000000), -1},
+	{Duration(-1), -1 / 60e9},
+	{Duration(1), 1 / 60e9},
+	{Duration(60000000000), 1},
+}
+
+func TestDurationMinutes(t *testing.T) {
+	for _, tt := range minDurationTests {
+		if got := tt.d.Minutes(); got != tt.want {
+			t.Errorf("d.Minutes() = %d; want: %d", got, tt.want)
+		}
+	}
+}
+
+var hourDurationTests = []struct {
+	d    Duration
+	want float64
+}{
+	{Duration(-3600000000000), -1},
+	{Duration(-1), -1 / 3600e9},
+	{Duration(1), 1 / 3600e9},
+	{Duration(3600000000000), 1},
+}
+
+func TestDurationHours(t *testing.T) {
+	for _, tt := range hourDurationTests {
+		if got := tt.d.Hours(); got != tt.want {
+			t.Errorf("d.Hours() = %d; want: %d", got, tt.want)
+		}
+	}
+}
+
 func BenchmarkNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		t = Now()
