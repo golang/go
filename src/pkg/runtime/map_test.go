@@ -409,3 +409,33 @@ func TestMapNanGrowIterator(t *testing.T) {
 		t.Fatalf("missing value")
 	}
 }
+
+func TestMapIterOrder(t *testing.T) {
+	// TODO: For issue 6719, add 3 and 7 to this list.
+	for _, n := range [...]int{9, 15} {
+		// Make m be {0: true, 1: true, ..., n-1: true}.
+		m := make(map[int]bool)
+		for i := 0; i < n; i++ {
+			m[i] = true
+		}
+		// Check that iterating over the map produces at least two different orderings.
+		ord := func() []int {
+			var s []int
+			for key := range m {
+				s = append(s, key)
+			}
+			return s
+		}
+		first := ord()
+		ok := false
+		for try := 0; try < 5; try++ {
+			if !reflect.DeepEqual(first, ord()) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
+		}
+	}
+}
