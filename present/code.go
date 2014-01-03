@@ -29,10 +29,11 @@ func init() {
 }
 
 type Code struct {
-	Text template.HTML
-	Play bool   // runnable code
-	Ext  string // file extension
-	Raw  []byte // content of the file
+	Text     template.HTML
+	Play     bool   // runnable code
+	FileName string // file name
+	Ext      string // file extension
+	Raw      []byte // content of the file
 }
 
 func (c Code) TemplateName() string { return "code" }
@@ -128,10 +129,11 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 		return nil, err
 	}
 	return Code{
-		Text: template.HTML(buf.String()),
-		Play: play,
-		Ext:  filepath.Ext(filename),
-		Raw:  textBytes,
+		Text:     template.HTML(buf.String()),
+		Play:     play,
+		FileName: filepath.Base(filename),
+		Ext:      filepath.Ext(filename),
+		Raw:      textBytes,
 	}, nil
 }
 
