@@ -221,14 +221,20 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 
 	case AF_UNIX:
 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
-		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
+		if pp.Len < 2 || pp.Len > SizeofSockaddrUnix {
 			return nil, EINVAL
 		}
 		sa := new(SockaddrUnix)
-		n := int(pp.Len) - 3 // subtract leading Family, Len, terminating NUL
+
+		// Some BSDs include the trailing NUL in the length, whereas
+		// others do not. Work around this by subtracting the leading
+		// family and len. The path is then scanned to see if a NUL
+		// terminator still exists within the length.
+		n := int(pp.Len) - 2 // subtract leading Family, Len
 		for i := 0; i < n; i++ {
 			if pp.Path[i] == 0 {
-				// found early NUL; assume Len is overestimating
+				// found early NUL; assume Len included the NUL
+				// or was overestimating.
 				n = i
 				break
 			}
