@@ -6,6 +6,7 @@ package present
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 )
@@ -40,18 +41,20 @@ func parseLink(ctx *Context, fileName string, lineno int, text string) (Elem, er
 	return Link{url, label}, nil
 }
 
-func renderLink(url, text string) string {
+func renderLink(href, text string) string {
 	text = font(text)
 	if text == "" {
-		text = url
+		text = href
 	}
 	// Open links in new window only when their url is absolute.
 	target := "_blank"
-	if url[0] == '/' {
+	if u, err := url.Parse(href); err != nil {
+		log.Println("rendernLink parsing url: %v", err)
+	} else if !u.IsAbs() || u.Scheme == "javascript" {
 		target = "_self"
 	}
 
-	return fmt.Sprintf(`<a href="%s" target="%s">%s</a>`, url, target, text)
+	return fmt.Sprintf(`<a href="%s" target="%s">%s</a>`, href, target, text)
 }
 
 // parseInlineLink parses an inline link at the start of s, and returns
