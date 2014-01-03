@@ -252,23 +252,9 @@ func TestReaddirnames(t *testing.T) {
 	testReaddirnames(sysdir.name, sysdir.files, t)
 }
 
-func TestReaddirnamesNilFile(t *testing.T) {
-	var f *File
-	if fi, err := f.Readdirnames(1); fi != nil || err != ErrInvalid {
-		t.Errorf("Readdirnames should fail when f is nil: %v, %v", fi, err)
-	}
-}
-
 func TestReaddir(t *testing.T) {
 	testReaddir(".", dot, t)
 	testReaddir(sysdir.name, sysdir.files, t)
-}
-
-func TestReaddirNilFile(t *testing.T) {
-	var f *File
-	if fi, err := f.Readdir(1); fi != nil || err != ErrInvalid {
-		t.Errorf("Readdir should fail when f is nil: %v, %v", fi, err)
-	}
 }
 
 // Read the directory one entry at a time.
@@ -1304,4 +1290,36 @@ func TestKillFindProcess(t *testing.T) {
 			t.Fatalf("Failed to kill test process: %v", err)
 		}
 	})
+}
+
+var nilFileMethodTests = []struct {
+	name string
+	f    func(*File) error
+}{
+	{"Chdir", func(f *File) error { return f.Chdir() }},
+	{"Close", func(f *File) error { return f.Close() }},
+	{"Chmod", func(f *File) error { return f.Chmod(0) }},
+	{"Chown", func(f *File) error { return f.Chown(0, 0) }},
+	{"Read", func(f *File) error { _, err := f.Read(make([]byte, 0)); return err }},
+	{"ReadAt", func(f *File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
+	{"Readdir", func(f *File) error { _, err := f.Readdir(1); return err }},
+	{"Readdirnames", func(f *File) error { _, err := f.Readdirnames(1); return err }},
+	{"Seek", func(f *File) error { _, err := f.Seek(0, 0); return err }},
+	{"Stat", func(f *File) error { _, err := f.Stat(); return err }},
+	{"Sync", func(f *File) error { return f.Sync() }},
+	{"Truncate", func(f *File) error { return f.Truncate(0) }},
+	{"Write", func(f *File) error { _, err := f.Write(make([]byte, 0)); return err }},
+	{"WriteAt", func(f *File) error { _, err := f.WriteAt(make([]byte, 0), 0); return err }},
+	{"WriteString", func(f *File) error { _, err := f.WriteString(""); return err }},
+}
+
+// Test that all File methods give ErrInvalid if the receiver is nil.
+func TestNilFileMethods(t *testing.T) {
+	for _, tt := range nilFileMethodTests {
+		var file *File
+		got := tt.f(file)
+		if got != ErrInvalid {
+			t.Errorf("%v should fail when f is nil; got %v", tt.name, got)
+		}
+	}
 }
