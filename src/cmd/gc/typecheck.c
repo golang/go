@@ -2680,6 +2680,11 @@ checkassign(Node *n)
 		n->etype = 1;
 		return;
 	}
+
+	// have already complained about n being undefined
+	if(n->op == ONONAME)
+		return;
+
 	yyerror("cannot assign to %N", n);
 }
 
