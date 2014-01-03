@@ -336,6 +336,10 @@ func (p *importer) field() *types.Var {
 		case *types.Named:
 			obj := typ.Obj()
 			name = obj.Name()
+			// correct the field package for anonymous fields
+			if exported(name) {
+				pkg = p.pkgList[0]
+			}
 		default:
 			panic("anonymous field expected")
 		}

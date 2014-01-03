@@ -350,6 +350,8 @@ func (p *exporter) field(f *types.Var) {
 		name = f.Name()
 	}
 
+	// qualifiedName will always emit the field package for
+	// anonymous fields because "" is not an exported name.
 	p.qualifiedName(f.Pkg(), name)
 	p.typ(f.Type())
 }
