@@ -105,7 +105,7 @@ func TestImportStdLib(t *testing.T) {
 	// can be compared reasonably well
 	types.GcCompatibilityMode = true
 
-	var totSize, totGcsize int
+	var totSize, totGcSize int
 	for _, lib := range libs {
 		// limit run time for short tests
 		if testing.Short() && time.Since(start) >= 750*time.Millisecond {
@@ -129,11 +129,11 @@ func TestImportStdLib(t *testing.T) {
 			fmt.Printf("%s\t%d\t%d\t%d%%\n", lib, size, gcsize, int(float64(size)*100/float64(gcsize)))
 		}
 		totSize += size
-		totGcsize += gcsize
+		totGcSize += gcsize
 	}
 
 	if testing.Verbose() {
-		fmt.Printf("\n%d\t%d\t%d%%\n", totSize, totGcsize, int(float64(totSize)*100/float64(totGcsize)))
+		fmt.Printf("\n%d\t%d\t%d%%\n", totSize, totGcSize, int(float64(totSize)*100/float64(totGcSize)))
 	}
 
 	types.GcCompatibilityMode = false

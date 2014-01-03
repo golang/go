@@ -31,8 +31,6 @@ func ImportData(imports map[string]*types.Package, data []byte) (*types.Package,
 	p := importer{
 		data:     data[len(magic):],
 		imports:  imports,
-		pkgList:  []*types.Package{nil},
-		typList:  []types.Type{nil},
 		consumed: len(magic), // for debugging only
 	}
 
@@ -47,8 +45,8 @@ func ImportData(imports map[string]*types.Package, data []byte) (*types.Package,
 	}
 
 	pkg := p.pkg()
-	if debug && p.pkgList[1] != pkg {
-		panic("imported packaged not found in pkgList[1]")
+	if debug && p.pkgList[0] != pkg {
+		panic("imported packaged not found in pkgList[0]")
 	}
 
 	// read objects
@@ -337,7 +335,6 @@ func (p *importer) field() *types.Var {
 			name = typ.Name()
 		case *types.Named:
 			obj := typ.Obj()
-			pkg = obj.Pkg() // TODO(gri) is this still correct?
 			name = obj.Name()
 		default:
 			panic("anonymous field expected")
@@ -350,22 +347,19 @@ func (p *importer) field() *types.Var {
 
 func (p *importer) qualifiedName() (*types.Package, string) {
 	name := p.string()
-	pkg := p.pkgList[1] // exported names assume current package
+	pkg := p.pkgList[0] // exported names assume current package
 	if !exported(name) {
 		pkg = p.pkg()
-		if pkg == nil {
-			panic(fmt.Sprintf("nil package for unexported qualified name %q", name))
-		}
 	}
 	return pkg, name
 }
 
 func (p *importer) signature() *types.Signature {
 	var recv *types.Var
-	if p.bool() {
+	if p.int() != 0 {
 		recv = p.param()
 	}
-	return types.NewSignature(nil, recv, p.tuple(), p.tuple(), p.bool())
+	return types.NewSignature(nil, recv, p.tuple(), p.tuple(), p.int() != 0)
 }
 
 func (p *importer) param() *types.Var {
@@ -382,10 +376,6 @@ func (p *importer) tuple() *types.Tuple {
 
 // ----------------------------------------------------------------------------
 // decoders
-
-func (p *importer) bool() bool {
-	return p.int64() != 0
-}
 
 func (p *importer) string() string {
 	return string(p.bytes())

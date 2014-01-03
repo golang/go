@@ -64,11 +64,9 @@ const (
 // format is described elsewhere (TODO).
 func ExportData(pkg *types.Package) []byte {
 	p := exporter{
-		data: []byte(magic),
-		// TODO(gri) If we can't have nil packages
-		// or types, remove nil entries at index 0.
-		pkgIndex: map[*types.Package]int{nil: 0},
-		typIndex: map[types.Type]int{nil: 0},
+		data:     []byte(magic),
+		pkgIndex: make(map[*types.Package]int),
+		typIndex: make(map[types.Type]int),
 	}
 
 	// populate typIndex with predeclared types
@@ -117,6 +115,10 @@ func (p *exporter) pkg(pkg *types.Package) {
 	if trace {
 		p.tracef("package { ")
 		defer p.tracef("} ")
+	}
+
+	if pkg == nil {
+		panic("unexpected nil pkg")
 	}
 
 	// if the package was seen before, write its index (>= 0)
@@ -368,15 +370,23 @@ func (p *exporter) signature(sig *types.Signature) {
 	//           for interface methods if we flatten them
 	//           out. If we track embedded types instead,
 	//           the information is already present.
+	// We do need the receiver information (T vs *T)
+	// for methods associated with named types.
 	if recv := sig.Recv(); recv != nil {
-		p.bool(true)
+		// 1-element tuple
+		p.int(1)
 		p.param(recv)
 	} else {
-		p.bool(false)
+		// 0-element tuple
+		p.int(0)
 	}
 	p.tuple(sig.Params())
 	p.tuple(sig.Results())
-	p.bool(sig.IsVariadic())
+	if sig.IsVariadic() {
+		p.int(1)
+	} else {
+		p.int(0)
+	}
 }
 
 func (p *exporter) param(v *types.Var) {
@@ -395,17 +405,8 @@ func (p *exporter) tuple(t *types.Tuple) {
 // ----------------------------------------------------------------------------
 // encoders
 
-func (p *exporter) bool(b bool) {
-	var x int64
-	if b {
-		x = 1
-	}
-	p.int64(x)
-}
-
 func (p *exporter) string(s string) {
-	// TODO(gri) consider inlining this to avoid an extra allocation
-	p.bytes([]byte(s))
+	p.bytes([]byte(s)) // (could be inlined if extra allocation matters)
 }
 
 func (p *exporter) int(x int) {
