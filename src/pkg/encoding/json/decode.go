@@ -561,6 +561,7 @@ func (d *decodeState) object(v reflect.Value) {
 		if destring {
 			d.value(reflect.ValueOf(&d.tempstr))
 			d.literalStore([]byte(d.tempstr), subv, true)
+			d.tempstr = "" // Zero scratch space for successive values.
 		} else {
 			d.value(subv)
 		}
