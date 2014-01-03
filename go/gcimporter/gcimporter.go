@@ -463,9 +463,7 @@ func (p *parser) parseField() (*types.Var, string) {
 			pkg = nil
 			name = typ.Name()
 		case *types.Named:
-			obj := typ.Obj()
-			pkg = obj.Pkg() // TODO(gri) is this still correct?
-			name = obj.Name()
+			name = typ.Obj().Name()
 		default:
 			p.errorf("anonymous field expected")
 		}
