@@ -9,6 +9,8 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "race.h"
+#include "type.h"
+#include "typekind.h"
 #include "../../cmd/ld/textflag.h"
 
 void runtime∕race·Initialize(uintptr *racectx);
@@ -278,6 +280,30 @@ void
 runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
 	rangeaccess(addr, sz, (uintptr)callpc, (uintptr)pc, false);
+}
+
+void
+runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
+{
+	uint8 kind;
+
+	kind = t->kind & ~KindNoPointers;
+	if(kind == KindArray || kind == KindStruct)
+		rangeaccess(addr, t->size, (uintptr)callpc, (uintptr)pc, true);
+	else
+		memoryaccess(addr, (uintptr)callpc, (uintptr)pc, true);
+}
+
+void
+runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
+{
+	uint8 kind;
+
+	kind = t->kind & ~KindNoPointers;
+	if(kind == KindArray || kind == KindStruct)
+		rangeaccess(addr, t->size, (uintptr)callpc, (uintptr)pc, false);
+	else
+		memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
 }
 
 void
