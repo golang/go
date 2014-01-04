@@ -24,6 +24,8 @@ void	runtime·racewritepc(void *addr, void *callpc, void *pc);
 void	runtime·racereadpc(void *addr, void *callpc, void *pc);
 void	runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc);
 void	runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc);
+void	runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc);
+void	runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc);
 void	runtime·racefingo(void);
 void	runtime·raceacquire(void *addr);
 void	runtime·raceacquireg(G *gp, void *addr);
