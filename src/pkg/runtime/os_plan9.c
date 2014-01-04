@@ -102,8 +102,18 @@ runtime·crash(void)
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
-	*rnd = nil;
-	*rnd_len = 0;
+	static byte random_data[HashRandomBytes];
+	int32 fd;
+
+	fd = runtime·open("/dev/random", 0 /* O_RDONLY */, 0);
+	if(runtime·read(fd, random_data, HashRandomBytes) == HashRandomBytes) {
+		*rnd = random_data;
+		*rnd_len = HashRandomBytes;
+	} else {
+		*rnd = nil;
+		*rnd_len = 0;
+	}
+	runtime·close(fd);
 }
 
 void
