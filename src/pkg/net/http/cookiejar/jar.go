@@ -34,9 +34,9 @@ import (
 type PublicSuffixList interface {
 	// PublicSuffix returns the public suffix of domain.
 	//
-	// TODO: specify which of the caller and callee is responsible for IP
-	// addresses, for leading and trailing dots, for case sensitivity, and
-	// for IDN/Punycode.
+	// Domain is a lowercase punycoded domain name (not an IP address)
+	// without leading or trailing dots. The returned value is in the
+	// same form.
 	PublicSuffix(domain string) string
 
 	// String returns a description of the source of this public suffix
