@@ -1,0 +1,51 @@
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+{{$query_url := urlquery .Query}}
+{{with .Hit}}
+	{{with .Decls}}
+		<h2 id="Global">Package-level declarations</h2>
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<h3 id="Global_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
+			{{range .Files}}
+				{{$file := .File.Path}}
+				{{range .Groups}}
+					{{range .}}
+						{{$line := infoLine .}}
+						<a href="{{queryLink $file $query_url $line | html}}">{{$file}}:{{$line}}</a>
+						{{infoSnippet_html .}}
+					{{end}}
+				{{end}}
+			{{end}}
+		{{end}}
+	{{end}}
+	{{with .Others}}
+		<h2 id="Local">Local declarations and uses</h2>
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<h3 id="Local_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
+			{{range .Files}}
+				{{$file := .File.Path}}
+				<a href="{{queryLink $file $query_url 0 | html}}">{{$file}}</a>
+				<table class="layout">
+				{{range .Groups}}
+					<tr>
+					<td width="25"></td>
+					<th align="left" valign="top">{{index . 0 | infoKind_html}}</th>
+					<td align="left" width="4"></td>
+					<td>
+					{{range .}}
+						{{$line := infoLine .}}
+						<a href="{{queryLink $file $query_url $line | html}}">{{$line}}</a>
+					{{end}}
+					</td>
+					</tr>
+				{{end}}
+				</table>
+			{{end}}
+		{{end}}
+	{{end}}
+{{end}}

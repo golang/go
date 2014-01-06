@@ -1,0 +1,42 @@
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+{{$query_url := urlquery .Query}}
+{{with .Textual}}
+	{{if $.Complete}}
+		<h2 id="Textual">{{html $.Found}} textual occurrences</h2>
+	{{else}}
+		<h2 id="Textual">More than {{html $.Found}} textual occurrences</h2>
+		<p>
+		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $.Query}}" are shown.</span>
+		</p>
+	{{end}}
+	<p>
+	<table class="layout">
+	{{range .}}
+		{{$file := .Filename}}
+		<tr>
+		<td align="left" valign="top">
+		<a href="{{queryLink $file $query_url 0}}">{{$file}}</a>:
+		</td>
+		<td align="left" width="4"></td>
+		<th align="left" valign="top">{{len .Lines}}</th>
+		<td align="left" width="4"></td>
+		<td align="left">
+		{{range .Lines}}
+			<a href="{{queryLink $file $query_url .}}">{{html .}}</a>
+		{{end}}
+		{{if not $.Complete}}
+			...
+		{{end}}
+		</td>
+		</tr>
+	{{end}}
+	{{if not $.Complete}}
+		<tr><td align="left">...</td></tr>
+	{{end}}
+	</table>
+	</p>
+{{end}}

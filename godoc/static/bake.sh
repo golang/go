@@ -21,6 +21,9 @@ STATIC="
 	playground.js
 	search.html
 	search.txt
+	searchcode.html
+	searchdoc.html
+	searchtxt.html
 	style.css
 "
 

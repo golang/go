@@ -5,6 +5,7 @@
 package godoc
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -75,6 +76,26 @@ func (c *Corpus) Lookup(query string) SearchResult {
 	return *result
 }
 
+// SearchResultDoc optionally specifies a function returning an HTML body
+// displaying search results matching godoc documentation.
+func (p *Presentation) SearchResultDoc(result SearchResult) []byte {
+	return applyTemplate(p.SearchDocHTML, "searchDocHTML", result)
+}
+
+// SearchResultCode optionally specifies a function returning an HTML body
+// displaying search results matching source code.
+func (p *Presentation) SearchResultCode(result SearchResult) []byte {
+	return applyTemplate(p.SearchCodeHTML, "searchCodeHTML", result)
+}
+
+// SearchResultTxt optionally specifies a function returning an HTML body
+// displaying search results of textual matches.
+func (p *Presentation) SearchResultTxt(result SearchResult) []byte {
+	return applyTemplate(p.SearchTxtHTML, "searchTxtHTML", result)
+}
+
+// HandleSearch obtains results for the requested search and returns a page
+// to display them.
 func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.FormValue("q"))
 	result := p.Corpus.Lookup(query)
@@ -83,28 +104,29 @@ func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		p.ServeText(w, applyTemplate(p.SearchText, "searchText", result))
 		return
 	}
-
-	haveResults := result.Hit != nil || len(result.Textual) > 0
-	if !haveResults {
-		for _, ir := range result.Idents {
-			if ir != nil {
-				haveResults = true
-				break
-			}
-		}
+	contents := bytes.Buffer{}
+	for _, f := range p.SearchResults {
+		contents.Write(f(p, result))
 	}
+
 	var title string
-	if haveResults {
+	if haveResults := contents.Len() > 0; haveResults {
 		title = fmt.Sprintf(`Results for query %q`, query)
+		if !p.Corpus.IndexEnabled {
+			result.Alert = ""
+		}
 	} else {
 		title = fmt.Sprintf(`No results found for query %q`, query)
 	}
+
+	body := bytes.NewBuffer(applyTemplate(p.SearchHTML, "searchHTML", result))
+	body.Write(contents.Bytes())
 
 	p.ServePage(w, Page{
 		Title:    title,
 		Tabtitle: query,
 		Query:    query,
-		Body:     applyTemplate(p.SearchHTML, "searchHTML", result),
+		Body:     body.Bytes(),
 	})
 }
 

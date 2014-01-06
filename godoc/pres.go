@@ -13,6 +13,9 @@ import (
 	"code.google.com/p/go.tools/godoc/vfs/httpfs"
 )
 
+// SearchResultFunc functions return an HTML body for displaying search results.
+type SearchResultFunc func(p *Presentation, result SearchResult) []byte
+
 // Presentation generates output from a corpus.
 type Presentation struct {
 	Corpus *Corpus
@@ -29,6 +32,9 @@ type Presentation struct {
 	PackageHTML,
 	PackageText,
 	SearchHTML,
+	SearchDocHTML,
+	SearchCodeHTML,
+	SearchTxtHTML,
 	SearchText,
 	SearchDescXML *template.Template
 
@@ -76,12 +82,18 @@ type Presentation struct {
 	// the query string highlighted.
 	URLForSrcQuery func(src, query string, line int) string
 
+	// SearchResults optionally specifies a list of functions returning an HTML
+	// body for displaying search results.
+	SearchResults []SearchResultFunc
+
 	initFuncMapOnce sync.Once
 	funcMap         template.FuncMap
 	templateFuncs   template.FuncMap
 }
 
 // NewPresentation returns a new Presentation from a corpus.
+// It sets SearchResults to:
+// [SearchResultDoc SearchResultCode SearchResultTxt].
 func NewPresentation(c *Corpus) *Presentation {
 	if c == nil {
 		panic("nil Corpus")
@@ -94,6 +106,11 @@ func NewPresentation(c *Corpus) *Presentation {
 		TabWidth:     4,
 		ShowExamples: true,
 		DeclLinks:    true,
+		SearchResults: []SearchResultFunc{
+			(*Presentation).SearchResultDoc,
+			(*Presentation).SearchResultCode,
+			(*Presentation).SearchResultTxt,
+		},
 	}
 	p.cmdHandler = handlerServer{p, c, "/cmd/", "/src/cmd"}
 	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src/pkg"}
