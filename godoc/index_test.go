@@ -229,6 +229,13 @@ func checkIdents(t *testing.T, c *Corpus, ix *Index) {
 	want := map[SpotKind]map[string][]Ident{}
 	if c.IndexDocs {
 		want = map[SpotKind]map[string][]Ident{
+			PackageClause: map[string][]Ident{
+				"bar": []Ident{
+					{"/src/pkg/bar", "bar", "bar", "Package bar is another example to test races."},
+					{"/src/pkg/other/bar", "bar", "bar", "Package bar is another bar package."},
+				},
+				"foo": []Ident{{"/src/pkg/foo", "foo", "foo", "Package foo is an example."}},
+			},
 			ConstDecl: map[string][]Ident{
 				"Pi": []Ident{{"/src/pkg/foo", "foo", "Pi", ""}},
 			},
