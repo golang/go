@@ -126,3 +126,8 @@ func TestRuntimeGogoBytes(t *testing.T) {
 
 	t.Fatalf("go tool nm did not report size for runtime.gogo")
 }
+
+// golang.org/issue/7063
+func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
+	SetCPUProfileRate(0)
+}
