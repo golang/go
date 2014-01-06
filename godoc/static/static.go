@@ -1447,6 +1447,19 @@ function PlaygroundOutput(el) {
 	license that can be found in the LICENSE file.
 -->
 {{$query_url := urlquery .Query}}
+{{if not .Idents}}
+	{{with .Pak}}
+		<h2 id="Packages">Package {{html $.Query}}</h2>
+		<p>
+		<table class="layout">
+		{{range .}}
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<tr><td><a href="/{{$pkg_html}}">{{$pkg_html}}</a></td></tr>
+		{{end}}
+		</table>
+		</p>
+	{{end}}
+{{end}}
 {{with .Hit}}
 	{{with .Decls}}
 		<h2 id="Global">Package-level declarations</h2>
@@ -1498,28 +1511,21 @@ function PlaygroundOutput(el) {
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
-{{with .Pak}}
-	<h2 id="Packages">Package {{html $.Query}}</h2>
-	<p>
-	<table class="layout">
-	{{range .}}
-		{{$pkg_html := pkgLink .Pak.Path | html}}
-		<tr><td><a href="/{{$pkg_html}}">{{$pkg_html}}</a></td></tr>
-	{{end}}
-	</table>
-	</p>
-{{end}}
 {{range $key, $val := .Idents}}
         {{if $val}}
                 <h2 id="Global">{{$key.Name}}</h2>
                 {{range $val}}
 	                {{$pkg_html := pkgLink .Path | html}}
-		        {{$doc_html := docLink .Path .Name| html}}
-  	                <a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
+			{{if eq "Packages" $key.Name}}
+  	                	<a href="/{{$pkg_html}}">{{html .Path}}</a>
+			{{else}}
+		        	{{$doc_html := docLink .Path .Name| html}}
+  	                	<a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
+                        {{end}}
                         {{if .Doc}}
-                                <p>{{comment_html .Doc}}</p>
+                        	<p>{{comment_html .Doc}}</p>
                         {{else}}
-                                <p><em>No documentation available</em></p>
+                        	<p><em>No documentation available</em></p>
                         {{end}}
                 {{end}}
         {{end}}

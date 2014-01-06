@@ -132,7 +132,7 @@ const removeDuplicates = true
 
 // A KindRun is a run of SpotInfos of the same kind in a given file.
 // The kind (3 bits) is stored in each SpotInfo element; to find the
-// kind of a KindRun, look at any of it's elements.
+// kind of a KindRun, look at any of its elements.
 type KindRun []SpotInfo
 
 // KindRuns are sorted by line number or index. Since the isIndex bit
@@ -698,6 +698,7 @@ func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) 
 	if pkgName == "main" {
 		return
 	}
+	dirname = pathpkg.Clean(dirname)
 	astPkg := ast.Package{
 		Name: pkgName,
 		Files: map[string]*ast.File{
@@ -705,17 +706,34 @@ func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) 
 		},
 	}
 	var m doc.Mode
-	docPkg := doc.New(&astPkg, pathpkg.Clean(dirname), m)
+	docPkg := doc.New(&astPkg, dirname, m)
 	addIdent := func(sk SpotKind, name string, docstr string) {
 		if x.idents[sk] == nil {
 			x.idents[sk] = make(map[string][]Ident)
 		}
 		x.idents[sk][name] = append(x.idents[sk][name], Ident{
-			Path:    pathpkg.Clean(dirname),
+			Path:    dirname,
 			Package: pkgName,
 			Name:    name,
 			Doc:     doc.Synopsis(docstr),
 		})
+	}
+	foundPkg := false
+	if x.idents[PackageClause] != nil {
+		pkgs := x.idents[PackageClause][docPkg.Name]
+		for i, p := range pkgs {
+			if p.Path == dirname {
+				foundPkg = true
+				if docPkg.Doc != "" {
+					p.Doc = doc.Synopsis(docPkg.Doc)
+					pkgs[i] = p
+				}
+				break
+			}
+		}
+	}
+	if !foundPkg {
+		addIdent(PackageClause, docPkg.Name, docPkg.Doc)
 	}
 	for _, c := range docPkg.Consts {
 		for _, name := range c.Names {
@@ -769,7 +787,7 @@ func (x *Indexer) indexGoFile(dirname string, filename string, file *token.File,
 		// Test files are already filtered out in visitFile if IndexGoCode and
 		// IndexFullText are false.  Otherwise, check here.
 		isTestFile := (x.c.IndexGoCode || x.c.IndexFullText) &&
-			(strings.HasSuffix(filename, "_test.go") || strings.HasPrefix(dirname, "test/"))
+			(strings.HasSuffix(filename, "_test.go") || strings.HasPrefix(dirname, "/test/"))
 		if !isTestFile {
 			x.indexDocs(dirname, filename, astFile)
 		}
@@ -816,7 +834,7 @@ func (x *Indexer) visitFile(dirname string, fi os.FileInfo) {
 	case x.c.IndexDocs:
 		if !goFile ||
 			strings.HasSuffix(fi.Name(), "_test.go") ||
-			strings.HasPrefix(dirname, "test/") {
+			strings.HasPrefix(dirname, "/test/") {
 			return
 		}
 	default:
