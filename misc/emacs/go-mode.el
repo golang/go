@@ -61,6 +61,7 @@
 ;; macro.
 (if nil
     (declare-function go--position-bytes "go-mode" (point)))
+
 ;; XEmacs unfortunately does not offer position-bytes. We can fall
 ;; back to just using (point), but it will be incorrect as soon as
 ;; multibyte characters are being used.
@@ -249,8 +250,8 @@ For mode=set, all covered lines will have this weight."
   "Syntax table for Go mode.")
 
 (defun go--build-font-lock-keywords ()
-  ;; we cannot use 'symbols in regexp-opt because emacs <24 doesn't
-  ;; understand that
+  ;; we cannot use 'symbols in regexp-opt because GNU Emacs <24
+  ;; doesn't understand that
   (append
    `((,(go--regexp-enclose-in-symbol (regexp-opt go-mode-keywords t)) . font-lock-keyword-face)
      (,(go--regexp-enclose-in-symbol (regexp-opt go-builtins t)) . font-lock-builtin-face)
@@ -450,8 +451,9 @@ current line will be returned."
           (goto-char (- (point-max) pos))))))
 
 (defun go-beginning-of-defun (&optional count)
-  (unless count (setq count 1))
-  (let ((first t) failure)
+  (setq count (or count 1))
+  (let ((first t)
+        failure)
     (dotimes (i (abs count))
       (while (and (not failure)
                   (or first (go-in-string-or-comment-p)))
@@ -513,7 +515,7 @@ The following extra functions are defined:
 If you want to automatically run `gofmt' before saving a file,
 add the following hook to your emacs configuration:
 
-\(add-hook 'before-save-hook 'gofmt-before-save)
+\(add-hook 'before-save-hook #'gofmt-before-save)
 
 If you want to use `godef-jump' instead of etags (or similar),
 consider binding godef-jump to `M-.', which is the default key
@@ -532,7 +534,8 @@ If you're looking for even more integration with Go, namely
 on-the-fly syntax checking, auto-completion and snippets, it is
 recommended that you look at goflymake
 \(https://github.com/dougm/goflymake), gocode
-\(https://github.com/nsf/gocode) and yasnippet-go
+\(https://github.com/nsf/gocode), go-eldoc
+\(github.com/syohex/emacs-go-eldoc) and yasnippet-go
 \(https://github.com/dominikh/yasnippet-go)"
 
   ;; Font lock
@@ -1108,7 +1111,7 @@ divisor for FILE-NAME."
               (start-line start-column end-line end-column num count)
               (mapcar #'string-to-number rest)
 
-            (when (and (string= (file-name-nondirectory file) file-name))
+            (when (string= (file-name-nondirectory file) file-name)
               (if (> count max-count)
                   (setq max-count count))
               (push (make-go--covered :start-line start-line
