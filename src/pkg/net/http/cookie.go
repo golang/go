@@ -94,7 +94,6 @@ func readSetCookies(h Header) []*Cookie {
 				continue
 			case "domain":
 				c.Domain = val
-				// TODO: Add domain parsing
 				continue
 			case "max-age":
 				secs, err := strconv.Atoi(val)
@@ -121,7 +120,6 @@ func readSetCookies(h Header) []*Cookie {
 				continue
 			case "path":
 				c.Path = val
-				// TODO: Add path parsing
 				continue
 			}
 			c.Unparsed = append(c.Unparsed, parts[i])
