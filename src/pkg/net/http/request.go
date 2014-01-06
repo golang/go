@@ -708,7 +708,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 		// orders to call too many functions here.
 		// Clean this up and write more tests.
 		// request_test.go contains the start of this,
-		// in TestRequestMultipartCallOrder.
+		// in TestParseMultipartFormOrder and others.
 	}
 	return
 }
