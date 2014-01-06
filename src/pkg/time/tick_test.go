@@ -48,6 +48,24 @@ func TestTeardown(t *testing.T) {
 	}
 }
 
+// Test the Tick convenience wrapper.
+func TestTick(t *testing.T) {
+	// Test that giving a negative duration returns nil.
+	if got := Tick(-1); got != nil {
+		t.Errorf("Tick(-1) = %v; want nil", got)
+	}
+}
+
+// Test that NewTicker panics when given a duration less than zero.
+func TestNewTickerLtZeroDuration(t *testing.T) {
+	defer func() {
+		if err := recover(); err == nil {
+			t.Errorf("NewTicker(-1) should have panicked")
+		}
+	}()
+	NewTicker(-1)
+}
+
 func BenchmarkTicker(b *testing.B) {
 	ticker := NewTicker(1)
 	b.ResetTimer()
