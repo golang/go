@@ -168,7 +168,7 @@ runtime·SetCPUProfileRate(intgo hz)
 		runtime·noteclear(&prof->wait);
 
 		runtime·setcpuprofilerate(tick, hz);
-	} else if(prof->on) {
+	} else if(prof != nil && prof->on) {
 		runtime·setcpuprofilerate(nil, 0);
 		prof->on = false;
 
