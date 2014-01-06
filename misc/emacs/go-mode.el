@@ -264,8 +264,8 @@ For mode=set, all covered lines will have this weight."
      `((,go-func-meth-regexp 1 font-lock-function-name-face))) ;; method name
 
    `(
-     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]*\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
-     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]*" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
+     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
+     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
      (,(concat "[^[:word:][:multibyte:]]\\[\\([[:digit:]]+\\|\\.\\.\\.\\)?\\]" go-type-name-regexp) 2 font-lock-type-face) ;; Arrays/slices
      (,(concat "\\(" go-identifier-regexp "\\)" "{") 1 font-lock-type-face)
      (,(concat (go--regexp-enclose-in-symbol "map") "\\[[^]]+\\]" go-type-name-regexp) 1 font-lock-type-face) ;; map value type
