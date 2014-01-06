@@ -4,7 +4,8 @@
 
 // Package fnv implements FNV-1 and FNV-1a, non-cryptographic hash functions
 // created by Glenn Fowler, Landon Curt Noll, and Phong Vo.
-// See http://isthe.com/chongo/tech/comp/fnv/.
+// See
+// http://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function.
 package fnv
 
 import (
