@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <signal.h>
 
 // bprintf replaces the buffer with the result of the printf formatting
 // and returns a pointer to the NUL-terminated buffer contents.
@@ -686,6 +687,14 @@ main(int argc, char **argv)
 	gohostos = "openbsd";
 #elif defined(__NetBSD__)
 	gohostos = "netbsd";
+#elif defined(__sun) && defined(__SVR4)
+	gohostos = "solaris";
+	// Even on 64-bit platform, solaris uname -m prints i86pc.
+	run(&b, nil, 0, "isainfo", "-n", nil);
+	if(contains(bstr(&b), "amd64"))
+		gohostarch = "amd64";
+	if(contains(bstr(&b), "i386"))
+		gohostarch = "386";
 #else
 	fatal("unknown operating system");
 #endif
