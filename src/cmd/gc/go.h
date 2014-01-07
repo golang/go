@@ -1263,6 +1263,7 @@ int	duintptr(Sym *s, int off, uint64 v);
 int	dsname(Sym *s, int off, char *dat, int ndat);
 void	dumpobj(void);
 Sym*	stringsym(char*, int);
+void	slicebytes(Node*, char*, int);
 LSym*	linksym(Sym*);
 
 /*

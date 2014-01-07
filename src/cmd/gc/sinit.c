@@ -378,6 +378,7 @@ staticassign(Node *l, Node *r, NodeList **out)
 	InitPlan *p;
 	InitEntry *e;
 	int i;
+	Strlit *sval;
 	
 	switch(r->op) {
 	default:
@@ -422,6 +423,14 @@ staticassign(Node *l, Node *r, NodeList **out)
 			// Init underlying literal.
 			if(!staticassign(a, r->left, out))
 				*out = list(*out, nod(OAS, a, r->left));
+			return 1;
+		}
+		break;
+
+	case OSTRARRAYBYTE:
+		if(l->class == PEXTERN && r->left->op == OLITERAL) {
+			sval = r->left->val.u.sval;
+			slicebytes(l, sval->s, sval->len);
 			return 1;
 		}
 		break;
