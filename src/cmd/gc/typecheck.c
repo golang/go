@@ -1406,6 +1406,9 @@ reswitch:
 			}
 			break;
 		case OSTRARRAYBYTE:
+			// do not use stringtoarraylit.
+			// generated code and compiler memory footprint is better without it.
+			break;
 		case OSTRARRAYRUNE:
 			if(n->left->op == OLITERAL)
 				stringtoarraylit(&n);
