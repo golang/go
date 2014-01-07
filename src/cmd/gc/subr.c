@@ -2591,8 +2591,10 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 
 	funcbody(fn);
 	curfn = fn;
-	// wrappers where T is anonymous (struct{ NamedType }) can be duplicated.
-	if(rcvr->etype == TSTRUCT || isptr[rcvr->etype] && rcvr->type->etype == TSTRUCT)
+	// wrappers where T is anonymous (struct or interface) can be duplicated.
+	if(rcvr->etype == TSTRUCT ||
+		rcvr->etype == TINTER ||
+		isptr[rcvr->etype] && rcvr->type->etype == TSTRUCT)
 		fn->dupok = 1;
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
