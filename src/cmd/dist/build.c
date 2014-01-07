@@ -52,6 +52,7 @@ static char *okgoos[] = {
 	"darwin",
 	"dragonfly",
 	"linux",
+	"solaris",
 	"freebsd",
 	"netbsd",
 	"openbsd",
