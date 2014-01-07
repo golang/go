@@ -133,7 +133,6 @@ runtime·schedinit(void)
 	runtime·sched.maxmcount = 10000;
 	runtime·precisestack = haveexperiment("precisestack");
 
-	runtime·mprofinit();
 	runtime·mallocinit();
 	mcommoninit(m);
 	
