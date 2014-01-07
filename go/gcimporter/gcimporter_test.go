@@ -192,3 +192,25 @@ func TestIssue5815(t *testing.T) {
 		}
 	}
 }
+
+// Smoke test to ensure that imported methods get the correct package.
+func TestCorrectMethodPackage(t *testing.T) {
+	// This package does not handle gccgo export data.
+	if runtime.Compiler == "gccgo" {
+		return
+	}
+
+	imports := make(map[string]*types.Package)
+	_, err := Import(imports, "net/http")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mutex := imports["sync"].Scope().Lookup("Mutex").(*types.TypeName).Type()
+	mset := types.NewPointer(mutex).MethodSet() // methods of *sync.Mutex
+	sel := mset.Lookup(nil, "Lock")
+	lock := sel.Obj().(*types.Func)
+	if got, want := lock.Pkg().Path(), "sync"; got != want {
+		t.Errorf("got package path %q; want %q", got, want)
+	}
+}

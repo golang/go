@@ -875,8 +875,11 @@ func (p *parser) parseMethodDecl() {
 	base := deref(recv.Type()).(*types.Named)
 
 	// parse method name, signature, and possibly inlined body
-	pkg, name := p.parseName(true)
+	_, name := p.parseName(true)
 	sig := p.parseFunc(recv)
+
+	// methods always belong to the same package as the base type object
+	pkg := base.Obj().Pkg()
 
 	// add method to type unless type was imported before
 	// and method exists already
