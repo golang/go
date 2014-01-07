@@ -2090,6 +2090,64 @@ func TestNoContentTypeOnNotModified(t *testing.T) {
 	}
 }
 
+// Issue 6995
+// A server Handler can receive a Request, and then turn around and
+// give a copy of that Request.Body out to the Transport (e.g. any
+// proxy).  So then two people own that Request.Body (both the server
+// and the http client), and both think they can close it on failure.
+// Therefore, all incoming server requests Bodies need to be thread-safe.
+func TestTransportAndServerSharedBodyRace(t *testing.T) {
+	defer afterTest(t)
+
+	const bodySize = 1 << 20
+
+	unblockBackend := make(chan bool)
+	backend := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		io.CopyN(rw, req.Body, bodySize/2)
+		<-unblockBackend
+	}))
+	defer backend.Close()
+
+	backendRespc := make(chan *Response, 1)
+	proxy := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		if req.RequestURI == "/foo" {
+			rw.Write([]byte("bar"))
+			return
+		}
+		req2, _ := NewRequest("POST", backend.URL, req.Body)
+		req2.ContentLength = bodySize
+
+		bresp, err := DefaultClient.Do(req2)
+		if err != nil {
+			t.Errorf("Proxy outbound request: %v", err)
+			return
+		}
+		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/4)
+		if err != nil {
+			t.Errorf("Proxy copy error: %v", err)
+			return
+		}
+		backendRespc <- bresp // to close later
+
+		// Try to cause a race: Both the DefaultTransport and the proxy handler's Server
+		// will try to read/close req.Body (aka req2.Body)
+		DefaultTransport.(*Transport).CancelRequest(req2)
+		rw.Write([]byte("OK"))
+	}))
+	defer proxy.Close()
+
+	req, _ := NewRequest("POST", proxy.URL, io.LimitReader(neverEnding('a'), bodySize))
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Original request: %v", err)
+	}
+
+	// Cleanup, so we don't leak goroutines.
+	res.Body.Close()
+	close(unblockBackend)
+	(<-backendRespc).Body.Close()
+}
+
 func TestResponseWriterWriteStringAllocs(t *testing.T) {
 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.URL.Path == "/s" {
