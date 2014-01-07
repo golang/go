@@ -49,8 +49,8 @@ type opaqueType struct {
 func (t *opaqueType) String() string { return t.name }
 
 var (
-	varOk    = types.NewVar(token.NoPos, nil, "ok", tBool)
-	varIndex = types.NewVar(token.NoPos, nil, "index", tInt)
+	varOk    = newVar("ok", tBool)
+	varIndex = newVar("index", tInt)
 
 	// Type constants.
 	tBool       = types.Typ[types.Bool]
@@ -236,7 +236,7 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 	tuple.(interface {
 		setType(types.Type)
 	}).setType(types.NewTuple(
-		types.NewVar(token.NoPos, nil, "value", typ),
+		newVar("value", typ),
 		varOk,
 	))
 	return tuple
@@ -616,7 +616,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		// Universal built-in or nil?
 		switch obj := obj.(type) {
 		case *types.Builtin:
-			return fn.Prog.builtins[obj]
+			return &Builtin{object: obj, sig: fn.Pkg.typeOf(e).(*types.Signature)}
 		case *types.Nil:
 			return nilConst(fn.Pkg.typeOf(e))
 		}
@@ -756,7 +756,6 @@ func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, se
 //
 func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	c.pos = e.Lparen
-	c.HasEllipsis = e.Ellipsis != 0
 
 	// Is this a method call?
 	if selector, ok := unparen(e.Fun).(*ast.SelectorExpr); ok {
@@ -1442,7 +1441,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	for _, st := range states {
 		if st.Dir == types.RecvOnly {
 			tElem := st.Chan.Type().Underlying().(*types.Chan).Elem()
-			vars = append(vars, types.NewVar(token.NoPos, nil, "", tElem))
+			vars = append(vars, newVar("", tElem))
 		}
 	}
 	sel.setType(types.NewTuple(vars...))
@@ -1610,7 +1609,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Value = fn.Prog.builtins[types.Universe.Lookup("len").(*types.Builtin)]
+		c.Call.Value = makeLen(x.Type())
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -1714,8 +1713,8 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	}
 	okv.setType(types.NewTuple(
 		varOk,
-		types.NewVar(token.NoPos, nil, "k", tk),
-		types.NewVar(token.NoPos, nil, "v", tv),
+		newVar("k", tk),
+		newVar("v", tv),
 	))
 	fn.emit(okv)
 
@@ -1761,7 +1760,7 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type, pos token.Pos)
 	}
 	recv.setPos(pos)
 	recv.setType(types.NewTuple(
-		types.NewVar(token.NoPos, nil, "k", x.Type().Underlying().(*types.Chan).Elem()),
+		newVar("k", x.Type().Underlying().(*types.Chan).Elem()),
 		varOk,
 	))
 	ko := fn.emit(recv)

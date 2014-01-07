@@ -216,7 +216,7 @@ func findMethod(prog *Program, meth *types.Selection) *Function {
 func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function {
 	obj := meth.Obj().(*types.Func)
 	oldsig := obj.Type().(*types.Signature)
-	recv := types.NewVar(token.NoPos, nil, "recv", typ)
+	recv := newVar("recv", typ)
 
 	description := fmt.Sprintf("wrapper for %s", obj)
 	if prog.mode&LogSource != 0 {

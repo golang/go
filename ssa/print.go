@@ -120,7 +120,7 @@ func printCall(v *CallCommon, prefix string, instr Instruction) string {
 		}
 		b.WriteString(relName(arg, instr))
 	}
-	if v.HasEllipsis {
+	if v.Signature().IsVariadic() {
 		b.WriteString("...")
 	}
 	b.WriteString(")")

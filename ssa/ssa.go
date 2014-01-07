@@ -25,7 +25,6 @@ type Program struct {
 	Fset     *token.FileSet              // position information for the files of this Program
 	imported map[string]*Package         // all importable Packages, keyed by import path
 	packages map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins map[*types.Builtin]*Builtin // all built-in functions, keyed by typechecker objects.
 	mode     BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
@@ -413,19 +412,19 @@ type Global struct {
 	Pkg *Package
 }
 
-// A Builtin represents a built-in function, e.g. len.
+// A Builtin represents a specific use of a built-in function, e.g. len.
 //
 // Builtins are immutable values.  Builtins do not have addresses.
 // Builtins can only appear in CallCommon.Func.
 //
 // Object() returns a *types.Builtin.
 //
-// Type() returns types.Typ[types.Invalid], since built-in functions
-// may have polymorphic or variadic types that are not expressible in
-// Go's type system.
+// Type() returns a *types.Signature representing the effective
+// signature of the built-in for this call.
 //
 type Builtin struct {
 	object *types.Builtin // canonical types.Universe object for this built-in
+	sig    *types.Signature
 }
 
 // Value-defining instructions  ----------------------------------------
@@ -842,7 +841,7 @@ type SelectState struct {
 	DebugNode ast.Node      // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
 }
 
-// The Select instruction tests whether (or blocks until) one or more
+// The Select instruction tests whether (or blocks until) one
 // of the specified sent or received states is entered.
 //
 // Let n be the number of States for which Dir==RECV and T_i (0<=i<n)
@@ -874,7 +873,7 @@ type SelectState struct {
 // Pos() returns the ast.SelectStmt.Select.
 //
 // Example printed form:
-// 	t3 = select nonblocking [<-t0, t1<-t2, ...]
+// 	t3 = select nonblocking [<-t0, t1<-t2]
 // 	t4 = select blocking []
 //
 type Select struct {
@@ -1239,13 +1238,18 @@ type anInstruction struct {
 // which may be a *Builtin, a *Function or any other value of kind
 // 'func'.
 //
-// In the common case in which Value is a *Function, this indicates a
-// statically dispatched call to a package-level function, an
-// anonymous function, or a method of a named type.  Also statically
-// dispatched, but less common, Value may be a *MakeClosure, indicating
-// an immediately applied function literal with free variables.  Any
-// other value of Value indicates a dynamically dispatched function
-// call.  The StaticCallee method returns the callee in these cases.
+// Value may be one of:
+//    (a) a *Function, indicating a statically dispatched call
+//        to a package-level function, an anonymous function, or
+//        a method of a named type.
+//    (b) a *MakeClosure, indicating an immediately applied
+//        function literal with free variables.
+//    (c) a *Builtin, indicating a statically dispatched call
+//        to a built-in function.  StaticCallee returns nil.
+//    (d) any other value, indicating a dynamically dispatched
+//        function call.
+// StaticCallee returns the identity of the callee in cases
+// (a) and (b), nil otherwise.
 //
 // Args contains the arguments to the call.  If Value is a method,
 // Args[0] contains the receiver parameter.
@@ -1271,18 +1275,14 @@ type anInstruction struct {
 // 	go invoke t3.Run(t2)
 // 	defer invoke t4.Handle(...t5)
 //
-// In both modes, HasEllipsis is true iff the last element of Args is
-// a slice value containing zero or more arguments to a variadic
-// function.  (This is not semantically significant since the type of
-// the called function is sufficient to determine this, but it aids
-// readability of the printed form.)
+// For all calls to variadic functions (Signature().IsVariadic()),
+// the last element of Args is a slice.
 //
 type CallCommon struct {
-	Value       Value       // receiver (invoke mode) or func value (call mode)
-	Method      *types.Func // abstract method (invoke mode)
-	Args        []Value     // actual parameters (in static method call, includes receiver)
-	HasEllipsis bool        // true iff last Args is a slice of '...' args (needed?)
-	pos         token.Pos   // position of CallExpr.Lparen, iff explicit in source
+	Value  Value       // receiver (invoke mode) or func value (call mode)
+	Method *types.Func // abstract method (invoke mode)
+	Args   []Value     // actual parameters (in static method call, includes receiver)
+	pos    token.Pos   // position of CallExpr.Lparen, iff explicit in source
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.
@@ -1300,18 +1300,15 @@ func (c *CallCommon) Pos() token.Pos { return c.pos }
 // In either "call" or "invoke" mode, if the callee is a method, its
 // receiver is represented by sig.Recv, not sig.Params().At(0).
 //
-// Signature returns nil for a call to a built-in function.
-//
 func (c *CallCommon) Signature() *types.Signature {
 	if c.Method != nil {
 		return c.Method.Type().(*types.Signature)
 	}
-	sig, _ := c.Value.Type().Underlying().(*types.Signature) // nil for *Builtin
-	return sig
+	return c.Value.Type().Underlying().(*types.Signature)
 }
 
-// StaticCallee returns the called function if this is a trivially
-// static "call"-mode call.
+// StaticCallee returns the callee if this is a trivially static
+// "call"-mode call to a function.
 func (c *CallCommon) StaticCallee() *Function {
 	switch fn := c.Value.(type) {
 	case *Function:
@@ -1360,7 +1357,7 @@ func (s *Call) Value() *Call  { return s }
 func (s *Defer) Value() *Call { return nil }
 func (s *Go) Value() *Call    { return nil }
 
-func (v *Builtin) Type() types.Type        { return v.object.Type() }
+func (v *Builtin) Type() types.Type        { return v.sig }
 func (v *Builtin) Name() string            { return v.object.Name() }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 func (v *Builtin) Pos() token.Pos          { return token.NoPos }

@@ -297,7 +297,7 @@ func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
 	}
 	a.setPos(pos)
 	a.setType(types.NewTuple(
-		types.NewVar(token.NoPos, nil, "value", t),
+		newVar("value", t),
 		varOk,
 	))
 	return f.emit(a)

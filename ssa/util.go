@@ -9,6 +9,7 @@ package ssa
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"io"
 	"os"
 
@@ -116,4 +117,23 @@ func callsRecover(f *Function) bool {
 		}
 	}
 	return false
+}
+
+// newVar creates a 'var' for use in a types.Tuple.
+func newVar(name string, typ types.Type) *types.Var {
+	return types.NewParam(token.NoPos, nil, name, typ)
+}
+
+var (
+	lenObject  = types.Universe.Lookup("len").(*types.Builtin)
+	lenResults = types.NewTuple(newVar("", tInt))
+)
+
+// makeLen returns the len builtin specialized to type func(T)int.
+func makeLen(T types.Type) *Builtin {
+	lenParams := types.NewTuple(newVar("", T))
+	return &Builtin{
+		object: lenObject,
+		sig:    types.NewSignature(nil, nil, lenParams, lenResults, false),
+	}
 }

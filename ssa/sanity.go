@@ -179,6 +179,12 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))
 	}
 
+	if call, ok := instr.(CallInstruction); ok {
+		if call.Common().Signature() == nil {
+			s.errorf("nil signature: %s", call)
+		}
+	}
+
 	// Check that value-defining instructions have valid types.
 	if v, ok := instr.(Value); ok {
 		t := v.Type()

@@ -106,6 +106,6 @@ func main() {
 	// 	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
 	// 	*t1 = t2
 	// 	t3 = slice t0[:]                                          []interface{}
-	// 	t4 = fmt.Println(t3)                                 (n int, err error)
+	// 	t4 = fmt.Println(t3...)                              (n int, err error)
 	// 	return
 }

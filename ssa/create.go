@@ -39,24 +39,14 @@ const (
 // mode controls diagnostics and checking during SSA construction.
 //
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
-	prog := &Program{
+	return &Program{
 		Fset:                fset,
 		imported:            make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
-		builtins:            make(map[*types.Builtin]*Builtin),
 		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
 	}
-
-	// Create Values for built-in functions.
-	for _, name := range types.Universe.Names() {
-		if obj, ok := types.Universe.Lookup(name).(*types.Builtin); ok {
-			prog.builtins[obj] = &Builtin{obj}
-		}
-	}
-
-	return prog
 }
 
 // memberFromObject populates package pkg with a member for the
