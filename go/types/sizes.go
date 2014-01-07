@@ -24,13 +24,13 @@ type Sizes interface {
 // StdSizes is a convenience type for creating commonly used Sizes.
 // It makes the following simplifying assumptions:
 //
-// - The size of explicitly sized basic types (int16, etc.) is the
-//   specified size.
-// - The size of strings, functions, and interfaces is 2*WordSize.
-// - The size of slices is 3*WordSize.
-// - All other types have size WordSize.
-// - Arrays and structs are aligned per spec definition; all other
-//   types are naturally aligned with a maximum alignment MaxAlign.
+//	- The size of explicitly sized basic types (int16, etc.) is the
+//	  specified size.
+//	- The size of strings, functions, and interfaces is 2*WordSize.
+//	- The size of slices is 3*WordSize.
+//	- All other types have size WordSize.
+//	- Arrays and structs are aligned per spec definition; all other
+//	  types are naturally aligned with a maximum alignment MaxAlign.
 //
 // *StdSizes implements Sizes.
 //

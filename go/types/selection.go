@@ -24,19 +24,19 @@ const (
 // A Selection describes a selector expression x.f.
 // For the declarations:
 //
-// 	type T struct{ x int; E }
-// 	type E struct{}
-// 	func (e E) m() {}
-// 	var p *T
+//	type T struct{ x int; E }
+//	type E struct{}
+//	func (e E) m() {}
+//	var p *T
 //
 // the following relations exist:
 //
 //	Selector    Kind          Recv    Obj    Type               Index     Indirect
 //
-//      p.x         FieldVal      T       x      int                {0}       true
-//      p.m         MethodVal     *T      m      func (e *T) m()    {1, 0}    true
-//      T.m         MethodExpr    T       m      func m(_ T)        {1, 0}    false
-//      math.Pi     PackageObj    nil     Pi     untyped numeric    nil       false
+//	p.x         FieldVal      T       x      int                {0}       true
+//	p.m         MethodVal     *T      m      func (e *T) m()    {1, 0}    true
+//	T.m         MethodExpr    T       m      func m(_ T)        {1, 0}    false
+//	math.Pi     PackageObj    nil     Pi     untyped numeric    nil       false
 //
 type Selection struct {
 	kind     SelectionKind
