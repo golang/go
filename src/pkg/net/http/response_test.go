@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -406,8 +407,7 @@ func TestWriteResponse(t *testing.T) {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
-		bout := bytes.NewBuffer(nil)
-		err = resp.Write(bout)
+		err = resp.Write(ioutil.Discard)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
@@ -506,6 +506,9 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		rest, err := ioutil.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
+			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {
+				return fmt.Sprintf("x(repeated x%d)", len(match))
+			})
 			fatalf("remainder = %q, expected %q", g, e)
 		}
 	}

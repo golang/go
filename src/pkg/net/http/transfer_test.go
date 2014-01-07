@@ -12,9 +12,9 @@ import (
 
 func TestBodyReadBadTrailer(t *testing.T) {
 	b := &body{
-		Reader: strings.NewReader("foobar"),
-		hdr:    true, // force reading the trailer
-		r:      bufio.NewReader(strings.NewReader("")),
+		src: strings.NewReader("foobar"),
+		hdr: true, // force reading the trailer
+		r:   bufio.NewReader(strings.NewReader("")),
 	}
 	buf := make([]byte, 7)
 	n, err := b.Read(buf[:3])
