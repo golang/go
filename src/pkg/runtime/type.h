@@ -15,7 +15,6 @@ typedef struct Method Method;
 typedef struct IMethod IMethod;
 typedef struct SliceType SliceType;
 typedef struct FuncType FuncType;
-typedef struct PtrType PtrType;
 
 // Needs to be in sync with typekind.h/CommonSize
 struct Type
@@ -101,7 +100,3 @@ struct PtrType
 	Type;
 	Type *elem;
 };
-
-// Here instead of in runtime.h because it uses the type names.
-bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
-bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, Type**, PtrType**);

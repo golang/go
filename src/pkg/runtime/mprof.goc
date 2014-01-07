@@ -22,7 +22,6 @@ enum { MProf, BProf };  // profile types
 
 // Per-call-stack profiling information.
 // Lookup by hashing call stack into a linked-list hash table.
-typedef struct Bucket Bucket;
 struct Bucket
 {
 	Bucket	*next;	// next in hash list
@@ -138,115 +137,6 @@ runtime·MProf_GC(void)
 	runtime·unlock(&proflock);
 }
 
-// Map from pointer to Bucket* that allocated it.
-// Three levels:
-//	Linked-list hash table for top N-AddrHashShift bits.
-//	Array index for next AddrDenseBits bits.
-//	Linked list for next AddrHashShift-AddrDenseBits bits.
-// This is more efficient than using a general map,
-// because of the typical clustering of the pointer keys.
-
-typedef struct AddrHash AddrHash;
-typedef struct AddrEntry AddrEntry;
-
-enum {
-	AddrHashBits = 12,	// good for 4GB of used address space
-	AddrHashShift = 20,	// each AddrHash knows about 1MB of address space
-	AddrDenseBits = 8,	// good for a profiling rate of 4096 bytes
-};
-
-struct AddrHash
-{
-	AddrHash *next;	// next in top-level hash table linked list
-	uintptr addr;	// addr>>20
-	AddrEntry *dense[1<<AddrDenseBits];
-};
-
-struct AddrEntry
-{
-	AddrEntry *next;	// next in bottom-level linked list
-	uint32 addr;
-	Bucket *b;
-};
-
-static AddrHash **addrhash;	// points to (AddrHash*)[1<<AddrHashBits]
-static AddrEntry *addrfree;
-static uintptr addrmem;
-
-// Multiplicative hash function:
-// hashMultiplier is the bottom 32 bits of int((sqrt(5)-1)/2 * (1<<32)).
-// This is a good multiplier as suggested in CLR, Knuth.  The hash
-// value is taken to be the top AddrHashBits bits of the bottom 32 bits
-// of the multiplied value.
-enum {
-	HashMultiplier = 2654435769U
-};
-
-// Set the bucket associated with addr to b.
-static void
-setaddrbucket(uintptr addr, Bucket *b)
-{
-	int32 i;
-	uint32 h;
-	AddrHash *ah;
-	AddrEntry *e;
-
-	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
-	for(ah=addrhash[h]; ah; ah=ah->next)
-		if(ah->addr == (addr>>AddrHashShift))
-			goto found;
-
-	ah = runtime·persistentalloc(sizeof *ah, 0, &mstats.buckhash_sys);
-	addrmem += sizeof *ah;
-	ah->next = addrhash[h];
-	ah->addr = addr>>AddrHashShift;
-	addrhash[h] = ah;
-
-found:
-	if((e = addrfree) == nil) {
-		e = runtime·persistentalloc(64*sizeof *e, 0, &mstats.buckhash_sys);
-		addrmem += 64*sizeof *e;
-		for(i=0; i+1<64; i++)
-			e[i].next = &e[i+1];
-		e[63].next = nil;
-	}
-	addrfree = e->next;
-	e->addr = (uint32)~(addr & ((1<<AddrHashShift)-1));
-	e->b = b;
-	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
-	e->next = ah->dense[h];
-	ah->dense[h] = e;
-}
-
-// Get the bucket associated with addr and clear the association.
-static Bucket*
-getaddrbucket(uintptr addr)
-{
-	uint32 h;
-	AddrHash *ah;
-	AddrEntry *e, **l;
-	Bucket *b;
-
-	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
-	for(ah=addrhash[h]; ah; ah=ah->next)
-		if(ah->addr == (addr>>AddrHashShift))
-			goto found;
-	return nil;
-
-found:
-	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
-	for(l=&ah->dense[h]; (e=*l) != nil; l=&e->next) {
-		if(e->addr == (uint32)~(addr & ((1<<AddrHashShift)-1))) {
-			*l = e->next;
-			b = e->b;
-			e->next = addrfree;
-			addrfree = e;
-			return b;
-		}
-	}
-	return nil;
-}
-
 static int8*
 typeinfoname(int32 typeinfo)
 {
@@ -307,25 +197,20 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
 	b = stkbucket(MProf, stk, nstk, true);
 	b->recent_allocs++;
 	b->recent_alloc_bytes += size;
-	setaddrbucket((uintptr)p, b);
+	runtime·setprofilebucket(p, b);
 	runtime·unlock(&proflock);
 }
 
 // Called when freeing a profiled block.
 void
-runtime·MProf_Free(void *p, uintptr size)
+runtime·MProf_Free(Bucket *b, void *p, uintptr size)
 {
-	Bucket *b;
-
 	runtime·lock(&proflock);
-	b = getaddrbucket((uintptr)p);
-	if(b != nil) {
-		b->recent_frees++;
-		b->recent_free_bytes += size;
-		if(runtime·debug.allocfreetrace) {
-			runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
-			printstackframes(b->stk, b->nstk);
-		}
+	b->recent_frees++;
+	b->recent_free_bytes += size;
+	if(runtime·debug.allocfreetrace) {
+		runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
+		printstackframes(b->stk, b->nstk);
 	}
 	runtime·unlock(&proflock);
 }
@@ -564,10 +449,4 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 		runtime·semrelease(&runtime·worldsema);
 		runtime·starttheworld();
 	}
-}
-
-void
-runtime·mprofinit(void)
-{
-	addrhash = runtime·persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0, &mstats.buckhash_sys);
 }

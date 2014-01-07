@@ -1603,26 +1603,14 @@ addstackroots(G *gp)
 }
 
 static void
-addfinroots(void *v)
-{
-	uintptr size;
-	void *base;
-
-	size = 0;
-	if(!runtime·mlookup(v, &base, &size, nil) || !runtime·blockspecial(base))
-		runtime·throw("mark - finalizer inconsistency");
-
-	// do not mark the finalizer block itself.  just mark the things it points at.
-	addroot((Obj){base, size, 0});
-}
-
-static void
 addroots(void)
 {
 	G *gp;
 	FinBlock *fb;
 	MSpan *s, **allspans;
 	uint32 spanidx;
+	Special *sp;
+	SpecialFinalizer *spf;
 
 	work.nroot = 0;
 
@@ -1652,6 +1640,29 @@ addroots(void)
 		}
 	}
 
+	// MSpan.specials
+	allspans = runtime·mheap.allspans;
+	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+		s = allspans[spanidx];
+		if(s->state != MSpanInUse)
+			continue;
+		for(sp = s->specials; sp != nil; sp = sp->next) {
+			switch(sp->kind) {
+				case KindSpecialFinalizer:
+					spf = (SpecialFinalizer*)sp;
+					// don't mark finalized object, but scan it so we
+					// retain everything it points to.
+					addroot((Obj){(void*)((s->start << PageShift) + spf->offset), s->elemsize, 0});
+					addroot((Obj){(void*)&spf->fn, PtrSize, 0});
+					addroot((Obj){(void*)&spf->fint, PtrSize, 0});
+					addroot((Obj){(void*)&spf->ot, PtrSize, 0});
+					break;
+				case KindSpecialProfile:
+					break;
+			}
+		}
+	}
+
 	// stacks
 	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {
 		switch(gp->status){
@@ -1669,8 +1680,6 @@ addroots(void)
 			break;
 		}
 	}
-
-	runtime·walkfintab(addfinroots);
 
 	for(fb=allfin; fb; fb=fb->alllink)
 		addroot((Obj){(byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), 0});
@@ -1698,21 +1707,11 @@ addfreelists(void)
 	// Note: the sweeper will mark objects in each span's freelist.
 }
 
-static bool
-handlespecial(byte *p, uintptr size)
+void
+runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot)
 {
-	FuncVal *fn;
-	uintptr nret;
-	PtrType *ot;
-	Type *fint;
 	FinBlock *block;
 	Finalizer *f;
-
-	if(!runtime·getfinalizer(p, true, &fn, &nret, &fint, &ot)) {
-		runtime·setblockspecial(p, false);
-		runtime·MProf_Free(p, size);
-		return false;
-	}
 
 	runtime·lock(&finlock);
 	if(finq == nil || finq->cnt == finq->cap) {
@@ -1735,7 +1734,6 @@ handlespecial(byte *p, uintptr size)
 	f->ot = ot;
 	f->arg = p;
 	runtime·unlock(&finlock);
-	return true;
 }
 
 // Sweep frees or collects finalizers for blocks not marked in the mark phase.
@@ -1744,7 +1742,7 @@ static void
 sweepspan(ParFor *desc, uint32 idx)
 {
 	int32 cl, n, npages;
-	uintptr size, off, *bitp, shift;
+	uintptr size, off, *bitp, shift, bits;
 	byte *p;
 	MCache *c;
 	byte *arena_start;
@@ -1755,13 +1753,13 @@ sweepspan(ParFor *desc, uint32 idx)
 	uintptr type_data_inc;
 	MSpan *s;
 	MLink *x;
+	Special *special, **specialp, *y;
 
 	USED(&desc);
 	s = runtime·mheap.allspans[idx];
 	if(s->state != MSpanInUse)
 		return;
 	arena_start = runtime·mheap.arena_start;
-	p = (byte*)(s->start << PageShift);
 	cl = s->sizeclass;
 	size = s->elemsize;
 	if(cl == 0) {
@@ -1786,6 +1784,31 @@ sweepspan(ParFor *desc, uint32 idx)
 		*bitp |= bitMarked<<shift;
 	}
 	
+	// Unlink & free special records for any objects we're about to free.
+	specialp = &s->specials;
+	special = *specialp;
+	while(special != nil) {
+		p = (byte*)(s->start << PageShift) + special->offset;
+		off = (uintptr*)p - (uintptr*)arena_start;
+		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = off % wordsPerBitmapWord;
+		bits = *bitp>>shift;
+		if((bits & (bitAllocated|bitMarked)) == bitAllocated) {
+			// about to free object: splice out special record
+			y = special;
+			special = special->next;
+			*specialp = special;
+			if(!runtime·freespecial(y, p, size)) {
+				// stop freeing of object if it has a finalizer
+				*bitp |= bitMarked << shift;
+			}
+		} else {
+			// object is still live: keep special record
+			specialp = &special->next;
+			special = *specialp;
+		}
+	}
+
 	type_data = (byte*)s->types.data;
 	type_data_inc = sizeof(uintptr);
 	compression = s->types.compression;
@@ -1799,9 +1822,8 @@ sweepspan(ParFor *desc, uint32 idx)
 	// Sweep through n objects of given size starting at p.
 	// This thread owns the span now, so it can manipulate
 	// the block bitmap without atomic operations.
+	p = (byte*)(s->start << PageShift);
 	for(; n > 0; n--, p += size, type_data+=type_data_inc) {
-		uintptr off, *bitp, shift, bits;
-
 		off = (uintptr*)p - (uintptr*)arena_start;
 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
@@ -1818,14 +1840,6 @@ sweepspan(ParFor *desc, uint32 idx)
 			}
 			*bitp &= ~(bitMarked<<shift);
 			continue;
-		}
-
-		// Special means it has a finalizer or is being profiled.
-		// In DebugMark mode, the bit has been coopted so
-		// we have to assume all blocks are special.
-		if(DebugMark || (bits & bitSpecial) != 0) {
-			if(handlespecial(p, size))
-				continue;
 		}
 
 		// Clear mark, scan, and special bits.
@@ -2641,50 +2655,6 @@ runtime·unmarkspan(void *v, uintptr n)
 	n /= wordsPerBitmapWord;
 	while(n-- > 0)
 		*b-- = 0;
-}
-
-bool
-runtime·blockspecial(void *v)
-{
-	uintptr *b, off, shift;
-
-	if(DebugMark)
-		return true;
-
-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-
-	return (*b & (bitSpecial<<shift)) != 0;
-}
-
-void
-runtime·setblockspecial(void *v, bool s)
-{
-	uintptr *b, off, shift, bits, obits;
-
-	if(DebugMark)
-		return;
-
-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-
-	for(;;) {
-		obits = *b;
-		if(s)
-			bits = obits | (bitSpecial<<shift);
-		else
-			bits = obits & ~(bitSpecial<<shift);
-		if(runtime·gomaxprocs == 1) {
-			*b = bits;
-			break;
-		} else {
-			// more than one goroutine is potentially running: use atomic op
-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
-				break;
-		}
-	}
 }
 
 void

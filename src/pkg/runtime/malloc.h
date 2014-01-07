@@ -341,6 +341,44 @@ struct MTypes
 	uintptr	data;
 };
 
+enum
+{
+	KindSpecialFinalizer = 1,
+	KindSpecialProfile = 2,
+	// Note: The finalizer special must be first because if we're freeing
+	// an object, a finalizer special will cause the freeing operation
+	// to abort, and we want to keep the other special records around
+	// if that happens.
+};
+
+typedef struct Special Special;
+struct Special
+{
+	Special*	next;	// linked list in span
+	uint16		offset;	// span offset of object
+	byte		kind;	// kind of Special
+};
+
+// The described object has a finalizer set for it.
+typedef struct SpecialFinalizer SpecialFinalizer;
+struct SpecialFinalizer
+{
+	Special;
+	FuncVal*	fn;
+	uintptr		nret;
+	Type*		fint;
+	PtrType*	ot;
+};
+
+// The described object is being heap profiled.
+typedef struct Bucket Bucket; // from mprof.goc
+typedef struct SpecialProfile SpecialProfile;
+struct SpecialProfile
+{
+	Special;
+	Bucket*	b;
+};
+
 // An MSpan is a run of pages.
 enum
 {
@@ -356,14 +394,16 @@ struct MSpan
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
-	uint32	ref;		// number of allocated objects in this span
-	int32	sizeclass;	// size class
+	uint16	ref;		// number of allocated objects in this span
+	uint8	sizeclass;	// size class
+	uint8	state;		// MSpanInUse etc
 	uintptr	elemsize;	// computed from sizeclass or from npages
-	uint32	state;		// MSpanInUse etc
 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
 	uintptr npreleased;	// number of pages released to the OS
 	byte	*limit;		// end of data in span
 	MTypes	types;		// types of allocated objects in this span
+	Lock	specialLock;	// TODO: use to protect types also (instead of settype_lock)
+	Special	*specials;	// linked list of special records sorted by offset.
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -426,6 +466,9 @@ struct MHeap
 
 	FixAlloc spanalloc;	// allocator for Span*
 	FixAlloc cachealloc;	// allocator for MCache*
+	FixAlloc specialfinalizeralloc;	// allocator for SpecialFinalizer*
+	FixAlloc specialprofilealloc;	// allocator for SpecialProfile*
+	Lock speciallock; // lock for sepcial record allocators.
 
 	// Malloc stats.
 	uint64 largefree;	// bytes freed for large objects (>MaxSmallSize)
@@ -457,8 +500,6 @@ void	runtime·checkfreed(void *v, uintptr n);
 extern	int32	runtime·checking;
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
-bool	runtime·blockspecial(void*);
-void	runtime·setblockspecial(void*, bool);
 void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
 void*	runtime·cnewarray(Type*, intgo);
@@ -478,13 +519,20 @@ enum
 };
 
 void	runtime·MProf_Malloc(void*, uintptr, uintptr);
-void	runtime·MProf_Free(void*, uintptr);
+void	runtime·MProf_Free(Bucket*, void*, uintptr);
 void	runtime·MProf_GC(void);
 int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
 
-void	runtime·walkfintab(void (*fn)(void*));
+void	runtime·setprofilebucket(void *p, Bucket *b);
+
+bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
+void	runtime·removefinalizer(void*);
+void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot);
+
+void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
+bool	runtime·freespecial(Special *s, void *p, uintptr size);
 
 enum
 {

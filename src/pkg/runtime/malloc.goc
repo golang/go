@@ -139,7 +139,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 				rate = 0x3fffffff;
 			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
 		profile:
-			runtime·setblockspecial(v, true);
 			runtime·MProf_Malloc(v, size, typ);
 		}
 	}
@@ -165,7 +164,6 @@ runtime·free(void *v)
 	int32 sizeclass;
 	MSpan *s;
 	MCache *c;
-	uint32 prof;
 	uintptr size;
 
 	if(v == nil)
@@ -182,7 +180,6 @@ runtime·free(void *v)
 		runtime·printf("free %p: not an allocated block\n", v);
 		runtime·throw("free runtime·mlookup");
 	}
-	prof = runtime·blockspecial(v);
 
 	if(raceenabled)
 		runtime·racefree(v);
@@ -216,8 +213,8 @@ runtime·free(void *v)
 		c->local_nsmallfree[sizeclass]++;
 		runtime·MCache_Free(c, v, sizeclass, size);
 	}
-	if(prof)
-		runtime·MProf_Free(v, size);
+	if(s->specials != nil)
+		runtime·freeallspecials(s, v, size);
 	m->mallocing = 0;
 }
 
@@ -770,8 +767,6 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
 		goto throw;
 	}
-	nret = 0;
-	fint = nil;
 	if(finalizer.type != nil) {
 		if(finalizer.type->kind != KindFunc)
 			goto badfunc;
@@ -792,16 +787,20 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 			goto badfunc;
 
 		// compute size needed for return parameters
+		nret = 0;
 		for(i=0; i<ft->out.len; i++) {
 			t = ((Type**)ft->out.array)[i];
 			nret = ROUND(nret, t->align) + t->size;
 		}
 		nret = ROUND(nret, sizeof(void*));
-	}
-	
-	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
-		runtime·printf("runtime.SetFinalizer: finalizer already set\n");
-		goto throw;
+		ot = (PtrType*)obj.type;
+		if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
+			runtime·printf("runtime.SetFinalizer: finalizer already set\n");
+			goto throw;
+		}
+	} else {
+		// NOTE: asking to remove a finalizer when there currently isn't one set is OK.
+		runtime·removefinalizer(obj.data);
 	}
 	return;
 
