@@ -16,6 +16,10 @@ func query(filename, query string, bufSize int) (res []string, err error) {
 	}
 	defer file.Close()
 
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return
+	}
 	_, err = file.WriteString(query)
 	if err != nil {
 		return
