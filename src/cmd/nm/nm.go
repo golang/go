@@ -58,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	switch *sortOrder {
-	case "address", "name", "none":
+	case "address", "name", "none", "size":
 		// ok
 	default:
 		fmt.Fprintf(os.Stderr, "nm: unknown sort order %q\n", *sortOrder)
@@ -135,6 +135,8 @@ HaveSyms:
 		sort.Sort(byAddr(syms))
 	case "name":
 		sort.Sort(byName(syms))
+	case "size":
+		sort.Sort(bySize(syms))
 	}
 
 	w := bufio.NewWriter(os.Stdout)
@@ -170,3 +172,9 @@ type byName []Sym
 func (x byName) Len() int           { return len(x) }
 func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x byName) Less(i, j int) bool { return x[i].Name < x[j].Name }
+
+type bySize []Sym
+
+func (x bySize) Len() int           { return len(x) }
+func (x bySize) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x bySize) Less(i, j int) bool { return x[i].Size > x[j].Size }
