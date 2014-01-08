@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
 	"code.google.com/p/go.tools/ssa/interp"
@@ -73,6 +74,17 @@ func main() {
 	args := flag.Args()
 
 	impctx := importer.Config{Build: &build.Default}
+	// TODO(adonovan): make go/types choose its default Sizes from
+	// build.Default or a specified *build.Context.
+	var wordSize int64 = 8
+	switch impctx.Build.GOARCH {
+	case "386", "arm":
+		wordSize = 4
+	}
+	impctx.TypeChecker.Sizes = &types.StdSizes{
+		MaxAlign: 8,
+		WordSize: wordSize,
+	}
 
 	var debugMode bool
 	var mode ssa.BuilderMode
@@ -173,6 +185,12 @@ func main() {
 		if main == nil {
 			log.Fatal("No main package and no tests")
 		}
-		interp.Interpret(main, interpMode, main.Object.Path(), args)
+
+		if runtime.GOARCH != impctx.Build.GOARCH {
+			log.Fatalf("Cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s).",
+				impctx.Build.GOARCH, runtime.GOARCH)
+		}
+
+		interp.Interpret(main, interpMode, impctx.TypeChecker.Sizes, main.Object.Path(), args)
 	}
 }

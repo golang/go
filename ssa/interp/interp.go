@@ -622,18 +622,22 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
-var stdSizes = types.StdSizes{WordSize: 8, MaxAlign: 8}
+// _sizes is the effective type-sizing function.
+// TODO(adonovan): avoid global state.
+var _sizes types.Sizes
 
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
-// the initial values of os.Args for the target program.
+// the initial values of os.Args for the target program.  sizes is the
+// effective type-sizing function for this program.
 //
 // Interpret returns the exit code of the program: 2 for panic (like
 // gc does), or the argument to os.Exit for normal termination.
 //
 // The SSA program must include the "runtime" package.
 //
-func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) (exitCode int) {
+func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
+	_sizes = sizes
 	i := &interpreter{
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa.Value]*value),
@@ -669,8 +673,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 			setGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
-			// (Assumes no custom Sizeof used during SSA construction.)
-			sz := stdSizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
+			sz := sizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
 			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
 
 		case "os":

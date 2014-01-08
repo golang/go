@@ -81,33 +81,7 @@ func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value) value {
 	if !ok {
 		panic(fmt.Sprintf("reflect.Type.Bits(%T): non-basic type", rt))
 	}
-	switch basic.Kind() {
-	case types.Int8, types.Uint8:
-		return 8
-	case types.Int16, types.Uint16:
-		return 16
-	case types.Int, types.UntypedInt:
-		// Assume sizeof(int) is same on host and target; ditto uint.
-		return reflect.TypeOf(int(0)).Bits()
-	case types.Uintptr:
-		// Assume sizeof(uintptr) is same on host and target.
-		return reflect.TypeOf(uintptr(0)).Bits()
-	case types.Int32, types.Uint32:
-		return 32
-	case types.Int64, types.Uint64:
-		return 64
-	case types.Float32:
-		return 32
-	case types.Float64, types.UntypedFloat:
-		return 64
-	case types.Complex64:
-		return 64
-	case types.Complex128, types.UntypedComplex:
-		return 128
-	default:
-		panic(fmt.Sprintf("reflect.Type.Bits(%s)", basic))
-	}
-	return nil
+	return _sizes.Sizeof(basic) * 8
 }
 
 func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value) value {
@@ -161,8 +135,7 @@ func ext۰reflect۰rtype۰Out(fn *ssa.Function, args []value) value {
 
 func ext۰reflect۰rtype۰Size(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) uintptr
-	// (Assumes no custom Sizeof used during SSA construction.)
-	return uintptr(stdSizes.Sizeof(args[0].(rtype).t))
+	return uint64(_sizes.Sizeof(args[0].(rtype).t))
 }
 
 func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {

@@ -62,7 +62,7 @@ func deref(typ types.Type) types.Type {
 // it returns the incoming type for all other types.  The default type
 // for untyped nil is untyped nil.
 //
-// Exported to exp/ssa/interp.
+// Exported to ssa/interp.
 //
 // TODO(gri): this is a copy of go/types.defaultType; export that function.
 //

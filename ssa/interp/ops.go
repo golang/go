@@ -108,7 +108,7 @@ func constValue(c *ssa.Const) value {
 		}
 	}
 
-	panic(fmt.Sprintf("constValue: Value.(type)=%T Type()=%s", c.Value, c.Type()))
+	panic(fmt.Sprintf("constValue: %s", c))
 }
 
 // asInt converts x, which must be an integer, to an int suitable for

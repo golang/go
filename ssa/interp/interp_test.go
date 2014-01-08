@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/ssa"
 	"code.google.com/p/go.tools/ssa/interp"
@@ -222,7 +223,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	interp.CapturedOutput = &out
 
 	hint = fmt.Sprintf("To trace execution, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=C -run --interp=T %s\n", input)
-	exitCode := interp.Interpret(mainPkg, 0, inputs[0], []string{})
+	exitCode := interp.Interpret(mainPkg, 0, &types.StdSizes{8, 8}, inputs[0], []string{})
 
 	// The definition of success varies with each file.
 	if err := success(exitCode, out.String()); err != nil {
