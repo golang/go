@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"time"
 
+	"code.google.com/p/go.tools/go/gccgoimporter"
 	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
@@ -27,6 +28,7 @@ var (
 	allFiles  = flag.Bool("a", false, "use all (incl. _test.go) files when processing a directory")
 	allErrors = flag.Bool("e", false, "report all errors (not just the first 10)")
 	verbose   = flag.Bool("v", false, "verbose mode")
+	gccgo     = flag.Bool("gccgo", false, "use gccgoimporter instead of gcimporter")
 
 	// debugging support
 	sequential    = flag.Bool("seq", false, "parse sequentially, rather than in parallel")
@@ -194,6 +196,11 @@ func checkPkgFiles(files []*ast.File) {
 			report(err)
 		},
 		Sizes: sizes,
+	}
+	if *gccgo {
+		var inst gccgoimporter.GccgoInstallation
+		inst.InitFromDriver("gccgo")
+		conf.Import = inst.GetImporter(nil)
 	}
 
 	defer func() {
