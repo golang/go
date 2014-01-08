@@ -711,7 +711,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	if ptest != p {
 		a := b.action(modeBuild, modeBuild, ptest)
-		a.objdir = testDir + string(filepath.Separator)
+		a.objdir = testDir + string(filepath.Separator) + "_obj_test" + string(filepath.Separator)
 		a.objpkg = ptestObj
 		a.target = ptestObj
 		a.link = false
@@ -719,7 +719,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	if pxtest != nil {
 		a := b.action(modeBuild, modeBuild, pxtest)
-		a.objdir = testDir + string(filepath.Separator)
+		a.objdir = testDir + string(filepath.Separator) + "_obj_xtest" + string(filepath.Separator)
 		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
 		a.target = a.objpkg
 	}
