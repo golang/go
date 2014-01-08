@@ -31,8 +31,9 @@
 //		for compatibility with other nm commands
 //	-size
 //		print symbol size in decimal between address and type
-//	-sort {address,name,none}
+//	-sort {address,name,none,size}
 //		sort output in the given order (default name)
+//		size orders from largest to smallest
 //	-type
 //		print symbol type after name
 //
