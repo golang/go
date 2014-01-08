@@ -180,16 +180,18 @@ runtime·free(void *v)
 		runtime·printf("free %p: not an allocated block\n", v);
 		runtime·throw("free runtime·mlookup");
 	}
+	size = s->elemsize;
+	sizeclass = s->sizeclass;
 
 	if(raceenabled)
 		runtime·racefree(v);
 
-	// Find size class for v.
-	sizeclass = s->sizeclass;
+	if(s->specials != nil)
+		runtime·freeallspecials(s, v, size);
+
 	c = m->mcache;
 	if(sizeclass == 0) {
 		// Large object.
-		size = s->npages<<PageShift;
 		*(uintptr*)(s->start<<PageShift) = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
 		// Must mark v freed before calling unmarkspan and MHeap_Free:
 		// they might coalesce v into other spans and change the bitmap further.
@@ -203,7 +205,6 @@ runtime·free(void *v)
 		c->local_largefree += size;
 	} else {
 		// Small object.
-		size = runtime·class_to_size[sizeclass];
 		if(size > sizeof(uintptr))
 			((uintptr*)v)[1] = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
 		// Must mark v freed before calling MCache_Free:
@@ -213,8 +214,6 @@ runtime·free(void *v)
 		c->local_nsmallfree[sizeclass]++;
 		runtime·MCache_Free(c, v, sizeclass, size);
 	}
-	if(s->specials != nil)
-		runtime·freeallspecials(s, v, size);
 	m->mallocing = 0;
 }
 
