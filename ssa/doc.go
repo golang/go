@@ -56,7 +56,7 @@
 //                      Value?          Instruction?    Member?
 //   *Alloc             ✔               ✔
 //   *BinOp             ✔               ✔
-//   *Builtin           ✔               ✔
+//   *Builtin           ✔
 //   *Call              ✔               ✔
 //   *Capture           ✔
 //   *ChangeInterface   ✔               ✔
