@@ -26,7 +26,7 @@ const (
 	version = "v0"
 )
 
-// Object and type tags. Must be < 0.
+// Tags. Must be < 0.
 const (
 	// Packages
 	packageTag = -(iota + 1)
@@ -50,7 +50,7 @@ const (
 	namedTag
 
 	// Values
-	intTag
+	int64Tag
 	floatTag
 	fractionTag
 	complexTag
@@ -181,7 +181,7 @@ func (p *exporter) value(x exact.Value) {
 		p.string(exact.StringVal(x))
 	case exact.Int:
 		if i, ok := exact.Int64Val(x); ok {
-			p.int(intTag)
+			p.int(int64Tag)
 			p.int64(i)
 			return
 		}

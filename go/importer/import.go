@@ -132,7 +132,7 @@ func (p *importer) value() exact.Value {
 		return exact.MakeBool(true)
 	case stringTag:
 		return exact.MakeString(p.string())
-	case intTag:
+	case int64Tag:
 		return exact.MakeInt64(p.int64())
 	case floatTag:
 		return p.float()
@@ -282,30 +282,31 @@ func (p *importer) typ() types.Type {
 		return t
 
 	case namedTag:
-		// import type object
+		// read type object
 		name := p.string()
 		pkg := p.pkg()
 		scope := pkg.Scope()
 		obj := scope.Lookup(name)
+
+		// if the object doesn't exist yet, create and insert it
 		if obj == nil {
-			new := types.NewTypeName(token.NoPos, pkg, name, nil)
-			types.NewNamed(new, nil, nil)
-			scope.Insert(new)
-			obj = new
+			obj = types.NewTypeName(token.NoPos, pkg, name, nil)
+			scope.Insert(obj)
 		}
+
+		// associate new named type with obj if it doesn't exist yet
+		t0 := types.NewNamed(obj.(*types.TypeName), nil, nil)
+
+		// but record the existing type, if any
 		t := obj.Type().(*types.Named)
 		p.record(t)
 
-		// import underlying type
-		u := p.typ()
-		if t.Underlying() == nil {
-			t.SetUnderlying(u)
-		}
+		// read underlying type
+		t0.SetUnderlying(p.typ())
 
 		// read associated methods
-		n := p.int()
-		for i := 0; i < n; i++ {
-			t.AddMethod(types.NewFunc(token.NoPos, pkg, p.string(), p.typ().(*types.Signature)))
+		for i, n := 0, p.int(); i < n; i++ {
+			t0.AddMethod(types.NewFunc(token.NoPos, pkg, p.string(), p.typ().(*types.Signature)))
 		}
 
 		return t
