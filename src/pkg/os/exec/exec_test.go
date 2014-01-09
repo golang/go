@@ -570,6 +570,10 @@ func TestHelperProcess(*testing.T) {
 			// the cloned file descriptors that result from opening
 			// /dev/urandom.
 			// http://golang.org/issue/3955
+		case "solaris":
+			// TODO(aram): This fails on Solaris because libc opens
+			// its own files, as it sees fit. Darwin does the same,
+			// see: http://golang.org/issue/2603
 		default:
 			// Now verify that there are no other open fds.
 			var files []*os.File
