@@ -74,8 +74,7 @@ runtime·MHeap_MapSpans(MHeap *h)
 
 	// Map spans array, PageSize at a time.
 	n = (uintptr)h->arena_used;
-	if(sizeof(void*) == 8)
-		n -= (uintptr)h->arena_start;
+	n -= (uintptr)h->arena_start;
 	n = n / PageSize * sizeof(h->spans[0]);
 	n = ROUND(n, PageSize);
 	if(h->spans_mapped >= n)
@@ -169,8 +168,7 @@ HaveSpan:
 		runtime·MSpan_Init(t, s->start + npage, s->npages - npage);
 		s->npages = npage;
 		p = t->start;
-		if(sizeof(void*) == 8)
-			p -= ((uintptr)h->arena_start>>PageShift);
+		p -= ((uintptr)h->arena_start>>PageShift);
 		if(p > 0)
 			h->spans[p-1] = s;
 		h->spans[p] = t;
@@ -188,8 +186,7 @@ HaveSpan:
 	s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
 	s->types.compression = MTypes_Empty;
 	p = s->start;
-	if(sizeof(void*) == 8)
-		p -= ((uintptr)h->arena_start>>PageShift);
+	p -= ((uintptr)h->arena_start>>PageShift);
 	for(n=0; n<npage; n++)
 		h->spans[p+n] = s;
 	return s;
@@ -257,8 +254,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	s = runtime·FixAlloc_Alloc(&h->spanalloc);
 	runtime·MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
 	p = s->start;
-	if(sizeof(void*) == 8)
-		p -= ((uintptr)h->arena_start>>PageShift);
+	p -= ((uintptr)h->arena_start>>PageShift);
 	h->spans[p] = s;
 	h->spans[p + s->npages - 1] = s;
 	s->state = MSpanInUse;
@@ -275,8 +271,7 @@ runtime·MHeap_Lookup(MHeap *h, void *v)
 	uintptr p;
 	
 	p = (uintptr)v;
-	if(sizeof(void*) == 8)
-		p -= (uintptr)h->arena_start;
+	p -= (uintptr)h->arena_start;
 	return h->spans[p >> PageShift];
 }
 
@@ -297,8 +292,7 @@ runtime·MHeap_LookupMaybe(MHeap *h, void *v)
 		return nil;
 	p = (uintptr)v>>PageShift;
 	q = p;
-	if(sizeof(void*) == 8)
-		q -= (uintptr)h->arena_start >> PageShift;
+	q -= (uintptr)h->arena_start >> PageShift;
 	s = h->spans[q];
 	if(s == nil || p < s->start || v >= s->limit || s->state != MSpanInUse)
 		return nil;
@@ -345,8 +339,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 
 	// Coalesce with earlier, later spans.
 	p = s->start;
-	if(sizeof(void*) == 8)
-		p -= (uintptr)h->arena_start >> PageShift;
+	p -= (uintptr)h->arena_start >> PageShift;
 	if(p > 0 && (t = h->spans[p-1]) != nil && t->state != MSpanInUse) {
 		if(t->npreleased == 0) {  // cant't touch this otherwise
 			tp = (uintptr*)(t->start<<PageShift);
