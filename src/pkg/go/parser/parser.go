@@ -1752,7 +1752,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
 		return p.checkExpr(es.X)
 	}
-	p.error(s.Pos(), "expected condition, found simple statement")
+	p.error(s.Pos(), "expected condition, found simple statement (missing parentheses around composite literal?)")
 	return &ast.BadExpr{From: s.Pos(), To: s.End()}
 }
 
