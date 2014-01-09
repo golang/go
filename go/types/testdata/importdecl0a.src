@@ -27,7 +27,8 @@ import (
 )
 
 import "fmt"
-import f "fmt"
+import f1 "fmt"
+import f2 "fmt"
 
 // reflect.flag must not be visible in this package
 type flag int
@@ -39,5 +40,11 @@ type Value /* ERROR "already declared in this file" */ struct{}
 var _ = fmt.Println // use "fmt"
 
 func _() {
-	f.Println() // use "fmt"
+	f1.Println() // use "fmt"
+}
+
+func _() {
+	_ = func() {
+		f2.Println() // use "fmt"
+	}
 }

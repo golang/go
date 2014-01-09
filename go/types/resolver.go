@@ -49,18 +49,10 @@ type declInfo struct {
 }
 
 type funcInfo struct {
-	obj  *Func     // for debugging/tracing only
+	name string    // for tracing only
 	info *declInfo // for cycle detection
 	sig  *Signature
 	body *ast.BlockStmt
-}
-
-// later appends a function with non-empty body to check.funcList.
-func (check *checker) later(f *Func, info *declInfo, sig *Signature, body *ast.BlockStmt) {
-	// functions implemented elsewhere (say in assembly) have no body
-	if !check.conf.IgnoreFuncBodies && body != nil {
-		check.funcList = append(check.funcList, funcInfo{f, info, sig, body})
-	}
 }
 
 // arityMatch checks that the lhs and rhs of a const or var decl
@@ -408,34 +400,9 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// Phase 4: Typecheck all functions bodies.
 
-	// Note: funcList may grow while iterating through it - cannot use range clause.
-	for i := 0; i < len(check.funcList); i++ {
-		// TODO(gri) Factor out this code into a dedicated function
-		// with its own context so that it can be run concurrently
-		// eventually.
-
-		f := check.funcList[i]
-		if trace {
-			s := "<function literal>"
-			if f.obj != nil {
-				s = f.obj.name
-			}
-			fmt.Println("---", s)
-		}
-
-		check.topScope = f.sig.scope // open function scope
-		check.funcSig = f.sig
-		check.hasLabel = false
+	for _, f := range check.funcList {
 		check.decl = f.info
-		check.stmtList(0, f.body.List)
-
-		if check.hasLabel {
-			check.labels(f.body)
-		}
-
-		if f.sig.results.Len() > 0 && !check.isTerminating(f.body, "") {
-			check.errorf(f.body.Rbrace, "missing return")
-		}
+		check.funcBody(f.name, f.sig, f.body)
 	}
 
 	// Phase 5: Check initialization dependencies.
@@ -455,44 +422,46 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	objList = nil       // not needed anymore
 	check.initMap = nil // not needed anymore
 
-	// Phase 6: Check for declared but not used packages and variables.
-	// Note: must happen after checking all functions because closures may affect outer scopes
+	// Phase 6: Check for declared but not used packages and function variables.
+	// Note: must happen after checking all functions because function bodies
+	// may introduce package uses
+
+	// If function bodies are not checked, packages' uses are likely missing,
+	// and there are no unused function variables. Nothing left to do.
+	if check.conf.IgnoreFuncBodies {
+		return
+	}
 
 	// spec: "It is illegal (...) to directly import a package without referring to
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
-
-	// We must skip this check if we didn't look at function bodies.
-
-	if !check.conf.IgnoreFuncBodies {
-		for i, scope := range fileScopes {
-			var usedDotImports map[*Package]bool // lazily allocated
-			for _, obj := range scope.elems {
-				switch obj := obj.(type) {
-				case *PkgName:
-					// Unused "blank imports" are automatically ignored
-					// since _ identifiers are not entered into scopes.
-					if !obj.used {
-						check.errorf(obj.pos, "%q imported but not used", obj.pkg.path)
+	for i, scope := range fileScopes {
+		var usedDotImports map[*Package]bool // lazily allocated
+		for _, obj := range scope.elems {
+			switch obj := obj.(type) {
+			case *PkgName:
+				// Unused "blank imports" are automatically ignored
+				// since _ identifiers are not entered into scopes.
+				if !obj.used {
+					check.errorf(obj.pos, "%q imported but not used", obj.pkg.path)
+				}
+			default:
+				// All other objects in the file scope must be dot-
+				// imported. If an object was used, mark its package
+				// as used.
+				if obj.isUsed() {
+					if usedDotImports == nil {
+						usedDotImports = make(map[*Package]bool)
 					}
-				default:
-					// All other objects in the file scope must be dot-
-					// imported. If an object was used, mark its package
-					// as used.
-					if obj.isUsed() {
-						if usedDotImports == nil {
-							usedDotImports = make(map[*Package]bool)
-						}
-						usedDotImports[obj.Pkg()] = true
-					}
+					usedDotImports[obj.Pkg()] = true
 				}
 			}
-			// Iterate through all dot-imports for this file and
-			// check if the corresponding package was used.
-			for pkg, pos := range dotImports[i] {
-				if !usedDotImports[pkg] {
-					check.errorf(pos, "%q imported but not used", pkg.path)
-				}
+		}
+		// Iterate through all dot-imports for this file and
+		// check if the corresponding package was used.
+		for pkg, pos := range dotImports[i] {
+			if !usedDotImports[pkg] {
+				check.errorf(pos, "%q imported but not used", pkg.path)
 			}
 		}
 	}
@@ -500,6 +469,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// Each set of implicitly declared lhs variables in a type switch acts collectively
 	// as a single lhs variable. If any one was 'used', all of them are 'used'. Handle
 	// them before the general analysis.
+	// Note: This check could be done on a per-function basis.
 	for _, vars := range check.lhsVarsList {
 		// len(vars) > 0
 		var used bool
@@ -517,6 +487,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// spec: "Implementation restriction: A compiler may make it illegal to
 	// declare a variable inside a function body if the variable is never used."
+	// Note: Inner functions are handled via the child scopes of the enclosing function.
 	for _, f := range check.funcList {
 		check.usage(f.sig.scope)
 	}
@@ -839,7 +810,11 @@ func (check *checker) funcDecl(obj *Func, info *declInfo) {
 	}
 	obj.typ = sig
 
-	check.later(obj, info, sig, fdecl.Body)
+	// function body must be type-checked after global declarations
+	// (functions implemented elsewhere have no body)
+	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
+		check.funcList = append(check.funcList, funcInfo{obj.name, info, sig, fdecl.Body})
+	}
 }
 
 func (check *checker) declStmt(decl ast.Decl) {

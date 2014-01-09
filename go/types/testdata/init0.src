@@ -53,7 +53,7 @@ func f3() int { return x8 }
 
 // cycles via closures
 
-var x9 /* ERROR initialization cycle */ = func() int { return x9 }()
+var x9 /* ERROR illegal cycle */ = func() int { return x9 }()
 
 var x10 /* ERROR initialization cycle */ = f4()
 

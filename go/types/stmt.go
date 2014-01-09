@@ -7,9 +7,44 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 )
+
+func (check *checker) funcBody(name string, sig *Signature, body *ast.BlockStmt) {
+	if trace {
+		if name == "" {
+			name = "<function literal>"
+		}
+		fmt.Printf("--- %s: %s {\n", name, sig)
+		defer fmt.Println("--- <end>")
+	}
+
+	// save/restore outer function state
+	defer func(scope *Scope, sig *Signature, label bool, indent int) {
+		check.topScope = scope
+		check.funcSig = sig
+		check.hasLabel = label
+		check.indent = indent
+	}(check.topScope, check.funcSig, check.hasLabel, check.indent)
+
+	// setup inner function state
+	check.topScope = sig.scope
+	check.funcSig = sig
+	check.hasLabel = false
+	check.indent = 0
+
+	check.stmtList(0, body.List)
+
+	if check.hasLabel {
+		check.labels(body)
+	}
+
+	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
+		check.errorf(body.Rbrace, "missing return")
+	}
+}
 
 // stmtContext is a bitset describing the environment
 // (outer statements) containing a statement.

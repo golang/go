@@ -1,0 +1,16 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package issues
+
+import "fmt"
+
+func issue7035() {
+	type T struct{ X int }
+	_ = func() {
+		fmt.Println() // must refer to imported fmt rather than the fmt below
+	}
+	fmt := new(T)
+	_ = fmt.X
+}
