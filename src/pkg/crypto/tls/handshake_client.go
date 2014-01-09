@@ -22,14 +22,15 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	hello := &clientHelloMsg{
-		vers:               c.config.maxVersion(),
-		compressionMethods: []uint8{compressionNone},
-		random:             make([]byte, 32),
-		ocspStapling:       true,
-		serverName:         c.config.ServerName,
-		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
-		supportedPoints:    []uint8{pointFormatUncompressed},
-		nextProtoNeg:       len(c.config.NextProtos) > 0,
+		vers:                c.config.maxVersion(),
+		compressionMethods:  []uint8{compressionNone},
+		random:              make([]byte, 32),
+		ocspStapling:        true,
+		serverName:          c.config.ServerName,
+		supportedCurves:     []uint16{curveP256, curveP384, curveP521},
+		supportedPoints:     []uint8{pointFormatUncompressed},
+		nextProtoNeg:        len(c.config.NextProtos) > 0,
+		secureRenegotiation: true,
 	}
 
 	possibleCipherSuites := c.config.cipherSuites()
