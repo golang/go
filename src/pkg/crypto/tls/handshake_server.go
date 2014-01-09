@@ -152,6 +152,7 @@ Curves:
 	hs.hello.random[1] = byte(t >> 16)
 	hs.hello.random[2] = byte(t >> 8)
 	hs.hello.random[3] = byte(t)
+	hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
 	_, err = io.ReadFull(config.rand(), hs.hello.random[4:])
 	if err != nil {
 		return false, c.sendAlert(alertInternalError)

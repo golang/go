@@ -64,7 +64,7 @@ const (
 )
 
 // TLS extension numbers
-var (
+const (
 	extensionServerName          uint16 = 0
 	extensionStatusRequest       uint16 = 5
 	extensionSupportedCurves     uint16 = 10
@@ -72,11 +72,17 @@ var (
 	extensionSignatureAlgorithms uint16 = 13
 	extensionSessionTicket       uint16 = 35
 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
+	extensionRenegotiationInfo   uint16 = 0xff01
+)
+
+// TLS signaling cipher suite values
+const (
+	scsvRenegotiation uint16 = 0x00ff
 )
 
 // TLS Elliptic Curves
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
-var (
+const (
 	curveP256 uint16 = 23
 	curveP384 uint16 = 24
 	curveP521 uint16 = 25
@@ -84,7 +90,7 @@ var (
 
 // TLS Elliptic Curve Point Formats
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
-var (
+const (
 	pointFormatUncompressed uint8 = 0
 )
 
