@@ -465,32 +465,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			}
 		}
 	}
-
-	// Each set of implicitly declared lhs variables in a type switch acts collectively
-	// as a single lhs variable. If any one was 'used', all of them are 'used'. Handle
-	// them before the general analysis.
-	// Note: This check could be done on a per-function basis.
-	for _, vars := range check.lhsVarsList {
-		// len(vars) > 0
-		var used bool
-		for _, v := range vars {
-			if v.used {
-				used = true
-			}
-			v.used = true // avoid later error
-		}
-		if !used {
-			v := vars[0]
-			check.errorf(v.pos, "%s declared but not used", v.name)
-		}
-	}
-
-	// spec: "Implementation restriction: A compiler may make it illegal to
-	// declare a variable inside a function body if the variable is never used."
-	// Note: Inner functions are handled via the child scopes of the enclosing function.
-	for _, f := range check.funcList {
-		check.usage(f.sig.scope)
-	}
 }
 
 // dependencies recursively traverses the initialization dependency graph in a depth-first
@@ -568,17 +542,6 @@ func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 			initLhs = []*Var{this}
 		}
 		check.Info.InitOrder = append(check.Info.InitOrder, &Initializer{initLhs, init.init})
-	}
-}
-
-func (check *checker) usage(scope *Scope) {
-	for _, obj := range scope.elems {
-		if v, _ := obj.(*Var); v != nil && !v.used {
-			check.errorf(v.pos, "%s declared but not used", v.name)
-		}
-	}
-	for _, scope := range scope.children {
-		check.usage(scope)
 	}
 }
 

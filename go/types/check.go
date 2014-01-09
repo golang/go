@@ -36,7 +36,6 @@ type checker struct {
 	methods     map[string][]*Func     // maps type names to associated methods
 	conversions map[*ast.CallExpr]bool // set of type-checked conversions (to distinguish from calls)
 	untyped     map[ast.Expr]exprInfo  // map of expressions without final type
-	lhsVarsList [][]*Var               // type switch lhs variable sets, for 'declared but not used' errors
 	delayed     []func()               // delayed checks that require fully setup types
 
 	firstErr error // first error encountered

@@ -44,6 +44,23 @@ func (check *checker) funcBody(name string, sig *Signature, body *ast.BlockStmt)
 	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
 		check.errorf(body.Rbrace, "missing return")
 	}
+
+	// spec: "Implementation restriction: A compiler may make it illegal to
+	// declare a variable inside a function body if the variable is never used."
+	// (One could check each scope after use, but that distributes this check
+	// over several places because CloseScope is not always called explicitly.)
+	check.usage(sig.scope)
+}
+
+func (check *checker) usage(scope *Scope) {
+	for _, obj := range scope.elems {
+		if v, _ := obj.(*Var); v != nil && !v.used {
+			check.errorf(v.pos, "%s declared but not used", v.name)
+		}
+	}
+	for _, scope := range scope.children {
+		check.usage(scope)
+	}
 }
 
 // stmtContext is a bitset describing the environment
@@ -460,7 +477,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		check.multipleDefaults(s.Body.List)
 
-		var lhsVars []*Var               // set of implicitly declared lhs variables
+		var lhsVars []*Var               // list of implicitly declared lhs variables
 		seen := make(map[Type]token.Pos) // map of seen types to positions
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
@@ -471,7 +488,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// Check each type in this type switch case.
 			T := check.caseTypes(&x, xtyp, clause.List, seen)
 			check.openScope(clause)
-			// If lhs exists, declare a corresponding variable in the case-local scope if necessary.
+			// If lhs exists, declare a corresponding variable in the case-local scope.
 			if lhs != nil {
 				// spec: "The TypeSwitchGuard may include a short variable declaration.
 				// When that form is used, the variable is declared at the beginning of
@@ -482,24 +499,29 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					T = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
+				check.declare(check.topScope, nil, obj)
+				check.recordImplicit(clause, obj)
 				// For the "declared but not used" error, all lhs variables act as
 				// one; i.e., if any one of them is 'used', all of them are 'used'.
 				// Collect them for later analysis.
 				lhsVars = append(lhsVars, obj)
-				check.declare(check.topScope, nil, obj)
-				check.recordImplicit(clause, obj)
 			}
 			check.stmtList(inner, clause.Body)
 			check.closeScope()
 		}
-		// If a lhs variable was declared but there were no case clauses, make sure
-		// we have at least one (dummy) 'unused' variable to force an error message.
-		if len(lhsVars) == 0 && lhs != nil {
-			lhsVars = []*Var{NewVar(lhs.Pos(), check.pkg, lhs.Name, x.typ)}
-		}
-		// Record lhs variables for this type switch, if any.
-		if len(lhsVars) > 0 {
-			check.lhsVarsList = append(check.lhsVarsList, lhsVars)
+
+		// If lhs exists, we must have at least one lhs variable that was used.
+		if lhs != nil {
+			var used bool
+			for _, v := range lhsVars {
+				if v.used {
+					used = true
+				}
+				v.used = true // avoid usage error when checking entire function
+			}
+			if !used {
+				check.errorf(lhs.Pos(), "%s declared but not used", lhs.Name)
+			}
 		}
 
 	case *ast.SelectStmt:
