@@ -65,6 +65,9 @@ pkg debug/goobj, const SWINDOWS SymKind
 pkg debug/goobj, const SXREF = 24
 pkg debug/goobj, const SXREF SymKind
 pkg debug/goobj, func Parse(io.ReadSeeker, string) (*Package, error)
+pkg debug/goobj, method (Sym) String() string
+pkg debug/goobj, method (SymID) String() string
+pkg debug/goobj, method (SymKind) String() string
 pkg debug/goobj, type Data struct
 pkg debug/goobj, type Data struct, Offset int64
 pkg debug/goobj, type Data struct, Size int64
@@ -110,3 +113,401 @@ pkg debug/goobj, type Var struct, Kind int
 pkg debug/goobj, type Var struct, Name string
 pkg debug/goobj, type Var struct, Offset int
 pkg debug/goobj, type Var struct, Type SymID
+pkg sync, method (*Pool) Get() interface{}
+pkg sync, method (*Pool) Put(interface{})
+pkg sync, type Pool struct
+pkg sync, type Pool struct, New func() interface{}
+pkg syscall (netbsd-386), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-386), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-386), const CLONE_FILES = 1024
+pkg syscall (netbsd-386), const CLONE_FILES ideal-int
+pkg syscall (netbsd-386), const CLONE_FS = 512
+pkg syscall (netbsd-386), const CLONE_FS ideal-int
+pkg syscall (netbsd-386), const CLONE_PID = 4096
+pkg syscall (netbsd-386), const CLONE_PID ideal-int
+pkg syscall (netbsd-386), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-386), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-386), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-386), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-386), const CLONE_VFORK = 16384
+pkg syscall (netbsd-386), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-386), const CLONE_VM = 256
+pkg syscall (netbsd-386), const CLONE_VM ideal-int
+pkg syscall (netbsd-386), const MADV_DONTNEED = 4
+pkg syscall (netbsd-386), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-386), const MADV_FREE = 6
+pkg syscall (netbsd-386), const MADV_FREE ideal-int
+pkg syscall (netbsd-386), const MADV_NORMAL = 0
+pkg syscall (netbsd-386), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-386), const MADV_RANDOM = 1
+pkg syscall (netbsd-386), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-386), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-386), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-386), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-386), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-386), const MADV_WILLNEED = 3
+pkg syscall (netbsd-386), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-386), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-386), const MAP_ANON = 4096
+pkg syscall (netbsd-386), const MAP_ANON ideal-int
+pkg syscall (netbsd-386), const MAP_FILE = 0
+pkg syscall (netbsd-386), const MAP_FILE ideal-int
+pkg syscall (netbsd-386), const MAP_FIXED = 16
+pkg syscall (netbsd-386), const MAP_FIXED ideal-int
+pkg syscall (netbsd-386), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-386), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT = 128
+pkg syscall (netbsd-386), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-386), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-386), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-386), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-386), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-386), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-386), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-386), const MAP_NORESERVE = 64
+pkg syscall (netbsd-386), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-386), const MAP_PRIVATE = 2
+pkg syscall (netbsd-386), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-386), const MAP_RENAME = 32
+pkg syscall (netbsd-386), const MAP_RENAME ideal-int
+pkg syscall (netbsd-386), const MAP_SHARED = 1
+pkg syscall (netbsd-386), const MAP_SHARED ideal-int
+pkg syscall (netbsd-386), const MAP_STACK = 8192
+pkg syscall (netbsd-386), const MAP_STACK ideal-int
+pkg syscall (netbsd-386), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-386), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-386), const MAP_WIRED = 2048
+pkg syscall (netbsd-386), const MAP_WIRED ideal-int
+pkg syscall (netbsd-386), const MCL_CURRENT = 1
+pkg syscall (netbsd-386), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-386), const MCL_FUTURE = 2
+pkg syscall (netbsd-386), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-386), const MS_ASYNC = 1
+pkg syscall (netbsd-386), const MS_ASYNC ideal-int
+pkg syscall (netbsd-386), const MS_INVALIDATE = 2
+pkg syscall (netbsd-386), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-386), const MS_SYNC = 4
+pkg syscall (netbsd-386), const MS_SYNC ideal-int
+pkg syscall (netbsd-386), const PROT_EXEC = 4
+pkg syscall (netbsd-386), const PROT_EXEC ideal-int
+pkg syscall (netbsd-386), const PROT_NONE = 0
+pkg syscall (netbsd-386), const PROT_NONE ideal-int
+pkg syscall (netbsd-386), const PROT_READ = 1
+pkg syscall (netbsd-386), const PROT_READ ideal-int
+pkg syscall (netbsd-386), const PROT_WRITE = 2
+pkg syscall (netbsd-386), const PROT_WRITE ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-386-cgo), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_FILES = 1024
+pkg syscall (netbsd-386-cgo), const CLONE_FILES ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_FS = 512
+pkg syscall (netbsd-386-cgo), const CLONE_FS ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_PID = 4096
+pkg syscall (netbsd-386-cgo), const CLONE_PID ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-386-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-386-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_VFORK = 16384
+pkg syscall (netbsd-386-cgo), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-386-cgo), const CLONE_VM = 256
+pkg syscall (netbsd-386-cgo), const CLONE_VM ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_DONTNEED = 4
+pkg syscall (netbsd-386-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_FREE = 6
+pkg syscall (netbsd-386-cgo), const MADV_FREE ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_NORMAL = 0
+pkg syscall (netbsd-386-cgo), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_RANDOM = 1
+pkg syscall (netbsd-386-cgo), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-386-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-386-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-386-cgo), const MADV_WILLNEED = 3
+pkg syscall (netbsd-386-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-386-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_ANON = 4096
+pkg syscall (netbsd-386-cgo), const MAP_ANON ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_FILE = 0
+pkg syscall (netbsd-386-cgo), const MAP_FILE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_FIXED = 16
+pkg syscall (netbsd-386-cgo), const MAP_FIXED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-386-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT = 128
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-386-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_NORESERVE = 64
+pkg syscall (netbsd-386-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_PRIVATE = 2
+pkg syscall (netbsd-386-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_RENAME = 32
+pkg syscall (netbsd-386-cgo), const MAP_RENAME ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_SHARED = 1
+pkg syscall (netbsd-386-cgo), const MAP_SHARED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_STACK = 8192
+pkg syscall (netbsd-386-cgo), const MAP_STACK ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-386-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-386-cgo), const MAP_WIRED = 2048
+pkg syscall (netbsd-386-cgo), const MAP_WIRED ideal-int
+pkg syscall (netbsd-386-cgo), const MCL_CURRENT = 1
+pkg syscall (netbsd-386-cgo), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-386-cgo), const MCL_FUTURE = 2
+pkg syscall (netbsd-386-cgo), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-386-cgo), const MS_ASYNC = 1
+pkg syscall (netbsd-386-cgo), const MS_ASYNC ideal-int
+pkg syscall (netbsd-386-cgo), const MS_INVALIDATE = 2
+pkg syscall (netbsd-386-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-386-cgo), const MS_SYNC = 4
+pkg syscall (netbsd-386-cgo), const MS_SYNC ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_EXEC = 4
+pkg syscall (netbsd-386-cgo), const PROT_EXEC ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_NONE = 0
+pkg syscall (netbsd-386-cgo), const PROT_NONE ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_READ = 1
+pkg syscall (netbsd-386-cgo), const PROT_READ ideal-int
+pkg syscall (netbsd-386-cgo), const PROT_WRITE = 2
+pkg syscall (netbsd-386-cgo), const PROT_WRITE ideal-int
+pkg syscall (netbsd-amd64), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-amd64), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-amd64), const CLONE_FILES = 1024
+pkg syscall (netbsd-amd64), const CLONE_FILES ideal-int
+pkg syscall (netbsd-amd64), const CLONE_FS = 512
+pkg syscall (netbsd-amd64), const CLONE_FS ideal-int
+pkg syscall (netbsd-amd64), const CLONE_PID = 4096
+pkg syscall (netbsd-amd64), const CLONE_PID ideal-int
+pkg syscall (netbsd-amd64), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-amd64), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-amd64), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-amd64), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-amd64), const CLONE_VFORK = 16384
+pkg syscall (netbsd-amd64), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-amd64), const CLONE_VM = 256
+pkg syscall (netbsd-amd64), const CLONE_VM ideal-int
+pkg syscall (netbsd-amd64), const MADV_DONTNEED = 4
+pkg syscall (netbsd-amd64), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-amd64), const MADV_FREE = 6
+pkg syscall (netbsd-amd64), const MADV_FREE ideal-int
+pkg syscall (netbsd-amd64), const MADV_NORMAL = 0
+pkg syscall (netbsd-amd64), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-amd64), const MADV_RANDOM = 1
+pkg syscall (netbsd-amd64), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-amd64), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-amd64), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-amd64), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-amd64), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-amd64), const MADV_WILLNEED = 3
+pkg syscall (netbsd-amd64), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-amd64), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-amd64), const MAP_ANON = 4096
+pkg syscall (netbsd-amd64), const MAP_ANON ideal-int
+pkg syscall (netbsd-amd64), const MAP_FILE = 0
+pkg syscall (netbsd-amd64), const MAP_FILE ideal-int
+pkg syscall (netbsd-amd64), const MAP_FIXED = 16
+pkg syscall (netbsd-amd64), const MAP_FIXED ideal-int
+pkg syscall (netbsd-amd64), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-amd64), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT = 128
+pkg syscall (netbsd-amd64), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-amd64), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-amd64), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-amd64), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-amd64), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-amd64), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-amd64), const MAP_NORESERVE = 64
+pkg syscall (netbsd-amd64), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-amd64), const MAP_PRIVATE = 2
+pkg syscall (netbsd-amd64), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-amd64), const MAP_RENAME = 32
+pkg syscall (netbsd-amd64), const MAP_RENAME ideal-int
+pkg syscall (netbsd-amd64), const MAP_SHARED = 1
+pkg syscall (netbsd-amd64), const MAP_SHARED ideal-int
+pkg syscall (netbsd-amd64), const MAP_STACK = 8192
+pkg syscall (netbsd-amd64), const MAP_STACK ideal-int
+pkg syscall (netbsd-amd64), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-amd64), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-amd64), const MAP_WIRED = 2048
+pkg syscall (netbsd-amd64), const MAP_WIRED ideal-int
+pkg syscall (netbsd-amd64), const MCL_CURRENT = 1
+pkg syscall (netbsd-amd64), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-amd64), const MCL_FUTURE = 2
+pkg syscall (netbsd-amd64), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-amd64), const MS_ASYNC = 1
+pkg syscall (netbsd-amd64), const MS_ASYNC ideal-int
+pkg syscall (netbsd-amd64), const MS_INVALIDATE = 2
+pkg syscall (netbsd-amd64), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-amd64), const MS_SYNC = 4
+pkg syscall (netbsd-amd64), const MS_SYNC ideal-int
+pkg syscall (netbsd-amd64), const PROT_EXEC = 4
+pkg syscall (netbsd-amd64), const PROT_EXEC ideal-int
+pkg syscall (netbsd-amd64), const PROT_NONE = 0
+pkg syscall (netbsd-amd64), const PROT_NONE ideal-int
+pkg syscall (netbsd-amd64), const PROT_READ = 1
+pkg syscall (netbsd-amd64), const PROT_READ ideal-int
+pkg syscall (netbsd-amd64), const PROT_WRITE = 2
+pkg syscall (netbsd-amd64), const PROT_WRITE ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_CSIGNAL = 255
+pkg syscall (netbsd-amd64-cgo), const CLONE_CSIGNAL ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_FILES = 1024
+pkg syscall (netbsd-amd64-cgo), const CLONE_FILES ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_FS = 512
+pkg syscall (netbsd-amd64-cgo), const CLONE_FS ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_PID = 4096
+pkg syscall (netbsd-amd64-cgo), const CLONE_PID ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_PTRACE = 8192
+pkg syscall (netbsd-amd64-cgo), const CLONE_PTRACE ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_SIGHAND = 2048
+pkg syscall (netbsd-amd64-cgo), const CLONE_SIGHAND ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_VFORK = 16384
+pkg syscall (netbsd-amd64-cgo), const CLONE_VFORK ideal-int
+pkg syscall (netbsd-amd64-cgo), const CLONE_VM = 256
+pkg syscall (netbsd-amd64-cgo), const CLONE_VM ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_DONTNEED = 4
+pkg syscall (netbsd-amd64-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_FREE = 6
+pkg syscall (netbsd-amd64-cgo), const MADV_FREE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_NORMAL = 0
+pkg syscall (netbsd-amd64-cgo), const MADV_NORMAL ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_RANDOM = 1
+pkg syscall (netbsd-amd64-cgo), const MADV_RANDOM ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (netbsd-amd64-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (netbsd-amd64-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (netbsd-amd64-cgo), const MADV_WILLNEED = 3
+pkg syscall (netbsd-amd64-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_16MB = 402653184
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_16MB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_1TB = 671088640
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_1TB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_256TB = 805306368
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_256TB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_4GB = 536870912
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_4GB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64KB = 268435456
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64KB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64PB = 939524096
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_64PB ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_MASK = -16777216
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_MASK ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_SHIFT = 24
+pkg syscall (netbsd-amd64-cgo), const MAP_ALIGNMENT_SHIFT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_ANON = 4096
+pkg syscall (netbsd-amd64-cgo), const MAP_ANON ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_FILE = 0
+pkg syscall (netbsd-amd64-cgo), const MAP_FILE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_FIXED = 16
+pkg syscall (netbsd-amd64-cgo), const MAP_FIXED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (netbsd-amd64-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT = 128
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DEFAULT = 1
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DEFAULT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (netbsd-amd64-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_NORESERVE = 64
+pkg syscall (netbsd-amd64-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_PRIVATE = 2
+pkg syscall (netbsd-amd64-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_RENAME = 32
+pkg syscall (netbsd-amd64-cgo), const MAP_RENAME ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_SHARED = 1
+pkg syscall (netbsd-amd64-cgo), const MAP_SHARED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_STACK = 8192
+pkg syscall (netbsd-amd64-cgo), const MAP_STACK ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (netbsd-amd64-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MAP_WIRED = 2048
+pkg syscall (netbsd-amd64-cgo), const MAP_WIRED ideal-int
+pkg syscall (netbsd-amd64-cgo), const MCL_CURRENT = 1
+pkg syscall (netbsd-amd64-cgo), const MCL_CURRENT ideal-int
+pkg syscall (netbsd-amd64-cgo), const MCL_FUTURE = 2
+pkg syscall (netbsd-amd64-cgo), const MCL_FUTURE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MS_ASYNC = 1
+pkg syscall (netbsd-amd64-cgo), const MS_ASYNC ideal-int
+pkg syscall (netbsd-amd64-cgo), const MS_INVALIDATE = 2
+pkg syscall (netbsd-amd64-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (netbsd-amd64-cgo), const MS_SYNC = 4
+pkg syscall (netbsd-amd64-cgo), const MS_SYNC ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_EXEC = 4
+pkg syscall (netbsd-amd64-cgo), const PROT_EXEC ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_NONE = 0
+pkg syscall (netbsd-amd64-cgo), const PROT_NONE ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_READ = 1
+pkg syscall (netbsd-amd64-cgo), const PROT_READ ideal-int
+pkg syscall (netbsd-amd64-cgo), const PROT_WRITE = 2
+pkg syscall (netbsd-amd64-cgo), const PROT_WRITE ideal-int
+pkg syscall (windows-386), func NewCallbackCDecl(interface{}) uintptr
+pkg syscall (windows-amd64), func NewCallbackCDecl(interface{}) uintptr
