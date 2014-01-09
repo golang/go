@@ -40,7 +40,7 @@ func main() {
         w.Write(nil)    // interface invoke of external declared method
 }
 `
-	imp := importer.New(new(importer.Config)) // no go/build.Context; uses GC importer
+	imp := importer.New(&importer.Config{})
 
 	f, err := parser.ParseFile(imp.Fset, "<input>", test, 0)
 	if err != nil {
@@ -58,10 +58,16 @@ func main() {
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.Build()
 
-	// Only the main package and its immediate dependencies are loaded.
-	deps := []string{"bytes", "io", "testing"}
+	// The main package, its direct and indirect dependencies are loaded.
+	deps := []string{
+		// directly imported dependencies:
+		"bytes", "io", "testing",
+		// indirect dependencies (partial list):
+		"errors", "fmt", "os", "runtime",
+	}
+
 	all := prog.AllPackages()
-	if len(all) != 1+len(deps) {
+	if len(all) <= len(deps) {
 		t.Errorf("unexpected set of loaded packages: %q", all)
 	}
 	for _, path := range deps {
@@ -198,7 +204,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		imp := importer.New(new(importer.Config)) // no go/build.Context; uses GC importer
+		imp := importer.New(&importer.Config{})
 
 		f, err := parser.ParseFile(imp.Fset, "<input>", test.input, 0)
 		if err != nil {

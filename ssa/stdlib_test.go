@@ -10,7 +10,6 @@ package ssa_test
 // Run test with GOMAXPROCS=8.
 
 import (
-	"go/build"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -52,12 +51,10 @@ func allPackages() []string {
 }
 
 func TestStdlib(t *testing.T) {
-	impctx := importer.Config{Build: &build.Default}
-
 	// Load, parse and type-check the program.
 	t0 := time.Now()
 
-	imp := importer.New(&impctx)
+	imp := importer.New(&importer.Config{})
 
 	if _, _, err := imp.LoadInitialPackages(allPackages()); err != nil {
 		t.Errorf("LoadInitialPackages failed: %s", err)

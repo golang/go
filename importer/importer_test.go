@@ -6,18 +6,15 @@ package importer_test
 
 import (
 	"fmt"
-	"go/build"
 	"testing"
 
 	"code.google.com/p/go.tools/importer"
 )
 
 func TestLoadInitialPackages(t *testing.T) {
-	ctxt := &importer.Config{Build: &build.Default}
-
 	// Failed load: bad first import path causes parsePackageFiles to fail.
 	args := []string{"nosuchpkg", "errors"}
-	if _, _, err := importer.New(ctxt).LoadInitialPackages(args); err == nil {
+	if _, _, err := importer.New(&importer.Config{}).LoadInitialPackages(args); err == nil {
 		t.Errorf("LoadInitialPackages(%q) succeeded, want failure", args)
 	} else {
 		// cannot find package: ok.
@@ -25,7 +22,7 @@ func TestLoadInitialPackages(t *testing.T) {
 
 	// Failed load: bad second import path proceeds to doImport0, which fails.
 	args = []string{"errors", "nosuchpkg"}
-	if _, _, err := importer.New(ctxt).LoadInitialPackages(args); err == nil {
+	if _, _, err := importer.New(&importer.Config{}).LoadInitialPackages(args); err == nil {
 		t.Errorf("LoadInitialPackages(%q) succeeded, want failure", args)
 	} else {
 		// cannot find package: ok
@@ -33,7 +30,7 @@ func TestLoadInitialPackages(t *testing.T) {
 
 	// Successful load.
 	args = []string{"fmt", "errors", "testdata/a.go,testdata/b.go", "--", "surplus"}
-	imp := importer.New(ctxt)
+	imp := importer.New(&importer.Config{})
 	infos, rest, err := imp.LoadInitialPackages(args)
 	if err != nil {
 		t.Errorf("LoadInitialPackages(%q) failed: %s", args, err)

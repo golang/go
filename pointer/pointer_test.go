@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"go/build"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -152,7 +151,7 @@ func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]pointer.Pointer, e 
 }
 
 func doOneInput(input, filename string) bool {
-	impctx := &importer.Config{Build: &build.Default}
+	impctx := &importer.Config{SourceImports: true}
 	imp := importer.New(impctx)
 
 	// Parsing.

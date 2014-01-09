@@ -810,9 +810,6 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 				c.Method = obj
 			} else {
 				// "Call"-mode call.
-				// TODO(adonovan): fix: in -build=G
-				// mode, declaredFunc panics for
-				// cross-package calls.
 				c.Value = fn.Prog.declaredFunc(obj)
 				c.Args = append(c.Args, v)
 			}

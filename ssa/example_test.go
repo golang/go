@@ -6,7 +6,6 @@ package ssa_test
 
 import (
 	"fmt"
-	"go/build"
 	"go/parser"
 	"os"
 
@@ -42,8 +41,8 @@ func main() {
 	fmt.Println(message)
 }
 `
-	// Construct an importer.  Imports will be loaded as if by 'go build'.
-	imp := importer.New(&importer.Config{Build: &build.Default})
+	// Construct an importer.
+	imp := importer.New(&importer.Config{})
 
 	// Parse the input file.
 	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, 0)

@@ -73,7 +73,10 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Config{Build: &build.Default}
+	impctx := importer.Config{
+		Build:         &build.Default,
+		SourceImports: true,
+	}
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.
 	var wordSize int64 = 8
@@ -103,7 +106,7 @@ func main() {
 		case 'N':
 			mode |= ssa.NaiveForm
 		case 'G':
-			impctx.Build = nil
+			impctx.SourceImports = false
 		case 'L':
 			mode |= ssa.BuildSerially
 		default:
@@ -147,8 +150,8 @@ func main() {
 
 	// The interpreter needs the runtime package.
 	if *runFlag {
-		if _, err := imp.LoadPackage("runtime"); err != nil {
-			log.Fatalf("LoadPackage(runtime) failed: %s", err)
+		if _, err := imp.ImportPackage("runtime"); err != nil {
+			log.Fatalf("ImportPackage(runtime) failed: %s", err)
 		}
 	}
 

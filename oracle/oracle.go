@@ -192,7 +192,7 @@ func (res *Result) Serial() *serial.Result {
 // Clients that intend to perform multiple queries against the same
 // analysis scope should use this pattern instead:
 //
-//	imp := importer.New(&importer.Config{Build: buildContext})
+//	imp := importer.New(&importer.Config{Build: buildContext, SourceImports: true})
 // 	o, err := oracle.New(imp, args, nil)
 //	if err != nil { ... }
 //	for ... {
@@ -219,7 +219,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	impcfg := importer.Config{Build: buildContext}
+	impcfg := importer.Config{Build: buildContext, SourceImports: true}
 
 	// For queries needing only a single typed package,
 	// reduce the analysis scope to that package.

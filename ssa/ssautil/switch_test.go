@@ -15,7 +15,7 @@ import (
 )
 
 func TestSwitches(t *testing.T) {
-	imp := importer.New(new(importer.Config)) // (uses GCImporter)
+	imp := importer.New(&importer.Config{})
 	f, err := parser.ParseFile(imp.Fset, "testdata/switches.go", nil, parser.ParseComments)
 	if err != nil {
 		t.Error(err)

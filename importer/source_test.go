@@ -82,7 +82,7 @@ func TestEnclosingFunction(t *testing.T) {
 			"900", "func@2.27"},
 	}
 	for _, test := range tests {
-		imp := importer.New(new(importer.Config)) // (NB: no go/build.Config)
+		imp := importer.New(&importer.Config{})
 		f, start, end := findInterval(t, imp.Fset, test.input, test.substr)
 		if f == nil {
 			continue

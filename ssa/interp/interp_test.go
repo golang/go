@@ -168,7 +168,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 		inputs = append(inputs, dir+i)
 	}
 
-	imp := importer.New(&importer.Config{Build: &build.Default})
+	imp := importer.New(&importer.Config{SourceImports: true})
 	// TODO(adonovan): use LoadInitialPackages, then un-export ParseFiles.
 	// Then add the following packages' tests, which pass:
 	// "flag", "unicode", "unicode/utf8", "testing", "log", "path".
@@ -194,8 +194,8 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
 	mainInfo := imp.CreatePackage(files[0].Name.Name, files...)
 
-	if _, err := imp.LoadPackage("runtime"); err != nil {
-		t.Errorf("LoadPackage(runtime) failed: %s", err)
+	if _, err := imp.ImportPackage("runtime"); err != nil {
+		t.Errorf("ImportPackage(runtime) failed: %s", err)
 	}
 
 	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
@@ -321,7 +321,7 @@ func TestTestmainPackage(t *testing.T) {
 
 // CreateTestMainPackage should return nil if there were no tests.
 func TestNullTestmainPackage(t *testing.T) {
-	imp := importer.New(&importer.Config{Build: &build.Default})
+	imp := importer.New(&importer.Config{})
 	files, err := importer.ParseFiles(imp.Fset, ".", "testdata/b_test.go")
 	if err != nil {
 		t.Fatalf("ParseFiles failed: %s", err)

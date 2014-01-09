@@ -6,7 +6,6 @@ package pointer_test
 
 import (
 	"fmt"
-	"go/build"
 	"go/parser"
 	"sort"
 
@@ -41,8 +40,7 @@ func main() {
 }
 `
 	// Construct an importer.
-	// Imports will be loaded as if by 'go build'.
-	imp := importer.New(&importer.Config{Build: &build.Default})
+	imp := importer.New(&importer.Config{SourceImports: true})
 
 	// Parse the input file.
 	file, err := parser.ParseFile(imp.Fset, "myprog.go", myprog, 0)

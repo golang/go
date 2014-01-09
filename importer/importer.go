@@ -50,7 +50,6 @@ import (
 	"go/token"
 	"os"
 	"strings"
-	"sync"
 
 	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/exact"
@@ -60,32 +59,28 @@ import (
 
 // An Importer's exported methods are not thread-safe.
 type Importer struct {
-	Fset          *token.FileSet         // position info for all files seen
-	config        *Config                // the client configuration, unmodified
-	importfn      types.Importer         // client's type import function
-	augment       map[string]bool        // packages to be augmented by TestFiles when imported
-	allPackagesMu sync.Mutex             // guards 'allPackages' during internal concurrency
-	allPackages   []*PackageInfo         // all packages, including non-importable ones
-	importedMu    sync.Mutex             // guards 'imported'
-	imported      map[string]*importInfo // all imported packages (incl. failures) by import path
+	Fset        *token.FileSet         // position info for all files seen
+	Config      *Config                // the client configuration, unmodified
+	importfn    types.Importer         // client's type import function
+	srcpkgs     map[string]bool        // for each package to load from source, whether to augment
+	allPackages []*PackageInfo         // all packages, including non-importable ones
+	imported    map[string]*importInfo // all imported packages (incl. failures) by import path
 }
 
 // importInfo holds internal information about each import path.
 type importInfo struct {
-	path  string        // import path
-	info  *PackageInfo  // results of typechecking (including type errors)
-	err   error         // reason for failure to construct a package
-	ready chan struct{} // channel close is notification of ready state
+	path string       // import path
+	info *PackageInfo // results of typechecking (including type errors)
+	err  error        // reason for failure to construct a package
 }
 
 // Config specifies the configuration for the importer.
+// The zero value for Config is a ready-to-use default configuration.
 type Config struct {
 	// TypeChecker contains options relating to the type checker.
 	//
 	// The supplied IgnoreFuncBodies is not used; the effective
 	// value comes from the TypeCheckFuncBodies func below.
-	//
-	// All callbacks must be thread-safe.
 	TypeChecker types.Config
 
 	// TypeCheckFuncBodies is a predicate over package import
@@ -94,21 +89,33 @@ type Config struct {
 	// its function bodies; this can be used to quickly load
 	// dependencies from source.  If nil, all func bodies are type
 	// checked.
-	//
-	// Must be thread-safe.
-	//
 	TypeCheckFuncBodies func(string) bool
 
-	// If Build is non-nil, it is used to satisfy imports.
+	// SourceImports determines whether to satisfy all imports by
+	// loading Go source code.
 	//
-	// If it is nil, binary object files produced by the gc
-	// compiler will be loaded instead of source code for all
-	// imported packages.  Such files supply only the types of
+	// If false, the TypeChecker.Import mechanism will be used
+	// instead.  Since that typically supplies only the types of
 	// package-level declarations and values of constants, but no
-	// code, so this mode will not yield a whole program.  It is
-	// intended for analyses that perform intraprocedural analysis
-	// of a single package.
+	// code, it will not yield a whole program.  It is intended
+	// for analyses that perform intraprocedural analysis of a
+	// single package.
+	//
+	// The importer's initial packages are always loaded from
+	// source, regardless of this flag's setting.
+	SourceImports bool
+
+	// If Build is non-nil, it is used to locate source packages.
+	// Otherwise &build.Default is used.
 	Build *build.Context
+}
+
+// build returns the effective build context.
+func (c *Config) build() *build.Context {
+	if c.Build != nil {
+		return c.Build
+	}
+	return &build.Default
 }
 
 // New returns a new, empty Importer using configuration options
@@ -129,25 +136,25 @@ func New(config *Config) *Importer {
 
 	imp := &Importer{
 		Fset:     token.NewFileSet(),
-		config:   config,
+		Config:   config,
 		importfn: importfn,
-		augment:  make(map[string]bool),
+		srcpkgs:  make(map[string]bool),
 		imported: make(map[string]*importInfo),
 	}
 	return imp
 }
 
-// AllPackages returns a new slice containing all packages loaded by
-// importer imp.
+// AllPackages returns a new slice containing all complete packages
+// loaded by importer imp.
+//
+// This returns only packages that were loaded from source or directly
+// imported from a source package.  It does not include packages
+// indirectly referenced by a binary package; they are found in
+// config.TypeChecker.Packages.
+// TODO(adonovan): rethink this API.
 //
 func (imp *Importer) AllPackages() []*PackageInfo {
 	return append([]*PackageInfo(nil), imp.allPackages...)
-}
-
-func (imp *Importer) addPackage(info *PackageInfo) {
-	imp.allPackagesMu.Lock()
-	imp.allPackages = append(imp.allPackages, info)
-	imp.allPackagesMu.Unlock()
 }
 
 // doImport imports the package denoted by path.
@@ -163,40 +170,7 @@ func (imp *Importer) addPackage(info *PackageInfo) {
 // the types.Config.Error callback (the first of which is also saved
 // in the package's PackageInfo).
 //
-// Idempotent and thread-safe.
-//
-//
-// TODO(gri): The imports map (an alias for TypeChecker.Packages) must
-// not be concurrently accessed.  Today, the only (non-test) accesses
-// of this map are in the client-supplied implementation of the
-// importer function, i.e. the function below.  But this is a fragile
-// API because if go/types ever starts to access this map, it and its
-// clients will have to agree to use the same mutex.
-// Two better ideas:
-//
-// (1) require that the importer functions be stateful and have this
-//     map be part of that internal state.
-//     Pro: good encapsulation.
-//     Con: we can't have different importers collaborate, e.g.
-//          we can't use a source importer for some packages and
-//          GcImport for others since they'd each have a distinct map.
-//
-// (2) have there be a single map in go/types.Config, but expose
-//     lookup and update behind an interface and pass that interface
-//     to the importer implementations.
-//     Pro: sharing of the map among importers.
-//
-//  This is idempotent but still doesn't address the issue of
-//  atomicity: when loading packages concurrently, we want to avoid
-//  the benign but suboptimal situation of two goroutines both
-//  importing "fmt", finding it not present, doing all the work, and
-//  double-updating the map.
-//  The interface to the map needs to express the idea that when a
-//  caller requests an import from the map and finds it not present,
-//  then it (and no other goroutine) becomes responsible for loading
-//  the package and updating the map; other goroutines should block
-//  until then.  That's exactly what doImport0 below does; I think
-//  some of that logic should migrate into go/types.check.resolveFiles.
+// Idempotent.
 //
 func (imp *Importer) doImport(imports map[string]*types.Package, path string) (*types.Package, error) {
 	// Package unsafe is handled specially, and has no PackageInfo.
@@ -205,99 +179,67 @@ func (imp *Importer) doImport(imports map[string]*types.Package, path string) (*
 		return types.Unsafe, nil
 	}
 
-	info, err := imp.doImport0(imports, path)
+	info, err := imp.ImportPackage(path)
 	if err != nil {
 		return nil, err
 	}
 
-	if imports != nil {
-		// Update the package's imports map, whether success or failure.
-		//
-		// types.Package.Imports() is used by PackageInfo.Imports and
-		// thence by ssa.builder.
-		// TODO(gri): given that it doesn't specify whether it
-		// contains direct or transitive dependencies, it probably
-		// shouldn't be exposed.  This package can make its own
-		// arrangements to implement PackageInfo.Imports().
-		importsMu.Lock()
-		imports[path] = info.Pkg
-		importsMu.Unlock()
-	}
+	// Update the type checker's package map on success.
+	imports[path] = info.Pkg
 
 	return info.Pkg, nil
 }
 
-var importsMu sync.Mutex // hack; see comment at doImport
-
-// Like doImport, but returns a PackageInfo.
+// ImportPackage imports the package whose import path is path, plus
+// its necessary dependencies.
+//
 // Precondition: path != "unsafe".
-func (imp *Importer) doImport0(imports map[string]*types.Package, path string) (*PackageInfo, error) {
-	imp.importedMu.Lock()
+//
+func (imp *Importer) ImportPackage(path string) (*PackageInfo, error) {
 	ii, ok := imp.imported[path]
 	if !ok {
-		ii = &importInfo{path: path, ready: make(chan struct{})}
+		ii = &importInfo{path: path}
 		imp.imported[path] = ii
-	}
-	imp.importedMu.Unlock()
 
-	if !ok {
 		// Find and create the actual package.
-		if imp.config.Build != nil {
-			imp.importSource(path, ii)
+		if augment, ok := imp.srcpkgs[ii.path]; ok || imp.Config.SourceImports {
+			which := "g" // load *.go files
+			if augment {
+				which = "gt" // augment package by in-package *_test.go files
+			}
+			imp.loadFromSource(ii, which)
 		} else {
-			imp.importBinary(imports, ii)
+			imp.loadFromBinary(ii)
 		}
 		if ii.info != nil {
 			ii.info.Importable = true
 		}
-
-		close(ii.ready) // enter ready state and wake up waiters
-	} else {
-		<-ii.ready // wait for ready condition
 	}
-
-	// Invariant: ii is ready.
 
 	return ii.info, ii.err
 }
 
-// importBinary implements package loading from the client-supplied
+// loadFromBinary implements package loading from the client-supplied
 // external source, e.g. object files from the gc compiler.
 //
-func (imp *Importer) importBinary(imports map[string]*types.Package, ii *importInfo) {
-	pkg, err := imp.importfn(imports, ii.path)
+func (imp *Importer) loadFromBinary(ii *importInfo) {
+	pkg, err := imp.importfn(imp.Config.TypeChecker.Packages, ii.path)
 	if pkg != nil {
 		ii.info = &PackageInfo{Pkg: pkg}
-		imp.addPackage(ii.info)
+		imp.allPackages = append(imp.allPackages, ii.info)
 	} else {
 		ii.err = err
 	}
 }
 
-// importSource implements package loading by parsing Go source files
-// located by go/build.
+// loadFromSource implements package loading by parsing Go source files
+// located by go/build.  which indicates which files to include in the
+// package.
 //
-func (imp *Importer) importSource(path string, ii *importInfo) {
-	which := "g" // load *.go files
-	if imp.augment[path] {
-		which = "gt" // augment package by in-package *_test.go files
-	}
-	if files, err := parsePackageFiles(imp.config.Build, imp.Fset, path, which); err == nil {
-		// Prefetch the imports asynchronously.
-		for path := range importsOf(path, files) {
-			go func(path string) { imp.doImport(nil, path) }(path)
-		}
-
+func (imp *Importer) loadFromSource(ii *importInfo, which string) {
+	if files, err := parsePackageFiles(imp.Config.build(), imp.Fset, ii.path, which); err == nil {
 		// Type-check the package.
-		ii.info = imp.CreatePackage(path, files...)
-
-		// We needn't wait for the prefetching goroutines to
-		// finish.  Each one either runs quickly and populates
-		// the imported map, in which case the type checker
-		// will wait for the map entry to become ready; or, it
-		// runs slowly, even after we return, but then becomes
-		// just another map waiter, in which case it won't
-		// mutate anything.
+		ii.info = imp.CreatePackage(ii.path, files...)
 	} else {
 		ii.err = err
 	}
@@ -335,9 +277,9 @@ func (imp *Importer) CreatePackage(path string, files ...*ast.File) *PackageInfo
 	}
 
 	// Use a copy of the types.Config so we can vary IgnoreFuncBodies.
-	tc := imp.config.TypeChecker
+	tc := imp.Config.TypeChecker
 	tc.IgnoreFuncBodies = false
-	if f := imp.config.TypeCheckFuncBodies; f != nil {
+	if f := imp.Config.TypeCheckFuncBodies; f != nil {
 		tc.IgnoreFuncBodies = !f(path)
 	}
 	if tc.Error == nil {
@@ -345,7 +287,7 @@ func (imp *Importer) CreatePackage(path string, files ...*ast.File) *PackageInfo
 	}
 	tc.Import = imp.doImport // doImport wraps the user's importfn, effectively
 	info.Pkg, info.Err = tc.Check(path, imp.Fset, files, &info.Info)
-	imp.addPackage(info)
+	imp.allPackages = append(imp.allPackages, info)
 	return info
 }
 
@@ -418,6 +360,7 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 
 	// Pass 1: parse the sets of files for each package.
 	var pkgs []*initialPkg
+	var seenAugmented bool
 	for len(args) > 0 {
 		arg := args[0]
 		args = args[1:]
@@ -444,28 +387,24 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 				continue // ignore; has no PackageInfo
 			}
 
-			pkg := &initialPkg{
+			pkgs = append(pkgs, &initialPkg{
 				path:       path,
 				importable: true,
-			}
-			pkgs = append(pkgs, pkg)
+			})
+			imp.srcpkgs[path] = false // unaugmented source package
 
 			if path != arg {
 				continue // had "notest:" prefix
 			}
 
-			if imp.config.Build == nil {
-				continue // can't locate *_test.go files
-			}
-
 			// TODO(adonovan): due to limitations of the current type
 			// checker design, we can augment at most one package.
-			if len(imp.augment) > 0 {
+			if seenAugmented {
 				continue // don't attempt a second
 			}
 
 			// Load the external test package.
-			xtestFiles, err := parsePackageFiles(imp.config.Build, imp.Fset, path, "x")
+			xtestFiles, err := parsePackageFiles(imp.Config.build(), imp.Fset, path, "x")
 			if err != nil {
 				return nil, nil, err
 			}
@@ -479,24 +418,22 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 
 			// Mark the non-xtest package for augmentation with
 			// in-package *_test.go files when we import it below.
-			imp.augment[pkg.path] = true
+			imp.srcpkgs[path] = true
+			seenAugmented = true
 		}
 	}
 
 	// Pass 2: type-check each set of files to make a package.
 	var infos []*PackageInfo
-	imports := make(map[string]*types.Package) // keep importBinary happy
 	for _, pkg := range pkgs {
 		var info *PackageInfo
 		if pkg.importable {
-			// import package
 			var err error
-			info, err = imp.doImport0(imports, pkg.path)
+			info, err = imp.ImportPackage(pkg.path)
 			if err != nil {
 				return nil, nil, err // e.g. parse error (but not type error)
 			}
 		} else {
-			// create package
 			info = imp.CreatePackage(pkg.path, pkg.files...)
 		}
 		infos = append(infos, info)
@@ -509,17 +446,9 @@ func (imp *Importer) LoadInitialPackages(args []string) ([]*PackageInfo, []strin
 	return infos, args, nil
 }
 
-// LoadPackage loads and type-checks the package whose import path is
-// path, plus its necessary dependencies.
-//
-func (imp *Importer) LoadPackage(path string) (*PackageInfo, error) {
-	imports := make(map[string]*types.Package) // keep importBinary happy
-	return imp.doImport0(imports, path)
-}
-
 type initialPkg struct {
 	path       string      // the package's import path
-	importable bool        // add package to import map false for main and xtests)
+	importable bool        // add package to import map (false for main and xtests)
 	files      []*ast.File // set of files (non-importable packages only)
 }
 

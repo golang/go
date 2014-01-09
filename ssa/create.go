@@ -250,6 +250,8 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 //
 func (prog *Program) CreatePackages(imp *importer.Importer) error {
 	var errpkgs []string
+
+	// Create source packages and directly imported packages.
 	for _, info := range imp.AllPackages() {
 		if info.Err != nil {
 			errpkgs = append(errpkgs, info.Pkg.Path())
@@ -257,6 +259,15 @@ func (prog *Program) CreatePackages(imp *importer.Importer) error {
 			prog.CreatePackage(info)
 		}
 	}
+
+	// Create indirectly imported packages.
+	for _, obj := range imp.Config.TypeChecker.Packages {
+		prog.CreatePackage(&importer.PackageInfo{
+			Pkg:        obj,
+			Importable: true,
+		})
+	}
+
 	if errpkgs != nil {
 		return fmt.Errorf("couldn't create these SSA packages due to type errors: %s",
 			strings.Join(errpkgs, ", "))
