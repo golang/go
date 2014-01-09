@@ -30,15 +30,8 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
-#define Ureg UregAmd64
 #include <ureg_amd64.h>
-#undef Ureg
-#define Ureg Ureg386
 #include <ureg_x86.h>
-#undef Ureg
-
-typedef struct UregAmd64 UregAmd64;
-typedef struct Ureg386 Ureg386;
 
 /*
  * i386-specific debugger interface

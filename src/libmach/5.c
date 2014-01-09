@@ -35,12 +35,12 @@
 #include "ureg_arm.h"
 #include <mach.h>
 
-#define	REGOFF(x)	(uintptr) (&((struct Ureg *) 0)->x)
+#define	REGOFF(x)	(uintptr) (&((struct UregArm *) 0)->x)
 
 #define SP		REGOFF(r13)
 #define PC		REGOFF(pc)
 
-#define	REGSIZE		sizeof(struct Ureg)
+#define	REGSIZE		sizeof(struct UregArm)
 
 Reglist armreglist[] =
 {

@@ -9,21 +9,16 @@
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
-
-#define Ureg Ureg_amd64
-	#include <ureg_amd64.h>
-#undef Ureg
-#define Ureg Ureg_x86
-	#include <ureg_x86.h>
-#undef Ureg
+#include <ureg_amd64.h>
+#include <ureg_x86.h>
 #include <mach.h>
 
 char* file = "6.out";
 static Fhdr fhdr;
 int have_syms;
 int fd;
-struct Ureg_amd64 ureg_amd64;
-struct Ureg_x86 ureg_x86;
+struct UregAmd64 ureg_amd64;
+struct Ureg386 ureg_x86;
 int total_sec = 0;
 int delta_msec = 100;
 int nsample;
@@ -132,7 +127,7 @@ amd64_getregs(Map *map)
 	int i;
 	union {
 		uvlong regs[1];
-		struct Ureg_amd64 ureg;
+		struct UregAmd64 ureg;
 	} u;
 
 	for(i = 0; i < sizeof ureg_amd64; i+=8) {
@@ -149,7 +144,7 @@ amd64_getPC(Map *map)
 	uvlong x;
 	int r;
 
-	r = get8(map, offsetof(struct Ureg_amd64, ip), &x);
+	r = get8(map, offsetof(struct UregAmd64, ip), &x);
 	ureg_amd64.ip = x;
 	return r;
 }
@@ -160,7 +155,7 @@ amd64_getSP(Map *map)
 	uvlong x;
 	int r;
 
-	r = get8(map, offsetof(struct Ureg_amd64, sp), &x);
+	r = get8(map, offsetof(struct UregAmd64, sp), &x);
 	ureg_amd64.sp = x;
 	return r;
 }
@@ -229,13 +224,13 @@ x86_getregs(Map *map)
 int
 x86_getPC(Map* map)
 {
-	return get4(map, offsetof(struct Ureg_x86, pc), &ureg_x86.pc);
+	return get4(map, offsetof(struct Ureg386, pc), &ureg_x86.pc);
 }
 
 int
 x86_getSP(Map* map)
 {
-	return get4(map, offsetof(struct Ureg_x86, sp), &ureg_x86.sp);
+	return get4(map, offsetof(struct Ureg386, sp), &ureg_x86.sp);
 }
 
 uvlong

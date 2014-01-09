@@ -38,12 +38,8 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
-#define Ureg Ureg32
 #include <ureg_x86.h>
-#undef Ureg
-#define Ureg Ureg64
 #include <ureg_amd64.h>
-#undef Ureg
 #undef waitpid
 
 // The old glibc used with crosstool compilers on thresher
@@ -70,8 +66,6 @@
 #define PTRACE_EVENT_VFORK_DONE 0x5
 #define PTRACE_EVENT_EXIT 0x6
 #endif
-
-typedef struct Ureg64 Ureg64;
 
 static Maprw ptracesegrw;
 static Maprw ptraceregrw;
@@ -882,53 +876,53 @@ go2linux(uvlong addr)
 	}
 
 	switch(addr){
-	case offsetof(Ureg64, ax):
+	case offsetof(UregAmd64, ax):
 		return offsetof(struct user_regs_struct, rax);
-	case offsetof(Ureg64, bx):
+	case offsetof(UregAmd64, bx):
 		return offsetof(struct user_regs_struct, rbx);
-	case offsetof(Ureg64, cx):
+	case offsetof(UregAmd64, cx):
 		return offsetof(struct user_regs_struct, rcx);
-	case offsetof(Ureg64, dx):
+	case offsetof(UregAmd64, dx):
 		return offsetof(struct user_regs_struct, rdx);
-	case offsetof(Ureg64, si):
+	case offsetof(UregAmd64, si):
 		return offsetof(struct user_regs_struct, rsi);
-	case offsetof(Ureg64, di):
+	case offsetof(UregAmd64, di):
 		return offsetof(struct user_regs_struct, rdi);
-	case offsetof(Ureg64, bp):
+	case offsetof(UregAmd64, bp):
 		return offsetof(struct user_regs_struct, rbp);
-	case offsetof(Ureg64, r8):
+	case offsetof(UregAmd64, r8):
 		return offsetof(struct user_regs_struct, r8);
-	case offsetof(Ureg64, r9):
+	case offsetof(UregAmd64, r9):
 		return offsetof(struct user_regs_struct, r9);
-	case offsetof(Ureg64, r10):
+	case offsetof(UregAmd64, r10):
 		return offsetof(struct user_regs_struct, r10);
-	case offsetof(Ureg64, r11):
+	case offsetof(UregAmd64, r11):
 		return offsetof(struct user_regs_struct, r11);
-	case offsetof(Ureg64, r12):
+	case offsetof(UregAmd64, r12):
 		return offsetof(struct user_regs_struct, r12);
-	case offsetof(Ureg64, r13):
+	case offsetof(UregAmd64, r13):
 		return offsetof(struct user_regs_struct, r13);
-	case offsetof(Ureg64, r14):
+	case offsetof(UregAmd64, r14):
 		return offsetof(struct user_regs_struct, r14);
-	case offsetof(Ureg64, r15):
+	case offsetof(UregAmd64, r15):
 		return offsetof(struct user_regs_struct, r15);
-	case offsetof(Ureg64, ds):
+	case offsetof(UregAmd64, ds):
 		return offsetof(struct user_regs_struct, ds);
-	case offsetof(Ureg64, es):
+	case offsetof(UregAmd64, es):
 		return offsetof(struct user_regs_struct, es);
-	case offsetof(Ureg64, fs):
+	case offsetof(UregAmd64, fs):
 		return offsetof(struct user_regs_struct, fs);
-	case offsetof(Ureg64, gs):
+	case offsetof(UregAmd64, gs):
 		return offsetof(struct user_regs_struct, gs);
-	case offsetof(Ureg64, ip):
+	case offsetof(UregAmd64, ip):
 		return offsetof(struct user_regs_struct, rip);
-	case offsetof(Ureg64, cs):
+	case offsetof(UregAmd64, cs):
 		return offsetof(struct user_regs_struct, cs);
-	case offsetof(Ureg64, flags):
+	case offsetof(UregAmd64, flags):
 		return offsetof(struct user_regs_struct, eflags);
-	case offsetof(Ureg64, sp):
+	case offsetof(UregAmd64, sp):
 		return offsetof(struct user_regs_struct, rsp);
-	case offsetof(Ureg64, ss):
+	case offsetof(UregAmd64, ss):
 		return offsetof(struct user_regs_struct, ss);
 	}
 	return -1;

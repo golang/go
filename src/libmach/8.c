@@ -35,13 +35,13 @@
 #include <ureg_x86.h>
 #include <mach.h>
 
-#define	REGOFF(x)	(uintptr)(&((struct Ureg *) 0)->x)
+#define	REGOFF(x)	(uintptr)(&((struct Ureg386 *) 0)->x)
 
 #define PC		REGOFF(pc)
 #define SP		REGOFF(sp)
 #define	AX		REGOFF(ax)
 
-#define	REGSIZE		sizeof(struct Ureg)
+#define	REGSIZE		sizeof(struct Ureg386)
 #define FP_CTL(x)	(REGSIZE+4*(x))
 #define FP_REG(x)	(FP_CTL(7)+10*(x))
 #define	FPREGSIZE	(7*4+8*10)

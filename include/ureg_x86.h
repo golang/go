@@ -26,7 +26,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-struct Ureg
+typedef struct Ureg386 Ureg386;
+struct Ureg386
 {
 	uint32	di;		/* general registers */
 	uint32	si;		/* ... */

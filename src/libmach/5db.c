@@ -40,8 +40,6 @@ static int debug = 0;
 #define ASR(v, s)	((long)(v) >> (s))
 #define ROR(v, s)	(LSR((v), (s)) | (((v) & ((1 << (s))-1)) << (32 - (s))))
 
-
-
 typedef struct	Instr	Instr;
 struct	Instr
 {

@@ -29,16 +29,9 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
-#define Ureg Ureg32
 #include <ureg_x86.h>
-#undef Ureg
-#define Ureg Ureg64
 #include <ureg_amd64.h>
-#undef Ureg
 #undef waitpid	/* want Unix waitpid, not Plan 9 */
-
-typedef struct Ureg32 Ureg32;
-typedef struct Ureg64 Ureg64;
 
 extern mach_port_t mach_reply_port(void);	// should be in system headers, is not
 
@@ -450,31 +443,31 @@ static int
 go2darwin32(uvlong addr)
 {
 	switch(addr){
-	case offsetof(Ureg32, ax):
+	case offsetof(Ureg386, ax):
 		return offsetof(x86_thread_state32_t, eax);
-	case offsetof(Ureg32, bx):
+	case offsetof(Ureg386, bx):
 		return offsetof(x86_thread_state32_t, ebx);
-	case offsetof(Ureg32, cx):
+	case offsetof(Ureg386, cx):
 		return offsetof(x86_thread_state32_t, ecx);
-	case offsetof(Ureg32, dx):
+	case offsetof(Ureg386, dx):
 		return offsetof(x86_thread_state32_t, edx);
-	case offsetof(Ureg32, si):
+	case offsetof(Ureg386, si):
 		return offsetof(x86_thread_state32_t, esi);
-	case offsetof(Ureg32, di):
+	case offsetof(Ureg386, di):
 		return offsetof(x86_thread_state32_t, edi);
-	case offsetof(Ureg32, bp):
+	case offsetof(Ureg386, bp):
 		return offsetof(x86_thread_state32_t, ebp);
-	case offsetof(Ureg32, fs):
+	case offsetof(Ureg386, fs):
 		return offsetof(x86_thread_state32_t, fs);
-	case offsetof(Ureg32, gs):
+	case offsetof(Ureg386, gs):
 		return offsetof(x86_thread_state32_t, gs);
-	case offsetof(Ureg32, pc):
+	case offsetof(Ureg386, pc):
 		return offsetof(x86_thread_state32_t, eip);
-	case offsetof(Ureg32, cs):
+	case offsetof(Ureg386, cs):
 		return offsetof(x86_thread_state32_t, cs);
-	case offsetof(Ureg32, flags):
+	case offsetof(Ureg386, flags):
 		return offsetof(x86_thread_state32_t, eflags);
-	case offsetof(Ureg32, sp):
+	case offsetof(Ureg386, sp):
 		return offsetof(x86_thread_state32_t, esp);
 	}
 	return -1;
@@ -485,47 +478,47 @@ static int
 go2darwin64(uvlong addr)
 {
 	switch(addr){
-	case offsetof(Ureg64, ax):
+	case offsetof(UregAmd64, ax):
 		return offsetof(x86_thread_state64_t, rax);
-	case offsetof(Ureg64, bx):
+	case offsetof(UregAmd64, bx):
 		return offsetof(x86_thread_state64_t, rbx);
-	case offsetof(Ureg64, cx):
+	case offsetof(UregAmd64, cx):
 		return offsetof(x86_thread_state64_t, rcx);
-	case offsetof(Ureg64, dx):
+	case offsetof(UregAmd64, dx):
 		return offsetof(x86_thread_state64_t, rdx);
-	case offsetof(Ureg64, si):
+	case offsetof(UregAmd64, si):
 		return offsetof(x86_thread_state64_t, rsi);
-	case offsetof(Ureg64, di):
+	case offsetof(UregAmd64, di):
 		return offsetof(x86_thread_state64_t, rdi);
-	case offsetof(Ureg64, bp):
+	case offsetof(UregAmd64, bp):
 		return offsetof(x86_thread_state64_t, rbp);
-	case offsetof(Ureg64, r8):
+	case offsetof(UregAmd64, r8):
 		return offsetof(x86_thread_state64_t, r8);
-	case offsetof(Ureg64, r9):
+	case offsetof(UregAmd64, r9):
 		return offsetof(x86_thread_state64_t, r9);
-	case offsetof(Ureg64, r10):
+	case offsetof(UregAmd64, r10):
 		return offsetof(x86_thread_state64_t, r10);
-	case offsetof(Ureg64, r11):
+	case offsetof(UregAmd64, r11):
 		return offsetof(x86_thread_state64_t, r11);
-	case offsetof(Ureg64, r12):
+	case offsetof(UregAmd64, r12):
 		return offsetof(x86_thread_state64_t, r12);
-	case offsetof(Ureg64, r13):
+	case offsetof(UregAmd64, r13):
 		return offsetof(x86_thread_state64_t, r13);
-	case offsetof(Ureg64, r14):
+	case offsetof(UregAmd64, r14):
 		return offsetof(x86_thread_state64_t, r14);
-	case offsetof(Ureg64, r15):
+	case offsetof(UregAmd64, r15):
 		return offsetof(x86_thread_state64_t, r15);
-	case offsetof(Ureg64, fs):
+	case offsetof(UregAmd64, fs):
 		return offsetof(x86_thread_state64_t, fs);
-	case offsetof(Ureg64, gs):
+	case offsetof(UregAmd64, gs):
 		return offsetof(x86_thread_state64_t, gs);
-	case offsetof(Ureg64, ip):
+	case offsetof(UregAmd64, ip):
 		return offsetof(x86_thread_state64_t, rip);
-	case offsetof(Ureg64, cs):
+	case offsetof(UregAmd64, cs):
 		return offsetof(x86_thread_state64_t, cs);
-	case offsetof(Ureg64, flags):
+	case offsetof(UregAmd64, flags):
 		return offsetof(x86_thread_state64_t, rflags);
-	case offsetof(Ureg64, sp):
+	case offsetof(UregAmd64, sp):
 		return offsetof(x86_thread_state64_t, rsp);
 	}
 	return -1;
