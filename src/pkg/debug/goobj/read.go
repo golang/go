@@ -72,6 +72,49 @@ const (
 	SHOSTOBJ
 )
 
+var symKindStrings = []string{
+	SBSS:              "SBSS",
+	SCONST:            "SCONST",
+	SDATA:             "SDATA",
+	SDYNIMPORT:        "SDYNIMPORT",
+	SELFROSECT:        "SELFROSECT",
+	SELFRXSECT:        "SELFRXSECT",
+	SELFSECT:          "SELFSECT",
+	SFILE:             "SFILE",
+	SFILEPATH:         "SFILEPATH",
+	SFUNCTAB:          "SFUNCTAB",
+	SGOFUNC:           "SGOFUNC",
+	SGOSTRING:         "SGOSTRING",
+	SHOSTOBJ:          "SHOSTOBJ",
+	SINITARR:          "SINITARR",
+	SMACHO:            "SMACHO",
+	SMACHOGOT:         "SMACHOGOT",
+	SMACHOINDIRECTGOT: "SMACHOINDIRECTGOT",
+	SMACHOINDIRECTPLT: "SMACHOINDIRECTPLT",
+	SMACHOPLT:         "SMACHOPLT",
+	SMACHOSYMSTR:      "SMACHOSYMSTR",
+	SMACHOSYMTAB:      "SMACHOSYMTAB",
+	SNOPTRBSS:         "SNOPTRBSS",
+	SNOPTRDATA:        "SNOPTRDATA",
+	SPCLNTAB:          "SPCLNTAB",
+	SRODATA:           "SRODATA",
+	SSTRING:           "SSTRING",
+	SSYMTAB:           "SSYMTAB",
+	STEXT:             "STEXT",
+	STLSBSS:           "STLSBSS",
+	STYPE:             "STYPE",
+	STYPELINK:         "STYPELINK",
+	SWINDOWS:          "SWINDOWS",
+	SXREF:             "SXREF",
+}
+
+func (k SymKind) String() string {
+	if k < 0 || int(k) >= len(symKindStrings) {
+		return fmt.Sprintf("SymKind(%d)", k)
+	}
+	return symKindStrings[k]
+}
+
 // A Sym is a named symbol in an object file.
 type Sym struct {
 	SymID         // symbol identifier (name and version)
@@ -96,6 +139,13 @@ type SymID struct {
 	// a symbol in one file from a symbol of the same name
 	// in another file
 	Version int
+}
+
+func (s SymID) String() string {
+	if s.Version == 0 {
+		return s.Name
+	}
+	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
 }
 
 // A Data is a reference to data stored in an object file.
