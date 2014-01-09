@@ -74,7 +74,7 @@ func (b *B) StopTimer() {
 	}
 }
 
-// ResetTimer sets the elapsed benchmark time to zero.
+// ResetTimer zeros the elapsed benchmark time and memory allocation counters.
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
 	if b.timerOn {
