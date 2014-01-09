@@ -35,9 +35,9 @@
 #include "ureg_amd64.h"
 #include <mach.h>
 
-#define	REGOFF(x)	offsetof(struct Ureg, x)
+#define	REGOFF(x)	offsetof(struct UregAmd64, x)
 
-#define	REGSIZE		sizeof(struct Ureg)
+#define	REGSIZE		sizeof(struct UregAmd64)
 #define FP_CTLS(x)	(REGSIZE+2*(x))
 #define FP_CTL(x)	(REGSIZE+4*(x))
 #define FP_REG(x)	(FP_CTL(8)+16*(x))

@@ -26,7 +26,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-struct Ureg {
+typedef struct UregAmd64 UregAmd64;
+struct UregAmd64 {
 	u64int	ax;
 	u64int	bx;
 	u64int	cx;
