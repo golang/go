@@ -279,3 +279,51 @@ func TestValueConverters(t *testing.T) {
 		}
 	}
 }
+
+// Tests that assigning to RawBytes doesn't allocate (and also works).
+func TestRawBytesAllocs(t *testing.T) {
+	buf := make(RawBytes, 10)
+	test := func(name string, in interface{}, want string) {
+		if err := convertAssign(&buf, in); err != nil {
+			t.Fatalf("%s: convertAssign = %v", name, err)
+		}
+		match := len(buf) == len(want)
+		if match {
+			for i, b := range buf {
+				if want[i] != b {
+					match = false
+					break
+				}
+			}
+		}
+		if !match {
+			t.Fatalf("%s: got %q (len %d); want %q (len %d)", name, buf, len(buf), want, len(want))
+		}
+	}
+	n := testing.AllocsPerRun(100, func() {
+		test("uint64", uint64(12345678), "12345678")
+		test("uint32", uint32(1234), "1234")
+		test("uint16", uint16(12), "12")
+		test("uint8", uint8(1), "1")
+		test("uint", uint(123), "123")
+		test("int", int(123), "123")
+		test("int8", int8(1), "1")
+		test("int16", int16(12), "12")
+		test("int32", int32(1234), "1234")
+		test("int64", int64(12345678), "12345678")
+		test("float32", float32(1.5), "1.5")
+		test("float64", float64(64), "64")
+		test("bool", false, "false")
+	})
+	if n > 0.5 {
+		t.Fatalf("allocs = %v; want 0", n)
+	}
+
+	// This one involves a convT2E allocation, string -> interface{}
+	n = testing.AllocsPerRun(100, func() {
+		test("string", "foo", "foo")
+	})
+	if n > 1.5 {
+		t.Fatalf("allocs = %v; want max 1", n)
+	}
+}
