@@ -523,6 +523,11 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 				if instr.IsAddr {
 					instr.X = renamed(renaming, alloc)
 					instr.IsAddr = false
+
+					// Add DebugRef to instr.X's referrers.
+					if refs := instr.X.Referrers(); refs != nil {
+						*refs = append(*refs, instr)
+					}
 				} else {
 					// A source expression denotes the address
 					// of an Alloc that was optimized away.

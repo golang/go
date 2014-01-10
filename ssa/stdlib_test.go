@@ -23,7 +23,7 @@ import (
 	"code.google.com/p/go.tools/ssa/ssautil"
 )
 
-const debugMode = false
+const debugMode = true // cost: +30% space, +18% time for SSA building
 
 func allPackages() []string {
 	var pkgs []string
