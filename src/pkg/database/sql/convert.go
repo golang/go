@@ -160,27 +160,19 @@ func convertAssign(dest, src interface{}) error {
 			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 			reflect.Float32, reflect.Float64:
-			*d = fmt.Sprintf("%v", src)
+			*d = asString(src)
 			return nil
 		}
 	case *[]byte:
 		sv = reflect.ValueOf(src)
-		switch sv.Kind() {
-		case reflect.Bool,
-			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Float32, reflect.Float64:
-			*d = []byte(fmt.Sprintf("%v", src))
+		if b, ok := asBytes(nil, sv); ok {
+			*d = b
 			return nil
 		}
 	case *RawBytes:
 		sv = reflect.ValueOf(src)
-		switch sv.Kind() {
-		case reflect.Bool,
-			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Float32, reflect.Float64:
-			*d = RawBytes(fmt.Sprintf("%v", src))
+		if b, ok := asBytes([]byte(*d)[:0], sv); ok {
+			*d = RawBytes(b)
 			return nil
 		}
 	case *bool:
@@ -271,5 +263,37 @@ func asString(src interface{}) string {
 	case []byte:
 		return string(v)
 	}
+	rv := reflect.ValueOf(src)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(rv.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(rv.Uint(), 10)
+	case reflect.Float64:
+		return strconv.FormatFloat(rv.Float(), 'g', -1, 64)
+	case reflect.Float32:
+		return strconv.FormatFloat(rv.Float(), 'g', -1, 32)
+	case reflect.Bool:
+		return strconv.FormatBool(rv.Bool())
+	}
 	return fmt.Sprintf("%v", src)
+}
+
+func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.AppendInt(buf, rv.Int(), 10), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.AppendUint(buf, rv.Uint(), 10), true
+	case reflect.Float32:
+		return strconv.AppendFloat(buf, rv.Float(), 'g', -1, 32), true
+	case reflect.Float64:
+		return strconv.AppendFloat(buf, rv.Float(), 'g', -1, 64), true
+	case reflect.Bool:
+		return strconv.AppendBool(buf, rv.Bool()), true
+	case reflect.String:
+		s := rv.String()
+		return append(buf, s...), true
+	}
+	return
 }
