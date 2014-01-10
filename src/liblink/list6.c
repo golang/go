@@ -34,11 +34,24 @@
 #include <link.h>
 #include "../cmd/6l/6.out.h"
 
+//
+// Format conversions
+//	%A int		Opcodes (instruction mnemonics)
+//
+//	%D Addr*	Addresses (instruction operands)
+//		Flags: "%lD": seperate the high and low words of a constant by "-"
+//
+//	%P Prog*	Instructions
+//
+//	%R int		Registers
+//
+//	%$ char*	String constant addresses (for internal use only)
+
 static int	Aconv(Fmt *fp);
 static int	Dconv(Fmt *fp);
 static int	Pconv(Fmt *fp);
 static int	Rconv(Fmt *fp);
-static int	Sconv(Fmt *fp);
+static int	DSconv(Fmt *fp);
 
 enum
 {
@@ -50,7 +63,7 @@ listinit6(void)
 {
 	fmtinstall('A', Aconv);
 	fmtinstall('P', Pconv);
-	fmtinstall('S', Sconv);
+	fmtinstall('$', DSconv);
 	fmtinstall('D', Dconv);
 	fmtinstall('R', Rconv);
 }
@@ -174,7 +187,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_SCONST:
-		sprint(str, "$\"%S\"", a->u.sval);
+		sprint(str, "$\"%$\"", a->u.sval);
 		break;
 
 	case D_ADDR:
@@ -337,7 +350,7 @@ Rconv(Fmt *fp)
 }
 
 static int
-Sconv(Fmt *fp)
+DSconv(Fmt *fp)
 {
 	int i, c;
 	char str[STRINGSZ], *p, *a;
