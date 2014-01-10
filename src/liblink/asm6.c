@@ -7,17 +7,17 @@
 //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. ctxt->and others
+//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software ctxt->and associated documentation files (the "Software"), to deal
+// of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, ctxt->and/or sell
-// copies of the Software, ctxt->and to permit persons to whom the Software is
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice ctxt->and this permission notice shall be included in
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,15 +43,15 @@ enum
 	
 	// Loop alignment constants:
 	// want to align loop entry to LoopAlign-byte boundary,
-	// ctxt->and willing to insert at most MaxLoopPad bytes of NOP to do so.
+	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
 	// We define a loop entry as the target of a backward jump.
 	//
 	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
-	// ctxt->and it aligns all jump targets, not just backward jump targets.
+	// and it aligns all jump targets, not just backward jump targets.
 	//
 	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
 	// is very slight but negative, so the alignment is disabled by
-	// setting MaxLoopPad = 0. The code is here for reference ctxt->and
+	// setting MaxLoopPad = 0. The code is here for reference and
 	// for future experiments.
 	// 
 	LoopAlign = 16,
@@ -758,20 +758,20 @@ static uchar	yaes2[] =
 
 /*
  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
- * ctxt->and p->from ctxt->and p->to as operands (Addr*).  The linker scans optab to find
- * the entry with the given p->as ctxt->and then looks through the ytable for that
+ * and p->from and p->to as operands (Addr*).  The linker scans optab to find
+ * the entry with the given p->as and then looks through the ytable for that
  * instruction (the second field in the optab struct) for a line whose first
- * two values match the Ytypes of the p->from ctxt->and p->to operands.  The function
- * oclass in span.c computes the specific Ytype of an operand ctxt->and then the set
+ * two values match the Ytypes of the p->from and p->to operands.  The function
+ * oclass in span.c computes the specific Ytype of an operand and then the set
  * of more general Ytypes that it satisfies is implied by the ycover table, set
- * up in instinit.  For example, oclass distinguishes the constants 0 ctxt->and 1
+ * up in instinit.  For example, oclass distinguishes the constants 0 and 1
  * from the more general 8-bit constants, but instinit says
  *
  *        ycover[Yi0*Ymax + Ys32] = 1;
  *        ycover[Yi1*Ymax + Ys32] = 1;
  *        ycover[Yi8*Ymax + Ys32] = 1;
  *
- * which means that Yi0, Yi1, ctxt->and Yi8 all count as Ys32 (signed 32)
+ * which means that Yi0, Yi1, and Yi8 all count as Ys32 (signed 32)
  * if that's what an instruction can handle.
  *
  * In parallel with the scan through the ytable for the appropriate line, there
@@ -780,12 +780,12 @@ static uchar	yaes2[] =
  * advances by the 4th entry in the line.  When a matching line is found, that
  * z pointer has the extra data to use in laying down the instruction bytes.
  * The actual bytes laid down are a function of the 3rd entry in the line (that
- * is, the Ztype) ctxt->and the z bytes.
+ * is, the Ztype) and the z bytes.
  *
  * For example, let's look at AADDL.  The optab line says:
  *        { AADDL,        yaddl,  Px, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
  *
- * ctxt->and yaddl says
+ * and yaddl says
  *        uchar   yaddl[] =
  *        {
  *                Yi8,    Yml,    Zibo_m, 2,
@@ -796,8 +796,8 @@ static uchar	yaes2[] =
  *                0
  *        };
  *
- * so there are 5 possible types of ADDL instruction that can be laid down, ctxt->and
- * possible states used to lay them down (Ztype ctxt->and z pointer, assuming z
+ * so there are 5 possible types of ADDL instruction that can be laid down, and
+ * possible states used to lay them down (Ztype and z pointer, assuming z
  * points at {0x83,(00),0x05,0x81,(00),0x01,0x03}) are:
  *
  *        Yi8, Yml -> Zibo_m, z (0x83, 00)
@@ -811,7 +811,7 @@ static uchar	yaes2[] =
  *
  * The switch on t[2] in doasm implements the various Z cases.  Zibo_m, for
  * example, is an opcode byte (z[0]) then an asmando (which is some kind of
- * encoded addressing mode for the Yml arg), ctxt->and then a single immediate byte.
+ * encoded addressing mode for the Yml arg), and then a single immediate byte.
  * Zilo_m is the same but a long (32-bit) immediate.
  */
 Optab optab[] =
@@ -1528,7 +1528,7 @@ static Optab*	opindex[ALAST+1];
 static vlong	vaddr(Link*, Addr*, Reloc*);
 
 // single-instruction no-ops of various lengths.
-// constructed by hand ctxt->and disassembled with gdb to verify.
+// constructed by hand and disassembled with gdb to verify.
 // see http://www.agner.org/optimize/optimizing_assembly.pdf for discussion.
 static uchar nop[][16] = {
 	{0x90},
@@ -2643,11 +2643,11 @@ doasm(Link *ctxt, Prog *p)
 
 found:
 	switch(o->prefix) {
-	case Pq:	/* 16 bit escape ctxt->and opcode escape */
+	case Pq:	/* 16 bit escape and opcode escape */
 		*ctxt->andptr++ = Pe;
 		*ctxt->andptr++ = Pm;
 		break;
-	case Pq3:	/* 16 bit escape, Rex.w, ctxt->and opcode escape */
+	case Pq3:	/* 16 bit escape, Rex.w, and opcode escape */
 		*ctxt->andptr++ = Pe;
 		*ctxt->andptr++ = Pw;
 		*ctxt->andptr++ = Pm;
@@ -3110,7 +3110,7 @@ bad:
 		 * here, the assembly has failed.
 		 * if its a byte instruction that has
 		 * unaddressable registers, try to
-		 * exchange registers ctxt->and reissue the
+		 * exchange registers and reissue the
 		 * instruction with the operands renamed.
 		 */
 		pp = *p;
@@ -3262,7 +3262,7 @@ asmins(Link *ctxt, Prog *p)
 		/*
 		 * as befits the whole approach of the architecture,
 		 * the rex prefix must appear before the first opcode byte
-		 * (ctxt->and thus after any 66/67/f2/f3/26/2e/3e prefix bytes, but
+		 * (and thus after any 66/67/f2/f3/26/2e/3e prefix bytes, but
 		 * before the 0f opcode escape!), or it might be ignored.
 		 * note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
 		 */
