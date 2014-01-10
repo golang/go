@@ -7,7 +7,10 @@
 package net
 
 import (
+	"os"
+	"syscall"
 	"time"
+	"unsafe"
 )
 
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
@@ -16,6 +19,16 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	}
 	defer fd.decref()
 
-	// We can't actually set this per connection.  Act as a noop rather than an error.
-	return nil
+	// Windows expects milliseconds so round to next highest millisecond.
+	d += (time.Millisecond - time.Nanosecond)
+	millis := uint32(d / time.Millisecond)
+	ka := syscall.TCPKeepalive{
+		OnOff:    1,
+		Time:     millis,
+		Interval: millis,
+	}
+	ret := uint32(0)
+	size := uint32(unsafe.Sizeof(ka))
+	err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_KEEPALIVE_VALS, (*byte)(unsafe.Pointer(&ka)), size, nil, 0, &ret, nil, 0)
+	return os.NewSyscallError("WSAIoctl", err)
 }
