@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -315,7 +316,14 @@ func TestRawBytesAllocs(t *testing.T) {
 		test("float64", float64(64), "64")
 		test("bool", false, "false")
 	})
-	if n > 0.5 {
+
+	// The numbers below are only valid for 64-bit interface word sizes,
+	// and gc. With 32-bit words there are more convT2E allocs, and
+	// with gccgo, only pointers currently go in interface data.
+	// So only care on amd64 gc for now.
+	measureAllocs := runtime.GOARCH == "amd64" && runtime.Compiler == "gc"
+
+	if n > 0.5 && measureAllocs {
 		t.Fatalf("allocs = %v; want 0", n)
 	}
 
@@ -323,7 +331,7 @@ func TestRawBytesAllocs(t *testing.T) {
 	n = testing.AllocsPerRun(100, func() {
 		test("string", "foo", "foo")
 	})
-	if n > 1.5 {
+	if n > 1.5 && measureAllocs {
 		t.Fatalf("allocs = %v; want max 1", n)
 	}
 }
