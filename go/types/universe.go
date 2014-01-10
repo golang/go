@@ -17,6 +17,8 @@ var (
 	Universe     *Scope
 	Unsafe       *Package
 	universeIota *Const
+	universeByte *Basic
+	universeRune *Basic
 )
 
 var Typ = [...]*Basic{
@@ -41,8 +43,8 @@ var Typ = [...]*Basic{
 	String:        {String, IsString, 0, "string"},
 	UnsafePointer: {UnsafePointer, 0, 0, "Pointer"},
 
-	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, 0, "untyped boolean"},
-	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, 0, "untyped integer"},
+	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, 0, "untyped bool"},
+	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, 0, "untyped int"},
 	UntypedRune:    {UntypedRune, IsInteger | IsUntyped, 0, "untyped rune"},
 	UntypedFloat:   {UntypedFloat, IsFloat | IsUntyped, 0, "untyped float"},
 	UntypedComplex: {UntypedComplex, IsComplex | IsUntyped, 0, "untyped complex"},
@@ -185,6 +187,8 @@ func init() {
 	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota").(*Const)
+	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
+	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
 }
 
 // Objects with names containing blanks are internal and not entered into

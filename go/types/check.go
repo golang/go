@@ -96,6 +96,7 @@ func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) 
 		m[x] = typ
 	}
 	if val != nil {
+		assert(isConstType(typ))
 		if m := check.Values; m != nil {
 			m[x] = val
 		}

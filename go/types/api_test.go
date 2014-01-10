@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"code.google.com/p/go.tools/go/exact"
 	_ "code.google.com/p/go.tools/go/gcimporter"
 	. "code.google.com/p/go.tools/go/types"
 )
@@ -40,11 +41,95 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	return pkg.Name()
 }
 
+func TestValues(t *testing.T) {
+	var tests = []struct {
+		src  string
+		expr string // constant expression
+		typ  string // constant type
+		val  string // constant value
+	}{
+		{`package a0; const _ = false`, `false`, `untyped bool`, `false`},
+		{`package a1; const _ = 0`, `0`, `untyped int`, `0`},
+		{`package a2; const _ = 'A'`, `'A'`, `untyped rune`, `65`},
+		{`package a3; const _ = 0.`, `0.`, `untyped float`, `0`},
+		{`package a4; const _ = 0i`, `0i`, `untyped complex`, `0`},
+		{`package a5; const _ = "foo"`, `"foo"`, `untyped string`, `"foo"`},
+
+		{`package b0; var _ = false`, `false`, `bool`, `false`},
+		{`package b1; var _ = 0`, `0`, `int`, `0`},
+		{`package b2; var _ = 'A'`, `'A'`, `rune`, `65`},
+		{`package b3; var _ = 0.`, `0.`, `float64`, `0`},
+		{`package b4; var _ = 0i`, `0i`, `complex128`, `0`},
+		{`package b5; var _ = "foo"`, `"foo"`, `string`, `"foo"`},
+
+		{`package c0a; var _ = bool(false)`, `false`, `bool`, `false`},
+		{`package c0b; var _ = bool(false)`, `bool(false)`, `bool`, `false`},
+		{`package c0c; type T bool; var _ = T(false)`, `T(false)`, `c0c.T`, `false`},
+
+		{`package c1a; var _ = int(0)`, `0`, `int`, `0`},
+		{`package c1b; var _ = int(0)`, `int(0)`, `int`, `0`},
+		{`package c1c; type T int; var _ = T(0)`, `T(0)`, `c1c.T`, `0`},
+
+		{`package c2a; var _ = rune('A')`, `'A'`, `rune`, `65`},
+		{`package c2b; var _ = rune('A')`, `rune('A')`, `rune`, `65`},
+		{`package c2c; type T rune; var _ = T('A')`, `T('A')`, `c2c.T`, `65`},
+
+		{`package c3a; var _ = float32(0.)`, `0.`, `float32`, `0`},
+		{`package c3b; var _ = float32(0.)`, `float32(0.)`, `float32`, `0`},
+		{`package c3c; type T float32; var _ = T(0.)`, `T(0.)`, `c3c.T`, `0`},
+
+		{`package c4a; var _ = complex64(0i)`, `0i`, `complex64`, `0`},
+		{`package c4b; var _ = complex64(0i)`, `complex64(0i)`, `complex64`, `0`},
+		{`package c4c; type T complex64; var _ = T(0i)`, `T(0i)`, `c4c.T`, `0`},
+
+		{`package c5a; var _ = string("foo")`, `"foo"`, `string`, `"foo"`},
+		{`package c5b; var _ = string("foo")`, `string("foo")`, `string`, `"foo"`},
+		{`package c5c; type T string; var _ = T("foo")`, `T("foo")`, `c5c.T`, `"foo"`},
+
+		{`package d0; var _ = []byte("foo")`, `"foo"`, `string`, `"foo"`},
+		{`package d1; var _ = []byte(string("foo"))`, `"foo"`, `string`, `"foo"`},
+		{`package d2; var _ = []byte(string("foo"))`, `string("foo")`, `string`, `"foo"`},
+		{`package d3; type T []byte; var _ = T("foo")`, `"foo"`, `string`, `"foo"`},
+	}
+
+	for _, test := range tests {
+		info := Info{
+			Types:  make(map[ast.Expr]Type),
+			Values: make(map[ast.Expr]exact.Value),
+		}
+		name := mustTypecheck(t, "Values", test.src, &info)
+
+		// look for constant expression
+		var expr ast.Expr
+		for e := range info.Values {
+			if ExprString(e) == test.expr {
+				expr = e
+				break
+			}
+		}
+		if expr == nil {
+			t.Errorf("package %s: no expression found for %s", name, test.expr)
+			continue
+		}
+
+		// check that type is correct
+		if got := info.Types[expr].String(); got != test.typ {
+			t.Errorf("package %s: got type %s; want %s", name, got, test.typ)
+			continue
+		}
+
+		// check that value is correct
+		if got := info.Values[expr].String(); got != test.val {
+			t.Errorf("package %s: got value %s; want %s", name, got, test.val)
+		}
+	}
+}
+
 func TestCommaOkTypes(t *testing.T) {
 	var tests = []struct {
 		src  string
-		expr string // comma-ok expression string
-		typ  string // typestring of comma-ok value
+		expr string // comma-ok expression
+		typ  string // comma-ok value type
 	}{
 		{`package p0; var x interface{}; var _, _ = x.(int)`,
 			`x.(int)`,

@@ -123,23 +123,21 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycleOk bool) 
 // If cycleOk is set, e (or elements of e) may refer to a named type that is not
 // yet completely set up.
 //
-func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) Type {
+func (check *checker) typ(e ast.Expr, def *Named, cycleOk bool) (T Type) {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(e.Pos(), "=> %s", T)
+		}()
 	}
 
-	t := check.typInternal(e, def, cycleOk)
-	assert(e != nil && t != nil && isTyped(t))
+	T = check.typInternal(e, def, cycleOk)
+	assert(isTyped(T))
+	check.recordTypeAndValue(e, T, nil)
 
-	check.recordTypeAndValue(e, t, nil)
-
-	if trace {
-		check.indent--
-		check.trace(e.Pos(), "=> %s", t)
-	}
-
-	return t
+	return
 }
 
 // funcType type-checks a function or method type and returns its signature.

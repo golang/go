@@ -288,22 +288,20 @@ func isIdenticalInternal(x, y Type, p *ifacePair) bool {
 //
 func defaultType(typ Type) Type {
 	if t, ok := typ.(*Basic); ok {
-		k := t.kind
-		switch k {
+		switch t.kind {
 		case UntypedBool:
-			k = Bool
+			return Typ[Bool]
 		case UntypedInt:
-			k = Int
+			return Typ[Int]
 		case UntypedRune:
-			k = Rune
+			return universeRune // use 'rune' name
 		case UntypedFloat:
-			k = Float64
+			return Typ[Float64]
 		case UntypedComplex:
-			k = Complex128
+			return Typ[Complex128]
 		case UntypedString:
-			k = String
+			return Typ[String]
 		}
-		typ = Typ[k]
 	}
 	return typ
 }

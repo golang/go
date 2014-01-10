@@ -122,7 +122,7 @@ func f(a int, s string) float64 {
 	funcScope := fileScope.Child(0)
 
 	var tests = []string{
-		`true => true, untyped boolean`,
+		`true => true, untyped bool`,
 		`fmt.Println => , func(a ...interface{}) (n int, err error)`,
 		`c => 3, untyped float`,
 		`T => , p.T`,
@@ -132,7 +132,7 @@ func f(a int, s string) float64 {
 		`x => , int`,
 		`d/c => 1, int`,
 		`c/2 => 3/2, untyped float`,
-		`m.Pi < m.E => false, untyped boolean`,
+		`m.Pi < m.E => false, untyped bool`,
 	}
 	for _, test := range tests {
 		str, typ := split(test, ", ")

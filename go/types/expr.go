@@ -447,7 +447,7 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	}
 
 	// Otherwise we have the final (typed or untyped type).
-	// Remove it from the map.
+	// Remove it from the map of yet untyped expressions.
 	delete(check.untyped, x)
 
 	// If x is the lhs of a shift, its final type must be integer.
@@ -895,18 +895,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(e.Pos(), "=> %s", x)
+		}()
 	}
 
 	kind := check.exprInternal(x, e, hint)
 
 	// convert x into a user-friendly set of values
-	record := true
 	var typ Type
 	var val exact.Value
 	switch x.mode {
 	case invalid:
 		typ = Typ[Invalid]
-		record = false // nothing to do
 	case novalue:
 		typ = (*Tuple)(nil)
 	case constant:
@@ -921,16 +923,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 		// delay notification until it becomes typed
 		// or until the end of type checking
 		check.untyped[x.expr] = exprInfo{false, typ.(*Basic), val}
-	} else if record {
-		// TODO(gri) ensure that literals always report
-		// their dynamic (never interface) type.
-		// This is not the case yet.
+	} else {
 		check.recordTypeAndValue(e, typ, val)
-	}
-
-	if trace {
-		check.indent--
-		check.trace(e.Pos(), "=> %s", x)
 	}
 
 	return kind
@@ -1148,7 +1142,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				// (not a constant) even if the string and the
 				// index are constant
 				x.mode = value
-				x.typ = Typ[Byte]
+				x.typ = universeByte // use 'byte' name
 			}
 
 		case *Array:
