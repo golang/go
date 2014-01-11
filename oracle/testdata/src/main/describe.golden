@@ -6,7 +6,7 @@ definition of package "describe"
 		method (D) f()
 	type  I      interface{f()}
 		method (I) f()
-	const c      untyped integer = 0
+	const c      untyped int = 0
 	type  cake   float64
 	var   global *string
 	func  main   func()
@@ -17,7 +17,7 @@ definition of package "describe"
 reference to built-in type float64
 
 -------- @describe const-ref-iota --------
-reference to const iota untyped integer of constant value 0
+reference to const iota untyped int of constant value 0
 
 -------- @describe const-def-pi --------
 definition of const pi untyped float

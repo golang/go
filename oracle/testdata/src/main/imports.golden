@@ -1,13 +1,13 @@
 -------- @describe ref-pkg-import --------
 import of package "lib"
-	const Const untyped integer = 3
+	const Const untyped int = 3
 	func  Func  func()
 	type  Type  int
 		method (Type) Method(x *int) *int
 	var   Var   int
 
 -------- @describe ref-const --------
-reference to const lib.Const untyped integer
+reference to const lib.Const untyped int
 defined here
 
 -------- @describe ref-func --------
@@ -34,7 +34,7 @@ this *int may point to these objects:
 
 -------- @describe ref-pkg --------
 reference to package "lib"
-	const Const untyped integer = 3
+	const Const untyped int = 3
 	func  Func  func()
 	type  Type  int
 		method (Type) Method(x *int) *int

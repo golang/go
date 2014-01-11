@@ -10,7 +10,7 @@ var s.t.a int
 var s.t.b int
 var s.x int
 var x int
-var y int32
+var y rune
 
 -------- @freevars fv3 --------
 Free identifiers:
