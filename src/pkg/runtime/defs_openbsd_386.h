@@ -121,7 +121,7 @@ struct Sigcontext {
 	int32	sc_eflags;
 	int32	sc_esp;
 	int32	sc_ss;
-	int32	sc_onstack;
+	int32	__sc_unused;
 	int32	sc_mask;
 	int32	sc_trapno;
 	int32	sc_err;
@@ -143,11 +143,11 @@ struct StackT {
 };
 
 struct Timespec {
-	int32	tv_sec;
+	int64	tv_sec;
 	int32	tv_nsec;
 };
 struct Timeval {
-	int32	tv_sec;
+	int64	tv_sec;
 	int32	tv_usec;
 };
 struct Itimerval {
@@ -160,7 +160,7 @@ struct Kevent {
 	int16	filter;
 	uint16	flags;
 	uint32	fflags;
-	int32	data;
+	int64	data;
 	byte	*udata;
 };
 

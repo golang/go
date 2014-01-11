@@ -45,21 +45,22 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	INT	$0x80
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$20
+TEXT runtime·usleep(SB),NOSPLIT,$24
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
 	DIVL	CX
-	MOVL	AX, 12(SP)		// tv_sec
+	MOVL	AX, 12(SP)		// tv_sec - l32
+	MOVL	$0, 16(SP)		// tv_sec - h32
 	MOVL	$1000, AX
 	MULL	DX
-	MOVL	AX, 16(SP)		// tv_nsec
+	MOVL	AX, 20(SP)		// tv_nsec
 
 	MOVL	$0, 0(SP)
 	LEAL	12(SP), AX
 	MOVL	AX, 4(SP)		// arg 1 - rqtp
 	MOVL	$0, 8(SP)		// arg 2 - rmtp
-	MOVL	$240, AX		// sys_nanosleep
+	MOVL	$91, AX			// sys_nanosleep
 	INT	$0x80
 	RET
 
@@ -107,43 +108,46 @@ TEXT runtime·madvise(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
-	MOVL	$83, AX
+	MOVL	$69, AX
 	INT	$0x80
 	RET
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
-	MOVL	$232, AX
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)
-	MOVL	BX, 8(SP)
+	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	BX, 8(SP)		// arg 2 - tp
+	MOVL	$87, AX			// sys_clock_gettime
 	INT	$0x80
-	MOVL	12(SP), AX		// sec
-	MOVL	16(SP), BX		// nsec
 
-	// sec is in AX, nsec in BX
+	MOVL	12(SP), AX		// sec - l32
 	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
+	MOVL	16(SP), AX		// sec - h32
+	MOVL	AX, sec+4(FP)
+
+	MOVL	20(SP), BX		// nsec
 	MOVL	BX, nsec+8(FP)
 	RET
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
-	MOVL	$232, AX
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)
-	MOVL	BX, 8(SP)
+	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	BX, 8(SP)		// arg 2 - tp
+	MOVL	$87, AX			// sys_clock_gettime
 	INT	$0x80
-	MOVL	12(SP), AX		// sec
-	MOVL	16(SP), BX		// nsec
 
-	// sec is in AX, nsec in BX
-	// convert to DX:AX nsec
-	MOVL	$1000000000, CX
-	MULL	CX
+	MOVL    16(SP), CX		// sec - h32
+	IMULL   $1000000000, CX
+
+	MOVL    12(SP), AX		// sec - l32
+	MOVL    $1000000000, BX
+	MULL    BX			// result in dx:ax
+
+	MOVL	20(SP), BX		// nsec
 	ADDL	BX, AX
-	ADCL	$0, DX
+	ADCL	CX, DX			// add high bits with carry
 
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
@@ -325,7 +329,7 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·thrsleep(SB),NOSPLIT,$-4
-	MOVL	$300, AX		// sys___thrsleep
+	MOVL	$94, AX			// sys___thrsleep
 	INT	$0x80
 	RET
 
@@ -362,7 +366,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	$270, AX
+	MOVL	$72, AX			// sys_kevent
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
@@ -370,7 +374,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 
 // int32 runtime·closeonexec(int32 fd);
 TEXT runtime·closeonexec(SB),NOSPLIT,$32
-	MOVL	$92, AX		// fcntl
+	MOVL	$92, AX			// sys_fcntl
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	fd+0(FP), BX
 	MOVL	BX, 4(SP)	// fd

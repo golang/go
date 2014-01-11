@@ -77,7 +77,7 @@ const (
 	BIOCGFILDROP                      = 0x40044278
 	BIOCGHDRCMPLT                     = 0x40044274
 	BIOCGRSIG                         = 0x40044273
-	BIOCGRTIMEOUT                     = 0x4008426e
+	BIOCGRTIMEOUT                     = 0x400c426e
 	BIOCGSTATS                        = 0x4008426f
 	BIOCIMMEDIATE                     = 0x80044270
 	BIOCLOCK                          = 0x20004276
@@ -91,7 +91,7 @@ const (
 	BIOCSFILDROP                      = 0x80044279
 	BIOCSHDRCMPLT                     = 0x80044275
 	BIOCSRSIG                         = 0x80044272
-	BIOCSRTIMEOUT                     = 0x8008426d
+	BIOCSRTIMEOUT                     = 0x800c426d
 	BIOCVERSION                       = 0x40044271
 	BPF_A                             = 0x10
 	BPF_ABS                           = 0x20
@@ -197,8 +197,6 @@ const (
 	ECHONL                            = 0x10
 	ECHOPRT                           = 0x20
 	EMT_TAGOVF                        = 0x1
-	EMUL_ENABLED                      = 0x1
-	EMUL_NATIVE                       = 0x2
 	ENDRUNDISC                        = 0x9
 	ETHERMIN                          = 0x2e
 	ETHERMTU                          = 0x5dc
@@ -444,7 +442,6 @@ const (
 	IEXTEN                            = 0x400
 	IFAN_ARRIVAL                      = 0x0
 	IFAN_DEPARTURE                    = 0x1
-	IFA_ROUTE                         = 0x1
 	IFF_ALLMULTI                      = 0x200
 	IFF_BROADCAST                     = 0x2
 	IFF_CANTCHANGE                    = 0x8e52
@@ -713,6 +710,8 @@ const (
 	IPPROTO_AH                        = 0x33
 	IPPROTO_CARP                      = 0x70
 	IPPROTO_DIVERT                    = 0x102
+	IPPROTO_DIVERT_INIT               = 0x2
+	IPPROTO_DIVERT_RESP               = 0x1
 	IPPROTO_DONE                      = 0x101
 	IPPROTO_DSTOPTS                   = 0x3c
 	IPPROTO_EGP                       = 0x8
@@ -757,7 +756,6 @@ const (
 	IPV6_DSTOPTS                      = 0x32
 	IPV6_ESP_NETWORK_LEVEL            = 0x37
 	IPV6_ESP_TRANS_LEVEL              = 0x36
-	IPV6_FAITH                        = 0x1d
 	IPV6_FLOWINFO_MASK                = 0xffffff0f
 	IPV6_FLOWLABEL_MASK               = 0xffff0f00
 	IPV6_FRAGTTL                      = 0x78
@@ -774,7 +772,6 @@ const (
 	IPV6_MULTICAST_IF                 = 0x9
 	IPV6_MULTICAST_LOOP               = 0xb
 	IPV6_NEXTHOP                      = 0x30
-	IPV6_OPTIONS                      = 0x1
 	IPV6_PATHMTU                      = 0x2c
 	IPV6_PIPEX                        = 0x3f
 	IPV6_PKTINFO                      = 0x2e
@@ -783,6 +780,7 @@ const (
 	IPV6_PORTRANGE_HIGH               = 0x1
 	IPV6_PORTRANGE_LOW                = 0x2
 	IPV6_RECVDSTOPTS                  = 0x28
+	IPV6_RECVDSTPORT                  = 0x40
 	IPV6_RECVHOPLIMIT                 = 0x25
 	IPV6_RECVHOPOPTS                  = 0x27
 	IPV6_RECVPATHMTU                  = 0x2b
@@ -793,9 +791,7 @@ const (
 	IPV6_RTHDR                        = 0x33
 	IPV6_RTHDRDSTOPTS                 = 0x23
 	IPV6_RTHDR_LOOSE                  = 0x0
-	IPV6_RTHDR_STRICT                 = 0x1
 	IPV6_RTHDR_TYPE_0                 = 0x0
-	IPV6_SOCKOPT_RESERVED1            = 0x3
 	IPV6_TCLASS                       = 0x3d
 	IPV6_UNICAST_HOPS                 = 0x4
 	IPV6_USE_MIN_MTU                  = 0x2a
@@ -807,6 +803,7 @@ const (
 	IP_DEFAULT_MULTICAST_LOOP         = 0x1
 	IP_DEFAULT_MULTICAST_TTL          = 0x1
 	IP_DF                             = 0x4000
+	IP_DIVERTFL                       = 0x1022
 	IP_DROP_MEMBERSHIP                = 0xd
 	IP_ESP_NETWORK_LEVEL              = 0x16
 	IP_ESP_TRANS_LEVEL                = 0x15
@@ -926,10 +923,10 @@ const (
 	PARODD                            = 0x2000
 	PENDIN                            = 0x20000000
 	PF_FLUSH                          = 0x1
-	PT_MASK                           = 0x3ff000
 	PRIO_PGRP                         = 0x1
 	PRIO_PROCESS                      = 0x0
 	PRIO_USER                         = 0x2
+	PT_MASK                           = 0x3ff000
 	RLIMIT_CORE                       = 0x4
 	RLIMIT_CPU                        = 0x0
 	RLIMIT_DATA                       = 0x2
@@ -966,7 +963,7 @@ const (
 	RTF_CLONING                       = 0x100
 	RTF_DONE                          = 0x40
 	RTF_DYNAMIC                       = 0x10
-	RTF_FMASK                         = 0xf808
+	RTF_FMASK                         = 0x10f808
 	RTF_GATEWAY                       = 0x2
 	RTF_HOST                          = 0x4
 	RTF_LLINFO                        = 0x400
@@ -1001,7 +998,7 @@ const (
 	RTM_REDIRECT                      = 0x6
 	RTM_RESOLVE                       = 0xb
 	RTM_RTTUNIT                       = 0xf4240
-	RTM_VERSION                       = 0x4
+	RTM_VERSION                       = 0x5
 	RTV_EXPIRE                        = 0x4
 	RTV_HOPCOUNT                      = 0x2
 	RTV_MTU                           = 0x1
@@ -1027,7 +1024,7 @@ const (
 	SIOCBRDGADD                       = 0x8054693c
 	SIOCBRDGADDS                      = 0x80546941
 	SIOCBRDGARL                       = 0x806e694d
-	SIOCBRDGDADDR                     = 0x80286947
+	SIOCBRDGDADDR                     = 0x81286947
 	SIOCBRDGDEL                       = 0x8054693d
 	SIOCBRDGDELS                      = 0x80546942
 	SIOCBRDGFLUSH                     = 0x80546948
@@ -1037,14 +1034,14 @@ const (
 	SIOCBRDGGHT                       = 0xc0146951
 	SIOCBRDGGIFFLGS                   = 0xc054693e
 	SIOCBRDGGMA                       = 0xc0146953
-	SIOCBRDGGPARAM                    = 0xc0386958
+	SIOCBRDGGPARAM                    = 0xc03c6958
 	SIOCBRDGGPRI                      = 0xc0146950
 	SIOCBRDGGRL                       = 0xc028694f
 	SIOCBRDGGSIFS                     = 0xc054693c
 	SIOCBRDGGTO                       = 0xc0146946
 	SIOCBRDGIFS                       = 0xc0546942
 	SIOCBRDGRTS                       = 0xc0186943
-	SIOCBRDGSADDR                     = 0xc0286944
+	SIOCBRDGSADDR                     = 0xc1286944
 	SIOCBRDGSCACHE                    = 0x80146940
 	SIOCBRDGSFD                       = 0x80146952
 	SIOCBRDGSHT                       = 0x80146951
@@ -1067,6 +1064,7 @@ const (
 	SIOCGETPFSYNC                     = 0xc02069f8
 	SIOCGETSGCNT                      = 0xc0147534
 	SIOCGETVIFCNT                     = 0xc0147533
+	SIOCGETVLAN                       = 0xc0206990
 	SIOCGHIWAT                        = 0x40047301
 	SIOCGIFADDR                       = 0xc0206921
 	SIOCGIFASYNCMAP                   = 0xc020697c
@@ -1077,9 +1075,9 @@ const (
 	SIOCGIFDSTADDR                    = 0xc0206922
 	SIOCGIFFLAGS                      = 0xc0206911
 	SIOCGIFGATTR                      = 0xc024698b
-	SIOCGIFGENERIC                    = 0xc020693a
 	SIOCGIFGMEMB                      = 0xc024698a
 	SIOCGIFGROUP                      = 0xc0246988
+	SIOCGIFHARDMTU                    = 0xc02069a5
 	SIOCGIFMEDIA                      = 0xc0286936
 	SIOCGIFMETRIC                     = 0xc0206917
 	SIOCGIFMTU                        = 0xc020697e
@@ -1094,9 +1092,12 @@ const (
 	SIOCGLIFADDR                      = 0xc218691d
 	SIOCGLIFPHYADDR                   = 0xc218694b
 	SIOCGLIFPHYRTABLE                 = 0xc02069a2
+	SIOCGLIFPHYTTL                    = 0xc02069a9
 	SIOCGLOWAT                        = 0x40047303
 	SIOCGPGRP                         = 0x40047309
+	SIOCGSPPPPARAMS                   = 0xc0206994
 	SIOCGVH                           = 0xc02069f6
+	SIOCGVNETID                       = 0xc02069a7
 	SIOCIFCREATE                      = 0x8020697a
 	SIOCIFDESTROY                     = 0x80206979
 	SIOCIFGCLONERS                    = 0xc00c6978
@@ -1104,6 +1105,7 @@ const (
 	SIOCSETLABEL                      = 0x80206999
 	SIOCSETPFLOW                      = 0x802069fd
 	SIOCSETPFSYNC                     = 0x802069f7
+	SIOCSETVLAN                       = 0x8020698f
 	SIOCSHIWAT                        = 0x80047300
 	SIOCSIFADDR                       = 0x8020690c
 	SIOCSIFASYNCMAP                   = 0x8020697d
@@ -1112,7 +1114,6 @@ const (
 	SIOCSIFDSTADDR                    = 0x8020690e
 	SIOCSIFFLAGS                      = 0x80206910
 	SIOCSIFGATTR                      = 0x8024698c
-	SIOCSIFGENERIC                    = 0x80206939
 	SIOCSIFLLADDR                     = 0x8020691f
 	SIOCSIFMEDIA                      = 0xc0206935
 	SIOCSIFMETRIC                     = 0x80206918
@@ -1126,9 +1127,12 @@ const (
 	SIOCSIFXFLAGS                     = 0x8020699d
 	SIOCSLIFPHYADDR                   = 0x8218694a
 	SIOCSLIFPHYRTABLE                 = 0x802069a1
+	SIOCSLIFPHYTTL                    = 0x802069a8
 	SIOCSLOWAT                        = 0x80047302
 	SIOCSPGRP                         = 0x80047308
+	SIOCSSPPPPARAMS                   = 0x80206993
 	SIOCSVH                           = 0xc02069f5
+	SIOCSVNETID                       = 0x802069a6
 	SOCK_DGRAM                        = 0x2
 	SOCK_RAW                          = 0x3
 	SOCK_RDM                          = 0x4
@@ -1171,6 +1175,7 @@ const (
 	TCP_MD5SIG                        = 0x4
 	TCP_MSS                           = 0x200
 	TCP_NODELAY                       = 0x1
+	TCP_NOPUSH                        = 0x10
 	TCP_NSTATES                       = 0xb
 	TCP_SACK_ENABLE                   = 0x8
 	TCSAFLUSH                         = 0x2
@@ -1190,7 +1195,7 @@ const (
 	TIOCGETD                          = 0x4004741a
 	TIOCGFLAGS                        = 0x4004745d
 	TIOCGPGRP                         = 0x40047477
-	TIOCGTSTAMP                       = 0x4008745b
+	TIOCGTSTAMP                       = 0x400c745b
 	TIOCGWINSZ                        = 0x40087468
 	TIOCMBIC                          = 0x8004746b
 	TIOCMBIS                          = 0x8004746c

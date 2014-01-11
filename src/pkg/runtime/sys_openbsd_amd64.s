@@ -62,7 +62,7 @@ TEXT runtime·thrsleep(SB),NOSPLIT,$0
 	MOVQ	24(SP), DX		// arg 3 - tp
 	MOVQ	32(SP), R10		// arg 4 - lock
 	MOVQ	40(SP), R8		// arg 5 - abort
-	MOVL	$300, AX		// sys___thrsleep
+	MOVL	$94, AX			// sys___thrsleep
 	SYSCALL
 	RET
 
@@ -130,7 +130,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 
 	MOVQ	SP, DI			// arg 1 - rqtp
 	MOVQ	$0, SI			// arg 2 - rmtp
-	MOVL	$240, AX		// sys_nanosleep
+	MOVL	$91, AX			// sys_nanosleep
 	SYSCALL
 	RET
 
@@ -138,7 +138,7 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$299, AX		// sys_getthrid
 	SYSCALL
 	MOVQ	AX, DI			// arg 1 - pid
-	MOVL	sig+0(FP), SI			// arg 2 - signum
+	MOVL	sig+0(FP), SI		// arg 2 - signum
 	MOVL	$37, AX			// sys_kill
 	SYSCALL
 	RET
@@ -147,7 +147,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	MOVL	8(SP), DI		// arg 1 - which
 	MOVQ	16(SP), SI		// arg 2 - itv
 	MOVQ	24(SP), DX		// arg 3 - oitv
-	MOVL	$83, AX			// sys_setitimer
+	MOVL	$69, AX			// sys_setitimer
 	SYSCALL
 	RET
 
@@ -155,9 +155,9 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 TEXT time·now(SB), NOSPLIT, $32
 	MOVQ	$0, DI			// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
-	MOVL	$232, AX		// sys_clock_gettime
+	MOVL	$87, AX			// sys_clock_gettime
 	SYSCALL
-	MOVL	8(SP), AX		// sec
+	MOVQ	8(SP), AX		// sec
 	MOVQ	16(SP), DX		// nsec
 
 	// sec is in AX, nsec in DX
@@ -168,9 +168,9 @@ TEXT time·now(SB), NOSPLIT, $32
 TEXT runtime·nanotime(SB),NOSPLIT,$24
 	MOVQ	$0, DI			// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
-	MOVL	$232, AX		// sys_clock_gettime
+	MOVL	$87, AX			// sys_clock_gettime
 	SYSCALL
-	MOVL	8(SP), AX		// sec
+	MOVQ	8(SP), AX		// sec
 	MOVQ	16(SP), DX		// nsec
 
 	// sec is in AX, nsec in DX
@@ -318,7 +318,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVQ	32(SP), R10
 	MOVL	40(SP), R8
 	MOVQ	48(SP), R9
-	MOVL	$270, AX
+	MOVL	$72, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX

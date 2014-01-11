@@ -19,9 +19,8 @@ type (
 )
 
 type Timespec struct {
-	Sec       int32
-	Pad_cgo_0 [4]byte
-	Nsec      int64
+	Sec  int64
+	Nsec int64
 }
 
 type Timeval struct {
@@ -73,14 +72,13 @@ const (
 )
 
 type Stat_t struct {
-	Dev            int32
-	Ino            uint32
 	Mode           uint32
+	Dev            int32
+	Ino            uint64
 	Nlink          uint32
 	Uid            uint32
 	Gid            uint32
 	Rdev           int32
-	Lspare0        int32
 	Atim           Timespec
 	Mtim           Timespec
 	Ctim           Timespec
@@ -89,9 +87,8 @@ type Stat_t struct {
 	Blksize        uint32
 	Flags          uint32
 	Gen            uint32
-	Lspare1        int32
+	Pad_cgo_0      [4]byte
 	X__st_birthtim Timespec
-	Qspare         [2]int64
 }
 
 type Statfs_t struct {
@@ -112,12 +109,12 @@ type Statfs_t struct {
 	F_fsid        Fsid
 	F_namemax     uint32
 	F_owner       uint32
-	F_ctime       uint32
-	F_spare       [3]uint32
+	F_ctime       uint64
 	F_fstypename  [16]int8
 	F_mntonname   [90]int8
 	F_mntfromname [90]int8
-	Pad_cgo_1     [4]byte
+	F_mntfromspec [90]int8
+	Pad_cgo_1     [2]byte
 	Mount_info    [160]byte
 }
 
@@ -130,11 +127,13 @@ type Flock_t struct {
 }
 
 type Dirent struct {
-	Fileno uint32
-	Reclen uint16
-	Type   uint8
-	Namlen uint8
-	Name   [256]int8
+	Fileno       uint64
+	Off          int64
+	Reclen       uint16
+	Type         uint8
+	Namlen       uint8
+	X__d_padding [4]uint8
+	Name         [256]int8
 }
 
 type Fsid struct {
@@ -263,16 +262,16 @@ const (
 )
 
 type Kevent_t struct {
-	Ident  uint32
+	Ident  uint64
 	Filter int16
 	Flags  uint16
 	Fflags uint32
-	Data   int32
+	Data   int64
 	Udata  *byte
 }
 
 type FdSet struct {
-	Bits [32]int32
+	Bits [32]uint32
 }
 
 const (
@@ -280,8 +279,8 @@ const (
 	SizeofIfData           = 0xe0
 	SizeofIfaMsghdr        = 0x18
 	SizeofIfAnnounceMsghdr = 0x1a
-	SizeofRtMsghdr         = 0x58
-	SizeofRtMetrics        = 0x30
+	SizeofRtMsghdr         = 0x60
+	SizeofRtMetrics        = 0x38
 )
 
 type IfMsghdr struct {
@@ -371,9 +370,9 @@ type RtMsghdr struct {
 
 type RtMetrics struct {
 	Pksent   uint64
+	Expire   int64
 	Locks    uint32
 	Mtu      uint32
-	Expire   uint32
 	Refcnt   uint32
 	Hopcount uint32
 	Recvpipe uint32
@@ -381,10 +380,11 @@ type RtMetrics struct {
 	Ssthresh uint32
 	Rtt      uint32
 	Rttvar   uint32
+	Pad      uint32
 }
 
 type Mclpool struct {
-	Grown uint32
+	Grown int32
 	Alive uint16
 	Hwm   uint16
 	Cwm   uint16
