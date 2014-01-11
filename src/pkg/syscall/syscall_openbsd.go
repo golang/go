@@ -90,6 +90,11 @@ func Pipe(p []int) (err error) {
 	return
 }
 
+//sys getdents(fd int, buf []byte) (n int, err error)
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	return getdents(fd, buf)
+}
+
 // TODO
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
@@ -119,7 +124,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Fstatfs(fd int, stat *Statfs_t) (err error)
 //sys	Fsync(fd int) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (uid int)
 //sys	Getfsstat(buf []Statfs_t, flags int) (n int, err error)
