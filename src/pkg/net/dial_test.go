@@ -58,7 +58,7 @@ func TestDialTimeout(t *testing.T) {
 				errc <- err
 			}()
 		}
-	case "darwin", "windows":
+	case "darwin", "plan9", "windows":
 		// At least OS X 10.7 seems to accept any number of
 		// connections, ignoring listen's backlog, so resort
 		// to connecting to a hopefully-dead 127/8 address.
