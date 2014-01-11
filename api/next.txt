@@ -511,3 +511,345 @@ pkg syscall (netbsd-amd64-cgo), const PROT_WRITE = 2
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE ideal-int
 pkg syscall (windows-386), func NewCallbackCDecl(interface{}) uintptr
 pkg syscall (windows-amd64), func NewCallbackCDecl(interface{}) uintptr
+pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-386), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-386), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-386), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-386), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-386), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-386), const RTF_FMASK = 1112072
+pkg syscall (openbsd-386), const RTM_VERSION = 5
+pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-386), const SIOCBRDGGPARAM = 3225184600
+pkg syscall (openbsd-386), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-386), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-386), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-386), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-386), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-386), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-386), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-386), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-386), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-386), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-386), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-386), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-386), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-386), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-386), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-386), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-386), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-386), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-386), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-386), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-386), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-386), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-386), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-386), const SYS_FSTAT = 53
+pkg syscall (openbsd-386), const SYS_FSTATAT = 42
+pkg syscall (openbsd-386), const SYS_FSTATFS = 64
+pkg syscall (openbsd-386), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-386), const SYS_FUTIMES = 77
+pkg syscall (openbsd-386), const SYS_GETDENTS = 99
+pkg syscall (openbsd-386), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-386), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-386), const SYS_GETITIMER = 70
+pkg syscall (openbsd-386), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-386), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-386), const SYS_KEVENT = 72
+pkg syscall (openbsd-386), const SYS_LSTAT = 40
+pkg syscall (openbsd-386), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-386), const SYS_PPOLL = 109
+pkg syscall (openbsd-386), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-386), const SYS_PSELECT = 110
+pkg syscall (openbsd-386), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-386), const SYS_SELECT = 71
+pkg syscall (openbsd-386), const SYS_SETITIMER = 69
+pkg syscall (openbsd-386), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-386), const SYS_STAT = 38
+pkg syscall (openbsd-386), const SYS_STATFS = 63
+pkg syscall (openbsd-386), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-386), const SYS_UTIMES = 76
+pkg syscall (openbsd-386), const SYS_UTRACE = 209
+pkg syscall (openbsd-386), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-386), const SYS_WAIT4 = 11
+pkg syscall (openbsd-386), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-386), const SizeofIfData = 212
+pkg syscall (openbsd-386), const SizeofIfMsghdr = 236
+pkg syscall (openbsd-386), const SizeofRtMetrics = 56
+pkg syscall (openbsd-386), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-386), const TCP_NOPUSH = 16
+pkg syscall (openbsd-386), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-386), const TIOCGTSTAMP = 1074558043
+pkg syscall (openbsd-386), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-386), type Dirent struct, Off int64
+pkg syscall (openbsd-386), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-386), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-386), type Kevent_t struct, Data int64
+pkg syscall (openbsd-386), type Mclpool struct, Grown int32
+pkg syscall (openbsd-386), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-386), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-386), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-386), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-386), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-386), type Statfs_t struct, Pad_cgo_0 [2]uint8
+pkg syscall (openbsd-386), type Timespec struct, Sec int64
+pkg syscall (openbsd-386), type Timeval struct, Sec int64
+pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (openbsd-386-cgo), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-386-cgo), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-386-cgo), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-386-cgo), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-386-cgo), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-386-cgo), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-386-cgo), const RTF_FMASK = 1112072
+pkg syscall (openbsd-386-cgo), const RTM_VERSION = 5
+pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-386-cgo), const SIOCBRDGGPARAM = 3225184600
+pkg syscall (openbsd-386-cgo), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-386-cgo), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-386-cgo), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-386-cgo), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-386-cgo), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-386-cgo), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-386-cgo), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-386-cgo), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-386-cgo), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-386-cgo), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-386-cgo), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-386-cgo), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-386-cgo), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-386-cgo), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-386-cgo), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-386-cgo), const SYS_FSTAT = 53
+pkg syscall (openbsd-386-cgo), const SYS_FSTATAT = 42
+pkg syscall (openbsd-386-cgo), const SYS_FSTATFS = 64
+pkg syscall (openbsd-386-cgo), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-386-cgo), const SYS_FUTIMES = 77
+pkg syscall (openbsd-386-cgo), const SYS_GETDENTS = 99
+pkg syscall (openbsd-386-cgo), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-386-cgo), const SYS_GETITIMER = 70
+pkg syscall (openbsd-386-cgo), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-386-cgo), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-386-cgo), const SYS_KEVENT = 72
+pkg syscall (openbsd-386-cgo), const SYS_LSTAT = 40
+pkg syscall (openbsd-386-cgo), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-386-cgo), const SYS_PPOLL = 109
+pkg syscall (openbsd-386-cgo), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_PSELECT = 110
+pkg syscall (openbsd-386-cgo), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_SELECT = 71
+pkg syscall (openbsd-386-cgo), const SYS_SETITIMER = 69
+pkg syscall (openbsd-386-cgo), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-386-cgo), const SYS_STAT = 38
+pkg syscall (openbsd-386-cgo), const SYS_STATFS = 63
+pkg syscall (openbsd-386-cgo), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-386-cgo), const SYS_UTIMES = 76
+pkg syscall (openbsd-386-cgo), const SYS_UTRACE = 209
+pkg syscall (openbsd-386-cgo), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_WAIT4 = 11
+pkg syscall (openbsd-386-cgo), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-386-cgo), const SizeofIfData = 212
+pkg syscall (openbsd-386-cgo), const SizeofIfMsghdr = 236
+pkg syscall (openbsd-386-cgo), const SizeofRtMetrics = 56
+pkg syscall (openbsd-386-cgo), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-386-cgo), const TCP_NOPUSH = 16
+pkg syscall (openbsd-386-cgo), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-386-cgo), const TIOCGTSTAMP = 1074558043
+pkg syscall (openbsd-386-cgo), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-386-cgo), type Dirent struct, Off int64
+pkg syscall (openbsd-386-cgo), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-386-cgo), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-386-cgo), type Kevent_t struct, Data int64
+pkg syscall (openbsd-386-cgo), type Mclpool struct, Grown int32
+pkg syscall (openbsd-386-cgo), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-386-cgo), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-386-cgo), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-386-cgo), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-386-cgo), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-386-cgo), type Statfs_t struct, Pad_cgo_0 [2]uint8
+pkg syscall (openbsd-386-cgo), type Timespec struct, Sec int64
+pkg syscall (openbsd-386-cgo), type Timeval struct, Sec int64
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-amd64), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-amd64), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-amd64), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-amd64), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-amd64), const RTF_FMASK = 1112072
+pkg syscall (openbsd-amd64), const RTM_VERSION = 5
+pkg syscall (openbsd-amd64), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-amd64), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-amd64), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-amd64), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-amd64), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-amd64), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-amd64), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-amd64), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-amd64), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-amd64), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-amd64), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-amd64), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-amd64), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-amd64), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-amd64), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-amd64), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-amd64), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-amd64), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-amd64), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-amd64), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-amd64), const SYS_FSTAT = 53
+pkg syscall (openbsd-amd64), const SYS_FSTATAT = 42
+pkg syscall (openbsd-amd64), const SYS_FSTATFS = 64
+pkg syscall (openbsd-amd64), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-amd64), const SYS_FUTIMES = 77
+pkg syscall (openbsd-amd64), const SYS_GETDENTS = 99
+pkg syscall (openbsd-amd64), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-amd64), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-amd64), const SYS_GETITIMER = 70
+pkg syscall (openbsd-amd64), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-amd64), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-amd64), const SYS_KEVENT = 72
+pkg syscall (openbsd-amd64), const SYS_LSTAT = 40
+pkg syscall (openbsd-amd64), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-amd64), const SYS_PPOLL = 109
+pkg syscall (openbsd-amd64), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-amd64), const SYS_PSELECT = 110
+pkg syscall (openbsd-amd64), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-amd64), const SYS_SELECT = 71
+pkg syscall (openbsd-amd64), const SYS_SETITIMER = 69
+pkg syscall (openbsd-amd64), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-amd64), const SYS_STAT = 38
+pkg syscall (openbsd-amd64), const SYS_STATFS = 63
+pkg syscall (openbsd-amd64), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-amd64), const SYS_UTIMES = 76
+pkg syscall (openbsd-amd64), const SYS_UTRACE = 209
+pkg syscall (openbsd-amd64), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-amd64), const SYS_WAIT4 = 11
+pkg syscall (openbsd-amd64), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-amd64), const SizeofRtMetrics = 56
+pkg syscall (openbsd-amd64), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-amd64), const TCP_NOPUSH = 16
+pkg syscall (openbsd-amd64), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-amd64), const TIOCGSID = 1074033763
+pkg syscall (openbsd-amd64), const TIOCGSID ideal-int
+pkg syscall (openbsd-amd64), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-amd64), type Dirent struct, Off int64
+pkg syscall (openbsd-amd64), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-amd64), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-amd64), type Kevent_t struct, Data int64
+pkg syscall (openbsd-amd64), type Kevent_t struct, Ident uint64
+pkg syscall (openbsd-amd64), type Mclpool struct, Grown int32
+pkg syscall (openbsd-amd64), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-amd64), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-amd64), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-amd64), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (openbsd-amd64), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-amd64), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-amd64), type Statfs_t struct, Pad_cgo_1 [2]uint8
+pkg syscall (openbsd-amd64), type Timespec struct, Sec int64
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_INIT = 2
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_INIT ideal-int
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_RESP = 1
+pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_RESP ideal-int
+pkg syscall (openbsd-amd64-cgo), const IPV6_RECVDSTPORT = 64
+pkg syscall (openbsd-amd64-cgo), const IPV6_RECVDSTPORT ideal-int
+pkg syscall (openbsd-amd64-cgo), const IP_DIVERTFL = 4130
+pkg syscall (openbsd-amd64-cgo), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 1112072
+pkg syscall (openbsd-amd64-cgo), const RTM_VERSION = 5
+pkg syscall (openbsd-amd64-cgo), const SIOCBRDGDADDR = 2166909255
+pkg syscall (openbsd-amd64-cgo), const SIOCBRDGSADDR = 3240651076
+pkg syscall (openbsd-amd64-cgo), const SIOCGETVLAN = 3223349648
+pkg syscall (openbsd-amd64-cgo), const SIOCGETVLAN ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGIFHARDMTU = 3223349669
+pkg syscall (openbsd-amd64-cgo), const SIOCGIFHARDMTU ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGLIFPHYTTL = 3223349673
+pkg syscall (openbsd-amd64-cgo), const SIOCGLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGSPPPPARAMS = 3223349652
+pkg syscall (openbsd-amd64-cgo), const SIOCGSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCGVNETID = 3223349671
+pkg syscall (openbsd-amd64-cgo), const SIOCGVNETID ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSETVLAN = 2149607823
+pkg syscall (openbsd-amd64-cgo), const SIOCSETVLAN ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSLIFPHYTTL = 2149607848
+pkg syscall (openbsd-amd64-cgo), const SIOCSLIFPHYTTL ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSSPPPPARAMS = 2149607827
+pkg syscall (openbsd-amd64-cgo), const SIOCSSPPPPARAMS ideal-int
+pkg syscall (openbsd-amd64-cgo), const SIOCSVNETID = 2149607846
+pkg syscall (openbsd-amd64-cgo), const SIOCSVNETID ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_GETRES = 89
+pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_GETTIME = 87
+pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_SETTIME = 88
+pkg syscall (openbsd-amd64-cgo), const SYS_FHSTATFS = 65
+pkg syscall (openbsd-amd64-cgo), const SYS_FSTAT = 53
+pkg syscall (openbsd-amd64-cgo), const SYS_FSTATAT = 42
+pkg syscall (openbsd-amd64-cgo), const SYS_FSTATFS = 64
+pkg syscall (openbsd-amd64-cgo), const SYS_FUTIMENS = 85
+pkg syscall (openbsd-amd64-cgo), const SYS_FUTIMES = 77
+pkg syscall (openbsd-amd64-cgo), const SYS_GETDENTS = 99
+pkg syscall (openbsd-amd64-cgo), const SYS_GETDENTS ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_GETFSSTAT = 62
+pkg syscall (openbsd-amd64-cgo), const SYS_GETITIMER = 70
+pkg syscall (openbsd-amd64-cgo), const SYS_GETRUSAGE = 19
+pkg syscall (openbsd-amd64-cgo), const SYS_GETTIMEOFDAY = 67
+pkg syscall (openbsd-amd64-cgo), const SYS_KEVENT = 72
+pkg syscall (openbsd-amd64-cgo), const SYS_LSTAT = 40
+pkg syscall (openbsd-amd64-cgo), const SYS_NANOSLEEP = 91
+pkg syscall (openbsd-amd64-cgo), const SYS_PPOLL = 109
+pkg syscall (openbsd-amd64-cgo), const SYS_PPOLL ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_PSELECT = 110
+pkg syscall (openbsd-amd64-cgo), const SYS_PSELECT ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_SELECT = 71
+pkg syscall (openbsd-amd64-cgo), const SYS_SETITIMER = 69
+pkg syscall (openbsd-amd64-cgo), const SYS_SETTIMEOFDAY = 68
+pkg syscall (openbsd-amd64-cgo), const SYS_STAT = 38
+pkg syscall (openbsd-amd64-cgo), const SYS_STATFS = 63
+pkg syscall (openbsd-amd64-cgo), const SYS_UTIMENSAT = 84
+pkg syscall (openbsd-amd64-cgo), const SYS_UTIMES = 76
+pkg syscall (openbsd-amd64-cgo), const SYS_UTRACE = 209
+pkg syscall (openbsd-amd64-cgo), const SYS_UTRACE ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_WAIT4 = 11
+pkg syscall (openbsd-amd64-cgo), const SYS___THRSLEEP = 94
+pkg syscall (openbsd-amd64-cgo), const SizeofRtMetrics = 56
+pkg syscall (openbsd-amd64-cgo), const SizeofRtMsghdr = 96
+pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH = 16
+pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-amd64-cgo), const TIOCGSID = 1074033763
+pkg syscall (openbsd-amd64-cgo), const TIOCGSID ideal-int
+pkg syscall (openbsd-amd64-cgo), type Dirent struct, Fileno uint64
+pkg syscall (openbsd-amd64-cgo), type Dirent struct, Off int64
+pkg syscall (openbsd-amd64-cgo), type Dirent struct, X__d_padding [4]uint8
+pkg syscall (openbsd-amd64-cgo), type FdSet struct, Bits [32]uint32
+pkg syscall (openbsd-amd64-cgo), type Kevent_t struct, Data int64
+pkg syscall (openbsd-amd64-cgo), type Kevent_t struct, Ident uint64
+pkg syscall (openbsd-amd64-cgo), type Mclpool struct, Grown int32
+pkg syscall (openbsd-amd64-cgo), type RtMetrics struct, Expire int64
+pkg syscall (openbsd-amd64-cgo), type RtMetrics struct, Pad uint32
+pkg syscall (openbsd-amd64-cgo), type Stat_t struct, Ino uint64
+pkg syscall (openbsd-amd64-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_ctime uint64
+pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_mntfromspec [90]int8
+pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [2]uint8
+pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int64
