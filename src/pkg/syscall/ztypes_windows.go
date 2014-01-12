@@ -11,6 +11,7 @@ const (
 	ERROR_ACCESS_DENIED       Errno = 5
 	ERROR_NO_MORE_FILES       Errno = 18
 	ERROR_HANDLE_EOF          Errno = 38
+	ERROR_NETNAME_DELETED     Errno = 64
 	ERROR_FILE_EXISTS         Errno = 80
 	ERROR_BROKEN_PIPE         Errno = 109
 	ERROR_BUFFER_OVERFLOW     Errno = 111
@@ -23,6 +24,7 @@ const (
 	ERROR_IO_PENDING          Errno = 997
 	ERROR_NOT_FOUND           Errno = 1168
 	WSAEACCES                 Errno = 10013
+	WSAECONNRESET             Errno = 10054
 )
 
 const (

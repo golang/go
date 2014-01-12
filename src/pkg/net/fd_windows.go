@@ -513,12 +513,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	})
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
-	if err := fd.readLock(); err != nil {
-		return nil, err
-	}
-	defer fd.readUnlock()
-
+func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
 	// Get new socket.
 	s, err := sysSocket(fd.family, fd.sotype, 0)
 	if err != nil {
@@ -537,9 +532,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	}
 
 	// Submit accept request.
-	o := &fd.rop
 	o.handle = s
-	var rawsa [2]syscall.RawSockaddrAny
 	o.rsan = int32(unsafe.Sizeof(rawsa[0]))
 	_, err = rsrv.ExecIO(o, "AcceptEx", func(o *operation) error {
 		return syscall.AcceptEx(o.fd.sysfd, o.handle, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
@@ -554,6 +547,45 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	if err != nil {
 		netfd.Close()
 		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
+	}
+
+	return netfd, nil
+}
+
+func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+	if err := fd.readLock(); err != nil {
+		return nil, err
+	}
+	defer fd.readUnlock()
+
+	o := &fd.rop
+	var netfd *netFD
+	var err error
+	var rawsa [2]syscall.RawSockaddrAny
+	for {
+		netfd, err = fd.acceptOne(toAddr, rawsa[:], o)
+		if err == nil {
+			break
+		}
+		// Sometimes we see WSAECONNRESET and ERROR_NETNAME_DELETED is
+		// returned here. These happen if connection reset is received
+		// before AcceptEx could complete. These errors relate to new
+		// connection, not to AcceptEx, so ignore broken connection and
+		// try AcceptEx again for more connections.
+		operr, ok := err.(*OpError)
+		if !ok {
+			return nil, err
+		}
+		errno, ok := operr.Err.(syscall.Errno)
+		if !ok {
+			return nil, err
+		}
+		switch errno {
+		case syscall.ERROR_NETNAME_DELETED, syscall.WSAECONNRESET:
+			// ignore these and try again
+		default:
+			return nil, err
+		}
 	}
 
 	// Get local and peer addr out of AcceptEx buffer.
