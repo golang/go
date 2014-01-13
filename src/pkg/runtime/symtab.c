@@ -38,7 +38,7 @@ runtime·symtabinit(void)
 	// two zero bytes, a byte giving the PC quantum,
 	// and a byte giving the pointer width in bytes.
 	if(*(uint32*)pclntab != 0xfffffffb || pclntab[4] != 0 || pclntab[5] != 0 || pclntab[6] != PCQuantum || pclntab[7] != sizeof(void*)) {
-		runtime·printf("runtime: function symbol table header: 0x%x 0x%x\n", *(uint32*)pclntab, *(uint32*)(pclntab+4));
+		runtime·printf("runtime: function symbol table header: %x %x\n", *(uint32*)pclntab, *(uint32*)(pclntab+4));
 		runtime·throw("invalid function symbol table\n");
 	}
 
