@@ -14,10 +14,6 @@ func conv1() {
 }
 
 func conv2() {
-	// []byte/[]rune literal
-	print([]byte("foo")) // @pointsto "foo":[]byte
-	print([]rune("bar")) // @pointsto "bar":[]rune
-
 	// string -> []byte/[]rune conversion
 	s := "foo"
 	ba := []byte(s) // @line c2ba

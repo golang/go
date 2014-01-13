@@ -610,3 +610,17 @@ func init() {
 	_ = x
 	_ = y
 }
+
+// Regression test for issue 6949:
+// []byte("foo") is not a constant since it allocates memory.
+func init() {
+	var r string
+	for i, b := range "ABC" {
+		x := []byte("abc")
+		x[i] = byte(b)
+		r += string(x)
+	}
+	if r != "AbcaBcabC" {
+		panic(r)
+	}
+}

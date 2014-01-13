@@ -95,7 +95,7 @@ type NamedConst struct {
 	pkg    *Package
 }
 
-// An SSA value that can be referenced by an instruction.
+// A Value is an SSA value that can be referenced by an instruction.
 type Value interface {
 	// Name returns the name of this value, and determines how
 	// this Value appears when used as an operand of an
@@ -232,7 +232,7 @@ type Instruction interface {
 // or method.
 //
 // If Blocks is nil, this indicates an external function for which no
-// Go source code is available.  In this case, Captures and Locals
+// Go source code is available.  In this case, FreeVars and Locals
 // will be nil too.  Clients performing whole-program analysis must
 // handle external functions specially.
 //
@@ -368,15 +368,10 @@ type Parameter struct {
 
 // A Const represents the value of a constant expression.
 //
-// It may have a nil, boolean, string or numeric (integer, fraction or
-// complex) value, or a []byte or []rune conversion of a string
-// constant.
-//
-// Consts may be of named types.  A constant's underlying type can be
-// a basic type, possibly one of the "untyped" types, or a slice type
-// whose elements' underlying type is byte or rune.  A nil constant can
-// have any reference type: interface, map, channel, pointer, slice,
-// or function---but not "untyped nil".
+// The underlying type of a constant may be any boolean, numeric, or
+// string type.  In addition, a Const may represent the nil value of
+// any reference type: interface, map, channel, pointer, slice, or
+// function---but not "untyped nil".
 //
 // All source-level constant expressions are represented by a Const
 // of equal type and value.

@@ -218,13 +218,19 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		return f.emit(mi)
 	}
 
-	// Conversion of a constant to a non-interface type results in
-	// a new constant of the destination type and (initially) the
-	// same abstract value.  We don't compute the representation
-	// change yet; this defers the point at which the number of
-	// possible representations explodes.
+	// Conversion of a compile-time constant value?
 	if c, ok := val.(*Const); ok {
-		return NewConst(c.Value, typ)
+		if _, ok := ut_dst.(*types.Basic); ok || c.IsNil() {
+			// Conversion of a compile-time constant to
+			// another constant type results in a new
+			// constant of the destination type and
+			// (initially) the same abstract value.
+			// We don't truncate the value yet.
+			return NewConst(c.Value, typ)
+		}
+
+		// We're converting from constant to non-constant type,
+		// e.g. string -> []byte/[]rune.
 	}
 
 	// A representation-changing conversion.

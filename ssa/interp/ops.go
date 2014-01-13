@@ -37,9 +37,7 @@ func constValue(c *ssa.Const) value {
 		return zero(c.Type()) // typed nil
 	}
 
-	// By destination type:
-	switch t := c.Type().Underlying().(type) {
-	case *types.Basic:
+	if t, ok := c.Type().Underlying().(*types.Basic); ok {
 		// TODO(adonovan): eliminate untyped constants from SSA form.
 		switch t.Kind() {
 		case types.Bool, types.UntypedBool:
@@ -82,29 +80,6 @@ func constValue(c *ssa.Const) value {
 				return exact.StringVal(c.Value)
 			}
 			return string(rune(c.Int64()))
-		case types.UnsafePointer:
-			panic("unsafe.Pointer constant") // not possible
-		case types.UntypedNil:
-			// nil was handled above.
-		}
-
-	case *types.Slice:
-		switch et := t.Elem().Underlying().(type) {
-		case *types.Basic:
-			switch et.Kind() {
-			case types.Byte: // string -> []byte
-				var v []value
-				for _, b := range []byte(exact.StringVal(c.Value)) {
-					v = append(v, b)
-				}
-				return v
-			case types.Rune: // string -> []rune
-				var v []value
-				for _, r := range []rune(exact.StringVal(c.Value)) {
-					v = append(v, r)
-				}
-				return v
-			}
 		}
 	}
 
