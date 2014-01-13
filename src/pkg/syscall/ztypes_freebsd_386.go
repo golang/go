@@ -443,3 +443,13 @@ type BpfZbufHeader struct {
 	User_gen   uint32
 	X_bzh_pad  [5]uint32
 }
+
+type Termios struct {
+	Iflag  uint32
+	Oflag  uint32
+	Cflag  uint32
+	Lflag  uint32
+	Cc     [20]uint8
+	Ispeed uint32
+	Ospeed uint32
+}
