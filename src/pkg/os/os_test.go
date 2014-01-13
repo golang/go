@@ -396,11 +396,12 @@ func touch(t *testing.T, name string) {
 }
 
 func TestReaddirStatFailures(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// Windows already does this correctly, but is
-		// structured with different syscalls such that it
-		// doesn't use Lstat, so the hook below for testing it
-		// wouldn't work.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		// Windows and Plan 9 already do this correctly,
+		// but are structured with different syscalls such
+		// that they don't use Lstat, so the hook below for
+		// testing it wouldn't work.
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 	dir, err := ioutil.TempDir("", "")
