@@ -143,6 +143,7 @@ includes_OpenBSD='
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/event.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
