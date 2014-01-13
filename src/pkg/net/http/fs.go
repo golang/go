@@ -52,12 +52,14 @@ type FileSystem interface {
 
 // A File is returned by a FileSystem's Open method and can be
 // served by the FileServer implementation.
+//
+// The methods should behave the same as those on an *os.File.
 type File interface {
-	Close() error
-	Stat() (os.FileInfo, error)
+	io.Closer
+	io.Reader
 	Readdir(count int) ([]os.FileInfo, error)
-	Read([]byte) (int, error)
 	Seek(offset int64, whence int) (int64, error)
+	Stat() (os.FileInfo, error)
 }
 
 func dirList(w ResponseWriter, f File) {
