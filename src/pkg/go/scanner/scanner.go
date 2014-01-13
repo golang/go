@@ -402,29 +402,30 @@ func (s *Scanner) scanEscape(quote rune) {
 	}
 }
 
-func (s *Scanner) scanChar() string {
+func (s *Scanner) scanRune() string {
 	// '\'' opening already consumed
 	offs := s.offset - 1
 
 	n := 0
-	for s.ch != '\'' {
+	for {
 		ch := s.ch
-		n++
-		s.next()
 		if ch == '\n' || ch < 0 {
-			s.error(offs, "character literal not terminated")
-			n = 1
+			s.error(offs, "rune literal not terminated")
+			n = 1 // avoid further errors
 			break
 		}
+		s.next()
+		if ch == '\'' {
+			break
+		}
+		n++
 		if ch == '\\' {
 			s.scanEscape('\'')
 		}
 	}
 
-	s.next()
-
 	if n != 1 {
-		s.error(offs, "illegal character literal")
+		s.error(offs, "illegal rune literal")
 	}
 
 	return string(s.src[offs:s.offset])
@@ -434,19 +435,20 @@ func (s *Scanner) scanString() string {
 	// '"' opening already consumed
 	offs := s.offset - 1
 
-	for s.ch != '"' {
+	for {
 		ch := s.ch
-		s.next()
 		if ch == '\n' || ch < 0 {
-			s.error(offs, "string not terminated")
+			s.error(offs, "string literal not terminated")
+			break
+		}
+		s.next()
+		if ch == '"' {
 			break
 		}
 		if ch == '\\' {
 			s.scanEscape('"')
 		}
 	}
-
-	s.next()
 
 	return string(s.src[offs:s.offset])
 }
@@ -468,19 +470,20 @@ func (s *Scanner) scanRawString() string {
 	offs := s.offset - 1
 
 	hasCR := false
-	for s.ch != '`' {
+	for {
 		ch := s.ch
+		if ch < 0 {
+			s.error(offs, "raw string literal not terminated")
+			break
+		}
 		s.next()
+		if ch == '`' {
+			break
+		}
 		if ch == '\r' {
 			hasCR = true
 		}
-		if ch < 0 {
-			s.error(offs, "string not terminated")
-			break
-		}
 	}
-
-	s.next()
 
 	lit := s.src[offs:s.offset]
 	if hasCR {
@@ -617,7 +620,7 @@ scanAgain:
 		case '\'':
 			insertSemi = true
 			tok = token.CHAR
-			lit = s.scanChar()
+			lit = s.scanRune()
 		case '`':
 			insertSemi = true
 			tok = token.STRING
