@@ -104,7 +104,7 @@ var googleaddrsipv4 = []string{
 	"[::ffff:%02x%02x:%02x%02x]:80",
 	"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",
 	"[0:0:0:0:000000:ffff:%d.%d.%d.%d]:80",
-	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
+	"[0:0:0:0::ffff:%d.%d.%d.%d]:80",
 }
 
 func TestDialGoogleIPv4(t *testing.T) {
