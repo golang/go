@@ -296,10 +296,9 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 	if err = getsockname(fd, &rsa, &len); err != nil {
 		return
 	}
-	// TODO(jsing): Remove after OpenBSD 5.4 is released (see issue 3349).
-	// TODO(jsing): Apparently dragonfly has the same "bug", which should
-	// be reported upstream.
-	if (runtime.GOOS == "dragonfly" || runtime.GOOS == "openbsd") && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
+	// TODO(jsing): DragonFly has a "bug" (see issue 3349), which should be
+	// reported upstream.
+	if runtime.GOOS == "dragonfly" && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
 		rsa.Addr.Family = AF_UNIX
 		rsa.Addr.Len = SizeofSockaddrUnix
 	}
