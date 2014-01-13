@@ -20,7 +20,7 @@ import (
 	"text/tabwriter"
 )
 
-// BUG(rsc): Profiles are incomplete and inaccuate on NetBSD, OpenBSD, and OS X.
+// BUG(rsc): Profiles are incomplete and inaccuate on NetBSD and OS X.
 // See http://golang.org/issue/6047 for details.
 
 // A Profile is a collection of stack traces showing the call sequences
