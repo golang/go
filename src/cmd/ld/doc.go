@@ -58,6 +58,8 @@ Options new in this version:
 		Omit the symbol table and debug information.
 	-V
 		Print the linker version.
+	-w
+		Omit the DWARF symbol table.
 	-X symbol value
 		Set the value of an otherwise uninitialized string variable.
 		The symbol name should be of the form importpath.name,
