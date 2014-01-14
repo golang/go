@@ -947,7 +947,7 @@ mspinning(void)
 }
 
 // Schedules some M to run the p (creates an M if necessary).
-// If p==nil, tries to get an idle P, if no idle P's returns false.
+// If p==nil, tries to get an idle P, if no idle P's does nothing.
 static void
 startm(P *p, bool spinning)
 {
