@@ -46,7 +46,7 @@ func main() {
 	gopath := prepGoPath()
 
 	cmd := exec.Command("go", "install", "--tags=api_tool", "cmd/api")
-	cmd.Env = append([]string{"GOPATH=" + gopath}, filterOut(os.Environ(), "GOARCH")...)
+	cmd.Env = append(filterOut(os.Environ(), "GOARCH", "GOPATH"), "GOPATH="+gopath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error installing cmd/api: %v\n%s", err, out)
