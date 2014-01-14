@@ -31,21 +31,20 @@ var (
 	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
 	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
 
-	// layout control
-	comments  = flag.Bool("comments", true, "print comments")
-	tabWidth  = flag.Int("tabwidth", 8, "tab width")
-	tabIndent = flag.Bool("tabs", true, "indent with tabs")
-
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
 )
 
+const (
+	tabWidth    = 8
+	printerMode = printer.UseSpaces | printer.TabIndent
+)
+
 var (
-	fileSet     = token.NewFileSet() // per process FileSet
-	exitCode    = 0
-	rewrite     func(*ast.File) *ast.File
-	parserMode  parser.Mode
-	printerMode printer.Mode
+	fileSet    = token.NewFileSet() // per process FileSet
+	exitCode   = 0
+	rewrite    func(*ast.File) *ast.File
+	parserMode parser.Mode
 )
 
 func report(err error) {
@@ -60,19 +59,9 @@ func usage() {
 }
 
 func initParserMode() {
-	parserMode = parser.Mode(0)
-	if *comments {
-		parserMode |= parser.ParseComments
-	}
+	parserMode = parser.ParseComments
 	if *allErrors {
 		parserMode |= parser.AllErrors
-	}
-}
-
-func initPrinterMode() {
-	printerMode = printer.UseSpaces
-	if *tabIndent {
-		printerMode |= printer.TabIndent
 	}
 }
 
@@ -118,7 +107,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 	}
 
 	var buf bytes.Buffer
-	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fileSet, file)
+	err = (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fileSet, file)
 	if err != nil {
 		return err
 	}
@@ -180,11 +169,6 @@ func main() {
 func gofmtMain() {
 	flag.Usage = usage
 	flag.Parse()
-	if *tabWidth < 0 {
-		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth)
-		exitCode = 2
-		return
-	}
 
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -199,7 +183,6 @@ func gofmtMain() {
 	}
 
 	initParserMode()
-	initPrinterMode()
 	initRewrite()
 
 	if flag.NArg() == 0 {
