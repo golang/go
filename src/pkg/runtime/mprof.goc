@@ -173,6 +173,18 @@ printstackframes(uintptr *stk, int32 nstk)
 	}
 }
 
+// Called by collector to report a gc in allocfreetrace mode.
+void
+runtime·MProf_TraceGC(void)
+{
+	uintptr stk[32];
+	int32 nstk;
+
+	nstk = runtime·callers(1, stk, nelem(stk));
+	runtime·printf("MProf_TraceGC\n");
+	printstackframes(stk, nstk);
+}
+
 // Called by malloc to record a profiled block.
 void
 runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
@@ -183,14 +195,14 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
 	int8 *name;
 	int32 nstk;
 
-	nstk = runtime·callers(1, stk, 32);
+	nstk = runtime·callers(1, stk, nelem(stk));
 	runtime·lock(&proflock);
-        if(runtime·debug.allocfreetrace) {
+	if(runtime·debug.allocfreetrace) {
 		type = (Type*)(typ & ~3);
 		name = typeinfoname(typ & 3);
 		runtime·printf("MProf_Malloc(p=%p, size=%p, type=%p <%s", p, size, type, name);
 		if(type != nil)
-                	runtime·printf(" of %S", *type->string);
+			runtime·printf(" of %S", *type->string);
 		runtime·printf(">)\n");
 		printstackframes(stk, nstk);
 	}
@@ -247,7 +259,7 @@ runtime·blockevent(int64 cycles, int32 skip)
 	if(rate <= 0 || (rate > cycles && runtime·fastrand1()%rate > cycles))
 		return;
 
-	nstk = runtime·callers(skip, stk, 32);
+	nstk = runtime·callers(skip, stk, nelem(stk));
 	runtime·lock(&proflock);
 	b = stkbucket(BProf, stk, nstk, true);
 	b->count++;

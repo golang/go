@@ -521,6 +521,7 @@ enum
 void	runtime·MProf_Malloc(void*, uintptr, uintptr);
 void	runtime·MProf_Free(Bucket*, void*, uintptr);
 void	runtime·MProf_GC(void);
+void	runtime·MProf_TraceGC(void);
 int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
