@@ -13,6 +13,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -75,8 +76,11 @@ func dirList(w ResponseWriter, f File) {
 			if d.IsDir() {
 				name += "/"
 			}
-			// TODO htmlescape
-			fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", name, name)
+			// name may contain '?' or '#', which must be escaped to remain
+			// part of the URL path, and not indicate the start of a query
+			// string or fragment.
+			url := url.URL{Path: name}
+			fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
 		}
 	}
 	fmt.Fprintf(w, "</pre>\n")
