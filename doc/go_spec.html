@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jan 2, 2014",
+	"Subtitle": "Version of Jan 14, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -5669,7 +5669,7 @@ If the PackageName is omitted, it defaults to the identifier specified in the
 If an explicit period (<code>.</code>) appears instead of a name, all the
 package's exported identifiers declared in that package's
 <a href="#Blocks">package block</a> will be declared in the importing source
-file's file block and can be accessed without a qualifier.
+file's file block and must be accessed without a qualifier.
 </p>
 
 <p>
@@ -5693,7 +5693,7 @@ Assume we have compiled a package containing the package clause
 <code>package math</code>, which exports function <code>Sin</code>, and
 installed the compiled package in the file identified by
 <code>"lib/math"</code>.
-This table illustrates how <code>Sin</code> may be accessed in files
+This table illustrates how <code>Sin</code> is accessed in files
 that import the package after the
 various types of import declaration.
 </p>
