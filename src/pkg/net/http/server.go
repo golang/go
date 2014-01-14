@@ -997,11 +997,10 @@ func (w *response) finishRequest() {
 	w.cw.close()
 	w.conn.buf.Flush()
 
-	// Close the body, unless we're about to close the whole TCP connection
-	// anyway.
-	if !w.closeAfterReply {
-		w.req.Body.Close()
-	}
+	// Close the body (regardless of w.closeAfterReply) so we can
+	// re-use its bufio.Reader later safely.
+	w.req.Body.Close()
+
 	if w.req.MultipartForm != nil {
 		w.req.MultipartForm.RemoveAll()
 	}
