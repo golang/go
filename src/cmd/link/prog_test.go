@@ -136,15 +136,17 @@ func cloneSection(sect *Section) *Section {
 	return t
 }
 
+const saveMismatch = true
+
 // checkGolden checks that data matches the named file.
 // If not, it reports the error to the test.
 func checkGolden(t *testing.T, data []byte, name string) {
-	golden, err := ioutil.ReadFile(name)
-	if err != nil {
-		t.Errorf("%s: %v", name, err)
-		return
-	}
+	golden := mustParseHexdumpFile(t, name)
 	if !bytes.Equal(data, golden) {
+		if saveMismatch {
+			ioutil.WriteFile(name+".raw", data, 0666)
+			ioutil.WriteFile(name+".hex", []byte(hexdump(data)), 0666)
+		}
 		// TODO(rsc): A better diff would be nice, as needed.
 		i := 0
 		for i < len(data) && i < len(golden) && data[i] == golden[i] {
