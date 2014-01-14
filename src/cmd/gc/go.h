@@ -972,6 +972,7 @@ EXTERN	char*	flag_installsuffix;
 EXTERN	int	flag_race;
 EXTERN	int	flag_largemodel;
 EXTERN	int	noescape;
+EXTERN	int	debuglive;
 EXTERN	Link*	ctxt;
 
 EXTERN	int	nointerface;

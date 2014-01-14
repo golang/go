@@ -264,6 +264,7 @@ main(int argc, char *argv[])
 	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
 	flagcount("j", "debug runtime-initialized variables", &debug['j']);
 	flagcount("l", "disable inlining", &debug['l']);
+	flagcount("live", "debug liveness analysis", &debuglive);
 	flagcount("m", "print optimization decisions", &debug['m']);
 	flagstr("o", "obj: set output file", &outfile);
 	flagstr("p", "path: set expected package import path", &myimportpath);

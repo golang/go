@@ -238,10 +238,9 @@ blockany(BasicBlock *bb, int (*callback)(Prog*))
 }
 
 // Collects and returns and array of Node*s for functions arguments and local
-// variables.  TODO(cshapiro): only return pointer containing nodes if we are
-// not also generating a dead value map.
+// variables.
 static Array*
-getvariables(Node *fn)
+getvariables(Node *fn, int allvalues)
 {
 	Array *result;
 	NodeList *ll;
@@ -249,11 +248,13 @@ getvariables(Node *fn)
 	result = arraynew(0, sizeof(Node*));
 	for(ll = fn->dcl; ll != nil; ll = ll->next) {
 		if(ll->n->op == ONAME) {
-			switch(ll->n->class & ~PHEAP) {
+			switch(ll->n->class) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				arrayadd(result, &ll->n);
+				if(haspointers(ll->n->type) || allvalues)
+					arrayadd(result, &ll->n);
+				break;
 			}
 		}
 	}
@@ -657,7 +658,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 			case PPARAMOUT:
 				pos = arrayindexof(vars, from->node);
 				if(pos == -1)
-					fatal("progeffects: variable %N is unknown", prog->from.node);
+					goto Next;
 				if(info.flags & (LeftRead | LeftAddr))
 					bvset(uevar, pos);
 				if(info.flags & LeftWrite)
@@ -666,6 +667,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 			}
 		}
 	}
+Next:
 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
 		to = &prog->to;
 		if (to->node != nil && to->sym != nil && !isfunny(to->node)) {
@@ -675,7 +677,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 			case PPARAMOUT:
 				pos = arrayindexof(vars, to->node);
 				if(pos == -1)
-					fatal("progeffects: variable %N is unknown", to->node);
+					goto Next1;
 				if(info.flags & (RightRead | RightAddr))
 					bvset(uevar, pos);
 				if(info.flags & RightWrite)
@@ -684,6 +686,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 			}
 		}
 	}
+Next1:;
 }
 
 // Constructs a new liveness structure used to hold the global state of the
@@ -1304,22 +1307,19 @@ static void
 livenessepilogue(Liveness *lv)
 {
 	BasicBlock *bb;
-	Bvec *livein;
-	Bvec *liveout;
-	Bvec *uevar;
-	Bvec *varkill;
-	Bvec *args;
-	Bvec *locals;
+	Bvec *livein, *liveout, *uevar, *varkill, *args, *locals;
 	Prog *p, *next;
-	int32 i;
-	int32 nvars;
-	int32 pos;
+	int32 i, j, nmsg, nvars, pos;
+	char **msg;
+	Fmt fmt;
 
 	nvars = arraylength(lv->vars);
 	livein = bvalloc(nvars);
 	liveout = bvalloc(nvars);
 	uevar = bvalloc(nvars);
 	varkill = bvalloc(nvars);
+	msg = nil;
+	nmsg = 0;
 
 	for(i = 0; i < arraylength(lv->cfg); i++) {
 		bb = *(BasicBlock**)arrayget(lv->cfg, i);
@@ -1347,6 +1347,13 @@ livenessepilogue(Liveness *lv)
 				arrayadd(lv->deadvalues, &locals);
 			}
 		}
+		
+		if(debuglive) {
+			nmsg = arraylength(lv->livepointers);
+			msg = xmalloc(nmsg*sizeof msg[0]);
+			for(j=0; j<nmsg; j++)
+				msg[j] = nil;
+		}
 
 		// walk backward, emit pcdata and populate the maps
 		pos = arraylength(lv->livepointers) - 1;
@@ -1372,8 +1379,35 @@ livenessepilogue(Liveness *lv)
 			}
 			if(issafepoint(p)) {
 				// Found an interesting instruction, record the
-				// corresponding liveness information.  Only
-				// CALL instructions need a PCDATA annotation.
+				// corresponding liveness information.  
+
+				if(debuglive) {
+					fmtstrinit(&fmt);
+					fmtprint(&fmt, "%L: live at ", p->lineno);
+					if(p->as == ACALL)
+						fmtprint(&fmt, "CALL %lS:", p->to.sym);
+					else
+						fmtprint(&fmt, "TEXT %lS:", p->from.sym);
+					for(j = 0; j < arraylength(lv->vars); j++)
+						if(bvget(liveout, j))
+							fmtprint(&fmt, " %N", *(Node**)arrayget(lv->vars, j));
+					fmtprint(&fmt, "\n");
+					msg[pos] = fmtstrflush(&fmt);
+				}
+
+				// Record live pointers.
+				args = *(Bvec**)arrayget(lv->argslivepointers, pos);
+				locals = *(Bvec**)arrayget(lv->livepointers, pos);
+				twobitlivepointermap(lv, liveout, lv->vars, args, locals);
+
+				// Record dead values.
+				if(lv->deadvalues != nil) {
+					args = *(Bvec**)arrayget(lv->argsdeadvalues, pos);
+					locals = *(Bvec**)arrayget(lv->deadvalues, pos);
+					twobitdeadvaluemap(lv, liveout, lv->vars, args, locals);
+				}
+
+				// Only CALL instructions need a PCDATA annotation.
 				// The TEXT instruction annotation is implicit.
 				if(p->as == ACALL) {
 					if(isdeferreturn(p)) {
@@ -1394,20 +1428,16 @@ livenessepilogue(Liveness *lv)
 					}
 				}
 
-				// Record live pointers.
-				args = *(Bvec**)arrayget(lv->argslivepointers, pos);
-				locals = *(Bvec**)arrayget(lv->livepointers, pos);
-				twobitlivepointermap(lv, liveout, lv->vars, args, locals);
-
-				// Record dead values.
-				if(lv->deadvalues != nil) {
-					args = *(Bvec**)arrayget(lv->argsdeadvalues, pos);
-					locals = *(Bvec**)arrayget(lv->deadvalues, pos);
-					twobitdeadvaluemap(lv, liveout, lv->vars, args, locals);
-				}
-
 				pos--;
 			}
+		}
+		if(debuglive) {
+			for(j=0; j<nmsg; j++) 
+				if(msg[j] != nil)
+					print("%s", msg[j]);
+			free(msg);
+			msg = nil;
+			nmsg = 0;
 		}
 	}
 
@@ -1497,7 +1527,7 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
 	// Construct the global liveness state.
 	cfg = newcfg(firstp);
 	if(0) printcfg(cfg);
-	vars = getvariables(fn);
+	vars = getvariables(fn, deadsym != nil);
 	lv = newliveness(fn, firstp, cfg, vars, deadsym != nil);
 
 	// Run the dataflow framework.
