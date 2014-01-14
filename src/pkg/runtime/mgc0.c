@@ -2163,6 +2163,9 @@ runtime·gc(int32 force)
 	a.start_time = runtime·nanotime();
 	m->gcing = 1;
 	runtime·stoptheworld();
+	
+	if(runtime·debug.allocfreetrace)
+		runtime·MProf_TraceGC();
 
 	clearpools();
 
