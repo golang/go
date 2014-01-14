@@ -26,7 +26,7 @@ type Sizes interface {
 //
 //	- The size of explicitly sized basic types (int16, etc.) is the
 //	  specified size.
-//	- The size of strings, functions, and interfaces is 2*WordSize.
+//	- The size of strings and interfaces is 2*WordSize.
 //	- The size of slices is 3*WordSize.
 //	- All other types have size WordSize.
 //	- Arrays and structs are aligned per spec definition; all other
@@ -109,7 +109,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 			t.offsets = offsets
 		}
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
-	case *Signature, *Interface:
+	case *Interface:
 		return s.WordSize * 2
 	}
 	return s.WordSize // catch-all
