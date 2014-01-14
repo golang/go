@@ -746,7 +746,7 @@ struct hash_iter
 	byte *buckets; // bucket ptr at hash_iter initialization time
 	struct Bucket *bptr; // current bucket
 
-	uint32 offset; // intra-bucket offset to start from during iteration
+	uint8 offset; // intra-bucket offset to start from during iteration (should be big enough to hold BUCKETSIZE-1)
 	bool done;
 
 	// state of table at time iterator is initialized
