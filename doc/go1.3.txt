@@ -1,3 +1,4 @@
+cmd/gofmt: remove -tabwidth and -tabs flags (CL 52170043)
 liblink: pull linker i/o into separate liblink C library (CL 35790044)
 misc/dist: renamed misc/makerelease (CL 39920043)
 syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)
