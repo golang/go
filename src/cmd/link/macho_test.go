@@ -28,6 +28,7 @@ var machoWriteTests = []struct {
 		golden: true,
 		prog: &Prog{
 			GOARCH:       "amd64",
+			GOOS:         "darwin",
 			UnmappedSize: 0x1000,
 			Entry:        0x1000,
 			Segments: []*Segment{
@@ -62,6 +63,7 @@ var machoWriteTests = []struct {
 		golden: true,
 		prog: &Prog{
 			GOARCH:       "amd64",
+			GOOS:         "darwin",
 			UnmappedSize: 0x1000,
 			Entry:        0x1000,
 			Segments: []*Segment{
@@ -117,6 +119,7 @@ var machoWriteTests = []struct {
 		golden: true,
 		prog: &Prog{
 			GOARCH:       "amd64",
+			GOOS:         "darwin",
 			UnmappedSize: 0x1000,
 			Entry:        0x1000,
 			Segments: []*Segment{
@@ -173,6 +176,7 @@ func TestMachoWrite(t *testing.T) {
 	for _, tt := range machoWriteTests {
 		name := tt.prog.GOARCH + "." + tt.name
 		prog := cloneProg(tt.prog)
+		prog.init()
 		var f machoFormat
 		vsize, fsize := f.headerSize(prog)
 		shiftProg(prog, vsize, fsize)

@@ -25,21 +25,19 @@ type layoutSection struct {
 // Entries with the same Segment name must be contiguous.
 var layout = []layoutSection{
 	{Segment: "text", Section: "text", Kind: goobj.STEXT},
+	{Segment: "rodata", Section: "rodata", Kind: goobj.SRODATA},
+	{Segment: "rodata", Section: "functab", Kind: goobj.SPCLNTAB},
+	{Segment: "rodata", Section: "typelink", Kind: goobj.STYPELINK},
+	{Segment: "data", Section: "noptrdata", Kind: goobj.SNOPTRDATA},
 	{Segment: "data", Section: "data", Kind: goobj.SDATA},
+	{Segment: "data", Section: "bss", Kind: goobj.SBSS},
+	{Segment: "data", Section: "noptrbss", Kind: goobj.SNOPTRBSS},
 
 	// Later:
 	//	{"rodata", "type", goobj.STYPE},
 	//	{"rodata", "string", goobj.SSTRING},
 	//	{"rodata", "gostring", goobj.SGOSTRING},
 	//	{"rodata", "gofunc", goobj.SGOFUNC},
-	//	{"rodata", "rodata", goobj.SRODATA},
-	//	{"rodata", "functab", goobj.SFUNCTAB},
-	//	{"rodata", "typelink", goobj.STYPELINK},
-	//	{"rodata", "symtab", goobj.SSYMTAB},
-	//	{"rodata", "pclntab", goobj.SPCLNTAB},
-	//	{"data", "noptrdata", goobj.SNOPTRDATA},
-	//	{"data", "bss", goobj.SBSS},
-	//	{"data", "noptrbss", goobj.SNOPTRBSS},
 }
 
 // layoutByKind maps from SymKind to an entry in layout.
@@ -54,8 +52,9 @@ func init() {
 		}
 	}
 	layoutByKind = make([]*layoutSection, max)
-	for i, sect := range layout {
-		layoutByKind[sect.Kind] = &layout[i]
+	for i := range layout {
+		sect := &layout[i]
+		layoutByKind[sect.Kind] = sect
 		sect.Index = i
 	}
 }
@@ -67,7 +66,7 @@ func (p *Prog) layout() {
 
 	// Assign symbols to sections using index, creating sections as needed.
 	// Could keep sections separated by type during input instead.
-	for _, sym := range p.Syms {
+	for _, sym := range p.SymOrder {
 		kind := sym.Kind
 		if kind < 0 || int(kind) >= len(layoutByKind) || layoutByKind[kind] == nil {
 			p.errorf("%s: unexpected symbol kind %v", sym.SymID, kind)
@@ -82,7 +81,7 @@ func (p *Prog) layout() {
 			}
 			sections[lsect.Index] = sect
 		}
-		if sym.Data.Size > 0 {
+		if sym.Data.Size > 0 || len(sym.Bytes) > 0 {
 			sect.InFile = true
 		}
 		sym.Section = sect
@@ -102,9 +101,17 @@ func (p *Prog) layout() {
 		if sect == nil {
 			continue
 		}
-		if seg == nil || seg.Name != layout[i].Segment {
+		segName := layout[i].Segment
+
+		// Special case: Mach-O does not support "rodata" segment,
+		// so store read-only data in text segment.
+		if p.GOOS == "darwin" && segName == "rodata" {
+			segName = "text"
+		}
+
+		if seg == nil || seg.Name != segName {
 			seg = &Segment{
-				Name: layout[i].Segment,
+				Name: segName,
 			}
 			p.Segments = append(p.Segments, seg)
 		}
@@ -153,6 +160,21 @@ func (p *Prog) layout() {
 				seg.FileSize = addr - seg.VirtAddr
 			}
 		}
-		seg.VirtSize = addr
+		seg.VirtSize = addr - seg.VirtAddr
 	}
+
+	// Define symbols for section names.
+	var progEnd Addr
+	for i, sect := range sections {
+		name := layout[i].Section
+		var start, end Addr
+		if sect != nil {
+			start = sect.VirtAddr
+			end = sect.VirtAddr + sect.Size
+		}
+		p.defineConst(name, start)
+		p.defineConst("e"+name, end)
+		progEnd = end
+	}
+	p.defineConst("end", progEnd)
 }
