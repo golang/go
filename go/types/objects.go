@@ -192,6 +192,10 @@ func (obj *Func) FullName() string {
 	return buf.String()
 }
 
+func (obj *Func) Scope() *Scope {
+	return obj.typ.(*Signature).scope
+}
+
 // A Label represents a declared label.
 type Label struct {
 	object
