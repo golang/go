@@ -40,7 +40,6 @@ func runTest(t *testing.T, in, out, flags string) {
 	}
 
 	initParserMode()
-	initPrinterMode()
 	initRewrite()
 
 	var buf bytes.Buffer
