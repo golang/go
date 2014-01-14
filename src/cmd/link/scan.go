@@ -13,6 +13,7 @@ package main
 import (
 	"debug/goobj"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -20,9 +21,20 @@ import (
 func (p *Prog) scan(mainfile string) {
 	p.initScan()
 	p.scanFile("main", mainfile)
-	if len(p.Missing) != 0 {
-		// TODO(rsc): iterate in deterministic order
-		for sym := range p.Missing {
+	if len(p.Missing) > 0 && !p.omitRuntime {
+		p.scanImport("runtime")
+	}
+
+	var missing []string
+	for sym := range p.Missing {
+		if !p.isAuto(sym) {
+			missing = append(missing, sym.String())
+		}
+	}
+
+	if missing != nil {
+		sort.Strings(missing)
+		for _, sym := range missing {
 			p.errorf("undefined: %s", sym)
 		}
 	}
@@ -35,7 +47,7 @@ func (p *Prog) initScan() {
 	p.Packages = make(map[string]*Package)
 	p.Syms = make(map[goobj.SymID]*Sym)
 	p.Missing = make(map[goobj.SymID]bool)
-	p.Missing[startSymID] = true
+	p.Missing[p.startSym] = true
 }
 
 // scanFile reads file to learn about the package with the given import path.
@@ -81,21 +93,62 @@ func (p *Prog) scanFile(pkgpath string, file string) {
 			if r.Sym.Version != 0 {
 				r.Sym.Version += p.MaxVersion
 			}
-			if p.Syms[r.Sym] != nil {
+			if p.Syms[r.Sym] == nil {
 				p.Missing[r.Sym] = true
 			}
 		}
+		if gs.Func != nil {
+			for i := range gs.Func.FuncData {
+				fdata := &gs.Func.FuncData[i]
+				if fdata.Sym.Name != "" {
+					if fdata.Sym.Version != 0 {
+						fdata.Sym.Version += p.MaxVersion
+					}
+					if p.Syms[fdata.Sym] == nil {
+						p.Missing[fdata.Sym] = true
+					}
+				}
+			}
+		}
 		if old := p.Syms[gs.SymID]; old != nil {
-			p.errorf("symbol %s defined in both %s and %s", old.Package.File, file)
-			continue
+			// Duplicate definition of symbol. Is it okay?
+			// TODO(rsc): Write test for this code.
+			switch {
+			// If both symbols are BSS (no data), take max of sizes
+			// but otherwise ignore second symbol.
+			case old.Data.Size == 0 && gs.Data.Size == 0:
+				if old.Size < gs.Size {
+					old.Size = gs.Size
+				}
+				continue
+
+			// If one is in BSS and one is not, use the one that is not.
+			case old.Data.Size > 0 && gs.Data.Size == 0:
+				continue
+			case gs.Data.Size > 0 && old.Data.Size == 0:
+				break // install gs as new symbol below
+
+			// If either is marked as DupOK, we can keep either one.
+			// Keep the one that we saw first.
+			case old.DupOK || gs.DupOK:
+				continue
+
+			// Otherwise, there's an actual conflict:
+			default:
+				p.errorf("symbol %s defined in both %s and %s %v %v", gs.SymID, old.Package.File, file, old.Data, gs.Data)
+				continue
+			}
 		}
 		s := &Sym{
 			Sym:     gs,
 			Package: pkg,
 		}
-		pkg.Syms = append(pkg.Syms, s)
-		p.Syms[gs.SymID] = s
+		p.addSym(s)
 		delete(p.Missing, gs.SymID)
+
+		if s.Data.Size > int64(s.Size) {
+			p.errorf("%s: initialized data larger than symbol (%d > %d)", s, s.Data.Size, s.Size)
+		}
 	}
 	p.MaxVersion += pkg.MaxVersion
 
@@ -108,6 +161,21 @@ func (p *Prog) scanFile(pkgpath string, file string) {
 	}
 }
 
+func (p *Prog) addSym(s *Sym) {
+	pkg := s.Package
+	if pkg == nil {
+		pkg = p.Packages[""]
+		if pkg == nil {
+			pkg = &Package{}
+			p.Packages[""] = pkg
+		}
+		s.Package = pkg
+	}
+	pkg.Syms = append(pkg.Syms, s)
+	p.Syms[s.SymID] = s
+	p.SymOrder = append(p.SymOrder, s)
+}
+
 // scanImport finds the object file for the given import path and then scans it.
 func (p *Prog) scanImport(pkgpath string) {
 	if p.Packages[pkgpath] != nil {
@@ -115,5 +183,5 @@ func (p *Prog) scanImport(pkgpath string) {
 	}
 
 	// TODO(rsc): Implement correct search to find file.
-	p.scanFile(pkgpath, "/Users/rsc/rscgo/pkg/darwin_amd64/"+pkgpath+".a")
+	p.scanFile(pkgpath, p.pkgdir+"/"+pkgpath+".a")
 }

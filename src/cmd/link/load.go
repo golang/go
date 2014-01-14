@@ -6,10 +6,7 @@
 
 package main
 
-import (
-	"encoding/binary"
-	"os"
-)
+import "os"
 
 // load allocates segment images, populates them with data
 // read from package files, and applies relocations to the data.
@@ -27,6 +24,24 @@ func (p *Prog) load() {
 // loadPackage loads and relocates data for all the
 // symbols needed in the given package.
 func (p *Prog) loadPackage(pkg *Package) {
+	if pkg.File == "" {
+		// This "package" contains internally generated symbols only.
+		// All such symbols have a sym.Bytes field holding the actual data
+		// (if any), plus relocations.
+		for _, sym := range pkg.Syms {
+			if sym.Bytes == nil {
+				continue
+			}
+			seg := sym.Section.Segment
+			off := sym.Addr - seg.VirtAddr
+			data := seg.Data[off : off+Addr(sym.Size)]
+			copy(data, sym.Bytes)
+			p.relocateSym(sym, data)
+		}
+		return
+	}
+
+	// Package stored in file.
 	f, err := os.Open(pkg.File)
 	if err != nil {
 		p.errorf("%v", err)
@@ -41,8 +56,14 @@ func (p *Prog) loadPackage(pkg *Package) {
 			continue
 		}
 		// TODO(rsc): If not using mmap, at least coalesce nearby reads.
+		if sym.Section == nil {
+			p.errorf("internal error: missing section for %s", sym.Name)
+		}
 		seg := sym.Section.Segment
 		off := sym.Addr - seg.VirtAddr
+		if off >= Addr(len(seg.Data)) || off+Addr(sym.Data.Size) > Addr(len(seg.Data)) {
+			p.errorf("internal error: allocated space for %s too small: %d bytes for %d+%d (%d)", sym, len(seg.Data), off, sym.Data.Size, sym.Size)
+		}
 		data := seg.Data[off : off+Addr(sym.Data.Size)]
 		_, err := f.ReadAt(data, sym.Data.Offset)
 		if err != nil {
@@ -89,10 +110,9 @@ func (p *Prog) relocateSym(sym *Sym, data []byte) {
 			p.errorf("%v: unknown relocation size %d", sym, r.Size)
 		case 4:
 			// TODO(rsc): Check for overflow?
-			// TODO(rsc): Handle big-endian systems.
-			binary.LittleEndian.PutUint32(frag, uint32(val))
+			p.byteorder.PutUint32(frag, uint32(val))
 		case 8:
-			binary.LittleEndian.PutUint64(frag, uint64(val))
+			p.byteorder.PutUint64(frag, uint64(val))
 		}
 	}
 }

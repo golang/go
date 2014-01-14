@@ -315,12 +315,7 @@ func (h *machoHeader) size() int {
 func (h *machoHeader) encode() []byte {
 	w := &machoWriter{p: h.p}
 	w.is64 = h.CPU&macho64Bit != 0
-	switch h.SubCPU {
-	default:
-		h.p.errorf("mach-o error: unknown CPU")
-	case machoSubCPU386:
-		w.order = binary.LittleEndian
-	}
+	w.order = w.p.byteorder
 
 	loadSize := 0
 	for _, seg := range h.Segments {

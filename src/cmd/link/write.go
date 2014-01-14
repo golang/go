@@ -9,6 +9,6 @@ package main
 import "io"
 
 func (p *Prog) write(w io.Writer) {
-	p.Entry = p.Syms[startSymID].Addr
+	p.Entry = p.Syms[p.startSym].Addr
 	p.formatter.write(w, p)
 }
