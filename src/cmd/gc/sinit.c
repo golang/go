@@ -468,6 +468,7 @@ staticassign(Node *l, Node *r, NodeList **out)
 			else {
 				a = nod(OXXX, N, N);
 				*a = n1;
+				a->orig = a; // completely separate copy
 				if(!staticassign(a, e->expr, out))
 					*out = list(*out, nod(OAS, a, e->expr));
 			}
