@@ -723,6 +723,8 @@ reswitch:
 		checklvalue(n->left, "take the address of");
 		for(l=n->left; l->op == ODOT; l=l->left)
 			l->addrtaken = 1;
+		if(l->orig != l && l->op == ONAME)
+			fatal("found non-orig name node %N", l);
 		l->addrtaken = 1;
 		defaultlit(&n->left, T);
 		l = n->left;
