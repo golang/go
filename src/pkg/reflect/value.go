@@ -1832,9 +1832,9 @@ func (v Value) String() string {
 
 // TryRecv attempts to receive a value from the channel v but will not block.
 // It panics if v's Kind is not Chan.
-// If the receive cannot finish without blocking, x is the zero Value.
-// The boolean ok is true if the value x corresponds to a send
-// on the channel, false if it is a zero value received because the channel is closed.
+// If the receive delivers a value, x is the transferred value and ok is true.
+// If the receive cannot finish without blocking, x is the zero Value and ok is false.
+// If the channel is closed, x is the zero value for the channel's element type and ok is false.
 func (v Value) TryRecv() (x Value, ok bool) {
 	v.mustBe(Chan)
 	v.mustBeExported()
