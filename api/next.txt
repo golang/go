@@ -117,6 +117,38 @@ pkg sync, method (*Pool) Get() interface{}
 pkg sync, method (*Pool) Put(interface{})
 pkg sync, type Pool struct
 pkg sync, type Pool struct, New func() interface{}
+pkg syscall (freebsd-386), type Termios struct
+pkg syscall (freebsd-386), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-386), type Termios struct, Cflag uint32
+pkg syscall (freebsd-386), type Termios struct, Iflag uint32
+pkg syscall (freebsd-386), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-386), type Termios struct, Lflag uint32
+pkg syscall (freebsd-386), type Termios struct, Oflag uint32
+pkg syscall (freebsd-386), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-386-cgo), type Termios struct
+pkg syscall (freebsd-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (freebsd-386-cgo), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-amd64), type Termios struct
+pkg syscall (freebsd-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-amd64), type Termios struct, Cflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Iflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-amd64), type Termios struct, Lflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Oflag uint32
+pkg syscall (freebsd-amd64), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Cflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Iflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Ispeed uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Lflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Oflag uint32
+pkg syscall (freebsd-amd64-cgo), type Termios struct, Ospeed uint32
 pkg syscall (netbsd-386), const CLONE_CSIGNAL = 255
 pkg syscall (netbsd-386), const CLONE_CSIGNAL ideal-int
 pkg syscall (netbsd-386), const CLONE_FILES = 1024
@@ -509,8 +541,6 @@ pkg syscall (netbsd-amd64-cgo), const PROT_READ = 1
 pkg syscall (netbsd-amd64-cgo), const PROT_READ ideal-int
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE = 2
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE ideal-int
-pkg syscall (windows-386), func NewCallbackCDecl(interface{}) uintptr
-pkg syscall (windows-amd64), func NewCallbackCDecl(interface{}) uintptr
 pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074545262
 pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148287085
 pkg syscall (openbsd-386), const IPPROTO_DIVERT_INIT = 2
@@ -521,6 +551,72 @@ pkg syscall (openbsd-386), const IPV6_RECVDSTPORT = 64
 pkg syscall (openbsd-386), const IPV6_RECVDSTPORT ideal-int
 pkg syscall (openbsd-386), const IP_DIVERTFL = 4130
 pkg syscall (openbsd-386), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-386), const MADV_DONTNEED = 4
+pkg syscall (openbsd-386), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-386), const MADV_FREE = 6
+pkg syscall (openbsd-386), const MADV_FREE ideal-int
+pkg syscall (openbsd-386), const MADV_NORMAL = 0
+pkg syscall (openbsd-386), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-386), const MADV_RANDOM = 1
+pkg syscall (openbsd-386), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-386), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-386), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-386), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-386), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-386), const MADV_WILLNEED = 3
+pkg syscall (openbsd-386), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-386), const MAP_ANON = 4096
+pkg syscall (openbsd-386), const MAP_ANON ideal-int
+pkg syscall (openbsd-386), const MAP_COPY = 4
+pkg syscall (openbsd-386), const MAP_COPY ideal-int
+pkg syscall (openbsd-386), const MAP_FILE = 0
+pkg syscall (openbsd-386), const MAP_FILE ideal-int
+pkg syscall (openbsd-386), const MAP_FIXED = 16
+pkg syscall (openbsd-386), const MAP_FIXED ideal-int
+pkg syscall (openbsd-386), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-386), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-386), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-386), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT = 128
+pkg syscall (openbsd-386), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-386), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-386), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-386), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-386), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-386), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-386), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-386), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-386), const MAP_NORESERVE = 64
+pkg syscall (openbsd-386), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-386), const MAP_PRIVATE = 2
+pkg syscall (openbsd-386), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-386), const MAP_RENAME = 32
+pkg syscall (openbsd-386), const MAP_RENAME ideal-int
+pkg syscall (openbsd-386), const MAP_SHARED = 1
+pkg syscall (openbsd-386), const MAP_SHARED ideal-int
+pkg syscall (openbsd-386), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-386), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-386), const MCL_CURRENT = 1
+pkg syscall (openbsd-386), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-386), const MCL_FUTURE = 2
+pkg syscall (openbsd-386), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-386), const MS_ASYNC = 1
+pkg syscall (openbsd-386), const MS_ASYNC ideal-int
+pkg syscall (openbsd-386), const MS_INVALIDATE = 4
+pkg syscall (openbsd-386), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-386), const MS_SYNC = 2
+pkg syscall (openbsd-386), const MS_SYNC ideal-int
+pkg syscall (openbsd-386), const PROT_EXEC = 4
+pkg syscall (openbsd-386), const PROT_EXEC ideal-int
+pkg syscall (openbsd-386), const PROT_NONE = 0
+pkg syscall (openbsd-386), const PROT_NONE ideal-int
+pkg syscall (openbsd-386), const PROT_READ = 1
+pkg syscall (openbsd-386), const PROT_READ ideal-int
+pkg syscall (openbsd-386), const PROT_WRITE = 2
+pkg syscall (openbsd-386), const PROT_WRITE ideal-int
 pkg syscall (openbsd-386), const RTF_FMASK = 1112072
 pkg syscall (openbsd-386), const RTM_VERSION = 5
 pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2166909255
@@ -608,6 +704,72 @@ pkg syscall (openbsd-386-cgo), const IPV6_RECVDSTPORT = 64
 pkg syscall (openbsd-386-cgo), const IPV6_RECVDSTPORT ideal-int
 pkg syscall (openbsd-386-cgo), const IP_DIVERTFL = 4130
 pkg syscall (openbsd-386-cgo), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_DONTNEED = 4
+pkg syscall (openbsd-386-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_FREE = 6
+pkg syscall (openbsd-386-cgo), const MADV_FREE ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_NORMAL = 0
+pkg syscall (openbsd-386-cgo), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_RANDOM = 1
+pkg syscall (openbsd-386-cgo), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-386-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-386-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-386-cgo), const MADV_WILLNEED = 3
+pkg syscall (openbsd-386-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_ANON = 4096
+pkg syscall (openbsd-386-cgo), const MAP_ANON ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_COPY = 4
+pkg syscall (openbsd-386-cgo), const MAP_COPY ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_FILE = 0
+pkg syscall (openbsd-386-cgo), const MAP_FILE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_FIXED = 16
+pkg syscall (openbsd-386-cgo), const MAP_FIXED ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-386-cgo), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-386-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT = 128
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-386-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-386-cgo), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_NORESERVE = 64
+pkg syscall (openbsd-386-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_PRIVATE = 2
+pkg syscall (openbsd-386-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_RENAME = 32
+pkg syscall (openbsd-386-cgo), const MAP_RENAME ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_SHARED = 1
+pkg syscall (openbsd-386-cgo), const MAP_SHARED ideal-int
+pkg syscall (openbsd-386-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-386-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-386-cgo), const MCL_CURRENT = 1
+pkg syscall (openbsd-386-cgo), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-386-cgo), const MCL_FUTURE = 2
+pkg syscall (openbsd-386-cgo), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-386-cgo), const MS_ASYNC = 1
+pkg syscall (openbsd-386-cgo), const MS_ASYNC ideal-int
+pkg syscall (openbsd-386-cgo), const MS_INVALIDATE = 4
+pkg syscall (openbsd-386-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-386-cgo), const MS_SYNC = 2
+pkg syscall (openbsd-386-cgo), const MS_SYNC ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_EXEC = 4
+pkg syscall (openbsd-386-cgo), const PROT_EXEC ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_NONE = 0
+pkg syscall (openbsd-386-cgo), const PROT_NONE ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_READ = 1
+pkg syscall (openbsd-386-cgo), const PROT_READ ideal-int
+pkg syscall (openbsd-386-cgo), const PROT_WRITE = 2
+pkg syscall (openbsd-386-cgo), const PROT_WRITE ideal-int
 pkg syscall (openbsd-386-cgo), const RTF_FMASK = 1112072
 pkg syscall (openbsd-386-cgo), const RTM_VERSION = 5
 pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2166909255
@@ -693,6 +855,72 @@ pkg syscall (openbsd-amd64), const IPV6_RECVDSTPORT = 64
 pkg syscall (openbsd-amd64), const IPV6_RECVDSTPORT ideal-int
 pkg syscall (openbsd-amd64), const IP_DIVERTFL = 4130
 pkg syscall (openbsd-amd64), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-amd64), const MADV_DONTNEED = 4
+pkg syscall (openbsd-amd64), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-amd64), const MADV_FREE = 6
+pkg syscall (openbsd-amd64), const MADV_FREE ideal-int
+pkg syscall (openbsd-amd64), const MADV_NORMAL = 0
+pkg syscall (openbsd-amd64), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-amd64), const MADV_RANDOM = 1
+pkg syscall (openbsd-amd64), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-amd64), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-amd64), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-amd64), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-amd64), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-amd64), const MADV_WILLNEED = 3
+pkg syscall (openbsd-amd64), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-amd64), const MAP_ANON = 4096
+pkg syscall (openbsd-amd64), const MAP_ANON ideal-int
+pkg syscall (openbsd-amd64), const MAP_COPY = 4
+pkg syscall (openbsd-amd64), const MAP_COPY ideal-int
+pkg syscall (openbsd-amd64), const MAP_FILE = 0
+pkg syscall (openbsd-amd64), const MAP_FILE ideal-int
+pkg syscall (openbsd-amd64), const MAP_FIXED = 16
+pkg syscall (openbsd-amd64), const MAP_FIXED ideal-int
+pkg syscall (openbsd-amd64), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-amd64), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-amd64), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-amd64), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT = 128
+pkg syscall (openbsd-amd64), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-amd64), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-amd64), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-amd64), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-amd64), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-amd64), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-amd64), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-amd64), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-amd64), const MAP_NORESERVE = 64
+pkg syscall (openbsd-amd64), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-amd64), const MAP_PRIVATE = 2
+pkg syscall (openbsd-amd64), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-amd64), const MAP_RENAME = 32
+pkg syscall (openbsd-amd64), const MAP_RENAME ideal-int
+pkg syscall (openbsd-amd64), const MAP_SHARED = 1
+pkg syscall (openbsd-amd64), const MAP_SHARED ideal-int
+pkg syscall (openbsd-amd64), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-amd64), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-amd64), const MCL_CURRENT = 1
+pkg syscall (openbsd-amd64), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-amd64), const MCL_FUTURE = 2
+pkg syscall (openbsd-amd64), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-amd64), const MS_ASYNC = 1
+pkg syscall (openbsd-amd64), const MS_ASYNC ideal-int
+pkg syscall (openbsd-amd64), const MS_INVALIDATE = 4
+pkg syscall (openbsd-amd64), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-amd64), const MS_SYNC = 2
+pkg syscall (openbsd-amd64), const MS_SYNC ideal-int
+pkg syscall (openbsd-amd64), const PROT_EXEC = 4
+pkg syscall (openbsd-amd64), const PROT_EXEC ideal-int
+pkg syscall (openbsd-amd64), const PROT_NONE = 0
+pkg syscall (openbsd-amd64), const PROT_NONE ideal-int
+pkg syscall (openbsd-amd64), const PROT_READ = 1
+pkg syscall (openbsd-amd64), const PROT_READ ideal-int
+pkg syscall (openbsd-amd64), const PROT_WRITE = 2
+pkg syscall (openbsd-amd64), const PROT_WRITE ideal-int
 pkg syscall (openbsd-amd64), const RTF_FMASK = 1112072
 pkg syscall (openbsd-amd64), const RTM_VERSION = 5
 pkg syscall (openbsd-amd64), const SIOCBRDGDADDR = 2166909255
@@ -777,6 +1005,72 @@ pkg syscall (openbsd-amd64-cgo), const IPV6_RECVDSTPORT = 64
 pkg syscall (openbsd-amd64-cgo), const IPV6_RECVDSTPORT ideal-int
 pkg syscall (openbsd-amd64-cgo), const IP_DIVERTFL = 4130
 pkg syscall (openbsd-amd64-cgo), const IP_DIVERTFL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_DONTNEED = 4
+pkg syscall (openbsd-amd64-cgo), const MADV_DONTNEED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_FREE = 6
+pkg syscall (openbsd-amd64-cgo), const MADV_FREE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_NORMAL = 0
+pkg syscall (openbsd-amd64-cgo), const MADV_NORMAL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_RANDOM = 1
+pkg syscall (openbsd-amd64-cgo), const MADV_RANDOM ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_SEQUENTIAL = 2
+pkg syscall (openbsd-amd64-cgo), const MADV_SEQUENTIAL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_SPACEAVAIL = 5
+pkg syscall (openbsd-amd64-cgo), const MADV_SPACEAVAIL ideal-int
+pkg syscall (openbsd-amd64-cgo), const MADV_WILLNEED = 3
+pkg syscall (openbsd-amd64-cgo), const MADV_WILLNEED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_ANON = 4096
+pkg syscall (openbsd-amd64-cgo), const MAP_ANON ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_COPY = 4
+pkg syscall (openbsd-amd64-cgo), const MAP_COPY ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_FILE = 0
+pkg syscall (openbsd-amd64-cgo), const MAP_FILE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_FIXED = 16
+pkg syscall (openbsd-amd64-cgo), const MAP_FIXED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_FLAGMASK = 8183
+pkg syscall (openbsd-amd64-cgo), const MAP_FLAGMASK ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_HASSEMAPHORE = 512
+pkg syscall (openbsd-amd64-cgo), const MAP_HASSEMAPHORE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT = 128
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_COPY = 1
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_COPY ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY = 3
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_DONATE_COPY ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_NONE = 2
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_NONE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_SHARE = 0
+pkg syscall (openbsd-amd64-cgo), const MAP_INHERIT_SHARE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_NOEXTEND = 256
+pkg syscall (openbsd-amd64-cgo), const MAP_NOEXTEND ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_NORESERVE = 64
+pkg syscall (openbsd-amd64-cgo), const MAP_NORESERVE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_PRIVATE = 2
+pkg syscall (openbsd-amd64-cgo), const MAP_PRIVATE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_RENAME = 32
+pkg syscall (openbsd-amd64-cgo), const MAP_RENAME ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_SHARED = 1
+pkg syscall (openbsd-amd64-cgo), const MAP_SHARED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MAP_TRYFIXED = 1024
+pkg syscall (openbsd-amd64-cgo), const MAP_TRYFIXED ideal-int
+pkg syscall (openbsd-amd64-cgo), const MCL_CURRENT = 1
+pkg syscall (openbsd-amd64-cgo), const MCL_CURRENT ideal-int
+pkg syscall (openbsd-amd64-cgo), const MCL_FUTURE = 2
+pkg syscall (openbsd-amd64-cgo), const MCL_FUTURE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MS_ASYNC = 1
+pkg syscall (openbsd-amd64-cgo), const MS_ASYNC ideal-int
+pkg syscall (openbsd-amd64-cgo), const MS_INVALIDATE = 4
+pkg syscall (openbsd-amd64-cgo), const MS_INVALIDATE ideal-int
+pkg syscall (openbsd-amd64-cgo), const MS_SYNC = 2
+pkg syscall (openbsd-amd64-cgo), const MS_SYNC ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_EXEC = 4
+pkg syscall (openbsd-amd64-cgo), const PROT_EXEC ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_NONE = 0
+pkg syscall (openbsd-amd64-cgo), const PROT_NONE ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_READ = 1
+pkg syscall (openbsd-amd64-cgo), const PROT_READ ideal-int
+pkg syscall (openbsd-amd64-cgo), const PROT_WRITE = 2
+pkg syscall (openbsd-amd64-cgo), const PROT_WRITE ideal-int
 pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 1112072
 pkg syscall (openbsd-amd64-cgo), const RTM_VERSION = 5
 pkg syscall (openbsd-amd64-cgo), const SIOCBRDGDADDR = 2166909255
@@ -853,3 +1147,29 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_ctime uint64
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_mntfromspec [90]int8
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [2]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int64
+pkg syscall (windows-386), const ERROR_NETNAME_DELETED = 64
+pkg syscall (windows-386), const ERROR_NETNAME_DELETED Errno
+pkg syscall (windows-386), const IOC_VENDOR = 402653184
+pkg syscall (windows-386), const IOC_VENDOR ideal-int
+pkg syscall (windows-386), const SIO_KEEPALIVE_VALS = 2550136836
+pkg syscall (windows-386), const SIO_KEEPALIVE_VALS ideal-int
+pkg syscall (windows-386), const WSAECONNRESET = 10054
+pkg syscall (windows-386), const WSAECONNRESET Errno
+pkg syscall (windows-386), func NewCallbackCDecl(interface{}) uintptr
+pkg syscall (windows-386), type TCPKeepalive struct
+pkg syscall (windows-386), type TCPKeepalive struct, Interval uint32
+pkg syscall (windows-386), type TCPKeepalive struct, OnOff uint32
+pkg syscall (windows-386), type TCPKeepalive struct, Time uint32
+pkg syscall (windows-amd64), const ERROR_NETNAME_DELETED = 64
+pkg syscall (windows-amd64), const ERROR_NETNAME_DELETED Errno
+pkg syscall (windows-amd64), const IOC_VENDOR = 402653184
+pkg syscall (windows-amd64), const IOC_VENDOR ideal-int
+pkg syscall (windows-amd64), const SIO_KEEPALIVE_VALS = 2550136836
+pkg syscall (windows-amd64), const SIO_KEEPALIVE_VALS ideal-int
+pkg syscall (windows-amd64), const WSAECONNRESET = 10054
+pkg syscall (windows-amd64), const WSAECONNRESET Errno
+pkg syscall (windows-amd64), func NewCallbackCDecl(interface{}) uintptr
+pkg syscall (windows-amd64), type TCPKeepalive struct
+pkg syscall (windows-amd64), type TCPKeepalive struct, Interval uint32
+pkg syscall (windows-amd64), type TCPKeepalive struct, OnOff uint32
+pkg syscall (windows-amd64), type TCPKeepalive struct, Time uint32
