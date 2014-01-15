@@ -349,6 +349,21 @@ func TestInitOrder(t *testing.T) {
 		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
 			"y = 1", "x = T.m",
 		}},
+		// test case for issue 7131
+		{`package main
+
+		var counter int
+		func next() int { counter++; return counter }
+
+		var _ = makeOrder()
+		func makeOrder() []int { return []int{f, b, d, e, c, a} }
+
+		var a       = next()
+		var b, c    = next(), next()
+		var d, e, f = next(), next(), next()
+		`, []string{
+			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
+		}},
 	}
 
 	for _, test := range tests {

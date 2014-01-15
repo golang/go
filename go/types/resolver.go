@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -114,13 +115,12 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	//          base type names.
 
 	var (
-		objList []Object                     // list of package-level objects, in source order
 		objMap  = make(map[Object]*declInfo) // corresponding declaration info
 		initMap = make(map[Object]*declInfo) // declaration info for variables with initializers
 	)
 
 	// declare declares obj in the package scope, records its ident -> obj mapping,
-	// and updates objList and objMap. The object must not be a function or method.
+	// and updates objMap. The object must not be a function or method.
 	declare := func(ident *ast.Ident, obj Object, d *declInfo) {
 		assert(ident.Name == obj.Name())
 
@@ -132,7 +132,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 
 		check.declare(pkg.scope, ident, obj)
-		objList = append(objList, obj)
 		objMap[obj] = d
 	}
 
@@ -356,7 +355,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						}
 					}
 				}
-				objList = append(objList, obj)
 				info := &declInfo{file: fileScope, fdecl: d}
 				objMap[obj] = info
 				// remember obj if it has a body (= initializer)
@@ -381,16 +379,15 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 	}
 
-	// Phase 3: Typecheck all objects in objList, but not function bodies.
+	// Phase 3: Typecheck all objects in objMap, but not function bodies.
 
 	check.objMap = objMap // indicate that we are checking package-level declarations (objects may not have a type yet)
 	check.initMap = initMap
-	for _, obj := range objList {
+	for _, obj := range objectsOf(check.objMap) {
 		if obj.Type() == nil {
 			check.objDecl(obj, nil, false)
 		}
 	}
-	check.objMap = nil // done with package-level declarations
 
 	// At this point we may have a non-empty check.methods map; this means that not all
 	// entries were deleted at the end of typeDecl because the respective receiver base
@@ -409,9 +406,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// Note: must happen after checking all functions because function bodies
 	// may introduce dependencies
 
-	// For source order and reproducible error messages,
-	// iterate through objList rather than initMap.
-	for _, obj := range objList {
+	for _, obj := range objectsOf(initMap) {
 		if obj, _ := obj.(*Var); obj != nil {
 			if init := initMap[obj]; init != nil {
 				// provide non-nil path for re-use of underlying array
@@ -419,7 +414,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			}
 		}
 	}
-	objList = nil       // not needed anymore
 	check.initMap = nil // not needed anymore
 
 	// Phase 6: Check for declared but not used packages and function variables.
@@ -466,6 +460,30 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 	}
 }
+
+// TODO(gri) Instead of this support function, introduce type
+// that combines an map[Object]*declInfo and []Object so that
+// we can encapsulate this and don't have to depend on correct
+// Pos() information.
+
+// objectsOf returns the keys of m in source order.
+func objectsOf(m map[Object]*declInfo) []Object {
+	list := make([]Object, len(m))
+	i := 0
+	for obj := range m {
+		list[i] = obj
+		i++
+	}
+	sort.Sort(inSourceOrder(list))
+	return list
+}
+
+// inSourceOrder implements the sort.Sort interface.
+type inSourceOrder []Object
+
+func (a inSourceOrder) Len() int           { return len(a) }
+func (a inSourceOrder) Less(i, j int) bool { return a[i].Pos() < a[j].Pos() }
+func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // dependencies recursively traverses the initialization dependency graph in a depth-first
 // manner and appends the encountered variables in postorder to the Info.InitOrder list.
@@ -530,7 +548,8 @@ func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 
 	path = append(path, obj) // len(path) > 0
 	init.mark = len(path)    // init.mark > 0
-	for obj, dep := range init.deps {
+	for _, obj := range objectsOf(init.deps) {
+		dep := init.deps[obj]
 		check.dependencies(obj, dep, path)
 	}
 	init.mark = -1 // init.mark < 0
