@@ -618,6 +618,15 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	}
 }
 
+func TestReadResponseUnexpectedEOF(t *testing.T) {
+	br := bufio.NewReader(strings.NewReader("HTTP/1.1 301 Moved Permanently\r\n" +
+		"Location: http://example.com"))
+	_, err := ReadResponse(br, nil)
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("ReadResponse = %v; want io.ErrUnexpectedEOF", err)
+	}
+}
+
 func TestNeedsSniff(t *testing.T) {
 	// needsSniff returns true with an empty response.
 	r := &response{}

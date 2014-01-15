@@ -141,6 +141,9 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	// Parse the response headers.
 	mimeHeader, err := tp.ReadMIMEHeader()
 	if err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		return nil, err
 	}
 	resp.Header = Header(mimeHeader)
