@@ -91,7 +91,9 @@ func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
 // at startup, or 100 if the variable is not set.
 // A negative percentage disables garbage collection.
 func SetGCPercent(percent int) int {
-	return setGCPercent(percent)
+	old := setGCPercent(percent)
+	runtime.GC()
+	return old
 }
 
 // FreeOSMemory forces a garbage collection followed by an
