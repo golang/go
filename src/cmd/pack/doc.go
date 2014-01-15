@@ -1,29 +1,36 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 /*
 
-Pack is a variant of the Plan 9 ar tool.  The original is documented at
-
-	http://plan9.bell-labs.com/magic/man2html/1/ar
-
-It adds a special Go-specific section __.PKGDEF that collects all the
-Go type information from the files in the archive; that section is
-used by the compiler when importing the package during compilation.
+Pack is a simple version of the traditional Unix ar tool.
+It implements only the operations needed by Go.
 
 Usage:
-	go tool pack [uvnbailogS][mrxtdpq][P prefix] archive files ...
+	go tool pack op file.a [name...]
 
-The new option 'g' causes pack to maintain the __.PKGDEF section
-as files are added to the archive.
+Pack applies the operation to the archive, using the names as arguments to the operation.
 
-The new option 'S' forces pack to mark the archive as safe.
+The operation op is given by one of these letters:
 
-The new option 'P' causes pack to remove the given prefix
-from file names in the line number information in object files
-that are already stored in or added to the archive.
+	p	print files from the archive
+	r	append files (from the file system) to the archive
+	t	list files from the archive
+	x	extract files from the archive
+
+For the p, t, and x commands, listing no names on the command line
+causes the operation to apply to all files in the archive.
+
+In contrast to Unix ar, the r operation always appends to the archive,
+even if a file with the given name already exists in the archive. In this way
+pack's r operation is more like Unix ar's rq operation.
+
+Adding the letter v to an operation, as in pv or rv, enables verbose operation:
+For the p command, each file is prefixed by the name on a line by itself.
+For the r command, names are printed as files are added.
+For the t command, the listing includes additional file metadata.
+For the x command, names are printed as files are extracted.
+
 */
 package main

@@ -309,6 +309,7 @@ var goTools = map[string]targetDir{
 	"cmd/fix":                              toTool,
 	"cmd/link":                             toTool,
 	"cmd/nm":                               toTool,
+	"cmd/pack":                             toTool,
 	"cmd/yacc":                             toTool,
 	"code.google.com/p/go.tools/cmd/cover": toTool,
 	"code.google.com/p/go.tools/cmd/godoc": toBin,
