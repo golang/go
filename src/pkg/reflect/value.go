@@ -473,11 +473,14 @@ func (v Value) call(op string, in []Value) []Value {
 	// Get function pointer, type.
 	t := v.typ
 	var (
-		fn   unsafe.Pointer
-		rcvr iword
+		fn       unsafe.Pointer
+		rcvr     Value
+		rcvrtype *rtype
 	)
 	if v.flag&flagMethod != 0 {
-		t, fn, rcvr = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
+		rcvrtype = t
+		rcvr = v
+		t, fn = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
 	} else if v.flag&flagIndir != 0 {
 		fn = *(*unsafe.Pointer)(v.ptr)
 	} else {
@@ -556,23 +559,26 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	nout := t.NumOut()
 
-	// Compute arg size & allocate.
-	// This computation is 5g/6g/8g-dependent
-	// and probably wrong for gccgo, but so
-	// is most of this function.
-	size, _, _, _ := frameSize(t, v.flag&flagMethod != 0)
+	// If the target is methodValueCall, do its work here: add the receiver
+	// argument and call the real target directly.
+	// We need to do this here because otherwise we have a situation where
+	// reflect.callXX calls methodValueCall, neither of which knows the
+	// layout of the args.  That's bad for precise gc & stack copying.
+	y := (*methodValue)(fn)
+	if y.fn == methodValueCallCode {
+		rcvr = y.rcvr
+		rcvrtype = rcvr.typ
+		t, fn = methodReceiver("call", rcvr, y.method)
+	}
 
-	// Copy into args.
-	//
-	// TODO(rsc): This will need to be updated for any new garbage collector.
-	// For now make everything look like a pointer by allocating
-	// a []unsafe.Pointer.
-	args := make([]unsafe.Pointer, size/ptrSize)
-	ptr := unsafe.Pointer(&args[0])
+	// Compute frame type, allocate a chunk of memory for frame
+	frametype := funcLayout(t, rcvrtype)
+	args := unsafe_New(frametype)
 	off := uintptr(0)
-	if v.flag&flagMethod != 0 {
-		// Hard-wired first argument.
-		*(*iword)(ptr) = rcvr
+
+	// Copy inputs into args.
+	if rcvrtype != nil {
+		storeRcvr(rcvr, args)
 		off = ptrSize
 	}
 	for i, v := range in {
@@ -581,7 +587,7 @@ func (v Value) call(op string, in []Value) []Value {
 		a := uintptr(targ.align)
 		off = (off + a - 1) &^ (a - 1)
 		n := targ.size
-		addr := unsafe.Pointer(uintptr(ptr) + off)
+		addr := unsafe.Pointer(uintptr(args) + off)
 		v = v.assignTo("reflect.Value.Call", targ, (*interface{})(addr))
 		if v.flag&flagIndir != 0 {
 			memmove(addr, v.ptr, n)
@@ -594,35 +600,17 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	off = (off + ptrSize - 1) &^ (ptrSize - 1)
 
-	// If the target is methodValueCall, do its work here: add the receiver
-	// argument and call the real target directly.
-	// We need to do this here because otherwise we have a situation where
-	// reflect.callXX calls methodValueCall, neither of which knows the
-	// layout of the args.  That's bad for precise gc & stack copying.
-	y := (*methodValue)(fn)
-	if y.fn == methodValueCallCode {
-		_, fn, rcvr = methodReceiver("call", y.rcvr, y.method)
-		args = append(args, unsafe.Pointer(nil))
-		copy(args[1:], args)
-		args[0] = unsafe.Pointer(rcvr)
-		ptr = unsafe.Pointer(&args[0])
-		off += ptrSize
-		size += ptrSize
-	}
-
 	// Call.
-	call(fn, ptr, uint32(size))
+	call(fn, args, uint32(frametype.size))
 
 	// Copy return values out of args.
-	//
-	// TODO(rsc): revisit like above.
 	ret := make([]Value, nout)
 	for i := 0; i < nout; i++ {
 		tv := t.Out(i)
 		a := uintptr(tv.Align())
 		off = (off + a - 1) &^ (a - 1)
 		fl := flagIndir | flag(tv.Kind())<<flagKindShift
-		ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(ptr) + off), 0, fl}
+		ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), 0, fl}
 		off += tv.Size()
 	}
 
@@ -710,7 +698,9 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 // described by v. The Value v may or may not have the
 // flagMethod bit set, so the kind cached in v.flag should
 // not be used.
-func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Pointer, rcvr iword) {
+// The return value t gives the method type signature (without the receiver).
+// The return value fn is a pointer to the method code.
+func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Pointer) {
 	i := methodIndex
 	if v.typ.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
@@ -721,13 +711,12 @@ func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Po
 		if m.pkgPath != nil {
 			panic("reflect: " + op + " of unexported method")
 		}
-		t = m.typ
 		iface := (*nonEmptyInterface)(v.ptr)
 		if iface.itab == nil {
 			panic("reflect: " + op + " of method on nil interface value")
 		}
 		fn = unsafe.Pointer(&iface.itab.fun[i])
-		rcvr = iface.word
+		t = m.typ
 	} else {
 		ut := v.typ.uncommon()
 		if ut == nil || i < 0 || i >= len(ut.methods) {
@@ -739,56 +728,39 @@ func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Po
 		}
 		fn = unsafe.Pointer(&m.ifn)
 		t = m.mtyp
-		rcvr = v.iword()
 	}
 	return
+}
+
+// v is a method receiver.  Store at p the word which is used to
+// encode that receiver at the start of the argument list.
+// Reflect uses the "interface" calling convention for
+// methods, which always uses one word to record the receiver.
+func storeRcvr(v Value, p unsafe.Pointer) {
+	t := v.typ
+	if t.Kind() == Interface {
+		// the interface data word becomes the receiver word
+		iface := (*nonEmptyInterface)(v.ptr)
+		*(*unsafe.Pointer)(p) = unsafe.Pointer(iface.word)
+	} else if v.flag&flagIndir != 0 {
+		if t.size > ptrSize {
+			*(*unsafe.Pointer)(p) = v.ptr
+		} else if t.pointers() {
+			*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
+		} else {
+			*(*uintptr)(p) = loadScalar(v.ptr, t.size)
+		}
+	} else if t.pointers() {
+		*(*unsafe.Pointer)(p) = v.ptr
+	} else {
+		*(*uintptr)(p) = v.scalar
+	}
 }
 
 // align returns the result of rounding x up to a multiple of n.
 // n must be a power of two.
 func align(x, n uintptr) uintptr {
 	return (x + n - 1) &^ (n - 1)
-}
-
-// frameSize returns the sizes of the argument and result frame
-// for a function of the given type. The rcvr bool specifies whether
-// a one-word receiver should be included in the total.
-func frameSize(t *rtype, rcvr bool) (total, in, outOffset, out uintptr) {
-	if rcvr {
-		// extra word for receiver interface word
-		total += ptrSize
-	}
-
-	nin := t.NumIn()
-	in = -total
-	for i := 0; i < nin; i++ {
-		tv := t.In(i)
-		total = align(total, uintptr(tv.Align()))
-		total += tv.Size()
-	}
-	in += total
-	total = align(total, ptrSize)
-	nout := t.NumOut()
-	outOffset = total
-	out = -total
-	for i := 0; i < nout; i++ {
-		tv := t.Out(i)
-		total = align(total, uintptr(tv.Align()))
-		total += tv.Size()
-	}
-	out += total
-
-	// total must be > 0 in order for &args[0] to be valid.
-	// the argument copying is going to round it up to
-	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
-	if total < ptrSize {
-		total = ptrSize
-	}
-
-	// round to pointer
-	total = align(total, ptrSize)
-
-	return
 }
 
 // callMethod is the call implementation used by a function returned
@@ -803,24 +775,23 @@ func frameSize(t *rtype, rcvr bool) (total, in, outOffset, out uintptr) {
 // so that the linker can make it work correctly for panic and recover.
 // The gc compilers know to do that for the name "reflect.callMethod".
 func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
-	t, fn, rcvr := methodReceiver("call", ctxt.rcvr, ctxt.method)
-	total, in, outOffset, out := frameSize(t, true)
+	rcvr := ctxt.rcvr
+	rcvrtype := rcvr.typ
+	t, fn := methodReceiver("call", rcvr, ctxt.method)
+	frametype := funcLayout(t, rcvrtype)
 
-	// Copy into args.
-	//
-	// TODO(rsc): This will need to be updated for any new garbage collector.
-	// For now make everything look like a pointer by allocating
-	// a []unsafe.Pointer.
-	args := make([]unsafe.Pointer, total/ptrSize)
-	args[0] = unsafe.Pointer(rcvr)
-	base := unsafe.Pointer(&args[0])
-	memmove(unsafe.Pointer(uintptr(base)+ptrSize), frame, in)
+	// Make a new frame that is one word bigger so we can store the receiver.
+	args := unsafe_New(frametype)
+
+	// Copy in receiver and rest of args.
+	storeRcvr(rcvr, args)
+	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, frametype.size-ptrSize)
 
 	// Call.
-	call(fn, unsafe.Pointer(&args[0]), uint32(total))
+	call(fn, args, uint32(frametype.size))
 
 	// Copy return values.
-	memmove(unsafe.Pointer(uintptr(frame)+outOffset-ptrSize), unsafe.Pointer(uintptr(base)+outOffset), out)
+	memmove(frame, unsafe.Pointer(uintptr(args)+ptrSize), frametype.size-ptrSize)
 }
 
 // funcName returns the name of f, for use in error messages.
