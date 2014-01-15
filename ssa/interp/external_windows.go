@@ -5,6 +5,8 @@
 package interp
 
 import (
+	"syscall"
+
 	"code.google.com/p/go.tools/ssa"
 )
 
@@ -40,4 +42,7 @@ func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
 }
 func ext۰syscall۰RawSyscall(fn *ssa.Function, args []value) value {
 	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
+}
+func syswrite(fd int, b []byte) (int, error) {
+	panic("syswrite not yet implemented")
 }

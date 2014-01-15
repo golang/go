@@ -10,7 +10,6 @@ import (
 	"go/token"
 	"strings"
 	"sync"
-	"syscall"
 	"unsafe"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -910,12 +909,13 @@ var capturedOutputMu sync.Mutex
 // The print/println built-ins and the write() system call funnel
 // through here so they can be captured by the test driver.
 func write(fd int, b []byte) (int, error) {
+	// TODO(adonovan): fix: on Windows, std{out,err} are not 1, 2.
 	if CapturedOutput != nil && (fd == 1 || fd == 2) {
 		capturedOutputMu.Lock()
 		CapturedOutput.Write(b) // ignore errors
 		capturedOutputMu.Unlock()
 	}
-	return syscall.Write(fd, b)
+	return syswrite(fd, b)
 }
 
 // callBuiltin interprets a call to builtin fn with arguments args,
