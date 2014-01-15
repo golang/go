@@ -1803,3 +1803,94 @@ func toType(t *rtype) Type {
 	}
 	return t
 }
+
+type layoutKey struct {
+	t    *rtype // function signature
+	rcvr *rtype // receiver type, or nil if none
+}
+
+var layoutCache struct {
+	sync.RWMutex
+	m map[layoutKey]*rtype
+}
+
+// funcLayout computes a struct type representing the layout of the
+// function arguments and return values for the function type t.
+// If rcvr != nil, rcvr specifies the type of the receiver.
+// The returned type exists only for GC, so we only fill out GC relevant info.
+// Currently, that's just size and the GC program.  We also fill in
+// the name for possible debugging use.
+func funcLayout(t *rtype, rcvr *rtype) *rtype {
+	if t.Kind() != Func {
+		panic("reflect: funcSignature of non-func type")
+	}
+	k := layoutKey{t, rcvr}
+	layoutCache.RLock()
+	if x := layoutCache.m[k]; x != nil {
+		layoutCache.RUnlock()
+		return x
+	}
+	layoutCache.RUnlock()
+	layoutCache.Lock()
+	if x := layoutCache.m[k]; x != nil {
+		layoutCache.Unlock()
+		return x
+	}
+
+	tt := (*funcType)(unsafe.Pointer(t))
+
+	// compute gc program for arguments
+	gc := make([]uintptr, 1) // first entry is size, filled in at the end
+	offset := uintptr(0)
+	if rcvr != nil {
+		// Reflect uses the "interface" calling convention for
+		// methods, where receivers take one word of argument
+		// space no matter how big they actually are.
+		if rcvr.size > ptrSize {
+			// we pass a pointer to the receiver.
+			gc = append(gc, _GC_PTR, offset, uintptr(rcvr.gc))
+		} else if rcvr.pointers() {
+			// rcvr is a one-word pointer object.  Its gc program
+			// is just what we need here.
+			gc = appendGCProgram(gc, rcvr)
+		}
+		offset += ptrSize
+	}
+	for _, arg := range tt.in {
+		offset = align(offset, uintptr(arg.align))
+		if arg.pointers() {
+			gc = append(gc, _GC_REGION, offset, arg.size, uintptr(arg.gc))
+		}
+		offset += arg.size
+	}
+	offset = align(offset, ptrSize)
+	for _, res := range tt.out {
+		offset = align(offset, uintptr(res.align))
+		if res.pointers() {
+			gc = append(gc, _GC_REGION, offset, res.size, uintptr(res.gc))
+		}
+		offset += res.size
+	}
+	gc = append(gc, _GC_END)
+	gc[0] = offset
+
+	// build dummy rtype holding gc program
+	x := new(rtype)
+	x.size = offset
+	x.gc = unsafe.Pointer(&gc[0])
+	var s string
+	if rcvr != nil {
+		s = "methodargs(" + *rcvr.string + ")(" + *t.string + ")"
+	} else {
+		s = "funcargs(" + *t.string + ")"
+	}
+	x.string = &s
+
+	// cache result for future callers
+	if layoutCache.m == nil {
+		layoutCache.m = make(map[layoutKey]*rtype)
+	}
+	layoutCache.m[k] = x
+	layoutCache.Unlock()
+	return x
+}
