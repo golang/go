@@ -180,7 +180,6 @@ func MakeFromLiteral(lit string, tok token.Token) Value {
 		}
 	}
 
-	// TODO(gri) should we return an Unknown instead?
 	return nil
 }
 

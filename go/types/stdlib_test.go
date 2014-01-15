@@ -8,7 +8,6 @@
 package types_test
 
 import (
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -27,8 +26,6 @@ import (
 	. "code.google.com/p/go.tools/go/types"
 )
 
-var verbose = flag.Bool("types.v", false, "verbose mode")
-
 var (
 	pkgCount int // number of packages processed
 	start    = time.Now()
@@ -36,7 +33,7 @@ var (
 
 func TestStdlib(t *testing.T) {
 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src/pkg"))
-	if *verbose {
+	if testing.Verbose() {
 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
 	}
 }
@@ -162,7 +159,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
 			return
 		}
 
-		if *verbose {
+		if testing.Verbose() {
 			if len(files) == 0 {
 				fmt.Println("package", file.Name.Name)
 			}
