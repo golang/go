@@ -66,27 +66,29 @@ func zeroConst(t types.Type) *Const {
 	panic(fmt.Sprint("zeroConst: unexpected ", t))
 }
 
-func (c *Const) valstring() string {
+func (c *Const) RelString(from *types.Package) string {
+	var s string
 	if c.Value == nil {
-		return "nil"
+		s = "nil"
 	} else if c.Value.Kind() == exact.String {
-		s := exact.StringVal(c.Value)
+		s = exact.StringVal(c.Value)
 		const max = 20
 		if len(s) > max {
 			s = s[:max-3] + "..." // abbreviate
 		}
-		return strconv.Quote(s)
+		s = strconv.Quote(s)
 	} else {
-		return c.Value.String()
+		s = c.Value.String()
 	}
+	return s + ":" + relType(c.Type(), from)
 }
 
 func (c *Const) Name() string {
-	return fmt.Sprintf("%s:%s", c.valstring(), c.typ)
+	return c.RelString(nil)
 }
 
-func (v *Const) String() string {
-	return v.Name()
+func (c *Const) String() string {
+	return c.Name()
 }
 
 func (c *Const) Type() types.Type {

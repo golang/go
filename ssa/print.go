@@ -32,7 +32,7 @@ func relName(v Value, i Instruction) string {
 	case Member: // *Function or *Global
 		return v.RelString(from)
 	case *Const:
-		return v.valstring() + ":" + relType(v.Type(), from)
+		return v.RelString(from)
 	}
 	return v.Name()
 }
@@ -380,19 +380,23 @@ func (p *Package) DumpTo(w io.Writer) {
 	for _, name := range names {
 		switch mem := p.Members[name].(type) {
 		case *NamedConst:
-			fmt.Fprintf(w, "  const %-*s %s = %s\n", maxname, name, mem.Name(), mem.Value.Name())
+			fmt.Fprintf(w, "  const %-*s %s = %s\n",
+				maxname, name, mem.Name(), mem.Value.RelString(p.Object))
 
 		case *Function:
-			fmt.Fprintf(w, "  func  %-*s %s\n", maxname, name, mem.Type())
+			fmt.Fprintf(w, "  func  %-*s %s\n",
+				maxname, name, types.TypeString(p.Object, mem.Type()))
 
 		case *Type:
-			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.Type().Underlying())
+			fmt.Fprintf(w, "  type  %-*s %s\n",
+				maxname, name, types.TypeString(p.Object, mem.Type().Underlying()))
 			for _, meth := range IntuitiveMethodSet(mem.Type()) {
-				fmt.Fprintf(w, "    %s\n", meth)
+				fmt.Fprintf(w, "    %s\n", types.SelectionString(p.Object, meth))
 			}
 
 		case *Global:
-			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type().(*types.Pointer).Elem())
+			fmt.Fprintf(w, "  var   %-*s %s\n",
+				maxname, name, types.TypeString(p.Object, mem.Type().(*types.Pointer).Elem()))
 		}
 	}
 
