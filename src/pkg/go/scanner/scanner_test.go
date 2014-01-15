@@ -641,12 +641,8 @@ func checkError(t *testing.T, src string, tok token.Token, pos int, lit, err str
 	}
 	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), eh, ScanComments|dontInsertSemis)
 	_, tok0, lit0 := s.Scan()
-	_, tok1, _ := s.Scan()
 	if tok0 != tok {
 		t.Errorf("%q: got %s, expected %s", src, tok0, tok)
-	}
-	if tok1 != token.EOF {
-		t.Errorf("%q: got %s, expected EOF", src, tok1)
 	}
 	if tok0 != token.ILLEGAL && lit0 != lit {
 		t.Errorf("%q: got literal %q, expected %q", src, lit0, lit)
@@ -678,12 +674,34 @@ var errors = []struct {
 	{`…`, token.ILLEGAL, 0, "", "illegal character U+2026 '…'"},
 	{`' '`, token.CHAR, 0, `' '`, ""},
 	{`''`, token.CHAR, 0, `''`, "illegal rune literal"},
+	{`'12'`, token.CHAR, 0, `'12'`, "illegal rune literal"},
 	{`'123'`, token.CHAR, 0, `'123'`, "illegal rune literal"},
+	{`'\0'`, token.CHAR, 3, `'\0'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\07'`, token.CHAR, 4, `'\07'`, "illegal character U+0027 ''' in escape sequence"},
 	{`'\8'`, token.CHAR, 2, `'\8'`, "unknown escape sequence"},
-	{`'\08'`, token.CHAR, 3, `'\08'`, "illegal character in escape sequence"},
-	{`'\x0g'`, token.CHAR, 4, `'\x0g'`, "illegal character in escape sequence"},
+	{`'\08'`, token.CHAR, 3, `'\08'`, "illegal character U+0038 '8' in escape sequence"},
+	{`'\x'`, token.CHAR, 3, `'\x'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\x0'`, token.CHAR, 4, `'\x0'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\x0g'`, token.CHAR, 4, `'\x0g'`, "illegal character U+0067 'g' in escape sequence"},
+	{`'\u'`, token.CHAR, 3, `'\u'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\u0'`, token.CHAR, 4, `'\u0'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\u00'`, token.CHAR, 5, `'\u00'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\u000'`, token.CHAR, 6, `'\u000'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\u000`, token.CHAR, 6, `'\u000`, "escape sequence not terminated"},
+	{`'\u0000'`, token.CHAR, 0, `'\u0000'`, ""},
+	{`'\U'`, token.CHAR, 3, `'\U'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U0'`, token.CHAR, 4, `'\U0'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U00'`, token.CHAR, 5, `'\U00'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U000'`, token.CHAR, 6, `'\U000'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U0000'`, token.CHAR, 7, `'\U0000'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U00000'`, token.CHAR, 8, `'\U00000'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U000000'`, token.CHAR, 9, `'\U000000'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U0000000'`, token.CHAR, 10, `'\U0000000'`, "illegal character U+0027 ''' in escape sequence"},
+	{`'\U0000000`, token.CHAR, 10, `'\U0000000`, "escape sequence not terminated"},
+	{`'\U00000000'`, token.CHAR, 0, `'\U00000000'`, ""},
 	{`'\Uffffffff'`, token.CHAR, 2, `'\Uffffffff'`, "escape sequence is invalid Unicode code point"},
 	{`'`, token.CHAR, 0, `'`, "rune literal not terminated"},
+	{`'\`, token.CHAR, 2, `'\`, "escape sequence not terminated"},
 	{"'\n", token.CHAR, 0, "'", "rune literal not terminated"},
 	{"'\n   ", token.CHAR, 0, "'", "rune literal not terminated"},
 	{`""`, token.STRING, 0, `""`, ""},
