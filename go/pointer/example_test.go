@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/pointer"
 	"code.google.com/p/go.tools/go/ssa"
@@ -75,7 +75,7 @@ func main() {
 	// By converting to strings, we de-duplicate nodes
 	// representing the same function due to context sensitivity.
 	var edges []string
-	call.GraphVisitEdges(result.CallGraph, func(edge call.Edge) error {
+	callgraph.GraphVisitEdges(result.CallGraph, func(edge callgraph.Edge) error {
 		caller := edge.Caller.Func()
 		if caller.Pkg == mainPkg {
 			edges = append(edges, fmt.Sprint(caller, " --> ", edge.Callee.Func()))

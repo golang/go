@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package call
+package callgraph
 
 // This file provides various representation-independent utilities
 // over call graphs, such as visitation and path search.
@@ -13,7 +13,7 @@ package call
 //   FindSitesByPos(g Graph, lparen token.Pos) []Site
 //   FindSitesByCallExpr(g Graph, expr *ast.CallExpr) []Site
 //   FindSitesByInstr(g Graph, instr ssa.CallInstruction) []Site
-//   FindNodesByFunc(g Graph, fn *ssa.Function) []GraphNode
+//   FindNodesByFunc(g Graph, fn *ssa.Function) []Node
 //   (Counterargument: they're all inefficient linear scans; if the
 //   caller does it explicitly there may be opportunities to optimize.
 //
@@ -22,8 +22,8 @@ package call
 // CalleesOf returns a new set containing all direct callees of the
 // caller node.
 //
-func CalleesOf(caller GraphNode) map[GraphNode]bool {
-	callees := make(map[GraphNode]bool)
+func CalleesOf(caller Node) map[Node]bool {
+	callees := make(map[Node]bool)
 	for _, e := range caller.Edges() {
 		callees[e.Callee] = true
 	}
@@ -36,9 +36,9 @@ func CalleesOf(caller GraphNode) map[GraphNode]bool {
 // value.
 //
 func GraphVisitEdges(g Graph, edge func(Edge) error) error {
-	seen := make(map[GraphNode]bool)
-	var visit func(n GraphNode) error
-	visit = func(n GraphNode) error {
+	seen := make(map[Node]bool)
+	var visit func(n Node) error
+	visit = func(n Node) error {
 		if !seen[n] {
 			seen[n] = true
 			for _, e := range n.Edges() {
@@ -65,11 +65,11 @@ func GraphVisitEdges(g Graph, edge func(Edge) error) error {
 // PathSearch returns the path as an ordered list of edges; on
 // failure, it returns nil.
 //
-func PathSearch(start GraphNode, isEnd func(GraphNode) bool) []Edge {
+func PathSearch(start Node, isEnd func(Node) bool) []Edge {
 	stack := make([]Edge, 0, 32)
-	seen := make(map[GraphNode]bool)
-	var search func(n GraphNode) []Edge
-	search = func(n GraphNode) []Edge {
+	seen := make(map[Node]bool)
+	var search func(n Node) []Edge
+	search = func(n Node) []Edge {
 		if !seen[n] {
 			seen[n] = true
 			if isEnd(n) {

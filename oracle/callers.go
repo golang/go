@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"go/token"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/oracle/serial"
 )
@@ -37,9 +37,9 @@ func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// Run the pointer analysis, recording each
 	// call found to originate from target.
 	o.ptaConfig.BuildCallGraph = true
-	callgraph := ptrAnalysis(o).CallGraph
-	var edges []call.Edge
-	call.GraphVisitEdges(callgraph, func(edge call.Edge) error {
+	cg := ptrAnalysis(o).CallGraph
+	var edges []callgraph.Edge
+	callgraph.GraphVisitEdges(cg, func(edge callgraph.Edge) error {
 		if edge.Callee.Func() == target {
 			edges = append(edges, edge)
 		}
@@ -49,15 +49,15 @@ func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	return &callersResult{
 		target:    target,
-		callgraph: callgraph,
+		callgraph: cg,
 		edges:     edges,
 	}, nil
 }
 
 type callersResult struct {
 	target    *ssa.Function
-	callgraph call.Graph
-	edges     []call.Edge
+	callgraph callgraph.Graph
+	edges     []callgraph.Edge
 }
 
 func (r *callersResult) display(printf printfFunc) {

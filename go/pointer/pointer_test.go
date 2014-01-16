@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/pointer"
 	"code.google.com/p/go.tools/go/ssa"
@@ -451,9 +451,9 @@ func checkTypesExpectation(e *expectation, ptr pointer.Pointer, typ types.Type) 
 
 var errOK = errors.New("OK")
 
-func checkCallsExpectation(prog *ssa.Program, e *expectation, callgraph call.Graph) bool {
+func checkCallsExpectation(prog *ssa.Program, e *expectation, cg callgraph.Graph) bool {
 	found := make(map[string]int)
-	err := call.GraphVisitEdges(callgraph, func(edge call.Edge) error {
+	err := callgraph.GraphVisitEdges(cg, func(edge callgraph.Edge) error {
 		// Name-based matching is inefficient but it allows us to
 		// match functions whose names that would not appear in an
 		// index ("<root>") or which are not unique ("func@1.2").

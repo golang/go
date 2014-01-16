@@ -10,7 +10,7 @@ import (
 	"go/token"
 	"io"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types/typemap"
 )
@@ -107,7 +107,7 @@ type Warning struct {
 // See Config for how to request the various Result components.
 //
 type Result struct {
-	CallGraph       call.Graph                  // discovered call graph
+	CallGraph       callgraph.Graph             // discovered call graph
 	Queries         map[ssa.Value][]Pointer     // pts(v) for each v in Config.Queries.
 	IndirectQueries map[ssa.Value][]Pointer     // pts(*v) for each v in Config.IndirectQueries.
 	Warnings        []Warning                   // warnings of unsoundness
@@ -220,7 +220,7 @@ func (p Pointer) String() string {
 
 // Context returns the context of this pointer,
 // if it corresponds to a local variable.
-func (p Pointer) Context() call.GraphNode {
+func (p Pointer) Context() callgraph.Node {
 	return p.cgn
 }
 

@@ -4,7 +4,7 @@
 
 /*
 
-Package call defines the call graph abstraction and various algorithms
+Package callgraph defines the call graph abstraction and various algorithms
 and utilities to operate on it.  It does not provide a concrete
 implementation but permits other analyses (such as pointer analyses or
 Rapid Type Analysis) to expose their own call graphs in a
@@ -56,7 +56,7 @@ in the call graph; they are treated like built-in operators of the
 language.
 
 */
-package call
+package callgraph
 
 import "code.google.com/p/go.tools/go/ssa"
 
@@ -67,14 +67,14 @@ import "code.google.com/p/go.tools/go/ssa"
 // functions.
 //
 type Graph interface {
-	Root() GraphNode    // the distinguished root node
-	Nodes() []GraphNode // new unordered set of all nodes
+	Root() Node    // the distinguished root node
+	Nodes() []Node // new unordered set of all nodes
 }
 
-// A GraphNode represents a node in a call graph.
+// A Node represents a node in a call graph.
 //
 // If the call graph is context sensitive, there may be multiple
-// GraphNodes with the same Func(); the identity of the graph node
+// Nodes with the same Func(); the identity of the graph node
 // indicates the context.
 //
 // Sites returns the set of syntactic call sites within this function.
@@ -94,7 +94,7 @@ type Graph interface {
 //
 // Clients should not mutate the node via the results of its methods.
 //
-type GraphNode interface {
+type Node interface {
 	Func() *ssa.Function          // the function this node represents
 	Sites() []ssa.CallInstruction // new unordered set of call sites within this function
 	Edges() []Edge                // new unordered set of outgoing edges
@@ -102,7 +102,7 @@ type GraphNode interface {
 
 // A Edge represents an edge in the call graph.
 type Edge struct {
-	Caller GraphNode
+	Caller Node
 	Site   ssa.CallInstruction
-	Callee GraphNode
+	Callee Node
 }

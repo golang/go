@@ -8,12 +8,12 @@ import (
 	"go/token"
 	"sort"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/oracle/serial"
 )
 
-// callgraph displays the entire callgraph of the current program.
+// doCallgraph displays the entire callgraph of the current program.
 //
 // Nodes may be seem to appear multiple times due to (limited)
 // context sensitivity.
@@ -28,7 +28,7 @@ import (
 //
 // TODO(adonovan): elide nodes for synthetic functions?
 //
-func callgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
+func doCallgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
 	buildSSA(o)
 
 	// Run the pointer analysis and build the complete callgraph.
@@ -41,7 +41,7 @@ func callgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
 }
 
 type callgraphResult struct {
-	callgraph call.Graph
+	callgraph callgraph.Graph
 }
 
 func (r *callgraphResult) display(printf printfFunc) {
@@ -57,9 +57,9 @@ Non-numbered nodes indicate back- or cross-edges to the node whose
 	ci := make(map[*ssa.Function]map[*ssa.Function]bool)
 
 	// 1. Visit the CS call graph and build the CI call graph.
-	visited := make(map[call.GraphNode]bool)
-	var visit func(caller call.GraphNode)
-	visit = func(caller call.GraphNode) {
+	visited := make(map[callgraph.Node]bool)
+	var visit func(caller callgraph.Node)
+	visit = func(caller callgraph.Node) {
 		if !visited[caller] {
 			visited[caller] = true
 
@@ -113,7 +113,7 @@ func (s funcsByName) Less(i, j int) bool { return s[i].String() < s[j].String() 
 func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	nodes := r.callgraph.Nodes()
 
-	numbering := make(map[call.GraphNode]int)
+	numbering := make(map[callgraph.Node]int)
 	for i, n := range nodes {
 		numbering[n] = i
 	}
@@ -124,7 +124,7 @@ func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
 		fn := n.Func()
 		j.Name = fn.String()
 		j.Pos = fset.Position(fn.Pos()).String()
-		for callee := range call.CalleesOf(n) {
+		for callee := range callgraph.CalleesOf(n) {
 			j.Children = append(j.Children, numbering[callee])
 		}
 		sort.Ints(j.Children)

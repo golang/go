@@ -4,35 +4,35 @@
 
 package pointer
 
-// This file defines our implementation of the call.Graph API.
+// This file defines our implementation of the callgraph API.
 
 import (
 	"fmt"
 	"go/token"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 )
 
-// cgraph implements call.Graph.
+// cgraph implements callgraph.Graph.
 type cgraph struct {
 	root  *cgnode
 	nodes []*cgnode
 }
 
-func (g *cgraph) Nodes() []call.GraphNode {
-	nodes := make([]call.GraphNode, len(g.nodes))
+func (g *cgraph) Nodes() []callgraph.Node {
+	nodes := make([]callgraph.Node, len(g.nodes))
 	for i, node := range g.nodes {
 		nodes[i] = node
 	}
 	return nodes
 }
 
-func (g *cgraph) Root() call.GraphNode {
+func (g *cgraph) Root() callgraph.Node {
 	return g.root
 }
 
-// cgnode implements call.GraphNode.
+// cgnode implements callgraph.Node.
 type cgnode struct {
 	fn         *ssa.Function
 	obj        nodeid      // start of this contour's object block
@@ -52,16 +52,16 @@ func (n *cgnode) Sites() []ssa.CallInstruction {
 	return sites
 }
 
-func (n *cgnode) Edges() []call.Edge {
+func (n *cgnode) Edges() []callgraph.Edge {
 	var numEdges int
 	for _, site := range n.sites {
 		numEdges += len(site.callees)
 	}
-	edges := make([]call.Edge, 0, numEdges)
+	edges := make([]callgraph.Edge, 0, numEdges)
 
 	for _, site := range n.sites {
 		for _, callee := range site.callees {
-			edges = append(edges, call.Edge{Caller: n, Site: site.instr, Callee: callee})
+			edges = append(edges, callgraph.Edge{Caller: n, Site: site.instr, Callee: callee})
 		}
 	}
 	return edges

@@ -9,7 +9,7 @@ import (
 	"go/token"
 	"strings"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
 )
@@ -57,7 +57,7 @@ func (l Label) ReflectType() types.Type {
 // Context returns the analytic context in which this label's object was allocated,
 // or nil for global objects: global, const, and shared contours for functions.
 //
-func (l Label) Context() call.GraphNode {
+func (l Label) Context() callgraph.Node {
 	return l.obj.cgn
 }
 

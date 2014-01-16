@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"go/token"
 
-	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/oracle/serial"
 )
@@ -42,11 +42,11 @@ func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
 
 	// Run the pointer analysis and build the complete call graph.
 	o.ptaConfig.BuildCallGraph = true
-	callgraph := ptrAnalysis(o).CallGraph
+	cg := ptrAnalysis(o).CallGraph
 
 	// Search for an arbitrary path from a root to the target function.
-	isEnd := func(n call.GraphNode) bool { return n.Func() == target }
-	callpath := call.PathSearch(callgraph.Root(), isEnd)
+	isEnd := func(n callgraph.Node) bool { return n.Func() == target }
+	callpath := callgraph.PathSearch(cg.Root(), isEnd)
 	if callpath != nil {
 		callpath = callpath[1:] // remove synthetic edge from <root>
 	}
@@ -61,7 +61,7 @@ func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
 type callstackResult struct {
 	qpos     *QueryPos
 	target   *ssa.Function
-	callpath []call.Edge
+	callpath []callgraph.Edge
 }
 
 func (r *callstackResult) display(printf printfFunc) {

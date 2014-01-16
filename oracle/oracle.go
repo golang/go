@@ -97,7 +97,7 @@ var modes = []*modeInfo{
 	// Pointer analyses, whole program:
 	{"callees", needPTA | needExactPos, callees},
 	{"callers", needPTA | needPos, callers},
-	{"callgraph", needPTA, callgraph},
+	{"callgraph", needPTA, doCallgraph},
 	{"callstack", needPTA | needPos, callstack},
 	{"peers", needPTA | needSSADebug | needPos, peers},
 	{"pointsto", needPTA | needSSADebug | needExactPos, pointsto},
