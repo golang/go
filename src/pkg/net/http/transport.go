@@ -99,7 +99,7 @@ type Transport struct {
 // A nil URL and nil error are returned if no proxy is defined in the
 // environment, or a proxy should not be used for the given request.
 func ProxyFromEnvironment(req *Request) (*url.URL, error) {
-	proxy := getenvEitherCase("HTTP_PROXY")
+	proxy := httpProxyEnv.Get()
 	if proxy == "" {
 		return nil, nil
 	}
@@ -243,11 +243,42 @@ func (t *Transport) CancelRequest(req *Request) {
 // Private implementation past this point.
 //
 
-func getenvEitherCase(k string) string {
-	if v := os.Getenv(strings.ToUpper(k)); v != "" {
-		return v
+var (
+	httpProxyEnv = &envOnce{
+		names: []string{"HTTP_PROXY", "http_proxy"},
 	}
-	return os.Getenv(strings.ToLower(k))
+	noProxyEnv = &envOnce{
+		names: []string{"NO_PROXY", "no_proxy"},
+	}
+)
+
+// envOnce looks up an environment variable (optionally by multiple
+// names) once. It mitigates expensive lookups on some platforms
+// (e.g. Windows).
+type envOnce struct {
+	names []string
+	once  sync.Once
+	val   string
+}
+
+func (e *envOnce) Get() string {
+	e.once.Do(e.init)
+	return e.val
+}
+
+func (e *envOnce) init() {
+	for _, n := range e.names {
+		e.val = os.Getenv(n)
+		if e.val != "" {
+			return
+		}
+	}
+}
+
+// reset is used by tests
+func (e *envOnce) reset() {
+	e.once = sync.Once{}
+	e.val = ""
 }
 
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (*connectMethod, error) {
@@ -550,7 +581,7 @@ func useProxy(addr string) bool {
 		}
 	}
 
-	no_proxy := getenvEitherCase("NO_PROXY")
+	no_proxy := noProxyEnv.Get()
 	if no_proxy == "*" {
 		return false
 	}
