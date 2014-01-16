@@ -541,18 +541,16 @@ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool sele
 }
 
 // For reflect:
-//	func chansend(c chan, val iword, nb bool) (selected bool)
-// where an iword is the same word an interface value would use:
-// the actual data if it fits, or else a pointer to the data.
+//	func chansend(c chan, val *any, nb bool) (selected bool)
+// where val points to the data to be sent.
 //
 // The "uintptr selected" is really "bool selected" but saying
 // uintptr gets us the right alignment for the output parameter block.
 #pragma textflag NOSPLIT
 void
-reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
+reflect·chansend(ChanType *t, Hchan *c, byte *val, bool nb, uintptr selected)
 {
 	bool *sp;
-	byte *vp;
 
 	if(nb) {
 		selected = false;
@@ -562,21 +560,16 @@ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
 		FLUSH(&selected);
 		sp = nil;
 	}
-	if(t->elem->size <= sizeof(val))
-		vp = (byte*)&val;
-	else
-		vp = (byte*)val;
-	runtime·chansend(t, c, vp, sp, runtime·getcallerpc(&t));
+	runtime·chansend(t, c, val, sp, runtime·getcallerpc(&t));
 }
 
 // For reflect:
-//	func chanrecv(c chan, nb bool) (val iword, selected, received bool)
-// where an iword is the same word an interface value would use:
-// the actual data if it fits, or else a pointer to the data.
+//	func chanrecv(c chan, nb bool, val *any) (selected, received bool)
+// where val points to a data area that will be filled in with the
+// received value.  val must have the size and type of the channel element type.
 void
-reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bool received)
+reflect·chanrecv(ChanType *t, Hchan *c, bool nb, byte *val, bool selected, bool received)
 {
-	byte *vp;
 	bool *sp;
 
 	if(nb) {
@@ -589,15 +582,7 @@ reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bo
 	}
 	received = false;
 	FLUSH(&received);
-	if(t->elem->size <= sizeof(val)) {
-		val = 0;
-		vp = (byte*)&val;
-	} else {
-		vp = runtime·mal(t->elem->size);
-		val = (uintptr)vp;
-		FLUSH(&val);
-	}
-	runtime·chanrecv(t, c, vp, sp, &received);
+	runtime·chanrecv(t, c, val, sp, &received);
 }
 
 static void newselect(int32, Select**);
@@ -1150,7 +1135,7 @@ struct runtimeSelect
 	uintptr dir;
 	ChanType *typ;
 	Hchan *ch;
-	uintptr val;
+	byte *val;
 };
 
 // This enum must match ../reflect/value.go:/SelectDir.
@@ -1160,32 +1145,18 @@ enum SelectDir {
 	SelectDefault,
 };
 
-// func rselect(cases []runtimeSelect) (chosen int, word uintptr, recvOK bool)
+// func rselect(cases []runtimeSelect) (chosen int, recvOK bool)
 void
-reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
+reflect·rselect(Slice cases, intgo chosen, bool recvOK)
 {
 	int32 i;
 	Select *sel;
 	runtimeSelect* rcase, *rc;
-	void *elem;
-	void *recvptr;
-	uintptr maxsize;
 
 	chosen = -1;
-	word = 0;
 	recvOK = false;
 
-	maxsize = 0;
 	rcase = (runtimeSelect*)cases.array;
-	for(i=0; i<cases.len; i++) {
-		rc = &rcase[i];
-		if(rc->dir == SelectRecv && rc->ch != nil && maxsize < rc->typ->elem->size)
-			maxsize = rc->typ->elem->size;
-	}
-
-	recvptr = nil;
-	if(maxsize > sizeof(void*))
-		recvptr = runtime·mal(maxsize);
 
 	newselect(cases.len, &sel);
 	for(i=0; i<cases.len; i++) {
@@ -1197,30 +1168,19 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
 		case SelectSend:
 			if(rc->ch == nil)
 				break;
-			if(rc->typ->elem->size > sizeof(void*))
-				elem = (void*)rc->val;
-			else
-				elem = (void*)&rc->val;
-			selectsend(sel, rc->ch, (void*)i, elem, 0);
+			selectsend(sel, rc->ch, (void*)i, rc->val, 0);
 			break;
 		case SelectRecv:
 			if(rc->ch == nil)
 				break;
-			if(rc->typ->elem->size > sizeof(void*))
-				elem = recvptr;
-			else
-				elem = &word;
-			selectrecv(sel, rc->ch, (void*)i, elem, &recvOK, 0);
+			selectrecv(sel, rc->ch, (void*)i, rc->val, &recvOK, 0);
 			break;
 		}
 	}
 
 	chosen = (intgo)(uintptr)selectgo(&sel);
-	if(rcase[chosen].dir == SelectRecv && rcase[chosen].typ->elem->size > sizeof(void*))
-		word = (uintptr)recvptr;
 
 	FLUSH(&chosen);
-	FLUSH(&word);
 	FLUSH(&recvOK);
 }
 
