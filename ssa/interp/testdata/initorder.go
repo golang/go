@@ -11,28 +11,22 @@ func next() int {
 }
 
 func makeOrder1() [6]int {
-	// The values of these vars are determined by the (arbitrary)
-	// order in which we refer to them here. f=0, b=1, d=2, etc.
 	return [6]int{f1, b1, d1, e1, c1, a1}
 }
 
 func makeOrder2() [6]int {
-	// The values of these vars are independent of the order in
-	// which we refer to them here.  a=6, b=7, c=8, etc.
 	return [6]int{f2, b2, d2, e2, c2, a2}
 }
 
 var order1 = makeOrder1()
 
 func main() {
-	// order1 is a package-level variable:
-	// [a-f]1 are initialized in reference order.
-	if order1 != [6]int{0, 1, 2, 3, 4, 5} {
+	// order1 is a package-level variable
+	if order1 != [6]int{5, 1, 3, 4, 2, 0} {
 		panic(order1)
 	}
 
-	// order2 is a local variable:
-	// [a-f]2 are initialized in lexical order.
+	// order2 is a local variable
 	var order2 = makeOrder2()
 	if order2 != [6]int{11, 7, 9, 10, 8, 6} {
 		panic(order2)
