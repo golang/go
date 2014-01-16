@@ -41,7 +41,7 @@ func ImportData(imports map[string]*types.Package, data []byte) (*types.Package,
 	p.typList = append(p.typList, types.Universe.Lookup("error").Type())
 
 	if v := p.string(); v != version {
-		return nil, fmt.Errorf("unknown version: got %d; want %d", v, version)
+		return nil, fmt.Errorf("unknown version: got %s; want %s", v, version)
 	}
 
 	pkg := p.pkg()
