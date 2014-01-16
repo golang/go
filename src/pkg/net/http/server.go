@@ -735,7 +735,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// response header and this is our first (and last) write, set
 	// it, even to zero. This helps HTTP/1.0 clients keep their
 	// "keep-alive" connections alive.
-	// Exceptions: 304 responses never get Content-Length, and if
+	// Exceptions: 304/204/1xx responses never get Content-Length, and if
 	// it was a HEAD request, we don't know the difference between
 	// 0 actual bytes and 0 bytes because the handler noticed it
 	// was a HEAD request and chose not to write anything.  So for
@@ -743,7 +743,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// write non-zero bytes.  If it's actually 0 bytes and the
 	// handler never looked at the Request.Method, we just don't
 	// send a Content-Length header.
-	if w.handlerDone && w.status != StatusNotModified && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+	if w.handlerDone && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
 		w.contentLength = int64(len(p))
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
@@ -792,7 +792,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 
 	code := w.status
-	if code == StatusNotModified {
+	if !bodyAllowedForStatus(code) {
 		// Must not have body.
 		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
 		for _, k := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
@@ -821,7 +821,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		hasCL = false
 	}
 
-	if w.req.Method == "HEAD" || code == StatusNotModified {
+	if w.req.Method == "HEAD" || !bodyAllowedForStatus(code) {
 		// do nothing
 	} else if code == StatusNoContent {
 		delHeader("Transfer-Encoding")
@@ -915,7 +915,7 @@ func (w *response) bodyAllowed() bool {
 	if !w.wroteHeader {
 		panic("")
 	}
-	return w.status != StatusNotModified
+	return bodyAllowedForStatus(w.status)
 }
 
 // The Life Of A Write is like this:
