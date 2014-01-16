@@ -14,10 +14,10 @@ import (
 
 	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/loader"
+	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // describe describes the syntax node denoted by the query position,
@@ -90,7 +90,7 @@ const (
 // and returns the most "interesting" associated node, which may be
 // the same node, an ancestor or a descendent.
 //
-func findInterestingNode(pkginfo *importer.PackageInfo, path []ast.Node) ([]ast.Node, action) {
+func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.Node, action) {
 	// TODO(adonovan): integrate with go/types/stdlib_test.go and
 	// apply this to every AST node we can find to make sure it
 	// doesn't crash.

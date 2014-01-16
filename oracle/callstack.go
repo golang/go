@@ -9,8 +9,8 @@ import (
 	"go/token"
 
 	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // Callstack displays an arbitrary path from a root of the callgraph

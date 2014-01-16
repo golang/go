@@ -58,7 +58,7 @@ language.
 */
 package call
 
-import "code.google.com/p/go.tools/ssa"
+import "code.google.com/p/go.tools/go/ssa"
 
 // A Graph represents a call graph.
 //

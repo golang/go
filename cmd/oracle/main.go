@@ -23,7 +23,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"code.google.com/p/go.tools/importer"
+	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/oracle"
 )
 
@@ -74,7 +74,7 @@ Describe the syntax at offset 530 in this file (an import spec):
 
 Print the callgraph of the trivial web-server in JSON format:
 % oracle -format=json src/pkg/net/http/triv.go callgraph
-` + importer.FromArgsUsage
+` + loader.FromArgsUsage
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 

@@ -9,8 +9,8 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // callgraph displays the entire callgraph of the current program.

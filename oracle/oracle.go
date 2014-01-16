@@ -57,19 +57,19 @@ import (
 	"io"
 
 	"code.google.com/p/go.tools/astutil"
+	"code.google.com/p/go.tools/go/loader"
+	"code.google.com/p/go.tools/go/pointer"
+	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // An Oracle holds the program state required for one or more queries.
 type Oracle struct {
-	fset      *token.FileSet                           // file set [all queries]
-	prog      *ssa.Program                             // the SSA program [needSSA]
-	ptaConfig pointer.Config                           // pointer analysis configuration [needPTA]
-	typeInfo  map[*types.Package]*importer.PackageInfo // type info for all ASTs in the program [needRetainTypeInfo]
+	fset      *token.FileSet                         // file set [all queries]
+	prog      *ssa.Program                           // the SSA program [needSSA]
+	ptaConfig pointer.Config                         // pointer analysis configuration [needPTA]
+	typeInfo  map[*types.Package]*loader.PackageInfo // type info for all ASTs in the program [needRetainTypeInfo]
 }
 
 // A set of bits indicating the analytical requirements of each mode.
@@ -136,10 +136,10 @@ type queryResult interface {
 //
 type QueryPos struct {
 	fset       *token.FileSet
-	start, end token.Pos             // source extent of query
-	path       []ast.Node            // AST path from query node to root of ast.File
-	exact      bool                  // 2nd result of PathEnclosingInterval
-	info       *importer.PackageInfo // type info for the queried package (nil for fastQueryPos)
+	start, end token.Pos           // source extent of query
+	path       []ast.Node          // AST path from query node to root of ast.File
+	exact      bool                // 2nd result of PathEnclosingInterval
+	info       *loader.PackageInfo // type info for the queried package (nil for fastQueryPos)
 }
 
 // TypeString prints type T relative to the query position.
@@ -183,7 +183,7 @@ func (res *Result) Serial() *serial.Result {
 
 // Query runs a single oracle query.
 //
-// args specify the main package in (*importer.Config).FromArgs syntax.
+// args specify the main package in (*loader.Config).FromArgs syntax.
 // mode is the query mode ("callers", etc).
 // ptalog is the (optional) pointer-analysis log file.
 // buildContext is the go/build configuration for locating packages.
@@ -192,7 +192,7 @@ func (res *Result) Serial() *serial.Result {
 // Clients that intend to perform multiple queries against the same
 // analysis scope should use this pattern instead:
 //
-//	conf := importer.Config{Build: buildContext, SourceImports: true}
+//	conf := loader.Config{Build: buildContext, SourceImports: true}
 //	... populate config, e.g. conf.FromArgs(args) ...
 //	iprog, err := conf.Load()
 //	if err != nil { ... }
@@ -222,7 +222,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, fmt.Errorf("invalid mode type: %q", mode)
 	}
 
-	conf := importer.Config{Build: buildContext, SourceImports: true}
+	conf := loader.Config{Build: buildContext, SourceImports: true}
 
 	// Determine initial packages.
 	args, err := conf.FromArgs(args)
@@ -280,7 +280,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 //
 // TODO(adonovan): this is a real mess... but it's fast.
 //
-func reduceScope(pos string, conf *importer.Config) {
+func reduceScope(pos string, conf *loader.Config) {
 	fqpos, err := fastQueryPos(pos)
 	if err != nil {
 		return // bad query
@@ -299,7 +299,7 @@ func reduceScope(pos string, conf *importer.Config) {
 
 	// Check that it's possible to load the queried package.
 	// (e.g. oracle tests contain different 'package' decls in same dir.)
-	// Keep consistent with logic in importer/util.go!
+	// Keep consistent with logic in loader/util.go!
 	cfg2 := *conf.Build
 	cfg2.CgoEnabled = false
 	bp, err := cfg2.Import(importPath, "", 0)
@@ -334,11 +334,11 @@ func reduceScope(pos string, conf *importer.Config) {
 // ptalog is the (optional) pointer-analysis log file.
 // reflection determines whether to model reflection soundly (currently slow).
 //
-func New(iprog *importer.Program, ptalog io.Writer, reflection bool) (*Oracle, error) {
+func New(iprog *loader.Program, ptalog io.Writer, reflection bool) (*Oracle, error) {
 	return newOracle(iprog, ptalog, needAll, reflection)
 }
 
-func newOracle(iprog *importer.Program, ptalog io.Writer, needs int, reflection bool) (*Oracle, error) {
+func newOracle(iprog *loader.Program, ptalog io.Writer, needs int, reflection bool) (*Oracle, error) {
 	o := &Oracle{fset: iprog.Fset}
 
 	// Retain type info for all ASTs in the program.
@@ -421,7 +421,7 @@ func (o *Oracle) query(minfo *modeInfo, qpos *QueryPos) (*Result, error) {
 // this is appropriate for queries that allow fairly arbitrary syntax,
 // e.g. "describe".
 //
-func ParseQueryPos(iprog *importer.Program, posFlag string, needExact bool) (*QueryPos, error) {
+func ParseQueryPos(iprog *loader.Program, posFlag string, needExact bool) (*QueryPos, error) {
 	filename, startOffset, endOffset, err := parsePosFlag(posFlag)
 	if err != nil {
 		return nil, err

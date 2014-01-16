@@ -11,11 +11,11 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/astutil"
+	"code.google.com/p/go.tools/go/loader"
+	"code.google.com/p/go.tools/go/pointer"
+	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/pointer"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // pointsto runs the pointer analysis on the selected expression,
@@ -85,7 +85,7 @@ func pointsto(o *Oracle, qpos *QueryPos) (queryResult, error) {
 // to the root of the AST is path.  isAddr reports whether the
 // ssa.Value is the address denoted by the ast.Ident, not its value.
 //
-func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.Object, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
+func ssaValueForIdent(prog *ssa.Program, qinfo *loader.PackageInfo, obj types.Object, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
 	switch obj := obj.(type) {
 	case *types.Var:
 		pkg := prog.Package(qinfo.Pkg)
@@ -104,7 +104,7 @@ func ssaValueForIdent(prog *ssa.Program, qinfo *importer.PackageInfo, obj types.
 // ssaValueForExpr returns the ssa.Value of the non-ast.Ident
 // expression whose path to the root of the AST is path.
 //
-func ssaValueForExpr(prog *ssa.Program, qinfo *importer.PackageInfo, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
+func ssaValueForExpr(prog *ssa.Program, qinfo *loader.PackageInfo, path []ast.Node) (value ssa.Value, isAddr bool, err error) {
 	pkg := prog.Package(qinfo.Pkg)
 	pkg.SetDebugMode(true)
 	pkg.Build()

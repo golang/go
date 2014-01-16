@@ -9,8 +9,8 @@ import (
 	"go/token"
 
 	"code.google.com/p/go.tools/call"
+	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/oracle/serial"
-	"code.google.com/p/go.tools/ssa"
 )
 
 // Callers reports the possible callers of the function

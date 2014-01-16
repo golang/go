@@ -14,10 +14,10 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"code.google.com/p/go.tools/go/loader"
+	"code.google.com/p/go.tools/go/ssa"
+	"code.google.com/p/go.tools/go/ssa/interp"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/ssa"
-	"code.google.com/p/go.tools/ssa/interp"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
@@ -48,7 +48,7 @@ Examples:
 % ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
 % ssadump -run -interp=T hello.go     # interpret a program, with tracing
 % ssadump -run unicode -- -test.v     # interpret the unicode package's tests, verbosely
-` + importer.FromArgsUsage +
+` + loader.FromArgsUsage +
 	`
 When -run is specified, ssadump will find the first package that
 defines a main function and run it in the interpreter.
@@ -73,7 +73,7 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	conf := importer.Config{
+	conf := loader.Config{
 		Build:         &build.Default,
 		SourceImports: true,
 	}

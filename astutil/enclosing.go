@@ -54,7 +54,7 @@ import (
 //
 // Precondition: [start, end) both lie within the same file as root.
 // TODO(adonovan): return (nil, false) in this case and remove precond.
-// Requires FileSet; see importer.tokenFileContainsPos.
+// Requires FileSet; see loader.tokenFileContainsPos.
 //
 // Postcondition: path is never nil; it always contains at least 'root'.
 //

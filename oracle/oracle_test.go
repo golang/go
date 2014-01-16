@@ -44,7 +44,7 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/importer"
+	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/oracle"
 )
 
@@ -256,10 +256,10 @@ func TestOracle(t *testing.T) {
 }
 
 func TestMultipleQueries(t *testing.T) {
-	// Importer
+	// Loader
 	var buildContext = build.Default
 	buildContext.GOPATH = "testdata"
-	conf := importer.Config{Build: &buildContext}
+	conf := loader.Config{Build: &buildContext}
 	filename := "testdata/src/main/multi.go"
 	conf.CreateFromFilenames(filename)
 	iprog, err := conf.Load()
