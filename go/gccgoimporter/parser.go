@@ -182,20 +182,14 @@ func (p *parser) parseExportedName() (pkg *types.Package, name string) {
 
 // Name = QualifiedName | "?" .
 func (p *parser) parseName() string {
-	switch p.tok {
-	default:
-		// The package path is redundant for us. Don't try to parse it.
-		_, name := p.parseUnquotedQualifiedName()
-		return name
-
-	case '?':
+	if p.tok == '?' {
 		// Anonymous.
 		p.next()
 		return ""
 	}
-
-	p.errorf("expected name, got %s (%q)", scanner.TokenString(p.tok), p.lit)
-	return ""
+	// The package path is redundant for us. Don't try to parse it.
+	_, name := p.parseUnquotedQualifiedName()
+	return name
 }
 
 func deref(typ types.Type) types.Type {
