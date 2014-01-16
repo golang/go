@@ -2062,30 +2062,35 @@ func TestServerReaderFromOrder(t *testing.T) {
 	}
 }
 
-// Issue 6157
-func TestNoContentTypeOnNotModified(t *testing.T) {
-	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
-		if r.URL.Path == "/header" {
-			w.Header().Set("Content-Length", "123")
-		}
-		w.WriteHeader(StatusNotModified)
-		if r.URL.Path == "/more" {
-			w.Write([]byte("stuff"))
-		}
-	}))
-	for _, req := range []string{
-		"GET / HTTP/1.0",
-		"GET /header HTTP/1.0",
-		"GET /more HTTP/1.0",
-		"GET / HTTP/1.1",
-		"GET /header HTTP/1.1",
-		"GET /more HTTP/1.1",
-	} {
-		got := ht.rawResponse(req)
-		if !strings.Contains(got, "304 Not Modified") {
-			t.Errorf("Non-304 Not Modified for %q: %s", req, got)
-		} else if strings.Contains(got, "Content-Length") {
-			t.Errorf("Got a Content-Length from %q: %s", req, got)
+// Issue 6157, Issue 6685
+func TestCodesPreventingContentTypeAndBody(t *testing.T) {
+	for _, code := range []int{StatusNotModified, StatusNoContent, StatusContinue} {
+		ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+			if r.URL.Path == "/header" {
+				w.Header().Set("Content-Length", "123")
+			}
+			w.WriteHeader(code)
+			if r.URL.Path == "/more" {
+				w.Write([]byte("stuff"))
+			}
+		}))
+		for _, req := range []string{
+			"GET / HTTP/1.0",
+			"GET /header HTTP/1.0",
+			"GET /more HTTP/1.0",
+			"GET / HTTP/1.1",
+			"GET /header HTTP/1.1",
+			"GET /more HTTP/1.1",
+		} {
+			got := ht.rawResponse(req)
+			wantStatus := fmt.Sprintf("%d %s", code, StatusText(code))
+			if !strings.Contains(got, wantStatus) {
+				t.Errorf("Code %d: Wanted %q Modified for %q: %s", code, req, got)
+			} else if strings.Contains(got, "Content-Length") {
+				t.Errorf("Code %d: Got a Content-Length from %q: %s", code, req, got)
+			} else if strings.Contains(got, "stuff") {
+				t.Errorf("Code %d: Response contains a body from %q: %s", code, req, got)
+			}
 		}
 	}
 }
