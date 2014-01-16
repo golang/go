@@ -498,18 +498,18 @@ var fmtTests = []struct {
 	{"%v", map[float64]int{math.NaN(): 1, math.NaN(): 2}, "map[NaN:<nil> NaN:<nil>]"},
 
 	// Used to crash because nByte didn't allow for a sign.
-	{"%b", int64(-1 << 63), "-1000000000000000000000000000000000000000000000000000000000000000"},
+	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
 
 	// Used to panic.
-	{"%0100d", 1, "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"},
-	{"%0100d", -1, "-000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"},
-	{"%0.100f", 1.0, "1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
-	{"%0.100f", -1.0, "-1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
+	{"%0100d", 1, zeroFill("", 100, "1")},
+	{"%0100d", -1, zeroFill("-", 99, "1")},
+	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
+	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
 
 	// Zero padding floats used to put the minus sign in the middle.
 	{"%020f", -1.0, "-000000000001.000000"},
 	{"%20f", -1.0, "           -1.000000"},
-	{"%0100f", -1.0, "-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001.000000"},
+	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
@@ -518,6 +518,33 @@ var fmtTests = []struct {
 
 	// Incomplete format specification caused crash.
 	{"%.", 3, "%!.(int=3)"},
+
+	// Used to panic with out-of-bounds for very large numeric representations.
+	// nByte is set to handle one bit per uint64 in %b format, with a negative number.
+	// See issue 6777.
+	{"%#064x", 1, zeroFill("0x", 64, "1")},
+	{"%#064x", -1, zeroFill("-0x", 63, "1")},
+	{"%#064b", 1, zeroFill("", 64, "1")},
+	{"%#064b", -1, zeroFill("-", 63, "1")},
+	{"%#064o", 1, zeroFill("", 64, "1")},
+	{"%#064o", -1, zeroFill("-", 63, "1")},
+	{"%#064d", 1, zeroFill("", 64, "1")},
+	{"%#064d", -1, zeroFill("-", 63, "1")},
+	// Test that we handle the crossover above the size of uint64
+	{"%#072x", 1, zeroFill("0x", 72, "1")},
+	{"%#072x", -1, zeroFill("-0x", 71, "1")},
+	{"%#072b", 1, zeroFill("", 72, "1")},
+	{"%#072b", -1, zeroFill("-", 71, "1")},
+	{"%#072o", 1, zeroFill("", 72, "1")},
+	{"%#072o", -1, zeroFill("-", 71, "1")},
+	{"%#072d", 1, zeroFill("", 72, "1")},
+	{"%#072d", -1, zeroFill("-", 71, "1")},
+}
+
+// zeroFill generates zero-filled strings of the specified width. The length
+// of the suffix (but not the prefix) is compensated for in the width calculation.
+func zeroFill(prefix string, width int, suffix string) string {
+	return prefix + strings.Repeat("0", width-len(suffix)) + suffix
 }
 
 func TestSprintf(t *testing.T) {
