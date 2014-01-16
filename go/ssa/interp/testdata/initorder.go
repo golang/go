@@ -10,33 +10,31 @@ func next() int {
 	return c
 }
 
-func makeOrder1() [6]int {
-	return [6]int{f1, b1, d1, e1, c1, a1}
+func next2() (x int, y int) {
+	x = next()
+	y = next()
+	return
 }
 
-func makeOrder2() [6]int {
-	return [6]int{f2, b2, d2, e2, c2, a2}
+func makeOrder() int {
+	_, _, _, _ = f, b, d, e
+	return 0
 }
-
-var order1 = makeOrder1()
 
 func main() {
-	// order1 is a package-level variable
-	if order1 != [6]int{5, 1, 3, 4, 2, 0} {
-		panic(order1)
-	}
-
-	// order2 is a local variable
-	var order2 = makeOrder2()
-	if order2 != [6]int{11, 7, 9, 10, 8, 6} {
-		panic(order2)
+	// Initialization constraints:
+	// - {f,b,c/d,e} < order  (ref graph traversal)
+	// - order < {a}          (lexical order)
+	// - b < c/d < e < f      (lexical order)
+	// Solution: b c/d e f a
+	abcdef := [6]int{a, b, c, d, e, f}
+	if abcdef != [6]int{5, 0, 1, 2, 3, 4} {
+		panic(abcdef)
 	}
 }
 
-var a1, b1 = next(), next()
-var c1, d1 = next(), next()
-var e1, f1 = next(), next()
+var order = makeOrder()
 
-var a2, b2 = next(), next()
-var c2, d2 = next(), next()
-var e2, f2 = next(), next()
+var a, b = next(), next()
+var c, d = next2()
+var e, f = next(), next()
