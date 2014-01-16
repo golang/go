@@ -1566,6 +1566,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 	for _, tt := range proxyFromEnvTests {
 		os.Setenv("HTTP_PROXY", tt.env)
 		os.Setenv("NO_PROXY", tt.noenv)
+		ResetCachedEnvironment()
 		reqURL := tt.req
 		if reqURL == "" {
 			reqURL = "http://example.com"

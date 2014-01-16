@@ -63,4 +63,9 @@ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	return &timeoutHandler{handler, f, ""}
 }
 
+func ResetCachedEnvironment() {
+	httpProxyEnv.reset()
+	noProxyEnv.reset()
+}
+
 var DefaultUserAgent = defaultUserAgent
