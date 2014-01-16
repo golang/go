@@ -373,10 +373,9 @@ struct P
 	MCache*	mcache;
 
 	// Queue of runnable goroutines.
-	G**	runq;
-	int32	runqhead;
-	int32	runqtail;
-	int32	runqsize;
+	uint32	runqhead;
+	uint32	runqtail;
+	G*	runq[256];
 
 	// Available G's (status == Gdead)
 	G*	gfree;
