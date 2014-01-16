@@ -260,24 +260,29 @@ func TestMultipleQueries(t *testing.T) {
 	// Importer
 	var buildContext = build.Default
 	buildContext.GOPATH = "testdata"
-	imp := importer.New(&importer.Config{Build: &buildContext})
+	conf := importer.Config{Build: &buildContext}
+	filename := "testdata/src/main/multi.go"
+	conf.CreateFromFilenames(filename)
+	iprog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load failed: %s", err)
+	}
 
 	// Oracle
-	filename := "testdata/src/main/multi.go"
-	o, err := oracle.New(imp, []string{filename}, nil, true)
+	o, err := oracle.New(iprog, nil, true)
 	if err != nil {
 		t.Fatalf("oracle.New failed: %s", err)
 	}
 
 	// QueryPos
 	pos := filename + ":#54,#58"
-	qpos, err := oracle.ParseQueryPos(imp, pos, true)
+	qpos, err := oracle.ParseQueryPos(iprog, pos, true)
 	if err != nil {
 		t.Fatalf("oracle.ParseQueryPos(%q) failed: %s", pos, err)
 	}
 	// SSA is built and we have the QueryPos.
 	// Release the other ASTs and type info to the GC.
-	imp = nil
+	iprog = nil
 
 	// Run different query modes on same scope and selection.
 	out := new(bytes.Buffer)

@@ -15,21 +15,22 @@ import (
 )
 
 func TestSwitches(t *testing.T) {
-	imp := importer.New(&importer.Config{})
-	f, err := parser.ParseFile(imp.Fset, "testdata/switches.go", nil, parser.ParseComments)
+	var conf importer.Config
+	f, err := conf.ParseFile("testdata/switches.go", nil, parser.ParseComments)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	mainInfo := imp.CreatePackage("main", f)
-
-	prog := ssa.NewProgram(imp.Fset, 0)
-	if err := prog.CreatePackages(imp); err != nil {
+	conf.CreateFromFiles(f)
+	iprog, err := conf.Load()
+	if err != nil {
 		t.Error(err)
 		return
 	}
-	mainPkg := prog.Package(mainInfo.Pkg)
+
+	prog := ssa.Create(iprog, 0)
+	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	mainPkg.Build()
 
 	for _, mem := range mainPkg.Members {

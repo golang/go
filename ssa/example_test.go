@@ -6,7 +6,6 @@ package ssa_test
 
 import (
 	"fmt"
-	"go/parser"
 	"os"
 
 	"code.google.com/p/go.tools/importer"
@@ -41,27 +40,28 @@ func main() {
 	fmt.Println(message)
 }
 `
-	// Construct an importer.
-	imp := importer.New(&importer.Config{})
+	var conf importer.Config
 
 	// Parse the input file.
-	file, err := parser.ParseFile(imp.Fset, "hello.go", hello, 0)
+	file, err := conf.ParseFile("hello.go", hello, 0)
 	if err != nil {
 		fmt.Print(err) // parse error
 		return
 	}
 
-	// Create single-file main package and import its dependencies.
-	mainInfo := imp.CreatePackage("main", file)
+	// Create single-file main package.
+	conf.CreateFromFiles(file)
 
-	// Create SSA-form program representation.
-	var mode ssa.BuilderMode
-	prog := ssa.NewProgram(imp.Fset, mode)
-	if err := prog.CreatePackages(imp); err != nil {
+	// Load the main package and its dependencies.
+	iprog, err := conf.Load()
+	if err != nil {
 		fmt.Print(err) // type error in some package
 		return
 	}
-	mainPkg := prog.Package(mainInfo.Pkg)
+
+	// Create SSA-form program representation.
+	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	mainPkg := prog.Package(iprog.Created[0].Pkg)
 
 	// Print out the package.
 	mainPkg.DumpTo(os.Stdout)

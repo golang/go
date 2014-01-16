@@ -24,12 +24,13 @@ import (
 )
 
 func TestObjValueLookup(t *testing.T) {
-	imp := importer.New(&importer.Config{})
-	f, err := parser.ParseFile(imp.Fset, "testdata/objlookup.go", nil, parser.ParseComments)
+	var conf importer.Config
+	f, err := conf.ParseFile("testdata/objlookup.go", nil, parser.ParseComments)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	conf.CreateFromFiles(f)
 
 	// Maps each var Ident (represented "name:linenum") to the
 	// kind of ssa.Value we expect (represented "Constant", "&Alloc").
@@ -39,7 +40,7 @@ func TestObjValueLookup(t *testing.T) {
 	re := regexp.MustCompile(`(\b|&)?(\w*)::(\w*)\b`)
 	for _, c := range f.Comments {
 		text := c.Text()
-		pos := imp.Fset.Position(c.Pos())
+		pos := conf.Fset.Position(c.Pos())
 		for _, m := range re.FindAllStringSubmatch(text, -1) {
 			key := fmt.Sprintf("%s:%d", m[2], pos.Line)
 			value := m[1] + m[3]
@@ -47,13 +48,14 @@ func TestObjValueLookup(t *testing.T) {
 		}
 	}
 
-	mainInfo := imp.CreatePackage("main", f)
-
-	prog := ssa.NewProgram(imp.Fset, 0 /*|ssa.LogFunctions*/)
-	if err := prog.CreatePackages(imp); err != nil {
+	iprog, err := conf.Load()
+	if err != nil {
 		t.Error(err)
 		return
 	}
+
+	prog := ssa.Create(iprog, 0 /*|ssa.LogFunctions*/)
+	mainInfo := iprog.Created[0]
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
@@ -90,7 +92,7 @@ func TestObjValueLookup(t *testing.T) {
 		}
 		if obj, ok := mainInfo.ObjectOf(id).(*types.Var); ok {
 			ref, _ := astutil.PathEnclosingInterval(f, id.Pos(), id.Pos())
-			pos := imp.Fset.Position(id.Pos())
+			pos := prog.Fset.Position(id.Pos())
 			exp := expectations[fmt.Sprintf("%s:%d", id.Name, pos.Line)]
 			if exp == "" {
 				t.Errorf("%s: no expectation for var ident %s ", pos, id.Name)
@@ -186,20 +188,23 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 // Ensure that, in debug mode, we can determine the ssa.Value
 // corresponding to every ast.Expr.
 func TestValueForExpr(t *testing.T) {
-	imp := importer.New(&importer.Config{})
-	f, err := parser.ParseFile(imp.Fset, "testdata/valueforexpr.go", nil, parser.ParseComments)
+	var conf importer.Config
+	f, err := conf.ParseFile("testdata/valueforexpr.go", nil, parser.ParseComments)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	conf.CreateFromFiles(f)
+
+	iprog, err := conf.Load()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	mainInfo := imp.CreatePackage("main", f)
+	mainInfo := iprog.Created[0]
 
-	prog := ssa.NewProgram(imp.Fset, 0)
-	if err := prog.CreatePackages(imp); err != nil {
-		t.Error(err)
-		return
-	}
+	prog := ssa.Create(iprog, 0)
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
@@ -232,7 +237,7 @@ func TestValueForExpr(t *testing.T) {
 		}
 		text = text[1:]
 		pos := c.End() + 1
-		position := imp.Fset.Position(pos)
+		position := prog.Fset.Position(pos)
 		var e ast.Expr
 		if target := parenExprByPos[pos]; target == nil {
 			t.Errorf("%s: annotation doesn't precede ParenExpr: %q", position, text)

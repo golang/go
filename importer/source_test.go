@@ -82,8 +82,8 @@ func TestEnclosingFunction(t *testing.T) {
 			"900", "func@2.27"},
 	}
 	for _, test := range tests {
-		imp := importer.New(&importer.Config{})
-		f, start, end := findInterval(t, imp.Fset, test.input, test.substr)
+		conf := importer.Config{Fset: token.NewFileSet()}
+		f, start, end := findInterval(t, conf.Fset, test.input, test.substr)
 		if f == nil {
 			continue
 		}
@@ -92,13 +92,16 @@ func TestEnclosingFunction(t *testing.T) {
 			t.Errorf("EnclosingFunction(%q) not exact", test.substr)
 			continue
 		}
-		mainInfo := imp.CreatePackage("main", f)
-		prog := ssa.NewProgram(imp.Fset, 0)
-		if err := prog.CreatePackages(imp); err != nil {
+
+		conf.CreateFromFiles(f)
+
+		iprog, err := conf.Load()
+		if err != nil {
 			t.Error(err)
 			continue
 		}
-		pkg := prog.Package(mainInfo.Pkg)
+		prog := ssa.Create(iprog, 0)
+		pkg := prog.Package(iprog.Created[0].Pkg)
 		pkg.Build()
 
 		name := "(none)"

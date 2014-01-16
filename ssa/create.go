@@ -8,11 +8,9 @@ package ssa
 // See builder.go for explanation.
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
-	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
@@ -28,25 +26,32 @@ const (
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
+	GlobalDebug                                  // Enable debug info for all packages
 )
 
-// NewProgram returns a new SSA Program initially containing no
-// packages.
+// Create returns a new SSA Program, creating all packages and all
+// their members.
 //
-// fset specifies the mapping from token positions to source location
-// that will be used by all ASTs of this program.
+// Code for bodies of functions is not built until Build() is called
+// on the result.
 //
 // mode controls diagnostics and checking during SSA construction.
 //
-func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
-	return &Program{
-		Fset:                fset,
+func Create(iprog *importer.Program, mode BuilderMode) *Program {
+	prog := &Program{
+		Fset:                iprog.Fset,
 		imported:            make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
 	}
+
+	for _, info := range iprog.AllPackages {
+		prog.CreatePackage(info)
+	}
+
+	return prog
 }
 
 // memberFromObject populates package pkg with a member for the
@@ -166,9 +171,6 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 // until a subsequent call to Package.Build().
 //
 func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
-	if info.Err != nil {
-		panic(fmt.Sprintf("package %s has errors: %s", info, info.Err))
-	}
 	if p := prog.packages[info.Pkg]; p != nil {
 		return p // already loaded
 	}
@@ -225,6 +227,10 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	}
 	p.Members[initguard.Name()] = initguard
 
+	if prog.mode&GlobalDebug != 0 {
+		p.SetDebugMode(true)
+	}
+
 	if prog.mode&LogPackages != 0 {
 		p.DumpTo(os.Stderr)
 	}
@@ -239,40 +245,6 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	}
 
 	return p
-}
-
-// CreatePackages creates SSA Packages for all error-free packages
-// loaded by the specified Importer.
-//
-// If all packages were error-free, it is safe to call
-// prog.BuildAll(), and nil is returned.  Otherwise an error is
-// returned.
-//
-func (prog *Program) CreatePackages(imp *importer.Importer) error {
-	var errpkgs []string
-
-	// Create source packages and directly imported packages.
-	for _, info := range imp.AllPackages() {
-		if info.Err != nil {
-			errpkgs = append(errpkgs, info.Pkg.Path())
-		} else {
-			prog.CreatePackage(info)
-		}
-	}
-
-	// Create indirectly imported packages.
-	for _, obj := range imp.Config.TypeChecker.Packages {
-		prog.CreatePackage(&importer.PackageInfo{
-			Pkg:        obj,
-			Importable: true,
-		})
-	}
-
-	if errpkgs != nil {
-		return fmt.Errorf("couldn't create these SSA packages due to type errors: %s",
-			strings.Join(errpkgs, ", "))
-	}
-	return nil
 }
 
 // AllPackages returns a new slice containing all packages in the

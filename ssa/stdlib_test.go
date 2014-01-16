@@ -23,8 +23,6 @@ import (
 	"code.google.com/p/go.tools/ssa/ssautil"
 )
 
-const debugMode = true // cost: +30% space, +18% time for SSA building
-
 func allPackages() []string {
 	var pkgs []string
 	root := filepath.Join(runtime.GOROOT(), "src/pkg") + string(os.PathSeparator)
@@ -54,11 +52,15 @@ func TestStdlib(t *testing.T) {
 	// Load, parse and type-check the program.
 	t0 := time.Now()
 
-	imp := importer.New(&importer.Config{})
-
-	if _, _, err := imp.LoadInitialPackages(allPackages()); err != nil {
-		t.Errorf("LoadInitialPackages failed: %s", err)
+	var conf importer.Config
+	if _, err := conf.FromArgs(allPackages()); err != nil {
+		t.Errorf("FromArgs failed: %s", err)
 		return
+	}
+
+	iprog, err := conf.Load()
+	if err != nil {
+		t.Errorf("Load failed: %s", err)
 	}
 
 	t1 := time.Now()
@@ -69,15 +71,11 @@ func TestStdlib(t *testing.T) {
 	alloc := memstats.Alloc
 
 	// Create SSA packages.
-	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	if err := prog.CreatePackages(imp); err != nil {
-		t.Errorf("CreatePackages failed: %s", err)
-		return
-	}
-	// Enable debug mode globally.
-	for _, info := range imp.AllPackages() {
-		prog.Package(info.Pkg).SetDebugMode(debugMode)
-	}
+	var mode ssa.BuilderMode
+	// Comment out these lines during benchmarking.  Approx SSA build costs are noted.
+	mode |= ssa.SanityCheckFunctions // + 2% space, + 4% time
+	mode |= ssa.GlobalDebug          // +30% space, +18% time
+	prog := ssa.Create(iprog, mode)
 
 	t2 := time.Now()
 
@@ -105,7 +103,7 @@ func TestStdlib(t *testing.T) {
 
 	// determine line count
 	var lineCount int
-	imp.Fset.Iterate(func(f *token.File) bool {
+	prog.Fset.Iterate(func(f *token.File) bool {
 		lineCount += f.LineCount()
 		return true
 	})

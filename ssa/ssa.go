@@ -1170,7 +1170,8 @@ type MapUpdate struct {
 // For non-Ident expressions, Object() returns nil.
 //
 // DebugRefs are generated only for functions built with debugging
-// enabled; see Package.SetDebugMode().
+// enabled; see Package.SetDebugMode() and the GlobalDebug builder
+// mode flag.
 //
 // DebugRefs are not emitted for ast.Idents referring to constants or
 // predeclared identifiers, since they are trivial and numerous.
@@ -1240,7 +1241,7 @@ type anInstruction struct {
 //    (b) a *MakeClosure, indicating an immediately applied
 //        function literal with free variables.
 //    (c) a *Builtin, indicating a statically dispatched call
-//        to a built-in function.  StaticCallee returns nil.
+//        to a built-in function.
 //    (d) any other value, indicating a dynamically dispatched
 //        function call.
 // StaticCallee returns the identity of the callee in cases

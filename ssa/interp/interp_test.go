@@ -168,15 +168,15 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 		inputs = append(inputs, dir+i)
 	}
 
-	imp := importer.New(&importer.Config{SourceImports: true})
-	// TODO(adonovan): use LoadInitialPackages, then un-export ParseFiles.
-	// Then add the following packages' tests, which pass:
+	conf := importer.Config{SourceImports: true}
+	// TODO(adonovan): add the following packages' tests, which pass:
 	// "flag", "unicode", "unicode/utf8", "testing", "log", "path".
-	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
-	if err != nil {
-		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
+	if err := conf.CreateFromFilenames(inputs...); err != nil {
+		t.Errorf("CreateFromFilenames(%s) failed: %s", inputs, err)
 		return false
 	}
+
+	conf.Import("runtime")
 
 	// Print a helpful hint if we don't make it to the end.
 	var hint string
@@ -192,20 +192,17 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	}()
 
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build code.google.com/p/go.tools/cmd/ssadump && ./ssadump -build=CFP %s\n", input)
-	mainInfo := imp.CreatePackage(files[0].Name.Name, files...)
 
-	if _, err := imp.ImportPackage("runtime"); err != nil {
-		t.Errorf("ImportPackage(runtime) failed: %s", err)
-	}
-
-	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	if err := prog.CreatePackages(imp); err != nil {
-		t.Errorf("CreatePackages failed: %s", err)
+	iprog, err := conf.Load()
+	if err != nil {
+		t.Errorf("conf.Load(%s) failed: %s", inputs, err)
 		return false
 	}
+
+	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
 	prog.BuildAll()
 
-	mainPkg := prog.Package(mainInfo.Pkg)
+	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	if mainPkg.Func("main") == nil {
 		testmainPkg := prog.CreateTestMainPackage(mainPkg)
 		if testmainPkg == nil {
@@ -321,17 +318,16 @@ func TestTestmainPackage(t *testing.T) {
 
 // CreateTestMainPackage should return nil if there were no tests.
 func TestNullTestmainPackage(t *testing.T) {
-	imp := importer.New(&importer.Config{})
-	files, err := importer.ParseFiles(imp.Fset, ".", "testdata/b_test.go")
-	if err != nil {
-		t.Fatalf("ParseFiles failed: %s", err)
+	var conf importer.Config
+	if err := conf.CreateFromFilenames("testdata/b_test.go"); err != nil {
+		t.Fatalf("ParseFile failed: %s", err)
 	}
-	mainInfo := imp.CreatePackage("b", files...)
-	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	if err := prog.CreatePackages(imp); err != nil {
+	iprog, err := conf.Load()
+	if err != nil {
 		t.Fatalf("CreatePackages failed: %s", err)
 	}
-	mainPkg := prog.Package(mainInfo.Pkg)
+	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	if mainPkg.Func("main") != nil {
 		t.Fatalf("unexpected main function")
 	}

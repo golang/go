@@ -5,7 +5,6 @@
 package ssa_test
 
 import (
-	"go/parser"
 	"reflect"
 	"sort"
 	"strings"
@@ -40,22 +39,24 @@ func main() {
         w.Write(nil)    // interface invoke of external declared method
 }
 `
-	imp := importer.New(&importer.Config{})
 
-	f, err := parser.ParseFile(imp.Fset, "<input>", test, 0)
+	// Create a single-file main package.
+	var conf importer.Config
+	f, err := conf.ParseFile("<input>", test, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	conf.CreateFromFiles(f)
+
+	iprog, err := conf.Load()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	mainInfo := imp.CreatePackage("main", f)
-
-	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	if err := prog.CreatePackages(imp); err != nil {
-		t.Error(err)
-		return
-	}
-	mainPkg := prog.Package(mainInfo.Pkg)
+	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	mainPkg.Build()
 
 	// The main package, its direct and indirect dependencies are loaded.
@@ -204,21 +205,22 @@ func TestTypesWithMethodSets(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		imp := importer.New(&importer.Config{})
-
-		f, err := parser.ParseFile(imp.Fset, "<input>", test.input, 0)
+		// Create a single-file main package.
+		var conf importer.Config
+		f, err := conf.ParseFile("<input>", test.input, 0)
 		if err != nil {
 			t.Errorf("test %d: %s", i, err)
 			continue
 		}
+		conf.CreateFromFiles(f)
 
-		mainInfo := imp.CreatePackage("p", f)
-		prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-		if err := prog.CreatePackages(imp); err != nil {
-			t.Errorf("test %d: %s", i, err)
+		iprog, err := conf.Load()
+		if err != nil {
+			t.Errorf("test %d: Load: %s", i, err)
 			continue
 		}
-		mainPkg := prog.Package(mainInfo.Pkg)
+		prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+		mainPkg := prog.Package(iprog.Created[0].Pkg)
 		prog.BuildAll()
 
 		var typstrs []string

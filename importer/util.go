@@ -8,12 +8,12 @@ package importer
 // and used by it.
 
 import (
+	"fmt"
 	"go/ast"
 	"go/build"
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"strconv"
 	"sync"
 )
 
@@ -55,13 +55,13 @@ func parsePackageFiles(ctxt *build.Context, fset *token.FileSet, path string, wh
 		}
 		filenames = append(filenames, s...)
 	}
-	return ParseFiles(fset, bp.Dir, filenames...)
+	return parseFiles(fset, bp.Dir, filenames...)
 }
 
-// ParseFiles parses the Go source files files within directory dir
+// parseFiles parses the Go source files files within directory dir
 // and returns their ASTs, or the first parse error if any.
 //
-func ParseFiles(fset *token.FileSet, dir string, files ...string) ([]*ast.File, error) {
+func parseFiles(fset *token.FileSet, dir string, files ...string) ([]*ast.File, error) {
 	var wg sync.WaitGroup
 	n := len(files)
 	parsed := make([]*ast.File, n, n)
@@ -104,26 +104,32 @@ func unreachable() {
 	panic("unreachable")
 }
 
-// importsOf returns the set of paths imported by the specified files.
-func importsOf(p string, files []*ast.File) map[string]bool {
-	imports := make(map[string]bool)
-outer:
-	for _, file := range files {
-		for _, decl := range file.Decls {
-			if decl, ok := decl.(*ast.GenDecl); ok {
-				if decl.Tok != token.IMPORT {
-					break outer // stop at the first non-import
-				}
-				for _, spec := range decl.Specs {
-					spec := spec.(*ast.ImportSpec)
-					if path, _ := strconv.Unquote(spec.Path.Value); path != "C" {
-						imports[path] = true
-					}
-				}
-			} else {
-				break outer // stop at the first non-import
-			}
-		}
+func packageName(files []*ast.File, fset *token.FileSet) (string, error) {
+	if len(files) == 0 {
+		return "", fmt.Errorf("no files in package")
 	}
-	return imports
+	// Take the package name from the 'package decl' in each file,
+	// all of which must match.
+	pkgname := files[0].Name.Name
+	for _, file := range files[1:] {
+		if pn := file.Name.Name; pn != pkgname {
+			err := fmt.Errorf("can't load package: found packages %s (%s) and %s (%s)",
+				pkgname, filename(files[0], fset),
+				pn, filename(file, fset))
+			return "", err
+		}
+		// TODO(adonovan): check dirnames are equal, like 'go build' does.
+	}
+	return pkgname, nil
+}
+
+// TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
+func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
+	p := int(pos)
+	base := f.Base()
+	return base <= p && p < base+f.Size()
+}
+
+func filename(file *ast.File, fset *token.FileSet) string {
+	return fset.File(file.Pos()).Name()
 }

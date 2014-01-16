@@ -23,17 +23,11 @@
 // primitives in the future to facilitate constant-time dispatch of
 // switch statements, for example.
 //
-// Builder encapsulates the tasks of type-checking (using go/types)
-// abstract syntax trees (as defined by go/ast) for the source files
-// comprising a Go program, and the conversion of each function from
-// Go ASTs to the SSA representation.
-//
-// By supplying an instance of the SourceLocator function prototype,
-// clients may control how the builder locates, loads and parses Go
-// sources files for imported packages.  This package provides
-// MakeGoBuildLoader, which creates a loader that uses go/build to
-// locate packages in the Go source distribution, and go/parser to
-// parse them.
+// To construct an SSA-form program, call ssa.Create on an
+// importer.Program, a set of type-checked packages created from
+// parsed Go source files.  The resulting ssa.Program contains all the
+// packages and their members, but SSA code is not created for
+// function bodies until a subsequent call to (*Package).Build.
 //
 // The builder initially builds a naive SSA form in which all local
 // variables are addresses of stack locations with explicit loads and

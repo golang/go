@@ -48,7 +48,7 @@ Examples:
 % ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
 % ssadump -run -interp=T hello.go     # interpret a program, with tracing
 % ssadump -run unicode -- -test.v     # interpret the unicode package's tests, verbosely
-` + importer.InitialPackagesUsage +
+` + importer.FromArgsUsage +
 	`
 When -run is specified, ssadump will find the first package that
 defines a main function and run it in the interpreter.
@@ -73,28 +73,27 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Config{
+	conf := importer.Config{
 		Build:         &build.Default,
 		SourceImports: true,
 	}
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.
 	var wordSize int64 = 8
-	switch impctx.Build.GOARCH {
+	switch conf.Build.GOARCH {
 	case "386", "arm":
 		wordSize = 4
 	}
-	impctx.TypeChecker.Sizes = &types.StdSizes{
+	conf.TypeChecker.Sizes = &types.StdSizes{
 		MaxAlign: 8,
 		WordSize: wordSize,
 	}
 
-	var debugMode bool
 	var mode ssa.BuilderMode
 	for _, c := range *buildFlag {
 		switch c {
 		case 'D':
-			debugMode = true
+			mode |= ssa.GlobalDebug
 		case 'P':
 			mode |= ssa.LogPackages | ssa.BuildSerially
 		case 'F':
@@ -106,7 +105,7 @@ func main() {
 		case 'N':
 			mode |= ssa.NaiveForm
 		case 'G':
-			impctx.SourceImports = false
+			conf.SourceImports = false
 		case 'L':
 			mode |= ssa.BuildSerially
 		default:
@@ -141,59 +140,52 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// Load, parse and type-check the program.
-	imp := importer.New(&impctx)
-	infos, args, err := imp.LoadInitialPackages(args)
+	// Use the initial packages from the command line.
+	args, err := conf.FromArgs(args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// The interpreter needs the runtime package.
 	if *runFlag {
-		if _, err := imp.ImportPackage("runtime"); err != nil {
-			log.Fatalf("ImportPackage(runtime) failed: %s", err)
-		}
+		conf.Import("runtime")
 	}
 
-	// Create and build SSA-form program representation.
-	prog := ssa.NewProgram(imp.Fset, mode)
-	if err := prog.CreatePackages(imp); err != nil {
+	// Load, parse and type-check the whole program.
+	iprog, err := conf.Load()
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	if debugMode {
-		for _, pkg := range prog.AllPackages() {
-			pkg.SetDebugMode(true)
-		}
-	}
+	// Create and build SSA-form program representation.
+	prog := ssa.Create(iprog, mode)
 	prog.BuildAll()
 
 	// Run the interpreter.
 	if *runFlag {
-		// If some package defines main, run that.
-		// Otherwise run all package's tests.
+		// If a package named "main" defines func main, run that.
+		// Otherwise run all packages' tests.
 		var main *ssa.Package
-		var pkgs []*ssa.Package
-		for _, info := range infos {
-			pkg := prog.Package(info.Pkg)
-			if pkg.Func("main") != nil {
+		pkgs := prog.AllPackages()
+		for _, pkg := range pkgs {
+			if pkg.Object.Name() == "main" && pkg.Func("main") != nil {
 				main = pkg
 				break
 			}
-			pkgs = append(pkgs, pkg)
 		}
-		if main == nil && pkgs != nil {
+		if main == nil && len(pkgs) > 0 {
+			// TODO(adonovan): only run tests if -test flag specified.
 			main = prog.CreateTestMainPackage(pkgs...)
 		}
 		if main == nil {
 			log.Fatal("No main package and no tests")
 		}
 
-		if runtime.GOARCH != impctx.Build.GOARCH {
+		if runtime.GOARCH != conf.Build.GOARCH {
 			log.Fatalf("Cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s).",
-				impctx.Build.GOARCH, runtime.GOARCH)
+				conf.Build.GOARCH, runtime.GOARCH)
 		}
 
-		interp.Interpret(main, interpMode, impctx.TypeChecker.Sizes, main.Object.Path(), args)
+		interp.Interpret(main, interpMode, conf.TypeChecker.Sizes, main.Object.Path(), args)
 	}
 }

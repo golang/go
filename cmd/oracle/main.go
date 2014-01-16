@@ -74,7 +74,7 @@ Describe the syntax at offset 530 in this file (an import spec):
 
 Print the callgraph of the trivial web-server in JSON format:
 % oracle -format=json src/pkg/net/http/triv.go callgraph
-` + importer.InitialPackagesUsage
+` + importer.FromArgsUsage
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 

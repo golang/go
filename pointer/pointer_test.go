@@ -151,30 +151,28 @@ func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]pointer.Pointer, e 
 }
 
 func doOneInput(input, filename string) bool {
-	impctx := &importer.Config{SourceImports: true}
-	imp := importer.New(impctx)
+	conf := importer.Config{SourceImports: true}
 
 	// Parsing.
-	f, err := parser.ParseFile(imp.Fset, filename, input, 0)
+	f, err := conf.ParseFile(filename, input, 0)
 	if err != nil {
-		// TODO(adonovan): err is a scanner error list;
-		// display all errors not just first?
 		fmt.Println(err)
 		return false
 	}
 
 	// Create single-file main package and import its dependencies.
-	info := imp.CreatePackage("main", f)
-
-	// SSA creation + building.
-	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
-	if err := prog.CreatePackages(imp); err != nil {
+	conf.CreateFromFiles(f)
+	iprog, err := conf.Load()
+	if err != nil {
 		fmt.Println(err)
 		return false
 	}
+
+	// SSA creation + building.
+	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
 	prog.BuildAll()
 
-	mainpkg := prog.Package(info.Pkg)
+	mainpkg := prog.Package(iprog.Created[0].Pkg)
 	ptrmain := mainpkg // main package for the pointer analysis
 	if mainpkg.Func("main") == nil {
 		// No main function; assume it's a test.
@@ -228,7 +226,7 @@ func doOneInput(input, filename string) bool {
 							continue
 						}
 						mainFileScope := mainpkg.Object.Scope().Child(0)
-						t, _, err = types.EvalNode(imp.Fset, texpr, mainpkg.Object, mainFileScope)
+						t, _, err = types.EvalNode(prog.Fset, texpr, mainpkg.Object, mainFileScope)
 						if err != nil {
 							ok = false
 							// Don't print err since its location is bad.

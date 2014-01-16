@@ -6,7 +6,6 @@ package pointer_test
 
 import (
 	"fmt"
-	"go/parser"
 	"sort"
 
 	"code.google.com/p/go.tools/call"
@@ -40,26 +39,27 @@ func main() {
 }
 `
 	// Construct an importer.
-	imp := importer.New(&importer.Config{SourceImports: true})
+	conf := importer.Config{SourceImports: true}
 
 	// Parse the input file.
-	file, err := parser.ParseFile(imp.Fset, "myprog.go", myprog, 0)
+	file, err := conf.ParseFile("myprog.go", myprog, 0)
 	if err != nil {
 		fmt.Print(err) // parse error
 		return
 	}
 
 	// Create single-file main package and import its dependencies.
-	mainInfo := imp.CreatePackage("main", file)
+	conf.CreateFromFiles(file)
 
-	// Create SSA-form program representation.
-	var mode ssa.BuilderMode
-	prog := ssa.NewProgram(imp.Fset, mode)
-	if err := prog.CreatePackages(imp); err != nil {
+	iprog, err := conf.Load()
+	if err != nil {
 		fmt.Print(err) // type error in some package
 		return
 	}
-	mainPkg := prog.Package(mainInfo.Pkg)
+
+	// Create SSA-form program representation.
+	prog := ssa.Create(iprog, 0)
+	mainPkg := prog.Package(iprog.Created[0].Pkg)
 
 	// Build SSA code for bodies of all functions in the whole program.
 	prog.BuildAll()
