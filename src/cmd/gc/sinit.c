@@ -359,6 +359,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
 					// copying someone else's computation.
 					rr = nod(OXXX, N, N);
 					*rr = *orig;
+					rr->orig = rr; // completely separate copy
 					rr->type = ll->type;
 					rr->xoffset += e->xoffset;
 					*out = list(*out, nod(OAS, ll, rr));
