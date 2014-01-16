@@ -127,6 +127,7 @@ func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
 		for callee := range call.CalleesOf(n) {
 			j.Children = append(j.Children, numbering[callee])
 		}
+		sort.Ints(j.Children)
 	}
 	res.Callgraph = cg
 }

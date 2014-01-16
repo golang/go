@@ -211,8 +211,7 @@ func TestOracle(t *testing.T) {
 		"testdata/src/main/what.go",
 		// JSON:
 		// TODO(adonovan): most of these are very similar; combine them.
-		// TODO(adonovan): enable this test once it works again.
-		//"testdata/src/main/callgraph-json.go",
+		"testdata/src/main/callgraph-json.go",
 		"testdata/src/main/calls-json.go",
 		"testdata/src/main/peers-json.go",
 		"testdata/src/main/describe-json.go",
