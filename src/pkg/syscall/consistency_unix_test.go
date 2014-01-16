@@ -32,3 +32,13 @@ func _() {
 		_ int = syscall.TCOFLUSH
 	)
 }
+
+func _() {
+	_ = syscall.Flock_t{
+		Type:   int16(0),
+		Whence: int16(0),
+		Start:  0,
+		Len:    0,
+		Pid:    int32(0),
+	}
+}

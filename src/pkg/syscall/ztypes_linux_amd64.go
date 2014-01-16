@@ -142,6 +142,16 @@ type Fsid struct {
 	X__val [2]int32
 }
 
+type Flock_t struct {
+	Type      int16
+	Whence    int16
+	Pad_cgo_0 [4]byte
+	Start     int64
+	Len       int64
+	Pid       int32
+	Pad_cgo_1 [4]byte
+}
+
 type RawSockaddrInet4 struct {
 	Family uint16
 	Port   uint16
