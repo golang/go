@@ -82,13 +82,33 @@ func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
 	return offsets
 }
 
+var basicSizes = [...]byte{
+	Bool:       1,
+	Int8:       1,
+	Int16:      2,
+	Int32:      4,
+	Int64:      8,
+	Uint8:      1,
+	Uint16:     2,
+	Uint32:     4,
+	Uint64:     8,
+	Float32:    4,
+	Float64:    8,
+	Complex64:  8,
+	Complex128: 16,
+}
+
 func (s *StdSizes) Sizeof(T Type) int64 {
 	switch t := T.Underlying().(type) {
 	case *Basic:
-		if z := t.size; z > 0 {
-			return z
+		assert(isTyped(T))
+		k := t.kind
+		if int(k) < len(basicSizes) {
+			if s := basicSizes[k]; s > 0 {
+				return int64(s)
+			}
 		}
-		if t.kind == String {
+		if k == String {
 			return s.WordSize * 2
 		}
 	case *Array:

@@ -83,7 +83,6 @@ const (
 type Basic struct {
 	kind BasicKind
 	info BasicInfo
-	size int64 // use DefaultSizeof to get size
 	name string
 }
 
