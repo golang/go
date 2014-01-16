@@ -46,7 +46,7 @@ func TestLoadFromArgs(t *testing.T) {
 		return
 	}
 	if got, want := fmt.Sprint(rest), "[surplus]"; got != want {
-		t.Errorf("loadFromArgs(%q) rest: got %s, want %s", got, want)
+		t.Errorf("loadFromArgs(%q) rest: got %s, want %s", args, got, want)
 	}
 	// Check list of Created packages.
 	var pkgnames []string
