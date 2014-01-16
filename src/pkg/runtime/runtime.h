@@ -268,6 +268,7 @@ struct	G
 	void*	param;		// passed parameter on wakeup
 	int16	status;
 	int64	goid;
+	int64	waitsince;	// approx time when the G become blocked
 	int8*	waitreason;	// if status==Gwaiting
 	G*	schedlink;
 	bool	ispanic;

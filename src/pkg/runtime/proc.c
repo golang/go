@@ -237,6 +237,7 @@ void
 runtime·goroutineheader(G *gp)
 {
 	int8 *status;
+	int64 waitfor;
 
 	switch(gp->status) {
 	case Gidle:
@@ -261,7 +262,16 @@ runtime·goroutineheader(G *gp)
 		status = "???";
 		break;
 	}
-	runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
+
+	// approx time the G is blocked, in minutes
+	waitfor = 0;
+	if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince != 0)
+		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
+
+	if(waitfor < 1)
+		runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
+	else
+		runtime·printf("goroutine %D [%s, %D minutes]:\n", gp->goid, status, waitfor);
 }
 
 void
@@ -1112,6 +1122,7 @@ execute(G *gp)
 		runtime·throw("execute: bad g status");
 	}
 	gp->status = Grunning;
+	gp->waitsince = 0;
 	gp->preempt = false;
 	gp->stackguard0 = gp->stackguard;
 	m->p->schedtick++;
@@ -1535,6 +1546,7 @@ runtime·exitsyscall(void)
 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
 		incidlelocked(-1);
 
+	g->waitsince = 0;
 	if(exitsyscallfast()) {
 		// There's a cpu for us, so we can run.
 		m->p->syscalltick++;
