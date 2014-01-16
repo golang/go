@@ -135,6 +135,18 @@ bvor(Bvec *dst, Bvec *src1, Bvec *src2)
 		dst->b[w] = src1->b[w] | src2->b[w];
 }
 
+/* intersection */
+void
+bvand(Bvec *dst, Bvec *src1, Bvec *src2)
+{
+	int32 i, w;
+
+	if(dst->n != src1->n || dst->n != src2->n)
+		fatal("bvor: lengths %d, %d, and %d are not equal", dst->n, src1->n, src2->n);
+	for(i = 0, w = 0; i < dst->n; i += WORDBITS, w++)
+		dst->b[w] = src1->b[w] & src2->b[w];
+}
+
 void
 bvprint(Bvec *bv)
 {

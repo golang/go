@@ -2,6 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Garbage collector liveness bitmap generation.
+
+// The command line flag -live causes this code to print debug information.
+// The levels are:
+//
+//	-live (aka -live=1): print liveness lists as code warnings at safe points
+//	-live=2: print an assembly listing with liveness annotations
+//	-live=3: print information during each computation phase (much chattier)
+//
+// Each level includes the earlier output as well.
+
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
@@ -73,28 +84,47 @@ struct Liveness {
 	Array *vars;
 
 	// A list of basic blocks that are overlayed on the instruction list.
+	// The blocks are roughly in the same order as the instructions
+	// in the function (first block has TEXT instruction, and so on).
 	Array *cfg;
 
-	// Summary sets of block effects.  The upward exposed variables and
-	// variables killed sets are computed during the dataflow prologue.  The
-	// live in and live out are solved for and serialized in the epilogue.
+	// Summary sets of block effects.
+	// The Bvec** is indexed by bb->rpo to yield a single Bvec*.
+	// That bit vector is indexed by variable number (same as lv->vars).
+	//
+	// Computed during livenessprologue using only the content of
+	// individual blocks:
+	//
+	//	uevar: upward exposed variables (used before set in block)
+	//	varkill: killed variables (set in block)
+	//	avarinit: addrtaken variables set or used (proof of initialization)
+	//
+	// Computed during livenesssolve using control flow information:
+	//
+	//	livein: variables live at block entry
+	//	liveout: variables live at block exit
+	//	avarinitany: addrtaken variables possibly initialized at block exit
+	//		(initialized in block or at exit from any predecessor block)
+	//	avarinitall: addrtaken variables certainly initialized at block exit
+	//		(initialized in block or at exit from all predecessor blocks)
 	Bvec **uevar;
 	Bvec **varkill;
 	Bvec **livein;
 	Bvec **liveout;
+	Bvec **avarinit;
+	Bvec **avarinitany;
+	Bvec **avarinitall;
 
 	// An array with a bit vector for each safe point tracking live pointers
-	// in the arguments and locals area.
+	// in the arguments and locals area, indexed by bb->rpo.
 	Array *argslivepointers;
 	Array *livepointers;
 
 	// An array with a bit vector for each safe point tracking dead values
-	// pointers in the arguments and locals area.
+	// pointers in the arguments and locals area, indexed by bb->rpo.
 	Array *argsdeadvalues;
 	Array *deadvalues;
 };
-
-static int printnoise = 0;
 
 static void*
 xmalloc(uintptr size)
@@ -600,10 +630,20 @@ isfunny(Node *node)
 	return 0;
 }
 
-// Computes the upward exposure and kill effects of an instruction on a set of
+// Computes the effects of an instruction on a set of
 // variables.  The vars argument is an array of Node*s.
+//
+// The output vectors give bits for variables:
+//	uevar - used by this instruction
+//	varkill - set by this instruction
+//	avarinit - initialized or referred to by this instruction,
+//		only for variables with address taken but not escaping to heap
+//
+// The avarinit output serves as a signal that the data has been
+// initialized, because any use of a variable must come after its
+// initialization.
 static void
-progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
+progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 {
 	ProgInfo info;
 	Adr *from;
@@ -614,6 +654,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 
 	bvresetall(uevar);
 	bvresetall(varkill);
+	bvresetall(avarinit);
+
 	proginfo(&info, prog);
 	if(prog->as == ARET) {
 		// Return instructions implicitly read all the arguments.  For
@@ -626,13 +668,6 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 			case PPARAMOUT:
 				bvset(uevar, i);
 				break;
-			case PAUTO:
-				// Because the lifetime of stack variables
-				// that have their address taken is undecidable,
-				// we conservatively assume their lifetime
-				// extends to the return as well.
-				if(isfat(node->type) || node->addrtaken)
-					bvset(uevar, i);
 			}
 		}
 		return;
@@ -659,6 +694,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill)
 				pos = arrayindexof(vars, from->node);
 				if(pos == -1)
 					goto Next;
+				if(from->node->addrtaken)
+					bvset(avarinit, pos);
 				if(info.flags & (LeftRead | LeftAddr))
 					bvset(uevar, pos);
 				if(info.flags & LeftWrite)
@@ -678,6 +715,8 @@ Next:
 				pos = arrayindexof(vars, to->node);
 				if(pos == -1)
 					goto Next1;
+				if(to->node->addrtaken)
+					bvset(avarinit, pos);
 				if(info.flags & (RightRead | RightAddr))
 					bvset(uevar, pos);
 				if(info.flags & RightWrite)
@@ -711,6 +750,9 @@ newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars, int computedead)
 	result->varkill = xmalloc(sizeof(Bvec*) * nblocks);
 	result->livein = xmalloc(sizeof(Bvec*) * nblocks);
 	result->liveout = xmalloc(sizeof(Bvec*) * nblocks);
+	result->avarinit = xmalloc(sizeof(Bvec*) * nblocks);
+	result->avarinitany = xmalloc(sizeof(Bvec*) * nblocks);
+	result->avarinitall = xmalloc(sizeof(Bvec*) * nblocks);
 
 	nvars = arraylength(vars);
 	for(i = 0; i < nblocks; i++) {
@@ -718,6 +760,9 @@ newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars, int computedead)
 		result->varkill[i] = bvalloc(nvars);
 		result->livein[i] = bvalloc(nvars);
 		result->liveout[i] = bvalloc(nvars);
+		result->avarinit[i] = bvalloc(nvars);
+		result->avarinitany[i] = bvalloc(nvars);
+		result->avarinitall[i] = bvalloc(nvars);
 	}
 
 	result->livepointers = arraynew(0, sizeof(Bvec*));
@@ -764,24 +809,32 @@ freeliveness(Liveness *lv)
 		free(lv->varkill[i]);
 		free(lv->livein[i]);
 		free(lv->liveout[i]);
+		free(lv->avarinit[i]);
+		free(lv->avarinitany[i]);
+		free(lv->avarinitall[i]);
 	}
 
 	free(lv->uevar);
 	free(lv->varkill);
 	free(lv->livein);
 	free(lv->liveout);
+	free(lv->avarinit);
+	free(lv->avarinitany);
+	free(lv->avarinitall);
 
 	free(lv);
 }
 
 static void
-printeffects(Prog *p, Bvec *uevar, Bvec *varkill)
+printeffects(Prog *p, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 {
 	print("effects of %P", p);
 	print("\nuevar: ");
 	bvprint(uevar);
 	print("\nvarkill: ");
 	bvprint(varkill);
+	print("\navarinit: ");
+	bvprint(avarinit);
 	print("\n");
 }
 
@@ -844,6 +897,9 @@ livenessprintblock(Liveness *lv, BasicBlock *bb)
 	printvars("\tvarkill", lv->varkill[bb->rpo], lv->vars);
 	printvars("\tlivein", lv->livein[bb->rpo], lv->vars);
 	printvars("\tliveout", lv->liveout[bb->rpo], lv->vars);
+	printvars("\tavarinit", lv->avarinit[bb->rpo], lv->vars);
+	printvars("\tavarinitany", lv->avarinitany[bb->rpo], lv->vars);
+	printvars("\tavarinitall", lv->avarinitall[bb->rpo], lv->vars);
 
 	print("\tprog:\n");
 	for(prog = bb->first;; prog = prog->link) {
@@ -1118,10 +1174,11 @@ twobitlivepointermap(Liveness *lv, Bvec *liveout, Array *vars, Bvec *args, Bvec 
 			break;
 		}
 	}
-	// In various and obscure circumstances, such as methods with an unused
-	// receiver, the this argument and in arguments are omitted from the
-	// node list.  We must explicitly preserve these values to ensure that
-	// the addresses printed in backtraces are valid.
+	
+	// The node list only contains declared names.
+	// If the receiver or arguments are unnamed, they will be omitted
+	// from the list above. Preserve those values - even though they are unused -
+	// in order to keep their addresses live for use in stack traces.
 	thisargtype = getthisx(lv->fn->type);
 	if(thisargtype != nil) {
 		xoffset = 0;
@@ -1199,8 +1256,7 @@ unlinkedprog(int as)
 static Prog*
 newpcdataprog(Prog *prog, int32 index)
 {
-	Node from;
-	Node to;
+	Node from, to;
 	Prog *pcdata;
 
 	nodconst(&from, types[TINT32], PCDATA_StackMapIndex);
@@ -1227,8 +1283,7 @@ static void
 livenessprologue(Liveness *lv)
 {
 	BasicBlock *bb;
-	Bvec *uevar;
-	Bvec *varkill;
+	Bvec *uevar, *varkill, *avarinit;
 	Prog *prog;
 	int32 i;
 	int32 nvars;
@@ -1236,39 +1291,86 @@ livenessprologue(Liveness *lv)
 	nvars = arraylength(lv->vars);
 	uevar = bvalloc(nvars);
 	varkill = bvalloc(nvars);
+	avarinit = bvalloc(nvars);
 	for(i = 0; i < arraylength(lv->cfg); i++) {
 		bb = *(BasicBlock**)arrayget(lv->cfg, i);
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
 		for(prog = bb->last; prog != nil; prog = prog->opt) {
-			progeffects(prog, lv->vars, uevar, varkill);
-			if(0) printeffects(prog, uevar, varkill);
+			progeffects(prog, lv->vars, uevar, varkill, avarinit);
+			if(debuglive >= 3)
+				printeffects(prog, uevar, varkill, avarinit);
 			bvor(lv->varkill[i], lv->varkill[i], varkill);
 			bvandnot(lv->uevar[i], lv->uevar[i], varkill);
-			bvor(lv->uevar[i], lv->uevar[i], uevar);
+			bvor(lv->uevar[i], lv->uevar[i], uevar);			
+			bvor(lv->avarinit[i], lv->avarinit[i], avarinit);
 		}
 	}
 	free(uevar);
 	free(varkill);
+	free(avarinit);
 }
 
 // Solve the liveness dataflow equations.
 static void
 livenesssolve(Liveness *lv)
 {
-	BasicBlock *bb;
-	BasicBlock *succ;
-	Bvec *newlivein;
-	Bvec *newliveout;
-	int32 rpo;
-	int32 i;
-	int32 j;
-	int change;
+	BasicBlock *bb, *succ, *pred;
+	Bvec *newlivein, *newliveout, *any, *all;
+	int32 rpo, i, j, change;
 
 	// These temporary bitvectors exist to avoid successive allocations and
 	// frees within the loop.
 	newlivein = bvalloc(arraylength(lv->vars));
 	newliveout = bvalloc(arraylength(lv->vars));
+	any = bvalloc(arraylength(lv->vars));
+	all = bvalloc(arraylength(lv->vars));
+
+	// Push avarinitall, avarinitany forward.
+	// avarinitall says the addressed var is initialized along all paths reaching the block exit.
+	// avarinitany says the addressed var is initialized along some path reaching the block exit.
+	for(i = 0; i < arraylength(lv->cfg); i++) {
+		bb = *(BasicBlock**)arrayget(lv->cfg, i);
+		rpo = bb->rpo;
+		if(i == 0)
+			bvcopy(lv->avarinitall[rpo], lv->avarinit[rpo]);
+		else {
+			bvresetall(lv->avarinitall[rpo]);
+			bvnot(lv->avarinitall[rpo]);
+		}
+		bvcopy(lv->avarinitany[rpo], lv->avarinit[rpo]);
+	}
+
+	change = 1;
+	while(change != 0) {
+		change = 0;
+		for(i = 0; i < arraylength(lv->cfg); i++) {
+			bb = *(BasicBlock**)arrayget(lv->cfg, i);
+			rpo = bb->rpo;
+			bvresetall(any);
+			bvresetall(all);
+			for(j = 0; j < arraylength(bb->pred); j++) {
+				pred = *(BasicBlock**)arrayget(bb->pred, j);
+				if(j == 0) {
+					bvcopy(any, lv->avarinitany[pred->rpo]);
+					bvcopy(all, lv->avarinitall[pred->rpo]);
+				} else {
+					bvor(any, any, lv->avarinitany[pred->rpo]);
+					bvand(all, all, lv->avarinitall[pred->rpo]);
+				}
+			}
+			bvor(any, any, lv->avarinit[rpo]);
+			bvor(all, all, lv->avarinit[rpo]);
+			if(bvcmp(any, lv->avarinitany[rpo])) {
+				change = 1;
+				bvcopy(lv->avarinitany[rpo], any);
+			}
+			if(bvcmp(all, lv->avarinitall[rpo])) {
+				change = 1;
+				bvcopy(lv->avarinitall[rpo], all);
+			}
+		}
+	}
 
 	// Iterate through the blocks in reverse round-robin fashion.  A work
 	// queue might be slightly faster.  As is, the number of iterations is
@@ -1279,6 +1381,9 @@ livenesssolve(Liveness *lv)
 		// Walk blocks in the general direction of propagation.  This
 		// improves convergence.
 		for(i = arraylength(lv->cfg) - 1; i >= 0; i--) {
+			// A variable is live on output from this block
+			// if it is live on input to some successor.
+			//
 			// out[b] = \bigcup_{s \in succ[b]} in[s]
 			bb = *(BasicBlock**)arrayget(lv->cfg, i);
 			rpo = bb->rpo;
@@ -1291,6 +1396,11 @@ livenesssolve(Liveness *lv)
 				change = 1;
 				bvcopy(lv->liveout[rpo], newliveout);
 			}
+
+			// A variable is live on input to this block
+			// if it is live on output from this block and
+			// not set by the code in this block.
+			//
 			// in[b] = uevar[b] \cup (out[b] \setminus varkill[b])
 			bvandnot(newlivein, lv->liveout[rpo], lv->varkill[rpo]);
 			bvor(lv->livein[rpo], newlivein, lv->uevar[rpo]);
@@ -1299,6 +1409,31 @@ livenesssolve(Liveness *lv)
 
 	free(newlivein);
 	free(newliveout);
+	free(any);
+	free(all);
+}
+
+// This function is slow but it is only used for generating debug prints.
+// Check whether n is marked live in args/locals.
+static int
+islive(Node *n, Bvec *args, Bvec *locals)
+{
+	int i;
+
+	switch(n->class) {
+	case PPARAM:
+	case PPARAMOUT:
+		for(i = 0; i < n->type->width/widthptr*BitsPerPointer; i++)
+			if(bvget(args, n->xoffset/widthptr*BitsPerPointer + i))
+				return 1;
+		break;
+	case PAUTO:
+		for(i = 0; i < n->type->width/widthptr*BitsPerPointer; i++)
+			if(bvget(locals, (n->xoffset + stkptrsize)/widthptr*BitsPerPointer + i))
+				return 1;
+		break;
+	}
+	return 0;
 }
 
 // Visits all instructions in a basic block and computes a bit vector of live
@@ -1306,10 +1441,11 @@ livenesssolve(Liveness *lv)
 static void
 livenessepilogue(Liveness *lv)
 {
-	BasicBlock *bb;
-	Bvec *livein, *liveout, *uevar, *varkill, *args, *locals;
+	BasicBlock *bb, *pred;
+	Bvec *livein, *liveout, *uevar, *varkill, *args, *locals, *avarinit, *any, *all;
+	Node *n;
 	Prog *p, *next;
-	int32 i, j, nmsg, nvars, pos;
+	int32 i, j, numlive, startmsg, nmsg, nvars, pos;
 	char **msg;
 	Fmt fmt;
 
@@ -1318,38 +1454,97 @@ livenessepilogue(Liveness *lv)
 	liveout = bvalloc(nvars);
 	uevar = bvalloc(nvars);
 	varkill = bvalloc(nvars);
+	avarinit = bvalloc(nvars);
+	any = bvalloc(nvars);
+	all = bvalloc(nvars);
 	msg = nil;
 	nmsg = 0;
+	startmsg = 0;
 
 	for(i = 0; i < arraylength(lv->cfg); i++) {
 		bb = *(BasicBlock**)arrayget(lv->cfg, i);
-		bvcopy(livein, lv->liveout[bb->rpo]);
-		// Walk forward through the basic block instructions and
-		// allocate and empty map for those instructions that need them
-		for(p = bb->last; p != nil; p = p->opt) {
-			if(!issafepoint(p))
-				continue;
-
-			// Allocate a bit vector for each class and facet of
-			// value we are tracking.
-
-			// Live stuff first.
-			args = bvalloc(argswords() * BitsPerPointer);
-			arrayadd(lv->argslivepointers, &args);
-			locals = bvalloc(localswords() * BitsPerPointer);
-			arrayadd(lv->livepointers, &locals);
-
-			// Dead stuff second.
-			if(lv->deadvalues != nil) {
-				args = bvalloc(argswords() * BitsPerPointer);
-				arrayadd(lv->argsdeadvalues, &args);
-				locals = bvalloc(localswords() * BitsPerPointer);
-				arrayadd(lv->deadvalues, &locals);
+		
+		// Compute avarinitany and avarinitall for entry to block.
+		// This duplicates information known during livenesssolve
+		// but avoids storing two more vectors for each block.
+		bvresetall(any);
+		bvresetall(all);
+		for(j = 0; j < arraylength(bb->pred); j++) {
+			pred = *(BasicBlock**)arrayget(bb->pred, j);
+			if(j == 0) {
+				bvcopy(any, lv->avarinitany[pred->rpo]);
+				bvcopy(all, lv->avarinitall[pred->rpo]);
+			} else {
+				bvor(any, any, lv->avarinitany[pred->rpo]);
+				bvand(all, all, lv->avarinitall[pred->rpo]);
 			}
 		}
+
+		// Walk forward through the basic block instructions and
+		// allocate liveness maps for those instructions that need them.
+		// Seed the maps with information about the addrtaken variables.
+		for(p = bb->first;; p = p->link) {
+			progeffects(p, lv->vars, uevar, varkill, avarinit);
+			bvor(any, any, avarinit);
+			bvor(all, all, avarinit);
+
+			if(issafepoint(p)) {
+				if(debuglive >= 3) {
+					// Diagnose ambiguously live variables (any &^ all).
+					// livein and liveout are dead here and used as temporaries.
+					bvresetall(livein);
+					bvandnot(liveout, any, all);
+					if(bvcmp(livein, liveout) != 0) {
+						for(pos = 0; pos < liveout->n; pos++) {
+							if(bvget(liveout, pos)) {
+								n = *(Node**)arrayget(lv->vars, pos);
+								if(!n->diag && strncmp(n->sym->name, "autotmp_", 8) != 0) {
+									n->diag = 1;
+									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+								}
+							}
+							bvset(all, pos); // silence future warnings in this block
+						}
+					}
+				}
+
+				// Allocate a bit vector for each class and facet of
+				// value we are tracking.
+	
+				// Live stuff first.
+				args = bvalloc(argswords() * BitsPerPointer);
+				arrayadd(lv->argslivepointers, &args);
+				locals = bvalloc(localswords() * BitsPerPointer);
+				arrayadd(lv->livepointers, &locals);
+
+				if(debuglive >= 3) {
+					print("%P\n", p);
+					printvars("avarinitany", any, lv->vars);
+				}
+
+				// Record any values with an "address taken" reaching
+				// this code position as live. Must do now instead of below
+				// because the any/all calculation requires walking forward
+				// over the block (as this loop does), while the liveout
+				// requires walking backward (as the next loop does).
+				twobitlivepointermap(lv, any, lv->vars, args, locals);
+	
+				// Dead stuff second.
+				if(lv->deadvalues != nil) {
+					args = bvalloc(argswords() * BitsPerPointer);
+					arrayadd(lv->argsdeadvalues, &args);
+					locals = bvalloc(localswords() * BitsPerPointer);
+					arrayadd(lv->deadvalues, &locals);
+				}
+			}
+			
+			if(p == bb->last)
+				break;
+		}
 		
-		if(debuglive) {
+		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0) {
 			nmsg = arraylength(lv->livepointers);
+			startmsg = nmsg;
 			msg = xmalloc(nmsg*sizeof msg[0]);
 			for(j=0; j<nmsg; j++)
 				msg[j] = nil;
@@ -1363,14 +1558,15 @@ livenessepilogue(Liveness *lv)
 			fatal("livenessepilogue");
 		}
 
+		bvcopy(livein, lv->liveout[bb->rpo]);
 		for(p = bb->last; p != nil; p = next) {
 			next = p->opt; // splicebefore modifies p->opt
 			// Propagate liveness information
-			progeffects(p, lv->vars, uevar, varkill);
+			progeffects(p, lv->vars, uevar, varkill, avarinit);
 			bvcopy(liveout, livein);
 			bvandnot(livein, liveout, varkill);
 			bvor(livein, livein, uevar);
-			if(printnoise){
+			if(debuglive >= 3 && issafepoint(p)){
 				print("%P\n", p);
 				printvars("uevar", uevar, lv->vars);
 				printvars("varkill", varkill, lv->vars);
@@ -1381,24 +1577,36 @@ livenessepilogue(Liveness *lv)
 				// Found an interesting instruction, record the
 				// corresponding liveness information.  
 
-				if(debuglive) {
-					fmtstrinit(&fmt);
-					fmtprint(&fmt, "%L: live at ", p->lineno);
-					if(p->as == ACALL)
-						fmtprint(&fmt, "CALL %lS:", p->to.sym);
-					else
-						fmtprint(&fmt, "TEXT %lS:", p->from.sym);
-					for(j = 0; j < arraylength(lv->vars); j++)
-						if(bvget(liveout, j))
-							fmtprint(&fmt, " %N", *(Node**)arrayget(lv->vars, j));
-					fmtprint(&fmt, "\n");
-					msg[pos] = fmtstrflush(&fmt);
-				}
-
 				// Record live pointers.
 				args = *(Bvec**)arrayget(lv->argslivepointers, pos);
 				locals = *(Bvec**)arrayget(lv->livepointers, pos);
 				twobitlivepointermap(lv, liveout, lv->vars, args, locals);
+
+				// Show live pointer bitmaps.
+				// We're interpreting the args and locals bitmap instead of liveout so that we
+				// include the bits added by the avarinit logic in the
+				// previous loop.
+				if(debuglive >= 1) {
+					fmtstrinit(&fmt);
+					fmtprint(&fmt, "%L: live at ", p->lineno);
+					if(p->as == ACALL)
+						fmtprint(&fmt, "call to %s:", p->to.node->sym->name);
+					else
+						fmtprint(&fmt, "entry to %s:", p->from.node->sym->name);
+					numlive = 0;
+					for(j = 0; j < arraylength(lv->vars); j++) {
+						n = *(Node**)arrayget(lv->vars, j);
+						if(islive(n, args, locals)) {
+							fmtprint(&fmt, " %N", n);
+							numlive++;
+						}
+					}
+					fmtprint(&fmt, "\n");
+					if(numlive == 0) // squelch message
+						free(fmtstrflush(&fmt));
+					else
+						msg[--startmsg] = fmtstrflush(&fmt);
+				}
 
 				// Record dead values.
 				if(lv->deadvalues != nil) {
@@ -1411,17 +1619,12 @@ livenessepilogue(Liveness *lv)
 				// The TEXT instruction annotation is implicit.
 				if(p->as == ACALL) {
 					if(isdeferreturn(p)) {
-						// Because this runtime call
-						// modifies its return address
-						// to return back to itself,
-						// emitting a PCDATA before the
-						// call instruction will result
-						// in an off by one error during
-						// a stack walk.  Fortunately,
-						// the compiler inserts a no-op
-						// instruction before this call
-						// so we can reliably anchor the
-						// PCDATA to that instruction.
+						// runtime.deferreturn modifies its return address to return
+						// back to the CALL, not to the subsequent instruction.
+						// Because the return comes back one instruction early,
+						// the PCDATA must begin one instruction early too.
+						// The instruction before a call to deferreturn is always a
+						// no-op, to keep PC-specific data unambiguous.
 						splicebefore(lv, bb, newpcdataprog(p->opt, pos), p->opt);
 					} else {
 						splicebefore(lv, bb, newpcdataprog(p, pos), p);
@@ -1431,13 +1634,14 @@ livenessepilogue(Liveness *lv)
 				pos--;
 			}
 		}
-		if(debuglive) {
-			for(j=0; j<nmsg; j++) 
+		if(debuglive >= 1) {
+			for(j=startmsg; j<nmsg; j++) 
 				if(msg[j] != nil)
 					print("%s", msg[j]);
 			free(msg);
 			msg = nil;
 			nmsg = 0;
+			startmsg = 0;
 		}
 	}
 
@@ -1445,6 +1649,130 @@ livenessepilogue(Liveness *lv)
 	free(liveout);
 	free(uevar);
 	free(varkill);
+	free(avarinit);
+	free(any);
+	free(all);
+}
+
+static int
+printbitset(int printed, char *name, Array *vars, Bvec *bits)
+{
+	int i, started;
+	Node *n;
+
+	started = 0;	
+	for(i=0; i<arraylength(vars); i++) {
+		if(!bvget(bits, i))
+			continue;
+		if(!started) {
+			if(!printed) {
+				printed = 1;
+				print("\t");
+			} else
+				print(" ");
+			started = 1;
+			printed = 1;
+			print("%s=", name);
+		} else {
+			print(",");
+		}
+		n = *(Node**)arrayget(vars, i);
+		print("%s", n->sym->name);
+	}
+	return printed;
+}
+
+// Prints the computed liveness information and inputs, for debugging.
+// This format synthesizes the information used during the multiple passes
+// into a single presentation.
+static void
+livenessprintdebug(Liveness *lv)
+{
+	int i, j, printed, nsafe;
+	BasicBlock *bb;
+	Prog *p;
+	Bvec *uevar, *varkill, *avarinit, *args, *locals;
+	Node *n;
+
+	print("liveness: %s\n", curfn->nname->sym->name);
+
+	uevar = bvalloc(arraylength(lv->vars));
+	varkill = bvalloc(arraylength(lv->vars));
+	avarinit = bvalloc(arraylength(lv->vars));
+
+	nsafe = 0;
+	for(i = 0; i < arraylength(lv->cfg); i++) {
+		if(i > 0)
+			print("\n");
+		bb = *(BasicBlock**)arrayget(lv->cfg, i);
+
+		// bb#0 pred=1,2 succ=3,4
+		print("bb#%d pred=", i);
+		for(j = 0; j < arraylength(bb->pred); j++) {
+			if(j > 0)
+				print(",");
+			print("%d", (*(BasicBlock**)arrayget(bb->pred, j))->rpo);
+		}
+		print(" succ=");
+		for(j = 0; j < arraylength(bb->succ); j++) {
+			if(j > 0)
+				print(",");
+			print("%d", (*(BasicBlock**)arrayget(bb->succ, j))->rpo);
+		}
+		print("\n");
+		
+		// initial settings
+		printed = 0;
+		printed = printbitset(printed, "uevar", lv->vars, lv->uevar[bb->rpo]);
+		printed = printbitset(printed, "livein", lv->vars, lv->livein[bb->rpo]);
+		if(printed)
+			print("\n");
+		
+		// program listing, with individual effects listed
+		for(p = bb->first;; p = p->link) {
+			print("%P\n", p);
+			progeffects(p, lv->vars, uevar, varkill, avarinit);
+			printed = 0;
+			printed = printbitset(printed, "uevar", lv->vars, uevar);
+			printed = printbitset(printed, "varkill", lv->vars, varkill);
+			printed = printbitset(printed, "avarinit", lv->vars, avarinit);
+			if(printed)
+				print("\n");
+			if(issafepoint(p)) {
+				args = *(Bvec**)arrayget(lv->argslivepointers, nsafe);
+				locals = *(Bvec**)arrayget(lv->livepointers, nsafe);
+				nsafe++;
+				print("\tlive=");
+				printed = 0;
+				for(j = 0; j < arraylength(lv->vars); j++) {
+					n = *(Node**)arrayget(lv->vars, j);
+					if(islive(n, args, locals)) {
+						if(printed++)
+							print(",");
+						print("%N", n);
+					}
+				}
+				print("\n");
+			}
+			if(p == bb->last)
+				break;
+		}
+		
+		// bb bitsets
+		print("end\n");
+		printed = printbitset(printed, "varkill", lv->vars, lv->varkill[bb->rpo]);
+		printed = printbitset(printed, "liveout", lv->vars, lv->liveout[bb->rpo]);
+		printed = printbitset(printed, "avarinit", lv->vars, lv->avarinit[bb->rpo]);
+		printed = printbitset(printed, "avarinitany", lv->vars, lv->avarinitany[bb->rpo]);
+		printed = printbitset(printed, "avarinitall", lv->vars, lv->avarinitall[bb->rpo]);
+		if(printed)
+			print("\n");
+	}
+	print("\n");
+
+	free(uevar);
+	free(varkill);
+	free(avarinit);
 }
 
 // Dumps an array of bitmaps to a symbol as a sequence of uint32 values.  The
@@ -1456,14 +1784,8 @@ static void
 twobitwritesymbol(Array *arr, Sym *sym, Bvec *check)
 {
 	Bvec *bv;
-	int off;
-	uint32 bit;
-	uint32 word;
-	uint32 checkword;
-	int32 i;
-	int32 j;
-	int32 len;
-	int32 pos;
+	int off, i, j, len, pos;
+	uint32 bit, word, checkword;
 
 	len = arraylength(arr);
 	// Dump the length of the bitmap array.
@@ -1478,8 +1800,7 @@ twobitwritesymbol(Array *arr, Sym *sym, Bvec *check)
 				word = bv->b[j/32];
 				checkword = check->b[j/32];
 				if(word != checkword) {
-					// Found a mismatched word, find
-					// the mismatched bit.
+					// Found a mismatched word; find the mismatched bit.
 					for(pos = 0; pos < 32; pos++) {
 						bit = 1 << pos;
 						if((word & bit) && !(checkword & bit)) {
@@ -1516,26 +1837,40 @@ printprog(Prog *p)
 void
 liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
 {
-	Array *cfg;
-	Array *vars;
+	Array *cfg, *vars;
 	Liveness *lv;
+	int debugdelta;
 
-	if(0) print("curfn->nname->sym->name is %s\n", curfn->nname->sym->name);
-	if(0) printprog(firstp);
+	// Change name to dump debugging information only for a specific function.
+	debugdelta = 0;
+	if(strcmp(curfn->nname->sym->name, "!") == 0)
+		debugdelta = 2;
+	
+	debuglive += debugdelta;
+	if(debuglive >= 3) {
+		print("liveness: %s\n", curfn->nname->sym->name);
+		printprog(firstp);
+	}
 	checkptxt(fn, firstp);
 
 	// Construct the global liveness state.
 	cfg = newcfg(firstp);
-	if(0) printcfg(cfg);
+	if(debuglive >= 3)
+		printcfg(cfg);
 	vars = getvariables(fn, deadsym != nil);
 	lv = newliveness(fn, firstp, cfg, vars, deadsym != nil);
 
 	// Run the dataflow framework.
 	livenessprologue(lv);
-	if(0) livenessprintcfg(lv);
+	if(debuglive >= 3)
+		livenessprintcfg(lv);
 	livenesssolve(lv);
-	if(0) livenessprintcfg(lv);
+	if(debuglive >= 3)
+		livenessprintcfg(lv);
 	livenessepilogue(lv);
+	
+	if(debuglive >= 2)
+		livenessprintdebug(lv);
 
 	// Emit the live pointer map data structures
 	twobitwritesymbol(lv->livepointers, livesym, nil);
@@ -1549,4 +1884,6 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
 	freeliveness(lv);
 	arrayfree(vars);
 	freecfg(cfg);
+	
+	debuglive -= debugdelta;
 }

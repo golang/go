@@ -1036,6 +1036,7 @@ int	bvget(Bvec *bv, int32 i);
 int	bvisempty(Bvec *bv);
 void	bvnot(Bvec *bv);
 void	bvor(Bvec *dst, Bvec *src1, Bvec *src2);
+void	bvand(Bvec *dst, Bvec *src1, Bvec *src2);
 void	bvprint(Bvec *bv);
 void	bvreset(Bvec *bv, int32 i);
 void	bvresetall(Bvec *bv);

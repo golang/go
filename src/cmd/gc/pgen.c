@@ -293,7 +293,8 @@ cmpstackvar(Node *a, Node *b)
 		return +1;
 	if(a->type->width > b->type->width)
 		return -1;
-	return 0;
+
+	return strcmp(a->sym->name, b->sym->name);
 }
 
 // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
