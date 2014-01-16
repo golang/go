@@ -188,6 +188,7 @@ static struct {
 	uint64	empty; // lock-free list of empty blocks
 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
 	uint32	nproc;
+	int64	tstart;
 	volatile uint32	nwait;
 	volatile uint32	ndone;
 	volatile uint32 debugmarkdone;
@@ -1675,6 +1676,11 @@ addroots(void)
 			addstackroots(gp);
 			break;
 		}
+
+		// remember when we've first observed the G blocked
+		// needed only to output in traceback
+		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
+			gp->waitsince = work.tstart;
 	}
 
 	for(fb=allfin; fb; fb=fb->alllink)
@@ -2230,6 +2236,7 @@ gc(struct gc_args *args)
 	Eface eface;
 
 	t0 = args->start_time;
+	work.tstart = args->start_time; 
 
 	if(CollectStats)
 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
