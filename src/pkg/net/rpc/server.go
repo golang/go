@@ -217,10 +217,11 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // Register publishes in the server the set of methods of the
 // receiver value that satisfy the following conditions:
 //	- exported method
-//	- two arguments, both pointers to exported structs
+//	- two arguments, both of exported type
+//	- the second argument is a pointer
 //	- one return value, of type error
 // It returns an error if the receiver is not an exported type or has
-// no methods or unsuitable methods. It also logs the error using package log.
+// no suitable methods. It also logs the error using package log.
 // The client accesses each method using a string of the form "Type.Method",
 // where Type is the receiver's concrete type.
 func (server *Server) Register(rcvr interface{}) error {
