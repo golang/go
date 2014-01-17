@@ -430,35 +430,31 @@ closed:
 		runtime·blockevent(mysg.releasetime - t0, 2);
 }
 
-// chansend1(hchan *chan any, elem any);
+// chansend1(hchan *chan any, elem *any);
 #pragma textflag NOSPLIT
 void
-runtime·chansend1(ChanType *t, Hchan* c, ...)
+runtime·chansend1(ChanType *t, Hchan* c, byte *v)
 {
-	runtime·chansend(t, c, (byte*)(&c+1), nil, runtime·getcallerpc(&t));
+	runtime·chansend(t, c, v, nil, runtime·getcallerpc(&t));
 }
 
-// chanrecv1(hchan *chan any) (elem any);
+// chanrecv1(hchan *chan any, elem *any);
 #pragma textflag NOSPLIT
 void
-runtime·chanrecv1(ChanType *t, Hchan* c, ...)
+runtime·chanrecv1(ChanType *t, Hchan* c, byte *v)
 {
-	runtime·chanrecv(t, c, (byte*)(&c+1), nil, nil);
+	runtime·chanrecv(t, c, v, nil, nil);
 }
 
-// chanrecv2(hchan *chan any) (elem any, received bool);
+// chanrecv2(hchan *chan any, elem *any) (received bool);
 #pragma textflag NOSPLIT
 void
-runtime·chanrecv2(ChanType *t, Hchan* c, ...)
+runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
 {
-	byte *ae, *ap;
-
-	ae = (byte*)(&c+1);
-	ap = ae + t->elem->size;
-	runtime·chanrecv(t, c, ae, nil, ap);
+	runtime·chanrecv(t, c, v, nil, &received);
 }
 
-// func selectnbsend(c chan any, elem any) bool
+// func selectnbsend(c chan any, elem *any) bool
 //
 // compiler implements
 //
@@ -479,13 +475,9 @@ runtime·chanrecv2(ChanType *t, Hchan* c, ...)
 //
 #pragma textflag NOSPLIT
 void
-runtime·selectnbsend(ChanType *t, Hchan *c, ...)
+runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool pres)
 {
-	byte *ae, *ap;
-
-	ae = (byte*)(&c + 1);
-	ap = ae + ROUND(t->elem->size, Structrnd);
-	runtime·chansend(t, c, ae, ap, runtime·getcallerpc(&t));
+	runtime·chansend(t, c, val, &pres, runtime·getcallerpc(&t));
 }
 
 // func selectnbrecv(elem *any, c chan any) bool
@@ -585,23 +577,19 @@ reflect·chanrecv(ChanType *t, Hchan *c, bool nb, byte *val, bool selected, bool
 	runtime·chanrecv(t, c, val, sp, &received);
 }
 
-static void newselect(int32, Select**);
+static Select* newselect(int32);
 
 // newselect(size uint32) (sel *byte);
 #pragma textflag NOSPLIT
 void
-runtime·newselect(int32 size, ...)
+runtime·newselect(int32 size, byte *sel)
 {
-	int32 o;
-	Select **selp;
-
-	o = ROUND(sizeof(size), Structrnd);
-	selp = (Select**)((byte*)&size + o);
-	newselect(size, selp);
+	sel = (byte*)newselect(size);
+	FLUSH(&sel);
 }
 
-static void
-newselect(int32 size, Select **selp)
+static Select*
+newselect(int32 size)
 {
 	int32 n;
 	Select *sel;
@@ -623,10 +611,10 @@ newselect(int32 size, Select **selp)
 	sel->ncase = 0;
 	sel->lockorder = (void*)(sel->scase + size);
 	sel->pollorder = (void*)(sel->lockorder + size);
-	*selp = sel;
 
 	if(debug)
 		runtime·printf("newselect s=%p size=%d\n", sel, size);
+	return sel;
 }
 
 // cut in half to give stack a chance to split
@@ -1158,7 +1146,7 @@ reflect·rselect(Slice cases, intgo chosen, bool recvOK)
 
 	rcase = (runtimeSelect*)cases.array;
 
-	newselect(cases.len, &sel);
+	sel = newselect(cases.len);
 	for(i=0; i<cases.len; i++) {
 		rc = &rcase[i];
 		switch(rc->dir) {
