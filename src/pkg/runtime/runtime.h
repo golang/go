@@ -76,7 +76,7 @@ typedef	struct	Hmap		Hmap;
 typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
-typedef	struct	WinCall		WinCall;
+typedef	struct	LibCall		LibCall;
 typedef	struct	SEH		SEH;
 typedef	struct	WinCallbackContext	WinCallbackContext;
 typedef	struct	Timers		Timers;
@@ -224,7 +224,7 @@ struct	GCStats
 	uint64	nsleep;
 };
 
-struct	WinCall
+struct	LibCall
 {
 	void	(*fn)(void*);
 	uintptr	n;	// number of parameters
@@ -351,7 +351,22 @@ struct	M
 
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
-	WinCall	wincall;
+	// these are here because they are too large to be on the stack
+	// of low-level NOSPLIT functions.
+	LibCall	libcall;
+#endif
+#ifdef GOOS_solaris
+	int32*	perrno; 	// pointer to TLS errno
+	// these are here because they are too large to be on the stack
+	// of low-level NOSPLIT functions.
+	LibCall	libcall;
+	struct {
+		int64	tv_sec;
+		int64	tv_nsec;
+	} ts;
+	struct {
+		uintptr v[6];
+	} scratch;
 #endif
 #ifdef GOOS_plan9
 	int8*	notesig;
@@ -465,6 +480,15 @@ enum {
 #else
 enum {
    Windows = 0
+};
+#endif
+#ifdef GOOS_solaris
+enum {
+   Solaris = 1
+};
+#else
+enum {
+   Solaris = 0
 };
 #endif
 
@@ -865,6 +889,8 @@ int32	runtime·netpollopen(uintptr, PollDesc*);
 int32   runtime·netpollclose(uintptr);
 void	runtime·netpollready(G**, PollDesc*, int32);
 uintptr	runtime·netpollfd(PollDesc*);
+void	runtime·netpollarmread(uintptr fd);
+void	runtime·netpollarmwrite(uintptr fd);
 void	runtime·crash(void);
 void	runtime·parsedebugvars(void);
 void	_rt0_go(void);

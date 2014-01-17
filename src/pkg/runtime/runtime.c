@@ -87,6 +87,7 @@ runtime·args(int32 c, uint8 **v)
 }
 
 int32 runtime·isplan9;
+int32 runtime·issolaris;
 int32 runtime·iswindows;
 
 // Information about what cpu features are available.

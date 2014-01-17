@@ -53,6 +53,9 @@ needtls:
 	// skip TLS setup on Plan 9
 	CMPL	runtime·isplan9(SB), $1
 	JEQ ok
+	// skip TLS setup on Solaris
+	CMPL	runtime·issolaris(SB), $1
+	JEQ ok
 
 	LEAQ	runtime·tls0(SB), DI
 	CALL	runtime·settls(SB)
@@ -614,10 +617,16 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-16
 	MOVQ	m_g0(BP), SI
 	MOVQ	g(CX), DI
 	CMPQ	SI, DI
-	JEQ	4(PC)
+	JEQ	nosave
+	MOVQ	m_gsignal(BP), SI
+	CMPQ	SI, DI
+	JEQ	nosave
+	
+	MOVQ	m_g0(BP), SI
 	CALL	gosave<>(SB)
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+nosave:
 
 	// Now on a scheduling stack (a pthread-created stack).
 	// Make sure we have enough room for 4 stack-backed fast-call

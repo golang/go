@@ -17,6 +17,20 @@
 #define PTR_MASK ((1ull<<PTR_BITS)-1)
 #define CNT_MASK (0ull-1)
 
+#ifdef _64BIT
+#ifdef GOOS_solaris
+// SPARC64 and Solaris on AMD64 uses all 64 bits of virtual addresses.
+// Use low-order three bits as ABA counter.
+// http://docs.oracle.com/cd/E19120-01/open.solaris/816-5138/6mba6ua5p/index.html
+#undef PTR_BITS
+#undef CNT_MASK
+#undef PTR_MASK
+#define PTR_BITS 0
+#define CNT_MASK 7
+#define PTR_MASK ((0ull-1)<<3)
+#endif
+#endif
+
 void
 runtime·lfstackpush(uint64 *head, LFNode *node)
 {
