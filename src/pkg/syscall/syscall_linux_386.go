@@ -169,7 +169,16 @@ const (
 	_SENDMMSG    = 20
 )
 
+// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
+// For heap objects this will break when/if we have moving GC.
+// And for other objects (global, C allocated) go:noescape has no effect.
+
+//go:noescape
+
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+
+//go:noescape
+
 func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
 
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
