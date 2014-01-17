@@ -252,8 +252,20 @@ walkselect(Node *sel)
 		case OSEND:
 			// if c != nil && selectnbsend(c, v) { body } else { default body }
 			ch = cheapexpr(n->left, &r->ninit);
+			a = n->right;
+			a = assignconv(a, ch->type->type, "select chan send");
+			walkexpr(&a, &r->ninit);
+			if(islvalue(a)) {
+				a = nod(OADDR, a, N);
+			} else {
+				var = temp(a->type);
+				tmp = nod(OAS, var, a);
+				typecheck(&tmp, Etop);
+				r->ninit = list(r->ninit, tmp);
+				a = nod(OADDR, var, N);
+			}
 			r->ntest = mkcall1(chanfn("selectnbsend", 2, ch->type),
-					types[TBOOL], &r->ninit, typename(ch->type), ch, n->right);
+					types[TBOOL], &r->ninit, typename(ch->type), ch, a);
 			break;
 			
 		case OSELRECV:

@@ -163,7 +163,6 @@ walkstmt(Node **np)
 	case OCALLFUNC:
 	case ODELETE:
 	case OSEND:
-	case ORECV:
 	case OPRINT:
 	case OPRINTN:
 	case OPANIC:
@@ -177,6 +176,21 @@ walkstmt(Node **np)
 		addinit(&n, init);
 		if((*np)->op == OCOPY && n->op == OCONVNOP)
 			n->op = OEMPTY; // don't leave plain values as statements.
+		break;
+
+	case ORECV:
+		// special case for a receive where we throw away
+		// the value received.
+		if(n->typecheck == 0)
+			fatal("missing typecheck: %+N", n);
+		init = n->ninit;
+		n->ninit = nil;
+
+		walkexpr(&n->left, &init);
+		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), T, &init, typename(n->left->type), n->left, nodnil());
+		walkexpr(&n, &init);
+
+		addinit(&n, init);
 		break;
 
 	case OBREAK:
@@ -593,6 +607,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OAS2:
+	as2:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		walkexprlistsafe(n->list, init);
@@ -603,7 +618,6 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OAS2FUNC:
-	as2func:
 		// a,b,... = fn()
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
@@ -645,11 +659,13 @@ walkexpr(Node **np, NodeList **init)
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
+		var = temp(r->left->type->type);
+		n1 = nod(OADDR, var, N);
 		fn = chanfn("chanrecv2", 2, r->left->type);
-		r = mkcall1(fn, getoutargx(fn->type), init, typename(r->left->type), r->left);
-		n->rlist->n = r;
-		n->op = OAS2FUNC;
-		goto as2func;
+		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
+		n->op = OAS2;
+		n->rlist = concat(list1(var), list1(r));
+		goto as2;
 
 	case OAS2MAPR:
 		// a,b = m[i];
@@ -1149,8 +1165,12 @@ walkexpr(Node **np, NodeList **init)
 
 	case ORECV:
 		walkexpr(&n->left, init);
-		walkexpr(&n->right, init);
-		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), n->type, init, typename(n->left->type), n->left);
+		var = temp(n->left->type->type);
+		n1 = nod(OADDR, var, N);
+		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
+		walkexpr(&n, init);
+		*init = list(*init, n);
+		n = var;
 		goto ret;
 
 	case OSLICE:
@@ -1427,7 +1447,19 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSEND:
-		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, typename(n->left->type), n->left, n->right);
+		n1 = n->right;
+		n1 = assignconv(n1, n->left->type->type, "chan send");
+		walkexpr(&n1, init);
+		if(islvalue(n1)) {
+			n1 = nod(OADDR, n1, N);
+		} else {
+			var = temp(n1->type);
+			n1 = nod(OAS, var, n1);
+			typecheck(&n1, Etop);
+			*init = list(*init, n1);
+			n1 = nod(OADDR, var, N);
+		}
+		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
 		goto ret;
 
 	case OCLOSURE:
