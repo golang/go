@@ -1135,13 +1135,8 @@ esctag(EscState *e, Node *func)
 	if(func->nbody == nil) {
 		if(func->noescape) {
 			for(t=getinargx(func->type)->type; t; t=t->down)
-				// Mark all arguments, not only pointers,
-				// to support the following use case.
-				// Syscall package converts all pointers to uintptr
-				// when calls asm-implemented Syscall function:
-				// 
-				//   Syscall(SYS_FOO, uintptr(unsafe.Pointer(p)), 0, 0)
-				t->note = mktag(EscNone);
+				if(haspointers(t->type))
+					t->note = mktag(EscNone);
 		}
 		return;
 	}
