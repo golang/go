@@ -126,7 +126,7 @@ func isUintptr(typ Type) bool {
 
 func isUnsafePointer(typ Type) bool {
 	// TODO(gri): Is this (typ.Underlying() instead of just typ) correct?
-	//            The spec does't say so, but gc claims it is. See also
+	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
 	t, ok := typ.Underlying().(*Basic)
 	return ok && t.kind == UnsafePointer

@@ -131,7 +131,7 @@ func (check *checker) initVar(lhs *Var, x *operand) Type {
 		return nil
 	}
 
-	return lhs.typ
+	return x.typ
 }
 
 func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
@@ -195,7 +195,7 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	return z.typ
+	return x.typ
 }
 
 // If returnPos is valid, initVars is called to type-check the assignment of

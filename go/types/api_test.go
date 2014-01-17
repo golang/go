@@ -41,7 +41,7 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	return pkg.Name()
 }
 
-func TestValues(t *testing.T) {
+func TestValuesInfo(t *testing.T) {
 	var tests = []struct {
 		src  string
 		expr string // constant expression
@@ -97,7 +97,7 @@ func TestValues(t *testing.T) {
 			Types:  make(map[ast.Expr]Type),
 			Values: make(map[ast.Expr]exact.Value),
 		}
-		name := mustTypecheck(t, "Values", test.src, &info)
+		name := mustTypecheck(t, "ValuesInfo", test.src, &info)
 
 		// look for constant expression
 		var expr ast.Expr
@@ -125,12 +125,20 @@ func TestValues(t *testing.T) {
 	}
 }
 
-func TestCommaOkTypes(t *testing.T) {
+func TestTypesInfo(t *testing.T) {
 	var tests = []struct {
 		src  string
-		expr string // comma-ok expression
-		typ  string // comma-ok value type
+		expr string // expression
+		typ  string // value type
 	}{
+		// single-valued expressions of untyped constants
+		{`package b0; var x interface{} = false`, `false`, `bool`},
+		{`package b1; var x interface{} = 0`, `0`, `int`},
+		{`package b2; var x interface{} = 0.`, `0.`, `float64`},
+		{`package b3; var x interface{} = 0i`, `0i`, `complex128`},
+		{`package b4; var x interface{} = "foo"`, `"foo"`, `string`},
+
+		// comma-ok expressions
 		{`package p0; var x interface{}; var _, _ = x.(int)`,
 			`x.(int)`,
 			`(int, bool)`,
@@ -147,6 +155,8 @@ func TestCommaOkTypes(t *testing.T) {
 			`<-c`,
 			`(string, bool)`,
 		},
+
+		// issue 6796
 		{`package issue6796_a; var x interface{}; var _, _ = (x.(int))`,
 			`x.(int)`,
 			`(int, bool)`,
@@ -167,13 +177,39 @@ func TestCommaOkTypes(t *testing.T) {
 			`(<-c)`,
 			`(string, bool)`,
 		},
+
+		// issue 7060
+		{`package issue7060_a; var ( m map[int]string; x, ok = m[0] )`,
+			`m[0]`,
+			`(string, bool)`,
+		},
+		{`package issue7060_b; var ( m map[int]string; x, ok interface{} = m[0] )`,
+			`m[0]`,
+			`(string, bool)`,
+		},
+		{`package issue7060_c; func f(x interface{}, ok bool, m map[int]string) { x, ok = m[0] }`,
+			`m[0]`,
+			`(string, bool)`,
+		},
+		{`package issue7060_d; var ( ch chan string; x, ok = <-ch )`,
+			`<-ch`,
+			`(string, bool)`,
+		},
+		{`package issue7060_e; var ( ch chan string; x, ok interface{} = <-ch )`,
+			`<-ch`,
+			`(string, bool)`,
+		},
+		{`package issue7060_f; func f(x interface{}, ok bool, ch chan string) { x, ok = <-ch }`,
+			`<-ch`,
+			`(string, bool)`,
+		},
 	}
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]Type)}
-		name := mustTypecheck(t, "CommaOkTypes", test.src, &info)
+		name := mustTypecheck(t, "TypesInfo", test.src, &info)
 
-		// look for comma-ok expression type
+		// look for expression type
 		var typ Type
 		for e, t := range info.Types {
 			if ExprString(e) == test.expr {
@@ -314,7 +350,7 @@ func TestScopesInfo(t *testing.T) {
 	}
 }
 
-func TestInitOrder(t *testing.T) {
+func TestInitOrderInfo(t *testing.T) {
 	var tests = []struct {
 		src   string
 		inits []string
@@ -368,7 +404,7 @@ func TestInitOrder(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{}
-		name := mustTypecheck(t, "InitOrder", test.src, &info)
+		name := mustTypecheck(t, "InitOrderInfo", test.src, &info)
 
 		// number of initializers must match
 		if len(info.InitOrder) != len(test.inits) {
