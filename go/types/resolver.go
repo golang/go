@@ -88,7 +88,7 @@ func (check *checker) arityMatch(s, init *ast.ValueSpec) {
 	}
 }
 
-func (check *checker) validatedImportPath(path string) (string, error) {
+func validatedImportPath(path string) (string, error) {
 	s, err := strconv.Unquote(path)
 	if err != nil {
 		return "", err
@@ -171,7 +171,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 					case *ast.ImportSpec:
 						// import package
 						var imp *Package
-						path, err := check.validatedImportPath(s.Path.Value)
+						path, err := validatedImportPath(s.Path.Value)
 						if err != nil {
 							check.errorf(s.Path.Pos(), "invalid import path (%s)", err)
 							continue
