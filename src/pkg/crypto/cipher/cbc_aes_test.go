@@ -63,28 +63,42 @@ var cbcAESTests = []struct {
 	},
 }
 
-func TestCBC_AES(t *testing.T) {
-	for _, tt := range cbcAESTests {
-		test := tt.name
-
-		c, err := aes.NewCipher(tt.key)
+func TestCBCEncrypterAES(t *testing.T) {
+	for _, test := range cbcAESTests {
+		c, err := aes.NewCipher(test.key)
 		if err != nil {
-			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
+			t.Errorf("%s: NewCipher(%d bytes) = %s", test.name, len(test.key), err)
 			continue
 		}
 
-		encrypter := cipher.NewCBCEncrypter(c, tt.iv)
-		d := make([]byte, len(tt.in))
-		encrypter.CryptBlocks(d, tt.in)
-		if !bytes.Equal(tt.out, d) {
-			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test, d, tt.out)
+		encrypter := cipher.NewCBCEncrypter(c, test.iv)
+
+		data := make([]byte, len(test.in))
+		copy(data, test.in)
+
+		encrypter.CryptBlocks(data, data)
+		if !bytes.Equal(test.out, data) {
+			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test.name, data, test.out)
+		}
+	}
+}
+
+func TestCBCDecrypterAES(t *testing.T) {
+	for _, test := range cbcAESTests {
+		c, err := aes.NewCipher(test.key)
+		if err != nil {
+			t.Errorf("%s: NewCipher(%d bytes) = %s", test.name, len(test.key), err)
+			continue
 		}
 
-		decrypter := cipher.NewCBCDecrypter(c, tt.iv)
-		p := make([]byte, len(d))
-		decrypter.CryptBlocks(p, d)
-		if !bytes.Equal(tt.in, p) {
-			t.Errorf("%s: CBCDecrypter\nhave %x\nwant %x", test, d, tt.in)
+		decrypter := cipher.NewCBCDecrypter(c, test.iv)
+
+		data := make([]byte, len(test.out))
+		copy(data, test.out)
+
+		decrypter.CryptBlocks(data, data)
+		if !bytes.Equal(test.in, data) {
+			t.Errorf("%s: CBCDecrypter\nhave %x\nwant %x", test.name, data, test.in)
 		}
 	}
 }

@@ -48,13 +48,22 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
+
+	iv := x.iv
+
 	for len(src) > 0 {
-		xorBytes(x.iv, x.iv, src[:x.blockSize])
-		x.b.Encrypt(x.iv, x.iv)
-		copy(dst, x.iv)
+		// Write the xor to dst, then encrypt in place.
+		xorBytes(dst[:x.blockSize], src[:x.blockSize], iv)
+		x.b.Encrypt(dst[:x.blockSize], dst[:x.blockSize])
+
+		// Move to the next block with this block as the next iv.
+		iv = dst[:x.blockSize]
 		src = src[x.blockSize:]
 		dst = dst[x.blockSize:]
 	}
+
+	// Save the iv for the next CryptBlocks call.
+	copy(x.iv, iv)
 }
 
 func (x *cbcEncrypter) SetIV(iv []byte) {
@@ -85,14 +94,35 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	for len(src) > 0 {
-		x.b.Decrypt(x.tmp, src[:x.blockSize])
-		xorBytes(x.tmp, x.tmp, x.iv)
-		copy(x.iv, src)
-		copy(dst, x.tmp)
-		src = src[x.blockSize:]
-		dst = dst[x.blockSize:]
+	if len(src) == 0 {
+		return
 	}
+
+	// For each block, we need to xor the decrypted data with the previous block's ciphertext (the iv).
+	// To avoid making a copy each time, we loop over the blocks BACKWARDS.
+	end := len(src)
+	start := end - x.blockSize
+	prev := start - x.blockSize
+
+	// Copy the last block of ciphertext in preparation as the new iv.
+	copy(x.tmp, src[start:end])
+
+	// Loop over all but the first block.
+	for start > 0 {
+		x.b.Decrypt(dst[start:end], src[start:end])
+		xorBytes(dst[start:end], dst[start:end], src[prev:start])
+
+		end = start
+		start = prev
+		prev -= x.blockSize
+	}
+
+	// The first block is special because it uses the saved iv.
+	x.b.Decrypt(dst[start:end], src[start:end])
+	xorBytes(dst[start:end], dst[start:end], x.iv)
+
+	// Set the new iv to the first block we copied earlier.
+	x.iv, x.tmp = x.tmp, x.iv
 }
 
 func (x *cbcDecrypter) SetIV(iv []byte) {
