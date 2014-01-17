@@ -104,7 +104,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		return;
 	}
 
-	if(!runtime·iscgo && !Windows)
+	if(!runtime·iscgo && !Solaris && !Windows)
 		runtime·throw("cgocall unavailable");
 
 	if(fn == 0)

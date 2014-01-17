@@ -8,7 +8,7 @@ package syscall
 #include "cgocall.h"
 
 func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	c.fn = runtime·LoadLibrary;
 	c.n = 1;
@@ -22,7 +22,7 @@ func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
 }
 
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	USED(procname);
 	c.fn = runtime·GetProcAddress;
@@ -45,7 +45,7 @@ func NewCallbackCDecl(fn Eface) (code uintptr) {
 }
 
 func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	USED(a2);
 	USED(a3);
@@ -59,7 +59,7 @@ func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 
 }
 
 func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	USED(a2);
 	USED(a3);
@@ -76,7 +76,7 @@ func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 
 }
 
 func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	USED(a2);
 	USED(a3);
@@ -96,7 +96,7 @@ func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 
 }
 
 func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	USED(a2);
 	USED(a3);
@@ -119,7 +119,7 @@ func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4
 }
 
 func Syscall15(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr, a13 uintptr, a14 uintptr, a15 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
-	WinCall c;
+	LibCall c;
 
 	USED(a2);
 	USED(a3);

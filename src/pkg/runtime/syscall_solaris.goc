@@ -1,0 +1,374 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package syscall
+#include "runtime.h"
+#include "defs_GOOS_GOARCH.h"
+#include "os_GOOS.h"
+#include "cgocall.h"
+#include "../../cmd/ld/textflag.h"
+
+#pragma dynimport libc·chdir chdir "libc.so"
+#pragma dynimport libc·chroot chroot "libc.so"
+#pragma dynimport libc·close close "libc.so"
+#pragma dynimport libc·dlclose dlclose "libc.so"
+#pragma dynimport libc·dlopen dlopen "libc.so"
+#pragma dynimport libc·dlsym dlsym "libc.so"
+#pragma dynimport libc·execve execve "libc.so"
+#pragma dynimport libc·fcntl fcntl "libc.so"
+#pragma dynimport libc·gethostname gethostname "libc.so"
+#pragma dynimport libc·ioctl ioctl "libc.so"
+#pragma dynimport libc·pipe pipe "libc.so"
+#pragma dynimport libc·setgid setgid "libc.so"
+#pragma dynimport libc·setgroups setgroups "libc.so"
+#pragma dynimport libc·setsid setsid "libc.so"
+#pragma dynimport libc·setuid setuid "libc.so"
+#pragma dynimport libc·setpgid setsid "libc.so"
+#pragma dynimport libc·syscall syscall "libc.so"
+#pragma dynimport libc·forkx forkx "libc.so"
+#pragma dynimport libc·wait4 wait4 "libc.so"
+extern uintptr libc·chdir;
+extern uintptr libc·chroot;
+extern uintptr libc·close;
+extern uintptr libc·dlclose;
+extern uintptr libc·dlopen;
+extern uintptr libc·dlsym;
+extern uintptr libc·execve;
+extern uintptr libc·exit;
+extern uintptr libc·fcntl;
+extern uintptr libc·gethostname;
+extern uintptr libc·ioctl;
+extern uintptr libc·pipe;
+extern uintptr libc·setgid;
+extern uintptr libc·setgroups;
+extern uintptr libc·setsid;
+extern uintptr libc·setuid;
+extern uintptr libc·setpgid;
+extern uintptr libc·syscall;
+extern uintptr libc·forkx;
+extern uintptr libc·wait4;
+extern uintptr libc·write;
+
+func Sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
+{
+	LibCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	c.fn = (void*)func;
+	c.n = nargs;
+	c.args = (void*)&a1;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+#pragma textflag NOSPLIT
+func RawSysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
+{
+	LibCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	c.fn = (void*)func;
+	c.n = nargs;
+	c.args = (void*)&a1;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+#pragma textflag NOSPLIT
+func chdir(path uintptr) (err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·chdir;
+	c.n = 1;
+	c.args = (void*)&path;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func chroot1(path uintptr) (err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·chroot;
+	c.n = 1;
+	c.args = (void*)&path;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func close(fd uintptr) (err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·close;
+	c.n = 1;
+	c.args = (void*)&fd;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+func dlclose(handle uintptr) (err uintptr) {
+	LibCall c;
+
+	USED(handle);
+	c.fn = (void*)libc·dlclose;
+	c.n = 1;
+	c.args = (void*)&handle;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.r1;
+}
+
+func dlopen(name *uint8, mode uintptr) (handle uintptr, err uintptr) {
+	LibCall c;
+
+	USED(mode);
+	c.fn = (void*)libc·dlopen;
+	c.n = 2;
+	c.args = (void*)&name;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	handle = c.r1;
+	if(handle == 0)
+		err = c.err;
+	else
+		err = 0;
+}
+
+func dlsym(handle uintptr, name *uint8) (proc uintptr, err uintptr) {
+	LibCall c;
+
+	USED(name);
+	c.fn = (void*)libc·dlsym;
+	c.n = 2;
+	c.args = &handle;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	proc = c.r1;
+	if(proc == 0)
+		err = c.err;
+	else
+		err = 0;
+}
+
+#pragma textflag NOSPLIT
+func execve(path uintptr, argv uintptr, envp uintptr) (err uintptr) {
+	LibCall c;
+
+	USED(argv);
+	USED(envp);
+	c.fn = (void*)libc·execve;
+	c.n = 3;
+	c.args = (void*)&path;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func exit(code uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·exit;
+	c.n = 1;
+	c.args = (void*)&code;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+}
+
+#pragma textflag NOSPLIT
+func fcntl1(fd uintptr, cmd uintptr, arg uintptr) (val uintptr, err uintptr) {
+	LibCall c;
+
+	USED(cmd);
+	USED(arg);
+	c.fn = (void*)libc·fcntl;
+	c.n = 3;
+	c.args = (void*)&fd;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	val = c.r1;
+}
+
+func gethostname() (name String, err uintptr) {
+	struct { uintptr v[2]; } args;
+	uint8 cname[MAXHOSTNAMELEN];
+	LibCall c;
+
+	c.fn = (void*)libc·gethostname;
+	c.n = 2;
+	args.v[0] = (uintptr)&cname[0];
+	args.v[1] = MAXHOSTNAMELEN;
+	c.args = (void*)&args;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	if(c.r1) {
+		name = runtime·emptystring;
+		return;
+	}
+	cname[MAXHOSTNAMELEN - 1] = 0;
+	name = runtime·gostring(cname);
+}
+
+#pragma textflag NOSPLIT
+func ioctl(fd uintptr, req uintptr, arg uintptr) (err uintptr) {
+	LibCall c;
+
+	USED(req);
+	USED(arg);
+	c.fn = (void*)libc·ioctl;
+	c.n = 3;
+	c.args = (void*)&fd;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+func wait4(pid uintptr, wstatus *uint32, options uintptr, rusage *void) (wpid int, err uintptr) {
+	LibCall c;
+
+	USED(wstatus);
+	USED(options);
+	USED(rusage);
+	c.fn = (void*)libc·wait4;
+	c.n = 4;
+	c.args = (void*)&pid;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	wpid = c.r1;
+}
+
+#pragma textflag NOSPLIT
+func setgid(gid uintptr) (err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·setgid;
+	c.n = 1;
+	c.args = (void*)&gid;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func setgroups1(ngid uintptr, gid uintptr) (err uintptr) {
+	LibCall c;
+
+	USED(gid);
+	c.fn = (void*)libc·setgroups;
+	c.n = 2;
+	c.args = (void*)&ngid;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func setsid() (pid uintptr, err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·setsid;
+	c.n = 0;
+	c.args = (void*)0;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	pid = c.r1;
+}
+
+#pragma textflag NOSPLIT
+func setuid(uid uintptr) (err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·setuid;
+	c.n = 1;
+	c.args = (void*)&uid;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func setpgid(pid uintptr, pgid uintptr) (err uintptr) {
+	LibCall c;
+
+	USED(pgid);
+	c.fn = (void*)libc·setpgid;
+	c.n = 2;
+	c.args = (void*)&pid;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+}
+
+#pragma textflag NOSPLIT
+func forkx(flags uintptr) (pid uintptr, err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)libc·forkx;
+	c.n = 1;
+	c.args = (void*)&flags;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	pid = c.r1;
+}
+
+void runtime·pipe1(void);
+
+func pipe() (r uintptr, w uintptr, err uintptr) {
+	LibCall c;
+
+	c.fn = (void*)runtime·pipe1;
+	c.n = 0;
+	c.args = (void*)0;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	r = c.r1;
+	w = c.r2;
+}
+
+#pragma textflag NOSPLIT
+func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err uintptr) {
+	LibCall c;
+
+	USED(buf);
+	USED(nbyte);
+	c.fn = (void*)libc·write;
+	c.n = 3;
+	c.args = (void*)fd;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	n = c.r1;
+}
+
+func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	LibCall c;
+
+	USED(a1);
+	USED(a2);
+	USED(a3);
+	c.fn = (void*)libc·syscall;
+	c.n = 4;
+	c.args = &trap;
+	runtime·cgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	LibCall c;
+
+	USED(a1);
+	USED(a2);
+	USED(a3);
+	c.fn = (void*)libc·syscall;
+	c.n = 4;
+	c.args = &trap;
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}

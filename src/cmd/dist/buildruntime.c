@@ -178,7 +178,7 @@ static struct {
 		"#define	g(r)	0(GS)\n"
 		"#define	m(r)	4(GS)\n"
 	},
-	
+
 	{"amd64", "windows",
 		"#define	get_tls(r) MOVQ 0x28(GS), r\n"
 		"#define	g(r) 0(r)\n"
@@ -189,6 +189,11 @@ static struct {
 		"#define	g(r) 0(GS)\n"
 		"#define	m(r) 8(GS)\n"
 		"#define	procid(r) 16(GS)\n"
+	},
+	{"amd64", "solaris",
+		"#define	get_tls(r) MOVQ 0(FS), r\n"
+		"#define	g(r) -16(r)(FS*1)\n"
+		"#define	m(r) -8(r)(FS*1)\n"
 	},
 	// The TLS accessors here are defined here to use initial exec model.
 	// If the linker is not outputting a shared library, it will reduce
@@ -284,8 +289,8 @@ ok:
 				aggr = "p";
 			else if(streq(fields.p[1], "Gobuf"))
 				aggr = "gobuf";
-			else if(streq(fields.p[1], "WinCall"))
-				aggr = "wincall";
+			else if(streq(fields.p[1], "LibCall"))
+				aggr = "libcall";
 			else if(streq(fields.p[1], "WinCallbackContext"))
 				aggr = "cbctxt";
 			else if(streq(fields.p[1], "SEH"))

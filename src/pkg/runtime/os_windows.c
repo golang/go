@@ -285,11 +285,11 @@ time·now(int64 sec, int32 usec)
 void *
 runtime·stdcall(void *fn, int32 count, ...)
 {
-	m->wincall.fn = fn;
-	m->wincall.n = count;
-	m->wincall.args = (uintptr*)&count + 1;
-	runtime·asmcgocall(runtime·asmstdcall, &m->wincall);
-	return (void*)m->wincall.r1;
+	m->libcall.fn = fn;
+	m->libcall.n = count;
+	m->libcall.args = (uintptr*)&count + 1;
+	runtime·asmcgocall(runtime·asmstdcall, &m->libcall);
+	return (void*)m->libcall.r1;
 }
 
 extern void runtime·usleep1(uint32);

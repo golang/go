@@ -13,9 +13,9 @@
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into CX.
 	PUSHQ	CX			// save for later
-	MOVQ	wincall_fn(CX), AX
-	MOVQ	wincall_args(CX), SI
-	MOVQ	wincall_n(CX), CX
+	MOVQ	libcall_fn(CX), AX
+	MOVQ	libcall_args(CX), SI
+	MOVQ	libcall_n(CX), CX
 
 	// SetLastError(0).
 	MOVQ	0x30(GS), DI
@@ -52,12 +52,12 @@ loadregs:
 
 	// Return result.
 	POPQ	CX
-	MOVQ	AX, wincall_r1(CX)
+	MOVQ	AX, libcall_r1(CX)
 
 	// GetLastError().
 	MOVQ	0x30(GS), DI
 	MOVL	0x68(DI), AX
-	MOVQ	AX, wincall_err(CX)
+	MOVQ	AX, libcall_err(CX)
 
 	RET
 

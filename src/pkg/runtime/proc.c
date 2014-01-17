@@ -653,9 +653,9 @@ runtime·allocm(P *p)
 	mp = runtime·cnew(mtype);
 	mcommoninit(mp);
 
-	// In case of cgo, pthread_create will make us a stack.
+	// In case of cgo or Solaris, pthread_create will make us a stack.
 	// Windows will layout sched stack on OS stack.
-	if(runtime·iscgo || Windows)
+	if(runtime·iscgo || Solaris || Windows)
 		mp->g0 = runtime·malg(-1);
 	else
 		mp->g0 = runtime·malg(8192);
