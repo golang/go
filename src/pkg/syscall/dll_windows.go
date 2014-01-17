@@ -20,31 +20,11 @@ type DLLError struct {
 func (e *DLLError) Error() string { return e.Msg }
 
 // Implemented in ../runtime/syscall_windows.goc.
-
-// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
-// For heap objects this will break when/if we have moving GC.
-// And for other objects (global, C allocated) go:noescape has no effect.
-
-//go:noescape
-
 func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-
-//go:noescape
-
 func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-
-//go:noescape
-
 func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
-
-//go:noescape
-
 func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
-
-//go:noescape
-
 func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
-
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
 
