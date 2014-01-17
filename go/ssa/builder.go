@@ -185,8 +185,7 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 // is token.ARROW).
 //
 func (b *builder) exprN(fn *Function, e ast.Expr) Value {
-	var typ types.Type
-	var tuple Value
+	typ := fn.Pkg.typeOf(e).(*types.Tuple)
 	switch e := e.(type) {
 	case *ast.ParenExpr:
 		return b.exprN(fn, e.X)
@@ -197,49 +196,34 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		// cases for single-valued CallExpr.
 		var c Call
 		b.setCall(fn, e, &c.Call)
-		c.typ = fn.Pkg.typeOf(e)
+		c.typ = typ
 		return fn.emit(&c)
 
 	case *ast.IndexExpr:
 		mapt := fn.Pkg.typeOf(e.X).Underlying().(*types.Map)
-		typ = mapt.Elem()
 		lookup := &Lookup{
 			X:       b.expr(fn, e.X),
 			Index:   emitConv(fn, b.expr(fn, e.Index), mapt.Key()),
 			CommaOk: true,
 		}
+		lookup.setType(typ)
 		lookup.setPos(e.Lbrack)
-		tuple = fn.emit(lookup)
+		return fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		t := fn.Pkg.typeOf(e).(*types.Tuple).At(0).Type()
-		return emitTypeTest(fn, b.expr(fn, e.X), t, e.Lparen)
+		return emitTypeTest(fn, b.expr(fn, e.X), typ.At(0).Type(), e.Lparen)
 
 	case *ast.UnaryExpr: // must be receive <-
-		typ = fn.Pkg.typeOf(e.X).Underlying().(*types.Chan).Elem()
 		unop := &UnOp{
 			Op:      token.ARROW,
 			X:       b.expr(fn, e.X),
 			CommaOk: true,
 		}
+		unop.setType(typ)
 		unop.setPos(e.OpPos)
-		tuple = fn.emit(unop)
-
-	default:
-		panic(fmt.Sprintf("unexpected exprN: %T", e))
+		return fn.emit(unop)
 	}
-
-	// The typechecker sets the type of the expression to just the
-	// asserted type in the "value, ok" form, not to *types.Tuple
-	// (though it includes the valueOk operand in its error messages).
-
-	tuple.(interface {
-		setType(types.Type)
-	}).setType(types.NewTuple(
-		newVar("value", typ),
-		varOk,
-	))
-	return tuple
+	panic(fmt.Sprintf("exprN(%T) in %s", e, fn))
 }
 
 // builtin emits to fn SSA instructions to implement a call to the
@@ -1133,8 +1117,8 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
 //
 func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 	// We treat SwitchStmt like a sequential if-else chain.
-	// More efficient strategies (e.g. multiway dispatch)
-	// are possible if all cases are free of side effects.
+	// Multiway dispatch can be recovered later by ssautil.Switches()
+	// to those cases that are free of side effects.
 	if s.Init != nil {
 		b.stmt(fn, s.Init)
 	}
@@ -1180,7 +1164,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 		for _, cond := range cc.List {
 			nextCond = fn.newBasicBlock("switch.next")
 			// TODO(adonovan): opt: when tag==vTrue, we'd
-			// get better much code if we use b.cond(cond)
+			// get better code if we use b.cond(cond)
 			// instead of BinOp(EQL, tag, b.expr(cond))
 			// followed by If.  Don't forget conversions
 			// though.
@@ -1218,9 +1202,8 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 // labelled by label.
 //
 func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lblock) {
-	// We treat TypeSwitchStmt like a sequential if-else
-	// chain.  More efficient strategies (e.g. multiway
-	// dispatch) are possible.
+	// We treat TypeSwitchStmt like a sequential if-else chain.
+	// Multiway dispatch can be recovered later by ssautil.Switches().
 
 	// Typeswitch lowering:
 	//

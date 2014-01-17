@@ -47,6 +47,13 @@ func h() (i interface{}, ok bool) {
 	return
 }
 
+func h2() (i interface{}, ok bool) {
+	ch := make(chan string, 1)
+	ch <- "hi"
+	i, ok = <-ch // string->interface{} conversion within multi-valued expression
+	return
+}
+
 func main() {
 	f1v(g())
 	f2(g())
@@ -58,6 +65,10 @@ func main() {
 		panic(s)
 	}
 	i, ok := h()
+	if !ok || i.(string) != "hi" {
+		panic(i)
+	}
+	i, ok = h2()
 	if !ok || i.(string) != "hi" {
 		panic(i)
 	}
