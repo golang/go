@@ -51,9 +51,24 @@ var (
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
 
+// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
+// For heap objects this will break when/if we have moving GC.
+// And for other objects (global, C allocated) go:noescape has no effect.
+
+//go:noescape
+
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
+
+//go:noescape
+
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorString)
+
+//go:noescape
+
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+
+//go:noescape
+
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
 func atoi(b []byte) (n uint) {
