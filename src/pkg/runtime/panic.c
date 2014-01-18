@@ -371,7 +371,8 @@ runtime·startpanic(void)
 		m->mcache = runtime·allocmcache();
 	if(m->dying) {
 		runtime·printf("panic during panic\n");
-		runtime·exit(3);
+		runtime·dopanic(0);
+		runtime·exit(3); // not reached
 	}
 	m->dying = 1;
 	if(g != nil)
