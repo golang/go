@@ -36,8 +36,8 @@ func TestRlimit(t *testing.T) {
 	set.Cur = set.Max - 1
 	if set != get {
 		// Seems like Darwin requires some privilege to
-		// increse the soft limit of rlimit sandbox, though
-		// Setrlimit never reports error.
+		// increase the soft limit of rlimit sandbox, though
+		// Setrlimit never reports an error.
 		switch runtime.GOOS {
 		case "darwin":
 		default:
