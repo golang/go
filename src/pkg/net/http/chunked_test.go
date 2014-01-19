@@ -8,11 +8,11 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 	"testing"
 )
 
@@ -42,8 +42,6 @@ func TestChunk(t *testing.T) {
 }
 
 func TestChunkReaderAllocs(t *testing.T) {
-	// temporarily set GOMAXPROCS to 1 as we are testing memory allocations
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	var buf bytes.Buffer
 	w := newChunkedWriter(&buf)
 	a, b, c := []byte("aaaaaa"), []byte("bbbbbbbbbbbb"), []byte("cccccccccccccccccccccccc")
@@ -52,26 +50,23 @@ func TestChunkReaderAllocs(t *testing.T) {
 	w.Write(c)
 	w.Close()
 
-	r := newChunkedReader(&buf)
 	readBuf := make([]byte, len(a)+len(b)+len(c)+1)
-
-	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
-	m0 := ms.Mallocs
-
-	n, err := io.ReadFull(r, readBuf)
-
-	runtime.ReadMemStats(&ms)
-	mallocs := ms.Mallocs - m0
-	if mallocs > 1 {
-		t.Errorf("%d mallocs; want <= 1", mallocs)
-	}
-
-	if n != len(readBuf)-1 {
-		t.Errorf("read %d bytes; want %d", n, len(readBuf)-1)
-	}
-	if err != io.ErrUnexpectedEOF {
-		t.Errorf("read error = %v; want ErrUnexpectedEOF", err)
+	byter := bytes.NewReader(buf.Bytes())
+	bufr := bufio.NewReader(byter)
+	mallocs := testing.AllocsPerRun(10, func() {
+		byter.Seek(0, 0)
+		bufr.Reset(byter)
+		r := newChunkedReader(bufr)
+		n, err := io.ReadFull(r, readBuf)
+		if n != len(readBuf)-1 {
+			t.Fatalf("read %d bytes; want %d", n, len(readBuf)-1)
+		}
+		if err != io.ErrUnexpectedEOF {
+			t.Fatalf("read error = %v; want ErrUnexpectedEOF", err)
+		}
+	})
+	if mallocs > 1.5 {
+		t.Logf("mallocs = %v; want 1", mallocs)
 	}
 }
 
