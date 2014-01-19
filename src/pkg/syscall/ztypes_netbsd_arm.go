@@ -370,6 +370,16 @@ type BpfTimeval struct {
 	Usec int32
 }
 
+type Termios struct {
+	Iflag  uint32
+	Oflag  uint32
+	Cflag  uint32
+	Lflag  uint32
+	Cc     [20]uint8
+	Ispeed int32
+	Ospeed int32
+}
+
 type Sysctlnode struct {
 	Flags           uint32
 	Num             int32
