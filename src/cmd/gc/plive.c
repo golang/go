@@ -720,9 +720,9 @@ Next:
 				if(pos == -1)
 					goto Next1;
 				if(to->node->addrtaken) {
-					if(prog->as == AKILL)
-						bvset(varkill, pos);
-					else
+					//if(prog->as == AKILL)
+					//	bvset(varkill, pos);
+					//else
 						bvset(avarinit, pos);
 				} else {
 					if(info.flags & (RightRead | RightAddr))
