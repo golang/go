@@ -75,7 +75,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		if(!(flag & FlagNoZero)) {
 			v->next = nil;
 			// block is zeroed iff second word is zero ...
-			if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
+			if(size > 2*sizeof(uintptr) && ((uintptr*)v)[1] != 0)
 				runtime·memclr((byte*)v, size);
 		}
 		c->local_cachealloc += size;
@@ -205,8 +205,10 @@ runtime·free(void *v)
 		c->local_largefree += size;
 	} else {
 		// Small object.
-		if(size > sizeof(uintptr))
+		if(size > 2*sizeof(uintptr))
 			((uintptr*)v)[1] = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
+		else if(size > sizeof(uintptr))
+			((uintptr*)v)[1] = 0;
 		// Must mark v freed before calling MCache_Free:
 		// it might coalesce v and other blocks into a bigger span
 		// and change the bitmap further.
