@@ -66,6 +66,7 @@ type Prog struct {
 type arch struct {
 	byteorder binary.ByteOrder
 	ptrsize   int
+	pcquantum int
 }
 
 // A formatter takes care of the details of generating a particular
@@ -214,5 +215,6 @@ var arches = map[string]arch{
 	"amd64": {
 		byteorder: binary.LittleEndian,
 		ptrsize:   8,
+		pcquantum: 1,
 	},
 }
