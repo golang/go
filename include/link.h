@@ -500,7 +500,7 @@ vlong	setuint32(Link *ctxt, LSym *s, vlong r, uint32 v);
 vlong	setuint64(Link *ctxt, LSym *s, vlong r, uint64 v);
 vlong	setuint8(Link *ctxt, LSym *s, vlong r, uint8 v);
 vlong	setuintxx(Link *ctxt, LSym *s, vlong off, uint64 v, vlong wid);
-void	symgrow(Link *ctxt, LSym *s, int32 siz);
+void	symgrow(Link *ctxt, LSym *s, vlong siz);
 
 // go.c
 void	double2ieee(uint64 *ieee, double native);

@@ -41,9 +41,15 @@ mangle(char *file)
 }
 
 void
-symgrow(Link *ctxt, LSym *s, int32 siz)
+symgrow(Link *ctxt, LSym *s, vlong lsiz)
 {
+	int32 siz;
+
 	USED(ctxt);
+
+	siz = (int32)lsiz;
+	if((vlong)siz != lsiz)
+		sysfatal("symgrow size %lld too long", lsiz);
 
 	if(s->np >= siz)
 		return;
