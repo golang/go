@@ -269,8 +269,8 @@ loadlib(void)
  * look for the next file in an archive.
  * adapted from libmach.
  */
-int
-nextar(Biobuf *bp, int off, struct ar_hdr *a)
+static vlong
+nextar(Biobuf *bp, vlong off, struct ar_hdr *a)
 {
 	int r;
 	int32 arsize;
@@ -300,7 +300,7 @@ nextar(Biobuf *bp, int off, struct ar_hdr *a)
 void
 objfile(char *file, char *pkg)
 {
-	int32 off, l;
+	vlong off, l;
 	Biobuf *f;
 	char magbuf[SARMAG];
 	char pname[150];
