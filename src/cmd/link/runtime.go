@@ -7,5 +7,22 @@
 
 package main
 
+import "debug/goobj"
+
 func (p *Prog) runtime() {
+	p.pclntab()
+
+	// TODO: Implement garbage collection data.
+	p.addSym(&Sym{
+		Sym: &goobj.Sym{
+			SymID: goobj.SymID{Name: "gcdata"},
+			Kind:  goobj.SRODATA,
+		},
+	})
+	p.addSym(&Sym{
+		Sym: &goobj.Sym{
+			SymID: goobj.SymID{Name: "gcbss"},
+			Kind:  goobj.SRODATA,
+		},
+	})
 }
