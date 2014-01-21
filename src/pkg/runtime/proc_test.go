@@ -268,7 +268,7 @@ func main() {
 	if os.IsNotExist(err) {
 		// This test tests what it is intended to test only if writes are fast.
 		// If there is no /dev/null, we just don't execute the test.
-		fmt.Println("OK\n")
+		fmt.Println("OK")
 		return
 	}
 	if err != nil {
