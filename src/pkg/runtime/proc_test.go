@@ -244,6 +244,49 @@ func TestPreemptionGC(t *testing.T) {
 	atomic.StoreUint32(&stop, 1)
 }
 
+func TestGCFairness(t *testing.T) {
+	output := executeTest(t, testGCFairnessSource, nil)
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+const testGCFairnessSource = `
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"time"
+)
+
+func main() {
+	runtime.GOMAXPROCS(1)
+	f, err := os.Open("/dev/null")
+	if os.IsNotExist(err) {
+		// This test tests what it is intended to test only if writes are fast.
+		// If there is no /dev/null, we just don't execute the test.
+		fmt.Println("OK\n")
+		return
+	}
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	for i := 0; i < 2; i++ {
+		go func() {
+			for {
+				f.Write([]byte("."))
+			}
+		}()
+	}
+	time.Sleep(10 * time.Millisecond)
+	fmt.Println("OK")
+}
+`
+
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64
 	if i != 0 && pad[0] == 0 {
