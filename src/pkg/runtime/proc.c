@@ -67,14 +67,18 @@ int32	runtime·gomaxprocs;
 uint32	runtime·needextram;
 bool	runtime·iscgo;
 M	runtime·m0;
-G	runtime·g0;	 // idle goroutine for m0
-G*	runtime·allg;
+G	runtime·g0;	// idle goroutine for m0
 G*	runtime·lastg;
 M*	runtime·allm;
 M*	runtime·extram;
 int8*	runtime·goos;
 int32	runtime·ncpu;
 static int32	newprocs;
+
+static	Lock allglock;	// the following vars are protected by this lock or by stoptheworld
+G**	runtime·allg;
+uintptr runtime·allglen;
+static	uintptr allgcap;
 
 void runtime·mstart(void);
 static void runqput(P*, G*);
@@ -115,6 +119,7 @@ static bool preemptall(void);
 static bool preemptone(P*);
 static bool exitsyscallfast(void);
 static bool haveexperiment(int8*);
+static void allgadd(G*);
 
 // The bootstrap sequence is:
 //
@@ -278,6 +283,7 @@ runtime·tracebackothers(G *me)
 {
 	G *gp;
 	int32 traceback;
+	uintptr i;
 
 	traceback = runtime·gotraceback(nil);
 	
@@ -288,7 +294,9 @@ runtime·tracebackothers(G *me)
 		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
 	}
 
-	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+	runtime·lock(&allglock);
+	for(i = 0; i < runtime·allglen; i++) {
+		gp = runtime·allg[i];
 		if(gp == me || gp == m->curg || gp->status == Gdead)
 			continue;
 		if(gp->issystem && traceback < 2)
@@ -301,6 +309,7 @@ runtime·tracebackothers(G *me)
 		} else
 			runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
 	}
+	runtime·unlock(&allglock);
 }
 
 static void
@@ -792,13 +801,7 @@ runtime·newextram(void)
 	if(raceenabled)
 		gp->racectx = runtime·racegostart(runtime·newextram);
 	// put on allg for garbage collector
-	runtime·lock(&runtime·sched);
-	if(runtime·lastg == nil)
-		runtime·allg = gp;
-	else
-		runtime·lastg->alllink = gp;
-	runtime·lastg = gp;
-	runtime·unlock(&runtime·sched);
+	allgadd(gp);
 
 	// Add m to the extra list.
 	mnext = lockextra(true);
@@ -1766,13 +1769,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 			runtime·throw("invalid stack in newg");
 	} else {
 		newg = runtime·malg(StackMin);
-		runtime·lock(&runtime·sched);
-		if(runtime·lastg == nil)
-			runtime·allg = newg;
-		else
-			runtime·lastg->alllink = newg;
-		runtime·lastg = newg;
-		runtime·unlock(&runtime·sched);
+		allgadd(newg);
 	}
 
 	sp = (byte*)newg->stackbase;
@@ -1803,6 +1800,31 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
 	return newg;
+}
+
+static void
+allgadd(G *gp)
+{
+	G **new;
+	uintptr cap;
+
+	runtime·lock(&allglock);
+	if(runtime·allglen >= allgcap) {
+		cap = 4096/sizeof(new[0]);
+		if(cap < 2*allgcap)
+			cap = 2*allgcap;
+		new = runtime·malloc(cap*sizeof(new[0]));
+		if(new == nil)
+			runtime·throw("runtime: cannot allocate memory");
+		if(runtime·allg != nil) {
+			runtime·memmove(new, runtime·allg, runtime·allglen*sizeof(new[0]));
+			runtime·free(runtime·allg);
+		}
+		runtime·allg = new;
+		allgcap = cap;
+	}
+	runtime·allg[runtime·allglen++] = gp;
+	runtime·unlock(&allglock);
 }
 
 // Put on gfree list.
@@ -1994,19 +2016,21 @@ runtime·gcount(void)
 {
 	G *gp;
 	int32 n, s;
+	uintptr i;
 
 	n = 0;
-	runtime·lock(&runtime·sched);
+	runtime·lock(&allglock);
 	// TODO(dvyukov): runtime.NumGoroutine() is O(N).
 	// We do not want to increment/decrement centralized counter in newproc/goexit,
 	// just to make runtime.NumGoroutine() faster.
 	// Compromise solution is to introduce per-P counters of active goroutines.
-	for(gp = runtime·allg; gp; gp = gp->alllink) {
+	for(i = 0; i < runtime·allglen; i++) {
+		gp = runtime·allg[i];
 		s = gp->status;
 		if(s == Grunnable || s == Grunning || s == Gsyscall || s == Gwaiting)
 			n++;
 	}
-	runtime·unlock(&runtime·sched);
+	runtime·unlock(&allglock);
 	return n;
 }
 
@@ -2345,6 +2369,7 @@ checkdead(void)
 {
 	G *gp;
 	int32 run, grunning, s;
+	uintptr i;
 
 	// -1 for sysmon
 	run = runtime·sched.mcount - runtime·sched.nmidle - runtime·sched.nmidlelocked - 1;
@@ -2356,17 +2381,21 @@ checkdead(void)
 		runtime·throw("checkdead: inconsistent counts");
 	}
 	grunning = 0;
-	for(gp = runtime·allg; gp; gp = gp->alllink) {
+	runtime·lock(&allglock);
+	for(i = 0; i < runtime·allglen; i++) {
+		gp = runtime·allg[i];
 		if(gp->isbackground)
 			continue;
 		s = gp->status;
 		if(s == Gwaiting)
 			grunning++;
 		else if(s == Grunnable || s == Grunning || s == Gsyscall) {
+			runtime·unlock(&allglock);
 			runtime·printf("checkdead: find g %D in status %d\n", gp->goid, s);
 			runtime·throw("checkdead: runnable g");
 		}
 	}
+	runtime·unlock(&allglock);
 	if(grunning == 0)  // possible if main goroutine calls runtime·Goexit()
 		runtime·exit(0);
 	m->throwing = -1;  // do not dump full stacks
@@ -2553,6 +2582,7 @@ runtime·schedtrace(bool detailed)
 	int64 now;
 	int64 id1, id2, id3;
 	int32 i, t, h;
+	uintptr gi;
 	int8 *fmt;
 	M *mp, *lockedm;
 	G *gp, *lockedg;
@@ -2620,13 +2650,16 @@ runtime·schedtrace(bool detailed)
 			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
 			mp->spinning, id3);
 	}
-	for(gp = runtime·allg; gp; gp = gp->alllink) {
+	runtime·lock(&allglock);
+	for(gi = 0; gi < runtime·allglen; gi++) {
+		gp = runtime·allg[gi];
 		mp = gp->m;
 		lockedm = gp->lockedm;
 		runtime·printf("  G%D: status=%d(%s) m=%d lockedm=%d\n",
 			gp->goid, gp->status, gp->waitreason, mp ? mp->id : -1,
 			lockedm ? lockedm->id : -1);
 	}
+	runtime·unlock(&allglock);
 	runtime·unlock(&runtime·sched);
 }
 

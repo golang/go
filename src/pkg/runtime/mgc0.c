@@ -17,7 +17,6 @@
 
 enum {
 	Debug = 0,
-	DebugMark = 0,  // run second pass to check mark
 	CollectStats = 0,
 	ScanStackByFrames = 1,
 	IgnorePreciseGC = 0,
@@ -40,6 +39,13 @@ enum {
 	BitsPointer = 1,
 	BitsIface = 2,
 	BitsEface = 3,
+
+	RootData	= 0,
+	RootBss		= 1,
+	RootFinalizers	= 2,
+	RootSpanTypes	= 3,
+	RootFlushCaches = 4,
+	RootCount	= 5,
 };
 
 static struct
@@ -190,7 +196,10 @@ static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
 static Workbuf* handoff(Workbuf*);
 static void	gchelperstart(void);
-static void	scanstack(G* gp, void *scanbuf);
+static void	addfinroots(void *wbufp, void *v);
+static void	flushallmcaches(void);
+static void	scanframe(Stkframe *frame, void *wbufp);
+static void	addstackroots(G *gp, Workbuf **wbufp);
 
 static struct {
 	uint64	full;  // lock-free list of full blocks
@@ -200,7 +209,6 @@ static struct {
 	int64	tstart;
 	volatile uint32	nwait;
 	volatile uint32	ndone;
-	volatile uint32 debugmarkdone;
 	Note	alldone;
 	ParFor	*markfor;
 	ParFor	*sweepfor;
@@ -208,16 +216,11 @@ static struct {
 	Lock;
 	byte	*chunk;
 	uintptr	nchunk;
-
-	Obj	*roots;
-	uint32	nroot;
-	uint32	rootcap;
 } work;
 
 enum {
 	GC_DEFAULT_PTR = GC_NUM_INSTR,
 	GC_CHAN,
-	GC_G_PTR,
 
 	GC_NUM_INSTR2
 };
@@ -636,9 +639,6 @@ static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
 // Hchan program
 static uintptr chanProg[2] = {0, GC_CHAN};
 
-// G* program
-static uintptr gptrProg[2] = {0, GC_G_PTR};
-
 // Local variables of a program fragment or loop
 typedef struct Frame Frame;
 struct Frame {
@@ -707,15 +707,11 @@ checkptr(void *obj, uintptr objti)
 // a work list in the Workbuf* structures and loops in the main function
 // body.  Keeping an explicit work list is easier on the stack allocator and
 // more efficient.
-//
-// wbuf: current work buffer
-// wp:   storage for next queued pointer (write pointer)
-// nobj: number of queued objects
 static void
-scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
+scanblock(Workbuf *wbuf, bool keepworking)
 {
 	byte *b, *arena_start, *arena_used;
-	uintptr n, i, end_b, elemsize, size, ti, objti, count, type;
+	uintptr n, i, end_b, elemsize, size, ti, objti, count, type, nobj;
 	uintptr *pc, precise_type, nominal_size;
 	uintptr *chan_ret, chancap;
 	void *obj;
@@ -728,6 +724,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	Iface *iface;
 	Hchan *chan;
 	ChanType *chantype;
+	Obj *wp;
 
 	if(sizeof(Workbuf) % PageSize != 0)
 		runtime·throw("scanblock: size of Workbuf is suboptimal");
@@ -740,6 +737,14 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 	precise_type = false;
 	nominal_size = 0;
+
+	if(wbuf) {
+		nobj = wbuf->nobj;
+		wp = &wbuf->obj[nobj];
+	} else {
+		nobj = 0;
+		wp = nil;
+	}
 
 	// Initialize sbuf
 	scanbuffers = &bufferList[m->helpgc];
@@ -1075,11 +1080,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			pc = chan_ret;
 			continue;
 
-		case GC_G_PTR:
-			obj = (void*)stack_top.b;
-			scanstack(obj, &sbuf);
-			goto next_block;
-
 		default:
 			runtime·throw("scanblock: invalid GC instruction");
 			return;
@@ -1121,82 +1121,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		n = sbuf.wp->n;
 		ti = sbuf.wp->ti;
 		sbuf.nobj--;
-	}
-}
-
-// debug_scanblock is the debug copy of scanblock.
-// it is simpler, slower, single-threaded, recursive,
-// and uses bitSpecial as the mark bit.
-static void
-debug_scanblock(byte *b, uintptr n)
-{
-	byte *obj, *p;
-	void **vp;
-	uintptr size, *bitp, bits, shift, i, xbits, off;
-	MSpan *s;
-
-	if(!DebugMark)
-		runtime·throw("debug_scanblock without DebugMark");
-
-	if((intptr)n < 0) {
-		runtime·printf("debug_scanblock %p %D\n", b, (int64)n);
-		runtime·throw("debug_scanblock");
-	}
-
-	// Align b to a word boundary.
-	off = (uintptr)b & (PtrSize-1);
-	if(off != 0) {
-		b += PtrSize - off;
-		n -= PtrSize - off;
-	}
-
-	vp = (void**)b;
-	n /= PtrSize;
-	for(i=0; i<n; i++) {
-		obj = (byte*)vp[i];
-
-		// Words outside the arena cannot be pointers.
-		if((byte*)obj < runtime·mheap.arena_start || (byte*)obj >= runtime·mheap.arena_used)
-			continue;
-
-		// Round down to word boundary.
-		obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
-
-		// Consult span table to find beginning.
-		s = runtime·MHeap_LookupMaybe(&runtime·mheap, obj);
-		if(s == nil)
-			continue;
-
-		p =  (byte*)((uintptr)s->start<<PageShift);
-		size = s->elemsize;
-		if(s->sizeclass == 0) {
-			obj = p;
-		} else {
-			int32 i = ((byte*)obj - p)/size;
-			obj = p+i*size;
-		}
-
-		// Now that we know the object header, reload bits.
-		off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
-		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		xbits = *bitp;
-		bits = xbits >> shift;
-
-		// Now we have bits, bitp, and shift correct for
-		// obj pointing at the base of the object.
-		// If not allocated or already marked, done.
-		if((bits & bitAllocated) == 0 || (bits & bitSpecial) != 0)  // NOTE: bitSpecial not bitMarked
-			continue;
-		*bitp |= bitSpecial<<shift;
-		if(!(bits & bitMarked))
-			runtime·printf("found unmarked block %p in %p\n", obj, vp+i);
-
-		// If object has no pointers, don't need to scan further.
-		if((bits & bitScan) == 0)
-			continue;
-
-		debug_scanblock(obj, size);
 	}
 }
 
@@ -1256,18 +1180,91 @@ enqueue(Obj obj, Workbuf **_wbuf, Obj **_wp, uintptr *_nobj)
 }
 
 static void
+enqueue1(Workbuf **wbufp, Obj obj)
+{
+	Workbuf *wbuf;
+
+	wbuf = *wbufp;
+	if(wbuf->nobj >= nelem(wbuf->obj))
+		*wbufp = wbuf = getempty(wbuf);
+	wbuf->obj[wbuf->nobj++] = obj;
+}
+
+static void
 markroot(ParFor *desc, uint32 i)
 {
-	Obj *wp;
 	Workbuf *wbuf;
-	uintptr nobj;
+	FinBlock *fb;
+	MSpan **allspans, *s;
+	uint32 spanidx;
+	G *gp;
 
 	USED(&desc);
-	wp = nil;
-	wbuf = nil;
-	nobj = 0;
-	enqueue(work.roots[i], &wbuf, &wp, &nobj);
-	scanblock(wbuf, wp, nobj, false);
+	wbuf = getempty(nil);
+	switch(i) {
+	case RootData:
+		enqueue1(&wbuf, (Obj){data, edata - data, (uintptr)gcdata});
+		break;
+
+	case RootBss:
+		enqueue1(&wbuf, (Obj){bss, ebss - bss, (uintptr)gcbss});
+		break;
+
+	case RootFinalizers:
+		for(fb=allfin; fb; fb=fb->alllink)
+			enqueue1(&wbuf, (Obj){(byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), 0});
+		break;
+
+	case RootSpanTypes:
+		// mark span types and MSpan.specials (to walk spans only once)
+		allspans = runtime·mheap.allspans;
+		for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+			Special *sp;
+			SpecialFinalizer *spf;
+
+			s = allspans[spanidx];
+			if(s->state != MSpanInUse)
+				continue;
+			// The garbage collector ignores type pointers stored in MSpan.types:
+			//  - Compiler-generated types are stored outside of heap.
+			//  - The reflect package has runtime-generated types cached in its data structures.
+			//    The garbage collector relies on finding the references via that cache.
+			if(s->types.compression == MTypes_Words || s->types.compression == MTypes_Bytes)
+				markonly((byte*)s->types.data);
+			for(sp = s->specials; sp != nil; sp = sp->next) {
+				if(sp->kind != KindSpecialFinalizer)
+					continue;
+				// don't mark finalized object, but scan it so we
+				// retain everything it points to.
+				spf = (SpecialFinalizer*)sp;
+				enqueue1(&wbuf, (Obj){(void*)((s->start << PageShift) + spf->offset), s->elemsize, 0});
+				enqueue1(&wbuf, (Obj){(void*)&spf->fn, PtrSize, 0});
+				enqueue1(&wbuf, (Obj){(void*)&spf->fint, PtrSize, 0});
+				enqueue1(&wbuf, (Obj){(void*)&spf->ot, PtrSize, 0});
+			}
+		}
+		break;
+
+	case RootFlushCaches:
+		flushallmcaches();
+		break;
+
+	default:
+		// the rest is scanning goroutine stacks
+		if(i - RootCount >= runtime·allglen)
+			runtime·throw("markroot: bad index");
+		gp = runtime·allg[i - RootCount];
+		// remember when we've first observed the G blocked
+		// needed only to output in traceback
+		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
+			gp->waitsince = work.tstart;
+		addstackroots(gp, &wbuf);
+		break;
+		
+	}
+
+	if(wbuf)
+		scanblock(wbuf, false);
 }
 
 // Get an empty work buffer off the work.empty list,
@@ -1364,30 +1361,6 @@ handoff(Workbuf *b)
 	return b1;
 }
 
-static void
-addroot(Obj obj)
-{
-	uint32 cap;
-	Obj *new;
-
-	if(work.nroot >= work.rootcap) {
-		cap = PageSize/sizeof(Obj);
-		if(cap < 2*work.rootcap)
-			cap = 2*work.rootcap;
-		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj), &mstats.gc_sys);
-		if(new == nil)
-			runtime·throw("runtime: cannot allocate memory");
-		if(work.roots != nil) {
-			runtime·memmove(new, work.roots, work.rootcap*sizeof(Obj));
-			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj), &mstats.gc_sys);
-		}
-		work.roots = new;
-		work.rootcap = cap;
-	}
-	work.roots[work.nroot] = obj;
-	work.nroot++;
-}
-
 extern byte pclntab[]; // base for f->ptrsoff
 
 typedef struct BitVector BitVector;
@@ -1427,7 +1400,7 @@ stackmapdata(StackMap *stackmap, int32 n)
 // Scans an interface data value when the interface type indicates
 // that it is a pointer.
 static void
-scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, Scanbuf *sbuf)
+scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, void *wbufp)
 {
 	Itab *tab;
 	Type *type;
@@ -1443,14 +1416,12 @@ scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, Scanbuf *sbuf)
 				return;
 		}
 	}
-	*sbuf->obj.pos++ = (Obj){scanp+PtrSize, PtrSize, 0};
-	if(sbuf->obj.pos == sbuf->obj.end)
-		flushobjbuf(sbuf);
+	enqueue1(wbufp, (Obj){scanp+PtrSize, PtrSize, 0});
 }
 
 // Starting from scanp, scans words corresponding to set bits.
 static void
-scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, Scanbuf *sbuf)
+scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 {
 	uintptr word, bits;
 	uint32 *wordp;
@@ -1467,12 +1438,10 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, Scanbuf *sbuf)
 		for(; i > 0; i--) {
 			bits = word & 3;
 			if(bits != BitsNoPointer && *(void**)scanp != nil)
-				if(bits == BitsPointer) {
-					*sbuf->obj.pos++ = (Obj){scanp, PtrSize, 0};
-					if(sbuf->obj.pos == sbuf->obj.end)
-						flushobjbuf(sbuf);
-				} else
-					scaninterfacedata(bits, scanp, afterprologue, sbuf);
+				if(bits == BitsPointer)
+					enqueue1(wbufp, (Obj){scanp, PtrSize, 0});
+				else
+					scaninterfacedata(bits, scanp, afterprologue, wbufp);
 			word >>= BitsPerPointer;
 			scanp += PtrSize;
 		}
@@ -1481,10 +1450,9 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, Scanbuf *sbuf)
 
 // Scan a stack frame: local variables and function arguments/results.
 static void
-scanframe(Stkframe *frame, void *arg)
+scanframe(Stkframe *frame, void *wbufp)
 {
 	Func *f;
-	Scanbuf *sbuf;
 	StackMap *stackmap;
 	BitVector *bv;
 	uintptr size;
@@ -1504,7 +1472,6 @@ scanframe(Stkframe *frame, void *arg)
 		pcdata = 0;
 	}
 
-	sbuf = arg;
 	// Scan local variables if stack frame has been allocated.
 	// Use pointer information if known.
 	afterprologue = (frame->varp > (byte*)frame->sp);
@@ -1513,25 +1480,23 @@ scanframe(Stkframe *frame, void *arg)
 		if(stackmap == nil) {
 			// No locals information, scan everything.
 			size = frame->varp - (byte*)frame->sp;
-			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
-			if(sbuf->obj.pos == sbuf->obj.end)
-				flushobjbuf(sbuf);
+			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
 		} else if(stackmap->n < 0) {
 			// Locals size information, scan just the locals.
 			size = -stackmap->n;
-			*sbuf->obj.pos++ = (Obj){frame->varp - size, size, 0};
-			if(sbuf->obj.pos == sbuf->obj.end)
-				flushobjbuf(sbuf);		} else if(stackmap->n > 0) {
+			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+		} else if(stackmap->n > 0) {
 			// Locals bitmap information, scan just the pointers in
 			// locals.
 			if(pcdata < 0 || pcdata >= stackmap->n) {
 				// don't know where we are
-				runtime·printf("pcdata is %d and %d stack map entries\n", pcdata, stackmap->n);
-				runtime·throw("addframeroots: bad symbol table");
+				runtime·printf("pcdata is %d and %d stack map entries for %s (targetpc=%p)\n",
+					pcdata, stackmap->n, runtime·funcname(f), targetpc);
+				runtime·throw("scanframe: bad symbol table");
 			}
 			bv = stackmapdata(stackmap, pcdata);
 			size = (bv->n * PtrSize) / BitsPerPointer;
-			scanbitvector(frame->varp - size, bv, afterprologue, sbuf);
+			scanbitvector(frame->varp - size, bv, afterprologue, wbufp);
 		}
 	}
 
@@ -1540,22 +1505,13 @@ scanframe(Stkframe *frame, void *arg)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = stackmapdata(stackmap, pcdata);
-		scanbitvector(frame->argp, bv, false, sbuf);
-	} else {
-		*sbuf->obj.pos++ = (Obj){frame->argp, frame->arglen, 0};
-		if(sbuf->obj.pos == sbuf->obj.end)
-			flushobjbuf(sbuf);
-	}
+		scanbitvector(frame->argp, bv, false, wbufp);
+	} else
+		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
 }
 
 static void
-scanstack(G* gp, void *scanbuf)
-{
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
-}
-
-static void
-addstackroots(G *gp)
+addstackroots(G *gp, Workbuf **wbufp)
 {
 	M *mp;
 	int32 n;
@@ -1563,6 +1519,20 @@ addstackroots(G *gp)
 	uintptr sp, guard;
 	void *base;
 	uintptr size;
+
+	switch(gp->status){
+	default:
+		runtime·printf("unexpected G.status %d (goroutine %p %D)\n", gp->status, gp, gp->goid);
+		runtime·throw("mark - bad status");
+	case Gdead:
+		return;
+	case Grunning:
+		runtime·throw("mark - world not stopped");
+	case Grunnable:
+	case Gsyscall:
+	case Gwaiting:
+		break;
+	}
 
 	if(gp == g)
 		runtime·throw("can't scan our own stack");
@@ -1585,13 +1555,13 @@ addstackroots(G *gp)
 		guard = gp->stackguard;
 		// For function about to start, context argument is a root too.
 		if(gp->sched.ctxt != 0 && runtime·mlookup(gp->sched.ctxt, &base, &size, nil))
-			addroot((Obj){base, size, 0});
+			enqueue1(wbufp, (Obj){base, size, 0});
 	}
 	if(ScanStackByFrames) {
 		USED(sp);
 		USED(stk);
 		USED(guard);
-		addroot((Obj){(byte*)gp, PtrSize, (uintptr)gptrProg});
+		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, wbufp, false);
 	} else {
 		n = 0;
 		while(stk) {
@@ -1599,123 +1569,13 @@ addstackroots(G *gp)
 				runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
 				runtime·throw("scanstack");
 			}
-			addroot((Obj){(byte*)sp, (uintptr)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
+			enqueue1(wbufp, (Obj){(byte*)sp, (uintptr)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
 			sp = stk->gobuf.sp;
 			guard = stk->stackguard;
 			stk = (Stktop*)stk->stackbase;
 			n++;
 		}
 	}
-}
-
-static void
-addroots(void)
-{
-	G *gp;
-	FinBlock *fb;
-	MSpan *s, **allspans;
-	uint32 spanidx;
-	Special *sp;
-	SpecialFinalizer *spf;
-
-	work.nroot = 0;
-
-	// data & bss
-	// TODO(atom): load balancing
-	addroot((Obj){data, edata - data, (uintptr)gcdata});
-	addroot((Obj){bss, ebss - bss, (uintptr)gcbss});
-
-	// MSpan.types
-	allspans = runtime·mheap.allspans;
-	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
-		s = allspans[spanidx];
-		if(s->state == MSpanInUse) {
-			// The garbage collector ignores type pointers stored in MSpan.types:
-			//  - Compiler-generated types are stored outside of heap.
-			//  - The reflect package has runtime-generated types cached in its data structures.
-			//    The garbage collector relies on finding the references via that cache.
-			switch(s->types.compression) {
-			case MTypes_Empty:
-			case MTypes_Single:
-				break;
-			case MTypes_Words:
-			case MTypes_Bytes:
-				markonly((byte*)s->types.data);
-				break;
-			}
-		}
-	}
-
-	// MSpan.specials
-	allspans = runtime·mheap.allspans;
-	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
-		s = allspans[spanidx];
-		if(s->state != MSpanInUse)
-			continue;
-		for(sp = s->specials; sp != nil; sp = sp->next) {
-			switch(sp->kind) {
-				case KindSpecialFinalizer:
-					spf = (SpecialFinalizer*)sp;
-					// don't mark finalized object, but scan it so we
-					// retain everything it points to.
-					addroot((Obj){(void*)((s->start << PageShift) + spf->offset), s->elemsize, 0});
-					addroot((Obj){(void*)&spf->fn, PtrSize, 0});
-					addroot((Obj){(void*)&spf->fint, PtrSize, 0});
-					addroot((Obj){(void*)&spf->ot, PtrSize, 0});
-					break;
-				case KindSpecialProfile:
-					break;
-			}
-		}
-	}
-
-	// stacks
-	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {
-		switch(gp->status){
-		default:
-			runtime·printf("unexpected G.status %d\n", gp->status);
-			runtime·throw("mark - bad status");
-		case Gdead:
-			break;
-		case Grunning:
-			runtime·throw("mark - world not stopped");
-		case Grunnable:
-		case Gsyscall:
-		case Gwaiting:
-			addstackroots(gp);
-			break;
-		}
-
-		// remember when we've first observed the G blocked
-		// needed only to output in traceback
-		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
-			gp->waitsince = work.tstart;
-	}
-
-	for(fb=allfin; fb; fb=fb->alllink)
-		addroot((Obj){(byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), 0});
-}
-
-static void
-addfreelists(void)
-{
-	int32 i;
-	P *p, **pp;
-	MCache *c;
-	MLink *m;
-
-	// Mark objects in the MCache of each P so we don't collect them.
-	for(pp=runtime·allp; p=*pp; pp++) {
-		c = p->mcache;
-		if(c==nil)
-			continue;
-		for(i = 0; i < NumSizeClasses; i++) {
-			for(m = c->list[i].list; m != nil; m = m->next) {
-				markonly(m);
-			}
-		}
-	}
-	// Note: the sweeper will mark objects in each span's freelist.
 }
 
 void
@@ -1844,11 +1704,6 @@ sweepspan(ParFor *desc, uint32 idx)
 			continue;
 
 		if((bits & bitMarked) != 0) {
-			if(DebugMark) {
-				if(!(bits & bitSpecial))
-					runtime·printf("found spurious mark on %p\n", p);
-				*bitp &= ~(bitSpecial<<shift);
-			}
 			*bitp &= ~(bitMarked<<shift);
 			continue;
 		}
@@ -1981,13 +1836,7 @@ runtime·gchelper(void)
 	runtime·parfordo(work.markfor);
 
 	// help other threads scan secondary blocks
-	scanblock(nil, nil, 0, true);
-
-	if(DebugMark) {
-		// wait while the main thread executes mark(debug_scanblock)
-		while(runtime·atomicload(&work.debugmarkdone) == 0)
-			runtime·usleep(10);
-	}
+	scanblock(nil, true);
 
 	runtime·parfordo(work.sweepfor);
 	bufferList[m->helpgc].busy = 0;
@@ -2024,12 +1873,25 @@ cachestats(void)
 }
 
 static void
+flushallmcaches(void)
+{
+	P *p, **pp;
+	MCache *c;
+
+	// Flush MCache's to MCentral.
+	for(pp=runtime·allp; p=*pp; pp++) {
+		c = p->mcache;
+		if(c==nil)
+			continue;
+		runtime·MCache_ReleaseAll(c);
+	}
+}
+
+static void
 updatememstats(GCStats *stats)
 {
 	M *mp;
 	MSpan *s;
-	MCache *c;
-	P *p, **pp;
 	int32 i;
 	uint64 stacks_inuse, smallfree;
 	uint64 *src, *dst;
@@ -2070,12 +1932,7 @@ updatememstats(GCStats *stats)
 	}
 
 	// Flush MCache's to MCentral.
-	for(pp=runtime·allp; p=*pp; pp++) {
-		c = p->mcache;
-		if(c==nil)
-			continue;
-		runtime·MCache_ReleaseAll(c);
-	}
+	flushallmcaches();
 
 	// Aggregate local stats.
 	cachestats();
@@ -2278,11 +2135,8 @@ gc(struct gc_args *args)
 
 	work.nwait = 0;
 	work.ndone = 0;
-	work.debugmarkdone = 0;
 	work.nproc = runtime·gcprocs();
-	addroots();
-	addfreelists();
-	runtime·parforsetup(work.markfor, work.nproc, work.nroot, nil, false, markroot);
+	runtime·parforsetup(work.markfor, work.nproc, RootCount + runtime·allglen, nil, false, markroot);
 	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap.nspan, nil, true, sweepspan);
 	if(work.nproc > 1) {
 		runtime·noteclear(&work.alldone);
@@ -2293,13 +2147,8 @@ gc(struct gc_args *args)
 
 	gchelperstart();
 	runtime·parfordo(work.markfor);
-	scanblock(nil, nil, 0, true);
+	scanblock(nil, true);
 
-	if(DebugMark) {
-		for(i=0; i<work.nroot; i++)
-			debug_scanblock(work.roots[i].p, work.roots[i].n);
-		runtime·atomicstore(&work.debugmarkdone, 1);
-	}
 	t2 = runtime·nanotime();
 
 	runtime·parfordo(work.sweepfor);
