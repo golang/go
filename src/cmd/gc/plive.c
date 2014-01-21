@@ -635,7 +635,9 @@ isfunny(Node *node)
 //
 // The output vectors give bits for variables:
 //	uevar - used by this instruction
-//	varkill - set by this instruction
+//	varkill - killed by this instruction
+//		for variables without address taken, means variable was set
+//		for variables with address taken, means variable was marked dead
 //	avarinit - initialized or referred to by this instruction,
 //		only for variables with address taken but not escaping to heap
 //
@@ -694,13 +696,15 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				pos = arrayindexof(vars, from->node);
 				if(pos == -1)
 					goto Next;
-				if(from->node->addrtaken)
+				if(from->node->addrtaken) {
 					bvset(avarinit, pos);
-				if(info.flags & (LeftRead | LeftAddr))
-					bvset(uevar, pos);
-				if(info.flags & LeftWrite)
-					if(from->node != nil && (!isfat(from->node->type) || prog->as == AFATVARDEF))
-						bvset(varkill, pos);
+				} else {
+					if(info.flags & (LeftRead | LeftAddr))
+						bvset(uevar, pos);
+					if(info.flags & LeftWrite)
+						if(from->node != nil && (!isfat(from->node->type) || prog->as == AFATVARDEF))
+							bvset(varkill, pos);
+				}
 			}
 		}
 	}
@@ -715,13 +719,18 @@ Next:
 				pos = arrayindexof(vars, to->node);
 				if(pos == -1)
 					goto Next1;
-				if(to->node->addrtaken)
-					bvset(avarinit, pos);
-				if(info.flags & (RightRead | RightAddr))
-					bvset(uevar, pos);
-				if(info.flags & RightWrite)
-					if(to->node != nil && (!isfat(to->node->type) || prog->as == AFATVARDEF))
+				if(to->node->addrtaken) {
+					if(prog->as == AKILL)
 						bvset(varkill, pos);
+					else
+						bvset(avarinit, pos);
+				} else {
+					if(info.flags & (RightRead | RightAddr))
+						bvset(uevar, pos);
+					if(info.flags & RightWrite)
+						if(to->node != nil && (!isfat(to->node->type) || prog->as == AFATVARDEF))
+							bvset(varkill, pos);
+				}
 			}
 		}
 	}
@@ -1589,8 +1598,10 @@ livenessepilogue(Liveness *lv)
 				if(debuglive >= 1) {
 					fmtstrinit(&fmt);
 					fmtprint(&fmt, "%L: live at ", p->lineno);
-					if(p->as == ACALL)
+					if(p->as == ACALL && p->to.node)
 						fmtprint(&fmt, "call to %s:", p->to.node->sym->name);
+					else if(p->as == ACALL)
+						fmtprint(&fmt, "indirect call:");
 					else
 						fmtprint(&fmt, "entry to %s:", p->from.node->sym->name);
 					numlive = 0;
