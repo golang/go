@@ -436,7 +436,7 @@ saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
 }
 
 func GoroutineProfile(b Slice) (n int, ok bool) {
-	uintptr pc, sp;
+	uintptr pc, sp, i;
 	TRecord *r;
 	G *gp;
 	
@@ -455,7 +455,8 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 			ok = true;
 			r = (TRecord*)b.array;
 			saveg(pc, sp, g, r++);
-			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+			for(i = 0; i < runtime·allglen; i++) {
+				gp = runtime·allg[i];
 				if(gp == g || gp->status == Gdead)
 					continue;
 				saveg(~(uintptr)0, ~(uintptr)0, gp, r++);

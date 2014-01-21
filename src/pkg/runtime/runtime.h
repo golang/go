@@ -263,7 +263,6 @@ struct	G
 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
 	uintptr	stack0;
 	uintptr	stacksize;
-	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
 	int64	goid;
@@ -719,7 +718,8 @@ bool	runtime·topofstack(Func*);
  */
 extern	String	runtime·emptystring;
 extern	uintptr runtime·zerobase;
-extern	G*	runtime·allg;
+extern	G**	runtime·allg;
+extern	uintptr runtime·allglen;
 extern	G*	runtime·lastg;
 extern	M*	runtime·allm;
 extern	P**	runtime·allp;
