@@ -44,8 +44,10 @@ int32 runtime·class_to_allocnpages[NumSizeClasses];
 int8 runtime·size_to_class8[1024/8 + 1];
 int8 runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 
-static int32
-SizeToClass(int32 size)
+void runtime·testdefersizes(void);
+
+int32
+runtime·SizeToClass(int32 size)
 {
 	if(size > MaxSmallSize)
 		runtime·throw("SizeToClass - invalid size");
@@ -119,7 +121,7 @@ runtime·InitSizes(void)
 	// Double-check SizeToClass.
 	if(0) {
 		for(n=0; n < MaxSmallSize; n++) {
-			sizeclass = SizeToClass(n);
+			sizeclass = runtime·SizeToClass(n);
 			if(sizeclass < 1 || sizeclass >= NumSizeClasses || runtime·class_to_size[sizeclass] < n) {
 				runtime·printf("size=%d sizeclass=%d runtime·class_to_size=%d\n", n, sizeclass, runtime·class_to_size[sizeclass]);
 				runtime·printf("incorrect SizeToClass");
@@ -132,6 +134,8 @@ runtime·InitSizes(void)
 			}
 		}
 	}
+
+	runtime·testdefersizes();
 
 	// Copy out for statistics table.
 	for(i=0; i<nelem(runtime·class_to_size); i++)

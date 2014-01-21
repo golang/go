@@ -70,7 +70,6 @@ typedef	struct	PtrType		PtrType;
 typedef	struct	ChanType		ChanType;
 typedef	struct	MapType		MapType;
 typedef	struct	Defer		Defer;
-typedef	struct	DeferChunk	DeferChunk;
 typedef	struct	Panic		Panic;
 typedef	struct	Hmap		Hmap;
 typedef	struct	Hchan		Hchan;
@@ -281,8 +280,6 @@ struct	G
 	int32	sig;
 	int32	writenbuf;
 	byte*	writebuf;
-	DeferChunk*	dchunk;
-	DeferChunk*	dchunknext;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
 	uintptr	sigpc;
@@ -387,6 +384,7 @@ struct P
 	uint32	syscalltick;	// incremented on every system call
 	M*	m;		// back-link to associated M (nil if idle)
 	MCache*	mcache;
+	Defer*	deferpool[5];	// pool of available Defer structs of different sizes (see panic.c)
 
 	// Queue of runnable goroutines.
 	uint32	runqhead;
@@ -676,18 +674,11 @@ struct Defer
 {
 	int32	siz;
 	bool	special;	// not part of defer frame
-	bool	free;		// if special, free when done
 	byte*	argp;		// where args were copied from
 	byte*	pc;
 	FuncVal*	fn;
 	Defer*	link;
 	void*	args[1];	// padded to actual size
-};
-
-struct DeferChunk
-{
-	DeferChunk	*prev;
-	uintptr	off;
 };
 
 /*

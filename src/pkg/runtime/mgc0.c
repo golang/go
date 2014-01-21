@@ -60,16 +60,25 @@ sync·runtime_registerPool(void **p)
 static void
 clearpools(void)
 {
-	void **p, **next;
+	void **pool, **next;
+	P *p, **pp;
+	int32 i;
 
-	for(p = pools.head; p != nil; p = next) {
-		next = p[0];
-		p[0] = nil; // next
-		p[1] = nil; // slice
-		p[2] = nil;
-		p[3] = nil;
+	// clear sync.Pool's
+	for(pool = pools.head; pool != nil; pool = next) {
+		next = pool[0];
+		pool[0] = nil; // next
+		pool[1] = nil; // slice
+		pool[2] = nil;
+		pool[3] = nil;
 	}
 	pools.head = nil;
+
+	// clear defer pools
+	for(pp=runtime·allp; p=*pp; pp++) {
+		for(i=0; i<nelem(p->deferpool); i++)
+			p->deferpool[i] = nil;
+	}
 }
 
 // Bits in per-word bitmap.

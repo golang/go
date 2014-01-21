@@ -204,7 +204,6 @@ runtime·main(void)
 	d.link = g->defer;
 	d.argp = (void*)-1;
 	d.special = true;
-	d.free = false;
 	g->defer = &d;
 
 	if(m != &runtime·m0)
