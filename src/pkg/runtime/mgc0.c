@@ -1867,9 +1867,11 @@ sweepspan(ParFor *desc, uint32 idx)
 				*(byte*)type_data = 0;
 				break;
 			}
-			if(size > sizeof(uintptr))
+			if(size > 2*sizeof(uintptr))
 				((uintptr*)p)[1] = (uintptr)0xdeaddeaddeaddeadll;	// mark as "needs to be zeroed"
-			
+			else if(size > sizeof(uintptr))
+				((uintptr*)p)[1] = 0;
+
 			end->next = (MLink*)p;
 			end = (MLink*)p;
 			nfree++;
