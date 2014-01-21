@@ -703,9 +703,12 @@ runtime·freespecial(Special *s, void *p, uintptr size)
 void
 runtime·freeallspecials(MSpan *span, void *p, uintptr size)
 {
-	Special *s, **t;
+	Special *s, **t, *list;
 	uintptr offset;
 
+	// first, collect all specials into the list; then, free them
+	// this is required to not cause deadlock between span->specialLock and proflock
+	list = nil;
 	offset = (uintptr)p - (span->start << PageShift);
 	runtime·lock(&span->specialLock);
 	t = &span->specials;
@@ -714,10 +717,17 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
 			break;
 		if(offset == s->offset) {
 			*t = s->next;
-			if(!runtime·freespecial(s, p, size))
-				runtime·throw("can't explicitly free an object with a finalizer");
+			s->next = list;
+			list = s;
 		} else
 			t = &s->next;
 	}
 	runtime·unlock(&span->specialLock);
+
+	while(list != nil) {
+		s = list;
+		list = s->next;
+		if(!runtime·freespecial(s, p, size))
+			runtime·throw("can't explicitly free an object with a finalizer");
+	}
 }
