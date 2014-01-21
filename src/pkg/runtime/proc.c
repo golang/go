@@ -2207,6 +2207,7 @@ static void
 procresize(int32 new)
 {
 	int32 i, old;
+	bool empty;
 	G *gp;
 	P *p;
 
@@ -2231,11 +2232,27 @@ procresize(int32 new)
 	}
 
 	// redistribute runnable G's evenly
-	// collect all runnable goroutines in global queue
-	for(i = 0; i < old; i++) {
-		p = runtime·allp[i];
-		while(gp = runqget(p))
-			globrunqput(gp);
+	// collect all runnable goroutines in global queue preserving FIFO order
+	// FIFO order is required to ensure fairness even during frequent GCs
+	// see http://golang.org/issue/7126
+	empty = false;
+	while(!empty) {
+		empty = true;
+		for(i = 0; i < old; i++) {
+			p = runtime·allp[i];
+			if(p->runqhead == p->runqtail)
+				continue;
+			empty = false;
+			// pop from tail of local queue
+			p->runqtail--;
+			gp = p->runq[p->runqtail%nelem(p->runq)];
+			// push onto head of global queue
+			gp->schedlink = runtime·sched.runqhead;
+			runtime·sched.runqhead = gp;
+			if(runtime·sched.runqtail == nil)
+				runtime·sched.runqtail = gp;
+			runtime·sched.runqsize++;
+		}
 	}
 	// fill local queues with at most nelem(p->runq)/2 goroutines
 	// start at 1 because current M already executes some G and will acquire allp[0] below,
