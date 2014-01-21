@@ -107,7 +107,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 	result := make(chan error)
 	go func() {
 		time.Sleep(alittle)
-		err = send(ln.Addr().String(), "abc")
+		err := send(ln.Addr().String(), "abc")
 		if err != nil {
 			result <- err
 		}
