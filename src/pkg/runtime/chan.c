@@ -159,6 +159,9 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 	G* gp;
 	int64 t0;
 
+	if(raceenabled)
+		runtime·racereadobjectpc(ep, t->elem, runtime·getcallerpc(&t), runtime·chansend);
+
 	if(c == nil) {
 		USED(t);
 		if(pres != nil) {
@@ -291,6 +294,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 	SudoG mysg;
 	G *gp;
 	int64 t0;
+
+	// raceenabled: don't need to check ep, as it is always on the stack.
 
 	if(debug)
 		runtime·printf("chanrecv: chan=%p\n", c);
