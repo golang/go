@@ -129,7 +129,6 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	d.link = g->defer;
 	d.argp = (void*)-1;  // unused because unlockm never recovers
 	d.special = true;
-	d.free = false;
 	g->defer = &d;
 
 	m->ncgo++;
@@ -285,7 +284,6 @@ runtime·cgocallbackg1(void)
 	d.link = g->defer;
 	d.argp = (void*)-1;  // unused because unwindm never recovers
 	d.special = true;
-	d.free = false;
 	g->defer = &d;
 
 	if(raceenabled && !m->racecall)
