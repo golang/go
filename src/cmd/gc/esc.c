@@ -916,8 +916,12 @@ esccall(EscState *e, Node *n)
 //	print("esc analyzed fn: %#N (%+T) returning (%+H)\n", fn, fntype, n->escretval);
 
 	// Receiver.
-	if(n->op != OCALLFUNC)
-		escassignfromtag(e, getthisx(fntype)->type->note, n->escretval, n->left->left);
+	if(n->op != OCALLFUNC) {
+		t = getthisx(fntype)->type;
+		src = n->left->left;
+		if(haspointers(t->type))
+			escassignfromtag(e, t->note, n->escretval, src);
+	}
 	
 	for(t=getinargx(fntype)->type; ll; ll=ll->next) {
 		src = ll->n;
@@ -930,7 +934,8 @@ esccall(EscState *e, Node *n)
 			e->noesc = list(e->noesc, src);
 			n->right = src;
 		}
-		escassignfromtag(e, t->note, n->escretval, src);
+		if(haspointers(t->type))
+			escassignfromtag(e, t->note, n->escretval, src);
 		if(src != ll->n)
 			break;
 		t = t->down;
