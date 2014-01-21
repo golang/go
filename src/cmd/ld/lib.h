@@ -241,7 +241,6 @@ void*	mal(uint32 n);
 void	mark(LSym *s);
 void	mywhatsys(void);
 struct ar_hdr;
-int	nextar(Biobuf *bp, int off, struct ar_hdr *a);
 void	objfile(char *file, char *pkg);
 void	patch(void);
 int	pathchar(void);
