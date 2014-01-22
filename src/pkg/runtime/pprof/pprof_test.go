@@ -33,10 +33,6 @@ func TestCPUProfile(t *testing.T) {
 }
 
 func TestCPUProfileMultithreaded(t *testing.T) {
-	// TODO(brainman): delete when issue 6986 is fixed.
-	if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
-		t.Skip("skipping broken test on windows-amd64-race")
-	}
 	buf := make([]byte, 100000)
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 	testCPUProfile(t, []string{"crc32.ChecksumIEEE", "crc32.Update"}, func() {
@@ -197,9 +193,6 @@ func TestCPUProfileWithFork(t *testing.T) {
 // If it did, it would see inconsistent state and would either record an incorrect stack
 // or crash because the stack was malformed.
 func TestGoroutineSwitch(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("flaky test; see http://golang.org/issue/6417")
-	}
 	// How much to try. These defaults take about 1 seconds
 	// on a 2012 MacBook Pro. The ones in short mode take
 	// about 0.1 seconds.
@@ -252,10 +245,6 @@ func TestGoroutineSwitch(t *testing.T) {
 
 // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
 func TestMathBigDivide(t *testing.T) {
-	// TODO(brainman): delete when issue 6986 is fixed.
-	if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
-		t.Skip("skipping broken test on windows-amd64-race")
-	}
 	testCPUProfile(t, nil, func() {
 		t := time.After(5 * time.Second)
 		pi := new(big.Int)

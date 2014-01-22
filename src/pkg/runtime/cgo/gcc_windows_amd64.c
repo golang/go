@@ -5,6 +5,8 @@
 #define WIN64_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "libcgo.h"
 
 static void threadentry(void*);
@@ -25,14 +27,19 @@ x_cgo_init(G *g)
 void
 _cgo_sys_thread_start(ThreadStart *ts)
 {
-	_beginthread(threadentry, 0, ts);
+	uintptr_t thandle;
+
+	thandle = _beginthread(threadentry, 0, ts);
+	if(thandle == -1) {
+		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+		abort();
+	}
 }
 
 static void
 threadentry(void *v)
 {
 	ThreadStart ts;
-	void *tls0;
 
 	ts = *(ThreadStart*)v;
 	free(v);
@@ -43,13 +50,12 @@ threadentry(void *v)
 	/*
 	 * Set specific keys in thread local storage.
 	 */
-	tls0 = (void*)LocalAlloc(LPTR, 64);
 	asm volatile (
 	  "movq %0, %%gs:0x28\n"	// MOVL tls0, 0x28(GS)
 	  "movq %%gs:0x28, %%rax\n" // MOVQ 0x28(GS), tmp
 	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
 	  "movq %2, 8(%%rax)\n" // MOVQ m, 8(GS)
-	  :: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%rax"
+	  :: "r"(ts.tls), "r"(ts.g), "r"(ts.m) : "%rax"
 	);
 
 	crosscall_amd64(ts.fn);

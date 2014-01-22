@@ -638,6 +638,7 @@ struct CgoThreadStart
 {
 	M *m;
 	G *g;
+	uintptr *tls;
 	void (*fn)(void);
 };
 
@@ -916,6 +917,7 @@ newm(void(*fn)(void), P *p)
 			runtime·throw("_cgo_thread_start missing");
 		ts.m = mp;
 		ts.g = mp->g0;
+		ts.tls = mp->tls;
 		ts.fn = runtime·mstart;
 		runtime·asmcgocall(_cgo_thread_start, &ts);
 		return;
@@ -2074,18 +2076,25 @@ System(void)
 
 // Called if we receive a SIGPROF signal.
 void
-runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 {
 	int32 n;
 	bool traceback;
+	MCache *mcache;
+	// Do not use global m in this function, use mp instead.
+	// On windows one m is sending reports about all the g's, so m means a wrong thing.
+	byte m;
+
+	m = 0;
+	USED(m);
 
 	if(prof.fn == nil || prof.hz == 0)
 		return;
-	traceback = true;
-	// Windows does profiling in a dedicated thread w/o m.
-	if(!Windows && (m == nil || m->mcache == nil))
-		traceback = false;
-	
+
+	// Profiling runs concurrently with GC, so it must not allocate.
+	mcache = mp->mcache;
+	mp->mcache = nil;
+
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal. We've only made sure that we
 	// can unwind user g's, so exclude the system g's.
@@ -2158,24 +2167,21 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 	// To recap, there are no constraints on the assembly being used for the
 	// transition. We simply require that g and SP match and that the PC is not
 	// in runtime.gogo.
-	//
-	// On Windows, one m is sending reports about all the g's, so gp == m->curg
-	// is not a useful comparison. The profilem function in os_windows.c has
-	// already checked that gp is a user g.
-	if(gp == nil ||
-	   (!Windows && gp != m->curg) ||
+	traceback = true;
+	if(gp == nil || gp != mp->curg ||
 	   (uintptr)sp < gp->stackguard - StackGuard || gp->stackbase < (uintptr)sp ||
 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
 		traceback = false;
 
 	// Race detector calls asmcgocall w/o entersyscall/exitsyscall,
 	// we can not currently unwind through asmcgocall.
-	if(m != nil && m->racecall)
+	if(mp != nil && mp->racecall)
 		traceback = false;
 
 	runtime·lock(&prof);
 	if(prof.fn == nil) {
 		runtime·unlock(&prof);
+		mp->mcache = mcache;
 		return;
 	}
 	n = 0;
@@ -2188,6 +2194,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 	}
 	prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
+	mp->mcache = mcache;
 }
 
 // Arrange to call fn with a traceback hz times a second.

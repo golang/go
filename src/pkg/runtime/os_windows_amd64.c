@@ -108,7 +108,7 @@ runtime·sigdisable(uint32 sig)
 }
 
 void
-runtime·dosigprof(Context *r, G *gp)
+runtime·dosigprof(Context *r, G *gp, M *mp)
 {
-	runtime·sigprof((uint8*)r->Rip, (uint8*)r->Rsp, nil, gp);
+	runtime·sigprof((uint8*)r->Rip, (uint8*)r->Rsp, nil, gp, mp);
 }
