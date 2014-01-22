@@ -105,6 +105,10 @@ var parsers = []struct {
 	{[]byte("\xCE\xFA\xED\xFE"), machoSymbols},
 	{[]byte("\xCF\xFA\xED\xFE"), machoSymbols},
 	{[]byte("MZ"), peSymbols},
+	{[]byte("\x00\x00\x01\xEB"), plan9Symbols}, // 386
+	{[]byte("\x00\x00\x04\x07"), plan9Symbols}, // mips
+	{[]byte("\x00\x00\x06\x47"), plan9Symbols}, // arm
+	{[]byte("\x00\x00\x8A\x97"), plan9Symbols}, // amd64
 }
 
 func nm(file string) {
