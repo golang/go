@@ -549,6 +549,12 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-16
 	XCHGQ	AX, 0(BX)
 	RET
 
+TEXT runtime·xchgp(SB), NOSPLIT, $0-16
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), AX
+	XCHGQ	AX, 0(BX)
+	RET
+
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	MOVL	8(SP), AX
 again:

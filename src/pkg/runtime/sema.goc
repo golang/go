@@ -137,7 +137,7 @@ runtime·semacquire(uint32 volatile *addr, bool profile)
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		semqueue(root, addr, &s);
-		runtime·park(runtime·unlock, root, "semacquire");
+		runtime·parkunlock(root, "semacquire");
 		if(cansemacquire(addr)) {
 			if(t0)
 				runtime·blockevent(s.releasetime - t0, 3);
@@ -254,7 +254,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
 		else
 			s->tail->next = &w;
 		s->tail = &w;
-		runtime·park(runtime·unlock, s, "semacquire");
+		runtime·parkunlock(s, "semacquire");
 		if(t0)
 			runtime·blockevent(w.releasetime - t0, 2);
 	}
@@ -288,7 +288,7 @@ func runtime_Syncsemrelease(s *SyncSema, n uint32) {
 		else
 			s->tail->next = &w;
 		s->tail = &w;
-		runtime·park(runtime·unlock, s, "semarelease");
+		runtime·parkunlock(s, "semarelease");
 	} else
 		runtime·unlock(s);
 }

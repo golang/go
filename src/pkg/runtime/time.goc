@@ -76,7 +76,7 @@ runtime·tsleep(int64 ns, int8 *reason)
 	t.arg.data = g;
 	runtime·lock(&timers);
 	addtimer(&t);
-	runtime·park(runtime·unlock, &timers, reason);
+	runtime·parkunlock(&timers, reason);
 }
 
 static FuncVal timerprocv = {timerproc};
@@ -222,7 +222,7 @@ timerproc(void)
 		if(delta < 0) {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true;
-			runtime·park(runtime·unlock, &timers, "timer goroutine (idle)");
+			runtime·parkunlock(&timers, "timer goroutine (idle)");
 			continue;
 		}
 		// At least one timer pending.  Sleep until then.

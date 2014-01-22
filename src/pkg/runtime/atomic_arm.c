@@ -42,6 +42,19 @@ runtime·xchg(uint32 volatile* addr, uint32 v)
 }
 
 #pragma textflag NOSPLIT
+void*
+runtime·xchgp(void* volatile* addr, void* v)
+{
+	void *old;
+
+	for(;;) {
+		old = *addr;
+		if(runtime·cas(addr, old, v))
+			return old;
+	}
+}
+
+#pragma textflag NOSPLIT
 void
 runtime·procyield(uint32 cnt)
 {

@@ -339,7 +339,7 @@ struct	M
 	GCStats	gcstats;
 	bool	racecall;
 	bool	needextram;
-	void	(*waitunlockf)(Lock*);
+	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
 
 	uintptr	settype_buf[1024];
@@ -790,21 +790,6 @@ int32	runtime·read(int32, void*, int32);
 int32	runtime·write(int32, void*, int32);
 int32	runtime·close(int32);
 int32	runtime·mincore(void*, uintptr, byte*);
-bool	runtime·cas(uint32*, uint32, uint32);
-bool	runtime·cas64(uint64*, uint64, uint64);
-bool	runtime·casp(void**, void*, void*);
-// Don't confuse with XADD x86 instruction,
-// this one is actually 'addx', that is, add-and-fetch.
-uint32	runtime·xadd(uint32 volatile*, int32);
-uint64	runtime·xadd64(uint64 volatile*, int64);
-uint32	runtime·xchg(uint32 volatile*, uint32);
-uint64	runtime·xchg64(uint64 volatile*, uint64);
-uint32	runtime·atomicload(uint32 volatile*);
-void	runtime·atomicstore(uint32 volatile*, uint32);
-void	runtime·atomicstore64(uint64 volatile*, uint64);
-uint64	runtime·atomicload64(uint64 volatile*);
-void*	runtime·atomicloadp(void* volatile*);
-void	runtime·atomicstorep(void* volatile*, void*);
 void	runtime·jmpdefer(FuncVal*, void*);
 void	runtime·exit1(int32);
 void	runtime·ready(G*);
@@ -845,14 +830,33 @@ uint32	runtime·fastrand1(void);
 void	runtime·rewindmorestack(Gobuf*);
 int32	runtime·timediv(int64, int32, int32*);
 
-void runtime·setmg(M*, G*);
-void runtime·newextram(void);
+// atomic operations
+bool	runtime·cas(uint32*, uint32, uint32);
+bool	runtime·cas64(uint64*, uint64, uint64);
+bool	runtime·casp(void**, void*, void*);
+// Don't confuse with XADD x86 instruction,
+// this one is actually 'addx', that is, add-and-fetch.
+uint32	runtime·xadd(uint32 volatile*, int32);
+uint64	runtime·xadd64(uint64 volatile*, int64);
+uint32	runtime·xchg(uint32 volatile*, uint32);
+uint64	runtime·xchg64(uint64 volatile*, uint64);
+void*	runtime·xchgp(void* volatile*, void*);
+uint32	runtime·atomicload(uint32 volatile*);
+void	runtime·atomicstore(uint32 volatile*, uint32);
+void	runtime·atomicstore64(uint64 volatile*, uint64);
+uint64	runtime·atomicload64(uint64 volatile*);
+void*	runtime·atomicloadp(void* volatile*);
+void	runtime·atomicstorep(void* volatile*, void*);
+
+void	runtime·setmg(M*, G*);
+void	runtime·newextram(void);
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);
 void	runtime·gosched(void);
 void	runtime·gosched0(G*);
 void	runtime·schedtrace(bool);
-void	runtime·park(void(*)(Lock*), Lock*, int8*);
+void	runtime·park(bool(*)(G*, void*), void*, int8*);
+void	runtime·parkunlock(Lock*, int8*);
 void	runtime·tsleep(int64, int8*);
 M*	runtime·newm(void);
 void	runtime·goexit(void);

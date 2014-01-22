@@ -2307,7 +2307,7 @@ runfinq(void)
 		finq = nil;
 		if(fb == nil) {
 			fingwait = 1;
-			runtime·park(runtime·unlock, &finlock, "finalizer wait");
+			runtime·parkunlock(&finlock, "finalizer wait");
 			continue;
 		}
 		runtime·unlock(&finlock);
