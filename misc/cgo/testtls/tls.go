@@ -15,14 +15,16 @@ import (
 )
 
 func testTLS(t *testing.T) {
-	var keyVal C.int = 1234
-
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	C.setTLS(C.int(keyVal))
-	storedVal := C.getTLS()
 
-	if storedVal != keyVal {
-		t.Fatalf("stored %d want %d", storedVal, keyVal)
+	if val := C.getTLS(); val != 0 {
+		t.Fatalf("at start, C.getTLS() = %#x, want 0", val)
+	}
+
+	const keyVal = 0x1234
+	C.setTLS(keyVal)
+	if val := C.getTLS(); val != keyVal {
+		t.Fatalf("at end, C.getTLS() = %#x, want %#x", val, keyVal)
 	}
 }
