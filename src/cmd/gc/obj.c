@@ -20,7 +20,7 @@ enum
 static void
 formathdr(char *arhdr, char *name, vlong size)
 {
-	snprint(arhdr, ArhdrSize, "%-16s%-12d%-6d%-6d%-8o%-10d`",
+	snprint(arhdr, ArhdrSize, "%-16s%-12d%-6d%-6d%-8o%-10lld`",
 		name, 0, 0, 0, 0644, size);
 	arhdr[ArhdrSize-1] = '\n'; // overwrite \0 written by snprint
 }
