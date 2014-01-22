@@ -22,7 +22,7 @@ func TestSwitches(t *testing.T) {
 		return
 	}
 
-	conf.CreateFromFiles(f)
+	conf.CreateFromFiles("main", f)
 	iprog, err := conf.Load()
 	if err != nil {
 		t.Error(err)

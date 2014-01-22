@@ -47,7 +47,7 @@ func main() {
 		t.Error(err)
 		return
 	}
-	conf.CreateFromFiles(f)
+	conf.CreateFromFiles("main", f)
 
 	iprog, err := conf.Load()
 	if err != nil {
@@ -212,7 +212,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 			t.Errorf("test %d: %s", i, err)
 			continue
 		}
-		conf.CreateFromFiles(f)
+		conf.CreateFromFiles("p", f)
 
 		iprog, err := conf.Load()
 		if err != nil {

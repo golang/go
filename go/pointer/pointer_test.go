@@ -161,7 +161,7 @@ func doOneInput(input, filename string) bool {
 	}
 
 	// Create single-file main package and import its dependencies.
-	conf.CreateFromFiles(f)
+	conf.CreateFromFiles("main", f)
 	iprog, err := conf.Load()
 	if err != nil {
 		fmt.Println(err)

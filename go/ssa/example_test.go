@@ -50,7 +50,7 @@ func main() {
 	}
 
 	// Create single-file main package.
-	conf.CreateFromFiles(file)
+	conf.CreateFromFiles("main", file)
 
 	// Load the main package and its dependencies.
 	iprog, err := conf.Load()

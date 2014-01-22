@@ -4,11 +4,7 @@
 
 package loader
 
-// This file defines various utility functions exposed by the package
-// and used by it.
-
 import (
-	"fmt"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -102,25 +98,6 @@ func unparen(e ast.Expr) ast.Expr {
 
 func unreachable() {
 	panic("unreachable")
-}
-
-func packageName(files []*ast.File, fset *token.FileSet) (string, error) {
-	if len(files) == 0 {
-		return "", fmt.Errorf("no files in package")
-	}
-	// Take the package name from the 'package decl' in each file,
-	// all of which must match.
-	pkgname := files[0].Name.Name
-	for _, file := range files[1:] {
-		if pn := file.Name.Name; pn != pkgname {
-			err := fmt.Errorf("can't load package: found packages %s (%s) and %s (%s)",
-				pkgname, filename(files[0], fset),
-				pn, filename(file, fset))
-			return "", err
-		}
-		// TODO(adonovan): check dirnames are equal, like 'go build' does.
-	}
-	return pkgname, nil
 }
 
 // TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)

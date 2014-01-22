@@ -261,7 +261,7 @@ func TestMultipleQueries(t *testing.T) {
 	buildContext.GOPATH = "testdata"
 	conf := loader.Config{Build: &buildContext}
 	filename := "testdata/src/main/multi.go"
-	conf.CreateFromFilenames(filename)
+	conf.CreateFromFilenames("", filename)
 	iprog, err := conf.Load()
 	if err != nil {
 		t.Fatalf("Load failed: %s", err)

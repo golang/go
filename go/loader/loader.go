@@ -25,16 +25,17 @@
 //      // See FromArgsUsage for help.
 //      rest, err := conf.FromArgs(os.Args[1:])
 //
-//      // Parse the specified files and create an ad-hoc package.
+//      // Parse the specified files and create an ad-hoc package with path "foo".
 //      // All files must have the same 'package' declaration.
-//      err := conf.CreateFromFilenames("foo.go", "bar.go")
+//      err := conf.CreateFromFilenames("foo", "foo.go", "bar.go")
 //
-//      // Create an ad-hoc package from the specified already-parsed files.
+//      // Create an ad-hoc package with path "foo" from
+//      // the specified already-parsed files.
 //      // All ASTs must have the same 'package' declaration.
-//      err := conf.CreateFromFiles(parsedFiles)
+//      err := conf.CreateFromFiles("foo", parsedFiles)
 //
 //      // Add "runtime" to the set of packages to be loaded.
-//      err := conf.Import("runtime")
+//      conf.Import("runtime")
 //
 //      // Adds "fmt" and "fmt_test" to the set of packages
 //      // to be loaded.  "fmt" will include *_test.go files.
@@ -92,6 +93,8 @@ package loader
 //   (*Config).CreateFromFiles has a nasty precondition.
 // - Ideally some of this logic would move under the umbrella of
 //   go/types; see bug 7114.
+// - s/path/importPath/g to avoid ambiguity with other meanings of
+//   "path": a file name, a colon-separated directory list.
 
 import (
 	"errors"
@@ -157,13 +160,15 @@ type Config struct {
 	Build *build.Context
 
 	// CreatePkgs specifies a list of non-importable initial
-	// packages to create.  Each element is a list of parsed files
-	// to be type-checked into a new package whose name is taken
-	// from ast.File.Package.
+	// packages to create.  Each element specifies a list of
+	// parsed files to be type-checked into a new package, and a
+	// path for that package.  If the path is "", the package's
+	// name will be used instead.  The path needn't be globally
+	// unique.
 	//
 	// The resulting packages will appear in the corresponding
 	// elements of the Program.Created slice.
-	CreatePkgs [][]*ast.File
+	CreatePkgs []CreatePkg
 
 	// ImportPkgs specifies a set of initial packages to load from
 	// source.  The map keys are package import paths, used to
@@ -174,6 +179,11 @@ type Config struct {
 	// Due to current type-checker limitations, at most one entry
 	// may be augmented (true).
 	ImportPkgs map[string]bool
+}
+
+type CreatePkg struct {
+	Path  string
+	Files []*ast.File
 }
 
 // A Program is a Go program loaded from source or binary
@@ -224,9 +234,8 @@ Each argument may take one of two forms:
 1. A comma-separated list of *.go source files.
 
    All of the specified files are loaded, parsed and type-checked
-   as a single package.  The name of the package is taken from the
-   files' package declarations, which must all be equal.  All the
-   files must belong to the same directory.
+   as a single package.
+   All the files must belong to the same directory.
 
 2. An import path.
 
@@ -268,8 +277,8 @@ func (conf *Config) FromArgs(args []string) (rest []string, err error) {
 
 		if strings.HasSuffix(arg, ".go") {
 			// Assume arg is a comma-separated list of *.go files
-			// comprising a single package.
-			err = conf.CreateFromFilenames(strings.Split(arg, ",")...)
+			// denoting a single ad-hoc package.
+			err = conf.CreateFromFilenames("", strings.Split(arg, ",")...)
 		} else {
 			// Assume arg is a directory name denoting a
 			// package, perhaps plus an external test
@@ -291,27 +300,27 @@ func (conf *Config) FromArgs(args []string) (rest []string, err error) {
 // specified *.go files and adds a package entry for them to
 // conf.CreatePkgs.
 //
-func (conf *Config) CreateFromFilenames(filenames ...string) error {
+func (conf *Config) CreateFromFilenames(path string, filenames ...string) error {
 	files, err := parseFiles(conf.fset(), ".", filenames...)
 	if err != nil {
 		return err
 	}
 
-	conf.CreateFromFiles(files...)
+	conf.CreateFromFiles(path, files...)
 	return nil
 }
 
 // CreateFromFiles is a convenience function that adds a CreatePkgs
-// entry for the specified parsed files.
+// entry to create package of the specified path and parsed files.
 //
 // Precondition: conf.Fset is non-nil and was the fileset used to parse
 // the files.  (e.g. the files came from conf.ParseFile().)
 //
-func (conf *Config) CreateFromFiles(files ...*ast.File) {
+func (conf *Config) CreateFromFiles(path string, files ...*ast.File) {
 	if conf.Fset == nil {
 		panic("nil Fset")
 	}
-	conf.CreatePkgs = append(conf.CreatePkgs, files)
+	conf.CreatePkgs = append(conf.CreatePkgs, CreatePkg{path, files})
 }
 
 // ImportWithTests is a convenience function that adds path to
@@ -320,7 +329,7 @@ func (conf *Config) CreateFromFiles(files ...*ast.File) {
 // its directory that contain a "package x" (not "package x_test")
 // declaration.
 //
-// In addition, if any *_test.go files contain a "package <path>_test"
+// In addition, if any *_test.go files contain a "package x_test"
 // declaration, an additional package comprising just those files will
 // be added to CreatePkgs.
 //
@@ -344,7 +353,7 @@ func (conf *Config) ImportWithTests(path string) error {
 		return err
 	}
 	if len(xtestFiles) > 0 {
-		conf.CreateFromFiles(xtestFiles...)
+		conf.CreateFromFiles(path+"_test", xtestFiles...)
 	}
 
 	// Mark the non-xtest package for augmentation with
@@ -450,14 +459,12 @@ func (conf *Config) Load() (*Program, error) {
 		prog.Imported[path] = info
 	}
 
-	for _, files := range conf.CreatePkgs {
-		pkgname, err := packageName(files, conf.Fset)
-		if err != nil {
-			return nil, err
+	for _, create := range conf.CreatePkgs {
+		path := create.Path
+		if create.Path == "" && len(create.Files) > 0 {
+			path = create.Files[0].Name.Name
 		}
-		// TODO(adonovan): pkgnames are not unique, but the
-		// typechecker assumes they are in its Id() logic.
-		prog.Created = append(prog.Created, imp.createPackage(pkgname, files...))
+		prog.Created = append(prog.Created, imp.createPackage(path, create.Files...))
 	}
 
 	if len(prog.Imported)+len(prog.Created) == 0 {

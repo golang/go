@@ -30,7 +30,7 @@ func TestObjValueLookup(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	conf.CreateFromFiles(f)
+	conf.CreateFromFiles("main", f)
 
 	// Maps each var Ident (represented "name:linenum") to the
 	// kind of ssa.Value we expect (represented "Constant", "&Alloc").
@@ -194,7 +194,7 @@ func TestValueForExpr(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	conf.CreateFromFiles(f)
+	conf.CreateFromFiles("main", f)
 
 	iprog, err := conf.Load()
 	if err != nil {

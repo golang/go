@@ -49,7 +49,7 @@ func main() {
 	}
 
 	// Create single-file main package and import its dependencies.
-	conf.CreateFromFiles(file)
+	conf.CreateFromFiles("main", file)
 
 	iprog, err := conf.Load()
 	if err != nil {

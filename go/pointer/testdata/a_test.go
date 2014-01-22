@@ -11,7 +11,7 @@ import "testing"
 
 func log(f func(*testing.T)) {
 	// The PTS of f is the set of called tests.  TestingQuux is not present.
-	print(f) // @pointsto a.Test | a.TestFoo
+	print(f) // @pointsto main.Test | main.TestFoo
 }
 
 func Test(t *testing.T) {
@@ -36,7 +36,7 @@ func ExampleBar() {
 }
 
 // Excludes TestingQuux.
-// @calls testing.tRunner -> a.Test
-// @calls testing.tRunner -> a.TestFoo
-// @calls testing.runExample -> a.ExampleBar
-// @calls (*testing.B).runN -> a.BenchmarkFoo
+// @calls testing.tRunner -> main.Test
+// @calls testing.tRunner -> main.TestFoo
+// @calls testing.runExample -> main.ExampleBar
+// @calls (*testing.B).runN -> main.BenchmarkFoo
