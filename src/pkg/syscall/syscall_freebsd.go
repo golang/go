@@ -95,12 +95,12 @@ func Pipe(p []int) (err error) {
 func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
 	var value IPMreqn
 	vallen := _Socklen(SizeofIPMreqn)
-	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	errno := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, errno
 }
 
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
 
 /*
