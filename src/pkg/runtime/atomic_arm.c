@@ -49,7 +49,7 @@ runtime·xchgp(void* volatile* addr, void* v)
 
 	for(;;) {
 		old = *addr;
-		if(runtime·cas(addr, old, v))
+		if(runtime·casp(addr, old, v))
 			return old;
 	}
 }
