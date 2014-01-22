@@ -34,6 +34,7 @@ struct ThreadStart
 {
 	uintptr m;
 	G *g;
+	uintptr *tls;
 	void (*fn)(void);
 };
 

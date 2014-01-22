@@ -86,10 +86,6 @@ runtime·osinit(void)
 	void *kernel32;
 	void *SetProcessPriorityBoost;
 
-	// -1 = current process, -2 = current thread
-	runtime·stdcall(runtime·DuplicateHandle, 7,
-		(uintptr)-1, (uintptr)-2, (uintptr)-1, &m->thread,
-		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
 	runtime·ncpu = getproccount();
@@ -229,7 +225,6 @@ runtime·newosproc(M *mp, void *stk)
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
 		runtime·throw("runtime.newosproc");
 	}
-	runtime·atomicstorep(&mp->thread, thandle);
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -245,6 +240,14 @@ runtime·mpreinit(M *mp)
 void
 runtime·minit(void)
 {
+	void *thandle;
+
+	// -1 = current process, -2 = current thread
+	runtime·stdcall(runtime·DuplicateHandle, 7,
+		(uintptr)-1, (uintptr)-2, (uintptr)-1, &thandle,
+		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
+	runtime·atomicstorep(&m->thread, thandle);
+
 	runtime·install_exception_handler();
 }
 
@@ -383,7 +386,7 @@ runtime·ctrlhandler1(uint32 type)
 	return 0;
 }
 
-extern void runtime·dosigprof(Context *r, G *gp);
+extern void runtime·dosigprof(Context *r, G *gp, M *mp);
 extern void runtime·profileloop(void);
 static void *profiletimer;
 
@@ -402,13 +405,11 @@ profilem(M *mp)
 		tls = runtime·tls0;
 	gp = *(G**)tls;
 
-	if(gp != nil && gp != mp->g0 && gp->status != Gsyscall) {
-		// align Context to 16 bytes
-		r = (Context*)((uintptr)(&rbuf[15]) & ~15);
-		r->ContextFlags = CONTEXT_CONTROL;
-		runtime·stdcall(runtime·GetThreadContext, 2, mp->thread, r);
-		runtime·dosigprof(r, gp);
-	}
+	// align Context to 16 bytes
+	r = (Context*)((uintptr)(&rbuf[15]) & ~15);
+	r->ContextFlags = CONTEXT_CONTROL;
+	runtime·stdcall(runtime·GetThreadContext, 2, mp->thread, r);
+	runtime·dosigprof(r, gp, mp);
 }
 
 void
