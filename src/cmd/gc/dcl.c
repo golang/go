@@ -941,8 +941,6 @@ interfacefield(Node *n)
 				f->nname = n->left;
 				f->embedded = n->embedded;
 				f->sym = f->nname->sym;
-				if(importpkg && !exportname(f->sym->name))
-					f->sym = pkglookup(f->sym->name, structpkg);
 			}
 
 		} else {
