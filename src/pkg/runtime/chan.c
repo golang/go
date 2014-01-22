@@ -41,7 +41,7 @@ struct	Hchan
 	uint16	elemsize;
 	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
 	bool	closed;
-	Alg*	elemalg;		// interface for element type
+	Type*	elemtype;		// element type
 	uintgo	sendx;			// send index
 	uintgo	recvx;			// receive index
 	WaitQ	recvq;			// list of recv waiters
@@ -110,7 +110,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	// allocate memory in one call
 	c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, (uintptr)t | TypeInfo_Chan, 0);
 	c->elemsize = elem->size;
-	c->elemalg = elem->alg;
+	c->elemtype = elem;
 	c->dataqsiz = hint;
 
 	if(debug)
@@ -174,7 +174,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 
 	if(debug) {
 		runtime·printf("chansend: chan=%p; elem=", c);
-		c->elemalg->print(c->elemsize, ep);
+		c->elemtype->alg->print(c->elemsize, ep);
 		runtime·prints("\n");
 	}
 
@@ -203,7 +203,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 		gp = sg->g;
 		gp->param = sg;
 		if(sg->elem != nil)
-			c->elemalg->copy(c->elemsize, sg->elem, ep);
+			c->elemtype->alg->copy(c->elemsize, sg->elem, ep);
 		if(sg->releasetime)
 			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
@@ -261,7 +261,7 @@ asynch:
 	if(raceenabled)
 		runtime·racerelease(chanbuf(c, c->sendx));
 
-	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
 	c->qcount++;
@@ -331,7 +331,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 		runtime·unlock(c);
 
 		if(ep != nil)
-			c->elemalg->copy(c->elemsize, ep, sg->elem);
+			c->elemtype->alg->copy(c->elemsize, ep, sg->elem);
 		gp = sg->g;
 		gp->param = sg;
 		if(sg->releasetime)
@@ -397,8 +397,8 @@ asynch:
 		runtime·raceacquire(chanbuf(c, c->recvx));
 
 	if(ep != nil)
-		c->elemalg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
-	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+		c->elemtype->alg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
+	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
 	if(++c->recvx == c->dataqsiz)
 		c->recvx = 0;
 	c->qcount--;
@@ -423,7 +423,7 @@ asynch:
 
 closed:
 	if(ep != nil)
-		c->elemalg->copy(c->elemsize, ep, nil);
+		c->elemtype->alg->copy(c->elemsize, ep, nil);
 	if(selected != nil)
 		*selected = true;
 	if(received != nil)
@@ -1007,18 +1007,28 @@ loop:
 			*cas->receivedp = true;
 	}
 
+	if(raceenabled) {
+		if(cas->kind == CaseRecv && cas->sg.elem != nil)
+			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
+		else if(cas->kind == CaseSend)
+			runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
+	}
+
 	selunlock(sel);
 	goto retc;
 
 asyncrecv:
 	// can receive from buffer
-	if(raceenabled)
+	if(raceenabled) {
+		if(cas->sg.elem != nil)
+			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
 		runtime·raceacquire(chanbuf(c, c->recvx));
+	}
 	if(cas->receivedp != nil)
 		*cas->receivedp = true;
 	if(cas->sg.elem != nil)
-		c->elemalg->copy(c->elemsize, cas->sg.elem, chanbuf(c, c->recvx));
-	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, chanbuf(c, c->recvx));
+	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
 	if(++c->recvx == c->dataqsiz)
 		c->recvx = 0;
 	c->qcount--;
@@ -1036,9 +1046,11 @@ asyncrecv:
 
 asyncsend:
 	// can send to buffer
-	if(raceenabled)
+	if(raceenabled) {
 		runtime·racerelease(chanbuf(c, c->sendx));
-	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
+		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
+	}
+	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
 	c->qcount++;
@@ -1056,15 +1068,18 @@ asyncsend:
 
 syncrecv:
 	// can receive from sleeping sender (sg)
-	if(raceenabled)
+	if(raceenabled) {
+		if(cas->sg.elem != nil)
+			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
 		racesync(c, sg);
+	}
 	selunlock(sel);
 	if(debug)
 		runtime·printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
 	if(cas->receivedp != nil)
 		*cas->receivedp = true;
 	if(cas->sg.elem != nil)
-		c->elemalg->copy(c->elemsize, cas->sg.elem, sg->elem);
+		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, sg->elem);
 	gp = sg->g;
 	gp->param = sg;
 	if(sg->releasetime)
@@ -1078,20 +1093,22 @@ rclose:
 	if(cas->receivedp != nil)
 		*cas->receivedp = false;
 	if(cas->sg.elem != nil)
-		c->elemalg->copy(c->elemsize, cas->sg.elem, nil);
+		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, nil);
 	if(raceenabled)
 		runtime·raceacquire(c);
 	goto retc;
 
 syncsend:
 	// can send to sleeping receiver (sg)
-	if(raceenabled)
+	if(raceenabled) {
+		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
 		racesync(c, sg);
+	}
 	selunlock(sel);
 	if(debug)
 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
 	if(sg->elem != nil)
-		c->elemalg->copy(c->elemsize, sg->elem, cas->sg.elem);
+		c->elemtype->alg->copy(c->elemsize, sg->elem, cas->sg.elem);
 	gp = sg->g;
 	gp->param = sg;
 	if(sg->releasetime)
