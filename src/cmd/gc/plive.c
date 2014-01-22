@@ -1676,10 +1676,9 @@ printbitset(int printed, char *name, Array *vars, Bvec *bits)
 		if(!bvget(bits, i))
 			continue;
 		if(!started) {
-			if(!printed) {
-				printed = 1;
+			if(!printed)
 				print("\t");
-			} else
+			else
 				print(" ");
 			started = 1;
 			printed = 1;
