@@ -230,9 +230,9 @@ func Mkfifo(path string, mode uint32) (err error) {
 	return Mknod(path, mode|S_IFIFO, 0)
 }
 
-func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, error) {
+func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
-		return 0, 0, EINVAL
+		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_INET
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
@@ -241,12 +241,12 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, error) {
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet4, nil
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 }
 
-func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, error) {
+func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
-		return 0, 0, EINVAL
+		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_INET6
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
@@ -256,14 +256,14 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, error) {
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet6, nil
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 }
 
-func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
+func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	name := sa.Name
 	n := len(name)
 	if n >= len(sa.raw.Path) {
-		return 0, 0, EINVAL
+		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_UNIX
 	for i := 0; i < n; i++ {
@@ -280,7 +280,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
 		sl--
 	}
 
-	return uintptr(unsafe.Pointer(&sa.raw)), sl, nil
+	return unsafe.Pointer(&sa.raw), sl, nil
 }
 
 type SockaddrLinklayer struct {
@@ -293,9 +293,9 @@ type SockaddrLinklayer struct {
 	raw      RawSockaddrLinklayer
 }
 
-func (sa *SockaddrLinklayer) sockaddr() (uintptr, _Socklen, error) {
+func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Ifindex < 0 || sa.Ifindex > 0x7fffffff {
-		return 0, 0, EINVAL
+		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_PACKET
 	sa.raw.Protocol = sa.Protocol
@@ -306,7 +306,7 @@ func (sa *SockaddrLinklayer) sockaddr() (uintptr, _Socklen, error) {
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrLinklayer, nil
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
 }
 
 type SockaddrNetlink struct {
@@ -317,12 +317,12 @@ type SockaddrNetlink struct {
 	raw    RawSockaddrNetlink
 }
 
-func (sa *SockaddrNetlink) sockaddr() (uintptr, _Socklen, error) {
+func (sa *SockaddrNetlink) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	sa.raw.Family = AF_NETLINK
 	sa.raw.Pad = sa.Pad
 	sa.raw.Pid = sa.Pid
 	sa.raw.Groups = sa.Groups
-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrNetlink, nil
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrNetlink, nil
 }
 
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
@@ -439,54 +439,54 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 
 func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
 	vallen := _Socklen(4)
-	err = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), &vallen)
+	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
 	return value, err
 }
 
 func GetsockoptIPMreq(fd, level, opt int) (*IPMreq, error) {
 	var value IPMreq
 	vallen := _Socklen(SizeofIPMreq)
-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
 }
 
 func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
 	var value IPMreqn
 	vallen := _Socklen(SizeofIPMreqn)
-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
 }
 
 func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
 	var value IPv6Mreq
 	vallen := _Socklen(SizeofIPv6Mreq)
-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
 }
 
 func GetsockoptIPv6MTUInfo(fd, level, opt int) (*IPv6MTUInfo, error) {
 	var value IPv6MTUInfo
 	vallen := _Socklen(SizeofIPv6MTUInfo)
-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
 }
 
 func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
 	var value ICMPv6Filter
 	vallen := _Socklen(SizeofICMPv6Filter)
-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
 }
 
 func GetsockoptUcred(fd, level, opt int) (*Ucred, error) {
 	var value Ucred
 	vallen := _Socklen(SizeofUcred)
-	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
 }
 
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
@@ -524,7 +524,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 }
 
 func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	var ptr uintptr
+	var ptr unsafe.Pointer
 	var salen _Socklen
 	if to != nil {
 		var err error

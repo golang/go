@@ -69,10 +69,10 @@ func AttachLsf(fd int, i []SockFilter) error {
 	var p SockFprog
 	p.Len = uint16(len(i))
 	p.Filter = (*SockFilter)(unsafe.Pointer(&i[0]))
-	return setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, uintptr(unsafe.Pointer(&p)), unsafe.Sizeof(p))
+	return setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, unsafe.Pointer(&p), unsafe.Sizeof(p))
 }
 
 func DetachLsf(fd int) error {
 	var dummy int
-	return setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, uintptr(unsafe.Pointer(&dummy)), unsafe.Sizeof(dummy))
+	return setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, unsafe.Pointer(&dummy), unsafe.Sizeof(dummy))
 }
