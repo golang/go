@@ -347,6 +347,119 @@ func TestRaceChanSendSelectClose(t *testing.T) {
 	<-compl
 }
 
+func TestRaceSelectReadWriteAsync(t *testing.T) {
+	done := make(chan bool)
+	x := 0
+	c1 := make(chan int, 10)
+	c2 := make(chan int, 10)
+	c3 := make(chan int)
+	c2 <- 1
+	go func() {
+		select {
+		case c1 <- x: // read of x races with...
+		case c3 <- 1:
+		}
+		done <- true
+	}()
+	select {
+	case x = <-c2: // ... write to x here
+	case c3 <- 1:
+	}
+	<-done
+}
+
+func TestRaceSelectReadWriteSync(t *testing.T) {
+	done := make(chan bool)
+	x := 0
+	c1 := make(chan int)
+	c2 := make(chan int)
+	c3 := make(chan int)
+	// make c1 and c2 ready for communication
+	go func() {
+		<-c1
+	}()
+	go func() {
+		c2 <- 1
+	}()
+	go func() {
+		select {
+		case c1 <- x: // read of x races with...
+		case c3 <- 1:
+		}
+		done <- true
+	}()
+	select {
+	case x = <-c2: // ... write to x here
+	case c3 <- 1:
+	}
+	<-done
+}
+
+func TestNoRaceSelectReadWriteAsync(t *testing.T) {
+	done := make(chan bool)
+	x := 0
+	c1 := make(chan int)
+	c2 := make(chan int)
+	go func() {
+		select {
+		case c1 <- x: // read of x does not race with...
+		case c2 <- 1:
+		}
+		done <- true
+	}()
+	select {
+	case x = <-c1: // ... write to x here
+	case c2 <- 1:
+	}
+	<-done
+}
+
+func TestRaceChanReadWriteAsync(t *testing.T) {
+	done := make(chan bool)
+	c1 := make(chan int, 10)
+	c2 := make(chan int, 10)
+	c2 <- 10
+	x := 0
+	go func() {
+		c1 <- x // read of x races with...
+		done <- true
+	}()
+	x = <-c2 // ... write to x here
+	<-done
+}
+
+func TestRaceChanReadWriteSync(t *testing.T) {
+	done := make(chan bool)
+	c1 := make(chan int)
+	c2 := make(chan int)
+	// make c1 and c2 ready for communication
+	go func() {
+		<-c1
+	}()
+	go func() {
+		c2 <- 10
+	}()
+	x := 0
+	go func() {
+		c1 <- x // read of x races with...
+		done <- true
+	}()
+	x = <-c2 // ... write to x here
+	<-done
+}
+
+func TestNoRaceChanReadWriteAsync(t *testing.T) {
+	done := make(chan bool)
+	c1 := make(chan int, 10)
+	x := 0
+	go func() {
+		c1 <- x // read of x does not race with...
+		done <- true
+	}()
+	x = <-c1 // ... write to x here
+	<-done
+}
+
 func TestNoRaceProducerConsumerUnbuffered(t *testing.T) {
 	type Task struct {
 		f    func()
