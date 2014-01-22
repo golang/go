@@ -2814,7 +2814,7 @@ typecheckas2(Node *n)
 			n->op = OAS2FUNC;
 			t = structfirst(&s, &r->type);
 			for(ll=n->list; ll; ll=ll->next) {
-				if(ll->n->type != T)
+				if(t->type != T && ll->n->type != T)
 					checkassignto(t->type, ll->n);
 				if(ll->n->defn == n && ll->n->ntype == N)
 					ll->n->type = t->type;
