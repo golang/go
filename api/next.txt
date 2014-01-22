@@ -117,6 +117,11 @@ pkg sync, method (*Pool) Get() interface{}
 pkg sync, method (*Pool) Put(interface{})
 pkg sync, type Pool struct
 pkg sync, type Pool struct, New func() interface{}
+pkg syscall (darwin-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (darwin-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (freebsd-386), type Termios struct
 pkg syscall (freebsd-386), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-386), type Termios struct, Cflag uint32
@@ -125,6 +130,7 @@ pkg syscall (freebsd-386), type Termios struct, Ispeed uint32
 pkg syscall (freebsd-386), type Termios struct, Lflag uint32
 pkg syscall (freebsd-386), type Termios struct, Oflag uint32
 pkg syscall (freebsd-386), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (freebsd-386-cgo), type Termios struct
 pkg syscall (freebsd-386-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-386-cgo), type Termios struct, Cflag uint32
@@ -133,6 +139,7 @@ pkg syscall (freebsd-386-cgo), type Termios struct, Ispeed uint32
 pkg syscall (freebsd-386-cgo), type Termios struct, Lflag uint32
 pkg syscall (freebsd-386-cgo), type Termios struct, Oflag uint32
 pkg syscall (freebsd-386-cgo), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (freebsd-amd64), type Termios struct
 pkg syscall (freebsd-amd64), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-amd64), type Termios struct, Cflag uint32
@@ -141,6 +148,7 @@ pkg syscall (freebsd-amd64), type Termios struct, Ispeed uint32
 pkg syscall (freebsd-amd64), type Termios struct, Lflag uint32
 pkg syscall (freebsd-amd64), type Termios struct, Oflag uint32
 pkg syscall (freebsd-amd64), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (freebsd-amd64-cgo), type Termios struct
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Cflag uint32
@@ -149,6 +157,56 @@ pkg syscall (freebsd-amd64-cgo), type Termios struct, Ispeed uint32
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Lflag uint32
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Oflag uint32
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Ospeed uint32
+pkg syscall (freebsd-arm), func Fchflags(int, int) error
+pkg syscall (freebsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm-cgo), func Fchflags(int, int) error
+pkg syscall (freebsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386), type Flock_t struct
+pkg syscall (linux-386), type Flock_t struct, Len int64
+pkg syscall (linux-386), type Flock_t struct, Pid int32
+pkg syscall (linux-386), type Flock_t struct, Start int64
+pkg syscall (linux-386), type Flock_t struct, Type int16
+pkg syscall (linux-386), type Flock_t struct, Whence int16
+pkg syscall (linux-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386-cgo), type Flock_t struct
+pkg syscall (linux-386-cgo), type Flock_t struct, Len int64
+pkg syscall (linux-386-cgo), type Flock_t struct, Pid int32
+pkg syscall (linux-386-cgo), type Flock_t struct, Start int64
+pkg syscall (linux-386-cgo), type Flock_t struct, Type int16
+pkg syscall (linux-386-cgo), type Flock_t struct, Whence int16
+pkg syscall (linux-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-amd64), type Flock_t struct
+pkg syscall (linux-amd64), type Flock_t struct, Len int64
+pkg syscall (linux-amd64), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-amd64), type Flock_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (linux-amd64), type Flock_t struct, Pid int32
+pkg syscall (linux-amd64), type Flock_t struct, Start int64
+pkg syscall (linux-amd64), type Flock_t struct, Type int16
+pkg syscall (linux-amd64), type Flock_t struct, Whence int16
+pkg syscall (linux-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-amd64-cgo), type Flock_t struct
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Len int64
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Pad_cgo_1 [4]uint8
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Pid int32
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Start int64
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Type int16
+pkg syscall (linux-amd64-cgo), type Flock_t struct, Whence int16
+pkg syscall (linux-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-arm), type Flock_t struct
+pkg syscall (linux-arm), type Flock_t struct, Len int64
+pkg syscall (linux-arm), type Flock_t struct, Pid int32
+pkg syscall (linux-arm), type Flock_t struct, Start int64
+pkg syscall (linux-arm), type Flock_t struct, Type int16
+pkg syscall (linux-arm), type Flock_t struct, Whence int16
+pkg syscall (linux-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-arm-cgo), type Flock_t struct
+pkg syscall (linux-arm-cgo), type Flock_t struct, Len int64
+pkg syscall (linux-arm-cgo), type Flock_t struct, Pid int32
+pkg syscall (linux-arm-cgo), type Flock_t struct, Start int64
+pkg syscall (linux-arm-cgo), type Flock_t struct, Type int16
+pkg syscall (linux-arm-cgo), type Flock_t struct, Whence int16
 pkg syscall (netbsd-386), const CLONE_CSIGNAL = 255
 pkg syscall (netbsd-386), const CLONE_CSIGNAL ideal-int
 pkg syscall (netbsd-386), const CLONE_FILES = 1024
@@ -247,6 +305,15 @@ pkg syscall (netbsd-386), const PROT_READ = 1
 pkg syscall (netbsd-386), const PROT_READ ideal-int
 pkg syscall (netbsd-386), const PROT_WRITE = 2
 pkg syscall (netbsd-386), const PROT_WRITE ideal-int
+pkg syscall (netbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-386), type Termios struct
+pkg syscall (netbsd-386), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-386), type Termios struct, Cflag uint32
+pkg syscall (netbsd-386), type Termios struct, Iflag uint32
+pkg syscall (netbsd-386), type Termios struct, Ispeed int32
+pkg syscall (netbsd-386), type Termios struct, Lflag uint32
+pkg syscall (netbsd-386), type Termios struct, Oflag uint32
+pkg syscall (netbsd-386), type Termios struct, Ospeed int32
 pkg syscall (netbsd-386-cgo), const CLONE_CSIGNAL = 255
 pkg syscall (netbsd-386-cgo), const CLONE_CSIGNAL ideal-int
 pkg syscall (netbsd-386-cgo), const CLONE_FILES = 1024
@@ -345,6 +412,15 @@ pkg syscall (netbsd-386-cgo), const PROT_READ = 1
 pkg syscall (netbsd-386-cgo), const PROT_READ ideal-int
 pkg syscall (netbsd-386-cgo), const PROT_WRITE = 2
 pkg syscall (netbsd-386-cgo), const PROT_WRITE ideal-int
+pkg syscall (netbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-386-cgo), type Termios struct
+pkg syscall (netbsd-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Ispeed int32
+pkg syscall (netbsd-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (netbsd-386-cgo), type Termios struct, Ospeed int32
 pkg syscall (netbsd-amd64), const CLONE_CSIGNAL = 255
 pkg syscall (netbsd-amd64), const CLONE_CSIGNAL ideal-int
 pkg syscall (netbsd-amd64), const CLONE_FILES = 1024
@@ -443,6 +519,15 @@ pkg syscall (netbsd-amd64), const PROT_READ = 1
 pkg syscall (netbsd-amd64), const PROT_READ ideal-int
 pkg syscall (netbsd-amd64), const PROT_WRITE = 2
 pkg syscall (netbsd-amd64), const PROT_WRITE ideal-int
+pkg syscall (netbsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-amd64), type Termios struct
+pkg syscall (netbsd-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-amd64), type Termios struct, Cflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Iflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Ispeed int32
+pkg syscall (netbsd-amd64), type Termios struct, Lflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Oflag uint32
+pkg syscall (netbsd-amd64), type Termios struct, Ospeed int32
 pkg syscall (netbsd-amd64-cgo), const CLONE_CSIGNAL = 255
 pkg syscall (netbsd-amd64-cgo), const CLONE_CSIGNAL ideal-int
 pkg syscall (netbsd-amd64-cgo), const CLONE_FILES = 1024
@@ -541,6 +626,35 @@ pkg syscall (netbsd-amd64-cgo), const PROT_READ = 1
 pkg syscall (netbsd-amd64-cgo), const PROT_READ ideal-int
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE = 2
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE ideal-int
+pkg syscall (netbsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-amd64-cgo), type Termios struct
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Cflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Iflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Ispeed int32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Lflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Oflag uint32
+pkg syscall (netbsd-amd64-cgo), type Termios struct, Ospeed int32
+pkg syscall (netbsd-arm), func Fchflags(int, int) error
+pkg syscall (netbsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-arm), type Termios struct
+pkg syscall (netbsd-arm), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-arm), type Termios struct, Cflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Iflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Ispeed int32
+pkg syscall (netbsd-arm), type Termios struct, Lflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Oflag uint32
+pkg syscall (netbsd-arm), type Termios struct, Ospeed int32
+pkg syscall (netbsd-arm-cgo), func Fchflags(int, int) error
+pkg syscall (netbsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-arm-cgo), type Termios struct
+pkg syscall (netbsd-arm-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (netbsd-arm-cgo), type Termios struct, Cflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Iflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Ispeed int32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Lflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Oflag uint32
+pkg syscall (netbsd-arm-cgo), type Termios struct, Ospeed int32
 pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074545262
 pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148287085
 pkg syscall (openbsd-386), const IPPROTO_DIVERT_INIT = 2
@@ -680,6 +794,7 @@ pkg syscall (openbsd-386), const SizeofRtMsghdr = 96
 pkg syscall (openbsd-386), const TCP_NOPUSH = 16
 pkg syscall (openbsd-386), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-386), const TIOCGTSTAMP = 1074558043
+pkg syscall (openbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (openbsd-386), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-386), type Dirent struct, Off int64
 pkg syscall (openbsd-386), type Dirent struct, X__d_padding [4]uint8
@@ -692,6 +807,14 @@ pkg syscall (openbsd-386), type Stat_t struct, Ino uint64
 pkg syscall (openbsd-386), type Statfs_t struct, F_ctime uint64
 pkg syscall (openbsd-386), type Statfs_t struct, F_mntfromspec [90]int8
 pkg syscall (openbsd-386), type Statfs_t struct, Pad_cgo_0 [2]uint8
+pkg syscall (openbsd-386), type Termios struct
+pkg syscall (openbsd-386), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-386), type Termios struct, Cflag uint32
+pkg syscall (openbsd-386), type Termios struct, Iflag uint32
+pkg syscall (openbsd-386), type Termios struct, Ispeed int32
+pkg syscall (openbsd-386), type Termios struct, Lflag uint32
+pkg syscall (openbsd-386), type Termios struct, Oflag uint32
+pkg syscall (openbsd-386), type Termios struct, Ospeed int32
 pkg syscall (openbsd-386), type Timespec struct, Sec int64
 pkg syscall (openbsd-386), type Timeval struct, Sec int64
 pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074545262
@@ -833,6 +956,7 @@ pkg syscall (openbsd-386-cgo), const SizeofRtMsghdr = 96
 pkg syscall (openbsd-386-cgo), const TCP_NOPUSH = 16
 pkg syscall (openbsd-386-cgo), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-386-cgo), const TIOCGTSTAMP = 1074558043
+pkg syscall (openbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (openbsd-386-cgo), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-386-cgo), type Dirent struct, Off int64
 pkg syscall (openbsd-386-cgo), type Dirent struct, X__d_padding [4]uint8
@@ -845,6 +969,14 @@ pkg syscall (openbsd-386-cgo), type Stat_t struct, Ino uint64
 pkg syscall (openbsd-386-cgo), type Statfs_t struct, F_ctime uint64
 pkg syscall (openbsd-386-cgo), type Statfs_t struct, F_mntfromspec [90]int8
 pkg syscall (openbsd-386-cgo), type Statfs_t struct, Pad_cgo_0 [2]uint8
+pkg syscall (openbsd-386-cgo), type Termios struct
+pkg syscall (openbsd-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Ispeed int32
+pkg syscall (openbsd-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (openbsd-386-cgo), type Termios struct, Ospeed int32
 pkg syscall (openbsd-386-cgo), type Timespec struct, Sec int64
 pkg syscall (openbsd-386-cgo), type Timeval struct, Sec int64
 pkg syscall (openbsd-amd64), const IPPROTO_DIVERT_INIT = 2
@@ -982,6 +1114,7 @@ pkg syscall (openbsd-amd64), const TCP_NOPUSH = 16
 pkg syscall (openbsd-amd64), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-amd64), const TIOCGSID = 1074033763
 pkg syscall (openbsd-amd64), const TIOCGSID ideal-int
+pkg syscall (openbsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (openbsd-amd64), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-amd64), type Dirent struct, Off int64
 pkg syscall (openbsd-amd64), type Dirent struct, X__d_padding [4]uint8
@@ -996,6 +1129,14 @@ pkg syscall (openbsd-amd64), type Stat_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64), type Statfs_t struct, F_ctime uint64
 pkg syscall (openbsd-amd64), type Statfs_t struct, F_mntfromspec [90]int8
 pkg syscall (openbsd-amd64), type Statfs_t struct, Pad_cgo_1 [2]uint8
+pkg syscall (openbsd-amd64), type Termios struct
+pkg syscall (openbsd-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-amd64), type Termios struct, Cflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Iflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Ispeed int32
+pkg syscall (openbsd-amd64), type Termios struct, Lflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Oflag uint32
+pkg syscall (openbsd-amd64), type Termios struct, Ospeed int32
 pkg syscall (openbsd-amd64), type Timespec struct, Sec int64
 pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_INIT = 2
 pkg syscall (openbsd-amd64-cgo), const IPPROTO_DIVERT_INIT ideal-int
@@ -1132,6 +1273,7 @@ pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH = 16
 pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const TIOCGSID = 1074033763
 pkg syscall (openbsd-amd64-cgo), const TIOCGSID ideal-int
+pkg syscall (openbsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (openbsd-amd64-cgo), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-amd64-cgo), type Dirent struct, Off int64
 pkg syscall (openbsd-amd64-cgo), type Dirent struct, X__d_padding [4]uint8
@@ -1146,6 +1288,14 @@ pkg syscall (openbsd-amd64-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_ctime uint64
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_mntfromspec [90]int8
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [2]uint8
+pkg syscall (openbsd-amd64-cgo), type Termios struct
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Cflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Iflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Ispeed int32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Lflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Oflag uint32
+pkg syscall (openbsd-amd64-cgo), type Termios struct, Ospeed int32
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int64
 pkg syscall (windows-386), const ERROR_NETNAME_DELETED = 64
 pkg syscall (windows-386), const ERROR_NETNAME_DELETED Errno
