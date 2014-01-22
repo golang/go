@@ -92,9 +92,9 @@ runtime·InitSizes(void)
 		// objects into the page, we might as well
 		// use just this size instead of having two
 		// different sizes.
-		if(sizeclass > 1
-		&& npages == runtime·class_to_allocnpages[sizeclass-1]
-		&& allocsize/size == allocsize/runtime·class_to_size[sizeclass-1]) {
+		if(sizeclass > 1 &&
+			npages == runtime·class_to_allocnpages[sizeclass-1] &&
+			allocsize/size == allocsize/runtime·class_to_size[sizeclass-1]) {
 			runtime·class_to_size[sizeclass-1] = size;
 			continue;
 		}
