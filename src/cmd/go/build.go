@@ -350,7 +350,12 @@ func init() {
 	var err error
 	archChar, err = build.ArchChar(goarch)
 	if err != nil {
-		fatalf("%s", err)
+		if _, isgc := buildToolchain.(gcToolchain); isgc {
+			fatalf("%s", err)
+		}
+		// archChar is only required for gcToolchain, if we're using
+		// another toolchain leave it blank.
+		archChar = ""
 	}
 }
 
