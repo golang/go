@@ -434,3 +434,13 @@ type BpfTimeval struct {
 	Sec  uint32
 	Usec uint32
 }
+
+type Termios struct {
+	Iflag  uint32
+	Oflag  uint32
+	Cflag  uint32
+	Lflag  uint32
+	Cc     [20]uint8
+	Ispeed int32
+	Ospeed int32
+}

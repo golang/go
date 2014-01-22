@@ -18,6 +18,7 @@ package syscall
 #include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <termios.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/event.h>
@@ -239,3 +240,7 @@ type BpfProgram C.struct_bpf_program
 type BpfInsn C.struct_bpf_insn
 
 type BpfHdr C.struct_bpf_hdr
+
+// Terminal handling
+
+type Termios C.struct_termios
