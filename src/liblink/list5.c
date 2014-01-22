@@ -43,7 +43,7 @@ static int	Aconv(Fmt *fp);
 static int	Dconv(Fmt *fp);
 static int	Mconv(Fmt *fp);
 static int	Pconv(Fmt *fp);
-static int	Rconv(Fmt *fp);
+static int	RAconv(Fmt *fp);
 static int	DSconv(Fmt *fp);
 
 void
@@ -54,7 +54,7 @@ listinit5(void)
 	fmtinstall('$', DSconv);
 	fmtinstall('M', Mconv);
 	fmtinstall('D', Dconv);
-	fmtinstall('R', Rconv);
+	fmtinstall('@', RAconv);
 }
 
 static char *extra [] = {
@@ -85,10 +85,10 @@ Pconv(Fmt *fp)
 		strcat(sc, ".U");
 	if(a == AMOVM) {
 		if(p->from.type == D_CONST)
-			sprint(str, "	%A%s	%R,%D", a, sc, &p->from, &p->to);
+			sprint(str, "	%A%s	%@,%D", a, sc, &p->from, &p->to);
 		else
 		if(p->to.type == D_CONST)
-			sprint(str, "	%A%s	%D,%R", a, sc, &p->from, &p->to);
+			sprint(str, "	%A%s	%D,%@", a, sc, &p->from, &p->to);
 		else
 			sprint(str, "	%A%s	%D,%D", a, sc, &p->from, &p->to);
 	} else
@@ -210,7 +210,7 @@ Dconv(Fmt *fp)
 }
 
 static int
-Rconv(Fmt *fp)
+RAconv(Fmt *fp)
 {
 	char str[STRINGSZ];
 	Addr *a;
