@@ -1353,10 +1353,10 @@ top:
 	execute(gp);
 }
 
-// Puts the current goroutine into a waiting state and unlocks the lock.
-// The goroutine can be made runnable again by calling runtime·ready(gp).
+// Puts the current goroutine into a waiting state and calls unlockf.
+// If unlockf returns false, the goroutine is resumed.
 void
-runtime·park(void(*unlockf)(Lock*), Lock *lock, int8 *reason)
+runtime·park(bool(*unlockf)(G*, void*), void *lock, int8 *reason)
 {
 	m->waitlock = lock;
 	m->waitunlockf = unlockf;
@@ -1364,17 +1364,39 @@ runtime·park(void(*unlockf)(Lock*), Lock *lock, int8 *reason)
 	runtime·mcall(park0);
 }
 
+static bool
+parkunlock(G *gp, void *lock)
+{
+	USED(gp);
+	runtime·unlock(lock);
+	return true;
+}
+
+// Puts the current goroutine into a waiting state and unlocks the lock.
+// The goroutine can be made runnable again by calling runtime·ready(gp).
+void
+runtime·parkunlock(Lock *lock, int8 *reason)
+{
+	runtime·park(parkunlock, lock, reason);
+}
+
 // runtime·park continuation on g0.
 static void
 park0(G *gp)
 {
+	bool ok;
+
 	gp->status = Gwaiting;
 	gp->m = nil;
 	m->curg = nil;
 	if(m->waitunlockf) {
-		m->waitunlockf(m->waitlock);
+		ok = m->waitunlockf(gp, m->waitlock);
 		m->waitunlockf = nil;
 		m->waitlock = nil;
+		if(!ok) {
+			gp->status = Grunnable;
+			execute(gp);  // Schedule it back, never returns.
+		}
 	}
 	if(m->lockedg) {
 		stoplockedm();

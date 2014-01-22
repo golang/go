@@ -224,7 +224,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 	mysg.selgen = NOSELGEN;
 	g->param = nil;
 	enqueue(&c->sendq, &mysg);
-	runtime·park(runtime·unlock, c, "chan send");
+	runtime·parkunlock(c, "chan send");
 
 	if(g->param == nil) {
 		runtime·lock(c);
@@ -252,7 +252,7 @@ asynch:
 		mysg.elem = nil;
 		mysg.selgen = NOSELGEN;
 		enqueue(&c->sendq, &mysg);
-		runtime·park(runtime·unlock, c, "chan send");
+		runtime·parkunlock(c, "chan send");
 
 		runtime·lock(c);
 		goto asynch;
@@ -356,7 +356,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 	mysg.selgen = NOSELGEN;
 	g->param = nil;
 	enqueue(&c->recvq, &mysg);
-	runtime·park(runtime·unlock, c, "chan receive");
+	runtime·parkunlock(c, "chan receive");
 
 	if(g->param == nil) {
 		runtime·lock(c);
@@ -387,7 +387,7 @@ asynch:
 		mysg.elem = nil;
 		mysg.selgen = NOSELGEN;
 		enqueue(&c->recvq, &mysg);
-		runtime·park(runtime·unlock, c, "chan receive");
+		runtime·parkunlock(c, "chan receive");
 
 		runtime·lock(c);
 		goto asynch;
@@ -799,6 +799,14 @@ selunlock(Select *sel)
 	}
 }
 
+static bool
+selparkcommit(G *gp, void *sel)
+{
+	USED(gp);
+	selunlock(sel);
+	return true;
+}
+
 void
 runtime·block(void)
 {
@@ -971,7 +979,7 @@ loop:
 	}
 
 	g->param = nil;
-	runtime·park((void(*)(Lock*))selunlock, (Lock*)sel, "select");
+	runtime·park(selparkcommit, sel, "select");
 
 	sellock(sel);
 	sg = g->param;
