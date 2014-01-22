@@ -385,6 +385,10 @@ struct P
 	MCache*	mcache;
 	Defer*	deferpool[5];	// pool of available Defer structs of different sizes (see panic.c)
 
+	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
+	uint64	goidcache;
+	uint64	goidcacheend;
+
 	// Queue of runnable goroutines.
 	uint32	runqhead;
 	uint32	runqtail;

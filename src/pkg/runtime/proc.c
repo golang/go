@@ -58,9 +58,16 @@ struct Sched {
 	int32	profilehz;	// cpu profiling rate
 };
 
-// The max value of GOMAXPROCS.
-// There are no fundamental restrictions on the value.
-enum { MaxGomaxprocs = 1<<8 };
+enum
+{
+	// The max value of GOMAXPROCS.
+	// There are no fundamental restrictions on the value.
+	MaxGomaxprocs = 1<<8,
+
+	// Number of goroutine ids to grab from runtime·sched.goidgen to local per-P cache at once.
+	// 16 seems to provide enough amortization, but other than that it's mostly arbitrary number.
+	GoidCacheBatch = 16,
+};
 
 Sched	runtime·sched;
 int32	runtime·gomaxprocs;
@@ -1752,6 +1759,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 {
 	byte *sp;
 	G *newg;
+	P *p;
 	int32 siz;
 
 //runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
@@ -1766,7 +1774,8 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	if(siz > StackMin - 1024)
 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
 
-	if((newg = gfget(m->p)) != nil) {
+	p = m->p;
+	if((newg = gfget(p)) != nil) {
 		if(newg->stackguard - StackGuard != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
@@ -1790,11 +1799,15 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	runtime·gostartcallfn(&newg->sched, fn);
 	newg->gopc = (uintptr)callerpc;
 	newg->status = Grunnable;
-	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
+	if(p->goidcache == p->goidcacheend) {
+		p->goidcache = runtime·xadd64(&runtime·sched.goidgen, GoidCacheBatch);
+		p->goidcacheend = p->goidcache + GoidCacheBatch;
+	}
+	newg->goid = p->goidcache++;
 	newg->panicwrap = 0;
 	if(raceenabled)
 		newg->racectx = runtime·racegostart((void*)callerpc);
-	runqput(m->p, newg);
+	runqput(p, newg);
 
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
 		wakep();
