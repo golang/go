@@ -37,7 +37,7 @@
 
 static Prog zprg = {
 	.as = AGOK,
-	.scond = 14,
+	.scond = C_SCOND_NONE,
 	.reg = NREG,
 	.from = {
 		.name = D_NONE,
@@ -207,8 +207,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
 	
 	tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
-	ctxt->gmsym = nil;
-	if(ctxt->linkmode == LinkExternal)
+	if(ctxt->gmsym == nil)
 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
 	q = nil;
 	
@@ -355,7 +354,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			if((p->to.offset & 0xffff0fff) == 0xee1d0f70) {
 				if(ctxt->headtype == Hopenbsd) {
 					p->as = ARET;
-				} else if(ctxt->goarm < 7) {
+					break;
+				}
+				if(ctxt->goarm < 7) {
 					// BL runtime.read_tls_fallback(SB)
 					p->as = ABL;
 					p->to.type = D_BRANCH;
@@ -363,63 +364,62 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					p->to.offset = 0;
 					cursym->text->mark &= ~LEAF;
 				}
-				if(ctxt->linkmode == LinkExternal) {
-					// runtime.tlsgm is relocated with R_ARM_TLS_LE32
-					// and $runtime.tlsgm will contain the TLS offset.
-					//
-					// MOV $runtime.tlsgm+ctxt->tlsoffset(SB), REGTMP
-					// ADD REGTMP, <reg>
-					//
-					// In shared mode, runtime.tlsgm is relocated with
-					// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
-					// to the GOT entry containing the TLS offset.
-					//
-					// MOV runtime.tlsgm(SB), REGTMP
-					// ADD REGTMP, <reg>
-					// SUB -ctxt->tlsoffset, <reg>
-					//
-					// The SUB compensates for ctxt->tlsoffset
-					// used in runtime.save_gm and runtime.load_gm.
-					q = p;
-					p = appendp(ctxt, p);
-					p->as = AMOVW;
-					p->scond = 14;
-					p->reg = NREG;
-					if(ctxt->flag_shared) {
-						p->from.type = D_OREG;
-						p->from.offset = 0;
-					} else {
-						p->from.type = D_CONST;
-						p->from.offset = ctxt->tlsoffset;
-					}
-					p->from.sym = ctxt->gmsym;
-					p->from.name = D_EXTERN;
-					p->to.type = D_REG;
-					p->to.reg = REGTMP;
-					p->to.offset = 0;
+				// runtime.tlsgm is relocated with R_ARM_TLS_LE32
+				// and $runtime.tlsgm will contain the TLS offset.
+				//
+				// MOV $runtime.tlsgm+ctxt->tlsoffset(SB), REGTMP
+				// ADD REGTMP, <reg>
+				//
+				// In shared mode, runtime.tlsgm is relocated with
+				// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
+				// to the GOT entry containing the TLS offset.
+				//
+				// MOV runtime.tlsgm(SB), REGTMP
+				// ADD REGTMP, <reg>
+				// SUB -ctxt->tlsoffset, <reg>
+				//
+				// The SUB compensates for ctxt->tlsoffset
+				// used in runtime.save_gm and runtime.load_gm.
+				q = p;
+				p = appendp(ctxt, p);
+				p->as = AMOVW;
+				p->scond = C_SCOND_NONE;
+				p->reg = NREG;
+				if(ctxt->flag_shared) {
+					p->from.type = D_OREG;
+					p->from.offset = 0;
+				} else {
+					p->from.type = D_CONST;
+					p->from.offset = ctxt->tlsoffset;
+				}
+				p->from.sym = ctxt->gmsym;
+				p->from.name = D_EXTERN;
+				p->to.type = D_REG;
+				p->to.reg = REGTMP;
+				p->to.offset = 0;
 
+				p = appendp(ctxt, p);
+				p->as = AADD;
+				p->scond = C_SCOND_NONE;
+				p->reg = NREG;
+				p->from.type = D_REG;
+				p->from.reg = REGTMP;
+				p->to.type = D_REG;
+				p->to.reg = (q->to.offset & 0xf000) >> 12;
+				p->to.offset = 0;
+
+				if(ctxt->flag_shared) {
 					p = appendp(ctxt, p);
-					p->as = AADD;
-					p->scond = 14;
+					p->as = ASUB;
+					p->scond = C_SCOND_NONE;
 					p->reg = NREG;
-					p->from.type = D_REG;
-					p->from.reg = REGTMP;
+					p->from.type = D_CONST;
+					p->from.offset = -ctxt->tlsoffset;
 					p->to.type = D_REG;
 					p->to.reg = (q->to.offset & 0xf000) >> 12;
 					p->to.offset = 0;
-
-					if(ctxt->flag_shared) {
-						p = appendp(ctxt, p);
-						p->as = ASUB;
-						p->scond = 14;
-						p->reg = NREG;
-						p->from.type = D_CONST;
-						p->from.offset = -ctxt->tlsoffset;
-						p->to.type = D_REG;
-						p->to.reg = (q->to.offset & 0xf000) >> 12;
-						p->to.offset = 0;
-					}
 				}
+				break;
 			}
 		}
 		q = p;
@@ -984,7 +984,7 @@ loop:
 				i--;
 				continue;
 			}
-			if(a == AB || (a == ARET && q->scond == 14) || a == ARFE || a == AUNDEF)
+			if(a == AB || (a == ARET && q->scond == C_SCOND_NONE) || a == ARFE || a == AUNDEF)
 				goto copy;
 			if(q->pcond == nil || (q->pcond->mark&FOLL))
 				continue;
@@ -1005,7 +1005,7 @@ loop:
 				}
 				(*last)->link = r;
 				*last = r;
-				if(a == AB || (a == ARET && q->scond == 14) || a == ARFE || a == AUNDEF)
+				if(a == AB || (a == ARET && q->scond == C_SCOND_NONE) || a == ARFE || a == AUNDEF)
 					return;
 				r->as = ABNE;
 				if(a == ABNE)
@@ -1031,7 +1031,7 @@ loop:
 	p->mark |= FOLL;
 	(*last)->link = p;
 	*last = p;
-	if(a == AB || (a == ARET && p->scond == 14) || a == ARFE || a == AUNDEF){
+	if(a == AB || (a == ARET && p->scond == C_SCOND_NONE) || a == ARFE || a == AUNDEF){
 		return;
 	}
 	if(p->pcond != nil)

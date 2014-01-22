@@ -878,6 +878,14 @@ dodata(void)
 			growdatsize(&datsize, s);
 		}
 		sect->len = datsize;
+	} else {
+		// References to STLSBSS symbols may be in the binary
+		// but should not be used. Give them an invalid address
+		// so that any uses will fault. Using 1 instead of 0 so that
+		// if used as an offset on ARM it will result in an unaligned
+		// address and still cause a fault.
+		for(; s != nil && s->type == STLSBSS; s = s->next)
+			s->value = 1;
 	}
 	
 	if(s != nil) {
@@ -1127,7 +1135,8 @@ address(void)
 
 	for(sym = datap; sym != nil; sym = sym->next) {
 		ctxt->cursym = sym;
-		sym->value += sym->sect->vaddr;
+		if(sym->sect != nil)
+			sym->value += sym->sect->vaddr;
 		for(sub = sym->sub; sub != nil; sub = sub->sub)
 			sub->value += sym->value;
 	}

@@ -368,7 +368,7 @@ static struct {
 static int	checkpool(Link*, Prog*, int);
 static int 	flushpool(Link*, Prog*, int, int);
 static void	addpool(Link*, Prog*, Addr*);
-static void	asmout(Link*, Prog*, Optab*, int32*, LSym*);
+static void	asmout(Link*, Prog*, Optab*, int32*);
 static Optab*	oplook(Link*, Prog*);
 static int32	oprrr(Link*, int, int);
 static int32	olr(Link*, int32, int, int, int);
@@ -394,7 +394,7 @@ static	uchar	repop[ALAST];
 
 static Prog zprg = {
 	.as = AGOK,
-	.scond = 14,
+	.scond = C_SCOND_NONE,
 	.reg = NREG,
 	.from = {
 		.name = D_NONE,
@@ -458,7 +458,6 @@ span5(Link *ctxt, LSym *cursym)
 	int m, bflag, i, v;
 	int32 c, out[6];
 	uchar *bp;
-	LSym *gmsym;
 
 	p = cursym->text;
 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
@@ -496,11 +495,11 @@ span5(Link *ctxt, LSym *cursym)
 			addpool(ctxt, p, &p->to);
 			break;
 		case LPOOL:
-			if ((p->scond&C_SCOND) == 14)
+			if ((p->scond&C_SCOND) == C_SCOND_NONE)
 				flushpool(ctxt, p, 0, 0);
 			break;
 		}
-		if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
+		if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == C_SCOND_NONE)
 			flushpool(ctxt, p, 0, 0);
 		c += m;
 	}
@@ -570,9 +569,8 @@ span5(Link *ctxt, LSym *cursym)
 	 * code references to be relocated too, and then
 	 * perhaps we'd be able to parallelize the span loop above.
 	 */
-	gmsym = nil;
-	if(ctxt->linkmode == LinkExternal)
-		gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+	if(ctxt->gmsym == nil)
+		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
 
 	p = cursym->text;
 	ctxt->autosize = p->to.offset + 4;
@@ -583,7 +581,7 @@ span5(Link *ctxt, LSym *cursym)
 		ctxt->pc = p->pc;
 		ctxt->curp = p;
 		o = oplook(ctxt, p);
-		asmout(ctxt, p, o, out, gmsym);
+		asmout(ctxt, p, o, out);
 		for(i=0; i<o->size/4; i++) {
 			v = out[i];
 			*bp++ = v;
@@ -1213,7 +1211,7 @@ buildop(Link *ctxt)
 }
 
 static void
-asmout(Link *ctxt, Prog *p, Optab *o, int32 *out, LSym *gmsym)
+asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 {
 	int32 o1, o2, o3, o4, o5, o6, v;
 	int r, rf, rt, rt2;
@@ -1366,7 +1364,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			rel->add = p->to.offset;
-			if(rel->sym == gmsym) {
+			if(rel->sym == ctxt->gmsym) {
 				rel->type = D_TLS;
 				if(ctxt->flag_shared)
 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
