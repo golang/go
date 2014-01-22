@@ -190,7 +190,8 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newUDPConn(l.netFD()), nil
+	fd, err := l.netFD()
+	return newUDPConn(fd), err
 }
 
 // ListenMulticastUDP listens for incoming multicast UDP packets

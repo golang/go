@@ -12,19 +12,45 @@ import (
 	"syscall"
 )
 
+func probe(filename, query string, bufSize int) bool {
+	var file *file
+	var err error
+	if file, err = open(filename); err != nil {
+		return false
+	}
+
+	r := false
+	for line, ok := file.readLine(); ok && !r; line, ok = file.readLine() {
+		f := getFields(line)
+		if len(f) < 3 {
+			continue
+		}
+		for i := 0; i < len(f); i++ {
+			if query == f[i] {
+				r = true
+				break
+			}
+		}
+	}
+	file.close()
+	return r
+}
+
 func probeIPv4Stack() bool {
-	// TODO(mikio): implement this when Plan 9 supports IPv6-only
-	// kernel.
-	return true
+	return probe(netdir+"/ipselftab", "127.0.0.1", 128)
 }
 
 // probeIPv6Stack returns two boolean values.  If the first boolean
 // value is true, kernel supports basic IPv6 functionality.  If the
 // second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
-	// TODO(mikio): implement this once Plan 9 gets an IPv6
-	// protocol stack implementation.
-	return false, false
+	// Plan 9 uses IPv6 natively, see ip(3).
+	r := probe(netdir+"/iproute", "6i", 128)
+	v := false
+	if r {
+		v = probe(netdir+"/iproute", "4b", 128)
+	}
+	return r, v
 }
 
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
@@ -133,18 +159,18 @@ func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
 		f.Close()
 		return nil, &OpError{"dial", f.Name(), raddr, err}
 	}
-	data, err := os.OpenFile("/net/"+proto+"/"+name+"/data", os.O_RDWR, 0)
+	data, err := os.OpenFile(netdir+"/"+proto+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
 		f.Close()
 		return nil, &OpError{"dial", net, raddr, err}
 	}
-	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		data.Close()
 		f.Close()
 		return nil, &OpError{"dial", proto, raddr, err}
 	}
-	return newFD(proto, name, f, data, laddr, raddr), nil
+	return newFD(proto, name, f, data, laddr, raddr)
 }
 
 func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
@@ -158,20 +184,24 @@ func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
 		f.Close()
 		return nil, &OpError{"announce", proto, laddr, err}
 	}
-	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		f.Close()
 		return nil, &OpError{Op: "listen", Net: net, Err: err}
 	}
-	return newFD(proto, name, f, nil, laddr, nil), nil
+	return newFD(proto, name, f, nil, laddr, nil)
 }
 
-func (l *netFD) netFD() *netFD {
-	return newFD(l.proto, l.name, l.ctl, l.data, l.laddr, l.raddr)
+func (l *netFD) netFD() (*netFD, error) {
+	return newFD(l.proto, l.n, l.ctl, l.data, l.laddr, l.raddr)
 }
 
 func (l *netFD) acceptPlan9() (fd *netFD, err error) {
 	defer func() { netErr(err) }()
+	if err := l.readLock(); err != nil {
+		return nil, err
+	}
+	defer l.readUnlock()
 	f, err := os.Open(l.dir + "/listen")
 	if err != nil {
 		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
@@ -183,16 +213,16 @@ func (l *netFD) acceptPlan9() (fd *netFD, err error) {
 		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
 	}
 	name := string(buf[:n])
-	data, err := os.OpenFile("/net/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
+	data, err := os.OpenFile(netdir+"/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
 		f.Close()
 		return nil, &OpError{"accept", l.proto, l.laddr, err}
 	}
-	raddr, err := readPlan9Addr(l.proto, "/net/"+l.proto+"/"+name+"/remote")
+	raddr, err := readPlan9Addr(l.proto, netdir+"/"+l.proto+"/"+name+"/remote")
 	if err != nil {
 		data.Close()
 		f.Close()
 		return nil, &OpError{"accept", l.proto, l.laddr, err}
 	}
-	return newFD(l.proto, name, f, data, l.laddr, raddr), nil
+	return newFD(l.proto, name, f, data, l.laddr, raddr)
 }
