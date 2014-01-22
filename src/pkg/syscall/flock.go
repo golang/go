@@ -12,8 +12,8 @@ import "unsafe"
 // systems by flock_linux_32bit.go to be SYS_FCNTL64.
 var fcntl64Syscall uintptr = SYS_FCNTL
 
-// Lock performs a fcntl syscall for F_GETLK, F_SETLK or F_SETLKW commands.
-func (lk *Flock_t) Lock(fd uintptr, cmd int) error {
+// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
+func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
 	_, _, errno := Syscall(fcntl64Syscall, fd, uintptr(cmd), uintptr(unsafe.Pointer(lk)))
 	if errno == 0 {
 		return nil
