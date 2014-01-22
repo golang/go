@@ -38,7 +38,7 @@ Flags:
 	-o file
 		output file, default file.6 for 6g, etc.
 	-pack
-		write a package file rather than an object file
+		write an archive file rather than an object file
 	-e
 		normally the compiler quits after 10 errors; -e prints all errors
 	-p path
