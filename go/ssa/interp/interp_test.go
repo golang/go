@@ -132,7 +132,7 @@ var gorootTestTests = []string{
 	// bench chan bugs fixedbugs interface ken.
 }
 
-// These are files in go.tools/ssa/interp/testdata/.
+// These are files in go.tools/go/ssa/interp/testdata/.
 var testdataTests = []string{
 	"boundmeth.go",
 	"coverage.go",
