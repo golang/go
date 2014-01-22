@@ -177,10 +177,12 @@ func TestClose(t *testing.T) {
 
 func testHandshake(clientConfig, serverConfig *Config) (state ConnectionState, err error) {
 	c, s := net.Pipe()
+	done := make(chan bool)
 	go func() {
 		cli := Client(c, clientConfig)
 		cli.Handshake()
 		c.Close()
+		done <- true
 	}()
 	server := Server(s, serverConfig)
 	err = server.Handshake()
@@ -188,6 +190,7 @@ func testHandshake(clientConfig, serverConfig *Config) (state ConnectionState, e
 		state = server.ConnectionState()
 	}
 	s.Close()
+	<-done
 	return
 }
 
