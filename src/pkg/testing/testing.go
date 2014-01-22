@@ -376,10 +376,15 @@ func tRunner(t *T, test *InternalTest) {
 	// returned normally or because a test failure triggered
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
+	var finished bool
 	defer func() {
 		t.duration = time.Now().Sub(t.start)
 		// If the test panicked, print any test output before dying.
-		if err := recover(); err != nil {
+		err := recover()
+		if !finished && err == nil {
+			err = fmt.Errorf("test executed panic(nil)")
+		}
+		if err != nil {
 			t.Fail()
 			t.report()
 			panic(err)
@@ -389,6 +394,7 @@ func tRunner(t *T, test *InternalTest) {
 
 	t.start = time.Now()
 	test.F(t)
+	finished = true
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
