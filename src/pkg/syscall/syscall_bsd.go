@@ -426,15 +426,15 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
 	return
 }
 
-//sys	kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, err error)
+//sys	kevent(kq int, change unsafe.Pointer, nchange int, event unsafe.Pointer, nevent int, timeout *Timespec) (n int, err error)
 
 func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, err error) {
-	var change, event uintptr
+	var change, event unsafe.Pointer
 	if len(changes) > 0 {
-		change = uintptr(unsafe.Pointer(&changes[0]))
+		change = unsafe.Pointer(&changes[0])
 	}
 	if len(events) > 0 {
-		event = uintptr(unsafe.Pointer(&events[0]))
+		event = unsafe.Pointer(&events[0])
 	}
 	return kevent(kq, change, len(changes), event, len(events), timeout)
 }
