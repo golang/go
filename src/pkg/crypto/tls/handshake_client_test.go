@@ -353,3 +353,87 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 	runClientTestTLS10(t, test)
 	runClientTestTLS12(t, test)
 }
+
+func TestClientResumption(t *testing.T) {
+	serverConfig := &Config{
+		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+		Certificates: testConfig.Certificates,
+	}
+	clientConfig := &Config{
+		CipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
+		InsecureSkipVerify: true,
+		ClientSessionCache: NewLRUClientSessionCache(32),
+	}
+
+	testResumeState := func(test string, didResume bool) {
+		hs, err := testHandshake(clientConfig, serverConfig)
+		if err != nil {
+			t.Fatalf("%s: handshake failed: %s", test, err)
+		}
+		if hs.DidResume != didResume {
+			t.Fatalf("%s resumed: %v, expected: %v", test, hs.DidResume, didResume)
+		}
+	}
+
+	testResumeState("Handshake", false)
+	testResumeState("Resume", true)
+
+	if _, err := io.ReadFull(serverConfig.rand(), serverConfig.SessionTicketKey[:]); err != nil {
+		t.Fatalf("Failed to invalidate SessionTicketKey")
+	}
+	testResumeState("InvalidSessionTicketKey", false)
+	testResumeState("ResumeAfterInvalidSessionTicketKey", true)
+
+	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+	testResumeState("DifferentCipherSuite", false)
+	testResumeState("DifferentCipherSuiteRecovers", true)
+
+	clientConfig.ClientSessionCache = nil
+	testResumeState("WithoutSessionCache", false)
+}
+
+func TestLRUClientSessionCache(t *testing.T) {
+	// Initialize cache of capacity 4.
+	cache := NewLRUClientSessionCache(4)
+	cs := make([]ClientSessionState, 6)
+	keys := []string{"0", "1", "2", "3", "4", "5", "6"}
+
+	// Add 4 entries to the cache and look them up.
+	for i := 0; i < 4; i++ {
+		cache.Put(keys[i], &cs[i])
+	}
+	for i := 0; i < 4; i++ {
+		if s, ok := cache.Get(keys[i]); !ok || s != &cs[i] {
+			t.Fatalf("session cache failed lookup for added key: %s", keys[i])
+		}
+	}
+
+	// Add 2 more entries to the cache. First 2 should be evicted.
+	for i := 4; i < 6; i++ {
+		cache.Put(keys[i], &cs[i])
+	}
+	for i := 0; i < 2; i++ {
+		if s, ok := cache.Get(keys[i]); ok || s != nil {
+			t.Fatalf("session cache should have evicted key: %s", keys[i])
+		}
+	}
+
+	// Touch entry 2. LRU should evict 3 next.
+	cache.Get(keys[2])
+	cache.Put(keys[0], &cs[0])
+	if s, ok := cache.Get(keys[3]); ok || s != nil {
+		t.Fatalf("session cache should have evicted key 3")
+	}
+
+	// Update entry 0 in place.
+	cache.Put(keys[0], &cs[3])
+	if s, ok := cache.Get(keys[0]); !ok || s != &cs[3] {
+		t.Fatalf("session cache failed update for key 0")
+	}
+
+	// Adding a nil entry is valid.
+	cache.Put(keys[0], nil)
+	if s, ok := cache.Get(keys[0]); !ok || s != nil {
+		t.Fatalf("failed to add nil entry to cache")
+	}
+}
