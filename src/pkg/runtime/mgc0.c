@@ -25,10 +25,6 @@ enum {
 	wordsPerBitmapWord = sizeof(void*)*8/4,
 	bitShift = sizeof(void*)*8/4,
 
-	WorkbufSize	= 16*1024,
-	RootBlockSize	= 4*1024,
-	FinBlockSize	= 4*1024,
-
 	handoffThreshold = 4,
 	IntermediateBufferCapacity = 64,
 
@@ -147,10 +143,11 @@ struct Obj
 	uintptr	ti;	// type info
 };
 
+// The size of Workbuf is N*PageSize.
 typedef struct Workbuf Workbuf;
 struct Workbuf
 {
-#define SIZE (WorkbufSize-sizeof(LFNode)-sizeof(uintptr))
+#define SIZE (2*PageSize-sizeof(LFNode)-sizeof(uintptr))
 	LFNode  node; // must be first
 	uintptr nobj;
 	Obj     obj[SIZE/sizeof(Obj) - 1];
@@ -729,7 +726,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
 	ChanType *chantype;
 	Obj *wp;
 
-	if(sizeof(Workbuf) % WorkbufSize != 0)
+	if(sizeof(Workbuf) % PageSize != 0)
 		runtime·throw("scanblock: size of Workbuf is suboptimal");
 
 	// Memory arena parameters.
@@ -1590,8 +1587,8 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 	runtime·lock(&finlock);
 	if(finq == nil || finq->cnt == finq->cap) {
 		if(finc == nil) {
-			finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
-			finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+			finc = runtime·persistentalloc(PageSize, 0, &mstats.gc_sys);
+			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
 			finc->alllink = allfin;
 			allfin = finc;
 		}
@@ -2218,8 +2215,6 @@ gc(struct gc_args *args)
 	runtime·MProf_GC();
 }
 
-extern uintptr runtime·sizeof_C_MStats;
-
 void
 runtime·ReadMemStats(MStats *stats)
 {
@@ -2231,9 +2226,7 @@ runtime·ReadMemStats(MStats *stats)
 	m->gcing = 1;
 	runtime·stoptheworld();
 	updatememstats(nil);
-	// Size of the trailing by_size array differs between Go and C,
-	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
-	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);
+	*stats = mstats;
 	m->gcing = 0;
 	m->locks++;
 	runtime·semrelease(&runtime·worldsema);

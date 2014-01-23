@@ -90,7 +90,7 @@ typedef struct GCStats	GCStats;
 
 enum
 {
-	PageShift	= 13,
+	PageShift	= 12,
 	PageSize	= 1<<PageShift,
 	PageMask	= PageSize - 1,
 };
@@ -103,7 +103,7 @@ enum
 	// size classes.  NumSizeClasses is that number.  It's needed here
 	// because there are static arrays of this length; when msize runs its
 	// size choosing algorithm it double-checks that NumSizeClasses agrees.
-	NumSizeClasses = 67,
+	NumSizeClasses = 61,
 
 	// Tunable constants.
 	MaxSmallSize = 32<<10,
@@ -255,7 +255,7 @@ struct MStats
 	} by_size[NumSizeClasses];
 };
 
-#define mstats runtime·memStats
+#define mstats runtime·memStats	/* name shared with Go */
 extern MStats mstats;
 
 // Size classes.  Computed and initialized by InitSizes.

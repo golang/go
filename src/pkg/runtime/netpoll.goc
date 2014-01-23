@@ -34,11 +34,6 @@ package net
 #define READY ((G*)1)
 #define WAIT  ((G*)2)
 
-enum
-{
-	PollBlockSize	= 4*1024,
-};
-
 struct PollDesc
 {
 	PollDesc* link;	// in pollcache, protected by pollcache.Lock
@@ -427,7 +422,7 @@ allocPollDesc(void)
 
 	runtime·lock(&pollcache);
 	if(pollcache.first == nil) {
-		n = PollBlockSize/sizeof(*pd);
+		n = PageSize/sizeof(*pd);
 		if(n == 0)
 			n = 1;
 		// Must be in non-GC memory because can be referenced
