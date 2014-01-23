@@ -102,7 +102,7 @@
       <tr>
         <th>&nbsp;</th>
     {{range $.Builders}}
-        <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+        <th class="result arch" title="{{.}}">{{builderSubheading .}}</th>
     {{end}}
       </tr>
     {{range $c := $.Commits}}
@@ -174,7 +174,7 @@
         <th></th>
         <th></th>
         {{range $.Builders}}
-          <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+          <th class="result arch" title="{{.}}">{{builderSubheading .}}</th>
         {{end}}
         <th></th>
         <th></th>

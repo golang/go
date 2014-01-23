@@ -79,6 +79,15 @@ var testRequests = []struct {
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 
+	// Other builders, to test the UI.
+	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "linux-amd64-race", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "netbsd-386", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "plan9-386", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "windows-386", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "windows-amd64", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "windows-amd64-race", Hash: "0001", OK: true}, nil},
+
 	// multiple builders
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0003", OK: true}, nil},

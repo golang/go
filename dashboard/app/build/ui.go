@@ -119,7 +119,9 @@ func commitBuilders(commits []*Commit, goHash string) []string {
 			builders[r.Builder] = true
 		}
 	}
-	return keys(builders)
+	k := keys(builders)
+	sort.Sort(builderOrder(k))
+	return k
 }
 
 func keys(m map[string]bool) (s []string) {
@@ -128,6 +130,45 @@ func keys(m map[string]bool) (s []string) {
 	}
 	sort.Strings(s)
 	return
+}
+
+// builderOrder implements sort.Interface, sorting builder names
+// ("darwin-amd64", etc) first by builderPriority and then alphabetically.
+type builderOrder []string
+
+func (s builderOrder) Len() int      { return len(s) }
+func (s builderOrder) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s builderOrder) Less(i, j int) bool {
+	pi, pj := builderPriority(s[i]), builderPriority(s[j])
+	if pi == pj {
+		return s[i] < s[j]
+	}
+	return pi < pj
+}
+
+func builderPriority(builder string) int {
+	// Group race builders together.
+	if isRace(builder) {
+		return 1
+	}
+	// Put supported OSes first.
+	if supportedOS[builderOS(builder)] {
+		return 0
+	}
+	// Everyone else.
+	return 2
+}
+
+func isRace(s string) bool {
+	return strings.Contains(s, "-race-") || strings.HasSuffix(s, "-race")
+}
+
+// Operating systems that should appear first on the dashboard.
+var supportedOS = map[string]bool{
+	"darwin":  true,
+	"freebsd": true,
+	"linux":   true,
+	"windows": true,
 }
 
 // TagState represents the state of all Packages at a Tag.
@@ -181,18 +222,15 @@ var uiTemplate = template.Must(
 )
 
 var tmplFuncs = template.FuncMap{
-	"builderOS":        builderOS,
-	"builderArch":      builderArch,
-	"builderArchShort": builderArchShort,
-	"builderArchChar":  builderArchChar,
-	"builderTitle":     builderTitle,
-	"builderSpans":     builderSpans,
-	"buildDashboards":  buildDashboards,
-	"repoURL":          repoURL,
-	"shortDesc":        shortDesc,
-	"shortHash":        shortHash,
-	"shortUser":        shortUser,
-	"tail":             tail,
+	"builderSubheading": builderSubheading,
+	"builderTitle":      builderTitle,
+	"builderSpans":      builderSpans,
+	"buildDashboards":   buildDashboards,
+	"repoURL":           repoURL,
+	"shortDesc":         shortDesc,
+	"shortHash":         shortHash,
+	"shortUser":         shortUser,
+	"tail":              tail,
 }
 
 func splitDash(s string) (string, string) {
@@ -209,6 +247,14 @@ func builderOS(s string) string {
 	return os
 }
 
+// builderOSOrRace returns the builder OS or, if it is a race builder, "race".
+func builderOSOrRace(s string) string {
+	if isRace(s) {
+		return "race"
+	}
+	return builderOS(s)
+}
+
 // builderArch returns the arch tag for a builder string
 func builderArch(s string) string {
 	_, arch := splitDash(s)
@@ -216,10 +262,11 @@ func builderArch(s string) string {
 	return arch
 }
 
-// builderArchShort returns a short arch tag for a builder string
-func builderArchShort(s string) string {
-	if strings.Contains(s+"-", "-race-") {
-		return "race"
+// builderSubheading returns a short arch tag for a builder string
+// or, if it is a race builder, the builder OS.
+func builderSubheading(s string) string {
+	if isRace(s) {
+		return builderOS(s)
 	}
 	arch := builderArch(s)
 	switch arch {
@@ -255,8 +302,8 @@ func builderSpans(s []string) []builderSpan {
 	var sp []builderSpan
 	for len(s) > 0 {
 		i := 1
-		os := builderOS(s[0])
-		for i < len(s) && builderOS(s[i]) == os {
+		os := builderOSOrRace(s[0])
+		for i < len(s) && builderOSOrRace(s[i]) == os {
 			i++
 		}
 		sp = append(sp, builderSpan{i, os})
