@@ -232,6 +232,8 @@ runtime·printcreatedby(G *gp)
 void
 runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
 {
+	int32 n;
+
 	USED(lr);
 
 	if(gp->status == Gsyscall) {
@@ -242,8 +244,11 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
 	
 	// Print traceback. By default, omits runtime frames.
 	// If that means we print nothing at all, repeat forcing all frames printed.
-	if(runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, false) == 0)
-		runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, true);
+	n = runtime·gentraceback(pc, sp, 0, gp, 0, nil, TracebackMaxFrames, nil, nil, false);
+	if(n == 0)
+		n = runtime·gentraceback(pc, sp, 0, gp, 0, nil, TracebackMaxFrames, nil, nil, true);
+	if(n == TracebackMaxFrames)
+		runtime·printf("...additional frames elided...\n");
 	runtime·printcreatedby(gp);
 }
 
