@@ -19,7 +19,6 @@ package runtime
 // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
 #pragma dataflag NOPTR
 MHeap runtime·mheap;
-MStats mstats;
 
 int32	runtime·checking;
 
@@ -321,10 +320,7 @@ runtime·purgecachedstats(MCache *c)
 	}
 }
 
-// Size of the trailing by_size array differs between Go and C,
-// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
-// sizeof_C_MStats is what C thinks about size of Go struct.
-uintptr runtime·sizeof_C_MStats = sizeof(MStats) - (NumSizeClasses - 61) * sizeof(mstats.by_size[0]);
+uintptr runtime·sizeof_C_MStats = sizeof(MStats);
 
 #define MaxArena32 (2U<<30)
 
