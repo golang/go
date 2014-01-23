@@ -277,7 +277,7 @@ class CL(object):
 			s += "\tAuthor: " + cl.copied_from + "\n"
 		if not quick:
 			s += "\tReviewer: " + JoinComma(cl.reviewer) + "\n"
-			for (who, line) in cl.lgtm:
+			for (who, line, _) in cl.lgtm:
 				s += "\t\t" + who + ": " + line + "\n"
 			s += "\tCC: " + JoinComma(cl.cc) + "\n"
 		s += "\tFiles:\n"
@@ -493,9 +493,15 @@ def CutDomain(s):
 	return s
 
 def JoinComma(l):
+	seen = {}
+	uniq = []
 	for s in l:
 		typecheck(s, str)
-	return ", ".join(l)
+		if s not in seen:
+			seen[s] = True
+			uniq.append(s)
+			
+	return ", ".join(uniq)
 
 def ExceptionDetail():
 	s = str(sys.exc_info()[0])
@@ -556,7 +562,7 @@ def LoadCL(ui, repo, name, web=True):
 			if m.get('approval', False) == True or m.get('disapproval', False) == True:
 				who = re.sub('@.*', '', m.get('sender', ''))
 				text = re.sub("\n(.|\n)*", '', m.get('text', ''))
-				cl.lgtm.append((who, text))
+				cl.lgtm.append((who, text, m.get('approval', False)))
 
 	set_status("loaded CL " + name)
 	return cl, ''
@@ -1928,12 +1934,21 @@ def submit(ui, repo, *pats, **opts):
 	typecheck(userline, str)
 
 	about = ""
-	if cl.reviewer:
-		about += "R=" + JoinComma([CutDomain(s) for s in cl.reviewer]) + "\n"
+
+	if not cl.lgtm and not opts.get('tbr'):
+		raise hg_util.Abort("this CL has not been LGTM'ed")
+	if cl.lgtm:
+		about += "LGTM=" + JoinComma([CutDomain(who) for (who, line, approval) in cl.lgtm if approval]) + "\n"
+	reviewer = cl.reviewer
 	if opts.get('tbr'):
 		tbr = SplitCommaSpace(opts.get('tbr'))
+		for name in tbr:
+			if name.startswith('golang-'):
+				raise hg_util.Abort("--tbr requires a person, not a mailing list")
 		cl.reviewer = Add(cl.reviewer, tbr)
 		about += "TBR=" + JoinComma([CutDomain(s) for s in tbr]) + "\n"
+	if reviewer:
+		about += "R=" + JoinComma([CutDomain(s) for s in reviewer]) + "\n"
 	if cl.cc:
 		about += "CC=" + JoinComma([CutDomain(s) for s in cl.cc]) + "\n"
 
