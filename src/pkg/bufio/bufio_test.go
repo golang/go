@@ -1112,63 +1112,83 @@ func (w onlyWriter) Write(b []byte) (int, error) {
 
 func BenchmarkReaderCopyOptimal(b *testing.B) {
 	// Optimal case is where the underlying reader implements io.WriterTo
+	srcBuf := bytes.NewBuffer(make([]byte, 8192))
+	src := NewReader(srcBuf)
+	dstBuf := new(bytes.Buffer)
+	dst := onlyWriter{dstBuf}
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		src := NewReader(bytes.NewBuffer(make([]byte, 8192)))
-		dst := onlyWriter{new(bytes.Buffer)}
-		b.StartTimer()
+		srcBuf.Reset()
+		src.Reset(srcBuf)
+		dstBuf.Reset()
 		io.Copy(dst, src)
 	}
 }
 
 func BenchmarkReaderCopyUnoptimal(b *testing.B) {
 	// Unoptimal case is where the underlying reader doesn't implement io.WriterTo
+	srcBuf := bytes.NewBuffer(make([]byte, 8192))
+	src := NewReader(onlyReader{srcBuf})
+	dstBuf := new(bytes.Buffer)
+	dst := onlyWriter{dstBuf}
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		src := NewReader(onlyReader{bytes.NewBuffer(make([]byte, 8192))})
-		dst := onlyWriter{new(bytes.Buffer)}
-		b.StartTimer()
+		srcBuf.Reset()
+		src.Reset(onlyReader{srcBuf})
+		dstBuf.Reset()
 		io.Copy(dst, src)
 	}
 }
 
 func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
+	srcBuf := bytes.NewBuffer(make([]byte, 8192))
+	srcReader := NewReader(srcBuf)
+	src := onlyReader{srcReader}
+	dstBuf := new(bytes.Buffer)
+	dst := onlyWriter{dstBuf}
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		src := onlyReader{NewReader(bytes.NewBuffer(make([]byte, 8192)))}
-		dst := onlyWriter{new(bytes.Buffer)}
-		b.StartTimer()
+		srcBuf.Reset()
+		srcReader.Reset(srcBuf)
+		dstBuf.Reset()
 		io.Copy(dst, src)
 	}
 }
 
 func BenchmarkWriterCopyOptimal(b *testing.B) {
 	// Optimal case is where the underlying writer implements io.ReaderFrom
+	srcBuf := bytes.NewBuffer(make([]byte, 8192))
+	src := onlyReader{srcBuf}
+	dstBuf := new(bytes.Buffer)
+	dst := NewWriter(dstBuf)
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		src := onlyReader{bytes.NewBuffer(make([]byte, 8192))}
-		dst := NewWriter(new(bytes.Buffer))
-		b.StartTimer()
+		srcBuf.Reset()
+		dstBuf.Reset()
+		dst.Reset(dstBuf)
 		io.Copy(dst, src)
 	}
 }
 
 func BenchmarkWriterCopyUnoptimal(b *testing.B) {
+	srcBuf := bytes.NewBuffer(make([]byte, 8192))
+	src := onlyReader{srcBuf}
+	dstBuf := new(bytes.Buffer)
+	dst := NewWriter(onlyWriter{dstBuf})
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		src := onlyReader{bytes.NewBuffer(make([]byte, 8192))}
-		dst := NewWriter(onlyWriter{new(bytes.Buffer)})
-		b.StartTimer()
+		srcBuf.Reset()
+		dstBuf.Reset()
+		dst.Reset(onlyWriter{dstBuf})
 		io.Copy(dst, src)
 	}
 }
 
 func BenchmarkWriterCopyNoReadFrom(b *testing.B) {
+	srcBuf := bytes.NewBuffer(make([]byte, 8192))
+	src := onlyReader{srcBuf}
+	dstBuf := new(bytes.Buffer)
+	dstWriter := NewWriter(dstBuf)
+	dst := onlyWriter{dstWriter}
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		src := onlyReader{bytes.NewBuffer(make([]byte, 8192))}
-		dst := onlyWriter{NewWriter(new(bytes.Buffer))}
-		b.StartTimer()
+		srcBuf.Reset()
+		dstBuf.Reset()
+		dstWriter.Reset(dstBuf)
 		io.Copy(dst, src)
 	}
 }
