@@ -716,6 +716,11 @@ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
 bool	runtime·topofstack(Func*);
+enum
+{
+	// The maximum number of frames we print for a traceback
+	TracebackMaxFrames = 100,
+};
 
 /*
  * external data
