@@ -3046,3 +3046,23 @@ haveexperiment(int8 *name)
 	}
 	return 0;
 }
+
+// func runtime_procPin() int
+void
+sync·runtime_procPin(intgo p)
+{
+	M *mp;
+
+	mp = m;
+	// Disable preemption.
+	mp->locks++;
+	p = mp->p->id;
+	FLUSH(&p);
+}
+
+// func runtime_procUnpin()
+void
+sync·runtime_procUnpin(void)
+{
+	m->locks--;
+}
