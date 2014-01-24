@@ -1505,7 +1505,7 @@ scanframe(Stkframe *frame, void *wbufp)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = stackmapdata(stackmap, pcdata);
-		scanbitvector(frame->argp, bv, false, wbufp);
+		scanbitvector(frame->argp, bv, true, wbufp);
 	} else
 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
 }

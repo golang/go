@@ -1498,25 +1498,29 @@ livenessepilogue(Liveness *lv)
 			bvor(all, all, avarinit);
 
 			if(issafepoint(p)) {
-				if(debuglive >= 3) {
-					// Diagnose ambiguously live variables (any &^ all).
-					// livein and liveout are dead here and used as temporaries.
+				// Annotate ambiguously live variables so that they can
+				// be zeroed at function entry.
+				// livein and liveout are dead here and used as temporaries.
+				// For now, only enabled when using GOEXPERIMENT=precisestack
+				// during make.bash / all.bash.
+				if(precisestack_enabled) {
 					bvresetall(livein);
 					bvandnot(liveout, any, all);
-					if(bvcmp(livein, liveout) != 0) {
+					if(!bvisempty(liveout)) {
 						for(pos = 0; pos < liveout->n; pos++) {
-							if(bvget(liveout, pos)) {
-								n = *(Node**)arrayget(lv->vars, pos);
-								if(!n->diag && strncmp(n->sym->name, "autotmp_", 8) != 0) {
-									n->diag = 1;
-									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
-								}
-							}
 							bvset(all, pos); // silence future warnings in this block
+							if(!bvget(liveout, pos))
+								continue;
+							n = *(Node**)arrayget(lv->vars, pos);
+							if(!n->needzero) {
+								n->needzero = 1;
+								if(debuglive >= 3)
+									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+							}
 						}
 					}
 				}
-
+	
 				// Allocate a bit vector for each class and facet of
 				// value we are tracking.
 	
