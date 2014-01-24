@@ -68,15 +68,19 @@ clearpools(void)
 {
 	void **pool, **next;
 	P *p, **pp;
+	uintptr off;
 	int32 i;
 
 	// clear sync.Pool's
 	for(pool = pools.head; pool != nil; pool = next) {
 		next = pool[0];
 		pool[0] = nil; // next
-		pool[1] = nil; // slice
-		pool[2] = nil;
-		pool[3] = nil;
+		pool[1] = nil; // local
+		pool[2] = nil; // localSize
+		off = (uintptr)pool[3] / sizeof(void*);
+		pool[off+0] = nil; // global slice
+		pool[off+1] = nil;
+		pool[off+2] = nil;
 	}
 	pools.head = nil;
 

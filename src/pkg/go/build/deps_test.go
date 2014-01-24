@@ -29,7 +29,7 @@ var pkgDeps = map[string][]string{
 	"errors":      {},
 	"io":          {"errors", "sync"},
 	"runtime":     {"unsafe"},
-	"sync":        {"sync/atomic", "unsafe"},
+	"sync":        {"runtime", "sync/atomic", "unsafe"},
 	"sync/atomic": {"unsafe"},
 	"unsafe":      {},
 
