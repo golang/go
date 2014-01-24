@@ -46,10 +46,8 @@ gostringsize(intgo l)
 
 	if(l == 0)
 		return runtime·emptystring;
-	// leave room for NUL for C runtime (e.g., callers of getenv)
-	s.str = runtime·mallocgc(l+1, 0, FlagNoScan|FlagNoZero);
+	s.str = runtime·mallocgc(l, 0, FlagNoScan|FlagNoZero);
 	s.len = l;
-	s.str[l] = 0;
 	for(;;) {
 		ms = runtime·maxstring;
 		if((uintptr)l <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)l))
