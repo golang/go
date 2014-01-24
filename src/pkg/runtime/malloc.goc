@@ -26,6 +26,8 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
 
 extern volatile intgo runtime·MemProfileRate;
 
+static void* largealloc(uint32, uintptr*);
+
 // Allocate an object of at least size bytes.
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -34,12 +36,13 @@ void*
 runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 {
 	int32 sizeclass;
+	uintptr tinysize, size1;
 	intgo rate;
 	MCache *c;
 	MCacheList *l;
-	uintptr npages;
-	MSpan *s;
 	MLink *v;
+	byte *tiny;
+	P *p;
 
 	if(size == 0) {
 		// All 0-length allocations use this pointer.
@@ -59,6 +62,79 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 
 	c = m->mcache;
 	if(!runtime·debug.efence && size <= MaxSmallSize) {
+		if((flag&(FlagNoScan|FlagNoGC)) == FlagNoScan && size < TinySize) {
+			// Tiny allocator.
+			//
+			// Tiny allocator combines several tiny allocation requests
+			// into a single memory block. The resulting memory block
+			// is freed when all subobjects are unreachable. The subobjects
+			// must be FlagNoScan (don't have pointers), this ensures that
+			// the amount of potentially wasted memory is bounded.
+			//
+			// Size of the memory block used for combining (TinySize) is tunable.
+			// Current setting is 16 bytes, which relates to 2x worst case memory
+			// wastage (when all but one subobjects are unreachable).
+			// 8 bytes would result in no wastage at all, but provides less
+			// opportunities for combining.
+			// 32 bytes provides more opportunities for combining,
+			// but can lead to 4x worst case wastage.
+			// The best case winning is 8x regardless of block size.
+			//
+			// Objects obtained from tiny allocator must not be freed explicitly.
+			// So when an object will be freed explicitly, we ensure that
+			// its size >= TinySize.
+			//
+			// SetFinalizer has a special case for objects potentially coming
+			// from tiny allocator, it such case it allows to set finalizers
+			// for an inner byte of a memory block.
+			//
+			// The main targets of tiny allocator are small strings and
+			// standalone escaping variables. On a json benchmark
+			// the allocator reduces number of allocations by ~12% and
+			// reduces heap size by ~20%.
+
+			p = m->p;
+			tinysize = p->tinysize;
+			if(size <= tinysize) {
+				tiny = p->tiny;
+				// Align tiny pointer for required (conservative) alignment.
+				if((size&7) == 0)
+					tiny = (byte*)ROUND((uintptr)tiny, 8);
+				else if((size&3) == 0)
+					tiny = (byte*)ROUND((uintptr)tiny, 4);
+				else if((size&1) == 0)
+					tiny = (byte*)ROUND((uintptr)tiny, 2);
+				size1 = size + (tiny - p->tiny);
+				if(size1 <= tinysize) {
+					// The object fits into existing tiny block.
+					v = (MLink*)tiny;
+					p->tiny += size1;
+					p->tinysize -= size1;
+					m->mallocing = 0;
+					m->locks--;
+					if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+						g->stackguard0 = StackPreempt;
+					return v;
+				}
+			}
+			// Allocate a new TinySize block.
+			l = &c->list[TinySizeClass];
+			if(l->list == nil)
+				runtime·MCache_Refill(c, TinySizeClass);
+			v = l->list;
+			l->list = v->next;
+			l->nlist--;
+			((uint64*)v)[0] = 0;
+			((uint64*)v)[1] = 0;
+			// See if we need to replace the existing tiny block with the new one
+			// based on amount of remaining free space.
+			if(TinySize-size > tinysize) {
+				p->tiny = (byte*)v + size;
+				p->tinysize = TinySize - size;
+			}
+			size = TinySize;
+			goto done;
+		}
 		// Allocate from mcache free lists.
 		// Inlined version of SizeToClass().
 		if(size <= 1024-8)
@@ -78,23 +154,11 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 			if(size > 2*sizeof(uintptr) && ((uintptr*)v)[1] != 0)
 				runtime·memclr((byte*)v, size);
 		}
+	done:
 		c->local_cachealloc += size;
 	} else {
-		// TODO(rsc): Report tracebacks for very large allocations.
-
 		// Allocate directly from heap.
-		npages = size >> PageShift;
-		if((size & PageMask) != 0)
-			npages++;
-		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, !(flag & FlagNoZero));
-		if(s == nil)
-			runtime·throw("out of memory");
-		s->limit = (byte*)(s->start<<PageShift) + size;
-		size = npages<<PageShift;
-		v = (void*)(s->start << PageShift);
-
-		// setup for mark sweep
-		runtime·markspan(v, 0, 0, true);
+		v = largealloc(flag, &size);
 	}
 
 	if(flag & FlagNoGC)
@@ -151,6 +215,29 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	return v;
 }
 
+static void*
+largealloc(uint32 flag, uintptr *sizep)
+{
+	uintptr npages, size;
+	MSpan *s;
+	void *v;
+
+	// Allocate directly from heap.
+	size = *sizep;
+	npages = size >> PageShift;
+	if((size & PageMask) != 0)
+		npages++;
+	s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, !(flag & FlagNoZero));
+	if(s == nil)
+		runtime·throw("out of memory");
+	s->limit = (byte*)(s->start<<PageShift) + size;
+	*sizep = npages<<PageShift;
+	v = (void*)(s->start << PageShift);
+	// setup for mark sweep
+	runtime·markspan(v, 0, 0, true);
+	return v;
+}
+
 void*
 runtime·malloc(uintptr size)
 {
@@ -182,6 +269,10 @@ runtime·free(void *v)
 	}
 	size = s->elemsize;
 	sizeclass = s->sizeclass;
+	// Objects that are smaller than TinySize can be allocated using tiny alloc,
+	// if then such object is combined with an object with finalizer, we will crash.
+	if(size < TinySize)
+		runtime·throw("freeing too small block");
 
 	if(raceenabled)
 		runtime·racefree(v);
@@ -347,6 +438,9 @@ runtime·mallocinit(void)
 
 	runtime·InitSizes();
 
+	if(runtime·class_to_size[TinySizeClass] != TinySize)
+		runtime·throw("bad TinySizeClass");
+
 	// limit = runtime·memlimit();
 	// See https://code.google.com/p/go/issues/detail?id=5049
 	// TODO(rsc): Fix after 1.1.
@@ -450,7 +544,7 @@ runtime·mallocinit(void)
 	m->mcache = runtime·allocmcache();
 
 	// See if it works.
-	runtime·free(runtime·malloc(1));
+	runtime·free(runtime·malloc(TinySize));
 }
 
 void*
@@ -760,12 +854,17 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		goto throw;
 	}
 	ot = (PtrType*)obj.type;
-	if(ot->elem != nil && ot->elem->size == 0) {
+	// As an implementation detail we do not run finalizers for zero-sized objects,
+	// because we use &runtime·zerobase for all such allocations.
+	if(ot->elem != nil && ot->elem->size == 0)
 		return;
-	}
 	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
-		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
-		goto throw;
+		// As an implementation detail we allow to set finalizers for an inner byte
+		// of an object if it could come from tiny alloc (see mallocgc for details).
+		if(ot->elem == nil || (ot->elem->kind&KindNoPointers) == 0 || ot->elem->size >= TinySize) {
+			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+			goto throw;
+		}
 	}
 	if(finalizer.type != nil) {
 		if(finalizer.type->kind != KindFunc)

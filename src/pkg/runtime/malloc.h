@@ -108,6 +108,10 @@ enum
 	// Tunable constants.
 	MaxSmallSize = 32<<10,
 
+	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.goc.
+	TinySize = 16,
+	TinySizeClass = 2,
+
 	FixAllocChunk = 16<<10,		// Chunk size for FixAlloc
 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth

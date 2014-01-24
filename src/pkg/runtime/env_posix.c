@@ -5,6 +5,8 @@
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 #include "runtime.h"
+#include "arch_GOARCH.h"
+#include "malloc.h"
 
 Slice syscall·envs;
 
@@ -44,15 +46,24 @@ void
 syscall·setenv_c(String k, String v)
 {
 	byte *arg[2];
+	uintptr len;
 
 	if(_cgo_setenv == nil)
 		return;
 
-	arg[0] = runtime·malloc(k.len + 1);
+	// Objects that are explicitly freed must be at least 16 bytes in size,
+	// so that they are not allocated using tiny alloc.
+	len = k.len + 1;
+	if(len < TinySize)
+		len = TinySize;
+	arg[0] = runtime·malloc(len);
 	runtime·memmove(arg[0], k.str, k.len);
 	arg[0][k.len] = 0;
 
-	arg[1] = runtime·malloc(v.len + 1);
+	len = v.len + 1;
+	if(len < TinySize)
+		len = TinySize;
+	arg[1] = runtime·malloc(len);
 	runtime·memmove(arg[1], v.str, v.len);
 	arg[1][v.len] = 0;
 
