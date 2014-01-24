@@ -9,10 +9,13 @@
 #include "gg.h"
 #include "opt.h"
 
+static Prog *appendpp(Prog*, int, int, vlong, int, vlong);
+
 void
 defframe(Prog *ptxt)
 {
 	uint32 frame;
+	Prog *p;
 
 	// fill in argument size
 	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
@@ -21,6 +24,35 @@ defframe(Prog *ptxt)
 	ptxt->to.offset <<= 32;
 	frame = rnd(stksize+maxarg, widthptr);
 	ptxt->to.offset |= frame;
+	
+	// insert code to contain ambiguously live variables
+	// so that garbage collector only sees initialized values
+	// when it looks for pointers.
+	p = ptxt;
+	if(stkzerosize > 0) {
+		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);	
+		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthptr, D_CX, 0);	
+		p = appendpp(p, ALEAQ, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
+		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);	
+		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);	
+	}
+}
+
+static Prog*	
+appendpp(Prog *p, int as, int ftype, vlong foffset, int ttype, vlong toffset)	
+{
+	Prog *q;
+	q = mal(sizeof(*q));	
+	clearp(q);	
+	q->as = as;	
+	q->lineno = p->lineno;	
+	q->from.type = ftype;	
+	q->from.offset = foffset;	
+	q->to.type = ttype;	
+	q->to.offset = toffset;	
+	q->link = p->link;	
+	p->link = q;	
+	return q;	
 }
 
 // Sweep the prog list to mark any used nodes.
@@ -990,13 +1022,12 @@ clearfat(Node *nl)
 	if(debug['g'])
 		dump("\nclearfat", nl);
 
+	gfatvardef(nl);
 
 	w = nl->type->width;
 	// Avoid taking the address for simple enough types.
 	if(componentgen(N, nl))
 		return;
-
-	gfatvardef(nl);
 
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
