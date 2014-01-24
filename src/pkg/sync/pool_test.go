@@ -73,8 +73,8 @@ func TestPoolGC(t *testing.T) {
 	var fin uint32
 	const N = 100
 	for i := 0; i < N; i++ {
-		v := new(int)
-		runtime.SetFinalizer(v, func(vv *int) {
+		v := new(string)
+		runtime.SetFinalizer(v, func(vv *string) {
 			atomic.AddUint32(&fin, 1)
 		})
 		p.Put(v)

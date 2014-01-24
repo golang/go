@@ -84,8 +84,11 @@ clearpools(void)
 	}
 	pools.head = nil;
 
-	// clear defer pools
 	for(pp=runtime·allp; p=*pp; pp++) {
+		// clear tinyalloc pool
+		p->tiny = nil;
+		p->tinysize = 0;
+		// clear defer pools
 		for(i=0; i<nelem(p->deferpool); i++)
 			p->deferpool[i] = nil;
 	}
@@ -1202,6 +1205,7 @@ markroot(ParFor *desc, uint32 i)
 	MSpan **allspans, *s;
 	uint32 spanidx;
 	G *gp;
+	void *p;
 
 	USED(&desc);
 	wbuf = getempty(nil);
@@ -1241,7 +1245,9 @@ markroot(ParFor *desc, uint32 i)
 				// don't mark finalized object, but scan it so we
 				// retain everything it points to.
 				spf = (SpecialFinalizer*)sp;
-				enqueue1(&wbuf, (Obj){(void*)((s->start << PageShift) + spf->offset), s->elemsize, 0});
+				// A finalizer can be set for an inner byte of an object, find object beginning.
+				p = (void*)((s->start << PageShift) + spf->offset/s->elemsize*s->elemsize);
+				enqueue1(&wbuf, (Obj){p, s->elemsize, 0});
 				enqueue1(&wbuf, (Obj){(void*)&spf->fn, PtrSize, 0});
 				enqueue1(&wbuf, (Obj){(void*)&spf->fint, PtrSize, 0});
 				enqueue1(&wbuf, (Obj){(void*)&spf->ot, PtrSize, 0});
@@ -1663,12 +1669,16 @@ sweepspan(ParFor *desc, uint32 idx)
 	specialp = &s->specials;
 	special = *specialp;
 	while(special != nil) {
-		p = (byte*)(s->start << PageShift) + special->offset;
+		// A finalizer can be set for an inner byte of an object, find object beginning.
+		p = (byte*)(s->start << PageShift) + special->offset/size*size;
 		off = (uintptr*)p - (uintptr*)arena_start;
 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
 		bits = *bitp>>shift;
 		if((bits & (bitAllocated|bitMarked)) == bitAllocated) {
+			// Find the exact byte for which the special was setup
+			// (as opposed to object beginning).
+			p = (byte*)(s->start << PageShift) + special->offset;
 			// about to free object: splice out special record
 			y = special;
 			special = special->next;

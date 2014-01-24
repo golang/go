@@ -605,6 +605,8 @@ removespecial(void *p, byte kind)
 	runtime·lock(&span->specialLock);
 	t = &span->specials;
 	while((s = *t) != nil) {
+		// This function is used for finalizers only, so we don't check for
+		// "interior" specials (p must be exactly equal to s->offset).
 		if(offset == s->offset && kind == s->kind) {
 			*t = s->next;
 			runtime·unlock(&span->specialLock);
@@ -713,9 +715,9 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
 	runtime·lock(&span->specialLock);
 	t = &span->specials;
 	while((s = *t) != nil) {
-		if(offset < s->offset)
+		if(offset + size <= s->offset)
 			break;
-		if(offset == s->offset) {
+		if(offset <= s->offset) {
 			*t = s->next;
 			s->next = list;
 			list = s;
