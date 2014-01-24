@@ -1359,15 +1359,23 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		aclass(ctxt, &p->to);
 		o1 = ctxt->instoffset;
 		if(p->to.sym != nil) {
+			// This case happens with words generated
+			// in the PC stream as part of the literal pool.
 			rel = addrel(ctxt->cursym);
 			rel->off = ctxt->pc;
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			rel->add = p->to.offset;
+			
+			// runtime.tlsgm (aka gmsym) is special.
+			// Its "address" is the offset from the TLS thread pointer
+			// to the thread-local g and m pointers.
+			// Emit a TLS relocation instead of a standard one.
+			// The TLS flag_shared case is not tested and probably now wrong.
 			if(rel->sym == ctxt->gmsym) {
 				rel->type = D_TLS;
 				if(ctxt->flag_shared)
-					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
+					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz; // TODO: probably wrong
 				rel->xadd = rel->add;
 				rel->xsym = rel->sym;
 			} else if(ctxt->flag_shared) {
