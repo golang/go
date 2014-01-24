@@ -7,20 +7,27 @@
 package build
 
 import (
+	"bytes"
+	"encoding/gob"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"regexp"
+	"text/template"
+
 	"appengine"
 	"appengine/datastore"
 	"appengine/delay"
 	"appengine/mail"
-	"bytes"
-	"encoding/gob"
-	"fmt"
-	"text/template"
+	"appengine/urlfetch"
 )
 
 const (
 	mailFrom   = "builder@golang.org" // use this for sending any mail
 	failMailTo = "golang-dev@googlegroups.com"
 	domain     = "build.golang.org"
+	gobotBase  = "http://research.swtch.com/gobot_codereview"
 )
 
 // failIgnore is a set of builders that we don't email about because
@@ -92,7 +99,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 	var err error
 	if broken != nil && !broken.FailNotificationSent {
 		c.Infof("%s is broken commit; notifying", broken.Hash)
-		sendFailMailLater.Call(c, broken, builder) // add task to queue
+		notifyLater.Call(c, broken, builder) // add task to queue
 		broken.FailNotificationSent = true
 		_, err = datastore.Put(c, broken.Key(c), broken)
 	}
@@ -109,14 +116,69 @@ func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) error {
 	return err
 }
 
-var (
-	sendFailMailLater = delay.Func("sendFailMail", sendFailMail)
-	sendFailMailTmpl  = template.Must(
-		template.New("notify.txt").
-			Funcs(template.FuncMap(tmplFuncs)).
-			ParseFiles("build/notify.txt"),
-	)
-)
+var notifyLater = delay.Func("notify", notify)
+
+// notify tries to update the CL for the given Commit with a failure message.
+// If it doesn't succeed, it sends a failure email to golang-dev.
+func notify(c appengine.Context, com *Commit, builder string) {
+	if !updateCL(c, com, builder) {
+		// Send a mail notification if the CL can't be found.
+		sendFailMail(c, com, builder)
+	}
+}
+
+// updateCL updates the CL for the given Commit with a failure message
+// for the given builder.
+func updateCL(c appengine.Context, com *Commit, builder string) bool {
+	cl, err := lookupCL(c, com)
+	if err != nil {
+		c.Errorf("could not find CL for %v: %v", com.Hash, err)
+		return false
+	}
+	url := fmt.Sprintf("%v?cl=%v&brokebuild=%v", gobotBase, cl, builder)
+	r, err := urlfetch.Client(c).Post(url, "text/plain", nil)
+	if err != nil {
+		c.Errorf("could not update CL %v: %v", cl, err)
+		return false
+	}
+	r.Body.Close()
+	if r.StatusCode != http.StatusOK {
+		c.Errorf("could not update CL %v: %v", cl, r.Status)
+		return false
+	}
+	return true
+}
+
+var clURL = regexp.MustCompile(`https://codereview.appspot.com/([0-9]+)`)
+
+// lookupCL consults code.google.com for the full change description for the
+// provided Commit, and returns the relevant CL number.
+func lookupCL(c appengine.Context, com *Commit) (string, error) {
+	url := "https://code.google.com/p/go/source/detail?r=" + com.Hash
+	r, err := urlfetch.Client(c).Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer r.Body.Close()
+	if r.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("retrieving %v: %v", url, r.Status)
+	}
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return "", err
+	}
+	m := clURL.FindAllSubmatch(b, -1)
+	if m == nil {
+		return "", errors.New("no CL URL found on changeset page")
+	}
+	// Return the last visible codereview URL on the page,
+	// in case the change description refers to another CL.
+	return string(m[len(m)-1][1]), nil
+}
+
+var sendFailMailTmpl = template.Must(template.New("notify.txt").
+	Funcs(template.FuncMap(tmplFuncs)).
+	ParseFiles("build/notify.txt"))
 
 func init() {
 	gob.Register(&Commit{}) // for delay
