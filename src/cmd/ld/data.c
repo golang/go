@@ -167,6 +167,17 @@ relocsym(LSym *s)
 				diag("unknown reloc %d", r->type);
 			break;
 		case D_TLS:
+			if(linkmode == LinkInternal && iself && thechar == '5') {
+				// On ELF ARM, the thread pointer is 8 bytes before
+				// the start of the thread-local data block, so add 8
+				// to the actual TLS offset (r->sym->value).
+				// This 8 seems to be a fundamental constant of
+				// ELF on ARM (or maybe Glibc on ARM); it is not
+				// related to the fact that our own TLS storage happens
+				// to take up 8 bytes.
+				o = 8 + r->sym->value;
+				break;
+			}
 			r->done = 0;
 			o = 0;
 			if(thechar != '6')
@@ -879,13 +890,13 @@ dodata(void)
 		}
 		sect->len = datsize;
 	} else {
-		// References to STLSBSS symbols may be in the binary
-		// but should not be used. Give them an invalid address
-		// so that any uses will fault. Using 1 instead of 0 so that
-		// if used as an offset on ARM it will result in an unaligned
-		// address and still cause a fault.
-		for(; s != nil && s->type == STLSBSS; s = s->next)
-			s->value = 1;
+		// Might be internal linking but still using cgo.
+		// In that case, the only possible STLSBSS symbol is tlsgm.
+		// Give it offset 0, because it's the only thing here.
+		if(s != nil && s->type == STLSBSS && strcmp(s->name, "runtime.tlsgm") == 0) {
+			s->value = 0;
+			s = s->next;
+		}
 	}
 	
 	if(s != nil) {

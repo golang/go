@@ -198,7 +198,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *pl, *q, *q1, *q2;
 	int o;
-	LSym *tlsfallback;
 	int32 autosize, autoffset;
 	
 	autosize = 0;
@@ -206,7 +205,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	if(ctxt->symmorestack[0] == nil)
 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
 	
-	tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
 	if(ctxt->gmsym == nil)
 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
 	q = nil;
@@ -349,78 +347,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				}
 			}
 			break;
-		case AWORD:
-			// Rewrite TLS register fetch: MRC 15, 0, <reg>, C13, C0, 3
-			if((p->to.offset & 0xffff0fff) == 0xee1d0f70) {
-				if(ctxt->headtype == Hopenbsd) {
-					p->as = ARET;
-					break;
-				}
-				if(ctxt->goarm < 7) {
-					// BL runtime.read_tls_fallback(SB)
-					p->as = ABL;
-					p->to.type = D_BRANCH;
-					p->to.sym = tlsfallback;
-					p->to.offset = 0;
-					cursym->text->mark &= ~LEAF;
-				}
-				// runtime.tlsgm is relocated with R_ARM_TLS_LE32
-				// and $runtime.tlsgm will contain the TLS offset.
-				//
-				// MOV $runtime.tlsgm+ctxt->tlsoffset(SB), REGTMP
-				// ADD REGTMP, <reg>
-				//
-				// In shared mode, runtime.tlsgm is relocated with
-				// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
-				// to the GOT entry containing the TLS offset.
-				//
-				// MOV runtime.tlsgm(SB), REGTMP
-				// ADD REGTMP, <reg>
-				// SUB -ctxt->tlsoffset, <reg>
-				//
-				// The SUB compensates for ctxt->tlsoffset
-				// used in runtime.save_gm and runtime.load_gm.
-				q = p;
-				p = appendp(ctxt, p);
-				p->as = AMOVW;
-				p->scond = C_SCOND_NONE;
-				p->reg = NREG;
-				if(ctxt->flag_shared) {
-					p->from.type = D_OREG;
-					p->from.offset = 0;
-				} else {
-					p->from.type = D_CONST;
-					p->from.offset = ctxt->tlsoffset;
-				}
-				p->from.sym = ctxt->gmsym;
-				p->from.name = D_EXTERN;
-				p->to.type = D_REG;
-				p->to.reg = REGTMP;
-				p->to.offset = 0;
-
-				p = appendp(ctxt, p);
-				p->as = AADD;
-				p->scond = C_SCOND_NONE;
-				p->reg = NREG;
-				p->from.type = D_REG;
-				p->from.reg = REGTMP;
-				p->to.type = D_REG;
-				p->to.reg = (q->to.offset & 0xf000) >> 12;
-				p->to.offset = 0;
-
-				if(ctxt->flag_shared) {
-					p = appendp(ctxt, p);
-					p->as = ASUB;
-					p->scond = C_SCOND_NONE;
-					p->reg = NREG;
-					p->from.type = D_CONST;
-					p->from.offset = -ctxt->tlsoffset;
-					p->to.type = D_REG;
-					p->to.reg = (q->to.offset & 0xf000) >> 12;
-					p->to.offset = 0;
-				}
-				break;
-			}
 		}
 		q = p;
 	}

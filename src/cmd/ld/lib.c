@@ -229,10 +229,7 @@ loadlib(void)
 	gmsym->type = STLSBSS;
 	gmsym->size = 2*PtrSize;
 	gmsym->hide = 1;
-	if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd)
-		gmsym->reachable = 1;
-	else
-		gmsym->reachable = 0;
+	gmsym->reachable = 1;
 
 	// Now that we know the link mode, trim the dynexp list.
 	x = CgoExportDynamic;
