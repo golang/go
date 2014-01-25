@@ -267,6 +267,7 @@ func TestMathBigDivide(t *testing.T) {
 var badOS = map[string]bool{
 	"darwin": true,
 	"netbsd": true,
+	"plan9":  true,
 }
 
 func TestBlockProfile(t *testing.T) {
