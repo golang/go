@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -508,6 +509,15 @@ func TestFindImportGoPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(goroot)
+
+	pkgIndexOnce = sync.Once{}
+
+	origStdlib := stdlib
+	defer func() {
+		stdlib = origStdlib
+	}()
+	stdlib = nil
+
 	// Test against imaginary bits/bytes package in std lib
 	bytesDir := filepath.Join(goroot, "src", "pkg", "bits", "bytes")
 	if err := os.MkdirAll(bytesDir, 0755); err != nil {
@@ -546,4 +556,35 @@ type Buffer2 struct {}
 	if got != "" {
 		t.Errorf(`findImportGoPath("bytes", Missing ...)=%q, want ""`, got)
 	}
+}
+
+func TestFindImportStdlib(t *testing.T) {
+	tests := []struct {
+		pkg     string
+		symbols []string
+		want    string
+	}{
+		{"http", []string{"Get"}, "net/http"},
+		{"http", []string{"Get", "Post"}, "net/http"},
+		{"http", []string{"Get", "Foo"}, ""},
+		{"bytes", []string{"Buffer"}, "bytes"},
+		{"ioutil", []string{"Discard"}, "io/ioutil"},
+	}
+	for _, tt := range tests {
+		got, ok := findImportStdlib(tt.pkg, strSet(tt.symbols))
+		if (got != "") != ok {
+			t.Error("findImportStdlib return value inconsistent")
+		}
+		if got != tt.want {
+			t.Errorf("findImportStdlib(%q, %q) = %q; want %q", tt.pkg, tt.symbols, got, tt.want)
+		}
+	}
+}
+
+func strSet(ss []string) map[string]bool {
+	m := make(map[string]bool)
+	for _, s := range ss {
+		m[s] = true
+	}
+	return m
 }

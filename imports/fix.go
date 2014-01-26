@@ -271,6 +271,12 @@ func loadExportsGoPath(dir string) map[string]bool {
 var findImport = findImportGoPath
 
 func findImportGoPath(pkgName string, symbols map[string]bool) (string, error) {
+	// Fast path for the standard library.
+	// In the common case we hopefully never have to scan the GOPATH, which can
+	// be slow with moving disks.
+	if pkg, ok := findImportStdlib(pkgName, symbols); ok {
+		return pkg, nil
+	}
 
 	pkgIndexOnce.Do(loadPkgIndex)
 
@@ -324,4 +330,19 @@ type visitFn func(node ast.Node) ast.Visitor
 
 func (fn visitFn) Visit(node ast.Node) ast.Visitor {
 	return fn(node)
+}
+
+func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath string, ok bool) {
+	for symbol := range symbols {
+		path := stdlib[shortPkg+"."+symbol]
+		if path == "" {
+			return "", false
+		}
+		if importPath != "" && importPath != path {
+			// Ambiguous. Symbols pointed to different things.
+			return "", false
+		}
+		importPath = path
+	}
+	return importPath, importPath != ""
 }
