@@ -387,3 +387,15 @@ func (r *Reader) SkipChildren() {
 		}
 	}
 }
+
+// clone returns a copy of the reader.  This is used by the typeReader
+// interface.
+func (r *Reader) clone() typeReader {
+	return r.d.Reader()
+}
+
+// offset returns the current buffer offset.  This is used by the
+// typeReader interface.
+func (r *Reader) offset() Offset {
+	return r.b.off
+}

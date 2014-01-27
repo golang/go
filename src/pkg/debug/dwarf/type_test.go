@@ -73,6 +73,8 @@ func TestTypedefsMachO(t *testing.T) {
 	testTypedefs(t, machoData(t, "testdata/typedef.macho"), "macho")
 }
 
+func TestTypedefsELFDwarf4(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf4"), "elf") }
+
 func testTypedefs(t *testing.T, d *Data, kind string) {
 	r := d.Reader()
 	seen := make(map[string]bool)
