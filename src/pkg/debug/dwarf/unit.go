@@ -66,7 +66,7 @@ func (d *Data) parseUnits() ([]unit, error) {
 			n = uint32(b.uint64())
 		}
 		vers := b.uint16()
-		if vers != 2 && vers != 3 {
+		if vers != 2 && vers != 3 && vers != 4 {
 			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
 			break
 		}

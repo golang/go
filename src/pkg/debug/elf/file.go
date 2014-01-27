@@ -601,7 +601,44 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	}
 
 	abbrev, info, str := dat[0], dat[1], dat[2]
-	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+	d, err := dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+	if err != nil {
+		return nil, err
+	}
+
+	// Look for DWARF4 .debug_types sections.
+	for i, s := range f.Sections {
+		if s.Name == ".debug_types" {
+			b, err := s.Data()
+			if err != nil && uint64(len(b)) < s.Size {
+				return nil, err
+			}
+
+			for _, r := range f.Sections {
+				if r.Type != SHT_RELA && r.Type != SHT_REL {
+					continue
+				}
+				if int(r.Info) != i {
+					continue
+				}
+				rd, err := r.Data()
+				if err != nil {
+					return nil, err
+				}
+				err = f.applyRelocations(b, rd)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return d, nil
 }
 
 // Symbols returns the symbol table for f.
