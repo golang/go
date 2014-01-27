@@ -13,6 +13,9 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+	"unsafe"
+
+	"code.google.com/p/go.tools/go/ssa"
 )
 
 type externalFn func(fr *frame, args []value) value
@@ -27,9 +30,6 @@ var externals map[string]externalFn
 func init() {
 	// That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
 	externals = map[string]externalFn{
-		"(*runtime.Func).Entry":           ext۰runtime۰Func۰Entry,
-		"(*runtime.Func).FileLine":        ext۰runtime۰Func۰FileLine,
-		"(*runtime.Func).Name":            ext۰runtime۰Func۰Name,
 		"(*sync.Pool).Get":                ext۰sync۰Pool۰Get,
 		"(*sync.Pool).Put":                ext۰sync۰Pool۰Put,
 		"(reflect.Value).Bool":            ext۰reflect۰Value۰Bool,
@@ -82,6 +82,7 @@ func init() {
 		"reflect.valueInterface":          ext۰reflect۰valueInterface,
 		"runtime.Breakpoint":              ext۰runtime۰Breakpoint,
 		"runtime.Caller":                  ext۰runtime۰Caller,
+		"runtime.Callers":                 ext۰runtime۰Callers,
 		"runtime.FuncForPC":               ext۰runtime۰FuncForPC,
 		"runtime.GC":                      ext۰runtime۰GC,
 		"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
@@ -89,10 +90,12 @@ func init() {
 		"runtime.NumCPU":                  ext۰runtime۰NumCPU,
 		"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
 		"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
+		"runtime.funcentry_go":            ext۰runtime۰funcentry_go,
+		"runtime.funcline_go":             ext۰runtime۰funcline_go,
+		"runtime.funcname_go":             ext۰runtime۰funcname_go,
 		"runtime.getgoroot":               ext۰runtime۰getgoroot,
 		"strings.IndexByte":               ext۰strings۰IndexByte,
 		"sync.runtime_Syncsemcheck":       ext۰sync۰runtime_Syncsemcheck,
-		"sync.runtime_registerPool":       ext۰sync۰runtime_registerPool,
 		"sync/atomic.AddInt32":            ext۰atomic۰AddInt32,
 		"sync/atomic.CompareAndSwapInt32": ext۰atomic۰CompareAndSwapInt32,
 		"sync/atomic.LoadInt32":           ext۰atomic۰LoadInt32,
@@ -124,18 +127,6 @@ func wrapError(err error) value {
 		return iface{}
 	}
 	return iface{t: errorType, v: err.Error()}
-}
-
-func ext۰runtime۰Func۰Entry(fr *frame, args []value) value {
-	return 0
-}
-
-func ext۰runtime۰Func۰FileLine(fr *frame, args []value) value {
-	return tuple{"unknown.go", -1}
-}
-
-func ext۰runtime۰Func۰Name(fr *frame, args []value) value {
-	return "unknown"
 }
 
 func ext۰sync۰Pool۰Get(fr *frame, args []value) value {
@@ -214,16 +205,57 @@ func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
 }
 
 func ext۰runtime۰Caller(fr *frame, args []value) value {
-	// TODO(adonovan): actually inspect the stack.
-	return tuple{0, "somefile.go", 42, true}
+	// func Caller(skip int) (pc uintptr, file string, line int, ok bool)
+	skip := 1 + args[0].(int)
+	for i := 0; i < skip; i++ {
+		if fr != nil {
+			fr = fr.caller
+		}
+	}
+	var pc uintptr
+	var file string
+	var line int
+	var ok bool
+	if fr != nil {
+		fn := fr.fn
+		// TODO(adonovan): use pc/posn of current instruction, not start of fn.
+		pc = uintptr(unsafe.Pointer(fn))
+		posn := fn.Prog.Fset.Position(fn.Pos())
+		file = posn.Filename
+		line = posn.Line
+		ok = true
+	}
+	return tuple{pc, file, line, ok}
+}
+
+func ext۰runtime۰Callers(fr *frame, args []value) value {
+	// Callers(skip int, pc []uintptr) int
+	skip := args[0].(int)
+	pc := args[1].([]value)
+	for i := 0; i < skip; i++ {
+		if fr != nil {
+			fr = fr.caller
+		}
+	}
+	i := 0
+	for fr != nil {
+		pc[i] = uintptr(unsafe.Pointer(fr.fn))
+		i++
+		fr = fr.caller
+	}
+	return i
 }
 
 func ext۰runtime۰FuncForPC(fr *frame, args []value) value {
-	// TODO(adonovan): actually inspect the stack.
-	return (*value)(nil)
-	//tuple{0, "somefile.go", 42, true}
-	//
-	//func FuncForPC(pc uintptr) *Func
+	// FuncForPC(pc uintptr) *Func
+	pc := args[0].(uintptr)
+	var fn *ssa.Function
+	if pc != 0 {
+		fn = (*ssa.Function)(unsafe.Pointer(pc)) // indeed unsafe!
+	}
+	var Func value
+	Func = structure{fn} // a runtime.Func
+	return &Func
 }
 
 func ext۰runtime۰getgoroot(fr *frame, args []value) value {
@@ -240,10 +272,6 @@ func ext۰strings۰IndexByte(fr *frame, args []value) value {
 		}
 	}
 	return -1
-}
-
-func ext۰sync۰runtime_registerPool(fr *frame, args []value) value {
-	return nil
 }
 
 func ext۰sync۰runtime_Syncsemcheck(fr *frame, args []value) value {
@@ -317,12 +345,32 @@ func ext۰runtime۰SetFinalizer(fr *frame, args []value) value {
 	return nil // ignore
 }
 
+func ext۰runtime۰funcline_go(fr *frame, args []value) value {
+	// func funcline_go(*Func, uintptr) (string, int)
+	f, _ := (*args[0].(*value)).(structure)[0].(*ssa.Function)
+	pc := args[1].(uintptr)
+	_ = pc
+	if f != nil {
+		// TODO(adonovan): use position of current instruction, not fn.
+		posn := f.Prog.Fset.Position(f.Pos())
+		return tuple{posn.Filename, posn.Line}
+	}
+	return tuple{"", 0}
+}
+
 func ext۰runtime۰funcname_go(fr *frame, args []value) value {
-	// TODO(adonovan): actually inspect the stack.
-	return (*value)(nil)
-	//tuple{0, "somefile.go", 42, true}
-	//
-	//func FuncForPC(pc uintptr) *Func
+	// func funcname_go(*Func) string
+	f, _ := (*args[0].(*value)).(structure)[0].(*ssa.Function)
+	if f != nil {
+		return f.String()
+	}
+	return ""
+}
+
+func ext۰runtime۰funcentry_go(fr *frame, args []value) value {
+	// func funcentry_go(*Func) uintptr
+	f, _ := (*args[0].(*value)).(structure)[0].(*ssa.Function)
+	return uintptr(unsafe.Pointer(f))
 }
 
 func ext۰time۰now(fr *frame, args []value) value {

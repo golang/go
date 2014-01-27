@@ -82,6 +82,7 @@ type interpreter struct {
 	errorMethods       methodSet            // the method set of reflect.error, which implements the error interface.
 	rtypeMethods       methodSet            // the method set of rtype, which implements the reflect.Type interface.
 	runtimeErrorString types.Type           // the runtime.errorString type
+	sizes              types.Sizes          // the effective type-sizing function
 }
 
 type deferred struct {
@@ -622,10 +623,6 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
-// _sizes is the effective type-sizing function.
-// TODO(adonovan): avoid global state.
-var _sizes types.Sizes
-
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.  sizes is the
@@ -637,11 +634,11 @@ var _sizes types.Sizes
 // The SSA program must include the "runtime" package.
 //
 func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
-	_sizes = sizes
 	i := &interpreter{
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa.Value]*value),
 		mode:    mode,
+		sizes:   sizes,
 	}
 	runtimePkg := i.prog.ImportedPackage("runtime")
 	if runtimePkg == nil {

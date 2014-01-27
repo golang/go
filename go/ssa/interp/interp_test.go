@@ -143,6 +143,7 @@ var testdataTests = []string{
 	"methprom.go",
 	"mrvchain.go",
 	"recover.go",
+	"callstack.go",
 }
 
 // These are files in $GOROOT/src/pkg/.
