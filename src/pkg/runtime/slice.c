@@ -8,6 +8,7 @@
 #include "typekind.h"
 #include "malloc.h"
 #include "race.h"
+#include "stack.h"
 #include "../../cmd/ld/textflag.h"
 
 enum
@@ -92,26 +93,53 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 static void
 growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 {
-	intgo m;
+	intgo newcap1;
+	uintptr capmem, lenmem;
+	int32 flag;
+	Type *typ;
 
-	m = x.cap;
+	typ = t->elem;
+	if(typ->size == 0) {
+		*ret = x;
+		ret->cap = newcap;
+		return;
+	}
+
+	newcap1 = x.cap;
 	
 	// Using newcap directly for m+m < newcap handles
 	// both the case where m == 0 and also the case where
 	// m+m/4 wraps around, in which case the loop
 	// below might never terminate.
-	if(m+m < newcap)
-		m = newcap;
+	if(newcap1+newcap1 < newcap)
+		newcap1 = newcap;
 	else {
 		do {
 			if(x.len < 1024)
-				m += m;
+				newcap1 += newcap1;
 			else
-				m += m/4;
-		} while(m < newcap);
+				newcap1 += newcap1/4;
+		} while(newcap1 < newcap);
 	}
-	makeslice1(t, x.len, m, ret);
-	runtime·memmove(ret->array, x.array, ret->len * t->elem->size);
+
+	if(newcap1 > MaxMem/typ->size)
+		runtime·panicstring("growslice: cap out of range");
+	capmem = runtime·roundupsize(newcap1*typ->size);
+	flag = FlagNoZero;
+	if(typ->kind&KindNoPointers)
+		flag |= FlagNoScan;
+	// Here we allocate with FlagNoZero but potentially w/o FlagNoScan,
+	// GC must not see this blocks until memclr below.
+	m->locks++;
+	ret->array = runtime·mallocgc(capmem, (uintptr)typ|TypeInfo_Array, flag);
+	ret->len = x.len;
+	ret->cap = capmem/typ->size;
+	lenmem = x.len*typ->size;
+	runtime·memmove(ret->array, x.array, lenmem);
+	runtime·memclr(ret->array+lenmem, capmem-lenmem);
+	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 }
 
 // copy(to any, fr any, wid uintptr) int

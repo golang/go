@@ -273,6 +273,7 @@ extern MStats mstats;
 //	making new objects in class i
 
 int32	runtime·SizeToClass(int32);
+uintptr	runtime·roundupsize(uintptr);
 extern	int32	runtime·class_to_size[NumSizeClasses];
 extern	int32	runtime·class_to_allocnpages[NumSizeClasses];
 extern	int8	runtime·size_to_class8[1024/8 + 1];

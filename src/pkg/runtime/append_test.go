@@ -19,6 +19,25 @@ func BenchmarkAppend(b *testing.B) {
 	}
 }
 
+func BenchmarkAppendGrowByte(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x []byte
+		for j := 0; j < 1<<20; j++ {
+			x = append(x, byte(j))
+		}
+	}
+}
+
+func BenchmarkAppendGrowString(b *testing.B) {
+	var s string
+	for i := 0; i < b.N; i++ {
+		var x []string
+		for j := 0; j < 1<<20; j++ {
+			x = append(x, s)
+		}
+	}
+}
+
 func benchmarkAppendBytes(b *testing.B, length int) {
 	b.StopTimer()
 	x := make([]byte, 0, N)
