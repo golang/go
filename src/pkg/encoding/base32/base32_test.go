@@ -108,7 +108,7 @@ func TestDecode(t *testing.T) {
 
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(p.encoded))
+		decoder := NewDecoder(StdEncoding, strings.NewReader(p.encoded))
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
 		count, err := decoder.Read(dbuf)
 		if err != nil && err != io.EOF {
@@ -125,7 +125,7 @@ func TestDecoder(t *testing.T) {
 
 func TestDecoderBuffering(t *testing.T) {
 	for bs := 1; bs <= 12; bs++ {
-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded))
+		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
 		buf := make([]byte, len(bigtest.decoded)+12)
 		var total int
 		for total = 0; total < len(bigtest.decoded); {
@@ -267,13 +267,13 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 ====`
 	encodedShort := strings.Replace(encoded, "\n", "", -1)
 
-	dec := NewDecoder(StdEncoding, bytes.NewBufferString(encoded))
+	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
 	res1, err := ioutil.ReadAll(dec)
 	if err != nil {
 		t.Errorf("ReadAll failed: %v", err)
 	}
 
-	dec = NewDecoder(StdEncoding, bytes.NewBufferString(encodedShort))
+	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
 	var res2 []byte
 	res2, err = ioutil.ReadAll(dec)
 	if err != nil {

@@ -93,7 +93,7 @@ func TestStringTag(t *testing.T) {
 
 	// Verify that it round-trips.
 	var s2 StringTag
-	err = NewDecoder(bytes.NewBuffer(got)).Decode(&s2)
+	err = NewDecoder(bytes.NewReader(got)).Decode(&s2)
 	if err != nil {
 		t.Fatalf("Decode: %v", err)
 	}

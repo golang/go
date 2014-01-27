@@ -112,7 +112,7 @@ import (
 // to a freshly allocated value and then mapping the element to that value.
 //
 func Unmarshal(data []byte, v interface{}) error {
-	return NewDecoder(bytes.NewBuffer(data)).Decode(v)
+	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
 // Decode works like xml.Unmarshal, except it reads the decoder

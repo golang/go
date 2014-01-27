@@ -111,7 +111,7 @@ func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, wan
 
 func testRead(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
 	var s2 Struct
-	err := Read(bytes.NewBuffer(b), order, &s2)
+	err := Read(bytes.NewReader(b), order, &s2)
 	checkResult(t, "Read", order, err, s2, s1)
 }
 
@@ -131,7 +131,7 @@ func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
 
 func TestReadSlice(t *testing.T) {
 	slice := make([]int32, 2)
-	err := Read(bytes.NewBuffer(src), BigEndian, slice)
+	err := Read(bytes.NewReader(src), BigEndian, slice)
 	checkResult(t, "ReadSlice", BigEndian, err, slice, res)
 }
 

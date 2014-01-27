@@ -284,7 +284,7 @@ var gunzipTests = []gunzipTest{
 func TestDecompressor(t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, tt := range gunzipTests {
-		in := bytes.NewBuffer(tt.gzip)
+		in := bytes.NewReader(tt.gzip)
 		gzip, err := NewReader(in)
 		if err != nil {
 			t.Errorf("%s: NewReader: %s", tt.name, err)
