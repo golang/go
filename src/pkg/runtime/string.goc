@@ -334,6 +334,8 @@ func stringtoslicerune(s String) (b Slice) {
 		n++;
 	}
 
+	if(n > MaxMem/sizeof(r[0]))
+		runtime·throw("out of memory");
 	mem = runtime·roundupsize(n*sizeof(r[0]));
 	b.array = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
 	b.len = n;

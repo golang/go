@@ -224,6 +224,8 @@ largealloc(uint32 flag, uintptr *sizep)
 
 	// Allocate directly from heap.
 	size = *sizep;
+	if(size + PageSize < size)
+		runtime·throw("out of memory");
 	npages = size >> PageShift;
 	if((size & PageMask) != 0)
 		npages++;
