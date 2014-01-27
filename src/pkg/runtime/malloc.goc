@@ -42,7 +42,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	MCacheList *l;
 	MLink *v;
 	byte *tiny;
-	P *p;
 
 	if(size == 0) {
 		// All 0-length allocations use this pointer.
@@ -93,10 +92,9 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 			// the allocator reduces number of allocations by ~12% and
 			// reduces heap size by ~20%.
 
-			p = m->p;
-			tinysize = p->tinysize;
+			tinysize = c->tinysize;
 			if(size <= tinysize) {
-				tiny = p->tiny;
+				tiny = c->tiny;
 				// Align tiny pointer for required (conservative) alignment.
 				if((size&7) == 0)
 					tiny = (byte*)ROUND((uintptr)tiny, 8);
@@ -104,12 +102,12 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 					tiny = (byte*)ROUND((uintptr)tiny, 4);
 				else if((size&1) == 0)
 					tiny = (byte*)ROUND((uintptr)tiny, 2);
-				size1 = size + (tiny - p->tiny);
+				size1 = size + (tiny - c->tiny);
 				if(size1 <= tinysize) {
 					// The object fits into existing tiny block.
 					v = (MLink*)tiny;
-					p->tiny += size1;
-					p->tinysize -= size1;
+					c->tiny += size1;
+					c->tinysize -= size1;
 					m->mallocing = 0;
 					m->locks--;
 					if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
@@ -129,8 +127,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 			// See if we need to replace the existing tiny block with the new one
 			// based on amount of remaining free space.
 			if(TinySize-size > tinysize) {
-				p->tiny = (byte*)v + size;
-				p->tinysize = TinySize - size;
+				c->tiny = (byte*)v + size;
+				c->tinysize = TinySize - size;
 			}
 			size = TinySize;
 			goto done;

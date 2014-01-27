@@ -385,11 +385,6 @@ struct P
 	MCache*	mcache;
 	Defer*	deferpool[5];	// pool of available Defer structs of different sizes (see panic.c)
 
-	// Allocator cache for tiny objects w/o pointers.
-	// See "Tiny allocator" comment in malloc.goc.
-	byte*	tiny;
-	uintptr	tinysize;
-
 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
 	uint64	goidcache;
 	uint64	goidcacheend;

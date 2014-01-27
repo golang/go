@@ -296,6 +296,10 @@ struct MCache
 	// so they are grouped here for better caching.
 	int32 next_sample;		// trigger heap sample after allocating this many bytes
 	intptr local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
+	// Allocator cache for tiny objects w/o pointers.
+	// See "Tiny allocator" comment in malloc.goc.
+	byte*	tiny;
+	uintptr	tinysize;
 	// The rest is not accessed on every malloc.
 	MCacheList list[NumSizeClasses];
 	// Local allocator stats, flushed during GC.
