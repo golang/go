@@ -144,6 +144,10 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	defer res.Body.Close()
 
+	for _, h := range hopHeaders {
+		res.Header.Del(h)
+	}
+
 	copyHeader(rw.Header(), res.Header)
 
 	rw.WriteHeader(res.StatusCode)
