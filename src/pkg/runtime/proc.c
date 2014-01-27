@@ -2534,16 +2534,19 @@ retake(int64 now)
 		pd = &pdesc[i];
 		s = p->status;
 		if(s == Psyscall) {
-			// Retake P from syscall if it's there for more than 1 sysmon tick (20us).
-			// But only if there is other work to do.
+			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
 			t = p->syscalltick;
 			if(pd->syscalltick != t) {
 				pd->syscalltick = t;
 				pd->syscallwhen = now;
 				continue;
 			}
+			// On the one hand we don't want to retake Ps if there is no other work to do,
+			// but on the other hand we want to retake them eventually
+			// because they can prevent the sysmon thread from deep sleep.
 			if(p->runqhead == p->runqtail &&
-				runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0)
+				runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0 &&
+				pd->syscallwhen + 10*1000*1000 > now)
 				continue;
 			// Need to decrement number of idle locked M's
 			// (pretending that one more is running) before the CAS.
