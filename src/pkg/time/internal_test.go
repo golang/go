@@ -36,9 +36,13 @@ func CheckRuntimeTimerOverflow() error {
 	startTimer(r)
 
 	timeout := 100 * Millisecond
-	if runtime.GOOS == "windows" {
-		// Allow more time for gobuilder to succeed.
+	switch runtime.GOOS {
+	// Allow more time for gobuilder to succeed.
+	case "windows":
 		timeout = Second
+	case "plan9":
+		// TODO(0intro): We don't know why it is needed.
+		timeout = 3 * Second
 	}
 
 	// Start a goroutine that should send on t.C before the timeout.
