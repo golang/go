@@ -18,6 +18,7 @@ var (
 	dunno     = []byte("???")
 	centerDot = []byte("·")
 	dot       = []byte(".")
+	slash     = []byte("/")
 )
 
 // PrintStack prints to standard error the stack trace returned by Stack.
@@ -84,6 +85,11 @@ func function(pc uintptr) []byte {
 	//	runtime/debug.*T·ptrmethod
 	// and want
 	//	*T.ptrmethod
+	// Since the package path might contains dots (e.g. code.google.com/...),
+	// we first remove the path prefix if there is one.
+	if lastslash := bytes.LastIndex(name, slash); lastslash >= 0 {
+		name = name[lastslash+1:]
+	}
 	if period := bytes.Index(name, dot); period >= 0 {
 		name = name[period+1:]
 	}
