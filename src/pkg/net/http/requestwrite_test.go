@@ -427,7 +427,7 @@ func TestRequestWrite(t *testing.T) {
 			}
 			switch b := tt.Body.(type) {
 			case []byte:
-				tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
 			case func() io.ReadCloser:
 				tt.Req.Body = b()
 			}

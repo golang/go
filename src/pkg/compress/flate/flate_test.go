@@ -14,7 +14,7 @@ import (
 )
 
 func TestUncompressedSource(t *testing.T) {
-	decoder := NewReader(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
+	decoder := NewReader(bytes.NewReader([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
 	output := make([]byte, 1)
 	n, error := decoder.Read(output)
 	if n != 1 || error != nil {

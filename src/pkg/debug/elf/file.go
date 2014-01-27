@@ -412,7 +412,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, errors.New("cannot load symbol section")
 	}
-	symtab := bytes.NewBuffer(data)
+	symtab := bytes.NewReader(data)
 	if symtab.Len()%Sym32Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
 	}
@@ -455,7 +455,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, errors.New("cannot load symbol section")
 	}
-	symtab := bytes.NewBuffer(data)
+	symtab := bytes.NewReader(data)
 	if symtab.Len()%Sym64Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
@@ -533,7 +533,7 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 		return err
 	}
 
-	b := bytes.NewBuffer(rels)
+	b := bytes.NewReader(rels)
 	var rela Rela64
 
 	for b.Len() > 0 {

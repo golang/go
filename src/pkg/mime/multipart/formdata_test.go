@@ -9,12 +9,13 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
 func TestReadForm(t *testing.T) {
 	testBody := regexp.MustCompile("\n").ReplaceAllString(message, "\r\n")
-	b := bytes.NewBufferString(testBody)
+	b := strings.NewReader(testBody)
 	r := NewReader(b, boundary)
 	f, err := r.ReadForm(25)
 	if err != nil {

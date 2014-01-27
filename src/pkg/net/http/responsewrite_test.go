@@ -7,6 +7,7 @@ package http
 import (
 	"bytes"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -41,7 +42,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    0,
 				Request:       dummyReq("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
 				ContentLength: -1,
 			},
 			"HTTP/1.0 200 OK\r\n" +
@@ -56,7 +57,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:       1,
 				Request:          dummyReq("GET"),
 				Header:           Header{},
-				Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
 				ContentLength:    6,
 				TransferEncoding: []string{"chunked"},
 				Close:            true,

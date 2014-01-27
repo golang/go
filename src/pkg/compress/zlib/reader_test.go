@@ -102,7 +102,7 @@ var zlibTests = []zlibTest{
 func TestDecompressor(t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, tt := range zlibTests {
-		in := bytes.NewBuffer(tt.compressed)
+		in := bytes.NewReader(tt.compressed)
 		zlib, err := NewReaderDict(in, tt.dict)
 		if err != nil {
 			if err != tt.err {

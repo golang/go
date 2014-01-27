@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -115,7 +116,7 @@ func TestDecode(t *testing.T) {
 
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
-		decoder := NewDecoder(bytes.NewBufferString(p.encoded))
+		decoder := NewDecoder(strings.NewReader(p.encoded))
 		dbuf, err := ioutil.ReadAll(decoder)
 		if err != nil {
 			t.Fatal("Read failed", err)
@@ -130,7 +131,7 @@ func TestDecoder(t *testing.T) {
 
 func TestDecoderBuffering(t *testing.T) {
 	for bs := 1; bs <= 12; bs++ {
-		decoder := NewDecoder(bytes.NewBufferString(bigtest.encoded))
+		decoder := NewDecoder(strings.NewReader(bigtest.encoded))
 		buf := make([]byte, len(bigtest.decoded)+12)
 		var total int
 		for total = 0; total < len(bigtest.decoded); {

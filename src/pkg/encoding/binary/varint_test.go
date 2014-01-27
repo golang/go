@@ -35,7 +35,7 @@ func testVarint(t *testing.T, x int64) {
 		t.Errorf("Varint(%d): got n = %d; want %d", x, m, n)
 	}
 
-	y, err := ReadVarint(bytes.NewBuffer(buf))
+	y, err := ReadVarint(bytes.NewReader(buf))
 	if err != nil {
 		t.Errorf("ReadVarint(%d): %s", x, err)
 	}
@@ -55,7 +55,7 @@ func testUvarint(t *testing.T, x uint64) {
 		t.Errorf("Uvarint(%d): got n = %d; want %d", x, m, n)
 	}
 
-	y, err := ReadUvarint(bytes.NewBuffer(buf))
+	y, err := ReadUvarint(bytes.NewReader(buf))
 	if err != nil {
 		t.Errorf("ReadUvarint(%d): %s", x, err)
 	}
@@ -114,7 +114,7 @@ func TestBufferTooSmall(t *testing.T) {
 			t.Errorf("Uvarint(%v): got x = %d, n = %d", buf, x, n)
 		}
 
-		x, err := ReadUvarint(bytes.NewBuffer(buf))
+		x, err := ReadUvarint(bytes.NewReader(buf))
 		if x != 0 || err != io.EOF {
 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
 		}
@@ -127,7 +127,7 @@ func testOverflow(t *testing.T, buf []byte, n0 int, err0 error) {
 		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, %d", buf, x, n, n0)
 	}
 
-	x, err := ReadUvarint(bytes.NewBuffer(buf))
+	x, err := ReadUvarint(bytes.NewReader(buf))
 	if x != 0 || err != err0 {
 		t.Errorf("ReadUvarint(%v): got x = %d, err = %s; want 0, %s", buf, x, err, err0)
 	}

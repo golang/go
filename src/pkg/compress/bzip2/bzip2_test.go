@@ -14,7 +14,7 @@ import (
 )
 
 func TestBitReader(t *testing.T) {
-	buf := bytes.NewBuffer([]byte{0xaa})
+	buf := bytes.NewReader([]byte{0xaa})
 	br := newBitReader(buf)
 	if n := br.ReadBits(1); n != 1 {
 		t.Errorf("read 1 wrong")
@@ -31,7 +31,7 @@ func TestBitReader(t *testing.T) {
 }
 
 func TestBitReaderLarge(t *testing.T) {
-	buf := bytes.NewBuffer([]byte{0x12, 0x34, 0x56, 0x78})
+	buf := bytes.NewReader([]byte{0x12, 0x34, 0x56, 0x78})
 	br := newBitReader(buf)
 	if n := br.ReadBits(32); n != 0x12345678 {
 		t.Errorf("got: %x want: %x", n, 0x12345678)
@@ -43,7 +43,7 @@ func readerFromHex(s string) io.Reader {
 	if err != nil {
 		panic("readerFromHex: bad input")
 	}
-	return bytes.NewBuffer(data)
+	return bytes.NewReader(data)
 }
 
 func decompressHex(s string) (out []byte, err error) {
@@ -191,7 +191,7 @@ func benchmarkDecode(b *testing.B, testfile int) {
 	}
 	b.SetBytes(int64(len(compressed)))
 	for i := 0; i < b.N; i++ {
-		r := bytes.NewBuffer(compressed)
+		r := bytes.NewReader(compressed)
 		io.Copy(ioutil.Discard, NewReader(r))
 	}
 }
@@ -201,7 +201,7 @@ func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
 
 func TestBufferOverrun(t *testing.T) {
 	// Tests https://code.google.com/p/go/issues/detail?id=5747.
-	buffer := bytes.NewBuffer([]byte(bufferOverrunBase64))
+	buffer := bytes.NewReader([]byte(bufferOverrunBase64))
 	decoder := base64.NewDecoder(base64.StdEncoding, buffer)
 	decompressor := NewReader(decoder)
 	// This shouldn't panic.

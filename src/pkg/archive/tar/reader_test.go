@@ -321,7 +321,7 @@ func TestParsePAXHeader(t *testing.T) {
 		{"mtime", "mtime=1350244992.023960108", "30 mtime=1350244992.023960108\n"}}
 	for _, test := range paxTests {
 		key, expected, raw := test[0], test[1], test[2]
-		reader := bytes.NewBuffer([]byte(raw))
+		reader := bytes.NewReader([]byte(raw))
 		headers, err := parsePAX(reader)
 		if err != nil {
 			t.Errorf("Couldn't parse correctly formatted headers: %v", err)
@@ -337,7 +337,7 @@ func TestParsePAXHeader(t *testing.T) {
 			t.Error("Buffer wasn't consumed")
 		}
 	}
-	badHeader := bytes.NewBuffer([]byte("3 somelongkey="))
+	badHeader := bytes.NewReader([]byte("3 somelongkey="))
 	if _, err := parsePAX(badHeader); err != ErrHeader {
 		t.Fatal("Unexpected success when parsing bad header")
 	}

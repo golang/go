@@ -65,12 +65,12 @@ func readBytes(buf *Reader) string {
 
 func TestReaderSimple(t *testing.T) {
 	data := "hello world"
-	b := NewReader(bytes.NewBufferString(data))
+	b := NewReader(strings.NewReader(data))
 	if s := readBytes(b); s != "hello world" {
 		t.Errorf("simple hello world test failed: got %q", s)
 	}
 
-	b = NewReader(newRot13Reader(bytes.NewBufferString(data)))
+	b = NewReader(newRot13Reader(strings.NewReader(data)))
 	if s := readBytes(b); s != "uryyb jbeyq" {
 		t.Errorf("rot13 hello world test failed: got %q", s)
 	}
@@ -161,7 +161,7 @@ func TestReader(t *testing.T) {
 					readmaker := readMakers[i]
 					bufreader := bufreaders[j]
 					bufsize := bufsizes[k]
-					read := readmaker.fn(bytes.NewBufferString(text))
+					read := readmaker.fn(strings.NewReader(text))
 					buf := NewReaderSize(read, bufsize)
 					s := bufreader.fn(buf)
 					if s != text {
@@ -479,7 +479,7 @@ func TestWriteErrors(t *testing.T) {
 
 func TestNewReaderSizeIdempotent(t *testing.T) {
 	const BufSize = 1000
-	b := NewReaderSize(bytes.NewBufferString("hello world"), BufSize)
+	b := NewReaderSize(strings.NewReader("hello world"), BufSize)
 	// Does it recognize itself?
 	b1 := NewReaderSize(b, BufSize)
 	if b1 != b {
@@ -677,7 +677,7 @@ func TestLineTooLong(t *testing.T) {
 	for i := 0; i < minReadBufferSize*5/2; i++ {
 		data = append(data, '0'+byte(i%10))
 	}
-	buf := bytes.NewBuffer(data)
+	buf := bytes.NewReader(data)
 	l := NewReaderSize(buf, minReadBufferSize)
 	line, isPrefix, err := l.ReadLine()
 	if !isPrefix || !bytes.Equal(line, data[:minReadBufferSize]) || err != nil {
@@ -702,7 +702,7 @@ func TestLineTooLong(t *testing.T) {
 func TestReadAfterLines(t *testing.T) {
 	line1 := "this is line1"
 	restData := "this is line2\nthis is line 3\n"
-	inbuf := bytes.NewBuffer([]byte(line1 + "\n" + restData))
+	inbuf := bytes.NewReader([]byte(line1 + "\n" + restData))
 	outbuf := new(bytes.Buffer)
 	maxLineLength := len(line1) + len(restData)/2
 	l := NewReaderSize(inbuf, maxLineLength)
@@ -728,7 +728,7 @@ func TestReadEmptyBuffer(t *testing.T) {
 }
 
 func TestLinesAfterRead(t *testing.T) {
-	l := NewReaderSize(bytes.NewBuffer([]byte("foo")), minReadBufferSize)
+	l := NewReaderSize(bytes.NewReader([]byte("foo")), minReadBufferSize)
 	_, err := ioutil.ReadAll(l)
 	if err != nil {
 		t.Error(err)
@@ -818,7 +818,7 @@ func createTestInput(n int) []byte {
 
 func TestReaderWriteTo(t *testing.T) {
 	input := createTestInput(8192)
-	r := NewReader(onlyReader{bytes.NewBuffer(input)})
+	r := NewReader(onlyReader{bytes.NewReader(input)})
 	w := new(bytes.Buffer)
 	if n, err := r.WriteTo(w); err != nil || n != int64(len(input)) {
 		t.Fatalf("r.WriteTo(w) = %d, %v, want %d, nil", n, err, len(input))
@@ -877,7 +877,7 @@ func TestWriterReadFrom(t *testing.T) {
 			input := createTestInput(8192)
 			b := new(bytes.Buffer)
 			w := NewWriter(wfunc(b))
-			r := rfunc(bytes.NewBuffer(input))
+			r := rfunc(bytes.NewReader(input))
 			if n, err := w.ReadFrom(r); err != nil || n != int64(len(input)) {
 				t.Errorf("ws[%d],rs[%d]: w.ReadFrom(r) = %d, %v, want %d, nil", wi, ri, n, err, len(input))
 				continue

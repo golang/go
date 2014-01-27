@@ -60,7 +60,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 					// Stich the Body back together again, re-attaching our
 					// consumed byte.
 					t.ContentLength = -1
-					t.Body = io.MultiReader(bytes.NewBuffer(buf[:]), t.Body)
+					t.Body = io.MultiReader(bytes.NewReader(buf[:]), t.Body)
 				} else {
 					// Body is actually empty.
 					t.Body = nil

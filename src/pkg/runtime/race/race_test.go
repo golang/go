@@ -44,7 +44,7 @@ func TestRace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to run tests: %v\n%v", err, string(testOutput))
 	}
-	reader := bufio.NewReader(bytes.NewBuffer(testOutput))
+	reader := bufio.NewReader(bytes.NewReader(testOutput))
 
 	funcName := ""
 	var tsanLog []string
