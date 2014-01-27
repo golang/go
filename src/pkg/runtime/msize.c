@@ -162,3 +162,18 @@ dump:
 	}
 	runtime·throw("InitSizes failed");
 }
+
+// Returns size of the memory block that mallocgc will allocate if you ask for the size.
+uintptr
+runtime·roundupsize(uintptr size)
+{
+	if(size < MaxSmallSize) {
+		if(size <= 1024-8)
+			return runtime·class_to_size[runtime·size_to_class8[(size+7)>>3]];
+		else
+			return runtime·class_to_size[runtime·size_to_class128[(size-1024+127) >> 7]];
+	}
+	if(size + PageSize < size)
+		return size;
+	return ROUND(size, PageSize);
+}

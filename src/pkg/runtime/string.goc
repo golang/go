@@ -78,6 +78,7 @@ runtime·gostringn(byte *str, intgo l)
 	return s;
 }
 
+// used by cmd/cgo
 Slice
 runtime·gobytes(byte *p, intgo n)
 {
@@ -278,10 +279,15 @@ func slicebytetostring(b Slice) (s String) {
 }
 
 func stringtoslicebyte(s String) (b Slice) {
-	b.array = runtime·mallocgc(s.len, 0, FlagNoScan|FlagNoZero);
+	uintptr cap;
+
+	cap = runtime·roundupsize(s.len);
+	b.array = runtime·mallocgc(cap, 0, FlagNoScan|FlagNoZero);
 	b.len = s.len;
-	b.cap = s.len;
+	b.cap = cap;
 	runtime·memmove(b.array, s.str, s.len);
+	if(cap != b.len)
+		runtime·memclr(b.array+b.len, cap-b.len);
 }
 
 func slicerunetostring(b Slice) (s String) {
@@ -316,6 +322,7 @@ func stringtoslicerune(s String) (b Slice) {
 	intgo n;
 	int32 dum, *r;
 	uint8 *p, *ep;
+	uintptr mem;
 
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.
@@ -327,13 +334,16 @@ func stringtoslicerune(s String) (b Slice) {
 		n++;
 	}
 
-	b.array = runtime·mallocgc(n*sizeof(r[0]), 0, FlagNoScan|FlagNoZero);
+	mem = runtime·roundupsize(n*sizeof(r[0]));
+	b.array = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
 	b.len = n;
-	b.cap = n;
+	b.cap = mem/sizeof(r[0]);
 	p = s.str;
 	r = (int32*)b.array;
 	while(p < ep)
 		p += runtime·charntorune(r++, p, ep-p);
+	if(b.cap > b.len)
+		runtime·memclr(b.array+b.len*sizeof(r[0]), (b.cap-b.len)*sizeof(r[0]));
 }
 
 enum
