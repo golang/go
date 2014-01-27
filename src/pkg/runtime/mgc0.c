@@ -68,6 +68,7 @@ clearpools(void)
 {
 	void **pool, **next;
 	P *p, **pp;
+	MCache *c;
 	uintptr off;
 	int32 i;
 
@@ -86,8 +87,11 @@ clearpools(void)
 
 	for(pp=runtime·allp; p=*pp; pp++) {
 		// clear tinyalloc pool
-		p->tiny = nil;
-		p->tinysize = 0;
+		c = p->mcache;
+		if(c != nil) {
+			c->tiny = nil;
+			c->tinysize = 0;
+		}
 		// clear defer pools
 		for(i=0; i<nelem(p->deferpool); i++)
 			p->deferpool[i] = nil;
