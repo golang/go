@@ -483,26 +483,26 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 		}
 		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn, suffix)
 	}
+	fr := &frame{
+		i:      i,
+		caller: caller, // for panic/recover
+		fn:     fn,
+	}
 	if fn.Enclosing == nil {
 		name := fn.String()
 		if ext := externals[name]; ext != nil {
 			if i.mode&EnableTracing != 0 {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
-			return ext(fn, args)
+			return ext(fr, args)
 		}
 		if fn.Blocks == nil {
 			panic("no code for function: " + name)
 		}
 	}
-	fr := &frame{
-		i:      i,
-		caller: caller, // currently unused; for unwinding.
-		fn:     fn,
-		env:    make(map[ssa.Value]value),
-		block:  fn.Blocks[0],
-		locals: make([]value, len(fn.Locals)),
-	}
+	fr.env = make(map[ssa.Value]value)
+	fr.block = fn.Blocks[0]
+	fr.locals = make([]value, len(fn.Locals))
 	for i, l := range fn.Locals {
 		fr.locals[i] = zero(deref(l.Type()))
 		fr.env[l] = &fr.locals[i]
