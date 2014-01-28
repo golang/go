@@ -247,7 +247,7 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
 		buf.WriteString("func ")
 		writeFuncName(buf, this, obj)
 		if typ != nil {
-			writeSignature(buf, this, typ.(*Signature))
+			WriteSignature(buf, this, typ.(*Signature))
 		}
 		return
 

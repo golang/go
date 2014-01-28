@@ -40,6 +40,22 @@ func TypeString(this *Package, typ Type) string {
 // Named types are printed package-qualified if they
 // do not belong to this package.
 func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
+	writeType(buf, this, typ, make([]Type, 8))
+}
+
+func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+	// Theoretically, this is a quadratic lookup algorithm, but in
+	// practice deeply nested composite types with unnamed component
+	// types are uncommon. This code is likely more efficient than
+	// using a map.
+	for _, t := range visited {
+		if t == typ {
+			fmt.Fprintf(buf, "○%T", typ) // cycle to typ
+			return
+		}
+	}
+	visited = append(visited, typ)
+
 	switch t := typ.(type) {
 	case nil:
 		buf.WriteString("<nil>")
@@ -61,11 +77,11 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 
 	case *Array:
 		fmt.Fprintf(buf, "[%d]", t.len)
-		WriteType(buf, this, t.elem)
+		writeType(buf, this, t.elem, visited)
 
 	case *Slice:
 		buf.WriteString("[]")
-		WriteType(buf, this, t.elem)
+		writeType(buf, this, t.elem, visited)
 
 	case *Struct:
 		buf.WriteString("struct{")
@@ -77,7 +93,7 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 				buf.WriteString(f.name)
 				buf.WriteByte(' ')
 			}
-			WriteType(buf, this, f.typ)
+			writeType(buf, this, f.typ, visited)
 			if tag := t.Tag(i); tag != "" {
 				fmt.Fprintf(buf, " %q", tag)
 			}
@@ -86,14 +102,14 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 
 	case *Pointer:
 		buf.WriteByte('*')
-		WriteType(buf, this, t.base)
+		writeType(buf, this, t.base, visited)
 
 	case *Tuple:
-		writeTuple(buf, this, t, false)
+		writeTuple(buf, this, t, false, visited)
 
 	case *Signature:
 		buf.WriteString("func")
-		writeSignature(buf, this, t)
+		writeSignature(buf, this, t, visited)
 
 	case *Interface:
 		// We write the source-level methods and embedded types rather
@@ -116,7 +132,7 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 					buf.WriteString("; ")
 				}
 				buf.WriteString(m.name)
-				writeSignature(buf, this, m.typ.(*Signature))
+				writeSignature(buf, this, m.typ.(*Signature), visited)
 			}
 		} else {
 			// print explicit interface methods and embedded types
@@ -125,22 +141,22 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 					buf.WriteString("; ")
 				}
 				buf.WriteString(m.name)
-				writeSignature(buf, this, m.typ.(*Signature))
+				writeSignature(buf, this, m.typ.(*Signature), visited)
 			}
 			for i, typ := range t.embeddeds {
 				if i > 0 || len(t.methods) > 0 {
 					buf.WriteString("; ")
 				}
-				WriteType(buf, this, typ)
+				writeType(buf, this, typ, visited)
 			}
 		}
 		buf.WriteByte('}')
 
 	case *Map:
 		buf.WriteString("map[")
-		WriteType(buf, this, t.key)
+		writeType(buf, this, t.key, visited)
 		buf.WriteByte(']')
-		WriteType(buf, this, t.elem)
+		writeType(buf, this, t.elem, visited)
 
 	case *Chan:
 		var s string
@@ -163,7 +179,7 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 		if parens {
 			buf.WriteByte('(')
 		}
-		WriteType(buf, this, t.elem)
+		writeType(buf, this, t.elem, visited)
 		if parens {
 			buf.WriteByte(')')
 		}
@@ -190,7 +206,7 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 	}
 }
 
-func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool) {
+func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, visited []Type) {
 	buf.WriteByte('(')
 	if tup != nil {
 		for i, v := range tup.vars {
@@ -206,14 +222,22 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool) {
 				buf.WriteString("...")
 				typ = typ.(*Slice).elem
 			}
-			WriteType(buf, this, typ)
+			writeType(buf, this, typ, visited)
 		}
 	}
 	buf.WriteByte(')')
 }
 
-func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
-	writeTuple(buf, this, sig.params, sig.variadic)
+// WriteSignature writes the representation of the signature sig to buf,
+// without a leading "func" keyword.
+// Named types are printed package-qualified if they
+// do not belong to this package.
+func WriteSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
+	writeSignature(buf, this, sig, make([]Type, 8))
+}
+
+func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature, visited []Type) {
+	writeTuple(buf, this, sig.params, sig.variadic, visited)
 
 	n := sig.results.Len()
 	if n == 0 {
@@ -224,10 +248,10 @@ func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
 	buf.WriteByte(' ')
 	if n == 1 && sig.results.vars[0].name == "" {
 		// single unnamed result
-		WriteType(buf, this, sig.results.vars[0].typ)
+		writeType(buf, this, sig.results.vars[0].typ, visited)
 		return
 	}
 
 	// multiple or named result(s)
-	writeTuple(buf, this, sig.results, false)
+	writeTuple(buf, this, sig.results, false, visited)
 }

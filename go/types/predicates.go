@@ -110,7 +110,7 @@ func hasNil(typ Type) bool {
 
 // Identical reports whether x and y are identical.
 func Identical(x, y Type) bool {
-	return identicalInternal(x, y, nil)
+	return identical(x, y, nil)
 }
 
 // An ifacePair is a node in a stack of interface type pairs compared for identity.
@@ -123,7 +123,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
 }
 
-func identicalInternal(x, y Type, p *ifacePair) bool {
+func identical(x, y Type, p *ifacePair) bool {
 	if x == y {
 		return true
 	}
@@ -141,13 +141,13 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.len == y.len && identicalInternal(x.elem, y.elem, p)
+			return x.len == y.len && identical(x.elem, y.elem, p)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return identicalInternal(x.elem, y.elem, p)
+			return identical(x.elem, y.elem, p)
 		}
 
 	case *Struct:
@@ -162,7 +162,7 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 					if f.anonymous != g.anonymous ||
 						x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
-						!identicalInternal(f.typ, g.typ, p) {
+						!identical(f.typ, g.typ, p) {
 						return false
 					}
 				}
@@ -173,7 +173,7 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 	case *Pointer:
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
-			return identicalInternal(x.base, y.base, p)
+			return identical(x.base, y.base, p)
 		}
 
 	case *Tuple:
@@ -184,7 +184,7 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 				if x != nil {
 					for i, v := range x.vars {
 						w := y.vars[i]
-						if !identicalInternal(v.typ, w.typ, p) {
+						if !identical(v.typ, w.typ, p) {
 							return false
 						}
 					}
@@ -200,8 +200,8 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 		// names are not required to match.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
-				identicalInternal(x.params, y.params, p) &&
-				identicalInternal(x.results, y.results, p)
+				identical(x.params, y.params, p) &&
+				identical(x.results, y.results, p)
 		}
 
 	case *Interface:
@@ -247,7 +247,7 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 				}
 				for i, f := range a {
 					g := b[i]
-					if f.Id() != g.Id() || !identicalInternal(f.typ, g.typ, q) {
+					if f.Id() != g.Id() || !identical(f.typ, g.typ, q) {
 						return false
 					}
 				}
@@ -258,14 +258,14 @@ func identicalInternal(x, y Type, p *ifacePair) bool {
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return identicalInternal(x.key, y.key, p) && identicalInternal(x.elem, y.elem, p)
+			return identical(x.key, y.key, p) && identical(x.elem, y.elem, p)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
 		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return x.dir == y.dir && identicalInternal(x.elem, y.elem, p)
+			return x.dir == y.dir && identical(x.elem, y.elem, p)
 		}
 
 	case *Named:
