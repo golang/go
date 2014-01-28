@@ -43,7 +43,7 @@ func sanityCheck(fn *Function, reporter io.Writer) bool {
 //
 func mustSanityCheck(fn *Function, reporter io.Writer) {
 	if !sanityCheck(fn, reporter) {
-		fn.DumpTo(os.Stderr)
+		fn.WriteTo(os.Stderr)
 		panic("SanityCheck failed")
 	}
 }

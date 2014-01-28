@@ -64,14 +64,14 @@ func main() {
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 
 	// Print out the package.
-	mainPkg.DumpTo(os.Stdout)
+	mainPkg.WriteTo(os.Stdout)
 
 	// Build SSA code for bodies of functions in mainPkg.
 	mainPkg.Build()
 
 	// Print out the package-level functions.
-	mainPkg.Func("init").DumpTo(os.Stdout)
-	mainPkg.Func("main").DumpTo(os.Stdout)
+	mainPkg.Func("init").WriteTo(os.Stdout)
+	mainPkg.Func("main").WriteTo(os.Stdout)
 
 	// Output:
 	//

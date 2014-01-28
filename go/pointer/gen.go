@@ -1141,9 +1141,9 @@ func (a *analysis) genFunc(cgn *cgnode) {
 			fn2 := *cgn.fn // copy
 			fn2.Locals = nil
 			fn2.Blocks = nil
-			fn2.DumpTo(a.log)
+			fn2.WriteTo(a.log)
 		} else {
-			cgn.fn.DumpTo(a.log)
+			cgn.fn.WriteTo(a.log)
 		}
 	}
 

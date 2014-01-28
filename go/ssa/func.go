@@ -330,7 +330,7 @@ func (f *Function) finishBody() {
 	if f.Prog.mode&NaiveForm == 0 {
 		// For debugging pre-state of lifting pass:
 		// numberRegisters(f)
-		// f.DumpTo(os.Stderr)
+		// f.WriteTo(os.Stderr)
 		lift(f)
 	}
 
@@ -339,7 +339,7 @@ func (f *Function) finishBody() {
 	numberRegisters(f)
 
 	if f.Prog.mode&LogFunctions != 0 {
-		f.DumpTo(os.Stderr)
+		f.WriteTo(os.Stderr)
 	}
 
 	if f.Prog.mode&SanityCheckFunctions != 0 {
@@ -498,22 +498,20 @@ func (f *Function) RelString(from *types.Package) string {
 	return f.name
 }
 
-// writeSignature writes to w the signature sig in declaration syntax.
-func writeSignature(w io.Writer, pkg *types.Package, name string, sig *types.Signature, params []*Parameter) {
-	io.WriteString(w, "func ")
+// writeSignature writes to buf the signature sig in declaration syntax.
+func writeSignature(buf *bytes.Buffer, pkg *types.Package, name string, sig *types.Signature, params []*Parameter) {
+	buf.WriteString("func ")
 	if recv := sig.Recv(); recv != nil {
-		io.WriteString(w, "(")
+		buf.WriteString("(")
 		if n := params[0].Name(); n != "" {
-			io.WriteString(w, n)
-			io.WriteString(w, " ")
+			buf.WriteString(n)
+			buf.WriteString(" ")
 		}
-		io.WriteString(w, relType(params[0].Type(), pkg))
-		io.WriteString(w, ") ")
+		buf.WriteString(relType(params[0].Type(), pkg))
+		buf.WriteString(") ")
 	}
-	io.WriteString(w, name)
-	var sigbuf bytes.Buffer
-	types.WriteSignature(&sigbuf, pkg, sig)
-	w.Write(sigbuf.Bytes())
+	buf.WriteString(name)
+	types.WriteSignature(buf, pkg, sig)
 }
 
 func (f *Function) pkgobj() *types.Package {
@@ -523,49 +521,56 @@ func (f *Function) pkgobj() *types.Package {
 	return nil
 }
 
-// DumpTo prints to w a human readable "disassembly" of the SSA code of
-// all basic blocks of function f.
-//
-func (f *Function) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "# Name: %s\n", f.String())
+var _ io.WriterTo = (*Function)(nil) // *Function implements io.Writer
+
+func (f *Function) WriteTo(w io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	WriteFunction(&buf, f)
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// WriteFunction writes to buf a human-readable "disassembly" of f.
+func WriteFunction(buf *bytes.Buffer, f *Function) {
+	fmt.Fprintf(buf, "# Name: %s\n", f.String())
 	if f.Pkg != nil {
-		fmt.Fprintf(w, "# Package: %s\n", f.Pkg.Object.Path())
+		fmt.Fprintf(buf, "# Package: %s\n", f.Pkg.Object.Path())
 	}
 	if syn := f.Synthetic; syn != "" {
-		fmt.Fprintln(w, "# Synthetic:", syn)
+		fmt.Fprintln(buf, "# Synthetic:", syn)
 	}
 	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Location: %s\n", f.Prog.Fset.Position(pos))
+		fmt.Fprintf(buf, "# Location: %s\n", f.Prog.Fset.Position(pos))
 	}
 
 	if f.Enclosing != nil {
-		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
+		fmt.Fprintf(buf, "# Parent: %s\n", f.Enclosing.Name())
 	}
 
 	if f.Recover != nil {
-		fmt.Fprintf(w, "# Recover: %s\n", f.Recover)
+		fmt.Fprintf(buf, "# Recover: %s\n", f.Recover)
 	}
 
 	pkgobj := f.pkgobj()
 
 	if f.FreeVars != nil {
-		io.WriteString(w, "# Free variables:\n")
+		buf.WriteString("# Free variables:\n")
 		for i, fv := range f.FreeVars {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), pkgobj))
+			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), pkgobj))
 		}
 	}
 
 	if len(f.Locals) > 0 {
-		io.WriteString(w, "# Locals:\n")
+		buf.WriteString("# Locals:\n")
 		for i, l := range f.Locals {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), pkgobj))
+			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), pkgobj))
 		}
 	}
-	writeSignature(w, pkgobj, f.Name(), f.Signature, f.Params)
-	io.WriteString(w, ":\n")
+	writeSignature(buf, pkgobj, f.Name(), f.Signature, f.Params)
+	buf.WriteString(":\n")
 
 	if f.Blocks == nil {
-		io.WriteString(w, "\t(external)\n")
+		buf.WriteString("\t(external)\n")
 	}
 
 	// NB. column calculations are confused by non-ASCII characters.
@@ -573,42 +578,42 @@ func (f *Function) DumpTo(w io.Writer) {
 	for _, b := range f.Blocks {
 		if b == nil {
 			// Corrupt CFG.
-			fmt.Fprintf(w, ".nil:\n")
+			fmt.Fprintf(buf, ".nil:\n")
 			continue
 		}
-		n, _ := fmt.Fprintf(w, ".%s:", b)
-		fmt.Fprintf(w, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))
+		n, _ := fmt.Fprintf(buf, ".%s:", b)
+		fmt.Fprintf(buf, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))
 
 		if false { // CFG debugging
-			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
+			fmt.Fprintf(buf, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
 		}
 		for _, instr := range b.Instrs {
-			io.WriteString(w, "\t")
+			buf.WriteString("\t")
 			switch v := instr.(type) {
 			case Value:
 				l := punchcard
 				// Left-align the instruction.
 				if name := v.Name(); name != "" {
-					n, _ := fmt.Fprintf(w, "%s = ", name)
+					n, _ := fmt.Fprintf(buf, "%s = ", name)
 					l -= n
 				}
 				// TODO(adonovan): append instructions directly to w.
-				n, _ := io.WriteString(w, instr.String())
+				n, _ := buf.WriteString(instr.String())
 				l -= n
 				// Right-align the type.
 				if t := v.Type(); t != nil {
-					fmt.Fprintf(w, " %*s", l-10, relType(t, pkgobj))
+					fmt.Fprintf(buf, " %*s", l-10, relType(t, pkgobj))
 				}
 			case nil:
 				// Be robust against bad transforms.
-				io.WriteString(w, "<deleted>")
+				buf.WriteString("<deleted>")
 			default:
-				io.WriteString(w, instr.String())
+				buf.WriteString(instr.String())
 			}
-			io.WriteString(w, "\n")
+			buf.WriteString("\n")
 		}
 	}
-	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(buf, "\n")
 }
 
 // newBasicBlock adds to f a new basic block and returns it.  It does

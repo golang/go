@@ -7,6 +7,9 @@ package ssa
 // This file implements the String() methods for all Value and
 // Instruction types.
 
+// TODO(adonovan): define WriteValue(*bytes.Buffer) and avoid creation
+// of garbage.
+
 import (
 	"bytes"
 	"fmt"
@@ -364,8 +367,18 @@ func (p *Package) String() string {
 	return "package " + p.Object.Path()
 }
 
-func (p *Package) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "%s:\n", p)
+var _ io.WriterTo = (*Package)(nil) // *Package implements io.Writer
+
+func (p *Package) WriteTo(w io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	WritePackage(&buf, p)
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// WritePackage writes to buf a human-readable summary of p.
+func WritePackage(buf *bytes.Buffer, p *Package) {
+	fmt.Fprintf(buf, "%s:\n", p)
 
 	var names []string
 	maxname := 0
@@ -380,27 +393,27 @@ func (p *Package) DumpTo(w io.Writer) {
 	for _, name := range names {
 		switch mem := p.Members[name].(type) {
 		case *NamedConst:
-			fmt.Fprintf(w, "  const %-*s %s = %s\n",
+			fmt.Fprintf(buf, "  const %-*s %s = %s\n",
 				maxname, name, mem.Name(), mem.Value.RelString(p.Object))
 
 		case *Function:
-			fmt.Fprintf(w, "  func  %-*s %s\n",
+			fmt.Fprintf(buf, "  func  %-*s %s\n",
 				maxname, name, types.TypeString(p.Object, mem.Type()))
 
 		case *Type:
-			fmt.Fprintf(w, "  type  %-*s %s\n",
+			fmt.Fprintf(buf, "  type  %-*s %s\n",
 				maxname, name, types.TypeString(p.Object, mem.Type().Underlying()))
 			for _, meth := range IntuitiveMethodSet(mem.Type()) {
-				fmt.Fprintf(w, "    %s\n", types.SelectionString(p.Object, meth))
+				fmt.Fprintf(buf, "    %s\n", types.SelectionString(p.Object, meth))
 			}
 
 		case *Global:
-			fmt.Fprintf(w, "  var   %-*s %s\n",
+			fmt.Fprintf(buf, "  var   %-*s %s\n",
 				maxname, name, types.TypeString(p.Object, mem.Type().(*types.Pointer).Elem()))
 		}
 	}
 
-	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(buf, "\n")
 }
 
 // IntuitiveMethodSet returns the intuitive method set of a type, T.

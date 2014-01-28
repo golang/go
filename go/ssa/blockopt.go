@@ -152,7 +152,7 @@ func optimizeBlocks(f *Function) {
 		changed = false
 
 		if debugBlockOpt {
-			f.DumpTo(os.Stderr)
+			f.WriteTo(os.Stderr)
 			mustSanityCheck(f, nil)
 		}
 

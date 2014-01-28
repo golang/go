@@ -213,7 +213,7 @@ func TestValueForExpr(t *testing.T) {
 		// debugging
 		for _, mem := range mainPkg.Members {
 			if fn, ok := mem.(*ssa.Function); ok {
-				fn.DumpTo(os.Stderr)
+				fn.WriteTo(os.Stderr)
 			}
 		}
 	}

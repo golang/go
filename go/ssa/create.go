@@ -232,7 +232,7 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 	}
 
 	if prog.mode&LogPackages != 0 {
-		p.DumpTo(os.Stderr)
+		p.WriteTo(os.Stderr)
 	}
 
 	if info.Importable {

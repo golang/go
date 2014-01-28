@@ -18,8 +18,8 @@ package ssa
 // to avoid the need for buckets of size > 1.
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"math/big"
 	"os"
 	"sort"
@@ -310,32 +310,32 @@ func sanityCheckDomTree(f *Function) {
 // Printing functions ----------------------------------------
 
 // printDomTree prints the dominator tree as text, using indentation.
-func printDomTreeText(w io.Writer, v *BasicBlock, indent int) {
-	fmt.Fprintf(w, "%*s%s\n", 4*indent, "", v)
+func printDomTreeText(buf *bytes.Buffer, v *BasicBlock, indent int) {
+	fmt.Fprintf(buf, "%*s%s\n", 4*indent, "", v)
 	for _, child := range v.dom.children {
-		printDomTreeText(w, child, indent+1)
+		printDomTreeText(buf, child, indent+1)
 	}
 }
 
 // printDomTreeDot prints the dominator tree of f in AT&T GraphViz
 // (.dot) format.
-func printDomTreeDot(w io.Writer, f *Function) {
-	fmt.Fprintln(w, "//", f)
-	fmt.Fprintln(w, "digraph domtree {")
+func printDomTreeDot(buf *bytes.Buffer, f *Function) {
+	fmt.Fprintln(buf, "//", f)
+	fmt.Fprintln(buf, "digraph domtree {")
 	for i, b := range f.Blocks {
 		v := b.dom
-		fmt.Fprintf(w, "\tn%d [label=\"%s (%d, %d)\",shape=\"rectangle\"];\n", v.pre, b, v.pre, v.post)
+		fmt.Fprintf(buf, "\tn%d [label=\"%s (%d, %d)\",shape=\"rectangle\"];\n", v.pre, b, v.pre, v.post)
 		// TODO(adonovan): improve appearance of edges
 		// belonging to both dominator tree and CFG.
 
 		// Dominator tree edge.
 		if i != 0 {
-			fmt.Fprintf(w, "\tn%d -> n%d [style=\"solid\",weight=100];\n", v.idom.dom.pre, v.pre)
+			fmt.Fprintf(buf, "\tn%d -> n%d [style=\"solid\",weight=100];\n", v.idom.dom.pre, v.pre)
 		}
 		// CFG edges.
 		for _, pred := range b.Preds {
-			fmt.Fprintf(w, "\tn%d -> n%d [style=\"dotted\",weight=0];\n", pred.dom.pre, v.pre)
+			fmt.Fprintf(buf, "\tn%d -> n%d [style=\"dotted\",weight=0];\n", pred.dom.pre, v.pre)
 		}
 	}
-	fmt.Fprintln(w, "}")
+	fmt.Fprintln(buf, "}")
 }
