@@ -261,7 +261,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 				if static {
 					return m, false
 				}
-			case !IsIdentical(obj.Type(), m.typ):
+			case !Identical(obj.Type(), m.typ):
 				return m, true
 			}
 		}
@@ -285,7 +285,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 			return m, false
 		}
 
-		if !IsIdentical(obj.Type(), m.typ) {
+		if !Identical(obj.Type(), m.typ) {
 			return m, true
 		}
 	}

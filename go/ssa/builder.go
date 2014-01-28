@@ -843,7 +843,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 
 	// Actual->formal assignability conversions for normal parameters.
 	np := sig.Params().Len() // number of normal parameters
-	if sig.IsVariadic() {
+	if sig.Variadic() {
 		np--
 	}
 	for i := 0; i < np; i++ {
@@ -852,7 +852,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 
 	// Actual->formal assignability conversions for variadic parameter,
 	// and construction of slice.
-	if sig.IsVariadic() {
+	if sig.Variadic() {
 		varargs := args[offset+np:]
 		st := sig.Params().At(np).Type().(*types.Slice)
 		vt := st.Elem()
@@ -2177,7 +2177,7 @@ func (p *Package) Build() {
 	// TODO(adonovan): ideally belongs in memberFromObject, but
 	// that would require package creation in topological order.
 	for obj := range p.values {
-		if obj.IsExported() {
+		if obj.Exported() {
 			p.needMethodsOf(obj.Type())
 		}
 	}

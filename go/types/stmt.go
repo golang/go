@@ -183,7 +183,7 @@ L:
 		// complain about duplicate types
 		// TODO(gri) use a type hash to avoid quadratic algorithm
 		for t, pos := range seen {
-			if T == nil && t == nil || T != nil && t != nil && IsIdentical(T, t) {
+			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				check.errorf(e.Pos(), "duplicate case in type switch")
 				check.errorf(pos, "previous case %s", T)

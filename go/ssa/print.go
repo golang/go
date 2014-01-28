@@ -120,7 +120,7 @@ func printCall(v *CallCommon, prefix string, instr Instruction) string {
 		}
 		b.WriteString(relName(arg, instr))
 	}
-	if v.Signature().IsVariadic() {
+	if v.Signature().Variadic() {
 		b.WriteString("...")
 	}
 	b.WriteString(")")

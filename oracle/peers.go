@@ -63,7 +63,7 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	o.ptaConfig.AddQuery(queryOp.ch)
 	i := 0
 	for _, op := range ops {
-		if types.IsIdentical(op.ch.Type().Underlying().(*types.Chan).Elem(), queryElemType) {
+		if types.Identical(op.ch.Type().Underlying().(*types.Chan).Elem(), queryElemType) {
 			o.ptaConfig.AddQuery(op.ch)
 			ops[i] = op
 			i++

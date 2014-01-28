@@ -384,7 +384,7 @@ func (p *exporter) signature(sig *types.Signature) {
 	}
 	p.tuple(sig.Params())
 	p.tuple(sig.Results())
-	if sig.IsVariadic() {
+	if sig.Variadic() {
 		p.int(1)
 	} else {
 		p.int(0)

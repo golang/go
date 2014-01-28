@@ -117,7 +117,7 @@ func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 		}
 	}
 
-	if types.IsIdentical(xt, yt) {
+	if types.Identical(xt, yt) {
 		// no conversion necessary
 	} else if _, ok := xt.(*types.Interface); ok {
 		y = emitConv(f, y, x.Type())
@@ -147,7 +147,7 @@ func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 //
 func isValuePreserving(ut_src, ut_dst types.Type) bool {
 	// Identical underlying types?
-	if types.IsIdentical(ut_dst, ut_src) {
+	if types.Identical(ut_dst, ut_src) {
 		return true
 	}
 
@@ -179,7 +179,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	t_src := val.Type()
 
 	// Identical types?  Conversion is a no-op.
-	if types.IsIdentical(t_src, typ) {
+	if types.Identical(t_src, typ) {
 		return val
 	}
 

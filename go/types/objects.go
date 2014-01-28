@@ -20,13 +20,13 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
-	Parent() *Scope   // scope in which this object is declared
-	Pos() token.Pos   // position of object identifier in declaration
-	Pkg() *Package    // nil for objects in the Universe scope and labels
-	Name() string     // package local object name
-	Type() Type       // object type
-	IsExported() bool // reports whether the name starts with a capital letter
-	Id() string       // object id (see Id below)
+	Parent() *Scope // scope in which this object is declared
+	Pos() token.Pos // position of object identifier in declaration
+	Pkg() *Package  // nil for objects in the Universe scope and labels
+	Name() string   // package local object name
+	Type() Type     // object type
+	Exported() bool // reports whether the name starts with a capital letter
+	Id() string     // object id (see Id below)
 
 	// String returns a human-readable string of the object.
 	String() string
@@ -76,14 +76,14 @@ type object struct {
 	used   bool
 }
 
-func (obj *object) Parent() *Scope   { return obj.parent }
-func (obj *object) Pos() token.Pos   { return obj.pos }
-func (obj *object) Pkg() *Package    { return obj.pkg }
-func (obj *object) Name() string     { return obj.name }
-func (obj *object) Type() Type       { return obj.typ }
-func (obj *object) IsExported() bool { return ast.IsExported(obj.name) }
-func (obj *object) Id() string       { return Id(obj.pkg, obj.name) }
-func (obj *object) String() string   { panic("abstract") }
+func (obj *object) Parent() *Scope { return obj.parent }
+func (obj *object) Pos() token.Pos { return obj.pos }
+func (obj *object) Pkg() *Package  { return obj.pkg }
+func (obj *object) Name() string   { return obj.name }
+func (obj *object) Type() Type     { return obj.typ }
+func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
+func (obj *object) Id() string     { return Id(obj.pkg, obj.name) }
+func (obj *object) String() string { panic("abstract") }
 
 func (obj *object) isUsed() bool { return obj.used }
 
@@ -98,7 +98,7 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 		return false
 	}
 	// obj.Name == name
-	if obj.IsExported() {
+	if obj.Exported() {
 		return true
 	}
 	// not exported, so packages must be the same (pkg == nil for

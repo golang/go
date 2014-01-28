@@ -520,7 +520,7 @@ func writeSignature(w io.Writer, pkg *types.Package, name string, sig *types.Sig
 		}
 		io.WriteString(w, v.Name())
 		io.WriteString(w, " ")
-		if sig.IsVariadic() && i == len(params)-1 {
+		if sig.Variadic() && i == len(params)-1 {
 			io.WriteString(w, "...")
 			io.WriteString(w, relType(v.Type().Underlying().(*types.Slice).Elem(), pkg))
 		} else {

@@ -120,7 +120,7 @@ func checkFuncValue(t *testing.T, prog *ssa.Program, obj *types.Func) {
 			obj, fnobj, fn.Name())
 		return
 	}
-	if !types.IsIdentical(fn.Type(), obj.Type()) {
+	if !types.Identical(fn.Type(), obj.Type()) {
 		t.Errorf("FuncValue(%s).Type() == %s", obj, fn.Type())
 		return
 	}
@@ -133,7 +133,7 @@ func checkConstValue(t *testing.T, prog *ssa.Program, obj *types.Const) {
 		t.Errorf("ConstValue(%s) == nil", obj)
 		return
 	}
-	if !types.IsIdentical(c.Type(), obj.Type()) {
+	if !types.Identical(c.Type(), obj.Type()) {
 		t.Errorf("ConstValue(%s).Type() == %s", obj, c.Type())
 		return
 	}
@@ -179,7 +179,7 @@ func checkVarValue(t *testing.T, prog *ssa.Program, pkg *ssa.Package, ref []ast.
 		} else if gotAddr {
 			t.Errorf("%s: got address, want value", prefix)
 		}
-		if !types.IsIdentical(v.Type(), expType) {
+		if !types.Identical(v.Type(), expType) {
 			t.Errorf("%s.Type() == %s, want %s", prefix, v.Type(), expType)
 		}
 	}
@@ -268,7 +268,7 @@ func TestValueForExpr(t *testing.T) {
 			if gotAddr {
 				T = T.Underlying().(*types.Pointer).Elem() // deref
 			}
-			if !types.IsIdentical(T, mainInfo.TypeOf(e)) {
+			if !types.Identical(T, mainInfo.TypeOf(e)) {
 				t.Errorf("%s: got type %s, want %s", position, mainInfo.TypeOf(e), T)
 			}
 		}

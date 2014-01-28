@@ -68,7 +68,7 @@ func (m *M) Delete(key types.Type) bool {
 		hash := m.hasher.Hash(key)
 		bucket := m.table[hash]
 		for i, e := range bucket {
-			if e.key != nil && types.IsIdentical(key, e.key) {
+			if e.key != nil && types.Identical(key, e.key) {
 				// We can't compact the bucket as it
 				// would disturb iterators.
 				bucket[i] = entry{}
@@ -86,7 +86,7 @@ func (m *M) Delete(key types.Type) bool {
 func (m *M) At(key types.Type) interface{} {
 	if m != nil && m.table != nil {
 		for _, e := range m.table[m.hasher.Hash(key)] {
-			if e.key != nil && types.IsIdentical(key, e.key) {
+			if e.key != nil && types.Identical(key, e.key) {
 				return e.value
 			}
 		}
@@ -104,7 +104,7 @@ func (m *M) Set(key types.Type, value interface{}) (prev interface{}) {
 		for i, e := range bucket {
 			if e.key == nil {
 				hole = &bucket[i]
-			} else if types.IsIdentical(key, e.key) {
+			} else if types.Identical(key, e.key) {
 				prev = e.value
 				bucket[i].value = value
 				return
@@ -219,7 +219,7 @@ func MakeHasher() Hasher {
 }
 
 // Hash computes a hash value for the given type t such that
-// IsIdentical(t, t') => Hash(t) == Hash(t').
+// Identical(t, t') => Hash(t) == Hash(t').
 func (h Hasher) Hash(t types.Type) uint32 {
 	hash, ok := h.memo[t]
 	if !ok {
@@ -241,7 +241,7 @@ func hashString(s string) uint32 {
 
 // hashFor computes the hash of t.
 func (h Hasher) hashFor(t types.Type) uint32 {
-	// See IsIdentical for rationale.
+	// See Identical for rationale.
 	switch t := t.(type) {
 	case *types.Basic:
 		return uint32(t.Kind())
@@ -270,7 +270,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 
 	case *types.Signature:
 		var hash uint32 = 9091
-		if t.IsVariadic() {
+		if t.Variadic() {
 			hash *= 8863
 		}
 		return hash + 3*h.hashTuple(t.Params()) + 5*h.hashTuple(t.Results())

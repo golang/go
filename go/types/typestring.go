@@ -190,7 +190,7 @@ func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
 	}
 }
 
-func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, isVariadic bool) {
+func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool) {
 	buf.WriteByte('(')
 	if tup != nil {
 		for i, v := range tup.vars {
@@ -202,7 +202,7 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, isVariadic bool) {
 				buf.WriteByte(' ')
 			}
 			typ := v.typ
-			if isVariadic && i == len(tup.vars)-1 {
+			if variadic && i == len(tup.vars)-1 {
 				buf.WriteString("...")
 				typ = typ.(*Slice).elem
 			}
@@ -213,7 +213,7 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, isVariadic bool) {
 }
 
 func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
-	writeTuple(buf, this, sig.params, sig.isVariadic)
+	writeTuple(buf, this, sig.params, sig.variadic)
 
 	n := sig.results.Len()
 	if n == 0 {

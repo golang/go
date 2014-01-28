@@ -75,7 +75,7 @@ var (
 				want = Typ[UntypedNil]
 			}
 		}
-		if want != nil && !IsIdentical(typ, want) {
+		if want != nil && !Identical(typ, want) {
 			t.Errorf("got %s; want %s", typ, want)
 		}
 	}

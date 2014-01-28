@@ -64,7 +64,7 @@ func (check *checker) assignment(x *operand, T Type) bool {
 	// spec: "If a left-hand side is the blank identifier, any typed or
 	// non-constant value except for the predeclared identifier nil may
 	// be assigned to it."
-	return T == nil || x.isAssignableTo(check.conf, T)
+	return T == nil || x.assignableTo(check.conf, T)
 }
 
 func (check *checker) initConst(lhs *Const, x *operand) {

@@ -150,7 +150,7 @@ func testMainSlice(fn *Function, expfuncs []*Function, prefix string, slice type
 
 	var testfuncs []*Function
 	for _, f := range expfuncs {
-		if isTest(f.Name(), prefix) && types.IsIdentical(f.Signature, tFunc) {
+		if isTest(f.Name(), prefix) && types.Identical(f.Signature, tFunc) {
 			testfuncs = append(testfuncs, f)
 		}
 	}

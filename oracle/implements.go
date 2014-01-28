@@ -60,19 +60,19 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 				}
 
 				// T interface, U interface
-				if !types.IsIdentical(T, U) {
-					if types.IsAssignableTo(U, T) {
+				if !types.Identical(T, U) {
+					if types.AssignableTo(U, T) {
 						to = append(to, U)
 					}
-					if types.IsAssignableTo(T, U) {
+					if types.AssignableTo(T, U) {
 						from = append(from, U)
 					}
 				}
 			} else {
 				// T interface, U concrete
-				if types.IsAssignableTo(U, T) {
+				if types.AssignableTo(U, T) {
 					to = append(to, U)
-				} else if pU := types.NewPointer(U); types.IsAssignableTo(pU, T) {
+				} else if pU := types.NewPointer(U); types.AssignableTo(pU, T) {
 					to = append(to, pU)
 				}
 			}
@@ -82,9 +82,9 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 			}
 
 			// T concrete, U interface
-			if types.IsAssignableTo(T, U) {
+			if types.AssignableTo(T, U) {
 				from = append(from, U)
-			} else if pT := types.NewPointer(T); types.IsAssignableTo(pT, U) {
+			} else if pT := types.NewPointer(T); types.AssignableTo(pT, U) {
 				fromPtr = append(fromPtr, U)
 			}
 		}

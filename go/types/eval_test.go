@@ -31,7 +31,7 @@ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, ty
 	// compare types
 	if typ != nil {
 		// we have a type, check identity
-		if !IsIdentical(gotTyp, typ) {
+		if !Identical(gotTyp, typ) {
 			t.Errorf("Eval(%q) got type %s, want %s", str, gotTyp, typ)
 			return
 		}

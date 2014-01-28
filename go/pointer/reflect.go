@@ -63,7 +63,7 @@ func (c *rVBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		}
 
 		tSlice, ok := tDyn.Underlying().(*types.Slice)
-		if ok && types.IsIdentical(tSlice.Elem(), types.Typ[types.Uint8]) {
+		if ok && types.Identical(tSlice.Elem(), types.Typ[types.Uint8]) {
 			if a.onlineCopy(c.result, slice) {
 				changed = true
 			}
@@ -625,7 +625,7 @@ func (c *rVSetBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
 		}
 
 		tSlice, ok := tDyn.Underlying().(*types.Slice)
-		if ok && types.IsIdentical(tSlice.Elem(), types.Typ[types.Uint8]) {
+		if ok && types.Identical(tSlice.Elem(), types.Typ[types.Uint8]) {
 			if a.onlineCopy(slice, c.x) {
 				a.addWork(slice)
 			}
@@ -1559,7 +1559,7 @@ func changeRecv(sig *types.Signature) *types.Signature {
 	for i := 0; i < n; i++ {
 		p2[i+1] = params.At(i)
 	}
-	return types.NewSignature(nil, nil, types.NewTuple(p2...), sig.Results(), sig.IsVariadic())
+	return types.NewSignature(nil, nil, types.NewTuple(p2...), sig.Results(), sig.Variadic())
 }
 
 func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset) {

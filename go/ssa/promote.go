@@ -284,7 +284,7 @@ func createParams(fn *Function) {
 	for i, n := 0, tparams.Len(); i < n; i++ {
 		last = fn.addParamObj(tparams.At(i))
 	}
-	if fn.Signature.IsVariadic() {
+	if fn.Signature.Variadic() {
 		last.typ = types.NewSlice(last.typ)
 	}
 }
@@ -415,5 +415,5 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 }
 
 func changeRecv(s *types.Signature, recv *types.Var) *types.Signature {
-	return types.NewSignature(nil, recv, s.Params(), s.Results(), s.IsVariadic())
+	return types.NewSignature(nil, recv, s.Params(), s.Results(), s.Variadic())
 }

@@ -127,7 +127,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
-			check.isRepresentableAs(x, typ)
+			check.representable(x, typ)
 		}
 		return
 	}
@@ -184,14 +184,14 @@ func roundFloat64(x exact.Value) exact.Value {
 	return nil
 }
 
-// isRepresentableConst reports whether x can be represented as
+// representableConst reports whether x can be represented as
 // value of the given basic type kind and for the configuration
 // provided (only needed for int/uint sizes).
 //
 // If rounded != nil, *rounded is set to the rounded value of x for
 // representable floating-point values; it is left alone otherwise.
 // It is ok to provide the addressof the first argument for rounded.
-func isRepresentableConst(x exact.Value, conf *Config, as BasicKind, rounded *exact.Value) bool {
+func representableConst(x exact.Value, conf *Config, as BasicKind, rounded *exact.Value) bool {
 	switch x.Kind() {
 	case exact.Unknown:
 		return true
@@ -327,10 +327,10 @@ func isRepresentableConst(x exact.Value, conf *Config, as BasicKind, rounded *ex
 	return false
 }
 
-// isRepresentableAs checks that a constant operand is representable in the given basic type.
-func (check *checker) isRepresentableAs(x *operand, typ *Basic) {
+// representable checks that a constant operand is representable in the given basic type.
+func (check *checker) representable(x *operand, typ *Basic) {
 	assert(x.mode == constant)
-	if !isRepresentableConst(x.val, check.conf, typ.kind, &x.val) {
+	if !representableConst(x.val, check.conf, typ.kind, &x.val) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			// numeric conversion : error msg
@@ -490,7 +490,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 	switch t := target.Underlying().(type) {
 	case *Basic:
 		if x.mode == constant {
-			check.isRepresentableAs(x, t)
+			check.representable(x, t)
 			if x.mode == invalid {
 				return
 			}
@@ -563,7 +563,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
 	err := ""
-	if x.isAssignableTo(check.conf, y.typ) || y.isAssignableTo(check.conf, x.typ) {
+	if x.assignableTo(check.conf, y.typ) || y.assignableTo(check.conf, x.typ) {
 		defined := false
 		switch op {
 		case token.EQL, token.NEQ:
@@ -616,7 +616,7 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 
 	// The lhs must be of integer type or be representable
 	// as an integer; otherwise the shift has no chance.
-	if !isInteger(x.typ) && (!untypedx || !isRepresentableConst(x.val, nil, UntypedInt, nil)) {
+	if !isInteger(x.typ) && (!untypedx || !representableConst(x.val, nil, UntypedInt, nil)) {
 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
@@ -747,7 +747,7 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 		return
 	}
 
-	if !IsIdentical(x.typ, y.typ) {
+	if !Identical(x.typ, y.typ) {
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
@@ -778,7 +778,7 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
-			check.isRepresentableAs(x, typ)
+			check.representable(x, typ)
 		}
 		return
 	}

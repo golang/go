@@ -96,7 +96,7 @@ var (
 )
 
 // hashType returns a hash for t such that
-// types.IsIdentical(x, y) => hashType(x) == hashType(y).
+// types.Identical(x, y) => hashType(x) == hashType(y).
 func hashType(t types.Type) int {
 	mu.Lock()
 	h := int(hasher.Hash(t))
@@ -169,12 +169,12 @@ func (x structure) hash(t types.Type) int {
 	return h
 }
 
-// nil-tolerant variant of types.IsIdentical.
+// nil-tolerant variant of types.Identical.
 func sameType(x, y types.Type) bool {
 	if x == nil {
 		return y == nil
 	}
-	return y != nil && types.IsIdentical(x, y)
+	return y != nil && types.Identical(x, y)
 }
 
 func (x iface) eq(t types.Type, _y interface{}) bool {
@@ -191,7 +191,7 @@ func (x rtype) hash(_ types.Type) int {
 }
 
 func (x rtype) eq(_ types.Type, y interface{}) bool {
-	return types.IsIdentical(x.t, y.(rtype).t)
+	return types.Identical(x.t, y.(rtype).t)
 }
 
 // equals returns true iff x and y are equal according to Go's

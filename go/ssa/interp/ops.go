@@ -875,7 +875,7 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 		v = itf
 		err = checkInterface(i, idst, itf)
 
-	} else if types.IsIdentical(itf.t, instr.AssertedType) {
+	} else if types.Identical(itf.t, instr.AssertedType) {
 		v = copyVal(itf.v) // extract value
 
 	} else {

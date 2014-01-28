@@ -194,12 +194,12 @@ func (x *operand) isNil() bool {
 	return x.mode == value && x.typ == Typ[UntypedNil]
 }
 
-// TODO(gri) The functions operand.isAssignableTo, checker.convertUntyped,
-//           checker.isRepresentable, and checker.assignment are
+// TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
+//           checker.representable, and checker.assignment are
 //           overlapping in functionality. Need to simplify and clean up.
 
-// isAssignableTo reports whether x is assignable to a variable of type T.
-func (x *operand) isAssignableTo(conf *Config, T Type) bool {
+// assignableTo reports whether x is assignable to a variable of type T.
+func (x *operand) assignableTo(conf *Config, T Type) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true // avoid spurious errors
 	}
@@ -207,7 +207,7 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 	V := x.typ
 
 	// x's type is identical to T
-	if IsIdentical(V, T) {
+	if Identical(V, T) {
 		return true
 	}
 
@@ -224,7 +224,7 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	if IsIdentical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true
 	}
 
@@ -232,7 +232,7 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
-		if Tc, ok := Tu.(*Chan); ok && IsIdentical(Vc.elem, Tc.elem) {
+		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
 			return !isNamed(V) || !isNamed(T)
 		}
 	}
@@ -253,12 +253,12 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 
 	// x is an untyped constant representable by a value of type T
 	// TODO(gri) This is borrowing from checker.convertUntyped and
-	//           checker.isRepresentable. Need to clean up.
+	//           checker.representable. Need to clean up.
 	if isUntyped(Vu) {
 		switch t := Tu.(type) {
 		case *Basic:
 			if x.mode == constant {
-				return isRepresentableConst(x.val, conf, t.kind, nil)
+				return representableConst(x.val, conf, t.kind, nil)
 			}
 			// The result of a comparison is an untyped boolean,
 			// but may not be a constant.
@@ -279,5 +279,5 @@ func (x *operand) isAssignableTo(conf *Config, T Type) bool {
 func (x *operand) isInteger() bool {
 	return x.mode == invalid ||
 		isInteger(x.typ) ||
-		x.mode == constant && isRepresentableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
+		x.mode == constant && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
 }

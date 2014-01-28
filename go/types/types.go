@@ -201,21 +201,21 @@ func (t *Tuple) At(i int) *Var { return t.vars[i] }
 
 // A Signature represents a (non-builtin) function or method type.
 type Signature struct {
-	scope      *Scope // function scope, always present
-	recv       *Var   // nil if not a method
-	params     *Tuple // (incoming) parameters from left to right; or nil
-	results    *Tuple // (outgoing) results from left to right; or nil
-	isVariadic bool   // true if the last parameter's type is of the form ...T
+	scope    *Scope // function scope, always present
+	recv     *Var   // nil if not a method
+	params   *Tuple // (incoming) parameters from left to right; or nil
+	results  *Tuple // (outgoing) results from left to right; or nil
+	variadic bool   // true if the last parameter's type is of the form ...T
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
-// and results, either of which may be nil. If isVariadic is set, the function
+// and results, either of which may be nil. If variadic is set, the function
 // is variadic, it must have at least one parameter, and the last parameter
 // must be of unnamed slice type.
-func NewSignature(scope *Scope, recv *Var, params, results *Tuple, isVariadic bool) *Signature {
+func NewSignature(scope *Scope, recv *Var, params, results *Tuple, variadic bool) *Signature {
 	// TODO(gri) Should we rely on the correct (non-nil) incoming scope
 	//           or should this function allocate and populate a scope?
-	if isVariadic {
+	if variadic {
 		n := params.Len()
 		if n == 0 {
 			panic("types.NewSignature: variadic function must have at least one parameter")
@@ -224,7 +224,7 @@ func NewSignature(scope *Scope, recv *Var, params, results *Tuple, isVariadic bo
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{scope, recv, params, results, isVariadic}
+	return &Signature{scope, recv, params, results, variadic}
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
@@ -241,8 +241,8 @@ func (s *Signature) Params() *Tuple { return s.params }
 // Results returns the results of signature s, or nil.
 func (s *Signature) Results() *Tuple { return s.results }
 
-// IsVariadic reports whether the signature s is variadic.
-func (s *Signature) IsVariadic() bool { return s.isVariadic }
+// Variadic reports whether the signature s is variadic.
+func (s *Signature) Variadic() bool { return s.variadic }
 
 // An Interface represents an interface type.
 type Interface struct {

@@ -167,7 +167,7 @@ func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	passSlice := false
 	if call.Ellipsis.IsValid() {
 		// last argument is of the form x...
-		if sig.isVariadic {
+		if sig.variadic {
 			passSlice = true
 		} else {
 			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
@@ -184,7 +184,7 @@ func (check *checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	}
 
 	// check argument count
-	if sig.isVariadic {
+	if sig.variadic {
 		// a variadic function accepts an "empty"
 		// last argument: count one extra
 		n++
@@ -205,7 +205,7 @@ func (check *checker) argument(sig *Signature, i int, x *operand, passSlice bool
 	switch {
 	case i < n:
 		typ = sig.params.vars[i].typ
-	case sig.isVariadic:
+	case sig.variadic:
 		typ = sig.params.vars[n-1].typ
 		if debug {
 			if _, ok := typ.(*Slice); !ok {
@@ -227,7 +227,7 @@ func (check *checker) argument(sig *Signature, i int, x *operand, passSlice bool
 			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
 			return
 		}
-	} else if sig.isVariadic && i >= n-1 {
+	} else if sig.variadic && i >= n-1 {
 		// use the variadic parameter slice's element type
 		typ = typ.(*Slice).elem
 	}
@@ -261,7 +261,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 				}
 				goto Error
 			}
-			if !exp.IsExported() {
+			if !exp.Exported() {
 				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
 				// ok to continue
 			}
@@ -337,9 +337,9 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 		}
 		x.mode = value
 		x.typ = &Signature{
-			params:     NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "", x.typ)}, params...)...),
-			results:    sig.results,
-			isVariadic: sig.isVariadic,
+			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "", x.typ)}, params...)...),
+			results:  sig.results,
+			variadic: sig.variadic,
 		}
 
 		check.addDeclDep(m)

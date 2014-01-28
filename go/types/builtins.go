@@ -81,7 +81,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.isAssignableTo(check.conf, NewSlice(universeByte)) {
+		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte)) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
@@ -89,7 +89,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if isString(x.typ) {
 				if check.Types != nil {
 					sig := makeSig(S, S, NewSlice(universeByte))
-					sig.isVariadic = true
+					sig.variadic = true
 					check.recordBuiltinType(call.Fun, sig)
 				}
 				x.mode = value
@@ -102,7 +102,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// check general case by creating custom signature
 		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
-		sig.isVariadic = true
+		sig.variadic = true
 		check.arguments(x, call, sig, func(x *operand, i int) {
 			// only evaluate arguments that have not been evaluated before
 			if i < len(alist) {
@@ -209,7 +209,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !IsIdentical(x.typ, y.typ) {
+		if !Identical(x.typ, y.typ) {
 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
 			return
 		}
@@ -285,7 +285,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !IsIdentical(dst, src) {
+		if !Identical(dst, src) {
 			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
 			return
 		}
@@ -309,7 +309,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !x.isAssignableTo(check.conf, m.key) {
+		if !x.assignableTo(check.conf, m.key) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			return
 		}

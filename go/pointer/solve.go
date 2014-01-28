@@ -268,7 +268,7 @@ func (c *typeFilterConstraint) solve(a *analysis, n *node, delta nodeset) {
 			panic("indirect tagged object")
 		}
 
-		if types.IsAssignableTo(tDyn, c.typ) {
+		if types.AssignableTo(tDyn, c.typ) {
 			if a.addLabel(c.dst, ifaceObj) {
 				a.addWork(c.dst)
 			}
@@ -277,9 +277,9 @@ func (c *typeFilterConstraint) solve(a *analysis, n *node, delta nodeset) {
 }
 
 func (c *untagConstraint) solve(a *analysis, n *node, delta nodeset) {
-	predicate := types.IsAssignableTo
+	predicate := types.AssignableTo
 	if c.exact {
-		predicate = types.IsIdentical
+		predicate = types.Identical
 	}
 	for ifaceObj := range delta {
 		tDyn, v, indirect := a.taggedValue(ifaceObj)

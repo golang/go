@@ -18,7 +18,7 @@ func (check *checker) conversion(x *operand, T Type) {
 	case constArg && isConstType(T):
 		// constant conversion
 		switch t := T.Underlying().(*Basic); {
-		case isRepresentableConst(x.val, check.conf, t.kind, &x.val):
+		case representableConst(x.val, check.conf, t.kind, &x.val):
 			ok = true
 		case x.isInteger() && isString(t):
 			codepoint := int64(-1)
@@ -65,7 +65,7 @@ func (check *checker) conversion(x *operand, T Type) {
 
 func (x *operand) isConvertible(conf *Config, T Type) bool {
 	// "x is assignable to T"
-	if x.isAssignableTo(conf, T) {
+	if x.assignableTo(conf, T) {
 		return true
 	}
 
@@ -73,14 +73,14 @@ func (x *operand) isConvertible(conf *Config, T Type) bool {
 	V := x.typ
 	Vu := V.Underlying()
 	Tu := T.Underlying()
-	if IsIdentical(Vu, Tu) {
+	if Identical(Vu, Tu) {
 		return true
 	}
 
 	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if IsIdentical(V.base.Underlying(), T.base.Underlying()) {
+			if Identical(V.base.Underlying(), T.base.Underlying()) {
 				return true
 			}
 		}

@@ -206,7 +206,7 @@ func def(obj Object) {
 	}
 	// exported identifiers go into package unsafe
 	scope := Universe
-	if obj.IsExported() {
+	if obj.Exported() {
 		scope = Unsafe.scope
 		// set Pkg field
 		switch obj := obj.(type) {

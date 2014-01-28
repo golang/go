@@ -132,7 +132,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 
 	case *types.Array:
 		// Same as slice.
-		if types.IsIdentical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
+		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d.
@@ -140,7 +140,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 
 	case *types.Slice:
 		// Same as array.
-		if types.IsIdentical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
+		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d. But watch out for
@@ -269,7 +269,7 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	typ := f.pkg.types[call]
 	if typ != nil {
 		// We know it's called "Error", so just check the function signature.
-		return types.IsIdentical(f.pkg.types[call.Fun], stringerMethodType)
+		return types.Identical(f.pkg.types[call.Fun], stringerMethodType)
 	}
 	// Without types, we can still check by hand.
 	// Is it a selector expression? Otherwise it's a function call, not a method call.

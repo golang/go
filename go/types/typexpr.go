@@ -151,7 +151,7 @@ func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Nam
 	check.recordScope(ftyp, scope)
 
 	recv_, _ := check.collectParams(scope, recv, false)
-	params, isVariadic := check.collectParams(scope, ftyp.Params, true)
+	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
 
 	if len(recv_) > 0 {
@@ -197,7 +197,7 @@ func (check *checker) funcType(recv *ast.FieldList, ftyp *ast.FuncType, def *Nam
 	sig.scope = scope
 	sig.params = NewTuple(params...)
 	sig.results = NewTuple(results...)
-	sig.isVariadic = isVariadic
+	sig.variadic = variadic
 
 	return sig
 }
@@ -386,7 +386,7 @@ func (check *checker) arrayLength(e ast.Expr) int64 {
 	return n
 }
 
-func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
+func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -396,7 +396,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
 			if variadicOk && i == len(list.List)-1 {
-				isVariadic = true
+				variadic = true
 			} else {
 				check.invalidAST(field.Pos(), "... not permitted")
 				// ignore ... and continue
@@ -421,7 +421,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	// For a variadic function, change the last parameter's type from T to []T.
-	if isVariadic && len(params) > 0 {
+	if variadic && len(params) > 0 {
 		last := params[len(params)-1]
 		last.typ = &Slice{elem: last.typ}
 	}

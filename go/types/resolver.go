@@ -226,7 +226,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							for _, obj := range imp.scope.elems {
 								// A package scope may contain non-exported objects,
 								// do not import them!
-								if obj.IsExported() {
+								if obj.Exported() {
 									// Note: This will change each imported object's scope!
 									//       May be an issue for type aliases.
 									check.declare(fileScope, nil, obj)

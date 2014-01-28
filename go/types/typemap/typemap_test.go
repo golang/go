@@ -22,7 +22,7 @@ var (
 )
 
 func checkEqualButNotIdentical(t *testing.T, x, y types.Type, comment string) {
-	if !types.IsIdentical(x, y) {
+	if !types.Identical(x, y) {
 		t.Errorf("%s: not equal: %s, %s", comment, x, y)
 	}
 	if x == y {
@@ -113,7 +113,7 @@ func TestTypeMap(t *testing.T) {
 	}
 
 	// Keys().
-	I := types.IsIdentical
+	I := types.Identical
 	switch k := tmap.Keys(); {
 	case I(k[0], tChanInt1) && I(k[1], tPStr1): // ok
 	case I(k[1], tChanInt1) && I(k[0], tPStr1): // ok

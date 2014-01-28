@@ -1271,7 +1271,7 @@ type anInstruction struct {
 // 	go invoke t3.Run(t2)
 // 	defer invoke t4.Handle(...t5)
 //
-// For all calls to variadic functions (Signature().IsVariadic()),
+// For all calls to variadic functions (Signature().Variadic()),
 // the last element of Args is a slice.
 //
 type CallCommon struct {
