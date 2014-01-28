@@ -50,5 +50,5 @@ func (pkg *Package) Imports() []*Package { return pkg.imports }
 func (pkg *Package) SetImports(list []*Package) { pkg.imports = list }
 
 func (pkg *Package) String() string {
-	return fmt.Sprintf("package %s (%s)", pkg.name, pkg.path)
+	return fmt.Sprintf("package %s (%q)", pkg.name, pkg.path)
 }

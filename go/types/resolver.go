@@ -388,6 +388,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			check.objDecl(obj, nil, false)
 		}
 	}
+	check.objMap = nil // not needed anymore
 
 	// At this point we may have a non-empty check.methods map; this means that not all
 	// entries were deleted at the end of typeDecl because the respective receiver base
