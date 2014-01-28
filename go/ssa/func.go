@@ -7,6 +7,7 @@ package ssa
 // This file implements the Function and BasicBlock types.
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -498,8 +499,6 @@ func (f *Function) RelString(from *types.Package) string {
 }
 
 // writeSignature writes to w the signature sig in declaration syntax.
-// Derived from types.Signature.String().
-//
 func writeSignature(w io.Writer, pkg *types.Package, name string, sig *types.Signature, params []*Parameter) {
 	io.WriteString(w, "func ")
 	if recv := sig.Recv(); recv != nil {
@@ -510,33 +509,11 @@ func writeSignature(w io.Writer, pkg *types.Package, name string, sig *types.Sig
 		}
 		io.WriteString(w, relType(params[0].Type(), pkg))
 		io.WriteString(w, ") ")
-		params = params[1:]
 	}
 	io.WriteString(w, name)
-	io.WriteString(w, "(")
-	for i, v := range params {
-		if i > 0 {
-			io.WriteString(w, ", ")
-		}
-		io.WriteString(w, v.Name())
-		io.WriteString(w, " ")
-		if sig.Variadic() && i == len(params)-1 {
-			io.WriteString(w, "...")
-			io.WriteString(w, relType(v.Type().Underlying().(*types.Slice).Elem(), pkg))
-		} else {
-			io.WriteString(w, relType(v.Type(), pkg))
-		}
-	}
-	io.WriteString(w, ")")
-	if n := sig.Results().Len(); n > 0 {
-		io.WriteString(w, " ")
-		r := sig.Results()
-		if n == 1 && r.At(0).Name() == "" {
-			io.WriteString(w, relType(r.At(0).Type(), pkg))
-		} else {
-			io.WriteString(w, relType(r, pkg))
-		}
-	}
+	var sigbuf bytes.Buffer
+	types.WriteSignature(&sigbuf, pkg, sig)
+	w.Write(sigbuf.Bytes())
 }
 
 func (f *Function) pkgobj() *types.Package {
