@@ -634,6 +634,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		universalTag = tagGeneralizedTime
 	}
 
+	if params.set {
+		universalTag = tagSet
+	}
+
 	expectedClass := classUniversal
 	expectedTag := universalTag
 
@@ -854,12 +858,19 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // The following tags on struct fields have special meaning to Unmarshal:
 //
-//	optional		marks the field as ASN.1 OPTIONAL
-//	[explicit] tag:x	specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
-//	default:x		sets the default value for optional integer fields
+//	application	specifies that a APPLICATION tag is used
+//	default:x	sets the default value for optional integer fields
+//	explicit	specifies that an additional, explicit tag wraps the implicit one
+//	optional	marks the field as ASN.1 OPTIONAL
+//	set		causes a SET, rather than a SEQUENCE type to be expected
+//	tag:x		specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.
+//
+// If the type name of a slice element ends with "SET" then it's treated as if
+// the "set" tag was set on it. This can be used with nested slices where a
+// struct tag cannot be given.
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
