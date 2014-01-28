@@ -1483,12 +1483,11 @@ func (c *Corpus) RunIndexer() {
 		}
 	}
 
-	// repeatedly update the index when it goes out of date
+	// Repeatedly update the package directory tree and index.
+	// TODO(bgarcia): Use fsnotify to only update when notified of a filesystem change.
 	for {
-		if !c.indexUpToDate() {
-			// index possibly out of date - make a new one
-			c.UpdateIndex()
-		}
+		c.initFSTree()
+		c.UpdateIndex()
 		if c.IndexInterval < 0 {
 			return
 		}
