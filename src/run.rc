@@ -7,7 +7,7 @@ rfork e
 
 eval `{go env}
 
-GOPATH = () # we disallow local import for non-local packges, if $GOROOT happens
+GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
             # to be under $GOPATH, then some tests below will fail
 
 # allow all.rc to avoid double-build of everything
@@ -48,7 +48,7 @@ fn xcd {
 
 echo
 echo '#' ../misc/goplay
-go build ../misc/gplay
+go build ../misc/goplay
 
 echo
 echo '#' ../test/bench/go1
