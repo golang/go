@@ -174,6 +174,8 @@ var filePacketConnTests = []struct {
 
 	{net: "udp6", addr: "[::1]", ipv6: true},
 
+	{net: "ip4:icmp", addr: "127.0.0.1"},
+
 	{net: "unixgram", addr: "@gotest3/net", linux: true},
 }
 
@@ -185,6 +187,10 @@ func TestFilePacketConn(t *testing.T) {
 
 	for _, tt := range filePacketConnTests {
 		if skipServerTest(tt.net, "unixgram", tt.addr, tt.ipv6, false, tt.linux) {
+			continue
+		}
+		if os.Getuid() != 0 && tt.net == "ip4:icmp" {
+			t.Log("skipping test; must be root")
 			continue
 		}
 		testFilePacketConnListen(t, tt.net, tt.addr)
