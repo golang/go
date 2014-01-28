@@ -182,6 +182,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	m->mallocing = 0;
 	if(UseSpanType && !(flag & FlagNoScan) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
 		runtime·settype_flush(m);
+	if(raceenabled)
+		runtime·racemalloc(v, size);
 	m->locks--;
 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
@@ -208,8 +210,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	if(!(flag & FlagNoInvokeGC) && mstats.heap_alloc >= mstats.next_gc)
 		runtime·gc(0);
 
-	if(raceenabled)
-		runtime·racemalloc(v, size);
 	return v;
 }
 
