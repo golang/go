@@ -1817,8 +1817,9 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
-	afiles := make(map[*Package]string)
-	sfiles := make(map[*Package][]string)
+	afilesSeen := make(map[*Package]bool)
+	afiles := []string{}
+	sfiles := []string{}
 	ldflags := b.gccArchArgs()
 	cgoldflags := []string{}
 	usesCgo := false
@@ -1826,8 +1827,9 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	for _, a := range allactions {
 		if a.p != nil {
 			if !a.p.Standard {
-				if afiles[a.p] == "" || a.objpkg != a.target {
-					afiles[a.p] = a.target
+				if !afilesSeen[a.p] || a.objpkg != a.target {
+					afilesSeen[a.p] = true
+					afiles = append(afiles, a.target)
 				}
 			}
 			cgoldflags = append(cgoldflags, a.p.CgoLDFLAGS...)
@@ -1841,7 +1843,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 				}
 				for _, f := range stringList(a.p.SwigFiles, a.p.SwigCXXFiles) {
 					soname := a.p.swigSoname(f)
-					sfiles[a.p] = append(sfiles[a.p], filepath.Join(sd, soname))
+					sfiles = append(sfiles, filepath.Join(sd, soname))
 				}
 				usesCgo = true
 			}
@@ -1850,12 +1852,8 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 			}
 		}
 	}
-	for _, afile := range afiles {
-		ldflags = append(ldflags, afile)
-	}
-	for _, sfiles := range sfiles {
-		ldflags = append(ldflags, sfiles...)
-	}
+	ldflags = append(ldflags, afiles...)
+	ldflags = append(ldflags, sfiles...)
 	ldflags = append(ldflags, cgoldflags...)
 	if usesCgo && goos == "linux" {
 		ldflags = append(ldflags, "-Wl,-E")
