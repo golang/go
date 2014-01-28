@@ -129,6 +129,8 @@ func FilePacketConn(f *os.File) (c PacketConn, err error) {
 	switch fd.laddr.(type) {
 	case *UDPAddr:
 		return newUDPConn(fd), nil
+	case *IPAddr:
+		return newIPConn(fd), nil
 	case *UnixAddr:
 		return newUnixConn(fd), nil
 	}
