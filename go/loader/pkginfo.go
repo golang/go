@@ -34,7 +34,7 @@ func (info *PackageInfo) String() string {
 //
 func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
 	if t, ok := info.Types[e]; ok {
-		return t
+		return t.Type
 	}
 	// Defining ast.Idents (id := expr) get only Ident callbacks
 	// but not Expr callbacks.
@@ -49,7 +49,7 @@ func (info *PackageInfo) TypeOf(e ast.Expr) types.Type {
 // Precondition: e belongs to the package's ASTs.
 //
 func (info *PackageInfo) ValueOf(e ast.Expr) exact.Value {
-	return info.Values[e]
+	return info.Types[e].Value
 }
 
 // ObjectOf returns the typechecker object denoted by the specified id.

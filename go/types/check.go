@@ -92,14 +92,11 @@ func (check *checker) delay(f func()) {
 
 func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) {
 	assert(x != nil && typ != nil)
-	if m := check.Types; m != nil {
-		m[x] = typ
-	}
 	if val != nil {
 		assert(isConstType(typ))
-		if m := check.Values; m != nil {
-			m[x] = val
-		}
+	}
+	if m := check.Types; m != nil {
+		m[x] = TypeAndValue{typ, val}
 	}
 }
 
@@ -129,12 +126,14 @@ func (check *checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
 	if m := check.Types; m != nil {
 		for {
-			assert(m[x] != nil) // should have been recorded already
+			tv := m[x]
+			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
-			m[x] = NewTuple(
+			tv.Type = NewTuple(
 				NewVar(pos, check.pkg, "", a[0]),
 				NewVar(pos, check.pkg, "", a[1]),
 			)
+			m[x] = tv
 			// if x is a parenthesized expression (p.X), update p.X
 			p, _ := x.(*ast.ParenExpr)
 			if p == nil {
@@ -248,7 +247,7 @@ func (conf *Config) check(pkgPath string, fset *token.FileSet, files []*ast.File
 	// TODO(gri) Consider doing this before and
 	// after function body checking for smaller
 	// map size and more immediate feedback.
-	if check.Types != nil || check.Values != nil {
+	if check.Types != nil {
 		for x, info := range check.untyped {
 			check.recordTypeAndValue(x, info.typ, info.val)
 		}

@@ -134,7 +134,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 
 	var conf Config
 	objects := make(map[*ast.Ident]Object)
-	types := make(map[ast.Expr]Type)
+	types := make(map[ast.Expr]TypeAndValue)
 	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Objects: objects, Types: types})
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)
@@ -144,7 +144,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	// find called function
 	n := 0
 	var fun ast.Expr
-	for x, _ := range types {
+	for x := range types {
 		if call, _ := x.(*ast.CallExpr); call != nil {
 			fun = call.Fun
 			n++
@@ -158,7 +158,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	// check recorded types for fun and descendents (may be parenthesized)
 	for {
 		// the recorded type for the built-in must match the wanted signature
-		typ := types[fun]
+		typ := types[fun].Type
 		if typ == nil {
 			t.Errorf("%s: no type recorded for %s", src0, ExprString(fun))
 			return

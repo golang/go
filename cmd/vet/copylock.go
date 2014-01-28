@@ -8,9 +8,10 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/go.tools/go/types"
 	"fmt"
 	"go/ast"
+
+	"code.google.com/p/go.tools/go/types"
 )
 
 // checkCopyLocks checks whether a function might
@@ -24,7 +25,7 @@ func (f *File) checkCopyLocks(d *ast.FuncDecl) {
 
 	if d.Recv != nil && len(d.Recv.List) > 0 {
 		expr := d.Recv.List[0].Type
-		if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr]); path != nil {
+		if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
 			f.Warnf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
 		}
 	}
@@ -32,7 +33,7 @@ func (f *File) checkCopyLocks(d *ast.FuncDecl) {
 	if d.Type.Params != nil {
 		for _, field := range d.Type.Params.List {
 			expr := field.Type
-			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr]); path != nil {
+			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
 				f.Warnf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
 			}
 		}
@@ -41,7 +42,7 @@ func (f *File) checkCopyLocks(d *ast.FuncDecl) {
 	if d.Type.Results != nil {
 		for _, field := range d.Type.Results.List {
 			expr := field.Type
-			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr]); path != nil {
+			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
 				f.Warnf(expr.Pos(), "%s returns Lock by value: %v", d.Name.Name, path)
 			}
 		}

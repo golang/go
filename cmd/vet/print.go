@@ -86,7 +86,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 		f.Warn(call.Pos(), "too few arguments in call to", name)
 		return
 	}
-	lit := f.pkg.values[call.Args[formatIndex]]
+	lit := f.pkg.types[call.Args[formatIndex]].Value
 	if lit == nil {
 		if *verbose {
 			f.Warn(call.Pos(), "can't check non-constant format in call to", name)
@@ -380,7 +380,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 	arg := call.Args[argNum]
 	if !f.matchArgType(v.typ, nil, arg) {
 		typeString := ""
-		if typ := f.pkg.types[arg]; typ != nil {
+		if typ := f.pkg.types[arg].Type; typ != nil {
 			typeString = typ.String()
 		}
 		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)

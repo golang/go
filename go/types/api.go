@@ -14,11 +14,11 @@
 //
 // Constant folding computes the exact constant value (exact.Value) for
 // every expression (ast.Expr) that is a compile-time constant.
-// Use Info.Values for the results of constant folding.
+// Use Info.Types[expr].Value for the results of constant folding.
 //
 // Type inference computes the type (Type) of every expression (ast.Expr)
 // and checks for compliance with the language specification.
-// Use Info.Types for the results of type evaluation.
+// Use Info.Types[expr].Type for the results of type inference.
 //
 package types
 
@@ -115,22 +115,26 @@ type Config struct {
 // in a client of go/types will initialize DefaultImport to gcimporter.Import.
 var DefaultImport Importer
 
+type TypeAndValue struct {
+	Type  Type
+	Value exact.Value
+}
+
 // Info holds result type information for a type-checked package.
 // Only the information for which a map is provided is collected.
 // If the package has type errors, the collected information may
 // be incomplete.
 type Info struct {
-	// Types maps expressions to their types. Identifiers on the
-	// lhs of declarations are collected in Objects, not Types.
+	// Types maps expressions to their types, and for constant
+	// expressions, their values.
+	// Identifiers on the lhs of declarations are collected in
+	// Objects, not Types.
 	//
 	// For an expression denoting a predeclared built-in function
 	// the recorded signature is call-site specific. If the call
 	// result is not a constant, the recorded type is an argument-
 	// specific signature. Otherwise, the recorded type is invalid.
-	Types map[ast.Expr]Type
-
-	// Values maps constant expressions to their values.
-	Values map[ast.Expr]exact.Value
+	Types map[ast.Expr]TypeAndValue
 
 	// Objects maps identifiers to their corresponding objects (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).

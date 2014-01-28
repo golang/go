@@ -10,15 +10,13 @@ import (
 	"go/ast"
 	"go/token"
 
-	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 )
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.idents = make(map[*ast.Ident]types.Object)
 	pkg.spans = make(map[types.Object]Span)
-	pkg.types = make(map[ast.Expr]types.Type)
-	pkg.values = make(map[ast.Expr]exact.Value)
+	pkg.types = make(map[ast.Expr]types.TypeAndValue)
 	// By providing a Config with our own error function, it will continue
 	// past the first error. There is no need for that function to do anything.
 	config := types.Config{
@@ -26,7 +24,6 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	}
 	info := &types.Info{
 		Types:   pkg.types,
-		Values:  pkg.values,
 		Objects: pkg.idents,
 	}
 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
@@ -42,7 +39,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 // If it is not (probably a struct), it returns a printable form of the type.
 func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
 	// Check that the CompositeLit's type is a slice or array (which needs no field keys), if possible.
-	typ := pkg.types[c]
+	typ := pkg.types[c].Type
 	// If it's a named type, pull out the underlying type. If it's not, the Underlying
 	// method returns the type itself.
 	actual := typ
@@ -91,7 +88,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 	}
 	if typ == nil {
 		// external call
-		typ = f.pkg.types[arg]
+		typ = f.pkg.types[arg].Type
 		if typ == nil {
 			return true // probably a type check problem
 		}
@@ -250,7 +247,7 @@ func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Ex
 // being called has.
 func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 	// Check the type of the function or method declaration
-	typ := f.pkg.types[call.Fun]
+	typ := f.pkg.types[call.Fun].Type
 	if typ == nil {
 		return 0
 	}
@@ -266,10 +263,10 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 //	func Error() string
 // where "string" is the universe's string type. We know the method is called "Error".
 func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
-	typ := f.pkg.types[call]
+	typ := f.pkg.types[call].Type
 	if typ != nil {
 		// We know it's called "Error", so just check the function signature.
-		return types.Identical(f.pkg.types[call.Fun], stringerMethodType)
+		return types.Identical(f.pkg.types[call.Fun].Type, stringerMethodType)
 	}
 	// Without types, we can still check by hand.
 	// Is it a selector expression? Otherwise it's a function call, not a method call.
@@ -282,7 +279,7 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 		return false
 	}
 	// Check the type of the method declaration
-	typ = f.pkg.types[sel]
+	typ = f.pkg.types[sel].Type
 	if typ == nil {
 		return false
 	}

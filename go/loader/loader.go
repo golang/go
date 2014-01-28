@@ -107,7 +107,6 @@ import (
 	"strings"
 
 	"code.google.com/p/go.tools/astutil"
-	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
@@ -620,8 +619,7 @@ func (imp *importer) createPackage(path string, files ...*ast.File) *PackageInfo
 	info := &PackageInfo{
 		Files: files,
 		Info: types.Info{
-			Types:      make(map[ast.Expr]types.Type),
-			Values:     make(map[ast.Expr]exact.Value),
+			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Objects:    make(map[*ast.Ident]types.Object),
 			Implicits:  make(map[ast.Node]types.Object),
 			Scopes:     make(map[ast.Node]*types.Scope),

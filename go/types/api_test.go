@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/go/exact"
 	_ "code.google.com/p/go.tools/go/gcimporter"
 	. "code.google.com/p/go.tools/go/types"
 )
@@ -94,14 +93,13 @@ func TestValuesInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{
-			Types:  make(map[ast.Expr]Type),
-			Values: make(map[ast.Expr]exact.Value),
+			Types: make(map[ast.Expr]TypeAndValue),
 		}
 		name := mustTypecheck(t, "ValuesInfo", test.src, &info)
 
 		// look for constant expression
 		var expr ast.Expr
-		for e := range info.Values {
+		for e := range info.Types {
 			if ExprString(e) == test.expr {
 				expr = e
 				break
@@ -111,15 +109,16 @@ func TestValuesInfo(t *testing.T) {
 			t.Errorf("package %s: no expression found for %s", name, test.expr)
 			continue
 		}
+		tv := info.Types[expr]
 
 		// check that type is correct
-		if got := info.Types[expr].String(); got != test.typ {
+		if got := tv.Type.String(); got != test.typ {
 			t.Errorf("package %s: got type %s; want %s", name, got, test.typ)
 			continue
 		}
 
 		// check that value is correct
-		if got := info.Values[expr].String(); got != test.val {
+		if got := tv.Value.String(); got != test.val {
 			t.Errorf("package %s: got value %s; want %s", name, got, test.val)
 		}
 	}
@@ -206,14 +205,14 @@ func TestTypesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		info := Info{Types: make(map[ast.Expr]Type)}
+		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
 		name := mustTypecheck(t, "TypesInfo", test.src, &info)
 
 		// look for expression type
 		var typ Type
-		for e, t := range info.Types {
+		for e, tv := range info.Types {
 			if ExprString(e) == test.expr {
-				typ = t
+				typ = tv.Type
 				break
 			}
 		}

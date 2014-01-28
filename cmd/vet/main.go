@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"code.google.com/p/go.tools/go/exact"
 	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 )
@@ -203,8 +202,7 @@ func doPackageDir(directory string) {
 type Package struct {
 	path     string
 	idents   map[*ast.Ident]types.Object
-	types    map[ast.Expr]types.Type
-	values   map[ast.Expr]exact.Value
+	types    map[ast.Expr]types.TypeAndValue
 	spans    map[types.Object]Span
 	files    []*File
 	typesPkg *types.Package
@@ -459,7 +457,7 @@ func (f *File) prepStringerReceiver(d *ast.FuncDecl) {
 func (f *File) isStringer(d *ast.FuncDecl) bool {
 	return d.Recv != nil && d.Name.Name == "String" &&
 		len(d.Type.Params.List) == 0 && len(d.Type.Results.List) == 1 &&
-		f.pkg.types[d.Type.Results.List[0].Type] == types.Typ[types.String]
+		f.pkg.types[d.Type.Results.List[0].Type].Type == types.Typ[types.String]
 }
 
 // walkGenDecl walks a general declaration.

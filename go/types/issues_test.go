@@ -48,13 +48,13 @@ var (
 	}
 
 	var conf Config
-	types := make(map[ast.Expr]Type)
+	types := make(map[ast.Expr]TypeAndValue)
 	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for x, typ := range types {
+	for x, tv := range types {
 		var want Type
 		switch x := x.(type) {
 		case *ast.BasicLit:
@@ -75,8 +75,8 @@ var (
 				want = Typ[UntypedNil]
 			}
 		}
-		if want != nil && !Identical(typ, want) {
-			t.Errorf("got %s; want %s", typ, want)
+		if want != nil && !Identical(tv.Type, want) {
+			t.Errorf("got %s; want %s", tv.Type, want)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func f() int {
 	}
 
 	var conf Config
-	types := make(map[ast.Expr]Type)
+	types := make(map[ast.Expr]TypeAndValue)
 	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
 	if err != nil {
 		t.Fatal(err)
@@ -104,10 +104,10 @@ func f() int {
 
 	want := Typ[Int]
 	n := 0
-	for x, got := range types {
+	for x, tv := range types {
 		if _, ok := x.(*ast.CallExpr); ok {
-			if got != want {
-				t.Errorf("%s: got %s; want %s", fset.Position(x.Pos()), got, want)
+			if tv.Type != want {
+				t.Errorf("%s: got %s; want %s", fset.Position(x.Pos()), tv.Type, want)
 			}
 			n++
 		}

@@ -53,8 +53,7 @@ constant lhs must be representable as an integer.
 
 When an expression gets its final type, either on the way out from rawExpr,
 on the way down in updateExprType, or at the end of the type checker run,
-the type (and constant value, if any) is recorded via Info.Types and Values,
-if present.
+the type (and constant value, if any) is recorded via Info.Types, if present.
 */
 
 type opPredicates map[token.Token]func(Type) bool
