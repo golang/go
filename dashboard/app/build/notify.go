@@ -30,11 +30,13 @@ const (
 	gobotBase  = "http://research.swtch.com/gobot_codereview"
 )
 
-// failIgnore is a set of builders that we don't email about because
-// they're too flaky.
-var failIgnore = map[string]bool{
-	"netbsd-386-bsiegert":   true,
+// ignoreFailure is a set of builders that we don't email about because
+// they are not yet production-ready.
+var ignoreFailure = map[string]bool{
+	"dragonfly-amd64":       true,
 	"netbsd-amd64-bsiegert": true,
+	"plan-386-cnielsen":     true,
+	"solaris-amd64-smartos": true,
 }
 
 // notifyOnFailure checks whether the supplied Commit or the subsequent
@@ -46,7 +48,7 @@ var failIgnore = map[string]bool{
 // This must be run in a datastore transaction, and the provided *Commit must
 // have been retrieved from the datastore within that transaction.
 func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
-	if failIgnore[builder] {
+	if ignoreFailure[builder] {
 		return nil
 	}
 
