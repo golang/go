@@ -34,6 +34,8 @@ func (check *checker) sprintf(format string, args ...interface{}) string {
 			args[i] = check.fset.Position(a).String()
 		case ast.Expr:
 			args[i] = ExprString(a)
+		case Type:
+			args[i] = TypeString(check.pkg, a)
 		}
 	}
 	return fmt.Sprintf(format, args...)
