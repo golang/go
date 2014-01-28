@@ -76,11 +76,12 @@
         <a href="{{.RelPath}}">{{.Name}}</a>
       {{end}}
     </nav>
+    {{with $.Package.Name}}<h2>{{.}}</h2>{{end}}
 
   {{if $.Commits}}
 
     <table class="build">
-      <colgroup class="col-hash"></colgroup>
+      <colgroup class="col-hash" {{if $.Package.Path}}span="2"{{end}}></colgroup>
     {{range $.Builders | builderSpans}}
       <colgroup class="col-result" span="{{.N}}"></colgroup>
     {{end}}
@@ -91,7 +92,11 @@
         <!-- extra row to make alternating colors use dark for first result -->
       </tr>
       <tr>
+    {{if $.Package.Path}}
+        <th colspan="2">revision</th>
+    {{else}}
         <th>&nbsp;</th>
+    {{end}}
     {{range $.Builders | builderSpans}}
         <th colspan="{{.N}}">{{.OS}}</th>
     {{end}}
@@ -100,38 +105,58 @@
         <th></th>
       </tr>
       <tr>
+    {{if $.Package.Path}}
+        <th class="result arch">repo</th>
+        <th class="result arch">{{$.Dashboard.Name}}</th>
+    {{else}}
         <th>&nbsp;</th>
+    {{end}}
     {{range $.Builders}}
         <th class="result arch" title="{{.}}">{{builderSubheading .}}</th>
     {{end}}
       </tr>
     {{range $c := $.Commits}}
-      <tr class="commit">
-        <td class="hash"><a href="{{repoURL $.Dashboard.Name .Hash ""}}">{{shortHash .Hash}}</a></td>
-        {{range $.Builders}}
-          <td class="result">
-            {{with $c.Result . ""}}
-              {{if .OK}}
-                <span class="ok">ok</span>
-              {{else}}
-                <a href="{{$.Dashboard.RelPath}}log/{{.LogHash}}" class="fail">fail</a>
-              {{end}}
-            {{else}}
-              &nbsp;
-            {{end}}
-          </td>
+      {{range $i, $h := $c.ResultGoHashes}}
+        <tr class="commit">
+        {{if $i}}
+          <td>&nbsp;</td>
+        {{else}}
+          <td class="hash"><a href="{{repoURL $.Dashboard.Name $c.Hash $.Package.Path}}">{{shortHash $c.Hash}}</a></td>
         {{end}}
-        <td class="user" title="{{.User}}">{{shortUser .User}}</td>
-        <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
-        <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
-      </tr>
+        {{if $h}} 
+          <td class="hash"><a href="{{repoURL $.Dashboard.Name $h ""}}">{{shortHash $h}}</a></td>
+        {{end}}
+          {{range $.Builders}}
+            <td class="result">
+              {{with $c.Result . $h}}
+                {{if .OK}}
+                  <span class="ok">ok</span>
+                {{else}}
+                  <a href="{{$.Dashboard.RelPath}}log/{{.LogHash}}" class="fail">fail</a>
+                {{end}}
+              {{else}}
+                &nbsp;
+              {{end}}
+            </td>
+          {{end}}
+        {{if $i}}
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        {{else}}
+          <td class="user" title="{{$c.User}}">{{shortUser $c.User}}</td>
+          <td class="time">{{$c.Time.Format "Mon 02 Jan 15:04"}}</td>
+          <td class="desc" title="{{$c.Desc}}">{{shortDesc $c.Desc}}</td>
+        {{end}}
+        </tr>
+      {{end}}
     {{end}}
     </table>
 
     {{with $.Pagination}}
     <div class="paginate">
-      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
-      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
+      <a {{if .HasPrev}}href="?{{with $.Package.Path}}repo={{.}}&{{end}}page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
+      <a {{if .Next}}href="?{{with $.Package.Path}}repo={{.}}&{{end}}page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
       <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
     </div>
     {{end}}
@@ -182,7 +207,7 @@
       </tr>
     {{range $pkg := .Packages}}
       <tr class="commit">
-        <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
+        <td><a title="{{.Package.Path}}" href="?repo={{.Package.Path}}">{{.Package.Name}}</a></td>
         <td class="hash">
           {{$h := $pkg.Commit.Hash}}
           <a href="{{repoURL $.Dashboard.Name $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>

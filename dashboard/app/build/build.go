@@ -162,16 +162,49 @@ func (c *Commit) Result(builder, goHash string) *Result {
 	return nil
 }
 
-// Results returns the build Results for this Commit for the given goHash.
-func (c *Commit) Results(goHash string) (results []*Result) {
+// Results returns the build Results for this Commit.
+func (c *Commit) Results() (results []*Result) {
 	for _, r := range c.ResultData {
 		p := strings.SplitN(r, "|", 4)
-		if len(p) != 4 || p[3] != goHash {
+		if len(p) != 4 {
 			continue
 		}
 		results = append(results, partsToHash(c, p))
 	}
 	return
+}
+
+func (c *Commit) ResultGoHashes() []string {
+	var hashes []string
+	for _, r := range c.ResultData {
+		p := strings.SplitN(r, "|", 4)
+		if len(p) != 4 {
+			continue
+		}
+		// Append only new results (use linear scan to preserve order).
+		if !contains(hashes, p[3]) {
+			hashes = append(hashes, p[3])
+		}
+	}
+	// Return results in reverse order (newest first).
+	reverse(hashes)
+	return hashes
+}
+
+func contains(t []string, s string) bool {
+	for _, s2 := range t {
+		if s2 == s {
+			return true
+		}
+	}
+	return false
+}
+
+func reverse(s []string) {
+	for i := 0; i < len(s)/2; i++ {
+		j := len(s) - i - 1
+		s[i], s[j] = s[j], s[i]
+	}
 }
 
 // partsToHash converts a Commit and ResultData substrings to a Result.

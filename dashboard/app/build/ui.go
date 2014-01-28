@@ -41,9 +41,11 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if page < 0 {
 		page = 0
 	}
+	repo := r.FormValue("repo")
+	useCache := page == 0 && repo == ""
 
 	// Used cached version of front page, if available.
-	if page == 0 {
+	if useCache {
 		var b []byte
 		if cache.Get(r, now, key, &b) {
 			w.Write(b)
@@ -51,16 +53,25 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	commits, err := dashCommits(c, page)
+	pkg := &Package{} // empty package is the main repository
+	if repo != "" {
+		var err error
+		pkg, err = GetPackage(c, repo)
+		if err != nil {
+			logErr(w, r, err)
+			return
+		}
+	}
+	commits, err := dashCommits(c, pkg, page)
 	if err != nil {
 		logErr(w, r, err)
 		return
 	}
-	builders := commitBuilders(commits, "")
+	builders := commitBuilders(commits)
 
 	var tipState *TagState
-	if page == 0 {
-		// only show sub-repo state on first page
+	if pkg.Kind == "" && page == 0 {
+		// only show sub-repo state on first page of normal repo view
 		tipState, err = TagStateByName(c, "tip")
 		if err != nil {
 			logErr(w, r, err)
@@ -76,7 +87,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		p.Prev = page - 1
 		p.HasPrev = true
 	}
-	data := &uiTemplateData{d, commits, builders, tipState, p}
+	data := &uiTemplateData{d, pkg, commits, builders, tipState, p}
 
 	var buf bytes.Buffer
 	if err := uiTemplate.Execute(&buf, data); err != nil {
@@ -85,7 +96,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cache the front page.
-	if page == 0 {
+	if useCache {
 		cache.Set(r, now, key, buf.Bytes())
 	}
 
@@ -99,9 +110,9 @@ type Pagination struct {
 
 // dashCommits gets a slice of the latest Commits to the current dashboard.
 // If page > 0 it paginates by commitsPerPage.
-func dashCommits(c appengine.Context, page int) ([]*Commit, error) {
+func dashCommits(c appengine.Context, pkg *Package, page int) ([]*Commit, error) {
 	q := datastore.NewQuery("Commit").
-		Ancestor((&Package{}).Key(c)).
+		Ancestor(pkg.Key(c)).
 		Order("-Num").
 		Limit(commitsPerPage).
 		Offset(page * commitsPerPage)
@@ -112,10 +123,10 @@ func dashCommits(c appengine.Context, page int) ([]*Commit, error) {
 
 // commitBuilders returns the names of the builders that provided
 // Results for the provided commits.
-func commitBuilders(commits []*Commit, goHash string) []string {
+func commitBuilders(commits []*Commit) []string {
 	builders := make(map[string]bool)
 	for _, commit := range commits {
-		for _, r := range commit.Results(goHash) {
+		for _, r := range commit.Results() {
 			builders[r.Builder] = true
 		}
 	}
@@ -211,6 +222,7 @@ func TagStateByName(c appengine.Context, name string) (*TagState, error) {
 
 type uiTemplateData struct {
 	Dashboard  *Dashboard
+	Package    *Package
 	Commits    []*Commit
 	Builders   []string
 	TipState   *TagState
