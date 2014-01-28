@@ -245,30 +245,12 @@ func (check *checker) typInternal(e ast.Expr, def *Named, cycleOk bool) Type {
 
 	case *ast.ArrayType:
 		if e.Len != nil {
-			var x operand
-			check.expr(&x, e.Len)
-			if x.mode != constant {
-				if x.mode != invalid {
-					check.errorf(x.pos(), "array length %s must be constant", &x)
-				}
-				break
-			}
-			if !x.isInteger() {
-				check.errorf(x.pos(), "array length %s must be integer", &x)
-				break
-			}
-			n, ok := exact.Int64Val(x.val)
-			if !ok || n < 0 {
-				check.errorf(x.pos(), "invalid array length %s", &x)
-				break
-			}
-
 			typ := new(Array)
 			if def != nil {
 				def.underlying = typ
 			}
 
-			typ.len = n
+			typ.len = check.arrayLength(e.Len)
 			typ.elem = check.typ(e.Elt, nil, cycleOk)
 			return typ
 
@@ -381,6 +363,27 @@ func (check *checker) typOrNil(e ast.Expr) Type {
 		check.errorf(x.pos(), "%s is not a type", &x)
 	}
 	return Typ[Invalid]
+}
+
+func (check *checker) arrayLength(e ast.Expr) int64 {
+	var x operand
+	check.expr(&x, e)
+	if x.mode != constant {
+		if x.mode != invalid {
+			check.errorf(x.pos(), "array length %s must be constant", &x)
+		}
+		return 0
+	}
+	if !x.isInteger() {
+		check.errorf(x.pos(), "array length %s must be integer", &x)
+		return 0
+	}
+	n, ok := exact.Int64Val(x.val)
+	if !ok || n < 0 {
+		check.errorf(x.pos(), "invalid array length %s", &x)
+		return 0
+	}
+	return n
 }
 
 func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
