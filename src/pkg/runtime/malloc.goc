@@ -40,7 +40,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	intgo rate;
 	MCache *c;
 	MCacheList *l;
-	MLink *v;
+	MLink *v, *next;
 	byte *tiny;
 
 	if(size == 0) {
@@ -120,7 +120,10 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 			if(l->list == nil)
 				runtime·MCache_Refill(c, TinySizeClass);
 			v = l->list;
-			l->list = v->next;
+			next = v->next;
+			if(next != nil)  // prefetching nil leads to a DTLB miss
+				PREFETCH(next);
+			l->list = next;
 			l->nlist--;
 			((uint64*)v)[0] = 0;
 			((uint64*)v)[1] = 0;
@@ -144,7 +147,10 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		if(l->list == nil)
 			runtime·MCache_Refill(c, sizeclass);
 		v = l->list;
-		l->list = v->next;
+		next = v->next;
+		if(next != nil)  // prefetching nil leads to a DTLB miss
+			PREFETCH(next);
+		l->list = next;
 		l->nlist--;
 		if(!(flag & FlagNoZero)) {
 			v->next = nil;
