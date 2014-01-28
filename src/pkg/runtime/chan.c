@@ -104,7 +104,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	if((sizeof(*c)%MAXALIGN) != 0 || elem->align > MAXALIGN)
 		runtime·throw("makechan: bad alignment");
 
-	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > MaxMem / elem->size))
+	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > (MaxMem - sizeof(*c)) / elem->size))
 		runtime·panicstring("makechan: size out of range");
 
 	// allocate memory in one call
