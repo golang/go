@@ -538,6 +538,7 @@ newcfg(Prog *firstp)
 			switch(bb->last->as) {
 			case AJMP:
 			case ARET:
+			case AUNDEF:
 				break;
 			default:
 				addedge(bb, bb->last->link->opt);
