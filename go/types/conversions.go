@@ -31,7 +31,7 @@ func (check *checker) conversion(x *operand, T Type) {
 			x.val = exact.MakeString(string(codepoint))
 			ok = true
 		}
-	case x.isConvertible(check.conf, T):
+	case x.convertibleTo(check.conf, T):
 		// non-constant conversion
 		x.mode = value
 		ok = true
@@ -63,7 +63,7 @@ func (check *checker) conversion(x *operand, T Type) {
 	check.updateExprType(x.expr, final, true)
 }
 
-func (x *operand) isConvertible(conf *Config, T Type) bool {
+func (x *operand) convertibleTo(conf *Config, T Type) bool {
 	// "x is assignable to T"
 	if x.assignableTo(conf, T) {
 		return true
