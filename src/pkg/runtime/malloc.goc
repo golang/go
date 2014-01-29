@@ -427,7 +427,6 @@ runtime·mallocinit(void)
 	byte *p;
 	uintptr arena_size, bitmap_size, spans_size;
 	extern byte end[];
-	byte *want;
 	uintptr limit;
 	uint64 i;
 
@@ -486,7 +485,7 @@ runtime·mallocinit(void)
 		spans_size = ROUND(spans_size, PageSize);
 		for(i = 0; i <= 0x7f; i++) {
 			p = (void*)(i<<40 | 0x00c0ULL<<32);
-			p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size);
+			p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size + PageSize);
 			if(p != nil)
 				break;
 		}
@@ -528,16 +527,16 @@ runtime·mallocinit(void)
 		// So adjust it upward a little bit ourselves: 1/4 MB to get
 		// away from the running binary image and then round up
 		// to a MB boundary.
-		want = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
-		p = runtime·SysReserve(want, bitmap_size + spans_size + arena_size);
+		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
+		p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size + PageSize);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
-		if((uintptr)p & (((uintptr)1<<PageShift)-1))
-			runtime·printf("runtime: SysReserve returned unaligned address %p; asked for %p", p,
-				bitmap_size+spans_size+arena_size);
 	}
-	if((uintptr)p & (((uintptr)1<<PageShift)-1))
-		runtime·throw("runtime: SysReserve returned unaligned address");
+
+	// PageSize can be larger than OS definition of page size,
+	// so SysReserve can give us a PageSize-unaligned pointer.
+	// To overcome this we ask for PageSize more and round up the pointer.
+	p = (byte*)ROUND((uintptr)p, PageSize);
 
 	runtime·mheap.spans = (MSpan**)p;
 	runtime·mheap.bitmap = p + spans_size;
