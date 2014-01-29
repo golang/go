@@ -4,15 +4,14 @@
 
 // The wire protocol for HTTP's "chunked" Transfer-Encoding.
 
-// This code is a duplicate of ../chunked.go with these edits:
-//	s/newChunked/NewChunked/g
-//	s/package http/package httputil/
+// This code is duplicated in net/http and net/http/httputil.
 // Please make any changes in both files.
 
 package httputil
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -22,13 +21,13 @@ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
 
 var ErrLineTooLong = errors.New("header line too long")
 
-// NewChunkedReader returns a new chunkedReader that translates the data read from r
+// newChunkedReader returns a new chunkedReader that translates the data read from r
 // out of HTTP "chunked" format before returning it.
 // The chunkedReader returns io.EOF when the final 0-length chunk is read.
 //
-// NewChunkedReader is not needed by normal applications. The http package
+// newChunkedReader is not needed by normal applications. The http package
 // automatically decodes chunking when reading response bodies.
-func NewChunkedReader(r io.Reader) io.Reader {
+func newChunkedReader(r io.Reader) io.Reader {
 	br, ok := r.(*bufio.Reader)
 	if !ok {
 		br = bufio.NewReader(r)
@@ -59,26 +58,45 @@ func (cr *chunkedReader) beginChunk() {
 	}
 }
 
+func (cr *chunkedReader) chunkHeaderAvailable() bool {
+	n := cr.r.Buffered()
+	if n > 0 {
+		peek, _ := cr.r.Peek(n)
+		return bytes.IndexByte(peek, '\n') >= 0
+	}
+	return false
+}
+
 func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
-	if cr.err != nil {
-		return 0, cr.err
-	}
-	if cr.n == 0 {
-		cr.beginChunk()
-		if cr.err != nil {
-			return 0, cr.err
+	for cr.err == nil {
+		if cr.n == 0 {
+			if n > 0 && !cr.chunkHeaderAvailable() {
+				// We've read enough. Don't potentially block
+				// reading a new chunk header.
+				break
+			}
+			cr.beginChunk()
+			continue
 		}
-	}
-	if uint64(len(b)) > cr.n {
-		b = b[0:cr.n]
-	}
-	n, cr.err = cr.r.Read(b)
-	cr.n -= uint64(n)
-	if cr.n == 0 && cr.err == nil {
-		// end of chunk (CRLF)
-		if _, cr.err = io.ReadFull(cr.r, cr.buf[:]); cr.err == nil {
-			if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
-				cr.err = errors.New("malformed chunked encoding")
+		if len(b) == 0 {
+			break
+		}
+		rbuf := b
+		if uint64(len(rbuf)) > cr.n {
+			rbuf = rbuf[:cr.n]
+		}
+		var n0 int
+		n0, cr.err = cr.r.Read(rbuf)
+		n += n0
+		b = b[n0:]
+		cr.n -= uint64(n0)
+		// If we're at the end of a chunk, read the next two
+		// bytes to verify they are "\r\n".
+		if cr.n == 0 && cr.err == nil {
+			if _, cr.err = io.ReadFull(cr.r, cr.buf[:2]); cr.err == nil {
+				if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
+					cr.err = errors.New("malformed chunked encoding")
+				}
 			}
 		}
 	}
@@ -117,16 +135,16 @@ func isASCIISpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
-// NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
+// newChunkedWriter returns a new chunkedWriter that translates writes into HTTP
 // "chunked" format before writing them to w. Closing the returned chunkedWriter
 // sends the final 0-length chunk that marks the end of the stream.
 //
-// NewChunkedWriter is not needed by normal applications. The http
+// newChunkedWriter is not needed by normal applications. The http
 // package adds chunking automatically if handlers don't set a
-// Content-Length header. Using NewChunkedWriter inside a handler
+// Content-Length header. Using newChunkedWriter inside a handler
 // would result in double chunking or chunking with a Content-Length
 // length, both of which are wrong.
-func NewChunkedWriter(w io.Writer) io.WriteCloser {
+func newChunkedWriter(w io.Writer) io.WriteCloser {
 	return &chunkedWriter{w}
 }
 
