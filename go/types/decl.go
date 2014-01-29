@@ -151,6 +151,26 @@ func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	check.initVars(lhs, []ast.Expr{init}, token.NoPos)
 }
 
+// underlying returns the underlying type of typ; possibly by following
+// forward chains of named types. Such chains only exist while names types
+// are incomplete.
+func underlying(typ Type) Type {
+	for {
+		n, _ := typ.(*Named)
+		if n == nil {
+			break
+		}
+		typ = n.underlying
+	}
+	return typ
+}
+
+func (n *Named) setUnderlying(typ Type) {
+	if n != nil {
+		n.underlying = typ
+	}
+}
+
 func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk bool) {
 	assert(obj.Type() == nil)
 
@@ -158,17 +178,14 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 	assert(check.iota == nil)
 
 	named := &Named{obj: obj}
+	def.setUnderlying(named)
 	obj.typ = named // make sure recursive type declarations terminate
 
-	// If this type (named) defines the type of another (def) type declaration,
-	// set def's underlying type to this type so that we can resolve the true
-	// underlying of def later.
-	if def != nil {
-		def.underlying = named
-	}
+	// determine underlying type of named
+	check.typ(typ, named, cycleOk)
 
-	// Typecheck typ - it may be a named type that is not yet complete.
-	// For instance, consider:
+	// The underlying type of named may be itself a named type that is
+	// incomplete:
 	//
 	//	type (
 	//		A B
@@ -176,21 +193,11 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 	//		C A
 	//	)
 	//
-	// When we declare object C, typ is the identifier A which is incomplete.
-	u := check.typ(typ, named, cycleOk)
-
-	// Determine the unnamed underlying type.
-	// In the above example, the underlying type of A was (temporarily) set
-	// to B whose underlying type was set to *C. Such "forward chains" always
-	// end in an unnamed type (cycles are terminated with an invalid type).
-	for {
-		n, _ := u.(*Named)
-		if n == nil {
-			break
-		}
-		u = n.underlying
-	}
-	named.underlying = u
+	// The type of C is the (named) type of A which is incomplete,
+	// and which has as its underlying type the named type B.
+	// Determine the (final, unnamed) underlying type by resolving
+	// any forward chain (they always end in an unnamed type).
+	named.underlying = underlying(named.underlying)
 
 	// the underlying type has been determined
 	named.complete = true
@@ -257,14 +264,14 @@ func (check *checker) funcDecl(obj *Func, info *declInfo) {
 	// func declarations cannot use iota
 	assert(check.iota == nil)
 
-	obj.typ = Typ[Invalid] // guard against cycles
+	sig := new(Signature)
+	obj.typ = sig // guard against cycles
 	fdecl := info.fdecl
-	sig := check.funcType(fdecl.Recv, fdecl.Type, nil)
+	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 		check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
 		// ok to continue
 	}
-	obj.typ = sig
 
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)
