@@ -53,7 +53,9 @@ func TestConnAndListener(t *testing.T) {
 				os.Remove(addr)
 			}
 		}(ln, tt.net, addr)
-		ln.Addr()
+		if ln.Addr().Network() != tt.net {
+			t.Fatalf("got %v; expected %v", ln.Addr().Network(), tt.net)
+		}
 
 		done := make(chan int)
 		go transponder(t, ln, done)
@@ -63,8 +65,9 @@ func TestConnAndListener(t *testing.T) {
 			t.Fatalf("Dial failed: %v", err)
 		}
 		defer c.Close()
-		c.LocalAddr()
-		c.RemoteAddr()
+		if c.LocalAddr().Network() != tt.net || c.LocalAddr().Network() != tt.net {
+			t.Fatalf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), tt.net, tt.net)
+		}
 		c.SetDeadline(time.Now().Add(someTimeout))
 		c.SetReadDeadline(time.Now().Add(someTimeout))
 		c.SetWriteDeadline(time.Now().Add(someTimeout))
@@ -96,8 +99,11 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
 		return
 	}
 	defer c.Close()
-	c.LocalAddr()
-	c.RemoteAddr()
+	network := ln.Addr().Network()
+	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
+		t.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+		return
+	}
 	c.SetDeadline(time.Now().Add(someTimeout))
 	c.SetReadDeadline(time.Now().Add(someTimeout))
 	c.SetWriteDeadline(time.Now().Add(someTimeout))
