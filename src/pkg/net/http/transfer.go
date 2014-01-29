@@ -559,6 +559,17 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 		}
 	}
 
+	// If we can return an EOF here along with the read data, do
+	// so. This is optional per the io.Reader contract, but doing
+	// so helps the HTTP transport code recycle its connection
+	// earlier (since it will see this EOF itself), even if the
+	// client doesn't do future reads or Close.
+	if err == nil && n > 0 {
+		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N == 0 {
+			err = io.EOF
+		}
+	}
+
 	return n, err
 }
 
