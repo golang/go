@@ -277,40 +277,49 @@ func TestTransportReadToEndReusesConn(t *testing.T) {
 	defer afterTest(t)
 	const msg = "foobar"
 
-	addrSeen := make(map[string]int)
+	var addrSeen map[string]int
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		addrSeen[r.RemoteAddr]++
-		w.Header().Set("Content-Type", strconv.Itoa(len(msg)))
-		w.WriteHeader(200)
+		if r.URL.Path == "/chunked/" {
+			w.WriteHeader(200)
+			w.(http.Flusher).Flush()
+		} else {
+			w.Header().Set("Content-Type", strconv.Itoa(len(msg)))
+			w.WriteHeader(200)
+		}
 		w.Write([]byte(msg))
 	}))
 	defer ts.Close()
 
 	buf := make([]byte, len(msg))
 
-	for i := 0; i < 3; i++ {
-		res, err := http.Get(ts.URL)
-		if err != nil {
-			t.Errorf("Get: %v", err)
-			continue
-		}
-		// We want to close this body eventually (before the
-		// defer afterTest at top runs), but not before the
-		// len(addrSeen) check at the bottom of this test,
-		// since Closing this early in the loop would risk
-		// making connections be re-used for the wrong reason.
-		defer res.Body.Close()
+	for pi, path := range []string{"/content-length/", "/chunked/"} {
+		wantLen := []int{len(msg), -1}[pi]
+		addrSeen = make(map[string]int)
+		for i := 0; i < 3; i++ {
+			res, err := http.Get(ts.URL + path)
+			if err != nil {
+				t.Errorf("Get %s: %v", path, err)
+				continue
+			}
+			// We want to close this body eventually (before the
+			// defer afterTest at top runs), but not before the
+			// len(addrSeen) check at the bottom of this test,
+			// since Closing this early in the loop would risk
+			// making connections be re-used for the wrong reason.
+			defer res.Body.Close()
 
-		if res.ContentLength != int64(len(msg)) {
-			t.Errorf("res.ContentLength = %d; want %d", res.ContentLength, len(msg))
+			if res.ContentLength != int64(wantLen) {
+				t.Errorf("%s res.ContentLength = %d; want %d", path, res.ContentLength, wantLen)
+			}
+			n, err := res.Body.Read(buf)
+			if n != len(msg) || err != io.EOF {
+				t.Errorf("%s Read = %v, %v; want %d, EOF", path, n, err, len(msg))
+			}
 		}
-		n, err := res.Body.Read(buf)
-		if n != len(msg) || err != io.EOF {
-			t.Errorf("Read = %v, %v; want 6, EOF", n, err)
+		if len(addrSeen) != 1 {
+			t.Errorf("for %s, server saw %d distinct client addresses; want 1", path, len(addrSeen))
 		}
-	}
-	if len(addrSeen) != 1 {
-		t.Errorf("server saw %d distinct client addresses; want 1", len(addrSeen))
 	}
 }
 

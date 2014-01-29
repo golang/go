@@ -4,13 +4,14 @@
 
 // The wire protocol for HTTP's "chunked" Transfer-Encoding.
 
-// This code is duplicated in httputil/chunked.go.
+// This code is duplicated in net/http and net/http/httputil.
 // Please make any changes in both files.
 
 package http
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -57,26 +58,45 @@ func (cr *chunkedReader) beginChunk() {
 	}
 }
 
+func (cr *chunkedReader) chunkHeaderAvailable() bool {
+	n := cr.r.Buffered()
+	if n > 0 {
+		peek, _ := cr.r.Peek(n)
+		return bytes.IndexByte(peek, '\n') >= 0
+	}
+	return false
+}
+
 func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
-	if cr.err != nil {
-		return 0, cr.err
-	}
-	if cr.n == 0 {
-		cr.beginChunk()
-		if cr.err != nil {
-			return 0, cr.err
+	for cr.err == nil {
+		if cr.n == 0 {
+			if n > 0 && !cr.chunkHeaderAvailable() {
+				// We've read enough. Don't potentially block
+				// reading a new chunk header.
+				break
+			}
+			cr.beginChunk()
+			continue
 		}
-	}
-	if uint64(len(b)) > cr.n {
-		b = b[0:cr.n]
-	}
-	n, cr.err = cr.r.Read(b)
-	cr.n -= uint64(n)
-	if cr.n == 0 && cr.err == nil {
-		// end of chunk (CRLF)
-		if _, cr.err = io.ReadFull(cr.r, cr.buf[:]); cr.err == nil {
-			if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
-				cr.err = errors.New("malformed chunked encoding")
+		if len(b) == 0 {
+			break
+		}
+		rbuf := b
+		if uint64(len(rbuf)) > cr.n {
+			rbuf = rbuf[:cr.n]
+		}
+		var n0 int
+		n0, cr.err = cr.r.Read(rbuf)
+		n += n0
+		b = b[n0:]
+		cr.n -= uint64(n0)
+		// If we're at the end of a chunk, read the next two
+		// bytes to verify they are "\r\n".
+		if cr.n == 0 && cr.err == nil {
+			if _, cr.err = io.ReadFull(cr.r, cr.buf[:2]); cr.err == nil {
+				if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
+					cr.err = errors.New("malformed chunked encoding")
+				}
 			}
 		}
 	}
