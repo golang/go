@@ -280,7 +280,11 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	if l == nil || l.fd == nil {
 		return nil, syscall.EINVAL
 	}
-	fd, err := l.fd.accept(sockaddrToUnix)
+	toAddr := sockaddrToUnix
+	if l.fd.sotype == syscall.SOCK_SEQPACKET {
+		toAddr = sockaddrToUnixpacket
+	}
+	fd, err := l.fd.accept(toAddr)
 	if err != nil {
 		return nil, err
 	}
