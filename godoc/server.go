@@ -6,6 +6,7 @@ package godoc
 
 import (
 	"bytes"
+	"expvar"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -390,6 +391,45 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 		log.Printf("%s.Execute: %s", name, err)
 	}
 	return buf.Bytes()
+}
+
+type writerCapturesErr struct {
+	w   io.Writer
+	err error
+}
+
+func (w *writerCapturesErr) Write(p []byte) (int, error) {
+	n, err := w.w.Write(p)
+	if err != nil {
+		w.err = err
+	}
+	return n, err
+}
+
+var httpErrors *expvar.Map
+
+func init() {
+	httpErrors = expvar.NewMap("httpWriteErrors").Init()
+}
+
+// applyTemplateToResponseWriter uses an http.ResponseWriter as the io.Writer
+// for the call to template.Execute.  It uses an io.Writer wrapper to capture
+// errors from the underlying http.ResponseWriter.  If an error is found, an
+// expvar will be incremented.  Other template errors will be logged.  This is
+// done to keep from polluting log files with error messages due to networking
+// issues, such as client disconnects and http HEAD protocol violations.
+func applyTemplateToResponseWriter(rw http.ResponseWriter, t *template.Template, data interface{}) {
+	w := &writerCapturesErr{w: rw}
+	err := t.Execute(w, data)
+	// There are some cases where template.Execute does not return an error when
+	// rw returns an error, and some where it does.  So check w.err first.
+	if w.err != nil {
+		// For http errors, increment an expvar.
+		httpErrors.Add(w.err.Error(), 1)
+	} else if err != nil {
+		// Log template errors.
+		log.Printf("%s.Execute: %s", t.Name(), err)
+	}
 }
 
 func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {

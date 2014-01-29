@@ -5,7 +5,6 @@
 package godoc
 
 import (
-	"log"
 	"net/http"
 	"runtime"
 )
@@ -31,11 +30,7 @@ func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 	page.SearchBox = p.Corpus.IndexEnabled
 	page.Playground = p.ShowPlayground
 	page.Version = runtime.Version()
-	if err := p.GodocHTML.Execute(w, page); err != nil && err != http.ErrBodyNotAllowed {
-		// Only log if there's an error that's not about writing on HEAD requests.
-		// See Issues 5451 and 5454.
-		log.Printf("GodocHTML.Execute: %s", err)
-	}
+	applyTemplateToResponseWriter(w, p.GodocHTML, page)
 }
 
 func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
