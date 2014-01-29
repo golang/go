@@ -271,6 +271,49 @@ func TestTransportIdleCacheKeys(t *testing.T) {
 	}
 }
 
+// Tests that the HTTP transport re-uses connections when a client
+// reads to the end of a response Body without closing it.
+func TestTransportReadToEndReusesConn(t *testing.T) {
+	defer afterTest(t)
+	const msg = "foobar"
+
+	addrSeen := make(map[string]int)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		addrSeen[r.RemoteAddr]++
+		w.Header().Set("Content-Type", strconv.Itoa(len(msg)))
+		w.WriteHeader(200)
+		w.Write([]byte(msg))
+	}))
+	defer ts.Close()
+
+	buf := make([]byte, len(msg))
+
+	for i := 0; i < 3; i++ {
+		res, err := http.Get(ts.URL)
+		if err != nil {
+			t.Errorf("Get: %v", err)
+			continue
+		}
+		// We want to close this body eventually (before the
+		// defer afterTest at top runs), but not before the
+		// len(addrSeen) check at the bottom of this test,
+		// since Closing this early in the loop would risk
+		// making connections be re-used for the wrong reason.
+		defer res.Body.Close()
+
+		if res.ContentLength != int64(len(msg)) {
+			t.Errorf("res.ContentLength = %d; want %d", res.ContentLength, len(msg))
+		}
+		n, err := res.Body.Read(buf)
+		if n != len(msg) || err != io.EOF {
+			t.Errorf("Read = %v, %v; want 6, EOF", n, err)
+		}
+	}
+	if len(addrSeen) != 1 {
+		t.Errorf("server saw %d distinct client addresses; want 1", len(addrSeen))
+	}
+}
+
 func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	defer afterTest(t)
 	resch := make(chan string)
