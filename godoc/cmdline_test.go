@@ -183,8 +183,8 @@ package main
 	p.cmdHandler = handlerServer{p, c, "/cmd/", "/src/cmd"}
 	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src/pkg"}
 	p.initFuncMap()
-	p.PackageText = template.Must(template.New("PackageText").Funcs(p.FuncMap()).Parse(`{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
-{{node $ $ast}}{{end}}{{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND {{.Doc}}{{else}}PACKAGE {{.Doc}}{{end}}{{with .Funcs}}
+	p.PackageText = template.Must(template.New("PackageText").Funcs(p.FuncMap()).Parse(`{{$info := .}}{{$filtered := .IsFiltered}}{{if $filtered}}{{range .PAst}}{{range .Decls}}{{node $info .}}{{end}}{{end}}{{else}}{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
+{{node $ $ast}}{{end}}{{end}}{{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND {{.Doc}}{{else}}PACKAGE {{.Doc}}{{end}}{{with .Funcs}}
 {{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}{{end}}{{end}}{{end}}`))
 

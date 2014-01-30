@@ -28,8 +28,8 @@ var godocTests = []struct {
 	{
 		[]string{"io", "WriteString"},
 		[]string{
-			`import "io"`,
 			`func WriteString\(`,
+			`WriteString writes the contents of the string s to w`,
 		},
 	},
 }
