@@ -32,7 +32,7 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 		return
 	}
 	for key := range t.idleConn {
-		keys = append(keys, key)
+		keys = append(keys, key.String())
 	}
 	return
 }
@@ -43,11 +43,12 @@ func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	if t.idleConn == nil {
 		return 0
 	}
-	conns, ok := t.idleConn[cacheKey]
-	if !ok {
-		return 0
+	for k, conns := range t.idleConn {
+		if k.String() == cacheKey {
+			return len(conns)
+		}
 	}
-	return len(conns)
+	return 0
 }
 
 func (t *Transport) IdleConnChMapSizeForTesting() int {
