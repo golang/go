@@ -701,6 +701,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p un
 	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
 		errorf("invalid type name length %d", nr)
 	}
+	if nr > uint64(state.b.Len()) {
+		errorf("invalid type name length %d: exceeds input size", nr)
+	}
 	b := make([]byte, nr)
 	state.b.Read(b)
 	name := string(b)
@@ -1237,7 +1240,8 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 	}
 	engine := *enginePtr
 	if st := base; st.Kind() == reflect.Struct && ut.externalDec == 0 {
-		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
+		if engine.numInstr == 0 && st.NumField() > 0 &&
+			dec.wireType[wireId] != nil && len(dec.wireType[wireId].StructT.Field) > 0 {
 			name := base.Name()
 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
 		}
