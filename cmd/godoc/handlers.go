@@ -35,6 +35,7 @@ func registerHandlers(pres *godoc.Presentation) {
 	http.Handle("/doc/play/", pres.FileServer())
 	http.Handle("/robots.txt", pres.FileServer())
 	http.Handle("/", pres)
+	http.Handle("/pkg/C/", redirect.Handler("/cmd/cgo/"))
 	redirect.Register(nil)
 }
 
