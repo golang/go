@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-func probe(filename, query string, bufSize int) bool {
+func probe(filename, query string) bool {
 	var file *file
 	var err error
 	if file, err = open(filename); err != nil {
@@ -37,7 +37,7 @@ func probe(filename, query string, bufSize int) bool {
 }
 
 func probeIPv4Stack() bool {
-	return probe(netdir+"/ipselftab", "127.0.0.1", 128)
+	return probe(netdir+"/iproute", "4i")
 }
 
 // probeIPv6Stack returns two boolean values.  If the first boolean
@@ -45,10 +45,10 @@ func probeIPv4Stack() bool {
 // second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	// Plan 9 uses IPv6 natively, see ip(3).
-	r := probe(netdir+"/iproute", "6i", 128)
+	r := probe(netdir+"/iproute", "6i")
 	v := false
 	if r {
-		v = probe(netdir+"/iproute", "4b", 128)
+		v = probe(netdir+"/iproute", "4i")
 	}
 	return r, v
 }
