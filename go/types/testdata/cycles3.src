@@ -48,7 +48,7 @@ type (
 )
 
 type (
-	U /* ERROR illegal cycle */ interface {
+	U interface {
 		V
 	}
 

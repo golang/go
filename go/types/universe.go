@@ -69,7 +69,7 @@ func defPredeclaredTypes() {
 	res := NewVar(token.NoPos, nil, "", Typ[String])
 	sig := &Signature{results: NewTuple(res)}
 	err := NewFunc(token.NoPos, nil, "Error", sig)
-	typ := &Named{underlying: NewInterface([]*Func{err}, nil), complete: true}
+	typ := &Named{underlying: NewInterface([]*Func{err}, nil)}
 	sig.recv = NewVar(token.NoPos, nil, "", typ)
 	def(NewTypeName(token.NoPos, nil, "error", typ))
 }

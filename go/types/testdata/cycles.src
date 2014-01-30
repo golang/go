@@ -6,10 +6,10 @@ package cycles
 
 type (
 	T0 int
-	T1 /* ERROR "cycle" */ T1
+	T1 /* ERROR cycle */ T1
 	T2 *T2
 
-	T3 /* ERROR "cycle" */ T4
+	T3 /* ERROR cycle */ T4
 	T4 T5
 	T5 T3
 
@@ -18,10 +18,10 @@ type (
 	T8 T6
 
 	// arrays
-	A0 /* ERROR "cycle" */ [10]A0
+	A0 /* ERROR cycle */ [10]A0
 	A1 [10]*A1
 
-	A2 /* ERROR "cycle" */ [10]A3
+	A2 /* ERROR cycle */ [10]A3
 	A3 [10]A4
 	A4 A2
 
@@ -32,12 +32,12 @@ type (
 	L0 []L0
 
 	// structs
-	S0 /* ERROR "cycle" */ struct{ _ S0 }
-	S1 /* ERROR "cycle" */ struct{ S1 }
+	S0 /* ERROR cycle */ struct{ _ S0 }
+	S1 /* ERROR cycle */ struct{ S1 }
 	S2 struct{ _ *S2 }
 	S3 struct{ *S3 }
 
-	S4 /* ERROR "cycle" */ struct{ S5 }
+	S4 /* ERROR cycle */ struct{ S5 }
 	S5 struct{ S6 }
 	S6 S4
 
@@ -50,9 +50,9 @@ type (
 	F2 func(F2) F2
 
 	// interfaces
-	I0 /* ERROR "cycle" */ interface{ I0 }
+	I0 /* ERROR cycle */ interface{ I0 }
 
-	I1 /* ERROR "cycle" */ interface{ I2 }
+	I1 /* ERROR cycle */ interface{ I2 }
 	I2 interface{ I3 }
 	I3 interface{ I1 }
 
@@ -63,7 +63,7 @@ type (
 	I6 interface{ I5 }
 
 	// maps
-	M0 map[M0 /* ERROR "invalid map key" */ ]M0
+	M0 map[M0 /* ERROR invalid map key */ ]M0
 
 	// channels
 	C0 chan C0
@@ -71,23 +71,23 @@ type (
 
 func _() {
 	type (
-		t1 /* ERROR "cycle" */ t1
+		t1 /* ERROR cycle */ t1
 		t2 *t2
 
-		t3 t4 /* ERROR "undeclared" */
-		t4 t5 /* ERROR "undeclared" */
+		t3 t4 /* ERROR undeclared */
+		t4 t5 /* ERROR undeclared */
 		t5 t3
 
 		// arrays
-		a0 /* ERROR "cycle" */ [10]a0
+		a0 /* ERROR cycle */ [10]a0
 		a1 [10]*a1
 
 		// slices
 		l0 []l0
 
 		// structs
-		s0 /* ERROR "cycle" */ struct{ _ s0 }
-		s1 /* ERROR "cycle" */ struct{ s1 }
+		s0 /* ERROR cycle */ struct{ _ s0 }
+		s1 /* ERROR cycle */ struct{ s1 }
 		s2 struct{ _ *s2 }
 		s3 struct{ *s3 }
 
@@ -100,10 +100,10 @@ func _() {
 		f2 func(f2) f2
 
 		// interfaces
-		i0 /* ERROR "cycle" */ interface{ i0 }
+		i0 /* ERROR cycle */ interface{ i0 }
 
 		// maps
-		m0 map[m0 /* ERROR "invalid map key" */ ]m0
+		m0 map[m0 /* ERROR invalid map key */ ]m0
 
 		// channels
 		c0 chan c0
@@ -117,3 +117,27 @@ type A [10]map[A /* ERROR invalid map key */ ]bool
 type S struct {
 	m map[S /* ERROR invalid map key */ ]bool
 }
+
+// test cases for issue 7236
+// (cycle detection must not be dependent on starting point of resolution)
+
+type (
+	P1 *T9
+	T9 /* ERROR cycle */ T9
+
+	T10 /* ERROR cycle */ T10
+	P2 *T10
+)
+
+func (T11) m() {}
+
+type T11 /* ERROR cycle */ struct{ T11 }
+
+type T12 /* ERROR cycle */ struct{ T12 }
+
+func (*T12) m() {}
+
+type (
+	P3 *T13
+	T13 /* ERROR cycle */ T13
+)

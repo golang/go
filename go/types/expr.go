@@ -943,7 +943,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil, false)
+		check.ident(x, e, nil, nil)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -959,7 +959,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.FuncLit:
-		if sig, ok := check.typ(e.Type, nil, false).(*Signature); ok {
+		if sig, ok := check.typ(e.Type, nil, nil).(*Signature); ok {
 			// Anonymous functions are considered part of the
 			// init expression/func declaration which contains
 			// them: use existing package-level declaration info.
@@ -983,12 +983,12 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{len: -1, elem: check.typ(atyp.Elt, nil, false)}
+					typ = &Array{len: -1, elem: check.typ(atyp.Elt, nil, nil)}
 					openArray = true
 				}
 			}
 			if typ == nil {
-				typ = check.typ(e.Type, nil, false)
+				typ = check.typ(e.Type, nil, nil)
 			}
 		}
 		if typ == nil {
@@ -1309,7 +1309,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typ(e.Type, nil, false)
+		T := check.typ(e.Type, nil, nil)
 		if T == Typ[Invalid] {
 			goto Error
 		}
@@ -1365,7 +1365,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		x.mode = typexpr
-		x.typ = check.typ(e, nil, false)
+		x.typ = check.typ(e, nil, nil)
 		// Note: rawExpr (caller of exprInternal) will call check.recordTypeAndValue
 		// even though check.typ has already called it. This is fine as both
 		// times the same expression and type are recorded. It is also not a

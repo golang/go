@@ -365,8 +365,7 @@ func (c *Chan) Elem() Type { return c.elem }
 // A Named represents a named type.
 type Named struct {
 	obj         *TypeName       // corresponding declared object
-	underlying  Type            // possibly a *Named if !complete; never a *Named if complete
-	complete    bool            // if set, the underlying type has been determined
+	underlying  Type            // possibly a *Named during setup; never a *Named once set up completely
 	methods     []*Func         // methods declared for this type (not the method set of this type)
 	mset, pmset cachedMethodSet // method set for T, *T, lazily initialized
 }
@@ -377,7 +376,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, underlying: underlying, complete: underlying != nil, methods: methods}
+	typ := &Named{obj: obj, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -403,7 +402,6 @@ func (t *Named) SetUnderlying(underlying Type) {
 		panic("types.Named.SetUnderlying: underlying type must not be *Named")
 	}
 	t.underlying = underlying
-	t.complete = true
 }
 
 // AddMethod adds method m unless it is already in the method list.

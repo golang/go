@@ -33,7 +33,7 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 
 // objDecl type-checks the declaration of obj in its respective file scope.
 // See typeDecl for the details on def and cycleOk.
-func (check *checker) objDecl(obj Object, def *Named, cycleOk bool) {
+func (check *checker) objDecl(obj Object, def *Named, cycle []*TypeName) {
 	d := check.objMap[obj]
 
 	// adjust file scope for current object
@@ -55,7 +55,7 @@ func (check *checker) objDecl(obj Object, def *Named, cycleOk bool) {
 		check.decl = d // new package-level var decl
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
-		check.typeDecl(obj, d.typ, def, cycleOk)
+		check.typeDecl(obj, d.typ, def, cycle)
 	case *Func:
 		check.funcDecl(obj, d)
 	default:
@@ -68,6 +68,8 @@ func (check *checker) objDecl(obj Object, def *Named, cycleOk bool) {
 }
 
 func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
+	// TODO(gri) consider using the same cycle detection as for types
+	// so that we can print the actual cycle in case of an error
 	if obj.visited {
 		check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.name)
 		obj.typ = Typ[Invalid]
@@ -81,7 +83,7 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		t := check.typ(typ, nil, false)
+		t := check.typ(typ, nil, nil)
 		if !isConstType(t) {
 			check.errorf(typ.Pos(), "invalid constant type %s", t)
 			obj.typ = Typ[Invalid]
@@ -103,6 +105,8 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 // TODO(gri) document arguments
 func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+	// TODO(gri) consider using the same cycle detection as for types
+	// so that we can print the actual cycle in case of an error
 	if obj.visited {
 		check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.name)
 		obj.typ = Typ[Invalid]
@@ -115,7 +119,7 @@ func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, nil, false)
+		obj.typ = check.typ(typ, nil, nil)
 	}
 
 	// check initialization
@@ -171,7 +175,7 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk bool) {
+func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycle []*TypeName) {
 	assert(obj.Type() == nil)
 
 	// type declarations cannot use iota
@@ -182,7 +186,7 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 	obj.typ = named // make sure recursive type declarations terminate
 
 	// determine underlying type of named
-	check.typ(typ, named, cycleOk)
+	check.typ(typ, named, append(cycle, obj))
 
 	// The underlying type of named may be itself a named type that is
 	// incomplete:
@@ -198,9 +202,6 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 	// Determine the (final, unnamed) underlying type by resolving
 	// any forward chain (they always end in an unnamed type).
 	named.underlying = underlying(named.underlying)
-
-	// the underlying type has been determined
-	named.complete = true
 
 	// type-check signatures of associated methods
 	methods := check.methods[obj.name]
@@ -242,7 +243,7 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycleOk 
 			}
 		}
 		check.recordObject(check.objMap[m].fdecl.Name, m)
-		check.objDecl(m, nil, true)
+		check.objDecl(m, nil, nil)
 		// Methods with blank _ names cannot be found.
 		// Don't add them to the method list.
 		if m.name != "_" {
@@ -363,7 +364,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 				check.declare(check.topScope, s.Name, obj)
-				check.typeDecl(obj, s.Type, nil, false)
+				check.typeDecl(obj, s.Type, nil, nil)
 
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")

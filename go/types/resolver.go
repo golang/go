@@ -354,13 +354,18 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// Phase 3: Typecheck all objects in objMap, but not function bodies.
 
-	check.objMap = objMap // indicate that we are checking package-level declarations (objects may not have a type yet)
 	check.initMap = initMap
+	check.objMap = objMap                 // indicate that we are checking package-level declarations (objects may not have a type yet)
+	emptyCycle := make([]*TypeName, 0, 8) // re-use the same underlying array for cycle detection
 	for _, obj := range objectsOf(check.objMap) {
 		if obj.Type() == nil {
-			check.objDecl(obj, nil, false)
+			if trace {
+				check.trace(obj.Pos(), "-- resolving %s", obj.Name())
+			}
+			check.objDecl(obj, nil, emptyCycle)
 		}
 	}
+	emptyCycle = nil   // not needed anymore
 	check.objMap = nil // not needed anymore
 
 	// At this point we may have a non-empty check.methods map; this means that not all
