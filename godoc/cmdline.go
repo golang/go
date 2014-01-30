@@ -4,11 +4,9 @@
 package godoc
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/printer"
 	"io"
 	"log"
 	"os"
@@ -106,7 +104,8 @@ func CommandLine(w io.Writer, fs vfs.NameSpace, pres *Presentation, args []strin
 
 	// If we have more than one argument, use the remaining arguments for filtering.
 	if len(args) > 1 {
-		filterInfo(pres, args[1:], info)
+		info.IsFiltered = true
+		filterInfo(args[1:], info)
 	}
 
 	packageText := pres.PackageText
@@ -145,7 +144,9 @@ func paths(fs vfs.NameSpace, pres *Presentation, path string) (string, string) {
 	return pathpkg.Join(pres.PkgFSRoot(), path), path
 }
 
-func filterInfo(pres *Presentation, args []string, info *PageInfo) {
+// filterInfo updates info to include only the nodes that match the given
+// filter args.
+func filterInfo(args []string, info *PageInfo) {
 	rx, err := makeRx(args)
 	if err != nil {
 		log.Fatalf("illegal regular expression from %v: %v", args, err)
@@ -154,29 +155,21 @@ func filterInfo(pres *Presentation, args []string, info *PageInfo) {
 	filter := func(s string) bool { return rx.MatchString(s) }
 	switch {
 	case info.PAst != nil:
-		cmap := ast.NewCommentMap(info.FSet, info.PAst, info.PAst.Comments)
-		ast.FilterFile(info.PAst, filter)
-		// Special case: Don't use templates for printing
-		// so we only get the filtered declarations without
-		// package clause or extra whitespace.
-		for i, d := range info.PAst.Decls {
-			// determine the comments associated with d only
-			comments := cmap.Filter(d).Comments()
-			cn := &printer.CommentedNode{Node: d, Comments: comments}
-			if i > 0 {
-				fmt.Println()
+		newPAst := map[string]*ast.File{}
+		for name, a := range info.PAst {
+			cmap := ast.NewCommentMap(info.FSet, a, a.Comments)
+			a.Comments = []*ast.CommentGroup{} // remove all comments.
+			ast.FilterFile(a, filter)
+			if len(a.Decls) > 0 {
+				newPAst[name] = a
 			}
-			if pres.HTMLMode {
-				var buf bytes.Buffer
-				pres.WriteNode(&buf, info.FSet, cn)
-				FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
-			} else {
-				pres.WriteNode(os.Stdout, info.FSet, cn)
+			for _, d := range a.Decls {
+				// add back the comments associated with d only
+				comments := cmap.Filter(d).Comments()
+				a.Comments = append(a.Comments, comments...)
 			}
-			fmt.Println()
 		}
-		return
-
+		info.PAst = newPAst // add only matching files.
 	case info.PDoc != nil:
 		info.PDoc.Filter(filter)
 	}

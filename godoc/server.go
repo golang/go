@@ -97,7 +97,7 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 	if len(pkgfiles) > 0 {
 		// build package AST
 		fset := token.NewFileSet()
-		files, err := h.c.parseFiles(fset, abspath, pkgfiles)
+		files, err := h.c.parseFiles(fset, relpath, abspath, pkgfiles)
 		if err != nil {
 			info.Err = err
 			return info
@@ -128,7 +128,7 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 
 			// collect examples
 			testfiles := append(pkginfo.TestGoFiles, pkginfo.XTestGoFiles...)
-			files, err = h.c.parseFiles(fset, abspath, testfiles)
+			files, err = h.c.parseFiles(fset, relpath, abspath, testfiles)
 			if err != nil {
 				log.Println("parsing examples:", err)
 			}
@@ -156,7 +156,7 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 			if mode&NoFiltering == 0 {
 				packageExports(fset, pkg)
 			}
-			info.PAst = ast.MergePackageFiles(pkg, 0)
+			info.PAst = files
 		}
 		info.IsMain = pkgname == "main"
 	}
@@ -218,7 +218,10 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tabtitle, title, subtitle string
 	switch {
 	case info.PAst != nil:
-		tabtitle = info.PAst.Name.Name
+		for _, ast := range info.PAst {
+			tabtitle = ast.Name.Name
+			break
+		}
 	case info.PDoc != nil:
 		tabtitle = info.PDoc.Name
 	default:

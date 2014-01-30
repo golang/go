@@ -158,6 +158,17 @@ func TestCommandLine(t *testing.T) {
 		"src/pkg/bar/bar.go": `// Package bar is an example.
 package bar
 `,
+		"src/pkg/foo/foo.go": `// Package foo.
+package foo
+
+// First function is first.
+func First() {
+}
+
+// Second function is second.
+func Second() {
+}
+`,
 		"src/cmd/go/doc.go": `// The go command
 package main
 `,
@@ -172,7 +183,10 @@ package main
 	p.cmdHandler = handlerServer{p, c, "/cmd/", "/src/cmd"}
 	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src/pkg"}
 	p.initFuncMap()
-	p.PackageText = template.Must(template.New("PackageText").Funcs(p.FuncMap()).Parse(`{{with .PAst}}{{node $ .}}{{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND {{.Doc}}{{else}}PACKAGE {{.Doc}}{{end}}{{end}}`))
+	p.PackageText = template.Must(template.New("PackageText").Funcs(p.FuncMap()).Parse(`{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
+{{node $ $ast}}{{end}}{{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND {{.Doc}}{{else}}PACKAGE {{.Doc}}{{end}}{{with .Funcs}}
+{{range .}}{{node $ .Decl}}
+{{comment_text .Doc "    " "\t"}}{{end}}{{end}}{{end}}`))
 
 	for _, tc := range []struct {
 		desc string
@@ -191,9 +205,19 @@ package main
 			exp:  "PACKAGE Package bar is an example.\n",
 		},
 		{
+			desc: "package w. filter",
+			args: []string{"foo", "First"},
+			exp:  "PACKAGE \nfunc First()\n    First function is first.\n",
+		},
+		{
 			desc: "source mode",
 			args: []string{"src/bar"},
-			exp:  "// Package bar is an example.\npackage bar\n",
+			exp:  "bar/bar.go:\n// Package bar is an example.\npackage bar\n",
+		},
+		{
+			desc: "source mode w. filter",
+			args: []string{"src/foo", "Second"},
+			exp:  "// Second function is second.\nfunc Second() {\n}",
 		},
 		{
 			desc: "command",

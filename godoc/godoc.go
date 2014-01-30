@@ -219,12 +219,13 @@ type PageInfo struct {
 	Err     error  // error or nil
 
 	// package info
-	FSet     *token.FileSet         // nil if no package documentation
-	PDoc     *doc.Package           // nil if no package documentation
-	Examples []*doc.Example         // nil if no example code
-	Notes    map[string][]*doc.Note // nil if no package Notes
-	PAst     *ast.File              // nil if no AST with package exports
-	IsMain   bool                   // true for package main
+	FSet       *token.FileSet         // nil if no package documentation
+	PDoc       *doc.Package           // nil if no package documentation
+	Examples   []*doc.Example         // nil if no example code
+	Notes      map[string][]*doc.Note // nil if no package Notes
+	PAst       map[string]*ast.File   // nil if no AST with package exports
+	IsMain     bool                   // true for package main
+	IsFiltered bool                   // true if results were filtered
 
 	// directory info
 	Dirs    *DirList  // nil if no directory information

@@ -24,7 +24,7 @@ func (c *Corpus) parseFile(fset *token.FileSet, filename string, mode parser.Mod
 	return parser.ParseFile(fset, filename, src, mode)
 }
 
-func (c *Corpus) parseFiles(fset *token.FileSet, abspath string, localnames []string) (map[string]*ast.File, error) {
+func (c *Corpus) parseFiles(fset *token.FileSet, relpath string, abspath string, localnames []string) (map[string]*ast.File, error) {
 	files := make(map[string]*ast.File)
 	for _, f := range localnames {
 		absname := pathpkg.Join(abspath, f)
@@ -32,7 +32,7 @@ func (c *Corpus) parseFiles(fset *token.FileSet, abspath string, localnames []st
 		if err != nil {
 			return nil, err
 		}
-		files[absname] = file
+		files[pathpkg.Join(relpath, f)] = file
 	}
 
 	return files, nil

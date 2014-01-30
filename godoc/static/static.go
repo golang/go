@@ -751,54 +751,59 @@ $(document).ready(function() {
 	{{end}}
 {{end}}
 `,
-	"package.txt": `{{with .PAst}}{{node $ .}}{{end}}{{/*
+	"package.txt": `{{$info := .}}{{$filtered := .IsFiltered}}{{/*
+
+---------------------------------------
+
+*/}}{{if $filtered}}{{range .PAst}}{{range .Decls}}{{node $info .}}{{end}}{{end}}{{else}}{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
+{{node $ $ast}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
 */}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
 
 {{comment_text .Doc "    " "\t"}}
-{{else}}PACKAGE DOCUMENTATION
+{{else}}{{if not $filtered}}PACKAGE DOCUMENTATION
 
 package {{.Name}}
     import "{{.ImportPath}}"
 
 {{comment_text .Doc "    " "\t"}}
-{{example_text $ "" "    "}}{{/*
+{{example_text $ "" "    "}}{{end}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Consts}}
+*/}}{{with .Consts}}{{if not $filtered}}
 CONSTANTS
 
-{{range .}}{{node $ .Decl}}
+{{end}}{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
 {{end}}{{end}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Vars}}
+*/}}{{with .Vars}}{{if not $filtered}}
 VARIABLES
 
-{{range .}}{{node $ .Decl}}
+{{end}}{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
 {{end}}{{end}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Funcs}}
+*/}}{{with .Funcs}}{{if not $filtered}}
 FUNCTIONS
 
-{{range .}}{{node $ .Decl}}
+{{end}}{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
 {{example_text $ .Name "    "}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Types}}
+*/}}{{with .Types}}{{if not $filtered}}
 TYPES
 
-{{range .}}{{$tname := .Name}}{{node $ .Decl}}
+{{end}}{{range .}}{{$tname := .Name}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
 {{range .Consts}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
