@@ -71,8 +71,8 @@ func TestCacheKeys(t *testing.T) {
 			proxy = u
 		}
 		cm := connectMethod{proxy, tt.scheme, tt.addr}
-		if cm.String() != tt.key {
-			t.Fatalf("{%q, %q, %q} cache key %q; want %q", tt.proxy, tt.scheme, tt.addr, cm.String(), tt.key)
+		if got := cm.key().String(); got != tt.key {
+			t.Fatalf("{%q, %q, %q} cache key = %q; want %q", tt.proxy, tt.scheme, tt.addr, got, tt.key)
 		}
 	}
 }
