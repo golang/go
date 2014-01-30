@@ -164,6 +164,7 @@ loadlib(void)
 {
 	int i, w, x;
 	LSym *s, *gmsym;
+	char* cgostrsym;
 
 	if(flag_shared) {
 		s = linklookup(ctxt, "runtime.islibrary", 0);
@@ -176,24 +177,6 @@ loadlib(void)
 		loadinternal("math");
 	if(flag_race)
 		loadinternal("runtime/race");
-	if(linkmode == LinkExternal) {
-		// This indicates a user requested -linkmode=external.
-		// The startup code uses an import of runtime/cgo to decide
-		// whether to initialize the TLS.  So give it one.  This could
-		// be handled differently but it's an unusual case.
-		loadinternal("runtime/cgo");
-
-		// Pretend that we really imported the package.
-		// This will do no harm if we did in fact import it.
-		s = linklookup(ctxt, "go.importpath.runtime/cgo.", 0);
-		s->type = SDATA;
-		s->dupok = 1;
-		s->reachable = 1;
-
-		// Provided by the code that imports the package.
-		// Since we are simulating the import, we have to provide this string.
-		addstrdata("go.string.\"runtime/cgo\"", "runtime/cgo");
-	}
 
 	for(i=0; i<ctxt->libraryp; i++) {
 		if(debug['v'] > 1)
@@ -202,6 +185,26 @@ loadlib(void)
 		objfile(ctxt->library[i].file, ctxt->library[i].pkg);
 	}
 	
+	if(linkmode == LinkExternal && !iscgo) {
+		// This indicates a user requested -linkmode=external.
+		// The startup code uses an import of runtime/cgo to decide
+		// whether to initialize the TLS.  So give it one.  This could
+		// be handled differently but it's an unusual case.
+		loadinternal("runtime/cgo");
+
+		// Pretend that we really imported the package.
+		s = linklookup(ctxt, "go.importpath.runtime/cgo.", 0);
+		s->type = SDATA;
+		s->dupok = 1;
+		s->reachable = 1;
+
+		// Provided by the code that imports the package.
+		// Since we are simulating the import, we have to provide this string.
+		cgostrsym = "go.string.\"runtime/cgo\"";
+		if(linkrlookup(ctxt, cgostrsym, 0) == nil)
+			addstrdata(cgostrsym, "runtime/cgo");
+	}
+
 	if(linkmode == LinkAuto) {
 		if(iscgo && externalobj)
 			linkmode = LinkExternal;
