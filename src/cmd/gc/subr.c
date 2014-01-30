@@ -590,8 +590,6 @@ algtype1(Type *t, Type **bad)
 				*bad = t;
 			return ANOEQ;
 		}
-		if(t->bound == 0)
-			return AMEM;
 		a = algtype1(t->type, bad);
 		if(a == ANOEQ || a == AMEM) {
 			if(a == ANOEQ && bad)
