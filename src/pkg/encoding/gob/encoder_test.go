@@ -129,6 +129,8 @@ func TestBadData(t *testing.T) {
 	corruptDataCheck("", io.EOF, t)
 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t)
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
+	// issue 6323.
+	corruptDataCheck("\x04\x24foo", errRange, t)
 }
 
 // Types not supported at top level by the Encoder.
