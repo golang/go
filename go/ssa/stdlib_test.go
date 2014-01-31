@@ -54,13 +54,13 @@ func TestStdlib(t *testing.T) {
 
 	var conf loader.Config
 	if _, err := conf.FromArgs(allPackages()); err != nil {
-		t.Errorf("FromArgs failed: %s", err)
+		t.Errorf("FromArgs failed: %v", err)
 		return
 	}
 
 	iprog, err := conf.Load()
 	if err != nil {
-		t.Errorf("Load failed: %s", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 
 	t1 := time.Now()
