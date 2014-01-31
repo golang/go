@@ -117,3 +117,30 @@ func f() int {
 		t.Errorf("got %d CallExprs; want 2", n)
 	}
 }
+
+func TestIssue7245(t *testing.T) {
+	src := `
+package p
+func (T) m() (res bool) { return }
+type T struct{} // receiver type after method declaration
+`
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var conf Config
+	objects := make(map[*ast.Ident]Object)
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Objects: objects})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := f.Decls[0].(*ast.FuncDecl)
+	res1 := objects[m.Name].(*Func).Type().(*Signature).Results().At(0)
+	res2 := objects[m.Type.Results.List[0].Names[0]].(*Var)
+
+	if res1 != res2 {
+		t.Errorf("got %s (%p) != %s (%p)", res1, res2, res1, res2)
+	}
+}

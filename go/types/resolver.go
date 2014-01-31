@@ -358,12 +358,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	check.objMap = objMap                 // indicate that we are checking package-level declarations (objects may not have a type yet)
 	emptyCycle := make([]*TypeName, 0, 8) // re-use the same underlying array for cycle detection
 	for _, obj := range objectsOf(check.objMap) {
-		if obj.Type() == nil {
-			if trace {
-				check.trace(obj.Pos(), "-- resolving %s", obj.Name())
-			}
-			check.objDecl(obj, nil, emptyCycle)
-		}
+		check.objDecl(obj, nil, emptyCycle)
 	}
 	emptyCycle = nil   // not needed anymore
 	check.objMap = nil // not needed anymore

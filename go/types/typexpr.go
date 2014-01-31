@@ -34,16 +34,8 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, cycle []*TypeN
 	}
 	check.recordObject(e, obj)
 
+	check.objDecl(obj, def, cycle)
 	typ := obj.Type()
-	if typ == nil {
-		// object type not yet determined
-		if check.objMap == nil {
-			check.dump("%s: %s should have been declared (we are inside a function)", e.Pos(), e)
-			unreachable()
-		}
-		check.objDecl(obj, def, cycle)
-		typ = obj.Type()
-	}
 	assert(typ != nil)
 
 	switch obj := obj.(type) {

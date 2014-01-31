@@ -34,7 +34,23 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 // objDecl type-checks the declaration of obj in its respective file scope.
 // See typeDecl for the details on def and cycleOk.
 func (check *checker) objDecl(obj Object, def *Named, cycle []*TypeName) {
+	if obj.Type() != nil {
+		return // already checked - nothing to do
+	}
+
+	if trace {
+		check.trace(obj.Pos(), "-- resolving %s", obj.Name())
+	}
+
 	d := check.objMap[obj]
+	if debug && d == nil {
+		if check.objMap == nil {
+			check.dump("%s: %s should have been declared (we are inside a function)", obj.Pos(), obj)
+			unreachable()
+		}
+		check.dump("%s: %s should have been forward-declared", obj.Pos(), obj)
+		unreachable()
+	}
 
 	// adjust file scope for current object
 	oldScope := check.topScope
@@ -68,6 +84,8 @@ func (check *checker) objDecl(obj Object, def *Named, cycle []*TypeName) {
 }
 
 func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
+	assert(obj.typ == nil)
+
 	// TODO(gri) consider using the same cycle detection as for types
 	// so that we can print the actual cycle in case of an error
 	if obj.visited {
@@ -105,6 +123,8 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 // TODO(gri) document arguments
 func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+	assert(obj.typ == nil)
+
 	// TODO(gri) consider using the same cycle detection as for types
 	// so that we can print the actual cycle in case of an error
 	if obj.visited {
@@ -176,7 +196,7 @@ func (n *Named) setUnderlying(typ Type) {
 }
 
 func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycle []*TypeName) {
-	assert(obj.Type() == nil)
+	assert(obj.typ == nil)
 
 	// type declarations cannot use iota
 	assert(check.iota == nil)
@@ -262,6 +282,8 @@ type funcInfo struct {
 }
 
 func (check *checker) funcDecl(obj *Func, info *declInfo) {
+	assert(obj.typ == nil)
+
 	// func declarations cannot use iota
 	assert(check.iota == nil)
 
@@ -347,6 +369,19 @@ func (check *checker) declStmt(decl ast.Decl) {
 							}
 						}
 						check.varDecl(obj, lhs, s.Type, init)
+						if len(s.Values) == 1 {
+							// If we have a single lhs variable we are done either way.
+							// If we have a single rhs expression, it must be a multi-
+							// valued expression, in which case handling the first lhs
+							// variable will cause all lhs variables to have a type
+							// assigned, and we are done as well.
+							if debug {
+								for _, obj := range lhs0 {
+									assert(obj.typ != nil)
+								}
+							}
+							break
+						}
 					}
 
 					check.arityMatch(s, nil)
