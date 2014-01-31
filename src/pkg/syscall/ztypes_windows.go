@@ -20,6 +20,7 @@ const (
 	ERROR_PROC_NOT_FOUND      Errno = 127
 	ERROR_ALREADY_EXISTS      Errno = 183
 	ERROR_ENVVAR_NOT_FOUND    Errno = 203
+	ERROR_MORE_DATA           Errno = 234
 	ERROR_OPERATION_ABORTED   Errno = 995
 	ERROR_IO_PENDING          Errno = 997
 	ERROR_NOT_FOUND           Errno = 1168
