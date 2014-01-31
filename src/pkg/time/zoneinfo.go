@@ -101,7 +101,7 @@ func FixedZone(name string, offset int) *Location {
 func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start, end int64) {
 	l = l.get()
 
-	if len(l.tx) == 0 {
+	if len(l.zone) == 0 {
 		name = "UTC"
 		offset = 0
 		isDST = false
@@ -116,6 +116,20 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 		isDST = zone.isDST
 		start = l.cacheStart
 		end = l.cacheEnd
+		return
+	}
+
+	if len(l.tx) == 0 || sec < l.tx[0].when {
+		zone := &l.zone[l.lookupFirstZone()]
+		name = zone.name
+		offset = zone.offset
+		isDST = zone.isDST
+		start = -1 << 63
+		if len(l.tx) > 0 {
+			end = l.tx[0].when
+		} else {
+			end = 1<<63 - 1
+		}
 		return
 	}
 
@@ -142,6 +156,58 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	start = tx[lo].when
 	// end = maintained during the search
 	return
+}
+
+// lookupFirstZone returns the index of the time zone to use for times
+// before the first transition time, or when there are no transition
+// times.
+//
+// The reference implementation in localtime.c from
+// http://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
+// implements the following algorithm for these cases:
+// 1) If the first zone is unused by the transitions, use it.
+// 2) Otherwise, if there are transition times, and the first
+//    transition is to a zone in daylight time, find the first
+//    non-daylight-time zone before and closest to the first transition
+//    zone.
+// 3) Otherwise, use the first zone that is not daylight time, if
+//    there is one.
+// 4) Otherwise, use the first zone.
+func (l *Location) lookupFirstZone() int {
+	// Case 1.
+	if !l.firstZoneUsed() {
+		return 0
+	}
+
+	// Case 2.
+	if len(l.tx) > 0 && l.zone[l.tx[0].index].isDST {
+		for zi := int(l.tx[0].index) - 1; zi >= 0; zi-- {
+			if !l.zone[zi].isDST {
+				return zi
+			}
+		}
+	}
+
+	// Case 3.
+	for zi := range l.zone {
+		if !l.zone[zi].isDST {
+			return zi
+		}
+	}
+
+	// Case 4.
+	return 0
+}
+
+// firstZoneUsed returns whether the first zone is used by some
+// transition.
+func (l *Location) firstZoneUsed() bool {
+	for _, tx := range l.tx {
+		if tx.index == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // lookupName returns information about the time zone with
