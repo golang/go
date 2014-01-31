@@ -49,6 +49,11 @@ func allPackages() []string {
 }
 
 func TestStdlib(t *testing.T) {
+	// TODO(brainman): delete when issue 7189 is fixed.
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping broken test on windows; see golang.org/issue/7189")
+	}
+
 	// Load, parse and type-check the program.
 	t0 := time.Now()
 
