@@ -173,7 +173,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 	if len(tx) == 0 {
 		// Build fake transition to cover all time.
 		// This happens in fixed locations like "Etc/GMT0".
-		tx = append(tx, zoneTrans{when: -1 << 63, index: 0})
+		tx = append(tx, zoneTrans{when: alpha, index: 0})
 	}
 
 	// Committed to succeed.
@@ -185,7 +185,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 	for i := range tx {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
 			l.cacheStart = tx[i].when
-			l.cacheEnd = 1<<63 - 1
+			l.cacheEnd = omega
 			if i+1 < len(tx) {
 				l.cacheEnd = tx[i+1].when
 			}
