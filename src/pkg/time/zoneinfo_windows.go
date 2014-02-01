@@ -165,8 +165,8 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	if nzone == 1 {
 		// No daylight savings.
 		std.offset = -int(i.Bias) * 60
-		l.cacheStart = -1 << 63
-		l.cacheEnd = 1<<63 - 1
+		l.cacheStart = alpha
+		l.cacheEnd = omega
 		l.cacheZone = std
 		l.tx = make([]zoneTrans, 1)
 		l.tx[0].when = l.cacheStart

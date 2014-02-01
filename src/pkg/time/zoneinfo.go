@@ -45,6 +45,13 @@ type zoneTrans struct {
 	isstd, isutc bool  // ignored - no idea what these mean
 }
 
+// alpha and omega are the beginning and end of time for zone
+// transitions.
+const (
+	alpha = -1 << 63  // math.MinInt64
+	omega = 1<<63 - 1 // math.MaxInt64
+)
+
 // UTC represents Universal Coordinated Time (UTC).
 var UTC *Location = &utcLoc
 
@@ -83,9 +90,9 @@ func FixedZone(name string, offset int) *Location {
 	l := &Location{
 		name:       name,
 		zone:       []zone{{name, offset, false}},
-		tx:         []zoneTrans{{-1 << 63, 0, false, false}},
-		cacheStart: -1 << 63,
-		cacheEnd:   1<<63 - 1,
+		tx:         []zoneTrans{{alpha, 0, false, false}},
+		cacheStart: alpha,
+		cacheEnd:   omega,
 	}
 	l.cacheZone = &l.zone[0]
 	return l
@@ -105,8 +112,8 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 		name = "UTC"
 		offset = 0
 		isDST = false
-		start = -1 << 63
-		end = 1<<63 - 1
+		start = alpha
+		end = omega
 		return
 	}
 
@@ -124,11 +131,11 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 		name = zone.name
 		offset = zone.offset
 		isDST = zone.isDST
-		start = -1 << 63
+		start = alpha
 		if len(l.tx) > 0 {
 			end = l.tx[0].when
 		} else {
-			end = 1<<63 - 1
+			end = omega
 		}
 		return
 	}
@@ -136,7 +143,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	// Binary search for entry with largest time <= sec.
 	// Not using sort.Search to avoid dependencies.
 	tx := l.tx
-	end = 1<<63 - 1
+	end = omega
 	lo := 0
 	hi := len(tx)
 	for hi-lo > 1 {
