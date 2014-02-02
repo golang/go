@@ -398,6 +398,9 @@ func TestIssue5745(t *testing.T) {
 }
 
 func TestOverflowRuntimeTimer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode, see issue 6874")
+	}
 	if err := CheckRuntimeTimerOverflow(); err != nil {
 		t.Fatalf(err.Error())
 	}
