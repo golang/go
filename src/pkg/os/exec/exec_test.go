@@ -44,6 +44,33 @@ func TestEcho(t *testing.T) {
 	}
 }
 
+func TestCommandRelativeName(t *testing.T) {
+	// Run our own binary as a relative path
+	// (e.g. "_test/exec.test") our parent directory.
+	base := filepath.Base(os.Args[0]) // "exec.test"
+	dir := filepath.Dir(os.Args[0])   // "/tmp/go-buildNNNN/os/exec/_test"
+	if dir == "." {
+		t.Skip("skipping; running test at root somehow")
+	}
+	parentDir := filepath.Dir(dir) // "/tmp/go-buildNNNN/os/exec"
+	dirBase := filepath.Base(dir)  // "_test"
+	if dirBase == "." {
+		t.Skipf("skipping; unexpected shallow dir of %q", dir)
+	}
+
+	cmd := exec.Command(filepath.Join(dirBase, base), "-test.run=TestHelperProcess", "--", "echo", "foo")
+	cmd.Dir = parentDir
+	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+
+	out, err := cmd.Output()
+	if err != nil {
+		t.Errorf("echo: %v", err)
+	}
+	if g, e := string(out), "foo\n"; g != e {
+		t.Errorf("echo: want %q, got %q", e, g)
+	}
+}
+
 func TestCatStdin(t *testing.T) {
 	// Cat, testing stdin and stdout.
 	input := "Input string\nLine 2"

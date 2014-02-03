@@ -33,7 +33,8 @@ type Cmd struct {
 	// Path is the path of the command to run.
 	//
 	// This is the only field that must be set to a non-zero
-	// value.
+	// value. If Path is relative, it is evaluated relative
+	// to Dir.
 	Path string
 
 	// Args holds command line arguments, including the command as Args[0].
@@ -84,7 +85,7 @@ type Cmd struct {
 	// available after a call to Wait or Run.
 	ProcessState *os.ProcessState
 
-	err             error // last error (from LookPath, stdin, stdout, stderr)
+	lookPathErr     error // LookPath error, if any.
 	finished        bool  // when Wait was called
 	childFiles      []*os.File
 	closeAfterStart []io.Closer
@@ -96,8 +97,7 @@ type Cmd struct {
 // Command returns the Cmd struct to execute the named program with
 // the given arguments.
 //
-// It sets Path and Args in the returned structure and zeroes the
-// other fields.
+// It sets only the Path and Args in the returned structure.
 //
 // If name contains no path separators, Command uses LookPath to
 // resolve the path to a complete name if possible. Otherwise it uses
@@ -107,19 +107,31 @@ type Cmd struct {
 // followed by the elements of arg, so arg should not include the
 // command name itself. For example, Command("echo", "hello")
 func Command(name string, arg ...string) *Cmd {
-	aname, err := LookPath(name)
-	if err != nil {
-		aname = name
-	}
-	return &Cmd{
-		Path: aname,
+	cmd := &Cmd{
+		Path: name,
 		Args: append([]string{name}, arg...),
-		err:  err,
 	}
+	if !containsPathSeparator(name) {
+		if lp, err := LookPath(name); err != nil {
+			cmd.lookPathErr = err
+		} else {
+			cmd.Path = lp
+		}
+	}
+	return cmd
+}
+
+func containsPathSeparator(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if os.IsPathSeparator(s[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 // interfaceEqual protects against panics from doing equality tests on
-// two interfaces with non-comparable underlying types
+// two interfaces with non-comparable underlying types.
 func interfaceEqual(a, b interface{}) bool {
 	defer func() {
 		recover()
@@ -235,10 +247,10 @@ func (c *Cmd) Run() error {
 
 // Start starts the specified command but does not wait for it to complete.
 func (c *Cmd) Start() error {
-	if c.err != nil {
+	if c.lookPathErr != nil {
 		c.closeDescriptors(c.closeAfterStart)
 		c.closeDescriptors(c.closeAfterWait)
-		return c.err
+		return c.lookPathErr
 	}
 	if c.Process != nil {
 		return errors.New("exec: already started")
