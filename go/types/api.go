@@ -226,6 +226,12 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 	return pkg, err
 }
 
+// Assertable reports whether a value of type V can be asserted to have type T.
+func Assertable(V *Interface, T Type) bool {
+	f, _ := MissingMethod(T, V, false)
+	return f == nil
+}
+
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
@@ -238,19 +244,8 @@ func ConvertibleTo(V, T Type) bool {
 	return x.convertibleTo(nil, T) // config not needed for non-constant x
 }
 
-// Implements reports whether a value of type V implements T, as follows:
-//
-// 1) For non-interface types V, or if static is set, V implements T if all
-// methods of T are present in V. Informally, this reports whether V is a
-// subtype of T.
-//
-// 2) For interface types V, and if static is not set, V implements T if all
-// methods of T which are also present in V have matching types. Informally,
-// this indicates whether a type assertion x.(T) where x is of type V would
-// be legal (the concrete dynamic type of x may implement T even if V does
-// not statically implement it).
-//
-func Implements(V Type, T *Interface, static bool) bool {
-	f, _ := MissingMethod(V, T, static)
+// Implements reports whether type V implements interface T.
+func Implements(V Type, T *Interface) bool {
+	f, _ := MissingMethod(V, T, true)
 	return f == nil
 }

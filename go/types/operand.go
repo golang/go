@@ -217,7 +217,7 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
 	// T is an interface type and x implements T
 	// (Do this check first as it might succeed early.)
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, _ := MissingMethod(x.typ, Ti, true); m == nil {
+		if Implements(x.typ, Ti) {
 			return true
 		}
 	}

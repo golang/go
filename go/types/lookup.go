@@ -242,7 +242,7 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 // methods of T are present in V. Otherwise (V is an interface and static
 // is not set), MissingMethod only checks that methods of T which are also
 // present in V have matching types (e.g., for a type assertion x.(T) where
-// x is of interface type typ).
+// x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	// fast path for common case
