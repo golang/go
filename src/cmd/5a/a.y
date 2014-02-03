@@ -294,7 +294,7 @@ inst:
 			(($11 & 15) << 0) |	/* Crm */
 			(($12 & 7) << 5) |	/* coprocessor information */
 			(1<<4);			/* must be set */
-		outcode(AWORD, Always, &nullgen, NREG, &g);
+		outcode(AMRC, Always, &nullgen, NREG, &g);
 	}
 /*
  * MULL r1,r2,(hi,lo)

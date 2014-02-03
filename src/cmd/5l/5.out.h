@@ -200,6 +200,8 @@ enum	as
 	ACHECKNIL,
 	AFATVARDEF,
 
+	AMRC, // MRC/MCR
+
 	ALAST,
 };
 

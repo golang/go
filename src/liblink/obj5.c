@@ -92,6 +92,7 @@ progedit(Link *ctxt, Prog *p)
 {
 	char literal[64];
 	LSym *s;
+	LSym *tlsfallback;
 
 	p->from.class = 0;
 	p->to.class = 0;
@@ -102,6 +103,25 @@ progedit(Link *ctxt, Prog *p)
 	case ABL:
 		if(p->to.type == D_OREG && (p->to.name == D_EXTERN || p->to.name == D_STATIC) && p->to.sym != nil)
 			p->to.type = D_BRANCH;
+		break;
+	}
+
+	// Replace TLS register fetches on older ARM procesors.
+	switch(p->as) {
+	case AMRC:
+		// If the instruction matches MRC 15, 0, <reg>, C13, C0, 3, replace it.
+		if(ctxt->goarm < 7 && (p->to.offset & 0xffff0fff) == 0xee1d0f70) {
+			tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
+
+			// BL runtime.read_tls_fallback(SB)
+			p->as = ABL;
+			p->to.type = D_BRANCH;
+			p->to.sym = tlsfallback;
+			p->to.offset = 0;
+		} else {
+			// Otherwise, MRC/MCR instructions need no further treatment.
+			p->as = AWORD;
+		}
 		break;
 	}
 
