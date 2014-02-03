@@ -1371,11 +1371,10 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			// Its "address" is the offset from the TLS thread pointer
 			// to the thread-local g and m pointers.
 			// Emit a TLS relocation instead of a standard one.
-			// The TLS flag_shared case is not tested and probably now wrong.
 			if(rel->sym == ctxt->gmsym) {
 				rel->type = D_TLS;
 				if(ctxt->flag_shared)
-					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz; // TODO: probably wrong
+					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
 				rel->xadd = rel->add;
 				rel->xsym = rel->sym;
 			} else if(ctxt->flag_shared) {

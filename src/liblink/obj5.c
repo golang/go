@@ -167,6 +167,21 @@ progedit(Link *ctxt, Prog *p)
 		}
 		break;
 	}
+
+	if(ctxt->flag_shared) {
+		// Shared libraries use R_ARM_TLS_IE32 instead of 
+		// R_ARM_TLS_LE32, replacing the link time constant TLS offset in
+		// runtime.tlsgm with an address to a GOT entry containing the 
+		// offset. Rewrite $runtime.tlsgm(SB) to runtime.tlsgm(SB) to
+		// compensate.
+		if(ctxt->gmsym == nil)
+			ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+
+		if(p->from.type == D_CONST && p->from.name == D_EXTERN && p->from.sym == ctxt->gmsym)
+			p->from.type = D_OREG;
+		if(p->to.type == D_CONST && p->to.name == D_EXTERN && p->to.sym == ctxt->gmsym)
+			p->to.type = D_OREG;
+	}
 }
 
 static Prog*
@@ -225,8 +240,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	if(ctxt->symmorestack[0] == nil)
 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
 	
-	if(ctxt->gmsym == nil)
-		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
 	q = nil;
 	
 	ctxt->cursym = cursym;
@@ -302,7 +315,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	 * strip NOPs
 	 * expand RET
 	 * expand BECOME pseudo
-	 * fixup TLS
 	 */
 
 	for(p = cursym->text; p != nil; p = p->link) {
