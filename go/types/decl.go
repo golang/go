@@ -32,8 +32,8 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 }
 
 // objDecl type-checks the declaration of obj in its respective file scope.
-// See typeDecl for the details on def and cycleOk.
-func (check *checker) objDecl(obj Object, def *Named, cycle []*TypeName) {
+// See check.typ for the details on def and path.
+func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	if obj.Type() != nil {
 		return // already checked - nothing to do
 	}
@@ -71,7 +71,7 @@ func (check *checker) objDecl(obj Object, def *Named, cycle []*TypeName) {
 		check.decl = d // new package-level var decl
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
-		check.typeDecl(obj, d.typ, def, cycle)
+		check.typeDecl(obj, d.typ, def, path)
 	case *Func:
 		check.funcDecl(obj, d)
 	default:
@@ -86,8 +86,7 @@ func (check *checker) objDecl(obj Object, def *Named, cycle []*TypeName) {
 func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
-	// TODO(gri) consider using the same cycle detection as for types
-	// so that we can print the actual cycle in case of an error
+	// TODO(gri) Instead of this code we should rely on initialization cycle detection.
 	if obj.visited {
 		check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.name)
 		obj.typ = Typ[Invalid]
@@ -121,12 +120,10 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 	check.iota = nil
 }
 
-// TODO(gri) document arguments
 func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
-	// TODO(gri) consider using the same cycle detection as for types
-	// so that we can print the actual cycle in case of an error
+	// TODO(gri) Instead of this code we should rely on initialization cycle detection.
 	if obj.visited {
 		check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.name)
 		obj.typ = Typ[Invalid]
@@ -195,7 +192,7 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycle []*TypeName) {
+func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName) {
 	assert(obj.typ == nil)
 
 	// type declarations cannot use iota
@@ -206,7 +203,7 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, cycle []
 	obj.typ = named // make sure recursive type declarations terminate
 
 	// determine underlying type of named
-	check.typ(typ, named, append(cycle, obj))
+	check.typ(typ, named, append(path, obj))
 
 	// The underlying type of named may be itself a named type that is
 	// incomplete:

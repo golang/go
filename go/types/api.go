@@ -96,6 +96,9 @@ type Config struct {
 
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.
+	// Secondary errors (for instance, to enumerate all types
+	// involved in an invalid recursive type declaration) have
+	// error strings that start with a '\t' character.
 	Error func(err error)
 
 	// If Import != nil, it is called for each imported package.

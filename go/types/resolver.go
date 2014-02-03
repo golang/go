@@ -511,7 +511,7 @@ func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 				}
 				obj = cycle[i]
 			}
-			check.errorf(obj.Pos(), "\t%s (cycle start)", obj.Name())
+			check.errorf(obj.Pos(), "\t%s", obj.Name())
 
 		}
 		init.mark = -1 // avoid further errors
