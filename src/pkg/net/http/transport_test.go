@@ -1347,7 +1347,7 @@ func TestTransportCloseResponseBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(buf, want) {
-		t.Errorf("read %q; want %q", buf, want)
+		t.Fatalf("read %q; want %q", buf, want)
 	}
 	didClose := make(chan error, 1)
 	go func() {
