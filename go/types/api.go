@@ -226,8 +226,8 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 	return pkg, err
 }
 
-// Assertable reports whether a value of type V can be asserted to have type T.
-func Assertable(V *Interface, T Type) bool {
+// AssertableTo reports whether a value of type V can be asserted to have type T.
+func AssertableTo(V *Interface, T Type) bool {
 	f, _ := MissingMethod(T, V, false)
 	return f == nil
 }

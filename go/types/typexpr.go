@@ -50,6 +50,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		// (This code is only used for dot-imports. Without them, we
 		// would only have to mark Vars.)
 		obj.used = true
+		check.addDeclDep(obj)
 		if typ == Typ[Invalid] {
 			return
 		}
@@ -87,22 +88,18 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 
 	case *Var:
 		obj.used = true
+		check.addDeclDep(obj)
 		x.mode = variable
-		if typ != Typ[Invalid] {
-			check.addDeclDep(obj)
-		}
 
 	case *Func:
 		obj.used = true
+		check.addDeclDep(obj)
 		x.mode = value
-		if typ != Typ[Invalid] {
-			check.addDeclDep(obj)
-		}
 
 	case *Builtin:
 		obj.used = true // for built-ins defined by package unsafe
-		x.mode = builtin
 		x.id = obj.id
+		x.mode = builtin
 
 	case *Nil:
 		// no need to "use" the nil object

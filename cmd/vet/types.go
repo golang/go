@@ -103,7 +103,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
 	if t&argString != 0 {
-		if types.Assertable(errorType, typ) || types.Assertable(stringerType, typ) {
+		if types.AssertableTo(errorType, typ) || types.AssertableTo(stringerType, typ) {
 			return true
 		}
 	}

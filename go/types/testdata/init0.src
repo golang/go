@@ -6,23 +6,34 @@
 
 package init0
 
-// type-checking, not initialization cycles (we don't know the types)
-// (avoid duplicate errors)
-var (
-	x0 /* ERROR cycle */ = x0
+// initialization cycles (we don't know the types)
+const (
+	s0 /* ERROR initialization cycle */ = s0
 
-	x1 /* ERROR cycle */ = y1
+	x0 /* ERROR initialization cycle */ = y0
+	y0 = x0
+
+	a0 = b0
+	b0 /* ERROR initialization cycle */ = c0
+	c0 = d0
+	d0 = b0
+)
+
+var (
+	s1 /* ERROR initialization cycle */ = s1
+
+	x1 /* ERROR initialization cycle */ = y1
 	y1 = x1
 
 	a1 = b1
-	b1 /* ERROR cycle */ = c1
+	b1 /* ERROR initialization cycle */ = c1
 	c1 = d1
 	d1 = b1
 )
 
 // initialization cycles (we know the types)
-var (
-	x00 /* ERROR initialization cycle */ int = x00
+const (
+	s2 /* ERROR initialization cycle */ int = s2
 
 	x2 /* ERROR initialization cycle */ int = y2
 	y2 = x2
@@ -33,12 +44,25 @@ var (
 	d2 = b2
 )
 
+var (
+	s3 /* ERROR initialization cycle */ int = s3
+
+	x3 /* ERROR initialization cycle */ int = y3
+	y3 = x3
+
+	a3 = b3
+	b3 /* ERROR initialization cycle */ int = c3
+	c3 = d3
+	d3 = b3
+)
+
 // cycles via struct fields
 
 type S1 struct {
 	f int
 }
-var x3 /* ERROR initialization cycle */ S1 = S1{x3.f}
+const cx3 S1 /* ERROR invalid constant type */ = S1{cx3.f}
+var vx3 /* ERROR initialization cycle */ S1 = S1{vx3.f}
 
 // cycles via functions
 
@@ -53,7 +77,7 @@ func f3() int { return x8 }
 
 // cycles via closures
 
-var x9 /* ERROR illegal cycle */ = func() int { return x9 }()
+var x9 /* ERROR initialization cycle */ = func() int { return x9 }()
 
 var x10 /* ERROR initialization cycle */ = f4()
 

@@ -64,15 +64,23 @@ func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	oldDecl := check.decl
 	check.decl = nil
 
+	// Const and var declarations must not have initialization
+	// cycles. We track them by remembering the current declaration
+	// in check.decl. Initialization expressions depending on other
+	// consts, vars, or functions, add dependencies to the current
+	// check.decl.
 	switch obj := obj.(type) {
 	case *Const:
+		check.decl = d // new package-level const decl
 		check.constDecl(obj, d.typ, d.init)
 	case *Var:
 		check.decl = d // new package-level var decl
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
+		// invalid recursive types are detected via path
 		check.typeDecl(obj, d.typ, def, path)
 	case *Func:
+		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
 	default:
 		unreachable()
@@ -86,9 +94,7 @@ func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
-	// TODO(gri) Instead of this code we should rely on initialization cycle detection.
 	if obj.visited {
-		check.errorf(obj.Pos(), "illegal cycle in initialization of constant %s", obj.name)
 		obj.typ = Typ[Invalid]
 		return
 	}
@@ -97,6 +103,7 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 	// use the correct value of iota
 	assert(check.iota == nil)
 	check.iota = obj.val
+	defer func() { check.iota = nil }()
 
 	// determine type, if any
 	if typ != nil {
@@ -104,7 +111,6 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 		if !isConstType(t) {
 			check.errorf(typ.Pos(), "invalid constant type %s", t)
 			obj.typ = Typ[Invalid]
-			check.iota = nil
 			return
 		}
 		obj.typ = t
@@ -116,16 +122,12 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 		check.expr(&x, init)
 	}
 	check.initConst(obj, &x)
-
-	check.iota = nil
 }
 
 func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	assert(obj.typ == nil)
 
-	// TODO(gri) Instead of this code we should rely on initialization cycle detection.
 	if obj.visited {
-		check.errorf(obj.Pos(), "illegal cycle in initialization of variable %s", obj.name)
 		obj.typ = Typ[Invalid]
 		return
 	}

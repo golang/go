@@ -179,8 +179,8 @@ const (
 
 // initialization cycles
 const (
-	a /* ERROR "cycle" */ = a
-	b /* ERROR "cycle" */ , c /* ERROR "cycle" */, d, e = e, d, c, b // TODO(gri) should only have one cycle error
+	a /* ERROR "initialization cycle" */ = a
+	b /* ERROR "initialization cycle" */ , c /* ERROR "initialization cycle" */, d, e = e, d, c, b // TODO(gri) should only have one cycle error
 	f float64 = d
 )
 

@@ -89,7 +89,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	var (
 		objMap  = make(map[Object]*declInfo) // corresponding declaration info
-		initMap = make(map[Object]*declInfo) // declaration info for variables with initializers
+		initMap = make(map[Object]*declInfo) // declaration info for objects with initializers
 	)
 
 	// declare declares obj in the package scope, records its ident -> obj mapping,
@@ -239,7 +239,11 @@ func (check *checker) resolveFiles(files []*ast.File) {
 									init = last.Values[i]
 								}
 
-								declare(name, obj, &declInfo{file: fileScope, typ: last.Type, init: init})
+								d := &declInfo{file: fileScope, typ: last.Type, init: init}
+								declare(name, obj, d)
+
+								// all constants have an initializer
+								initMap[obj] = d
 							}
 
 							check.arityMatch(s, last)
@@ -275,7 +279,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 								declare(name, obj, d)
 
-								// remember obj if it has an initializer
+								// remember variable if it has an initializer
 								if d1 != nil || init != nil {
 									initMap[obj] = d
 								}
@@ -330,7 +334,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
 				objMap[obj] = info
-				// remember obj if it has a body (= initializer)
+				// remember function if it has a body (= initializer)
 				if d.Body != nil {
 					initMap[obj] = info
 				}
@@ -355,12 +359,11 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// Phase 3: Typecheck all objects in objMap, but not function bodies.
 
 	check.initMap = initMap
-	check.objMap = objMap                 // indicate that we are checking package-level declarations (objects may not have a type yet)
-	emptyCycle := make([]*TypeName, 0, 8) // re-use the same underlying array for cycle detection
+	check.objMap = objMap               // indicate that we are checking package-level declarations (objects may not have a type yet)
+	typePath := make([]*TypeName, 0, 8) // pre-allocate space for type declaration paths so that the underlying array is reused
 	for _, obj := range objectsOf(check.objMap) {
-		check.objDecl(obj, nil, emptyCycle)
+		check.objDecl(obj, nil, typePath)
 	}
-	emptyCycle = nil   // not needed anymore
 	check.objMap = nil // not needed anymore
 
 	// At this point we may have a non-empty check.methods map; this means that not all
@@ -380,11 +383,12 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// Note: must happen after checking all functions because function bodies
 	// may introduce dependencies
 
+	initPath := make([]Object, 0, 8) // pre-allocate space for initialization paths so that the underlying array is reused
 	for _, obj := range objectsOf(initMap) {
-		if obj, _ := obj.(*Var); obj != nil {
+		switch obj.(type) {
+		case *Const, *Var:
 			if init := initMap[obj]; init != nil {
-				// provide non-nil path for re-use of underlying array
-				check.dependencies(obj, init, make([]Object, 0, 8))
+				check.dependencies(obj, init, initPath)
 			}
 		}
 	}
@@ -488,16 +492,18 @@ func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 	}
 
 	if init.mark > 0 {
-		// cycle detected - find index of first variable in cycle, if any
+		// cycle detected - find index of first constant or variable in cycle, if any
 		first := -1
 		cycle := path[init.mark-1:]
+	L:
 		for i, obj := range cycle {
-			if _, ok := obj.(*Var); ok {
+			switch obj.(type) {
+			case *Const, *Var:
 				first = i
-				break
+				break L
 			}
 		}
-		// only report an error if there's at least one variable
+		// only report an error if there's at least one constant or variable
 		if first >= 0 {
 			obj := cycle[first]
 			check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
@@ -528,7 +534,7 @@ func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 	}
 	init.mark = -1 // init.mark < 0
 
-	// record the init order for variables
+	// record the init order for variables only
 	if this, _ := obj.(*Var); this != nil {
 		initLhs := init.lhs // possibly nil (see declInfo.lhs field comment)
 		if initLhs == nil {
