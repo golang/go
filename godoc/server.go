@@ -118,11 +118,17 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 				m |= doc.AllMethods
 			}
 			info.PDoc = doc.New(pkg, pathpkg.Clean(relpath), m) // no trailing '/' in importpath
-			if mode&NoFactoryFuncs != 0 {
+			if mode&NoTypeAssoc != 0 {
 				for _, t := range info.PDoc.Types {
+					info.PDoc.Consts = append(info.PDoc.Consts, t.Consts...)
+					info.PDoc.Vars = append(info.PDoc.Vars, t.Vars...)
 					info.PDoc.Funcs = append(info.PDoc.Funcs, t.Funcs...)
+					t.Consts = nil
+					t.Vars = nil
 					t.Funcs = nil
 				}
+				// for now we cannot easily sort consts and vars since
+				// go/doc.Value doesn't export the order information
 				sort.Sort(funcsByName(info.PDoc.Funcs))
 			}
 
@@ -201,7 +207,7 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	abspath := pathpkg.Join(h.fsRoot, relpath)
 	mode := h.p.GetPageInfoMode(r)
 	if relpath == builtinPkgPath {
-		mode = NoFiltering | NoFactoryFuncs
+		mode = NoFiltering | NoTypeAssoc
 	}
 	info := h.GetPageInfo(abspath, relpath, mode)
 	if info.Err != nil {
@@ -261,12 +267,12 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type PageInfoMode uint
 
 const (
-	NoFiltering    PageInfoMode = 1 << iota // do not filter exports
-	AllMethods                              // show all embedded methods
-	ShowSource                              // show source code, do not extract documentation
-	NoHTML                                  // show result in textual form, do not generate HTML
-	FlatDir                                 // show directory in a flat (non-indented) manner
-	NoFactoryFuncs                          // don't associate factory functions with their result types
+	NoFiltering PageInfoMode = 1 << iota // do not filter exports
+	AllMethods                           // show all embedded methods
+	ShowSource                           // show source code, do not extract documentation
+	NoHTML                               // show result in textual form, do not generate HTML
+	FlatDir                              // show directory in a flat (non-indented) manner
+	NoTypeAssoc                          // don't associate consts, vars, and factory functions with types
 )
 
 // modeNames defines names for each PageInfoMode flag.

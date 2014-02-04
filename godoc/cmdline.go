@@ -43,9 +43,9 @@ func CommandLine(w io.Writer, fs vfs.NameSpace, pres *Presentation, args []strin
 	}
 
 	var mode PageInfoMode
-	if relpath == "builtin" {
+	if relpath == builtinPkgPath {
 		// the fake built-in package contains unexported identifiers
-		mode = NoFiltering | NoFactoryFuncs
+		mode = NoFiltering | NoTypeAssoc
 	}
 	if srcMode {
 		// only filter exports if we don't have explicit command-line filter arguments
