@@ -63,12 +63,7 @@ NextCipherSuite:
 		}
 	}
 
-	t := uint32(c.config.time().Unix())
-	hello.random[0] = byte(t >> 24)
-	hello.random[1] = byte(t >> 16)
-	hello.random[2] = byte(t >> 8)
-	hello.random[3] = byte(t)
-	_, err := io.ReadFull(c.config.rand(), hello.random[4:])
+	_, err := io.ReadFull(c.config.rand(), hello.random)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: short read from Rand: " + err.Error())

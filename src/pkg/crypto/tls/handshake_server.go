@@ -146,17 +146,12 @@ Curves:
 	}
 
 	hs.hello.vers = c.vers
-	t := uint32(config.time().Unix())
 	hs.hello.random = make([]byte, 32)
-	hs.hello.random[0] = byte(t >> 24)
-	hs.hello.random[1] = byte(t >> 16)
-	hs.hello.random[2] = byte(t >> 8)
-	hs.hello.random[3] = byte(t)
-	hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
-	_, err = io.ReadFull(config.rand(), hs.hello.random[4:])
+	_, err = io.ReadFull(config.rand(), hs.hello.random)
 	if err != nil {
 		return false, c.sendAlert(alertInternalError)
 	}
+	hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
 	hs.hello.compressionMethod = compressionNone
 	if len(hs.clientHello.serverName) > 0 {
 		c.serverName = hs.clientHello.serverName
