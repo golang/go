@@ -613,3 +613,40 @@ func Test(t *testing.T) {
 		check(t, e.testname, e.minwidth, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected)
 	}
 }
+
+type panicWriter struct{}
+
+func (panicWriter) Write([]byte) (int, error) {
+	panic("cannot write")
+}
+
+func wantPanicString(t *testing.T, want string) {
+	if e := recover(); e != nil {
+		got, ok := e.(string)
+		switch {
+		case !ok:
+			t.Errorf("got %v (%T), want panic string", e, e)
+		case got != want:
+			t.Errorf("wrong panic message: got %q, want %q", got, want)
+		}
+	}
+}
+
+func TestPanicDuringFlush(t *testing.T) {
+	defer wantPanicString(t, "tabwriter: panic during Flush")
+	var p panicWriter
+	w := new(Writer)
+	w.Init(p, 0, 0, 5, ' ', 0)
+	io.WriteString(w, "a")
+	w.Flush()
+	t.Errorf("failed to panic during Flush")
+}
+
+func TestPanicDuringWrite(t *testing.T) {
+	defer wantPanicString(t, "tabwriter: panic during Write")
+	var p panicWriter
+	w := new(Writer)
+	w.Init(p, 0, 0, 5, ' ', 0)
+	io.WriteString(w, "a\n\n") // the second \n triggers a call to w.Write and thus a panic
+	t.Errorf("failed to panic during Write")
+}
