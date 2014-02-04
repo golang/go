@@ -434,9 +434,13 @@ func (b *Writer) terminateCell(htab bool) int {
 	return len(*line)
 }
 
-func handlePanic(err *error) {
+func handlePanic(err *error, op string) {
 	if e := recover(); e != nil {
-		*err = e.(osError).err // re-panics if it's not a local osError
+		if nerr, ok := e.(osError); ok {
+			*err = nerr.err
+			return
+		}
+		panic("tabwriter: panic during " + op)
 	}
 }
 
@@ -447,7 +451,7 @@ func handlePanic(err *error) {
 //
 func (b *Writer) Flush() (err error) {
 	defer b.reset() // even in the presence of errors
-	defer handlePanic(&err)
+	defer handlePanic(&err, "Flush")
 
 	// add current cell if not empty
 	if b.cell.size > 0 {
@@ -471,7 +475,7 @@ var hbar = []byte("---\n")
 // while writing to the underlying output stream.
 //
 func (b *Writer) Write(buf []byte) (n int, err error) {
-	defer handlePanic(&err)
+	defer handlePanic(&err, "Write")
 
 	// split text into cells
 	n = 0
