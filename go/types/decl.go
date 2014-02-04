@@ -107,7 +107,7 @@ func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		t := check.typ(typ, nil, nil)
+		t := check.typ(typ)
 		if !isConstType(t) {
 			check.errorf(typ.Pos(), "invalid constant type %s", t)
 			obj.typ = Typ[Invalid]
@@ -138,7 +138,7 @@ func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 
 	// determine type, if any
 	if typ != nil {
-		obj.typ = check.typ(typ, nil, nil)
+		obj.typ = check.typ(typ)
 	}
 
 	// check initialization
@@ -205,7 +205,7 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 	obj.typ = named // make sure recursive type declarations terminate
 
 	// determine underlying type of named
-	check.typ(typ, named, append(path, obj))
+	check.typExpr(typ, named, append(path, obj))
 
 	// The underlying type of named may be itself a named type that is
 	// incomplete:

@@ -112,13 +112,13 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	x.typ = typ
 }
 
-// typ type-checks the type expression e and returns its type, or Typ[Invalid].
+// typExpr type-checks the type expression e and returns its type, or Typ[Invalid].
 // If def != nil, e is the type specification for the named type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked. Path contains the path of named types
 // referring to this type.
 //
-func (check *checker) typ(e ast.Expr, def *Named, path []*TypeName) (T Type) {
+func (check *checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type) {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
@@ -128,15 +128,16 @@ func (check *checker) typ(e ast.Expr, def *Named, path []*TypeName) (T Type) {
 		}()
 	}
 
-	T = check.typInternal(e, def, path)
+	T = check.typExprInternal(e, def, path)
 	assert(isTyped(T))
 	check.recordTypeAndValue(e, T, nil)
 
 	return
 }
 
-// TODO(gri) provide a convenience function (say, check.typExpr) that works
-// as check.typ but only takes an ast.Expr and assumes nil for def and cycle.
+func (check *checker) typ(e ast.Expr) Type {
+	return check.typExpr(e, nil, nil)
+}
 
 // funcType type-checks a function or method type and returns its signature.
 func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
@@ -195,10 +196,10 @@ func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.Fu
 	return sig
 }
 
-// typInternal drives type checking of types.
-// Must only be called by typ.
+// typExprInternal drives type checking of types.
+// Must only be called by typExpr.
 //
-func (check *checker) typInternal(e ast.Expr, def *Named, path []*TypeName) Type {
+func (check *checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) Type {
 	switch e := e.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
@@ -238,20 +239,20 @@ func (check *checker) typInternal(e ast.Expr, def *Named, path []*TypeName) Type
 		}
 
 	case *ast.ParenExpr:
-		return check.typ(e.X, def, path)
+		return check.typExpr(e.X, def, path)
 
 	case *ast.ArrayType:
 		if e.Len != nil {
 			typ := new(Array)
 			def.setUnderlying(typ)
 			typ.len = check.arrayLength(e.Len)
-			typ.elem = check.typ(e.Elt, nil, path)
+			typ.elem = check.typExpr(e.Elt, nil, path)
 			return typ
 
 		} else {
 			typ := new(Slice)
 			def.setUnderlying(typ)
-			typ.elem = check.typ(e.Elt, nil, nil)
+			typ.elem = check.typ(e.Elt)
 			return typ
 		}
 
@@ -264,7 +265,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, path []*TypeName) Type
 	case *ast.StarExpr:
 		typ := new(Pointer)
 		def.setUnderlying(typ)
-		typ.base = check.typ(e.X, nil, nil)
+		typ.base = check.typ(e.X)
 		return typ
 
 	case *ast.FuncType:
@@ -283,8 +284,8 @@ func (check *checker) typInternal(e ast.Expr, def *Named, path []*TypeName) Type
 		typ := new(Map)
 		def.setUnderlying(typ)
 
-		typ.key = check.typ(e.Key, nil, nil)
-		typ.elem = check.typ(e.Value, nil, nil)
+		typ.key = check.typ(e.Key)
+		typ.elem = check.typ(e.Value)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -318,7 +319,7 @@ func (check *checker) typInternal(e ast.Expr, def *Named, path []*TypeName) Type
 		}
 
 		typ.dir = dir
-		typ.elem = check.typ(e.Value, nil, nil)
+		typ.elem = check.typ(e.Value)
 		return typ
 
 	default:
@@ -392,7 +393,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 				// ignore ... and continue
 			}
 		}
-		typ := check.typ(ftype, nil, nil)
+		typ := check.typ(ftype)
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
 		if len(field.Names) > 0 {
@@ -499,7 +500,7 @@ func (check *checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 
 	for _, e := range embedded {
 		pos := e.Pos()
-		typ := check.typ(e, nil, path)
+		typ := check.typExpr(e, nil, path)
 		named, _ := typ.(*Named)
 		if named == nil {
 			if typ != Typ[Invalid] {
@@ -534,7 +535,7 @@ func (check *checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 
 	for i, m := range iface.methods {
 		expr := signatures[i]
-		typ := check.typ(expr, nil, nil)
+		typ := check.typ(expr)
 		sig, _ := typ.(*Signature)
 		if sig == nil {
 			if typ != Typ[Invalid] {
@@ -622,7 +623,7 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	}
 
 	for _, f := range list.List {
-		typ = check.typ(f.Type, nil, path)
+		typ = check.typExpr(f.Type, nil, path)
 		tag = check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields
