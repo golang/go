@@ -231,29 +231,44 @@ func zero(t types.Type) value {
 	panic(fmt.Sprint("zero: unexpected ", t))
 }
 
-// slice returns x[lo:hi].  Either or both of lo and hi may be nil.
-func slice(x, lo, hi value) value {
+// slice returns x[lo:hi:max].  Any of lo, hi and max may be nil.
+func slice(x, lo, hi, max value) value {
+	var Len, Cap int
+	switch x := x.(type) {
+	case string:
+		Len = len(x)
+	case []value:
+		Len = len(x)
+		Cap = cap(x)
+	case *value: // *array
+		a := (*x).(array)
+		Len = len(a)
+		Cap = cap(a)
+	}
+
 	l := 0
 	if lo != nil {
 		l = asInt(lo)
 	}
+
+	h := Len
+	if hi != nil {
+		h = asInt(hi)
+	}
+
+	m := Cap
+	if max != nil {
+		m = asInt(max)
+	}
+
 	switch x := x.(type) {
 	case string:
-		if hi != nil {
-			return x[l:asInt(hi)]
-		}
-		return x[l:]
+		return x[l:h]
 	case []value:
-		if hi != nil {
-			return x[l:asInt(hi)]
-		}
-		return x[l:]
+		return x[l:h:m]
 	case *value: // *array
 		a := (*x).(array)
-		if hi != nil {
-			return []value(a)[l:asInt(hi)]
-		}
-		return []value(a)[l:]
+		return []value(a)[l:h:m]
 	}
 	panic(fmt.Sprintf("slice: unexpected X type: %T", x))
 }

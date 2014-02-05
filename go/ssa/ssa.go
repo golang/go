@@ -723,8 +723,8 @@ type MakeSlice struct {
 //
 type Slice struct {
 	register
-	X         Value // slice, string, or *array
-	Low, High Value // either may be nil
+	X              Value // slice, string, or *array
+	Low, High, Max Value // each may be nil
 }
 
 // The FieldAddr instruction yields the address of Field of *struct X.

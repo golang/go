@@ -624,3 +624,15 @@ func init() {
 		panic(r)
 	}
 }
+
+// Test of 3-operand x[lo:hi:max] slice.
+func init() {
+	s := []int{0, 1, 2, 3}
+	lenCapLoHi := func(x []int) [4]int { return [4]int{len(x), cap(x), x[0], x[len(x)-1]} }
+	if got := lenCapLoHi(s[1:3]); got != [4]int{2, 3, 1, 2} {
+		panic(got)
+	}
+	if got := lenCapLoHi(s[1:3:3]); got != [4]int{2, 2, 1, 2} {
+		panic(got)
+	}
+}

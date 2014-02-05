@@ -201,6 +201,10 @@ func (v *Slice) String() string {
 	if v.High != nil {
 		b.WriteString(relName(v.High, v))
 	}
+	if v.Max != nil {
+		b.WriteString(":")
+		b.WriteString(relName(v.Max, v))
+	}
 	b.WriteString("]")
 	return b.String()
 }

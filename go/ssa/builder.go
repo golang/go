@@ -569,7 +569,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		}
 
 	case *ast.SliceExpr:
-		var low, high Value
+		var low, high, max Value
 		var x Value
 		switch fn.Pkg.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
@@ -586,10 +586,14 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		if e.Low != nil {
 			low = b.expr(fn, e.Low)
 		}
+		if e.Slice3 {
+			max = b.expr(fn, e.Max)
+		}
 		v := &Slice{
 			X:    x,
 			Low:  low,
 			High: high,
+			Max:  max,
 		}
 		v.setPos(e.Lbrack)
 		v.setType(fn.Pkg.typeOf(e))
