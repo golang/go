@@ -44,6 +44,7 @@ import (
 // if an invalid UTF-8 sequence is encountered.
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
+// Ampersand "&" is also escaped to "\u0026" for the same reason.
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string, and a nil slice
@@ -804,7 +805,7 @@ func (e *encodeState) string(s string) (int, error) {
 				e.WriteByte('r')
 			default:
 				// This encodes bytes < 0x20 except for \n and \r,
-				// as well as < and >. The latter are escaped because they
+				// as well as <, > and &. The latter are escaped because they
 				// can lead to security holes when user-controlled strings
 				// are rendered into JSON and served to some browsers.
 				e.WriteString(`\u00`)
