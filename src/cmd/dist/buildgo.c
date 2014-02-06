@@ -31,7 +31,7 @@ mkzdefaultcc(char *dir, char *file)
 		"\n"
 		"const defaultCC = `%s`\n"
 		"const defaultCXX = `%s`\n",
-		defaultcc, defaultcxx);
+		defaultcctarget, defaultcxxtarget);
 
 	writefile(&out, file, 0);
 
