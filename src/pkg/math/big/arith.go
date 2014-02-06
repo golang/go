@@ -131,12 +131,11 @@ func divWW_g(u1, u0, v Word) (q, r Word) {
 	q1 := un32 / vn1
 	rhat := un32 - q1*vn1
 
-again1:
-	if q1 >= _B2 || q1*vn0 > _B2*rhat+un1 {
+	for q1 >= _B2 || q1*vn0 > _B2*rhat+un1 {
 		q1--
 		rhat += vn1
-		if rhat < _B2 {
-			goto again1
+		if rhat >= _B2 {
+			break
 		}
 	}
 
@@ -144,12 +143,11 @@ again1:
 	q0 := un21 / vn1
 	rhat = un21 - q0*vn1
 
-again2:
-	if q0 >= _B2 || q0*vn0 > _B2*rhat+un0 {
+	for q0 >= _B2 || q0*vn0 > _B2*rhat+un0 {
 		q0--
 		rhat += vn1
-		if rhat < _B2 {
-			goto again2
+		if rhat >= _B2 {
+			break
 		}
 	}
 
