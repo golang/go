@@ -159,7 +159,9 @@ func (a *Address) String() string {
 	// If every character is printable ASCII, quoting is simple.
 	allPrintable := true
 	for i := 0; i < len(a.Name); i++ {
-		if !isVchar(a.Name[i]) {
+		// isWSP here should actually be isFWS,
+		// but we don't support folding yet.
+		if !isVchar(a.Name[i]) && !isWSP(a.Name[i]) {
 			allPrintable = false
 			break
 		}
@@ -167,7 +169,7 @@ func (a *Address) String() string {
 	if allPrintable {
 		b := bytes.NewBufferString(`"`)
 		for i := 0; i < len(a.Name); i++ {
-			if !isQtext(a.Name[i]) {
+			if !isQtext(a.Name[i]) && !isWSP(a.Name[i]) {
 				b.WriteByte('\\')
 			}
 			b.WriteByte(a.Name[i])
@@ -534,4 +536,10 @@ func isQtext(c byte) bool {
 func isVchar(c byte) bool {
 	// Visible (printing) characters.
 	return '!' <= c && c <= '~'
+}
+
+// isWSP returns true if c is a WSP (white space).
+// WSP is a space or horizontal tab (RFC5234 Appendix B).
+func isWSP(c byte) bool {
+	return c == ' ' || c == '\t'
 }

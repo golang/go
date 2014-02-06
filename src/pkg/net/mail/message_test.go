@@ -277,6 +277,14 @@ func TestAddressFormatting(t *testing.T) {
 			&Address{Name: "Böb", Address: "bob@example.com"},
 			`=?utf-8?q?B=C3=B6b?= <bob@example.com>`,
 		},
+		{
+			&Address{Name: "Bob Jane", Address: "bob@example.com"},
+			`"Bob Jane" <bob@example.com>`,
+		},
+		{
+			&Address{Name: "Böb Jacöb", Address: "bob@example.com"},
+			`=?utf-8?q?B=C3=B6b_Jac=C3=B6b?= <bob@example.com>`,
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
