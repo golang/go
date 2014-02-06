@@ -27,7 +27,8 @@ char *gochar;
 char *goversion;
 char *slash;	// / for unix, \ for windows
 char *defaultcc;
-char *defaultcxx;
+char *defaultcxxtarget;
+char *defaultcctarget;
 bool	rebuildall;
 bool defaultclang;
 
@@ -166,14 +167,23 @@ init(void)
 	}
 	defaultcc = btake(&b);
 
-	xgetenv(&b, "CXX");
+	xgetenv(&b, "CC_FOR_TARGET");
 	if(b.len == 0) {
-		if(defaultclang)
-			bprintf(&b, "clang++");
-		else
-			bprintf(&b, "g++");
+		bprintf(&b, defaultcc);
 	}
-	defaultcxx = btake(&b);
+	defaultcctarget = btake(&b);
+
+	xgetenv(&b, "CXX_FOR_TARGET");
+	if(b.len == 0) {
+		xgetenv(&b, "CXX");
+		if(b.len == 0) {
+			if(defaultclang)
+				bprintf(&b, "clang++");
+			else
+				bprintf(&b, "g++");
+		}
+	}
+	defaultcxxtarget = btake(&b);
 
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
@@ -1537,6 +1547,7 @@ cmdenv(int argc, char **argv)
 		usage();
 
 	xprintf(format, "CC", defaultcc);
+	xprintf(format, "CC_FOR_TARGET", defaultcctarget);
 	xprintf(format, "GOROOT", goroot);
 	xprintf(format, "GOBIN", gobin);
 	xprintf(format, "GOARCH", goarch);

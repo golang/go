@@ -1708,41 +1708,41 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 	if buildContext.InstallSuffix != "" {
 		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
 	}
-	if cxx {
-		// The program includes C++ code.  If the user has not
-		// specified the -extld option, then default to
-		// linking with the compiler named by the CXX
-		// environment variable, or g++ if CXX is not set.
-		extld := false
-		for _, f := range ldflags {
-			if f == "-extld" || strings.HasPrefix(f, "-extld=") {
-				extld = true
-				break
-			}
+	// If the user has not specified the -extld option, then specify the
+	// appropriate linker. In case of C++ code, use the compiler named
+	// by the CXX environment variable or defaultCXX if CXX is not set.
+	// Else, use the CC environment variable and defaultCC as fallback.
+	extld := false
+	for _, f := range ldflags {
+		if f == "-extld" || strings.HasPrefix(f, "-extld=") {
+			extld = true
+			break
 		}
-		if !extld {
-			compiler := strings.Fields(os.Getenv("CXX"))
-			if len(compiler) == 0 {
-				compiler = []string{"g++"}
+	}
+	if !extld {
+		var compiler []string
+		if cxx {
+			compiler = ccompilerPath("CXX", defaultCXX)
+		} else {
+			compiler = ccompilerPath("CC", defaultCC)
+		}
+		ldflags = append(ldflags, "-extld="+compiler[0])
+		if len(compiler) > 1 {
+			extldflags := false
+			add := strings.Join(compiler[1:], " ")
+			for i, f := range ldflags {
+				if f == "-extldflags" && i+1 < len(ldflags) {
+					ldflags[i+1] = add + " " + ldflags[i+1]
+					extldflags = true
+					break
+				} else if strings.HasPrefix(f, "-extldflags=") {
+					ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
+					extldflags = true
+					break
+				}
 			}
-			ldflags = append(ldflags, "-extld="+compiler[0])
-			if len(compiler) > 1 {
-				extldflags := false
-				add := strings.Join(compiler[1:], " ")
-				for i, f := range ldflags {
-					if f == "-extldflags" && i+1 < len(ldflags) {
-						ldflags[i+1] = add + " " + ldflags[i+1]
-						extldflags = true
-						break
-					} else if strings.HasPrefix(f, "-extldflags=") {
-						ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
-						extldflags = true
-						break
-					}
-				}
-				if !extldflags {
-					ldflags = append(ldflags, "-extldflags="+add)
-				}
+			if !extldflags {
+				ldflags = append(ldflags, "-extldflags="+add)
 			}
 		}
 	}
@@ -1973,15 +1973,12 @@ func (b *builder) gxxCmd(objdir string) []string {
 }
 
 // ccompilerCmd returns a command line prefix for the given environment
-// variable and using the default command when the variable is empty
+// variable and using the default command when the variable is empty.
 func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
 	// strings returned are "gcc", "-I", objdir (and cuts them off).
 
-	compiler := strings.Fields(os.Getenv(envvar))
-	if len(compiler) == 0 {
-		compiler = strings.Fields(defcmd)
-	}
+	compiler := ccompilerPath(envvar, defcmd)
 	a := []string{compiler[0], "-I", objdir, "-g", "-O2"}
 	a = append(a, compiler[1:]...)
 
@@ -2037,6 +2034,16 @@ func (b *builder) gccArchArgs() []string {
 
 func envList(key string) []string {
 	return strings.Fields(os.Getenv(key))
+}
+
+// ccompilerCmd returns the compilerpath for the given environment
+// variable and using the default command when the variable is empty.
+func ccompilerPath(envvar, defcmd string) []string {
+	compiler := envList(envvar)
+	if len(compiler) == 0 {
+		compiler = strings.Fields(defcmd)
+	}
+	return compiler
 }
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
