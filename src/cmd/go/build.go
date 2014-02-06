@@ -816,7 +816,7 @@ func (b *builder) build(a *action) (err error) {
 				continue
 			}
 			coverFile := filepath.Join(obj, file)
-			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Var); err != nil {
+			if err := b.cover(a, coverFile, sourceFile, 0644, cover.Var); err != nil {
 				return err
 			}
 			gofiles = append(gofiles, coverFile)
@@ -911,17 +911,17 @@ func (b *builder) build(a *action) (err error) {
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644); err != nil {
 				return err
 			}
 		}
@@ -993,9 +993,9 @@ func (b *builder) install(a *action) (err error) {
 		}
 	}()
 	a1 := a.deps[0]
-	perm := os.FileMode(0666)
+	perm := os.FileMode(0644)
 	if a1.link {
-		perm = 0777
+		perm = 0755
 	}
 
 	// make target directory
