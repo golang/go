@@ -76,12 +76,13 @@ and extract it into <code>/usr/local</code>, creating a Go tree in
 </p>
 
 <pre>
-tar -C /usr/local -xzf go1.1.linux-amd64.tar.gz
+tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
 </pre>
 
 <p>
-The name of the archive may differ, depending on the version of Go you are
-installing and your system's operating system and processor architecture.
+Choose the archive file appropriate for your installation.
+For instance, if you are installing Go version 1.2 for 64-bit x86 on Linux,
+the archive you want is called <code>go1.2.linux-amd64.tar.gz</code>.
 </p>
 
 <p>
