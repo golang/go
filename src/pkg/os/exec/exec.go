@@ -12,6 +12,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -111,7 +112,7 @@ func Command(name string, arg ...string) *Cmd {
 		Path: name,
 		Args: append([]string{name}, arg...),
 	}
-	if !containsPathSeparator(name) {
+	if filepath.Base(name) == name {
 		if lp, err := LookPath(name); err != nil {
 			cmd.lookPathErr = err
 		} else {
@@ -119,15 +120,6 @@ func Command(name string, arg ...string) *Cmd {
 		}
 	}
 	return cmd
-}
-
-func containsPathSeparator(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if os.IsPathSeparator(s[i]) {
-			return true
-		}
-	}
-	return false
 }
 
 // interfaceEqual protects against panics from doing equality tests on
