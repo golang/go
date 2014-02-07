@@ -84,3 +84,7 @@ func GogoBytes() int32
 
 var hashLoad float64 // declared in hashmap.c
 var HashLoad = &hashLoad
+
+func memclrBytes(b []byte)
+
+var MemclrBytes = memclrBytes

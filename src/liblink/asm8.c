@@ -1115,6 +1115,7 @@ static Optab optab[] =
 	{ APSUBW,	yxm,	Pe, 0xf9 },
 	{ APUNPCKHQDQ,	yxm,	Pe, 0x6d },
 	{ APUNPCKLQDQ,	yxm,	Pe, 0x6c },
+	{ APXOR,	yxm,	Pe, 0xef },
 	{ ARCPPS,	yxm,	Pm, 0x53 },
 	{ ARCPSS,	yxm,	Pf3, 0x53 },
 	{ ARSQRTPS,	yxm,	Pm, 0x52 },

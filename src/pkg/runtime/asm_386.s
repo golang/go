@@ -753,21 +753,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	INT	$3
 	RET
 
-TEXT runtime·memclr(SB),NOSPLIT,$0-8
-	MOVL	4(SP), DI		// arg 1 addr
-	MOVL	8(SP), CX		// arg 2 count
-	MOVL	CX, BX
-	ANDL	$3, BX
-	SHRL	$2, CX
-	MOVL	$0, AX
-	CLD
-	REP
-	STOSL
-	MOVL	BX, CX
-	REP
-	STOSB
-	RET
-
 TEXT runtime·getcallerpc(SB),NOSPLIT,$0-4
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	-4(AX),AX		// get calling pc
