@@ -119,7 +119,7 @@ func (o *operation) InitBuf(buf []byte) {
 	o.buf.Len = uint32(len(buf))
 	o.buf.Buf = nil
 	if len(buf) != 0 {
-		o.buf.Buf = (*byte)(unsafe.Pointer(&buf[0]))
+		o.buf.Buf = &buf[0]
 	}
 }
 
