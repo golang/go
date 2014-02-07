@@ -3199,7 +3199,7 @@ typecheckdef(Node *n)
 		n->type->sym = n->sym;
 		nerrors0 = nerrors;
 		typecheckdeftype(n);
-		if(n->type->etype == TFORW && nerrors > nerrors0) {
+		if(n->type != T && n->type->etype == TFORW && nerrors > nerrors0) {
 			// Something went wrong during type-checking,
 			// but it was reported. Silence future errors.
 			n->type->broke = 1;
