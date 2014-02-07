@@ -1016,7 +1016,8 @@ void
 clearfat(Node *nl)
 {
 	int64 w, c, q;
-	Node n1, oldn1, ax, oldax;
+	Node n1, oldn1, ax, oldax, di, z;
+	Prog *p;
 
 	/* clear a fat object */
 	if(debug['g'])
@@ -1048,10 +1049,23 @@ clearfat(Node *nl)
 		q--;
 	}
 
-	if(c >= 4) {
-		gconreg(AMOVQ, c, D_CX);
-		gins(AREP, N, N);	// repeat
-		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+	z = ax;
+	di = n1;
+	if(w >= 8 && c >= 4) {
+		di.op = OINDREG;
+		di.type = z.type = types[TINT64];
+		p = gins(AMOVQ, &z, &di);
+		p->to.scale = 1;
+		p->to.offset = c-8;
+	} else if(c >= 4) {
+		di.op = OINDREG;
+		di.type = z.type = types[TINT32];
+		p = gins(AMOVL, &z, &di);
+		if(c > 4) {
+			p = gins(AMOVL, &z, &di);
+			p->to.scale = 1;
+			p->to.offset = c-4;
+		}
 	} else
 	while(c > 0) {
 		gins(ASTOSB, N, N);	// STOB AL,*(DI)+

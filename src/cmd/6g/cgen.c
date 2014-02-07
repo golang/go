@@ -1436,14 +1436,33 @@ sgen(Node *n, Node *ns, int64 w)
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
 			q--;
 		}
-
-		if(c >= 4) {
-			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
-			c -= 4;
-		}
-		while(c > 0) {
-			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
-			c--;
+		// copy the remaining c bytes
+		if(w < 4 || c <= 1 || (odst < osrc && osrc < odst+w)) {
+			while(c > 0) {
+				gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+				c--;
+			}
+		} else if(w < 8 || c <= 4) {
+			nodsi.op = OINDREG;
+			noddi.op = OINDREG;
+			nodsi.type = types[TINT32];
+			noddi.type = types[TINT32];
+			if(c > 4) {
+				nodsi.xoffset = 0;
+				noddi.xoffset = 0;
+				gmove(&nodsi, &noddi);
+			}
+			nodsi.xoffset = c-4;
+			noddi.xoffset = c-4;
+			gmove(&nodsi, &noddi);
+		} else {
+			nodsi.op = OINDREG;
+			noddi.op = OINDREG;
+			nodsi.type = types[TINT64];
+			noddi.type = types[TINT64];
+			nodsi.xoffset = c-8;
+			noddi.xoffset = c-8;
+			gmove(&nodsi, &noddi);
 		}
 	}
 
