@@ -4,6 +4,7 @@
 
 #include <sys/types.h>
 #include <machine/sysarch.h>
+#include <sys/signalvar.h>
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
