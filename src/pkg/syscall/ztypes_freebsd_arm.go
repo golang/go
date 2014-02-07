@@ -19,13 +19,15 @@ type (
 )
 
 type Timespec struct {
-	Sec  int64
-	Nsec int32
+	Sec       int64
+	Nsec      int32
+	Pad_cgo_0 [4]byte
 }
 
 type Timeval struct {
-	Sec  int64
-	Usec int32
+	Sec       int64
+	Usec      int32
+	Pad_cgo_0 [4]byte
 }
 
 type Rusage struct {
