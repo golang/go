@@ -4,7 +4,7 @@
 
 enum {
 	EINTR	= 0x4,
-	EFAULT  = 0xe,
+	EFAULT	= 0xe,
 
 	PROT_NONE	= 0x0,
 	PROT_READ	= 0x1,
@@ -76,13 +76,13 @@ enum {
 	ITIMER_VIRTUAL	= 0x1,
 	ITIMER_PROF	= 0x2,
 
-	EV_ADD          = 0x1,
-	EV_DELETE       = 0x2,
-	EV_CLEAR        = 0x20,
-	EV_RECEIPT      = 0x40,
-	EV_ERROR        = 0x4000,
-	EVFILT_READ     = -0x1,
-	EVFILT_WRITE    = -0x2,
+	EV_ADD		= 0x1,
+	EV_DELETE	= 0x2,
+	EV_CLEAR	= 0x20,
+	EV_RECEIPT	= 0x40,
+	EV_ERROR	= 0x4000,
+	EVFILT_READ	= -0x1,
+	EVFILT_WRITE	= -0x2,
 };
 
 typedef struct Rtprio Rtprio;
@@ -159,10 +159,12 @@ struct Ucontext {
 struct Timespec {
 	int64	tv_sec;
 	int32	tv_nsec;
+	byte	Pad_cgo_0[4];
 };
 struct Timeval {
 	int64	tv_sec;
 	int32	tv_usec;
+	byte	Pad_cgo_0[4];
 };
 struct Itimerval {
 	Timeval	it_interval;
@@ -170,12 +172,12 @@ struct Itimerval {
 };
 
 struct Kevent {
-	uint32  ident;
-	int16   filter;
-	uint16  flags;
-	uint32  fflags;
-	int32   data;
-	byte    *udata;
+	uint32	ident;
+	int16	filter;
+	uint16	flags;
+	uint32	fflags;
+	int32	data;
+	byte	*udata;
 };
 
 
