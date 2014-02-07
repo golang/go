@@ -514,6 +514,11 @@ runtime·equal(Type *t, ...)
 	t->alg->equal((bool*)ret, t->size, x, y);
 }
 
+// Testing adapter for memclr
+void runtime·memclrBytes(Slice s) {
+	runtime·memclr(s.array, s.len);
+}
+
 // Testing adapters for hash quality tests (see hash_test.go)
 void runtime·haveGoodHash(bool res) {
 	res = use_aeshash;

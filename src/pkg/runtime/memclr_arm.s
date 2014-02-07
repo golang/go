@@ -40,12 +40,6 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	CMP	$4, R(N)		/* need at least 4 bytes to copy */
 	BLT	_1tail
 
-	AND	$0xFF, R(0)		/* it's a byte */
-	SLL	$8, R(0), R(TMP)	/* replicate to a word */
-	ORR	R(TMP), R(0)
-	SLL	$16, R(0), R(TMP)
-	ORR	R(TMP), R(0)
-
 _4align:				/* align on 4 */
 	AND.S	$3, R(TO), R(TMP)
 	BEQ	_4aligned
