@@ -471,6 +471,42 @@ func main() {
 }
 `,
 	},
+
+	// golang.org/issue/7132
+	{
+		name: "issue 7132",
+		in: `package main
+
+import (
+"fmt"
+
+"gu"
+"github.com/foo/bar"
+)
+
+var (
+a = bar.a
+b = gu.a
+c = fmt.Printf
+)
+`,
+		out: `package main
+
+import (
+	"fmt"
+
+	"gu"
+
+	"github.com/foo/bar"
+)
+
+var (
+	a = bar.a
+	b = gu.a
+	c = fmt.Printf
+)
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -492,7 +528,7 @@ func TestFixImports(t *testing.T) {
 		if *only != "" && tt.name != *only {
 			continue
 		}
-		buf, err := Process("foo.go", []byte(tt.in), nil)
+		buf, err := Process(tt.name+".go", []byte(tt.in), nil)
 		if err != nil {
 			t.Errorf("error on %q: %v", tt.name, err)
 			continue

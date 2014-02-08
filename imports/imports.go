@@ -54,10 +54,13 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 	imps := astutil.Imports(fileSet, file)
 
 	var spacesBefore []string // import paths we need spaces before
-	if len(imps) == 1 {
-		// We have just one block of imports. See if any are in different groups numbers.
+	for _, impSection := range imps {
+		// Within each block of contiguous imports, see if any
+		// import lines are in different group numbers. If so,
+		// we'll need to put a space between them so it's
+		// compatible with gofmt.
 		lastGroup := -1
-		for _, importSpec := range imps[0] {
+		for _, importSpec := range impSection {
 			importPath, _ := strconv.Unquote(importSpec.Path.Value)
 			groupNum := importGroup(importPath)
 			if groupNum != lastGroup && lastGroup != -1 {
