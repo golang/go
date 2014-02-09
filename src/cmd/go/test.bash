@@ -427,10 +427,10 @@ d=$(TMPDIR=$tmp mktemp -d -t testgoXXX)
 mkdir -p $d/src
 (
 	ln -s $d $d/src/dir1
-	cd $d/src/dir1
-	echo package p >p.go
+	cd $d/src
+	echo package p >dir1/p.go
 	export GOPATH=$d
-	if [ "$($old/testgo list -f '{{.Root}}' .)" != "$d" ]; then
+	if [ "$($old/testgo list -f '{{.Root}}' dir1)" != "$d" ]; then
 		echo Confused by symlinks.
 		echo "Package in current directory $(pwd) should have Root $d"
 		env|grep WD
@@ -479,13 +479,19 @@ rm -rf $d
 TEST case collisions '(issue 4773)'
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d
-mkdir -p $d/src/example/a $d/src/example/b
+mkdir -p $d/src/example/{a/pkg,a/Pkg,b}
 cat >$d/src/example/a/a.go <<EOF
 package p
 import (
-	_ "math/rand"
-	_ "math/Rand"
+	_ "example/a/pkg"
+	_ "example/a/Pkg"
 )
+EOF
+cat >$d/src/example/a/pkg/pkg.go <<EOF
+package pkg
+EOF
+cat >$d/src/example/a/Pkg/pkg.go <<EOF
+package pkg
 EOF
 if ./testgo list example/a 2>$d/out; then
 	echo go list example/a should have failed, did not.
@@ -547,7 +553,7 @@ fi
 
 # The error for go install should mention the conflicting directory.
 err=$(! ./testgo install ./testdata/shadow/root2/src/foo 2>&1)
-if [ "$err" != "go install: no install location for directory $(pwd)/testdata/shadow/root2/src/foo hidden by $(pwd)/testdata/shadow/root1/src/foo" ]; then
+if [ "$err" != "go install: no install location for $(pwd)/testdata/shadow/root2/src/foo: hidden by $(pwd)/testdata/shadow/root1/src/foo" ]; then
 	echo wrong shadowed install error: "$err"
 	ok=false
 fi
