@@ -42,6 +42,7 @@ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
 char openbsddynld[] = "/usr/libexec/ld.so";
 char netbsddynld[] = "/usr/libexec/ld.elf_so";
 char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
+char solarisdynld[] = "/lib/ld.so.1";
 
 static int
 needlib(char *name)

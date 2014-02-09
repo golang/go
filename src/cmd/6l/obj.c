@@ -65,6 +65,7 @@ archinit(void)
 	case Hlinux:
 	case Hnetbsd:
 	case Hopenbsd:
+	case Hsolaris:
 		break;
 	}
 	ctxt->linkmode = linkmode;
@@ -106,6 +107,7 @@ archinit(void)
 	case Hnetbsd:		/* netbsd */
 	case Hopenbsd:		/* openbsd */
 	case Hdragonfly:	/* dragonfly */
+	case Hsolaris:		/* solaris */
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)

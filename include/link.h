@@ -451,6 +451,7 @@ enum {
 	Hnetbsd,
 	Hopenbsd,
 	Hplan9,
+	Hsolaris,
 	Hwindows,
 };
 

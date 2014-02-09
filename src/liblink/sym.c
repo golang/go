@@ -52,6 +52,7 @@ static struct {
 	"netbsd",	Hnetbsd,
 	"openbsd",	Hopenbsd,
 	"plan9",	Hplan9,
+	"solaris",	Hsolaris,
 	"windows",	Hwindows,
 	"windowsgui",	Hwindows,
 	0, 0
@@ -129,6 +130,7 @@ linknew(LinkArch *arch)
 	case Hnetbsd:
 	case Hopenbsd:
 	case Hdragonfly:
+	case Hsolaris:
 		/*
 		 * ELF uses TLS offset negative from FS.
 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).

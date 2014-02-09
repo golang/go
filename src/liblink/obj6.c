@@ -137,7 +137,8 @@ progedit(Link *ctxt, Prog *p)
 	}
 	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
 	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly) {
+	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
+	|| ctxt->headtype == Hsolaris) {
 		// ELF uses FS instead of GS.
 		if(p->from.type == D_INDIR+D_GS)
 			p->from.type = D_INDIR+D_FS;
@@ -577,7 +578,8 @@ load_g_cx(Link *ctxt, Prog *p)
 	p->as = AMOVQ;
 	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
 	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly)
+	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
+	|| ctxt->headtype == Hsolaris)
 		// ELF uses FS
 		p->from.type = D_INDIR+D_FS;
 	else
