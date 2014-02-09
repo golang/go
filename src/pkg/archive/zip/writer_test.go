@@ -125,3 +125,21 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 		t.Errorf("File contents %q, want %q", b, wt.Data)
 	}
 }
+
+func BenchmarkCompressedZipGarbage(b *testing.B) {
+	b.ReportAllocs()
+	var buf bytes.Buffer
+	bigBuf := bytes.Repeat([]byte("a"), 1<<20)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		zw := NewWriter(&buf)
+		for j := 0; j < 3; j++ {
+			w, _ := zw.CreateHeader(&FileHeader{
+				Name:   "foo",
+				Method: Deflate,
+			})
+			w.Write(bigBuf)
+		}
+		zw.Close()
+	}
+}
