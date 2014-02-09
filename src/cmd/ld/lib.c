@@ -259,7 +259,9 @@ loadlib(void)
 	//
 	// Exception: on OS X, programs such as Shark only work with dynamic
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
-	if(!flag_shared && !havedynamic && HEADTYPE != Hdarwin)
+	// Also leave it enabled on Solaris which doesn't support
+	// statically linked binaries.
+	if(!flag_shared && !havedynamic && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris)
 		debug['d'] = 1;
 	
 	importcycles();

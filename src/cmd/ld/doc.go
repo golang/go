@@ -43,6 +43,8 @@ Options new in this version:
 		Write NetBSD ELF binaries (default when $GOOS is netbsd)
 	-H openbsd    (only in 6l/8l)
 		Write OpenBSD ELF binaries (default when $GOOS is openbsd)
+	-H solaris    (only in 6l)
+		Write Solaris ELF binaries (default when $GOOS is solaris)
 	-H windows    (only in 6l/8l)
 		Write Windows PE32+ Console binaries (default when $GOOS is windows)
 	-H windowsgui (only in 6l/8l)

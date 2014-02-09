@@ -677,6 +677,23 @@ elfdynhash(void)
 		elfwritedynent(s, DT_VERNEEDNUM, nfile);
 		elfwritedynentsym(s, DT_VERSYM, linklookup(ctxt, ".gnu.version", 0));
 	}
+
+	if(thechar == '6') {
+		sy = linklookup(ctxt, ".rela.plt", 0);
+		if(sy->size > 0) {
+			elfwritedynent(s, DT_PLTREL, DT_RELA);
+			elfwritedynentsymsize(s, DT_PLTRELSZ, sy);
+			elfwritedynentsym(s, DT_JMPREL, sy);
+		}
+	} else {
+		sy = linklookup(ctxt, ".rel.plt", 0);
+		if(sy->size > 0) {
+			elfwritedynent(s, DT_PLTREL, DT_REL);
+			elfwritedynentsymsize(s, DT_PLTRELSZ, sy);
+			elfwritedynentsym(s, DT_JMPREL, sy);
+		}
+	}
+
 	elfwritedynent(s, DT_NULL, 0);
 }
 
@@ -1058,16 +1075,10 @@ doelf(void)
 		
 		elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".got.plt", 0));
 
-		if(thechar == '6') {
-			elfwritedynent(s, DT_PLTREL, DT_RELA);
-			elfwritedynentsymsize(s, DT_PLTRELSZ, linklookup(ctxt, ".rela.plt", 0));
-			elfwritedynentsym(s, DT_JMPREL, linklookup(ctxt, ".rela.plt", 0));
-		} else {
-			elfwritedynent(s, DT_PLTREL, DT_REL);
-			elfwritedynentsymsize(s, DT_PLTRELSZ, linklookup(ctxt, ".rel.plt", 0));
-			elfwritedynentsym(s, DT_JMPREL, linklookup(ctxt, ".rel.plt", 0));
-		}
-		
+		// Solaris dynamic linker can't handle an empty .rela.plt if
+		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
+		// DT_PLTRELSZ, and DT_JMPREL dynamic entries until after we know the
+		// size of .rel(a).plt section.
 		elfwritedynent(s, DT_DEBUG, 0);
 
 		// Do not write DT_NULL.  elfdynhash will finish it.
@@ -1191,6 +1202,9 @@ asmbelf(vlong symo)
 				break;
 			case Hdragonfly:
 				interpreter = dragonflydynld;
+				break;
+			case Hsolaris:
+				interpreter = solarisdynld;
 				break;
 			}
 		}
