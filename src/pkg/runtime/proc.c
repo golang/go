@@ -2115,7 +2115,6 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 {
 	int32 n;
 	bool traceback;
-	MCache *mcache;
 	// Do not use global m in this function, use mp instead.
 	// On windows one m is sending reports about all the g's, so m means a wrong thing.
 	byte m;
@@ -2127,8 +2126,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 		return;
 
 	// Profiling runs concurrently with GC, so it must not allocate.
-	mcache = mp->mcache;
-	mp->mcache = nil;
+	mp->mallocing++;
 
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal. We've only made sure that we
@@ -2216,7 +2214,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	runtime·lock(&prof);
 	if(prof.fn == nil) {
 		runtime·unlock(&prof);
-		mp->mcache = mcache;
+		mp->mallocing--;
 		return;
 	}
 	n = 0;
@@ -2229,7 +2227,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	}
 	prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
-	mp->mcache = mcache;
+	mp->mallocing--;
 }
 
 // Arrange to call fn with a traceback hz times a second.
