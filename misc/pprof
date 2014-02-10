@@ -730,6 +730,13 @@ sub RunWeb {
     return;
   }
 
+  if (`uname` =~ /CYGWIN/) {
+    # Windows(cygwin): open will use standard preference for SVG files.
+    my $winname = `cygpath -wa $fname`;
+    system("explorer.exe", $winname);
+    return;
+  }
+
   # Some kind of Unix; try generic symlinks, then specific browsers.
   # (Stop once we find one.)
   # Works best if the browser is already running.
