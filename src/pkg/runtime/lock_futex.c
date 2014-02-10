@@ -130,8 +130,11 @@ runtime·notesleep(Note *n)
 {
 	if(g != m->g0)
 		runtime·throw("notesleep not on g0");
-	while(runtime·atomicload((uint32*)&n->key) == 0)
+	while(runtime·atomicload((uint32*)&n->key) == 0) {
+		m->blocked = true;
 		runtime·futexsleep((uint32*)&n->key, 0, -1);
+		m->blocked = false;
+	}
 }
 
 #pragma textflag NOSPLIT
@@ -143,8 +146,11 @@ notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
 	// does not count against our nosplit stack sequence.
 
 	if(ns < 0) {
-		while(runtime·atomicload((uint32*)&n->key) == 0)
+		while(runtime·atomicload((uint32*)&n->key) == 0) {
+			m->blocked = true;
 			runtime·futexsleep((uint32*)&n->key, 0, -1);
+			m->blocked = false;
+		}
 		return true;
 	}
 
@@ -153,7 +159,9 @@ notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
 
 	deadline = runtime·nanotime() + ns;
 	for(;;) {
+		m->blocked = true;
 		runtime·futexsleep((uint32*)&n->key, 0, ns);
+		m->blocked = false;
 		if(runtime·atomicload((uint32*)&n->key) != 0)
 			break;
 		now = runtime·nanotime();

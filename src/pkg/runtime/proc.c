@@ -2690,10 +2690,10 @@ runtime·schedtrace(bool detailed)
 		if(lockedg)
 			id3 = lockedg->goid;
 		runtime·printf("  M%d: p=%D curg=%D mallocing=%d throwing=%d gcing=%d"
-			" locks=%d dying=%d helpgc=%d spinning=%d lockedg=%D\n",
+			" locks=%d dying=%d helpgc=%d spinning=%d blocked=%d lockedg=%D\n",
 			mp->id, id1, id2,
 			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
-			mp->spinning, id3);
+			mp->spinning, m->blocked, id3);
 	}
 	runtime·lock(&allglock);
 	for(gi = 0; gi < runtime·allglen; gi++) {
