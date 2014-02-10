@@ -18,6 +18,7 @@ SigTab runtime·sigtab[] = {
 	// exception.
 	P, "sys: trap: fault read addr",
 	P, "sys: trap: fault write addr",
+	P, "sys: trap: divide error",
 	T, "sys: trap:",
 
 	N, "sys: bad sys call",
