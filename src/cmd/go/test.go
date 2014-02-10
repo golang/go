@@ -168,7 +168,7 @@ control the execution of any test:
 	    Enable more precise (and expensive) memory profiles by setting
 	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
 	    To profile all memory allocations, use -test.memprofilerate=1
-	    and pass --alloc_space flag to pprof tool.
+	    and pass --alloc_space flag to the pprof tool.
 
 	-outputdir directory
 	    Place output files from profiling in the specified directory,
