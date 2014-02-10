@@ -608,7 +608,7 @@ export GOPATH=$d
 mkdir -p $d/src/origin
 echo '
 package origin
-// #cgo LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
+// #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
 // void f(void) {}
 import "C"
 
