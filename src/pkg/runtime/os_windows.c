@@ -426,10 +426,13 @@ runtime·profileloop1(void)
 		allm = runtime·atomicloadp(&runtime·allm);
 		for(mp = allm; mp != nil; mp = mp->alllink) {
 			thread = runtime·atomicloadp(&mp->thread);
-			if(thread == nil)
+			// Do not profile threads blocked on Notes,
+			// this includes idle worker threads,
+			// idle timer thread, idle heap scavenger, etc.
+			if(thread == nil || mp->profilehz == 0 || mp->blocked)
 				continue;
 			runtime·stdcall(runtime·SuspendThread, 1, thread);
-			if(mp->profilehz != 0)
+			if(mp->profilehz != 0 && !mp->blocked)
 				profilem(mp);
 			runtime·stdcall(runtime·ResumeThread, 1, thread);
 		}
