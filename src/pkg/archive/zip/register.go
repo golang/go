@@ -6,6 +6,7 @@ package zip
 
 import (
 	"compress/flate"
+	"errors"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -21,12 +22,50 @@ type Compressor func(io.Writer) (io.WriteCloser, error)
 // when they're finished reading.
 type Decompressor func(io.Reader) io.ReadCloser
 
+var flateWriterPool sync.Pool
+
+func newFlateWriter(w io.Writer) io.WriteCloser {
+	fw, ok := flateWriterPool.Get().(*flate.Writer)
+	if ok {
+		fw.Reset(w)
+	} else {
+		fw, _ = flate.NewWriter(w, 5)
+	}
+	return &pooledFlateWriter{fw: fw}
+}
+
+type pooledFlateWriter struct {
+	mu sync.Mutex // guards Close and Write
+	fw *flate.Writer
+}
+
+func (w *pooledFlateWriter) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.fw == nil {
+		return 0, errors.New("Write after Close")
+	}
+	return w.fw.Write(p)
+}
+
+func (w *pooledFlateWriter) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var err error
+	if w.fw != nil {
+		err = w.fw.Close()
+		flateWriterPool.Put(w.fw)
+		w.fw = nil
+	}
+	return err
+}
+
 var (
 	mu sync.RWMutex // guards compressor and decompressor maps
 
 	compressors = map[uint16]Compressor{
 		Store:   func(w io.Writer) (io.WriteCloser, error) { return &nopCloser{w}, nil },
-		Deflate: func(w io.Writer) (io.WriteCloser, error) { return flate.NewWriter(w, 5) },
+		Deflate: func(w io.Writer) (io.WriteCloser, error) { return newFlateWriter(w), nil },
 	}
 
 	decompressors = map[uint16]Decompressor{
