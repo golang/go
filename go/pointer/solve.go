@@ -312,7 +312,7 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		}
 
 		// Look up the concrete method.
-		meth := tDyn.MethodSet().Lookup(c.method.Pkg(), c.method.Name())
+		meth := a.prog.MethodSets.MethodSet(tDyn).Lookup(c.method.Pkg(), c.method.Name())
 		if meth == nil {
 			panic(fmt.Sprintf("n%d: type %s has no method %s (iface=n%d)",
 				c.iface, tDyn, c.method, ifaceObj))

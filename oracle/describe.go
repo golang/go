@@ -712,7 +712,7 @@ func pathToString(path []ast.Node) string {
 
 func accessibleMethods(t types.Type, from *types.Package) []*types.Selection {
 	var methods []*types.Selection
-	for _, meth := range ssa.IntuitiveMethodSet(t) {
+	for _, meth := range ssa.IntuitiveMethodSet(t, nil) {
 		if isAccessibleFrom(meth.Obj(), from) {
 			methods = append(methods, meth)
 		}

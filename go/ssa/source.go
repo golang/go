@@ -119,7 +119,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				return mem
 			}
 		case *Type:
-			mset := types.NewPointer(mem.Type()).MethodSet()
+			mset := pkg.Prog.MethodSets.MethodSet(types.NewPointer(mem.Type()))
 			for i, n := 0, mset.Len(); i < n; i++ {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
@@ -202,7 +202,7 @@ func (prog *Program) FuncValue(obj *types.Func) *Function {
 		return v.(*Function)
 	}
 	// Interface method wrapper?
-	meth := recvType(obj).MethodSet().Lookup(obj.Pkg(), obj.Name())
+	meth := prog.MethodSets.MethodSet(recvType(obj)).Lookup(obj.Pkg(), obj.Name())
 	return prog.Method(meth)
 }
 

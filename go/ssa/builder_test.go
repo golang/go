@@ -104,7 +104,7 @@ func main() {
 				if !isExt {
 					t.Fatalf("unexpected name type in main package: %s", mem)
 				}
-				mset := types.NewPointer(mem.Type()).MethodSet()
+				mset := prog.MethodSets.MethodSet(types.NewPointer(mem.Type()))
 				for i, n := 0, mset.Len(); i < n; i++ {
 					m := prog.Method(mset.At(i))
 					// For external types, only synthetic wrappers have code.

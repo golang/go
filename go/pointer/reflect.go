@@ -1568,7 +1568,7 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset)
 
 		// We don't use Lookup(c.name) when c.name != "" to avoid
 		// ambiguity: >1 unexported methods could match.
-		mset := T.MethodSet()
+		mset := a.prog.MethodSets.MethodSet(T)
 		for i, n := 0, mset.Len(); i < n; i++ {
 			sel := mset.At(i)
 			if c.name == "" || c.name == sel.Obj().Name() {

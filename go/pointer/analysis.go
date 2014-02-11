@@ -278,7 +278,7 @@ func Analyze(config *Config) *Result {
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
 		rV := reflect.Object.Scope().Lookup("Value")
 		a.reflectValueObj = rV
-		a.reflectValueCall = a.prog.Method(rV.Type().MethodSet().Lookup(nil, "Call"))
+		a.reflectValueCall = a.prog.Method(a.prog.MethodSets.MethodSet(rV.Type()).Lookup(nil, "Call"))
 		a.reflectType = reflect.Object.Scope().Lookup("Type").Type().(*types.Named)
 		a.reflectRtypeObj = reflect.Object.Scope().Lookup("rtype")
 		a.reflectRtypePtr = types.NewPointer(a.reflectRtypeObj.Type())

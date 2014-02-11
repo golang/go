@@ -14,9 +14,6 @@ type Type interface {
 	// Underlying returns the underlying type of a type.
 	Underlying() Type
 
-	// MethodSet returns the method set of a type.
-	MethodSet() *MethodSet
-
 	// String returns a string representation of a type.
 	String() string
 }
@@ -126,8 +123,7 @@ type Struct struct {
 	fields []*Var
 	tags   []string // field tags; nil if there are no tags
 	// TODO(gri) access to offsets is not threadsafe - fix this
-	offsets []int64         // field offsets in bytes, lazily initialized
-	mset    cachedMethodSet // method set, lazily initialized
+	offsets []int64 // field offsets in bytes, lazily initialized
 }
 
 // NewStruct returns a new struct with the given fields and corresponding field tags.
@@ -163,8 +159,7 @@ func (s *Struct) Tag(i int) string {
 
 // A Pointer represents a pointer type.
 type Pointer struct {
-	base Type            // element type
-	mset cachedMethodSet // method set, lazily initialized
+	base Type // element type
 }
 
 // NewPointer returns a new pointer type for the given element (base) type.
@@ -249,8 +244,7 @@ type Interface struct {
 	methods   []*Func  // ordered list of explicitly declared methods
 	embeddeds []*Named // ordered list of explicitly embedded types
 
-	allMethods []*Func         // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
-	mset       cachedMethodSet // method set for interface, lazily initialized
+	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 }
 
 // NewInterface returns a new interface for the given methods and embedded types.
@@ -364,10 +358,9 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {
-	obj         *TypeName       // corresponding declared object
-	underlying  Type            // possibly a *Named during setup; never a *Named once set up completely
-	methods     []*Func         // methods declared for this type (not the method set of this type)
-	mset, pmset cachedMethodSet // method set for T, *T, lazily initialized
+	obj        *TypeName // corresponding declared object
+	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
+	methods    []*Func   // methods declared for this type (not the method set of this type)
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -425,25 +418,6 @@ func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
-
-func (t *Basic) MethodSet() *MethodSet  { return &emptyMethodSet }
-func (t *Array) MethodSet() *MethodSet  { return &emptyMethodSet }
-func (t *Slice) MethodSet() *MethodSet  { return &emptyMethodSet }
-func (t *Struct) MethodSet() *MethodSet { return t.mset.of(t) }
-func (t *Pointer) MethodSet() *MethodSet {
-	if named, _ := t.base.(*Named); named != nil {
-		// Avoid recomputing mset(*T) for each distinct Pointer
-		// instance whose underlying type is a named type.
-		return named.pmset.of(t)
-	}
-	return t.mset.of(t)
-}
-func (t *Tuple) MethodSet() *MethodSet     { return &emptyMethodSet }
-func (t *Signature) MethodSet() *MethodSet { return &emptyMethodSet }
-func (t *Interface) MethodSet() *MethodSet { return t.mset.of(t) }
-func (t *Map) MethodSet() *MethodSet       { return &emptyMethodSet }
-func (t *Chan) MethodSet() *MethodSet      { return &emptyMethodSet }
-func (t *Named) MethodSet() *MethodSet     { return t.mset.of(t) }
 
 func (t *Basic) String() string     { return TypeString(nil, t) }
 func (t *Array) String() string     { return TypeString(nil, t) }

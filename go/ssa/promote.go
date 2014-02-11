@@ -54,7 +54,7 @@ func (prog *Program) Method(meth *types.Selection) *Function {
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
 func (prog *Program) makeMethods(T types.Type) bool {
-	tmset := T.MethodSet()
+	tmset := prog.MethodSets.MethodSet(T)
 	n := tmset.Len()
 	if n == 0 {
 		return false // empty (common case)

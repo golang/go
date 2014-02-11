@@ -119,7 +119,7 @@ func ext۰reflect۰rtype۰NumField(fr *frame, args []value) value {
 
 func ext۰reflect۰rtype۰NumMethod(fr *frame, args []value) value {
 	// Signature: func (t reflect.rtype) int
-	return args[0].(rtype).t.MethodSet().Len()
+	return fr.i.prog.MethodSets.MethodSet(args[0].(rtype).t).Len()
 }
 
 func ext۰reflect۰rtype۰NumOut(fr *frame, args []value) value {
@@ -330,7 +330,7 @@ func ext۰reflect۰Value۰NumField(fr *frame, args []value) value {
 
 func ext۰reflect۰Value۰NumMethod(fr *frame, args []value) value {
 	// Signature: func (reflect.Value) int
-	return rV2T(args[0]).t.MethodSet().Len()
+	return fr.i.prog.MethodSets.MethodSet(rV2T(args[0]).t).Len()
 }
 
 func ext۰reflect۰Value۰Pointer(fr *frame, args []value) value {

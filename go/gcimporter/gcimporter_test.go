@@ -207,7 +207,7 @@ func TestCorrectMethodPackage(t *testing.T) {
 	}
 
 	mutex := imports["sync"].Scope().Lookup("Mutex").(*types.TypeName).Type()
-	mset := types.NewPointer(mutex).MethodSet() // methods of *sync.Mutex
+	mset := types.NewMethodSet(types.NewPointer(mutex)) // methods of *sync.Mutex
 	sel := mset.Lookup(nil, "Lock")
 	lock := sel.Obj().(*types.Func)
 	if got, want := lock.Pkg().Path(), "sync"; got != want {

@@ -407,7 +407,7 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 		case *Type:
 			fmt.Fprintf(buf, "  type  %-*s %s\n",
 				maxname, name, types.TypeString(p.Object, mem.Type().Underlying()))
-			for _, meth := range IntuitiveMethodSet(mem.Type()) {
+			for _, meth := range IntuitiveMethodSet(mem.Type(), &p.Prog.MethodSets) {
 				fmt.Fprintf(buf, "    %s\n", types.SelectionString(p.Object, meth))
 			}
 
@@ -431,15 +431,15 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 //
 // TODO(gri): move this to go/types?
 //
-func IntuitiveMethodSet(T types.Type) []*types.Selection {
+func IntuitiveMethodSet(T types.Type, msets *types.MethodSetCache) []*types.Selection {
 	var result []*types.Selection
-	mset := T.MethodSet()
+	mset := msets.MethodSet(T)
 	if _, ok := T.Underlying().(*types.Interface); ok {
 		for i, n := 0, mset.Len(); i < n; i++ {
 			result = append(result, mset.At(i))
 		}
 	} else {
-		pmset := types.NewPointer(T).MethodSet()
+		pmset := msets.MethodSet(types.NewPointer(T))
 		for i, n := 0, pmset.Len(); i < n; i++ {
 			meth := pmset.At(i)
 			if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {

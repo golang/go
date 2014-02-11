@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	"sync"
 )
 
 // A MethodSet is an ordered set of concrete or abstract (interface) methods;
@@ -63,31 +62,11 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 // Shared empty method set.
 var emptyMethodSet MethodSet
 
-// A cachedMethodSet provides access to a method set
-// for a given type by computing it once on demand,
-// and then caching it for future use. Threadsafe.
-type cachedMethodSet struct {
-	mset *MethodSet
-	mu   sync.RWMutex // protects mset
-}
-
-// Of returns the (possibly cached) method set for typ.
-// Threadsafe.
-func (c *cachedMethodSet) of(typ Type) *MethodSet {
-	c.mu.RLock()
-	mset := c.mset
-	c.mu.RUnlock()
-	if mset == nil {
-		mset = NewMethodSet(typ)
-		c.mu.Lock()
-		c.mset = mset
-		c.mu.Unlock()
-	}
-	return mset
-}
-
-// NewMethodSet computes the method set for the given type T.
-// It always returns a non-nil method set, even if it is empty.
+// NewMethodSet returns the method set for the given type T.  It
+// always returns a non-nil method set, even if it is empty.
+//
+// A MethodSetCache handles repeat queries more efficiently.
+//
 func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and lookupFieldOrMethod should be kept in sync.

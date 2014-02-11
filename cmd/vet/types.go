@@ -310,7 +310,7 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 // It is part of the workaround for Formatters and should be deleted when
 // that workaround is no longer necessary. TODO: delete when fixed.
 func hasMethod(typ types.Type, name string) bool {
-	set := typ.MethodSet()
+	set := types.NewMethodSet(typ)
 	for i := 0; i < set.Len(); i++ {
 		if set.At(i).Obj().Name() == name {
 			return true

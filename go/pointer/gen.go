@@ -720,7 +720,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	a.typeAssert(a.reflectRtypePtr, rtype, recv, true)
 
 	// Look up the concrete method.
-	meth := a.reflectRtypePtr.MethodSet().Lookup(call.Method.Pkg(), call.Method.Name())
+	meth := a.prog.MethodSets.MethodSet(a.reflectRtypePtr).Lookup(call.Method.Pkg(), call.Method.Name())
 	fn := a.prog.Method(meth)
 
 	obj := a.makeFunctionObject(fn, site) // new contour for this call
@@ -1209,7 +1209,7 @@ func (a *analysis) genFunc(cgn *cgnode) {
 
 // genMethodsOf generates nodes and constraints for all methods of type T.
 func (a *analysis) genMethodsOf(T types.Type) {
-	mset := T.MethodSet()
+	mset := a.prog.MethodSets.MethodSet(T)
 	for i, n := 0, mset.Len(); i < n; i++ {
 		a.valueNode(a.prog.Method(mset.At(i)))
 	}

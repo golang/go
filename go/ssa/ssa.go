@@ -22,10 +22,11 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Fset     *token.FileSet              // position information for the files of this Program
-	imported map[string]*Package         // all importable Packages, keyed by import path
-	packages map[*types.Package]*Package // all loaded Packages, keyed by object
-	mode     BuilderMode                 // set of mode bits for SSA construction
+	Fset       *token.FileSet              // position information for the files of this Program
+	imported   map[string]*Package         // all importable Packages, keyed by import path
+	packages   map[*types.Package]*Package // all loaded Packages, keyed by object
+	mode       BuilderMode                 // set of mode bits for SSA construction
+	MethodSets types.MethodSetCache        // cache of type-checker's method-sets
 
 	methodsMu           sync.Mutex                // guards the following maps:
 	methodSets          typemap.M                 // maps type to its concrete methodSet
@@ -612,8 +613,8 @@ type ChangeInterface struct {
 // MakeInterface constructs an instance of an interface type from a
 // value of a concrete type.
 //
-// Use X.Type().MethodSet() to find the method-set of X, and
-// Program.Method(m) to find the implementation of a method.
+// Use Program.MethodSets.MethodSet(X.Type()) to find the method-set
+// of X, and Program.Method(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
 // 	NewConst(exact.MakeNil(), T, pos)

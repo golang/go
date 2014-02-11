@@ -82,8 +82,8 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 	// We're looking for cases in which a reference to this type
 	// can be locked, but a value cannot. This differentiates
 	// embedded interfaces from embedded values.
-	if plock := types.NewPointer(typ).MethodSet().Lookup(tpkg, "Lock"); plock != nil {
-		if lock := typ.MethodSet().Lookup(tpkg, "Lock"); lock == nil {
+	if plock := types.NewMethodSet(types.NewPointer(typ)).Lookup(tpkg, "Lock"); plock != nil {
+		if lock := types.NewMethodSet(typ).Lookup(tpkg, "Lock"); lock == nil {
 			return []types.Type{typ}
 		}
 	}

@@ -177,7 +177,7 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa.Functio
 	case errorType:
 		return i.errorMethods[meth.Id()]
 	}
-	return i.prog.Method(typ.MethodSet().Lookup(meth.Pkg(), meth.Name()))
+	return i.prog.Method(i.prog.MethodSets.MethodSet(typ).Lookup(meth.Pkg(), meth.Name()))
 }
 
 // visitInstr interprets a single ssa.Instruction within the activation

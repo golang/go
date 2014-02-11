@@ -42,7 +42,7 @@ func (visit *visitor) program() {
 		}
 	}
 	for _, T := range visit.prog.TypesWithMethodSets() {
-		mset := T.MethodSet()
+		mset := visit.prog.MethodSets.MethodSet(T)
 		for i, n := 0, mset.Len(); i < n; i++ {
 			visit.function(visit.prog.Method(mset.At(i)))
 		}

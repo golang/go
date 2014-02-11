@@ -47,15 +47,17 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 	allNamed = append(allNamed, types.Universe.Lookup("error").Type())
 
+	var msets types.MethodSetCache
+
 	// Test each named type.
 	var to, from, fromPtr []types.Type
 	for _, U := range allNamed {
 		if isInterface(T) {
-			if T.MethodSet().Len() == 0 {
+			if msets.MethodSet(T).Len() == 0 {
 				continue // empty interface
 			}
 			if isInterface(U) {
-				if U.MethodSet().Len() == 0 {
+				if msets.MethodSet(U).Len() == 0 {
 					continue // empty interface
 				}
 
@@ -77,7 +79,7 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 				}
 			}
 		} else if isInterface(U) {
-			if U.MethodSet().Len() == 0 {
+			if msets.MethodSet(U).Len() == 0 {
 				continue // empty interface
 			}
 
@@ -113,7 +115,7 @@ type implementsResult struct {
 
 func (r *implementsResult) display(printf printfFunc) {
 	if isInterface(r.t) {
-		if r.t.MethodSet().Len() == 0 {
+		if types.NewMethodSet(r.t).Len() == 0 { // TODO(adonovan): cache mset
 			printf(r.pos, "empty interface type %s", r.t)
 			return
 		}
