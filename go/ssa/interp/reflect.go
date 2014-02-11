@@ -348,6 +348,8 @@ func ext۰reflect۰Value۰Pointer(fr *frame, args []value) value {
 		return reflect.ValueOf(v).Pointer()
 	case *ssa.Function:
 		return uintptr(unsafe.Pointer(v))
+	case *closure:
+		return uintptr(unsafe.Pointer(v))
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Pointer(%T)", v))
 	}
