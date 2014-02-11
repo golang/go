@@ -368,7 +368,7 @@ reswitch:
 		goto ret;
 
 	case OPACK:
-		yyerror("use of package %S not in selector", n->sym);
+		yyerror("use of package %S without selector", n->sym);
 		goto error;
 
 	case ODDD:
