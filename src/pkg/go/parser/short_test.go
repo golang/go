@@ -76,7 +76,11 @@ var invalids = []string{
 	`package p; func f() { _ = x = /* ERROR "expected '=='" */ 0 {}};`,
 	`package p; func f() { _ = 1 == func()int { var x bool; x = x = /* ERROR "expected '=='" */ true; return x }() };`,
 	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,
-	`package p; func f() { var s []int; _ = s[::: /* ERROR "expected ']'" */ ] };`,
+	`package p; func f() { var s []int; _ = s[i:j: /* ERROR "3rd index required" */ ] };`,
+	`package p; func f() { var s []int; _ = s[i: /* ERROR "2nd index required" */ :k] };`,
+	`package p; func f() { var s []int; _ = s[i: /* ERROR "2nd index required" */ :] };`,
+	`package p; func f() { var s []int; _ = s[: /* ERROR "2nd index required" */ :] };`,
+	`package p; func f() { var s []int; _ = s[: /* ERROR "2nd index required" */ ::] };`,
 	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
 }
 
