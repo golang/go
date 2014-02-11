@@ -25,13 +25,15 @@ import (
 // It returns nil if the program contains no tests.
 //
 func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
+	if len(pkgs) == 0 {
+		return nil
+	}
 	testmain := &Package{
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
 		Object:  types.NewPackage("testmain", "testmain", nil),
 	}
-	prog.packages[testmain.Object] = testmain
 
 	// Build package's init function.
 	init := &Function{
@@ -42,8 +44,12 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:      prog,
 	}
 	init.startBody()
+	// TODO(adonovan): use lexical order.
 	var expfuncs []*Function // all exported functions of *_test.go in pkgs, unordered
 	for _, pkg := range pkgs {
+		if pkg.Prog != prog {
+			panic("wrong Program")
+		}
 		// Initialize package to test.
 		var v Call
 		v.Call.Value = pkg.init
@@ -134,6 +140,8 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	if prog.mode&SanityCheckFunctions != 0 {
 		sanityCheckPackage(testmain)
 	}
+
+	prog.packages[testmain.Object] = testmain
 
 	return testmain
 }

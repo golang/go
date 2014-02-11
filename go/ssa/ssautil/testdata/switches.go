@@ -2,9 +2,9 @@
 
 package main
 
-// This file is the input to TestFindSwitches in switch_test.go.
+// This file is the input to TestSwitches in switch_test.go.
 // Each multiway conditional with constant or type cases (Switch)
-// discovered by FindSwitches is printed, and compared with the
+// discovered by Switches is printed, and compared with the
 // comments.
 //
 // The body of each case is printed as the value of its first
