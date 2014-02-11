@@ -371,11 +371,11 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	}
 	r.Close()
 
-	size := int(f.UncompressedSize)
-	if size == 1<<32-1 {
-		size = int(f.UncompressedSize64)
+	size := uint64(f.UncompressedSize)
+	if size == uint32max {
+		size = f.UncompressedSize64
 	}
-	if g := b.Len(); g != size {
+	if g := uint64(b.Len()); g != size {
 		t.Errorf("%v: read %v bytes but f.UncompressedSize == %v", f.Name, g, size)
 	}
 
