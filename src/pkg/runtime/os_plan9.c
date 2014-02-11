@@ -310,6 +310,10 @@ runtime·sigpanic(void)
 {
 	if(g->sigpc == 0)
 		runtime·panicstring("call of nil func value");
+	if(runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: fault read addr") >= 0 || runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: fault write addr") >= 0)
+		runtime·panicstring("invalid memory address or nil pointer dereference");
+	if(runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: divide error") >= 0)
+		runtime·panicstring("integer divide by zero");
 	runtime·panicstring(m->notesig);
 
 	if(g->sig == 1 || g->sig == 2)
