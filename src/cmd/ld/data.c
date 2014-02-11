@@ -154,9 +154,9 @@ relocsym(LSym *s)
 		if(r->type >= 256)
 			continue;
 
-		if(r->sym != S && r->sym->type == SDYNIMPORT)
+		// Solaris needs the ability to reference dynimport symbols.
+		if(HEADTYPE != Hsolaris && r->sym != S && r->sym->type == SDYNIMPORT)
 			diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
-
 		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
 
@@ -194,7 +194,7 @@ relocsym(LSym *s)
 					r->xadd += symaddr(rs) - symaddr(rs->outer);
 					rs = rs->outer;
 				}
-				if(rs->type != SHOSTOBJ && rs->sect == nil)
+				if(rs->type != SHOSTOBJ && rs->type != SDYNIMPORT && rs->sect == nil)
 					diag("missing section for %s", rs->name);
 				r->xsym = rs;
 
@@ -225,7 +225,7 @@ relocsym(LSym *s)
 					rs = rs->outer;
 				}
 				r->xadd -= r->siz; // relative to address after the relocated chunk
-				if(rs->type != SHOSTOBJ && rs->sect == nil)
+				if(rs->type != SHOSTOBJ && rs->type != SDYNIMPORT && rs->sect == nil)
 					diag("missing section for %s", rs->name);
 				r->xsym = rs;
 

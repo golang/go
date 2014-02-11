@@ -171,6 +171,7 @@ void
 asmelfsym(void)
 {
 	LSym *s;
+	char *name;
 
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
@@ -196,9 +197,13 @@ asmelfsym(void)
 	genasmsym(putelfsym);
 	
 	for(s=ctxt->allsym; s!=S; s=s->allsym) {
-		if(s->type != SHOSTOBJ)
+		if(s->type != SHOSTOBJ && s->type != SDYNIMPORT)
 			continue;
-		putelfsyment(putelfstr(s->name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
+		if(s->type == SDYNIMPORT)
+			name = s->extname;
+		else
+			name = s->name;
+		putelfsyment(putelfstr(name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
 		s->elfsym = numelfsym++;
 	}
 }
