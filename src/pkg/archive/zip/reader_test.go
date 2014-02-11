@@ -355,17 +355,11 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 
 	testFileMode(t, zt.Name, f, ft.Mode)
 
-	size0 := f.UncompressedSize
-
 	var b bytes.Buffer
 	r, err := f.Open()
 	if err != nil {
 		t.Errorf("%s: %v", zt.Name, err)
 		return
-	}
-
-	if size1 := f.UncompressedSize; size0 != size1 {
-		t.Errorf("file %q changed f.UncompressedSize from %d to %d", f.Name, size0, size1)
 	}
 
 	_, err = io.Copy(&b, r)
@@ -376,6 +370,14 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 		return
 	}
 	r.Close()
+
+	size := int(f.UncompressedSize)
+	if size == 1<<32-1 {
+		size = int(f.UncompressedSize64)
+	}
+	if g := b.Len(); g != size {
+		t.Errorf("%v: read %v bytes but f.UncompressedSize == %v", f.Name, g, size)
+	}
 
 	var c []byte
 	if ft.Content != nil {
