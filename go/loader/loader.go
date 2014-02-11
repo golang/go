@@ -23,7 +23,7 @@
 //      // Use the command-line arguments to specify
 //      // a set of initial packages to load from source.
 //      // See FromArgsUsage for help.
-//      rest, err := conf.FromArgs(os.Args[1:])
+//      rest, err := conf.FromArgs(os.Args[1:], wantTests)
 //
 //      // Parse the specified files and create an ad-hoc package with path "foo".
 //      // All files must have the same 'package' declaration.
@@ -228,15 +228,14 @@ func (conf *Config) ParseFile(filename string, src interface{}, mode parser.Mode
 // FromArgs may wish to include in their -help output.
 const FromArgsUsage = `
 <args> is a list of arguments denoting a set of initial packages.
-Each argument may take one of two forms:
+It may take one of two forms:
 
-1. A comma-separated list of *.go source files.
+1. A list of *.go source files.
 
    All of the specified files are loaded, parsed and type-checked
-   as a single package.
-   All the files must belong to the same directory.
+   as a single package.  All the files must belong to the same directory.
 
-2. An import path.
+2. A list of import paths, each denoting a package.
 
    The package's directory is found relative to the $GOROOT and
    $GOPATH using similar logic to 'go build', and the *.go files in
@@ -248,9 +247,8 @@ Each argument may take one of two forms:
    the non-*_test.go files are included in the primary package.  Test
    files whose package declaration ends with "_test" are type-checked
    as another package, the 'external' test package, so that a single
-   import path may denote two packages.  This behaviour may be
-   disabled by prefixing the import path with "notest:",
-   e.g. "notest:fmt".
+   import path may denote two packages.  (Whether this behaviour is
+   enabled is tool-specific, and may depend on additional flags.)
 
    Due to current limitations in the type-checker, only the first
    import path of the command line will contribute any tests.
@@ -266,33 +264,40 @@ A '--' argument terminates the list of packages.
 // set of initial packages to be specified; see FromArgsUsage message
 // for details.
 //
-func (conf *Config) FromArgs(args []string) (rest []string, err error) {
-	for len(args) > 0 {
-		arg := args[0]
-		args = args[1:]
+func (conf *Config) FromArgs(args []string, xtest bool) (rest []string, err error) {
+	for i, arg := range args {
 		if arg == "--" {
+			rest = args[i+1:]
+			args = args[:i]
 			break // consume "--" and return the remaining args
 		}
+	}
 
-		if strings.HasSuffix(arg, ".go") {
-			// Assume arg is a comma-separated list of *.go files
-			// denoting a single ad-hoc package.
-			err = conf.CreateFromFilenames("", strings.Split(arg, ",")...)
-		} else {
-			// Assume arg is a directory name denoting a
-			// package, perhaps plus an external test
-			// package unless prefixed by "notest:".
-			if path := strings.TrimPrefix(arg, "notest:"); path != arg {
-				conf.Import(path)
-			} else {
-				err = conf.ImportWithTests(path)
+	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
+		// Assume args is a list of a *.go files
+		// denoting a single ad-hoc package.
+		for _, arg := range args {
+			if !strings.HasSuffix(arg, ".go") {
+				return nil, fmt.Errorf("named files must be .go files: %s", arg)
 			}
 		}
-		if err != nil {
-			return nil, err
+		err = conf.CreateFromFilenames("", args...)
+	} else {
+		// Assume args are directories each denoting a
+		// package and (perhaps) an external test, iff xtest.
+		for _, arg := range args {
+			if xtest {
+				err = conf.ImportWithTests(arg)
+				if err != nil {
+					break
+				}
+			} else {
+				conf.Import(arg)
+			}
 		}
 	}
-	return args, nil
+
+	return
 }
 
 // CreateFromFilenames is a convenience function that parses the
@@ -371,7 +376,8 @@ func (conf *Config) Import(path string) {
 	if conf.ImportPkgs == nil {
 		conf.ImportPkgs = make(map[string]bool)
 	}
-	conf.ImportPkgs[path] = false // unaugmented source package
+	// Subtle: adds value 'false' unless value is already true.
+	conf.ImportPkgs[path] = conf.ImportPkgs[path] // unaugmented source package
 }
 
 // PathEnclosingInterval returns the PackageInfo and ast.Node that

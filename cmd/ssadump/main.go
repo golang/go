@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -32,6 +31,8 @@ L	build distinct packages seria[L]ly instead of in parallel.
 N	build [N]aive SSA form: don't replace local loads/stores with registers.
 `)
 
+var testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for imported packages.")
+
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
 
 var interpFlag = flag.String("interp", "", `Options controlling the SSA test interpreter.
@@ -45,14 +46,15 @@ Usage: ssadump [<flag> ...] <args> ...
 Use -help flag to display options.
 
 Examples:
-% ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
-% ssadump -run -interp=T hello.go     # interpret a program, with tracing
-% ssadump -run unicode -- -test.v     # interpret the unicode package's tests, verbosely
+% ssadump -build=FPG hello.go            # quickly dump SSA form of a single package
+% ssadump -run -interp=T hello.go        # interpret a program, with tracing
+% ssadump -run -test unicode -- -test.v  # interpret the unicode package's tests, verbosely
 ` + loader.FromArgsUsage +
 	`
-When -run is specified, ssadump will find the first package that
-defines a main function and run it in the interpreter.
-If none is found, the tests of each package will be run instead.
+When -run is specified, ssadump will run the program.
+The entry point depends on the -test flag:
+if clear, it runs the first package named main.
+if set, it runs the tests of each package.
 `
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -70,6 +72,13 @@ func init() {
 }
 
 func main() {
+	if err := doMain(); err != nil {
+		fmt.Fprintf(os.Stderr, "ssadump: %s.\n", err)
+		os.Exit(1)
+	}
+}
+
+func doMain() error {
 	flag.Parse()
 	args := flag.Args()
 
@@ -109,7 +118,7 @@ func main() {
 		case 'L':
 			mode |= ssa.BuildSerially
 		default:
-			log.Fatalf("Unknown -build option: '%c'.", c)
+			return fmt.Errorf("unknown -build option: '%c'", c)
 		}
 	}
 
@@ -121,7 +130,8 @@ func main() {
 		case 'R':
 			interpMode |= interp.DisableRecover
 		default:
-			log.Fatalf("Unknown -interp option: '%c'.", c)
+			fmt.Fprintf(os.Stderr, "ssadump: unknown -interp option: '%c'.", c)
+			os.Exit(1)
 		}
 	}
 
@@ -134,16 +144,17 @@ func main() {
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
 
 	// Use the initial packages from the command line.
-	args, err := conf.FromArgs(args)
+	args, err := conf.FromArgs(args, *testFlag)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// The interpreter needs the runtime package.
@@ -154,7 +165,7 @@ func main() {
 	// Load, parse and type-check the whole program.
 	iprog, err := conf.Load()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Create and build SSA-form program representation.
@@ -163,29 +174,38 @@ func main() {
 
 	// Run the interpreter.
 	if *runFlag {
-		// If a package named "main" defines func main, run that.
-		// Otherwise run all packages' tests.
 		var main *ssa.Package
 		pkgs := prog.AllPackages()
-		for _, pkg := range pkgs {
-			if pkg.Object.Name() == "main" && pkg.Func("main") != nil {
-				main = pkg
-				break
+		if *testFlag {
+			// If -test, run all packages' tests.
+			if len(pkgs) > 0 {
+				main = prog.CreateTestMainPackage(pkgs...)
+			}
+			if main == nil {
+				return fmt.Errorf("no tests")
+			}
+		} else {
+			// Otherwise, run main.main.
+			for _, pkg := range pkgs {
+				if pkg.Object.Name() == "main" {
+					main = pkg
+					if main.Func("main") == nil {
+						return fmt.Errorf("no func main() in main package")
+					}
+					break
+				}
+			}
+			if main == nil {
+				return fmt.Errorf("no main package")
 			}
 		}
-		if main == nil && len(pkgs) > 0 {
-			// TODO(adonovan): only run tests if -test flag specified.
-			main = prog.CreateTestMainPackage(pkgs...)
-		}
-		if main == nil {
-			log.Fatal("No main package and no tests")
-		}
 
-		if runtime.GOARCH != conf.Build.GOARCH {
-			log.Fatalf("Cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s).",
-				conf.Build.GOARCH, runtime.GOARCH)
+		if runtime.GOARCH != build.Default.GOARCH {
+			return fmt.Errorf("cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s)",
+				build.Default.GOARCH, runtime.GOARCH)
 		}
 
 		interp.Interpret(main, interpMode, conf.TypeChecker.Sizes, main.Object.Path(), args)
 	}
+	return nil
 }

@@ -53,7 +53,7 @@ func TestStdlib(t *testing.T) {
 	t0 := time.Now()
 
 	var conf loader.Config
-	if _, err := conf.FromArgs(allPackages()); err != nil {
+	if _, err := conf.FromArgs(allPackages(), true); err != nil {
 		t.Errorf("FromArgs failed: %v", err)
 		return
 	}

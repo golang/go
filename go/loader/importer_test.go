@@ -14,7 +14,7 @@ import (
 
 func loadFromArgs(args []string) (prog *loader.Program, rest []string, err error) {
 	conf := &loader.Config{}
-	rest, err = conf.FromArgs(args)
+	rest, err = conf.FromArgs(args, true)
 	if err == nil {
 		prog, err = conf.Load()
 	}
@@ -39,11 +39,10 @@ func TestLoadFromArgs(t *testing.T) {
 	}
 
 	// Successful load.
-	args = []string{"fmt", "errors", "testdata/a.go,testdata/b.go", "--", "surplus"}
+	args = []string{"fmt", "errors", "--", "surplus"}
 	prog, rest, err := loadFromArgs(args)
 	if err != nil {
-		t.Errorf("loadFromArgs(%q) failed: %s", args, err)
-		return
+		t.Fatalf("loadFromArgs(%q) failed: %s", args, err)
 	}
 	if got, want := fmt.Sprint(rest), "[surplus]"; got != want {
 		t.Errorf("loadFromArgs(%q) rest: got %s, want %s", args, got, want)
@@ -54,7 +53,7 @@ func TestLoadFromArgs(t *testing.T) {
 		pkgnames = append(pkgnames, info.Pkg.Path())
 	}
 	// Only the first import path (currently) contributes tests.
-	if got, want := fmt.Sprint(pkgnames), "[fmt_test P]"; got != want {
+	if got, want := fmt.Sprint(pkgnames), "[fmt_test]"; got != want {
 		t.Errorf("Created: got %s, want %s", got, want)
 	}
 
@@ -80,5 +79,27 @@ func TestLoadFromArgs(t *testing.T) {
 		if _, ok := all[w]; !ok {
 			t.Errorf("AllPackages: want element %s, got set %v", w, all)
 		}
+	}
+}
+
+func TestLoadFromArgsSource(t *testing.T) {
+	// mixture of *.go/non-go.
+	args := []string{"testdata/a.go", "fmt"}
+	prog, _, err := loadFromArgs(args)
+	if err == nil {
+		t.Errorf("loadFromArgs(%q) succeeded, want failure", args)
+	} else {
+		// "named files must be .go files: fmt": ok
+	}
+
+	// successful load
+	args = []string{"testdata/a.go", "testdata/b.go"}
+	prog, _, err = loadFromArgs(args)
+	if err != nil {
+		t.Errorf("loadFromArgs(%q) failed: %s", args, err)
+		return
+	}
+	if len(prog.Created) != 1 || prog.Created[0].Pkg.Path() != "P" {
+		t.Errorf("loadFromArgs(%q): got %v, want [P]", prog.Created)
 	}
 }

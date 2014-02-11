@@ -225,7 +225,7 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 	conf := loader.Config{Build: buildContext, SourceImports: true}
 
 	// Determine initial packages.
-	args, err := conf.FromArgs(args)
+	args, err := conf.FromArgs(args, true)
 	if err != nil {
 		return nil, err
 	}
