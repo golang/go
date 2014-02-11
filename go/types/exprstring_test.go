@@ -36,12 +36,6 @@ var testExprs = []testEntry{
 	dup("s[i:]"),
 	dup("s[:j]"),
 	dup("s[i:j]"),
-	dup("s[::]"),
-	dup("s[i::]"),
-	dup("s[:j:]"),
-	dup("s[::k]"),
-	dup("s[i:j:]"),
-	dup("s[i::k]"),
 	dup("s[:j:k]"),
 	dup("s[i:j:k]"),
 
