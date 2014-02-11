@@ -1168,16 +1168,19 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 		defer un(trace(p, "IndexOrSlice"))
 	}
 
+	const N = 3 // change the 3 to 2 to disable 3-index slices
 	lbrack := p.expect(token.LBRACK)
 	p.exprLev++
-	var index [3]ast.Expr // change the 3 to 2 to disable slice expressions w/ cap
+	var index [N]ast.Expr
+	var colons [N - 1]token.Pos
 	if p.tok != token.COLON {
 		index[0] = p.parseRhs()
 	}
 	ncolons := 0
-	for p.tok == token.COLON && ncolons < len(index)-1 {
-		p.next()
+	for p.tok == token.COLON && ncolons < len(colons) {
+		colons[ncolons] = p.pos
 		ncolons++
+		p.next()
 		if p.tok != token.COLON && p.tok != token.RBRACK && p.tok != token.EOF {
 			index[ncolons] = p.parseRhs()
 		}
@@ -1187,7 +1190,21 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 
 	if ncolons > 0 {
 		// slice expression
-		return &ast.SliceExpr{X: x, Lbrack: lbrack, Low: index[0], High: index[1], Max: index[2], Slice3: ncolons == 2, Rbrack: rbrack}
+		slice3 := false
+		if ncolons == 2 {
+			slice3 = true
+			// Check presence of 2nd and 3rd index here rather than during type-checking
+			// to prevent erroneous programs from passing through gofmt (was issue 7305).
+			if index[1] == nil {
+				p.error(colons[0], "2nd index required in 3-index slice")
+				index[1] = &ast.BadExpr{From: colons[0] + 1, To: colons[1]}
+			}
+			if index[2] == nil {
+				p.error(colons[1], "3rd index required in 3-index slice")
+				index[2] = &ast.BadExpr{From: colons[1] + 1, To: rbrack}
+			}
+		}
+		return &ast.SliceExpr{X: x, Lbrack: lbrack, Low: index[0], High: index[1], Max: index[2], Slice3: slice3, Rbrack: rbrack}
 	}
 
 	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: index[0], Rbrack: rbrack}
