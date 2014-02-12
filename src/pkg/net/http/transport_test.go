@@ -1237,6 +1237,20 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 	for i, tt := range tests {
 		res, err := c.Get(ts.URL + tt.path)
 		if err != nil {
+			uerr, ok := err.(*url.Error)
+			if !ok {
+				t.Errorf("error is not an url.Error; got: %#v", err)
+				continue
+			}
+			nerr, ok := uerr.Err.(net.Error)
+			if !ok {
+				t.Errorf("error does not satisfy net.Error interface; got: %#v", err)
+				continue
+			}
+			if !nerr.Timeout() {
+				t.Errorf("want timeout error; got: %q", nerr)
+				continue
+			}
 			if strings.Contains(err.Error(), tt.wantErr) {
 				continue
 			}

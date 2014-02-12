@@ -869,6 +869,18 @@ type writeRequest struct {
 	ch  chan<- error
 }
 
+type httpError struct {
+	err     string
+	timeout bool
+}
+
+func (e *httpError) Error() string   { return e.err }
+func (e *httpError) Timeout() bool   { return e.timeout }
+func (e *httpError) Temporary() bool { return true }
+
+var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
+
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
 	pc.t.setReqConn(req.Request, pc)
 	pc.lk.Lock()
@@ -939,11 +951,11 @@ WaitResponse:
 			pconnDeadCh = nil                               // avoid spinning
 			failTicker = time.After(100 * time.Millisecond) // arbitrary time to wait for resc
 		case <-failTicker:
-			re = responseAndError{err: errors.New("net/http: transport closed before response was received")}
+			re = responseAndError{err: errClosed}
 			break WaitResponse
 		case <-respHeaderTimer:
 			pc.close()
-			re = responseAndError{err: errors.New("net/http: timeout awaiting response headers")}
+			re = responseAndError{err: errTimeout}
 			break WaitResponse
 		case re = <-resc:
 			break WaitResponse
