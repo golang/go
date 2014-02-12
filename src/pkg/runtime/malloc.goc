@@ -28,6 +28,7 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
 extern volatile intgo runtime·MemProfileRate;
 
 static void* largealloc(uint32, uintptr*);
+static void profilealloc(void *v, uintptr size, uintptr typ);
 
 // Allocate an object of at least size bytes.
 // Small objects are allocated from the per-thread cache's free lists.
@@ -191,28 +192,22 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		runtime·settype_flush(m);
 	if(raceenabled)
 		runtime·racemalloc(v, size);
-	m->locks--;
-	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
-		g->stackguard0 = StackPreempt;
 
 	if(runtime·debug.allocfreetrace)
 		goto profile;
 
 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
-		if(size >= rate)
-			goto profile;
-		if(m->mcache->next_sample > size)
-			m->mcache->next_sample -= size;
+		if(size < rate && size < c->next_sample)
+			c->next_sample -= size;
 		else {
-			// pick next profile time
-			// If you change this, also change allocmcache.
-			if(rate > 0x3fffffff)	// make 2*rate not overflow
-				rate = 0x3fffffff;
-			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
 		profile:
-			runtime·MProf_Malloc(v, size, typ);
+			profilealloc(v, size, typ);
 		}
 	}
+
+	m->locks--;
+	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
 
 	if(!(flag & FlagNoInvokeGC) && mstats.heap_alloc >= mstats.next_gc)
 		runtime·gc(0);
@@ -243,6 +238,32 @@ largealloc(uint32 flag, uintptr *sizep)
 	// setup for mark sweep
 	runtime·markspan(v, 0, 0, true);
 	return v;
+}
+
+static void
+profilealloc(void *v, uintptr size, uintptr typ)
+{
+	uintptr rate;
+	int32 next;
+	MCache *c;
+
+	c = m->mcache;
+	rate = runtime·MemProfileRate;
+	if(size < rate) {
+		// pick next profile time
+		// If you change this, also change allocmcache.
+		if(rate > 0x3fffffff)	// make 2*rate not overflow
+			rate = 0x3fffffff;
+		next = runtime·fastrand1() % (2*rate);
+		// Subtract the "remainder" of the current allocation.
+		// Otherwise objects that are close in size to sampling rate
+		// will be under-sampled, because we consistently discard this remainder.
+		next -= (size - c->next_sample);
+		if(next < 0)
+			next = 0;
+		c->next_sample = next;
+	}
+	runtime·MProf_Malloc(v, size, typ);
 }
 
 void*

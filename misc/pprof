@@ -2652,6 +2652,7 @@ sub RemoveUninterestingFrames {
                       'makechan',
                       'makemap',
                       'mal',
+                      'profilealloc',
                       'runtime.new',
                       'makeslice1',
                       'runtime.malloc',
