@@ -59,6 +59,13 @@ runtime·netpollclose(uintptr fd)
 	return 0;
 }
 
+void
+runtime·netpollarm(uintptr fd, int32 mode)
+{
+	USED(fd, mode);
+	runtime·throw("unused");
+}
+
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
 G*

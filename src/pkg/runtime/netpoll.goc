@@ -134,12 +134,9 @@ ret:
 func runtime_pollWait(pd *PollDesc, mode int) (err int) {
 	err = checkerr(pd, mode);
 	if(err == 0) {
-#ifdef GOOS_solaris
-		if(mode == 'r')
-			runtime·netpollarmread(pd->fd);
-		else if(mode == 'w')
-			runtime·netpollarmwrite(pd->fd);
-#endif
+		// As for now only Solaris uses level-triggered IO.
+		if(Solaris)
+			runtime·netpollarm(pd->fd, mode);
 		while(!netpollblock(pd, mode, false)) {
 			err = checkerr(pd, mode);
 			if(err != 0)
@@ -152,13 +149,8 @@ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
 }
 
 func runtime_pollWaitCanceled(pd *PollDesc, mode int) {
-#ifdef GOOS_solaris
-	if(mode == 'r')
-		runtime·netpollarmread(pd->fd);
-	else if(mode == 'w')
-		runtime·netpollarmwrite(pd->fd);
-#endif
-	// wait for ioready, ignore closing or timeouts.
+	// This function is used only on windows after a failed attempt to cancel
+	// a pending async IO operation. Wait for ioready, ignore closing or timeouts.
 	while(!netpollblock(pd, mode, true))
 		;
 }
