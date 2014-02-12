@@ -37,5 +37,5 @@ betypeinit(void)
 	zprog.from.scale = 0;
 	zprog.to = zprog.from;
 
-	listinit();
+	listinit6();
 }

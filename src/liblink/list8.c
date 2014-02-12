@@ -45,15 +45,21 @@ enum
 	STRINGSZ = 1000
 };
 
+#pragma	varargck	type	"$"	char*
+
 void
 listinit8(void)
 {
 	fmtinstall('A', Aconv);
-	fmtinstall('P', Pconv);
-	fmtinstall('$', DSconv);
 	fmtinstall('D', Dconv);
+	fmtinstall('P', Pconv);
 	fmtinstall('R', Rconv);
+
+	// for internal use
+	fmtinstall('$', DSconv);
 }
+
+static	Prog*	bigP;
 
 static int
 Pconv(Fmt *fp)
@@ -62,27 +68,29 @@ Pconv(Fmt *fp)
 	Prog *p;
 
 	p = va_arg(fp->args, Prog*);
+	bigP = p;
 	switch(p->as) {
 	case ADATA:
-		sprint(str, "(%L)	%A	%D/%d,%D",
-			p->lineno, p->as, &p->from, p->from.scale, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
+			p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
 		break;
 
 	case ATEXT:
 		if(p->from.scale) {
-			sprint(str, "(%L)	%A	%D,%d,%lD",
-				p->lineno, p->as, &p->from, p->from.scale, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD",
+				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
-		sprint(str, "(%L)	%A	%D,%lD",
-			p->lineno, p->as, &p->from, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D,%lD",
+			p->pc, p->lineno, p->as, &p->from, &p->to);
 		break;
 
 	default:
-		sprint(str, "(%L)	%A	%D,%D",
-			p->lineno, p->as, &p->from, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D,%D",
+			p->pc, p->lineno, p->as, &p->from, &p->to);
 		break;
 	}
+	bigP = nil;
 	return fmtstrcpy(fp, str);
 }
 
@@ -137,10 +145,12 @@ Dconv(Fmt *fp)
 	case D_BRANCH:
 		if(a->sym != nil)
 			sprint(str, "%s(SB)", a->sym->name);
+		else if(bigP != nil && bigP->pcond != nil)
+			sprint(str, "%lld", bigP->pcond->pc);
 		else if(a->u.branch != nil)
-			sprint(str, "%#llx", a->u.branch->pc);
+			sprint(str, "%lld", a->u.branch->pc);
 		else
-			sprint(str, "%lld", a->offset);
+			sprint(str, "%lld(PC)", a->offset);
 		break;
 
 	case D_EXTERN:

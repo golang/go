@@ -35,32 +35,5 @@
 void
 listinit(void)
 {
-	fmtinstall('B', Bconv);
 	listinit5();
-}
-
-int
-Bconv(Fmt *fp)
-{
-	char str[STRINGSZ], ss[STRINGSZ], *s;
-	Bits bits;
-	int i;
-
-	str[0] = 0;
-	bits = va_arg(fp->args, Bits);
-	while(bany(&bits)) {
-		i = bnum(bits);
-		if(str[0])
-			strcat(str, " ");
-		if(var[i].sym == nil) {
-			sprint(ss, "$%d", var[i].offset);
-			s = ss;
-		} else
-			s = var[i].sym->name;
-		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
-			break;
-		strcat(str, s);
-		bits.b[i/32] &= ~(1L << (i%32));
-	}
-	return fmtstrcpy(fp, str);
 }

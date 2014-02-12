@@ -50,7 +50,6 @@ typedef	struct	Case	Case;
 typedef	struct	C1	C1;
 typedef	struct	Multab	Multab;
 typedef	struct	Hintab	Hintab;
-typedef	struct	Var	Var;
 typedef	struct	Reg	Reg;
 typedef	struct	Rgn	Rgn;
 
@@ -88,14 +87,6 @@ struct	Hintab
 {
 	ushort	val;
 	char	hint[10];
-};
-
-struct	Var
-{
-	int32	offset;
-	LSym*	sym;
-	char	name;
-	char	etype;
 };
 
 struct	Reg
@@ -203,7 +194,6 @@ EXTERN	Reg*	firstr;
 EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
-EXTERN	Var	var[NVAR];
 EXTERN	int32*	idom;
 EXTERN	Reg**	rpo2r;
 EXTERN	int32	maxnr;
@@ -292,13 +282,6 @@ void	outcode(void);
  * list
  */
 void	listinit(void);
-int	Pconv(Fmt*);
-int	Aconv(Fmt*);
-int	Dconv(Fmt*);
-int	Sconv(Fmt*);
-int	Nconv(Fmt*);
-int	Bconv(Fmt*);
-int	Rconv(Fmt*);
 
 /*
  * reg.c
@@ -349,11 +332,3 @@ void	predicate(void);
 int	isbranch(Prog *);
 int	predicable(Prog *p);
 int	modifiescpsr(Prog *p);
-
-#pragma	varargck	type	"A"	int
-#pragma	varargck	type	"B"	Bits
-#pragma	varargck	type	"D"	Addr*
-#pragma	varargck	type	"N"	Addr*
-#pragma	varargck	type	"R"	Addr*
-#pragma	varargck	type	"P"	Prog*
-#pragma	varargck	type	"S"	char*

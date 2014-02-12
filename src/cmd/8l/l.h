@@ -60,15 +60,7 @@ enum
 	MAXHIST		= 40,				/* limit of path elements for history symbols */
 };
 
-#pragma	varargck	type	"A"	int
-#pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"I"	uchar*
-#pragma	varargck	type	"P"	Prog*
-#pragma	varargck	type	"R"	int
-#pragma	varargck	type	"S"	char*
-#pragma	varargck	type	"Y"	LSym*
-#pragma	varargck	type	"Z"	char*
-#pragma	varargck	type	"i"	char*
 
 EXTERN	LSym*	datap;
 EXTERN	int	debug[128];
@@ -81,19 +73,13 @@ EXTERN	LSym*	symlist;
 EXTERN	int32	symsize;
 EXTERN	int32	textsize;
 
-int	Aconv(Fmt *fp);
-int	Dconv(Fmt *fp);
 int	Iconv(Fmt *fp);
-int	Pconv(Fmt *fp);
-int	Rconv(Fmt *fp);
-int	Sconv(Fmt *fp);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
 void	adddynrela(LSym *rela, LSym *s, Reloc *r);
 void	adddynsym(Link *ctxt, LSym *s);
 int	archreloc(Reloc *r, LSym *s, vlong *val);
 void	asmb(void);
-void	diag(char *fmt, ...);
 int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	listinit(void);

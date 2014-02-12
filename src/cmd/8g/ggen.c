@@ -1207,8 +1207,8 @@ expandchecks(Prog *firstp)
 		p->link = p1;
 		p1->lineno = p->lineno;
 		p2->lineno = p->lineno;
-		p1->loc = 9999;
-		p2->loc = 9999;
+		p1->pc = 9999;
+		p2->pc = 9999;
 		p->as = ACMPL;
 		p->to.type = D_CONST;
 		p->to.offset = 0;

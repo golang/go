@@ -141,8 +141,9 @@ struct Header {
 EXTERN	char*	headstring;
 extern	Header	headers[];
 
-#pragma	varargck	type	"O"	int
 #pragma	varargck	type	"Y"	LSym*
+#pragma	varargck	type	"Z"	char*
+#pragma	varargck	type	"i"	char*
 
 // buffered output
 
@@ -271,3 +272,6 @@ void	wputl(ushort w);
 void	xdefine(char *p, int t, vlong v);
 void	zerosig(char *sp);
 void	archinit(void);
+void	diag(char *fmt, ...);
+
+#pragma	varargck	argpos	diag	1

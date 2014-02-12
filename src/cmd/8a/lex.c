@@ -57,6 +57,12 @@ pathchar(void)
 	return '/';
 }
 
+int
+Lconv(Fmt *fp)
+{
+	return linklinefmt(ctxt, fp);
+}
+
 void
 main(int argc, char *argv[])
 {
@@ -71,6 +77,7 @@ main(int argc, char *argv[])
 	ctxt->bso = &bstdout;
 	Binit(&bstdout, 1, OWRITE);
 	listinit8();
+	fmtinstall('L', Lconv);
 
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));

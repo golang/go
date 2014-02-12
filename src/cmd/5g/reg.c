@@ -1291,9 +1291,9 @@ dumpit(char *str, Flow *r0, int isreg)
 		if(r1 != nil) {
 			print("	pred:");
 			for(; r1 != nil; r1 = r1->p2link)
-				print(" %.4ud", r1->prog->loc);
+				print(" %.4ud", r1->prog->pc);
 			if(r->p1 != nil)
-				print(" (and %.4ud)", r->p1->prog->loc);
+				print(" (and %.4ud)", r->p1->prog->pc);
 			else
 				print(" (only)");
 			print("\n");
@@ -1302,7 +1302,7 @@ dumpit(char *str, Flow *r0, int isreg)
 //		if(r1 != nil) {
 //			print("	succ:");
 //			for(; r1 != R; r1 = r1->s1)
-//				print(" %.4ud", r1->prog->loc);
+//				print(" %.4ud", r1->prog->pc);
 //			print("\n");
 //		}
 	}

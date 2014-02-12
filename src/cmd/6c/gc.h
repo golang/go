@@ -48,7 +48,6 @@
 
 typedef	struct	Case	Case;
 typedef	struct	C1	C1;
-typedef	struct	Var	Var;
 typedef	struct	Reg	Reg;
 typedef	struct	Rgn	Rgn;
 typedef	struct	Renv	Renv;
@@ -81,14 +80,6 @@ struct	C1
 {
 	vlong	val;
 	int32	label;
-};
-
-struct	Var
-{
-	vlong	offset;
-	LSym*	sym;
-	char	name;
-	char	etype;
 };
 
 struct	Reg
@@ -203,7 +194,6 @@ EXTERN	Reg*	firstr;
 EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
-EXTERN	Var	var[NVAR];
 EXTERN	int32*	idom;
 EXTERN	Reg**	rpo2r;
 EXTERN	int32	maxnr;
@@ -292,13 +282,6 @@ void	outcode(void);
  * list
  */
 void	listinit(void);
-int	Pconv(Fmt*);
-int	Aconv(Fmt*);
-int	Dconv(Fmt*);
-int	Sconv(Fmt*);
-int	Rconv(Fmt*);
-int	Xconv(Fmt*);
-int	Bconv(Fmt*);
 
 /*
  * reg.c
@@ -371,14 +354,6 @@ void	smod2(int32, int, Node*, Node*);
 void	mulgen(Type*, Node*, Node*);
 void	genmuladd(Node*, Node*, int, Node*);
 void	shiftit(Type*, Node*, Node*);
-
-#pragma	varargck	type	"A"	int
-#pragma	varargck	type	"B"	Bits
-#pragma	varargck	type	"D"	Addr*
-#pragma	varargck	type	"lD"	Addr*
-#pragma	varargck	type	"P"	Prog*
-#pragma	varargck	type	"R"	int
-#pragma	varargck	type	"S"	char*
 
 #define	D_X7	(D_X0+7)
 

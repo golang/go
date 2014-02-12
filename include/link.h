@@ -95,7 +95,6 @@ struct	Prog
 	Addr	to;
 	
 	// for 5g, 6g, 8g internal use
-	uint32	loc;	// TODO: merge with pc?
 	void*	opt;
 
 	// for 5l, 6l, 8l internal use
@@ -565,3 +564,13 @@ extern	char*	anames8[];
 extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
 extern	LinkArch	linkarm;
+
+#pragma	varargck	type	"A"	int
+#pragma	varargck	type	"D"	Addr*
+#pragma	varargck	type	"lD"	Addr*
+#pragma	varargck	type	"P"	Prog*
+#pragma	varargck	type	"R"	int
+
+// TODO(ality): remove this workaround.
+//   It's here because Pconv in liblink/list?.c references %L.
+#pragma	varargck	type	"L"	int32
