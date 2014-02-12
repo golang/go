@@ -2,12 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!386,!arm
-
-// SHA1 block step.
-// In its own file so that a faster assembly or C version
-// can be substituted easily.
-
 package sha1
 
 const (
@@ -17,7 +11,9 @@ const (
 	_K3 = 0xCA62C1D6
 )
 
-func block(dig *digest, p []byte) {
+// blockGeneric is a portable, pure Go version of the SHA1 block step.
+// It's used by sha1block_generic.go and tests.
+func blockGeneric(dig *digest, p []byte) {
 	var w [16]uint32
 
 	h0, h1, h2, h3, h4 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4]

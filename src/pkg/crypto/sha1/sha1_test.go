@@ -7,6 +7,7 @@
 package sha1
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"testing"
@@ -87,6 +88,18 @@ func TestBlockSize(t *testing.T) {
 	c := New()
 	if got := c.BlockSize(); got != BlockSize {
 		t.Errorf("BlockSize = %d; want %d", got, BlockSize)
+	}
+}
+
+// Tests that blockGeneric (pure Go) and block (in assembly for amd64, 386, arm) match.
+func TestBlockGeneric(t *testing.T) {
+	gen, asm := New().(*digest), New().(*digest)
+	buf := make([]byte, BlockSize*20) // arbitrary factor
+	rand.Read(buf)
+	blockGeneric(gen, buf)
+	block(asm, buf)
+	if *gen != *asm {
+		t.Error("block and blockGeneric resulted in different states")
 	}
 }
 
