@@ -252,7 +252,6 @@ struct	G
 	uintptr	stackguard0;	// cannot move - also known to linker, libmach, runtime/cgo
 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
 	uint32	panicwrap;	// cannot move - also known to linker
-	uint32	selgen;		// valid sudog pointer
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
@@ -1071,9 +1070,6 @@ void	runtime·osyield(void);
 void	runtime·lockOSThread(void);
 void	runtime·unlockOSThread(void);
 
-Hchan*	runtime·makechan_c(ChanType*, int64);
-void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
-void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
 bool	runtime·showframe(Func*, G*);
 void	runtime·printcreatedby(G*);
 
