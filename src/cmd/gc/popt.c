@@ -491,8 +491,8 @@ struct TempVar
 	TempFlow *use; // use list, chained through TempFlow.uselink
 	TempVar *freelink; // next free temp in Type.opt list
 	TempVar *merge; // merge var with this one
-	uint32 start; // smallest Prog.loc in live range
-	uint32 end; // largest Prog.loc in live range
+	vlong start; // smallest Prog.pc in live range
+	vlong end; // largest Prog.pc in live range
 	uchar addr; // address taken - no accurate end
 	uchar removed; // removed from program
 };
@@ -754,10 +754,10 @@ mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
 			break;
 		r1->f.active = gen;
 		p = r1->f.prog;
-		if(v->end < p->loc)
-			v->end = p->loc;
+		if(v->end < p->pc)
+			v->end = p->pc;
 		if(r1 == v->def) {
-			v->start = p->loc;
+			v->start = p->pc;
 			break;
 		}
 	}

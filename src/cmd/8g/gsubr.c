@@ -48,7 +48,7 @@ clearp(Prog *p)
 	p->from.index = D_NONE;
 	p->to.type = D_NONE;
 	p->to.index = D_NONE;
-	p->loc = pcloc;
+	p->pc = pcloc;
 	pcloc++;
 }
 
@@ -137,7 +137,7 @@ patch(Prog *p, Prog *to)
 	if(p->to.type != D_BRANCH)
 		fatal("patch: not a branch");
 	p->to.u.branch = to;
-	p->to.offset = to->loc;
+	p->to.offset = to->pc;
 }
 
 Prog*

@@ -142,24 +142,9 @@ EXTERN	uint32	stroffset;
 EXTERN	int32	symsize;
 EXTERN	int	armsize;
 
-#pragma	varargck	type	"A"	int
-#pragma	varargck	type	"C"	int
-#pragma	varargck	type	"D"	Addr*
-#pragma	varargck	type	"I"	uchar*
-#pragma	varargck	type	"N"	Addr*
-#pragma	varargck	type	"P"	Prog*
-#pragma	varargck	type	"S"	char*
-#pragma	varargck	type	"Z"	char*
-#pragma	varargck	type	"i"	char*
+#pragma	varargck	type	"I"	uint32*
 
-int	Aconv(Fmt *fp);
-int	Cconv(Fmt *fp);
-int	Dconv(Fmt *fp);
 int	Iconv(Fmt *fp);
-int	Nconv(Fmt *fp);
-int	Oconv(Fmt *fp);
-int	Pconv(Fmt *fp);
-int	Sconv(Fmt *fp);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
 void	adddynrela(LSym *rel, LSym *s, Reloc *r);
@@ -167,7 +152,6 @@ void	adddynsym(Link *ctxt, LSym *s);
 int	archreloc(Reloc *r, LSym *s, vlong *val);
 void	asmb(void);
 void	cput(int32 c);
-void	diag(char *fmt, ...);
 int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	hput(int32 l);

@@ -155,8 +155,6 @@ int32	FtoB(int);
 int	BtoR(int32);
 int	BtoF(int32);
 
-#pragma	varargck	type	"D"	Adr*
-
 /*
  * prog.c
  */

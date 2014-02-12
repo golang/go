@@ -43,17 +43,25 @@ static int	Aconv(Fmt *fp);
 static int	Dconv(Fmt *fp);
 static int	Mconv(Fmt *fp);
 static int	Pconv(Fmt *fp);
+static int	Rconv(Fmt *fp);
 static int	RAconv(Fmt *fp);
 static int	DSconv(Fmt *fp);
+
+#pragma	varargck	type	"$"	char*
+#pragma	varargck	type	"M"	Addr*
+#pragma	varargck	type	"@"	Addr*
 
 void
 listinit5(void)
 {
 	fmtinstall('A', Aconv);
+	fmtinstall('D', Dconv);
 	fmtinstall('P', Pconv);
+	fmtinstall('R', Rconv);
+
+	// for internal use
 	fmtinstall('$', DSconv);
 	fmtinstall('M', Mconv);
-	fmtinstall('D', Dconv);
 	fmtinstall('@', RAconv);
 }
 
@@ -64,6 +72,8 @@ static char *extra [] = {
 	".GT", ".LE", "", ".NV",
 };
 
+static	Prog*	bigP;
+
 static int
 Pconv(Fmt *fp)
 {
@@ -72,6 +82,7 @@ Pconv(Fmt *fp)
 	int a, s;
 
 	p = va_arg(fp->args, Prog*);
+	bigP = p;
 	a = p->as;
 	s = p->scond;
 	strcpy(sc, extra[s & C_SCOND]);
@@ -85,26 +96,27 @@ Pconv(Fmt *fp)
 		strcat(sc, ".U");
 	if(a == AMOVM) {
 		if(p->from.type == D_CONST)
-			sprint(str, "	%A%s	%@,%D", a, sc, &p->from, &p->to);
+			sprint(str, "%.5lld (%L)	%A%s	%@,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
 		else
 		if(p->to.type == D_CONST)
-			sprint(str, "	%A%s	%D,%@", a, sc, &p->from, &p->to);
+			sprint(str, "%.5lld (%L)	%A%s	%D,%@", p->pc, p->lineno, a, sc, &p->from, &p->to);
 		else
-			sprint(str, "	%A%s	%D,%D", a, sc, &p->from, &p->to);
+			sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
 	} else
 	if(a == ADATA)
-		sprint(str, "	%A	%D/%d,%D", a, &p->from, p->reg, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else
 	if(p->as == ATEXT)
-		sprint(str, "	%A	%D,%d,%D", a, &p->from, p->reg, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else
 	if(p->reg == NREG)
-		sprint(str, "	%A%s	%D,%D", a, sc, &p->from, &p->to);
+		sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
 	else
 	if(p->from.type != D_FREG)
-		sprint(str, "	%A%s	%D,R%d,%D", a, sc, &p->from, p->reg, &p->to);
+		sprint(str, "%.5lld (%L)	%A%s	%D,R%d,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
 	else
-		sprint(str, "	%A%s	%D,F%d,%D", a, sc, &p->from, p->reg, &p->to);
+		sprint(str, "%.5lld (%L)	%A%s	%D,F%d,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
+	bigP = nil;
 	return fmtstrcpy(fp, str);
 }
 
@@ -192,10 +204,12 @@ Dconv(Fmt *fp)
 	case D_BRANCH:
 		if(a->sym != nil)
 			sprint(str, "%s(SB)", a->sym->name);
+		else if(bigP != nil && bigP->pcond != nil)
+			sprint(str, "%lld", bigP->pcond->pc);
 		else if(a->u.branch != nil)
-			sprint(str, "%#llx", a->u.branch->pc);
+			sprint(str, "%lld", a->u.branch->pc);
 		else
-			sprint(str, "%d(PC)", (int)(a->offset/*-pc*/));
+			sprint(str, "%lld(PC)", a->offset/*-pc*/);
 		break;
 
 	case D_FCONST:
@@ -285,6 +299,17 @@ DSconv(Fmt *fp)
 		*p++ = (c & 7) + '0';
 	}
 	*p = 0;
+	return fmtstrcpy(fp, str);
+}
+
+static int
+Rconv(Fmt *fp)
+{
+	int r;
+	char str[STRINGSZ];
+
+	r = va_arg(fp->args, int);
+	sprint(str, "R%d", r);
 	return fmtstrcpy(fp, str);
 }
 

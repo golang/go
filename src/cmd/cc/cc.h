@@ -55,6 +55,7 @@ typedef	struct	Bits	Bits;
 typedef	struct	Bvec	Bvec;
 typedef	struct	Dynimp	Dynimp;
 typedef	struct	Dynexp	Dynexp;
+typedef	struct	Var	Var;
 
 typedef	Rune	TRune;	/* target system type */
 
@@ -81,6 +82,14 @@ struct Bvec
 {
 	int32	n;	// number of bits
 	uint32	b[];
+};
+
+struct	Var
+{
+	vlong	offset;
+	LSym*	sym;
+	char	name;
+	char	etype;
 };
 
 struct	Node
@@ -518,6 +527,7 @@ EXTERN	int	warnreach;
 EXTERN	Bits	zbits;
 EXTERN	Fmt	pragcgobuf;
 EXTERN	Biobuf	bstdout;
+EXTERN	Var	var[NVAR];
 
 extern	char	*onames[], *tnames[], *gnames[];
 extern	char	*cnames[], *qnames[], *bnames[];
@@ -595,6 +605,7 @@ int	FNconv(Fmt*);
 int	Oconv(Fmt*);
 int	Qconv(Fmt*);
 int	VBconv(Fmt*);
+int	Bconv(Fmt*);
 void	setinclude(char*);
 
 /*
@@ -806,6 +817,7 @@ int	machcap(Node*);
 #pragma	varargck	argpos	diag	2
 #pragma	varargck	argpos	yyerror	1
 
+#pragma	varargck	type	"B"	Bits
 #pragma	varargck	type	"F"	Node*
 #pragma	varargck	type	"L"	int32
 #pragma	varargck	type	"Q"	int32

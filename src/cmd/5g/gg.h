@@ -117,16 +117,6 @@ void	datastring(char*, int, Addr*);
 /*
  * list.c
  */
-int	Aconv(Fmt*);
-int	Cconv(Fmt*);
-int	Dconv(Fmt*);
-int	Mconv(Fmt*);
-int	Pconv(Fmt*);
-int	Rconv(Fmt*);
-int	Yconv(Fmt*);
 void	listinit(void);
 
 void	zaddr(Biobuf*, Addr*, int, int);
-
-#pragma	varargck	type	"D"	Addr*
-#pragma	varargck	type	"M"	Addr*

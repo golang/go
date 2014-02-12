@@ -1507,31 +1507,24 @@ void	nopout(Prog*);
 void	patch(Prog*, Prog*);
 Prog*	unpatch(Prog*);
 
-#pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Mpint*
-#pragma	varargck	type	"D"	Addr*
-#pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"E"	int
 #pragma	varargck	type	"E"	uint
 #pragma	varargck	type	"F"	Mpflt*
 #pragma	varargck	type	"H"	NodeList*
 #pragma	varargck	type	"J"	Node*
-#pragma	varargck	type	"lL"	int
-#pragma	varargck	type	"lL"	uint
-#pragma	varargck	type	"L"	int
-#pragma	varargck	type	"L"	uint
+#pragma	varargck	type	"lL"	int32
+#pragma	varargck	type	"L"	int32
 #pragma	varargck	type	"N"	Node*
 #pragma	varargck	type	"lN"	Node*
+#pragma	varargck	type	"O"	int
 #pragma	varargck	type	"O"	uint
-#pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"Q"	Bits
-#pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	Sym*
-#pragma	varargck	type	"lS"	Sym*
+#pragma	varargck	type	"lS"	LSym*
 #pragma	varargck	type	"T"	Type*
 #pragma	varargck	type	"lT"	Type*
 #pragma	varargck	type	"V"	Val*
-#pragma	varargck	type	"Y"	char*
 #pragma	varargck	type	"Z"	Strlit*
 
 /*

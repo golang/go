@@ -846,7 +846,7 @@ expandchecks(Prog *firstp)
 		p1->link = p->link;
 		p->link = p1;
 		p1->lineno = p->lineno;
-		p1->loc = 9999;
+		p1->pc = 9999;
 		p1->as = AMOVW;
 		p1->from.type = D_REG;
 		p1->from.reg = reg;

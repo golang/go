@@ -1443,3 +1443,27 @@ undef(void)
 	if(nerrors > 0)
 		errorexit();
 }
+
+void
+diag(char *fmt, ...)
+{
+	char buf[1024], *tn, *sep;
+	va_list arg;
+
+	tn = "";
+	sep = "";
+	if(ctxt->cursym != S) {
+		tn = ctxt->cursym->name;
+		sep = ": ";
+	}
+	va_start(arg, fmt);
+	vseprint(buf, buf+sizeof(buf), fmt, arg);
+	va_end(arg);
+	print("%s%s%s\n", tn, sep, buf);
+
+	nerrors++;
+	if(nerrors > 20) {
+		print("too many errors\n");
+		errorexit();
+	}
+}

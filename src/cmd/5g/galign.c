@@ -39,5 +39,5 @@ betypeinit(void)
 	zprog.from.reg = NREG;
 	zprog.to = zprog.from;
 
-	listinit();
+	listinit5();
 }
