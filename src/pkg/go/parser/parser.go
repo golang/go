@@ -1762,14 +1762,14 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 	return &ast.BranchStmt{TokPos: pos, Tok: tok, Label: label}
 }
 
-func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+func (p *parser) makeExpr(s ast.Stmt, kind string) ast.Expr {
 	if s == nil {
 		return nil
 	}
 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
 		return p.checkExpr(es.X)
 	}
-	p.error(s.Pos(), "expected condition, found simple statement (missing parentheses around composite literal?)")
+	p.error(s.Pos(), fmt.Sprintf("expected %s, found simple statement (missing parentheses around composite literal?)", kind))
 	return &ast.BadExpr{From: s.Pos(), To: s.End()}
 }
 
@@ -1796,7 +1796,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 				p.next()
 				x = p.parseRhs()
 			} else {
-				x = p.makeExpr(s)
+				x = p.makeExpr(s, "boolean expression")
 				s = nil
 			}
 		}
@@ -1927,7 +1927,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		return &ast.TypeSwitchStmt{Switch: pos, Init: s1, Assign: s2, Body: body}
 	}
 
-	return &ast.SwitchStmt{Switch: pos, Init: s1, Tag: p.makeExpr(s2), Body: body}
+	return &ast.SwitchStmt{Switch: pos, Init: s1, Tag: p.makeExpr(s2, "switch expression"), Body: body}
 }
 
 func (p *parser) parseCommClause() *ast.CommClause {
@@ -2072,7 +2072,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 	return &ast.ForStmt{
 		For:  pos,
 		Init: s1,
-		Cond: p.makeExpr(s2),
+		Cond: p.makeExpr(s2, "boolean or range expression"),
 		Post: s3,
 		Body: body,
 	}
