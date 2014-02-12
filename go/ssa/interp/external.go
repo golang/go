@@ -74,6 +74,8 @@ func init() {
 		"math.Float32frombits":            ext۰math۰Float32frombits,
 		"math.Float64bits":                ext۰math۰Float64bits,
 		"math.Float64frombits":            ext۰math۰Float64frombits,
+		"math.Ldexp":                      ext۰math۰Ldexp,
+		"math.Log":                        ext۰math۰Log,
 		"math.Min":                        ext۰math۰Min,
 		"reflect.New":                     ext۰reflect۰New,
 		"reflect.TypeOf":                  ext۰reflect۰TypeOf,
@@ -197,6 +199,14 @@ func ext۰math۰Float32bits(fr *frame, args []value) value {
 
 func ext۰math۰Min(fr *frame, args []value) value {
 	return math.Min(args[0].(float64), args[1].(float64))
+}
+
+func ext۰math۰Ldexp(fr *frame, args []value) value {
+	return math.Ldexp(args[0].(float64), args[1].(int))
+}
+
+func ext۰math۰Log(fr *frame, args []value) value {
+	return math.Log(args[0].(float64))
 }
 
 func ext۰runtime۰Breakpoint(fr *frame, args []value) value {

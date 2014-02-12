@@ -146,15 +146,26 @@ var testdataTests = []string{
 	"callstack.go",
 }
 
-// These are files in $GOROOT/src/pkg/.
-// These tests exercise the "testing" package.
+// These are files and packages in $GOROOT/src/pkg/.
 var gorootSrcPkgTests = []string{
-	"unicode/script_test.go",
-	"unicode/digit_test.go",
-	"hash/crc32/crc32.go hash/crc32/crc32_generic.go hash/crc32/crc32_test.go",
-	"path/path.go path/path_test.go",
-	// TODO(adonovan): figure out the package loading error here:
-	// "strings.go strings/search.go strings/search_test.go",
+	"encoding/ascii85",
+	"encoding/csv",
+	"encoding/hex",
+	"encoding/pem",
+	"hash/crc32",
+	"testing",
+	"text/scanner",
+	"unicode",
+
+	// Too slow:
+	// "container/ring",
+	// "hash/adler32",
+
+	// TODO(adonovan): packages with Examples require os.Pipe (unimplemented):
+	// "unicode/utf8",
+	// "log",
+	// "path",
+	// "flag",
 }
 
 type successPredicate func(exitcode int, output string) error
@@ -166,14 +177,15 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 
 	var inputs []string
 	for _, i := range strings.Split(input, " ") {
-		inputs = append(inputs, dir+i)
+		if strings.HasSuffix(i, ".go") {
+			i = dir + i
+		}
+		inputs = append(inputs, i)
 	}
 
 	conf := loader.Config{SourceImports: true}
-	// TODO(adonovan): add the following packages' tests, which pass:
-	// "flag", "unicode", "unicode/utf8", "testing", "log", "path".
-	if err := conf.CreateFromFilenames("", inputs...); err != nil {
-		t.Errorf("CreateFromFilenames(%s) failed: %s", inputs, err)
+	if _, err := conf.FromArgs(inputs, true); err != nil {
+		t.Errorf("FromArgs(%s) failed: %s", inputs, err)
 		return false
 	}
 
@@ -203,9 +215,17 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
 	prog.BuildAll()
 
-	mainPkg := prog.Package(iprog.Created[0].Pkg)
-	if mainPkg.Func("main") == nil {
-		testmainPkg := prog.CreateTestMainPackage(mainPkg)
+	var mainPkg *ssa.Package
+	var initialPkgs []*ssa.Package
+	for _, info := range iprog.InitialPackages() {
+		p := prog.Package(info.Pkg)
+		initialPkgs = append(initialPkgs, p)
+		if mainPkg == nil && p.Func("main") != nil {
+			mainPkg = p
+		}
+	}
+	if mainPkg == nil {
+		testmainPkg := prog.CreateTestMainPackage(initialPkgs...)
 		if testmainPkg == nil {
 			t.Errorf("CreateTestMainPackage(%s) returned nil", mainPkg)
 			return false

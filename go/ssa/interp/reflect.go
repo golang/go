@@ -81,7 +81,7 @@ func ext۰reflect۰rtype۰Bits(fr *frame, args []value) value {
 	if !ok {
 		panic(fmt.Sprintf("reflect.Type.Bits(%T): non-basic type", rt))
 	}
-	return fr.i.sizes.Sizeof(basic) * 8
+	return int(fr.i.sizes.Sizeof(basic)) * 8
 }
 
 func ext۰reflect۰rtype۰Elem(fr *frame, args []value) value {
@@ -135,7 +135,7 @@ func ext۰reflect۰rtype۰Out(fr *frame, args []value) value {
 
 func ext۰reflect۰rtype۰Size(fr *frame, args []value) value {
 	// Signature: func (t reflect.rtype) uintptr
-	return uint64(fr.i.sizes.Sizeof(args[0].(rtype).t))
+	return uintptr(fr.i.sizes.Sizeof(args[0].(rtype).t))
 }
 
 func ext۰reflect۰rtype۰String(fr *frame, args []value) value {
