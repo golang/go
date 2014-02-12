@@ -66,6 +66,7 @@ enum {
 	CollectStats = 0,
 	ScanStackByFrames = 1,
 	IgnorePreciseGC = 0,
+	ConcurrentSweep = 0,
 
 	// Four bits per word (see #defines below).
 	wordsPerBitmapWord = sizeof(void*)*8/4,
@@ -2237,6 +2238,23 @@ runtime·gc(int32 force)
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 	m->locks--;
+
+	// now that gc is done, kick off finalizer thread if needed
+	if(!ConcurrentSweep) {
+		if(finq != nil) {
+			runtime·lock(&gclock);
+			// kick off or wake up goroutine to run queued finalizers
+			if(fing == nil)
+				fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+			else if(fingwait) {
+				fingwait = 0;
+				runtime·ready(fing);
+			}
+			runtime·unlock(&gclock);
+		}
+		// give the queued finalizers, if any, a chance to run
+		runtime·gosched();
+	}
 }
 
 static void
@@ -2384,7 +2402,7 @@ gc(struct gc_args *args)
 	sweep.spanidx = 0;
 
 	// Temporary disable concurrent sweep, because we see failures on builders.
-	if(false) {
+	if(ConcurrentSweep) {
 		runtime·lock(&gclock);
 		if(sweep.g == nil)
 			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
