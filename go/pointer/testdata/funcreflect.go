@@ -82,6 +82,10 @@ type U struct{}
 func (U) F(int)    {}
 func (U) g(string) {}
 
+type I interface {
+	f()
+}
+
 var nonconst string
 
 func reflectTypeMethodByName() {
@@ -101,6 +105,14 @@ func reflectTypeMethodByName() {
 	X, _ := U.MethodByName(nonconst)
 	print(reflect.Zero(X.Type)) // @types func(U, int) | func(U, string)
 	print(X.Func)               // @pointsto (main.U).F | (main.U).g
+
+	// Interface methods.
+	rThasF := reflect.TypeOf(new(hasF)).Elem()
+	print(reflect.Zero(rThasF)) // @types hasF
+	F2, _ := rThasF.MethodByName("F")
+	print(reflect.Zero(F2.Type)) // @types func()
+	print(F2.Func)               // @pointsto (main.hasF).F
+
 }
 
 func reflectTypeMethod() {

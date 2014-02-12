@@ -1566,6 +1566,8 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset)
 	for tObj := range delta {
 		T := a.nodes[tObj].obj.data.(types.Type)
 
+		_, isInterface := T.Underlying().(*types.Interface)
+
 		// We don't use Lookup(c.name) when c.name != "" to avoid
 		// ambiguity: >1 unexported methods could match.
 		mset := a.prog.MethodSets.MethodSet(T)
@@ -1582,8 +1584,17 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset)
 				// }
 				fn := a.prog.Method(sel)
 
+				sig := fn.Signature
+				if isInterface {
+					// discard receiver
+					sig = types.NewSignature(nil, nil, sig.Params(), sig.Results(), sig.Variadic())
+				} else {
+					// move receiver to params[0]
+					sig = changeRecv(sig)
+
+				}
 				// a.offsetOf(Type) is 3.
-				if id := c.result + 3; a.addLabel(id, a.makeRtype(changeRecv(fn.Signature))) {
+				if id := c.result + 3; a.addLabel(id, a.makeRtype(sig)) {
 					a.addWork(id)
 				}
 				// a.offsetOf(Func) is 4.
