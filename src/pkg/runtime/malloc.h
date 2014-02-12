@@ -403,6 +403,12 @@ struct MSpan
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
+	// sweep generation:
+	// if sweepgen == h->sweepgen - 2, the span needs sweeping
+	// if sweepgen == h->sweepgen - 1, the span is currently being swept
+	// if sweepgen == h->sweepgen, the span is swept and ready to use
+	// h->sweepgen is incremented by 2 after every GC
+	uint32	sweepgen;
 	uint16	ref;		// number of allocated objects in this span
 	uint8	sizeclass;	// size class
 	uint8	state;		// MSpanInUse etc
@@ -416,6 +422,8 @@ struct MSpan
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+void	runtime·MSpan_EnsureSwept(MSpan *span);
+bool	runtime·MSpan_Sweep(MSpan *span);
 
 // Every MSpan is in one doubly-linked list,
 // either one of the MHeap's free lists or one of the
@@ -423,6 +431,7 @@ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
 void	runtime·MSpanList_Init(MSpan *list);
 bool	runtime·MSpanList_IsEmpty(MSpan *list);
 void	runtime·MSpanList_Insert(MSpan *list, MSpan *span);
+void	runtime·MSpanList_InsertBack(MSpan *list, MSpan *span);
 void	runtime·MSpanList_Remove(MSpan *span);	// from whatever list it is in
 
 
@@ -439,7 +448,7 @@ struct MCentral
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
 int32	runtime·MCentral_AllocList(MCentral *c, MLink **first);
 void	runtime·MCentral_FreeList(MCentral *c, MLink *first);
-void	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
+bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
@@ -448,10 +457,15 @@ struct MHeap
 {
 	Lock;
 	MSpan free[MaxMHeapList];	// free lists of given length
-	MSpan large;			// free lists length >= MaxMHeapList
-	MSpan **allspans;
+	MSpan freelarge;		// free lists length >= MaxMHeapList
+	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
+	MSpan busylarge;		// busy lists of large objects length >= MaxMHeapList
+	MSpan **allspans;		// all spans out there
+	MSpan **sweepspans;		// copy of allspans referenced by sweeper
 	uint32	nspan;
 	uint32	nspancap;
+	uint32	sweepgen;		// sweep generation, see comment in MSpan
+	uint32	sweepdone;		// all spans are swept
 
 	// span lookup
 	MSpan**	spans;
@@ -487,7 +501,7 @@ struct MHeap
 extern MHeap runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h);
-MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
+MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool zeroed);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
@@ -501,6 +515,7 @@ void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
+uintptr	runtime·sweepone(void);
 void	runtime·markscan(void *v);
 void	runtime·marknogc(void *v);
 void	runtime·checkallocated(void *v, uintptr n);
@@ -528,7 +543,7 @@ enum
 };
 
 void	runtime·MProf_Malloc(void*, uintptr, uintptr);
-void	runtime·MProf_Free(Bucket*, void*, uintptr);
+void	runtime·MProf_Free(Bucket*, void*, uintptr, bool);
 void	runtime·MProf_GC(void);
 void	runtime·MProf_TraceGC(void);
 int32	runtime·gcprocs(void);
@@ -542,7 +557,7 @@ void	runtime·removefinalizer(void*);
 void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot);
 
 void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
-bool	runtime·freespecial(Special *s, void *p, uintptr size);
+bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
 
 enum
 {

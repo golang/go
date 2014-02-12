@@ -33,14 +33,33 @@ struct Bucket
 	{
 		struct  // typ == MProf
 		{
+			// The following complex 3-stage scheme of stats accumulation
+			// is required to obtain a consistent picture of mallocs and frees
+			// for some point in time.
+			// The problem is that mallocs come in real time, while frees
+			// come only after a GC during concurrent sweeping. So if we would
+			// naively count them, we would get a skew toward mallocs.
+			//
+			// Mallocs are accounted in recent stats.
+			// Explicit frees are accounted in recent stats.
+			// GC frees are accounted in prev stats.
+			// After GC prev stats are added to final stats and
+			// recent stats are moved into prev stats.
 			uintptr	allocs;
 			uintptr	frees;
 			uintptr	alloc_bytes;
 			uintptr	free_bytes;
-			uintptr	recent_allocs;  // since last gc
+
+			uintptr	prev_allocs;  // since last but one till last gc
+			uintptr	prev_frees;
+			uintptr	prev_alloc_bytes;
+			uintptr	prev_free_bytes;
+
+			uintptr	recent_allocs;  // since last gc till now
 			uintptr	recent_frees;
 			uintptr	recent_alloc_bytes;
 			uintptr	recent_free_bytes;
+
 		};
 		struct  // typ == BProf
 		{
@@ -117,10 +136,16 @@ MProf_GC(void)
 	Bucket *b;
 
 	for(b=mbuckets; b; b=b->allnext) {
-		b->allocs += b->recent_allocs;
-		b->frees += b->recent_frees;
-		b->alloc_bytes += b->recent_alloc_bytes;
-		b->free_bytes += b->recent_free_bytes;
+		b->allocs += b->prev_allocs;
+		b->frees += b->prev_frees;
+		b->alloc_bytes += b->prev_alloc_bytes;
+		b->free_bytes += b->prev_free_bytes;
+
+		b->prev_allocs = b->recent_allocs;
+		b->prev_frees = b->recent_frees;
+		b->prev_alloc_bytes = b->recent_alloc_bytes;
+		b->prev_free_bytes = b->recent_free_bytes;
+
 		b->recent_allocs = 0;
 		b->recent_frees = 0;
 		b->recent_alloc_bytes = 0;
@@ -220,11 +245,16 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
 
 // Called when freeing a profiled block.
 void
-runtime·MProf_Free(Bucket *b, void *p, uintptr size)
+runtime·MProf_Free(Bucket *b, void *p, uintptr size, bool freed)
 {
 	runtime·lock(&proflock);
-	b->recent_frees++;
-	b->recent_free_bytes += size;
+	if(freed) {
+		b->recent_frees++;
+		b->recent_free_bytes += size;
+	} else {
+		b->prev_frees++;
+		b->prev_free_bytes += size;
+	}
 	if(runtime·debug.allocfreetrace) {
 		runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
 		printstackframes(b->stk, b->nstk);
@@ -317,6 +347,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 		// has not yet happened. In order to allow profiling when
 		// garbage collection is disabled from the beginning of execution,
 		// accumulate stats as if a GC just happened, and recount buckets.
+		MProf_GC();
 		MProf_GC();
 		n = 0;
 		for(b=mbuckets; b; b=b->allnext)
