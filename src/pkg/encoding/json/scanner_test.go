@@ -239,23 +239,16 @@ func trim(b []byte) []byte {
 
 var jsonBig []byte
 
-const (
-	big   = 10000
-	small = 100
-)
-
 func initBig() {
-	n := big
+	n := 10000
 	if testing.Short() {
-		n = small
+		n = 100
 	}
-	if len(jsonBig) != n {
-		b, err := Marshal(genValue(n))
-		if err != nil {
-			panic(err)
-		}
-		jsonBig = b
+	b, err := Marshal(genValue(n))
+	if err != nil {
+		panic(err)
 	}
+	jsonBig = b
 }
 
 func genValue(n int) interface{} {
@@ -295,6 +288,9 @@ func genArray(n int) []interface{} {
 	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
+	}
+	if f < 1 {
+		f = 1
 	}
 	x := make([]interface{}, f)
 	for i := range x {
