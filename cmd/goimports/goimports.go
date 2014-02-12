@@ -26,15 +26,16 @@ var (
 	write  = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	doDiff = flag.Bool("d", false, "display diffs instead of rewriting files")
 
-	options  = &imports.Options{}
+	options = &imports.Options{
+		TabWidth:  8,
+		TabIndent: true,
+		Comments:  true,
+	}
 	exitCode = 0
 )
 
 func init() {
 	flag.BoolVar(&options.AllErrors, "e", false, "report all errors (not just the first 10 on different lines)")
-	flag.BoolVar(&options.Comments, "comments", true, "print comments")
-	flag.IntVar(&options.TabWidth, "tabwidth", 8, "tab width")
-	flag.BoolVar(&options.TabIndent, "tabs", true, "indent with tabs")
 }
 
 func report(err error) {
