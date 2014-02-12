@@ -10,7 +10,6 @@
 #include "../../cmd/ld/textflag.h"
 
 #define	MAXALIGN	8
-#define	NOSELGEN	1
 
 typedef	struct	WaitQ	WaitQ;
 typedef	struct	SudoG	SudoG;
@@ -19,8 +18,8 @@ typedef	struct	Scase	Scase;
 
 struct	SudoG
 {
-	G*	g;		// g and selgen constitute
-	uint32	selgen;		// a weak pointer to g
+	G*	g;
+	uint32*	selectdone;
 	SudoG*	link;
 	int64	releasetime;
 	byte*	elem;		// data element
@@ -90,8 +89,8 @@ static	void	enqueue(WaitQ*, SudoG*);
 static	void	destroychan(Hchan*);
 static	void	racesync(Hchan*, SudoG*);
 
-Hchan*
-runtime·makechan_c(ChanType *t, int64 hint)
+static Hchan*
+makechan(ChanType *t, int64 hint)
 {
 	Hchan *c;
 	Type *elem;
@@ -125,7 +124,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
 void
 reflect·makechan(ChanType *t, uint64 size, Hchan *c)
 {
-	c = runtime·makechan_c(t, size);
+	c = makechan(t, size);
 	FLUSH(&c);
 }
 
@@ -133,7 +132,7 @@ reflect·makechan(ChanType *t, uint64 size, Hchan *c)
 void
 runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
 {
-	ret = runtime·makechan_c(t, hint);
+	ret = makechan(t, hint);
 	FLUSH(&ret);
 }
 
@@ -151,8 +150,8 @@ runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
  * been closed.  it is easiest to loop and re-run
  * the operation; we'll see that it's now closed.
  */
-void
-runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+static bool
+chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 {
 	SudoG *sg;
 	SudoG mysg;
@@ -160,16 +159,14 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 	int64 t0;
 
 	if(raceenabled)
-		runtime·racereadobjectpc(ep, t->elem, runtime·getcallerpc(&t), runtime·chansend);
+		runtime·racereadobjectpc(ep, t->elem, runtime·getcallerpc(&t), chansend);
 
 	if(c == nil) {
 		USED(t);
-		if(pres != nil) {
-			*pres = false;
-			return;
-		}
+		if(!block)
+			return false;
 		runtime·park(nil, nil, "chan send (nil chan)");
-		return;  // not reached
+		return false;  // not reached
 	}
 
 	if(debug) {
@@ -187,7 +184,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 
 	runtime·lock(c);
 	if(raceenabled)
-		runtime·racereadpc(c, pc, runtime·chansend);
+		runtime·racereadpc(c, pc, chansend);
 	if(c->closed)
 		goto closed;
 
@@ -207,21 +204,17 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 		if(sg->releasetime)
 			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
-
-		if(pres != nil)
-			*pres = true;
-		return;
+		return true;
 	}
 
-	if(pres != nil) {
+	if(!block) {
 		runtime·unlock(c);
-		*pres = false;
-		return;
+		return false;
 	}
 
 	mysg.elem = ep;
 	mysg.g = g;
-	mysg.selgen = NOSELGEN;
+	mysg.selectdone = nil;
 	g->param = nil;
 	enqueue(&c->sendq, &mysg);
 	runtime·parkunlock(c, "chan send");
@@ -236,21 +229,20 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
 
-	return;
+	return true;
 
 asynch:
 	if(c->closed)
 		goto closed;
 
 	if(c->qcount >= c->dataqsiz) {
-		if(pres != nil) {
+		if(!block) {
 			runtime·unlock(c);
-			*pres = false;
-			return;
+			return false;
 		}
 		mysg.g = g;
 		mysg.elem = nil;
-		mysg.selgen = NOSELGEN;
+		mysg.selectdone = nil;
 		enqueue(&c->sendq, &mysg);
 		runtime·parkunlock(c, "chan send");
 
@@ -275,20 +267,19 @@ asynch:
 		runtime·ready(gp);
 	} else
 		runtime·unlock(c);
-	if(pres != nil)
-		*pres = true;
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
-	return;
+	return true;
 
 closed:
 	runtime·unlock(c);
 	runtime·panicstring("send on closed channel");
+	return false;  // not reached
 }
 
 
-void
-runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *received)
+static bool
+chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 {
 	SudoG *sg;
 	SudoG mysg;
@@ -302,12 +293,10 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 
 	if(c == nil) {
 		USED(t);
-		if(selected != nil) {
-			*selected = false;
-			return;
-		}
+		if(!block)
+			return false;
 		runtime·park(nil, nil, "chan receive (nil chan)");
-		return;  // not reached
+		return false;  // not reached
 	}
 
 	t0 = 0;
@@ -338,22 +327,19 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 
-		if(selected != nil)
-			*selected = true;
 		if(received != nil)
 			*received = true;
-		return;
+		return true;
 	}
 
-	if(selected != nil) {
+	if(!block) {
 		runtime·unlock(c);
-		*selected = false;
-		return;
+		return false;
 	}
 
 	mysg.elem = ep;
 	mysg.g = g;
-	mysg.selgen = NOSELGEN;
+	mysg.selectdone = nil;
 	g->param = nil;
 	enqueue(&c->recvq, &mysg);
 	runtime·parkunlock(c, "chan receive");
@@ -369,23 +355,22 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 		*received = true;
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
-	return;
+	return true;
 
 asynch:
 	if(c->qcount <= 0) {
 		if(c->closed)
 			goto closed;
 
-		if(selected != nil) {
+		if(!block) {
 			runtime·unlock(c);
-			*selected = false;
 			if(received != nil)
 				*received = false;
-			return;
+			return false;
 		}
 		mysg.g = g;
 		mysg.elem = nil;
-		mysg.selgen = NOSELGEN;
+		mysg.selectdone = nil;
 		enqueue(&c->recvq, &mysg);
 		runtime·parkunlock(c, "chan receive");
 
@@ -413,19 +398,15 @@ asynch:
 	} else
 		runtime·unlock(c);
 
-	if(selected != nil)
-		*selected = true;
 	if(received != nil)
 		*received = true;
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
-	return;
+	return true;
 
 closed:
 	if(ep != nil)
 		c->elemtype->alg->copy(c->elemsize, ep, nil);
-	if(selected != nil)
-		*selected = true;
 	if(received != nil)
 		*received = false;
 	if(raceenabled)
@@ -433,6 +414,7 @@ closed:
 	runtime·unlock(c);
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
+	return true;
 }
 
 // chansend1(hchan *chan any, elem *any);
@@ -440,7 +422,7 @@ closed:
 void
 runtime·chansend1(ChanType *t, Hchan* c, byte *v)
 {
-	runtime·chansend(t, c, v, nil, runtime·getcallerpc(&t));
+	chansend(t, c, v, true, runtime·getcallerpc(&t));
 }
 
 // chanrecv1(hchan *chan any, elem *any);
@@ -448,7 +430,7 @@ runtime·chansend1(ChanType *t, Hchan* c, byte *v)
 void
 runtime·chanrecv1(ChanType *t, Hchan* c, byte *v)
 {
-	runtime·chanrecv(t, c, v, nil, nil);
+	chanrecv(t, c, v, true, nil);
 }
 
 // chanrecv2(hchan *chan any, elem *any) (received bool);
@@ -456,7 +438,7 @@ runtime·chanrecv1(ChanType *t, Hchan* c, byte *v)
 void
 runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
 {
-	runtime·chanrecv(t, c, v, nil, &received);
+	chanrecv(t, c, v, true, &received);
 }
 
 // func selectnbsend(c chan any, elem *any) bool
@@ -480,9 +462,10 @@ runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
 //
 #pragma textflag NOSPLIT
 void
-runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool pres)
+runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool res)
 {
-	runtime·chansend(t, c, val, &pres, runtime·getcallerpc(&t));
+	res = chansend(t, c, val, false, runtime·getcallerpc(&t));
+	FLUSH(&res);
 }
 
 // func selectnbrecv(elem *any, c chan any) bool
@@ -508,7 +491,8 @@ runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool pres)
 void
 runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 {
-	runtime·chanrecv(t, c, v, &selected, nil);
+	selected = chanrecv(t, c, v, false, nil);
+	FLUSH(&selected);
 }
 
 // func selectnbrecv2(elem *any, ok *bool, c chan any) bool
@@ -534,7 +518,8 @@ runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 void
 runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
 {
-	runtime·chanrecv(t, c, v, &selected, received);
+	selected = chanrecv(t, c, v, false, received);
+	FLUSH(&selected);
 }
 
 // For reflect:
@@ -547,17 +532,8 @@ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool sele
 void
 reflect·chansend(ChanType *t, Hchan *c, byte *val, bool nb, uintptr selected)
 {
-	bool *sp;
-
-	if(nb) {
-		selected = false;
-		sp = (bool*)&selected;
-	} else {
-		*(bool*)&selected = true;
-		FLUSH(&selected);
-		sp = nil;
-	}
-	runtime·chansend(t, c, val, sp, runtime·getcallerpc(&t));
+	selected = chansend(t, c, val, !nb, runtime·getcallerpc(&t));
+	FLUSH(&selected);
 }
 
 // For reflect:
@@ -567,19 +543,10 @@ reflect·chansend(ChanType *t, Hchan *c, byte *val, bool nb, uintptr selected)
 void
 reflect·chanrecv(ChanType *t, Hchan *c, bool nb, byte *val, bool selected, bool received)
 {
-	bool *sp;
-
-	if(nb) {
-		selected = false;
-		sp = &selected;
-	} else {
-		selected = true;
-		FLUSH(&selected);
-		sp = nil;
-	}
 	received = false;
 	FLUSH(&received);
-	runtime·chanrecv(t, c, val, sp, &received);
+	selected = chanrecv(t, c, val, !nb, &received);
+	FLUSH(&selected);
 }
 
 static Select* newselect(int32);
@@ -830,7 +797,7 @@ static void*
 selectgo(Select **selp)
 {
 	Select *sel;
-	uint32 o, i, j, k;
+	uint32 o, i, j, k, done;
 	int64 t0;
 	Scase *cas, *dfl;
 	Hchan *c;
@@ -932,7 +899,7 @@ loop:
 
 		case CaseSend:
 			if(raceenabled)
-				runtime·racereadpc(c, cas->pc, runtime·chansend);
+				runtime·racereadpc(c, cas->pc, chansend);
 			if(c->closed)
 				goto sclose;
 			if(c->dataqsiz > 0) {
@@ -959,13 +926,14 @@ loop:
 
 
 	// pass 2 - enqueue on all chans
+	done = 0;
 	for(i=0; i<sel->ncase; i++) {
 		o = sel->pollorder[i];
 		cas = &sel->scase[o];
 		c = cas->chan;
 		sg = &cas->sg;
 		sg->g = g;
-		sg->selgen = g->selgen;
+		sg->selectdone = &done;
 
 		switch(cas->kind) {
 		case CaseRecv:
@@ -1017,9 +985,9 @@ loop:
 
 	if(raceenabled) {
 		if(cas->kind == CaseRecv && cas->sg.elem != nil)
-			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
+			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, chanrecv);
 		else if(cas->kind == CaseSend)
-			runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
+			runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, chansend);
 	}
 
 	selunlock(sel);
@@ -1029,7 +997,7 @@ asyncrecv:
 	// can receive from buffer
 	if(raceenabled) {
 		if(cas->sg.elem != nil)
-			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
+			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, chanrecv);
 		runtime·raceacquire(chanbuf(c, c->recvx));
 	}
 	if(cas->receivedp != nil)
@@ -1056,7 +1024,7 @@ asyncsend:
 	// can send to buffer
 	if(raceenabled) {
 		runtime·racerelease(chanbuf(c, c->sendx));
-		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
+		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, chansend);
 	}
 	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
 	if(++c->sendx == c->dataqsiz)
@@ -1078,7 +1046,7 @@ syncrecv:
 	// can receive from sleeping sender (sg)
 	if(raceenabled) {
 		if(cas->sg.elem != nil)
-			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
+			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, chanrecv);
 		racesync(c, sg);
 	}
 	selunlock(sel);
@@ -1109,7 +1077,7 @@ rclose:
 syncsend:
 	// can send to sleeping receiver (sg)
 	if(raceenabled) {
-		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
+		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, chansend);
 		racesync(c, sg);
 	}
 	selunlock(sel);
@@ -1305,12 +1273,11 @@ loop:
 		return nil;
 	q->first = sgp->link;
 
-	// if sgp is stale, ignore it
-	if(sgp->selgen != NOSELGEN &&
-		(sgp->selgen != sgp->g->selgen ||
-		!runtime·cas(&sgp->g->selgen, sgp->selgen, sgp->selgen + 2))) {
-		//prints("INVALID PSEUDOG POINTER\n");
-		goto loop;
+	// if sgp participates in a select and is already signaled, ignore it
+	if(sgp->selectdone != nil) {
+		// claim the right to signal
+		if(*sgp->selectdone != 0 || !runtime·cas(sgp->selectdone, 0, 1))
+			goto loop;
 	}
 
 	return sgp;
