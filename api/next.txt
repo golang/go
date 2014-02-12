@@ -1,3 +1,20 @@
+pkg crypto/tls, func NewLRUClientSessionCache(int) ClientSessionCache
+pkg crypto/tls, type ClientSessionCache interface { Get, Put }
+pkg crypto/tls, type ClientSessionCache interface, Get(string) (*ClientSessionState, bool)
+pkg crypto/tls, type ClientSessionCache interface, Put(string, *ClientSessionState)
+pkg crypto/tls, type ClientSessionState struct
+pkg crypto/tls, type Config struct, ClientSessionCache ClientSessionCache
+pkg debug/dwarf, const TagCondition = 63
+pkg debug/dwarf, const TagCondition Tag
+pkg debug/dwarf, const TagRvalueReferenceType = 66
+pkg debug/dwarf, const TagRvalueReferenceType Tag
+pkg debug/dwarf, const TagSharedType = 64
+pkg debug/dwarf, const TagSharedType Tag
+pkg debug/dwarf, const TagTemplateAlias = 67
+pkg debug/dwarf, const TagTemplateAlias Tag
+pkg debug/dwarf, const TagTypeUnit = 65
+pkg debug/dwarf, const TagTypeUnit Tag
+pkg debug/dwarf, method (*Data) AddTypes(string, []uint8) error
 pkg debug/goobj, const SBSS = 21
 pkg debug/goobj, const SBSS SymKind
 pkg debug/goobj, const SCONST = 31
@@ -113,6 +130,50 @@ pkg debug/goobj, type Var struct, Kind int
 pkg debug/goobj, type Var struct, Name string
 pkg debug/goobj, type Var struct, Offset int
 pkg debug/goobj, type Var struct, Type SymID
+pkg debug/plan9obj, func NewFile(io.ReaderAt) (*File, error)
+pkg debug/plan9obj, func Open(string) (*File, error)
+pkg debug/plan9obj, method (*File) Close() error
+pkg debug/plan9obj, method (*File) Section(string) *Section
+pkg debug/plan9obj, method (*File) Symbols() ([]Sym, error)
+pkg debug/plan9obj, method (*FormatError) Error() string
+pkg debug/plan9obj, method (*Prog) Open() io.ReadSeeker
+pkg debug/plan9obj, method (*Section) Data() ([]uint8, error)
+pkg debug/plan9obj, method (*Section) Open() io.ReadSeeker
+pkg debug/plan9obj, method (Prog) ReadAt([]uint8, int64) (int, error)
+pkg debug/plan9obj, method (Section) ReadAt([]uint8, int64) (int, error)
+pkg debug/plan9obj, type ExecTable struct
+pkg debug/plan9obj, type ExecTable struct, Hsize uint32
+pkg debug/plan9obj, type ExecTable struct, Magic string
+pkg debug/plan9obj, type ExecTable struct, Ptrsz int
+pkg debug/plan9obj, type File struct
+pkg debug/plan9obj, type File struct, Sections []*Section
+pkg debug/plan9obj, type File struct, embedded FileHeader
+pkg debug/plan9obj, type FileHeader struct
+pkg debug/plan9obj, type FileHeader struct, Ptrsz int
+pkg debug/plan9obj, type FormatError struct
+pkg debug/plan9obj, type Prog struct
+pkg debug/plan9obj, type Prog struct, embedded ProgHeader
+pkg debug/plan9obj, type Prog struct, embedded io.ReaderAt
+pkg debug/plan9obj, type ProgHeader struct
+pkg debug/plan9obj, type ProgHeader struct, Bss uint32
+pkg debug/plan9obj, type ProgHeader struct, Data uint32
+pkg debug/plan9obj, type ProgHeader struct, Entry uint64
+pkg debug/plan9obj, type ProgHeader struct, Magic uint32
+pkg debug/plan9obj, type ProgHeader struct, Pcsz uint32
+pkg debug/plan9obj, type ProgHeader struct, Spsz uint32
+pkg debug/plan9obj, type ProgHeader struct, Syms uint32
+pkg debug/plan9obj, type ProgHeader struct, Text uint32
+pkg debug/plan9obj, type Section struct
+pkg debug/plan9obj, type Section struct, embedded SectionHeader
+pkg debug/plan9obj, type Section struct, embedded io.ReaderAt
+pkg debug/plan9obj, type SectionHeader struct
+pkg debug/plan9obj, type SectionHeader struct, Name string
+pkg debug/plan9obj, type SectionHeader struct, Offset uint32
+pkg debug/plan9obj, type SectionHeader struct, Size uint32
+pkg debug/plan9obj, type Sym struct
+pkg debug/plan9obj, type Sym struct, Name string
+pkg debug/plan9obj, type Sym struct, Type int32
+pkg debug/plan9obj, type Sym struct, Value uint64
 pkg sync, method (*Pool) Get() interface{}
 pkg sync, method (*Pool) Put(interface{})
 pkg sync, type Pool struct
@@ -159,8 +220,12 @@ pkg syscall (freebsd-amd64-cgo), type Termios struct, Oflag uint32
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Ospeed uint32
 pkg syscall (freebsd-arm), func Fchflags(int, int) error
 pkg syscall (freebsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm), type Timespec struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm), type Timeval struct, Pad_cgo_0 [4]uint8
 pkg syscall (freebsd-arm-cgo), func Fchflags(int, int) error
 pkg syscall (freebsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), type Timeval struct, Pad_cgo_0 [4]uint8
 pkg syscall (linux-386), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (linux-386), type Flock_t struct
 pkg syscall (linux-386), type Flock_t struct, Len int64
@@ -1297,6 +1362,8 @@ pkg syscall (openbsd-amd64-cgo), type Termios struct, Lflag uint32
 pkg syscall (openbsd-amd64-cgo), type Termios struct, Oflag uint32
 pkg syscall (openbsd-amd64-cgo), type Termios struct, Ospeed int32
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int64
+pkg syscall (windows-386), const ERROR_MORE_DATA = 234
+pkg syscall (windows-386), const ERROR_MORE_DATA Errno
 pkg syscall (windows-386), const ERROR_NETNAME_DELETED = 64
 pkg syscall (windows-386), const ERROR_NETNAME_DELETED Errno
 pkg syscall (windows-386), const IOC_VENDOR = 402653184
@@ -1310,6 +1377,8 @@ pkg syscall (windows-386), type TCPKeepalive struct
 pkg syscall (windows-386), type TCPKeepalive struct, Interval uint32
 pkg syscall (windows-386), type TCPKeepalive struct, OnOff uint32
 pkg syscall (windows-386), type TCPKeepalive struct, Time uint32
+pkg syscall (windows-amd64), const ERROR_MORE_DATA = 234
+pkg syscall (windows-amd64), const ERROR_MORE_DATA Errno
 pkg syscall (windows-amd64), const ERROR_NETNAME_DELETED = 64
 pkg syscall (windows-amd64), const ERROR_NETNAME_DELETED Errno
 pkg syscall (windows-amd64), const IOC_VENDOR = 402653184
