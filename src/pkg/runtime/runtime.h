@@ -350,6 +350,9 @@ struct	M
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
 	LibCall	libcall;
+	uintptr	libcallpc;	// for cpu profiler
+	uintptr	libcallsp;
+	G*	libcallg;
 #endif
 #ifdef GOOS_solaris
 	int32*	perrno; 	// pointer to TLS errno

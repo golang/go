@@ -337,20 +337,33 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	CALL	AX
 	RET
 
-	MOVQ	m(R15), R14
-	MOVQ	m_g0(R14), R14
+	MOVQ	m(R15), R13
+
+	// leave pc/sp for cpu profiler
+	MOVQ	(SP), R12
+	MOVQ	R12, m_libcallpc(R13)
+	LEAQ	8(SP), R12
+	MOVQ	R12, m_libcallsp(R13)
+	MOVQ	g(R13), R12
+	MOVQ	R12, m_libcallg(R13)
+
+	MOVQ	m_g0(R13), R14
 	CMPQ	g(R15), R14
-	JNE	3(PC)
+	JNE	usleep1_switch
 	// executing on m->g0 already
 	CALL	AX
-	RET
+	JMP	usleep1_ret
 
+usleep1_switch:
 	// Switch to m->g0 stack and back.
 	MOVQ	(g_sched+gobuf_sp)(R14), R14
 	MOVQ	SP, -8(R14)
 	LEAQ	-8(R14), SP
 	CALL	AX
 	MOVQ	0(SP), SP
+
+usleep1_ret:
+	MOVQ	$0, m_libcallsp(R13)
 	RET
 
 // Runs on OS stack. duration (in 100ns units) is in BX.

@@ -291,7 +291,14 @@ runtime·stdcall(void *fn, int32 count, ...)
 	m->libcall.fn = fn;
 	m->libcall.n = count;
 	m->libcall.args = (uintptr*)&count + 1;
+	if(m->profilehz != 0) {
+		// leave pc/sp for cpu profiler
+		m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
+		m->libcallsp = (uintptr)runtime·getcallersp(&fn);
+		m->libcallg = g;
+	}
 	runtime·asmcgocall(runtime·asmstdcall, &m->libcall);
+	m->libcallsp = 0;
 	return (void*)m->libcall.r1;
 }
 

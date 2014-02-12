@@ -343,19 +343,34 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	RET
 
 	MOVL	m(CX), BP
+
+	// leave pc/sp for cpu profiler
+	MOVL	(SP), SI
+	MOVL	SI, m_libcallpc(BP)
+	LEAL	4(SP), SI
+	MOVL	SI, m_libcallsp(BP)
+	MOVL	g(BP), SI
+	MOVL	SI, m_libcallg(BP)
+
 	MOVL	m_g0(BP), SI
 	CMPL	g(CX), SI
-	JNE	3(PC)
+	JNE	usleep1_switch
 	// executing on m->g0 already
 	CALL	AX
-	RET
+	JMP	usleep1_ret
 
+usleep1_switch:
 	// Switch to m->g0 stack and back.
 	MOVL	(g_sched+gobuf_sp)(SI), SI
 	MOVL	SP, -4(SI)
 	LEAL	-4(SI), SP
 	CALL	AX
 	MOVL	0(SP), SP
+
+usleep1_ret:
+	get_tls(CX)
+	MOVL	m(CX), BP
+	MOVL	$0, m_libcallsp(BP)
 	RET
 
 // Runs on OS stack. duration (in 100ns units) is in BX.
