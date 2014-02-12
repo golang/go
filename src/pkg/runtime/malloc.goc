@@ -284,6 +284,10 @@ runtime·free(void *v)
 	if(raceenabled)
 		runtime·racefree(v);
 
+	// Ensure that the span is swept.
+	// If we free into an unswept span, we will corrupt GC bitmaps.
+	runtime·MSpan_EnsureSwept(s);
+
 	if(s->specials != nil)
 		runtime·freeallspecials(s, v, size);
 
