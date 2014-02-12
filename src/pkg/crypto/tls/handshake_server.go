@@ -12,6 +12,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -100,11 +101,13 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 	var ok bool
 	hs.clientHello, ok = msg.(*clientHelloMsg)
 	if !ok {
-		return false, c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return false, unexpectedMessageError(hs.clientHello, msg)
 	}
 	c.vers, ok = config.mutualVersion(hs.clientHello.vers)
 	if !ok {
-		return false, c.sendAlert(alertProtocolVersion)
+		c.sendAlert(alertProtocolVersion)
+		return false, fmt.Errorf("tls: client offered an unsupported, maximum protocol version of %x", hs.clientHello.vers)
 	}
 	c.haveVers = true
 
@@ -142,14 +145,16 @@ Curves:
 	}
 
 	if !foundCompression {
-		return false, c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: client does not support uncompressed connections")
 	}
 
 	hs.hello.vers = c.vers
 	hs.hello.random = make([]byte, 32)
 	_, err = io.ReadFull(config.rand(), hs.hello.random)
 	if err != nil {
-		return false, c.sendAlert(alertInternalError)
+		c.sendAlert(alertInternalError)
+		return false, err
 	}
 	hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
 	hs.hello.compressionMethod = compressionNone
@@ -166,7 +171,8 @@ Curves:
 	}
 
 	if len(config.Certificates) == 0 {
-		return false, c.sendAlert(alertInternalError)
+		c.sendAlert(alertInternalError)
+		return false, errors.New("tls: no certificates configured")
 	}
 	hs.cert = &config.Certificates[0]
 	if len(hs.clientHello.serverName) > 0 {
@@ -195,7 +201,8 @@ Curves:
 	}
 
 	if hs.suite == nil {
-		return false, c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: no cipher suite supported by both client and server")
 	}
 
 	return false, nil
@@ -345,7 +352,8 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	// certificate message, even if it's empty.
 	if config.ClientAuth >= RequestClientCert {
 		if certMsg, ok = msg.(*certificateMsg); !ok {
-			return c.sendAlert(alertHandshakeFailure)
+			c.sendAlert(alertUnexpectedMessage)
+			return unexpectedMessageError(certMsg, msg)
 		}
 		hs.finishedHash.Write(certMsg.marshal())
 
@@ -372,7 +380,8 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	// Get client key exchange
 	ckx, ok := msg.(*clientKeyExchangeMsg)
 	if !ok {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(ckx, msg)
 	}
 	hs.finishedHash.Write(ckx.marshal())
 
@@ -389,7 +398,8 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		certVerify, ok := msg.(*certificateVerifyMsg)
 		if !ok {
-			return c.sendAlert(alertUnexpectedMessage)
+			c.sendAlert(alertUnexpectedMessage)
+			return unexpectedMessageError(certVerify, msg)
 		}
 
 		switch key := pub.(type) {
@@ -469,7 +479,8 @@ func (hs *serverHandshakeState) readFinished() error {
 		}
 		nextProto, ok := msg.(*nextProtoMsg)
 		if !ok {
-			return c.sendAlert(alertUnexpectedMessage)
+			c.sendAlert(alertUnexpectedMessage)
+			return unexpectedMessageError(nextProto, msg)
 		}
 		hs.finishedHash.Write(nextProto.marshal())
 		c.clientProtocol = nextProto.proto
@@ -481,13 +492,15 @@ func (hs *serverHandshakeState) readFinished() error {
 	}
 	clientFinished, ok := msg.(*finishedMsg)
 	if !ok {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(clientFinished, msg)
 	}
 
 	verify := hs.finishedHash.clientSum(hs.masterSecret)
 	if len(verify) != len(clientFinished.verifyData) ||
 		subtle.ConstantTimeCompare(verify, clientFinished.verifyData) != 1 {
-		return c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertHandshakeFailure)
+		return errors.New("tls: client's Finished message is incorrect")
 	}
 
 	hs.finishedHash.Write(clientFinished.marshal())
@@ -590,7 +603,8 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 		case *ecdsa.PublicKey, *rsa.PublicKey:
 			pub = key
 		default:
-			return nil, c.sendAlert(alertUnsupportedCertificate)
+			c.sendAlert(alertUnsupportedCertificate)
+			return nil, fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
 		}
 		c.peerCertificates = certs
 		return pub, nil

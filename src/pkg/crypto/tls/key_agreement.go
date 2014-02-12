@@ -19,6 +19,9 @@ import (
 	"math/big"
 )
 
+var errClientKeyExchange = errors.New("tls: invalid ClientKeyExchange message")
+var errServerKeyExchange = errors.New("tls: invalid ServerKeyExchange message")
+
 // rsaKeyAgreement implements the standard TLS key agreement where the client
 // encrypts the pre-master secret to the server's public key.
 type rsaKeyAgreement struct{}
@@ -35,14 +38,14 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 	}
 
 	if len(ckx.ciphertext) < 2 {
-		return nil, errors.New("bad ClientKeyExchange")
+		return nil, errClientKeyExchange
 	}
 
 	ciphertext := ckx.ciphertext
 	if version != VersionSSL30 {
 		ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
 		if ciphertextLen != len(ckx.ciphertext)-2 {
-			return nil, errors.New("bad ClientKeyExchange")
+			return nil, errClientKeyExchange
 		}
 		ciphertext = ckx.ciphertext[2:]
 	}
@@ -61,7 +64,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 }
 
 func (ka rsaKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) error {
-	return errors.New("unexpected ServerKeyExchange")
+	return errors.New("tls: unexpected ServerKeyExchange")
 }
 
 func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
@@ -271,11 +274,11 @@ Curve:
 
 func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Certificate, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
-		return nil, errors.New("bad ClientKeyExchange")
+		return nil, errClientKeyExchange
 	}
 	x, y := elliptic.Unmarshal(ka.curve, ckx.ciphertext[1:])
 	if x == nil {
-		return nil, errors.New("bad ClientKeyExchange")
+		return nil, errClientKeyExchange
 	}
 	x, _ = ka.curve.ScalarMult(x, y, ka.privateKey)
 	preMasterSecret := make([]byte, (ka.curve.Params().BitSize+7)>>3)
@@ -284,8 +287,6 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
 
 	return preMasterSecret, nil
 }
-
-var errServerKeyExchange = errors.New("invalid ServerKeyExchange")
 
 func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) error {
 	if len(skx.key) < 4 {

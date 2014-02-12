@@ -12,6 +12,7 @@ import (
 	"crypto/subtle"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -518,14 +519,17 @@ func (c *Conn) readRecord(want recordType) error {
 	// else application data.  (We don't support renegotiation.)
 	switch want {
 	default:
-		return c.sendAlert(alertInternalError)
+		c.sendAlert(alertInternalError)
+		return errors.New("tls: unknown record type requested")
 	case recordTypeHandshake, recordTypeChangeCipherSpec:
 		if c.handshakeComplete {
-			return c.sendAlert(alertInternalError)
+			c.sendAlert(alertInternalError)
+			return errors.New("tls: handshake or ChangeCipherSpec requested after handshake complete")
 		}
 	case recordTypeApplicationData:
 		if !c.handshakeComplete {
-			return c.sendAlert(alertInternalError)
+			c.sendAlert(alertInternalError)
+			return errors.New("tls: application data record requested before handshake complete")
 		}
 	}
 
@@ -562,10 +566,12 @@ Again:
 	vers := uint16(b.data[1])<<8 | uint16(b.data[2])
 	n := int(b.data[3])<<8 | int(b.data[4])
 	if c.haveVers && vers != c.vers {
-		return c.sendAlert(alertProtocolVersion)
+		c.sendAlert(alertProtocolVersion)
+		return fmt.Errorf("tls: received record with version %x when expecting version %x", vers, c.vers)
 	}
 	if n > maxCiphertext {
-		return c.sendAlert(alertRecordOverflow)
+		c.sendAlert(alertRecordOverflow)
+		return fmt.Errorf("tls: oversized record received with length %d", n)
 	}
 	if !c.haveVers {
 		// First message, be extra suspicious:
@@ -577,7 +583,8 @@ Again:
 		// well under a kilobyte.  If the length is >= 12 kB,
 		// it's probably not real.
 		if (typ != recordTypeAlert && typ != want) || vers >= 0x1000 || n >= 0x3000 {
-			return c.sendAlert(alertUnexpectedMessage)
+			c.sendAlert(alertUnexpectedMessage)
+			return fmt.Errorf("tls: first record does not look like a TLS handshake")
 		}
 	}
 	if err := b.readFromUntil(c.conn, recordHeaderLen+n); err != nil {
@@ -990,10 +997,10 @@ func (c *Conn) VerifyHostname(host string) error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 	if !c.isClient {
-		return errors.New("VerifyHostname called on TLS server connection")
+		return errors.New("tls: VerifyHostname called on TLS server connection")
 	}
 	if !c.handshakeComplete {
-		return errors.New("TLS handshake has not yet been performed")
+		return errors.New("tls: handshake has not yet been performed")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
 }

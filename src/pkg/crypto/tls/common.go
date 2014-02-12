@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"math/big"
 	"strings"
@@ -539,4 +540,8 @@ func initDefaultCipherSuites() {
 	for i, suite := range cipherSuites {
 		varDefaultCipherSuites[i] = suite.id
 	}
+}
+
+func unexpectedMessageError(wanted, got interface{}) error {
+	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
 }

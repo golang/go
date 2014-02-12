@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -53,7 +54,7 @@ func init() {
 	testConfig.BuildNameToCertificate()
 }
 
-func testClientHelloFailure(t *testing.T, m handshakeMessage, expected error) {
+func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr string) {
 	// Create in-memory network connection,
 	// send message to server.  Should return
 	// expected error.
@@ -68,20 +69,20 @@ func testClientHelloFailure(t *testing.T, m handshakeMessage, expected error) {
 	}()
 	err := Server(s, testConfig).Handshake()
 	s.Close()
-	if e, ok := err.(*net.OpError); !ok || e.Err != expected {
-		t.Errorf("Got error: %s; expected: %s", err, expected)
+	if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
+		t.Errorf("Got error: %s; expected to match substring '%s'", err, expectedSubStr)
 	}
 }
 
 func TestSimpleError(t *testing.T) {
-	testClientHelloFailure(t, &serverHelloDoneMsg{}, alertUnexpectedMessage)
+	testClientHelloFailure(t, &serverHelloDoneMsg{}, "unexpected handshake message")
 }
 
 var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
 
 func TestRejectBadProtocolVersion(t *testing.T) {
 	for _, v := range badProtocolVersions {
-		testClientHelloFailure(t, &clientHelloMsg{vers: v}, alertProtocolVersion)
+		testClientHelloFailure(t, &clientHelloMsg{vers: v}, "unsupported, maximum protocol version")
 	}
 }
 
@@ -91,7 +92,7 @@ func TestNoSuiteOverlap(t *testing.T) {
 		cipherSuites:       []uint16{0xff00},
 		compressionMethods: []uint8{0},
 	}
-	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
+	testClientHelloFailure(t, clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestNoCompressionOverlap(t *testing.T) {
@@ -100,7 +101,7 @@ func TestNoCompressionOverlap(t *testing.T) {
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{0xff},
 	}
-	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
+	testClientHelloFailure(t, clientHello, "client does not support uncompressed connections")
 }
 
 func TestTLS12OnlyCipherSuites(t *testing.T) {
