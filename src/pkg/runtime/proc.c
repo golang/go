@@ -2104,10 +2104,10 @@ static struct {
 	uintptr pcbuf[100];
 } prof;
 
-static void
-System(void)
-{
-}
+static void System(void) {}
+static void ExternalCode(void) {}
+static void GC(void) {}
+extern byte etext[];
 
 // Called if we receive a SIGPROF signal.
 void
@@ -2221,9 +2221,35 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	if(traceback)
 		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
 	if(!traceback || n <= 0) {
-		n = 2;
-		prof.pcbuf[0] = (uintptr)pc;
-		prof.pcbuf[1] = (uintptr)System + 1;
+		// Normal traceback is impossible or has failed.
+		// See if it falls into several common cases.
+		n = 0;
+		if(mp->ncgo > 0 && mp->curg != nil &&
+			mp->curg->syscallpc != 0 && mp->curg->syscallsp != 0) {
+			// Cgo, we can't unwind and symbolize arbitrary C code,
+			// so instead collect Go stack that leads to the cgo call.
+			// This is especially important on windows, since all syscalls are cgo calls.
+			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+		}
+#ifdef GOOS_windows
+		if(n == 0 && mp->libcallg != nil && mp->libcallpc != 0 && mp->libcallsp != 0) {
+			// Libcall, i.e. runtime syscall on windows.
+			// Collect Go stack that leads to the call.
+			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+		}
+#endif
+		if(n == 0) {
+			// If all of the above has failed, account it against abstract "System" or "GC".
+			n = 2;
+			// "ExternalCode" is better than "etext".
+			if((uintptr)pc > (uintptr)etext)
+				pc = (byte*)ExternalCode + PCQuantum;
+			prof.pcbuf[0] = (uintptr)pc;
+			if(mp->gcing || mp->helpgc)
+				prof.pcbuf[1] = (uintptr)GC + PCQuantum;
+			else
+				prof.pcbuf[1] = (uintptr)System + PCQuantum;
+		}
 	}
 	prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
