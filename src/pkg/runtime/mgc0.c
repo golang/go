@@ -2383,14 +2383,21 @@ gc(struct gc_args *args)
 	sweep.nspan = runtime·mheap.nspan;
 	sweep.spanidx = 0;
 
-	runtime·lock(&gclock);
-	if(sweep.g == nil)
-		sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
-	else if(sweep.parked) {
-		sweep.parked = false;
-		runtime·ready(sweep.g);
+	// Temporary disable concurrent sweep, because we see failures on builders.
+	if(false) {
+		runtime·lock(&gclock);
+		if(sweep.g == nil)
+			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
+		else if(sweep.parked) {
+			sweep.parked = false;
+			runtime·ready(sweep.g);
+		}
+		runtime·unlock(&gclock);
+	} else {
+		// Sweep all spans eagerly.
+		while(runtime·sweepone() != -1)
+			gcstats.npausesweep++;
 	}
-	runtime·unlock(&gclock);
 
 	runtime·MProf_GC();
 }
