@@ -12,6 +12,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -126,20 +127,23 @@ NextCipherSuite:
 	}
 	serverHello, ok := msg.(*serverHelloMsg)
 	if !ok {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(serverHello, msg)
 	}
 
 	vers, ok := c.config.mutualVersion(serverHello.vers)
 	if !ok || vers < VersionTLS10 {
 		// TLS 1.0 is the minimum version supported as a client.
-		return c.sendAlert(alertProtocolVersion)
+		c.sendAlert(alertProtocolVersion)
+		return fmt.Errorf("tls: server selected unsupported protocol version %x", serverHello.vers)
 	}
 	c.vers = vers
 	c.haveVers = true
 
 	suite := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
 	if suite == nil {
-		return c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertHandshakeFailure)
+		return fmt.Errorf("tls: server selected an unsupported cipher suite")
 	}
 
 	hs := &clientHandshakeState{
@@ -209,7 +213,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	}
 	certMsg, ok := msg.(*certificateMsg)
 	if !ok || len(certMsg.certificates) == 0 {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(certMsg, msg)
 	}
 	hs.finishedHash.Write(certMsg.marshal())
 
@@ -218,7 +223,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		cert, err := x509.ParseCertificate(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return errors.New("failed to parse certificate from server: " + err.Error())
+			return errors.New("tls: failed to parse certificate from server: " + err.Error())
 		}
 		certs[i] = cert
 	}
@@ -248,7 +253,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	case *rsa.PublicKey, *ecdsa.PublicKey:
 		break
 	default:
-		return c.sendAlert(alertUnsupportedCertificate)
+		c.sendAlert(alertUnsupportedCertificate)
+		return fmt.Errorf("tls: server's certificate contains an unsupported type of public key: %T", certs[0].PublicKey)
 	}
 
 	c.peerCertificates = certs
@@ -260,7 +266,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 		cs, ok := msg.(*certificateStatusMsg)
 		if !ok {
-			return c.sendAlert(alertUnexpectedMessage)
+			c.sendAlert(alertUnexpectedMessage)
+			return unexpectedMessageError(cs, msg)
 		}
 		hs.finishedHash.Write(cs.marshal())
 
@@ -371,7 +378,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 
 	shd, ok := msg.(*serverHelloDoneMsg)
 	if !ok {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(shd, msg)
 	}
 	hs.finishedHash.Write(shd.marshal())
 
@@ -421,7 +429,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			err = errors.New("unknown private key type")
 		}
 		if err != nil {
-			return c.sendAlert(alertInternalError)
+			c.sendAlert(alertInternalError)
+			return errors.New("tls: failed to sign handshake with client certificate: " + err.Error())
 		}
 		certVerify.signature = signed
 
@@ -466,12 +475,13 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	c := hs.c
 
 	if hs.serverHello.compressionMethod != compressionNone {
-		return false, c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return false, errors.New("tls: server selected unsupported compression format")
 	}
 
 	if !hs.hello.nextProtoNeg && hs.serverHello.nextProtoNeg {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised unrequested NPN")
+		return false, errors.New("server advertised unrequested NPN extension")
 	}
 
 	if hs.serverResumedSession() {
@@ -497,13 +507,15 @@ func (hs *clientHandshakeState) readFinished() error {
 	}
 	serverFinished, ok := msg.(*finishedMsg)
 	if !ok {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(serverFinished, msg)
 	}
 
 	verify := hs.finishedHash.serverSum(hs.masterSecret)
 	if len(verify) != len(serverFinished.verifyData) ||
 		subtle.ConstantTimeCompare(verify, serverFinished.verifyData) != 1 {
-		return c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertHandshakeFailure)
+		return errors.New("tls: server's Finished message was incorrect")
 	}
 	hs.finishedHash.Write(serverFinished.marshal())
 	return nil
@@ -521,7 +533,8 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 	}
 	sessionTicketMsg, ok := msg.(*newSessionTicketMsg)
 	if !ok {
-		return c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(sessionTicketMsg, msg)
 	}
 	hs.finishedHash.Write(sessionTicketMsg.marshal())
 
