@@ -66,14 +66,14 @@
 //
 // The small objects on the MCache and MCentral free lists
 // may or may not be zeroed.  They are zeroed if and only if
-// the second word of the object is zero.  The spans in the
-// page heap are always zeroed.  When a span full of objects
-// is returned to the page heap, the objects that need to be
-// are zeroed first.  There are two main benefits to delaying the
+// the second word of the object is zero.  A span in the
+// page heap is zeroed unless s->needzero is set. When a span
+// is allocated to break into small objects, it is zeroed if needed
+// and s->needzero is set. There are two main benefits to delaying the
 // zeroing this way:
 //
 //	1. stack frames allocated from the small object lists
-//	   can avoid zeroing altogether.
+//	   or the page heap can avoid zeroing altogether.
 //	2. the cost of zeroing when reusing a small object is
 //	   charged to the mutator, not the garbage collector.
 //
