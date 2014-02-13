@@ -545,7 +545,7 @@ gotit:
 		break;
 	}
 	if(debug['P'])
-		print(" => %nil\n", p->as);
+		print(" => %A\n", p->as);
 	return 1;
 }
 
@@ -936,7 +936,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	switch(p->as) {
 
 	default:
-		print("copyu: can't find %nil\n", p->as);
+		print("copyu: can't find %A\n", p->as);
 		return 2;
 
 	case AMOVM:
