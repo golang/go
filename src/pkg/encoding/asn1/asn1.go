@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -195,6 +196,19 @@ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
 	}
 
 	return true
+}
+
+func (oi ObjectIdentifier) String() string {
+	var s string
+
+	for i, v := range oi {
+		if i > 0 {
+			s += "."
+		}
+		s += strconv.Itoa(v)
+	}
+
+	return s
 }
 
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and

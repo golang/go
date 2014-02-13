@@ -679,11 +679,11 @@ func TestCRLCreation(t *testing.T) {
 
 func fromBase64(in string) []byte {
 	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
-	_, err := base64.StdEncoding.Decode(out, []byte(in))
+	n, err := base64.StdEncoding.Decode(out, []byte(in))
 	if err != nil {
 		panic("failed to base64 decode")
 	}
-	return out
+	return out[:n]
 }
 
 func TestParseDERCRL(t *testing.T) {
@@ -735,3 +735,213 @@ func TestImports(t *testing.T) {
 const derCRLBase64 = "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"
 
 const pemCRLBase64 = "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tDQpNSUlCOWpDQ0FWOENBUUV3RFFZSktvWklodmNOQVFFRkJRQXdiREVhTUJnR0ExVUVDaE1SVWxOQklGTmxZM1Z5DQphWFI1SUVsdVl5NHhIakFjQmdOVkJBTVRGVkpUUVNCUWRXSnNhV01nVW05dmRDQkRRU0IyTVRFdU1Dd0dDU3FHDQpTSWIzRFFFSkFSWWZjbk5oYTJWdmJuSnZiM1J6YVdkdVFISnpZWE5sWTNWeWFYUjVMbU52YlJjTk1URXdNakl6DQpNVGt5T0RNd1doY05NVEV3T0RJeU1Ua3lPRE13V2pDQmpEQktBaEVBckRxb2g5RkhKSFhUN09QZ3V1bjQrQmNODQpNRGt4TVRBeU1UUXlOekE1V2pBbU1Bb0dBMVVkRlFRRENnRUpNQmdHQTFVZEdBUVJHQTh5TURBNU1URXdNakUwDQpNalExTlZvd1BnSVJBTEd6blowOTVQQjVhQU9MUGc1N2ZNTVhEVEF5TVRBeU16RTBOVEF4TkZvd0dqQVlCZ05WDQpIUmdFRVJnUE1qQXdNakV3TWpNeE5EVXdNVFJhb0RBd0xqQWZCZ05WSFNNRUdEQVdnQlQxVERGNlVRTS9MTmVMDQpsNWx2cUhHUXEzZzltekFMQmdOVkhSUUVCQUlDQUlRd0RRWUpLb1pJaHZjTkFRRUZCUUFEZ1lFQUZVNUFzNk16DQpxNVBSc2lmYW9iUVBHaDFhSkx5QytNczVBZ2MwYld5QTNHQWR4dXI1U3BQWmVSV0NCamlQL01FSEJXSkNsQkhQDQpHUmNxNXlJZDNFakRrYUV5eFJhK2k2N0x6dmhJNmMyOUVlNks5cFNZd2ppLzdSVWhtbW5Qclh0VHhsTDBsckxyDQptUVFKNnhoRFJhNUczUUE0Q21VZHNITnZicnpnbUNZcHZWRT0NCi0tLS0tRU5EIFg1MDkgQ1JMLS0tLS0NCg0K"
+
+func TestCreateCertificateRequest(t *testing.T) {
+	random := rand.Reader
+
+	block, _ := pem.Decode([]byte(pemPrivateKey))
+	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse private key: %s", err)
+	}
+
+	ecdsa256Priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	}
+
+	ecdsa384Priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	}
+
+	ecdsa521Priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	}
+
+	tests := []struct {
+		name    string
+		priv    interface{}
+		sigAlgo SignatureAlgorithm
+	}{
+		{"RSA", rsaPriv, SHA1WithRSA},
+		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA1},
+		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA1},
+		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA1},
+	}
+
+	for _, test := range tests {
+		template := CertificateRequest{
+			Subject: pkix.Name{
+				CommonName:   "test.example.com",
+				Organization: []string{"Σ Acme Co"},
+			},
+			SignatureAlgorithm: test.sigAlgo,
+			DNSNames:           []string{"test.example.com"},
+			EmailAddresses:     []string{"gopher@golang.org"},
+			IPAddresses:        []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
+		}
+
+		derBytes, err := CreateCertificateRequest(random, &template, test.priv)
+		if err != nil {
+			t.Errorf("%s: failed to create certificate request: %s", test.name, err)
+			continue
+		}
+
+		out, err := ParseCertificateRequest(derBytes)
+		if err != nil {
+			t.Errorf("%s: failed to create certificate request: %s", test.name, err)
+			continue
+		}
+
+		if out.Subject.CommonName != template.Subject.CommonName {
+			t.Errorf("%s: output subject common name and template subject common name don't match", test.name)
+		} else if len(out.Subject.Organization) != len(template.Subject.Organization) {
+			t.Errorf("%s: output subject organisation and template subject organisation don't match", test.name)
+		} else if len(out.DNSNames) != len(template.DNSNames) {
+			t.Errorf("%s: output DNS names and template DNS names don't match", test.name)
+		} else if len(out.EmailAddresses) != len(template.EmailAddresses) {
+			t.Errorf("%s: output email addresses and template email addresses don't match", test.name)
+		} else if len(out.IPAddresses) != len(template.IPAddresses) {
+			t.Errorf("%s: output IP addresses and template IP addresses names don't match", test.name)
+		}
+	}
+}
+
+func marshalAndParseCSR(t *testing.T, template *CertificateRequest) *CertificateRequest {
+	block, _ := pem.Decode([]byte(pemPrivateKey))
+	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	derBytes, err := CreateCertificateRequest(rand.Reader, template, rsaPriv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	csr, err := ParseCertificateRequest(derBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return csr
+}
+
+func TestCertificateRequestOverrides(t *testing.T) {
+	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	template := CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   "test.example.com",
+			Organization: []string{"Σ Acme Co"},
+		},
+		DNSNames: []string{"test.example.com"},
+
+		// An explicit extension should override the DNSNames from the
+		// template.
+		ExtraExtensions: []pkix.Extension{
+			pkix.Extension{
+				Id:    oidExtensionSubjectAltName,
+				Value: sanContents,
+			},
+		},
+	}
+
+	csr := marshalAndParseCSR(t, &template)
+
+	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "foo.example.com" {
+		t.Errorf("Extension did not override template. Got %v\n", csr.DNSNames)
+	}
+
+	// If there is already an attribute with X.509 extensions then the
+	// extra extensions should be added to it rather than creating a CSR
+	// with two extension attributes.
+
+	template.Attributes = []pkix.AttributeTypeAndValueSET{
+		pkix.AttributeTypeAndValueSET{
+			Type: oidExtensionRequest,
+			Value: [][]pkix.AttributeTypeAndValue{
+				[]pkix.AttributeTypeAndValue{
+					pkix.AttributeTypeAndValue{
+						Type:  oidExtensionAuthorityInfoAccess,
+						Value: []byte("foo"),
+					},
+				},
+			},
+		},
+	}
+
+	csr = marshalAndParseCSR(t, &template)
+	if l := len(csr.Attributes); l != 1 {
+		t.Errorf("incorrect number of attributes: %d\n", l)
+	}
+
+	if !csr.Attributes[0].Type.Equal(oidExtensionRequest) ||
+		len(csr.Attributes[0].Value) != 1 ||
+		len(csr.Attributes[0].Value[0]) != 2 {
+		t.Errorf("bad attributes: %#v\n", csr.Attributes)
+	}
+
+	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Extensions in Attributes should override those in ExtraExtensions.
+	template.Attributes[0].Value[0] = append(template.Attributes[0].Value[0], pkix.AttributeTypeAndValue{
+		Type:  oidExtensionSubjectAltName,
+		Value: sanContents2,
+	})
+
+	csr = marshalAndParseCSR(t, &template)
+
+	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "foo2.example.com" {
+		t.Errorf("Attributes did not override ExtraExtensions. Got %v\n", csr.DNSNames)
+	}
+}
+
+func TestParseCertificateRequest(t *testing.T) {
+	csrBytes := fromBase64(csrBase64)
+	csr, err := ParseCertificateRequest(csrBytes)
+	if err != nil {
+		t.Fatalf("failed to parse CSR: %s", err)
+	}
+
+	if len(csr.EmailAddresses) != 1 || csr.EmailAddresses[0] != "gopher@golang.org" {
+		t.Errorf("incorrect email addresses found: %v", csr.EmailAddresses)
+	}
+
+	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "test.example.com" {
+		t.Errorf("incorrect DNS names found: %v", csr.DNSNames)
+	}
+
+	if len(csr.Subject.Country) != 1 || csr.Subject.Country[0] != "AU" {
+		t.Errorf("incorrect Subject name: %v", csr.Subject)
+	}
+
+	found := false
+	for _, e := range csr.Extensions {
+		if e.Id.Equal(oidExtensionBasicConstraints) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("basic constraints extension not found in CSR")
+	}
+}
+
+// This CSR was generated with OpenSSL:
+//  openssl req -out CSR.csr -new -newkey rsa:2048 -nodes -keyout privateKey.key -config openssl.cnf
+//
+// The openssl.cnf needs to include this section:
+//   [ v3_req ]
+//   basicConstraints = CA:FALSE
+//   keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+//   subjectAltName = email:gopher@golang.org,DNS:test.example.com
+const csrBase64 = "MIIC4zCCAcsCAQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOY+MVedRg2JEnyeLcSzcsMv2VcsTfkB5+Etd6hihAh6MrGezNyASMMKuQN6YhCX1icQDiQtGsDLTtheNnSXK06tAhHjAP/hGlszRJp+5+rP2M58fDBAkUBEhskbCUWwpY14jFtVuGNJ8vF8h8IeczdolvQhX9lVai9G0EUXJMliMKdjA899H0mRs9PzHyidyrXFNiZlQXfD8Kg7gETn2Ny965iyI6ujAIYSCvam6TnxRHYH2MBKyVGvsYGbPYUQJCsgdgyajEg6ekihvQY3SzO1HSAlZAd7d1QYO4VeWJ2mY6Wu3Jpmh+AmG19S9CcHqGjd0bhuAX9cpPOKgnEmqn0CAwEAAaBZMFcGCSqGSIb3DQEJDjFKMEgwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwLgYDVR0RBCcwJYERZ29waGVyQGdvbGFuZy5vcmeCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEFBQADggEBAC9+QpKfdabxwCWwf4IEe1cKjdXLS1ScSuw27a3kZzQiPV78WJMa6dB8dqhdH5BRwGZ/qsgLrO6ZHlNeIv2Ib41Ccq71ecHW/nXc94A1BzJ/bVdI9LZcmTUvR1/m1jCpN7UqQ0ml1u9VihK7Pe762hEYxuWDQzYEU0l15S/bXmqeq3eF1A59XT/2jwe5+NV0Wwf4UQlkTXsAQMsJ+KzrQafd8Qv2A49o048uRvmjeJDrXLawGVianZ7D5A6Fpd1rZh6XcjqBpmgLw41DRQWENOdzhy+HyphKRv1MlY8OLkNqpGMhu8DdgJVGoT16DGiickoEa7Z3UCPVNgdTkT9jq7U="
