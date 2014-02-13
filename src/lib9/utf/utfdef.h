@@ -25,4 +25,3 @@ typedef unsigned int		uint;
 typedef unsigned long		ulong;
 
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
-#define nil ((void*)0)
