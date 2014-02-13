@@ -423,6 +423,9 @@ esc(EscState *e, Node *n)
 
 	lno = setlineno(n);
 
+	// ninit logically runs at a different loopdepth than the rest of the for loop.
+	esclist(e, n->ninit);
+
 	if(n->op == OFOR || n->op == ORANGE)
 		e->loopdepth++;
 
@@ -430,7 +433,6 @@ esc(EscState *e, Node *n)
 	esc(e, n->right);
 	esc(e, n->ntest);
 	esc(e, n->nincr);
-	esclist(e, n->ninit);
 	esclist(e, n->nbody);
 	esclist(e, n->nelse);
 	esclist(e, n->list);

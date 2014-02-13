@@ -1357,3 +1357,35 @@ func foo144() {
 //go:noescape
 
 func foo144b(*int)
+
+// issue 7313: for loop init should not be treated as "in loop"
+
+type List struct {
+	Next *List
+}
+
+func foo145(l List) { // ERROR "l does not escape"
+	var p *List
+	for p = &l; p.Next != nil; p = p.Next { // ERROR "&l does not escape"
+	}
+}
+
+func foo146(l List) { // ERROR "l does not escape"
+	var p *List
+	p = &l // ERROR "&l does not escape"
+	for ; p.Next != nil; p = p.Next {
+	}
+}
+
+func foo147(l List) { // ERROR "l does not escape"
+	var p *List
+	p = &l // ERROR "&l does not escape"
+	for p.Next != nil {
+		p = p.Next
+	}
+}
+
+func foo148(l List) { // ERROR " l does not escape"
+	for p := &l; p.Next != nil; p = p.Next { // ERROR "&l does not escape"
+	}
+}
