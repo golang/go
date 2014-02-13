@@ -57,6 +57,7 @@ type Header struct {
 	Devminor   int64     // minor number of character or block device
 	AccessTime time.Time // access time
 	ChangeTime time.Time // status change time
+	Xattrs     map[string]string
 }
 
 // File name constants from the tar spec.
@@ -189,6 +190,7 @@ const (
 	paxSize     = "size"
 	paxUid      = "uid"
 	paxUname    = "uname"
+	paxXattr    = "SCHILY.xattr."
 	paxNone     = ""
 )
 
