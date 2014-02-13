@@ -1,3 +1,5 @@
+// +build plan9
+
 /*
  * The authors of this software are Rob Pike and Ken Thompson,
  * with contributions from Mike Burrows and Sean Dorward.
@@ -20,32 +22,11 @@
 #include <libc.h>
 #include "fmtdef.h"
 
-/*
- * public routine for final flush of a formatting buffer
- * to a file descriptor; returns total char count.
- */
 int
-fmtfdflush(Fmt *f)
+__errfmt(Fmt *f)
 {
-	if(__fmtFdFlush(f) <= 0)
-		return -1;
-	return f->nfmt;
-}
+	char buf[ERRMAX];
 
-/*
- * initialize an output buffer for buffered printing
- */
-int
-fmtfdinit(Fmt *f, int fd, char *buf, int size)
-{
-	f->runes = 0;
-	f->start = buf;
-	f->to = buf;
-	f->stop = buf + size;
-	f->flush = __fmtFdFlush;
-	f->farg = (void*)(uintptr)fd;
-	f->flags = 0;
-	f->nfmt = 0;
-	fmtlocaleinit(f, nil, nil, nil);
-	return 0;
+	rerrstr(buf, sizeof buf);
+	return __fmtcpy(f, buf, utflen(buf), strlen(buf));
 }

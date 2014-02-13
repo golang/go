@@ -11,8 +11,8 @@
  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
-#define _BSD_SOURCE 1
-#include <string.h>
+#include <u.h>
+#include <libc.h>
 #include "utf.h"
 #include "utfdef.h"
 
