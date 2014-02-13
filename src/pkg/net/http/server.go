@@ -1083,7 +1083,7 @@ func validNPN(proto string) bool {
 func (c *conn) serve() {
 	defer func() {
 		if err := recover(); err != nil {
-			const size = 4096
+			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
 			log.Printf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
