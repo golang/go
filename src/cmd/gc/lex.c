@@ -164,6 +164,7 @@ fault(int s)
 	fatal("fault");
 }
 
+#ifdef	PLAN9
 void
 catcher(void *v, char *s)
 {
@@ -180,6 +181,7 @@ catcher(void *v, char *s)
 	}
 	noted(NDFLT);
 }
+#endif
 
 void
 doversion(void)
