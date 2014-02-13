@@ -1138,7 +1138,7 @@ dumpit(char *str, Flow *r0, int isreg)
 		r1 = r->p2;
 		if(r1 != nil) {
 			print("	pred:");
-			for(; r1 != nil; r1 = r->p2link)
+			for(; r1 != nil; r1 = r1->p2link)
 				print(" %.4ud", (int)r1->prog->pc);
 			print("\n");
 		}

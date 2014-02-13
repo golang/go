@@ -1461,7 +1461,7 @@ fixjmp(Reg *firstr)
 	for(r=firstr; r; r=r->link) {
 		p = r->prog;
 		if(debug['R'] && debug['v'])
-			print("%04d %P\n", r->pc, p);
+			print("%04d %P\n", (int)r->pc, p);
 		if(p->as != ACALL && p->to.type == D_BRANCH && r->s2 && r->s2->prog->as == AJMP) {
 			r->s2 = chasejmp(r->s2, &jmploop);
 			p->to.offset = r->s2->pc;
@@ -1486,7 +1486,7 @@ fixjmp(Reg *firstr)
 				// Let it stay.
 			} else {
 				if(debug['R'] && debug['v'])
-					print("del %04d %P\n", r->pc, p);
+					print("del %04d %P\n", (int)r->pc, p);
 				p->as = ANOP;
 			}
 		}
@@ -1499,7 +1499,7 @@ fixjmp(Reg *firstr)
 			p = r->prog;
 			if(p->as == AJMP && p->to.type == D_BRANCH && r->s2 == r->link) {
 				if(debug['R'] && debug['v'])
-					print("del %04d %P\n", r->pc, p);
+					print("del %04d %P\n", (int)r->pc, p);
 				p->as = ANOP;
 			}
 		}
@@ -1520,7 +1520,7 @@ fixjmp(Reg *firstr)
 	if(debug['R'] && debug['v']) {
 		print("\n");
 		for(r=firstr; r; r=r->link)
-			print("%04d %P\n", r->pc, r->prog);
+			print("%04d %P\n", (int)r->pc, r->prog);
 		print("\n");
 	}
 }
