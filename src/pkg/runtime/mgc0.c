@@ -66,7 +66,7 @@ enum {
 	CollectStats = 0,
 	ScanStackByFrames = 1,
 	IgnorePreciseGC = 0,
-	ConcurrentSweep = 0,
+	ConcurrentSweep = 1,
 
 	// Four bits per word (see #defines below).
 	wordsPerBitmapWord = sizeof(void*)*8/4,
@@ -1694,10 +1694,13 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 	sg = runtime·mheap.sweepgen;
 	if(runtime·atomicload(&s->sweepgen) == sg)
 		return;
+	m->locks++;
 	if(runtime·cas(&s->sweepgen, sg-2, sg-1)) {
 		runtime·MSpan_Sweep(s);
+		m->locks--;
 		return;
 	}
+	m->locks--;
 	// unfortunate condition, and we don't have efficient means to wait
 	while(runtime·atomicload(&s->sweepgen) != sg)
 		runtime·osyield();  
@@ -1709,13 +1712,13 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 bool
 runtime·MSpan_Sweep(MSpan *s)
 {
-	int32 cl, n, npages;
+	int32 cl, n, npages, nfree;
 	uintptr size, off, *bitp, shift, bits;
+	uint32 sweepgen;
 	byte *p;
 	MCache *c;
 	byte *arena_start;
 	MLink head, *end;
-	int32 nfree;
 	byte *type_data;
 	byte compression;
 	uintptr type_data_inc;
@@ -1723,9 +1726,14 @@ runtime·MSpan_Sweep(MSpan *s)
 	Special *special, **specialp, *y;
 	bool res, sweepgenset;
 
-	if(s->state != MSpanInUse || s->sweepgen != runtime·mheap.sweepgen-1) {
+	// It's critical that we enter this function with preemption disabled,
+	// GC must not start while we are in the middle of this function.
+	if(m->locks == 0 && m->mallocing == 0 && g != m->g0)
+		runtime·throw("MSpan_Sweep: m is not locked");
+	sweepgen = runtime·mheap.sweepgen;
+	if(s->state != MSpanInUse || s->sweepgen != sweepgen-1) {
 		runtime·printf("MSpan_Sweep: state=%d sweepgen=%d mheap.sweepgen=%d\n",
-			s->state, s->sweepgen, runtime·mheap.sweepgen);
+			s->state, s->sweepgen, sweepgen);
 		runtime·throw("MSpan_Sweep: bad span state");
 	}
 	arena_start = runtime·mheap.arena_start;
@@ -1820,7 +1828,7 @@ runtime·MSpan_Sweep(MSpan *s)
 			runtime·unmarkspan(p, 1<<PageShift);
 			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
 			// important to set sweepgen before returning it to heap
-			runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
+			runtime·atomicstore(&s->sweepgen, sweepgen);
 			sweepgenset = true;
 			if(runtime·debug.efence)
 				runtime·SysFree(p, size, &mstats.gc_sys);
@@ -1851,8 +1859,16 @@ runtime·MSpan_Sweep(MSpan *s)
 		}
 	}
 
-	if(!sweepgenset)
-		runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
+	if(!sweepgenset) {
+		// The span must be in our exclusive ownership until we update sweepgen,
+		// check for potential races.
+		if(s->state != MSpanInUse || s->sweepgen != sweepgen-1) {
+			runtime·printf("MSpan_Sweep: state=%d sweepgen=%d mheap.sweepgen=%d\n",
+				s->state, s->sweepgen, sweepgen);
+			runtime·throw("MSpan_Sweep: bad span state after sweep");
+		}
+		runtime·atomicstore(&s->sweepgen, sweepgen);
+	}
 	if(nfree) {
 		c->local_nsmallfree[cl] += nfree;
 		c->local_cachealloc -= nfree * size;
