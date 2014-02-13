@@ -236,6 +236,12 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		return tw.err
 	}
 
+	if allowPax {
+		for k, v := range hdr.Xattrs {
+			paxHeaders[paxXattr+k] = v
+		}
+	}
+
 	if len(paxHeaders) > 0 {
 		if !allowPax {
 			return errInvalidHeader

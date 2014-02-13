@@ -139,8 +139,14 @@ func mergePAX(hdr *Header, headers map[string]string) error {
 				return err
 			}
 			hdr.Size = int64(size)
+		default:
+			if strings.HasPrefix(k, paxXattr) {
+				if hdr.Xattrs == nil {
+					hdr.Xattrs = make(map[string]string)
+				}
+				hdr.Xattrs[k[len(paxXattr):]] = v
+			}
 		}
-
 	}
 	return nil
 }

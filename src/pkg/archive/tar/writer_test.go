@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -335,6 +336,45 @@ func TestPaxNonAscii(t *testing.T) {
 	}
 	if hdr.Uname != chineseUsername {
 		t.Fatal("Couldn't recover unicode user")
+	}
+}
+
+func TestPaxXattrs(t *testing.T) {
+	xattrs := map[string]string{
+		"user.key": "value",
+	}
+
+	// Create an archive with an xattr
+	fileinfo, err := os.Stat("testdata/small.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdr, err := FileInfoHeader(fileinfo, "")
+	if err != nil {
+		t.Fatalf("os.Stat: %v", err)
+	}
+	contents := "Kilts"
+	hdr.Xattrs = xattrs
+	var buf bytes.Buffer
+	writer := NewWriter(&buf)
+	if err := writer.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = writer.Write([]byte(contents)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Test that we can get the xattrs back out of the archive.
+	reader := NewReader(&buf)
+	hdr, err = reader.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(hdr.Xattrs, xattrs) {
+		t.Fatalf("xattrs did not survive round trip: got %+v, want %+v",
+			hdr.Xattrs, xattrs)
 	}
 }
 
