@@ -165,6 +165,23 @@ fault(int s)
 }
 
 void
+catcher(void *v, char *s)
+{
+	USED(v);
+
+	if(strncmp(s, "sys: fp: invalid operation", 26) == 0) {
+		noted(NCONT);
+		return;
+	}
+	if(strncmp(s, "sys: trap: fault read", 21) == 0) {
+		if(nsavederrors + nerrors > 0)
+			errorexit();
+		fatal("fault");
+	}
+	noted(NDFLT);
+}
+
+void
 doversion(void)
 {
 	char *p;
@@ -186,6 +203,10 @@ main(int argc, char *argv[])
 #ifdef	SIGBUS	
 	signal(SIGBUS, fault);
 	signal(SIGSEGV, fault);
+#endif
+
+#ifdef	PLAN9
+	notify(catcher);
 #endif
 
 	ctxt = linknew(thelinkarch);
