@@ -123,6 +123,7 @@ func lookupHost(host string) (addrs []string, err error) {
 	if err != nil {
 		return
 	}
+loop:
 	for _, line := range lines {
 		f := getFields(line)
 		if len(f) < 2 {
@@ -134,6 +135,12 @@ func lookupHost(host string) (addrs []string, err error) {
 		}
 		if ParseIP(addr) == nil {
 			continue
+		}
+		// only return unique addresses
+		for _, a := range addrs {
+			if a == addr {
+				continue loop
+			}
 		}
 		addrs = append(addrs, addr)
 	}
