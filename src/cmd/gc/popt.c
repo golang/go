@@ -697,7 +697,7 @@ mergetemp(Prog *firstp)
 	if(Debug) {
 		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
 		for(v=var; v<var+nvar; v++) {
-			print("var %#N %T %d-%d", v->node, v->node->type, v->start, v->end);
+			print("var %#N %T %lld-%lld", v->node, v->node->type, v->start, v->end);
 			if(v->addr)
 				print(" addr=1");
 			if(v->removed)
