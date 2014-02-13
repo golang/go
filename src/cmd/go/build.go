@@ -1302,6 +1302,7 @@ func relPaths(paths []string) []string {
 var errPrintedOutput = errors.New("already printed output - no need to show error")
 
 var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.cgo1\.go:[0-9]+\]`)
+var cgoTypeSigRe = regexp.MustCompile(`\b_Ctype_\B`)
 
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
@@ -1328,11 +1329,11 @@ func (b *builder) processOutput(out []byte) string {
 	messages := string(out)
 	// Fix up output referring to cgo-generated code to be more readable.
 	// Replace x.go:19[/tmp/.../x.cgo1.go:18] with x.go:19.
-	// Replace _Ctype_foo with C.foo.
+	// Replace *[100]_Ctype_foo with *[100]C.foo.
 	// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
 	if !buildX && cgoLine.MatchString(messages) {
 		messages = cgoLine.ReplaceAllString(messages, "")
-		messages = strings.Replace(messages, "type _Ctype_", "type C.", -1)
+		messages = cgoTypeSigRe.ReplaceAllString(messages, "C.")
 	}
 	return messages
 }
