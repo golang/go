@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "/sys/include/libc.h"
 #include "/sys/include/ctype.h"
+#include "fmt.h"
+#include "utf.h"
+#include "libc_plan9.h"
 
 char*	getgoos(void);
 char*	getgoarch(void);
@@ -26,3 +28,6 @@ void	flagprint(int);
 // The libraries use size_t to avoid -Wconversion warnings from GCC
 // when calling standard library functions like memcpy.
 typedef unsigned long size_t;
+
+// math.h
+#define HUGE_VAL 1.79769313486231e+308

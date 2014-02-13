@@ -1,3 +1,4 @@
+// +build !plan9
 // +build !windows
 
 /*

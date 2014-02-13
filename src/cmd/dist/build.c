@@ -968,12 +968,14 @@ install(char *dir)
 					vadd(&compile, "-m64");
 				else if(streq(gohostarch, "386"))
 					vadd(&compile, "-m32");
-				if(streq(dir, "lib9"))
-					vadd(&compile, "-DPLAN9PORT");
 	
 				vadd(&compile, "-I");
 				vadd(&compile, bpathf(&b, "%s/include", goroot));
 			}
+
+			if(streq(dir, "lib9"))
+				vadd(&compile, "-DPLAN9PORT");
+
 
 			vadd(&compile, "-I");
 			vadd(&compile, bstr(&path));
@@ -1159,19 +1161,6 @@ shouldbuild(char *file, char *dir)
 	int i, j, ret;
 	Buf b;
 	Vec lines, fields;
-
-	// On Plan 9, most of the libraries are already present.
-	// The main exception is libmach which has been modified
-	// in various places to support Go object files.
-	if(streq(gohostos, "plan9")) {
-		if(streq(dir, "lib9")) {
-			name = lastelem(file);
-			if(streq(name, "goos.c") || streq(name, "flag.c"))
-				return 1;
-			if(!contains(name, "plan9"))
-				return 0;
-		}
-	}
 	
 	// Check file name for GOOS or GOARCH.
 	name = lastelem(file);
