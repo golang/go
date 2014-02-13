@@ -1298,8 +1298,10 @@ markroot(ParFor *desc, uint32 i)
 			SpecialFinalizer *spf;
 
 			s = allspans[spanidx];
-			if(s->sweepgen != sg)
+			if(s->sweepgen != sg) {
+				runtime·printf("sweep %d %d\n", s->sweepgen, sg);
 				runtime·throw("gc: unswept span");
+			}
 			if(s->state != MSpanInUse)
 				continue;
 			// The garbage collector ignores type pointers stored in MSpan.types:
@@ -1826,7 +1828,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		if(cl == 0) {
 			// Free large span.
 			runtime·unmarkspan(p, 1<<PageShift);
-			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
+			s->needzero = 1;
 			// important to set sweepgen before returning it to heap
 			runtime·atomicstore(&s->sweepgen, sweepgen);
 			sweepgenset = true;

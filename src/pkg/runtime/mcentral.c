@@ -147,7 +147,7 @@ MCentral_Free(MCentral *c, void *v)
 		size = runtime·class_to_size[c->sizeclass];
 		runtime·MSpanList_Remove(s);
 		runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
-		*(uintptr*)(s->start<<PageShift) = 1;  // needs zeroing
+		s->needzero = 1;
 		s->freelist = nil;
 		c->nfree -= (s->npages << PageShift) / size;
 		runtime·unlock(c);
@@ -186,7 +186,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
 	// s is completely freed, return it to the heap.
 	size = runtime·class_to_size[c->sizeclass];
 	runtime·MSpanList_Remove(s);
-	*(uintptr*)(s->start<<PageShift) = 1;  // needs zeroing
+	s->needzero = 1;
 	s->freelist = nil;
 	c->nfree -= (s->npages << PageShift) / size;
 	runtime·unlock(c);

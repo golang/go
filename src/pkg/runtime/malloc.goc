@@ -315,7 +315,7 @@ runtime·free(void *v)
 	c = m->mcache;
 	if(sizeclass == 0) {
 		// Large object.
-		*(uintptr*)(s->start<<PageShift) = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
+		s->needzero = 1;
 		// Must mark v freed before calling unmarkspan and MHeap_Free:
 		// they might coalesce v into other spans and change the bitmap further.
 		runtime·markfreed(v, size);
