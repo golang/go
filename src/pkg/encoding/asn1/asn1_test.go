@@ -232,6 +232,10 @@ func TestObjectIdentifier(t *testing.T) {
 			}
 		}
 	}
+
+	if s := ObjectIdentifier([]int{1, 2, 3, 4}).String(); s != "1.2.3.4" {
+		t.Errorf("bad ObjectIdentifier.String(). Got %s, want 1.2.3.4", s)
+	}
 }
 
 type timeTest struct {
