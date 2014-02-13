@@ -1242,35 +1242,79 @@ copyau(Adr *a, Adr *v)
 	return 0;
 }
 
+static int
+a2type(Prog *p)
+{
+	if(p->reg == NREG)
+		return D_NONE;
+
+	switch(p->as) {
+	default:
+		fatal("a2type: unhandled %P", p);
+
+	case AAND:
+	case AEOR:
+	case ASUB:
+	case ARSB:
+	case AADD:
+	case AADC:
+	case ASBC:
+	case ARSC:
+	case ATST:
+	case ATEQ:
+	case ACMP:
+	case ACMN:
+	case AORR:
+	case ABIC:
+	case AMVN:
+	case ASRL:
+	case ASRA:
+	case ASLL:
+	case AMULU:
+	case ADIVU:
+	case AMUL:
+	case ADIV:
+	case AMOD:
+	case AMODU:
+	case AMULA:
+	case AMULL:
+	case AMULAL:
+	case AMULLU:
+	case AMULALU:
+	case AMULWT:
+	case AMULWB:
+	case AMULAWT:
+	case AMULAWB:
+		return D_REG;
+
+	case ACMPF:
+	case ACMPD:
+	case AADDF:
+	case AADDD:
+	case ASUBF:
+	case ASUBD:
+	case AMULF:
+	case AMULD:
+	case ADIVF:
+	case ADIVD:
+	case ASQRTF:
+	case ASQRTD:
+	case AABSF:
+	case AABSD:
+		return D_FREG;
+	}
+}
+
 /*
  * compare v to the center
  * register in p (p->reg)
- * the trick is that this
- * register might be D_REG
- * D_FREG. there are basically
- * two cases,
- *	ADD r,r,r
- *	CMP r,r,
  */
 static int
 copyau1(Prog *p, Adr *v)
 {
-
-	if(regtyp(v))
-	if(p->reg == v->reg) {
-		if(p->to.type != D_NONE) {
-			if(v->type == p->to.type)
-				return 1;
-			return 0;
-		}
-		if(p->from.type != D_NONE) {
-			if(v->type == p->from.type)
-				return 1;
-			return 0;
-		}
-		print("copyau1: can't tell %P\n", p);
-	}
-	return 0;
+	if(v->type == D_REG && v->reg == NREG)
+		return 0;
+	return p->reg == v->reg && a2type(p) == v->type;
 }
 
 /*
