@@ -367,6 +367,8 @@ class CL(object):
 			msg = lines[0]
 			patchset = lines[1].strip()
 			patches = [x.split(" ", 1) for x in lines[2:]]
+		else:
+			print >>sys.stderr, "Server says there is nothing to upload (probably wrong):\n" + msg
 		if response_body.startswith("Issue updated.") and quiet:
 			pass
 		else:
