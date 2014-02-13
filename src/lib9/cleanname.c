@@ -1,3 +1,5 @@
+// +build !plan9
+
 /*
 Inferno libkern/cleanname.c
 http://code.google.com/p/inferno-os/source/browse/libkern/cleanname.c

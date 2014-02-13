@@ -1,3 +1,5 @@
+// +build !plan9
+
 /*
 Plan 9 from User Space src/lib9/open.c
 http://code.swtch.com/plan9port/src/tip/src/lib9/open.c

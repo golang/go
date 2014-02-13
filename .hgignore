@@ -25,6 +25,7 @@ build.out
 test.out
 doc/tmpltohtml
 doc/articles/wiki/*.bin
+include/plan9/libc_plan9.h
 misc/cgo/life/run.out
 misc/cgo/stdio/run.out
 misc/cgo/testso/main

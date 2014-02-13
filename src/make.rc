@@ -36,6 +36,9 @@ if(! test -f run.rc){
 	exit wrongdir
 }
 
+# Generate libc_plan9.h.
+../include/plan9/mklibc.rc > ../include/plan9/libc_plan9.h
+
 # Clean old generated file that will cause problems in the build.
 rm -f ./pkg/runtime/runtime_defs.go
 
