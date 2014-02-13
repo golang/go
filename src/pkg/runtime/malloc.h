@@ -412,6 +412,7 @@ struct MSpan
 	uint16	ref;		// number of allocated objects in this span
 	uint8	sizeclass;	// size class
 	uint8	state;		// MSpanInUse etc
+	uint8	needzero;	// needs to be zeroed before allocation
 	uintptr	elemsize;	// computed from sizeclass or from npages
 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
 	uintptr npreleased;	// number of pages released to the OS
@@ -501,7 +502,7 @@ struct MHeap
 extern MHeap runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h);
-MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool zeroed);
+MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);

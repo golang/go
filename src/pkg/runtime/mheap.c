@@ -168,7 +168,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
 // Allocate a new span of npage pages from the heap
 // and record its size class in the HeapMap and HeapMapCache.
 MSpan*
-runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool zeroed)
+runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero)
 {
 	MSpan *s;
 
@@ -189,8 +189,11 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool 
 		}
 	}
 	runtime·unlock(h);
-	if(s != nil && *(uintptr*)(s->start<<PageShift) != 0 && zeroed)
-		runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
+	if(s != nil) {
+		if(needzero && s->needzero)
+			runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
+		s->needzero = 0;
+	}
 	return s;
 }
 
@@ -233,26 +236,8 @@ HaveSpan:
 	s->state = MSpanInUse;
 	mstats.heap_idle -= s->npages<<PageShift;
 	mstats.heap_released -= s->npreleased<<PageShift;
-	if(s->npreleased > 0) {
-		// We have called runtime·SysUnused with these pages, and on
-		// Unix systems it called madvise.  At this point at least
-		// some BSD-based kernels will return these pages either as
-		// zeros or with the old data.  For our caller, the first word
-		// in the page indicates whether the span contains zeros or
-		// not (this word was set when the span was freed by
-		// MCentral_Free or runtime·MCentral_FreeSpan).  If the first
-		// page in the span is returned as zeros, and some subsequent
-		// page is returned with the old data, then we will be
-		// returning a span that is assumed to be all zeros, but the
-		// actual data will not be all zeros.  Avoid that problem by
-		// explicitly marking the span as not being zeroed, just in
-		// case.  The beadbead constant we use here means nothing, it
-		// is just a unique constant not seen elsewhere in the
-		// runtime, as a clue in case it turns up unexpectedly in
-		// memory or in a stack trace.
+	if(s->npreleased > 0)
 		runtime·SysUsed((void*)(s->start<<PageShift), s->npages<<PageShift);
-		*(uintptr*)(s->start<<PageShift) = (uintptr)0xbeadbeadbeadbeadULL;
-	}
 	s->npreleased = 0;
 
 	if(s->npages > npage) {
@@ -266,7 +251,7 @@ HaveSpan:
 			h->spans[p-1] = s;
 		h->spans[p] = t;
 		h->spans[p+t->npages-1] = t;
-		*(uintptr*)(t->start<<PageShift) = *(uintptr*)(s->start<<PageShift);  // copy "needs zeroing" mark
+		t->needzero = s->needzero;
 		runtime·atomicstore(&t->sweepgen, h->sweepgen);
 		t->state = MSpanInUse;
 		MHeap_FreeLocked(h, t);
@@ -413,7 +398,6 @@ runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 static void
 MHeap_FreeLocked(MHeap *h, MSpan *s)
 {
-	uintptr *sp, *tp;
 	MSpan *t;
 	PageID p;
 
@@ -427,7 +411,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	mstats.heap_idle += s->npages<<PageShift;
 	s->state = MSpanFree;
 	runtime·MSpanList_Remove(s);
-	sp = (uintptr*)(s->start<<PageShift);
 	// Stamp newly unused spans. The scavenger will use that
 	// info to potentially give back some pages to the OS.
 	s->unusedsince = runtime·nanotime();
@@ -437,13 +420,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	p = s->start;
 	p -= (uintptr)h->arena_start >> PageShift;
 	if(p > 0 && (t = h->spans[p-1]) != nil && t->state != MSpanInUse) {
-		if(t->npreleased == 0) {  // cant't touch this otherwise
-			tp = (uintptr*)(t->start<<PageShift);
-			*tp |= *sp;	// propagate "needs zeroing" mark
-		}
 		s->start = t->start;
 		s->npages += t->npages;
 		s->npreleased = t->npreleased; // absorb released pages
+		s->needzero |= t->needzero;
 		p -= t->npages;
 		h->spans[p] = s;
 		runtime·MSpanList_Remove(t);
@@ -451,12 +431,9 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		runtime·FixAlloc_Free(&h->spanalloc, t);
 	}
 	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
-		if(t->npreleased == 0) {  // cant't touch this otherwise
-			tp = (uintptr*)(t->start<<PageShift);
-			*sp |= *tp;	// propagate "needs zeroing" mark
-		}
 		s->npages += t->npages;
 		s->npreleased += t->npreleased;
+		s->needzero |= t->needzero;
 		h->spans[p + s->npages - 1] = s;
 		runtime·MSpanList_Remove(t);
 		t->state = MSpanDead;
@@ -601,6 +578,7 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 	span->types.compression = MTypes_Empty;
 	span->specialLock.key = 0;
 	span->specials = nil;
+	span->needzero = 0;
 }
 
 // Initialize an empty doubly-linked list.
