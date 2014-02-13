@@ -766,6 +766,11 @@ func (b *builder) build(a *action) (err error) {
 		return fmt.Errorf("can't build package %s because it contains C++ files (%s) but it's not using cgo nor SWIG",
 			a.p.ImportPath, strings.Join(a.p.CXXFiles, ","))
 	}
+	// Same as above for Objective-C files
+	if len(a.p.MFiles) > 0 && !a.p.usesCgo() && !a.p.usesSwig() {
+		return fmt.Errorf("can't build package %s because it contains Objective-C files (%s) but it's not using cgo nor SWIG",
+			a.p.ImportPath, strings.Join(a.p.MFiles, ","))
+	}
 	defer func() {
 		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
@@ -857,7 +862,7 @@ func (b *builder) build(a *action) (err error) {
 		if a.cgo != nil && a.cgo.target != "" {
 			cgoExe = a.cgo.target
 		}
-		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles, a.p.CXXFiles)
+		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles, a.p.CXXFiles, a.p.MFiles)
 		if err != nil {
 			return err
 		}
@@ -872,7 +877,7 @@ func (b *builder) build(a *action) (err error) {
 		gccfiles := append(cfiles, sfiles...)
 		cfiles = nil
 		sfiles = nil
-		outGo, outObj, err := b.swig(a.p, obj, gccfiles, a.p.CXXFiles)
+		outGo, outObj, err := b.swig(a.p, obj, gccfiles, a.p.CXXFiles, a.p.MFiles)
 		if err != nil {
 			return err
 		}
@@ -1559,7 +1564,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
 	// so that it can give good error messages about forward declarations.
 	// Exceptions: a few standard packages have forward declarations for
 	// pieces supplied behind-the-scenes by package runtime.
-	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
 		case "os", "runtime/pprof", "sync", "time":
@@ -1824,6 +1829,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	cgoldflags := []string{}
 	usesCgo := false
 	cxx := false
+	objc := false
 	for _, a := range allactions {
 		if a.p != nil {
 			if !a.p.Standard {
@@ -1850,6 +1856,9 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 			if len(a.p.CXXFiles) > 0 {
 				cxx = true
 			}
+			if len(a.p.MFiles) > 0 {
+				objc = true
+			}
 		}
 	}
 	ldflags = append(ldflags, afiles...)
@@ -1860,6 +1869,9 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	}
 	if cxx {
 		ldflags = append(ldflags, "-lstdc++")
+	}
+	if objc {
+		ldflags = append(ldflags, "-lobjc")
 	}
 	return b.run(".", p.ImportPath, nil, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
 }
@@ -2054,7 +2066,7 @@ var (
 	cgoLibGccFileOnce sync.Once
 )
 
-func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfiles []string) (outGo, outObj []string, err error) {
+func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
 	if goos != toolGOOS {
 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
 	}
@@ -2063,6 +2075,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfile
 	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.CgoCFLAGS)
 	cgoCXXFLAGS := stringList(envList("CGO_CXXFLAGS"), p.CgoCXXFLAGS)
 	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.CgoLDFLAGS)
+
+	// If we are compiling Objective-C code, then we need to link against libobjc
+	if len(mfiles) > 0 {
+		cgoLDFLAGS = append(cgoLDFLAGS, "-lobjc")
+	}
 
 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
 		out, err := b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--cflags", pkgs)
@@ -2215,6 +2232,16 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfile
 		outObj = append(outObj, ofile)
 	}
 
+	for _, file := range mfiles {
+		// Append .o to the file, just in case the pkg has file.c and file.m
+		ofile := obj + cgoRe.ReplaceAllString(file, "_") + ".o"
+		if err := b.gcc(p, ofile, cflags, file); err != nil {
+			return nil, nil, err
+		}
+		linkobj = append(linkobj, ofile)
+		outObj = append(outObj, ofile)
+	}
+
 	linkobj = append(linkobj, p.SysoFiles...)
 	dynobj := obj + "_cgo_.o"
 	if goarch == "arm" && goos == "linux" { // we need to use -pie for Linux/ARM to get accurate imported sym
@@ -2272,7 +2299,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string, gxxfile
 // Run SWIG on all SWIG input files.
 // TODO: Don't build a shared library, once SWIG emits the necessary
 // pragmas for external linking.
-func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles []string) (outGo, outObj []string, err error) {
+func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
 
 	var extraObj []string
 	for _, file := range gccfiles {
@@ -2287,6 +2314,15 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles []string) (out
 		// Append .o to the file, just in case the pkg has file.c and file.cpp
 		ofile := obj + cgoRe.ReplaceAllString(file, "_") + ".o"
 		if err := b.gxx(p, ofile, nil, file); err != nil {
+			return nil, nil, err
+		}
+		extraObj = append(extraObj, ofile)
+	}
+
+	for _, file := range mfiles {
+		// Append .o to the file, just in case the pkg has file.c and file.cpp
+		ofile := obj + cgoRe.ReplaceAllString(file, "_") + ".o"
+		if err := b.gcc(p, ofile, nil, file); err != nil {
 			return nil, nil, err
 		}
 		extraObj = append(extraObj, ofile)

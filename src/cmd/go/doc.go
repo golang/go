@@ -478,8 +478,8 @@ http://swig.org/.  When running go build, any file with a .swig
 extension will be passed to SWIG.  Any file with a .swigcxx extension
 will be passed to SWIG with the -c++ option.
 
-When either cgo or SWIG is used, go build will pass any .c, .s, or .S
-files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+When either cgo or SWIG is used, go build will pass any .c, .m, .s,
+or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
 compiler.  The CC or CXX environment variables may be set to determine
 the C or C++ compiler, respectively, to use.
 

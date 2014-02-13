@@ -47,6 +47,7 @@ which calls strings.Join. The struct being passed to the template is:
         IgnoredGoFiles []string // .go sources ignored due to build constraints
         CFiles   []string       // .c source files
         CXXFiles []string       // .cc, .cxx and .cpp source files
+        MFiles   []string       // .m source files
         HFiles   []string       // .h, .hh, .hpp and .hxx source files
         SFiles   []string       // .s source files
         SwigFiles []string      // .swig files
