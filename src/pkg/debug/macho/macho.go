@@ -26,16 +26,19 @@ const (
 )
 
 const (
-	Magic32 uint32 = 0xfeedface
-	Magic64 uint32 = 0xfeedfacf
+	Magic32  uint32 = 0xfeedface
+	Magic64  uint32 = 0xfeedfacf
+	MagicFat uint32 = 0xcafebabe
 )
 
-// A Type is a Mach-O file type, either an object or an executable.
+// A Type is the Mach-O file type, e.g. an object file, executable, or dynamic library.
 type Type uint32
 
 const (
-	TypeObj  Type = 1
-	TypeExec Type = 2
+	TypeObj    Type = 1
+	TypeExec   Type = 2
+	TypeDylib  Type = 6
+	TypeBundle Type = 8
 )
 
 // A Cpu is a Mach-O cpu type.

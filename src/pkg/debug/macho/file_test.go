@@ -165,3 +165,46 @@ func TestOpenFailure(t *testing.T) {
 		t.Errorf("open %s: succeeded unexpectedly", filename)
 	}
 }
+
+func TestOpenFat(t *testing.T) {
+	ff, err := OpenFat("testdata/fat-gcc-386-amd64-darwin-exec")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ff.Magic != MagicFat {
+		t.Errorf("OpenFat: got magic number %#x, want %#x", ff.Magic, MagicFat)
+	}
+	if len(ff.Arches) != 2 {
+		t.Errorf("OpenFat: got %d architectures, want 2", len(ff.Arches))
+	}
+
+	for i := range ff.Arches {
+		arch := &ff.Arches[i]
+		ftArch := &fileTests[i]
+
+		if arch.Cpu != ftArch.hdr.Cpu || arch.SubCpu != ftArch.hdr.SubCpu {
+			t.Error("OpenFat: architecture #%d got cpu=%#x subtype=%#x, expected cpu=%#x, subtype=%#x", i, arch.Cpu, arch.SubCpu, ftArch.hdr.Cpu, ftArch.hdr.SubCpu)
+		}
+
+		if !reflect.DeepEqual(arch.FileHeader, ftArch.hdr) {
+			t.Errorf("OpenFat header:\n\tgot %#v\n\twant %#v\n", arch.FileHeader, ftArch.hdr)
+		}
+	}
+}
+
+func TestOpenFatFailure(t *testing.T) {
+	filename := "file.go" // not a Mach-O file
+	if _, err := OpenFat(filename); err == nil {
+		t.Errorf("OpenFat %s: succeeded unexpectedly", filename)
+	}
+
+	filename = "testdata/gcc-386-darwin-exec" // not a fat Mach-O
+	ff, err := OpenFat(filename)
+	if err != ErrNotFat {
+		t.Errorf("OpenFat %s: got %v, want ErrNotFat", err)
+	}
+	if ff != nil {
+		t.Errorf("OpenFat %s: got %v, want nil", ff)
+	}
+}
