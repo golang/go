@@ -11,7 +11,8 @@
  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
-#include <string.h>
+#include <u.h>
+#include <libc.h>
 #include "utf.h"
 #include "utfdef.h"
 
@@ -41,5 +42,4 @@ utfrune(const char *s, Rune c)
 			return (char*)s;
 		s += n;
 	}
-	return 0;
 }

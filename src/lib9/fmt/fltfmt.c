@@ -154,6 +154,7 @@ xsub1(char *a, int n)
 	 * so that it has a nonzero first digit.
 	 */
 	abort();
+	return 0;
 }
 
 /*
@@ -180,7 +181,7 @@ xfmtexp(char *p, int e, int ucase)
 		se[i++] = '0';
 	while(i > 0)
 		*p++ = se[--i];
-	*p++ = '\0';
+	*p = '\0';
 }
 
 /*
@@ -192,7 +193,8 @@ xfmtexp(char *p, int e, int ucase)
 static void
 xdtoa(double f, char *s, int *exp, int *neg, int *ns)
 {
-	int d, e2, e, ee, i, ndigit, oerrno;
+	int d, e2, e, ee, i, ndigit;
+	int oerrno;
 	char c;
 	char tmp[NSIGNIF+10];
 	double g;

@@ -1,3 +1,5 @@
+// +build !plan9
+
 /*
 Plan 9 from User Space src/lib9/errstr.c
 http://code.swtch.com/plan9port/src/tip/src/lib9/errstr.c
@@ -32,7 +34,6 @@ THE SOFTWARE.
 
 #include <u.h>
 #include <errno.h>
-#include <string.h>
 #include <libc.h>
 
 enum
