@@ -73,12 +73,12 @@ clearfat(Node *nl)
 	if(debug['g'])
 		dump("\nclearfat", nl);
 
+	gvardef(nl);
+
 	w = nl->type->width;
 	// Avoid taking the address for simple enough types.
 	if(componentgen(N, nl))
 		return;
-
-	gvardef(nl);
 
 	c = w % 4;	// bytes
 	q = w / 4;	// quads
