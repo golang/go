@@ -2669,7 +2669,7 @@ def RietveldSetup(ui, repo):
 	rpc = None
 	
 	global releaseBranch
-	tags = repo.branchtags().keys()
+	tags = repo.branchmap().keys()
 	if 'release-branch.go10' in tags:
 		# NOTE(rsc): This tags.sort is going to get the wrong
 		# answer when comparing release-branch.go9 with
