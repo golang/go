@@ -768,7 +768,7 @@ cgen_eface(Node *n, Node *res)
 	 */
 	Node dst;
 
-	gfatvardef(res);
+	gvardef(res);
 	dst = *res;
 	dst.type = types[tptr];
 	dst.xoffset += widthptr;
@@ -797,7 +797,7 @@ cgen_slice(Node *n, Node *res)
 	if(n->list->next->next)
 		offs = n->list->next->next->n;
 
-	gfatvardef(res);
+	gvardef(res);
 
 	// dst.len = hi [ - lo ]
 	dst = *res;

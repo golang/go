@@ -710,7 +710,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && (!isfat(from->node->type) || prog->as == AFATVARDEF))
+						if(from->node != nil && (!isfat(from->node->type) || prog->as == AVARDEF))
 							bvset(varkill, pos);
 				}
 			}
@@ -736,7 +736,7 @@ Next:
 					if(info.flags & (RightRead | RightAddr))
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
-						if(to->node != nil && (!isfat(to->node->type) || prog->as == AFATVARDEF))
+						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))
 							bvset(varkill, pos);
 				}
 			}

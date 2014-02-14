@@ -772,7 +772,7 @@ clearfat(Node *nl)
 	if(componentgen(N, nl))
 		return;
 
-	gfatvardef(nl);
+	gvardef(nl);
 
 	c = w % 4;	// bytes
 	q = w / 4;	// quads

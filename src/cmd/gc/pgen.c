@@ -32,28 +32,28 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 }
 
 void
-gfatvardef(Node *n)
+gvardef(Node *n)
 {
 	if(n == N || !isfat(n->type))
-		fatal("gfatvardef: node is not fat");
+		fatal("gvardef: node is not fat");
 	switch(n->class) {
 	case PAUTO:
 	case PPARAM:
 	case PPARAMOUT:
-		gins(AFATVARDEF, N, n);
+		gins(AVARDEF, N, n);
 	}
 }
 
 static void
-removefatvardef(Prog *firstp)
+removevardef(Prog *firstp)
 {
 	Prog *p;
 
 	for(p = firstp; p != P; p = p->link) {
-		while(p->link != P && p->link->as == AFATVARDEF)
+		while(p->link != P && p->link->as == AVARDEF)
 			p->link = p->link->link;
 		if(p->to.type == D_BRANCH)
-			while(p->to.u.branch != P && p->to.u.branch->as == AFATVARDEF)
+			while(p->to.u.branch != P && p->to.u.branch->as == AVARDEF)
 				p->to.u.branch = p->to.u.branch->link;
 	}
 }
@@ -249,7 +249,7 @@ compile(Node *fn)
 		frame(0);
 
 	// Remove leftover instrumentation from the instruction stream.
-	removefatvardef(ptxt);
+	removevardef(ptxt);
 ret:
 	lineno = lno;
 }
