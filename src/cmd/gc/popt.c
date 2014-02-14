@@ -146,7 +146,13 @@ fixjmp(Prog *firstp)
 		if(p->opt == dead) {
 			if(p->link == P && p->as == ARET && last && last->as != ARET) {
 				// This is the final ARET, and the code so far doesn't have one.
-				// Let it stay.
+				// Let it stay. The register allocator assumes that all live code in
+				// the function can be traversed by starting at all the RET instructions
+				// and following predecessor links. If we remove the final RET,
+				// this assumption will not hold in the case of an infinite loop
+				// at the end of a function.
+				// Keep the RET but mark it dead for the liveness analysis.
+				p->mode = -1;
 			} else {
 				if(debug['R'] && debug['v'])
 					print("del %P\n", p);
