@@ -121,3 +121,64 @@ func f10() string {
 	panic(1)
 }
 
+// liveness formerly confused by select, thinking runtime.selectgo
+// can return to next instruction; it always jumps elsewhere.
+// note that you have to use at least two cases in the select
+// to get a true select; smaller selects compile to optimized helper functions.
+
+var c chan *int
+var b bool
+
+// this used to have a spurious "live at entry to f11a: ~r0"
+func f11a() *int {
+	select { // ERROR "live at call to selectgo: autotmp"
+	case <-c: // ERROR "live at call to selectrecv: autotmp"
+		return nil
+	case <-c: // ERROR "live at call to selectrecv: autotmp"
+		return nil
+	}
+}
+
+func f11b() *int {
+	p := new(int)
+	if b {
+		// At this point p is dead: the code here cannot
+		// get to the bottom of the function.
+		// This used to have a spurious "live at call to printint: p".
+		print(1) // nothing live here!
+		select { // ERROR "live at call to selectgo: autotmp"
+		case <-c: // ERROR "live at call to selectrecv: autotmp"
+			return nil
+		case <-c: // ERROR "live at call to selectrecv: autotmp"
+			return nil
+		}
+	}
+	println(*p)
+	return nil
+}
+
+func f11c() *int {
+	p := new(int)
+	if b {
+		// Unlike previous, the cases in this select fall through,
+		// so we can get to the println, so p is not dead.
+		print(1) // ERROR "live at call to printint: p"
+		select { // ERROR "live at call to newselect: p" "live at call to selectgo: autotmp.* p"
+		case <-c: // ERROR "live at call to selectrecv: autotmp.* p"
+		case <-c: // ERROR "live at call to selectrecv: autotmp.* p"
+		}
+	}
+	println(*p)
+	return nil
+}
+
+// similarly, select{} does not fall through.
+// this used to have a spurious "live at entry to f12: ~r0".
+
+func f12() *int {
+	if b {
+		select{}
+	} else {
+		return nil
+	}
+}

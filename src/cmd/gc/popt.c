@@ -51,6 +51,9 @@ noreturn(Prog *p)
 		symlist[2] = pkglookup("throwinit", runtimepkg);
 		symlist[3] = pkglookup("panic", runtimepkg);
 		symlist[4] = pkglookup("panicwrap", runtimepkg);
+		symlist[5] = pkglookup("throwreturn", runtimepkg);
+		symlist[6] = pkglookup("selectgo", runtimepkg);
+		symlist[7] = pkglookup("block", runtimepkg);
 	}
 
 	if(p->to.node == nil)
