@@ -19,9 +19,10 @@ import (
 	"strconv"
 	"strings"
 
+	"cache"
+
 	"appengine"
 	"appengine/datastore"
-	"cache"
 )
 
 func init() {
@@ -162,24 +163,28 @@ func builderPriority(builder string) int {
 	if isRace(builder) {
 		return 1
 	}
-	// Put supported OSes first.
-	if supportedOS[builderOS(builder)] {
-		return 0
+	// If the OS has a specified priority, use it.
+	if p, ok := osPriority[builderOS(builder)]; ok {
+		return p
 	}
-	// Everyone else.
-	return 2
+	// The rest.
+	return 10
 }
 
 func isRace(s string) bool {
 	return strings.Contains(s, "-race-") || strings.HasSuffix(s, "-race")
 }
 
-// Operating systems that should appear first on the dashboard.
-var supportedOS = map[string]bool{
-	"darwin":  true,
-	"freebsd": true,
-	"linux":   true,
-	"windows": true,
+// Priorities for specific operating systems.
+var osPriority = map[string]int{
+	"darwin":  0,
+	"freebsd": 0,
+	"linux":   0,
+	"windows": 0,
+	// race == 1
+	"openbsd":   2,
+	"netbsd":    3,
+	"dragonfly": 4,
 }
 
 // TagState represents the state of all Packages at a Tag.
