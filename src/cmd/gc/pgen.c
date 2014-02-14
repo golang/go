@@ -34,8 +34,8 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 void
 gvardef(Node *n)
 {
-	if(n == N || !isfat(n->type))
-		fatal("gvardef: node is not fat");
+	if(n == N)
+		fatal("gvardef nil");
 	switch(n->class) {
 	case PAUTO:
 	case PPARAM:
