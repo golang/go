@@ -155,7 +155,7 @@ fixjmp(Prog *firstp)
 				// this assumption will not hold in the case of an infinite loop
 				// at the end of a function.
 				// Keep the RET but mark it dead for the liveness analysis.
-				p->mode = -1;
+				p->mode = 1;
 			} else {
 				if(debug['R'] && debug['v'])
 					print("del %P\n", p);

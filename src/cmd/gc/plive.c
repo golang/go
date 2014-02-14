@@ -521,7 +521,7 @@ newcfg(Prog *firstp)
 
 			// Stop before an unreachable RET, to avoid creating
 			// unreachable control flow nodes.
-			if(p->link != nil && p->link->as == ARET && p->link->mode == -1)
+			if(p->link != nil && p->link->as == ARET && p->link->mode == 1)
 				break;
 
 			// Collect basic blocks with selectgo calls.
