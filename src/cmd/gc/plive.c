@@ -664,18 +664,29 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the
 		// sake of backtrace quality, we read in arguments as well.
+		//
+		// A return instruction with a p->to is a tail return, which brings
+		// the stack pointer back up (if it ever went down) and then jumps
+		// to a new function entirely. That form of instruction must read
+		// all the parameters for correctness, and similarly it must not
+		// read the out arguments - they won't be set until the new
+		// function runs.
 		for(i = 0; i < arraylength(vars); i++) {
 			node = *(Node**)arrayget(vars, i);
 			switch(node->class & ~PHEAP) {
 			case PPARAM:
 				bvset(uevar, i);
+				break;
 			case PPARAMOUT:
 				// If the result had its address taken, it is being tracked
 				// by the avarinit code, which does not use uevar.
 				// If we added it to uevar too, we'd not see any kill
 				// and decide that the varible was live entry, which it is not.
 				// So only use uevar in the non-addrtaken case.
-				if(!node->addrtaken)
+				// The p->to.type == D_NONE limits the bvset to
+				// non-tail-call return instructions; see note above
+				// the for loop for details.
+				if(!node->addrtaken && prog->to.type == D_NONE)
 					bvset(uevar, i);
 				break;
 			}
@@ -1596,6 +1607,19 @@ livenessepilogue(Liveness *lv)
 			if(issafepoint(p)) {
 				// Found an interesting instruction, record the
 				// corresponding liveness information.  
+				
+				// Useful sanity check: on entry to the function,
+				// the only things that can possibly be live are the
+				// input parameters.
+				if(0 && p->as == ATEXT) {
+					for(j = 0; j < liveout->n; j++) {
+						if(!bvget(liveout, j))
+							continue;
+						n = *(Node**)arrayget(lv->vars, j);
+						if(n->class != PPARAM)
+							yyerrorl(p->lineno, "internal error: %N %N recorded as live on entry", curfn->nname, n);
+					}
+				}
 
 				// Record live pointers.
 				args = *(Bvec**)arrayget(lv->argslivepointers, pos);
