@@ -347,10 +347,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	// leave pc/sp for cpu profiler
 	MOVL	(SP), SI
 	MOVL	SI, m_libcallpc(BP)
+	MOVL	g(CX), SI
+	MOVL	SI, m_libcallg(BP)
+	// sp must be the last, because once async cpu profiler finds
+	// all three values to be non-zero, it will use them
 	LEAL	4(SP), SI
 	MOVL	SI, m_libcallsp(BP)
-	MOVL	g(BP), SI
-	MOVL	SI, m_libcallg(BP)
 
 	MOVL	m_g0(BP), SI
 	CMPL	g(CX), SI

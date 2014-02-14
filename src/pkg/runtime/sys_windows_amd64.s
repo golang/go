@@ -342,10 +342,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	// leave pc/sp for cpu profiler
 	MOVQ	(SP), R12
 	MOVQ	R12, m_libcallpc(R13)
+	MOVQ	g(R15), R12
+	MOVQ	R12, m_libcallg(R13)
+	// sp must be the last, because once async cpu profiler finds
+	// all three values to be non-zero, it will use them
 	LEAQ	8(SP), R12
 	MOVQ	R12, m_libcallsp(R13)
-	MOVQ	g(R13), R12
-	MOVQ	R12, m_libcallg(R13)
 
 	MOVQ	m_g0(R13), R14
 	CMPQ	g(R15), R14

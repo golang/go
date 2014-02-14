@@ -3029,6 +3029,7 @@ runtime·testSchedLocalQueueSteal(void)
 }
 
 extern void runtime·morestack(void);
+uintptr runtime·externalthreadhandlerp;
 
 // Does f mark the top of a goroutine stack?
 bool
@@ -3039,7 +3040,8 @@ runtime·topofstack(Func *f)
 		f->entry == (uintptr)runtime·mcall ||
 		f->entry == (uintptr)runtime·morestack ||
 		f->entry == (uintptr)runtime·lessstack ||
-		f->entry == (uintptr)_rt0_go;
+		f->entry == (uintptr)_rt0_go ||
+		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
 }
 
 void

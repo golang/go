@@ -71,6 +71,9 @@ extern void *runtime·WriteFile;
 
 void *runtime·GetQueuedCompletionStatusEx;
 
+extern uintptr runtime·externalthreadhandlerp;
+void runtime·externalthreadhandler(void);
+
 static int32
 getproccount(void)
 {
@@ -85,6 +88,8 @@ runtime·osinit(void)
 {
 	void *kernel32;
 	void *SetProcessPriorityBoost;
+
+	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
 
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
@@ -293,9 +298,11 @@ runtime·stdcall(void *fn, int32 count, ...)
 	m->libcall.args = (uintptr*)&count + 1;
 	if(m->profilehz != 0) {
 		// leave pc/sp for cpu profiler
-		m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
-		m->libcallsp = (uintptr)runtime·getcallersp(&fn);
 		m->libcallg = g;
+		m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		m->libcallsp = (uintptr)runtime·getcallersp(&fn);
 	}
 	runtime·asmcgocall(runtime·asmstdcall, &m->libcall);
 	m->libcallsp = 0;
