@@ -67,7 +67,8 @@ struct Bucket
 			int64	cycles;
 		};
 	};
-	uintptr	hash;
+	uintptr	hash;	// hash of size + stk
+	uintptr	size;
 	uintptr	nstk;
 	uintptr	stk[1];
 };
@@ -81,7 +82,7 @@ static uintptr bucketmem;
 
 // Return the bucket for stk[0:nstk], allocating new bucket if needed.
 static Bucket*
-stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+stkbucket(int32 typ, uintptr size, uintptr *stk, int32 nstk, bool alloc)
 {
 	int32 i;
 	uintptr h;
@@ -100,12 +101,17 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 		h += h<<10;
 		h ^= h>>6;
 	}
+	// hash in size
+	h += size;
+	h += h<<10;
+	h ^= h>>6;
+	// finalize
 	h += h<<3;
 	h ^= h>>11;
 
 	i = h%BuckHashSize;
 	for(b = buckhash[i]; b; b=b->next)
-		if(b->typ == typ && b->hash == h && b->nstk == nstk &&
+		if(b->typ == typ && b->hash == h && b->size == size && b->nstk == nstk &&
 		   runtime·mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
 			return b;
 
@@ -117,6 +123,7 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
 	b->typ = typ;
 	b->hash = h;
+	b->size = size;
 	b->nstk = nstk;
 	b->next = buckhash[i];
 	buckhash[i] = b;
@@ -231,7 +238,7 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
 		runtime·printf(">)\n");
 		printstackframes(stk, nstk);
 	}
-	b = stkbucket(MProf, stk, nstk, true);
+	b = stkbucket(MProf, size, stk, nstk, true);
 	b->recent_allocs++;
 	b->recent_alloc_bytes += size;
 	runtime·unlock(&proflock);
@@ -296,7 +303,7 @@ runtime·blockevent(int64 cycles, int32 skip)
 
 	nstk = runtime·callers(skip, stk, nelem(stk));
 	runtime·lock(&proflock);
-	b = stkbucket(BProf, stk, nstk, true);
+	b = stkbucket(BProf, 0, stk, nstk, true);
 	b->count++;
 	b->cycles += cycles;
 	runtime·unlock(&proflock);
