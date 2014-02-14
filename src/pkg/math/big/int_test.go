@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -1524,6 +1525,58 @@ func TestIntJSONEncoding(t *testing.T) {
 		}
 		if rx.Cmp(&tx) != 0 {
 			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+		}
+	}
+}
+
+var intVals = []string{
+	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
+	"-1415926535897932384626433832795028841971",
+	"-141592653589793",
+	"-1",
+	"0",
+	"1",
+	"141592653589793",
+	"1415926535897932384626433832795028841971",
+	"141592653589793238462643383279502884197169399375105820974944592307816406286",
+}
+
+func TestIntJSONEncodingTextMarshaller(t *testing.T) {
+	for _, num := range intVals {
+		var tx Int
+		tx.SetString(num, 0)
+		b, err := json.Marshal(&tx)
+		if err != nil {
+			t.Errorf("marshaling of %s failed: %s", &tx, err)
+			continue
+		}
+		var rx Int
+		if err := json.Unmarshal(b, &rx); err != nil {
+			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+			continue
+		}
+		if rx.Cmp(&tx) != 0 {
+			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+		}
+	}
+}
+
+func TestIntXMLEncodingTextMarshaller(t *testing.T) {
+	for _, num := range intVals {
+		var tx Int
+		tx.SetString(num, 0)
+		b, err := xml.Marshal(&tx)
+		if err != nil {
+			t.Errorf("marshaling of %s failed: %s", &tx, err)
+			continue
+		}
+		var rx Int
+		if err := xml.Unmarshal(b, &rx); err != nil {
+			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+			continue
+		}
+		if rx.Cmp(&tx) != 0 {
+			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
 		}
 	}
 }
