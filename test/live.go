@@ -86,3 +86,12 @@ func f6() (_, y string) {
 	y = "hello"
 	return
 }
+
+// confusion about addressed results used to cause "live at entry to f7: x".
+
+func f7() (x string) {
+	_ = &x
+	x = "hello"
+	return
+}
+

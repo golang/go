@@ -668,8 +668,15 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 			node = *(Node**)arrayget(vars, i);
 			switch(node->class & ~PHEAP) {
 			case PPARAM:
-			case PPARAMOUT:
 				bvset(uevar, i);
+			case PPARAMOUT:
+				// If the result had its address taken, it is being tracked
+				// by the avarinit code, which does not use uevar.
+				// If we added it to uevar too, we'd not see any kill
+				// and decide that the varible was live entry, which it is not.
+				// So only use uevar in the non-addrtaken case.
+				if(!node->addrtaken)
+					bvset(uevar, i);
 				break;
 			}
 		}
