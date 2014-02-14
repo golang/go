@@ -643,8 +643,8 @@ funcargs(Node *nt)
 			fatal("funcargs out %O", n->op);
 
 		if(n->left == N) {
-			// give it a name so escape analysis has nodes to work with
-			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
+			// Name so that escape analysis can track it. ~r stands for 'result'.
+			snprint(namebuf, sizeof(namebuf), "~r%d", gen++);
 			n->left = newname(lookup(namebuf));
 			// TODO: n->left->missing = 1;
 		} 
@@ -652,14 +652,20 @@ funcargs(Node *nt)
 		n->left->op = ONAME;
 
 		if(isblank(n->left)) {
-			// Give it a name so we can assign to it during return.
-			// preserve the original in ->orig
+			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
+			// The name must be different from ~r above because if you have
+			//	func f() (_ int)
+			//	func g() int
+			// f is allowed to use a plain 'return' with no arguments, while g is not.
+			// So the two cases must be distinguished.
+			// We do not record a pointer to the original node (n->orig).
+			// Having multiple names causes too much confusion in later passes.
 			nn = nod(OXXX, N, N);
 			*nn = *n->left;
+			nn->orig = nn;
+			snprint(namebuf, sizeof(namebuf), "~b%d", gen++);
+			nn->sym = lookup(namebuf);
 			n->left = nn;
-			
-			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
-			n->left->sym = lookup(namebuf);
 		}
 
 		n->left->ntype = n->right;
@@ -1209,7 +1215,7 @@ functype(Node *this, NodeList *in, NodeList *out)
 	t->outnamed = 0;
 	if(t->outtuple > 0 && out->n->left != N && out->n->left->orig != N) {
 		s = out->n->left->orig->sym;
-		if(s != S && s->name[0] != '~')
+		if(s != S && s->name[0] != '~' || s->name[1] != 'r') // ~r%d is the name invented for an unnamed result
 			t->outnamed = 1;
 	}
 

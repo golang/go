@@ -2430,7 +2430,7 @@ paramstoheap(Type **argin, int out)
 	nn = nil;
 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
 		v = t->nname;
-		if(v && v->sym && v->sym->name[0] == '~')
+		if(v && v->sym && v->sym->name[0] == '~' && v->sym->name[1] == 'r') // unnamed result
 			v = N;
 		// In precisestack mode, the garbage collector assumes results
 		// are always live, so zero them always.

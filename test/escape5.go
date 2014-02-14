@@ -17,19 +17,19 @@ func leaktoret(p *int) *int { // ERROR "leaking param: p to result"
 	return p
 }
 
-func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result .anon1" "leaking param: p to result .anon2"
+func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: p to result ~r2"
 	return p, p
 }
 
-func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result .anon2" "leaking param: q to result .anon3"
+func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r2" "leaking param: q to result ~r3"
 	return p, q
 }
 
-func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result .anon3" "leaking param: q to result .anon2"
+func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
 	return leaktoret22(q, p)
 }
 
-func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result .anon3" "leaking param: q to result .anon2"
+func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
 	r, s := leaktoret22(q, p)
 	return r, s
 }

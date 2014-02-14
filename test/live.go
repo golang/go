@@ -79,3 +79,10 @@ func f5(b1 bool) {
 	}
 	print(**z) // ERROR "live at call to printint: x y$"
 }
+
+// confusion about the _ result used to cause spurious "live at entry to f6: _".
+
+func f6() (_, y string) {
+	y = "hello"
+	return
+}

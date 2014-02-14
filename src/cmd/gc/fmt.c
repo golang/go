@@ -678,12 +678,17 @@ typefmt(Fmt *fp, Type *t)
 		if(!(fp->flags&FmtShort)) {
 			s = t->sym;
 
-			// Take the name from the original, lest we substituted it with ~anon%d
+			// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
+			// ~r%d is a (formerly) unnamed result.
 			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N) {
 				if(t->nname->orig != N) {
 					s = t->nname->orig->sym;
-					if(s != S && s->name[0] == '~')
-						s = S;
+					if(s != S && s->name[0] == '~') {
+						if(s->name[1] == 'r') // originally an unnamed result
+							s = S;
+						else if(s->name[1] == 'b') // originally the blank identifier _
+							s = lookup("_");
+					}
 				} else 
 					s = S;
 			}
@@ -1104,7 +1109,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		case PAUTO:
 		case PPARAM:
 		case PPARAMOUT:
-			if(fmtmode == FExp && n->sym && !isblanksym(n->sym) && n->vargen > 0)
+			// _ becomes ~b%d internally; print as _ for export
+			if(fmtmode == FExp && n->sym && n->sym->name[0] == '~' && n->sym->name[1] == 'b')
+				return fmtprint(f, "_");
+			if(fmtmode == FExp && n->sym && !isblank(n) && n->vargen > 0)
 				return fmtprint(f, "%S·%d", n->sym, n->vargen);
 		}
 
