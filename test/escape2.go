@@ -1389,3 +1389,13 @@ func foo148(l List) { // ERROR " l does not escape"
 	for p := &l; p.Next != nil; p = p.Next { // ERROR "&l does not escape"
 	}
 }
+
+// related: address of variable should have depth of variable, not of loop
+
+func foo149(l List) { // ERROR " l does not escape"
+	var p *List
+	for {
+		for p = &l; p.Next != nil; p = p.Next { // ERROR "&l does not escape"
+		}
+	}
+}
