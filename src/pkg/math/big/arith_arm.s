@@ -7,31 +7,26 @@
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-#define CFLAG 29	// bit position of carry flag
-
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),NOSPLIT,$0
-	MOVW	$0, R0
+	ADD.S	$0, R0		// clear carry flag
 	MOVW	z+0(FP), R1
+	MOVW	z_len+4(FP), R4
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z_len+4(FP), R4
-	MOVW	R4<<2, R4
-	ADD	R1, R4
+	ADD	R4<<2, R1, R4
 	B E1
 L1:
 	MOVW.P	4(R2), R5
 	MOVW.P	4(R3), R6
-	MOVW	R0, CPSR
 	ADC.S	R6, R5
 	MOVW.P	R5, 4(R1)
-	MOVW	CPSR, R0
 E1:
-	CMP	R1, R4
+	TEQ	R1, R4
 	BNE L1
 
-	MOVW	R0>>CFLAG, R0
-	AND	$1, R0
+	MOVW	$0, R0
+	MOVW.CS	$1, R0
 	MOVW	R0, c+36(FP)
 	RET
 
@@ -39,28 +34,24 @@ E1:
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SBC instead of ADC and label names)
 TEXT ·subVV(SB),NOSPLIT,$0
-	MOVW	$(1<<CFLAG), R0
+	SUB.S	$0, R0		// clear borrow flag
 	MOVW	z+0(FP), R1
+	MOVW	z_len+4(FP), R4
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z_len+4(FP), R4
-	MOVW	R4<<2, R4
-	ADD	R1, R4
+	ADD	R4<<2, R1, R4
 	B E2
 L2:
 	MOVW.P	4(R2), R5
 	MOVW.P	4(R3), R6
-	MOVW	R0, CPSR
 	SBC.S	R6, R5
 	MOVW.P	R5, 4(R1)
-	MOVW	CPSR, R0
 E2:
-	CMP	R1, R4
+	TEQ	R1, R4
 	BNE L2
 
-	MOVW	R0>>CFLAG, R0
-	AND	$1, R0
-	EOR	$1, R0
+	MOVW	$0, R0
+	MOVW.CC	$1, R0
 	MOVW	R0, c+36(FP)
 	RET
 
@@ -68,12 +59,11 @@ E2:
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),NOSPLIT,$0
 	MOVW	z+0(FP), R1
+	MOVW	z_len+4(FP), R4
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z_len+4(FP), R4
-	MOVW	R4<<2, R4
-	ADD	R1, R4
-	CMP	R1, R4
+	ADD	R4<<2, R1, R4
+	TEQ	R1, R4
 	BNE L3a
 	MOVW	R3, c+28(FP)
 	RET
@@ -81,20 +71,17 @@ L3a:
 	MOVW.P	4(R2), R5
 	ADD.S	R3, R5
 	MOVW.P	R5, 4(R1)
-	MOVW	CPSR, R0
 	B	E3
 L3:
 	MOVW.P	4(R2), R5
-	MOVW	R0, CPSR
 	ADC.S	$0, R5
 	MOVW.P	R5, 4(R1)
-	MOVW	CPSR, R0
 E3:
-	CMP	R1, R4
+	TEQ	R1, R4
 	BNE	L3
 
-	MOVW	R0>>CFLAG, R0
-	AND	$1, R0
+	MOVW	$0, R0
+	MOVW.CS	$1, R0
 	MOVW	R0, c+28(FP)
 	RET
 
@@ -102,12 +89,11 @@ E3:
 // func subVW(z, x []Word, y Word) (c Word)
 TEXT ·subVW(SB),NOSPLIT,$0
 	MOVW	z+0(FP), R1
+	MOVW	z_len+4(FP), R4
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z_len+4(FP), R4
-	MOVW	R4<<2, R4
-	ADD	R1, R4
-	CMP	R1, R4
+	ADD	R4<<2, R1, R4
+	TEQ	R1, R4
 	BNE L4a
 	MOVW	R3, c+28(FP)
 	RET
@@ -115,21 +101,17 @@ L4a:
 	MOVW.P	4(R2), R5
 	SUB.S	R3, R5
 	MOVW.P	R5, 4(R1)
-	MOVW	CPSR, R0
 	B	E4
 L4:
 	MOVW.P	4(R2), R5
-	MOVW	R0, CPSR
 	SBC.S	$0, R5
 	MOVW.P	R5, 4(R1)
-	MOVW	CPSR, R0
 E4:
-	CMP	R1, R4
+	TEQ	R1, R4
 	BNE	L4
 
-	MOVW	R0>>CFLAG, R0
-	AND	$1, R0
-	EOR	$1, R0
+	MOVW	$0, R0
+	MOVW.CC	$1, R0
 	MOVW	R0, c+28(FP)
 	RET
 
@@ -137,16 +119,15 @@ E4:
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
-	CMP	$0, R5
+	TEQ	$0, R5
 	BEQ	X7
 	
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
-	MOVW	R5<<2, R5
-	ADD	R5, R2
-	ADD	R1, R5
+	ADD	R5<<2, R2, R2
+	ADD	R5<<2, R1, R5
 	MOVW	s+24(FP), R3
-	CMP	$0, R3	// shift 0 is special
+	TEQ	$0, R3	// shift 0 is special
 	BEQ	Y7
 	ADD	$4, R1	// stop one word early
 	MOVW	$32, R4
@@ -165,7 +146,7 @@ L7:
 	MOVW.W	R7, -4(R5)
 	MOVW	R6<<R3, R7
 E7:
-	CMP	R1, R5
+	TEQ	R1, R5
 	BNE	L7
 
 	MOVW	R7, -4(R5)
@@ -174,7 +155,7 @@ E7:
 Y7:	// copy loop, because shift 0 == shift 32
 	MOVW.W	-4(R2), R6
 	MOVW.W	R6, -4(R5)
-	CMP	R1, R5
+	TEQ	R1, R5
 	BNE Y7
 
 X7:
@@ -186,15 +167,14 @@ X7:
 // func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
-	CMP	$0, R5
+	TEQ	$0, R5
 	BEQ	X6
 
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
-	MOVW	R5<<2, R5
-	ADD	R1, R5
+	ADD	R5<<2, R1, R5
 	MOVW	s+24(FP), R3
-	CMP	$0, R3	// shift 0 is special
+	TEQ	$0, R3	// shift 0 is special
 	BEQ Y6
 	SUB	$4, R5	// stop one word early
 	MOVW	$32, R4
@@ -215,7 +195,7 @@ L6:
 	MOVW.P	R7, 4(R1)
 	MOVW	R6>>R3, R7
 E6:
-	CMP	R1, R5
+	TEQ	R1, R5
 	BNE	L6
 
 	MOVW	R7, 0(R1)
@@ -224,7 +204,7 @@ E6:
 Y6:	// copy loop, because shift 0 == shift 32
 	MOVW.P	4(R2), R6
 	MOVW.P	R6, 4(R1)
-	CMP R1, R5
+	TEQ R1, R5
 	BNE Y6
 
 X6:
@@ -237,12 +217,11 @@ X6:
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	MOVW	z+0(FP), R1
+	MOVW	z_len+4(FP), R5
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
 	MOVW	r+28(FP), R4
-	MOVW	z_len+4(FP), R5
-	MOVW	R5<<2, R5
-	ADD	R1, R5
+	ADD	R5<<2, R1, R5
 	B E8
 
 	// word loop
@@ -254,7 +233,7 @@ L8:
 	MOVW.P	R6, 4(R1)
 	MOVW	R7, R4
 E8:
-	CMP	R1, R5
+	TEQ	R1, R5
 	BNE	L8
 
 	MOVW	R4, c+32(FP)
@@ -265,11 +244,10 @@ E8:
 TEXT ·addMulVVW(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	MOVW	z+0(FP), R1
+	MOVW	z_len+4(FP), R5
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z_len+4(FP), R5
-	MOVW	R5<<2, R5
-	ADD	R1, R5
+	ADD	R5<<2, R1, R5
 	MOVW	$0, R4
 	B E9
 
@@ -285,7 +263,7 @@ L9:
 	MOVW.P	R6, 4(R1)
 	MOVW	R7, R4
 E9:
-	CMP	R1, R5
+	TEQ	R1, R5
 	BNE	L9
 
 	MOVW	R4, c+28(FP)
@@ -317,7 +295,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
 TEXT ·bitLen(SB),NOSPLIT,$0
 	MOVW	x+0(FP), R0
 	CLZ 	R0, R0
-	MOVW	$32, R1
-	SUB.S	R0, R1
-	MOVW	R1, n+4(FP)
+	RSB	$32, R0
+	MOVW	R0, n+4(FP)
 	RET
