@@ -1494,7 +1494,7 @@ void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
 void	ggloblnod(Node *nam);
 void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
-void	gfatvardef(Node*);
+void	gvardef(Node*);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
 void	movelarge(NodeList*);

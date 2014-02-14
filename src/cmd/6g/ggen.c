@@ -1023,7 +1023,7 @@ clearfat(Node *nl)
 	if(debug['g'])
 		dump("\nclearfat", nl);
 
-	gfatvardef(nl);
+	gvardef(nl);
 
 	w = nl->type->width;
 	// Avoid taking the address for simple enough types.
