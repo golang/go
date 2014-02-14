@@ -621,7 +621,7 @@ freecfg(Array *cfg)
 static int
 isfunny(Node *node)
 {
-	char *names[] = { ".fp", ".args", "_", nil };
+	char *names[] = { ".fp", ".args", nil };
 	int i;
 
 	if(node->sym != nil && node->sym->name != nil)
@@ -696,8 +696,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	}
 	if(info.flags & (LeftRead | LeftWrite | LeftAddr)) {
 		from = &prog->from;
-		if (from->node != nil && !isfunny(from->node) && from->sym != nil) {
-			switch(prog->from.node->class & ~PHEAP) {
+		if (from->node != nil && from->sym != nil) {
+			switch(from->node->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
@@ -710,7 +710,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && (!isfat(from->node->type) || prog->as == AVARDEF))
+						if(from->node != nil && !isfat(from->node->type))
 							bvset(varkill, pos);
 				}
 			}
@@ -719,8 +719,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 Next:
 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
 		to = &prog->to;
-		if (to->node != nil && to->sym != nil && !isfunny(to->node)) {
-			switch(prog->to.node->class & ~PHEAP) {
+		if (to->node != nil && to->sym != nil) {
+			switch(to->node->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
@@ -728,10 +728,9 @@ Next:
 				if(pos == -1)
 					goto Next1;
 				if(to->node->addrtaken) {
-					//if(prog->as == AKILL)
-					//	bvset(varkill, pos);
-					//else
-						bvset(avarinit, pos);
+					bvset(avarinit, pos);
+					if(prog->as == AVARDEF)
+						bvset(varkill, pos);
 				} else {
 					if(info.flags & (RightRead | RightAddr))
 						bvset(uevar, pos);

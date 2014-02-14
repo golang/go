@@ -95,3 +95,21 @@ func f7() (x string) {
 	return
 }
 
+// ignoring block returns used to cause "live at entry to f8: x, y".
+
+func f8() (x, y string) {
+	return g8()
+}
+
+func g8() (string, string)
+
+// ignoring block assignments used to cause "live at entry to f9: x"
+// issue 7205
+
+var i9 interface{}
+
+func f9() bool {
+	g8()
+	x := i9
+	return x != 99
+}

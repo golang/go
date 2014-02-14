@@ -1203,6 +1203,7 @@ sgen(Node *n, Node *res, int64 w)
 {
 	Node dst, src, tdst, tsrc;
 	int32 c, q, odst, osrc;
+	NodeList *l;
 
 	if(debug['g']) {
 		print("\nsgen w=%lld\n", w);
@@ -1222,6 +1223,17 @@ sgen(Node *n, Node *res, int64 w)
 		agen(n, &tdst);
 		return;
 	}
+
+	// Record site of definition of ns for liveness analysis.
+	if(res->op == ONAME && res->class != PEXTERN)
+		gvardef(res);
+	
+	// If copying .args, that's all the results, so record definition sites
+	// for them for the liveness analysis.
+	if(res->op == ONAME && strcmp(res->sym->name, ".args") == 0)
+		for(l = curfn->dcl; l != nil; l = l->next)
+			if(l->n->class == PPARAMOUT)
+				gvardef(l->n);
 
 	// Avoid taking the address for simple enough types.
 	if(componentgen(n, res))
