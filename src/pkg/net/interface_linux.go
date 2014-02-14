@@ -45,15 +45,41 @@ loop:
 	return ift, nil
 }
 
+const (
+	// See linux/if_arp.h.
+	// Note that Linux doesn't support IPv4 over IPv6 tunneling.
+	sysARPHardwareIPv4IPv4 = 768 // IPv4 over IPv4 tunneling
+	sysARPHardwareIPv6IPv6 = 769 // IPv6 over IPv6 tunneling
+	sysARPHardwareIPv6IPv4 = 776 // IPv6 over IPv4 tunneling
+	sysARPHardwareGREIPv4  = 778 // any over GRE over IPv4 tunneling
+	sysARPHardwareGREIPv6  = 823 // any over GRE over IPv6 tunneling
+)
+
 func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) *Interface {
 	ifi := &Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case syscall.IFLA_ADDRESS:
+			// We never return any /32 or /128 IP address
+			// prefix on any IP tunnel interface as the
+			// hardware address.
+			switch len(a.Value) {
+			case IPv4len:
+				switch ifim.Type {
+				case sysARPHardwareIPv4IPv4, sysARPHardwareGREIPv4, sysARPHardwareIPv6IPv4:
+					continue
+				}
+			case IPv6len:
+				switch ifim.Type {
+				case sysARPHardwareIPv6IPv6, sysARPHardwareGREIPv6:
+					continue
+				}
+			}
 			var nonzero bool
 			for _, b := range a.Value {
 				if b != 0 {
 					nonzero = true
+					break
 				}
 			}
 			if nonzero {
@@ -147,17 +173,29 @@ loop:
 }
 
 func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRouteAttr) Addr {
-	for _, a := range attrs {
-		if ifi.Flags&FlagPointToPoint != 0 && a.Attr.Type == syscall.IFA_LOCAL ||
-			ifi.Flags&FlagPointToPoint == 0 && a.Attr.Type == syscall.IFA_ADDRESS {
-			switch ifam.Family {
-			case syscall.AF_INET:
-				return &IPNet{IP: IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3]), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv4len)}
-			case syscall.AF_INET6:
-				ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
-				copy(ifa.IP, a.Value[:])
-				return ifa
+	var ipPointToPoint bool
+	// Seems like we need to make sure whether the IP interface
+	// stack consists of IP point-to-point numbered or unnumbered
+	// addressing over point-to-point link encapsulation.
+	if ifi.Flags&FlagPointToPoint != 0 {
+		for _, a := range attrs {
+			if a.Attr.Type == syscall.IFA_LOCAL {
+				ipPointToPoint = true
+				break
 			}
+		}
+	}
+	for _, a := range attrs {
+		if ipPointToPoint && a.Attr.Type == syscall.IFA_ADDRESS || !ipPointToPoint && a.Attr.Type == syscall.IFA_LOCAL {
+			continue
+		}
+		switch ifam.Family {
+		case syscall.AF_INET:
+			return &IPNet{IP: IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3]), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv4len)}
+		case syscall.AF_INET6:
+			ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
+			copy(ifa.IP, a.Value[:])
+			return ifa
 		}
 	}
 	return nil
