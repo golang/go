@@ -85,18 +85,16 @@ func runEnv(cmd *Command, args []string) {
 		return
 	}
 
-	switch runtime.GOOS {
-	default:
-		for _, e := range env {
-			fmt.Printf("%s=\"%s\"\n", e.name, e.value)
-		}
-	case "plan9":
-		for _, e := range env {
-			fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
-		}
-	case "windows":
-		for _, e := range env {
-			fmt.Printf("set %s=%s\n", e.name, e.value)
+	for _, e := range env {
+		if e.name != "TERM" {
+			switch runtime.GOOS {
+			default:
+				fmt.Printf("%s=\"%s\"\n", e.name, e.value)
+			case "plan9":
+				fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
+			case "windows":
+				fmt.Printf("set %s=%s\n", e.name, e.value)
+			}
 		}
 	}
 }
