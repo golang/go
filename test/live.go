@@ -113,3 +113,11 @@ func f9() bool {
 	x := i9
 	return x != 99
 }
+
+// liveness formerly confused by UNDEF followed by RET,
+// leading to "live at entry to f10: ~r1" (unnamed result).
+
+func f10() string {
+	panic(1)
+}
+

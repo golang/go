@@ -519,12 +519,10 @@ newcfg(Prog *firstp)
 				break;
 			bb->last = p;
 
-			// Pattern match an unconditional branch followed by a
-			// dead return instruction.  This avoids a creating
+			// Stop before an unreachable RET, to avoid creating
 			// unreachable control flow nodes.
-			if(p->link != nil && p->link->link == nil)
-				if (p->as == AJMP && p->link->as == ARET && p->link->opt == nil)
-					break;
+			if(p->link != nil && p->link->as == ARET && p->link->mode == -1)
+				break;
 
 			// Collect basic blocks with selectgo calls.
 			if(isselectgocall(p))
