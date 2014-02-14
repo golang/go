@@ -117,8 +117,11 @@ func (b *Builder) envvWindows() []string {
 // and returns the path workpath/go/src, the location of all go build scripts.
 func (env *goEnv) setup(repo *Repo, workpath, hash string, envv []string) (string, error) {
 	goworkpath := filepath.Join(workpath, "go")
-	if _, err := repo.Clone(goworkpath, hash); err != nil {
-		return "", fmt.Errorf("error cloning repository: %s", err)
+	if err := repo.Export(goworkpath, hash); err != nil {
+		return "", fmt.Errorf("error exporting repository: %s", err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(goworkpath, "VERSION"), []byte(hash), 0644); err != nil {
+		return "", fmt.Errorf("error writing VERSION file: %s", err)
 	}
 	return filepath.Join(goworkpath, "src"), nil
 }

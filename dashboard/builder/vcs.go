@@ -61,6 +61,24 @@ func (r *Repo) Clone(path, rev string) (*Repo, error) {
 	}, nil
 }
 
+// Export exports the current Repo at revision rev to a new destination.
+func (r *Repo) Export(path, rev string) error {
+	r.Lock()
+	defer r.Unlock()
+
+	downloadPath := r.Path
+	if !r.Exists() {
+		_, err := r.Clone(path, rev)
+		return err
+	}
+
+	args := []string{r.Master.VCS.Cmd, "archive", "-t", "files", "-r", rev, path}
+	if err := run(*cmdTimeout, nil, downloadPath, args...); err != nil {
+		return fmt.Errorf("executing %s: %v", strings.Join(args, " "), err)
+	}
+	return nil
+}
+
 // UpdateTo updates the working copy of this Repo to the
 // supplied revision.
 func (r *Repo) UpdateTo(hash string) error {
