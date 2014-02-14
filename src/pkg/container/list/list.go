@@ -180,18 +180,18 @@ func (l *List) MoveToBack(e *Element) {
 }
 
 // MoveBefore moves element e to its new position before mark.
-// If e is not an element of l, or e == mark, the list is not modified.
+// If e or mark is not an element of l, or e == mark, the list is not modified.
 func (l *List) MoveBefore(e, mark *Element) {
-	if e.list != l || e == mark {
+	if e.list != l || e == mark || mark.list != l {
 		return
 	}
 	l.insert(l.remove(e), mark.prev)
 }
 
 // MoveAfter moves element e to its new position after mark.
-// If e is not an element of l, or e == mark, the list is not modified.
+// If e or mark is not an element of l, or e == mark, the list is not modified.
 func (l *List) MoveAfter(e, mark *Element) {
-	if e.list != l || e == mark {
+	if e.list != l || e == mark || mark.list != l {
 		return
 	}
 	l.insert(l.remove(e), mark)
