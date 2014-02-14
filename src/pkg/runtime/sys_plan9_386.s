@@ -81,6 +81,10 @@ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	
 TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL    $19, AX // rfork
+	MOVL	stack+8(SP), CX
+	MOVL	mm+12(SP), BX	// m
+	MOVL	gg+16(SP), DX	// g
+	MOVL	fn+20(SP), SI	// fn
 	INT     $64
 
 	// In parent, return.
@@ -88,13 +92,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	JEQ	2(PC)
 	RET
 
-	// In child on old stack.
-	MOVL	mm+12(SP), BX	// m
-	MOVL	gg+16(SP), DX	// g
-	MOVL	fn+20(SP), SI	// fn
-
 	// set SP to be on the new child stack
-	MOVL	stack+8(SP), CX
 	MOVL	CX, SP
 
 	// Initialize m, g.
