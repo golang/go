@@ -866,7 +866,7 @@ reswitch:
 			goto error;
 		switch(t->etype) {
 		default:
-			yyerror("invalid operation: %N (index of type %T)", n, t);
+			yyerror("invalid operation: %N (type %T does not support indexing)", n, t);
 			goto error;
 
 
