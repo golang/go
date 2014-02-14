@@ -92,9 +92,12 @@ includes_Linux='
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <linux/if_addr.h>
+#include <linux/if.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_tun.h>
+#include <linux/if_packet.h>
+#include <linux/if_addr.h>
 #include <linux/filter.h>
 #include <linux/netlink.h>
 #include <linux/reboot.h>
@@ -103,10 +106,7 @@ includes_Linux='
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/icmpv6.h>
-#include <net/if.h>
-#include <net/if_arp.h>
 #include <net/route.h>
-#include <netpacket/packet.h>
 #include <termios.h>
 
 #ifndef MSG_FASTOPEN
