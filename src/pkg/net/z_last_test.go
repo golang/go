@@ -5,13 +5,16 @@
 package net
 
 import (
+	"flag"
 	"fmt"
 	"testing"
 )
 
+var testDNSFlood = flag.Bool("dnsflood", false, "whether to test dns query flooding")
+
 func TestDNSThreadLimit(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("skipping test to avoid external network")
+	if !*testDNSFlood {
+		t.Skip("test disabled; use -dnsflood to enable")
 	}
 
 	const N = 10000
