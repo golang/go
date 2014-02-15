@@ -594,6 +594,9 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 		switch {
 		case value.Kind() == reflect.Ptr && value.Type().Elem().AssignableTo(typ):
 			value = value.Elem()
+			if !value.IsValid() {
+				s.errorf("dereference of nil pointer of type %s", typ)
+			}
 		case reflect.PtrTo(value.Type()).AssignableTo(typ) && value.CanAddr():
 			value = value.Addr()
 		default:

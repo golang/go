@@ -512,6 +512,8 @@ var execTests = []execTest{
 	{"bug9", "{{.cause}}", "neglect", map[string]string{"cause": "neglect"}, true},
 	// Field chain starting with function did not work.
 	{"bug10", "{{mapOfThree.three}}-{{(mapOfThree).three}}", "3-3", 0, true},
+	// Dereferencing nil pointer while evaluating function arguments should not panic. Issue 7333.
+	{"bug11", "{{valueString .PS}}", "", T{}, false},
 }
 
 func zeroArgs() string {
@@ -544,6 +546,11 @@ func count(n int) chan string {
 // vfunc takes a *V and a V
 func vfunc(V, *V) string {
 	return "vfunc"
+}
+
+// valueString takes a string, not a pointer.
+func valueString(v string) string {
+	return "value is ignored"
 }
 
 func add(args ...int) int {
@@ -580,17 +587,18 @@ func mapOfThree() interface{} {
 func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	b := new(bytes.Buffer)
 	funcs := FuncMap{
-		"add":        add,
-		"count":      count,
-		"dddArg":     dddArg,
-		"echo":       echo,
-		"makemap":    makemap,
-		"mapOfThree": mapOfThree,
-		"oneArg":     oneArg,
-		"stringer":   stringer,
-		"typeOf":     typeOf,
-		"vfunc":      vfunc,
-		"zeroArgs":   zeroArgs,
+		"add":         add,
+		"count":       count,
+		"dddArg":      dddArg,
+		"echo":        echo,
+		"makemap":     makemap,
+		"mapOfThree":  mapOfThree,
+		"oneArg":      oneArg,
+		"stringer":    stringer,
+		"typeOf":      typeOf,
+		"valueString": valueString,
+		"vfunc":       vfunc,
+		"zeroArgs":    zeroArgs,
 	}
 	for _, test := range execTests {
 		var tmpl *Template
