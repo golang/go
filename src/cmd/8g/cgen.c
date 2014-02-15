@@ -522,6 +522,7 @@ agen(Node *n, Node *res)
 		// The generated code is just going to panic, so it need not
 		// be terribly efficient. See issue 3670.
 		tempname(&n1, n->type);
+		gvardef(&n1);
 		clearfat(&n1);
 		regalloc(&n2, types[tptr], res);
 		gins(ALEAL, &n1, &n2);
@@ -1224,10 +1225,6 @@ sgen(Node *n, Node *res, int64 w)
 		return;
 	}
 
-	// Record site of definition of ns for liveness analysis.
-	if(res->op == ONAME && res->class != PEXTERN)
-		gvardef(res);
-	
 	// If copying .args, that's all the results, so record definition sites
 	// for them for the liveness analysis.
 	if(res->op == ONAME && strcmp(res->sym->name, ".args") == 0)
@@ -1267,6 +1264,10 @@ sgen(Node *n, Node *res, int64 w)
 		agen(n, &src);
 	else
 		gmove(&tsrc, &src);
+
+	if(res->op == ONAME)
+		gvardef(res);
+
 	if(res->addable)
 		agen(res, &dst);
 	else
@@ -1383,6 +1384,8 @@ componentgen(Node *nr, Node *nl)
 
 	switch(nl->type->etype) {
 	case TARRAY:
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(nl->type->type);
 
@@ -1416,6 +1419,8 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRING:
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
 
@@ -1439,6 +1444,8 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TINTER:
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
 

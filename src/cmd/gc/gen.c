@@ -465,6 +465,8 @@ gen(Node *n)
 	case OAS:
 		if(gen_as_init(n))
 			break;
+		if(n->colas && isfat(n->left->type) && n->left->op == ONAME)
+			gvardef(n->left);
 		cgen_as(n->left, n->right);
 		break;
 
@@ -562,9 +564,9 @@ cgen_proc(Node *n, int proc)
 
 /*
  * generate declaration.
- * nothing to do for on-stack automatics,
- * but might have to allocate heap copy
+ * have to allocate heap copy
  * for escaped variables.
+ * also leave VARDEF annotations for liveness analysis.
  */
 static void
 cgen_dcl(Node *n)
@@ -575,6 +577,8 @@ cgen_dcl(Node *n)
 		dump("cgen_dcl", n);
 		fatal("cgen_dcl");
 	}
+	if(isfat(n->type))
+		gvardef(n);
 	if(!(n->class & PHEAP))
 		return;
 	if(n->alloc == nil)
@@ -637,6 +641,7 @@ cgen_discard(Node *nr)
 	// special enough to just evaluate
 	default:
 		tempname(&tmp, nr->type);
+		gvardef(&tmp);
 		cgen_as(&tmp, nr);
 		gused(&tmp);
 	}
@@ -739,6 +744,8 @@ cgen_as(Node *nl, Node *nr)
 		if(tl == T)
 			return;
 		if(isfat(tl)) {
+			if(nl->op == ONAME)
+				gvardef(nl);
 			clearfat(nl);
 			return;
 		}
@@ -767,12 +774,18 @@ cgen_eface(Node *n, Node *res)
 	 * so it's important that it is done first
 	 */
 	Node dst;
+	Node *tmp;
+
+	tmp = temp(types[tptr]);
+	cgen(n->right, tmp);
 
 	gvardef(res);
+
 	dst = *res;
 	dst.type = types[tptr];
 	dst.xoffset += widthptr;
-	cgen(n->right, &dst);
+	cgen(tmp, &dst);
+
 	dst.xoffset -= widthptr;
 	cgen(n->left, &dst);
 }
@@ -789,7 +802,7 @@ cgen_eface(Node *n, Node *res)
 void
 cgen_slice(Node *n, Node *res)
 {
-	Node src, dst, *cap, *len, *offs, *add;
+	Node src, dst, *cap, *len, *offs, *add, *base;
 
 	cap = n->list->n;
 	len = n->list->next->n;
@@ -797,26 +810,15 @@ cgen_slice(Node *n, Node *res)
 	if(n->list->next->next)
 		offs = n->list->next->next->n;
 
-	gvardef(res);
-
-	// dst.len = hi [ - lo ]
-	dst = *res;
-	dst.xoffset += Array_nel;
-	dst.type = types[simtype[TUINT]];
-	cgen(len, &dst);
-
-	if(n->op != OSLICESTR) {
-		// dst.cap = cap [ - lo ]
-		dst = *res;
-		dst.xoffset += Array_cap;
-		dst.type = types[simtype[TUINT]];
-		cgen(cap, &dst);
-	}
-
-	// dst.array = src.array  [ + lo *width ]
-	dst = *res;
-	dst.xoffset += Array_array;
-	dst.type = types[TUINTPTR];
+	// evaluate base pointer first, because it is the only
+	// possibly complex expression. once that is evaluated
+	// and stored, updating the len and cap can be done
+	// without making any calls, so without doing anything that
+	// might cause preemption or garbage collection.
+	// this makes the whole slice update atomic as far as the
+	// garbage collector can see.
+	
+	base = temp(types[TUINTPTR]);
 
 	if(isnil(n->left)) {
 		tempname(&src, n->left->type);
@@ -830,19 +832,43 @@ cgen_slice(Node *n, Node *res)
 	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
 		if(!isptr[n->left->type->etype])
 			fatal("slicearr is supposed to work on pointer: %+N\n", n);
-		cgen(&src, &dst);
-		cgen_checknil(&dst);
+		cgen(&src, base);
+		cgen_checknil(base);
 		if(offs != N) {
-			add = nod(OADD, &dst, offs);
+			add = nod(OADD, base, offs);
 			typecheck(&add, Erv);
-			cgen(add, &dst);
+			cgen(add, base);
 		}
 	} else if(offs == N) {
-		cgen(&src, &dst);
+		cgen(&src, base);
 	} else {
 		add = nod(OADD, &src, offs);
 		typecheck(&add, Erv);
-		cgen(add, &dst);
+		cgen(add, base);
+	}
+	
+	// committed to the update
+	gvardef(res);
+
+	// dst.array = src.array  [ + lo *width ]
+	dst = *res;
+	dst.xoffset += Array_array;
+	dst.type = types[TUINTPTR];
+	
+	cgen(base, &dst);
+
+	// dst.len = hi [ - lo ]
+	dst = *res;
+	dst.xoffset += Array_nel;
+	dst.type = types[simtype[TUINT]];
+	cgen(len, &dst);
+
+	if(n->op != OSLICESTR) {
+		// dst.cap = cap [ - lo ]
+		dst = *res;
+		dst.xoffset += Array_cap;
+		dst.type = types[simtype[TUINT]];
+		cgen(cap, &dst);
 	}
 }
 

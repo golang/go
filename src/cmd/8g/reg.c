@@ -165,6 +165,8 @@ regopt(Prog *firstp)
 
 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		p = r->f.prog;
+		if(p->as == AVARDEF)
+			continue;
 		proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.

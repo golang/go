@@ -583,8 +583,11 @@ newcfg(Prog *firstp)
 	// Unreachable control flow nodes are indicated by a -1 in the rpo
 	// field.  If we see these nodes something must have gone wrong in an
 	// upstream compilation phase.
-	if(bb->rpo == -1)
-		fatal("newcfg: unreferenced basic blocks");
+	if(bb->rpo == -1) {
+		print("newcfg: unreachable basic block for %P\n", bb->last);
+		printcfg(cfg);
+		fatal("newcfg: invalid control flow graph");
+	}
 
 	return cfg;
 }
@@ -956,63 +959,39 @@ livenessprintcfg(Liveness *lv)
 }
 
 static void
-checkauto(Node *fn, Prog *p, Node *n, char *where)
+checkauto(Node *fn, Prog *p, Node *n)
 {
-	NodeList *ll;
-	int found;
-	char *fnname;
-	char *nname;
+	NodeList *l;
 
-	found = 0;
-	for(ll = fn->dcl; ll != nil; ll = ll->next) {
-		if(ll->n->op == ONAME && ll->n->class == PAUTO) {
-			if(n == ll->n) {
-				found = 1;
-				break;
-			}
-		}
-	}
-	if(found)
-		return;
-	fnname = fn->nname->sym->name ? fn->nname->sym->name : "<unknown>";
-	nname = n->sym->name ? n->sym->name : "<unknown>";
-	print("D_AUTO '%s' not found: name is '%s' function is '%s' class is %d\n", where, nname, fnname, n->class);
-	print("Here '%P'\nlooking for node %p\n", p, n);
-	for(ll = fn->dcl; ll != nil; ll = ll->next)
-		print("node=%p, node->class=%d\n", (uintptr)ll->n, ll->n->class);
+	for(l = fn->dcl; l != nil; l = l->next)
+		if(l->n->op == ONAME && l->n->class == PAUTO && l->n == n)
+			return;
+
+	print("checkauto %N: %N (%p; class=%d) not found in %P\n", curfn, n, n, n->class, p);
+	for(l = fn->dcl; l != nil; l = l->next)
+		print("\t%N (%p; class=%d)\n", l->n, l->n, l->n->class);
 	yyerror("checkauto: invariant lost");
 }
 
 static void
-checkparam(Node *fn, Prog *p, Node *n, char *where)
+checkparam(Node *fn, Prog *p, Node *n)
 {
-	NodeList *ll;
-	int found;
-	char *fnname;
-	char *nname;
+	NodeList *l;
+	Node *a;
+	int class;
 
 	if(isfunny(n))
 		return;
-	found = 0;
-	for(ll = fn->dcl; ll != nil; ll = ll->next) {
-		if(ll->n->op == ONAME && ((ll->n->class & ~PHEAP) == PPARAM ||
-					  (ll->n->class & ~PHEAP) == PPARAMOUT)) {
-			if(n == ll->n) {
-				found = 1;
-				break;
-			}
-		}
+	for(l = fn->dcl; l != nil; l = l->next) {
+		a = l->n;
+		class = l->n->class & ~PHEAP;
+		if(a->op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n)
+			return;
 	}
-	if(found)
-		return;
-	if(n->sym) {
-		fnname = fn->nname->sym->name ? fn->nname->sym->name : "<unknown>";
-		nname = n->sym->name ? n->sym->name : "<unknown>";
-		print("D_PARAM '%s' not found: name='%s' function='%s' class is %d\n", where, nname, fnname, n->class);
-		print("Here '%P'\nlooking for node %p\n", p, n);
-		for(ll = fn->dcl; ll != nil; ll = ll->next)
-			print("node=%p, node->class=%d\n", ll->n, ll->n->class);
-	}
+
+	print("checkparam %N: %N (%p; class=%d) not found in %P\n", curfn, n, n, n->class, p);
+	for(l = fn->dcl; l != nil; l = l->next)
+		print("\t%N (%p; class=%d)\n", l->n, l->n, l->n->class);
 	yyerror("checkparam: invariant lost");
 }
 
@@ -1020,13 +999,13 @@ static void
 checkprog(Node *fn, Prog *p)
 {
 	if(p->from.type == D_AUTO)
-		checkauto(fn, p, p->from.node, "from");
+		checkauto(fn, p, p->from.node);
 	if(p->from.type == D_PARAM)
-		checkparam(fn, p, p->from.node, "from");
+		checkparam(fn, p, p->from.node);
 	if(p->to.type == D_AUTO)
-		checkauto(fn, p, p->to.node, "to");
+		checkauto(fn, p, p->to.node);
 	if(p->to.type == D_PARAM)
-		checkparam(fn, p, p->to.node, "to");
+		checkparam(fn, p, p->to.node);
 }
 
 // Check instruction invariants.  We assume that the nodes corresponding to the
@@ -1609,13 +1588,13 @@ livenessepilogue(Liveness *lv)
 				// Useful sanity check: on entry to the function,
 				// the only things that can possibly be live are the
 				// input parameters.
-				if(0 && p->as == ATEXT) {
+				if(p->as == ATEXT) {
 					for(j = 0; j < liveout->n; j++) {
 						if(!bvget(liveout, j))
 							continue;
 						n = *(Node**)arrayget(lv->vars, j);
 						if(n->class != PPARAM)
-							yyerrorl(p->lineno, "internal error: %N %N recorded as live on entry", curfn->nname, n);
+							yyerrorl(p->lineno, "internal error: %N %lN recorded as live on entry", curfn->nname, n);
 					}
 				}
 
