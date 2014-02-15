@@ -573,6 +573,8 @@ subprop(Flow *r0)
 			break;
 		}
 		p = r->prog;
+		if(p->as == AVARDEF)
+			continue;
 		proginfo(&info, p);
 		if(info.flags & Call) {
 			if(debug['P'] && debug['v'])
@@ -788,6 +790,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 	}
 
+	if(p->as == AVARDEF)
+		return 0;
 	proginfo(&info, p);
 
 	if((info.reguse|info.regset) & RtoB(v->type))

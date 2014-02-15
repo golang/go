@@ -31,11 +31,65 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 	return sym;
 }
 
+// gvardef inserts a VARDEF for n into the instruction stream.
+// VARDEF is an annotation for the liveness analysis, marking a place
+// where a complete initialization (definition) of a variable begins.
+// Since the liveness analysis can see initialization of single-word
+// variables quite easy, gvardef is usually only called for multi-word
+// or 'fat' variables, those satisfying isfat(n->type).
+// However, gvardef is also called when a non-fat variable is initialized
+// via a block move; the only time this happens is when you have
+//	return f()
+// for a function with multiple return values exactly matching the return
+// types of the current function.
+//
+// A 'VARDEF x' annotation in the instruction stream tells the liveness
+// analysis to behave as though the variable x is being initialized at that
+// point in the instruction stream. The VARDEF must appear before the
+// actual (multi-instruction) initialization, and it must also appear after
+// any uses of the previous value, if any. For example, if compiling:
+//
+//	x = x[1:]
+//
+// it is important to generate code like:
+//
+//	base, len, cap = pieces of x[1:]
+//	VARDEF x
+//	x = {base, len, cap}
+//
+// If instead the generated code looked like:
+//
+//	VARDEF x
+//	base, len, cap = pieces of x[1:]
+//	x = {base, len, cap}
+//
+// then the liveness analysis would decide the previous value of x was
+// unnecessary even though it is about to be used by the x[1:] computation.
+// Similarly, if the generated code looked like:
+//
+//	base, len, cap = pieces of x[1:]
+//	x = {base, len, cap}
+//	VARDEF x
+//
+// then the liveness analysis will not preserve the new value of x, because
+// the VARDEF appears to have "overwritten" it.
+//
+// VARDEF is a bit of a kludge to work around the fact that the instruction
+// stream is working on single-word values but the liveness analysis
+// wants to work on individual variables, which might be multi-word
+// aggregates. It might make sense at some point to look into letting
+// the liveness analysis work on single-word values as well, although
+// there are complications around interface values, which cannot be
+// treated as individual words.
 void
 gvardef(Node *n)
 {
 	if(n == N)
 		fatal("gvardef nil");
+	if(n->op != ONAME) {
+		yyerror("gvardef %#O; %N", n->op, n);
+		return;
+	}
 	switch(n->class) {
 	case PAUTO:
 	case PPARAM:

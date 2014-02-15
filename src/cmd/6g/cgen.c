@@ -813,6 +813,7 @@ agen(Node *n, Node *res)
 		// The generated code is just going to panic, so it need not
 		// be terribly efficient. See issue 3670.
 		tempname(&n1, n->type);
+		gvardef(&n1);
 		clearfat(&n1);
 		regalloc(&n2, types[tptr], res);
 		gins(ALEAQ, &n1, &n2);
@@ -1351,10 +1352,6 @@ sgen(Node *n, Node *ns, int64 w)
 	if(w < 0)
 		fatal("sgen copy %lld", w);
 	
-	// Record site of definition of ns for liveness analysis.
-	if(ns->op == ONAME && ns->class != PEXTERN)
-		gvardef(ns);
-	
 	// If copying .args, that's all the results, so record definition sites
 	// for them for the liveness analysis.
 	if(ns->op == ONAME && strcmp(ns->sym->name, ".args") == 0)
@@ -1392,11 +1389,16 @@ sgen(Node *n, Node *ns, int64 w)
 
 	if(n->ullman >= ns->ullman) {
 		agenr(n, &nodr, N);
+		if(ns->op == ONAME && ns->class != PEXTERN)
+			gvardef(ns);
 		agenr(ns, &nodl, N);
 	} else {
+		if(ns->op == ONAME && ns->class != PEXTERN)
+			gvardef(ns);
 		agenr(ns, &nodl, N);
 		agenr(n, &nodr, N);
 	}
+	
 	nodreg(&noddi, types[tptr], D_DI);
 	nodreg(&nodsi, types[tptr], D_SI);
 	gmove(&nodl, &noddi);
@@ -1573,6 +1575,8 @@ componentgen(Node *nr, Node *nl)
 	switch(nl->type->etype) {
 	case TARRAY:
 		// componentgen for arrays.
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		t = nl->type;
 		if(!isslice(t)) {
 			nodl.type = t->type;
@@ -1622,6 +1626,8 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRING:
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
 
@@ -1645,6 +1651,8 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TINTER:
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
 
@@ -1668,6 +1676,8 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRUCT:
+		if(nl->op == ONAME && nl->class != PEXTERN)
+			gvardef(nl);
 		loffset = nodl.xoffset;
 		roffset = nodr.xoffset;
 		// funarg structs may not begin at offset zero.

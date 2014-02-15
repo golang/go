@@ -1215,7 +1215,7 @@ functype(Node *this, NodeList *in, NodeList *out)
 	t->outnamed = 0;
 	if(t->outtuple > 0 && out->n->left != N && out->n->left->orig != N) {
 		s = out->n->left->orig->sym;
-		if(s != S && s->name[0] != '~' || s->name[1] != 'r') // ~r%d is the name invented for an unnamed result
+		if(s != S && (s->name[0] != '~' || s->name[1] != 'r')) // ~r%d is the name invented for an unnamed result
 			t->outnamed = 1;
 	}
 

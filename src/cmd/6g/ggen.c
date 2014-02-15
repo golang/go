@@ -60,13 +60,13 @@ void
 markautoused(Prog* p)
 {
 	for (; p; p = p->link) {
-		if (p->as == ATYPE)
+		if (p->as == ATYPE || p->as == AVARDEF)
 			continue;
 
-		if (p->from.type == D_AUTO && p->from.node)
+		if (p->from.node)
 			p->from.node->used = 1;
 
-		if (p->to.type == D_AUTO && p->to.node)
+		if (p->to.node)
 			p->to.node->used = 1;
 	}
 }
@@ -80,6 +80,16 @@ fixautoused(Prog *p)
 	for (lp=&p; (p=*lp) != P; ) {
 		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !p->from.node->used) {
 			*lp = p->link;
+			continue;
+		}
+		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
+			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+			// VARDEFs are interspersed with other code, and a jump might be using the
+			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+			// the no-ops.
+			p->to.type = D_NONE;
+			p->to.node = N;
+			p->as = ANOP;
 			continue;
 		}
 		if (p->from.type == D_AUTO && p->from.node)
@@ -1022,8 +1032,6 @@ clearfat(Node *nl)
 	/* clear a fat object */
 	if(debug['g'])
 		dump("\nclearfat", nl);
-
-	gvardef(nl);
 
 	w = nl->type->width;
 	// Avoid taking the address for simple enough types.

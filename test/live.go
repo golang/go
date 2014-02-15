@@ -182,3 +182,15 @@ func f12() *int {
 		return nil
 	}
 }
+
+// incorrectly placed VARDEF annotations can cause missing liveness annotations.
+// this used to be missing the fact that s is live during the call to g13 (because it is
+// needed for the call to h13).
+
+func f13() {
+	s := "hello"
+	s = h13(s, g13(s)) // ERROR "live at call to g13: s"
+}
+
+func g13(string) string
+func h13(string, string) string

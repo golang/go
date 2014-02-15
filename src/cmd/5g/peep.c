@@ -287,6 +287,8 @@ subprop(Flow *r0)
 		if(uniqs(r) == nil)
 			break;
 		p = r->prog;
+		if(p->as == AVARDEF)
+			continue;
 		proginfo(&info, p);
 		if(info.flags & Call)
 			return 0;
