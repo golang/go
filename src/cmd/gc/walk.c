@@ -21,7 +21,7 @@ static	NodeList*	reorder3(NodeList*);
 static	Node*	addstr(Node*, NodeList**);
 static	Node*	appendslice(Node*, NodeList**);
 static	Node*	append(Node*, NodeList**);
-static	Node*	copyany(Node*, NodeList**);
+static	Node*	copyany(Node*, NodeList**, int);
 static	Node*	sliceany(Node*, NodeList**);
 static	void	walkcompare(Node**, NodeList**);
 static	void	walkrotate(Node**);
@@ -223,6 +223,9 @@ walkstmt(Node **np)
 			walkexprlist(n->left->list, &n->ninit);
 			n->left = walkprint(n->left, &n->ninit, 1);
 			break;
+		case OCOPY:
+			n->left = copyany(n->left, &n->ninit, 1);
+			break;
 		default:
 			walkexpr(&n->left, &n->ninit);
 			break;
@@ -253,6 +256,9 @@ walkstmt(Node **np)
 		case OPRINTN:
 			walkexprlist(n->left->list, &n->ninit);
 			n->left = walkprint(n->left, &n->ninit, 1);
+			break;
+		case OCOPY:
+			n->left = copyany(n->left, &n->ninit, 1);
 			break;
 		default:
 			walkexpr(&n->left, &n->ninit);
@@ -1311,19 +1317,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCOPY:
-		if(flag_race) {
-			if(n->right->type->etype == TSTRING)
-				fn = syslook("slicestringcopy", 1);
-			else
-				fn = syslook("copy", 1);
-			argtype(fn, n->left->type);
-			argtype(fn, n->right->type);
-			n = mkcall1(fn, n->type, init,
-					n->left, n->right,
-					nodintconst(n->left->type->type->width));
-			goto ret;
-		}
-		n = copyany(n, init);
+		n = copyany(n, init, flag_race);
 		goto ret;
 
 	case OCLOSE:
@@ -2821,7 +2815,7 @@ append(Node *n, NodeList **init)
 	return ns;
 }
 
-// Lower copy(a, b) to a memmove call.
+// Lower copy(a, b) to a memmove call or a runtime call.
 //
 // init {
 //   n := len(a)
@@ -2833,11 +2827,22 @@ append(Node *n, NodeList **init)
 // Also works if b is a string.
 //
 static Node*
-copyany(Node *n, NodeList **init)
+copyany(Node *n, NodeList **init, int runtimecall)
 {
 	Node *nl, *nr, *nfrm, *nto, *nif, *nlen, *nwid, *fn;
 	NodeList *l;
 
+	if(runtimecall) {
+		if(n->right->type->etype == TSTRING)
+			fn = syslook("slicestringcopy", 1);
+		else
+			fn = syslook("copy", 1);
+		argtype(fn, n->left->type);
+		argtype(fn, n->right->type);
+		return mkcall1(fn, n->type, init,
+				n->left, n->right,
+				nodintconst(n->left->type->type->width));
+	}
 	walkexpr(&n->left, init);
 	walkexpr(&n->right, init);
 	nl = temp(n->left->type);
