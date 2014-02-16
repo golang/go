@@ -173,13 +173,23 @@ walkrange(Node *n)
 			a->list = list(list1(v1), v2);
 			a->rlist = list(list1(hv1), nod(OIND, hp, N));
 			body = list1(a);
-
+			
+			// Advance pointer as part of increment.
+			// We used to advance the pointer before executing the loop body,
+			// but doing so would make the pointer point past the end of the
+			// array during the final iteration, possibly causing another unrelated
+			// piece of memory not to be garbage collected until the loop finished.
+			// Advancing during the increment ensures that the pointer p only points
+			// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
+			// after which p is dead, so it cannot confuse the collector.
 			tmp = nod(OADD, hp, nodintconst(t->type->width));
 			tmp->type = hp->type;
 			tmp->typecheck = 1;
 			tmp->right->type = types[tptr];
 			tmp->right->typecheck = 1;
-			body = list(body, nod(OAS, hp, tmp));
+			a = nod(OAS, hp, tmp);
+			typecheck(&a, Etop);
+			n->nincr->ninit = list1(a);
 		}
 		break;
 
