@@ -43,7 +43,7 @@ func TestNames(t *testing.T) {
 	for i, tt := range nameTests {
 		s := fmt.Sprint(tt.val)
 		if s != tt.str {
-			t.Errorf("#%d: want %q have %q", i, s, tt.str)
+			t.Errorf("#%d: Sprint(%d) = %q, want %q", i, tt.val, s, tt.str)
 		}
 	}
 }
