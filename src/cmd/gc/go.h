@@ -1452,6 +1452,7 @@ void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
 Node*	conv(Node*, Type*);
 int	candiscard(Node*);
+Node*	outervalue(Node*);
 
 /*
  *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c

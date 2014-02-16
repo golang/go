@@ -2205,7 +2205,7 @@ reorder3save(Node **np, NodeList *all, NodeList *stop, NodeList **early)
  * what's the outer value that a write to n affects?
  * outer value means containing struct or array.
  */
-static Node*
+Node*
 outervalue(Node *n)
 {	
 	for(;;) {
