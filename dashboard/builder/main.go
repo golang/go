@@ -203,9 +203,12 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 
 	// read keys from keyfile
 	fn := ""
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "plan9":
+		fn = os.Getenv("home")
+	case "windows":
 		fn = os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
-	} else {
+	default:
 		fn = os.Getenv("HOME")
 	}
 	fn = filepath.Join(fn, ".gobuildkey")
