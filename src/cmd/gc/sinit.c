@@ -857,7 +857,7 @@ ctxt = 0;
 		r = l->n;
 
 		if(r->op != OKEY)
-			fatal("slicelit: rhs not OKEY: %N", r);
+			fatal("maplit: rhs not OKEY: %N", r);
 		index = r->left;
 		value = r->right;
 
@@ -901,7 +901,7 @@ ctxt = 0;
 			r = l->n;
 
 			if(r->op != OKEY)
-				fatal("slicelit: rhs not OKEY: %N", r);
+				fatal("maplit: rhs not OKEY: %N", r);
 			index = r->left;
 			value = r->right;
 
@@ -965,7 +965,7 @@ ctxt = 0;
 		r = l->n;
 
 		if(r->op != OKEY)
-			fatal("slicelit: rhs not OKEY: %N", r);
+			fatal("maplit: rhs not OKEY: %N", r);
 		index = r->left;
 		value = r->right;
 
