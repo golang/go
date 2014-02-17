@@ -2258,7 +2258,9 @@ func BenchmarkClientServer(b *testing.B) {
 		if err != nil {
 			b.Fatal("Get:", err)
 		}
+		defer res.Body.Close()
 		all, err := ioutil.ReadAll(res.Body)
+		res.Body.Close()
 		if err != nil {
 			b.Fatal("ReadAll:", err)
 		}
@@ -2301,6 +2303,7 @@ func benchmarkClientServerParallel(b *testing.B, conc int) {
 					continue
 				}
 				all, err := ioutil.ReadAll(res.Body)
+				res.Body.Close()
 				if err != nil {
 					b.Logf("ReadAll: %v", err)
 					continue
@@ -2338,6 +2341,7 @@ func BenchmarkServer(b *testing.B) {
 				log.Panicf("Get: %v", err)
 			}
 			all, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
 			if err != nil {
 				log.Panicf("ReadAll: %v", err)
 			}
