@@ -17,3 +17,9 @@ func ExampleNew() {
 	fmt.Printf("%x", h.Sum(nil))
 	// Output: e2c569be17396eca2a2e3c11578123ed
 }
+
+func ExampleSum() {
+	input := "The quick brown fox jumps over the lazy dog."
+	fmt.Printf("%x", md5.Sum([]byte(input)))
+	// Output: e4d909c290d0fb1ca068ffaddf22cbd0
+}
