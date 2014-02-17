@@ -43,12 +43,28 @@
 //
 // If a benchmark needs some expensive setup before running, the timer
 // may be reset:
+//
 //     func BenchmarkBigLen(b *testing.B) {
 //         big := NewBig()
 //         b.ResetTimer()
 //         for i := 0; i < b.N; i++ {
 //             big.Len()
 //         }
+//     }
+//
+// If a benchmark needs to test performance in a parallel setting, it may use
+// the RunParallel helper function; such benchmarks are intended to be used with
+// the go test -cpu flag:
+//
+//     func BenchmarkTemplateParallel(b *testing.B) {
+//         templ := template.Must(template.New("test").Parse("Hello, {{.}}!"))
+//         b.RunParallel(func(pb *testing.PB) {
+//             var buf bytes.Buffer
+//             for pb.Next() {
+//                 buf.Reset()
+//                 templ.Execute(&buf, "World")
+//             }
+//         })
 //     }
 //
 // Examples
