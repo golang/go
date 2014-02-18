@@ -217,6 +217,14 @@ timerproc(void)
 			if(raceenabled)
 				runtime·raceacquire(t);
 			f(now, arg);
+
+			// clear f and arg to avoid leak while sleeping for next timer
+			f = nil;
+			USED(f);
+			arg.type = nil;
+			arg.data = nil;
+			USED(&arg);
+
 			runtime·lock(&timers);
 		}
 		if(delta < 0) {
