@@ -182,7 +182,7 @@ var inPropTest = []T{
 	{0x0EC4, "Logical_Order_Exception"},
 	{0x2FFFF, "Noncharacter_Code_Point"},
 	{0x065E, "Other_Alphabetic"},
-	{0x2069, "Other_Default_Ignorable_Code_Point"},
+	{0x2065, "Other_Default_Ignorable_Code_Point"},
 	{0x0BD7, "Other_Grapheme_Extend"},
 	{0x0387, "Other_ID_Continue"},
 	{0x212E, "Other_ID_Start"},
