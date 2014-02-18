@@ -50,3 +50,20 @@ func (c *Cipher) Reset() {
 	}
 	c.i, c.j = 0, 0
 }
+
+// xorKeyStreamGeneric sets dst to the result of XORing src with the
+// key stream.  Dst and src may be the same slice but otherwise should
+// not overlap.
+//
+// This is the pure Go version. rc4_{amd64,386,arm}* contain assembly
+// implementations. This is here for tests and to prevent bitrot.
+func (c *Cipher) xorKeyStreamGeneric(dst, src []byte) {
+	i, j := c.i, c.j
+	for k, v := range src {
+		i += 1
+		j += uint8(c.s[i])
+		c.s[i], c.s[j] = c.s[j], c.s[i]
+		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
+	}
+	c.i, c.j = i, j
+}

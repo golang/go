@@ -117,19 +117,30 @@ func TestGolden(t *testing.T) {
 }
 
 func TestBlock(t *testing.T) {
+	testBlock(t, (*Cipher).XORKeyStream)
+}
+
+// Test the pure Go version.
+// Because we have assembly for amd64, 386, and arm, this prevents
+// bitrot of the reference implementations.
+func TestBlockGeneric(t *testing.T) {
+	testBlock(t, (*Cipher).xorKeyStreamGeneric)
+}
+
+func testBlock(t *testing.T, xor func(c *Cipher, dst, src []byte)) {
 	c1a, _ := NewCipher(golden[0].key)
 	c1b, _ := NewCipher(golden[1].key)
 	data1 := make([]byte, 1<<20)
 	for i := range data1 {
-		c1a.XORKeyStream(data1[i:i+1], data1[i:i+1])
-		c1b.XORKeyStream(data1[i:i+1], data1[i:i+1])
+		xor(c1a, data1[i:i+1], data1[i:i+1])
+		xor(c1b, data1[i:i+1], data1[i:i+1])
 	}
 
 	c2a, _ := NewCipher(golden[0].key)
 	c2b, _ := NewCipher(golden[1].key)
 	data2 := make([]byte, 1<<20)
-	c2a.XORKeyStream(data2, data2)
-	c2b.XORKeyStream(data2, data2)
+	xor(c2a, data2, data2)
+	xor(c2b, data2, data2)
 
 	if !bytes.Equal(data1, data2) {
 		t.Fatalf("bad block")
