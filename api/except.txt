@@ -318,3 +318,4 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_spare [3]uint32
 pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
+pkg unicode, const Version = "6.2.0"
