@@ -65,7 +65,6 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		pkg.values[obj] = nil // for needMethods
 		pkg.Members[name] = &Type{
 			object: obj,
 			pkg:    pkg,
@@ -97,7 +96,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			object:    obj,
 			Signature: obj.Type().(*types.Signature),
 			syntax:    syntax,
-			pos:       obj.Pos(), // (iff syntax)
+			pos:       obj.Pos(),
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
 		}

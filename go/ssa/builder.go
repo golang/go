@@ -2180,9 +2180,9 @@ func (p *Package) Build() {
 	// Ensure we have runtime type info for all exported members.
 	// TODO(adonovan): ideally belongs in memberFromObject, but
 	// that would require package creation in topological order.
-	for obj := range p.values {
-		if obj.Exported() {
-			p.needMethodsOf(obj.Type())
+	for name, mem := range p.Members {
+		if ast.IsExported(name) {
+			p.needMethodsOf(mem.Type())
 		}
 	}
 	if p.Prog.mode&LogSource != 0 {
@@ -2283,10 +2283,19 @@ func (p *Package) typeOf(e ast.Expr) types.Type {
 // operand of some MakeInterface instruction, and for the type of
 // every exported package member.
 //
+// Precondition: T is not a method signature (*Signature with Recv()!=nil).
+//
+// TODO(adonovan): fix: make this thread-safe.  I don't think it is
+// right now since it's called concurrently from emitConv.
+//
+// TODO(adonovan): make this faster.  It accounts for 20% of SSA build
+// time, even with concurrency and no locking.
+//
 func (p *Package) needMethodsOf(T types.Type) {
 	p.needMethods(T, false)
 }
 
+// Precondition: T is not a method signature (*Signature with Recv()!=nil).
 // Recursive case: skip => don't call makeMethods(T).
 func (p *Package) needMethods(T types.Type, skip bool) {
 	// Each package maintains its own set of types it has visited.
@@ -2321,14 +2330,20 @@ func (p *Package) needMethods(T types.Type, skip bool) {
 		p.methodSets = append(p.methodSets, T)
 	}
 
+	// Recursion over signatures of each method.
+	tmset := p.Prog.MethodSets.MethodSet(T)
+	for i := 0; i < tmset.Len(); i++ {
+		sig := tmset.At(i).Type().(*types.Signature)
+		p.needMethodsOf(sig.Params())
+		p.needMethodsOf(sig.Results())
+	}
+
 	switch t := T.(type) {
 	case *types.Basic:
 		// nop
 
 	case *types.Interface:
-		for i, n := 0, t.NumMethods(); i < n; i++ {
-			p.needMethodsOf(t.Method(i).Type())
-		}
+		// nop---handled by recursion over method set.
 
 	case *types.Pointer:
 		p.needMethodsOf(t.Elem())
@@ -2345,7 +2360,7 @@ func (p *Package) needMethods(T types.Type, skip bool) {
 
 	case *types.Signature:
 		if t.Recv() != nil {
-			p.needMethodsOf(t.Recv().Type())
+			panic(fmt.Sprintf("Signature %s has Recv %s", t, t.Recv()))
 		}
 		p.needMethodsOf(t.Params())
 		p.needMethodsOf(t.Results())
@@ -2365,7 +2380,6 @@ func (p *Package) needMethods(T types.Type, skip bool) {
 		p.needMethodsOf(t.Elem())
 
 	case *types.Struct:
-		// TODO(adonovan): must we recur over the types of promoted methods?
 		for i, n := 0, t.NumFields(); i < n; i++ {
 			p.needMethodsOf(t.Field(i).Type())
 		}

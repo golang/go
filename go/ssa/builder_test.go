@@ -149,74 +149,78 @@ func main() {
 	}
 }
 
-// TestMethodSets tests that Package.TypesWithMethodSets includes all necessary types.
+// TestTypesWithMethodSets tests that Package.TypesWithMethodSets includes all necessary types.
 func TestTypesWithMethodSets(t *testing.T) {
 	tests := []struct {
 		input string
 		want  []string
 	}{
 		// An exported package-level type is needed.
-		{`package p; type T struct{}; func (T) f() {}`,
+		{`package A; type T struct{}; func (T) f() {}`,
 			[]string{"*p.T", "p.T"},
 		},
 		// An unexported package-level type is not needed.
-		{`package p; type t struct{}; func (t) f() {}`,
+		{`package B; type t struct{}; func (t) f() {}`,
 			nil,
 		},
 		// Subcomponents of type of exported package-level var are needed.
-		{`package p; import "bytes"; var V struct {*bytes.Buffer}`,
-			[]string{"struct{*bytes.Buffer}"},
+		{`package C; import "bytes"; var V struct {*bytes.Buffer}`,
+			[]string{"*struct{*bytes.Buffer}", "struct{*bytes.Buffer}"},
 		},
 		// Subcomponents of type of unexported package-level var are not needed.
-		{`package p; import "bytes"; var v struct {*bytes.Buffer}`,
+		{`package D; import "bytes"; var v struct {*bytes.Buffer}`,
 			nil,
 		},
 		// Subcomponents of type of exported package-level function are needed.
-		{`package p; import "bytes"; func F(struct {*bytes.Buffer}) {}`,
+		{`package E; import "bytes"; func F(struct {*bytes.Buffer}) {}`,
 			[]string{"struct{*bytes.Buffer}"},
 		},
 		// Subcomponents of type of unexported package-level function are not needed.
-		{`package p; import "bytes"; func f(struct {*bytes.Buffer}) {}`,
+		{`package F; import "bytes"; func f(struct {*bytes.Buffer}) {}`,
 			nil,
 		},
-		// Subcomponents of type of exported method are needed.
-		{`package p; import "bytes"; type x struct{}; func (x) G(struct {*bytes.Buffer}) {}`,
-			[]string{"*p.x", "p.x", "struct{*bytes.Buffer}"},
-		},
-		// Subcomponents of type of unexported method are not needed.
-		{`package p; import "bytes"; type X struct{}; func (X) G(struct {*bytes.Buffer}) {}`,
-			[]string{"*p.X", "p.X", "struct{*bytes.Buffer}"},
-		},
-		// Local types aren't needed.
-		{`package p; import "bytes"; func f() { type T struct {*bytes.Buffer}; var t T; _ = t }`,
+		// Subcomponents of type of exported method of uninstantiated unexported type are not needed.
+		{`package G; import "bytes"; type x struct{}; func (x) G(struct {*bytes.Buffer}) {}; var v x`,
 			nil,
 		},
 		// ...unless used by MakeInterface.
-		{`package p; import "bytes"; func f() { type T struct {*bytes.Buffer}; _ = interface{}(T{}) }`,
+		{`package G2; import "bytes"; type x struct{}; func (x) G(struct {*bytes.Buffer}) {}; var v interface{} = x{}`,
+			[]string{"*p.x", "p.x", "struct{*bytes.Buffer}"},
+		},
+		// Subcomponents of type of unexported method are not needed.
+		{`package I; import "bytes"; type X struct{}; func (X) G(struct {*bytes.Buffer}) {}`,
+			[]string{"*p.X", "p.X", "struct{*bytes.Buffer}"},
+		},
+		// Local types aren't needed.
+		{`package J; import "bytes"; func f() { type T struct {*bytes.Buffer}; var t T; _ = t }`,
+			nil,
+		},
+		// ...unless used by MakeInterface.
+		{`package K; import "bytes"; func f() { type T struct {*bytes.Buffer}; _ = interface{}(T{}) }`,
 			[]string{"*p.T", "p.T"},
 		},
 		// Types used as operand of MakeInterface are needed.
-		{`package p; import "bytes"; func f() { _ = interface{}(struct{*bytes.Buffer}{}) }`,
+		{`package L; import "bytes"; func f() { _ = interface{}(struct{*bytes.Buffer}{}) }`,
 			[]string{"struct{*bytes.Buffer}"},
 		},
 		// MakeInterface is optimized away when storing to a blank.
-		{`package p; import "bytes"; var _ interface{} = struct{*bytes.Buffer}{}`,
+		{`package M; import "bytes"; var _ interface{} = struct{*bytes.Buffer}{}`,
 			nil,
 		},
 	}
-	for i, test := range tests {
+	for _, test := range tests {
 		// Create a single-file main package.
 		var conf loader.Config
 		f, err := conf.ParseFile("<input>", test.input, 0)
 		if err != nil {
-			t.Errorf("test %d: %s", i, err)
+			t.Errorf("test %q: %s", test.input[:15], err)
 			continue
 		}
 		conf.CreateFromFiles("p", f)
 
 		iprog, err := conf.Load()
 		if err != nil {
-			t.Errorf("test %d: Load: %s", i, err)
+			t.Errorf("test 'package %s': Load: %s", f.Name.Name, err)
 			continue
 		}
 		prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
@@ -230,7 +234,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 		sort.Strings(typstrs)
 
 		if !reflect.DeepEqual(typstrs, test.want) {
-			t.Errorf("test %d: got %q, want %q", i, typstrs, test.want)
+			t.Errorf("test 'package %s': got %q, want %q", f.Name.Name, typstrs, test.want)
 		}
 	}
 }

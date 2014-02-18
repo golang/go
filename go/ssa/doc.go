@@ -19,9 +19,9 @@
 // tools.  It is not intended for machine code generation.
 //
 // All looping, branching and switching constructs are replaced with
-// unstructured control flow.  We may add higher-level control flow
-// primitives in the future to facilitate constant-time dispatch of
-// switch statements, for example.
+// unstructured control flow.  Higher-level control flow constructs
+// such as multi-way branch can be reconstructed as needed; see
+// ssautil.Switches() for an example.
 //
 // To construct an SSA-form program, call ssa.Create on a
 // loader.Program, a set of type-checked packages created from

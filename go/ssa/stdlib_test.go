@@ -53,6 +53,7 @@ func TestStdlib(t *testing.T) {
 	t0 := time.Now()
 
 	var conf loader.Config
+	conf.SourceImports = true
 	if _, err := conf.FromArgs(allPackages(), true); err != nil {
 		t.Errorf("FromArgs failed: %v", err)
 		return
@@ -79,7 +80,7 @@ func TestStdlib(t *testing.T) {
 
 	t2 := time.Now()
 
-	// Build SSA IR... if it's safe.
+	// Build SSA.
 	prog.BuildAll()
 
 	t3 := time.Now()
@@ -121,5 +122,5 @@ func TestStdlib(t *testing.T) {
 	t.Log("#Packages:            ", numPkgs)
 	t.Log("#Functions:           ", len(allFuncs))
 	t.Log("#Instructions:        ", numInstrs)
-	t.Log("#MB:                  ", (memstats.Alloc-alloc)/1000000)
+	t.Log("#MB:                  ", int64(memstats.Alloc-alloc)/1000000)
 }
