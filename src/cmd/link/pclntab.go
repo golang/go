@@ -379,7 +379,6 @@ func (b *SymBuffer) Addr(off int, sym goobj.SymID, symoff int64) int {
 // A PCIter implements iteration over PC-data tables.
 //
 //	var it PCIter
-//	it.Init(p, data)
 //	for it.Init(p, data); !it.Done; it.Next() {
 //		it.Value holds from it.PC up to (but not including) it.NextPC
 //	}
