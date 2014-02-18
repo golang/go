@@ -60,7 +60,7 @@ static void
 addexp(char *s)
 {
 	int i;
-	
+
 	for(i=0; exper[i].name != nil; i++) {
 		if(strcmp(exper[i].name, s) == 0) {
 			*exper[i].val = 1;
@@ -77,7 +77,9 @@ setexp(void)
 {
 	char *f[20];
 	int i, nf;
-	
+
+	precisestack_enabled = 1; // on by default
+
 	// The makefile #defines GOEXPERIMENT for us.
 	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
 	for(i=0; i<nf; i++)
