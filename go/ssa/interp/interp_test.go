@@ -153,7 +153,7 @@ var gorootSrcPkgTests = []string{
 	"encoding/hex",
 	"encoding/pem",
 	"hash/crc32",
-	"testing",
+	// "testing", // TODO(adonovan): implement runtime.Goexit correctly
 	"text/scanner",
 	"unicode",
 

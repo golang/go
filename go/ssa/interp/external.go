@@ -88,6 +88,7 @@ func init() {
 		"runtime.FuncForPC":               ext۰runtime۰FuncForPC,
 		"runtime.GC":                      ext۰runtime۰GC,
 		"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
+		"runtime.Goexit":                  ext۰runtime۰Goexit,
 		"runtime.Gosched":                 ext۰runtime۰Gosched,
 		"runtime.NumCPU":                  ext۰runtime۰NumCPU,
 		"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
@@ -97,8 +98,12 @@ func init() {
 		"runtime.funcname_go":             ext۰runtime۰funcname_go,
 		"runtime.getgoroot":               ext۰runtime۰getgoroot,
 		"strings.IndexByte":               ext۰strings۰IndexByte,
+		"sync.runtime_Semacquire":         ext۰sync۰runtime_Semacquire,
+		"sync.runtime_Semrelease":         ext۰sync۰runtime_Semrelease,
 		"sync.runtime_Syncsemcheck":       ext۰sync۰runtime_Syncsemcheck,
 		"sync/atomic.AddInt32":            ext۰atomic۰AddInt32,
+		"sync/atomic.AddUint32":           ext۰atomic۰AddUint32,
+		"sync/atomic.AddUint64":           ext۰atomic۰AddUint64,
 		"sync/atomic.CompareAndSwapInt32": ext۰atomic۰CompareAndSwapInt32,
 		"sync/atomic.LoadInt32":           ext۰atomic۰LoadInt32,
 		"sync/atomic.LoadUint32":          ext۰atomic۰LoadUint32,
@@ -285,11 +290,28 @@ func ext۰strings۰IndexByte(fr *frame, args []value) value {
 }
 
 func ext۰sync۰runtime_Syncsemcheck(fr *frame, args []value) value {
+	// TODO(adonovan): fix: implement.
+	return nil
+}
+
+func ext۰sync۰runtime_Semacquire(fr *frame, args []value) value {
+	// TODO(adonovan): fix: implement.
+	return nil
+}
+
+func ext۰sync۰runtime_Semrelease(fr *frame, args []value) value {
+	// TODO(adonovan): fix: implement.
 	return nil
 }
 
 func ext۰runtime۰GOMAXPROCS(fr *frame, args []value) value {
 	return runtime.GOMAXPROCS(args[0].(int))
+}
+
+func ext۰runtime۰Goexit(fr *frame, args []value) value {
+	// TODO(adonovan): don't kill the interpreter's main goroutine.
+	runtime.Goexit()
+	return nil
 }
 
 func ext۰runtime۰GC(fr *frame, args []value) value {
@@ -347,6 +369,22 @@ func ext۰atomic۰AddInt32(fr *frame, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	p := args[0].(*value)
 	newv := (*p).(int32) + args[1].(int32)
+	*p = newv
+	return newv
+}
+
+func ext۰atomic۰AddUint32(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	p := args[0].(*value)
+	newv := (*p).(uint32) + args[1].(uint32)
+	*p = newv
+	return newv
+}
+
+func ext۰atomic۰AddUint64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	p := args[0].(*value)
+	newv := (*p).(uint64) + args[1].(uint64)
 	*p = newv
 	return newv
 }
