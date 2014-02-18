@@ -165,6 +165,7 @@ func (p *process) Kill() {
 
 // shebang looks for a shebang ('#!') at the beginning of the passed string.
 // If found, it returns the path and args after the shebang.
+// args includes the command as args[0].
 func shebang(body string) (path string, args []string) {
 	body = strings.TrimSpace(body)
 	if !strings.HasPrefix(body, "#!") {
@@ -174,7 +175,7 @@ func shebang(body string) (path string, args []string) {
 		body = body[:i]
 	}
 	fs := strings.Fields(body[2:])
-	return fs[0], fs[1:]
+	return fs[0], fs
 }
 
 // startProcess starts a given program given its path and passing the given body
