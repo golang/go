@@ -52,10 +52,10 @@ go test sync -short -timeout=120s -cpu=10
 if errorlevel 1 goto fail
 echo.
 
-# Race detector only supported on Linux and OS X,
-# and only on amd64, and only when cgo is enabled.
-# Disabled due to golang.org/issue/7334; remove XXX below
-# and in run.bash to reenable.
+:: Race detector only supported on Linux and OS X,
+:: and only on amd64, and only when cgo is enabled.
+:: Disabled due to golang.org/issue/7334; remove XXX below
+:: and in run.bash to reenable.
 if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "XXXwindows-windows-amd64-1" goto norace
 echo # Testing race detector.
 go test -race -i runtime/race flag
