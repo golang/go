@@ -206,7 +206,7 @@ func reflectCall(a *analysis, cgn *cgnode, dotdotdot bool) {
 	recv := a.funcParams(cgn.obj)
 	arg := recv + 1
 	ret := reflectCallImpl(a, cgn, site, recv, arg, dotdotdot)
-	a.addressOf(a.funcResults(cgn.obj), ret)
+	a.addressOf(cgn.fn.Signature.Results().At(0).Type(), a.funcResults(cgn.obj), ret)
 }
 
 func ext۰reflect۰Value۰Call(a *analysis, cgn *cgnode) {
@@ -484,9 +484,10 @@ func (c *rVMapKeysConstraint) solve(a *analysis, _ *node, delta nodeset) {
 func ext۰reflect۰Value۰MapKeys(a *analysis, cgn *cgnode) {
 	// Allocate an array for the result.
 	obj := a.nextNode()
-	a.addNodes(types.NewArray(a.reflectValueObj.Type(), 1), "reflect.MapKeys result")
+	T := types.NewSlice(a.reflectValueObj.Type())
+	a.addNodes(sliceToArray(T), "reflect.MapKeys result")
 	a.endObject(obj, cgn, nil)
-	a.addressOf(a.funcResults(cgn.obj), obj)
+	a.addressOf(T, a.funcResults(cgn.obj), obj)
 
 	a.addConstraint(&rVMapKeysConstraint{
 		cgn:    cgn,

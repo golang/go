@@ -79,6 +79,18 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 		fmt.Fprintf(a.log, "\tval[%s] = n%d  (%T)\n", v.Name(), id, v)
 	}
 
+	// TODO(adonovan): due to context-sensitivity, we may
+	// encounter the same Value in many contexts.  In a follow-up,
+	// let's merge them to a canonical node, since that's what all
+	// clients want.
+	// ptr, ok := a.result.Queries[v]
+	// if !ok {
+	// 	// First time?  Create the canonical probe node.
+	// 	ptr = Pointer{a, nil, a.addNodes(t, "query")}
+	// 	a.result.Queries[v] = ptr
+	// }
+	// a.copy(ptr.n, id, a.sizeof(v.Type()))
+
 	// Record the (v, id) relation if the client has queried pts(v).
 	if _, ok := a.config.Queries[v]; ok {
 		a.result.Queries[v] = append(a.result.Queries[v], Pointer{a, cgn, id})
@@ -173,7 +185,7 @@ func (a *analysis) makeRtype(T types.Type) nodeid {
 
 	id := a.makeTagged(a.reflectRtypePtr, nil, T)
 	a.nodes[id+1].typ = T // trick (each *rtype tagged object is a singleton)
-	a.addressOf(id+1, obj)
+	a.addressOf(a.reflectRtypePtr, id+1, obj)
 
 	a.rtypes.Set(T, id)
 	return id
@@ -207,7 +219,7 @@ func (a *analysis) valueNode(v ssa.Value) nodeid {
 		}
 		id = a.addOneNode(v.Type(), comment, nil)
 		if obj := a.objectNode(nil, v); obj != 0 {
-			a.addressOf(id, obj)
+			a.addressOf(v.Type(), id, obj)
 		}
 		a.setValueNode(v, id, nil)
 	}
@@ -290,14 +302,17 @@ func (a *analysis) copy(dst, src nodeid, sizeof uint32) {
 }
 
 // addressOf creates a constraint of the form id = &obj.
-func (a *analysis) addressOf(id, obj nodeid) {
+// T is the type of the address.
+func (a *analysis) addressOf(T types.Type, id, obj nodeid) {
 	if id == 0 {
 		panic("addressOf: zero id")
 	}
 	if obj == 0 {
 		panic("addressOf: zero obj")
 	}
-	a.addConstraint(&addrConstraint{id, obj})
+	if a.shouldTrack(T) {
+		a.addConstraint(&addrConstraint{id, obj})
+	}
 }
 
 // load creates a load constraint of the form dst = src[offset].
@@ -344,8 +359,12 @@ func (a *analysis) store(dst, src nodeid, offset uint32, sizeof uint32) {
 
 // offsetAddr creates an offsetAddr constraint of the form dst = &src.#offset.
 // offset is the field offset in logical fields.
+// T is the type of the address.
 //
-func (a *analysis) offsetAddr(dst, src nodeid, offset uint32) {
+func (a *analysis) offsetAddr(T types.Type, dst, src nodeid, offset uint32) {
+	if !a.shouldTrack(T) {
+		return
+	}
 	if offset == 0 {
 		// Simplify  dst = &src->f0
 		//       to  dst = src
@@ -432,7 +451,7 @@ func (a *analysis) genConv(conv *ssa.Convert, cgn *cgnode) {
 				// unsafe conversions soundly; see TODO file.
 				obj := a.addNodes(mustDeref(tDst), "unsafe.Pointer conversion")
 				a.endObject(obj, cgn, conv)
-				a.addressOf(res, obj)
+				a.addressOf(tDst, res, obj)
 				return
 			}
 
@@ -441,7 +460,7 @@ func (a *analysis) genConv(conv *ssa.Convert, cgn *cgnode) {
 			if utSrc.Info()&types.IsString != 0 {
 				obj := a.addNodes(sliceToArray(tDst), "convert")
 				a.endObject(obj, cgn, conv)
-				a.addressOf(res, obj)
+				a.addressOf(tDst, res, obj)
 				return
 			}
 
@@ -499,8 +518,8 @@ func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 	a.addNodes(tArray, "append")
 	a.endObject(w, cgn, instr)
 
-	a.copyElems(cgn, tArray.Elem(), z, y) // *z = *y
-	a.addressOf(a.valueNode(z), w)        //  z = &w
+	a.copyElems(cgn, tArray.Elem(), z, y)        // *z = *y
+	a.addressOf(instr.Type(), a.valueNode(z), w) //  z = &w
 }
 
 // genBuiltinCall generates contraints for a call to a built-in.
@@ -523,29 +542,8 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 			a.copy(a.valueNode(v), a.panicNode, 1)
 		}
 
-	case "print":
-		// Analytically print is a no-op, but it's a convenient hook
-		// for testing the pts of an expression, so we notify the client.
-		// Existing uses in Go core libraries are few and harmless.
-		if a.config.QueryPrintCalls {
-			// Due to context-sensitivity, we may encounter
-			// the same print() call in many contexts, so
-			// we merge them to a canonical node.
-
-			t := call.Args[0].Type()
-
-			ptr, ok := a.result.PrintCalls[call]
-			if !ok {
-				// First time?  Create the canonical probe node.
-				ptr = Pointer{a, nil, a.addNodes(t, "print")}
-				a.result.PrintCalls[call] = ptr
-			}
-			probe := ptr.n
-			a.copy(probe, a.valueNode(call.Args[0]), a.sizeof(t))
-		}
-
 	default:
-		// No-ops: close len cap real imag complex println delete.
+		// No-ops: close len cap real imag complex print println delete.
 	}
 }
 
@@ -605,7 +603,7 @@ func (a *analysis) genStaticCall(caller *cgnode, site *callsite, call *ssa.CallC
 		dotdotdot := false
 		ret := reflectCallImpl(a, caller, site, a.valueNode(call.Args[0]), a.valueNode(call.Args[1]), dotdotdot)
 		if result != 0 {
-			a.addressOf(result, ret)
+			a.addressOf(fn.Signature.Results().At(0).Type(), result, ret)
 		}
 		return
 	}
@@ -720,8 +718,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	a.typeAssert(a.reflectRtypePtr, rtype, recv, true)
 
 	// Look up the concrete method.
-	meth := a.prog.MethodSets.MethodSet(a.reflectRtypePtr).Lookup(call.Method.Pkg(), call.Method.Name())
-	fn := a.prog.Method(meth)
+	fn := a.prog.LookupMethod(a.reflectRtypePtr, call.Method.Pkg(), call.Method.Name())
 
 	obj := a.makeFunctionObject(fn, site) // new contour for this call
 	a.callEdge(site, obj)
@@ -731,7 +728,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 
 	sig := fn.Signature // concrete method
 	targets := a.addOneNode(sig, "call.targets", nil)
-	a.addressOf(targets, obj) // (a singleton)
+	a.addressOf(sig, targets, obj) // (a singleton)
 
 	// Copy receiver.
 	params := a.funcParams(obj)
@@ -814,12 +811,7 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 				obj = a.makeFunctionObject(v, nil)
 
 			case *ssa.Const:
-				if t, ok := v.Type().Underlying().(*types.Slice); ok && !v.IsNil() {
-					// Non-nil []byte or []rune constant.
-					obj = a.nextNode()
-					a.addNodes(sliceToArray(t), "array in slice constant")
-					a.endObject(obj, nil, v)
-				}
+				// The only pointer-like Consts are nil.
 
 			case *ssa.Capture:
 				// For now, Captures have the same cardinality as globals.
@@ -912,9 +904,9 @@ func (a *analysis) genOffsetAddr(cgn *cgnode, v ssa.Value, ptr nodeid, offset ui
 	dst := a.valueNode(v)
 	if obj := a.objectNode(cgn, v); obj != 0 {
 		// Pre-apply offsetAddrConstraint.solve().
-		a.addressOf(dst, obj)
+		a.addressOf(v.Type(), dst, obj)
 	} else {
-		a.offsetAddr(dst, ptr, offset)
+		a.offsetAddr(v.Type(), dst, ptr, offset)
 	}
 }
 
@@ -1018,7 +1010,7 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 
 	case *ssa.Alloc, *ssa.MakeSlice, *ssa.MakeChan, *ssa.MakeMap, *ssa.MakeInterface:
 		v := instr.(ssa.Value)
-		a.addressOf(a.valueNode(v), a.objectNode(cgn, v))
+		a.addressOf(v.Type(), a.valueNode(v), a.objectNode(cgn, v))
 
 	case *ssa.ChangeInterface:
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
@@ -1251,9 +1243,10 @@ func (a *analysis) generate() *cgnode {
 	// The runtime magically allocates os.Args; so should we.
 	if os := a.prog.ImportedPackage("os"); os != nil {
 		// In effect:  os.Args = new([1]string)[:]
-		obj := a.addNodes(types.NewArray(types.Typ[types.String], 1), "<command-line args>")
+		T := types.NewSlice(types.Typ[types.String])
+		obj := a.addNodes(sliceToArray(T), "<command-line args>")
 		a.endObject(obj, nil, "<command-line args>")
-		a.addressOf(a.objectNode(nil, os.Var("Args")), obj)
+		a.addressOf(T, a.objectNode(nil, os.Var("Args")), obj)
 	}
 
 	return root

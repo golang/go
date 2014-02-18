@@ -177,11 +177,7 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa.Functio
 	case errorType:
 		return i.errorMethods[meth.Id()]
 	}
-	sel := i.prog.MethodSets.MethodSet(typ).Lookup(meth.Pkg(), meth.Name())
-	if sel == nil {
-		panic(fmt.Sprintf("%s has no method %s (of type %s)", typ, meth.Id(), meth.Type()))
-	}
-	return i.prog.Method(sel)
+	return i.prog.LookupMethod(typ, meth.Pkg(), meth.Name())
 }
 
 // visitInstr interprets a single ssa.Instruction within the activation

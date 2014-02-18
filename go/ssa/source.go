@@ -202,8 +202,7 @@ func (prog *Program) FuncValue(obj *types.Func) *Function {
 		return v.(*Function)
 	}
 	// Interface method wrapper?
-	meth := prog.MethodSets.MethodSet(recvType(obj)).Lookup(obj.Pkg(), obj.Name())
-	return prog.Method(meth)
+	return prog.LookupMethod(recvType(obj), obj.Pkg(), obj.Name())
 }
 
 // ConstValue returns the SSA Value denoted by the source-level named

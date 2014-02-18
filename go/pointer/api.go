@@ -33,14 +33,6 @@ type Config struct {
 	// If enabled, the graph will be available in Result.CallGraph.
 	BuildCallGraph bool
 
-	// QueryPrintCalls causes the analysis to record (in
-	// Result.PrintCalls) the points-to set of the first operand
-	// of each discovered call to the built-in print(x), providing
-	// a convenient way to identify arbitrary expressions of
-	// interest in the tests.
-	//
-	QueryPrintCalls bool
-
 	// The client populates Queries[v] or IndirectQueries[v]
 	// for each ssa.Value v of interest, to request that the
 	// points-to sets pts(v) or pts(*v) be computed.  If the
@@ -59,12 +51,13 @@ type Config struct {
 	// context-sensitively, the corresponding Result.{Indirect,}Queries
 	// slice may have multiple Pointers, one per distinct context.
 	// Use PointsToCombined to merge them.
-	//
-	// TODO(adonovan): this API doesn't scale well for batch tools
-	// that want to dump the entire solution.
-	//
 	// TODO(adonovan): need we distinguish contexts?  Current
 	// clients always combine them.
+	//
+	// TODO(adonovan): this API doesn't scale well for batch tools
+	// that want to dump the entire solution.  Perhaps optionally
+	// populate a map[*ssa.DebugRef]Pointer in the Result, one
+	// entry per source expression.
 	//
 	Queries         map[ssa.Value]struct{}
 	IndirectQueries map[ssa.Value]struct{}
@@ -74,8 +67,26 @@ type Config struct {
 	Log io.Writer
 }
 
+type track uint32
+
+const (
+	trackChan  track = 1 << iota // track 'chan' references
+	trackMap                     // track 'map' references
+	trackPtr                     // track regular pointers
+	trackSlice                   // track slice references
+
+	trackAll = ^track(0)
+)
+
 // AddQuery adds v to Config.Queries.
+// Precondition: CanPoint(v.Type()).
+// TODO(adonovan): consider returning a new Pointer for this query,
+// which will be initialized during analysis.  That avoids the needs
+// for the corresponding ssa.Value-keyed maps in Config and Result.
 func (c *Config) AddQuery(v ssa.Value) {
+	if !CanPoint(v.Type()) {
+		panic(fmt.Sprintf("%s is not a pointer-like value: %s", v, v.Type()))
+	}
 	if c.Queries == nil {
 		c.Queries = make(map[ssa.Value]struct{})
 	}
@@ -83,9 +94,13 @@ func (c *Config) AddQuery(v ssa.Value) {
 }
 
 // AddQuery adds v to Config.IndirectQueries.
+// Precondition: CanPoint(v.Type().Underlying().(*types.Pointer).Elem()).
 func (c *Config) AddIndirectQuery(v ssa.Value) {
 	if c.IndirectQueries == nil {
 		c.IndirectQueries = make(map[ssa.Value]struct{})
+	}
+	if !CanPoint(mustDeref(v.Type())) {
+		panic(fmt.Sprintf("%s is not the address of a pointer-like value: %s", v, v.Type()))
 	}
 	c.IndirectQueries[v] = struct{}{}
 }
@@ -107,14 +122,13 @@ type Warning struct {
 // See Config for how to request the various Result components.
 //
 type Result struct {
-	CallGraph       callgraph.Graph             // discovered call graph
-	Queries         map[ssa.Value][]Pointer     // pts(v) for each v in Config.Queries.
-	IndirectQueries map[ssa.Value][]Pointer     // pts(*v) for each v in Config.IndirectQueries.
-	Warnings        []Warning                   // warnings of unsoundness
-	PrintCalls      map[*ssa.CallCommon]Pointer // pts(x) for each call to print(x)
+	CallGraph       callgraph.Graph         // discovered call graph
+	Queries         map[ssa.Value][]Pointer // pts(v) for each v in Config.Queries.
+	IndirectQueries map[ssa.Value][]Pointer // pts(*v) for each v in Config.IndirectQueries.
+	Warnings        []Warning               // warnings of unsoundness
 }
 
-// A Pointer is an equivalence class of pointerlike values.
+// A Pointer is an equivalence class of pointer-like values.
 //
 // A pointer doesn't have a unique type because pointers of distinct
 // types may alias the same object.

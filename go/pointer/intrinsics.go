@@ -158,6 +158,7 @@ func init() {
 		"crypto/md5.block":                      ext۰NoEffect,
 		"crypto/rc4.xorKeyStream":               ext۰NoEffect,
 		"crypto/sha1.block":                     ext۰NoEffect,
+		"crypto/sha256.block":                   ext۰NoEffect,
 		"hash/crc32.castagnoliSSE42":            ext۰NoEffect,
 		"hash/crc32.haveSSE42":                  ext۰NoEffect,
 		"math.Abs":                              ext۰NoEffect,
@@ -214,11 +215,13 @@ func init() {
 		"net.runtime_pollSetDeadline":           ext۰NoEffect,
 		"net.runtime_pollUnblock":               ext۰NoEffect,
 		"net.runtime_pollWait":                  ext۰NoEffect,
+		"net.runtime_pollWaitCanceled":          ext۰NoEffect,
 		"os.epipecheck":                         ext۰NoEffect,
 		"runtime.BlockProfile":                  ext۰NoEffect,
 		"runtime.Breakpoint":                    ext۰NoEffect,
-		"runtime.CPUProfile":                    ext۰NotYetImplemented,
+		"runtime.CPUProfile":                    ext۰NoEffect, // good enough
 		"runtime.Caller":                        ext۰NoEffect,
+		"runtime.Callers":                       ext۰NoEffect, // good enough
 		"runtime.FuncForPC":                     ext۰NoEffect,
 		"runtime.GC":                            ext۰NoEffect,
 		"runtime.GOMAXPROCS":                    ext۰NoEffect,
@@ -234,6 +237,7 @@ func init() {
 		"runtime.SetFinalizer":                  ext۰runtime۰SetFinalizer,
 		"runtime.Stack":                         ext۰NoEffect,
 		"runtime.ThreadCreateProfile":           ext۰NoEffect,
+		"runtime.cstringToGo":                   ext۰NoEffect,
 		"runtime.funcentry_go":                  ext۰NoEffect,
 		"runtime.funcline_go":                   ext۰NoEffect,
 		"runtime.funcname_go":                   ext۰NoEffect,
@@ -245,17 +249,28 @@ func init() {
 		"sync.runtime_Syncsemacquire":           ext۰NoEffect,
 		"sync.runtime_Syncsemcheck":             ext۰NoEffect,
 		"sync.runtime_Syncsemrelease":           ext۰NoEffect,
+		"sync.runtime_procPin":                  ext۰NoEffect,
+		"sync.runtime_procUnpin":                ext۰NoEffect,
+		"sync.runtime_registerPool":             ext۰NoEffect,
 		"sync/atomic.AddInt32":                  ext۰NoEffect,
+		"sync/atomic.AddInt64":                  ext۰NoEffect,
 		"sync/atomic.AddUint32":                 ext۰NoEffect,
+		"sync/atomic.AddUint64":                 ext۰NoEffect,
+		"sync/atomic.AddUintptr":                ext۰NoEffect,
 		"sync/atomic.CompareAndSwapInt32":       ext۰NoEffect,
 		"sync/atomic.CompareAndSwapUint32":      ext۰NoEffect,
 		"sync/atomic.CompareAndSwapUint64":      ext۰NoEffect,
 		"sync/atomic.CompareAndSwapUintptr":     ext۰NoEffect,
 		"sync/atomic.LoadInt32":                 ext۰NoEffect,
+		"sync/atomic.LoadInt64":                 ext۰NoEffect,
+		"sync/atomic.LoadPointer":               ext۰NoEffect, // ignore unsafe.Pointer for now
 		"sync/atomic.LoadUint32":                ext۰NoEffect,
 		"sync/atomic.LoadUint64":                ext۰NoEffect,
+		"sync/atomic.LoadUintptr":               ext۰NoEffect,
 		"sync/atomic.StoreInt32":                ext۰NoEffect,
+		"sync/atomic.StorePointer":              ext۰NoEffect, // ignore unsafe.Pointer for now
 		"sync/atomic.StoreUint32":               ext۰NoEffect,
+		"sync/atomic.StoreUintptr":              ext۰NoEffect,
 		"syscall.Close":                         ext۰NoEffect,
 		"syscall.Exit":                          ext۰NoEffect,
 		"syscall.Getpid":                        ext۰NoEffect,
@@ -267,6 +282,7 @@ func init() {
 		"syscall.Syscall6":                      ext۰NoEffect,
 		"syscall.runtime_AfterFork":             ext۰NoEffect,
 		"syscall.runtime_BeforeFork":            ext۰NoEffect,
+		"syscall.setenv_c":                      ext۰NoEffect,
 		"time.Sleep":                            ext۰NoEffect,
 		"time.now":                              ext۰NoEffect,
 		"time.startTimer":                       ext۰NoEffect,
@@ -284,7 +300,7 @@ func (a *analysis) findIntrinsic(fn *ssa.Function) intrinsic {
 	if !ok {
 		impl = intrinsicsByName[fn.String()] // may be nil
 
-		if fn.Pkg != nil && a.reflectValueObj != nil && a.reflectValueObj.Pkg() == fn.Pkg.Object {
+		if a.isReflect(fn) {
 			if !a.config.Reflection {
 				impl = ext۰NoEffect // reflection disabled
 			} else if impl == nil {
@@ -296,6 +312,28 @@ func (a *analysis) findIntrinsic(fn *ssa.Function) intrinsic {
 		a.intrinsics[fn] = impl
 	}
 	return impl
+}
+
+// isReflect reports whether fn belongs to the "reflect" package.
+func (a *analysis) isReflect(fn *ssa.Function) bool {
+	if a.reflectValueObj == nil {
+		return false // "reflect" package not loaded
+	}
+	reflectPackage := a.reflectValueObj.Pkg()
+	if fn.Pkg != nil && fn.Pkg.Object == reflectPackage {
+		return true
+	}
+	// Synthetic wrappers have a nil Pkg, so they slip through the
+	// previous check.  Check the receiver package.
+	// TODO(adonovan): should synthetic wrappers have a non-nil Pkg?
+	if recv := fn.Signature.Recv(); recv != nil {
+		if named, ok := deref(recv.Type()).(*types.Named); ok {
+			if named.Obj().Pkg() == reflectPackage {
+				return true // e.g. wrapper of (reflect.Value).f
+			}
+		}
+	}
+	return false
 }
 
 // A trivial intrinsic suitable for any function that does not:
@@ -316,7 +354,10 @@ func ext۰NoEffect(a *analysis, cgn *cgnode) {}
 func ext۰NotYetImplemented(a *analysis, cgn *cgnode) {
 	// TODO(adonovan): enable this warning when we've implemented
 	// enough that it's not unbearably annoying.
-	// a.warnf(fn.Pos(), "unsound: intrinsic treatment of %s not yet implemented", fn)
+	if true {
+		fn := cgn.Func()
+		a.warnf(fn.Pos(), "unsound: intrinsic treatment of %s not yet implemented", fn)
+	}
 }
 
 // ---------- func runtime.SetFinalizer(x, f interface{}) ----------

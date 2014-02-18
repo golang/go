@@ -176,6 +176,48 @@ func (a *analysis) sizeof(t types.Type) uint32 {
 	return uint32(len(a.flatten(t)))
 }
 
+// shouldTrack reports whether object type T contains (recursively)
+// any fields whose addresses should be tracked.
+func (a *analysis) shouldTrack(T types.Type) bool {
+	if a.track == trackAll {
+		return true // fast path
+	}
+	track, ok := a.trackTypes[T]
+	if !ok {
+		a.trackTypes[T] = true // break cycles conservatively
+		// NB: reflect.Value, reflect.Type are pre-populated to true.
+		for _, fi := range a.flatten(T) {
+			switch ft := fi.typ.Underlying().(type) {
+			case *types.Interface, *types.Signature:
+				track = true // needed for callgraph
+			case *types.Basic:
+				// no-op
+			case *types.Chan:
+				track = a.track&trackChan != 0 || a.shouldTrack(ft.Elem())
+			case *types.Map:
+				track = a.track&trackMap != 0 || a.shouldTrack(ft.Key()) || a.shouldTrack(ft.Elem())
+			case *types.Slice:
+				track = a.track&trackSlice != 0 || a.shouldTrack(ft.Elem())
+			case *types.Pointer:
+				track = a.track&trackPtr != 0 || a.shouldTrack(ft.Elem())
+			case *types.Array, *types.Struct:
+				// No need to look at field types since they will follow (flattened).
+			default:
+				// Includes *types.Tuple, which are never address-taken.
+				panic(ft)
+			}
+			if track {
+				break
+			}
+		}
+		a.trackTypes[T] = track
+		if !track && a.log != nil {
+			fmt.Fprintf(a.log, "Type not tracked: %s\n", T)
+		}
+	}
+	return track
+}
+
 // offsetOf returns the (abstract) offset of field index within struct
 // or tuple typ.
 func (a *analysis) offsetOf(typ types.Type, index int) uint32 {

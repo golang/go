@@ -312,14 +312,9 @@ func (c *invokeConstraint) solve(a *analysis, n *node, delta nodeset) {
 		}
 
 		// Look up the concrete method.
-		meth := a.prog.MethodSets.MethodSet(tDyn).Lookup(c.method.Pkg(), c.method.Name())
-		if meth == nil {
-			panic(fmt.Sprintf("n%d: type %s has no method %s (iface=n%d)",
-				c.iface, tDyn, c.method, ifaceObj))
-		}
-		fn := a.prog.Method(meth)
+		fn := a.prog.LookupMethod(tDyn, c.method.Pkg(), c.method.Name())
 		if fn == nil {
-			panic(fmt.Sprintf("n%d: no ssa.Function for %s", c.iface, meth))
+			panic(fmt.Sprintf("n%d: no ssa.Function for %s", c.iface, c.method))
 		}
 		sig := fn.Signature
 

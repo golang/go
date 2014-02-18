@@ -16,6 +16,8 @@ import (
 
 // This program demonstrates how to use the pointer analysis to
 // obtain a conservative call-graph of a Go program.
+// It also shows how to compute the points-to set of a variable,
+// in this case, (C).f's ch parameter.
 //
 func Example() {
 	const myprog = `
@@ -24,18 +26,19 @@ package main
 import "fmt"
 
 type I interface {
-	f()
+	f(map[string]int)
 }
 
 type C struct{}
 
-func (C) f() {
+func (C) f(m map[string]int) {
 	fmt.Println("C.f()")
 }
 
 func main() {
 	var i I = C{}
-	i.f() // dynamic method call
+	x := map[string]int{"one":1}
+	i.f(x) // dynamic method call
 }
 `
 	// Construct a loader.
@@ -64,11 +67,18 @@ func main() {
 	// Build SSA code for bodies of all functions in the whole program.
 	prog.BuildAll()
 
-	// Run the pointer analysis and build the complete callgraph.
+	// Configure the pointer analysis to build a call-graph.
 	config := &pointer.Config{
 		Mains:          []*ssa.Package{mainPkg},
 		BuildCallGraph: true,
 	}
+
+	// Query points-to set of (C).f's parameter m, a map.
+	C := mainPkg.Type("C").Type()
+	Cfm := prog.LookupMethod(C, mainPkg.Object, "f").Params[1]
+	config.AddQuery(Cfm)
+
+	// Run the pointer analysis.
 	result := pointer.Analyze(config)
 
 	// Find edges originating from the main package.
@@ -88,9 +98,26 @@ func main() {
 	for _, edge := range edges {
 		fmt.Println(edge)
 	}
+	fmt.Println()
+
+	// Print the labels of (C).f(m)'s points-to set.
+	fmt.Println("m may point to:")
+	ptset := pointer.PointsToCombined(result.Queries[Cfm])
+	var labels []string
+	for _, l := range ptset.Labels() {
+		label := fmt.Sprintf("  %s: %s", prog.Fset.Position(l.Pos()), l)
+		labels = append(labels, label)
+	}
+	sort.Strings(labels)
+	for _, label := range labels {
+		fmt.Println(label)
+	}
 
 	// Output:
 	// (main.C).f --> fmt.Println
 	// main.init --> fmt.init
 	// main.main --> (main.C).f
+	//
+	// m may point to:
+	//   myprog.go:18:21: makemap
 }
