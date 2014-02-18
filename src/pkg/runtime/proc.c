@@ -144,7 +144,7 @@ runtime·schedinit(void)
 	Eface i;
 
 	runtime·sched.maxmcount = 10000;
-	runtime·precisestack = true; // haveexperiment("precisestack");
+	runtime·precisestack = haveexperiment("precisestack");
 
 	runtime·mallocinit();
 	mcommoninit(m);
