@@ -231,8 +231,9 @@ type Config struct {
 	// NextProtos is a list of supported, application level protocols.
 	NextProtos []string
 
-	// ServerName is included in the client's handshake to support virtual
-	// hosting.
+	// ServerName is used to verify the hostname on the returned
+	// certificates unless InsecureSkipVerify is given. It is also included
+	// in the client's handshake to support virtual hosting.
 	ServerName string
 
 	// ClientAuth determines the server's policy for
