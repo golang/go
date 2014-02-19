@@ -195,7 +195,7 @@ func TestHello(t *testing.T) {
 	out := run("go", "env")
 	i := strings.Index(out, "GOCHAR=\"")
 	if i < 0 {
-		t.Fatal("cannot find GOCHAR in 'go env' output")
+		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
 	}
 	char := out[i+8 : i+9]
 	run("go", "build", "cmd/pack") // writes pack binary to dir
