@@ -43,6 +43,7 @@ func usage() {
 
 func main() {
 	log.SetFlags(0)
+	log.SetPrefix("pack: ")
 	// need "pack op archive" at least.
 	if len(os.Args) < 3 {
 		usage()
@@ -67,7 +68,7 @@ func main() {
 		usage()
 	}
 	if len(ar.files) > 0 {
-		log.Fatalf("pack: file %q not in archive", ar.files[0])
+		log.Fatalf("file %q not in archive", ar.files[0])
 	}
 }
 
@@ -124,7 +125,7 @@ func archive(name string, mode int, files []string) *Archive {
 		fd, err = create(name)
 	}
 	if err != nil {
-		log.Fatal("pack: ", err)
+		log.Fatal(err)
 	}
 	mustBeArchive(fd)
 	return &Archive{
@@ -150,7 +151,7 @@ func mustBeArchive(fd *os.File) {
 	buf := make([]byte, len(arHeader))
 	_, err := io.ReadFull(fd, buf)
 	if err != nil || string(buf) != arHeader {
-		log.Fatal("pack: file is not an archive: bad header")
+		log.Fatal("file is not an archive: bad header")
 	}
 }
 
@@ -183,19 +184,19 @@ func (ar *Archive) readMetadata() *Entry {
 		return nil
 	}
 	if err != nil || buf[entryLen-2] != '`' || buf[entryLen-1] != '\n' {
-		log.Fatal("pack: file is not an archive: bad entry")
+		log.Fatal("file is not an archive: bad entry")
 	}
 	entry := new(Entry)
 	entry.name = strings.TrimRight(string(buf[:16]), " ")
 	if len(entry.name) == 0 {
-		log.Fatal("pack: file is not an archive: bad name")
+		log.Fatal("file is not an archive: bad name")
 	}
 	buf = buf[16:]
 	str := string(buf)
 	get := func(width, base, bitsize int) int64 {
 		v, err := strconv.ParseInt(strings.TrimRight(str[:width], " "), base, bitsize)
 		if err != nil {
-			log.Fatal("pack: file is not an archive: bad number in entry: ", err)
+			log.Fatal("file is not an archive: bad number in entry: ", err)
 		}
 		str = str[width:]
 		return v
@@ -234,15 +235,15 @@ func listEntry(ar *Archive, entry *Entry, verbose bool) {
 func (ar *Archive) output(entry *Entry, w io.Writer) {
 	n, err := io.Copy(w, io.LimitReader(ar.fd, entry.size))
 	if err != nil {
-		log.Fatal("pack: ", err)
+		log.Fatal(err)
 	}
 	if n != entry.size {
-		log.Fatal("pack: short file")
+		log.Fatal("short file")
 	}
 	if entry.size&1 == 1 {
 		_, err := ar.fd.Seek(1, 1)
 		if err != nil {
-			log.Fatal("pack: ", err)
+			log.Fatal(err)
 		}
 	}
 }
@@ -255,7 +256,7 @@ func (ar *Archive) skip(entry *Entry) {
 	}
 	_, err := ar.fd.Seek(size, 1)
 	if err != nil {
-		log.Fatal("pack: ", err)
+		log.Fatal(err)
 	}
 }
 
@@ -288,7 +289,7 @@ func (ar *Archive) addFiles() {
 		}
 		fd, err := os.Open(file)
 		if err != nil {
-			log.Fatal("pack: ", err)
+			log.Fatal(err)
 		}
 		ar.addFile(fd)
 	}
@@ -310,7 +311,7 @@ func (ar *Archive) addFile(fd FileLike) {
 	// First, get its info.
 	info, err := fd.Stat()
 	if err != nil {
-		log.Fatal("pack: ", err)
+		log.Fatal(err)
 	}
 	// mtime, uid, gid are all zero so repeated builds produce identical output.
 	mtime := int64(0)
@@ -318,19 +319,19 @@ func (ar *Archive) addFile(fd FileLike) {
 	gid := 0
 	n, err := fmt.Fprintf(ar.fd, entryHeader, exactly16Bytes(info.Name()), mtime, uid, gid, info.Mode(), info.Size())
 	if err != nil || n != entryLen {
-		log.Fatal("pack: writing entry header: ", err)
+		log.Fatal("writing entry header: ", err)
 	}
 	n64, err := io.Copy(ar.fd, fd)
 	if err != nil {
-		log.Fatal("pack: writing file: ", err)
+		log.Fatal("writing file: ", err)
 	}
 	if n64 != info.Size() {
-		log.Fatal("pack: writing file: wrote %d bytes; file is size %d", n64, info.Size())
+		log.Fatal("writing file: wrote %d bytes; file is size %d", n64, info.Size())
 	}
 	if info.Size()&1 == 1 {
 		_, err = ar.fd.Write([]byte{0})
 		if err != nil {
-			log.Fatal("pack: writing archive: ", err)
+			log.Fatal("writing archive: ", err)
 		}
 	}
 }
@@ -387,7 +388,7 @@ func (ar *Archive) extractContents(entry *Entry) {
 		}
 		fd, err := os.OpenFile(entry.name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, entry.mode)
 		if err != nil {
-			log.Fatal("pack: ", err)
+			log.Fatal(err)
 		}
 		ar.output(entry, fd)
 		fd.Close()
