@@ -1091,8 +1091,13 @@ func (v Value) InterfaceData() [2]uintptr {
 	return *(*[2]uintptr)(v.ptr)
 }
 
-// IsNil returns true if v is a nil value.
-// It panics if v's Kind is not Chan, Func, Interface, Map, Ptr, or Slice.
+// IsNil reports whether its argument v is nil. The argument must be
+// a chan, func, interface, map, pointer, or slice value; if it is
+// not, IsNil panics. Note that IsNil is not always equivalent to a
+// regular comparison with nil in Go. For example, if v was created
+// by calling ValueOf with an uninitialized interface variable i,
+// i==nil will be true but v.IsNil will panic as v will be the zero
+// Value.
 func (v Value) IsNil() bool {
 	k := v.kind()
 	switch k {
