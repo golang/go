@@ -226,8 +226,11 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
 	typ := obj.Type()
 	switch obj := obj.(type) {
 	case *PkgName:
-		buf.WriteString("package")
-		typ = nil
+		fmt.Fprintf(buf, "package %s", obj.Name())
+		if path := obj.Pkg().path; path != "" && path != obj.Name() {
+			fmt.Fprintf(buf, " (%q)", path)
+		}
+		return
 
 	case *Const:
 		buf.WriteString("const")
