@@ -311,6 +311,16 @@ func Analyze(config *Config) *Result {
 		fmt.Fprintln(a.log, "======== NEW ANALYSIS ========")
 	}
 
+	// Pointer analysis requires a complete program for soundness.
+	// Check to prevent accidental misconfiguration.
+	for _, pkg := range a.prog.AllPackages() {
+		// (This only checks that the package scope is complete,
+		// not that func bodies exist, but it's a good signal.)
+		if !pkg.Object.Complete() {
+			panic(fmt.Sprintf(`pointer analysis requires a complete program yet package %q was incomplete (set loader.Config.SourceImports during loading)`, pkg.Object.Path()))
+		}
+	}
+
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
 		rV := reflect.Object.Scope().Lookup("Value")
 		a.reflectValueObj = rV

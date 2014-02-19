@@ -68,6 +68,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	init.emit(new(Return))
 	init.finishBody()
 	testmain.init = init
+	testmain.Object.MarkComplete()
 	testmain.Members[init.name] = init
 
 	testingPkg := prog.ImportedPackage("testing")
