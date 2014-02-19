@@ -9,10 +9,13 @@
 #include "gg.h"
 #include "opt.h"
 
+static Prog* appendpp(Prog*, int, int, int, int32, int, int, int32);
+
 void
 defframe(Prog *ptxt)
 {
 	uint32 frame;
+	Prog *p, *p1;
 
 	// fill in argument size
 	ptxt->to.type = D_CONST2;
@@ -24,6 +27,41 @@ defframe(Prog *ptxt)
 	frame = rnd(maxstksize+maxarg, widthptr);
 	ptxt->to.offset = frame;
 	maxstksize = 0;
+	
+	p = ptxt;
+	if(stkzerosize > 0) {
+		p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+		p = appendpp(p, AADD, D_CONST, NREG, 4+frame-stkzerosize, D_REG, 1, 0);
+		p->reg = REGSP;	
+		p = appendpp(p, AADD, D_CONST, NREG, stkzerosize, D_REG, 2, 0);	
+		p->reg = 1;	
+		p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);	
+		p->scond |= C_PBIT;	
+		p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);	
+		p->reg = 2;	
+		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);	
+		patch(p, p1);
+	}	
+}
+
+static Prog*	
+appendpp(Prog *p, int as, int ftype, int freg, int32 foffset, int ttype, int treg, int32 toffset)	
+{	
+	Prog *q;	
+		
+	q = mal(sizeof(*q));	
+	clearp(q);	
+	q->as = as;	
+	q->lineno = p->lineno;	
+	q->from.type = ftype;	
+	q->from.reg = freg;	
+	q->from.offset = foffset;	
+	q->to.type = ttype;	
+	q->to.reg = treg;	
+	q->to.offset = toffset;	
+	q->link = p->link;	
+	p->link = q;	
+	return q;	
 }
 
 // Sweep the prog list to mark any used nodes.
