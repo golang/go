@@ -681,36 +681,36 @@ static const yytype_uint16 yyrline[] =
      308,   312,   316,   322,   328,   334,   339,   343,   347,   353,
      359,   363,   367,   373,   377,   383,   384,   388,   394,   403,
      409,   427,   432,   444,   460,   465,   472,   492,   510,   519,
-     538,   537,   552,   551,   582,   585,   592,   591,   602,   608,
-     617,   628,   634,   637,   645,   644,   655,   661,   673,   677,
-     682,   672,   703,   702,   715,   718,   724,   727,   739,   743,
-     738,   761,   760,   776,   777,   781,   785,   789,   793,   797,
-     801,   805,   809,   813,   817,   821,   825,   829,   833,   837,
-     841,   845,   849,   854,   860,   861,   865,   876,   880,   884,
-     888,   893,   897,   907,   911,   916,   924,   928,   929,   940,
-     944,   948,   952,   956,   964,   965,   971,   978,   984,   991,
-     994,  1001,  1007,  1024,  1031,  1032,  1039,  1040,  1059,  1060,
-    1063,  1066,  1070,  1081,  1090,  1096,  1099,  1102,  1109,  1110,
-    1116,  1129,  1144,  1152,  1164,  1169,  1175,  1176,  1177,  1178,
-    1179,  1180,  1186,  1187,  1188,  1189,  1195,  1196,  1197,  1198,
-    1199,  1205,  1206,  1209,  1212,  1213,  1214,  1215,  1216,  1219,
-    1220,  1233,  1237,  1242,  1247,  1252,  1256,  1257,  1260,  1266,
-    1273,  1279,  1286,  1292,  1303,  1317,  1346,  1386,  1411,  1429,
-    1438,  1441,  1449,  1453,  1457,  1464,  1470,  1475,  1487,  1490,
-    1500,  1501,  1507,  1508,  1514,  1518,  1524,  1525,  1531,  1535,
-    1541,  1564,  1569,  1575,  1581,  1588,  1597,  1606,  1621,  1627,
-    1632,  1636,  1643,  1656,  1657,  1663,  1669,  1672,  1676,  1682,
-    1685,  1694,  1697,  1698,  1702,  1703,  1709,  1710,  1711,  1712,
-    1713,  1715,  1714,  1729,  1734,  1738,  1742,  1746,  1750,  1755,
-    1774,  1780,  1788,  1792,  1798,  1802,  1808,  1812,  1818,  1822,
-    1831,  1835,  1839,  1843,  1849,  1852,  1860,  1861,  1863,  1864,
-    1867,  1870,  1873,  1876,  1879,  1882,  1885,  1888,  1891,  1894,
-    1897,  1900,  1903,  1906,  1912,  1916,  1920,  1924,  1928,  1932,
-    1952,  1959,  1970,  1971,  1972,  1975,  1976,  1979,  1983,  1993,
-    1997,  2001,  2005,  2009,  2013,  2017,  2023,  2029,  2037,  2045,
-    2051,  2058,  2074,  2096,  2100,  2106,  2109,  2112,  2116,  2126,
-    2130,  2145,  2153,  2154,  2166,  2167,  2170,  2174,  2180,  2184,
-    2190,  2194
+     538,   537,   552,   551,   583,   586,   593,   592,   603,   609,
+     618,   629,   635,   638,   646,   645,   656,   662,   674,   678,
+     683,   673,   704,   703,   716,   719,   725,   728,   740,   744,
+     739,   762,   761,   777,   778,   782,   786,   790,   794,   798,
+     802,   806,   810,   814,   818,   822,   826,   830,   834,   838,
+     842,   846,   850,   855,   861,   862,   866,   877,   881,   885,
+     889,   894,   898,   908,   912,   917,   925,   929,   930,   941,
+     945,   949,   953,   957,   965,   966,   972,   979,   985,   992,
+     995,  1002,  1008,  1025,  1032,  1033,  1040,  1041,  1060,  1061,
+    1064,  1067,  1071,  1082,  1091,  1097,  1100,  1103,  1110,  1111,
+    1117,  1130,  1145,  1153,  1165,  1170,  1176,  1177,  1178,  1179,
+    1180,  1181,  1187,  1188,  1189,  1190,  1196,  1197,  1198,  1199,
+    1200,  1206,  1207,  1210,  1213,  1214,  1215,  1216,  1217,  1220,
+    1221,  1234,  1238,  1243,  1248,  1253,  1257,  1258,  1261,  1267,
+    1274,  1280,  1287,  1293,  1304,  1318,  1347,  1387,  1412,  1430,
+    1439,  1442,  1450,  1454,  1458,  1465,  1471,  1476,  1488,  1491,
+    1501,  1502,  1508,  1509,  1515,  1519,  1525,  1526,  1532,  1536,
+    1542,  1565,  1570,  1576,  1582,  1589,  1598,  1607,  1622,  1628,
+    1633,  1637,  1644,  1657,  1658,  1664,  1670,  1673,  1677,  1683,
+    1686,  1695,  1698,  1699,  1703,  1704,  1710,  1711,  1712,  1713,
+    1714,  1716,  1715,  1730,  1736,  1740,  1744,  1748,  1752,  1757,
+    1776,  1782,  1790,  1794,  1800,  1804,  1810,  1814,  1820,  1824,
+    1833,  1837,  1841,  1845,  1851,  1854,  1862,  1863,  1865,  1866,
+    1869,  1872,  1875,  1878,  1881,  1884,  1887,  1890,  1893,  1896,
+    1899,  1902,  1905,  1908,  1914,  1918,  1922,  1926,  1930,  1934,
+    1954,  1961,  1972,  1973,  1974,  1977,  1978,  1981,  1985,  1995,
+    1999,  2003,  2007,  2011,  2015,  2019,  2025,  2031,  2039,  2047,
+    2053,  2060,  2076,  2098,  2102,  2108,  2111,  2114,  2118,  2128,
+    2132,  2147,  2155,  2156,  2168,  2169,  2172,  2176,  2182,  2186,
+    2192,  2196
 };
 #endif
 
@@ -3054,13 +3054,14 @@ yyreduce:
 		// This is so that the stmt_list action doesn't look at
 		// the case tokens if the stmt_list is empty.
 		yylast = yychar;
+		(yyvsp[(1) - (1)].node)->xoffset = block;
 	}
     break;
 
   case 63:
 
 /* Line 1806 of yacc.c  */
-#line 562 "go.y"
+#line 563 "go.y"
     {
 		int last;
 
@@ -3084,7 +3085,7 @@ yyreduce:
   case 64:
 
 /* Line 1806 of yacc.c  */
-#line 582 "go.y"
+#line 583 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -3093,7 +3094,7 @@ yyreduce:
   case 65:
 
 /* Line 1806 of yacc.c  */
-#line 586 "go.y"
+#line 587 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (2)].list), (yyvsp[(2) - (2)].node));
 	}
@@ -3102,7 +3103,7 @@ yyreduce:
   case 66:
 
 /* Line 1806 of yacc.c  */
-#line 592 "go.y"
+#line 593 "go.y"
     {
 		markdcl();
 	}
@@ -3111,7 +3112,7 @@ yyreduce:
   case 67:
 
 /* Line 1806 of yacc.c  */
-#line 596 "go.y"
+#line 597 "go.y"
     {
 		(yyval.list) = (yyvsp[(3) - (4)].list);
 		popdcl();
@@ -3121,7 +3122,7 @@ yyreduce:
   case 68:
 
 /* Line 1806 of yacc.c  */
-#line 603 "go.y"
+#line 604 "go.y"
     {
 		(yyval.node) = nod(ORANGE, N, (yyvsp[(4) - (4)].node));
 		(yyval.node)->list = (yyvsp[(1) - (4)].list);
@@ -3132,7 +3133,7 @@ yyreduce:
   case 69:
 
 /* Line 1806 of yacc.c  */
-#line 609 "go.y"
+#line 610 "go.y"
     {
 		(yyval.node) = nod(ORANGE, N, (yyvsp[(4) - (4)].node));
 		(yyval.node)->list = (yyvsp[(1) - (4)].list);
@@ -3144,7 +3145,7 @@ yyreduce:
   case 70:
 
 /* Line 1806 of yacc.c  */
-#line 618 "go.y"
+#line 619 "go.y"
     {
 		// init ; test ; incr
 		if((yyvsp[(5) - (5)].node) != N && (yyvsp[(5) - (5)].node)->colas != 0)
@@ -3160,7 +3161,7 @@ yyreduce:
   case 71:
 
 /* Line 1806 of yacc.c  */
-#line 629 "go.y"
+#line 630 "go.y"
     {
 		// normal test
 		(yyval.node) = nod(OFOR, N, N);
@@ -3171,7 +3172,7 @@ yyreduce:
   case 73:
 
 /* Line 1806 of yacc.c  */
-#line 638 "go.y"
+#line 639 "go.y"
     {
 		(yyval.node) = (yyvsp[(1) - (2)].node);
 		(yyval.node)->nbody = concat((yyval.node)->nbody, (yyvsp[(2) - (2)].list));
@@ -3181,7 +3182,7 @@ yyreduce:
   case 74:
 
 /* Line 1806 of yacc.c  */
-#line 645 "go.y"
+#line 646 "go.y"
     {
 		markdcl();
 	}
@@ -3190,7 +3191,7 @@ yyreduce:
   case 75:
 
 /* Line 1806 of yacc.c  */
-#line 649 "go.y"
+#line 650 "go.y"
     {
 		(yyval.node) = (yyvsp[(3) - (3)].node);
 		popdcl();
@@ -3200,7 +3201,7 @@ yyreduce:
   case 76:
 
 /* Line 1806 of yacc.c  */
-#line 656 "go.y"
+#line 657 "go.y"
     {
 		// test
 		(yyval.node) = nod(OIF, N, N);
@@ -3211,7 +3212,7 @@ yyreduce:
   case 77:
 
 /* Line 1806 of yacc.c  */
-#line 662 "go.y"
+#line 663 "go.y"
     {
 		// init ; test
 		(yyval.node) = nod(OIF, N, N);
@@ -3224,7 +3225,7 @@ yyreduce:
   case 78:
 
 /* Line 1806 of yacc.c  */
-#line 673 "go.y"
+#line 674 "go.y"
     {
 		markdcl();
 	}
@@ -3233,7 +3234,7 @@ yyreduce:
   case 79:
 
 /* Line 1806 of yacc.c  */
-#line 677 "go.y"
+#line 678 "go.y"
     {
 		if((yyvsp[(3) - (3)].node)->ntest == N)
 			yyerror("missing condition in if statement");
@@ -3243,7 +3244,7 @@ yyreduce:
   case 80:
 
 /* Line 1806 of yacc.c  */
-#line 682 "go.y"
+#line 683 "go.y"
     {
 		(yyvsp[(3) - (5)].node)->nbody = (yyvsp[(5) - (5)].list);
 	}
@@ -3252,7 +3253,7 @@ yyreduce:
   case 81:
 
 /* Line 1806 of yacc.c  */
-#line 686 "go.y"
+#line 687 "go.y"
     {
 		Node *n;
 		NodeList *nn;
@@ -3272,7 +3273,7 @@ yyreduce:
   case 82:
 
 /* Line 1806 of yacc.c  */
-#line 703 "go.y"
+#line 704 "go.y"
     {
 		markdcl();
 	}
@@ -3281,7 +3282,7 @@ yyreduce:
   case 83:
 
 /* Line 1806 of yacc.c  */
-#line 707 "go.y"
+#line 708 "go.y"
     {
 		if((yyvsp[(4) - (5)].node)->ntest == N)
 			yyerror("missing condition in if statement");
@@ -3293,7 +3294,7 @@ yyreduce:
   case 84:
 
 /* Line 1806 of yacc.c  */
-#line 715 "go.y"
+#line 716 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -3302,7 +3303,7 @@ yyreduce:
   case 85:
 
 /* Line 1806 of yacc.c  */
-#line 719 "go.y"
+#line 720 "go.y"
     {
 		(yyval.list) = concat((yyvsp[(1) - (2)].list), (yyvsp[(2) - (2)].list));
 	}
@@ -3311,7 +3312,7 @@ yyreduce:
   case 86:
 
 /* Line 1806 of yacc.c  */
-#line 724 "go.y"
+#line 725 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -3320,7 +3321,7 @@ yyreduce:
   case 87:
 
 /* Line 1806 of yacc.c  */
-#line 728 "go.y"
+#line 729 "go.y"
     {
 		NodeList *node;
 		
@@ -3334,7 +3335,7 @@ yyreduce:
   case 88:
 
 /* Line 1806 of yacc.c  */
-#line 739 "go.y"
+#line 740 "go.y"
     {
 		markdcl();
 	}
@@ -3343,7 +3344,7 @@ yyreduce:
   case 89:
 
 /* Line 1806 of yacc.c  */
-#line 743 "go.y"
+#line 744 "go.y"
     {
 		Node *n;
 		n = (yyvsp[(3) - (3)].node)->ntest;
@@ -3356,7 +3357,7 @@ yyreduce:
   case 90:
 
 /* Line 1806 of yacc.c  */
-#line 751 "go.y"
+#line 752 "go.y"
     {
 		(yyval.node) = (yyvsp[(3) - (7)].node);
 		(yyval.node)->op = OSWITCH;
@@ -3369,7 +3370,7 @@ yyreduce:
   case 91:
 
 /* Line 1806 of yacc.c  */
-#line 761 "go.y"
+#line 762 "go.y"
     {
 		typesw = nod(OXXX, typesw, N);
 	}
@@ -3378,7 +3379,7 @@ yyreduce:
   case 92:
 
 /* Line 1806 of yacc.c  */
-#line 765 "go.y"
+#line 766 "go.y"
     {
 		(yyval.node) = nod(OSELECT, N, N);
 		(yyval.node)->lineno = typesw->lineno;
@@ -3390,7 +3391,7 @@ yyreduce:
   case 94:
 
 /* Line 1806 of yacc.c  */
-#line 778 "go.y"
+#line 779 "go.y"
     {
 		(yyval.node) = nod(OOROR, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3399,7 +3400,7 @@ yyreduce:
   case 95:
 
 /* Line 1806 of yacc.c  */
-#line 782 "go.y"
+#line 783 "go.y"
     {
 		(yyval.node) = nod(OANDAND, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3408,7 +3409,7 @@ yyreduce:
   case 96:
 
 /* Line 1806 of yacc.c  */
-#line 786 "go.y"
+#line 787 "go.y"
     {
 		(yyval.node) = nod(OEQ, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3417,7 +3418,7 @@ yyreduce:
   case 97:
 
 /* Line 1806 of yacc.c  */
-#line 790 "go.y"
+#line 791 "go.y"
     {
 		(yyval.node) = nod(ONE, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3426,7 +3427,7 @@ yyreduce:
   case 98:
 
 /* Line 1806 of yacc.c  */
-#line 794 "go.y"
+#line 795 "go.y"
     {
 		(yyval.node) = nod(OLT, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3435,7 +3436,7 @@ yyreduce:
   case 99:
 
 /* Line 1806 of yacc.c  */
-#line 798 "go.y"
+#line 799 "go.y"
     {
 		(yyval.node) = nod(OLE, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3444,7 +3445,7 @@ yyreduce:
   case 100:
 
 /* Line 1806 of yacc.c  */
-#line 802 "go.y"
+#line 803 "go.y"
     {
 		(yyval.node) = nod(OGE, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3453,7 +3454,7 @@ yyreduce:
   case 101:
 
 /* Line 1806 of yacc.c  */
-#line 806 "go.y"
+#line 807 "go.y"
     {
 		(yyval.node) = nod(OGT, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3462,7 +3463,7 @@ yyreduce:
   case 102:
 
 /* Line 1806 of yacc.c  */
-#line 810 "go.y"
+#line 811 "go.y"
     {
 		(yyval.node) = nod(OADD, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3471,7 +3472,7 @@ yyreduce:
   case 103:
 
 /* Line 1806 of yacc.c  */
-#line 814 "go.y"
+#line 815 "go.y"
     {
 		(yyval.node) = nod(OSUB, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3480,7 +3481,7 @@ yyreduce:
   case 104:
 
 /* Line 1806 of yacc.c  */
-#line 818 "go.y"
+#line 819 "go.y"
     {
 		(yyval.node) = nod(OOR, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3489,7 +3490,7 @@ yyreduce:
   case 105:
 
 /* Line 1806 of yacc.c  */
-#line 822 "go.y"
+#line 823 "go.y"
     {
 		(yyval.node) = nod(OXOR, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3498,7 +3499,7 @@ yyreduce:
   case 106:
 
 /* Line 1806 of yacc.c  */
-#line 826 "go.y"
+#line 827 "go.y"
     {
 		(yyval.node) = nod(OMUL, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3507,7 +3508,7 @@ yyreduce:
   case 107:
 
 /* Line 1806 of yacc.c  */
-#line 830 "go.y"
+#line 831 "go.y"
     {
 		(yyval.node) = nod(ODIV, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3516,7 +3517,7 @@ yyreduce:
   case 108:
 
 /* Line 1806 of yacc.c  */
-#line 834 "go.y"
+#line 835 "go.y"
     {
 		(yyval.node) = nod(OMOD, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3525,7 +3526,7 @@ yyreduce:
   case 109:
 
 /* Line 1806 of yacc.c  */
-#line 838 "go.y"
+#line 839 "go.y"
     {
 		(yyval.node) = nod(OAND, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3534,7 +3535,7 @@ yyreduce:
   case 110:
 
 /* Line 1806 of yacc.c  */
-#line 842 "go.y"
+#line 843 "go.y"
     {
 		(yyval.node) = nod(OANDNOT, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3543,7 +3544,7 @@ yyreduce:
   case 111:
 
 /* Line 1806 of yacc.c  */
-#line 846 "go.y"
+#line 847 "go.y"
     {
 		(yyval.node) = nod(OLSH, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3552,7 +3553,7 @@ yyreduce:
   case 112:
 
 /* Line 1806 of yacc.c  */
-#line 850 "go.y"
+#line 851 "go.y"
     {
 		(yyval.node) = nod(ORSH, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3561,7 +3562,7 @@ yyreduce:
   case 113:
 
 /* Line 1806 of yacc.c  */
-#line 855 "go.y"
+#line 856 "go.y"
     {
 		(yyval.node) = nod(OSEND, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3570,7 +3571,7 @@ yyreduce:
   case 115:
 
 /* Line 1806 of yacc.c  */
-#line 862 "go.y"
+#line 863 "go.y"
     {
 		(yyval.node) = nod(OIND, (yyvsp[(2) - (2)].node), N);
 	}
@@ -3579,7 +3580,7 @@ yyreduce:
   case 116:
 
 /* Line 1806 of yacc.c  */
-#line 866 "go.y"
+#line 867 "go.y"
     {
 		if((yyvsp[(2) - (2)].node)->op == OCOMPLIT) {
 			// Special case for &T{...}: turn into (*T){...}.
@@ -3595,7 +3596,7 @@ yyreduce:
   case 117:
 
 /* Line 1806 of yacc.c  */
-#line 877 "go.y"
+#line 878 "go.y"
     {
 		(yyval.node) = nod(OPLUS, (yyvsp[(2) - (2)].node), N);
 	}
@@ -3604,7 +3605,7 @@ yyreduce:
   case 118:
 
 /* Line 1806 of yacc.c  */
-#line 881 "go.y"
+#line 882 "go.y"
     {
 		(yyval.node) = nod(OMINUS, (yyvsp[(2) - (2)].node), N);
 	}
@@ -3613,7 +3614,7 @@ yyreduce:
   case 119:
 
 /* Line 1806 of yacc.c  */
-#line 885 "go.y"
+#line 886 "go.y"
     {
 		(yyval.node) = nod(ONOT, (yyvsp[(2) - (2)].node), N);
 	}
@@ -3622,7 +3623,7 @@ yyreduce:
   case 120:
 
 /* Line 1806 of yacc.c  */
-#line 889 "go.y"
+#line 890 "go.y"
     {
 		yyerror("the bitwise complement operator is ^");
 		(yyval.node) = nod(OCOM, (yyvsp[(2) - (2)].node), N);
@@ -3632,7 +3633,7 @@ yyreduce:
   case 121:
 
 /* Line 1806 of yacc.c  */
-#line 894 "go.y"
+#line 895 "go.y"
     {
 		(yyval.node) = nod(OCOM, (yyvsp[(2) - (2)].node), N);
 	}
@@ -3641,7 +3642,7 @@ yyreduce:
   case 122:
 
 /* Line 1806 of yacc.c  */
-#line 898 "go.y"
+#line 899 "go.y"
     {
 		(yyval.node) = nod(ORECV, (yyvsp[(2) - (2)].node), N);
 	}
@@ -3650,7 +3651,7 @@ yyreduce:
   case 123:
 
 /* Line 1806 of yacc.c  */
-#line 908 "go.y"
+#line 909 "go.y"
     {
 		(yyval.node) = nod(OCALL, (yyvsp[(1) - (3)].node), N);
 	}
@@ -3659,7 +3660,7 @@ yyreduce:
   case 124:
 
 /* Line 1806 of yacc.c  */
-#line 912 "go.y"
+#line 913 "go.y"
     {
 		(yyval.node) = nod(OCALL, (yyvsp[(1) - (5)].node), N);
 		(yyval.node)->list = (yyvsp[(3) - (5)].list);
@@ -3669,7 +3670,7 @@ yyreduce:
   case 125:
 
 /* Line 1806 of yacc.c  */
-#line 917 "go.y"
+#line 918 "go.y"
     {
 		(yyval.node) = nod(OCALL, (yyvsp[(1) - (6)].node), N);
 		(yyval.node)->list = (yyvsp[(3) - (6)].list);
@@ -3680,7 +3681,7 @@ yyreduce:
   case 126:
 
 /* Line 1806 of yacc.c  */
-#line 925 "go.y"
+#line 926 "go.y"
     {
 		(yyval.node) = nodlit((yyvsp[(1) - (1)].val));
 	}
@@ -3689,7 +3690,7 @@ yyreduce:
   case 128:
 
 /* Line 1806 of yacc.c  */
-#line 930 "go.y"
+#line 931 "go.y"
     {
 		if((yyvsp[(1) - (3)].node)->op == OPACK) {
 			Sym *s;
@@ -3705,7 +3706,7 @@ yyreduce:
   case 129:
 
 /* Line 1806 of yacc.c  */
-#line 941 "go.y"
+#line 942 "go.y"
     {
 		(yyval.node) = nod(ODOTTYPE, (yyvsp[(1) - (5)].node), (yyvsp[(4) - (5)].node));
 	}
@@ -3714,7 +3715,7 @@ yyreduce:
   case 130:
 
 /* Line 1806 of yacc.c  */
-#line 945 "go.y"
+#line 946 "go.y"
     {
 		(yyval.node) = nod(OTYPESW, N, (yyvsp[(1) - (5)].node));
 	}
@@ -3723,7 +3724,7 @@ yyreduce:
   case 131:
 
 /* Line 1806 of yacc.c  */
-#line 949 "go.y"
+#line 950 "go.y"
     {
 		(yyval.node) = nod(OINDEX, (yyvsp[(1) - (4)].node), (yyvsp[(3) - (4)].node));
 	}
@@ -3732,7 +3733,7 @@ yyreduce:
   case 132:
 
 /* Line 1806 of yacc.c  */
-#line 953 "go.y"
+#line 954 "go.y"
     {
 		(yyval.node) = nod(OSLICE, (yyvsp[(1) - (6)].node), nod(OKEY, (yyvsp[(3) - (6)].node), (yyvsp[(5) - (6)].node)));
 	}
@@ -3741,7 +3742,7 @@ yyreduce:
   case 133:
 
 /* Line 1806 of yacc.c  */
-#line 957 "go.y"
+#line 958 "go.y"
     {
 		if((yyvsp[(5) - (8)].node) == N)
 			yyerror("middle index required in 3-index slice");
@@ -3754,7 +3755,7 @@ yyreduce:
   case 135:
 
 /* Line 1806 of yacc.c  */
-#line 966 "go.y"
+#line 967 "go.y"
     {
 		// conversion
 		(yyval.node) = nod(OCALL, (yyvsp[(1) - (5)].node), N);
@@ -3765,7 +3766,7 @@ yyreduce:
   case 136:
 
 /* Line 1806 of yacc.c  */
-#line 972 "go.y"
+#line 973 "go.y"
     {
 		(yyval.node) = (yyvsp[(3) - (5)].node);
 		(yyval.node)->right = (yyvsp[(1) - (5)].node);
@@ -3777,7 +3778,7 @@ yyreduce:
   case 137:
 
 /* Line 1806 of yacc.c  */
-#line 979 "go.y"
+#line 980 "go.y"
     {
 		(yyval.node) = (yyvsp[(3) - (5)].node);
 		(yyval.node)->right = (yyvsp[(1) - (5)].node);
@@ -3788,7 +3789,7 @@ yyreduce:
   case 138:
 
 /* Line 1806 of yacc.c  */
-#line 985 "go.y"
+#line 986 "go.y"
     {
 		yyerror("cannot parenthesize type in composite literal");
 		(yyval.node) = (yyvsp[(5) - (7)].node);
@@ -3800,7 +3801,7 @@ yyreduce:
   case 140:
 
 /* Line 1806 of yacc.c  */
-#line 994 "go.y"
+#line 995 "go.y"
     {
 		// composite expression.
 		// make node early so we get the right line number.
@@ -3811,7 +3812,7 @@ yyreduce:
   case 141:
 
 /* Line 1806 of yacc.c  */
-#line 1002 "go.y"
+#line 1003 "go.y"
     {
 		(yyval.node) = nod(OKEY, (yyvsp[(1) - (3)].node), (yyvsp[(3) - (3)].node));
 	}
@@ -3820,7 +3821,7 @@ yyreduce:
   case 142:
 
 /* Line 1806 of yacc.c  */
-#line 1008 "go.y"
+#line 1009 "go.y"
     {
 		// These nodes do not carry line numbers.
 		// Since a composite literal commonly spans several lines,
@@ -3842,7 +3843,7 @@ yyreduce:
   case 143:
 
 /* Line 1806 of yacc.c  */
-#line 1025 "go.y"
+#line 1026 "go.y"
     {
 		(yyval.node) = (yyvsp[(2) - (4)].node);
 		(yyval.node)->list = (yyvsp[(3) - (4)].list);
@@ -3852,7 +3853,7 @@ yyreduce:
   case 145:
 
 /* Line 1806 of yacc.c  */
-#line 1033 "go.y"
+#line 1034 "go.y"
     {
 		(yyval.node) = (yyvsp[(2) - (4)].node);
 		(yyval.node)->list = (yyvsp[(3) - (4)].list);
@@ -3862,7 +3863,7 @@ yyreduce:
   case 147:
 
 /* Line 1806 of yacc.c  */
-#line 1041 "go.y"
+#line 1042 "go.y"
     {
 		(yyval.node) = (yyvsp[(2) - (3)].node);
 		
@@ -3884,7 +3885,7 @@ yyreduce:
   case 151:
 
 /* Line 1806 of yacc.c  */
-#line 1067 "go.y"
+#line 1068 "go.y"
     {
 		(yyval.i) = LBODY;
 	}
@@ -3893,7 +3894,7 @@ yyreduce:
   case 152:
 
 /* Line 1806 of yacc.c  */
-#line 1071 "go.y"
+#line 1072 "go.y"
     {
 		(yyval.i) = '{';
 	}
@@ -3902,7 +3903,7 @@ yyreduce:
   case 153:
 
 /* Line 1806 of yacc.c  */
-#line 1082 "go.y"
+#line 1083 "go.y"
     {
 		if((yyvsp[(1) - (1)].sym) == S)
 			(yyval.node) = N;
@@ -3914,7 +3915,7 @@ yyreduce:
   case 154:
 
 /* Line 1806 of yacc.c  */
-#line 1091 "go.y"
+#line 1092 "go.y"
     {
 		(yyval.node) = dclname((yyvsp[(1) - (1)].sym));
 	}
@@ -3923,7 +3924,7 @@ yyreduce:
   case 155:
 
 /* Line 1806 of yacc.c  */
-#line 1096 "go.y"
+#line 1097 "go.y"
     {
 		(yyval.node) = N;
 	}
@@ -3932,7 +3933,7 @@ yyreduce:
   case 157:
 
 /* Line 1806 of yacc.c  */
-#line 1103 "go.y"
+#line 1104 "go.y"
     {
 		(yyval.sym) = (yyvsp[(1) - (1)].sym);
 		// during imports, unqualified non-exported identifiers are from builtinpkg
@@ -3944,7 +3945,7 @@ yyreduce:
   case 159:
 
 /* Line 1806 of yacc.c  */
-#line 1111 "go.y"
+#line 1112 "go.y"
     {
 		(yyval.sym) = S;
 	}
@@ -3953,7 +3954,7 @@ yyreduce:
   case 160:
 
 /* Line 1806 of yacc.c  */
-#line 1117 "go.y"
+#line 1118 "go.y"
     {
 		Pkg *p;
 
@@ -3971,7 +3972,7 @@ yyreduce:
   case 161:
 
 /* Line 1806 of yacc.c  */
-#line 1130 "go.y"
+#line 1131 "go.y"
     {
 		Pkg *p;
 
@@ -3989,7 +3990,7 @@ yyreduce:
   case 162:
 
 /* Line 1806 of yacc.c  */
-#line 1145 "go.y"
+#line 1146 "go.y"
     {
 		(yyval.node) = oldname((yyvsp[(1) - (1)].sym));
 		if((yyval.node)->pack != N)
@@ -4000,7 +4001,7 @@ yyreduce:
   case 164:
 
 /* Line 1806 of yacc.c  */
-#line 1165 "go.y"
+#line 1166 "go.y"
     {
 		yyerror("final argument in variadic function missing type");
 		(yyval.node) = nod(ODDD, typenod(typ(TINTER)), N);
@@ -4010,7 +4011,7 @@ yyreduce:
   case 165:
 
 /* Line 1806 of yacc.c  */
-#line 1170 "go.y"
+#line 1171 "go.y"
     {
 		(yyval.node) = nod(ODDD, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4019,7 +4020,7 @@ yyreduce:
   case 171:
 
 /* Line 1806 of yacc.c  */
-#line 1181 "go.y"
+#line 1182 "go.y"
     {
 		(yyval.node) = nod(OTPAREN, (yyvsp[(2) - (3)].node), N);
 	}
@@ -4028,7 +4029,7 @@ yyreduce:
   case 175:
 
 /* Line 1806 of yacc.c  */
-#line 1190 "go.y"
+#line 1191 "go.y"
     {
 		(yyval.node) = nod(OIND, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4037,7 +4038,7 @@ yyreduce:
   case 180:
 
 /* Line 1806 of yacc.c  */
-#line 1200 "go.y"
+#line 1201 "go.y"
     {
 		(yyval.node) = nod(OTPAREN, (yyvsp[(2) - (3)].node), N);
 	}
@@ -4046,7 +4047,7 @@ yyreduce:
   case 190:
 
 /* Line 1806 of yacc.c  */
-#line 1221 "go.y"
+#line 1222 "go.y"
     {
 		if((yyvsp[(1) - (3)].node)->op == OPACK) {
 			Sym *s;
@@ -4062,7 +4063,7 @@ yyreduce:
   case 191:
 
 /* Line 1806 of yacc.c  */
-#line 1234 "go.y"
+#line 1235 "go.y"
     {
 		(yyval.node) = nod(OTARRAY, (yyvsp[(2) - (4)].node), (yyvsp[(4) - (4)].node));
 	}
@@ -4071,7 +4072,7 @@ yyreduce:
   case 192:
 
 /* Line 1806 of yacc.c  */
-#line 1238 "go.y"
+#line 1239 "go.y"
     {
 		// array literal of nelem
 		(yyval.node) = nod(OTARRAY, nod(ODDD, N, N), (yyvsp[(4) - (4)].node));
@@ -4081,7 +4082,7 @@ yyreduce:
   case 193:
 
 /* Line 1806 of yacc.c  */
-#line 1243 "go.y"
+#line 1244 "go.y"
     {
 		(yyval.node) = nod(OTCHAN, (yyvsp[(2) - (2)].node), N);
 		(yyval.node)->etype = Cboth;
@@ -4091,7 +4092,7 @@ yyreduce:
   case 194:
 
 /* Line 1806 of yacc.c  */
-#line 1248 "go.y"
+#line 1249 "go.y"
     {
 		(yyval.node) = nod(OTCHAN, (yyvsp[(3) - (3)].node), N);
 		(yyval.node)->etype = Csend;
@@ -4101,7 +4102,7 @@ yyreduce:
   case 195:
 
 /* Line 1806 of yacc.c  */
-#line 1253 "go.y"
+#line 1254 "go.y"
     {
 		(yyval.node) = nod(OTMAP, (yyvsp[(3) - (5)].node), (yyvsp[(5) - (5)].node));
 	}
@@ -4110,7 +4111,7 @@ yyreduce:
   case 198:
 
 /* Line 1806 of yacc.c  */
-#line 1261 "go.y"
+#line 1262 "go.y"
     {
 		(yyval.node) = nod(OIND, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4119,7 +4120,7 @@ yyreduce:
   case 199:
 
 /* Line 1806 of yacc.c  */
-#line 1267 "go.y"
+#line 1268 "go.y"
     {
 		(yyval.node) = nod(OTCHAN, (yyvsp[(3) - (3)].node), N);
 		(yyval.node)->etype = Crecv;
@@ -4129,7 +4130,7 @@ yyreduce:
   case 200:
 
 /* Line 1806 of yacc.c  */
-#line 1274 "go.y"
+#line 1275 "go.y"
     {
 		(yyval.node) = nod(OTSTRUCT, N, N);
 		(yyval.node)->list = (yyvsp[(3) - (5)].list);
@@ -4140,7 +4141,7 @@ yyreduce:
   case 201:
 
 /* Line 1806 of yacc.c  */
-#line 1280 "go.y"
+#line 1281 "go.y"
     {
 		(yyval.node) = nod(OTSTRUCT, N, N);
 		fixlbrace((yyvsp[(2) - (3)].i));
@@ -4150,7 +4151,7 @@ yyreduce:
   case 202:
 
 /* Line 1806 of yacc.c  */
-#line 1287 "go.y"
+#line 1288 "go.y"
     {
 		(yyval.node) = nod(OTINTER, N, N);
 		(yyval.node)->list = (yyvsp[(3) - (5)].list);
@@ -4161,7 +4162,7 @@ yyreduce:
   case 203:
 
 /* Line 1806 of yacc.c  */
-#line 1293 "go.y"
+#line 1294 "go.y"
     {
 		(yyval.node) = nod(OTINTER, N, N);
 		fixlbrace((yyvsp[(2) - (3)].i));
@@ -4171,7 +4172,7 @@ yyreduce:
   case 204:
 
 /* Line 1806 of yacc.c  */
-#line 1304 "go.y"
+#line 1305 "go.y"
     {
 		(yyval.node) = (yyvsp[(2) - (3)].node);
 		if((yyval.node) == N)
@@ -4188,7 +4189,7 @@ yyreduce:
   case 205:
 
 /* Line 1806 of yacc.c  */
-#line 1318 "go.y"
+#line 1319 "go.y"
     {
 		Node *t;
 
@@ -4222,7 +4223,7 @@ yyreduce:
   case 206:
 
 /* Line 1806 of yacc.c  */
-#line 1347 "go.y"
+#line 1348 "go.y"
     {
 		Node *rcvr, *t;
 
@@ -4265,7 +4266,7 @@ yyreduce:
   case 207:
 
 /* Line 1806 of yacc.c  */
-#line 1387 "go.y"
+#line 1388 "go.y"
     {
 		Sym *s;
 		Type *t;
@@ -4295,7 +4296,7 @@ yyreduce:
   case 208:
 
 /* Line 1806 of yacc.c  */
-#line 1412 "go.y"
+#line 1413 "go.y"
     {
 		(yyval.node) = methodname1(newname((yyvsp[(4) - (8)].sym)), (yyvsp[(2) - (8)].list)->n->right); 
 		(yyval.node)->type = functype((yyvsp[(2) - (8)].list)->n, (yyvsp[(6) - (8)].list), (yyvsp[(8) - (8)].list));
@@ -4316,7 +4317,7 @@ yyreduce:
   case 209:
 
 /* Line 1806 of yacc.c  */
-#line 1430 "go.y"
+#line 1431 "go.y"
     {
 		(yyvsp[(3) - (5)].list) = checkarglist((yyvsp[(3) - (5)].list), 1);
 		(yyval.node) = nod(OTFUNC, N, N);
@@ -4328,7 +4329,7 @@ yyreduce:
   case 210:
 
 /* Line 1806 of yacc.c  */
-#line 1438 "go.y"
+#line 1439 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -4337,7 +4338,7 @@ yyreduce:
   case 211:
 
 /* Line 1806 of yacc.c  */
-#line 1442 "go.y"
+#line 1443 "go.y"
     {
 		(yyval.list) = (yyvsp[(2) - (3)].list);
 		if((yyval.list) == nil)
@@ -4348,7 +4349,7 @@ yyreduce:
   case 212:
 
 /* Line 1806 of yacc.c  */
-#line 1450 "go.y"
+#line 1451 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -4357,7 +4358,7 @@ yyreduce:
   case 213:
 
 /* Line 1806 of yacc.c  */
-#line 1454 "go.y"
+#line 1455 "go.y"
     {
 		(yyval.list) = list1(nod(ODCLFIELD, N, (yyvsp[(1) - (1)].node)));
 	}
@@ -4366,7 +4367,7 @@ yyreduce:
   case 214:
 
 /* Line 1806 of yacc.c  */
-#line 1458 "go.y"
+#line 1459 "go.y"
     {
 		(yyvsp[(2) - (3)].list) = checkarglist((yyvsp[(2) - (3)].list), 0);
 		(yyval.list) = (yyvsp[(2) - (3)].list);
@@ -4376,7 +4377,7 @@ yyreduce:
   case 215:
 
 /* Line 1806 of yacc.c  */
-#line 1465 "go.y"
+#line 1466 "go.y"
     {
 		closurehdr((yyvsp[(1) - (1)].node));
 	}
@@ -4385,7 +4386,7 @@ yyreduce:
   case 216:
 
 /* Line 1806 of yacc.c  */
-#line 1471 "go.y"
+#line 1472 "go.y"
     {
 		(yyval.node) = closurebody((yyvsp[(3) - (4)].list));
 		fixlbrace((yyvsp[(2) - (4)].i));
@@ -4395,7 +4396,7 @@ yyreduce:
   case 217:
 
 /* Line 1806 of yacc.c  */
-#line 1476 "go.y"
+#line 1477 "go.y"
     {
 		(yyval.node) = closurebody(nil);
 	}
@@ -4404,7 +4405,7 @@ yyreduce:
   case 218:
 
 /* Line 1806 of yacc.c  */
-#line 1487 "go.y"
+#line 1488 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -4413,7 +4414,7 @@ yyreduce:
   case 219:
 
 /* Line 1806 of yacc.c  */
-#line 1491 "go.y"
+#line 1492 "go.y"
     {
 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(2) - (3)].list));
 		if(nsyntaxerrors == 0)
@@ -4426,7 +4427,7 @@ yyreduce:
   case 221:
 
 /* Line 1806 of yacc.c  */
-#line 1502 "go.y"
+#line 1503 "go.y"
     {
 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].list));
 	}
@@ -4435,7 +4436,7 @@ yyreduce:
   case 223:
 
 /* Line 1806 of yacc.c  */
-#line 1509 "go.y"
+#line 1510 "go.y"
     {
 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].list));
 	}
@@ -4444,7 +4445,7 @@ yyreduce:
   case 224:
 
 /* Line 1806 of yacc.c  */
-#line 1515 "go.y"
+#line 1516 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4453,7 +4454,7 @@ yyreduce:
   case 225:
 
 /* Line 1806 of yacc.c  */
-#line 1519 "go.y"
+#line 1520 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4462,7 +4463,7 @@ yyreduce:
   case 227:
 
 /* Line 1806 of yacc.c  */
-#line 1526 "go.y"
+#line 1527 "go.y"
     {
 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].list));
 	}
@@ -4471,7 +4472,7 @@ yyreduce:
   case 228:
 
 /* Line 1806 of yacc.c  */
-#line 1532 "go.y"
+#line 1533 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4480,7 +4481,7 @@ yyreduce:
   case 229:
 
 /* Line 1806 of yacc.c  */
-#line 1536 "go.y"
+#line 1537 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4489,7 +4490,7 @@ yyreduce:
   case 230:
 
 /* Line 1806 of yacc.c  */
-#line 1542 "go.y"
+#line 1543 "go.y"
     {
 		NodeList *l;
 
@@ -4517,7 +4518,7 @@ yyreduce:
   case 231:
 
 /* Line 1806 of yacc.c  */
-#line 1565 "go.y"
+#line 1566 "go.y"
     {
 		(yyvsp[(1) - (2)].node)->val = (yyvsp[(2) - (2)].val);
 		(yyval.list) = list1((yyvsp[(1) - (2)].node));
@@ -4527,7 +4528,7 @@ yyreduce:
   case 232:
 
 /* Line 1806 of yacc.c  */
-#line 1570 "go.y"
+#line 1571 "go.y"
     {
 		(yyvsp[(2) - (4)].node)->val = (yyvsp[(4) - (4)].val);
 		(yyval.list) = list1((yyvsp[(2) - (4)].node));
@@ -4538,7 +4539,7 @@ yyreduce:
   case 233:
 
 /* Line 1806 of yacc.c  */
-#line 1576 "go.y"
+#line 1577 "go.y"
     {
 		(yyvsp[(2) - (3)].node)->right = nod(OIND, (yyvsp[(2) - (3)].node)->right, N);
 		(yyvsp[(2) - (3)].node)->val = (yyvsp[(3) - (3)].val);
@@ -4549,7 +4550,7 @@ yyreduce:
   case 234:
 
 /* Line 1806 of yacc.c  */
-#line 1582 "go.y"
+#line 1583 "go.y"
     {
 		(yyvsp[(3) - (5)].node)->right = nod(OIND, (yyvsp[(3) - (5)].node)->right, N);
 		(yyvsp[(3) - (5)].node)->val = (yyvsp[(5) - (5)].val);
@@ -4561,7 +4562,7 @@ yyreduce:
   case 235:
 
 /* Line 1806 of yacc.c  */
-#line 1589 "go.y"
+#line 1590 "go.y"
     {
 		(yyvsp[(3) - (5)].node)->right = nod(OIND, (yyvsp[(3) - (5)].node)->right, N);
 		(yyvsp[(3) - (5)].node)->val = (yyvsp[(5) - (5)].val);
@@ -4573,7 +4574,7 @@ yyreduce:
   case 236:
 
 /* Line 1806 of yacc.c  */
-#line 1598 "go.y"
+#line 1599 "go.y"
     {
 		Node *n;
 
@@ -4587,7 +4588,7 @@ yyreduce:
   case 237:
 
 /* Line 1806 of yacc.c  */
-#line 1607 "go.y"
+#line 1608 "go.y"
     {
 		Pkg *pkg;
 
@@ -4605,7 +4606,7 @@ yyreduce:
   case 238:
 
 /* Line 1806 of yacc.c  */
-#line 1622 "go.y"
+#line 1623 "go.y"
     {
 		(yyval.node) = embedded((yyvsp[(1) - (1)].sym), localpkg);
 	}
@@ -4614,7 +4615,7 @@ yyreduce:
   case 239:
 
 /* Line 1806 of yacc.c  */
-#line 1628 "go.y"
+#line 1629 "go.y"
     {
 		(yyval.node) = nod(ODCLFIELD, (yyvsp[(1) - (2)].node), (yyvsp[(2) - (2)].node));
 		ifacedcl((yyval.node));
@@ -4624,7 +4625,7 @@ yyreduce:
   case 240:
 
 /* Line 1806 of yacc.c  */
-#line 1633 "go.y"
+#line 1634 "go.y"
     {
 		(yyval.node) = nod(ODCLFIELD, N, oldname((yyvsp[(1) - (1)].sym)));
 	}
@@ -4633,7 +4634,7 @@ yyreduce:
   case 241:
 
 /* Line 1806 of yacc.c  */
-#line 1637 "go.y"
+#line 1638 "go.y"
     {
 		(yyval.node) = nod(ODCLFIELD, N, oldname((yyvsp[(2) - (3)].sym)));
 		yyerror("cannot parenthesize embedded type");
@@ -4643,7 +4644,7 @@ yyreduce:
   case 242:
 
 /* Line 1806 of yacc.c  */
-#line 1644 "go.y"
+#line 1645 "go.y"
     {
 		// without func keyword
 		(yyvsp[(2) - (4)].list) = checkarglist((yyvsp[(2) - (4)].list), 1);
@@ -4656,7 +4657,7 @@ yyreduce:
   case 244:
 
 /* Line 1806 of yacc.c  */
-#line 1658 "go.y"
+#line 1659 "go.y"
     {
 		(yyval.node) = nod(ONONAME, N, N);
 		(yyval.node)->sym = (yyvsp[(1) - (2)].sym);
@@ -4667,7 +4668,7 @@ yyreduce:
   case 245:
 
 /* Line 1806 of yacc.c  */
-#line 1664 "go.y"
+#line 1665 "go.y"
     {
 		(yyval.node) = nod(ONONAME, N, N);
 		(yyval.node)->sym = (yyvsp[(1) - (2)].sym);
@@ -4678,7 +4679,7 @@ yyreduce:
   case 247:
 
 /* Line 1806 of yacc.c  */
-#line 1673 "go.y"
+#line 1674 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4687,7 +4688,7 @@ yyreduce:
   case 248:
 
 /* Line 1806 of yacc.c  */
-#line 1677 "go.y"
+#line 1678 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4696,7 +4697,7 @@ yyreduce:
   case 249:
 
 /* Line 1806 of yacc.c  */
-#line 1682 "go.y"
+#line 1683 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -4705,7 +4706,7 @@ yyreduce:
   case 250:
 
 /* Line 1806 of yacc.c  */
-#line 1686 "go.y"
+#line 1687 "go.y"
     {
 		(yyval.list) = (yyvsp[(1) - (2)].list);
 	}
@@ -4714,7 +4715,7 @@ yyreduce:
   case 251:
 
 /* Line 1806 of yacc.c  */
-#line 1694 "go.y"
+#line 1695 "go.y"
     {
 		(yyval.node) = N;
 	}
@@ -4723,7 +4724,7 @@ yyreduce:
   case 253:
 
 /* Line 1806 of yacc.c  */
-#line 1699 "go.y"
+#line 1700 "go.y"
     {
 		(yyval.node) = liststmt((yyvsp[(1) - (1)].list));
 	}
@@ -4732,7 +4733,7 @@ yyreduce:
   case 255:
 
 /* Line 1806 of yacc.c  */
-#line 1704 "go.y"
+#line 1705 "go.y"
     {
 		(yyval.node) = N;
 	}
@@ -4741,7 +4742,7 @@ yyreduce:
   case 261:
 
 /* Line 1806 of yacc.c  */
-#line 1715 "go.y"
+#line 1716 "go.y"
     {
 		(yyvsp[(1) - (2)].node) = nod(OLABEL, (yyvsp[(1) - (2)].node), N);
 		(yyvsp[(1) - (2)].node)->sym = dclstack;  // context, for goto restrictions
@@ -4751,7 +4752,7 @@ yyreduce:
   case 262:
 
 /* Line 1806 of yacc.c  */
-#line 1720 "go.y"
+#line 1721 "go.y"
     {
 		NodeList *l;
 
@@ -4766,17 +4767,18 @@ yyreduce:
   case 263:
 
 /* Line 1806 of yacc.c  */
-#line 1730 "go.y"
+#line 1731 "go.y"
     {
 		// will be converted to OFALL
 		(yyval.node) = nod(OXFALL, N, N);
+		(yyval.node)->xoffset = block;
 	}
     break;
 
   case 264:
 
 /* Line 1806 of yacc.c  */
-#line 1735 "go.y"
+#line 1737 "go.y"
     {
 		(yyval.node) = nod(OBREAK, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4785,7 +4787,7 @@ yyreduce:
   case 265:
 
 /* Line 1806 of yacc.c  */
-#line 1739 "go.y"
+#line 1741 "go.y"
     {
 		(yyval.node) = nod(OCONTINUE, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4794,7 +4796,7 @@ yyreduce:
   case 266:
 
 /* Line 1806 of yacc.c  */
-#line 1743 "go.y"
+#line 1745 "go.y"
     {
 		(yyval.node) = nod(OPROC, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4803,7 +4805,7 @@ yyreduce:
   case 267:
 
 /* Line 1806 of yacc.c  */
-#line 1747 "go.y"
+#line 1749 "go.y"
     {
 		(yyval.node) = nod(ODEFER, (yyvsp[(2) - (2)].node), N);
 	}
@@ -4812,7 +4814,7 @@ yyreduce:
   case 268:
 
 /* Line 1806 of yacc.c  */
-#line 1751 "go.y"
+#line 1753 "go.y"
     {
 		(yyval.node) = nod(OGOTO, (yyvsp[(2) - (2)].node), N);
 		(yyval.node)->sym = dclstack;  // context, for goto restrictions
@@ -4822,7 +4824,7 @@ yyreduce:
   case 269:
 
 /* Line 1806 of yacc.c  */
-#line 1756 "go.y"
+#line 1758 "go.y"
     {
 		(yyval.node) = nod(ORETURN, N, N);
 		(yyval.node)->list = (yyvsp[(2) - (2)].list);
@@ -4844,7 +4846,7 @@ yyreduce:
   case 270:
 
 /* Line 1806 of yacc.c  */
-#line 1775 "go.y"
+#line 1777 "go.y"
     {
 		(yyval.list) = nil;
 		if((yyvsp[(1) - (1)].node) != N)
@@ -4855,7 +4857,7 @@ yyreduce:
   case 271:
 
 /* Line 1806 of yacc.c  */
-#line 1781 "go.y"
+#line 1783 "go.y"
     {
 		(yyval.list) = (yyvsp[(1) - (3)].list);
 		if((yyvsp[(3) - (3)].node) != N)
@@ -4866,7 +4868,7 @@ yyreduce:
   case 272:
 
 /* Line 1806 of yacc.c  */
-#line 1789 "go.y"
+#line 1791 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4875,7 +4877,7 @@ yyreduce:
   case 273:
 
 /* Line 1806 of yacc.c  */
-#line 1793 "go.y"
+#line 1795 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4884,7 +4886,7 @@ yyreduce:
   case 274:
 
 /* Line 1806 of yacc.c  */
-#line 1799 "go.y"
+#line 1801 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4893,7 +4895,7 @@ yyreduce:
   case 275:
 
 /* Line 1806 of yacc.c  */
-#line 1803 "go.y"
+#line 1805 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4902,7 +4904,7 @@ yyreduce:
   case 276:
 
 /* Line 1806 of yacc.c  */
-#line 1809 "go.y"
+#line 1811 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4911,7 +4913,7 @@ yyreduce:
   case 277:
 
 /* Line 1806 of yacc.c  */
-#line 1813 "go.y"
+#line 1815 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4920,7 +4922,7 @@ yyreduce:
   case 278:
 
 /* Line 1806 of yacc.c  */
-#line 1819 "go.y"
+#line 1821 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4929,7 +4931,7 @@ yyreduce:
   case 279:
 
 /* Line 1806 of yacc.c  */
-#line 1823 "go.y"
+#line 1825 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4938,7 +4940,7 @@ yyreduce:
   case 280:
 
 /* Line 1806 of yacc.c  */
-#line 1832 "go.y"
+#line 1834 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4947,7 +4949,7 @@ yyreduce:
   case 281:
 
 /* Line 1806 of yacc.c  */
-#line 1836 "go.y"
+#line 1838 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -4956,7 +4958,7 @@ yyreduce:
   case 282:
 
 /* Line 1806 of yacc.c  */
-#line 1840 "go.y"
+#line 1842 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4965,7 +4967,7 @@ yyreduce:
   case 283:
 
 /* Line 1806 of yacc.c  */
-#line 1844 "go.y"
+#line 1846 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -4974,7 +4976,7 @@ yyreduce:
   case 284:
 
 /* Line 1806 of yacc.c  */
-#line 1849 "go.y"
+#line 1851 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -4983,7 +4985,7 @@ yyreduce:
   case 285:
 
 /* Line 1806 of yacc.c  */
-#line 1853 "go.y"
+#line 1855 "go.y"
     {
 		(yyval.list) = (yyvsp[(1) - (2)].list);
 	}
@@ -4992,7 +4994,7 @@ yyreduce:
   case 290:
 
 /* Line 1806 of yacc.c  */
-#line 1867 "go.y"
+#line 1869 "go.y"
     {
 		(yyval.node) = N;
 	}
@@ -5001,7 +5003,7 @@ yyreduce:
   case 292:
 
 /* Line 1806 of yacc.c  */
-#line 1873 "go.y"
+#line 1875 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -5010,7 +5012,7 @@ yyreduce:
   case 294:
 
 /* Line 1806 of yacc.c  */
-#line 1879 "go.y"
+#line 1881 "go.y"
     {
 		(yyval.node) = N;
 	}
@@ -5019,7 +5021,7 @@ yyreduce:
   case 296:
 
 /* Line 1806 of yacc.c  */
-#line 1885 "go.y"
+#line 1887 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -5028,7 +5030,7 @@ yyreduce:
   case 298:
 
 /* Line 1806 of yacc.c  */
-#line 1891 "go.y"
+#line 1893 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -5037,7 +5039,7 @@ yyreduce:
   case 300:
 
 /* Line 1806 of yacc.c  */
-#line 1897 "go.y"
+#line 1899 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -5046,7 +5048,7 @@ yyreduce:
   case 302:
 
 /* Line 1806 of yacc.c  */
-#line 1903 "go.y"
+#line 1905 "go.y"
     {
 		(yyval.val).ctype = CTxxx;
 	}
@@ -5055,7 +5057,7 @@ yyreduce:
   case 304:
 
 /* Line 1806 of yacc.c  */
-#line 1913 "go.y"
+#line 1915 "go.y"
     {
 		importimport((yyvsp[(2) - (4)].sym), (yyvsp[(3) - (4)].val).u.sval);
 	}
@@ -5064,7 +5066,7 @@ yyreduce:
   case 305:
 
 /* Line 1806 of yacc.c  */
-#line 1917 "go.y"
+#line 1919 "go.y"
     {
 		importvar((yyvsp[(2) - (4)].sym), (yyvsp[(3) - (4)].type));
 	}
@@ -5073,7 +5075,7 @@ yyreduce:
   case 306:
 
 /* Line 1806 of yacc.c  */
-#line 1921 "go.y"
+#line 1923 "go.y"
     {
 		importconst((yyvsp[(2) - (5)].sym), types[TIDEAL], (yyvsp[(4) - (5)].node));
 	}
@@ -5082,7 +5084,7 @@ yyreduce:
   case 307:
 
 /* Line 1806 of yacc.c  */
-#line 1925 "go.y"
+#line 1927 "go.y"
     {
 		importconst((yyvsp[(2) - (6)].sym), (yyvsp[(3) - (6)].type), (yyvsp[(5) - (6)].node));
 	}
@@ -5091,7 +5093,7 @@ yyreduce:
   case 308:
 
 /* Line 1806 of yacc.c  */
-#line 1929 "go.y"
+#line 1931 "go.y"
     {
 		importtype((yyvsp[(2) - (4)].type), (yyvsp[(3) - (4)].type));
 	}
@@ -5100,7 +5102,7 @@ yyreduce:
   case 309:
 
 /* Line 1806 of yacc.c  */
-#line 1933 "go.y"
+#line 1935 "go.y"
     {
 		if((yyvsp[(2) - (4)].node) == N) {
 			dclcontext = PEXTERN;  // since we skip the funcbody below
@@ -5123,7 +5125,7 @@ yyreduce:
   case 310:
 
 /* Line 1806 of yacc.c  */
-#line 1953 "go.y"
+#line 1955 "go.y"
     {
 		(yyval.sym) = (yyvsp[(1) - (1)].sym);
 		structpkg = (yyval.sym)->pkg;
@@ -5133,7 +5135,7 @@ yyreduce:
   case 311:
 
 /* Line 1806 of yacc.c  */
-#line 1960 "go.y"
+#line 1962 "go.y"
     {
 		(yyval.type) = pkgtype((yyvsp[(1) - (1)].sym));
 		importsym((yyvsp[(1) - (1)].sym), OTYPE);
@@ -5143,7 +5145,7 @@ yyreduce:
   case 317:
 
 /* Line 1806 of yacc.c  */
-#line 1980 "go.y"
+#line 1982 "go.y"
     {
 		(yyval.type) = pkgtype((yyvsp[(1) - (1)].sym));
 	}
@@ -5152,7 +5154,7 @@ yyreduce:
   case 318:
 
 /* Line 1806 of yacc.c  */
-#line 1984 "go.y"
+#line 1986 "go.y"
     {
 		// predefined name like uint8
 		(yyvsp[(1) - (1)].sym) = pkglookup((yyvsp[(1) - (1)].sym)->name, builtinpkg);
@@ -5167,7 +5169,7 @@ yyreduce:
   case 319:
 
 /* Line 1806 of yacc.c  */
-#line 1994 "go.y"
+#line 1996 "go.y"
     {
 		(yyval.type) = aindex(N, (yyvsp[(3) - (3)].type));
 	}
@@ -5176,7 +5178,7 @@ yyreduce:
   case 320:
 
 /* Line 1806 of yacc.c  */
-#line 1998 "go.y"
+#line 2000 "go.y"
     {
 		(yyval.type) = aindex(nodlit((yyvsp[(2) - (4)].val)), (yyvsp[(4) - (4)].type));
 	}
@@ -5185,7 +5187,7 @@ yyreduce:
   case 321:
 
 /* Line 1806 of yacc.c  */
-#line 2002 "go.y"
+#line 2004 "go.y"
     {
 		(yyval.type) = maptype((yyvsp[(3) - (5)].type), (yyvsp[(5) - (5)].type));
 	}
@@ -5194,7 +5196,7 @@ yyreduce:
   case 322:
 
 /* Line 1806 of yacc.c  */
-#line 2006 "go.y"
+#line 2008 "go.y"
     {
 		(yyval.type) = tostruct((yyvsp[(3) - (4)].list));
 	}
@@ -5203,7 +5205,7 @@ yyreduce:
   case 323:
 
 /* Line 1806 of yacc.c  */
-#line 2010 "go.y"
+#line 2012 "go.y"
     {
 		(yyval.type) = tointerface((yyvsp[(3) - (4)].list));
 	}
@@ -5212,7 +5214,7 @@ yyreduce:
   case 324:
 
 /* Line 1806 of yacc.c  */
-#line 2014 "go.y"
+#line 2016 "go.y"
     {
 		(yyval.type) = ptrto((yyvsp[(2) - (2)].type));
 	}
@@ -5221,7 +5223,7 @@ yyreduce:
   case 325:
 
 /* Line 1806 of yacc.c  */
-#line 2018 "go.y"
+#line 2020 "go.y"
     {
 		(yyval.type) = typ(TCHAN);
 		(yyval.type)->type = (yyvsp[(2) - (2)].type);
@@ -5232,7 +5234,7 @@ yyreduce:
   case 326:
 
 /* Line 1806 of yacc.c  */
-#line 2024 "go.y"
+#line 2026 "go.y"
     {
 		(yyval.type) = typ(TCHAN);
 		(yyval.type)->type = (yyvsp[(3) - (4)].type);
@@ -5243,7 +5245,7 @@ yyreduce:
   case 327:
 
 /* Line 1806 of yacc.c  */
-#line 2030 "go.y"
+#line 2032 "go.y"
     {
 		(yyval.type) = typ(TCHAN);
 		(yyval.type)->type = (yyvsp[(3) - (3)].type);
@@ -5254,7 +5256,7 @@ yyreduce:
   case 328:
 
 /* Line 1806 of yacc.c  */
-#line 2038 "go.y"
+#line 2040 "go.y"
     {
 		(yyval.type) = typ(TCHAN);
 		(yyval.type)->type = (yyvsp[(3) - (3)].type);
@@ -5265,7 +5267,7 @@ yyreduce:
   case 329:
 
 /* Line 1806 of yacc.c  */
-#line 2046 "go.y"
+#line 2048 "go.y"
     {
 		(yyval.type) = functype(nil, (yyvsp[(3) - (5)].list), (yyvsp[(5) - (5)].list));
 	}
@@ -5274,7 +5276,7 @@ yyreduce:
   case 330:
 
 /* Line 1806 of yacc.c  */
-#line 2052 "go.y"
+#line 2054 "go.y"
     {
 		(yyval.node) = nod(ODCLFIELD, N, typenod((yyvsp[(2) - (3)].type)));
 		if((yyvsp[(1) - (3)].sym))
@@ -5286,7 +5288,7 @@ yyreduce:
   case 331:
 
 /* Line 1806 of yacc.c  */
-#line 2059 "go.y"
+#line 2061 "go.y"
     {
 		Type *t;
 	
@@ -5305,7 +5307,7 @@ yyreduce:
   case 332:
 
 /* Line 1806 of yacc.c  */
-#line 2075 "go.y"
+#line 2077 "go.y"
     {
 		Sym *s;
 		Pkg *p;
@@ -5330,7 +5332,7 @@ yyreduce:
   case 333:
 
 /* Line 1806 of yacc.c  */
-#line 2097 "go.y"
+#line 2099 "go.y"
     {
 		(yyval.node) = nod(ODCLFIELD, newname((yyvsp[(1) - (5)].sym)), typenod(functype(fakethis(), (yyvsp[(3) - (5)].list), (yyvsp[(5) - (5)].list))));
 	}
@@ -5339,7 +5341,7 @@ yyreduce:
   case 334:
 
 /* Line 1806 of yacc.c  */
-#line 2101 "go.y"
+#line 2103 "go.y"
     {
 		(yyval.node) = nod(ODCLFIELD, N, typenod((yyvsp[(1) - (1)].type)));
 	}
@@ -5348,7 +5350,7 @@ yyreduce:
   case 335:
 
 /* Line 1806 of yacc.c  */
-#line 2106 "go.y"
+#line 2108 "go.y"
     {
 		(yyval.list) = nil;
 	}
@@ -5357,7 +5359,7 @@ yyreduce:
   case 337:
 
 /* Line 1806 of yacc.c  */
-#line 2113 "go.y"
+#line 2115 "go.y"
     {
 		(yyval.list) = (yyvsp[(2) - (3)].list);
 	}
@@ -5366,7 +5368,7 @@ yyreduce:
   case 338:
 
 /* Line 1806 of yacc.c  */
-#line 2117 "go.y"
+#line 2119 "go.y"
     {
 		(yyval.list) = list1(nod(ODCLFIELD, N, typenod((yyvsp[(1) - (1)].type))));
 	}
@@ -5375,7 +5377,7 @@ yyreduce:
   case 339:
 
 /* Line 1806 of yacc.c  */
-#line 2127 "go.y"
+#line 2129 "go.y"
     {
 		(yyval.node) = nodlit((yyvsp[(1) - (1)].val));
 	}
@@ -5384,7 +5386,7 @@ yyreduce:
   case 340:
 
 /* Line 1806 of yacc.c  */
-#line 2131 "go.y"
+#line 2133 "go.y"
     {
 		(yyval.node) = nodlit((yyvsp[(2) - (2)].val));
 		switch((yyval.node)->val.ctype){
@@ -5404,7 +5406,7 @@ yyreduce:
   case 341:
 
 /* Line 1806 of yacc.c  */
-#line 2146 "go.y"
+#line 2148 "go.y"
     {
 		(yyval.node) = oldname(pkglookup((yyvsp[(1) - (1)].sym)->name, builtinpkg));
 		if((yyval.node)->op != OLITERAL)
@@ -5415,7 +5417,7 @@ yyreduce:
   case 343:
 
 /* Line 1806 of yacc.c  */
-#line 2155 "go.y"
+#line 2157 "go.y"
     {
 		if((yyvsp[(2) - (5)].node)->val.ctype == CTRUNE && (yyvsp[(4) - (5)].node)->val.ctype == CTINT) {
 			(yyval.node) = (yyvsp[(2) - (5)].node);
@@ -5431,7 +5433,7 @@ yyreduce:
   case 346:
 
 /* Line 1806 of yacc.c  */
-#line 2171 "go.y"
+#line 2173 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -5440,7 +5442,7 @@ yyreduce:
   case 347:
 
 /* Line 1806 of yacc.c  */
-#line 2175 "go.y"
+#line 2177 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -5449,7 +5451,7 @@ yyreduce:
   case 348:
 
 /* Line 1806 of yacc.c  */
-#line 2181 "go.y"
+#line 2183 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -5458,7 +5460,7 @@ yyreduce:
   case 349:
 
 /* Line 1806 of yacc.c  */
-#line 2185 "go.y"
+#line 2187 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -5467,7 +5469,7 @@ yyreduce:
   case 350:
 
 /* Line 1806 of yacc.c  */
-#line 2191 "go.y"
+#line 2193 "go.y"
     {
 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
 	}
@@ -5476,7 +5478,7 @@ yyreduce:
   case 351:
 
 /* Line 1806 of yacc.c  */
-#line 2195 "go.y"
+#line 2197 "go.y"
     {
 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
 	}
@@ -5485,7 +5487,7 @@ yyreduce:
 
 
 /* Line 1806 of yacc.c  */
-#line 5490 "y.tab.c"
+#line 5492 "y.tab.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -5716,7 +5718,7 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 2199 "go.y"
+#line 2201 "go.y"
 
 
 static void
