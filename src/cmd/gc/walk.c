@@ -2707,9 +2707,10 @@ appendslice(Node *n, NodeList **init)
 			fn = syslook("copy", 1);
 		argtype(fn, l1->type);
 		argtype(fn, l2->type);
-		l = list(l, mkcall1(fn, types[TINT], init,
+		nt = mkcall1(fn, types[TINT], &l,
 				nptr1, nptr2,
-				nodintconst(s->type->type->width)));
+				nodintconst(s->type->type->width));
+		l = list(l, nt);
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		nptr1 = nod(OINDEX, s, nod(OLEN, l1, N));
@@ -2724,7 +2725,8 @@ appendslice(Node *n, NodeList **init)
 
 		nwid = cheapexpr(conv(nod(OLEN, l2, N), types[TUINTPTR]), &l);
 		nwid = nod(OMUL, nwid, nodintconst(s->type->type->width));
-		l = list(l, mkcall1(fn, T, init, nptr1, nptr2, nwid));
+		nt = mkcall1(fn, T, &l, nptr1, nptr2, nwid);
+		l = list(l, nt);
 	}
 
 	// s = s[:len(l1)+len(l2)]
