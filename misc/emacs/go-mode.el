@@ -7,6 +7,7 @@
 (require 'cl)
 (require 'etags)
 (require 'ffap)
+(require 'find-file)
 (require 'ring)
 (require 'url)
 
@@ -166,6 +167,13 @@ customize this variable to point to the wrapper script."
   "The 'gofmt' command.  Some users may replace this with 'goimports'
 from https://github.com/bradfitz/goimports."
   :type 'string
+  :group 'go)
+
+(defcustom go-other-file-alist
+  '(("_test\\.go\\'" (".go"))
+    ("\\.go\\'" ("_test.go")))
+  "See the documentation of `ff-other-file-alist' for details."
+  :type '(repeat (list regexp (choice (repeat string) function)))
   :group 'go)
 
 (defface go-coverage-untracked
@@ -561,6 +569,8 @@ recommended that you look at goflymake
   (set (make-local-variable 'go-dangling-cache) (make-hash-table :test 'eql))
   (add-hook 'before-change-functions (lambda (x y) (setq go-dangling-cache (make-hash-table :test 'eql))) t t)
 
+  ;; ff-find-other-file
+  (setq ff-other-file-alist 'go-other-file-alist)
 
   (setq imenu-generic-expression
         '(("type" "^type *\\([^ \t\n\r\f]*\\)" 1)
