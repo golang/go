@@ -112,7 +112,7 @@ func cloneProg(p *Prog) *Prog {
 	for i, seg := range p.Segments {
 		q.Segments[i] = cloneSegment(seg)
 	}
-	return p
+	return q
 }
 
 // cloneSegment returns a deep copy of seg.
