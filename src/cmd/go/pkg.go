@@ -89,6 +89,7 @@ type Package struct {
 	exeName      string               // desired name for temporary executable
 	coverMode    string               // preprocess Go source files with the coverage tool in this mode
 	coverVars    map[string]*CoverVar // variables created by coverage analysis
+	omitDWARF    bool                 // tell linker not to write DWARF information
 }
 
 // CoverVar holds the name of the generated coverage variables targeting the named file.

@@ -654,6 +654,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		pkgdir:     testDir,
 		fake:       true,
 		Stale:      true,
+		omitDWARF:  !testC && !testNeedBinary,
 	}
 	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)

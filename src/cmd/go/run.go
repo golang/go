@@ -58,6 +58,7 @@ func runRun(cmd *Command, args []string) {
 	if p.Error != nil {
 		fatalf("%s", p.Error)
 	}
+	p.omitDWARF = true
 	for _, err := range p.DepsErrors {
 		errorf("%s", err)
 	}
