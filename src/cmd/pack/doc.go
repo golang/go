@@ -14,6 +14,7 @@ Pack applies the operation to the archive, using the names as arguments to the o
 
 The operation op is given by one of these letters:
 
+	c	append files (from the file system) to a new archive
 	p	print files from the archive
 	r	append files (from the file system) to the archive
 	t	list files from the archive
@@ -27,8 +28,8 @@ even if a file with the given name already exists in the archive. In this way
 pack's r operation is more like Unix ar's rq operation.
 
 Adding the letter v to an operation, as in pv or rv, enables verbose operation:
+For the c and r commands, names are printed as files are added.
 For the p command, each file is prefixed by the name on a line by itself.
-For the r command, names are printed as files are added.
 For the t command, the listing includes additional file metadata.
 For the x command, names are printed as files are extracted.
 

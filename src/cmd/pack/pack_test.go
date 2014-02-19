@@ -10,7 +10,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -161,6 +163,48 @@ func TestExtract(t *testing.T) {
 	expect := goodbyeFile.contents
 	if result != expect {
 		t.Fatalf("expected %q got %q", expect, result)
+	}
+}
+
+// Test that pack-created archives can be understood by the tools.
+func TestHello(t *testing.T) {
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	hello := filepath.Join(dir, "hello.go")
+	prog := `
+		package main
+		func main() {
+			println("hello world")
+		}
+	`
+	err := ioutil.WriteFile(hello, []byte(prog), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(args ...string) string {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, string(out))
+		}
+		return string(out)
+	}
+
+	out := run("go", "env")
+	i := strings.Index(out, "GOCHAR=\"")
+	if i < 0 {
+		t.Fatal("cannot find GOCHAR in 'go env' output")
+	}
+	char := out[i+8 : i+9]
+	run("go", "build", "cmd/pack") // writes pack binary to dir
+	run("go", "tool", char+"g", "hello.go")
+	run("./pack", "grc", "hello.a", "hello."+char)
+	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+	out = run("./a.out")
+	if out != "hello world\n" {
+		t.Fatal("incorrect output: %q, want %q", out, "hello world\n")
 	}
 }
 
