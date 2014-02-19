@@ -557,6 +557,7 @@ caseblock:
 		// This is so that the stmt_list action doesn't look at
 		// the case tokens if the stmt_list is empty.
 		yylast = yychar;
+		$1->xoffset = block;
 	}
 	stmt_list
 	{
@@ -1730,6 +1731,7 @@ non_dcl_stmt:
 	{
 		// will be converted to OFALL
 		$$ = nod(OXFALL, N, N);
+		$$->xoffset = block;
 	}
 |	LBREAK onew_name
 	{
