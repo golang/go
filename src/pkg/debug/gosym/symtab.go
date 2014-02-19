@@ -129,6 +129,9 @@ var (
 )
 
 func walksymtab(data []byte, fn func(sym) error) error {
+	if len(data) == 0 { // missing symtab is okay
+		return nil
+	}
 	var order binary.ByteOrder = binary.BigEndian
 	newTable := false
 	switch {
@@ -454,6 +457,10 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 			}
 			i = end - 1 // loop will i++
 		}
+	}
+
+	if t.go12line != nil && nf == 0 {
+		t.Funcs = t.go12line.go12Funcs()
 	}
 	if obj != nil {
 		obj.Funcs = t.Funcs[lastf:]

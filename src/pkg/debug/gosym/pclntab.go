@@ -196,6 +196,33 @@ func (t *LineTable) go12Init() {
 	t.go12 = 1 // so far so good
 }
 
+// go12Funcs returns a slice of Funcs derived from the Go 1.2 pcln table.
+func (t *LineTable) go12Funcs() []Func {
+	// Assume it is malformed and return nil on error.
+	defer func() {
+		recover()
+	}()
+
+	n := len(t.functab) / int(t.ptrsize) / 2
+	funcs := make([]Func, n)
+	for i := range funcs {
+		f := &funcs[i]
+		f.Entry = uint64(t.uintptr(t.functab[2*i*int(t.ptrsize):]))
+		f.End = uint64(t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):]))
+		info := t.Data[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
+		f.LineTable = t
+		f.FrameSize = int(t.binary.Uint32(info[t.ptrsize+2*4:]))
+		f.Sym = &Sym{
+			Value:  f.Entry,
+			Type:   'T',
+			Name:   t.string(t.binary.Uint32(info[t.ptrsize:])),
+			GoType: 0,
+			Func:   f,
+		}
+	}
+	return funcs
+}
+
 // findFunc returns the func corresponding to the given program counter.
 func (t *LineTable) findFunc(pc uint64) []byte {
 	if pc < t.uintptr(t.functab) || pc >= t.uintptr(t.functab[len(t.functab)-int(t.ptrsize):]) {

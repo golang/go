@@ -270,47 +270,6 @@ asmplan9sym(void)
 
 static LSym *symt;
 
-static void
-scput(int b)
-{
-	uchar *p;
-
-	symgrow(ctxt, symt, symt->size+1);
-	p = symt->p + symt->size;
-	*p = b;
-	symt->size++;
-}
-
-static void
-slputb(int32 v)
-{
-	uchar *p;
-
-	symgrow(ctxt, symt, symt->size+4);
-	p = symt->p + symt->size;
-	*p++ = v>>24;
-	*p++ = v>>16;
-	*p++ = v>>8;
-	*p = v;
-	symt->size += 4;
-}
-
-static void
-slputl(int32 v)
-{
-	uchar *p;
-
-	symgrow(ctxt, symt, symt->size+4);
-	p = symt->p + symt->size;
-	*p++ = v;
-	*p++ = v>>8;
-	*p++ = v>>16;
-	*p = v>>24;
-	symt->size += 4;
-}
-
-static void (*slput)(int32);
-
 void
 wputl(ushort w)
 {
@@ -355,108 +314,6 @@ vputl(uint64 v)
 {
 	lputl(v);
 	lputl(v >> 32);
-}
-
-// Emit symbol table entry.
-// The table format is described at the top of ../../pkg/runtime/symtab.c.
-void
-putsymb(LSym *s, char *name, int t, vlong v, vlong size, int ver, LSym *typ)
-{
-	int i, f, c;
-	vlong v1;
-	Reloc *rel;
-
-	USED(size);
-
-	// type byte
-	if('A' <= t && t <= 'Z')
-		c = t - 'A' + (ver ? 26 : 0);
-	else if('a' <= t && t <= 'z')
-		c = t - 'a' + 26;
-	else {
-		diag("invalid symbol table type %c", t);
-		errorexit();
-		return;
-	}
-	
-	if(s != nil)
-		c |= 0x40; // wide value
-	if(typ != nil)
-		c |= 0x80; // has go type
-	scput(c);
-
-	// value
-	if(s != nil) {
-		// full width
-		rel = addrel(symt);
-		rel->siz = PtrSize;
-		rel->sym = s;
-		rel->type = D_ADDR;
-		rel->off = symt->size;
-		if(PtrSize == 8)
-			slput(0);
-		slput(0);
-	} else {
-		// varint
-		if(v < 0) {
-			diag("negative value in symbol table: %s %lld", name, v);
-			errorexit();
-		}
-		v1 = v;
-		while(v1 >= 0x80) {
-			scput(v1 | 0x80);
-			v1 >>= 7;
-		}
-		scput(v1);
-	}
-
-	// go type if present
-	if(typ != nil) {
-		if(!typ->reachable)
-			diag("unreachable type %s", typ->name);
-		rel = addrel(symt);
-		rel->siz = PtrSize;
-		rel->sym = typ;
-		rel->type = D_ADDR;
-		rel->off = symt->size;
-		if(PtrSize == 8)
-			slput(0);
-		slput(0);
-	}
-	
-	// name	
-	if(t == 'f')
-		name++;
-
-	if(t == 'Z' || t == 'z') {
-		scput(name[0]);
-		for(i=1; name[i] != 0 || name[i+1] != 0; i += 2) {
-			scput(name[i]);
-			scput(name[i+1]);
-		}
-		scput(0);
-		scput(0);
-	} else {
-		for(i=0; name[i]; i++)
-			scput(name[i]);
-		scput(0);
-	}
-
-	if(debug['n']) {
-		if(t == 'z' || t == 'Z') {
-			Bprint(&bso, "%c %.8llux ", t, v);
-			for(i=1; name[i] != 0 || name[i+1] != 0; i+=2) {
-				f = ((name[i]&0xff) << 8) | (name[i+1]&0xff);
-				Bprint(&bso, "/%x", f);
-			}
-			Bprint(&bso, "\n");
-			return;
-		}
-		if(ver)
-			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, name, ver, typ ? typ->name : "");
-		else
-			Bprint(&bso, "%c %.8llux %s %s\n", t, v, name, typ ? typ->name : "");
-	}
 }
 
 void
@@ -553,31 +410,4 @@ symtab(void)
 			s->outer = symgofunc;
 		}
 	}
-
-	if(debug['s'])
-		return;
-
-	switch(thechar) {
-	default:
-		diag("unknown architecture %c", thechar);
-		errorexit();
-	case '5':
-	case '6':
-	case '8':
-		// little-endian symbol table
-		slput = slputl;
-		break;
-	case 'v':
-		// big-endian symbol table
-		slput = slputb;
-		break;
-	}
-	// new symbol table header.
-	slput(0xfffffffd);
-	scput(0);
-	scput(0);
-	scput(0);
-	scput(PtrSize);
-
-	genasmsym(putsymb);
 }
