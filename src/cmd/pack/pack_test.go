@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -193,11 +193,15 @@ func TestHello(t *testing.T) {
 	}
 
 	out := run("go", "env")
-	i := strings.Index(out, "GOCHAR=\"")
-	if i < 0 {
+	re, err := regexp.Compile(`\s*GOCHAR="?(\w)"?`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := re.FindStringSubmatch(out)
+	if fields == nil {
 		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
 	}
-	char := out[i+8 : i+9]
+	char := fields[1]
 	run("go", "build", "cmd/pack") // writes pack binary to dir
 	run("go", "tool", char+"g", "hello.go")
 	run("./pack", "grc", "hello.a", "hello."+char)
