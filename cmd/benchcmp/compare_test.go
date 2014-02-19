@@ -107,18 +107,25 @@ func TestCorrelate(t *testing.T) {
 }
 
 func TestBenchCmpSorting(t *testing.T) {
-	// Test just one sort order; they are symmetric.
 	c := []BenchCmp{
-		{&Bench{Name: "BenchmarkMuchFaster", NsOp: 10}, &Bench{Name: "BenchmarkMuchFaster", NsOp: 1}},
-		{&Bench{Name: "BenchmarkSameB", NsOp: 5}, &Bench{Name: "BenchmarkSameB", NsOp: 5}},
-		{&Bench{Name: "BenchmarkSameA", NsOp: 5}, &Bench{Name: "BenchmarkSameA", NsOp: 5}},
-		{&Bench{Name: "BenchmarkSlower", NsOp: 10}, &Bench{Name: "BenchmarkSlower", NsOp: 11}},
+		{&Bench{Name: "BenchmarkMuchFaster", NsOp: 10, ord: 3}, &Bench{Name: "BenchmarkMuchFaster", NsOp: 1}},
+		{&Bench{Name: "BenchmarkSameB", NsOp: 5, ord: 1}, &Bench{Name: "BenchmarkSameB", NsOp: 5}},
+		{&Bench{Name: "BenchmarkSameA", NsOp: 5, ord: 2}, &Bench{Name: "BenchmarkSameA", NsOp: 5}},
+		{&Bench{Name: "BenchmarkSlower", NsOp: 10, ord: 0}, &Bench{Name: "BenchmarkSlower", NsOp: 11}},
 	}
 
+	// Test just one magnitude-based sort order; they are symmetric.
 	sort.Sort(ByDeltaNsOp(c))
 	want := []string{"BenchmarkMuchFaster", "BenchmarkSlower", "BenchmarkSameA", "BenchmarkSameB"}
 	have := []string{c[0].Name(), c[1].Name(), c[2].Name(), c[3].Name()}
 	if !reflect.DeepEqual(want, have) {
 		t.Errorf("ByDeltaNsOp incorrect sorting: want %v have %v", want, have)
+	}
+
+	sort.Sort(ByParseOrder(c))
+	want = []string{"BenchmarkSlower", "BenchmarkSameB", "BenchmarkSameA", "BenchmarkMuchFaster"}
+	have = []string{c[0].Name(), c[1].Name(), c[2].Name(), c[3].Name()}
+	if !reflect.DeepEqual(want, have) {
+		t.Errorf("ByParseOrder incorrect sorting: want %v have %v", want, have)
 	}
 }

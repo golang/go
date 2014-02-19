@@ -96,6 +96,14 @@ func (d Delta) String() string {
 	return fmt.Sprintf("Δ(%f, %f)", d.Before, d.After)
 }
 
+// ByParseOrder sorts BenchCmps to match the order in
+// which the Before benchmarks were presented to Parse.
+type ByParseOrder []BenchCmp
+
+func (x ByParseOrder) Len() int           { return len(x) }
+func (x ByParseOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x ByParseOrder) Less(i, j int) bool { return x[i].Before.ord < x[j].Before.ord }
+
 // lessByDelta provides lexicographic ordering:
 //   * largest delta by magnitude
 //   * alphabetic by name

@@ -117,6 +117,7 @@ func TestParseBenchSet(t *testing.T) {
 				Name: "BenchmarkReadRequestApachebench",
 				N:    1000000, NsOp: 2960, MbS: 27.70, BOp: 839, AllocsOp: 9,
 				Measured: NsOp | MbS | BOp | AllocsOp,
+				ord:      2,
 			},
 		},
 		"BenchmarkClientServerParallel64": []*Bench{
@@ -124,6 +125,7 @@ func TestParseBenchSet(t *testing.T) {
 				Name: "BenchmarkClientServerParallel64",
 				N:    50000, NsOp: 59192, BOp: 7028, AllocsOp: 60,
 				Measured: NsOp | BOp | AllocsOp,
+				ord:      3,
 			},
 		},
 		"BenchmarkEncrypt": []*Bench{
@@ -131,11 +133,13 @@ func TestParseBenchSet(t *testing.T) {
 				Name: "BenchmarkEncrypt",
 				N:    100000000, NsOp: 19.6,
 				Measured: NsOp,
+				ord:      0,
 			},
 			{
 				Name: "BenchmarkEncrypt",
 				N:    5000000, NsOp: 517,
 				Measured: NsOp,
+				ord:      1,
 			},
 		},
 	}

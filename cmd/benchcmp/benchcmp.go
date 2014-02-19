@@ -16,6 +16,7 @@ import (
 
 var (
 	changedOnly = flag.Bool("changed", false, "show only benchmarks that have changed")
+	magSort     = flag.Bool("mag", false, "sort benchmarks by magnitude of change")
 )
 
 const usageFooter = `
@@ -59,7 +60,11 @@ func main() {
 
 	var header bool // Has the header has been displayed yet for a given block?
 
-	sort.Sort(ByDeltaNsOp(cmps))
+	if *magSort {
+		sort.Sort(ByDeltaNsOp(cmps))
+	} else {
+		sort.Sort(ByParseOrder(cmps))
+	}
 	for _, cmp := range cmps {
 		if !cmp.Measured(NsOp) {
 			continue
@@ -74,7 +79,9 @@ func main() {
 	}
 
 	header = false
-	sort.Sort(ByDeltaMbS(cmps))
+	if *magSort {
+		sort.Sort(ByDeltaMbS(cmps))
+	}
 	for _, cmp := range cmps {
 		if !cmp.Measured(MbS) {
 			continue
@@ -89,7 +96,9 @@ func main() {
 	}
 
 	header = false
-	sort.Sort(ByDeltaAllocsOp(cmps))
+	if *magSort {
+		sort.Sort(ByDeltaAllocsOp(cmps))
+	}
 	for _, cmp := range cmps {
 		if !cmp.Measured(AllocsOp) {
 			continue
@@ -104,7 +113,9 @@ func main() {
 	}
 
 	header = false
-	sort.Sort(ByDeltaBOp(cmps))
+	if *magSort {
+		sort.Sort(ByDeltaBOp(cmps))
+	}
 	for _, cmp := range cmps {
 		if !cmp.Measured(BOp) {
 			continue

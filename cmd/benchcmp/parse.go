@@ -31,6 +31,7 @@ type Bench struct {
 	BOp      uint64  // bytes allocated per iteration
 	AllocsOp uint64  // allocs per iteration
 	Measured int     // which measurements were recorded
+	ord      int     // ordinal position within a benchmark run, used for sorting
 }
 
 // ParseLine extracts a Bench from a single line of testing.B output.
@@ -109,9 +110,12 @@ type BenchSet map[string][]*Bench
 func ParseBenchSet(r io.Reader) (BenchSet, error) {
 	bb := make(BenchSet)
 	scan := bufio.NewScanner(r)
+	ord := 0
 	for scan.Scan() {
 		if b, err := ParseLine(scan.Text()); err == nil {
+			b.ord = ord
 			bb[b.Name] = append(bb[b.Name], b)
+			ord++
 		}
 	}
 
