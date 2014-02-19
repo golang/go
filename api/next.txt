@@ -1,9 +1,32 @@
+pkg archive/tar, type Header struct, Xattrs map[string]string
 pkg crypto/tls, func NewLRUClientSessionCache(int) ClientSessionCache
 pkg crypto/tls, type ClientSessionCache interface { Get, Put }
 pkg crypto/tls, type ClientSessionCache interface, Get(string) (*ClientSessionState, bool)
 pkg crypto/tls, type ClientSessionCache interface, Put(string, *ClientSessionState)
 pkg crypto/tls, type ClientSessionState struct
 pkg crypto/tls, type Config struct, ClientSessionCache ClientSessionCache
+pkg crypto/x509, func CreateCertificateRequest(io.Reader, *CertificateRequest, interface{}) ([]uint8, error)
+pkg crypto/x509, func ParseCertificateRequest([]uint8) (*CertificateRequest, error)
+pkg crypto/x509, type CertificateRequest struct
+pkg crypto/x509, type CertificateRequest struct, Attributes []pkix.AttributeTypeAndValueSET
+pkg crypto/x509, type CertificateRequest struct, DNSNames []string
+pkg crypto/x509, type CertificateRequest struct, EmailAddresses []string
+pkg crypto/x509, type CertificateRequest struct, Extensions []pkix.Extension
+pkg crypto/x509, type CertificateRequest struct, ExtraExtensions []pkix.Extension
+pkg crypto/x509, type CertificateRequest struct, IPAddresses []net.IP
+pkg crypto/x509, type CertificateRequest struct, PublicKey interface{}
+pkg crypto/x509, type CertificateRequest struct, PublicKeyAlgorithm PublicKeyAlgorithm
+pkg crypto/x509, type CertificateRequest struct, Raw []uint8
+pkg crypto/x509, type CertificateRequest struct, RawSubject []uint8
+pkg crypto/x509, type CertificateRequest struct, RawSubjectPublicKeyInfo []uint8
+pkg crypto/x509, type CertificateRequest struct, RawTBSCertificateRequest []uint8
+pkg crypto/x509, type CertificateRequest struct, Signature []uint8
+pkg crypto/x509, type CertificateRequest struct, SignatureAlgorithm SignatureAlgorithm
+pkg crypto/x509, type CertificateRequest struct, Subject pkix.Name
+pkg crypto/x509, type CertificateRequest struct, Version int
+pkg crypto/x509/pkix, type AttributeTypeAndValueSET struct
+pkg crypto/x509/pkix, type AttributeTypeAndValueSET struct, Type asn1.ObjectIdentifier
+pkg crypto/x509/pkix, type AttributeTypeAndValueSET struct, Value [][]AttributeTypeAndValue
 pkg debug/dwarf, const TagCondition = 63
 pkg debug/dwarf, const TagCondition Tag
 pkg debug/dwarf, const TagRvalueReferenceType = 66
@@ -130,6 +153,34 @@ pkg debug/goobj, type Var struct, Kind int
 pkg debug/goobj, type Var struct, Name string
 pkg debug/goobj, type Var struct, Offset int
 pkg debug/goobj, type Var struct, Type SymID
+pkg debug/macho, const MagicFat = 3405691582
+pkg debug/macho, const MagicFat uint32
+pkg debug/macho, const TypeBundle = 8
+pkg debug/macho, const TypeBundle Type
+pkg debug/macho, const TypeDylib = 6
+pkg debug/macho, const TypeDylib Type
+pkg debug/macho, func NewFatFile(io.ReaderAt) (*FatFile, error)
+pkg debug/macho, func OpenFat(string) (*FatFile, error)
+pkg debug/macho, method (*FatFile) Close() error
+pkg debug/macho, method (FatArch) Close() error
+pkg debug/macho, method (FatArch) DWARF() (*dwarf.Data, error)
+pkg debug/macho, method (FatArch) ImportedLibraries() ([]string, error)
+pkg debug/macho, method (FatArch) ImportedSymbols() ([]string, error)
+pkg debug/macho, method (FatArch) Section(string) *Section
+pkg debug/macho, method (FatArch) Segment(string) *Segment
+pkg debug/macho, type FatArch struct
+pkg debug/macho, type FatArch struct, embedded *File
+pkg debug/macho, type FatArch struct, embedded FatArchHeader
+pkg debug/macho, type FatArchHeader struct
+pkg debug/macho, type FatArchHeader struct, Align uint32
+pkg debug/macho, type FatArchHeader struct, Cpu Cpu
+pkg debug/macho, type FatArchHeader struct, Offset uint32
+pkg debug/macho, type FatArchHeader struct, Size uint32
+pkg debug/macho, type FatArchHeader struct, SubCpu uint32
+pkg debug/macho, type FatFile struct
+pkg debug/macho, type FatFile struct, Arches []FatArch
+pkg debug/macho, type FatFile struct, Magic uint32
+pkg debug/macho, var ErrNotFat *FormatError
 pkg debug/plan9obj, func NewFile(io.ReaderAt) (*File, error)
 pkg debug/plan9obj, func Open(string) (*File, error)
 pkg debug/plan9obj, method (*File) Close() error
@@ -174,6 +225,12 @@ pkg debug/plan9obj, type Sym struct
 pkg debug/plan9obj, type Sym struct, Name string
 pkg debug/plan9obj, type Sym struct, Type int32
 pkg debug/plan9obj, type Sym struct, Value uint64
+pkg encoding/asn1, method (ObjectIdentifier) String() string
+pkg go/build, type Package struct, MFiles []string
+pkg math/big, method (*Int) MarshalText() ([]uint8, error)
+pkg math/big, method (*Int) UnmarshalText([]uint8) error
+pkg math/big, method (*Rat) MarshalText() ([]uint8, error)
+pkg math/big, method (*Rat) UnmarshalText([]uint8) error
 pkg sync, method (*Pool) Get() interface{}
 pkg sync, method (*Pool) Put(interface{})
 pkg sync, type Pool struct
@@ -1392,3 +1449,8 @@ pkg syscall (windows-amd64), type TCPKeepalive struct
 pkg syscall (windows-amd64), type TCPKeepalive struct, Interval uint32
 pkg syscall (windows-amd64), type TCPKeepalive struct, OnOff uint32
 pkg syscall (windows-amd64), type TCPKeepalive struct, Time uint32
+pkg testing, method (*B) RunParallel(func(*PB))
+pkg testing, method (*B) SetParallelism(int)
+pkg testing, method (*PB) Next() bool
+pkg testing, type PB struct
+pkg unicode, const Version = "6.3.0"
