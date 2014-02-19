@@ -409,5 +409,10 @@ symtab(void)
 			s->hide = 1;
 			s->outer = symgofunc;
 		}
+		if(strstr(s->name, ".gcargs·") != nil || strstr(s->name, ".gclocals·") != nil || strncmp(s->name, "gcargs·", 8) == 0 || strncmp(s->name, "gclocals·", 10) == 0) {
+			s->type = SGOFUNC;
+			s->hide = 1;
+			s->outer = symgofunc;
+		}
 	}
 }
