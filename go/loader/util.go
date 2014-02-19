@@ -21,7 +21,12 @@ import (
 //    't': include in-package *_test.go source files (TestGoFiles)
 //    'x': include external *_test.go source files. (XTestGoFiles)
 //
-func parsePackageFiles(ctxt *build.Context, fset *token.FileSet, path string, which string) ([]*ast.File, error) {
+// This function is stored in a var as a concession to testing.
+// TODO(adonovan): we plan to replace this hook with an exposed
+// "PackageLocator" interface for use proprietary build sytems that
+// are incompatible with "go test", and also for testing.
+//
+var parsePackageFiles = func(ctxt *build.Context, fset *token.FileSet, path string, which string) ([]*ast.File, error) {
 	// Set the "!cgo" go/build tag, preferring (dummy) Go to
 	// native C implementations of net.cgoLookupHost et al.
 	ctxt2 := *ctxt

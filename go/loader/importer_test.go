@@ -6,7 +6,11 @@ package loader_test
 
 import (
 	"fmt"
+	"go/ast"
+	"go/build"
+	"go/token"
 	"sort"
+	"strings"
 	"testing"
 
 	"code.google.com/p/go.tools/go/loader"
@@ -101,5 +105,82 @@ func TestLoadFromArgsSource(t *testing.T) {
 	}
 	if len(prog.Created) != 1 || prog.Created[0].Pkg.Path() != "P" {
 		t.Errorf("loadFromArgs(%q): got %v, want [P]", prog.Created)
+	}
+}
+
+func TestTransitivelyErrorFreeFlag(t *testing.T) {
+	conf := loader.Config{
+		AllowTypeErrors: true,
+		SourceImports:   true,
+	}
+	conf.Import("a")
+
+	// Fake the following packages:
+	//
+	// a --> b --> c!   c has a TypeError
+	//   \              d and e are transitively error free.
+	//    e --> d
+
+	// Temporary hack until we expose a principled PackageLocator.
+	pfn := loader.PackageLocatorFunc()
+	saved := *pfn
+	*pfn = func(_ *build.Context, fset *token.FileSet, path string, which string) (files []*ast.File, err error) {
+		if !strings.Contains(which, "g") {
+			return nil, nil // no test/xtest files
+		}
+		var contents string
+		switch path {
+		case "a":
+			contents = `package a; import (_ "b"; _ "e")`
+		case "b":
+			contents = `package b; import _ "c"`
+		case "c":
+			contents = `package c; func f() { _ = int(false) }` // type error within function body
+		case "d":
+			contents = `package d;`
+		case "e":
+			contents = `package e; import _ "d"`
+		default:
+			return nil, fmt.Errorf("no such package %q", path)
+		}
+		f, err := conf.ParseFile(fmt.Sprintf("%s/x.go", path), contents, 0)
+		return []*ast.File{f}, err
+	}
+	defer func() { *pfn = saved }()
+
+	prog, err := conf.Load()
+	if err != nil {
+		t.Errorf("Load failed: %s", err)
+	}
+	if prog == nil {
+		t.Fatalf("Load returnd nil *Program")
+	}
+
+	for pkg, info := range prog.AllPackages {
+		var wantErr, wantTEF bool
+		switch pkg.Path() {
+		case "a", "b":
+		case "c":
+			wantErr = true
+		case "d", "e":
+			wantTEF = true
+		default:
+			t.Errorf("unexpected package: %q", pkg.Path())
+			continue
+		}
+
+		if (info.TypeError != nil) != wantErr {
+			if wantErr {
+				t.Errorf("Package %q.TypeError = nil, want error", pkg.Path())
+			} else {
+				t.Errorf("Package %q has unexpected TypeError: %s",
+					pkg.Path(), info.TypeError)
+			}
+		}
+
+		if info.TransitivelyErrorFree != wantTEF {
+			t.Errorf("Package %q.TransitivelyErrorFree=%t, want %t",
+				info.TransitivelyErrorFree, wantTEF)
+		}
 	}
 }

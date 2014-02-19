@@ -95,6 +95,7 @@ package loader
 //   go/types; see bug 7114.
 // - s/path/importPath/g to avoid ambiguity with other meanings of
 //   "path": a file name, a colon-separated directory list.
+// - Thorough overhaul of package documentation.
 
 import (
 	"errors"
@@ -157,6 +158,12 @@ type Config struct {
 	// If Build is non-nil, it is used to locate source packages.
 	// Otherwise &build.Default is used.
 	Build *build.Context
+
+	// If AllowTypeErrors is true, Load will return a Program even
+	// if some of the its packages contained type errors; such
+	// errors are accessible via PackageInfo.TypeError.
+	// If false, Load will fail if any package had a type error.
+	AllowTypeErrors bool
 
 	// CreatePkgs specifies a list of non-importable initial
 	// packages to create.  Each element specifies a list of
@@ -385,7 +392,7 @@ func (conf *Config) Import(path string) {
 // up to the AST root.  It searches all ast.Files of all packages in prog.
 // exact is defined as for astutil.PathEnclosingInterval.
 //
-// The result is (nil, nil, false) if not found.
+// The zero value is returned if not found.
 //
 func (prog *Program) PathEnclosingInterval(start, end token.Pos) (pkg *PackageInfo, path []ast.Node, exact bool) {
 	for _, info := range prog.AllPackages {
@@ -431,8 +438,11 @@ type importInfo struct {
 // Load creates the initial packages specified by conf.{Create,Import}Pkgs,
 // loading their dependencies packages as needed.
 //
-// On success, it returns a Program containing a PackageInfo for each
-// package; all are well-typed.
+// On success, Load returns a Program containing a PackageInfo for
+// each package.  On failure, it returns an error.
+//
+// If conf.AllowTypeErrors is set, a type error does not cause Load to
+// fail, but is recorded in the PackageInfo.TypeError field.
 //
 // It is an error if no packages were loaded.
 //
@@ -459,6 +469,8 @@ func (conf *Config) Load() (*Program, error) {
 	for path := range conf.ImportPkgs {
 		info, err := imp.importPackage(path)
 		if err != nil {
+			// TODO(adonovan): don't abort Load just
+			// because of a parse error in one package.
 			return nil, err // e.g. parse error (but not type error)
 		}
 		prog.Imported[path] = info
@@ -473,19 +485,7 @@ func (conf *Config) Load() (*Program, error) {
 	}
 
 	if len(prog.Imported)+len(prog.Created) == 0 {
-		return nil, errors.New("no *.go source files nor packages were specified")
-	}
-
-	// Report errors in indirectly imported packages.
-	var errpkgs []string
-	for _, info := range prog.AllPackages {
-		if info.err != nil {
-			errpkgs = append(errpkgs, info.Pkg.Path())
-		}
-	}
-	if errpkgs != nil {
-		return nil, fmt.Errorf("couldn't load packages due to type errors: %s",
-			strings.Join(errpkgs, ", "))
+		return nil, errors.New("no initial packages were specified")
 	}
 
 	// Create infos for indirectly imported packages.
@@ -496,7 +496,64 @@ func (conf *Config) Load() (*Program, error) {
 		}
 	}
 
+	if !conf.AllowTypeErrors {
+		// Report errors in indirectly imported packages.
+		var errpkgs []string
+		for _, info := range prog.AllPackages {
+			if info.TypeError != nil {
+				errpkgs = append(errpkgs, info.Pkg.Path())
+			}
+		}
+		if errpkgs != nil {
+			return nil, fmt.Errorf("couldn't load packages due to type errors: %s",
+				strings.Join(errpkgs, ", "))
+		}
+	}
+
+	markErrorFreePackages(prog.AllPackages)
+
 	return prog, nil
+}
+
+// markErrorFreePackages sets the TransitivelyErrorFree flag on all
+// applicable packages.
+func markErrorFreePackages(allPackages map[*types.Package]*PackageInfo) {
+	// Build the transpose of the import graph.
+	importedBy := make(map[*types.Package]map[*types.Package]bool)
+	for P := range allPackages {
+		for _, Q := range P.Imports() {
+			clients, ok := importedBy[Q]
+			if !ok {
+				clients = make(map[*types.Package]bool)
+				importedBy[Q] = clients
+			}
+			clients[P] = true
+		}
+	}
+
+	// Find all packages reachable from some error package.
+	reachable := make(map[*types.Package]bool)
+	var visit func(*types.Package)
+	visit = func(p *types.Package) {
+		if !reachable[p] {
+			reachable[p] = true
+			for q := range importedBy[p] {
+				visit(q)
+			}
+		}
+	}
+	for _, info := range allPackages {
+		if info.TypeError != nil {
+			visit(info.Pkg)
+		}
+	}
+
+	// Mark the others as "transitively error-free".
+	for _, info := range allPackages {
+		if !reachable[info.Pkg] {
+			info.TransitivelyErrorFree = true
+		}
+	}
 }
 
 // build returns the effective build context.
@@ -619,7 +676,7 @@ func (imp *importer) importFromSource(path string, which string) (*PackageInfo, 
 // importable, i.e. no 'import' spec can resolve to it.
 //
 // createPackage never fails, but the resulting package may contain type
-// errors; the first of these is recorded in PackageInfo.err.
+// errors; the first of these is recorded in PackageInfo.TypeError.
 //
 func (imp *importer) createPackage(path string, files ...*ast.File) *PackageInfo {
 	info := &PackageInfo{
@@ -640,10 +697,11 @@ func (imp *importer) createPackage(path string, files ...*ast.File) *PackageInfo
 		tc.IgnoreFuncBodies = !f(path)
 	}
 	if tc.Error == nil {
+		// TODO(adonovan): also save errors in the PackageInfo?
 		tc.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
 	}
 	tc.Import = imp.doImport // doImport wraps the user's importfn, effectively
-	info.Pkg, info.err = tc.Check(path, imp.conf.fset(), files, &info.Info)
+	info.Pkg, info.TypeError = tc.Check(path, imp.conf.fset(), files, &info.Info)
 	imp.prog.AllPackages[info.Pkg] = info
 	return info
 }

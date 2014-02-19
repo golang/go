@@ -29,8 +29,8 @@ const (
 	GlobalDebug                                  // Enable debug info for all packages
 )
 
-// Create returns a new SSA Program, creating all packages and all
-// their members.
+// Create returns a new SSA Program.  An SSA Package is created for
+// each transitively error-free package of iprog.
 //
 // Code for bodies of functions is not built until Build() is called
 // on the result.
@@ -48,7 +48,9 @@ func Create(iprog *loader.Program, mode BuilderMode) *Program {
 	}
 
 	for _, info := range iprog.AllPackages {
-		prog.CreatePackage(info)
+		if info.TransitivelyErrorFree {
+			prog.CreatePackage(info)
+		}
 	}
 
 	return prog

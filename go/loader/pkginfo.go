@@ -18,11 +18,12 @@ import (
 // Not mutated once constructed.
 //
 type PackageInfo struct {
-	Pkg        *types.Package
-	Importable bool        // true if 'import "Pkg.Path()"' would resolve to this
-	Files      []*ast.File // abstract syntax for the package's files
-	err        error       // non-nil if the package had static errors
-	types.Info             // type-checker deductions.
+	Pkg                   *types.Package
+	Importable            bool        // true if 'import "Pkg.Path()"' would resolve to this
+	TransitivelyErrorFree bool        // true if Pkg and all its dependencies are free of errors
+	Files                 []*ast.File // abstract syntax for the package's files
+	TypeError             error       // non-nil if the package had type errors
+	types.Info                        // type-checker deductions.
 }
 
 func (info *PackageInfo) String() string {
