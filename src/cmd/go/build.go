@@ -1714,6 +1714,10 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 	if buildContext.InstallSuffix != "" {
 		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
 	}
+	if p.omitDWARF {
+		ldflags = append(ldflags, "-w")
+	}
+
 	// If the user has not specified the -extld option, then specify the
 	// appropriate linker. In case of C++ code, use the compiler named
 	// by the CXX environment variable or defaultCXX if CXX is not set.
