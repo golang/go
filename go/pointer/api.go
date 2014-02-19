@@ -12,7 +12,7 @@ import (
 
 	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 // A Config formulates a pointer analysis problem for Analyze().
@@ -200,8 +200,8 @@ func (s PointsToSet) Labels() []*Label {
 //
 // The result is empty unless CanHaveDynamicTypes(T).
 //
-func (s PointsToSet) DynamicTypes() *typemap.M {
-	var tmap typemap.M
+func (s PointsToSet) DynamicTypes() *typeutil.Map {
+	var tmap typeutil.Map
 	tmap.SetHasher(s.a.hasher)
 	for ifaceObjId := range s.pts {
 		if !s.a.isTaggedObject(ifaceObjId) {
@@ -250,6 +250,6 @@ func (p Pointer) MayAlias(q Pointer) bool {
 }
 
 // DynamicTypes returns p.PointsTo().DynamicTypes().
-func (p Pointer) DynamicTypes() *typemap.M {
+func (p Pointer) DynamicTypes() *typeutil.Map {
 	return p.PointsTo().DynamicTypes()
 }

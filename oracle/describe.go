@@ -15,8 +15,8 @@ import (
 	"code.google.com/p/go.tools/astutil"
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/types/typeutil"
 	"code.google.com/p/go.tools/oracle/serial"
 )
 
@@ -712,7 +712,7 @@ func pathToString(path []ast.Node) string {
 
 func accessibleMethods(t types.Type, from *types.Package) []*types.Selection {
 	var methods []*types.Selection
-	for _, meth := range ssa.IntuitiveMethodSet(t, nil) {
+	for _, meth := range typeutil.IntuitiveMethodSet(t, nil) {
 		if isAccessibleFrom(meth.Obj(), from) {
 			methods = append(methods, meth)
 		}

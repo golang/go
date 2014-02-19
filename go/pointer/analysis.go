@@ -15,7 +15,7 @@ import (
 
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 // object.flags bitmask values.
@@ -208,15 +208,15 @@ type analysis struct {
 	track       track                       // pointerlike types whose aliasing we track
 
 	// Reflection & intrinsics:
-	hasher              typemap.Hasher // cache of type hashes
-	reflectValueObj     types.Object   // type symbol for reflect.Value (if present)
-	reflectValueCall    *ssa.Function  // (reflect.Value).Call
-	reflectRtypeObj     types.Object   // *types.TypeName for reflect.rtype (if present)
-	reflectRtypePtr     *types.Pointer // *reflect.rtype
-	reflectType         *types.Named   // reflect.Type
-	rtypes              typemap.M      // nodeid of canonical *rtype-tagged object for type T
-	reflectZeros        typemap.M      // nodeid of canonical T-tagged object for zero value
-	runtimeSetFinalizer *ssa.Function  // runtime.SetFinalizer
+	hasher              typeutil.Hasher // cache of type hashes
+	reflectValueObj     types.Object    // type symbol for reflect.Value (if present)
+	reflectValueCall    *ssa.Function   // (reflect.Value).Call
+	reflectRtypeObj     types.Object    // *types.TypeName for reflect.rtype (if present)
+	reflectRtypePtr     *types.Pointer  // *reflect.rtype
+	reflectType         *types.Named    // reflect.Type
+	rtypes              typeutil.Map    // nodeid of canonical *rtype-tagged object for type T
+	reflectZeros        typeutil.Map    // nodeid of canonical T-tagged object for zero value
+	runtimeSetFinalizer *ssa.Function   // runtime.SetFinalizer
 }
 
 // enclosingObj returns the object (addressible memory object) that encloses node id.
@@ -294,7 +294,7 @@ func Analyze(config *Config) *Result {
 		globalobj:   make(map[ssa.Value]nodeid),
 		flattenMemo: make(map[types.Type][]*fieldInfo),
 		trackTypes:  make(map[types.Type]bool),
-		hasher:      typemap.MakeHasher(),
+		hasher:      typeutil.MakeHasher(),
 		intrinsics:  make(map[*ssa.Function]intrinsic),
 		work:        makeMapWorklist(),
 		result: &Result{

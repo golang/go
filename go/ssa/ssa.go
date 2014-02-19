@@ -16,7 +16,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
@@ -29,7 +29,7 @@ type Program struct {
 	MethodSets types.MethodSetCache        // cache of type-checker's method-sets
 
 	methodsMu           sync.Mutex                // guards the following maps:
-	methodSets          typemap.M                 // maps type to its concrete methodSet
+	methodSets          typeutil.Map              // maps type to its concrete methodSet
 	boundMethodWrappers map[*types.Func]*Function // wrappers for curried x.Method closures
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
@@ -53,7 +53,7 @@ type Package struct {
 	started  int32               // atomically tested and set at start of build phase
 	ninit    int32               // number of init functions
 	info     *loader.PackageInfo // package ASTs and type information
-	needRTTI typemap.M           // types for which runtime type info is needed
+	needRTTI typeutil.Map        // types for which runtime type info is needed
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,

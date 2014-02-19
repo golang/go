@@ -1,14 +1,10 @@
-// Package typemap defines type M, a hash-table-based mapping from
-// types (go/types.Type) to arbitrary values, and a hash function on
-// types.
-//
-// The concrete types that implement the Type interface are pointers.
-// Since they are not canonicalized, == cannot be used to check for
-// equivalence, and thus we cannot simply use a Go map.
-//
-// Not thread-safe.
-//
-package typemap
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package typeutil defines various utilities for types, such as Map,
+// a mapping from types.Type to interface{} values.
+package typeutil
 
 import (
 	"bytes"
@@ -18,12 +14,18 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// typemap.M is a mapping from types.Type to interface{} values.
+// Map is a hash-table-based mapping from types (types.Type) to
+// arbitrary interface{} values.  The concrete types that implement
+// the Type interface are pointers.  Since they are not canonicalized,
+// == cannot be used to check for equivalence, and thus we cannot
+// simply use a Go map.
 //
-// Just as with map[K]V, a nil *typemap.M is a valid empty map.
+// Just as with map[K]V, a nil *Map is a valid empty map.
 //
-type M struct {
-	hasher Hasher             // shared by many typemap.Ms
+// Not thread-safe.
+//
+type Map struct {
+	hasher Hasher             // shared by many Maps
 	table  map[uint32][]entry // maps hash to bucket; entry.key==nil means unused
 	length int                // number of map entries
 }
@@ -34,36 +36,35 @@ type entry struct {
 	value interface{}
 }
 
-// SetHasher sets the hasher used by typemap.M.
+// SetHasher sets the hasher used by Map.
 //
 // All Hashers are functionally equivalent but contain internal state
 // used to cache the results of hashing previously seen types.
 //
-// A single Hasher created by MakeHasher() may be shared among
-// many typemap.M instances.  This is recommended if the instances
-// have many keys in common, as it will amortize the cost of hash
-// computation.
+// A single Hasher created by MakeHasher() may be shared among many
+// Maps.  This is recommended if the instances have many keys in
+// common, as it will amortize the cost of hash computation.
 //
 // A Hasher may grow without bound as new types are seen.  Even when a
 // type is deleted from the map, the Hasher never shrinks, since other
 // types in the map may reference the deleted type indirectly.
 //
 // Hashers are not thread-safe, and read-only operations such as
-// M.Lookup require updates to the hasher, so a full Mutex lock (not a
-// read-lock) is require around all typemap.M operations if a shared
+// Map.Lookup require updates to the hasher, so a full Mutex lock (not a
+// read-lock) is require around all Map operations if a shared
 // hasher is accessed from multiple threads.
 //
-// If SetHasher is not called, the type-map will create a private
-// hasher at the first call to Insert.
+// If SetHasher is not called, the Map will create a private hasher at
+// the first call to Insert.
 //
-func (m *M) SetHasher(hasher Hasher) {
+func (m *Map) SetHasher(hasher Hasher) {
 	m.hasher = hasher
 }
 
 // Delete removes the entry with the given key, if any.
 // It returns true if the entry was found.
 //
-func (m *M) Delete(key types.Type) bool {
+func (m *Map) Delete(key types.Type) bool {
 	if m != nil && m.table != nil {
 		hash := m.hasher.Hash(key)
 		bucket := m.table[hash]
@@ -83,7 +84,7 @@ func (m *M) Delete(key types.Type) bool {
 // At returns the map entry for the given key.
 // The result is nil if the entry is not present.
 //
-func (m *M) At(key types.Type) interface{} {
+func (m *Map) At(key types.Type) interface{} {
 	if m != nil && m.table != nil {
 		for _, e := range m.table[m.hasher.Hash(key)] {
 			if e.key != nil && types.Identical(key, e.key) {
@@ -96,7 +97,7 @@ func (m *M) At(key types.Type) interface{} {
 
 // Set sets the map entry for key to val,
 // and returns the previous entry, if any.
-func (m *M) Set(key types.Type, value interface{}) (prev interface{}) {
+func (m *Map) Set(key types.Type, value interface{}) (prev interface{}) {
 	if m.table != nil {
 		hash := m.hasher.Hash(key)
 		bucket := m.table[hash]
@@ -129,7 +130,7 @@ func (m *M) Set(key types.Type, value interface{}) (prev interface{}) {
 }
 
 // Len returns the number of map entries.
-func (m *M) Len() int {
+func (m *Map) Len() int {
 	if m != nil {
 		return m.length
 	}
@@ -144,7 +145,7 @@ func (m *M) Len() int {
 // Iterate has not yet reached, whether or not f will be invoked for
 // it is unspecified.
 //
-func (m *M) Iterate(f func(key types.Type, value interface{})) {
+func (m *Map) Iterate(f func(key types.Type, value interface{})) {
 	if m != nil {
 		for _, bucket := range m.table {
 			for _, e := range bucket {
@@ -158,7 +159,7 @@ func (m *M) Iterate(f func(key types.Type, value interface{})) {
 
 // Keys returns a new slice containing the set of map keys.
 // The order is unspecified.
-func (m *M) Keys() []types.Type {
+func (m *Map) Keys() []types.Type {
 	keys := make([]types.Type, 0, m.Len())
 	m.Iterate(func(key types.Type, _ interface{}) {
 		keys = append(keys, key)
@@ -166,7 +167,7 @@ func (m *M) Keys() []types.Type {
 	return keys
 }
 
-func (m *M) toString(values bool) string {
+func (m *Map) toString(values bool) string {
 	if m == nil {
 		return "{}"
 	}
@@ -189,14 +190,14 @@ func (m *M) toString(values bool) string {
 // Values are printed using fmt.Sprintf("%v", v).
 // Order is unspecified.
 //
-func (m *M) String() string {
+func (m *Map) String() string {
 	return m.toString(true)
 }
 
 // KeysString returns a string representation of the map's key set.
 // Order is unspecified.
 //
-func (m *M) KeysString() string {
+func (m *Map) KeysString() string {
 	return m.toString(false)
 }
 

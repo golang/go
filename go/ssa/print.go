@@ -18,6 +18,7 @@ import (
 	"sort"
 
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 // relName returns the name of v relative to i.
@@ -407,7 +408,7 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 		case *Type:
 			fmt.Fprintf(buf, "  type  %-*s %s\n",
 				maxname, name, types.TypeString(p.Object, mem.Type().Underlying()))
-			for _, meth := range IntuitiveMethodSet(mem.Type(), &p.Prog.MethodSets) {
+			for _, meth := range typeutil.IntuitiveMethodSet(mem.Type(), &p.Prog.MethodSets) {
 				fmt.Fprintf(buf, "    %s\n", types.SelectionString(p.Object, meth))
 			}
 
@@ -418,37 +419,6 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 	}
 
 	fmt.Fprintf(buf, "\n")
-}
-
-// IntuitiveMethodSet returns the intuitive method set of a type, T.
-//
-// The result contains MethodSet(T) and additionally, if T is a
-// concrete type, methods belonging to *T if there is no similarly
-// named method on T itself.  This corresponds to user intuition about
-// method sets; this function is intended only for user interfaces.
-//
-// The order of the result is as for types.MethodSet(T).
-//
-// TODO(gri): move this to go/types?
-//
-func IntuitiveMethodSet(T types.Type, msets *types.MethodSetCache) []*types.Selection {
-	var result []*types.Selection
-	mset := msets.MethodSet(T)
-	if _, ok := T.Underlying().(*types.Interface); ok {
-		for i, n := 0, mset.Len(); i < n; i++ {
-			result = append(result, mset.At(i))
-		}
-	} else {
-		pmset := msets.MethodSet(types.NewPointer(T))
-		for i, n := 0, pmset.Len(); i < n; i++ {
-			meth := pmset.At(i)
-			if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
-				meth = m
-			}
-			result = append(result, meth)
-		}
-	}
-	return result
 }
 
 func commaOk(x bool) string {

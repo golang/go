@@ -27,7 +27,7 @@ import (
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/ssa/ssautil"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 var inputs = []string{
@@ -432,8 +432,8 @@ func underlyingType(typ types.Type) types.Type {
 }
 
 func checkTypesExpectation(e *expectation, pts pointer.PointsToSet, typ types.Type) bool {
-	var expected typemap.M
-	var surplus typemap.M
+	var expected typeutil.Map
+	var surplus typeutil.Map
 	exact := true
 	for _, g := range e.types {
 		if g == types.Typ[types.Invalid] {

@@ -44,7 +44,7 @@ import (
 
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 type value interface{}
@@ -92,7 +92,7 @@ func hashString(s string) int {
 
 var (
 	mu     sync.Mutex
-	hasher = typemap.MakeHasher()
+	hasher = typeutil.MakeHasher()
 )
 
 // hashType returns a hash for t such that

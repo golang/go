@@ -1,4 +1,8 @@
-package typemap_test
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package typeutil_test
 
 // TODO(adonovan):
 // - test use of explicit hasher across two maps.
@@ -9,7 +13,7 @@ import (
 	"testing"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"code.google.com/p/go.tools/go/types/typeutil"
 )
 
 var (
@@ -35,8 +39,8 @@ func TestAxioms(t *testing.T) {
 	checkEqualButNotIdentical(t, tChanInt1, tChanInt2, "tChanInt{1,2}")
 }
 
-func TestTypeMap(t *testing.T) {
-	var tmap *typemap.M
+func TestMap(t *testing.T) {
+	var tmap *typeutil.Map
 
 	// All methods but Set are safe on on (*T)(nil).
 	tmap.Len()
@@ -45,23 +49,23 @@ func TestTypeMap(t *testing.T) {
 	tmap.KeysString()
 	tmap.String()
 
-	tmap = new(typemap.M)
+	tmap = new(typeutil.Map)
 
 	// Length of empty map.
 	if l := tmap.Len(); l != 0 {
-		t.Errorf("Len() on empty typemap: got %d, want 0", l)
+		t.Errorf("Len() on empty Map: got %d, want 0", l)
 	}
 	// At of missing key.
 	if v := tmap.At(tPStr1); v != nil {
-		t.Errorf("At() on empty typemap: got %v, want nil", v)
+		t.Errorf("At() on empty Map: got %v, want nil", v)
 	}
 	// Deletion of missing key.
 	if tmap.Delete(tPStr1) {
-		t.Errorf("Delete() on empty typemap: got true, want false")
+		t.Errorf("Delete() on empty Map: got true, want false")
 	}
 	// Set of new key.
 	if prev := tmap.Set(tPStr1, "*string"); prev != nil {
-		t.Errorf("Set() on empty map returned non-nil previous value %s", prev)
+		t.Errorf("Set() on empty Map returned non-nil previous value %s", prev)
 	}
 
 	// Now: {*string: "*string"}
