@@ -2503,7 +2503,7 @@ typecheckcomplit(Node **np)
 				len = i;
 				if(t->bound >= 0 && len > t->bound) {
 					setlineno(l);
-					yyerror("array index %d out of bounds [0:%d]", len-1, t->bound);
+					yyerror("array index %lld out of bounds [0:%lld]", len-1, t->bound);
 					t->bound = -1;	// no more errors
 				}
 			}
