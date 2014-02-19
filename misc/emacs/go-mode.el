@@ -995,7 +995,7 @@ description at POINT."
                            "-f"
                            (file-truename (buffer-file-name (go--coverage-origin-buffer)))
                            "-o"
-                           (number-to-string (go--position-bytes (point))))
+                           (number-to-string (go--position-bytes point)))
       (with-current-buffer outbuf
         (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
 
