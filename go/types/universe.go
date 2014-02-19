@@ -17,8 +17,8 @@ var (
 	Universe     *Scope
 	Unsafe       *Package
 	universeIota *Const
-	universeByte *Basic
-	universeRune *Basic
+	UniverseByte *Basic // uint8 alias, but has name "byte"
+	UniverseRune *Basic // int32 alias, but has name "rune"
 )
 
 var Typ = [...]*Basic{
@@ -187,8 +187,8 @@ func init() {
 	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota").(*Const)
-	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
-	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+	UniverseByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
+	UniverseRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
 }
 
 // Objects with names containing blanks are internal and not entered into

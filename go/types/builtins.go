@@ -81,14 +81,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte)) {
+		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(UniverseByte)) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
 			}
 			if isString(x.typ) {
 				if check.Types != nil {
-					sig := makeSig(S, S, NewSlice(universeByte))
+					sig := makeSig(S, S, NewSlice(UniverseByte))
 					sig.variadic = true
 					check.recordBuiltinType(call.Fun, sig)
 				}
@@ -274,7 +274,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		switch t := y.typ.Underlying().(type) {
 		case *Basic:
 			if isString(y.typ) {
-				src = universeByte
+				src = UniverseByte
 			}
 		case *Slice:
 			src = t.elem

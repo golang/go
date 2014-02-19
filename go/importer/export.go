@@ -21,44 +21,6 @@ const (
 	trace = false // print emitted data
 )
 
-const (
-	magic   = "\n$$ exports $$\n"
-	version = "v0"
-)
-
-// Tags. Must be < 0.
-const (
-	// Packages
-	packageTag = -(iota + 1)
-
-	// Objects
-	constTag
-	typeTag
-	varTag
-	funcTag
-
-	// Types
-	basicTag
-	arrayTag
-	sliceTag
-	structTag
-	pointerTag
-	signatureTag
-	interfaceTag
-	mapTag
-	chanTag
-	namedTag
-
-	// Values
-	int64Tag
-	floatTag
-	fractionTag
-	complexTag
-	stringTag
-	falseTag
-	trueTag
-)
-
 // ExportData serializes the interface (exported package objects)
 // of package pkg and returns the corresponding data. The export
 // format is described elsewhere (TODO).
@@ -70,10 +32,9 @@ func ExportData(pkg *types.Package) []byte {
 	}
 
 	// populate typIndex with predeclared types
-	for _, t := range types.Typ[1:] {
+	for _, t := range predeclared {
 		p.typIndex[t] = len(p.typIndex)
 	}
-	p.typIndex[types.Universe.Lookup("error").Type()] = len(p.typIndex)
 
 	if trace {
 		p.tracef("export %s\n", pkg.Name())
@@ -253,16 +214,6 @@ func (p *exporter) typ(typ types.Type) {
 
 	// otherwise, write the type tag (< 0) and type data
 	switch t := typ.(type) {
-	case *types.Basic:
-		// Basic types are pre-recorded and don't usually end up here.
-		// However, the alias types byte and rune are not in the types.Typ
-		// table and get emitted here (once per package, if they appear).
-		// This permits faithful reconstruction of the alias type (i.e.,
-		// keeping the name). If we decide to eliminate the distinction
-		// between the alias types, this code can go.
-		p.int(basicTag)
-		p.string(t.Name())
-
 	case *types.Array:
 		p.int(arrayTag)
 		p.int64(t.Len())

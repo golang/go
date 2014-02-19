@@ -35,10 +35,9 @@ func ImportData(imports map[string]*types.Package, data []byte) (*types.Package,
 	}
 
 	// populate typList with predeclared types
-	for _, t := range types.Typ[1:] {
+	for _, t := range predeclared {
 		p.typList = append(p.typList, t)
 	}
-	p.typList = append(p.typList, types.Universe.Lookup("error").Type())
 
 	if v := p.string(); v != version {
 		return nil, fmt.Errorf("unknown version: got %s; want %s", v, version)
@@ -199,11 +198,6 @@ func (p *importer) typ() types.Type {
 
 	// otherwise, i is the type tag (< 0)
 	switch i {
-	case basicTag:
-		t := types.Universe.Lookup(p.string()).(*types.TypeName).Type().(*types.Basic)
-		p.record(t)
-		return t
-
 	case arrayTag:
 		t := new(types.Array)
 		p.record(t)

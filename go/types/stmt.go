@@ -609,7 +609,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *Basic:
 			if isString(typ) {
 				key = Typ[Int]
-				val = universeRune // use 'rune' name
+				val = UniverseRune // use 'rune' name
 			}
 		case *Array:
 			key = Typ[Int]
