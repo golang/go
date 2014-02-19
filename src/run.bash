@@ -57,10 +57,8 @@ go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
 
 # Race detector only supported on Linux and OS X,
 # and only on amd64, and only when cgo is enabled.
-# Disabled due to golang.org/issue/7334; remove XXX below
-# and in run.bat to reenable.
 case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
-XXXlinux-linux-amd64-1 | XXXdarwin-darwin-amd64-1)
+linux-linux-amd64-1 | darwin-darwin-amd64-1)
 	echo
 	echo '# Testing race detector.'
 	go test -race -i runtime/race flag
@@ -175,7 +173,7 @@ rm -f goplay
 
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
-./timing.sh -test || exit 1
+time ./timing.sh -test || exit 1
 ) || exit $?
 
 [ "$GOOS" == openbsd ] || # golang.org/issue/5057
