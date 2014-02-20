@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package runtime
 #include "runtime.h"
 #include "type.h"
 #include "../../cmd/ld/textflag.h"
@@ -505,42 +506,40 @@ void
 runtime·equal(Type *t, ...)
 {
 	byte *x, *y;
-	uintptr ret;
+	bool *ret;
 	
-	x = (byte*)(&t+1);
+	x = (byte*)ROUND((uintptr)(&t+1), t->align);
 	y = x + t->size;
-	ret = (uintptr)(y + t->size);
-	ret = ROUND(ret, Structrnd);
+	ret = (bool*)ROUND((uintptr)(y+t->size), Structrnd);
 	t->alg->equal((bool*)ret, t->size, x, y);
 }
 
 // Testing adapter for memclr
-void runtime·memclrBytes(Slice s) {
+func memclrBytes(s Slice) {
 	runtime·memclr(s.array, s.len);
 }
 
 // Testing adapters for hash quality tests (see hash_test.go)
-void runtime·haveGoodHash(bool res) {
+func haveGoodHash() (res bool) {
 	res = use_aeshash;
-	FLUSH(&res);
 }
-void runtime·stringHash(String s, uintptr seed, uintptr res) {
+
+func stringHash(s String, seed uintptr) (res uintptr) {
 	runtime·algarray[ASTRING].hash(&seed, sizeof(String), &s);
 	res = seed;
-	FLUSH(&res);
 }
-void runtime·bytesHash(Slice s, uintptr seed, uintptr res) {
+
+func bytesHash(s Slice, seed uintptr) (res uintptr) {
 	runtime·algarray[AMEM].hash(&seed, s.len, s.array);
 	res = seed;
-	FLUSH(&res);
 }
-void runtime·int32Hash(uint32 i, uintptr seed, uintptr res) {
+
+func int32Hash(i uint32, seed uintptr) (res uintptr) {
 	runtime·algarray[AMEM32].hash(&seed, sizeof(uint32), &i);
 	res = seed;
-	FLUSH(&res);
 }
-void runtime·int64Hash(uint64 i, uintptr seed, uintptr res) {
+
+func int64Hash(i uint64, seed uintptr) (res uintptr) {
 	runtime·algarray[AMEM64].hash(&seed, sizeof(uint64), &i);
 	res = seed;
-	FLUSH(&res);
 }

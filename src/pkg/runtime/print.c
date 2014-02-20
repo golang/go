@@ -69,61 +69,61 @@ static void
 vprintf(int8 *s, byte *base)
 {
 	int8 *p, *lp;
-	uintptr arg, narg;
+	uintptr arg, siz;
 	byte *v;
 
 	//runtime·lock(&debuglock);
 
 	lp = p = s;
-	arg = 0;
+	arg = (uintptr)base;
 	for(; *p; p++) {
 		if(*p != '%')
 			continue;
 		if(p > lp)
 			gwrite(lp, p-lp);
 		p++;
-		narg = 0;
+		siz = 0;
 		switch(*p) {
 		case 't':
 		case 'c':
-			narg = arg + 1;
+			siz = 1;
 			break;
 		case 'd':	// 32-bit
 		case 'x':
 			arg = ROUND(arg, 4);
-			narg = arg + 4;
+			siz = 4;
 			break;
 		case 'D':	// 64-bit
 		case 'U':
 		case 'X':
 		case 'f':
 			arg = ROUND(arg, sizeof(uintptr));
-			narg = arg + 8;
+			siz = 8;
 			break;
 		case 'C':
 			arg = ROUND(arg, sizeof(uintptr));
-			narg = arg + 16;
+			siz = 16;
 			break;
 		case 'p':	// pointer-sized
 		case 's':
 			arg = ROUND(arg, sizeof(uintptr));
-			narg = arg + sizeof(uintptr);
+			siz = sizeof(uintptr);
 			break;
 		case 'S':	// pointer-aligned but bigger
 			arg = ROUND(arg, sizeof(uintptr));
-			narg = arg + sizeof(String);
+			siz = sizeof(String);
 			break;
 		case 'a':	// pointer-aligned but bigger
 			arg = ROUND(arg, sizeof(uintptr));
-			narg = arg + sizeof(Slice);
+			siz = sizeof(Slice);
 			break;
 		case 'i':	// pointer-aligned but bigger
 		case 'e':
 			arg = ROUND(arg, sizeof(uintptr));
-			narg = arg + sizeof(Eface);
+			siz = sizeof(Eface);
 			break;
 		}
-		v = base+arg;
+		v = (byte*)arg;
 		switch(*p) {
 		case 'a':
 			runtime·printslice(*(Slice*)v);
@@ -171,7 +171,7 @@ vprintf(int8 *s, byte *base)
 			runtime·printhex(*(uint64*)v);
 			break;
 		}
-		arg = narg;
+		arg += siz;
 		lp = p+1;
 	}
 	if(p > lp)
@@ -348,7 +348,7 @@ runtime·printhex(uint64 v)
 void
 runtime·printpointer(void *p)
 {
-	runtime·printhex((uint64)p);
+	runtime·printhex((uintptr)p);
 }
 
 void
@@ -373,11 +373,3 @@ runtime·printnl(void)
 {
 	gwrite("\n", 1);
 }
-
-void
-runtime·typestring(Eface e, String s)
-{
-	s = *e.type->string;
-	FLUSH(&s);
-}
-

@@ -10,14 +10,6 @@ enum {
 	maxround = sizeof(uintptr),
 };
 
-/*
- * We assume that all architectures turn faults and the like
- * into apparent calls to runtime.sigpanic.  If we see a "call"
- * to runtime.sigpanic, we do not back up the PC to find the
- * line number of the CALL instruction, because there is no CALL.
- */
-void	runtime·sigpanic(void);
-
 // The GOTRACEBACK environment variable controls the
 // behavior of a Go program that is crashing and exiting.
 //	GOTRACEBACK=0   suppress all tracebacks
@@ -128,16 +120,6 @@ runtime·goenvs_unix(void)
 	syscall·envs.array = (byte*)s;
 	syscall·envs.len = n;
 	syscall·envs.cap = n;
-}
-
-void
-runtime·getgoroot(String out)
-{
-	byte *p;
-
-	p = runtime·getenv("GOROOT");
-	out = runtime·gostringnocopy(p);
-	FLUSH(&out);
 }
 
 int32
@@ -276,62 +258,6 @@ runtime·check(void)
 	TestAtomic64();
 }
 
-void
-runtime·Caller(intgo skip, uintptr retpc, String retfile, intgo retline, bool retbool)
-{
-	Func *f, *g;
-	uintptr pc;
-	uintptr rpc[2];
-
-	/*
-	 * Ask for two PCs: the one we were asked for
-	 * and what it called, so that we can see if it
-	 * "called" sigpanic.
-	 */
-	retpc = 0;
-	if(runtime·callers(1+skip-1, rpc, 2) < 2) {
-		retfile = runtime·emptystring;
-		retline = 0;
-		retbool = false;
-	} else if((f = runtime·findfunc(rpc[1])) == nil) {
-		retfile = runtime·emptystring;
-		retline = 0;
-		retbool = true;  // have retpc at least
-	} else {
-		retpc = rpc[1];
-		pc = retpc;
-		g = runtime·findfunc(rpc[0]);
-		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
-			pc--;
-		retline = runtime·funcline(f, pc, &retfile);
-		retbool = true;
-	}
-	FLUSH(&retpc);
-	FLUSH(&retfile);
-	FLUSH(&retline);
-	FLUSH(&retbool);
-}
-
-void
-runtime·Callers(intgo skip, Slice pc, intgo retn)
-{
-	// runtime.callers uses pc.array==nil as a signal
-	// to print a stack trace.  Pick off 0-length pc here
-	// so that we don't let a nil pc slice get to it.
-	if(pc.len == 0)
-		retn = 0;
-	else
-		retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
-	FLUSH(&retn);
-}
-
-void
-runtime·FuncForPC(uintptr pc, void *retf)
-{
-	retf = runtime·findfunc(pc);
-	FLUSH(&retf);
-}
-
 uint32
 runtime·fastrand1(void)
 {
@@ -373,13 +299,6 @@ runtime·tickspersecond(void)
 	}
 	runtime·unlock(&ticksLock);
 	return res;
-}
-
-void
-runtime∕pprof·runtime_cyclesPerSecond(int64 res)
-{
-	res = runtime·tickspersecond();
-	FLUSH(&res);
 }
 
 DebugVars	runtime·debug;

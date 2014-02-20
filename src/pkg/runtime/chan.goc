@@ -2,86 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "type.h"
 #include "race.h"
 #include "malloc.h"
+#include "chan.h"
 #include "../../cmd/ld/textflag.h"
 
-#define	MAXALIGN	8
-
-typedef	struct	WaitQ	WaitQ;
-typedef	struct	SudoG	SudoG;
-typedef	struct	Select	Select;
-typedef	struct	Scase	Scase;
-
-struct	SudoG
-{
-	G*	g;
-	uint32*	selectdone;
-	SudoG*	link;
-	int64	releasetime;
-	byte*	elem;		// data element
-};
-
-struct	WaitQ
-{
-	SudoG*	first;
-	SudoG*	last;
-};
-
-// The garbage collector is assuming that Hchan can only contain pointers into the stack
-// and cannot contain pointers into the heap.
-struct	Hchan
-{
-	uintgo	qcount;			// total data in the q
-	uintgo	dataqsiz;		// size of the circular q
-	uint16	elemsize;
-	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
-	bool	closed;
-	Type*	elemtype;		// element type
-	uintgo	sendx;			// send index
-	uintgo	recvx;			// receive index
-	WaitQ	recvq;			// list of recv waiters
-	WaitQ	sendq;			// list of send waiters
-	Lock;
-};
-
 uint32 runtime·Hchansize = sizeof(Hchan);
-
-// Buffer follows Hchan immediately in memory.
-// chanbuf(c, i) is pointer to the i'th slot in the buffer.
-#define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
-
-enum
-{
-	debug = 0,
-
-	// Scase.kind
-	CaseRecv,
-	CaseSend,
-	CaseDefault,
-};
-
-struct	Scase
-{
-	SudoG	sg;			// must be first member (cast to Scase)
-	Hchan*	chan;			// chan
-	byte*	pc;			// return pc
-	uint16	kind;
-	uint16	so;			// vararg of selected bool
-	bool*	receivedp;		// pointer to received bool (recv2)
-};
-
-struct	Select
-{
-	uint16	tcase;			// total count of scase[]
-	uint16	ncase;			// currently filled scase[]
-	uint16*	pollorder;		// case poll order
-	Hchan**	lockorder;		// channel lock order
-	Scase	scase[1];		// one per case (in order of appearance)
-};
 
 static	void	dequeueg(WaitQ*);
 static	SudoG*	dequeue(WaitQ*);
@@ -119,21 +49,12 @@ makechan(ChanType *t, int64 hint)
 	return c;
 }
 
-// For reflect
-//	func makechan(typ *ChanType, size uint64) (chan)
-void
-reflect·makechan(ChanType *t, uint64 size, Hchan *c)
-{
+func reflect·makechan(t *ChanType, size uint64) (c *Hchan) {
 	c = makechan(t, size);
-	FLUSH(&c);
 }
 
-// makechan(t *ChanType, hint int64) (hchan *chan any);
-void
-runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
-{
-	ret = makechan(t, hint);
-	FLUSH(&ret);
+func makechan(t *ChanType, size int64) (c *Hchan) {
+	c = makechan(t, size);
 }
 
 /*
@@ -417,32 +338,22 @@ closed:
 	return true;
 }
 
-// chansend1(hchan *chan any, elem *any);
 #pragma textflag NOSPLIT
-void
-runtime·chansend1(ChanType *t, Hchan* c, byte *v)
-{
-	chansend(t, c, v, true, runtime·getcallerpc(&t));
+func chansend1(t *ChanType, c *Hchan, elem *byte) {
+	chansend(t, c, elem, true, runtime·getcallerpc(&t));
 }
 
-// chanrecv1(hchan *chan any, elem *any);
 #pragma textflag NOSPLIT
-void
-runtime·chanrecv1(ChanType *t, Hchan* c, byte *v)
-{
-	chanrecv(t, c, v, true, nil);
+func chanrecv1(t *ChanType, c *Hchan, elem *byte) {
+	chanrecv(t, c, elem, true, nil);
 }
 
 // chanrecv2(hchan *chan any, elem *any) (received bool);
 #pragma textflag NOSPLIT
-void
-runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
-{
-	chanrecv(t, c, v, true, &received);
+func chanrecv2(t *ChanType, c *Hchan, elem *byte) (received bool) {
+	chanrecv(t, c, elem, true, &received);
 }
 
-// func selectnbsend(c chan any, elem *any) bool
-//
 // compiler implements
 //
 //	select {
@@ -461,15 +372,10 @@ runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
 //	}
 //
 #pragma textflag NOSPLIT
-void
-runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool res)
-{
-	res = chansend(t, c, val, false, runtime·getcallerpc(&t));
-	FLUSH(&res);
+func selectnbsend(t *ChanType, c *Hchan, elem *byte) (selected bool) {
+	selected = chansend(t, c, elem, false, runtime·getcallerpc(&t));
 }
 
-// func selectnbrecv(elem *any, c chan any) bool
-//
 // compiler implements
 //
 //	select {
@@ -488,15 +394,10 @@ runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool res)
 //	}
 //
 #pragma textflag NOSPLIT
-void
-runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
-{
-	selected = chanrecv(t, c, v, false, nil);
-	FLUSH(&selected);
+func selectnbrecv(t *ChanType, elem *byte, c *Hchan) (selected bool) {
+	selected = chanrecv(t, c, elem, false, nil);
 }
 
-// func selectnbrecv2(elem *any, ok *bool, c chan any) bool
-//
 // compiler implements
 //
 //	select {
@@ -515,49 +416,25 @@ runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 //	}
 //
 #pragma textflag NOSPLIT
-void
-runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
-{
-	selected = chanrecv(t, c, v, false, received);
-	FLUSH(&selected);
+func selectnbrecv2(t *ChanType, elem *byte, received *bool, c *Hchan) (selected bool) {
+	selected = chanrecv(t, c, elem, false, received);
 }
 
-// For reflect:
-//	func chansend(c chan, val *any, nb bool) (selected bool)
-// where val points to the data to be sent.
-//
-// The "uintptr selected" is really "bool selected" but saying
-// uintptr gets us the right alignment for the output parameter block.
 #pragma textflag NOSPLIT
-void
-reflect·chansend(ChanType *t, Hchan *c, byte *val, bool nb, uintptr selected)
-{
-	selected = chansend(t, c, val, !nb, runtime·getcallerpc(&t));
-	FLUSH(&selected);
+func reflect·chansend(t *ChanType, c *Hchan, elem *byte, nb bool) (selected bool) {
+	selected = chansend(t, c, elem, !nb, runtime·getcallerpc(&t));
 }
 
-// For reflect:
-//	func chanrecv(c chan, nb bool, val *any) (selected, received bool)
-// where val points to a data area that will be filled in with the
-// received value.  val must have the size and type of the channel element type.
-void
-reflect·chanrecv(ChanType *t, Hchan *c, bool nb, byte *val, bool selected, bool received)
-{
+func reflect·chanrecv(t *ChanType, c *Hchan, nb bool, elem *byte) (selected bool, received bool) {
 	received = false;
-	FLUSH(&received);
-	selected = chanrecv(t, c, val, !nb, &received);
-	FLUSH(&selected);
+	selected = chanrecv(t, c, elem, !nb, &received);
 }
 
 static Select* newselect(int32);
 
-// newselect(size uint32) (sel *byte);
 #pragma textflag NOSPLIT
-void
-runtime·newselect(int32 size, byte *sel)
-{
+func newselect(size int32) (sel *byte) {
 	sel = (byte*)newselect(size);
-	FLUSH(&sel);
 }
 
 static Select*
@@ -592,19 +469,13 @@ newselect(int32 size)
 // cut in half to give stack a chance to split
 static void selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so);
 
-// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
 #pragma textflag NOSPLIT
-void
-runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
-{
+func selectsend(sel *Select, c *Hchan, elem *byte) (selected bool) {
 	selected = false;
-	FLUSH(&selected);
 
 	// nil cases do not compete
-	if(c == nil)
-		return;
-
-	selectsend(sel, c, runtime·getcallerpc(&sel), elem, (byte*)&selected - (byte*)&sel);
+	if(c != nil)
+		selectsend(sel, c, runtime·getcallerpc(&sel), elem, (byte*)&selected - (byte*)&sel);
 }
 
 static void
@@ -633,34 +504,22 @@ selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so)
 // cut in half to give stack a chance to split
 static void selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool*, int32 so);
 
-// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 #pragma textflag NOSPLIT
-void
-runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
-{
+func selectrecv(sel *Select, c *Hchan, elem *byte) (selected bool) {
 	selected = false;
-	FLUSH(&selected);
 
 	// nil cases do not compete
-	if(c == nil)
-		return;
-
-	selectrecv(sel, c, runtime·getcallerpc(&sel), elem, nil, (byte*)&selected - (byte*)&sel);
+	if(c != nil)
+		selectrecv(sel, c, runtime·getcallerpc(&sel), elem, nil, (byte*)&selected - (byte*)&sel);
 }
 
-// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
 #pragma textflag NOSPLIT
-void
-runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
-{
+func selectrecv2(sel *Select, c *Hchan, elem *byte, received *bool) (selected bool) {
 	selected = false;
-	FLUSH(&selected);
 
 	// nil cases do not compete
-	if(c == nil)
-		return;
-
-	selectrecv(sel, c, runtime·getcallerpc(&sel), elem, received, (byte*)&selected - (byte*)&sel);
+	if(c != nil)
+		selectrecv(sel, c, runtime·getcallerpc(&sel), elem, received, (byte*)&selected - (byte*)&sel);
 }
 
 static void
@@ -690,14 +549,9 @@ selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool *received, int32 so
 // cut in half to give stack a chance to split
 static void selectdefault(Select*, void*, int32);
 
-// selectdefault(sel *byte) (selected bool);
 #pragma textflag NOSPLIT
-void
-runtime·selectdefault(Select *sel, bool selected)
-{
+func selectdefault(sel *Select) (selected bool) {
 	selected = false;
-	FLUSH(&selected);
-
 	selectdefault(sel, runtime·getcallerpc(&sel), (byte*)&selected - (byte*)&sel);
 }
 
@@ -774,9 +628,7 @@ selparkcommit(G *gp, void *sel)
 	return true;
 }
 
-void
-runtime·block(void)
-{
+func block() {
 	runtime·park(nil, nil, "select (no cases)");	// forever
 }
 
@@ -787,9 +639,7 @@ static void* selectgo(Select**);
 // overwrites return pc on stack to signal which case of the select
 // to run, so cannot appear at the top of a split stack.
 #pragma textflag NOSPLIT
-void
-runtime·selectgo(Select *sel)
-{
+func selectgo(sel *Select) {
 	runtime·setcallerpc(&sel, selectgo(&sel));
 }
 
@@ -1131,10 +981,7 @@ enum SelectDir {
 	SelectDefault,
 };
 
-// func rselect(cases []runtimeSelect) (chosen int, recvOK bool)
-void
-reflect·rselect(Slice cases, intgo chosen, bool recvOK)
-{
+func reflect·rselect(cases Slice) (chosen int, recvOK bool) {
 	int32 i;
 	Select *sel;
 	runtimeSelect* rcase, *rc;
@@ -1165,27 +1012,17 @@ reflect·rselect(Slice cases, intgo chosen, bool recvOK)
 	}
 
 	chosen = (intgo)(uintptr)selectgo(&sel);
-
-	FLUSH(&chosen);
-	FLUSH(&recvOK);
 }
 
 static void closechan(Hchan *c, void *pc);
 
-// closechan(sel *byte);
 #pragma textflag NOSPLIT
-void
-runtime·closechan(Hchan *c)
-{
+func closechan(c *Hchan) {
 	closechan(c, runtime·getcallerpc(&c));
 }
 
-// For reflect
-//	func chanclose(c chan)
 #pragma textflag NOSPLIT
-void
-reflect·chanclose(Hchan *c)
-{
+func reflect·chanclose(c *Hchan) {
 	closechan(c, runtime·getcallerpc(&c));
 }
 
@@ -1238,28 +1075,18 @@ closechan(Hchan *c, void *pc)
 	runtime·unlock(c);
 }
 
-// For reflect
-//	func chanlen(c chan) (len int)
-void
-reflect·chanlen(Hchan *c, intgo len)
-{
+func reflect·chanlen(c *Hchan) (len int) {
 	if(c == nil)
 		len = 0;
 	else
 		len = c->qcount;
-	FLUSH(&len);
 }
 
-// For reflect
-//	func chancap(c chan) int
-void
-reflect·chancap(Hchan *c, intgo cap)
-{
+func reflect·chancap(c *Hchan) (cap int) {
 	if(c == nil)
 		cap = 0;
 	else
 		cap = c->dataqsiz;
-	FLUSH(&cap);
 }
 
 static SudoG*

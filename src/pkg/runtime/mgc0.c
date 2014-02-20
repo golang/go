@@ -1152,6 +1152,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
 			continue;
 
 		default:
+			runtime·printf("runtime: invalid GC instruction %p at %p\n", pc[0], pc);
 			runtime·throw("scanblock: invalid GC instruction");
 			return;
 		}
@@ -2492,9 +2493,10 @@ runtime∕debug·readGCStats(Slice *pauses)
 	pauses->len = n+3;
 }
 
-void
-runtime∕debug·setGCPercent(intgo in, intgo out)
-{
+int32
+runtime·setgcpercent(int32 in) {
+	int32 out;
+
 	runtime·lock(&runtime·mheap);
 	if(gcpercent == GcpercentUnknown)
 		gcpercent = readgogc();
@@ -2503,7 +2505,7 @@ runtime∕debug·setGCPercent(intgo in, intgo out)
 		in = -1;
 	gcpercent = in;
 	runtime·unlock(&runtime·mheap);
-	FLUSH(&out);
+	return out;
 }
 
 static void

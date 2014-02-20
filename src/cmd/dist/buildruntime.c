@@ -370,10 +370,8 @@ mkzsys(char *dir, char *file)
 }
 
 static char *runtimedefs[] = {
+	"defs.c",
 	"proc.c",
-	"iface.c",
-	"hashmap.c",
-	"chan.c",
 	"parfor.c",
 };
 

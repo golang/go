@@ -170,17 +170,6 @@ endcgo(void)
 		runtime·raceacquire(&cgosync);
 }
 
-void
-runtime·NumCgoCall(int64 ret)
-{
-	M *mp;
-
-	ret = 0;
-	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
-		ret += mp->ncgocall;
-	FLUSH(&ret);
-}
-
 // Helper functions for cgo code.
 
 void (*_cgo_malloc)(void*);

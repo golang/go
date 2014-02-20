@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "type.h"
@@ -18,13 +19,9 @@ enum
 
 static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
 static	void	growslice1(SliceType*, Slice, intgo, Slice *);
-	void	runtime·copy(Slice to, Slice fm, uintptr width, intgo ret);
 
 // see also unsafe·NewArray
-// makeslice(typ *Type, len, cap int64) (ary []any);
-void
-runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
-{
+func makeslice(t *SliceType, len int64, cap int64) (ret Slice) {
 	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
@@ -59,9 +56,7 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
 }
 
 // growslice(type *Type, x, []T, n int64) []T
-void
-runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
-{
+func growslice(t *SliceType, old Slice, n int64) (ret Slice) {
 	int64 cap;
 	void *pc;
 
@@ -79,8 +74,6 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 	}
 
 	growslice1(t, old, cap, &ret);
-
-	FLUSH(&ret);
 
 	if(debug) {
 		runtime·printf("growslice(%S,", *t->string);
@@ -142,11 +135,8 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 		g->stackguard0 = StackPreempt;
 }
 
-// copy(to any, fr any, wid uintptr) int
 #pragma textflag NOSPLIT
-void
-runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
-{
+func copy(to Slice, fm Slice, width uintptr) (ret int) {
 	void *pc;
 
 	if(fm.len == 0 || to.len == 0 || width == 0) {
@@ -171,7 +161,6 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 	}
 
 out:
-	FLUSH(&ret);
 
 	if(debug) {
 		runtime·prints("main·copy: to=");
@@ -187,9 +176,7 @@ out:
 }
 
 #pragma textflag NOSPLIT
-void
-runtime·slicestringcopy(Slice to, String fm, intgo ret)
-{
+func slicestringcopy(to Slice, fm String) (ret int) {
 	void *pc;
 
 	if(fm.len == 0 || to.len == 0) {
@@ -208,13 +195,10 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
 
 	runtime·memmove(to.array, fm.str, ret);
 
-out:
-	FLUSH(&ret);
+out:;
 }
 
-void
-runtime·printslice(Slice a)
-{
+func printslice(a Slice) {
 	runtime·prints("[");
 	runtime·printint(a.len);
 	runtime·prints("/");
