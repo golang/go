@@ -158,7 +158,7 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 	var v *Var
 	var v_used bool
 	if ident != nil {
-		if obj := check.topScope.LookupParent(ident.Name); obj != nil {
+		if obj := check.scope.LookupParent(ident.Name); obj != nil {
 			v, _ = obj.(*Var)
 			if v != nil {
 				v_used = v.used
@@ -261,7 +261,7 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 }
 
 func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
-	scope := check.topScope
+	scope := check.scope
 
 	// collect lhs variables
 	var newVars []*Var

@@ -23,7 +23,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	x.mode = invalid
 	x.expr = e
 
-	obj := check.topScope.LookupParent(e.Name)
+	obj := check.scope.LookupParent(e.Name)
 	if obj == nil {
 		if e.Name == "_" {
 			check.errorf(e.Pos(), "cannot use _ as value or type")
@@ -141,7 +141,7 @@ func (check *checker) typ(e ast.Expr) Type {
 
 // funcType type-checks a function or method type and returns its signature.
 func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
-	scope := NewScope(check.topScope)
+	scope := NewScope(check.scope)
 	check.recordScope(ftyp, scope)
 
 	recv_, _ := check.collectParams(scope, recv, false)

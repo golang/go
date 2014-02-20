@@ -33,7 +33,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			if x.mode != invalid {
 				check.conversion(x, T)
 				if x.mode != invalid {
-					check.conversions[e] = true // for cap/len checking
+					check.markAsConversion(e) // for cap/len checking
 				}
 			}
 		default:
@@ -251,7 +251,7 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		if pkg, _ := check.topScope.LookupParent(ident.Name).(*PkgName); pkg != nil {
+		if pkg, _ := check.scope.LookupParent(ident.Name).(*PkgName); pkg != nil {
 			check.recordObject(ident, pkg)
 			pkg.used = true
 			exp := pkg.pkg.scope.Lookup(sel)

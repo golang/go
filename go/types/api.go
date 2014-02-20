@@ -219,11 +219,8 @@ func (init *Initializer) String() string {
 // file set, and the package path the package is identified with.
 // The clean path must not be empty or dot (".").
 func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
-	pkg, err := conf.check(path, fset, files, info)
-	if err == nil {
-		pkg.complete = true
-	}
-	return pkg, err
+	pkg := NewPackage(path, "")
+	return pkg, newChecker(conf, fset, pkg, info).files(files)
 }
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.

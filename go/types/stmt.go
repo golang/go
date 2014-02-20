@@ -12,7 +12,7 @@ import (
 	"go/token"
 )
 
-func (check *checker) funcBody(name string, sig *Signature, body *ast.BlockStmt) {
+func (check *checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
 	if trace {
 		if name == "" {
 			name = "<function literal>"
@@ -21,18 +21,17 @@ func (check *checker) funcBody(name string, sig *Signature, body *ast.BlockStmt)
 		defer fmt.Println("--- <end>")
 	}
 
-	// save/restore outer function state
-	defer func(scope *Scope, sig *Signature, label bool, indent int) {
-		check.topScope = scope
-		check.funcSig = sig
-		check.hasLabel = label
+	// save/restore current context and setup function context
+	// (and use 0 indentation at function start)
+	defer func(ctxt context, indent int) {
+		check.context = ctxt
 		check.indent = indent
-	}(check.topScope, check.funcSig, check.hasLabel, check.indent)
-
-	// setup inner function state
-	check.topScope = sig.scope
-	check.funcSig = sig
-	check.hasLabel = false
+	}(check.context, check.indent)
+	check.context = context{
+		decl:  decl,
+		scope: sig.scope,
+		sig:   sig,
+	}
 	check.indent = 0
 
 	check.stmtList(0, body.List)
@@ -118,13 +117,13 @@ func (check *checker) multipleDefaults(list []ast.Stmt) {
 }
 
 func (check *checker) openScope(s ast.Stmt) {
-	scope := NewScope(check.topScope)
+	scope := NewScope(check.scope)
 	check.recordScope(s, scope)
-	check.topScope = scope
+	check.scope = scope
 }
 
 func (check *checker) closeScope() {
-	check.topScope = check.topScope.Parent()
+	check.scope = check.scope.Parent()
 }
 
 func assignOp(op token.Token) token.Token {
@@ -211,8 +210,8 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			if p := recover(); p != nil {
 				panic(p)
 			}
-			assert(scope == check.topScope)
-		}(check.topScope)
+			assert(scope == check.scope)
+		}(check.scope)
 	}
 
 	inner := ctxt &^ fallthroughOk
@@ -319,7 +318,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.suspendedCall("defer", s.Call)
 
 	case *ast.ReturnStmt:
-		sig := check.funcSig
+		sig := check.sig
 		if n := sig.results.Len(); n > 0 {
 			// determine if the function has named results
 			named := false
@@ -499,7 +498,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					T = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
-				check.declare(check.topScope, nil, obj)
+				check.declare(check.scope, nil, obj)
 				check.recordImplicit(clause, obj)
 				// For the "declared but not used" error, all lhs variables act as
 				// one; i.e., if any one of them is 'used', all of them are 'used'.
@@ -694,7 +693,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// declare variables
 			if len(vars) > 0 {
 				for _, obj := range vars {
-					check.declare(check.topScope, nil, obj) // recordObject already called
+					check.declare(check.scope, nil, obj) // recordObject already called
 				}
 			} else {
 				check.errorf(s.TokPos, "no new variables on left side of :=")

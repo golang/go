@@ -919,9 +919,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	assert(x.expr != nil && typ != nil)
 
 	if isUntyped(typ) {
-		// delay notification until it becomes typed
+		// delay type and value recording until we know the type
 		// or until the end of type checking
-		check.untyped[x.expr] = exprInfo{false, typ.(*Basic), val}
+		check.rememberUntyped(x.expr, false, typ.(*Basic), val)
 	} else {
 		check.recordTypeAndValue(e, typ, val)
 	}
@@ -963,7 +963,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Anonymous functions are considered part of the
 			// init expression/func declaration which contains
 			// them: use existing package-level declaration info.
-			check.funcBody("", sig, e.Body)
+			check.funcBody(check.decl, "", sig, e.Body)
 			x.mode = value
 			x.typ = sig
 		} else {

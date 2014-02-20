@@ -178,7 +178,7 @@ func DefPredeclaredTestFuncs() {
 
 func init() {
 	Universe = NewScope(nil)
-	Unsafe = NewPackage("unsafe", "unsafe", NewScope(Universe))
+	Unsafe = NewPackage("unsafe", "unsafe")
 	Unsafe.complete = true
 
 	defPredeclaredTypes()

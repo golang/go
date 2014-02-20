@@ -151,7 +151,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						}
 						if path == "C" && check.conf.FakeImportC {
 							// TODO(gri) shouldn't create a new one each time
-							imp = NewPackage("C", "C", NewScope(nil))
+							imp = NewPackage("C", "C")
 							imp.fake = true
 						} else {
 							var err error
@@ -328,7 +328,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							typ = ptr.X
 						}
 						if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
-							check.methods[base.Name] = append(check.methods[base.Name], obj)
+							check.assocMethod(base.Name, obj)
 						}
 					}
 				}
@@ -374,9 +374,8 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// Phase 4: Typecheck all functions bodies.
 
-	for _, f := range check.funcList {
-		check.decl = f.info
-		check.funcBody(f.name, f.sig, f.body)
+	for _, f := range check.funcs {
+		check.funcBody(f.decl, f.name, f.sig, f.body)
 	}
 
 	// Phase 5: Check initialization dependencies.

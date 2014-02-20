@@ -31,7 +31,7 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 	}
 }
 
-// objDecl type-checks the declaration of obj in its respective file scope.
+// objDecl type-checks the declaration of obj in its respective (file) context.
 // See check.typ for the details on def and path.
 func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	if obj.Type() != nil {
@@ -52,17 +52,13 @@ func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		unreachable()
 	}
 
-	// adjust file scope for current object
-	oldScope := check.topScope
-	check.topScope = d.file // for lookup
-
-	// save current iota
-	oldIota := check.iota
-	check.iota = nil
-
-	// save current decl
-	oldDecl := check.decl
-	check.decl = nil
+	// save/restore current context and setup object context
+	defer func(ctxt context) {
+		check.context = ctxt
+	}(check.context)
+	check.context = context{
+		scope: d.file,
+	}
 
 	// Const and var declarations must not have initialization
 	// cycles. We track them by remembering the current declaration
@@ -85,10 +81,6 @@ func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	default:
 		unreachable()
 	}
-
-	check.decl = oldDecl
-	check.iota = oldIota
-	check.topScope = oldScope
 }
 
 func (check *checker) constDecl(obj *Const, typ, init ast.Expr) {
@@ -274,13 +266,13 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 }
 
 type funcInfo struct {
-	name string    // for tracing only
-	info *declInfo // for cycle detection
+	name string    // for debugging/tracing only
+	decl *declInfo // for cycle detection
 	sig  *Signature
 	body *ast.BlockStmt
 }
 
-func (check *checker) funcDecl(obj *Func, info *declInfo) {
+func (check *checker) funcDecl(obj *Func, decl *declInfo) {
 	assert(obj.typ == nil)
 
 	// func declarations cannot use iota
@@ -288,7 +280,7 @@ func (check *checker) funcDecl(obj *Func, info *declInfo) {
 
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
-	fdecl := info.fdecl
+	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
 		check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
@@ -298,7 +290,7 @@ func (check *checker) funcDecl(obj *Func, info *declInfo) {
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
-		check.funcList = append(check.funcList, funcInfo{obj.name, info, sig, fdecl.Body})
+		check.funcs = append(check.funcs, funcInfo{obj.name, decl, sig, fdecl.Body})
 	}
 }
 
@@ -341,7 +333,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					check.arityMatch(s, last)
 
 					for i, name := range s.Names {
-						check.declare(check.topScope, name, lhs[i])
+						check.declare(check.scope, name, lhs[i])
 					}
 
 				case token.VAR:
@@ -388,7 +380,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 					// declare all variables
 					// (only at this point are the variable scopes (parents) set)
 					for i, name := range s.Names {
-						check.declare(check.topScope, name, lhs0[i])
+						check.declare(check.scope, name, lhs0[i])
 					}
 
 				default:
@@ -397,7 +389,7 @@ func (check *checker) declStmt(decl ast.Decl) {
 
 			case *ast.TypeSpec:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				check.declare(check.topScope, s.Name, obj)
+				check.declare(check.scope, s.Name, obj)
 				check.typeDecl(obj, s.Type, nil, nil)
 
 			default:

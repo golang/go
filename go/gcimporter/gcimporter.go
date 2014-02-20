@@ -347,7 +347,7 @@ func (p *parser) getPkg(id, name string) *types.Package {
 	}
 	pkg := p.imports[id]
 	if pkg == nil && name != "" {
-		pkg = types.NewPackage(id, name, types.NewScope(nil))
+		pkg = types.NewPackage(id, name)
 		p.imports[id] = pkg
 	}
 	return pkg
@@ -434,7 +434,7 @@ func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string
 			// doesn't exist yet, create a fake package instead
 			pkg = p.getPkg(id, "")
 			if pkg == nil {
-				pkg = types.NewPackage(id, "", nil)
+				pkg = types.NewPackage(id, "")
 			}
 		}
 	default:

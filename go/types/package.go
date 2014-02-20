@@ -16,11 +16,10 @@ type Package struct {
 	fake     bool // scope lookup errors are silently dropped if package is fake (internal use only)
 }
 
-// NewPackage returns a new Package for the given package path,
-// name, and scope. The package is not complete and contains no
-// explicit imports.
-func NewPackage(path, name string, scope *Scope) *Package {
-	return &Package{path: path, name: name, scope: scope}
+// NewPackage returns a new Package for the given package path and name.
+// The package is not complete and contains no explicit imports.
+func NewPackage(path, name string) *Package {
+	return &Package{path: path, name: name, scope: NewScope(Universe)}
 }
 
 // Path returns the package path.
