@@ -372,11 +372,3 @@ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
 {
 	runtime·gostartcall(gobuf, fv->fn, fv);
 }
-
-void
-runtime∕debug·setMaxStack(intgo in, intgo out)
-{
-	out = runtime·maxstacksize;
-	runtime·maxstacksize = in;
-	FLUSH(&out);
-}

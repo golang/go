@@ -31,11 +31,11 @@ type LFNode struct {
 	Pushcnt uintptr
 }
 
-func lfstackpush(head *uint64, node *LFNode)
-func lfstackpop2(head *uint64) *LFNode
+func lfstackpush_go(head *uint64, node *LFNode)
+func lfstackpop_go(head *uint64) *LFNode
 
-var LFStackPush = lfstackpush
-var LFStackPop = lfstackpop2
+var LFStackPush = lfstackpush_go
+var LFStackPop = lfstackpop_go
 
 type ParFor struct {
 	body    *byte
@@ -48,17 +48,17 @@ type ParFor struct {
 	wait    bool
 }
 
-func parforalloc2(nthrmax uint32) *ParFor
-func parforsetup2(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
-func parfordo(desc *ParFor)
-func parforiters(desc *ParFor, tid uintptr) (uintptr, uintptr)
+func newParFor(nthrmax uint32) *ParFor
+func parForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
+func parForDo(desc *ParFor)
+func parForIters(desc *ParFor, tid uintptr) (uintptr, uintptr)
 
-var NewParFor = parforalloc2
-var ParForSetup = parforsetup2
-var ParForDo = parfordo
+var NewParFor = newParFor
+var ParForSetup = parForSetup
+var ParForDo = parForDo
 
 func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
-	begin, end := parforiters(desc, uintptr(tid))
+	begin, end := parForIters(desc, uintptr(tid))
 	return uint32(begin), uint32(end)
 }
 
@@ -80,11 +80,13 @@ var BytesHash = bytesHash
 var Int32Hash = int32Hash
 var Int64Hash = int64Hash
 
-func GogoBytes() int32
-
 var hashLoad float64 // declared in hashmap.c
 var HashLoad = &hashLoad
 
 func memclrBytes(b []byte)
 
 var MemclrBytes = memclrBytes
+
+func gogoBytes() int32
+
+var GogoBytes = gogoBytes

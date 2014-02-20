@@ -72,6 +72,7 @@ typedef	struct	MapType		MapType;
 typedef	struct	Defer		Defer;
 typedef	struct	Panic		Panic;
 typedef	struct	Hmap		Hmap;
+typedef	struct	Hiter			Hiter;
 typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
@@ -580,7 +581,7 @@ extern bool runtime·precisestack;
 #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
 #define	nil		((void*)0)
 #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
-#define	ROUND(x, n)	(((x)+(n)-1)&~((n)-1)) /* all-caps to mark as macro: it evaluates n twice */
+#define	ROUND(x, n)	(((x)+(n)-1)&~(uintptr)((n)-1)) /* all-caps to mark as macro: it evaluates n twice */
 
 /*
  * known to compiler
@@ -761,9 +762,30 @@ int32	runtime·runetochar(byte*, int32);
 int32	runtime·charntorune(int32*, uint8*, int32);
 
 /*
- * very low level c-called
- */
+ * This macro is used when writing C functions
+ * called as if they were Go functions.
+ * Passed the address of a result before a return statement,
+ * it makes sure the result has been flushed to memory
+ * before the return.
+ *
+ * It is difficult to write such functions portably, because
+ * of the varying requirements on the alignment of the
+ * first output value. Almost all code should write such
+ * functions in .goc files, where goc2c (part of cmd/dist)
+ * can arrange the correct alignment for the target system.
+ * Goc2c also takes care of conveying to the garbage collector
+ * which parts of the argument list are input vs outputs.
+ *
+ * Therefore, do NOT use this macro if at all possible.
+ */ 
 #define FLUSH(x)	USED(x)
+
+/*
+ * GoOutput is a type with the same alignment requirements as the
+ * initial output argument from a Go function. Only for use in cases
+ * where using goc2c is not possible. See comment on FLUSH above.
+ */
+typedef uint64 GoOutput;
 
 void	runtime·gogo(Gobuf*);
 void	runtime·gostartcall(Gobuf*, void(*)(void), void*);
@@ -901,6 +923,7 @@ void	runtime·crash(void);
 void	runtime·parsedebugvars(void);
 void	_rt0_go(void);
 void*	runtime·funcdata(Func*, int32);
+int32	runtime·setmaxthreads(int32);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"c"	int32
@@ -989,6 +1012,7 @@ LFNode*	runtime·lfstackpop(uint64 *head);
 ParFor*	runtime·parforalloc(uint32 nthrmax);
 void	runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32));
 void	runtime·parfordo(ParFor *desc);
+void	runtime·parforiters(ParFor*, uintptr, uintptr*, uintptr*);
 
 /*
  * This is consistent across Linux and BSD.
@@ -1071,6 +1095,7 @@ void	runtime·procyield(uint32);
 void	runtime·osyield(void);
 void	runtime·lockOSThread(void);
 void	runtime·unlockOSThread(void);
+bool	runtime·lockedOSThread(void);
 
 bool	runtime·showframe(Func*, G*);
 void	runtime·printcreatedby(G*);

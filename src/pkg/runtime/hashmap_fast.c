@@ -7,6 +7,9 @@
 
 // +build ignore
 
+// Because this file is #included, it cannot be processed by goc2c,
+// so we have to handle the Go resuts ourselves.
+
 #pragma textflag NOSPLIT
 void
 HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)

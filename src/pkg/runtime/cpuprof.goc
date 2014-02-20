@@ -48,6 +48,7 @@
 // in order to let the log closer set the high bit to indicate "EOF" safely
 // in the situation when normally the goroutine "owns" handoff.
 
+package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
@@ -428,9 +429,6 @@ breakflush:
 
 // CPUProfile returns the next cpu profile block as a []byte.
 // The user documentation is in debug.go.
-void
-runtime·CPUProfile(Slice ret)
-{
+func CPUProfile() (ret Slice) {
 	ret = getprofile(prof);
-	FLUSH(&ret);
 }

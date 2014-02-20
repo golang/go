@@ -2033,21 +2033,6 @@ runtime·lockedOSThread(void)
 	return g->lockedm != nil && m->lockedg != nil;
 }
 
-// for testing of callbacks
-void
-runtime·golockedOSThread(bool ret)
-{
-	ret = runtime·lockedOSThread();
-	FLUSH(&ret);
-}
-
-void
-runtime·NumGoroutine(intgo ret)
-{
-	ret = runtime·gcount();
-	FLUSH(&ret);
-}
-
 int32
 runtime·gcount(void)
 {
@@ -3050,15 +3035,17 @@ runtime·topofstack(Func *f)
 		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
 }
 
-void
-runtime∕debug·setMaxThreads(intgo in, intgo out)
+int32
+runtime·setmaxthreads(int32 in)
 {
+	int32 out;
+
 	runtime·lock(&runtime·sched);
 	out = runtime·sched.maxmcount;
 	runtime·sched.maxmcount = in;
 	checkmcount();
 	runtime·unlock(&runtime·sched);
-	FLUSH(&out);
+	return out;
 }
 
 static int8 experiment[] = GOEXPERIMENT; // defined in zaexperiment.h
@@ -3080,24 +3067,4 @@ haveexperiment(int8 *name)
 	nomatch:;
 	}
 	return 0;
-}
-
-// func runtime_procPin() int
-void
-sync·runtime_procPin(intgo p)
-{
-	M *mp;
-
-	mp = m;
-	// Disable preemption.
-	mp->locks++;
-	p = mp->p->id;
-	FLUSH(&p);
-}
-
-// func runtime_procUnpin()
-void
-sync·runtime_procUnpin(void)
-{
-	m->locks--;
 }

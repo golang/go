@@ -834,11 +834,8 @@ runtime·mal(uintptr n)
 }
 
 #pragma textflag NOSPLIT
-void
-runtime·new(Type *typ, uint8 *ret)
-{
+func new(typ *Type) (ret *uint8) {
 	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoScan : 0);
-	FLUSH(&ret);
 }
 
 static void*

@@ -101,11 +101,8 @@ runtime·gostringnocopy(byte *str)
 	return s;
 }
 
-void
-runtime·cstringToGo(byte *str, String s)
-{
+func cstringToGo(str *byte) (s String) {
 	s = runtime·gostringnocopy(str);
-	FLUSH(&s);
 }
 
 String

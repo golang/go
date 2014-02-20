@@ -5,6 +5,7 @@
 // Runtime symbol table parsing.
 // See http://golang.org/s/go12symtab for an overview.
 
+package runtime
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
@@ -86,8 +87,11 @@ runtime·funcdata(Func *f, int32 i)
 	if(i < 0 || i >= f->nfuncdata)
 		return nil;
 	p = (byte*)&f->nfuncdata + 4 + f->npcdata*4;
-	if(sizeof(void*) == 8 && ((uintptr)p & 4))
+	if(sizeof(void*) == 8 && ((uintptr)p & 4)) {
+		if(((uintptr)f & 4))
+			runtime·printf("misaligned func %p\n", f);
 		p += 4;
+	}
 	return ((void**)p)[i];
 }
 
@@ -224,27 +228,18 @@ runtime·funcarglen(Func *f, uintptr targetpc)
 	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
 }
 
-void
-runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
-{
+func funcline_go(f *Func, targetpc uintptr) (retfile String, retline int) {
 	// Pass strict=false here, because anyone can call this function,
 	// and they might just be wrong about targetpc belonging to f.
 	retline = funcline(f, targetpc, &retfile, false);
-	FLUSH(&retline);
 }
 
-void
-runtime·funcname_go(Func *f, String ret)
-{
+func funcname_go(f *Func) (ret String) {
 	ret = runtime·gostringnocopy((uint8*)runtime·funcname(f));
-	FLUSH(&ret);
 }
 
-void
-runtime·funcentry_go(Func *f, uintptr ret)
-{
+func funcentry_go(f *Func) (ret uintptr) {
 	ret = f->entry;
-	FLUSH(&ret);
 }
 
 Func*
@@ -279,6 +274,10 @@ runtime·findfunc(uintptr addr)
 	// by address or if the binary search above is buggy.
 	runtime·prints("findfunc unreachable\n");
 	return nil;
+}
+
+func FuncForPC(pc uintptr) (ret *Func) {
+	ret = runtime·findfunc(pc);
 }
 
 static bool

@@ -575,3 +575,4 @@ void	runtime·gc_m_ptr(Eface*);
 void	runtime·gc_itab_ptr(Eface*);
 
 void	runtime·memorydump(void);
+int32	runtime·setgcpercent(int32);

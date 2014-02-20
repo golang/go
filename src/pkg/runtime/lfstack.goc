@@ -4,6 +4,7 @@
 
 // Lock-free stack.
 
+package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 
@@ -71,9 +72,10 @@ runtime·lfstackpop(uint64 *head)
 	}
 }
 
-void
-runtime·lfstackpop2(uint64 *head, LFNode *node)
-{
+func lfstackpush_go(head *uint64, node *LFNode) {
+	runtime·lfstackpush(head, node);
+}
+
+func lfstackpop_go(head *uint64) (node *LFNode) {
 	node = runtime·lfstackpop(head);
-	FLUSH(&node);
 }

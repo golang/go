@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package runtime
 #include "runtime.h"
 
-typedef struct Complex128 Complex128;
-
-void
-runtime·complex128div(Complex128 n, Complex128 d, Complex128 q)
-{
+func complex128div(n Complex128, d Complex128) (q Complex128) {
 	int32 ninf, dinf, nnan, dnan;
 	float64 a, b, ratio, denom;
 
@@ -58,5 +55,4 @@ runtime·complex128div(Complex128 n, Complex128 d, Complex128 q)
 			q.imag = (n.imag - n.real*ratio) / denom;
 		}
 	}
-	FLUSH(&q);
 }

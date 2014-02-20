@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file is compiled by cmd/dist to obtain debug information
+// about the given header files.
+
 #include "runtime.h"
 #include "arch_GOARCH.h"
-
-void
-·GogoBytes(int32 x)
-{
-	x = RuntimeGogoBytes;
-	FLUSH(&x);
-}
+#include "malloc.h"
+#include "type.h"
+#include "race.h"
+#include "hashmap.h"
+#include "chan.h"
