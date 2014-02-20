@@ -1590,29 +1590,30 @@ writelines(void)
 
 		pciterinit(&pcfile, &s->pcln->pcfile);
 		pciterinit(&pcline, &s->pcln->pcline);
+		epc = pc;
 		while(!pcfile.done && !pcline.done) {
-			if(pc - s->value >= pcfile.nextpc) {
+			if(epc - s->value >= pcfile.nextpc) {
 				pciternext(&pcfile);
 				continue;
 			}
-			if(pc - s->value >= pcline.nextpc) {
+			if(epc - s->value >= pcline.nextpc) {
 				pciternext(&pcline);
 				continue;
 			}
-
-			if(pcfile.nextpc < pcline.nextpc)
-				epc = pcfile.nextpc;
-			else
-				epc = pcline.nextpc;
-			epc += s->value;
 
 			if(file != pcfile.value) {
 				cput(DW_LNS_set_file);
 				uleb128put(pcfile.value);
 				file = pcfile.value;
 			}
-			putpclcdelta(epc - pc, pcline.value - line);
+			putpclcdelta(s->value + pcline.pc - pc, pcline.value - line);
+
 			pc = epc;
+			if(pcfile.nextpc < pcline.nextpc)
+				epc = pcfile.nextpc;
+			else
+				epc = pcline.nextpc;
+			epc += s->value;
 			line = pcline.value;
 		}
 
