@@ -332,6 +332,8 @@ func rename(oldname, newname string) error {
 	dirname := oldname[:lastIndex(oldname, '/')+1]
 	if hasPrefix(newname, dirname) {
 		newname = newname[len(dirname):]
+	} else {
+		return &LinkError{"rename", oldname, newname, ErrInvalid}
 	}
 
 	// If newname still contains slashes after removing the oldname
