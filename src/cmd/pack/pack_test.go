@@ -202,7 +202,7 @@ func TestHello(t *testing.T) {
 		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
 	}
 	char := fields[1]
-	run("go", "build", "cmd/pack") // writes pack binary to dir
+	run("go", "build", "-o", "pack", "cmd/pack") // writes pack binary to dir
 	run("go", "tool", char+"g", "hello.go")
 	run("./pack", "grc", "hello.a", "hello."+char)
 	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
