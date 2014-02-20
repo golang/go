@@ -273,6 +273,7 @@ struct	G
 	bool	issystem;	// do not output in stack dump
 	bool	isbackground;	// ignore in deadlock detector
 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
+	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
