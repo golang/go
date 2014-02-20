@@ -1127,7 +1127,8 @@ ok:
 					ot = dgopkgpath(s, ot, t1->sym->pkg);
 			} else {
 				ot = dgostringptr(s, ot, nil);
-				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
+				if(t1->type->sym != S &&
+				   (t1->type->sym->pkg == builtinpkg || !exportname(t1->type->sym->name)))
 					ot = dgopkgpath(s, ot, localpkg);
 				else
 					ot = dgostringptr(s, ot, nil);
