@@ -4,11 +4,8 @@
 
 /*
 
-Package callgraph defines the call graph abstraction and various algorithms
-and utilities to operate on it.  It does not provide a concrete
-implementation but permits other analyses (such as pointer analyses or
-Rapid Type Analysis) to expose their own call graphs in a
-representation-independent manner.
+Package callgraph defines the call graph and various algorithms
+and utilities to operate on it.
 
 A call graph is a labelled directed graph whose nodes represent
 functions and whose edge labels represent syntactic function call
@@ -21,27 +18,6 @@ differ by label; this occurs when one function calls another function
 from multiple call sites.  Also, it may contain multiple edges
 (caller, site, *) that differ only by callee; this indicates a
 polymorphic call.
-
-A call graph is called CONTEXT INSENSITIVE if no two nodes in N
-represent the same syntactic function declaration, i.e. the set of
-nodes and the set of syntactic functions are in one-to-one
-correspondence.
-
-A context-sensitive call graph may have multiple nodes corresponding
-to the same function; this may yield a more precise approximation to
-the calling behavior of the program.  Consider this program:
-
-    func Apply(fn func(V), value V) { fn(value) }
-    Apply(F, v1)
-    ...
-    Apply(G, v2)
-
-A context-insensitive call graph would represent all calls to Apply by
-the same node, so that node would have successors F and G.  A
-context-sensitive call graph might represent the first and second
-calls to Apply by distinct nodes, so that the first would have
-successor F and the second would have successor G.  This is a more
-precise representation of the possible behaviors of the program.
 
 A SOUND call graph is one that overapproximates the dynamic calling
 behaviors of the program in all possible executions.  One call graph
@@ -58,6 +34,11 @@ language.
 */
 package callgraph
 
+// TODO(adonovan): add a function to eliminate wrappers from the
+// callgraph, preserving topology.
+// More generally, we could eliminate "uninteresting" nodes such as
+// nodes from packages we don't care about.
+
 import "code.google.com/p/go.tools/go/ssa"
 
 // A Graph represents a call graph.
@@ -66,43 +47,49 @@ import "code.google.com/p/go.tools/go/ssa"
 // If the call graph is sound, such nodes indicate unreachable
 // functions.
 //
-type Graph interface {
-	Root() Node    // the distinguished root node
-	Nodes() []Node // new unordered set of all nodes
+type Graph struct {
+	Root  *Node                   // the distinguished root node
+	Nodes map[*ssa.Function]*Node // all nodes by function
+}
+
+// New returns a new Graph with the specified root node.
+func New(root *ssa.Function) *Graph {
+	g := &Graph{Nodes: make(map[*ssa.Function]*Node)}
+	g.Root = g.CreateNode(root)
+	return g
+}
+
+// CreateNode returns the Node for fn, creating it if not present.
+func (g *Graph) CreateNode(fn *ssa.Function) *Node {
+	n, ok := g.Nodes[fn]
+	if !ok {
+		n = &Node{Func: fn, ID: len(g.Nodes)}
+		g.Nodes[fn] = n
+	}
+	return n
 }
 
 // A Node represents a node in a call graph.
-//
-// If the call graph is context sensitive, there may be multiple
-// Nodes with the same Func(); the identity of the graph node
-// indicates the context.
-//
-// Sites returns the set of syntactic call sites within this function.
-//
-// For nodes representing synthetic or intrinsic functions
-// (e.g. reflect.Call, or the root of the call graph), Sites() returns
-// a slice containing a single nil value to indicate the synthetic
-// call site, and each edge in Edges() has a nil Site.
-//
-// All nodes "belong" to a single graph and must not be mixed with
-// nodes belonging to another graph.
-//
-// A site may appear in Sites() but not in {e.Site | e ∈ Edges()}.
-// This indicates that that caller node was unreachable, or that the
-// call was dynamic yet no func or interface values flow to the call
-// site.
-//
-// Clients should not mutate the node via the results of its methods.
-//
-type Node interface {
-	Func() *ssa.Function          // the function this node represents
-	Sites() []ssa.CallInstruction // new unordered set of call sites within this function
-	Edges() []Edge                // new unordered set of outgoing edges
+type Node struct {
+	Func *ssa.Function // the function this node represents
+	ID   int           // 0-based sequence number
+	In   []*Edge       // unordered set of incoming call edges (n.In[*].Callee == n)
+	Out  []*Edge       // unordered set of outgoing call edges (n.Out[*].Caller == n)
 }
 
 // A Edge represents an edge in the call graph.
+//
+// Site is nil for edges originating in synthetic or intrinsic
+// functions, e.g. reflect.Call or the root of the call graph.
 type Edge struct {
-	Caller Node
+	Caller *Node
 	Site   ssa.CallInstruction
-	Callee Node
+	Callee *Node
+}
+
+// AddEdge adds the edge (caller, site, callee) to the call graph.
+func AddEdge(caller *Node, site ssa.CallInstruction, callee *Node) {
+	e := &Edge{caller, site, callee}
+	callee.In = append(callee.In, e)
+	caller.Out = append(caller.Out, e)
 }

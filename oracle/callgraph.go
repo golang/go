@@ -15,14 +15,8 @@ import (
 
 // doCallgraph displays the entire callgraph of the current program.
 //
-// Nodes may be seem to appear multiple times due to (limited)
-// context sensitivity.
-//
 // TODO(adonovan): add options for restricting the display to a region
 // of interest: function, package, subgraph, dirtree, goroutine, etc.
-//
-// TODO(adonovan): add an option to project away context sensitivity.
-// The callgraph API should provide this feature.
 //
 // TODO(adonovan): add an option to partition edges by call site.
 //
@@ -41,7 +35,7 @@ func doCallgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
 }
 
 type callgraphResult struct {
-	callgraph callgraph.Graph
+	callgraph *callgraph.Graph
 }
 
 func (r *callgraphResult) display(printf printfFunc) {
@@ -51,36 +45,10 @@ The numbered nodes form a spanning tree.
 Non-numbered nodes indicate back- or cross-edges to the node whose
  number follows in parentheses.
 `)
-	root := r.callgraph.Root()
 
-	// context-insensitive (CI) call graph.
-	ci := make(map[*ssa.Function]map[*ssa.Function]bool)
-
-	// 1. Visit the CS call graph and build the CI call graph.
-	visited := make(map[callgraph.Node]bool)
-	var visit func(caller callgraph.Node)
-	visit = func(caller callgraph.Node) {
-		if !visited[caller] {
-			visited[caller] = true
-
-			cicallees := ci[caller.Func()]
-			if cicallees == nil {
-				cicallees = make(map[*ssa.Function]bool)
-				ci[caller.Func()] = cicallees
-			}
-
-			for _, e := range caller.Edges() {
-				cicallees[e.Callee.Func()] = true
-				visit(e.Callee)
-			}
-		}
-	}
-	visit(root)
-
-	// 2. Print the CI callgraph.
-	printed := make(map[*ssa.Function]int)
-	var print func(caller *ssa.Function, indent int)
-	print = func(caller *ssa.Function, indent int) {
+	printed := make(map[*callgraph.Node]int)
+	var print func(caller *callgraph.Node, indent int)
+	print = func(caller *callgraph.Node, indent int) {
 		if num, ok := printed[caller]; !ok {
 			num = len(printed)
 			printed[caller] = num
@@ -88,20 +56,20 @@ Non-numbered nodes indicate back- or cross-edges to the node whose
 			// Sort the children into name order for deterministic* output.
 			// (*mostly: anon funcs' names are not globally unique.)
 			var funcs funcsByName
-			for callee := range ci[caller] {
-				funcs = append(funcs, callee)
+			for callee := range callgraph.CalleesOf(caller) {
+				funcs = append(funcs, callee.Func)
 			}
 			sort.Sort(funcs)
 
-			printf(caller, "%d\t%*s%s", num, 4*indent, "", caller)
+			printf(caller.Func, "%d\t%*s%s", num, 4*indent, "", caller.Func)
 			for _, callee := range funcs {
-				print(callee, indent+1)
+				print(r.callgraph.Nodes[callee], indent+1)
 			}
 		} else {
-			printf(caller, "\t%*s%s (%d)", 4*indent, "", caller, num)
+			printf(caller, "\t%*s%s (%d)", 4*indent, "", caller.Func, num)
 		}
 	}
-	print(root.Func(), 0)
+	print(r.callgraph.Root, 0)
 }
 
 type funcsByName []*ssa.Function
@@ -111,21 +79,14 @@ func (s funcsByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s funcsByName) Less(i, j int) bool { return s[i].String() < s[j].String() }
 
 func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	nodes := r.callgraph.Nodes()
-
-	numbering := make(map[callgraph.Node]int)
-	for i, n := range nodes {
-		numbering[n] = i
-	}
-
-	cg := make([]serial.CallGraph, len(nodes))
-	for i, n := range nodes {
-		j := &cg[i]
-		fn := n.Func()
+	cg := make([]serial.CallGraph, len(r.callgraph.Nodes))
+	for _, n := range r.callgraph.Nodes {
+		j := &cg[n.ID]
+		fn := n.Func
 		j.Name = fn.String()
 		j.Pos = fset.Position(fn.Pos()).String()
 		for callee := range callgraph.CalleesOf(n) {
-			j.Children = append(j.Children, numbering[callee])
+			j.Children = append(j.Children, callee.ID)
 		}
 		sort.Ints(j.Children)
 	}

@@ -355,7 +355,7 @@ func ext۰NotYetImplemented(a *analysis, cgn *cgnode) {
 	// TODO(adonovan): enable this warning when we've implemented
 	// enough that it's not unbearably annoying.
 	if true {
-		fn := cgn.Func()
+		fn := cgn.fn
 		a.warnf(fn.Pos(), "unsound: intrinsic treatment of %s not yet implemented", fn)
 	}
 }

@@ -259,7 +259,7 @@ func TestMultipleQueries(t *testing.T) {
 	// Loader
 	var buildContext = build.Default
 	buildContext.GOPATH = "testdata"
-	conf := loader.Config{Build: &buildContext}
+	conf := loader.Config{Build: &buildContext, SourceImports: true}
 	filename := "testdata/src/main/multi.go"
 	conf.CreateFromFilenames("", filename)
 	iprog, err := conf.Load()

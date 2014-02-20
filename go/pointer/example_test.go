@@ -85,10 +85,10 @@ func main() {
 	// By converting to strings, we de-duplicate nodes
 	// representing the same function due to context sensitivity.
 	var edges []string
-	callgraph.GraphVisitEdges(result.CallGraph, func(edge callgraph.Edge) error {
-		caller := edge.Caller.Func()
+	callgraph.GraphVisitEdges(result.CallGraph, func(edge *callgraph.Edge) error {
+		caller := edge.Caller.Func
 		if caller.Pkg == mainPkg {
-			edges = append(edges, fmt.Sprint(caller, " --> ", edge.Callee.Func()))
+			edges = append(edges, fmt.Sprint(caller, " --> ", edge.Callee.Func))
 		}
 		return nil
 	})

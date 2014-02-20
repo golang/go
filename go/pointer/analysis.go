@@ -13,6 +13,7 @@ import (
 	"os"
 	"reflect"
 
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/go/types/typeutil"
@@ -346,7 +347,7 @@ func Analyze(config *Config) *Result {
 	}
 	a.computeTrackBits()
 
-	root := a.generate()
+	a.generate()
 
 	if a.log != nil {
 		// Show size of constraint system.
@@ -374,17 +375,20 @@ func Analyze(config *Config) *Result {
 		}
 	}
 
+	// Create callgraph.Nodes in deterministic order.
+	if cg := a.result.CallGraph; cg != nil {
+		for _, caller := range a.cgnodes {
+			cg.CreateNode(caller.fn)
+		}
+	}
+
 	// Add dynamic edges to call graph.
 	for _, caller := range a.cgnodes {
 		for _, site := range caller.sites {
 			for callee := range a.nodes[site.targets].pts {
-				a.callEdge(site, callee)
+				a.callEdge(caller, site, callee)
 			}
 		}
-	}
-
-	if a.config.BuildCallGraph {
-		a.result.CallGraph = &cgraph{root, a.cgnodes}
 	}
 
 	return a.result
@@ -393,15 +397,15 @@ func Analyze(config *Config) *Result {
 // callEdge is called for each edge in the callgraph.
 // calleeid is the callee's object node (has otFunction flag).
 //
-func (a *analysis) callEdge(site *callsite, calleeid nodeid) {
+func (a *analysis) callEdge(caller *cgnode, site *callsite, calleeid nodeid) {
 	obj := a.nodes[calleeid].obj
 	if obj.flags&otFunction == 0 {
 		panic(fmt.Sprintf("callEdge %s -> n%d: not a function object", site, calleeid))
 	}
 	callee := obj.cgn
 
-	if a.config.BuildCallGraph {
-		site.callees = append(site.callees, callee)
+	if cg := a.result.CallGraph; cg != nil {
+		callgraph.AddEdge(cg.CreateNode(caller.fn), site.instr, cg.CreateNode(callee.fn))
 	}
 
 	if a.log != nil {

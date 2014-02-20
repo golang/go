@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"strings"
 
-	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
 )
@@ -54,13 +53,6 @@ func (l Label) ReflectType() types.Type {
 	return rtype
 }
 
-// Context returns the analytic context in which this label's object was allocated,
-// or nil for global objects: global, const, and shared contours for functions.
-//
-func (l Label) Context() callgraph.Node {
-	return l.obj.cgn
-}
-
 // Path returns the path to the subelement of the object containing
 // this label.  For example, ".x[*].y".
 //
@@ -79,7 +71,7 @@ func (l Label) Pos() token.Pos {
 		}
 	}
 	if cgn := l.obj.cgn; cgn != nil {
-		return cgn.Func().Pos()
+		return cgn.fn.Pos()
 	}
 	return token.NoPos
 }
@@ -115,7 +107,7 @@ func (l Label) String() string {
 	case nil:
 		if l.obj.cgn != nil {
 			// allocation by intrinsic or reflective operation
-			s = fmt.Sprintf("<alloc in %s>", l.obj.cgn.Func())
+			s = fmt.Sprintf("<alloc in %s>", l.obj.cgn.fn)
 		} else {
 			s = "<unknown>" // should be unreachable
 		}

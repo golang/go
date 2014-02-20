@@ -115,7 +115,7 @@ type Warning struct {
 // See Config for how to request the various Result components.
 //
 type Result struct {
-	CallGraph       callgraph.Graph       // discovered call graph
+	CallGraph       *callgraph.Graph      // discovered call graph
 	Queries         map[ssa.Value]Pointer // pts(v) for each v in Config.Queries.
 	IndirectQueries map[ssa.Value]Pointer // pts(*v) for each v in Config.IndirectQueries.
 	Warnings        []Warning             // warnings of unsoundness

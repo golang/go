@@ -4,67 +4,20 @@
 
 package pointer
 
-// This file defines our implementation of the callgraph API.
+// This file defines the internal (context-sensitive) call graph.
 
 import (
 	"fmt"
 	"go/token"
 
-	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 )
 
-// cgraph implements callgraph.Graph.
-type cgraph struct {
-	root  *cgnode
-	nodes []*cgnode
-}
-
-func (g *cgraph) Nodes() []callgraph.Node {
-	nodes := make([]callgraph.Node, len(g.nodes))
-	for i, node := range g.nodes {
-		nodes[i] = node
-	}
-	return nodes
-}
-
-func (g *cgraph) Root() callgraph.Node {
-	return g.root
-}
-
-// cgnode implements callgraph.Node.
 type cgnode struct {
 	fn         *ssa.Function
 	obj        nodeid      // start of this contour's object block
 	sites      []*callsite // ordered list of callsites within this function
 	callersite *callsite   // where called from, if known; nil for shared contours
-}
-
-func (n *cgnode) Func() *ssa.Function {
-	return n.fn
-}
-
-func (n *cgnode) Sites() []ssa.CallInstruction {
-	sites := make([]ssa.CallInstruction, len(n.sites))
-	for i, site := range n.sites {
-		sites[i] = site.instr
-	}
-	return sites
-}
-
-func (n *cgnode) Edges() []callgraph.Edge {
-	var numEdges int
-	for _, site := range n.sites {
-		numEdges += len(site.callees)
-	}
-	edges := make([]callgraph.Edge, 0, numEdges)
-
-	for _, site := range n.sites {
-		for _, callee := range site.callees {
-			edges = append(edges, callgraph.Edge{Caller: n, Site: site.instr, Callee: callee})
-		}
-	}
-	return edges
 }
 
 func (n *cgnode) String() string {
@@ -79,7 +32,6 @@ func (n *cgnode) String() string {
 type callsite struct {
 	targets nodeid              // pts(·) contains objects for dynamically called functions
 	instr   ssa.CallInstruction // the call instruction; nil for synthetic/intrinsic
-	callees []*cgnode           // unordered set of callees of this site
 }
 
 func (c *callsite) String() string {

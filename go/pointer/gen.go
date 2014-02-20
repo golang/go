@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"go/token"
 
+	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types"
 )
@@ -620,7 +621,7 @@ func (a *analysis) genStaticCall(caller *cgnode, site *callsite, call *ssa.CallC
 	} else {
 		obj = a.objectNode(nil, fn) // shared contour
 	}
-	a.callEdge(site, obj)
+	a.callEdge(caller, site, obj)
 
 	sig := call.Signature()
 
@@ -726,7 +727,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	fn := a.prog.LookupMethod(a.reflectRtypePtr, call.Method.Pkg(), call.Method.Name())
 
 	obj := a.makeFunctionObject(fn, site) // new contour for this call
-	a.callEdge(site, obj)
+	a.callEdge(caller, site, obj)
 
 	// From now on, it's essentially a static call, but little is
 	// gained by factoring together the code for both cases.
@@ -1213,9 +1214,7 @@ func (a *analysis) genMethodsOf(T types.Type) {
 }
 
 // generate generates offline constraints for the entire program.
-// It returns the synthetic root of the callgraph.
-//
-func (a *analysis) generate() *cgnode {
+func (a *analysis) generate() {
 	// Create a dummy node since we use the nodeid 0 for
 	// non-pointerlike variables.
 	a.addNodes(tInvalid, "(zero)")
@@ -1231,6 +1230,10 @@ func (a *analysis) generate() *cgnode {
 	}
 
 	root := a.genRootCalls()
+
+	if a.config.BuildCallGraph {
+		a.result.CallGraph = callgraph.New(root.fn)
+	}
 
 	// Create nodes and constraints for all methods of all types
 	// that are dynamically accessible via reflection or interfaces.
@@ -1253,6 +1256,4 @@ func (a *analysis) generate() *cgnode {
 		a.endObject(obj, nil, "<command-line args>")
 		a.addressOf(T, a.objectNode(nil, os.Var("Args")), obj)
 	}
-
-	return root
 }

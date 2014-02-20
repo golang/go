@@ -472,14 +472,14 @@ func checkTypesExpectation(e *expectation, pts pointer.PointsToSet, typ types.Ty
 
 var errOK = errors.New("OK")
 
-func checkCallsExpectation(prog *ssa.Program, e *expectation, cg callgraph.Graph) bool {
+func checkCallsExpectation(prog *ssa.Program, e *expectation, cg *callgraph.Graph) bool {
 	found := make(map[string]int)
-	err := callgraph.GraphVisitEdges(cg, func(edge callgraph.Edge) error {
+	err := callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
 		// Name-based matching is inefficient but it allows us to
 		// match functions whose names that would not appear in an
 		// index ("<root>") or which are not unique ("func@1.2").
-		if edge.Caller.Func().String() == e.args[0] {
-			calleeStr := edge.Callee.Func().String()
+		if edge.Caller.Func.String() == e.args[0] {
+			calleeStr := edge.Callee.Func.String()
 			if calleeStr == e.args[1] {
 				return errOK // expectation satisified; stop the search
 			}
