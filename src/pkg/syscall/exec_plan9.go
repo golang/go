@@ -486,7 +486,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 
 	if err != nil || n != 0 {
 		if n != 0 {
-			err = NewError(string(errbuf[:]))
+			err = NewError(string(errbuf[:n]))
 		}
 
 		// Child failed; wait for it to exit, to make sure
