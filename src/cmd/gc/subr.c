@@ -1239,6 +1239,9 @@ assignop(Type *src, Type *dst, char **why)
 		if(why != nil) {
 			if(isptrto(src, TINTER))
 				*why = smprint(":\n\t%T is pointer to interface, not interface", src);
+			else if(have && have->sym == missing->sym && have->nointerface)
+				*why = smprint(":\n\t%T does not implement %T (%S method is marked 'nointerface')",
+					src, dst, missing->sym);
 			else if(have && have->sym == missing->sym)
 				*why = smprint(":\n\t%T does not implement %T (wrong type for %S method)\n"
 					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
