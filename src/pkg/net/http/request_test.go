@@ -218,6 +218,7 @@ func TestMultipartReaderOrder(t *testing.T) {
 	if err := req.ParseMultipartForm(25); err != nil {
 		t.Fatalf("ParseMultipartForm: %v", err)
 	}
+	defer req.MultipartForm.RemoveAll()
 	if _, err := req.MultipartReader(); err == nil {
 		t.Fatal("expected an error from MultipartReader after call to ParseMultipartForm")
 	}
