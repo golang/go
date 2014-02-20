@@ -193,7 +193,7 @@ func TestHello(t *testing.T) {
 	}
 
 	out := run("go", "env")
-	re, err := regexp.Compile(`\s*GOCHAR="?(\w)"?`)
+	re, err := regexp.Compile(`\s*GOCHAR=['"]?(\w)['"]?`)
 	if err != nil {
 		t.Fatal(err)
 	}
