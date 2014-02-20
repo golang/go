@@ -1449,6 +1449,7 @@ goexit0(G *gp)
 	gp->status = Gdead;
 	gp->m = nil;
 	gp->lockedm = nil;
+	gp->paniconfault = 0;
 	m->curg = nil;
 	m->lockedg = nil;
 	if(m->locked & ~LockExternal) {

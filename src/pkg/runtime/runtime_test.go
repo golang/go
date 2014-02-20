@@ -10,9 +10,11 @@ import (
 	"os"
 	"os/exec"
 	. "runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var errf error
@@ -130,4 +132,20 @@ func TestRuntimeGogoBytes(t *testing.T) {
 // golang.org/issue/7063
 func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
 	SetCPUProfileRate(0)
+}
+
+func TestSetPanicOnFault(t *testing.T) {
+	old := debug.SetPanicOnFault(true)
+	defer debug.SetPanicOnFault(old)
+
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatalf("did not find error in recover")
+		}
+	}()
+
+	var p *int
+	p = (*int)(unsafe.Pointer(^uintptr(0)))
+	println(*p)
+	t.Fatalf("still here - should have faulted")
 }
