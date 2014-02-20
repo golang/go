@@ -24,9 +24,10 @@ const (
 // 	rm testvet
 //
 func TestVet(t *testing.T) {
-	// Windows systems can't be guaranteed to have Perl and so can't run errchk.
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping test; no Perl on Windows")
+	// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skip("skipping test; no Perl on %q", runtime.GOOS)
 	}
 
 	// go build
