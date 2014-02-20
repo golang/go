@@ -132,9 +132,10 @@ const (
 // An Archive represents an open archive file. It is always scanned sequentially
 // from start to end, without backing up.
 type Archive struct {
-	fd    *os.File // Open file descriptor.
-	files []string // Explicit list of files to be processed.
-	pad   int      // Padding bytes required at end of current archive file
+	fd       *os.File // Open file descriptor.
+	files    []string // Explicit list of files to be processed.
+	pad      int      // Padding bytes required at end of current archive file
+	matchAll bool     // match all files in archive
 }
 
 // archive opens (or if necessary creates) the named archive.
@@ -148,8 +149,9 @@ func archive(name string, mode int, files []string) *Archive {
 	}
 	mustBeArchive(fd)
 	return &Archive{
-		fd:    fd,
-		files: files,
+		fd:       fd,
+		files:    files,
+		matchAll: len(files) == 0,
 	}
 }
 
@@ -282,7 +284,7 @@ func (ar *Archive) skip(entry *Entry) {
 // match reports whether the entry matches the argument list.
 // If it does, it also drops the file from the to-be-processed list.
 func (ar *Archive) match(entry *Entry) bool {
-	if len(ar.files) == 0 {
+	if ar.matchAll {
 		return true
 	}
 	for i, name := range ar.files {

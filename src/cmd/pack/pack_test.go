@@ -90,10 +90,12 @@ func TestTableOfContents(t *testing.T) {
 	defer os.RemoveAll(dir)
 	name := filepath.Join(dir, "pack.a")
 	ar := archive(name, os.O_RDWR, nil)
+
 	// Add some entries by hand.
 	ar.addFile(helloFile.Reset())
 	ar.addFile(goodbyeFile.Reset())
 	ar.fd.Close()
+
 	// Now print it.
 	ar = archive(name, os.O_RDONLY, nil)
 	var buf bytes.Buffer
@@ -111,6 +113,7 @@ func TestTableOfContents(t *testing.T) {
 	if result != expect {
 		t.Fatalf("expected %q got %q", expect, result)
 	}
+
 	// Do it again without verbose.
 	verbose = false
 	buf.Reset()
@@ -120,6 +123,19 @@ func TestTableOfContents(t *testing.T) {
 	result = buf.String()
 	// Expect non-verbose listing.
 	expect = fmt.Sprintf("%s\n%s\n", helloFile.name, goodbyeFile.name)
+	if result != expect {
+		t.Fatalf("expected %q got %q", expect, result)
+	}
+
+	// Do it again with file list arguments.
+	verbose = false
+	buf.Reset()
+	ar = archive(name, os.O_RDONLY, []string{helloFile.name})
+	ar.scan(ar.tableOfContents)
+	ar.fd.Close()
+	result = buf.String()
+	// Expect only helloFile.
+	expect = fmt.Sprintf("%s\n", helloFile.name)
 	if result != expect {
 		t.Fatalf("expected %q got %q", expect, result)
 	}
