@@ -34,9 +34,9 @@ func (c *Corpus) Lookup(query string) SearchResult {
 	index, timestamp := c.CurrentIndex()
 	if index != nil {
 		// identifier search
-		var err error
-		result, err = index.Lookup(query)
-		if err != nil && !c.IndexFullText {
+		if r, err := index.Lookup(query); err == nil {
+			result = r
+		} else if err != nil && !c.IndexFullText {
 			// ignore the error if full text search is enabled
 			// since the query may be a valid regular expression
 			result.Alert = "Error in query string: " + err.Error()
