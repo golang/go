@@ -79,28 +79,33 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 		fmt.Fprintf(a.log, "\tval[%s] = n%d  (%T)\n", v.Name(), id, v)
 	}
 
-	// TODO(adonovan): due to context-sensitivity, we may
-	// encounter the same Value in many contexts.  In a follow-up,
-	// let's merge them to a canonical node, since that's what all
-	// clients want.
-	// ptr, ok := a.result.Queries[v]
-	// if !ok {
-	// 	// First time?  Create the canonical probe node.
-	// 	ptr = Pointer{a, nil, a.addNodes(t, "query")}
-	// 	a.result.Queries[v] = ptr
-	// }
-	// a.copy(ptr.n, id, a.sizeof(v.Type()))
+	// Due to context-sensitivity, we may encounter the same Value
+	// in many contexts. We merge them to a canonical node, since
+	// that's what all clients want.
 
 	// Record the (v, id) relation if the client has queried pts(v).
 	if _, ok := a.config.Queries[v]; ok {
-		a.result.Queries[v] = append(a.result.Queries[v], Pointer{a, cgn, id})
+		t := v.Type()
+		ptr, ok := a.result.Queries[v]
+		if !ok {
+			// First time?  Create the canonical query node.
+			ptr = Pointer{a, a.addNodes(t, "query")}
+			a.result.Queries[v] = ptr
+		}
+		a.result.Queries[v] = ptr
+		a.copy(ptr.n, id, a.sizeof(t))
 	}
 
 	// Record the (*v, id) relation if the client has queried pts(*v).
 	if _, ok := a.config.IndirectQueries[v]; ok {
-		indirect := a.addNodes(v.Type(), "query.indirect")
-		a.genLoad(cgn, indirect, v, 0, a.sizeof(v.Type()))
-		a.result.IndirectQueries[v] = append(a.result.IndirectQueries[v], Pointer{a, cgn, indirect})
+		t := v.Type()
+		ptr, ok := a.result.IndirectQueries[v]
+		if !ok {
+			// First time? Create the canonical indirect query node.
+			ptr = Pointer{a, a.addNodes(v.Type(), "query.indirect")}
+			a.result.IndirectQueries[v] = ptr
+		}
+		a.genLoad(cgn, ptr.n, v, 0, a.sizeof(t))
 	}
 }
 

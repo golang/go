@@ -137,14 +137,14 @@ func (e *expectation) needsProbe() bool {
 }
 
 // Find probe (call to print(x)) of same source file/line as expectation.
-func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]bool, queries map[ssa.Value][]pointer.Pointer, e *expectation) (site *ssa.CallCommon, pts pointer.PointsToSet) {
+func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]bool, queries map[ssa.Value]pointer.Pointer, e *expectation) (site *ssa.CallCommon, pts pointer.PointsToSet) {
 	for call := range probes {
 		pos := prog.Fset.Position(call.Pos())
 		if pos.Line == e.linenum && pos.Filename == e.filename {
 			// TODO(adonovan): send this to test log (display only on failure).
 			// fmt.Printf("%s:%d: info: found probe for %s: %s\n",
 			// 	e.filename, e.linenum, e, p.arg0) // debugging
-			return call, pointer.PointsToCombined(queries[call.Args[0]])
+			return call, queries[call.Args[0]].PointsTo()
 		}
 	}
 	return // e.g. analysis didn't reach this call

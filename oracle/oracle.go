@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors. All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -31,7 +31,7 @@ package oracle
 // package containing the query to avoid doing more work than it needs
 // (loading, parsing, type checking, SSA construction).
 //
-// The Pythia tool (github.com/fzipp/pythia‎) is an example of a "long
+// The Pythia tool (github.com/fzipp/pythia) is an example of a "long
 // running" tool.  It calls New() and then loops, calling
 // ParseQueryPos and (*Oracle).Query to handle each incoming HTTP
 // query.  Since New cannot see which queries will follow, it must

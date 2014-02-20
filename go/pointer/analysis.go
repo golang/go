@@ -298,8 +298,8 @@ func Analyze(config *Config) *Result {
 		intrinsics:  make(map[*ssa.Function]intrinsic),
 		work:        makeMapWorklist(),
 		result: &Result{
-			Queries:         make(map[ssa.Value][]Pointer),
-			IndirectQueries: make(map[ssa.Value][]Pointer),
+			Queries:         make(map[ssa.Value]Pointer),
+			IndirectQueries: make(map[ssa.Value]Pointer),
 		},
 	}
 

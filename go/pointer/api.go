@@ -47,13 +47,6 @@ type Config struct {
 	// variable for v or *v.  Upon completion the client can
 	// inspect that map for the results.
 	//
-	// If a Value belongs to a function that the analysis treats
-	// context-sensitively, the corresponding Result.{Indirect,}Queries
-	// slice may have multiple Pointers, one per distinct context.
-	// Use PointsToCombined to merge them.
-	// TODO(adonovan): need we distinguish contexts?  Current
-	// clients always combine them.
-	//
 	// TODO(adonovan): this API doesn't scale well for batch tools
 	// that want to dump the entire solution.  Perhaps optionally
 	// populate a map[*ssa.DebugRef]Pointer in the Result, one
@@ -122,10 +115,10 @@ type Warning struct {
 // See Config for how to request the various Result components.
 //
 type Result struct {
-	CallGraph       callgraph.Graph         // discovered call graph
-	Queries         map[ssa.Value][]Pointer // pts(v) for each v in Config.Queries.
-	IndirectQueries map[ssa.Value][]Pointer // pts(*v) for each v in Config.IndirectQueries.
-	Warnings        []Warning               // warnings of unsoundness
+	CallGraph       callgraph.Graph       // discovered call graph
+	Queries         map[ssa.Value]Pointer // pts(v) for each v in Config.Queries.
+	IndirectQueries map[ssa.Value]Pointer // pts(*v) for each v in Config.IndirectQueries.
+	Warnings        []Warning             // warnings of unsoundness
 }
 
 // A Pointer is an equivalence class of pointer-like values.
@@ -134,35 +127,14 @@ type Result struct {
 // types may alias the same object.
 //
 type Pointer struct {
-	a   *analysis
-	cgn *cgnode
-	n   nodeid // non-zero
+	a *analysis
+	n nodeid // non-zero
 }
 
 // A PointsToSet is a set of labels (locations or allocations).
 type PointsToSet struct {
 	a   *analysis // may be nil if pts is nil
 	pts nodeset
-}
-
-// Union returns the set containing all the elements of each set in sets.
-func Union(sets ...PointsToSet) PointsToSet {
-	var union PointsToSet
-	for _, set := range sets {
-		union.a = set.a
-		union.pts.addAll(set.pts)
-	}
-	return union
-}
-
-// PointsToCombined returns the combined points-to set of all the
-// specified pointers.
-func PointsToCombined(ptrs []Pointer) PointsToSet {
-	var ptsets []PointsToSet
-	for _, ptr := range ptrs {
-		ptsets = append(ptsets, ptr.PointsTo())
-	}
-	return Union(ptsets...)
 }
 
 func (s PointsToSet) String() string {
@@ -192,11 +164,9 @@ func (s PointsToSet) Labels() []*Label {
 // types that it may contain.  (For an interface, they will
 // always be concrete types.)
 //
-// The result is a mapping whose keys are the dynamic types to
-// which it may point.  For each pointer-like key type, the
-// corresponding map value is a set of pointer abstractions of
-// that dynamic type, represented as a []Pointer slice.  Use
-// PointsToCombined to merge them.
+// The result is a mapping whose keys are the dynamic types to which
+// it may point.  For each pointer-like key type, the corresponding
+// map value is the PointsToSet for pointers of that type.
 //
 // The result is empty unless CanHaveDynamicTypes(T).
 //
@@ -211,8 +181,12 @@ func (s PointsToSet) DynamicTypes() *typeutil.Map {
 		if indirect {
 			panic("indirect tagged object") // implement later
 		}
-		prev, _ := tmap.At(tDyn).([]Pointer)
-		tmap.Set(tDyn, append(prev, Pointer{s.a, nil, v}))
+		pts, ok := tmap.At(tDyn).(PointsToSet)
+		if !ok {
+			pts = PointsToSet{s.a, make(nodeset)}
+			tmap.Set(tDyn, pts)
+		}
+		pts.pts.addAll(s.a.nodes[v].pts)
 	}
 	return &tmap
 }
@@ -230,12 +204,6 @@ func (x PointsToSet) Intersects(y PointsToSet) bool {
 
 func (p Pointer) String() string {
 	return fmt.Sprintf("n%d", p.n)
-}
-
-// Context returns the context of this pointer,
-// if it corresponds to a local variable.
-func (p Pointer) Context() callgraph.Node {
-	return p.cgn
 }
 
 // PointsTo returns the points-to set of this pointer.

@@ -132,24 +132,22 @@ func runPTA(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err erro
 	}
 	ptares := ptrAnalysis(o)
 
-	// Combine the PT sets from all contexts.
-	var pointers []pointer.Pointer
+	var ptr pointer.Pointer
 	if isAddr {
-		pointers = ptares.IndirectQueries[v]
+		ptr = ptares.IndirectQueries[v]
 	} else {
-		pointers = ptares.Queries[v]
+		ptr = ptares.Queries[v]
 	}
-	if pointers == nil {
+	if ptr == (pointer.Pointer{}) {
 		return nil, fmt.Errorf("pointer analysis did not find expression (dead code?)")
 	}
-	pts := pointer.PointsToCombined(pointers)
+	pts := ptr.PointsTo()
 
 	if pointer.CanHaveDynamicTypes(v.Type()) {
 		// Show concrete types for interface/reflect.Value expression.
 		if concs := pts.DynamicTypes(); concs.Len() > 0 {
 			concs.Iterate(func(conc types.Type, pta interface{}) {
-				combined := pointer.PointsToCombined(pta.([]pointer.Pointer))
-				labels := combined.Labels()
+				labels := pta.(pointer.PointsToSet).Labels()
 				sort.Sort(byPosAndString(labels)) // to ensure determinism
 				ptrs = append(ptrs, pointerResult{conc, labels})
 			})

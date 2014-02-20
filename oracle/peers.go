@@ -10,7 +10,6 @@ import (
 	"go/token"
 	"sort"
 
-	"code.google.com/p/go.tools/go/pointer"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/ssa/ssautil"
 	"code.google.com/p/go.tools/go/types"
@@ -74,12 +73,12 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// Run the pointer analysis.
 	ptares := ptrAnalysis(o)
 
-	// Combine the PT sets from all contexts.
-	queryChanPts := pointer.PointsToCombined(ptares.Queries[queryOp.ch])
+	// Find the points-to set.
+	queryChanPtr := ptares.Queries[queryOp.ch]
 
 	// Ascertain which make(chan) labels the query's channel can alias.
 	var makes []token.Pos
-	for _, label := range queryChanPts.Labels() {
+	for _, label := range queryChanPtr.PointsTo().Labels() {
 		makes = append(makes, label.Pos())
 	}
 	sort.Sort(byPos(makes))
@@ -87,13 +86,11 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// Ascertain which send/receive operations can alias the same make(chan) labels.
 	var sends, receives []token.Pos
 	for _, op := range ops {
-		for _, ptr := range ptares.Queries[op.ch] {
-			if ptr.PointsTo().Intersects(queryChanPts) {
-				if op.dir == types.SendOnly {
-					sends = append(sends, op.pos)
-				} else {
-					receives = append(receives, op.pos)
-				}
+		if ptr, ok := ptares.Queries[op.ch]; ok && ptr.MayAlias(queryChanPtr) {
+			if op.dir == types.SendOnly {
+				sends = append(sends, op.pos)
+			} else {
+				receives = append(receives, op.pos)
 			}
 		}
 	}
