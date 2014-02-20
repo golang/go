@@ -46,7 +46,7 @@ var (
 	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
 	buildTool      = flag.String("tool", "go", "Tool to build.")
 	gcPath         = flag.String("gcpath", "code.google.com/p/go", "Path to download gc from")
-	gccPath        = flag.String("gccpath", "svn://gcc.gnu.org/svn/gcc/trunk", "Path to download gcc from")
+	gccPath        = flag.String("gccpath", "https://github.com/mirrors/gcc.git", "Path to download gcc from")
 	failAll        = flag.Bool("fail", false, "fail all builds")
 	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")

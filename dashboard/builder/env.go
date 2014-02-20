@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -136,55 +137,96 @@ type gccgoEnv struct{}
 // gets configured and built in workpath/gcc-objdir. The path to
 // workpath/gcc-objdir is returned.
 func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (string, error) {
-	gofrontendpath := filepath.Join(workpath, "gofrontend")
 	gccpath := filepath.Join(repo.Path, "gcc")
-	gccgopath := filepath.Join(gccpath, "gcc", "go", "gofrontend")
-	gcclibgopath := filepath.Join(gccpath, "libgo")
 
-	// get a handle to SVN vcs.Cmd for pulling down GCC.
-	svn := vcs.ByCmd("svn")
+	// get a handle to Git vcs.Cmd for pulling down GCC from the mirror.
+	git := vcs.ByCmd("git")
 
 	// only pull down gcc if we don't have a local copy.
 	if _, err := os.Stat(gccpath); err != nil {
 		if err := timeout(*cmdTimeout, func() error {
 			// pull down a working copy of GCC.
-			return svn.Create(gccpath, *gccPath)
+			return git.Create(gccpath, *gccPath)
 		}); err != nil {
 			return "", err
 		}
+	}
+
+	if err := git.Download(gccpath); err != nil {
+		return "", err
+	}
+
+	// get the modified files for this commit.
+	statusCmd := []string{
+		"hg",
+		"status",
+		"--no-status",
+		"--change",
+		hash,
+	}
+
+	var buf bytes.Buffer
+	if _, err := runOutput(*cmdTimeout, envv, &buf, repo.Path, statusCmd...); err != nil {
+		return "", fmt.Errorf("Failed to find the modified files for %s: %s", hash, err)
+	}
+	modifiedFiles := strings.Split(buf.String(), "\n")
+	var isMirrored bool
+	for _, f := range modifiedFiles {
+		if strings.HasPrefix(f, "go/") || strings.HasPrefix(f, "libgo/") {
+			isMirrored = true
+			break
+		}
+	}
+
+	// use git log to find the corresponding commit to sync to in the gcc mirror.
+	// If the files modified in the gofrontend are mirrored to gcc, we expect a
+	// commit with a similar description in the gcc mirror. If the files modified are
+	// not mirrored, e.g. in support/, we can sync to the most recent gcc commit that
+	// occurred before those files were modified to verify gccgo's status at that point.
+	logCmd := []string{
+		"git",
+		"log",
+		"-1",
+		"--format=%H",
+	}
+	var errMsg string
+	if isMirrored {
+		commitDesc, err := repo.Master.VCS.LogAtRev(repo.Path, hash, "{desc|escape}")
+		if err != nil {
+			return "", err
+		}
+
+		logCmd = append(logCmd, "--grep", "'"+string(commitDesc)+"'", "--regexp-ignore-case")
+		errMsg = fmt.Sprintf("Failed to find a commit with a similar description to '%s'", string(commitDesc))
 	} else {
-		// make sure to remove gccgopath and gcclibgopath before
-		// updating the repo to avoid file clobbering.
-		if err := os.RemoveAll(gccgopath); err != nil {
+		commitDate, err := repo.Master.VCS.LogAtRev(repo.Path, hash, "{date|rfc3339date}")
+		if err != nil {
 			return "", err
 		}
-		if err := os.RemoveAll(gcclibgopath); err != nil {
-			return "", err
-		}
-	}
-	if err := svn.Download(gccpath); err != nil {
-		return "", err
+
+		logCmd = append(logCmd, "--before", string(commitDate))
+		errMsg = fmt.Sprintf("Failed to find a commit before '%s'", string(commitDate))
 	}
 
-	// clone gofrontend repo at specified revision
-	if _, err := repo.Clone(gofrontendpath, hash); err != nil {
-		return "", err
+	buf.Reset()
+	if _, err := runOutput(*cmdTimeout, envv, &buf, gccpath, logCmd...); err != nil {
+		return "", fmt.Errorf("%s: %s", errMsg, err)
+	}
+	gccRev := buf.String()
+	if gccRev == "" {
+		return "", fmt.Errorf(errMsg)
 	}
 
-	// remove gccgopath and gcclibgopath before copying over gofrontend.
-	if err := os.RemoveAll(gccgopath); err != nil {
-		return "", err
+	// checkout gccRev
+	// TODO(cmang): Fix this to work in parallel mode.
+	checkoutCmd := []string{
+		"git",
+		"reset",
+		"--hard",
+		strings.TrimSpace(gccRev),
 	}
-	if err := os.RemoveAll(gcclibgopath); err != nil {
-		return "", err
-	}
-
-	// copy gofrontend and libgo to appropriate locations
-	if err := copyDir(filepath.Join(gofrontendpath, "go"), gccgopath); err != nil {
-		return "", fmt.Errorf("Failed to copy gofrontend/go to gcc/go/gofrontend: %s\n", err)
-	}
-	if err := copyDir(filepath.Join(gofrontendpath, "libgo"), gcclibgopath); err != nil {
-		return "", fmt.Errorf("Failed to copy gofrontend/libgo to gcc/libgo: %s\n", err)
+	if _, err := runOutput(*cmdTimeout, envv, ioutil.Discard, gccpath, checkoutCmd...); err != nil {
+		return "", fmt.Errorf("Failed to checkout commit at revision %s: %s", gccRev, err)
 	}
 
 	// make objdir to work in
@@ -210,32 +252,6 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	return gccobjdir, nil
-}
-
-// copyDir copies the src directory into the dst
-func copyDir(src, dst string) error {
-	return filepath.Walk(src, func(path string, f os.FileInfo, err error) error {
-		dstPath := strings.Replace(path, src, dst, 1)
-		if f.IsDir() {
-			return os.Mkdir(dstPath, mkdirPerm)
-		}
-
-		srcFile, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer srcFile.Close()
-
-		dstFile, err := os.Create(dstPath)
-		if err != nil {
-			return err
-		}
-
-		if _, err := io.Copy(dstFile, srcFile); err != nil {
-			return err
-		}
-		return dstFile.Close()
-	})
 }
 
 func getenvOk(k string) (v string, ok bool) {
