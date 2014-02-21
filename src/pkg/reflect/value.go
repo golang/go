@@ -889,7 +889,10 @@ func (v Value) FieldByIndex(index []int) Value {
 	v.mustBe(Struct)
 	for i, x := range index {
 		if i > 0 {
-			if v.Kind() == Ptr && v.Elem().Kind() == Struct {
+			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
+				if v.IsNil() {
+					panic("reflect: indirection through nil pointer to embedded struct")
+				}
 				v = v.Elem()
 			}
 		}
