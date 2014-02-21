@@ -32,7 +32,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
-		Object:  types.NewPackage("testmain", "testmain", nil),
+		Object:  types.NewPackage("testmain", "testmain"),
 	}
 
 	// Build package's init function.
