@@ -3,28 +3,20 @@
 	"mode": "callgraph",
 	"callgraph": [
 		{
-			"name": "\u003croot\u003e",
-			"pos": "-",
-			"children": [
-				1,
-				5
-			]
-		},
-		{
 			"name": "main.main",
 			"pos": "testdata/src/main/callgraph-json.go:24:6",
 			"children": [
+				1,
 				2,
-				3,
-				4
+				3
 			]
 		},
 		{
 			"name": "main.call",
 			"pos": "testdata/src/main/callgraph-json.go:12:6",
 			"children": [
-				6,
-				7
+				5,
+				6
 			]
 		},
 		{
@@ -35,7 +27,7 @@
 			"name": "main.call2",
 			"pos": "testdata/src/main/callgraph-json.go:19:6",
 			"children": [
-				8
+				7
 			]
 		},
 		{

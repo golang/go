@@ -4,6 +4,8 @@
 
 package callgraph
 
+import "code.google.com/p/go.tools/go/ssa"
+
 // This file provides various utilities over call graphs, such as
 // visitation and path search.
 
@@ -74,4 +76,81 @@ func PathSearch(start *Node, isEnd func(*Node) bool) []*Edge {
 		return nil
 	}
 	return search(start)
+}
+
+// DeleteSyntheticNodes removes from call graph g all nodes for
+// synthetic functions (except g.Root and package initializers),
+// preserving the topology.
+func (g *Graph) DeleteSyntheticNodes() {
+	for fn, cgn := range g.Nodes {
+		if cgn == g.Root || fn.Synthetic == "" || isInit(cgn.Func) {
+			continue // keep
+		}
+		for _, eIn := range cgn.In {
+			for _, eOut := range cgn.Out {
+				AddEdge(eIn.Caller, eIn.Site, eOut.Callee)
+			}
+		}
+		g.DeleteNode(cgn)
+	}
+}
+
+func isInit(fn *ssa.Function) bool {
+	return fn.Pkg != nil && fn.Pkg.Func("init") == fn
+}
+
+// DeleteNode removes node n and its edges from the graph g.
+// (NB: not efficient for batch deletion.)
+func (g *Graph) DeleteNode(n *Node) {
+	n.deleteIns()
+	n.deleteOuts()
+	delete(g.Nodes, n.Func)
+}
+
+// deleteIns deletes all incoming edges to n.
+func (n *Node) deleteIns() {
+	for _, e := range n.In {
+		removeOutEdge(e)
+	}
+	n.In = nil
+}
+
+// deleteOuts deletes all outgoing edges from n.
+func (n *Node) deleteOuts() {
+	for _, e := range n.Out {
+		removeInEdge(e)
+	}
+	n.Out = nil
+}
+
+// removeOutEdge removes edge.Caller's outgoing edge 'edge'.
+func removeOutEdge(edge *Edge) {
+	caller := edge.Caller
+	n := len(caller.Out)
+	for i, e := range caller.Out {
+		if e == edge {
+			// Replace it with the final element and shrink the slice.
+			caller.Out[i] = caller.Out[n-1]
+			caller.Out[n-1] = nil // aid GC
+			caller.Out = caller.Out[:n-1]
+			return
+		}
+	}
+	panic("edge not found: " + edge.String())
+}
+
+// removeInEdge removes edge.Callee's incoming edge 'edge'.
+func removeInEdge(edge *Edge) {
+	caller := edge.Callee
+	n := len(caller.In)
+	for i, e := range caller.In {
+		if e == edge {
+			// Replace it with the final element and shrink the slice.
+			caller.In[i] = caller.In[n-1]
+			caller.In[n-1] = nil // aid GC
+			caller.In = caller.In[:n-1]
+			return
+		}
+	}
+	panic("edge not found: " + edge.String())
 }

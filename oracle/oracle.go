@@ -257,12 +257,9 @@ func Query(args []string, mode, pos string, ptalog io.Writer, buildContext *buil
 		return nil, err
 	}
 
-	var qpos *QueryPos
-	if minfo.needs&(needPos|needExactPos) != 0 {
-		qpos, err = ParseQueryPos(iprog, pos, minfo.needs&needExactPos != 0)
-		if err != nil {
-			return nil, err
-		}
+	qpos, err := ParseQueryPos(iprog, pos, minfo.needs&needExactPos != 0)
+	if err != nil && minfo.needs&(needPos|needExactPos) != 0 {
+		return nil, err
 	}
 
 	// SSA is built and we have the QueryPos.

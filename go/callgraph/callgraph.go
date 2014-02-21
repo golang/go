@@ -39,7 +39,11 @@ package callgraph
 // More generally, we could eliminate "uninteresting" nodes such as
 // nodes from packages we don't care about.
 
-import "code.google.com/p/go.tools/go/ssa"
+import (
+	"fmt"
+
+	"code.google.com/p/go.tools/go/ssa"
+)
 
 // A Graph represents a call graph.
 //
@@ -77,6 +81,10 @@ type Node struct {
 	Out  []*Edge       // unordered set of outgoing call edges (n.Out[*].Caller == n)
 }
 
+func (n *Node) String() string {
+	return fmt.Sprintf("n%d:%s", n.ID, n.Func)
+}
+
 // A Edge represents an edge in the call graph.
 //
 // Site is nil for edges originating in synthetic or intrinsic
@@ -85,6 +93,10 @@ type Edge struct {
 	Caller *Node
 	Site   ssa.CallInstruction
 	Callee *Node
+}
+
+func (e Edge) String() string {
+	return fmt.Sprintf("%s --> %s", e.Caller, e.Callee)
 }
 
 // AddEdge adds the edge (caller, site, callee) to the call graph.

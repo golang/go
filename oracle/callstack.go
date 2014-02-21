@@ -43,6 +43,7 @@ func callstack(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// Run the pointer analysis and build the complete call graph.
 	o.ptaConfig.BuildCallGraph = true
 	cg := ptrAnalysis(o).CallGraph
+	cg.DeleteSyntheticNodes()
 
 	// Search for an arbitrary path from a root to the target function.
 	isEnd := func(n *callgraph.Node) bool { return n.Func == target }

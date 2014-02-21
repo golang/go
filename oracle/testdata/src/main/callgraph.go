@@ -4,6 +4,8 @@ package main
 // See go.tools/oracle/oracle_test.go for explanation.
 // See callgraph.golden for expected query results.
 
+import "lib"
+
 func A() {}
 
 func B() {}
@@ -45,10 +47,14 @@ func main() {
 		f()
 	}
 	i.f()
+
+	lib.Func()
 }
 
 func deadcode() {
 	main()
 }
 
-// @callgraph callgraph "^"
+// @callgraph callgraph-main "^"
+
+// @callgraph callgraph-complete "nopos"

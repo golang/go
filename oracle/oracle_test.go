@@ -51,11 +51,11 @@ import (
 var updateFlag = flag.Bool("update", false, "Update the golden files.")
 
 type query struct {
-	id         string         // unique id
-	verb       string         // query mode, e.g. "callees"
-	posn       token.Position // position of of query
-	filename   string
-	start, end int // selection of file to pass to oracle
+	id       string         // unique id
+	verb     string         // query mode, e.g. "callees"
+	posn     token.Position // position of of query
+	filename string
+	queryPos string // value of -pos flag
 }
 
 func parseRegexp(text string) (*regexp.Regexp, error) {
@@ -108,36 +108,40 @@ func parseQueries(t *testing.T, filename string) []*query {
 			continue
 		}
 
-		selectRe, err := parseRegexp(match[3])
-		if err != nil {
-			t.Errorf("%s: %s", posn, err)
-			continue
-		}
-
-		// Find text of the current line, sans query.
-		// (Queries must be // not /**/ comments.)
-		line := lines[posn.Line-1][:posn.Column-1]
-
-		// Apply regexp to current line to find input selection.
-		loc := selectRe.FindIndex(line)
-		if loc == nil {
-			t.Errorf("%s: selection pattern %s doesn't match line %q",
-				posn, match[3], string(line))
-			continue
-		}
-
-		// Assumes ASCII. TODO(adonovan): test on UTF-8.
-		linestart := posn.Offset - (posn.Column - 1)
-
-		// Compute the file offsets
 		q := &query{
 			id:       id,
 			verb:     match[1],
-			posn:     posn,
 			filename: filename,
-			start:    linestart + loc[0],
-			end:      linestart + loc[1],
+			posn:     posn,
 		}
+
+		if match[3] != `"nopos"` {
+			selectRe, err := parseRegexp(match[3])
+			if err != nil {
+				t.Errorf("%s: %s", posn, err)
+				continue
+			}
+
+			// Find text of the current line, sans query.
+			// (Queries must be // not /**/ comments.)
+			line := lines[posn.Line-1][:posn.Column-1]
+
+			// Apply regexp to current line to find input selection.
+			loc := selectRe.FindIndex(line)
+			if loc == nil {
+				t.Errorf("%s: selection pattern %s doesn't match line %q",
+					posn, match[3], string(line))
+				continue
+			}
+
+			// Assumes ASCII. TODO(adonovan): test on UTF-8.
+			linestart := posn.Offset - (posn.Column - 1)
+
+			// Compute the file offsets.
+			q.queryPos = fmt.Sprintf("%s:#%d,#%d",
+				filename, linestart+loc[0], linestart+loc[1])
+		}
+
 		queries = append(queries, q)
 		queriesById[id] = q
 	}
@@ -168,7 +172,7 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 	buildContext.GOPATH = "testdata"
 	res, err := oracle.Query([]string{q.filename},
 		q.verb,
-		fmt.Sprintf("%s:#%d,#%d", q.filename, q.start, q.end),
+		q.queryPos,
 		nil, // ptalog,
 		&buildContext,
 		true) // reflection

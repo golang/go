@@ -1,4 +1,20 @@
--------- @callgraph callgraph --------
+-------- @callgraph callgraph-main --------
+
+Below is a call graph of package main.
+The numbered nodes form a spanning tree.
+Non-numbered nodes indicate back- or cross-edges to the node whose
+ number follows in parentheses.
+
+0	init
+1	main
+2	    call
+3	        A
+4	        B
+5	    call2
+6	        func@33.8
+7	    nop
+
+-------- @callgraph callgraph-complete --------
 
 Below is a call graph of the entire program.
 The numbered nodes form a spanning tree.
@@ -7,11 +23,13 @@ Non-numbered nodes indicate back- or cross-edges to the node whose
 
 0	<root>
 1	    main.init
-2	    main.main
-3	        main.call
-4	            main.A
-5	            main.B
-6	        main.call2
-7	            func@31.8
-8	        main.nop
+2	        lib.init
+3	    main.main
+4	        lib.Func
+5	        main.call
+6	            main.A
+7	            main.B
+8	        main.call2
+9	            func@33.8
+10	        main.nop
 

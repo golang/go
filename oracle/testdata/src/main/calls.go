@@ -67,6 +67,15 @@ func main() {
 		f()
 	}
 	i.f() // @callees callees-err-nil-interface "i.f"
+
+	i = new(myint)
+	i.f() // @callees callees-not-a-wrapper "f"
+}
+
+type myint int
+
+func (myint) f() {
+	// @callers callers-not-a-wrapper "^"
 }
 
 var dynamic = func() {}
@@ -88,5 +97,4 @@ var global = 123 // @callers callers-global "global"
 // are in turn called by it.
 func init() {
 	// @callstack callstack-init "^"
-
 }

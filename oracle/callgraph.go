@@ -5,46 +5,96 @@
 package oracle
 
 import (
+	"fmt"
 	"go/token"
 	"sort"
 
 	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/oracle/serial"
 )
 
-// doCallgraph displays the entire callgraph of the current program.
-//
-// TODO(adonovan): add options for restricting the display to a region
-// of interest: function, package, subgraph, dirtree, goroutine, etc.
-//
-// TODO(adonovan): add an option to partition edges by call site.
-//
-// TODO(adonovan): elide nodes for synthetic functions?
-//
-func doCallgraph(o *Oracle, _ *QueryPos) (queryResult, error) {
+// doCallgraph displays the entire callgraph of the current program,
+// or if a query -pos was provided, the query package.
+func doCallgraph(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	buildSSA(o)
 
-	// Run the pointer analysis and build the complete callgraph.
+	// Run the pointer analysis and build the callgraph.
 	o.ptaConfig.BuildCallGraph = true
-	ptares := ptrAnalysis(o)
+	cg := ptrAnalysis(o).CallGraph
+	cg.DeleteSyntheticNodes()
 
-	return &callgraphResult{
-		callgraph: ptares.CallGraph,
-	}, nil
+	var qpkg *types.Package
+	var roots []*callgraph.Node
+	if qpos == nil {
+		// No -pos provided: show complete callgraph.
+		roots = append(roots, cg.Root)
+
+	} else {
+		// A query -pos was provided: restrict result to
+		// functions belonging to the query package.
+		qpkg = qpos.info.Pkg
+		isQueryPkg := func(fn *ssa.Function) bool {
+			return fn.Pkg != nil && fn.Pkg.Object == qpkg
+		}
+
+		// First compute the nodes to keep and remove.
+		var nodes, remove []*callgraph.Node
+		for fn, cgn := range cg.Nodes {
+			if isQueryPkg(fn) {
+				nodes = append(nodes, cgn)
+			} else {
+				remove = append(remove, cgn)
+			}
+		}
+
+		// Compact the Node.ID sequence of the remaining
+		// nodes, preserving the original order.
+		sort.Sort(nodesByID(nodes))
+		for i, cgn := range nodes {
+			cgn.ID = i
+		}
+
+		// Compute the set of roots:
+		// in-package nodes with out-of-package callers.
+		// For determinism, roots are ordered by original Node.ID.
+		for _, cgn := range nodes {
+			for _, e := range cgn.In {
+				if !isQueryPkg(e.Caller.Func) {
+					roots = append(roots, cgn)
+					break
+				}
+			}
+		}
+
+		// Finally, discard all out-of-package nodes.
+		for _, cgn := range remove {
+			cg.DeleteNode(cgn)
+		}
+	}
+
+	return &callgraphResult{qpkg, cg.Nodes, roots}, nil
 }
 
 type callgraphResult struct {
-	callgraph *callgraph.Graph
+	qpkg  *types.Package
+	nodes map[*ssa.Function]*callgraph.Node
+	roots []*callgraph.Node
 }
 
 func (r *callgraphResult) display(printf printfFunc) {
+	descr := "the entire program"
+	if r.qpkg != nil {
+		descr = fmt.Sprintf("package %s", r.qpkg.Path())
+	}
+
 	printf(nil, `
-Below is a call graph of the entire program.
+Below is a call graph of %s.
 The numbered nodes form a spanning tree.
 Non-numbered nodes indicate back- or cross-edges to the node whose
  number follows in parentheses.
-`)
+`, descr)
 
 	printed := make(map[*callgraph.Node]int)
 	var print func(caller *callgraph.Node, indent int)
@@ -61,16 +111,24 @@ Non-numbered nodes indicate back- or cross-edges to the node whose
 			}
 			sort.Sort(funcs)
 
-			printf(caller.Func, "%d\t%*s%s", num, 4*indent, "", caller.Func)
+			printf(caller.Func, "%d\t%*s%s", num, 4*indent, "", caller.Func.RelString(r.qpkg))
 			for _, callee := range funcs {
-				print(r.callgraph.Nodes[callee], indent+1)
+				print(r.nodes[callee], indent+1)
 			}
 		} else {
-			printf(caller, "\t%*s%s (%d)", 4*indent, "", caller.Func, num)
+			printf(caller.Func, "\t%*s%s (%d)", 4*indent, "", caller.Func.RelString(r.qpkg), num)
 		}
 	}
-	print(r.callgraph.Root, 0)
+	for _, root := range r.roots {
+		print(root, 0)
+	}
 }
+
+type nodesByID []*callgraph.Node
+
+func (s nodesByID) Len() int           { return len(s) }
+func (s nodesByID) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s nodesByID) Less(i, j int) bool { return s[i].ID < s[j].ID }
 
 type funcsByName []*ssa.Function
 
@@ -79,8 +137,8 @@ func (s funcsByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s funcsByName) Less(i, j int) bool { return s[i].String() < s[j].String() }
 
 func (r *callgraphResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	cg := make([]serial.CallGraph, len(r.callgraph.Nodes))
-	for _, n := range r.callgraph.Nodes {
+	cg := make([]serial.CallGraph, len(r.nodes))
+	for _, n := range r.nodes {
 		j := &cg[n.ID]
 		fn := n.Func
 		j.Name = fn.String()

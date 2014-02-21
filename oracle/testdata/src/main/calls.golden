@@ -79,6 +79,14 @@ dynamic function call on nil value
 -------- @callees callees-err-nil-interface --------
 dynamic method call on nil value
 
+-------- @callees callees-not-a-wrapper --------
+this dynamic method call dispatches to:
+	(main.myint).f
+
+-------- @callers callers-not-a-wrapper --------
+(main.myint).f is called from these 1 sites:
+	dynamic method call from main.main
+
 -------- @callees callees-err-deadcode2 --------
 this static function call dispatches to:
 	main.main

@@ -16,8 +16,6 @@ import (
 // Callers reports the possible callers of the function
 // immediately enclosing the specified source location.
 //
-// TODO(adonovan): if a caller is a wrapper, show the caller's caller.
-//
 func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	pkg := o.prog.Package(qpos.info.Pkg)
 	if pkg == nil {
@@ -38,6 +36,7 @@ func callers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// call found to originate from target.
 	o.ptaConfig.BuildCallGraph = true
 	cg := ptrAnalysis(o).CallGraph
+	cg.DeleteSyntheticNodes()
 	edges := cg.CreateNode(target).In
 	// TODO(adonovan): sort + dedup calls to ensure test determinism.
 

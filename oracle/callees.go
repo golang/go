@@ -17,9 +17,6 @@ import (
 
 // Callees reports the possible callees of the function call site
 // identified by the specified source location.
-//
-// TODO(adonovan): if a callee is a wrapper, show the callee's callee.
-//
 func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	pkg := o.prog.Package(qpos.info.Pkg)
 	if pkg == nil {
@@ -104,6 +101,7 @@ func findCallees(o *Oracle, site ssa.CallInstruction) ([]*ssa.Function, error) {
 	// Dynamic call: use pointer analysis.
 	o.ptaConfig.BuildCallGraph = true
 	cg := ptrAnalysis(o).CallGraph
+	cg.DeleteSyntheticNodes()
 
 	// Find all call edges from the site.
 	n := cg.Nodes[site.Parent()]
