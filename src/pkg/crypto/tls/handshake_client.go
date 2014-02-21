@@ -33,6 +33,10 @@ func (c *Conn) clientHandshake() error {
 		c.config = defaultConfig()
 	}
 
+	if len(c.config.ServerName) == 0 && !c.config.InsecureSkipVerify {
+		return errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
+	}
+
 	hello := &clientHelloMsg{
 		vers:                c.config.maxVersion(),
 		compressionMethods:  []uint8{compressionNone},
