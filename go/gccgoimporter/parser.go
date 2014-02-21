@@ -157,7 +157,7 @@ func (p *parser) getPkg(pkgpath, name string) *types.Package {
 	}
 	pkg := p.imports[pkgpath]
 	if pkg == nil && name != "" {
-		pkg = types.NewPackage(pkgpath, name, types.NewScope(nil))
+		pkg = types.NewPackage(pkgpath, name)
 		p.imports[pkgpath] = pkg
 	}
 	return pkg

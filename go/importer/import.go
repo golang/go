@@ -93,7 +93,7 @@ func (p *importer) pkg() *types.Package {
 	// if the package was imported before, use that one; otherwise create a new one
 	pkg := p.imports[path]
 	if pkg == nil {
-		pkg = types.NewPackage(path, name, types.NewScope(nil))
+		pkg = types.NewPackage(path, name)
 		p.imports[path] = pkg
 	}
 	p.pkgList = append(p.pkgList, pkg)
