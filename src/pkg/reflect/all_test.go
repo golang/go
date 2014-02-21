@@ -15,6 +15,7 @@ import (
 	. "reflect"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -3691,4 +3692,27 @@ func TestBigZero(t *testing.T) {
 			t.Fatalf("Zero object not all zero, index %d", i)
 		}
 	}
+}
+
+func TestFieldByIndexNil(t *testing.T) {
+	type P struct {
+		F int
+	}
+	type T struct {
+		*P
+	}
+	v := ValueOf(T{})
+
+	v.FieldByName("P") // should be fine
+
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatalf("no error")
+		} else if !strings.Contains(fmt.Sprint(err), "nil pointer to embedded struct") {
+			t.Fatalf(`err=%q, wanted error containing "nil pointer to embedded struct"`, err)
+		}
+	}()
+	v.FieldByName("F") // should panic
+
+	t.Fatalf("did not panic")
 }
