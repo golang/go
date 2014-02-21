@@ -242,7 +242,13 @@ func TestOracle(t *testing.T) {
 		}
 
 		// Compare foo.got with foo.golden.
-		cmd := exec.Command("/usr/bin/diff", "-u", golden, got) // assumes POSIX
+		var cmd *exec.Cmd
+		switch runtime.GOOS {
+		case "plan9":
+			cmd = exec.Command("/bin/diff", "-c", golden, got)
+		default:
+			cmd = exec.Command("/usr/bin/diff", "-u", golden, got)
+		}
 		buf := new(bytes.Buffer)
 		cmd.Stdout = buf
 		if err := cmd.Run(); err != nil {
