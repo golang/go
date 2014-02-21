@@ -8,9 +8,17 @@
 //     func TestXxx(*testing.T)
 // where Xxx can be any alphanumeric string (but the first letter must not be in
 // [a-z]) and serves to identify the test routine.
-// These TestXxx routines should be declared within the package they are testing.
 //
-// Tests and benchmarks may be skipped if not applicable like this:
+// Within these functions, use the Error, Fail or related methods to signal failure.
+//
+// To write a new test suite, create a file whose name ends _test.go that
+// contains the TestXxx functions as described here. Put the file in the same
+// package as the one being tested. The file will be excluded from regular
+// package builds but will be included when the ``go test'' command is run.
+// For more detail, run ``go help test'' and ``go help testflag''.
+//
+// Tests and benchmarks may be skipped if not applicable with a call to
+// the Skip method of *T and *B:
 //     func TestTimeConsuming(t *testing.T) {
 //         if testing.Short() {
 //             t.Skip("skipping test in short mode.")
