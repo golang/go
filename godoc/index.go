@@ -1201,7 +1201,7 @@ func (x *Index) lookupWord(w string) (match *LookupResult, alt *AltWords) {
 // isIdentifier reports whether s is a Go identifier.
 func isIdentifier(s string) bool {
 	for i, ch := range s {
-		if unicode.IsLetter(ch) || ch == ' ' || i > 0 && unicode.IsDigit(ch) {
+		if unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch) {
 			continue
 		}
 		return false
