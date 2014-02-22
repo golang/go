@@ -280,6 +280,7 @@ func newPosLink_urlFunc(srcPosLinkFunc func(s string, line, low, high int) strin
 }
 
 func srcPosLinkFunc(s string, line, low, high int) string {
+	s = srcLinkFunc(s)
 	var buf bytes.Buffer
 	template.HTMLEscape(&buf, []byte(s))
 	// selection ranges are of form "s=low:high"
@@ -301,7 +302,11 @@ func srcPosLinkFunc(s string, line, low, high int) string {
 }
 
 func srcLinkFunc(s string) string {
-	return pathpkg.Clean("/" + s)
+	s = pathpkg.Clean("/" + s)
+	if !strings.HasPrefix(s, "/src/pkg/") {
+		s = "/src/pkg" + s
+	}
+	return s
 }
 
 // queryLinkFunc returns a URL for a line in a source file with a highlighted

@@ -35,6 +35,8 @@ func TestSrcPosLinkFunc(t *testing.T) {
 		{"/src/pkg/fmt/print.go", 2, 0, 0, "/src/pkg/fmt/print.go#L2"},
 		{"/src/pkg/fmt/print.go", 0, 0, 0, "/src/pkg/fmt/print.go"},
 		{"/src/pkg/fmt/print.go", 0, 1, 5, "/src/pkg/fmt/print.go?s=1:5#L1"},
+		{"fmt/print.go", 0, 0, 0, "/src/pkg/fmt/print.go"},
+		{"fmt/print.go", 0, 1, 5, "/src/pkg/fmt/print.go?s=1:5#L1"},
 	} {
 		if got, want := srcPosLinkFunc(tc.src, tc.line, tc.low, tc.high), tc.want; got != want {
 			t.Errorf("srcLinkFunc(%v, %v, %v, %v) = %v; want %v", tc.src, tc.line, tc.low, tc.high, got, want)
@@ -49,6 +51,8 @@ func TestSrcLinkFunc(t *testing.T) {
 	}{
 		{"/src/pkg/fmt/print.go", "/src/pkg/fmt/print.go"},
 		{"src/pkg/fmt/print.go", "/src/pkg/fmt/print.go"},
+		{"/fmt/print.go", "/src/pkg/fmt/print.go"},
+		{"fmt/print.go", "/src/pkg/fmt/print.go"},
 	} {
 		if got, want := srcLinkFunc(tc.src), tc.want; got != want {
 			t.Errorf("srcLinkFunc(%v) = %v; want %v", tc.src, got, want)

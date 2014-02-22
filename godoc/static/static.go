@@ -705,7 +705,9 @@ $(document).ready(function() {
 {{end}}
 
 {{with .PAst}}
-	<pre>{{node_html $ . false}}</pre>
+	{{range $filename, $ast := .}}
+		<a href="{{$filename|srcLink|html}}">{{$filename|filename|html}}</a>:<pre>{{node_html $ $ast false}}</pre>
+	{{end}}
 {{end}}
 
 {{with .Dirs}}
