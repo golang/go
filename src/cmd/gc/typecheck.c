@@ -3231,29 +3231,38 @@ static int
 checkmake(Type *t, char *arg, Node *n)
 {
 	if(n->op == OLITERAL) {
-		n->val = toint(n->val);
-		if(mpcmpfixc(n->val.u.xval, 0) < 0) {
-			yyerror("negative %s argument in make(%T)", arg, t);
-			return -1;
+		switch(n->val.ctype) {
+		case CTINT:
+		case CTRUNE:
+		case CTFLT:
+		case CTCPLX:
+			n->val = toint(n->val);
+			if(mpcmpfixc(n->val.u.xval, 0) < 0) {
+				yyerror("negative %s argument in make(%T)", arg, t);
+				return -1;
+			}
+			if(mpcmpfixfix(n->val.u.xval, maxintval[TINT]) > 0) {
+				yyerror("%s argument too large in make(%T)", arg, t);
+				return -1;
+			}
+			
+			// Delay defaultlit until after we've checked range, to avoid
+			// a redundant "constant NNN overflows int" error.
+			defaultlit(&n, types[TINT]);
+			return 0;
+		default:
+		       	break;
 		}
-		if(mpcmpfixfix(n->val.u.xval, maxintval[TINT]) > 0) {
-			yyerror("%s argument too large in make(%T)", arg, t);
-			return -1;
-		}
-		
-		// Delay defaultlit until after we've checked range, to avoid
-		// a redundant "constant NNN overflows int" error.
-		defaultlit(&n, types[TINT]);
-		return 0;
 	}
-	
-	// Defaultlit still necessary for non-constant: n might be 1<<k.
-	defaultlit(&n, types[TINT]);
 
-	if(!isint[n->type->etype]) {
+	if(!isint[n->type->etype] && n->type->etype != TIDEAL) {
 		yyerror("non-integer %s argument in make(%T) - %T", arg, t, n->type);
 		return -1;
 	}
+
+	// Defaultlit still necessary for non-constant: n might be 1<<k.
+	defaultlit(&n, types[TINT]);
+
 	return 0;
 }
 
