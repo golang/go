@@ -303,7 +303,7 @@ void
 dynrelocsym(LSym *s)
 {
 	Reloc *r;
-	
+
 	if(HEADTYPE == Hwindows) {
 		LSym *rel, *targ;
 
@@ -312,6 +312,8 @@ dynrelocsym(LSym *s)
 			return;
 		for(r=s->r; r<s->r+s->nr; r++) {
 			targ = r->sym;
+			if(!targ->reachable)
+				diag("internal inconsistency: dynamic symbol %s is not reachable.", targ->name);
 			if(r->sym->plt == -2 && r->sym->got != -2) { // make dynimport JMP table for PE object files.
 				targ->plt = rel->size;
 				r->sym = rel;
@@ -340,8 +342,11 @@ dynrelocsym(LSym *s)
 	}
 
 	for(r=s->r; r<s->r+s->nr; r++) {
-		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
+		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256) {
+			if(!r->sym->reachable)
+				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
 			adddynrel(s, r);
+		}
 	}
 }
 

@@ -17,6 +17,7 @@ __declspec(dllexport) void sofunc(void);
 #else
 extern void goCallback(void);
 void setCallback(void *f) { (void)f; }
+__thread int tlsvar = 12345;
 #endif
 
 void sofunc(void)

@@ -197,7 +197,7 @@ asmelfsym(void)
 	genasmsym(putelfsym);
 	
 	for(s=ctxt->allsym; s!=S; s=s->allsym) {
-		if(s->type != SHOSTOBJ && s->type != SDYNIMPORT)
+		if(s->type != SHOSTOBJ && !(s->type == SDYNIMPORT && s->reachable))
 			continue;
 		if(s->type == SDYNIMPORT)
 			name = s->extname;
