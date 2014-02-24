@@ -88,7 +88,6 @@ func TestRunParallelFail(t *testing.T) {
 			// w/o crashing/deadlocking the whole benchmark.
 			b.Log("log")
 			b.Error("error")
-			b.Fatal("fatal")
 		})
 	})
 }
