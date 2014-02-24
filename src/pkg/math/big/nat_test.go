@@ -437,20 +437,11 @@ func BenchmarkStringPiParallel(b *testing.B) {
 	if x.decimalString() != pi {
 		panic("benchmark incorrect: conversion failed")
 	}
-	n := runtime.GOMAXPROCS(0)
-	m := b.N / n // n*m <= b.N due to flooring, but the error is neglibible (n is not very large)
-	c := make(chan int, n)
-	for i := 0; i < n; i++ {
-		go func() {
-			for j := 0; j < m; j++ {
-				x.decimalString()
-			}
-			c <- 0
-		}()
-	}
-	for i := 0; i < n; i++ {
-		<-c
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			x.decimalString()
+		}
+	})
 }
 
 func BenchmarkScan10Base2(b *testing.B)     { ScanHelper(b, 2, 10, 10) }
