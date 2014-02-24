@@ -74,26 +74,13 @@ func benchmark(b *testing.B, bench func(n int)) {
 	for i := 0; i < len(garbage); i++ {
 		garbage[i] = AfterFunc(Hour, nil)
 	}
-
-	const batch = 1000
-	P := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / batch)
-
 	b.ResetTimer()
 
-	var wg sync.WaitGroup
-	wg.Add(P)
-
-	for p := 0; p < P; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				bench(batch)
-			}
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			bench(1000)
+		}
+	})
 
 	b.StopTimer()
 	for i := 0; i < len(garbage); i++ {
