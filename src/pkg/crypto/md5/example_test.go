@@ -17,3 +17,9 @@ func ExampleNew() {
 	fmt.Printf("%x", h.Sum(nil))
 	// Output: e2c569be17396eca2a2e3c11578123ed
 }
+
+func ExampleSum() {
+	data := []byte("These pretzels are making me thirsty.")
+	fmt.Printf("%x", md5.Sum(data))
+	// Output: b0804ec967f48520697662a204f5fe72
+}
