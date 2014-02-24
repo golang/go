@@ -6,8 +6,6 @@ package runtime_test
 
 import (
 	"runtime"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -112,50 +110,28 @@ func TestFinalizerZeroSizedStruct(t *testing.T) {
 }
 
 func BenchmarkFinalizer(b *testing.B) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / CallsPerSched)
-	var wg sync.WaitGroup
-	wg.Add(procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			var data [CallsPerSched]*int
-			for i := 0; i < CallsPerSched; i++ {
-				data[i] = new(int)
+	const Batch = 1000
+	b.RunParallel(func(pb *testing.PB) {
+		var data [Batch]*int
+		for i := 0; i < Batch; i++ {
+			data[i] = new(int)
+		}
+		for pb.Next() {
+			for i := 0; i < Batch; i++ {
+				runtime.SetFinalizer(data[i], fin)
 			}
-			for atomic.AddInt32(&N, -1) >= 0 {
-				runtime.Gosched()
-				for i := 0; i < CallsPerSched; i++ {
-					runtime.SetFinalizer(data[i], fin)
-				}
-				for i := 0; i < CallsPerSched; i++ {
-					runtime.SetFinalizer(data[i], nil)
-				}
+			for i := 0; i < Batch; i++ {
+				runtime.SetFinalizer(data[i], nil)
 			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+		}
+	})
 }
 
 func BenchmarkFinalizerRun(b *testing.B) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / CallsPerSched)
-	var wg sync.WaitGroup
-	wg.Add(procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				runtime.Gosched()
-				for i := 0; i < CallsPerSched; i++ {
-					v := new(int)
-					runtime.SetFinalizer(v, fin)
-				}
-				runtime.GC()
-			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			v := new(int)
+			runtime.SetFinalizer(v, fin)
+		}
+	})
 }

@@ -9,7 +9,6 @@ package runtime_test
 
 import (
 	"runtime"
-	"sync/atomic"
 	"testing"
 )
 
@@ -31,28 +30,17 @@ func BenchmarkSyscallExcessWork(b *testing.B) {
 }
 
 func benchmarkSyscall(b *testing.B, work, excess int) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1) * excess
-	N := int32(b.N / CallsPerSched)
-	c := make(chan bool, procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			foo := 42
-			for atomic.AddInt32(&N, -1) >= 0 {
-				runtime.Gosched()
-				for g := 0; g < CallsPerSched; g++ {
-					runtime.Entersyscall()
-					for i := 0; i < work; i++ {
-						foo *= 2
-						foo /= 2
-					}
-					runtime.Exitsyscall()
-				}
+	b.SetParallelism(excess)
+	b.RunParallel(func(pb *testing.PB) {
+		foo := 42
+		for pb.Next() {
+			runtime.Entersyscall()
+			for i := 0; i < work; i++ {
+				foo *= 2
+				foo /= 2
 			}
-			c <- foo == 42
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
+			runtime.Exitsyscall()
+		}
+		_ = foo
+	})
 }
