@@ -2182,8 +2182,6 @@ readgogc(void)
 	return runtime·atoi(p);
 }
 
-static FuncVal runfinqv = {runfinq};
-
 void
 runtime·gc(int32 force)
 {
