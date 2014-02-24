@@ -370,24 +370,11 @@ func TestSchedLocalQueueSteal(t *testing.T) {
 }
 
 func benchmarkStackGrowth(b *testing.B, rec int) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / CallsPerSched)
-	c := make(chan bool, procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				runtime.Gosched()
-				for g := 0; g < CallsPerSched; g++ {
-					stackGrowthRecursive(rec)
-				}
-			}
-			c <- true
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			stackGrowthRecursive(rec)
+		}
+	})
 }
 
 func BenchmarkStackGrowth(b *testing.B) {

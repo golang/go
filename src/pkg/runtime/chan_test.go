@@ -431,27 +431,15 @@ func TestMultiConsumer(t *testing.T) {
 }
 
 func BenchmarkChanNonblocking(b *testing.B) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / CallsPerSched)
-	c := make(chan bool, procs)
 	myc := make(chan int)
-	for p := 0; p < procs; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				for g := 0; g < CallsPerSched; g++ {
-					select {
-					case <-myc:
-					default:
-					}
-				}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			select {
+			case <-myc:
+			default:
 			}
-			c <- true
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
+		}
+	})
 }
 
 func BenchmarkSelectUncontended(b *testing.B) {
@@ -713,23 +701,11 @@ func BenchmarkChanCreation(b *testing.B) {
 
 func BenchmarkChanSem(b *testing.B) {
 	type Empty struct{}
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(0)
-	N := int32(b.N / CallsPerSched)
-	c := make(chan bool, procs)
-	myc := make(chan Empty, procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				for g := 0; g < CallsPerSched; g++ {
-					myc <- Empty{}
-					<-myc
-				}
-			}
-			c <- true
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
+	myc := make(chan Empty, runtime.GOMAXPROCS(0))
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			myc <- Empty{}
+			<-myc
+		}
+	})
 }
