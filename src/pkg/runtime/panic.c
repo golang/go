@@ -211,14 +211,14 @@ void
 runtime·panic(Eface e)
 {
 	Defer *d;
-	Panic *p;
+	Panic p;
 	void *pc, *argp;
-	
-	p = runtime·mal(sizeof *p);
-	p->arg = e;
-	p->link = g->panic;
-	p->stackbase = g->stackbase;
-	g->panic = p;
+
+	runtime·memclr((byte*)&p, sizeof p);
+	p.arg = e;
+	p.link = g->panic;
+	p.stackbase = g->stackbase;
+	g->panic = &p;
 
 	for(;;) {
 		d = g->defer;
@@ -231,11 +231,10 @@ runtime·panic(Eface e)
 		pc = d->pc;
 		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
 		freedefer(d);
-		if(p->recovered) {
-			g->panic = p->link;
+		if(p.recovered) {
+			g->panic = p.link;
 			if(g->panic == nil)	// must be done with signal
 				g->sig = 0;
-			runtime·free(p);
 			// Pass information about recovering frame to recovery.
 			g->sigcode0 = (uintptr)argp;
 			g->sigcode1 = (uintptr)pc;
