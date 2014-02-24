@@ -615,8 +615,8 @@ func useProxy(addr string) bool {
 //
 // Cache key form                Description
 // -----------------             -------------------------
-// ||http|foo.com                http directly to server, no proxy
-// ||https|foo.com               https directly to server, no proxy
+// |http|foo.com                 http directly to server, no proxy
+// |https|foo.com                https directly to server, no proxy
 // http://proxy.com|https|foo.com  http to proxy, then CONNECT to foo.com
 // http://proxy.com|http           http to proxy, http to anywhere after that
 //
