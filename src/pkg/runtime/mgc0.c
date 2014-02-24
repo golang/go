@@ -1694,16 +1694,19 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 {
 	uint32 sg;
 
+	// Caller must disable preemption.
+	// Otherwise when this function returns the span can become unswept again
+	// (if GC is triggered on another goroutine).
+	if(m->locks == 0 && m->mallocing == 0)
+		runtime·throw("MSpan_EnsureSwept: m is not locked");
+
 	sg = runtime·mheap.sweepgen;
 	if(runtime·atomicload(&s->sweepgen) == sg)
 		return;
-	m->locks++;
 	if(runtime·cas(&s->sweepgen, sg-2, sg-1)) {
 		runtime·MSpan_Sweep(s);
-		m->locks--;
 		return;
 	}
-	m->locks--;
 	// unfortunate condition, and we don't have efficient means to wait
 	while(runtime·atomicload(&s->sweepgen) != sg)
 		runtime·osyield();  
