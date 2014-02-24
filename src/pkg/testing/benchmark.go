@@ -417,8 +417,8 @@ func (b *B) RunParallel(body func(*PB)) {
 		}()
 	}
 	wg.Wait()
-	if n == 0 {
-		b.Fatal("RunParallel body did not not call PB.Next")
+	if n <= uint64(b.N) && !b.Failed() {
+		b.Fatal("RunParallel: body exited without pb.Next() == false")
 	}
 }
 
