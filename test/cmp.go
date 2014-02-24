@@ -387,6 +387,23 @@ func main() {
 		isfalse(iz != x)
 	}
 
+	// named booleans
+	{
+		type mybool bool
+		var b mybool
+
+		type T struct{ data [20]byte }
+		var x, y T
+		b = x == y
+		istrue(x == y)
+		istrue(bool(b))
+
+		m := make(map[string][10]interface{})
+		b = m["x"] == m["y"]
+		istrue(m["x"] == m["y"])
+		istrue(bool(b))
+	}
+
 	shouldPanic(p1)
 	shouldPanic(p2)
 	shouldPanic(p3)
