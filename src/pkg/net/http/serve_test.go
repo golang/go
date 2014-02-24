@@ -26,7 +26,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -2280,42 +2279,33 @@ func BenchmarkClientServerParallel64(b *testing.B) {
 	benchmarkClientServerParallel(b, 64)
 }
 
-func benchmarkClientServerParallel(b *testing.B, conc int) {
+func benchmarkClientServerParallel(b *testing.B, parallelism int) {
 	b.ReportAllocs()
-	b.StopTimer()
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
 		fmt.Fprintf(rw, "Hello world.\n")
 	}))
 	defer ts.Close()
-	b.StartTimer()
-
-	numProcs := runtime.GOMAXPROCS(-1) * conc
-	var wg sync.WaitGroup
-	wg.Add(numProcs)
-	n := int32(b.N)
-	for p := 0; p < numProcs; p++ {
-		go func() {
-			for atomic.AddInt32(&n, -1) >= 0 {
-				res, err := Get(ts.URL)
-				if err != nil {
-					b.Logf("Get: %v", err)
-					continue
-				}
-				all, err := ioutil.ReadAll(res.Body)
-				res.Body.Close()
-				if err != nil {
-					b.Logf("ReadAll: %v", err)
-					continue
-				}
-				body := string(all)
-				if body != "Hello world.\n" {
-					panic("Got body: " + body)
-				}
+	b.ResetTimer()
+	b.SetParallelism(parallelism)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			res, err := Get(ts.URL)
+			if err != nil {
+				b.Logf("Get: %v", err)
+				continue
 			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+			all, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				b.Logf("ReadAll: %v", err)
+				continue
+			}
+			body := string(all)
+			if body != "Hello world.\n" {
+				panic("Got body: " + body)
+			}
+		}
+	})
 }
 
 // A benchmark for profiling the server without the HTTP client code.
