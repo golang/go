@@ -4,9 +4,6 @@
 
 // +build freebsd dragonfly darwin linux netbsd openbsd
 
-// This file tests that some basic syscalls are consistent across
-// all Unixes.
-
 package syscall_test
 
 import (
@@ -16,14 +13,17 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"testing"
 	"time"
 )
 
-// {Set,Get}priority and needed constants for them
+// Tests that below functions, structures and constants are consistent
+// on all Unix-like systems.
 func _() {
+	// program scheduling priority functions and constants
 	var (
 		_ func(int, int, int) error   = syscall.Setpriority
 		_ func(int, int) (int, error) = syscall.Getpriority
@@ -33,24 +33,47 @@ func _() {
 		_ int = syscall.PRIO_PROCESS
 		_ int = syscall.PRIO_PGRP
 	)
-}
 
-// termios functions and constants
-func _() {
+	// termios constants
 	const (
 		_ int = syscall.TCIFLUSH
 		_ int = syscall.TCIOFLUSH
 		_ int = syscall.TCOFLUSH
 	)
+
+	// fcntl file locking structure and constants
+	var (
+		_ = syscall.Flock_t{
+			Type:   int16(0),
+			Whence: int16(0),
+			Start:  int64(0),
+			Len:    int64(0),
+			Pid:    int32(0),
+		}
+	)
+	const (
+		_ = syscall.F_GETLK
+		_ = syscall.F_SETLK
+		_ = syscall.F_SETLKW
+	)
 }
 
-func _() {
-	_ = syscall.Flock_t{
-		Type:   int16(0),
-		Whence: int16(0),
-		Start:  int64(0),
-		Len:    int64(0),
-		Pid:    int32(0),
+// TestFcntlFlock tests whether the file locking structure matches
+// the calling convention of each kernel.
+func TestFcntlFlock(t *testing.T) {
+	name := filepath.Join(os.TempDir(), "TestFcntlFlock")
+	fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer syscall.Unlink(name)
+	defer syscall.Close(fd)
+	flock := syscall.Flock_t{
+		Type:  syscall.F_RDLCK,
+		Start: 0, Len: 0, Whence: 1,
+	}
+	if err := syscall.FcntlFlock(uintptr(fd), syscall.F_GETLK, &flock); err != nil {
+		t.Fatalf("FcntlFlock failed: %v", err)
 	}
 }
 
