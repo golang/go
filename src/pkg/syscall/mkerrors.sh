@@ -11,7 +11,7 @@ unset LANG
 export LC_ALL=C
 export LC_CTYPE=C
 
-GCC=gcc
+CC=${CC:-gcc}
 
 uname=$(uname)
 
@@ -194,7 +194,7 @@ ccflags="$@"
 
 	# The gcc command line prints all the #defines
 	# it encounters while processing the input
-	echo "${!indirect} $includes" | $GCC -x c - -E -dM $ccflags |
+	echo "${!indirect} $includes" | $CC -x c - -E -dM $ccflags |
 	awk '
 		$1 != "#define" || $2 ~ /\(/ || $3 == "" {next}
 
@@ -263,24 +263,24 @@ ccflags="$@"
 
 # Pull out the error names for later.
 errors=$(
-	echo '#include <errno.h>' | $GCC -x c - -E -dM $ccflags |
+	echo '#include <errno.h>' | $CC -x c - -E -dM $ccflags |
 	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }' |
 	sort
 )
 
 # Pull out the signal names for later.
 signals=$(
-	echo '#include <signal.h>' | $GCC -x c - -E -dM $ccflags |
+	echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
 	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
 	egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT)' |
 	sort
 )
 
 # Again, writing regexps to a file.
-echo '#include <errno.h>' | $GCC -x c - -E -dM $ccflags |
+echo '#include <errno.h>' | $CC -x c - -E -dM $ccflags |
 	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print "^\t" $2 "[ \t]*=" }' |
 	sort >_error.grep
-echo '#include <signal.h>' | $GCC -x c - -E -dM $ccflags |
+echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
 	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print "^\t" $2 "[ \t]*=" }' |
 	egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT)' |
 	sort >_signal.grep
@@ -390,4 +390,4 @@ main(void)
 '
 ) >_errors.c
 
-$GCC $ccflags -o _errors _errors.c && $GORUN ./_errors && rm -f _errors.c _errors _const.go _error.grep _signal.grep _error.out
+$CC $ccflags -o _errors _errors.c && $GORUN ./_errors && rm -f _errors.c _errors _const.go _error.grep _signal.grep _error.out
