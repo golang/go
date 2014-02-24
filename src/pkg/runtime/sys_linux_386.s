@@ -106,7 +106,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-24
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$265, AX			// syscall - clock_gettime
-	MOVL	$0, BX
+	MOVL	$0, BX		// CLOCK_REALTIME
 	LEAL	8(SP), CX
 	MOVL	$0, DX
 	CALL	*runtime·_vdso(SB)
@@ -123,7 +123,7 @@ TEXT time·now(SB), NOSPLIT, $32
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$265, AX			// syscall - clock_gettime
-	MOVL	$0, BX
+	MOVL	$1, BX		// CLOCK_MONOTONIC
 	LEAL	8(SP), CX
 	MOVL	$0, DX
 	CALL	*runtime·_vdso(SB)

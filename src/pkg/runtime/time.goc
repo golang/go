@@ -26,6 +26,11 @@ static void dumptimers(int8*);
 
 // time.now is implemented in assembly.
 
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+func runtimeNano() (ns int64) {
+	ns = runtime·nanotime();
+}
+
 // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
 func Sleep(ns int64) {
 	runtime·tsleep(ns, "sleep");

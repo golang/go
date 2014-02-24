@@ -136,7 +136,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback_gtod_nt
-	MOVL	$0, DI // CLOCK_REALTIME
+	MOVL	$1, DI // CLOCK_MONOTONIC
 	LEAQ	0(SP), SI
 	CALL	AX
 	MOVQ	0(SP), AX	// sec

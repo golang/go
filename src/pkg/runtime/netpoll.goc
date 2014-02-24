@@ -83,6 +83,11 @@ static FuncVal deadlineFn	= {(void(*)(void))deadline};
 static FuncVal readDeadlineFn	= {(void(*)(void))readDeadline};
 static FuncVal writeDeadlineFn	= {(void(*)(void))writeDeadline};
 
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+func runtimeNano() (ns int64) {
+	ns = runtime·nanotime();
+}
+
 func runtime_pollServerInit() {
 	runtime·netpollinit();
 }
