@@ -1,8 +1,11 @@
-// Copyright 2012 The Go Authors. All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux dragonfly darwin freebsd netbsd openbsd
+// +build freebsd dragonfly darwin linux netbsd openbsd
+
+// This file tests that some basic syscalls are consistent across
+// all Unixes.
 
 package syscall_test
 
@@ -19,6 +22,38 @@ import (
 	"time"
 )
 
+// {Set,Get}priority and needed constants for them
+func _() {
+	var (
+		_ func(int, int, int) error   = syscall.Setpriority
+		_ func(int, int) (int, error) = syscall.Getpriority
+	)
+	const (
+		_ int = syscall.PRIO_USER
+		_ int = syscall.PRIO_PROCESS
+		_ int = syscall.PRIO_PGRP
+	)
+}
+
+// termios functions and constants
+func _() {
+	const (
+		_ int = syscall.TCIFLUSH
+		_ int = syscall.TCIOFLUSH
+		_ int = syscall.TCOFLUSH
+	)
+}
+
+func _() {
+	_ = syscall.Flock_t{
+		Type:   int16(0),
+		Whence: int16(0),
+		Start:  int64(0),
+		Len:    int64(0),
+		Pid:    int32(0),
+	}
+}
+
 // TestPassFD tests passing a file descriptor over a Unix socket.
 //
 // This test involved both a parent and child process. The parent
@@ -29,7 +64,7 @@ import (
 func TestPassFD(t *testing.T) {
 	if runtime.GOOS == "dragonfly" {
 		// TODO(jsing): Figure out why sendmsg is returning EINVAL.
-		t.Skip("Skipping test on dragonfly")
+		t.Skip("skipping test on dragonfly")
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		passFDChild()
@@ -198,5 +233,43 @@ func TestUnixRightsRoundtrip(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestRlimit(t *testing.T) {
+	var rlimit, zero syscall.Rlimit
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit)
+	if err != nil {
+		t.Fatalf("Getrlimit: save failed: %v", err)
+	}
+	if zero == rlimit {
+		t.Fatalf("Getrlimit: save failed: got zero value %#v", rlimit)
+	}
+	set := rlimit
+	set.Cur = set.Max - 1
+	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
+	if err != nil {
+		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
+	}
+	var get syscall.Rlimit
+	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &get)
+	if err != nil {
+		t.Fatalf("Getrlimit: get failed: %v", err)
+	}
+	set = rlimit
+	set.Cur = set.Max - 1
+	if set != get {
+		// Seems like Darwin requires some privilege to
+		// increase the soft limit of rlimit sandbox, though
+		// Setrlimit never reports an error.
+		switch runtime.GOOS {
+		case "darwin":
+		default:
+			t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
+		}
+	}
+	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
+	if err != nil {
+		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
 	}
 }
