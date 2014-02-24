@@ -195,6 +195,23 @@ func testHandshake(clientConfig, serverConfig *Config) (state ConnectionState, e
 	return
 }
 
+func TestVersion(t *testing.T) {
+	serverConfig := &Config{
+		Certificates: testConfig.Certificates,
+		MaxVersion:   VersionTLS11,
+	}
+	clientConfig := &Config{
+		InsecureSkipVerify: true,
+	}
+	state, err := testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if state.Version != VersionTLS11 {
+		t.Fatalf("Incorrect version %x, should be %x", state.Version, VersionTLS11)
+	}
+}
+
 func TestCipherSuitePreference(t *testing.T) {
 	serverConfig := &Config{
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
