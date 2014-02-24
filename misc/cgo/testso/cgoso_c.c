@@ -17,6 +17,10 @@ __declspec(dllexport) void sofunc(void);
 #else
 extern void goCallback(void);
 void setCallback(void *f) { (void)f; }
+#endif
+
+// OpenBSD and older Darwin lack TLS support
+#if !defined(__OpenBSD__) && !defined(__APPLE__)
 __thread int tlsvar = 12345;
 #endif
 
