@@ -125,9 +125,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	m.ocspStapling = rand.Intn(10) > 5
 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
-	m.supportedCurves = make([]uint16, rand.Intn(5)+1)
+	m.supportedCurves = make([]CurveID, rand.Intn(5)+1)
 	for i := range m.supportedCurves {
-		m.supportedCurves[i] = uint16(rand.Intn(30000))
+		m.supportedCurves[i] = CurveID(rand.Intn(30000))
 	}
 	if rand.Intn(10) > 5 {
 		m.ticketSupported = true

@@ -163,6 +163,20 @@ func pickTLS12HashForSignature(sigType uint8, clientSignatureAndHashes []signatu
 	return 0, errors.New("tls: client doesn't support any common hash functions")
 }
 
+func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
+	switch id {
+	case CurveP256:
+		return elliptic.P256(), true
+	case CurveP384:
+		return elliptic.P384(), true
+	case CurveP521:
+		return elliptic.P521(), true
+	default:
+		return nil, false
+	}
+
+}
+
 // ecdheRSAKeyAgreement implements a TLS key agreement where the server
 // generates a ephemeral EC public/private key pair and signs it. The
 // pre-master secret is then calculated using ECDH. The signature may
@@ -176,28 +190,26 @@ type ecdheKeyAgreement struct {
 }
 
 func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
-	var curveid uint16
+	var curveid CurveID
+	preferredCurves := config.curvePreferences()
 
-Curve:
-	for _, c := range clientHello.supportedCurves {
-		switch c {
-		case curveP256:
-			ka.curve = elliptic.P256()
-			curveid = c
-			break Curve
-		case curveP384:
-			ka.curve = elliptic.P384()
-			curveid = c
-			break Curve
-		case curveP521:
-			ka.curve = elliptic.P521()
-			curveid = c
-			break Curve
+NextCandidate:
+	for _, candidate := range preferredCurves {
+		for _, c := range clientHello.supportedCurves {
+			if candidate == c {
+				curveid = c
+				break NextCandidate
+			}
 		}
 	}
 
 	if curveid == 0 {
 		return nil, errors.New("tls: no supported elliptic curves offered")
+	}
+
+	var ok bool
+	if ka.curve, ok = curveForCurveID(curveid); !ok {
+		return nil, errors.New("tls: preferredCurves includes unsupported curve")
 	}
 
 	var x, y *big.Int
@@ -293,19 +305,13 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		return errServerKeyExchange
 	}
 	if skx.key[0] != 3 { // named curve
-		return errors.New("server selected unsupported curve")
+		return errors.New("tls: server selected unsupported curve")
 	}
-	curveid := uint16(skx.key[1])<<8 | uint16(skx.key[2])
+	curveid := CurveID(skx.key[1])<<8 | CurveID(skx.key[2])
 
-	switch curveid {
-	case curveP256:
-		ka.curve = elliptic.P256()
-	case curveP384:
-		ka.curve = elliptic.P384()
-	case curveP521:
-		ka.curve = elliptic.P521()
-	default:
-		return errors.New("server selected unsupported curve")
+	var ok bool
+	if ka.curve, ok = curveForCurveID(curveid); !ok {
+		return errors.New("tls: server selected unsupported curve")
 	}
 
 	publicLen := int(skx.key[3])

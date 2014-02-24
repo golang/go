@@ -121,7 +121,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 			TLS_RSA_WITH_RC4_128_SHA,
 		},
 		compressionMethods: []uint8{compressionNone},
-		supportedCurves:    []uint16{curveP256, curveP384, curveP521},
+		supportedCurves:    []CurveID{CurveP256, CurveP384, CurveP521},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
 

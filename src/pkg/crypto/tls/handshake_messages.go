@@ -16,7 +16,7 @@ type clientHelloMsg struct {
 	nextProtoNeg        bool
 	serverName          string
 	ocspStapling        bool
-	supportedCurves     []uint16
+	supportedCurves     []CurveID
 	supportedPoints     []uint8
 	ticketSupported     bool
 	sessionTicket       []uint8
@@ -39,7 +39,7 @@ func (m *clientHelloMsg) equal(i interface{}) bool {
 		m.nextProtoNeg == m1.nextProtoNeg &&
 		m.serverName == m1.serverName &&
 		m.ocspStapling == m1.ocspStapling &&
-		eqUint16s(m.supportedCurves, m1.supportedCurves) &&
+		eqCurveIDs(m.supportedCurves, m1.supportedCurves) &&
 		bytes.Equal(m.supportedPoints, m1.supportedPoints) &&
 		m.ticketSupported == m1.ticketSupported &&
 		bytes.Equal(m.sessionTicket, m1.sessionTicket) &&
@@ -357,10 +357,10 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				return false
 			}
 			numCurves := l / 2
-			m.supportedCurves = make([]uint16, numCurves)
+			m.supportedCurves = make([]CurveID, numCurves)
 			d := data[2:]
 			for i := 0; i < numCurves; i++ {
-				m.supportedCurves[i] = uint16(d[0])<<8 | uint16(d[1])
+				m.supportedCurves[i] = CurveID(d[0])<<8 | CurveID(d[1])
 				d = d[2:]
 			}
 		case extensionSupportedPoints:
@@ -1283,6 +1283,18 @@ func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
 }
 
 func eqUint16s(x, y []uint16) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, v := range x {
+		if y[i] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func eqCurveIDs(x, y []CurveID) bool {
 	if len(x) != len(y) {
 		return false
 	}
