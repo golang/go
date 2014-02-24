@@ -108,6 +108,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 		}
 		x.mode = commaok
 		x.typ = typ.elem
+		check.hasCallOrRecv = true
 		return
 	}
 

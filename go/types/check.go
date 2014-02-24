@@ -28,11 +28,12 @@ type exprInfo struct {
 
 // A context represents the context within which an object is type-checked.
 type context struct {
-	decl     *declInfo   // package-level declaration whose init expression/function body is checked
-	scope    *Scope      // top-most scope for lookups
-	iota     exact.Value // value of iota in a constant declaration; nil otherwise
-	sig      *Signature  // function signature if inside a function; nil otherwise
-	hasLabel bool        // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	decl          *declInfo   // package-level declaration whose init expression/function body is checked
+	scope         *Scope      // top-most scope for lookups
+	iota          exact.Value // value of iota in a constant declaration; nil otherwise
+	sig           *Signature  // function signature if inside a function; nil otherwise
+	hasLabel      bool        // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	hasCallOrRecv bool        // set if an expression contains a function call or channel receive operation
 }
 
 // A checker maintains the state of the type checker.
@@ -47,12 +48,11 @@ type checker struct {
 
 	// information collected during type-checking of an entire package
 	// (maps are allocated lazily)
-	firstErr    error                  // first error encountered
-	methods     map[string][]*Func     // maps type names to associated methods
-	conversions map[*ast.CallExpr]bool // set of type-checked conversions (to distinguish from calls)
-	untyped     map[ast.Expr]exprInfo  // map of expressions without final type
-	funcs       []funcInfo             // list of functions/methods with correct signatures and non-empty bodies
-	delayed     []func()               // delayed checks that require fully setup types
+	firstErr error                 // first error encountered
+	methods  map[string][]*Func    // maps type names to associated methods
+	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+	funcs    []funcInfo            // list of functions/methods with correct signatures and non-empty bodies
+	delayed  []func()              // delayed checks that require fully setup types
 
 	objMap  map[Object]*declInfo // if set we are in the package-level declaration phase (otherwise all objects seen must be declared)
 	initMap map[Object]*declInfo // map of variables/functions with init expressions/bodies
@@ -72,15 +72,6 @@ func (check *checker) assocMethod(tname string, meth *Func) {
 		check.methods = m
 	}
 	m[tname] = append(m[tname], meth)
-}
-
-func (check *checker) markAsConversion(e *ast.CallExpr) {
-	m := check.conversions
-	if m == nil {
-		m = make(map[*ast.CallExpr]bool)
-		check.conversions = m
-	}
-	m[e] = true
 }
 
 func (check *checker) rememberUntyped(e ast.Expr, lhs bool, typ *Basic, val exact.Value) {

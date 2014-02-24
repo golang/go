@@ -27,6 +27,18 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		return
 	}
 
+	// For len(x) and cap(x) we need to know if x contains any function calls or
+	// receive operations. Save/restore current setting and set hasCallOrRecv to
+	// false for the evaluation of x so that we can check it afterwards.
+	// Note: We must do this _before_ calling unpack because unpack evaluates the
+	//       first argument before we even call arg(x, 0)!
+	if id == _Len || id == _Cap {
+		defer func(b bool) {
+			check.hasCallOrRecv = b
+		}(check.hasCallOrRecv)
+		check.hasCallOrRecv = false
+	}
+
 	// determine actual arguments
 	var arg getter
 	nargs := len(call.Args)
@@ -142,7 +154,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			// if the type of s is an array or pointer to an array and
 			// the expression s does not contain channel receives or
 			// function calls; in this case s is not evaluated."
-			if !check.containsCallsOrReceives(x.expr) {
+			if !check.hasCallOrRecv {
 				mode = constant
 				val = exact.MakeInt64(t.len)
 			}
@@ -584,27 +596,6 @@ func implicitArrayDeref(typ Type) Type {
 		}
 	}
 	return typ
-}
-
-// containsCallsOrReceives reports if x contains function calls or channel receives.
-// Expects that x was type-checked already.
-//
-func (check *checker) containsCallsOrReceives(x ast.Expr) (found bool) {
-	ast.Inspect(x, func(x ast.Node) bool {
-		switch x := x.(type) {
-		case *ast.CallExpr:
-			// calls and conversions look the same
-			if !check.conversions[x] {
-				found = true
-			}
-		case *ast.UnaryExpr:
-			if x.Op == token.ARROW {
-				found = true
-			}
-		}
-		return !found // no need to continue if found
-	})
-	return
 }
 
 // unparen removes any parentheses surrounding an expression and returns

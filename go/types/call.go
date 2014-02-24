@@ -32,9 +32,6 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			check.expr(x, e.Args[0])
 			if x.mode != invalid {
 				check.conversion(x, T)
-				if x.mode != invalid {
-					check.markAsConversion(e) // for cap/len checking
-				}
 			}
 		default:
 			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
@@ -48,6 +45,9 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			x.mode = invalid
 		}
 		x.expr = e
+		// TODO(gri) Depending on the pending decision on the issue 7387,
+		// hasCallOrRecv may only need to be set if the result is not constant.
+		check.hasCallOrRecv = true
 		return predeclaredFuncs[id].kind
 
 	default:
@@ -75,6 +75,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			x.typ = sig.results
 		}
 		x.expr = e
+		check.hasCallOrRecv = true
 
 		return statement
 	}
