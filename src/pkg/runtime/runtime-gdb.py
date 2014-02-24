@@ -15,10 +15,14 @@ path to this file based on the path to the runtime package.
 #      circumventing the pretty print triggering.
 
 
-import sys, re
+from __future__ import print_function
+import re
+import sys
 
-print >>sys.stderr, "Loading Go Runtime support."
-
+print("Loading Go Runtime support.", file=sys.stderr)
+#http://python3porting.com/differences.html
+if sys.version > '3':
+	xrange = range
 # allow to manually reload while developing
 goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
@@ -26,6 +30,7 @@ goobjfile.pretty_printers = []
 #
 #  Pretty Printers
 #
+
 
 class StringTypePrinter:
 	"Pretty print Go strings."
@@ -61,8 +66,8 @@ class SliceTypePrinter:
 		if self.val["len"] > self.val["cap"]:
 			return
 		ptr = self.val["array"]
-		for idx in range(self.val["len"]):
-			yield ('[%d]' % idx, (ptr + idx).dereference())
+		for idx in range(int(self.val["len"])):
+			yield ('[{0}]'.format(idx), (ptr + idx).dereference())
 
 
 class MapTypePrinter:
@@ -72,7 +77,7 @@ class MapTypePrinter:
 	to inspect their contents with this pretty printer.
 	"""
 
-	pattern = re.compile(r'^struct hash<.*>$')
+	pattern = re.compile(r'^map\[.*\].*$')
 
 	def __init__(self, val):
 		self.val = val
@@ -90,14 +95,15 @@ class MapTypePrinter:
 		flags = self.val['flags']
 		inttype = self.val['hash0'].type
 		cnt = 0
-		for bucket in xrange(2 ** B):
+		for bucket in xrange(2 ** int(B)):
 			bp = buckets + bucket
 			if oldbuckets:
 				oldbucket = bucket & (2 ** (B - 1) - 1)
 				oldbp = oldbuckets + oldbucket
 				oldb = oldbp.dereference()
-				if (oldb['overflow'].cast(inttype) & 1) == 0: # old bucket not evacuated yet
-					if bucket >= 2 ** (B - 1): continue   # already did old bucket
+				if (oldb['overflow'].cast(inttype) & 1) == 0:  # old bucket not evacuated yet
+					if bucket >= 2 ** (B - 1):
+						continue    # already did old bucket
 					bp = oldbp
 			while bp:
 				b = bp.dereference()
@@ -109,10 +115,11 @@ class MapTypePrinter:
 							k = k.dereference()
 						if flags & 2:
 							v = v.dereference()
-						yield '%d' % cnt, k
-						yield '%d' % (cnt + 1), v
+						yield str(cnt), k
+						yield str(cnt + 1), v
 						cnt += 2
 				bp = b['overflow']
+
 
 class ChanTypePrinter:
 	"""Pretty print chan[T] types.
@@ -138,7 +145,7 @@ class ChanTypePrinter:
 		ptr = (self.val.address + 1).cast(et.pointer())
 		for i in range(self.val["qcount"]):
 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
-			yield ('[%d]' % i, (ptr + j).dereference())
+			yield ('[{0}]'.format(i), (ptr + j).dereference())
 
 
 #
@@ -150,11 +157,11 @@ def makematcher(klass):
 		try:
 			if klass.pattern.match(str(val.type)):
 				return klass(val)
-		except:
+		except Exception:
 			pass
 	return matcher
 
-goobjfile.pretty_printers.extend([makematcher(k) for k in vars().values() if hasattr(k, 'pattern')])
+goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
 
 #
 #  For reference, this is what we're trying to do:
@@ -169,33 +176,34 @@ goobjfile.pretty_printers.extend([makematcher(k) for k in vars().values() if has
 
 def is_iface(val):
 	try:
-		return str(val['tab'].type) == "struct runtime.itab *" \
-		      and str(val['data'].type) == "void *"
-	except:
+		return str(val['tab'].type) == "struct runtime.itab *" and str(val['data'].type) == "void *"
+	except gdb.error:
 		pass
+
 
 def is_eface(val):
 	try:
-		return str(val['_type'].type) == "struct runtime._type *" \
-		      and str(val['data'].type) == "void *"
-	except:
+		return str(val['_type'].type) == "struct runtime._type *" and str(val['data'].type) == "void *"
+	except gdb.error:
 		pass
+
 
 def lookup_type(name):
 	try:
 		return gdb.lookup_type(name)
-	except:
+	except gdb.error:
 		pass
 	try:
 		return gdb.lookup_type('struct ' + name)
-	except:
+	except gdb.error:
 		pass
 	try:
 		return gdb.lookup_type('struct ' + name[1:]).pointer()
-	except:
+	except gdb.error:
 		pass
 
 _rctp_type = gdb.lookup_type("struct runtime.rtype").pointer()
+
 
 def iface_commontype(obj):
 	if is_iface(obj):
@@ -204,9 +212,9 @@ def iface_commontype(obj):
 		go_type_ptr = obj['_type']
 	else:
 		return
-	
+
 	return go_type_ptr.cast(_rctp_type).dereference()
-	
+
 
 def iface_dtype(obj):
 	"Decode type of the data field of an eface or iface struct."
@@ -221,13 +229,14 @@ def iface_dtype(obj):
 	dynamic_gdb_type = lookup_type(dtype_name)
 	if dynamic_gdb_type is None:
 		return
-	
+
 	type_size = int(dynamic_go_type['size'])
 	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself an uintptr
 	if type_size > uintptr_size:
 			dynamic_gdb_type = dynamic_gdb_type.pointer()
 
 	return dynamic_gdb_type
+
 
 def iface_dtype_name(obj):
 	"Decode type name of the data field of an eface or iface struct."
@@ -254,15 +263,15 @@ class IfacePrinter:
 			return 0x0
 		try:
 			dtype = iface_dtype(self.val)
-		except:
+		except Exception:
 			return "<bad dynamic type>"
 
 		if dtype is None:  # trouble looking up, print something reasonable
-			return "(%s)%s" % (iface_dtype_name(self.val), self.val['data'])
+			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
-		except:
+		except Exception:
 			pass
 		return self.val['data'].cast(dtype)
 
@@ -277,37 +286,36 @@ goobjfile.pretty_printers.append(ifacematcher)
 #  Convenience Functions
 #
 
+
 class GoLenFunc(gdb.Function):
 	"Length of strings, slices, maps or channels"
 
-	how = ((StringTypePrinter, 'len'),
-	       (SliceTypePrinter, 'len'),
-	       (MapTypePrinter, 'count'),
-	       (ChanTypePrinter, 'qcount'))
+	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'count'), (ChanTypePrinter, 'qcount'))
 
 	def __init__(self):
-		super(GoLenFunc, self).__init__("len")
+		gdb.Function.__init__(self, "len")
 
 	def invoke(self, obj):
 		typename = str(obj.type)
 		for klass, fld in self.how:
 			if klass.pattern.match(typename):
 				return obj[fld]
+
 
 class GoCapFunc(gdb.Function):
 	"Capacity of slices or channels"
 
-	how = ((SliceTypePrinter, 'cap'),
-	       (ChanTypePrinter, 'dataqsiz'))
+	how = ((SliceTypePrinter, 'cap'), (ChanTypePrinter, 'dataqsiz'))
 
 	def __init__(self):
-		super(GoCapFunc, self).__init__("cap")
+		gdb.Function.__init__(self, "cap")
 
 	def invoke(self, obj):
 		typename = str(obj.type)
 		for klass, fld in self.how:
 			if klass.pattern.match(typename):
 				return obj[fld]
+
 
 class DTypeFunc(gdb.Function):
 	"""Cast Interface values to their dynamic type.
@@ -316,12 +324,12 @@ class DTypeFunc(gdb.Function):
 	"""
 
 	def __init__(self):
-		super(DTypeFunc, self).__init__("dtype")
+		gdb.Function.__init__(self, "dtype")
 
 	def invoke(self, obj):
 		try:
 			return obj['data'].cast(iface_dtype(obj))
-		except:
+		except gdb.error:
 			pass
 		return obj
 
@@ -330,6 +338,7 @@ class DTypeFunc(gdb.Function):
 #
 
 sts = ('idle', 'runnable', 'running', 'syscall', 'waiting', 'moribund', 'dead', 'recovery')
+
 
 def linked_list(ptr, linkfield):
 	while ptr:
@@ -341,29 +350,47 @@ class GoroutinesCmd(gdb.Command):
 	"List all goroutines."
 
 	def __init__(self):
-		super(GoroutinesCmd, self).__init__("info goroutines", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
+		gdb.Command.__init__(self, "info goroutines", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
 
-	def invoke(self, arg, from_tty):
+	def invoke(self, _arg, _from_tty):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
 		for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
-			if ptr['status'] == 6:	# 'gdead'
+			if ptr['status'] == 6:  # 'gdead'
 				continue
 			s = ' '
 			if ptr['m']:
 				s = '*'
 			pc = ptr['sched']['pc'].cast(vp)
-			sp = ptr['sched']['sp'].cast(vp)
-			blk = gdb.block_for_pc(long((pc)))
-			print s, ptr['goid'], "%8s" % sts[long((ptr['status']))], blk.function
+			# python2 will not cast pc (type void*) to an int cleanly
+			# instead python2 and python3 work with the hex string representation
+			# of the void pointer which we can parse back into an int.
+			# int(pc) will not work.
+			try:
+				#python3 / newer versions of gdb
+				pc = int(pc)
+			except gdb.error:
+				pc = int(str(pc), 16)
+			blk = gdb.block_for_pc(pc)
+			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['status'])]), blk.function)
+
 
 def find_goroutine(goid):
+	"""
+	find_goroutine attempts to find the goroutine identified by goid.
+	It returns a touple of gdv.Value's representing the the stack pointer
+	and program counter pointer for the goroutine.
+
+	@param int goid
+
+	@return tuple (gdb.Value, gdb.Value)
+	"""
 	vp = gdb.lookup_type('void').pointer()
 	for ptr in linked_list(gdb.parse_and_eval("'runtime.allg'"), 'alllink'):
-		if ptr['status'] == 6:	# 'gdead'
+		if ptr['status'] == 6:  # 'gdead'
 			continue
 		if ptr['goid'] == goid:
-			return [ptr['sched'][x].cast(vp) for x in 'pc', 'sp']
+			return (ptr['sched'][x].cast(vp) for x in ('pc', 'sp'))
 	return None, None
 
 
@@ -380,20 +407,25 @@ class GoroutineCmd(gdb.Command):
 	"""
 
 	def __init__(self):
-		super(GoroutineCmd, self).__init__("goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
+		gdb.Command.__init__(self, "goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
 
-	def invoke(self, arg, from_tty):
+	def invoke(self, arg, _from_tty):
 		goid, cmd = arg.split(None, 1)
 		goid = gdb.parse_and_eval(goid)
 		pc, sp = find_goroutine(int(goid))
 		if not pc:
-			print "No such goroutine: ", goid
+			print("No such goroutine: ", goid)
 			return
+		try:
+			#python3 / newer versions of gdb
+			pc = int(pc)
+		except gdb.error:
+			pc = int(str(pc), 16)
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$save_sp = $sp')
-		gdb.parse_and_eval('$pc = 0x%x' % long(pc))
-		gdb.parse_and_eval('$sp = 0x%x' % long(sp))
+		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
+		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
 		try:
 			gdb.execute(cmd)
 		finally:
@@ -406,31 +438,33 @@ class GoIfaceCmd(gdb.Command):
 	"Print Static and dynamic interface types"
 
 	def __init__(self):
-		super(GoIfaceCmd, self).__init__("iface", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL)
+		gdb.Command.__init__(self, "iface", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL)
 
-	def invoke(self, arg, from_tty):
+	def invoke(self, arg, _from_tty):
 		for obj in gdb.string_to_argv(arg):
 			try:
 				#TODO fix quoting for qualified variable names
-				obj = gdb.parse_and_eval("%s" % obj)
-			except Exception, e:
-				print "Can't parse ", obj, ": ", e
+				obj = gdb.parse_and_eval(str(obj))
+			except Exception as e:
+				print("Can't parse ", obj, ": ", e)
 				continue
 
 			if obj['data'] == 0:
 				dtype = "nil"
 			else:
 				dtype = iface_dtype(obj)
-				
+
 			if dtype is None:
-				print "Not an interface: ", obj.type
+				print("Not an interface: ", obj.type)
 				continue
 
-			print "%s: %s" % (obj.type, dtype)
+			print("{0}: {1}".format(obj.type, dtype))
 
 # TODO: print interface's methods and dynamic type's func pointers thereof.
-#rsc: "to find the number of entries in the itab's Fn field look at itab.inter->numMethods
-#i am sure i have the names wrong but look at the interface type and its method count"
+#rsc: "to find the number of entries in the itab's Fn field look at
+# itab.inter->numMethods
+# i am sure i have the names wrong but look at the interface type
+# and its method count"
 # so Itype will start with a commontype which has kind = interface
 
 #
