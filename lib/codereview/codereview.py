@@ -2656,7 +2656,6 @@ def RietveldSetup(ui, repo):
 	upload_options.message = None
 	upload_options.issue = None
 	upload_options.download_base = False
-	upload_options.revision = None
 	upload_options.send_mail = False
 	upload_options.vcs = None
 	upload_options.server = server
@@ -3435,18 +3434,16 @@ class MercurialVCS(VersionControlSystem):
 		cwd = os.path.normpath(os.getcwd())
 		assert cwd.startswith(self.repo_dir)
 		self.subdir = cwd[len(self.repo_dir):].lstrip(r"\/")
-		if self.options.revision:
-			self.base_rev = self.options.revision
+		mqparent, err = RunShellWithReturnCode(['hg', 'log', '--rev', 'qparent', '--template={node}'])
+		if not err and mqparent != "":
+			self.base_rev = mqparent
 		else:
-			mqparent, err = RunShellWithReturnCode(['hg', 'log', '--rev', 'qparent', '--template={node}'])
-			if not err and mqparent != "":
-				self.base_rev = mqparent
-			else:
-				out = RunShell(["hg", "parents", "-q"], silent_ok=True).strip()
-				if not out:
-					# No revisions; use 0 to mean a repository with nothing.
-					out = "0:0"
-				self.base_rev = out.split(':')[1].strip()
+			out = RunShell(["hg", "parents", "-q"], silent_ok=True).strip()
+			if not out:
+				# No revisions; use 0 to mean a repository with nothing.
+				out = "0:0"
+			self.base_rev = out.split(':')[1].strip()
+
 	def _GetRelPath(self, filename):
 		"""Get relative path of a file according to the current directory,
 		given its logical path in the repo."""
