@@ -11,7 +11,6 @@ import (
 	"math"
 	"runtime"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 	"unicode"
@@ -634,67 +633,61 @@ func TestReorder(t *testing.T) {
 }
 
 func BenchmarkSprintfEmpty(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		Sprintf("")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("")
+		}
 	})
 }
 
 func BenchmarkSprintfString(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		Sprintf("%s", "hello")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%s", "hello")
+		}
 	})
 }
 
 func BenchmarkSprintfInt(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		Sprintf("%d", 5)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%d", 5)
+		}
 	})
 }
 
 func BenchmarkSprintfIntInt(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		Sprintf("%d %d", 5, 6)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%d %d", 5, 6)
+		}
 	})
 }
 
 func BenchmarkSprintfPrefixedInt(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
+		}
 	})
 }
 
 func BenchmarkSprintfFloat(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		Sprintf("%g", 5.23184)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%g", 5.23184)
+		}
 	})
 }
 
 func BenchmarkManyArgs(b *testing.B) {
-	benchmarkSprintf(b, func(buf *bytes.Buffer) {
-		buf.Reset()
-		Fprintf(buf, "%2d/%2d/%2d %d:%d:%d %s %s\n", 3, 4, 5, 11, 12, 13, "hello", "world")
+	b.RunParallel(func(pb *testing.PB) {
+		var buf bytes.Buffer
+		for pb.Next() {
+			buf.Reset()
+			Fprintf(&buf, "%2d/%2d/%2d %d:%d:%d %s %s\n", 3, 4, 5, 11, 12, 13, "hello", "world")
+		}
 	})
-}
-
-func benchmarkSprintf(b *testing.B, f func(buf *bytes.Buffer)) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / CallsPerSched)
-	c := make(chan bool, procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			var buf bytes.Buffer
-			for atomic.AddInt32(&N, -1) >= 0 {
-				for g := 0; g < CallsPerSched; g++ {
-					f(&buf)
-				}
-			}
-			c <- true
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
 }
 
 var mallocBuf bytes.Buffer
