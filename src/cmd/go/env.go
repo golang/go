@@ -91,7 +91,19 @@ func runEnv(cmd *Command, args []string) {
 			default:
 				fmt.Printf("%s=\"%s\"\n", e.name, e.value)
 			case "plan9":
-				fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
+				if strings.IndexByte(e.value, '\x00') < 0 {
+					fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
+				} else {
+					v := strings.Split(e.value, "\x00")
+					fmt.Printf("%s=(", e.name)
+					for x, s := range v {
+						if x > 0 {
+							fmt.Printf(" ")
+						}
+						fmt.Printf("%s", s)
+					}
+					fmt.Printf(")\n")
+				}
 			case "windows":
 				fmt.Printf("set %s=%s\n", e.name, e.value)
 			}
