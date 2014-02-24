@@ -323,3 +323,8 @@ type RecursiveStruct2 struct {
 }
 
 var recursiveStruct1V = &RecursiveStruct1{}
+
+// Fix for issue 7149: Missing return type on String method caused fault.
+func (int) String() {
+	return ""
+}

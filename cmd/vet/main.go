@@ -76,7 +76,8 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
-	fmt.Fprintf(os.Stderr, "\tgodoc code.google.com/p/go.tools/cmd/vet\n\nFlags:\n")
+	fmt.Fprintf(os.Stderr, "\tgodoc code.google.com/p/go.tools/cmd/vet\n\n")
+	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -457,7 +458,7 @@ func (f *File) prepStringerReceiver(d *ast.FuncDecl) {
 // isStringer returns true if the provided declaration is a "String() string"
 // method; an implementation of fmt.Stringer.
 func (f *File) isStringer(d *ast.FuncDecl) bool {
-	return d.Recv != nil && d.Name.Name == "String" &&
+	return d.Recv != nil && d.Name.Name == "String" && d.Type.Results != nil &&
 		len(d.Type.Params.List) == 0 && len(d.Type.Results.List) == 1 &&
 		f.pkg.types[d.Type.Results.List[0].Type].Type == types.Typ[types.String]
 }
