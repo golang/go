@@ -555,3 +555,36 @@ func TestDialDualStackLocalhost(t *testing.T) {
 		}
 	}
 }
+
+func TestDialerKeepAlive(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+	defer func() {
+		testHookSetKeepAlive = func() {}
+	}()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	for _, keepAlive := range []bool{false, true} {
+		got := false
+		testHookSetKeepAlive = func() { got = true }
+		var d Dialer
+		if keepAlive {
+			d.KeepAlive = 30 * time.Second
+		}
+		c, err := d.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.Close()
+		if got != keepAlive {
+			t.Errorf("Dialer.KeepAlive = %v: SetKeepAlive called = %v, want %v", d.KeepAlive, got, !got)
+		}
+	}
+}
