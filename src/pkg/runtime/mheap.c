@@ -653,6 +653,7 @@ addspecial(void *p, Special *s)
 
 	// Ensure that the span is swept.
 	// GC accesses specials list w/o locks. And it's just much safer.
+	m->locks++;
 	runtime·MSpan_EnsureSwept(span);
 
 	offset = (uintptr)p - (span->start << PageShift);
@@ -665,6 +666,7 @@ addspecial(void *p, Special *s)
 	while((x = *t) != nil) {
 		if(offset == x->offset && kind == x->kind) {
 			runtime·unlock(&span->specialLock);
+			m->locks--;
 			return false; // already exists
 		}
 		if(offset < x->offset || (offset == x->offset && kind < x->kind))
@@ -676,6 +678,7 @@ addspecial(void *p, Special *s)
 	s->next = x;
 	*t = s;
 	runtime·unlock(&span->specialLock);
+	m->locks--;
 	return true;
 }
 
@@ -695,6 +698,7 @@ removespecial(void *p, byte kind)
 
 	// Ensure that the span is swept.
 	// GC accesses specials list w/o locks. And it's just much safer.
+	m->locks++;
 	runtime·MSpan_EnsureSwept(span);
 
 	offset = (uintptr)p - (span->start << PageShift);
@@ -707,11 +711,13 @@ removespecial(void *p, byte kind)
 		if(offset == s->offset && kind == s->kind) {
 			*t = s->next;
 			runtime·unlock(&span->specialLock);
+			m->locks--;
 			return s;
 		}
 		t = &s->next;
 	}
 	runtime·unlock(&span->specialLock);
+	m->locks--;
 	return nil;
 }
 
@@ -805,6 +811,8 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
 	Special *s, **t, *list;
 	uintptr offset;
 
+	if(span->sweepgen != runtime·mheap.sweepgen)
+		runtime·throw("runtime: freeallspecials: unswept span");
 	// first, collect all specials into the list; then, free them
 	// this is required to not cause deadlock between span->specialLock and proflock
 	list = nil;
