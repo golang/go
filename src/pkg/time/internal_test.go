@@ -29,7 +29,7 @@ func CheckRuntimeTimerOverflow() error {
 	// detection logic in NewTimer: we're testing the underlying
 	// runtime.addtimer function.
 	r := &runtimeTimer{
-		when: nano() + (1<<63 - 1),
+		when: runtimeNano() + (1<<63 - 1),
 		f:    empty,
 		arg:  nil,
 	}

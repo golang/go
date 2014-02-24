@@ -29,7 +29,7 @@ func NewTicker(d Duration) *Ticker {
 	t := &Ticker{
 		C: c,
 		r: runtimeTimer{
-			when:   nano() + int64(d),
+			when:   when(d),
 			period: int64(d),
 			f:      sendTime,
 			arg:    c,

@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+func runtimeNano() int64
+
 func runtime_pollServerInit()
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
@@ -128,7 +131,7 @@ func (fd *netFD) setWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
-	d := t.UnixNano()
+	d := runtimeNano() + int64(t.Sub(time.Now()))
 	if t.IsZero() {
 		d = 0
 	}
