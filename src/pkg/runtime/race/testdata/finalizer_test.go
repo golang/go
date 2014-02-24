@@ -14,16 +14,16 @@ import (
 func TestNoRaceFin(t *testing.T) {
 	c := make(chan bool)
 	go func() {
-		x := new(int)
-		runtime.SetFinalizer(x, func(x *int) {
-			*x = 42
+		x := new(string)
+		runtime.SetFinalizer(x, func(x *string) {
+			*x = "foo"
 		})
-		*x = 66
+		*x = "bar"
 		c <- true
 	}()
 	<-c
 	runtime.GC()
-	time.Sleep(1e8)
+	time.Sleep(100 * time.Millisecond)
 }
 
 var finVar struct {
@@ -34,8 +34,8 @@ var finVar struct {
 func TestNoRaceFinGlobal(t *testing.T) {
 	c := make(chan bool)
 	go func() {
-		x := new(int)
-		runtime.SetFinalizer(x, func(x *int) {
+		x := new(string)
+		runtime.SetFinalizer(x, func(x *string) {
 			finVar.Lock()
 			finVar.cnt++
 			finVar.Unlock()
@@ -44,7 +44,7 @@ func TestNoRaceFinGlobal(t *testing.T) {
 	}()
 	<-c
 	runtime.GC()
-	time.Sleep(1e8)
+	time.Sleep(100 * time.Millisecond)
 	finVar.Lock()
 	finVar.cnt++
 	finVar.Unlock()
@@ -54,14 +54,14 @@ func TestRaceFin(t *testing.T) {
 	c := make(chan bool)
 	y := 0
 	go func() {
-		x := new(int)
-		runtime.SetFinalizer(x, func(x *int) {
+		x := new(string)
+		runtime.SetFinalizer(x, func(x *string) {
 			y = 42
 		})
 		c <- true
 	}()
 	<-c
 	runtime.GC()
-	time.Sleep(1e8)
+	time.Sleep(100 * time.Millisecond)
 	y = 66
 }
