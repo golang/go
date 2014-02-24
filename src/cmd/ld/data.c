@@ -343,7 +343,7 @@ dynrelocsym(LSym *s)
 
 	for(r=s->r; r<s->r+s->nr; r++) {
 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256) {
-			if(!r->sym->reachable)
+			if(r->sym != S && !r->sym->reachable)
 				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
 			adddynrel(s, r);
 		}
