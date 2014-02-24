@@ -155,6 +155,7 @@ var supportedClientCertSignatureAlgorithms = []signatureAndHash{
 
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
+	Version                    uint16                // TLS version used by the connection (e.g. VersionTLS12)
 	HandshakeComplete          bool                  // TLS handshake is complete
 	DidResume                  bool                  // connection resumes a previous TLS connection
 	CipherSuite                uint16                // cipher suite in use (TLS_RSA_WITH_RC4_128_SHA, ...)

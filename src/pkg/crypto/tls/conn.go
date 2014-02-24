@@ -969,6 +969,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 	var state ConnectionState
 	state.HandshakeComplete = c.handshakeComplete
 	if c.handshakeComplete {
+		state.Version = c.vers
 		state.NegotiatedProtocol = c.clientProtocol
 		state.DidResume = c.didResume
 		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
