@@ -594,7 +594,6 @@ func TestErrorAfterClientClose(t *testing.T) {
 }
 
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
-	b.StopTimer()
 	once.Do(startServer)
 	client, err := dial()
 	if err != nil {
@@ -604,33 +603,24 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 
 	// Synchronous calls
 	args := &Args{7, 8}
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N)
-	var wg sync.WaitGroup
-	wg.Add(procs)
-	b.StartTimer()
+	b.ResetTimer()
 
-	for p := 0; p < procs; p++ {
-		go func() {
-			reply := new(Reply)
-			for atomic.AddInt32(&N, -1) >= 0 {
-				err := client.Call("Arith.Add", args, reply)
-				if err != nil {
-					b.Fatalf("rpc error: Add: expected no error but got string %q", err.Error())
-				}
-				if reply.C != args.A+args.B {
-					b.Fatalf("rpc error: Add: expected %d got %d", reply.C, args.A+args.B)
-				}
+	b.RunParallel(func(pb *testing.PB) {
+		reply := new(Reply)
+		for pb.Next() {
+			err := client.Call("Arith.Add", args, reply)
+			if err != nil {
+				b.Fatalf("rpc error: Add: expected no error but got string %q", err.Error())
 			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+			if reply.C != args.A+args.B {
+				b.Fatalf("rpc error: Add: expected %d got %d", reply.C, args.A+args.B)
+			}
+		}
+	})
 }
 
 func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
 	const MaxConcurrentCalls = 100
-	b.StopTimer()
 	once.Do(startServer)
 	client, err := dial()
 	if err != nil {
@@ -647,7 +637,7 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
 	wg.Add(procs)
 	gate := make(chan bool, MaxConcurrentCalls)
 	res := make(chan *Call, MaxConcurrentCalls)
-	b.StartTimer()
+	b.ResetTimer()
 
 	for p := 0; p < procs; p++ {
 		go func() {
