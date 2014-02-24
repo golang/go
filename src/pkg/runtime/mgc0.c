@@ -2551,7 +2551,7 @@ runfinq(void)
 				if(framecap < framesz) {
 					runtime·free(frame);
 					// The frame does not contain pointers interesting for GC,
-					// all not yet finalized objects are stored in finc.
+					// all not yet finalized objects are stored in finq.
 					// If we do not mark it as FlagNoScan,
 					// the last finalized object is not collected.
 					frame = runtime·mallocgc(framesz, 0, FlagNoScan|FlagNoInvokeGC);
@@ -2580,8 +2580,10 @@ runfinq(void)
 				f->ot = nil;
 			}
 			fb->cnt = 0;
+			runtime·lock(&gclock);
 			fb->next = finc;
 			finc = fb;
+			runtime·unlock(&gclock);
 		}
 		runtime·gc(1);	// trigger another gc to clean up the finalized objects, if possible
 	}
