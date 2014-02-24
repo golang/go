@@ -43,7 +43,7 @@ func (c *Conn) clientHandshake() error {
 		random:              make([]byte, 32),
 		ocspStapling:        true,
 		serverName:          c.config.ServerName,
-		supportedCurves:     []uint16{curveP256, curveP384, curveP521},
+		supportedCurves:     c.config.curvePreferences(),
 		supportedPoints:     []uint8{pointFormatUncompressed},
 		nextProtoNeg:        len(c.config.NextProtos) > 0,
 		secureRenegotiation: true,
