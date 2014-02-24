@@ -9,12 +9,22 @@ calls whose arguments do not align with the format string. Vet uses heuristics
 that do not guarantee all reports are genuine problems, but it can find errors
 not caught by the compilers.
 
-Usage:
+It can be invoked three ways:
 
-	go tool vet [flag] [file.go ...]
-	go tool vet [flag] [directory ...] # Scan all .go files under directory, recursively
+By package, from the go tool:
+	go vet package/path/name
+vets the package whose path is provided.
 
-Its exit code is 2 for erroneous invocation of the tool, 1 if a
+By files:
+	go tool vet source/directory/*.go
+vets the files named, all of which must be in the same package.
+
+By directory:
+	go tool vet source/directory
+recursively descends the directory, vetting each file in isolation.
+Package-level type-checking disabled, so the vetting is weaker.
+
+Vet's exit code is 2 for erroneous invocation of the tool, 1 if a
 problem was reported, and 0 otherwise. Note that the tool does not
 check every possible problem and depends on unreliable heuristics
 so it should be used as guidance only, not as a firm indicator of

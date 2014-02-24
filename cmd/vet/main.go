@@ -75,6 +75,8 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
+	fmt.Fprintf(os.Stderr, "For more information run\n")
+	fmt.Fprintf(os.Stderr, "\tgodoc code.google.com/p/go.tools/cmd/vet\n\nFlags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
