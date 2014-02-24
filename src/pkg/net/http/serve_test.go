@@ -2258,7 +2258,6 @@ func BenchmarkClientServer(b *testing.B) {
 		if err != nil {
 			b.Fatal("Get:", err)
 		}
-		defer res.Body.Close()
 		all, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
