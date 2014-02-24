@@ -44,6 +44,12 @@ type Dialer struct {
 	// destination is a host name that has multiple address family
 	// DNS records.
 	DualStack bool
+
+	// KeepAlive specifies the keep-alive period for an active
+	// network connection.
+	// If zero, keep-alives are not enabled. Network protocols
+	// that do not support keep-alives ignore this field.
+	KeepAlive time.Duration
 }
 
 // Return either now+Timeout or Deadline, whichever comes first.
@@ -162,8 +168,18 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 			return dialMulti(network, address, d.LocalAddr, ras, deadline)
 		}
 	}
-	return dial(network, ra.toAddr(), dialer, d.deadline())
+	c, err := dial(network, ra.toAddr(), dialer, d.deadline())
+	if d.KeepAlive > 0 && err == nil {
+		if tc, ok := c.(*TCPConn); ok {
+			tc.SetKeepAlive(true)
+			tc.SetKeepAlivePeriod(d.KeepAlive)
+			testHookSetKeepAlive()
+		}
+	}
+	return c, err
 }
+
+var testHookSetKeepAlive = func() {} // changed by dial_test.go
 
 // dialMulti attempts to establish connections to each destination of
 // the list of addresses. It will return the first established
