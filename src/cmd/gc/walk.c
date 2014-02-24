@@ -3171,13 +3171,10 @@ walkcompare(Node **np, NodeList **init)
 		}
 		if(expr == N)
 			expr = nodbool(n->op == OEQ);
-		typecheck(&expr, Erv);
-		walkexpr(&expr, init);
-		expr->type = n->type;
-		*np = expr;
-		return;
+		r = expr;
+		goto ret;
 	}
-	
+
 	if(t->etype == TSTRUCT && countfield(t) <= 4) {
 		// Struct of four or fewer fields.
 		// Inline comparisons.
@@ -3194,13 +3191,10 @@ walkcompare(Node **np, NodeList **init)
 		}
 		if(expr == N)
 			expr = nodbool(n->op == OEQ);
-		typecheck(&expr, Erv);
-		walkexpr(&expr, init);
-		expr->type = n->type;
-		*np = expr;
-		return;
+		r = expr;
+		goto ret;
 	}
-	
+
 	// Chose not to inline, but still have addresses.
 	// Call equality function directly.
 	// The equality function requires a bool pointer for
@@ -3233,10 +3227,7 @@ walkcompare(Node **np, NodeList **init)
 
 	if(n->op != OEQ)
 		r = nod(ONOT, r, N);
-	typecheck(&r, Erv);
-	walkexpr(&r, init);
-	*np = r;
-	return;
+	goto ret;
 
 hard:
 	// Cannot take address of one or both of the operands.
@@ -3252,7 +3243,16 @@ hard:
 	r = mkcall1(fn, n->type, init, typename(n->left->type), l, r);
 	if(n->op == ONE) {
 		r = nod(ONOT, r, N);
-		typecheck(&r, Erv);
+	}
+	goto ret;
+
+ret:
+	typecheck(&r, Erv);
+	walkexpr(&r, init);
+	if(r->type != n->type) {
+		r = nod(OCONVNOP, r, N);
+		r->type = n->type;
+		r->typecheck = 1;
 	}
 	*np = r;
 	return;
