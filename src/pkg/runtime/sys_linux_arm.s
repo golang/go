@@ -175,7 +175,7 @@ TEXT time·now(SB), NOSPLIT, $32
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
-	MOVW	$0, R0  // CLOCK_REALTIME
+	MOVW	$1, R0  // CLOCK_MONOTONIC
 	MOVW	$8(R13), R1  // timespec
 	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
