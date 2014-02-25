@@ -77,6 +77,16 @@ func TestFcntlFlock(t *testing.T) {
 	}
 }
 
+func TestMmap(t *testing.T) {
+	b, err := syscall.Mmap(-1, 0, syscall.Getpagesize(), syscall.PROT_NONE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
+	if err != nil {
+		t.Fatalf("Mmap: %v", err)
+	}
+	if err := syscall.Munmap(b); err != nil {
+		t.Fatalf("Munmap: %v", err)
+	}
+}
+
 // TestPassFD tests passing a file descriptor over a Unix socket.
 //
 // This test involved both a parent and child process. The parent
