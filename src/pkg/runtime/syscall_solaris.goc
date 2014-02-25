@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors. All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -50,7 +50,7 @@ extern uintptr libc·forkx;
 extern uintptr libc·wait4;
 extern uintptr libc·write;
 
-func Sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
+func sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
 {
 	LibCall c;
 
@@ -69,7 +69,7 @@ func Sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr,
 }
 
 #pragma textflag NOSPLIT
-func RawSysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
+func rawSysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
 {
 	LibCall c;
 

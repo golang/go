@@ -58,6 +58,7 @@ struct PollDesc
 	G*	wg;	// READY, WAIT, G waiting for write or nil
 	Timer	wt;	// write deadline timer
 	int64	wd;	// write deadline
+	void*	user;	// user settable cookie
 };
 
 static struct
@@ -141,7 +142,7 @@ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
 	if(err == 0) {
 		// As for now only Solaris uses level-triggered IO.
 		if(Solaris)
-			runtime·netpollarm(pd->fd, mode);
+			runtime·netpollarm(pd, mode);
 		while(!netpollblock(pd, mode, false)) {
 			err = checkerr(pd, mode);
 			if(err != 0)
@@ -254,6 +255,12 @@ uintptr
 runtime·netpollfd(PollDesc *pd)
 {
 	return pd->fd;
+}
+
+void**
+runtime·netpolluser(PollDesc *pd)
+{
+	return &pd->user;
 }
 
 // make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
