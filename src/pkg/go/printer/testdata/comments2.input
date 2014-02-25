@@ -77,3 +77,28 @@ prints test 5 times
       println("test")
    }
 }
+
+func issue5623() {
+L:
+   _ = yyyyyyyyyyyyyyyy // comment - should be aligned
+   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx /* comment */
+
+   _ = yyyyyyyyyyyyyyyy /* comment - should be aligned */
+   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
+
+LLLLLLL:
+   _ = yyyyyyyyyyyyyyyy // comment - should be aligned
+   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
+
+LL:
+   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx /* comment */
+   _ = yyyyyyyyyyyyyyyy /* comment - should be aligned */
+
+   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
+   _ = yyyyyyyyyyyyyyyy // comment - should be aligned
+
+// test case from issue
+label:
+   mask := uint64(1)<<c - 1 // Allocation mask
+   used := atomic.LoadUint64(&h.used) // Current allocations
+}
