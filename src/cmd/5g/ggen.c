@@ -22,11 +22,8 @@ defframe(Prog *ptxt)
 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
 
 	// fill in final stack size
-	if(stksize > maxstksize)
-		maxstksize = stksize;
-	frame = rnd(maxstksize+maxarg, widthptr);
+	frame = rnd(stksize+maxarg, widthptr);
 	ptxt->to.offset = frame;
-	maxstksize = 0;
 	
 	p = ptxt;
 	if(stkzerosize > 0) {
