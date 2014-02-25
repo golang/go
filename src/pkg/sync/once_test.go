@@ -5,9 +5,7 @@
 package sync_test
 
 import (
-	"runtime"
 	. "sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -62,24 +60,11 @@ func TestOncePanic(t *testing.T) {
 }
 
 func BenchmarkOnce(b *testing.B) {
-	const CallsPerSched = 1000
-	procs := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / CallsPerSched)
 	var once Once
 	f := func() {}
-	c := make(chan bool, procs)
-	for p := 0; p < procs; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				runtime.Gosched()
-				for g := 0; g < CallsPerSched; g++ {
-					once.Do(f)
-				}
-			}
-			c <- true
-		}()
-	}
-	for p := 0; p < procs; p++ {
-		<-c
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			once.Do(f)
+		}
+	})
 }
