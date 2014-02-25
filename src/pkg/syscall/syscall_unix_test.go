@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd dragonfly darwin linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package syscall_test
 
@@ -74,16 +74,6 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if err := syscall.FcntlFlock(uintptr(fd), syscall.F_GETLK, &flock); err != nil {
 		t.Fatalf("FcntlFlock failed: %v", err)
-	}
-}
-
-func TestMmap(t *testing.T) {
-	b, err := syscall.Mmap(-1, 0, syscall.Getpagesize(), syscall.PROT_NONE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
-	if err != nil {
-		t.Fatalf("Mmap: %v", err)
-	}
-	if err := syscall.Munmap(b); err != nil {
-		t.Fatalf("Munmap: %v", err)
 	}
 }
 
