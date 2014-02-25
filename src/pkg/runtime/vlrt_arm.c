@@ -27,6 +27,7 @@
 
 // declared here to avoid include of runtime.h
 void	runtime·panicstring(char*);
+void	runtime·panicdivide(void);
 
 typedef unsigned long   ulong;
 typedef unsigned int    uint;
