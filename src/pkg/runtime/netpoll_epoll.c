@@ -53,9 +53,9 @@ runtime·netpollclose(uintptr fd)
 }
 
 void
-runtime·netpollarm(uintptr fd, int32 mode)
+runtime·netpollarm(PollDesc* pd, int32 mode)
 {
-	USED(fd, mode);
+	USED(pd, mode);
 	runtime·throw("unused");
 }
 

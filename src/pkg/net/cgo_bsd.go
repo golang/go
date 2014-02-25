@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build !netgo
-// +build darwin dragonfly freebsd
+// +build darwin dragonfly freebsd solaris
 
 package net
 

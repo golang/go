@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Read system port mappings from /etc/services
 
@@ -10,12 +10,16 @@ package net
 
 import "sync"
 
-var services map[string]map[string]int
+// services contains minimal mappings between services names and port
+// numbers for platforms that don't have a complete list of port numbers
+// (some Solaris distros).
+var services = map[string]map[string]int{
+	"tcp": {"http": 80},
+}
 var servicesError error
 var onceReadServices sync.Once
 
 func readServices() {
-	services = make(map[string]map[string]int)
 	var file *file
 	if file, servicesError = open("/etc/services"); servicesError != nil {
 		return
