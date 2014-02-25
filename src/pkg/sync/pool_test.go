@@ -128,42 +128,24 @@ func TestPoolStress(t *testing.T) {
 
 func BenchmarkPool(b *testing.B) {
 	var p Pool
-	var wg WaitGroup
-	n0 := uintptr(b.N)
-	n := n0
-	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for atomic.AddUintptr(&n, ^uintptr(0)) < n0 {
-				for b := 0; b < 100; b++ {
-					p.Put(1)
-					p.Get()
-				}
-			}
-		}()
-	}
-	wg.Wait()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			p.Put(1)
+			p.Get()
+		}
+	})
 }
 
 func BenchmarkPoolOverlflow(b *testing.B) {
 	var p Pool
-	var wg WaitGroup
-	n0 := uintptr(b.N)
-	n := n0
-	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for atomic.AddUintptr(&n, ^uintptr(0)) < n0 {
-				for b := 0; b < 100; b++ {
-					p.Put(1)
-				}
-				for b := 0; b < 100; b++ {
-					p.Get()
-				}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for b := 0; b < 100; b++ {
+				p.Put(1)
 			}
-		}()
-	}
-	wg.Wait()
+			for b := 0; b < 100; b++ {
+				p.Get()
+			}
+		}
+	})
 }
