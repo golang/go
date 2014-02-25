@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd dragonfly darwin linux netbsd openbsd
+// +build freebsd dragonfly darwin linux netbsd openbsd solaris
 
 package syscall_test
 
@@ -85,9 +85,13 @@ func TestFcntlFlock(t *testing.T) {
 // "-test.run=^TestPassFD$" and an environment variable used to signal
 // that the test should become the child process instead.
 func TestPassFD(t *testing.T) {
-	if runtime.GOOS == "dragonfly" {
+	switch runtime.GOOS {
+	case "dragonfly":
 		// TODO(jsing): Figure out why sendmsg is returning EINVAL.
 		t.Skip("skipping test on dragonfly")
+	case "solaris":
+		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
+		t.Skip("skipping test on solaris, see issue 7402")
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		passFDChild()

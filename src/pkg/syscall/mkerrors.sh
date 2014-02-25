@@ -162,6 +162,24 @@ includes_OpenBSD='
 #include <net/if_bridge.h>
 '
 
+includes_SunOS='
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <net/bpf.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_types.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <termios.h>
+#include <netinet/ip.h>
+#include <netinet/ip_mroute.h>
+'
+
 includes='
 #include <sys/types.h>
 #include <sys/file.h>
@@ -304,7 +322,7 @@ echo ')'
 
 # Run C program to print error and syscall strings.
 (
-	/bin/echo "
+	echo -E "
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -320,22 +338,21 @@ int errors[] = {
 "
 	for i in $errors
 	do
-		/bin/echo '	'$i,
+		echo -E '	'$i,
 	done
 
-	/bin/echo "
+	echo -E "
 };
 
 int signals[] = {
 "
 	for i in $signals
 	do
-		/bin/echo '	'$i,
+		echo -E '	'$i,
 	done
 
-	# Use /bin/echo to avoid builtin echo,
-	# which interprets \n itself
-	/bin/echo '
+	# Use -E because on some systems bash builtin interprets \n itself.
+	echo -E '
 };
 
 static int
