@@ -208,6 +208,12 @@ plan9_386)
 	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
 	mktypes="XXX"
 	;;
+solaris_amd64)
+	mksyscall="./mksyscall_solaris.pl"
+	mkerrors="$mkerrors -m64"
+	mksysnum=
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
 windows_386)
 	mksyscall="./mksyscall_windows.pl -l32"
 	mksysnum=
