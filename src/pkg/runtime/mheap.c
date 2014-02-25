@@ -82,7 +82,7 @@ runtime·MHeap_MapSpans(MHeap *h)
 	n = (uintptr)h->arena_used;
 	n -= (uintptr)h->arena_start;
 	n = n / PageSize * sizeof(h->spans[0]);
-	n = ROUND(n, PageSize);
+	n = ROUND(n, PhysPageSize);
 	if(h->spans_mapped >= n)
 		return;
 	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped, &mstats.other_sys);

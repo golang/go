@@ -32,6 +32,8 @@
  * to generate the code directly now.  Find and remove.
  */
 
+extern void runtime·panicdivide(void);
+
 typedef	unsigned long	ulong;
 typedef	unsigned int	uint;
 typedef	unsigned short	ushort;
@@ -240,6 +242,8 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
 		}
 	} else {
 		if(num.hi >= den.lo){
+			if(den.lo == 0)
+				runtime·panicdivide();
 			q.hi = n = num.hi/den.lo;
 			num.hi -= den.lo*n;
 		} else {
@@ -263,6 +267,8 @@ _divvu(Vlong *q, Vlong n, Vlong d)
 {
 
 	if(n.hi == 0 && d.hi == 0) {
+		if(d.lo == 0)
+			runtime·panicdivide();
 		q->hi = 0;
 		q->lo = n.lo / d.lo;
 		return;
@@ -281,6 +287,8 @@ _modvu(Vlong *r, Vlong n, Vlong d)
 {
 
 	if(n.hi == 0 && d.hi == 0) {
+		if(d.lo == 0)
+			runtime·panicdivide();
 		r->hi = 0;
 		r->lo = n.lo % d.lo;
 		return;
@@ -319,6 +327,8 @@ _divv(Vlong *q, Vlong n, Vlong d)
 			q->hi = 0;
 			return;
 		}
+		if(d.lo == 0)
+			runtime·panicdivide();
 		q->lo = (long)n.lo / (long)d.lo;
 		q->hi = ((long)q->lo) >> 31;
 		return;
@@ -353,6 +363,8 @@ _modv(Vlong *r, Vlong n, Vlong d)
 			r->hi = 0;
 			return;
 		}
+		if(d.lo == 0)
+			runtime·panicdivide();
 		r->lo = (long)n.lo % (long)d.lo;
 		r->hi = ((long)r->lo) >> 31;
 		return;

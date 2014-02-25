@@ -29,6 +29,7 @@ betypeinit(void)
 {
 	widthptr = 4;
 	widthint = 4;
+	widthreg = 4;
 
 	zprog.link = P;
 	zprog.as = AGOK;

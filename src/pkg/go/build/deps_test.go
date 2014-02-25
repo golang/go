@@ -8,6 +8,7 @@
 package build
 
 import (
+	"runtime"
 	"sort"
 	"testing"
 )
@@ -359,7 +360,7 @@ func allowed(pkg string) map[string]bool {
 }
 
 var bools = []bool{false, true}
-var geese = []string{"darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "plan9", "solaris", "windows"}
+var geese = []string{"darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
 var goarches = []string{"386", "amd64", "arm"}
 
 type osPkg struct {
@@ -374,6 +375,11 @@ var allowedErrors = map[osPkg]bool{
 }
 
 func TestDependencies(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		// NaCl tests run in a limited file system and we do not
+		// provide access to every source file.
+		t.Skip("skipping on NaCl")
+	}
 	var all []string
 
 	for k := range pkgDeps {
@@ -385,6 +391,9 @@ func TestDependencies(t *testing.T) {
 	test := func(mustImport bool) {
 		for _, pkg := range all {
 			if isMacro(pkg) {
+				continue
+			}
+			if pkg == "runtime/cgo" && !ctxt.CgoEnabled {
 				continue
 			}
 			p, err := ctxt.Import(pkg, "", 0)

@@ -204,6 +204,9 @@ type stringsFlag []string
 func (v *stringsFlag) Set(s string) error {
 	var err error
 	*v, err = splitQuotedFields(s)
+	if *v == nil {
+		*v = []string{}
+	}
 	return err
 }
 

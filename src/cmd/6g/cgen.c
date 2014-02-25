@@ -1417,23 +1417,23 @@ sgen(Node *n, Node *ns, int64 w)
 		// reverse direction
 		gins(ASTD, N, N);		// set direction flag
 		if(c > 0) {
-			gconreg(AADDQ, w-1, D_SI);
-			gconreg(AADDQ, w-1, D_DI);
+			gconreg(addptr, w-1, D_SI);
+			gconreg(addptr, w-1, D_DI);
 
-			gconreg(AMOVQ, c, D_CX);
+			gconreg(movptr, c, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSB, N, N);	// MOVB *(SI)-,*(DI)-
 		}
 
 		if(q > 0) {
 			if(c > 0) {
-				gconreg(AADDQ, -7, D_SI);
-				gconreg(AADDQ, -7, D_DI);
+				gconreg(addptr, -7, D_SI);
+				gconreg(addptr, -7, D_DI);
 			} else {
-				gconreg(AADDQ, w-8, D_SI);
-				gconreg(AADDQ, w-8, D_DI);
+				gconreg(addptr, w-8, D_SI);
+				gconreg(addptr, w-8, D_DI);
 			}
-			gconreg(AMOVQ, q, D_CX);
+			gconreg(movptr, q, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
 		}
@@ -1442,7 +1442,7 @@ sgen(Node *n, Node *ns, int64 w)
 	} else {
 		// normal direction
 		if(q >= 4) {
-			gconreg(AMOVQ, q, D_CX);
+			gconreg(movptr, q, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
 		} else

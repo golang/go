@@ -664,6 +664,18 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 	gmove(&t2, &n1);
 	gmove(&t1, ax);
 	p2 = P;
+	if(nacl) {
+		// Native Client does not relay the divide-by-zero trap
+		// to the executing program, so we must insert a check
+		// for ourselves.
+		nodconst(&n4, t, 0);
+		gins(optoas(OCMP, t), &n1, &n4);
+		p1 = gbranch(optoas(ONE, t), T, +1);
+		if(panicdiv == N)
+			panicdiv = sysfunc("panicdivide");
+		ginscall(panicdiv, -1);
+		patch(p1, pc);
+	}
 	if(check) {
 		nodconst(&n4, t, -1);
 		gins(optoas(OCMP, t), &n1, &n4);

@@ -8,8 +8,26 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
+
+var execCmd []string // -exec flag, for run and test
+
+func findExecCmd() []string {
+	if execCmd != nil {
+		return execCmd
+	}
+	execCmd = []string{} // avoid work the second time
+	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+		return execCmd
+	}
+	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch))
+	if err == nil {
+		execCmd = []string{path}
+	}
+	return execCmd
+}
 
 var cmdRun = &Command{
 	UsageLine: "run [build flags] gofiles... [arguments...]",
@@ -28,6 +46,7 @@ func init() {
 	cmdRun.Run = runRun // break init loop
 
 	addBuildFlags(cmdRun)
+	cmdRun.Flag.Var((*stringsFlag)(&execCmd), "exec", "")
 }
 
 func printStderr(args ...interface{}) (int, error) {
@@ -90,20 +109,20 @@ func runRun(cmd *Command, args []string) {
 // runProgram is the action for running a binary that has already
 // been compiled.  We ignore exit status.
 func (b *builder) runProgram(a *action) error {
+	cmdline := stringList(findExecCmd(), a.deps[0].target, a.args)
 	if buildN || buildX {
-		b.showcmd("", "%s %s", a.deps[0].target, strings.Join(a.args, " "))
+		b.showcmd("", "%s", strings.Join(cmdline, " "))
 		if buildN {
 			return nil
 		}
 	}
 
-	runStdin(a.deps[0].target, a.args)
+	runStdin(cmdline)
 	return nil
 }
 
 // runStdin is like run, but connects Stdin.
-func runStdin(cmdargs ...interface{}) {
-	cmdline := stringList(cmdargs...)
+func runStdin(cmdline []string) {
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

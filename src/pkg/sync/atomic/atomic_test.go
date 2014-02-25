@@ -813,7 +813,7 @@ func hammerSwapUintptr32(uaddr *uint32, count int) {
 		new := uintptr(seed+i)<<16 | uintptr(seed+i)<<16>>16
 		old := SwapUintptr(addr, new)
 		if old>>16 != old<<16>>16 {
-			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+			panic(fmt.Sprintf("SwapUintptr is not atomic: %#08x", old))
 		}
 	}
 }
@@ -827,7 +827,7 @@ func hammerSwapPointer32(uaddr *uint32, count int) {
 		new := uintptr(seed+i)<<16 | uintptr(seed+i)<<16>>16
 		old := uintptr(SwapPointer(addr, unsafe.Pointer(new)))
 		if old>>16 != old<<16>>16 {
-			panic(fmt.Sprintf("SwapPointer is not atomic: %v", old))
+			panic(fmt.Sprintf("SwapPointer is not atomic: %#08x", old))
 		}
 	}
 }

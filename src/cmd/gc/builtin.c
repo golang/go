@@ -5,6 +5,7 @@ char *runtimeimport =
 	"func @\"\".new (@\"\".typ·2 *byte) (? *any)\n"
 	"func @\"\".panicindex ()\n"
 	"func @\"\".panicslice ()\n"
+	"func @\"\".panicdivide ()\n"
 	"func @\"\".throwreturn ()\n"
 	"func @\"\".throwinit ()\n"
 	"func @\"\".panicwrap (? string, ? string, ? string)\n"

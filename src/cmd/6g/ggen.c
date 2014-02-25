@@ -180,17 +180,21 @@ ginscall(Node *f, int proc)
 
 	case 1:	// call in new proc (go)
 	case 2:	// deferred call (defer)
-		nodreg(&reg, types[TINT64], D_CX);
-		if(flag_largemodel) {
-			regalloc(&r1, f->type, f);
+		nodconst(&con, types[TINT64], argsize(f->type));
+		if(widthptr == 4) {
+			nodreg(&r1, types[TINT32], D_CX);
 			gmove(f, &r1);
-			gins(APUSHQ, &r1, N);
-			regfree(&r1);
+			nodreg(&reg, types[TINT64], D_CX);
+			nodconst(&r1, types[TINT64], 32);
+			gins(ASHLQ, &r1, &reg);
+			gins(AORQ, &con, &reg);
+			gins(APUSHQ, &reg, N);
 		} else {
-			gins(APUSHQ, f, N);
+			nodreg(&reg, types[TINT64], D_CX);
+			gmove(f, &reg);
+			gins(APUSHQ, &reg, N);
+			gins(APUSHQ, &con, N);
 		}
-		nodconst(&con, types[TINT32], argsize(f->type));
-		gins(APUSHQ, &con, N);
 		if(proc == 1)
 			ginscall(newproc, 0);
 		else {
@@ -198,8 +202,10 @@ ginscall(Node *f, int proc)
 				fatal("hasdefer=0 but has defer");
 			ginscall(deferproc, 0);
 		}
+		nodreg(&reg, types[TINT64], D_CX);
 		gins(APOPQ, N, &reg);
-		gins(APOPQ, N, &reg);
+		if(widthptr == 8)
+			gins(APOPQ, N, &reg);
 		if(proc == 2) {
 			nodreg(&reg, types[TINT64], D_AX);
 			gins(ATESTQ, &reg, &reg);
@@ -387,11 +393,11 @@ cgen_aret(Node *n, Node *res)
 
 	if(res->op != OREGISTER) {
 		regalloc(&nod2, types[tptr], res);
-		gins(ALEAQ, &nod1, &nod2);
-		gins(AMOVQ, &nod2, res);
+		gins(leaptr, &nod1, &nod2);
+		gins(movptr, &nod2, res);
 		regfree(&nod2);
 	} else
-		gins(ALEAQ, &nod1, res);
+		gins(leaptr, &nod1, res);
 }
 
 /*
@@ -634,6 +640,18 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 	}
 
 	p2 = P;
+	if(nacl) {
+		// Native Client does not relay the divide-by-zero trap
+		// to the executing program, so we must insert a check
+		// for ourselves.
+		nodconst(&n4, t, 0);
+		gins(optoas(OCMP, t), &n3, &n4);
+		p1 = gbranch(optoas(ONE, t), T, +1);
+		if(panicdiv == N)
+			panicdiv = sysfunc("panicdivide");
+		ginscall(panicdiv, -1);
+		patch(p1, pc);
+	}
 	if(check) {
 		nodconst(&n4, t, -1);
 		gins(optoas(OCMP, t), &n3, &n4);
@@ -1045,10 +1063,10 @@ clearfat(Node *nl)
 	agen(nl, &n1);
 
 	savex(D_AX, &ax, &oldax, N, types[tptr]);
-	gconreg(AMOVQ, 0, D_AX);
+	gconreg(AMOVL, 0, D_AX);
 
 	if(q >= 4) {
-		gconreg(AMOVQ, q, D_CX);
+		gconreg(movptr, q, D_CX);
 		gins(AREP, N, N);	// repeat
 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
 	} else
@@ -1111,7 +1129,7 @@ expandchecks(Prog *firstp)
 		p2->lineno = p->lineno;
 		p1->pc = 9999;
 		p2->pc = 9999;
-		p->as = ACMPQ;
+		p->as = cmpptr;
 		p->to.type = D_CONST;
 		p->to.offset = 0;
 		p1->as = AJNE;

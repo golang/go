@@ -16,6 +16,7 @@
 package reflect
 
 import (
+	"runtime"
 	"strconv"
 	"sync"
 	"unsafe"
@@ -1571,6 +1572,10 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	offset := _BUCKETSIZE * unsafe.Sizeof(uint8(0))                // topbits
 	gc = append(gc, _GC_PTR, offset, 0 /*self pointer set below*/) // overflow
 	offset += ptrsize
+
+	if runtime.GOARCH == "amd64p32" {
+		offset += 4
+	}
 
 	// keys
 	if ktyp.kind&kindNoPointers == 0 {

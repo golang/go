@@ -296,6 +296,11 @@ ginit(void)
 
 	for(i=0; i<nelem(resvd); i++)
 		reg[resvd[i]]++;
+	
+	if(nacl) {
+		reg[D_BP]++;
+		reg[D_R15]++;
+	}
 }
 
 void
@@ -305,6 +310,11 @@ gclean(void)
 
 	for(i=0; i<nelem(resvd); i++)
 		reg[resvd[i]]--;
+	if(nacl) {
+		reg[D_BP]--;
+		reg[D_R15]--;
+	}
+
 
 	for(i=D_AX; i<=D_R15; i++)
 		if(reg[i])
@@ -520,7 +530,16 @@ gconreg(int as, vlong c, int reg)
 {
 	Node nr;
 
-	nodreg(&nr, types[TINT64], reg);
+	switch(as) {
+	case AADDL:
+	case AMOVL:
+	case ALEAL:
+		nodreg(&nr, types[TINT32], reg);
+		break;
+	default:
+		nodreg(&nr, types[TINT64], reg);
+	}
+
 	ginscon(as, c, &nr);
 }
 
@@ -533,10 +552,18 @@ ginscon(int as, vlong c, Node *n2)
 {
 	Node n1, ntmp;
 
-	nodconst(&n1, types[TINT64], c);
+	switch(as) {
+	case AADDL:
+	case AMOVL:
+	case ALEAL:
+		nodconst(&n1, types[TINT32], c);
+		break;
+	default:
+		nodconst(&n1, types[TINT64], c);
+	}
 
 	if(as != AMOVQ && (c < -(1LL<<31) || c >= 1LL<<31)) {
-		// cannot have 64-bit immediokate in ADD, etc.
+		// cannot have 64-bit immediate in ADD, etc.
 		// instead, MOV into register first.
 		regalloc(&ntmp, types[TINT64], N);
 		gins(AMOVQ, &n1, &ntmp);
@@ -2040,7 +2067,7 @@ odot:
 	for(i=1; i<o; i++) {
 		if(oary[i] >= 0)
 			fatal("can't happen");
-		gins(AMOVQ, &n1, reg);
+		gins(movptr, &n1, reg);
 		cgen_checknil(reg);
 		n1.xoffset = -(oary[i]+1);
 	}
@@ -2252,7 +2279,7 @@ oindex_const_sudo:
 	if(reg->op == OEMPTY)
 		regalloc(reg, types[tptr], N);
 
-	p1 = gins(AMOVQ, N, reg);
+	p1 = gins(movptr, N, reg);
 	p1->from = *a;
 
 	n2 = *reg;

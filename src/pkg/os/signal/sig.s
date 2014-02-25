@@ -4,7 +4,7 @@
 
 // Assembly to get into package runtime without using exported symbols.
 
-// +build amd64 arm 386
+// +build amd64 amd64p32 arm 386
 
 #include "../../../cmd/ld/textflag.h"
 

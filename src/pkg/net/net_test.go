@@ -62,7 +62,7 @@ func TestShutdown(t *testing.T) {
 
 func TestShutdownUnix(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows", "plan9":
+	case "nacl", "plan9", "windows":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 	f, err := ioutil.TempFile("", "go_net_unixtest")

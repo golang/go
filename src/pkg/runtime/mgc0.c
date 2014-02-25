@@ -2771,6 +2771,7 @@ runtime·MHeap_MapBits(MHeap *h)
 
 	n = (h->arena_used - h->arena_start) / wordsPerBitmapWord;
 	n = ROUND(n, bitmapChunk);
+	n = ROUND(n, PhysPageSize);
 	if(h->bitmap_mapped >= n)
 		return;
 

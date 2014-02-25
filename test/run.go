@@ -45,6 +45,8 @@ var (
 
 	// letter is the build.ArchChar
 	letter string
+	
+	goos, goarch string
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -73,6 +75,10 @@ func main() {
 	if *verbose {
 		*numParallel = 1
 	}
+
+	goos = os.Getenv("GOOS")
+	goarch = os.Getenv("GOARCH")
+	findExecCmd()
 
 	ratec = make(chan bool, *numParallel)
 	rungatec = make(chan bool, *runoutputLimit)
@@ -413,7 +419,7 @@ func (t *test) run() {
 		t.err = errors.New("double newline not found")
 		return
 	}
-	if ok, why := shouldTest(t.src, runtime.GOOS, runtime.GOARCH); !ok {
+	if ok, why := shouldTest(t.src, goos, goarch); !ok {
 		t.action = "skip"
 		if *showSkips {
 			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)
@@ -473,8 +479,12 @@ func (t *test) run() {
 	check(err)
 
 	// A few tests (of things like the environment) require these to be set.
-	os.Setenv("GOOS", runtime.GOOS)
-	os.Setenv("GOARCH", runtime.GOARCH)
+	if os.Getenv("GOOS") == "" {
+		os.Setenv("GOOS", runtime.GOOS)
+	}
+	if os.Getenv("GOARCH") == "" {
+		os.Setenv("GOARCH", runtime.GOARCH)
+	}
 
 	useTmp := true
 	runcmd := func(args ...string) ([]byte, error) {
@@ -589,7 +599,11 @@ func (t *test) run() {
 					t.err = err
 					return
 				}
-				out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
+				var cmd []string
+				cmd = append(cmd, findExecCmd()...)
+				cmd = append(cmd, filepath.Join(t.tempDir, "a.exe"))
+				cmd = append(cmd, args...)
+				out, err := runcmd(cmd...)
 				if err != nil {
 					t.err = err
 					return
@@ -670,6 +684,23 @@ func (t *test) run() {
 		return
 	}
 }
+
+var execCmd []string
+
+func findExecCmd() []string {
+	if execCmd != nil {
+		return execCmd
+	}
+	execCmd = []string{} // avoid work the second time
+	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+		return execCmd
+	}
+	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch))
+	if err == nil {
+		execCmd = []string{path}
+	}
+	return execCmd
+}	
 
 func (t *test) String() string {
 	return filepath.Join(t.dir, t.gofile)

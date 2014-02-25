@@ -7,5 +7,10 @@ enum {
 	BigEndian = 0,
 	CacheLineSize = 64,
 	RuntimeGogoBytes = 64,
+#ifdef GOOS_nacl
+	PhysPageSize = 65536,
+#else
+	PhysPageSize = 4096,
+#endif
 	PCQuantum = 1
 };

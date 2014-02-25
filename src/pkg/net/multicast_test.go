@@ -25,7 +25,7 @@ var ipv4MulticastListenerTests = []struct {
 // port.
 func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9":
+	case "nacl", "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	case "solaris":
 		t.Skipf("skipping test on solaris, see issue 7399")
