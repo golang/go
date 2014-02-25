@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jan 14, 2014",
+	"Subtitle": "Version of Feb 25, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -4459,8 +4459,8 @@ If no case matches and there is a "default" case,
 its statements are executed.
 There can be at most one default case and it may appear anywhere in the
 "switch" statement.
-A missing switch expression is equivalent to
-the expression <code>true</code>.
+A missing switch expression is equivalent to the boolean value
+<code>true</code>.
 </p>
 
 <pre class="ebnf">
@@ -4625,7 +4625,8 @@ Condition = Expression .
 In its simplest form, a "for" statement specifies the repeated execution of
 a block as long as a boolean condition evaluates to true.
 The condition is evaluated before each iteration.
-If the condition is absent, it is equivalent to <code>true</code>.
+If the condition is absent, it is equivalent to the boolean value
+<code>true</code>.
 </p>
 
 <pre>
@@ -4662,7 +4663,8 @@ only if the block was executed).
 Any element of the ForClause may be empty but the
 <a href="#Semicolons">semicolons</a> are
 required unless there is only a condition.
-If the condition is absent, it is equivalent to <code>true</code>.
+If the condition is absent, it is equivalent to the boolean value
+<code>true</code>.
 </p>
 
 <pre>
