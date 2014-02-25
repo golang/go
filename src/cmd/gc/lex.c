@@ -301,6 +301,7 @@ main(int argc, char *argv[])
 	flagcount("l", "disable inlining", &debug['l']);
 	flagcount("live", "debug liveness analysis", &debuglive);
 	flagcount("m", "print optimization decisions", &debug['m']);
+	flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports);
 	flagstr("o", "obj: set output file", &outfile);
 	flagstr("p", "path: set expected package import path", &myimportpath);
 	flagcount("pack", "write package file instead of object file", &writearchive);
@@ -610,7 +611,7 @@ findpkg(Strlit *name)
 	char *q, *suffix, *suffixsep;
 
 	if(islocalname(name)) {
-		if(safemode)
+		if(safemode || nolocalimports)
 			return 0;
 		// try .a before .6.  important for building libraries:
 		// if there is an array.6 in the array.a library,
