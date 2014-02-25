@@ -1722,6 +1722,73 @@ func TestTransportClosesRequestBody(t *testing.T) {
 	}
 }
 
+func TestTransportTLSHandshakeTimeout(t *testing.T) {
+	defer afterTest(t)
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	ln := newLocalListener(t)
+	defer ln.Close()
+	testdonec := make(chan struct{})
+	defer close(testdonec)
+
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		<-testdonec
+		c.Close()
+	}()
+
+	getdonec := make(chan struct{})
+	go func() {
+		defer close(getdonec)
+		tr := &Transport{
+			Dial: func(_, _ string) (net.Conn, error) {
+				return net.Dial("tcp", ln.Addr().String())
+			},
+			TLSHandshakeTimeout: 250 * time.Millisecond,
+		}
+		cl := &Client{Transport: tr}
+		_, err := cl.Get("https://dummy.tld/")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		ue, ok := err.(*url.Error)
+		if !ok {
+			t.Fatalf("expected url.Error; got %#v", err)
+		}
+		ne, ok := ue.Err.(net.Error)
+		if !ok {
+			t.Fatalf("expected net.Error; got %#v", err)
+		}
+		if !ne.Timeout() {
+			t.Error("expected timeout error; got %v", err)
+		}
+		if !strings.Contains(err.Error(), "handshake timeout") {
+			t.Error("expected 'handshake timeout' in error; got %v", err)
+		}
+	}()
+	select {
+	case <-getdonec:
+	case <-time.After(5 * time.Second):
+		t.Error("test timeout; TLS handshake hung?")
+	}
+}
+
+func newLocalListener(t *testing.T) net.Listener {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		ln, err = net.Listen("tcp6", "[::1]:0")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ln
+}
+
 type countCloseReader struct {
 	n *int
 	io.Reader
