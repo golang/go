@@ -28,7 +28,6 @@ EXTERN	Node*	panicindex;
 EXTERN	Node*	panicslice;
 EXTERN	Node*	throwreturn;
 extern	long	unmappedzero;
-EXTERN	int	maxstksize;
 
 /*
  * gen.c

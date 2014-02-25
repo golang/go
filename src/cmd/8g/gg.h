@@ -31,7 +31,6 @@ EXTERN	Node*	panicindex;
 EXTERN	Node*	panicslice;
 EXTERN	Node*	panicdiv;
 EXTERN	Node*	throwreturn;
-EXTERN	int	maxstksize;
 extern	uint32	unmappedzero;
 
 
