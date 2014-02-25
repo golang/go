@@ -36,6 +36,7 @@ var DefaultTransport RoundTripper = &Transport{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).Dial,
+	TLSHandshakeTimeout: 10 * time.Second,
 }
 
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
@@ -68,6 +69,10 @@ type Transport struct {
 	// TLSClientConfig specifies the TLS configuration to use with
 	// tls.Client. If nil, the default configuration is used.
 	TLSClientConfig *tls.Config
+
+	// TLSHandshakeTimeout specifies the maximum amount of time waiting to
+	// wait for a TLS handshake. Zero means no timeout.
+	TLSHandshakeTimeout time.Duration
 
 	// DisableKeepAlives, if true, prevents re-use of TCP connections
 	// between different HTTP requests.
@@ -542,16 +547,33 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 				cfg = &clone
 			}
 		}
-		conn = tls.Client(conn, cfg)
-		if err = conn.(*tls.Conn).Handshake(); err != nil {
+		plainConn := conn
+		tlsConn := tls.Client(plainConn, cfg)
+		errc := make(chan error, 2)
+		var timer *time.Timer // for canceling TLS handshake
+		if d := t.TLSHandshakeTimeout; d != 0 {
+			timer = time.AfterFunc(d, func() {
+				errc <- tlsHandshakeTimeoutError{}
+			})
+		}
+		go func() {
+			err := tlsConn.Handshake()
+			if timer != nil {
+				timer.Stop()
+			}
+			errc <- err
+		}()
+		if err := <-errc; err != nil {
+			plainConn.Close()
 			return nil, err
 		}
 		if !cfg.InsecureSkipVerify {
-			if err = conn.(*tls.Conn).VerifyHostname(cfg.ServerName); err != nil {
+			if err := tlsConn.VerifyHostname(cfg.ServerName); err != nil {
+				plainConn.Close()
 				return nil, err
 			}
 		}
-		pconn.conn = conn
+		pconn.conn = tlsConn
 	}
 
 	pconn.br = bufio.NewReader(pconn.conn)
@@ -1084,3 +1106,9 @@ type readerAndCloser struct {
 	io.Reader
 	io.Closer
 }
+
+type tlsHandshakeTimeoutError struct{}
+
+func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
+func (tlsHandshakeTimeoutError) Temporary() bool { return true }
+func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
