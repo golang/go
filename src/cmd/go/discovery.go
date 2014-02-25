@@ -43,6 +43,9 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 	for {
 		t, err = d.Token()
 		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
 			return
 		}
 		if e, ok := t.(xml.StartElement); ok && strings.EqualFold(e.Name.Local, "body") {
