@@ -906,7 +906,7 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
 	for _, s := range list {
 		// ignore empty statements (was issue 3466)
 		if _, isEmpty := s.(*ast.EmptyStmt); !isEmpty {
-			// _indent == 0 only for lists of switch/select case clauses;
+			// nindent == 0 only for lists of switch/select case clauses;
 			// in those cases each clause is a new section
 			if len(p.output) > 0 {
 				// only print line break if we are not at the beginning of the output
@@ -914,13 +914,26 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
 				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
 			}
 			p.stmt(s, nextIsRBrace && i == len(list)-1)
-			multiLine = p.isMultiLine(s)
+			// labeled statements put labels on a separate line, but here
+			// we only care about whether the actual statement w/o label
+			// is a multi-line statement - remove the label first
+			// (was issue 5623)
+			multiLine = p.isMultiLine(unlabeledStmt(s))
 			i++
 		}
 	}
 	if nindent > 0 {
 		p.print(unindent)
 	}
+}
+
+// unlabeledStmt returns the statement of a labeled statement s;
+// otherwise it return s.
+func unlabeledStmt(s ast.Stmt) ast.Stmt {
+	if s, _ := s.(*ast.LabeledStmt); s != nil {
+		return unlabeledStmt(s.Stmt)
+	}
+	return s
 }
 
 // block prints an *ast.BlockStmt; it always spans at least two lines.
