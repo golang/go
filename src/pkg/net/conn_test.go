@@ -33,7 +33,7 @@ func TestConnAndListener(t *testing.T) {
 		switch tt.net {
 		case "unix", "unixpacket":
 			switch runtime.GOOS {
-			case "plan9", "windows":
+			case "plan9", "windows", "nacl":
 				continue
 			}
 			if tt.net == "unixpacket" && runtime.GOOS != "linux" {

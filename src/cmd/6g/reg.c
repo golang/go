@@ -487,7 +487,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	// need to clean this up with wptr and
 	// some of the defaults
 	p1->as = AMOVL;
-	switch(v->etype) {
+	switch(simtype[(uchar)v->etype]) {
 	default:
 		fatal("unknown type %E", v->etype);
 	case TINT8:
@@ -501,7 +501,6 @@ addmove(Reg *r, int bn, int rn, int f)
 		break;
 	case TINT64:
 	case TUINT64:
-	case TUINTPTR:
 	case TPTR64:
 		p1->as = AMOVQ;
 		break;
@@ -511,8 +510,6 @@ addmove(Reg *r, int bn, int rn, int f)
 	case TFLOAT64:
 		p1->as = AMOVSD;
 		break;
-	case TINT:
-	case TUINT:
 	case TINT32:
 	case TUINT32:
 	case TPTR32:
@@ -1088,6 +1085,8 @@ int
 BtoR(int32 b)
 {
 	b &= 0xffffL;
+	if(nacl)
+		b &= ~((1<<(D_BP-D_AX)) | (1<<(D_R15-D_AX)));
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;

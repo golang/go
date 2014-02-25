@@ -1209,7 +1209,7 @@ func ArchChar(goarch string) (string, error) {
 	switch goarch {
 	case "386":
 		return "8", nil
-	case "amd64":
+	case "amd64", "amd64p32":
 		return "6", nil
 	case "arm":
 		return "5", nil

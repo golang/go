@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
 package net
 
@@ -24,6 +24,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
+		println("getsockopt failed", fd, err.Error())
 		closesocket(fd)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}

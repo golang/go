@@ -38,13 +38,14 @@ static void dopack(char*, char*, char**, int);
 static char *findgoversion(void);
 
 // The known architecture letters.
-static char *gochars = "568";
+static char *gochars = "5668";
 
 // The known architectures.
 static char *okgoarch[] = {
 	// same order as gochars
 	"arm",
 	"amd64",
+	"amd64p32",
 	"386",
 };
 
@@ -55,6 +56,7 @@ static char *okgoos[] = {
 	"linux",
 	"solaris",
 	"freebsd",
+	"nacl",
 	"netbsd",
 	"openbsd",
 	"plan9",

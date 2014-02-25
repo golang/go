@@ -293,6 +293,8 @@ func runTest(cmd *Command, args []string) {
 	var pkgArgs []string
 	pkgArgs, testArgs = testFlags(args)
 
+	findExecCmd() // initialize cached result
+
 	raceInit()
 	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
@@ -835,7 +837,7 @@ func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
 
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
-	args := stringList(a.deps[0].target, testArgs)
+	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
 	a.testOutput = new(bytes.Buffer)
 
 	if buildN || buildX {

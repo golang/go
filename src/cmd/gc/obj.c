@@ -47,7 +47,7 @@ dumpobj(void)
 		Bwrite(bout, arhdr, sizeof arhdr);
 		startobj = Boffset(bout);
 	}
-	Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
+	Bprint(bout, "go object %s %s %s %s\n", getgoos(), getgoarch(), getgoversion(), expstring());
 	dumpexport();
 	
 	if(writearchive) {

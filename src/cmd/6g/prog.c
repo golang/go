@@ -143,6 +143,7 @@ static ProgInfo progtable[ALAST] = {
 
 	[AJMP]=		{Jump | Break | KillCarry},
 
+	[ALEAL]=	{LeftAddr | RightWrite},
 	[ALEAQ]=	{LeftAddr | RightWrite},
 
 	[AMOVBLSX]=	{SizeL | LeftRead | RightWrite | Conv},

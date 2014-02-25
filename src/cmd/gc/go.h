@@ -950,6 +950,7 @@ EXTERN	Node*	curfn;
 
 EXTERN	int	widthptr;
 EXTERN	int	widthint;
+EXTERN	int	widthreg;
 
 EXTERN	Node*	typesw;
 EXTERN	Node*	nblank;
@@ -981,6 +982,8 @@ EXTERN	int	precisestack_enabled;
 EXTERN	int	writearchive;
 
 EXTERN	Biobuf	bstdout;
+
+EXTERN	int	nacl;
 
 /*
  *	y.tab.c

@@ -258,8 +258,18 @@ main(int argc, char *argv[])
 
 	goroot = getgoroot();
 	goos = getgoos();
-	goarch = thestring;
+
+	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// but not other values.	
+	p = getgoarch();
+	if(strncmp(p, thestring, strlen(thestring)) != 0)
+		fatal("cannot use %cg with GOARCH=%s", thechar, p);
+	goarch = p;
 	
+	nacl = strcmp(goos, "nacl") == 0;
+	if(nacl)
+		flag_largemodel = 1;
+
 	setexp();
 
 	outfile = nil;
@@ -779,7 +789,7 @@ importfile(Val *f, int line)
 			yyerror("import %s: not a go object file", file);
 			errorexit();
 		}
-		q = smprint("%s %s %s %s", getgoos(), thestring, getgoversion(), expstring());
+		q = smprint("%s %s %s %s", getgoos(), getgoarch(), getgoversion(), expstring());
 		if(strcmp(p+10, q) != 0) {
 			yyerror("import %s: object is [%s] expected [%s]", file, p+10, q);
 			errorexit();

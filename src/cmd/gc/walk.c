@@ -1059,7 +1059,7 @@ walkexpr(Node **np, NodeList **init)
 		switch(n->op) {
 		case OMOD:
 		case ODIV:
-			if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+			if(widthreg >= 8 || (et != TUINT64 && et != TINT64))
 				goto ret;
 			if(et == TINT64)
 				strcpy(namebuf, "int64");

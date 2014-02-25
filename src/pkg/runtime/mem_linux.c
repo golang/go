@@ -11,6 +11,7 @@
 enum
 {
 	_PAGE_SIZE = 4096,
+	EACCES = 13,
 };
 
 static int32

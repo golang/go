@@ -21,8 +21,14 @@ EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	panicindex;
 EXTERN	Node*	panicslice;
+EXTERN	Node*	panicdiv;
 EXTERN	Node*	throwreturn;
 extern	vlong	unmappedzero;
+extern	int	addptr;
+extern	int	cmpptr;
+extern	int	movptr;
+extern	int	leaptr;
+extern	int	stosptr;
 
 /*
  * ggen.c

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 386
+// +build amd64 amd64p32 386
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
@@ -52,7 +52,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	// Start in the caller's frame.
 	if(frame.pc == 0) {
 		frame.pc = *(uintptr*)frame.sp;
-		frame.sp += sizeof(uintptr);
+		frame.sp += sizeof(uintreg);
 	}
 	
 	f = runtime·findfunc(frame.pc);
@@ -101,14 +101,14 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// Derive frame pointer and link register.
 		if(frame.fp == 0) {
 			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
-			frame.fp += sizeof(uintptr); // caller PC
+			frame.fp += sizeof(uintreg); // caller PC
 		}
 		if(runtime·topofstack(f)) {
 			frame.lr = 0;
 			flr = nil;
 		} else {
 			if(frame.lr == 0)
-				frame.lr = ((uintptr*)frame.fp)[-1];
+				frame.lr = ((uintreg*)frame.fp)[-1];
 			flr = runtime·findfunc(frame.lr);
 			if(flr == nil) {
 				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
@@ -117,7 +117,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			}
 		}
 		
-		frame.varp = (byte*)frame.fp - sizeof(uintptr);
+		frame.varp = (byte*)frame.fp - sizeof(uintreg);
 
 		// Derive size of arguments.
 		// Most functions have a fixed-size argument block,

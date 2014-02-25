@@ -21,11 +21,19 @@ typedef	uint64		uintptr;
 typedef	int64		intptr;
 typedef	int64		intgo; // Go's int
 typedef	uint64		uintgo; // Go's uint
+typedef	uint64		uintreg;
 #else
 typedef	uint32		uintptr;
 typedef	int32		intptr;
 typedef	int32		intgo; // Go's int
 typedef	uint32		uintgo; // Go's uint
+typedef	uint32		uintreg;
+#endif
+
+#ifdef _64BITREG
+//typedef	uint64		uintreg;
+#else
+//typedef	uint32		uintreg;
 #endif
 
 /*
@@ -209,8 +217,8 @@ struct	Gobuf
 	uintptr	sp;
 	uintptr	pc;
 	G*	g;
-	uintptr	ret;
 	void*	ctxt;
+	uintreg	ret;
 	uintptr	lr;
 };
 struct	GCStats
@@ -295,8 +303,8 @@ struct	M
 
 	// Fields not known to debuggers.
 	uint32	moreframesize;	// size arguments to morestack
-	uint32	moreargsize;
-	uintptr	cret;		// return value from C
+	uint32	moreargsize;	// known by amd64 asm to follow moreframesize
+	uintreg	cret;		// return value from C
 	uint64	procid;		// for debuggers, but offset not hard-coded
 	G*	gsignal;	// signal-handling G
 	uintptr	tls[4];		// thread-local storage (for x86 extern register)
@@ -479,6 +487,16 @@ struct	Itab
 	void	(*fun[])(void);
 };
 
+#ifdef GOOS_nacl
+enum {
+   NaCl = 1,
+};
+#else
+enum {
+   NaCl = 0,
+};
+#endif
+
 #ifdef GOOS_windows
 enum {
    Windows = 1
@@ -512,6 +530,8 @@ struct	Timers
 
 // Package time knows the layout of this structure.
 // If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
+// For GOOS=nacl, package syscall knows the layout of this structure.
+// If this struct changes, adjust ../syscall/net_nacl.go:/runtimeTimer.
 struct	Timer
 {
 	int32	i;	// heap index
@@ -588,7 +608,7 @@ extern bool runtime·precisestack;
  * known to compiler
  */
 enum {
-	Structrnd = sizeof(uintptr)
+	Structrnd = sizeof(uintreg),
 };
 
 /*
@@ -762,6 +782,7 @@ void	runtime·dump(byte*, int32);
 int32	runtime·runetochar(byte*, int32);
 int32	runtime·charntorune(int32*, uint8*, int32);
 
+
 /*
  * This macro is used when writing C functions
  * called as if they were Go functions.
@@ -774,8 +795,6 @@ int32	runtime·charntorune(int32*, uint8*, int32);
  * first output value. Almost all code should write such
  * functions in .goc files, where goc2c (part of cmd/dist)
  * can arrange the correct alignment for the target system.
- * Goc2c also takes care of conveying to the garbage collector
- * which parts of the argument list are input vs outputs.
  *
  * Therefore, do NOT use this macro if at all possible.
  */ 
@@ -926,6 +945,7 @@ void	runtime·parsedebugvars(void);
 void	_rt0_go(void);
 void*	runtime·funcdata(Func*, int32);
 int32	runtime·setmaxthreads(int32);
+G*	runtime·timejump(void);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"c"	int32
@@ -1017,13 +1037,6 @@ void	runtime·parfordo(ParFor *desc);
 void	runtime·parforiters(ParFor*, uintptr, uintptr*, uintptr*);
 
 /*
- * This is consistent across Linux and BSD.
- * If a new OS is added that is different, move this to
- * $GOOS/$GOARCH/defs.h.
- */
-#define EACCES		13
-
-/*
  * low level C-called
  */
 // for mmap, we only pass the lower 32 bits of file offset to the 
@@ -1057,6 +1070,7 @@ void	reflect·call(FuncVal*, byte*, uint32);
 void	runtime·panic(Eface);
 void	runtime·panicindex(void);
 void	runtime·panicslice(void);
+void	runtime·panicdivide(void);
 
 /*
  * runtime c-called (but written in Go)

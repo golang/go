@@ -175,11 +175,11 @@ dowidth(Type *t)
 	case TFLOAT64:
 	case TCOMPLEX64:
 		w = 8;
-		t->align = widthptr;
+		t->align = widthreg;
 		break;
 	case TCOMPLEX128:
 		w = 16;
-		t->align = widthptr;
+		t->align = widthreg;
 		break;
 	case TPTR32:
 		w = 4;
@@ -288,10 +288,10 @@ dowidth(Type *t)
 		// compute their widths as side-effect.
 		t1 = t->type;
 		w = widstruct(t->type, *getthis(t1), 0, 0);
-		w = widstruct(t->type, *getinarg(t1), w, widthptr);
-		w = widstruct(t->type, *getoutarg(t1), w, widthptr);
+		w = widstruct(t->type, *getinarg(t1), w, widthreg);
+		w = widstruct(t->type, *getoutarg(t1), w, widthreg);
 		t1->argwid = w;
-		if(w%widthptr)
+		if(w%widthreg)
 			warn("bad type %T %d\n", t1, w);
 		t->align = 1;
 		break;

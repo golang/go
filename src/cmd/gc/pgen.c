@@ -426,7 +426,7 @@ allocauto(Prog* ptxt)
 		}
 		n->stkdelta = -stksize - n->xoffset;
 	}
-	stksize = rnd(stksize, widthptr);
+	stksize = rnd(stksize, widthreg);
 	stkptrsize = rnd(stkptrsize, widthptr);
 	stkzerosize = rnd(stkzerosize, widthptr);
 

@@ -36,12 +36,6 @@ typedef signed char     schar;
 
 #define SIGN(n) (1UL<<(n-1))
 
-void
-runtime·panicdivide(void)
-{
-	runtime·panicstring("integer divide by zero");
-}
-
 typedef struct  Vlong   Vlong;
 struct  Vlong
 {
