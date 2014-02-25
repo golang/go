@@ -487,3 +487,9 @@ runtime·Goexit(void)
 	rundefer();
 	runtime·goexit();
 }
+
+void
+runtime·panicdivide(void)
+{
+	runtime·panicstring("integer divide by zero");
+}
