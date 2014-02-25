@@ -30,11 +30,20 @@ func findExecCmd() []string {
 }
 
 var cmdRun = &Command{
-	UsageLine: "run [build flags] gofiles... [arguments...]",
+	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
 A Go source file is defined to be a file ending in a literal ".go" suffix.
+
+By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
+If the -exec flag is given, 'go run' invokes the binary using xprog: 'xprog a.out arguments...'.
+If the -exec flag is not given, GOOS or GOARCH is different from the system
+default, and a program named go_$GOOS_$GOARCH_exec can be found
+on the current search path, 'go run' invokes the binary using that program,
+for example 'go_nacl_386_exec a.out arguments...'. This allows execution of
+cross-compiled programs when a simulator or other execution method is
+available.
 
 For more about build flags, see 'go help build'.
 
