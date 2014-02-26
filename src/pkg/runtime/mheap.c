@@ -571,6 +571,7 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 	span->freelist = nil;
 	span->ref = 0;
 	span->sizeclass = 0;
+	span->incache = false;
 	span->elemsize = 0;
 	span->state = MSpanDead;
 	span->unusedsince = 0;
@@ -579,6 +580,7 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 	span->specialLock.key = 0;
 	span->specials = nil;
 	span->needzero = 0;
+	span->freebuf = nil;
 }
 
 // Initialize an empty doubly-linked list.

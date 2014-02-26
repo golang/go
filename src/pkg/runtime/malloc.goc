@@ -27,8 +27,9 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
 
 extern volatile intgo runtime·MemProfileRate;
 
-static void* largealloc(uint32, uintptr*);
+static MSpan* largealloc(uint32, uintptr*);
 static void profilealloc(void *v, uintptr size, uintptr typ);
+static void settype(MSpan *s, void *v, uintptr typ);
 
 // Allocate an object of at least size bytes.
 // Small objects are allocated from the per-thread cache's free lists.
@@ -41,7 +42,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	uintptr tinysize, size1;
 	intgo rate;
 	MCache *c;
-	MCacheList *l;
+	MSpan *s;
 	MLink *v, *next;
 	byte *tiny;
 
@@ -53,8 +54,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	}
 	if(m->mallocing)
 		runtime·throw("malloc/free - deadlock");
-	// Disable preemption during settype_flush.
-	// We can not use m->mallocing for this, because settype_flush calls mallocgc.
+	// Disable preemption during settype.
+	// We can not use m->mallocing for this, because settype calls mallocgc.
 	m->locks++;
 	m->mallocing = 1;
 
@@ -118,15 +119,15 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 				}
 			}
 			// Allocate a new TinySize block.
-			l = &c->list[TinySizeClass];
-			if(l->list == nil)
-				runtime·MCache_Refill(c, TinySizeClass);
-			v = l->list;
+			s = c->alloc[TinySizeClass];
+			if(s->freelist == nil)
+				s = runtime·MCache_Refill(c, TinySizeClass);
+			v = s->freelist;
 			next = v->next;
+			s->freelist = next;
+			s->ref++;
 			if(next != nil)  // prefetching nil leads to a DTLB miss
 				PREFETCH(next);
-			l->list = next;
-			l->nlist--;
 			((uint64*)v)[0] = 0;
 			((uint64*)v)[1] = 0;
 			// See if we need to replace the existing tiny block with the new one
@@ -145,15 +146,15 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		else
 			sizeclass = runtime·size_to_class128[(size-1024+127) >> 7];
 		size = runtime·class_to_size[sizeclass];
-		l = &c->list[sizeclass];
-		if(l->list == nil)
-			runtime·MCache_Refill(c, sizeclass);
-		v = l->list;
+		s = c->alloc[sizeclass];
+		if(s->freelist == nil)
+			s = runtime·MCache_Refill(c, sizeclass);
+		v = s->freelist;
 		next = v->next;
+		s->freelist = next;
+		s->ref++;
 		if(next != nil)  // prefetching nil leads to a DTLB miss
 			PREFETCH(next);
-		l->list = next;
-		l->nlist--;
 		if(!(flag & FlagNoZero)) {
 			v->next = nil;
 			// block is zeroed iff second word is zero ...
@@ -164,7 +165,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		c->local_cachealloc += size;
 	} else {
 		// Allocate directly from heap.
-		v = largealloc(flag, &size);
+		s = largealloc(flag, &size);
+		v = (void*)(s->start << PageShift);
 	}
 
 	if(flag & FlagNoGC)
@@ -175,21 +177,12 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	if(DebugTypeAtBlockEnd)
 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
 
+	m->mallocing = 0;
 	// TODO: save type even if FlagNoScan?  Potentially expensive but might help
 	// heap profiling/tracing.
-	if(UseSpanType && !(flag & FlagNoScan) && typ != 0) {
-		uintptr *buf, i;
+	if(UseSpanType && !(flag & FlagNoScan) && typ != 0)
+		settype(s, v, typ);
 
-		buf = m->settype_buf;
-		i = m->settype_bufsize;
-		buf[i++] = (uintptr)v;
-		buf[i++] = typ;
-		m->settype_bufsize = i;
-	}
-
-	m->mallocing = 0;
-	if(UseSpanType && !(flag & FlagNoScan) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
-		runtime·settype_flush(m);
 	if(raceenabled)
 		runtime·racemalloc(v, size);
 
@@ -215,7 +208,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	return v;
 }
 
-static void*
+static MSpan*
 largealloc(uint32 flag, uintptr *sizep)
 {
 	uintptr npages, size;
@@ -237,7 +230,7 @@ largealloc(uint32 flag, uintptr *sizep)
 	v = (void*)(s->start << PageShift);
 	// setup for mark sweep
 	runtime·markspan(v, 0, 0, true);
-	return v;
+	return s;
 }
 
 static void
@@ -318,7 +311,7 @@ runtime·free(void *v)
 		s->needzero = 1;
 		// Must mark v freed before calling unmarkspan and MHeap_Free:
 		// they might coalesce v into other spans and change the bitmap further.
-		runtime·markfreed(v, size);
+		runtime·markfreed(v);
 		runtime·unmarkspan(v, 1<<PageShift);
 		if(runtime·debug.efence)
 			runtime·SysFree((void*)(s->start<<PageShift), size, &mstats.heap_sys);
@@ -335,9 +328,17 @@ runtime·free(void *v)
 		// Must mark v freed before calling MCache_Free:
 		// it might coalesce v and other blocks into a bigger span
 		// and change the bitmap further.
-		runtime·markfreed(v, size);
 		c->local_nsmallfree[sizeclass]++;
-		runtime·MCache_Free(c, v, sizeclass, size);
+		if(c->alloc[sizeclass] == s) {
+			// We own the span, so we can just add v to the freelist
+			runtime·markfreed(v);
+			((MLink*)v)->next = s->freelist;
+			s->freelist = v;
+			s->ref--;
+		} else {
+			// Someone else owns this span.  Add to free queue.
+			runtime·MCache_Free(c, v, sizeclass, size);
+		}
 	}
 	m->mallocing = 0;
 }
@@ -388,37 +389,6 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 		*size = n;
 
 	return 1;
-}
-
-MCache*
-runtime·allocmcache(void)
-{
-	intgo rate;
-	MCache *c;
-
-	runtime·lock(&runtime·mheap);
-	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
-	runtime·unlock(&runtime·mheap);
-	runtime·memclr((byte*)c, sizeof(*c));
-
-	// Set first allocation sample size.
-	rate = runtime·MemProfileRate;
-	if(rate > 0x3fffffff)	// make 2*rate not overflow
-		rate = 0x3fffffff;
-	if(rate != 0)
-		c->next_sample = runtime·fastrand1() % (2*rate);
-
-	return c;
-}
-
-void
-runtime·freemcache(MCache *c)
-{
-	runtime·MCache_ReleaseAll(c);
-	runtime·lock(&runtime·mheap);
-	runtime·purgecachedstats(c);
-	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
-	runtime·unlock(&runtime·mheap);
 }
 
 void
@@ -696,94 +666,67 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
 	return p;
 }
 
-static Lock settype_lock;
-
-void
-runtime·settype_flush(M *mp)
+static void
+settype(MSpan *s, void *v, uintptr typ)
 {
-	uintptr *buf, *endbuf;
 	uintptr size, ofs, j, t;
 	uintptr ntypes, nbytes2, nbytes3;
 	uintptr *data2;
 	byte *data3;
-	void *v;
-	uintptr typ, p;
-	MSpan *s;
 
-	buf = mp->settype_buf;
-	endbuf = buf + mp->settype_bufsize;
-
-	runtime·lock(&settype_lock);
-	while(buf < endbuf) {
-		v = (void*)*buf;
-		*buf = 0;
-		buf++;
-		typ = *buf;
-		buf++;
-
-		// (Manually inlined copy of runtime·MHeap_Lookup)
-		p = (uintptr)v>>PageShift;
-		p -= (uintptr)runtime·mheap.arena_start >> PageShift;
-		s = runtime·mheap.spans[p];
-
-		if(s->sizeclass == 0) {
-			s->types.compression = MTypes_Single;
-			s->types.data = typ;
-			continue;
-		}
-
-		size = s->elemsize;
-		ofs = ((uintptr)v - (s->start<<PageShift)) / size;
-
-		switch(s->types.compression) {
-		case MTypes_Empty:
-			ntypes = (s->npages << PageShift) / size;
-			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
-			data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
-			s->types.compression = MTypes_Bytes;
-			s->types.data = (uintptr)data3;
-			((uintptr*)data3)[1] = typ;
-			data3[8*sizeof(uintptr) + ofs] = 1;
-			break;
-
-		case MTypes_Words:
-			((uintptr*)s->types.data)[ofs] = typ;
-			break;
-
-		case MTypes_Bytes:
-			data3 = (byte*)s->types.data;
-			for(j=1; j<8; j++) {
-				if(((uintptr*)data3)[j] == typ) {
-					break;
-				}
-				if(((uintptr*)data3)[j] == 0) {
-					((uintptr*)data3)[j] = typ;
-					break;
-				}
-			}
-			if(j < 8) {
-				data3[8*sizeof(uintptr) + ofs] = j;
-			} else {
-				ntypes = (s->npages << PageShift) / size;
-				nbytes2 = ntypes * sizeof(uintptr);
-				data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
-				s->types.compression = MTypes_Words;
-				s->types.data = (uintptr)data2;
-
-				// Move the contents of data3 to data2. Then deallocate data3.
-				for(j=0; j<ntypes; j++) {
-					t = data3[8*sizeof(uintptr) + j];
-					t = ((uintptr*)data3)[t];
-					data2[j] = t;
-				}
-				data2[ofs] = typ;
-			}
-			break;
-		}
+	if(s->sizeclass == 0) {
+		s->types.compression = MTypes_Single;
+		s->types.data = typ;
+		return;
 	}
-	runtime·unlock(&settype_lock);
+	size = s->elemsize;
+	ofs = ((uintptr)v - (s->start<<PageShift)) / size;
 
-	mp->settype_bufsize = 0;
+	switch(s->types.compression) {
+	case MTypes_Empty:
+		ntypes = (s->npages << PageShift) / size;
+		nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+		data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
+		s->types.compression = MTypes_Bytes;
+		s->types.data = (uintptr)data3;
+		((uintptr*)data3)[1] = typ;
+		data3[8*sizeof(uintptr) + ofs] = 1;
+		break;
+		
+	case MTypes_Words:
+		((uintptr*)s->types.data)[ofs] = typ;
+		break;
+		
+	case MTypes_Bytes:
+		data3 = (byte*)s->types.data;
+		for(j=1; j<8; j++) {
+			if(((uintptr*)data3)[j] == typ) {
+				break;
+			}
+			if(((uintptr*)data3)[j] == 0) {
+				((uintptr*)data3)[j] = typ;
+				break;
+			}
+		}
+		if(j < 8) {
+			data3[8*sizeof(uintptr) + ofs] = j;
+		} else {
+			ntypes = (s->npages << PageShift) / size;
+			nbytes2 = ntypes * sizeof(uintptr);
+			data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
+			s->types.compression = MTypes_Words;
+			s->types.data = (uintptr)data2;
+			
+			// Move the contents of data3 to data2. Then deallocate data3.
+			for(j=0; j<ntypes; j++) {
+				t = data3[8*sizeof(uintptr) + j];
+				t = ((uintptr*)data3)[t];
+				data2[j] = t;
+			}
+			data2[ofs] = typ;
+		}
+		break;
+	}
 }
 
 uintptr
@@ -816,9 +759,7 @@ runtime·gettype(void *v)
 			runtime·throw("runtime·gettype: invalid compression kind");
 		}
 		if(0) {
-			runtime·lock(&settype_lock);
 			runtime·printf("%p -> %d,%X\n", v, (int32)s->types.compression, (int64)t);
-			runtime·unlock(&settype_lock);
 		}
 		return t;
 	}

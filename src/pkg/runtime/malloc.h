@@ -20,7 +20,7 @@
 //	MHeap: the malloc heap, managed at page (4096-byte) granularity.
 //	MSpan: a run of pages managed by the MHeap.
 //	MCentral: a shared free list for a given size class.
-//	MCache: a per-thread (in Go, per-M) cache for small objects.
+//	MCache: a per-thread (in Go, per-P) cache for small objects.
 //	MStats: allocation statistics.
 //
 // Allocating a small object proceeds up a hierarchy of caches:
@@ -281,8 +281,6 @@ extern	int8	runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 extern	void	runtime·InitSizes(void);
 
 
-// Per-thread (in Go, per-M) cache for small objects.
-// No locking needed because it is per-thread (per-M).
 typedef struct MCacheList MCacheList;
 struct MCacheList
 {
@@ -290,6 +288,8 @@ struct MCacheList
 	uint32 nlist;
 };
 
+// Per-thread (in Go, per-P) cache for small objects.
+// No locking needed because it is per-thread (per-P).
 struct MCache
 {
 	// The following members are accessed on every malloc,
@@ -301,7 +301,8 @@ struct MCache
 	byte*	tiny;
 	uintptr	tinysize;
 	// The rest is not accessed on every malloc.
-	MCacheList list[NumSizeClasses];
+	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
+	MCacheList free[NumSizeClasses];// lists of explicitly freed objects
 	// Local allocator stats, flushed during GC.
 	uintptr local_nlookup;		// number of pointer lookups
 	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
@@ -309,8 +310,8 @@ struct MCache
 	uintptr local_nsmallfree[NumSizeClasses];	// number of frees for small objects (<=MaxSmallSize)
 };
 
-void	runtime·MCache_Refill(MCache *c, int32 sizeclass);
-void	runtime·MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
+MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
+void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
 void	runtime·MCache_ReleaseAll(MCache *c);
 
 // MTypes describes the types of blocks allocated within a span.
@@ -409,8 +410,9 @@ struct MSpan
 	// if sweepgen == h->sweepgen, the span is swept and ready to use
 	// h->sweepgen is incremented by 2 after every GC
 	uint32	sweepgen;
-	uint16	ref;		// number of allocated objects in this span
+	uint16	ref;		// capacity - number of objects in freelist
 	uint8	sizeclass;	// size class
+	bool	incache;	// being used by an MCache
 	uint8	state;		// MSpanInUse etc
 	uint8	needzero;	// needs to be zeroed before allocation
 	uintptr	elemsize;	// computed from sizeclass or from npages
@@ -418,8 +420,9 @@ struct MSpan
 	uintptr npreleased;	// number of pages released to the OS
 	byte	*limit;		// end of data in span
 	MTypes	types;		// types of allocated objects in this span
-	Lock	specialLock;	// TODO: use to protect types also (instead of settype_lock)
+	Lock	specialLock;	// guards specials list
 	Special	*specials;	// linked list of special records sorted by offset.
+	MLink	*freebuf;	// objects freed explicitly, not incorporated into freelist yet
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -441,15 +444,16 @@ struct MCentral
 {
 	Lock;
 	int32 sizeclass;
-	MSpan nonempty;
-	MSpan empty;
-	int32 nfree;
+	MSpan nonempty;	// list of spans with a free object
+	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
+	int32 nfree;	// # of objects available in nonempty spans
 };
 
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
-int32	runtime·MCentral_AllocList(MCentral *c, MLink **first);
-void	runtime·MCentral_FreeList(MCentral *c, MLink *first);
+MSpan*	runtime·MCentral_CacheSpan(MCentral *c);
+void	runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s);
 bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
+void	runtime·MCentral_FreeList(MCentral *c, MLink *start); // TODO: need this?
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
@@ -520,7 +524,7 @@ uintptr	runtime·sweepone(void);
 void	runtime·markscan(void *v);
 void	runtime·marknogc(void *v);
 void	runtime·checkallocated(void *v, uintptr n);
-void	runtime·markfreed(void *v, uintptr n);
+void	runtime·markfreed(void *v);
 void	runtime·checkfreed(void *v, uintptr n);
 extern	int32	runtime·checking;
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
@@ -529,8 +533,6 @@ void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
 void*	runtime·cnewarray(Type*, intgo);
 
-void	runtime·settype_flush(M*);
-void	runtime·settype_sysfree(MSpan*);
 uintptr	runtime·gettype(void*);
 
 enum
