@@ -24,7 +24,6 @@ func newFileFD(f *os.File) (*netFD, error) {
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
-		println("getsockopt failed", fd, err.Error())
 		closesocket(fd)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
