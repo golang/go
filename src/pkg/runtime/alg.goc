@@ -511,7 +511,7 @@ runtime·equal(Type *t, ...)
 	x = (byte*)ROUND((uintptr)(&t+1), t->align);
 	y = x + t->size;
 	ret = (bool*)ROUND((uintptr)(y+t->size), Structrnd);
-	t->alg->equal((bool*)ret, t->size, x, y);
+	t->alg->equal(ret, t->size, x, y);
 }
 
 // Testing adapter for memclr
