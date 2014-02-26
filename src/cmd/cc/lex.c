@@ -117,6 +117,19 @@ void
 main(int argc, char *argv[])
 {
 	int c;
+	char *p;
+
+	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// but not other values.	
+	p = getgoarch();
+	if(strncmp(p, thestring, strlen(thestring)) != 0)
+		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
+	if(strcmp(getgoarch(), "amd64p32") == 0) // must be before cinit
+		ewidth[TIND] = 4;
+		
+	nacl = strcmp(getgoos(), "nacl") == 0;
+	if(nacl)
+		flag_largemodel = 1;
 
 	quotefmtinstall(); // before cinit, which overrides %Q
 

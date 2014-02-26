@@ -73,6 +73,12 @@ main(int argc, char *argv[])
 	listinit5();
 	fmtinstall('L', Lconv);
 
+	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// but not other values.	
+	p = getgoarch();
+	if(strncmp(p, thestring, strlen(thestring)) != 0)
+		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
+
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	cinit();
@@ -162,7 +168,7 @@ assemble(char *file)
 		errorexit();
 	}
 	Binit(&obuf, of, OWRITE);
-	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+	Bprint(&obuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
 	Bprint(&obuf, "!\n");
 
 	for(pass = 1; pass <= 2; pass++) {

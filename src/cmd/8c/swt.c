@@ -233,7 +233,7 @@ outcode(void)
 	}
 	Binit(&b, f, OWRITE);
 
-	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+	Bprint(&b, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
 	if(pragcgobuf.to > pragcgobuf.start) {
 		Bprint(&b, "\n");
 		Bprint(&b, "$$  // exports\n\n");
