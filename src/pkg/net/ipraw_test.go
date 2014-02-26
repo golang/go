@@ -247,7 +247,7 @@ var ipConnLocalNameTests = []struct {
 
 func TestIPConnLocalName(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "windows", "nacl":
+	case "nacl", "plan9", "windows":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	default:
 		if os.Getuid() != 0 {
