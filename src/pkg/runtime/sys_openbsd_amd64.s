@@ -9,6 +9,8 @@
 #include "zasm_GOOS_GOARCH.h"
 #include "../../cmd/ld/textflag.h"
 
+#define CLOCK_MONOTONIC	$3
+
 // int64 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·tfork(SB),NOSPLIT,$32
 
@@ -166,7 +168,7 @@ TEXT time·now(SB), NOSPLIT, $32
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$24
-	MOVQ	$0, DI			// arg 1 - clock_id
+	MOVQ	CLOCK_MONOTONIC, DI	// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$87, AX			// sys_clock_gettime
 	SYSCALL

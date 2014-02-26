@@ -9,6 +9,8 @@
 #include "zasm_GOOS_GOARCH.h"
 #include "../../cmd/ld/textflag.h"
 
+#define	CLOCK_MONOTONIC	$3
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$1, AX
@@ -133,7 +135,7 @@ TEXT time·now(SB), NOSPLIT, $32
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	CLOCK_MONOTONIC, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
 	MOVL	$87, AX			// sys_clock_gettime
 	INT	$0x80
