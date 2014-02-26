@@ -307,18 +307,17 @@ const (
 
 // goTools is a map of Go program import path to install target directory.
 var goTools = map[string]targetDir{
-	"cmd/addr2line": toTool,
-	"cmd/api":       toTool,
-	"cmd/cgo":       toTool,
-	"cmd/fix":       toTool,
-	"cmd/link":      toTool,
-	"cmd/nm":        toTool,
-	"cmd/pack":      toTool,
-	"cmd/yacc":      toTool,
-	"code.google.com/p/go.tools/cmd/benchcmp": toTool,
-	"code.google.com/p/go.tools/cmd/cover":    toTool,
-	"code.google.com/p/go.tools/cmd/godoc":    toBin,
-	"code.google.com/p/go.tools/cmd/vet":      toTool,
+	"cmd/addr2line":                        toTool,
+	"cmd/api":                              toTool,
+	"cmd/cgo":                              toTool,
+	"cmd/fix":                              toTool,
+	"cmd/link":                             toTool,
+	"cmd/nm":                               toTool,
+	"cmd/pack":                             toTool,
+	"cmd/yacc":                             toTool,
+	"code.google.com/p/go.tools/cmd/cover": toTool,
+	"code.google.com/p/go.tools/cmd/godoc": toBin,
+	"code.google.com/p/go.tools/cmd/vet":   toTool,
 }
 
 // expandScanner expands a scanner.List error into all the errors in the list.
