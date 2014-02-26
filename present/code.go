@@ -98,22 +98,8 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 
 	lines := codeLines(textBytes, lo, hi)
 
-	for i, line := range lines {
-		// Replace tabs by spaces, which work better in HTML.
-		line.L = strings.Replace(line.L, "\t", "    ", -1)
-
-		// Highlight lines that end with "// HL[highlight]"
-		// and strip the magic comment.
-		if m := hlCommentRE.FindStringSubmatch(line.L); m != nil {
-			line.L = m[1]
-			line.HL = m[2] == highlight
-		}
-
-		lines[i] = line
-	}
-
 	data := &codeTemplateData{
-		Lines:   lines,
+		Lines:   formatLines(lines, highlight),
 		Edit:    strings.Contains(flags, "-edit"),
 		Numbers: strings.Contains(flags, "-numbers"),
 	}
@@ -133,8 +119,39 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 		Play:     play,
 		FileName: filepath.Base(filename),
 		Ext:      filepath.Ext(filename),
-		Raw:      textBytes,
+		Raw:      rawCode(lines),
 	}, nil
+}
+
+// formatLines returns a new slice of codeLine with the given lines
+// replacing tabs with spaces and adding highlighting where needed.
+func formatLines(lines []codeLine, highlight string) []codeLine {
+	formatted := make([]codeLine, len(lines))
+	for i, line := range lines {
+		// Replace tabs with spaces, which work better in HTML.
+		line.L = strings.Replace(line.L, "\t", "    ", -1)
+
+		// Highlight lines that end with "// HL[highlight]"
+		// and strip the magic comment.
+		if m := hlCommentRE.FindStringSubmatch(line.L); m != nil {
+			line.L = m[1]
+			line.HL = m[2] == highlight
+		}
+
+		formatted[i] = line
+	}
+	return formatted
+}
+
+// rawCode returns the code represented by the given codeLines without any kind
+// of formatting.
+func rawCode(lines []codeLine) []byte {
+	b := new(bytes.Buffer)
+	for _, line := range lines {
+		b.WriteString(line.L)
+		b.WriteByte('\n')
+	}
+	return b.Bytes()
 }
 
 type codeTemplateData struct {
