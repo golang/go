@@ -1,4 +1,4 @@
-/* generated automatically by mkrunetype.c from UnicodeData-6.2.0.txt */
+/* generated automatically by mkrunetype.c from UnicodeData-6.3.0.txt */
 
 static Rune __isspacer[] = {
 	0x0009, 0x000d,
@@ -6,7 +6,6 @@ static Rune __isspacer[] = {
 	0x0085, 0x0085,
 	0x00a0, 0x00a0,
 	0x1680, 0x1680,
-	0x180e, 0x180e,
 	0x2000, 0x200a,
 	0x2028, 0x2029,
 	0x202f, 0x202f,
