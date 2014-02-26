@@ -10,69 +10,119 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 
+extern volatile intgo runtime·MemProfileRate;
+
+// dummy MSpan that contains no free objects.
+static MSpan emptymspan;
+
+MCache*
+runtime·allocmcache(void)
+{
+	intgo rate;
+	MCache *c;
+	int32 i;
+
+	runtime·lock(&runtime·mheap);
+	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
+	runtime·unlock(&runtime·mheap);
+	runtime·memclr((byte*)c, sizeof(*c));
+	for(i = 0; i < NumSizeClasses; i++)
+		c->alloc[i] = &emptymspan;
+
+	// Set first allocation sample size.
+	rate = runtime·MemProfileRate;
+	if(rate > 0x3fffffff)	// make 2*rate not overflow
+		rate = 0x3fffffff;
+	if(rate != 0)
+		c->next_sample = runtime·fastrand1() % (2*rate);
+
+	return c;
+}
+
 void
+runtime·freemcache(MCache *c)
+{
+	runtime·MCache_ReleaseAll(c);
+	runtime·lock(&runtime·mheap);
+	runtime·purgecachedstats(c);
+	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+	runtime·unlock(&runtime·mheap);
+}
+
+// Gets a span that has a free object in it and assigns it
+// to be the cached span for the given sizeclass.  Returns this span.
+MSpan*
 runtime·MCache_Refill(MCache *c, int32 sizeclass)
 {
 	MCacheList *l;
+	MSpan *s;
 
-	// Replenish using central lists.
-	l = &c->list[sizeclass];
-	if(l->list)
-		runtime·throw("MCache_Refill: the list is not empty");
-	l->nlist = runtime·MCentral_AllocList(&runtime·mheap.central[sizeclass], &l->list);
-	if(l->list == nil)
+	m->locks++;
+	// Return the current cached span to the central lists.
+	s = c->alloc[sizeclass];
+	if(s->freelist != nil)
+		runtime·throw("refill on a nonempty span");
+	if(s != &emptymspan)
+		runtime·MCentral_UncacheSpan(&runtime·mheap.central[sizeclass], s);
+
+	// Push any explicitly freed objects to the central lists.
+	// Not required, but it seems like a good time to do it.
+	l = &c->free[sizeclass];
+	if(l->nlist > 0) {
+		runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], l->list);
+		l->list = nil;
+		l->nlist = 0;
+	}
+
+	// Get a new cached span from the central lists.
+	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
+	if(s == nil)
 		runtime·throw("out of memory");
-}
-
-// Take n elements off l and return them to the central free list.
-static void
-ReleaseN(MCacheList *l, int32 n, int32 sizeclass)
-{
-	MLink *first, **lp;
-	int32 i;
-
-	// Cut off first n elements.
-	first = l->list;
-	lp = &l->list;
-	for(i=0; i<n; i++)
-		lp = &(*lp)->next;
-	l->list = *lp;
-	*lp = nil;
-	l->nlist -= n;
-
-	// Return them to central free list.
-	runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], first);
+	if(s->freelist == nil) {
+		runtime·printf("%d %d\n", s->ref, (int32)((s->npages << PageShift) / s->elemsize));
+		runtime·throw("empty span");
+	}
+	c->alloc[sizeclass] = s;
+	m->locks--;
+	return s;
 }
 
 void
-runtime·MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
+runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size)
 {
 	MCacheList *l;
-	MLink *p;
 
-	// Put back on list.
-	l = &c->list[sizeclass];
-	p = v;
+	// Put on free list.
+	l = &c->free[sizeclass];
 	p->next = l->list;
 	l->list = p;
 	l->nlist++;
 	c->local_cachealloc -= size;
 
-	// We transfer span at a time from MCentral to MCache,
-	// if we have 2 times more than that, release a half back.
-	if(l->nlist >= 2*(runtime·class_to_allocnpages[sizeclass]<<PageShift)/size)
-		ReleaseN(l, l->nlist/2, sizeclass);
+	// We transfer a span at a time from MCentral to MCache,
+	// so we'll do the same in the other direction.
+	if(l->nlist >= (runtime·class_to_allocnpages[sizeclass]<<PageShift)/size) {
+		runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], l->list);
+		l->list = nil;
+		l->nlist = 0;
+	}
 }
 
 void
 runtime·MCache_ReleaseAll(MCache *c)
 {
 	int32 i;
+	MSpan *s;
 	MCacheList *l;
 
 	for(i=0; i<NumSizeClasses; i++) {
-		l = &c->list[i];
-		if(l->list) {
+		s = c->alloc[i];
+		if(s != &emptymspan) {
+			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i], s);
+			c->alloc[i] = &emptymspan;
+		}
+		l = &c->free[i];
+		if(l->nlist > 0) {
 			runtime·MCentral_FreeList(&runtime·mheap.central[i], l->list);
 			l->list = nil;
 			l->nlist = 0;

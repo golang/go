@@ -351,10 +351,6 @@ struct	M
 	bool	needextram;
 	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
-
-	uintptr	settype_buf[1024];
-	uintptr	settype_bufsize;
-
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 	// these are here because they are too large to be on the stack

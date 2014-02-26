@@ -1865,7 +1865,13 @@ runtime·MSpan_Sweep(MSpan *s)
 		}
 	}
 
-	if(!sweepgenset) {
+	// We need to set s->sweepgen = h->sweepgen only when all blocks are swept,
+	// because of the potential for a concurrent free/SetFinalizer.
+	// But we need to set it before we make the span available for allocation
+	// (return it to heap or mcentral), because allocation code assumes that a
+	// span is already swept if available for allocation.
+
+	if(!sweepgenset && nfree == 0) {
 		// The span must be in our exclusive ownership until we update sweepgen,
 		// check for potential races.
 		if(s->state != MSpanInUse || s->sweepgen != sweepgen-1) {
@@ -1875,11 +1881,12 @@ runtime·MSpan_Sweep(MSpan *s)
 		}
 		runtime·atomicstore(&s->sweepgen, sweepgen);
 	}
-	if(nfree) {
+	if(nfree > 0) {
 		c->local_nsmallfree[cl] += nfree;
 		c->local_cachealloc -= nfree * size;
 		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (gcpercent + 100)/100));
 		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
+		//MCentral_FreeSpan updates sweepgen
 	}
 	return res;
 }
@@ -1948,6 +1955,8 @@ runtime·sweepone(void)
 		}
 		if(s->sweepgen != sg-2 || !runtime·cas(&s->sweepgen, sg-2, sg-1))
 			continue;
+		if(s->incache)
+			runtime·throw("sweep of incache span");
 		npages = s->npages;
 		if(!runtime·MSpan_Sweep(s))
 			npages = 0;
@@ -2292,7 +2301,6 @@ gc(struct gc_args *args)
 	int64 t0, t1, t2, t3, t4;
 	uint64 heap0, heap1, obj, ninstr;
 	GCStats stats;
-	M *mp;
 	uint32 i;
 	Eface eface;
 
@@ -2301,9 +2309,6 @@ gc(struct gc_args *args)
 
 	if(CollectStats)
 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
-
-	for(mp=runtime·allm; mp; mp=mp->alllink)
-		runtime·settype_flush(mp);
 
 	m->locks++;	// disable gc during mallocs in parforalloc
 	if(work.markfor == nil)
@@ -2617,59 +2622,30 @@ runtime·marknogc(void *v)
 void
 runtime·markscan(void *v)
 {
-	uintptr *b, obits, bits, off, shift;
+	uintptr *b, off, shift;
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
-
-	for(;;) {
-		obits = *b;
-		if((obits>>shift & bitMask) != bitAllocated)
-			runtime·throw("bad initial state for markscan");
-		bits = obits | bitScan<<shift;
-		if(runtime·gomaxprocs == 1) {
-			*b = bits;
-			break;
-		} else {
-			// more than one goroutine is potentially running: use atomic op
-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
-				break;
-		}
-	}
+	*b |= bitScan<<shift;
 }
 
-// mark the block at v of size n as freed.
+// mark the block at v as freed.
 void
-runtime·markfreed(void *v, uintptr n)
+runtime·markfreed(void *v)
 {
-	uintptr *b, obits, bits, off, shift;
+	uintptr *b, off, shift;
 
 	if(0)
-		runtime·printf("markfreed %p+%p\n", v, n);
+		runtime·printf("markfreed %p\n", v);
 
-	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
+	if((byte*)v > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markfreed: bad pointer");
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
-
-	for(;;) {
-		obits = *b;
-		// This could be a free of a gc-eligible object (bitAllocated + others) or
-		// a FlagNoGC object (bitBlockBoundary set).  In either case, we revert to
-		// a simple no-scan allocated object because it is going on a free list.
-		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
-		if(runtime·gomaxprocs == 1) {
-			*b = bits;
-			break;
-		} else {
-			// more than one goroutine is potentially running: use atomic op
-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
-				break;
-		}
-	}
+	*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
 }
 
 // check that the block at v of size n is marked freed.
