@@ -1384,7 +1384,7 @@ componentgen(Node *nr, Node *nl)
 
 	switch(nl->type->etype) {
 	case TARRAY:
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(nl->type->type);
@@ -1419,7 +1419,7 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRING:
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
@@ -1444,7 +1444,7 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TINTER:
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);

@@ -1389,11 +1389,11 @@ sgen(Node *n, Node *ns, int64 w)
 
 	if(n->ullman >= ns->ullman) {
 		agenr(n, &nodr, N);
-		if(ns->op == ONAME && ns->class != PEXTERN)
+		if(ns->op == ONAME)
 			gvardef(ns);
 		agenr(ns, &nodl, N);
 	} else {
-		if(ns->op == ONAME && ns->class != PEXTERN)
+		if(ns->op == ONAME)
 			gvardef(ns);
 		agenr(ns, &nodl, N);
 		agenr(n, &nodr, N);
@@ -1575,7 +1575,7 @@ componentgen(Node *nr, Node *nl)
 	switch(nl->type->etype) {
 	case TARRAY:
 		// componentgen for arrays.
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		t = nl->type;
 		if(!isslice(t)) {
@@ -1626,7 +1626,7 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRING:
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
@@ -1651,7 +1651,7 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TINTER:
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(types[TUINT8]);
@@ -1676,7 +1676,7 @@ componentgen(Node *nr, Node *nl)
 		goto yes;
 
 	case TSTRUCT:
-		if(nl->op == ONAME && nl->class != PEXTERN)
+		if(nl->op == ONAME)
 			gvardef(nl);
 		loffset = nodl.xoffset;
 		roffset = nodr.xoffset;
