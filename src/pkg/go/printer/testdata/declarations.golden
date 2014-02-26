@@ -723,7 +723,8 @@ func _() int {
 }
 
 // making function declarations safe for new semicolon rules
-func _() { /* multi-line func because of comment */
+func _()	{ /* single-line function because of "short-ish" comment */ }
+func _() { /* multi-line function because of "long-ish" comment - much more comment text is following here */ /* and more */
 }
 
 func _() {
