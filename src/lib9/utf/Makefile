@@ -21,7 +21,7 @@ runetypebody-%.h: mkrunetype UnicodeData-%.txt
 
 CLEANFILES+=UnicodeData.txt
 
-UNICODE_VERSION=6.2.0
+UNICODE_VERSION=6.3.0
 
 test: mkrunetype UnicodeData-$(UNICODE_VERSION).txt
 	mkrunetype -c UnicodeData-$(UNICODE_VERSION).txt
