@@ -110,7 +110,7 @@ struct	Prog
 	uchar	optab;	// 5l
 
 	char	width;	/* fake for DATA */
-	char	mode;	/* 16, 32, or 64 in 8l, 8l; internal use in 5g, 6g, 8g */
+	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
 };
 
 // prevent incompatible type signatures between liblink and 8l on Plan 9
