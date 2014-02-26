@@ -85,7 +85,11 @@ func CommandLine(w io.Writer, fs vfs.NameSpace, pres *Presentation, args []strin
 		// contains only subdirectory information
 		if info.PAst == nil && info.PDoc == nil {
 			info = cinfo
-		} else {
+		} else if relpath != target {
+			// The above check handles the case where an operating system path
+			// is provided (see documentation for paths below).  In that case,
+			// relpath is set to "/target" (in anticipation of accessing packages there),
+			// and is therefore not expected to match a command.
 			fmt.Fprintf(w, "use 'godoc %s%s' for documentation on the %s command \n\n", cmdPrefix, relpath, relpath)
 		}
 	}

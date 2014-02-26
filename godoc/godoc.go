@@ -208,9 +208,17 @@ func comment_htmlFunc(comment string) string {
 // want to avoid that mistake here.
 const punchCardWidth = 80
 
+func containsOnlySpace(buf []byte) bool {
+	isNotSpace := func(r rune) bool { return !unicode.IsSpace(r) }
+	return bytes.IndexFunc(buf, isNotSpace) == -1
+}
+
 func comment_textFunc(comment, indent, preIndent string) string {
 	var buf bytes.Buffer
 	doc.ToText(&buf, comment, indent, preIndent, punchCardWidth-2*len(indent))
+	if containsOnlySpace(buf.Bytes()) {
+		return ""
+	}
 	return buf.String()
 }
 

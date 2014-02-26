@@ -7,7 +7,8 @@
 
 ---------------------------------------
 
-*/}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
+*/}}{{if and $filtered (not .PDoc)}}No match found.
+{{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
 
 {{comment_text .Doc "    " "\t"}}
 {{else}}{{if not $filtered}}PACKAGE DOCUMENTATION
@@ -20,8 +21,7 @@ package {{.Name}}
 
 ---------------------------------------
 
-*/}}{{with .Consts}}{{if not $filtered}}
-CONSTANTS
+*/}}{{with .Consts}}{{if not $filtered}}CONSTANTS
 
 {{end}}{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
@@ -29,8 +29,7 @@ CONSTANTS
 
 ---------------------------------------
 
-*/}}{{with .Vars}}{{if not $filtered}}
-VARIABLES
+*/}}{{with .Vars}}{{if not $filtered}}VARIABLES
 
 {{end}}{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
@@ -38,8 +37,7 @@ VARIABLES
 
 ---------------------------------------
 
-*/}}{{with .Funcs}}{{if not $filtered}}
-FUNCTIONS
+*/}}{{with .Funcs}}{{if not $filtered}}FUNCTIONS
 
 {{end}}{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
@@ -47,23 +45,48 @@ FUNCTIONS
 
 ---------------------------------------
 
-*/}}{{with .Types}}{{if not $filtered}}
-TYPES
+*/}}{{with .Types}}{{if not $filtered}}TYPES
 
 {{end}}{{range .}}{{$tname := .Name}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{range .Consts}}{{node $ .Decl}}
+{{/*
+
+---------------------------------------
+
+*/}}{{if .Consts}}{{range .Consts}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{end}}{{range .Vars}}{{node $ .Decl}}
+{{end}}{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{if .Vars}}{{range .Vars}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{end}}{{example_text $ .Name "    "}}
-{{range .Funcs}}{{node $ .Decl}}
+{{example_text $ .Name "    "}}{{end}}{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{if .Funcs}}{{range .Funcs}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{example_text $ .Name "    "}}
-{{end}}{{range .Methods}}{{node $ .Decl}}
+{{example_text $ .Name "    "}}{{end}}{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{if .Methods}}{{range .Methods}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{$name := printf "%s_%s" $tname .Name}}{{example_text $ $name "    "}}{{end}}
-{{end}}{{end}}{{end}}{{/*
+{{$name := printf "%s_%s" $tname .Name}}{{example_text $ $name "    "}}{{end}}{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{end}}{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{if and $filtered (not (or .Consts (or .Vars (or .Funcs .Types))))}}No match found.
+{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{end}}{{/*
 
 ---------------------------------------
 
@@ -76,10 +99,16 @@ TYPES
 
 ---------------------------------------
 
-*/}}{{with .Dirs}}
-SUBDIRECTORIES
+*/}}{{if not $filtered}}{{with .Dirs}}SUBDIRECTORIES
 {{if $.DirFlat}}{{range .List}}{{if .HasPkg}}
 	{{.Path}}{{end}}{{end}}
 {{else}}{{range .List}}
 	{{repeat `. ` .Depth}}{{.Name}}{{end}}
-{{end}}{{end}}
+{{end}}{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{end}}{{/*
+Make sure there is no newline at the end of this file.
+perl -i -pe 'chomp if eof' package.txt
+*/}}

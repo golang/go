@@ -169,10 +169,16 @@ func First() {
 func Second() {
 }
 `,
+		"src/pkg/vet/vet.go": `// Package vet
+package vet
+`,
 		"src/cmd/go/doc.go": `// The go command
 package main
 `,
 		"src/cmd/gofmt/doc.go": `// The gofmt command
+package main
+`,
+		"src/cmd/vet/vet.go": `// The vet command
 package main
 `,
 	})
@@ -210,6 +216,11 @@ package main
 			exp:  "PACKAGE \nfunc First()\n    First function is first.\n",
 		},
 		{
+			desc: "package w. bad filter",
+			args: []string{"foo", "DNE"},
+			exp:  "PACKAGE ",
+		},
+		{
 			desc: "source mode",
 			args: []string{"src/bar"},
 			exp:  "bar/bar.go:\n// Package bar is an example.\npackage bar\n",
@@ -233,6 +244,16 @@ package main
 			desc: "bad arg",
 			args: []string{"doesnotexist"},
 			err:  true,
+		},
+		{
+			desc: "both command and package",
+			args: []string{"vet"},
+			exp:  "use 'godoc cmd/vet' for documentation on the vet command \n\nPACKAGE Package vet\n",
+		},
+		{
+			desc: "root directory",
+			args: []string{"/"},
+			exp:  "",
 		},
 	} {
 		w := new(bytes.Buffer)

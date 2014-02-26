@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -30,6 +31,18 @@ var godocTests = []struct {
 		[]string{
 			`func WriteString\(`,
 			`WriteString writes the contents of the string s to w`,
+		},
+	},
+	{
+		[]string{"nonexistingpkg"},
+		[]string{
+			`no such file or directory`,
+		},
+	},
+	{
+		[]string{"fmt", "NonexistentSymbol"},
+		[]string{
+			`No match found\.`,
 		},
 	},
 }
@@ -59,15 +72,10 @@ func TestGodoc(t *testing.T) {
 			t.Errorf("Running with args %#v: %v", test.args, err)
 			continue
 		}
-		logged := false
 		for _, pat := range test.matches {
 			re := regexp.MustCompile(pat)
 			if !re.Match(out) {
-				if !logged {
-					t.Logf("Output of running with args %#v:\n%s", test.args, out)
-					logged = true
-				}
-				t.Errorf("Did not match /%v/", pat)
+				t.Errorf("godoc %v =\n%s\nwanted /%v/", strings.Join(test.args, " "), out, pat)
 			}
 		}
 	}
