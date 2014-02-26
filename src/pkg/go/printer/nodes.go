@@ -826,10 +826,16 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 		p.print(x.Lbrace, token.LBRACE)
 		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace)
-		// do not insert extra line breaks because of comments before
-		// the closing '}' as it might break the code if there is no
-		// trailing ','
-		p.print(noExtraLinebreak, x.Rbrace, token.RBRACE, noExtraLinebreak)
+		// do not insert extra line break following a /*-style comment
+		// before the closing '}' as it might break the code if there
+		// is no trailing ','
+		mode := noExtraLinebreak
+		// do not insert extra blank following a /*-style comment
+		// before the closing '}' unless the literal is empty
+		if len(x.Elts) > 0 {
+			mode |= noExtraBlank
+		}
+		p.print(mode, x.Rbrace, token.RBRACE, mode)
 
 	case *ast.Ellipsis:
 		p.print(token.ELLIPSIS)
@@ -1461,13 +1467,16 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
 		// opening and closing brace are on different lines - don't make it a one-liner
 		return maxSize + 1
 	}
-	if len(b.List) > 5 || p.commentBefore(p.posFor(pos2)) {
-		// too many statements or there is a comment inside - don't make it a one-liner
+	if len(b.List) > 5 {
+		// too many statements - don't make it a one-liner
 		return maxSize + 1
 	}
 	// otherwise, estimate body size
-	bodySize := 0
+	bodySize := p.commentSizeBefore(p.posFor(pos2))
 	for i, s := range b.List {
+		if bodySize > maxSize {
+			break // no need to continue
+		}
 		if i > 0 {
 			bodySize += 2 // space for a semicolon and blank
 		}
@@ -1501,7 +1510,7 @@ func (p *printer) adjBlock(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
 			}
 			p.print(blank)
 		}
-		p.print(b.Rbrace, token.RBRACE)
+		p.print(noExtraLinebreak, b.Rbrace, token.RBRACE, noExtraLinebreak)
 		return
 	}
 

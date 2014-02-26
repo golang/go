@@ -494,16 +494,21 @@ func _() {
 func _( /* this */ x /* is */ /* an */ int) {
 }
 
-func _( /* no params */)	{}
+func _( /* no params - extra blank before and after comment */ )	{}
+func _(a, b int /* params - no extra blank after comment */)		{}
+
+func _()	{ f( /* no args - extra blank before and after comment */ ) }
+func _()	{ f(a, b /* args - no extra blank after comment */) }
 
 func _() {
-	f( /* no args */)
+	f( /* no args - extra blank before and after comment */ )
+	f(a, b /* args - no extra blank after comment */)
 }
 
 func ( /* comment1 */ T /* comment2 */) _()	{}
 
-func _() { /* one-line functions with comments are formatted as multi-line functions */
-}
+func _()	{ /* "short-ish one-line functions with comments are formatted as multi-line functions */ }
+func _()	{ x := 0; /* comment */ y = x /* comment */ }
 
 func _() {
 	_ = 0
