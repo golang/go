@@ -32,14 +32,15 @@
 
 LinkArch	*thelinkarch = &link386;
 
+int thechar = '8';
+char *thestring = "386";
+
 void
 ginit(void)
 {
 	int i;
 	Type *t;
 
-	thechar = '8';
-	thestring = "386";
 	exregoffset = 0;
 	exfregoffset = 0;
 	listinit();

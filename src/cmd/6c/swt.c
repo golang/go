@@ -228,7 +228,7 @@ outcode(void)
 	}
 	Binit(&b, f, OWRITE);
 
-	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+	Bprint(&b, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
 	if(pragcgobuf.to > pragcgobuf.start) {
 		Bprint(&b, "\n");
 		Bprint(&b, "$$  // exports\n\n");
@@ -292,6 +292,21 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 		break;
 
 	case Aarg1:	/* initial align of parameter */
+		if(ewidth[TIND] == 4) {
+			if(typesu[t->etype]) {
+				for(v = t->link; v != T; v = v->down)
+					o = align(o, v, Aarg1, maxalign);
+				goto out;
+			}
+			w = ewidth[t->etype];
+			if(typev[t->etype] || t->etype == TDOUBLE)
+				w = 8;
+			else if(w <= 0 || w >= 4)
+				w = 4;
+			else
+				w = 1;
+			break;
+		}
 		w = ewidth[t->etype];
 		if(w <= 0 || w >= SZ_VLONG) {
 			w = SZ_VLONG;
@@ -302,6 +317,10 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 
 	case Aarg2:	/* width of a parameter */
 		o += t->width;
+		if(ewidth[TIND] == 4) {
+			o = align(o, t, Aarg1, maxalign);
+			goto out;
+		}
 		w = t->width;
 		if(w > SZ_VLONG)
 			w = SZ_VLONG;
@@ -315,6 +334,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 	o = xround(o, w);
 	if(maxalign && *maxalign < w)
 		*maxalign = w;
+out:
 	if(debug['A'])
 		print("align %s %d %T = %d\n", bnames[op], i, t, o);
 	return o;

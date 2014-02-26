@@ -33,13 +33,14 @@
 
 LinkArch	*thelinkarch = &linkarm;
 
+int thechar = '5';
+char *thestring = "arm";
+
 void
 ginit(void)
 {
 	Type *t;
 
-	thechar = '5';
-	thestring = "arm";
 	exregoffset = REGEXT;
 	exfregoffset = FREGEXT;
 	listinit();

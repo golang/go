@@ -354,7 +354,7 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
 void
 outcode(void)
 {
-	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
 	if(pragcgobuf.to > pragcgobuf.start) {
 		Bprint(&outbuf, "\n");
 		Bprint(&outbuf, "$$  // exports\n\n");

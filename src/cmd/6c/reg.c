@@ -717,7 +717,7 @@ addmove(Reg *r, int bn, int rn, int f)
 		p1->as = AMOVB;
 	if(v->etype == TSHORT || v->etype == TUSHORT)
 		p1->as = AMOVW;
-	if(v->etype == TVLONG || v->etype == TUVLONG || v->etype == TIND)
+	if(v->etype == TVLONG || v->etype == TUVLONG || (v->etype == TIND && ewidth[TIND] == 8))
 		p1->as = AMOVQ;
 	if(v->etype == TFLOAT)
 		p1->as = AMOVSS;
@@ -1373,6 +1373,8 @@ BtoR(int32 b)
 {
 
 	b &= 0xffffL;
+	if(nacl)
+		b &= ~((1<<(D_BP-D_AX)) | (1<<(D_R15-D_AX)));
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;

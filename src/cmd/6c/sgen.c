@@ -207,7 +207,7 @@ xcom(Node *n)
 				n->addable = 8;
 			break;
 		}
-		if(n->addable == 8 && !side(n)) {
+		if(n->addable == 8 && !side(n) && !nacl) {
 			indx(n);
 			l = new1(OINDEX, idx.basetree, idx.regtree);
 			l->scale = idx.scale;
