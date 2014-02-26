@@ -182,6 +182,13 @@ func ParseExpr(x string) (ast.Expr, error) {
 	p.closeScope()
 	assert(p.topScope == nil, "unbalanced scopes")
 
+	// If a semicolon was inserted, consume it;
+	// report an error if there's more tokens.
+	if p.tok == token.SEMICOLON {
+		p.next()
+	}
+	p.expect(token.EOF)
+
 	if p.errors.Len() > 0 {
 		p.errors.Sort()
 		return nil, p.errors.Err()

@@ -78,7 +78,7 @@ func TestParseExpr(t *testing.T) {
 	}
 	// sanity check
 	if _, ok := x.(*ast.BinaryExpr); !ok {
-		t.Errorf("ParseExpr(%s): got %T, expected *ast.BinaryExpr", src, x)
+		t.Errorf("ParseExpr(%s): got %T, want *ast.BinaryExpr", src, x)
 	}
 
 	// a valid type expression
@@ -89,17 +89,24 @@ func TestParseExpr(t *testing.T) {
 	}
 	// sanity check
 	if _, ok := x.(*ast.StructType); !ok {
-		t.Errorf("ParseExpr(%s): got %T, expected *ast.StructType", src, x)
+		t.Errorf("ParseExpr(%s): got %T, want *ast.StructType", src, x)
 	}
 
 	// an invalid expression
 	src = "a + *"
 	_, err = ParseExpr(src)
 	if err == nil {
-		t.Fatalf("ParseExpr(%s): %v", src, err)
+		t.Fatalf("ParseExpr(%s): got no error", src)
 	}
 
-	// it must not crash
+	// a valid expression followed by extra tokens is invalid
+	src = "a[i] := x"
+	_, err = ParseExpr(src)
+	if err == nil {
+		t.Fatalf("ParseExpr(%s): got no error", src)
+	}
+
+	// ParseExpr must not crash
 	for _, src := range valids {
 		ParseExpr(src)
 	}
