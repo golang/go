@@ -471,8 +471,8 @@ cgen_checknil(Node *n)
 
 	if(disable_checknil)
 		return;
-	// Ideally we wouldn't see any TUINTPTR here, but we do.
-	if(n->type == T || (!isptr[n->type->etype] && n->type->etype != TUINTPTR && n->type->etype != TUNSAFEPTR)) {
+	// Ideally we wouldn't see any integer types here, but we do.
+	if(n->type == T || (!isptr[n->type->etype] && !isint[n->type->etype] && n->type->etype != TUNSAFEPTR)) {
 		dump("checknil", n);
 		fatal("bad checknil");
 	}
