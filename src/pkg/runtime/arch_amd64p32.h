@@ -6,11 +6,7 @@ enum {
 	thechar = '6',
 	BigEndian = 0,
 	CacheLineSize = 64,
-#ifdef GOOS_solaris
-	RuntimeGogoBytes = 80,
-#else
 	RuntimeGogoBytes = 64,
-#endif
 #ifdef GOOS_nacl
 	PhysPageSize = 65536,
 #else
