@@ -11,10 +11,6 @@ enum {
 #else
 	RuntimeGogoBytes = 64,
 #endif
-#ifdef GOOS_nacl
-	PhysPageSize = 65536,
-#else
 	PhysPageSize = 4096,
-#endif
 	PCQuantum = 1
 };

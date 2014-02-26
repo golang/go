@@ -795,6 +795,8 @@ int32	runtime·charntorune(int32*, uint8*, int32);
  * first output value. Almost all code should write such
  * functions in .goc files, where goc2c (part of cmd/dist)
  * can arrange the correct alignment for the target system.
+ * Goc2c also takes care of conveying to the garbage collector
+ * which parts of the argument list are inputs vs outputs.
  *
  * Therefore, do NOT use this macro if at all possible.
  */ 
