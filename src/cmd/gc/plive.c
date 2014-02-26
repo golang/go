@@ -984,7 +984,7 @@ checkparam(Node *fn, Prog *p, Node *n)
 		return;
 	for(l = fn->dcl; l != nil; l = l->next) {
 		a = l->n;
-		class = l->n->class & ~PHEAP;
+		class = a->class & ~PHEAP;
 		if(a->op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n)
 			return;
 	}
