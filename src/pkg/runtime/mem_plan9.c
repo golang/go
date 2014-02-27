@@ -68,7 +68,7 @@ runtime·SysMap(void *v, uintptr nbytes, uint64 *stat)
 }
 
 void
-runtime·SysFault(void *v, uintptr n)
+runtime·SysFault(void *v, uintptr nbytes)
 {
 	USED(v, nbytes);
 }
