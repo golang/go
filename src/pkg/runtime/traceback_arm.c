@@ -10,7 +10,7 @@
 void runtime·sigpanic(void);
 
 int32
-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
+runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
 {
 	int32 i, n, nprint, line;
 	uintptr x, tracepc;
@@ -140,8 +140,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 
 		if(pcbuf != nil)
 			pcbuf[n] = frame.pc;
-		if(callback != nil)
-			callback(&frame, v);
+		if(callback != nil) {
+			if(!callback(&frame, v))
+				return n;
+		}
 		if(printing) {
 			if(printall || runtime·showframe(f, gp)) {
 				// Print during crash.

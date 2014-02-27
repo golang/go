@@ -173,6 +173,11 @@ runtime·schedinit(void)
 	runtime·allp = runtime·malloc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]));
 	procresize(procs);
 
+	runtime·copystack = runtime·precisestack;
+	p = runtime·getenv("GOCOPYSTACK");
+	if(p != nil && !runtime·strcmp(p, (byte*)"0"))
+		runtime·copystack = false;
+
 	mstats.enablegc = 1;
 
 	if(raceenabled)
@@ -187,6 +192,15 @@ static FuncVal scavenger = {runtime·MHeap_Scavenger};
 static FuncVal initDone = { runtime·unlockOSThread };
 
 // The main goroutine.
+// Note: C frames in general are not copyable during stack growth, for two reasons:
+//   1) We don't know where in a frame to find pointers to other stack locations.
+//   2) There's no guarantee that globals or heap values do not point into the frame.
+//
+// The C frame for runtime.main is copyable, because:
+//   1) There are no pointers to other stack locations in the frame
+//      (d.fn points at a global, d.link is nil, d.argp is -1).
+//   2) The only pointer into this frame is from the defer chain,
+//      which is explicitly handled during stack copying.
 void
 runtime·main(void)
 {
@@ -1870,8 +1884,20 @@ allgadd(G *gp)
 static void
 gfput(P *p, G *gp)
 {
+	uintptr stksize;
+
 	if(gp->stackguard - StackGuard != gp->stack0)
 		runtime·throw("invalid stack in gfput");
+	stksize = gp->stackbase + sizeof(Stktop) - gp->stack0;
+	if(stksize != FixedStack) {
+		// non-standard stack size - free it.
+		runtime·stackfree((void*)gp->stack0, stksize);
+		gp->stacksize = 0;
+		gp->stack0 = 0;
+		gp->stackguard = 0;
+		gp->stackguard0 = 0;
+		gp->stackbase = 0;
+	}
 	gp->schedlink = p->gfree;
 	p->gfree = gp;
 	p->gfreecnt++;
@@ -1894,6 +1920,7 @@ static G*
 gfget(P *p)
 {
 	G *gp;
+	byte *stk;
 
 retry:
 	gp = p->gfree;
@@ -1912,6 +1939,24 @@ retry:
 	if(gp) {
 		p->gfree = gp->schedlink;
 		p->gfreecnt--;
+
+		if(gp->stack0 == 0) {
+			// Stack was deallocated in gfput.  Allocate a new one.
+			if(g == m->g0) {
+				stk = runtime·stackalloc(FixedStack);
+			} else {
+				g->param = (void*)FixedStack;
+				runtime·mcall(mstackalloc);
+				stk = g->param;
+				g->param = nil;
+			}
+			gp->stacksize = FixedStack;
+			gp->stack0 = (uintptr)stk;
+			gp->stackbase = (uintptr)stk + FixedStack - sizeof(Stktop);
+			gp->stackguard = (uintptr)stk + StackGuard;
+			gp->stackguard0 = gp->stackguard;
+			runtime·memclr((byte*)gp->stackbase, sizeof(Stktop));
+		}
 	}
 	return gp;
 }

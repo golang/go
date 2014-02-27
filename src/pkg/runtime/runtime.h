@@ -589,6 +589,7 @@ struct DebugVars
 };
 
 extern bool runtime·precisestack;
+extern bool runtime·copystack;
 
 /*
  * defined macros
@@ -732,7 +733,7 @@ struct Stkframe
 	uintptr	arglen;	// number of bytes at argp
 };
 
-int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*, bool);
+int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, bool(*)(Stkframe*, void*), void*, bool);
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
@@ -860,6 +861,7 @@ int8*	runtime·funcname(Func*);
 int32	runtime·pcdatavalue(Func*, int32, uintptr);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
+void	runtime·shrinkstack(G*);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
