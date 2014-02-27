@@ -1223,8 +1223,10 @@ assignop(Type *src, Type *dst, char **why)
 	
 	// 2. src and dst have identical underlying types
 	// and either src or dst is not a named type or
-	// both are interface types.
-	if(eqtype(src->orig, dst->orig) && (src->sym == S || dst->sym == S || src->etype == TINTER))
+	// both are empty interface types.
+	// For assignable but different non-empty interface types,
+	// we want to recompute the itab.
+	if(eqtype(src->orig, dst->orig) && (src->sym == S || dst->sym == S || isnilinter(src)))
 		return OCONVNOP;
 
 	// 3. dst is an interface type and src implements dst.
