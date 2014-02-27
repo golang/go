@@ -1601,9 +1601,6 @@ addstackroots(G *gp, Workbuf **wbufp)
 	if((mp = gp->m) != nil && mp->helpgc)
 		runtime·throw("can't scan gchelper stack");
 
-	// Shrink stack if not much of it is being used.
-	runtime·shrinkstack(gp);
-
 	if(gp->syscallstack != (uintptr)nil) {
 		// Scanning another goroutine that is about to enter or might
 		// have just exited a system call. It may be executing code such
@@ -2425,6 +2422,11 @@ gc(struct gc_args *args)
 		while(runtime·sweepone() != -1)
 			gcstats.npausesweep++;
 	}
+
+	// Shrink a stack if not much of it is being used.
+	// TODO: do in a parfor
+	for(i = 0; i < runtime·allglen; i++)
+		runtime·shrinkstack(runtime·allg[i]);
 
 	runtime·MProf_GC();
 }
