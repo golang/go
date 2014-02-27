@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Feb 25, 2014",
+	"Subtitle": "Version of Feb 27, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -2267,8 +2267,6 @@ Similarly, elements that are addresses of composite literals may elide
 the <code>&amp;T</code> when the element type is <code>*T</code>.
 </p>
 
-
-
 <pre>
 [...]Point{{1.5, -3.5}, {0, 0}}   // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
 [][]int{{1, 2, 3}, {4, 5}}        // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
@@ -2278,13 +2276,13 @@ the <code>&amp;T</code> when the element type is <code>*T</code>.
 
 <p>
 A parsing ambiguity arises when a composite literal using the
-TypeName form of the LiteralType appears between the
-<a href="#Keywords">keyword</a> and the opening brace of the block of an
-"if", "for", or "switch" statement, because the braces surrounding
-the expressions in the literal are confused with those introducing
-the block of statements. To resolve the ambiguity in this rare case,
-the composite literal must appear within
-parentheses.
+TypeName form of the LiteralType appears as an operand between the
+<a href="#Keywords">keyword</a> and the opening brace of the block
+of an "if", "for", or "switch" statement, and the composite literal
+is not enclosed in parentheses, square brackets, or curly braces.
+In this rare case, the opening brace of the literal is erroneously parsed
+as the one introducing the block of statements. To resolve the ambiguity,
+the composite literal must appear within parentheses.
 </p>
 
 <pre>
