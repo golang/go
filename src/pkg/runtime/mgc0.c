@@ -84,13 +84,6 @@ enum {
 	LOOP = 2,
 	PC_BITS = PRECISE | LOOP,
 
-	// Pointer map
-	BitsPerPointer = 2,
-	BitsNoPointer = 0,
-	BitsPointer = 1,
-	BitsIface = 2,
-	BitsEface = 3,
-
 	RootData	= 0,
 	RootBss		= 1,
 	RootFinalizers	= 2,
@@ -265,7 +258,7 @@ static Workbuf* handoff(Workbuf*);
 static void	gchelperstart(void);
 static void	addfinroots(void *wbufp, void *v);
 static void	flushallmcaches(void);
-static void	scanframe(Stkframe *frame, void *wbufp);
+static bool	scanframe(Stkframe *frame, void *wbufp);
 static void	addstackroots(G *gp, Workbuf **wbufp);
 
 static FuncVal runfinqv = {runfinq};
@@ -1445,22 +1438,8 @@ handoff(Workbuf *b)
 
 extern byte pclntab[]; // base for f->ptrsoff
 
-typedef struct BitVector BitVector;
-struct BitVector
-{
-	int32 n;
-	uint32 data[];
-};
-
-typedef struct StackMap StackMap;
-struct StackMap
-{
-	int32 n;
-	uint32 data[];
-};
-
-static BitVector*
-stackmapdata(StackMap *stackmap, int32 n)
+BitVector*
+runtime·stackmapdata(StackMap *stackmap, int32 n)
 {
 	BitVector *bv;
 	uint32 *ptr;
@@ -1531,7 +1510,7 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 }
 
 // Scan a stack frame: local variables and function arguments/results.
-static void
+static bool
 scanframe(Stkframe *frame, void *wbufp)
 {
 	Func *f;
@@ -1576,7 +1555,7 @@ scanframe(Stkframe *frame, void *wbufp)
 					pcdata, stackmap->n, runtime·funcname(f), targetpc);
 				runtime·throw("scanframe: bad symbol table");
 			}
-			bv = stackmapdata(stackmap, pcdata);
+			bv = runtime·stackmapdata(stackmap, pcdata);
 			size = (bv->n * PtrSize) / BitsPerPointer;
 			scanbitvector(frame->varp - size, bv, afterprologue, wbufp);
 		}
@@ -1586,10 +1565,11 @@ scanframe(Stkframe *frame, void *wbufp)
 	// Use pointer information if known.
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
-		bv = stackmapdata(stackmap, pcdata);
+		bv = runtime·stackmapdata(stackmap, pcdata);
 		scanbitvector(frame->argp, bv, true, wbufp);
 	} else
 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
+	return true;
 }
 
 static void
@@ -1620,6 +1600,10 @@ addstackroots(G *gp, Workbuf **wbufp)
 		runtime·throw("can't scan our own stack");
 	if((mp = gp->m) != nil && mp->helpgc)
 		runtime·throw("can't scan gchelper stack");
+
+	// Shrink stack if not much of it is being used.
+	runtime·shrinkstack(gp);
+
 	if(gp->syscallstack != (uintptr)nil) {
 		// Scanning another goroutine that is about to enter or might
 		// have just exited a system call. It may be executing code such

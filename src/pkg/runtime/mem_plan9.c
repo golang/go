@@ -67,6 +67,12 @@ runtime·SysMap(void *v, uintptr nbytes, uint64 *stat)
 	USED(v, nbytes, stat);
 }
 
+void
+runtime·SysFault(void *v, uintptr n)
+{
+	USED(v, nbytes);
+}
+
 void*
 runtime·SysReserve(void *v, uintptr nbytes)
 {

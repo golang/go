@@ -175,6 +175,9 @@ struct MLink
 // location if that one is unavailable.
 //
 // SysMap maps previously reserved address space for use.
+//
+// SysFault marks a (already SysAlloc'd) region to fault
+// if accessed.  Used only for debugging the runtime.
 
 void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
 void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
@@ -182,6 +185,7 @@ void	runtime·SysUnused(void *v, uintptr nbytes);
 void	runtime·SysUsed(void *v, uintptr nbytes);
 void	runtime·SysMap(void *v, uintptr nbytes, uint64 *stat);
 void*	runtime·SysReserve(void *v, uintptr nbytes);
+void	runtime·SysFault(void *v, uintptr nbytes);
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
 // Malloc uses a FixAlloc wrapped around SysAlloc to manages its
@@ -571,6 +575,31 @@ enum
 	// Enables type information at the end of blocks allocated from heap	
 	DebugTypeAtBlockEnd = 0,
 };
+
+// Information from the compiler about the layout of stack frames.
+typedef struct BitVector BitVector;
+struct BitVector
+{
+	int32 n; // # of bits
+	uint32 data[];
+};
+typedef struct StackMap StackMap;
+struct StackMap
+{
+	int32 n;
+	uint32 data[];
+};
+enum {
+	// Pointer map
+	BitsPerPointer = 2,
+	BitsNoPointer = 0,
+	BitsPointer = 1,
+	BitsIface = 2,
+	BitsEface = 3,
+};
+// Returns pointer map data for the given stackmap index
+// (the index is encoded in PCDATA_StackMapIndex).
+BitVector*	runtime·stackmapdata(StackMap *stackmap, int32 n);
 
 // defined in mgc0.go
 void	runtime·gc_m_ptr(Eface*);

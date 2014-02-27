@@ -15,12 +15,15 @@ enum {
 	MEM_RELEASE = 0x8000,
 	
 	PAGE_READWRITE = 0x0004,
+	PAGE_NOACCESS = 0x0001,
 };
 
 #pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
 #pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
+#pragma dynimport runtime·VirtualProtect VirtualProtect "kernel32.dll"
 extern void *runtime·VirtualAlloc;
 extern void *runtime·VirtualFree;
+extern void *runtime·VirtualProtect;
 
 void*
 runtime·SysAlloc(uintptr n, uint64 *stat)
@@ -58,6 +61,16 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, (uintptr)0, (uintptr)MEM_RELEASE);
 	if(r == 0)
 		runtime·throw("runtime: failed to release pages");
+}
+
+void
+runtime·SysFault(void *v, uintptr n)
+{
+	uintptr r, old;
+
+	r = (uintptr)runtime·stdcall(runtime·VirtualProtect, 4, v, n, (uintptr)PAGE_NOACCESS, &old);
+	if(r == 0)
+		runtime·throw("runtime: failed to protect pages");
 }
 
 void*
