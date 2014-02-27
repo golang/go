@@ -48,7 +48,7 @@ func parseExpr(s, what string) ast.Expr {
 /*
 func dump(msg string, val reflect.Value) {
 	fmt.Printf("%s:\n", msg)
-	ast.Print(fset, val.Interface())
+	ast.Print(fileSet, val.Interface())
 	fmt.Println()
 }
 */
@@ -59,8 +59,9 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 	m := make(map[string]reflect.Value)
 	pat := reflect.ValueOf(pattern)
 	repl := reflect.ValueOf(replace)
-	var f func(val reflect.Value) reflect.Value // f is recursive
-	f = func(val reflect.Value) reflect.Value {
+
+	var rewriteVal func(val reflect.Value) reflect.Value
+	rewriteVal = func(val reflect.Value) reflect.Value {
 		// don't bother if val is invalid to start with
 		if !val.IsValid() {
 			return reflect.Value{}
@@ -68,22 +69,22 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 		for k := range m {
 			delete(m, k)
 		}
-		val = apply(f, val)
+		val = apply(rewriteVal, val)
 		if match(m, pat, val) {
 			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
 		}
 		return val
 	}
-	r := apply(f, reflect.ValueOf(p)).Interface().(*ast.File)
+
+	r := apply(rewriteVal, reflect.ValueOf(p)).Interface().(*ast.File)
 	r.Comments = cmap.Filter(r).Comments() // recreate comments list
 	return r
 }
 
-// setValue is a wrapper for x.SetValue(y); it protects
-// the caller from panics if x cannot be changed to y.
-func setValue(x, y reflect.Value) {
-	// don't bother if y is invalid to start with
-	if !y.IsValid() {
+// set is a wrapper for x.Set(y); it protects the caller from panics if x cannot be changed to y.
+func set(x, y reflect.Value) {
+	// don't bother if x cannot be set or y is invalid
+	if !x.CanSet() || !y.IsValid() {
 		return
 	}
 	defer func() {
@@ -134,16 +135,16 @@ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value
 	case reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			e := v.Index(i)
-			setValue(e, f(e))
+			set(e, f(e))
 		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
 			e := v.Field(i)
-			setValue(e, f(e))
+			set(e, f(e))
 		}
 	case reflect.Interface:
 		e := v.Elem()
-		setValue(v, f(e))
+		set(v, f(e))
 	}
 	return val
 }
