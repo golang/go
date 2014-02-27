@@ -378,10 +378,6 @@ func (p *printer) setLineComment(text string) {
 	p.setComment(&ast.CommentGroup{List: []*ast.Comment{{Slash: token.NoPos, Text: text}}})
 }
 
-func (p *printer) isMultiLine(n ast.Node) bool {
-	return p.lineFor(n.End())-p.lineFor(n.Pos()) > 0
-}
-
 func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
 	lbrace := fields.Opening
 	list := fields.List
@@ -428,13 +424,14 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 		if len(list) == 1 {
 			sep = blank
 		}
-		newSection := false
+		var line int
 		for i, f := range list {
 			if i > 0 {
-				p.linebreak(p.lineFor(f.Pos()), 1, ignore, newSection)
+				p.linebreak(p.lineFor(f.Pos()), 1, ignore, p.linesFrom(line) > 0)
 			}
 			extraTabs := 0
 			p.setComment(f.Doc)
+			p.recordLine(&line)
 			if len(f.Names) > 0 {
 				// named fields
 				p.identList(f.Names, false)
@@ -460,7 +457,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				}
 				p.setComment(f.Comment)
 			}
-			newSection = p.isMultiLine(f)
 		}
 		if isIncomplete {
 			if len(list) > 0 {
@@ -472,12 +468,13 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 
 	} else { // interface
 
-		newSection := false
+		var line int
 		for i, f := range list {
 			if i > 0 {
-				p.linebreak(p.lineFor(f.Pos()), 1, ignore, newSection)
+				p.linebreak(p.lineFor(f.Pos()), 1, ignore, p.linesFrom(line) > 0)
 			}
 			p.setComment(f.Doc)
+			p.recordLine(&line)
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
 				// method
 				p.expr(f.Names[0])
@@ -487,7 +484,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				p.expr(f.Type)
 			}
 			p.setComment(f.Comment)
-			newSection = p.isMultiLine(f)
 		}
 		if isIncomplete {
 			if len(list) > 0 {
@@ -907,7 +903,7 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
 	if nindent > 0 {
 		p.print(indent)
 	}
-	multiLine := false
+	var line int
 	i := 0
 	for _, s := range list {
 		// ignore empty statements (was issue 3466)
@@ -917,29 +913,27 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
 			if len(p.output) > 0 {
 				// only print line break if we are not at the beginning of the output
 				// (i.e., we are not printing only a partial program)
-				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
+				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || p.linesFrom(line) > 0)
 			}
+			p.recordLine(&line)
 			p.stmt(s, nextIsRBrace && i == len(list)-1)
 			// labeled statements put labels on a separate line, but here
-			// we only care about whether the actual statement w/o label
-			// is a multi-line statement - remove the label first
-			// (was issue 5623)
-			multiLine = p.isMultiLine(unlabeledStmt(s))
+			// we only care about the start line of the actual statement
+			// without label - correct line for each label
+			for t := s; ; {
+				lt, _ := t.(*ast.LabeledStmt)
+				if lt == nil {
+					break
+				}
+				line++
+				t = lt.Stmt
+			}
 			i++
 		}
 	}
 	if nindent > 0 {
 		p.print(unindent)
 	}
-}
-
-// unlabeledStmt returns the statement of a labeled statement s;
-// otherwise it return s.
-func unlabeledStmt(s ast.Stmt) ast.Stmt {
-	if s, _ := s.(*ast.LabeledStmt); s != nil {
-		return unlabeledStmt(s.Stmt)
-	}
-	return s
 }
 
 // block prints an *ast.BlockStmt; it always spans at least two lines.
@@ -1394,22 +1388,22 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 				// two or more grouped const/var declarations:
 				// determine if the type column must be kept
 				keepType := keepTypeColumn(d.Specs)
-				newSection := false
+				var line int
 				for i, s := range d.Specs {
 					if i > 0 {
-						p.linebreak(p.lineFor(s.Pos()), 1, ignore, newSection)
+						p.linebreak(p.lineFor(s.Pos()), 1, ignore, p.linesFrom(line) > 0)
 					}
+					p.recordLine(&line)
 					p.valueSpec(s.(*ast.ValueSpec), keepType[i])
-					newSection = p.isMultiLine(s)
 				}
 			} else {
-				newSection := false
+				var line int
 				for i, s := range d.Specs {
 					if i > 0 {
-						p.linebreak(p.lineFor(s.Pos()), 1, ignore, newSection)
+						p.linebreak(p.lineFor(s.Pos()), 1, ignore, p.linesFrom(line) > 0)
 					}
+					p.recordLine(&line)
 					p.spec(s, n, false)
-					newSection = p.isMultiLine(s)
 				}
 			}
 			p.print(unindent, formfeed)

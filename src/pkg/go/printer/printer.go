@@ -70,9 +70,10 @@ type printer struct {
 	// white space). If there's a difference and SourcePos is set in
 	// ConfigMode, //line comments are used in the output to restore
 	// original source positions for a reader.
-	pos  token.Position // current position in AST (source) space
-	out  token.Position // current position in output space
-	last token.Position // value of pos after calling writeString
+	pos     token.Position // current position in AST (source) space
+	out     token.Position // current position in output space
+	last    token.Position // value of pos after calling writeString
+	linePtr *int           // if set, record out.Line for the next token in *linePtr
 
 	// The list of all source comments, in order of appearance.
 	comments        []*ast.CommentGroup // may be nil
@@ -97,6 +98,14 @@ func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]
 	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
 	p.nodeSizes = nodeSizes
 	p.cachedPos = -1
+}
+
+func (p *printer) internalError(msg ...interface{}) {
+	if debug {
+		fmt.Print(p.pos.String() + ": ")
+		fmt.Println(msg...)
+		panic("go/printer")
+	}
 }
 
 // commentsHaveNewline reports whether a list of comments belonging to
@@ -162,12 +171,22 @@ func (p *printer) commentSizeBefore(next token.Position) int {
 	return size
 }
 
-func (p *printer) internalError(msg ...interface{}) {
-	if debug {
-		fmt.Print(p.pos.String() + ": ")
-		fmt.Println(msg...)
-		panic("go/printer")
-	}
+// recordLine records the output line number for the next non-whitespace
+// token in *linePtr. It is used to compute an accurate line number for a
+// formatted construct, independent of pending (not yet emitted) whitespace
+// or comments.
+//
+func (p *printer) recordLine(linePtr *int) {
+	p.linePtr = linePtr
+}
+
+// linesFrom returns the number of output lines between the current
+// output line and the line argument, ignoring any pending (not yet
+// emitted) whitespace or comments. It is used to compute an accurate
+// size (in number of lines) for a formatted construct.
+//
+func (p *printer) linesFrom(line int) int {
+	return p.out.Line - line
 }
 
 func (p *printer) posFor(pos token.Pos) token.Position {
@@ -941,6 +960,12 @@ func (p *printer) print(args ...interface{}) {
 				p.writeByte(ch, n)
 				impliedSemi = false
 			}
+		}
+
+		// the next token starts now - record its line number if requested
+		if p.linePtr != nil {
+			*p.linePtr = p.out.Line
+			p.linePtr = nil
 		}
 
 		p.writeString(next, data, isLit)

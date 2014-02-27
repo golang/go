@@ -409,6 +409,24 @@ func _() {
 	}
 }
 
+// use the formatted output rather than the input to decide when to align
+// (was issue 4505)
+const (
+	short = 2 * (
+	1 + 2)
+	aMuchLongerName = 3
+)
+
+var (
+	short = X{
+	}
+	aMuchLongerName = X{}
+
+	x1 = X{} // foo
+	x2 = X{
+	} // foo
+)
+
 func _() {
 	type (
 		xxxxxx int

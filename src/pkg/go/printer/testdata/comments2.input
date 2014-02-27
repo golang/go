@@ -91,6 +91,7 @@ LLLLLLL:
    _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
 
 LL:
+LLLLL:
    _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx /* comment */
    _ = yyyyyyyyyyyyyyyy /* comment - should be aligned */
 
