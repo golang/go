@@ -372,6 +372,14 @@ func switches0() {
 	case 1  /* ERROR "cannot convert" */ :
 	}
 
+	true := "false"
+	_ = true
+	// A tagless switch is equivalent to the bool 
+        // constant true, not the identifier 'true'.
+	switch {
+	case "false" /* ERROR "cannot convert" */:
+	}
+
 	switch int32(x) {
 	case 1, 2:
 	case x /* ERROR "cannot compare" */ :
@@ -741,14 +749,4 @@ func expression_statements(ch chan int) {
 	1 /* ERROR "not used" */ +2
 	cap /* ERROR "not used" */ (ch)
 	println /* ERROR "must be called" */
-}
-
-func _() {
-	true := "false"
-	_ = true
-	// A tagless switch is equivalent to the bool 
-        // constant true, not the identifier 'true'.
-	switch {
-	case "false" /* ERROR "cannot convert" */:
-	}
 }
