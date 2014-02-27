@@ -174,6 +174,7 @@ runtime·schedinit(void)
 	procresize(procs);
 
 	runtime·copystack = runtime·precisestack;
+	runtime·copystack = false; // TODO: remove
 	p = runtime·getenv("GOCOPYSTACK");
 	if(p != nil && !runtime·strcmp(p, (byte*)"0"))
 		runtime·copystack = false;
