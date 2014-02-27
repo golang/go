@@ -125,7 +125,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$232, AX
-	MOVQ	$0, DI
+	MOVQ	$0, DI  	// CLOCK_REALTIME
 	LEAQ	8(SP), SI
 	SYSCALL
 	MOVQ	8(SP), AX	// sec
@@ -138,7 +138,7 @@ TEXT time·now(SB), NOSPLIT, $32
 
 TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$232, AX
-	MOVQ	$0, DI
+	MOVQ	$4, DI  	// CLOCK_MONOTONIC
 	LEAQ	8(SP), SI
 	SYSCALL
 	MOVQ	8(SP), AX	// sec

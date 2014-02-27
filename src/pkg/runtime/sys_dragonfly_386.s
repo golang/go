@@ -155,7 +155,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
 TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)
+	MOVL	$0, 4(SP)	// CLOCK_REALTIME
 	MOVL	BX, 8(SP)
 	INT	$0x80
 	MOVL	12(SP), AX	// sec
@@ -172,7 +172,7 @@ TEXT time·now(SB), NOSPLIT, $32
 TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	LEAL	12(SP), BX
-	MOVL	$0, 4(SP)
+	MOVL	$4, 4(SP)	// CLOCK_MONOTONIC
 	MOVL	BX, 8(SP)
 	INT	$0x80
 	MOVL	12(SP), AX	// sec
