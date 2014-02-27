@@ -11,9 +11,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	. "net/http"
@@ -1318,6 +1320,61 @@ func TestTransportCancelRequest(t *testing.T) {
 		if tries == 1 {
 			t.Errorf("pending requests = %d; want 0", n)
 		}
+	}
+}
+
+func TestTransportCancelRequestInDial(t *testing.T) {
+	defer afterTest(t)
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+	var logbuf bytes.Buffer
+	eventLog := log.New(&logbuf, "", 0)
+
+	unblockDial := make(chan bool)
+	defer close(unblockDial)
+
+	inDial := make(chan bool)
+	tr := &Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			eventLog.Println("dial: blocking")
+			inDial <- true
+			<-unblockDial
+			return nil, errors.New("nope")
+		},
+	}
+	cl := &Client{Transport: tr}
+	gotres := make(chan bool)
+	req, _ := NewRequest("GET", "http://something.no-network.tld/", nil)
+	go func() {
+		_, err := cl.Do(req)
+		eventLog.Printf("Get = %v", err)
+		gotres <- true
+	}()
+
+	select {
+	case <-inDial:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout; never saw blocking dial")
+	}
+
+	eventLog.Printf("canceling")
+	tr.CancelRequest(req)
+
+	select {
+	case <-gotres:
+	case <-time.After(5 * time.Second):
+		panic("hang. events are: " + logbuf.String())
+		t.Fatal("timeout; cancel didn't work?")
+	}
+
+	got := logbuf.String()
+	want := `dial: blocking
+canceling
+Get = Get http://something.no-network.tld/: net/http: request canceled while waiting for connection
+`
+	if got != want {
+		t.Errorf("Got events:\n%s\nWant:\n%s", got, want)
 	}
 }
 

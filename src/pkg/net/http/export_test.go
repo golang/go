@@ -21,7 +21,7 @@ var ExportAppendTime = appendTime
 func (t *Transport) NumPendingRequestsForTesting() int {
 	t.reqMu.Lock()
 	defer t.reqMu.Unlock()
-	return len(t.reqConn)
+	return len(t.reqCanceler)
 }
 
 func (t *Transport) IdleConnKeysForTesting() (keys []string) {
