@@ -410,6 +410,12 @@ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 		return n, err
 	}
 
+	if w, ok := w.(io.ReaderFrom); ok {
+		m, err := w.ReadFrom(b.rd)
+		n += m
+		return n, err
+	}
+
 	for b.fill(); b.r < b.w; b.fill() {
 		m, err := b.writeBuf(w)
 		n += m

@@ -1094,20 +1094,12 @@ func TestWriterReset(t *testing.T) {
 
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
-	r io.Reader
-}
-
-func (r onlyReader) Read(b []byte) (int, error) {
-	return r.r.Read(b)
+	io.Reader
 }
 
 // An onlyWriter only implements io.Writer, no matter what other methods the underlying implementation may have.
 type onlyWriter struct {
-	w io.Writer
-}
-
-func (w onlyWriter) Write(b []byte) (int, error) {
-	return w.w.Write(b)
+	io.Writer
 }
 
 func BenchmarkReaderCopyOptimal(b *testing.B) {
@@ -1149,6 +1141,27 @@ func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
 		srcReader.Reset(srcBuf)
 		dstBuf.Reset()
 		io.Copy(dst, src)
+	}
+}
+
+func BenchmarkReaderWriteToOptimal(b *testing.B) {
+	const bufSize = 16 << 10
+	buf := make([]byte, bufSize)
+	r := bytes.NewReader(buf)
+	srcReader := NewReaderSize(onlyReader{r}, 1<<10)
+	if _, ok := ioutil.Discard.(io.ReaderFrom); !ok {
+		b.Fatal("ioutil.Discard doesn't support ReaderFrom")
+	}
+	for i := 0; i < b.N; i++ {
+		r.Seek(0, 0)
+		srcReader.Reset(onlyReader{r})
+		n, err := srcReader.WriteTo(ioutil.Discard)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if n != bufSize {
+			b.Fatalf("n = %d; want %d", n, bufSize)
+		}
 	}
 }
 
