@@ -39,8 +39,8 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	//
 	var allNamed []types.Type
 	for _, info := range o.typeInfo {
-		for id, obj := range info.Objects {
-			if obj, ok := obj.(*types.TypeName); ok && obj.Pos() == id.Pos() {
+		for _, obj := range info.Defs {
+			if obj, ok := obj.(*types.TypeName); ok {
 				allNamed = append(allNamed, obj.Type())
 			}
 		}

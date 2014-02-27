@@ -144,7 +144,7 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Name == "_" {
-		check.recordObject(ident, nil)
+		check.recordDef(ident, nil)
 		if !check.assignment(x, nil) {
 			assert(x.mode == invalid)
 			x.typ = nil
@@ -285,7 +285,7 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 				newVars = append(newVars, obj)
 			}
 			if obj != nil {
-				check.recordObject(ident, obj)
+				check.recordDef(ident, obj)
 			}
 		} else {
 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)

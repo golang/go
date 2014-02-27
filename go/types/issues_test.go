@@ -130,15 +130,15 @@ type T struct{} // receiver type after method declaration
 	}
 
 	var conf Config
-	objects := make(map[*ast.Ident]Object)
-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Objects: objects})
+	defs := make(map[*ast.Ident]Object)
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	m := f.Decls[0].(*ast.FuncDecl)
-	res1 := objects[m.Name].(*Func).Type().(*Signature).Results().At(0)
-	res2 := objects[m.Type.Results.List[0].Names[0]].(*Var)
+	res1 := defs[m.Name].(*Func).Type().(*Signature).Results().At(0)
+	res2 := defs[m.Type.Results.List[0].Names[0]].(*Var)
 
 	if res1 != res2 {
 		t.Errorf("got %s (%p) != %s (%p)", res1, res2, res1, res2)

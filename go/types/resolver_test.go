@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"sort"
 	"testing"
 
 	_ "code.google.com/p/go.tools/go/gcimporter"
@@ -29,6 +30,7 @@ var sources = []string{
 	`
 	package p
 	import "fmt"
+	type errorStringer struct { fmt.Stringer; error }
 	func f() string {
 		_ = "foo"
 		return fmt.Sprintf("%d", g())
@@ -42,7 +44,7 @@ var sources = []string{
 	func h() Mode { return ImportsOnly }
 	var _, x int = 1, 2
 	func init() {}
-	type T struct{ sync.Mutex; a, b, c int}
+	type T struct{ *sync.Mutex; a, b, c int}
 	type I interface{ m() }
 	var _ = T{a: 1, b: 2, c: 3}
 	func (_ T) m() {}
@@ -55,6 +57,7 @@ var sources = []string{
 		case int:
 			_ = x
 		}
+		switch {} // implicit 'true' tag
 	}
 	`,
 	`
@@ -99,8 +102,9 @@ func TestResolveIdents(t *testing.T) {
 
 	// resolve and type-check package AST
 	var conf Config
-	idents := make(map[*ast.Ident]Object)
-	_, err := conf.Check("testResolveIdents", fset, files, &Info{Objects: idents})
+	uses := make(map[*ast.Ident]Object)
+	defs := make(map[*ast.Ident]Object)
+	_, err := conf.Check("testResolveIdents", fset, files, &Info{Defs: defs, Uses: uses})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,12 +121,12 @@ func TestResolveIdents(t *testing.T) {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if s, ok := n.(*ast.SelectorExpr); ok {
 				if x, ok := s.X.(*ast.Ident); ok {
-					obj := idents[x]
+					obj := uses[x]
 					if obj == nil {
 						t.Errorf("%s: unresolved qualified identifier %s", fset.Position(x.Pos()), x.Name)
 						return false
 					}
-					if _, ok := obj.(*PkgName); ok && idents[s.Sel] == nil {
+					if _, ok := obj.(*PkgName); ok && uses[s.Sel] == nil {
 						t.Errorf("%s: unresolved selector %s", fset.Position(s.Sel.Pos()), s.Sel.Name)
 						return false
 					}
@@ -134,14 +138,30 @@ func TestResolveIdents(t *testing.T) {
 		})
 	}
 
-	// check that each identifier in the source is found in the idents map
+	for id, obj := range uses {
+		if obj == nil {
+			t.Errorf("%s: Uses[%s] == nil", fset.Position(id.Pos()), id.Name)
+		}
+	}
+
+	// check that each identifier in the source is found in uses or defs or both
+	var both []string
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if x, ok := n.(*ast.Ident); ok {
-				if _, found := idents[x]; found {
-					delete(idents, x)
-				} else {
+				var objects int
+				if _, found := uses[x]; found {
+					objects |= 1
+					delete(uses, x)
+				}
+				if _, found := defs[x]; found {
+					objects |= 2
+					delete(defs, x)
+				}
+				if objects == 0 {
 					t.Errorf("%s: unresolved identifier %s", fset.Position(x.Pos()), x.Name)
+				} else if objects == 3 {
+					both = append(both, x.Name)
 				}
 				return false
 			}
@@ -149,8 +169,17 @@ func TestResolveIdents(t *testing.T) {
 		})
 	}
 
+	// check the expected set of idents that are simultaneously uses and defs
+	sort.Strings(both)
+	if got, want := fmt.Sprint(both), "[Mutex Stringer error]"; got != want {
+		t.Errorf("simultaneous uses/defs = %s, want %s", got, want)
+	}
+
 	// any left-over identifiers didn't exist in the source
-	for x := range idents {
+	for x := range uses {
+		t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
+	}
+	for x := range defs {
 		t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
 	}
 

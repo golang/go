@@ -109,8 +109,8 @@ func main() {
 	// of (*J).method, so it doesn't help us locate the specific
 	// ssa.Values here: a bound-method closure and a promotion
 	// wrapper.
-	_ = v11.method // v11::Const
-	_ = (*struct{ J }).method
+	_ = v11.method            // v11::Const
+	_ = (*struct{ J }).method // J::nil
 
 	// These vars are optimised away.
 	if false {

@@ -204,7 +204,8 @@ func doPackageDir(directory string) {
 
 type Package struct {
 	path     string
-	idents   map[*ast.Ident]types.Object
+	defs     map[*ast.Ident]types.Object
+	uses     map[*ast.Ident]types.Object
 	types    map[ast.Expr]types.TypeAndValue
 	spans    map[types.Object]Span
 	files    []*File

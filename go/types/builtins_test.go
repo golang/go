@@ -133,9 +133,9 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	}
 
 	var conf Config
-	objects := make(map[*ast.Ident]Object)
+	uses := make(map[*ast.Ident]Object)
 	types := make(map[ast.Expr]TypeAndValue)
-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Objects: objects, Types: types})
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Uses: uses, Types: types})
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)
 		return
@@ -172,7 +172,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 		// identifier denoting the expected built-in
 		switch p := fun.(type) {
 		case *ast.Ident:
-			obj := objects[p]
+			obj := uses[p]
 			if obj == nil {
 				t.Errorf("%s: no object found for %s", src0, p)
 				return

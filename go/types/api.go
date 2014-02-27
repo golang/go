@@ -10,7 +10,7 @@
 //
 // Name resolution maps each identifier (ast.Ident) in the program to the
 // language object (Object) it denotes.
-// Use Info.Objects, Info.Implicits for the results of name resolution.
+// Use Info.{Defs,Uses,Implicits} for the results of name resolution.
 //
 // Constant folding computes the exact constant value (exact.Value) for
 // every expression (ast.Expr) that is a compile-time constant.
@@ -130,8 +130,7 @@ type TypeAndValue struct {
 type Info struct {
 	// Types maps expressions to their types, and for constant
 	// expressions, their values.
-	// Identifiers on the lhs of declarations are collected in
-	// Objects, not Types.
+	// Identifiers are collected in Defs and Uses, not Types.
 	//
 	// For an expression denoting a predeclared built-in function
 	// the recorded signature is call-site specific. If the call
@@ -139,13 +138,24 @@ type Info struct {
 	// specific signature. Otherwise, the recorded type is invalid.
 	Types map[ast.Expr]TypeAndValue
 
-	// Objects maps identifiers to their corresponding objects (including
+	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
 	// For identifiers that do not denote objects (e.g., the package name
 	// in package clauses, blank identifiers on the lhs of assignments, or
 	// symbolic variables t in t := x.(type) of type switch headers), the
 	// corresponding objects are nil.
-	Objects map[*ast.Ident]Object
+	//
+	// For an anonymous field, Defs returns the field *Var it defines.
+	//
+	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
+	Defs map[*ast.Ident]Object
+
+	// Uses maps identifiers to the objects they denote.
+	//
+	// For an anonymous field, Uses returns the *TypeName it denotes.
+	//
+	// Invariant: Uses[id].Pos() != id.Pos()
+	Uses map[*ast.Ident]Object
 
 	// Implicits maps nodes to their implicitly declared objects, if any.
 	// The following node and object types may appear:

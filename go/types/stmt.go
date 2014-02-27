@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+
+	"code.google.com/p/go.tools/go/exact"
 )
 
 func (check *checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
@@ -388,14 +390,16 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		check.initStmt(s.Init)
 		var x operand
-		tag := s.Tag
-		if tag == nil {
-			// use fake true tag value and position it at the opening { of the switch
-			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
-			check.recordObject(ident, Universe.Lookup("true"))
-			tag = ident
+		if s.Tag != nil {
+			check.expr(&x, s.Tag)
+		} else {
+			// spec: "A missing switch expression is
+			// equivalent to the boolean value true."
+			x.mode = constant
+			x.typ = Typ[Bool]
+			x.val = exact.MakeBool(true)
+			x.expr = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
 		}
-		check.expr(&x, tag)
 
 		check.multipleDefaults(s.Body.List)
 
@@ -448,7 +452,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
-			check.recordObject(lhs, nil) // lhs variable is implicitly declared in each cause clause
+			check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
 
 			rhs = guard.Rhs[0]
 
@@ -673,7 +677,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					// declare new variable
 					name := ident.Name
 					obj = NewVar(ident.Pos(), check.pkg, name, nil)
-					check.recordObject(ident, obj)
+					check.recordDef(ident, obj)
 					// _ variables don't count as new variables
 					if name != "_" {
 						vars = append(vars, obj)

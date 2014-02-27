@@ -60,51 +60,49 @@ func TestObjValueLookup(t *testing.T) {
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
 
-	// Gather all idents and objects in file.
-	objs := make(map[types.Object]bool)
-	var ids []*ast.Ident
-	ast.Inspect(f, func(n ast.Node) bool {
-		if id, ok := n.(*ast.Ident); ok {
-			ids = append(ids, id)
-			if obj := mainInfo.ObjectOf(id); obj != nil {
-				objs[obj] = true
-			}
-		}
-		return true
-	})
-
-	// Check invariants for func and const objects.
-	for obj := range objs {
+	var varIds []*ast.Ident
+	var varObjs []*types.Var
+	for id, obj := range mainInfo.Defs {
+		// Check invariants for func and const objects.
 		switch obj := obj.(type) {
 		case *types.Func:
 			checkFuncValue(t, prog, obj)
 
 		case *types.Const:
 			checkConstValue(t, prog, obj)
+
+		case *types.Var:
+			if id.Name == "_" {
+				continue
+			}
+			varIds = append(varIds, id)
+			varObjs = append(varObjs, obj)
+		}
+	}
+	for id, obj := range mainInfo.Uses {
+		if obj, ok := obj.(*types.Var); ok {
+			varIds = append(varIds, id)
+			varObjs = append(varObjs, obj)
 		}
 	}
 
 	// Check invariants for var objects.
 	// The result varies based on the specific Ident.
-	for _, id := range ids {
-		if id.Name == "_" {
+	for i, id := range varIds {
+		obj := varObjs[i]
+		ref, _ := astutil.PathEnclosingInterval(f, id.Pos(), id.Pos())
+		pos := prog.Fset.Position(id.Pos())
+		exp := expectations[fmt.Sprintf("%s:%d", id.Name, pos.Line)]
+		if exp == "" {
+			t.Errorf("%s: no expectation for var ident %s ", pos, id.Name)
 			continue
 		}
-		if obj, ok := mainInfo.ObjectOf(id).(*types.Var); ok {
-			ref, _ := astutil.PathEnclosingInterval(f, id.Pos(), id.Pos())
-			pos := prog.Fset.Position(id.Pos())
-			exp := expectations[fmt.Sprintf("%s:%d", id.Name, pos.Line)]
-			if exp == "" {
-				t.Errorf("%s: no expectation for var ident %s ", pos, id.Name)
-				continue
-			}
-			wantAddr := false
-			if exp[0] == '&' {
-				wantAddr = true
-				exp = exp[1:]
-			}
-			checkVarValue(t, prog, mainPkg, ref, obj, exp, wantAddr)
+		wantAddr := false
+		if exp[0] == '&' {
+			wantAddr = true
+			exp = exp[1:]
 		}
+		checkVarValue(t, prog, mainPkg, ref, obj, exp, wantAddr)
 	}
 }
 

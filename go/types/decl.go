@@ -27,7 +27,7 @@ func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
 		return
 	}
 	if id != nil {
-		check.recordObject(id, obj)
+		check.recordDef(id, obj)
 	}
 }
 
@@ -253,7 +253,7 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 				continue
 			}
 		}
-		check.recordObject(check.objMap[m].fdecl.Name, m)
+		check.recordDef(check.objMap[m].fdecl.Name, m)
 		check.objDecl(m, nil, nil)
 		// Methods with blank _ names cannot be found.
 		// Don't add them to the method list.

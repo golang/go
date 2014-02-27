@@ -742,3 +742,13 @@ func expression_statements(ch chan int) {
 	cap /* ERROR "not used" */ (ch)
 	println /* ERROR "must be called" */
 }
+
+func _() {
+	true := "false"
+	_ = true
+	// A tagless switch is equivalent to the bool 
+        // constant true, not the identifier 'true'.
+	switch {
+	case "false" /* ERROR "cannot convert" */:
+	}
+}

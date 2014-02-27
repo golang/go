@@ -138,7 +138,7 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 				// ok to continue
 			} else {
 				b.insert(s)
-				check.recordObject(s.Label, lbl)
+				check.recordDef(s.Label, lbl)
 			}
 			// resolve matching forward jumps and remove them from fwdJumps
 			i := 0
@@ -146,7 +146,7 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 				if jmp.Label.Name == name {
 					// match
 					lbl.used = true
-					check.recordObject(jmp.Label, lbl)
+					check.recordUse(jmp.Label, lbl)
 					if jumpsOverVarDecl(jmp) {
 						check.errorf(
 							jmp.Label.Pos(),
@@ -220,7 +220,7 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			// record label use
 			obj := all.Lookup(name)
 			obj.(*Label).used = true
-			check.recordObject(s.Label, obj)
+			check.recordUse(s.Label, obj)
 
 		case *ast.AssignStmt:
 			if s.Tok == token.DEFINE {

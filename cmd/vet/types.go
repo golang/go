@@ -14,7 +14,8 @@ import (
 )
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
-	pkg.idents = make(map[*ast.Ident]types.Object)
+	pkg.defs = make(map[*ast.Ident]types.Object)
+	pkg.uses = make(map[*ast.Ident]types.Object)
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
 	// By providing a Config with our own error function, it will continue
@@ -23,13 +24,17 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 		Error: func(error) {},
 	}
 	info := &types.Info{
-		Types:   pkg.types,
-		Objects: pkg.idents,
+		Types: pkg.types,
+		Defs:  pkg.defs,
+		Uses:  pkg.uses,
 	}
 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
 	pkg.typesPkg = typesPkg
 	// update spans
-	for id, obj := range pkg.idents {
+	for id, obj := range pkg.defs {
+		pkg.growSpan(id, obj)
+	}
+	for id, obj := range pkg.uses {
 		pkg.growSpan(id, obj)
 	}
 	return err

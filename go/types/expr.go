@@ -1023,7 +1023,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					fld := fields[i]
-					check.recordObject(key, fld)
+					check.recordUse(key, fld)
 					// 0 <= i < len(fields)
 					if visited[i] {
 						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)

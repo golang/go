@@ -189,7 +189,7 @@ func (f *File) checkShadowDecl(d *ast.GenDecl) {
 
 // checkShadowing checks whether the identifier shadows an identifier in an outer scope.
 func (f *File) checkShadowing(ident *ast.Ident) {
-	obj := f.pkg.idents[ident]
+	obj := f.pkg.defs[ident]
 	if obj == nil {
 		return
 	}

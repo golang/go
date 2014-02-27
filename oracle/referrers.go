@@ -29,14 +29,11 @@ func referrers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		return nil, fmt.Errorf("no object for identifier")
 	}
 
-	// Iterate over all go/types' resolver facts for the entire program.
+	// Iterate over all go/types' Uses facts for the entire program.
 	var refs []*ast.Ident
 	for _, info := range o.typeInfo {
-		for id2, obj2 := range info.Objects {
+		for id2, obj2 := range info.Uses {
 			if sameObj(obj, obj2) {
-				if id2.NamePos == obj.Pos() {
-					continue // skip defining ident
-				}
 				refs = append(refs, id2)
 			}
 		}

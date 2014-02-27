@@ -41,9 +41,9 @@ func (f *File) checkNilFuncComparison(e *ast.BinaryExpr) {
 	var obj types.Object
 	switch v := e2.(type) {
 	case *ast.Ident:
-		obj = f.pkg.idents[v]
+		obj = f.pkg.uses[v]
 	case *ast.SelectorExpr:
-		obj = f.pkg.idents[v.Sel]
+		obj = f.pkg.uses[v.Sel]
 	default:
 		return
 	}

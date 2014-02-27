@@ -125,7 +125,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	for _, file := range files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
-		check.recordObject(file.Name, nil)
+		check.recordDef(file.Name, nil)
 
 		fileScope := NewScope(pkg.scope)
 		check.recordScope(file, fileScope)
@@ -188,7 +188,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						obj := NewPkgName(s.Pos(), imp, name)
 						if s.Name != nil {
 							// in a dot-import, the dot represents the package
-							check.recordObject(s.Name, obj)
+							check.recordDef(s.Name, obj)
 						} else {
 							check.recordImplicit(s, obj)
 						}
@@ -308,7 +308,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 					if name == "init" {
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
-						check.recordObject(d.Name, obj)
+						check.recordDef(d.Name, obj)
 						// init functions must have a body
 						if d.Body == nil {
 							check.errorf(obj.pos, "missing function body")

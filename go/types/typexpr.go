@@ -32,7 +32,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		}
 		return
 	}
-	check.recordObject(e, obj)
+	check.recordUse(e, obj)
 
 	check.objDecl(obj, def, path)
 	typ := obj.Type()
@@ -480,7 +480,7 @@ func (check *checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 				iface.methods = append(iface.methods, m)
 				iface.allMethods = append(iface.allMethods, m)
 				signatures = append(signatures, f.Type)
-				check.recordObject(name, m)
+				check.recordDef(name, m)
 			}
 		} else {
 			// embedded type
@@ -604,7 +604,8 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(field *ast.Field, ident *ast.Ident, name string, anonymous bool, pos token.Pos) {
+	// anonymous != nil indicates an anonymous field.
+	add := func(field *ast.Field, ident *ast.Ident, anonymous *TypeName, pos token.Pos) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -612,13 +613,15 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 			tags = append(tags, tag)
 		}
 
-		fld := NewField(pos, check.pkg, name, typ, anonymous)
+		name := ident.Name
+		fld := NewField(pos, check.pkg, name, typ, anonymous != nil)
 		// spec: "Within a struct, non-blank field names must be unique."
 		if name == "_" || check.declareInSet(&fset, pos, fld) {
 			fields = append(fields, fld)
-			if ident != nil {
-				check.recordObject(ident, fld)
-			}
+			check.recordDef(ident, fld)
+		}
+		if anonymous != nil {
+			check.recordUse(ident, anonymous)
 		}
 	}
 
@@ -628,10 +631,11 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				add(f, name, name.Name, false, name.Pos())
+				add(f, name, nil, name.Pos())
 			}
 		} else {
 			// anonymous field
+			name := anonymousFieldIdent(f.Type)
 			pos := f.Type.Pos()
 			t, isPtr := deref(typ)
 			switch t := t.(type) {
@@ -645,7 +649,7 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
 					continue
 				}
-				add(f, nil, t.name, true, pos)
+				add(f, name, Universe.Lookup(t.name).(*TypeName), pos)
 
 			case *Named:
 				// spec: "An embedded type must be specified as a type name
@@ -667,7 +671,7 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 						continue
 					}
 				}
-				add(f, nil, t.obj.name, true, pos)
+				add(f, name, t.obj, pos)
 
 			default:
 				check.invalidAST(pos, "anonymous field type %s must be named", typ)
@@ -677,4 +681,16 @@ func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 
 	styp.fields = fields
 	styp.tags = tags
+}
+
+func anonymousFieldIdent(e ast.Expr) *ast.Ident {
+	switch e := e.(type) {
+	case *ast.Ident:
+		return e
+	case *ast.StarExpr:
+		return anonymousFieldIdent(e.X)
+	case *ast.SelectorExpr:
+		return e.Sel
+	}
+	return nil // invalid anonymous field
 }

@@ -683,7 +683,8 @@ func (imp *importer) createPackage(path string, files ...*ast.File) *PackageInfo
 		Files: files,
 		Info: types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
-			Objects:    make(map[*ast.Ident]types.Object),
+			Defs:       make(map[*ast.Ident]types.Object),
+			Uses:       make(map[*ast.Ident]types.Object),
 			Implicits:  make(map[ast.Node]types.Object),
 			Scopes:     make(map[ast.Node]*types.Scope),
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),

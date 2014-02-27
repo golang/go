@@ -258,9 +258,17 @@ func (check *checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	}
 }
 
-func (check *checker) recordObject(id *ast.Ident, obj Object) {
+func (check *checker) recordDef(id *ast.Ident, obj Object) {
 	assert(id != nil)
-	if m := check.Objects; m != nil {
+	if m := check.Defs; m != nil {
+		m[id] = obj
+	}
+}
+
+func (check *checker) recordUse(id *ast.Ident, obj Object) {
+	assert(id != nil)
+	assert(obj != nil)
+	if m := check.Uses; m != nil {
 		m[id] = obj
 	}
 }
@@ -274,7 +282,7 @@ func (check *checker) recordImplicit(node ast.Node, obj Object) {
 
 func (check *checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
 	assert(obj != nil && (recv == nil || len(index) > 0))
-	check.recordObject(x.Sel, obj)
+	check.recordUse(x.Sel, obj)
 	// TODO(gri) Should we also call recordTypeAndValue?
 	if m := check.Selections; m != nil {
 		m[x] = &Selection{kind, recv, obj, index, indirect}
