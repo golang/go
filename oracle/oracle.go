@@ -464,7 +464,11 @@ func buildSSA(o *Oracle) {
 
 // ptrAnalysis runs the pointer analysis and returns its result.
 func ptrAnalysis(o *Oracle) *pointer.Result {
-	return pointer.Analyze(&o.ptaConfig)
+	result, err := pointer.Analyze(&o.ptaConfig)
+	if err != nil {
+		panic(err) // pointer analysis internal error
+	}
+	return result
 }
 
 // unparen returns e with any enclosing parentheses stripped.

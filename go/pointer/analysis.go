@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"runtime/debug"
 
 	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
@@ -286,7 +287,19 @@ func (a *analysis) computeTrackBits() {
 // Analyze runs the pointer analysis with the scope and options
 // specified by config, and returns the (synthetic) root of the callgraph.
 //
-func Analyze(config *Config) *Result {
+// Pointer analysis of a transitively closed well-typed program should
+// always succeed.  An error can occur only due to an internal bug.
+//
+func Analyze(config *Config) (result *Result, err error) {
+	stage := "setup"
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("internal error in pointer analysis %s: %v (please report this bug)", stage, p)
+			fmt.Fprintln(os.Stderr, "Internal panic in pointer analysis:")
+			debug.PrintStack()
+		}
+	}()
+
 	a := &analysis{
 		config:      config,
 		log:         config.Log,
@@ -318,7 +331,7 @@ func Analyze(config *Config) *Result {
 		// (This only checks that the package scope is complete,
 		// not that func bodies exist, but it's a good signal.)
 		if !pkg.Object.Complete() {
-			panic(fmt.Sprintf(`pointer analysis requires a complete program yet package %q was incomplete (set loader.Config.SourceImports during loading)`, pkg.Object.Path()))
+			return nil, fmt.Errorf(`pointer analysis requires a complete program yet package %q was incomplete (set loader.Config.SourceImports during loading)`, pkg.Object.Path())
 		}
 	}
 
@@ -347,6 +360,7 @@ func Analyze(config *Config) *Result {
 	}
 	a.computeTrackBits()
 
+	stage = "constraint generation"
 	a.generate()
 
 	if a.log != nil {
@@ -362,8 +376,10 @@ func Analyze(config *Config) *Result {
 		fmt.Fprintf(a.log, "# nodes:\t%d\n", len(a.nodes))
 	}
 
-	//a.optimize()
+	// stage = "constraint optimization"
+	// a.optimize()
 
+	stage = "solver"
 	a.solve()
 
 	if a.log != nil {
@@ -376,6 +392,7 @@ func Analyze(config *Config) *Result {
 	}
 
 	// Create callgraph.Nodes in deterministic order.
+	stage = "callgraph construction"
 	if cg := a.result.CallGraph; cg != nil {
 		for _, caller := range a.cgnodes {
 			cg.CreateNode(caller.fn)
@@ -391,7 +408,7 @@ func Analyze(config *Config) *Result {
 		}
 	}
 
-	return a.result
+	return a.result, nil
 }
 
 // callEdge is called for each edge in the callgraph.

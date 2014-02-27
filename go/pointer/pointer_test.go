@@ -307,7 +307,10 @@ func doOneInput(input, filename string) bool {
 		}
 	}()
 
-	result := pointer.Analyze(config)
+	result, err := pointer.Analyze(config)
+	if err != nil {
+		panic(err) // internal error in pointer analysis
+	}
 
 	// Check the expectations.
 	for _, e := range exps {

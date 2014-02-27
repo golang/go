@@ -79,7 +79,10 @@ func main() {
 	config.AddQuery(Cfm)
 
 	// Run the pointer analysis.
-	result := pointer.Analyze(config)
+	result, err := pointer.Analyze(config)
+	if err != nil {
+		panic(err) // internal error in pointer analysis
+	}
 
 	// Find edges originating from the main package.
 	// By converting to strings, we de-duplicate nodes
