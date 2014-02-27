@@ -226,7 +226,7 @@ runtime·panic(Eface e)
 			break;
 		// take defer off list in case of recursive panic
 		g->defer = d->link;
-		g->ispanic = true;	// rock for newstack, where reflect.newstackcall ends up
+		g->ispanic = true;	// rock for runtime·newstack, where runtime·newstackcall ends up
 		argp = d->argp;
 		pc = d->pc;
 		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
@@ -246,7 +246,8 @@ runtime·panic(Eface e)
 	// ran out of deferred calls - old-school panic now
 	runtime·startpanic();
 	printpanics(g->panic);
-	runtime·dopanic(0);
+	runtime·dopanic(0);	// should not return
+	runtime·exit(1);	// not reached
 }
 
 // Unwind the stack after a deferred function calls recover
