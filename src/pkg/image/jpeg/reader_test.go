@@ -28,6 +28,7 @@ func TestDecodeProgressive(t *testing.T) {
 		"../testdata/video-001.q50.444",
 		"../testdata/video-005.gray.q50",
 		"../testdata/video-005.gray.q50.2x2",
+		"../testdata/video-001.separate.dc.progression",
 	}
 	for _, tc := range testCases {
 		m0, err := decodeFile(tc + ".jpeg")
@@ -44,6 +45,12 @@ func TestDecodeProgressive(t *testing.T) {
 			t.Errorf("%s: bounds differ: %v and %v", tc, m0.Bounds(), m1.Bounds())
 			continue
 		}
+		// All of the video-*.jpeg files are 150x103.
+		if m0.Bounds() != image.Rect(0, 0, 150, 103) {
+			t.Errorf("%s: bad bounds: %v", tc, m0.Bounds())
+			continue
+		}
+
 		switch m0 := m0.(type) {
 		case *image.YCbCr:
 			m1 := m1.(*image.YCbCr)
@@ -84,18 +91,15 @@ func decodeFile(filename string) (image.Image, error) {
 
 // check checks that the two pix data are equal, within the given bounds.
 func check(bounds image.Rectangle, pix0, pix1 []byte, stride0, stride1 int) error {
-	if len(pix0) != len(pix1) {
-		return fmt.Errorf("len(pix) %d and %d differ", len(pix0), len(pix1))
+	if stride0 <= 0 || stride0%8 != 0 {
+		return fmt.Errorf("bad stride %d", stride0)
 	}
-	if stride0 != stride1 {
-		return fmt.Errorf("strides %d and %d differ", stride0, stride1)
-	}
-	if stride0%8 != 0 {
-		return fmt.Errorf("stride %d is not a multiple of 8", stride0)
+	if stride1 <= 0 || stride1%8 != 0 {
+		return fmt.Errorf("bad stride %d", stride1)
 	}
 	// Compare the two pix data, one 8x8 block at a time.
-	for y := 0; y < len(pix0)/stride0; y += 8 {
-		for x := 0; x < stride0; x += 8 {
+	for y := 0; y < len(pix0)/stride0 && y < len(pix1)/stride1; y += 8 {
+		for x := 0; x < stride0 && x < stride1; x += 8 {
 			if x >= bounds.Max.X || y >= bounds.Max.Y {
 				// We don't care if the two pix data differ if the 8x8 block is
 				// entirely outside of the image's bounds. For example, this can
@@ -108,8 +112,9 @@ func check(bounds image.Rectangle, pix0, pix1 []byte, stride0, stride1 int) erro
 
 			for j := 0; j < 8; j++ {
 				for i := 0; i < 8; i++ {
-					index := (y+j)*stride0 + (x + i)
-					if pix0[index] != pix1[index] {
+					index0 := (y+j)*stride0 + (x + i)
+					index1 := (y+j)*stride1 + (x + i)
+					if pix0[index0] != pix1[index1] {
 						return fmt.Errorf("blocks at (%d, %d) differ:\n%sand\n%s", x, y,
 							pixString(pix0, stride0, x, y),
 							pixString(pix1, stride1, x, y),

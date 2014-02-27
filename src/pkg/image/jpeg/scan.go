@@ -141,25 +141,30 @@ func (d *decoder) processSOS(n int) error {
 				for j := 0; j < d.comp[compIndex].h*d.comp[compIndex].v; j++ {
 					// The blocks are traversed one MCU at a time. For 4:2:0 chroma
 					// subsampling, there are four Y 8x8 blocks in every 16x16 MCU.
+					//
 					// For a baseline 32x16 pixel image, the Y blocks visiting order is:
 					//	0 1 4 5
 					//	2 3 6 7
 					//
-					// For progressive images, the DC data blocks (zigStart == 0) are traversed
-					// as above, but AC data blocks are traversed left to right, top to bottom:
+					// For progressive images, the interleaved scans (those with nComp > 1)
+					// are traversed as above, but non-interleaved scans are traversed left
+					// to right, top to bottom:
 					//	0 1 2 3
 					//	4 5 6 7
+					// Only DC scans (zigStart == 0) can be interleaved. AC scans must have
+					// only one component.
 					//
-					// To further complicate matters, there is no AC data for any blocks that
-					// are inside the image at the MCU level but outside the image at the pixel
-					// level. For example, a 24x16 pixel 4:2:0 progressive image consists of
-					// two 16x16 MCUs. The earlier scans will process 8 Y blocks:
+					// To further complicate matters, for non-interleaved scans, there is no
+					// data for any blocks that are inside the image at the MCU level but
+					// outside the image at the pixel level. For example, a 24x16 pixel 4:2:0
+					// progressive image consists of two 16x16 MCUs. The interleaved scans
+					// will process 8 Y blocks:
 					//	0 1 4 5
 					//	2 3 6 7
-					// The later scans will process only 6 Y blocks:
+					// The non-interleaved scans will process only 6 Y blocks:
 					//	0 1 2
 					//	3 4 5
-					if zigStart == 0 {
+					if nComp != 1 {
 						mx0, my0 = d.comp[compIndex].h*mx, d.comp[compIndex].v*my
 						if h0 == 1 {
 							my0 += j
