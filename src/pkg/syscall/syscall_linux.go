@@ -420,6 +420,9 @@ func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
 	if err != nil {
 		return
 	}
+	if len > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
 	sa, err = anyToSockaddr(&rsa)
 	if err != nil {
 		Close(nfd)
