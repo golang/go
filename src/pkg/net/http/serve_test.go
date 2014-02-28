@@ -2358,6 +2358,22 @@ func mustGet(t *testing.T, url string, headers ...string) {
 	}
 }
 
+func TestServerKeepAlivesEnabled(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	ts.Config.SetKeepAlivesEnabled(false)
+	ts.Start()
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if !res.Close {
+		t.Errorf("Body.Close == false; want true")
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
