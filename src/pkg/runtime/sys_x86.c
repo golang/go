@@ -37,6 +37,19 @@ runtime·rewindmorestack(Gobuf *gobuf)
 		gobuf->pc = gobuf->pc + 2 + *(int8*)(pc+1);
 		return;
 	}
+ 	if(pc[0] == 0xcc) {
+ 		// This is a breakpoint inserted by gdb.  We could use
+ 		// runtime·findfunc to find the function.  But if we
+ 		// do that, then we will continue execution at the
+ 		// function entry point, and we will not hit the gdb
+ 		// breakpoint.  So for this case we don't change
+ 		// gobuf->pc, so that when we return we will execute
+ 		// the jump instruction and carry on.  This means that
+ 		// stack unwinding may not work entirely correctly
+ 		// (http://golang.org/issue/5723) but the user is
+ 		// running under gdb anyhow.
+ 		return;
+	}
 	runtime·printf("runtime: pc=%p %x %x %x %x %x\n", pc, pc[0], pc[1], pc[2], pc[3], pc[4]);
 	runtime·throw("runtime: misuse of rewindmorestack");
 }
