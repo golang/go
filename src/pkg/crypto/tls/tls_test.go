@@ -5,7 +5,10 @@
 package tls
 
 import (
+	"net"
+	"strings"
 	"testing"
+	"time"
 )
 
 var rsaCertPEM = `-----BEGIN CERTIFICATE-----
@@ -103,5 +106,47 @@ func TestX509MixedKeyPair(t *testing.T) {
 	}
 	if _, err := X509KeyPair([]byte(ecdsaCertPEM), []byte(rsaKeyPEM)); err == nil {
 		t.Error("Load of ECDSA certificate succeeded with RSA private key")
+	}
+}
+
+func TestDialTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		listener, err = net.Listen("tcp6", "[::1]:0")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr := listener.Addr().String()
+	defer listener.Close()
+
+	complete := make(chan bool)
+	defer close(complete)
+
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		<-complete
+		conn.Close()
+	}()
+
+	dialer := &net.Dialer{
+		Timeout: 10 * time.Millisecond,
+	}
+
+	if _, err = DialWithDialer(dialer, "tcp", addr, nil); err == nil {
+		t.Fatal("DialWithTimeout completed successfully")
+	}
+
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("resulting error not a timeout: %s", err)
 	}
 }
