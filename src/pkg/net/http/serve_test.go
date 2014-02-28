@@ -851,7 +851,9 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 	}
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	errc := make(chanWriter, 10) // but only expecting 1
 	ts.Config.ReadTimeout = 250 * time.Millisecond
+	ts.Config.ErrorLog = log.New(errc, "", 0)
 	ts.StartTLS()
 	defer ts.Close()
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
@@ -866,6 +868,14 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 			t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
 		}
 	})
+	select {
+	case v := <-errc:
+		if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
+			t.Errorf("expected a TLS handshake timeout error; got %q", v)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("timeout waiting for logged error")
+	}
 }
 
 func TestTLSServer(t *testing.T) {
@@ -878,6 +888,7 @@ func TestTLSServer(t *testing.T) {
 			}
 		}
 	}))
+	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 	defer ts.Close()
 
 	// Connect an idle TCP connection to this server before we run
