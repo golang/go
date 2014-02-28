@@ -37,6 +37,9 @@ func (d *decoder) ensureNBits(n int) error {
 	for d.b.n < n {
 		c, err := d.r.ReadByte()
 		if err != nil {
+			if err == io.EOF {
+				return FormatError("short Huffman data")
+			}
 			return err
 		}
 		d.b.a = d.b.a<<8 | uint32(c)
@@ -50,6 +53,9 @@ func (d *decoder) ensureNBits(n int) error {
 		if c == 0xff {
 			c, err = d.r.ReadByte()
 			if err != nil {
+				if err == io.EOF {
+					return FormatError("short Huffman data")
+				}
 				return err
 			}
 			if c != 0x00 {
