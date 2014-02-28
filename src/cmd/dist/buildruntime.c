@@ -173,12 +173,23 @@ static struct {
 		"#define	g(r)	-8(r)(GS*1)\n"
 		"#define	m(r)	-4(r)(GS*1)\n"
 	},
+	{"386", "nacl",
+		// Same as Linux above.
+		"#define	get_tls(r)	MOVL 8(GS), r\n"
+		"#define	g(r)	-8(r)(GS*1)\n"
+		"#define	m(r)	-4(r)(GS*1)\n"
+	},
 	{"386", "",
 		"#define	get_tls(r)\n"
 		"#define	g(r)	0(GS)\n"
 		"#define	m(r)	4(GS)\n"
 	},
 
+	{"amd64p32", "nacl",
+		"#define get_tls(r)\n"
+		"#define g(r) 0(GS)\n"
+		"#define m(r) 4(GS)\n"
+	},
 	{"amd64", "windows",
 		"#define	get_tls(r) MOVQ 0x28(GS), r\n"
 		"#define	g(r) 0(r)\n"
@@ -248,7 +259,8 @@ mkzasm(char *dir, char *file)
 ok:
 
 	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -a -n -o workdir/proc.acid proc.c
-	// to get acid [sic] output.
+	// to get acid [sic] output. Run once without the -a -o workdir/proc.acid in order to
+	// report compilation failures (the -o redirects all messages, unfortunately).
 	vreset(&argv);
 	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
 	vadd(&argv, "-D");
@@ -257,8 +269,8 @@ ok:
 	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
 	vadd(&argv, "-I");
 	vadd(&argv, bprintf(&b, "%s", workdir));
-	vadd(&argv, "-a");
 	vadd(&argv, "-n");
+	vadd(&argv, "-a");
 	vadd(&argv, "-o");
 	vadd(&argv, bpathf(&b, "%s/proc.acid", workdir));
 	vadd(&argv, "proc.c");
