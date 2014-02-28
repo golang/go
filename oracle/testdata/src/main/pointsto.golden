@@ -31,7 +31,7 @@ this func() may point to these objects:
 
 -------- @pointsto ref-anon --------
 this func() may point to these objects:
-	func@25.10
+	main$1
 
 -------- @pointsto ref-global --------
 this *string may point to these objects:

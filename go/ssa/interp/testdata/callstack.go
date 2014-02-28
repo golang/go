@@ -15,7 +15,7 @@ func f() {
 	for _, f := range pc {
 		Func := runtime.FuncForPC(f)
 		name := Func.Name()
-		if strings.Contains(name, "func") {
+		if strings.Contains(name, "$") || strings.Contains(name, ".func") {
 			name = "func" // anon funcs vary across toolchains
 		}
 		file, line := Func.FileLine(0)

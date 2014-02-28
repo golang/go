@@ -35,11 +35,11 @@ main.store is called from these 2 sites:
 
 -------- @pointsto pointsto-result-f --------
 this func() *int may point to these objects:
-	func@50.7
+	main$1
 
 -------- @callees callees-main.call-f --------
 this dynamic function call dispatches to:
-	func@50.7
+	main$1
 
 -------- @callers callers-main.call --------
 main.call is called from these 2 sites:

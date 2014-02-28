@@ -468,9 +468,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		panic("non-constant BasicLit") // unreachable
 
 	case *ast.FuncLit:
-		posn := fn.Prog.Fset.Position(e.Type.Func)
 		fn2 := &Function{
-			name:      fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
+			name:      fmt.Sprintf("%s$%d", fn.Name(), 1+len(fn.AnonFuncs)),
 			Signature: fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
 			pos:       e.Type.Func,
 			Enclosing: fn,

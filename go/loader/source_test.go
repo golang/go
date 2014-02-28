@@ -60,11 +60,11 @@ func TestEnclosingFunction(t *testing.T) {
 		// Function literal:
 		{`package main
 		  func f() { println(func() { print(300) }) }`,
-			"300", "func@2.24"},
+			"300", "f$1"},
 		// Doubly nested
 		{`package main
 		  func f() { println(func() { print(func() { print(350) })})}`,
-			"350", "func@2.39"},
+			"350", "f$1$1"},
 		// Implicit init for package-level var initializer.
 		{"package main; var a = 400", "400", "main.init"},
 		// No code for constants:
@@ -79,7 +79,7 @@ func TestEnclosingFunction(t *testing.T) {
 		// init() containing FuncLit.
 		{`package main
 		  func init() { println(func(){print(900)}) }`,
-			"900", "func@2.27"},
+			"900", "init$1$1"},
 	}
 	for _, test := range tests {
 		conf := loader.Config{Fset: token.NewFileSet()}

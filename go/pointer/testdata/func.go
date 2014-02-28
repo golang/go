@@ -28,9 +28,9 @@ func func1() {
 	print(&a)    // @pointsto main.a
 }
 
-// @calls main.func1 -> func@19.7
-// @calls main.func1 -> func@11.7
-// @calls func@19.7 ->  func@11.7
+// @calls main.func1 -> func1$2
+// @calls main.func1 -> func1$1
+// @calls func1$2 ->  func1$1
 
 func func2() {
 	var x, y *int
@@ -124,7 +124,7 @@ func func6() {
 	print(f()) // @pointsto main.a
 }
 
-// @calls main.func6 -> func@121.7
+// @calls main.func6 -> func6$1
 
 type I interface {
 	f()

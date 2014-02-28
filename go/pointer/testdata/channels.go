@@ -19,7 +19,7 @@ func chan1() {
 	print(<-chA) // @pointsto main.incr
 
 	print(chB)   // @pointsto makechan@c1makeB:13
-	print(<-chB) // @pointsto main.decr | func@16.9
+	print(<-chB) // @pointsto main.decr | chan1$1
 }
 
 func chan2() {
@@ -40,10 +40,10 @@ func chan2() {
 	print(<-chA) // @pointsto main.incr
 
 	print(chB)   // @pointsto makechan@c2makeB:13
-	print(<-chB) // @pointsto main.decr | func@30.9
+	print(<-chB) // @pointsto main.decr | chan2$1
 
 	print(chAB)   // @pointsto makechan@c2makeA:13 | makechan@c2makeB:13
-	print(<-chAB) // @pointsto main.incr | main.decr | func@30.9
+	print(<-chAB) // @pointsto main.incr | main.decr | chan2$1
 
 	(<-chA)(3)
 }
@@ -59,7 +59,7 @@ func chan3() {
 	print(chA)   // @pointsto makechan@c3makeA:13
 	print(<-chA) // @pointsto main.incr
 	print(chB)   // @pointsto makechan@c3makeB:13
-	print(<-chB) // @pointsto main.decr | func@58.9
+	print(<-chB) // @pointsto main.decr | chan3$1
 
 	(<-chA)(3)
 }

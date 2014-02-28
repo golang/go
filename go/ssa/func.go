@@ -457,7 +457,9 @@ func (f *Function) emit(instr Instruction) Value {
 //      "(*sync.WaitGroup).Add"     // a declared method
 //      "(*Return).Block"           // a promotion wrapper method (intra-package ref)
 //      "(Instruction).Block"       // an interface method wrapper (intra-package ref)
-//      "func@5.32"                 // an anonymous function
+//      "main$1"                    // an anonymous function
+//      "init$1"                    // a declared init function
+//      "init"                      // the synthesized package initializer
 //      "bound$(*T).f"              // a bound method wrapper
 //
 // If from==f.Pkg, suppress package qualification.

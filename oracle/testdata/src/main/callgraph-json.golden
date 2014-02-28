@@ -43,7 +43,7 @@
 			"pos": "testdata/src/main/callgraph-json.go:9:6"
 		},
 		{
-			"name": "func@31.8",
+			"name": "main$1",
 			"pos": "testdata/src/main/callgraph-json.go:31:8"
 		}
 	]
