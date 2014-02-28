@@ -276,7 +276,7 @@ runtime·tracebackothers(G *me)
 	if((gp = m->curg) != nil && gp != me) {
 		runtime·printf("\n");
 		runtime·goroutineheader(gp);
-		runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
+		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
 	}
 
 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
@@ -290,7 +290,7 @@ runtime·tracebackothers(G *me)
 			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
 			runtime·printcreatedby(gp);
 		} else
-			runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
+			runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
 	}
 }
 
