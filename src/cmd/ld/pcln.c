@@ -89,6 +89,7 @@ renumberfiles(LSym **files, int nfiles, Pcdata *d)
 			val = files[oldval]->value;
 		}
 		dv = val - newval;
+		newval = val;
 		v = (uint32)(dv<<1) ^ (uint32)(int32)(dv>>31);
 		addvarint(&out, v);
 
@@ -114,6 +115,7 @@ pclntab(void)
 	int32 off, end;
 	int64 funcdata_bytes;
 	Pcln *pcln;
+	Pciter it;
 	static Pcln zpcln;
 	
 	funcdata_bytes = 0;
@@ -173,8 +175,18 @@ pclntab(void)
 		// and then remove this.
 		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + PtrSize);
 		
-		if(pcln != &zpcln)
+		if(pcln != &zpcln) {
 			renumberfiles(pcln->file, pcln->nfile, &pcln->pcfile);
+			if(0) {
+				// Sanity check the new numbering
+				for(pciterinit(&it, &pcln->pcfile); !it.done; pciternext(&it)) {
+					if(it.value < 1 || it.value > ctxt->nhistfile) {
+						diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, 1, ctxt->nhistfile);
+						errorexit();
+					}
+				}
+			}
+		}
 
 		// pcdata
 		off = addpctab(ftab, off, &pcln->pcsp);
