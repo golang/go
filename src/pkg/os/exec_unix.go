@@ -38,6 +38,9 @@ func (p *Process) signal(sig Signal) error {
 	if p.done() {
 		return errors.New("os: process already finished")
 	}
+	if p.Pid == -1 {
+		return errors.New("os: process already released")
+	}
 	s, ok := sig.(syscall.Signal)
 	if !ok {
 		return errors.New("os: unsupported signal type")
