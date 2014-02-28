@@ -2276,12 +2276,8 @@ func TestServerConnState(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	type connIDAndState struct {
-		connID int
-		state  ConnState
-	}
 	var mu sync.Mutex // guard stateLog and connID
-	var stateLog []connIDAndState
+	var stateLog = map[int][]ConnState{}
 	var connID = map[net.Conn]int{}
 
 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
@@ -2296,7 +2292,7 @@ func TestServerConnState(t *testing.T) {
 			id = len(connID) + 1
 			connID[c] = id
 		}
-		stateLog = append(stateLog, connIDAndState{id, state})
+		stateLog[id] = append(stateLog[id], state)
 	}
 	ts.Start()
 
@@ -2308,27 +2304,18 @@ func TestServerConnState(t *testing.T) {
 
 	mustGet(t, ts.URL+"/hijack")
 
-	want := []connIDAndState{
-		{1, StateNew},
-		{1, StateActive},
-		{1, StateIdle},
-		{1, StateActive},
-		{1, StateClosed},
-
-		{2, StateNew},
-		{2, StateActive},
-		{2, StateIdle},
-		{2, StateActive},
-		{2, StateClosed},
-
-		{3, StateNew},
-		{3, StateActive},
-		{3, StateHijacked},
+	want := map[int][]ConnState{
+		1: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
+		2: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
+		3: []ConnState{StateNew, StateActive, StateHijacked},
 	}
-	logString := func(l []connIDAndState) string {
+	logString := func(m map[int][]ConnState) string {
 		var b bytes.Buffer
-		for _, cs := range l {
-			fmt.Fprintf(&b, "[%d %s] ", cs.connID, cs.state)
+		for id, l := range m {
+			fmt.Fprintf(&b, "Conn %d: ", id)
+			for _, s := range l {
+				fmt.Fprintf(&b, "%s ", s)
+			}
 		}
 		return b.String()
 	}
