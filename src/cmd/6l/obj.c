@@ -42,6 +42,16 @@ char*	thestring 	= "amd64";
 LinkArch*	thelinkarch = &linkamd64;
 
 void
+linkarchinit(void)
+{
+	if(strcmp(getgoarch(), "amd64p32") == 0)
+		thelinkarch = &linkamd64p32;
+	PtrSize = thelinkarch->ptrsize;
+	IntSize = PtrSize;
+	RegSize = thelinkarch->regsize;
+}
+
+void
 archinit(void)
 {
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
@@ -63,6 +73,7 @@ archinit(void)
 	case Hdragonfly:
 	case Hfreebsd:
 	case Hlinux:
+	case Hnacl:
 	case Hnetbsd:
 	case Hopenbsd:
 	case Hsolaris:
@@ -117,6 +128,18 @@ archinit(void)
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
+	case Hnacl:
+		elfinit();
+		debug['w']++; // disable dwarf, which gets confused and is useless anyway
+		HEADR = 0x10000;
+		funcalign = 32;
+		if(INITTEXT == -1)
+			INITTEXT = 0x20000;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 0x10000;
+		break;
 	case Hwindows:		/* PE executable */
 		peinit();
 		HEADR = PEFILEHEADR;
@@ -128,6 +151,7 @@ archinit(void)
 			INITRND = PESECTALIGN;
 		break;
 	}
+
 	if(INITDAT != 0 && INITRND != 0)
 		print("warning: -D0x%llux is ignored because of -R0x%ux\n",
 			INITDAT, INITRND);

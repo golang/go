@@ -108,6 +108,7 @@ struct	Prog
 	char	ft;	/* 6l, 8l oclass cache */
 	char	tt;	// 6l, 8l
 	uchar	optab;	// 5l
+	uchar	isize;	// 6l, 8l
 
 	char	width;	/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
@@ -363,6 +364,9 @@ struct	Link
 	Prog*	blitrl;
 	Prog*	elitrl;
 	int	rexflag;
+	int	rep; // for nacl
+	int	repn; // for nacl
+	int	lock; // for nacl
 	int	asmode;
 	uchar*	andptr;
 	uchar	and[100];
@@ -412,6 +416,7 @@ struct LinkArch
 
 	int	minlc;
 	int	ptrsize;
+	int	regsize;
 	
 	// TODO: Give these the same values on all systems.
 	int	D_ADDR;
@@ -447,6 +452,7 @@ enum {
 	Helf,
 	Hfreebsd,
 	Hlinux,
+	Hnacl,
 	Hnetbsd,
 	Hopenbsd,
 	Hplan9,
@@ -563,6 +569,7 @@ extern	char*	anames8[];
 
 extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
+extern	LinkArch	linkamd64p32;
 extern	LinkArch	linkarm;
 
 #pragma	varargck	type	"A"	int

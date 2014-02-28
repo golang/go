@@ -97,12 +97,19 @@ settextflag(Prog *p, int f)
 	p->from.scale = f;
 }
 
+static void nacladdr(Link*, Prog*, Addr*);
+
 static void
 progedit(Link *ctxt, Prog *p)
 {
 	char literal[64];
 	LSym *s;
 	Prog *q;
+
+	if(ctxt->headtype == Hnacl) {
+		nacladdr(ctxt, p, &p->from);
+		nacladdr(ctxt, p, &p->to);
+	}
 
 	if(p->from.type == D_INDIR+D_GS || p->from.index == D_GS)
 		p->from.offset += ctxt->tlsoffset;
@@ -298,6 +305,39 @@ progedit(Link *ctxt, Prog *p)
 	}
 }
 
+static void
+nacladdr(Link *ctxt, Prog *p, Addr *a)
+{
+	if(p->as == ALEAL || p->as == ALEAQ)
+		return;
+	
+	if(a->type == D_BP || a->type == D_INDIR+D_BP) {
+		ctxt->diag("invalid address: %P", p);
+		return;
+	}
+	if(a->type == D_INDIR+D_GS)
+		a->type = D_INDIR+D_BP;
+	else if(a->type == D_GS)
+		a->type = D_BP;
+	if(D_INDIR <= a->type && a->type <= D_INDIR+D_INDIR) {
+		switch(a->type) {
+		case D_INDIR+D_BP:
+		case D_INDIR+D_SP:
+		case D_INDIR+D_R15:
+			// all ok
+			break;
+		default:
+			if(a->index != D_NONE)
+				ctxt->diag("invalid address %P", p);
+			a->index = a->type - D_INDIR;
+			if(a->index != D_NONE)
+				a->scale = 1;
+			a->type = D_INDIR+D_R15;
+			break;
+		}
+	}
+}
+
 static char*
 morename[] =
 {
@@ -316,6 +356,7 @@ morename[] =
 
 static Prog*	load_g_cx(Link*, Prog*);
 static Prog*	stacksplit(Link*, Prog*, int32, int32, Prog**);
+static void	indir_cx(Link*, Addr*);
 
 static void
 parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
@@ -369,7 +410,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	noleaf:;
 	}
 
-	if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
+	if((p->from.scale & NOSPLIT) && autoffset >= StackLimit)
 		ctxt->diag("nosplit func likely to overflow stack");
 
 	q = nil;
@@ -381,6 +422,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p = stacksplit(ctxt, p, autoffset, textarg, &q); // emit split check
 
 	if(autoffset) {
+		if(autoffset%ctxt->arch->regsize != 0)
+			ctxt->diag("unaligned stack size %d", autoffset);
 		p = appendp(ctxt, p);
 		p->as = AADJSP;
 		p->from.type = D_CONST;
@@ -402,12 +445,12 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	deltasp = autoffset;
 	
 	if(cursym->text->from.scale & WRAPPER) {
-		// g->panicwrap += autoffset + ctxt->arch->ptrsize;
+		// g->panicwrap += autoffset + ctxt->arch->regsize;
 		p = appendp(ctxt, p);
 		p->as = AADDL;
 		p->from.type = D_CONST;
-		p->from.offset = autoffset + ctxt->arch->ptrsize;
-		p->to.type = D_INDIR+D_CX;
+		p->from.offset = autoffset + ctxt->arch->regsize;
+		indir_cx(ctxt, &p->to);
 		p->to.offset = 2*ctxt->arch->ptrsize;
 	}
 
@@ -417,7 +460,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		// function is marked as nosplit.
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_INDIR+D_CX;
+		indir_cx(ctxt, &p->from);
 		p->from.offset = 0;
 		p->to.type = D_BX;
 
@@ -531,11 +574,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		if(cursym->text->from.scale & WRAPPER) {
 			p = load_g_cx(ctxt, p);
 			p = appendp(ctxt, p);
-			// g->panicwrap -= autoffset + ctxt->arch->ptrsize;
+			// g->panicwrap -= autoffset + ctxt->arch->regsize;
 			p->as = ASUBL;
 			p->from.type = D_CONST;
-			p->from.offset = autoffset + ctxt->arch->ptrsize;
-			p->to.type = D_INDIR+D_CX;
+			p->from.offset = autoffset + ctxt->arch->regsize;
+			indir_cx(ctxt, &p->to);
 			p->to.offset = 2*ctxt->arch->ptrsize;
 			p = appendp(ctxt, p);
 			p->as = ARET;
@@ -557,6 +600,19 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		if(p->to.sym) // retjmp
 			p->as = AJMP;
 	}
+}
+
+static void
+indir_cx(Link *ctxt, Addr *a)
+{
+	if(ctxt->headtype == Hnacl) {
+		a->type = D_INDIR + D_R15;
+		a->index = D_CX;
+		a->scale = 1;
+		return;
+	}
+
+	a->type = D_INDIR+D_CX;
 }
 
 // Append code to p to load g into cx.
@@ -582,12 +638,15 @@ load_g_cx(Link *ctxt, Prog *p)
 	|| ctxt->headtype == Hsolaris)
 		// ELF uses FS
 		p->from.type = D_INDIR+D_FS;
-	else
+	else if(ctxt->headtype == Hnacl) {
+		p->as = AMOVL;
+		p->from.type = D_INDIR+D_BP;
+	} else
 		p->from.type = D_INDIR+D_GS;
 	if(ctxt->flag_shared) {
 		// Add TLS offset stored in CX
 		p->from.index = p->from.type - D_INDIR;
-		p->from.type = D_INDIR + D_CX;
+		indir_cx(ctxt, &p->from);
 	}
 	p->from.offset = ctxt->tlsoffset+0;
 	p->to.type = D_CX;
@@ -601,7 +660,7 @@ load_g_cx(Link *ctxt, Prog *p)
 
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_INDIR+D_CX;
+		indir_cx(ctxt, &p->from);
 		p->from.offset = 0;
 		p->to.type = D_CX;
 	}
@@ -619,6 +678,19 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 {
 	Prog *q, *q1;
 	uint32 moreconst1, moreconst2, i;
+	int cmp, lea, mov, sub;
+
+	cmp = ACMPQ;
+	lea = ALEAQ;
+	mov = AMOVQ;
+	sub = ASUBQ;
+
+	if(ctxt->headtype == Hnacl) {
+		cmp = ACMPL;
+		lea = ALEAL;
+		mov = AMOVL;
+		sub = ASUBL;
+	}
 
 	if(ctxt->debugstack) {
 		// 6l -K means check not only for stack
@@ -628,8 +700,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		// catches out-of-sync stack guard info
 
 		p = appendp(ctxt, p);
-		p->as = ACMPQ;
-		p->from.type = D_INDIR+D_CX;
+		p->as = cmp;
+		indir_cx(ctxt, &p->from);
 		p->from.offset = 8;
 		p->to.type = D_SP;
 
@@ -654,23 +726,23 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		// small stack: SP <= stackguard
 		//	CMPQ SP, stackguard
 		p = appendp(ctxt, p);
-		p->as = ACMPQ;
+		p->as = cmp;
 		p->from.type = D_SP;
-		p->to.type = D_INDIR+D_CX;
+		indir_cx(ctxt, &p->to);
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), AX
 		//	CMPQ AX, stackguard
 		p = appendp(ctxt, p);
-		p->as = ALEAQ;
+		p->as = lea;
 		p->from.type = D_INDIR+D_SP;
 		p->from.offset = -(framesize-StackSmall);
 		p->to.type = D_AX;
 
 		p = appendp(ctxt, p);
-		p->as = ACMPQ;
+		p->as = cmp;
 		p->from.type = D_AX;
-		p->to.type = D_INDIR+D_CX;
+		indir_cx(ctxt, &p->to);
 	} else {
 		// Such a large stack we need to protect against wraparound.
 		// If SP is close to zero:
@@ -688,13 +760,13 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		//	CMPQ	AX, $(framesize+(StackGuard-StackSmall))
 
 		p = appendp(ctxt, p);
-		p->as = AMOVQ;
-		p->from.type = D_INDIR+D_CX;
+		p->as = mov;
+		indir_cx(ctxt, &p->from);
 		p->from.offset = 0;
 		p->to.type = D_SI;
 
 		p = appendp(ctxt, p);
-		p->as = ACMPQ;
+		p->as = cmp;
 		p->from.type = D_SI;
 		p->to.type = D_CONST;
 		p->to.offset = StackPreempt;
@@ -705,18 +777,18 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		q1 = p;
 
 		p = appendp(ctxt, p);
-		p->as = ALEAQ;
+		p->as = lea;
 		p->from.type = D_INDIR+D_SP;
 		p->from.offset = StackGuard;
 		p->to.type = D_AX;
 		
 		p = appendp(ctxt, p);
-		p->as = ASUBQ;
+		p->as = sub;
 		p->from.type = D_SI;
 		p->to.type = D_AX;
 		
 		p = appendp(ctxt, p);
-		p->as = ACMPQ;
+		p->as = cmp;
 		p->from.type = D_AX;
 		p->to.type = D_CONST;
 		p->to.offset = framesize+(StackGuard-StackSmall);
@@ -780,7 +852,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		p->to.type = D_BRANCH;
 		p->to.sym = ctxt->symmorestack[2];
 	} else {
-		p->as = AMOVQ;
+		p->as = mov;
 		p->from.type = D_CONST;
 		p->from.offset = (uint64)moreconst2 << 32;
 		p->from.offset |= moreconst1;
@@ -1035,6 +1107,52 @@ LinkArch linkamd64 = {
 
 	.minlc = 1,
 	.ptrsize = 8,
+	.regsize = 8,
+
+	.D_ADDR = D_ADDR,
+	.D_BRANCH = D_BRANCH,
+	.D_CONST = D_CONST,
+	.D_EXTERN = D_EXTERN,
+	.D_FCONST = D_FCONST,
+	.D_NONE = D_NONE,
+	.D_PCREL = D_PCREL,
+	.D_SCONST = D_SCONST,
+	.D_SIZE = D_SIZE,
+	.D_STATIC = D_STATIC,
+
+	.ACALL = ACALL,
+	.ADATA = ADATA,
+	.AEND = AEND,
+	.AFUNCDATA = AFUNCDATA,
+	.AGLOBL = AGLOBL,
+	.AJMP = AJMP,
+	.ANOP = ANOP,
+	.APCDATA = APCDATA,
+	.ARET = ARET,
+	.ATEXT = ATEXT,
+	.ATYPE = ATYPE,
+	.AUSEFIELD = AUSEFIELD,
+};
+
+LinkArch linkamd64p32 = {
+	.name = "amd64p32",
+	.thechar = '6',
+
+	.addstacksplit = addstacksplit,
+	.assemble = span6,
+	.datasize = datasize,
+	.follow = follow,
+	.iscall = iscall,
+	.isdata = isdata,
+	.prg = prg,
+	.progedit = progedit,
+	.settextflag = settextflag,
+	.symtype = symtype,
+	.textflag = textflag,
+
+	.minlc = 1,
+	.ptrsize = 4,
+	.regsize = 8,
 
 	.D_ADDR = D_ADDR,
 	.D_BRANCH = D_BRANCH,

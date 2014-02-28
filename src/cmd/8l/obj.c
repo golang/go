@@ -42,6 +42,11 @@ char*	thestring 	= "386";
 LinkArch*	thelinkarch = &link386;
 
 void
+linkarchinit(void)
+{
+}
+
+void
 archinit(void)
 {
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
@@ -104,6 +109,19 @@ archinit(void)
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
+	
+	case Hnacl:
+		elfinit();
+		HEADR = 0x10000;
+		funcalign = 32;
+		if(INITTEXT == -1)
+			INITTEXT = 0x20000;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 0x10000;
+		break;
+	
 	case Hwindows: /* PE executable */
 		peinit();
 		HEADR = PEFILEHEADR;

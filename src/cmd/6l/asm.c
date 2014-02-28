@@ -661,6 +661,7 @@ asmb(void)
 	case Hsolaris:
 		debug['8'] = 1;	/* 64-bit addresses */
 		break;
+	case Hnacl:
 	case Hwindows:
 		break;
 	}
@@ -689,6 +690,7 @@ asmb(void)
 		case Hopenbsd:
 		case Hdragonfly:
 		case Hsolaris:
+		case Hnacl:
 			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
@@ -770,6 +772,7 @@ asmb(void)
 	case Hopenbsd:
 	case Hdragonfly:
 	case Hsolaris:
+	case Hnacl:
 		asmbelf(symo);
 		break;
 	case Hwindows:

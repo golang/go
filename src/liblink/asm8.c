@@ -1153,6 +1153,46 @@ static Optab optab[] =
 
 static int32	vaddr(Link*, Addr*, Reloc*);
 
+// single-instruction no-ops of various lengths.
+// constructed by hand and disassembled with gdb to verify.
+// see http://www.agner.org/optimize/optimizing_assembly.pdf for discussion.
+static uchar nop[][16] = {
+	{0x90},
+	{0x66, 0x90},
+	{0x0F, 0x1F, 0x00},
+	{0x0F, 0x1F, 0x40, 0x00},
+	{0x0F, 0x1F, 0x44, 0x00, 0x00},
+	{0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00},
+	{0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
+	{0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+	{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+	// Native Client rejects the repeated 0x66 prefix.
+	// {0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
+static void
+fillnop(uchar *p, int n)
+{
+	int m;
+
+	while(n > 0) {
+		m = n;
+		if(m > nelem(nop))
+			m = nelem(nop);
+		memmove(p, nop[m-1], m);
+		p += m;
+		n -= m;
+	}
+}
+
+static int32
+naclpad(Link *ctxt, LSym *s, int32 c, int32 pad)
+{
+	symgrow(ctxt, s, c+pad);
+	fillnop(s->p+c, pad);
+	return c+pad;
+}
+
 static void instinit(void);
 
 void
@@ -1223,6 +1263,38 @@ span8(Link *ctxt, LSym *s)
 		s->np = 0;
 		c = 0;
 		for(p = s->text; p != nil; p = p->link) {
+			if(ctxt->headtype == Hnacl && p->isize > 0) {
+				static LSym *deferreturn;
+				
+				if(deferreturn == nil)
+					deferreturn = linklookup(ctxt, "runtime.deferreturn", 0);
+
+				// pad everything to avoid crossing 32-byte boundary
+				if((c>>5) != ((c+p->isize-1)>>5))
+					c = naclpad(ctxt, s, c, -c&31);
+				// pad call deferreturn to start at 32-byte boundary
+				// so that subtracting 5 in jmpdefer will jump back
+				// to that boundary and rerun the call.
+				if(p->as == ACALL && p->to.sym == deferreturn)
+					c = naclpad(ctxt, s, c, -c&31);
+				// pad call to end at 32-byte boundary
+				if(p->as == ACALL)
+					c = naclpad(ctxt, s, c, -(c+p->isize)&31);
+				
+				// the linker treats REP and STOSQ as different instructions
+				// but in fact the REP is a prefix on the STOSQ.
+				// make sure REP has room for 2 more bytes, so that
+				// padding will not be inserted before the next instruction.
+				if(p->as == AREP && (c>>5) != ((c+3-1)>>5))
+					c = naclpad(ctxt, s, c, -c&31);
+				
+				// same for LOCK.
+				// various instructions follow; the longest is 4 bytes.
+				// give ourselves 8 bytes so as to avoid surprises.
+				if(p->as == ALOCK && (c>>5) != ((c+8-1)>>5))
+					c = naclpad(ctxt, s, c, -c&31);
+			}
+			
 			p->pc = c;
 
 			// process forward jumps to p
@@ -1247,9 +1319,13 @@ span8(Link *ctxt, LSym *s)
 			}
 			p->comefrom = nil;
 
-			asmins(ctxt, p);
 			p->pc = c;
+			asmins(ctxt, p);
 			m = ctxt->andptr-ctxt->and;
+			if(p->isize != m) {
+				p->isize = m;
+				loop++;
+			}
 			symgrow(ctxt, s, p->pc+m);
 			memmove(s->p+p->pc, ctxt->and, m);
 			p->mark = m;
@@ -1260,6 +1336,9 @@ span8(Link *ctxt, LSym *s)
 			sysfatal("bad code");
 		}
 	} while(loop);
+	
+	if(ctxt->headtype == Hnacl)
+		c = naclpad(ctxt, s, c, -c&31);
 	c += -c&(FuncAlign-1);
 	s->size = c;
 
@@ -1644,7 +1723,7 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 static int
 istls(Link *ctxt, Addr *a)
 {
-	if(ctxt->headtype == Hlinux)
+	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl)
 		return a->index == D_GS;
 	return a->type == D_INDIR+D_GS;
 }
@@ -2565,10 +2644,38 @@ mfound:
 	}
 }
 
+static uchar naclret[] = {
+	0x5d, // POPL BP
+	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
+	0x83, 0xe5, 0xe0,	// ANDL $~31, BP
+	0xff, 0xe5, // JMP BP
+};
+
 static void
 asmins(Link *ctxt, Prog *p)
 {
 	ctxt->andptr = ctxt->and;
+
+	if(ctxt->headtype == Hnacl) {
+		switch(p->as) {
+		case ARET:
+			memmove(ctxt->andptr, naclret, sizeof naclret);
+			ctxt->andptr += sizeof naclret;
+			return;
+		case ACALL:
+		case AJMP:
+			if(D_AX <= p->to.type && p->to.type <= D_DI) {
+				*ctxt->andptr++ = 0x83;
+				*ctxt->andptr++ = 0xe0 | (p->to.type - D_AX);
+				*ctxt->andptr++ = 0xe0;
+			}
+			break;
+		case AINT:
+			*ctxt->andptr++ = 0xf4;
+			return;
+		}
+	}
+
 	doasm(ctxt, p);
 	if(ctxt->andptr > ctxt->and+sizeof ctxt->and) {
 		print("and[] is too short - %ld byte instruction\n", ctxt->andptr - ctxt->and);

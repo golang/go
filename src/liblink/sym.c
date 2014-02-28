@@ -49,6 +49,7 @@ static struct {
 	"elf",		Helf,
 	"freebsd",	Hfreebsd,
 	"linux",	Hlinux,
+	"nacl",		Hnacl,
 	"netbsd",	Hnetbsd,
 	"openbsd",	Hopenbsd,
 	"plan9",	Hplan9,
@@ -96,8 +97,8 @@ linknew(LinkArch *arch)
 	ctxt->version = HistVersion;
 
 	p = getgoarch();
-	if(strncmp(p, arch->name, strlen(arch->name)) != 0)
-		sysfatal("invalid goarch %s (want %s or derivative)", p, arch->name);
+	if(strcmp(p, arch->name) != 0)
+		sysfatal("invalid goarch %s (want %s)", p, arch->name);
 	
 	if(getwd(buf, sizeof buf) == 0)
 		strcpy(buf, "/???");
@@ -137,6 +138,10 @@ linknew(LinkArch *arch)
 		 * Known to low-level assembly in package runtime and runtime/cgo.
 		 */
 		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
+		break;
+	
+	case Hnacl:
+		ctxt->tlsoffset = 0;
 		break;
 
 	case Hdarwin:

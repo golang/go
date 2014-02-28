@@ -1047,7 +1047,7 @@ textaddress(void)
 	// Could parallelize, by assigning to text
 	// and then letting threads copy down, but probably not worth it.
 	sect = segtext.sect;
-	sect->align = FuncAlign;
+	sect->align = funcalign;
 	linklookup(ctxt, "text", 0)->sect = sect;
 	linklookup(ctxt, "etext", 0)->sect = sect;
 	va = INITTEXT;
@@ -1058,6 +1058,8 @@ textaddress(void)
 			continue;
 		if(sym->align != 0)
 			va = rnd(va, sym->align);
+		else
+			va = rnd(va, funcalign);
 		sym->value = 0;
 		for(sub = sym; sub != S; sub = sub->sub)
 			sub->value += va;
@@ -1083,13 +1085,14 @@ address(void)
 	segtext.vaddr = va;
 	segtext.fileoff = HEADR;
 	for(s=segtext.sect; s != nil; s=s->next) {
-//print("%s at %#llux + %#llux\n", s->name, va, (vlong)s->len);
 		va = rnd(va, s->align);
 		s->vaddr = va;
 		va += s->len;
 	}
 	segtext.len = va - INITTEXT;
 	segtext.filelen = segtext.len;
+	if(HEADTYPE == Hnacl)
+		va += 32; // room for the "halt sled"
 
 	if(segrodata.sect != nil) {
 		// align to page boundary so as not to mix

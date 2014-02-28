@@ -124,7 +124,7 @@ progedit(Link *ctxt, Prog *p)
 			p->from.offset = 0x14;
 		}
 	}
-	if(ctxt->headtype == Hlinux) {
+	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl) {
 		// Running binaries under Xen requires using
 		//	MOVL 0(GS), reg
 		// and then off(reg) instead of saying off(GS) directly
@@ -448,6 +448,7 @@ load_g_cx(Link *ctxt, Prog *p)
 		break;
 	
 	case Hlinux:
+	case Hnacl:
 		if(ctxt->linkmode != LinkExternal) {
 			p->as = AMOVL;
 			p->from.type = D_INDIR+D_GS;
@@ -869,6 +870,7 @@ LinkArch link386 = {
 
 	.minlc = 1,
 	.ptrsize = 4,
+	.regsize = 4,
 
 	.D_ADDR = D_ADDR,
 	.D_BRANCH = D_BRANCH,

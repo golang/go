@@ -43,6 +43,7 @@ enum
 	thechar = '8',
 	PtrSize = 4,
 	IntSize = 4,
+	RegSize = 4,
 	MaxAlign = 32,	// max data alignment
 	FuncAlign = 16
 };

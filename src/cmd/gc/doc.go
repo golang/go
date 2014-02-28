@@ -52,12 +52,14 @@ Flags:
 		add dir1 and dir2 to the list of paths to check for imported packages
 	-N
 		disable optimizations
+	-nolocalimports
+		disallow local (relative) imports
 	-S
 		write assembly language text to standard output (code only)
 	-S -S
 		write assembly language text to standard output (code and data)
 	-u
-		disallow importing packages not marked as safe
+		disallow importing packages not marked as safe; implies -nolocalimports
 	-V
 		print the compiler version
 	-race

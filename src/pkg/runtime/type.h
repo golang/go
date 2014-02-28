@@ -16,7 +16,7 @@ typedef struct IMethod IMethod;
 typedef struct SliceType SliceType;
 typedef struct FuncType FuncType;
 
-// Needs to be in sync with typekind.h/CommonSize
+// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize
 struct Type
 {
 	uintptr size;
