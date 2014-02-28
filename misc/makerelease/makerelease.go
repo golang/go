@@ -32,9 +32,10 @@ import (
 var (
 	tag             = flag.String("tag", "release", "mercurial tag to check out")
 	toolTag         = flag.String("tool", defaultToolTag, "go.tools tag to check out")
+	tourTag         = flag.String("tour", defaultTourTag, "go-tour tag to check out")
 	repo            = flag.String("repo", "https://code.google.com/p/go", "repo URL")
 	verbose         = flag.Bool("v", false, "verbose output")
-	upload          = flag.Bool("upload", true, "upload resulting files to Google Code")
+	upload          = flag.Bool("upload", false, "upload resulting files to Google Code")
 	wxsFile         = flag.String("wxs", "", "path to custom installer.wxs")
 	addLabel        = flag.String("label", "", "additional label to apply to file when uploading")
 	includeRace     = flag.Bool("race", true, "build race detector packages")
@@ -50,6 +51,7 @@ const (
 	toolPath       = "code.google.com/p/go.tools"
 	tourPath       = "code.google.com/p/go-tour"
 	defaultToolTag = "release-branch.go1.2"
+	defaultTourTag = "release-branch.go1.2"
 )
 
 // Import paths for tool commands.
@@ -267,15 +269,7 @@ func (b *Build) Do() error {
 		if err != nil {
 			return err
 		}
-		err = b.tools()
-		if err != nil {
-			return err
-		}
-		err = b.blog()
-		if err != nil {
-			return err
-		}
-		err = b.tour()
+		err = b.extras()
 	}
 	if err != nil {
 		return err
@@ -286,13 +280,13 @@ func (b *Build) Do() error {
 		version     string // "weekly.2012-03-04"
 		fullVersion []byte // "weekly.2012-03-04 9353aa1efdf3"
 	)
-	pat := filepath.Join(b.root, "pkg/tool/*/makerelease*") // trailing * for .exe
+	pat := filepath.Join(b.root, "pkg/tool/*/dist*") // trailing * for .exe
 	m, err := filepath.Glob(pat)
 	if err != nil {
 		return err
 	}
 	if len(m) == 0 {
-		return fmt.Errorf("couldn't find makerelease in %q", pat)
+		return fmt.Errorf("couldn't find dist in %q", pat)
 	}
 	fullVersion, err = b.run("", m[0], "version")
 	if err != nil {
@@ -349,9 +343,11 @@ func (b *Build) Do() error {
 		err = makeTar(targ, work)
 		targs = append(targs, targ)
 
+		makerelease := filepath.Join(runtime.GOROOT(), "misc/makerelease")
+
 		// build pkg
 		// arrange work so it's laid out as the dest filesystem
-		etc := filepath.Join(b.root, "misc/makerelease/darwin/etc")
+		etc := filepath.Join(makerelease, "darwin/etc")
 		_, err = b.run(work, "cp", "-r", etc, ".")
 		if err != nil {
 			return err
@@ -371,7 +367,6 @@ func (b *Build) Do() error {
 			return err
 		}
 		defer os.RemoveAll(pkgdest)
-		makerelease := filepath.Join(runtime.GOROOT(), "misc/makerelease")
 		_, err = b.run("", "pkgbuild",
 			"--identifier", "com.googlecode.go",
 			"--version", version,
@@ -460,26 +455,44 @@ func (b *Build) Do() error {
 	return err
 }
 
-func (b *Build) tools() error {
+// extras fetches the go.tools, go.blog, and go-tour repositories,
+// builds them and copies the resulting binaries and static assets
+// to the new GOROOT.
+func (b *Build) extras() error {
 	defer b.cleanGopath()
 
-	// Fetch the tool packages (without building/installing).
-	args := append([]string{"get", "-d"}, toolPaths...)
-	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), args...)
+	if err := b.tools(); err != nil {
+		return err
+	}
+	if err := b.blog(); err != nil {
+		return err
+	}
+	return b.tour()
+}
+
+func (b *Build) get(repoPath, revision string) error {
+	// Fetch the packages (without building/installing).
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
+		"get", "-d", repoPath+"/...")
 	if err != nil {
 		return err
 	}
 
-	// Update the repo to the revision specified by -tool.
-	repoPath := filepath.Join(b.gopath, "src", filepath.FromSlash(toolPath))
-	_, err = b.run(repoPath, "hg", "update", *toolTag)
-	if err != nil {
+	// Update the repo to the specified revision.
+	p := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
+	_, err = b.run(p, "hg", "update", revision)
+	return err
+}
+
+func (b *Build) tools() error {
+	// Fetch the go.tools repository.
+	if err := b.get(toolPath, *toolTag); err != nil {
 		return err
 	}
 
 	// Install tools.
-	args = append([]string{"install"}, toolPaths...)
-	_, err = b.run(b.gopath, filepath.Join(b.root, "bin", "go"), args...)
+	args := append([]string{"install"}, toolPaths...)
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), args...)
 	if err != nil {
 		return err
 	}
@@ -508,8 +521,6 @@ func (b *Build) tools() error {
 }
 
 func (b *Build) blog() error {
-	defer b.cleanGopath()
-
 	// Fetch the blog repository.
 	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", "-d", blogPath+"/blog")
 	if err != nil {
@@ -523,10 +534,14 @@ func (b *Build) blog() error {
 }
 
 func (b *Build) tour() error {
-	defer b.cleanGopath()
+	// Fetch the go-tour repository.
+	if err := b.get(tourPath, *tourTag); err != nil {
+		return err
+	}
 
-	// go get the gotour package.
-	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", tourPath+"/gotour")
+	// Build tour binary.
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
+		"install", tourPath+"/gotour")
 	if err != nil {
 		return err
 	}
