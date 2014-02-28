@@ -26,6 +26,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -2240,6 +2241,120 @@ func TestAppendTime(t *testing.T) {
 	}
 	if !t1.Equal(t2) {
 		t.Fatalf("Times differ; expected: %v, got %v (%s)", t1, t2, string(res))
+	}
+}
+
+func TestServerConnState(t *testing.T) {
+	defer afterTest(t)
+	handler := map[string]func(w ResponseWriter, r *Request){
+		"/": func(w ResponseWriter, r *Request) {
+			fmt.Fprintf(w, "Hello.")
+		},
+		"/close": func(w ResponseWriter, r *Request) {
+			w.Header().Set("Connection", "close")
+			fmt.Fprintf(w, "Hello.")
+		},
+		"/hijack": func(w ResponseWriter, r *Request) {
+			c, _, _ := w.(Hijacker).Hijack()
+			c.Write([]byte("HTTP/1.0 200 OK\r\nConnection: close\r\n\r\nHello."))
+			c.Close()
+		},
+	}
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		handler[r.URL.Path](w, r)
+	}))
+	defer ts.Close()
+
+	type connIDAndState struct {
+		connID int
+		state  ConnState
+	}
+	var mu sync.Mutex // guard stateLog and connID
+	var stateLog []connIDAndState
+	var connID = map[net.Conn]int{}
+
+	ts.Config.ConnState = func(c net.Conn, state ConnState) {
+		if c == nil {
+			t.Error("nil conn seen in state %s", state)
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		id, ok := connID[c]
+		if !ok {
+			id = len(connID) + 1
+			connID[c] = id
+		}
+		stateLog = append(stateLog, connIDAndState{id, state})
+	}
+	ts.Start()
+
+	mustGet(t, ts.URL+"/")
+	mustGet(t, ts.URL+"/close")
+
+	mustGet(t, ts.URL+"/")
+	mustGet(t, ts.URL+"/", "Connection", "close")
+
+	mustGet(t, ts.URL+"/hijack")
+
+	want := []connIDAndState{
+		{1, StateNew},
+		{1, StateActive},
+		{1, StateIdle},
+		{1, StateActive},
+		{1, StateClosed},
+
+		{2, StateNew},
+		{2, StateActive},
+		{2, StateIdle},
+		{2, StateActive},
+		{2, StateClosed},
+
+		{3, StateNew},
+		{3, StateActive},
+		{3, StateHijacked},
+	}
+	logString := func(l []connIDAndState) string {
+		var b bytes.Buffer
+		for _, cs := range l {
+			fmt.Fprintf(&b, "[%d %s] ", cs.connID, cs.state)
+		}
+		return b.String()
+	}
+
+	for i := 0; i < 5; i++ {
+		time.Sleep(time.Duration(i) * 50 * time.Millisecond)
+		mu.Lock()
+		match := reflect.DeepEqual(stateLog, want)
+		mu.Unlock()
+		if match {
+			return
+		}
+	}
+
+	mu.Lock()
+	t.Errorf("Unexpected events.\nGot log: %s\n   Want: %s\n", logString(stateLog), logString(want))
+	mu.Unlock()
+}
+
+func mustGet(t *testing.T, url string, headers ...string) {
+	req, err := NewRequest("GET", url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for len(headers) > 0 {
+		req.Header.Add(headers[0], headers[1])
+		headers = headers[2:]
+	}
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Errorf("Error fetching %s: %v", url, err)
+		return
+	}
+	_, err = ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	if err != nil {
+		t.Errorf("Error reading %s: %v", url, err)
 	}
 }
 
