@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -23,6 +24,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -52,6 +54,13 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
 			return b, err
 		}
 	}
+}
+
+type chanWriter chan string
+
+func (w chanWriter) Write(p []byte) (n int, err error) {
+	w <- string(p)
+	return len(p), nil
 }
 
 func TestClient(t *testing.T) {
@@ -564,6 +573,8 @@ func TestClientInsecureTransport(t *testing.T) {
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Write([]byte("Hello"))
 	}))
+	errc := make(chanWriter, 10) // but only expecting 1
+	ts.Config.ErrorLog = log.New(errc, "", 0)
 	defer ts.Close()
 
 	// TODO(bradfitz): add tests for skipping hostname checks too?
@@ -585,6 +596,16 @@ func TestClientInsecureTransport(t *testing.T) {
 			res.Body.Close()
 		}
 	}
+
+	select {
+	case v := <-errc:
+		if !strings.Contains(v, "bad certificate") {
+			t.Errorf("expected an error log message containing 'bad certificate'; got %q", v)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("timeout waiting for logged error")
+	}
+
 }
 
 func TestClientErrorWithRequestURI(t *testing.T) {
@@ -635,6 +656,8 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	defer ts.Close()
+	errc := make(chanWriter, 10) // but only expecting 1
+	ts.Config.ErrorLog = log.New(errc, "", 0)
 
 	trans := newTLSTransport(t, ts)
 	trans.TLSClientConfig.ServerName = "badserver"
@@ -645,6 +668,14 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "127.0.0.1") || !strings.Contains(err.Error(), "badserver") {
 		t.Errorf("wanted error mentioning 127.0.0.1 and badserver; got error: %v", err)
+	}
+	select {
+	case v := <-errc:
+		if !strings.Contains(v, "bad certificate") {
+			t.Errorf("expected an error log message containing 'bad certificate'; got %q", v)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("timeout waiting for logged error")
 	}
 }
 

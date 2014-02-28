@@ -615,11 +615,11 @@ const maxPostHandlerReadBytes = 256 << 10
 
 func (w *response) WriteHeader(code int) {
 	if w.conn.hijacked() {
-		log.Print("http: response.WriteHeader on hijacked connection")
+		w.conn.server.logf("http: response.WriteHeader on hijacked connection")
 		return
 	}
 	if w.wroteHeader {
-		log.Print("http: multiple response.WriteHeader calls")
+		w.conn.server.logf("http: multiple response.WriteHeader calls")
 		return
 	}
 	w.wroteHeader = true
@@ -634,7 +634,7 @@ func (w *response) WriteHeader(code int) {
 		if err == nil && v >= 0 {
 			w.contentLength = v
 		} else {
-			log.Printf("http: invalid Content-Length of %q", cl)
+			w.conn.server.logf("http: invalid Content-Length of %q", cl)
 			w.handlerHeader.Del("Content-Length")
 		}
 	}
@@ -817,7 +817,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if hasCL && hasTE && te != "identity" {
 		// TODO: return an error if WriteHeader gets a return parameter
 		// For now just ignore the Content-Length.
-		log.Printf("http: WriteHeader called with both Transfer-Encoding of %q and a Content-Length of %d",
+		w.conn.server.logf("http: WriteHeader called with both Transfer-Encoding of %q and a Content-Length of %d",
 			te, w.contentLength)
 		delHeader("Content-Length")
 		hasCL = false
@@ -963,7 +963,7 @@ func (w *response) WriteString(data string) (n int, err error) {
 // either dataB or dataS is non-zero.
 func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
 	if w.conn.hijacked() {
-		log.Print("http: response.Write on hijacked connection")
+		w.conn.server.logf("http: response.Write on hijacked connection")
 		return 0, ErrHijacked
 	}
 	if !w.wroteHeader {
@@ -1096,7 +1096,7 @@ func (c *conn) serve() {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			log.Printf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
+			c.server.logf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
 		}
 		if !c.hijacked() {
 			c.close()
@@ -1112,6 +1112,7 @@ func (c *conn) serve() {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
 		}
 		if err := tlsConn.Handshake(); err != nil {
+			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
 			return
 		}
 		c.tlsState = new(tls.ConnectionState)
@@ -1604,6 +1605,12 @@ type Server struct {
 	// ConnState type and associated constants for details.
 	ConnState func(net.Conn, ConnState)
 
+	// ErrorLog specifies an optional logger for errors accepting
+	// connections and unexpected behavior from handlers.
+	// If nil, logging goes to os.Stderr via the log package's
+	// standard logger.
+	ErrorLog *log.Logger
+
 	disableKeepAlives int32 // accessed atomically.
 }
 
@@ -1704,7 +1711,7 @@ func (srv *Server) Serve(l net.Listener) error {
 				if max := 1 * time.Second; tempDelay > max {
 					tempDelay = max
 				}
-				log.Printf("http: Accept error: %v; retrying in %v", e, tempDelay)
+				srv.logf("http: Accept error: %v; retrying in %v", e, tempDelay)
 				time.Sleep(tempDelay)
 				continue
 			}
@@ -1732,6 +1739,14 @@ func (s *Server) SetKeepAlivesEnabled(v bool) {
 		atomic.StoreInt32(&s.disableKeepAlives, 0)
 	} else {
 		atomic.StoreInt32(&s.disableKeepAlives, 1)
+	}
+}
+
+func (s *Server) logf(format string, args ...interface{}) {
+	if s.ErrorLog != nil {
+		s.ErrorLog.Printf(format, args...)
+	} else {
+		log.Printf(format, args...)
 	}
 }
 
