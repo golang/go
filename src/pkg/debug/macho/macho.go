@@ -44,14 +44,22 @@ const (
 // A Cpu is a Mach-O cpu type.
 type Cpu uint32
 
+const cpuArch64 = 0x01000000
+
 const (
 	Cpu386   Cpu = 7
-	CpuAmd64 Cpu = Cpu386 + 1<<24
+	CpuAmd64 Cpu = Cpu386 | cpuArch64
+	CpuArm   Cpu = 12
+	CpuPpc   Cpu = 18
+	CpuPpc64 Cpu = CpuPpc | cpuArch64
 )
 
 var cpuStrings = []intName{
 	{uint32(Cpu386), "Cpu386"},
 	{uint32(CpuAmd64), "CpuAmd64"},
+	{uint32(CpuArm), "CpuArm"},
+	{uint32(CpuPpc), "CpuPpc"},
+	{uint32(CpuPpc64), "CpuPpc64"},
 }
 
 func (i Cpu) String() string   { return stringName(uint32(i), cpuStrings, false) }
