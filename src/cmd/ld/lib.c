@@ -85,12 +85,11 @@ libinit(void)
 {
 	char *suffix, *suffixsep;
 
+	funcalign = FuncAlign;
 	fmtinstall('i', iconv);
 	fmtinstall('Y', Yconv);
 	fmtinstall('Z', Zconv);
 	mywhatsys();	// get goroot, goarch, goos
-	if(strcmp(goarch, thestring) != 0)
-		print("goarch is not known: %s\n", goarch);
 
 	// add goroot to the end of the libdir list.
 	suffix = "";
@@ -726,8 +725,8 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 		return;
 	}
 	
-	// First, check that the basic goos, string, and version match.
-	t = smprint("%s %s %s ", goos, thestring, getgoversion());
+	// First, check that the basic goos, goarch, and version match.
+	t = smprint("%s %s %s ", goos, getgoarch(), getgoversion());
 	line[n] = ' ';
 	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
 		line[n] = '\0';
@@ -796,7 +795,10 @@ mywhatsys(void)
 {
 	goroot = getgoroot();
 	goos = getgoos();
-	goarch = thestring;	// ignore $GOARCH - we know who we are
+	goarch = getgoarch();
+
+	if(strncmp(goarch, thestring, strlen(thestring)) != 0)
+		sysfatal("cannot use %cc with GOARCH=%s", thechar, goarch);
 }
 
 int
@@ -985,11 +987,18 @@ static LSym *newstack;
 enum
 {
 	HasLinkRegister = (thechar == '5'),
-	CallSize = (!HasLinkRegister)*PtrSize,	// bytes of stack required for a call
 };
 
 // TODO: Record enough information in new object files to
 // allow stack checks here.
+
+static int
+callsize(void)
+{
+	if(thechar == '5')
+		return 0;
+	return RegSize;
+}
 
 void
 dostkcheck(void)
@@ -1008,7 +1017,7 @@ dostkcheck(void)
 		ctxt->cursym = s;
 		ch.up = nil;
 		ch.sym = s;
-		ch.limit = StackLimit - CallSize;
+		ch.limit = StackLimit - callsize();
 		stkcheck(&ch, 0);
 		s->stkcheck = 1;
 	}
@@ -1024,7 +1033,7 @@ dostkcheck(void)
 		ctxt->cursym = s;
 		ch.up = nil;
 		ch.sym = s;
-		ch.limit = StackLimit - CallSize;
+		ch.limit = StackLimit - callsize();
 		stkcheck(&ch, 0);
 	}
 }
@@ -1042,7 +1051,7 @@ stkcheck(Chain *up, int depth)
 	p = s->text;
 	
 	// Small optimization: don't repeat work at top.
-	if(s->stkcheck && limit == StackLimit-CallSize)
+	if(s->stkcheck && limit == StackLimit-callsize())
 		return 0;
 	
 	if(depth > 100) {
@@ -1092,7 +1101,7 @@ stkcheck(Chain *up, int depth)
 			return -1;
 		}
 		if(ctxt->arch->iscall(p)) {
-			limit -= CallSize;
+			limit -= callsize();
 			ch.limit = limit;
 			if(p->to.type == D_BRANCH) {
 				// Direct call.
@@ -1102,16 +1111,16 @@ stkcheck(Chain *up, int depth)
 			} else {
 				// Indirect call.  Assume it is a splitting function,
 				// so we have to make sure it can call morestack.
-				limit -= CallSize;
+				limit -= callsize();
 				ch.sym = nil;
 				ch1.limit = limit;
 				ch1.up = &ch;
 				ch1.sym = morestack;
 				if(stkcheck(&ch1, depth+2) < 0)
 					return -1;
-				limit += CallSize;
+				limit += callsize();
 			}
-			limit += CallSize;
+			limit += callsize();
 		}
 		
 	}

@@ -203,7 +203,7 @@ pclntab(void)
 		}
 
 		if(off != end) {
-			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata);
+			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, PtrSize);
 			errorexit();
 		}
 	

@@ -41,8 +41,6 @@
 enum
 {
 	thechar = '6',
-	PtrSize = 8,
-	IntSize = 8,
 	MaxAlign = 32,	// max data alignment
 	
 	// Loop alignment constants:
@@ -63,6 +61,10 @@ enum
 
 	FuncAlign = 16
 };
+
+EXTERN	int	PtrSize;
+EXTERN	int	IntSize;
+EXTERN	int	RegSize;
 
 #define	P		((Prog*)0)
 #define	S		((LSym*)0)

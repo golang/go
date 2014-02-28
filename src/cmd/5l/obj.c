@@ -40,6 +40,11 @@ char *thestring = "arm";
 LinkArch *thelinkarch = &linkarm;
 
 void
+linkarchinit(void)
+{
+}
+
+void
 archinit(void)
 {
 	LSym *s;
@@ -76,6 +81,7 @@ archinit(void)
 	case Hlinux:	/* arm elf */
 	case Hfreebsd:
 	case Hnetbsd:
+	case Hnacl:
 		debug['d'] = 0;	// with dynamic linking
 		elfinit();
 		HEADR = ELFRESERVE;

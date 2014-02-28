@@ -1540,7 +1540,8 @@ static uchar nop[][16] = {
 	{0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
 	{0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
 	{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
-	{0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+	// Native Client rejects the repeated 0x66 prefix.
+	// {0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 
 static void
@@ -1560,6 +1561,22 @@ fillnop(uchar *p, int n)
 
 static void instinit(void);
 
+static int32
+naclpad(Link *ctxt, LSym *s, int32 c, int32 pad)
+{
+	symgrow(ctxt, s, c+pad);
+	fillnop(s->p+c, pad);
+	return c+pad;
+}
+
+static int
+spadjop(Link *ctxt, Prog *p, int l, int q)
+{
+	if(p->mode != 64 || ctxt->arch->ptrsize == 4)
+		return l;
+	return q;
+}
+
 void
 span6(Link *ctxt, LSym *s)
 {
@@ -1575,7 +1592,7 @@ span6(Link *ctxt, LSym *s)
 	
 	if(ycover[0] == 0)
 		instinit();
-
+	
 	for(p = ctxt->cursym->text; p != nil; p = p->link) {
 		n = 0;
 		if(p->to.type == D_BRANCH)
@@ -1589,9 +1606,9 @@ span6(Link *ctxt, LSym *s)
 			p->to.type = D_SP;
 			v = -p->from.offset;
 			p->from.offset = v;
-			p->as = p->mode != 64? AADDL: AADDQ;
+			p->as = spadjop(ctxt, p, AADDL, AADDQ);
 			if(v < 0) {
-				p->as = p->mode != 64? ASUBL: ASUBQ;
+				p->as = spadjop(ctxt, p, ASUBL, ASUBQ);
 				v = -v;
 				p->from.offset = v;
 			}
@@ -1611,9 +1628,9 @@ span6(Link *ctxt, LSym *s)
 			p->to.type = D_SP;
 			v = -p->from.offset;
 			p->from.offset = v;
-			p->as = p->mode != 64? AADDL: AADDQ;
+			p->as = spadjop(ctxt, p, AADDL, AADDQ);
 			if(v < 0) {
-				p->as = p->mode != 64? ASUBL: ASUBQ;
+				p->as = spadjop(ctxt, p, ASUBL, ASUBQ);
 				v = -v;
 				p->from.offset = v;
 			}
@@ -1630,6 +1647,38 @@ span6(Link *ctxt, LSym *s)
 		s->np = 0;
 		c = 0;
 		for(p = s->text; p != nil; p = p->link) {
+			if(ctxt->headtype == Hnacl && p->isize > 0) {
+				static LSym *deferreturn;
+				
+				if(deferreturn == nil)
+					deferreturn = linklookup(ctxt, "runtime.deferreturn", 0);
+
+				// pad everything to avoid crossing 32-byte boundary
+				if((c>>5) != ((c+p->isize-1)>>5))
+					c = naclpad(ctxt, s, c, -c&31);
+				// pad call deferreturn to start at 32-byte boundary
+				// so that subtracting 5 in jmpdefer will jump back
+				// to that boundary and rerun the call.
+				if(p->as == ACALL && p->to.sym == deferreturn)
+					c = naclpad(ctxt, s, c, -c&31);
+				// pad call to end at 32-byte boundary
+				if(p->as == ACALL)
+					c = naclpad(ctxt, s, c, -(c+p->isize)&31);
+				
+				// the linker treats REP and STOSQ as different instructions
+				// but in fact the REP is a prefix on the STOSQ.
+				// make sure REP has room for 2 more bytes, so that
+				// padding will not be inserted before the next instruction.
+				if((p->as == AREP || p->as == AREPN) && (c>>5) != ((c+3-1)>>5))
+					c = naclpad(ctxt, s, c, -c&31);
+				
+				// same for LOCK.
+				// various instructions follow; the longest is 4 bytes.
+				// give ourselves 8 bytes so as to avoid surprises.
+				if(p->as == ALOCK && (c>>5) != ((c+8-1)>>5))
+					c = naclpad(ctxt, s, c, -c&31);
+			}
+
 			if((p->back & 4) && (c&(LoopAlign-1)) != 0) {
 				// pad with NOPs
 				v = -c&(LoopAlign-1);
@@ -1664,9 +1713,13 @@ span6(Link *ctxt, LSym *s)
 			}
 			p->comefrom = nil;
 
-			asmins(ctxt, p);
 			p->pc = c;
+			asmins(ctxt, p);
 			m = ctxt->andptr-ctxt->and;
+			if(p->isize != m) {
+				p->isize = m;
+				loop++;
+			}
 			symgrow(ctxt, s, p->pc+m);
 			memmove(s->p+p->pc, ctxt->and, m);
 			p->mark = m;
@@ -1677,6 +1730,10 @@ span6(Link *ctxt, LSym *s)
 			sysfatal("loop");
 		}
 	} while(loop);
+	
+	if(ctxt->headtype == Hnacl)
+		c = naclpad(ctxt, s, c, -c&31);
+	
 	c += -c&(FuncAlign-1);
 	s->size = c;
 
@@ -1847,7 +1904,7 @@ oclass(Link *ctxt, Addr *a)
 				switch(a->index) {
 				case D_EXTERN:
 				case D_STATIC:
-					if(ctxt->flag_shared)
+					if(ctxt->flag_shared || ctxt->headtype == Hnacl)
 						return Yiauto;
 					else
 						return Yi32;	/* TO DO: Yi64 */
@@ -2204,7 +2261,7 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 		r->sym = s;
 		r->add = v;
 		v = 0;
-		if(ctxt->flag_shared) {
+		if(ctxt->flag_shared || ctxt->headtype == Hnacl) {
 			if(s->type == STLSBSS) {
 				r->xadd = r->add - r->siz;
 				r->type = D_TLS;
@@ -2236,7 +2293,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 				goto bad;
 			case D_STATIC:
 			case D_EXTERN:
-				if(ctxt->flag_shared)
+				if(ctxt->flag_shared || ctxt->headtype == Hnacl)
 					goto bad;
 				t = D_NONE;
 				v = vaddr(ctxt, a, &rel);
@@ -2298,7 +2355,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 
 	ctxt->rexflag |= (regrex[t] & Rxb) | rex;
 	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
-		if(ctxt->flag_shared && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
+		if((ctxt->flag_shared || ctxt->headtype == Hnacl) && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
 			*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
 			goto putrelv;
 		}
@@ -3248,14 +3305,140 @@ mfound:
 	}
 }
 
+static uchar naclret[] = {
+	0x5e, // POPL SI
+	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
+	0x83, 0xe6, 0xe0,	// ANDL $~31, SI
+	0x4c, 0x01, 0xfe,	// ADDQ R15, SI
+	0xff, 0xe6, // JMP SI
+};
+
+static uchar naclspfix[] = {
+	0x4c, 0x01, 0xfc, // ADDQ R15, SP
+};
+
+static uchar naclbpfix[] = {
+	0x4c, 0x01, 0xfd, // ADDQ R15, BP
+};
+
+static uchar naclmovs[] = {
+	0x89, 0xf6,	// MOVL SI, SI
+	0x49, 0x8d, 0x34, 0x37,	// LEAQ (R15)(SI*1), SI
+	0x89, 0xff,	// MOVL DI, DI
+	0x49, 0x8d, 0x3c, 0x3f,	// LEAQ (R15)(DI*1), DI
+};
+
+static uchar naclstos[] = {
+	0x89, 0xff,	// MOVL DI, DI
+	0x49, 0x8d, 0x3c, 0x3f,	// LEAQ (R15)(DI*1), DI
+};
+
+static void
+nacltrunc(Link *ctxt, int reg)
+{	
+	if(reg >= D_R8)
+		*ctxt->andptr++ = 0x45;
+	reg = (reg - D_AX) & 7;
+	*ctxt->andptr++ = 0x89;
+	*ctxt->andptr++ = (3<<6) | (reg<<3) | reg;
+}
+
 static void
 asmins(Link *ctxt, Prog *p)
 {
 	int n, np, c;
+	uchar *and0;
 	Reloc *r;
+	
+	ctxt->andptr = ctxt->and;
+	ctxt->asmode = p->mode;
+	
+	if(ctxt->headtype == Hnacl) {
+		if(p->as == AREP) {
+			ctxt->rep++;
+			return;
+		}
+		if(p->as == AREPN) {
+			ctxt->repn++;
+			return;
+		}
+		if(p->as == ALOCK) {
+			ctxt->lock++;
+			return;
+		}
+		if(p->as != ALEAQ && p->as != ALEAL) {
+			if(p->from.index != D_NONE && p->from.scale > 0)
+				nacltrunc(ctxt, p->from.index);
+			if(p->to.index != D_NONE && p->to.scale > 0)
+				nacltrunc(ctxt, p->to.index);
+		}
+		switch(p->as) {
+		case ARET:
+			memmove(ctxt->andptr, naclret, sizeof naclret);
+			ctxt->andptr += sizeof naclret;
+			return;
+		case ACALL:
+		case AJMP:
+			if(D_AX <= p->to.type && p->to.type <= D_DI) {
+				// ANDL $~31, reg
+				*ctxt->andptr++ = 0x83;
+				*ctxt->andptr++ = 0xe0 | (p->to.type - D_AX);
+				*ctxt->andptr++ = 0xe0;
+				// ADDQ R15, reg
+				*ctxt->andptr++ = 0x4c;
+				*ctxt->andptr++ = 0x01;
+				*ctxt->andptr++ = 0xf8 | (p->to.type - D_AX);
+			}
+			if(D_R8 <= p->to.type && p->to.type <= D_R15) {
+				// ANDL $~31, reg
+				*ctxt->andptr++ = 0x41;
+				*ctxt->andptr++ = 0x83;
+				*ctxt->andptr++ = 0xe0 | (p->to.type - D_R8);
+				*ctxt->andptr++ = 0xe0;
+				// ADDQ R15, reg
+				*ctxt->andptr++ = 0x4d;
+				*ctxt->andptr++ = 0x01;
+				*ctxt->andptr++ = 0xf8 | (p->to.type - D_R8);
+			}
+			break;
+		case AINT:
+			*ctxt->andptr++ = 0xf4;
+			return;
+		case ASCASB:
+		case ASCASW:
+		case ASCASL:
+		case ASCASQ:
+		case ASTOSB:
+		case ASTOSW:
+		case ASTOSL:
+		case ASTOSQ:
+			memmove(ctxt->andptr, naclstos, sizeof naclstos);
+			ctxt->andptr += sizeof naclstos;
+			break;
+		case AMOVSB:
+		case AMOVSW:
+		case AMOVSL:
+		case AMOVSQ:
+			memmove(ctxt->andptr, naclmovs, sizeof naclmovs);
+			ctxt->andptr += sizeof naclmovs;
+			break;
+		}
+		if(ctxt->rep) {
+			*ctxt->andptr++ = 0xf3;
+			ctxt->rep = 0;
+		}
+		if(ctxt->repn) {
+			*ctxt->andptr++ = 0xf2;
+			ctxt->repn = 0;
+		}
+		if(ctxt->lock) {
+			*ctxt->andptr++ = 0xf0;
+			ctxt->lock = 0;
+		}
+	}		
 
 	ctxt->rexflag = 0;
-	ctxt->andptr = ctxt->and;
+	and0 = ctxt->andptr;
 	ctxt->asmode = p->mode;
 	doasm(ctxt, p);
 	if(ctxt->rexflag){
@@ -3268,14 +3451,14 @@ asmins(Link *ctxt, Prog *p)
 		 */
 		if(p->mode != 64)
 			ctxt->diag("asmins: illegal in mode %d: %P", p->mode, p);
-		n = ctxt->andptr - ctxt->and;
+		n = ctxt->andptr - and0;
 		for(np = 0; np < n; np++) {
-			c = ctxt->and[np];
+			c = and0[np];
 			if(c != 0xf2 && c != 0xf3 && (c < 0x64 || c > 0x67) && c != 0x2e && c != 0x3e && c != 0x26)
 				break;
 		}
-		memmove(ctxt->and+np+1, ctxt->and+np, n-np);
-		ctxt->and[np] = 0x40 | ctxt->rexflag;
+		memmove(and0+np+1, and0+np, n-np);
+		and0[np] = 0x40 | ctxt->rexflag;
 		ctxt->andptr++;
 	}
 	n = ctxt->andptr - ctxt->and;
@@ -3286,5 +3469,18 @@ asmins(Link *ctxt, Prog *p)
 			r->off++;
 		if(r->type == D_PCREL)
 			r->add -= p->pc + n - (r->off + r->siz);
+	}
+
+	if(ctxt->headtype == Hnacl && p->as != ACMPL && p->as != ACMPQ) {
+		switch(p->to.type) {
+		case D_SP:
+			memmove(ctxt->andptr, naclspfix, sizeof naclspfix);
+			ctxt->andptr += sizeof naclspfix;
+			break;
+		case D_BP:
+			memmove(ctxt->andptr, naclbpfix, sizeof naclbpfix);
+			ctxt->andptr += sizeof naclbpfix;
+			break;
+		}
 	}
 }

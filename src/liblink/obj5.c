@@ -1034,6 +1034,7 @@ LinkArch linkarm = {
 
 	.minlc = 4,
 	.ptrsize = 4,
+	.regsize = 4,
 
 	.D_ADDR = D_ADDR,
 	.D_BRANCH = D_BRANCH,

@@ -39,6 +39,7 @@ enum
 	thechar = '5',
 	PtrSize = 4,
 	IntSize = 4,
+	RegSize = 4,
 	MaxAlign = 8,	// max data alignment
 	FuncAlign = 4  // single-instruction alignment
 };

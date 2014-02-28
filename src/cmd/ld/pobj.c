@@ -45,6 +45,7 @@ char*	paramspace	= "FP";
 void
 main(int argc, char *argv[])
 {
+	linkarchinit();
 	ctxt = linknew(thelinkarch);
 	ctxt->thechar = thechar;
 	ctxt->thestring = thestring;
