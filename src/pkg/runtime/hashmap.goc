@@ -448,6 +448,9 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 #ifdef GOARCH_amd64
 #define CHECKTYPE uint64
 #endif
+#ifdef GOARCH_amd64p32
+#define CHECKTYPE uint32
+#endif
 #ifdef GOARCH_386
 #define CHECKTYPE uint32
 #endif
