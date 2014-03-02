@@ -21,7 +21,7 @@ SigTab runtime·sigtab[] = {
 	/* 9 */	0, "SIGKILL: kill",
 	/* 10 */	P, "SIGBUS: bus error",
 	/* 11 */	P, "SIGSEGV: segmentation violation",
-	/* 12 */	T, "SIGSYS: bad system call",
+	/* 12 */	N, "SIGSYS: bad system call",
 	/* 13 */	N, "SIGPIPE: write to broken pipe",
 	/* 14 */	N, "SIGALRM: alarm clock",
 	/* 15 */	N+K, "SIGTERM: termination",
