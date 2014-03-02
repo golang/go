@@ -2372,6 +2372,27 @@ func TestServerKeepAlivesEnabled(t *testing.T) {
 	}
 }
 
+func TestServerConnStateNew(t *testing.T) {
+	sawNew := false // if the test is buggy, we'll race on this variable.
+	srv := &Server{
+		ConnState: func(c net.Conn, state ConnState) {
+			if state == StateNew {
+				sawNew = true // testing that this write isn't racy
+			}
+		},
+		Handler: HandlerFunc(func(w ResponseWriter, r *Request) {}), // irrelevant
+	}
+	srv.Serve(&oneConnListener{
+		conn: &rwTestConn{
+			Reader: strings.NewReader("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"),
+			Writer: ioutil.Discard,
+		},
+	})
+	if !sawNew { // testing that this read isn't racy
+		t.Error("StateNew not seen")
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()

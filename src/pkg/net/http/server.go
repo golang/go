@@ -1090,7 +1090,6 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 // Serve a new connection.
 func (c *conn) serve() {
 	origConn := c.rwc // copy it before it's set nil on Close or Hijack
-	c.setState(origConn, StateNew)
 	defer func() {
 		if err := recover(); err != nil {
 			const size = 64 << 10
@@ -1722,6 +1721,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		if err != nil {
 			continue
 		}
+		c.setState(c.rwc, StateNew) // before Serve can return
 		go c.serve()
 	}
 }
