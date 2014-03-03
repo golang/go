@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"strings"
@@ -337,6 +338,12 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 		}
 
 		if shouldRedirect(resp.StatusCode) {
+			// Read the body if small so underlying TCP connection will be re-used.
+			// No need to check for errors: if it fails, Transport won't reuse it anyway.
+			const maxBodySlurpSize = 2 << 10
+			if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
+				io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
+			}
 			resp.Body.Close()
 			if urlStr = resp.Header.Get("Location"); urlStr == "" {
 				err = errors.New(fmt.Sprintf("%d response missing Location header", resp.StatusCode))

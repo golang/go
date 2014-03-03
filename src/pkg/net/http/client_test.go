@@ -879,3 +879,43 @@ func TestClientTimeout(t *testing.T) {
 		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
 	}
 }
+
+func TestClientRedirectEatsBody(t *testing.T) {
+	defer afterTest(t)
+	saw := make(chan string, 2)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		saw <- r.RemoteAddr
+		if r.URL.Path == "/" {
+			Redirect(w, r, "/foo", StatusFound) // which includes a body
+		}
+	}))
+	defer ts.Close()
+
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	var first string
+	select {
+	case first = <-saw:
+	default:
+		t.Fatal("server didn't see a request")
+	}
+
+	var second string
+	select {
+	case second = <-saw:
+	default:
+		t.Fatal("server didn't see a second request")
+	}
+
+	if first != second {
+		t.Fatal("server saw different client ports before & after the redirect")
+	}
+}
