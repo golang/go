@@ -36,7 +36,6 @@ var (
 	repo            = flag.String("repo", "https://code.google.com/p/go", "repo URL")
 	verbose         = flag.Bool("v", false, "verbose output")
 	upload          = flag.Bool("upload", false, "upload resulting files to Google Code")
-	wxsFile         = flag.String("wxs", "", "path to custom installer.wxs")
 	addLabel        = flag.String("label", "", "additional label to apply to file when uploading")
 	includeRace     = flag.Bool("race", true, "build race detector packages")
 	versionOverride = flag.String("version", "", "override version name")
@@ -399,11 +398,8 @@ func (b *Build) Do() error {
 		targs = append(targs, targ)
 
 		// Create MSI installer.
-		win := filepath.Join(b.root, "misc/makerelease/windows")
+		win := filepath.Join(runtime.GOROOT(), "misc/makerelease/windows")
 		installer := filepath.Join(win, "installer.wxs")
-		if *wxsFile != "" {
-			installer = *wxsFile
-		}
 		appfiles := filepath.Join(work, "AppFiles.wxs")
 		msi := filepath.Join(work, "installer.msi")
 		// Gather files.
