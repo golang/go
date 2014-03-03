@@ -181,7 +181,7 @@ pclntab(void)
 				// Sanity check the new numbering
 				for(pciterinit(&it, &pcln->pcfile); !it.done; pciternext(&it)) {
 					if(it.value < 1 || it.value > ctxt->nhistfile) {
-						diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, 1, ctxt->nhistfile);
+						diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, ctxt->nhistfile);
 						errorexit();
 					}
 				}
