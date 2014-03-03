@@ -812,3 +812,70 @@ func TestBasicAuth(t *testing.T) {
 		t.Errorf("Invalid auth %q", auth)
 	}
 }
+
+func TestClientTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	defer afterTest(t)
+	sawRoot := make(chan bool, 1)
+	sawSlow := make(chan bool, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.URL.Path == "/" {
+			sawRoot <- true
+			Redirect(w, r, "/slow", StatusFound)
+			return
+		}
+		if r.URL.Path == "/slow" {
+			w.Write([]byte("Hello"))
+			w.(Flusher).Flush()
+			sawSlow <- true
+			time.Sleep(2 * time.Second)
+			return
+		}
+	}))
+	defer ts.Close()
+	const timeout = 500 * time.Millisecond
+	c := &Client{
+		Timeout: timeout,
+	}
+
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-sawRoot:
+		// good.
+	default:
+		t.Fatal("handler never got / request")
+	}
+
+	select {
+	case <-sawSlow:
+		// good.
+	default:
+		t.Fatal("handler never got /slow request")
+	}
+
+	var all []byte
+	errc := make(chan error, 1)
+	go func() {
+		var err error
+		all, err = ioutil.ReadAll(res.Body)
+		errc <- err
+		res.Body.Close()
+	}()
+
+	const failTime = timeout * 2
+	select {
+	case err := <-errc:
+		if err == nil {
+			t.Error("expected error from ReadAll")
+		}
+		t.Logf("Got expected ReadAll error of %v after reading body %q", err, all)
+	case <-time.After(failTime):
+		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
+	}
+}
