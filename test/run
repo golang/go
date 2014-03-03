@@ -33,7 +33,7 @@ unset GOROOT_FINAL  # breaks ./ imports
 
 failed=0
 
-PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
+PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin:/usr/pkg/bin
 
 # TODO: We add the tool directory to the PATH to avoid thinking about a better way.
 PATH="$GOTOOLDIR:$PATH"
