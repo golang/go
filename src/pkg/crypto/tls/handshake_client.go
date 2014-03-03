@@ -501,7 +501,7 @@ func (hs *clientHandshakeState) readFinished() error {
 	c := hs.c
 
 	c.readRecord(recordTypeChangeCipherSpec)
-	if err := c.error(); err != nil {
+	if err := c.in.error(); err != nil {
 		return err
 	}
 
