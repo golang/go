@@ -223,10 +223,9 @@ struct CallbackArgs
 #define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
 #endif
 
-// There is no cgo support for nacl/amd64p32 but we need to have something here 
-// so use the amd64 value as a placeholder.
+// Unimplemented on amd64p32
 #ifdef GOARCH_amd64p32
-#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
+#define CBARGS (CallbackArgs*)(nil)
 #endif
 
 // On 386, stack frame is three words, plus caller PC.
