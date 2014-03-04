@@ -376,6 +376,13 @@ func BenchmarkFloat32(b *testing.B) {
 	}
 }
 
+func BenchmarkFloat64(b *testing.B) {
+	r := New(NewSource(1))
+	for n := b.N; n > 0; n-- {
+		r.Float64()
+	}
+}
+
 func BenchmarkPerm3(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {

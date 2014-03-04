@@ -60,6 +60,9 @@ func (r *Rand) Int63n(n int64) int64 {
 	if n <= 0 {
 		panic("invalid argument to Int63n")
 	}
+	if n&(n-1) == 0 { // n is power of two, can mask
+		return r.Int63() & (n - 1)
+	}
 	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
 	v := r.Int63()
 	for v > max {
@@ -73,6 +76,9 @@ func (r *Rand) Int63n(n int64) int64 {
 func (r *Rand) Int31n(n int32) int32 {
 	if n <= 0 {
 		panic("invalid argument to Int31n")
+	}
+	if n&(n-1) == 0 { // n is power of two, can mask
+		return r.Int31() & (n - 1)
 	}
 	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
 	v := r.Int31()
