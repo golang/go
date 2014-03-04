@@ -2235,8 +2235,8 @@ func TestResponseWriterWriteStringAllocs(t *testing.T) {
 			w.Write([]byte("Hello world"))
 		}
 	}))
-	before := testing.AllocsPerRun(25, func() { ht.rawResponse("GET / HTTP/1.0") })
-	after := testing.AllocsPerRun(25, func() { ht.rawResponse("GET /s HTTP/1.0") })
+	before := testing.AllocsPerRun(50, func() { ht.rawResponse("GET / HTTP/1.0") })
+	after := testing.AllocsPerRun(50, func() { ht.rawResponse("GET /s HTTP/1.0") })
 	if int(after) >= int(before) {
 		t.Errorf("WriteString allocs of %v >= Write allocs of %v", after, before)
 	}
