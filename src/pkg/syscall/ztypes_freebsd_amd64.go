@@ -55,10 +55,6 @@ type Rlimit struct {
 type _Gid_t uint32
 
 const (
-	O_CLOEXEC = 0
-)
-
-const (
 	S_IFMT   = 0xf000
 	S_IFIFO  = 0x1000
 	S_IFCHR  = 0x2000
@@ -284,7 +280,9 @@ type FdSet struct {
 }
 
 const (
+	sizeofIfMsghdr         = 0xa8
 	SizeofIfMsghdr         = 0xa8
+	sizeofIfData           = 0x98
 	SizeofIfData           = 0x98
 	SizeofIfaMsghdr        = 0x14
 	SizeofIfmaMsghdr       = 0x10
@@ -292,6 +290,17 @@ const (
 	SizeofRtMsghdr         = 0x98
 	SizeofRtMetrics        = 0x70
 )
+
+type ifMsghdr struct {
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Data      ifData
+}
 
 type IfMsghdr struct {
 	Msglen    uint16
@@ -302,6 +311,34 @@ type IfMsghdr struct {
 	Index     uint16
 	Pad_cgo_0 [2]byte
 	Data      IfData
+}
+
+type ifData struct {
+	Type        uint8
+	Physical    uint8
+	Addrlen     uint8
+	Hdrlen      uint8
+	Link_state  uint8
+	Vhid        uint8
+	Baudrate_pf uint8
+	Datalen     uint8
+	Mtu         uint64
+	Metric      uint64
+	Baudrate    uint64
+	Ipackets    uint64
+	Ierrors     uint64
+	Opackets    uint64
+	Oerrors     uint64
+	Collisions  uint64
+	Ibytes      uint64
+	Obytes      uint64
+	Imcasts     uint64
+	Omcasts     uint64
+	Iqdrops     uint64
+	Noproto     uint64
+	Hwassist    uint64
+	Epoch       int64
+	Lastchange  Timeval
 }
 
 type IfData struct {

@@ -33,8 +33,21 @@ while(<>){
 		if($name eq 'SYS_SYS_EXIT'){
 			$name = 'SYS_EXIT';
 		}
+		if($name =~ /^SYS_CAP_+/ || $name =~ /^SYS___CAP_+/){
+			next
+		}
 
 		print "	$name = $num;  // $proto\n";
+
+		# We keep Capsicum syscall numbers for FreeBSD
+		# 9-STABLE here because we are not sure whether they
+		# are mature and stable.
+		if($num == 513){
+			print " SYS_CAP_NEW = 514 // { int cap_new(int fd, uint64_t rights); }\n";
+			print " SYS_CAP_GETRIGHTS = 515 // { int cap_getrights(int fd, \\\n";
+			print " SYS_CAP_ENTER = 516 // { int cap_enter(void); }\n";
+			print " SYS_CAP_GETMODE = 517 // { int cap_getmode(u_int *modep); }\n";
+		}
 	}
 }
 
