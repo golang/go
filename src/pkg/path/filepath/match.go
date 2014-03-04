@@ -230,7 +230,7 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 //
 func Glob(pattern string) (matches []string, err error) {
 	if !hasMeta(pattern) {
-		if _, err = os.Stat(pattern); err != nil {
+		if _, err = os.Lstat(pattern); err != nil {
 			return nil, nil
 		}
 		return []string{pattern}, nil
