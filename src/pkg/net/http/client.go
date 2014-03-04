@@ -56,12 +56,11 @@ type Client struct {
 	// in responses.
 	Jar CookieJar
 
-	// Timeout specifies the end-to-end timeout for requests made
-	// via this Client. The timeout includes connection time, any
-	// redirects, and reading the response body. The timeout
-	// remains running once Get, Head, Post, or Do returns and
-	// will interrupt the read of the Response.Body if EOF hasn't
-	// been reached.
+	// Timeout specifies a time limit for requests made by this
+	// Client. The timeout includes connection time, any
+	// redirects, and reading the response body. The timer remains
+	// running after Get, Head, Post, or Do return and will
+	// interrupt reading of the Response.Body.
 	//
 	// A Timeout of zero means no timeout.
 	//
