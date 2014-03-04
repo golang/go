@@ -411,7 +411,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			}
 
 			if(!(p->reg & NOSPLIT))
-				p = stacksplit(ctxt, p, autosize, !(cursym->text->from.scale&NEEDCTXT)); // emit split check
+				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
 			
 			// MOVW.W		R14,$-autosize(SP)
 			p = appendp(ctxt, p);
