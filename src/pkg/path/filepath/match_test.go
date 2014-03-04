@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package filepath
+package filepath_test
 
 import (
+	"io/ioutil"
+	"os"
+	. "path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -151,5 +154,54 @@ func TestGlobError(t *testing.T) {
 	_, err := Glob("[7]")
 	if err != nil {
 		t.Error("expected error for bad pattern; got none")
+	}
+}
+
+var globSymlinkTests = []struct {
+	path, dest string
+	brokenLink bool
+}{
+	{"test1", "link1", false},
+	{"test2", "link2", true},
+}
+
+func TestGlobSymlink(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		// The tests below are Unix specific so we skip plan9, which does not
+		// support symlinks, and windows.
+		t.Skipf("skipping test on %v", runtime.GOOS)
+	}
+	tmpDir, err := ioutil.TempDir("", "globsymlink")
+	if err != nil {
+		t.Fatal("creating temp dir:", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	for _, tt := range globSymlinkTests {
+		path := Join(tmpDir, tt.path)
+		dest := Join(tmpDir, tt.dest)
+		f, err := os.Create(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+		err = os.Symlink(path, dest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tt.brokenLink {
+			// Break the symlink.
+			os.Remove(path)
+		}
+		matches, err := Glob(dest)
+		if err != nil {
+			t.Errorf("GlobSymlink error for %q: %s", dest, err)
+		}
+		if !contains(matches, dest) {
+			t.Errorf("Glob(%#q) = %#v want %v", dest, matches, dest)
+		}
 	}
 }
