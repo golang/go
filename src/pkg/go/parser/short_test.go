@@ -86,6 +86,9 @@ var invalids = []string{
 	`package p; func f() { for x /* ERROR "boolean or range expression" */ := []string {} }`,
 	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x = []string {} }`,
 	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x := []string {} }`,
+	`package p; func f() { go f /* ERROR HERE "function must be invoked" */ }`,
+	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
+	`package p; func f() { go func() { func() { f(x func /* ERROR "expected '\)'" */ (){}) } } }`,
 }
 
 func TestInvalid(t *testing.T) {

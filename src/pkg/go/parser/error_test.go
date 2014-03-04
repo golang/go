@@ -59,8 +59,11 @@ func getPos(filename string, offset int) token.Pos {
 
 // ERROR comments must be of the form /* ERROR "rx" */ and rx is
 // a regular expression that matches the expected error message.
+// The special form /* ERROR HERE "rx" */ must be used for error
+// messages that appear immediately after a token, rather than at
+// a token's position.
 //
-var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
+var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
 
 // expectedErrors collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
@@ -74,6 +77,7 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]str
 	// not match the position information collected by the parser
 	s.Init(getFile(filename), src, nil, scanner.ScanComments)
 	var prev token.Pos // position of last non-comment, non-semicolon token
+	var here token.Pos // position immediately after the token at position prev
 
 	for {
 		pos, tok, lit := s.Scan()
@@ -82,11 +86,22 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]str
 			return errors
 		case token.COMMENT:
 			s := errRx.FindStringSubmatch(lit)
-			if len(s) == 2 {
-				errors[prev] = string(s[1])
+			if len(s) == 3 {
+				pos := prev
+				if s[1] == "HERE" {
+					pos = here
+				}
+				errors[pos] = string(s[2])
 			}
 		default:
 			prev = pos
+			var l int // token length
+			if tok.IsLiteral() {
+				l = len(lit)
+			} else {
+				l = len(tok.String())
+			}
+			here = prev + token.Pos(l)
 		}
 	}
 }
