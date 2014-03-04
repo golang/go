@@ -33,9 +33,9 @@ func allPackages() []string {
 			return filepath.SkipDir
 		}
 		if info.IsDir() {
-			pkg := strings.TrimPrefix(path, root)
+			pkg := filepath.ToSlash(strings.TrimPrefix(path, root))
 			switch pkg {
-			case "builtin", "pkg", "code.google.com":
+			case "builtin", "pkg":
 				return filepath.SkipDir // skip these subtrees
 			case "":
 				return nil // ignore root of tree
