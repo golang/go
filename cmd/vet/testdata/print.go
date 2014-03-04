@@ -134,7 +134,7 @@ func PrintfTests() {
 	fmt.Printf("%08s", "woo")                  // correct
 	fmt.Printf("% 8s", "woo")                  // correct
 	fmt.Printf("%.*d", 3, 3)                   // correct
-	fmt.Printf("%.*d", 3, 3, 3)                // ERROR "wrong number of args for format in Printf call"
+	fmt.Printf("%.*d", 3, 3, 3, 3)             // ERROR "wrong number of args for format in Printf call.*4 args"
 	fmt.Printf("%.*d", "hi", 3)                // ERROR "arg .hi. for \* in printf format not of type int"
 	fmt.Printf("%.*d", i, 3)                   // correct
 	fmt.Printf("%.*d", s, 3)                   // ERROR "arg s for \* in printf format not of type int"
@@ -146,7 +146,8 @@ func PrintfTests() {
 	Printf("hi")                               // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
-	Printf(format, "hi") // ERROR "missing argument for Printf verb %s: need 2, have 1"
+	Printf(format, "hi")              // ERROR "missing argument for Printf..%s..: format reads arg 2, have only 1"
+	Printf("%s %d %.3v %q", "str", 4) // ERROR "missing argument for Printf..%.3v..: format reads arg 3, have only 2"
 	f := new(stringer)
 	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
@@ -169,8 +170,8 @@ func PrintfTests() {
 	// Bad argument reorderings.
 	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
 	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
-	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf indirect \*: need 3, have 2"
-	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf verb %d: need 3, have 1"
+	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf.* reads arg 3, have only 2"
+	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf.* reads arg 3, have only 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
 	// Something that satisfies the error interface.
 	var e error

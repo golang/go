@@ -9,7 +9,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -65,11 +64,10 @@ func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
 // It is constructed by parsePrintfVerb.
 type formatState struct {
 	verb     rune   // the format verb: 'd' for "%d"
-	format   string // the full format string
+	format   string // the full format directive from % through verb, "%.3d".
 	name     string // Printf, Sprintf etc.
 	flags    []byte // the list of # + etc.
 	argNums  []int  // the successive argument numbers that are consumed, adjusted to refer to actual arg in call
-	nbytes   int    // number of bytes of the format string consumed.
 	indexed  bool   // whether an indexing expression appears: %[1]d.
 	firstArg int    // Index of first argument after the format in the Printf call.
 	// Used only during parse.
@@ -77,6 +75,7 @@ type formatState struct {
 	call         *ast.CallExpr
 	argNum       int  // Which argument we're expecting to format now.
 	indexPending bool // Whether we have an indexed argument that has not resolved.
+	nbytes       int  // number of bytes of the format string consumed.
 }
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
@@ -115,7 +114,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 			if state == nil {
 				return
 			}
-			w = state.nbytes
+			w = len(state.format)
 			if state.indexed {
 				indexed = true
 			}
@@ -267,6 +266,7 @@ func (f *File) parsePrintfVerb(call *ast.CallExpr, name, format string, firstArg
 	if verb != '%' {
 		state.argNums = append(state.argNums, state.argNum)
 	}
+	state.format = state.format[:state.nbytes]
 	return state
 }
 
@@ -433,13 +433,9 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, s
 		return true
 	}
 	// There are bad indexes in the format or there are fewer arguments than the format needs.
-	verb := fmt.Sprintf("verb %%%c", state.verb)
-	if isStar {
-		verb = "indirect *"
-	}
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	f.Badf(call.Pos(), "missing argument for %s %s: need %d, have %d", state.name, verb, arg, len(call.Args)-state.firstArg)
+	f.Badf(call.Pos(), `missing argument for %s("%s"): format reads arg %d, have only %d args`, state.name, state.format, arg, len(call.Args)-state.firstArg)
 	return false
 }
 
