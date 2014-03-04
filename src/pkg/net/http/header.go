@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var raceEnabled = false // set by race.go
+
 // A Header represents the key-value pairs in an HTTP header.
 type Header map[string][]string
 
