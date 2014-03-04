@@ -30,9 +30,9 @@ type AEAD interface {
 
 	// Open decrypts and authenticates ciphertext, authenticates the
 	// additional data and, if successful, appends the resulting plaintext
-	// to dst, returning the updated slice and true. On error, nil and
-	// false is returned. The nonce must be NonceSize() bytes long and both
-	// it and the additional data must match the value passed to Seal.
+	// to dst, returning the updated slice. The nonce must be NonceSize()
+	// bytes long and both it and the additional data must match the
+	// value passed to Seal.
 	//
 	// The ciphertext and dst may alias exactly or not at all.
 	Open(dst, nonce, ciphertext, data []byte) ([]byte, error)
