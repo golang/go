@@ -213,6 +213,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	// is still in this function, and not the beginning of the next.
 	RET
 
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+	MOVW	$0, R7
+	JMP runtime·morestack(SB)
+
 // Called from panic.  Mimics morestack,
 // reuses stack growth code to create a frame
 // with the desired args running the desired function.

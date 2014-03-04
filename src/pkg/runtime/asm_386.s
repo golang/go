@@ -247,6 +247,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVL	$0, 0x1003	// crash if newstack returns
 	RET
 
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+	MOVL	$0, DX
+	JMP runtime·morestack(SB)
+
 // Called from panic.  Mimics morestack,
 // reuses stack growth code to create a frame
 // with the desired args running the desired function.

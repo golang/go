@@ -437,6 +437,46 @@ TEXT morestack<>(SB),NOSPLIT,$0
 	MOVL	$runtime·morestack(SB), AX
 	JMP	AX
 
+TEXT runtime·morestack00_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack00(SB)
+
+TEXT runtime·morestack01_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack01(SB)
+
+TEXT runtime·morestack10_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack10(SB)
+
+TEXT runtime·morestack11_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack11(SB)
+
+TEXT runtime·morestack8_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack8(SB)
+
+TEXT runtime·morestack16_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack16(SB)
+
+TEXT runtime·morestack24_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack24(SB)
+
+TEXT runtime·morestack32_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack32(SB)
+
+TEXT runtime·morestack40_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack40(SB)
+
+TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack48(SB)
+
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
 //	if(*val == old){

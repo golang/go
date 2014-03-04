@@ -1264,6 +1264,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 	
 	case OCLOSUREVAR:
+		if(!curfn->needctxt)
+			fatal("closurevar without needctxt");
 		a->type = D_OREG;
 		a->reg = 7;
 		a->offset = n->xoffset;

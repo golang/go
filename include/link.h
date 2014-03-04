@@ -356,7 +356,7 @@ struct	Link
 	LSym*	sym_divu;
 	LSym*	sym_mod;
 	LSym*	sym_modu;
-	LSym*	symmorestack[10];
+	LSym*	symmorestack[20];
 	LSym*	gmsym;
 	LSym*	plan9tos;
 	Prog*	curp;

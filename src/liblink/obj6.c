@@ -342,20 +342,30 @@ static char*
 morename[] =
 {
 	"runtime.morestack00",
+	"runtime.morestack00_noctxt",
 	"runtime.morestack10",
+	"runtime.morestack10_noctxt",
 	"runtime.morestack01",
+	"runtime.morestack01_noctxt",
 	"runtime.morestack11",
+	"runtime.morestack11_noctxt",
 
 	"runtime.morestack8",
+	"runtime.morestack8_noctxt",
 	"runtime.morestack16",
+	"runtime.morestack16_noctxt",
 	"runtime.morestack24",
+	"runtime.morestack24_noctxt",
 	"runtime.morestack32",
+	"runtime.morestack32_noctxt",
 	"runtime.morestack40",
+	"runtime.morestack40_noctxt",
 	"runtime.morestack48",
+	"runtime.morestack48_noctxt",
 };
 
 static Prog*	load_g_cx(Link*, Prog*);
-static Prog*	stacksplit(Link*, Prog*, int32, int32, Prog**);
+static Prog*	stacksplit(Link*, Prog*, int32, int32, int, Prog**);
 static void	indir_cx(Link*, Addr*);
 
 static void
@@ -419,7 +429,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p = load_g_cx(ctxt, p); // load g into CX
 	}
 	if(!(cursym->text->from.scale & NOSPLIT))
-		p = stacksplit(ctxt, p, autoffset, textarg, &q); // emit split check
+		p = stacksplit(ctxt, p, autoffset, textarg, !(cursym->text->from.scale&NEEDCTXT), &q); // emit split check
 
 	if(autoffset) {
 		if(autoffset%ctxt->arch->regsize != 0)
@@ -674,7 +684,7 @@ load_g_cx(Link *ctxt, Prog *p)
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
 static Prog*
-stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog **jmpok)
 {
 	Prog *q, *q1;
 	uint32 moreconst1, moreconst2, i;
@@ -822,7 +832,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 	if(moreconst1 == 0 && moreconst2 == 0) {
 		p->as = ACALL;
 		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[0];
+		p->to.sym = ctxt->symmorestack[0*2+noctxt];
 	} else
 	if(moreconst1 != 0 && moreconst2 == 0) {
 		p->as = AMOVL;
@@ -833,13 +843,13 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		p = appendp(ctxt, p);
 		p->as = ACALL;
 		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[1];
+		p->to.sym = ctxt->symmorestack[1*2+noctxt];
 	} else
 	if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
 		i = moreconst2/8 + 3;
 		p->as = ACALL;
 		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[i];
+		p->to.sym = ctxt->symmorestack[i*2+noctxt];
 	} else
 	if(moreconst1 == 0 && moreconst2 != 0) {
 		p->as = AMOVL;
@@ -850,7 +860,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		p = appendp(ctxt, p);
 		p->as = ACALL;
 		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[2];
+		p->to.sym = ctxt->symmorestack[2*2+noctxt];
 	} else {
 		p->as = mov;
 		p->from.type = D_CONST;
@@ -861,7 +871,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
 		p = appendp(ctxt, p);
 		p->as = ACALL;
 		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[3];
+		p->to.sym = ctxt->symmorestack[3*2+noctxt];
 	}
 	
 	p = appendp(ctxt, p);

@@ -19,3 +19,5 @@
 #define NOPTR	16
 // This is a wrapper function and should not count as disabling 'recover'.
 #define WRAPPER 32
+// This function uses its incoming context register.
+#define NEEDCTXT 64
