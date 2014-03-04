@@ -476,7 +476,7 @@ cgen_checknil(Node *n)
 		dump("checknil", n);
 		fatal("bad checknil");
 	}
-	if((thechar == '5' && n->op != OREGISTER) || !n->addable) {
+	if((thechar == '5' && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
 		regalloc(&reg, types[tptr], n);
 		cgen(n, &reg);
 		gins(ACHECKNIL, &reg, N);
