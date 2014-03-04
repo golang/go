@@ -671,8 +671,8 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	}
 	select {
 	case v := <-errc:
-		if !strings.Contains(v, "bad certificate") {
-			t.Errorf("expected an error log message containing 'bad certificate'; got %q", v)
+		if !strings.Contains(v, "TLS handshake error") {
+			t.Errorf("expected an error log message containing 'TLS handshake error'; got %q", v)
 		}
 	case <-time.After(5 * time.Second):
 		t.Errorf("timeout waiting for logged error")
