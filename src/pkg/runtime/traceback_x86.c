@@ -8,8 +8,15 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "funcdata.h"
+#ifdef GOOS_windows
+#include "defs_GOOS_GOARCH.h"
+#endif
 
 void runtime·sigpanic(void);
+
+#ifdef GOOS_windows
+void runtime·sigtramp(void);
+#endif
 
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
@@ -95,7 +102,49 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			frame.fn = f;
 			continue;
 		}
+		
 		f = frame.fn;
+
+#ifdef GOOS_windows
+		// Windows exception handlers run on the actual g stack (there is room
+		// dedicated to this below the usual "bottom of stack"), not on a separate
+		// stack. As a result, we have to be able to unwind past the exception
+		// handler when called to unwind during stack growth inside the handler.
+		// Recognize the frame at the call to sighandler in sigtramp and unwind
+		// using the context argument passed to the call. This is awful.
+		if(f != nil && f->entry == (uintptr)runtime·sigtramp && frame.pc > f->entry) {
+			Context *r;
+			
+			// Invoke callback so that stack copier sees an uncopyable frame.
+			if(callback != nil) {
+				frame.argp = nil;
+				frame.arglen = 0;
+				if(!callback(&frame, v))
+					return n;
+			}
+			r = (Context*)((uintptr*)frame.sp)[1];
+#ifdef GOARCH_amd64
+			frame.pc = r->Rip;
+			frame.sp = r->Rsp;
+#else
+			frame.pc = r->Eip;
+			frame.sp = r->Esp;
+#endif
+			frame.lr = 0;
+			frame.fp = 0;
+			frame.fn = nil;
+			if(printing && runtime·showframe(nil, gp))
+				runtime·printf("----- exception handler -----\n");
+			f = runtime·findfunc(frame.pc);
+			if(f == nil) {
+				runtime·printf("runtime: unknown pc %p after exception handler\n", frame.pc);
+				if(callback != nil)
+					runtime·throw("unknown pc");
+			}
+			frame.fn = f;
+			continue;
+		}
+#endif
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
