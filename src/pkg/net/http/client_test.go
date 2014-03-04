@@ -874,7 +874,7 @@ func TestClientTimeout(t *testing.T) {
 		if err == nil {
 			t.Error("expected error from ReadAll")
 		}
-		t.Logf("Got expected ReadAll error of %v after reading body %q", err, all)
+		// Expected error.
 	case <-time.After(failTime):
 		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
 	}
