@@ -161,6 +161,7 @@ makeclosure(Node *func)
 	// and initialize in entry prologue.
 	body = nil;
 	offset = widthptr;
+	xfunc->needctxt = func->cvars != nil;
 	for(l=func->cvars; l; l=l->next) {
 		v = l->n;
 		if(v->op == 0)
@@ -361,6 +362,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 
 	// Declare and initialize variable holding receiver.
 	body = nil;
+	xfunc->needctxt = 1;
 	cv = nod(OCLOSUREVAR, N, N);
 	cv->xoffset = widthptr;
 	cv->type = rcvrtype;

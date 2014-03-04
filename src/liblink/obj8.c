@@ -256,7 +256,7 @@ prg(void)
 }
 
 static Prog*	load_g_cx(Link*, Prog*);
-static Prog*	stacksplit(Link*, Prog*, int32, Prog**);
+static Prog*	stacksplit(Link*, Prog*, int32, int, Prog**);
 
 static void
 addstacksplit(Link *ctxt, LSym *cursym)
@@ -265,8 +265,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	int32 autoffset, deltasp;
 	int a;
 
-	if(ctxt->symmorestack[0] == nil)
+	if(ctxt->symmorestack[0] == nil) {
 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
+		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
+	}
 
 	if(ctxt->headtype == Hplan9 && ctxt->plan9tos == nil)
 		ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
@@ -291,7 +293,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p = load_g_cx(ctxt, p); // load g into CX
 	}
 	if(!(cursym->text->from.scale & NOSPLIT))
-		p = stacksplit(ctxt, p, autoffset, &q); // emit split check
+		p = stacksplit(ctxt, p, autoffset, !(cursym->text->from.scale&NEEDCTXT), &q); // emit split check
 
 	if(autoffset) {
 		p = appendp(ctxt, p);
@@ -499,7 +501,7 @@ load_g_cx(Link *ctxt, Prog *p)
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
 static Prog*
-stacksplit(Link *ctxt, Prog *p, int32 framesize, Prog **jmpok)
+stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 {
 	Prog *q, *q1;
 	int arg;
@@ -642,7 +644,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, Prog **jmpok)
 	p = appendp(ctxt, p);
 	p->as = ACALL;
 	p->to.type = D_BRANCH;
-	p->to.sym = ctxt->symmorestack[0];
+	p->to.sym = ctxt->symmorestack[noctxt];
 
 	p = appendp(ctxt, p);
 	p->as = AJMP;

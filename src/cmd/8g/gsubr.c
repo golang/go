@@ -2211,6 +2211,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 
 	case OCLOSUREVAR:
+		if(!curfn->needctxt)
+			fatal("closurevar without needctxt");
 		a->type = D_DX+D_INDIR;
 		a->offset = n->xoffset;
 		a->sym = nil;

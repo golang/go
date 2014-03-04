@@ -194,7 +194,7 @@ prg(void)
 	return p;
 }
 
-static	Prog*	stacksplit(Link*, Prog*, int32);
+static	Prog*	stacksplit(Link*, Prog*, int32, int);
 static	void		initdiv(Link*);
 static	void	softfloat(Link*, LSym*);
 
@@ -237,9 +237,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	
 	autosize = 0;
 
-	if(ctxt->symmorestack[0] == nil)
+	if(ctxt->symmorestack[0] == nil) {
 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
-	
+		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
+	}
+
 	q = nil;
 	
 	ctxt->cursym = cursym;
@@ -409,7 +411,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			}
 
 			if(!(p->reg & NOSPLIT))
-				p = stacksplit(ctxt, p, autosize); // emit split check
+				p = stacksplit(ctxt, p, autosize, !(cursym->text->from.scale&NEEDCTXT)); // emit split check
 			
 			// MOVW.W		R14,$-autosize(SP)
 			p = appendp(ctxt, p);
@@ -727,7 +729,7 @@ softfloat(Link *ctxt, LSym *cursym)
 }
 
 static Prog*
-stacksplit(Link *ctxt, Prog *p, int32 framesize)
+stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
 	int32 arg;
 
@@ -851,7 +853,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize)
 	p->as = ABL;
 	p->scond = C_SCOND_LS;
 	p->to.type = D_BRANCH;
-	p->to.sym = ctxt->symmorestack[0];
+	p->to.sym = ctxt->symmorestack[noctxt];
 	
 	// BLS	start
 	p = appendp(ctxt, p);

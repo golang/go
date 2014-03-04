@@ -192,6 +192,8 @@ compile(Node *fn)
 		ptxt->TEXTFLAG |= DUPOK;
 	if(fn->wrapper)
 		ptxt->TEXTFLAG |= WRAPPER;
+	if(fn->needctxt)
+		ptxt->TEXTFLAG |= NEEDCTXT;
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/pkg/reflect/value.go
