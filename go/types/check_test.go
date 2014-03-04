@@ -122,9 +122,11 @@ func parseFiles(t *testing.T, filenames []string) ([]*ast.File, []error) {
 
 // ERROR comments must start with text `ERROR "rx"` or `ERROR rx` where
 // rx is a regular expression that matches the expected error message.
-// Space around "rx" or rx is ignored.
+// Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
+// for error messages that are located immediately after rather than
+// at a token's position.
 //
-var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
+var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 
 // errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
@@ -142,7 +144,8 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 
 		var s scanner.Scanner
 		s.Init(fset.AddFile(filename, -1, len(src)), src, nil, scanner.ScanComments)
-		var prev string // position string of last non-comment, non-semicolon token
+		var prev token.Pos // position of last non-comment, non-semicolon token
+		var here token.Pos // position immediately after the token at position prev
 
 	scanFile:
 		for {
@@ -154,8 +157,13 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 				if lit[1] == '*' {
 					lit = lit[:len(lit)-2] // strip trailing */
 				}
-				if s := errRx.FindStringSubmatch(lit[2:]); len(s) == 2 {
-					errmap[prev] = append(errmap[prev], strings.TrimSpace(s[1]))
+				if s := errRx.FindStringSubmatch(lit[2:]); len(s) == 3 {
+					pos := prev
+					if s[1] == "HERE" {
+						pos = here
+					}
+					p := fset.Position(pos).String()
+					errmap[p] = append(errmap[p], strings.TrimSpace(s[2]))
 				}
 			case token.SEMICOLON:
 				// ignore automatically inserted semicolon
@@ -164,7 +172,14 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 				}
 				fallthrough
 			default:
-				prev = fset.Position(pos).String()
+				prev = pos
+				var l int // token length
+				if tok.IsLiteral() {
+					l = len(lit)
+				} else {
+					l = len(tok.String())
+				}
+				here = prev + token.Pos(l)
 			}
 		}
 	}
