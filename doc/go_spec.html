@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Feb 27, 2014",
+	"Subtitle": "Version of March 4, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -5271,12 +5271,22 @@ The expression <code>len(s)</code> is <a href="#Constants">constant</a> if
 <code>s</code> is a string constant. The expressions <code>len(s)</code> and
 <code>cap(s)</code> are constants if the type of <code>s</code> is an array
 or pointer to an array and the expression <code>s</code> does not contain
-<a href="#Receive_operator">channel receives</a> or
+<a href="#Receive_operator">channel receives</a> or (non-constant)
 <a href="#Calls">function calls</a>; in this case <code>s</code> is not evaluated.
 Otherwise, invocations of <code>len</code> and <code>cap</code> are not
 constant and <code>s</code> is evaluated.
 </p>
 
+<pre>
+const (
+	c1 = imag(2i)                    // imag(2i) = 2.0 is a constant
+	c2 = len([10]float64{2})         // [10]float64{2} contains no function calls
+	c3 = len([10]float64{c1})        // [10]float64{c1} contains no function calls
+	c4 = len([10]float64{imag(2i)})  // imag(2i) is a constant and no function call is issued
+	c5 = len([10]float64{imag(z)})   // invalid: imag(x) is a (non-constant) function call
+)
+var z complex128
+</pre>
 
 <h3 id="Allocation">Allocation</h3>
 
