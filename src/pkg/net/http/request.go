@@ -728,7 +728,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 func (r *Request) ParseForm() error {
 	var err error
 	if r.PostForm == nil {
-		if r.Method == "POST" || r.Method == "PUT" {
+		if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
 			r.PostForm, err = parsePostForm(r)
 		}
 		if r.PostForm == nil {

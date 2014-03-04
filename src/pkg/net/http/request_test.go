@@ -60,6 +60,37 @@ func TestPostQuery(t *testing.T) {
 	}
 }
 
+func TestPatchQuery(t *testing.T) {
+	req, _ := NewRequest("PATCH", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not",
+		strings.NewReader("z=post&both=y&prio=2&empty="))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+
+	if q := req.FormValue("q"); q != "foo" {
+		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
+	}
+	if z := req.FormValue("z"); z != "post" {
+		t.Errorf(`req.FormValue("z") = %q, want "post"`, z)
+	}
+	if bq, found := req.PostForm["q"]; found {
+		t.Errorf(`req.PostForm["q"] = %q, want no entry in map`, bq)
+	}
+	if bz := req.PostFormValue("z"); bz != "post" {
+		t.Errorf(`req.PostFormValue("z") = %q, want "post"`, bz)
+	}
+	if qs := req.Form["q"]; !reflect.DeepEqual(qs, []string{"foo", "bar"}) {
+		t.Errorf(`req.Form["q"] = %q, want ["foo", "bar"]`, qs)
+	}
+	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"y", "x"}) {
+		t.Errorf(`req.Form["both"] = %q, want ["y", "x"]`, both)
+	}
+	if prio := req.FormValue("prio"); prio != "2" {
+		t.Errorf(`req.FormValue("prio") = %q, want "2" (from body)`, prio)
+	}
+	if empty := req.FormValue("empty"); empty != "" {
+		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
+	}
+}
+
 type stringMap map[string][]string
 type parseContentTypeTest struct {
 	shouldError bool
