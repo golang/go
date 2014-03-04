@@ -1358,6 +1358,8 @@ reswitch:
 			goto error;
 		defaultlit(&n->left, T);
 		defaultlit(&n->right, T);
+		if(n->left->type == T || n->right->type == T)
+			goto error;
 
 		// copy([]byte, string)
 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
