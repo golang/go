@@ -319,3 +319,79 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
 pkg unicode, const Version = "6.2.0"
+pkg syscall (freebsd-386), const AF_MAX = 38
+pkg syscall (freebsd-386), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-386), const ELAST = 94
+pkg syscall (freebsd-386), const O_CLOEXEC = 0
+pkg syscall (freebsd-386-cgo), const AF_MAX = 38
+pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-386-cgo), const ELAST = 94
+pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 0
+pkg syscall (freebsd-amd64), const AF_MAX = 38
+pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-amd64), const ELAST = 94
+pkg syscall (freebsd-amd64), const O_CLOEXEC = 0
+pkg syscall (freebsd-amd64-cgo), const AF_MAX = 38
+pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 242
+pkg syscall (freebsd-amd64-cgo), const ELAST = 94
+pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 0
+pkg syscall (freebsd-arm), const AF_MAX = 38
+pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (freebsd-arm), const ELAST = 94
+pkg syscall (freebsd-arm), const O_CLOEXEC = 0
+pkg syscall (freebsd-arm), const SIOCAIFADDR = 2151967019
+pkg syscall (freebsd-arm), const SIOCGIFSTATUS = 3274991931
+pkg syscall (freebsd-arm), const SIOCSIFPHYADDR = 2151967046
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_GET = 537
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_GET ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_LIMIT = 536
+pkg syscall (freebsd-arm), const SYS_CAP_FCNTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_GET = 535
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_GET ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_LIMIT = 534
+pkg syscall (freebsd-arm), const SYS_CAP_IOCTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_GET = 515
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_GET ideal-int
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_LIMIT = 533
+pkg syscall (freebsd-arm), const SYS_CAP_RIGHTS_LIMIT ideal-int
+pkg syscall (freebsd-arm), const SizeofBpfHdr = 24
+pkg syscall (freebsd-arm), const SizeofIfData = 88
+pkg syscall (freebsd-arm), const SizeofIfMsghdr = 104
+pkg syscall (freebsd-arm), const SizeofSockaddrDatalink = 56
+pkg syscall (freebsd-arm), const SizeofSockaddrUnix = 108
+pkg syscall (freebsd-arm), const TIOCTIMESTAMP = 1074558041
+pkg syscall (freebsd-arm), type BpfHdr struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-arm-cgo), const AF_MAX = 38
+pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074545262
+pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148287085
+pkg syscall (freebsd-arm-cgo), const ELAST = 94
+pkg syscall (freebsd-arm-cgo), const O_CLOEXEC = 0
+pkg syscall (freebsd-arm-cgo), const SIOCAIFADDR = 2151967019
+pkg syscall (freebsd-arm-cgo), const SIOCGIFSTATUS = 3274991931
+pkg syscall (freebsd-arm-cgo), const SIOCSIFPHYADDR = 2151967046
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_GET = 537
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_GET ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_LIMIT = 536
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_FCNTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_GET = 535
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_GET ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_LIMIT = 534
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_IOCTLS_LIMIT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_GET = 515
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_GET ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_LIMIT = 533
+pkg syscall (freebsd-arm-cgo), const SYS_CAP_RIGHTS_LIMIT ideal-int
+pkg syscall (freebsd-arm-cgo), const SizeofBpfHdr = 24
+pkg syscall (freebsd-arm-cgo), const SizeofIfData = 88
+pkg syscall (freebsd-arm-cgo), const SizeofIfMsghdr = 104
+pkg syscall (freebsd-arm-cgo), const SizeofSockaddrDatalink = 56
+pkg syscall (freebsd-arm-cgo), const SizeofSockaddrUnix = 108
+pkg syscall (freebsd-arm-cgo), const TIOCTIMESTAMP = 1074558041
+pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm-cgo), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm-cgo), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
