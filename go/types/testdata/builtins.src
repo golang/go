@@ -121,13 +121,14 @@ func cap3() {
 		_ = cap([4]int{x})
 		_ = cap /* ERROR not constant */ ([4]int{f()})
 		_ = cap /* ERROR not constant */ ([4]int{cap([]int{})})
-		_ = cap /* ERROR not constant */ ([4]int{cap([4]int{})})
+		_ = cap([4]int{cap([4]int{})})
 	)
 	var y float64
 	var z complex128
 	const (
 		_ = cap([4]float64{})
 		_ = cap([4]float64{y})
+		_ = cap([4]float64{real(2i)})
 		_ = cap /* ERROR not constant */ ([4]float64{real(z)})
 	)
 	var ch chan [10]int
@@ -390,13 +391,14 @@ func len3() {
 		_ = len([4]int{x})
 		_ = len /* ERROR not constant */ ([4]int{f()})
 		_ = len /* ERROR not constant */ ([4]int{len([]int{})})
-		_ = len /* ERROR not constant */ ([4]int{len([4]int{})})
+		_ = len([4]int{len([4]int{})})
 	)
 	var y float64
 	var z complex128
 	const (
 		_ = len([4]float64{})
 		_ = len([4]float64{y})
+		_ = len([4]float64{real(2i)})
 		_ = len /* ERROR not constant */ ([4]float64{real(z)})
 	)
 	var ch chan [10]int

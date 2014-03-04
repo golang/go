@@ -45,9 +45,10 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 			x.mode = invalid
 		}
 		x.expr = e
-		// TODO(gri) Depending on the pending decision on the issue 7387,
-		// hasCallOrRecv may only need to be set if the result is not constant.
-		check.hasCallOrRecv = true
+		// a non-constant result implies a function call
+		if x.mode != invalid && x.mode != constant {
+			check.hasCallOrRecv = true
+		}
 		return predeclaredFuncs[id].kind
 
 	default:
