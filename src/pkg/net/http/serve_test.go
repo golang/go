@@ -2270,6 +2270,12 @@ func TestServerConnState(t *testing.T) {
 			c.Write([]byte("HTTP/1.0 200 OK\r\nConnection: close\r\n\r\nHello."))
 			c.Close()
 		},
+		"/hijack-panic": func(w ResponseWriter, r *Request) {
+			c, _, _ := w.(Hijacker).Hijack()
+			c.Write([]byte("HTTP/1.0 200 OK\r\nConnection: close\r\n\r\nHello."))
+			c.Close()
+			panic("intentional panic")
+		},
 	}
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		handler[r.URL.Path](w, r)
@@ -2280,6 +2286,7 @@ func TestServerConnState(t *testing.T) {
 	var stateLog = map[int][]ConnState{}
 	var connID = map[net.Conn]int{}
 
+	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
 		if c == nil {
 			t.Error("nil conn seen in state %s", state)
@@ -2303,11 +2310,56 @@ func TestServerConnState(t *testing.T) {
 	mustGet(t, ts.URL+"/", "Connection", "close")
 
 	mustGet(t, ts.URL+"/hijack")
+	mustGet(t, ts.URL+"/hijack-panic")
+
+	// New->Closed
+	{
+		c, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.Close()
+	}
+
+	// New->Active->Closed
+	{
+		c, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.WriteString(c, "BOGUS REQUEST\r\n\r\n"); err != nil {
+			t.Fatal(err)
+		}
+		c.Close()
+	}
+
+	// New->Idle->Closed
+	{
+		c, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
+			t.Fatal(err)
+		}
+		res, err := ReadResponse(bufio.NewReader(c), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+			t.Fatal(err)
+		}
+		c.Close()
+	}
 
 	want := map[int][]ConnState{
 		1: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
 		2: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
 		3: []ConnState{StateNew, StateActive, StateHijacked},
+		4: []ConnState{StateNew, StateActive, StateHijacked},
+		5: []ConnState{StateNew, StateClosed},
+		6: []ConnState{StateNew, StateActive, StateClosed},
+		7: []ConnState{StateNew, StateActive, StateIdle, StateClosed},
 	}
 	logString := func(m map[int][]ConnState) string {
 		var b bytes.Buffer
@@ -2316,6 +2368,7 @@ func TestServerConnState(t *testing.T) {
 			for _, s := range l {
 				fmt.Fprintf(&b, "%s ", s)
 			}
+			b.WriteString("\n")
 		}
 		return b.String()
 	}

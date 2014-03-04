@@ -139,6 +139,7 @@ func (c *conn) hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	buf = c.buf
 	c.rwc = nil
 	c.buf = nil
+	c.setState(rwc, StateHijacked)
 	return
 }
 
@@ -497,6 +498,10 @@ func (srv *Server) maxHeaderBytes() int {
 	return DefaultMaxHeaderBytes
 }
 
+func (srv *Server) initialLimitedReaderSize() int64 {
+	return int64(srv.maxHeaderBytes()) + 4096 // bufio slop
+}
+
 // wrapper around io.ReaderCloser which on first read, sends an
 // HTTP/1.1 100 Continue header
 type expectContinueReader struct {
@@ -567,7 +572,7 @@ func (c *conn) readRequest() (w *response, err error) {
 		}()
 	}
 
-	c.lr.N = int64(c.server.maxHeaderBytes()) + 4096 /* bufio slop */
+	c.lr.N = c.server.initialLimitedReaderSize()
 	var req *Request
 	if req, err = ReadRequest(c.buf.Reader); err != nil {
 		if c.lr.N == 0 {
@@ -1127,10 +1132,10 @@ func (c *conn) serve() {
 
 	for {
 		w, err := c.readRequest()
-		// TODO(bradfitz): could push this StateActive
-		// earlier, but in practice header will be all in one
-		// packet/Read:
-		c.setState(c.rwc, StateActive)
+		if c.lr.N != c.server.initialLimitedReaderSize() {
+			// If we read any bytes off the wire, we're active.
+			c.setState(c.rwc, StateActive)
+		}
 		if err != nil {
 			if err == errTooLarge {
 				// Their HTTP client may or may not be
@@ -1176,7 +1181,6 @@ func (c *conn) serve() {
 		// in parallel even if their responses need to be serialized.
 		serverHandler{c.server}.ServeHTTP(w, w.req)
 		if c.hijacked() {
-			c.setState(origConn, StateHijacked)
 			return
 		}
 		w.finishRequest()
