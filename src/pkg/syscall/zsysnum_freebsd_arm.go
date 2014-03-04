@@ -34,8 +34,8 @@ const (
 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
 	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
-	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
-	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
+	SYS_CHFLAGS                  = 34  // { int chflags(const char *path, u_long flags); }
+	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, u_long flags); }
 	SYS_SYNC                     = 36  // { int sync(void); }
 	SYS_KILL                     = 37  // { int kill(int pid, int signum); }
 	SYS_GETPPID                  = 39  // { pid_t getppid(void); }
@@ -208,14 +208,14 @@ const (
 	SYS___ACL_ACLCHECK_FILE      = 353 // { int __acl_aclcheck_file(const char *path, \
 	SYS___ACL_ACLCHECK_FD        = 354 // { int __acl_aclcheck_fd(int filedes, \
 	SYS_EXTATTRCTL               = 355 // { int extattrctl(const char *path, int cmd, \
-	SYS_EXTATTR_SET_FILE         = 356 // { int extattr_set_file( \
+	SYS_EXTATTR_SET_FILE         = 356 // { ssize_t extattr_set_file( \
 	SYS_EXTATTR_GET_FILE         = 357 // { ssize_t extattr_get_file( \
 	SYS_EXTATTR_DELETE_FILE      = 358 // { int extattr_delete_file(const char *path, \
 	SYS_GETRESUID                = 360 // { int getresuid(uid_t *ruid, uid_t *euid, \
 	SYS_GETRESGID                = 361 // { int getresgid(gid_t *rgid, gid_t *egid, \
 	SYS_KQUEUE                   = 362 // { int kqueue(void); }
 	SYS_KEVENT                   = 363 // { int kevent(int fd, \
-	SYS_EXTATTR_SET_FD           = 371 // { int extattr_set_fd(int fd, \
+	SYS_EXTATTR_SET_FD           = 371 // { ssize_t extattr_set_fd(int fd, \
 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
@@ -228,7 +228,7 @@ const (
 	SYS___MAC_SET_FD             = 388 // { int __mac_set_fd(int fd, \
 	SYS___MAC_SET_FILE           = 389 // { int __mac_set_file(const char *path_p, \
 	SYS_KENV                     = 390 // { int kenv(int what, const char *name, \
-	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, int flags); }
+	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, \
 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
@@ -239,7 +239,7 @@ const (
 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
 	SYS___MAC_SET_LINK           = 411 // { int __mac_set_link(const char *path_p, \
-	SYS_EXTATTR_SET_LINK         = 412 // { int extattr_set_link( \
+	SYS_EXTATTR_SET_LINK         = 412 // { ssize_t extattr_set_link( \
 	SYS_EXTATTR_GET_LINK         = 413 // { ssize_t extattr_get_link( \
 	SYS_EXTATTR_DELETE_LINK      = 414 // { int extattr_delete_link( \
 	SYS___MAC_EXECVE             = 415 // { int __mac_execve(char *fname, char **argv, \
@@ -322,7 +322,7 @@ const (
 	SYS_CLOSEFROM                = 509 // { int closefrom(int lowfd); }
 	SYS_LPATHCONF                = 513 // { int lpathconf(char *path, int name); }
 	SYS_CAP_NEW                  = 514 // { int cap_new(int fd, uint64_t rights); }
-	SYS_CAP_RIGHTS_GET           = 515 // { int cap_rights_get(int fd, \
+	SYS_CAP_GETRIGHTS            = 515 // { int cap_getrights(int fd, \
 	SYS_CAP_ENTER                = 516 // { int cap_enter(void); }
 	SYS_CAP_GETMODE              = 517 // { int cap_getmode(u_int *modep); }
 	SYS_PDFORK                   = 518 // { int pdfork(int *fdp, int flags); }
@@ -338,10 +338,11 @@ const (
 	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
 	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
 	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
-	SYS_WAIT6                    = 532 // { int wait6(int idtype, int id, \
-	SYS_CAP_RIGHTS_LIMIT         = 533 // { int cap_rights_limit(int fd, \
-	SYS_CAP_IOCTLS_LIMIT         = 534 // { int cap_ioctls_limit(int fd, \
-	SYS_CAP_IOCTLS_GET           = 535 // { ssize_t cap_ioctls_get(int fd, \
-	SYS_CAP_FCNTLS_LIMIT         = 536 // { int cap_fcntls_limit(int fd, \
-	SYS_CAP_FCNTLS_GET           = 537 // { int cap_fcntls_get(int fd, \
+	SYS_WAIT6                    = 532 // { int wait6(idtype_t idtype, id_t id, \
+	SYS_BINDAT                   = 538 // { int bindat(int fd, int s, caddr_t name, \
+	SYS_CONNECTAT                = 539 // { int connectat(int fd, int s, caddr_t name, \
+	SYS_CHFLAGSAT                = 540 // { int chflagsat(int fd, const char *path, \
+	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
+	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
 )

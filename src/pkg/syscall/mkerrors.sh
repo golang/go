@@ -57,6 +57,7 @@ includes_DragonFly='
 '
 
 includes_FreeBSD='
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/socket.h>
@@ -73,6 +74,14 @@ includes_FreeBSD='
 #include <termios.h>
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
+
+#if __FreeBSD__ >= 10
+#define IFT_CARP	0xf8	// IFT_CARP is deprecated in FreeBSD 10
+#undef SIOCAIFADDR
+#define SIOCAIFADDR	_IOW(105, 26, struct oifaliasreq)	// ifaliasreq contains if_data
+#undef SIOCSIFPHYADDR
+#define SIOCSIFPHYADDR	_IOW(105, 70, struct oifaliasreq)	// ifaliasreq contains if_data
+#endif
 '
 
 includes_Linux='

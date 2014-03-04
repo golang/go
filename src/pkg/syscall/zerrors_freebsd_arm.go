@@ -25,13 +25,15 @@ const (
 	AF_IMPLINK                        = 0x3
 	AF_INET                           = 0x2
 	AF_INET6                          = 0x1c
+	AF_INET6_SDP                      = 0x2a
+	AF_INET_SDP                       = 0x28
 	AF_IPX                            = 0x17
 	AF_ISDN                           = 0x1a
 	AF_ISO                            = 0x7
 	AF_LAT                            = 0xe
 	AF_LINK                           = 0x12
 	AF_LOCAL                          = 0x1
-	AF_MAX                            = 0x26
+	AF_MAX                            = 0x2a
 	AF_NATM                           = 0x1d
 	AF_NETBIOS                        = 0x6
 	AF_NETGRAPH                       = 0x20
@@ -128,7 +130,7 @@ const (
 	BIOCGETZMAX                       = 0x4004427f
 	BIOCGHDRCMPLT                     = 0x40044274
 	BIOCGRSIG                         = 0x40044272
-	BIOCGRTIMEOUT                     = 0x400c426e
+	BIOCGRTIMEOUT                     = 0x4010426e
 	BIOCGSEESENT                      = 0x40044276
 	BIOCGSTATS                        = 0x4008426f
 	BIOCGTSTAMP                       = 0x40044283
@@ -147,7 +149,7 @@ const (
 	BIOCSETZBUF                       = 0x800c4281
 	BIOCSHDRCMPLT                     = 0x80044275
 	BIOCSRSIG                         = 0x80044273
-	BIOCSRTIMEOUT                     = 0x800c426d
+	BIOCSRTIMEOUT                     = 0x8010426d
 	BIOCSSEESENT                      = 0x80044277
 	BIOCSTSTAMP                       = 0x80044284
 	BIOCVERSION                       = 0x40044271
@@ -426,6 +428,7 @@ const (
 	EV_DELETE                         = 0x2
 	EV_DISABLE                        = 0x8
 	EV_DISPATCH                       = 0x80
+	EV_DROP                           = 0x1000
 	EV_ENABLE                         = 0x4
 	EV_EOF                            = 0x8000
 	EV_ERROR                          = 0x4000
@@ -521,6 +524,7 @@ const (
 	IFT_BGPPOLICYACCOUNTING           = 0xa2
 	IFT_BRIDGE                        = 0xd1
 	IFT_BSC                           = 0x53
+	IFT_CARP                          = 0xf8
 	IFT_CCTEMUL                       = 0x3d
 	IFT_CEPT                          = 0x13
 	IFT_CES                           = 0x85
@@ -999,6 +1003,9 @@ const (
 	MADV_RANDOM                       = 0x1
 	MADV_SEQUENTIAL                   = 0x2
 	MADV_WILLNEED                     = 0x3
+	MAP_ALIGNED_SUPER                 = 0x1000000
+	MAP_ALIGNMENT_MASK                = -0x1000000
+	MAP_ALIGNMENT_SHIFT               = 0x18
 	MAP_ANON                          = 0x1000
 	MAP_ANONYMOUS                     = 0x1000
 	MAP_COPY                          = 0x2
@@ -1017,6 +1024,7 @@ const (
 	MAP_STACK                         = 0x400
 	MCL_CURRENT                       = 0x1
 	MCL_FUTURE                        = 0x2
+	MSG_CMSG_CLOEXEC                  = 0x40000
 	MSG_COMPAT                        = 0x8000
 	MSG_CTRUNC                        = 0x20
 	MSG_DONTROUTE                     = 0x4
@@ -1033,6 +1041,7 @@ const (
 	MS_ASYNC                          = 0x1
 	MS_INVALIDATE                     = 0x2
 	MS_SYNC                           = 0x0
+	NAME_MAX                          = 0xff
 	NET_RT_DUMP                       = 0x1
 	NET_RT_FLAGS                      = 0x2
 	NET_RT_IFLIST                     = 0x3
@@ -1072,6 +1081,7 @@ const (
 	O_ACCMODE                         = 0x3
 	O_APPEND                          = 0x8
 	O_ASYNC                           = 0x40
+	O_CLOEXEC                         = 0x100000
 	O_CREAT                           = 0x200
 	O_DIRECT                          = 0x10000
 	O_DIRECTORY                       = 0x20000
@@ -1132,6 +1142,7 @@ const (
 	RTF_DYNAMIC                       = 0x10
 	RTF_FMASK                         = 0x1004d808
 	RTF_GATEWAY                       = 0x2
+	RTF_GWFLAG_COMPAT                 = 0x80000000
 	RTF_HOST                          = 0x4
 	RTF_LLDATA                        = 0x400
 	RTF_LLINFO                        = 0x400
@@ -1193,7 +1204,7 @@ const (
 	SHUT_WR                           = 0x1
 	SIOCADDMULTI                      = 0x80206931
 	SIOCADDRT                         = 0x8030720a
-	SIOCAIFADDR                       = 0x8044692b
+	SIOCAIFADDR                       = 0x8040691a
 	SIOCAIFGROUP                      = 0x80246987
 	SIOCALIFADDR                      = 0x8118691b
 	SIOCATMARK                        = 0x40047307
@@ -1227,7 +1238,7 @@ const (
 	SIOCGIFPDSTADDR                   = 0xc0206948
 	SIOCGIFPHYS                       = 0xc0206935
 	SIOCGIFPSRCADDR                   = 0xc0206947
-	SIOCGIFSTATUS                     = 0xc334693b
+	SIOCGIFSTATUS                     = 0xc331693b
 	SIOCGLIFADDR                      = 0xc118691c
 	SIOCGLIFPHYADDR                   = 0xc118694b
 	SIOCGLOWAT                        = 0x40047303
@@ -1255,15 +1266,17 @@ const (
 	SIOCSIFMTU                        = 0x80206934
 	SIOCSIFNAME                       = 0x80206928
 	SIOCSIFNETMASK                    = 0x80206916
-	SIOCSIFPHYADDR                    = 0x80446946
+	SIOCSIFPHYADDR                    = 0x80406946
 	SIOCSIFPHYS                       = 0x80206936
 	SIOCSIFRVNET                      = 0xc020695b
 	SIOCSIFVNET                       = 0xc020695a
 	SIOCSLIFPHYADDR                   = 0x8118694a
 	SIOCSLOWAT                        = 0x80047302
 	SIOCSPGRP                         = 0x80047308
+	SOCK_CLOEXEC                      = 0x10000000
 	SOCK_DGRAM                        = 0x2
 	SOCK_MAXADDRLEN                   = 0xff
+	SOCK_NONBLOCK                     = 0x20000000
 	SOCK_RAW                          = 0x3
 	SOCK_RDM                          = 0x4
 	SOCK_SEQPACKET                    = 0x5
@@ -1303,6 +1316,7 @@ const (
 	SO_TYPE                           = 0x1008
 	SO_USELOOPBACK                    = 0x40
 	SO_USER_COOKIE                    = 0x1015
+	SO_VENDOR                         = 0x80000000
 	TCIFLUSH                          = 0x1
 	TCIOFLUSH                         = 0x3
 	TCOFLUSH                          = 0x2
@@ -1326,6 +1340,7 @@ const (
 	TCP_NODELAY                       = 0x1
 	TCP_NOOPT                         = 0x8
 	TCP_NOPUSH                        = 0x4
+	TCP_VENDOR                        = 0x80000000
 	TCSAFLUSH                         = 0x2
 	TIOCCBRK                          = 0x2000747a
 	TIOCCDTR                          = 0x20007478
@@ -1387,7 +1402,7 @@ const (
 	TIOCSTI                           = 0x80017472
 	TIOCSTOP                          = 0x2000746f
 	TIOCSWINSZ                        = 0x80087467
-	TIOCTIMESTAMP                     = 0x400c7459
+	TIOCTIMESTAMP                     = 0x40107459
 	TIOCUCNTL                         = 0x80047466
 	TOSTOP                            = 0x400000
 	VDISCARD                          = 0xf
@@ -1459,7 +1474,7 @@ const (
 	EIO             = Errno(0x5)
 	EISCONN         = Errno(0x38)
 	EISDIR          = Errno(0x15)
-	ELAST           = Errno(0x5e)
+	ELAST           = Errno(0x60)
 	ELOOP           = Errno(0x3e)
 	EMFILE          = Errno(0x18)
 	EMLINK          = Errno(0x1f)
@@ -1488,12 +1503,14 @@ const (
 	ENOTCONN        = Errno(0x39)
 	ENOTDIR         = Errno(0x14)
 	ENOTEMPTY       = Errno(0x42)
+	ENOTRECOVERABLE = Errno(0x5f)
 	ENOTSOCK        = Errno(0x26)
 	ENOTSUP         = Errno(0x2d)
 	ENOTTY          = Errno(0x19)
 	ENXIO           = Errno(0x6)
 	EOPNOTSUPP      = Errno(0x2d)
 	EOVERFLOW       = Errno(0x54)
+	EOWNERDEAD      = Errno(0x60)
 	EPERM           = Errno(0x1)
 	EPFNOSUPPORT    = Errno(0x2e)
 	EPIPE           = Errno(0x20)
@@ -1656,6 +1673,8 @@ var errors = [...]string{
 	92: "protocol error",
 	93: "capabilities insufficient",
 	94: "not permitted in capability mode",
+	95: "state not recoverable",
+	96: "previous owner died",
 }
 
 // Signal table
