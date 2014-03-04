@@ -803,6 +803,15 @@ runtime·cnewarray(Type *typ, intgo n)
 }
 
 func GC() {
+	// We assume that the user expects unused memory to have
+	// been freed when GC returns. To ensure this, run gc(1) twice.
+	// The first will do a collection, and the second will force the
+	// first's sweeping to finish before doing a second collection.
+	// The second collection is overkill, but we assume the user
+	// has a good reason for calling runtime.GC and can stand the
+	// expense. At the least, this fixes all the calls to runtime.GC in
+	// tests that expect finalizers to start running when GC returns.
+	runtime·gc(1);
 	runtime·gc(1);
 }
 
