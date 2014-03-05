@@ -685,7 +685,7 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
 // but first it checks that the assignment will succeed.
 func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
 	if !value.Type().AssignableTo(ivalue.Type()) {
-		errorf("cannot assign value of type %s to %s", value.Type(), ivalue.Type())
+		errorf("%s is not assignable to type %s", value.Type(), ivalue.Type())
 	}
 	ivalue.Set(value)
 }
