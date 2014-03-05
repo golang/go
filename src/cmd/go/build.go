@@ -813,25 +813,7 @@ func (b *builder) build(a *action) (err error) {
 
 	var gofiles, cfiles, sfiles, objects, cgoObjects []string
 
-	// If we're doing coverage, preprocess the .go files and put them in the work directory
-	if a.p.coverMode != "" {
-		for _, file := range a.p.GoFiles {
-			sourceFile := filepath.Join(a.p.Dir, file)
-			cover := a.p.coverVars[file]
-			if cover == nil || isTestFile(file) {
-				// Not covering this file.
-				gofiles = append(gofiles, file)
-				continue
-			}
-			coverFile := filepath.Join(obj, file)
-			if err := b.cover(a, coverFile, sourceFile, 0644, cover.Var); err != nil {
-				return err
-			}
-			gofiles = append(gofiles, coverFile)
-		}
-	} else {
-		gofiles = append(gofiles, a.p.GoFiles...)
-	}
+	gofiles = append(gofiles, a.p.GoFiles...)
 	cfiles = append(cfiles, a.p.CFiles...)
 	sfiles = append(sfiles, a.p.SFiles...)
 
@@ -886,6 +868,35 @@ func (b *builder) build(a *action) (err error) {
 		}
 		cgoObjects = append(cgoObjects, outObj...)
 		gofiles = append(gofiles, outGo...)
+	}
+
+	// If we're doing coverage, preprocess the .go files and put them in the work directory
+	if a.p.coverMode != "" {
+		for i, file := range gofiles {
+			var sourceFile string
+			var coverFile string
+			var key string
+			if strings.HasSuffix(file, ".cgo1.go") {
+				// cgo files have absolute paths
+				base := filepath.Base(file)
+				sourceFile = file
+				coverFile = filepath.Join(obj, base)
+				key = strings.TrimSuffix(base, ".cgo1.go") + ".go"
+			} else {
+				sourceFile = filepath.Join(a.p.Dir, file)
+				coverFile = filepath.Join(obj, file)
+				key = file
+			}
+			cover := a.p.coverVars[key]
+			if cover == nil || isTestFile(file) {
+				// Not covering this file.
+				continue
+			}
+			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Var); err != nil {
+				return err
+			}
+			gofiles[i] = coverFile
+		}
 	}
 
 	// Prepare Go import path list.
