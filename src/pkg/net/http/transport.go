@@ -583,6 +583,8 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 				return nil, err
 			}
 		}
+		cs := tlsConn.ConnectionState()
+		pconn.tlsState = &cs
 		pconn.conn = tlsConn
 	}
 
@@ -718,6 +720,7 @@ type persistConn struct {
 	t        *Transport
 	cacheKey connectMethodKey
 	conn     net.Conn
+	tlsState *tls.ConnectionState
 	closed   bool                // whether conn has been closed
 	br       *bufio.Reader       // from conn
 	bw       *bufio.Writer       // to conn
@@ -792,9 +795,8 @@ func (pc *persistConn) readLoop() {
 			}
 		}
 
-		if tlsConn, ok := pc.conn.(*tls.Conn); resp != nil && ok {
-			resp.TLS = new(tls.ConnectionState)
-			*resp.TLS = tlsConn.ConnectionState()
+		if resp != nil {
+			resp.TLS = pc.tlsState
 		}
 
 		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0

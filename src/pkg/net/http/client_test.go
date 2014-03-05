@@ -727,14 +727,13 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	if res.TLS == nil {
 		t.Fatal("Response didn't set TLS Connection State.")
 	}
-	if res.TLS.CipherSuite != tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA {
-		t.Errorf("Unexpected TLS Cipher Suite: %d != %d",
-			res.TLS.CipherSuite, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA)
+	if got, want := res.TLS.CipherSuite, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA; got != want {
+		t.Errorf("TLS Cipher Suite = %d; want %d", got, want)
 	}
-	res.Body.Close()
 }
 
 // Verify Response.ContentLength is populated. http://golang.org/issue/4126

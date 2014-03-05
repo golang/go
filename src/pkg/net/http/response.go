@@ -76,10 +76,10 @@ type Response struct {
 	// This is only populated for Client requests.
 	Request *Request
 
-	// TLS allows information about the TLS connection on which the
-	// response was received. The Transport in this package sets the field
-	// for TLS-enabled connections before returning the Response otherwise
-	// it leaves the field nil.
+	// TLS contains information about the TLS connection on which the
+	// response was received. It is nil for unencrypted responses.
+	// The pointer is shared between responses and should not be
+	// modified.
 	TLS *tls.ConnectionState
 }
 
