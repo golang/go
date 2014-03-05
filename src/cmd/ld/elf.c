@@ -355,7 +355,7 @@ elfnote(ElfShdr *sh, uint64 startva, uint64 resoff, int sz)
 	sh->addralign = 4;
 	sh->addr = startva + resoff - n;
 	sh->off = resoff - n;
-	sh->size = n;
+	sh->size = n - resoff % 4;
 
 	return n;
 }
