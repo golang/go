@@ -392,6 +392,8 @@ inlnode(Node **np)
 	case OCALLFUNC:
 	case OCALLMETH:
 	case OCALLINTER:
+	case OAPPEND:
+	case OCOMPLEX:
 		// if we just replaced arg in f(arg()) or return arg with an inlined call
 		// and arg returns multiple values, glue as list
 		if(count(n->list) == 1 && n->list->n->op == OINLCALL && count(n->list->n->rlist) > 1) {

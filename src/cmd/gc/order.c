@@ -344,6 +344,8 @@ orderexpr(Node **np, NodeList **out)
 	case OCALLFUNC:
 	case OCALLMETH:
 	case OCALLINTER:
+	case OAPPEND:
+	case OCOMPLEX:
 		ordercall(n, out);
 		n = copyexpr(n, n->type, out);
 		break;

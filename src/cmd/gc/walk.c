@@ -493,6 +493,11 @@ walkexpr(Node **np, NodeList **init)
 	case OADD:
 	case OCOMPLEX:
 	case OLROT:
+		// Use results from call expression as arguments for complex.
+		if(n->op == OCOMPLEX && n->left == N && n->right == N) {
+			n->left = n->list->n;
+			n->right = n->list->next->n;
+		}
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
 		goto ret;
@@ -2772,6 +2777,10 @@ append(Node *n, NodeList **init)
 		l->n = cheapexpr(l->n, init);
 
 	nsrc = n->list->n;
+
+	// Resolve slice type of multi-valued return.
+	if(istype(nsrc->type, TSTRUCT))
+		nsrc->type = nsrc->type->type->type;
 	argc = count(n->list) - 1;
 	if (argc < 1) {
 		return nsrc;

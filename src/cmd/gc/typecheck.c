@@ -1212,17 +1212,29 @@ reswitch:
 
 	case OCOMPLEX:
 		ok |= Erv;
-		if(twoarg(n) < 0)
-			goto error;
-		l = typecheck(&n->left, Erv | (top & Eiota));
-		r = typecheck(&n->right, Erv | (top & Eiota));
-		if(l->type == T || r->type == T)
-			goto error;
-		defaultlit2(&l, &r, 0);
-		if(l->type == T || r->type == T)
-			goto error;
-		n->left = l;
-		n->right = r;
+		if(count(n->list) == 1) {
+			typechecklist(n->list, Efnstruct);
+			t = n->list->n->left->type;
+			if(t->outtuple != 2) {
+				yyerror("invalid operation: complex expects two arguments, %N returns %d results", n->list->n, t->outtuple);
+				goto error;
+			}
+			t = n->list->n->type->type;
+			l = t->nname;
+			r = t->down->nname;
+		} else {
+			if(twoarg(n) < 0)
+				goto error;
+			l = typecheck(&n->left, Erv | (top & Eiota));
+			r = typecheck(&n->right, Erv | (top & Eiota));
+			if(l->type == T || r->type == T)
+				goto error;
+			defaultlit2(&l, &r, 0);
+			if(l->type == T || r->type == T)
+				goto error;
+			n->left = l;
+			n->right = r;
+		}
 		if(!eqtype(l->type, r->type)) {
 			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
 			goto error;
@@ -1301,9 +1313,22 @@ reswitch:
 			yyerror("missing arguments to append");
 			goto error;
 		}
-		typechecklist(args, Erv);
+
+		if(count(args) == 1 && !n->isddd)
+			typecheck(&args->n, Erv | Efnstruct);
+		else
+			typechecklist(args, Erv);
+
 		if((t = args->n->type) == T)
 			goto error;
+
+		// Unpack multiple-return result before type-checking.
+		if(istype(t, TSTRUCT)) {
+			t = t->type;
+			if(istype(t, TFIELD))
+				t = t->type;
+		}
+
 		n->type = t;
 		if(!isslice(t)) {
 			if(isconst(args->n, CTNIL)) {
