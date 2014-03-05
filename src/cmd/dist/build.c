@@ -27,6 +27,8 @@ char *gochar;
 char *goversion;
 char *slash;	// / for unix, \ for windows
 char *defaultcc;
+char *defaultcflags;
+char *defaultldflags;
 char *defaultcxxtarget;
 char *defaultcctarget;
 bool	rebuildall;
@@ -168,6 +170,12 @@ init(void)
 			bprintf(&b, "gcc");
 	}
 	defaultcc = btake(&b);
+
+	xgetenv(&b, "CFLAGS");
+	defaultcflags = btake(&b);
+
+	xgetenv(&b, "LDFLAGS");
+	defaultldflags = btake(&b);
 
 	xgetenv(&b, "CC_FOR_TARGET");
 	if(b.len == 0) {
@@ -465,12 +473,19 @@ static char *proto_gccargs[] = {
 	// GCC 4.5.4 (NetBSD nb1 20120916) on ARM is known to mis-optimize gc/mparith3.c
 	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
 	"-O1",
+#endif
+};
+
+// gccargs2 is the second part of gccargs.
+// it is used if the environment isn't defining CFLAGS.
+static char *proto_gccargs2[] = {
+#if defined(__NetBSD__) && defined(__arm__)
 #else
 	"-O2",
 #endif
 };
 
-static Vec gccargs;
+static Vec gccargs, ldargs;
 
 // deptab lists changes to the default dependencies for a given prefix.
 // deps ending in /* read the whole directory; deps beginning with -
@@ -682,10 +697,14 @@ install(char *dir)
 
 	// set up gcc command line on first run.
 	if(gccargs.len == 0) {
-		bprintf(&b, "%s", defaultcc);
+		bprintf(&b, "%s %s", defaultcc, defaultcflags);
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
+		if(defaultcflags[0] == '\0') {
+			for(i=0; i<nelem(proto_gccargs2); i++)
+				vadd(&gccargs, proto_gccargs2[i]);
+		}
 		if(contains(gccargs.p[0], "clang")) {
 			// disable ASCII art in clang errors, if possible
 			vadd(&gccargs, "-fno-caret-diagnostics");
@@ -698,6 +717,10 @@ install(char *dir)
 			// golang.org/issue/5261
 			vadd(&gccargs, "-mmacosx-version-min=10.6");
 		}
+	}
+	if(ldargs.len == 0 && defaultldflags[0] != '\0') {
+		bprintf(&b, "%s", defaultldflags);
+		splitfields(&ldargs, bstr(&b));
 	}
 
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
@@ -742,7 +765,7 @@ install(char *dir)
 		targ = link.len;
 		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, elem, exe));
 	} else {
-		// C command. Use gccargs.
+		// C command. Use gccargs and ldargs.
 		if(streq(gohostos, "plan9")) {
 			vadd(&link, bprintf(&b, "%sl", gohostchar));
 			vadd(&link, "-o");
@@ -750,6 +773,7 @@ install(char *dir)
 			vadd(&link, bpathf(&b, "%s/%s", tooldir, name));
 		} else {
 			vcopy(&link, gccargs.p, gccargs.len);
+			vcopy(&link, ldargs.p, ldargs.len);
 			if(sflag)
 				vadd(&link, "-static");
 			vadd(&link, "-o");
