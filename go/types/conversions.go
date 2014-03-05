@@ -57,10 +57,10 @@ func (check *checker) conversion(x *operand, T Type) {
 		if isInterface(T) || constArg && !isConstType(T) {
 			final = defaultType(x.typ)
 		}
+		check.updateExprType(x.expr, final, true)
 	}
 
 	x.typ = T
-	check.updateExprType(x.expr, final, true)
 }
 
 func (x *operand) convertibleTo(conf *Config, T Type) bool {

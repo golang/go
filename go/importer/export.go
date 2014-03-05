@@ -137,9 +137,6 @@ func (p *exporter) value(x exact.Value) {
 			tag = trueTag
 		}
 		p.int(tag)
-	case exact.String:
-		p.int(stringTag)
-		p.string(exact.StringVal(x))
 	case exact.Int:
 		if i, ok := exact.Int64Val(x); ok {
 			p.int(int64Tag)
@@ -155,6 +152,9 @@ func (p *exporter) value(x exact.Value) {
 		p.int(complexTag)
 		p.fraction(exact.Real(x))
 		p.fraction(exact.Imag(x))
+	case exact.String:
+		p.int(stringTag)
+		p.string(exact.StringVal(x))
 	default:
 		panic(fmt.Sprintf("unexpected value kind %d", kind))
 	}

@@ -129,8 +129,6 @@ func (p *importer) value() exact.Value {
 		return exact.MakeBool(false)
 	case trueTag:
 		return exact.MakeBool(true)
-	case stringTag:
-		return exact.MakeString(p.string())
 	case int64Tag:
 		return exact.MakeInt64(p.int64())
 	case floatTag:
@@ -141,6 +139,8 @@ func (p *importer) value() exact.Value {
 		re := p.fraction()
 		im := p.fraction()
 		return exact.BinaryOp(re, token.ADD, exact.MakeImag(im))
+	case stringTag:
+		return exact.MakeString(p.string())
 	default:
 		panic(fmt.Sprintf("unexpected value kind %d", kind))
 	}

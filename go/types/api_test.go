@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(gri) This file needs to be expanded significantly.
-
 package types_test
 
 import (
@@ -89,6 +87,28 @@ func TestValuesInfo(t *testing.T) {
 		{`package d1; var _ = []byte(string("foo"))`, `"foo"`, `string`, `"foo"`},
 		{`package d2; var _ = []byte(string("foo"))`, `string("foo")`, `string`, `"foo"`},
 		{`package d3; type T []byte; var _ = T("foo")`, `"foo"`, `string`, `"foo"`},
+
+		{`package e0; const _ = float32( 1e-200)`, `float32(1e-200)`, `float32`, `0`},
+		{`package e1; const _ = float32(-1e-200)`, `float32(-1e-200)`, `float32`, `0`},
+		{`package e2; const _ = float64( 1e-2000)`, `float64(1e-2000)`, `float64`, `0`},
+		{`package e3; const _ = float64(-1e-2000)`, `float64(-1e-2000)`, `float64`, `0`},
+		{`package e4; const _ = complex64( 1e-200)`, `complex64(1e-200)`, `complex64`, `0`},
+		{`package e5; const _ = complex64(-1e-200)`, `complex64(-1e-200)`, `complex64`, `0`},
+		{`package e6; const _ = complex128( 1e-2000)`, `complex128(1e-2000)`, `complex128`, `0`},
+		{`package e7; const _ = complex128(-1e-2000)`, `complex128(-1e-2000)`, `complex128`, `0`},
+
+		{`package f0 ; var _ float32 =  1e-200`, `1e-200`, `float32`, `0`},
+		{`package f1 ; var _ float32 = -1e-200`, `-1e-200`, `float32`, `0`},
+		{`package f2a; var _ float64 =  1e-2000`, `1e-2000`, `float64`, `0`},
+		{`package f3a; var _ float64 = -1e-2000`, `-1e-2000`, `float64`, `0`},
+		{`package f2b; var _         =  1e-2000`, `1e-2000`, `float64`, `0`},
+		{`package f3b; var _         = -1e-2000`, `-1e-2000`, `float64`, `0`},
+		{`package f4 ; var _ complex64  =  1e-200 `, `1e-200`, `complex64`, `0`},
+		{`package f5 ; var _ complex64  = -1e-200 `, `-1e-200`, `complex64`, `0`},
+		{`package f6a; var _ complex128 =  1e-2000i`, `1e-2000i`, `complex128`, `0`},
+		{`package f7a; var _ complex128 = -1e-2000i`, `-1e-2000i`, `complex128`, `0`},
+		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `0`},
+		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `0`},
 	}
 
 	for _, test := range tests {

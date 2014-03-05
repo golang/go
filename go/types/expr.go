@@ -462,6 +462,14 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	check.recordTypeAndValue(x, typ, old.val)
 }
 
+// updateExprVal updates the value of x to val.
+func (check *checker) updateExprVal(x ast.Expr, val exact.Value) {
+	if info, ok := check.untyped[x]; ok {
+		info.val = val
+		check.untyped[x] = info
+	}
+}
+
 // convertUntyped attempts to set the type of an untyped value to the target type.
 func (check *checker) convertUntyped(x *operand, target Type) {
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
@@ -494,6 +502,10 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 			if x.mode == invalid {
 				return
 			}
+			// expression value may have been rounded - update if needed
+			// TODO(gri) A floating-point value may silently underflow to
+			// zero. If it was negative, the sign is lost. See issue 6898.
+			check.updateExprVal(x.expr, x.val)
 		} else {
 			// Non-constant untyped values may appear as the
 			// result of comparisons (untyped bool), intermediate

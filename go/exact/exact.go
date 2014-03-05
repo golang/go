@@ -244,7 +244,9 @@ func Uint64Val(x Value) (uint64, bool) {
 }
 
 // Float64Val returns the nearest Go float64 value of x and whether the result is exact;
-// x must be numeric but not Complex, or Unknown.
+// x must be numeric but not Complex, or Unknown. For values too small (too close to 0)
+// to represent as float64, Float64Val silently underflows to 0. The result sign always
+// matches the sign of x, even for 0.
 // If x is Unknown, the result is (0, false).
 func Float64Val(x Value) (float64, bool) {
 	switch x := x.(type) {
