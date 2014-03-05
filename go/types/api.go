@@ -46,12 +46,15 @@ func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error
 	return pkg, nil
 }
 
-// An Error describes a type-checking error;
-// it implements the error interface.
+// An Error describes a type-checking error; it implements the error interface.
+// A "soft" error is an error that still permits a valid interpretation of a
+// package (such as "unused variable"); "hard" errors may lead to unpredictable
+// behavior if ignored.
 type Error struct {
 	Fset *token.FileSet // file set for interpretation of Pos
 	Pos  token.Pos      // error position
 	Msg  string         // error message
+	Soft bool           // if set, error is "soft"
 }
 
 // Error returns an error string formatted as follows:

@@ -43,7 +43,7 @@ func (check *checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	}
 
 	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
-		check.errorf(body.Rbrace, "missing return")
+		check.error(body.Rbrace, "missing return")
 	}
 
 	// spec: "Implementation restriction: A compiler may make it illegal to
@@ -56,7 +56,7 @@ func (check *checker) funcBody(decl *declInfo, name string, sig *Signature, body
 func (check *checker) usage(scope *Scope) {
 	for _, obj := range scope.elems {
 		if v, _ := obj.(*Var); v != nil && !v.used {
-			check.errorf(v.pos, "%s declared but not used", v.name)
+			check.softErrorf(v.pos, "%s declared but not used", v.name)
 		}
 	}
 	for _, scope := range scope.children {
@@ -186,7 +186,7 @@ L:
 		for t, pos := range seen {
 			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
-				check.errorf(e.Pos(), "duplicate case in type switch")
+				check.error(e.Pos(), "duplicate case in type switch")
 				check.errorf(pos, "\tprevious case %s", T) // secondary error, \t indented
 				continue L
 			}
@@ -340,7 +340,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				check.initVars(res.vars, s.Results, s.Return)
 			}
 		} else if len(s.Results) > 0 {
-			check.errorf(s.Results[0].Pos(), "no result values expected")
+			check.error(s.Results[0].Pos(), "no result values expected")
 		}
 
 	case *ast.BranchStmt:
@@ -351,15 +351,15 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		switch s.Tok {
 		case token.BREAK:
 			if ctxt&inBreakable == 0 {
-				check.errorf(s.Pos(), "break not in for, switch, or select statement")
+				check.error(s.Pos(), "break not in for, switch, or select statement")
 			}
 		case token.CONTINUE:
 			if ctxt&inContinuable == 0 {
-				check.errorf(s.Pos(), "continue not in for statement")
+				check.error(s.Pos(), "continue not in for statement")
 			}
 		case token.FALLTHROUGH:
 			if ctxt&fallthroughOk == 0 {
-				check.errorf(s.Pos(), "fallthrough statement out of place")
+				check.error(s.Pos(), "fallthrough statement out of place")
 			}
 		default:
 			check.invalidAST(s.Pos(), "branch statement: %s", s.Tok)
@@ -379,7 +379,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var x operand
 		check.expr(&x, s.Cond)
 		if x.mode != invalid && !isBoolean(x.typ) {
-			check.errorf(s.Cond.Pos(), "non-boolean condition in if statement")
+			check.error(s.Cond.Pos(), "non-boolean condition in if statement")
 		}
 		check.stmt(inner, s.Body)
 		if s.Else != nil {
@@ -526,7 +526,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				v.used = true // avoid usage error when checking entire function
 			}
 			if !used {
-				check.errorf(lhs.Pos(), "%s declared but not used", lhs.Name)
+				check.softErrorf(lhs.Pos(), "%s declared but not used", lhs.Name)
 			}
 		}
 
@@ -563,7 +563,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 
 			if !valid {
-				check.errorf(clause.Comm.Pos(), "select case must be send or receive (possibly with assignment)")
+				check.error(clause.Comm.Pos(), "select case must be send or receive (possibly with assignment)")
 				continue
 			}
 
@@ -585,7 +585,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			var x operand
 			check.expr(&x, s.Cond)
 			if x.mode != invalid && !isBoolean(x.typ) {
-				check.errorf(s.Cond.Pos(), "non-boolean condition in for statement")
+				check.error(s.Cond.Pos(), "non-boolean condition in for statement")
 			}
 		}
 		check.initStmt(s.Post)
@@ -703,7 +703,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					check.declare(check.scope, nil, obj) // recordObject already called
 				}
 			} else {
-				check.errorf(s.TokPos, "no new variables on left side of :=")
+				check.error(s.TokPos, "no new variables on left side of :=")
 			}
 		} else {
 			// ordinary assignment
@@ -721,6 +721,6 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.stmt(inner, s.Body)
 
 	default:
-		check.errorf(s.Pos(), "invalid statement")
+		check.error(s.Pos(), "invalid statement")
 	}
 }

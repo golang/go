@@ -311,8 +311,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						check.recordDef(d.Name, obj)
 						// init functions must have a body
 						if d.Body == nil {
-							check.errorf(obj.pos, "missing function body")
-							// ok to continue
+							check.softErrorf(obj.pos, "missing function body")
 						}
 					} else {
 						check.declare(pkg.scope, d.Name, obj)
@@ -414,7 +413,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				// Unused "blank imports" are automatically ignored
 				// since _ identifiers are not entered into scopes.
 				if !obj.used {
-					check.errorf(obj.pos, "%q imported but not used", obj.pkg.path)
+					check.softErrorf(obj.pos, "%q imported but not used", obj.pkg.path)
 				}
 			default:
 				// All other objects in the file scope must be dot-
@@ -432,7 +431,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		// check if the corresponding package was used.
 		for pkg, pos := range dotImports[i] {
 			if !usedDotImports[pkg] {
-				check.errorf(pos, "%q imported but not used", pkg.path)
+				check.softErrorf(pos, "%q imported but not used", pkg.path)
 			}
 		}
 	}
