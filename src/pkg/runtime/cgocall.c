@@ -98,6 +98,7 @@ void
 runtime·cgocall(void (*fn)(void*), void *arg)
 {
 	Defer d;
+	SEHUnwind sehunwind;
 
 	if(m->racecall) {
 		runtime·asmcgocall(fn, arg);
@@ -130,6 +131,14 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	d.argp = (void*)-1;  // unused because unlockm never recovers
 	d.special = true;
 	g->defer = &d;
+	
+	// Record current SEH for restoration during endcgo.
+	// This matters most when the execution stops due to panic
+	// and the called C code isn't given a chance to clean up
+	// the SEHs it has pushed.
+	sehunwind.seh = runtime·getseh();
+	sehunwind.link = m->sehunwind;
+	m->sehunwind = &sehunwind;
 
 	m->ncgo++;
 
@@ -165,6 +174,9 @@ endcgo(void)
 		// _cgo_allocate that is no longer referenced.
 		m->cgomal = nil;
 	}
+
+	runtime·setseh(m->sehunwind->seh);
+	m->sehunwind = m->sehunwind->link;
 
 	if(raceenabled)
 		runtime·raceacquire(&cgosync);

@@ -90,3 +90,7 @@ var MemclrBytes = memclrBytes
 func gogoBytes() int32
 
 var GogoBytes = gogoBytes
+
+func getseh_go() uintptr
+
+var GetSEH = getseh_go

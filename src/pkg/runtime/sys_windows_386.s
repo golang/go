@@ -390,3 +390,13 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	CALL	AX
 	MOVL	BP, SP
 	RET
+
+TEXT runtime·getseh(SB),NOSPLIT,$0
+	MOVL	0(FS), AX
+	RET
+
+TEXT runtime·setseh(SB),NOSPLIT,$0
+	MOVL	seh+0(FP), AX
+	MOVL	AX, 0(FS)
+	RET
+

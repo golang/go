@@ -86,6 +86,7 @@ typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
 typedef	struct	LibCall		LibCall;
 typedef	struct	SEH		SEH;
+typedef	struct	SEHUnwind		SEHUnwind;
 typedef	struct	WinCallbackContext	WinCallbackContext;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
@@ -241,11 +242,19 @@ struct	LibCall
 	uintptr	r2;
 	uintptr	err;	// error number
 };
+
 struct	SEH
 {
 	void*	prev;
 	void*	handler;
 };
+
+struct	SEHUnwind
+{
+	SEHUnwind*	link;
+	SEH*	seh;
+};
+
 // describes how to handle callback
 struct	WinCallbackContext
 {
@@ -295,6 +304,16 @@ struct	G
 	uintptr	racectx;
 	uintptr	end[];
 };
+
+// Define a symbol for windows/386 because that is the only
+// system with SEH handling, and we end up checking that
+// repeatedly.
+#ifdef GOOS_windows
+#ifdef GOARCH_386
+#define GOOSARCH_windows_386
+#endif
+#endif
+
 struct	M
 {
 	G*	g0;		// goroutine with scheduling stack
@@ -378,6 +397,7 @@ struct	M
 	byte*	errstr;
 #endif
 	SEH*	seh;
+	SEHUnwind*	sehunwind;
 	uintptr	end[];
 };
 
@@ -946,6 +966,16 @@ void	_rt0_go(void);
 void*	runtime·funcdata(Func*, int32);
 int32	runtime·setmaxthreads(int32);
 G*	runtime·timejump(void);
+
+// On Windows 386, we have functions for saving and restoring
+// the SEH values; elsewhere #define them away.
+#ifdef GOOSARCH_windows_386
+SEH*	runtime·getseh(void);
+void	runtime·setseh(SEH*);
+#else
+#define runtime·getseh() nil
+#define runtime·setseh(x) do{}while(0)
+#endif
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"c"	int32
