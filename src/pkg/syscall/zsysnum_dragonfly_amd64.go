@@ -115,9 +115,6 @@ const (
 	SYS_UNAME         = 164 // { int uname(struct utsname *name); }
 	SYS_SYSARCH       = 165 // { int sysarch(int op, char *parms); }
 	SYS_RTPRIO        = 166 // { int rtprio(int function, pid_t pid, \
-	SYS_SEMSYS        = 169 // { int semsys(int which, int a2, int a3, int a4, \
-	SYS_MSGSYS        = 170 // { int msgsys(int which, int a2, int a3, int a4, \
-	SYS_SHMSYS        = 171 // { int shmsys(int which, int a2, int a3, int a4); }
 	SYS_EXTPREAD      = 173 // { ssize_t extpread(int fd, void *buf, \
 	SYS_EXTPWRITE     = 174 // { ssize_t extpwrite(int fd, const void *buf, \
 	SYS_NTP_ADJTIME   = 176 // { int ntp_adjtime(struct timex *tp); }
@@ -300,4 +297,6 @@ const (
 	SYS_LINKAT                 = 531 // { int linkat(int fd1, char *path1, int fd2, \
 	SYS_EACCESS                = 532 // { int eaccess(char *path, int flags); }
 	SYS_LPATHCONF              = 533 // { int lpathconf(char *path, int name); }
+	SYS_VMM_GUEST_CTL          = 534 // { int vmm_guest_ctl(int op, struct vmm_guest_options *options); }
+	SYS_VMM_GUEST_SYNC_ADDR    = 535 // { int vmm_guest_sync_addr(long *dstaddr, long *srcaddr); }
 )

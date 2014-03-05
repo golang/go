@@ -311,7 +311,10 @@ const (
 	FD_CLOEXEC                        = 0x1
 	FD_SETSIZE                        = 0x400
 	FLUSHO                            = 0x800000
+	F_DUP2FD                          = 0xa
+	F_DUP2FD_CLOEXEC                  = 0x12
 	F_DUPFD                           = 0x0
+	F_DUPFD_CLOEXEC                   = 0x11
 	F_GETFD                           = 0x1
 	F_GETFL                           = 0x3
 	F_GETLK                           = 0x7
@@ -1475,7 +1478,7 @@ var errors = [...]string{
 	90: "multihop attempted",
 	91: "link has been severed",
 	92: "protocol error",
-	93: "unknown error: 93",
+	93: "no medium found",
 	94: "unknown error: 94",
 	95: "unknown error: 95",
 	96: "unknown error: 96",

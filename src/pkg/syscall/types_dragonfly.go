@@ -98,10 +98,6 @@ type _Gid_t C.gid_t
 
 // Files
 
-const (
-	F_DUPFD_CLOEXEC = 0 // not supported
-)
-
 const ( // Directory mode bits
 	S_IFMT   = C.S_IFMT
 	S_IFIFO  = C.S_IFIFO
