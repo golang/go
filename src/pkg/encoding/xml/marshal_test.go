@@ -1149,3 +1149,43 @@ func TestStructPointerMarshal(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+var encodeTokenTests = []struct {
+	tok  Token
+	want string
+	ok   bool
+}{
+	{StartElement{Name{"space", "local"}, nil}, "<local xmlns=\"space\">", true},
+	{StartElement{Name{"space", ""}, nil}, "", false},
+	{EndElement{Name{"space", ""}}, "", false},
+	{CharData("foo"), "foo", true},
+	{Comment("foo"), "<!--foo-->", true},
+	{Comment("foo-->"), "", false},
+	{ProcInst{"Target", []byte("Instruction")}, "<?Target Instruction?>", true},
+	{ProcInst{"xml", []byte("Instruction")}, "", false},
+	{ProcInst{"Target", []byte("Instruction?>")}, "", false},
+	{Directive("foo"), "<!foo>", true},
+	{Directive("foo>"), "", false},
+}
+
+func TestEncodeToken(t *testing.T) {
+	for _, tt := range encodeTokenTests {
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+		err := enc.EncodeToken(tt.tok)
+		switch {
+		case !tt.ok && err == nil:
+			t.Errorf("enc.EncodeToken(%#v): expected error; got none", tt.tok)
+		case tt.ok && err != nil:
+			t.Fatalf("enc.EncodeToken: %v", err)
+		case !tt.ok && err != nil:
+			// expected error, got one
+		}
+		if err := enc.Flush(); err != nil {
+			t.Fatalf("enc.EncodeToken: %v", err)
+		}
+		if got := buf.String(); got != tt.want {
+			t.Errorf("enc.EncodeToken = %s; want: %s", got, tt.want)
+		}
+	}
+}
