@@ -96,6 +96,28 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
 		if err = fd.pd.WaitWrite(); err != nil {
 			return err
 		}
+
+		// Performing multiple connect system calls on a non-blocking
+		// socket under DragonFly BSD does not necessarily result in
+		// earlier errors being returned, particularly if we are
+		// connecting to localhost. Instead, once netpoll tells us that
+		// the socket is ready, get the SO_ERROR socket option to see
+		// if the connection succeeded or failed. See issue 7474 for
+		// further details. At some point we may want to consider
+		// doing the same on other Unixes.
+		if runtime.GOOS == "dragonfly" {
+			nerr, err := syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+			if err != nil {
+				return err
+			}
+			if nerr == 0 {
+				return nil
+			}
+			err = syscall.Errno(nerr)
+			if err != syscall.EINPROGRESS && err != syscall.EALREADY && err != syscall.EINTR {
+				return err
+			}
+		}
 	}
 	return nil
 }
