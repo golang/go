@@ -134,20 +134,19 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	if name == "" {
 		return nil, &PathError{"open", name, syscall.ENOENT}
 	}
-	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
-	r, e := openDir(name)
-	if e == nil {
+	r, errf := openFile(name, flag, perm)
+	if errf == nil {
+		return r, nil
+	}
+	r, errd := openDir(name)
+	if errd == nil {
 		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
 			r.Close()
 			return nil, &PathError{"open", name, syscall.EISDIR}
 		}
 		return r, nil
 	}
-	r, e = openFile(name, flag, perm)
-	if e == nil {
-		return r, nil
-	}
-	return nil, &PathError{"open", name, e}
+	return nil, &PathError{"open", name, errf}
 }
 
 // Close closes the File, rendering it unusable for I/O.
