@@ -415,7 +415,10 @@ func runTest(cmd *Command, args []string) {
 			p.Stale = true // rebuild
 			p.fake = true  // do not warn about rebuild
 			p.coverMode = testCoverMode
-			p.coverVars = declareCoverVars(p.ImportPath, p.GoFiles...)
+			var coverFiles []string
+			coverFiles = append(coverFiles, p.GoFiles...)
+			coverFiles = append(coverFiles, p.CgoFiles...)
+			p.coverVars = declareCoverVars(p.ImportPath, coverFiles...)
 		}
 	}
 
@@ -622,7 +625,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 		if localCover {
 			ptest.coverMode = testCoverMode
-			ptest.coverVars = declareCoverVars(ptest.ImportPath, ptest.GoFiles...)
+			var coverFiles []string
+			coverFiles = append(coverFiles, ptest.GoFiles...)
+			coverFiles = append(coverFiles, ptest.CgoFiles...)
+			ptest.coverVars = declareCoverVars(ptest.ImportPath, coverFiles...)
 		}
 	} else {
 		ptest = p
