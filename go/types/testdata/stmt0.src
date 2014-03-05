@@ -357,6 +357,37 @@ func continues() {
 	}
 }
 
+func returns0() {
+	return
+	return 0 /* ERROR no result values expected */
+}
+
+func returns1(x float64) (int, *float64) {
+	return 0, &x
+	return /* ERROR wrong number of return values */
+	return "foo" /* ERROR "cannot convert" */, x /* ERROR "cannot return" */
+	return /* ERROR wrong number of return values */ 0, &x, 1
+}
+
+func returns2() (a, b int) {
+	return
+	return 1, "foo" /* ERROR cannot convert */
+	return /* ERROR wrong number of return values */ 1, 2, 3
+	{
+		type a int
+		return 1, 2
+		return /* ERROR a not in scope at return */
+	}
+}
+
+func returns3() (_ int) {
+	return
+	{
+		var _ int // blank (_) identifiers never shadow since they are in no scope
+		return
+	}
+}
+
 func switches0() {
 	var x int
 
@@ -566,13 +597,13 @@ func typeswitch2() {
 
 func typeswitch3(x interface{}) {
 	switch x.(type) {
-	case int /* ERROR previous case int */ :
+	case int:
 	case float64:
 	case int /* ERROR duplicate case */ :
 	}
 
 	switch x.(type) {
-	case nil /* ERROR previous case <nil> */ /* ERROR previous case <nil> */ :
+	case nil:
 	case int:
 	case nil /* ERROR duplicate case */ , nil /* ERROR duplicate case */ :
 	}
@@ -580,7 +611,7 @@ func typeswitch3(x interface{}) {
 	type F func(int)
 	switch x.(type) {
 	case nil:
-	case int, func /* ERROR previous case */ (int):
+	case int, func(int):
 	case float32, func /* ERROR duplicate case */ (x int):
 	case F:
 	}

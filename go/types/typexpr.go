@@ -382,6 +382,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		return
 	}
 
+	var named, anonymous bool
 	for i, field := range list.List {
 		ftype := field.Type
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
@@ -399,16 +400,27 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		if len(field.Names) > 0 {
 			// named parameter
 			for _, name := range field.Names {
+				if name.Name == "" {
+					check.invalidAST(name.Pos(), "anonymous parameter")
+					// ok to continue
+				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
 				check.declare(scope, name, par)
 				params = append(params, par)
 			}
+			named = true
 		} else {
 			// anonymous parameter
 			par := NewParam(ftype.Pos(), check.pkg, "", typ)
 			check.recordImplicit(field, par)
 			params = append(params, par)
+			anonymous = true
 		}
+	}
+
+	if named && anonymous {
+		check.invalidAST(list.Pos(), "list contains both named and anonymous parameters")
+		// ok to continue
 	}
 
 	// For a variadic function, change the last parameter's type from T to []T.

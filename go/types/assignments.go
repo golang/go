@@ -101,7 +101,8 @@ func (check *checker) initConst(lhs *Const, x *operand) {
 	lhs.val = x.val
 }
 
-func (check *checker) initVar(lhs *Var, x *operand) Type {
+// If result is set, lhs is a function result parameter and x is a return result.
+func (check *checker) initVar(lhs *Var, x *operand, result bool) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
@@ -126,7 +127,12 @@ func (check *checker) initVar(lhs *Var, x *operand) Type {
 
 	if !check.assignment(x, lhs.typ) {
 		if x.mode != invalid {
-			check.errorf(x.pos(), "cannot initialize variable %s (type %s) with %s", lhs.Name(), lhs.typ, x)
+			if result {
+				// don't refer to lhs.name because it may be an anonymous result parameter
+				check.errorf(x.pos(), "cannot return %s as value of type %s", x, lhs.typ)
+			} else {
+				check.errorf(x.pos(), "cannot initialize %s with %s", lhs, x)
+			}
 		}
 		return nil
 	}
@@ -223,7 +229,7 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 		var a [2]Type
 		for i := range a {
 			get(&x, i)
-			a[i] = check.initVar(lhs[i], &x)
+			a[i] = check.initVar(lhs[i], &x, returnPos.IsValid())
 		}
 		check.recordCommaOkTypes(rhs[0], a)
 		return
@@ -231,7 +237,7 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 
 	for i, lhs := range lhs {
 		get(&x, i)
-		check.initVar(lhs, &x)
+		check.initVar(lhs, &x, returnPos.IsValid())
 	}
 }
 

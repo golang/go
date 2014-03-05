@@ -187,7 +187,7 @@ L:
 			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				check.errorf(e.Pos(), "duplicate case in type switch")
-				check.errorf(pos, "previous case %s", T)
+				check.errorf(pos, "\tprevious case %s", T) // secondary error, \t indented
 				continue L
 			}
 		}
@@ -320,24 +320,27 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.suspendedCall("defer", s.Call)
 
 	case *ast.ReturnStmt:
-		sig := check.sig
-		if n := sig.results.Len(); n > 0 {
-			// determine if the function has named results
-			named := false
-			lhs := make([]*Var, n)
-			for i, res := range sig.results.vars {
-				if res.name != "" {
-					// a blank (_) result parameter is a named result
-					named = true
+		res := check.sig.results
+		if res.Len() > 0 {
+			// function returns results
+			// (if one, say the first, result parameter is named, all of them are named)
+			if len(s.Results) == 0 && res.vars[0].name != "" {
+				// spec: "Implementation restriction: A compiler may disallow an empty expression
+				// list in a "return" statement if a different entity (constant, type, or variable)
+				// with the same name as a result parameter is in scope at the place of the return."
+				for _, obj := range res.vars {
+					if alt := check.scope.LookupParent(obj.name); alt != nil && alt != obj {
+						check.errorf(s.Pos(), "result parameter %s not in scope at return", obj.name)
+						check.errorf(alt.Pos(), "\tinner declaration of %s", obj)
+						// ok to continue
+					}
 				}
-				lhs[i] = res
-			}
-			if len(s.Results) > 0 || !named {
-				check.initVars(lhs, s.Results, s.Return)
-				return
+			} else {
+				// return has results or result parameters are unnamed
+				check.initVars(res.vars, s.Results, s.Return)
 			}
 		} else if len(s.Results) > 0 {
-			check.errorf(s.Pos(), "no result values expected")
+			check.errorf(s.Results[0].Pos(), "no result values expected")
 		}
 
 	case *ast.BranchStmt:
@@ -691,7 +694,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = rhs[i]
-				check.initVar(obj, &x)
+				check.initVar(obj, &x, false)
 			}
 
 			// declare variables

@@ -69,6 +69,7 @@ var (
 	t18 float64 = math.Pi * 10.0
 	t19 int = t1 /* ERROR "cannot call" */ ()
 	t20 int = f0 /* ERROR "no value" */ ()
+	t21 int = a /* ERROR "cannot initialize" */
 )
 
 // Various more complex expressions

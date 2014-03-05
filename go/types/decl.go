@@ -146,7 +146,7 @@ func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 		assert(lhs == nil || lhs[0] == obj)
 		var x operand
 		check.expr(&x, init)
-		check.initVar(obj, &x)
+		check.initVar(obj, &x, false)
 		return
 	}
 
