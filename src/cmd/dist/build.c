@@ -808,7 +808,8 @@ install(char *dir)
 	files.len = n;
 
 	for(i=0; i<nelem(deptab); i++) {
-		if(hasprefix(dir, deptab[i].prefix)) {
+		if(streq(dir, deptab[i].prefix) ||
+		   (hassuffix(deptab[i].prefix, "/") && hasprefix(dir, deptab[i].prefix))) {
 			for(j=0; (p=deptab[i].dep[j])!=nil; j++) {
 				breset(&b1);
 				bwritestr(&b1, p);

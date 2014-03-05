@@ -346,7 +346,7 @@ ok:
 	vfree(&fields);
 }
 
-// mkzsys writes zsys_$GOOS_$GOARCH.h,
+// mkzsys writes zsys_$GOOS_$GOARCH.s,
 // which contains arch or os specific asm code.
 // 
 void
