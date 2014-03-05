@@ -8,6 +8,7 @@ package http
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net/textproto"
@@ -74,6 +75,12 @@ type Response struct {
 	// Request's Body is nil (having already been consumed).
 	// This is only populated for Client requests.
 	Request *Request
+
+	// TLS allows information about the TLS connection on which the
+	// response was received. The Transport in this package sets the field
+	// for TLS-enabled connections before returning the Response otherwise
+	// it leaves the field nil.
+	TLS *tls.ConnectionState
 }
 
 // Cookies parses and returns the cookies set in the Set-Cookie headers.

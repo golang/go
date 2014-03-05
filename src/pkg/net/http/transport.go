@@ -791,6 +791,12 @@ func (pc *persistConn) readLoop() {
 				resp, err = ReadResponse(pc.br, rc.req)
 			}
 		}
+
+		if tlsConn, ok := pc.conn.(*tls.Conn); resp != nil && ok {
+			resp.TLS = new(tls.ConnectionState)
+			*resp.TLS = tlsConn.ConnectionState()
+		}
+
 		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0
 
 		if err != nil {

@@ -709,6 +709,34 @@ func TestTransportUsesTLSConfigServerName(t *testing.T) {
 	res.Body.Close()
 }
 
+func TestResponseSetsTLSConnectionState(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello"))
+	}))
+	defer ts.Close()
+
+	tr := newTLSTransport(t, ts)
+	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA}
+	tr.Dial = func(netw, addr string) (net.Conn, error) {
+		return net.Dial(netw, ts.Listener.Addr().String())
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	res, err := c.Get("https://example.com/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.TLS == nil {
+		t.Fatal("Response didn't set TLS Connection State.")
+	}
+	if res.TLS.CipherSuite != tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA {
+		t.Errorf("Unexpected TLS Cipher Suite: %d != %d",
+			res.TLS.CipherSuite, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA)
+	}
+	res.Body.Close()
+}
+
 // Verify Response.ContentLength is populated. http://golang.org/issue/4126
 func TestClientHeadContentLength(t *testing.T) {
 	defer afterTest(t)
