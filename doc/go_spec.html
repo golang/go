@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 4, 2014",
+	"Subtitle": "Version of March 5, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -5002,6 +5002,21 @@ function. A "return" statement that specifies results sets the result parameters
 any deferred functions are executed.
 </p>
 
+<p>
+Implementation restriction: A compiler may disallow an empty expression list
+in a "return" statement if a different entity (constant, type, or variable)
+with the same name as a result parameter is in
+<a href="#Declarations_and_scope">scope</a> at the place of the return.
+</p>
+
+<pre>
+func f(n int) (res int, err error) {
+	if _, err := f(n-1); err != nil {
+		return  // invalid return statement: err is shadowed
+	}
+	return
+}
+</pre>
 
 <h3 id="Break_statements">Break statements</h3>
 
