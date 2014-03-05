@@ -201,6 +201,10 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 		{"udp", "[" + laddr + "%" + ifi.Name + "]:0", false},
 		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
 	}
+	// The first udp test fails on DragonFly - see issue 7473.
+	if runtime.GOOS == "dragonfly" {
+		tests = tests[1:]
+	}
 	switch runtime.GOOS {
 	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
 		tests = append(tests, []test{
