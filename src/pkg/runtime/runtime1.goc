@@ -43,6 +43,10 @@ func gogoBytes() (x int32) {
 	x = RuntimeGogoBytes;
 }
 
+func getseh_go() (x uintptr) {
+	x = (uintptr)runtime·getseh();
+}
+
 func typestring(e Eface) (s String) {
 	s = *e.type->string;
 }

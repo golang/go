@@ -177,6 +177,44 @@ func TestCallbackGC(t *testing.T) {
 	nestedCall(t, runtime.GC)
 }
 
+// NOTE: TestCallbackPanicLocked must precede the other TestCallbackPanic variants.
+// The SEH logic is testing that SEH is properly restored during the panic.
+// The bug we're looking for (issue 7470) used to leave SEH in the wrong place,
+// but future panics would leave it in that same wrong place. So if one of the other
+// tests runs first, TestCallbackPanicLocked will see SEH not changing and
+// incorrectly infer that it is being restored properly.
+// The SEH checks are only safe (not racy) with the OS thread locked.
+//
+// The fallback is that even if this test doesn't notice, TestSetPanicOnFault will
+// crash if it runs on the same thread after one of these tests.
+
+func TestCallbackPanicLocked(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !runtime.LockedOSThread() {
+		t.Fatal("runtime.LockOSThread didn't")
+	}
+	oldSEH := runtime.GetSEH()
+	defer func() {
+		s := recover()
+		if s == nil {
+			t.Fatal("did not panic")
+		}
+		if s.(string) != "callback panic" {
+			t.Fatal("wrong panic:", s)
+		}
+		if !runtime.LockedOSThread() {
+			t.Fatal("lost lock on OS thread after panic")
+		}
+		if newSEH := runtime.GetSEH(); oldSEH != newSEH {
+			t.Fatalf("SEH not restored after panic: %#x became %#x", oldSEH, newSEH)
+		}
+	}()
+	nestedCall(t, func() { panic("callback panic") })
+	panic("nestedCall returned")
+}
+
 func TestCallbackPanic(t *testing.T) {
 	// Make sure panic during callback unwinds properly.
 	if runtime.LockedOSThread() {
@@ -203,29 +241,6 @@ func TestCallbackPanicLoop(t *testing.T) {
 	for i := 0; i < 100000; i++ {
 		TestCallbackPanic(t)
 	}
-}
-
-func TestCallbackPanicLocked(t *testing.T) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	if !runtime.LockedOSThread() {
-		t.Fatal("runtime.LockOSThread didn't")
-	}
-	defer func() {
-		s := recover()
-		if s == nil {
-			t.Fatal("did not panic")
-		}
-		if s.(string) != "callback panic" {
-			t.Fatal("wrong panic:", s)
-		}
-		if !runtime.LockedOSThread() {
-			t.Fatal("lost lock on OS thread after panic")
-		}
-	}()
-	nestedCall(t, func() { panic("callback panic") })
-	panic("nestedCall returned")
 }
 
 func TestBlockingCallback(t *testing.T) {
