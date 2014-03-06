@@ -54,6 +54,8 @@ echo '# Testing packages.'
 time go test std -short -timeout=$(expr 120 \* $timeout_scale)s
 echo
 
+# We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+# creation of first goroutines and first garbage collections in the parallel setting.
 echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
 GOMAXPROCS=2 go test runtime -short -timeout=$(expr 300 \* $timeout_scale)s -cpu=1,2,4
 echo
