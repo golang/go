@@ -2915,27 +2915,32 @@ There is no distinct method type and there are no method literals.
 <h3 id="Passing_arguments_to_..._parameters">Passing arguments to <code>...</code> parameters</h3>
 
 <p>
-If <code>f</code> is variadic with final parameter type <code>...T</code>,
-then within the function the argument is equivalent to a parameter of type
-<code>[]T</code>.  At each call of <code>f</code>, the argument
-passed to the final parameter is
-a new slice of type <code>[]T</code> whose successive elements are
-the actual arguments, which all must be <a href="#Assignability">assignable</a>
-to the type <code>T</code>. The length of the slice is therefore the number of
-arguments bound to the final parameter and may differ for each call site.
+If <code>f</code> is <a href="#Function_types">variadic</a> with a final
+parameter <code>p</code> of type <code>...T</code>, then within <code>f</code>
+the type of <code>p</code> is equivalent to type <code>[]T</code>.
+If <code>f</code> is invoked with no actual arguments for <code>p</code>,
+the value passed to <code>p</code> is <code>nil</code>.
+Otherwise, the value passed is a new slice
+of type <code>[]T</code> with a new underlying array whose successive elements
+are the actual arguments, which all must be <a href="#Assignability">assignable</a>
+to <code>T</code>. The length and capacity of the slice is therefore
+the number of arguments bound to <code>p</code> and may differ for each
+call site.
 </p>
 
 <p>
-Given the function and call
+Given the function and calls
 </p>
 <pre>
 func Greeting(prefix string, who ...string)
+Greeting("nobody")
 Greeting("hello:", "Joe", "Anna", "Eileen")
 </pre>
 
 <p>
 within <code>Greeting</code>, <code>who</code> will have the value
-<code>[]string{"Joe", "Anna", "Eileen"}</code>
+<code>nil</code> in the first call, and
+<code>[]string{"Joe", "Anna", "Eileen"}</code> in the second.
 </p>
 
 <p>
