@@ -112,6 +112,7 @@ Throw:
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)){
+		runtime·goroutineheader(gp);
 		runtime·traceback(SIG_PC(info, ctxt), SIG_SP(info, ctxt), SIG_LR(info, ctxt), gp);
 		runtime·tracebackothers(gp);
 		runtime·printf("\n");
