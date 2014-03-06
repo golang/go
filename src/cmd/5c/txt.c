@@ -31,10 +31,16 @@
 
 #include "gc.h"
 
-LinkArch	*thelinkarch = &linkarm;
 
 int thechar = '5';
 char *thestring = "arm";
+
+LinkArch	*thelinkarch = &linkarm;
+
+void
+linkarchinit(void)
+{
+}
 
 void
 ginit(void)
