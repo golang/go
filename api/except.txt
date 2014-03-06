@@ -395,3 +395,7 @@ pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [2]uint8
 pkg syscall (freebsd-arm-cgo), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
 pkg syscall (freebsd-arm-cgo), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
+pkg syscall (netbsd-arm), const SizeofIfData = 132
+pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
+pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
