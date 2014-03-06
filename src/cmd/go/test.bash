@@ -568,6 +568,16 @@ TEST coverage runs
 ./testgo test -short -coverpkg=strings strings regexp || ok=false
 ./testgo test -short -cover strings math regexp || ok=false
 
+TEST coverage with cgo
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+./testgo test -short -cover ./testdata/cgocover >$d/cgo.out 2>&1 || ok=false
+cat $d/cgo.out
+if grep 'coverage: 0.0%' $d/cgo.out >/dev/null; then 
+	ok=false
+	echo no coverage for cgo package
+	ok=false
+fi
+
 TEST cgo depends on syscall
 rm -rf $GOROOT/pkg/*_race
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
