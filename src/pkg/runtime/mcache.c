@@ -97,7 +97,6 @@ runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size)
 	p->next = l->list;
 	l->list = p;
 	l->nlist++;
-	c->local_cachealloc -= size;
 
 	// We transfer a span at a time from MCentral to MCache,
 	// so we'll do the same in the other direction.

@@ -329,6 +329,7 @@ runtime·free(void *v)
 		// it might coalesce v and other blocks into a bigger span
 		// and change the bitmap further.
 		c->local_nsmallfree[sizeclass]++;
+		c->local_cachealloc -= size;
 		if(c->alloc[sizeclass] == s) {
 			// We own the span, so we can just add v to the freelist
 			runtime·markfreed(v);
