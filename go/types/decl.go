@@ -265,13 +265,6 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 	delete(check.methods, obj.name) // we don't need them anymore
 }
 
-type funcInfo struct {
-	name string    // for debugging/tracing only
-	decl *declInfo // for cycle detection
-	sig  *Signature
-	body *ast.BlockStmt
-}
-
 func (check *checker) funcDecl(obj *Func, decl *declInfo) {
 	assert(obj.typ == nil)
 
@@ -290,7 +283,7 @@ func (check *checker) funcDecl(obj *Func, decl *declInfo) {
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
-		check.funcs = append(check.funcs, funcInfo{obj.name, decl, sig, fdecl.Body})
+		check.later(obj.name, decl, sig, fdecl.Body)
 	}
 }
 

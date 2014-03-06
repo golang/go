@@ -116,10 +116,17 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		importer = DefaultImport
 	}
 
+	// pkgImports is the set of packages already imported by any package file seen
+	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
+	// it (pkg.imports may not be empty if we are checking test files incrementally).
+	var pkgImports = make(map[*Package]bool)
+	for _, imp := range pkg.imports {
+		pkgImports[imp] = true
+	}
+
 	var (
-		seenPkgs   = make(map[*Package]bool) // imported packages that have been seen already
-		fileScopes []*Scope                  // file scope for each file
-		dotImports []map[*Package]token.Pos  // positions of dot-imports for each file
+		fileScopes []*Scope                 // file scope for each file
+		dotImports []map[*Package]token.Pos // positions of dot-imports for each file
 	)
 
 	for _, file := range files {
@@ -168,8 +175,8 @@ func (check *checker) resolveFiles(files []*ast.File) {
 						// add package to list of explicit imports
 						// (this functionality is provided as a convenience
 						// for clients; it is not needed for type-checking)
-						if !seenPkgs[imp] {
-							seenPkgs[imp] = true
+						if !pkgImports[imp] {
+							pkgImports[imp] = true
 							if imp != Unsafe {
 								pkg.imports = append(pkg.imports, imp)
 							}
@@ -343,7 +350,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 			}
 		}
 	}
-	seenPkgs = nil // not needed anymore
+	pkgImports = nil // not needed anymore
 
 	// Phase 2: Verify that objects in package and file scopes have different names.
 

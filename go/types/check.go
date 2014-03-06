@@ -26,6 +26,14 @@ type exprInfo struct {
 	val   exact.Value // constant value; or nil (if not a constant)
 }
 
+// funcInfo stores the information required for type-checking a function.
+type funcInfo struct {
+	name string    // for debugging/tracing only
+	decl *declInfo // for cycle detection
+	sig  *Signature
+	body *ast.BlockStmt
+}
+
 // A context represents the context within which an object is type-checked.
 type context struct {
 	decl          *declInfo   // package-level declaration whose init expression/function body is checked
@@ -81,6 +89,10 @@ func (check *checker) rememberUntyped(e ast.Expr, lhs bool, typ *Basic, val exac
 		check.untyped = m
 	}
 	m[e] = exprInfo{lhs, typ, val}
+}
+
+func (check *checker) later(name string, decl *declInfo, sig *Signature, body *ast.BlockStmt) {
+	check.funcs = append(check.funcs, funcInfo{name, decl, sig, body})
 }
 
 func (check *checker) delay(f func()) {
@@ -174,12 +186,6 @@ func (check *checker) files(files []*ast.File) (err error) {
 			check.recordTypeAndValue(x, info.typ, info.val)
 		}
 	}
-
-	// copy check.InitOrder back to incoming *info if necessary
-	// (In case of early (error) bailout, this is not done, but we don't care in that case.)
-	// if info != nil {
-	// 	info.InitOrder = check.InitOrder
-	// }
 
 	pkg.complete = true
 	return
