@@ -1817,8 +1817,9 @@ runtime·MSpan_Sweep(MSpan *s)
 			// important to set sweepgen before returning it to heap
 			runtime·atomicstore(&s->sweepgen, sweepgen);
 			sweepgenset = true;
+			// See note about SysFault vs SysFree in malloc.goc.
 			if(runtime·debug.efence)
-				runtime·SysFree(p, size, &mstats.gc_sys);
+				runtime·SysFault(p, size);
 			else
 				runtime·MHeap_Free(&runtime·mheap, s, 1);
 			c->local_nlargefree++;

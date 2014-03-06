@@ -310,8 +310,22 @@ runtime·free(void *v)
 		// they might coalesce v into other spans and change the bitmap further.
 		runtime·markfreed(v);
 		runtime·unmarkspan(v, 1<<PageShift);
+		// NOTE(rsc,dvyukov): The original implementation of efence
+		// in CL 22060046 used SysFree instead of SysFault, so that
+		// the operating system would eventually give the memory
+		// back to us again, so that an efence program could run
+		// longer without running out of memory. Unfortunately,
+		// calling SysFree here without any kind of adjustment of the
+		// heap data structures means that when the memory does
+		// come back to us, we have the wrong metadata for it, either in
+		// the MSpan structures or in the garbage collection bitmap.
+		// Using SysFault here means that the program will run out of
+		// memory fairly quickly in efence mode, but at least it won't
+		// have mysterious crashes due to confused memory reuse.
+		// It should be possible to switch back to SysFree if we also 
+		// implement and then call some kind of MHeap_DeleteSpan.
 		if(runtime·debug.efence)
-			runtime·SysFree((void*)(s->start<<PageShift), size, &mstats.heap_sys);
+			runtime·SysFault((void*)(s->start<<PageShift), size);
 		else
 			runtime·MHeap_Free(&runtime·mheap, s, 1);
 		c->local_nlargefree++;
@@ -421,19 +435,21 @@ uintptr runtime·sizeof_C_MStats = sizeof(MStats) - (NumSizeClasses - 61) * size
 void
 runtime·mallocinit(void)
 {
-	byte *p;
-	uintptr arena_size, bitmap_size, spans_size;
+	byte *p, *p1;
+	uintptr arena_size, bitmap_size, spans_size, p_size;
 	extern byte end[];
 	uintptr limit;
 	uint64 i;
 
 	p = nil;
+	p_size = 0;
 	arena_size = 0;
 	bitmap_size = 0;
 	spans_size = 0;
 
 	// for 64-bit build
 	USED(p);
+	USED(p_size);
 	USED(arena_size);
 	USED(bitmap_size);
 	USED(spans_size);
@@ -482,7 +498,8 @@ runtime·mallocinit(void)
 		spans_size = ROUND(spans_size, PageSize);
 		for(i = 0; i <= 0x7f; i++) {
 			p = (void*)(i<<40 | 0x00c0ULL<<32);
-			p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size + PageSize);
+			p_size = bitmap_size + spans_size + arena_size + PageSize;
+			p = runtime·SysReserve(p, p_size);
 			if(p != nil)
 				break;
 		}
@@ -525,7 +542,8 @@ runtime·mallocinit(void)
 		// away from the running binary image and then round up
 		// to a MB boundary.
 		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
-		p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size + PageSize);
+		p_size = bitmap_size + spans_size + arena_size + PageSize;
+		p = runtime·SysReserve(p, p_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
 	}
@@ -533,13 +551,16 @@ runtime·mallocinit(void)
 	// PageSize can be larger than OS definition of page size,
 	// so SysReserve can give us a PageSize-unaligned pointer.
 	// To overcome this we ask for PageSize more and round up the pointer.
-	p = (byte*)ROUND((uintptr)p, PageSize);
+	p1 = (byte*)ROUND((uintptr)p, PageSize);
 
-	runtime·mheap.spans = (MSpan**)p;
-	runtime·mheap.bitmap = p + spans_size;
-	runtime·mheap.arena_start = p + spans_size + bitmap_size;
+	runtime·mheap.spans = (MSpan**)p1;
+	runtime·mheap.bitmap = p1 + spans_size;
+	runtime·mheap.arena_start = p1 + spans_size + bitmap_size;
 	runtime·mheap.arena_used = runtime·mheap.arena_start;
-	runtime·mheap.arena_end = runtime·mheap.arena_start + arena_size;
+	runtime·mheap.arena_end = p + p_size;
+
+	if(((uintptr)runtime·mheap.arena_start & (PageSize-1)) != 0)
+		runtime·throw("misrounded allocation in mallocinit");
 
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap);
@@ -552,21 +573,30 @@ runtime·mallocinit(void)
 void*
 runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 {
-	byte *p;
+	byte *p, *p_end;
+	uintptr p_size;
 
 	if(n > h->arena_end - h->arena_used) {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
 		// Reserve some more space.
 		byte *new_end;
-		uintptr needed;
 
-		needed = (uintptr)h->arena_used + n - (uintptr)h->arena_end;
-		needed = ROUND(needed, 256<<20);
-		new_end = h->arena_end + needed;
+		p_size = ROUND(n + PageSize, 256<<20);
+		new_end = h->arena_end + p_size;
 		if(new_end <= h->arena_start + MaxArena32) {
-			p = runtime·SysReserve(h->arena_end, new_end - h->arena_end);
+			p = runtime·SysReserve(h->arena_end, p_size);
 			if(p == h->arena_end)
 				h->arena_end = new_end;
+			else if(p+p_size <= h->arena_start + MaxArena32) {
+				// Keep everything page-aligned.
+				// Our pages are bigger than hardware pages.
+				h->arena_end = p+p_size;
+				h->arena_used = p + (-(uintptr)p&(PageSize-1));
+			} else {
+				uint64 stat;
+				stat = 0;
+				runtime·SysFree(p, p_size, &stat);
+			}
 		}
 	}
 	if(n <= h->arena_end - h->arena_used) {
@@ -578,6 +608,9 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		runtime·MHeap_MapSpans(h);
 		if(raceenabled)
 			runtime·racemapshadow(p, n);
+		
+		if(((uintptr)p & (PageSize-1)) != 0)
+			runtime·throw("misrounded allocation in MHeap_SysAlloc");
 		return p;
 	}
 	
@@ -588,27 +621,32 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	// On 32-bit, once the reservation is gone we can
 	// try to get memory at a location chosen by the OS
 	// and hope that it is in the range we allocated bitmap for.
-	p = runtime·SysAlloc(n, &mstats.heap_sys);
+	p_size = ROUND(n, PageSize) + PageSize;
+	p = runtime·SysAlloc(p_size, &mstats.heap_sys);
 	if(p == nil)
 		return nil;
 
-	if(p < h->arena_start || p+n - h->arena_start >= MaxArena32) {
+	if(p < h->arena_start || p+p_size - h->arena_start >= MaxArena32) {
 		runtime·printf("runtime: memory allocated by OS (%p) not in usable range [%p,%p)\n",
 			p, h->arena_start, h->arena_start+MaxArena32);
-		runtime·SysFree(p, n, &mstats.heap_sys);
+		runtime·SysFree(p, p_size, &mstats.heap_sys);
 		return nil;
 	}
-
+	
+	p_end = p + p_size;
+	p += -(uintptr)p & (PageSize-1);
 	if(p+n > h->arena_used) {
 		h->arena_used = p+n;
-		if(h->arena_used > h->arena_end)
-			h->arena_end = h->arena_used;
+		if(p_end > h->arena_end)
+			h->arena_end = p_end;
 		runtime·MHeap_MapBits(h);
 		runtime·MHeap_MapSpans(h);
 		if(raceenabled)
 			runtime·racemapshadow(p, n);
 	}
 	
+	if(((uintptr)p & (PageSize-1)) != 0)
+		runtime·throw("misrounded allocation in MHeap_SysAlloc");
 	return p;
 }
 
