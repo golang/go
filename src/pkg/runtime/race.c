@@ -11,178 +11,94 @@
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
-#include "../../cmd/ld/textflag.h"
 
-void runtime∕race·Initialize(uintptr *racectx);
-void runtime∕race·MapShadow(void *addr, uintptr size);
-void runtime∕race·Finalize(void);
-void runtime∕race·FinalizerGoroutine(uintptr racectx);
-void runtime∕race·Read(uintptr racectx, void *addr, void *pc);
-void runtime∕race·Write(uintptr racectx, void *addr, void *pc);
-void runtime∕race·ReadRange(uintptr racectx, void *addr, uintptr sz, void *pc);
-void runtime∕race·WriteRange(uintptr racectx, void *addr, uintptr sz, void *pc);
-void runtime∕race·FuncEnter(uintptr racectx, void *pc);
-void runtime∕race·FuncExit(uintptr racectx);
-void runtime∕race·Malloc(uintptr racectx, void *p, uintptr sz, void *pc);
-void runtime∕race·Free(void *p);
-void runtime∕race·GoStart(uintptr racectx, uintptr *chracectx, void *pc);
-void runtime∕race·GoEnd(uintptr racectx);
-void runtime∕race·Acquire(uintptr racectx, void *addr);
-void runtime∕race·Release(uintptr racectx, void *addr);
-void runtime∕race·ReleaseMerge(uintptr racectx, void *addr);
+// Race runtime functions called via runtime·racecall.
+void __tsan_init(void);
+void __tsan_fini(void);
+void __tsan_map_shadow(void);
+void __tsan_finalizer_goroutine(void);
+void __tsan_go_start(void);
+void __tsan_go_end(void);
+void __tsan_malloc(void);
+void __tsan_acquire(void);
+void __tsan_release(void);
+void __tsan_release_merge(void);
+
+// Mimic what cmd/cgo would do.
+#pragma cgo_import_static __tsan_init
+#pragma cgo_import_static __tsan_fini
+#pragma cgo_import_static __tsan_map_shadow
+#pragma cgo_import_static __tsan_finalizer_goroutine
+#pragma cgo_import_static __tsan_go_start
+#pragma cgo_import_static __tsan_go_end
+#pragma cgo_import_static __tsan_malloc
+#pragma cgo_import_static __tsan_acquire
+#pragma cgo_import_static __tsan_release
+#pragma cgo_import_static __tsan_release_merge
+
+// These are called from race_amd64.s.
+#pragma cgo_import_static __tsan_read
+#pragma cgo_import_static __tsan_read_pc
+#pragma cgo_import_static __tsan_read_range
+#pragma cgo_import_static __tsan_write
+#pragma cgo_import_static __tsan_write_pc
+#pragma cgo_import_static __tsan_write_range
+#pragma cgo_import_static __tsan_func_enter
+#pragma cgo_import_static __tsan_func_exit
 
 extern byte noptrdata[];
 extern byte enoptrbss[];
+  
+// start/end of heap for race_amd64.s
+uintptr runtime·racearenastart;
+uintptr runtime·racearenaend;
 
-static bool onstack(uintptr argp);
+void runtime·racefuncenter(void *callpc);
+void runtime·racefuncexit(void);
+void runtime·racereadrangepc1(void *addr, uintptr sz, void *pc);
+void runtime·racewriterangepc1(void *addr, uintptr sz, void *pc);
+void runtime·racesymbolizethunk(void*);
 
-// We set m->racecall around all calls into race library to trigger fast path in cgocall.
-// Also we increment m->locks to disable preemption and potential rescheduling
-// to ensure that we reset m->racecall on the correct m.
+// racecall allows calling an arbitrary function f from C race runtime
+// with up to 4 uintptr arguments.
+void runtime·racecall(void(*f)(void), ...);
 
 uintptr
 runtime·raceinit(void)
 {
 	uintptr racectx, start, size;
 
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·Initialize(&racectx);
+	// cgo is required to initialize libc, which is used by race runtime
+	if(!runtime·iscgo)
+		runtime·throw("raceinit: race build must use cgo");
+	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
 	// Round data segment to page boundaries, because it's used in mmap().
 	start = (uintptr)noptrdata & ~(PageSize-1);
 	size = ROUND((uintptr)enoptrbss - start, PageSize);
-	runtime∕race·MapShadow((void*)start, size);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_map_shadow, start, size);
 	return racectx;
 }
 
 void
 runtime·racefini(void)
 {
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·Finalize();
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_fini);
 }
 
 void
 runtime·racemapshadow(void *addr, uintptr size)
 {
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·MapShadow(addr, size);
-	m->locks--;
-	m->racecall = false;
-}
-
-// Called from instrumented code.
-// If we split stack, getcallerpc() can return runtime·lessstack().
-#pragma textflag NOSPLIT
-void
-runtime·racewrite(uintptr addr)
-{
-	if(!onstack(addr)) {
-		m->racecall = true;
-		m->locks++;
-		runtime∕race·Write(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
-		m->locks--;
-		m->racecall = false;
-	}
-}
-
-#pragma textflag NOSPLIT
-void
-runtime·racewriterange(uintptr addr, uintptr sz)
-{
-	if(!onstack(addr)) {
-		m->racecall = true;
-		m->locks++;
-		runtime∕race·WriteRange(g->racectx, (void*)addr, sz, runtime·getcallerpc(&addr));
-		m->locks--;
-		m->racecall = false;
-	}
-}
-
-// Called from instrumented code.
-// If we split stack, getcallerpc() can return runtime·lessstack().
-#pragma textflag NOSPLIT
-void
-runtime·raceread(uintptr addr)
-{
-	if(!onstack(addr)) {
-		m->racecall = true;
-		m->locks++;
-		runtime∕race·Read(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
-		m->locks--;
-		m->racecall = false;
-	}
-}
-
-#pragma textflag NOSPLIT
-void
-runtime·racereadrange(uintptr addr, uintptr sz)
-{
-	if(!onstack(addr)) {
-		m->racecall = true;
-		m->locks++;
-		runtime∕race·ReadRange(g->racectx, (void*)addr, sz, runtime·getcallerpc(&addr));
-		m->locks--;
-		m->racecall = false;
-	}
-}
-
-// Called from runtime·racefuncenter (assembly).
-#pragma textflag NOSPLIT
-void
-runtime·racefuncenter1(uintptr pc)
-{
-	// If the caller PC is lessstack, use slower runtime·callers
-	// to walk across the stack split to find the real caller.
-	if(pc == (uintptr)runtime·lessstack)
-		runtime·callers(2, &pc, 1);
-
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·FuncEnter(g->racectx, (void*)pc);
-	m->locks--;
-	m->racecall = false;
-}
-
-// Called from instrumented code.
-#pragma textflag NOSPLIT
-void
-runtime·racefuncexit(void)
-{
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·FuncExit(g->racectx);
-	m->locks--;
-	m->racecall = false;
+	if(runtime·racearenastart == 0)
+		runtime·racearenastart = (uintptr)addr;
+	if(runtime·racearenaend < (uintptr)addr+size)
+		runtime·racearenaend = (uintptr)addr+size;
+	runtime·racecall(__tsan_map_shadow, addr, size);
 }
 
 void
 runtime·racemalloc(void *p, uintptr sz)
 {
-	// use m->curg because runtime·stackalloc() is called from g0
-	if(m->curg == nil)
-		return;
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·Malloc(m->curg->racectx, p, sz, /* unused pc */ 0);
-	m->locks--;
-	m->racecall = false;
-}
-
-void
-runtime·racefree(void *p)
-{
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·Free(p);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_malloc, p, sz);
 }
 
 uintptr
@@ -190,96 +106,34 @@ runtime·racegostart(void *pc)
 {
 	uintptr racectx;
 
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·GoStart(g->racectx, &racectx, pc);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_go_start, g->racectx, &racectx, pc);
 	return racectx;
 }
 
 void
 runtime·racegoend(void)
 {
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·GoEnd(g->racectx);
-	m->locks--;
-	m->racecall = false;
-}
-
-static void
-memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
-{
-	uintptr racectx;
-
-	if(!onstack((uintptr)addr)) {
-		m->racecall = true;
-		m->locks++;
-		racectx = g->racectx;
-		if(callpc) {
-			if(callpc == (uintptr)runtime·lessstack)
-				runtime·callers(3, &callpc, 1);
-			runtime∕race·FuncEnter(racectx, (void*)callpc);
-		}
-		if(write)
-			runtime∕race·Write(racectx, addr, (void*)pc);
-		else
-			runtime∕race·Read(racectx, addr, (void*)pc);
-		if(callpc)
-			runtime∕race·FuncExit(racectx);
-		m->locks--;
-		m->racecall = false;
-	}
-}
-
-void
-runtime·racewritepc(void *addr, void *callpc, void *pc)
-{
-	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, true);
-}
-
-void
-runtime·racereadpc(void *addr, void *callpc, void *pc)
-{
-	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
-}
-
-static void
-rangeaccess(void *addr, uintptr size, uintptr callpc, uintptr pc, bool write)
-{
-	uintptr racectx;
-
-	if(!onstack((uintptr)addr)) {
-		m->racecall = true;
-		m->locks++;
-		racectx = g->racectx;
-		if(callpc) {
-			if(callpc == (uintptr)runtime·lessstack)
-				runtime·callers(3, &callpc, 1);
-			runtime∕race·FuncEnter(racectx, (void*)callpc);
-		}
-		if(write)
-			runtime∕race·WriteRange(racectx, addr, size, (void*)pc);
-		else
-			runtime∕race·ReadRange(racectx, addr, size, (void*)pc);
-		if(callpc)
-			runtime∕race·FuncExit(racectx);
-		m->locks--;
-		m->racecall = false;
-	}
+	runtime·racecall(__tsan_go_end, g->racectx);
 }
 
 void
 runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
-	rangeaccess(addr, sz, (uintptr)callpc, (uintptr)pc, true);
+	if(callpc != nil)
+		runtime·racefuncenter(callpc);
+	runtime·racewriterangepc1(addr, sz, pc);
+	if(callpc != nil)
+		runtime·racefuncexit();
 }
 
 void
 runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
-	rangeaccess(addr, sz, (uintptr)callpc, (uintptr)pc, false);
+	if(callpc != nil)
+		runtime·racefuncenter(callpc);
+	runtime·racereadrangepc1(addr, sz, pc);
+	if(callpc != nil)
+		runtime·racefuncexit();
 }
 
 void
@@ -289,9 +143,9 @@ runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
 
 	kind = t->kind & ~KindNoPointers;
 	if(kind == KindArray || kind == KindStruct)
-		rangeaccess(addr, t->size, (uintptr)callpc, (uintptr)pc, true);
+		runtime·racewriterangepc(addr, t->size, callpc, pc);
 	else
-		memoryaccess(addr, (uintptr)callpc, (uintptr)pc, true);
+		runtime·racewritepc(addr, callpc, pc);
 }
 
 void
@@ -301,9 +155,9 @@ runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
 
 	kind = t->kind & ~KindNoPointers;
 	if(kind == KindArray || kind == KindStruct)
-		rangeaccess(addr, t->size, (uintptr)callpc, (uintptr)pc, false);
+		runtime·racereadrangepc(addr, t->size, callpc, pc);
 	else
-		memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
+		runtime·racereadpc(addr, callpc, pc);
 }
 
 void
@@ -317,11 +171,7 @@ runtime·raceacquireg(G *gp, void *addr)
 {
 	if(g->raceignore)
 		return;
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·Acquire(gp->racectx, addr);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_acquire, gp->racectx, addr);
 }
 
 void
@@ -335,11 +185,7 @@ runtime·racereleaseg(G *gp, void *addr)
 {
 	if(g->raceignore)
 		return;
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·Release(gp->racectx, addr);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_release, gp->racectx, addr);
 }
 
 void
@@ -353,21 +199,13 @@ runtime·racereleasemergeg(G *gp, void *addr)
 {
 	if(g->raceignore)
 		return;
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·ReleaseMerge(gp->racectx, addr);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
 }
 
 void
 runtime·racefingo(void)
 {
-	m->racecall = true;
-	m->locks++;
-	runtime∕race·FinalizerGoroutine(g->racectx);
-	m->locks--;
-	m->racecall = false;
+	runtime·racecall(__tsan_finalizer_goroutine, g->racectx);
 }
 
 // func RaceAcquire(addr unsafe.Pointer)
@@ -405,38 +243,6 @@ runtime·RaceSemrelease(uint32 *s)
 	runtime·semrelease(s);
 }
 
-// func RaceRead(addr unsafe.Pointer)
-#pragma textflag NOSPLIT
-void
-runtime·RaceRead(void *addr)
-{
-	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), false);
-}
-
-// func RaceWrite(addr unsafe.Pointer)
-#pragma textflag NOSPLIT
-void
-runtime·RaceWrite(void *addr)
-{
-	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), true);
-}
-
-// func RaceReadRange(addr unsafe.Pointer, len int)
-#pragma textflag NOSPLIT
-void
-runtime·RaceReadRange(void *addr, intgo len)
-{
-	rangeaccess(addr, len, 0, (uintptr)runtime·getcallerpc(&addr), false);
-}
-
-// func RaceWriteRange(addr unsafe.Pointer, len int)
-#pragma textflag NOSPLIT
-void
-runtime·RaceWriteRange(void *addr, intgo len)
-{
-	rangeaccess(addr, len, 0, (uintptr)runtime·getcallerpc(&addr), true);
-}
-
 // func RaceDisable()
 void
 runtime·RaceDisable(void)
@@ -451,14 +257,36 @@ runtime·RaceEnable(void)
 	g->raceignore--;
 }
 
-static bool
-onstack(uintptr argp)
+typedef struct SymbolizeContext SymbolizeContext;
+struct SymbolizeContext
 {
-	// noptrdata, data, bss, noptrbss
-	// the layout is in ../../cmd/ld/data.c
-	if((byte*)argp >= noptrdata && (byte*)argp < enoptrbss)
-		return false;
-	if((byte*)argp >= runtime·mheap.arena_start && (byte*)argp < runtime·mheap.arena_used)
-		return false;
-	return true;
+	uintptr	pc;
+	int8*	func;
+	int8*	file;
+	uintptr	line;
+	uintptr	off;
+	uintptr	res;
+};
+
+// Callback from C into Go, runs on g0.
+void
+runtime·racesymbolize(SymbolizeContext *ctx)
+{
+	Func *f;
+	String file;
+
+	f = runtime·findfunc(ctx->pc);
+	if(f == nil) {
+		ctx->func = "??";
+		ctx->file = "-";
+		ctx->line = 0;
+		ctx->off = ctx->pc;
+		ctx->res = 1;
+		return;
+	}
+	ctx->func = runtime·funcname(f);
+	ctx->line = runtime·funcline(f, ctx->pc, &file);
+	ctx->file = (int8*)file.str;  // assume zero-terminated
+	ctx->off = ctx->pc - f->entry;
+	ctx->res = 1;
 }

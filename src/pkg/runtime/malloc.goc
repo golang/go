@@ -295,9 +295,6 @@ runtime·free(void *v)
 	if(size < TinySize)
 		runtime·throw("freeing too small block");
 
-	if(raceenabled)
-		runtime·racefree(v);
-
 	// Ensure that the span is swept.
 	// If we free into an unswept span, we will corrupt GC bitmaps.
 	runtime·MSpan_EnsureSwept(s);

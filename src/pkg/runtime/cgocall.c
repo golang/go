@@ -100,11 +100,6 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	Defer d;
 	SEHUnwind sehunwind;
 
-	if(m->racecall) {
-		runtime·asmcgocall(fn, arg);
-		return;
-	}
-
 	if(!runtime·iscgo && !Solaris && !Windows)
 		runtime·throw("cgocall unavailable");
 
@@ -256,21 +251,9 @@ runtime·cgocallbackg(void)
 		runtime·exit(2);
 	}
 
-	if(m->racecall) {
-		// We were not in syscall, so no need to call runtime·exitsyscall.
-		// However we must set m->locks for the following reason.
-		// Race detector runtime makes __tsan_symbolize cgo callback
-		// holding internal mutexes. The mutexes are not cooperative with Go scheduler.
-		// So if we deschedule a goroutine that holds race detector internal mutex
-		// (e.g. preempt it), another goroutine will deadlock trying to acquire the same mutex.
-		m->locks++;
-		runtime·cgocallbackg1();
-		m->locks--;
-	} else {
-		runtime·exitsyscall();	// coming out of cgo call
-		runtime·cgocallbackg1();
-		runtime·entersyscall();	// going back to cgo call
-	}
+	runtime·exitsyscall();	// coming out of cgo call
+	runtime·cgocallbackg1();
+	runtime·entersyscall();	// going back to cgo call
 }
 
 void
@@ -292,14 +275,14 @@ runtime·cgocallbackg1(void)
 	d.special = true;
 	g->defer = &d;
 
-	if(raceenabled && !m->racecall)
+	if(raceenabled)
 		runtime·raceacquire(&cgosync);
 
 	// Invoke callback.
 	cb = CBARGS;
 	runtime·newstackcall(cb->fn, cb->arg, cb->argsize);
 
-	if(raceenabled && !m->racecall)
+	if(raceenabled)
 		runtime·racereleasemerge(&cgosync);
 
 	// Pop defer.

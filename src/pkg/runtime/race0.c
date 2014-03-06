@@ -111,12 +111,6 @@ runtime·racemalloc(void *p, uintptr sz)
 	USED(sz);
 }
 
-void
-runtime·racefree(void *p)
-{
-	USED(p);
-}
-
 uintptr
 runtime·racegostart(void *pc)
 {
