@@ -214,6 +214,9 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		internalError(err)
 		return
 	}
+	if hook := testHookStartProcess; hook != nil {
+		hook(cmd.Process)
+	}
 	defer cmd.Wait()
 	defer stdoutRead.Close()
 
@@ -292,6 +295,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	_, err = io.Copy(rw, linebody)
 	if err != nil {
 		h.printf("cgi: copy error: %v", err)
+		// And kill the child CGI process so we don't hang on
+		// the deferred cmd.Wait above if the error was just
+		// the client (rw) going away. If it was a read error
+		// (because the child died itself), then the extra
+		// kill of an already-dead process is harmless (the PID
+		// won't be reused until the Wait above).
+		cmd.Process.Kill()
 	}
 }
 
@@ -348,3 +358,5 @@ func upperCaseAndUnderscore(r rune) rune {
 	// TODO: other transformations in spec or practice?
 	return r
 }
+
+var testHookStartProcess func(*os.Process) // nil except for some tests
