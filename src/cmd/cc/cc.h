@@ -795,6 +795,7 @@ int32	exreg(Type*);
 int32	align(int32, Type*, int, int32*);
 int32	maxround(int32, int32);
 int	hasdotdotdot(void);
+void    linkarchinit(void);
 
 extern	schar	ewidth[];
 

@@ -124,7 +124,7 @@ main(int argc, char *argv[])
 	p = getgoarch();
 	if(strncmp(p, thestring, strlen(thestring)) != 0)
 		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
-	if(strcmp(getgoarch(), "amd64p32") == 0) // must be before cinit
+	if(strcmp(p, "amd64p32") == 0) // must be before cinit
 		ewidth[TIND] = 4;
 		
 	nacl = strcmp(getgoos(), "nacl") == 0;
@@ -133,6 +133,7 @@ main(int argc, char *argv[])
 
 	quotefmtinstall(); // before cinit, which overrides %Q
 
+	linkarchinit();
 	ctxt = linknew(thelinkarch);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;

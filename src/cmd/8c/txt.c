@@ -30,10 +30,16 @@
 
 #include "gc.h"
 
-LinkArch	*thelinkarch = &link386;
 
 int thechar = '8';
 char *thestring = "386";
+
+LinkArch	*thelinkarch = &link386;
+
+void
+linkarchinit(void)
+{
+}
 
 void
 ginit(void)
