@@ -158,6 +158,9 @@ struct MLink
 // SysAlloc obtains a large chunk of zeroed memory from the
 // operating system, typically on the order of a hundred kilobytes
 // or a megabyte.
+// NOTE: SysAlloc returns OS-aligned memory, but the heap allocator
+// may use larger alignment, so the caller must be careful to realign the
+// memory obtained by SysAlloc.
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
@@ -173,6 +176,9 @@ struct MLink
 // If the pointer passed to it is non-nil, the caller wants the
 // reservation there, but SysReserve can still choose another
 // location if that one is unavailable.
+// NOTE: SysReserve returns OS-aligned memory, but the heap allocator
+// may use larger alignment, so the caller must be careful to realign the
+// memory obtained by SysAlloc.
 //
 // SysMap maps previously reserved address space for use.
 //
