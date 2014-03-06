@@ -2346,8 +2346,12 @@ gc(struct gc_args *args)
 		runtime·printf("pause %D\n", t4-t0);
 
 	if(runtime·debug.gctrace) {
-		updatememstats(&stats);
 		heap1 = mstats.heap_alloc;
+		updatememstats(&stats);
+		if(heap1 != mstats.heap_alloc) {
+			runtime·printf("runtime: mstats skew: heap=%p/%p\n", heap1, mstats.heap_alloc);
+			runtime·throw("mstats skew");
+		}
 		obj = mstats.nmalloc - mstats.nfree;
 
 		stats.nprocyield += work.markfor->nprocyield;
