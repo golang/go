@@ -2235,11 +2235,6 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
 		traceback = false;
 
-	// Race detector calls asmcgocall w/o entersyscall/exitsyscall,
-	// we can not currently unwind through asmcgocall.
-	if(mp != nil && mp->racecall)
-		traceback = false;
-
 	runtime·lock(&prof);
 	if(prof.fn == nil) {
 		runtime·unlock(&prof);

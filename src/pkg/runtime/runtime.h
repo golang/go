@@ -366,7 +366,6 @@ struct	M
 	uint32	waitsemacount;
 	uint32	waitsemalock;
 	GCStats	gcstats;
-	bool	racecall;
 	bool	needextram;
 	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
