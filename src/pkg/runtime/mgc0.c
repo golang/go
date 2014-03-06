@@ -2349,7 +2349,7 @@ gc(struct gc_args *args)
 		heap1 = mstats.heap_alloc;
 		updatememstats(&stats);
 		if(heap1 != mstats.heap_alloc) {
-			runtime·printf("runtime: mstats skew: heap=%p/%p\n", heap1, mstats.heap_alloc);
+			runtime·printf("runtime: mstats skew: heap=%D/%D\n", heap1, mstats.heap_alloc);
 			runtime·throw("mstats skew");
 		}
 		obj = mstats.nmalloc - mstats.nfree;
