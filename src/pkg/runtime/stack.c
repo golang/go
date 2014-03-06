@@ -640,6 +640,7 @@ runtime·newstack(void)
 			copystack(gp, nframes, newsize);
 			if(StackDebug >= 1)
 				runtime·printf("stack grow done\n");
+			gp->status = oldstatus;
 			runtime·gogo(&gp->sched);
 		}
 		// TODO: if stack is uncopyable because we're in C code, patch return value at

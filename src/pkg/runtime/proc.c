@@ -1364,6 +1364,8 @@ top:
 void
 runtime·park(bool(*unlockf)(G*, void*), void *lock, int8 *reason)
 {
+	if(g->status != Grunning)
+		runtime·throw("bad g status");
 	m->waitlock = lock;
 	m->waitunlockf = unlockf;
 	g->waitreason = reason;
@@ -1415,6 +1417,8 @@ park0(G *gp)
 void
 runtime·gosched(void)
 {
+	if(g->status != Grunning)
+		runtime·throw("bad g status");
 	runtime·mcall(runtime·gosched0);
 }
 
@@ -1443,6 +1447,8 @@ runtime·gosched0(G *gp)
 void
 runtime·goexit(void)
 {
+	if(g->status != Grunning)
+		runtime·throw("bad g status");
 	if(raceenabled)
 		runtime·racegoend();
 	runtime·mcall(goexit0);
