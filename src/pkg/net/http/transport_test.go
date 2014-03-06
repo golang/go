@@ -1694,10 +1694,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 }
 
 func TestProxyFromEnvironment(t *testing.T) {
-	os.Setenv("HTTP_PROXY", "")
-	os.Setenv("http_proxy", "")
-	os.Setenv("NO_PROXY", "")
-	os.Setenv("no_proxy", "")
+	ResetProxyEnv()
 	for _, tt := range proxyFromEnvTests {
 		os.Setenv("HTTP_PROXY", tt.env)
 		os.Setenv("NO_PROXY", tt.noenv)
