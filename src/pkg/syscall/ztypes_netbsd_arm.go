@@ -19,13 +19,15 @@ type (
 )
 
 type Timespec struct {
-	Sec  int64
-	Nsec int32
+	Sec       int64
+	Nsec      int32
+	Pad_cgo_0 [4]byte
 }
 
 type Timeval struct {
-	Sec  int64
-	Usec int32
+	Sec       int64
+	Usec      int32
+	Pad_cgo_0 [4]byte
 }
 
 type Rusage struct {
@@ -57,10 +59,12 @@ type _Gid_t uint32
 type Stat_t struct {
 	Dev           uint64
 	Mode          uint32
+	Pad_cgo_0     [4]byte
 	Ino           uint64
 	Nlink         uint32
 	Uid           uint32
 	Gid           uint32
+	Pad_cgo_1     [4]byte
 	Rdev          uint64
 	Atimespec     Timespec
 	Mtimespec     Timespec
@@ -72,6 +76,7 @@ type Stat_t struct {
 	Flags         uint32
 	Gen           uint32
 	Spare         [2]uint32
+	Pad_cgo_2     [4]byte
 }
 
 type Statfs_t [0]byte
@@ -217,12 +222,13 @@ const (
 )
 
 type Kevent_t struct {
-	Ident  uint32
-	Filter uint32
-	Flags  uint32
-	Fflags uint32
-	Data   int64
-	Udata  int32
+	Ident     uint32
+	Filter    uint32
+	Flags     uint32
+	Fflags    uint32
+	Data      int64
+	Udata     int32
+	Pad_cgo_0 [4]byte
 }
 
 type FdSet struct {
@@ -231,7 +237,7 @@ type FdSet struct {
 
 const (
 	SizeofIfMsghdr         = 0x98
-	SizeofIfData           = 0x84
+	SizeofIfData           = 0x88
 	SizeofIfaMsghdr        = 0x18
 	SizeofIfAnnounceMsghdr = 0x18
 	SizeofRtMsghdr         = 0x78
@@ -247,7 +253,6 @@ type IfMsghdr struct {
 	Index     uint16
 	Pad_cgo_0 [2]byte
 	Data      IfData
-	Pad_cgo_1 [4]byte
 }
 
 type IfData struct {
