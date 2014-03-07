@@ -452,8 +452,8 @@ struct	Stktop
 	uint32	panicwrap;
 
 	uint8*	argp;	// pointer to arguments in old frame
-	uintptr	free;	// if free>0, call stackfree using free as size
 	bool	panic;	// is this frame the top of a panic?
+	bool	malloced;
 };
 struct	SigTab
 {
@@ -880,8 +880,8 @@ int32	runtime·funcarglen(Func*, uintptr);
 int32	runtime·funcspdelta(Func*, uintptr);
 int8*	runtime·funcname(Func*);
 int32	runtime·pcdatavalue(Func*, int32, uintptr);
-void*	runtime·stackalloc(uint32);
-void	runtime·stackfree(void*, uintptr);
+void*	runtime·stackalloc(G*, uint32);
+void	runtime·stackfree(G*, void*, Stktop*);
 void	runtime·shrinkstack(G*);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
