@@ -29,6 +29,12 @@ type declInfo struct {
 	mark int                  // see check.dependencies
 }
 
+// hasInitializer reports whether the declared object has an initialization
+// expression or function body.
+func (d *declInfo) hasInitializer() bool {
+	return d.init != nil || d.fdecl != nil && d.fdecl.Body != nil
+}
+
 // arityMatch checks that the lhs and rhs of a const or var decl
 // have the appropriate number of names and init exprs. For const
 // decls, init is the value spec providing the init exprs; for
@@ -87,10 +93,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	//          independent of source order. Associate methods with receiver
 	//          base type names.
 
-	var (
-		objMap  = make(map[Object]*declInfo) // corresponding declaration info
-		initMap = make(map[Object]*declInfo) // declaration info for objects with initializers
-	)
+	var objMap = make(map[Object]*declInfo) // corresponding declaration info
 
 	// declare declares obj in the package scope, records its ident -> obj mapping,
 	// and updates objMap. The object must not be a function or method.
@@ -248,9 +251,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 								d := &declInfo{file: fileScope, typ: last.Type, init: init}
 								declare(name, obj, d)
-
-								// all constants have an initializer
-								initMap[obj] = d
 							}
 
 							check.arityMatch(s, last)
@@ -275,9 +275,9 @@ func (check *checker) resolveFiles(files []*ast.File) {
 								lhs[i] = obj
 
 								d := d1
-								var init ast.Expr
 								if d == nil {
 									// individual assignments
+									var init ast.Expr
 									if i < len(s.Values) {
 										init = s.Values[i]
 									}
@@ -285,11 +285,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 								}
 
 								declare(name, obj, d)
-
-								// remember variable if it has an initializer
-								if d1 != nil || init != nil {
-									initMap[obj] = d
-								}
 							}
 
 							check.arityMatch(s, nil)
@@ -340,10 +335,6 @@ func (check *checker) resolveFiles(files []*ast.File) {
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
 				objMap[obj] = info
-				// remember function if it has a body (= initializer)
-				if d.Body != nil {
-					initMap[obj] = info
-				}
 
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
@@ -364,13 +355,11 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 	// Phase 3: Typecheck all objects in objMap, but not function bodies.
 
-	check.initMap = initMap
-	check.objMap = objMap               // indicate that we are checking package-level declarations (objects may not have a type yet)
+	check.objMap = objMap
 	typePath := make([]*TypeName, 0, 8) // pre-allocate space for type declaration paths so that the underlying array is reused
 	for _, obj := range objectsOf(check.objMap) {
 		check.objDecl(obj, nil, typePath)
 	}
-	check.objMap = nil // not needed anymore
 
 	// At this point we may have a non-empty check.methods map; this means that not all
 	// entries were deleted at the end of typeDecl because the respective receiver base
@@ -389,15 +378,14 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// may introduce dependencies
 
 	initPath := make([]Object, 0, 8) // pre-allocate space for initialization paths so that the underlying array is reused
-	for _, obj := range objectsOf(initMap) {
+	for _, obj := range objectsOf(objMap) {
 		switch obj.(type) {
 		case *Const, *Var:
-			if init := initMap[obj]; init != nil {
-				check.dependencies(obj, init, initPath)
+			if d := objMap[obj]; d.hasInitializer() {
+				check.dependencies(obj, d, initPath)
 			}
 		}
 	}
-	check.initMap = nil // not needed anymore
 
 	// Phase 6: Check for declared but not used packages and function variables.
 	// Note: must happen after checking all functions because function bodies

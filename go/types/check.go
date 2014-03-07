@@ -62,8 +62,7 @@ type checker struct {
 	funcs    []funcInfo            // list of functions/methods with correct signatures and non-empty bodies
 	delayed  []func()              // delayed checks that require fully setup types
 
-	objMap  map[Object]*declInfo // if set we are in the package-level declaration phase (otherwise all objects seen must be declared)
-	initMap map[Object]*declInfo // map of variables/functions with init expressions/bodies
+	objMap map[Object]*declInfo // map of package-level objects to declaration info
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -192,22 +191,22 @@ func (check *checker) files(files []*ast.File) (err error) {
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to)
-// if check.decl exists and to has an init expression.
+// if check.decl exists and to has an initializer.
 func (check *checker) addDeclDep(to Object) {
 	from := check.decl
 	if from == nil {
 		return // not in a package-level init expression
 	}
-	init := check.initMap[to]
-	if init == nil {
-		return // to does not have a package-level init expression
+	decl := check.objMap[to]
+	if decl == nil || !decl.hasInitializer() {
+		return // to is not a package-level object or has no initializer
 	}
 	m := from.deps
 	if m == nil {
 		m = make(map[Object]*declInfo)
 		from.deps = m
 	}
-	m[to] = init
+	m[to] = decl
 }
 
 func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) {

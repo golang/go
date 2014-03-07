@@ -43,12 +43,8 @@ func (check *checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	}
 
 	d := check.objMap[obj]
-	if debug && d == nil {
-		if check.objMap == nil {
-			check.dump("%s: %s should have been declared (we are inside a function)", obj.Pos(), obj)
-			unreachable()
-		}
-		check.dump("%s: %s should have been forward-declared", obj.Pos(), obj)
+	if d == nil {
+		check.dump("%s: %s should have been declared", obj.Pos(), obj)
 		unreachable()
 	}
 
