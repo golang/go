@@ -525,6 +525,7 @@ void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
+void	runtime·MHeap_SplitSpan(MHeap *h, MSpan *s);
 
 void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);

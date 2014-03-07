@@ -94,6 +94,8 @@ runtime·stackalloc(uint32 n)
 	// Doing so would cause a deadlock (issue 1547).
 	if(g != m->g0)
 		runtime·throw("stackalloc not on scheduler stack");
+	if((n & (n-1)) != 0)
+		runtime·throw("stack size not a power of 2");
 	if(StackDebug >= 1)
 		runtime·printf("stackalloc %d\n", n);
 
@@ -536,6 +538,18 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	runtime·stackfree(oldstk, oldsize);
 }
 
+// round x up to a power of 2.
+static int32
+round2(int32 x)
+{
+	int32 s;
+
+	s = 0;
+	while((1 << s) < x)
+		s++;
+	return 1 << s;
+}
+
 // Called from runtime·newstackcall or from runtime·morestack when a new
 // stack segment is needed.  Allocate a new stack big enough for
 // m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
@@ -654,6 +668,7 @@ runtime·newstack(void)
 	if(framesize < StackMin)
 		framesize = StackMin;
 	framesize += StackSystem;
+	framesize = round2(framesize);
 	gp->stacksize += framesize;
 	if(gp->stacksize > runtime·maxstacksize) {
 		runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
@@ -744,26 +759,65 @@ runtime·shrinkstack(G *gp)
 {
 	int32 nframes;
 	byte *oldstk, *oldbase;
-	uintptr used, oldsize;
-
-	if(gp->syscallstack != (uintptr)nil) // TODO: handle this case?
-		return;
+	uintptr used, oldsize, newsize;
+	MSpan *span;
 
 	oldstk = (byte*)gp->stackguard - StackGuard;
 	oldbase = (byte*)gp->stackbase + sizeof(Stktop);
 	oldsize = oldbase - oldstk;
-	if(oldsize / 2 < FixedStack)
+	newsize = oldsize / 2;
+	if(newsize < FixedStack)
 		return; // don't shrink below the minimum-sized stack
 	used = oldbase - (byte*)gp->sched.sp;
 	if(used >= oldsize / 4)
 		return; // still using at least 1/4 of the segment.
 
-	nframes = copyabletopsegment(gp);
-	if(nframes == -1)
-		return; // TODO: handle this case.  Shrink in place?
+	// To shrink to less than 1/2 a page, we need to copy.
+	if(newsize < PageSize/2) {
+		if(gp->syscallstack != (uintptr)nil) // TODO: can we handle this case?
+			return;
+#ifdef GOOS_windows
+		if(gp->m != nil && gp->m->libcallsp != 0)
+			return;
+#endif
+		nframes = copyabletopsegment(gp);
+		if(nframes == -1)
+			return;
+		copystack(gp, nframes, newsize);
+		return;
+	}
 
-	copystack(gp, nframes, oldsize / 2);
+	// To shrink a stack of one page size or more, we can shrink it
+	// without copying.  Just deallocate the lower half.
+	span = runtime·MHeap_LookupMaybe(&runtime·mheap, oldstk);
+	if(span == nil)
+		return; // stack allocated outside heap.  Can't shrink it.  Can happen if stack is allocated while inside malloc.  TODO: shrink by copying?
+	if(span->elemsize != oldsize)
+		runtime·throw("span element size doesn't match stack size");
+	if((uintptr)oldstk != span->start << PageShift)
+		runtime·throw("stack not at start of span");
 
-	if(StackDebug >= 1)
-		runtime·printf("stack shrink done\n");
+	if(StackDebug)
+		runtime·printf("shrinking stack in place %p %X->%X\n", oldstk, oldsize, newsize);
+
+	// new stack guard for smaller stack
+	gp->stackguard = (uintptr)oldstk + newsize + StackGuard;
+	gp->stackguard0 = (uintptr)oldstk + newsize + StackGuard;
+	if(gp->stack0 == (uintptr)oldstk)
+		gp->stack0 = (uintptr)oldstk + newsize;
+
+	// Free bottom half of the stack.  First, we trick malloc into thinking
+	// we allocated the stack as two separate half-size allocs.  Then the
+	// free() call does the rest of the work for us.
+	if(oldsize == PageSize) {
+		// convert span of 1 PageSize object to a span of 2
+		// PageSize/2 objects.
+		span->ref = 2;
+		span->sizeclass = runtime·SizeToClass(PageSize/2);
+		span->elemsize = PageSize/2;
+	} else {
+		// convert span of n>1 pages into two spans of n/2 pages each.
+		runtime·MHeap_SplitSpan(&runtime·mheap, span);
+	}
+	runtime·free(oldstk);
 }
