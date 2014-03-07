@@ -1751,12 +1751,13 @@ runtime·malg(int32 stacksize)
 
 	newg = runtime·malloc(sizeof(G));
 	if(stacksize >= 0) {
+		stacksize = runtime·round2(StackSystem + stacksize);
 		if(g == m->g0) {
 			// running on scheduler stack already.
-			stk = runtime·stackalloc(newg, StackSystem + stacksize);
+			stk = runtime·stackalloc(newg, stacksize);
 		} else {
 			// have to call stackalloc on scheduler stack.
-			newg->stacksize = StackSystem + stacksize;
+			newg->stacksize = stacksize;
 			g->param = newg;
 			runtime·mcall(mstackalloc);
 			stk = g->param;
@@ -1765,7 +1766,7 @@ runtime·malg(int32 stacksize)
 		newg->stack0 = (uintptr)stk;
 		newg->stackguard = (uintptr)stk + StackGuard;
 		newg->stackguard0 = newg->stackguard;
-		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
+		newg->stackbase = (uintptr)stk + stacksize - sizeof(Stktop);
 	}
 	return newg;
 }

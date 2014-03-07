@@ -555,8 +555,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 }
 
 // round x up to a power of 2.
-static int32
-round2(int32 x)
+int32
+runtime·round2(int32 x)
 {
 	int32 s;
 
@@ -683,7 +683,7 @@ runtime·newstack(void)
 	if(framesize < StackMin)
 		framesize = StackMin;
 	framesize += StackSystem;
-	framesize = round2(framesize);
+	framesize = runtime·round2(framesize);
 	stk = runtime·stackalloc(gp, framesize);
 	if(gp->stacksize > runtime·maxstacksize) {
 		runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
