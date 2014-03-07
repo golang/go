@@ -30,11 +30,13 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	bool crash;
 	uintptr *sp;
 
+	/*
 	switch(info->ExceptionCode) {
 	case EXCEPTION_BREAKPOINT:
 		r->Eip--;	// because 8l generates 2 bytes for INT3
 		return 1;
 	}
+	*/
 
 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
 		// Make it look like a call to the signal func.
