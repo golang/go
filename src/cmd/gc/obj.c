@@ -64,7 +64,7 @@ dumpobj(void)
 		memset(arhdr, 0, ArhdrSize);
 		Bwrite(bout, arhdr, ArhdrSize);
 		startobj = Boffset(bout);
-		Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
+		Bprint(bout, "go object %s %s %s %s\n", getgoos(), getgoarch(), getgoversion(), expstring());
 	}
 
 	Bprint(bout, "\n!\n");
