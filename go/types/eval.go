@@ -86,7 +86,7 @@ func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (t
 	}
 
 	// initialize checker
-	check := newChecker(nil, fset, pkg, nil)
+	check := NewChecker(nil, fset, pkg, nil)
 	check.scope = scope
 	defer check.handleBailout(&err)
 

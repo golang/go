@@ -84,32 +84,27 @@ func validatedImportPath(path string) (string, error) {
 	return s, nil
 }
 
-// TODO(gri) Split resolveFiles into smaller components.
+// declarePkgObj declares obj in the package scope, records its ident -> obj mapping,
+// and updates check.objMap. The object must not be a function or method.
+func (check *checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
+	assert(ident.Name == obj.Name())
 
-func (check *checker) resolveFiles(files []*ast.File) {
-	pkg := check.pkg
-
-	// Phase 1: Pre-declare all package-level objects so that they can be found
-	//          independent of source order. Associate methods with receiver
-	//          base type names.
-
-	var objMap = make(map[Object]*declInfo) // corresponding declaration info
-
-	// declare declares obj in the package scope, records its ident -> obj mapping,
-	// and updates objMap. The object must not be a function or method.
-	declare := func(ident *ast.Ident, obj Object, d *declInfo) {
-		assert(ident.Name == obj.Name())
-
-		// spec: "A package-scope or file-scope identifier with name init
-		// may only be declared to be a function with this (func()) signature."
-		if ident.Name == "init" {
-			check.errorf(ident.Pos(), "cannot declare init - must be func")
-			return
-		}
-
-		check.declare(pkg.scope, ident, obj)
-		objMap[obj] = d
+	// spec: "A package-scope or file-scope identifier with name init
+	// may only be declared to be a function with this (func()) signature."
+	if ident.Name == "init" {
+		check.errorf(ident.Pos(), "cannot declare init - must be func")
+		return
 	}
+
+	check.declare(check.pkg.scope, ident, obj)
+	check.objMap[obj] = d
+}
+
+// collectObjects collects all file and package objects and inserts them
+// into their respective scopes. It also performs imports and associates
+// methods with receiver base type names.
+func (check *checker) collectObjects() {
+	pkg := check.pkg
 
 	importer := check.conf.Import
 	if importer == nil {
@@ -127,20 +122,11 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		pkgImports[imp] = true
 	}
 
-	var (
-		fileScopes []*Scope                 // file scope for each file
-		dotImports []map[*Package]token.Pos // positions of dot-imports for each file
-	)
-
-	for _, file := range files {
+	for fileNo, file := range check.files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
 		check.recordDef(file.Name, nil)
-
-		fileScope := NewScope(pkg.scope)
-		check.recordScope(file, fileScope)
-		fileScopes = append(fileScopes, fileScope)
-		dotImports = append(dotImports, nil) // element (map) is lazily allocated
+		fileScope := check.fileScopes[fileNo]
 
 		for _, decl := range file.Decls {
 			switch d := decl.(type) {
@@ -218,10 +204,10 @@ func (check *checker) resolveFiles(files []*ast.File) {
 							}
 							// add position to set of dot-import positions for this file
 							// (this is only needed for "imported but not used" errors)
-							posSet := dotImports[len(dotImports)-1]
+							posSet := check.dotImports[fileNo]
 							if posSet == nil {
 								posSet = make(map[*Package]token.Pos)
-								dotImports[len(dotImports)-1] = posSet
+								check.dotImports[fileNo] = posSet
 							}
 							posSet[imp] = s.Pos()
 						} else {
@@ -250,7 +236,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 								}
 
 								d := &declInfo{file: fileScope, typ: last.Type, init: init}
-								declare(name, obj, d)
+								check.declarePkgObj(name, obj, d)
 							}
 
 							check.arityMatch(s, last)
@@ -284,7 +270,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 									d = &declInfo{file: fileScope, typ: s.Type, init: init}
 								}
 
-								declare(name, obj, d)
+								check.declarePkgObj(name, obj, d)
 							}
 
 							check.arityMatch(s, nil)
@@ -295,7 +281,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						declare(s.Name, obj, &declInfo{file: fileScope, typ: s.Type})
+						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type})
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
@@ -334,29 +320,29 @@ func (check *checker) resolveFiles(files []*ast.File) {
 					}
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
-				objMap[obj] = info
+				check.objMap[obj] = info
 
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
 			}
 		}
 	}
-	pkgImports = nil // not needed anymore
 
-	// Phase 2: Verify that objects in package and file scopes have different names.
-
-	for _, scope := range fileScopes {
+	// verify that objects in package and file scopes have different names
+	for _, scope := range check.fileScopes {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				check.errorf(alt.Pos(), "%s already declared in this file through import of package %s", obj.Name(), obj.Pkg().Name())
 			}
 		}
 	}
+}
 
-	// Phase 3: Typecheck all objects in objMap, but not function bodies.
+// packageObjects typechecks all package objects in check.objMap, but not function bodies.
+func (check *checker) packageObjects() {
+	// pre-allocate space for type declaration paths so that the underlying array is reused
+	typePath := make([]*TypeName, 0, 8)
 
-	check.objMap = objMap
-	typePath := make([]*TypeName, 0, 8) // pre-allocate space for type declaration paths so that the underlying array is reused
 	for _, obj := range objectsOf(check.objMap) {
 		check.objDecl(obj, nil, typePath)
 	}
@@ -366,33 +352,33 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// types were not declared. In that case, an error was reported when declaring those
 	// methods. We can now safely discard this map.
 	check.methods = nil
+}
 
-	// Phase 4: Typecheck all functions bodies.
-
+// functionBodies typechecks all function bodies.
+func (check *checker) functionBodies() {
 	for _, f := range check.funcs {
 		check.funcBody(f.decl, f.name, f.sig, f.body)
 	}
+}
 
-	// Phase 5: Check initialization dependencies.
-	// Note: must happen after checking all functions because function bodies
-	// may introduce dependencies
+// initDependencies computes initialization dependencies.
+func (check *checker) initDependencies() {
+	// pre-allocate space for initialization paths so that the underlying array is reused
+	initPath := make([]Object, 0, 8)
 
-	initPath := make([]Object, 0, 8) // pre-allocate space for initialization paths so that the underlying array is reused
-	for _, obj := range objectsOf(objMap) {
+	for _, obj := range objectsOf(check.objMap) {
 		switch obj.(type) {
 		case *Const, *Var:
-			if d := objMap[obj]; d.hasInitializer() {
+			if d := check.objMap[obj]; d.hasInitializer() {
 				check.dependencies(obj, d, initPath)
 			}
 		}
 	}
+}
 
-	// Phase 6: Check for declared but not used packages and function variables.
-	// Note: must happen after checking all functions because function bodies
-	// may introduce package uses
-
-	// If function bodies are not checked, packages' uses are likely missing,
-	// and there are no unused function variables. Nothing left to do.
+// unusedImports checks for unused imports.
+func (check *checker) unusedImports() {
+	// if function bodies are not checked, packages' uses are likely missing - don't check
 	if check.conf.IgnoreFuncBodies {
 		return
 	}
@@ -400,7 +386,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 	// spec: "It is illegal (...) to directly import a package without referring to
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
-	for i, scope := range fileScopes {
+	for i, scope := range check.fileScopes {
 		var usedDotImports map[*Package]bool // lazily allocated
 		for _, obj := range scope.elems {
 			switch obj := obj.(type) {
@@ -424,7 +410,7 @@ func (check *checker) resolveFiles(files []*ast.File) {
 		}
 		// Iterate through all dot-imports for this file and
 		// check if the corresponding package was used.
-		for pkg, pos := range dotImports[i] {
+		for pkg, pos := range check.dotImports[i] {
 			if !usedDotImports[pkg] {
 				check.softErrorf(pos, "%q imported but not used", pkg.path)
 			}

@@ -48,21 +48,25 @@ type context struct {
 // It must be created with newChecker.
 type checker struct {
 	// package information
-	// (set by newChecker)
+	// (initialized by NewChecker, valid for the life-time of checker)
 	conf *Config
 	fset *token.FileSet
 	pkg  *Package
 	*Info
+	objMap map[Object]*declInfo // maps package-level object to declaration info
 
-	// information collected during type-checking of an entire package
-	// (maps are allocated lazily)
+	// information collected during type-checking of a set of package files
+	// (initialized by Files, valid only for the duration of check.Files;
+	// maps and lists are allocated on demand)
+	files      []*ast.File              // package files
+	fileScopes []*Scope                 // file scope for each file
+	dotImports []map[*Package]token.Pos // positions of dot-imports for each file
+
 	firstErr error                 // first error encountered
 	methods  map[string][]*Func    // maps type names to associated methods
 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	funcs    []funcInfo            // list of functions/methods with correct signatures and non-empty bodies
-	delayed  []func()              // delayed checks that require fully setup types
-
-	objMap map[Object]*declInfo // map of package-level objects to declaration info
+	funcs    []funcInfo            // list of functions to type-check
+	delayed  []func()              // delayed checks requiring fully setup types
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -70,6 +74,25 @@ type checker struct {
 
 	// debugging
 	indent int // indentation for tracing
+}
+
+// addDeclDep adds the dependency edge (check.decl -> to)
+// if check.decl exists and to has an initializer.
+func (check *checker) addDeclDep(to Object) {
+	from := check.decl
+	if from == nil {
+		return // not in a package-level init expression
+	}
+	decl := check.objMap[to]
+	if decl == nil || !decl.hasInitializer() {
+		return // to is not a package-level object or has no initializer
+	}
+	m := from.deps
+	if m == nil {
+		m = make(map[Object]*declInfo)
+		from.deps = m
+	}
+	m[to] = decl
 }
 
 func (check *checker) assocMethod(tname string, meth *Func) {
@@ -98,8 +121,9 @@ func (check *checker) delay(f func()) {
 	check.delayed = append(check.delayed, f)
 }
 
-// newChecker returns a new Checker instance.
-func newChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *checker {
+// NewChecker returns a new Checker instance for a given package.
+// Package files may be incrementally added via checker.Files.
+func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *checker {
 	// make sure we have a configuration
 	if conf == nil {
 		conf = new(Config)
@@ -116,11 +140,44 @@ func newChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *ch
 	}
 
 	return &checker{
-		conf: conf,
-		fset: fset,
-		pkg:  pkg,
-		Info: info,
+		conf:   conf,
+		fset:   fset,
+		pkg:    pkg,
+		Info:   info,
+		objMap: make(map[Object]*declInfo),
 	}
+}
+
+// initFiles initializes the files-specific portion of checker.
+// The provided files must all belong to the same package.
+func (check *checker) initFiles(files []*ast.File) {
+	// determine package name, files, and set up file scopes, dotImports maps
+	pkg := check.pkg
+	for _, file := range files {
+		switch name := file.Name.Name; pkg.name {
+		case "":
+			pkg.name = name
+			fallthrough
+
+		case name:
+			check.files = append(check.files, file)
+			fileScope := NewScope(pkg.scope)
+			check.recordScope(file, fileScope)
+			check.fileScopes = append(check.fileScopes, fileScope)
+			check.dotImports = append(check.dotImports, nil) // element (map) is lazily allocated
+
+		default:
+			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			// ignore this file
+		}
+	}
+
+	// start with a clean slate (check.Files may be called multiple times)
+	check.firstErr = nil
+	check.methods = nil
+	check.untyped = nil
+	check.funcs = nil
+	check.delayed = nil
 }
 
 // A bailout panic is raised to indicate early termination.
@@ -137,76 +194,45 @@ func (check *checker) handleBailout(err *error) {
 	}
 }
 
-func (check *checker) files(files []*ast.File) (err error) {
+// Files checks the provided files as part of the checker's package.
+func (check *checker) Files(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
 
-	pkg := check.pkg
+	check.initFiles(files)
 
-	// determine package name and files
-	i := 0
-	for _, file := range files {
-		switch name := file.Name.Name; pkg.name {
-		case "":
-			pkg.name = name
-			fallthrough
-		case name:
-			files[i] = file
-			i++
-		default:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
-			// ignore this file
-		}
-	}
+	check.collectObjects()
 
-	check.resolveFiles(files[:i])
+	check.packageObjects()
+
+	check.functionBodies()
+
+	check.initDependencies()
+
+	check.unusedImports()
 
 	// perform delayed checks
 	for _, f := range check.delayed {
 		f()
 	}
-	check.delayed = nil // not needed anymore
 
-	// remaining untyped expressions must indeed be untyped
-	if debug {
-		for x, info := range check.untyped {
-			if isTyped(info.typ) {
-				check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
-				panic(0)
-			}
-		}
-	}
+	check.recordUntyped()
 
-	// notify client of any untyped types left
-	// TODO(gri) Consider doing this before and
-	// after function body checking for smaller
-	// map size and more immediate feedback.
-	if check.Types != nil {
-		for x, info := range check.untyped {
-			check.recordTypeAndValue(x, info.typ, info.val)
-		}
-	}
-
-	pkg.complete = true
+	check.pkg.complete = true
 	return
 }
 
-// addDeclDep adds the dependency edge (check.decl -> to)
-// if check.decl exists and to has an initializer.
-func (check *checker) addDeclDep(to Object) {
-	from := check.decl
-	if from == nil {
-		return // not in a package-level init expression
+func (check *checker) recordUntyped() {
+	if !debug && check.Types == nil {
+		return // nothing to do
 	}
-	decl := check.objMap[to]
-	if decl == nil || !decl.hasInitializer() {
-		return // to is not a package-level object or has no initializer
+
+	for x, info := range check.untyped {
+		if debug && isTyped(info.typ) {
+			check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
+			unreachable()
+		}
+		check.recordTypeAndValue(x, info.typ, info.val)
 	}
-	m := from.deps
-	if m == nil {
-		m = make(map[Object]*declInfo)
-		from.deps = m
-	}
-	m[to] = decl
 }
 
 func (check *checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) {

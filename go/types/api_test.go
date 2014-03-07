@@ -404,6 +404,9 @@ func TestInitOrderInfo(t *testing.T) {
 		{`package p9; type T struct{}; func (T) m() int { _ = y; return 0 }; var x, y = T.m, 1`, []string{
 			"y = 1", "x = T.m",
 		}},
+		{`package p10; var (d = c + b; a = 0; b = 0; c = 0)`, []string{
+			"b = 0", "c = 0", "d = c + b", "a = 0",
+		}},
 		// test case for issue 7131
 		{`package main
 
