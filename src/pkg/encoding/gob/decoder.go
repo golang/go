@@ -183,11 +183,13 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 	return -1
 }
 
-// Decode reads the next value from the connection and stores
+// Decode reads the next value from the input stream and stores
 // it in the data represented by the empty interface value.
 // If e is nil, the value will be discarded. Otherwise,
 // the value underlying e must be a pointer to the
 // correct type for the next data item received.
+// If the input is at EOF, Decode returns io.EOF and
+// does not modify e.
 func (dec *Decoder) Decode(e interface{}) error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
@@ -202,10 +204,12 @@ func (dec *Decoder) Decode(e interface{}) error {
 	return dec.DecodeValue(value)
 }
 
-// DecodeValue reads the next value from the connection.
+// DecodeValue reads the next value from the input stream.
 // If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
 // Otherwise, it stores the value into v.  In that case, v must represent
 // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
+// If the input is at EOF, DecodeValue returns io.EOF and
+// does not modify e.
 func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	if v.IsValid() {
 		if v.Kind() == reflect.Ptr && !v.IsNil() {
