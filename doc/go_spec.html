@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 6, 2014",
+	"Subtitle": "Version of March 7, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -2691,7 +2691,7 @@ For arrays or strings, the indices are <i>in range</i> if
 otherwise they are <i>out of range</i>.
 For slices, the upper index bound is the slice capacity <code>cap(a)</code> rather than the length.
 A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
-<code>int</code>.
+<code>int</code>; for arrays or constant strings, constant indices must also be in range.
 If both indices are constant, they must satisfy <code>low &lt;= high</code>.
 If the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
@@ -2751,7 +2751,7 @@ If the sliced operand is an array, it must be <a href="#Address_operators">addre
 The indices are <i>in range</i> if <code>0 &lt;= low &lt;= high &lt;= max &lt;= cap(a)</code>,
 otherwise they are <i>out of range</i>.
 A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
-<code>int</code>.
+<code>int</code>; for arrays, constant indices must also be in range.
 If multiple indices are constant, the constants that are present must be in range relative to each
 other.
 If the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
