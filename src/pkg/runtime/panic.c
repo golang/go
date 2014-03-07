@@ -205,12 +205,14 @@ printpanics(Panic *p)
 }
 
 static void recovery(G*);
+static void abortpanic(Panic*);
+static FuncVal abortpanicV = { (void(*)(void))abortpanic };
 
 // The implementation of the predeclared function panic.
 void
 runtime·panic(Eface e)
 {
-	Defer *d;
+	Defer *d, dabort;
 	Panic p;
 	void *pc, *argp;
 
@@ -219,6 +221,12 @@ runtime·panic(Eface e)
 	p.link = g->panic;
 	p.stackbase = g->stackbase;
 	g->panic = &p;
+
+	dabort.fn = &abortpanicV;
+	dabort.siz = sizeof(&p);
+	dabort.args[0] = &p;
+	dabort.argp = (void*)-1;  // unused because abortpanic never recovers
+	dabort.special = true;
 
 	for(;;) {
 		d = g->defer;
@@ -229,10 +237,31 @@ runtime·panic(Eface e)
 		g->ispanic = true;	// rock for runtime·newstack, where runtime·newstackcall ends up
 		argp = d->argp;
 		pc = d->pc;
+
+		// The deferred function may cause another panic,
+		// so newstackcall may not return. Set up a defer
+		// to mark this panic aborted if that happens.
+		dabort.link = g->defer;
+		g->defer = &dabort;
+		p.defer = d;
+
 		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
+
+		// Newstackcall did not panic. Remove dabort.
+		if(g->defer != &dabort)
+			runtime·throw("bad defer entry in panic");
+		g->defer = dabort.link;
+
 		freedefer(d);
 		if(p.recovered) {
 			g->panic = p.link;
+			// Aborted panics are marked but remain on the g->panic list.
+			// Recovery will unwind the stack frames containing their Panic structs.
+			// Remove them from the list and free the associated defers.
+			while(g->panic && g->panic->aborted) {
+				freedefer(g->panic->defer);
+				g->panic = g->panic->link;
+			}
 			if(g->panic == nil)	// must be done with signal
 				g->sig = 0;
 			// Pass information about recovering frame to recovery.
@@ -248,6 +277,12 @@ runtime·panic(Eface e)
 	printpanics(g->panic);
 	runtime·dopanic(0);	// should not return
 	runtime·exit(1);	// not reached
+}
+
+static void
+abortpanic(Panic *p)
+{
+	p->aborted = true;
 }
 
 // Unwind the stack after a deferred function calls recover

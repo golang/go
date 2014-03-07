@@ -733,7 +733,9 @@ struct Panic
 	Eface	arg;		// argument to panic
 	uintptr	stackbase;	// g->stackbase in panic
 	Panic*	link;		// link to earlier panic
+	Defer*	defer;		// current executing defer
 	bool	recovered;	// whether this panic is over
+	bool	aborted;	// the panic was aborted
 };
 
 /*

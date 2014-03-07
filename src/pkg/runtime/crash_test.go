@@ -132,6 +132,18 @@ func TestThreadExhaustion(t *testing.T) {
 	}
 }
 
+func TestRecursivePanic(t *testing.T) {
+	output := executeTest(t, recursivePanicSource, nil)
+	want := `wrap: bad
+panic: again
+
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+
+}
+
 const crashSource = `
 package main
 
@@ -270,5 +282,31 @@ func main() {
 		}()
 		<-c
 	}
+}
+`
+
+const recursivePanicSource = `
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	func() {
+		defer func() {
+			fmt.Println(recover())
+		}()
+		var x [8192]byte
+		func(x [8192]byte) {
+			defer func() {
+				if err := recover(); err != nil {
+					panic("wrap: " + err.(string))
+				}
+			}()
+			panic("bad")
+		}(x)
+	}()
+	panic("again")
 }
 `
