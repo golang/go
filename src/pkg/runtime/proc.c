@@ -1727,7 +1727,13 @@ syscall·runtime_AfterFork(void)
 static void
 mstackalloc(G *gp)
 {
-	gp->param = runtime·stackalloc((uintptr)gp->param);
+	G *newg;
+	uintptr size;
+
+	newg = (G*)gp->param;
+	size = newg->stacksize;
+	newg->stacksize = 0;
+	gp->param = runtime·stackalloc(newg, size);
 	runtime·gogo(&gp->sched);
 }
 
@@ -1747,20 +1753,19 @@ runtime·malg(int32 stacksize)
 	if(stacksize >= 0) {
 		if(g == m->g0) {
 			// running on scheduler stack already.
-			stk = runtime·stackalloc(StackSystem + stacksize);
+			stk = runtime·stackalloc(newg, StackSystem + stacksize);
 		} else {
 			// have to call stackalloc on scheduler stack.
-			g->param = (void*)(StackSystem + stacksize);
+			newg->stacksize = StackSystem + stacksize;
+			g->param = newg;
 			runtime·mcall(mstackalloc);
 			stk = g->param;
 			g->param = nil;
 		}
-		newg->stacksize = StackSystem + stacksize;
 		newg->stack0 = (uintptr)stk;
 		newg->stackguard = (uintptr)stk + StackGuard;
 		newg->stackguard0 = newg->stackguard;
 		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
-		runtime·memclr((byte*)newg->stackbase, sizeof(Stktop));
 	}
 	return newg;
 }
@@ -1883,14 +1888,20 @@ static void
 gfput(P *p, G *gp)
 {
 	uintptr stksize;
+	Stktop *top;
 
 	if(gp->stackguard - StackGuard != gp->stack0)
 		runtime·throw("invalid stack in gfput");
 	stksize = gp->stackbase + sizeof(Stktop) - gp->stack0;
-	if(stksize != FixedStack) {
+	if(stksize != gp->stacksize) {
+		runtime·printf("runtime: bad stacksize, goroutine %D, remain=%d, last=%d\n",
+			gp->goid, (int32)gp->stacksize, (int32)stksize);
+		runtime·throw("gfput: bad stacksize");
+	}
+	top = (Stktop*)gp->stackbase;
+	if(top->malloced) {
 		// non-standard stack size - free it.
-		runtime·stackfree((void*)gp->stack0, stksize);
-		gp->stacksize = 0;
+		runtime·stackfree(gp, (void*)gp->stack0, top);
 		gp->stack0 = 0;
 		gp->stackguard = 0;
 		gp->stackguard0 = 0;
@@ -1941,19 +1952,18 @@ retry:
 		if(gp->stack0 == 0) {
 			// Stack was deallocated in gfput.  Allocate a new one.
 			if(g == m->g0) {
-				stk = runtime·stackalloc(FixedStack);
+				stk = runtime·stackalloc(gp, FixedStack);
 			} else {
-				g->param = (void*)FixedStack;
+				gp->stacksize = FixedStack;
+				g->param = gp;
 				runtime·mcall(mstackalloc);
 				stk = g->param;
 				g->param = nil;
 			}
-			gp->stacksize = FixedStack;
 			gp->stack0 = (uintptr)stk;
 			gp->stackbase = (uintptr)stk + FixedStack - sizeof(Stktop);
 			gp->stackguard = (uintptr)stk + StackGuard;
 			gp->stackguard0 = gp->stackguard;
-			runtime·memclr((byte*)gp->stackbase, sizeof(Stktop));
 		}
 	}
 	return gp;
