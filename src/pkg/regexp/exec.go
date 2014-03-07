@@ -37,6 +37,7 @@ type thread struct {
 type machine struct {
 	re       *Regexp      // corresponding Regexp
 	p        *syntax.Prog // compiled program
+	op       *syntax.Prog // compiled onepass program, or syntax.NotOnePass
 	q0, q1   queue        // two queues for runq, nextq
 	pool     []*thread    // pool of available threads
 	matched  bool         // whether a match was found
@@ -66,8 +67,8 @@ func (m *machine) newInputReader(r io.RuneReader) input {
 }
 
 // progMachine returns a new machine running the prog p.
-func progMachine(p *syntax.Prog) *machine {
-	m := &machine{p: p}
+func progMachine(p, op *syntax.Prog) *machine {
+	m := &machine{p: p, op: op}
 	n := len(m.p.Inst)
 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
 	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
@@ -312,6 +313,105 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 	return t
 }
 
+// onepass runs the machine over the input starting at pos.
+// It reports whether a match was found.
+// If so, m.matchcap holds the submatch information.
+func (m *machine) onepass(i input, pos int) bool {
+	startCond := m.re.cond
+	if startCond == ^syntax.EmptyOp(0) { // impossible
+		return false
+	}
+	m.matched = false
+	for i := range m.matchcap {
+		m.matchcap[i] = -1
+	}
+	r, r1 := endOfText, endOfText
+	width, width1 := 0, 0
+	r, width = i.step(pos)
+	if r != endOfText {
+		r1, width1 = i.step(pos + width)
+	}
+	var flag syntax.EmptyOp
+	if pos == 0 {
+		flag = syntax.EmptyOpContext(-1, r)
+	} else {
+		flag = i.context(pos)
+	}
+	pc := m.op.Start
+	inst := m.op.Inst[pc]
+	// If there is a simple literal prefix, skip over it.
+	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
+		len(m.re.prefix) > 0 && i.canCheckPrefix() {
+		// Match requires literal prefix; fast search for it.
+		if i.hasPrefix(m.re) {
+			pos += len(m.re.prefix)
+			r, width = i.step(pos)
+			r1, width1 = i.step(pos + width)
+			flag = i.context(pos)
+			pc = int(m.re.prefixEnd)
+		} else {
+			return m.matched
+		}
+	}
+	for {
+		inst = m.op.Inst[pc]
+		pc = int(inst.Out)
+		switch inst.Op {
+		default:
+			panic("bad inst")
+		case syntax.InstMatch:
+			m.matched = true
+			if len(m.matchcap) > 0 {
+				m.matchcap[0] = 0
+				m.matchcap[1] = pos
+			}
+			return m.matched
+		case syntax.InstRune:
+			if !inst.MatchRune(r) {
+				return m.matched
+			}
+		case syntax.InstRune1:
+			if r != inst.Rune[0] {
+				return m.matched
+			}
+		case syntax.InstRuneAny:
+			// Nothing
+		case syntax.InstRuneAnyNotNL:
+			if r == '\n' {
+				return m.matched
+			}
+		// peek at the input rune to see which branch of the Alt to take
+		case syntax.InstAlt, syntax.InstAltMatch:
+			pc = int(inst.OnePassNext(r))
+			continue
+		case syntax.InstFail:
+			return m.matched
+		case syntax.InstNop:
+			continue
+		case syntax.InstEmptyWidth:
+			if syntax.EmptyOp(inst.Arg)&^flag != 0 {
+				return m.matched
+			}
+			continue
+		case syntax.InstCapture:
+			if int(inst.Arg) < len(m.matchcap) {
+				m.matchcap[inst.Arg] = pos
+			}
+			continue
+		}
+		if width == 0 {
+			break
+		}
+		flag = syntax.EmptyOpContext(r, r1)
+		pos += width
+		r, width = r1, width1
+		if r != endOfText {
+			r1, width1 = i.step(pos + width)
+		}
+	}
+	return m.matched
+}
+
 // empty is a non-nil 0-element slice,
 // so doExecute can avoid an allocation
 // when 0 captures are requested from a successful match.
@@ -329,16 +429,23 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	} else {
 		i = m.newInputString(s)
 	}
-	m.init(ncap)
-	if !m.match(i, pos) {
-		re.put(m)
-		return nil
+	if m.op != syntax.NotOnePass {
+		if !m.onepass(i, pos) {
+			re.put(m)
+			return nil
+		}
+	} else {
+		m.init(ncap)
+		if !m.match(i, pos) {
+			re.put(m)
+			return nil
+		}
 	}
 	if ncap == 0 {
 		re.put(m)
 		return empty // empty but not nil
 	}
-	cap := make([]int, ncap)
+	cap := make([]int, len(m.matchcap))
 	copy(cap, m.matchcap)
 	re.put(m)
 	return cap
