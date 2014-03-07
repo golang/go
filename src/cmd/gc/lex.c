@@ -212,7 +212,14 @@ main(int argc, char *argv[])
 #ifdef	PLAN9
 	notify(catcher);
 #endif
+	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// but not other values.	
+	p = getgoarch();
+	if(strncmp(p, thestring, strlen(thestring)) != 0)
+		fatal("cannot use %cg with GOARCH=%s", thechar, p);
+	goarch = p;
 
+	linkarchinit();
 	ctxt = linknew(thelinkarch);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
@@ -259,13 +266,6 @@ main(int argc, char *argv[])
 	goroot = getgoroot();
 	goos = getgoos();
 
-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
-	// but not other values.	
-	p = getgoarch();
-	if(strncmp(p, thestring, strlen(thestring)) != 0)
-		fatal("cannot use %cg with GOARCH=%s", thechar, p);
-	goarch = p;
-	
 	nacl = strcmp(goos, "nacl") == 0;
 	if(nacl)
 		flag_largemodel = 1;

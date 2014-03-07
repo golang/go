@@ -10,6 +10,13 @@ int	thechar	= '6';
 char*	thestring	= "amd64";
 LinkArch*	thelinkarch = &linkamd64;
 
+void
+linkarchinit(void)
+{
+	if(strcmp(getgoarch(), "amd64p32") == 0)
+		thelinkarch = &linkamd64p32;
+}
+
 vlong MAXWIDTH = 1LL<<50;
 
 int	addptr = AADDQ;
