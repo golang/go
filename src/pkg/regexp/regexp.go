@@ -75,10 +75,12 @@ type Regexp struct {
 	// read-only after Compile
 	expr           string         // as passed to Compile
 	prog           *syntax.Prog   // compiled program
+	onepass        *syntax.Prog   // onpass program or nil
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
 	prefixComplete bool           // prefix is the entire regexp
 	prefixRune     rune           // first rune in prefix
+	prefixEnd      uint32         // pc for last rune in prefix
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
 	numSubexp      int
 	subexpNames    []string
@@ -155,12 +157,17 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	regexp := &Regexp{
 		expr:        expr,
 		prog:        prog,
+		onepass:     prog.CompileOnePass(),
 		numSubexp:   maxCap,
 		subexpNames: capNames,
 		cond:        prog.StartCond(),
 		longest:     longest,
 	}
-	regexp.prefix, regexp.prefixComplete = prog.Prefix()
+	if regexp.onepass == syntax.NotOnePass {
+		regexp.prefix, regexp.prefixComplete = prog.Prefix()
+	} else {
+		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = prog.OnePassPrefix()
+	}
 	if regexp.prefix != "" {
 		// TODO(rsc): Remove this allocation by adding
 		// IndexString to package bytes.
@@ -182,7 +189,7 @@ func (re *Regexp) get() *machine {
 		return z
 	}
 	re.mu.Unlock()
-	z := progMachine(re.prog)
+	z := progMachine(re.prog, re.onepass)
 	z.re = re
 	return z
 }

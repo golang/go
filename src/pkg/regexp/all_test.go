@@ -578,3 +578,58 @@ func BenchmarkAnchoredLongMatch(b *testing.B) {
 		re.Match(x)
 	}
 }
+
+func BenchmarkOnePassShortA(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcddddddeeeededd")
+	re := MustCompile("^.bc(d|e)*$")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+func BenchmarkNotOnePassShortA(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcddddddeeeededd")
+	re := MustCompile(".bc(d|e)*$")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+func BenchmarkOnePassShortB(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcddddddeeeededd")
+	re := MustCompile("^.bc(?:d|e)*$")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+func BenchmarkNotOnePassShortB(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcddddddeeeededd")
+	re := MustCompile(".bc(?:d|e)*$")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+func BenchmarkOnePassLongPrefix(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcdefghijklmnopqrstuvwxyz")
+	re := MustCompile("^abcdefghijklmnopqrstuvwxyz.*$")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
+func BenchmarkOnePassLongNotPrefix(b *testing.B) {
+	b.StopTimer()
+	x := []byte("abcdefghijklmnopqrstuvwxyz")
+	re := MustCompile("^.bcdefghijklmnopqrstuvwxyz.*$")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.Match(x)
+	}
+}
