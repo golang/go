@@ -862,7 +862,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->to.type = D_BRANCH;
 		p->to.sym = ctxt->symmorestack[2*2+noctxt];
 	} else {
-		p->as = mov;
+		// Pass framesize and argsize.
+		p->as = AMOVQ;
 		p->from.type = D_CONST;
 		p->from.offset = (uint64)moreconst2 << 32;
 		p->from.offset |= moreconst1;
