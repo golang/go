@@ -900,6 +900,7 @@ void	runtime·mcall(void(*)(G*));
 uint32	runtime·fastrand1(void);
 void	runtime·rewindmorestack(Gobuf*);
 int32	runtime·timediv(int64, int32, int32*);
+int32	runtime·round2(int32 x); // round x up to a power of 2.
 
 // atomic operations
 bool	runtime·cas(uint32*, uint32, uint32);

@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "stack.h"
 #include "arch_GOARCH.h"
 #include "../../cmd/ld/textflag.h"
 
@@ -256,6 +257,9 @@ runtime·check(void)
 		runtime·throw("float32nan3");
 
 	TestAtomic64();
+
+	if(FixedStack != runtime·round2(FixedStack))
+		runtime·throw("FixedStack is not power-of-2");
 }
 
 uint32
