@@ -840,3 +840,54 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
 			runtime·throw("can't explicitly free an object with a finalizer");
 	}
 }
+
+// Split an allocated span into two equal parts.
+void
+runtime·MHeap_SplitSpan(MHeap *h, MSpan *s)
+{
+	MSpan *t;
+	uintptr i;
+	uintptr npages;
+	PageID p;
+
+	if((s->npages & 1) != 0)
+		runtime·throw("MHeap_SplitSpan on an odd size span");
+	if(s->state != MSpanInUse)
+		runtime·throw("MHeap_SplitSpan on a free span");
+	if(s->sizeclass != 0 && s->ref != 1)
+		runtime·throw("MHeap_SplitSpan doesn't have an allocated object");
+	npages = s->npages;
+
+	runtime·lock(h);
+
+	// compute position in h->spans
+	p = s->start;
+	p -= (uintptr)h->arena_start >> PageShift;
+
+	// Allocate a new span for the first half.
+	t = runtime·FixAlloc_Alloc(&h->spanalloc);
+	runtime·MSpan_Init(t, s->start, npages/2);
+	t->limit = (byte*)((t->start + npages/2) << PageShift);
+	t->state = MSpanInUse;
+	t->elemsize = npages << (PageShift - 1);
+	t->sweepgen = s->sweepgen;
+	if(t->elemsize <= MaxSmallSize) {
+		t->sizeclass = runtime·SizeToClass(t->elemsize);
+		t->ref = 1;
+	}
+
+	// the old span holds the second half.
+	s->start += npages/2;
+	s->npages = npages/2;
+	s->elemsize = npages << (PageShift - 1);
+	if(s->elemsize <= MaxSmallSize) {
+		s->sizeclass = runtime·SizeToClass(s->elemsize);
+		s->ref = 1;
+	}
+
+	// update span lookup table
+	for(i = p; i < p + npages/2; i++)
+		h->spans[i] = t;
+
+	runtime·unlock(h);
+}
