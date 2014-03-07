@@ -87,7 +87,7 @@ func TestPoolGC(t *testing.T) {
 	}
 	for i := 0; i < 5; i++ {
 		runtime.GC()
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Duration(i*100+10) * time.Millisecond)
 		// 1 pointer can remain on stack or elsewhere
 		if atomic.LoadUint32(&fin) >= N-1 {
 			return
