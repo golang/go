@@ -25,41 +25,105 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+// TODO: Need a flag to set build tags when parsing the package.
+
 var verbose = flag.Bool("v", false, "verbose")
 var strictShadowing = flag.Bool("shadowstrict", false, "whether to be strict about shadowing; can be noisy")
 var testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
 var exitCode = 0
 
-// Flags to control which checks to perform. "all" is set to true here, and disabled later if
-// a flag is set explicitly.
-var report = map[string]*bool{
-	"all":         flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
-	"asmdecl":     flag.Bool("asmdecl", false, "check assembly against Go declarations"),
-	"assign":      flag.Bool("assign", false, "check for useless assignments"),
-	"atomic":      flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
-	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
-	"composites":  flag.Bool("composites", false, "check that composite literals used field-keyed elements"),
-	"copylocks":   flag.Bool("copylocks", false, "check that locks are not passed by value"),
-	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
-	"nilfunc":     flag.Bool("nilfunc", false, "check for comparisons between functions and nil"),
-	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
-	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
-	"shadow":      flag.Bool("shadow", false, "check for shadowed variables (experimental; must be set explicitly)"),
-	"structtags":  flag.Bool("structtags", false, "check that struct field tags have canonical format"),
-	"unreachable": flag.Bool("unreachable", false, "check for unreachable code"),
+// "all" is here only for the appearance of backwards compatibility.
+// It has no effect; the triState flags do the work.
+var all = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
+
+// Flags to control which individual checks to perform.
+var report = map[string]*triState{
+	"asmdecl":     triStateFlag("asmdecl", unset, "check assembly against Go declarations"),
+	"assign":      triStateFlag("assign", unset, "check for useless assignments"),
+	"atomic":      triStateFlag("atomic", unset, "check for common mistaken usages of the sync/atomic package"),
+	"buildtags":   triStateFlag("buildtags", unset, "check that +build tags are valid"),
+	"composites":  triStateFlag("composites", unset, "check that composite literals used field-keyed elements"),
+	"copylocks":   triStateFlag("copylocks", unset, "check that locks are not passed by value"),
+	"methods":     triStateFlag("methods", unset, "check that canonically named methods are canonically defined"),
+	"nilfunc":     triStateFlag("nilfunc", unset, "check for comparisons between functions and nil"),
+	"printf":      triStateFlag("printf", unset, "check printf-like invocations"),
+	"rangeloops":  triStateFlag("rangeloops", unset, "check that range loop variables are used correctly"),
+	"shadow":      triStateFlag("shadow", unset, "check for shadowed variables (experimental; must be set explicitly)"),
+	"structtags":  triStateFlag("structtags", unset, "check that struct field tags have canonical format"),
+	"unreachable": triStateFlag("unreachable", unset, "check for unreachable code"),
 }
 
-// TODO: Need a flag to set build tags when parsing the package.
+// experimental records the flags enabling experimental features. These must be
+// requested explicitly; they are not enabled by -all.
+var experimental = map[string]bool{
+	"shadow": true,
+}
+
+// setTrueCount record how many flags are explicitly set to true.
+var setTrueCount int
+
+// A triState is a boolean that knows whether it has been set to either true or false.
+// It is used to identify if a flag appears; the standard boolean flag cannot
+// distinguish missing from unset. It also satisfies flag.Value.
+type triState int
+
+const (
+	unset triState = iota
+	setTrue
+	setFalse
+)
+
+func triStateFlag(name string, value triState, usage string) *triState {
+	flag.Var(&value, name, usage)
+	return &value
+}
+
+// triState implements flag.Value, flag.Getter, and flag.boolFlag.
+// They work like boolean flags: we can say vet -printf as well as vet -printf=true
+func (ts *triState) Get() interface{} {
+	return *ts == setTrue
+}
+
+func (ts triState) isTrue() bool {
+	return ts == setTrue
+}
+
+func (ts *triState) Set(value string) error {
+	b, err := strconv.ParseBool(value)
+	if err != nil {
+		return err
+	}
+	if b {
+		*ts = setTrue
+		setTrueCount++
+	} else {
+		*ts = setFalse
+	}
+	return nil
+}
+
+func (ts *triState) String() string {
+	switch *ts {
+	case unset:
+		return "unset"
+	case setTrue:
+		return "true"
+	case setFalse:
+		return "false"
+	}
+	panic("not reached")
+}
+
+func (ts triState) IsBoolFlag() bool {
+	return true
+}
 
 // vet tells whether to report errors for the named check, a flag name.
 func vet(name string) bool {
 	if *testFlag {
 		return true
 	}
-	if name == "shadow" {
-		return *report["shadow"]
-	}
-	return *report["all"] || *report[name]
+	return report[name].isTrue()
 }
 
 // setExit sets the value for os.Exit when it is called, later.  It
@@ -101,11 +165,13 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
-	// If a check is named explicitly, turn off the 'all' flag.
-	for name, ptr := range report {
-		if name != "all" && *ptr {
-			*report["all"] = false
-			break
+	// If any flag is set, we run only those checks requested.
+	// If no flags are set true, set all the non-experimental ones not explicitly set (in effect, set the "-all" flag).
+	if setTrueCount == 0 {
+		for name, setting := range report {
+			if *setting == unset && !experimental[name] {
+				*setting = setTrue
+			}
 		}
 	}
 
