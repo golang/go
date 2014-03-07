@@ -2525,8 +2525,29 @@ runfinq(void)
 	uint32 framesz, framecap, i;
 	Eface *ef, ef1;
 
+	// This function blocks for long periods of time, and because it is written in C
+	// we have no liveness information. Zero everything so that uninitialized pointers
+	// do not cause memory leaks.
+	f = nil;
+	fb = nil;
+	next = nil;
 	frame = nil;
 	framecap = 0;
+	framesz = 0;
+	i = 0;
+	ef = nil;
+	ef1.type = nil;
+	ef1.data = nil;
+	
+	// force flush to memory
+	USED(&f);
+	USED(&fb);
+	USED(&next);
+	USED(&framesz);
+	USED(&i);
+	USED(&ef);
+	USED(&ef1);
+
 	for(;;) {
 		runtime·lock(&gclock);
 		fb = finq;
@@ -2581,6 +2602,16 @@ runfinq(void)
 			finc = fb;
 			runtime·unlock(&gclock);
 		}
+
+		// Zero everything that's dead, to avoid memory leaks.
+		// See comment at top of function.
+		f = nil;
+		fb = nil;
+		next = nil;
+		i = 0;
+		ef = nil;
+		ef1.type = nil;
+		ef1.data = nil;
 		runtime·gc(1);	// trigger another gc to clean up the finalized objects, if possible
 	}
 }
