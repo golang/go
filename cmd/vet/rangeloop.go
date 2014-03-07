@@ -58,7 +58,7 @@ func checkRangeLoop(f *File, n *ast.RangeStmt) {
 			return true
 		}
 		if key != nil && id.Obj == key.Obj || val != nil && id.Obj == val.Obj {
-			f.Warn(id.Pos(), "range variable", id.Name, "enclosed by function")
+			f.Bad(id.Pos(), "range variable", id.Name, "enclosed by function")
 		}
 		return true
 	})

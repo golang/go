@@ -38,7 +38,7 @@ func (f *File) checkAssignStmt(stmt *ast.AssignStmt) {
 		le := f.gofmt(lhs)
 		re := f.gofmt(rhs)
 		if le == re {
-			f.Warnf(stmt.Pos(), "self-assignment of %s to %s", re, le)
+			f.Badf(stmt.Pos(), "self-assignment of %s to %s", re, le)
 		}
 	}
 }

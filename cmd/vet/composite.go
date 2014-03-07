@@ -94,7 +94,7 @@ func (f *File) checkUnkeyedLiteral(c *ast.CompositeLit) {
 		return
 	}
 
-	f.Warn(c.Pos(), typeString+" composite literal uses unkeyed fields")
+	f.Bad(c.Pos(), typeString+" composite literal uses unkeyed fields")
 }
 
 // pkgPath returns the import path "image/png" for the package name "png".

@@ -119,8 +119,8 @@ func asmCheck(pkg *Package) {
 		for lineno, line := range lines {
 			lineno++
 
-			warnf := func(format string, args ...interface{}) {
-				f.Warnf(token.NoPos, "%s:%d: [%s] %s", f.name, lineno, arch, fmt.Sprintf(format, args...))
+			badf := func(format string, args ...interface{}) {
+				f.Badf(token.NoPos, "%s:%d: [%s] %s", f.name, lineno, arch, fmt.Sprintf(format, args...))
 			}
 
 			if arch == "" {
@@ -147,7 +147,7 @@ func asmCheck(pkg *Package) {
 				if fn != nil {
 					size, _ := strconv.Atoi(m[4])
 					if size != fn.size && (m[2] != "7" && !strings.Contains(m[2], "NOSPLIT") || size != 0) {
-						warnf("wrong argument size %d; expected $...-%d", size, fn.size)
+						badf("wrong argument size %d; expected $...-%d", size, fn.size)
 					}
 				}
 				continue
@@ -165,7 +165,7 @@ func asmCheck(pkg *Package) {
 			}
 
 			for _, m := range asmUnnamedFP.FindAllStringSubmatch(line, -1) {
-				warnf("use of unnamed argument %s", m[1])
+				badf("use of unnamed argument %s", m[1])
 			}
 
 			for _, m := range asmNamedFP.FindAllStringSubmatch(line, -1) {
@@ -182,13 +182,13 @@ func asmCheck(pkg *Package) {
 					}
 					v = fn.varByOffset[off]
 					if v != nil {
-						warnf("unknown variable %s; offset %d is %s+%d(FP)", name, off, v.name, v.off)
+						badf("unknown variable %s; offset %d is %s+%d(FP)", name, off, v.name, v.off)
 					} else {
-						warnf("unknown variable %s", name)
+						badf("unknown variable %s", name)
 					}
 					continue
 				}
-				asmCheckVar(warnf, fn, line, m[0], off, v)
+				asmCheckVar(badf, fn, line, m[0], off, v)
 			}
 		}
 	}
@@ -417,10 +417,10 @@ func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
 }
 
 // asmCheckVar checks a single variable reference.
-func asmCheckVar(warnf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar) {
+func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar) {
 	m := asmOpcode.FindStringSubmatch(line)
 	if m == nil {
-		warnf("cannot find assembly opcode")
+		badf("cannot find assembly opcode")
 	}
 
 	// Determine operand sizes from instruction.
@@ -510,7 +510,7 @@ func asmCheckVar(warnf func(string, ...interface{}), fn *asmFunc, line, expr str
 			}
 			fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
 		}
-		warnf("invalid offset %s; expected %s+%d(FP)%s", expr, v.name, v.off, inner.String())
+		badf("invalid offset %s; expected %s+%d(FP)%s", expr, v.name, v.off, inner.String())
 		return
 	}
 	if kind != 0 && kind != vk {
@@ -528,6 +528,6 @@ func asmCheckVar(warnf func(string, ...interface{}), fn *asmFunc, line, expr str
 				fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
 			}
 		}
-		warnf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vk, inner.String())
+		badf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vk, inner.String())
 	}
 }

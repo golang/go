@@ -82,7 +82,7 @@ type formatState struct {
 // call.Args[formatIndex] is (well, should be) the format argument.
 func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 	if formatIndex >= len(call.Args) {
-		f.Warn(call.Pos(), "too few arguments in call to", name)
+		f.Bad(call.Pos(), "too few arguments in call to", name)
 		return
 	}
 	lit := f.pkg.types[call.Args[formatIndex]].Value

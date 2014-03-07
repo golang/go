@@ -26,7 +26,7 @@ func (f *File) checkCopyLocks(d *ast.FuncDecl) {
 	if d.Recv != nil && len(d.Recv.List) > 0 {
 		expr := d.Recv.List[0].Type
 		if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-			f.Warnf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
+			f.Badf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
 		}
 	}
 
@@ -34,7 +34,7 @@ func (f *File) checkCopyLocks(d *ast.FuncDecl) {
 		for _, field := range d.Type.Params.List {
 			expr := field.Type
 			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Warnf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
+				f.Badf(expr.Pos(), "%s passes Lock by value: %v", d.Name.Name, path)
 			}
 		}
 	}
@@ -43,7 +43,7 @@ func (f *File) checkCopyLocks(d *ast.FuncDecl) {
 		for _, field := range d.Type.Results.List {
 			expr := field.Type
 			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Warnf(expr.Pos(), "%s returns Lock by value: %v", d.Name.Name, path)
+				f.Badf(expr.Pos(), "%s returns Lock by value: %v", d.Name.Name, path)
 			}
 		}
 	}
