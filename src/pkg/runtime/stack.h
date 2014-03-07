@@ -57,13 +57,15 @@ enum {
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows and on
 	// Plan 9 because they do not use a separate stack.
+	// The new stack code requires stacks to be a power of two,
+	// and the default start size is 4k, so make StackSystem also 4k
+	// to keep the sum a power of two. StackSystem used to be
+	// 512*sizeof(uintptr) on Windows and 512 bytes on Plan 9.
 #ifdef GOOS_windows
-	StackSystem = 512 * sizeof(uintptr),
+	StackSystem = 4096,
 #else
 #ifdef GOOS_plan9
-	// The size of the note handler frame varies among architectures,
-	// but 512 bytes should be enough for every implementation.
-	StackSystem = 512,
+	StackSystem = 4096,
 #else
 	StackSystem = 0,
 #endif	// Plan 9
