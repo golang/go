@@ -205,7 +205,6 @@ func TestMalformedOutput(t *testing.T) {
 }
 
 func TestServerErrorHasNullResult(t *testing.T) {
-	t.Skip("Known failing test; Issue 7442")
 	var out bytes.Buffer
 	sc := NewServerCodec(struct {
 		io.Reader
