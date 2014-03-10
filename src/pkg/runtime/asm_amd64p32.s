@@ -617,7 +617,7 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Not implemented.
-TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
+TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 
