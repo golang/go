@@ -35,6 +35,12 @@ const (
 )
 
 func TestFutexsleep(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		// futexsleep doesn't handle EINTR or other signals,
+		// so spurious wakeups may happen.
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+
 	start := time.Now()
 	for _, tt := range futexsleepTests {
 		go func(tt futexsleepTest) {
