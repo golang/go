@@ -73,7 +73,6 @@ enum {
 	bitShift = sizeof(void*)*8/4,
 
 	WorkbufSize	= 16*1024,
-	RootBlockSize	= 4*1024,
 	FinBlockSize	= 4*1024,
 
 	handoffThreshold = 4,
@@ -256,7 +255,6 @@ static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
 static Workbuf* handoff(Workbuf*);
 static void	gchelperstart(void);
-static void	addfinroots(void *wbufp, void *v);
 static void	flushallmcaches(void);
 static bool	scanframe(Stkframe *frame, void *wbufp);
 static void	addstackroots(G *gp, Workbuf **wbufp);
