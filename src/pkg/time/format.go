@@ -1240,5 +1240,8 @@ func ParseDuration(s string) (Duration, error) {
 	if neg {
 		f = -f
 	}
+	if f < float64(-1<<63) || f > float64(1<<63-1) {
+		return 0, errors.New("time: overflow parsing duration")
+	}
 	return Duration(f), nil
 }
