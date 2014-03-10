@@ -53,6 +53,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
 	runtime·munmap(v, n);
 }
 
+void
+runtime·SysFault(void *v, uintptr n)
+{
+	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
+}
+
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
