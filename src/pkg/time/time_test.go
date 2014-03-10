@@ -842,6 +842,7 @@ var parseDurationTests = []struct {
 	{"-.", false, 0},
 	{".s", false, 0},
 	{"+.s", false, 0},
+	{"3000000h", false, 0}, // overflow
 }
 
 func TestParseDuration(t *testing.T) {
