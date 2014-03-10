@@ -5,6 +5,7 @@
 package types_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -441,6 +442,30 @@ func TestInitOrderInfo(t *testing.T) {
 				t.Errorf("package %s, init %d: got %s; want %s", name, i, got, want)
 				continue
 			}
+		}
+	}
+}
+
+func TestFiles(t *testing.T) {
+	var sources = []string{
+		"package p; type T struct{}; func (T) m1() {}",
+		"package p; func (T) m2() {}; var _ interface{ m1(); m2() } = T{}",
+		"package p; func (T) m3() {}; var _ interface{ m1(); m2(); m3() } = T{}",
+	}
+
+	var conf Config
+	fset := token.NewFileSet()
+	pkg := NewPackage("p", "p")
+	check := NewChecker(&conf, fset, pkg, nil)
+
+	for i, src := range sources {
+		filename := fmt.Sprintf("sources%d", i)
+		f, err := parser.ParseFile(fset, filename, src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := check.Files([]*ast.File{f}); err != nil {
+			t.Error(err)
 		}
 	}
 }

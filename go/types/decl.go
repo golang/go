@@ -163,7 +163,7 @@ func (check *checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 }
 
 // underlying returns the underlying type of typ; possibly by following
-// forward chains of named types. Such chains only exist while names types
+// forward chains of named types. Such chains only exist while named types
 // are incomplete.
 func underlying(typ Type) Type {
 	for {
@@ -210,22 +210,29 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 	// any forward chain (they always end in an unnamed type).
 	named.underlying = underlying(named.underlying)
 
-	// type-check signatures of associated methods
+	// check and add associated methods
+	// TODO(gri) It's easy to create pathological cases where the
+	// current approach is incorrect: In general we need to know
+	// and add all methods _before_ type-checking the type.
+	// See http://play.golang.org/p/WMpE0q2wK8
+	check.addMethodDecls(obj)
+}
+
+func (check *checker) addMethodDecls(obj *TypeName) {
+	// get associated methods
 	methods := check.methods[obj.name]
 	if len(methods) == 0 {
 		return // no methods
 	}
+	delete(check.methods, obj.name)
 
-	// spec: "For a base type, the non-blank names of methods bound
-	// to it must be unique."
-	// => use an objset to determine redeclarations
+	// use an objset to check for name conflicts
 	var mset objset
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	// => pre-populate the objset to find conflicts
-	// TODO(gri) consider keeping the objset with the struct instead
-	if t, _ := named.underlying.(*Struct); t != nil {
+	base := obj.typ.(*Named)
+	if t, _ := base.underlying.(*Struct); t != nil {
 		for _, fld := range t.fields {
 			if fld.name != "_" {
 				assert(mset.insert(fld) == nil)
@@ -233,15 +240,25 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 		}
 	}
 
-	// check each method
+	// Checker.Files may be called multiple times; additional package files
+	// may add methods to already type-checked types. Add pre-existing methods
+	// so that we can detect redeclarations.
+	for _, m := range base.methods {
+		assert(m.name != "_")
+		assert(mset.insert(m) == nil)
+	}
+
+	// type-check methods
 	for _, m := range methods {
+		// spec: "For a base type, the non-blank names of methods bound
+		// to it must be unique."
 		if m.name != "_" {
 			if alt := mset.insert(m); alt != nil {
 				switch alt.(type) {
 				case *Var:
 					check.errorf(m.pos, "field and method with the same name %s", m.name)
 				case *Func:
-					check.errorf(m.pos, "method %s already declared for %s", m.name, named)
+					check.errorf(m.pos, "method %s already declared for %s", m.name, base)
 				default:
 					unreachable()
 				}
@@ -249,16 +266,12 @@ func (check *checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
 				continue
 			}
 		}
-		check.recordDef(check.objMap[m].fdecl.Name, m)
 		check.objDecl(m, nil, nil)
-		// Methods with blank _ names cannot be found.
-		// Don't add them to the method list.
+		// methods with blank _ names cannot be found - don't keep them
 		if m.name != "_" {
-			named.methods = append(named.methods, m)
+			base.methods = append(base.methods, m)
 		}
 	}
-
-	delete(check.methods, obj.name) // we don't need them anymore
 }
 
 func (check *checker) funcDecl(obj *Func, decl *declInfo) {

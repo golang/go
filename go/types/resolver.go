@@ -305,6 +305,8 @@ func (check *checker) collectObjects() {
 						check.declare(pkg.scope, d.Name, obj)
 					}
 				} else {
+					// method
+					check.recordDef(d.Name, obj)
 					// Associate method with receiver base type name, if possible.
 					// Ignore methods that have an invalid receiver, or a blank _
 					// receiver name. They will be type-checked later, with regular
@@ -339,17 +341,24 @@ func (check *checker) collectObjects() {
 }
 
 // packageObjects typechecks all package objects in check.objMap, but not function bodies.
-func (check *checker) packageObjects() {
+func (check *checker) packageObjects(objList []Object) {
+	// add new methods to already type-checked types (from a prior Checker.Files call)
+	for _, obj := range objList {
+		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
+			check.addMethodDecls(obj)
+		}
+	}
+
 	// pre-allocate space for type declaration paths so that the underlying array is reused
 	typePath := make([]*TypeName, 0, 8)
 
-	for _, obj := range objectsOf(check.objMap) {
+	for _, obj := range objList {
 		check.objDecl(obj, nil, typePath)
 	}
 
 	// At this point we may have a non-empty check.methods map; this means that not all
 	// entries were deleted at the end of typeDecl because the respective receiver base
-	// types were not declared. In that case, an error was reported when declaring those
+	// types were not found. In that case, an error was reported when declaring those
 	// methods. We can now safely discard this map.
 	check.methods = nil
 }
@@ -362,11 +371,11 @@ func (check *checker) functionBodies() {
 }
 
 // initDependencies computes initialization dependencies.
-func (check *checker) initDependencies() {
+func (check *checker) initDependencies(objList []Object) {
 	// pre-allocate space for initialization paths so that the underlying array is reused
 	initPath := make([]Object, 0, 8)
 
-	for _, obj := range objectsOf(check.objMap) {
+	for _, obj := range objList {
 		switch obj.(type) {
 		case *Const, *Var:
 			if d := check.objMap[obj]; d.hasInitializer() {

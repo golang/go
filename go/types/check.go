@@ -151,6 +151,17 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *ch
 // initFiles initializes the files-specific portion of checker.
 // The provided files must all belong to the same package.
 func (check *checker) initFiles(files []*ast.File) {
+	// start with a clean slate (check.Files may be called multiple times)
+	check.files = nil
+	check.fileScopes = nil
+	check.dotImports = nil
+
+	check.firstErr = nil
+	check.methods = nil
+	check.untyped = nil
+	check.funcs = nil
+	check.delayed = nil
+
 	// determine package name, files, and set up file scopes, dotImports maps
 	pkg := check.pkg
 	for _, file := range files {
@@ -171,13 +182,6 @@ func (check *checker) initFiles(files []*ast.File) {
 			// ignore this file
 		}
 	}
-
-	// start with a clean slate (check.Files may be called multiple times)
-	check.firstErr = nil
-	check.methods = nil
-	check.untyped = nil
-	check.funcs = nil
-	check.delayed = nil
 }
 
 // A bailout panic is raised to indicate early termination.
@@ -202,11 +206,12 @@ func (check *checker) Files(files []*ast.File) (err error) {
 
 	check.collectObjects()
 
-	check.packageObjects()
+	objList := objectsOf(check.objMap)
+	check.packageObjects(objList)
 
 	check.functionBodies()
 
-	check.initDependencies()
+	check.initDependencies(objList)
 
 	check.unusedImports()
 
