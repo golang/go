@@ -187,7 +187,7 @@ runtime·oldstack(void)
 
 	if(StackDebug >= 1) {
 		runtime·printf("runtime: oldstack gobuf={pc:%p sp:%p lr:%p} cret=%p argsize=%p\n",
-			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, m->cret, (uintptr)argsize);
+			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)m->cret, (uintptr)argsize);
 	}
 
 	// gp->status is usually Grunning, but it could be Gsyscall if a stack split

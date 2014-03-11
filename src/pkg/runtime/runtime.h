@@ -21,19 +21,17 @@ typedef	uint64		uintptr;
 typedef	int64		intptr;
 typedef	int64		intgo; // Go's int
 typedef	uint64		uintgo; // Go's uint
-typedef	uint64		uintreg;
 #else
 typedef	uint32		uintptr;
 typedef	int32		intptr;
 typedef	int32		intgo; // Go's int
 typedef	uint32		uintgo; // Go's uint
-typedef	uint32		uintreg;
 #endif
 
 #ifdef _64BITREG
-//typedef	uint64		uintreg;
+typedef	uint64		uintreg;
 #else
-//typedef	uint32		uintreg;
+typedef	uint32		uintreg;
 #endif
 
 /*
