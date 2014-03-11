@@ -21,6 +21,9 @@ static Timers timers;
 static void addtimer(Timer*);
 static void dumptimers(int8*);
 
+// nacl fake time support. 
+int64 runtime·timens;
+
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
 
