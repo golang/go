@@ -2614,26 +2614,12 @@ runfinq(void)
 void
 runtime·marknogc(void *v)
 {
-	uintptr *b, obits, bits, off, shift;
+	uintptr *b, off, shift;
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
-
-	for(;;) {
-		obits = *b;
-		if((obits>>shift & bitMask) != bitAllocated)
-			runtime·throw("bad initial state for marknogc");
-		bits = (obits & ~(bitAllocated<<shift)) | bitBlockBoundary<<shift;
-		if(runtime·gomaxprocs == 1) {
-			*b = bits;
-			break;
-		} else {
-			// more than one goroutine is potentially running: use atomic op
-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
-				break;
-		}
-	}
+	*b = (*b & ~(bitAllocated<<shift)) | bitBlockBoundary<<shift;
 }
 
 void
