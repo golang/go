@@ -886,11 +886,9 @@ func TestClientTimeout(t *testing.T) {
 		t.Fatal("handler never got /slow request")
 	}
 
-	var all []byte
 	errc := make(chan error, 1)
 	go func() {
-		var err error
-		all, err = ioutil.ReadAll(res.Body)
+		_, err := ioutil.ReadAll(res.Body)
 		errc <- err
 		res.Body.Close()
 	}()
