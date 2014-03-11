@@ -26,7 +26,7 @@ import (
 // "PackageLocator" interface for use proprietary build sytems that
 // are incompatible with "go test", and also for testing.
 //
-var parsePackageFiles = func(ctxt *build.Context, fset *token.FileSet, path string, which string) ([]*ast.File, error) {
+var parsePackageFiles = func(ctxt *build.Context, fset *token.FileSet, path string, which rune) ([]*ast.File, error) {
 	// Set the "!cgo" go/build tag, preferring (dummy) Go to
 	// native C implementations of net.cgoLookupHost et al.
 	ctxt2 := *ctxt
@@ -42,19 +42,15 @@ var parsePackageFiles = func(ctxt *build.Context, fset *token.FileSet, path stri
 	}
 
 	var filenames []string
-	for _, c := range which {
-		var s []string
-		switch c {
-		case 'g':
-			s = bp.GoFiles
-		case 't':
-			s = bp.TestGoFiles
-		case 'x':
-			s = bp.XTestGoFiles
-		default:
-			panic(c)
-		}
-		filenames = append(filenames, s...)
+	switch which {
+	case 'g':
+		filenames = bp.GoFiles
+	case 't':
+		filenames = bp.TestGoFiles
+	case 'x':
+		filenames = bp.XTestGoFiles
+	default:
+		panic(which)
 	}
 	return parseFiles(fset, bp.Dir, filenames...)
 }

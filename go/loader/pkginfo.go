@@ -15,7 +15,7 @@ import (
 // PackageInfo holds the ASTs and facts derived by the type-checker
 // for a single package.
 //
-// Not mutated once constructed.
+// Not mutated once exposed via the API.
 //
 type PackageInfo struct {
 	Pkg                   *types.Package
@@ -24,6 +24,10 @@ type PackageInfo struct {
 	Files                 []*ast.File // abstract syntax for the package's files
 	TypeError             error       // non-nil if the package had type errors
 	types.Info                        // type-checker deductions.
+
+	checker interface {
+		Files(files []*ast.File) error
+	} // transient type-checker state
 }
 
 func (info *PackageInfo) String() string {

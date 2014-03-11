@@ -10,7 +10,6 @@ import (
 	"go/build"
 	"go/token"
 	"sort"
-	"strings"
 	"testing"
 
 	"code.google.com/p/go.tools/go/loader"
@@ -56,8 +55,8 @@ func TestLoadFromArgs(t *testing.T) {
 	for _, info := range prog.Created {
 		pkgnames = append(pkgnames, info.Pkg.Path())
 	}
-	// Only the first import path (currently) contributes tests.
-	if got, want := fmt.Sprint(pkgnames), "[fmt_test]"; got != want {
+	// All import paths may contribute tests.
+	if got, want := fmt.Sprint(pkgnames), "[fmt_test errors_test]"; got != want {
 		t.Errorf("Created: got %s, want %s", got, want)
 	}
 
@@ -67,7 +66,7 @@ func TestLoadFromArgs(t *testing.T) {
 		pkgnames = append(pkgnames, path)
 	}
 	sort.Strings(pkgnames)
-	// Only the first import path (currently) contributes tests.
+	// All import paths may contribute tests.
 	if got, want := fmt.Sprint(pkgnames), "[errors fmt]"; got != want {
 		t.Errorf("Loaded: got %s, want %s", got, want)
 	}
@@ -124,8 +123,8 @@ func TestTransitivelyErrorFreeFlag(t *testing.T) {
 	// Temporary hack until we expose a principled PackageLocator.
 	pfn := loader.PackageLocatorFunc()
 	saved := *pfn
-	*pfn = func(_ *build.Context, fset *token.FileSet, path string, which string) (files []*ast.File, err error) {
-		if !strings.Contains(which, "g") {
+	*pfn = func(_ *build.Context, fset *token.FileSet, path string, which rune) (files []*ast.File, err error) {
+		if which != 'g' {
 			return nil, nil // no test/xtest files
 		}
 		var contents string

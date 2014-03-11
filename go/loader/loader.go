@@ -68,6 +68,16 @@
 // An AUGMENTED package is an importable package P plus all the
 // *_test.go files with same 'package foo' declaration as P.
 // (go/build.Package calls these files TestFiles.)
+//
+// The INITIAL packages are those specified in the configuration.  A
+// DEPENDENCY is a package loaded to satisfy an import in an initial
+// package or another dependency.
+//
+package loader
+
+// 'go test', in-package test files, and import cycles
+// ---------------------------------------------------
+//
 // An external test package may depend upon members of the augmented
 // package that are not in the unaugmented package, such as functions
 // that expose internals.  (See bufio/export_test.go for an example.)
@@ -77,24 +87,39 @@
 // The import graph over n unaugmented packages must be acyclic; the
 // import graph over n-1 unaugmented packages plus one augmented
 // package must also be acyclic.  ('go test' relies on this.)  But the
-// import graph over n augmented packages may contain cycles, and
-// currently, go/types is incapable of handling such inputs, so the
-// loader will only augment (and create an external test package
-// for) the first import path specified on the command-line.
+// import graph over n augmented packages may contain cycles.
 //
-// The INITIAL packages are those specified in the configuration.  A
-// DEPENDENCY is a package loaded to satisfy an import in an initial
-// package or another dependency.
+// First, all the (unaugmented) non-test packages and their
+// dependencies are imported in the usual way; the loader reports an
+// error if it detects an import cycle.
 //
-package loader
+// Then, each package P for which testing is desired is augmented by
+// the list P' of its in-package test files, by calling
+// (*types.Checker).Files.  This arrangement ensures that P' may
+// reference definitions within P, but P may not reference definitions
+// within P'.  Furthermore, P' may import any other package, including
+// ones that depend upon P, without an import cycle error.
+//
+// Consider two packages A and B, both of which have lists of
+// in-package test files we'll call A' and B', and which have the
+// following import graph edges:
+//    B  imports A
+//    B' imports A
+//    A' imports B
+// This last edge would be expected to create an error were it not
+// for the special type-checking discipline above.
+// Cycles of size greater than two are possible.  For example:
+//   compress/bzip2/bzip2_test.go (package bzip2)  imports "io/ioutil"
+//   io/ioutil/tempfile_test.go   (package ioutil) imports "regexp"
+//   regexp/exec_test.go          (package regexp) imports "compress/bzip2"
 
 // TODO(adonovan):
 // - (*Config).ParseFile is very handy, but feels like feature creep.
 //   (*Config).CreateFromFiles has a nasty precondition.
-// - Ideally some of this logic would move under the umbrella of
-//   go/types; see bug 7114.
 // - s/path/importPath/g to avoid ambiguity with other meanings of
 //   "path": a file name, a colon-separated directory list.
+// - cache the calls to build.Import so we don't do it three times per
+//   test package.
 // - Thorough overhaul of package documentation.
 
 import (
@@ -180,10 +205,7 @@ type Config struct {
 	// source.  The map keys are package import paths, used to
 	// locate the package relative to $GOROOT.  The corresponding
 	// values indicate whether to augment the package by *_test.go
-	// files.
-	//
-	// Due to current type-checker limitations, at most one entry
-	// may be augmented (true).
+	// files in a second pass.
 	ImportPkgs map[string]bool
 }
 
@@ -350,16 +372,8 @@ func (conf *Config) ImportWithTests(path string) error {
 	}
 	conf.Import(path)
 
-	// TODO(adonovan): due to limitations of the current type
-	// checker design, we can augment at most one package.
-	for _, augmented := range conf.ImportPkgs {
-		if augmented {
-			return nil // don't attempt a second
-		}
-	}
-
 	// Load the external test package.
-	xtestFiles, err := parsePackageFiles(conf.build(), conf.fset(), path, "x")
+	xtestFiles, err := parsePackageFiles(conf.build(), conf.fset(), path, 'x')
 	if err != nil {
 		return err
 	}
@@ -476,12 +490,29 @@ func (conf *Config) Load() (*Program, error) {
 		prog.Imported[path] = info
 	}
 
+	// Now augment those packages that need it.
+	for path, augment := range conf.ImportPkgs {
+		if augment {
+			ii := imp.imported[path]
+
+			// Find and create the actual package.
+			files, err := parsePackageFiles(imp.conf.build(), imp.conf.fset(), path, 't')
+			// Prefer the earlier error, if any.
+			if err != nil && ii.err == nil {
+				ii.err = err // e.g. parse error.
+			}
+			typeCheckFiles(ii.info, files...)
+		}
+	}
+
 	for _, create := range conf.CreatePkgs {
 		path := create.Path
 		if create.Path == "" && len(create.Files) > 0 {
 			path = create.Files[0].Name.Name
 		}
-		prog.Created = append(prog.Created, imp.createPackage(path, create.Files...))
+		info := imp.newPackageInfo(path)
+		typeCheckFiles(info, create.Files...)
+		prog.Created = append(prog.Created, info)
 	}
 
 	if len(prog.Imported)+len(prog.Created) == 0 {
@@ -491,8 +522,11 @@ func (conf *Config) Load() (*Program, error) {
 	// Create infos for indirectly imported packages.
 	// e.g. incomplete packages without syntax, loaded from export data.
 	for _, obj := range prog.ImportMap {
-		if prog.AllPackages[obj] == nil {
+		info := prog.AllPackages[obj]
+		if info == nil {
 			prog.AllPackages[obj] = &PackageInfo{Pkg: obj, Importable: true}
+		} else {
+			info.checker = nil // finished
 		}
 	}
 
@@ -567,10 +601,7 @@ func (conf *Config) build() *build.Context {
 // doImport imports the package denoted by path.
 // It implements the types.Importer signature.
 //
-// imports is the import map of the importing package, later
-// accessible as types.Package.Imports().  If non-nil, doImport will
-// update it to include this import.  (It may be nil in recursive
-// calls for prefetching.)
+// imports is the type-checker's package canonicalization map.
 //
 // It returns an error if a package could not be created
 // (e.g. go/build or parse error), but type errors are reported via
@@ -607,19 +638,12 @@ func (imp *importer) importPackage(path string) (*PackageInfo, error) {
 		// In preorder, initialize the map entry to a cycle
 		// error in case importPackage(path) is called again
 		// before the import is completed.
-		// TODO(adonovan): go/types should be responsible for
-		// reporting cycles; see bug 7114.
 		ii = &importInfo{err: fmt.Errorf("import cycle in package %s", path)}
 		imp.imported[path] = ii
 
 		// Find and create the actual package.
-		if augment, ok := imp.conf.ImportPkgs[path]; ok || imp.conf.SourceImports {
-			which := "g" // load *.go files
-			if augment {
-				which = "gt" // augment package by in-package *_test.go files
-			}
-
-			ii.info, ii.err = imp.importFromSource(path, which)
+		if _, ok := imp.conf.ImportPkgs[path]; ok || imp.conf.SourceImports {
+			ii.info, ii.err = imp.importFromSource(path)
 		} else {
 			ii.info, ii.err = imp.importFromBinary(path)
 		}
@@ -650,37 +674,49 @@ func (imp *importer) importFromBinary(path string) (*PackageInfo, error) {
 }
 
 // importFromSource implements package loading by parsing Go source files
-// located by go/build.  which indicates which files to include in the
-// package.
+// located by go/build.
 //
-func (imp *importer) importFromSource(path string, which string) (*PackageInfo, error) {
-	files, err := parsePackageFiles(imp.conf.build(), imp.conf.fset(), path, which)
+func (imp *importer) importFromSource(path string) (*PackageInfo, error) {
+	files, err := parsePackageFiles(imp.conf.build(), imp.conf.fset(), path, 'g')
 	if err != nil {
 		return nil, err
 	}
 	// Type-check the package.
-	return imp.createPackage(path, files...), nil
+	info := imp.newPackageInfo(path)
+	typeCheckFiles(info, files...)
+	return info, nil
 }
 
-// createPackage creates and type-checks a package from the specified
-// list of parsed files, importing their dependencies.  It returns a
-// PackageInfo containing the resulting types.Package, the ASTs, and
-// other type information.
-//
+// typeCheckFiles adds the specified files to info and type-checks them.
 // The order of files determines the package initialization order.
+// It may be called multiple times.
 //
-// path will be the resulting package's Path().
-// For an ad-hoc package, this is not necessarily unique.
-//
-// The resulting package is accessible via AllPackages but is not
-// importable, i.e. no 'import' spec can resolve to it.
-//
-// createPackage never fails, but the resulting package may contain type
-// errors; the first of these is recorded in PackageInfo.TypeError.
-//
-func (imp *importer) createPackage(path string, files ...*ast.File) *PackageInfo {
+// Any error is stored in the info.TypeError field.
+func typeCheckFiles(info *PackageInfo, files ...*ast.File) {
+	info.Files = append(info.Files, files...)
+	if err := info.checker.Files(files); err != nil {
+		// Prefer the earlier error, if any.
+		if info.TypeError == nil {
+			info.TypeError = err
+		}
+	}
+}
+
+func (imp *importer) newPackageInfo(path string) *PackageInfo {
+	// Use a copy of the types.Config so we can vary IgnoreFuncBodies.
+	tc := imp.conf.TypeChecker
+	tc.IgnoreFuncBodies = false
+	if f := imp.conf.TypeCheckFuncBodies; f != nil {
+		tc.IgnoreFuncBodies = !f(path)
+	}
+	if tc.Error == nil {
+		tc.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
+	}
+	tc.Import = imp.doImport // doImport wraps the user's importfn, effectively
+
+	pkg := types.NewPackage(path, "")
 	info := &PackageInfo{
-		Files: files,
+		Pkg: pkg,
 		Info: types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Defs:       make(map[*ast.Ident]types.Object),
@@ -690,19 +726,7 @@ func (imp *importer) createPackage(path string, files ...*ast.File) *PackageInfo
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		},
 	}
-
-	// Use a copy of the types.Config so we can vary IgnoreFuncBodies.
-	tc := imp.conf.TypeChecker
-	tc.IgnoreFuncBodies = false
-	if f := imp.conf.TypeCheckFuncBodies; f != nil {
-		tc.IgnoreFuncBodies = !f(path)
-	}
-	if tc.Error == nil {
-		// TODO(adonovan): also save errors in the PackageInfo?
-		tc.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
-	}
-	tc.Import = imp.doImport // doImport wraps the user's importfn, effectively
-	info.Pkg, info.TypeError = tc.Check(path, imp.conf.fset(), files, &info.Info)
-	imp.prog.AllPackages[info.Pkg] = info
+	info.checker = types.NewChecker(&tc, imp.conf.fset(), pkg, &info.Info)
+	imp.prog.AllPackages[pkg] = info
 	return info
 }
