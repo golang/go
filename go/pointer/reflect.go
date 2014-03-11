@@ -32,6 +32,123 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+func init() {
+	for name, fn := range map[string]intrinsic{
+		// reflect.Value methods.
+		"(reflect.Value).Addr":            ext۰reflect۰Value۰Addr,
+		"(reflect.Value).Bool":            ext۰NoEffect,
+		"(reflect.Value).Bytes":           ext۰reflect۰Value۰Bytes,
+		"(reflect.Value).Call":            ext۰reflect۰Value۰Call,
+		"(reflect.Value).CallSlice":       ext۰reflect۰Value۰CallSlice,
+		"(reflect.Value).CanAddr":         ext۰NoEffect,
+		"(reflect.Value).CanInterface":    ext۰NoEffect,
+		"(reflect.Value).CanSet":          ext۰NoEffect,
+		"(reflect.Value).Cap":             ext۰NoEffect,
+		"(reflect.Value).Close":           ext۰NoEffect,
+		"(reflect.Value).Complex":         ext۰NoEffect,
+		"(reflect.Value).Convert":         ext۰reflect۰Value۰Convert,
+		"(reflect.Value).Elem":            ext۰reflect۰Value۰Elem,
+		"(reflect.Value).Field":           ext۰reflect۰Value۰Field,
+		"(reflect.Value).FieldByIndex":    ext۰reflect۰Value۰FieldByIndex,
+		"(reflect.Value).FieldByName":     ext۰reflect۰Value۰FieldByName,
+		"(reflect.Value).FieldByNameFunc": ext۰reflect۰Value۰FieldByNameFunc,
+		"(reflect.Value).Float":           ext۰NoEffect,
+		"(reflect.Value).Index":           ext۰reflect۰Value۰Index,
+		"(reflect.Value).Int":             ext۰NoEffect,
+		"(reflect.Value).Interface":       ext۰reflect۰Value۰Interface,
+		"(reflect.Value).InterfaceData":   ext۰NoEffect,
+		"(reflect.Value).IsNil":           ext۰NoEffect,
+		"(reflect.Value).IsValid":         ext۰NoEffect,
+		"(reflect.Value).Kind":            ext۰NoEffect,
+		"(reflect.Value).Len":             ext۰NoEffect,
+		"(reflect.Value).MapIndex":        ext۰reflect۰Value۰MapIndex,
+		"(reflect.Value).MapKeys":         ext۰reflect۰Value۰MapKeys,
+		"(reflect.Value).Method":          ext۰reflect۰Value۰Method,
+		"(reflect.Value).MethodByName":    ext۰reflect۰Value۰MethodByName,
+		"(reflect.Value).NumField":        ext۰NoEffect,
+		"(reflect.Value).NumMethod":       ext۰NoEffect,
+		"(reflect.Value).OverflowComplex": ext۰NoEffect,
+		"(reflect.Value).OverflowFloat":   ext۰NoEffect,
+		"(reflect.Value).OverflowInt":     ext۰NoEffect,
+		"(reflect.Value).OverflowUint":    ext۰NoEffect,
+		"(reflect.Value).Pointer":         ext۰NoEffect,
+		"(reflect.Value).Recv":            ext۰reflect۰Value۰Recv,
+		"(reflect.Value).Send":            ext۰reflect۰Value۰Send,
+		"(reflect.Value).Set":             ext۰reflect۰Value۰Set,
+		"(reflect.Value).SetBool":         ext۰NoEffect,
+		"(reflect.Value).SetBytes":        ext۰reflect۰Value۰SetBytes,
+		"(reflect.Value).SetComplex":      ext۰NoEffect,
+		"(reflect.Value).SetFloat":        ext۰NoEffect,
+		"(reflect.Value).SetInt":          ext۰NoEffect,
+		"(reflect.Value).SetLen":          ext۰NoEffect,
+		"(reflect.Value).SetMapIndex":     ext۰reflect۰Value۰SetMapIndex,
+		"(reflect.Value).SetPointer":      ext۰reflect۰Value۰SetPointer,
+		"(reflect.Value).SetString":       ext۰NoEffect,
+		"(reflect.Value).SetUint":         ext۰NoEffect,
+		"(reflect.Value).Slice":           ext۰reflect۰Value۰Slice,
+		"(reflect.Value).String":          ext۰NoEffect,
+		"(reflect.Value).TryRecv":         ext۰reflect۰Value۰Recv,
+		"(reflect.Value).TrySend":         ext۰reflect۰Value۰Send,
+		"(reflect.Value).Type":            ext۰NoEffect,
+		"(reflect.Value).Uint":            ext۰NoEffect,
+		"(reflect.Value).UnsafeAddr":      ext۰NoEffect,
+
+		// Standalone reflect.* functions.
+		"reflect.Append":      ext۰reflect۰Append,
+		"reflect.AppendSlice": ext۰reflect۰AppendSlice,
+		"reflect.Copy":        ext۰reflect۰Copy,
+		"reflect.ChanOf":      ext۰reflect۰ChanOf,
+		"reflect.DeepEqual":   ext۰NoEffect,
+		"reflect.Indirect":    ext۰reflect۰Indirect,
+		"reflect.MakeChan":    ext۰reflect۰MakeChan,
+		"reflect.MakeFunc":    ext۰reflect۰MakeFunc,
+		"reflect.MakeMap":     ext۰reflect۰MakeMap,
+		"reflect.MakeSlice":   ext۰reflect۰MakeSlice,
+		"reflect.MapOf":       ext۰reflect۰MapOf,
+		"reflect.New":         ext۰reflect۰New,
+		"reflect.NewAt":       ext۰reflect۰NewAt,
+		"reflect.PtrTo":       ext۰reflect۰PtrTo,
+		"reflect.Select":      ext۰reflect۰Select,
+		"reflect.SliceOf":     ext۰reflect۰SliceOf,
+		"reflect.TypeOf":      ext۰reflect۰TypeOf,
+		"reflect.ValueOf":     ext۰reflect۰ValueOf,
+		"reflect.Zero":        ext۰reflect۰Zero,
+		"reflect.init":        ext۰NoEffect,
+
+		// *reflect.rtype methods
+		"(*reflect.rtype).Align":           ext۰NoEffect,
+		"(*reflect.rtype).AssignableTo":    ext۰NoEffect,
+		"(*reflect.rtype).Bits":            ext۰NoEffect,
+		"(*reflect.rtype).ChanDir":         ext۰NoEffect,
+		"(*reflect.rtype).ConvertibleTo":   ext۰NoEffect,
+		"(*reflect.rtype).Elem":            ext۰reflect۰rtype۰Elem,
+		"(*reflect.rtype).Field":           ext۰reflect۰rtype۰Field,
+		"(*reflect.rtype).FieldAlign":      ext۰NoEffect,
+		"(*reflect.rtype).FieldByIndex":    ext۰reflect۰rtype۰FieldByIndex,
+		"(*reflect.rtype).FieldByName":     ext۰reflect۰rtype۰FieldByName,
+		"(*reflect.rtype).FieldByNameFunc": ext۰reflect۰rtype۰FieldByNameFunc,
+		"(*reflect.rtype).Implements":      ext۰NoEffect,
+		"(*reflect.rtype).In":              ext۰reflect۰rtype۰In,
+		"(*reflect.rtype).IsVariadic":      ext۰NoEffect,
+		"(*reflect.rtype).Key":             ext۰reflect۰rtype۰Key,
+		"(*reflect.rtype).Kind":            ext۰NoEffect,
+		"(*reflect.rtype).Len":             ext۰NoEffect,
+		"(*reflect.rtype).Method":          ext۰reflect۰rtype۰Method,
+		"(*reflect.rtype).MethodByName":    ext۰reflect۰rtype۰MethodByName,
+		"(*reflect.rtype).Name":            ext۰NoEffect,
+		"(*reflect.rtype).NumField":        ext۰NoEffect,
+		"(*reflect.rtype).NumIn":           ext۰NoEffect,
+		"(*reflect.rtype).NumMethod":       ext۰NoEffect,
+		"(*reflect.rtype).NumOut":          ext۰NoEffect,
+		"(*reflect.rtype).Out":             ext۰reflect۰rtype۰Out,
+		"(*reflect.rtype).PkgPath":         ext۰NoEffect,
+		"(*reflect.rtype).Size":            ext۰NoEffect,
+		"(*reflect.rtype).String":          ext۰NoEffect,
+	} {
+		intrinsicsByName[name] = fn
+	}
+}
+
 // -------------------- (reflect.Value) --------------------
 
 func ext۰reflect۰Value۰Addr(a *analysis, cgn *cgnode) {}
@@ -41,15 +158,18 @@ func ext۰reflect۰Value۰Addr(a *analysis, cgn *cgnode) {}
 // result = v.Bytes()
 type rVBytesConstraint struct {
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVBytesConstraint) ptr() nodeid                      { return c.v }
+func (c *rVBytesConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVBytesConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVBytesConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Bytes()", c.result, c.v)
-}
-
-func (c *rVBytesConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -89,16 +209,28 @@ type rVCallConstraint struct {
 	targets   nodeid
 	v         nodeid // (ptr)
 	arg       nodeid // = in[*]
-	result    nodeid
-	dotdotdot bool // interpret last arg as a "..." slice
+	result    nodeid // (indirect)
+	dotdotdot bool   // interpret last arg as a "..." slice
+}
+
+func (c *rVCallConstraint) ptr() nodeid { return c.v }
+func (c *rVCallConstraint) indirect(nodes []nodeid) []nodeid {
+	nodes = append(nodes, c.result)
+	// TODO(adonovan): we may be able to handle 'targets' out-of-band
+	// so that all implementations indirect() return a single value.
+	// We can then dispense with the slice.
+	nodes = append(nodes, c.targets)
+	return nodes
+}
+func (c *rVCallConstraint) renumber(mapping []nodeid) {
+	c.targets = mapping[c.targets]
+	c.v = mapping[c.v]
+	c.arg = mapping[c.arg]
+	c.result = mapping[c.result]
 }
 
 func (c *rVCallConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Call(n%d)", c.result, c.v, c.arg)
-}
-
-func (c *rVCallConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVCallConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -228,15 +360,18 @@ func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode) {}
 type rVElemConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVElemConstraint) ptr() nodeid                      { return c.v }
+func (c *rVElemConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVElemConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVElemConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Elem()", c.result, c.v)
-}
-
-func (c *rVElemConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -287,15 +422,18 @@ func ext۰reflect۰Value۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
 type rVIndexConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVIndexConstraint) ptr() nodeid                      { return c.v }
+func (c *rVIndexConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVIndexConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVIndexConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Index()", c.result, c.v)
-}
-
-func (c *rVIndexConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -345,19 +483,21 @@ func ext۰reflect۰Value۰Index(a *analysis, cgn *cgnode) {
 // result = v.Interface()
 type rVInterfaceConstraint struct {
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVInterfaceConstraint) ptr() nodeid                      { return c.v }
+func (c *rVInterfaceConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVInterfaceConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVInterfaceConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Interface()", c.result, c.v)
 }
 
-func (c *rVInterfaceConstraint) ptr() nodeid {
-	return c.v
-}
-
 func (c *rVInterfaceConstraint) solve(a *analysis, _ *node, delta nodeset) {
-	resultPts := &a.nodes[c.result].pts
 	changed := false
 	for vObj := range delta {
 		tDyn, payload, indirect := a.taggedValue(vObj)
@@ -372,7 +512,7 @@ func (c *rVInterfaceConstraint) solve(a *analysis, _ *node, delta nodeset) {
 				a.addWork(c.result)
 			}
 		} else {
-			if resultPts.add(vObj) {
+			if a.addLabel(c.result, vObj) {
 				changed = true
 			}
 		}
@@ -395,15 +535,18 @@ func ext۰reflect۰Value۰Interface(a *analysis, cgn *cgnode) {
 type rVMapIndexConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVMapIndexConstraint) ptr() nodeid                      { return c.v }
+func (c *rVMapIndexConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVMapIndexConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVMapIndexConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.MapIndex(_)", c.result, c.v)
-}
-
-func (c *rVMapIndexConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -445,15 +588,18 @@ func ext۰reflect۰Value۰MapIndex(a *analysis, cgn *cgnode) {
 type rVMapKeysConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVMapKeysConstraint) ptr() nodeid                      { return c.v }
+func (c *rVMapKeysConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVMapKeysConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVMapKeysConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.MapKeys()", c.result, c.v)
-}
-
-func (c *rVMapKeysConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVMapKeysConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -505,15 +651,18 @@ func ext۰reflect۰Value۰MethodByName(a *analysis, cgn *cgnode) {}
 type rVRecvConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVRecvConstraint) ptr() nodeid                      { return c.v }
+func (c *rVRecvConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVRecvConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVRecvConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Recv()", c.result, c.v)
-}
-
-func (c *rVRecvConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVRecvConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -559,12 +708,15 @@ type rVSendConstraint struct {
 	x   nodeid
 }
 
-func (c *rVSendConstraint) String() string {
-	return fmt.Sprintf("reflect n%d.Send(n%d)", c.v, c.x)
+func (c *rVSendConstraint) ptr() nodeid                      { return c.v }
+func (c *rVSendConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *rVSendConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.x = mapping[c.x]
 }
 
-func (c *rVSendConstraint) ptr() nodeid {
-	return c.v
+func (c *rVSendConstraint) String() string {
+	return fmt.Sprintf("reflect n%d.Send(n%d)", c.v, c.x)
 }
 
 func (c *rVSendConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -608,12 +760,15 @@ type rVSetBytesConstraint struct {
 	x   nodeid
 }
 
-func (c *rVSetBytesConstraint) String() string {
-	return fmt.Sprintf("reflect n%d.SetBytes(n%d)", c.v, c.x)
+func (c *rVSetBytesConstraint) ptr() nodeid                      { return c.v }
+func (c *rVSetBytesConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *rVSetBytesConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.x = mapping[c.x]
 }
 
-func (c *rVSetBytesConstraint) ptr() nodeid {
-	return c.v
+func (c *rVSetBytesConstraint) String() string {
+	return fmt.Sprintf("reflect n%d.SetBytes(n%d)", c.v, c.x)
 }
 
 func (c *rVSetBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -653,12 +808,16 @@ type rVSetMapIndexConstraint struct {
 	val nodeid
 }
 
-func (c *rVSetMapIndexConstraint) String() string {
-	return fmt.Sprintf("reflect n%d.SetMapIndex(n%d, n%d)", c.v, c.key, c.val)
+func (c *rVSetMapIndexConstraint) ptr() nodeid                      { return c.v }
+func (c *rVSetMapIndexConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *rVSetMapIndexConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.key = mapping[c.key]
+	c.val = mapping[c.val]
 }
 
-func (c *rVSetMapIndexConstraint) ptr() nodeid {
-	return c.v
+func (c *rVSetMapIndexConstraint) String() string {
+	return fmt.Sprintf("reflect n%d.SetMapIndex(n%d, n%d)", c.v, c.key, c.val)
 }
 
 func (c *rVSetMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -706,15 +865,18 @@ func ext۰reflect۰Value۰SetPointer(a *analysis, cgn *cgnode) {}
 type rVSliceConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rVSliceConstraint) ptr() nodeid                      { return c.v }
+func (c *rVSliceConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVSliceConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *rVSliceConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Slice(_, _)", c.result, c.v)
-}
-
-func (c *rVSliceConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *rVSliceConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -780,16 +942,19 @@ func ext۰reflect۰Copy(a *analysis, cgn *cgnode)        {}
 type reflectChanOfConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
 	dirs   []types.ChanDir
+}
+
+func (c *reflectChanOfConstraint) ptr() nodeid                      { return c.t }
+func (c *reflectChanOfConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectChanOfConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectChanOfConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.ChanOf(n%d)", c.result, c.t)
-}
-
-func (c *reflectChanOfConstraint) ptr() nodeid {
-	return c.t
 }
 
 func (c *reflectChanOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -845,15 +1010,18 @@ func ext۰reflect۰ChanOf(a *analysis, cgn *cgnode) {
 type reflectIndirectConstraint struct {
 	cgn    *cgnode
 	v      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectIndirectConstraint) ptr() nodeid                      { return c.v }
+func (c *reflectIndirectConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectIndirectConstraint) renumber(mapping []nodeid) {
+	c.v = mapping[c.v]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectIndirectConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.Indirect(n%d)", c.result, c.v)
-}
-
-func (c *reflectIndirectConstraint) ptr() nodeid {
-	return c.v
 }
 
 func (c *reflectIndirectConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -893,15 +1061,18 @@ func ext۰reflect۰Indirect(a *analysis, cgn *cgnode) {
 type reflectMakeChanConstraint struct {
 	cgn    *cgnode
 	typ    nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectMakeChanConstraint) ptr() nodeid                      { return c.typ }
+func (c *reflectMakeChanConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectMakeChanConstraint) renumber(mapping []nodeid) {
+	c.typ = mapping[c.typ]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectMakeChanConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.MakeChan(n%d)", c.result, c.typ)
-}
-
-func (c *reflectMakeChanConstraint) ptr() nodeid {
-	return c.typ
 }
 
 func (c *reflectMakeChanConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -947,15 +1118,18 @@ func ext۰reflect۰MakeFunc(a *analysis, cgn *cgnode) {}
 type reflectMakeMapConstraint struct {
 	cgn    *cgnode
 	typ    nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectMakeMapConstraint) ptr() nodeid                      { return c.typ }
+func (c *reflectMakeMapConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectMakeMapConstraint) renumber(mapping []nodeid) {
+	c.typ = mapping[c.typ]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectMakeMapConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.MakeMap(n%d)", c.result, c.typ)
-}
-
-func (c *reflectMakeMapConstraint) ptr() nodeid {
-	return c.typ
 }
 
 func (c *reflectMakeMapConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1000,15 +1174,18 @@ func ext۰reflect۰MakeMap(a *analysis, cgn *cgnode) {
 type reflectMakeSliceConstraint struct {
 	cgn    *cgnode
 	typ    nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectMakeSliceConstraint) ptr() nodeid                      { return c.typ }
+func (c *reflectMakeSliceConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectMakeSliceConstraint) renumber(mapping []nodeid) {
+	c.typ = mapping[c.typ]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectMakeSliceConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.MakeSlice(n%d)", c.result, c.typ)
-}
-
-func (c *reflectMakeSliceConstraint) ptr() nodeid {
-	return c.typ
 }
 
 func (c *reflectMakeSliceConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1053,15 +1230,18 @@ func ext۰reflect۰MapOf(a *analysis, cgn *cgnode) {}
 type reflectNewConstraint struct {
 	cgn    *cgnode
 	typ    nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectNewConstraint) ptr() nodeid                      { return c.typ }
+func (c *reflectNewConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectNewConstraint) renumber(mapping []nodeid) {
+	c.typ = mapping[c.typ]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectNewConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.New(n%d)", c.result, c.typ)
-}
-
-func (c *reflectNewConstraint) ptr() nodeid {
-	return c.typ
 }
 
 func (c *reflectNewConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1111,15 +1291,18 @@ func ext۰reflect۰NewAt(a *analysis, cgn *cgnode) {
 type reflectPtrToConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectPtrToConstraint) ptr() nodeid                      { return c.t }
+func (c *reflectPtrToConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectPtrToConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectPtrToConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.PtrTo(n%d)", c.result, c.t)
-}
-
-func (c *reflectPtrToConstraint) ptr() nodeid {
-	return c.t
 }
 
 func (c *reflectPtrToConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1152,15 +1335,18 @@ func ext۰reflect۰Select(a *analysis, cgn *cgnode) {}
 type reflectSliceOfConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectSliceOfConstraint) ptr() nodeid                      { return c.t }
+func (c *reflectSliceOfConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectSliceOfConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectSliceOfConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.SliceOf(n%d)", c.result, c.t)
-}
-
-func (c *reflectSliceOfConstraint) ptr() nodeid {
-	return c.t
 }
 
 func (c *reflectSliceOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1191,15 +1377,18 @@ func ext۰reflect۰SliceOf(a *analysis, cgn *cgnode) {
 type reflectTypeOfConstraint struct {
 	cgn    *cgnode
 	i      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectTypeOfConstraint) ptr() nodeid                      { return c.i }
+func (c *reflectTypeOfConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectTypeOfConstraint) renumber(mapping []nodeid) {
+	c.i = mapping[c.i]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectTypeOfConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.TypeOf(n%d)", c.result, c.i)
-}
-
-func (c *reflectTypeOfConstraint) ptr() nodeid {
-	return c.i
 }
 
 func (c *reflectTypeOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1238,15 +1427,18 @@ func ext۰reflect۰ValueOf(a *analysis, cgn *cgnode) {
 type reflectZeroConstraint struct {
 	cgn    *cgnode
 	typ    nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *reflectZeroConstraint) ptr() nodeid                      { return c.typ }
+func (c *reflectZeroConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectZeroConstraint) renumber(mapping []nodeid) {
+	c.typ = mapping[c.typ]
+	c.result = mapping[c.result]
 }
 
 func (c *reflectZeroConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.Zero(n%d)", c.result, c.typ)
-}
-
-func (c *reflectZeroConstraint) ptr() nodeid {
-	return c.typ
 }
 
 func (c *reflectZeroConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1294,15 +1486,18 @@ func ext۰reflect۰Zero(a *analysis, cgn *cgnode) {
 type rtypeElemConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rtypeElemConstraint) ptr() nodeid                      { return c.t }
+func (c *rtypeElemConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeElemConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *rtypeElemConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).Elem(n%d)", c.result, c.t)
-}
-
-func (c *rtypeElemConstraint) ptr() nodeid {
-	return c.t
 }
 
 func (c *rtypeElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1341,15 +1536,18 @@ type rtypeFieldByNameConstraint struct {
 	cgn    *cgnode
 	name   string // name of field; "" for unknown
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rtypeFieldByNameConstraint) ptr() nodeid                      { return c.t }
+func (c *rtypeFieldByNameConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeFieldByNameConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *rtypeFieldByNameConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).FieldByName(n%d, %q)", c.result, c.t, c.name)
-}
-
-func (c *rtypeFieldByNameConstraint) ptr() nodeid {
-	return c.t
 }
 
 func (c *rtypeFieldByNameConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1424,17 +1622,20 @@ func ext۰reflect۰rtype۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
 type rtypeInOutConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
 	out    bool
 	i      int // -ve if not a constant
 }
 
-func (c *rtypeInOutConstraint) String() string {
-	return fmt.Sprintf("n%d = (*reflect.rtype).InOut(n%d, %d)", c.result, c.t, c.i)
+func (c *rtypeInOutConstraint) ptr() nodeid                      { return c.t }
+func (c *rtypeInOutConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeInOutConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
-func (c *rtypeInOutConstraint) ptr() nodeid {
-	return c.t
+func (c *rtypeInOutConstraint) String() string {
+	return fmt.Sprintf("n%d = (*reflect.rtype).InOut(n%d, %d)", c.result, c.t, c.i)
 }
 
 func (c *rtypeInOutConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1497,15 +1698,18 @@ func ext۰reflect۰rtype۰Out(a *analysis, cgn *cgnode) {
 type rtypeKeyConstraint struct {
 	cgn    *cgnode
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rtypeKeyConstraint) ptr() nodeid                      { return c.t }
+func (c *rtypeKeyConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeKeyConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *rtypeKeyConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).Key(n%d)", c.result, c.t)
-}
-
-func (c *rtypeKeyConstraint) ptr() nodeid {
-	return c.t
 }
 
 func (c *rtypeKeyConstraint) solve(a *analysis, _ *node, delta nodeset) {
@@ -1540,15 +1744,20 @@ type rtypeMethodByNameConstraint struct {
 	cgn    *cgnode
 	name   string // name of method; "" for unknown
 	t      nodeid // (ptr)
-	result nodeid
+	result nodeid // (indirect)
+}
+
+func (c *rtypeMethodByNameConstraint) ptr() nodeid { return c.t }
+func (c *rtypeMethodByNameConstraint) indirect(nodes []nodeid) []nodeid {
+	return append(nodes, c.result)
+}
+func (c *rtypeMethodByNameConstraint) renumber(mapping []nodeid) {
+	c.t = mapping[c.t]
+	c.result = mapping[c.result]
 }
 
 func (c *rtypeMethodByNameConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).MethodByName(n%d, %q)", c.result, c.t, c.name)
-}
-
-func (c *rtypeMethodByNameConstraint) ptr() nodeid {
-	return c.t
 }
 
 // changeRecv returns sig with Recv prepended to Params().

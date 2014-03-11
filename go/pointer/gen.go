@@ -1260,4 +1260,10 @@ func (a *analysis) generate() {
 		a.endObject(obj, nil, "<command-line args>")
 		a.addressOf(T, a.objectNode(nil, os.Var("Args")), obj)
 	}
+
+	// Discard generation state, to avoid confusion after node renumbering.
+	a.panicNode = 0
+	a.globalval = nil
+	a.localval = nil
+	a.localobj = nil
 }

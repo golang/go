@@ -56,6 +56,13 @@ func (a *analysis) solve() {
 
 	if a.log != nil {
 		fmt.Fprintf(a.log, "Solver done\n")
+
+		// Dump solution.
+		for i, n := range a.nodes {
+			if n.pts != nil {
+				fmt.Fprintf(a.log, "pts(n%d) = %s : %s\n", i, n.pts, n.typ)
+			}
+		}
 	}
 }
 
@@ -158,34 +165,6 @@ func (a *analysis) addWork(id nodeid) {
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\t\twork: n%d\n", id)
 	}
-}
-
-func (c *addrConstraint) ptr() nodeid {
-	panic("addrConstraint: not a complex constraint")
-}
-func (c *copyConstraint) ptr() nodeid {
-	panic("addrConstraint: not a complex constraint")
-}
-
-// Complex constraints attach themselves to the relevant pointer node.
-
-func (c *storeConstraint) ptr() nodeid {
-	return c.dst
-}
-func (c *loadConstraint) ptr() nodeid {
-	return c.src
-}
-func (c *offsetAddrConstraint) ptr() nodeid {
-	return c.src
-}
-func (c *typeFilterConstraint) ptr() nodeid {
-	return c.src
-}
-func (c *untagConstraint) ptr() nodeid {
-	return c.src
-}
-func (c *invokeConstraint) ptr() nodeid {
-	return c.iface
 }
 
 // onlineCopy adds a copy edge.  It is called online, i.e. during
