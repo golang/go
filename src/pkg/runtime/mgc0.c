@@ -154,7 +154,7 @@ clearpools(void)
 // so on a 64-bit system there is one bitmap word per 16 heap words.
 // The bits in the word are packed together by type first, then by
 // heap location, so each 64-bit bitmap word consists of, from top to bottom,
-// the 16 bitSpecial bits for the corresponding heap words, then the 16 bitMarked bits,
+// the 16 bitMarked bits for the corresponding heap words,
 // then the 16 bitScan/bitBlockBoundary bits, then the 16 bitAllocated bits.
 // This layout makes it easier to iterate over the bits of a given type.
 //
@@ -174,10 +174,9 @@ clearpools(void)
 #define bitAllocated		((uintptr)1<<(bitShift*0))	/* block start; eligible for garbage collection */
 #define bitScan			((uintptr)1<<(bitShift*1))	/* when bitAllocated is set */
 #define bitMarked		((uintptr)1<<(bitShift*2))	/* when bitAllocated is set */
-#define bitSpecial		((uintptr)1<<(bitShift*3))	/* when bitAllocated is set - has finalizer or being profiled */
 #define bitBlockBoundary	((uintptr)1<<(bitShift*1))	/* when bitAllocated is NOT set - mark for FlagNoGC objects */
 
-#define bitMask (bitAllocated | bitScan | bitMarked | bitSpecial)
+#define bitMask (bitAllocated | bitScan | bitMarked)
 
 // Holding worldsema grants an M the right to try to stop the world.
 // The procedure is:
@@ -1805,8 +1804,8 @@ runtime·MSpan_Sweep(MSpan *s)
 			continue;
 		}
 
-		// Clear mark, scan, and special bits.
-		*bitp &= ~((bitScan|bitMarked|bitSpecial)<<shift);
+		// Clear mark and scan bits.
+		*bitp &= ~((bitScan|bitMarked)<<shift);
 
 		if(cl == 0) {
 			// Free large span.
@@ -1953,7 +1952,7 @@ dumpspan(uint32 idx)
 	byte *p;
 	byte *arena_start;
 	MSpan *s;
-	bool allocated, special;
+	bool allocated;
 
 	s = runtime·mheap.allspans[idx];
 	if(s->state != MSpanInUse)
@@ -1980,7 +1979,6 @@ dumpspan(uint32 idx)
 		bits = *bitp>>shift;
 
 		allocated = ((bits & bitAllocated) != 0);
-		special = ((bits & bitSpecial) != 0);
 
 		for(i=0; i<size; i+=sizeof(void*)) {
 			if(column == 0) {
@@ -1988,7 +1986,6 @@ dumpspan(uint32 idx)
 			}
 			if(i == 0) {
 				runtime·printf(allocated ? "(" : "[");
-				runtime·printf(special ? "@" : "");
 				runtime·printf("%p: ", p+i);
 			} else {
 				runtime·printf(" ");
