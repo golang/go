@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build amd64 amd64p32
+// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
@@ -89,6 +90,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		// won't get to see who faulted.)
 		if(SIG_RIP(info, ctxt) != 0) {
 			sp = (uintptr*)SIG_RSP(info, ctxt);
+			if(sizeof(uintreg) > sizeof(uintptr))
+				*--sp = 0;
 			*--sp = SIG_RIP(info, ctxt);
 			SIG_RSP(info, ctxt) = (uintptr)sp;
 		}
