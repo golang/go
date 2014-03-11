@@ -147,4 +147,16 @@ func (r T) _(a, b, c int) (u, v, w int) {
 	return
 }
 
+// Short variable declarations must declare at least one new non-blank variable.
+func _() {
+	_ := /* ERROR no new variables */ 0
+	_, a := 0, 1
+	_, a := /* ERROR no new variables */ 0, 1
+	_, a, b := 0, 1, 2
+	_, _, _ := /* ERROR no new variables */ 0, 1, 2
+
+	_ = a
+	_ = b
+}
+
 // TODO(gri) consolidate other var decl checks in this file

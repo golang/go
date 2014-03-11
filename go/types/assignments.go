@@ -278,7 +278,8 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 			// Use the correct obj if the ident is redeclared. The
 			// variable's scope starts after the declaration; so we
 			// must use Scope.Lookup here and call Scope.Insert later.
-			if alt := scope.Lookup(ident.Name); alt != nil {
+			name := ident.Name
+			if alt := scope.Lookup(name); alt != nil {
 				// redeclared object must be a variable
 				if alt, _ := alt.(*Var); alt != nil {
 					obj = alt
@@ -286,9 +287,11 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 					check.errorf(lhs.Pos(), "cannot assign to %s", lhs)
 				}
 			} else {
-				// declare new variable
-				obj = NewVar(ident.Pos(), check.pkg, ident.Name, nil)
-				newVars = append(newVars, obj)
+				// declare new variable, possibly a blank (_) variable
+				obj = NewVar(ident.Pos(), check.pkg, name, nil)
+				if name != "_" {
+					newVars = append(newVars, obj)
+				}
 			}
 			if obj != nil {
 				check.recordDef(ident, obj)
@@ -310,6 +313,6 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 			check.declare(scope, nil, obj) // recordObject already called
 		}
 	} else {
-		check.errorf(pos, "no new variables on left side of :=")
+		check.softErrorf(pos, "no new variables on left side of :=")
 	}
 }
