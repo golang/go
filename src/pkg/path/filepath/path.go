@@ -67,7 +67,7 @@ const (
 //	   along with the non-.. element that precedes it.
 //	4. Eliminate .. elements that begin a rooted path:
 //	   that is, replace "/.." by "/" at the beginning of a path,
-//         assuming Separator is '/'.
+//	   assuming Separator is '/'.
 //
 // The returned path ends in a slash only if it represents a root directory,
 // such as "/" on Unix or `C:\` on Windows.
