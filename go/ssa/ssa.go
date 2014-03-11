@@ -312,11 +312,11 @@ type Function struct {
 // The tree may be navigated using Idom()/Dominees() and queried using
 // Dominates().
 //
-// The order of Preds and Succs are significant (to Phi and If
+// The order of Preds and Succs is significant (to Phi and If
 // instructions, respectively).
 //
 type BasicBlock struct {
-	Index        int            // index of this block within Func.Blocks
+	Index        int            // index of this block within Parent().Blocks
 	Comment      string         // optional label; no semantic significance
 	parent       *Function      // parent function
 	Instrs       []Instruction  // instructions in order
@@ -521,6 +521,7 @@ type BinOp struct {
 // MUL is pointer indirection (load).
 // XOR is bitwise complement.
 // SUB is negation.
+// NOT is logical negation.
 //
 // If CommaOk and Op=ARROW, the result is a 2-tuple of the value above
 // and a boolean indicating the success of the receive.  The
@@ -689,7 +690,7 @@ type MakeChan struct {
 // Both Len and Cap must be non-nil Values of integer type.
 //
 // (Alloc(types.Array) followed by Slice will not suffice because
-// Alloc can only create arrays of statically known length.)
+// Alloc can only create arrays of constant length.)
 //
 // Type() returns a (possibly named) *types.Slice.
 //

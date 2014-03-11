@@ -73,6 +73,7 @@ func (c *Const) RelString(from *types.Package) string {
 	} else if c.Value.Kind() == exact.String {
 		s = exact.StringVal(c.Value)
 		const max = 20
+		// TODO(adonovan): don't cut a rune in half.
 		if len(s) > max {
 			s = s[:max-3] + "..." // abbreviate
 		}

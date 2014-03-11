@@ -1103,6 +1103,10 @@ func (a *analysis) genRootCalls() *cgnode {
 	r.String()      // (asserts that it doesn't crash)
 	root := a.makeCGNode(r, 0, nil)
 
+	// TODO(adonovan): make an ssa utility to construct an actual
+	// root function so we don't need to special-case site-less
+	// call edges.
+
 	// For each main package, call main.init(), main.main().
 	for _, mainPkg := range a.config.Mains {
 		main := mainPkg.Func("main")

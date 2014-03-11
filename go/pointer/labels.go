@@ -14,7 +14,7 @@ import (
 )
 
 // A Label is an entity that may be pointed to by a pointer, map,
-// channel, 'func', slice or interface.  Labels include:
+// channel, 'func', slice or interface.
 //
 // Labels include:
 //      - functions
@@ -79,8 +79,9 @@ func (l Label) Pos() token.Pos {
 // String returns the printed form of this label.
 //
 // Examples:                                    Object type:
+//      x                                       (a variable)
 //      (sync.Mutex).Lock                       (a function)
-//      "foo":[]byte                            (a slice constant)
+//      convert                                 (array created by conversion)
 //      makemap                                 (map allocated via make)
 //      makechan                                (channel allocated via make)
 //      makeinterface                           (tagged object allocated by makeinterface)

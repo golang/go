@@ -82,6 +82,10 @@ func PathSearch(start *Node, isEnd func(*Node) bool) []*Edge {
 // synthetic functions (except g.Root and package initializers),
 // preserving the topology.
 func (g *Graph) DeleteSyntheticNodes() {
+	// TODO(adonovan): opt: this step results in duplicate
+	// edges---approx 10% of the total.  I suspect this is due to
+	// some interface method calls dispatching to both (C).f and
+	// (*C).f where the latter is a wrapper.
 	for fn, cgn := range g.Nodes {
 		if cgn == g.Root || fn.Synthetic == "" || isInit(cgn.Func) {
 			continue // keep

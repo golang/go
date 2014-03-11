@@ -48,6 +48,8 @@ func Create(iprog *loader.Program, mode BuilderMode) *Program {
 	}
 
 	for _, info := range iprog.AllPackages {
+		// TODO(adonovan): relax this constraint if the
+		// program contains only "soft" errors.
 		if info.TransitivelyErrorFree {
 			prog.CreatePackage(info)
 		}

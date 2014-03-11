@@ -19,9 +19,10 @@ import (
 // peers enumerates, for a given channel send (or receive) operation,
 // the set of possible receives (or sends) that correspond to it.
 //
-// TODO(adonovan): support reflect.{Select,Recv,Send}.
+// TODO(adonovan): support reflect.{Select,Recv,Send,Close}.
 // TODO(adonovan): permit the user to query based on a MakeChan (not send/recv),
 // or the implicit receive in "for v := range ch".
+// TODO(adonovan): support "close" as a channel op.
 //
 func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	arrowPos := findArrow(qpos)
@@ -132,7 +133,7 @@ type chanOp struct {
 
 // chanOps returns a slice of all the channel operations in the instruction.
 func chanOps(instr ssa.Instruction) []chanOp {
-	// TODO(adonovan): handle calls to reflect.{Select,Recv,Send} too.
+	// TODO(adonovan): handle calls to reflect.{Select,Recv,Send,Close} too.
 	var ops []chanOp
 	switch instr := instr.(type) {
 	case *ssa.UnOp:

@@ -100,6 +100,7 @@ func (e Edge) String() string {
 }
 
 // AddEdge adds the edge (caller, site, callee) to the call graph.
+// Elimination of duplicate edges is the caller's responsibility.
 func AddEdge(caller *Node, site ssa.CallInstruction, callee *Node) {
 	e := &Edge{caller, site, callee}
 	callee.In = append(callee.In, e)

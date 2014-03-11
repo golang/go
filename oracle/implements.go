@@ -97,7 +97,7 @@ func implements(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		pos = nt.Obj()
 	}
 
-	// Sort types (arbitrarily) to ensure test nondeterminism.
+	// Sort types (arbitrarily) to ensure test determinism.
 	sort.Sort(typesByString(to))
 	sort.Sort(typesByString(from))
 	sort.Sort(typesByString(fromPtr))

@@ -162,7 +162,7 @@ type Result struct {
 	fset     *token.FileSet
 	q        queryResult       // the query-specific result
 	mode     string            // query mode
-	warnings []pointer.Warning // pointer analysis warnings
+	warnings []pointer.Warning // pointer analysis warnings (TODO(adonovan): fix: never populated!)
 }
 
 // Serial returns an instance of serial.Result, which implements the
