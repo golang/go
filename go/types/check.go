@@ -7,6 +7,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -164,7 +165,7 @@ func (check *checker) initFiles(files []*ast.File) {
 
 	// determine package name, files, and set up file scopes, dotImports maps
 	pkg := check.pkg
-	for _, file := range files {
+	for i, file := range files {
 		switch name := file.Name.Name; pkg.name {
 		case "":
 			pkg.name = name
@@ -172,7 +173,13 @@ func (check *checker) initFiles(files []*ast.File) {
 
 		case name:
 			check.files = append(check.files, file)
-			fileScope := NewScope(pkg.scope)
+			var comment string
+			if pos := file.Pos(); pos.IsValid() {
+				comment = "file " + check.fset.File(pos).Name()
+			} else {
+				comment = fmt.Sprintf("file[%d]", i)
+			}
+			fileScope := NewScope(pkg.scope, comment)
 			check.recordScope(file, fileScope)
 			check.fileScopes = append(check.fileScopes, fileScope)
 			check.dotImports = append(check.dotImports, nil) // element (map) is lazily allocated

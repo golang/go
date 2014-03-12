@@ -12,7 +12,7 @@ import (
 // labels checks correct label use in body.
 func (check *checker) labels(body *ast.BlockStmt) {
 	// set of all labels in this body
-	all := NewScope(nil)
+	all := NewScope(nil, "label")
 
 	fwdJumps := check.blockBranches(all, nil, nil, body.List)
 

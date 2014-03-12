@@ -141,7 +141,7 @@ func (check *checker) typ(e ast.Expr) Type {
 
 // funcType type-checks a function or method type and returns its signature.
 func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
-	scope := NewScope(check.scope)
+	scope := NewScope(check.scope, "function")
 	check.recordScope(ftyp, scope)
 
 	recv_, _ := check.collectParams(scope, recv, false)

@@ -19,7 +19,8 @@ type Package struct {
 // NewPackage returns a new Package for the given package path and name.
 // The package is not complete and contains no explicit imports.
 func NewPackage(path, name string) *Package {
-	return &Package{path: path, name: name, scope: NewScope(Universe)}
+	scope := NewScope(Universe, fmt.Sprintf("package %q", path))
+	return &Package{path: path, name: name, scope: scope}
 }
 
 // Path returns the package path.

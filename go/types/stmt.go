@@ -118,8 +118,8 @@ func (check *checker) multipleDefaults(list []ast.Stmt) {
 	}
 }
 
-func (check *checker) openScope(s ast.Stmt) {
-	scope := NewScope(check.scope)
+func (check *checker) openScope(s ast.Stmt, comment string) {
+	scope := NewScope(check.scope, comment)
 	check.recordScope(s, scope)
 	check.scope = scope
 }
@@ -366,13 +366,13 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 	case *ast.BlockStmt:
-		check.openScope(s)
+		check.openScope(s, "block")
 		defer check.closeScope()
 
 		check.stmtList(inner, s.List)
 
 	case *ast.IfStmt:
-		check.openScope(s)
+		check.openScope(s, "if")
 		defer check.closeScope()
 
 		check.initStmt(s.Init)
@@ -388,7 +388,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.SwitchStmt:
 		inner |= inBreakable
-		check.openScope(s)
+		check.openScope(s, "switch")
 		defer check.closeScope()
 
 		check.initStmt(s.Init)
@@ -415,7 +415,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			if x.mode != invalid {
 				check.caseValues(x, clause.List)
 			}
-			check.openScope(clause)
+			check.openScope(clause, "case")
 			inner := inner
 			if i+1 < len(s.Body.List) {
 				inner |= fallthroughOk
@@ -426,7 +426,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.TypeSwitchStmt:
 		inner |= inBreakable
-		check.openScope(s)
+		check.openScope(s, "type switch")
 		defer check.closeScope()
 
 		check.initStmt(s.Init)
@@ -493,7 +493,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 			// Check each type in this type switch case.
 			T := check.caseTypes(&x, xtyp, clause.List, seen)
-			check.openScope(clause)
+			check.openScope(clause, "case")
 			// If lhs exists, declare a corresponding variable in the case-local scope.
 			if lhs != nil {
 				// spec: "The TypeSwitchGuard may include a short variable declaration.
@@ -567,7 +567,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				continue
 			}
 
-			check.openScope(s)
+			check.openScope(s, "case")
 			defer check.closeScope()
 			if clause.Comm != nil {
 				check.stmt(inner, clause.Comm)
@@ -577,7 +577,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.ForStmt:
 		inner |= inBreakable | inContinuable
-		check.openScope(s)
+		check.openScope(s, "for")
 		defer check.closeScope()
 
 		check.initStmt(s.Init)
@@ -593,7 +593,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.RangeStmt:
 		inner |= inBreakable | inContinuable
-		check.openScope(s)
+		check.openScope(s, "for")
 		defer check.closeScope()
 
 		// check expression to iterate over
