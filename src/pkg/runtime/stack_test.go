@@ -1576,7 +1576,9 @@ func TestStackMem(t *testing.T) {
 	if consumed > estimate {
 		t.Fatalf("Stack mem: want %v, got %v", estimate, consumed)
 	}
-	inuse := s1.StackInuse - s0.StackInuse
+	// Due to broken stack memory accounting (http://golang.org/issue/7468),
+	// StackInuse can decrease during function execution, so we cast the values to int64.
+	inuse := int64(s1.StackInuse) - int64(s0.StackInuse)
 	t.Logf("Inuse %vMB for stack mem", inuse>>20)
 	if inuse > 4<<20 {
 		t.Fatalf("Stack inuse: want %v, got %v", 4<<20, inuse)
