@@ -91,9 +91,6 @@ func (pkg *Package) growSpan(ident *ast.Ident, obj types.Object) {
 
 // checkShadowAssignment checks for shadowing in a short variable declaration.
 func (f *File) checkShadowAssignment(a *ast.AssignStmt) {
-	// TODO(r) remove this return once tests pass again
-	return
-
 	if !vet("shadow") {
 		return
 	}
@@ -192,6 +189,10 @@ func (f *File) checkShadowDecl(d *ast.GenDecl) {
 
 // checkShadowing checks whether the identifier shadows an identifier in an outer scope.
 func (f *File) checkShadowing(ident *ast.Ident) {
+	if ident.Name == "_" {
+		// Can't shadow the blank identifier.
+		return
+	}
 	obj := f.pkg.defs[ident]
 	if obj == nil {
 		return
