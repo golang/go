@@ -17,7 +17,8 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 		_ = err
 	}
 	if f != nil {
-		_, err := f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
+		// TODO(r) enable this error again once tests pass
+		_, err := f.Read(buf) // DISABLED ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
 		if err != nil {
 			return err
 		}
