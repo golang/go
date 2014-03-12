@@ -778,6 +778,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
 	void *obj;
 	Type *t;
 	Slice *sliceptr;
+	String *stringptr;
 	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
 	BufferList *scanbuffers;
 	Scanbuf sbuf;
@@ -948,8 +949,11 @@ scanblock(Workbuf *wbuf, bool keepworking)
 			break;
 
 		case GC_STRING:
-			obj = *(void**)(stack_top.b + pc[1]);
-			markonly(obj);
+			stringptr = (String*)(stack_top.b + pc[1]);
+			if(stringptr->len != 0) {
+				obj = stringptr->str;
+				markonly(obj);
+			}
 			pc += 2;
 			continue;
 
