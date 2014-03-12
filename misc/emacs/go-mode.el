@@ -269,7 +269,7 @@ For mode=set, all covered lines will have this weight."
    (if go-fontify-function-calls
        `((,(concat "\\(" go-identifier-regexp "\\)[[:space:]]*(") 1 font-lock-function-name-face) ;; function call/method name
          (,(concat "[^[:word:][:multibyte:]](\\(" go-identifier-regexp "\\))[[:space:]]*(") 1 font-lock-function-name-face)) ;; bracketed function call
-     `((,go-func-meth-regexp 1 font-lock-function-name-face))) ;; method name
+     `((,go-func-meth-regexp 2 font-lock-function-name-face))) ;; method name
 
    `(
      (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
