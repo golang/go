@@ -212,6 +212,10 @@ const (
 	formExprloc     format = 0x18
 	formFlagPresent format = 0x19
 	formRefSig8     format = 0x20
+	// Extensions for multi-file compression (.dwz)
+	// http://www.dwarfstd.org/ShowIssue.php?issue=120604.1
+	formGnuRefAlt  format = 0x1f20
+	formGnuStrpAlt format = 0x1f21
 )
 
 // A Tag is the classification (the type) of an Entry.
