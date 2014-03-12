@@ -1607,7 +1607,7 @@ livenessepilogue(Liveness *lv)
 				// We're interpreting the args and locals bitmap instead of liveout so that we
 				// include the bits added by the avarinit logic in the
 				// previous loop.
-				if(debuglive >= 1) {
+				if(msg != nil) {
 					fmtstrinit(&fmt);
 					fmtprint(&fmt, "%L: live at ", p->lineno);
 					if(p->as == ACALL && p->to.node)
@@ -1657,7 +1657,7 @@ livenessepilogue(Liveness *lv)
 				pos--;
 			}
 		}
-		if(debuglive >= 1) {
+		if(msg != nil) {
 			for(j=startmsg; j<nmsg; j++) 
 				if(msg[j] != nil)
 					print("%s", msg[j]);
