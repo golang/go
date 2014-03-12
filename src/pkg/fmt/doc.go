@@ -50,23 +50,39 @@
 	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
 	Similarly, there is no need to specify the size of the operand (int8, int64).
 
-	The width and precision control formatting and are in units of Unicode
-	code points.  (This differs from C's printf where the units are numbers
+	Width is specified by an optional decimal number immediately following the verb.
+	If absent, the width is whatever is necessary to represent the value.
+	Precision is specified after the (optional) width by a period followed by a
+	decimal number. If no period is present, a default precision is used.
+	A period with no following number specifies a precision of zero.
+	Examples:
+		%f:    default width, default precision
+		%9f    width 9, default precision
+		%.2f   default width, precision 2
+		%9.2f  width 9, precision 2
+		%9.f   width 9, precision 0
+
+	Width and precision are measured in units of Unicode code points.
+	(This differs from C's printf where the units are numbers
 	of bytes.) Either or both of the flags may be replaced with the
 	character '*', causing their values to be obtained from the next
 	operand, which must be of type int.
 
-	For numeric values, width sets the minimum width of the field and
+	For most values, width is the minimum number of characters to output,
+	padding the formatted form with spaces if necessary.
+	For strings, precision is the maximum number of characters to output,
+	truncating if necessary.
+
+	For floating-point values, width sets the minimum width of the field and
 	precision sets the number of places after the decimal, if appropriate,
 	except that for %g/%G it sets the total number of digits. For example,
 	given 123.45 the format %6.2f prints 123.45 while %.4g prints 123.5.
 	The default precision for %e and %f is 6; for %g it is the smallest
 	number of digits necessary to identify the value uniquely.
 
-	For most values, width is the minimum number of characters to output,
-	padding the formatted form with spaces if necessary.
-	For strings, precision is the maximum number of characters to output,
-	truncating if necessary.
+	For complex numbers, the width and precision apply to the two
+	components independently and the result is parenthsized, so %f applied
+	to 1.2+3.4i produces (1.200000+3.400000i).
 
 	Other flags:
 		+	always print a sign for numeric values;
