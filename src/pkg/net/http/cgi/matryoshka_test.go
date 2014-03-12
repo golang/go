@@ -128,6 +128,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
 }
 
 // Test that a child handler writing only headers works.
+// golang.org/issue/7196
 func TestChildOnlyHeaders(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
@@ -140,6 +141,26 @@ func TestChildOnlyHeaders(t *testing.T) {
 	replay := runCgiTest(t, h, "GET /test.go?no-body=1 HTTP/1.0\nHost: example.com\n\n", expectedMap)
 	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
+	}
+}
+
+// golang.org/issue/7198
+func Test500WithNoHeaders(t *testing.T)     { want500Test(t, "/immediate-disconnect") }
+func Test500WithNoContentType(t *testing.T) { want500Test(t, "/no-content-type") }
+func Test500WithEmptyHeaders(t *testing.T)  { want500Test(t, "/empty-headers") }
+
+func want500Test(t *testing.T, path string) {
+	h := &Handler{
+		Path: os.Args[0],
+		Root: "/test.go",
+		Args: []string{"-test.run=TestBeChildCGIProcess"},
+	}
+	expectedMap := map[string]string{
+		"_body": "",
+	}
+	replay := runCgiTest(t, h, "GET "+path+" HTTP/1.0\nHost: example.com\n\n", expectedMap)
+	if replay.Code != 500 {
+		t.Errorf("Got code %d; want 500", replay.Code)
 	}
 }
 
@@ -157,6 +178,16 @@ func TestBeChildCGIProcess(t *testing.T) {
 	if os.Getenv("REQUEST_METHOD") == "" {
 		// Not in a CGI environment; skipping test.
 		return
+	}
+	switch os.Getenv("REQUEST_URI") {
+	case "/immediate-disconnect":
+		os.Exit(0)
+	case "/no-content-type":
+		fmt.Printf("Content-Length: 6\n\nHello\n")
+		os.Exit(0)
+	case "/empty-headers":
+		fmt.Printf("\nHello")
+		os.Exit(0)
 	}
 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("X-Test-Header", "X-Test-Value")

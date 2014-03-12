@@ -223,6 +223,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	linebody := bufio.NewReaderSize(stdoutRead, 1024)
 	headers := make(http.Header)
 	statusCode := 0
+	headerLines := 0
+	sawBlankLine := false
 	for {
 		line, isPrefix, err := linebody.ReadLine()
 		if isPrefix {
@@ -239,8 +241,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 		if len(line) == 0 {
+			sawBlankLine = true
 			break
 		}
+		headerLines++
 		parts := strings.SplitN(string(line), ":", 2)
 		if len(parts) < 2 {
 			h.printf("cgi: bogus header line: %s", string(line))
@@ -266,6 +270,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			headers.Add(header, val)
 		}
 	}
+	if headerLines == 0 || !sawBlankLine {
+		rw.WriteHeader(http.StatusInternalServerError)
+		h.printf("cgi: no headers")
+		return
+	}
 
 	if loc := headers.Get("Location"); loc != "" {
 		if strings.HasPrefix(loc, "/") && h.PathLocationHandler != nil {
@@ -275,6 +284,12 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if statusCode == 0 {
 			statusCode = http.StatusFound
 		}
+	}
+
+	if statusCode == 0 && headers.Get("Content-Type") == "" {
+		rw.WriteHeader(http.StatusInternalServerError)
+		h.printf("cgi: missing required Content-Type in headers")
+		return
 	}
 
 	if statusCode == 0 {
