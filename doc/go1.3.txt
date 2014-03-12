@@ -27,3 +27,8 @@ syscall: add support for FreeBSD 10 (CL 56770044, 56980043)
 testing: add b.RunParallel function (CL 57270043)
 testing: diagnose buggy tests that panic(nil) (CL 55780043)
 unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)
+
+Additional notes:
+- support for Windows 2000 removed (CL 74790043)
+- copying stack support; initial stack size 4kB again.
+- liveness analysis in garbage collector
