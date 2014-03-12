@@ -222,7 +222,7 @@ func main() {
 
 <div id="footer">
 Build version {{html .Version}}.<br>
-Except as <a href="http://code.google.com/policies.html#restrictions">noted</a>,
+Except as <a href="https://developers.google.com/site-policies#restrictions">noted</a>,
 the content of this page is licensed under the
 Creative Commons Attribution 3.0 License,
 and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
