@@ -27,6 +27,17 @@ TEXT runtime·close(SB),NOSPLIT,$0
 TEXT runtime·read(SB),NOSPLIT,$0
 	NACL_SYSJMP(SYS_read)
 
+TEXT syscall·naclWrite(SB), NOSPLIT, $12-16
+	MOVL arg1+0(FP), DI
+	MOVL arg2+4(FP), SI
+	MOVL arg3+8(FP), DX
+	MOVL DI, 0(SP)
+	MOVL SI, 4(SP)
+	MOVL DX, 8(SP)
+	CALL runtime·write(SB)
+	MOVL AX, ret+12(FP)
+	RET
+
 TEXT runtime·write(SB),NOSPLIT,$0
 	NACL_SYSJMP(SYS_write)
 
