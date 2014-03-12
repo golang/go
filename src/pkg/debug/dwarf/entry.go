@@ -241,10 +241,10 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		// lineptr, loclistptr, macptr, rangelistptr
 		// New in DWARF 4, but clang can generate them with -gdwarf-2.
 		// Section reference, replacing use of formData4 and formData8.
-		case formSecOffset:
+		case formSecOffset, formGnuRefAlt, formGnuStrpAlt:
 			is64, known := b.format.dwarf64()
 			if !known {
-				b.error("unknown size for DW_FORM_sec_offset")
+				b.error("unknown size for form 0x" + strconv.FormatInt(int64(fmt), 16))
 			} else if is64 {
 				val = int64(b.uint64())
 			} else {
