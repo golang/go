@@ -102,7 +102,7 @@ runtime·stackalloc(G *gp, uint32 n)
 		runtime·printf("stackalloc %d\n", n);
 
 	gp->stacksize += n;
-	if(StackFromSystem)
+	if(runtime·debug.efence || StackFromSystem)
 		return runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
 
 	// Minimum-sized stacks are allocated with a fixed-size free-list allocator,
@@ -143,8 +143,8 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
 	if(StackDebug >= 1)
 		runtime·printf("stackfree %p %d\n", v, (int32)n);
 	gp->stacksize -= n;
-	if(StackFromSystem) {
-		if(StackFaultOnFree)
+	if(runtime·debug.efence || StackFromSystem) {
+		if(runtime·debug.efence || StackFaultOnFree)
 			runtime·SysFault(v, n);
 		else
 			runtime·SysFree(v, n, &mstats.stacks_sys);
@@ -819,7 +819,15 @@ runtime·shrinkstack(G *gp)
 		gp->stack0 = (uintptr)oldstk + newsize;
 	gp->stacksize -= oldsize - newsize;
 
-	// Free bottom half of the stack.  First, we trick malloc into thinking
+	// Free bottom half of the stack.
+	if(runtime·debug.efence || StackFromSystem) {
+		if(runtime·debug.efence || StackFaultOnFree)
+			runtime·SysFault(oldstk, newsize);
+		else
+			runtime·SysFree(oldstk, newsize, &mstats.stacks_sys);
+		return;
+	}
+	// First, we trick malloc into thinking
 	// we allocated the stack as two separate half-size allocs.  Then the
 	// free() call does the rest of the work for us.
 	if(oldsize == PageSize) {
