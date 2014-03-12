@@ -15,14 +15,13 @@ package syscall
 import "unsafe"
 
 type SockaddrDatalink struct {
-	Len    uint8
-	Family uint8
+	Family uint16
 	Index  uint16
 	Type   uint8
 	Nlen   uint8
 	Alen   uint8
 	Slen   uint8
-	Data   [46]int8
+	Data   [244]int8
 	raw    RawSockaddrDatalink
 }
 
@@ -75,12 +74,6 @@ func Pipe(p []int) (err error) {
 	}
 	p[0], p[1] = int(r0), int(w0)
 	return
-}
-
-type IPMreqn struct {
-	Multiaddr [4]byte /* in_addr */
-	Address   [4]byte /* in_addr */
-	Ifindex   int32
 }
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
@@ -143,21 +136,6 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 		return
 	}
 	return anyToSockaddr(&rsa)
-}
-
-func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
-	vallen := _Socklen(4)
-	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
-	return value, err
-}
-
-func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
-	// TODO(dfc)
-	return nil, EINVAL
-}
-
-func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
-	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
 
 // The const provides a compile-time constant so clients
