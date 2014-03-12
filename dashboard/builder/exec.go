@@ -26,15 +26,11 @@ func run(d time.Duration, envv []string, dir string, argv ...string) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	return timeout(d, func() error {
-		if err := cmd.Wait(); err != nil {
-			if _, ok := err.(TimeoutErr); ok {
-				cmd.Process.Kill()
-			}
-			return err
-		}
-		return nil
-	})
+	err := timeout(d, cmd.Wait)
+	if _, ok := err.(timeoutError); ok {
+		cmd.Process.Kill()
+	}
+	return err
 }
 
 // runLog runs a process and returns the combined stdout/stderr. It returns
@@ -66,15 +62,10 @@ func runOutput(d time.Duration, envv []string, out io.Writer, dir string, argv .
 		return false, startErr
 	}
 
-	if err := timeout(d, func() error {
-		if err := cmd.Wait(); err != nil {
-			if _, ok := err.(TimeoutErr); ok {
-				cmd.Process.Kill()
-			}
-			return err
+	if err := timeout(d, cmd.Wait); err != nil {
+		if _, ok := err.(timeoutError); ok {
+			cmd.Process.Kill()
 		}
-		return nil
-	}); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -83,7 +74,7 @@ func runOutput(d time.Duration, envv []string, out io.Writer, dir string, argv .
 // timeout runs f and returns its error value, or if the function does not
 // complete before the provided duration it returns a timeout error.
 func timeout(d time.Duration, f func() error) error {
-	errc := make(chan error)
+	errc := make(chan error, 1)
 	go func() {
 		errc <- f()
 	}()
@@ -91,14 +82,14 @@ func timeout(d time.Duration, f func() error) error {
 	defer t.Stop()
 	select {
 	case <-t.C:
-		return fmt.Errorf("timed out after %v", d)
+		return timeoutError(d)
 	case err := <-errc:
 		return err
 	}
 }
 
-type TimeoutErr time.Duration
+type timeoutError time.Duration
 
-func (e TimeoutErr) Error() string {
+func (e timeoutError) Error() string {
 	return fmt.Sprintf("timed out after %v", time.Duration(e))
 }
