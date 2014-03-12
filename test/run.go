@@ -760,7 +760,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 
 	for _, we := range want {
 		var errmsgs []string
-		errmsgs, out = partitionStrings(we.filterRe, out)
+		errmsgs, out = partitionStrings(we.prefix, out)
 		if len(errmsgs) == 0 {
 			errs = append(errs, fmt.Errorf("%s:%d: missing error %q", we.file, we.lineNum, we.reStr))
 			continue
@@ -802,9 +802,29 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 
 }
 
-func partitionStrings(rx *regexp.Regexp, strs []string) (matched, unmatched []string) {
+// matchPrefix reports whether s is of the form ^(.*/)?prefix(:|[),
+// That is, it needs the file name prefix followed by a : or a [,
+// and possibly preceded by a directory name.
+func matchPrefix(s, prefix string) bool {
+	i := strings.Index(s, ":")
+	if i < 0 {
+		return false
+	}
+	j := strings.LastIndex(s[:i], "/")
+	s = s[j+1:]
+	if len(s) <= len(prefix) || s[:len(prefix)] != prefix {
+		return false
+	}
+	switch s[len(prefix)] {
+	case '[', ':':
+		return true
+	}
+	return false
+}
+
+func partitionStrings(prefix string, strs []string) (matched, unmatched []string) {
 	for _, s := range strs {
-		if rx.MatchString(s) {
+		if matchPrefix(s, prefix) {
 			matched = append(matched, s)
 		} else {
 			unmatched = append(unmatched, s)
@@ -818,7 +838,7 @@ type wantedError struct {
 	re       *regexp.Regexp
 	lineNum  int
 	file     string
-	filterRe *regexp.Regexp // /^file:linenum\b/m
+	prefix string
 }
 
 var (
@@ -828,6 +848,8 @@ var (
 )
 
 func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+	cache := make(map[string]*regexp.Regexp)
+
 	src, _ := ioutil.ReadFile(file)
 	for i, line := range strings.Split(string(src), "\n") {
 		lineNum := i + 1
@@ -856,15 +878,20 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 				}
 				return fmt.Sprintf("%s:%d", short, n)
 			})
-			re, err := regexp.Compile(rx)
-			if err != nil {
-				log.Fatalf("%s:%d: invalid regexp in ERROR line: %v", t.goFileName(), lineNum, err)
+			re := cache[rx]
+			if re == nil {
+				var err error
+				re, err = regexp.Compile(rx)
+				if err != nil {
+					log.Fatalf("%s:%d: invalid regexp in ERROR line: %v", t.goFileName(), lineNum, err)
+				}
+				cache[rx] = re
 			}
-			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, regexp.QuoteMeta(short), lineNum)
+			prefix := fmt.Sprintf("%s:%d", short, lineNum)
 			errs = append(errs, wantedError{
 				reStr:    rx,
 				re:       re,
-				filterRe: regexp.MustCompile(filterPattern),
+				prefix: prefix,
 				lineNum:  lineNum,
 				file:     short,
 			})
