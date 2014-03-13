@@ -181,3 +181,27 @@ L3:
 		goto L3
 	}
 }
+
+// Blank labels are never declared.
+
+func f4() {
+_:
+_: // multiple blank labels are ok
+	goto _ /* ERROR "label _ not declared" */
+}
+
+func f5() {
+_:
+	for {
+		break _ /* ERROR "invalid break label _" */
+		continue _ /* ERROR "invalid continue label _" */
+	}
+}
+
+func f6() {
+_:
+	switch {
+	default:
+		break _ /* ERROR "invalid break label _" */
+	}
+}

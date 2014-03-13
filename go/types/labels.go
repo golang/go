@@ -129,41 +129,42 @@ func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			}
 
 		case *ast.LabeledStmt:
-			// declare label
-			name := s.Label.Name
-			lbl := NewLabel(s.Label.Pos(), name)
-			if alt := all.Insert(lbl); alt != nil {
-				check.errorf(lbl.pos, "label %s already declared", name)
-				check.reportAltDecl(alt)
-				// ok to continue
-			} else {
-				b.insert(s)
-				check.recordDef(s.Label, lbl)
-			}
-			// resolve matching forward jumps and remove them from fwdJumps
-			i := 0
-			for _, jmp := range fwdJumps {
-				if jmp.Label.Name == name {
-					// match
-					lbl.used = true
-					check.recordUse(jmp.Label, lbl)
-					if jumpsOverVarDecl(jmp) {
-						check.errorf(
-							jmp.Label.Pos(),
-							"goto %s jumps over variable declaration at line %d",
-							name,
-							check.fset.Position(varDeclPos).Line,
-						)
-						// ok to continue
-					}
+			// declare non-blank label
+			if name := s.Label.Name; name != "_" {
+				lbl := NewLabel(s.Label.Pos(), name)
+				if alt := all.Insert(lbl); alt != nil {
+					check.softErrorf(lbl.pos, "label %s already declared", name)
+					check.reportAltDecl(alt)
+					// ok to continue
 				} else {
-					// no match - record new forward jump
-					fwdJumps[i] = jmp
-					i++
+					b.insert(s)
+					check.recordDef(s.Label, lbl)
 				}
+				// resolve matching forward jumps and remove them from fwdJumps
+				i := 0
+				for _, jmp := range fwdJumps {
+					if jmp.Label.Name == name {
+						// match
+						lbl.used = true
+						check.recordUse(jmp.Label, lbl)
+						if jumpsOverVarDecl(jmp) {
+							check.softErrorf(
+								jmp.Label.Pos(),
+								"goto %s jumps over variable declaration at line %d",
+								name,
+								check.fset.Position(varDeclPos).Line,
+							)
+							// ok to continue
+						}
+					} else {
+						// no match - record new forward jump
+						fwdJumps[i] = jmp
+						i++
+					}
+				}
+				fwdJumps = fwdJumps[:i]
+				lstmt = s
 			}
-			fwdJumps = fwdJumps[:i]
-			lstmt = s
 			stmtBranches(s.Stmt)
 
 		case *ast.BranchStmt:

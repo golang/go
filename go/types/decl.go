@@ -21,10 +21,16 @@ func (check *checker) reportAltDecl(obj Object) {
 }
 
 func (check *checker) declare(scope *Scope, id *ast.Ident, obj Object) {
-	if alt := scope.Insert(obj); alt != nil {
-		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
-		check.reportAltDecl(alt)
-		return
+	// spec: "The blank identifier, represented by the underscore
+	// character _, may be used in a declaration like any other
+	// identifier but the declaration does not introduce a new
+	// binding."
+	if obj.Name() != "_" {
+		if alt := scope.Insert(obj); alt != nil {
+			check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
+			check.reportAltDecl(alt)
+			return
+		}
 	}
 	if id != nil {
 		check.recordDef(id, obj)

@@ -277,7 +277,8 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 		if ident, _ := lhs.(*ast.Ident); ident != nil {
 			// Use the correct obj if the ident is redeclared. The
 			// variable's scope starts after the declaration; so we
-			// must use Scope.Lookup here and call Scope.Insert later.
+			// must use Scope.Lookup here and call Scope.Insert
+			// (via check.declare) later.
 			name := ident.Name
 			if alt := scope.Lookup(name); alt != nil {
 				// redeclared object must be a variable

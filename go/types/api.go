@@ -174,10 +174,15 @@ type Info struct {
 	// Selections maps selector expressions to their corresponding selections.
 	Selections map[*ast.SelectorExpr]*Selection
 
-	// Scopes maps ast.Nodes to the scopes they define. Note that package scopes
-	// are not associated with a specific node but with all files belonging to a
-	// package. Thus, the package scope can be found in the type-checked package
-	// object.
+	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
+	// associated with a specific node but with all files belonging to a package.
+	// Thus, the package scope can be found in the type-checked Package object.
+	// Scopes nest, with the Universe scope being the outermost scope, enclosing
+	// the package scope, which contains (one or more) files scopes, which enclose
+	// function scopes which in turn enclose statement and function literal scopes.
+	// Note that even though package-level functions are declared in the package
+	// scope, the function scopes are embedded in the file scope of the file
+	// containing the function declaration.
 	//
 	// The following node types may appear in Scopes:
 	//
