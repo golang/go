@@ -23,8 +23,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build !plan9
-
 #include "../../cmd/ld/textflag.h"
 
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
@@ -34,9 +32,7 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
 
 	// REP instructions have a high startup cost, so we handle small sizes
 	// with some straightline code.  The REP MOVSL instruction is really fast
-	// for large sizes.  The cutover is approximately 1K.  We implement up to
-	// 128 because that is the maximum SSE register load (loading all data
-	// into registers lets us ignore copy direction).
+	// for large sizes.  The cutover is approximately 1K.
 tail:
 	TESTL	BX, BX
 	JEQ	move_0
@@ -48,17 +44,7 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
-	CMPL	BX, $32
-	JBE	move_17through32
-	CMPL	BX, $64
-	JBE	move_33through64
-	CMPL	BX, $128
-	JBE	move_65through128
-	// TODO: use branch table and BSR to make this just a single dispatch
 
-nosse2:
 /*
  * check and set for backwards
  */
@@ -138,38 +124,4 @@ move_9through16:
 	MOVL	CX, 4(DI)
 	MOVL	DX, -8(DI)(BX*1)
 	MOVL	BP, -4(DI)(BX*1)
-	RET
-move_17through32:
-	MOVOU	(SI), X0
-	MOVOU	-16(SI)(BX*1), X1
-	MOVOU	X0, (DI)
-	MOVOU	X1, -16(DI)(BX*1)
-	RET
-move_33through64:
-	MOVOU	(SI), X0
-	MOVOU	16(SI), X1
-	MOVOU	-32(SI)(BX*1), X2
-	MOVOU	-16(SI)(BX*1), X3
-	MOVOU	X0, (DI)
-	MOVOU	X1, 16(DI)
-	MOVOU	X2, -32(DI)(BX*1)
-	MOVOU	X3, -16(DI)(BX*1)
-	RET
-move_65through128:
-	MOVOU	(SI), X0
-	MOVOU	16(SI), X1
-	MOVOU	32(SI), X2
-	MOVOU	48(SI), X3
-	MOVOU	-64(SI)(BX*1), X4
-	MOVOU	-48(SI)(BX*1), X5
-	MOVOU	-32(SI)(BX*1), X6
-	MOVOU	-16(SI)(BX*1), X7
-	MOVOU	X0, (DI)
-	MOVOU	X1, 16(DI)
-	MOVOU	X2, 32(DI)
-	MOVOU	X3, 48(DI)
-	MOVOU	X4, -64(DI)(BX*1)
-	MOVOU	X5, -48(DI)(BX*1)
-	MOVOU	X6, -32(DI)(BX*1)
-	MOVOU	X7, -16(DI)(BX*1)
 	RET
