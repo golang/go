@@ -662,13 +662,13 @@ runtime·newstack(void)
 			oldbase = (byte*)gp->stackbase + sizeof(Stktop);
 			oldsize = oldbase - oldstk;
 			newsize = oldsize * 2;
-			if(newsize > runtime·maxstacksize) {
-				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
-				runtime·throw("stack overflow");
-			}
 			copystack(gp, nframes, newsize);
 			if(StackDebug >= 1)
 				runtime·printf("stack grow done\n");
+			if(gp->stacksize > runtime·maxstacksize) {
+				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+				runtime·throw("stack overflow");
+			}
 			gp->status = oldstatus;
 			runtime·gogo(&gp->sched);
 		}
