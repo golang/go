@@ -1341,6 +1341,9 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 	for(s = ctxt->textp; s != nil; s = s->next) {
 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
 
+		// NOTE(ality): acid can't produce a stack trace without .frame symbols
+		put(nil, ".frame", 'm', s->locals+PtrSize, 0, 0, 0);
+
 		for(a=s->autom; a; a=a->link) {
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
