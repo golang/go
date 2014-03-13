@@ -214,6 +214,11 @@ walkselect(Node *sel)
 				n->left = nod(OADDR, n->left, N);
 				n->left->etype = 1;  // pointer does not escape
 				typecheck(&n->left, Erv);
+				if(!eqtype(ch->type->type, n->left->type->type)) {
+					n->left = nod(OCONVNOP, n->left, N);
+					n->left->type = ptrto(ch->type->type);
+					n->left->typecheck = 1;
+				}
 			} else {
 				tmp = temp(ch->type->type);
 				a = nod(OADDR, tmp, N);
@@ -330,6 +335,13 @@ walkselect(Node *sel)
 				n->right = nod(OADDR, n->right, N);
 				n->right->etype = 1;  // pointer does not escape
 				typecheck(&n->right, Erv);
+				// cast to appropriate type if necessary.
+				if(!eqtype(n->right->type->type, n->left->type->type) &&
+					assignop(n->right->type->type, n->left->type->type, nil) == OCONVNOP) {
+					n->right = nod(OCONVNOP, n->right, N);
+					n->right->type = ptrto(n->left->type->type);
+					n->right->typecheck = 1;
+				}
 				r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL],
 					&r->ninit, var, n->left, n->right);
 				break;
