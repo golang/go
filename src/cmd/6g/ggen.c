@@ -30,11 +30,11 @@ defframe(Prog *ptxt)
 	// when it looks for pointers.
 	p = ptxt;
 	if(stkzerosize > 0) {
-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);	
-		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthptr, D_CX, 0);	
-		p = appendpp(p, ALEAQ, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
+		p = appendpp(p, movptr, D_CONST, 0, D_AX, 0);	
+		p = appendpp(p, movptr, D_CONST, stkzerosize/widthptr, D_CX, 0);	
+		p = appendpp(p, leaptr, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
 		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);	
-		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);	
+		appendpp(p, stosptr, D_NONE, 0, D_NONE, 0);	
 	}
 }
 
