@@ -1704,13 +1704,27 @@ syscall·runtime_BeforeFork(void)
 	m->locks++;
 	if(m->profilehz != 0)
 		runtime·resetcpuprofiler(0);
+
+	// This function is called before fork in syscall package.
+	// Code between fork and exec must not allocate memory nor even try to grow stack.
+	// Here we spoil g->stackguard to reliably detect any attempts to grow stack.
+	// runtime_AfterFork will undo this in parent process, but not in child.
+	m->forkstackguard = g->stackguard;
+	g->stackguard0 = StackPreempt-1;
+	g->stackguard = StackPreempt-1;
 }
 
 // Called from syscall package after fork in parent.
+#pragma textflag NOSPLIT
 void
 syscall·runtime_AfterFork(void)
 {
 	int32 hz;
+
+	// See the comment in runtime_BeforeFork.
+	g->stackguard0 = m->forkstackguard;
+	g->stackguard = m->forkstackguard;
+	m->forkstackguard = 0;
 
 	hz = runtime·sched.profilehz;
 	if(hz != 0)

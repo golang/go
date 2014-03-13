@@ -583,6 +583,8 @@ runtime·newstack(void)
 	Gobuf label;
 	bool newstackcall;
 
+	if(m->forkstackguard)
+		runtime·throw("split stack after fork");
 	if(m->morebuf.g != m->curg) {
 		runtime·printf("runtime: newstack called from g=%p\n"
 			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",
