@@ -1843,7 +1843,7 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
-	afilesSeen := make(map[*Package]bool)
+	apackagesSeen := make(map[*Package]bool)
 	afiles := []string{}
 	sfiles := []string{}
 	ldflags := b.gccArchArgs()
@@ -1851,14 +1851,23 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	usesCgo := false
 	cxx := false
 	objc := false
+
+	// Prefer the output of an install action to the output of a build action,
+	// because the install action will delete the output of the build action.
+	// Iterate over the list backward (reverse dependency order) so that we
+	// always see the install before the build.
+	for i := len(allactions) - 1; i >= 0; i-- {
+		a := allactions[i]
+		if !a.p.Standard {
+			if a.p != nil && !apackagesSeen[a.p] {
+				apackagesSeen[a.p] = true
+				afiles = append(afiles, a.target)
+			}
+		}
+	}
+
 	for _, a := range allactions {
 		if a.p != nil {
-			if !a.p.Standard {
-				if !afilesSeen[a.p] || a.objpkg != a.target {
-					afilesSeen[a.p] = true
-					afiles = append(afiles, a.target)
-				}
-			}
 			cgoldflags = append(cgoldflags, a.p.CgoLDFLAGS...)
 			if len(a.p.CgoFiles) > 0 {
 				usesCgo = true
