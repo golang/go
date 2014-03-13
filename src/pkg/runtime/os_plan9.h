@@ -78,5 +78,12 @@ struct Tos {
 	/* top of stack is here */
 };
 
-#define	NSIG	5	/* number of signals in runtime·SigTab array */
+#define	NSIG	14	/* number of signals in runtime·SigTab array */
 #define	ERRMAX	128	/* max length of note string */
+
+/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
+#define	SIGRFAULT	2
+#define	SIGWFAULT	3
+#define	SIGINTDIV	4
+#define	SIGFLOAT	5
+#define	SIGTRAP		6

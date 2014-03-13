@@ -34,95 +34,110 @@ runtime·dumpregs(Ureg *u)
 }
 
 int32
-runtime·sighandler(void *v, int8 *s, G *gp)
+runtime·sighandler(void *v, int8 *note, G *gp)
 {
+	uintptr *sp;
+	SigTab *t;
 	bool crash;
 	Ureg *ureg;
-	uintptr *sp;
-	SigTab *sig, *nsig;
-	intgo i, len;
+	intgo len, n;
+	int32 sig, flags;
 
-	if(!s)
-		return NCONT;
-			
-	len = runtime·findnull((byte*)s);
-	if(len <= 4 || runtime·mcmp((byte*)s, (byte*)"sys:", 4) != 0)
-		return NDFLT;
+	ureg = (Ureg*)v;
 
-	nsig = nil;
-	sig = runtime·sigtab;
-	for(i=0; i < NSIG; i++) {
-		if(runtime·strstr((byte*)s, (byte*)sig->name)) {
-			nsig = sig;
-			break;
-		}
-		sig++;
+	// The kernel will never pass us a nil note or ureg so we probably
+	// made a mistake somewhere in runtime·sigtramp.
+	if(ureg == nil || note == nil) {
+		runtime·printf("sighandler: ureg %p note %p\n", ureg, note);
+		goto Throw;
 	}
 
-	if(nsig == nil)
-		return NDFLT;
+	// Check that the note is no more than ERRMAX bytes (including
+	// the trailing NUL). We should never receive a longer note.
+	len = runtime·findnull((byte*)note);
+	if(len > ERRMAX-1) {
+		runtime·printf("sighandler: note is longer than ERRMAX\n");
+		goto Throw;
+	}
 
-	ureg = v;
-	if(nsig->flags & SigPanic) {
-		if(gp == nil || m->notesig == 0)
+	// See if the note matches one of the patterns in runtime·sigtab.
+	// Notes that do not match any pattern can be handled at a higher
+	// level by the program but will otherwise be ignored.
+	flags = SigNotify;
+	for(sig = 0; sig < nelem(runtime·sigtab); sig++) {
+		t = &runtime·sigtab[sig];
+		n = runtime·findnull((byte*)t->name);
+		if(len < n)
+			continue;
+		if(runtime·strncmp((byte*)note, (byte*)t->name, n) == 0) {
+			flags = t->flags;
+			break;
+		}
+	}
+
+	if(flags & SigGoExit)
+		runtime·exits(note+9); // Strip "go: exit " prefix.
+
+	if(flags & SigPanic) {
+		if(!runtime·canpanic(gp))
 			goto Throw;
 
 		// Copy the error string from sigtramp's stack into m->notesig so
-		// we can reliably access it from the panic routines. We can't use
-		// runtime·memmove here since it will use SSE instructions for big
-		// copies. The Plan 9 kernel doesn't allow floating point in note
-		// handlers.
-		//
-		// TODO(ality): revert back to memmove when the kernel is fixed.
-		if(len >= ERRMAX)
-			len = ERRMAX-1;
-		for(i = 0; i < len; i++)
-			m->notesig[i] = s[i];
-		m->notesig[i] = '\0';
+		// we can reliably access it from the panic routines.
+		runtime·memmove(m->notesig, note, len+1);
 
-		gp->sig = i;
+		gp->sig = sig;
 		gp->sigpc = ureg->ip;
 
-		// Only push runtime·sigpanic if ureg->ip != 0.
-		// If ureg->ip == 0, probably panicked because of a
-		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to runtime·sigpanic instead.
-		// (Otherwise the trace will end at runtime·sigpanic and we
-		// won't get to see who faulted.)
+		// Only push runtime·sigpanic if PC != 0.
+		//
+		// If PC == 0, probably panicked because of a call to a nil func.
+		// Not pushing that onto SP will make the trace look like a call
+		// to runtime·sigpanic instead. (Otherwise the trace will end at
+		// runtime·sigpanic and we won't get to see who faulted).
 		if(ureg->ip != 0) {
 			sp = (uintptr*)ureg->sp;
 			*--sp = ureg->ip;
-			ureg->sp = (uint64)sp;
+			ureg->sp = (uint32)sp;
 		}
 		ureg->ip = (uintptr)runtime·sigpanic;
 		return NCONT;
 	}
 
-	if(!(nsig->flags & SigThrow))
-		return NDFLT;
+	if(flags & SigNotify) {
+		// TODO(ality): See if os/signal wants it.
+		//if(runtime·sigsend(...))
+		//	return NCONT;
+	}
+	if(flags & SigKill)
+		goto Exit;
+	if(!(flags & SigThrow))
+		return NCONT;
 
 Throw:
 	m->throwing = 1;
 	m->caughtsig = gp;
 	runtime·startpanic();
 
-	runtime·printf("%s\n", s);
+	runtime·printf("%s\n", note);
 	runtime·printf("PC=%X\n", ureg->ip);
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)) {
+		runtime·goroutineheader(gp);
 		runtime·traceback(ureg->ip, ureg->sp, 0, gp);
 		runtime·tracebackothers(gp);
+		runtime·printf("\n");
 		runtime·dumpregs(ureg);
 	}
 	
 	if(crash)
 		runtime·crash();
 
-	runtime·goexitsall("");
-	runtime·exits(s);
-
-	return 0;
+Exit:
+	runtime·goexitsall(note);
+	runtime·exits(note);
+	return NDFLT; // not reached
 }
 
 void

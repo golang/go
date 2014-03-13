@@ -236,6 +236,25 @@ runtime·strcmp(byte *s1, byte *s2)
 	}
 }
 
+int32
+runtime·strncmp(byte *s1, byte *s2, uintptr n)
+{
+	uintptr i;
+	byte c1, c2;
+
+	for(i=0; i<n; i++) {
+		c1 = s1[i];
+		c2 = s2[i];
+		if(c1 < c2)
+			return -1;
+		if(c1 > c2)
+			return +1;
+		if(c1 == 0)
+			break;
+	}
+	return 0;
+}
+
 byte*
 runtime·strstr(byte *s1, byte *s2)
 {

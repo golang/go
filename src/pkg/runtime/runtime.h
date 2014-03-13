@@ -468,6 +468,7 @@ enum
 	SigDefault = 1<<4,	// if the signal isn't explicitly requested, don't monitor it
 	SigHandling = 1<<5,	// our signal handler is registered
 	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
+	SigGoExit = 1<<7,	// cause all runtime procs to exit (only used on Plan 9).
 };
 
 // Layout of in-memory per-function information prepared by linker
@@ -792,6 +793,7 @@ extern	uintptr	runtime·maxstacksize;
  * common functions and data
  */
 int32	runtime·strcmp(byte*, byte*);
+int32	runtime·strncmp(byte*, byte*, uintptr);
 byte*	runtime·strstr(byte*, byte*);
 intgo	runtime·findnull(byte*);
 intgo	runtime·findnullw(uint16*);
@@ -840,6 +842,7 @@ void	runtime·panicstring(int8*);
 bool	runtime·canpanic(G*);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
+int32	runtime·snprintf(byte*, int32, int8*, ...);
 byte*	runtime·mchr(byte*, byte, byte*);
 int32	runtime·mcmp(byte*, byte*, uintptr);
 void	runtime·memmove(void*, void*, uintptr);
