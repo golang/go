@@ -138,7 +138,12 @@ func updateCL(c appengine.Context, com *Commit, builder string) bool {
 		c.Errorf("could not find CL for %v: %v", com.Hash, err)
 		return false
 	}
-	url := fmt.Sprintf("%v?cl=%v&brokebuild=%v", gobotBase, cl, builder)
+	res := com.Result(builder, "")
+	if res == nil {
+		c.Errorf("finding result for %q: %+v", builder, com)
+		return false
+	}
+	url := fmt.Sprintf("%v?cl=%v&brokebuild=%v&log=%v", gobotBase, cl, builder, res.LogHash)
 	r, err := urlfetch.Client(c).Post(url, "text/plain", nil)
 	if err != nil {
 		c.Errorf("could not update CL %v: %v", cl, err)
