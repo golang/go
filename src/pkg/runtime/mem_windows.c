@@ -66,11 +66,8 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
 void
 runtime·SysFault(void *v, uintptr n)
 {
-	uintptr r, old;
-
-	r = (uintptr)runtime·stdcall(runtime·VirtualProtect, 4, v, n, (uintptr)PAGE_NOACCESS, &old);
-	if(r == 0)
-		runtime·throw("runtime: failed to protect pages");
+	// SysUnused makes the memory inaccessible and prevents its reuse
+	runtime·SysUnused(v, n);
 }
 
 void*

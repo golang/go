@@ -49,7 +49,7 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
 void
 runtime·SysFault(void *v, uintptr n)
 {
-	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
+	runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
 }
 
 void*
