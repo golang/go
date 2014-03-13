@@ -170,7 +170,7 @@ func execve(path uintptr, argv uintptr, envp uintptr) (err uintptr) {
 	c.fn = (void*)libc·execve;
 	c.n = 3;
 	c.args = (void*)&path;
-	runtime·cgocall(runtime·asmsysvicall6, &c);
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
 	err = c.err;
 }
 
@@ -193,7 +193,7 @@ func fcntl1(fd uintptr, cmd uintptr, arg uintptr) (val uintptr, err uintptr) {
 	c.fn = (void*)libc·fcntl;
 	c.n = 3;
 	c.args = (void*)&fd;
-	runtime·cgocall(runtime·asmsysvicall6, &c);
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
 	err = c.err;
 	val = c.r1;
 }
@@ -227,7 +227,7 @@ func ioctl(fd uintptr, req uintptr, arg uintptr) (err uintptr) {
 	c.fn = (void*)libc·ioctl;
 	c.n = 3;
 	c.args = (void*)&fd;
-	runtime·cgocall(runtime·asmsysvicall6, &c);
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
 	err = c.err;
 }
 
@@ -338,7 +338,7 @@ func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err uintptr) {
 	c.fn = (void*)libc·write;
 	c.n = 3;
 	c.args = (void*)fd;
-	runtime·cgocall(runtime·asmsysvicall6, &c);
+	runtime·asmcgocall(runtime·asmsysvicall6, &c);
 	err = c.err;
 	n = c.r1;
 }
