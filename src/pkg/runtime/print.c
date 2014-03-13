@@ -63,6 +63,24 @@ runtime·printf(int8 *s, ...)
 	vprintf(s, arg);
 }
 
+#pragma textflag NOSPLIT
+int32
+runtime·snprintf(byte *buf, int32 n, int8 *s, ...)
+{
+	byte *arg;
+	int32 m;
+
+	arg = (byte*)(&s+1);
+	g->writebuf = buf;
+	g->writenbuf = n-1;
+	vprintf(s, arg);
+	*g->writebuf = '\0';
+	m = g->writebuf - buf;
+	g->writenbuf = 0;
+	g->writebuf = nil;
+	return m;
+}
+
 // Very simple printf.  Only for debugging prints.
 // Do not add to this without checking with Rob.
 static void
