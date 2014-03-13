@@ -836,6 +836,7 @@ void	runtime·goenvs_unix(void);
 void*	runtime·getu(void);
 void	runtime·throw(int8*);
 void	runtime·panicstring(int8*);
+bool	runtime·canpanic(G*);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
 byte*	runtime·mchr(byte*, byte, byte*);

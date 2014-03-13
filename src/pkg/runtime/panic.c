@@ -485,6 +485,29 @@ runtime·throwinit(void)
 	runtime·throw("recursive call during initialization - linker skew");
 }
 
+bool
+runtime·canpanic(G *gp)
+{
+	byte g;
+
+	USED(&g);  // don't use global g, it points to gsignal
+
+	// Is it okay for gp to panic instead of crashing the program?
+	// Yes, as long as it is running Go code, not runtime code,
+	// and not stuck in a system call.
+	if(gp == nil || gp != m->curg)
+		return false;
+	if(m->locks != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
+		return false;
+	if(gp->status != Grunning || gp->syscallsp != 0)
+		return false;
+#ifdef GOOS_windows
+	if(m->libcallsp != 0)
+		return false;
+#endif
+	return true;
+}
+
 void
 runtime·throw(int8 *s)
 {
