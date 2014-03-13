@@ -367,6 +367,7 @@ struct	M
 	bool	needextram;
 	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
+	uintptr	forkstackguard;
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 	// these are here because they are too large to be on the stack
