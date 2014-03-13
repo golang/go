@@ -1,4 +1,4 @@
-// Inferno's libkern/memmove-386.s
+// Derived from Inferno's libkern/memmove-386.s (adapted for amd64)
 // http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
@@ -23,91 +23,80 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build !plan9
-
 #include "../../cmd/ld/textflag.h"
 
-TEXT runtime·memmove(SB), NOSPLIT, $0-12
-	MOVL	to+0(FP), DI
-	MOVL	fr+4(FP), SI
-	MOVL	n+8(FP), BX
+// void runtime·memmove(void*, void*, uintptr)
+TEXT runtime·memmove(SB), NOSPLIT, $0-24
+
+	MOVQ	to+0(FP), DI
+	MOVQ	fr+8(FP), SI
+	MOVQ	n+16(FP), BX
 
 	// REP instructions have a high startup cost, so we handle small sizes
-	// with some straightline code.  The REP MOVSL instruction is really fast
-	// for large sizes.  The cutover is approximately 1K.  We implement up to
-	// 128 because that is the maximum SSE register load (loading all data
-	// into registers lets us ignore copy direction).
+	// with some straightline code.  The REP MOVSQ instruction is really fast
+	// for large sizes.  The cutover is approximately 1K.
 tail:
-	TESTL	BX, BX
+	TESTQ	BX, BX
 	JEQ	move_0
-	CMPL	BX, $2
+	CMPQ	BX, $2
 	JBE	move_1or2
-	CMPL	BX, $4
+	CMPQ	BX, $4
 	JBE	move_3or4
-	CMPL	BX, $8
+	CMPQ	BX, $8
 	JBE	move_5through8
-	CMPL	BX, $16
+	CMPQ	BX, $16
 	JBE	move_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
-	CMPL	BX, $32
-	JBE	move_17through32
-	CMPL	BX, $64
-	JBE	move_33through64
-	CMPL	BX, $128
-	JBE	move_65through128
-	// TODO: use branch table and BSR to make this just a single dispatch
 
-nosse2:
 /*
  * check and set for backwards
  */
-	CMPL	SI, DI
+	CMPQ	SI, DI
 	JLS	back
 
 /*
  * forward copy loop
  */
-forward:	
-	MOVL	BX, CX
-	SHRL	$2, CX
-	ANDL	$3, BX
+forward:
+	MOVQ	BX, CX
+	SHRQ	$3, CX
+	ANDQ	$7, BX
 
-	REP;	MOVSL
+	REP;	MOVSQ
 	JMP	tail
+
+back:
 /*
  * check overlap
  */
-back:
-	MOVL	SI, CX
-	ADDL	BX, CX
-	CMPL	CX, DI
+	MOVQ	SI, CX
+	ADDQ	BX, CX
+	CMPQ	CX, DI
 	JLS	forward
+	
 /*
  * whole thing backwards has
  * adjusted addresses
  */
-
-	ADDL	BX, DI
-	ADDL	BX, SI
+	ADDQ	BX, DI
+	ADDQ	BX, SI
 	STD
 
 /*
  * copy
  */
-	MOVL	BX, CX
-	SHRL	$2, CX
-	ANDL	$3, BX
+	MOVQ	BX, CX
+	SHRQ	$3, CX
+	ANDQ	$7, BX
 
-	SUBL	$4, DI
-	SUBL	$4, SI
-	REP;	MOVSL
+	SUBQ	$8, DI
+	SUBQ	$8, SI
+	REP;	MOVSQ
 
 	CLD
-	ADDL	$4, DI
-	ADDL	$4, SI
-	SUBL	BX, DI
-	SUBL	BX, SI
+	ADDQ	$8, DI
+	ADDQ	$8, SI
+	SUBQ	BX, DI
+	SUBQ	BX, SI
 	JMP	tail
 
 move_1or2:
@@ -130,46 +119,8 @@ move_5through8:
 	MOVL	CX, -4(DI)(BX*1)
 	RET
 move_9through16:
-	MOVL	(SI), AX
-	MOVL	4(SI), CX
-	MOVL	-8(SI)(BX*1), DX
-	MOVL	-4(SI)(BX*1), BP
-	MOVL	AX, (DI)
-	MOVL	CX, 4(DI)
-	MOVL	DX, -8(DI)(BX*1)
-	MOVL	BP, -4(DI)(BX*1)
-	RET
-move_17through32:
-	MOVOU	(SI), X0
-	MOVOU	-16(SI)(BX*1), X1
-	MOVOU	X0, (DI)
-	MOVOU	X1, -16(DI)(BX*1)
-	RET
-move_33through64:
-	MOVOU	(SI), X0
-	MOVOU	16(SI), X1
-	MOVOU	-32(SI)(BX*1), X2
-	MOVOU	-16(SI)(BX*1), X3
-	MOVOU	X0, (DI)
-	MOVOU	X1, 16(DI)
-	MOVOU	X2, -32(DI)(BX*1)
-	MOVOU	X3, -16(DI)(BX*1)
-	RET
-move_65through128:
-	MOVOU	(SI), X0
-	MOVOU	16(SI), X1
-	MOVOU	32(SI), X2
-	MOVOU	48(SI), X3
-	MOVOU	-64(SI)(BX*1), X4
-	MOVOU	-48(SI)(BX*1), X5
-	MOVOU	-32(SI)(BX*1), X6
-	MOVOU	-16(SI)(BX*1), X7
-	MOVOU	X0, (DI)
-	MOVOU	X1, 16(DI)
-	MOVOU	X2, 32(DI)
-	MOVOU	X3, 48(DI)
-	MOVOU	X4, -64(DI)(BX*1)
-	MOVOU	X5, -48(DI)(BX*1)
-	MOVOU	X6, -32(DI)(BX*1)
-	MOVOU	X7, -16(DI)(BX*1)
+	MOVQ	(SI), AX
+	MOVQ	-8(SI)(BX*1), CX
+	MOVQ	AX, (DI)
+	MOVQ	CX, -8(DI)(BX*1)
 	RET
