@@ -172,10 +172,6 @@ catcher(void *v, char *s)
 {
 	USED(v);
 
-	if(strncmp(s, "sys: fp: invalid operation", 26) == 0) {
-		noted(NCONT);
-		return;
-	}
 	if(strncmp(s, "sys: trap: fault read", 21) == 0) {
 		if(nsavederrors + nerrors > 0)
 			errorexit();
@@ -211,6 +207,8 @@ main(int argc, char *argv[])
 
 #ifdef	PLAN9
 	notify(catcher);
+	// Tell the FPU to handle all exceptions.
+	setfcr(FPPDBL|FPRNR);
 #endif
 	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
 	// but not other values.	
