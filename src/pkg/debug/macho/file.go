@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"debug/dwarf"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -481,7 +480,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		name = "__debug_" + name
 		s := f.Section(name)
 		if s == nil {
-			return nil, errors.New("missing Mach-O section " + name)
+			continue
 		}
 		b, err := s.Data()
 		if err != nil && uint64(len(b)) < s.Size {
