@@ -103,7 +103,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 	// if its method set contains a Format function. We could do better,
 	// even now, but we don't need to be 100% accurate. Wait for 6259 to
 	// be fixed instead. TODO.
-	if hasMethod(typ, "Format") {
+	if f.hasMethod(typ, "Format") {
 		return true
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
@@ -313,13 +313,10 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 
 // hasMethod reports whether the type contains a method with the given name.
 // It is part of the workaround for Formatters and should be deleted when
-// that workaround is no longer necessary. TODO: delete when fixed.
-func hasMethod(typ types.Type, name string) bool {
-	set := types.NewMethodSet(typ)
-	for i := 0; i < set.Len(); i++ {
-		if set.At(i).Obj().Name() == name {
-			return true
-		}
-	}
-	return false
+// that workaround is no longer necessary.
+// TODO: This could be better once issue 6259 is fixed.
+func (f *File) hasMethod(typ types.Type, name string) bool {
+	obj, _, _ := types.LookupFieldOrMethod(typ, f.pkg.typesPkg, name)
+	_, ok := obj.(*types.Func)
+	return ok
 }

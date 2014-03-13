@@ -408,6 +408,15 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
 			obj = id.Obj
 		}
 	}
+
+	// It's unlikely to be a recursive stringer if it has a Format method.
+	if typ := f.pkg.types[e].Type; typ != nil {
+		// Not a perfect match; see issue 6259.
+		if f.hasMethod(typ, "Format") {
+			return false
+		}
+	}
+
 	// We compare the underlying Object, which checks that the identifier
 	// is the one we declared as the receiver for the String method in
 	// which this printf appears.
