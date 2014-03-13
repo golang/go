@@ -146,6 +146,7 @@ runtime·schedinit(void)
 	runtime·sched.maxmcount = 10000;
 	runtime·precisestack = true; // haveexperiment("precisestack");
 
+	runtime·symtabinit();
 	runtime·mallocinit();
 	mcommoninit(m);
 	
@@ -158,9 +159,6 @@ runtime·schedinit(void)
 	runtime·goargs();
 	runtime·goenvs();
 	runtime·parsedebugvars();
-
-	// Allocate internal symbol table representation now, we need it for GC anyway.
-	runtime·symtabinit();
 
 	runtime·sched.lastpoll = runtime·nanotime();
 	procs = 1;
