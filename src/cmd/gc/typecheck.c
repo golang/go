@@ -1065,6 +1065,7 @@ reswitch:
 			goto reswitch;
 		}
 		typecheck(&n->left, Erv | Etype | Ecall |(top&Eproc));
+		n->diag |= n->left->diag;
 		l = n->left;
 		if(l->op == ONAME && l->etype != 0) {
 			if(n->isddd && l->etype != OAPPEND)
@@ -2165,6 +2166,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 	if(tstruct->broke)
 		goto out;
 
+	n = N;
 	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
 	if(n->type->etype == TSTRUCT && n->type->funarg) {
 		tn = n->type->type;
@@ -2239,10 +2241,14 @@ out:
 	return;
 
 notenough:
-	if(call != N)
-		yyerror("not enough arguments in call to %N", call);
-	else
-		yyerror("not enough arguments to %O", op);
+	if(n == N || !n->diag) {
+		if(call != N)
+			yyerror("not enough arguments in call to %N", call);
+		else
+			yyerror("not enough arguments to %O", op);
+		if(n != N)
+			n->diag = 1;
+	}
 	goto out;
 
 toomany:
