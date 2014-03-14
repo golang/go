@@ -263,6 +263,24 @@ runtime·netpolluser(PollDesc *pd)
 	return &pd->user;
 }
 
+bool
+runtime·netpollclosing(PollDesc *pd)
+{
+	return pd->closing;
+}
+
+void
+runtime·netpolllock(PollDesc *pd)
+{
+	runtime·lock(pd);
+}
+
+void
+runtime·netpollunlock(PollDesc *pd)
+{
+	runtime·unlock(pd);
+}
+
 // make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
 void
 runtime·netpollready(G **gpp, PollDesc *pd, int32 mode)
