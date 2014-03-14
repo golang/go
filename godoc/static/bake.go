@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"unicode/utf8"
 )
 
@@ -40,16 +39,19 @@ func bake(files []string) error {
 		if err != nil {
 			return err
 		}
-		if !utf8.Valid(b) {
-			return fmt.Errorf("file %s is not valid UTF-8", fn)
+		fmt.Fprintf(w, "\t%q: ", fn)
+		if utf8.Valid(b) {
+			fmt.Fprintf(w, "`%s`", sanitize(b))
+		} else {
+			fmt.Fprintf(w, "%q", b)
 		}
-		fmt.Fprintf(w, "\t%q: `%s`,\n", filepath.Base(fn), sanitize(b))
+		fmt.Fprintln(w, ",\n")
 	}
 	fmt.Fprintln(w, "}")
 	return w.Flush()
 }
 
-// sanitize prepares a string as a raw string constant.
+// sanitize prepares a valid UTF-8 string as a raw string constant.
 func sanitize(b []byte) []byte {
 	// Replace ` with `+"`"+`
 	b = bytes.Replace(b, []byte("`"), []byte("`+\"`\"+`"), -1)

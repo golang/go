@@ -9,6 +9,7 @@ import (
 	pathpkg "path"
 	"time"
 
+	"code.google.com/p/go.tools/godoc/analysis"
 	"code.google.com/p/go.tools/godoc/util"
 	"code.google.com/p/go.tools/godoc/vfs"
 )
@@ -99,6 +100,9 @@ type Corpus struct {
 
 	// SearchIndex is the search index in use.
 	searchIndex util.RWValue
+
+	// Analysis is the result of type and pointer analysis.
+	Analysis analysis.Result
 }
 
 // NewCorpus returns a new Corpus from a filesystem.

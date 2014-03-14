@@ -42,8 +42,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 
 	"code.google.com/p/go.tools/godoc"
+	"code.google.com/p/go.tools/godoc/analysis"
 	"code.google.com/p/go.tools/godoc/static"
 	"code.google.com/p/go.tools/godoc/vfs"
 	"code.google.com/p/go.tools/godoc/vfs/gatefs"
@@ -63,6 +65,10 @@ var (
 
 	// file-based index
 	writeIndex = flag.Bool("write_index", false, "write index to a file; the file name must be specified with -index_files")
+
+	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform.
+"type":   display identifier resolution, type info, method sets, 'implements', and static callees.
+"pointer" display channel peers, callers and dynamic callees. (Slower.)`)
 
 	// network
 	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
@@ -192,6 +198,20 @@ func main() {
 
 	httpMode := *httpAddr != ""
 
+	var typeAnalysis, pointerAnalysis bool
+	if *analysisFlag != "" {
+		for _, a := range strings.Split(*analysisFlag, ",") {
+			switch a {
+			case "type":
+				typeAnalysis = true
+			case "pointer":
+				pointerAnalysis = true
+			default:
+				log.Fatalf("unknown analysis: %s", a)
+			}
+		}
+	}
+
 	corpus := godoc.NewCorpus(fs)
 	corpus.Verbose = *verbose
 	corpus.MaxResults = *maxResults
@@ -281,6 +301,11 @@ func main() {
 		// Initialize search index.
 		if *indexEnabled {
 			go corpus.RunIndexer()
+		}
+
+		// Start type/pointer analysis.
+		if typeAnalysis || pointerAnalysis {
+			go analysis.Run(pointerAnalysis, &corpus.Analysis)
 		}
 
 		// Start http server.

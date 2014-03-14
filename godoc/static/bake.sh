@@ -6,6 +6,7 @@
 set -e
 
 STATIC="
+	callgraph.html
 	codewalk.html
 	codewalkdir.html
 	dirlist.html
@@ -13,7 +14,20 @@ STATIC="
 	example.html
 	godoc.html
 	godocs.js
+	images/minus.gif
+	images/plus.gif
+	images/treeview-black-line.gif
+	images/treeview-black.gif
+	images/treeview-default-line.gif
+	images/treeview-default.gif
+	images/treeview-gray-line.gif
+	images/treeview-gray.gif
+	implements.html
 	jquery.js
+	jquery.treeview.css
+	jquery.treeview.edit.js
+	jquery.treeview.js
+	methodset.html
 	opensearch.xml
 	package.html
 	package.txt

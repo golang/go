@@ -6,6 +6,7 @@ package godoc
 
 import (
 	"bytes"
+	"encoding/json"
 	"expvar"
 	"fmt"
 	"go/ast"
@@ -13,6 +14,7 @@ import (
 	"go/doc"
 	"go/token"
 	htmlpkg "html"
+	htmltemplate "html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -25,6 +27,7 @@ import (
 	"text/template"
 	"time"
 
+	"code.google.com/p/go.tools/godoc/analysis"
 	"code.google.com/p/go.tools/godoc/util"
 	"code.google.com/p/go.tools/godoc/vfs"
 )
@@ -256,6 +259,18 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tabtitle = "Commands"
 	}
 
+	// Emit JSON array for type information.
+	// TODO(adonovan): issue a "pending..." message if results not ready.
+	var callGraph []*analysis.PCGNodeJSON
+	var typeInfos []*analysis.TypeInfoJSON
+	callGraph, info.CallGraphIndex, typeInfos = h.c.Analysis.PackageInfo(relpath)
+	info.CallGraph = htmltemplate.JS(marshalJSON(callGraph))
+	info.AnalysisData = htmltemplate.JS(marshalJSON(typeInfos))
+	info.TypeInfoIndex = make(map[string]int)
+	for i, ti := range typeInfos {
+		info.TypeInfoIndex[ti.Name] = i
+	}
+
 	h.p.ServePage(w, Page{
 		Title:    title,
 		Tabtitle: tabtitle,
@@ -480,10 +495,25 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 		return
 	}
 
+	h := r.FormValue("h")
+	s := RangeSelection(r.FormValue("s"))
+
 	var buf bytes.Buffer
-	buf.WriteString("<pre>")
-	FormatText(&buf, src, 1, pathpkg.Ext(abspath) == ".go", r.FormValue("h"), RangeSelection(r.FormValue("s")))
-	buf.WriteString("</pre>")
+	if pathpkg.Ext(abspath) == ".go" {
+		// Find markup links for this file (e.g. "/src/pkg/fmt/print.go").
+		data, links := p.Corpus.Analysis.FileInfo(abspath)
+		buf.WriteString("<script type='text/javascript'>document.ANALYSIS_DATA = ")
+		buf.Write(marshalJSON(data))
+		buf.WriteString(";</script>\n")
+
+		buf.WriteString("<pre>")
+		formatGoSource(&buf, src, links, h, s)
+		buf.WriteString("</pre>")
+	} else {
+		buf.WriteString("<pre>")
+		FormatText(&buf, src, 1, false, h, s)
+		buf.WriteString("</pre>")
+	}
 	fmt.Fprintf(&buf, `<p><a href="/%s?m=text">View as plain text</a></p>`, htmlpkg.EscapeString(relpath))
 
 	p.ServePage(w, Page{
@@ -491,6 +521,33 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 		Tabtitle: relpath,
 		Body:     buf.Bytes(),
 	})
+}
+
+// formatGoSource HTML-escapes Go source text and writes it to w,
+// decorating it with the specified analysis links.
+//
+func formatGoSource(buf *bytes.Buffer, text []byte, links []analysis.Link, pattern string, selection Selection) {
+	var i int
+	var link analysis.Link // shared state of the two funcs below
+	segmentIter := func() (seg Segment) {
+		if i < len(links) {
+			link = links[i]
+			i++
+			seg = Segment{link.Start(), link.End()}
+		}
+		return
+	}
+	linkWriter := func(w io.Writer, offs int, start bool) {
+		link.Write(w, offs, start)
+	}
+
+	comments := tokenSelection(text, token.COMMENT)
+	var highlights Selection
+	if pattern != "" {
+		highlights = regexpSelection(text, pattern)
+	}
+
+	FormatSelections(buf, text, linkWriter, segmentIter, selectionTag, comments, highlights, selection)
 }
 
 func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
@@ -634,4 +691,19 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 func (p *Presentation) ServeText(w http.ResponseWriter, text []byte) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(text)
+}
+
+func marshalJSON(x interface{}) []byte {
+	var data []byte
+	var err error
+	const indentJSON = false // for easier debugging
+	if indentJSON {
+		data, err = json.MarshalIndent(x, "", "    ")
+	} else {
+		data, err = json.Marshal(x)
+	}
+	if err != nil {
+		panic(fmt.Sprintf("json.Marshal failed: %s", err))
+	}
+	return data
 }

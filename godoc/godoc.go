@@ -17,6 +17,7 @@ import (
 	"go/format"
 	"go/printer"
 	"go/token"
+	htmltemplate "html/template"
 	"io"
 	"log"
 	"os"
@@ -88,6 +89,11 @@ func (p *Presentation) initFuncMap() {
 		"example_text":   p.example_textFunc,
 		"example_name":   p.example_nameFunc,
 		"example_suffix": p.example_suffixFunc,
+
+		// formatting of analysis information
+		"callgraph_html":  p.callgraph_htmlFunc,
+		"implements_html": p.implements_htmlFunc,
+		"methodset_html":  p.methodset_htmlFunc,
 
 		// formatting of Notes
 		"noteTitle": noteTitle,
@@ -234,6 +240,12 @@ type PageInfo struct {
 	PAst       map[string]*ast.File   // nil if no AST with package exports
 	IsMain     bool                   // true for package main
 	IsFiltered bool                   // true if results were filtered
+
+	// analysis info
+	TypeInfoIndex  map[string]int  // index of JSON datum for type T (if -analysis=type)
+	AnalysisData   htmltemplate.JS // array of TypeInfoJSON values
+	CallGraph      htmltemplate.JS // array of PCGNodeJSON values    (if -analysis=pointer)
+	CallGraphIndex map[string]int  // maps func name to index in CallGraph
 
 	// directory info
 	Dirs    *DirList  // nil if no directory information
@@ -454,6 +466,64 @@ func (p *Presentation) example_nameFunc(s string) string {
 func (p *Presentation) example_suffixFunc(name string) string {
 	_, suffix := splitExampleName(name)
 	return suffix
+}
+
+// implements_html returns the "> Implements" toggle for a package-level named type.
+// Its contents are populated from JSON data by client-side JS at load time.
+func (p *Presentation) implements_htmlFunc(info *PageInfo, typeName string) string {
+	if p.ImplementsHTML == nil {
+		return ""
+	}
+	index, ok := info.TypeInfoIndex[typeName]
+	if !ok {
+		return ""
+	}
+	var buf bytes.Buffer
+	err := p.ImplementsHTML.Execute(&buf, struct{ Index int }{index})
+	if err != nil {
+		log.Print(err)
+	}
+	return buf.String()
+}
+
+// methodset_html returns the "> Method set" toggle for a package-level named type.
+// Its contents are populated from JSON data by client-side JS at load time.
+func (p *Presentation) methodset_htmlFunc(info *PageInfo, typeName string) string {
+	if p.MethodSetHTML == nil {
+		return ""
+	}
+	index, ok := info.TypeInfoIndex[typeName]
+	if !ok {
+		return ""
+	}
+	var buf bytes.Buffer
+	err := p.MethodSetHTML.Execute(&buf, struct{ Index int }{index})
+	if err != nil {
+		log.Print(err)
+	}
+	return buf.String()
+}
+
+// callgraph_html returns the "> Call graph" toggle for a package-level func.
+// Its contents are populated from JSON data by client-side JS at load time.
+func (p *Presentation) callgraph_htmlFunc(info *PageInfo, recv, name string) string {
+	if p.CallGraphHTML == nil {
+		return ""
+	}
+	if recv != "" {
+		// Format must match (*ssa.Function).RelString().
+		name = fmt.Sprintf("(%s).%s", recv, name)
+	}
+	index, ok := info.CallGraphIndex[name]
+	if !ok {
+		return ""
+	}
+	var buf bytes.Buffer
+	err := p.CallGraphHTML.Execute(&buf, struct{ Index int }{index})
+	if err != nil {
+		log.Print(err)
+	}
+	return buf.String()
 }
 
 func noteTitle(note string) string {
