@@ -40,6 +40,7 @@ static int
 putelfstr(char *s)
 {
 	int off, n;
+	char *p, *q;
 
 	if(elfstrsize == 0 && s[0] != 0) {
 		// first entry must be empty string
@@ -54,6 +55,21 @@ putelfstr(char *s)
 	off = elfstrsize;
 	elfstrsize += n;
 	memmove(elfstrdat+off, s, n);
+	// replace "·" as ".", because DTrace cannot handle it.
+	p = strstr(s, "·");
+	if(p != nil) {
+		p = q = elfstrdat+off;
+		while (*q != '\0') {
+			if(*q == '\xc2' && *(q+1) == '\xb7') {
+				q += 2;
+				*p++ = '.';
+				elfstrsize--;
+			} else {
+				*p++ = *q++;
+			}
+		}
+		*p = '\0';
+	}
 	return off;
 }
 
