@@ -16,32 +16,42 @@ import (
 )
 
 var godocTests = []struct {
-	args    []string
-	matches []string // regular expressions
+	args      []string
+	matches   []string // regular expressions
+	dontmatch []string // regular expressions
 }{
 	{
-		[]string{"fmt"},
-		[]string{
+		args: []string{"fmt"},
+		matches: []string{
 			`import "fmt"`,
 			`Package fmt implements formatted I/O`,
 		},
 	},
 	{
-		[]string{"io", "WriteString"},
-		[]string{
+		args: []string{"io", "WriteString"},
+		matches: []string{
 			`func WriteString\(`,
 			`WriteString writes the contents of the string s to w`,
 		},
 	},
 	{
-		[]string{"nonexistingpkg"},
-		[]string{
+		args: []string{"nonexistingpkg"},
+		matches: []string{
 			`no such file or directory|does not exist`,
 		},
 	},
 	{
-		[]string{"fmt", "NonexistentSymbol"},
-		[]string{
+		args: []string{"fmt", "NonexistentSymbol"},
+		matches: []string{
+			`No match found\.`,
+		},
+	},
+	{
+		args: []string{"-src", "syscall", "Open"},
+		matches: []string{
+			`func Open\(`,
+		},
+		dontmatch: []string{
 			`No match found\.`,
 		},
 	},
@@ -76,6 +86,12 @@ func TestGodoc(t *testing.T) {
 			re := regexp.MustCompile(pat)
 			if !re.Match(out) {
 				t.Errorf("godoc %v =\n%s\nwanted /%v/", strings.Join(test.args, " "), out, pat)
+			}
+		}
+		for _, pat := range test.dontmatch {
+			re := regexp.MustCompile(pat)
+			if re.Match(out) {
+				t.Errorf("godoc %v =\n%s\ndid not want /%v/", strings.Join(test.args, " "), out, pat)
 			}
 		}
 	}

@@ -7,7 +7,7 @@
 
 ---------------------------------------
 
-*/}}{{if and $filtered (not .PDoc)}}No match found.
+*/}}{{if and $filtered (not (or .PDoc .PAst))}}No match found.
 {{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
 
 {{comment_text .Doc "    " "\t"}}

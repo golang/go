@@ -762,7 +762,7 @@ $(document).ready(function() {
 
 ---------------------------------------
 
-*/}}{{if and $filtered (not .PDoc)}}No match found.
+*/}}{{if and $filtered (not (or .PDoc .PAst))}}No match found.
 {{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
 
 {{comment_text .Doc "    " "\t"}}
@@ -866,7 +866,8 @@ package {{.Name}}
 */}}{{end}}{{/*
 Make sure there is no newline at the end of this file.
 perl -i -pe 'chomp if eof' package.txt
-*/}}`,
+*/}}
+`,
 	"play.js": `// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
