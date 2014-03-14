@@ -184,6 +184,12 @@ type Config struct {
 	// Otherwise &build.Default is used.
 	Build *build.Context
 
+	// If DisplayPath is non-nil, it is used to transform each
+	// file name obtained from Build.Import().  This can be used
+	// to prevent a virtualized build.Config's file names from
+	// leaking into the user interface.
+	DisplayPath func(path string) string
+
 	// If AllowTypeErrors is true, Load will return a Program even
 	// if some of the its packages contained type errors; such
 	// errors are accessible via PackageInfo.TypeError.
@@ -334,7 +340,7 @@ func (conf *Config) FromArgs(args []string, xtest bool) (rest []string, err erro
 // conf.CreatePkgs.
 //
 func (conf *Config) CreateFromFilenames(path string, filenames ...string) error {
-	files, err := parseFiles(conf.fset(), ".", filenames...)
+	files, err := parseFiles(conf.fset(), conf.build(), nil, ".", filenames...)
 	if err != nil {
 		return err
 	}
@@ -373,7 +379,7 @@ func (conf *Config) ImportWithTests(path string) error {
 	conf.Import(path)
 
 	// Load the external test package.
-	xtestFiles, err := parsePackageFiles(conf.build(), conf.fset(), path, 'x')
+	xtestFiles, err := conf.parsePackageFiles(path, 'x')
 	if err != nil {
 		return err
 	}
@@ -496,7 +502,7 @@ func (conf *Config) Load() (*Program, error) {
 			ii := imp.imported[path]
 
 			// Find and create the actual package.
-			files, err := parsePackageFiles(imp.conf.build(), imp.conf.fset(), path, 't')
+			files, err := imp.conf.parsePackageFiles(path, 't')
 			// Prefer the earlier error, if any.
 			if err != nil && ii.err == nil {
 				ii.err = err // e.g. parse error.
@@ -598,6 +604,43 @@ func (conf *Config) build() *build.Context {
 	return &build.Default
 }
 
+// parsePackageFiles enumerates the files belonging to package path,
+// then loads, parses and returns them.
+//
+// 'which' indicates which files to include:
+//    'g': include non-test *.go source files (GoFiles)
+//    't': include in-package *_test.go source files (TestGoFiles)
+//    'x': include external *_test.go source files. (XTestGoFiles)
+//
+func (conf *Config) parsePackageFiles(path string, which rune) ([]*ast.File, error) {
+	// Set the "!cgo" go/build tag, preferring (dummy) Go to
+	// native C implementations of net.cgoLookupHost et al.
+	ctxt := *conf.build() // copy
+	ctxt.CgoEnabled = false
+
+	// Import(srcDir="") disables local imports, e.g. import "./foo".
+	bp, err := ctxt.Import(path, "", 0)
+	if _, ok := err.(*build.NoGoError); ok {
+		return nil, nil // empty directory
+	}
+	if err != nil {
+		return nil, err // import failed
+	}
+
+	var filenames []string
+	switch which {
+	case 'g':
+		filenames = bp.GoFiles
+	case 't':
+		filenames = bp.TestGoFiles
+	case 'x':
+		filenames = bp.XTestGoFiles
+	default:
+		panic(which)
+	}
+	return parseFiles(conf.fset(), &ctxt, conf.DisplayPath, bp.Dir, filenames...)
+}
+
 // doImport imports the package denoted by path.
 // It implements the types.Importer signature.
 //
@@ -677,7 +720,7 @@ func (imp *importer) importFromBinary(path string) (*PackageInfo, error) {
 // located by go/build.
 //
 func (imp *importer) importFromSource(path string) (*PackageInfo, error) {
-	files, err := parsePackageFiles(imp.conf.build(), imp.conf.fset(), path, 'g')
+	files, err := imp.conf.parsePackageFiles(path, 'g')
 	if err != nil {
 		return nil, err
 	}
