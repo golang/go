@@ -35,7 +35,7 @@ TEXT syscall·naclWrite(SB), NOSPLIT, $12-16
 	MOVL SI, 4(SP)
 	MOVL DX, 8(SP)
 	CALL runtime·write(SB)
-	MOVL AX, ret+12(FP)
+	MOVL AX, ret+16(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
