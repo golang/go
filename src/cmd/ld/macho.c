@@ -574,6 +574,7 @@ machosymtab(void)
 {
 	int i;
 	LSym *symtab, *symstr, *s, *o;
+	char *p;
 
 	symtab = linklookup(ctxt, ".machosymtab", 0);
 	symstr = linklookup(ctxt, ".machosymstr", 0);
@@ -585,7 +586,21 @@ machosymtab(void)
 		// Only add _ to C symbols. Go symbols have dot in the name.
 		if(strstr(s->extname, ".") == nil)
 			adduint8(ctxt, symstr, '_');
-		addstring(symstr, s->extname);
+		// replace "·" as ".", because DTrace cannot handle it.
+		if(strstr(s->extname, "·") == nil) {
+			addstring(symstr, s->extname);
+		} else {
+			p = s->extname;
+			while (*p++ != '\0') {
+				if(*p == '\xc2' && *(p+1) == '\xb7') {
+					adduint8(ctxt, symstr, '.');
+					p++;
+				} else {
+					adduint8(ctxt, symstr, *p);
+				}
+			}
+			adduint8(ctxt, symstr, '\0');
+		}
 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
 			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
 			adduint8(ctxt, symtab, 0); // no section
