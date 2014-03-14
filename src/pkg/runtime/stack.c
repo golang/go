@@ -838,15 +838,7 @@ runtime·shrinkstack(G *gp)
 	// First, we trick malloc into thinking
 	// we allocated the stack as two separate half-size allocs.  Then the
 	// free() call does the rest of the work for us.
-	if(oldsize == PageSize) {
-		// convert span of 1 PageSize object to a span of 2
-		// PageSize/2 objects.
-		span->ref = 2;
-		span->sizeclass = runtime·SizeToClass(PageSize/2);
-		span->elemsize = PageSize/2;
-	} else {
-		// convert span of n>1 pages into two spans of n/2 pages each.
-		runtime·MHeap_SplitSpan(&runtime·mheap, span);
-	}
+	runtime·MSpan_EnsureSwept(span);
+	runtime·MHeap_SplitSpan(&runtime·mheap, span);
 	runtime·free(oldstk);
 }

@@ -846,48 +846,86 @@ void
 runtime·MHeap_SplitSpan(MHeap *h, MSpan *s)
 {
 	MSpan *t;
+	MCentral *c;
 	uintptr i;
 	uintptr npages;
 	PageID p;
 
-	if((s->npages & 1) != 0)
-		runtime·throw("MHeap_SplitSpan on an odd size span");
 	if(s->state != MSpanInUse)
 		runtime·throw("MHeap_SplitSpan on a free span");
 	if(s->sizeclass != 0 && s->ref != 1)
 		runtime·throw("MHeap_SplitSpan doesn't have an allocated object");
 	npages = s->npages;
 
-	runtime·lock(h);
+	// remove the span from whatever list it is in now
+	if(s->sizeclass > 0) {
+		// must be in h->central[x].empty
+		c = &h->central[s->sizeclass];
+		runtime·lock(c);
+		runtime·MSpanList_Remove(s);
+		runtime·unlock(c);
+		runtime·lock(h);
+	} else {
+		// must be in h->busy/busylarge
+		runtime·lock(h);
+		runtime·MSpanList_Remove(s);
+	}
+	// heap is locked now
 
-	// compute position in h->spans
-	p = s->start;
-	p -= (uintptr)h->arena_start >> PageShift;
+	if(npages == 1) {
+		// convert span of 1 PageSize object to a span of 2 PageSize/2 objects.
+		s->ref = 2;
+		s->sizeclass = runtime·SizeToClass(PageSize/2);
+		s->elemsize = PageSize/2;
+	} else {
+		// convert span of n>1 pages into two spans of n/2 pages each.
+		if((s->npages & 1) != 0)
+			runtime·throw("MHeap_SplitSpan on an odd size span");
 
-	// Allocate a new span for the first half.
-	t = runtime·FixAlloc_Alloc(&h->spanalloc);
-	runtime·MSpan_Init(t, s->start, npages/2);
-	t->limit = (byte*)((t->start + npages/2) << PageShift);
-	t->state = MSpanInUse;
-	t->elemsize = npages << (PageShift - 1);
-	t->sweepgen = s->sweepgen;
-	if(t->elemsize <= MaxSmallSize) {
-		t->sizeclass = runtime·SizeToClass(t->elemsize);
-		t->ref = 1;
+		// compute position in h->spans
+		p = s->start;
+		p -= (uintptr)h->arena_start >> PageShift;
+
+		// Allocate a new span for the first half.
+		t = runtime·FixAlloc_Alloc(&h->spanalloc);
+		runtime·MSpan_Init(t, s->start, npages/2);
+		t->limit = (byte*)((t->start + npages/2) << PageShift);
+		t->state = MSpanInUse;
+		t->elemsize = npages << (PageShift - 1);
+		t->sweepgen = s->sweepgen;
+		if(t->elemsize <= MaxSmallSize) {
+			t->sizeclass = runtime·SizeToClass(t->elemsize);
+			t->ref = 1;
+		}
+
+		// the old span holds the second half.
+		s->start += npages/2;
+		s->npages = npages/2;
+		s->elemsize = npages << (PageShift - 1);
+		if(s->elemsize <= MaxSmallSize) {
+			s->sizeclass = runtime·SizeToClass(s->elemsize);
+			s->ref = 1;
+		}
+
+		// update span lookup table
+		for(i = p; i < p + npages/2; i++)
+			h->spans[i] = t;
 	}
 
-	// the old span holds the second half.
-	s->start += npages/2;
-	s->npages = npages/2;
-	s->elemsize = npages << (PageShift - 1);
-	if(s->elemsize <= MaxSmallSize) {
-		s->sizeclass = runtime·SizeToClass(s->elemsize);
-		s->ref = 1;
+	// place the span into a new list
+	if(s->sizeclass > 0) {
+		runtime·unlock(h);
+		c = &h->central[s->sizeclass];
+		runtime·lock(c);
+		// swept spans are at the end of the list
+		runtime·MSpanList_InsertBack(&c->empty, s);
+		runtime·unlock(c);
+	} else {
+		// Swept spans are at the end of lists.
+		if(s->npages < nelem(h->free))
+			runtime·MSpanList_InsertBack(&h->busy[s->npages], s);
+		else
+			runtime·MSpanList_InsertBack(&h->busylarge, s);
+		runtime·unlock(h);
 	}
-
-	// update span lookup table
-	for(i = p; i < p + npages/2; i++)
-		h->spans[i] = t;
-
-	runtime·unlock(h);
 }
