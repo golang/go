@@ -125,7 +125,7 @@ func TestStdTest(t *testing.T) {
 func TestStdFixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
-		"bug459.go",    // likely incorrect test - see issue 6793 (pending spec clarification)
+		"bug459.go",    // likely incorrect test - see issue 6703 (pending spec clarification)
 		"issue3924.go", // likely incorrect test - see issue 6671 (pending spec clarification)
 	)
 }
