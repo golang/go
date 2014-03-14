@@ -1679,7 +1679,7 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 	// Caller must disable preemption.
 	// Otherwise when this function returns the span can become unswept again
 	// (if GC is triggered on another goroutine).
-	if(m->locks == 0 && m->mallocing == 0)
+	if(m->locks == 0 && m->mallocing == 0 && g != m->g0)
 		runtime·throw("MSpan_EnsureSwept: m is not locked");
 
 	sg = runtime·mheap.sweepgen;
