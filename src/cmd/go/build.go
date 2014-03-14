@@ -1625,10 +1625,10 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	appending := false
 	if _, err := os.Stat(absAfile); err == nil {
 		appending = true
-		cmd = "rqP"
+		cmd = "r"
 	}
 
-	cmdline := stringList("pack", cmd, b.work, absAfile, absOfiles)
+	cmdline := stringList("pack", cmd, absAfile, absOfiles)
 
 	if appending {
 		if buildN || buildX {
